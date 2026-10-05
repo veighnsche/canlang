@@ -745,13 +745,24 @@ impl<'a> Typer<'a> {
     }
 
     /// Walk a `do` block's statements in order, threading `require`
-    /// narrowing into later statements.
+    /// facts into later statements with write/call invalidation.
     fn walk_do_block(&mut self, cx: &Ctx<'_, '_>, node: &SyntaxNode) {
+        let stmts: Vec<&SyntaxNode> = kids(node)
+            .into_iter()
+            .filter(|stmt| stmt.kind != SyntaxKind::Name)
+            .collect();
+        self.walk_seq(cx, &stmts);
+    }
+
+    /// Walk one statement sequence in order (T03 §§4-5,8): each
+    /// statement checks against the incoming facts; a successful
+    /// `require` adds its true-facts for later statements, and every
+    /// statement drops the facts it invalidates. Facts established
+    /// here never leak to the caller (branches/joins/loops keep the
+    /// intersection discipline at their own level).
+    fn walk_seq(&mut self, cx: &Ctx<'_, '_>, stmts: &[&SyntaxNode]) {
         let mut env = cx.narrow.clone();
-        for stmt in kids(node) {
-            if stmt.kind == SyntaxKind::Name {
-                continue;
-            }
+        for stmt in stmts {
             {
                 let stmt_cx = Ctx {
                     module: cx.module,
@@ -777,7 +788,92 @@ impl<'a> Typer<'a> {
                 };
                 self.collect_narrow(&narrow_cx, cond, false, &mut env);
             }
+            self.invalidate_after(cx.text, stmt, &mut env);
         }
+    }
+
+    /// Drop the facts one statement invalidates (T03 §8): `set`
+    /// drops member-path facts under the target's root declaration
+    /// (the write may alias any path beneath it); `create`/`delete`
+    /// and mutation-capable `call`/`send`/effect statements drop all
+    /// member-path facts; `if`/`for` drop what any nested path drops.
+    /// Root facts (a binding is non-null) always persist: bindings
+    /// are immutable (T03 §7) — no statement nulls a name.
+    fn invalidate_after(&self, text: &str, stmt: &SyntaxNode, env: &mut NarrowEnv) {
+        let mut scan = ScanInvalid::default();
+        self.scan_invalid(text, stmt, &mut scan);
+        if scan.drop_all_paths {
+            env.retain(|key, _| key.path.is_empty());
+        }
+        if !scan.drop_roots.is_empty() {
+            env.retain(|key, _| key.path.is_empty() || !scan.drop_roots.contains(&key.decl));
+        }
+    }
+
+    /// Collect the invalidation causes of one statement subtree.
+    /// Statement-level `Call` nodes invoke operations (expression
+    /// calls are builtins/derived only, hence pure); `let`/`require`
+    /// initializers and conditions are pure expressions.
+    fn scan_invalid(&self, text: &str, stmt: &SyntaxNode, out: &mut ScanInvalid) {
+        match stmt.kind {
+            SyntaxKind::Set => {
+                if let Some(decl) = self.set_target_decl(text, stmt)
+                    && !out.drop_roots.contains(&decl)
+                {
+                    out.drop_roots.push(decl);
+                }
+            }
+            SyntaxKind::Create
+            | SyntaxKind::Delete
+            | SyntaxKind::Call
+            | SyntaxKind::Send
+            | SyntaxKind::Emit
+            | SyntaxKind::Schedule
+            | SyntaxKind::Cancel => {
+                out.drop_all_paths = true;
+            }
+            SyntaxKind::If | SyntaxKind::For | SyntaxKind::DoBlock => {
+                for child in kids(stmt) {
+                    if matches!(
+                        child.kind,
+                        SyntaxKind::Let
+                            | SyntaxKind::Create
+                            | SyntaxKind::Set
+                            | SyntaxKind::Delete
+                            | SyntaxKind::Call
+                            | SyntaxKind::Emit
+                            | SyntaxKind::Send
+                            | SyntaxKind::Schedule
+                            | SyntaxKind::Cancel
+                            | SyntaxKind::Return
+                            | SyntaxKind::Require
+                            | SyntaxKind::If
+                            | SyntaxKind::For
+                            | SyntaxKind::DoBlock
+                    ) {
+                        self.scan_invalid(text, child, out);
+                    }
+                }
+            }
+            _ => {}
+        }
+    }
+
+    /// Resolved declaration behind a `set` target's head name.
+    fn set_target_decl(&self, text: &str, stmt: &SyntaxNode) -> Option<DeclKey> {
+        let target = kids(stmt)
+            .iter()
+            .find(|n| n.kind == SyntaxKind::Path)
+            .copied()?;
+        let segments = path_segments(target, text);
+        let head = (*segments.first()?).to_string();
+        if head == "event" {
+            return Some(DeclKey::CtxEvent);
+        }
+        let scope = self.tables.expr_scope.get(&NodeKey::of(target)).copied()?;
+        self.tables
+            .resolve_name(scope, &head, self.catalog)
+            .map(|binding| decl_key_of_binding(&binding, &head))
     }
 
     /// Type one object entry value: the explicit expression, or the
@@ -798,6 +894,13 @@ impl<'a> Typer<'a> {
                     .node_binding
                     .get(&NodeKey::of(key_node))
                     .cloned();
+                // A shorthand reads its binding, so continuation facts
+                // on that declaration apply (T03 §6).
+                if let Some(binding) = binding.as_ref()
+                    && let Some(narrowed) = self.narrowed_binding(cx, binding)
+                {
+                    return (narrowed, tight_span(cx.text, key_node));
+                }
                 let ty =
                     binding.map_or(ResolvedType::Error, |b| self.type_binding(cx, key_node, &b));
                 (ty, tight_span(cx.text, key_node))
@@ -2325,7 +2428,11 @@ impl<'a> Typer<'a> {
         }
     }
 
-    /// `if cond ... else ...`: boolean condition, narrowed branches.
+    /// `if cond ... else ...`: boolean condition, narrowed branches
+    /// (T03 §4). Each branch threads its own sequence (its `require`
+    /// facts and invalidations stay inside); after the join only
+    /// facts valid on every path survive, which the caller's
+    /// sequence enforces by invalidating what any branch dropped.
     fn stmt_if(&mut self, cx: &Ctx<'_, '_>, node: &SyntaxNode) {
         let parts = kids(node);
         let mut else_at = None;
@@ -2344,6 +2451,8 @@ impl<'a> Typer<'a> {
         self.collect_narrow(cx, cond, false, &mut then_env);
         let mut else_env = cx.narrow.clone();
         self.collect_narrow(cx, cond, true, &mut else_env);
+        let mut then_stmts: Vec<&SyntaxNode> = Vec::new();
+        let mut else_stmts: Vec<&SyntaxNode> = Vec::new();
         for (i, part) in parts.iter().enumerate() {
             if part.kind == SyntaxKind::Name || std::ptr::eq(*part, cond) {
                 continue;
@@ -2351,26 +2460,33 @@ impl<'a> Typer<'a> {
             if matches!(part.kind, SyntaxKind::Punct) {
                 continue;
             }
-            let branch_cx = if else_at.is_some_and(|at| i > at) {
-                Ctx {
-                    module: cx.module,
-                    file: cx.file,
-                    text: cx.text,
-                    narrow: &else_env,
-                    strict: cx.strict,
-                    server_default: cx.server_default,
-                }
+            if else_at.is_some_and(|at| i > at) {
+                else_stmts.push(part);
             } else {
-                Ctx {
-                    module: cx.module,
-                    file: cx.file,
-                    text: cx.text,
-                    narrow: &then_env,
-                    strict: cx.strict,
-                    server_default: cx.server_default,
-                }
+                then_stmts.push(part);
+            }
+        }
+        {
+            let branch_cx = Ctx {
+                module: cx.module,
+                file: cx.file,
+                text: cx.text,
+                narrow: &then_env,
+                strict: cx.strict,
+                server_default: cx.server_default,
             };
-            self.walk_statement(&branch_cx, part);
+            self.walk_seq(&branch_cx, &then_stmts);
+        }
+        {
+            let branch_cx = Ctx {
+                module: cx.module,
+                file: cx.file,
+                text: cx.text,
+                narrow: &else_env,
+                strict: cx.strict,
+                server_default: cx.server_default,
+            };
+            self.walk_seq(&branch_cx, &else_stmts);
         }
     }
 
@@ -2452,9 +2568,25 @@ impl<'a> Typer<'a> {
                 ));
             }
         }
-        for part in parts.iter().skip(header_end + 1) {
-            self.walk_statement(cx, part);
+        // T03 §4: facts established inside the body never survive
+        // the loop (the body's sequence env stays inside), and facts
+        // from before survive only if no iteration path invalidates
+        // them — so the body starts from the outer facts minus what
+        // any iteration may drop (IC6).
+        let body: Vec<&SyntaxNode> = parts.iter().skip(header_end + 1).copied().collect();
+        let mut body_env = cx.narrow.clone();
+        for part in &body {
+            self.invalidate_after(cx.text, part, &mut body_env);
         }
+        let body_cx = Ctx {
+            module: cx.module,
+            file: cx.file,
+            text: cx.text,
+            narrow: &body_env,
+            strict: cx.strict,
+            server_default: cx.server_default,
+        };
+        self.walk_seq(&body_cx, &body);
     }
 
     // --- Phase 2: record/field lookup --------------------------------
@@ -2560,7 +2692,7 @@ impl<'a> Typer<'a> {
         {
             env.insert(
                 NarrowKey {
-                    root: "event".to_string(),
+                    decl: DeclKey::CtxEvent,
                     path: Vec::new(),
                 },
                 ResolvedType::Record {
@@ -2578,7 +2710,7 @@ impl<'a> Typer<'a> {
         {
             env.insert(
                 NarrowKey {
-                    root: "actor".to_string(),
+                    decl: DeclKey::CtxActor,
                     path: Vec::new(),
                 },
                 ResolvedType::Scalar(Scalar::User),
@@ -4055,7 +4187,7 @@ impl<'a> Typer<'a> {
                     {
                         narrowed.insert(
                             NarrowKey {
-                                root: "actor".to_string(),
+                                decl: DeclKey::CtxActor,
                                 path: Vec::new(),
                             },
                             ResolvedType::Scalar(Scalar::User),
@@ -5679,18 +5811,26 @@ impl<'a> Typer<'a> {
                             });
                     }
                     if let Some(model) = model {
-                        let mut env = cx.narrow.clone();
-                        env.insert(
-                            NarrowKey {
-                                root: "row".to_string(),
-                                path: Vec::new(),
-                            },
-                            ResolvedType::Record {
-                                symbol: model,
-                                stored: true,
-                            },
-                        );
-                        row_seed = Some(env);
+                        // Seed the enclosing collection's `row`
+                        // declaration (resolved from a direct `row`
+                        // reference outside nested collections), so
+                        // shadowing rows never collide.
+                        let decl = first_row_binding(node, cx.text, self.tables)
+                            .map(|binding| decl_key_of_binding(&binding, "row"));
+                        if let Some(decl) = decl {
+                            let mut env = cx.narrow.clone();
+                            env.insert(
+                                NarrowKey {
+                                    decl,
+                                    path: Vec::new(),
+                                },
+                                ResolvedType::Record {
+                                    symbol: model,
+                                    stored: true,
+                                },
+                            );
+                            row_seed = Some(env);
+                        }
                     }
                 }
             }
@@ -6886,15 +7026,96 @@ fn scalar_named(name: &str) -> Option<Scalar> {
     }
 }
 
-/// One narrowed path: a root name plus member hops from it.
+/// Identity of one narrowed root: the resolved declaration behind
+/// the name, never its spelling (T03 §6: two spellings resolving to
+/// the same declaration+path share facts; one spelling resolving to
+/// different declarations never shares).
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+enum DeclKey {
+    Symbol(SymbolId),
+    Let(NodeKey),
+    QueryAlias(NodeKey),
+    ForItem(NodeKey),
+    CreateAs(NodeKey),
+    CallAs(NodeKey),
+    SendAs(NodeKey),
+    RouteParam(NodeKey),
+    CtxActor,
+    CtxTeam,
+    CtxNow,
+    CtxOperation,
+    CtxEvent,
+    CtxRowModel(SymbolId),
+    CtxRowQuery(NodeKey),
+    CtxParent(SymbolId),
+    CtxPreferences(ModuleId),
+    CtxResult(Option<SymbolId>, Option<(SymbolId, CrudOp)>),
+    CtxTestAccount(u8),
+    /// Unresolvable or value-less roots (unbound names, builtins,
+    /// predicates, poisoned bindings): keyed by spelling only so they
+    /// never collide with a resolved declaration. Facts are only
+    /// inserted for resolvable roots, so this arm stays lookup-only.
+    Unresolved(String),
+}
+
+/// Declaration key of one lexical binding.
+fn decl_key_of_binding(binding: &Binding, spelling: &str) -> DeclKey {
+    match binding {
+        Binding::Symbol(id) => DeclKey::Symbol(*id),
+        Binding::Let { node } => DeclKey::Let(*node),
+        Binding::QueryAlias { node } => DeclKey::QueryAlias(*node),
+        Binding::ForItem { node } => DeclKey::ForItem(*node),
+        Binding::CreateAs { node } => DeclKey::CreateAs(*node),
+        Binding::CallAs { node } => DeclKey::CallAs(*node),
+        Binding::SendAs { node } => DeclKey::SendAs(*node),
+        Binding::RouteParam { node } => DeclKey::RouteParam(*node),
+        Binding::Context(ContextVar::Actor(_)) => DeclKey::CtxActor,
+        Binding::Context(ContextVar::Team) => DeclKey::CtxTeam,
+        Binding::Context(ContextVar::Now) => DeclKey::CtxNow,
+        Binding::Context(ContextVar::Operation) => DeclKey::CtxOperation,
+        Binding::Context(ContextVar::Event) => DeclKey::CtxEvent,
+        Binding::Context(ContextVar::RowModel(model)) => DeclKey::CtxRowModel(*model),
+        Binding::Context(ContextVar::RowQuery { node }) => DeclKey::CtxRowQuery(*node),
+        Binding::Context(ContextVar::Parent { model }) => DeclKey::CtxParent(*model),
+        Binding::Context(ContextVar::Preferences { module }) => DeclKey::CtxPreferences(*module),
+        Binding::Context(ContextVar::Result { scenario, crud_op }) => {
+            DeclKey::CtxResult(*scenario, *crud_op)
+        }
+        Binding::Context(ContextVar::TestAccount(account)) => {
+            let slot = match account {
+                super::resolve::TestAccount::Slf => 0,
+                super::resolve::TestAccount::Other => 1,
+                super::resolve::TestAccount::Outsider => 2,
+            };
+            DeclKey::CtxTestAccount(slot)
+        }
+        Binding::Builtin { .. }
+        | Binding::Predicate
+        | Binding::External { .. }
+        | Binding::Error => DeclKey::Unresolved(spelling.to_string()),
+    }
+}
+
+/// One narrowed path: a resolved declaration plus member hops from it.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 struct NarrowKey {
-    root: String,
+    decl: DeclKey,
     path: Vec<String>,
 }
 
 /// Narrowing environment: narrowed types by root path.
 type NarrowEnv = HashMap<NarrowKey, ResolvedType>;
+
+/// Invalidation causes collected from one statement subtree (T03 §8).
+#[derive(Debug, Default)]
+struct ScanInvalid {
+    /// A `create`/`delete`/`call`/`send`/effect statement may mutate
+    /// any record: drop every member-path fact.
+    drop_all_paths: bool,
+    /// `set` target roots: drop member-path facts under these
+    /// declarations (the write may alias any path beneath its root).
+    drop_roots: Vec<DeclKey>,
+}
 
 /// Expression context: position facts plus the active narrowing set.
 struct Ctx<'b, 'n> {
@@ -8606,13 +8827,20 @@ impl<'a> Typer<'a> {
         node: &SyntaxNode,
         expect: Option<&ResolvedType>,
     ) -> ResolvedType {
-        // Narrowed root name (safe-access/`is` continuation).
+        // Narrowed root (continuation fact on the resolved
+        // declaration, T03 §6).
         if let Some(name) = kids(node).iter().find_map(|n| name_text(n, cx.text)) {
-            let key = NarrowKey {
-                root: name.to_string(),
+            let key = NodeKey::of(node);
+            let decl = self
+                .tables
+                .node_binding
+                .get(&key)
+                .map(|binding| decl_key_of_binding(binding, name))
+                .unwrap_or_else(|| DeclKey::Unresolved(name.to_string()));
+            if let Some(narrowed) = cx.narrow.get(&NarrowKey {
+                decl,
                 path: Vec::new(),
-            };
-            if let Some(narrowed) = cx.narrow.get(&key) {
+            }) {
                 return narrowed.clone();
             }
         }
@@ -9353,12 +9581,44 @@ impl<'a> Typer<'a> {
         }
     }
 
-    /// Narrowed type of a member chain from the narrowing environment,
-    /// if its root path was narrowed.
-    fn narrowed_chain(&self, cx: &Ctx<'_, '_>, node: &SyntaxNode) -> Option<ResolvedType> {
-        let (root, mut path) = member_path(node, cx.text)?;
+    /// Narrowing key of a member chain: the resolved declaration
+    /// behind the root plus root-outward hops (`None` for non-name
+    /// roots only; unresolvable roots fall back to a spelling key
+    /// that matches the `NameRef` lookup).
+    fn narrow_key_for(&self, cx: &Ctx<'_, '_>, node: &SyntaxNode) -> Option<NarrowKey> {
+        let root_node = chain_root(node)?;
+        let name = kids(root_node).iter().find_map(|n| name_text(n, cx.text))?;
+        let decl = self
+            .tables
+            .node_binding
+            .get(&NodeKey::of(root_node))
+            .map(|binding| decl_key_of_binding(binding, name))
+            .unwrap_or_else(|| DeclKey::Unresolved(name.to_string()));
+        let (_, mut path) = member_path(node, cx.text)?;
         path.reverse();
-        cx.narrow.get(&NarrowKey { root, path }).cloned()
+        Some(NarrowKey { decl, path })
+    }
+
+    /// Narrowed type of a member chain from the narrowing environment,
+    /// if its resolved declaration+path was narrowed.
+    fn narrowed_chain(&self, cx: &Ctx<'_, '_>, node: &SyntaxNode) -> Option<ResolvedType> {
+        let key = self.narrow_key_for(cx, node)?;
+        cx.narrow.get(&key).cloned()
+    }
+
+    /// Narrowed type of one resolved binding (for shorthand reads),
+    /// if a continuation fact covers its declaration root.
+    fn narrowed_binding(&self, cx: &Ctx<'_, '_>, binding: &Binding) -> Option<ResolvedType> {
+        let decl = decl_key_of_binding(binding, "");
+        if matches!(decl, DeclKey::Unresolved(_)) {
+            return None;
+        }
+        cx.narrow
+            .get(&NarrowKey {
+                decl,
+                path: Vec::new(),
+            })
+            .cloned()
     }
 
     /// Type a `Path` in value position (`set`/`delete` targets,
@@ -9372,6 +9632,9 @@ impl<'a> Typer<'a> {
         let key = NodeKey::of(node);
         let scope = self.tables.expr_scope.get(&key).copied();
         let binding = scope.and_then(|s| self.tables.resolve_name(s, segments[0], self.catalog));
+        let head_decl = binding
+            .as_ref()
+            .map(|binding| decl_key_of_binding(binding, segments[0]));
         let mut current = match binding {
             Some(Binding::Symbol(id)) => {
                 // A bare model in a path target is its record, not its
@@ -9401,6 +9664,17 @@ impl<'a> Typer<'a> {
                 return ResolvedType::Error;
             }
         };
+        // A continuation fact on the head declaration (T03 §6) applies
+        // to path targets exactly as to expressions (C5 set-targets).
+        if let Some(decl) = head_decl.as_ref()
+            && let Some(narrowed) = cx.narrow.get(&NarrowKey {
+                decl: decl.clone(),
+                path: Vec::new(),
+            })
+        {
+            current = narrowed.clone();
+        }
+        let mut prefix: Vec<String> = Vec::new();
         for (i, segment) in segments.iter().enumerate().skip(1) {
             if let ResolvedType::Nullable(_) = &current {
                 if cx.strict {
@@ -9419,6 +9693,16 @@ impl<'a> Typer<'a> {
             match self.member_lookup_on_span(cx, node, span, segment, &current) {
                 Some(ty) => current = ty,
                 None => return ResolvedType::Error,
+            }
+            // Facts on intermediate prefixes apply step by step.
+            prefix.push((*segment).to_string());
+            if let Some(decl) = head_decl.as_ref()
+                && let Some(narrowed) = cx.narrow.get(&NarrowKey {
+                    decl: decl.clone(),
+                    path: prefix.clone(),
+                })
+            {
+                current = narrowed.clone();
             }
         }
         current
@@ -9463,6 +9747,92 @@ fn strip_nullable(ty: &ResolvedType) -> (ResolvedType, bool) {
     }
 }
 
+/// Unwrap `Group` parentheses to the inner expression.
+fn unwrap_groups(mut node: &SyntaxNode) -> &SyntaxNode {
+    loop {
+        if node.kind == SyntaxKind::Group
+            && let Some(inner) = kids(node).iter().find(|n| is_expression(n.kind))
+        {
+            node = inner;
+        } else {
+            return node;
+        }
+    }
+}
+
+/// Root `NameRef` node of a member chain (through groups). `None`
+/// for non-name roots.
+fn chain_root(node: &SyntaxNode) -> Option<&SyntaxNode> {
+    let mut current = node;
+    loop {
+        match current.kind {
+            SyntaxKind::Member => {
+                let parts = kids(current);
+                if parts.len() < 3 {
+                    return None;
+                }
+                current = parts[0];
+            }
+            SyntaxKind::Group => {
+                current = kids(current).iter().find(|n| is_expression(n.kind))?;
+            }
+            SyntaxKind::NameRef => return Some(current),
+            _ => return None,
+        }
+    }
+}
+
+/// Binding of the first `row` name reference under `node`,
+/// skipping nested `Collection` subtrees (their rows shadow the
+/// enclosing one). Used to seed timeline row declarations.
+fn first_row_binding(node: &SyntaxNode, text: &str, tables: &ResolveTables) -> Option<Binding> {
+    if node.kind == SyntaxKind::NameRef
+        && kids(node)
+            .iter()
+            .find_map(|n| name_text(n, text))
+            .is_some_and(|word| word == "row")
+    {
+        return tables.node_binding.get(&NodeKey::of(node)).cloned();
+    }
+    for child in &node.children {
+        if child.kind == SyntaxKind::Collection {
+            continue;
+        }
+        if let Some(binding) = first_row_binding(child, text, tables) {
+            return Some(binding);
+        }
+    }
+    None
+}
+
+/// Whether a member chain uses `?.` on any hop (such chains
+/// re-evaluate and never carry a T03 §2 fact).
+fn chain_has_safe(node: &SyntaxNode, text: &str) -> bool {
+    let mut current = node;
+    loop {
+        match current.kind {
+            SyntaxKind::Member => {
+                let parts = kids(current);
+                if parts.len() < 3 {
+                    return false;
+                }
+                if is_punct(parts[1], text, "?.") {
+                    return true;
+                }
+                current = parts[0];
+            }
+            SyntaxKind::Group => {
+                let parts = kids(current);
+                let Some(inner) = parts.iter().find(|n| is_expression(n.kind)) else {
+                    return false;
+                };
+                current = inner;
+            }
+            _ => return false,
+        }
+    }
+}
+
 /// Root name plus member hops of a member chain (leaf-first), through
 /// groups. `None` for non-name roots.
 fn member_path(node: &SyntaxNode, text: &str) -> Option<(String, Vec<String>)> {
@@ -9503,7 +9873,8 @@ impl<'a> Typer<'a> {
 
     /// Type a `Binary` node: the DESIGN §3 matrix (`E3002`), `in`
     /// membership, `is` tests (`E3018`), `??` (`E3004`), short-circuit
-    /// `and`/`or` (`E3007` operands, narrowing threads through `and`).
+    /// `and`/`or` (`E3007` operands; T03 §3 threading: `and`-right
+    /// receives left-true facts, `or`-right left-false facts).
     fn type_binary(&mut self, cx: &Ctx<'_, '_>, node: &SyntaxNode) -> ResolvedType {
         let parts = kids(node);
         if parts.len() != 3 {
@@ -9548,7 +9919,20 @@ impl<'a> Typer<'a> {
                     }
                     ResolvedType::Scalar(Scalar::Bool)
                 } else {
-                    let right = self.expr(cx, parts[2], None);
+                    // T03 §3: the right arm runs only when the left is
+                    // false, so it receives the left-false facts.
+                    let mut extended = cx.narrow.clone();
+                    let extra = self.extract_narrow(cx, parts[0], true);
+                    extended.extend(extra);
+                    let right_cx = Ctx {
+                        module: cx.module,
+                        file: cx.file,
+                        text: cx.text,
+                        narrow: &extended,
+                        strict: cx.strict,
+                        server_default: cx.server_default,
+                    };
+                    let right = self.expr(&right_cx, parts[2], None);
                     self.expect_bool(
                         cx,
                         tight_span(cx.text, parts[2]),
@@ -10311,13 +10695,10 @@ impl<'a> Typer<'a> {
         }
     }
 
-    /// Extract narrowings from a condition: `==` between a
-    /// safe-access chain and a proven-nonnull value narrows every
-    /// traversed nullable receiver plus the selected value; `is`
-    /// narrows its subject. `else_branch` selects the false-branch
-    /// environment (union-minus for `is`, nothing otherwise).
-    /// Everything else (`!=`, null comparisons, plain `==` without
-    /// `?.`) narrows nothing: keep explicit checks.
+    /// Extract narrowings from a condition (T03 §§2-4): null
+    /// true/false facts, short-circuit `and`/`or` composition, `not`
+    /// polarity, `is` narrowing and the retained `==` safe-access
+    /// rule. `else_branch` selects the false-continuation facts.
     fn extract_narrow(
         &mut self,
         cx: &Ctx<'_, '_>,
@@ -10329,7 +10710,10 @@ impl<'a> Typer<'a> {
         env
     }
 
-    /// Collect narrowings from `node` (`and` operands accumulate).
+    /// Collect narrowings from `node`. Short-circuit composition (T03
+    /// §3): `and`-true carries left-true + right-true, `or`-false
+    /// carries left-false + right-false; the other continuations carry
+    /// nothing. `not` swaps polarity.
     fn collect_narrow(
         &mut self,
         cx: &Ctx<'_, '_>,
@@ -10337,18 +10721,17 @@ impl<'a> Typer<'a> {
         else_branch: bool,
         env: &mut NarrowEnv,
     ) {
-        let mut current = node;
-        // Unwrap groups.
-        loop {
-            if current.kind == SyntaxKind::Group {
-                let parts = kids(current);
-                let Some(inner) = parts.iter().find(|n| is_expression(n.kind)) else {
-                    return;
-                };
-                current = *inner;
-            } else {
-                break;
+        let current = unwrap_groups(node);
+        if current.kind == SyntaxKind::Unary {
+            let is_not = kids(current).iter().any(|n| match n.kind {
+                SyntaxKind::Punct => n.token().is_some_and(|t| t.text(cx.text) == "not"),
+                SyntaxKind::Name => name_text(n, cx.text).is_some_and(|w| w == "not"),
+                _ => false,
+            });
+            if is_not && let Some(operand) = kids(current).iter().find(|n| is_expression(n.kind)) {
+                self.collect_narrow(cx, operand, !else_branch, env);
             }
+            return;
         }
         if current.kind != SyntaxKind::Binary {
             return;
@@ -10358,10 +10741,10 @@ impl<'a> Typer<'a> {
             return;
         }
         let op = op_text(current, cx.text).unwrap_or("");
-        if op == "and" && !else_branch {
+        if (op == "and" && !else_branch) || (op == "or" && else_branch) {
             // Left narrowings apply while collecting the right side.
             let mut extended = cx.narrow.clone();
-            self.collect_narrow(cx, parts[0], false, &mut extended);
+            self.collect_narrow(cx, parts[0], else_branch, &mut extended);
             // The right side reads the left-narrowed environment while
             // writing its own additions elsewhere.
             let snapshot = extended.clone();
@@ -10373,7 +10756,7 @@ impl<'a> Typer<'a> {
                 strict: cx.strict,
                 server_default: cx.server_default,
             };
-            self.collect_narrow(&right_cx, parts[2], false, &mut extended);
+            self.collect_narrow(&right_cx, parts[2], else_branch, &mut extended);
             env.extend(extended);
             return;
         }
@@ -10384,10 +10767,69 @@ impl<'a> Typer<'a> {
             self.narrow_is(cx, current, parts[0], parts[2], else_branch, env);
             return;
         }
-        if else_branch || op != "==" {
+        if op == "==" || op == "!=" {
+            self.narrow_null_eq(cx, parts[0], parts[2], op == "==", else_branch, env);
+            if !else_branch && op == "==" {
+                self.narrow_safe_eq(cx, current, parts[0], parts[2], env);
+            }
+        }
+    }
+
+    /// Narrow from a direct null test (T03 §2): `==`/`!=` with exactly
+    /// one side the `null` literal and the other a stable plain path
+    /// (no `?.`). `p == null` proves null on true / non-null on
+    /// false; `p != null` the reverse. Cross-nullable comparisons
+    /// and safe-access chains establish nothing.
+    fn narrow_null_eq(
+        &mut self,
+        cx: &Ctx<'_, '_>,
+        left_node: &SyntaxNode,
+        right_node: &SyntaxNode,
+        is_eq: bool,
+        else_branch: bool,
+        env: &mut NarrowEnv,
+    ) {
+        let left = unwrap_groups(left_node);
+        let right = unwrap_groups(right_node);
+        let left_null = left.kind == SyntaxKind::Literal && is_null_literal(left, cx.text);
+        let right_null = right.kind == SyntaxKind::Literal && is_null_literal(right, cx.text);
+        if left_null == right_null {
             return;
         }
-        self.narrow_safe_eq(cx, current, parts[0], parts[2], env);
+        let tested = if left_null { right } else { left };
+        if !matches!(
+            tested.kind,
+            SyntaxKind::NameRef | SyntaxKind::Member | SyntaxKind::Group
+        ) || chain_has_safe(tested, cx.text)
+        {
+            return;
+        }
+        let Some(key) = self.narrow_key_for(cx, tested) else {
+            return;
+        };
+        if matches!(key.decl, DeclKey::Unresolved(_)) {
+            return;
+        }
+        // True proves non-null for `!=` (null for `==`); the false
+        // continuation proves the reverse.
+        let nonnull = is_eq == else_branch;
+        let recorded = self
+            .types
+            .node_types
+            .get(&NodeKey::of(tested))
+            .cloned()
+            .unwrap_or(ResolvedType::Error);
+        if nonnull {
+            let ResolvedType::Nullable(inner) = recorded else {
+                return;
+            };
+            env.insert(key, (*inner).clone());
+        } else {
+            if !matches!(recorded, ResolvedType::Nullable(_) | ResolvedType::Null) {
+                return;
+            }
+            env.insert(key, ResolvedType::Null);
+        }
     }
 
     /// Narrow from `chain == proven-nonnull` (either side).
@@ -10423,9 +10865,15 @@ impl<'a> Typer<'a> {
     /// Narrow every traversed nullable receiver of a safe chain plus
     /// the selected value itself.
     fn narrow_chain_prefixes(&mut self, cx: &Ctx<'_, '_>, node: &SyntaxNode, env: &mut NarrowEnv) {
-        let Some((root, leaf_first)) = member_path(node, cx.text) else {
+        let Some((_, leaf_first)) = member_path(node, cx.text) else {
             return;
         };
+        let Some(root_key) = self.narrow_key_for(cx, node) else {
+            return;
+        };
+        if matches!(root_key.decl, DeclKey::Unresolved(_)) {
+            return;
+        }
         // Prefixes from the root outward (root, root.a, …, the full
         // selected value): every nullable one narrows to non-null.
         let hops: Vec<String> = leaf_first.into_iter().rev().collect();
@@ -10436,7 +10884,7 @@ impl<'a> Typer<'a> {
                 path.push(hops[step - 1].clone());
             }
             let key = NarrowKey {
-                root: root.clone(),
+                decl: root_key.decl.clone(),
                 path: path.clone(),
             };
             if env.contains_key(&key) {
@@ -10517,21 +10965,18 @@ impl<'a> Typer<'a> {
         else_branch: bool,
         env: &mut NarrowEnv,
     ) {
-        let (root, leaf_first) = match left_node.kind {
-            SyntaxKind::NameRef => {
-                let Some(name) = kids(left_node).iter().find_map(|n| name_text(n, cx.text)) else {
-                    return;
-                };
-                (name.to_string(), Vec::new())
+        let subject_key = match left_node.kind {
+            SyntaxKind::NameRef | SyntaxKind::Member | SyntaxKind::Group => {
+                self.narrow_key_for(cx, left_node)
             }
-            SyntaxKind::Member | SyntaxKind::Group => {
-                let Some((root, leaf_first)) = member_path(left_node, cx.text) else {
-                    return;
-                };
-                (root, leaf_first.into_iter().rev().collect())
-            }
-            _ => return,
+            _ => None,
         };
+        let Some(subject_key) = subject_key else {
+            return;
+        };
+        if matches!(subject_key.decl, DeclKey::Unresolved(_)) {
+            return;
+        }
         let subject = self
             .types
             .node_types
@@ -10597,8 +11042,8 @@ impl<'a> Typer<'a> {
         };
         env.insert(
             NarrowKey {
-                root,
-                path: leaf_first,
+                decl: subject_key.decl,
+                path: subject_key.path,
             },
             narrowed,
         );
@@ -10791,6 +11236,12 @@ impl<'a> Typer<'a> {
     ) -> ResolvedType {
         let name_key = NodeKey::of(name_node);
         if let Some(binding) = self.tables.node_binding.get(&name_key).cloned() {
+            // A shorthand reads its binding, so continuation facts
+            // on that declaration apply (T03 §6).
+            if let Some(narrowed) = self.narrowed_binding(cx, &binding) {
+                self.types.node_types.insert(name_key, narrowed.clone());
+                return narrowed;
+            }
             let ty = self.type_binding(cx, name_node, &binding);
             self.types.node_types.insert(name_key, ty.clone());
             return ty;
