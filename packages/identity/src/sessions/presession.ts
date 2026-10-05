@@ -12,8 +12,9 @@
  *
  * Lifecycle: `mintPreSessionToken` stores only the SHA-256 hash (opaque
  * bearer, same primitives as sessions); `consumePreSessionToken` verifies
- * then hard-deletes, so every token is good for exactly one POST whatever
- * the outcome — a failed login refetches the descriptor. Expired rows met
+ * then hard-deletes, so every token is good for exactly one
+ * credential-checked POST — a failed login refetches the descriptor.
+ * Expired rows met
  * during consume are deleted too; never-minted-presented rows linger until
  * expiry at most (bounded by the mint throttle + 10-minute TTL).
  */

@@ -4,7 +4,8 @@
  * Interim page contract (pending L5 screens): the GET routes return JSON
  * form descriptors `{form, fields, postTo, csrfField}` describing the form
  * the future page will render — they are NOT the pages, and they never
- * consume tokens or mutate state.
+ * consume tokens. Only the login GET mutates state (one throttled
+ * pre-session row per call); every other GET is side-effect-free.
  *
  * Method/path matrix: only the documented method+subpath pairs dispatch;
  * every other combination (unknown `/auth/*` subpath, wrong method) is
@@ -15,8 +16,9 @@
  * `_csrf` field. Login has no session yet, so it carries a single-use
  * anonymous pre-session token instead: `GET /auth/login` mints it into
  * the descriptor (`preSessionToken`), the POST presents it back as
- * `_presession`, and any login POST consumes it — a failed attempt
- * refetches the descriptor. Register/recover/verify stay tokenless and
+ * `_presession`, and every credential-checked login POST consumes it — a
+ * failed attempt refetches the descriptor (429s and malformed bodies
+ * return before the consume). Register/recover/verify stay tokenless and
  * rate-limited: those routes plant no session, so there is nothing for a
  * login-CSRF forgery to fixate (stricter mail policy for recovery).
  *
@@ -175,7 +177,7 @@ async function handleLoginDescriptor(deps: HttpDeps, request: Request): Promise<
   const limited = await withRateLimit(deps, LOGIN_DESCRIPTOR_THROTTLE, request);
   if (limited !== null) return limited;
   const { token } = await mintPreSessionToken(deps.identity.store, { clock: deps.identity.clock });
-  return jsonOk({ ...LOGIN_DESCRIPTOR(), preSessionToken: token });
+  return jsonOk({ ...LOGIN_DESCRIPTOR(), preSessionToken: token }, { 'cache-control': 'no-store' });
 }
 
 async function handleLogin(deps: HttpDeps, request: Request): Promise<Response> {
@@ -322,7 +324,8 @@ const SELECT_TEAM_DESCRIPTOR = (): AuthFormDescriptor =>
 
 /**
  * Dispatch one `/auth/*` request. GETs return interim form descriptors
- * (side-effect-free); POSTs run the identity flows above. Anything
+ * (the login GET mints a throttled pre-session token; the rest are
+ * side-effect-free); POSTs run the identity flows above. Anything
  * unmapped is `not_found` JSON.
  */
 export async function handleAuthRequest(deps: HttpDeps, request: Request): Promise<Response> {

@@ -157,7 +157,8 @@ export interface EmailToken {
  * Anonymous pre-session token backing the login-CSRF guard. Minted by
  * `GET /auth/login`, presented once by the login POST, then hard-deleted
  * (no `consumed_at`: deletion itself is the single-use enforcement, and it
- * keeps the table small). Only the hash is stored; the raw value travels
+ * keeps the table small; only credential-checked POSTs reach the consume).
+ * Only the hash is stored; the raw value travels
  * only inside the same-origin descriptor response, which a cross-site
  * forgery cannot read.
  */

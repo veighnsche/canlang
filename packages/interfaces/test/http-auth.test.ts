@@ -52,6 +52,7 @@ function cookieFor(sessionToken: string): string {
 async function loginToken(t: TestDeps): Promise<string> {
   const res = await handleAuthRequest(t.deps, get('/auth/login'));
   assert.equal(res.status, 200);
+  assert.equal(res.headers.get('cache-control'), 'no-store');
   const body = (await res.json()) as { preSessionToken?: unknown };
   assert.equal(typeof body.preSessionToken, 'string');
   assert.ok((body.preSessionToken as string).length > 0, 'expected a minted pre-session token');

@@ -7,6 +7,7 @@ import {
   consumePreSessionToken,
   mintPreSessionToken,
 } from '../src/sessions/presession.js';
+import { sha256HexText } from '../src/sessions/tokens.js';
 import { createFrozenClock, createMemoryIdentityStore } from '../src/testing.js';
 
 test('mint then consume succeeds exactly once', async () => {
@@ -35,12 +36,12 @@ test('expired tokens fail and are deleted', async () => {
   clock.advance(61_000);
   assert.equal(await consumePreSessionToken(store, token, { clock }), false);
   assert.equal(await consumePreSessionToken(store, token, { clock }), false);
+  assert.equal(await store.findPreSessionTokenByHash(await sha256HexText(token)), null);
 });
 
 test('only the hash is stored, never the raw token', async () => {
   const store = createMemoryIdentityStore();
   const { token } = await mintPreSessionToken(store);
-  const { sha256HexText } = await import('../src/sessions/tokens.js');
   const row = await store.findPreSessionTokenByHash(await sha256HexText(token));
   assert.ok(row !== null);
   assert.ok(!JSON.stringify(row).includes(token));

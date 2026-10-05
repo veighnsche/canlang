@@ -38,8 +38,8 @@ export const CSRF_FIELD = "_csrf";
  * Name of the pre-session token field in the login form. Rendered by lane
  * 05 from the `GET /auth/login` descriptor value, read by the lane 6
  * dispatcher before credentials are checked; never a business input and
- * never logged. Single-use: any login POST consumes the token, so a failed
- * attempt refetches the descriptor.
+ * never logged. Single-use: every credential-checked login POST consumes
+ * the token, so a failed attempt refetches the descriptor.
  */
 export const PRESESSION_FIELD = "_presession";
 
