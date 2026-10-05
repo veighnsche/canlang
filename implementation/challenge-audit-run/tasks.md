@@ -284,7 +284,7 @@ Exact task paths below are initial reservation candidates, not permission for mu
   - Owner / files / interfaces: L4 with L1/L3/L7; implementation/challenge-audit-run/evidence/fanout-decision.md, packages/contracts/src/work.ts; shared normative docs reserved. Serialize overlapping producer-owned writes.
   - Changes / traceability: RQ05/RQ08; canonical design/task: Accountable lead: L4 with L1/L3/L7. Prepare fair alternatives early. Final acceptance requires applicable T28 ownership and T24 dispatch evidence plus the design consultation protocol. Done when cohort/checkpoint/identity/concurrent-change/failure/supersession semantics are adopted or explicitly scoped with complete reasons.
   - Acceptance: Explicit adopt or scope with reasons for cohort/checkpoint/identity/concurrent change/failure/supersession and costs; three independent equivalent JEV formulations saved/investigated; required unsupported app remains blocked.
-  - Evidence: pending; record revision, commands/results, positive/negative/runtime level and released handoff.
+  - Evidence: PREP slice done (parent OPEN; JEV gate + adoption remain): writer 01a10ce5-68cb released evidence/fanout-decision.md (4 alternatives A-D, fairness record, 13 JEV-PENDING markers, zero adoption; JEV not run). Gate needs per checklist in file (T28-ownership/T24-dispatch dependencies).
 
 - [ ] **T34 — Implement and qualify adopted fanout**
   - Prerequisites: adopted T33, T24, applicable T28/T29/T32.
@@ -441,3 +441,5 @@ Pending new-task acknowledgment. Record actual native session/goal refs here onc
 - DISPATCH batch 11 (slots freed x2): L1 T05 writer (checker types/resolve/tests-b4_check + analysis.rs table values WITH attribution — table folded into slice per precedent) + L4 T33-prep writer (WRITE ONLY evidence/fanout-decision.md NEW; prep pattern, NO JEV calls). L1 T09-Rust still running. Queued: T10, T30, T14a, T13b.
 - DONE T09-Rust: writer 01a10cdf-098a-7242-bc5a-fe7b005c17e8 RELEASED effects/ir/js/codegen-tests (suite 185/0 green re-verified). Parent T09 OPEN — checker gap proven (see T09 evidence).
 - DISPATCH batch 12 (slot freed x1): L4 T13b writer (contracts services/work/files.ts + 3 catalogs restrained; catalog.rs EXCLUDED for later L1 consume; per-blocker B2-B8 decisions with rationale+opposing case required in report, scope-outs name blocked apps). L1 T05 and L4 T33-prep still running. Queued: T09-checker (after T05), T10, T30, T14a, T13b-consume.
+- DONE T33-prep: writer 01a10ce5-68cb-78a3-ab0f-b53bbee057bd RELEASED evidence/fanout-decision.md (new, only path; 4 alternatives, fairness, 13 JEV-PENDING, zero adoption). All four JEV-preps (T28/T31a/T32a/T33) now drafted. Parent T33 OPEN (see T33 evidence).
+- HOLD batch 13: 2/3 slots active (T05 + T13b); third slot deliberately idle — no disjoint ready task (checker chain T09-checker/T06/T10/T30/T14a all need T05 release; T13b-consume needs T13b; T04b/T15a+ need deeper producer facts). No busywork dispatch.
