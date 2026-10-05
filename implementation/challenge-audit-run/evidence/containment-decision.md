@@ -229,8 +229,11 @@ with a diagnostic pointing at the facet; bound parents rejected regardless.
    delete/archive must do to imported children (absence CONFIRMED: 20/20
    sites NO across 11 owning workflows + 3 owner packages; zero pinning
    examples, 4 documented near-misses).
-4. Owner-package stance for D: whether employee/customer/rent_catalog owners
-   would export a facet, and what bounds they would want.
+4. [QUALIFIED — see "Owner facet/export posture (gate evidence)" below]
+   Owner-package stance for D: export/consent machinery SURVEYED (no
+   facet mechanism exists; owner willingness is UNKNOWABLE from source
+   alone and must be carried by JEV as a design choice, not an
+   empirical finding).
 5. Storage-engine input: can cross-package subtree archive be atomic in the
    included-store case (A/D), and what fails if deployments split?
 6. Coordinator-run JEV protocol: three fresh equivalent independently worded
@@ -624,6 +627,199 @@ corpus is archive-style, never physical removal.
 
 - Writer: L3 T28-cascade-orphan slice. Appended this section and
   marked checklist item 3 complete above; no other text altered. No
+  JEV run; no Git; no other files touched.
+- Release: `implementation/challenge-audit-run/evidence/containment-decision.md`
+  is RELEASED to the coordinator for JEV-gate scheduling.
+
+## Owner facet/export posture (gate evidence)
+
+Status: **PREP evidence — adopts NOTHING.** QUALIFIES checklist item 4
+(see mark above): the export/consent machinery survey is complete, but
+owner willingness to export a facet is UNKNOWABLE from source alone —
+no owner has been asked and no draft marker answers for them. JEV must
+carry the stance as a design choice. Alternatives A–D, fairness
+record, and remaining checklist items 5–6 are unchanged; JEV still
+not run.
+
+Method: full reads of the three owner package sources
+(`draft/shared/Employees.can` 26 lines, `draft/shared/Locations.can`
+65 lines, `draft/CanCustomer.can` 324 lines); keyword sweeps for
+facet/consent/opt-in/contain machinery across owner files, the full
+`draft/` corpus, and DESIGN.md/GRAMMAR.md/DECISIONS.md (read-only);
+`export`/`policy`/`use` censuses for export kinds, policy-extension
+attempts, and cross-package grants. Read-only; no builds, no edits
+outside this file.
+
+Headline: **no facet/consent/opt-in machinery exists anywhere.** The
+word scan `facet|consent|opt-in|export contain` returns zero hits in
+all three owner files and zero hits in DESIGN.md/GRAMMAR.md/DECISIONS.md
+(the only corpus hits for D-facet language are this file's own
+Alternative D text). GRAMMAR.md:164 enumerates the exportable kinds —
+stored models, contracts, events, roles, derived functions,
+capabilities, judgments, fixtures, user scenarios, named messages —
+and a containment facet is not among them. Alternative D therefore
+requires a genuinely new declaration form, confirming (not reducing)
+its stated cost line. Policy-extension prohibition is confirmed at all
+three layers: grammar (export "unavailable on ... CRUD,
+policies/rules ..." — GRAMMAR.md:164), design ("cannot directly
+mutate it or extend its policy" — DESIGN.md:85), and corpus (zero
+`policy Employee|Customer|Location` lines outside the owner files;
+zero `export policy` lines anywhere).
+
+### Owner 1: employee (`draft/shared/Employees.can`, parents 6/20 sites)
+
+Exports used (all within DESIGN.md:83/GRAMMAR.md:164 kinds): role
+`hr` (:5); model `Employee` (:6); event `EmployeeChanged` (:7);
+derives `staff`, `can_work` (:8–9); fixture `test_worker` (:14);
+user scenario `deactivate` by=hr (:18). Never exported: policies
+(:10–12), invariant (:13), crud (:16), hook scenario `changed`
+(:22–25).
+
+Cross-package posture: generous exporter. Consumers import the model
+plus authority-adjacent symbols — e.g. Expense:7 and Onboard:7 import
+`{Employee,...,hr,deactivate}`; Leave:6, Time:6, Shift:9 import the
+model with `can_work`/fixtures. Consumers invoke owner authority
+only through the imported `deactivate` operation, never by direct
+mutation. Grants received: `use rent_catalog {Location,test_site}`
+(:3) — a type plus fixture import; no admission delegation.
+
+Bounds the owner COULD want (grounded in its own rules, not its
+wishes): HR-gated mutation with `delete=none` (:16 — no delete path
+exists, so any facet cascade choice has no owner-side anchor);
+tiered reads — full for `hr` (:10), field-limited for
+members+staff (:11, `private_notes`/`document` withheld), self-row
+for the subject (:12). A facet could plausibly bound which children
+may attach, the cascade-vs-status-flip behavior (deactivation is a
+status flip per :18–21, not archive/delete), and reverse-collection
+readability given the field-limited member grant. Which bounds, if
+any: **UNKNOWABLE** — no marker exists; do not infer willingness
+from export generosity.
+
+### Owner 2: customer (`draft/CanCustomer.can`, `package customer` at :8; parents 13/20 sites)
+
+Exports used: models `Customer`, `Contact`/`BillingProfile`/
+`CompanyRole`/`Invitation in Customer` (:17–21), `Alias` (:22);
+event `CompanyAccessChanged` (:23); derives `has_role`,
+`has_location_role`, `owns` (:25–27); fixtures `test_*` (:53–59);
+scenarios `duplicate_customers`, `duplicate_contacts`,
+`approve_account`, `claim`, `invite`, `accept`, `remove`, `recover`,
+`alias` (:82–172). Deliberately NOT exported (contrast with
+employee's exported `hr`): roles `customer_manager`,
+`customer_reader`, `billing_reader` (:14–16); derive
+`customer_staff` (:28); event `InvitationExpiry` (:24); fixtures
+`billing_profile`, `company_invitation`, `duplicate_company`,
+`reviewed_alias` (:60–63); access-hook scenarios (:186–225);
+policies/invariants/unique/lock/crud/messages/preferences.
+
+Cross-package posture: richest grant surface of the three, and the
+corpus's clearest owner-to-owner grant: `use invoice {finance}`
+(:11) imports the invoice package's exported role (declared at
+CanInvoice.can:74), which the owner then grants `read` on
+Customer/Contact/BillingProfile (:40–42) and `by=finance` admission
+to `approve_account` (:96). Outbound, consumers import models,
+derives used directly in consumer policies (`owns`/`has_role` at
+CanMember.can:169,183), events, and scenarios (`remove` imported as
+`remove_company_role` at CanMember.can:72; CRM:6 imports eight
+scenarios/operations). The owner already constrains its OWN
+locally-contained children — company-kind invariant (:48),
+contact-parent invariant (:47), `unique CompanyRole
+fields=account,role` (:50), Invitation `lock` (:51) — giving any
+facet-bounds syntax draft-shaped precedent, though exact facet
+expressiveness stays JEV-PENDING. `crud Customer` (:73) carries no
+`delete=` clause and `Customer.deleted` (:194–197) has zero observed
+child effects, so the cascade-vs-orphan bound is genuinely open.
+
+Willingness to export a facet and desired bounds: **UNKNOWABLE**.
+The non-exported roles show this owner withholds more than employee
+does — but that is about roles, not containment, and must not be
+over-read as facet reluctance. Stakes note: at 13/20 sites, a
+withholding customer owner strands most of D's consumers.
+
+### Owner 3: rent_catalog (`draft/shared/Locations.can`, parents 1/20 sites)
+
+Exports used: role `catalog_owner` (:5); `Location` (:6); local
+children `WeeklyHours`/`ClosedDate`/`DateHours`/`LocationPolicy in
+Location` (:7–9, :12); contracts `OpeningWeek`/`OpeningDate`
+(:10–11); derives `policy_open`, `is_open` (:15, :23); fixtures
+(:24–27). Never exported: derive `dated_open` (:22); policies
+(:13, :16–19); `lock LocationPolicy` (:14); invariants (:20–21);
+crud (:29–32); snapshot scenarios (:33–64).
+
+Cross-package posture: public-read owner (Location/children
+`read=public`, Location field-limited at :16–19) with `delete=none`
+on all four crud decls (:29–32). Second owner-to-owner grant
+pattern: `use employee {can_work}` (:3) delegates crud admission to
+another package's predicate via `when=can_work(actor,row[.parent])`
+(:29–32). Consumers import broadly (Reception:6
+`{Location,DateHours,is_open,test_site}`; Rent:71 the near-full set
+including `catalog_owner` and `LocationPolicy`). Lifecycle note: the
+owner runs snapshot automation over its OWN children on every
+Location/child create/update (:33–64); an imported child
+(`GuestPolicy`, site 15) would sit outside that machinery — a facet
+would need to say whether imported children participate, which is
+new semantics, JEV-PENDING.
+
+Willingness and bounds: **UNKNOWABLE**. Smallest blast radius (1
+site), but the only non-identity parent — discriminates whether a
+facet rule is identity-specific or general over plain imports.
+
+### How the findings constrain D vs A/B/C
+
+- D vs A: where facets exist, D's semantics ARE A's, so the full
+  site enumeration and per-site discrimination transfer to D
+  conditionally. D's only delta over A — the owner-consent
+  precondition plus facet-bounds check — is confirmed novel: zero
+  existing syntax, semantics, or markers to extend. D's "three owner
+  packages must be edited and versioned" cost stands unreduced.
+- D vs B: a facet could carry the cascade-vs-orphan choice per
+  owner, resolving B's orphan-rule question without B's
+  two-meanings-of-`in` split. But checklist item 3 proved zero draft
+  anchor for ANY choice (all three owners: `delete=none` or silent
+  crud), so the facet's lifecycle bound would be JEV-supplied, not
+  source-derived.
+- D vs C: without owner cooperation D's fallback IS C's 20-site
+  remodel — and partial consent (some owners consent, others do
+  not) yields a mixed A/C corpus, a complexity none of A/B/C has.
+  Non-response/stranding risk is real and unquantifiable from
+  source; JEV must weigh it.
+- Gate impact: item 4 cannot become COMPLETE without owner
+  testimony. The qualified record above is the most source honesty
+  allows; the JEV gate must either adopt D's consent rule as a pure
+  design choice or set D aside for lack of an ascertainable owner
+  stance.
+
+### Commands run (read-only)
+
+1. `ls draft/ draft/shared/` + `grep -rn "^package
+   (employee|customer|rent_catalog)" draft/` — owner sources:
+   shared/Employees.can, shared/Locations.can, CanCustomer.can:8
+   (`rent_catalog_ui` at CanRent.can:8 is a different package).
+2. Full `read_file` of all three owner sources (26/65/324 lines).
+3. `grep -rniE "facet|consent|opt.?in|contain "` over the three
+   owner files — exit 1, zero hits.
+4. `grep -rniE "facet|opt.?in|export contain" draft/
+   implementation/ DESIGN.md DECISIONS.md` — only this file's own
+   Alternative D text (plus unrelated prose hits).
+5. `grep -n "export"` + non-export decl census on CanCustomer.can
+   (roles :14–16, `customer_staff` :28, `InvitationExpiry` :24,
+   fixtures :60–63, access scenarios :186–225 all unexported).
+6. `grep -rnE "policy (Employee|Customer|Location)[ .]" draft/`
+   minus owner files — exit 1, zero foreign-policy attempts;
+   `grep -rn "export policy" draft/` — exit 1, zero hits.
+7. `grep -rnE "use (employee|customer|rent_catalog) {" draft/` —
+   consumer import census (incl. Member:72, Rent:71–73, CRM:6,
+   Expense:7, Onboard:7, Reception:6–7 role/scenario/derive
+   imports).
+8. `grep -rn "role finance" draft/` + `grep -n "^package|^app"
+   CanInvoice.can` + `grep -rn "use invoice" draft/` — finance
+   role exported at CanInvoice.can:74 (`package invoice` :8),
+   plain-imported by customer (:11) and CanRent.can:74.
+9. DESIGN.md:83–91 + GRAMMAR.md:164 read-only extraction of export
+   kinds, no-policy-extension rule, and import-grants-visibility
+   semantics.
+
+- Writer: L3 T28-facet-stance slice. Appended this section and
+  marked checklist item 4 qualified above; no other text altered. No
   JEV run; no Git; no other files touched.
 - Release: `implementation/challenge-audit-run/evidence/containment-decision.md`
   is RELEASED to the coordinator for JEV-gate scheduling.
