@@ -9,7 +9,7 @@ _can_complete() {
     prev="${COMP_WORDS[COMP_CWORD-1]}"
     cmd="${COMP_WORDS[1]}"
 
-    local commands="activate build check compile completions deploy explain fmt help lint lsp policy run test"
+    local commands="activate build check compile completions deploy docs explain fmt help lint lsp policy run test"
 
     # First operand: the subcommand.
     if (( COMP_CWORD == 1 )); then
@@ -22,8 +22,13 @@ _can_complete() {
             COMPREPLY=($(compgen -W "json text" -- "$cur"))
             return 0
             ;;
-        --catalog)
+        --catalog|--out)
             COMPREPLY=($(compgen -f -- "$cur"))
+            return 0
+            ;;
+        --locale)
+            # Free-form BCP 47 tag: nothing to complete.
+            COMPREPLY=()
             return 0
             ;;
     esac
@@ -40,6 +45,9 @@ _can_complete() {
             ;;
         fmt)
             COMPREPLY=($(compgen -W "--check --help -" -f -- "$cur"))
+            ;;
+        docs)
+            COMPREPLY=($(compgen -W "--locale --out --format --format=json --format=text --catalog --help" -f -- "$cur"))
             ;;
         explain)
             COMPREPLY=($(compgen -W "--format --format=json --format=text --help" -- "$cur"))
