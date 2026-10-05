@@ -143,3 +143,8 @@ Agent rules (all): one owned worktree, disjoint exact files above, no git/stage/
 - B1 follow-up #2 is lane-6-owned (PresentationContext constructor in packages/interfaces; F2 design + CSRF call filed for Vince). Lane-07 owns the e2e min_version divergence + e2e member check.
 
 Lane scope complete. Remaining risks are cross-lane routing (F2 → lane 6, e2e notes → lane 7) and the B2 sprint (scoped in /tmp/b2-scope.md: ExpenseFlow authority/evidence/durable work; PR #122 unblocked most of it).
+
+## B4 corpus mapping + compiler-gap closeout (2026-10-05, branch muse/closeout/b4)
+- Mapped 49 drafts (~7,200 diags): ~55% proposal fallout, ~35% draft defects, ~5% compiler gaps; 28% of single-file volume is sibling-resolution artifact (workspace recheck). All 8 design witnesses orphaned (zero consumers). Evidence: implementation/evidence/b4-{draft-defects,proposals,f1,f2,f3,f4}.md.
+- Fixed 6 gap packets, failing-first (compiler/tests/b4_*.rs, 41 new tests): F1 each= no longer drops packages from module index (E1203 kept; CanShift/Volunteer bodies now checked); F2 judgment registration + failed-handler event fallback; F3 event-payload typing, auth-narrowing parity, empty-array unification, format-descriptor typing, derived-field fixtures, selector delivery leaves, timeline row binding, new E3019 opaque-receipt diagnostic; F4 examples-header enum elision (BDD lowering already total); F6 set-target parent parity in types pass.
+- Outcome table 7474 -> 6963 (-511); all adds proven true-positives. TeamTasks honest-gap pin holds (exit 10, 3xE6008, 0 other). 19/19 cargo targets green, fmt + strict clippy clean.

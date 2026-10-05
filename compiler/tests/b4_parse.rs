@@ -1,0 +1,281 @@
+//! B4-F1 parser regression tests.
+//!
+//! * `each=` fan-out on trusted scenarios keeps its `E1203` proposal
+//!   marker but must still parse, so the enclosing package stays in the
+//!   module index and its body is checked (CanShift/CanVolunteer
+//!   each-poisoning).
+//! * `delivery(...)`/`invocation(...)` type positions, `expose=` on crud,
+//!   page `refresh=` and form `import=csv`/`review=` must parse (B4
+//!   coverage NONE rows, already implemented in the Rust parser).
+
+use canlang_compiler::analysis::{resolve, types};
+use canlang_compiler::diagnostic::Diagnostic;
+use canlang_compiler::source::{SourceDb, SourceId};
+use canlang_compiler::syntax::{self, SyntaxKind, SyntaxNode};
+
+fn file() -> SourceId {
+    SourceId(0)
+}
+
+fn codes(diags: &[Diagnostic]) -> Vec<&str> {
+    diags.iter().map(|d| d.code).collect()
+}
+
+fn has_code(diags: &[Diagnostic], code: &str) -> bool {
+    diags.iter().any(|d| d.code == code)
+}
+
+fn count_kind(node: &SyntaxNode, kind: SyntaxKind) -> usize {
+    node.descendants().filter(|n| n.kind == kind).count()
+}
+
+/// Byte span of the 1-based `occurrence`-th appearance of `needle`.
+fn span_of(src: &str, needle: &str, occurrence: usize) -> (u32, u32) {
+    assert!(occurrence >= 1, "occurrences are 1-based");
+    let mut idx = 0;
+    let mut found = 0;
+    while found < occurrence {
+        match src[idx..].find(needle) {
+            Some(at) => {
+                idx += at;
+                found += 1;
+                if found < occurrence {
+                    idx += needle.len();
+                }
+            }
+            None => panic!("needle {needle:?} occurrence {occurrence} missing"),
+        }
+    }
+    (idx as u32, (idx + needle.len()) as u32)
+}
+
+/// Catalog-free check pipeline: parse + resolve + types.
+fn check_all(src: &str) -> Vec<Diagnostic> {
+    let mut db = SourceDb::new();
+    let id = db.add("test.can".to_string(), src.to_string());
+    let (tree, mut diags) = syntax::parse(&db, id);
+    let trees = vec![(id, tree)];
+    let resolve_tables = resolve::resolve_program(&db, &trees, None, &mut diags);
+    let type_table = types::check_types(&db, &trees, None, &resolve_tables, &mut diags);
+    resolve::emit_unresolved(&db, &resolve_tables, &type_table, &mut diags);
+    diags
+}
+
+const EACH_SRC: &str = "app Probe uses=[probe]
+
+package probe
+ Given
+  Member { name:text }
+  event Ticked { n:int }
+ When
+  scenario fanout on=Ticked each=Member as member
+   require no_such_guard
+   do emit Ticked {n=1}
+ Then
+  page /members title=\"Members\"
+   list Members columns=name
+";
+
+/// `each=` keeps exactly one `E1203` on the `each` word (proposal
+/// marker stays) while the scenario still parses: no `Error` node.
+#[test]
+fn each_keeps_e1203_without_error_node() {
+    let (tree, diags) = syntax::parse_source(file(), EACH_SRC);
+    assert_eq!(codes(&diags), vec!["E1203"], "diags: {diags:?}");
+    assert_eq!(diags[0].message, "unsupported scenario attribute `each`");
+    let (start, _) = span_of(EACH_SRC, "each=Member", 1);
+    assert_eq!(diags[0].primary.start, start);
+    assert_eq!(diags[0].primary.end, start + "each".len() as u32);
+    assert_eq!(count_kind(&tree, SyntaxKind::Error), 0);
+    assert_eq!(count_kind(&tree, SyntaxKind::Scenario), 1);
+    assert!(tree.verify_coverage(EACH_SRC.len() as u32).is_ok());
+}
+
+/// The package enclosing an `each=` scenario stays indexed (no E2005
+/// self-drop) and its body is checked (the guard's unknown name
+/// surfaces as E2001).
+#[test]
+fn each_package_body_still_checked() {
+    let diags = check_all(EACH_SRC);
+    assert!(
+        !diags
+            .iter()
+            .any(|d| d.code == "E2005" && d.message.contains("selects unknown member 'probe'")),
+        "package must stay indexed, got {diags:?}"
+    );
+    assert!(
+        diags
+            .iter()
+            .any(|d| d.code == "E2001" && d.message.contains("no_such_guard")),
+        "body must be checked, got {diags:?}"
+    );
+    assert!(has_code(&diags, "E1203"), "E1203 stays, got {diags:?}");
+}
+
+/// Dotted `event`-rooted `each=` source (CanVolunteer:178 shape) parses
+/// the same way: one `E1203`, no `Error` node.
+#[test]
+fn each_event_path_parses() {
+    let src = "app Probe uses=[probe]
+
+package probe
+ Given
+  Member { name:text }
+  event Cancelled { n:int }
+ When
+  scenario cancel_signup on=Cancelled each=event.opportunity.Member as member
+   do emit Cancelled {n=1}
+ Then
+  page /members title=\"Members\"
+   list Members columns=name
+";
+    let (tree, diags) = syntax::parse_source(file(), src);
+    assert_eq!(codes(&diags), vec!["E1203"], "diags: {diags:?}");
+    assert_eq!(count_kind(&tree, SyntaxKind::Error), 0);
+    assert!(tree.verify_coverage(src.len() as u32).is_ok());
+    let full = check_all(src);
+    assert!(
+        !full
+            .iter()
+            .any(|d| d.code == "E2005" && d.message.contains("selects unknown member")),
+        "package must stay indexed, got {full:?}"
+    );
+}
+
+/// `delivery(...)`/`invocation(...)` parse in every type position:
+/// model fields, contract fields, scenario params and results.
+#[test]
+fn delivery_invocation_type_positions_parse() {
+    let src = "app Probe uses=[probe]
+
+package probe
+ Given
+  Job { title:text }
+  Box { job:delivery(Mail.send)?, call:invocation(Task.update,complete)? }
+  export contract Bag { item:delivery(Mail.send), run:invocation(Task.update)? }
+ When
+  scenario ping(job:delivery(Mail.send)) by=organizer -> delivery(Mail.send)
+   do return job
+ Then
+  page /jobs title=\"Jobs\"
+   list Jobs columns=title
+";
+    let (tree, diags) = syntax::parse_source(file(), src);
+    assert!(diags.is_empty(), "expected clean parse, got {diags:?}");
+    assert!(count_kind(&tree, SyntaxKind::DeliveryType) >= 4);
+    assert!(count_kind(&tree, SyntaxKind::InvocationType) >= 2);
+    assert!(tree.verify_coverage(src.len() as u32).is_ok());
+    let full = check_all(src);
+    assert!(
+        full.iter().all(|d| !d.code.starts_with("E1")),
+        "no syntax errors, got {full:?}"
+    );
+}
+
+/// `expose=` on crud parses; a valid operation passes, an unknown one
+/// fails semantically (E3009) rather than syntactically.
+///
+/// NOTE (out of B4-F1 parser scope): multi-value `expose=create,update`
+/// parses fine but the types validator reports E3009 on the comma
+/// separator (`check_expose` in analysis/types.rs has no `_ => continue`
+/// arm for separator leaves, unlike `check_selectors`). Single-value
+/// `expose=` is pinned here; the multi-value validator bug belongs to
+/// the types lane.
+#[test]
+fn crud_expose_parses() {
+    let head = "app Probe uses=[probe]
+
+package probe
+ Given
+  Job { title:text }
+ When
+";
+    let tail = "  scenario ping(x:text) by=organizer
+   do emit Pong {x=1}
+ Then
+  page /jobs title=\"Jobs\"
+   list Jobs columns=title
+";
+    let src = format!("{head}  crud Job by=organizer fields=title expose=create\n{tail}");
+    let (tree, diags) = syntax::parse_source(file(), &src);
+    assert!(diags.is_empty(), "expected clean parse, got {diags:?}");
+    assert!(tree.verify_coverage(src.len() as u32).is_ok());
+    let full = check_all(&src);
+    assert!(
+        full.iter().all(|d| !d.code.starts_with("E1")),
+        "no syntax errors, got {full:?}"
+    );
+    assert!(!has_code(&full, "E3009"), "valid expose, got {full:?}");
+
+    let bad = format!("{head}  crud Job by=organizer fields=title expose=bogus\n{tail}");
+    let (_, bad_diags) = syntax::parse_source(file(), &bad);
+    assert!(
+        bad_diags.is_empty(),
+        "expose value parses, got {bad_diags:?}"
+    );
+    let bad_full = check_all(&bad);
+    assert!(
+        has_code(&bad_full, "E3009"),
+        "unknown operation is E3009, got {bad_full:?}"
+    );
+}
+
+/// Page `refresh=` parses and resolves as a path.
+#[test]
+fn page_refresh_parses() {
+    let src = "app Probe uses=[probe]
+
+package probe
+ Given
+  Job { title:text }
+ When
+  scenario ping(x:text) by=organizer
+   do emit Pong {x=1}
+ Then
+  page /jobs title=\"Jobs\" refresh=jobs_tick poll=5s
+   list Jobs columns=title
+";
+    let (tree, diags) = syntax::parse_source(file(), src);
+    assert!(diags.is_empty(), "expected clean parse, got {diags:?}");
+    assert!(tree.verify_coverage(src.len() as u32).is_ok());
+    let full = check_all(src);
+    assert!(
+        full.iter().all(|d| !d.code.starts_with("E1")),
+        "no syntax errors, got {full:?}"
+    );
+    assert!(
+        full.iter()
+            .any(|d| d.code == "E2001" && d.message.contains("jobs_tick")),
+        "refresh target resolves, got {full:?}"
+    );
+}
+
+/// Form `import=csv`/`review=` parse; `review=` resolves as a path.
+#[test]
+fn form_import_review_parse() {
+    let src = "app Probe uses=[probe]
+
+package probe
+ Given
+  Job { title:text }
+ When
+  scenario ping(x:text) by=organizer
+   do emit Pong {x=1}
+ Then
+  page /new title=\"New\"
+   form Job.create import=csv review=dup_check fields=title
+";
+    let (tree, diags) = syntax::parse_source(file(), src);
+    assert!(diags.is_empty(), "expected clean parse, got {diags:?}");
+    assert!(tree.verify_coverage(src.len() as u32).is_ok());
+    let full = check_all(src);
+    assert!(
+        full.iter().all(|d| !d.code.starts_with("E1")),
+        "no syntax errors, got {full:?}"
+    );
+    assert!(
+        full.iter()
+            .any(|d| d.code == "E2001" && d.message.contains("dup_check")),
+        "review target resolves, got {full:?}"
+    );
+}

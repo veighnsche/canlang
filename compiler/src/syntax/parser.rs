@@ -4171,7 +4171,10 @@ impl<'a> Parser<'a> {
         if has_params {
             self.parse_params(cursor, &mut inner)?;
         }
-        let allowed = ["by", "on", "read", "scope", "label"];
+        // `each` is listed so `by=`/`on=` value expressions stop before
+        // `each=`; it is intercepted below (proposal marker, not a hard
+        // failure) rather than parsed by the generic attribute path.
+        let allowed = ["by", "on", "each", "read", "scope", "label"];
         let mut seen: Vec<String> = Vec::new();
         let mut has_result = false;
         let mut label_span: Option<Span> = None;
@@ -4193,6 +4196,10 @@ impl<'a> Parser<'a> {
             }
             let key = cursor.expect_name()?;
             let word = key.text(cursor.text).to_string();
+            if word == "each" {
+                self.parse_each_attribute(cursor, &mut inner, &mut seen, &key)?;
+                continue;
+            }
             if !allowed.contains(&word.as_str()) {
                 return Err(Fail::new(
                     "E1203",
@@ -4331,6 +4338,58 @@ impl<'a> Parser<'a> {
         self.parse_execution(&mut inner, children, false, handler, head.span);
         let node = SyntaxNode::enclosing(SyntaxKind::Scenario, inner);
         self.builder.push_inner(kids, node);
+        Ok(())
+    }
+
+    /// Parse `each=<path> [as <name>]` on a scenario header.
+    ///
+    /// Fan-out has no normative production (GRAMMAR trusted-scenario row
+    /// lists only `on=`), so the `E1203` proposal marker stays — but it
+    /// is reported without failing the scenario. A hard failure here
+    /// would wrap the line in [`SyntaxKind::Error`](crate::syntax::cst::SyntaxKind::Error)
+    /// and knock the enclosing package out of the module index, leaving
+    /// the whole package body unchecked; recovering keeps the package
+    /// indexed while the diagnostic still flags the proposal. The
+    /// `Attribute` keeps the standard three-child shape and the `as`
+    /// binding sits beside it, mirroring `send`/`create` aliases, so
+    /// downstream keyed attribute readers simply ignore it.
+    fn parse_each_attribute(
+        &mut self,
+        cursor: &mut Cursor<'a>,
+        inner: &mut Vec<SyntaxNode>,
+        seen: &mut Vec<String>,
+        key: &Token,
+    ) -> Result<(), Fail> {
+        if seen.contains(&"each".to_string()) {
+            return Err(Fail::new(
+                "E1202",
+                "duplicate scenario attribute `each`".to_string(),
+                key.span,
+            ));
+        }
+        seen.push("each".to_string());
+        let mut attr = Vec::new();
+        self.builder.leaf(&mut attr, key);
+        let eq = cursor.expect_p(Punct::Eq)?;
+        self.builder.leaf(&mut attr, &eq);
+        let (path, _) = self.parse_path_node(cursor)?;
+        self.builder.push_inner(&mut attr, path);
+        let attr = SyntaxNode::enclosing(SyntaxKind::Attribute, attr);
+        self.builder.push_inner(inner, attr);
+        if cursor.at_name("as") {
+            let as_word = cursor.next().expect("peeked as");
+            self.builder.leaf(inner, &as_word);
+            let binding = cursor.expect_name()?;
+            self.builder.leaf(inner, &binding);
+        }
+        self.diags.push(
+            Fail::new(
+                "E1203",
+                "unsupported scenario attribute `each`".to_string(),
+                key.span,
+            )
+            .diag(),
+        );
         Ok(())
     }
 

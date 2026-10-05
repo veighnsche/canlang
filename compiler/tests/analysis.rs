@@ -522,7 +522,7 @@ fn explain_round_trip_source_codes() {
         .collect();
     assert_eq!(
         entries.len(),
-        15 + 18 + 13 + 9 + 2,
+        15 + 19 + 13 + 9 + 2,
         "E2/E3/E4/E5/E6001/E6002 entry count"
     );
     let mut seen = BTreeSet::new();
@@ -672,14 +672,29 @@ fn draft_outcome_table() {
         return;
     };
     let catalog = load_real_catalog(&path);
-    // (file, expected diagnostic count). Counts regenerated 2026-10-04
+    // (file, expected diagnostic count). Counts regenerated 2026-10-05
+    // for B4 closeout (6 compiler-gap packets F1-F6). Table total moved
+    // 7474 -> 6963 (-511). Adds are proven true-positives: the `each=`
+    // fix keeps E1203 but stops dropping the package from the module
+    // index, so CanShift 4 -> 257 and CanVolunteer 3 -> 85 now show
+    // genuine analysis diagnostics across previously-unchecked bodies
+    // (code mix audited: E2001/E3001/E3003/E2013, no parser storm);
+    // new E3019 (opaque capability receipts) adds findings where sends
+    // were silently unchecked (CanField 116 -> 124 = +9 E3019, -1 fix).
+    // All other moves are decreases from gap fixes (judgment
+    // registration, event-payload typing, auth narrowing, empty-array
+    // unification, selector delivery leaves, examples-header elision,
+    // format-descriptor typing, set-target parent parity, timeline row
+    // binding), each with failing-first regression tests in
+    // compiler/tests/b4_*.rs. Pre-B4 regen 2026-10-04
     // for PR6 (slice-23 example drift + 2 checker fixes), attribution
     // proven per file against a PR5-merged binary on the same drafts:
     // E2 -778 (781 catalog-header E2001s silenced by the M6 extension,
     // 3 E2013 row-member finds on CanCheck from typed rows); E3 -3 net
     // (+2 CanDesk member/type finds, -5 cascades incl. 2 E3001
     // follow-ons sampled on CanRent); E1/E4/E5 unchanged (E4 still 0,
-    // E5 26 after draft-side moves). CanShift 4 / CanVolunteer 3 hold.
+    // E5 26 after draft-side moves). (Pre-B4: CanShift 4 /
+    // CanVolunteer 3 held while `each=` dropped the packages.)
     // Checker-attributed movement is -781; the table total moved 8196
     // -> 7474 (-722), so draft-side slices 16-23 replans between the
     // two regens contribute +59 net drift (real, confirmed movement).
@@ -699,7 +714,8 @@ fn draft_outcome_table() {
     // CanLeave 6, CanPropose 2, CanPurchase 5, CanRefer 1, CanReport 2,
     // CanTable 2). This table pins the error-skip behavior, not E4
     // precision/recall (that evidence rests on the unit tests and the
-    // explain round-trip). CanShift 4 / CanVolunteer 3 hold.
+    // explain round-trip). (Pre-B4: CanShift 4 /
+    // CanVolunteer 3 held while `each=` dropped the packages.)
     // Previous regen (PR5): PR5 = PR4 - dedup + E5, attribution against
     // a PR4 binary; all other E1/E2/E3 moves were draft-side replans on
     // main (50 files, slices #102-#110). Previous regen (PR4 review
@@ -710,57 +726,57 @@ fn draft_outcome_table() {
     // other adds) plus the PR5B carryover (CanCreative -1:
     // `application/json` fixture type now accepted per DESIGN §5).
     let table: &[(&str, usize)] = &[
-        ("draft/CanAffiliate.can", 105),
-        ("draft/CanApprove.can", 93),
-        ("draft/CanBoard.can", 7),
-        ("draft/CanBook.can", 222),
-        ("draft/CanCRM.can", 158),
-        ("draft/CanCatch.can", 104),
-        ("draft/CanChat.can", 134),
-        ("draft/CanCheck.can", 103),
-        ("draft/CanContract.can", 72),
-        ("draft/CanCreative.can", 195),
-        ("draft/CanCustomer.can", 95),
-        ("draft/CanDecide.can", 60),
-        ("draft/CanDesk.can", 140),
-        ("draft/CanDiscover.can", 158),
-        ("draft/CanDo.can", 56),
-        ("draft/CanEnrich.can", 46),
-        ("draft/CanEvent.can", 465),
-        ("draft/CanExpense.can", 107),
-        ("draft/CanFeedback.can", 26),
-        ("draft/CanField.can", 116),
+        ("draft/CanAffiliate.can", 87),
+        ("draft/CanApprove.can", 78),
+        ("draft/CanBoard.can", 4),
+        ("draft/CanBook.can", 183),
+        ("draft/CanCRM.can", 151),
+        ("draft/CanCatch.can", 86),
+        ("draft/CanChat.can", 112),
+        ("draft/CanCheck.can", 84),
+        ("draft/CanContract.can", 54),
+        ("draft/CanCreative.can", 174),
+        ("draft/CanCustomer.can", 74),
+        ("draft/CanDecide.can", 39),
+        ("draft/CanDesk.can", 104),
+        ("draft/CanDiscover.can", 128),
+        ("draft/CanDo.can", 53),
+        ("draft/CanEnrich.can", 38),
+        ("draft/CanEvent.can", 406),
+        ("draft/CanExpense.can", 100),
+        ("draft/CanFeedback.can", 23),
+        ("draft/CanField.can", 124),
         ("draft/CanGallery.can", 32),
-        ("draft/CanGrant.can", 89),
-        ("draft/CanHire.can", 146),
-        ("draft/CanInbox.can", 182),
-        ("draft/CanInvoice.can", 615),
-        ("draft/CanKnowledge.can", 102),
-        ("draft/CanLearn.can", 55),
-        ("draft/CanLeave.can", 91),
-        ("draft/CanLoyalty.can", 121),
-        ("draft/CanMail.can", 234),
-        ("draft/CanMaintain.can", 178),
-        ("draft/CanMember.can", 528),
-        ("draft/CanOnboard.can", 67),
-        ("draft/CanPropose.can", 182),
-        ("draft/CanPurchase.can", 196),
-        ("draft/CanReception.can", 238),
-        ("draft/CanRefer.can", 132),
-        ("draft/CanRent.can", 932),
-        ("draft/CanReport.can", 52),
-        ("draft/CanShift.can", 4),
-        ("draft/CanStats.can", 82),
-        ("draft/CanStock.can", 125),
-        ("draft/CanSuccess.can", 107),
-        ("draft/CanSync.can", 75),
-        ("draft/CanTable.can", 53),
-        ("draft/CanTime.can", 147),
-        ("draft/CanTrade.can", 29),
-        ("draft/CanVolunteer.can", 3),
-        ("draft/CanWorkbench.can", 140),
+        ("draft/CanGrant.can", 83),
+        ("draft/CanHire.can", 141),
+        ("draft/CanInbox.can", 151),
+        ("draft/CanInvoice.can", 566),
+        ("draft/CanKnowledge.can", 78),
+        ("draft/CanLearn.can", 51),
+        ("draft/CanLeave.can", 88),
+        ("draft/CanLoyalty.can", 110),
+        ("draft/CanMail.can", 222),
+        ("draft/CanMaintain.can", 162),
+        ("draft/CanMember.can", 474),
+        ("draft/CanOnboard.can", 59),
+        ("draft/CanPropose.can", 164),
+        ("draft/CanPurchase.can", 188),
+        ("draft/CanReception.can", 226),
+        ("draft/CanRefer.can", 124),
+        ("draft/CanRent.can", 808),
+        ("draft/CanReport.can", 51),
+        ("draft/CanShift.can", 257),
+        ("draft/CanStats.can", 77),
+        ("draft/CanStock.can", 97),
+        ("draft/CanSuccess.can", 90),
+        ("draft/CanSync.can", 61),
+        ("draft/CanTable.can", 47),
+        ("draft/CanTime.can", 140),
+        ("draft/CanTrade.can", 26),
+        ("draft/CanVolunteer.can", 85),
+        ("draft/CanWorkbench.can", 130),
         ("draft/shared/Employees.can", 14),
-        ("draft/shared/Locations.can", 55),
+        ("draft/shared/Locations.can", 53),
         ("draft/shared/Suppliers.can", 6),
     ];
     let root = workspace_root();

@@ -97,7 +97,7 @@ pub fn entry_to_text(info: &CodeInfo) -> String {
     out
 }
 
-const CATALOG: [CodeInfo; 110] = [
+const CATALOG: [CodeInfo; 111] = [
     CodeInfo {
         code: "E1001",
         title: "bare-carriage-return",
@@ -633,6 +633,14 @@ const CATALOG: [CodeInfo; 110] = [
         explanation: "An `is` type test names a bad target: targets name a permitted type (models, contracts, union arms), never a field path and never a non-type. A failed static test reports why. Name a type on the right of `is`.",
         example_valid: "app T\nGiven\n contract Address {street:text,city:text}\nWhen\n scenario s(j:json) by=members\n  require j is Address\n  do\n   let x = 1\nThen\n",
         example_invalid: "app T\nGiven\n Todo { title:text }\n policy Todo read=members\nWhen\n scenario s(t:Todo) by=members\n  require t.title is Todo.title\n  do\n   let x = 1\nThen\n",
+    },
+    CodeInfo {
+        code: "E3019",
+        title: "opaque-capability-receipt",
+        severity: Severity::Error,
+        explanation: "A delivery recipe (`fixture x=Cap.op {…}`) or `send` targets a deployment-bound capability (`from=deployment.NAME`) whose operation signature is opaque: request bindings, status/result/error shapes and the receipt itself cannot be verified. Locally-declared capabilities check fully; for deployment-bound ones, verify the shapes against the deployment contract.",
+        example_valid: "app T\nGiven\n contract Ack { ok:bool }\n capability Mail version=1\n  notify(to:text) -> Ack\nWhen\n scenario s() by=members\n  do\n   send Mail.notify {to=\"a@b.test\"} as attempt\nThen\n",
+        example_invalid: "app T uses=[p]\npackage p\n use zzz {Mail} from=deployment.mail\n Given\n  fixture attempt=Mail.send {request={to=\"a@b.test\"}}\n When\n Then\n",
     },
     CodeInfo {
         code: "E4001",

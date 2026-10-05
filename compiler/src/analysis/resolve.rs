@@ -413,6 +413,11 @@ pub struct ResolveTables {
     pub children_of: HashMap<SymbolId, Vec<SymbolId>>,
     /// Fixture reference edges (fixture id to referenced fixture ids).
     pub fixture_edges: HashMap<SymbolId, Vec<SymbolId>>,
+    /// `judgment` declarations: registered as fieldless contracts so
+    /// the name resolves package-wide, while every use position maps
+    /// to the silent opaque treatment (the derived evaluate/result
+    /// interface is unimplemented, DESIGN:897).
+    pub judgments: HashSet<SymbolId>,
 }
 
 impl ResolveTables {
@@ -923,6 +928,18 @@ impl<'a> Resolver<'a> {
             SyntaxKind::Derive => self.index_derive(text, module, node, diags),
             SyntaxKind::Fixture => self.index_fixture(text, module, node, diags),
             SyntaxKind::Capability => self.index_capability(text, module, node, diags),
+            SyntaxKind::Judgment => {
+                if let Some(id) = self.index_named(
+                    text,
+                    module,
+                    node,
+                    "judgment",
+                    SymbolKind::Contract { fields: Vec::new() },
+                    diags,
+                ) {
+                    self.tables.judgments.insert(id);
+                }
+            }
             SyntaxKind::Message => self.index_message(text, module, node, diags),
             SyntaxKind::Policy
             | SyntaxKind::Invariant
@@ -1785,6 +1802,12 @@ impl<'a> Resolver<'a> {
         }
     }
 
+    /// Whether this symbol is a `judgment` declaration (registered as
+    /// a fieldless contract; use positions treat it as opaque).
+    fn is_judgment(&self, id: SymbolId) -> bool {
+        self.tables.judgments.contains(&id)
+    }
+
     /// Production-scope lookup (locals at index time; imports are added by
     /// [`Resolver::resolve_imports`]).
     fn lookup_prod(&self, module: ModuleId, name: &str) -> Option<ScopedName> {
@@ -2218,7 +2241,15 @@ impl<'a> Resolver<'a> {
         for (name, scoped) in names {
             let binding = match scoped {
                 ScopedName::Local(id) | ScopedName::Imported { target: id, .. } => {
-                    Binding::Symbol(id)
+                    if self.is_judgment(id) {
+                        // Judgment names resolve, but their derived
+                        // evaluate/result interface is untyped
+                        // (DESIGN:897): poison the binding so uses
+                        // stay silent instead of erroring as values.
+                        Binding::Error
+                    } else {
+                        Binding::Symbol(id)
+                    }
                 }
                 ScopedName::External { provider, name } => Binding::External { provider, name },
             };
@@ -2464,6 +2495,11 @@ impl<'a> Resolver<'a> {
                 return None;
             }
         };
+        if self.is_judgment(current) {
+            // Caption paths rooted at a judgment resolve the name but
+            // stay opaque (derived members are untyped, DESIGN:897).
+            return None;
+        }
         for (i, segment) in segments.iter().enumerate().skip(1) {
             let found = self.tables.symbols[current.0 as usize]
                 .fields_of()
@@ -3194,6 +3230,13 @@ impl<'a> Resolver<'a> {
                 return None;
             }
         };
+        if self.is_judgment(head) {
+            // `Judge.evaluate` names the derived evaluate operation:
+            // resolved but opaque (delivery/send/fixture consumers
+            // treat the missing symbol as an untypable-but-valid
+            // target, like an external operation).
+            return None;
+        }
         if segments.len() == 1 {
             return Some(head);
         }
@@ -3418,6 +3461,17 @@ impl<'a> Resolver<'a> {
                 return Some(typeref);
             }
             match self.lookup_prod(module, segments[0]) {
+                Some(ScopedName::Local(id) | ScopedName::Imported { target: id, .. })
+                    if self.is_judgment(id) =>
+                {
+                    // A judgment in type position resolves the name but
+                    // stays opaque: no `TypeRef`, so the types pass
+                    // treats the shape as unknowable (like an external
+                    // import) while the derived interface is
+                    // unimplemented (DESIGN:897).
+                    self.tables.node_symbol.insert(NodeKey::of(node), id);
+                    return None;
+                }
                 Some(ScopedName::Local(id) | ScopedName::Imported { target: id, .. }) => {
                     self.tables.node_symbol.insert(NodeKey::of(node), id);
                     let typeref = TypeRef::Symbol(id);
@@ -3457,6 +3511,12 @@ impl<'a> Resolver<'a> {
             return self.resolve_qualified_type(module, segments, node, text, diags);
         }
         let head = self.resolve_type_head(module, segments, node, text, diags)?;
+        if self.is_judgment(head) {
+            // `Judgment.question.aspect` paths name derived-interface
+            // members: resolved but opaque (see the single-segment
+            // arm above).
+            return None;
+        }
         let mut fields = Vec::new();
         if let Some(field) = self.tables.symbols[head.0 as usize]
             .fields_of()
@@ -3529,6 +3589,12 @@ impl<'a> Resolver<'a> {
                 return None;
             }
         };
+        if self.is_judgment(head) {
+            // Package-qualified judgment paths resolve the name but
+            // stay opaque (see `resolve_type_path`).
+            self.tables.node_symbol.insert(NodeKey::of(node), head);
+            return None;
+        }
         if segments.len() == 2 {
             self.tables.node_symbol.insert(NodeKey::of(node), head);
             let typeref = TypeRef::Symbol(head);
@@ -3665,14 +3731,23 @@ impl<'a> Resolver<'a> {
         diags: &mut Vec<Diagnostic>,
     ) {
         let name = Self::decl_name(text, node, &["export", "scenario"]).map(|(n, _)| n);
+        // A handler whose declaration failed (duplicate or closed
+        // builtin name, `E2002`) has no symbol; its body still
+        // resolves as trusted when the node carries `on=` (mirrors
+        // the index-time predicate) so injected `event` stays
+        // visible instead of cascading `E2001`.
+        let cst_trusted = node.children.iter().any(|c| {
+            c.kind == SyntaxKind::Attribute
+                && attribute_parts(c).is_some_and(|(k, _)| is_name(k, text, "on"))
+        });
         let (params, trusted) = match name.as_deref().and_then(|n| self.lookup_prod(module, n)) {
             Some(ScopedName::Local(id)) => match &self.tables.symbols[id.0 as usize].kind {
                 SymbolKind::Scenario {
                     params, trusted, ..
                 } => (params.clone(), *trusted),
-                _ => (Vec::new(), false),
+                _ => (Vec::new(), cst_trusted),
             },
-            _ => (Vec::new(), false),
+            _ => (Vec::new(), cst_trusted),
         };
         self.resolve_param_defaults(text, module, root, node, &params, diags);
         if let Some(result) = result_annotation(node) {
