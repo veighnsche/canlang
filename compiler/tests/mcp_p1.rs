@@ -28,6 +28,9 @@
 //!   compilation.
 
 use canlang_compiler::analysis::catalog::{Catalog, CatalogRequest, load_catalog};
+use std::sync::atomic::{AtomicU32, Ordering};
+
+static CATALOG_COUNTER: AtomicU32 = AtomicU32::new(0);
 use canlang_compiler::analysis::{CheckedProgram, check_program};
 use canlang_compiler::codegen::artifact::{self, CompileArtifact};
 use canlang_compiler::codegen::{EmitOptions, EmitSources, emit};
@@ -65,7 +68,13 @@ Then
 /// Hermetic golden catalog (mirrors `codegen.rs`): availability is pinned
 /// so `E6007` cannot fire.
 fn golden_catalog() -> (Catalog, std::path::PathBuf) {
-    let path = std::env::temp_dir().join(format!("mcp-p1-catalog-{}.json", std::process::id()));
+    // Unique per call: parallel tests share the process (and pid), and each
+    // caller deletes its file — a pid-only name races write/load/delete.
+    let path = std::env::temp_dir().join(format!(
+        "mcp-p1-catalog-{}-{}.json",
+        std::process::id(),
+        CATALOG_COUNTER.fetch_add(1, Ordering::SeqCst)
+    ));
     std::fs::write(
         &path,
         r#"{"language_version":"1.0","catalog_version":"2.5.0-test","entries":[
