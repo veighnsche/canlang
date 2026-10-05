@@ -16,6 +16,75 @@ export interface LoadedArtifact {
   sourcePath: string;
 }
 
+/**
+ * Compiled-identity expectation: the toolchain + source facts a genuine
+ * `can compile` artifact must bind (the T21 pinned identity rule).
+ *
+ * Derived from the artifact contract (`ArtifactSource`: "Lowercase hex
+ * SHA-256 of the compiled bytes") plus the compiler's version stamps:
+ * identity is (source path, source bytes, toolchain version, toolchain
+ * language version). Fixture artifacts (`tool_version: "e2e-fixture/…"`,
+ * `language_version: "handbuilt/…"`) can never satisfy the version
+ * equalities, and any byte drift fails the hash binding.
+ */
+export interface CompiledIdentityExpectation {
+  /** Exact path string handed to the toolchain (recorded verbatim). */
+  readonly sourcePath: string;
+  /** Lowercase hex SHA-256 of the exact bytes handed to the toolchain. */
+  readonly sourceSha256: string;
+  /** Toolchain version (`can --version`); matched by exact equality. */
+  readonly toolVersion: string;
+  /** Toolchain language version (`can --version`); matched exactly. */
+  readonly languageVersion: string;
+}
+
+/**
+ * Assert an artifact is the genuine product of compiling `expected` with
+ * the toolchain that stamped `expected.toolVersion`/`languageVersion`.
+ * Each violated binding throws a precise `compiled-identity` error naming
+ * the binding; hand-built fixtures fail the version equalities first.
+ * Call after `loadArtifactFile`/`parseArtifactText` (which enforce the
+ * structural contract); this enforces provenance on top of structure.
+ */
+export function assertCompiledIdentity(
+  artifact: CompileArtifact,
+  expected: CompiledIdentityExpectation,
+): void {
+  if (artifact.artifact_version !== 1) {
+    throw new Error(
+      `compiled-identity: artifact_version ${JSON.stringify(artifact.artifact_version)} is not 1`,
+    );
+  }
+  if (artifact.language_version !== expected.languageVersion) {
+    throw new Error(
+      `compiled-identity: language_version ${JSON.stringify(artifact.language_version)} ` +
+        `is not the toolchain language ${JSON.stringify(expected.languageVersion)}`,
+    );
+  }
+  if (artifact.tool_version !== expected.toolVersion) {
+    throw new Error(
+      `compiled-identity: tool_version ${JSON.stringify(artifact.tool_version)} ` +
+        `is not the toolchain version ${JSON.stringify(expected.toolVersion)}`,
+    );
+  }
+  const source0 = artifact.sources[0];
+  if (source0 === undefined) {
+    throw new Error("compiled-identity: artifact has no sources; sources[0] must bind the origin");
+  }
+  if (source0.path !== expected.sourcePath) {
+    throw new Error(
+      `compiled-identity: sources[0].path ${JSON.stringify(source0.path)} ` +
+        `is not the compiled path ${JSON.stringify(expected.sourcePath)}`,
+    );
+  }
+  if (source0.sha256 !== expected.sourceSha256) {
+    throw new Error(
+      `compiled-identity: sources[0].sha256 ${JSON.stringify(source0.sha256)} ` +
+        `does not match the compiled bytes ${JSON.stringify(expected.sourceSha256)}`,
+    );
+  }
+}
+
 const CALLABLE_KINDS: ReadonlySet<string> = new Set([
   "operation",
   "pure",
@@ -74,6 +143,18 @@ export function loadArtifactFile(path: string): LoadedArtifact {
   } catch (error) {
     fail(path, `cannot read file: ${error instanceof Error ? error.message : String(error)}`);
   }
+  return parseArtifactText(text, path);
+}
+
+/**
+ * Validate artifact JSON text with the exact `loadArtifactFile` rules.
+ * `sourcePath` names the origin in errors (a file path, or a
+ * `compiled:<source>` toolchain label). File readers use
+ * `loadArtifactFile`; toolchain-stdout readers (the T21 e2e loader) use
+ * this — one validation body, never two loader semantics.
+ */
+export function parseArtifactText(text: string, sourcePath: string): LoadedArtifact {
+  const path = sourcePath;
   let parsed: unknown;
   try {
     parsed = JSON.parse(text);

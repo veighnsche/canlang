@@ -1,0 +1,26 @@
+app Lobby
+Given
+ ## T21 compiled-journey fixture: Lobby is the entry app and carries NO
+ ## crud/scenario items on purpose (see below); Store carries the Gadget
+ ## crud the journey exercises. Multi-app sources are ordinary CanLang
+ ## (TeamTasks.can itself has three apps).
+ ##
+ ## WHY TWO APPS (L1 defect, T21 finding 2026-10-06): entry-module crud
+ ## currently emits unimportable JS — `export const create=` collides
+ ## with the `import { create }` stdlib binding, and `export const
+ ## delete=` is a reserved-word SyntaxError (`emit_identity_consts` in
+ ## compiler/src/codegen/js.rs reserves neither import names nor
+ ## reserved words). Non-entry crud emits prefixed idents
+ ## (`Store_create`, …) which load fine — hence this shape. Single-app
+ ## crud re-emits the defect; the L1 fix slice owns the regression test.
+ Notice { title:text }
+ policy Notice read=members
+When
+Then
+app Store
+Given
+ Gadget { title:text }
+ policy Gadget read=members
+When
+ crud Gadget by=members fields=title
+Then
