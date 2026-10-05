@@ -75,7 +75,8 @@ export interface AuthFormDescriptor {
   readonly csrfField: string;
   /**
    * Single-use login token, present on the login descriptor only. The form
-   * posts it back as `_presession`; any login POST consumes it.
+   * posts it back as `_presession`; every credential-checked login POST
+   * consumes it.
    */
   readonly preSessionToken?: string;
 }
