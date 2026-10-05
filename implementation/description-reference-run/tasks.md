@@ -20,11 +20,11 @@ Status: user-authorized immediate implementation in the SAME existing Muse sessi
   - Acceptance: fields/parameters accept static inline descriptions and variants; defaults/bounds/labels delimit correctly; duplicate/dynamic/parameterized descriptions fail with located diagnostics; old annotations retain literal support.
   - Evidence: D02a slice done: writer 01a10d4a-9c23 released parser.rs (+138/-7) + cst.rs (+8 DescriptionValue) + b4_parse.rs (+238, 16 tests); can_parser.py untouched. D02b slice done: writer 01a10d53-5ba1 released resolve.rs (+31 description resolution) + types.rs (+105 check_description_slot E3016) + effects.rs (+365 CheckedDescription seam matching frozen TS contract + message prepass) + b4_check.rs (+404, 20 tests). Coordinator: corpus 2500 with ZERO family moves, suite 27 green. D02 COMPLETE — seam frozen for D03/D04b/D06.
 
-- [ ] **D03 — Join compiler descriptions without artifact migration**
+- [x] **D03 — Join compiler descriptions without artifact migration**
   - Owner: one Muse Rust writer; serialize shared analysis/IR/emission files. Exact paths: `compiler/src/analysis/effects.rs`, `compiler/src/codegen/ir.rs`, `compiler/src/codegen/js.rs`, `compiler/tests/codegen.rs`.
   - Prerequisites: D02 frozen static description value and writer release.
   - Acceptance: checked descriptions retain source/variants/owner language/location; inline/attached/shared descriptions feed the same value; existing MCP source-string output gets inline source text; undescribed/legacy artifact shapes remain compatible. Localized MCP and artifact-version changes stay deferred.
-  - Evidence: writer 01a10d68-03a8 RELEASED 4 files (see progress). Static review clean (seam untouched, source-only projection, absence-vs-empty, legacy fallback, no version changes); runtime green PENDING T11 release (shared-crate serialization). Parent OPEN.
+  - Evidence: writer 01a10d68-03a8 RELEASED effects (+20 projection) + ir (+43/-21) + js (doc-only) + codegen tests (+178, 6 behavior tests). Coordinator: codegen 46/0 green re-verified (after T11 self-stashed mid-edit; shared-crate note in progress). Seam untouched, source-only, no version changes. D03 COMPLETE.
 
 - [ ] **D04 — Derive the minimal source reference model**
   - Owner: Muse reference-model writer (D04a, TS contract) + Muse Rust documentation writer (D04b, extractor). Exact paths D04a: NEW `packages/contracts/src/reference.ts`, `packages/contracts/src/index.ts` (export line only). Exact paths D04b: NEW `compiler/src/docs.rs`, `compiler/src/lib.rs` (module export only), NEW `compiler/tests/docs.rs`.
@@ -38,11 +38,11 @@ Status: user-authorized immediate implementation in the SAME existing Muse sessi
   - Acceptance: stdout/output-file modes; English/Dutch/canonical-alias/regional/app-default/source-owner/null/empty fallback cases via existing TS resolver; stable anchors/version identity; no misleading output on source/backend failure; escaped Markdown; no overwritten authored source files. No new locale engine or business execution.
   - Evidence: D05a slice done (parent OPEN; D05b CLI remains): writer 01a10d4a-9d6a released NEW interfaces/docs/reference.ts (441 lines, resolveVariant-only, heading catalog en+nl, escaping, stable slugs) + index export + values dep + NEW test/docs-reference.test.ts (29 fixtures, every acceptance bullet). Coordinator: reuse boundary + fixtures reviewed, tsc 0; renderer 29/29 + suite 318/0 green re-verified, committed c9ca0db.
 
-- [ ] **D06 — Join source-language IDE help**
-  - Owner: Muse IDE writer. Exact paths: `compiler/src/ide/queries.rs` + focused hover tests (identify exact test file before reservation).
+- [x] **D06 — Join source-language IDE help**
+  - Owner: Muse IDE writer. Exact paths: `compiler/src/ide/queries.rs` + `compiler/tests/ide.rs`.
   - Prerequisites: D02 frozen description slot and affected writer release.
   - Acceptance: inline, attached, legacy and static-reference descriptions display actual source wording; no editor locale feature or localized MCP acceptance gate.
-  - Evidence: pending; record revision, commands/results, positive/negative/runtime level and released handoff.
+  - Evidence: writer 01a10d6e-20c6 released queries.rs (+21/-2 description_of checked-slot-first + CST fallback, empty-as-absent) + ide.rs (+104, 4 hover tests). Coordinator: ide 31/0 green re-verified. D06 COMPLETE.
 
 - [ ] **D07 — Integrate and independently verify the reference**
   - Owner: Muse integration/handoff, then Codex independent review (Muse does not tick review/closure).
@@ -69,3 +69,6 @@ Status: user-authorized immediate implementation in the SAME existing Muse sessi
 - DONE D03 (static verified; runtime PENDING T11): writer 01a10d68-03a8-75a2-b231-a55d8555ee5f RELEASED effects (+20 projection, seam struct untouched) + ir (+43/-21 checked-slot-first + legacy fallback) + js (doc-only, same Option shape) + codegen tests (+178, 6 behavior tests). No version changes. Runtime blocked: shared crate doesn't compile due to RUNNING T11-checker's mid-edit types.rs (decimal_expectation refs); coordinator verified errors are T11's alone, never stashes a running writer's files. Commit D03 after T11 lands + joint green. Parent D03 OPEN pending runtime (see D03 evidence).
 - LESSON: file-disjoint Rust writers still share one crate compile — wave verification serializes on the last release. Coordinator sibling-clean check must use full `git status` + grep (pathspec with nonexistent files fails silently).
 - DISPATCH batch D-d (slot freed x1): D06 writer (ide/queries.rs + tests/ide.rs — file-disjoint from T11 + D04b; verification joins the post-T11 queue). 3/3: T11-checker, D04b, D06. Queued: T14a→T14b (after T11), D05b (after D04b), D07/D08.
+- DONE D06: writer 01a10d6e-20c6-72c1-91e6-035c5d8f0479 RELEASED queries.rs + ide.rs (ide 31/0 green re-verified). D06 ticked COMPLETE (see D06 evidence).
+- NOTE: T11-checker self-stashed mid-edit as `t11-check-differential` (writer's own action on own files) — crate compiled without it, unblocking D03/D06 runtime verification. Coordinator stash-differentials must account for the occupied stash slot (LIFO: own push pops own entry; verify pop message).
+- DISPATCH batch D-e (slot freed x1): L3 T28-facet-stance writer (owner-package facet/export posture survey → containment-decision.md append; item 4). T11-checker + D04b still running. Queued: T14a→T14b (after T11), D05b (after D04b), D07/D08.
