@@ -36,9 +36,15 @@
  * - `sumDecimal` requires decimal elements (no int promotion inside the
  *   aggregate); `at` requires a bigint index and returns null for negative or
  *   out-of-range indices, including indices beyond JS number range.
+ * - T09 omission: one canonical frozen `EMPTY_ARRAY` is the implicit value
+ *   of every omitted ordinary (`T[]`) array; `applyArrayOmission` throws
+ *   `invalid-construction` for an omitted required (`T[]!`) array while the
+ *   validating `schema.ts` path reports that case as a `required`
+ *   violation. Requiredness comes only from the `!` marker, never from
+ *   nullability.
  */
 
-import type { CanValue, MoneyValue } from "../../contracts/src/values.js";
+import type { ArrayOmission, CanValue, MoneyValue } from "../../contracts/src/values.js";
 import { compareDecimal, DECIMAL_MAX_SIGNIFICANT_DIGITS, Decimal, isDecimal } from "./decimal.js";
 import { equalValue } from "./equality.js";
 import { ValueError } from "./errors.js";
@@ -53,6 +59,44 @@ function requireArray<T>(value: unknown, what: string): ReadonlyArray<T> {
     throw new ValueError("invalid-construction", `${what} must be an array`);
   }
   return value as ReadonlyArray<T>;
+}
+
+/**
+ * The single canonical implicit empty array (T09): every omitted ordinary
+ * (`T[]`) array on creation evaluates to this frozen value. Length bounds
+ * still apply at the validation layer (an omitted array with `min >= 1`
+ * fails closed, exactly like an explicit `[]`); this module owns the value,
+ * `schema.ts` owns that bound-checked omission decision, and L1 emission
+ * must produce an equal empty array for omitted ordinary arrays.
+ */
+export const EMPTY_ARRAY: ReadonlyArray<never> = Object.freeze([]);
+
+/** Typed view of the canonical implicit empty array. Never a fresh copy. */
+export function emptyArray<T>(): ReadonlyArray<T> {
+  return EMPTY_ARRAY;
+}
+
+/**
+ * Pure T09 omission application for array creation inputs: a supplied array
+ * passes through untouched, an omitted `ordinary` array yields the canonical
+ * empty array, and an omitted `required` array (`T[]!`) throws
+ * `invalid-construction` (the validating path in `schema.ts` reports the
+ * same case as a `required` violation with its field path instead).
+ */
+export function applyArrayOmission<T>(
+  omission: ArrayOmission,
+  supplied: ReadonlyArray<T> | undefined,
+): ReadonlyArray<T> {
+  if (supplied !== undefined) {
+    return requireArray<T>(supplied, "array input");
+  }
+  if (omission === "required") {
+    throw new ValueError("invalid-construction", "a required array input (T[]!) cannot be omitted");
+  }
+  if (omission !== "ordinary") {
+    throw new ValueError("invalid-construction", "array omission marker must be \"ordinary\" or \"required\"");
+  }
+  return emptyArray<T>();
 }
 
 /**

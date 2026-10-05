@@ -25,7 +25,21 @@
  * Boundaries recorded here:
  * - UNIQUENESS IS OUT OF SCOPE: `unique` needs stored state and lives in
  *   lane-03; a `unique` key in a field descriptor is rejected as unknown.
- * - `server=` initialization is not in this descriptor set (unknown key).
+ * - `server`/`derived` creation metadata IS in this descriptor set (T09),
+ *   on contract fields only (GRAMMAR L198: parameters have no server
+ *   initializer). `server: true` (`server=expr`, DESIGN L129) and
+ *   `derived: true` (`derive`, GRAMMAR L85) mark engine-resolved fields:
+ *   they are never caller-required, an omitted one on create yields no key
+ *   (the T18 engine supplies the value; the ENGINE_RESOLVED sentinel marks
+ *   this internally and never appears in output), and the normalized field
+ *   carries `serverOnly: true` plus its `defaultOrigin` so downstream
+ *   admission excludes them from writable client inputs. An explicitly
+ *   supplied value still validates strictly (DESIGN L403: fixtures are
+ *   stored snapshots and may initialize server fields), with trim/bounds
+ *   applying as usual. One initializer only: `server`/`derived` are
+ *   mutually exclusive and reject `default` and `[]!` (GRAMMAR L192); a
+ *   literal descriptor default cannot cover an engine-resolved subfield
+ *   (explicit-complete values cannot spell engine values).
  *   `trim` IS supported, on text/string-like leaf (non-array) fields only:
  *   it is normalization (DESIGN L131), so the trimmed value is what bounds
  *   check — including explicit defaults, which trim before their bound
@@ -75,10 +89,12 @@
 import type {
   CanValue,
   ContractValue,
+  FieldDefaultOrigin,
   MoneyValue,
   Violation,
   ViolationCode,
 } from "../../contracts/src/values.js";
+import { emptyArray } from "./array.js";
 import { compareDecimal, isDecimal } from "./decimal.js";
 import { SchemaError, ValueError } from "./errors.js";
 import { isDateValue, isDatetime, isMoney, isRecordRef, makeUnionValue } from "./kinds.js";
@@ -99,6 +115,18 @@ export function isUpdateOmitted(value: unknown): value is typeof UPDATE_OMITTED 
   return value === UPDATE_OMITTED;
 }
 
+/**
+ * Sentinel for an omitted engine-resolved (`server`/`derived`) field on
+ * create (T09). Callers drop the key from validated output — the T18 engine
+ * supplies the value — so this never appears in a returned value and is
+ * never a CanValue.
+ */
+export const ENGINE_RESOLVED: unique symbol = Symbol("canlang.values.engine-resolved");
+
+export function isEngineResolved(value: unknown): value is typeof ENGINE_RESOLVED {
+  return value === ENGINE_RESOLVED;
+}
+
 /** Update-mode contract result: fields hold values, nested partials, or the sentinel. */
 export interface UpdateContract {
   readonly [field: string]: CanValue | UpdateContract | typeof UPDATE_OMITTED;
@@ -116,6 +144,14 @@ export interface FieldDescriptor {
   readonly default?: unknown;
   /** Normalization (DESIGN L131): trim before bounds; text/string-like leaves only. */
   readonly trim?: boolean;
+  /**
+   * T09 creation metadata, contract fields only: `server` (`server=expr`,
+   * DESIGN L129) and `derived` (`derive`, GRAMMAR L85) mark engine-resolved
+   * fields. Effective only when `true`; mutually exclusive with each other,
+   * with `default`, and with `[]!` (GRAMMAR L192).
+   */
+  readonly server?: boolean;
+  readonly derived?: boolean;
 }
 
 export interface ContractDescriptor {
@@ -152,6 +188,17 @@ export interface NormalizedField {
   readonly valueMax?: CanValue;
   readonly default?: CanValue;
   readonly trim?: boolean;
+  /**
+   * T09: true exactly for engine-resolved (`server`/`derived`) fields.
+   * Mirrors T04a `CanonicalFieldDef.serverOnly`: downstream admission
+   * excludes these from writable client inputs.
+   */
+  readonly serverOnly: boolean;
+  /**
+   * T09 creation-default origin: `literal` for authored `default` values,
+   * `server`/`derived` for engine-resolved fields, absent otherwise.
+   */
+  readonly defaultOrigin?: FieldDefaultOrigin;
 }
 
 export interface NormalizedContract {
@@ -184,6 +231,9 @@ type Path = ReadonlyArray<string | number>;
 const FAIL: unique symbol = Symbol("canlang.schema.fail");
 
 type NodeOut = CanValue | UpdateContract | typeof UPDATE_OMITTED | typeof FAIL;
+
+/** Omission outcome: validated fills plus the engine-resolved drop marker. */
+type OmittedOut = CanValue | UpdateContract | typeof UPDATE_OMITTED | typeof ENGINE_RESOLVED | typeof FAIL;
 
 /**
  * Omission handling: "create" fills defaults/null/[] and reports missing
@@ -277,6 +327,8 @@ interface FieldView {
   readonly valueMin?: CanValue;
   readonly valueMax?: CanValue;
   readonly trim?: boolean;
+  readonly serverOnly: boolean;
+  readonly defaultOrigin?: FieldDefaultOrigin;
 }
 
 interface SchemaView {
@@ -563,7 +615,7 @@ function validateModelRef(
   return decoded;
 }
 
-function omittedField(field: FieldView, path: Path, ctx: Collector, options: NodeOptions): NodeOut {
+function omittedField(field: FieldView, path: Path, ctx: Collector, options: NodeOptions): OmittedOut {
   if (options.nesting === "update") {
     return UPDATE_OMITTED;
   }
@@ -588,18 +640,35 @@ function omittedField(field: FieldView, path: Path, ctx: Collector, options: Nod
     }
     return fallback;
   }
+  // Engine-resolved (server/derived) fields: on create the key drops from
+  // validated output (the T18 engine supplies the value). A literal
+  // descriptor default cannot cover one: explicit-complete values cannot
+  // spell engine values.
+  if (field.defaultOrigin === "server" || field.defaultOrigin === "derived") {
+    if (options.nesting === "explicit") {
+      pushViolation(
+        ctx,
+        path,
+        "required",
+        "a literal default cannot cover an engine-resolved (server/derived) field",
+        printTypeId(field.type),
+      );
+      return FAIL;
+    }
+    return ENGINE_RESOLVED;
+  }
   if (field.type.nullable) {
     return null;
   }
   // Update mode returned the sentinel above, so only create/explicit reach
   // here: the implicit `[]` must satisfy length bounds like an explicit one.
-  const empty: CanValue[] = [];
+  const empty = emptyArray<CanValue>() as CanValue[];
   const before = ctx.violations.length;
   checkBounds(field, empty, path, ctx);
   if (ctx.violations.length !== before) {
     return FAIL;
   }
-  return Object.freeze(empty) as CanValue[];
+  return empty;
 }
 
 function validateContractValue(
@@ -639,7 +708,7 @@ function validateContractValue(
       const omitted = omittedField(field, fieldPath, ctx, options);
       if (omitted === FAIL) {
         ok = false;
-      } else {
+      } else if (!isEngineResolved(omitted)) {
         out[fieldName] = omitted;
       }
       continue;
@@ -880,6 +949,7 @@ function normalizeField(
   path: Path,
   ctx: Collector,
   allowRequiredArray: boolean,
+  allowServerInit: boolean,
 ): PendingField | null {
   if (!isObject(desc)) {
     pushViolation(
@@ -887,21 +957,29 @@ function normalizeField(
       path,
       "type",
       "field descriptor must be an object",
-      "{type, min?, max?, default?}",
+      "{type, min?, max?, default?, trim?, server?, derived?}",
       actualWire(desc),
     );
     return null;
   }
   let ok = true;
   for (const key of Object.keys(desc)) {
-    if (key !== "type" && key !== "min" && key !== "max" && key !== "default" && key !== "trim") {
+    if (
+      key !== "type" &&
+      key !== "min" &&
+      key !== "max" &&
+      key !== "default" &&
+      key !== "trim" &&
+      key !== "server" &&
+      key !== "derived"
+    ) {
       ok = false;
       pushViolation(
         ctx,
         [...path, key],
         "unknown-field",
         `unknown field-descriptor key ${JSON.stringify(key)}`,
-        "one of: type, min, max, default, trim",
+        "one of: type, min, max, default, trim, server, derived",
         actualWire(desc[key]),
       );
     }
@@ -961,6 +1039,81 @@ function normalizeField(
       "format",
       "a required-array-input field cannot have a default",
       "no default alongside []!",
+    );
+  }
+  // T09 engine-resolved markers: booleans, effective only when true, one
+  // initializer only (GRAMMAR L192), contract fields only (GRAMMAR L198).
+  let server = false;
+  let derived = false;
+  for (const key of ["server", "derived"] as const) {
+    const raw = Object.hasOwn(desc, key) ? desc[key] : undefined;
+    if (isAbsent(raw)) {
+      continue;
+    }
+    if (typeof raw !== "boolean") {
+      ok = false;
+      pushViolation(
+        ctx,
+        [...path, key],
+        "type",
+        `${key} must be a boolean`,
+        "a boolean",
+        actualWire(raw),
+      );
+      continue;
+    }
+    if (raw && !allowServerInit) {
+      ok = false;
+      pushViolation(
+        ctx,
+        [...path, key],
+        "format",
+        key === "server"
+          ? "server initialization is not allowed on operation inputs"
+          : "derived fields are not allowed on operation inputs",
+        "no server/derived marker on operation inputs",
+        actualWire(raw),
+      );
+      continue;
+    }
+    if (raw) {
+      if (key === "server") {
+        server = true;
+      } else {
+        derived = true;
+      }
+    }
+  }
+  if (server && derived) {
+    ok = false;
+    pushViolation(
+      ctx,
+      [...path, "derived"],
+      "format",
+      "a field cannot be both server-initialized and derived",
+      "exactly one of server, derived",
+    );
+  }
+  if ((server || derived) && hasDefault) {
+    ok = false;
+    pushViolation(
+      ctx,
+      [...path, "default"],
+      "format",
+      "a server-initialized or derived field cannot also have a default",
+      "exactly one initializer",
+    );
+  }
+  if (ast !== null && ast.requiredArray && (server || derived)) {
+    ok = false;
+    pushViolation(
+      ctx,
+      server ? [...path, "server"] : [...path, "derived"],
+      "format",
+      server
+        ? "a required-array-input field cannot have a server initializer"
+        : "a required-array-input field cannot be derived",
+      "no server/derived marker alongside []!",
     );
   }
   const trimRaw = Object.hasOwn(desc, "trim") ? desc["trim"] : undefined;
@@ -1096,12 +1249,22 @@ function normalizeField(
   if (!ok || ast === null) {
     return null;
   }
-  const required = !ast.nullable && !hasDefault && !(ast.array && !ast.requiredArray);
+  const engineResolved = server || derived;
+  const defaultOrigin: FieldDefaultOrigin | undefined = hasDefault
+    ? "literal"
+    : server
+      ? "server"
+      : derived
+        ? "derived"
+        : undefined;
+  const required = !ast.nullable && !hasDefault && !engineResolved && !(ast.array && !ast.requiredArray);
   return {
     type: ast,
     required,
     hasDefault,
     rawDefault,
+    serverOnly: engineResolved,
+    ...(defaultOrigin !== undefined ? { defaultOrigin } : {}),
     ...(lengthMin !== undefined ? { lengthMin } : {}),
     ...(lengthMax !== undefined ? { lengthMax } : {}),
     ...(valueMin !== undefined ? { valueMin } : {}),
@@ -1215,6 +1378,8 @@ function freezeField(field: PendingField, fallback: CanValue | undefined): Norma
     ...(field.valueMax !== undefined ? { valueMax: field.valueMax } : {}),
     ...(field.hasDefault && fallback !== undefined ? { default: fallback } : {}),
     ...(field.trim !== undefined ? { trim: field.trim } : {}),
+    serverOnly: field.serverOnly,
+    ...(field.defaultOrigin !== undefined ? { defaultOrigin: field.defaultOrigin } : {}),
   };
   return Object.freeze(out);
 }
@@ -1350,7 +1515,7 @@ export function normalizeSchema(descriptor: unknown): NormalizedSchema {
             );
             continue;
           }
-          const field = normalizeField(fieldDesc, ["contracts", name, "fields", fieldName], ctx, true);
+          const field = normalizeField(fieldDesc, ["contracts", name, "fields", fieldName], ctx, true, true);
           if (field !== null) {
             fields[fieldName] = field;
           }
@@ -1527,7 +1692,7 @@ export function normalizeSchema(descriptor: unknown): NormalizedSchema {
             );
             continue;
           }
-          const field = normalizeField(inputDesc, ["operations", name, "inputs", inputName], ctx, false);
+          const field = normalizeField(inputDesc, ["operations", name, "inputs", inputName], ctx, false, false);
           if (field !== null) {
             inputs[inputName] = field;
           }
@@ -1640,8 +1805,10 @@ export function normalizeSchema(descriptor: unknown): NormalizedSchema {
 /**
  * Validates wire data against a type id: closed contracts, inclusive
  * bounds, create-only defaults, and required-vs-nullable presence. Any
- * violation throws SchemaError (never a partial value). Update mode
- * yields UPDATE_OMITTED for omitted contract fields, never null.
+ * violation throws SchemaError (never a partial value). Create mode drops
+ * omitted engine-resolved (`server`/`derived`) keys from the output (the
+ * T18 engine supplies them). Update mode yields UPDATE_OMITTED for omitted
+ * contract fields, never null.
  */
 export function validateValue(
   schema: NormalizedSchema,
@@ -1741,7 +1908,7 @@ export function validateOperationInput(
       const omitted = omittedField(field, [name], ctx, options);
       if (omitted === FAIL) {
         ok = false;
-      } else {
+      } else if (!isEngineResolved(omitted)) {
         out[name] = omitted as CanValue;
       }
       continue;
