@@ -42,6 +42,8 @@ After leading spaces, `##` is recognized before `#`. The rest of a `##` physical
 
 `#= path` instead records an actually reused static message reference; there is no space between the marker and equals. Its remainder must parse as one `path`, with no call or extra tokens. It must be the sole description line for that declaration, without prose or a second reference. `# = text` is ordinary prose. These rules apply inside joined schema braces too. Inline hash comments are invalid. Reference resolution and static zero-parameter description validation are semantic work.
 
+Fields and signature parameters additionally accept one compact inline `desc=` value after their initializer/modifiers/default and before any `label=`: either a JSON STRING with an optional `@{...}` variant suffix (same key/value rules as message variants), or a static message path. `desc=` populates the same single description slot as an attached `#` description; a second description on the same declaration in any spelling — `#`, `desc=`, or the legacy annotation — is an error, with no silent precedence. The legacy trailing `@{desc="..."}` spelling remains accepted with a literal string only; locale keys inside it are invalid. Variant tags, source-tag repetition and static zero-parameter validation are semantic checks.
+
 The next nonblank/non-`##` source item must be an eligible declaration starting at the same physical column. Its `export` modifier, if present, starts at that column. An ineligible item, a different column, a description at another column or end of source before attachment is an error. A pending description does not skip guards or effects to find a later declaration.
 
 Eligible items are apps, contexts, packages, imports, stored models, schema fields/signature parameters, contracts, events, roles, derived fields/functions, capabilities and their operation signatures, judgments, corpora, named messages, policies, invariants, unique constraints, locks, lifetimes, fixtures, CRUD declarations, scenarios, all presentation declarations except `require`, context resources/settings and migration declarations/directives. Presentation metadata can describe content, grouping, navigation and operation controls in their view context. Section markers `Given`, `When`, `Then`, execution introducers `do`, guards/effects, `if`, `else`, execution `for`, examples headers/rows and presentation `require` are ineligible. Required descriptions and whether an attached description is sufficiently informative are semantic checks.
@@ -83,8 +85,8 @@ Header attributes have the following closed sets. Fixed syntax before the attrib
 | contract | `contract NAME schema` | `label=caption` after schema |
 | role | `role NAME` | `label=caption` |
 | derived field | `derive path:type=expr` | trailing `label=field_label_value` |
-| field | `NAME:type` | one initializer `=expr` or `server=expr`, then `trim`, `unique`, `min=expr`, `max=expr`, optional trailing `label=field_label_value` |
-| signature parameter | `NAME:type` | one optional `=expr` default, then optional `label=field_label_value` |
+| field | `NAME:type` | one initializer `=expr` or `server=expr`, then `trim`, `unique`, `min=expr`, `max=expr`, optional `desc=...`, optional trailing `label=field_label_value` |
+| signature parameter | `NAME:type` | one optional `=expr` default, then optional `desc=...`, then optional `label=field_label_value` |
 | policy | `policy path` | `read=expr` **required**, `where=expr`, `fields=selectors` |
 | composite unique | `unique path` | `fields=selectors` **required**, `where=expr` |
 | lock | `lock path` | `fields=selectors` **required**, `when=expr` |
@@ -176,11 +178,12 @@ delivery_type    = "delivery" "(" path ")" ;
 invocation_type  = "invocation" "(" separated(path) [","] ")" ;
 field_type       = type ["!"] ;
 schema           = "{" bracketed(field) "}" ;
-field            = NAME ":" field_type [initializer] {field_modifier} [field_label_attribute] ;
+field            = NAME ":" field_type [initializer] {field_modifier} [desc_attribute] [field_label_attribute] ;
 initializer      = "=" expr | "server" "=" expr ;
 field_modifier   = "trim" | "unique" | "min" "=" expr | "max" "=" expr ;
 parameters       = "(" bracketed(parameter) ")" ;
-parameter        = NAME ":" type ["=" expr] [field_label_attribute] ;
+parameter        = NAME ":" type ["=" expr] [desc_attribute] [field_label_attribute] ;
+desc_attribute   = "desc" "=" (STRING [message_variants] | path) ;
 ```
 
 `enum(...)`, `action(...)`, `delivery(...)` and `invocation(...)` are recognized by their exact call-shaped type production. A bare type path component named `enum`, `action`, `delivery` or `invocation` is not globally banned. Their atom forms are not union arms. Union `|` combines all named paths before array/container suffixes: `A|B[]?` means a nullable array of union values. There are no grouped types, repeated array suffixes or nullable-element spelling `T?[]`. A scalar may have `?` without an array. Enumerator/allowed-action lists are syntactically nonempty, and enum entries are unqualified names. Checking requires distinct values and valid canonical action targets. Union arms must resolve to the supported tagged named value types; primitive unions are not authorized by their syntactic path shape.
@@ -193,9 +196,9 @@ The trailing field `!` is creation metadata, not a value-type operator. `text!`,
 
 Suffixes act on the resolved value, including inherited field types. Applying `[]` to an already nullable value or array is forbidden. Applying `?` to an already nullable value is redundant and invalid. A reused nonnullable array may acquire container nullability or the field-only required marker, but not both. These rules prevent qualified field reuse from smuggling nested arrays or nullable elements into the subset. Reuse retains representation/nullability and normalization/value bounds, but never the old initializer, required-array-input marker, server ownership, uniqueness, scope or policy.
 
-Fields may have one initializer and one occurrence of each modifier; initializers precede modifiers. A field default or bound is delimited by the next field modifier at current depth or the schema comma/closer. Bare `trim`/`unique` terminate the preceding complete value just as `min=`/`max=` do. Type checking determines compatible modifiers, default values, nullability and initialization obligations. Schema fields use colons and require commas, including between fields on joined physical lines. An optional `label=` follows its initializer/modifiers and delimits a preceding complete expression. A field description does not replace its comma.
+Fields may have one initializer and one occurrence of each modifier; initializers precede modifiers. A field default or bound is delimited by the next field modifier at current depth or the schema comma/closer. Bare `trim`/`unique` terminate the preceding complete value just as `min=`/`max=` do. Type checking determines compatible modifiers, default values, nullability and initialization obligations. Schema fields use colons and require commas, including between fields on joined physical lines. An optional `desc=` follows its initializer/modifiers and precedes an optional `label=`; each delimits a preceding complete expression. A field description does not replace its comma.
 
-Parameters have no field-only `!`, server initializer or field modifier list; their optional trailing `label=` follows any default. Their required/defaulted/nullable input behavior comes from their signature and DESIGN. Capability operation signatures use `NAME parameters "->" type`, pure functions parse `derive path parameters ":" type "=" expr`, and scenario signatures use the table's header attributes/result annotation. Checking must establish a valid owning function name for a parsed derive path; a path is not an automatic cross-package extension. Parameters and defaults must resolve and type-check; parameter spelling never infers a type. A contained model's field initializer may use the resolved `parent` creation binding, including `parent.parent.user`; this uses the ordinary path grammar and introduces no implicit sibling or partially initialized `row` scope. Presence, authority and type of that binding are semantic checks, not parser guarantees.
+Parameters have no field-only `!`, server initializer or field modifier list; their optional `desc=` follows any default and precedes an optional trailing `label=`. Their required/defaulted/nullable input behavior comes from their signature and DESIGN. Capability operation signatures use `NAME parameters "->" type`, pure functions parse `derive path parameters ":" type "=" expr`, and scenario signatures use the table's header attributes/result annotation. Checking must establish a valid owning function name for a parsed derive path; a path is not an automatic cross-package extension. Parameters and defaults must resolve and type-check; parameter spelling never infers a type. A contained model's field initializer may use the resolved `parent` creation binding, including `parent.parent.user`; this uses the ordinary path grammar and introduces no implicit sibling or partially initialized `row` scope. Presence, authority and type of that binding are semantic checks, not parser guarantees.
 
 ## Expressions and values
 
