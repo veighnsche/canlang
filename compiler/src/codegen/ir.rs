@@ -37,7 +37,7 @@
 //! `modules[i]` to `CheckedProgram.modules[i]`, so [`SymbolId`] and
 //! [`ModuleId`] index both tables.
 
-use crate::analysis::catalog::{Availability, Catalog, Effects};
+use crate::analysis::catalog::{Availability, Catalog, Effects, std_capability};
 use crate::analysis::effects::EffectVerb;
 use crate::analysis::migrate_check::{self, OwnerModelView};
 use crate::analysis::resolve::{
@@ -1384,6 +1384,9 @@ pub enum IrFixtureKind {
     /// `{dependencies, file: async (c, s) => fields}`.
     File { fields: TypedExpr },
     /// `{delivery, values: async (c, s) => ({request, status?, result?, error?})}`.
+    /// `operation` is the local canonical op name, or — for T15b
+    /// `std` joins — the qualified T13 send target
+    /// (`std.EmailV1.send` vocabulary).
     Delivery {
         operation: String,
         request: Box<TypedExpr>,
@@ -7033,57 +7036,39 @@ impl<'a> Cx<'a> {
                     );
                     symbol.canonical.clone()
                 });
-                let mut request = None;
-                let mut status = None;
-                let mut result = None;
-                let mut error = None;
-                if let Some(obj) = object.as_ref() {
-                    for child in kids(obj) {
-                        if child.kind != SyntaxKind::ObjectEntry {
-                            continue;
-                        }
-                        let parts = kids(child);
-                        let key = parts.first().and_then(|n| name_text(self.db, n));
-                        let value = parts
-                            .iter()
-                            .find(|n| is_expression(n.kind))
-                            .map(|n| self.decode_expr(&scope, n));
-                        match (key.as_deref(), value) {
-                            (Some("request"), Some(value)) => request = Some(Box::new(value)),
-                            (Some("status"), Some(value)) => status = Some(Box::new(value)),
-                            (Some("result"), Some(value)) => result = Some(Box::new(value)),
-                            (Some("error"), Some(value)) => error = Some(Box::new(value)),
-                            _ => {}
-                        }
-                    }
-                }
-                let Some(request) = request else {
+                self.decode_delivery_recipe(&scope, symbol, &object, operation)?
+            }
+            FixtureTarget::Unknown => {
+                // T15b provider join (seam 5): a fixture head over a
+                // `std` import (checker-validated against the consumed
+                // owner schema, but unpublished as a fixture target)
+                // joins the structured delivery path under its
+                // qualified T13 send target. Any miss keeps the
+                // failing shell below (fail-closed; Handbook,
+                // non-`std` providers and wrong ops never join).
+                let std_operation = node.as_ref().and_then(|decl| {
+                    kids(decl)
+                        .iter()
+                        .find(|c| c.kind == SyntaxKind::Path)
+                        .and_then(|head| {
+                            let segments: Vec<String> = kids(head)
+                                .iter()
+                                .filter_map(|n| name_text(self.db, n))
+                                .collect();
+                            self.std_send_target(symbol.module, &segments)
+                        })
+                });
+                let Some(std_operation) = std_operation else {
                     self.gap(
                         format!(
-                            "fixture {}: delivery request is not in the analysis tables (PR5 examples); emitting a failing recipe shell",
+                            "fixture {}: unresolved fixture target; emitting a failing recipe shell",
                             symbol.canonical,
                         ),
                         symbol.span,
                     );
                     return None;
                 };
-                IrFixtureKind::Delivery {
-                    operation,
-                    request,
-                    status,
-                    result,
-                    error,
-                }
-            }
-            FixtureTarget::Unknown => {
-                self.gap(
-                    format!(
-                        "fixture {}: unresolved fixture target; emitting a failing recipe shell",
-                        symbol.canonical,
-                    ),
-                    symbol.span,
-                );
-                return None;
+                self.decode_delivery_recipe(&scope, symbol, &object, std_operation)?
             }
         };
         Some(IrFixture {
@@ -7093,6 +7078,97 @@ impl<'a> Cx<'a> {
             dependencies,
             span: symbol.span,
         })
+    }
+
+    /// Decode one delivery recipe body (`request` + optional
+    /// `status`/`result`/`error`) under an already-resolved operation
+    /// identity: a local canonical name or a T15b qualified `std`
+    /// send target. Shared by the `Operation` and recovered-`std`
+    /// `Unknown` arms (one constructor, no drift); a missing request
+    /// keeps the failing shell plus `E6006`.
+    fn decode_delivery_recipe(
+        &mut self,
+        scope: &Scope,
+        symbol: &crate::analysis::resolve::Symbol,
+        object: &Option<SyntaxNode>,
+        operation: String,
+    ) -> Option<IrFixtureKind> {
+        let mut request = None;
+        let mut status = None;
+        let mut result = None;
+        let mut error = None;
+        if let Some(obj) = object {
+            for child in kids(obj) {
+                if child.kind != SyntaxKind::ObjectEntry {
+                    continue;
+                }
+                let parts = kids(child);
+                let key = parts.first().and_then(|n| name_text(self.db, n));
+                let value = parts
+                    .iter()
+                    .find(|n| is_expression(n.kind))
+                    .map(|n| self.decode_expr(scope, n));
+                match (key.as_deref(), value) {
+                    (Some("request"), Some(value)) => request = Some(Box::new(value)),
+                    (Some("status"), Some(value)) => status = Some(Box::new(value)),
+                    (Some("result"), Some(value)) => result = Some(Box::new(value)),
+                    (Some("error"), Some(value)) => error = Some(Box::new(value)),
+                    _ => {}
+                }
+            }
+        }
+        let Some(request) = request else {
+            self.gap(
+                format!(
+                    "fixture {}: delivery request is not in the analysis tables (PR5 examples); emitting a failing recipe shell",
+                    symbol.canonical,
+                ),
+                symbol.span,
+            );
+            return None;
+        };
+        Some(IrFixtureKind::Delivery {
+            operation,
+            request,
+            status,
+            result,
+            error,
+        })
+    }
+
+    /// Resolve fixture-head segments to a qualified T13 send target
+    /// (`std.EmailV1.send`), or `None` when the head is not a
+    /// two-segment `Alias.op` over a `std` provider import with a
+    /// consumed capability schema containing that operation.
+    ///
+    /// Mirrors the checker's `resolve_std_recipe_head` (types.rs):
+    /// the same two-segment rule, the same `std`-provider rule (read
+    /// from the published module imports — the source of the scope
+    /// bindings the checker reads, since `CheckedProgram` does not
+    /// publish scopes), and the same frozen consume-layer lookups.
+    /// Table-grounded, not re-derived: the head spelling is
+    /// syntactic structure re-read from the anchored recipe node
+    /// (the module-doc exception) while provider/member/op identity
+    /// comes from published tables plus the T13 catalog. Any miss —
+    /// including Handbook, non-`std` providers and wrong ops —
+    /// returns `None` and the caller keeps the failing shell.
+    fn std_send_target(&self, module: ModuleId, segments: &[String]) -> Option<String> {
+        if segments.len() != 2 {
+            return None;
+        }
+        let host = self.program.modules.get(module.0 as usize)?;
+        let member = host
+            .imports
+            .iter()
+            .filter(|import| import.provider == "std")
+            .flat_map(|import| &import.members)
+            .find(|member| member.alias == segments[0])?;
+        let cap = std_capability(&member.name)?;
+        let op = cap
+            .operations
+            .iter()
+            .find(|operation| operation.name == segments[1])?;
+        Some(format!("{}.{}", cap.name, op.name))
     }
 
     /// Decode a model recipe object: values with model-field-type context

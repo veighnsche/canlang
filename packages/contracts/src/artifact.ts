@@ -83,13 +83,65 @@ export interface ArtifactCallable {
 }
 
 /**
+ * One T13c nominal result leaf, verbatim.
+ *
+ * `type` is the T13c transcribed kind spelling (`text?`, `file[]`,
+ * `enum(a,b)`, nominal refs) — never a re-interpretation. T04b
+ * ratifies any structured leaf vocabulary; verbatim leaves derive it
+ * without loss.
+ */
+export interface ArtifactNominalLeaf {
+  /** Leaf field name in producer order. */
+  name: string;
+  /** Verbatim T13c declared kind spelling. */
+  type: string;
+}
+
+/**
+ * One T13 provider-result nominal with its T13c leaves in producer
+ * order. `name` is the source nominal spelling (e.g. `ImageRun`),
+ * never a TS wire alias.
+ */
+export interface ArtifactNominalResult {
+  /** Source nominal name. */
+  name: string;
+  /** Leaves in T13c producer order. */
+  fields: ArtifactNominalLeaf[];
+}
+
+/**
+ * T15b provider delivery descriptor: the closed T04b-preview kind
+ * for T14c typed `std` receipts, shared by operation inputs and
+ * model field tags (one shape, no drift).
+ *
+ * `capability` + `operation` is the T13 send-target identity (the
+ * `std.EmailV1.send` vocabulary); `version` is the frozen capability
+ * contract version for T04a §7 fencing; `result` is the declared
+ * provider result with its T13c leaves. Additive-only: old consumers
+ * precisely reject the unknown `delivery` kind per T04a §3/§7.
+ * T04b ratifies this shape.
+ */
+export interface ArtifactDeliveryDescriptor {
+  kind: 'delivery';
+  /** Qualified capability contract, e.g. `std.EmailV1`. */
+  capability: string;
+  /** Consumed operation name, e.g. `send`. */
+  operation: string;
+  /** Frozen capability contract version. */
+  version: number;
+  /** Declared provider result with its T13c leaves. */
+  result: ArtifactNominalResult;
+}
+
+/**
  * One closed typed input field of an operation descriptor (MCP P1).
  *
  * JSON shape of `McpSchemaField` (`@canlang/interfaces` ports.ts),
  * redeclared here so this lane-01 boundary stays dependency-free. The
  * two shapes must stay JSON-identical: `ref` carries the canonical
  * model plus the version requirement; `enum` carries case spellings in
- * declaration order; every other kind is a bare tag.
+ * declaration order; `delivery` carries the T15b provider descriptor;
+ * every other kind is a bare tag.
  */
 export type ArtifactOperationField =
   | { kind: 'ref'; model: string; requireVersion: boolean }
@@ -100,7 +152,8 @@ export type ArtifactOperationField =
   | { kind: 'datetime' }
   | { kind: 'boolean' }
   | { kind: 'file' }
-  | { kind: 'enum'; values: string[] };
+  | { kind: 'enum'; values: string[] }
+  | ArtifactDeliveryDescriptor;
 
 /** One named operation input (JSON shape of `McpNamedField`). */
 export interface ArtifactOperationInput {
@@ -173,10 +226,10 @@ export type ArtifactFieldDefault =
  * are additive T04b-preview tags: T04a consumers ignore them (the §3
  * `required`/`serverOnly`/`array`/`default` members stay complete for
  * every field regardless of type) and T04b formalizes their admission.
- * `other` is the honest fallback for delivery/action/union/contract and
- * unknown shapes; `type` carries the source type id. T15b (provider
- * join) refines `other` delivery shapes and any new bound kinds here —
- * never in a second format.
+ * `delivery` is the T15b provider descriptor for T14c typed `std`
+ * receipts (shared shape with operation inputs, above). `other` is
+ * the honest fallback for bound-local deliveries, actions, unions,
+ * contracts and unknown shapes; `type` carries the source type id.
  */
 export type ArtifactModelFieldType =
   | { kind: 'ref'; model: string }
@@ -195,6 +248,7 @@ export type ArtifactModelFieldType =
   | { kind: 'member' }
   | { kind: 'json' }
   | { kind: 'bytes' }
+  | ArtifactDeliveryDescriptor
   | { kind: 'other'; type: string };
 
 /**

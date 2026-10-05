@@ -23,6 +23,7 @@
 //! `deleteRecord` modes, bound `send`, `schedule` with `on:{every}` and
 //! CRUD `create`/`set` with `when`.
 
+use crate::analysis::catalog::{StdOperation, nominal_schema, std_capability};
 use crate::analysis::resolve::{CrudOp, ModuleKind};
 use crate::analysis::types::{ResolvedType, Scalar};
 use crate::codegen::ir::{
@@ -148,6 +149,125 @@ pub enum JsMcpField {
     Enum {
         values: Vec<String>,
     },
+    /// T15b provider delivery: a T14c typed `std` receipt. Closed
+    /// identity (capability + operation + frozen contract version)
+    /// plus the T13c result nominal; shared shape with
+    /// [`JsModelFieldType::Delivery`] (one renderer, no drift).
+    Delivery(JsDeliveryDescriptor),
+}
+
+/// One T13c nominal result leaf, verbatim (JSON shape of
+/// `ArtifactNominalLeaf`).
+///
+/// `declared` is the T13c transcribed kind spelling (`text?`,
+/// `file[]`, `enum(a,b)`, nominal refs — catalog.rs mapping rules),
+/// never a re-interpretation: T04b ratifies any structured leaf
+/// vocabulary, and verbatim leaves derive it without loss.
+#[derive(Debug, Clone)]
+pub struct JsNominalLeaf {
+    /// Leaf field name in producer order.
+    pub name: String,
+    /// Verbatim T13c declared kind spelling.
+    pub declared: String,
+}
+
+impl JsNominalLeaf {
+    /// Compact JSON per `artifact.ts` `ArtifactNominalLeaf`.
+    pub fn to_json(&self) -> String {
+        format!(
+            "{{\"name\":{},\"type\":{}}}",
+            js_string(&self.name),
+            js_string(&self.declared)
+        )
+    }
+}
+
+/// One T13 provider-result nominal with its T13c leaves (JSON shape
+/// of `ArtifactNominalResult`).
+#[derive(Debug, Clone)]
+pub struct JsNominalResult {
+    /// Source nominal name (T13c source spelling, e.g. `ImageRun` —
+    /// never a TS wire alias).
+    pub name: String,
+    /// Leaves in T13c producer order.
+    pub fields: Vec<JsNominalLeaf>,
+}
+
+impl JsNominalResult {
+    /// Compact JSON per `artifact.ts` `ArtifactNominalResult`.
+    pub fn to_json(&self) -> String {
+        format!(
+            "{{\"name\":{},\"fields\":[{}]}}",
+            js_string(&self.name),
+            self.fields
+                .iter()
+                .map(JsNominalLeaf::to_json)
+                .collect::<Vec<_>>()
+                .join(",")
+        )
+    }
+}
+
+/// One T15b provider delivery descriptor (JSON shape of
+/// `ArtifactDeliveryDescriptor`).
+///
+/// Closed T04b-preview kind for T14c typed `std` receipts: the
+/// capability + operation identity plus the frozen capability
+/// contract version (T04a §7 version fencing) and the T13c result
+/// nominal. Old consumers precisely reject the unknown `delivery`
+/// kind per T04a §3/§7 (additive-only); T04b ratifies the shape.
+#[derive(Debug, Clone)]
+pub struct JsDeliveryDescriptor {
+    /// Qualified capability contract, e.g. `std.EmailV1`.
+    pub capability: String,
+    /// Consumed operation name, e.g. `send`.
+    pub operation: String,
+    /// Frozen capability contract version (`STD_*_VERSION`).
+    pub version: u32,
+    /// Declared provider result with its T13c leaves.
+    pub result: JsNominalResult,
+}
+
+impl JsDeliveryDescriptor {
+    /// Compact JSON per `artifact.ts` `ArtifactDeliveryDescriptor`.
+    pub fn to_json(&self) -> String {
+        format!(
+            "{{\"kind\":\"delivery\",\"capability\":{},\"operation\":{},\"version\":{},\"result\":{}}}",
+            js_string(&self.capability),
+            js_string(&self.operation),
+            self.version,
+            self.result.to_json()
+        )
+    }
+}
+
+/// Build the provider delivery descriptor for one consumed T13 `std`
+/// operation, or `None` when either join fails (fail-closed: callers
+/// keep exactly today's omit/`other` behavior; T04b owns ratification
+/// and nothing is fabricated).
+///
+/// The capability version comes from the frozen consume layer
+/// ([`std_capability`]) and the result leaves from the T13c
+/// transcription ([`nominal_schema`]) in producer order.
+pub fn delivery_descriptor(capability: &str, op: &StdOperation) -> Option<JsDeliveryDescriptor> {
+    let version = std_capability(capability)?.version;
+    let schema = nominal_schema(op.result)?;
+    Some(JsDeliveryDescriptor {
+        capability: capability.to_string(),
+        operation: op.name.to_string(),
+        version,
+        result: JsNominalResult {
+            name: op.result.to_string(),
+            fields: schema
+                .fields
+                .iter()
+                .map(|(name, declared)| JsNominalLeaf {
+                    name: (*name).to_string(),
+                    declared: (*declared).to_string(),
+                })
+                .collect(),
+        },
+    })
 }
 
 impl JsMcpField {
@@ -177,6 +297,7 @@ impl JsMcpField {
                     .collect::<Vec<_>>()
                     .join(",")
             ),
+            JsMcpField::Delivery(descriptor) => descriptor.to_json(),
         }
     }
 }
@@ -448,12 +569,13 @@ pub fn operations_json(operations: &[JsOperation]) -> String {
 
 /// One stored-model field type tag (JSON shape of `ArtifactModelFieldType`).
 ///
-/// The `Ref`/scalar/`Enum` members mirror [`JsMcpField`] (minus
-/// `require_version`, meaningless for stored rows); the `Date`..`Bytes`
-/// members are additive T04b-preview tags and `Other` is the honest
-/// fallback for delivery/action/union/contract and unknown shapes.
-/// T15b (provider join) refines `Other` delivery shapes here — never in
-/// a second format.
+/// The `Ref`/scalar/`Enum`/`Delivery` members mirror [`JsMcpField`]
+/// (minus `require_version`, meaningless for stored rows); the
+/// `Date`..`Bytes` members are additive T04b-preview tags and `Other`
+/// is the honest fallback for bound-local deliveries, actions,
+/// unions, contracts and unknown shapes. T15b (provider join) refines
+/// T14c typed `std` receipts into `Delivery` here — never in a second
+/// format; unjoined shapes keep the `other` fallback.
 #[derive(Debug, Clone)]
 pub enum JsModelFieldType {
     /// Stored-record reference: canonical target model.
@@ -467,6 +589,9 @@ pub enum JsModelFieldType {
     File,
     /// Anonymous enum: case spellings in declaration order.
     Enum { values: Vec<String> },
+    /// T15b provider delivery: a T14c typed `std` receipt (shared
+    /// [`JsDeliveryDescriptor`] shape with [`JsMcpField::Delivery`]).
+    Delivery(JsDeliveryDescriptor),
     /// T04b-preview additive tags (source-exact; T04a intake ignores).
     Date,
     Duration,
@@ -508,6 +633,7 @@ impl JsModelFieldType {
             JsModelFieldType::Member => "{\"kind\":\"member\"}".to_string(),
             JsModelFieldType::Json => "{\"kind\":\"json\"}".to_string(),
             JsModelFieldType::Bytes => "{\"kind\":\"bytes\"}".to_string(),
+            JsModelFieldType::Delivery(descriptor) => descriptor.to_json(),
             JsModelFieldType::Other { type_id } => format!(
                 "{{\"kind\":\"other\",\"type\":{}}}",
                 js_string(type_id)
@@ -3924,12 +4050,12 @@ impl<'a> Emitter<'a> {
     /// clears `required` and sets `nullable`. Nested arrays have no
     /// mapping (the element position takes one tag only).
     ///
-    /// T15b seam (provider join): bound-send recipe/delivery shapes plug
-    /// in here — `Delivery` currently falls into the `_ => None` arm
-    /// (operations taking deliveries omit, fail-closed). T15b adds the
-    /// T04b-agreed delivery/recipe kinds to `JsMcpField` and maps them
-    /// here alongside the model-tag twin
-    /// [`Emitter::model_field_tag`].
+    /// T15b provider join (landed): T14c typed `std` receipts map to
+    /// the closed [`JsMcpField::Delivery`] kind below; bound-local
+    /// `Delivery` still falls into the `_ => None` arm (operations
+    /// taking local deliveries omit, fail-closed) alongside the
+    /// model-tag twin [`Emitter::model_field_tag`]. T04b ratifies the
+    /// delivery shape.
     fn mcp_field_for_type(
         &self,
         ty: &IrType,
@@ -3995,6 +4121,11 @@ impl<'a> Emitter<'a> {
                 Some((field, true))
             }
             ResolvedType::Nullable(inner) => self.mcp_field_for_resolved(inner, require_version),
+            // T15b: T14c typed `std` receipts map to the closed
+            // delivery kind when both joins resolve; unjoined shapes
+            // keep the omit (fail-closed, exactly as before).
+            ResolvedType::StdDelivery { capability, op } => delivery_descriptor(capability, op)
+                .map(|descriptor| (JsMcpField::Delivery(descriptor), false)),
             _ => None,
         }
     }
@@ -4220,11 +4351,12 @@ impl<'a> Emitter<'a> {
     /// T04b-preview or the honest `other` fallback carrying the source
     /// type id. Total and diagnostic-free.
     ///
-    /// T15b seam (provider join): bound-send recipe/delivery shapes plug
-    /// in here — `Delivery` currently maps to `other` (see the arm
-    /// below). T15b adds the T04b-agreed delivery/recipe tags to
-    /// `JsModelFieldType` and maps them here alongside the operation
-    /// twin [`Emitter::mcp_field_for_type`].
+    /// T15b provider join (landed): T14c typed `std` receipts map to
+    /// the closed [`JsModelFieldType::Delivery`] tag below when both
+    /// joins resolve; bound-local `Delivery` keeps the source-exact
+    /// `other` tag (see the arm below), as do unjoined `std` shapes.
+    /// Twin of the operation mapping [`Emitter::mcp_field_for_type`];
+    /// T04b ratifies the delivery shape.
     fn model_field_tag(&self, ty: &ResolvedType) -> JsModelFieldType {
         match ty {
             ResolvedType::Scalar(scalar) => match scalar {
@@ -4272,9 +4404,9 @@ impl<'a> Emitter<'a> {
                     .map(|row| row.canonical.clone())
                     .unwrap_or_else(|| "message".to_string()),
             },
-            // T15b provider-join arm: bound delivery handles stay `other`
-            // until T04b agrees their descriptor shape (T14b owns the
-            // schemas; this slice must not guess them).
+            // Bound-local delivery handles stay `other`: T15b scopes
+            // closed descriptors to T14c typed `std` receipts (local
+            // capabilities have no T13 contract identity to join).
             ResolvedType::Delivery { op } => JsModelFieldType::Other {
                 type_id: self
                     .ir
@@ -4283,11 +4415,14 @@ impl<'a> Emitter<'a> {
                     .map(|row| format!("delivery:{}", row.canonical))
                     .unwrap_or_else(|| "delivery".to_string()),
             },
-            // T14c: typed `std` receipts tag like bound deliveries
-            // (the T15b provider join owns any richer descriptor).
-            ResolvedType::StdDelivery { capability, op } => JsModelFieldType::Other {
-                type_id: format!("delivery:{capability}.{}", op.name),
-            },
+            // T15b: typed `std` receipts tag closed when both joins
+            // resolve; unjoined shapes keep exactly the T14c `other`
+            // fallback (fail-closed, T04b ratifies).
+            ResolvedType::StdDelivery { capability, op } => delivery_descriptor(capability, op)
+                .map(JsModelFieldType::Delivery)
+                .unwrap_or_else(|| JsModelFieldType::Other {
+                    type_id: format!("delivery:{capability}.{}", op.name),
+                }),
             ResolvedType::Action { .. } => JsModelFieldType::Other {
                 type_id: "action".to_string(),
             },
