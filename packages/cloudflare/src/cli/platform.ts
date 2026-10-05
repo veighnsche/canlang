@@ -12,19 +12,51 @@
  *
  * Missing-producer failures use `code: "missing-producer"` and name the
  * exact unmet contract — never a second engine, never a silent pass.
+ *
+ * `activate` (B3-I6) runs the activation serve-gate over an activation
+ * bundle and reports the typed verdict. Bundle convention, resolved
+ * next to `--artifact` (`<stem>` is the artifact basename minus
+ * `.artifact.json`, else minus `.json`):
+ *   `<stem>.descriptor.json` — CompatibilityDescriptor (required)
+ *   `<stem>.<env>.environment.json` — EnvironmentSelection for `--env` (required)
+ *   `<stem>.target.json` — InstalledRuntime declaration incl. contractsVersion (required)
+ *   `<stem>.store.json` — { installedSnapshot, outbox } (optional; absent
+ *     means the digest gate reports `activation-incomplete`)
+ * Success envelope: `{ ok: true, command: "activate", active, reasons? }`,
+ * exit 0 WHETHER OR NOT the verdict is active — a negative verdict is a
+ * successful check with a fail-closed outcome, and callers (`can
+ * activate`) map `active: false` to their own nonzero exit.
+ *
+ * Honest scope: the CLI runs gates 1-3 (compat, requires bridge,
+ * installed digest) from bundle data. Gate 4 (outstanding-work
+ * inventory) needs the `@canlang/state` + `@canlang/work` producer
+ * runtimes, which are not importable from the plain-node dist CLI — so
+ * the CLI passes no inventory/gates and the verdict carries
+ * `activation-incomplete` for gate 4. The full four-gate pass (real
+ * producer functions) is proven in `test/activate.test.ts`.
  */
+import { readFileSync } from "node:fs";
 import { access, mkdtemp } from "node:fs/promises";
 import { constants } from "node:fs";
 import { tmpdir } from "node:os";
-import { dirname, join, resolve } from "node:path";
+import { basename, dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import type {
+  CompatibilityDescriptor,
+  EnvironmentSelection,
+  InstalledSnapshot,
+  OutboxIntent,
+  StoragePort,
+} from "@canlang/contracts";
 import { loadArtifactFile, type LoadedArtifact } from "../runtime/artifact.js";
 import { assembleModules } from "../runtime/modules.js";
+import { activate } from "../deploy/activate.js";
+import { probeInstalledRuntime } from "../deploy/installed.js";
 
 export const PLATFORM_CLI_NAME = "can-platform";
 export const PLATFORM_CLI_VERSION = "0.1.0";
 
-const COMMANDS = ["run", "test", "build", "deploy"] as const;
+const COMMANDS = ["run", "test", "build", "deploy", "activate"] as const;
 type PlatformCommand = (typeof COMMANDS)[number];
 
 interface FailureEnvelope {
@@ -155,6 +187,227 @@ async function runArtifact(path: string): Promise<void> {
   });
 }
 
+/* ------------------------------------------------------------------ */
+/* activate: bundle loading + validation + serve-gate driver.           */
+/* ------------------------------------------------------------------ */
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function bundleStem(artifactPath: string): { dir: string; stem: string } {
+  const dir = dirname(artifactPath);
+  const base = basename(artifactPath);
+  const stem = base.endsWith(".artifact.json")
+    ? base.slice(0, -".artifact.json".length)
+    : base.replace(/\.json$/, "");
+  return { dir, stem };
+}
+
+function loadBundleJson(path: string, what: string): unknown {
+  let text: string;
+  try {
+    text = readFileSync(path, "utf8");
+  } catch {
+    fail(
+      "activate",
+      "invalid-activation-bundle",
+      `${what} not readable: ${path} (bundle convention: <stem>.{descriptor,<env>.environment,target}[,store].json next to --artifact)`,
+    );
+  }
+  try {
+    return JSON.parse(text) as unknown;
+  } catch (error) {
+    fail(
+      "activate",
+      "invalid-activation-bundle",
+      `${what} is not valid JSON: ${error instanceof Error ? error.message : String(error)}`,
+    );
+  }
+}
+
+function needRecord(value: unknown, what: string): Record<string, unknown> {
+  if (!isRecord(value)) throw new Error(`${what} must be a JSON object`);
+  return value;
+}
+
+function needString(value: unknown, what: string): string {
+  if (typeof value !== "string" || value.length === 0) throw new Error(`${what} must be a non-empty string`);
+  return value;
+}
+
+function needStringArray(value: unknown, what: string): string[] {
+  if (!Array.isArray(value) || !value.every((entry) => typeof entry === "string")) {
+    throw new Error(`${what} must be an array of strings`);
+  }
+  return [...value];
+}
+
+function loadDescriptor(path: string): CompatibilityDescriptor {
+  const root = needRecord(loadBundleJson(path, "descriptor"), "descriptor");
+  const identity = needRecord(root["identity"], "descriptor.identity");
+  for (const field of ["appName", "sourceRevision", "languageVersion", "compilerVersion"] as const) {
+    needString(identity[field], `descriptor.identity.${field}`);
+  }
+  if (typeof identity["contractsVersion"] !== "number") {
+    throw new Error("descriptor.identity.contractsVersion must be a number");
+  }
+  needString(identity["artifactDigest"], "descriptor.identity.artifactDigest");
+  if (!Array.isArray(root["requiredCapabilities"])) {
+    throw new Error("descriptor.requiredCapabilities must be an array");
+  }
+  if (!Array.isArray(root["resourceBindings"])) throw new Error("descriptor.resourceBindings must be an array");
+  for (const [index, requirement] of (root["resourceBindings"] as unknown[]).entries()) {
+    const entry = needRecord(requirement, `descriptor.resourceBindings[${index}]`);
+    for (const field of ["binding", "kind", "logicalName"] as const) {
+      needString(entry[field], `descriptor.resourceBindings[${index}].${field}`);
+    }
+  }
+  if (!Array.isArray(root["secrets"])) throw new Error("descriptor.secrets must be an array");
+  for (const [index, secret] of (root["secrets"] as unknown[]).entries()) {
+    const entry = needRecord(secret, `descriptor.secrets[${index}]`);
+    needString(entry["binding"], `descriptor.secrets[${index}].binding`);
+    if (typeof entry["optional"] !== "boolean") {
+      throw new Error(`descriptor.secrets[${index}].optional must be a boolean`);
+    }
+  }
+  if (!Array.isArray(root["schedules"])) throw new Error("descriptor.schedules must be an array");
+  for (const [index, schedule] of (root["schedules"] as unknown[]).entries()) {
+    const entry = needRecord(schedule, `descriptor.schedules[${index}]`);
+    needString(entry["handler"], `descriptor.schedules[${index}].handler`);
+    needString(entry["everyMilliseconds"], `descriptor.schedules[${index}].everyMilliseconds`);
+  }
+  return root as unknown as CompatibilityDescriptor;
+}
+
+function loadEnvironment(path: string, env: string): EnvironmentSelection {
+  const root = needRecord(loadBundleJson(path, "environment"), "environment");
+  const name = needString(root["environment"], "environment.environment");
+  if (name !== env) {
+    throw new Error(`environment file selects ${JSON.stringify(name)} but --env is ${JSON.stringify(env)}`);
+  }
+  if (!Array.isArray(root["resources"])) throw new Error("environment.resources must be an array");
+  for (const [index, resource] of (root["resources"] as unknown[]).entries()) {
+    const entry = needRecord(resource, `environment.resources[${index}]`);
+    const requirement = needRecord(entry["requirement"], `environment.resources[${index}].requirement`);
+    for (const field of ["binding", "kind", "logicalName"] as const) {
+      needString(requirement[field], `environment.resources[${index}].requirement.${field}`);
+    }
+    needString(entry["resourceId"], `environment.resources[${index}].resourceId`);
+  }
+  needStringArray(root["secretsPresent"], "environment.secretsPresent");
+  const vars = needRecord(root["vars"], "environment.vars");
+  for (const [key, value] of Object.entries(vars)) {
+    if (typeof value !== "string") throw new Error(`environment.vars[${JSON.stringify(key)}] must be a string`);
+  }
+  return root as unknown as EnvironmentSelection;
+}
+
+function loadTarget(path: string): {
+  contractsVersion: number;
+  runtimeVersion: string;
+  knownLanguageVersions: readonly string[];
+  capabilities: readonly string[];
+  supportsSchedules: boolean;
+} {
+  const root = needRecord(loadBundleJson(path, "target"), "target");
+  if (typeof root["contractsVersion"] !== "number") {
+    throw new Error("target.contractsVersion must be a number (the deployment's supported contracts version)");
+  }
+  if (typeof root["supportsSchedules"] !== "boolean") {
+    throw new Error("target.supportsSchedules must be a boolean");
+  }
+  return {
+    contractsVersion: root["contractsVersion"],
+    runtimeVersion: needString(root["runtimeVersion"], "target.runtimeVersion"),
+    knownLanguageVersions: needStringArray(root["knownLanguageVersions"], "target.knownLanguageVersions"),
+    capabilities: needStringArray(root["capabilities"], "target.capabilities"),
+    supportsSchedules: root["supportsSchedules"],
+  };
+}
+
+interface BundleStore {
+  installedSnapshot: InstalledSnapshot | null;
+  outbox: readonly OutboxIntent[];
+}
+
+/** Absent file -> null (the digest gate reports incomplete); invalid file -> loud failure. */
+async function loadStore(path: string): Promise<BundleStore | null> {
+  if (!(await artifactExists(path))) return null;
+  const root = needRecord(loadBundleJson(path, "store"), "store");
+  const snapshot = root["installedSnapshot"];
+  if (snapshot !== null) {
+    const entry = needRecord(snapshot, "store.installedSnapshot");
+    needString(entry["owner"], "store.installedSnapshot.owner");
+    needString(entry["snapshotId"], "store.installedSnapshot.snapshotId");
+    needString(entry["digest"], "store.installedSnapshot.digest");
+    if (typeof entry["installedRevision"] !== "number" || typeof entry["installedAt"] !== "number") {
+      throw new Error("store.installedSnapshot.installedRevision/installedAt must be numbers");
+    }
+  }
+  if (!Array.isArray(root["outbox"])) throw new Error("store.outbox must be an array");
+  for (const [index, intent] of (root["outbox"] as unknown[]).entries()) {
+    const entry = needRecord(intent, `store.outbox[${index}]`);
+    needString(entry["intentId"], `store.outbox[${index}].intentId`);
+  }
+  return root as unknown as BundleStore;
+}
+
+async function runActivate(artifactPath: string, env: string | null): Promise<void> {
+  if (env === null) {
+    usage("activate requires --env <name>");
+  }
+  let loaded: LoadedArtifact;
+  try {
+    loaded = loadArtifactFile(artifactPath);
+  } catch (error) {
+    fail("activate", "invalid-artifact", error instanceof Error ? error.message : String(error));
+  }
+  const { dir, stem } = bundleStem(artifactPath);
+  let descriptor: CompatibilityDescriptor;
+  let environment: EnvironmentSelection;
+  let target: ReturnType<typeof loadTarget>;
+  let bundleStore: BundleStore | null;
+  try {
+    descriptor = loadDescriptor(join(dir, `${stem}.descriptor.json`));
+    environment = loadEnvironment(join(dir, `${stem}.${env}.environment.json`), env);
+    target = loadTarget(join(dir, `${stem}.target.json`));
+    bundleStore = await loadStore(join(dir, `${stem}.store.json`));
+  } catch (error) {
+    fail("activate", "invalid-activation-bundle", error instanceof Error ? error.message : String(error));
+  }
+  let installed;
+  try {
+    installed = probeInstalledRuntime({}, target);
+  } catch (error) {
+    fail("activate", "invalid-activation-bundle", error instanceof Error ? error.message : String(error));
+  }
+  const snapshot = bundleStore?.installedSnapshot ?? null;
+  const outbox = bundleStore?.outbox ?? [];
+  const store: StoragePort | undefined =
+    bundleStore === null
+      ? undefined
+      : ({
+          readInstalledSnapshot: async (owner: string) => (snapshot !== null && snapshot.owner === owner ? snapshot : null),
+          outboxPending: async () => [...outbox],
+        } as unknown as StoragePort);
+  const verdict = await activate({
+    artifact: loaded.artifact,
+    descriptor,
+    environment,
+    installed,
+    ...(store === undefined ? {} : { store }),
+  });
+  process.stderr.write(
+    verdict.active ? "activation: active\n" : `activation: refused (${verdict.reasons.length} reason(s))\n`,
+  );
+  emit(
+    verdict.active
+      ? { ok: true, command: "activate", active: true }
+      : { ok: true, command: "activate", active: false, reasons: verdict.reasons },
+  );
+}
+
 async function main(): Promise<void> {
   const args = parse(process.argv.slice(2));
   if (!(await artifactExists(args.artifact))) {
@@ -164,6 +417,10 @@ async function main(): Promise<void> {
   // keep their stubs (test still names lane-01).
   if (args.command === "run") {
     await runArtifact(args.artifact);
+    return;
+  }
+  if (args.command === "activate") {
+    await runActivate(args.artifact, args.env);
     return;
   }
   if (args.command === "test") {

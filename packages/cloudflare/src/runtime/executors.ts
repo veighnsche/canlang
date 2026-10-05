@@ -205,6 +205,9 @@ export function withDispatchProducer(
     publishMigrationChunk: (input) => inner.publishMigrationChunk(input),
     flipInstalledSnapshot: (input) => inner.flipInstalledSnapshot(input),
     readMigrationOutcomes: (migrationId) => inner.readMigrationOutcomes(migrationId),
+    recordMigrationFailure: (input) => inner.recordMigrationFailure(input),
+    discardStagedRows: (input) => inner.discardStagedRows(input),
+    readMigrationFailure: (migrationId) => inner.readMigrationFailure(migrationId),
   };
 }
 

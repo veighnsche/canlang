@@ -322,6 +322,114 @@ fn is_ui_factory(factory: &str) -> bool {
     )
 }
 
+/// One page `form` usage collected for the `forms` member.
+struct FormUsage {
+    page: String,
+    operation: String,
+    fields: Vec<String>,
+    display: Option<String>,
+}
+
+/// Static text of a form prop, when the prop lowers to one.
+fn form_prop_text(node: &IrUi, name: &str) -> Option<String> {
+    node.props.iter().find_map(|(key, value)| {
+        if key != name {
+            return None;
+        }
+        match &value.expr {
+            IrExpr::Text(text) => Some(text.clone()),
+            _ => None,
+        }
+    })
+}
+
+/// Static field names of a form prop, when the prop lowers to a text array.
+fn form_prop_fields(node: &IrUi, name: &str) -> Vec<String> {
+    node.props
+        .iter()
+        .find(|(key, _)| key == name)
+        .and_then(|(_, value)| match &value.expr {
+            IrExpr::Array(items) => Some(
+                items
+                    .iter()
+                    .filter_map(|item| match &item.expr {
+                        IrExpr::Text(text) => Some(text.clone()),
+                        _ => None,
+                    })
+                    .collect(),
+            ),
+            _ => None,
+        })
+        .unwrap_or_default()
+}
+
+/// Collect `form` factory nodes in source order. Forms without a resolved
+/// `operation` prop are skipped (loud in the page lowering already).
+fn collect_form_usages(node: &IrUi, page: &str, out: &mut Vec<FormUsage>) {
+    if node.factory == "form"
+        && let Some(operation) = form_prop_text(node, "operation")
+    {
+        out.push(FormUsage {
+            page: page.to_string(),
+            operation,
+            fields: form_prop_fields(node, "fields"),
+            display: form_prop_text(node, "display"),
+        });
+    }
+    for child in &node.children {
+        collect_form_usages(child, page, out);
+    }
+}
+
+/// Render one admission gate as manifest spellings: direct role gates
+/// list their spelling; anything else (subject/expression/compound
+/// gates) sets `gated` so the manifest marks enforcement without
+/// inventing a spelling. Total and silent by design.
+fn guard_spellings(by: &[IrGuard]) -> (Vec<String>, bool) {
+    let mut spellings = Vec::new();
+    let mut gated = false;
+    for guard in by {
+        match guard {
+            IrGuard::Role(id) => spellings.push(id.clone()),
+            _ => gated = true,
+        }
+    }
+    (spellings, gated)
+}
+
+/// One `policy.operations` entry: role-gate spellings, `require` count,
+/// crud `when` presence, and the `gated` marker. `None` when the
+/// operation carries no admission content at all.
+fn operation_policy_entry(
+    spellings: &[String],
+    gated: bool,
+    requires: usize,
+    has_when: bool,
+) -> Option<String> {
+    if spellings.is_empty() && !gated && requires == 0 && !has_when {
+        return None;
+    }
+    let mut members = Vec::new();
+    if !spellings.is_empty() {
+        let list = spellings
+            .iter()
+            .map(|s| js_string(s))
+            .collect::<Vec<_>>()
+            .join(",");
+        members.push(format!("by:[{list}]"));
+    }
+    if requires > 0 {
+        members.push(format!("requires:{requires}"));
+    }
+    if has_when {
+        members.push("when:true".to_string());
+    }
+    if gated {
+        members.push("gated:true".to_string());
+    }
+    Some(format!("{{{}}}", members.join(",")))
+}
+
 /// Emission context: import tracking, diagnostics and link metadata.
 pub struct Emitter<'a> {
     ir: &'a IrProgram,
@@ -2136,6 +2244,15 @@ impl<'a> Emitter<'a> {
         members.push(self.emit_models_member());
         members.push(self.emit_preferences_member());
         members.push(self.emit_operations_member());
+        // B3-I5: form descriptors + policy manifest alongside grants. Both
+        // members are omitted when empty, so sources without page forms or
+        // policy content emit byte-identical output.
+        if let Some(forms) = self.emit_forms_member() {
+            members.push(forms);
+        }
+        if let Some(policy) = self.emit_policy_member() {
+            members.push(policy);
+        }
         members.push(self.emit_pages_member());
         members.push(self.emit_disabled_member());
         out.push(
@@ -2668,6 +2785,136 @@ impl<'a> Emitter<'a> {
             }
         }
         format!("operations:{{{}}}", operations.join(","))
+    }
+
+    /// Emit the `forms` member: one descriptor per page `form` node in
+    /// source order (`page`, `operation`, `fields`, `display?`). Field
+    /// entries are input names; types/labels join from the `operations`
+    /// input schemas at runtime. `None` when no page form resolves to an
+    /// operation (unresolvable targets stay loud in the page lowering,
+    /// never guessed here).
+    fn emit_forms_member(&self) -> Option<String> {
+        let mut usages = Vec::new();
+        for module in &self.ir.modules {
+            for page in &module.pages {
+                for node in &page.render {
+                    collect_form_usages(node, &page.path, &mut usages);
+                }
+            }
+        }
+        if usages.is_empty() {
+            return None;
+        }
+        let entries: Vec<String> = usages
+            .iter()
+            .map(|usage| {
+                let fields = usage
+                    .fields
+                    .iter()
+                    .map(|f| js_string(f))
+                    .collect::<Vec<_>>()
+                    .join(",");
+                let mut members = vec![
+                    format!("page:{}", js_string(&usage.page)),
+                    format!("operation:{}", js_string(&usage.operation)),
+                    format!("fields:[{fields}]"),
+                ];
+                if let Some(display) = &usage.display {
+                    members.push(format!("display:{}", js_string(display)));
+                }
+                format!("{{{}}}", members.join(","))
+            })
+            .collect();
+        Some(format!("forms:[{}]", entries.join(",")))
+    }
+
+    /// Emit the `policy` member: the introspection-friendly policy
+    /// manifest alongside grants — declared roles, per-model rule
+    /// registries, and per-operation admission summaries. `None` when no
+    /// policy content exists (no roles, grants, invariants, locks, or
+    /// operation gates).
+    fn emit_policy_member(&self) -> Option<String> {
+        let roles: Vec<String> = self
+            .ir
+            .items
+            .iter()
+            .filter(|item| matches!(item.kind, IrItemKind::Role { .. }))
+            .map(|item| js_string(&item.canonical))
+            .collect();
+        let mut models = Vec::new();
+        for item in &self.ir.items {
+            let IrItemKind::Model {
+                grants,
+                invariants,
+                locks,
+                ..
+            } = &item.kind
+            else {
+                continue;
+            };
+            if grants.is_empty() && invariants.is_empty() && locks.is_empty() {
+                continue;
+            }
+            let mut members = Vec::new();
+            if !grants.is_empty() {
+                let rules = grants
+                    .iter()
+                    .map(|grant| js_string(&grant.rule))
+                    .collect::<Vec<_>>()
+                    .join(",");
+                members.push(format!("read:[{rules}]"));
+            }
+            if !invariants.is_empty() {
+                let ids = invariants
+                    .iter()
+                    .map(|id| js_string(id))
+                    .collect::<Vec<_>>()
+                    .join(",");
+                members.push(format!("invariants:[{ids}]"));
+            }
+            if !locks.is_empty() {
+                let ids = locks
+                    .iter()
+                    .map(|id| js_string(id))
+                    .collect::<Vec<_>>()
+                    .join(",");
+                members.push(format!("locks:[{ids}]"));
+            }
+            models.push(format!(
+                "{}:{{{}}}",
+                js_string(&item.canonical),
+                members.join(",")
+            ));
+        }
+        let mut operations = Vec::new();
+        for item in &self.ir.items {
+            match &item.kind {
+                IrItemKind::Scenario { by, guards, .. } => {
+                    let (spellings, gated) = guard_spellings(by);
+                    let entry = operation_policy_entry(&spellings, gated, guards.len(), false);
+                    if let Some(entry) = entry {
+                        operations.push(format!("{}:{entry}", js_string(&item.canonical)));
+                    }
+                }
+                IrItemKind::CrudOp { by, has_when, .. } => {
+                    let (spellings, gated) = guard_spellings(by);
+                    let entry = operation_policy_entry(&spellings, gated, 0, *has_when);
+                    if let Some(entry) = entry {
+                        operations.push(format!("{}:{entry}", js_string(&item.canonical)));
+                    }
+                }
+                _ => {}
+            }
+        }
+        if roles.is_empty() && models.is_empty() && operations.is_empty() {
+            return None;
+        }
+        Some(format!(
+            "policy:{{roles:[{}],models:{{{}}},operations:{{{}}}}}",
+            roles.join(","),
+            models.join(","),
+            operations.join(",")
+        ))
     }
 
     /// The `by:` member for one admission gate: the role spelling for a

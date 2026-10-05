@@ -66,6 +66,8 @@ import type {
 import type { ClockPort } from '../invocation/context.js';
 import type { ModelTable } from '../mutation/models.js';
 import { StateError, storageToStateError } from '../errors.js';
+import { noteUnexpectedFailure } from './recover.js';
+import type { RetainedSet } from './retain.js';
 import { canonicalUniqueValue } from './validate.js';
 import type { ValidatedMigrationPlan } from './transition.js';
 
@@ -74,6 +76,12 @@ export interface ActivateInput {
   readonly store: StoragePort;
   readonly plan: ValidatedMigrationPlan;
   readonly inventory: ReadonlyArray<WorkInventoryItem>;
+  /**
+   * B3: retained set (or id set) from `computeRetainedCarryover`: exactly
+   * these ids are exempt from the gate's block. Absent means S7 behavior
+   * (unpinned undispatched and any in-flight/accepted/uncertain block).
+   */
+  readonly retained?: RetainedSet | ReadonlySet<string>;
   readonly oldModels: ModelTable;
   readonly desiredModels: ModelTable;
   readonly chunkSize: number;
@@ -104,7 +112,7 @@ interface DropCandidate {
  * `resumeMigration`, never by re-entering here.
  */
 export async function activate(input: ActivateInput): Promise<FlipResult> {
-  const { store, plan, inventory, oldModels, desiredModels, chunkSize, clock, isExpiredRow } = input;
+  const { store, plan, inventory, retained, oldModels, desiredModels, chunkSize, clock, isExpiredRow } = input;
   if (!Number.isInteger(chunkSize) || chunkSize < 1) {
     throw new Error(`Invalid migration chunk size: ${JSON.stringify(chunkSize)}`);
   }
@@ -125,28 +133,43 @@ export async function activate(input: ActivateInput): Promise<FlipResult> {
     );
   }
   checkTableAgreement(plan, oldModels, desiredModels);
-  const disposition = await checkActivationInventory(store, plan, inventory);
-  const now = clock.nowMs();
-  if (typeof now !== 'number' || !Number.isFinite(now) || now < 0) {
-    throw new StateError('validation', 'Migration clock must supply a finite time >= 0.');
+  try {
+    const disposition = await checkActivationInventory(store, plan, inventory, retained);
+    const now = clock.nowMs();
+    if (typeof now !== 'number' || !Number.isFinite(now) || now < 0) {
+      throw new StateError('validation', 'Migration clock must supply a finite time >= 0.');
+    }
+    const actor = `migration:${plan.toSnapshotId}`;
+    await publishStagedAndDrops(store, plan, oldModels, desiredModels, chunkSize, now, actor, isExpiredRow);
+    const result = await flipToInstalled(store, plan, now, disposition);
+    if (!result.flipped) {
+      // The evidence gate proved installed == from (and from != target) up
+      // front, so a no-op flip means the pointer moved under us past the
+      // fence (no interleaved commit is possible without a busy) or a forged
+      // plan. Either way the skips/outcomes did NOT record and progress is
+      // NOT active: fail loud, never return a still-publishing state that
+      // resume would livelock on.
+      throw new StateError(
+        'validation',
+        `Migration flip committed nothing for ${JSON.stringify(plan.migrationId)} ` +
+          `(another migration owns the installed target?).`,
+      );
+    }
+    return result;
+  } catch (error) {
+    // B3: unexpected leg failures record `failed` (StateError passes
+    // through unrecorded; the original always rethrows).
+    if (!(error instanceof StateError)) {
+      let at = 0;
+      try {
+        at = clock.nowMs();
+      } catch {
+        at = 0;
+      }
+      await noteUnexpectedFailure(store, plan.migrationId, 'activation', error, at);
+    }
+    throw error;
   }
-  const actor = `migration:${plan.toSnapshotId}`;
-  await publishStagedAndDrops(store, plan, oldModels, desiredModels, chunkSize, now, actor, isExpiredRow);
-  const result = await flipToInstalled(store, plan, now, disposition);
-  if (!result.flipped) {
-    // The evidence gate proved installed == from (and from != target) up
-    // front, so a no-op flip means the pointer moved under us past the
-    // fence (no interleaved commit is possible without a busy) or a forged
-    // plan. Either way the skips/outcomes did NOT record and progress is
-    // NOT active: fail loud, never return a still-publishing state that
-    // resume would livelock on.
-    throw new StateError(
-      'validation',
-      `Migration flip committed nothing for ${JSON.stringify(plan.migrationId)} ` +
-        `(another migration owns the installed target?).`,
-    );
-  }
-  return result;
 }
 
 /** Fail closed when callers pass tables the plan was not validated against. */
@@ -189,24 +212,38 @@ function checkTableAgreement(
  * pinned ids no longer pending in the outbox block (evidence changed
  * under us; missing evidence blocks).
  *
- * TRUST BOUNDARY (loud): the engine trusts the caller's (L4/L7)
- * attestation that each item carries the stated handler contract —
- * outbox rows carry no contract field in this slice, so the pinned check
- * is attestation-vs-plan plus still-pending presence. L4 owes the
- * contract→intent mapping at the join.
+ * B3: the optional `retained` set (from `computeRetainedCarryover`, or a
+ * bare id set) exempts exactly those ids from the block — retained
+ * in-flight/unpinned work survives the flip and dispatches post-migration.
+ * Retained ids are re-verified still pending here, so evidence that
+ * changed between carry-over and activation still blocks. Absent means
+ * S7 behavior. The signature stays backward-compatible (additive only).
+ *
+ * TRUST BOUNDARY (loud): items outside the retained set still rely on the
+ * caller's (L4/L7) attestation of intent→contract; retained items are
+ * re-pinned against the stored outbox `handlerContract` when present
+ * (mismatch blocks at carry-over time). L4 still owes the
+ * contract→intent mapping at the join for unattested rows.
  */
+/** Shared empty exemption (no retained set — pure S7 gate). */
+const EMPTY_EXEMPT: ReadonlySet<string> = Object.freeze(new Set<string>());
+
 export async function checkActivationInventory(
   store: StoragePort,
   plan: ValidatedMigrationPlan,
   inventory: ReadonlyArray<WorkInventoryItem>,
+  retained?: RetainedSet | ReadonlySet<string>,
 ): Promise<ActivationDisposition> {
   if (!Array.isArray(inventory)) {
     throw new StateError('validation', 'Migration inventory must be an array.');
   }
+  const exempt: ReadonlySet<string> =
+    retained === undefined ? EMPTY_EXEMPT : 'ids' in retained ? retained.ids : retained;
   const pinned = new Set(plan.invalidates);
   const blocked: string[] = [];
   const unpinned: string[] = [];
   const invalidated: Array<{ intentId: string; handlerContract: string }> = [];
+  const retainedSeen: string[] = [];
   const seen = new Set<string>();
   for (const item of inventory) {
     if (typeof item !== 'object' || item === null || Array.isArray(item)) {
@@ -226,6 +263,15 @@ export async function checkActivationInventory(
         'validation',
         `Migration inventory item ${JSON.stringify(intentId)} has unknown state.`,
       );
+    }
+    if (exempt.has(intentId)) {
+      // Retained carry-over: exempt from the block, but still
+      // presence-checked below (evidence may have changed).
+      if (!seen.has(intentId)) {
+        seen.add(intentId);
+        retainedSeen.push(intentId);
+      }
+      continue;
     }
     if (state !== 'undispatched') {
       blocked.push(intentId);
@@ -256,7 +302,7 @@ export async function checkActivationInventory(
         `(no disposition): ${unpinned.map((id) => JSON.stringify(id)).join(', ')}.`,
     );
   }
-  if (invalidated.length > 0) {
+  if (invalidated.length > 0 || retainedSeen.length > 0) {
     const pending = await store.outboxPending();
     const pendingIds = new Set(pending.map((intent) => intent.intentId));
     const missing = invalidated
@@ -268,6 +314,14 @@ export async function checkActivationInventory(
         'validation',
         `Migration invalidate evidence changed under us (not pending): ` +
           `${missing.map((id) => JSON.stringify(id)).join(', ')}.`,
+      );
+    }
+    const retainedMissing = retainedSeen.filter((id) => !pendingIds.has(id)).sort();
+    if (retainedMissing.length > 0) {
+      throw new StateError(
+        'validation',
+        `Migration retained evidence changed under us (not pending): ` +
+          `${retainedMissing.map((id) => JSON.stringify(id)).join(', ')}.`,
       );
     }
   }

@@ -92,6 +92,9 @@ function fakeStore(seed: StoredRow[] = []): Fake {
     publishMigrationChunk: unused,
     flipInstalledSnapshot: unused,
     readMigrationOutcomes: unused,
+    recordMigrationFailure: unused,
+    discardStagedRows: unused,
+    readMigrationFailure: unused,
   };
   return fake;
 }

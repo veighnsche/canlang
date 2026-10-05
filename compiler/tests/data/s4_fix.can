@@ -1,0 +1,9 @@
+app T
+Given
+ Todo { title:text }
+When
+ scenario s(task:Todo) -> text by=members
+  do
+   let p=task?.title
+   return p
+Then
