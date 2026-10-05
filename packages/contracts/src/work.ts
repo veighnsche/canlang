@@ -284,3 +284,43 @@ export const T13A_DELIVERY_OBSERVABLES: readonly DeliveryObservableDecl[] = [
   { target: 'std.PaymentsV1.cancel', version: 1, leaves: ['id', 'status', 'result', 'error'] },
   { target: 'std.PaymentsV1.reconcile', version: 1, leaves: ['id', 'status', 'result', 'error'] },
 ];
+
+/* -- T13b canonical delivery-observable schemas (L4 producer slice). -- */
+
+/**
+ * T13b rich delivery observables: the ten send targets of the T13b
+ * capability contracts (`services.ts`: `STD_TEXT_GENERATION_V1_`,
+ * `STD_IMAGES_V1_`, `STD_MAILBOX_V1_CONTRACT`). Same closed leaf
+ * set as T13a; the declared typed result per target lives on its
+ * capability operation (`generate`/`cancel`/`reconcile` ->
+ * `TextRun`; `inspect` -> `WorkflowInspection`; `validate` ->
+ * `WorkflowValidation`; `submit`/`cancel`/`reconcile` ->
+ * `ImageRun`; `reply`/`reconcile` -> `MailReplyOutcome`).
+ *
+ * Progress reads the current typed result: drafts derive
+ * `request?.progress?.state/content/detail` (CanChat.can:17-19,
+ * CanCreative.can:19-20) and drive progress assertions by varying
+ * the fixture `result` (CanChat.can:169-174,
+ * CanCreative.can:173-179), so `.progress` needs no separate
+ * payload type — it is the latest observed result snapshot.
+ *
+ * In-corpus send targets (`Judge.evaluate`, `Writer.draft`,
+ * `Handbook.*`) need no entries here: their observables derive
+ * from source declarations owned by the declaring package (B12 /
+ * T28), not from L4 canonical contracts. `JudgmentSpec`,
+ * `KnowledgeRequest` and `IndexState` are value-only shapes with
+ * no std send ops, hence no observables (T13a `DeliveryResult` /
+ * `OperationOutcome` precedent).
+ */
+export const T13B_DELIVERY_OBSERVABLES: readonly DeliveryObservableDecl[] = [
+  { target: 'std.TextGenerationV1.generate', version: 1, leaves: ['id', 'status', 'result', 'error'] },
+  { target: 'std.TextGenerationV1.cancel', version: 1, leaves: ['id', 'status', 'result', 'error'] },
+  { target: 'std.TextGenerationV1.reconcile', version: 1, leaves: ['id', 'status', 'result', 'error'] },
+  { target: 'std.ImagesV1.inspect', version: 1, leaves: ['id', 'status', 'result', 'error'] },
+  { target: 'std.ImagesV1.validate', version: 1, leaves: ['id', 'status', 'result', 'error'] },
+  { target: 'std.ImagesV1.submit', version: 1, leaves: ['id', 'status', 'result', 'error'] },
+  { target: 'std.ImagesV1.cancel', version: 1, leaves: ['id', 'status', 'result', 'error'] },
+  { target: 'std.ImagesV1.reconcile', version: 1, leaves: ['id', 'status', 'result', 'error'] },
+  { target: 'std.MailboxV1.reply', version: 1, leaves: ['id', 'status', 'result', 'error'] },
+  { target: 'std.MailboxV1.reconcile', version: 1, leaves: ['id', 'status', 'result', 'error'] },
+];
