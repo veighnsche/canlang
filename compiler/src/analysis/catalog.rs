@@ -76,6 +76,28 @@
 //! An overload that does not match this subset, an overload id that
 //! differs from the entry id, or an empty `;` segment is `E6004` naming
 //! the entry id. Entries are never skipped to pass.
+//!
+//! ## T13a standard-capability schemas (frozen L4 producer slice)
+//!
+//! [`STD_CAPABILITIES`] and [`T13A_DELIVERY_OBSERVABLES`] transcribe the
+//! frozen T13a canonical contracts (`STD_EMAIL_V1_CONTRACT`,
+//! `STD_ERRORS_V1_CONTRACT`, `STD_PAYMENTS_V1_CONTRACT` in
+//! `packages/contracts/src/services.ts`, `T13A_DELIVERY_OBSERVABLES` in
+//! `packages/contracts/src/work.ts`) with their version stamps
+//! ([`SERVICES_CONTRACT_VERSION`], [`WORK_CONTRACT_VERSION`],
+//! [`FILES_CONTRACT_VERSION`], `STD_*_VERSION`, all `1`). These tables are
+//! frozen source, not loaded from `catalog.json`: they resolve even when
+//! the lane-02 catalog is missing (`E6002`).
+//!
+//! B1 disposition: `std` becomes resolvable as a compiler-known provider
+//! module fed by these T13 schemas — not a draft package, not via the
+//! stdlib values facade. Bound `use std {M} from=deployment.b` members
+//! keep their opaque-external binding in `resolve.rs`; the T14a checker
+//! slice resolves `std.M.op` send targets and `delivery(std.M.op)`
+//! observables through [`std_operation`] / [`delivery_observable`].
+//! Unknown `std.M.op` (all T13b scope: images, judgment, mailbox,
+//! knowledge) keeps failing `E3019`; this slice adds no such member.
+//! B11/B12 are preserved for T28, not decided here.
 
 use crate::diagnostic::Diagnostic;
 use crate::json::{self, Json};
@@ -1127,5 +1149,483 @@ impl Catalog {
     /// Component extras of one entry id, when it names a component.
     pub fn component(&self, id: &str) -> Option<&ComponentShape> {
         self.entries.get(id).and_then(|e| e.component.as_ref())
+    }
+}
+
+// -- T13a standard-capability schemas (L1 consume slice). --
+//
+// The tables below transcribe the frozen T13a canonical contracts
+// (`packages/contracts/src/services.ts`, `packages/contracts/src/work.ts`,
+// `packages/contracts/src/files.ts`). The TS files are the source of
+// truth; every stamp and shape here must equal them verbatim. T13a adds
+// exactly three `std` capabilities (EmailV1 send-only, ErrorsV1 report,
+// PaymentsV1 collect/refund/cancel/reconcile) plus six delivery
+// observables. T13b members (generation, images, judgment, mailbox,
+// knowledge) have no schemas and no entries: lookups return `None` so
+// the T14a checker keeps reporting `E3019` for them.
+
+/// `SERVICES_CONTRACT_VERSION` in `services.ts`: versions the T13a value
+/// shapes (`DeliveryResult`, `DeliveryError`, `OperationOutcome`,
+/// `PaymentState`, `EmailSendInput`, `ErrorReport`, ...).
+pub const SERVICES_CONTRACT_VERSION: u32 = 1;
+
+/// `WORK_CONTRACT_VERSION` in `work.ts`: versions the delivery-observable
+/// declarations (each entry also carries its owning capability version).
+pub const WORK_CONTRACT_VERSION: u32 = 1;
+
+/// `FILES_CONTRACT_VERSION` in `files.ts`: versions the T13a attachment
+/// backing (`FinalizedFileRef`, the element type of
+/// `EmailSendInput.attachments`).
+pub const FILES_CONTRACT_VERSION: u32 = 1;
+
+/// `STD_EMAIL_V1_VERSION`: equals `STD_EMAIL_V1_CONTRACT.version`.
+pub const STD_EMAIL_V1_VERSION: u32 = 1;
+
+/// `STD_ERRORS_V1_VERSION`: equals `STD_ERRORS_V1_CONTRACT.version`.
+pub const STD_ERRORS_V1_VERSION: u32 = 1;
+
+/// `STD_PAYMENTS_V1_VERSION`: equals `STD_PAYMENTS_V1_CONTRACT.version`.
+pub const STD_PAYMENTS_V1_VERSION: u32 = 1;
+
+/// One T13a capability operation: parameter name to declared type name
+/// (`CapabilityOperation.inputs`), plus the declared provider-result type
+/// name (`CapabilityOperation.result`). Each operation denotes one durable
+/// send effect: `send Target.op {..}` persists work and returns a
+/// `delivery(Target.op)` association observed per `work.ts`; completions
+/// arrive as typed `Target.completed` envelopes. Type names are nominal
+/// references resolved through lanes 1/2, never structural claims.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct StdOperation {
+    /// Operation name, e.g. `send`.
+    pub name: &'static str,
+    /// Parameter name to declared type name, in contract order.
+    pub inputs: &'static [(&'static str, &'static str)],
+    /// Declared provider-result type name (not the enqueue receipt).
+    pub result: &'static str,
+}
+
+/// One T13a verified inbound event declaration: field name to declared
+/// type name (`CapabilityEventDecl.fields`).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct StdEventDecl {
+    /// Event name, e.g. `changed`.
+    pub name: &'static str,
+    /// Field name to declared type name, in contract order.
+    pub fields: &'static [(&'static str, &'static str)],
+}
+
+/// One T13a provider-owned capability contract (`CapabilityContract`):
+/// qualified name, version, operations and declared events.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct StdCapability {
+    /// Qualified capability name, e.g. `std.EmailV1`.
+    pub name: &'static str,
+    /// Capability contract version (the `STD_*_VERSION`).
+    pub version: u32,
+    /// Durable send operations.
+    pub operations: &'static [StdOperation],
+    /// Declared verified inbound events.
+    pub events: &'static [StdEventDecl],
+}
+
+/// One T13a delivery-observable declaration (`DeliveryObservableDecl` in
+/// `work.ts`): a qualified send target observed as a
+/// `delivery(Target)` association with the closed leaf set.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct DeliveryObservable {
+    /// Qualified send target, e.g. `std.EmailV1.send`.
+    pub target: &'static str,
+    /// Owning capability contract version (the `STD_*_VERSION`).
+    pub version: u32,
+    /// Selectable association leaves; the closed T13a set.
+    pub leaves: &'static [&'static str],
+}
+
+/// Canonical `std.EmailV1` contract (`STD_EMAIL_V1_CONTRACT`).
+/// Adapter-backed; `send` is the only contract operation: `reconcile` is
+/// a port op that reuses the original delivery id and is never sent from
+/// source, so it has no entry here (a `send` to it stays `E3019`).
+/// `attachments` stays REQUIRED with no default encoded (T13a/B9 record:
+/// T14a must rule default-empty vs required, not this table).
+pub const STD_EMAIL_V1: StdCapability = StdCapability {
+    name: "std.EmailV1",
+    version: STD_EMAIL_V1_VERSION,
+    operations: &[StdOperation {
+        name: "send",
+        inputs: &[
+            ("to", "email"),
+            ("subject", "text"),
+            ("body", "text"),
+            ("attachments", "file[]"),
+        ],
+        result: "EmailAccepted",
+    }],
+    events: &[],
+};
+
+/// Canonical `std.ErrorsV1` contract (`STD_ERRORS_V1_CONTRACT`).
+/// B10 contract-only export: accepted shape, no adapter exists. No events.
+pub const STD_ERRORS_V1: StdCapability = StdCapability {
+    name: "std.ErrorsV1",
+    version: STD_ERRORS_V1_VERSION,
+    operations: &[StdOperation {
+        name: "report",
+        inputs: &[("event", "ErrorReport")],
+        result: "ErrorAccepted",
+    }],
+    events: &[],
+};
+
+/// Canonical `std.PaymentsV1` contract (`STD_PAYMENTS_V1_CONTRACT`).
+/// B10 contract-only export: accepted shapes, no adapter exists. The
+/// `changed` fields flatten `PaymentState` (the draft consumes `event`
+/// directly as `PaymentState`).
+pub const STD_PAYMENTS_V1: StdCapability = StdCapability {
+    name: "std.PaymentsV1",
+    version: STD_PAYMENTS_V1_VERSION,
+    operations: &[
+        StdOperation {
+            name: "collect",
+            inputs: &[
+                ("customer", "text"),
+                ("amount", "money"),
+                ("reference", "text"),
+                ("consent", "text?"),
+            ],
+            result: "PaymentState",
+        },
+        StdOperation {
+            name: "refund",
+            inputs: &[
+                ("payment", "text"),
+                ("amount", "money"),
+                ("reference", "text"),
+            ],
+            result: "PaymentState",
+        },
+        StdOperation {
+            name: "cancel",
+            inputs: &[("reference", "text")],
+            result: "PaymentState",
+        },
+        StdOperation {
+            name: "reconcile",
+            inputs: &[("reference", "text")],
+            result: "PaymentState",
+        },
+    ],
+    events: &[StdEventDecl {
+        name: "changed",
+        fields: &[
+            ("reference", "text"),
+            ("revision", "int"),
+            ("provider_reference", "text?"),
+            ("amount", "money"),
+            ("status", "enum(pending,unknown,succeeded,failed)"),
+            ("checkout_url", "url?"),
+            ("failure", "enum(transient,action_required,permanent,cancelled)?"),
+        ],
+    }],
+};
+
+/// The complete T13a capability set: exactly the three frozen contracts.
+/// Nothing else is a T13a `std` capability; T13b members are absent.
+pub const STD_CAPABILITIES: &[StdCapability] = &[STD_EMAIL_V1, STD_ERRORS_V1, STD_PAYMENTS_V1];
+
+/// The six T13a delivery observables (`T13A_DELIVERY_OBSERVABLES`): one
+/// per T13a send target, each with the closed leaf set
+/// (`id`, `status`, `result`, `error`). The declared typed result per
+/// target lives on its capability operation (`send` -> `EmailAccepted`,
+/// `report` -> `ErrorAccepted`, Payments ops -> `PaymentState`).
+pub const T13A_DELIVERY_OBSERVABLES: &[DeliveryObservable] = &[
+    DeliveryObservable {
+        target: "std.EmailV1.send",
+        version: STD_EMAIL_V1_VERSION,
+        leaves: &["id", "status", "result", "error"],
+    },
+    DeliveryObservable {
+        target: "std.ErrorsV1.report",
+        version: STD_ERRORS_V1_VERSION,
+        leaves: &["id", "status", "result", "error"],
+    },
+    DeliveryObservable {
+        target: "std.PaymentsV1.collect",
+        version: STD_PAYMENTS_V1_VERSION,
+        leaves: &["id", "status", "result", "error"],
+    },
+    DeliveryObservable {
+        target: "std.PaymentsV1.refund",
+        version: STD_PAYMENTS_V1_VERSION,
+        leaves: &["id", "status", "result", "error"],
+    },
+    DeliveryObservable {
+        target: "std.PaymentsV1.cancel",
+        version: STD_PAYMENTS_V1_VERSION,
+        leaves: &["id", "status", "result", "error"],
+    },
+    DeliveryObservable {
+        target: "std.PaymentsV1.reconcile",
+        version: STD_PAYMENTS_V1_VERSION,
+        leaves: &["id", "status", "result", "error"],
+    },
+];
+
+/// T13a accepted nominal types: the four common value shapes
+/// (`DeliveryResult`, `DeliveryError`, `OperationOutcome`, `PaymentState`;
+/// section A of the T12 inventory: contract accepted, no blocker on
+/// shape) plus the two T13a acceptance results (`EmailAccepted`,
+/// `ErrorAccepted`). Nominal-only: the checker accepts these names, it
+/// makes no structural claim from this list.
+pub const T13A_NOMINAL_TYPES: &[&str] = &[
+    "DeliveryResult",
+    "DeliveryError",
+    "OperationOutcome",
+    "PaymentState",
+    "EmailAccepted",
+    "ErrorAccepted",
+];
+
+/// Normalize a `std` capability designator to its qualified contract
+/// name: `std.EmailV1` passes through, a bare `use std {Member}` name
+/// such as `EmailV1` qualifies to `std.EmailV1`. Returns `None` for
+/// anything outside the `std` provider (the T13a tables never resolve a
+/// non-`std` provider).
+fn qualify_std_capability(name: &str) -> Option<String> {
+    if let Some(member) = name.strip_prefix("std.") {
+        if member.is_empty() || member.contains('.') {
+            return None;
+        }
+        return Some(name.to_string());
+    }
+    if name.is_empty() || name.contains('.') {
+        return None;
+    }
+    Some(format!("std.{name}"))
+}
+
+/// Look up one T13a capability by qualified (`std.EmailV1`) or bare
+/// (`EmailV1`) member name. Returns `None` for every T13b member and
+/// every non-`std` provider: the caller keeps reporting `E3019`/`E2005`.
+pub fn std_capability(name: &str) -> Option<&'static StdCapability> {
+    let qualified = qualify_std_capability(name)?;
+    STD_CAPABILITIES.iter().find(|cap| cap.name == qualified)
+}
+
+/// Look up one T13a send operation by capability (qualified or bare, as
+/// in [`std_capability`]) and operation name. `None` means no versioned
+/// schema exists and the send stays `E3019`.
+pub fn std_operation(capability: &str, op: &str) -> Option<&'static StdOperation> {
+    std_capability(capability)?
+        .operations
+        .iter()
+        .find(|operation| operation.name == op)
+}
+
+/// Look up one T13a delivery observable by qualified send target
+/// (`std.EmailV1.send`). `None` means the target has no observable
+/// declaration and the association stays unverifiable (`E3019`).
+pub fn delivery_observable(target: &str) -> Option<&'static DeliveryObservable> {
+    T13A_DELIVERY_OBSERVABLES
+        .iter()
+        .find(|observable| observable.target == target)
+}
+
+/// Whether `name` is a T13a accepted nominal type (see
+/// [`T13A_NOMINAL_TYPES`]).
+pub fn is_t13a_nominal(name: &str) -> bool {
+    T13A_NOMINAL_TYPES.contains(&name)
+}
+
+#[cfg(test)]
+mod t13a_tests {
+    use super::*;
+
+    #[test]
+    fn version_stamps_match_frozen_producers() {
+        assert_eq!(SERVICES_CONTRACT_VERSION, 1);
+        assert_eq!(WORK_CONTRACT_VERSION, 1);
+        assert_eq!(FILES_CONTRACT_VERSION, 1);
+        assert_eq!(STD_EMAIL_V1_VERSION, 1);
+        assert_eq!(STD_ERRORS_V1_VERSION, 1);
+        assert_eq!(STD_PAYMENTS_V1_VERSION, 1);
+        assert_eq!(STD_EMAIL_V1.version, STD_EMAIL_V1_VERSION);
+        assert_eq!(STD_ERRORS_V1.version, STD_ERRORS_V1_VERSION);
+        assert_eq!(STD_PAYMENTS_V1.version, STD_PAYMENTS_V1_VERSION);
+    }
+
+    #[test]
+    fn capability_set_is_exactly_the_three_frozen_contracts() {
+        assert_eq!(STD_CAPABILITIES.len(), 3);
+        let names: Vec<&str> = STD_CAPABILITIES.iter().map(|cap| cap.name).collect();
+        assert_eq!(names, vec!["std.EmailV1", "std.ErrorsV1", "std.PaymentsV1"]);
+    }
+
+    #[test]
+    fn email_v1_is_send_only_with_required_attachments() {
+        let op = std_operation("std.EmailV1", "send").expect("EmailV1.send schema");
+        assert_eq!(
+            op.inputs,
+            &[
+                ("to", "email"),
+                ("subject", "text"),
+                ("body", "text"),
+                ("attachments", "file[]"),
+            ]
+        );
+        assert_eq!(op.result, "EmailAccepted");
+        assert!(STD_EMAIL_V1.events.is_empty());
+        // `reconcile` is a port op, never a source-sent contract op.
+        assert_eq!(std_operation("std.EmailV1", "reconcile"), None);
+    }
+
+    #[test]
+    fn errors_v1_report_shape_is_exact() {
+        let op = std_operation("ErrorsV1", "report").expect("ErrorsV1.report schema");
+        assert_eq!(op.inputs, &[("event", "ErrorReport")]);
+        assert_eq!(op.result, "ErrorAccepted");
+        assert!(STD_ERRORS_V1.events.is_empty());
+    }
+
+    #[test]
+    fn payments_v1_ops_and_changed_event_are_exact() {
+        let cap = std_capability("PaymentsV1").expect("PaymentsV1 schema");
+        let ops: Vec<&str> = cap.operations.iter().map(|op| op.name).collect();
+        assert_eq!(ops, vec!["collect", "refund", "cancel", "reconcile"]);
+        let collect = std_operation("std.PaymentsV1", "collect").expect("collect schema");
+        assert_eq!(
+            collect.inputs,
+            &[
+                ("customer", "text"),
+                ("amount", "money"),
+                ("reference", "text"),
+                ("consent", "text?"),
+            ]
+        );
+        for op in ["collect", "refund", "cancel", "reconcile"] {
+            let schema = std_operation("std.PaymentsV1", op).expect("Payments op schema");
+            assert_eq!(schema.result, "PaymentState", "op {op}");
+        }
+        assert_eq!(cap.events.len(), 1);
+        assert_eq!(cap.events[0].name, "changed");
+        assert_eq!(
+            cap.events[0].fields,
+            &[
+                ("reference", "text"),
+                ("revision", "int"),
+                ("provider_reference", "text?"),
+                ("amount", "money"),
+                ("status", "enum(pending,unknown,succeeded,failed)"),
+                ("checkout_url", "url?"),
+                (
+                    "failure",
+                    "enum(transient,action_required,permanent,cancelled)?"
+                ),
+            ]
+        );
+    }
+
+    #[test]
+    fn delivery_observables_cover_exactly_the_six_send_targets() {
+        let targets: Vec<&str> = T13A_DELIVERY_OBSERVABLES
+            .iter()
+            .map(|observable| observable.target)
+            .collect();
+        assert_eq!(
+            targets,
+            vec![
+                "std.EmailV1.send",
+                "std.ErrorsV1.report",
+                "std.PaymentsV1.collect",
+                "std.PaymentsV1.refund",
+                "std.PaymentsV1.cancel",
+                "std.PaymentsV1.reconcile",
+            ]
+        );
+        for observable in T13A_DELIVERY_OBSERVABLES {
+            assert_eq!(observable.version, 1, "target {}", observable.target);
+            assert_eq!(observable.leaves, &["id", "status", "result", "error"]);
+            // Every observable target resolves to a real operation schema.
+            let (cap, op) = observable
+                .target
+                .rsplit_once('.')
+                .expect("qualified target");
+            assert!(std_operation(cap, op).is_some(), "target {}", observable.target);
+        }
+    }
+
+    #[test]
+    fn nominal_types_are_the_accepted_t13a_set() {
+        assert_eq!(
+            T13A_NOMINAL_TYPES,
+            &[
+                "DeliveryResult",
+                "DeliveryError",
+                "OperationOutcome",
+                "PaymentState",
+                "EmailAccepted",
+                "ErrorAccepted",
+            ]
+        );
+        assert!(is_t13a_nominal("DeliveryResult"));
+        assert!(!is_t13a_nominal("ImageRun"));
+    }
+
+    #[test]
+    fn t13b_members_have_no_schemas_e3019_preserved() {
+        // Every T13b-scope `std` member (inventory section B): no schema
+        // exists, so every lookup is `None` and the checker must keep
+        // reporting `E3019`. This test fails closed: adding a T13b entry
+        // here is the T13b slice's job, never a silent relax.
+        for member in [
+            "TextGenerationV1",
+            "TextMessage",
+            "TextRequest",
+            "TextRun",
+            "ImagesV1",
+            "ImageRun",
+            "GeneratedImage",
+            "ImageRequest",
+            "WorkflowInput",
+            "WorkflowDefinition",
+            "WorkflowInspection",
+            "WorkflowValidation",
+            "MailboxV1",
+            "IncomingEmail",
+            "MailReply",
+            "MailReplyOutcome",
+            "JudgmentSpec",
+            "KnowledgeRequest",
+            "IndexState",
+        ] {
+            assert_eq!(std_capability(member), None, "member {member}");
+            assert_eq!(
+                std_capability(&format!("std.{member}")),
+                None,
+                "member std.{member}"
+            );
+        }
+        for (cap, op) in [
+            ("ImagesV1", "submit"),
+            ("ImagesV1", "inspect"),
+            ("ImagesV1", "validate"),
+            ("ImagesV1", "cancel"),
+            ("ImagesV1", "reconcile"),
+            ("TextGenerationV1", "generate"),
+            ("TextGenerationV1", "cancel"),
+            ("MailboxV1", "reply"),
+        ] {
+            assert_eq!(std_operation(cap, op), None, "send {cap}.{op}");
+        }
+        for target in [
+            "std.ImagesV1.submit",
+            "std.TextGenerationV1.generate",
+            "std.MailboxV1.reply",
+        ] {
+            assert_eq!(delivery_observable(target), None, "target {target}");
+        }
+        // Non-`std` providers never resolve through these tables.
+        assert_eq!(std_capability("invoice.BillingV1"), None);
+        assert_eq!(std_capability(""), None);
+        assert_eq!(std_capability("std."), None);
     }
 }
