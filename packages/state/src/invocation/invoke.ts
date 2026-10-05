@@ -11,6 +11,7 @@
 
 import type {
   AdmissionKind,
+  AuthorizedRecordsResult,
   DomainWrite,
   HistoryEntry,
   ModelName,
@@ -29,12 +30,16 @@ import type {
   DeliveryReceipt,
   MutationEnvelope,
   MutationResult,
+  ReadEnvelope,
 } from '../../../contracts/src/wire.js';
 import type { ResolvedIdentity } from '../../../contracts/src/identity.js';
 import type { OperationRegistry } from './registry.js';
 import { isGeneratedOperationDef } from './registry.js';
 import type { MembershipReader } from '../policy/roles.js';
-import { admit, receiptIdentityFor, type AdmittedCall } from './admission.js';
+import { evaluateBy } from '../policy/roles.js';
+import type { PolicyTable } from '../policy/grants.js';
+import { admit, receiptIdentityFor, validateCallInputs, type AdmittedCall } from './admission.js';
+import { queryRecords } from '../query/index.js';
 import { buildContext, type ClockPort } from './context.js';
 import { StateError, storageToStateError } from '../errors.js';
 import { stageEffectsStaging } from '../effects/staging.js';
@@ -80,8 +85,10 @@ function recordVersionsOf(writes: ReadonlyArray<DomainWrite>): Array<{
  * Invoke one canonical mutation envelope. Unknown operations are `validation`
  * failures; exhausted fence contention is a retryable `busy`. Generated
  * `read` operations are `validation` failures here — reads execute through
- * the query port (their registry presence exists so denied reads answer
- * denied-not-unknown at admission); generated read execution lands in T17.
+ * `invokeRead` below plus the query port (their registry presence exists so
+ * denied reads answer denied-not-unknown at admission). The mutation
+ * envelope keeps rejecting reads (T16b pins the query-port pointer; T17b
+ * routes assembly reads to `invokeRead`).
  */
 export async function invoke(input: {
   registry: OperationRegistry;
@@ -235,5 +242,131 @@ export async function invoke(input: {
   }
   throw new StateError('busy', 'Write contention; retry the identical envelope.', null, {
     retryable: true,
+  });
+}
+
+/** T17a canonical read invocation input: no clock, no executor, no receipts. */
+export interface InvokeReadInput {
+  readonly registry: OperationRegistry;
+  readonly envelope: ReadEnvelope;
+  readonly identity: ResolvedIdentity;
+  /** Engine-local read grants (T17b transcribes the emitted read rules; T04b formalizes). */
+  readonly policy: PolicyTable;
+  readonly store: StoragePort;
+  readonly memberships: MembershipReader;
+  readonly kind?: AdmissionKind;
+  readonly trustedSource?: string;
+}
+
+/**
+ * Resolve the served model from the `<Model>.read` emission convention (the
+ * compiler publishes one no-input read descriptor per policy-bearing model).
+ * A read that names no model cannot serve in the core scope; unlike the
+ * create/update/delete twins (whose shapes the loader guarantees, so their
+ * execute-time checks are unreachable wiring asserts), the loader admits
+ * every read for denied-not-unknown — so a malformed read name is reachable
+ * and refuses as caller-safe `validation`, never a crash.
+ */
+function generatedReadModel(operation: string): ModelName {
+  if (!operation.endsWith('.read') || operation.length === '.read'.length) {
+    throw new StateError(
+      'validation',
+      `Operation "${operation}" cannot serve reads in the T17 core scope: ` +
+        'readable operations are named <Model>.read.',
+    );
+  }
+  return operation.slice(0, -'.read'.length) as ModelName;
+}
+
+/**
+ * T17a: invoke one canonical generated read through admission plus the
+ * query port. The interim `records()` data-plane operation (direct
+ * `StoragePort.query`, owner rows only, no admission) migrates here; T17b
+ * routes assembly/stdlib reads to this entry.
+ *
+ * Routing first (mirroring `invoke`'s pre-admission routing): unknown
+ * operations are `validation` failures with `invoke`'s exact message;
+ * interim defs and generated non-reads are `validation` failures naming
+ * their serving path (the mutation-envelope pointer keeps T16b's `/mutation
+ * envelope/` pin servable by delegation); reads that name no model refuse
+ * LOUD. Authorization second (mirroring `admit`'s `by` block and
+ * `buildContext`'s actor/team mapping verbatim, including the trusted-kind
+ * source rule and skip): forged identity contents are ignored — the live
+ * membership reader wins both ways. Closed-shape validation third (the ONE
+ * shared `validateCallInputs` implementation, so reads and writes reject
+ * identical shapes identically). Reads commit nothing, receipt nothing, and
+ * report the pre-scan fence revision; a repeated read is byte-identical.
+ *
+ * Serving rule (fail closed): viewer authority with grant projection only —
+ * owner bypass stays engine-internal (T32 owns authority fences). Archived
+ * rows are excluded. Core-scope reads carry NO descriptor inputs and serve
+ * the whole visible model; a read WITH descriptor inputs validates closed
+ * and then refuses LOUD — T04a carries no filter vocabulary, so serving
+ * would silently mis-filter (T04b carries filter inputs). A policy miss
+ * serves empty records (the engine's fail-closed rule — no invented error).
+ * The def's engine-local `when`, when present, is ignored exactly like
+ * creates (candidate preconditions gate update/delete only).
+ */
+export async function invokeRead(input: InvokeReadInput): Promise<AuthorizedRecordsResult> {
+  const def = input.registry.get(input.envelope.operation);
+  if (def === undefined) {
+    throw new StateError('validation', `Unknown operation "${input.envelope.operation}".`);
+  }
+  if (!isGeneratedOperationDef(def)) {
+    throw new StateError(
+      'validation',
+      `Operation "${input.envelope.operation}" cannot run through invokeRead; ` +
+        'invokeRead serves generated read operations only.',
+    );
+  }
+  if (def.descriptor.kind !== 'read') {
+    throw new StateError(
+      'validation',
+      `Operation "${input.envelope.operation}" cannot run through invokeRead; ` +
+        'mutations execute through the mutation envelope.',
+    );
+  }
+  const model = generatedReadModel(input.envelope.operation);
+
+  const kind = input.kind ?? 'user';
+  if (kind === 'trusted' && (input.trustedSource === undefined || input.trustedSource === '')) {
+    throw new StateError('validation', 'Trusted invocations require a verified trusted source.');
+  }
+  const actorUserId =
+    kind === 'trusted' || input.identity.actor === null ? null : input.identity.actor.user_id;
+  const teamId = input.identity.team === null ? null : input.identity.team.team_id;
+  if (kind !== 'trusted') {
+    const membership =
+      actorUserId !== null && teamId !== null
+        ? await input.memberships.findMembership(teamId, actorUserId)
+        : null;
+    const allowed = await evaluateBy(def.by, {
+      actorUserId,
+      teamId,
+      membership,
+      memberships: input.memberships,
+    });
+    if (!allowed) {
+      throw new StateError('forbidden', 'This operation is not permitted for the caller.');
+    }
+  }
+
+  validateCallInputs(def, input.envelope.inputs);
+  if (def.descriptor.inputs.length > 0) {
+    throw new StateError(
+      'validation',
+      `Operation "${input.envelope.operation}" carries read inputs with no T04a serving ` +
+        'vocabulary (T04b carries filter inputs); refusing instead of mis-serving.',
+    );
+  }
+
+  return queryRecords({
+    policy: input.policy,
+    model,
+    authority: 'viewer',
+    context: { actorUserId, teamId },
+    memberships: input.memberships,
+    store: input.store,
+    archived: 'exclude',
   });
 }
