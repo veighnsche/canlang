@@ -3133,6 +3133,30 @@ impl<'a> Typer<'a> {
         for part in &body {
             self.invalidate_after(cx.text, part, &mut body_env);
         }
+        // T07: items of a filtered query domain satisfy its `where`,
+        // so the domain's own alias facts narrow the selected item
+        // in the body (remapped to the for-item declaration; only
+        // when no `select` reshaped the element). Seeded after the
+        // iteration invalidation: each row carries fresh facts, and
+        // body writes drop them through the ordinary rule (T03 §8).
+        if let Some(domain) = domain {
+            let query = unwrap_groups(domain);
+            if query.kind == SyntaxKind::Query && !Self::query_has_select(query, cx.text) {
+                let facts = self.selected_row_facts(cx, query);
+                if !facts.is_empty() {
+                    let item = DeclKey::ForItem(NodeKey::of(node));
+                    for (key, ty) in &facts {
+                        body_env.insert(
+                            NarrowKey {
+                                decl: item.clone(),
+                                path: key.path.clone(),
+                            },
+                            ty.clone(),
+                        );
+                    }
+                }
+            }
+        }
         let body_cx = Ctx {
             module: cx.module,
             file: cx.file,
@@ -6462,6 +6486,40 @@ impl<'a> Typer<'a> {
                             symbol: model,
                             stored: true,
                         });
+                }
+                // T07: rows reaching the body satisfy every `where`,
+                // so the domain's own alias facts narrow the
+                // selected row there (CanCRM:414
+                // `deal.next_action!=null` proves `row.next_action`
+                // non-null at :416/:420). The alias facts seed the
+                // body as-is (it may name the alias) plus a copy
+                // remapped to the `row` declaration — but the row
+                // copy only when no `select` reshaped the element
+                // (narrowed paths must still resolve on the row
+                // type). Nested collections shadow `row` with their
+                // own declaration, so seeds never collide.
+                if let Some(d) = domain {
+                    let query = unwrap_groups(d);
+                    if query.kind == SyntaxKind::Query {
+                        let facts = self.selected_row_facts(cx, query);
+                        if !facts.is_empty() {
+                            let mut env = cx.narrow.clone();
+                            env.extend(facts.iter().map(|(k, v)| (k.clone(), v.clone())));
+                            if !Self::query_has_select(query, cx.text) {
+                                let row_decl = DeclKey::CtxRowQuery(NodeKey::of(d));
+                                for (key, ty) in &facts {
+                                    env.insert(
+                                        NarrowKey {
+                                            decl: row_decl.clone(),
+                                            path: key.path.clone(),
+                                        },
+                                        ty.clone(),
+                                    );
+                                }
+                            }
+                            row_seed = Some(env);
+                        }
+                    }
                 }
                 if head == Some("table") && attribute_value(node, "columns", cx.text).is_none() {
                     self.diags.push(Diagnostic::error(
@@ -12788,6 +12846,15 @@ impl<'a> Typer<'a> {
         };
         let mut projected: Option<ResolvedType> = None;
         // Clauses run in written order; each `as` rebinds the alias.
+        // T07: a `where` passes only rows satisfying it, so its
+        // true-facts (null tests on the row alias) narrow the
+        // selected row for every following clause
+        // (`where`/`order`/`select`). Facts stay keyed on the
+        // alias declaration (T03 §6): each `as` clause is its own
+        // declaration, so sibling and nested aliases never share
+        // them, while outer facts flow inward through the
+        // enclosing environment exactly as the contract allows.
+        let mut clause_env = cx.narrow.clone();
         for part in parts {
             if part.kind != SyntaxKind::QueryClause || has_error(part) {
                 continue;
@@ -12804,23 +12871,64 @@ impl<'a> Typer<'a> {
                 "where" => {
                     for value in kids(part) {
                         if is_expression(value.kind) {
-                            let ty = self.expr(cx, value, None);
+                            let ty = {
+                                let clause_cx = Ctx {
+                                    module: cx.module,
+                                    file: cx.file,
+                                    text: cx.text,
+                                    narrow: &clause_env,
+                                    strict: cx.strict,
+                                    server_default: cx.server_default,
+                                };
+                                self.expr(&clause_cx, value, None)
+                            };
                             self.expect_bool(cx, tight_span(cx.text, value), &ty, "`where` clause");
+                            // Collect after typing: narrowing reads
+                            // the recorded types of the tested paths.
+                            let mut fresh = NarrowEnv::new();
+                            {
+                                let clause_cx = Ctx {
+                                    module: cx.module,
+                                    file: cx.file,
+                                    text: cx.text,
+                                    narrow: &clause_env,
+                                    strict: cx.strict,
+                                    server_default: cx.server_default,
+                                };
+                                self.collect_narrow(&clause_cx, value, false, &mut fresh);
+                            }
+                            clause_env.extend(fresh);
                         }
                     }
                 }
                 "order" => {
+                    let clause_cx = Ctx {
+                        module: cx.module,
+                        file: cx.file,
+                        text: cx.text,
+                        narrow: &clause_env,
+                        strict: cx.strict,
+                        server_default: cx.server_default,
+                    };
                     for value in kids(part) {
                         if is_expression(value.kind) {
-                            let ty = self.expr(cx, value, None);
-                            self.check_order_key(cx, value, &ty);
+                            let ty = self.expr(&clause_cx, value, None);
+                            self.check_order_key(&clause_cx, value, &ty);
                         }
                     }
                 }
                 "select" => {
+                    let clause_cx = Ctx {
+                        module: cx.module,
+                        file: cx.file,
+                        text: cx.text,
+                        narrow: &clause_env,
+                        strict: cx.strict,
+                        server_default: cx.server_default,
+                    };
                     for value in kids(part) {
                         if is_expression(value.kind) {
-                            let ty = self.expr(cx, value, None);
+                            let ty = self.expr(&clause_cx, value, None);
                             if !ty.is_error() {
                                 projected = Some(ty);
                                 element = projected.clone().unwrap_or(ResolvedType::Error);
@@ -12845,6 +12953,81 @@ impl<'a> Typer<'a> {
             },
         );
         result
+    }
+
+    /// True-facts of a query's `where` clauses about the
+    /// query's OWN row alias (T07): every row reaching a row body
+    /// satisfies each `where`, so its null tests narrow the
+    /// selected row. Only facts keyed on this query's `as`
+    /// declarations transfer — collection children inherit their
+    /// own selected snapshot's facts, never a sibling's, and
+    /// outer-binding facts stay in the query. The query must
+    /// already be typed (narrowing reads recorded types).
+    fn selected_row_facts(&mut self, cx: &Ctx<'_, '_>, query: &SyntaxNode) -> NarrowEnv {
+        let mut own: HashSet<NodeKey> = HashSet::new();
+        for part in kids(query) {
+            if part.kind == SyntaxKind::QueryClause
+                && kids(part)
+                    .iter()
+                    .find_map(|n| name_text(n, cx.text))
+                    .is_some_and(|head| head == "as")
+            {
+                own.insert(NodeKey::of(part));
+            }
+        }
+        if own.is_empty() {
+            return NarrowEnv::new();
+        }
+        let mut out = NarrowEnv::new();
+        let mut acc = cx.narrow.clone();
+        for part in kids(query) {
+            if part.kind != SyntaxKind::QueryClause
+                || kids(part)
+                    .iter()
+                    .find_map(|n| name_text(n, cx.text))
+                    .is_none_or(|head| head != "where")
+            {
+                continue;
+            }
+            for value in kids(part) {
+                if !is_expression(value.kind) {
+                    continue;
+                }
+                let mut fresh = NarrowEnv::new();
+                {
+                    let clause_cx = Ctx {
+                        module: cx.module,
+                        file: cx.file,
+                        text: cx.text,
+                        narrow: &acc,
+                        strict: cx.strict,
+                        server_default: cx.server_default,
+                    };
+                    self.collect_narrow(&clause_cx, value, false, &mut fresh);
+                }
+                for (key, ty) in fresh {
+                    if matches!(&key.decl, DeclKey::QueryAlias(node) if own.contains(node)) {
+                        acc.insert(key.clone(), ty.clone());
+                        out.insert(key, ty);
+                    }
+                }
+            }
+        }
+        out
+    }
+
+    /// Whether a query reshapes its element with `select` (T07:
+    /// row facts remap to the `row`/item binding only when the
+    /// element type is unchanged, so narrowed paths still resolve
+    /// on the row type).
+    fn query_has_select(query: &SyntaxNode, text: &str) -> bool {
+        kids(query).iter().any(|part| {
+            part.kind == SyntaxKind::QueryClause
+                && kids(part)
+                    .iter()
+                    .find_map(|n| name_text(n, text))
+                    .is_some_and(|head| head == "select")
+        })
     }
 
     /// An `order` key must be an ordered scalar (`E3006`).

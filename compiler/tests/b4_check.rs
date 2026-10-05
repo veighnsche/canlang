@@ -965,6 +965,180 @@ fn t06_bounded_read_stays_gated() {
     assert_eq!(codes(&diags), vec!["E3010"], "{diags:?}");
 }
 
+// --- T07 filtered row facts: `where` null tests narrow the selected row ---
+//
+// A `where` passes only rows satisfying it, so its true-facts narrow
+// the row alias in following clauses (`select`/`order`/later
+// `where`), the collection `row` (plus the alias) in list/table
+// bodies, and the item in `for` bodies. Facts stay keyed on the
+// alias declaration (T03 §6): sibling and nested aliases never
+// share them; outer facts flow inward through ordinary nesting.
+
+/// (T07) Rent:374 shape: the `where` null test narrows the alias in
+/// the `select` dereference.
+#[test]
+fn t07_where_narrows_select_deref() {
+    let catalog = fixture();
+    let src = "app T\nGiven\n V { from:text }\n W { value:V? }\n policy V read=members\n policy W read=members\nWhen\n scenario s() by=members\n  do\n   let xs = W as w where w.value!=null select w.value.from\nThen\n";
+    let diags = check(src, Some(&catalog));
+    assert!(diags.is_empty(), "where narrows select deref: {diags:?}");
+}
+
+/// (T07) Rent:245 shape: `select` of the narrowed member unwraps the
+/// element type (a `for` over it sees non-null items).
+#[test]
+fn t07_where_narrows_select_element() {
+    let catalog = fixture();
+    let src = "app T\nGiven\n V { from:text }\n W { value:V? }\n policy V read=members\n policy W read=members\nWhen\n scenario s() by=members\n  do\n   for v in W as w where w.value!=null select w.value limit=1\n    let t = v.from\nThen\n";
+    let diags = check(src, Some(&catalog));
+    assert!(diags.is_empty(), "where narrows select element: {diags:?}");
+}
+
+/// (T07) Rent:377 shape: an outer `where` fact flows inward into a
+/// nested query's `select` (the continuation contract allows inward
+/// flow through ordinary expression nesting).
+#[test]
+fn t07_outer_where_flows_into_nested_select() {
+    let catalog = fixture();
+    let src = "app T\nGiven\n V { from:text }\n W { value:V? }\n N { t:text }\n policy V read=members\n policy W read=members\n policy N read=members\nWhen\n scenario s() by=members\n  do\n   let xs = W as fact where fact.value!=null select (N as n select fact.value.from)\nThen\n";
+    let diags = check(src, Some(&catalog));
+    assert!(diags.is_empty(), "outer where flows inward: {diags:?}");
+}
+
+/// (T07) CRM:414-420 shape: the table `row` inherits the domain
+/// `where` facts (nullable arithmetic checks clean in the body).
+#[test]
+fn t07_table_row_inherits_where() {
+    let catalog = fixture();
+    let src = "app T\nGiven\n M { due:datetime? }\n policy M read=members\nWhen\nThen\n page /t title=\"T\"\n  table M as m where m.due!=null columns=due\n   countdown row.due-now\n";
+    let diags = check(src, Some(&catalog));
+    assert!(diags.is_empty(), "table row inherits where: {diags:?}");
+}
+
+/// (T07) Selected-children iteration (Rent:627 `for` shape): the
+/// for-item inherits the domain `where` facts in the body.
+#[test]
+fn t07_for_item_inherits_where() {
+    let catalog = fixture();
+    let src = "app T\nGiven\n B { label:text }\n M { box:B? }\n policy B read=members\n policy M read=members\nWhen\n scenario s() by=members\n  do\n   for x in M as m where m.box!=null limit=1\n    let t = x.box.label\nThen\n";
+    let diags = check(src, Some(&catalog));
+    assert!(diags.is_empty(), "for item inherits where: {diags:?}");
+}
+
+/// (T07) CRM:180 shape (bodies may name the alias): the list body
+/// sees the domain alias facts through the alias spelling too.
+#[test]
+fn t07_list_body_names_alias() {
+    let catalog = fixture();
+    let src = "app T\nGiven\n B { label:text }\n M { box:B? }\n policy B read=members\n policy M read=members\nWhen\nThen\n page /t title=\"T\"\n  list M as m where m.box!=null columns=box\n   text m.box.label\n";
+    let diags = check(src, Some(&catalog));
+    assert!(diags.is_empty(), "list body names alias: {diags:?}");
+}
+
+/// (T07) Outer `require` facts flow inward into a query `select`
+/// through ordinary nesting (no regression of the inward path).
+#[test]
+fn t07_outer_require_flows_into_select() {
+    let catalog = fixture();
+    let src = "app T\nGiven\n B { label:text }\n M { box:B? }\n N { t:text }\n policy B read=members\n policy M read=members\n policy N read=members\nWhen\n scenario s(m:M?) by=members\n  do\n   let a = m\n   require a!=null and a.box!=null\n   let xs = N as n select a.box.label\nThen\n";
+    let diags = check(src, Some(&catalog));
+    assert!(diags.is_empty(), "outer require flows inward: {diags:?}");
+}
+
+/// (T07) A `select` reshapes the row, so the collection still seeds
+/// the alias facts (the alias denotes a selected row) even though
+/// the `row` remap is skipped.
+#[test]
+fn t07_table_select_keeps_alias_facts() {
+    let catalog = fixture();
+    let src = "app T\nGiven\n B { label:text }\n M { box:B?, name:text }\n policy B read=members\n policy M read=members\nWhen\nThen\n page /t title=\"T\"\n  table M as m where m.box!=null select m.name columns=name\n   text m.box.label\n";
+    let diags = check(src, Some(&catalog));
+    assert!(diags.is_empty(), "select keeps alias facts: {diags:?}");
+}
+
+/// (T07 alias control) Two handles over one model: the filtered
+/// alias checks clean while the unfiltered handle keeps no facts.
+#[test]
+fn t07_alias_second_handle_keeps_no_facts() {
+    let catalog = fixture();
+    let src = "app T\nGiven\n B { label:text }\n M { box:B? }\n policy B read=members\n policy M read=members\nWhen\n scenario s() by=members\n  do\n   let a = M as m where m.box!=null select m.box.label\n   let b = M as m2 select m2.box.label\nThen\n";
+    let diags = check(src, Some(&catalog));
+    assert_eq!(codes(&diags), vec!["E3003"], "{diags:?}");
+}
+
+/// (T07 sibling control) Two child selections side by side: the
+/// filtered child grants nothing to its sibling.
+#[test]
+fn t07_sibling_child_keeps_no_facts() {
+    let catalog = fixture();
+    let src = "app T\nGiven\n P { t:text }\n B { label:text }\n C in P { box:B? }\n policy P read=members\n policy B read=members\n policy C read=members\nWhen\n scenario s(p:P) by=members\n  do\n   let x = p.C as a where a.box!=null select a.box.label\n   let y = p.C as b select b.box.label\nThen\n";
+    let diags = check(src, Some(&catalog));
+    assert_eq!(codes(&diags), vec!["E3003"], "{diags:?}");
+}
+
+/// (T07 nested-row control) An inner selection's facts never leak
+/// outward: a later same-spelling alias is its own declaration.
+#[test]
+fn t07_nested_inner_keeps_no_outward_facts() {
+    let catalog = fixture();
+    let src = "app T\nGiven\n B { label:text }\n M { box:B? }\n policy B read=members\n policy M read=members\nWhen\n scenario s() by=members\n  do\n   let inner_ok = M as m select (M as m where m.box!=null select m.box.label)\n   let outer_bad = M as m select m.box.label\nThen\n";
+    let diags = check(src, Some(&catalog));
+    assert_eq!(codes(&diags), vec!["E3003"], "{diags:?}");
+}
+
+/// (T07) A `select` reshapes the for-domain element, so no row
+/// facts remap to the item: `x.box` on the projected `text` is
+/// `E2013`, never silently narrowed.
+#[test]
+fn t07_for_select_blocks_item_remap() {
+    let catalog = fixture();
+    let src = "app T\nGiven\n B { label:text }\n M { box:B?, name:text }\n policy B read=members\n policy M read=members\nWhen\n scenario s() by=members\n  do\n   for x in M as m where m.box!=null select m.name limit=1\n    let t = x.box\nThen\n";
+    let diags = check(src, Some(&catalog));
+    assert_eq!(codes(&diags), vec!["E2013"], "{diags:?}");
+}
+
+/// (T07) A `select` reshapes the collection row, so no row facts
+/// remap to `row`: `row.box` on the projected `text` is `E2013`,
+/// never silently narrowed.
+#[test]
+fn t07_table_select_blocks_row_remap() {
+    let catalog = fixture();
+    let src = "app T\nGiven\n B { label:text }\n M { box:B?, name:text }\n policy B read=members\n policy M read=members\nWhen\nThen\n page /t title=\"T\"\n  table M as m where m.box!=null select m.name columns=name\n   text row.box\n";
+    let diags = check(src, Some(&catalog));
+    assert_eq!(codes(&diags), vec!["E2013"], "{diags:?}");
+}
+
+/// (T07) Body writes drop seeded item facts through the ordinary
+/// invalidation rule (T03 §8): after `set x {box=null}` the
+/// member reads nullable again.
+#[test]
+fn t07_for_body_set_drops_item_fact() {
+    let catalog = fixture();
+    let src = "app T\nGiven\n B { label:text }\n M { box:B? }\n policy B read=members\n policy M read=members\nWhen\n scenario s() by=members\n  do\n   for x in M as m where m.box!=null limit=1\n    set x {box=null}\n    let t = x.box.label\nThen\n";
+    let diags = check(src, Some(&catalog));
+    assert_eq!(codes(&diags), vec!["E3003"], "{diags:?}");
+}
+
+/// (T07) Contract fidelity: the true-continuation of an OR-`where`
+/// carries nothing (T03 §3), so the `select` still fails.
+#[test]
+fn t07_where_or_carries_nothing() {
+    let catalog = fixture();
+    let src = "app T\nGiven\n B { label:text }\n M { box:B?, flag:bool }\n policy B read=members\n policy M read=members\nWhen\n scenario s() by=members\n  do\n   let xs = M as m where m.box!=null or m.flag select m.box.label\nThen\n";
+    let diags = check(src, Some(&catalog));
+    assert_eq!(codes(&diags), vec!["E3003"], "{diags:?}");
+}
+
+/// (T07) Contract fidelity: a safe-access null test in `where`
+/// establishes nothing (T03 IC7), so the `select` still fails.
+#[test]
+fn t07_where_safe_access_grants_nothing() {
+    let catalog = fixture();
+    let src = "app T\nGiven\n B { label:text }\n M { box:B? }\n policy B read=members\n policy M read=members\nWhen\n scenario s() by=members\n  do\n   let xs = M as m where m.box?.label!=null select m.box.label\nThen\n";
+    let diags = check(src, Some(&catalog));
+    assert_eq!(codes(&diags), vec!["E3003"], "{diags:?}");
+}
+
 /// (T10) Fixture contract literal: a nested value validates
 /// closed-recursively (Qualification shape) — nested contract, bare
 /// enum case, omitted nullable/default/ordinary-array members and a
