@@ -24,7 +24,7 @@
 //! CRUD `create`/`set` with `when`.
 
 use crate::analysis::resolve::{CrudOp, ModuleKind};
-use crate::analysis::types::ResolvedType;
+use crate::analysis::types::{ResolvedType, Scalar};
 use crate::codegen::ir::{
     IrBinOp, IrCallTarget, IrDefault, IrExpr, IrFieldLabel, IrGuard, IrItem, IrItemKind, IrMessage,
     IrPage, IrProgram, IrServer, IrStmt, IrType, IrUi, IrUnOp, ReferencedBuiltin, ScalarFamily,
@@ -105,6 +105,168 @@ pub struct JsPage {
     pub export: String,
 }
 
+/// MCP operation kind of one user-invocable operation (the `.can`
+/// subset of `McpOperationKind`: `list`/`team` have no `.can` source).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum JsOperationKind {
+    Read,
+    Create,
+    Update,
+    Delete,
+    Scenario,
+}
+
+impl JsOperationKind {
+    /// Artifact `kind` spelling (matches `McpOperationKind`).
+    pub fn as_str(self) -> &'static str {
+        match self {
+            JsOperationKind::Read => "read",
+            JsOperationKind::Create => "create",
+            JsOperationKind::Update => "update",
+            JsOperationKind::Delete => "delete",
+            JsOperationKind::Scenario => "scenario",
+        }
+    }
+}
+
+/// One closed typed input field (JSON shape of `McpSchemaField`).
+#[derive(Debug, Clone)]
+pub enum JsMcpField {
+    /// Stored-record reference: canonical model + version requirement.
+    Ref {
+        model: String,
+        require_version: bool,
+    },
+    String,
+    Integer,
+    Decimal,
+    Money,
+    Datetime,
+    Boolean,
+    File,
+    /// Anonymous enum: case spellings in declaration order.
+    Enum {
+        values: Vec<String>,
+    },
+}
+
+impl JsMcpField {
+    /// Compact JSON per `artifact.ts` `ArtifactOperationField`.
+    pub fn to_json(&self) -> String {
+        match self {
+            JsMcpField::Ref {
+                model,
+                require_version,
+            } => format!(
+                "{{\"kind\":\"ref\",\"model\":{},\"requireVersion\":{}}}",
+                js_string(model),
+                require_version
+            ),
+            JsMcpField::String => "{\"kind\":\"string\"}".to_string(),
+            JsMcpField::Integer => "{\"kind\":\"integer\"}".to_string(),
+            JsMcpField::Decimal => "{\"kind\":\"decimal\"}".to_string(),
+            JsMcpField::Money => "{\"kind\":\"money\"}".to_string(),
+            JsMcpField::Datetime => "{\"kind\":\"datetime\"}".to_string(),
+            JsMcpField::Boolean => "{\"kind\":\"boolean\"}".to_string(),
+            JsMcpField::File => "{\"kind\":\"file\"}".to_string(),
+            JsMcpField::Enum { values } => format!(
+                "{{\"kind\":\"enum\",\"values\":[{}]}}",
+                values
+                    .iter()
+                    .map(|v| js_string(v))
+                    .collect::<Vec<_>>()
+                    .join(",")
+            ),
+        }
+    }
+}
+
+/// One named operation input (JSON shape of `McpNamedField`).
+#[derive(Debug, Clone)]
+pub struct JsOperationField {
+    /// Input name (parameter or flattened model field).
+    pub name: String,
+    /// Closed typed schema.
+    pub field: JsMcpField,
+    /// Whether the caller must supply the member.
+    pub required: bool,
+    /// Trailing `@{desc}` text, when authored (P4).
+    pub description: Option<String>,
+}
+
+impl JsOperationField {
+    /// Compact JSON per `artifact.ts` `ArtifactOperationInput`. The
+    /// `description` member renders only when authored (additive:
+    /// undescribed inputs are byte-identical to P1).
+    pub fn to_json(&self) -> String {
+        let mut out = format!(
+            "{{\"name\":{},\"field\":{},\"required\":{}",
+            js_string(&self.name),
+            self.field.to_json(),
+            self.required
+        );
+        if let Some(description) = &self.description {
+            out.push_str(",\"description\":");
+            out.push_str(&js_string(description));
+        }
+        out.push('}');
+        out
+    }
+}
+
+/// One user-invocable operation descriptor (JSON shape of
+/// `OperationDescriptor`: `{name, kind, description, inputs}`).
+#[derive(Debug, Clone)]
+pub struct JsOperation {
+    /// Canonical operation identity (`Shop.approve`, `Shop.Gadget.create`).
+    pub name: String,
+    /// MCP operation kind.
+    pub kind: JsOperationKind,
+    /// Verbatim `#` description source text (`""` when absent).
+    pub description: String,
+    /// Closed typed inputs in signature order.
+    pub inputs: Vec<JsOperationField>,
+}
+
+impl JsOperation {
+    /// Compact JSON per `artifact.ts` `ArtifactOperation`.
+    pub fn to_json(&self) -> String {
+        format!(
+            "{{\"name\":{},\"kind\":\"{}\",\"description\":{},\"inputs\":{{\"fields\":[{}]}}}}",
+            js_string(&self.name),
+            self.kind.as_str(),
+            js_string(&self.description),
+            self.inputs
+                .iter()
+                .map(JsOperationField::to_json)
+                .collect::<Vec<_>>()
+                .join(",")
+        )
+    }
+}
+
+/// Whether an input list repeats a name. A repeated name (e.g. a model
+/// field literally named `record` beside the synthesized `record` ref)
+/// is an unmappable collision: the descriptors omit the operation
+/// rather than advertise an ambiguous closed schema.
+fn has_duplicate_names(inputs: &[JsOperationField]) -> bool {
+    let mut seen = BTreeSet::new();
+    inputs.iter().any(|input| !seen.insert(input.name.as_str()))
+}
+
+/// Compact JSON array of operation descriptors, shared by the artifact
+/// envelope and the `canApp()` registry literal (one renderer, no drift).
+pub fn operations_json(operations: &[JsOperation]) -> String {
+    format!(
+        "[{}]",
+        operations
+            .iter()
+            .map(JsOperation::to_json)
+            .collect::<Vec<_>>()
+            .join(",")
+    )
+}
+
 /// Production modules plus link metadata.
 #[derive(Debug, Clone)]
 pub struct JsOutput {
@@ -120,6 +282,8 @@ pub struct JsOutput {
     pub callables: Vec<JsCallable>,
     /// Page descriptors in source order.
     pub pages: Vec<JsPage>,
+    /// User-invocable operation descriptors in source order (MCP P1).
+    pub operations: Vec<JsOperation>,
     /// `@canlang/stdlib` imports used by the entrypoint.
     pub stdlib_imports: BTreeSet<String>,
     /// `@canlang/ui` imports used by the entrypoint.
@@ -188,6 +352,9 @@ pub fn emit_program(ir: &IrProgram) -> JsOutput {
         0,
     ));
     let mut body = JsWriter::new();
+    // Operation descriptors derive once, up front: the `canApp()`
+    // registry and the artifact envelope share them verbatim.
+    let operations = emitter.collect_operations();
     emitter.emit_identity_consts(&mut body, entry_id);
     for module in &ir.modules {
         for page in &module.pages {
@@ -195,7 +362,7 @@ pub fn emit_program(ir: &IrProgram) -> JsOutput {
         }
     }
     emitter.emit_app_definition(&mut body, entry_id);
-    emitter.emit_can_app(&mut body, entry_id);
+    emitter.emit_can_app(&mut body, entry_id, &operations);
     let mut out = JsWriter::new();
     out.push(
         entry_span,
@@ -225,6 +392,7 @@ pub fn emit_program(ir: &IrProgram) -> JsOutput {
         referenced_builtins,
         callables,
         pages,
+        operations,
         stdlib_imports,
         ui_imports,
     }
@@ -3029,10 +3197,298 @@ impl<'a> Emitter<'a> {
     /// handlers. Operation handlers without a decoded body keep a failing
     /// stub (`E6006` covers each); named pure derives stay named
     /// functions.
+    /// Collect user-invocable operation descriptors in IR item order:
+    /// untrusted scenarios plus generated CRUD ops. Trusted scenarios are
+    /// event handlers (the `{event}` signature), not user operations, so
+    /// they are skipped.
+    ///
+    /// Descriptors are fail-closed metadata: they never block compilation
+    /// and never advertise a skewed schema. An operation with ANY input
+    /// that has no MCP mapping (arrays, compound values, `duration`,
+    /// `json`, `bytes`, or a dangling IR row) — or whose inputs would
+    /// repeat a name — is omitted from the descriptors entirely: no
+    /// diagnostic, no partial entry. A partial entry would advertise a
+    /// closed schema that rejects valid calls; absence simply leaves the
+    /// operation off the MCP tool list while HTTP/browser invocation is
+    /// unaffected.
+    fn collect_operations(&self) -> Vec<JsOperation> {
+        let mut operations = Vec::new();
+        for item in &self.ir.items {
+            match &item.kind {
+                IrItemKind::Model { grants, .. } => {
+                    // One no-input read descriptor per policy-bearing
+                    // model (P4 follow-up): `policy Model read=`
+                    // publishes `package.Model.read` so denied reads
+                    // answer denied-not-unknown. Policies carry no
+                    // caption source, so the description stays empty.
+                    if grants.is_empty() {
+                        continue;
+                    }
+                    operations.push(JsOperation {
+                        name: format!("{}.read", item.canonical),
+                        kind: JsOperationKind::Read,
+                        description: String::new(),
+                        inputs: Vec::new(),
+                    });
+                }
+                IrItemKind::Scenario {
+                    params,
+                    read,
+                    trusted,
+                    description,
+                    expose_excluded,
+                    ..
+                } => {
+                    if *trusted {
+                        continue;
+                    }
+                    // `expose=none` excludes the operation from
+                    // publication (P4); omission exposes it.
+                    if *expose_excluded {
+                        continue;
+                    }
+                    let mut inputs = Vec::new();
+                    let mut mappable = true;
+                    for param_id in params {
+                        // Never direct-index: a dangling row omits the
+                        // operation instead of panicking.
+                        let Some(param) = self.ir.items.get(param_id.0 as usize) else {
+                            mappable = false;
+                            break;
+                        };
+                        let IrItemKind::Param {
+                            ty,
+                            default,
+                            description,
+                            ..
+                        } = &param.kind
+                        else {
+                            mappable = false;
+                            break;
+                        };
+                        let nullable = matches!(ty, IrType::Known(ResolvedType::Nullable(_)));
+                        match self.mcp_field_for_type(ty, !*read) {
+                            Some(field) => inputs.push(JsOperationField {
+                                name: param.name.clone(),
+                                field,
+                                required: default.is_none() && !nullable,
+                                description: description.clone(),
+                            }),
+                            None => {
+                                mappable = false;
+                                break;
+                            }
+                        }
+                    }
+                    if !mappable || has_duplicate_names(&inputs) {
+                        continue;
+                    }
+                    operations.push(JsOperation {
+                        name: item.canonical.clone(),
+                        kind: if *read {
+                            JsOperationKind::Read
+                        } else {
+                            JsOperationKind::Scenario
+                        },
+                        description: description
+                            .as_ref()
+                            .map(|message| message.source.clone())
+                            .unwrap_or_default(),
+                        inputs,
+                    });
+                }
+                IrItemKind::CrudOp {
+                    model,
+                    op,
+                    fields,
+                    label,
+                    expose_excluded,
+                    ..
+                } => {
+                    // The owner's `expose=` allowlist excludes unlisted
+                    // operations from publication (P4 follow-up);
+                    // omission permits all enabled operations.
+                    if *expose_excluded {
+                        continue;
+                    }
+                    let kind = match op {
+                        CrudOp::Create => JsOperationKind::Create,
+                        CrudOp::Update => JsOperationKind::Update,
+                        CrudOp::Delete => JsOperationKind::Delete,
+                    };
+                    let Some(model_item) = self.ir.items.get(model.0 as usize) else {
+                        continue;
+                    };
+                    let IrItemKind::Model {
+                        fields: model_fields,
+                        ..
+                    } = &model_item.kind
+                    else {
+                        continue;
+                    };
+                    // The allowlist holds dotted paths; top-level inputs
+                    // match on the first segment. An empty allowlist means
+                    // every caller-provided field (defensive: analysis
+                    // requires `fields=`).
+                    let allowlist: Option<BTreeSet<&str>> = if fields.is_empty() {
+                        None
+                    } else {
+                        Some(
+                            fields
+                                .iter()
+                                .map(|path| path.split('.').next().unwrap_or(""))
+                                .collect(),
+                        )
+                    };
+                    let mut flat = Vec::new();
+                    let mut mappable = true;
+                    for field_id in model_fields {
+                        let Some(field_item) = self.ir.items.get(field_id.0 as usize) else {
+                            mappable = false;
+                            break;
+                        };
+                        let IrItemKind::Field {
+                            ty,
+                            default,
+                            server,
+                            description,
+                            ..
+                        } = &field_item.kind
+                        else {
+                            mappable = false;
+                            break;
+                        };
+                        // `server=`-owned fields are never caller-provided
+                        // (analysis E3009 also bars them from allowlists).
+                        if server.is_some() {
+                            continue;
+                        }
+                        if let Some(allow) = &allowlist
+                            && !allow.contains(field_item.name.as_str())
+                        {
+                            continue;
+                        }
+                        let nullable = matches!(ty, IrType::Known(ResolvedType::Nullable(_)));
+                        match self.mcp_field_for_type(ty, true) {
+                            Some(field) => flat.push(JsOperationField {
+                                name: field_item.name.clone(),
+                                field,
+                                required: default.is_none() && !nullable,
+                                description: description.clone(),
+                            }),
+                            None => {
+                                mappable = false;
+                                break;
+                            }
+                        }
+                    }
+                    if !mappable {
+                        continue;
+                    }
+                    let record = || JsOperationField {
+                        name: "record".to_string(),
+                        field: JsMcpField::Ref {
+                            model: model_item.canonical.clone(),
+                            require_version: true,
+                        },
+                        required: true,
+                        description: None,
+                    };
+                    let inputs = match op {
+                        CrudOp::Create => flat,
+                        CrudOp::Update => {
+                            // Changes are partial: every flattened field is
+                            // optional beside the versioned record.
+                            let mut inputs = vec![record()];
+                            for mut field in flat {
+                                field.required = false;
+                                inputs.push(field);
+                            }
+                            inputs
+                        }
+                        CrudOp::Delete => vec![record()],
+                    };
+                    // A model field literally named `record` collides with
+                    // the synthesized ref on update/delete: omit rather
+                    // than advertise an ambiguous schema.
+                    if has_duplicate_names(&inputs) {
+                        continue;
+                    }
+                    operations.push(JsOperation {
+                        name: item.canonical.clone(),
+                        kind,
+                        // Generated operations inherit their `label=`
+                        // caption when the declaration captions them,
+                        // else carry no description (P4 follow-up;
+                        // locale variants never leave the source).
+                        description: label
+                            .as_ref()
+                            .map(|message| message.source.clone())
+                            .unwrap_or_default(),
+                        inputs,
+                    });
+                }
+                _ => {}
+            }
+        }
+        operations
+    }
+
+    /// Map one input type to its MCP field, or `None` when the type has
+    /// no MCP mapping. `require_version` marks record references that
+    /// must carry a version (mutations); reads take versionless refs.
+    /// Nullability unwraps here; the caller clears `required`.
+    fn mcp_field_for_type(&self, ty: &IrType, require_version: bool) -> Option<JsMcpField> {
+        let resolved = match ty {
+            IrType::Known(resolved) => resolved,
+            IrType::Unknown => return None,
+        };
+        self.mcp_field_for_resolved(resolved, require_version)
+    }
+
+    /// Map one resolved input type to its MCP field.
+    fn mcp_field_for_resolved(
+        &self,
+        resolved: &ResolvedType,
+        require_version: bool,
+    ) -> Option<JsMcpField> {
+        match resolved {
+            ResolvedType::Scalar(scalar) => Some(match scalar {
+                Scalar::Text
+                | Scalar::Email
+                | Scalar::Url
+                | Scalar::Locale
+                | Scalar::Timezone
+                | Scalar::Currency
+                | Scalar::Secret
+                | Scalar::Date
+                | Scalar::User
+                | Scalar::Member => JsMcpField::String,
+                Scalar::Int => JsMcpField::Integer,
+                Scalar::Decimal => JsMcpField::Decimal,
+                Scalar::Money => JsMcpField::Money,
+                Scalar::Datetime => JsMcpField::Datetime,
+                Scalar::Bool => JsMcpField::Boolean,
+                Scalar::File => JsMcpField::File,
+                Scalar::Duration | Scalar::Json | Scalar::Bytes => return None,
+            }),
+            ResolvedType::Record { symbol, .. } => Some(JsMcpField::Ref {
+                model: self.ir.items.get(symbol.0 as usize)?.canonical.clone(),
+                require_version,
+            }),
+            ResolvedType::Enum { cases, .. } => Some(JsMcpField::Enum {
+                values: cases.clone(),
+            }),
+            ResolvedType::Nullable(inner) => self.mcp_field_for_resolved(inner, require_version),
+            _ => None,
+        }
+    }
+
     fn emit_can_app(
         &mut self,
         out: &mut JsWriter,
         entry: Option<crate::analysis::resolve::ModuleId>,
+        operations: &[JsOperation],
     ) {
         let entry_span = entry.map(|id| self.ir.module(id).span).unwrap_or(Span::new(
             crate::source::SourceId(0),
@@ -3067,6 +3523,17 @@ impl<'a> Emitter<'a> {
         out.push(entry_span, Some("canApp".to_string()), "return {");
         if !self.ir.crud_when.is_empty() {
             out.push(entry_span, Some("canApp".to_string()), "crudWhen,");
+        }
+        // Operation descriptors: the same `{name, kind, description,
+        // inputs}` objects the artifact envelope carries (MCP P1).
+        // Sparse like every other `canApp()` member: omitted when the
+        // program has no operations.
+        if !operations.is_empty() {
+            out.push(
+                entry_span,
+                Some("canApp".to_string()),
+                &format!("operations:{},", operations_json(operations)),
+            );
         }
         self.emit_rule_map(out, "read", entry_span);
         self.emit_rule_map(out, "invariants", entry_span);

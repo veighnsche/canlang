@@ -9,6 +9,7 @@
  */
 import type {
   McpInputSchema,
+  McpNamedField,
   McpOperationKind,
   McpSchemaField,
   OperationDescriptor,
@@ -94,6 +95,16 @@ function fieldSchema(field: McpSchemaField): Record<string, unknown> {
   }
 }
 
+/**
+ * One property schema: the closed field shape plus the authored
+ * `@{desc}` text when present (MCP P4). Absent descriptions render no
+ * key — byte-identical to undescribed schemas.
+ */
+function propertySchema(named: McpNamedField): Record<string, unknown> {
+  const schema = fieldSchema(named.field);
+  return named.description === undefined ? schema : { ...schema, description: named.description };
+}
+
 /** Render typed inputs as one closed JSON Schema object. */
 export function toJsonSchema(inputs: McpInputSchema): {
   type: 'object';
@@ -104,7 +115,7 @@ export function toJsonSchema(inputs: McpInputSchema): {
   const properties: Record<string, unknown> = {};
   const required: string[] = [];
   for (const named of inputs.fields) {
-    properties[named.name] = fieldSchema(named.field);
+    properties[named.name] = propertySchema(named);
     if (named.required) required.push(named.name);
   }
   return { type: 'object', properties, required, additionalProperties: false };
@@ -135,7 +146,7 @@ export function toToolInputSchema(descriptor: OperationDescriptor): Record<strin
   };
   for (const named of descriptor.inputs.fields) {
     if (named.field.kind === 'ref') continue;
-    handleProperties[named.name] = fieldSchema(named.field);
+    handleProperties[named.name] = propertySchema(named);
   }
   const handleMode: Record<string, unknown> = {
     type: 'object',

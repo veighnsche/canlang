@@ -19,15 +19,29 @@
  * constants — loaded from their built dists into the miniflare module map
  * under `vendor/`. A missing dist fails loud naming the exact build
  * command; the loader never stubs a producer.
+ *
+ * MCP bundling: the `/mcp` leg additionally serves `vendor/mcp/bundle.js`,
+ * a single self-contained ESM module built at load time by `bun build
+ * --target=browser --format=esm` from `./handbuilt/mcp-bundle-entry.js`
+ * (which re-exports ONLY the real `createMcpHandler` from interfaces dist
+ * and the real `createArtifactRegistry`/`createArtifactCatalog` from
+ * cloudflare dist). Bundling — not file vendoring — is required because two
+ * transitive MCP SDK deps (ajv, content-type) ship CJS only and cannot load
+ * as workerd ESModules; the bundle is byte-built from the real dists on
+ * every load (no checked-in blob, no stub). A missing dist, unresolvable
+ * SDK, missing `bun`, or build failure throws naming the exact fix.
  */
+import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
-import { readdirSync, readFileSync, statSync } from "node:fs";
+import { readdirSync, readFileSync, rmSync, statSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { fileURLToPath } from "node:url";
 import { join, relative, sep } from "node:path";
 import type { LocalD1 } from "@canlang/cloudflare";
 import type { CompileArtifact } from "@canlang/contracts";
 import {
   TEAMTASKS_D1_BINDING,
+  TEAMTASKS_OPERATIONS,
   TEAMTASKS_SOURCE_RELATIVE,
   TEAMTASKS_SOURCE_SHA256,
   TEAMTASKS_WORKER_NAME,
@@ -153,11 +167,87 @@ function readVendorTree(root: string, distSubdir: string, prefix: string, buildC
   return modules;
 }
 
+function assertFileBuilt(root: string, distRelative: string, buildCommand: string): void {
+  try {
+    if (!statSync(join(root, distRelative)).isFile()) throw new Error("not a file");
+  } catch {
+    throw new Error(`e2e loader: ${distRelative} not built; run \`${buildCommand}\` first`);
+  }
+}
+
+/**
+ * Build the `vendor/mcp/bundle.js` module: the real MCP handler chain
+ * (interfaces `createMcpHandler` + cloudflare registry/catalog builders)
+ * bundled self-contained for workerd. Fails loud naming the fix — never a
+ * stub, never a stale checked-in blob: the bundle is rebuilt from the live
+ * dists on every assembly.
+ */
+function buildMcpBundle(root: string): string {
+  assertFileBuilt(
+    root,
+    "packages/interfaces/dist/interfaces/src/mcp/server.js",
+    "bun run --filter @canlang/interfaces build",
+  );
+  assertFileBuilt(
+    root,
+    "packages/cloudflare/dist/runtime/mcp-registry.js",
+    "bun run --filter @canlang/cloudflare build",
+  );
+  const entry = join(root, "tests/e2e/fixtures/handbuilt/mcp-bundle-entry.js");
+  const outFile = join(tmpdir(), `can-e2e-mcp-bundle-${process.pid}.mjs`);
+  try {
+    execFileSync(
+      "bun",
+      ["build", entry, "--format=esm", "--target=browser", `--outfile=${outFile}`],
+      { stdio: "pipe" },
+    );
+  } catch (err) {
+    const detail = err instanceof Error ? err.message : String(err);
+    if (detail.includes("ENOENT")) {
+      throw new Error(
+        "e2e loader: `bun` is not on PATH, needed to bundle the MCP handler chain; " +
+          "install bun (https://bun.sh) or run e2e via `bun run test:e2e`",
+      );
+    }
+    throw new Error(
+      `e2e loader: MCP bundle build failed (\`bun build ${entry}\`); ` +
+        `the MCP SDK must resolve (run \`bun install\`) and both producer dists must be built. ` +
+        `Underlying error: ${detail}`,
+    );
+  }
+  let contents: string;
+  try {
+    contents = readFileSync(outFile, "utf8");
+  } finally {
+    rmSync(outFile, { force: true });
+  }
+  for (const marker of ["createMcpHandler", "createArtifactRegistry", "createArtifactCatalog"]) {
+    if (!contents.includes(marker)) {
+      throw new Error(
+        `e2e loader: MCP bundle build dropped ${marker}; refusing a skewed bundle ` +
+          `(rebuild the producer dists and retry)`,
+      );
+    }
+  }
+  return contents;
+}
+
 function loadHandbuiltTeamTasks(root: string): WorkerAssembly {
   assertSourceWitness(root, TEAMTASKS_SOURCE_RELATIVE, TEAMTASKS_SOURCE_SHA256);
   const artifact = teamTasksArtifact();
   assertSupportedArtifact(artifact);
+  if (artifact.operations === undefined || artifact.operations.length === 0) {
+    throw new Error(
+      "e2e loader: fixture artifact has no operations[]; the /mcp registry would be empty " +
+        "(TEAMTASKS_OPERATIONS in fixtures/handbuilt/teamtasks.ts owns the served ops)",
+    );
+  }
   const modules: Record<string, string> = { "worker.mjs": buildTeamTasksWorkerSource() };
+  modules["vendor/mcp/bundle.js"] = buildMcpBundle(root);
+  // The worker's registry input, stamped from the SAME entries the artifact
+  // JSON carries (one source of truth: TEAMTASKS_OPERATIONS).
+  modules["vendor/mcp/fixture-ops.js"] =
+    `export const FIXTURE_OPERATIONS = ${JSON.stringify(TEAMTASKS_OPERATIONS)};\n`;
   // The `contracts/src` mirror (same contents, second key) satisfies the
   // repo-relative `../../contracts/src/presentation.js` specifier baked into
   // @canlang/ui dist. No specifier is rewritten: both aliases serve the

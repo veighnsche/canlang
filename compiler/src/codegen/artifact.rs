@@ -15,7 +15,7 @@
 use crate::analysis::catalog::{Availability, Catalog};
 use crate::codegen::bdd::BddModule;
 use crate::codegen::ir::{IrMigrationDirective, IrProgram, ReferencedBuiltin};
-use crate::codegen::js::JsOutput;
+use crate::codegen::js::{JsOperation, JsOutput, operations_json};
 use crate::codegen::sourcemap::{self, SourceMap};
 use crate::diagnostic::{Diagnostic, push_json_str};
 use crate::source::SourceDb;
@@ -193,6 +193,9 @@ pub struct CompileArtifact {
     pub modules: Vec<ArtifactModule>,
     /// Callable registry references (handlers/rules only, no metadata spread).
     pub callables: Vec<ArtifactCallable>,
+    /// User-invocable operation descriptors in source order (MCP P1):
+    /// `{name, kind, description, inputs}` per operation.
+    pub operations: Vec<JsOperation>,
     /// Page descriptors in source order.
     pub pages: Vec<ArtifactPage>,
     /// Lowered migration transitions in source order (B3-I1 registry).
@@ -298,6 +301,7 @@ pub fn assemble(
         sources,
         modules,
         callables,
+        operations: js.operations.clone(),
         pages,
         migrations,
         requires,
@@ -521,7 +525,9 @@ pub fn to_json(artifact: &CompileArtifact) -> String {
         }
         out.push_str("]}");
     }
-    out.push_str("],\"pages\":[");
+    out.push_str("],\"operations\":");
+    out.push_str(&operations_json(&artifact.operations));
+    out.push_str(",\"pages\":[");
     for (i, page) in artifact.pages.iter().enumerate() {
         if i > 0 {
             out.push(',');

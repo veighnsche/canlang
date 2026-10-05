@@ -163,6 +163,8 @@ export interface McpNamedField {
   readonly name: string;
   readonly field: McpSchemaField;
   readonly required: boolean;
+  /** Authored `@{desc="..."}` text, verbatim; absent when not authored (MCP P4). */
+  readonly description?: string;
 }
 
 /** Typed input schema for one operation; rendered closed. */

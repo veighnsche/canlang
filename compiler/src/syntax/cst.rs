@@ -78,6 +78,10 @@ pub enum SyntaxKind {
     CrudLabels,
     MessageValue,
     MessageVariant,
+    /// A trailing `@{desc="..."}` input annotation on a field or
+    /// parameter (flat `key = Literal` pairs under the marker; never a
+    /// locale variant, so it stays out of message coverage).
+    Annotation,
     // Attributes and selectors -------------------------------------------
     Attribute,
     Selectors,
