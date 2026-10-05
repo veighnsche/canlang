@@ -788,12 +788,33 @@ fn draft_outcome_table() {
     // reverted final tree reproduces the measured new output byte
     // for byte (per-file counts, both family histograms, full
     // all-52 JSON).
+    // T07 re-pin 2026-10-05 (filtered row facts: `where` null
+    // tests narrow the selected row in following clauses,
+    // collection bodies, and `for` bodies): 6 files net-decrease,
+    // 46 unchanged, zero net-increase; table total -27 (5074 ->
+    // 5047). Whole-corpus (all-52) differential 2104 -> 2075
+    // (-29): removed 29 = E3003 x12 (Rent:374-378 + Workbench:68
+    // select dereferences of `where`-narrowed members) + E3001 x9
+    // (Rent:245-248 select unwraps, Rent:384-385 `points` cascade,
+    // Feedback:212 published_at, Grant:324 decided_at,
+    // Workbench:69 `previous` cascade) + E3005 x6 (Rent:374-376/378
+    // flatten + Report:90 sum + Workbench:68 format overload
+    // consequences of the same narrowing) + E3002 x2 (CRM:416/420
+    // table-row arithmetic). Added 0: every other family is
+    // bit-identical. Per-file nets equal whole-corpus nets per
+    // file except Rent (-21 whole-corpus vs -19 table): the 2-site
+    // gap is the L384/385 `points` cascade pair, which fires only
+    // whole-corpus (single-file construct heads poison first with
+    // E2001s, verified on both binaries). Differential isolated
+    // without Git: a file-copy revert/rebuild toggle reproduces
+    // the pinned baseline all-52 2104 exactly (identical family
+    // histogram), and the restored tree reproduces 2075.
     let table: &[(&str, usize)] = &[
         ("draft/CanAffiliate.can", 48),
         ("draft/CanApprove.can", 47),
         ("draft/CanBoard.can", 3),
         ("draft/CanBook.can", 161),
-        ("draft/CanCRM.can", 146),
+        ("draft/CanCRM.can", 144),
         ("draft/CanCatch.can", 57),
         ("draft/CanChat.can", 58),
         ("draft/CanCheck.can", 38),
@@ -807,10 +828,10 @@ fn draft_outcome_table() {
         ("draft/CanEnrich.can", 19),
         ("draft/CanEvent.can", 316),
         ("draft/CanExpense.can", 95),
-        ("draft/CanFeedback.can", 14),
+        ("draft/CanFeedback.can", 13),
         ("draft/CanField.can", 115),
         ("draft/CanGallery.can", 23),
-        ("draft/CanGrant.can", 51),
+        ("draft/CanGrant.can", 50),
         ("draft/CanHire.can", 126),
         ("draft/CanInbox.can", 100),
         ("draft/CanInvoice.can", 379),
@@ -826,8 +847,8 @@ fn draft_outcome_table() {
         ("draft/CanPurchase.can", 148),
         ("draft/CanReception.can", 190),
         ("draft/CanRefer.can", 79),
-        ("draft/CanRent.can", 653),
-        ("draft/CanReport.can", 46),
+        ("draft/CanRent.can", 634),
+        ("draft/CanReport.can", 45),
         ("draft/CanShift.can", 191),
         ("draft/CanStats.can", 35),
         ("draft/CanStock.can", 60),
@@ -837,7 +858,7 @@ fn draft_outcome_table() {
         ("draft/CanTime.can", 126),
         ("draft/CanTrade.can", 18),
         ("draft/CanVolunteer.can", 76),
-        ("draft/CanWorkbench.can", 87),
+        ("draft/CanWorkbench.can", 84),
         ("draft/shared/Employees.can", 8),
         ("draft/shared/Locations.can", 5),
         ("draft/shared/Suppliers.can", 6),
