@@ -27,8 +27,8 @@ use crate::analysis::resolve::{CrudOp, ModuleKind};
 use crate::analysis::types::{ResolvedType, Scalar};
 use crate::codegen::ir::{
     IrBinOp, IrCallTarget, IrDefault, IrExpr, IrFieldLabel, IrGuard, IrItem, IrItemKind, IrMessage,
-    IrPage, IrProgram, IrServer, IrStmt, IrType, IrUi, IrUnOp, ReferencedBuiltin, ScalarFamily,
-    TypedExpr, expr_uses_async, is_structural, scalar_family,
+    IrOwner, IrPage, IrProgram, IrServer, IrStmt, IrType, IrUi, IrUnOp, ReferencedBuiltin,
+    ScalarFamily, TypedExpr, expr_uses_async, is_structural, scalar_family,
 };
 use crate::diagnostic::Diagnostic;
 use crate::source::Span;
@@ -181,15 +181,181 @@ impl JsMcpField {
     }
 }
 
+/// One source-derived field default (JSON shape of `ArtifactFieldDefault`,
+/// mirroring L3 `CanonicalFieldDefault`).
+#[derive(Debug, Clone)]
+pub enum JsFieldDefault {
+    /// Wire-encoded literal value (pre-rendered compact JSON, never a JS
+    /// Number: ints/decimals/durations are canonical decimal strings,
+    /// money is `{minor, currency}`).
+    Literal(String),
+    /// Dot path off the loaded parent row (create only; leading `parent.`
+    /// stripped, e.g. `parent.parent.user` renders `"parent.user"`).
+    Parent { path: String },
+    /// Engine-resolved server initializer (any `server=` spelling).
+    Server,
+    /// Derived value marker (derived fields only; T18 executes).
+    Derived,
+}
+
+impl JsFieldDefault {
+    /// Compact JSON per `artifact.ts` `ArtifactFieldDefault`.
+    pub fn to_json(&self) -> String {
+        match self {
+            JsFieldDefault::Literal(json) => format!("{{\"kind\":\"literal\",\"value\":{json}}}"),
+            JsFieldDefault::Parent { path } => {
+                format!("{{\"kind\":\"parent\",\"path\":{}}}", js_string(path))
+            }
+            JsFieldDefault::Server => "{\"kind\":\"server\"}".to_string(),
+            JsFieldDefault::Derived => "{\"kind\":\"derived\"}".to_string(),
+        }
+    }
+}
+
+/// Map one field/parameter default plus server initializer to its
+/// descriptor form, or `None` when the default has no T04a vocabulary.
+///
+/// `server=` (any spelling) wins as `{kind:"server"}` and literal
+/// defaults encode via [`literal_json`]; computed defaults map only
+/// when they are a parent path ([`parent_path`]). Any other computed
+/// default (a non-parent expression) maps to `None`: the caller keeps
+/// `required: false` and the emitted `default(c)` callable preserves
+/// execution — T04b grows the vocabulary. Total and diagnostic-free:
+/// descriptors never fail compilation.
+pub fn js_field_default(
+    default: Option<&IrDefault>,
+    server: Option<&IrServer>,
+) -> Option<JsFieldDefault> {
+    if server.is_some() {
+        return Some(JsFieldDefault::Server);
+    }
+    match default {
+        None => None,
+        Some(IrDefault::Literal(value)) => literal_json(value).map(JsFieldDefault::Literal),
+        Some(IrDefault::Computed { expr, .. }) => parent_path(expr).map(|path| JsFieldDefault::Parent {
+            path,
+        }),
+    }
+}
+
+/// Encode one literal expression as wire-compatible compact JSON, or
+/// `None` when the expression is not an exact literal.
+///
+/// Integers, decimals (authored spelling verbatim, so scale survives:
+/// `"1.50"` stays `"1.50"`) and durations render as canonical decimal
+/// strings; money renders as `{minor, currency}` with a decimal-string
+/// minor; dates/datetimes render verbatim; arrays and structural
+/// objects recurse (T10 slice). Unary minus over int/decimal literals
+/// and the `money`/`date`/`datetime` construct calls (all-literal
+/// arguments) are recognized; anything else — names, member access,
+/// general calls, queries — is not a literal. Mirrors the L2 wire
+/// encoding (`packages/values/src/wire.ts`); T18 decodes with it.
+pub fn literal_json(expr: &TypedExpr) -> Option<String> {
+    match &expr.expr {
+        IrExpr::Int(value) => Some(js_string(&value.to_string())),
+        IrExpr::Decimal(spelling) => Some(js_string(spelling)),
+        IrExpr::Text(value) => Some(js_string(value)),
+        IrExpr::Bool(value) => Some(value.to_string()),
+        IrExpr::Null => Some("null".to_string()),
+        IrExpr::Money { minor, currency } => Some(format!(
+            "{{\"minor\":{},\"currency\":{}}}",
+            js_string(&minor.to_string()),
+            js_string(currency)
+        )),
+        IrExpr::DurationMs(ms) => Some(js_string(&ms.to_string())),
+        IrExpr::Date(value) | IrExpr::Datetime(value) => Some(js_string(value)),
+        IrExpr::Array(items) => {
+            let mut parts = Vec::with_capacity(items.len());
+            for item in items {
+                parts.push(literal_json(item)?);
+            }
+            Some(format!("[{}]", parts.join(",")))
+        }
+        IrExpr::Object(entries) => {
+            let mut parts = Vec::with_capacity(entries.len());
+            for (key, value) in entries {
+                parts.push(format!("{}:{}", js_string(key), literal_json(value)?));
+            }
+            Some(format!("{{{}}}", parts.join(",")))
+        }
+        IrExpr::Unary { op, operand } if *op == IrUnOp::Neg => match &operand.expr {
+            IrExpr::Int(value) => Some(js_string(&value.checked_neg()?.to_string())),
+            IrExpr::Decimal(spelling) => Some(js_string(&format!("-{spelling}"))),
+            _ => None,
+        },
+        IrExpr::Call { target, args } => {
+            let id = match target {
+                IrCallTarget::Builtin { id, .. } => id.as_str(),
+                IrCallTarget::CapabilityOp(_) => return None,
+            };
+            match (id, args.as_slice()) {
+                ("money", [minor, currency])
+                    if matches!(minor.expr, IrExpr::Int(_))
+                        && matches!(currency.expr, IrExpr::Text(_)) =>
+                {
+                    let (IrExpr::Int(m), IrExpr::Text(c)) = (&minor.expr, &currency.expr) else {
+                        return None;
+                    };
+                    Some(format!(
+                        "{{\"minor\":{},\"currency\":{}}}",
+                        js_string(&m.to_string()),
+                        js_string(c)
+                    ))
+                }
+                ("date" | "datetime", [single]) if matches!(single.expr, IrExpr::Text(_)) => {
+                    let IrExpr::Text(value) = &single.expr else {
+                        return None;
+                    };
+                    Some(js_string(value))
+                }
+                _ => None,
+            }
+        }
+        _ => None,
+    }
+}
+
+/// Extract the dot path of a parent default: a `Member` chain rooted at
+/// the bare `parent` creation-context name, with the leading `parent.`
+/// stripped (`parent.parent.user` renders `"parent.user"`). Bare
+/// `parent` (no path) and non-parent roots map to `None`. Raw field
+/// names (never JS-sanitized): T18 resolves against row data.
+pub fn parent_path(expr: &TypedExpr) -> Option<String> {
+    let mut segments = Vec::new();
+    let mut current = expr;
+    loop {
+        match &current.expr {
+            IrExpr::Member { base, field } => {
+                segments.push(field.clone());
+                current = base;
+            }
+            IrExpr::Name(name) if name == "parent" && !segments.is_empty() => {
+                segments.reverse();
+                return Some(segments.join("."));
+            }
+            _ => return None,
+        }
+    }
+}
+
 /// One named operation input (JSON shape of `McpNamedField`).
 #[derive(Debug, Clone)]
 pub struct JsOperationField {
     /// Input name (parameter or flattened model field).
     pub name: String,
-    /// Closed typed schema.
+    /// Closed typed schema (element kind for array inputs).
     pub field: JsMcpField,
     /// Whether the caller must supply the member.
     pub required: bool,
+    /// Whether the input accepts explicit null (T15a additive).
+    pub nullable: bool,
+    /// T09 array marker for array inputs: `Some(required)` where
+    /// `required` is the field-only `!` spelling (scenario parameters
+    /// are always ordinary); `None` for singular inputs.
+    pub array_required: Option<bool>,
+    /// Source-declared default, when representable (T15a additive;
+    /// never present on update changes, which are partial).
+    pub default: Option<JsFieldDefault>,
     /// Checked description source text, when authored (D03: the one
     /// slot inline/attached/shared/legacy spellings feed; variants
     /// never leave the source — localized MCP is deferred).
@@ -198,8 +364,9 @@ pub struct JsOperationField {
 
 impl JsOperationField {
     /// Compact JSON per `artifact.ts` `ArtifactOperationInput`. The
-    /// `description` member renders only when authored (additive:
-    /// undescribed inputs are byte-identical to P1).
+    /// `nullable`/`array`/`default`/`description` members render only
+    /// when meaningful (additive: singular non-nullable default-less
+    /// undescribed inputs are byte-identical to P1/D03).
     pub fn to_json(&self) -> String {
         let mut out = format!(
             "{{\"name\":{},\"field\":{},\"required\":{}",
@@ -207,6 +374,16 @@ impl JsOperationField {
             self.field.to_json(),
             self.required
         );
+        if self.nullable {
+            out.push_str(",\"nullable\":true");
+        }
+        if let Some(required) = self.array_required {
+            out.push_str(&format!(",\"array\":{{\"required\":{required}}}"));
+        }
+        if let Some(default) = &self.default {
+            out.push_str(",\"default\":");
+            out.push_str(&default.to_json());
+        }
         if let Some(description) = &self.description {
             out.push_str(",\"description\":");
             out.push_str(&js_string(description));
@@ -264,6 +441,195 @@ pub fn operations_json(operations: &[JsOperation]) -> String {
         operations
             .iter()
             .map(JsOperation::to_json)
+            .collect::<Vec<_>>()
+            .join(",")
+    )
+}
+
+/// One stored-model field type tag (JSON shape of `ArtifactModelFieldType`).
+///
+/// The `Ref`/scalar/`Enum` members mirror [`JsMcpField`] (minus
+/// `require_version`, meaningless for stored rows); the `Date`..`Bytes`
+/// members are additive T04b-preview tags and `Other` is the honest
+/// fallback for delivery/action/union/contract and unknown shapes.
+/// T15b (provider join) refines `Other` delivery shapes here — never in
+/// a second format.
+#[derive(Debug, Clone)]
+pub enum JsModelFieldType {
+    /// Stored-record reference: canonical target model.
+    Ref { model: String },
+    String,
+    Integer,
+    Decimal,
+    Money,
+    Datetime,
+    Boolean,
+    File,
+    /// Anonymous enum: case spellings in declaration order.
+    Enum { values: Vec<String> },
+    /// T04b-preview additive tags (source-exact; T04a intake ignores).
+    Date,
+    Duration,
+    Secret,
+    User,
+    Member,
+    Json,
+    Bytes,
+    /// Honest fallback: `type_id` is the source type id.
+    Other { type_id: String },
+}
+
+impl JsModelFieldType {
+    /// Compact JSON per `artifact.ts` `ArtifactModelFieldType`.
+    pub fn to_json(&self) -> String {
+        match self {
+            JsModelFieldType::Ref { model } => {
+                format!("{{\"kind\":\"ref\",\"model\":{}}}", js_string(model))
+            }
+            JsModelFieldType::String => "{\"kind\":\"string\"}".to_string(),
+            JsModelFieldType::Integer => "{\"kind\":\"integer\"}".to_string(),
+            JsModelFieldType::Decimal => "{\"kind\":\"decimal\"}".to_string(),
+            JsModelFieldType::Money => "{\"kind\":\"money\"}".to_string(),
+            JsModelFieldType::Datetime => "{\"kind\":\"datetime\"}".to_string(),
+            JsModelFieldType::Boolean => "{\"kind\":\"boolean\"}".to_string(),
+            JsModelFieldType::File => "{\"kind\":\"file\"}".to_string(),
+            JsModelFieldType::Enum { values } => format!(
+                "{{\"kind\":\"enum\",\"values\":[{}]}}",
+                values
+                    .iter()
+                    .map(|v| js_string(v))
+                    .collect::<Vec<_>>()
+                    .join(",")
+            ),
+            JsModelFieldType::Date => "{\"kind\":\"date\"}".to_string(),
+            JsModelFieldType::Duration => "{\"kind\":\"duration\"}".to_string(),
+            JsModelFieldType::Secret => "{\"kind\":\"secret\"}".to_string(),
+            JsModelFieldType::User => "{\"kind\":\"user\"}".to_string(),
+            JsModelFieldType::Member => "{\"kind\":\"member\"}".to_string(),
+            JsModelFieldType::Json => "{\"kind\":\"json\"}".to_string(),
+            JsModelFieldType::Bytes => "{\"kind\":\"bytes\"}".to_string(),
+            JsModelFieldType::Other { type_id } => format!(
+                "{{\"kind\":\"other\",\"type\":{}}}",
+                js_string(type_id)
+            ),
+        }
+    }
+}
+
+/// One stored (or derived) model field (JSON shape of `ArtifactModelField`).
+#[derive(Debug, Clone)]
+pub struct JsModelField {
+    /// Field name (model-local).
+    pub name: String,
+    /// Element type tag (arrays add the `array` marker).
+    pub field: JsModelFieldType,
+    /// Whether omission rejects at creation.
+    pub required: bool,
+    /// Whether the field accepts explicit null.
+    pub nullable: bool,
+    /// Whether caller-supplied values are rejected.
+    pub server_only: bool,
+    /// T09 array marker for array fields (`!` spelling); `None` singular.
+    pub array_required: Option<bool>,
+    /// Source-declared default, when representable.
+    pub default: Option<JsFieldDefault>,
+    /// Checked description source text, when authored.
+    pub description: Option<String>,
+}
+
+impl JsModelField {
+    /// Compact JSON per `artifact.ts` `ArtifactModelField`. `required`
+    /// and `serverOnly` always render (L3-mirrored); `nullable`/`array`/
+    /// `default`/`description` render only when meaningful.
+    pub fn to_json(&self) -> String {
+        let mut out = format!(
+            "{{\"name\":{},\"field\":{},\"required\":{},\"serverOnly\":{}",
+            js_string(&self.name),
+            self.field.to_json(),
+            self.required,
+            self.server_only
+        );
+        if self.nullable {
+            out.push_str(",\"nullable\":true");
+        }
+        if let Some(required) = self.array_required {
+            out.push_str(&format!(",\"array\":{{\"required\":{required}}}"));
+        }
+        if let Some(default) = &self.default {
+            out.push_str(",\"default\":");
+            out.push_str(&default.to_json());
+        }
+        if let Some(description) = &self.description {
+            out.push_str(",\"description\":");
+            out.push_str(&js_string(description));
+        }
+        out.push('}');
+        out
+    }
+}
+
+/// One stored model descriptor (JSON shape of `ArtifactModel`).
+#[derive(Debug, Clone)]
+pub struct JsModel {
+    /// Canonical model identity.
+    pub name: String,
+    /// Stored then derived fields in source order.
+    pub fields: Vec<JsModelField>,
+    /// What a caller-asked remove does: `archive` (default), `remove`
+    /// (declared) or `none` (no enabled delete operation).
+    pub delete_mode: String,
+    /// Unique keys in source order (empty omits the member).
+    pub unique_keys: Vec<String>,
+    /// Canonical parent model, for `in Parent` children.
+    pub parent: Option<String>,
+    /// Whether the model is app-scoped (`in app`).
+    pub scope_app: bool,
+}
+
+impl JsModel {
+    /// Compact JSON per `artifact.ts` `ArtifactModel`.
+    pub fn to_json(&self) -> String {
+        let mut out = format!(
+            "{{\"name\":{},\"fields\":[{}],\"deleteMode\":{}",
+            js_string(&self.name),
+            self.fields
+                .iter()
+                .map(JsModelField::to_json)
+                .collect::<Vec<_>>()
+                .join(","),
+            js_string(&self.delete_mode)
+        );
+        if !self.unique_keys.is_empty() {
+            out.push_str(&format!(
+                ",\"uniqueKeys\":[{}]",
+                self.unique_keys
+                    .iter()
+                    .map(|k| js_string(k))
+                    .collect::<Vec<_>>()
+                    .join(",")
+            ));
+        }
+        if let Some(parent) = &self.parent {
+            out.push_str(",\"parent\":");
+            out.push_str(&js_string(parent));
+        }
+        if self.scope_app {
+            out.push_str(",\"scope\":\"app\"");
+        }
+        out.push('}');
+        out
+    }
+}
+
+/// Compact JSON array of model descriptors, rendered only by the artifact
+/// envelope (the runtime reads the richer `appDefinition.models` member;
+/// descriptors stay one format).
+pub fn models_json(models: &[JsModel]) -> String {
+    format!(
+        "[{}]",
+        models
+            .iter()
+            .map(JsModel::to_json)
             .collect::<Vec<_>>()
             .join(",")
     )
@@ -3254,13 +3620,22 @@ impl<'a> Emitter<'a> {
     ///
     /// Descriptors are fail-closed metadata: they never block compilation
     /// and never advertise a skewed schema. An operation with ANY input
-    /// that has no MCP mapping (arrays, compound values, `duration`,
-    /// `json`, `bytes`, or a dangling IR row) — or whose inputs would
-    /// repeat a name — is omitted from the descriptors entirely: no
+    /// that has no MCP mapping (compound values, `duration`, `json`,
+    /// `bytes`, nested arrays, or a dangling IR row) — or whose inputs
+    /// would repeat a name — is omitted from the descriptors entirely: no
     /// diagnostic, no partial entry. A partial entry would advertise a
     /// closed schema that rejects valid calls; absence simply leaves the
     /// operation off the MCP tool list while HTTP/browser invocation is
     /// unaffected.
+    ///
+    /// T15a carries the full T04a pilot scope: array inputs map to their
+    /// element kind plus the T09 `array` marker (T09 omission agreement:
+    /// a defaulted input fills its default, a nullable input fills null,
+    /// an ordinary array fills empty; only a non-nullable singular input
+    /// without a default — or a required `!` array without one — is
+    /// caller-required). Inputs also carry `nullable` and the
+    /// representable source `default` (update changes stay partial and
+    /// default-less: omission means unchanged).
     ///
     /// Input descriptions are the checked description source text (D03):
     /// inline/attached/shared/legacy spellings feed one slot and MCP
@@ -3323,17 +3698,19 @@ impl<'a> Emitter<'a> {
                         };
                         let nullable = matches!(ty, IrType::Known(ResolvedType::Nullable(_)));
                         match self.mcp_field_for_type(ty, !*read) {
-                            // T09 omission agreement: a defaulted input
-                            // fills its default and a nullable input
-                            // fills null when omitted; only a
-                            // non-nullable input without a default is
-                            // caller-required. (Array inputs never reach
-                            // here: they have no MCP mapping, so the
-                            // operation is omitted instead.)
-                            Some(field) => inputs.push(JsOperationField {
+                            // Parameters never carry the field-only `!`
+                            // (GRAMMAR L183), so parameter arrays are
+                            // always ordinary: omission fills empty and
+                            // the marker renders `required: false`.
+                            Some((field, is_array)) => inputs.push(JsOperationField {
                                 name: param.name.clone(),
                                 field,
-                                required: default.is_none() && !nullable,
+                                required: default.is_none()
+                                    && !nullable
+                                    && !is_array,
+                                nullable,
+                                array_required: is_array.then_some(false),
+                                default: js_field_default(default.as_ref(), None),
                                 description: description.clone(),
                             }),
                             None => {
@@ -3409,8 +3786,23 @@ impl<'a> Emitter<'a> {
                             mappable = false;
                             break;
                         };
+                        // Derived fields ride the model's field list
+                        // (resolve) but are never caller-provided: always
+                        // skip, even under an empty allowlist. (T15a
+                        // repair: the old match-first order omitted EVERY
+                        // CRUD operation — including delete, whose gate is
+                        // shared — for any model carrying a derive.)
+                        if matches!(field_item.kind, IrItemKind::DeriveField { .. }) {
+                            continue;
+                        }
+                        if let Some(allow) = &allowlist
+                            && !allow.contains(field_item.name.as_str())
+                        {
+                            continue;
+                        }
                         let IrItemKind::Field {
                             ty,
+                            required_array,
                             default,
                             server,
                             description,
@@ -3425,19 +3817,30 @@ impl<'a> Emitter<'a> {
                         if server.is_some() {
                             continue;
                         }
-                        if let Some(allow) = &allowlist
-                            && !allow.contains(field_item.name.as_str())
-                        {
-                            continue;
-                        }
                         let nullable = matches!(ty, IrType::Known(ResolvedType::Nullable(_)));
                         match self.mcp_field_for_type(ty, true) {
-                            Some(field) => flat.push(JsOperationField {
-                                name: field_item.name.clone(),
-                                field,
-                                required: default.is_none() && !nullable,
-                                description: description.clone(),
-                            }),
+                            Some((field, is_array)) => {
+                                // The T09 marker is the spelling alone:
+                                // ordinary arrays omit to empty (never
+                                // caller-required), required `!` arrays
+                                // reject omission when no default fills
+                                // it. (Derived fields never reach here:
+                                // they are separate IR items, not model
+                                // fields.)
+                                let array_required = is_array.then_some(*required_array);
+                                let required = default.is_none()
+                                    && !nullable
+                                    && !(is_array && !required_array);
+                                flat.push(JsOperationField {
+                                    name: field_item.name.clone(),
+                                    field,
+                                    required,
+                                    nullable,
+                                    array_required,
+                                    default: js_field_default(default.as_ref(), None),
+                                    description: description.clone(),
+                                });
+                            }
                             None => {
                                 mappable = false;
                                 break;
@@ -3454,16 +3857,24 @@ impl<'a> Emitter<'a> {
                             require_version: true,
                         },
                         required: true,
+                        nullable: false,
+                        array_required: None,
+                        default: None,
                         description: None,
                     };
                     let inputs = match op {
                         CrudOp::Create => flat,
                         CrudOp::Update => {
                             // Changes are partial: every flattened field is
-                            // optional beside the versioned record.
+                            // optional beside the versioned record, and
+                            // defaults never apply (omission means
+                            // unchanged, never default-filled). Array
+                            // markers and nullability stay: they describe
+                            // the accepted value shape.
                             let mut inputs = vec![record()];
                             for mut field in flat {
                                 field.required = false;
+                                field.default = None;
                                 inputs.push(field);
                             }
                             inputs
@@ -3496,11 +3907,24 @@ impl<'a> Emitter<'a> {
         operations
     }
 
-    /// Map one input type to its MCP field, or `None` when the type has
-    /// no MCP mapping. `require_version` marks record references that
-    /// must carry a version (mutations); reads take versionless refs.
-    /// Nullability unwraps here; the caller clears `required`.
-    fn mcp_field_for_type(&self, ty: &IrType, require_version: bool) -> Option<JsMcpField> {
+    /// Map one input type to its MCP field plus whether it is an array,
+    /// or `None` when the type has no MCP mapping. `require_version`
+    /// marks record references that must carry a version (mutations);
+    /// reads take versionless refs. Nullability unwraps here; the caller
+    /// clears `required` and sets `nullable`. Nested arrays have no
+    /// mapping (the element position takes one tag only).
+    ///
+    /// T15b seam (provider join): bound-send recipe/delivery shapes plug
+    /// in here — `Delivery` currently falls into the `_ => None` arm
+    /// (operations taking deliveries omit, fail-closed). T15b adds the
+    /// T04b-agreed delivery/recipe kinds to `JsMcpField` and maps them
+    /// here alongside the model-tag twin
+    /// [`Emitter::model_field_tag`].
+    fn mcp_field_for_type(
+        &self,
+        ty: &IrType,
+        require_version: bool,
+    ) -> Option<(JsMcpField, bool)> {
         let resolved = match ty {
             IrType::Known(resolved) => resolved,
             IrType::Unknown => return None,
@@ -3508,41 +3932,389 @@ impl<'a> Emitter<'a> {
         self.mcp_field_for_resolved(resolved, require_version)
     }
 
-    /// Map one resolved input type to its MCP field.
+    /// Map one resolved input type to its MCP field plus array flag.
     fn mcp_field_for_resolved(
         &self,
         resolved: &ResolvedType,
         require_version: bool,
-    ) -> Option<JsMcpField> {
+    ) -> Option<(JsMcpField, bool)> {
         match resolved {
-            ResolvedType::Scalar(scalar) => Some(match scalar {
+            ResolvedType::Scalar(scalar) => Some((
+                match scalar {
+                    Scalar::Text
+                    | Scalar::Email
+                    | Scalar::Url
+                    | Scalar::Locale
+                    | Scalar::Timezone
+                    | Scalar::Currency
+                    | Scalar::Secret
+                    | Scalar::Date
+                    | Scalar::User
+                    | Scalar::Member => JsMcpField::String,
+                    Scalar::Int => JsMcpField::Integer,
+                    Scalar::Decimal => JsMcpField::Decimal,
+                    Scalar::Money => JsMcpField::Money,
+                    Scalar::Datetime => JsMcpField::Datetime,
+                    Scalar::Bool => JsMcpField::Boolean,
+                    Scalar::File => JsMcpField::File,
+                    Scalar::Duration | Scalar::Json | Scalar::Bytes => return None,
+                },
+                false,
+            )),
+            ResolvedType::Record { symbol, .. } => Some((
+                JsMcpField::Ref {
+                    model: self.ir.items.get(symbol.0 as usize)?.canonical.clone(),
+                    require_version,
+                },
+                false,
+            )),
+            ResolvedType::Enum { cases, .. } => Some((
+                JsMcpField::Enum {
+                    values: cases.clone(),
+                },
+                false,
+            )),
+            ResolvedType::Array { element, .. } => {
+                // Nested arrays have no mapping; element nullability
+                // unwraps for the tag (element-level null acceptance is
+                // T04b admission detail).
+                if matches!(element.as_ref(), ResolvedType::Array { .. }) {
+                    return None;
+                }
+                let (field, _) = self.mcp_field_for_resolved(element, require_version)?;
+                Some((field, true))
+            }
+            ResolvedType::Nullable(inner) => self.mcp_field_for_resolved(inner, require_version),
+            _ => None,
+        }
+    }
+
+    /// Collect stored model descriptors in IR item order (T15a, T04a §3
+    /// intake plus additive ownership).
+    ///
+    /// Unlike operations (which omit on unmappable inputs), models are
+    /// complete: EVERY model emits with EVERY field, because T16
+    /// admission needs the whole schema. Field types outside the T04a
+    /// pilot set use the source-exact T04b-preview tags or the honest
+    /// `other` fallback — never omitted, never skewed. References use
+    /// canonical names, so recursive and mutually recursive models
+    /// resolve by name without expansion. Total and diagnostic-free:
+    /// descriptors never fail compilation; dangling rows degrade to
+    /// `other` (unreachable on clean programs).
+    ///
+    /// Called from artifact assembly (JSON envelope only): the runtime
+    /// keeps reading the richer `appDefinition.models` member, so models
+    /// — unlike operations — are not embedded in `canApp()`.
+    pub fn collect_models(&self) -> Vec<JsModel> {
+        let mut models = Vec::new();
+        for item in &self.ir.items {
+            let IrItemKind::Model {
+                fields,
+                owner,
+                uniques,
+                ..
+            } = &item.kind
+            else {
+                continue;
+            };
+            // Stored fields in listed order plus this model's derived
+            // fields, merged by source position for true source order.
+            let mut ordered: Vec<(u32, u32, usize)> = Vec::new();
+            for field_id in fields {
+                if let Some(field) = self.ir.items.get(field_id.0 as usize) {
+                    ordered.push((field.span.start, field.span.end, field_id.0 as usize));
+                }
+            }
+            for (index, other) in self.ir.items.iter().enumerate() {
+                if let IrItemKind::DeriveField { model, .. } = &other.kind
+                    && *model == item.id
+                {
+                    ordered.push((other.span.start, other.span.end, index));
+                }
+            }
+            ordered.sort();
+            // The same item can arrive via both paths (resolve lists
+            // derive ids on the model): identical tuples dedupe.
+            ordered.dedup();
+            let mut out_fields = Vec::new();
+            for (_, _, index) in ordered {
+                let Some(field_item) = self.ir.items.get(index) else {
+                    continue;
+                };
+                out_fields.push(self.model_field(field_item));
+            }
+            // Unique keys in source order: field-level `unique` names
+            // first (field order), then one comma-joined entry per
+            // composite unique (declaration order).
+            let mut unique_keys = Vec::new();
+            for field_id in fields {
+                let Some(field_item) = self.ir.items.get(field_id.0 as usize) else {
+                    continue;
+                };
+                if let IrItemKind::Field { modifiers, .. } = &field_item.kind
+                    && modifiers.unique
+                {
+                    unique_keys.push(field_item.name.clone());
+                }
+            }
+            for unique in uniques {
+                unique_keys.push(unique.fields.join(","));
+            }
+            models.push(JsModel {
+                name: item.canonical.clone(),
+                fields: out_fields,
+                delete_mode: self.model_delete_mode(item.id),
+                unique_keys,
+                parent: match owner {
+                    IrOwner::ChildOf(parent) => self
+                        .ir
+                        .items
+                        .get(parent.0 as usize)
+                        .map(|row| row.canonical.clone()),
+                    IrOwner::Team | IrOwner::App => None,
+                },
+                scope_app: matches!(owner, IrOwner::App),
+            });
+        }
+        models
+    }
+
+    /// What a caller-asked remove does for `model`: the enabled delete
+    /// operation's declared mode (`archive` default, `remove`), or
+    /// `none` when the model has no enabled delete operation (disabled
+    /// or no `crud` declaration at all).
+    fn model_delete_mode(
+        &self,
+        model: crate::analysis::resolve::SymbolId,
+    ) -> String {
+        for row in &self.ir.items {
+            if let IrItemKind::CrudOp {
+                model: target,
+                op: CrudOp::Delete,
+                delete_mode,
+                ..
+            } = &row.kind
+                && *target == model
+            {
+                return delete_mode.as_str().to_string();
+            }
+        }
+        "none".to_string()
+    }
+
+    /// One model field descriptor: stored fields carry their T09
+    /// requiredness/omission/default/server distinctions; derived fields
+    /// render with the `derived` marker and `serverOnly: true` (never
+    /// caller-writable, never operation inputs).
+    fn model_field(&self, field_item: &IrItem) -> JsModelField {
+        if let IrItemKind::DeriveField { ty, .. } = &field_item.kind {
+            let (field, nullable, is_array) = self.model_field_parts(ty);
+            return JsModelField {
+                name: field_item.name.clone(),
+                field,
+                required: false,
+                nullable,
+                server_only: true,
+                array_required: is_array.then_some(false),
+                default: Some(JsFieldDefault::Derived),
+                description: None,
+            };
+        }
+        let (
+            ty,
+            required_array,
+            default,
+            server,
+            description,
+        ) = match &field_item.kind {
+            IrItemKind::Field {
+                ty,
+                required_array,
+                default,
+                server,
+                description,
+                ..
+            } => (ty, *required_array, default, server, description),
+            _ => {
+                return JsModelField {
+                    name: field_item.name.clone(),
+                    field: JsModelFieldType::Other {
+                        type_id: "unknown".to_string(),
+                    },
+                    required: false,
+                    nullable: false,
+                    server_only: false,
+                    array_required: None,
+                    default: None,
+                    description: None,
+                };
+            }
+        };
+        let (field, nullable, is_array) = self.model_field_parts(ty);
+        // Omission-rejects at creation: nullable, server-owned and
+        // defaulted fields never require the caller; ordinary arrays
+        // omit to empty; only non-nullable singular fields without a
+        // default — and required `!` arrays without one — are required.
+        // Unknown types (already `E6006` from the IR build) stay
+        // non-required: descriptors never introduce new rejections.
+        let required = !nullable
+            && server.is_none()
+            && default.is_none()
+            && (!is_array || required_array)
+            && !matches!(ty, IrType::Unknown);
+        JsModelField {
+            name: field_item.name.clone(),
+            field,
+            required,
+            nullable,
+            server_only: server.is_some(),
+            array_required: is_array.then_some(required_array),
+            default: js_field_default(default.as_ref(), server.as_ref()),
+            description: description.clone(),
+        }
+    }
+
+    /// Split one field type into its element tag, top-level nullability
+    /// and array flag. Total: unknown and dangling rows degrade to
+    /// `other` without diagnostics (descriptors never fail compilation).
+    fn model_field_parts(&self, ty: &IrType) -> (JsModelFieldType, bool, bool) {
+        let resolved = match ty {
+            IrType::Known(resolved) => resolved,
+            IrType::Unknown => {
+                return (
+                    JsModelFieldType::Other {
+                        type_id: "unknown".to_string(),
+                    },
+                    false,
+                    false,
+                );
+            }
+        };
+        match resolved {
+            ResolvedType::Nullable(inner) => {
+                let (tag, _, is_array) = self.model_field_parts(&IrType::Known((**inner).clone()));
+                (tag, true, is_array)
+            }
+            ResolvedType::Array { element, .. } => {
+                let tag = self.model_field_tag(element);
+                (tag, false, true)
+            }
+            other => (self.model_field_tag(other), false, false),
+        }
+    }
+
+    /// Tag one element type (never an array/nullable wrapper: callers
+    /// unwrap first). Pilot scalars use the T04a spellings; text-like
+    /// specializations collapse to `string` (wire-identical); models map
+    /// to `ref` by canonical name; everything else is source-exact
+    /// T04b-preview or the honest `other` fallback carrying the source
+    /// type id. Total and diagnostic-free.
+    ///
+    /// T15b seam (provider join): bound-send recipe/delivery shapes plug
+    /// in here — `Delivery` currently maps to `other` (see the arm
+    /// below). T15b adds the T04b-agreed delivery/recipe tags to
+    /// `JsModelFieldType` and maps them here alongside the operation
+    /// twin [`Emitter::mcp_field_for_type`].
+    fn model_field_tag(&self, ty: &ResolvedType) -> JsModelFieldType {
+        match ty {
+            ResolvedType::Scalar(scalar) => match scalar {
                 Scalar::Text
                 | Scalar::Email
                 | Scalar::Url
                 | Scalar::Locale
                 | Scalar::Timezone
-                | Scalar::Currency
-                | Scalar::Secret
-                | Scalar::Date
-                | Scalar::User
-                | Scalar::Member => JsMcpField::String,
-                Scalar::Int => JsMcpField::Integer,
-                Scalar::Decimal => JsMcpField::Decimal,
-                Scalar::Money => JsMcpField::Money,
-                Scalar::Datetime => JsMcpField::Datetime,
-                Scalar::Bool => JsMcpField::Boolean,
-                Scalar::File => JsMcpField::File,
-                Scalar::Duration | Scalar::Json | Scalar::Bytes => return None,
-            }),
-            ResolvedType::Record { symbol, .. } => Some(JsMcpField::Ref {
-                model: self.ir.items.get(symbol.0 as usize)?.canonical.clone(),
-                require_version,
-            }),
-            ResolvedType::Enum { cases, .. } => Some(JsMcpField::Enum {
+                | Scalar::Currency => JsModelFieldType::String,
+                Scalar::Int => JsModelFieldType::Integer,
+                Scalar::Decimal => JsModelFieldType::Decimal,
+                Scalar::Money => JsModelFieldType::Money,
+                Scalar::Datetime => JsModelFieldType::Datetime,
+                Scalar::Bool => JsModelFieldType::Boolean,
+                Scalar::File => JsModelFieldType::File,
+                Scalar::Date => JsModelFieldType::Date,
+                Scalar::Duration => JsModelFieldType::Duration,
+                Scalar::Secret => JsModelFieldType::Secret,
+                Scalar::User => JsModelFieldType::User,
+                Scalar::Member => JsModelFieldType::Member,
+                Scalar::Json => JsModelFieldType::Json,
+                Scalar::Bytes => JsModelFieldType::Bytes,
+            },
+            ResolvedType::Record { symbol, .. } => match self.ir.items.get(symbol.0 as usize) {
+                Some(row) if matches!(row.kind, IrItemKind::Model { .. }) => {
+                    JsModelFieldType::Ref {
+                        model: row.canonical.clone(),
+                    }
+                }
+                Some(row) => JsModelFieldType::Other {
+                    type_id: row.canonical.clone(),
+                },
+                None => JsModelFieldType::Other {
+                    type_id: "unknown".to_string(),
+                },
+            },
+            ResolvedType::Enum { cases, .. } => JsModelFieldType::Enum {
                 values: cases.clone(),
-            }),
-            ResolvedType::Nullable(inner) => self.mcp_field_for_resolved(inner, require_version),
-            _ => None,
+            },
+            ResolvedType::Message(symbol) => JsModelFieldType::Other {
+                type_id: self
+                    .ir
+                    .items
+                    .get(symbol.0 as usize)
+                    .map(|row| row.canonical.clone())
+                    .unwrap_or_else(|| "message".to_string()),
+            },
+            // T15b provider-join arm: bound delivery handles stay `other`
+            // until T04b agrees their descriptor shape (T14b owns the
+            // schemas; this slice must not guess them).
+            ResolvedType::Delivery { op } => JsModelFieldType::Other {
+                type_id: self
+                    .ir
+                    .items
+                    .get(op.0 as usize)
+                    .map(|row| format!("delivery:{}", row.canonical))
+                    .unwrap_or_else(|| "delivery".to_string()),
+            },
+            ResolvedType::Action { .. } => JsModelFieldType::Other {
+                type_id: "action".to_string(),
+            },
+            ResolvedType::Invocation { .. } => JsModelFieldType::Other {
+                type_id: "invocation".to_string(),
+            },
+            ResolvedType::Union(_) => JsModelFieldType::Other {
+                type_id: "union".to_string(),
+            },
+            ResolvedType::Object(_) => JsModelFieldType::Other {
+                type_id: "object".to_string(),
+            },
+            ResolvedType::Operation(symbol) => JsModelFieldType::Other {
+                type_id: self
+                    .ir
+                    .items
+                    .get(symbol.0 as usize)
+                    .map(|row| row.canonical.clone())
+                    .unwrap_or_else(|| "operation".to_string()),
+            },
+            ResolvedType::Opaque(id) => JsModelFieldType::Other {
+                type_id: id.to_string(),
+            },
+            ResolvedType::Team => JsModelFieldType::Other {
+                type_id: "Team".to_string(),
+            },
+            ResolvedType::OperationContext => JsModelFieldType::Other {
+                type_id: "OperationContext".to_string(),
+            },
+            ResolvedType::Error => JsModelFieldType::Other {
+                type_id: "error".to_string(),
+            },
+            ResolvedType::Unknown | ResolvedType::Null => JsModelFieldType::Other {
+                type_id: "unknown".to_string(),
+            },
+            // Element-nullable arrays (`(T?)[]`) tag the element
+            // (element-level null acceptance is T04b admission detail);
+            // nested arrays have no element tag.
+            ResolvedType::Nullable(inner) => self.model_field_tag(inner),
+            ResolvedType::Array { .. } => JsModelFieldType::Other {
+                type_id: "array".to_string(),
+            },
         }
     }
 

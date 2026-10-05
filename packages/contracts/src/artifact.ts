@@ -110,6 +110,28 @@ export interface ArtifactOperationInput {
   /** Whether the caller must supply the member. */
   required: boolean;
   /**
+   * Present and true exactly when the input accepts explicit null
+   * (T15a additive: distinguishes nullable omission from
+   * default-filled omission, which `required: false` alone conflates).
+   */
+  nullable?: boolean;
+  /**
+   * Present exactly for array inputs (T15a additive, same shape as the
+   * model `array` marker): `field` is the element kind, `required` is
+   * the T09 `!` spelling marker (scenario parameters are always
+   * ordinary). T04a-intake consumers ignore it; T16 honors it and T04b
+   * formalizes array admission.
+   */
+  array?: { required: boolean };
+  /**
+   * Source-declared default, when representable as `literal`/`parent`
+   * (T15a additive, mirrors L3 `CanonicalInputDef.default`). Absent
+   * for computed defaults (the emitted `default(c)` callable preserves
+   * execution; T04b grows the vocabulary) and for update changes
+   * (partial: omission means unchanged, never default-filled).
+   */
+  default?: ArtifactFieldDefault;
+  /**
    * Authored `@{desc="..."}` text, verbatim (MCP P4). Absent when the
    * input carries no annotation — loaders must treat absence as
    * "no description", never as an error.
@@ -119,6 +141,127 @@ export interface ArtifactOperationInput {
 
 /** MCP operation kinds with a `.can` source (`list`/`team` excluded). */
 export type ArtifactOperationKind = 'read' | 'create' | 'update' | 'delete' | 'scenario';
+
+/**
+ * T15a source-derived default vocabulary (JSON shape of L3
+ * `CanonicalFieldDefault` in `state.ts`). The two spellings must stay
+ * identical: `literal` carries a wire-encoded JSON value (ints, decimals
+ * and durations as canonical decimal strings, money as
+ * `{minor, currency}`, never a JS Number); `parent` carries the dot path
+ * off the loaded parent row (create only, leading `parent.` stripped);
+ * `server`/`derived` mark engine-resolved values (T18 execution) and
+ * exclude the field from writable inputs.
+ */
+export type ArtifactFieldDefault =
+  | { kind: 'literal'; value: unknown }
+  | { kind: 'parent'; path: string }
+  | { kind: 'server' }
+  | { kind: 'derived' };
+
+/**
+ * T15a closed field-type tag for stored model fields (T04a §3 model
+ * vocabulary plus source-exact T04b-preview kinds).
+ *
+ * The `ref`/scalar/`enum` members mirror `ArtifactOperationField` (minus
+ * `requireVersion`, which is meaningless for stored rows) and the L3
+ * `CanonicalScalarKind` intake; `ref` names the canonical target model
+ * and `enum` carries case spellings in declaration order. Arrays use the
+ * element tag plus the sibling `array` marker (same shape as L3
+ * `CanonicalFieldDef.array`).
+ *
+ * The `date`/`duration`/`secret`/`user`/`member`/`json`/`bytes` members
+ * are additive T04b-preview tags: T04a consumers ignore them (the §3
+ * `required`/`serverOnly`/`array`/`default` members stay complete for
+ * every field regardless of type) and T04b formalizes their admission.
+ * `other` is the honest fallback for delivery/action/union/contract and
+ * unknown shapes; `type` carries the source type id. T15b (provider
+ * join) refines `other` delivery shapes and any new bound kinds here —
+ * never in a second format.
+ */
+export type ArtifactModelFieldType =
+  | { kind: 'ref'; model: string }
+  | { kind: 'string' }
+  | { kind: 'integer' }
+  | { kind: 'decimal' }
+  | { kind: 'money' }
+  | { kind: 'datetime' }
+  | { kind: 'boolean' }
+  | { kind: 'file' }
+  | { kind: 'enum'; values: string[] }
+  | { kind: 'date' }
+  | { kind: 'duration' }
+  | { kind: 'secret' }
+  | { kind: 'user' }
+  | { kind: 'member' }
+  | { kind: 'json' }
+  | { kind: 'bytes' }
+  | { kind: 'other'; type: string };
+
+/**
+ * T15a one stored (or derived) model field (JSON shape of L3
+ * `CanonicalFieldDef` plus additive source-exact members).
+ *
+ * `required`/`serverOnly`/`array`/`default` mirror the L3 intake
+ * exactly: `required` is omission-rejects at creation (false for
+ * nullable, defaulted, server/derived and ordinary-array fields);
+ * `serverOnly` rejects caller-supplied values; `array.required` is the
+ * T09 `!` spelling marker (ordinary omits to empty, required rejects
+ * omission); `default` records the source default. Additive members
+ * (`field`, `nullable`, `description`) carry source-exact info L3
+ * ignores: `field` is the element type tag, `nullable` marks explicit
+ * null acceptance, `description` is the verbatim checked source text.
+ * Derived fields render with `default: { kind: 'derived' }` and
+ * `serverOnly: true`; they never appear in operation inputs.
+ */
+export interface ArtifactModelField {
+  /** Field name (model-local). */
+  name: string;
+  /** Element type tag (arrays add the `array` marker). */
+  field: ArtifactModelFieldType;
+  /** Whether omission rejects at creation. */
+  required: boolean;
+  /** Present and true exactly when the field accepts explicit null. */
+  nullable?: boolean;
+  /** Whether caller-supplied values are rejected. */
+  serverOnly: boolean;
+  /** Present exactly for array fields; `required` is the `!` marker. */
+  array?: { required: boolean };
+  /** Source-declared default, when representable (T18 executes). */
+  default?: ArtifactFieldDefault;
+  /** Authored description source text, when authored. */
+  description?: string;
+}
+
+/**
+ * T15a one stored model descriptor (JSON shape of L3
+ * `CanonicalModelDescriptor` plus additive ownership).
+ *
+ * `name`/`fields`/`deleteMode`/`uniqueKeys` map to the L3 intake (T16
+ * folds the `fields` array into a record by `name` and drops the
+ * additive field members): `deleteMode` is `archive` (default),
+ * `remove` (declared) or `none` (no enabled delete operation);
+ * `uniqueKeys` holds field-level unique names plus one comma-joined
+ * entry per composite unique, in source order. Additive ownership
+ * (`parent` for `Model in Parent` children, `scope: 'app'` for
+ * `Model in app`) carries the T28-A containment rule; absent both
+ * means team scope (the default). References between models use
+ * canonical names, so recursive and mutually recursive models resolve
+ * by name without expansion.
+ */
+export interface ArtifactModel {
+  /** Canonical model identity, e.g. `expenses.Expense`. */
+  name: string;
+  /** Stored then derived fields in source order. */
+  fields: ArtifactModelField[];
+  /** What a caller-asked remove does. */
+  deleteMode: 'archive' | 'remove' | 'none';
+  /** Unique keys in source order; absent when the model has none. */
+  uniqueKeys?: string[];
+  /** Canonical parent model, present exactly for child models. */
+  parent?: string;
+  /** Present and `'app'` exactly for app-scoped models. */
+  scope?: 'app';
+}
 
 /**
  * One user-invocable operation descriptor (MCP P1; JSON shape of
@@ -170,6 +313,17 @@ export interface CompileArtifact {
    * an error.
    */
   operations?: ArtifactOperation[];
+  /**
+   * Stored model descriptors in source order (T15a, T04a §3 intake
+   * plus additive ownership). Optional for backward compatibility:
+   * artifacts compiled before T15a have no `models` key. Every T15a
+   * compiler emits it (possibly empty); loaders must treat absence as
+   * "no descriptors", never as an error. Together with `operations`
+   * (and `artifact_version` 1, the pinned contract version) this is
+   * the L3 `ExecutionDescriptorSet` content the T16 join loads: T16
+   * folds each model's `fields` array into a record by `name`.
+   */
+  models?: ArtifactModel[];
   /** Page descriptors in source order. */
   pages: ArtifactPage[];
   /** Linked library/runtime requirements checked at build/activation. */

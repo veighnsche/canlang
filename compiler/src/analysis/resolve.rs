@@ -22,7 +22,7 @@
 //! re-diagnosed. Deferred to PR5: handler sources, effect arguments,
 //! example cells/sequences, UI shape rules, migrations.
 
-use super::catalog::Catalog;
+use super::catalog::{Catalog, is_t13a_nominal, is_t13b_nominal, std_capability};
 use super::{
     NodeKey, attribute_parts, attribute_value, file_text, is_name, is_punct, kids, name_text,
     path_segments,
@@ -1823,6 +1823,8 @@ impl<'a> Resolver<'a> {
     /// must be declared (`E2004`) and exported (`E2003`); duplicate local
     /// names are `E2002`. Bound imports (`from=deployment.binding`) of
     /// unknown providers are external interfaces: opaque, never an error.
+    /// `std` is compiler-known (T14b/B1): unbound known members bind
+    /// external, unknown members are `E2004`.
     fn resolve_imports(&mut self, diags: &mut Vec<Diagnostic>) {
         let modules: Vec<Module> = self.tables.modules.clone();
         for module in &modules {
@@ -1862,6 +1864,46 @@ impl<'a> Resolver<'a> {
                         },
                         diags,
                     );
+                }
+                return;
+            }
+            // T14b/B1: `std` is a compiler-known provider fed by the
+            // consumed T13 schemas: unbound known members (capabilities
+            // and nominal value types alike) bind as externals, so
+            // nominal type positions resolve instead of failing `E2005`
+            // with `E2001` follow-ons. Unknown members are `E2004`
+            // (the provider is known; the member is not declared).
+            // Bound imports keep the deployment-slot rule above
+            // (unknown members stay opaque externals, never an error);
+            // B11 normalizes bound nominals to this same `External`
+            // binding: `from=` on a value type carries no binding
+            // meaning, so both forms resolve identically.
+            if import.provider == "std" {
+                for member in &import.members {
+                    if std_capability(&member.name).is_some()
+                        || is_t13a_nominal(&member.name)
+                        || is_t13b_nominal(&member.name)
+                    {
+                        self.bind_import_alias(
+                            module.id,
+                            &member.alias,
+                            member.span,
+                            ScopedName::External {
+                                provider: import.provider.clone(),
+                                name: member.name.clone(),
+                            },
+                            diags,
+                        );
+                    } else {
+                        diags.push(Diagnostic::error(
+                            "E2004",
+                            format!(
+                                "import member '{}' is not declared in 'std'",
+                                member.name
+                            ),
+                            member.span,
+                        ));
+                    }
                 }
                 return;
             }

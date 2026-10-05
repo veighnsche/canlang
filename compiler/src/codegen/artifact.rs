@@ -2,9 +2,10 @@
 //!
 //! [`assemble`] links lowered modules into a [`CompileArtifact`]:
 //! `artifact_version` 1, sources with SHA-256, production modules with the
-//! entrypoint first, callable registry references, pages in source order,
-//! `requires` capability entries (including the consumed builtin catalog
-//! pin) and separate test artifacts. Production modules never import test
+//! entrypoint first, callable registry references, operation and model
+//! descriptors in source order, pages in source order, `requires`
+//! capability entries (including the consumed builtin catalog pin) and
+//! separate test artifacts. Production modules never import test
 //! artifacts.
 //!
 //! Unavailable capabilities are precise `E6007` errors naming the producer
@@ -15,7 +16,7 @@
 use crate::analysis::catalog::{Availability, Catalog};
 use crate::codegen::bdd::BddModule;
 use crate::codegen::ir::{IrMigrationDirective, IrProgram, ReferencedBuiltin};
-use crate::codegen::js::{JsOperation, JsOutput, operations_json};
+use crate::codegen::js::{Emitter, JsModel, JsOperation, JsOutput, models_json, operations_json};
 use crate::codegen::sourcemap::{self, SourceMap};
 use crate::diagnostic::{Diagnostic, push_json_str};
 use crate::source::SourceDb;
@@ -196,6 +197,12 @@ pub struct CompileArtifact {
     /// User-invocable operation descriptors in source order (MCP P1):
     /// `{name, kind, description, inputs}` per operation.
     pub operations: Vec<JsOperation>,
+    /// Stored model descriptors in source order (T15a, T04a §3 intake
+    /// plus additive ownership): `{name, fields, deleteMode, ...}` per
+    /// model. Together with `operations` (and `artifact_version` 1, the
+    /// pinned contract version) this is the L3 `ExecutionDescriptorSet`
+    /// content the T16 join loads.
+    pub models: Vec<JsModel>,
     /// Page descriptors in source order.
     pub pages: Vec<ArtifactPage>,
     /// Lowered migration transitions in source order (B3-I1 registry).
@@ -295,6 +302,11 @@ pub fn assemble(
                 .collect(),
         })
         .collect();
+    // T15a model descriptors derive here (JSON envelope only): the
+    // runtime reads `appDefinition.models`, so models — unlike
+    // operations — are not threaded through `JsOutput`/canApp().
+    // Collection is total and diagnostic-free (see `collect_models`).
+    let models = Emitter::new(ir).collect_models();
     let artifact = CompileArtifact {
         language_version: crate::LANGUAGE_VERSION.to_string(),
         tool_version: env!("CARGO_PKG_VERSION").to_string(),
@@ -302,6 +314,7 @@ pub fn assemble(
         modules,
         callables,
         operations: js.operations.clone(),
+        models,
         pages,
         migrations,
         requires,
@@ -527,6 +540,8 @@ pub fn to_json(artifact: &CompileArtifact) -> String {
     }
     out.push_str("],\"operations\":");
     out.push_str(&operations_json(&artifact.operations));
+    out.push_str(",\"models\":");
+    out.push_str(&models_json(&artifact.models));
     out.push_str(",\"pages\":[");
     for (i, page) in artifact.pages.iter().enumerate() {
         if i > 0 {
