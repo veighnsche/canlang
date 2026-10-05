@@ -27,9 +27,11 @@
 //! or from closed language rules (`c`/`actor`/`now`/`self`/`other` context
 //! spellings, `members`/`owner`/`authenticated`/`public` predicate
 //! spellings, `s`/`b` example scopes). The build never re-runs
-//! resolve/types/effects inference from the CST. Positions no table serves
-//! (sequence steps reference let-bound values with no table anchors) stay
-//! loud `E6006` and are omitted fail-closed.
+//! resolve/types/effects inference from the CST, except the closed
+//! sequence-step value-type rules (literals, comparisons, `b`/`s`
+//! slots, member chains, `first`/`count`) that assertion type ids need.
+//! Positions no table serves stay loud `E6006` and are omitted
+//! fail-closed.
 //!
 //! Index parity: `items[i]` corresponds to `CheckedProgram.symbols[i]` and
 //! `modules[i]` to `CheckedProgram.modules[i]`, so [`SymbolId`] and
@@ -980,23 +982,39 @@ pub struct IrOrder {
     pub descending: bool,
 }
 
-/// Checked query → `records(c, model, {parent?, where?, order?, limit?, archived?})`.
+/// Query domain: a stored model (server `records()`) or an in-memory
+/// value (array combinators over the decoded base).
+#[derive(Debug, Clone)]
+pub enum IrQueryDomain {
+    /// Canonical model identity.
+    Model(String),
+    /// Value base plus the concrete item alias (`as` name, else `row`).
+    Value { base: Box<TypedExpr>, alias: String },
+}
+
+/// Checked query → `records(c, model, {parent?, where?, order?, limit?, archived?})`
+/// for model domains, array combinators for value domains.
 #[derive(Debug, Clone)]
 pub struct IrQuery {
-    /// Canonical model identity.
-    pub model: String,
-    /// Containment parent value, if any.
+    /// Query domain.
+    pub domain: IrQueryDomain,
+    /// Containment parent value, if any (model domains only).
     pub parent: Option<Box<TypedExpr>>,
-    /// Row predicate over `row`, if any.
+    /// Row predicate over `row` (model domains) or the value alias
+    /// (value domains), if any.
     pub where_pred: Option<Box<TypedExpr>>,
     /// Whether the predicate needs `async` (delivery reads, service calls).
     pub where_async: bool,
-    /// Order entries in source order.
+    /// Order entries in source order (model domains only).
     pub order: Vec<IrOrder>,
     /// Limit value, if any (excess fails, never truncates silently).
     pub limit: Option<Box<TypedExpr>>,
-    /// Archived selector, if any.
+    /// Archived selector, if any (model domains only).
     pub archived: Option<Box<TypedExpr>>,
+    /// `select` projection body, alias-scoped, if any.
+    pub select: Option<Box<TypedExpr>>,
+    /// `select` lambda parameter (concrete exactly when `select` is set).
+    pub select_param: Option<String>,
 }
 
 // --- Guards, effects, pages, UI (PR5 contract) -----------------------------
@@ -1193,6 +1211,9 @@ pub struct IrUi {
     /// Row scope for collections: `(row, view)` names rendering
     /// `renderRow:(row,view)=>[children]` instead of `children`.
     pub row_scope: Option<(String, String)>,
+    /// Presentation gate: direct `require` children conjoin into one
+    /// boolean lowering as `cond ? node : null`.
+    pub gate: Option<TypedExpr>,
     /// Source span.
     pub span: Span,
 }
@@ -1740,6 +1761,17 @@ struct Scope {
     example_values: bool,
     /// Declared operation result type, for `result` roots in tables.
     result_ty: Option<ResolvedType>,
+    /// Sequence `let`/`as` bindings decoded so far: step content reads
+    /// them from the immutable `b` scope (`b.name`).
+    sequence_lets: HashSet<String>,
+    /// Resolved types for scope-bound names the types pass never visits
+    /// (query aliases, sequence bindings, test accounts). Consulted only
+    /// when no published node type exists.
+    name_types: HashMap<String, ResolvedType>,
+    /// Whether UI decoding sits inside a field owner (`form`/`edit`):
+    /// field-placement controls need one. Collections reset it (their
+    /// scope ends field placement unless nested under another owner).
+    in_field_owner: bool,
 }
 
 impl Scope {
@@ -1750,6 +1782,9 @@ impl Scope {
             row_rewrite: HashMap::new(),
             example_values: false,
             result_ty: None,
+            sequence_lets: HashSet::new(),
+            name_types: HashMap::new(),
+            in_field_owner: false,
         }
     }
 }
@@ -1921,6 +1956,19 @@ impl<'a> Cx<'a> {
     fn decode_expr(&mut self, scope: &Scope, node: &SyntaxNode) -> TypedExpr {
         let span = node.span;
         let mut ty = self.node_type(node);
+        // Scope-bound names (query aliases, sequence bindings, test
+        // accounts) carry their type when no table anchors the node.
+        // The lookup follows the alias rewrite, so a rewritten alias
+        // reads its lambda parameter's type.
+        if matches!(ty, ResolvedType::Unknown)
+            && node.kind == SyntaxKind::NameRef
+            && let Some(name) = kids(node).iter().find_map(|n| name_text(self.db, n))
+        {
+            let target = scope.row_rewrite.get(&name).unwrap_or(&name);
+            if let Some(bound) = scope.name_types.get(target) {
+                ty = bound.clone();
+            }
+        }
         let expr = match node.kind {
             SyntaxKind::Literal => self.decode_literal(node),
             SyntaxKind::NameRef => self.decode_name_ref(scope, node, &ty),
@@ -1973,6 +2021,21 @@ impl<'a> Cx<'a> {
         {
             ty = result;
         }
+        // Closed literal rules when no table anchors the node (`Text`
+        // stays untyped: string literals and enum spellings share it).
+        if matches!(ty, ResolvedType::Unknown) {
+            ty = match &expr {
+                IrExpr::Int(_) => ResolvedType::Scalar(Scalar::Int),
+                IrExpr::Decimal(_) => ResolvedType::Scalar(Scalar::Decimal),
+                IrExpr::Bool(_) => ResolvedType::Scalar(Scalar::Bool),
+                IrExpr::Null => ResolvedType::Null,
+                IrExpr::Money { .. } => ResolvedType::Scalar(Scalar::Money),
+                IrExpr::DurationMs(_) => ResolvedType::Scalar(Scalar::Duration),
+                IrExpr::Date(_) => ResolvedType::Scalar(Scalar::Date),
+                IrExpr::Datetime(_) => ResolvedType::Scalar(Scalar::Datetime),
+                _ => ty,
+            };
+        }
         TypedExpr::new(expr, ty, span)
     }
 
@@ -1989,19 +2052,53 @@ impl<'a> Cx<'a> {
         self.fixture_in_scope(scope.module, name)
     }
 
-    /// Inferred member type from a base type plus field (field tables
-    /// only; `Unknown` when no table serves the access).
+    /// Inferred member type from a base type plus field: declared
+    /// fields, reserved stored-row metadata (`id`/`version`/timestamps
+    /// per the types pass), closed-object fields, and money parts.
+    /// `Unknown` when no table serves the access.
     fn member_ty(&self, base: &ResolvedType, field: &str) -> ResolvedType {
         let mut ty = base;
         while let ResolvedType::Nullable(inner) = ty {
             ty = inner;
         }
         match ty {
-            ResolvedType::Record { symbol, .. } => self
-                .fields
-                .get(&(*symbol, field.to_string()))
-                .and_then(|id| self.program.types.symbol_types.get(id))
-                .cloned()
+            ResolvedType::Record { symbol, stored } => {
+                if let Some(ty) = self
+                    .fields
+                    .get(&(*symbol, field.to_string()))
+                    .and_then(|id| self.program.types.symbol_types.get(id))
+                    .cloned()
+                {
+                    return ty;
+                }
+                let is_model = matches!(
+                    self.program.symbols.get(symbol.0 as usize).map(|s| &s.kind),
+                    Some(SymbolKind::Model { .. })
+                );
+                if is_model && *stored {
+                    match field {
+                        "id" => return ResolvedType::Scalar(Scalar::Text),
+                        "version" => return ResolvedType::Scalar(Scalar::Int),
+                        "created" | "updated" => {
+                            return ResolvedType::Scalar(Scalar::Datetime);
+                        }
+                        "created_by" | "updated_by" => {
+                            return ResolvedType::Scalar(Scalar::User);
+                        }
+                        "archived_at" => {
+                            return ResolvedType::Nullable(Box::new(ResolvedType::Scalar(
+                                Scalar::Datetime,
+                            )));
+                        }
+                        _ => {}
+                    }
+                }
+                ResolvedType::Unknown
+            }
+            ResolvedType::Object(fields) => fields
+                .iter()
+                .find(|(name, _)| name == field)
+                .map(|(_, ty)| ty.clone())
                 .unwrap_or(ResolvedType::Unknown),
             ResolvedType::Scalar(Scalar::Money) => match field {
                 "minor" => ResolvedType::Scalar(Scalar::Int),
@@ -2079,6 +2176,11 @@ impl<'a> Cx<'a> {
         if let Some(row) = scope.row_rewrite.get(&name) {
             return IrExpr::Name(row.clone());
         }
+        // Sequence lets read the immutable `b` scope; the alias above
+        // shadows them inside one query predicate.
+        if scope.sequence_lets.contains(&name) {
+            return member_of("b", &name, ty, node.span);
+        }
         // Example input bindings rewrite to their fixture scope slot.
         if let Some(fixture) = scope.bindings.get(&name) {
             let fixture_name = self.local_name(*fixture);
@@ -2125,13 +2227,15 @@ impl<'a> Cx<'a> {
                     // A bare model domain lowers through the shared
                     // query contract with no clauses.
                     return IrExpr::Query(IrQuery {
-                        model: self.canonical(id),
+                        domain: IrQueryDomain::Model(self.canonical(id)),
                         parent: None,
                         where_pred: None,
                         where_async: false,
                         order: Vec::new(),
                         limit: None,
                         archived: None,
+                        select: None,
+                        select_param: None,
                     });
                 }
                 Some(SymbolKind::Message { .. }) => {
@@ -2744,9 +2848,12 @@ impl<'a> Cx<'a> {
         }
     }
 
-    /// Decode a query: model domain plus `as`/`where`/`order`/`limit`/
-    /// `archived` clauses. `select` projections and value domains have no
-    /// `records()` lowering.
+    /// Decode a query: model domains lower through `records()` with
+    /// `as`/`where`/`order`/`limit`/`archived` clauses; value domains
+    /// lower through array combinators (`.filter`/`.map`) with `as`/
+    /// `where`/`select`. `select` projections append one alias-scoped
+    /// `.map` on either domain. Value `order`/`limit`/`archived` and
+    /// async value predicates/projections have no lowering and stay loud.
     fn decode_query(&mut self, scope: &Scope, node: &SyntaxNode, ty: &ResolvedType) -> IrExpr {
         let parts = kids(node);
         let head = parts.iter().find(|n| is_expression(n.kind)).copied();
@@ -2756,48 +2863,109 @@ impl<'a> Cx<'a> {
                 why: "no domain".to_string(),
             };
         };
-        // The domain head must name a model for `records(c, model, ...)`.
-        let model = self
-            .collection_head_model(scope.module, head)
-            .map(|id| self.canonical(id));
-        let Some(model) = model else {
-            return IrExpr::Unsupported {
-                what: "query over a value".to_string(),
-                why: "records() lowers model domains only".to_string(),
-            };
+        // A model head lowers through `records(c, model, ...)`; any other
+        // head lowers as an in-memory value.
+        let model_id = self.collection_head_model(scope.module, head);
+        let model = model_id.map(|id| self.canonical(id));
+        let value_base = if model.is_none() {
+            Some(self.decode_expr(scope, head))
+        } else {
+            None
         };
+        let clauses: Vec<&SyntaxNode> = parts
+            .iter()
+            .filter(|n| n.kind == SyntaxKind::QueryClause)
+            .copied()
+            .collect();
+        // The `as` alias binds every clause scope, wherever it appears.
         let mut alias: Option<String> = None;
+        for clause in &clauses {
+            let clause_parts = kids(clause);
+            let keyword = clause_parts
+                .iter()
+                .find_map(|n| name_text(self.db, n))
+                .unwrap_or_default();
+            if keyword == "as" {
+                alias = clause_parts
+                    .iter()
+                    .rev()
+                    .find_map(|n| name_text(self.db, n));
+            }
+        }
         let mut where_pred = None;
         let mut where_async = false;
         let mut order = Vec::new();
         let mut limit = None;
         let mut archived = None;
-        for clause in parts.iter().filter(|n| n.kind == SyntaxKind::QueryClause) {
+        let mut select = None;
+        let mut select_param = None;
+        let value_domain = model.is_none();
+        // Alias scope: model predicates rewrite the alias to `row` (the
+        // `records()` lambda parameter); value lambdas bind the alias
+        // itself, shadowing same-named fixtures/symbols either way. The
+        // lambda parameter carries the item type for clause lowering.
+        let mut inner = scope.clone();
+        if let Some(alias) = &alias {
+            let target = if value_domain {
+                alias.clone()
+            } else {
+                "row".to_string()
+            };
+            inner.row_rewrite.insert(alias.clone(), target.clone());
+            if value_domain {
+                let element = value_base
+                    .as_ref()
+                    .map(|base| query_element_ty(&base.ty))
+                    .unwrap_or(ResolvedType::Unknown);
+                inner.name_types.insert(target, element);
+            } else if let Some(id) = model_id {
+                inner.name_types.insert(
+                    target,
+                    ResolvedType::Record {
+                        symbol: id,
+                        stored: true,
+                    },
+                );
+            }
+        } else if let Some(id) = model_id {
+            // Clauses without `as` still read the default `row`.
+            inner.name_types.insert(
+                "row".to_string(),
+                ResolvedType::Record {
+                    symbol: id,
+                    stored: true,
+                },
+            );
+        }
+        for clause in &clauses {
             let clause_parts = kids(clause);
             let keyword = clause_parts
                 .iter()
                 .find_map(|n| name_text(self.db, n))
                 .unwrap_or_default();
             match keyword.as_str() {
-                "as" => {
-                    alias = clause_parts
-                        .iter()
-                        .rev()
-                        .find_map(|n| name_text(self.db, n));
-                }
+                "as" => {}
                 "where" => {
                     let pred_node = clause_parts.iter().find(|n| is_expression(n.kind)).copied();
                     if let Some(pred_node) = pred_node {
-                        let mut inner = scope.clone();
-                        if let Some(alias) = &alias {
-                            inner.row_rewrite.insert(alias.clone(), "row".to_string());
-                        }
                         let pred = self.decode_expr(&inner, pred_node);
+                        if value_domain && expr_uses_async(&pred) {
+                            return IrExpr::Unsupported {
+                                what: "value query predicate".to_string(),
+                                why: "async predicates have no array lowering".to_string(),
+                            };
+                        }
                         where_async = expr_uses_async(&pred);
                         where_pred = Some(Box::new(pred));
                     }
                 }
                 "order" => {
+                    if value_domain {
+                        return IrExpr::Unsupported {
+                            what: "value query order".to_string(),
+                            why: "ordering has no array lowering".to_string(),
+                        };
+                    }
                     // Selector order only (`order=-created`); expression
                     // keys have no lowering.
                     let unsupported = clause_parts.iter().any(|n| {
@@ -2825,6 +2993,12 @@ impl<'a> Cx<'a> {
                     }
                 }
                 "limit" => {
+                    if value_domain {
+                        return IrExpr::Unsupported {
+                            what: "value query limit".to_string(),
+                            why: "limits have no array lowering".to_string(),
+                        };
+                    }
                     if let Some(limit_node) =
                         clause_parts.iter().find(|n| is_expression(n.kind)).copied()
                     {
@@ -2832,6 +3006,12 @@ impl<'a> Cx<'a> {
                     }
                 }
                 "archived" => {
+                    if value_domain {
+                        return IrExpr::Unsupported {
+                            what: "value query archived".to_string(),
+                            why: "archived selectors have no array lowering".to_string(),
+                        };
+                    }
                     if let Some(archived_node) =
                         clause_parts.iter().find(|n| is_expression(n.kind)).copied()
                     {
@@ -2839,24 +3019,88 @@ impl<'a> Cx<'a> {
                     }
                 }
                 "select" => {
-                    return IrExpr::Unsupported {
-                        what: "select query".to_string(),
-                        why: "projections have no records() lowering".to_string(),
+                    let proj_node = clause_parts.iter().find(|n| is_expression(n.kind)).copied();
+                    let Some(proj_node) = proj_node else {
+                        continue;
                     };
+                    // The projection binds the alias itself (the `.map`
+                    // parameter), never the model `row` rewrite that
+                    // `where` clauses use.
+                    let mut select_inner = scope.clone();
+                    if let Some(alias) = &alias {
+                        select_inner
+                            .row_rewrite
+                            .insert(alias.clone(), alias.clone());
+                        if let Some(element) = select_element_ty(model_id, &value_base) {
+                            select_inner.name_types.insert(alias.clone(), element);
+                        }
+                    }
+                    let projection = self.decode_expr(&select_inner, proj_node);
+                    if value_domain && expr_uses_async(&projection) {
+                        return IrExpr::Unsupported {
+                            what: "value query projection".to_string(),
+                            why: "async projections have no array lowering".to_string(),
+                        };
+                    }
+                    if !value_domain && expr_uses_async(&projection) {
+                        return IrExpr::Unsupported {
+                            what: "select query".to_string(),
+                            why: "async projections have no records() lowering".to_string(),
+                        };
+                    }
+                    select_param = Some(alias.clone().unwrap_or_else(|| "row".to_string()));
+                    select = Some(Box::new(projection));
                 }
                 _ => {}
             }
         }
         let _ = ty;
+        let domain = match model {
+            Some(model) => IrQueryDomain::Model(model),
+            None => IrQueryDomain::Value {
+                base: Box::new(value_base.expect("value domain decodes its head")),
+                alias: alias.unwrap_or_else(|| "row".to_string()),
+            },
+        };
         IrExpr::Query(IrQuery {
-            model,
+            domain,
             parent: None,
             where_pred,
             where_async,
             order,
             limit,
             archived,
+            select,
+            select_param,
         })
+    }
+}
+
+/// Item type behind a `select` alias: the model record for model
+/// domains, the base element for value domains.
+fn select_element_ty(
+    model_id: Option<SymbolId>,
+    value_base: &Option<TypedExpr>,
+) -> Option<ResolvedType> {
+    if let Some(id) = model_id {
+        return Some(ResolvedType::Record {
+            symbol: id,
+            stored: true,
+        });
+    }
+    value_base.as_ref().map(|base| query_element_ty(&base.ty))
+}
+
+/// Item type of a value-query base: the array element, unwrapping
+/// nullability; `Unknown` for anything else.
+fn query_element_ty(ty: &ResolvedType) -> ResolvedType {
+    let mut ty = ty;
+    while let ResolvedType::Nullable(inner) = ty {
+        ty = inner;
+    }
+    match ty {
+        ResolvedType::Array { element, .. } => (**element).clone(),
+        _ => ResolvedType::Unknown,
     }
 }
 
@@ -2885,16 +3129,22 @@ pub fn expr_uses_async(expr: &TypedExpr) -> bool {
         IrExpr::Array(items) => items.iter().any(expr_uses_async),
         IrExpr::Object(entries) => entries.iter().any(|(_, v)| expr_uses_async(v)),
         IrExpr::Query(query) => {
-            // A query always awaits its `records()` call now; the
+            // A model query always awaits its `records()` call; a value
+            // query awaits exactly when its base does. The
             // sub-expression checks stay OR-ed for nested async.
-            query.parent.as_ref().is_some_and(|p| expr_uses_async(p))
+            let domain_async = match &query.domain {
+                IrQueryDomain::Model(_) => true,
+                IrQueryDomain::Value { base, .. } => expr_uses_async(base),
+            };
+            domain_async
+                || query.parent.as_ref().is_some_and(|p| expr_uses_async(p))
                 || query
                     .where_pred
                     .as_ref()
                     .is_some_and(|p| expr_uses_async(p))
                 || query.limit.as_ref().is_some_and(|p| expr_uses_async(p))
                 || query.archived.as_ref().is_some_and(|p| expr_uses_async(p))
-                || true
+                || query.select.as_ref().is_some_and(|p| expr_uses_async(p))
         }
         IrExpr::Message(message) => message.params.iter().any(|p| expr_uses_async(&p.value)),
         IrExpr::Format { descriptor, .. } => expr_uses_async(descriptor),
@@ -4679,11 +4929,13 @@ impl<'a> Cx<'a> {
                     ));
                 }
                 let children = self.decode_ui_children(scope, node, row_ctx);
+                let gate = self.decode_gate(scope, node);
                 Some(IrUi {
                     factory: "card".to_string(),
                     props,
                     children,
                     row_scope: None,
+                    gate,
                     span: node.span,
                 })
             }
@@ -4711,11 +4963,13 @@ impl<'a> Cx<'a> {
                     }
                 }
                 let children = self.decode_ui_children(scope, node, row_ctx);
+                let gate = self.decode_gate(scope, node);
                 Some(IrUi {
                     factory: "details".to_string(),
                     props,
                     children,
                     row_scope: None,
+                    gate,
                     span: node.span,
                 })
             }
@@ -4746,19 +5000,109 @@ impl<'a> Cx<'a> {
                     props.push(("value".to_string(), self.decode_expr(scope, target)));
                 }
                 let children = self.decode_ui_children(scope, node, row_ctx);
+                let gate = self.decode_gate(scope, node);
                 Some(IrUi {
                     factory: "tabs".to_string(),
                     props,
                     children,
                     row_scope: None,
+                    gate,
                     span: node.span,
                 })
             }
             SyntaxKind::Edit => Some(self.decode_edit(scope, node, row_ctx)),
             SyntaxKind::UiLeaf => self.decode_leaf(scope, node, &word, row_ctx),
-            SyntaxKind::CatalogItem => {
-                // Catalog components lower by factory name; unknown ones
-                // stay loud `E6008` at the lowering stage.
+            SyntaxKind::Slot => Some(self.decode_slot(scope, node, row_ctx)),
+            SyntaxKind::CatalogItem => self.decode_catalog(scope, node, &word, row_ctx),
+            _ => {
+                // `PreferencePanel`, ordering nodes and anything else
+                // lower by factory word and stay loud `E6008` when the
+                // factory is unknown.
+                Some(IrUi {
+                    factory: word,
+                    props: Vec::new(),
+                    children: Vec::new(),
+                    row_scope: None,
+                    gate: self.decode_gate(scope, node),
+                    span: node.span,
+                })
+            }
+        }
+    }
+
+    /// Decode child UI nodes, skipping captions/attributes/queries.
+    /// Gate leaves (`require`) are consumed by [`Cx::decode_gate`], never
+    /// rendered as children.
+    fn decode_ui_children(
+        &mut self,
+        scope: &Scope,
+        node: &SyntaxNode,
+        row_ctx: Option<(SymbolId, String)>,
+    ) -> Vec<IrUi> {
+        kids(node)
+            .iter()
+            .filter(|n| is_ui_node(n.kind))
+            .filter(|n| !is_gate_leaf(self.db, n))
+            .filter_map(|n| self.decode_ui(scope, n, row_ctx.clone()))
+            .collect()
+    }
+
+    /// Decode the presentation gate of one UI node: direct `require`
+    /// leaves conjoin (source order) into the boolean that omits the
+    /// gated container when unavailable. `None` when no gate is authored.
+    fn decode_gate(&mut self, scope: &Scope, node: &SyntaxNode) -> Option<TypedExpr> {
+        let mut gate: Option<TypedExpr> = None;
+        for child in kids(node) {
+            if !is_gate_leaf(self.db, child) {
+                continue;
+            }
+            let Some(pred) = kids(child).iter().find(|n| is_expression(n.kind)).copied() else {
+                continue;
+            };
+            let next = self.decode_expr(scope, pred);
+            gate = Some(match gate {
+                None => next,
+                Some(done) => {
+                    let span = done.span;
+                    TypedExpr::new(
+                        IrExpr::Binary {
+                            op: IrBinOp::And,
+                            left: Box::new(done),
+                            right: Box::new(next),
+                        },
+                        ResolvedType::Scalar(Scalar::Bool),
+                        span,
+                    )
+                }
+            });
+        }
+        gate
+    }
+
+    /// Decode a catalog component by factory word: profile-shaped
+    /// props per the approved component catalog (selectors stay selector
+    /// strings, captions stay messages, slots stay named suites).
+    /// Factories without a profile keep the generic shape and stay loud
+    /// `E6008` at the lowering stage.
+    fn decode_catalog(
+        &mut self,
+        scope: &Scope,
+        node: &SyntaxNode,
+        word: &str,
+        row_ctx: Option<(SymbolId, String)>,
+    ) -> Option<IrUi> {
+        match word {
+            "input" | "textarea" => Some(self.decode_field_control(scope, node, word, row_ctx)),
+            "button" => Some(self.decode_button(scope, node, row_ctx)),
+            "modal" | "drawer" => Some(self.decode_modal(scope, node, word, row_ctx)),
+            "divider" => Some(self.decode_divider(scope, node, row_ctx)),
+            "badge" => Some(self.decode_badge(scope, node, row_ctx)),
+            "breadcrumbs" => Some(self.decode_breadcrumbs(scope, node, row_ctx)),
+            "pagination" => Some(self.decode_pagination(scope, node, row_ctx)),
+            "stat" => Some(self.decode_stat(scope, node, row_ctx)),
+            "alert" => Some(self.decode_alert(scope, node, row_ctx)),
+            "join" => Some(self.decode_join(scope, node, row_ctx)),
+            _ => {
                 let mut props = Vec::new();
                 if let Some(value) = kids(node).iter().find(|n| is_expression(n.kind)).copied() {
                     props.push(("value".to_string(), self.decode_expr(scope, value)));
@@ -4769,41 +5113,655 @@ impl<'a> Cx<'a> {
                     }
                 }
                 let children = self.decode_ui_children(scope, node, row_ctx);
+                let gate = self.decode_gate(scope, node);
                 Some(IrUi {
-                    factory: word,
+                    factory: word.to_string(),
                     props,
                     children,
                     row_scope: None,
-                    span: node.span,
-                })
-            }
-            _ => {
-                // `Slot`, `PreferencePanel`, ordering nodes and anything
-                // else lower by factory word and stay loud `E6008`
-                // when the factory is unknown.
-                Some(IrUi {
-                    factory: word,
-                    props: Vec::new(),
-                    children: Vec::new(),
-                    row_scope: None,
+                    gate,
                     span: node.span,
                 })
             }
         }
     }
 
-    /// Decode child UI nodes, skipping captions/attributes/queries.
-    fn decode_ui_children(
+    /// Decode a field-placement control (`input`/`textarea`): the header
+    /// selector names an existing writable input of the nearest owning
+    /// form, so it lowers to a `field` selector string, never a value.
+    /// Controls outside a field owner stay loud `E6008`.
+    fn decode_field_control(
+        &mut self,
+        scope: &Scope,
+        node: &SyntaxNode,
+        word: &str,
+        row_ctx: Option<(SymbolId, String)>,
+    ) -> IrUi {
+        if !scope.in_field_owner {
+            self.diags.push(Diagnostic::error(
+                "E6008",
+                format!("cannot lower {word}: field controls need an owning form"),
+                node.span,
+            ));
+        }
+        let mut props = Vec::new();
+        let headers: Vec<&SyntaxNode> = kids(node)
+            .iter()
+            .filter(|n| is_expression(n.kind))
+            .copied()
+            .collect();
+        match headers.as_slice() {
+            [header] => match selector_spelling(self.db, header) {
+                Some(selector) => props.push((
+                    "field".to_string(),
+                    TypedExpr::new(
+                        IrExpr::Text(selector),
+                        ResolvedType::Scalar(Scalar::Text),
+                        header.span,
+                    ),
+                )),
+                None => self.diags.push(Diagnostic::error(
+                    "E6008",
+                    format!("cannot lower {word}: field controls take an input selector"),
+                    header.span,
+                )),
+            },
+            [] => self.diags.push(Diagnostic::error(
+                "E6008",
+                format!("cannot lower {word}: field controls take an input selector"),
+                node.span,
+            )),
+            _ => self.diags.push(Diagnostic::error(
+                "E6008",
+                format!("cannot lower {word}: field controls take one input selector"),
+                node.span,
+            )),
+        }
+        for (name, value) in ui_attributes(self.db, node) {
+            if let Some(value) = value {
+                props.push((name.clone(), self.decode_word_attr(scope, &name, value)));
+            }
+        }
+        let children = self.decode_ui_children(scope, node, row_ctx);
+        if !children.is_empty() {
+            self.diags.push(Diagnostic::error(
+                "E6008",
+                format!("cannot lower {word}: field controls take no content suite"),
+                node.span,
+            ));
+        }
+        IrUi {
+            factory: word.to_string(),
+            props,
+            children,
+            row_scope: None,
+            gate: self.decode_gate(scope, node),
+            span: node.span,
+        }
+    }
+
+    /// Decode a bound `button`: exactly one binding attribute (`action`,
+    /// `submit`, `target`, `opens`). `opens` names a declared local panel,
+    /// so it lowers to a string, never a value reference.
+    fn decode_button(
         &mut self,
         scope: &Scope,
         node: &SyntaxNode,
         row_ctx: Option<(SymbolId, String)>,
-    ) -> Vec<IrUi> {
-        kids(node)
+    ) -> IrUi {
+        let mut props = Vec::new();
+        if kids(node).iter().any(|n| is_expression(n.kind)) {
+            self.diags.push(Diagnostic::error(
+                "E6008",
+                "cannot lower button: bound controls take no positional header".to_string(),
+                node.span,
+            ));
+        }
+        let mut bindings = 0;
+        for (name, value) in ui_attributes(self.db, node) {
+            let Some(value) = value else { continue };
+            match name.as_str() {
+                "action" | "submit" | "target" | "opens" => bindings += 1,
+                _ => {}
+            }
+            if name == "opens" {
+                match opens_spelling(self.db, value) {
+                    Some(target) => props.push((
+                        "opens".to_string(),
+                        TypedExpr::new(
+                            IrExpr::Text(target),
+                            ResolvedType::Scalar(Scalar::Text),
+                            value.span,
+                        ),
+                    )),
+                    None => self.diags.push(Diagnostic::error(
+                        "E6008",
+                        "cannot lower button: opens= names a declared local panel".to_string(),
+                        value.span,
+                    )),
+                }
+            } else {
+                props.push((name.clone(), self.decode_expr(scope, value)));
+            }
+        }
+        if bindings == 0 {
+            self.diags.push(Diagnostic::error(
+                "E6008",
+                "cannot lower button: bound controls need one binding".to_string(),
+                node.span,
+            ));
+        }
+        let children = self.decode_ui_children(scope, node, row_ctx);
+        if !children.is_empty() {
+            self.diags.push(Diagnostic::error(
+                "E6008",
+                "cannot lower button: bound controls take no content suite".to_string(),
+                node.span,
+            ));
+        }
+        IrUi {
+            factory: "button".to_string(),
+            props,
+            children,
+            row_scope: None,
+            gate: self.decode_gate(scope, node),
+            span: node.span,
+        }
+    }
+
+    /// Decode an activated `modal`/`drawer`: required caption, optional
+    /// `id`, and the closed `content`/`trigger`/`actions` slot schema.
+    /// Non-slot suites and missing `content` stay loud `E6008`.
+    fn decode_modal(
+        &mut self,
+        scope: &Scope,
+        node: &SyntaxNode,
+        word: &str,
+        row_ctx: Option<(SymbolId, String)>,
+    ) -> IrUi {
+        let mut props = Vec::new();
+        match self.decode_caption_header(scope.module, node) {
+            Some(caption) => props.push((
+                "caption".to_string(),
+                TypedExpr::new(
+                    IrExpr::Message(caption),
+                    ResolvedType::Scalar(Scalar::Text),
+                    node.span,
+                ),
+            )),
+            None => self.diags.push(Diagnostic::error(
+                "E6008",
+                format!("cannot lower {word}: activated panels need a caption"),
+                node.span,
+            )),
+        }
+        for (name, value) in ui_attributes(self.db, node) {
+            let Some(value) = value else { continue };
+            if name == "id" {
+                match opens_spelling(self.db, value) {
+                    Some(id) => props.push((
+                        "id".to_string(),
+                        TypedExpr::new(
+                            IrExpr::Text(id),
+                            ResolvedType::Scalar(Scalar::Text),
+                            value.span,
+                        ),
+                    )),
+                    None => self.diags.push(Diagnostic::error(
+                        "E6008",
+                        format!("cannot lower {word}: id= names the activation identity"),
+                        value.span,
+                    )),
+                }
+            } else {
+                props.push((name.clone(), self.decode_word_attr(scope, &name, value)));
+            }
+        }
+        let mut children = Vec::new();
+        let mut seen: Vec<String> = Vec::new();
+        for child in kids(node) {
+            if !is_ui_node(child.kind) || is_gate_leaf(self.db, child) {
+                continue;
+            }
+            if child.kind != SyntaxKind::Slot {
+                self.diags.push(Diagnostic::error(
+                    "E6008",
+                    format!("cannot lower {word}: activated panels take slot children only"),
+                    child.span,
+                ));
+                continue;
+            }
+            let Some(name) = slot_name(self.db, child) else {
+                self.diags.push(Diagnostic::error(
+                    "E6008",
+                    format!("cannot lower {word}: slot without a name"),
+                    child.span,
+                ));
+                continue;
+            };
+            if !matches!(name.as_str(), "content" | "trigger" | "actions") {
+                self.diags.push(Diagnostic::error(
+                    "E6008",
+                    format!("cannot lower {word}: unknown slot `{name}`"),
+                    child.span,
+                ));
+                continue;
+            }
+            if seen.contains(&name) {
+                self.diags.push(Diagnostic::error(
+                    "E6008",
+                    format!("cannot lower {word}: duplicate slot `{name}`"),
+                    child.span,
+                ));
+                continue;
+            }
+            seen.push(name);
+            children.push(self.decode_slot(scope, child, row_ctx.clone()));
+        }
+        if !seen.contains(&"content".to_string()) {
+            self.diags.push(Diagnostic::error(
+                "E6008",
+                format!("cannot lower {word}: activated panels need a content slot"),
+                node.span,
+            ));
+        }
+        IrUi {
+            factory: word.to_string(),
+            props,
+            children,
+            row_scope: None,
+            gate: self.decode_gate(scope, node),
+            span: node.span,
+        }
+    }
+
+    /// Decode one `slot NAME` suite: the §13 `slot` factory carries its
+    /// name plus children; the slotted parent owns schema validation.
+    fn decode_slot(
+        &mut self,
+        scope: &Scope,
+        node: &SyntaxNode,
+        row_ctx: Option<(SymbolId, String)>,
+    ) -> IrUi {
+        let mut props = Vec::new();
+        match slot_name(self.db, node) {
+            Some(name) => props.push((
+                "name".to_string(),
+                TypedExpr::new(
+                    IrExpr::Text(name),
+                    ResolvedType::Scalar(Scalar::Text),
+                    node.span,
+                ),
+            )),
+            None => self.diags.push(Diagnostic::error(
+                "E6008",
+                "cannot lower slot: slot without a name".to_string(),
+                node.span,
+            )),
+        }
+        let children = self.decode_ui_children(scope, node, row_ctx);
+        IrUi {
+            factory: "slot".to_string(),
+            props,
+            children,
+            row_scope: None,
+            gate: self.decode_gate(scope, node),
+            span: node.span,
+        }
+    }
+
+    /// Decode a `divider`: an optional authored caption, never a value.
+    fn decode_divider(
+        &mut self,
+        scope: &Scope,
+        node: &SyntaxNode,
+        row_ctx: Option<(SymbolId, String)>,
+    ) -> IrUi {
+        let mut props = Vec::new();
+        match self.decode_caption_header(scope.module, node) {
+            Some(caption) => props.push((
+                "caption".to_string(),
+                TypedExpr::new(
+                    IrExpr::Message(caption),
+                    ResolvedType::Scalar(Scalar::Text),
+                    node.span,
+                ),
+            )),
+            None => {
+                if kids(node).iter().any(|n| is_expression(n.kind)) {
+                    self.diags.push(Diagnostic::error(
+                        "E6008",
+                        "cannot lower divider: dividers take a text caption".to_string(),
+                        node.span,
+                    ));
+                }
+            }
+        }
+        for (name, value) in ui_attributes(self.db, node) {
+            if let Some(value) = value {
+                props.push((name.clone(), self.decode_word_attr(scope, &name, value)));
+            }
+        }
+        let children = self.decode_ui_children(scope, node, row_ctx);
+        if !children.is_empty() {
+            self.diags.push(Diagnostic::error(
+                "E6008",
+                "cannot lower divider: dividers take no content suite".to_string(),
+                node.span,
+            ));
+        }
+        IrUi {
+            factory: "divider".to_string(),
+            props,
+            children,
+            row_scope: None,
+            gate: self.decode_gate(scope, node),
+            span: node.span,
+        }
+    }
+
+    /// Decode a `badge`: exactly one readable typed value.
+    fn decode_badge(
+        &mut self,
+        scope: &Scope,
+        node: &SyntaxNode,
+        row_ctx: Option<(SymbolId, String)>,
+    ) -> IrUi {
+        let mut props = Vec::new();
+        let headers: Vec<&SyntaxNode> = kids(node)
             .iter()
-            .filter(|n| is_ui_node(n.kind))
-            .filter_map(|n| self.decode_ui(scope, n, row_ctx.clone()))
-            .collect()
+            .filter(|n| is_expression(n.kind))
+            .copied()
+            .collect();
+        match headers.as_slice() {
+            [header] => props.push(("value".to_string(), self.decode_expr(scope, header))),
+            _ => self.diags.push(Diagnostic::error(
+                "E6008",
+                "cannot lower badge: badges take one readable value".to_string(),
+                node.span,
+            )),
+        }
+        for (name, value) in ui_attributes(self.db, node) {
+            if let Some(value) = value {
+                props.push((name.clone(), self.decode_word_attr(scope, &name, value)));
+            }
+        }
+        let children = self.decode_ui_children(scope, node, row_ctx);
+        if !children.is_empty() {
+            self.diags.push(Diagnostic::error(
+                "E6008",
+                "cannot lower badge: badges take no content suite".to_string(),
+                node.span,
+            ));
+        }
+        IrUi {
+            factory: "badge".to_string(),
+            props,
+            children,
+            row_scope: None,
+            gate: self.decode_gate(scope, node),
+            span: node.span,
+        }
+    }
+
+    /// Decode bare `breadcrumbs`: the derived-ancestry leaf consumes the
+    /// current declared destination ancestry from its render context, so
+    /// no authored ancestry is lowered. `pages=` stays a checked route
+    /// selector decoded generically.
+    fn decode_breadcrumbs(
+        &mut self,
+        scope: &Scope,
+        node: &SyntaxNode,
+        row_ctx: Option<(SymbolId, String)>,
+    ) -> IrUi {
+        let mut props = Vec::new();
+        if kids(node).iter().any(|n| is_expression(n.kind)) {
+            self.diags.push(Diagnostic::error(
+                "E6008",
+                "cannot lower breadcrumbs: derived-ancestry leaves take no header".to_string(),
+                node.span,
+            ));
+        }
+        for (name, value) in ui_attributes(self.db, node) {
+            if let Some(value) = value {
+                props.push((name.clone(), self.decode_expr(scope, value)));
+            }
+        }
+        let children = self.decode_ui_children(scope, node, row_ctx);
+        if !children.is_empty() {
+            self.diags.push(Diagnostic::error(
+                "E6008",
+                "cannot lower breadcrumbs: derived-ancestry leaves take no content suite"
+                    .to_string(),
+                node.span,
+            ));
+        }
+        IrUi {
+            factory: "breadcrumbs".to_string(),
+            props,
+            children,
+            row_scope: None,
+            gate: self.decode_gate(scope, node),
+            span: node.span,
+        }
+    }
+
+    /// Decode bare `pagination`: the shared control consumes its
+    /// enclosing collection's admitted cursor/filter/order state, so it
+    /// is an error outside a collection context.
+    fn decode_pagination(
+        &mut self,
+        scope: &Scope,
+        node: &SyntaxNode,
+        row_ctx: Option<(SymbolId, String)>,
+    ) -> IrUi {
+        let props = Vec::new();
+        if kids(node).iter().any(|n| is_expression(n.kind)) {
+            self.diags.push(Diagnostic::error(
+                "E6008",
+                "cannot lower pagination: the shared control takes no header".to_string(),
+                node.span,
+            ));
+        }
+        if row_ctx.is_none() {
+            self.diags.push(Diagnostic::error(
+                "E6008",
+                "cannot lower pagination: pagination is valid only inside a collection".to_string(),
+                node.span,
+            ));
+        }
+        let children = self.decode_ui_children(scope, node, row_ctx);
+        if !children.is_empty() {
+            self.diags.push(Diagnostic::error(
+                "E6008",
+                "cannot lower pagination: the shared control takes no content suite".to_string(),
+                node.span,
+            ));
+        }
+        IrUi {
+            factory: "pagination".to_string(),
+            props,
+            children,
+            row_scope: None,
+            gate: self.decode_gate(scope, node),
+            span: node.span,
+        }
+    }
+
+    /// Decode `stat expr,...`: the typed metric leaf shares the `values`
+    /// array contract with `metrics`. Slotted suites stay loud `E6008`.
+    fn decode_stat(
+        &mut self,
+        scope: &Scope,
+        node: &SyntaxNode,
+        row_ctx: Option<(SymbolId, String)>,
+    ) -> IrUi {
+        let mut props = Vec::new();
+        let headers: Vec<&SyntaxNode> = kids(node)
+            .iter()
+            .filter(|n| is_expression(n.kind))
+            .copied()
+            .collect();
+        let children = self.decode_ui_children(scope, node, row_ctx);
+        if headers.is_empty() {
+            self.diags.push(Diagnostic::error(
+                "E6008",
+                "cannot lower stat: stat needs observations or a value slot".to_string(),
+                node.span,
+            ));
+        } else {
+            let values: Vec<TypedExpr> =
+                headers.iter().map(|n| self.decode_expr(scope, n)).collect();
+            props.push((
+                "values".to_string(),
+                TypedExpr::new(IrExpr::Array(values), ResolvedType::Unknown, node.span),
+            ));
+            if !children.is_empty() {
+                self.diags.push(Diagnostic::error(
+                    "E6008",
+                    "cannot lower stat: stat suites take slot children only".to_string(),
+                    node.span,
+                ));
+            }
+        }
+        for (name, value) in ui_attributes(self.db, node) {
+            if let Some(value) = value {
+                props.push((name.clone(), self.decode_word_attr(scope, &name, value)));
+            }
+        }
+        IrUi {
+            factory: "stat".to_string(),
+            props,
+            children,
+            row_scope: None,
+            gate: self.decode_gate(scope, node),
+            span: node.span,
+        }
+    }
+
+    /// Decode `alert`: an expression-only leaf or a readable-content
+    /// suite (never both); gates omit the notice when unavailable.
+    fn decode_alert(
+        &mut self,
+        scope: &Scope,
+        node: &SyntaxNode,
+        row_ctx: Option<(SymbolId, String)>,
+    ) -> IrUi {
+        let mut props = Vec::new();
+        let headers: Vec<&SyntaxNode> = kids(node)
+            .iter()
+            .filter(|n| is_expression(n.kind))
+            .copied()
+            .collect();
+        let children = self.decode_ui_children(scope, node, row_ctx);
+        match (headers.as_slice(), children.is_empty()) {
+            ([header], true) => props.push(("value".to_string(), self.decode_expr(scope, header))),
+            ([], true) => self.diags.push(Diagnostic::error(
+                "E6008",
+                "cannot lower alert: alerts need a notice value or a content suite".to_string(),
+                node.span,
+            )),
+            (_, false) if !headers.is_empty() => self.diags.push(Diagnostic::error(
+                "E6008",
+                "cannot lower alert: alerts take a notice value or a suite, not both".to_string(),
+                node.span,
+            )),
+            _ => {}
+        }
+        for (name, value) in ui_attributes(self.db, node) {
+            if let Some(value) = value {
+                props.push((name.clone(), self.decode_word_attr(scope, &name, value)));
+            }
+        }
+        IrUi {
+            factory: "alert".to_string(),
+            props,
+            children,
+            row_scope: None,
+            gate: self.decode_gate(scope, node),
+            span: node.span,
+        }
+    }
+
+    /// Decode `join`: the scope-transparent group owns a nonempty content
+    /// suite and creates no business scope.
+    fn decode_join(
+        &mut self,
+        scope: &Scope,
+        node: &SyntaxNode,
+        row_ctx: Option<(SymbolId, String)>,
+    ) -> IrUi {
+        let props = Vec::new();
+        if kids(node).iter().any(|n| is_expression(n.kind)) {
+            self.diags.push(Diagnostic::error(
+                "E6008",
+                "cannot lower join: groups take no header".to_string(),
+                node.span,
+            ));
+        }
+        let children = self.decode_ui_children(scope, node, row_ctx);
+        if children.is_empty() {
+            self.diags.push(Diagnostic::error(
+                "E6008",
+                "cannot lower join: groups need a nonempty content suite".to_string(),
+                node.span,
+            ));
+        }
+        IrUi {
+            factory: "join".to_string(),
+            props,
+            children,
+            row_scope: None,
+            gate: self.decode_gate(scope, node),
+            span: node.span,
+        }
+    }
+
+    /// Decode a caption header (`MessageValue` or string literal) shared
+    /// by captioned leaves/panels. `None` when no caption-shaped header
+    /// is present.
+    fn decode_caption_header(&mut self, module: ModuleId, node: &SyntaxNode) -> Option<IrMessage> {
+        for child in kids(node) {
+            match child.kind {
+                SyntaxKind::MessageValue => {
+                    let caption = self
+                        .decode_message_node(module, child)
+                        .unwrap_or(IrMessage {
+                            source: String::new(),
+                            variants: Vec::new(),
+                            params: Vec::new(),
+                        });
+                    return Some(caption);
+                }
+                SyntaxKind::Literal => {
+                    if let Some(source) = literal_string(self.db, child) {
+                        return Some(IrMessage {
+                            source,
+                            variants: Vec::new(),
+                            params: Vec::new(),
+                        });
+                    }
+                }
+                _ => {}
+            }
+        }
+        None
+    }
+
+    /// Decode one catalog attribute value: finite word options
+    /// (`tone`/`size`/`variant`/`orientation`) lower to their spelling
+    /// strings; every other attribute decodes as an expression.
+    fn decode_word_attr(&mut self, scope: &Scope, name: &str, value: &SyntaxNode) -> TypedExpr {
+        if matches!(name, "tone" | "size" | "variant" | "orientation")
+            && let Some(word) = opens_spelling(self.db, value)
+        {
+            return TypedExpr::new(
+                IrExpr::Text(word),
+                ResolvedType::Scalar(Scalar::Text),
+                value.span,
+            );
+        }
+        self.decode_expr(scope, value)
     }
 
     /// Decode a `form` node: operation plus display/arguments/fields.
@@ -4914,12 +5872,17 @@ impl<'a> Cx<'a> {
                 ),
             ));
         }
-        let children = self.decode_ui_children(scope, node, row_ctx);
+        // The form owns field placement for its suite.
+        let mut owned = scope.clone();
+        owned.in_field_owner = true;
+        let children = self.decode_ui_children(&owned, node, row_ctx);
+        let gate = self.decode_gate(scope, node);
         Some(IrUi {
             factory: "form".to_string(),
             props,
             children,
             row_scope: None,
+            gate,
             span: node.span,
         })
     }
@@ -5229,15 +6192,22 @@ impl<'a> Cx<'a> {
             _ => "row".to_string(),
         };
         let row_ctx = model_id.map(|id| (id, row_name.clone()));
+        // A collection scope ends field placement unless a nested owner
+        // re-establishes it.
+        let mut unowned = scope.clone();
+        unowned.in_field_owner = false;
         let children = child_nodes
             .iter()
-            .filter_map(|n| self.decode_ui(scope, n, row_ctx.clone()))
+            .filter(|n| !is_gate_leaf(self.db, n))
+            .filter_map(|n| self.decode_ui(&unowned, n, row_ctx.clone()))
             .collect();
+        let gate = self.decode_gate(scope, node);
         Some(IrUi {
             factory: word.to_string(),
             props,
             children,
             row_scope: Some((row_name, "rowView".to_string())),
+            gate,
             span: node.span,
         })
     }
@@ -5272,12 +6242,12 @@ impl<'a> Cx<'a> {
                 TypedExpr::new(IrExpr::Name(row), ResolvedType::Unknown, node.span),
             ));
         }
-        let _ = scope;
         IrUi {
             factory: "edit".to_string(),
             props,
             children: Vec::new(),
             row_scope: None,
+            gate: self.decode_gate(scope, node),
             span: node.span,
         }
     }
@@ -5393,11 +6363,13 @@ impl<'a> Cx<'a> {
             }
         }
         let children = self.decode_ui_children(scope, node, row_ctx);
+        let gate = self.decode_gate(scope, node);
         Some(IrUi {
             factory: word.to_string(),
             props,
             children,
             row_scope: None,
+            gate,
             span: node.span,
         })
     }
@@ -5423,6 +6395,41 @@ fn is_ui_node(kind: SyntaxKind) -> bool {
             | SyntaxKind::OrderCases
             | SyntaxKind::OrderCase
     )
+}
+
+/// Whether `node` is a presentation gate: a `require` leaf gating its
+/// enclosing render container (page-level `Require` nodes gate admission
+/// instead and are decoded by the page, never here).
+fn is_gate_leaf(db: &SourceDb, node: &SyntaxNode) -> bool {
+    node.kind == SyntaxKind::UiLeaf && ui_word(db, node) == "require"
+}
+
+/// Input-selector spelling of a field-control header (`NameRef` or
+/// `Path`); structural input paths keep their dots.
+fn selector_spelling(db: &SourceDb, node: &SyntaxNode) -> Option<String> {
+    match node.kind {
+        SyntaxKind::NameRef => kids(node).iter().find_map(|n| name_text(db, n)),
+        SyntaxKind::Path => Some(path_text(db, node)),
+        _ => None,
+    }
+}
+
+/// Panel/activation-name spelling of an `opens=`/`id=`/word-option
+/// value: a bare name/path or a string literal.
+fn opens_spelling(db: &SourceDb, node: &SyntaxNode) -> Option<String> {
+    match node.kind {
+        SyntaxKind::NameRef => kids(node).iter().find_map(|n| name_text(db, n)),
+        SyntaxKind::Path => Some(path_text(db, node)),
+        SyntaxKind::Literal => literal_string(db, node),
+        _ => None,
+    }
+}
+
+/// Slot name of a `slot NAME` node (the name after the `slot` head).
+fn slot_name(db: &SourceDb, node: &SyntaxNode) -> Option<String> {
+    let mut names = kids(node).into_iter().filter_map(|n| name_text(db, n));
+    names.next()?;
+    names.next()
 }
 
 /// Factory word of a UI node (the leading name, lowercased).
@@ -5829,14 +6836,16 @@ impl<'a> Cx<'a> {
     }
 }
 
-/// Suite assembly (G10): one suite per operation with tables, plus
-/// orphan recipes. Sequences omit atomically with `E6006`: step content
-/// references let-bound values with no table anchors, and span re-read
-/// cannot serve them without re-resolving names.
+/// Suite assembly (G10): one suite per operation with tables and
+/// sequences, plus orphan recipes. Tables and sequences whose steps the
+/// bridge cannot decode omit atomically with `E6006`.
 impl<'a> Cx<'a> {
     fn build_suites(&mut self, items: &[IrItem]) -> Vec<BddSuite> {
-        // Decode tables grouped by operation, in table order.
-        let mut by_operation: Vec<(SymbolId, Vec<IrTable>, Vec<SymbolId>)> = Vec::new();
+        // Decode tables and sequences grouped by operation, in source
+        // order. Sequence `let` bindings resolve step content through
+        // the immutable `b` scope.
+        type OpExamples = (SymbolId, Vec<IrTable>, Vec<IrSequence>, Vec<SymbolId>);
+        let mut by_operation: Vec<OpExamples> = Vec::new();
         for table in self.program.examples.tables.clone() {
             let Some(operation) = table.operation else {
                 let span = Span::new(table.node.file, table.node.start, table.node.end);
@@ -5849,12 +6858,15 @@ impl<'a> Cx<'a> {
             };
             match self.decode_table(&table, operation) {
                 Some((ir_table, refs)) => {
-                    match by_operation.iter_mut().find(|(op, _, _)| *op == operation) {
-                        Some((_, tables, all_refs)) => {
+                    match by_operation
+                        .iter_mut()
+                        .find(|(op, _, _, _)| *op == operation)
+                    {
+                        Some((_, tables, _, all_refs)) => {
                             tables.push(ir_table);
                             all_refs.extend(refs);
                         }
-                        None => by_operation.push((operation, vec![ir_table], refs)),
+                        None => by_operation.push((operation, vec![ir_table], Vec::new(), refs)),
                     }
                 }
                 None => {
@@ -5869,22 +6881,44 @@ impl<'a> Cx<'a> {
                 }
             }
         }
-        // Sequences: atomic `E6006`, omitted fail-closed.
         for sequence in self.program.examples.sequences.clone() {
             let span = Span::new(sequence.node.file, sequence.node.start, sequence.node.end);
-            let operation = sequence
-                .operation
-                .map(|id| self.canonical(id))
-                .unwrap_or_else(|| "unknown".to_string());
-            self.gap(
-                format!(
-                    "sequence for {operation}: step content references let-bound values with no table anchors (PR5 examples); omitting it from emission",
-                ),
-                span,
-            );
+            let Some(operation) = sequence.operation else {
+                self.gap(
+                    "example sequence is not attached to a published operation; omitting it"
+                        .to_string(),
+                    span,
+                );
+                continue;
+            };
+            match self.decode_sequence(&sequence, operation) {
+                Some((ir_sequence, refs)) => {
+                    match by_operation
+                        .iter_mut()
+                        .find(|(op, _, _, _)| *op == operation)
+                    {
+                        Some((_, _, sequences, all_refs)) => {
+                            sequences.push(ir_sequence);
+                            all_refs.extend(refs);
+                        }
+                        None => {
+                            by_operation.push((operation, Vec::new(), vec![ir_sequence], refs));
+                        }
+                    }
+                }
+                None => {
+                    self.gap(
+                        format!(
+                            "sequence for {}: step content is not in the analysis tables (PR5 examples); omitting it from emission",
+                            self.canonical(operation),
+                        ),
+                        span,
+                    );
+                }
+            }
         }
         // Order suites by operation declaration.
-        by_operation.sort_by_key(|(op, _, _)| op.0);
+        by_operation.sort_by_key(|(op, _, _, _)| op.0);
         // Fixture recipes by symbol (decoded with the items above).
         let mut recipes: HashMap<SymbolId, IrFixture> = HashMap::new();
         for item in items {
@@ -5898,7 +6932,7 @@ impl<'a> Cx<'a> {
         }
         let mut claimed: HashSet<SymbolId> = HashSet::new();
         let mut suites = Vec::new();
-        for (operation, tables, refs) in &by_operation {
+        for (operation, tables, sequences, refs) in &by_operation {
             let operation_module = self
                 .program
                 .symbols
@@ -5940,7 +6974,7 @@ impl<'a> Cx<'a> {
                 fixtures,
                 imported,
                 tables: tables.clone(),
-                sequences: Vec::new(),
+                sequences: sequences.clone(),
                 span: self
                     .program
                     .symbols
@@ -5993,6 +7027,349 @@ impl<'a> Cx<'a> {
         let mut out: Vec<SymbolId> = seen.into_iter().collect();
         out.sort_by_key(|id| id.0);
         out
+    }
+
+    /// Decode one causal sequence: `call`/`let`/assertion steps in
+    /// source order. `let`/`as` bindings publish progressively into the
+    /// `b` scope, so each step reads exactly the bindings before it.
+    /// Returns the sequence plus every fixture it references.
+    fn decode_sequence(
+        &mut self,
+        sequence: &crate::analysis::examples::ExampleSequence,
+        operation: SymbolId,
+    ) -> Option<(IrSequence, Vec<SymbolId>)> {
+        let node = self.node(&sequence.node).cloned()?;
+        let module = self
+            .program
+            .symbols
+            .get(operation.0 as usize)
+            .map(|s| s.module)?;
+        let body = kids(&node)
+            .iter()
+            .find(|n| n.kind == SyntaxKind::DoBlock)
+            .copied()?;
+        let mut scope = Scope::module(module);
+        scope.example_values = true;
+        // Inferred `b` binding types for clause lowering and assertion
+        // type ids (the types pass never visits sequence steps).
+        let mut lets: HashMap<String, ResolvedType> = HashMap::new();
+        scope
+            .name_types
+            .insert("self".to_string(), ResolvedType::Scalar(Scalar::User));
+        scope
+            .name_types
+            .insert("other".to_string(), ResolvedType::Scalar(Scalar::User));
+        let mut steps = Vec::new();
+        let mut refs: Vec<SymbolId> = sequence.seeds.clone();
+        for step in kids(body) {
+            match step.kind {
+                SyntaxKind::Let => {
+                    let (name, value_node) = sequence_let_parts(self.db, step)?;
+                    let value = self.decode_expr(&scope, value_node);
+                    lets.insert(name.clone(), self.sequence_value_ty(&value, &lets, module));
+                    refs.extend(self.s_refs(module, &value));
+                    scope.sequence_lets.insert(name.clone());
+                    publish_lets(&mut scope, &lets);
+                    steps.push(IrStep::Binding { name, value });
+                }
+                SyntaxKind::ExampleCall => {
+                    let step_ir = self.decode_sequence_call(module, &scope, step)?;
+                    if let IrStep::Call {
+                        operation,
+                        by,
+                        inputs,
+                        request,
+                        bind,
+                        ..
+                    } = &step_ir
+                    {
+                        refs.extend(self.s_refs(module, by));
+                        refs.extend(self.s_refs(module, inputs));
+                        if let Some(request) = request {
+                            refs.extend(self.s_refs(module, request));
+                        }
+                        if let Some(bind) = bind {
+                            // `as` bindings carry the call's declared
+                            // result type for later member chains.
+                            let result = self
+                                .program
+                                .symbols
+                                .iter()
+                                .find(|s| &s.canonical == operation)
+                                .and_then(|s| self.program.types.symbol_results.get(&s.id))
+                                .and_then(|result| result.clone())
+                                .unwrap_or(ResolvedType::Unknown);
+                            lets.insert(bind.clone(), result);
+                            scope.sequence_lets.insert(bind.clone());
+                            publish_lets(&mut scope, &lets);
+                        }
+                    }
+                    steps.push(step_ir);
+                }
+                SyntaxKind::ExampleAssert => {
+                    let (obs_nodes, expected_nodes) = split_row(self.db, step);
+                    if obs_nodes.is_empty() || obs_nodes.len() != expected_nodes.len() {
+                        return None;
+                    }
+                    let mut types = Vec::new();
+                    for obs_node in &obs_nodes {
+                        let obs = self.decode_expr(&scope, obs_node);
+                        refs.extend(self.s_refs(module, &obs));
+                        let ty = self.sequence_value_ty(&obs, &lets, module);
+                        let id = self.type_id(&ty);
+                        if id == "unknown" {
+                            self.diags.push(Diagnostic::error(
+                                "E6008",
+                                "cannot lower sequence assertion: observation type is not resolvable"
+                                    .to_string(),
+                                obs_node.span,
+                            ));
+                        }
+                        types.push(id);
+                    }
+                    let observations: Vec<TypedExpr> = obs_nodes
+                        .iter()
+                        .map(|n| self.decode_expr(&scope, n))
+                        .collect();
+                    let expected: Vec<TypedExpr> = expected_nodes
+                        .iter()
+                        .map(|n| self.decode_expr(&scope, n))
+                        .collect();
+                    for cell in expected.iter() {
+                        refs.extend(self.s_refs(module, cell));
+                    }
+                    steps.push(IrStep::Assertion {
+                        observations: TypedExpr::new(
+                            IrExpr::Array(observations),
+                            ResolvedType::Unknown,
+                            step.span,
+                        ),
+                        expected: TypedExpr::new(
+                            IrExpr::Array(expected),
+                            ResolvedType::Unknown,
+                            step.span,
+                        ),
+                        types,
+                    });
+                }
+                _ => {}
+            }
+        }
+        let dependencies: Vec<String> = sequence
+            .seeds
+            .iter()
+            .map(|id| self.local_name(*id))
+            .collect();
+        Some((
+            IrSequence {
+                operation: self.canonical(operation),
+                dependencies,
+                steps,
+                span: Span::new(sequence.node.file, sequence.node.start, sequence.node.end),
+            },
+            refs,
+        ))
+    }
+
+    /// Decode one sequence `call` step: canonical target, caller, inputs,
+    /// optional request overrides, optional `as` binding, optional exact
+    /// error. `None` when the target or caller does not resolve.
+    fn decode_sequence_call(
+        &mut self,
+        module: ModuleId,
+        scope: &Scope,
+        node: &SyntaxNode,
+    ) -> Option<IrStep> {
+        let parts = kids(node);
+        let target = parts.iter().find(|n| is_expression(n.kind)).copied()?;
+        let target_id = self.resolve_operation_target(module, target)?;
+        let objects: Vec<&SyntaxNode> = parts
+            .iter()
+            .filter(|n| n.kind == SyntaxKind::Object)
+            .copied()
+            .collect();
+        let inputs = self.decode_expr(scope, objects.first().copied()?);
+        let request = objects
+            .get(1)
+            .map(|overrides| self.decode_expr(scope, overrides));
+        let caller = parts.iter().find(|n| n.kind == SyntaxKind::Path).copied()?;
+        let caller_name = path_text(self.db, caller);
+        if caller_name.contains('.') {
+            return None;
+        }
+        let by = self.decode_caller(module, &caller_name, caller.span);
+        let bind = sequence_as_binding(self.db, node);
+        let error = parts
+            .iter()
+            .find(|n| n.kind == SyntaxKind::ExpectedError)
+            .map(|cell| expected_error_code(self.db, cell));
+        Some(IrStep::Call {
+            operation: self.canonical(target_id),
+            by,
+            inputs,
+            request,
+            bind,
+            error,
+        })
+    }
+
+    /// Decode a sequence `by=` caller: fixtures resolve to their `s`
+    /// scope slot, provisioned accounts stay bare, roles lower to their
+    /// canonical identity, anything else stays a spelling.
+    fn decode_caller(&mut self, module: ModuleId, name: &str, span: Span) -> TypedExpr {
+        if let Some(id) = self.fixture_in_scope(module, name) {
+            let fixture_name = self.local_name(id);
+            let ty = self.fixture_type(id);
+            return TypedExpr::new(member_of("s", &fixture_name, &ty, span), ty, span);
+        }
+        if is_test_account(name) {
+            return TypedExpr::new(
+                IrExpr::Name(name.to_string()),
+                ResolvedType::Scalar(Scalar::User),
+                span,
+            );
+        }
+        if let Some((id, _)) = self.resolve_member(module, name)
+            && matches!(
+                self.program.symbols.get(id.0 as usize).map(|s| &s.kind),
+                Some(SymbolKind::Role)
+            )
+        {
+            return TypedExpr::new(
+                IrExpr::Text(self.canonical(id)),
+                ResolvedType::Scalar(Scalar::Text),
+                span,
+            );
+        }
+        TypedExpr::new(
+            IrExpr::Text(name.to_string()),
+            ResolvedType::Scalar(Scalar::Text),
+            span,
+        )
+    }
+
+    /// Resolved value type of one decoded sequence expression for
+    /// assertion type ids. Sequence steps carry no published types, so
+    /// this infers structurally: literals, comparisons, `b`/`s` slots,
+    /// member chains, and `first`/`count` calls. Anything else is
+    /// `Unknown` (the assertion stays loud `E6008`, never `unknown`).
+    fn sequence_value_ty(
+        &self,
+        expr: &TypedExpr,
+        lets: &HashMap<String, ResolvedType>,
+        module: ModuleId,
+    ) -> ResolvedType {
+        if !matches!(expr.ty, ResolvedType::Unknown) {
+            return expr.ty.clone();
+        }
+        match &expr.expr {
+            IrExpr::Int(_) => ResolvedType::Scalar(Scalar::Int),
+            IrExpr::Decimal(_) => ResolvedType::Scalar(Scalar::Decimal),
+            IrExpr::Text(_) => ResolvedType::Scalar(Scalar::Text),
+            IrExpr::Bool(_) => ResolvedType::Scalar(Scalar::Bool),
+            IrExpr::Null => ResolvedType::Null,
+            IrExpr::Money { .. } => ResolvedType::Scalar(Scalar::Money),
+            IrExpr::DurationMs(_) => ResolvedType::Scalar(Scalar::Duration),
+            IrExpr::Date(_) => ResolvedType::Scalar(Scalar::Date),
+            IrExpr::Datetime(_) => ResolvedType::Scalar(Scalar::Datetime),
+            IrExpr::Binary { op, left, .. } => match op {
+                IrBinOp::Eq
+                | IrBinOp::Ne
+                | IrBinOp::Lt
+                | IrBinOp::Le
+                | IrBinOp::Gt
+                | IrBinOp::Ge
+                | IrBinOp::And
+                | IrBinOp::Or
+                | IrBinOp::In => ResolvedType::Scalar(Scalar::Bool),
+                IrBinOp::Coalesce => self.sequence_value_ty(left, lets, module),
+                IrBinOp::Add | IrBinOp::Sub | IrBinOp::Mul | IrBinOp::Div | IrBinOp::Mod => {
+                    ResolvedType::Unknown
+                }
+            },
+            IrExpr::Unary { op, operand } => match op {
+                IrUnOp::Not => ResolvedType::Scalar(Scalar::Bool),
+                IrUnOp::Neg => self.sequence_value_ty(operand, lets, module),
+            },
+            IrExpr::Name(name) => {
+                if is_test_account(name) {
+                    return ResolvedType::Scalar(Scalar::User);
+                }
+                lets.get(name).cloned().unwrap_or(ResolvedType::Unknown)
+            }
+            IrExpr::Member { base, field } => {
+                if matches!(base.expr, IrExpr::Name(ref scope) if scope == "b") {
+                    let base_ty = lets.get(field).cloned().unwrap_or(ResolvedType::Unknown);
+                    return base_ty;
+                }
+                if matches!(base.expr, IrExpr::Name(ref scope) if scope == "s")
+                    && let Some(id) = self.fixture_in_scope(module, field)
+                {
+                    return self.fixture_type(id);
+                }
+                let base_ty = self.sequence_value_ty(base, lets, module);
+                self.member_ty(&base_ty, field)
+            }
+            IrExpr::Call { target, args } => {
+                let id = match target {
+                    IrCallTarget::Builtin { id, .. } => id.as_str(),
+                    IrCallTarget::CapabilityOp(_) => return ResolvedType::Unknown,
+                };
+                match id {
+                    "count" => ResolvedType::Scalar(Scalar::Int),
+                    "first" => {
+                        let Some(domain) = args.first() else {
+                            return ResolvedType::Unknown;
+                        };
+                        let element = match &domain.expr {
+                            IrExpr::Query(query) => match &query.domain {
+                                IrQueryDomain::Model(model) => self
+                                    .program
+                                    .symbols
+                                    .iter()
+                                    .find(|s| s.canonical == *model)
+                                    .map(|s| ResolvedType::Record {
+                                        symbol: s.id,
+                                        stored: true,
+                                    }),
+                                IrQueryDomain::Value { base, .. } => {
+                                    match self.sequence_value_ty(base, lets, module) {
+                                        ResolvedType::Array { element, .. } => Some(*element),
+                                        other => Some(other),
+                                    }
+                                }
+                            },
+                            IrExpr::Array(items) => items
+                                .first()
+                                .map(|item| self.sequence_value_ty(item, lets, module)),
+                            _ => None,
+                        };
+                        element
+                            .map(|ty| ResolvedType::Nullable(Box::new(ty)))
+                            .unwrap_or(ResolvedType::Unknown)
+                    }
+                    _ => ResolvedType::Unknown,
+                }
+            }
+            IrExpr::Query(query) => match &query.domain {
+                IrQueryDomain::Model(model) => self
+                    .program
+                    .symbols
+                    .iter()
+                    .find(|s| s.canonical == *model)
+                    .map(|s| ResolvedType::Array {
+                        element: Box::new(ResolvedType::Record {
+                            symbol: s.id,
+                            stored: true,
+                        }),
+                        ordered: true,
+                        nonempty: false,
+                    })
+                    .unwrap_or(ResolvedType::Unknown),
+                IrQueryDomain::Value { base, .. } => self.sequence_value_ty(base, lets, module),
+            },
+            _ => ResolvedType::Unknown,
+        }
     }
 
     /// Decode one behavior table: common inputs, selector metadata,
@@ -6195,6 +7572,49 @@ impl<'a> Cx<'a> {
     }
 }
 
+/// Binding name plus value node of a sequence `let` step.
+fn sequence_let_parts<'n>(db: &SourceDb, node: &'n SyntaxNode) -> Option<(String, &'n SyntaxNode)> {
+    let mut name = None;
+    let mut value = None;
+    for part in kids(node) {
+        if name.is_none()
+            && let Some(word) = name_text(db, part)
+            && word != "let"
+        {
+            name = Some(word);
+        } else if value.is_none() && is_expression(part.kind) {
+            value = Some(part);
+        }
+    }
+    name.zip(value)
+}
+
+/// Publish inferred `let` types: each binding name reads its type
+/// directly (source `name` lowers to `b.name`), and `b` itself reads as
+/// the closed bindings object for member chains.
+fn publish_lets(scope: &mut Scope, lets: &HashMap<String, ResolvedType>) {
+    let mut fields: Vec<(String, ResolvedType)> = Vec::new();
+    for (name, ty) in lets {
+        scope.name_types.insert(name.clone(), ty.clone());
+        fields.push((name.clone(), ty.clone()));
+    }
+    fields.sort_by(|a, b| a.0.cmp(&b.0));
+    scope
+        .name_types
+        .insert("b".to_string(), ResolvedType::Object(fields));
+}
+
+/// `as` binding of a sequence `call` step, if any.
+fn sequence_as_binding(db: &SourceDb, node: &SyntaxNode) -> Option<String> {
+    let mut names = kids(node).into_iter().filter_map(|n| name_text(db, n));
+    for word in names.by_ref() {
+        if word == "as" {
+            return names.next();
+        }
+    }
+    None
+}
+
 /// Split an example row at `->` into input and expected cells.
 fn split_row<'n>(db: &SourceDb, row: &'n SyntaxNode) -> (Vec<&'n SyntaxNode>, Vec<&'n SyntaxNode>) {
     let mut inputs = Vec::new();
@@ -6268,12 +7688,16 @@ fn collect_s_refs(expr: &IrExpr, out: &mut Vec<String>) {
             }
         }
         IrExpr::Query(query) => {
+            if let IrQueryDomain::Value { base, .. } = &query.domain {
+                collect_s_refs(&base.expr, out);
+            }
             for part in query
                 .parent
                 .iter()
                 .chain(query.where_pred.iter())
                 .chain(query.limit.iter())
                 .chain(query.archived.iter())
+                .chain(query.select.iter())
             {
                 collect_s_refs(&part.expr, out);
             }

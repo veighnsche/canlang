@@ -332,6 +332,36 @@ export function readFinalizedBytes(
   return deps.blobs.read(blobKeyForFile(stored.file.id));
 }
 
+/**
+ * Read finalized metadata with its frozen provenance. Fail-closed and
+ * existence-hiding like `readFinalizedBytes`: unknown references,
+ * foreign callers and collected objects all read as null. The returned
+ * record is the frozen immutable file (see `freezeFinalized`); callers
+ * must never mutate it.
+ *
+ * This is the journey "provenance" step: attach/read callers verify the
+ * bound provenance through this instead of raw store gets, which skip
+ * the ownership check. Attachment authority itself stays with lane 3,
+ * which records attachments through `recordAttachment` at the join.
+ */
+export function readFinalizedFile(
+  deps: Pick<FinalizeDeps, 'files'>,
+  ref: FinalizedFileRef,
+  caller: ReceivingContext,
+): FinalizedFile | null {
+  const stored = deps.files.get(ref);
+  if (stored === null) {
+    return null;
+  }
+  if (stored.state !== 'finalized' && stored.state !== 'attached') {
+    return null;
+  }
+  if (!isSameReceiver(stored.owner, caller)) {
+    return null;
+  }
+  return stored.file;
+}
+
 /** Current stored-object state, or null for unknown references. */
 export function storedState(
   deps: Pick<FinalizeDeps, 'files'>,

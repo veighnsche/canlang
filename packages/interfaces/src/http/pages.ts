@@ -18,7 +18,6 @@
 import {
   COLLECTION_DEFAULT_LIMIT,
   COLLECTION_MAX_LIMIT,
-  DEFAULT_THEME,
   PAGE_MAX_RESPONSE_BYTES,
 } from '@canlang/contracts';
 import type {
@@ -29,7 +28,6 @@ import type {
   ListQueryResult,
   NavigationResult,
   PageDescriptor,
-  PresentationContext,
   ResolvedIdentity,
   RowQueryRunner,
   ShellData,
@@ -47,6 +45,7 @@ import {
 import { buildBusinessError, fromUnknown, httpStatusFor } from '../errors/envelope.js';
 import { logInternalError } from '../errors/logging.js';
 import { isPartialRequest } from './fragments.js';
+import { buildPresentationContext } from './presentation.js';
 import { SIGN_IN_PATH, SIGN_OUT_PATH, SWITCH_TEAM_PATH } from './routes.js';
 
 /** Authored unknown/method response: `not_found`, mirroring routes.ts. */
@@ -162,22 +161,6 @@ function matchDescriptor(
     if (routeBindings !== null) return { descriptor, routeBindings };
   }
   return null;
-}
-
-/**
- * Parse Accept-Language: split on ',', take up to 10 tags, strip `;`
- * params, drop empties. Invalid tags pass through here; the renderer
- * skips them during locale resolution.
- */
-function parseAcceptLanguage(header: string | null): readonly string[] {
-  if (header === null) return [];
-  return header
-    .split(',', 10)
-    .map((part) => {
-      const semi = part.indexOf(';');
-      return (semi === -1 ? part : part.slice(0, semi)).trim();
-    })
-    .filter((tag) => tag.length > 0);
 }
 
 /** Switcher options: active memberships with a live team, id-prefix labels. */
@@ -310,17 +293,15 @@ export async function handlePageRequest(deps: HttpDeps, request: Request): Promi
   const partial = isPartialRequest(request);
   const query = bindRowQueryRunner(deps, identity);
   if (partial) {
-    const context: PresentationContext = {
-      preferredLocales: parseAcceptLanguage(request.headers.get('accept-language')),
-      appDefaultLocale: deps.app.appDefaultLocale,
-      theme: DEFAULT_THEME,
-      path: pathname,
+    const context = buildPresentationContext({
+      request,
+      pathname,
       isPartial: true,
+      appDefaultLocale: deps.app.appDefaultLocale,
       csrfToken,
       principal: identity,
-      invocation: identity,
       query,
-    };
+    });
     let children: string;
     try {
       children = await match.descriptor.render(context, bindings);
@@ -367,17 +348,15 @@ export async function handlePageRequest(deps: HttpDeps, request: Request): Promi
     account,
     settings: { sections: [] },
   };
-  const context: PresentationContext = {
-    preferredLocales: parseAcceptLanguage(request.headers.get('accept-language')),
-    appDefaultLocale: deps.app.appDefaultLocale,
-    theme: DEFAULT_THEME,
-    path: pathname,
+  const context = buildPresentationContext({
+    request,
+    pathname,
     isPartial: false,
+    appDefaultLocale: deps.app.appDefaultLocale,
     csrfToken,
     principal: identity,
-    invocation: identity,
     query,
-  };
+  });
   let children: string;
   try {
     children = await match.descriptor.render(context, bindings);
