@@ -158,6 +158,7 @@ describe("assembleWorker", () => {
       artifact,
       stubAsm(dir, { "home.mjs": url }),
       stubDeps(),
+      { active: true },
     );
 
     expect(assembled.pageCount).toBe(1);
@@ -189,7 +190,7 @@ describe("assembleWorker", () => {
       [],
     );
     await expectPageModuleFailure(
-      assembleWorker(artifact, stubAsm(dir, {}), stubDeps()),
+      assembleWorker(artifact, stubAsm(dir, {}), stubDeps(), { active: true }),
       "/gone",
       "gone.mjs",
     );
@@ -203,7 +204,7 @@ describe("assembleWorker", () => {
       [],
     );
     await expectPageModuleFailure(
-      assembleWorker(artifact, stubAsm(dir, { "other.mjs": url }), stubDeps()),
+      assembleWorker(artifact, stubAsm(dir, { "other.mjs": url }), stubDeps(), { active: true }),
       "/gone",
       "other.mjs",
     );
@@ -221,7 +222,7 @@ describe("assembleWorker", () => {
       [],
     );
     await expectPageModuleFailure(
-      assembleWorker(artifact, stubAsm(dir, { "owner.mjs": url }), stubDeps()),
+      assembleWorker(artifact, stubAsm(dir, { "owner.mjs": url }), stubDeps(), { active: true }),
       "/wrong-owner",
       "owner.mjs",
     );
@@ -239,7 +240,7 @@ describe("assembleWorker", () => {
       [],
     );
     await expectPageModuleFailure(
-      assembleWorker(artifact, stubAsm(dir, { "render.mjs": url }), stubDeps()),
+      assembleWorker(artifact, stubAsm(dir, { "render.mjs": url }), stubDeps(), { active: true }),
       "/no-render",
       "render.mjs",
     );
@@ -253,7 +254,7 @@ describe("assembleWorker", () => {
       artifact_version: 2,
     } as unknown as CompileArtifact;
     await expect(
-      assembleWorker(artifact, stubAsm(dir, {}), stubDeps()),
+      assembleWorker(artifact, stubAsm(dir, {}), stubDeps(), { active: true }),
     ).rejects.toThrow("unsupported artifact_version");
   });
 
@@ -262,7 +263,7 @@ describe("assembleWorker", () => {
     // Deliberately mistyped input: the assembly must reject it at runtime.
     const weird = { id: "fixture.weird", kind: "spell", module: "x.mjs", export: "y" };
     const artifact = fixtureArtifact([], [weird] as unknown as CompileArtifact["callables"]);
-    await expect(assembleWorker(artifact, stubAsm(dir, {}), stubDeps())).rejects.toThrow(
+    await expect(assembleWorker(artifact, stubAsm(dir, {}), stubDeps(), { active: true })).rejects.toThrow(
       "unknown callable kind",
     );
   });
@@ -271,13 +272,23 @@ describe("assembleWorker", () => {
     const dir = tempDir();
     const artifact = fixtureArtifact([], []);
     await expect(
-      assembleWorker(artifact, stubAsm(dir, {}), {
-        store: null as unknown as StoragePort,
-        identityStore: {},
-      }),
+      assembleWorker(
+        artifact,
+        stubAsm(dir, {}),
+        {
+          store: null as unknown as StoragePort,
+          identityStore: {},
+        },
+        { active: true },
+      ),
     ).rejects.toThrow("deps.store is required");
     await expect(
-      assembleWorker(artifact, stubAsm(dir, {}), { store: stubStore(), identityStore: null }),
+      assembleWorker(
+        artifact,
+        stubAsm(dir, {}),
+        { store: stubStore(), identityStore: null },
+        { active: true },
+      ),
     ).rejects.toThrow("deps.identityStore is required");
   });
 
@@ -289,14 +300,14 @@ describe("assembleWorker", () => {
       { id: "fixture.p", kind: "pure", module: "p.mjs", export: "p", member: ["p"] },
       { id: "fixture.r", kind: "rule", module: "r.mjs", export: "r", member: ["r"] },
     ]);
-    const assembled = await assembleWorker(artifact, stubAsm(dir, {}), stubDeps());
+    const assembled = await assembleWorker(artifact, stubAsm(dir, {}), stubDeps(), { active: true });
     expect(assembled.pageCount).toBe(0);
     expect(assembled.opCount).toBe(2);
   });
 
   it("answers unjoined surfaces with an explicit interim 501", async () => {
     const dir = tempDir();
-    const assembled = await assembleWorker(fixtureArtifact([], []), stubAsm(dir, {}), stubDeps());
+    const assembled = await assembleWorker(fixtureArtifact([], []), stubAsm(dir, {}), stubDeps(), { active: true });
 
     const op = await assembled.fetch(
       new Request("http://localhost/api/operations/demo.op", { method: "POST" }),
@@ -430,10 +441,15 @@ describe("interim files dispatch", () => {
 
   async function assembleWithFiles(files?: InterimFilesBinding) {
     const dir = tempDir();
-    return assembleWorker(fixtureArtifact([], []), stubAsm(dir, {}), {
-      ...stubDeps(),
-      ...(files === undefined ? {} : { files }),
-    });
+    return assembleWorker(
+      fixtureArtifact([], []),
+      stubAsm(dir, {}),
+      {
+        ...stubDeps(),
+        ...(files === undefined ? {} : { files }),
+      },
+      { active: true },
+    );
   }
 
   function knownRoutes(): Request[] {
@@ -558,6 +574,7 @@ describe("interim presentation mirror", () => {
       artifact,
       stubAsm(dir, { "cap.mjs": url }),
       stubDeps(),
+      { active: true },
     );
 
     const full = await assembled.fetch(

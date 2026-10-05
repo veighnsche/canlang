@@ -1,0 +1,22 @@
+{
+  "version": 1,
+  "roles": [
+    {"package": "expenses", "name": "reviewer", "canonical": "expenses.reviewer", "label": "\"Reviewer\"@{nl=\"Beoordelaar\"}"}
+  ],
+  "models": [
+    {"canonical": "expenses.Expense", "policies": [
+      {"kind": "read", "grantee": "members", "where": "row.submitted_by==actor", "source": "policy Expense read=members where=row.submitted_by==actor"},
+      {"kind": "read", "grantee": "reviewer", "source": "policy Expense read=reviewer"}
+      ], "invariants": [
+      {"predicate": "row.amount.minor>0", "source": "invariant Expense: row.amount.minor>0"}
+      ]}
+  ],
+  "operations": [
+    {"canonical": "expenses.Expense.create", "kind": "create", "by": "members", "when": "row.submitted_by==actor and row.status==draft", "requires": [], "params": [], "source": "crud Expense by=members fields=purpose,amount when=row.submitted_by==actor and row.status==draft delete=none"},
+    {"canonical": "expenses.Expense.update", "kind": "update", "by": "members", "when": "row.submitted_by==actor and row.status==draft", "requires": [], "params": [], "source": "crud Expense by=members fields=purpose,amount when=row.submitted_by==actor and row.status==draft delete=none"},
+    {"canonical": "expenses.submit", "kind": "scenario", "by": "members", "requires": ["expense.submitted_by==actor and expense.status==draft"], "params": [{"name": "expense", "type": "Expense"}], "source": "scenario submit(expense:Expense) by=members"},
+    {"canonical": "expenses.approve", "kind": "scenario", "by": "reviewer", "requires": ["expense.status==submitted and expense.submitted_by!=actor"], "params": [{"name": "expense", "type": "Expense"}, {"name": "note", "type": "text?"}], "source": "scenario approve(expense:Expense,note:text? label=label_Expense_decision_note) by=reviewer label=\"Approve expense\"@{nl=\"Onkost goedkeuren\"}"},
+    {"canonical": "expenses.reject", "kind": "scenario", "by": "reviewer", "requires": ["expense.status==submitted and expense.submitted_by!=actor and trim(note)!=\"\""], "params": [{"name": "expense", "type": "Expense"}, {"name": "note", "type": "text"}], "source": "scenario reject(expense:Expense,note:text label=label_Expense_decision_note) by=reviewer label=\"Reject expense\"@{nl=\"Onkost afwijzen\"}"},
+    {"canonical": "reporting.summarize", "kind": "scenario", "by": "members", "requires": [], "params": [{"name": "currency", "type": "currency"}, {"name": "status", "type": "enum(draft,submitted,approved,rejected)"}], "source": "scenario summarize(currency:currency,status:Expense.status) read=true -> Summary by=members label=\"Summarize expenses\"@{nl=\"Onkosten samenvatten\"}"}
+  ]
+}

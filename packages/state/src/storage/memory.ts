@@ -15,10 +15,12 @@
 import type {
   CommitBatch,
   CommitResult,
+  DiscardStagedRows,
   FlipInstalledSnapshot,
   FlipResult,
   HistoryEntry,
   InstalledSnapshot,
+  MigrationFailure,
   MigrationOutcome,
   MigrationProgress,
   ModelName,
@@ -31,6 +33,7 @@ import type {
   Receipt,
   ReceiptIdentity,
   RecordId,
+  RecordMigrationFailure,
   Revision,
   ScheduleEntry,
   StageMigrationChunk,
@@ -38,7 +41,7 @@ import type {
   StagedRowCursor,
   StoredRow,
 } from '../../../contracts/src/state.js';
-import { FenceConflictError, StorageConstraintError } from './port.js';
+import { FenceConflictError, StorageConstraintError, checkRecoveryInput } from './port.js';
 import type { StoragePort } from './port.js';
 import { INITIAL_REVISION } from './schema.js';
 
@@ -96,6 +99,8 @@ interface MemoryState {
   staging: Map<string, Map<string, StagedRow>>;
   progress: Map<string, MigrationProgress>;
   outcomes: Map<string, MigrationOutcome[]>;
+  // B3: durable failure records (survive abort as operator audit).
+  failures: Map<string, MigrationFailure>;
 }
 
 function freshState(): MemoryState {
@@ -113,6 +118,7 @@ function freshState(): MemoryState {
     staging: new Map(),
     progress: new Map(),
     outcomes: new Map(),
+    failures: new Map(),
   };
 }
 
@@ -927,6 +933,73 @@ function buildMemoryStorage(state: MemoryState): StoragePort {
       // S7: recorded skips in record (insertion) order. Deep copies.
       const recorded = state.outcomes.get(migrationId) ?? [];
       return recorded.map((outcome) => jsonCopy(outcome));
+    },
+
+    async recordMigrationFailure(input: RecordMigrationFailure): Promise<CommitResult> {
+      // B3: ONE fenced write: mark progress failed (cursors preserved from
+      // the input) plus the durable failure row, atomically. Marking an
+      // active migration failed is a caller error, never a rewrite.
+      checkRecoveryInput(input.migrationId, input.leg);
+      checkFencedExpected(input.expectedRevision, state.revision);
+      const current = state.progress.get(input.migrationId) ?? null;
+      if (current !== null && current.phase === 'active') {
+        throw new Error('recordMigrationFailure: migration is already active.');
+      }
+      if (typeof input.error !== 'string' || input.error === '') {
+        throw new Error('recordMigrationFailure: error must be a non-empty string.');
+      }
+      const next = state.revision + 1;
+      state.progress.set(input.migrationId, {
+        migrationId: input.migrationId,
+        phase: 'failed',
+        stagedCursor: jsonCopy(input.stagedCursor),
+        publishCursor: jsonCopy(input.publishCursor),
+        updatedRevision: next as Revision,
+      });
+      state.failures.set(input.migrationId, {
+        migrationId: input.migrationId,
+        leg: input.leg,
+        priorPhase: input.priorPhase,
+        stagedCursor: jsonCopy(input.stagedCursor),
+        publishCursor: jsonCopy(input.publishCursor),
+        error: input.error,
+        at: input.at,
+        revision: next as Revision,
+      });
+      state.revision = next;
+      state.fenceLog.set(next, {
+        at: Date.now(),
+        operation: `migration:failed:${input.migrationId}`,
+      });
+      return { revision: next as Revision };
+    },
+
+    async discardStagedRows(input: DiscardStagedRows): Promise<CommitResult> {
+      // B3: ONE fenced write: delete staged rows plus the progress row, so
+      // a retry restages from scratch. The failure record (when any)
+      // survives as audit. Active progress refuses: no destructive
+      // rollback past the flip.
+      checkRecoveryInput(input.migrationId);
+      checkFencedExpected(input.expectedRevision, state.revision);
+      const current = state.progress.get(input.migrationId) ?? null;
+      if (current !== null && current.phase === 'active') {
+        throw new Error('discardStagedRows: migration is already active.');
+      }
+      const next = state.revision + 1;
+      state.staging.delete(input.migrationId);
+      state.progress.delete(input.migrationId);
+      state.revision = next;
+      state.fenceLog.set(next, {
+        at: Date.now(),
+        operation: `migration:discard:${input.migrationId}`,
+      });
+      return { revision: next as Revision };
+    },
+
+    async readMigrationFailure(migrationId: string): Promise<MigrationFailure | null> {
+      // B3: null when the migration never failed. Deep copy, like all reads.
+      const found = state.failures.get(migrationId) ?? null;
+      return found === null ? null : jsonCopy(found);
     },
   };
 }

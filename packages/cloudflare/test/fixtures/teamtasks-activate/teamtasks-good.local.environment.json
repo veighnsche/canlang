@@ -1,0 +1,1 @@
+{"environment":"local","resources":[{"requirement":{"binding":"DB","kind":"d1","logicalName":"teamtasks-db"},"resourceId":"local-d1"}],"secretsPresent":["MAIL_KEY"],"vars":{}}

@@ -41,6 +41,13 @@ export interface AssembledModules {
   dir: string;
   entryUrl: string;
   moduleUrls: Record<string, string>;
+  /**
+   * B3 I2: staged source-map file URLs keyed by artifact module path
+   * (sibling `<mod>.map` next to each staged `<mod>.js`). Optional so
+   * hand-built assemblies (tests, worker paths without staged maps) stay
+   * valid; `assembleModules` always populates it.
+   */
+  mapUrls?: Record<string, string>;
 }
 
 export interface AssembleModulesOptions {
@@ -160,13 +167,29 @@ export async function assembleModules(
   const dir = resolve(opts.workDir);
   await mkdir(dir, { recursive: true });
   const moduleUrls: Record<string, string> = {};
+  const mapUrls: Record<string, string> = {};
   for (const mod of modules) {
     const outPath = join(dir, mod.path);
     await mkdir(dirname(outPath), { recursive: true });
-    await writeFile(outPath, rewriteImports(mod.js, opts.stdlibUrl, uiUrl), "utf8");
+    // B3 I2: stage the artifact map beside the module and point at it, so
+    // plain Node can resolve staged frames. The comment is appended AFTER
+    // the last emitted line, so generated line numbers (and the map) stay
+    // valid.
+    const mapName = `${posix.basename(mod.path)}.map`;
+    const stagedJs = withSourceMappingURL(rewriteImports(mod.js, opts.stdlibUrl, uiUrl), mapName);
+    await writeFile(outPath, stagedJs, "utf8");
+    const mapPath = join(dirname(outPath), mapName);
+    await writeFile(mapPath, JSON.stringify(mod.map), "utf8");
     moduleUrls[mod.path] = pathToFileURL(outPath).href;
+    mapUrls[mod.path] = pathToFileURL(mapPath).href;
   }
   const entryUrl = moduleUrls[entry.path];
   if (entryUrl === undefined) throw new Error(`assembleModules: entry module missing: ${entry.path}`);
-  return { dir, entryUrl, moduleUrls };
+  return { dir, entryUrl, moduleUrls, mapUrls };
+}
+
+/** Append a trailing `sourceMappingURL` comment without shifting earlier lines. */
+function withSourceMappingURL(js: string, mapName: string): string {
+  const comment = `//# sourceMappingURL=${mapName}\n`;
+  return js.endsWith("\n") ? `${js}${comment}` : `${js}\n${comment}`;
 }
