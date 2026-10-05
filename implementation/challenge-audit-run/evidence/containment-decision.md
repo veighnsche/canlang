@@ -234,7 +234,8 @@ with a diagnostic pointing at the facet; bound parents rejected regardless.
    facet mechanism exists; owner willingness is UNKNOWABLE from source
    alone and must be carried by JEV as a design choice, not an
    empirical finding).
-5. Storage-engine input: can cross-package subtree archive be atomic in the
+5. [QUALIFIED — see "Storage atomicity (gate evidence)" below]
+   Storage-engine input: can cross-package subtree archive be atomic in the
    included-store case (A/D), and what fails if deployments split?
 6. Coordinator-run JEV protocol: three fresh equivalent independently worded
    formulations, saved responses + uncertainty, disagreement investigated.
@@ -820,6 +821,267 @@ facet rule is identity-specific or general over plain imports.
 
 - Writer: L3 T28-facet-stance slice. Appended this section and
   marked checklist item 4 qualified above; no other text altered. No
+  JEV run; no Git; no other files touched.
+- Release: `implementation/challenge-audit-run/evidence/containment-decision.md`
+  is RELEASED to the coordinator for JEV-gate scheduling.
+
+## Storage atomicity (gate evidence)
+
+Status: **PREP evidence — adopts NOTHING.** QUALIFIES checklist item 5
+(see mark above): the included-store atomicity question is answered YES
+at the spec/contract level but UNPROVEN at the engine level (subtree
+cascade unimplemented, generated path interim), and the deployment-split
+failure is specified (fail before commit, no cross-store transaction)
+while the split-time diagnostic is ABSENT. Alternatives A–D, fairness
+record, and remaining checklist item 6 are unchanged; JEV still not run.
+
+Method: read-only survey of DESIGN.md §§1/5/7–8/11 storage and
+ownership rules, DECISIONS.md persistence entries, the
+`@canlang/state` engine (`storage/`, `mutation/`, `invocation/`,
+`ports/`, `migration/`), the `StoragePort`/`CommitBatch` contracts,
+the compiler effects pass, the Cloudflare worker assembly seam, the
+B1 interim runtime headers, and all `draft/**/*.can` store/binding
+declarations (`at=`, `binding`, `context`). Read-only; no builds, no
+edits outside this file. Question asked: in the included-store case
+(A/D plain imports), can a cross-package subtree archive be atomic —
+and what exactly fails if the deployments split?
+
+Headline: **spec YES, engine UNPROVEN, split behavior specified but
+unenforced.** The atomic unit is one owner commit on one store, and
+plain-import inclusion plus storage-owner inheritance put a
+cross-package parent and child in that same unit — so A/D atomicity
+follows from the design. But no engine code expands a delete to its
+subtree today, generated operations still commit through the B1
+interim path, and nothing fires a diagnostic at deployment-split
+time. Item 5 therefore cannot become COMPLETE without engine proof
+(T29/T16/T17 scope), which this prep must not claim.
+
+### CONFIRMED: one owner, one store, one atomic commit
+
+- The atomic unit is a single owner commit. DESIGN.md:532: "Every
+  mutation has one authoritative storage owner. D1 is the default."
+  DESIGN.md:362: "a mutation is already one atomic unit at its
+  inferred owner." DESIGN.md:338: "delete archives the row and its
+  contained subtree, atomically." The D1 protocol (DESIGN.md:551–556)
+  is one revision-fenced batch: assert revision, apply
+  writes/constraints/history/receipt/outbox, increment; mismatch
+  rolls back the entire batch.
+- The contract repeats the unit and the boundary.
+  `packages/contracts/src/state.ts:276-279`: "One atomic owner
+  commit. The store asserts `expectedRevision`, applies all
+  writes ... Any failure ... rolls back the entire batch."
+  `packages/contracts/src/state.ts:359-362`: "there is no
+  cross-store transaction. Raw adapter writes around the fence are
+  forbidden."
+- All three adapters implement single-store atomic commit.
+  `packages/state/src/storage/d1.ts:4-15`: every commit is ONE
+  `db.batch()` whose leading `fence_log` INSERT "fails atomically
+  and nothing is applied" on a stale revision.
+  `packages/state/src/storage/durable-object.ts:4-13` + `:80-85`:
+  same fence semantics through `transactionSync`, which is required
+  ("an untestable BEGIN/COMMIT fallback must not silently carry
+  atomicity"); environments without it are rejected loudly.
+  `packages/state/src/storage/memory.ts:538` provides the matching
+  fenced `commit`.
+- Invocation and assembly take exactly one store.
+  `packages/state/src/invocation/invoke.ts:89` (`store:
+  StoragePort`), `packages/state/src/ports/transact.ts:36-37`
+  ("the single-shot transaction port over one store"),
+  `packages/cloudflare/src/worker/assembly.ts:332,366` (single
+  `store: StoragePort` per assembled worker). The engine cannot
+  express a two-store commit, so multi-owner atomicity is not
+  merely unimplemented — it is inexpressible at this layer.
+  `packages/state/src/migration/index.ts:37-42` states the loud
+  assumption: "one store instance serves exactly one owner ... A
+  shared multi-owner store would mix layouts under one fence."
+
+### CONFIRMED: included-store co-location (the A/D case)
+
+- Plain imports include the owner package in the same deployment.
+  DESIGN.md:81: "A plain import of a production business symbol
+  includes the whole owning executable package internally."
+  DESIGN.md:19: "Every included package's resource references
+  resolve through these defaults or the selected app's merged
+  explicit context" (and dependency imports do not import another
+  app's context). DESIGN.md:599: "Whole-package dependencies
+  containing file fields use this same store, even when their
+  pages are unselected."
+- Containment inherits placement. DESIGN.md:95: a `Model in Parent`
+  child "inherits the parent's team and storage owner."
+  DESIGN.md:97: `Model at=Binding` moves team-scoped placement
+  while "explicit children retain inherited placement."
+- Consequence: under A/D, an imported parent and its cross-package
+  children sit at the same storage owner in the same store, so the
+  subtree archive of DESIGN.md:338 falls inside one atomic owner
+  commit. This is a spec-level entailment, not an engine
+  observation — see the qualification below.
+- The corpus exercises only this case. Zero `binding X
+  DurableObject` / `Model at=Binding` declarations exist in any
+  `draft/*.can` or `draft/shared/*.can` (grep exit 1, zero hits).
+  The only six `context` blocks (CanCatch.can:3, CanCreative.can:3,
+  CanGallery.can:3, CanInbox.can:3, CanKnowledge.can:3,
+  CanStats.can:3) declare files/queue/analytics only — no storage
+  bindings. All 20 R14 sites are therefore default-D1 team-scoped;
+  the `at=`-split topology is unexercised by every draft.
+- Subtree enumeration primitives exist in-store. All three
+  adapters filter by parent linkage: d1.ts:640-644,
+  durable-object.ts:1153 (`AND parent_model = ? AND parent_id =
+  ?`), memory.ts:512-516; the `records` table carries
+  `parent_model`/`parent_id` columns (schema.ts:41). A future
+  cascade can enumerate children without leaving the store.
+
+### CONFIRMED: the checker already rejects two cross-scope atomic shapes
+
+- E4040 (`compiler/src/analysis/effects.rs:29-33`, impl at :2815):
+  "`call` stays in one owner transaction, so its target must not
+  be a bound-imported (remote) operation; remote targets use
+  `send`." E4051 (effects.rs:41-43): an `on=every(...)` handler
+  spanning app- and team-scoped models is rejected (DESIGN.md:526:
+  "Mixed incompatible scope families or cross-owner atomic bodies
+  fail checking"). The pass is wired (`compiler/src/analysis/
+  mod.rs:30,123`) and tested (`compiler/tests/effects.rs`).
+- Weight: this proves the architecture enforces atomicity
+  boundaries at check time in principle — but neither rule keys on
+  package/deployment topology, so neither fires for a
+  deployment-split import. They are precedent, not coverage.
+
+### QUALIFIED: the cascade itself is unimplemented
+
+- Engine delete archives one row, not a subtree.
+  `packages/state/src/mutation/crud.ts:153-155`: delete "maps the
+  admitted call onto a single pipeline write" (`op: 'remove'` at
+  :298). `packages/state/src/mutation/pipeline.ts:691-705` sets
+  `archivedAt` on that row only; the remove path contains no
+  children query or expansion (the disposal scan at :408-412
+  rejects hard-remove targets with live referrers — a guard, not
+  a cascade).
+- `grep -rniE "cascad" packages/state/src packages/contracts/src`
+  returns exit 1, zero hits: no containment-cascade code exists in
+  the state engine or its contracts. (Corpus-wide, `cascad*`
+  appears only for identity membership recovery and interface
+  tests — unrelated to containment lifecycle.)
+- The generated path is not on the engine yet.
+  `packages/cloudflare/src/runtime/stdlib.ts:1-14` is the B1
+  interim data plane: direct fenced `StoragePort` commits with
+  `history: []`, `receipt: null`, full-row reads, and seven stubs
+  — its header requires L3 to "route create/set/deleteRecord
+  ... through the state engine." `packages/cloudflare/src/runtime/
+  invoke.ts:1-11` calls emitted handlers directly; canonical-invoke
+  parity "is a follow-up, not done here." So even single-package
+  subtree atomicity is unexercised through generated operations;
+  T16/T17 own that join and T24 owns atomic dispatch staging
+  (`implementation/CHALLENGE-AUDIT-PLAN.md:504`), all pending.
+- Net: Alternative A's stated cost — "storage engine must prove
+  same-store atomicity for cross-package subtrees"
+  (containment-decision.md:92-94) — stands CONFIRMED as open work.
+  The plan's standing caution applies verbatim: "Do not infer
+  cross-store atomicity" (`implementation/CHALLENGE-AUDIT-
+  PLAN.md:572`; likewise "respect D1/DO boundaries" at :304).
+
+### SPLIT: failure specified (CONFIRMED), split-time diagnostic ABSENT
+
+- What the spec says fails, in order of authority:
+  1. DESIGN.md:549: "A call targeting more than one owner
+     instance fails before commit" and business rules imply no
+     "cross-D1/DO transaction."
+  2. DESIGN.md:547: "Cross-owner joins/aggregates are forbidden
+     in business mutations", "A reference can identify another
+     owner but cannot imply an atomic read or write there",
+     "Invariants must live entirely within one owner",
+     "Cross-owner workflows use durable events and explicit
+     pending business state."
+  3. DESIGN.md:89: "An imported external interface does not
+     create local records, grant service authority or make remote
+     mutations atomic."
+  4. DESIGN.md:927-931: a composed app has "no aggregate schema
+     owner"; bound providers "are never migrated by a consumer";
+     "A newly included owner starts empty, without importing
+     another deployment's data."
+- So if A/D packages split into separate deployments, the atomic
+  subtree archive degrades to: parent archive commits alone while
+  children stay live elsewhere (orphans-by-topology), or the
+  multi-owner call is rejected before commit — with no durable
+  event bridge unless the app authors one. Which of the two
+  occurs at which call site is not pinned by any source read.
+- ABSENT: no check, diagnostic, or deployment-plan rule keys on
+  "these two packages used to share a store." E2008 rejects
+  imported containment wholesale today; E4040/E4051 key on
+  bound-vs-local and app-vs-team scope, not on deployment
+  topology; the migration plan matches logical owners to
+  snapshots (DESIGN.md:931) with no store-sharing assertion. The
+  "what diagnostic fires if deployment splits later" question
+  (containment-decision.md:100-102) therefore has no answer in
+  the sources — JEV must supply it or explicitly leave it open.
+
+### Per-finding alternatives discrimination
+
+- A (full containment): storage facts SUPPORT the included-store
+  core — same owner, same store, one atomic commit is the
+  designed unit, and the whole corpus sits in that topology by
+  default. They CONFIRM A's cost line (engine proof still owed)
+  and A's strongest opposing case: a future split silently
+  breaks the atomicity promise with no split-time diagnostic in
+  evidence. Fairness preserved: the opposing case is not
+  hypothetical — DESIGN.md:549/547/89 specify exactly the
+  failure (reject-before-commit or orphan-by-topology), while
+  nothing in the checker or deploy plan detects the split.
+- D (owner-consented facet): the A analysis transfers
+  conditionally wherever facets exist, exactly as the item-4
+  section transfers the site enumeration. Storage adds no new
+  facet machinery and no per-owner atomicity scope beyond what A
+  already has; a facet COULD carry a cascade-vs-orphan or
+  store-sharing bound, but no source gives that bound a syntax,
+  a check, or a default. D's "no atomicity gain" opposing case
+  stands undiminished by storage evidence.
+- B (reference-plus-scoping): storage facts SUPPORT B's
+  immunity — B never promises cross-package atomicity, so the
+  unimplemented cascade, the interim generated path, and the
+  split hazard all pass it by. This support is defensive only:
+  storage says nothing for or against B's orphan-rule choice
+  (item 3 already proved zero draft anchor for any orphan
+  variant), and nothing that softens B's strongest opposing
+  case — the silent two-meanings-of-`in` deletion drift, which
+  is a semantics objection no storage layer can answer.
+- C (remodel as references): storage facts are NEUTRAL on C —
+  with no cross-package containment there is no cross-package
+  atomicity question, so C avoids every risk above at its full
+  20-site migration price. Fairness preserved in the other
+  direction: the storage survey confirms C would discard a
+  spec-guaranteed atomicity semantic (DESIGN.md:338 over the
+  inherited owner of DESIGN.md:95) that the drafts' `in`
+  spelling claims and that references cannot reconstruct —
+  `send`/durable-event bridges (DESIGN.md:547) are explicit
+  pending-state workflows, not atomic commits. C's "checker
+  limitation, not semantic necessity" opposing case survives
+  the storage survey intact.
+
+### Commands run (read-only)
+
+1. `grep -n` line pins for every citation above (state.ts:276,
+   :359-362; d1.ts:5, :640-644; durable-object.ts:82, :1153;
+   memory.ts:512-516, :538; schema.ts:41; migration/index.ts:37;
+   invoke.ts:89; transact.ts:36; assembly.ts:332,366;
+   crud.ts:154, :298; pipeline.ts:691; effects.rs:29,41,2815;
+   mod.rs:30,123) — all exit 0 with the quoted text.
+2. `grep -rniE "cascad" packages/state/src
+   packages/contracts/src` — exit 1, zero hits (no engine
+   containment cascade).
+3. `grep -rnE "binding [A-Za-z0-9_]+ DurableObject|
+   at=[A-Z][A-Za-z0-9_]* \{" draft/*.can draft/shared/*.can`
+   — exit 1, zero hits (no draft storage bindings).
+4. `grep -rn "^context$" draft/*.can` — exit 0, six hits
+   (Catch/Creative/Gallery/Inbox/Knowledge/Stats :3); bodies
+   read in full — files/queue/analytics only.
+5. `sed` reads of stdlib.ts:1-14, invoke.ts:1-11, crud.ts:150-175,
+   migration/index.ts:28-43, DESIGN.md:530-559, and the six
+   draft context blocks — interim/generated-path and
+   co-location quotes verified verbatim.
+6. `grep -rn "E4040\|E4051" compiler/tests/ compiler/src
+   --include="*.rs" -l` — exit 0: effects.rs, types.rs,
+   explain.rs, tests/effects.rs (checks wired and tested).
+
+- Writer: L3 T28-storage-atomicity slice. Appended this section and
+  marked checklist item 5 qualified above; no other text altered. No
   JEV run; no Git; no other files touched.
 - Release: `implementation/challenge-audit-run/evidence/containment-decision.md`
   is RELEASED to the coordinator for JEV-gate scheduling.
