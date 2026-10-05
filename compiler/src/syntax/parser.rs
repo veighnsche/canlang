@@ -108,6 +108,21 @@ impl<'a> Cursor<'a> {
         self.peek2().is_some_and(|t| t.is_punct(Punct::Eq))
     }
 
+    /// Whether the upcoming tokens open a legacy `@{desc=...}`
+    /// annotation rather than a locale-variant message suffix. Both
+    /// share the `@{` marker; the `desc` key word disambiguates.
+    fn at_legacy_annotation(&self) -> bool {
+        let Some(rest) = self.toks.get(self.pos..) else {
+            return false;
+        };
+        rest.len() >= 4
+            && rest[0].is_punct(Punct::At)
+            && rest[1].is_punct(Punct::LBrace)
+            && rest[2].kind == TokenKind::Name
+            && rest[2].text(self.text) == "desc"
+            && rest[3].is_punct(Punct::Eq)
+    }
+
     fn word(&self) -> Option<&'a str> {
         match self.peek() {
             Some(token) if token.kind == TokenKind::Name => Some(token.text(self.text)),
@@ -2043,6 +2058,67 @@ impl<'a> Parser<'a> {
         }
     }
 
+    /// Parse a compact inline `desc=` description on a field or
+    /// parameter: a source-string literal with optional `@{...}` locale
+    /// variants (reusing message-suffix parsing), or a static
+    /// zero-parameter message path. Dynamic values, call arguments and
+    /// record-query tails are rejected here; whether a path names a
+    /// static message is a semantic check.
+    fn parse_description_value(
+        &mut self,
+        cursor: &mut Cursor<'a>,
+    ) -> Result<SyntaxNode, Fail> {
+        let mut kids = Vec::new();
+        let word = cursor.expect_name_is("desc")?;
+        self.builder.leaf(&mut kids, &word);
+        let eq = cursor.expect_p(Punct::Eq)?;
+        self.builder.leaf(&mut kids, &eq);
+        let value = match cursor.peek() {
+            Some(token) if token.kind == TokenKind::String => {
+                let token = cursor.next().expect("peeked string");
+                let mut literal_kids = Vec::new();
+                self.builder.leaf(&mut literal_kids, &token);
+                let literal = SyntaxNode::enclosing(SyntaxKind::Literal, literal_kids);
+                // A following `@{desc=...}` is the legacy trailing
+                // annotation, not a locale variant (the duplicate check
+                // in the caller rejects it); anything else under `@{`
+                // is a genuine message suffix.
+                if cursor.at_p(Punct::At) && !cursor.at_legacy_annotation() {
+                    self.parse_message_suffix(cursor, literal)?
+                } else {
+                    literal
+                }
+            }
+            Some(token) if token.kind == TokenKind::Name => {
+                let (path, _) = self.parse_path_node(cursor)?;
+                if cursor.at_p(Punct::LParen) {
+                    return Err(Fail::new(
+                        "E1214",
+                        "parameterized description references are not supported".to_string(),
+                        cursor.span_here(),
+                    ));
+                }
+                if matches!(
+                    cursor.word(),
+                    Some("archived" | "as" | "where" | "order" | "select")
+                ) {
+                    return Err(Fail::new(
+                        "E1214",
+                        "record queries are not valid descriptions".to_string(),
+                        cursor.span_here(),
+                    ));
+                }
+                path
+            }
+            _ => {
+                return cursor
+                    .err("E1214", "desc= requires a string literal or static message path");
+            }
+        };
+        self.builder.push_inner(&mut kids, value);
+        Ok(SyntaxNode::enclosing(SyntaxKind::DescriptionValue, kids))
+    }
+
     /// Parse a label value in the given closed shape.
     fn parse_label(
         &mut self,
@@ -2439,10 +2515,11 @@ impl<'a> Parser<'a> {
                 break;
             }
             let target = cursor.peek().cloned();
-            if !descs.is_empty() {
+            let attached = !descs.is_empty();
+            if attached {
                 self.push_inline_description(kids, descs, target.as_ref(), "field");
             }
-            let field = self.parse_field_or_param(cursor, false)?;
+            let field = self.parse_field_or_param(cursor, false, attached)?;
             self.builder.push_inner(kids, field);
             if !cursor.at_p(Punct::Comma) {
                 break;
@@ -2479,10 +2556,11 @@ impl<'a> Parser<'a> {
                 break;
             }
             let target = cursor.peek().cloned();
-            if !descs.is_empty() {
+            let attached = !descs.is_empty();
+            if attached {
                 self.push_inline_description(kids, descs, target.as_ref(), "parameter");
             }
-            let param = self.parse_field_or_param(cursor, true)?;
+            let param = self.parse_field_or_param(cursor, true, attached)?;
             self.builder.push_inner(kids, param);
             count += 1;
             if !cursor.at_p(Punct::Comma) {
@@ -2535,11 +2613,16 @@ impl<'a> Parser<'a> {
         self.builder.push_leaf(kids, node);
     }
 
-    /// Parse one schema field or signature parameter.
+    /// Parse one schema field or signature parameter. `attached` reports
+    /// an inline `#` description group preceding this declaration, so
+    /// duplicate descriptions stay structurally detectable: `#` never
+    /// combines with `desc=` or the legacy `@{desc}` annotation, and
+    /// those two never combine with each other.
     fn parse_field_or_param(
         &mut self,
         cursor: &mut Cursor<'a>,
         is_param: bool,
+        attached: bool,
     ) -> Result<SyntaxNode, Fail> {
         let mut kids = Vec::new();
         let name = cursor.expect_name()?;
@@ -2564,8 +2647,12 @@ impl<'a> Parser<'a> {
             required = true;
             self.builder.leaf(&mut kids, &mark);
         }
-        let field_stop: Stop =
-            &|w| matches!(w, "trim" | "min" | "max" | "unique" | "server" | "label");
+        let field_stop: Stop = &|w| {
+            matches!(
+                w,
+                "trim" | "min" | "max" | "unique" | "server" | "label" | "desc"
+            )
+        };
         let mut initialized = false;
         if cursor.at_p(Punct::Eq) {
             let eq = cursor.next().expect("peeked eq");
@@ -2620,9 +2707,31 @@ impl<'a> Parser<'a> {
         // missing comma (which would show `NAME:` or a delimiter).
         if let Some(word) = cursor.word()
             && word != "label"
+            && word != "desc"
             && cursor.peek_is_eq()
         {
             return cursor.err("E1203", format!("unsupported field modifier `{word}`"));
+        }
+        let mut described = false;
+        if cursor.at_name("desc") {
+            if attached {
+                return Err(Fail::new(
+                    "E1202",
+                    "duplicate description: `desc=` cannot follow an attached `#` description"
+                        .to_string(),
+                    cursor.span_here(),
+                ));
+            }
+            let desc = self.parse_description_value(cursor)?;
+            self.builder.push_inner(&mut kids, desc);
+            described = true;
+            if cursor.at_name("desc") {
+                return Err(Fail::new(
+                    "E1202",
+                    "duplicate `desc=` description on one declaration".to_string(),
+                    cursor.span_here(),
+                ));
+            }
         }
         if cursor.at_name("label") {
             let label_word = cursor.next().expect("peeked label");
@@ -2633,6 +2742,21 @@ impl<'a> Parser<'a> {
             self.builder.push_inner(&mut kids, label);
         }
         if cursor.at_p(Punct::At) {
+            if attached {
+                return Err(Fail::new(
+                    "E1202",
+                    "duplicate description: `@{desc}` cannot follow an attached `#` description"
+                        .to_string(),
+                    cursor.span_here(),
+                ));
+            }
+            if described {
+                return Err(Fail::new(
+                    "E1202",
+                    "duplicate description: `desc=` and `@{desc}` cannot combine".to_string(),
+                    cursor.span_here(),
+                ));
+            }
             let annotation = self.parse_annotation(cursor)?;
             self.builder.push_inner(&mut kids, annotation);
         }

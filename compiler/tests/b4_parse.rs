@@ -7,6 +7,12 @@
 //! * `delivery(...)`/`invocation(...)` type positions, `expose=` on crud,
 //!   page `refresh=` and form `import=csv`/`review=` must parse (B4
 //!   coverage NONE rows, already implemented in the Rust parser).
+//!
+//! D02a: field/parameter `desc=` compact descriptions (source string +
+//! optional keyed variants, or a static message path). Duplicate
+//! descriptions (`#` + `desc=` + legacy `@{desc}` in any combination),
+//! dynamic values, call arguments and record-query tails are rejected
+//! with located diagnostics.
 
 use canlang_compiler::analysis::{resolve, types};
 use canlang_compiler::diagnostic::Diagnostic;
@@ -288,5 +294,237 @@ package probe
         full.iter()
             .any(|d| d.code == "E2001" && d.message.contains("dup_check")),
         "review target resolves, got {full:?}"
+    );
+}
+
+// D02a: `desc=` inline descriptions (parser slice) -----------------------------
+
+/// Minimal complete source with one model field under test.
+fn desc_field_src(field: &str) -> String {
+    format!(
+        "app Shop\nGiven\n Gadget {{ {field} }}\n policy Gadget read=members\nWhen\n crud Gadget by=members fields=title\nThen\n page / title=\"Shop\"\n  breadcrumbs\n"
+    )
+}
+
+/// Minimal complete source with scenario parameters under test.
+fn desc_param_src(params: &str) -> String {
+    format!(
+        "app Shop\nGiven\n Gadget {{ title:text }}\n policy Gadget read=members\nWhen\n scenario approve({params}) by=members\n  do set gadget {{title=\"x\"}}\nThen\n page / title=\"Shop\"\n  breadcrumbs\n"
+    )
+}
+
+/// Value-node kinds inside each `DescriptionValue`, in document order.
+fn desc_value_kinds(tree: &SyntaxNode) -> Vec<SyntaxKind> {
+    tree.descendants()
+        .filter(|n| n.kind == SyntaxKind::DescriptionValue)
+        .map(|n| {
+            n.children
+                .last()
+                .map(|c| c.kind)
+                .unwrap_or(SyntaxKind::Error)
+        })
+        .collect()
+}
+
+/// Plain-string `desc=` parses on a field and on a parameter; the value
+/// stays a bare literal (no message wrapper without a suffix).
+#[test]
+fn desc_plain_string_on_field_and_param() {
+    let src = desc_field_src("title:text desc=\"Display title.\"");
+    let (tree, diags) = syntax::parse_source(file(), &src);
+    assert!(diags.is_empty(), "expected clean parse, got {diags:?}");
+    assert_eq!(count_kind(&tree, SyntaxKind::DescriptionValue), 1);
+    assert_eq!(desc_value_kinds(&tree), vec![SyntaxKind::Literal]);
+    assert!(tree.verify_coverage(src.len() as u32).is_ok());
+
+    let src = desc_param_src("note:text desc=\"Optional note.\"");
+    let (tree, diags) = syntax::parse_source(file(), &src);
+    assert!(diags.is_empty(), "expected clean parse, got {diags:?}");
+    assert_eq!(count_kind(&tree, SyntaxKind::DescriptionValue), 1);
+    assert_eq!(desc_value_kinds(&tree), vec![SyntaxKind::Literal]);
+    assert!(tree.verify_coverage(src.len() as u32).is_ok());
+}
+
+/// `desc=` with a `@{...}` suffix reuses message-variant parsing:
+/// keyed string/null variants fold into one `MessageValue`.
+#[test]
+fn desc_with_variants() {
+    let src = desc_field_src(
+        "name:text desc=\"The name shown to customers.\"@{nl=\"De naam die klanten zien.\", fr=null}",
+    );
+    let (tree, diags) = syntax::parse_source(file(), &src);
+    assert!(diags.is_empty(), "expected clean parse, got {diags:?}");
+    assert_eq!(count_kind(&tree, SyntaxKind::DescriptionValue), 1);
+    assert_eq!(desc_value_kinds(&tree), vec![SyntaxKind::MessageValue]);
+    assert_eq!(count_kind(&tree, SyntaxKind::MessageVariant), 2);
+    assert!(tree.verify_coverage(src.len() as u32).is_ok());
+}
+
+/// `desc=` accepts a static message path (zero-parameter shape is
+/// checked semantically; the parser keeps the path node).
+#[test]
+fn desc_message_path() {
+    let src = desc_field_src("title:text desc=Shop.labels.title");
+    let (tree, diags) = syntax::parse_source(file(), &src);
+    assert!(diags.is_empty(), "expected clean parse, got {diags:?}");
+    assert_eq!(count_kind(&tree, SyntaxKind::DescriptionValue), 1);
+    assert_eq!(desc_value_kinds(&tree), vec![SyntaxKind::Path]);
+    assert!(tree.verify_coverage(src.len() as u32).is_ok());
+}
+
+/// `desc=` delimits correctly against defaults, bounds and labels on
+/// both fields and parameters.
+#[test]
+fn desc_delimits_default_bounds_label() {
+    let src = desc_field_src(
+        "stock:int=0 desc=\"Units on hand.\", count:int min=1 max=9 desc=\"Bounded count.\", title:text desc=\"Display title.\" label=\"Title\"",
+    );
+    let (tree, diags) = syntax::parse_source(file(), &src);
+    assert!(diags.is_empty(), "expected clean parse, got {diags:?}");
+    assert_eq!(count_kind(&tree, SyntaxKind::DescriptionValue), 3);
+    // All three fields survive with their tails (scalar labels are
+    // bare captions, so there is no `Label` wrapper to count).
+    assert_eq!(count_kind(&tree, SyntaxKind::Field), 3);
+    assert!(tree.verify_coverage(src.len() as u32).is_ok());
+
+    let src = desc_param_src("n:int=3 desc=\"Count.\"");
+    let (tree, diags) = syntax::parse_source(file(), &src);
+    assert!(diags.is_empty(), "expected clean parse, got {diags:?}");
+    assert_eq!(count_kind(&tree, SyntaxKind::DescriptionValue), 1);
+    assert!(tree.verify_coverage(src.len() as u32).is_ok());
+}
+
+/// The legacy `@{desc="..."}` spelling still parses alone (locale keys
+/// inside stay invalid, pinned by `mcp_p4::desc_unknown_key_rejected`).
+#[test]
+fn desc_legacy_annotation_still_parses() {
+    let src = desc_field_src("title:text @{desc=\"x\"}");
+    let (tree, diags) = syntax::parse_source(file(), &src);
+    assert!(diags.is_empty(), "expected clean parse, got {diags:?}");
+    assert_eq!(count_kind(&tree, SyntaxKind::Annotation), 1);
+    assert_eq!(count_kind(&tree, SyntaxKind::DescriptionValue), 0);
+    assert!(tree.verify_coverage(src.len() as u32).is_ok());
+}
+
+/// Attached `#` plus `desc=` is a duplicate description, located at
+/// the `desc` word.
+#[test]
+fn desc_hash_plus_compact_rejected() {
+    let src = "app Shop\nGiven\n Gadget {\n  # Display title.\n  title:text desc=\"x\"\n }\n policy Gadget read=members\nWhen\n crud Gadget by=members fields=title\nThen\n page / title=\"Shop\"\n  breadcrumbs\n";
+    let (tree, diags) = syntax::parse_source(file(), src);
+    assert_eq!(codes(&diags), vec!["E1202"], "diags: {diags:?}");
+    assert!(diags[0].message.contains("duplicate"), "{}", diags[0].message);
+    let (start, _) = span_of(src, "desc=", 1);
+    assert_eq!(diags[0].primary.start, start);
+    assert_eq!(diags[0].primary.end, start + "desc".len() as u32);
+    assert!(count_kind(&tree, SyntaxKind::Error) >= 1);
+    assert!(tree.verify_coverage(src.len() as u32).is_ok());
+}
+
+/// Attached `#` plus the legacy annotation is a duplicate
+/// description, located at the `@` marker.
+#[test]
+fn desc_hash_plus_legacy_rejected() {
+    let src = "app Shop\nGiven\n Gadget {\n  # Display title.\n  title:text @{desc=\"x\"}\n }\n policy Gadget read=members\nWhen\n crud Gadget by=members fields=title\nThen\n page / title=\"Shop\"\n  breadcrumbs\n";
+    let (tree, diags) = syntax::parse_source(file(), src);
+    assert_eq!(codes(&diags), vec!["E1202"], "diags: {diags:?}");
+    assert!(diags[0].message.contains("duplicate"), "{}", diags[0].message);
+    let (start, _) = span_of(src, "@{", 1);
+    assert_eq!(diags[0].primary.start, start);
+    assert_eq!(diags[0].primary.end, start + 1);
+    assert!(count_kind(&tree, SyntaxKind::Error) >= 1);
+    assert!(tree.verify_coverage(src.len() as u32).is_ok());
+}
+
+/// `desc=` plus the legacy annotation on one declaration is a
+/// duplicate description, located at the `@` marker.
+#[test]
+fn desc_compact_plus_legacy_rejected() {
+    let src = desc_field_src("title:text desc=\"x\" @{desc=\"y\"}");
+    let (tree, diags) = syntax::parse_source(file(), &src);
+    assert_eq!(codes(&diags), vec!["E1202"], "diags: {diags:?}");
+    assert!(diags[0].message.contains("duplicate"), "{}", diags[0].message);
+    let (start, _) = span_of(&src, "@{", 1);
+    assert_eq!(diags[0].primary.start, start);
+    assert_eq!(diags[0].primary.end, start + 1);
+    assert!(count_kind(&tree, SyntaxKind::Error) >= 1);
+    assert!(tree.verify_coverage(src.len() as u32).is_ok());
+}
+
+/// A second `desc=` on one declaration is a duplicate description,
+/// located at the second `desc` word.
+#[test]
+fn desc_duplicate_compact_rejected() {
+    let src = desc_field_src("title:text desc=\"a\" desc=\"b\"");
+    let (tree, diags) = syntax::parse_source(file(), &src);
+    assert_eq!(codes(&diags), vec!["E1202"], "diags: {diags:?}");
+    let (start, _) = span_of(&src, "desc=", 2);
+    assert_eq!(diags[0].primary.start, start);
+    assert_eq!(diags[0].primary.end, start + "desc".len() as u32);
+    assert!(count_kind(&tree, SyntaxKind::Error) >= 1);
+    assert!(tree.verify_coverage(src.len() as u32).is_ok());
+}
+
+/// Dynamic `desc=` values are rejected, located at the value.
+#[test]
+fn desc_dynamic_rejected() {
+    let src = desc_field_src("title:text desc=42");
+    let (tree, diags) = syntax::parse_source(file(), &src);
+    assert_eq!(codes(&diags), vec!["E1214"], "diags: {diags:?}");
+    let (start, end) = span_of(&src, "42", 1);
+    assert_eq!(diags[0].primary.start, start);
+    assert_eq!(diags[0].primary.end, end);
+    assert!(count_kind(&tree, SyntaxKind::Error) >= 1);
+    assert!(tree.verify_coverage(src.len() as u32).is_ok());
+}
+
+/// Parameterized `desc=` references are rejected, located at the
+/// opening parenthesis.
+#[test]
+fn desc_parameterized_rejected() {
+    let src = desc_field_src("title:text desc=Shop.labels.title(x)");
+    let (tree, diags) = syntax::parse_source(file(), &src);
+    assert_eq!(codes(&diags), vec!["E1214"], "diags: {diags:?}");
+    assert!(
+        diags[0].message.contains("parameterized"),
+        "{}",
+        diags[0].message
+    );
+    let (start, _) = span_of(&src, "(x)", 1);
+    assert_eq!(diags[0].primary.start, start);
+    assert!(count_kind(&tree, SyntaxKind::Error) >= 1);
+    assert!(tree.verify_coverage(src.len() as u32).is_ok());
+}
+
+/// Record-query `desc=` values are rejected, located at the query
+/// clause word.
+#[test]
+fn desc_record_query_rejected() {
+    let src = desc_field_src("title:text desc=Member where active");
+    let (tree, diags) = syntax::parse_source(file(), &src);
+    assert_eq!(codes(&diags), vec!["E1214"], "diags: {diags:?}");
+    assert!(
+        diags[0].message.contains("record queries"),
+        "{}",
+        diags[0].message
+    );
+    let (start, end) = span_of(&src, "where", 1);
+    assert_eq!(diags[0].primary.start, start);
+    assert_eq!(diags[0].primary.end, end);
+    assert!(count_kind(&tree, SyntaxKind::Error) >= 1);
+    assert!(tree.verify_coverage(src.len() as u32).is_ok());
+}
+
+/// A duplicate locale inside the `desc=` suffix is rejected by the
+/// reused message-suffix parsing.
+#[test]
+fn desc_variant_duplicate_rejected() {
+    let src = desc_field_src("title:text desc=\"a\"@{nl=\"x\", nl=\"y\"}");
+    let (_tree, diags) = syntax::parse_source(file(), &src);
+    assert_eq!(codes(&diags), vec!["E1214"], "diags: {diags:?}");
+    assert!(
+        diags[0].message.contains("duplicate"),
+        "{}",
+        diags[0].message
     );
 }

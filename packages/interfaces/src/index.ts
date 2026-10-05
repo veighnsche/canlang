@@ -29,3 +29,4 @@ export * from './ingress/mapping.js';
 export * from './ingress/routes.js';
 export * from './oauth/metadata.js';
 export * from './oauth/routes.js';
+export * from './docs/reference.js';

@@ -82,6 +82,14 @@ pub enum SyntaxKind {
     /// parameter (flat `key = Literal` pairs under the marker; never a
     /// locale variant, so it stays out of message coverage).
     Annotation,
+    /// A compact inline `desc=` description on a field or parameter:
+    /// the `desc` word, `=`, and one static value (a source-string
+    /// [`SyntaxKind::Literal`] with optional `@{...}` locale variants
+    /// folded into a [`SyntaxKind::MessageValue`], or a static
+    /// zero-parameter message [`SyntaxKind::Path`). At most one
+    /// description slot per declaration: `#`, `desc=` and the legacy
+    /// `@{desc}` annotation never combine (the parser rejects pairs).
+    DescriptionValue,
     // Attributes and selectors -------------------------------------------
     Attribute,
     Selectors,

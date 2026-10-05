@@ -28,6 +28,7 @@ export * from "./examples.js";
 export * from "./files.js";
 export * from "./identity.js";
 export * from "./presentation.js";
+export * from "./reference.js";
 export * from "./services.js";
 export * from "./state.js";
 export * from "./values.js";
