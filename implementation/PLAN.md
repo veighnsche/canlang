@@ -1,5 +1,7 @@
 # CanLang implementation: seven parallel owners
 
+See the [living ideal file-tree plan](../docs/ideal-filetree-plan.md) for deferred repository organization. After every merge, its handler reconciles all changes since the checkpoint and updates it; plan maintenance does not authorize the refactor.
+
 Status: implementation plan, October 4, 2026. The user will launch the Muse coordinators. This plan implements no compiler, library or infrastructure code and starts no Muse sessions. Repository: https://github.com/veighnsche/canlang (private), main. Read [the common execution protocol](WORKFLOW.md), [shared boundaries](CONTRACTS.md), [diagnostic policy](DIAGNOSTICS.md), then the lane prompt.
 
 ## Outcome and evidence
