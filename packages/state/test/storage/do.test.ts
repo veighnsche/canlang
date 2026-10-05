@@ -124,6 +124,10 @@ function doProxy(): StoragePort {
     publishMigrationChunk: (input) => call('publishMigrationChunk', input),
     flipInstalledSnapshot: (input) => call('flipInstalledSnapshot', input),
     readMigrationOutcomes: (migrationId) => call('readMigrationOutcomes', migrationId),
+    // B3 recovery intakes (generic proxy: the worker dispatches by name).
+    recordMigrationFailure: (input) => call('recordMigrationFailure', input),
+    discardStagedRows: (input) => call('discardStagedRows', input),
+    readMigrationFailure: (migrationId) => call('readMigrationFailure', migrationId),
   };
 }
 

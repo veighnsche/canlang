@@ -282,7 +282,7 @@ pub fn dispatch_with(argv: &[String], analyzer: &dyn Analyzer) -> DispatchResult
     };
     match cmd.as_str() {
         "check" => run_check_like(cmd, &parsed.operands, parsed.format, analyzer),
-        "lint" => run_lint(&parsed.operands, parsed.format, analyzer),
+        "lint" => run_lint(&parsed.operands, parsed.format, parsed.fix, analyzer),
         "compile" => run_compile(&parsed.operands, parsed.format, analyzer),
         "fmt" => {
             if parsed.format_set {
@@ -308,6 +308,7 @@ pub fn dispatch_with(argv: &[String], analyzer: &dyn Analyzer) -> DispatchResult
             }
             run_explain(&parsed.operands, parsed.format)
         }
+        "policy" => run_policy(&parsed.operands, parsed.format, analyzer),
         "lsp" => {
             if parsed.format_set {
                 return DispatchResult::tool_error(
@@ -334,7 +335,7 @@ pub fn dispatch_with(argv: &[String], analyzer: &dyn Analyzer) -> DispatchResult
                 run_lsp: true,
             }
         }
-        "run" | "test" | "build" | "deploy" => {
+        "run" | "test" | "build" | "deploy" | "activate" => {
             if parsed.format_set || parsed.catalog_set {
                 return DispatchResult::tool_error(
                     "E7001",
@@ -363,17 +364,19 @@ fn is_known_command(cmd: &str) -> bool {
             | "fmt"
             | "explain"
             | "lsp"
+            | "policy"
             | "run"
             | "test"
             | "build"
             | "deploy"
+            | "activate"
     )
 }
 
 /// Thin lane-7 entries: flag parsing stops at these; everything after is
 /// child args passed verbatim to `can-platform`.
 fn is_thin_entry(cmd: &str) -> bool {
-    matches!(cmd, "run" | "test" | "build" | "deploy")
+    matches!(cmd, "run" | "test" | "build" | "deploy" | "activate")
 }
 
 struct ParsedArgs {
@@ -389,6 +392,9 @@ struct ParsedArgs {
     /// that take none, rather than silently ignored).
     catalog_set: bool,
     fmt_check: bool,
+    /// `can lint --fix`: compute machine fixes and report them (JSON
+    /// gains a sorted `fixes` array; text gains one `fix` line each).
+    fix: bool,
     help: bool,
     version: bool,
 }
@@ -402,6 +408,7 @@ fn parse_args(args: &[String]) -> Result<ParsedArgs, String> {
         catalog: None,
         catalog_set: false,
         fmt_check: false,
+        fix: false,
         help: false,
         version: false,
     };
@@ -421,6 +428,8 @@ fn parse_args(args: &[String]) -> Result<ParsedArgs, String> {
                 parsed.version = true;
             } else if arg == "--check" {
                 parsed.fmt_check = true;
+            } else if arg == "--fix" {
+                parsed.fix = true;
             } else if let Some(value) = arg.strip_prefix("--format=") {
                 parsed.format = parse_format(value)?;
                 parsed.format_set = true;
@@ -465,6 +474,9 @@ fn parse_args(args: &[String]) -> Result<ParsedArgs, String> {
     if parsed.fmt_check && parsed.subcommand.as_deref() != Some("fmt") {
         return Err("--check only applies to can fmt".to_string());
     }
+    if parsed.fix && parsed.subcommand.as_deref() != Some("lint") {
+        return Err("--fix only applies to can lint".to_string());
+    }
     Ok(parsed)
 }
 
@@ -495,14 +507,16 @@ Commands:
   fmt       Format sources in place (or check with --check)
   explain   Print a diagnostic catalog entry: can explain E1001
   lsp       Run the language server over stdio (Content-Length JSON-RPC)
+  policy    Dump the declared policy surface (roles, policies, operation gates)
   run       Thin lane-7 entry: exec can-platform run (passthrough)
   test      Thin lane-7 entry: exec can-platform test (passthrough)
   build     Thin lane-7 entry: exec can-platform build (passthrough)
   deploy    Thin lane-7 entry: exec can-platform deploy (passthrough)
+  activate  Thin lane-7 entry: exec can-platform activate (passthrough)
 
 Options:
-  --format=json|text   Machine or human output (check, compile, lint, explain)
-  --catalog=PATH       Producer catalog (check, compile, lint; else CAN_CATALOG,
+  --format=json|text   Machine or human output (check, compile, lint, explain, policy)
+  --catalog=PATH       Producer catalog (check, compile, lint, policy; else CAN_CATALOG,
                        ./can-catalog.json, ./packages/values/dist/catalog.json)
   -h, --help           Show help (global or `can <COMMAND> --help`)
   -V, --version        Show version
@@ -519,13 +533,16 @@ fn command_help(cmd: &str) -> String {
             "can {cmd} — analyze sources and report diagnostics (full pipeline over the producer catalog; result is complete=true)\n\nUsage: can {cmd} [--format=json|text] [--catalog=PATH] FILE.can...\n\nCatalog order: --catalog PATH, CAN_CATALOG, ./can-catalog.json, ./packages/values/dist/catalog.json (emit it with `npm run catalog` in packages/values). Without a catalog, builtin names do not resolve.\n\nExit codes: 0 clean, 10 errors reported, 2 tool failure.\n"
         ),
         "lint" => format!(
-            "can {cmd} — analyze sources, then run lint rules over the checked program (recommended rules; warnings/informational only, never blocking)\n\nUsage: can {cmd} [--format=json|text] [--catalog=PATH] FILE.can...\n\nAnalysis errors report diagnostics with exit 10 and no lint findings. On a clean analysis the lint findings print as the diagnostic envelope (exit 0: warnings never block).\n\nExit codes: 0 findings-or-clean, 10 analysis errors reported, 2 tool failure.\n"
+            "can {cmd} — analyze sources, then run lint rules over the checked program (recommended rules; warnings/informational only, never blocking)\n\nUsage: can {cmd} [--fix] [--format=json|text] [--catalog=PATH] FILE.can...\n\nAnalysis errors report diagnostics with exit 10 and no lint findings. On a clean analysis the lint findings print as the diagnostic envelope (exit 0: warnings never block). With --fix, machine fixes are computed and reported (JSON gains a sorted `fixes` array; text gains one `fix` line per fix); nothing is written.\n\nExit codes: 0 findings-or-clean, 10 analysis errors reported, 2 tool failure.\n"
         ),
         "compile" => "can compile — analyze sources and emit the compile artifact\n\nUsage: can compile [--format=json|text] [--catalog=PATH] FILE.can...\n\nText lists one emitted module path per line; json prints the artifact envelope. Analysis or emission errors (E6006/E6007/E6008) report diagnostics instead of an artifact.\n\nExit codes: 0 emitted, 10 errors reported, 2 tool failure.\n".to_string(),
         "explain" => "can explain — print a diagnostic catalog entry\n\nUsage: can explain [--format=json|text] CODE\n\nExit codes: 0 printed, 2 unknown code (E7003) or bad usage.\n".to_string(),
         "fmt" => "can fmt — format sources canonically\n\nUsage: can fmt [--check] [FILE.can...|-]\n\nFormats each file in place, writing only files that change. With no operands, or `-`, reads stdin and writes the formatted text to stdout. `--check` writes nothing and lists the files that differ instead. Parse failures print the machine-JSON diagnostic envelope on stdout and write nothing. Exit codes: 0 clean, 10 errors or differences reported, 2 tool failure.\n".to_string(),
         "lsp" => "can lsp — run the language server over stdio\n\nUsage: can lsp\n\nSpeaks Content-Length JSON-RPC; see the transport module docs.\n".to_string(),
-        "run" | "test" | "build" | "deploy" => format!(
+        "policy" => format!(
+            "can {cmd} — dump the declared policy surface (roles, model policies/invariants, operation gates)\n\nUsage: can {cmd} [--format=json|text] [--catalog=PATH] FILE.can...\n\nReads the checked program and prints the policy surface in source order.\nExit codes: 0 clean, 10 errors reported, 2 tool failure.\n"
+        ),
+        "run" | "test" | "build" | "deploy" | "activate" => format!(
             "can {cmd} — thin lane-7 entry (passthrough to can-platform)\n\nUsage: can {cmd} [ARGS...]\n\nExecs `can-platform {cmd}` with argument passthrough when the lane-7\nproducer is installed, else reports missing-producer error E7004.\nEverything after the subcommand passes through verbatim, flags\nincluded (`can {cmd} --help` asks the platform tool; use\n`can --help {cmd}` to see this text). `can` never embeds a second\nplatform engine. Override search with CAN_PLATFORM_BIN. The child\nprocess exit code passes through; a signal-killed child maps to\nexit 2.\n"
         ),
         unknown => format!("unknown command '{unknown}'; use can --help\n"),
@@ -655,6 +672,85 @@ fn run_compile(
 
 /// Render diagnostics with exit 10: shared by the analysis-error and
 /// emission-error paths of [`run_compile`].
+/// Success prints the policy surface: the JSON dump as json, one
+/// declaration per line as text (source order).
+fn run_policy(
+    operands: &[String],
+    format: OutputFormat,
+    analyzer: &dyn Analyzer,
+) -> DispatchResult {
+    if operands.is_empty() {
+        return DispatchResult::tool_error(
+            "E7001",
+            "can policy expects at least one FILE.can operand".to_string(),
+        );
+    }
+    let mut db = SourceDb::new();
+    let mut files = Vec::new();
+    for path in operands {
+        let text = match std::fs::read_to_string(path) {
+            Ok(text) => text,
+            Err(err) => {
+                return DispatchResult::tool_error("E7002", format!("cannot read '{path}': {err}"));
+            }
+        };
+        files.push(db.add(path.clone(), text));
+    }
+    let owned = analyzer.analyze_owned(&db, tool_version());
+    let mut result = owned.result;
+    result.finish();
+    if result.has_errors() {
+        return emit_diagnostics(&result, &db, format);
+    }
+    let Some(program) = owned.program else {
+        return DispatchResult::tool_error(
+            "E7001",
+            "can policy needs a pipeline analyzer; this backend keeps no checked program (production dispatch always passes one)".to_string(),
+        );
+    };
+    let dump = crate::policy::policy_dump(&db, &program, &files);
+    let stdout = match format {
+        OutputFormat::Json => format!("{}\n", crate::policy::policy_dump_json(&dump)),
+        OutputFormat::Text => {
+            let mut out = String::new();
+            for role in &dump.roles {
+                out.push_str(&format!("role {}\n", role.canonical));
+            }
+            for model in &dump.models {
+                out.push_str(&format!("model {}\n", model.canonical));
+                for policy in &model.policies {
+                    out.push_str(&format!("  policy {}={}\n", policy.kind, policy.grantee));
+                    if let Some(pred) = &policy.where_predicate {
+                        out.push_str(&format!("    where {pred}\n"));
+                    }
+                }
+                for invariant in &model.invariants {
+                    out.push_str(&format!("  invariant {}\n", invariant.predicate));
+                }
+            }
+            for op in &dump.operations {
+                out.push_str(&format!("operation {} {}\n", op.kind, op.canonical));
+                if let Some(by) = &op.by {
+                    out.push_str(&format!("  by {by}\n"));
+                }
+                if let Some(when) = &op.when {
+                    out.push_str(&format!("  when {when}\n"));
+                }
+                for require in &op.requires {
+                    out.push_str(&format!("  require {require}\n"));
+                }
+            }
+            out
+        }
+    };
+    DispatchResult {
+        code: exit::OK,
+        stdout,
+        stderr: String::new(),
+        run_lsp: false,
+    }
+}
+
 fn emit_diagnostics(
     result: &DiagnosticResult,
     db: &SourceDb,
@@ -833,7 +929,18 @@ fn run_fmt(operands: &[String], check: bool) -> DispatchResult {
 /// clean analysis the lint findings (recommended rules;
 /// warnings/informational only) print as the diagnostic envelope
 /// with exit 0 — warnings never block.
-fn run_lint(operands: &[String], format: OutputFormat, analyzer: &dyn Analyzer) -> DispatchResult {
+///
+/// With `fix` (`--fix`), machine fixes are computed and reported:
+/// JSON gains a sorted `fixes` array (see [`crate::lint::driver`]
+/// fix-JSON shape), text gains one `fix` line per fix. Without `fix`
+/// the output path is untouched and byte-identical to before. Nothing
+/// is ever written: `--fix` reports, the agent applies.
+fn run_lint(
+    operands: &[String],
+    format: OutputFormat,
+    fix: bool,
+    analyzer: &dyn Analyzer,
+) -> DispatchResult {
     if operands.is_empty() {
         return DispatchResult::tool_error(
             "E7001",
@@ -864,7 +971,7 @@ fn run_lint(operands: &[String], format: OutputFormat, analyzer: &dyn Analyzer) 
     };
     let config = crate::lint::LintConfig {
         enabled: crate::lint::RuleSet::recommended(),
-        fix: false,
+        fix,
         deprecated: owned
             .catalog
             .as_ref()
@@ -874,9 +981,44 @@ fn run_lint(operands: &[String], format: OutputFormat, analyzer: &dyn Analyzer) 
         result.push(finding);
     }
     result.finish();
+    let fixes = crate::lint::collect_fixes(&program, &db, &config);
     let stdout = match format {
-        OutputFormat::Json => format!("{}\n", result.to_json()),
-        OutputFormat::Text => result.to_text(&db),
+        OutputFormat::Json => {
+            let envelope = result.to_json();
+            if !fix {
+                format!("{envelope}\n")
+            } else {
+                // The envelope always ends with `}`; splice the sorted
+                // fixes array in as the final key.
+                let mut with_fixes = envelope;
+                with_fixes.pop();
+                with_fixes.push_str(",\"fixes\":");
+                with_fixes.push_str(&crate::lint::driver::fixes_to_json(&fixes));
+                with_fixes.push_str("}\n");
+                with_fixes
+            }
+        }
+        OutputFormat::Text => {
+            let mut text = result.to_text(&db);
+            if fix {
+                use crate::source::LineIndex;
+                for lint_fix in &fixes {
+                    let (path, line, col) = match db.get(lint_fix.file) {
+                        Some(source) => {
+                            let index = LineIndex::new(&source.text);
+                            let (line, col) = index.line_col(&source.text, lint_fix.span.start);
+                            (source.path.as_str(), line, col)
+                        }
+                        None => ("<unknown>", 1, 1),
+                    };
+                    text.push_str(&format!(
+                        "{path}:{line}:{col}: fix {} {}\n",
+                        lint_fix.rule, lint_fix.title
+                    ));
+                }
+            }
+            text
+        }
     };
     DispatchResult {
         code: exit::OK,

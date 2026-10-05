@@ -130,6 +130,7 @@ pub fn emit(
             modules: Vec::new(),
             callables: Vec::new(),
             pages: Vec::new(),
+            migrations: Vec::new(),
             requires: Vec::new(),
             tests: Vec::new(),
         };
