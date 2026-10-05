@@ -372,6 +372,7 @@ where authority is required.
    live role-revocation event" is ledger-silent with no T01 root.
    Adjudicate what revocation timeliness the Grant workflow intends
    (immediate vs eventual) before the gate picks a revocation fence.
+   [COMPLETE — revocation-note writer: see "Revocation-timeliness adjudication (gate evidence)" below.]
 4. R29 input from T23: whether behavior examples may observe through
    input bindings or must reload stored state — every alternative's
    T32b proof tests inherit this.
@@ -841,3 +842,145 @@ tasks/monitor/inbox edits.
 
 Release: implementation/challenge-audit-run/evidence/read-decision.md is
 RELEASED to the coordinator for JEV-gate scheduling.
+
+## Revocation-timeliness adjudication (gate evidence)
+
+Writer: L3 T32a-revocation-note. Status: **PREP — adopts NOTHING.**
+Method: full read of `draft/CanGrant.can` L1-446 (all grant/role-check/
+revocation paths, examples, policies) + read-only `rg` census for absence
+confirmation + `draft/shared/Employees.can` L6-25 (imported `deactivate`/
+`can_work` definitions, read-only). Checklist item 3 only; all other
+checklist text, alternatives A-D, and fairness record UNCHANGED.
+
+Verdict: **NOT silent — immediate live-membership revocation; static role
+grants explicitly excluded as a revocation channel.** Partially silent on
+exactly one point: no in-flight (admit-then-revoke-before-commit) timing
+evidence exists. Details and read ranges below; no intent invented.
+
+### §1 — the two authority channels in Grant (every path traced)
+
+Static role channel (grants, never revoked in-workflow):
+
+- Role declarations: Grant:16-17 (`coordinator`, `reviewer`).
+- Fixture grants: Grant:60-64 (`reviewer_user`/`replacement_user`
+  `roles=[reviewer]`, `coordinator_user` `roles=[coordinator]`, `hr_user`
+  `roles=[hr]`, `ordinary_user` `{}`).
+- Role checks: `by=` admission atoms (Grant:73,74,275,293,312,322; page
+  gates :375,379) and `reviewer(x)` predicate calls (Grant:54,83,215,
+  261,295,296).
+- Absence (confirmed by `rg`, not assumed): zero in-workflow mutations of
+  `user.roles` — `rg 'set .*roles|grant\(|revoke'` returns ONLY the four
+  fixture lines; no scenario creates, grants, or revokes a role. Grant
+  never contains the substring `revok` except the L93 note itself.
+
+Live membership channel (the actual revocation path):
+
+- `can_work` imported from employee (Grant:7); conjoined in 10 policy
+  lines (Grant:34,35,37-43), 2 crud `when=` (Grant:73,74), 1 lock `when=`
+  (Grant:54 — the ONLY authority call among 48 lock guards, per §1d),
+  requires (Grant:83,215,239,260,261,276,294,295,296,313,323), page
+  Grant:390.
+- Definition (Employees.can:9): `can_work` holds iff some Employee row
+  has `e.active` AND `active_member` AND a location match.
+- Revocation op (Employees.can:18-21): `deactivate` by `hr`, sets
+  `active=false`, emits `EmployeeChanged`. Grant's only call site:
+  Grant:183 (`call deactivate {employee=colleague,...} by=hr_user`,
+  where `colleague` is `reviewer_user`'s Employee row per Grant:68).
+
+### §2 — post-revocation behavior IS asserted (timeliness verdict)
+
+Sequence Grant:169-201 (seed includes `colleague`, `replacement_worker`,
+`coordinator_worker`, `hr_user`):
+
+- Grant:183: `deactivate` succeeds. Grant:184, the immediately following
+  line: `colleague.active,reviewer(reviewer_user),can_work(
+  reviewer_user,test_site) -> false,true,false` — the static `reviewer()`
+  grant SURVIVES deactivation (`true`) while live `can_work` flips
+  (`false`). This observation IS the L93 note's exact meaning, asserted
+  as an example row.
+- Grant:185: `decide` by the deactivated reviewer → `error(rule_failed)`
+  (require `can_work` at Grant:276). Zero intervening operations between
+  the revoke (L183) and the denial (L185): **immediate effect**.
+- Grant:189: `recover` to `replacement_user` succeeds (require Grant:295
+  second disjunct, `not can_work`); Grant:195: old reviewer `decide` →
+  `error(rule_failed)` again; Grant:196: replacement `decide` succeeds;
+  Grant:201: final approval assertions.
+- Caveat (honest): L93 sentence 1 says these sequences use proposed,
+  parser-unsupported `do` grammar — L183-185 are draft-authoritative
+  intent (RQ01), not yet-executable shape. The verdict rests on intent,
+  which is what this gate adjudicates.
+- Eventual timeliness has ZERO support: no example anywhere in L1-446
+  shows a post-deactivation success or a tolerated stale read. Any
+  eventual-revocation variant would contradict Grant:184-185.
+
+### §3 — confirmed silences (read ranges, no invention)
+
+- No static-role revocation event exists in the workflow (see §1
+  absence). `recover` Grant:295's first disjunct (`not reviewer(...)`)
+  is exercised only by static fixture difference (Grant:303:
+  `ordinary_user` as reviewer → success), never by a grant→revoke
+  transition. The workflow contemplates role-loss as a recovery trigger
+  but never models it as an event.
+- No in-flight timing: nothing revokes between admission/read and
+  commit within one operation; no concurrent/interleaved shape exists.
+  Stale-version conflicts ARE asserted (Grant:192,231,291,310: wrong
+  `request.*.version` → `error(conflict)`) but those are version
+  fencing, not revocation. DESIGN L291 "already admitted may finish"
+  therefore remains UNANSWERED by Grant — genuine partial silence,
+  still a JEV question under every alternative.
+- No post-deactivation policy-read denial example: policies conjoin
+  `can_work` (denial follows by rule) but no `->` row after Grant:183
+  asserts a read denial. The timeliness verdict rests on the
+  `decide`/`recover`/`can_work` observations, not on reads.
+
+### §4 — alternatives discrimination (supports/constrains)
+
+- Timing: A-D as specified are ALL immediate, hence all COMPATIBLE
+  with §2; the finding rules out adding an eventual-revocation
+  variant but does not separate A from B from C from D on timing.
+- Fence-scope constraint on ALL alternatives: the revocation fence
+  must enroll LIVE membership state (`Employee.active` / `can_work` /
+  `active_member`), never static role atoms alone — Grant:184 proves
+  a role-grant-keyed fence would wrongly allow Grant:185's `decide`
+  (`reviewer()` stayed `true`). Concretely: A must revalidate
+  `can_work` at commit, not just `by=` atoms; C must pin membership
+  rows as authority pins; D's revocation list must record membership
+  changes (it cannot be the roles table); B must re-read `can_work`
+  per effect rather than caching `by=` admission.
+- A-vs-C coupling: Grant is a contended witness — `can_work` in 10
+  policy lines plus 7+ guards means every `deactivate`/membership
+  write can void in-flight Grant ops under A's database-wide
+  revision assertion. Supports C's motivation; C's narrowed-
+  assertion implementability stays JEV-PENDING.
+- D: Grant contains no portable/expirable authorization artifact
+  anywhere in L1-446, and L93 explicitly disclaims static grants as
+  the revocation channel — reinforces D's "machinery without a
+  customer" opposing case for this workflow.
+- B/R29 note: Grant:184's observation row is itself a display read
+  asserting predicate outcomes (same class as §1e review inputs) —
+  usable for display, unusable for authorization under any
+  alternative; T23/R29 input (checklist item 4) governs its proof
+  status.
+
+### §5 — commands run + release
+
+Read-only inspection only (no builds, no Git, no JEV —
+tools/jev.py untouched):
+
+1. Full read `draft/CanGrant.can` L1-446 (this file's sole intent
+   source) + `draft/shared/Employees.can` L6-25 (imported
+   `deactivate`/`can_work` definitions).
+2. `rg -n 'roles=|deactivate|revok|active|can_work\(|reviewer\('
+   draft/CanGrant.can` — every grant/role/revocation path (§1).
+3. `rg -n 'set .*roles|roles.*=|grant\(|revoke'
+   draft/CanGrant.can` — only the four fixture lines: no
+   in-workflow role mutation (§1 absence).
+4. `rg -n 'deactivate|can_work|active'
+   draft/shared/Employees.can` — Employees.can:6-25 (§1 definitions).
+
+Checklist item 3 is COMPLETE per the gate-needs text; items 4-8
+untouched (coordinator-owned). Prep status preserved: adopts
+NOTHING; no code, no normative-doc, no tasks/monitor/inbox edits.
+
+Release: implementation/challenge-audit-run/evidence/read-decision.md
+is RELEASED to the coordinator for JEV-gate scheduling.
