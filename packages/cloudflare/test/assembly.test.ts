@@ -401,7 +401,11 @@ describe("buildInvoker", () => {
       dir,
       "ops.mjs",
       `export function canApp() {
-        return { Shop: { echo: async (c, input) => ({ echoed: input.operation_id, caller: c.caller.userId, member: c.memberships.includes("members") }) } };
+        return {
+          // B7: the op declares its admission gate (absent policy
+          // entries deny) so the member success path still commits.
+          policy: { operations: { "fixture.echo": { by: ["members"] } } },
+          Shop: { echo: async (c, input) => ({ echoed: input.operation_id, caller: c.caller.userId, member: c.memberships.includes("members") }) } };
       }`,
     );
     const artifact = scenarioArtifact("ops.mjs", [{ op: "fixture.echo", fn: "echo", params: [] }]);
@@ -459,17 +463,19 @@ describe("buildInvoker", () => {
     expect(committed.result).toEqual({ echoed: operationId, caller: member.user_id, member: true });
   });
 
-  it("anonymous caller maps to the labeled anonymous identity", async () => {
-    // T17c (rule a): SAME expectation byte-identically, now through the
-    // canonical scenario seam (null actor -> "anonymous" with empty
-    // roles/memberships) instead of the retired interim bridge. The
-    // empty memory identity store proves no membership is invented.
+  it("gateless operations deny anonymous callers with typed denial", async () => {
+    // B7 flip (joint decision overturns interim-exact ungated
+    // admission): the op declares NO gate, so the absent entry
+    // transcribes to {not: public} and the anonymous caller is
+    // denied with the engine's owning reason — the handler never
+    // runs, nothing commits. (The labeled-anonymous identity
+    // mapping itself is unchanged; admission now refuses first.)
     const dir = tempDir();
     const url = writeModule(
       dir,
       "ops.mjs",
       `export function canApp() {
-        return { Shop: { echo: async (c, input) => ({ caller: c.caller.userId, roles: c.caller.roles.length, member: c.memberships.length }) } };
+        return { Shop: { echo: async () => ({ never: true }) } };
       }`,
     );
     const artifact = scenarioArtifact("ops.mjs", [{ op: "fixture.echo", fn: "echo", params: [] }]);
@@ -480,18 +486,24 @@ describe("buildInvoker", () => {
       memberships: idStore,
       now: () => now,
     });
-    const committed = mustResult(
-      await invoker.invokeMutation(
-        {
-          operation: "fixture.echo",
-          operation_id: freshOperationId(now) as OperationId,
-          inputs: {},
-        },
-        anonymousIdentity(),
-      ),
+    const operationId = freshOperationId(now);
+    const outcome = await invoker.invokeMutation(
+      {
+        operation: "fixture.echo",
+        operation_id: operationId as OperationId,
+        inputs: {},
+      },
+      anonymousIdentity(),
     );
-    expect(committed.status).toBe("committed");
-    expect(committed.result).toEqual({ caller: "anonymous", roles: 0, member: 0 });
+    expect(outcome).toMatchObject({
+      error: {
+        code: "forbidden",
+        message: "This operation is not permitted for the caller.",
+        operation_id: operationId,
+        retryable: false,
+      },
+    });
+    expect(await store.readRevision()).toBe(0);
   });
 
   it("unknown operation rejects validation naming the operation", async () => {
