@@ -24,6 +24,8 @@ Freeze the contracts needed by the next packet only:
 
 ## Pass 1 Remove redundant source string decoding
 
+**Delegation reminder:** choose economical Codex models and reasoning levels per packet; [start with Luna/Sol at low or medium](#economical-codex-delegation-and-commit-cadence) and justify escalation.
+
 **Priority and effort:** immediate correctness repair; small to medium depending on caller coverage. Requires only the relevant Pass 0 source/string contract.
 
 Make IR lowering consume the CST's lexer-owned decoded token value. Reuse it in applicable analysis paths instead of reconstructing JSON string bodies. Trace every secondary decoder caller before deletion; keep source-aware lexing and its diagnostics.
@@ -35,6 +37,8 @@ Cover backspace, form feed, quotes, slashes/backslashes, BMP Unicode and supplem
 **Deliverable and exit:** decoded source values survive token → IR → emitted JavaScript unchanged. Execute a minimal emitted fixture through the established compiler/testkit seam when that seam can qualify the relevant output; a manually complete synthetic emission result remains narrower evidence. Remove redundant decoders only after their live callers are accounted for.
 
 ## Pass 2 Repair LSP byte and envelope admission
+
+**Delegation reminder:** choose economical Codex models and reasoning levels per packet; [start with Luna/Sol at low or medium](#economical-codex-delegation-and-commit-cadence) and justify escalation.
 
 **Priority and effort:** immediate authoring-tool correctness; small to medium. Can run independently of Pass 1 and the JSON library migration.
 
@@ -48,6 +52,8 @@ Exercise malformed UTF-8, wrong protocol version, malformed parameters, illegal 
 
 ## Pass 3 Qualify URL and locale admission
 
+**Delegation reminder:** choose economical Codex models and reasoning levels per packet; [start with Luna/Sol at low or medium](#economical-codex-delegation-and-commit-cadence) and justify escalation.
+
 **Priority and effort:** high correctness priority; medium. Its URL and locale subpackets share `analysis/types.rs` and need one writer or sequential releases.
 
 Replace handwritten URL authority/scheme parsing with a qualified `url` adapter. Include the three-emoji panic, malformed bracketed hosts, excessive ports, credentials, Unicode hosts, backslashes, whitespace, relative inputs and scheme case. Keep ordinary HTTP(S) value policy distinct from trusted `app_url` origins and retain authored values unless an owning contract requires canonicalization.
@@ -59,6 +65,8 @@ Use actual `@canlang/values` exports for differential admission/canonicalization
 **Deliverable and exit:** supported literals agree with the owning value policy, invalid Unicode inputs diagnose rather than panic, and the selected parser's dependency/profile is qualified. A failed locale candidate does not block the independently completed URL packet. If URL qualification requires longer work, a narrow panic repair may land first; do not build another full handwritten authority parser as an interim solution.
 
 ## Pass 4 Replace hashing and temporary-file ownership
+
+**Delegation reminder:** choose economical Codex models and reasoning levels per packet; [start with Luna/Sol at low or medium](#economical-codex-delegation-and-commit-cadence) and justify escalation.
 
 **Priority and effort:** formatting permissions are urgent; hashing is a small maintenance improvement. Both packets can start after their own Pass 0 contract without waiting for Passes 1–3 to finish.
 
@@ -72,6 +80,8 @@ Primary owners: `source.rs` for hashing; `cli.rs` for writes; one `compiler/Carg
 
 ## Pass 5 Migrate typed JSON output
 
+**Delegation reminder:** choose economical Codex models and reasoning levels per packet; [start with Luna/Sol at low or medium](#economical-codex-delegation-and-commit-cadence) and justify escalation.
+
 **Priority and effort:** next standardization step; medium to high across all serializer consumers. Release it in small serializer-family changes.
 
 Introduce typed Serde output adapters without simultaneously replacing input parsing. Convert diagnostics first to establish explicit field naming, ordering, optional-field and error conventions. Then convert compile artifacts and descriptor metadata, references/docs, policy/explain/fix output and remaining shared JSON string emission as separate packets.
@@ -83,6 +93,8 @@ Primary owners include `diagnostic.rs`, `codegen/artifact.rs`, serializer portio
 **Deliverable and exit per family:** required byte/semantic fixtures and the real consuming path pass, including omissions, controls, ordering, pretty layout and newlines. JS expressions/identifiers and HTML embedding remain their own concerns. Retire a helper when its consumers have migrated, not merely because a replacement exists. The first shared serialization release can unblock later work before every family is complete.
 
 ## Pass 6 Replace the JSON input engine
+
+**Delegation reminder:** choose economical Codex models and reasoning levels per packet; [start with Luna/Sol at low or medium](#economical-codex-delegation-and-commit-cadence) and justify escalation.
 
 **Priority and effort:** substantial compatibility work; medium to high. Prefer this after a minimal Pass 5 release establishes the shared representations and adapters.
 
@@ -96,6 +108,8 @@ Primary owners: `json.rs`, catalog loader adapters and affected LSP callers. Reu
 
 ## Pass 7 Adopt typed LSP output and consolidate URI handling
 
+**Delegation reminder:** choose economical Codex models and reasoning levels per packet; [start with Luna/Sol at low or medium](#economical-codex-delegation-and-commit-cadence) and justify escalation.
+
 **Priority and effort:** medium, after Pass 2 admission and the relevant Pass 5 serialization seam. It does not need every Pass 6 input caller to be migrated.
 
 Use `lsp-types` for capabilities, positions/ranges, enum values, diagnostics, symbols, rename edits and code actions. Carry the appropriate document version in edits, including null only where the supported identifier contract calls for it. Preserve current snapshots, negotiated positions, stale-result handling and initialization/shutdown.
@@ -108,6 +122,8 @@ Primary owners: `lsp/server.rs`, associated adapters, IDE/source conversion wher
 
 ## Pass 8 Qualify source-map coordinates and replace the codec
 
+**Delegation reminder:** choose economical Codex models and reasoning levels per packet; [start with Luna/Sol at low or medium](#economical-codex-delegation-and-commit-cadence) and justify escalation.
+
 **Priority and effort:** medium, with a consumer decision before implementation. Can overlap other serialization work once its exact writer and coordinate contract are released.
 
 Resolve the original `.can` column convention using the actual source-map consumers. The observed byte-6 versus UTF16-3 result for `é😀x` is evidence of different units; it is not already proof of browser misnavigation. Fix any demonstrated consumer mismatch in the Can span adapter.
@@ -119,6 +135,8 @@ Primary owners: `codegen/sourcemap.rs`, the affected artifact serialization seam
 **Deliverable and exit:** the consuming tool resolves representative locations correctly, the artifact retains required fields/order and the handwritten codec is retired. If the consumer convention is unresolved, keep this packet blocked explicitly; unrelated compiler repairs can still release.
 
 ## Pass 9 Evaluate the remaining mechanisms separately
+
+**Delegation reminder:** choose economical Codex models and reasoning levels per packet; [start with Luna/Sol at low or medium](#economical-codex-delegation-and-commit-cadence) and justify escalation.
 
 **Priority and effort:** conditional packets with their own benefit and preservation criteria. No requirement to finish all of them before releasing the earlier improvements.
 
@@ -135,6 +153,8 @@ If executed ICU or other comparisons expose a new concrete policy defect, promot
 Rowan, Salsa and a JS AST/printer migration are separate architectural projects. Reuse existing parse/resolution results and measure editor workloads first; preserve syntax recovery, catalog invalidation, evaluation order and source attribution. The utility programme does not require these projects.
 
 ## Pass 10 Qualify the final compiler and retire obsolete paths
+
+**Delegation reminder:** choose economical Codex models and reasoning levels per packet; [start with Luna/Sol at low or medium](#economical-codex-delegation-and-commit-cadence) and justify escalation.
 
 **Priority and effort:** required completion of the selected core substitutions, with consumer scope matched to the changed boundaries.
 
