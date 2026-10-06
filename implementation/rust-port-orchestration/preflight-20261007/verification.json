@@ -27,11 +27,11 @@
   "note": "Current compiler commit 9bb5bbd and foreign ongoing changes are preserved; no package source drift found. Planning snapshot is not immutable compiled producer acceptance.",
   "artifact_sha256": {
     "implementation/rust-port-orchestration/preflight-20261007/SCOPE-CHECKPOINT.md": "9716722c23f6ff9846cadcdf4bc871fb4e3f41e34ab37f5338fd821104631b75",
-    "implementation/rust-port-orchestration/preflight-20261007/scope-queue.json": "5e45a56127ab2f4e8dedfa769379e7943946e7be466c396f248c82356d8cc957",
-    "implementation/rust-port-orchestration/preflight-20261007/source-checkpoint.json": "2f53bc97bda0adab587f85eb8ca6468837f793ef41d2ca3d9d8a451ccb951ed5",
-    "implementation/rust-port-orchestration/preflight-20261007/reviews/work-delivery.md": "c1df585931a39808bb3bfa67a4d049d0f77e1fb90957bfc00d94e8f20c2eb7b3",
+    "implementation/rust-port-orchestration/preflight-20261007/reviews/independent-scope-review.md": "cb723d1a0ac6a77b114365d556d1334e3e2aafd0b61ea29e6002ef5a41255b5b",
+    "implementation/rust-port-orchestration/preflight-20261007/reviews/inventory.json": "30aa7fff96253367a46bec1142cd42330404607ee5c6cb6e25f62d6e37a10f5f",
     "implementation/rust-port-orchestration/preflight-20261007/reviews/values-validation.md": "23a849f7dbb40820498fc381a9c1146b594d50772f606c4640ccf6f8f30ebfbf",
-    "implementation/rust-port-orchestration/preflight-20261007/reviews/inventory.json": "a253e59d38f0326ca721f781e8c4b1cb5ccd7b8cc15170acfb4df33ca2fc877c",
-    "implementation/rust-port-orchestration/preflight-20261007/reviews/independent-scope-review.md": "cb723d1a0ac6a77b114365d556d1334e3e2aafd0b61ea29e6002ef5a41255b5b"
+    "implementation/rust-port-orchestration/preflight-20261007/reviews/work-delivery.md": "c1df585931a39808bb3bfa67a4d049d0f77e1fb90957bfc00d94e8f20c2eb7b3",
+    "implementation/rust-port-orchestration/preflight-20261007/scope-queue.json": "62076535dd0c3b0afcc91eaa7ac09ed60fcd32a9c51c3fce2d9917b288432534",
+    "implementation/rust-port-orchestration/preflight-20261007/source-checkpoint.json": "2f53bc97bda0adab587f85eb8ca6468837f793ef41d2ca3d9d8a451ccb951ed5"
   }
 }
