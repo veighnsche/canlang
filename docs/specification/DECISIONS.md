@@ -812,3 +812,8 @@ Run dependency-ready TypeScript package gates on standard GitHub-hosted runners 
 ## CI native prerequisite for cloudflare/workspace gates — October 6, 2026
 
 Cold hosted runners lack the `can-preparation` native binary (only `darwin-arm64` is packaged), failing 6 cloudflare Vitest suites (run 37483202041). The gate now installs pinned Rust 1.99.0 and runs an isolated `--locked` debug build into a private target dir before tests; test children receive the binary via `CAN_PREPARATION_BIN`. Hashes recorded in the receipt; verifier enforces presence/success/consistency. Harness 12/12. Other profiles unchanged.
+
+
+### 2026-10-06 — Consolidate codex/remaining-lane-a-compiler into main
+
+Accepted integration choice: retained compiler proposal/routing records; implementation already integrated. Preserve all commit ancestry through a merge, retain newer main on historical overlapping patches, and keep authored/source intent and unfinished gates visible. Structural changes since checkpoint are recorded in `docs/ideal-filetree-plan/consolidation-20261006.json`; the complete checkpoint is unchanged because source closure is incomplete. This is repository consolidation, not programme acceptance or worker resumption.
