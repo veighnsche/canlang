@@ -1,0 +1,171 @@
+{
+  "status": "passed",
+  "revision": "6fbf445b5ec16da71edb1eddffde391c9f4b2cbd",
+  "records": [
+    {
+      "label": "compile pinned TypeScript consumers with existing dependencies",
+      "args": [
+        "bun",
+        "run",
+        "build"
+      ],
+      "cwd": "/private/tmp/canlang-challenge-20261005-01a10c5a/independent-d07-locale-2255/snapshot",
+      "exit": 0,
+      "seconds": 5.63
+    },
+    {
+      "label": "independent shared locale controls",
+      "args": [
+        "node",
+        "--test",
+        "dist/values/test/locale.test.js"
+      ],
+      "cwd": "/private/tmp/canlang-challenge-20261005-01a10c5a/independent-d07-locale-2255/snapshot/packages/values",
+      "exit": 0,
+      "seconds": 0.12,
+      "test_summary": "cit source language (0.541833ms)\n  \u2714 rejects explicit null/non-string source languages (0.06975ms)\n  \u2714 renders static descriptors without params (0.116583ms)\n  \u2714 fails undeclared variables at render (0.098ms)\n  \u2714 passes the business zone through to datetimes (0.3865ms)\n  \u2714 freezes formatted messages and rejects bad shapes (0.162667ms)\n\u2714 formatMessage renders under the selected locale (33.250541ms)\n\u2139 tests 39\n\u2139 suites 3\n\u2139 pass 39\n\u2139 fail 0\n\u2139 cancelled 0\n\u2139 skipped 0\n\u2139 todo 0\n\u2139 duration_ms 86.20175\n"
+    },
+    {
+      "label": "independent reference renderer controls",
+      "args": [
+        "node",
+        "--test",
+        "dist/interfaces/test/docs-reference.test.js"
+      ],
+      "cwd": "/private/tmp/canlang-challenge-20261005-01a10c5a/independent-d07-locale-2255/snapshot/packages/interfaces",
+      "exit": 0,
+      "seconds": 0.09,
+      "test_summary": "ation suffixes globally unique against bare bases (0.109083ms)\n\u2714 keeps declaration-example suffixes globally unique against bare bases (0.095916ms)\n\u2714 keeps operation-example suffixes globally unique against bare bases (0.081958ms)\n\u2714 suffix-versus-bare anchors are stable across input permutations (0.408208ms)\n\u2714 combined suffix-versus-bare model has unique anchors and no dangling links (0.186042ms)\n\u2139 tests 49\n\u2139 suites 0\n\u2139 pass 49\n\u2139 fail 0\n\u2139 cancelled 0\n\u2139 skipped 0\n\u2139 todo 0\n\u2139 duration_ms 59.098291\n"
+    },
+    {
+      "label": "exact source versus regional variant edge",
+      "args": [
+        "node",
+        "--input-type=module",
+        "-e",
+        "import assert from 'node:assert/strict'; import {makeMessageDescriptor} from './dist/values/src/icu.js'; import {resolveVariant} from './dist/values/src/locale.js';const d=makeMessageDescriptor('Source English.',{'en-US':'Regional English.',nl:'Dutch.'});assert.deepEqual(resolveVariant(d,'en','nl','en'),{tag:'en',text:'Source English.'});assert.deepEqual(resolveVariant(d,'en-US','nl','en'),{tag:'en-US',text:'Regional English.'});console.log('exact source and exact regional controls passed');"
+      ],
+      "cwd": "/private/tmp/canlang-challenge-20261005-01a10c5a/independent-d07-locale-2255/snapshot/packages/values",
+      "exit": 0,
+      "seconds": 0.03
+    },
+    {
+      "label": "pinned producer catalog",
+      "args": [
+        "bun",
+        "run",
+        "catalog"
+      ],
+      "cwd": "/private/tmp/canlang-challenge-20261005-01a10c5a/independent-d07-locale-2255/snapshot/packages/values",
+      "exit": 0,
+      "seconds": 0.73
+    },
+    {
+      "label": "reused producer binary identity",
+      "sha256": "e50dcd6230f960a3812f2872b4801d8923cf0316db29ef6c75f95e959df75dbb",
+      "path": "/private/tmp/canlang-challenge-20261005-01a10c5a/independent-d07-locale-2255/can-reused",
+      "provenance": "Existing compiled producer copied without rebuilding active Rust inputs; shared locale and TypeScript consumers pinned to 6fbf445."
+    },
+    {
+      "label": "real CLI locale en",
+      "args": [
+        "/private/tmp/canlang-challenge-20261005-01a10c5a/independent-d07-locale-2255/can-reused",
+        "docs",
+        "--catalog=/private/tmp/canlang-challenge-20261005-01a10c5a/independent-d07-locale-2255/snapshot/packages/values/dist/catalog.json",
+        "--locale=en",
+        "shop-app.can",
+        "shop-pkg.can"
+      ],
+      "cwd": "/private/tmp/canlang-challenge-20261005-01a10c5a/independent-d07-locale-2255/fixtures",
+      "exit": 0,
+      "seconds": 0.5
+    },
+    {
+      "label": "real CLI locale nl",
+      "args": [
+        "/private/tmp/canlang-challenge-20261005-01a10c5a/independent-d07-locale-2255/can-reused",
+        "docs",
+        "--catalog=/private/tmp/canlang-challenge-20261005-01a10c5a/independent-d07-locale-2255/snapshot/packages/values/dist/catalog.json",
+        "--locale=nl",
+        "shop-app.can",
+        "shop-pkg.can"
+      ],
+      "cwd": "/private/tmp/canlang-challenge-20261005-01a10c5a/independent-d07-locale-2255/fixtures",
+      "exit": 0,
+      "seconds": 0.1
+    },
+    {
+      "label": "real CLI locale en-US",
+      "args": [
+        "/private/tmp/canlang-challenge-20261005-01a10c5a/independent-d07-locale-2255/can-reused",
+        "docs",
+        "--catalog=/private/tmp/canlang-challenge-20261005-01a10c5a/independent-d07-locale-2255/snapshot/packages/values/dist/catalog.json",
+        "--locale=en-US",
+        "shop-app.can",
+        "shop-pkg.can"
+      ],
+      "cwd": "/private/tmp/canlang-challenge-20261005-01a10c5a/independent-d07-locale-2255/fixtures",
+      "exit": 0,
+      "seconds": 0.11
+    },
+    {
+      "label": "real CLI locale EN",
+      "args": [
+        "/private/tmp/canlang-challenge-20261005-01a10c5a/independent-d07-locale-2255/can-reused",
+        "docs",
+        "--catalog=/private/tmp/canlang-challenge-20261005-01a10c5a/independent-d07-locale-2255/snapshot/packages/values/dist/catalog.json",
+        "--locale=EN",
+        "shop-app.can",
+        "shop-pkg.can"
+      ],
+      "cwd": "/private/tmp/canlang-challenge-20261005-01a10c5a/independent-d07-locale-2255/fixtures",
+      "exit": 0,
+      "seconds": 0.1
+    },
+    {
+      "label": "real CLI locale de",
+      "args": [
+        "/private/tmp/canlang-challenge-20261005-01a10c5a/independent-d07-locale-2255/can-reused",
+        "docs",
+        "--catalog=/private/tmp/canlang-challenge-20261005-01a10c5a/independent-d07-locale-2255/snapshot/packages/values/dist/catalog.json",
+        "--locale=de",
+        "shop-app.can",
+        "shop-pkg.can"
+      ],
+      "cwd": "/private/tmp/canlang-challenge-20261005-01a10c5a/independent-d07-locale-2255/fixtures",
+      "exit": 0,
+      "seconds": 0.11
+    }
+  ],
+  "cli_outputs": {
+    "en": {
+      "sha256": "78f3e0e3f15ce31e95003b4e04123fe9a1effe972ce6735b340135a556530462",
+      "expected_wording": true
+    },
+    "nl": {
+      "sha256": "416046884bfe6cffdcf205185b875b0c519cb96ba12abfcbf3256db0dcac9d7a",
+      "expected_wording": true
+    },
+    "en-US": {
+      "sha256": "a7ee5186efa904590f0e99a1c6dc9b28a1ea8c86d7f2b52608cf1855eae702f6",
+      "expected_wording": true
+    },
+    "EN": {
+      "sha256": "e829b39b916887094badb7d079504c2ea3edd4b8d889f01091e53ef38576a8c9",
+      "expected_wording": true
+    },
+    "de": {
+      "sha256": "f119749152b39c2ed6e4a3f5ee09f8e26608738012bac8012f5309ab7cf056dd",
+      "expected_wording": true
+    }
+  },
+  "counts": {
+    "shared_locale": 39,
+    "reference_renderer": 49
+  },
+  "scope": "R-D07-06 shared seam/reference regression only; no new original Rust/state/platform acceptance.",
+  "fixtures": {
+    "shop-pkg.can": "package shop source=\"en\"\n Given\n  export message blurb = \"Shared source.\"@{nl=\"Gedeelde tekst.\"}\n  #= blurb\n  Gadget { title:text desc=\"Display title.\"@{nl=\"Titel.\"} }\n  # Widget prose.\n  Widget { title:text }\n  policy Gadget read=members\n  policy Widget read=members\n When\n Then\n",
+    "shop-app.can": "app Shop uses=[shop] source=\"en\"\ncontext\n locale default=\"nl\"\n"
+  }
+}
