@@ -2475,6 +2475,8 @@ fn construct_pages_admit_render() {
         order: None,
         group: None,
         nav_none: false,
+        poll: None,
+        refresh: None,
         admit: vec![IrGuard::Role("expense.reviewer".to_string())],
         render: vec![IrUi {
             factory: "table".to_string(),
@@ -2500,6 +2502,8 @@ fn construct_pages_admit_render() {
         order: Some(2),
         group: Some("personal".to_string()),
         nav_none: true,
+        poll: None,
+        refresh: None,
         admit: vec![],
         render: vec![],
         fn_name: "minePage".to_string(),
@@ -2560,6 +2564,8 @@ fn construct_page_preferences_preamble_reads_bindings() {
         order: None,
         group: None,
         nav_none: false,
+        poll: None,
+        refresh: None,
         admit: vec![],
         render: vec![IrUi {
             factory: "text".to_string(),
@@ -2653,6 +2659,8 @@ fn construct_page_admit_returns_preference_defaults() {
         order: None,
         group: None,
         nav_none: false,
+        poll: None,
+        refresh: None,
         admit: vec![],
         render: vec![],
         fn_name: "prefsPage".to_string(),
@@ -4273,6 +4281,7 @@ fn t15a_model_field_tags() {
             IrType::Known(ResolvedType::Action {
                 targets: Vec::new(),
                 bound: None,
+                external: Vec::new(),
             }),
         ),
         (
@@ -6829,7 +6838,7 @@ fn t18_server_init_mapping() {
         ResolvedType::Unknown,
     );
     assert_eq!(
-        js::js_server_init(&IrServer::Computed(secret_call)),
+        js::js_server_init(&IrServer::Computed(Box::new(secret_call))),
         js::JsServerInit::RandomSecret
     );
     // Arity matters: `random_secret(x)` is not the closed spelling.
@@ -6844,7 +6853,7 @@ fn t18_server_init_mapping() {
         ResolvedType::Unknown,
     );
     assert_eq!(
-        js::js_server_init(&IrServer::Computed(secret_arity)),
+        js::js_server_init(&IrServer::Computed(Box::new(secret_arity))),
         js::JsServerInit::Computed
     );
     // Non-call computed expressions (e.g. `now+1h`) are opaque too.
@@ -6860,7 +6869,7 @@ fn t18_server_init_mapping() {
         ResolvedType::Unknown,
     );
     assert_eq!(
-        js::js_server_init(&IrServer::Computed(now_plus)),
+        js::js_server_init(&IrServer::Computed(Box::new(now_plus))),
         js::JsServerInit::Computed
     );
     assert_eq!(
@@ -7143,4 +7152,131 @@ fn f6_invalid_cohort_emits_no_descriptor() {
         .find(|s| program.symbols[s.scenario.0 as usize].name == "sweep")
         .expect("sweep row");
     assert!(sweep.cohort.is_none(), "no checked cohort row");
+}
+
+// --- A2a: derived-call, for-limit, poll/refresh, action-external ---------------
+// TEST-ONLY artifacts: see module docs. No runtime-success claims.
+
+/// A2a pin helper: `check` must be fully clean (all four families are
+/// check-green in the suite-3 corpus), then emit test-only.
+fn a2a_emit(
+    src: &str,
+) -> (
+    CompileArtifact,
+    Vec<canlang_compiler::diagnostic::Diagnostic>,
+) {
+    let mut db = SourceDb::new();
+    let id = db.add("a2a.can".to_string(), src.to_string());
+    let (catalog, path) = golden_catalog();
+    let (program, result) = check_example(&db, id, Some(&catalog));
+    assert!(
+        result.diagnostics.is_empty(),
+        "check clean: {:?}",
+        result.diagnostics
+    );
+    let (artifact, diags) = emit_test_only(&program, &db, &result, Some(&catalog));
+    let _ = std::fs::remove_file(&path);
+    (artifact, diags)
+}
+
+/// Derived functions emit as module-scope named functions
+/// (`async function name(c,...params)`, CanChat/CanDiscover draft
+/// contract); call sites lower to awaited calls, including nested
+/// derive-to-derive calls and calls from policy rules (which go
+/// `async`). The `canApp()` registry holds shorthand references.
+#[test]
+fn a2a_derive_call_lowers_to_awaited_named_fn() {
+    let src = "package shop\n Given\n  M { x:int }\n  policy M read=members where=outer(9)==10\n  derive inner(v:int):int = v\n  derive outer(v:int):int = inner(v)\n When\n  scenario tick() by=members\n   require outer(1)==2\n   do let done = 1\n Then\n";
+    let (artifact, diags) = a2a_emit(src);
+    assert!(
+        diags.iter().all(|d| d.code != "E6006" && d.code != "E6008"),
+        "derive calls lower without gaps: {diags:?}"
+    );
+    let js = &artifact.modules[0].js;
+    assert!(
+        js.contains("async function inner(c,v){return v;}"),
+        "inner derive shape:\n{js}"
+    );
+    assert!(
+        js.contains("async function outer(c,v){return await inner(c,v);}"),
+        "nested derive call:\n{js}"
+    );
+    assert!(
+        js.contains("await outer(c,1n)"),
+        "require calls the derive:\n{js}"
+    );
+    assert!(
+        js.contains("async(c,row)=>") && js.contains("await outer(c,9n)"),
+        "policy rule goes async over the call:\n{js}"
+    );
+    assert!(
+        js.contains("\ninner,\n") && js.contains("\nouter,\n"),
+        "registry holds shorthand refs:\n{js}"
+    );
+    assert!(
+        !js.contains("(c,row){return"),
+        "no row-param derive methods remain:\n{js}"
+    );
+}
+
+/// `for item in domain limit=N` fails the operation past N items
+/// (DESIGN §5): fetch once, `check(length<=N,"limit")`, then loop.
+#[test]
+fn a2a_for_limit_checks_length_then_loops() {
+    let src = "package shop\n Given\n  M { x:int }\n  policy M read=members\n When\n  scenario sweep() by=members\n   do\n    for item in M limit=10\n     set item {x=1}\n Then\n";
+    let (artifact, diags) = a2a_emit(src);
+    assert!(
+        diags.iter().all(|d| d.code != "E6006" && d.code != "E6008"),
+        "bound loop lowers without gaps: {diags:?}"
+    );
+    let js = &artifact.modules[0].js;
+    assert!(
+        js.contains("const $forRows0 = await records("),
+        "loop fetches once:\n{js}"
+    );
+    assert!(
+        js.contains("check($forRows0.length<=10n,\"limit\");"),
+        "excess fails the operation:\n{js}"
+    );
+    assert!(
+        js.contains("for (const item of $forRows0) {"),
+        "loop iterates the checked fetch:\n{js}"
+    );
+}
+
+/// Page `poll=`/`refresh=` (DESIGN §9) lower to sparse descriptor
+/// members: exact-BigInt millis plus the canonical refresh mutation.
+#[test]
+fn a2a_page_poll_refresh_lower_to_descriptor() {
+    let src = "package shop\n Given\n  M { x:int }\n  policy M read=members\n When\n  scenario tick() by=members\n   do let done = 1\n Then\n  page /jobs title=\"Jobs\" poll=5s refresh=tick\n";
+    let (artifact, diags) = a2a_emit(src);
+    assert!(
+        diags.iter().all(|d| d.code != "E6006" && d.code != "E6008"),
+        "poll/refresh lower without gaps: {diags:?}"
+    );
+    let js = &artifact.modules[0].js;
+    assert!(js.contains("poll:5000n"), "poll millis member:\n{js}");
+    assert!(
+        js.contains("refresh:\"shop.tick\""),
+        "refresh canonical member:\n{js}"
+    );
+}
+
+/// `action(...)` over bound-imported operations resolves (no silent
+/// poison) and lowers to the draft contract field schema
+/// (`{type:"action",targets:[canonical...]}`); aliases record the
+/// original member name, never the alias.
+#[test]
+fn a2a_action_external_targets_lower_to_schema() {
+    let src = "package todo\n use maintain {inspect} from=deployment.maintenance\n use success {complete as done} from=deployment.accounts\n Given\n  export contract W { act:action(inspect,done)? }\n When\n Then\n";
+    let (artifact, diags) = a2a_emit(src);
+    assert!(
+        diags.iter().all(|d| d.code != "E6006" && d.code != "E6008"),
+        "external action targets lower without gaps: {diags:?}"
+    );
+    let js = &artifact.modules[0].js;
+    assert!(
+        js.contains("act:{type:\"action\",targets:[\"maintain.inspect\",\"success.complete\"],nullable:true}"),
+        "action schema with canonical targets:\n{js}"
+    );
 }
