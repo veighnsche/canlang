@@ -26,7 +26,7 @@ The audit's five disposition buckets remain distinct:
 
 Every conflict needs a strongest opposing argument, locally labeled observations and inferences, confidence, and the evidence that would change its verdict. Existing B4 classifications are navigation aids rather than authority. Preserve useful historical evidence without carrying its classifications forward unexamined.
 
-The product remains focused on CRUD-centered company SaaS and bounded provider-backed workflows. Specialized execution belongs to providers and reusable libraries; app source owns purpose, authorization, budgets, approval and business meaning. See [requirements](/Users/vince/Projects/canlang/REQUIREMENTS.md), [shared boundaries](/Users/vince/Projects/canlang/implementation/CONTRACTS.md), [implementation ownership](/Users/vince/Projects/canlang/implementation/PLAN.md), and [diagnostic policy](/Users/vince/Projects/canlang/implementation/DIAGNOSTICS.md).
+The product remains focused on CRUD-centered company SaaS and bounded provider-backed workflows. Specialized execution belongs to providers and reusable libraries; app source owns purpose, authorization, budgets, approval and business meaning. See [requirements](/Users/vince/Projects/canlang/docs/specification/REQUIREMENTS.md), [shared boundaries](/Users/vince/Projects/canlang/implementation/CONTRACTS.md), [implementation ownership](/Users/vince/Projects/canlang/implementation/PLAN.md), and [diagnostic policy](/Users/vince/Projects/canlang/implementation/DIAGNOSTICS.md).
 
 ## Observed baseline
 

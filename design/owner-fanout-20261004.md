@@ -32,4 +32,4 @@ Use a balanced `choice` question about allocation of traversal responsibility. S
 
 This report is preparation, not a JEV consultation or decision. Proposed fanout semantics remain open. A selected approach needs a complete Can/desired-JS witness and independent expected outcomes before broad application. The new AI research/search drafts will exert the same pressure through paginated sources and multi-stage work, so this contract should be evaluated once rather than reinvented in every app.
 
-Sources: [DESIGN effects/events/storage](../DESIGN.md), [CanShift](../draft/CanShift.can), [CanBook](../draft/CanBook.can), [CanMail](../draft/CanMail.can), [harder-app investigation](AI-AND-SERVICE-DRAFTS.md).
+Sources: [DESIGN effects/events/storage](../docs/specification/DESIGN.md), [CanShift](../draft/CanShift.can), [CanBook](../draft/CanBook.can), [CanMail](../draft/CanMail.can), [harder-app investigation](AI-AND-SERVICE-DRAFTS.md).
