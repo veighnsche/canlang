@@ -154,6 +154,25 @@ function freshOperationId(atMs: number): string {
 const OPS_SOURCE = `import { create, set, deleteRecord, records } from ${JSON.stringify(STDLIB_URL)};
 export function canApp() {
   return {
+    // B7: every scenario declares its admission gate (absent
+    // entries deny) and Todo carries explicit-public read
+    // provenance (absent reads serve zero grants) so the stdlib
+    // behavior pins below still stage through the handlers.
+    policy: {
+      operations: {
+        "acme.Shop.mkCreate": { by: ["members"] },
+        "acme.Shop.mkParent": { by: ["members"] },
+        "acme.Shop.mkSet": { by: ["members"] },
+        "acme.Shop.setMissing": { by: ["members"] },
+        "acme.Shop.mkRemove": { by: ["members"] },
+        "acme.Shop.removeMissing": { by: ["members"] },
+        "acme.Shop.mkRecords": { by: ["members"] },
+        "acme.Shop.mkRecordsBare": { by: ["members"] },
+      },
+      models: {
+        "acme.Todo": { read: ["Todo.read.1"], public: ["Todo.read.1"] },
+      },
+    },
     Shop: {
       mkCreate: async (c, input) => {
         return create(c, "acme.Todo", { id: input.inputs.key, data: { title: input.inputs.title } });

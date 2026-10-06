@@ -1,0 +1,14 @@
+{
+ "integration": "e5001",
+ "date": "2026-10-06",
+ "main_before": "626611f",
+ "commits": [
+  "7ea4815 Lane A E5001: exclude derived fields from required create headers"
+ ],
+ "lane_commits": [
+  "db87232 (3 files +44/-2)"
+ ],
+ "coverage": "compiler/: examples.rs DeriveField skip + 2 e5001_ conformance tests + outcome-table re-pin 33->31 (CanTable only, values-only)",
+ "gate": "PENDING: canonical cargo gate queued \u2014 Rust slot reserved for A probe (fresh-binary Table:59 proof); lane gate 881/0 + clippy clean",
+ "lane_report": "57e44544: table 1/1, cargo test 881/0, clippy exit 0, rustfmt clean, tree clean at db87232"
+}

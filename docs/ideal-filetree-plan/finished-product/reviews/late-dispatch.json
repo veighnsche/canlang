@@ -1,0 +1,202 @@
+{
+  "schema_version": 1,
+  "audit": "late 1f5->5edc3ba dispatch/source-identity and live observation independent challenge",
+  "repository": "/Users/vince/Projects/canlang",
+  "mode": "planning-only; source/hash reads and owned documents only",
+  "pin": {
+    "delta": "1f5->5edc3ba supplied by parent; no Git read/run performed",
+    "source_pin": "per-file SHA256 of inspected current bytes"
+  },
+  "runtime_evidence": "No checker, tests, build, install, service or provider executed. Added tests read as historical source witnesses only; findings distinguish pure implementation from target production requirements.",
+  "findings": [
+    {
+      "id": "LD-01",
+      "classification": "SOURCE-PRESENT pure kernel change; runtime integration REQUIRED",
+      "sites": [
+        "packages/work/src/dispatch/index.ts:174-222",
+        "packages/work/test/dispatch-unavailable.test.ts:98-236"
+      ],
+      "fact": "Commit-null, inherited checkpoint, supersession and nonpending state refuse before availability. Present availability checks item.source; false returns unavailable before evaluateGuard/revalidateAuthority/claim mint. Absent port performs no check. Available targets preserve guard then authority then claim. Tests use injected manual clock/IDs/supersession/availability and pin this pure order; no tests executed by this audit.",
+      "impact": "Every pending declared source sent through this function and a present port is gated, including capability operations and queue/event targets. Fanout child claim mechanism has no target and is untouched. Deployment-unknown is not unavailable and is not qualified available. Preserve actual callback/proxy order for each host, not only equal final status.",
+      "gate": "Qualify actual dispatcher availability adapter over the full selected operation/event domain and installed callbacks; do not infer universal implementation from optional port."
+    },
+    {
+      "id": "LD-02",
+      "classification": "REQUIRED current runtime join completion",
+      "sites": [
+        "packages/cloudflare/src/runtime/invoke.ts:2947-2979",
+        "packages/cloudflare/src/runtime/invoke.ts:3033-3059",
+        "packages/cloudflare/src/runtime/invoke.ts:3779-3851",
+        "packages/cloudflare/src/runtime/invoke.ts:3887-3920"
+      ],
+      "fact": "FenceAttemptDispatchFn dependency shape omits availability. runFenceGate supplies no availability, pulls current snapshot and awaits actual revalidateAuthority before invoking the pure kernel, whose revalidateAuthority replays the resolved boolean. driveDispatchIntent mints and persists a real work.dispatch.claim before this gate. Decoder accepts claimed/skipped/inherited/revoked only and throws on unavailable. Searches found no production availability adapter or non-test direct kernel caller beyond injected gate references.",
+      "impact": "Current drive does not enforce new availability; a future injected unavailable verdict reaches a loud decoder error, not terminal BusinessError. Kernel no-claim/no-authority-callback assertions are not actual drive claims or async callback order. A claimed row can be held and age out when gate throws; the new delta does not prove no-redrive.",
+      "gate": "Pin accepted host observable ordering with actual claim/fence/snapshot/authority/availability callbacks; qualified runtime mapping and durable terminal settlement/ack with no provider call, preserving genuine revocation/privacy semantics. No ordering architecture selected here."
+    },
+    {
+      "id": "LD-03",
+      "classification": "DECLARED identity carrier retained; binding resolution REQUIRED",
+      "sites": [
+        "packages/contracts/src/work.ts:121-126",
+        "packages/work/src/intent/index.ts:124-151",
+        "packages/work/src/kernel/commands.ts:1222",
+        "packages/cloudflare/src/runtime/executors.ts:126",
+        "packages/cloudflare/src/runtime/invoke.ts:3821",
+        "compiler/src/codegen/js.rs:2537-2576",
+        "packages/cloudflare/src/deploy/activate.ts:71-79",
+        "packages/cloudflare/src/deploy/compat.ts:50-73"
+      ],
+      "fact": "Outbox source is declared capability operation or queue/event target; source also feeds stable outbox identity. Stage helper copies supplied source without resolving it; work.dispatch.stage copies source to L3 target; executor copies target back to dispatch source; fenced gate copies L3 target to item.source. Generated Send passes IR operation string to send helper. Activation map covers capability IDs and compatibility checks resource binding kind/logicalName, not this new operation-string port.",
+      "impact": "source is not originating operationId and is not proof of an actual provider binding. Tests manually use Mail.send, Handbook.answer and Shop.Gadget.create; these spelling examples do not certify alias-to-capability identity, owner namespace or queue routing. No mismatch asserted without actual mapping evidence.",
+      "gate": "From owning declaration derive canonical operation/event target, alias/binding and deployment availability lookup; demonstrate selected aliases and namespaced imported capabilities map to actual installed operations without substituting declaration identity or breaking replay/callback cause. Preserve original source identity for receipts and deterministic IDs."
+    },
+    {
+      "id": "LD-04",
+      "classification": "PROPOSED terminal semantics; REQUIRED persisted observable mapping",
+      "sites": [
+        "packages/work/src/dispatch/index.ts:151-158",
+        "packages/work/test/dispatch-unavailable.test.ts:14-20",
+        "packages/work/test/dispatch-unavailable.test.ts:274-285",
+        "packages/cloudflare/src/runtime/invoke.ts:3997-4022",
+        "packages/work/src/intent/index.ts:370-410",
+        "packages/contracts/src/work.ts:148-155"
+      ],
+      "fact": "unavailable result computes no mutation and does not alter pending OutboxItem; stable repeat test calls same pure function twice. Test header calls rule_failed/retryable:false transport mapping Proposed (C confirms). Current provider terminal failure path records failed/retryClass and ack; unavailable is not in persisted outbox lifecycle, DriveDispatchOutcome or its decoder.",
+      "impact": "Terminal/no-retry/no-redrive wording is an intended contract, not current durable error/receipt/status proof. Availability false is not guard skipped, provider succeeded, recipient reading, or business success. Returning target must follow accepted diagnostic authority/privacy contract.",
+      "gate": "Actual installed unavailable operation returns accepted closed BusinessError and durable correct receipt/intent state without provider attempt; replay reproduces settled result; sweeper does not retry it; deployment change behavior is explicit. No new receipt status or error architecture selected."
+    },
+    {
+      "id": "LD-05",
+      "classification": "historical test scope correction; installed qualification REQUIRED",
+      "sites": [
+        "packages/work/test/dispatch-unavailable.test.ts:239-271",
+        "packages/work/test/live-serve-addressing.test.ts:136-153",
+        "packages/work/src/observation/observation.ts:330-382",
+        "packages/work/src/observation/association.ts:157-192",
+        "packages/cloudflare/src/runtime/stdlib.ts:220-252"
+      ],
+      "fact": "Test titled executes admitted bound-checked sends end to end manually stages plain request, attaches pure commit marker, and asserts claimed plus equal frozen arguments; no E1 admission/bound checker/provider/compiled app runs. Live test titled revision the server enrolls supplies a plain row, separate association/receipt revision3, allow-all grants and availability double, then checks returned fenceRevision3. Observation helper is pure and returns enrollment signal; declared field membership is explicitly L1/L3 responsibility. Current stdlib send/delivery helpers throw unsupported; C3 deliveryFields loader carrier does not by itself implement this join.",
+      "impact": "Added tests establish kernel shapes/validation/deduplication/denial-versus-null and revision echo, not live serving, actual record ownership, schema field membership, fenced enrollment/conflict invalidation, activation or installed receipt chain. Test header correctly reserves server/fence/policy/wire behavior to later join; titles must not broaden qualification.",
+      "gate": "Installed original compiled source -> protected admission -> actual owner outbox -> availability/claim/provider -> retained receipt -> authorized record/field/selected server read -> enrollment and intervening-write refusal. Prove text IDs resolve only through authorized live read, decoy/stale identity rejection, field membership and error transport mapping; no ad hoc payload-only substitute."
+    }
+  ],
+  "evidence": [
+    {
+      "path": "packages/work/src/dispatch/index.ts",
+      "sha256": "e2634a6c1faa7f751af4f7530c8cb7a31ee8acb0942f0674838c4d32b16a6ede",
+      "read_scope": "focused relevant defining sections; full added tests and full intent helper"
+    },
+    {
+      "path": "packages/work/test/dispatch-unavailable.test.ts",
+      "sha256": "1961740c4b2b057970dbc9397f3d0710649592cc8891c39b797ec630a68f58f8",
+      "read_scope": "focused relevant defining sections; full added tests and full intent helper"
+    },
+    {
+      "path": "packages/work/test/live-serve-addressing.test.ts",
+      "sha256": "bc3df4df4129ca2c014ea4b9e4c6e3fa5b59587cfd2c6108111c81ef3e99c1b7",
+      "read_scope": "focused relevant defining sections; full added tests and full intent helper"
+    },
+    {
+      "path": "packages/work/src/intent/index.ts",
+      "sha256": "a19031f4ec0a2a7ba78341d1d0ab00050e56cd1d5d39fcde6e145224b53dfff8",
+      "read_scope": "focused relevant defining sections; full added tests and full intent helper"
+    },
+    {
+      "path": "packages/contracts/src/work.ts",
+      "sha256": "c7d674c84f536389398b61b5b23c9c469114e88b5373edf5580136636f009207",
+      "read_scope": "focused relevant defining sections; full added tests and full intent helper"
+    },
+    {
+      "path": "packages/contracts/src/state.ts",
+      "sha256": "dd9263d8cae2eda4d046678c3d564217c54e0ae77d9b8d2e9b40c213ed588236",
+      "read_scope": "focused relevant defining sections; full added tests and full intent helper"
+    },
+    {
+      "path": "packages/work/src/kernel/commands.ts",
+      "sha256": "b78ba7004c147887ea15e9ab872fca52c0367e9c4d16399f22b2fdaabbacef8d",
+      "read_scope": "focused relevant defining sections; full added tests and full intent helper"
+    },
+    {
+      "path": "packages/cloudflare/src/runtime/invoke.ts",
+      "sha256": "c1fccd86c949f40e0759e490e7bf035b67103bb34774705c3185582bec5c83a1",
+      "read_scope": "focused relevant defining sections; full added tests and full intent helper"
+    },
+    {
+      "path": "packages/cloudflare/src/runtime/executors.ts",
+      "sha256": "76d481665ae5c9ada116e797d91b8848fcaa4c2171a5126970f9b83fcf6d33c1",
+      "read_scope": "focused relevant defining sections; full added tests and full intent helper"
+    },
+    {
+      "path": "packages/cloudflare/src/runtime/stdlib.ts",
+      "sha256": "ced1c72a0244f7691471dd2aae3a88a3ae6198f67837af4008549df8bbc1662e",
+      "read_scope": "focused relevant defining sections; full added tests and full intent helper"
+    },
+    {
+      "path": "packages/cloudflare/src/deploy/activate.ts",
+      "sha256": "1f39bfea83761034d1f93665c4f2fc80f444d0706148670637f8b1f7eae8db2c",
+      "read_scope": "focused relevant defining sections; full added tests and full intent helper"
+    },
+    {
+      "path": "packages/cloudflare/src/deploy/compat.ts",
+      "sha256": "f78595dfc66957678a187e78b6fd3bd2ab20ec560c850637d7cb7425bbca2138",
+      "read_scope": "focused relevant defining sections; full added tests and full intent helper"
+    },
+    {
+      "path": "packages/work/src/observation/association.ts",
+      "sha256": "0167f94013df2bda615d670c7c7a38e9e489c3ee079da619dffe8a7d47e25b2e",
+      "read_scope": "focused relevant defining sections; full added tests and full intent helper"
+    },
+    {
+      "path": "packages/work/src/observation/observation.ts",
+      "sha256": "29b86efe60a54398cf9f669b405dab381d3e337d3fca6fbb3cfba8aae876d24a",
+      "read_scope": "focused relevant defining sections; full added tests and full intent helper"
+    },
+    {
+      "path": "compiler/src/codegen/js.rs",
+      "sha256": "08effb5d3505be9581326a456cbcbbed3c3a3abbf2154548f73f4924b5d9f055",
+      "read_scope": "focused relevant defining sections; full added tests and full intent helper"
+    }
+  ],
+  "target_duties": [
+    {
+      "id": "LD-T01",
+      "families": [
+        "F03",
+        "F05",
+        "F06",
+        "F11",
+        "F12"
+      ],
+      "classification": "REQUIRED",
+      "retained_defining_paths": [
+        "packages/work/src/dispatch/index.ts",
+        "packages/work/src/kernel/commands.ts",
+        "packages/cloudflare/src/runtime/invoke.ts",
+        "packages/cloudflare/src/runtime/executors.ts",
+        "packages/cloudflare/src/deploy/activate.ts",
+        "packages/cloudflare/src/deploy/compat.ts"
+      ],
+      "new_proposed_leaves": [],
+      "duty": "Complete actual canonical dispatch availability/source-binding identity/host callback ordering/terminal receipt replay and recovery joins, independently from activation catalog claims; retain current defining owners."
+    },
+    {
+      "id": "LD-T02",
+      "families": [
+        "F03",
+        "F08",
+        "F09",
+        "F12"
+      ],
+      "classification": "REQUIRED",
+      "retained_defining_paths": [
+        "packages/work/src/observation/observation.ts",
+        "packages/work/src/observation/association.ts",
+        "packages/cloudflare/src/runtime/invoke.ts",
+        "packages/cloudflare/src/runtime/stdlib.ts"
+      ],
+      "new_proposed_leaves": [],
+      "duty": "Qualify actual server record/field receipt join and fence enrollment, not pure mechanics titles; root broader installed journey targets carry proof."
+    }
+  ],
+  "architecture_selection": "None; no new selected semantics, architecture, public status or package proposed."
+}

@@ -1,0 +1,15 @@
+{
+ "schema_version": 1,
+ "observed_utc": "2026-10-06T06:08:00Z",
+ "change": "cherry-pick 4cf70d88b6ee11f5dd2f50dddf89bdb9ef5e71e6 (lane D) as aae8fae on main",
+ "changed_paths": 3,
+ "paths": [
+  "packages/files/src/catalog.ts",
+  "packages/files/src/finalize/index.ts",
+  "packages/files/test/provider-output.test.ts"
+ ],
+ "coverage_delta": "1 new files-owned module (+241) + catalog entry (+1) + new test file (+811); lane-D duty exercised, no moves or duty transfers",
+ "complete_checkpoint_retained": "8249342707d3280e88e39e8c911b7e457828f31f",
+ "area_decisions_unchanged": true,
+ "verification": "lane files tsc 0 + services tsc 0 + 26/26 new + 82/82 files + 146/146 services + red-check (no grant used); coordinator diff-reviewed impl+tests; canonical files/services re-run queued for TS slot after C suite"
+}

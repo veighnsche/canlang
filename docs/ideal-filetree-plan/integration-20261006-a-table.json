@@ -1,0 +1,16 @@
+{
+ "integration": "a-table",
+ "date": "2026-10-06",
+ "main_before": "3d1f8f0",
+ "commits": [
+  "3571077 Lane A table: T36 re-pin (5 T36-explained deltas) + R24 resolution pin"
+ ],
+ "lane_commits": [
+  "ef60536 (2 files +40/-20)"
+ ],
+ "patch_id identical": true,
+ "coverage": "compiler/tests: 5 values-only re-pins with T36 provenance (Event 309, Grant 48, Mail 147, Report 42, Shift 187; 5040->5027) + t35r24_report_parent_stays_rejected rewritten as t36_report_parent_override_resolved (draft text T36 removed; R24 rule stays pinned by t35r24_contained_parent_rejected)",
+ "decisions": "adjudication: all 5 deltas T36-explained (E2017-5/E5004-2/E5008-2/E3015-5 refined + Report E2001x1 test_site mirror), zero checker-dropped; table test fails on pre-T36 drafts BY DESIGN (pins target 40656da = canonical gitlink)",
+ "gate": "CANONICAL GREEN: full cargo 28/28 binaries ok (886 tests) + draft_outcome_table 1/1; lane: 886/886 + clippy 0",
+ "lane_report": "05b34cdb (draft restored 2d67312 clean, submodule untouched)"
+}
