@@ -1,0 +1,23 @@
+{
+  "model": "work.fanout_checkpoint",
+  "constructor_input": {
+    "constructor": "newFanoutCheckpointRow",
+    "input": {
+      "fanoutId": "fanout/v1/occ_baseline_1/h1/model",
+      "completed": [
+        "rec-a"
+      ],
+      "cursor": null
+    },
+    "meta": {
+      "nowMs": 1750000000000,
+      "actor": "w01.3-baseline"
+    }
+  },
+  "row_id": "fanout/v1/occ_baseline_1/h1/model",
+  "d1_data_bytes": "{\"fanoutId\":\"fanout/v1/occ_baseline_1/h1/model\",\"completed\":[\"rec-a\"],\"cursor\":null}",
+  "do_data_bytes": "{\"fanoutId\":\"fanout/v1/occ_baseline_1/h1/model\",\"completed\":[\"rec-a\"],\"cursor\":null}",
+  "d1_equals_do": true,
+  "byte_length_utf8": 84,
+  "sha256": "9e7e3eedafe432281a90ec53efb24c41f5cf5642504bd29d5c545e2583191948"
+}

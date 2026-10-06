@@ -1,0 +1,26 @@
+{
+  "model": "work.occurrence",
+  "constructor_input": {
+    "constructor": "newOccurrenceRow",
+    "input": {
+      "occurrenceId": "occ_baseline_1",
+      "status": "completed",
+      "result": {
+        "ok": true
+      },
+      "code": null,
+      "message": null,
+      "recordedAtMs": 1750000000000
+    },
+    "meta": {
+      "nowMs": 1750000000000,
+      "actor": "w01.3-baseline"
+    }
+  },
+  "row_id": "occ_baseline_1",
+  "d1_data_bytes": "{\"occurrenceId\":\"occ_baseline_1\",\"status\":\"completed\",\"result\":{\"ok\":true},\"code\":null,\"message\":null,\"recordedAtMs\":1750000000000}",
+  "do_data_bytes": "{\"occurrenceId\":\"occ_baseline_1\",\"status\":\"completed\",\"result\":{\"ok\":true},\"code\":null,\"message\":null,\"recordedAtMs\":1750000000000}",
+  "d1_equals_do": true,
+  "byte_length_utf8": 131,
+  "sha256": "29517611e39a8a17cff17213eb6b3f241ab13154b855f60194fb789c9d982403"
+}
