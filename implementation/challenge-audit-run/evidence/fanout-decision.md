@@ -320,6 +320,9 @@ contract exists. This is partial adoption with an explicit deferred remainder.
 1. T24 dispatch evidence: atomic trigger-commit/outbox-staging shape and
    recovery-scan behavior that A/D fanout intents would ride on (T24
    pending — applicable slices must land before the gate can accept A/D).
+   **[GATE-COMPLETE 2026-10-06: T24 TICKED COMPLETE — landed shape
+   transcribed in "T33 gate-input refresh" §R1; fanout-specific substrate
+   still T34-owed and remainders recorded there, adopts nothing.]**
 2. T28 ownership input: `swap.parent.parent` navigation (Shift:245),
    `event.opportunity.Signup` reverse collection (Volunteer:178), and any
    imported-containment facets the cohort language may traverse (T28
@@ -329,6 +332,10 @@ contract exists. This is partial adoption with an explicit deferred remainder.
    guards, `eligible()`, `can_work()`); per-child staleness/revocation
    boundaries come from the accepted T32a rule (T32a prep done, gate
    pending).
+   **[GATE-COMPLETE 2026-10-06: T32a ADOPTED checkpoint_fence A +
+   T32b fence+wire LANDED — rule + wired boundaries transcribed in
+   "T33 gate-input refresh" §R3; standing obligations recorded there,
+   adopts nothing.]**
 4. Cohort-cutoff intent: no draft example pins snapshot-vs-live membership
    or concurrent insert/move/remove handling for any of the four sites;
    absence must be confirmed by re-reading the surrounding scenarios, not
@@ -1154,3 +1161,478 @@ T12 counts — tasks.md:280); per-site rows not transcribed.
   T06, fence-plan, ownership), tasks.md T13/T14/T15/T16/T17/T23/T24/T28/T29/
   T32/T33 lines, draft CanShift.can/CanVolunteer.can fanout neighborhoods.
 - Release: this file is RELEASED to the coordinator for gate scheduling.
+
+## T33 gate-input refresh + items 6-8, 10-skeleton (gate evidence)
+
+Writer: L4 T33 gate-input writer (refresh slice). Status: **PREP —
+adopts NOTHING.** APPEND-ONLY: all prior sections byte-identical except
+the items 1+3 checklist markers above; items 2/4/5 markers, the four
+alternatives, fairness record, and all prior appends untouched.
+Read-only transcription + census + analysis; no builds, no tests run,
+no JEV (`tools/jev.py` untouched), no Git, no tasks/monitor/inbox
+edits. Every cited line/number was read in this slice.
+
+Checklist items fed: item 1 REFRESH (was T24-ABSENT, now T24 COMPLETE)
+in §R1; item 3 REFRESH (was QUALIFIED fragments, now T32a ADOPTED +
+fence+wire LANDED) in §R3; item 6 (size record) in §R6; item 7 (Shift
+anchoring analysis) in §R7; item 8 (syntax-ordering record) in §R8;
+item 10 SKELETON (alternative-neutral T34 witness requirements) in
+§R10. Items 2/4/5 complete elsewhere, untouched. Item 9 belongs to
+the coordinator.
+
+Verdicts: item 1 COMPLETE (landed shape transcribed; fanout-specific
+substrate still T34-owed, recorded not waived); item 3 COMPLETE
+(adopted rule + wired boundaries transcribed; standing obligations
+recorded not waived); items 6/7/8 COMPLETE (records/analysis, zero
+adoption); item 10 SKELETON ONLY (neutral witness list — any
+alternative-specific proof plan needs adoption and is NOT written
+here).
+
+### §R1 — Item-1 REFRESH: T24 COMPLETE (landed shape A/D intents ride on)
+
+tasks.md:224: "T24 TICKED COMPLETE: atomic staging + dispatch join +
+origins/guards/skips/rollback/retry/recovery proven (memory + D1/DO)".
+Commits (tasks.md:224): T24a staging join `468f20e`, T24b execution
+wiring `45aa7c7`, root-gate fix `215023f` (unreachable-by-construction
+guard, zero behavior change).
+
+R1.1 Atomic trigger-commit/outbox-staging shape:
+
+- `planDispatchStaging`
+  (packages/work/src/intent/index.ts:295-347): every `GeneratedEffect`
+  (211-222) lands in exactly one list — `staged` or `skipped`. Guards
+  evaluate at stage time against the producer snapshot; only an
+  explicit `true` stages (323-331). Fail-closed for the whole batch on
+  duplicate derived ids, malformed requests/lineage, incoherent
+  guards, or evaluator throws (286-294) — the caller stages nothing
+  and the trigger batch rolls back.
+- `work.dispatch.stage` command
+  (packages/work/src/kernel/commands.ts:1142-1231): stages each
+  intent's L4 `work.dispatch` row AND its L3 `OutboxIntent` in ONE
+  fenced batch — one fence revision; a trigger rollback voids both
+  (1117-1122). Guard-false intents stage a pinned-`false` dispatch row
+  and NO L3 intent plus an explicit skip entry — skips are never
+  silent (1131-1135). Exactly-once under retried runs: existing rows
+  replay without writes on origin+verdict match, throw on mismatch
+  (1137-1140). `operationId` must equal the run key; the true trigger
+  origin rides `originOperationId` (1124-1129).
+- L3 staging validation
+  (packages/state/src/effects/staging.ts:84-147): intent
+  `operationId` MUST equal the invoking operation (103-108), ids
+  unique in batch (132-135), JSON-safe cloned arguments.
+  `stageDispatchJoin` (263-283) derives origins + `when`-guard refs.
+  SINGLE-OWNER SCOPE ONLY — cross-store atomicity is NOT claimed and
+  must not be inferred (237-241).
+- Join linkage assertion
+  (packages/state/src/ports/transact.ts:198-249): exactly one
+  `work.dispatch` insert per outbox intent (row id == `data.intentId`),
+  non-false rows need their intent, guard-false row-only inserts are
+  recorded skips; claim/recovery update batches pass trivially.
+  `createDispatchJoinPort` (263-274) asserts then single-shot commits;
+  fence conflicts surface as retryable `busy`.
+- Commit gate: the marker is lane-3-minted and opaque here
+  (intent/index.ts:85-93); `requireCommitted` throws when
+  staged-but-uncommitted (385-392); `attemptDispatch` refuses
+  uncommitted before anything else (dispatch/index.ts:122-126).
+
+R1.2 Claim/record/requeue/reconcile/sweep semantics:
+
+- Claim identity (dispatch/index.ts:167-195): exactly one winning
+  claim id per intent per generation; `held-by-caller` replays
+  idempotently, `held-elsewhere` refuses.
+- `work.dispatch.claim` (commands.ts:189-270): ordering supersession
+  -> settled -> guard pin -> claim (183-187); `expectedVersion`
+  fencing so exactly one concurrent claimant wins; stale-claim
+  reclaim path (235-255); refusals are result payloads, never errors
+  (23-25).
+- `work.dispatch.record-attempt` (287-372): attempts increment for
+  provider attempts only, never skips (280-286); failed outcomes must
+  carry `retryClass` transient/terminal (337-346); `ack` marks the L3
+  intent dispatched when no further attempts follow.
+- `work.dispatch.requeue` (391-498): transient-only retry; uncertain
+  requires a `notFound: true` attestation (435-446); exhaustion is
+  attempt cap OR horizon (447-450); dead-letter is a visible fenced
+  outcome (451-464); deferrals hold until `availableAtMs` (465-475).
+- `work.dispatch.release` (506-549): exact `isClaimStale` boundary;
+  rows without a recorded claim stay claimed (a live dispatcher may
+  hold them).
+- `work.dispatch.supersede` (599-614): pending rows of one origin
+  occurrence only; claimed/uncertain/settled rows never touched.
+- `work.occurrence.put-receipt` (621-661): put-if-absent; losers
+  replay the winner's receipt and never re-execute.
+- `planRecoveryScan` (recovery/index.ts:453-529), decision table
+  (437-451): claimed+stale -> `resume`; pending+guard-false ->
+  `skipped`; failed-transient in-budget -> `retry`, exhausted ->
+  `dead`, terminal/unclassified -> `terminal`; uncertain+not-found ->
+  `retry`, decisive evidence -> `reconcile`, no evidence ->
+  `awaiting`; delivered/dead need no action. All lists id-sorted.
+- `work.dispatch.recover` (commands.ts:1246-1327): bounded batch
+  release in stable intent-id order after the `resumeAfter` cursor;
+  `done: false` means resume, never silently truncate; uncertain rows
+  are OBSERVED read-only, never touched (1240-1242).
+
+R1.3 Execution wiring + durable substrates (T24b):
+
+- Composition seam `assembleDispatchCommands`
+  (packages/cloudflare/src/worker/assembly.ts:1235-1243):
+  `[...l3Commands, ...workCommands, ...stageCommands]`,
+  order-enforcing, fail-loud on empty/duplicate names.
+- Registry + join port
+  (packages/cloudflare/src/runtime/invoke.ts:2546-2593):
+  `createWorkerDispatchRegistry` over the composed array;
+  `withDispatchJoinPort` routes every commit linkage-asserted.
+- `stageDispatchBatch` (3153-3195): runs `work.dispatch.stage`,
+  returns revision + staged/skipped/replayed.
+- `driveDispatchIntent` (3263-3377): fenced claim -> claim-time
+  guard re-evaluation on a CURRENT snapshot (3293-3319; evaluator
+  throws propagate with the claim held) -> exactly one provider call
+  -> one fenced record. Throwing/incoherent providers record
+  `uncertain` (3329-3332). Delivered + terminal ack the L3 intent;
+  transient + uncertain are left for the sweeper (3358).
+- `runRecoverySweep` (3582+): recover batch -> per-state scans ->
+  `planRecoveryScan` -> per-intent release/requeue/reconcile acts.
+  Uncertain rows re-attest at act time; moved evidence skips with
+  `evidence-changed` (3700-3708). Truncation flags on every scan —
+  bounded sweeps never silently truncate
+  (`RecoverySweepResult`, 3437-3469).
+- Durable substrates: `t24b-dispatch-durable.test.ts` — Miniflare
+  import (:28), real local D1 + real workerd DO SQLite handles
+  (:128), `durableSuite("miniflare D1")` (:738) and
+  `durableSuite("workerd DO")` (:744). Memory + D1/DO proven per
+  tasks.md:224; restarts explicitly unclaimed.
+
+R1.4 Fanout-carried, not fanout-decided: `FanoutLineage`
+  (cohortId/parentOccurrence/childIndex/checkpointId,
+  intent/index.ts:196-201) is documented "opaque carriers only ...
+  applies NO fanout rule" (188-195); shape-validated and echoed in
+  the planner (262-284) and the stage command (commands.ts:1067-1083).
+  Two effects sharing a cohort stage/skip/dispatch as independent
+  intents. T33 policy still undecided — carriers change no
+  alternative's standing.
+
+R1.5 Remainders (owed, not waived — tasks.md:224): bound sends (B8
+  E3019, L4-owned); T34 fanout columns + adopted rule; cross-store
+  atomicity never inferred; T08-parity expectation source. The
+  fanout-specific substrate (fanout-intent staging atomically with
+  the trigger commit + checkpoint table + recovery scan,
+  fanout-decision.md:137-141) remains T34 design text — T24 supplies
+  the SHAPE it rides on, not the fanout tables.
+
+R1.6 Mapping delta vs the ABSENT record: A/D acceptance is no longer
+  barred by missing basic staging/recovery — applicable T24 slices
+  landed; what remains fanout-specific is T34's to build and prove.
+  B's "ordinary already-planned outbox staging"
+  (fanout-decision.md:190-191) exists, so the §5 T24-to-B ordering
+  marker is MOOT as a wait question (nothing left to wait for on the
+  T24 side) — recorded as resolved-by-landing, not as B adoption.
+  C-as-language-decision still needs no T24 evidence; C's remodeled
+  execution can now ride landed dispatch.
+
+### §R3 — Item-3 REFRESH: T32a ADOPTED checkpoint_fence A + fence+wire LANDED
+
+tasks.md:280: "T32a COMPLETE with Alternative A adopted"; "T32b-fence
+mechanism done"; "T32b-wire done". Commits `1683200` (fence),
+`47681e3` (wire). JEV, coordinator-run
+(evidence/jev-t32a-20261005/README.md:65-77): UNANIMOUS ADOPT
+checkpoint_fence A — R1 .65 (conf .53), R2 .80 (conf .73), R3 .76
+(conf .67); runner-up framing-dependent (B .22 under safety; pinned
+.15/.18); grants ≤.02; stable winner, soft confidence. Provider
+flaked (529x1 + 503x3), all landed on retry, no content changed.
+
+R3.1 Adopted rule, verbatim (read-decision.md:117-123): "every
+state-dependent read in an operation (guard, `when=`, `derive`,
+policy predicate, `active_member`/role check) executes at one owner
+checkpoint enrolled in the existing revision fence. The commit batch
+re-asserts the checkpoint revision AND re-evaluates permission +
+revocation against current authority state; any intervening change to
+a read dependency fails the operation with `conflict` (stale
+revision) or `forbidden` (revoked permission), never a silent
+commit." Facets: permission fence — admission + guards at the
+checkpoint, commit rechecks `by` + every guard (125-128); revision
+fence — settled D1 database-wide optimistic fence unchanged, all
+reads enroll (129-131); revocation fence — membership/role facts are
+the trusted snapshot, fenced commit detects intervening changes,
+mid-flight revocation voids the commit (132-139); stale reads never
+within the fence, eventual views labeled and never authorize/spend
+(140-143); read→effect gap closed by construction (144-145); spend
+rule — `when=` re-run atomically with supersession, `collect`
+validates mandate at dispatch, no preflight crosses (146-149);
+transitive effects are new fence scopes re-reading current authority,
+never inheriting (150-152).
+
+R3.2 Wired per-child staleness/revocation boundaries (T32b):
+
+- Admission fence (packages/state/src/invocation/admission.ts):
+  revision read BEFORE all state-dependent reads (291-294); scope
+  opened at team ?? app (298); caller membership enrolled (329-330);
+  record refs enrolled at observed version (367); imported-parent
+  reads enrolled in the same scope (368-370); checkpoint snapshot
+  carried on the call (382).
+- Commit revalidation (`revalidateCommitForFence`, 584-629): order
+  (1) eventual bar over offered readings (585-587), (2) revision
+  assertion → `conflict` naming the enrolled-read count (588-595),
+  (3) live authority revalidation → `forbidden` on revoked permission
+  or flipped guard (599-628); trusted-kind skips step 3 only
+  (596-598).
+- Invoke wiring, success path
+  (packages/state/src/invocation/invoke.ts:300-328): revalidation
+  between execute and commit with checkpoint + `by` + executor guards
+  + readings; `conflict` retries consuming an attempt; a voided
+  commit throws with NOTHING committed and no receipt recorded.
+- Invoke wiring, rejected path + REJECTED-RECEIPT RULE (230-262):
+  rejected receipts respect the fence — a moved revision retries;
+  but a rejection racing revocation STILL RECORDS (verdict decided on
+  admitted authority, revocation voids writes, rejected receipts
+  carry none: 233-236). The ORIGINAL error is rethrown, never the
+  fence's `forbidden`; guards are unknowable on this path, so only
+  revision + live `by`/revocation revalidate (238-240).
+- By-aware projection + KNOWN EDGE (109-142): `public` → null/null,
+  `authenticated` → team null, else faithful identity; compound gates
+  admittable without caller membership can still false-void — no
+  suite exercises compounds through invoke; the durable fix is a
+  `by`-aware check inside the mechanism (125-127).
+- Transitive scopes (packages/state/src/mutation/models.ts:126-151;
+  pipeline.ts:621-636): hook bodies open FRESH scopes at the CURRENT
+  revision with zero inherited deps; `triggerRevision` carried for
+  diagnostics + dispatch claim sites; transitive `load` bypasses the
+  provisional map — committed state only (623-626). The trigger point
+  is revision+owner ONLY; dependencies never cross (pipeline.ts:68-77,
+  243-248).
+- Dispatch claim-time fence
+  (packages/work/src/dispatch/index.ts:62-86, 122-156): transitive
+  dispatches carry their OWN fresh checkpoint; presenting the
+  trigger's revision back → `refused-inherited-scope` (131-137)
+  before supersession/guard; after the guard passes,
+  `revalidateAuthority` runs — revoked → `refused-revoked`, the claim
+  never mints (154-156).
+- Live-wins revocation
+  (packages/identity/src/authentication/revocation.ts:52-66): the
+  live row wins unconditionally; the checkpoint snapshot is never
+  trusted; fail closed throughout.
+- Eventual bar (admission.ts:525-532; query/engine.ts:891-930;
+  ports/read.ts:67-71): eventual reads enroll nothing; the marked
+  wrapper is refused at every authorization boundary; combining
+  eventual with a fence throws (engine.ts:660-664, 924-927).
+- L291 NARROWER reading pinned (admission.ts:573-578;
+  revocation.ts:75-80): authority revoked between admission and
+  commit VOIDS the in-flight commit. Still open: revocation racing an
+  already-fenced commit batch (storage-atomicity question for the
+  durable fence proof).
+- Wire tests (existence):
+  invocation/t32b-wire.test.ts, mutation/t32b-wire-transitive.test.ts,
+  mutation/t32b-wire-durable.test.ts; state 683/683 per tasks.md:280.
+
+R3.3 Standing obligations (owed, not waived — tasks.md:280):
+cloudflare integration (runScenarioSeam/stageWrite guards+trigger,
+driveDispatchIntent DispatchFence + REAL refused-* via
+attemptDispatch); narrower per-team/per-record fence question;
+active_member checker; by-aware mechanism check (compound false-void
+edge); mutation/index barrel export. DECISIONS recording left for
+Codex review.
+
+R3.4 Mapping delta vs QUALIFIED fragments: per-child admission under
+A/D now has an ADOPTED rule + wired state-side enforcement — F1-F8
+are superseded by the composed contract for what they covered (fence
+enrollment, commit revalidation, transitive freshness,
+rejected-receipt fencing, L291 narrower scope). B's snapshot premise
+is now GROUNDED as database-wide assertion (revision assertion
+unconditional, admission.ts:588-595) with the narrower-fence question
+carried as the named remainder — the §4 T32a-to-B marker NARROWS to
+that remainder, recorded as narrowed-by-landing. C's "ordinary
+read-fence rules (T32-gated)" now exist state-side; C's execution
+still needs cloudflare integration + item-4 R29/T23 + T24-basic
+(landed). The §4 T32a-to-A/D ordering marker is MOOT as a wait
+question (adopted rule + wire exist). OPEN (gate sequencing, not a
+JEV marker): whether the gate wants cloudflare T32b-integration
+landed before accepting A/D, or accepts with it as a T34 prerequisite
+— no evidence pins that sequencing.
+
+### §R6 — Item 6: size record (no draft cohort approaches 499+)
+
+Census (rg + reads of both draft files):
+
+- Largest observed cohort-adjacent counts: Shift `assign` examples
+  expect `count(roster.Commitment)` → 2 (CanShift.can:111-113);
+  `count(Roster)` → 1 (CanShift.can:97-99); Volunteer `reactivate`
+  expects `count(mentoring.Signup)` → 1 (CanVolunteer.can:107-109).
+  Fixture populations: 14 fixtures in CanShift.can, 3 in
+  CanVolunteer.can (`rg -c "fixture "`); the mentoring fixture sets
+  `capacity=1` (CanVolunteer.can:39). No draft example, fixture, or
+  companion text exhibits a cohort above 2 records.
+- Bounds are caps, not observations: `limit=100` loops
+  (CanShift.can:153,184,198,218,275), `limit=500` loops
+  (CanVolunteer.can:143,163), `limit=1` (CanShift.can:319),
+  `WorkBatch max=500` (CanVolunteer.can:13), the capacity invariant
+  (CanVolunteer.can:36). A bound of N is not evidence of an N-sized
+  cohort — recorded so the gate does not mistake caps for needs.
+- 499/500/501/1000 are PROOF OBLIGATIONS, not observed needs: the
+  audit plan states "Proof covers 499/500/501/1000 records,
+  checkpoint crashes, duplicate source, concurrent insert/move/remove,
+  rejected child, retry and supersession"
+  (implementation/CHALLENGE-AUDIT-PLAN.md:398); CanShift.md:81 states
+  the no-cap contract ("499, 500, 501 and 1,000 admitted identities
+  all belong to the same complete contract, and the old rejecting
+  500-row transaction bounds are gone"); CanVolunteer.md:77 defers
+  "cohort sizes, crashes, fresh reads, interleavings and dispatcher
+  fairness" to "shared-runtime fixtures".
+
+Verdict: COMPLETE. The gate must not mistake proof sizes for
+requirements evidence. This cuts no alternative: A/D must still prove
+the sizes; B's cap fit is still unevidenced either way.
+
+### §R7 — Item 7: Shift anchoring analysis for D (ANALYSIS, not ruling)
+
+Question (checklist item 7): can the EligibilityReview sweeps be
+faithfully remodeled per-roster/per-location/per-employee, or does
+the null-or-match broadcast filter require whole-model coverage?
+What follows is evidence + analysis. The gate decides; D's pending
+markers (fanout-decision.md:271-275) stay pending.
+
+Evidence:
+
+- Event shape: `EligibilityReview { employee:Employee?,
+  location:text?, account:user?, roster:Roster? }` (CanShift.can:49).
+- Five emitters (CanShift.can:226-236): `employee_changed` →
+  `{employee}`; `location_changed` → `{location=event.id}`;
+  `member_removed` → `{account}`; `availability_changed` and
+  `availability_created` → `{employee, roster}`. Roster is supplied
+  by 2/5 emitters, employee by 3/5, location by 1/5, account by 1/5.
+- Filter shape (`review_commitment` :239, `review_swap` :246): four
+  null-or-match conjuncts — a null key matches every record.
+- Anchor census: (a) roster IS the containment parent (`Commitment
+  in Roster` :42; `Swap in Duty in Commitment` :45-47), and
+  per-roster collections are used (`roster.Commitment` :74-79, :258;
+  `event.roster.Commitment` :319) — BUT 3/5 emitters omit roster, so
+  null matches all rosters. (b) employee is an IMPORTED type (`use
+  employee {...}` :9), not a container — no `event.employee.…`
+  collection exists; `Commitment.employee` is a reference field
+  (:42). (c) the location key is a TEXT id (:49), matched as
+  `commitment.location.id==event.location` — no record, no
+  collection. (d) account is `user?` — no collection.
+- Adjacent fact (noted, not adopted): `invariant Roster:
+  count(Roster)==1` (CanShift.can:69) — a single roster satisfies the
+  invariant today, but an invariant is not an anchor and does not
+  supply the missing roster key.
+
+Analysis verdict: on current draft shapes, NO single parent anchor
+covers all five emitters — per-roster remodeling covers only
+availability-sourced reviews (2/5); per-employee/per-location/
+per-account anchors have no containment collection to traverse.
+Whole-model coverage is what the null-or-match filter text describes
+when keys are absent. Whether the gate accepts partial anchoring,
+requires emitter remodeling to always supply roster, or keeps
+whole-model coverage is the gate's decision (feeds D's markers +
+JEV), NOT ruled here. No alternative adopted, ranked, or killed.
+
+### §R8 — Item 8: syntax-ordering record (inventory WITHOUT ranking)
+
+Ordering rule, verbatim (implementation/CHALLENGE-AUDIT-PLAN.md:396):
+"Pursue a finite durable fanout contract and compare syntax only
+after guarantees are concrete." Gate procedure: the T33 semantics
+decision — adopt-or-scope with reasons for
+cohort/checkpoint/identity/concurrent-change/failure/supersession +
+costs (tasks.md:286) — precedes ANY spelling comparison; no syntax
+vote precedes the semantics decision (checklist item 8,
+fanout-decision.md:351-353).
+
+Spelling inventory (observed shapes only — no voting, no ranking):
+
+- S1. Bare-model scenario cohort: `each=Commitment`
+  (CanShift.can:237), `each=Swap` (:243), `each=Signup`
+  (CanVolunteer.can:47) — 3/4 sites.
+- S2. Parent-anchored reverse-collection scenario cohort:
+  `each=event.opportunity.Signup` (CanVolunteer.can:178) — 1/4 sites.
+- Parser status: `each=<path> [as <name>]` parses (path + optional
+  `as`-binding mirroring `send`/`create` aliases) but ALWAYS emits
+  E1203 "unsupported scenario attribute `each`" non-fatally
+  (compiler/src/syntax/parser.rs:4567-4614). No normative `each=`
+  production exists: GRAMMAR.md/DESIGN.md/DECISIONS.md contain zero
+  `each=` hits (`rg -c` census), and the parser comment notes the
+  GRAMMAR trusted-scenario row lists only `on=` (parser.rs:4569-4570).
+- Adjacent bounded-traversal vocabulary (candidate NEIGHBORS, not
+  `each=` spellings — listed so the post-guarantees comparison set is
+  complete; listing is not candidacy and not ranking): S3
+  for-over-model `where`+`limit` (CanShift.can:218;
+  CanVolunteer.can:161); S4 for-over-anchored-collection
+  `where`+`limit` (CanVolunteer.can:143,163;
+  CanShift.can:153,184,198,319); S5 for-over-let-bound-collection
+  `limit=` (CanShift.can:275).
+
+Verdict: COMPLETE as a record. The gate compares spellings only
+after the completeness contract is concrete.
+
+### §R10 — Item-10 SKELETON: alternative-neutral T34 witness requirements
+
+Status: SKELETON ONLY — what ANY proof plan must witness,
+independent of which alternative the gate adopts. Any
+alternative-specific plan needs adoption and is NOT written here.
+Sources: T34 acceptance (tasks.md:293), T34 scoping branch
+(tasks.md:292,294), audit-plan proof sentence
+(CHALLENGE-AUDIT-PLAN.md:398), T40 consequences (tasks.md:332,336),
+T33 bar (fanout-decision.md:74-77, workflows 79-92).
+
+Neutral witness list (each row: ANY adopted proof plan witnesses it;
+a scoping disposition defers it with reasons, never ticks it):
+
+1. Sizes: 499/500/501/1000 cohort completeness (tasks.md:293;
+   plan :398).
+2. Crash: checkpoint-crash resume without re-execution or
+   misreported partial completion (plan :398 "checkpoint crashes";
+   bar "partial execution is never reported as complete" :90).
+3. Duplicates: duplicate trigger delivery replays the parent receipt
+   and mints no new children (tasks.md:293; L520 precedent cited at
+   fanout-decision.md:108-109).
+4. Concurrent change: insert/move/remove during flight under the
+   adopted membership rule (tasks.md:293; plan :398).
+5. Rejected child: business rejection isolated per the adopted
+   failure rule, reported, never silent (tasks.md:293; plan :398
+   "rejected child").
+6. Retry: transient retry horizons per the adopted rule
+   (tasks.md:293 "retry").
+7. Supersession: re-trigger-during-flight under the adopted rule
+   (tasks.md:293; plan :398 "supersession").
+8. T40 per-app consequences: Shift/Volunteer qualify only on adopted
+   T34 (tasks.md:332); scoped mandatory workflows remain explicit
+   gaps (tasks.md:336; fanout-decision.md:73,77).
+9. Scoping branch: if C or D's remainder scopes, T34 records
+   deferred reasons, never implementation completion
+   (tasks.md:292,294).
+
+No alternative-specific mapping is written: which witnesses bind
+which alternative (cap enforcement under B, anchored-only proofs
+under D, remodeling equivalence under C) is decided WITH adoption at
+the gate.
+
+### Refresh slice — commands run (read-only)
+
+`rg -n "each="` census (4 sites, nothing else); `rg -c "fixture "`
+(14 Shift + 3 Volunteer); `rg -on "-> [0-9]+"` + count-row reads
+(largest observed 2); `rg -n "499|500|501|limit=|max=500"` over
+drafts + companions; `rg -c "each="` over GRAMMAR/DESIGN/DECISIONS
+(zero); `rg -n "E1203"` + read of parser.rs:4567-4614; full reads of
+intent/dispatch/kernel-commands/recovery (work), staging/transact
+(state), invoke.ts drive/sweep + assembly seam (cloudflare),
+admission/invoke/models/pipeline (state), revocation (identity),
+query/engine + ports/read fence hunks, dispatch fence hunks;
+read-decision.md Alternative A (115-168); jev-t32a README;
+tasks.md T24/T32/T33/T34/T40 lines; CanShift.can:1-49,205-265 +
+CanVolunteer.can fanout neighborhoods; CHALLENGE-AUDIT-PLAN.md:392-398.
+
+### Refresh slice — handoff
+
+- Writer: L4 T33 gate-input writer. WROTE ONLY
+  `implementation/challenge-audit-run/evidence/fanout-decision.md`
+  (appended this section + items 1+3 markers); all drafts, normative
+  docs, tasks/monitor/inbox, code, and `tools/jev.py` untouched; no
+  JEV run; no Git; no builds; no tests run.
+- Pending markers: ZERO added (`rg -c` stays 18; this handoff
+  deliberately avoids the marker literal). Two earlier markers are
+  recorded moot/narrowed-by-landing in §R1.6/§R3.4 with their text
+  preserved. One OPEN gate-sequencing question is recorded in §R3.4
+  without a marker.
+- Zero adoption language: no fanout alternative recommended,
+  ranked, or killed; no T34 alternative-specific plan written.
+- Release: this file is RELEASED to the coordinator for gate
+  scheduling. Gate-needs status after this slice: items 1/2/3/4/5/6/7/8
+  fed; item 9 (coordinator-run JEV) + item 10 full plan (post-adoption)
+  remain.
