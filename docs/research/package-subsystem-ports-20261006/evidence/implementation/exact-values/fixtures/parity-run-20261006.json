@@ -1,0 +1,1 @@
+{"base":"e9e88ad","branch":"codex/values-rust-port","currency_drift":"none","differential":{"cases":3309,"command":"node conformance/ports/exact/differential.mjs","exit":0,"hand_cases":309,"matched":3309,"mismatches":0},"grant":"G-G-VAL-01","native_tests":{"exit":0,"failed":0,"passed":47},"recorded_by":"lane-G values-rust-port","task":"A06 native differential parity"}
