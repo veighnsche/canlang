@@ -16,8 +16,10 @@ import type {
   QueryPredicate,
   RecordId,
   RecordParent,
+  Revision,
   StoredRow,
 } from '../../../contracts/src/state.js';
+import type { FenceScope } from '../invocation/admission.js';
 import { validatePredicateShape } from '../policy/grants.js';
 
 /** Hook operations, by caller intent (`remove` covers the archive path too). */
@@ -115,6 +117,40 @@ export interface InterimHookSchedule {
 }
 
 /**
+ * T32b-wire: the transitive fence facility one hook invocation reads
+ * through. Hook bodies are transitive effects: they open their OWN fresh
+ * scopes (never inherit the trigger's) and re-read CURRENT authority state
+ * at their own checkpoints. The pipeline builds this per hook invocation;
+ * hook bodies never construct it.
+ */
+export interface InterimHookTransitive {
+  /**
+   * The triggering checkpoint's revision — the `triggerRevision` a dispatch
+   * claim site passes beside this hook's fresh checkpoint (presenting the
+   * trigger's own revision back as the checkpoint is inheriting and is
+   * refused). Null when the pipeline ran without a trigger point (direct
+   * callers that pass no `trigger`): fresh scopes still open, but no
+   * trigger revision is named.
+   */
+  readonly triggerRevision: Revision | null;
+  /** Owner for opened scopes (the trigger owner, else team ?? app). */
+  readonly owner: string;
+  /**
+   * Open a FRESH transitive scope at the CURRENT store revision with zero
+   * enrolled dependencies — inheritance is unrepresentable.
+   */
+  openScope(): Promise<FenceScope>;
+  /**
+   * Re-read one CURRENT committed row at a transitive scope, enrolling the
+   * observed version in that scope (null rows enroll nothing — there is no
+   * absent-read dependency; the revision assertion still covers the read).
+   * ALWAYS bypasses the pipeline's provisional map: transitive re-reads
+   * observe committed authority state, never this batch's uncommitted rows.
+   */
+  load(scope: FenceScope, model: ModelName, id: RecordId): Promise<StoredRow | null>;
+}
+
+/**
  * Hook run context: provisional-before row, caller intent, attribution.
  *
  * T31 (Rule A): `before` is a deep-frozen snapshot — hook mutation attempts
@@ -144,6 +180,11 @@ export interface InterimHookContext {
   readonly schedule: (op: InterimHookSchedule) => void;
   /** Stage one timer cancel for atomic commit with the trigger. */
   readonly cancel: (key: string) => void;
+  /**
+   * T32b-wire: transitive fence reads — fresh scopes plus current-state
+   * re-reads at those scopes. Built per hook invocation by the pipeline.
+   */
+  readonly transitive: InterimHookTransitive;
 }
 
 /**

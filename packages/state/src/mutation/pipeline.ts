@@ -21,6 +21,7 @@ import type {
   RecordId,
   RecordParent,
   RecordVersion,
+  Revision,
   ScheduleOp,
   StoredRow,
   UniqueClaim,
@@ -28,6 +29,7 @@ import type {
 } from '../../../contracts/src/state.js';
 import type { StoragePort } from '../storage/port.js';
 import { StateError } from '../errors.js';
+import { openTransitiveScope, type FenceScope } from '../invocation/admission.js';
 import { STAGING_MAX_ID_LENGTH } from '../effects/staging.js';
 import { checkJsonSafe as checkJsonEncoding, jsonClone } from '../internal/json.js';
 import { evalPredicateForRow, resolveRowPath } from '../policy/grants.js';
@@ -61,6 +63,18 @@ export interface MutationWritesInput {
   readonly writes: ReadonlyArray<MutationWrite>;
   readonly context: InvocationContext;
   readonly store: StoragePort;
+  /**
+   * T32b-wire: the triggering checkpoint POINT (revision + owner only).
+   * Hook bodies read it as `transitive.triggerRevision` (the
+   * `triggerRevision` a dispatch claim site passes beside their fresh
+   * checkpoint) and open scopes under its owner. The trigger's enrolled
+   * DEPENDENCIES never cross this boundary — hooks inherit nothing; every
+   * transitive read opens a fresh scope and enrolls its own reads. Absent
+   * on direct pipeline calls (including the CRUD executors, which thread
+   * no trigger yet): `triggerRevision` reads null and the owner falls
+   * back to team ?? app, mirroring admission.
+   */
+  readonly trigger?: { readonly revision: Revision; readonly owner: string };
 }
 
 /**
@@ -226,6 +240,12 @@ export async function runMutationWrites(input: MutationWritesInput): Promise<Mut
   const { table, writes, context, store } = input;
   const now = context.now;
   const actor = actorFor(context);
+  // T32b-wire: the transitive facility's trigger point. Revision + owner
+  // ONLY — the trigger's enrolled dependencies never enter the pipeline,
+  // so hook bodies cannot inherit them. Without a trigger the owner falls
+  // back to team ?? app, mirroring admission's checkpoint owner.
+  const transitiveTriggerRevision = input.trigger?.revision ?? null;
+  const transitiveOwner = input.trigger?.owner ?? context.team?.teamId ?? context.app;
   const provisional = new Map<string, ProvisionalEntry>();
   const outWrites: DomainWrite[] = [];
   const outHistory: HistoryEntry[] = [];
@@ -597,6 +617,28 @@ export async function runMutationWrites(input: MutationWritesInput): Promise<Mut
         cancel: (key) => {
           forbidStagingOnRemove('timers');
           sink.schedules.push(checkStagedCancel(def, hook.name, key));
+        },
+        // T32b-wire: hook bodies are transitive effects — fresh scopes at
+        // the CURRENT revision (zero inherited deps) plus re-reads of
+        // CURRENT committed rows at those scopes. `load` deliberately
+        // bypasses the provisional map (`store.load`, never `getRow`):
+        // transitive re-reads observe committed authority state, never
+        // this batch's uncommitted rows.
+        transitive: {
+          triggerRevision: transitiveTriggerRevision,
+          owner: transitiveOwner,
+          openScope: () => openTransitiveScope(store, transitiveOwner),
+          load: async (
+            scope: FenceScope,
+            model: ModelName,
+            id: RecordId,
+          ): Promise<StoredRow | null> => {
+            const row = await store.load(model, id);
+            if (row !== null) {
+              scope.enroll({ kind: 'record', model, id, version: row.version });
+            }
+            return row;
+          },
         },
       };
       // Each hook gets a clone and its return is re-cloned: hooks can neither
