@@ -1,0 +1,15 @@
+▶ t26 resume scan
+  ✔ resumes pending and unknown rows, settles terminal rows (1.628291ms)
+  ✔ sorts both lists by delivery id for stable evidence (0.231166ms)
+  ✔ plans nothing over an empty row set (0.150042ms)
+  ✔ refuses cross-relation rows instead of scanning them (1.101875ms)
+  ✔ throws loudly on corrupt rows instead of planning around them (0.146791ms)
+✔ t26 resume scan (4.692666ms)
+ℹ tests 5
+ℹ suites 1
+ℹ pass 5
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 144.191875

@@ -1,0 +1,30 @@
+{
+  "evaluation_checkpoint": "011fced78cbb3762ce838066295468bdd23e5b8a",
+  "head_at_snapshot": "96cf12f5509f96286f171a13e5a1e372f857959f",
+  "inspected_files_changed_since_checkpoint": [],
+  "sha256": {
+    "packages/values/src/int.ts": "e85ea2cf5d6dc70793ed1347676b935f07c9650747eaf4a5006ea0adbf3e496d",
+    "packages/values/src/decimal.ts": "c2ed5ebec7d1a8643ae1675202d70fac70dd3b5267557227573ec02f80e47a5a",
+    "packages/values/src/money.ts": "32341bb1944d1edd229dd1c85561c1ba1d557a1aa0c7003f5069b9ea1cac42a4",
+    "packages/values/src/temporal.ts": "8f68ea231a38a1b5137e96c66abab0db8fa4a151f7eb60fa9c3ac9a3280a0abc",
+    "packages/values/src/array.ts": "f7159c77490aa9707f745b486d253ff5cabff0757add8e66388edae73d2f985f",
+    "packages/values/src/equality.ts": "5deb41a5ab9059f1697309258c472075223640ca64fcb370f85166706b0ab762",
+    "packages/values/src/wire.ts": "aaf8664eabf7984bbb3fceb76324ea9ea0165219cf1c87dfb6fa5cf0ffa02392",
+    "packages/values/src/schema.ts": "d535ddb1525bc5ac05fe630a6046ee4ab39ec69797d49b7e4062ee67fb020e97",
+    "packages/values/src/types.ts": "58eaa879279ed42da2379a480d6a9cfc16780fc93e3986778fcb4651c4a4cd9a",
+    "packages/values/src/kinds.ts": "3fef5692c980d2b257b2a5183b573f6ffb9dbd8ed6b5fb1e45fabf351bf447ea",
+    "packages/work/src/schedule/every.ts": "60854aa7c190ef69f29bde0f68e1e26ae68de98c782fa82d64e4f2e822e046e9",
+    "packages/work/src/receipt/index.ts": "5085f392192a1059c9a5d3bcf679e4984b77a0ab4a5e799bcd17812e8060d6e3",
+    "packages/work/src/recovery/index.ts": "c973d3b8fafd4db66ff2b6b278e3ff49c8121601b5d21665507e4ee3ff231859",
+    "packages/work/src/kernel/commands.ts": "b78ba7004c147887ea15e9ab872fca52c0367e9c4d16399f22b2fdaabbacef8d",
+    "packages/cloudflare/src/runtime/artifact.ts": "543244d0242b329441f35f66c716e0ecdd6a309e883846330bf5b25dbbae1057",
+    "packages/cloudflare/src/deploy/compat.ts": "f78595dfc66957678a187e78b6fd3bd2ab20ec560c850637d7cb7425bbca2138",
+    "packages/cloudflare/src/deploy/plan.ts": "b3e90850bc619c6f1e8df843f393f639fef7c8dc0e59e3bdeae50eb2ed9ab335",
+    "packages/cloudflare/src/deploy/bundle.ts": "30f6a5da903d9fdd61ca78b01c0c5de51e6007d5e234634793b022081c9cbc32",
+    "packages/cloudflare/src/dev/local-run.ts": "d7a460471c4a88c18fdacac8263c6d96247b0f1666e4e8b40e5c714f847fe1ec",
+    "packages/cloudflare/src/runtime/invoke.ts": "e8421f800fc6a7a827a108c3f45e4209c041d4bdb6dbf7be8ec03ae997123900",
+    "packages/stdlib/src/index.ts": "6cdeadfd7ee2ffed08b80196a3bfe5e98236b02af95f8fa2028c1214cb210cee",
+    "packages/testkit/src/scopes/local.ts": "68eacdc3c2eecdae8235f89f1b6a479ee2a3bdfb31dd8ef1f090d3102b9e44ba",
+    "packages/state/src/invocation/admission.ts": "cf8afac7cd9cc543e25f64cdbf9b864fa734c3df7f23d9ef77fd8cdb02097fdc"
+  }
+}

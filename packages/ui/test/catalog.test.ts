@@ -396,6 +396,18 @@ describe("component catalog", () => {
       fieldInputName: "input-name helper, not a component",
       formatDatetimeLocal: "datetime renderer, not a component",
       pointerToFieldName: "json-pointer helper, not a component",
+      // forms.ts: generated-operation surface (T20a factories, T20b exports; not selectable words).
+      formFragmentWrap: "fragment-wrap helper, not a component",
+      generatedDraftValues: "draft-flattening helper, not a component",
+      generatedFields: "derived-input field mapper, not a component",
+      generatedForm: "generated operation form, not a selectable word",
+      projectGeneratedInputs: "submission-projection helper, not a component",
+      // client.ts: submit client for generated forms (T20b), not selectable words.
+      applyDocumentRerender: "denial-document swap helper, not a component",
+      applyFormRerender: "denial-fragment swap helper, not a component",
+      collectFormValues: "flat-map collector, not a component",
+      GeneratedSubmitError: "typed submit failure, not a component",
+      submitGeneratedForm: "envelope submitter, not a component",
       // catalog.ts: the shared producer itself.
       LANE05_CATALOG_VERSION: "catalog version constant, not a component",
       UI_CATALOG: "the catalog, not a component",
