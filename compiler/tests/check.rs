@@ -937,3 +937,38 @@ fn warnings_never_block() {
     assert!(has_errors(std::slice::from_ref(&error)));
     assert_eq!(exit_code(std::slice::from_ref(&error)), 10);
 }
+
+// --- E5001 create headers skip derived fields (Table:59) --------------------
+//
+// `conflict`/`overdue` at CanTable.can:59 are `derive Booking.*`:
+// computed, never supplied (`field_is_required`), so an `examples
+// create` header must not require them. A missing required writable
+// input still reports exactly.
+
+const E5001_DERIVE_GIVEN: &str = "app T\nGiven\n Place { name:text }\n policy Place read=members\n Booking { name:text }\n derive Booking.flag:bool = row.name!=\"\"\n policy Booking read=members\n fixture hq=Place {name=\"hq\"}\nWhen\n crud Booking by=members fields=name\n";
+
+/// Derived fields are computed, never required create inputs.
+#[test]
+fn e5001_create_header_skips_derived_fields() {
+    let src = format!(
+        "{E5001_DERIVE_GIVEN}  examples create name=\"x\" seed=[hq]\n   as -> first(hq.Booking).name\n   members -> error(forbidden)\nThen\n"
+    );
+    assert_e5_clean(&src);
+}
+
+/// A missing required writable input still reports exactly (and only
+/// itself — never the derived field).
+#[test]
+fn e5001_create_header_still_requires_writable_fields() {
+    let src = format!(
+        "{E5001_DERIVE_GIVEN}  examples create seed=[hq]\n   as -> first(hq.Booking).name\n   members -> error(forbidden)\nThen\n"
+    );
+    let diags = e5(&src);
+    assert_eq!(diags.len(), 1, "{diags:?}\nsource:\n{src}");
+    assert_eq!(diags[0].code, "E5001");
+    assert!(
+        diags[0].message.contains("missing required input 'name'"),
+        "{}",
+        diags[0].message
+    );
+}
