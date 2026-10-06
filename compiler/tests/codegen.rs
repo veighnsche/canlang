@@ -6534,3 +6534,206 @@ console.log(JSON.stringify(verdict));
         "hook attribution: {message}"
     );
 }
+
+// --- T21-L1 single-app entry emission ------------------------------------------
+// The entry module of a single-app program used to emit bare identity
+// consts (`export const create/update/delete`): `create` collided with
+// the module's own stdlib import (duplicate declaration) and `delete`
+// is a reserved word, so the entry module was unimportable JS. Exports
+// are module-prefixed (`Shop_create`, ...); this test pins the shape,
+// parses, imports and executes one op through the emitted handler.
+
+/// Parse the local-vs-exported binding pairs out of one emitted
+/// `import { ... } from "<source>";` line (`require as check` imports
+/// `require` under the local name `check`).
+fn t21l1_import_bindings(line: &str) -> Vec<(String, String)> {
+    let Some(inner) = line
+        .split('{')
+        .nth(1)
+        .and_then(|rest| rest.split('}').next())
+    else {
+        return Vec::new();
+    };
+    inner
+        .split(',')
+        .filter_map(|part| {
+            let part = part.trim();
+            if part.is_empty() {
+                return None;
+            }
+            if let Some((exported, local)) = part.split_once(" as ") {
+                Some((exported.trim().to_string(), local.trim().to_string()))
+            } else {
+                Some((part.to_string(), part.to_string()))
+            }
+        })
+        .collect()
+}
+
+/// (T21-L1) Single-app CRUD entry modules import and execute: the
+/// entry parses (`node --check`), imports under node with a stub
+/// `@canlang/stdlib` (every imported binding served), and the emitted
+/// create handler executes with the real seams called (model id +
+/// input mapping observed). Failing-first: on bare exports both the
+/// parse and the prefixed-const assertions fail.
+#[test]
+fn t21l1_single_app_crud_entry_imports_and_executes() {
+    let (catalog, path) = golden_catalog();
+    let src = "app Shop\nGiven\n Gadget { title:text }\nWhen\n crud Gadget by=members fields=title\nThen\n";
+    let (db, program, result) = t31_program(src, &catalog);
+    assert!(result.diagnostics.is_empty(), "{:?}", result.diagnostics);
+    let (artifact, diags) = emit_test_only(&program, &db, &result, Some(&catalog));
+    let _ = std::fs::remove_file(&path);
+    assert!(diags.is_empty(), "{diags:?}");
+    assert_eq!(artifact.modules.len(), 1, "single-app emits entry only");
+    let js = &artifact.modules[0].js;
+    assert_eq!(artifact.modules[0].path, "shop.mjs", "entry path");
+    // Module-prefixed identity consts; no bare or reserved-word exports.
+    for (export, canonical) in [
+        ("Shop_create", "Shop.Gadget.create"),
+        ("Shop_update", "Shop.Gadget.update"),
+        ("Shop_delete", "Shop.Gadget.delete"),
+    ] {
+        assert!(
+            js.contains(&format!("export const {export}=\"{canonical}\";")),
+            "missing {export} in:\n{js}"
+        );
+    }
+    for bare in [
+        "export const create=",
+        "export const update=",
+        "export const delete=",
+    ] {
+        assert!(!js.contains(bare), "bare export {bare} in:\n{js}");
+    }
+    t31_assert_parses(js, "t21l1");
+    // Stage for import: the entry plus a stub `@canlang/stdlib` (and
+    // `@canlang/ui` when imported) serving every imported binding.
+    let dir = t31_stage_dir("t21l1-import");
+    std::fs::write(dir.join("entry.mjs"), js).unwrap();
+    let mut stdlib: Vec<(String, String)> = Vec::new();
+    let mut ui: Vec<(String, String)> = Vec::new();
+    for line in js.lines() {
+        let trimmed = line.trim();
+        if !trimmed.starts_with("import ") {
+            continue;
+        }
+        let bindings = t21l1_import_bindings(trimmed);
+        if trimmed.contains("@canlang/stdlib") {
+            stdlib.extend(bindings);
+        } else if trimmed.contains("@canlang/ui") {
+            ui.extend(bindings);
+        } else {
+            panic!("single-app entry imports outside stdlib/ui: {trimmed}");
+        }
+    }
+    assert!(!stdlib.is_empty(), "crud entry imports stdlib");
+    let stub = |bindings: &[(String, String)]| {
+        let mut out = String::from("export const __calls = [];\n");
+        out.push_str(
+            "const rec = (name) => (...args) => { __calls.push([name, ...args]); return {}; };\n",
+        );
+        for (exported, _) in bindings {
+            if exported == "require" {
+                out.push_str("export const require = (cond, code) => { if (!cond) throw new Error(\"check:\" + code); };\n");
+            } else if exported == "hasRole" {
+                out.push_str("export const hasRole = () => true;\n");
+            } else {
+                out.push_str(&format!("export const {exported} = rec(\"{exported}\");\n"));
+            }
+        }
+        out
+    };
+    for (package, bindings) in [("stdlib", &stdlib), ("ui", &ui)] {
+        if bindings.is_empty() {
+            continue;
+        }
+        let package_dir = dir.join("node_modules").join("@canlang").join(package);
+        std::fs::create_dir_all(&package_dir).unwrap();
+        std::fs::write(
+            package_dir.join("package.json"),
+            format!(
+                "{{\"name\":\"@canlang/{package}\",\"version\":\"0.0.0-test\",\"type\":\"module\",\"main\":\"index.mjs\"}}"
+            ),
+        )
+        .unwrap();
+        std::fs::write(package_dir.join("index.mjs"), stub(bindings)).unwrap();
+    }
+    let driver = r##"
+import { canApp, Shop_create, Shop_update, Shop_delete } from './entry.mjs';
+import { __calls } from '@canlang/stdlib';
+const verdict = {};
+try {
+  verdict.createId = Shop_create;
+  verdict.updateId = Shop_update;
+  verdict.deleteId = Shop_delete;
+  const app = canApp();
+  const out = await app.createGadget({}, { title: "widget" });
+  verdict.result = out ?? null;
+  verdict.calls = __calls;
+  verdict.ok = true;
+} catch (error) {
+  verdict.ok = false;
+  verdict.error = String(error?.stack ?? error);
+}
+console.log(JSON.stringify(verdict));
+"##;
+    std::fs::write(dir.join("run.mjs"), driver).unwrap();
+    let out = std::process::Command::new("node")
+        .arg("run.mjs")
+        .current_dir(&dir)
+        .output()
+        .expect("spawn node driver");
+    assert!(
+        out.status.success(),
+        "driver failed: stdout={} stderr={}",
+        String::from_utf8_lossy(&out.stdout),
+        String::from_utf8_lossy(&out.stderr)
+    );
+    let stdout = String::from_utf8_lossy(&out.stdout);
+    let verdict = canlang_compiler::json::parse(stdout.trim()).expect("verdict parses");
+    assert_eq!(
+        verdict.get("ok").and_then(|v| v.as_bool()),
+        Some(true),
+        "verdict: {stdout}"
+    );
+    assert_eq!(
+        verdict.get("createId").and_then(|v| v.as_str()),
+        Some("Shop.Gadget.create"),
+        "{stdout}"
+    );
+    assert_eq!(
+        verdict.get("updateId").and_then(|v| v.as_str()),
+        Some("Shop.Gadget.update"),
+        "{stdout}"
+    );
+    assert_eq!(
+        verdict.get("deleteId").and_then(|v| v.as_str()),
+        Some("Shop.Gadget.delete"),
+        "{stdout}"
+    );
+    // The real emitted create path ran: admission passed and the
+    // stdlib `create` seam received the model id plus the input.
+    let calls = verdict.get("calls").cloned().unwrap_or(Json::Null);
+    let Json::Arr(calls) = calls else {
+        panic!("calls: {stdout}");
+    };
+    let create = calls.iter().find(|call| {
+        matches!(call, Json::Arr(row) if row.first().and_then(|v| v.as_str()) == Some("create"))
+    });
+    let Some(Json::Arr(row)) = create else {
+        panic!("no create call: {stdout}");
+    };
+    assert_eq!(
+        row.get(2).and_then(|v| v.as_str()),
+        Some("Shop.Gadget"),
+        "{stdout}"
+    );
+    assert_eq!(
+        row.get(3)
+            .and_then(|v| v.get("title"))
+            .and_then(|v| v.as_str()),
+        Some("widget"),
+        "{stdout}"
+    );
+}

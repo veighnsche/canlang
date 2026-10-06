@@ -3237,8 +3237,18 @@ impl<'a> Emitter<'a> {
     fn emit_identity_consts(
         &mut self,
         out: &mut JsWriter,
-        entry: Option<crate::analysis::resolve::ModuleId>,
+        _entry: Option<crate::analysis::resolve::ModuleId>,
     ) {
+        // T21-L1: every export is module-prefixed, entry module
+        // included. Bare entry names collide with the entry module's
+        // own import bindings (`export const create` vs `import
+        // {create}`) and can be JS reserved words (`export const
+        // delete`), emitting unimportable JS. Exports are named
+        // before lowering accrues the final import set (builtins are
+        // open-vocabulary), so no seed list can stay complete; the
+        // module prefix namespaces exports away from imports.
+        // (`_entry` stays a parameter for call-shape stability; every
+        // module now takes the prefixed arm.)
         let mut taken: BTreeSet<String> = BTreeSet::new();
         for item in &self.ir.items.clone() {
             let is_callable = matches!(
@@ -3248,10 +3258,9 @@ impl<'a> Emitter<'a> {
             if !is_callable {
                 continue;
             }
-            let mut export = sanitize_ident(&item.name);
-            if item.module != entry.unwrap_or(item.module) || !taken.insert(export.clone()) {
-                let module = self.ir.module(item.module).name.clone();
-                export = sanitize_ident(&format!("{module}_{}", item.name));
+            let module = self.ir.module(item.module).name.clone();
+            let mut export = sanitize_ident(&format!("{module}_{}", item.name));
+            if !taken.insert(export.clone()) {
                 let mut n = 2;
                 while !taken.insert(export.clone()) {
                     export = sanitize_ident(&format!("{module}_{}_{n}", item.name));
