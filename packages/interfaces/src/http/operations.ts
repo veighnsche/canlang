@@ -161,6 +161,9 @@ function coerceFormBody(form: Record<string, string>): Record<string, unknown> {
  * Leniency (documented): extra top-level envelope members beyond
  * operation/operation_id/inputs are ignored — only `inputs` is
  * closed-checked, since the URL (not the body) selects the operation.
+ * Carve-out (E2b): a top-level `action_handle` rejects loudly instead —
+ * sealed-handle submission is MCP-only, so it must never silently
+ * dispatch as an ordinary envelope.
  */
 export async function handleOperationRequest(
   deps: HttpDeps,
@@ -202,6 +205,22 @@ export async function handleOperationRequest(
     const record = body as Record<string, unknown>;
     if ('operation' in record && record['operation'] !== operation) {
       return deny(deps, buildBusinessError('validation', 'Body operation does not match the route.'), operation);
+    }
+    // E2b handle-mode boundary: sealed-handle submission is MCP-only, so a
+    // top-level `action_handle` (the MCP sibling spelling) rejects loudly
+    // instead of falling into the documented extra-member leniency — a
+    // misrouted handle call must never silently dispatch as ordinary.
+    if ('action_handle' in record) {
+      const message =
+        "Unknown top-level member 'action_handle': sealed-handle submission is MCP-only " +
+        '(tools/call); HTTP operation POSTs carry ordinary inputs.';
+      return deny(
+        deps,
+        buildBusinessError('validation', message, {
+          fields: [{ path: '/action_handle', code: 'unknown', message }],
+        }),
+        operation,
+      );
     }
     // Capture redisplay state best-effort: later denials re-render the form
     // when the request asks for HTML; `_csrf` is transport, never a draft.
