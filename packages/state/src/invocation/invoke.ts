@@ -47,6 +47,7 @@ import {
   revalidateCommitForFence,
   validateCallInputs,
   type AdmittedCall,
+  type ConflictServerOnly,
   type GuardRevalidation,
 } from './admission.js';
 import { queryRecords } from '../query/index.js';
@@ -167,6 +168,13 @@ export async function invoke(input: {
   kind?: AdmissionKind;
   trustedSource?: string;
   execute: ExecuteHandler;
+  /**
+   * B2 (Q3): serverOnly exclusions for denial currents, forwarded to
+   * `admit` (see `ConflictServerOnly`). The holder (seam/assembly)
+   * builds it from the loaded models; absent reads as unknown and
+   * stale-ref denials carry metadata-only currents.
+   */
+  conflictServerOnly?: ConflictServerOnly;
 }): Promise<MutationResult> {
   const def = input.registry.get(input.envelope.operation);
   if (def === undefined) {
@@ -198,6 +206,9 @@ export async function invoke(input: {
       context,
       store: input.store,
       memberships: input.memberships,
+      ...(input.conflictServerOnly !== undefined
+        ? { conflictServerOnly: input.conflictServerOnly }
+        : {}),
     });
     if (call.replay !== null) {
       const outcome = call.replay.outcome;
