@@ -238,8 +238,20 @@ export function canApp() {
   return {
     calls,
     policy: {
-      operations: { "acme.Todo.create": { by: ["members"] } },
-      models: {}
+      operations: {
+        "acme.Todo.create": { by: ["members"] },
+        // B7: the seam scenarios declare EXPLICIT-public admission
+        // (the interim-implicit posture this section was designed
+        // around — absent entries now deny): the mechanism's
+        // revocation check skips under public projection, so the
+        // seam's caller.roles guard stays the tripwire.
+        "acme.Shop.place": { by: ["public"] },
+        "acme.Shop.hooked": { by: ["public"] },
+        "acme.Shop.boomThrow": { by: ["public"] }
+      },
+      models: {
+        "acme.Todo": { read: ["Todo.read.1"], public: ["Todo.read.1"] }
+      }
     },
     Todo: { create: throwing },
     Shop: {
@@ -367,10 +379,11 @@ async function modelRows(store: StoragePort, model: string): Promise<StoredRow[]
 /* ------------------------------------------------------------------ */
 /* Site (a): scenario path through the real seam.                      */
 /*                                                                     */
-/* Scenarios admit `public` at the canonical gate, so the mechanism's  */
-/* revocation check skips (by-aware projection) and the SEAM's         */
-/* `caller.roles` guard is the membership tripwire — revocation and    */
-/* role flips void with `forbidden` naming the guard.                  */
+/* Scenarios admit `public` at the canonical gate (DECLARED gates,   */
+/* B7 — the interim-implicit posture made explicit), so the            */
+/* mechanism's revocation check skips (by-aware projection) and the    */
+/* SEAM's `caller.roles` guard is the membership tripwire —            */
+/* revocation and role flips void with `forbidden` naming the guard.   */
 /* ------------------------------------------------------------------ */
 
 describe("T32b scenario seam (guards + readings + revision fence)", () => {
@@ -1092,6 +1105,243 @@ describe("T32b fenced dispatch drives (real kernel verdicts)", () => {
     assert.equal(data.attempts, 0);
   });
 
+  it("buckets an unavailable target to the terminal transport member (target + echo, no call/record)", async () => {
+    // D3 transport half: the kernel's exact-keys verdict
+    // `{status,outboxId,target}` maps to the `unavailable` outcome
+    // member. Port stub, not the real kernel: this checkout's work
+    // kernel predates D's availability verdict (9c7b67c), so the
+    // stub returns the D-pinned exact shape verbatim; the
+    // real-kernel join (availability injection plumbing through the
+    // fence input) is a follow-up.
+    const { store } = createTestMemoryStorage();
+    const stack = await workerStack(store);
+    const seed = await seedIdentity();
+    const attemptDispatch = (() => ({
+      status: "unavailable",
+      outboxId: "obx_d1",
+      target: "Mail.send",
+    })) as unknown as FenceAttemptDispatchFn;
+    await stageIntents(stack, [stageInput({ intentId: "obx_d1" })]);
+    const intent = await pendingIntent(stack, "obx_d1");
+    const revisionBefore = await store.readRevision();
+    let providerCalls = 0;
+    const outcome = await driveDispatchIntent({
+      ...driveDefaults(stack, intent),
+      callProvider: (async () => {
+        providerCalls += 1;
+        return deliveredOutcome();
+      }) as DispatchProviderCaller,
+      fence: {
+        owner: seed.teamId,
+        revalidateAuthority: liveAuthority(seed),
+        attemptDispatch,
+      },
+    });
+    assert.equal(outcome.status, "unavailable");
+    if (outcome.status !== "unavailable") throw new Error("unreachable");
+    assert.equal(outcome.target, "Mail.send");
+    assert.equal(providerCalls, 0);
+    assert.deepEqual(outcome.fence, {
+      checkpoint: { revision: revisionBefore + 1, owner: seed.teamId },
+      triggerRevision: null,
+    });
+    const data = readDispatchExecutionRow(await dispatchRow(stack, "obx_d1"));
+    assert.equal(data.state, "claimed");
+    assert.equal(data.claimId, outcome.claimId);
+    assert.equal(data.attempts, 0);
+    assert.deepEqual(await pendingIds(stack), ["obx_d1"]);
+    assert.equal(await store.readRevision(), revisionBefore + 1);
+  });
+
+  it("buckets unavailable BEFORE the guard (guard never evaluates, no skip ceremony)", async () => {
+    const { store } = createTestMemoryStorage();
+    const stack = await workerStack(store);
+    const seed = await seedIdentity();
+    const attemptDispatch = (() => ({
+      status: "unavailable",
+      outboxId: "obx_d2",
+      target: "Mail.send",
+    })) as unknown as FenceAttemptDispatchFn;
+    await stageIntents(stack, [
+      stageInput({ intentId: "obx_d2", guard: "eligible()", guardVerdict: true }),
+    ]);
+    const intent = await pendingIntent(stack, "obx_d2");
+    let guardEvals = 0;
+    let providerCalls = 0;
+    const outcome = await driveDispatchIntent({
+      ...driveDefaults(stack, intent),
+      evaluateGuard: () => {
+        guardEvals += 1;
+        return false;
+      },
+      readStateSnapshot: () => ({ eligible: false }),
+      callProvider: (async () => {
+        providerCalls += 1;
+        return deliveredOutcome();
+      }) as DispatchProviderCaller,
+      fence: {
+        owner: seed.teamId,
+        revalidateAuthority: liveAuthority(seed),
+        attemptDispatch,
+      },
+    });
+    // Unavailable precedes the guard: bucketed, NOT skipped — and
+    // the guard NEVER evaluated (a skip would ack + pin false).
+    assert.equal(outcome.status, "unavailable");
+    assert.equal(guardEvals, 0);
+    assert.equal(providerCalls, 0);
+    assert.deepEqual(await pendingIds(stack), ["obx_d2"]);
+    const data = readDispatchExecutionRow(await dispatchRow(stack, "obx_d2"));
+    assert.equal(data.guardVerdict, true);
+    assert.equal(data.attempts, 0);
+  });
+
+  it("documents drive-side order: snapshot + live authority run before unavailable is consulted (short-circuit deferred)", async () => {
+    // Ordering qualifier (R01-residual review): the KERNEL checks
+    // unavailable before guard/authority evaluation — but the DRIVE
+    // cannot know the verdict before consulting the kernel, so its
+    // fence-time snapshot pull + live authority re-read run FIRST
+    // (runFenceGate awaits both before attemptDispatch). True
+    // short-circuit (skipping those reads for unavailable targets)
+    // arrives only with ACTUAL availability injection — the fence
+    // input carries no availability port yet (follow-up). Guard
+    // evaluation itself never runs (kernel-side skip); inherited /
+    // superseded / settled precedence stays kernel-side, untouched.
+    const { store } = createTestMemoryStorage();
+    const stack = await workerStack(store);
+    const seed = await seedIdentity();
+    const attemptDispatch = (() => ({
+      status: "unavailable",
+      outboxId: "obx_d4",
+      target: "Mail.send",
+    })) as unknown as FenceAttemptDispatchFn;
+    await stageIntents(stack, [
+      stageInput({ intentId: "obx_d4", guard: "eligible()", guardVerdict: true }),
+    ]);
+    const intent = await pendingIntent(stack, "obx_d4");
+    const live = liveAuthority(seed);
+    let snapshotPulls = 0;
+    let authorityCalls = 0;
+    let guardEvals = 0;
+    let providerCalls = 0;
+    const outcome = await driveDispatchIntent({
+      ...driveDefaults(stack, intent),
+      evaluateGuard: () => {
+        guardEvals += 1;
+        return true;
+      },
+      readStateSnapshot: () => {
+        snapshotPulls += 1;
+        return { eligible: true };
+      },
+      callProvider: (async () => {
+        providerCalls += 1;
+        return deliveredOutcome();
+      }) as DispatchProviderCaller,
+      fence: {
+        owner: seed.teamId,
+        revalidateAuthority: async () => {
+          authorityCalls += 1;
+          return live();
+        },
+        attemptDispatch,
+      },
+    });
+    assert.equal(outcome.status, "unavailable");
+    // Drive-side reads ran (documented order — NOT a short-circuit
+    // claim); kernel-side guard evaluation + provider never did.
+    assert.equal(snapshotPulls, 1);
+    assert.equal(authorityCalls, 1);
+    assert.equal(guardEvals, 0);
+    assert.equal(providerCalls, 0);
+  });
+
+  it("lets throwing fence ports preempt unavailable (no silent short-circuit)", async () => {
+    // Same qualifier, failure side: a throwing snapshot reader or
+    // authority re-read surfaces INSTEAD of the unavailable verdict
+    // (the kernel is never consulted). Pinned so a future
+    // availability-injection join can flip these to short-circuit
+    // deliberately, with this test as the tripwire.
+    const { store } = createTestMemoryStorage();
+    const stack = await workerStack(store);
+    const seed = await seedIdentity();
+    await stageIntents(stack, [
+      stageInput({ intentId: "obx_d5a", guard: "eligible()", guardVerdict: true }),
+      stageInput({ intentId: "obx_d5b", guard: "eligible()", guardVerdict: true }),
+    ]);
+    const attemptDispatch = ((..._args: Array<unknown>) => {
+      throw new Error("kernel consulted despite throwing fence port");
+    }) as unknown as FenceAttemptDispatchFn;
+    const intentA = await pendingIntent(stack, "obx_d5a");
+    const intentB = await pendingIntent(stack, "obx_d5b");
+    await assert.rejects(
+      () =>
+        driveDispatchIntent({
+          ...driveDefaults(stack, intentA),
+          readStateSnapshot: () => {
+            throw new Error("snapshot reader down");
+          },
+          fence: {
+            owner: seed.teamId,
+            revalidateAuthority: liveAuthority(seed),
+            attemptDispatch,
+          },
+        }),
+      /snapshot reader down/,
+      "throwing snapshot preempts",
+    );
+    await assert.rejects(
+      () =>
+        driveDispatchIntent({
+          ...driveDefaults(stack, intentB),
+          readStateSnapshot: () => ({ eligible: true }),
+          fence: {
+            owner: seed.teamId,
+            revalidateAuthority: () => {
+              throw new Error("authority reader down");
+            },
+            attemptDispatch,
+          },
+        }),
+      /authority reader down/,
+      "throwing authority preempts",
+    );
+  });
+
+  it("refuses unavailable verdicts naming another intent or missing the target (skew tripwires)", async () => {
+    const { store } = createTestMemoryStorage();
+    const stack = await workerStack(store);
+    const seed = await seedIdentity();
+    await stageIntents(stack, [
+      stageInput({ intentId: "obx_d3a" }),
+      stageInput({ intentId: "obx_d3b" }),
+      stageInput({ intentId: "obx_d3c" }),
+    ]);
+    for (const [name, intentId, verdict, pattern] of [
+      ["wrong-intent", "obx_d3a", { status: "unavailable", outboxId: "obx_other", target: "Mail.send" }, /names another intent/],
+      ["missing-target", "obx_d3b", { status: "unavailable", outboxId: "obx_d3b" }, /lost its outboxId\/target/],
+      ["empty-target", "obx_d3c", { status: "unavailable", outboxId: "obx_d3c", target: "" }, /lost its outboxId\/target/],
+    ] as const) {
+      // Fresh intent per case: the skew throw lands AFTER the claim
+      // wins, so a reused intent would drive held, not skewed.
+      const intent = await pendingIntent(stack, intentId);
+      const attemptDispatch = (() => verdict) as unknown as FenceAttemptDispatchFn;
+      await assert.rejects(
+        () =>
+          driveDispatchIntent({
+            ...driveDefaults(stack, intent),
+            fence: {
+              owner: seed.teamId,
+              revalidateAuthority: liveAuthority(seed),
+              attemptDispatch,
+            },
+          }),
+        pattern,
+        name,
+      );
+    }
+  });
+
   it("ignores authority without a fence (exact pre-T32b behavior)", async () => {
     const { store } = createTestMemoryStorage();
     const stack = await workerStack(store);
@@ -1218,6 +1468,11 @@ export function canApp() {
         "Shop.Member.delete": { by: ["members"] },
         "acme.Plain.create": { by: ["members"] },
         "acme.Plain.update": { by: ["members"] },
+        "acme.Probe.selfCancel": { by: ["members"] },
+        "acme.Probe.updateRemove": { by: ["members"] },
+        "acme.Probe.archiveTouch": { by: ["members"] },
+        "acme.Probe.orphanMember": { by: ["members"] },
+        "acme.Probe.ghostMember": { by: ["members"] },
       },
     },
     read: {
@@ -1749,6 +2004,264 @@ describe("T32c C2 self-cancel netting verdict (B1, production shape)", () => {
       ["create", "update", "archive"],
     );
     assert.deepEqual(mod.calls, ["updateRemove"]);
+  });
+});
+
+/* ------------------------------------------------------------------ */
+/* R01: validate-before-retry pins (committed repro collateral).       */
+/*                                                                     */
+/* The C3 strip retry drops delivery-kind op inputs after the          */
+/* loader's delivery-kind rejection — but the loader's kind gate       */
+/* precedes its envelope checks, so without pre-retry validation a     */
+/* malformed additive envelope on a delivery input would be             */
+/* silently dropped and the set would load. These pins hold the        */
+/* repaired boundary through the public                                */
+/* `loadCanonicalDescriptors(asm, artifact)`: (a) valid delivery       */
+/* still loads via the retry, (b) ordinary unknown kinds still        */
+/* reject without retry, (d) the same malformation on a carried        */
+/* input rejects (control), (c)/(c2) malformed delivery envelopes      */
+/* reject with the loader's own class + vocabulary.                    */
+/* ------------------------------------------------------------------ */
+
+/** Verbatim T15b-pinned delivery descriptor (artifact-operations RETRY shape). */
+function r01DeliveryField(): Record<string, unknown> {
+  return {
+    name: "attempt",
+    field: {
+      kind: "delivery",
+      capability: "std.EmailV1",
+      operation: "send",
+      version: 1,
+      result: { name: "EmailAccepted", fields: [{ name: "reference", type: "text" }] },
+    },
+    required: false,
+  };
+}
+
+function r01ScenarioOp(artifact: CompileArtifact): Record<string, unknown> {
+  const ops = (artifact as unknown as { operations: Array<Record<string, unknown>> }).operations;
+  const op = ops.find((entry) => entry["name"] === "acme.Probe.selfCancel");
+  assert.ok(op !== undefined, "c2 artifact carries acme.Probe.selfCancel");
+  return op;
+}
+
+function r01WithScenarioField(
+  artifact: CompileArtifact,
+  field: Record<string, unknown>,
+): CompileArtifact {
+  return r01WithScenarioFields(artifact, [field]);
+}
+
+function r01WithScenarioFields(
+  artifact: CompileArtifact,
+  fields: Array<Record<string, unknown>>,
+): CompileArtifact {
+  const clone = JSON.parse(JSON.stringify(artifact)) as unknown as CompileArtifact;
+  const op = r01ScenarioOp(clone);
+  const inputs = op["inputs"] as Record<string, unknown>;
+  (inputs["fields"] as Array<unknown>).push(...fields);
+  return clone;
+}
+
+/**
+ * R01-residual: in-place variant (no JSON round-trip) for values
+ * JSON cannot carry (function literal defaults — the round-trip
+ * would launder the very unserializability under test). Safe:
+ * every `c2Setup` artifact is already fresh per test.
+ */
+function r01WithScenarioFieldsInPlace(
+  artifact: CompileArtifact,
+  fields: Array<Record<string, unknown>>,
+): CompileArtifact {
+  const op = r01ScenarioOp(artifact);
+  const inputs = op["inputs"] as Record<string, unknown>;
+  (inputs["fields"] as Array<unknown>).push(...fields);
+  return artifact;
+}
+
+async function r01LoadRejection(
+  asm: AssembledModules,
+  artifact: CompileArtifact,
+): Promise<{ name: string; reason: unknown; message: string }> {
+  try {
+    await loadCanonicalDescriptors(asm, artifact);
+  } catch (error) {
+    assert.ok(error instanceof Error, "loader rejects with an Error");
+    const holder = error as unknown as { name?: unknown; reason?: unknown };
+    assert.equal(typeof holder.name, "string");
+    return { name: holder.name as string, reason: holder.reason, message: error.message };
+  }
+  assert.fail("load must reject");
+}
+
+describe("R01 validate-before-retry (dropped delivery envelopes prove pre-strip)", () => {
+  it("(a) valid delivery input loads via the strip retry", async () => {
+    const { asm, artifact } = await c2Setup();
+    const loaded = await loadCanonicalDescriptors(asm, r01WithScenarioField(artifact, r01DeliveryField()));
+    assert.ok(loaded.registry.has("acme.Probe.selfCancel"), "scenario op loads stripped");
+    assert.ok(loaded.deliveryFields.has("Shop.Team"), "model schema intact");
+  });
+
+  it("(b) ordinary unknown input kind rejects without retry", async () => {
+    const { asm, artifact } = await c2Setup();
+    const rejection = await r01LoadRejection(
+      asm,
+      r01WithScenarioField(artifact, { name: "x", field: { kind: "bogus" }, required: true }),
+    );
+    assert.equal(rejection.name, "IncompatibleArtifactError");
+    assert.equal(rejection.reason, "unknown_input_kind");
+    assert.match(rejection.message, /Unknown input kind "bogus"/);
+  });
+
+  it("(d) control: malformed array marker on a carried input rejects", async () => {
+    const { asm, artifact } = await c2Setup();
+    const rejection = await r01LoadRejection(
+      asm,
+      r01WithScenarioField(artifact, {
+        name: "s",
+        field: { kind: "string" },
+        required: true,
+        array: { required: "invalid" },
+      }),
+    );
+    assert.equal(rejection.name, "IncompatibleArtifactError");
+    assert.equal(rejection.reason, "malformed_descriptor");
+    assert.match(rejection.message, /array markers carry a boolean required/);
+  });
+
+  it("(c) delivery input with a malformed array marker rejects (no laundering)", async () => {
+    const { asm, artifact } = await c2Setup();
+    const field = r01DeliveryField();
+    field["array"] = { required: "invalid" };
+    const rejection = await r01LoadRejection(asm, r01WithScenarioField(artifact, field));
+    assert.equal(rejection.name, "IncompatibleArtifactError");
+    assert.equal(rejection.reason, "malformed_descriptor");
+    assert.match(rejection.message, /array markers carry a boolean required/);
+  });
+
+  it("(c2) delivery input with a non-boolean required rejects (no laundering)", async () => {
+    const { asm, artifact } = await c2Setup();
+    const field = r01DeliveryField();
+    field["required"] = "yes";
+    const rejection = await r01LoadRejection(asm, r01WithScenarioField(artifact, field));
+    assert.equal(rejection.name, "IncompatibleArtifactError");
+    assert.equal(rejection.reason, "malformed_descriptor");
+    assert.match(rejection.message, /required must be a boolean/);
+  });
+
+  it("(c3) delivery input with an unknown default kind rejects in loader vocabulary", async () => {
+    const { asm, artifact } = await c2Setup();
+    const field = r01DeliveryField();
+    field["default"] = { kind: "bogus" };
+    const rejection = await r01LoadRejection(asm, r01WithScenarioField(artifact, field));
+    assert.equal(rejection.name, "IncompatibleArtifactError");
+    assert.equal(rejection.reason, "unknown_default_kind");
+    assert.match(rejection.message, /Unknown default kind "bogus"/);
+  });
+
+  it("(e) delivery-first name collision rejects duplicate_name (strip would erase it)", async () => {
+    const { asm, artifact } = await c2Setup();
+    const delivery = r01DeliveryField();
+    delivery["name"] = "x";
+    const rejection = await r01LoadRejection(
+      asm,
+      r01WithScenarioFields(artifact, [delivery, { name: "x", field: { kind: "string" }, required: true }]),
+    );
+    assert.equal(rejection.name, "IncompatibleArtifactError");
+    assert.equal(rejection.reason, "duplicate_name");
+    assert.match(rejection.message, /Duplicate input "x" on operation "acme\.Probe\.selfCancel"/);
+  });
+
+  it("(e2) string-first name collision rejects duplicate_name (loader order, no retry)", async () => {
+    const { asm, artifact } = await c2Setup();
+    const delivery = r01DeliveryField();
+    delivery["name"] = "x";
+    const rejection = await r01LoadRejection(
+      asm,
+      r01WithScenarioFields(artifact, [{ name: "x", field: { kind: "string" }, required: true }, delivery]),
+    );
+    assert.equal(rejection.name, "IncompatibleArtifactError");
+    assert.equal(rejection.reason, "duplicate_name");
+    assert.match(rejection.message, /Duplicate input "x" on operation "acme\.Probe\.selfCancel"/);
+  });
+
+  it("(e3) delivery/delivery name collision rejects duplicate_name", async () => {
+    const { asm, artifact } = await c2Setup();
+    const first = r01DeliveryField();
+    first["name"] = "x";
+    const second = r01DeliveryField();
+    second["name"] = "x";
+    const rejection = await r01LoadRejection(asm, r01WithScenarioFields(artifact, [first, second]));
+    assert.equal(rejection.name, "IncompatibleArtifactError");
+    assert.equal(rejection.reason, "duplicate_name");
+    assert.match(rejection.message, /Duplicate input "x" on operation "acme\.Probe\.selfCancel"/);
+  });
+
+  it("(f) delivery empty parent-dot-path default rejects (owning dot-path rule)", async () => {
+    const { asm, artifact } = await c2Setup();
+    const field = r01DeliveryField();
+    field["default"] = { kind: "parent", path: "" };
+    const rejection = await r01LoadRejection(asm, r01WithScenarioField(artifact, field));
+    assert.equal(rejection.name, "IncompatibleArtifactError");
+    assert.equal(rejection.reason, "malformed_descriptor");
+    assert.match(rejection.message, /dot path: ""/);
+  });
+
+  it("(f2) delivery empty-segment parent-dot-path default rejects", async () => {
+    const { asm, artifact } = await c2Setup();
+    const field = r01DeliveryField();
+    field["default"] = { kind: "parent", path: "a..b" };
+    const rejection = await r01LoadRejection(asm, r01WithScenarioField(artifact, field));
+    assert.equal(rejection.name, "IncompatibleArtifactError");
+    assert.equal(rejection.reason, "malformed_descriptor");
+    assert.match(rejection.message, /dot path: "a\.\.b"/);
+  });
+
+  it("(f3) control: string empty parent-dot-path default rejects (loader)", async () => {
+    const { asm, artifact } = await c2Setup();
+    const rejection = await r01LoadRejection(
+      asm,
+      r01WithScenarioField(artifact, {
+        name: "s",
+        field: { kind: "string" },
+        required: true,
+        default: { kind: "parent", path: "" },
+      }),
+    );
+    assert.equal(rejection.name, "IncompatibleArtifactError");
+    assert.equal(rejection.reason, "malformed_descriptor");
+    assert.match(rejection.message, /dot path: ""/);
+  });
+
+  it("(f4) delivery valid parent-dot-path default loads (positive preserved)", async () => {
+    const { asm, artifact } = await c2Setup();
+    const field = r01DeliveryField();
+    field["default"] = { kind: "parent", path: "a.b" };
+    const loaded = await loadCanonicalDescriptors(asm, r01WithScenarioField(artifact, field));
+    assert.ok(loaded.registry.has("acme.Probe.selfCancel"), "scenario op loads stripped");
+  });
+
+  it("(f5) delivery non-serializable literal default rejects (owning serializability)", async () => {
+    const { asm, artifact } = await c2Setup();
+    const field = r01DeliveryField();
+    field["default"] = { kind: "literal", value: () => 1 };
+    const rejection = await r01LoadRejection(asm, r01WithScenarioFieldsInPlace(artifact, [field]));
+    assert.equal(rejection.name, "IncompatibleArtifactError");
+    assert.equal(rejection.reason, "malformed_descriptor");
+    assert.match(rejection.message, /values must be serializable data/);
+  });
+
+  it("(f6) control: string non-serializable literal default rejects (loader)", async () => {
+    const { asm, artifact } = await c2Setup();
+    const rejection = await r01LoadRejection(
+      asm,
+      r01WithScenarioFieldsInPlace(artifact, [
+        { name: "s", field: { kind: "string" }, required: true, default: { kind: "literal", value: () => 2 } },
+      ]),
+    );
+    assert.equal(rejection.name, "IncompatibleArtifactError");
+    assert.equal(rejection.reason, "malformed_descriptor");
+    assert.match(rejection.message, /values must be serializable data/);
   });
 });
 

@@ -205,6 +205,14 @@ function fixtureModels(): unknown[] {
 
 const OPS_SOURCE = `export function canApp() {
   return {
+    // B7: the create declares its admission gate (absent entries
+    // deny) and Todo carries explicit-public read provenance
+    // (absent reads serve zero grants) so the canonical pins
+    // still commit and read back.
+    policy: {
+      operations: { "acme.Todo.create": { by: ["members"] } },
+      models: { "acme.Todo": { read: ["Todo.read.1"], public: ["Todo.read.1"] } },
+    },
     todoRead: async (c, input) => ({ rows: [{ id: "t1", title: "fixture" }], caller: c.caller.userId, inputs: input.inputs }),
     todoCreate: async (c, input) => ({ status: "committed", operation_id: input.operation_id, title: input.inputs.title, caller: c.caller.userId }),
   };
@@ -213,7 +221,7 @@ const OPS_SOURCE = `export function canApp() {
 // T17c: CRUD operations SKIP their handlers on the canonical path (the
 // pipeline executes), so the echoes above never run for converted pins
 // — the module still must export canApp() for policy transcription
-// (absent policy admits public).
+// (B7: absent policy now DENIES, so the fixture declares its gates).
 
 async function assembleMcpWorker(opts: {
   ops?: unknown[];

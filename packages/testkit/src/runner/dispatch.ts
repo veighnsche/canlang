@@ -17,6 +17,7 @@
  */
 import type { CallOutcome } from "./table.js";
 import type { ExampleHooks, StepCall } from "./steps.js";
+import { scopeFacade } from "../fixtures/recipes.js";
 
 /** Dispatchable operation request (producer dispatch owns execution). */
 export interface DispatchRequest {
@@ -52,7 +53,9 @@ export function stepCallToDispatchRequest(call: StepCall): DispatchRequest {
 /**
  * Builds the observation scope: live values per fixture name, falling
  * back to the static provisioned value when the reader returns
- * `undefined`. Reader throws propagate with fixture identity.
+ * `undefined`. Reader throws propagate with fixture identity. Returned
+ * as a scope facade so genuine observation closures read properties
+ * (`s.task`) while Map probes keep working.
  */
 export async function populateLiveScope(
   fixtureNames: readonly string[],
@@ -72,7 +75,7 @@ export async function populateLiveScope(
     }
     scope.set(name, live === undefined ? fallback.get(name) : live);
   }
-  return scope;
+  return scopeFacade(scope);
 }
 
 export interface HookDependencies {

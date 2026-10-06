@@ -112,8 +112,15 @@ export function canApp() {
   return {
     calls,
     policy: {
-      operations: { "acme.Todo.create": { by: ["members"] } },
-      models: {}
+      operations: {
+        "acme.Todo.create": { by: ["members"] },
+        "acme.Shop.place": { by: ["members"] },
+        "acme.Shop.hooked": { by: ["members"] },
+        "acme.Shop.boomThrow": { by: ["members"] }
+      },
+      models: {
+        "acme.Todo": { read: ["Todo.read.1"], public: ["Todo.read.1"] }
+      }
     },
     Todo: { create: throwing },
     Shop: {
@@ -586,7 +593,11 @@ describe("T32b durable D1 (fenced seam + drives on real SQLite)", () => {
     );
     assert.ok("error" in outcome, "revocation must void the commit");
     assert.equal(outcome.error.code, "forbidden");
-    assert.match(outcome.error.message, /caller\.roles/);
+    // B7 residual (joint B4xB7 void vocabulary): the members-gated
+    // scenario voids through the state-side authority check
+    // ("Authority revoked ..."), not the seam's caller.roles guard
+    // — mirroring the sibling CRUD pin below.
+    assert.match(outcome.error.message, /revoked/);
     // Cross-handle read-back over a FRESH D1 handle.
     const cross: StoragePort = createD1Storage(d1db);
     assert.equal(await cross.readRevision(), 0);
