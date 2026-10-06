@@ -4,14 +4,11 @@
  * Lane-06 canonical endpoints: POST `/api/operations/<op>` invokes one
  * canonical operation (agent F), `/auth/*` serves the browser auth routes
  * (agent F), `/api/csv/*` serves the FP.CSV review/commit slice (agent E's
- * `http/csv.js`, wired by FP.CSV-DISPATCH), `/api/exports` serves the
- * FP.EXPORT bounded export and `/print/*` the declared Print views (agent
- * E's `http/export.js` / `http/print.js`, wired by FP.EXPORT-DISPATCH),
- * and every other GET/HEAD path renders a source page (agent E).
+ * `http/csv.js`, wired by FP.CSV-DISPATCH), and every other GET/HEAD path
+ * renders a source page (agent E).
  * The F-owned sub-handlers arrive by injection so E and F stay disjoint:
  * this module never imports `./operations.js`, `./auth.js`,
- * `./limits.js`, `./csv.js`, `./export.js`, or `./print.js`, not even as
- * types.
+ * `./limits.js`, or `./csv.js`, not even as types.
  *
  * Unknown paths and wrong-method requests answer `not_found` ("Not found.",
  * authored mapping for 405/unknown): method existence is not an oracle.
@@ -42,10 +39,6 @@ export const OAUTH_PREFIX = '/oauth/';
 export const WELL_KNOWN_PREFIX = '/.well-known/';
 /** FP.CSV review/commit prefix: POST only, served by the injected csv handler. */
 export const CSV_PREFIX = '/api/csv/';
-/** FP.EXPORT bounded-export path: exact POST only, served by the injected exports handler. */
-export const EXPORTS_PREFIX = '/api/exports';
-/** FP.EXPORT Print prefix: GET only, served by the injected print handler. */
-export const PRINT_PREFIX = '/print/';
 
 /**
  * F-owned sub-handlers, injected so this module never imports the F-owned
@@ -70,21 +63,6 @@ export interface HttpSubHandlers {
    * `(req) => handleCsvRequest(deps, req)`.
    */
   readonly csv?: (req: Request) => Promise<Response>;
-  /**
-   * Serve the FP.EXPORT bounded-export path (the handler gates the
-   * exact path + POST itself). Optional like `csv`: unmounted answers
-   * `not_found`. The delivery join injects
-   * `(req) => handleExportRequest(deps, req)`.
-   */
-  readonly exports?: (req: Request) => Promise<Response>;
-  /**
-   * Serve one `/print/*` declared view (GET only; the handler decides
-   * subpaths). Optional like `csv`: unmounted answers `not_found`.
-   * The delivery join injects
-   * `(req) => handlePrintRequest(deps, views, req)` with the
-   * L7-assembled view registry.
-   */
-  readonly print?: (req: Request) => Promise<Response>;
 }
 
 /** Authored unknown/method response: `not_found`, never a 405 oracle. */
@@ -114,10 +92,7 @@ function decodeOperation(remainder: string): string | null {
  * injected operations handler (empty/undecodable op is 404), `/auth/*` to
  * the injected auth handler, `/files/*`, `/ingress/*`, `/oauth/*` (+ OAuth
  * well-known) to their injected handlers, `/api/csv/*` to the injected csv
- * handler (`not_found` when unmounted), `/api/exports` to the injected
- * exports handler (`not_found` when unmounted), `/print/*` to the injected
- * print handler (`not_found` when unmounted), else GET/HEAD to the page
- * renderer.
+ * handler (`not_found` when unmounted), else GET/HEAD to the page renderer.
  * Any other method+path answers `not_found`; unexpected throws answer the
  * generic internal envelope after an incident-logged journal entry.
  */
@@ -150,14 +125,6 @@ export function createHttpHandler(
       if (pathname.startsWith(CSV_PREFIX)) {
         if (sub.csv === undefined) return notFoundResponse();
         return await sub.csv(request);
-      }
-      if (pathname === EXPORTS_PREFIX || pathname.startsWith(`${EXPORTS_PREFIX}/`)) {
-        if (sub.exports === undefined) return notFoundResponse();
-        return await sub.exports(request);
-      }
-      if (pathname.startsWith(PRINT_PREFIX)) {
-        if (sub.print === undefined) return notFoundResponse();
-        return await sub.print(request);
       }
       if (method !== 'GET' && method !== 'HEAD') return notFoundResponse();
       return await handlePageRequest(deps, request);
