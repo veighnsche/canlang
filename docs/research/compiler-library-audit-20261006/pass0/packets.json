@@ -1,0 +1,512 @@
+{
+  "schema_version": 1,
+  "date": "2026-10-07",
+  "baseline_head": "38c0370087909dc89386849fec48e6f937aa0d13",
+  "scope": "Pass 0 local packet ledger; no canonical task/status allocation or candidate adoption",
+  "profile": "evidence/root/profile.json",
+  "input_pins": "evidence/root/input-manifest.json",
+  "writer_policy": "one defining writer/test fixture owner; root dependency/Git integrator; no workers launched by this ledger",
+  "packets": [
+    {
+      "id": "C01IR",
+      "writer": "ir",
+      "contract_readiness": "ready",
+      "defining_files": [
+        "compiler/src/codegen/ir.rs"
+      ],
+      "owning_test_files": [
+        "compiler/tests/codegen.rs",
+        "compiler/tests/syntax.rs"
+      ],
+      "dependencies": [],
+      "candidate": null,
+      "caller_closure": "lexer Token.string_value -> CST leaf -> decode_literal / literal_string_opt -> expressions, captions, variants, page/format/static metadata",
+      "acceptance": "CST token + code point oracles; literal and metadata generated-value execution; preserve E1006 and source/evaluation behavior",
+      "evidence": [
+        "witnesses/strings.json",
+        "evidence/root/string-observations.txt"
+      ],
+      "original_acceptance": [
+        "FP.COMPILED-DECIMAL",
+        "FP.CONTEXT"
+      ]
+    },
+    {
+      "id": "C01A",
+      "writer": "types",
+      "contract_readiness": "ready",
+      "defining_files": [
+        "compiler/src/analysis/types.rs"
+      ],
+      "owning_test_files": [
+        "compiler/tests/analysis.rs",
+        "compiler/tests/check.rs",
+        "compiler/tests/b4_check.rs"
+      ],
+      "dependencies": [],
+      "candidate": null,
+      "caller_closure": "8 analysis unescape uses and their caption, schedule, time/format/constructor/literal callers; owning CST payload",
+      "acceptance": "caller-preserving consolidation, invalid-source anchors and schedule/message identity; no newly claimed valid-input analysis defect",
+      "evidence": [
+        "evidence/root/caller-sites.json",
+        "witnesses/strings.json"
+      ],
+      "original_acceptance": [
+        "T35/A3 new explicit child"
+      ]
+    },
+    {
+      "id": "C02",
+      "writer": "lsp",
+      "contract_readiness": "partial",
+      "defining_files": [
+        "compiler/src/lsp/server.rs",
+        "compiler/src/lsp/transport.rs"
+      ],
+      "owning_test_files": [
+        "compiler/tests/authoring.rs",
+        "compiler/tests/common/lsp_driver.rs"
+      ],
+      "dependencies": [],
+      "candidate": null,
+      "caller_closure": "CLI run_stdio -> strict byte/envelope validation -> Server.dispatch/pump -> current source/IDE owners",
+      "acceptance": "ready standard invariants; gates for invalid-ID correlation/error order, integral spellings, params and framing. No framework prerequisite",
+      "evidence": [
+        "protocol-contracts.md",
+        "witnesses/lsp.json"
+      ],
+      "original_acceptance": [
+        "T35/A3 new explicit child",
+        "existing authoring acceptance"
+      ]
+    },
+    {
+      "id": "C03U",
+      "writer": "types",
+      "contract_readiness": "ready",
+      "defining_files": [
+        "compiler/src/analysis/types.rs"
+      ],
+      "owning_test_files": [
+        "compiler/tests/analysis.rs",
+        "compiler/tests/b4_check.rs"
+      ],
+      "dependencies": [],
+      "candidate": {
+        "crate": "url",
+        "api": "Url::parse",
+        "features": "qualify minimal literal-admission profile; serialization integration unnecessary",
+        "version": "unselected"
+      },
+      "caller_closure": "validated_shape via type_literal + inhabit_validated; values public decodeValue/encodeValue URL owner; app_url origin is separate",
+      "acceptance": "no panic, actual owner admission vectors, authored value retained, E3001 and source anchor; candidate parity/host checks required",
+      "evidence": [
+        "value-contracts.md",
+        "witnesses/values.json",
+        "evidence/values/export-results.json"
+      ],
+      "original_acceptance": [
+        "T35/A3 new explicit child"
+      ]
+    },
+    {
+      "id": "C03L",
+      "writer": "types",
+      "contract_readiness": "partial",
+      "defining_files": [
+        "compiler/src/analysis/types.rs"
+      ],
+      "owning_test_files": [
+        "compiler/tests/analysis.rs",
+        "compiler/tests/b4_check.rs"
+      ],
+      "dependencies": [],
+      "candidate": {
+        "crate": "icu_locale_core",
+        "api": "Locale",
+        "features": "full locale identifiers/extensions; alias/data canonicalization must be qualified separately",
+        "version": "unselected"
+      },
+      "caller_closure": "valid_locale via scalar literals, message variants, app/package source attrs and context locale; canonicalLocale + makeMessageDescriptor owner",
+      "acceptance": "owner vectors; E3001/E3016 distinction. Full alias/source-variant canonical identity and candidate profile gated",
+      "evidence": [
+        "value-contracts.md",
+        "witnesses/values.json"
+      ],
+      "original_acceptance": [
+        "L-F03 private-core gate"
+      ]
+    },
+    {
+      "id": "C04H",
+      "writer": "source",
+      "contract_readiness": "ready",
+      "defining_files": [
+        "compiler/src/source.rs"
+      ],
+      "owning_test_files": [
+        "compiler/tests/foundation.rs",
+        "compiler/tests/lint.rs",
+        "compiler/tests/b3_s4.rs",
+        "compiler/tests/docs.rs",
+        "compiler/tests/codegen.rs"
+      ],
+      "dependencies": [],
+      "candidate": {
+        "crate": "sha2",
+        "api": "Sha256/Digest",
+        "features": "minimal byte hashing; optional acceleration/features require equivalent-profile qualification",
+        "version": "unselected"
+      },
+      "caller_closure": "SourceDb.add, docs source_revision, IDE apply_fix, LSP diagnostic_fix_to_action, IR build_migrations",
+      "acceptance": "known-answer/padding/UTF8/CRLF identity + real stale-fix/revision/migration consumers; footprint check",
+      "evidence": [
+        "witnesses/files-hashes.json",
+        "evidence/root/hash-results.json",
+        "evidence/root/caller-sites.json"
+      ],
+      "original_acceptance": [
+        "existing foundation/fix/reference/migration acceptance"
+      ]
+    },
+    {
+      "id": "C04F",
+      "writer": "cli",
+      "contract_readiness": "partial",
+      "defining_files": [
+        "compiler/src/cli.rs"
+      ],
+      "owning_test_files": [
+        "compiler/tests/authoring.rs",
+        "compiler/tests/docs.rs",
+        "compiler/tests/exe.rs"
+      ],
+      "dependencies": [],
+      "candidate": {
+        "crate": "tempfile",
+        "api": "NamedTempFile::new_in/persist",
+        "features": "destination-local owned tempfile; permission/link/sync policy stays explicit",
+        "version": "unselected"
+      },
+      "caller_closure": "run_fmt (parse all, skip equal, operand order) and run_docs_with_platform (refusal/render/write); shared write_file_atomic",
+      "acceptance": "regular 0600/no-op/error/byte witnesses ready; links/new-output metadata/races/Linux gated; no crash durability claim",
+      "evidence": [
+        "witnesses/files-hashes.json",
+        "evidence/root/file-results.json"
+      ],
+      "original_acceptance": [
+        "existing fmt/docs/exe acceptance"
+      ]
+    },
+    {
+      "id": "C05D",
+      "writer": "diagnostic",
+      "contract_readiness": "ready",
+      "defining_files": [
+        "compiler/src/diagnostic.rs"
+      ],
+      "owning_test_files": [
+        "compiler/tests/foundation.rs",
+        "compiler/tests/authoring.rs"
+      ],
+      "dependencies": [],
+      "candidate": {
+        "crates": [
+          "serde",
+          "serde_json"
+        ],
+        "features": "serde derive where useful; exact order/layout; raw_value only for justified caller",
+        "version": "unselected"
+      },
+      "caller_closure": "versioned diagnostic result -> CLI check/lint/fmt -> contracts diagnostic.ts and editor conversion",
+      "acceptance": "fixed field/key/sort order, compact JSON, required fields, source bytes, omission/completeness, CLI newline; classify escape spelling before cutover",
+      "evidence": [
+        "witnesses/serialization-maps.json",
+        "evidence/root/diagnostic-results.json"
+      ],
+      "original_acceptance": [
+        "diagnostic schema 1",
+        "existing authoring acceptance"
+      ]
+    },
+    {
+      "id": "C05A",
+      "writer": "artifact",
+      "contract_readiness": "gated",
+      "defining_files": [
+        "compiler/src/codegen/artifact.rs"
+      ],
+      "owning_test_files": [
+        "compiler/tests/codegen.rs",
+        "compiler/tests/b1_join.rs"
+      ],
+      "dependencies": [
+        "C05D shared seam"
+      ],
+      "candidate": {
+        "crates": [
+          "serde",
+          "serde_json"
+        ],
+        "features": "typed output with qualified raw JS/content fields",
+        "version": "unselected"
+      },
+      "caller_closure": "artifact build/to_json -> contracts artifact.ts -> actual Cloudflare/testkit loaders; version/capability/source closure",
+      "acceptance": "release per-family byte/semantic and optional/null matrix; preserve schema and real T15 consumers",
+      "evidence": [
+        "witnesses/serialization-maps.json"
+      ],
+      "original_acceptance": [
+        "T15",
+        "T37/FP.QUALIFY at changed consumer scope"
+      ]
+    },
+    {
+      "id": "C05M",
+      "writer": "js_bdd",
+      "contract_readiness": "gated",
+      "defining_files": [
+        "compiler/src/codegen/js.rs",
+        "compiler/src/codegen/bdd.rs"
+      ],
+      "owning_test_files": [
+        "compiler/tests/codegen.rs"
+      ],
+      "dependencies": [
+        "C05D shared seam"
+      ],
+      "candidate": {
+        "crates": [
+          "serde",
+          "serde_json"
+        ],
+        "features": "literal/descriptor JSON and string output; expression printing remains separate",
+        "version": "unselected"
+      },
+      "caller_closure": "literal_json and descriptors -> generated runtime defaults/parameters/messages; BDD strings -> testkit",
+      "acceptance": "per-family snapshots + exact scalar string/scale policy; do not double encode; preserve evaluation and generated test separation",
+      "evidence": [
+        "witnesses/serialization-maps.json",
+        "evidence/values/export-results.json"
+      ],
+      "original_acceptance": [
+        "T15",
+        "FP.COMPILED-DECIMAL remains separate"
+      ]
+    },
+    {
+      "id": "C05R",
+      "writer": "docs",
+      "contract_readiness": "gated",
+      "defining_files": [
+        "compiler/src/docs.rs"
+      ],
+      "owning_test_files": [
+        "compiler/tests/docs.rs",
+        "compiler/tests/exe.rs"
+      ],
+      "dependencies": [
+        "C05D shared seam"
+      ],
+      "candidate": {
+        "crates": [
+          "serde",
+          "serde_json"
+        ],
+        "features": "typed reference/output adapters; current Json construction uses shared writer",
+        "version": "unselected"
+      },
+      "caller_closure": "extract_reference/to_json_string -> CLI platform docs payload -> public docs renderer; portable IDs and source revision",
+      "acceptance": "per-family output snapshot and source-order/omission/revision preservation; real renderer acceptance",
+      "evidence": [],
+      "original_acceptance": [
+        "existing D-series reference/docs acceptance"
+      ]
+    },
+    {
+      "id": "C05P",
+      "writer": "policy_explain_lint",
+      "contract_readiness": "gated",
+      "defining_files": [
+        "compiler/src/policy.rs",
+        "compiler/src/explain.rs",
+        "compiler/src/lint/driver.rs"
+      ],
+      "owning_test_files": [
+        "compiler/tests/check.rs",
+        "compiler/tests/lint.rs",
+        "compiler/tests/exe.rs"
+      ],
+      "dependencies": [
+        "C05D shared seam"
+      ],
+      "candidate": {
+        "crates": [
+          "serde",
+          "serde_json"
+        ],
+        "features": "separate typed serializer-family releases; fixed source facts/layout and fixes",
+        "version": "unselected"
+      },
+      "caller_closure": "policy_dump_json, explain entry output, fix/fixes/rejected serializers -> CLI JSON surfaces",
+      "acceptance": "per-family source order, pretty layout/newlines, IDs/omissions and stale-fix acceptance; exclusive defining writer for each release",
+      "evidence": [],
+      "original_acceptance": [
+        "existing policy/explain/lint acceptance"
+      ]
+    },
+    {
+      "id": "C06",
+      "writer": "json",
+      "contract_readiness": "partial",
+      "defining_files": [
+        "compiler/src/json.rs",
+        "compiler/src/analysis/catalog.rs"
+      ],
+      "owning_test_files": [
+        "compiler/tests/authoring.rs",
+        "compiler/tests/docs.rs",
+        "compiler/tests/b1_join.rs"
+      ],
+      "dependencies": [
+        "C05 released representation",
+        "C02 released admission constraints"
+      ],
+      "candidate": {
+        "crate": "serde_json",
+        "features": "raw_value/ordered compatibility views conditional; preserve_order alone does not preserve duplicates",
+        "version": "unselected"
+      },
+      "caller_closure": "shared parser/accessors -> producer catalog -> checked semantic inputs; LSP transport reuse; shared docs/output callers",
+      "acceptance": "preserve raw numbers/accessors/budgets; decide duplicates/depth/error text by caller. Full real catalog qualification still required",
+      "evidence": [
+        "protocol-contracts.md",
+        "witnesses/lsp.json"
+      ],
+      "original_acceptance": [
+        "producer catalog language 1.0",
+        "T15 consumer boundaries"
+      ]
+    },
+    {
+      "id": "C07DTO",
+      "writer": "lsp",
+      "contract_readiness": "partial",
+      "defining_files": [
+        "compiler/src/lsp/server.rs"
+      ],
+      "owning_test_files": [
+        "compiler/tests/authoring.rs",
+        "compiler/tests/b3_authoring_join.rs",
+        "compiler/tests/b3_s4.rs"
+      ],
+      "dependencies": [
+        "C02 admission",
+        "C05 serialization seam"
+      ],
+      "candidate": {
+        "crate": "lsp-types",
+        "features": "typed protocol DTOs/enums with released serialization profile; no automatic transport migration",
+        "version": "unselected"
+      },
+      "caller_closure": "capabilities/diagnostics/hover/completion/definition/references/rename/semantic tokens/actions -> real LSP editor/process consumers; document version/source position owners",
+      "acceptance": "versions including required null/value member, UTF16/CRLF/stale lifecycle and real framed-session evidence",
+      "evidence": [
+        "protocol-contracts.md"
+      ],
+      "original_acceptance": [
+        "existing editor/authoring acceptance"
+      ]
+    },
+    {
+      "id": "C07URI",
+      "writer": "lsp",
+      "contract_readiness": "gated",
+      "defining_files": [
+        "compiler/src/lsp/server.rs"
+      ],
+      "owning_test_files": [
+        "compiler/tests/authoring.rs",
+        "compiler/tests/ide.rs"
+      ],
+      "dependencies": [
+        "C03U qualified URL seam"
+      ],
+      "candidate": {
+        "crate": "url",
+        "features": "document identity/display vs file conversion separately qualified",
+        "version": "unselected"
+      },
+      "caller_closure": "uri_to_path display conversion plus editor URI identity; source owner positions",
+      "acceptance": "file authority, percent encoding, non-file identity and display/filesystem contract before cutover",
+      "evidence": [],
+      "original_acceptance": [
+        "existing URI/editor acceptance"
+      ]
+    },
+    {
+      "id": "C08",
+      "writer": "map",
+      "contract_readiness": "partial",
+      "defining_files": [
+        "compiler/src/codegen/sourcemap.rs"
+      ],
+      "owning_test_files": [
+        "compiler/tests/codegen.rs",
+        "packages/cloudflare/test/sourcemap.test.ts"
+      ],
+      "dependencies": [
+        "released artifact interface and current byte-coordinate profile"
+      ],
+      "candidate": {
+        "crate": "sourcemap",
+        "features": "standard codec/builder; explicit source/name ID translation",
+        "version": "unselected"
+      },
+      "caller_closure": "artifact build for entry/package/tests -> map JSON -> runtime lookup/invoke and independently decoded maps",
+      "acceptance": "preserve current byte profile and source/name/content/empty/unmapped behavior; browser/editor coordinate change separately gated",
+      "evidence": [
+        "witnesses/serialization-maps.json",
+        "evidence/root/map-results.json"
+      ],
+      "original_acceptance": [
+        "existing B3 I2",
+        "not provider FP.SOURCE-MAPPINGS"
+      ]
+    }
+  ],
+  "baseline_scope": "compiler build revision; capture revision and unchanged code baseline are separately recorded in the profile",
+  "inherited_contracts": {
+    "supported_profile": "evidence/root/profile.json; required release hosts and qualification limits in README.md",
+    "inputs": "evidence/root/input-manifest.json",
+    "writer_reservation": "defining and test files are exclusive; dependencies name required released seams, not complete task statuses"
+  },
+  "deferred_comparisons": [
+    {
+      "id": "C09",
+      "writer": "conditional owners",
+      "contract_readiness": "deferred",
+      "defining_files": [],
+      "owning_test_files": [],
+      "dependencies": [],
+      "candidate": {
+        "candidates": [
+          "clap/clap_complete",
+          "FormatJS parse core",
+          "time/shared temporal core",
+          "petgraph/shared graph routine",
+          "shared position/path adapter"
+        ],
+        "version": "unselected"
+      },
+      "caller_closure": "existing optional mechanisms at their declared owner boundaries",
+      "acceptance": "independent bounded adopt/retain/defer comparisons; do not block core release",
+      "evidence": [],
+      "original_acceptance": [
+        "L-F03",
+        "R1-R4 compiler exclusion"
+      ],
+      "scope": "deferred comparison list, outside finite implementation packets; release no worker until a separate bounded packet records exact owner/files/callers/profile and original acceptance"
+    }
+  ]
+}

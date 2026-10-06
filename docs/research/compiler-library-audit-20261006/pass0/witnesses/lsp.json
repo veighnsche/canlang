@@ -1,0 +1,853 @@
+{
+  "schema": 1,
+  "stage": "Pass 0 preparation; not compiler tests",
+  "profile": "../evidence/protocol/profile.json",
+  "raw_process_evidence": "../evidence/protocol/process-observations.json",
+  "protocol": "LSP 3.17 stdio; not a generic JSON-RPC service",
+  "oracle": "Primary specs and declared compatibility invariants; no old/new implementation as sole oracle",
+  "cases": [
+    {
+      "expected": {
+        "responses": 1,
+        "response_id_raw": "-2147483648",
+        "result_has": "capabilities"
+      },
+      "unresolved_gate": null,
+      "execution": "bounded_fresh_locked_real_binary",
+      "id": "id_min",
+      "boundary": "C02",
+      "input": {
+        "framed_bytes_hex": "436f6e74656e742d4c656e6774683a203131370d0a0d0a7b226a736f6e727063223a22322e30222c226964223a2d323134373438333634382c226d6574686f64223a22696e697469616c697a65222c22706172616d73223a7b2270726f636573734964223a6e756c6c2c22726f6f74557269223a6e756c6c2c226361706162696c6974696573223a7b7d7d7d"
+      },
+      "oracle": "LSP legal value + current raw-number fidelity",
+      "current_observation": {
+        "evidence_case": "id_min",
+        "response_frame_count": 1,
+        "exit_code": 0,
+        "classification": "currently_matches"
+      },
+      "readiness": "ready"
+    },
+    {
+      "expected": {
+        "responses": 1,
+        "response_id_raw": "2147483647",
+        "result_has": "capabilities"
+      },
+      "unresolved_gate": null,
+      "execution": "bounded_fresh_locked_real_binary",
+      "id": "id_max",
+      "boundary": "C02",
+      "input": {
+        "framed_bytes_hex": "436f6e74656e742d4c656e6774683a203131360d0a0d0a7b226a736f6e727063223a22322e30222c226964223a323134373438333634372c226d6574686f64223a22696e697469616c697a65222c22706172616d73223a7b2270726f636573734964223a6e756c6c2c22726f6f74557269223a6e756c6c2c226361706162696c6974696573223a7b7d7d7d"
+      },
+      "oracle": "LSP legal value + current raw-number fidelity",
+      "current_observation": {
+        "evidence_case": "id_max",
+        "response_frame_count": 1,
+        "exit_code": 0,
+        "classification": "currently_matches"
+      },
+      "readiness": "ready"
+    },
+    {
+      "expected": {
+        "responses": 1,
+        "response_id_raw": "-0",
+        "result_has": "capabilities"
+      },
+      "unresolved_gate": null,
+      "execution": "bounded_fresh_locked_real_binary",
+      "id": "id_negative_zero",
+      "boundary": "C02",
+      "input": {
+        "framed_bytes_hex": "436f6e74656e742d4c656e6774683a203130380d0a0d0a7b226a736f6e727063223a22322e30222c226964223a2d302c226d6574686f64223a22696e697469616c697a65222c22706172616d73223a7b2270726f636573734964223a6e756c6c2c22726f6f74557269223a6e756c6c2c226361706162696c6974696573223a7b7d7d7d"
+      },
+      "oracle": "LSP legal value + current raw-number fidelity",
+      "current_observation": {
+        "evidence_case": "id_negative_zero",
+        "response_frame_count": 1,
+        "exit_code": 0,
+        "classification": "currently_matches"
+      },
+      "readiness": "ready"
+    },
+    {
+      "expected": {
+        "responses": 1,
+        "response_id_raw": "\"é😀\"",
+        "result_has": "capabilities"
+      },
+      "unresolved_gate": null,
+      "execution": "bounded_fresh_locked_real_binary",
+      "id": "id_string",
+      "boundary": "C02",
+      "input": {
+        "framed_bytes_hex": "436f6e74656e742d4c656e6774683a203131340d0a0d0a7b226a736f6e727063223a22322e30222c226964223a22c3a9f09f9880222c226d6574686f64223a22696e697469616c697a65222c22706172616d73223a7b2270726f636573734964223a6e756c6c2c22726f6f74557269223a6e756c6c2c226361706162696c6974696573223a7b7d7d7d"
+      },
+      "oracle": "LSP legal value + current raw-number fidelity",
+      "current_observation": {
+        "evidence_case": "id_string",
+        "response_frame_count": 1,
+        "exit_code": 0,
+        "classification": "currently_matches"
+      },
+      "readiness": "ready"
+    },
+    {
+      "expected": {
+        "responses": 0
+      },
+      "unresolved_gate": null,
+      "execution": "bounded_fresh_locked_real_binary",
+      "id": "id_absent",
+      "boundary": "C02",
+      "input": {
+        "framed_bytes_hex": "436f6e74656e742d4c656e6774683a2036320d0a0d0a7b226a736f6e727063223a22322e30222c226d6574686f64223a22242f63616e63656c52657175657374222c22706172616d73223a7b226964223a317d7d"
+      },
+      "oracle": "LSP notification rule",
+      "current_observation": {
+        "evidence_case": "id_absent",
+        "response_frame_count": 0,
+        "exit_code": 0,
+        "classification": "currently_matches"
+      },
+      "readiness": "ready"
+    },
+    {
+      "expected": {
+        "must_not_dispatch": true,
+        "error_code": -32600,
+        "response_id": null
+      },
+      "unresolved_gate": "Confirm invalid-ID response correlation policy before release",
+      "execution": "bounded_fresh_locked_real_binary",
+      "id": "id_null",
+      "boundary": "C02",
+      "input": {
+        "framed_bytes_hex": "436f6e74656e742d4c656e6774683a203131300d0a0d0a7b226a736f6e727063223a22322e30222c226964223a6e756c6c2c226d6574686f64223a22696e697469616c697a65222c22706172616d73223a7b2270726f636573734964223a6e756c6c2c22726f6f74557269223a6e756c6c2c226361706162696c6974696573223a7b7d7d7d"
+      },
+      "oracle": "LSP type-invalid; proposed InvalidRequest/null mapping",
+      "current_observation": {
+        "evidence_case": "id_null",
+        "response_frame_count": 0,
+        "exit_code": 0,
+        "classification": "current_broken_behavior"
+      },
+      "readiness": "gated"
+    },
+    {
+      "expected": {
+        "must_not_dispatch": true,
+        "error_code": -32600,
+        "response_id": null
+      },
+      "unresolved_gate": "Confirm invalid-ID response correlation policy before release",
+      "execution": "bounded_fresh_locked_real_binary",
+      "id": "id_bool",
+      "boundary": "C02",
+      "input": {
+        "framed_bytes_hex": "436f6e74656e742d4c656e6774683a203131300d0a0d0a7b226a736f6e727063223a22322e30222c226964223a747275652c226d6574686f64223a22696e697469616c697a65222c22706172616d73223a7b2270726f636573734964223a6e756c6c2c22726f6f74557269223a6e756c6c2c226361706162696c6974696573223a7b7d7d7d"
+      },
+      "oracle": "LSP type-invalid; proposed InvalidRequest/null mapping",
+      "current_observation": {
+        "evidence_case": "id_bool",
+        "response_frame_count": 1,
+        "exit_code": 0,
+        "classification": "current_broken_behavior"
+      },
+      "readiness": "gated"
+    },
+    {
+      "expected": {
+        "must_not_dispatch": true,
+        "error_code": -32600,
+        "response_id": null
+      },
+      "unresolved_gate": "Confirm invalid-ID response correlation policy before release",
+      "execution": "bounded_fresh_locked_real_binary",
+      "id": "id_array",
+      "boundary": "C02",
+      "input": {
+        "framed_bytes_hex": "436f6e74656e742d4c656e6774683a203130380d0a0d0a7b226a736f6e727063223a22322e30222c226964223a5b5d2c226d6574686f64223a22696e697469616c697a65222c22706172616d73223a7b2270726f636573734964223a6e756c6c2c22726f6f74557269223a6e756c6c2c226361706162696c6974696573223a7b7d7d7d"
+      },
+      "oracle": "LSP type-invalid; proposed InvalidRequest/null mapping",
+      "current_observation": {
+        "evidence_case": "id_array",
+        "response_frame_count": 1,
+        "exit_code": 0,
+        "classification": "current_broken_behavior"
+      },
+      "readiness": "gated"
+    },
+    {
+      "expected": {
+        "must_not_dispatch": true,
+        "error_code": -32600,
+        "response_id": null
+      },
+      "unresolved_gate": "Confirm invalid-ID response correlation policy before release",
+      "execution": "bounded_fresh_locked_real_binary",
+      "id": "id_object",
+      "boundary": "C02",
+      "input": {
+        "framed_bytes_hex": "436f6e74656e742d4c656e6774683a203130380d0a0d0a7b226a736f6e727063223a22322e30222c226964223a7b7d2c226d6574686f64223a22696e697469616c697a65222c22706172616d73223a7b2270726f636573734964223a6e756c6c2c22726f6f74557269223a6e756c6c2c226361706162696c6974696573223a7b7d7d7d"
+      },
+      "oracle": "LSP type-invalid; proposed InvalidRequest/null mapping",
+      "current_observation": {
+        "evidence_case": "id_object",
+        "response_frame_count": 1,
+        "exit_code": 0,
+        "classification": "current_broken_behavior"
+      },
+      "readiness": "gated"
+    },
+    {
+      "expected": {
+        "must_not_dispatch": true,
+        "error_code": -32600,
+        "response_id": null
+      },
+      "unresolved_gate": "Confirm invalid-ID response correlation policy before release",
+      "execution": "bounded_fresh_locked_real_binary",
+      "id": "id_fraction",
+      "boundary": "C02",
+      "input": {
+        "framed_bytes_hex": "436f6e74656e742d4c656e6774683a203130390d0a0d0a7b226a736f6e727063223a22322e30222c226964223a312e352c226d6574686f64223a22696e697469616c697a65222c22706172616d73223a7b2270726f636573734964223a6e756c6c2c22726f6f74557269223a6e756c6c2c226361706162696c6974696573223a7b7d7d7d"
+      },
+      "oracle": "LSP type-invalid; proposed InvalidRequest/null mapping",
+      "current_observation": {
+        "evidence_case": "id_fraction",
+        "response_frame_count": 1,
+        "exit_code": 0,
+        "classification": "current_broken_behavior"
+      },
+      "readiness": "gated"
+    },
+    {
+      "expected": {
+        "must_not_dispatch": true,
+        "error_code": -32600,
+        "response_id": null
+      },
+      "unresolved_gate": "Confirm invalid-ID response correlation policy before release",
+      "execution": "bounded_fresh_locked_real_binary",
+      "id": "id_above_lsp_range",
+      "boundary": "C02",
+      "input": {
+        "framed_bytes_hex": "436f6e74656e742d4c656e6774683a203131360d0a0d0a7b226a736f6e727063223a22322e30222c226964223a323134373438333634382c226d6574686f64223a22696e697469616c697a65222c22706172616d73223a7b2270726f636573734964223a6e756c6c2c22726f6f74557269223a6e756c6c2c226361706162696c6974696573223a7b7d7d7d"
+      },
+      "oracle": "LSP type-invalid; proposed InvalidRequest/null mapping",
+      "current_observation": {
+        "evidence_case": "id_above_lsp_range",
+        "response_frame_count": 1,
+        "exit_code": 0,
+        "classification": "current_broken_behavior"
+      },
+      "readiness": "gated"
+    },
+    {
+      "expected": {
+        "must_not_dispatch": true,
+        "error_code": -32600
+      },
+      "unresolved_gate": "Confirm echo recognizable legal id vs null for invalid envelope",
+      "execution": "bounded_fresh_locked_real_binary",
+      "id": "wrong_version",
+      "boundary": "C02",
+      "input": {
+        "framed_bytes_hex": "436f6e74656e742d4c656e6774683a203130370d0a0d0a7b226a736f6e727063223a22312e30222c226964223a312c226d6574686f64223a22696e697469616c697a65222c22706172616d73223a7b2270726f636573734964223a6e756c6c2c22726f6f74557269223a6e756c6c2c226361706162696c6974696573223a7b7d7d7d"
+      },
+      "oracle": "JSON-RPC required version; response correlation gate",
+      "current_observation": {
+        "evidence_case": "wrong_version",
+        "response_frame_count": 1,
+        "exit_code": 0,
+        "classification": "current_broken_behavior"
+      },
+      "readiness": "gated"
+    },
+    {
+      "expected": {
+        "must_not_dispatch": true,
+        "error_code": -32600
+      },
+      "unresolved_gate": "Confirm echo recognizable legal id vs null for invalid envelope",
+      "execution": "bounded_fresh_locked_real_binary",
+      "id": "number_version",
+      "boundary": "C02",
+      "input": {
+        "framed_bytes_hex": "436f6e74656e742d4c656e6774683a203130330d0a0d0a7b226a736f6e727063223a322c226964223a312c226d6574686f64223a22696e697469616c697a65222c22706172616d73223a7b2270726f636573734964223a6e756c6c2c22726f6f74557269223a6e756c6c2c226361706162696c6974696573223a7b7d7d7d"
+      },
+      "oracle": "JSON-RPC required version; response correlation gate",
+      "current_observation": {
+        "evidence_case": "number_version",
+        "response_frame_count": 1,
+        "exit_code": 0,
+        "classification": "current_broken_behavior"
+      },
+      "readiness": "gated"
+    },
+    {
+      "expected": {
+        "must_not_dispatch": true
+      },
+      "unresolved_gate": "Choose envelope InvalidRequest vs method InvalidParams, with ordering",
+      "execution": "bounded_fresh_locked_real_binary",
+      "id": "params_scalar",
+      "boundary": "C02",
+      "input": {
+        "framed_bytes_hex": "436f6e74656e742d4c656e6774683a2035370d0a0d0a7b226a736f6e727063223a22322e30222c226964223a312c226d6574686f64223a22696e697469616c697a65222c22706172616d73223a347d"
+      },
+      "oracle": "JSON-RPC invalid structured params",
+      "current_observation": {
+        "evidence_case": "params_scalar",
+        "response_frame_count": 1,
+        "exit_code": 0,
+        "classification": "current_broken_behavior"
+      },
+      "readiness": "gated"
+    },
+    {
+      "expected": {
+        "must_not_dispatch": true
+      },
+      "unresolved_gate": "Same params admission/error mapping gate",
+      "execution": "bounded_fresh_locked_real_binary",
+      "id": "params_null",
+      "boundary": "C02",
+      "input": {
+        "framed_bytes_hex": "436f6e74656e742d4c656e6774683a2036300d0a0d0a7b226a736f6e727063223a22322e30222c226964223a312c226d6574686f64223a22696e697469616c697a65222c22706172616d73223a6e756c6c7d"
+      },
+      "oracle": "JSON-RPC invalid structured params",
+      "current_observation": {
+        "evidence_case": "params_null",
+        "response_frame_count": 1,
+        "exit_code": 0,
+        "classification": "current_broken_behavior"
+      },
+      "readiness": "gated"
+    },
+    {
+      "expected": {
+        "must_not_initialize": true
+      },
+      "unresolved_gate": "Resolve compatibility with existing {} initialize helpers separately from envelope validation",
+      "execution": "bounded_fresh_locked_real_binary",
+      "id": "params_missing_initialize",
+      "boundary": "C02",
+      "input": {
+        "framed_bytes_hex": "436f6e74656e742d4c656e6774683a2034360d0a0d0a7b226a736f6e727063223a22322e30222c226964223a312c226d6574686f64223a22696e697469616c697a65227d"
+      },
+      "oracle": "LSP InitializeParams required",
+      "current_observation": {
+        "evidence_case": "params_missing_initialize",
+        "response_frame_count": 1,
+        "exit_code": 0,
+        "classification": "current_broken_behavior"
+      },
+      "readiness": "gated"
+    },
+    {
+      "expected": {
+        "must_not_dispatch": true,
+        "error_code": -32700,
+        "response_id": null
+      },
+      "unresolved_gate": "Confirm byte-decode error mapping",
+      "execution": "bounded_fresh_locked_real_binary",
+      "id": "invalid_utf8",
+      "boundary": "C02",
+      "input": {
+        "framed_bytes_hex": "436f6e74656e742d4c656e6774683a203130390d0a0d0a7b226a736f6e727063223a22322e30222c226964223a22ff222c226d6574686f64223a22696e697469616c697a65222c22706172616d73223a7b2270726f636573734964223a6e756c6c2c22726f6f74557269223a6e756c6c2c226361706162696c6974696573223a7b7d7d7d"
+      },
+      "oracle": "UTF-8 requirement + proposed ParseError mapping",
+      "current_observation": {
+        "evidence_case": "invalid_utf8",
+        "response_frame_count": 1,
+        "exit_code": 0,
+        "classification": "current_broken_behavior"
+      },
+      "readiness": "gated"
+    },
+    {
+      "expected": {
+        "responses": 1,
+        "error_code": -32700,
+        "response_id": null
+      },
+      "unresolved_gate": null,
+      "execution": "bounded_fresh_locked_real_binary",
+      "id": "malformed_json",
+      "boundary": "C02",
+      "input": {
+        "framed_bytes_hex": "436f6e74656e742d4c656e6774683a20340d0a0d0a7b626164"
+      },
+      "oracle": "JSON-RPC parse error",
+      "current_observation": {
+        "evidence_case": "malformed_json",
+        "response_frame_count": 1,
+        "exit_code": 0,
+        "classification": "currently_matches"
+      },
+      "readiness": "ready"
+    },
+    {
+      "expected": {
+        "responses": 0
+      },
+      "unresolved_gate": null,
+      "execution": "bounded_fresh_locked_real_binary",
+      "id": "valid_notification_unknown",
+      "boundary": "C02",
+      "input": {
+        "framed_bytes_hex": "436f6e74656e742d4c656e6774683a2035350d0a0d0a7b226a736f6e727063223a22322e30222c226d6574686f64223a22756e6b6e6f776e2f6d6574686f64222c22706172616d73223a7b7d7d"
+      },
+      "oracle": "JSON-RPC no response to notifications",
+      "current_observation": {
+        "evidence_case": "valid_notification_unknown",
+        "response_frame_count": 0,
+        "exit_code": 0,
+        "classification": "currently_matches"
+      },
+      "readiness": "ready"
+    },
+    {
+      "expected": {
+        "responses": 1,
+        "error_code": -32600,
+        "response_id": null
+      },
+      "unresolved_gate": null,
+      "execution": "bounded_fresh_locked_real_binary",
+      "id": "invalid_request_no_id",
+      "boundary": "C02",
+      "input": {
+        "framed_bytes_hex": "436f6e74656e742d4c656e6774683a2032380d0a0d0a7b226a736f6e727063223a22322e30222c226d6574686f64223a347d"
+      },
+      "oracle": "JSON-RPC invalid request example",
+      "current_observation": {
+        "evidence_case": "invalid_request_no_id",
+        "response_frame_count": 0,
+        "exit_code": 0,
+        "classification": "current_broken_behavior"
+      },
+      "readiness": "ready"
+    },
+    {
+      "expected": {
+        "decision_required": true
+      },
+      "unresolved_gate": "Retain first-match vs reject at LSP boundary; no silent last-wins migration",
+      "execution": "bounded_fresh_locked_real_binary",
+      "id": "duplicate_id",
+      "boundary": "C02",
+      "input": {
+        "framed_bytes_hex": "436f6e74656e742d4c656e6774683a203131340d0a0d0a7b226a736f6e727063223a22322e30222c226964223a312c226964223a322c226d6574686f64223a22696e697469616c697a65222c22706172616d73223a7b2270726f636573734964223a6e756c6c2c22726f6f74557269223a6e756c6c2c226361706162696c6974696573223a7b7d7d7d"
+      },
+      "oracle": "RFC duplicate semantics not fixed",
+      "current_observation": {
+        "evidence_case": "duplicate_id",
+        "response_frame_count": 1,
+        "exit_code": 0,
+        "classification": "unresolved_policy"
+      },
+      "readiness": "gated"
+    },
+    {
+      "expected": {
+        "decision_required": true
+      },
+      "unresolved_gate": "Separate lexical accessor compatibility from legal numeric ID value",
+      "execution": "bounded_fresh_locked_real_binary",
+      "id": "integer_exponent_id",
+      "boundary": "C02",
+      "input": {
+        "framed_bytes_hex": "436f6e74656e742d4c656e6774683a203130390d0a0d0a7b226a736f6e727063223a22322e30222c226964223a3165302c226d6574686f64223a22696e697469616c697a65222c22706172616d73223a7b2270726f636573734964223a6e756c6c2c22726f6f74557269223a6e756c6c2c226361706162696c6974696573223a7b7d7d7d"
+      },
+      "oracle": "Value is integral; numeric lexical policy not established",
+      "current_observation": {
+        "evidence_case": "integer_exponent_id",
+        "response_frame_count": 1,
+        "exit_code": 0,
+        "classification": "unresolved_policy"
+      },
+      "readiness": "gated"
+    },
+    {
+      "expected": {
+        "responses": 1,
+        "error_code": -32002,
+        "response_id": 1
+      },
+      "unresolved_gate": null,
+      "execution": "bounded_fresh_locked_real_binary",
+      "id": "preinit_request",
+      "boundary": "C02",
+      "input": {
+        "framed_bytes_hex": "436f6e74656e742d4c656e6774683a2036360d0a0d0a7b226a736f6e727063223a22322e30222c226964223a312c226d6574686f64223a2274657874446f63756d656e742f686f766572222c22706172616d73223a7b7d7d"
+      },
+      "oracle": "LSP initialization gate",
+      "current_observation": {
+        "evidence_case": "preinit_request",
+        "response_frame_count": 1,
+        "exit_code": 0,
+        "classification": "currently_matches"
+      },
+      "readiness": "ready"
+    },
+    {
+      "expected": {
+        "responses": 0,
+        "exit_code": 1
+      },
+      "unresolved_gate": null,
+      "execution": "bounded_fresh_locked_real_binary",
+      "id": "exit_before_shutdown",
+      "boundary": "C02",
+      "input": {
+        "framed_bytes_hex": "436f6e74656e742d4c656e6774683a2033330d0a0d0a7b226a736f6e727063223a22322e30222c226d6574686f64223a2265786974227d"
+      },
+      "oracle": "LSP exit rule",
+      "current_observation": {
+        "evidence_case": "exit_before_shutdown",
+        "response_frame_count": 0,
+        "exit_code": 1,
+        "classification": "currently_matches"
+      },
+      "readiness": "ready"
+    },
+    {
+      "expected": {
+        "responses": 0,
+        "diagnostics": 0
+      },
+      "unresolved_gate": null,
+      "execution": "bounded_fresh_locked_real_binary",
+      "id": "preinit_didopen",
+      "boundary": "C02",
+      "input": {
+        "framed_bytes_hex": "436f6e74656e742d4c656e6774683a203135310d0a0d0a7b226a736f6e727063223a22322e30222c226d6574686f64223a2274657874446f63756d656e742f6469644f70656e222c22706172616d73223a7b2274657874446f63756d656e74223a7b22757269223a2266696c653a2f2f2f70726f62652e63616e222c226c616e67756167654964223a2263616e222c2276657273696f6e223a312c2274657874223a2261707020415c6e227d7d7d"
+      },
+      "oracle": "LSP pre-initialize notification drop",
+      "current_observation": {
+        "evidence_case": "preinit_didopen",
+        "response_frame_count": 1,
+        "exit_code": 0,
+        "classification": "current_broken_behavior"
+      },
+      "readiness": "ready"
+    },
+    {
+      "expected": {
+        "response_ids": [
+          1,
+          2,
+          3
+        ],
+        "shutdown_result": null,
+        "post_shutdown_error": -32600,
+        "exit_code": 0
+      },
+      "unresolved_gate": null,
+      "execution": "bounded_fresh_locked_real_binary",
+      "id": "shutdown_handshake",
+      "boundary": "C02",
+      "input": {
+        "framed_bytes_hex": "436f6e74656e742d4c656e6774683a203130370d0a0d0a7b226a736f6e727063223a22322e30222c226964223a312c226d6574686f64223a22696e697469616c697a65222c22706172616d73223a7b2270726f636573734964223a6e756c6c2c22726f6f74557269223a6e756c6c2c226361706162696c6974696573223a7b7d7d7d436f6e74656e742d4c656e6774683a2034340d0a0d0a7b226a736f6e727063223a22322e30222c226964223a322c226d6574686f64223a2273687574646f776e227d436f6e74656e742d4c656e6774683a2036360d0a0d0a7b226a736f6e727063223a22322e30222c226964223a332c226d6574686f64223a2274657874446f63756d656e742f686f766572222c22706172616d73223a7b7d7d436f6e74656e742d4c656e6774683a2033330d0a0d0a7b226a736f6e727063223a22322e30222c226d6574686f64223a2265786974227d"
+      },
+      "oracle": "LSP lifecycle",
+      "current_observation": {
+        "evidence_case": "shutdown_handshake",
+        "response_frame_count": 3,
+        "exit_code": 0,
+        "classification": "currently_matches"
+      },
+      "readiness": "ready"
+    },
+    {
+      "id": "integer_accessor_-0",
+      "boundary": "C06",
+      "input": {
+        "json_text": "-0"
+      },
+      "expected": {
+        "parse": "accept",
+        "number_lexeme": "-0",
+        "as_i64": 0
+      },
+      "oracle": "Declared lexical accessor/raw representation contract",
+      "current_observation": "Confirmed parser-observations.txt",
+      "readiness": "ready",
+      "unresolved_gate": null
+    },
+    {
+      "id": "integer_accessor_1e0",
+      "boundary": "C06",
+      "input": {
+        "json_text": "1e0"
+      },
+      "expected": {
+        "parse": "accept",
+        "number_lexeme": "1e0",
+        "as_i64": null
+      },
+      "oracle": "Declared lexical accessor/raw representation contract",
+      "current_observation": "Confirmed parser-observations.txt",
+      "readiness": "ready",
+      "unresolved_gate": null
+    },
+    {
+      "id": "integer_accessor_1.0",
+      "boundary": "C06",
+      "input": {
+        "json_text": "1.0"
+      },
+      "expected": {
+        "parse": "accept",
+        "number_lexeme": "1.0",
+        "as_i64": null
+      },
+      "oracle": "Declared lexical accessor/raw representation contract",
+      "current_observation": "Confirmed parser-observations.txt",
+      "readiness": "ready",
+      "unresolved_gate": null
+    },
+    {
+      "id": "integer_accessor_9223372036854775807",
+      "boundary": "C06",
+      "input": {
+        "json_text": "9223372036854775807"
+      },
+      "expected": {
+        "parse": "accept",
+        "number_lexeme": "9223372036854775807",
+        "as_i64": 9223372036854775807
+      },
+      "oracle": "Declared lexical accessor/raw representation contract",
+      "current_observation": "Confirmed parser-observations.txt",
+      "readiness": "ready",
+      "unresolved_gate": null
+    },
+    {
+      "id": "integer_accessor_9223372036854775808",
+      "boundary": "C06",
+      "input": {
+        "json_text": "9223372036854775808"
+      },
+      "expected": {
+        "parse": "accept",
+        "number_lexeme": "9223372036854775808",
+        "as_i64": null
+      },
+      "oracle": "Declared lexical accessor/raw representation contract",
+      "current_observation": "Confirmed parser-observations.txt",
+      "readiness": "ready",
+      "unresolved_gate": null
+    },
+    {
+      "id": "depth_64_scalar",
+      "boundary": "C06",
+      "input": {
+        "generator": {
+          "open_array_count": 64,
+          "leaf": "0",
+          "close_array_count": 64
+        }
+      },
+      "expected": {
+        "parse": "accept"
+      },
+      "oracle": "Current precisely bounded recursion entry contract",
+      "current_observation": "Confirmed parser-observations.txt",
+      "readiness": "ready",
+      "unresolved_gate": null
+    },
+    {
+      "id": "depth_65_scalar",
+      "boundary": "C06",
+      "input": {
+        "generator": {
+          "open_array_count": 65,
+          "leaf": "0",
+          "close_array_count": 65
+        }
+      },
+      "expected": {
+        "parse": "reject"
+      },
+      "oracle": "Current precisely bounded recursion entry contract",
+      "current_observation": "Confirmed parser-observations.txt",
+      "readiness": "ready",
+      "unresolved_gate": null
+    },
+    {
+      "id": "depth_65_empty",
+      "boundary": "C06",
+      "input": {
+        "generator": {
+          "open_array_count": 65,
+          "leaf": "",
+          "close_array_count": 65
+        }
+      },
+      "expected": {
+        "parse": "accept"
+      },
+      "oracle": "Current precisely bounded recursion entry contract",
+      "current_observation": "Confirmed parser-observations.txt",
+      "readiness": "gated",
+      "unresolved_gate": "Resolve empty-container depth correction before parser replacement"
+    },
+    {
+      "id": "depth_66_empty",
+      "boundary": "C06",
+      "input": {
+        "generator": {
+          "open_array_count": 66,
+          "leaf": "",
+          "close_array_count": 66
+        }
+      },
+      "expected": {
+        "parse": "reject"
+      },
+      "oracle": "Current precisely bounded recursion entry contract",
+      "current_observation": "Confirmed parser-observations.txt",
+      "readiness": "gated",
+      "unresolved_gate": "Resolve empty-container depth correction before parser replacement"
+    },
+    {
+      "id": "duplicates_first_match",
+      "boundary": "C06",
+      "input": {
+        "json_text": "{\"id\":1,\"id\":2}"
+      },
+      "expected": {
+        "decision_required": true
+      },
+      "oracle": "RFC 8259 does not fix duplicate handling",
+      "current_observation": {
+        "pairs_retained": 2,
+        "lookup_id": 1
+      },
+      "readiness": "gated",
+      "unresolved_gate": "Select per-caller duplicate policy; do not silently last-win"
+    },
+    {
+      "id": "leading_zero",
+      "boundary": "C06",
+      "input": {
+        "json_text": "01"
+      },
+      "expected": {
+        "parse": "reject"
+      },
+      "oracle": "JSON grammar and declared Unicode scalar contract",
+      "current_observation": "Confirmed parser-observations.txt",
+      "readiness": "ready",
+      "unresolved_gate": null
+    },
+    {
+      "id": "surrogate_pair",
+      "boundary": "C06",
+      "input": {
+        "json_text": "\"\\uD83D\\uDE00\""
+      },
+      "expected": {
+        "parse": "accept",
+        "string": "😀"
+      },
+      "oracle": "JSON grammar and declared Unicode scalar contract",
+      "current_observation": "Confirmed parser-observations.txt",
+      "readiness": "ready",
+      "unresolved_gate": null
+    },
+    {
+      "id": "unpaired_surrogate",
+      "boundary": "C06",
+      "input": {
+        "json_text": "\"\\uD83D\""
+      },
+      "expected": {
+        "parse": "reject"
+      },
+      "oracle": "JSON grammar and declared Unicode scalar contract",
+      "current_observation": "Confirmed parser-observations.txt",
+      "readiness": "ready",
+      "unresolved_gate": null
+    },
+    {
+      "id": "body_cap_plus_one",
+      "boundary": "C02",
+      "input": {
+        "framed_bytes_hex": "436f6e74656e742d4c656e6774683a2036373130383836350d0a0d0a"
+      },
+      "expected": {
+        "framing_error": "InvalidData",
+        "body_allocation": false
+      },
+      "oracle": "Existing body/split/framing contract or LSP charset requirement",
+      "current_observation": "Confirmed parser-observations.txt",
+      "readiness": "ready",
+      "unresolved_gate": null
+    },
+    {
+      "id": "truncated_body",
+      "boundary": "C02",
+      "input": {
+        "framed_bytes_hex": "436f6e74656e742d4c656e6774683a20330d0a0d0a7b7d"
+      },
+      "expected": {
+        "framing_error": "UnexpectedEof"
+      },
+      "oracle": "Existing body/split/framing contract or LSP charset requirement",
+      "current_observation": "Confirmed parser-observations.txt",
+      "readiness": "ready",
+      "unresolved_gate": null
+    },
+    {
+      "id": "bare_lf",
+      "boundary": "C02",
+      "input": {
+        "framed_bytes_hex": "436f6e74656e742d4c656e6774683a20320a0a7b7d"
+      },
+      "expected": {
+        "body_utf8": "{}"
+      },
+      "oracle": "Existing body/split/framing contract or LSP charset requirement",
+      "current_observation": "Confirmed parser-observations.txt",
+      "readiness": "ready",
+      "unresolved_gate": null
+    },
+    {
+      "id": "duplicate_length",
+      "boundary": "C02",
+      "input": {
+        "framed_bytes_hex": "436f6e74656e742d4c656e6774683a20330d0a436f6e74656e742d4c656e6774683a20320d0a0d0a7b7d"
+      },
+      "expected": {
+        "decision_required": true
+      },
+      "oracle": "Existing body/split/framing contract or LSP charset requirement",
+      "current_observation": "Confirmed parser-observations.txt",
+      "readiness": "gated",
+      "unresolved_gate": "Duplicate length admission/recovery policy"
+    },
+    {
+      "id": "unsupported_charset",
+      "boundary": "C02",
+      "input": {
+        "framed_bytes_hex": "436f6e74656e742d4c656e6774683a20320d0a436f6e74656e742d547970653a206170706c69636174696f6e2f7673636f64652d6a736f6e7270633b20636861727365743d6c6174696e310d0a0d0a7b7d"
+      },
+      "expected": {
+        "must_not_dispatch": true
+      },
+      "oracle": "Existing body/split/framing contract or LSP charset requirement",
+      "current_observation": "Confirmed parser-observations.txt",
+      "readiness": "gated",
+      "unresolved_gate": "Specify unsupported charset error and recovery"
+    }
+  ],
+  "promotion": "Promote gated expected outcomes only after decision. Broken behavior must not become golden acceptance. Do not add intentionally failing cases to compiler suite."
+}

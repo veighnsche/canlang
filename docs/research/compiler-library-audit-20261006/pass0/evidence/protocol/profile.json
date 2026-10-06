@@ -1,0 +1,41 @@
+{
+  "os": "macOS-27.0.1-arm64-arm-64bit-Mach-O",
+  "python": "3.14.7",
+  "rustc": "rustc 1.99.0 (b940084d7 2026-09-28)",
+  "git_head": "38c0370087909dc89386849fec48e6f937aa0d13",
+  "source_sha256": {
+    "compiler/src/json.rs": "5d4f2283206fff41501b00eab13221f4255e97836a810b46d4766ea23968cdc1",
+    "compiler/src/lsp/transport.rs": "43172ab05dde0d95fcb99b540cdb726860d69159ccdf0d1f6eae60cd41296a2c",
+    "compiler/src/lsp/server.rs": "789cfcad607502368bac6c1a7d2a36ce53945fb606c91e3b6f7194f309b9fff0",
+    "compiler/src/diagnostic.rs": "f3fcd6af3d5b7b4668503c54e860b9854f4aab2b1fb3a50c4359a7e84bcb7691",
+    "compiler/src/cli.rs": "b45e3a78b1db32dd09f96c68d3aec3928f629c8545091f41e6064509d726dc88",
+    "compiler/src/lib.rs": "36ed081a75985d1e406f6f30c9daaa7cc492725f2b594f68a867547e246b5971",
+    "compiler/src/analysis/catalog.rs": "ce23e264abc3a89b21d3d2e29be01ee8a9b04e2522ed0b2fd77310bc714901c5",
+    "compiler/src/docs.rs": "0253b7b28b306bd775e1ba683df3726fca0fc03b3f2e858d306efad6ba6c4b43",
+    "compiler/tests/authoring.rs": "cf5c1874bde06f11e0b2c6e9966fb1d8502e28e9ff9f37218b9abe5e5b7adfde",
+    "compiler/tests/ide.rs": "3a40406d14efa29681e18cc560e4d9d6954c9dd347063e4f7c967c940d967457",
+    "compiler/tests/common/lsp_driver.rs": "719ee4dbf4e49daf281a860dc9e1df06aa073aa3509ba6059bcc95302b157491",
+    "compiler/tests/b3_authoring_join.rs": "a649d8e80787a804fc62948263a9ff0e307bf27cdccd9fa039d66f7869bd8b4e",
+    "compiler/tests/b3_s4.rs": "c92cb007fbe4cb41ecaf2bf79f6bc6e97ee117732db7cc9205190ae2a940918d",
+    "editors/vscode/test/lsp-capabilities.cjs": "be0e752842e6a7ceac983c051188ba6b78d5d6bf16c7b2580995138e06c1ce09",
+    "compiler/Cargo.toml": "9ce36d8b83765b88af6c80dcfec9e16b016d2d18b6f8ce0d7c19189c1b524356",
+    "compiler/Cargo.lock": "dd8cf830aabc31d8158cd402cef624ef17c6239c2dda654b838315fd56a04c7a",
+    "docs/research/compiler-library-audit-20261006/evidence/protocol-cli/probe-results.json": "ccf3220cd45118db137ae373cf24b4052d8d8c32e353bf6258f6c99cb7f94d41"
+  },
+  "binary_sha256": "201465b92fa04c660133ece83f6325bea6ee2d39bd27edf8dbc0d6a40d32a534",
+  "binary_source_provenance": "Fresh locked lib+can build supplied by root: cargo build --locked --manifest-path compiler/Cargo.toml --lib --bin can --target-dir /private/tmp/canlang-compiler-pass0-38c0370; root captures build evidence separately.",
+  "commands": [
+    "python3 docs/research/compiler-library-audit-20261006/pass0/evidence/protocol/probe.py",
+    "rustc --edition=2024 -A warnings docs/research/compiler-library-audit-20261006/pass0/evidence/protocol/parser-probe.rs -o docs/research/compiler-library-audit-20261006/pass0/evidence/protocol/parser-probe",
+    "docs/research/compiler-library-audit-20261006/pass0/evidence/protocol/parser-probe"
+  ],
+  "scope": "This worker performed no Cargo invocation, repository tests, dependencies or product-source changes. 5-second timeout per real process; EOF after supplied bytes; inherited env except catalog variable removed.",
+  "evidence_sha256": {
+    "evidence/protocol/parser-observations.txt": "fe0638b122bd6966ea7a5d95f06244b44a82fab2b16a034b4be9fe1c46dba991",
+    "evidence/protocol/parser-probe.rs": "70ef3803ace6a3de98c4f663ee26429bf5032d702e166e6c90f0efc9b79efec3",
+    "evidence/protocol/process-observations.json": "288540b77274b7af9963eee15564fb0ed7b5e56d1e69640005b01ed13e244589",
+    "evidence/protocol/probe.py": "7b74aa7abd44e88ab60734542c41654ce045e836bf1346d84b0081e09867c6e1"
+  },
+  "parser_probe_binary_sha256": "059ea857549de57ab5d66eaadf926df4ef61371e3cb332cadbd4f972d587e1fb",
+  "parser_probe_binary_storage": "Generated executable removed after observations; rebuild using command above"
+}

@@ -1,0 +1,399 @@
+{
+  "schema_version": 1,
+  "packets": [
+    "C03U",
+    "C03L"
+  ],
+  "oracle": "Owning public @canlang/values API on pinned Node/ICU; authored expected outcomes separate from observed output; candidate Rust library not yet tested",
+  "cases": [
+    {
+      "id": "url_basic",
+      "boundary": "ordinary url value",
+      "input": {
+        "type": "url",
+        "value": "https://example.com/path"
+      },
+      "expected": {
+        "valid": true,
+        "retained": "https://example.com/path"
+      },
+      "current_observation": "See actual public-export probe; prior audit demonstrates selected compiler mismatches",
+      "readiness": "ready"
+    },
+    {
+      "id": "url_unicode_panic",
+      "boundary": "ordinary url value",
+      "input": {
+        "type": "url",
+        "value": "💥💥💥"
+      },
+      "expected": {
+        "valid": false
+      },
+      "current_observation": "See actual public-export probe; prior audit demonstrates selected compiler mismatches",
+      "readiness": "ready"
+    },
+    {
+      "id": "url_bracketed_bad",
+      "boundary": "ordinary url value",
+      "input": {
+        "type": "url",
+        "value": "https://[garbage]"
+      },
+      "expected": {
+        "valid": false
+      },
+      "current_observation": "See actual public-export probe; prior audit demonstrates selected compiler mismatches",
+      "readiness": "ready"
+    },
+    {
+      "id": "url_port_high",
+      "boundary": "ordinary url value",
+      "input": {
+        "type": "url",
+        "value": "https://host:999999"
+      },
+      "expected": {
+        "valid": false
+      },
+      "current_observation": "See actual public-export probe; prior audit demonstrates selected compiler mismatches",
+      "readiness": "ready"
+    },
+    {
+      "id": "url_userinfo",
+      "boundary": "ordinary url value",
+      "input": {
+        "type": "url",
+        "value": "https://user:pass@example.com"
+      },
+      "expected": {
+        "valid": true,
+        "retained": "https://user:pass@example.com"
+      },
+      "current_observation": "See actual public-export probe; prior audit demonstrates selected compiler mismatches",
+      "readiness": "ready"
+    },
+    {
+      "id": "url_case",
+      "boundary": "ordinary url value",
+      "input": {
+        "type": "url",
+        "value": "HTTPS://EXAMPLE.COM/a"
+      },
+      "expected": {
+        "valid": true,
+        "retained": "HTTPS://EXAMPLE.COM/a"
+      },
+      "current_observation": "See actual public-export probe; prior audit demonstrates selected compiler mismatches",
+      "readiness": "ready"
+    },
+    {
+      "id": "url_unicode_host",
+      "boundary": "ordinary url value",
+      "input": {
+        "type": "url",
+        "value": "https://é.example/a"
+      },
+      "expected": {
+        "valid": true,
+        "retained": "https://é.example/a"
+      },
+      "current_observation": "See actual public-export probe; prior audit demonstrates selected compiler mismatches",
+      "readiness": "ready"
+    },
+    {
+      "id": "url_backslash",
+      "boundary": "ordinary url value",
+      "input": {
+        "type": "url",
+        "value": "https://example.com\\a"
+      },
+      "expected": {
+        "valid": true,
+        "retained": "https://example.com\\a"
+      },
+      "current_observation": "See actual public-export probe; prior audit demonstrates selected compiler mismatches",
+      "readiness": "ready"
+    },
+    {
+      "id": "url_trimmed",
+      "boundary": "ordinary url value",
+      "input": {
+        "type": "url",
+        "value": " https://example.com/a "
+      },
+      "expected": {
+        "valid": true,
+        "retained": " https://example.com/a "
+      },
+      "current_observation": "See actual public-export probe; prior audit demonstrates selected compiler mismatches",
+      "readiness": "ready"
+    },
+    {
+      "id": "url_space_path",
+      "boundary": "ordinary url value",
+      "input": {
+        "type": "url",
+        "value": "https://example.com/a b"
+      },
+      "expected": {
+        "valid": true,
+        "retained": "https://example.com/a b"
+      },
+      "current_observation": "See actual public-export probe; prior audit demonstrates selected compiler mismatches",
+      "readiness": "ready"
+    },
+    {
+      "id": "url_relative",
+      "boundary": "ordinary url value",
+      "input": {
+        "type": "url",
+        "value": "/a"
+      },
+      "expected": {
+        "valid": false
+      },
+      "current_observation": "See actual public-export probe; prior audit demonstrates selected compiler mismatches",
+      "readiness": "ready"
+    },
+    {
+      "id": "url_non_http",
+      "boundary": "ordinary url value",
+      "input": {
+        "type": "url",
+        "value": "ftp://example.com/a"
+      },
+      "expected": {
+        "valid": false
+      },
+      "current_observation": "See actual public-export probe; prior audit demonstrates selected compiler mismatches",
+      "readiness": "ready"
+    },
+    {
+      "id": "url_ipv6",
+      "boundary": "ordinary url value",
+      "input": {
+        "type": "url",
+        "value": "https://[::1]:443/a"
+      },
+      "expected": {
+        "valid": true,
+        "retained": "https://[::1]:443/a"
+      },
+      "current_observation": "See actual public-export probe; prior audit demonstrates selected compiler mismatches",
+      "readiness": "ready"
+    },
+    {
+      "id": "url_port_empty",
+      "boundary": "ordinary url value",
+      "input": {
+        "type": "url",
+        "value": "https://example.com:/a"
+      },
+      "expected": {
+        "valid": true,
+        "retained": "https://example.com:/a"
+      },
+      "current_observation": "See actual public-export probe; prior audit demonstrates selected compiler mismatches",
+      "readiness": "ready"
+    },
+    {
+      "id": "locale_extension",
+      "boundary": "locale admission and wire canonicalization",
+      "input": {
+        "type": "locale",
+        "value": "en-u-ca-gregory"
+      },
+      "expected": {
+        "valid": true,
+        "canonical": "en-u-ca-gregory"
+      },
+      "current_observation": "See public-export probe; complete Rust parser/data parity remains gated",
+      "readiness": "ready"
+    },
+    {
+      "id": "locale_private",
+      "boundary": "locale admission and wire canonicalization",
+      "input": {
+        "type": "locale",
+        "value": "en-x-private"
+      },
+      "expected": {
+        "valid": true,
+        "canonical": "en-x-private"
+      },
+      "current_observation": "See public-export probe; complete Rust parser/data parity remains gated",
+      "readiness": "ready"
+    },
+    {
+      "id": "locale_duplicate_region",
+      "boundary": "locale admission and wire canonicalization",
+      "input": {
+        "type": "locale",
+        "value": "en-US-US"
+      },
+      "expected": {
+        "valid": false
+      },
+      "current_observation": "See public-export probe; complete Rust parser/data parity remains gated",
+      "readiness": "ready"
+    },
+    {
+      "id": "locale_case",
+      "boundary": "locale admission and wire canonicalization",
+      "input": {
+        "type": "locale",
+        "value": "EN-us"
+      },
+      "expected": {
+        "valid": true,
+        "canonical": "en-US"
+      },
+      "current_observation": "See public-export probe; complete Rust parser/data parity remains gated",
+      "readiness": "ready"
+    },
+    {
+      "id": "locale_alias",
+      "boundary": "locale admission and wire canonicalization",
+      "input": {
+        "type": "locale",
+        "value": "iw"
+      },
+      "expected": {
+        "valid": true,
+        "canonical": "he"
+      },
+      "current_observation": "See public-export probe; complete Rust parser/data parity remains gated",
+      "readiness": "ready"
+    },
+    {
+      "id": "locale_duplicate_variant",
+      "boundary": "locale admission and wire canonicalization",
+      "input": {
+        "type": "locale",
+        "value": "sl-rozaj-rozaj"
+      },
+      "expected": {
+        "valid": false
+      },
+      "current_observation": "See public-export probe; complete Rust parser/data parity remains gated",
+      "readiness": "ready"
+    },
+    {
+      "id": "locale_empty",
+      "boundary": "locale admission and wire canonicalization",
+      "input": {
+        "type": "locale",
+        "value": ""
+      },
+      "expected": {
+        "valid": false
+      },
+      "current_observation": "See public-export probe; complete Rust parser/data parity remains gated",
+      "readiness": "ready"
+    },
+    {
+      "id": "locale_underscore",
+      "boundary": "locale admission and wire canonicalization",
+      "input": {
+        "type": "locale",
+        "value": "en_US"
+      },
+      "expected": {
+        "valid": false
+      },
+      "current_observation": "See public-export probe; complete Rust parser/data parity remains gated",
+      "readiness": "ready"
+    },
+    {
+      "id": "locale_private_only",
+      "boundary": "locale admission and wire canonicalization",
+      "input": {
+        "type": "locale",
+        "value": "x-private"
+      },
+      "expected": {
+        "valid": false
+      },
+      "current_observation": "See public-export probe; complete Rust parser/data parity remains gated",
+      "readiness": "ready"
+    },
+    {
+      "id": "trusted_origin_userinfo",
+      "boundary": "app_url injected origin",
+      "input": {
+        "path": "/a",
+        "origin": "https://user:pass@example.com"
+      },
+      "expected": {
+        "valid": false,
+        "error_code": "invalid-construction"
+      },
+      "current_observation": "Owner forbids credentials independently of ordinary url admission",
+      "readiness": "ready"
+    },
+    {
+      "id": "trusted_origin_query",
+      "boundary": "app_url injected origin",
+      "input": {
+        "path": "/a",
+        "origin": "https://example.com/?q=1"
+      },
+      "expected": {
+        "valid": false,
+        "error_code": "invalid-construction"
+      },
+      "current_observation": "Owner forbids query on origin; path query has separate rules",
+      "readiness": "ready"
+    },
+    {
+      "id": "trusted_origin_prefix",
+      "boundary": "app_url injected origin",
+      "input": {
+        "path": "/a",
+        "origin": "https://EXAMPLE.COM/mount/"
+      },
+      "expected": {
+        "valid": true,
+        "value": "https://example.com/mount/a"
+      },
+      "current_observation": "Owner canonicalizes trusted origin and constructs link",
+      "readiness": "ready"
+    },
+    {
+      "id": "locale_alias_duplicate",
+      "boundary": "message variant canonical duplicates",
+      "input": {
+        "source": "Hello",
+        "variants": {
+          "iw": "A",
+          "he": "B"
+        }
+      },
+      "expected": {
+        "valid": false,
+        "error_code": "invalid-construction"
+      },
+      "current_observation": "Owner constructor must reject alias-equivalent variants; compiler currently compares lowercase spellings",
+      "readiness": "gated",
+      "gate": "Qualify compile-time alias table/profile and source-tag versus variant identity; owner outcome is known"
+    },
+    {
+      "id": "locale_case_duplicate",
+      "boundary": "message variant canonical duplicates",
+      "input": {
+        "source": "Hello",
+        "variants": {
+          "nl": "A",
+          "NL": "B"
+        }
+      },
+      "expected": {
+        "valid": false,
+        "error_code": "invalid-construction"
+      },
+      "current_observation": "Owner outcome and case-duplicate compiler rule are established",
+      "readiness": "ready"
+    }
+  ]
+}

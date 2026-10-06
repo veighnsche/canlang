@@ -1,0 +1,25 @@
+parse "-0": Ok(Num("-0")); integer=Some(0)
+parse "1e0": Ok(Num("1e0")); integer=None
+parse "1.0": Ok(Num("1.0")); integer=None
+parse "9223372036854775807": Ok(Num("9223372036854775807")); integer=Some(9223372036854775807)
+parse "9223372036854775808": Ok(Num("9223372036854775808")); integer=None
+parse "01": Err(ParseError { offset: 1, message: "trailing bytes" }); integer=None
+parse "{\"id\":1,\"id\":2}": Ok(Obj([("id", Num("1")), ("id", Num("2"))])); integer=None
+first id: Some(Num("1"))
+parse "\"\\uD83D\\uDE00\"": Ok(Str("😀")); integer=None
+parse "\"\\uD83D\"": Err(ParseError { offset: 7, message: "missing low surrogate" }); integer=None
+depth 63, leaf "0": Ok("accepted")
+depth 63, leaf "": Ok("accepted")
+depth 64, leaf "0": Ok("accepted")
+depth 64, leaf "": Ok("accepted")
+depth 65, leaf "0": Err(ParseError { offset: 65, message: "nesting too deep" })
+depth 65, leaf "": Ok("accepted")
+depth 66, leaf "0": Err(ParseError { offset: 65, message: "nesting too deep" })
+depth 66, leaf "": Err(ParseError { offset: 65, message: "nesting too deep" })
+frame bare_lf: Ok(Some([123, 125]))
+frame duplicate_length: Ok(Some([123, 125]))
+frame unsupported_charset: Ok(Some([123, 125]))
+frame plus_length: Ok(Some([123, 125]))
+frame oversize: Err(Custom { kind: InvalidData, error: "message exceeds size cap" })
+frame truncated: Err(Error { kind: UnexpectedEof, message: "failed to fill whole buffer" })
+frame clean_eof: Ok(None)

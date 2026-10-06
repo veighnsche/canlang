@@ -1,0 +1,43 @@
+{
+  "date": "2026-10-07",
+  "scope": "Pass 0 preparation, not compiler repair or crate qualification",
+  "input_pins_verified": 541,
+  "compiler_files_unchanged": 81,
+  "packets": 16,
+  "witnesses": 92,
+  "witness_readiness": {
+    "ready": 68,
+    "gated": 24
+  },
+  "local_links_checked": 25,
+  "owning_value_vectors_passed": 28,
+  "exact_wire_assertions_passed": 4,
+  "string_owner_vectors_passed": 8,
+  "independent_hash_comparisons_passed": 9,
+  "fresh_framed_process_observations": 26,
+  "filesystem_observations": 4,
+  "producer_map_to_independent_decoder_and_internal_consumer": "passed",
+  "diagnostic_shape_and_decoded_values": "passed",
+  "independent_review": {
+    "model": "gpt-6.1-sol",
+    "reasoning_effort": "medium",
+    "findings_addressed": [
+      "assert exact scalar outcomes",
+      "pin executed probe sources",
+      "producer-map handoff now uses actual compiler output",
+      "remove unimplemented symbol feature from current DTO caller closure"
+    ]
+  },
+  "git_diff_check": "passed",
+  "remaining_gates": "See packets.json and per-witness readiness; ready means implementable expectations, not repaired product behavior",
+  "limits": [
+    "No full suite rerun",
+    "No candidate dependency added/qualified",
+    "No installed/browser/alternate-host qualification",
+    "Known emission/mode/protocol behavior remains unfixed"
+  ],
+  "compiler_build_head": "38c0370087909dc89386849fec48e6f937aa0d13",
+  "compiler_code_baseline": "309644a6881909d8dba32560bc6711f67e00a7ab",
+  "evidence_capture_head": "4beca2b779ba043b6b313d7292d181d394808331",
+  "deferred_comparison_lists": 1
+}

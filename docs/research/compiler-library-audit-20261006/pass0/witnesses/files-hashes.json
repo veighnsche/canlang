@@ -1,0 +1,126 @@
+{
+  "schema_version": 1,
+  "packets": [
+    "C04F",
+    "C04H"
+  ],
+  "cases": [
+    {
+      "id": "fmt_private_mode",
+      "boundary": "regular source replacement",
+      "input": {
+        "mode_octal": "0600",
+        "source": "app F   \nGiven\nWhen\nThen"
+      },
+      "expected": {
+        "exit": 0,
+        "mode_octal": "0600",
+        "bytes": "app F\nGiven\nWhen\nThen\n"
+      },
+      "oracle": "Preserve authored file permission boundary; exact format output existing authoring behavior",
+      "current_observation": "Audit observed successful rewrite widening to 0644 under local umask",
+      "readiness": "ready"
+    },
+    {
+      "id": "fmt_noop",
+      "boundary": "unchanged regular source",
+      "input": {
+        "mode_octal": "0600",
+        "source": "app F\nGiven\nWhen\nThen\n"
+      },
+      "expected": {
+        "exit": 0,
+        "mode_octal": "0600",
+        "bytes": "app F\nGiven\nWhen\nThen\n",
+        "replaced": false
+      },
+      "oracle": "run_fmt skips write if formatted bytes equal input",
+      "current_observation": "Established caller contract",
+      "readiness": "ready"
+    },
+    {
+      "id": "fmt_parse_failure",
+      "boundary": "all inputs parsed before any write",
+      "input": {
+        "fixture": "compiler/tests/authoring.rs::cli_fmt_parse_failure_reports_envelope_and_writes_nothing"
+      },
+      "expected": {
+        "exit": 10,
+        "all_input_bytes_unchanged": true
+      },
+      "oracle": "Existing authoring acceptance and run_fmt explicit write order",
+      "current_observation": "Existing test; not rerun here",
+      "readiness": "ready"
+    },
+    {
+      "id": "docs_missing_output",
+      "boundary": "new docs destination",
+      "input": {
+        "fixture": "new regular output under existing parent"
+      },
+      "expected": {
+        "same_directory_staging": true,
+        "no_torn_destination": true,
+        "error_code_on_write_failure": "E7007"
+      },
+      "oracle": "docs caller and destination-local replacement contract; filesystem mode for new output must be specified before library cutover",
+      "current_observation": "New output currently obtains fs::write creation mode under umask",
+      "readiness": "gated",
+      "gate": "Choose new-output mode separately from preservation of existing source mode"
+    },
+    {
+      "id": "fmt_symlink",
+      "boundary": "input symlink replacement",
+      "input": {
+        "fixture": "symlink to regular source"
+      },
+      "expected": {
+        "policy": "unresolved"
+      },
+      "oracle": "Current read follows link, final rename replaces directory entry; owner intention not established",
+      "current_observation": "Do not assume resolving destination or refusing links is compatible",
+      "readiness": "gated",
+      "gate": "Explicit symlink behavior and race policy"
+    },
+    {
+      "id": "fmt_hardlink",
+      "boundary": "linked inode replacement",
+      "input": {
+        "fixture": "two hardlinks to source"
+      },
+      "expected": {
+        "policy": "unresolved"
+      },
+      "oracle": "Rename replaces one entry; inode-sharing behavior needs explicit owner disposition",
+      "current_observation": "No alternate-host/metadata claim",
+      "readiness": "gated",
+      "gate": "Explicit linked-inode and metadata policy"
+    },
+    {
+      "id": "hash_empty",
+      "boundary": "SHA-256 adapter",
+      "input": {
+        "text": ""
+      },
+      "expected": {
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "oracle": "Published SHA-256 known-answer plus independent Python hashlib",
+      "current_observation": "Existing source.rs vectors",
+      "readiness": "ready"
+    },
+    {
+      "id": "hash_abc",
+      "boundary": "SHA-256 adapter",
+      "input": {
+        "text": "abc"
+      },
+      "expected": {
+        "sha256": "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad"
+      },
+      "oracle": "Published SHA-256 known-answer plus independent Python hashlib",
+      "current_observation": "Existing source.rs vectors",
+      "readiness": "ready"
+    }
+  ]
+}

@@ -1,0 +1,141 @@
+{
+  "date": "2026-10-07T00:18:11.890256+02:00",
+  "evidence_capture_head": "4beca2b779ba043b6b313d7292d181d394808331",
+  "compiler_build_head": "38c0370087909dc89386849fec48e6f937aa0d13",
+  "compiler_code_baseline": "309644a6881909d8dba32560bc6711f67e00a7ab",
+  "revision_scope": "capture HEAD may include later documentation commits; supplied compiler build and unchanged compiler code hashes are recorded separately",
+  "commands": [
+    {
+      "argv": [
+        "uname",
+        "-sm"
+      ],
+      "exit": 0,
+      "stdout": "Darwin arm64\n",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "sw_vers",
+        "-productVersion"
+      ],
+      "exit": 0,
+      "stdout": "27.0.1\n",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "rustc",
+        "-Vv"
+      ],
+      "exit": 0,
+      "stdout": "rustc 1.99.0 (b940084d7 2026-09-28)\nbinary: rustc\ncommit-hash: b940084d7eb6a299eb4bfeb8e34901bc051e7ac4\ncommit-date: 2026-09-28\nhost: aarch64-apple-darwin\nrelease: 1.99.0\nLLVM version: 23.1.1\n",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "cargo",
+        "-V"
+      ],
+      "exit": 0,
+      "stdout": "cargo 1.99.0 (5f94df478 2026-08-27)\n",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "node",
+        "-p",
+        "JSON.stringify({node:process.version,icu:process.versions.icu,v8:process.versions.v8})"
+      ],
+      "exit": 0,
+      "stdout": "{\"node\":\"v24.21.0\",\"icu\":\"78.3\",\"v8\":\"13.6.233.17-node.53\"}\n",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "bun",
+        "--version"
+      ],
+      "exit": 0,
+      "stdout": "1.4.2\n",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "/private/tmp/canlang-compiler-pass0-38c0370/debug/can",
+        "--version"
+      ],
+      "exit": 0,
+      "stdout": "can 0.1.0 (commit 38c0370; language 1.0; schema 1)\n",
+      "stderr": ""
+    }
+  ],
+  "build": {
+    "argv": [
+      "cargo",
+      "build",
+      "--locked",
+      "--manifest-path",
+      "compiler/Cargo.toml",
+      "--lib",
+      "--bin",
+      "can",
+      "--target-dir",
+      "/private/tmp/canlang-compiler-pass0-38c0370"
+    ],
+    "exit": 0,
+    "record": "root fresh build completed before this capture; not rerun by verify.py"
+  },
+  "binaries": [
+    {
+      "path": "/private/tmp/canlang-compiler-pass0-38c0370/debug/can",
+      "sha256": "201465b92fa04c660133ece83f6325bea6ee2d39bd27edf8dbc0d6a40d32a534"
+    },
+    {
+      "path": "/private/tmp/canlang-compiler-pass0-38c0370/debug/libcanlang_compiler.rlib",
+      "sha256": "08b6726a9442826fb425906e8ef9e821652a0cf35a565908f1a1c934467e73db"
+    }
+  ],
+  "execution_inputs": [
+    {
+      "path": "docs/research/compiler-library-audit-20261006/pass0/evidence/root/verify.py",
+      "sha256": "e3db5f99bb8062a02b07434c82bfa91cfc1d3ea6ab5e3a23dc2127b3a2d67e3b"
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/pass0/evidence/root/boundary-probe.rs",
+      "sha256": "4d6c266f5243d015e52affe3b6ae467dc0e1e4103271e40ab8f39c08de91801b"
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/pass0/evidence/root/map-probe.mjs",
+      "sha256": "4adb4065bb78c3c9cd12d6906ad7b85b522617c919df874baf4d02088af9f28d"
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/pass0/evidence/values/export-probe.mjs",
+      "sha256": "9ba6ed56e139fbb6b105ce1142f026a9858619eeb87a6edbaf8823db8772eb11"
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/evidence/codegen/string-and-columns-probe.rs",
+      "sha256": "82652394fcfe2661d100593e2af4b87a12d0ed8dbddf7f3ba15ab3e7c950f32f"
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/pass0/witnesses/files-hashes.json",
+      "sha256": "3567911707a19511837120fbc34acb381b4835960afc57ae0f1c063b33db233d"
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/pass0/witnesses/lsp.json",
+      "sha256": "ad8828970717a885d2f20d98bc90c3026b4a0b80542b4630093a71f5061129ef"
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/pass0/witnesses/serialization-maps.json",
+      "sha256": "91512c6edaf8d6b4e540687dde8b1b28004501bcdc85f956a15745327cca261f"
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/pass0/witnesses/strings.json",
+      "sha256": "93939251e974d8d5e3383d728258c497455dd30d054d70f63289059e9241d2eb"
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/pass0/witnesses/values.json",
+      "sha256": "dd8c2a85222e5394a564583a957270fdcb0ed5da010f6110d6fa4b836eb4f968"
+    }
+  ]
+}

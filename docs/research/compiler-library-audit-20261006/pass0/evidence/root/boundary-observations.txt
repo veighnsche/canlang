@@ -1,0 +1,11 @@
+hash_bytes=[] sha256=e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+hash_bytes=[97, 98, 99] sha256=ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad
+hash_bytes=[195, 169, 240, 159, 152, 128] sha256=1184d1f608158eea09d297565575892231550c403aaa913008d867a97cfd5c76
+hash_bytes=[97, 13, 10, 98, 10] sha256=953bba9ac9726eaea07e844abcf144a0afe998039257c7a88b6665819597f39d
+hash_repeat_a=55 sha256=9f4390f8d30c2dd92ec9f095b65e2b9ae9b0a925a5258e241c9f1e910f734318
+hash_repeat_a=56 sha256=b35439a4ac6f0948b6d6f9e3c6af0f5f590ce20f1bde7090ef7970686ec6738a
+hash_repeat_a=63 sha256=7d3e74a05d7db15bce4ad9ec0658ea98e3f06eeecf16b4c6fff2da457ddc2f34
+hash_repeat_a=64 sha256=ffe054fe7ae0cb6dc65c3af9b61d5209f439851db43d0ba5997337df154668eb
+hash_repeat_a=65 sha256=635361c48bb9eab14198e76ea8ab7f1a41685d6ad62aa9146d301d4f17eb0ae0
+diagnostic={"tool":"can","tool_version":"pass0","language_version":"1.0","schema_version":1,"sources":[{"id":0,"path":"unicode.can","sha256":"d057d762c282cc153b25d6c1c37333883010b7c70af2f0c58e749dc1567f1000"}],"complete":true,"diagnostics":[{"code":"E3001","severity":"error","message":"controls \u0008\u000c and 😀","primary":{"file":0,"start":6,"end":7},"related":[],"tags":[]}],"omitted":0}
+map={"version":3,"file":"unicode.mjs","sources":["unicode.can"],"sourcesContent":["é😀x"],"names":[],"mappings":"AAAM"}

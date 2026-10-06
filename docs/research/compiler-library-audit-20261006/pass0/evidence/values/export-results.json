@@ -1,0 +1,372 @@
+{
+  "scope": "current workspace public values exports; no installed tarball or Rust candidate equivalence claim",
+  "node": "v24.21.0",
+  "icu": "78.3",
+  "entry": "file:///Users/vince/Projects/canlang/packages/values/dist/src/index.js",
+  "entry_sha256": "51bbc15972a6836a4e1b4cebf6b2bd5b48e34405ff7f09062ad65b449dc1093c",
+  "results": [
+    {
+      "id": "url_basic",
+      "observation": {
+        "valid": true,
+        "decoded": "https://example.com/path",
+        "encoded": "https://example.com/path"
+      },
+      "matches_expected": true,
+      "readiness": "ready"
+    },
+    {
+      "id": "url_unicode_panic",
+      "observation": {
+        "valid": false,
+        "name": "SchemaError",
+        "kind": "schema",
+        "code": null,
+        "message": "schema validation failed with 1 violation(s)"
+      },
+      "matches_expected": true,
+      "readiness": "ready"
+    },
+    {
+      "id": "url_bracketed_bad",
+      "observation": {
+        "valid": false,
+        "name": "SchemaError",
+        "kind": "schema",
+        "code": null,
+        "message": "schema validation failed with 1 violation(s)"
+      },
+      "matches_expected": true,
+      "readiness": "ready"
+    },
+    {
+      "id": "url_port_high",
+      "observation": {
+        "valid": false,
+        "name": "SchemaError",
+        "kind": "schema",
+        "code": null,
+        "message": "schema validation failed with 1 violation(s)"
+      },
+      "matches_expected": true,
+      "readiness": "ready"
+    },
+    {
+      "id": "url_userinfo",
+      "observation": {
+        "valid": true,
+        "decoded": "https://user:pass@example.com",
+        "encoded": "https://user:pass@example.com"
+      },
+      "matches_expected": true,
+      "readiness": "ready"
+    },
+    {
+      "id": "url_case",
+      "observation": {
+        "valid": true,
+        "decoded": "HTTPS://EXAMPLE.COM/a",
+        "encoded": "HTTPS://EXAMPLE.COM/a"
+      },
+      "matches_expected": true,
+      "readiness": "ready"
+    },
+    {
+      "id": "url_unicode_host",
+      "observation": {
+        "valid": true,
+        "decoded": "https://é.example/a",
+        "encoded": "https://é.example/a"
+      },
+      "matches_expected": true,
+      "readiness": "ready"
+    },
+    {
+      "id": "url_backslash",
+      "observation": {
+        "valid": true,
+        "decoded": "https://example.com\\a",
+        "encoded": "https://example.com\\a"
+      },
+      "matches_expected": true,
+      "readiness": "ready"
+    },
+    {
+      "id": "url_trimmed",
+      "observation": {
+        "valid": true,
+        "decoded": " https://example.com/a ",
+        "encoded": " https://example.com/a "
+      },
+      "matches_expected": true,
+      "readiness": "ready"
+    },
+    {
+      "id": "url_space_path",
+      "observation": {
+        "valid": true,
+        "decoded": "https://example.com/a b",
+        "encoded": "https://example.com/a b"
+      },
+      "matches_expected": true,
+      "readiness": "ready"
+    },
+    {
+      "id": "url_relative",
+      "observation": {
+        "valid": false,
+        "name": "SchemaError",
+        "kind": "schema",
+        "code": null,
+        "message": "schema validation failed with 1 violation(s)"
+      },
+      "matches_expected": true,
+      "readiness": "ready"
+    },
+    {
+      "id": "url_non_http",
+      "observation": {
+        "valid": false,
+        "name": "SchemaError",
+        "kind": "schema",
+        "code": null,
+        "message": "schema validation failed with 1 violation(s)"
+      },
+      "matches_expected": true,
+      "readiness": "ready"
+    },
+    {
+      "id": "url_ipv6",
+      "observation": {
+        "valid": true,
+        "decoded": "https://[::1]:443/a",
+        "encoded": "https://[::1]:443/a"
+      },
+      "matches_expected": true,
+      "readiness": "ready"
+    },
+    {
+      "id": "url_port_empty",
+      "observation": {
+        "valid": true,
+        "decoded": "https://example.com:/a",
+        "encoded": "https://example.com:/a"
+      },
+      "matches_expected": true,
+      "readiness": "ready"
+    },
+    {
+      "id": "locale_extension",
+      "observation": {
+        "valid": true,
+        "decoded": "en-u-ca-gregory",
+        "encoded": "en-u-ca-gregory",
+        "canonical": "en-u-ca-gregory"
+      },
+      "matches_expected": true,
+      "readiness": "ready"
+    },
+    {
+      "id": "locale_private",
+      "observation": {
+        "valid": true,
+        "decoded": "en-x-private",
+        "encoded": "en-x-private",
+        "canonical": "en-x-private"
+      },
+      "matches_expected": true,
+      "readiness": "ready"
+    },
+    {
+      "id": "locale_duplicate_region",
+      "observation": {
+        "valid": false,
+        "name": "SchemaError",
+        "kind": "schema",
+        "code": null,
+        "message": "schema validation failed with 1 violation(s)"
+      },
+      "matches_expected": true,
+      "readiness": "ready"
+    },
+    {
+      "id": "locale_case",
+      "observation": {
+        "valid": true,
+        "decoded": "en-US",
+        "encoded": "en-US",
+        "canonical": "en-US"
+      },
+      "matches_expected": true,
+      "readiness": "ready"
+    },
+    {
+      "id": "locale_alias",
+      "observation": {
+        "valid": true,
+        "decoded": "he",
+        "encoded": "he",
+        "canonical": "he"
+      },
+      "matches_expected": true,
+      "readiness": "ready"
+    },
+    {
+      "id": "locale_duplicate_variant",
+      "observation": {
+        "valid": false,
+        "name": "SchemaError",
+        "kind": "schema",
+        "code": null,
+        "message": "schema validation failed with 1 violation(s)"
+      },
+      "matches_expected": true,
+      "readiness": "ready"
+    },
+    {
+      "id": "locale_empty",
+      "observation": {
+        "valid": false,
+        "name": "SchemaError",
+        "kind": "schema",
+        "code": null,
+        "message": "schema validation failed with 1 violation(s)"
+      },
+      "matches_expected": true,
+      "readiness": "ready"
+    },
+    {
+      "id": "locale_underscore",
+      "observation": {
+        "valid": false,
+        "name": "SchemaError",
+        "kind": "schema",
+        "code": null,
+        "message": "schema validation failed with 1 violation(s)"
+      },
+      "matches_expected": true,
+      "readiness": "ready"
+    },
+    {
+      "id": "locale_private_only",
+      "observation": {
+        "valid": false,
+        "name": "SchemaError",
+        "kind": "schema",
+        "code": null,
+        "message": "schema validation failed with 1 violation(s)"
+      },
+      "matches_expected": true,
+      "readiness": "ready"
+    },
+    {
+      "id": "trusted_origin_userinfo",
+      "observation": {
+        "valid": false,
+        "name": "ValueError",
+        "kind": "value",
+        "code": "invalid-construction",
+        "message": "app_url origin must not carry userinfo"
+      },
+      "matches_expected": true,
+      "readiness": "ready"
+    },
+    {
+      "id": "trusted_origin_query",
+      "observation": {
+        "valid": false,
+        "name": "ValueError",
+        "kind": "value",
+        "code": "invalid-construction",
+        "message": "app_url origin must be origin plus mount prefix only"
+      },
+      "matches_expected": true,
+      "readiness": "ready"
+    },
+    {
+      "id": "trusted_origin_prefix",
+      "observation": {
+        "valid": true,
+        "value": "https://example.com/mount/a"
+      },
+      "matches_expected": true,
+      "readiness": "ready"
+    },
+    {
+      "id": "locale_alias_duplicate",
+      "observation": {
+        "valid": false,
+        "name": "ValueError",
+        "kind": "value",
+        "code": "invalid-construction",
+        "message": "duplicate canonical message variant tag: he"
+      },
+      "matches_expected": true,
+      "readiness": "gated"
+    },
+    {
+      "id": "locale_case_duplicate",
+      "observation": {
+        "valid": false,
+        "name": "ValueError",
+        "kind": "value",
+        "code": "invalid-construction",
+        "message": "duplicate canonical message variant tag: nl"
+      },
+      "matches_expected": true,
+      "readiness": "ready"
+    }
+  ],
+  "wire_results": [
+    {
+      "type": "int",
+      "input": "9223372036854775807",
+      "decoded": {
+        "bigint_decimal": "9223372036854775807"
+      },
+      "encoded": "9223372036854775807",
+      "matches_expected": true
+    },
+    {
+      "type": "decimal",
+      "input": "12345678901234567890.1200",
+      "decoded": {
+        "kind": "decimal",
+        "coef": {
+          "bigint_decimal": "123456789012345678901200"
+        },
+        "scale": 4
+      },
+      "encoded": "12345678901234567890.12",
+      "matches_expected": true
+    },
+    {
+      "type": "duration",
+      "input": "1200",
+      "decoded": {
+        "bigint_decimal": "1200"
+      },
+      "encoded": "1200",
+      "matches_expected": true
+    },
+    {
+      "type": "money",
+      "input": {
+        "minor": "9223372036854775807",
+        "currency": "EUR"
+      },
+      "decoded": {
+        "kind": "money",
+        "minor": {
+          "bigint_decimal": "9223372036854775807"
+        },
+        "currency": "EUR"
+      },
+      "encoded": {
+        "minor": "9223372036854775807",
+        "currency": "EUR"
+      },
+      "matches_expected": true
+    }
+  ]
+}
