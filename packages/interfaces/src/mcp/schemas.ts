@@ -7,8 +7,28 @@
  * an opaque sealed object here — shape check is object-only, verification is
  * L3/L4's job.
  */
-import { ARTIFACT_VERSION } from '@canlang/contracts';
-import type { ArtifactOperation, DerivedInputDefault } from '@canlang/contracts';
+import {
+  ARTIFACT_VERSION,
+  STD_EMAIL_V1_CONTRACT,
+  STD_ERRORS_V1_CONTRACT,
+  STD_IMAGES_V1_CONTRACT,
+  STD_MAILBOX_V1_CONTRACT,
+  STD_PAYMENTS_V1_CONTRACT,
+  STD_TEXT_GENERATION_V1_CONTRACT,
+  deliveryResultLeaves,
+} from '@canlang/contracts';
+import type {
+  ArtifactOperation,
+  BusinessError,
+  CapabilityContract,
+  ClosedInputs,
+  DerivedDeliveryBinding,
+  DerivedDeliveryResult,
+  DerivedInputDefault,
+  DerivedOperationInputs,
+  DerivedWritableInput,
+} from '@canlang/contracts';
+import { INT64_MAX, INT64_MIN, ValueError, parseDecimal } from '@canlang/values';
 import type {
   McpInputSchema,
   McpNamedField,
@@ -16,6 +36,7 @@ import type {
   McpSchemaField,
   OperationDescriptor,
 } from '../ports.js';
+import { buildBusinessError } from '../errors/envelope.js';
 
 /**
  * Base closed top-level members of handle-mode args. The full per-operation
@@ -183,8 +204,10 @@ export function toToolInputSchema(descriptor: OperationDescriptor): Record<strin
 /* input defaults it never fills; the interface owns the writable      */
 /* allowlist and fails closed on the contradictory                     */
 /* caller-supplied-plus-engine-resolved shape. `delivery` (bound       */
-/* provider receipts) rejects precisely as T19b remainder; unknown     */
-/* operation/input/default kinds, duplicate names, and malformed       */
+/* provider receipts) derives to its validated T13/T14 binding        */
+/* (T19b): capability + operation identity, fenced version, declared  */
+/* result leaves — carried engine-resolved, never submitted. Unknown  */
+/* operation/input/default kinds, duplicate names, and malformed      */
 /* members reject the whole descriptor or slice. `literal`/`parent`    */
 /* defaults pin verbatim as documented optionality — derivation never  */
 /* invents fill values. Dangling `ref` model targets are NOT checked   */
@@ -194,7 +217,10 @@ export function toToolInputSchema(descriptor: OperationDescriptor): Record<strin
 
 /**
  * Machine-readable whole-descriptor rejection reasons. Mirrors the L3
- * `IncompatibleArtifactReason` vocabulary plus the T19a server-owned bar.
+ * `IncompatibleArtifactReason` vocabulary plus the T19a server-owned bar
+ * and the T19b delivery bar (`unknown_capability`, `undeclared_result`,
+ * `undeclared_leaf`; capability version fencing reuses
+ * `version_mismatch`, leaf duplicates reuse `duplicate_name`).
  */
 export type IncompatibleDescriptorReason =
   | 'version_mismatch'
@@ -203,7 +229,10 @@ export type IncompatibleDescriptorReason =
   | 'unknown_default_kind'
   | 'server_owned_input'
   | 'duplicate_name'
-  | 'malformed_descriptor';
+  | 'malformed_descriptor'
+  | 'unknown_capability'
+  | 'undeclared_result'
+  | 'undeclared_leaf';
 
 /**
  * Precise checked-descriptor failure: the descriptor or slice cannot
@@ -240,12 +269,43 @@ export interface CheckedArtifactField {
   readonly description?: string;
 }
 
-/** One checked operation: the derivation input every T19a builder shares. */
+/**
+ * One checked bound provider-receipt input (T19b): the validated T13/T14
+ * binding (`capability` + `operation` target identity, fenced version,
+ * declared result leaves, recipe key) plus the T15a/T18 additive
+ * channels shared with caller-supplied inputs. Engine-resolved: the
+ * binding documents what receipt the engine supplies — framing
+ * projections (HTTP shapes, MCP schemas) exclude it, the documented
+ * `DerivedOperationInputs` projection carries it.
+ */
+export interface CheckedArtifactDeliveryField {
+  readonly name: string;
+  readonly delivery: DerivedDeliveryBinding;
+  readonly required: boolean;
+  /** Present and true exactly when the input accepts explicit null. */
+  readonly nullable?: boolean;
+  /** Present exactly for array inputs; `required` is the T09 `!` marker. */
+  readonly array?: { readonly required: boolean };
+  /** Source default, pinned verbatim; `server`/`derived` never survive the check. */
+  readonly default?: DerivedInputDefault;
+  /** Authored `@{desc="..."}` text, verbatim; absent when not authored. */
+  readonly description?: string;
+}
+
+/** One checked operation input: caller-supplied or engine-resolved receipt binding. */
+export type CheckedArtifactInput = CheckedArtifactField | CheckedArtifactDeliveryField;
+
+/** Narrow one checked input to the engine-resolved receipt binding arm. */
+export function isDeliveryField(field: CheckedArtifactInput): field is CheckedArtifactDeliveryField {
+  return 'delivery' in field;
+}
+
+/** One checked operation: the derivation input every T19 builder shares. */
 export interface CheckedArtifactOperation {
   readonly name: string;
   readonly kind: 'read' | 'create' | 'update' | 'delete' | 'scenario';
   readonly description: string;
-  readonly fields: readonly CheckedArtifactField[];
+  readonly fields: readonly CheckedArtifactInput[];
 }
 
 /**
@@ -258,6 +318,14 @@ export interface ArtifactOperationSlice {
   readonly operations?: unknown;
 }
 
+/**
+ * Operation kinds with an artifact source. `list`/`team` have NONE —
+ * the emitter renders exactly these five (`JsOperationKind`), so no
+ * descriptor can derive them and both reject `unknown_operation_kind`
+ * by design (never invented): `list` reads travel the fixed bounded
+ * collection shape (`CollectionRequest`), `system.team.*` travel the
+ * fixed teams-primitive schemas (`SystemTeam*Input`, `identity.ts`).
+ */
 const CHECKED_OPERATION_KINDS: ReadonlySet<string> = new Set([
   'read',
   'create',
@@ -278,6 +346,248 @@ const CHECKED_INPUT_KINDS: ReadonlySet<string> = new Set([
   'enum',
 ]);
 
+/* ------------------------------------------------------------------ */
+/* T19b depth: delivery joins, exact numerics, bound arguments.        */
+/*                                                                     */
+/* Delivery joins read the frozen T13 capability contracts live (no    */
+/* transcription to drift): the send-target identity and frozen       */
+/* version come from the six `STD_*_CONTRACT` consts, the declared    */
+/* result leaves from `DELIVERY_RESULT_LEAVES` (the verbatim T13c     */
+/* transcription, `wire.ts`). Numeric checks reuse the exact L2/T11   */
+/* rules (`parseDecimal`, int64 bounds) — bigint-only, never Number.  */
+/* ------------------------------------------------------------------ */
+
+/** One fenced capability: frozen version plus op -> declared-result map. */
+interface CapabilityTarget {
+  readonly version: number;
+  readonly results: ReadonlyMap<string, string>;
+}
+
+/**
+ * The live T13 join: capability name -> fenced contract facts. Six
+ * entries (Email/Errors/Payments/TextGeneration/Images/Mailbox);
+ * anything else has no T13 identity and rejects `unknown_capability`.
+ */
+const CAPABILITY_TARGETS: ReadonlyMap<string, CapabilityTarget> = (() => {
+  const contracts: readonly CapabilityContract[] = [
+    STD_EMAIL_V1_CONTRACT,
+    STD_ERRORS_V1_CONTRACT,
+    STD_PAYMENTS_V1_CONTRACT,
+    STD_TEXT_GENERATION_V1_CONTRACT,
+    STD_IMAGES_V1_CONTRACT,
+    STD_MAILBOX_V1_CONTRACT,
+  ];
+  const join = new Map<string, CapabilityTarget>();
+  for (const contract of contracts) {
+    const results = new Map<string, string>();
+    for (const op of contract.operations) results.set(op.name, op.result);
+    join.set(contract.name, { version: contract.version, results });
+  }
+  return join;
+})();
+
+/** L2 wire integer shape (`INT_TEXT`): optional `-`, digit run, no plus/exponent. */
+const CANONICAL_INT_PATTERN = /^-?\d+$/;
+
+/** Submitted record-version shape (mirrors the versions seam: digits only, arbitrary magnitude). */
+const CANONICAL_VERSION_PATTERN = /^\d+$/;
+
+/**
+ * Validate one integer wire spelling: canonical digit string in int64
+ * range (the L2 `decodeInt64` rule, mirrored — leading zeros read
+ * lenient, exactly as there). Returns the failure detail, or null
+ * when the spelling binds. Bigint-only; never routes through Number.
+ */
+function checkIntegerLiteral(value: unknown): string | null {
+  if (typeof value !== 'string' || !CANONICAL_INT_PATTERN.test(value)) {
+    return `integer values are canonical digit strings (got ${JSON.stringify(value) ?? 'undefined'})`;
+  }
+  try {
+    const parsed = BigInt(value);
+    if (parsed < INT64_MIN || parsed > INT64_MAX) {
+      return `integer value ${JSON.stringify(value)} exceeds the int64 range`;
+    }
+    return null;
+  } catch {
+    return `integer values are canonical digit strings (got ${JSON.stringify(value)})`;
+  }
+}
+
+/**
+ * Validate one decimal wire spelling: the T11 exact parse (string,
+ * optional `-`, digit runs, at most 38 significant digits and 18
+ * fractional digits, spelling preserved — R16 integral spellings pass
+ * with no int64 narrowing). Returns the failure detail, or null when
+ * the spelling binds. String-only; a JSON number is never exact.
+ */
+function checkDecimalLiteral(value: unknown): string | null {
+  if (typeof value !== 'string') {
+    return `decimal values are canonical decimal strings, never JSON numbers (got ${JSON.stringify(value) ?? 'undefined'})`;
+  }
+  try {
+    parseDecimal(value);
+    return null;
+  } catch (err) {
+    if (err instanceof ValueError && err.code === 'out-of-range') {
+      return `decimal value ${JSON.stringify(value)} exceeds 38 significant digits or 18 fractional digits`;
+    }
+    if (err instanceof ValueError) {
+      return `decimal values are canonical decimal strings (got ${JSON.stringify(value)})`;
+    }
+    throw err;
+  }
+}
+
+/**
+ * Validate one money wire value: exactly `{minor, currency}` (the L2
+ * exact-keys shape) with a canonical int64 minor string and a string
+ * currency. Returns the failure detail, or null when the value binds.
+ */
+function checkMoneyLiteral(value: unknown): string | null {
+  if (!isDescriptorRecord(value)) {
+    return `money values are {minor, currency} objects (got ${JSON.stringify(value) ?? 'undefined'})`;
+  }
+  const keys = Object.keys(value).sort();
+  if (keys.length !== 2 || keys[0] !== 'currency' || keys[1] !== 'minor') {
+    return `money values carry exactly minor and currency (got ${JSON.stringify(keys)})`;
+  }
+  const minor = checkIntegerLiteral(value['minor']);
+  if (minor !== null) return `money.minor: ${minor}`;
+  if (typeof value['currency'] !== 'string') {
+    return `money.currency is a string (got ${JSON.stringify(value['currency']) ?? 'undefined'})`;
+  }
+  return null;
+}
+
+/**
+ * Check one bound provider-receipt descriptor end to end: record shape,
+ * T13 target identity (`capability` + `operation`), frozen version
+ * fenced exact, declared result nominal, and the full declared leaf
+ * set with verbatim types. Leaf ORDER is presentation (carried
+ * verbatim, never fenced); leaf SET and TYPES are the fenced facts —
+ * extras, renames, and retypings reject `undeclared_leaf`, drops
+ * reject `malformed_descriptor` (an incomplete result is not a real
+ * emission). Anything failing rejects the whole descriptor.
+ */
+function checkArtifactDeliveryDescriptor(value: unknown, what: string): DerivedDeliveryBinding {
+  if (!isDescriptorRecord(value)) {
+    failDescriptor('malformed_descriptor', `Invalid ${what}: delivery inputs carry a descriptor object.`);
+  }
+  const capability = value['capability'];
+  const operation = value['operation'];
+  if (typeof capability !== 'string' || capability === '' || typeof operation !== 'string' || operation === '') {
+    failDescriptor(
+      'malformed_descriptor',
+      `Invalid ${what}: delivery descriptors name a non-empty capability and operation.`,
+    );
+  }
+  const target = CAPABILITY_TARGETS.get(capability);
+  if (target === undefined) {
+    failDescriptor(
+      'unknown_capability',
+      `Unknown capability ${JSON.stringify(capability)} for ${what}: ` +
+        'bound receipts bind the six T13 capability contracts (std.EmailV1, std.ErrorsV1, ' +
+        'std.PaymentsV1, std.TextGenerationV1, std.ImagesV1, std.MailboxV1); bound-local ' +
+        'deliveries have no T13 identity and never take the delivery shape.',
+    );
+  }
+  const declaredResult = target.results.get(operation);
+  if (declaredResult === undefined) {
+    failDescriptor(
+      'unknown_capability',
+      `Invalid ${what}: ${JSON.stringify(capability)} has no sendable operation ${JSON.stringify(operation)}.`,
+    );
+  }
+  const version = value['version'];
+  if (typeof version !== 'number' || !Number.isInteger(version)) {
+    failDescriptor(
+      'malformed_descriptor',
+      `Invalid ${what}: delivery version is the frozen capability contract number (got ${JSON.stringify(version) ?? 'undefined'}).`,
+    );
+  }
+  if (version !== target.version) {
+    failDescriptor(
+      'version_mismatch',
+      `Incompatible ${what}: delivery version ${JSON.stringify(version)} does not match ` +
+        `the frozen ${capability} contract version ${target.version}.`,
+    );
+  }
+  const result = value['result'];
+  if (!isDescriptorRecord(result) || typeof result['name'] !== 'string' || result['name'] === '') {
+    failDescriptor('malformed_descriptor', `Invalid ${what}: delivery results name a non-empty nominal.`);
+  }
+  const nominal = result['name'];
+  if (nominal !== declaredResult) {
+    failDescriptor(
+      'undeclared_result',
+      `Invalid ${what}: result ${JSON.stringify(nominal)} is not declared for ${capability}.${operation} ` +
+        `(declared: ${JSON.stringify(declaredResult)}).`,
+    );
+  }
+  const declared = deliveryResultLeaves(nominal);
+  if (declared === null) {
+    // Unreachable while the T13 contracts and the leaf table agree:
+    // every declared result nominal transcribes its leaves. Fail loud
+    // if that join ever drifts.
+    failDescriptor(
+      'undeclared_result',
+      `Invalid ${what}: result ${JSON.stringify(nominal)} declares no leaves.`,
+    );
+  }
+  const rawFields: unknown = result['fields'];
+  if (!Array.isArray(rawFields)) {
+    failDescriptor('malformed_descriptor', `Invalid ${what}: delivery result fields must be an array.`);
+  }
+  const seen = new Set<string>();
+  const leaves: { readonly name: string; readonly type: string }[] = [];
+  for (const entry of rawFields) {
+    if (!isDescriptorRecord(entry) || typeof entry['name'] !== 'string' || entry['name'] === '') {
+      failDescriptor('malformed_descriptor', `Invalid ${what}: delivery leaves need non-empty names.`);
+    }
+    if (typeof entry['type'] !== 'string' || entry['type'] === '') {
+      failDescriptor(
+        'malformed_descriptor',
+        `Invalid ${what}: delivery leaf ${JSON.stringify(entry['name'])} carries its verbatim type text.`,
+      );
+    }
+    if (seen.has(entry['name'])) {
+      failDescriptor(
+        'duplicate_name',
+        `Duplicate delivery leaf ${JSON.stringify(entry['name'])} for ${what}.`,
+      );
+    }
+    seen.add(entry['name']);
+    const declaredLeaf = declared.find((leaf) => leaf.name === entry['name']);
+    if (declaredLeaf === undefined || declaredLeaf.type !== entry['type']) {
+      failDescriptor(
+        'undeclared_leaf',
+        declaredLeaf === undefined
+          ? `Invalid ${what}: leaf ${JSON.stringify(entry['name'])} is not declared on ${JSON.stringify(nominal)}.`
+          : `Invalid ${what}: leaf ${JSON.stringify(entry['name'])} declares type ${JSON.stringify(declaredLeaf.type)} ` +
+            `(got ${JSON.stringify(entry['type'])}).`,
+      );
+    }
+    leaves.push({ name: entry['name'], type: entry['type'] });
+  }
+  if (leaves.length !== declared.length) {
+    const missing = declared.filter((leaf) => !seen.has(leaf.name)).map((leaf) => leaf.name);
+    failDescriptor(
+      'malformed_descriptor',
+      `Invalid ${what}: result ${JSON.stringify(nominal)} declares ${declared.length} leaves; ` +
+        `the descriptor carries ${leaves.length} (missing: ${missing.map((name) => JSON.stringify(name)).join(', ')}).`,
+    );
+  }
+  const frozenLeaves = Object.freeze(leaves);
+  const frozenResult: DerivedDeliveryResult = Object.freeze({ name: nominal, leaves: frozenLeaves });
+  return Object.freeze({
+    capability,
+    operation,
+    version,
+    result: frozenResult,
+    recipe: `delivery:${capability}.${operation}`,
+  });
+}
+
 function isDescriptorRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
@@ -294,15 +604,37 @@ function checkDescriptorDotPath(path: string, what: string): void {
  * verbatim; `server`/`derived` reject the descriptor (server-owned is
  * never derivable as input); unknown kinds reject precisely. Extra
  * members are ignored (additive tolerance — only kinds reject).
+ *
+ * T19b exactness: `literal` defaults on `integer`/`decimal`/`money`
+ * inputs validate against the canonical wire shapes (int64 digit
+ * strings, T11 exact decimals, exact-keys money) — JSON numbers,
+ * malformed spellings, and out-of-range values reject the descriptor
+ * instead of failing later at admission.
  */
-function checkArtifactDefault(value: unknown, what: string): DerivedInputDefault | undefined {
+function checkArtifactDefault(
+  value: unknown,
+  what: string,
+  fieldKind: string,
+): DerivedInputDefault | undefined {
   if (value === undefined) return undefined;
   if (!isDescriptorRecord(value) || typeof value['kind'] !== 'string') {
     failDescriptor('malformed_descriptor', `Invalid default for ${what}: a default object needs a kind.`);
   }
   const kind = value['kind'];
   if (kind === 'literal') {
-    return { kind: 'literal', value: value['value'] };
+    const literal = value['value'];
+    if (fieldKind === 'integer' || fieldKind === 'decimal' || fieldKind === 'money') {
+      const detail =
+        fieldKind === 'integer'
+          ? checkIntegerLiteral(literal)
+          : fieldKind === 'decimal'
+            ? checkDecimalLiteral(literal)
+            : checkMoneyLiteral(literal);
+      if (detail !== null) {
+        failDescriptor('malformed_descriptor', `Invalid literal default for ${what}: ${detail}.`);
+      }
+    }
+    return { kind: 'literal', value: literal };
   }
   if (kind === 'parent') {
     if (typeof value['path'] !== 'string') {
@@ -333,10 +665,8 @@ function checkArtifactFieldTag(value: unknown, what: string): McpSchemaField {
   if (!CHECKED_INPUT_KINDS.has(kind)) {
     failDescriptor(
       'unknown_input_kind',
-      kind === 'delivery'
-        ? `Invalid ${what}: bound provider-receipt inputs need T19b (T13/T14 depth) and cannot derive in the T19a pilot scope.`
-        : `Unknown input kind ${JSON.stringify(kind)} for ${what}; ` +
-          'supported: ref, string, integer, decimal, money, datetime, boolean, file, enum.',
+      `Unknown input kind ${JSON.stringify(kind)} for ${what}; ` +
+        'supported: ref, string, integer, decimal, money, datetime, boolean, file, enum, delivery.',
     );
   }
   if (kind === 'ref') {
@@ -380,21 +710,25 @@ function checkArtifactFieldTag(value: unknown, what: string): McpSchemaField {
   }
 }
 
-/** Check one operation input: shape, closed kind, documented default, additive channels. */
-function checkArtifactInput(value: unknown, opName: string): CheckedArtifactField {
-  if (!isDescriptorRecord(value) || typeof value['name'] !== 'string' || value['name'] === '') {
-    failDescriptor(
-      'malformed_descriptor',
-      `Invalid input on operation ${JSON.stringify(opName)}: inputs need non-empty names.`,
-    );
-  }
-  const name = value['name'];
-  const what = `input ${JSON.stringify(name)} on operation ${JSON.stringify(opName)}`;
-  const field = checkArtifactFieldTag(value['field'], what);
+/** The T15a/T18 additive channels shared by caller-supplied and receipt inputs. */
+interface CheckedInputChannels {
+  readonly required: boolean;
+  readonly nullable?: boolean;
+  readonly array?: { readonly required: boolean };
+  readonly default?: DerivedInputDefault;
+  readonly description?: string;
+}
+
+/** Check the additive channels (required, default, array, description, nullability). */
+function checkArtifactInputChannels(
+  value: Record<string, unknown>,
+  what: string,
+  fieldKind: string,
+): CheckedInputChannels {
   if (typeof value['required'] !== 'boolean') {
     failDescriptor('malformed_descriptor', `Invalid ${what}: required must be a boolean.`);
   }
-  const fallback = checkArtifactDefault(value['default'], what);
+  const fallback = checkArtifactDefault(value['default'], what, fieldKind);
   let array: { readonly required: boolean } | undefined;
   if (value['array'] !== undefined) {
     if (!isDescriptorRecord(value['array']) || typeof value['array']['required'] !== 'boolean') {
@@ -411,14 +745,34 @@ function checkArtifactInput(value: unknown, opName: string): CheckedArtifactFiel
     description = rawDescription;
   }
   return {
-    name,
-    field,
     required: value['required'],
     ...(value['nullable'] === true ? { nullable: true as const } : {}),
     ...(array === undefined ? {} : { array }),
     ...(fallback === undefined ? {} : { default: fallback }),
     ...(description === undefined ? {} : { description }),
   };
+}
+
+/**
+ * Check one operation input: shape, closed kind (caller-supplied or
+ * bound receipt), documented default, additive channels.
+ */
+function checkArtifactInput(value: unknown, opName: string): CheckedArtifactInput {
+  if (!isDescriptorRecord(value) || typeof value['name'] !== 'string' || value['name'] === '') {
+    failDescriptor(
+      'malformed_descriptor',
+      `Invalid input on operation ${JSON.stringify(opName)}: inputs need non-empty names.`,
+    );
+  }
+  const name = value['name'];
+  const what = `input ${JSON.stringify(name)} on operation ${JSON.stringify(opName)}`;
+  const tag = value['field'];
+  if (isDescriptorRecord(tag) && tag['kind'] === 'delivery') {
+    const delivery = checkArtifactDeliveryDescriptor(tag, what);
+    return { name, delivery, ...checkArtifactInputChannels(value, what, 'delivery') };
+  }
+  const field = checkArtifactFieldTag(tag, what);
+  return { name, field, ...checkArtifactInputChannels(value, what, field.kind) };
 }
 
 /**
@@ -453,7 +807,7 @@ export function checkArtifactOperation(raw: unknown): CheckedArtifactOperation {
     );
   }
   const seen = new Set<string>();
-  const fields: CheckedArtifactField[] = [];
+  const fields: CheckedArtifactInput[] = [];
   for (const entry of inputs['fields']) {
     const checked = checkArtifactInput(entry, name);
     if (seen.has(checked.name)) {
@@ -519,18 +873,21 @@ export function checkArtifactOperations(slice: ArtifactOperationSlice): CheckedA
  * closed-inputs and ref-shape checks), while value-level array shapes
  * render in `toToolInputSchemaFromArtifact` and defaults pin in the
  * wire `DerivedOperationInputs` channel (`http/operations.ts`).
+ * Engine-resolved receipt bindings have no slot either and are
+ * excluded: framing is exactly the submittable allowlist.
  */
 export function checkedToMcpInputSchema(checked: CheckedArtifactOperation): McpInputSchema {
-  return {
-    fields: checked.fields.map(
-      (named): McpNamedField => ({
-        name: named.name,
-        field: named.field,
-        required: named.required,
-        ...(named.description === undefined ? {} : { description: named.description }),
-      }),
-    ),
-  };
+  const fields: McpNamedField[] = [];
+  for (const named of checked.fields) {
+    if (isDeliveryField(named)) continue;
+    fields.push({
+      name: named.name,
+      field: named.field,
+      required: named.required,
+      ...(named.description === undefined ? {} : { description: named.description }),
+    });
+  }
+  return { fields };
 }
 
 /** Checked-derivation entry: one artifact operation to its MCP input schema. */
@@ -566,6 +923,9 @@ export function checkedToToolInputSchema(checked: CheckedArtifactOperation): Rec
   const properties: Record<string, unknown> = {};
   const required: string[] = [];
   for (const named of checked.fields) {
+    // Receipt bindings are engine-resolved: no schema member on any
+    // branch (ordinary or handle) — a submitted value has no meaning.
+    if (isDeliveryField(named)) continue;
     properties[named.name] = checkedPropertySchema(named);
     if (named.required) required.push(named.name);
   }
@@ -582,7 +942,7 @@ export function checkedToToolInputSchema(checked: CheckedArtifactOperation): Rec
     operation_id: { type: 'string' },
   };
   for (const named of checked.fields) {
-    if (named.field.kind === 'ref') continue;
+    if (isDeliveryField(named) || named.field.kind === 'ref') continue;
     handleProperties[named.name] = checkedPropertySchema(named);
   }
   const handleMode: Record<string, unknown> = {
@@ -597,4 +957,160 @@ export function checkedToToolInputSchema(checked: CheckedArtifactOperation): Rec
 /** Checked-derivation entry: one artifact operation to its full tool input schema. */
 export function toToolInputSchemaFromArtifact(op: ArtifactOperation): Record<string, unknown> {
   return checkedToToolInputSchema(checkArtifactOperation(op));
+}
+
+/* ------------------------------------------------------------------ */
+/* T19b bound arguments: submitted values against declared inputs.     */
+/*                                                                     */
+/* Pure, unwired (the `checkExpectedVersion` precedent): the framing   */
+/* checks (unknown members, missing required) stay in dispatch; this   */
+/* rule binds each PRESENT value to its declaration — ref shape by    */
+/* the `versioned` flag, enum membership, file opacity, numeric wire  */
+/* shapes — and delivery to nothing. Binding mismatch is               */
+/* `validation`; version staleness stays L3-owned (`conflict`).        */
+/* Strings, datetimes, booleans, and array-element nulls carry no      */
+/* declared set to bind and pass through to L3 admission untouched.    */
+/* ------------------------------------------------------------------ */
+
+/** One binding failure: `validation` with the offending member path. */
+function bindingError(path: string, message: string): BusinessError {
+  return buildBusinessError('validation', message, {
+    fields: [{ path, code: 'binding_mismatch', message }],
+  });
+}
+
+/** Bind one submitted ref value to its ReadRef/MutationRef declaration. */
+function checkBoundRef(input: DerivedWritableInput, value: unknown, path: string): BusinessError | null {
+  if (!isDescriptorRecord(value)) {
+    return bindingError(
+      path,
+      `Invalid value for input ${JSON.stringify(input.name)}: refs are {id} objects` +
+        (input.versioned === true ? ' with an expected version' : '') +
+        ` (got ${JSON.stringify(value) ?? 'undefined'}).`,
+    );
+  }
+  if (typeof value['id'] !== 'string' || value['id'] === '') {
+    return bindingError(
+      path,
+      `Invalid value for input ${JSON.stringify(input.name)}: ref ids are non-empty strings.`,
+    );
+  }
+  if (input.versioned !== true) return null;
+  const version = value['version'];
+  if (typeof version !== 'string' || !CANONICAL_VERSION_PATTERN.test(version)) {
+    return bindingError(
+      path,
+      `Invalid value for input ${JSON.stringify(input.name)}: ` +
+        `versioned refs carry a canonical digit-string version (got ${JSON.stringify(version) ?? 'undefined'}).`,
+    );
+  }
+  return null;
+}
+
+/** Bind one non-null array element or singular value to its declared kind. */
+function checkBoundElement(
+  input: DerivedWritableInput,
+  value: unknown,
+  path: string,
+): BusinessError | null {
+  switch (input.kind) {
+    case 'delivery':
+      return bindingError(
+        path,
+        `Invalid value for input ${JSON.stringify(input.name)}: delivery inputs are engine-resolved ` +
+          'and never submitted (no contract admits a caller-supplied receipt value).',
+      );
+    case 'ref':
+      return checkBoundRef(input, value, path);
+    case 'enum': {
+      const cases = input.enumValues ?? [];
+      if (typeof value !== 'string' || !cases.includes(value)) {
+        return bindingError(
+          path,
+          `Invalid value for input ${JSON.stringify(input.name)}: ` +
+            `expected one of ${cases.map((entry) => JSON.stringify(entry)).join(', ')} ` +
+            `(got ${JSON.stringify(value) ?? 'undefined'}).`,
+        );
+      }
+      return null;
+    }
+    case 'file':
+      if (typeof value !== 'string' || value === '') {
+        return bindingError(
+          path,
+          `Invalid value for input ${JSON.stringify(input.name)}: ` +
+            `file values are opaque finalized file id strings (got ${JSON.stringify(value) ?? 'undefined'}).`,
+        );
+      }
+      return null;
+    case 'integer':
+    case 'decimal':
+    case 'money': {
+      const detail =
+        input.kind === 'integer'
+          ? checkIntegerLiteral(value)
+          : input.kind === 'decimal'
+            ? checkDecimalLiteral(value)
+            : checkMoneyLiteral(value);
+      return detail === null
+        ? null
+        : bindingError(path, `Invalid value for input ${JSON.stringify(input.name)}: ${detail}.`);
+    }
+    case 'string':
+    case 'datetime':
+    case 'boolean':
+      // No declared set to bind: L3 admission owns these values.
+      return null;
+  }
+}
+
+/**
+ * Bind one submitted value to its declared input: null binds to
+ * `nullable` only; arrays bind element-wise (element nulls pass
+ * through — element-level null acceptance is L3 admission detail);
+ * singular values bind by kind. Presence and closedness are framing
+ * concerns, never checked here.
+ */
+export function checkBoundArgument(input: DerivedWritableInput, value: unknown): BusinessError | null {
+  const path = `/${input.name}`;
+  if (value === null) {
+    return input.nullable === true
+      ? null
+      : bindingError(path, `Invalid value for input ${JSON.stringify(input.name)}: null is not accepted.`);
+  }
+  if (input.array !== undefined) {
+    if (!Array.isArray(value)) {
+      return bindingError(
+        path,
+        `Invalid value for input ${JSON.stringify(input.name)}: array inputs take arrays ` +
+          `(got ${JSON.stringify(value) ?? 'undefined'}).`,
+      );
+    }
+    for (let index = 0; index < value.length; index += 1) {
+      const element: unknown = value[index];
+      if (element === null) continue;
+      const failure = checkBoundElement(input, element, `${path}/${index}`);
+      if (failure !== null) return failure;
+    }
+    return null;
+  }
+  return checkBoundElement(input, value, path);
+}
+
+/**
+ * Bind every present member of a submitted inputs object to its
+ * declared input (first failure wins). Unknown members and missing
+ * required inputs are framing concerns — checked by the dispatch
+ * closed-inputs rule, never here.
+ */
+export function checkBoundArguments(
+  derived: DerivedOperationInputs,
+  inputs: ClosedInputs,
+): BusinessError | null {
+  for (const input of derived.inputs) {
+    if (!Object.hasOwn(inputs, input.name)) continue;
+    const failure = checkBoundArgument(input, inputs[input.name]);
+    if (failure !== null) return failure;
+  }
+  return null;
 }

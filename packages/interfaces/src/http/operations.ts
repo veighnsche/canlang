@@ -37,8 +37,13 @@ import type {
 } from '@canlang/contracts';
 import { IdentityError, deriveCsrfToken } from '@canlang/identity';
 import type { HttpDeps, OperationInputShape, SchemaCatalog } from '../ports.js';
-import { checkArtifactOperation, checkArtifactOperations } from '../mcp/schemas.js';
-import type { ArtifactOperationSlice, CheckedArtifactField, CheckedArtifactOperation } from '../mcp/schemas.js';
+import { checkArtifactOperation, checkArtifactOperations, isDeliveryField } from '../mcp/schemas.js';
+import type {
+  ArtifactOperationSlice,
+  CheckedArtifactDeliveryField,
+  CheckedArtifactInput,
+  CheckedArtifactOperation,
+} from '../mcp/schemas.js';
 import { buildBusinessError, fromUnknown, toHttpResponse } from '../errors/envelope.js';
 import { logBusinessError, logInternalError } from '../errors/logging.js';
 import { checkClosedInputs, validateOperationId } from '../envelope/validate.js';
@@ -274,7 +279,10 @@ export async function handleOperationRequest(
 /* T19a checked derivation: artifact operations -> HTTP input shapes.  */
 /* Every builder checks through the shared `mcp/schemas.ts` rule, so  */
 /* the HTTP catalog derives the same writable allowlist the MCP       */
-/* registry/tools derive from the same checked operation.              */
+/* registry/tools derive from the same checked operation. T19b adds   */
+/* the delivery/file depth: receipt bindings project to the            */
+/* documented `derivedFor` channel (engine-resolved, excluded from     */
+/* dispatch shapes) and file inputs carry their provenance boundary.   */
 /* ------------------------------------------------------------------ */
 
 /**
@@ -288,8 +296,23 @@ export interface DerivedInputCatalog extends SchemaCatalog {
   derivedFor(operation: string): DerivedOperationInputs | null;
 }
 
+/** Project one checked receipt binding to its wire documented shape. */
+function toDerivedDeliveryInput(field: CheckedArtifactDeliveryField): DerivedWritableInput {
+  return {
+    name: field.name,
+    kind: 'delivery',
+    required: field.required,
+    ...(field.nullable === undefined ? {} : { nullable: field.nullable }),
+    ...(field.array === undefined ? {} : { array: field.array }),
+    ...(field.default === undefined ? {} : { default: field.default }),
+    delivery: field.delivery,
+    ...(field.description === undefined ? {} : { description: field.description }),
+  };
+}
+
 /** Project one checked input to its wire documented-optionality shape. */
-function toDerivedInput(field: CheckedArtifactField): DerivedWritableInput {
+function toDerivedInput(field: CheckedArtifactInput): DerivedWritableInput {
+  if (isDeliveryField(field)) return toDerivedDeliveryInput(field);
   const common = {
     name: field.name,
     required: field.required,
@@ -317,7 +340,11 @@ function toDerivedInput(field: CheckedArtifactField): DerivedWritableInput {
     case 'boolean':
       return { ...common, kind: 'boolean' };
     case 'file':
-      return { ...common, kind: 'file' };
+      return {
+        ...common,
+        kind: 'file',
+        file: { valueShape: 'opaque-file-id', format: 'can-file' },
+      };
   }
 }
 
@@ -335,7 +362,9 @@ function checkedToDerivedInputs(checked: CheckedArtifactOperation): DerivedOpera
  * Derive the documented writable inputs for one artifact operation:
  * allowlist, required sets, versioned flags, and verbatim
  * `literal`/`parent` defaults. Server-owned inputs, unknown kinds, and
- * malformed members reject via `IncompatibleDescriptorError`.
+ * malformed members reject via `IncompatibleDescriptorError`. T19b
+ * depth rides along: receipt bindings (engine-resolved), exact
+ * numeric defaults, and file provenance claims.
  */
 export function deriveOperationInputs(op: ArtifactOperation): DerivedOperationInputs {
   return checkedToDerivedInputs(checkArtifactOperation(op));
@@ -345,13 +374,15 @@ export function deriveOperationInputs(op: ArtifactOperation): DerivedOperationIn
  * Derive the dispatch input shape for one artifact operation: the
  * closed `allowed` allowlist (emission order; array inputs are single
  * named members) and its `required` subset. Same rule as
- * `deriveOperationInputs`, framing projection.
+ * `deriveOperationInputs`, framing projection — engine-resolved
+ * receipt bindings excluded (never submitted).
  */
 export function deriveOperationShape(op: ArtifactOperation): OperationInputShape {
   const checked = checkArtifactOperation(op);
   const allowed: string[] = [];
   const required: string[] = [];
   for (const named of checked.fields) {
+    if (isDeliveryField(named)) continue;
     allowed.push(named.name);
     if (named.required) required.push(named.name);
   }
@@ -372,6 +403,7 @@ export function catalogFromArtifactOperations(slice: ArtifactOperationSlice): De
     const allowed: string[] = [];
     const required: string[] = [];
     for (const named of checked.fields) {
+      if (isDeliveryField(named)) continue;
       allowed.push(named.name);
       if (named.required) required.push(named.name);
     }
