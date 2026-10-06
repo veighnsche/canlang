@@ -22,6 +22,10 @@
 //!   `secret`-typed leaf; grants never include secrets (DESIGN §4).
 //! - `E4011` secret return: a `return` value of `secret` type; secrets are
 //!   server-only and never client-readable (DESIGN §2, §5).
+//! - `E4012` leaf grant through reference: a policy `fields=` selector
+//!   traverses a `user`/`member` reference; leaf grants descend only
+//!   through singular embedded typed values, never references
+//!   (DESIGN §4, T25-L1).
 //! - `E4020` redundant actor subject: `Role(actor)`; the bare role is the
 //!   canonical literal-actor spelling (DESIGN §4).
 //! - `E4030` unreachable after return: a statement following an
@@ -1727,6 +1731,7 @@ impl<'a> Cx<'a> {
                 let (fields, fields_node) = selector_paths(text, node, "fields");
                 if let (Some(model), true) = (is_model.then_some(target_id), self.checks_on) {
                     self.check_secret_grant(module, text, model, node);
+                    self.check_leaf_grant_reference(text, model, node);
                 }
                 let index = self
                     .out
@@ -2005,6 +2010,152 @@ impl<'a> Cx<'a> {
             ty = Some(*inner);
         }
         matches!(ty, Some(ResolvedType::Scalar(Scalar::Secret)))
+    }
+
+    /// E4012: a policy `fields=` leaf grant traversing a `user`/`member`
+    /// reference.
+    ///
+    /// Leaf-grant interiors must be singular embedded typed values
+    /// (contract/event record descent with nullable unwrap, expression
+    /// value leaves, terminal delivery observations); they are never
+    /// model/user/member references, arrays, JSON, files, secrets or
+    /// actions (DESIGN §4, T25-L1). Unknown paths and every other
+    /// unsupported traversal already fail in the types pass (`E2013`);
+    /// secret leaves are `E4010`. This check owns only the gap the types
+    /// pass accepts: member chains through `user`/`member` references,
+    /// which would otherwise infer directory authority from a field
+    /// grant. It stays silent unless the whole path resolves exactly as
+    /// the types pass accepts it, so one bad path reports exactly one
+    /// diagnostic.
+    fn check_leaf_grant_reference(&mut self, text: &str, model: SymbolId, node: &SyntaxNode) {
+        let Some(selectors) = attribute_value(node, "fields", text) else {
+            return;
+        };
+        if selectors.kind != SyntaxKind::Selectors {
+            return;
+        }
+        for child in significant_children(selectors) {
+            if child.kind != SyntaxKind::Path {
+                continue;
+            }
+            let segments = path_segments(child, text);
+            if let Some(noun) = self.selector_traverses_reference(model, &segments) {
+                self.diags.push(Diagnostic::error(
+                    "E4012",
+                    format!(
+                        "policy grants leaf '{}' through a {} reference; leaf grants never traverse references",
+                        segments.join("."),
+                        noun,
+                    ),
+                    tight_span(text, child),
+                ));
+            }
+        }
+    }
+
+    /// Whether a policy `fields=` selector traverses a `user`/`member`
+    /// reference: the first traversed reference noun when the whole path
+    /// resolves exactly as the types pass accepts it, else `None`.
+    ///
+    /// Whole-field (single-segment) grants keep their existing meaning
+    /// and never report here. Non-contract/event record interiors,
+    /// unknown segments, non-terminal delivery descent, arrays, JSON,
+    /// secrets, files, actions and every other types-rejected shape
+    /// return `None` (`E2013`, or `E4010` for secret leaves, already owns
+    /// them). Poisoned (`Error`/`Unknown`) and unavailable-schema
+    /// (`Opaque`) bases stay silent, mirroring selector cascade
+    /// suppression; money/team/operation value leaves resolve as in
+    /// expressions and never report.
+    fn selector_traverses_reference(
+        &self,
+        model: SymbolId,
+        segments: &[&str],
+    ) -> Option<&'static str> {
+        if segments.len() < 2 {
+            return None;
+        }
+        let mut current = if let Some(field) = self.record_field_named(model, segments[0]) {
+            self.types.symbol_types.get(&field).cloned()?
+        } else {
+            // Reserved record metadata heads: policy grants are a read
+            // context, mirroring selector navigation. `parent` and
+            // unknown heads are the types pass's (`E2013`).
+            match segments[0] {
+                "created_by" | "updated_by" => ResolvedType::Scalar(Scalar::User),
+                "id" => ResolvedType::Scalar(Scalar::Text),
+                "version" => ResolvedType::Scalar(Scalar::Int),
+                "created" | "updated" => ResolvedType::Scalar(Scalar::Datetime),
+                "archived_at" => {
+                    ResolvedType::Nullable(Box::new(ResolvedType::Scalar(Scalar::Datetime)))
+                }
+                _ => return None,
+            }
+        };
+        let mut traversed: Option<&'static str> = None;
+        let rest = &segments[1..];
+        for (i, segment) in rest.iter().enumerate() {
+            let last = i == rest.len() - 1;
+            if let ResolvedType::Nullable(inner) = current {
+                current = *inner;
+            }
+            match current {
+                ResolvedType::Error | ResolvedType::Unknown | ResolvedType::Opaque(_) => {
+                    return None;
+                }
+                ResolvedType::Record { symbol, .. } => {
+                    if !matches!(
+                        self.tables.symbols[symbol.0 as usize].kind,
+                        SymbolKind::Contract { .. } | SymbolKind::Event { .. }
+                    ) {
+                        return None;
+                    }
+                    let next = self.record_field_named(symbol, segment)?;
+                    current = self.types.symbol_types.get(&next).cloned()?;
+                }
+                ResolvedType::Delivery { .. } | ResolvedType::StdDelivery { .. } => {
+                    if !last || !matches!(*segment, "id" | "status" | "error" | "result") {
+                        return None;
+                    }
+                    return traversed;
+                }
+                ResolvedType::Scalar(Scalar::User) => {
+                    if *segment != "id" {
+                        return None;
+                    }
+                    if traversed.is_none() {
+                        traversed = Some("user");
+                    }
+                    current = ResolvedType::Scalar(Scalar::Text);
+                }
+                ResolvedType::Scalar(Scalar::Member) => {
+                    match *segment {
+                        "id" => current = ResolvedType::Scalar(Scalar::Text),
+                        "user" => current = ResolvedType::Scalar(Scalar::User),
+                        "team" => current = ResolvedType::Team,
+                        _ => return None,
+                    }
+                    if traversed.is_none() {
+                        traversed = Some("member");
+                    }
+                }
+                ResolvedType::Scalar(Scalar::Money) => match *segment {
+                    "minor" => current = ResolvedType::Scalar(Scalar::Int),
+                    "currency" => current = ResolvedType::Scalar(Scalar::Currency),
+                    _ => return None,
+                },
+                ResolvedType::Team => match *segment {
+                    "id" => current = ResolvedType::Scalar(Scalar::Text),
+                    "timezone" => current = ResolvedType::Scalar(Scalar::Timezone),
+                    _ => return None,
+                },
+                ResolvedType::OperationContext => match *segment {
+                    "id" | "source" => current = ResolvedType::Scalar(Scalar::Text),
+                    _ => return None,
+                },
+                _ => return None,
+            }
+        }
+        traversed
     }
 
     // --- When: crud --------------------------------------------------------
