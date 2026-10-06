@@ -1,0 +1,370 @@
+{
+  "schema_version": 1,
+  "phase": "planning",
+  "execution_authorized": false,
+  "researched_date": "2026-10-07",
+  "planning_head": "70965838346f22be0c4b6a1f5a22cf0c9d216cff",
+  "basis": "Opened current official model documentation, local model-selection skill, exact 27 adoption units and independent task-fit assessment; Can-specific allocations are judgment, not provider task benchmarks.",
+  "representative_model_benchmarks_run": false,
+  "optimality_or_savings_proven": false,
+  "applies_only_to_delegated_packets": true,
+  "preparation_and_native_release_hold_preserved": true,
+  "profiles": {
+    "luna_low": {
+      "model": "gpt-6-luna",
+      "reasoning_effort": "low"
+    },
+    "luna_medium": {
+      "model": "gpt-6-luna",
+      "reasoning_effort": "medium"
+    },
+    "sol_low": {
+      "model": "gpt-6.1-sol",
+      "reasoning_effort": "low"
+    },
+    "sol_medium": {
+      "model": "gpt-6.1-sol",
+      "reasoning_effort": "medium"
+    },
+    "sol_high": {
+      "model": "gpt-6.1-sol",
+      "reasoning_effort": "high"
+    },
+    "astra_medium": {
+      "model": "gpt-6-astra",
+      "reasoning_effort": "medium"
+    },
+    "astra_high": {
+      "model": "gpt-6-astra",
+      "reasoning_effort": "high"
+    }
+  },
+  "sources": [
+    {
+      "id": "G1",
+      "url": "https://developers.openai.com/api/docs/guides/model-selection",
+      "supports": "model roles and starting-point/representative comparison guidance"
+    },
+    {
+      "id": "G2",
+      "url": "https://developers.openai.com/api/docs/guides/deployment-checklist",
+      "supports": "reasoning tradeoff and success/latency/usage/cost-per-success evaluation"
+    },
+    {
+      "id": "G3",
+      "url": "https://developers.openai.com/api/docs/models/gpt-6.1-sol",
+      "supports": "Sol role and public API supported reasoning settings"
+    },
+    {
+      "id": "G4",
+      "url": "https://developers.openai.com/api/docs/models/gpt-6-luna",
+      "supports": "Luna role and public API supported reasoning settings"
+    },
+    {
+      "id": "G5",
+      "url": "https://developers.openai.com/api/docs/models/gpt-6-astra",
+      "supports": "Astra role and public API supported reasoning settings"
+    }
+  ],
+  "unit_count": 27,
+  "macro_step_count": 12,
+  "units": [
+    {
+      "id": "library-sequence:P01",
+      "label": "P01",
+      "whole_unit_profile": "sol_medium",
+      "independent_review_profile": "sol_medium",
+      "prepared_subtask_profile": "luna_low",
+      "rationale_and_decomposition": "Inventory extraction is routine; interpreting source-ready versus installed evidence is technical. Raise to Sol high only for conflicting credited evidence.",
+      "selection_is_task_inference": true
+    },
+    {
+      "id": "library-sequence:P02",
+      "label": "P02",
+      "whole_unit_profile": "sol_medium",
+      "independent_review_profile": "sol_medium",
+      "prepared_subtask_profile": "luna_low",
+      "rationale_and_decomposition": "Transcribe aliases cheaply; reconcile original DAG, scope, HOLD and sole writers with technical judgment.",
+      "selection_is_task_inference": true
+    },
+    {
+      "id": "library-sequence:N01",
+      "label": "N01",
+      "whole_unit_profile": "sol_high",
+      "independent_review_profile": "sol_high",
+      "prepared_subtask_profile": "luna_medium",
+      "rationale_and_decomposition": "Design independent IEEE-754, negative-zero, JSON nonfinite and Rust-str/UTF-16 oracles. Prepared seeded fixtures can be cheaper.",
+      "selection_is_task_inference": true
+    },
+    {
+      "id": "library-sequence:N02",
+      "label": "N02",
+      "whole_unit_profile": "sol_medium",
+      "independent_review_profile": "sol_medium",
+      "prepared_subtask_profile": "luna_medium",
+      "rationale_and_decomposition": "Small formatter adapter under a frozen oracle; check real diagnostic callers. Escalate for unexpected carrier or envelope conflict.",
+      "selection_is_task_inference": true
+    },
+    {
+      "id": "library-sequence:N03",
+      "label": "N03",
+      "whole_unit_profile": "sol_high",
+      "independent_review_profile": "sol_high",
+      "prepared_subtask_profile": "sol_medium",
+      "rationale_and_decomposition": "The full unit includes four decisions and actual harness/registration reconciliation. A released leaf formatter alone fits Sol medium.",
+      "selection_is_task_inference": true
+    },
+    {
+      "id": "library-sequence:N04",
+      "label": "N04",
+      "whole_unit_profile": "sol_low",
+      "independent_review_profile": "sol_medium",
+      "prepared_subtask_profile": "luna_medium",
+      "rationale_and_decomposition": "Existing serde_json and a frozen Rust-str signature bound the mechanics. Error callers and the separate UTF-16 truncation residual require review.",
+      "selection_is_task_inference": true
+    },
+    {
+      "id": "library-sequence:N05",
+      "label": "N05",
+      "whole_unit_profile": "sol_high",
+      "independent_review_profile": "sol_high",
+      "prepared_subtask_profile": "luna_low",
+      "rationale_and_decomposition": "Values/validation domain routing, ABI/glue, registration and assets span owners. An already specified individual consumer check can use Sol medium.",
+      "selection_is_task_inference": true
+    },
+    {
+      "id": "library-sequence:N06",
+      "label": "N06",
+      "whole_unit_profile": "sol_high",
+      "independent_review_profile": "sol_high",
+      "prepared_subtask_profile": "luna_low",
+      "rationale_and_decomposition": "Actual Cargo decision assembly and durable/installed consumers must replace source-only and TS-only evidence.",
+      "selection_is_task_inference": true
+    },
+    {
+      "id": "library-sequence:D01",
+      "label": "D01",
+      "whole_unit_profile": "sol_high",
+      "independent_review_profile": "sol_high",
+      "prepared_subtask_profile": "luna_medium",
+      "rationale_and_decomposition": "Freeze sync initialization, first-fault behavior, host closure, malformed admission, mutable cache and verbatim source identities.",
+      "selection_is_task_inference": true
+    },
+    {
+      "id": "library-sequence:D02",
+      "label": "D02",
+      "whole_unit_profile": "sol_high",
+      "independent_review_profile": "sol_high",
+      "prepared_subtask_profile": "luna_medium",
+      "rationale_and_decomposition": "Decoded literals versus UTF-16 spans, import forms, whole-file failures and edit maps affect bundle/modules integration. A frozen pure adapter subpacket may use Sol medium.",
+      "selection_is_task_inference": true
+    },
+    {
+      "id": "library-sequence:D03",
+      "label": "D03",
+      "whole_unit_profile": "sol_high",
+      "independent_review_profile": "sol_high",
+      "prepared_subtask_profile": "luna_medium",
+      "rationale_and_decomposition": "Preserve lookup bias, unmapped and malformed segments, duplicates/order, names, raw identities and mutable-map cache despite library defaults.",
+      "selection_is_task_inference": true
+    },
+    {
+      "id": "library-sequence:D04",
+      "label": "D04",
+      "whole_unit_profile": "sol_high",
+      "independent_review_profile": "astra_medium",
+      "prepared_subtask_profile": "luna_low",
+      "rationale_and_decomposition": "Map composition and invoke fallback must preserve compiled identity across actual Node/workerd and installed diagnostics. Independent critical review is a short separate packet.",
+      "selection_is_task_inference": true
+    },
+    {
+      "id": "library-sequence:D05",
+      "label": "D05",
+      "whole_unit_profile": "sol_high",
+      "independent_review_profile": "sol_high",
+      "prepared_subtask_profile": "luna_low",
+      "rationale_and_decomposition": "Design-only parser-seam comparison remains held for implementation. Astra medium only for a consequential unresolved architecture decision after evidence/JEV.",
+      "selection_is_task_inference": true
+    },
+    {
+      "id": "library-sequence:I01",
+      "label": "I01",
+      "whole_unit_profile": "astra_high",
+      "independent_review_profile": "astra_high",
+      "prepared_subtask_profile": "luna_medium",
+      "rationale_and_decomposition": "Persisted password/token encoding and host comparison policy are consequential security choices. Split the frozen cookie grammar profile to Sol medium.",
+      "selection_is_task_inference": true
+    },
+    {
+      "id": "library-sequence:I02",
+      "label": "I02",
+      "whole_unit_profile": "sol_medium",
+      "independent_review_profile": "astra_medium",
+      "prepared_subtask_profile": "luna_medium",
+      "rationale_and_decomposition": "Implement a frozen strict-hex/base64 policy; review stored compatibility and token hashes independently. Unresolved migration returns to I01.",
+      "selection_is_task_inference": true
+    },
+    {
+      "id": "library-sequence:I03",
+      "label": "I03",
+      "whole_unit_profile": "sol_high",
+      "independent_review_profile": "astra_high",
+      "prepared_subtask_profile": "luna_medium",
+      "rationale_and_decomposition": "Implement qualified host primitives; independently review actual host/timing guarantees, mismatched lengths and surrounding error policy.",
+      "selection_is_task_inference": true
+    },
+    {
+      "id": "library-sequence:I04",
+      "label": "I04",
+      "whole_unit_profile": "sol_medium",
+      "independent_review_profile": "sol_high",
+      "prepared_subtask_profile": "luna_medium",
+      "rationale_and_decomposition": "Frozen cookie adapter is bounded; review malformed first duplicates, Domain refusal and login/logout defaults through real callers. Astra only for evidenced security conflict.",
+      "selection_is_task_inference": true
+    },
+    {
+      "id": "library-sequence:C01",
+      "label": "C01",
+      "whole_unit_profile": "sol_high",
+      "independent_review_profile": "sol_high",
+      "prepared_subtask_profile": "luna_medium",
+      "rationale_and_decomposition": "Grammar/error precedence, full row count and interfaces/UI ownership need a contract decision; prepared corpora are mechanical.",
+      "selection_is_task_inference": true
+    },
+    {
+      "id": "library-sequence:C02",
+      "label": "C02",
+      "whole_unit_profile": "sol_medium",
+      "independent_review_profile": "sol_medium",
+      "prepared_subtask_profile": "luna_medium",
+      "rationale_and_decomposition": "Shared grammar and wrapper implementation follow frozen corpus and ownership. Raise to high for unresolved export/initialization closure.",
+      "selection_is_task_inference": true
+    },
+    {
+      "id": "library-sequence:C03",
+      "label": "C03",
+      "whole_unit_profile": "sol_high",
+      "independent_review_profile": "astra_medium",
+      "prepared_subtask_profile": "luna_low",
+      "rationale_and_decomposition": "Authoritative review-to-commit, consent/digests, stale/deny/replay and resource/error order warrant focused independent authority review.",
+      "selection_is_task_inference": true
+    },
+    {
+      "id": "library-sequence:C04",
+      "label": "C04",
+      "whole_unit_profile": "sol_medium",
+      "independent_review_profile": "sol_medium",
+      "prepared_subtask_profile": "luna_medium",
+      "rationale_and_decomposition": "Conditional serializer evaluation is finite, not automatic adoption. Sol high review only if privacy/file projection or formula protection changes.",
+      "selection_is_task_inference": true
+    },
+    {
+      "id": "library-sequence:H01",
+      "label": "H01",
+      "whole_unit_profile": "sol_high",
+      "independent_review_profile": "sol_high",
+      "prepared_subtask_profile": "luna_medium",
+      "rationale_and_decomposition": "Winning abort reason, streamed body, full-body deadline and reader cleanup are lifecycle races. Prepared race fixtures can be cheaper.",
+      "selection_is_task_inference": true
+    },
+    {
+      "id": "library-sequence:H02",
+      "label": "H02",
+      "whole_unit_profile": "sol_high",
+      "independent_review_profile": "sol_high",
+      "prepared_subtask_profile": "sol_medium",
+      "rationale_and_decomposition": "Conditional quota correction must preserve per-hop policy and deadline/error order. A bounded violation reproduction alone fits Sol medium.",
+      "selection_is_task_inference": true
+    },
+    {
+      "id": "library-sequence:E01",
+      "label": "E01",
+      "whole_unit_profile": "sol_high",
+      "independent_review_profile": "sol_high",
+      "prepared_subtask_profile": "luna_low",
+      "rationale_and_decomposition": "One material semantic comparison at a time; retain-now bookkeeping is cheap. No ten mandatory spikes. Astra only for a specific consequential unresolved decision.",
+      "selection_is_task_inference": true
+    },
+    {
+      "id": "library-sequence:R01",
+      "label": "R01",
+      "whole_unit_profile": "sol_high",
+      "independent_review_profile": "sol_high",
+      "prepared_subtask_profile": "luna_low",
+      "rationale_and_decomposition": "Match the actual released risk: Sol medium for isolated N02/N04/C02; Sol high for joins; Astra medium D04/C03 and Astra high I01/I03 critical review.",
+      "selection_is_task_inference": true
+    },
+    {
+      "id": "library-sequence:R02",
+      "label": "R02",
+      "whole_unit_profile": "sol_medium",
+      "independent_review_profile": "sol_high",
+      "prepared_subtask_profile": "luna_low",
+      "rationale_and_decomposition": "Codex performs Git. Cheap cleanup follows accepted caller-switch evidence; substantive retirement/shared glue joins need Sol high. No blanket TS deletion.",
+      "selection_is_task_inference": true
+    },
+    {
+      "id": "library-sequence:R03",
+      "label": "R03",
+      "whole_unit_profile": "sol_high",
+      "independent_review_profile": "astra_high",
+      "prepared_subtask_profile": "luna_medium",
+      "rationale_and_decomposition": "Coordinate selected qualification with Sol high; use a finite independent combined-invariant review for authority, installed/native/Wasm claims, budgets and rollback.",
+      "selection_is_task_inference": true
+    }
+  ],
+  "steps": [
+    {
+      "step": 1,
+      "delegation_reminder": "Use Luna low for inventory/crosswalk extraction and Sol medium for P01/P02 interpretation; use Sol high only for an actual source/evidence contradiction."
+    },
+    {
+      "step": 2,
+      "delegation_reminder": "Use Sol high for the full N01/D01 oracle and compatibility contracts. Use Luna low/medium for specified extraction and seeded fixtures after the contract is defined."
+    },
+    {
+      "step": 3,
+      "delegation_reminder": "Use Luna low for packet records. Codex retains Git; finite technical readiness decisions stay Sol medium or high according to their unresolved seam."
+    },
+    {
+      "step": 4,
+      "delegation_reminder": "Select each finite packet separately: N02 and released N03 leaf work use Sol medium; N04 mechanics use Sol low; prepared fixtures use Luna medium. Unfrozen contracts or assembly reconciliation use Sol high."
+    },
+    {
+      "step": 5,
+      "delegation_reminder": "Use Sol medium for N02 and frozen N03 leaf adapters, Sol low for N04 mechanics, and Sol medium for their isolated error/caller review. Full N03 harness/registration reconciliation uses Sol high."
+    },
+    {
+      "step": 6,
+      "delegation_reminder": "Use Sol high for full N05/N06 producer, ABI and assembly joins. A fixed individual consumer check can use Sol medium; routine receipt indexing uses Luna low."
+    },
+    {
+      "step": 7,
+      "delegation_reminder": "Use Sol high for full D02/D03 compatibility and integration packets; a strictly frozen pure adapter can use Sol medium. Prepared corpus generation uses Luna medium."
+    },
+    {
+      "step": 8,
+      "delegation_reminder": "Use Sol high for D04 composition and host joins, with a short Astra medium independent critical diagnostic review. Astra high is reserved for an evidenced new major seam decision."
+    },
+    {
+      "step": 9,
+      "delegation_reminder": "Use Sol high for full backend/installed qualification and risk-matched independent review; use Luna low/medium for exact-source receipt bookkeeping."
+    },
+    {
+      "step": 10,
+      "delegation_reminder": "Follow the family allocation: I01 persisted-security policy uses Astra high; I02/I04 frozen adapters use Sol medium; I03 uses Sol high with Astra high timing-guarantee review; C01/C03 and H01/H02 full joins use Sol high. C02/C04 bounded work uses Sol medium and prepared fixtures use Luna medium. Conditional tasks remain conditional."
+    },
+    {
+      "step": 11,
+      "delegation_reminder": "Use Luna low/medium or Sol low for accepted mechanical cleanup; Sol high for substantive backend-retirement or one material E01 semantic decision. Codex performs Git; do not repeat completed work."
+    },
+    {
+      "step": 12,
+      "delegation_reminder": "Use Sol high for selected joined qualification and a finite Astra high independent critical review; Luna medium handles residual receipts. Review only the actually selected released scope."
+    }
+  ],
+  "selection_rule": "Choose the least expensive supported combination likely to succeed over implementation, retries and review. Use the stronger known-risk choice upfront; no required cheap failed attempt. Lower a choice for an explicitly frozen narrower packet, and record the reason. Do not apply whole-unit high effort to routine fixture/index tasks.",
+  "future_evaluation": "During authorized work record packet outcome, actual wall time, repairs/retries and available usage. Compare representative same-input tasks only when authorized and useful; no benchmark or paid implementation experiment is launched by this plan.",
+  "normal_xhigh_max_ultra_assignment": false,
+  "original_task_statuses_dependencies_and_counts_changed": false
+}

@@ -24,7 +24,9 @@ Apply the model-selection skill per packet, using available supported model/effo
 | Ordinary implementation, debugging and independent technical review | GPT-6.1 Sol / medium | Meaningful semantic trade-offs or conflicting evidence |
 | Uncertain cross-file semantics, host or ABI joins | GPT-6.1 Sol / high when justified | Stronger judgment needed after evidence reconciliation |
 
-Record the selected model/effort and reason in the packet. Higher tiers are exceptional and need a concrete reason; do not set every worker to high/MAX. Use focused context and raw evidence. Independent reviewers receive requirements and exact source/check evidence without implementer conclusions or prior verdicts. Official [model guidance](https://developers.openai.com/api/docs/models) and [pricing](https://developers.openai.com/api/docs/pricing) inform selection; API prices do not measure Codex account limits or promise measured task savings.
+Use the [researched task-specific allocation](../docs/research/package-library-audit-20261006/model-allocation-20261007.md) for all 27 adoption units and 12 macro steps. It supersedes a generic low/medium reminder for known compatibility, ABI, security and joined-acceptance risks; prepared mechanics remain cheaper separate packets. These are starting judgments, not measured optimal settings.
+
+Record the selected model/effort and reason in the packet. Stronger choices require a concrete known risk or observed failure; do not set every worker to high/MAX. Use focused context and raw evidence. Independent reviewers receive requirements and exact source/check evidence without implementer conclusions or prior verdicts. Official [model guidance](https://developers.openai.com/api/docs/models) and [pricing](https://developers.openai.com/api/docs/pricing) inform selection; API prices do not measure Codex account limits or promise measured task savings.
 
 ## Four queues within actual capacity
 

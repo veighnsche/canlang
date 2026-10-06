@@ -1,0 +1,42 @@
+{
+  "schema_version": 1,
+  "date": "2026-10-07",
+  "scope": "planning model-allocation documents only; no product or model performance acceptance",
+  "result": "PASS",
+  "planning_head_before_commit": "70965838346f22be0c4b6a1f5a22cf0c9d216cff",
+  "adoption_units_checked": 27,
+  "macro_steps_checked": 12,
+  "package_source_files_unchanged": 684,
+  "canonical_ledger_sha256": "cd01ebb2276e9bbd362085070b985811543f4bcb1d7ad0d0ac0530d3092bc3f4",
+  "original_adoption_dag_statuses_and_task_count_unchanged": true,
+  "implementation_authorized": false,
+  "preparation_hold_preserved": true,
+  "supervisor_status": "PAUSED",
+  "supervisor_interval_minutes": 15,
+  "representative_model_benchmarks_run": false,
+  "independent_task_fit_review": "reviews/model-task-fit-review.md",
+  "independent_document_check": {
+    "agent": "allocation_document_check",
+    "model": "gpt-6-luna",
+    "reasoning_effort": "medium",
+    "result": "All 27 IDs, 12 reminders, approved profiles, planning/HOLD, claim qualifications and local links agree. No inconsistencies found."
+  },
+  "artifact_sha256": {
+    "docs/research/package-library-audit-20261006/model-allocation-20261007.md": "e0ff7fed1ec011f01d7d452eee74f6c8513709c286a4d51300ab9df33a118e61",
+    "docs/research/package-library-audit-20261006/model-allocation-20261007.json": "b4a6f780f3f70f136c1fce3984e04bad0637cee50a44b1bd3d813e3adcb2e05b",
+    "docs/research/package-library-audit-20261006/reviews/model-task-fit-review.md": "089300b270494fb20b465b864b04516045b2cbf8e0b77bd058eb0c9e4164ca4b",
+    "docs/research/package-library-audit-20261006/README.md": "6af60ed801c1c5d7aadcd696e6d08ee567d98d4de5835085c53c6bff4f4cee07",
+    "implementation/RUST-PORT-START-HERE.md": "58dbca4be168164fec5890f0978e836899f7464bd7b78ad6c08e2112e9a9424d",
+    "implementation/RUST-PORT-EXECUTION-PLAN.md": "3c5a90d7ea36a1647d2dc04fd46087f2e5076e7fda0df0e8710d67582a1dfacd",
+    "implementation/rust-port-orchestration/plan.json": "7bba711ebb0557fa33d8293eda5f76db799909dcfc0af3a9c0c9314a3f3c396c"
+  },
+  "foreign_dirty_paths_excluded": [
+    "docs/ideal-filetree-plan.md",
+    "docs/ideal-filetree-plan/finished-product/tasks.md",
+    "docs/specification/DECISIONS.md",
+    "implementation/CHALLENGE-AUDIT-PLAN.md",
+    "implementation/REMAINING-WORK.md",
+    "implementation/RUST-PORT-LANES.md"
+  ],
+  "checkpoint_advanced": false
+}

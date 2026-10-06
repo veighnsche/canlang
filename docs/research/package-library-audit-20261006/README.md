@@ -82,3 +82,5 @@ These evaluations are not reasons to delay all four lanes. Keep uncertain calend
 The current execution plan links this audit as a planning input. Canonical task statuses/counts are unchanged; no new startup, runtime release or checkpoint advancement follows from this review.
 
 The proposed [detailed adoption sequence](adoption-sequence.md) and [machine task/dependency map](adoption-sequence.json) turn the findings into finite source, consumer and review units within the existing four-lane architecture. Values and work qualification stay separate; import and map leaves join only at composition/delivery; identity/CSV/service additions require explicit finite scope. Conditional investigations and human-held native preparation do not become global waiting waves.
+
+The [task-specific model allocation](model-allocation-20261007.md) applies current official guidance and independent task review to all 27 units and 12 macro steps. It separates cheap prepared work from compatibility, integration and security review. Choices remain proposals, with no model benchmark or implementation activation.
