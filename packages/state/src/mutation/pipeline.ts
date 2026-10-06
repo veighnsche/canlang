@@ -1282,3 +1282,35 @@ export async function runMutationWrites(input: MutationWritesInput): Promise<Mut
     schedules: outSchedules,
   };
 }
+
+/* -- T34-F5 fanout child writes (ADDITIVE; `runMutationWrites` untouched). -- */
+
+/**
+ * T34-F5: one fanout child's domain-write evaluation. Threads the source
+ * occurrence's fence point through the pipeline's existing transitive
+ * `trigger` seam (hook bodies read it as `transitive.triggerRevision`;
+ * the trigger's enrolled dependencies never cross — each child enrolls
+ * its own reads under its own checkpoint) and delegates wholesale to
+ * `runMutationWrites`. The child's domain writes commit via the caller's
+ * atomic child-unit batch (`invokeFanoutChild`), never here.
+ */
+export interface FanoutChildWritesInput {
+  readonly table: ModelTable;
+  readonly writes: ReadonlyArray<MutationWrite>;
+  readonly context: InvocationContext;
+  readonly store: StoragePort;
+  /** The source occurrence's fence point (revision + owner only). */
+  readonly sourceCheckpoint: { readonly revision: Revision; readonly owner: string };
+}
+
+export async function runFanoutChildWrites(
+  input: FanoutChildWritesInput,
+): Promise<MutationWritesResult> {
+  return runMutationWrites({
+    table: input.table,
+    writes: input.writes,
+    context: input.context,
+    store: input.store,
+    trigger: input.sourceCheckpoint,
+  });
+}
