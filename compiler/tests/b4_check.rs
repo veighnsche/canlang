@@ -305,6 +305,17 @@ fn t08_opaque_interior_defers() {
     assert!(diags.is_empty(), "opaque interior defers: {diags:?}");
 }
 
+/// (A5/S3) Opaque known-leaf non-terminal stays `E2013` (F mirror
+/// target; ruling option (a) strict parity): descent past a
+/// deployment-bound delivery observation leaf never defers.
+#[test]
+fn a5_s3_opaque_known_leaf_nonterminal_e2013() {
+    let catalog = fixture();
+    let src = "app T uses=[p]\npackage p\n use zzz {Box} from=deployment.mail\n Given\n  M { request:delivery(Box.send)? }\n  policy M read=members fields=request.status.x\n When\n Then\n  page /t title=\"T\"\n   table M columns=request.status.x\n";
+    let diags = check(src, Some(&catalog));
+    assert_eq!(codes(&diags), vec!["E2013", "E2013"], "{diags:?}");
+}
+
 /// (T08) A poisoned field base stays silent in selectors (cascade
 /// suppression): only the declaration `E2001` fires, no `E2013`.
 #[test]
