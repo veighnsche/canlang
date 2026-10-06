@@ -489,9 +489,11 @@ export interface DerivedOperationInputs {
 /* shape; numerics bind to their canonical wire shapes; delivery      */
 /* binds to nothing — any submitted value rejects. Binding mismatch   */
 /* is `validation`; version staleness against the current admitted    */
-/* version stays L3-owned (`conflict`). Strings, datetimes, booleans, */
-/* and array-element nullability carry no declared set to bind and    */
-/* pass through to L3 admission untouched.                             */
+/* version stays L3-owned (`conflict`). Strings, booleans, and        */
+/* array-element nullability carry no declared set to bind and pass   */
+/* through to L3 admission untouched. Datetimes are decoded at the   */
+/* dispatcher boundary with the canonical values-wire decode (E2b):  */
+/* millis-pinned RFC3339 UTC; L3 judges presence only.                */
 /* ------------------------------------------------------------------ */
 
 /**
