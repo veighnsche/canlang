@@ -1,0 +1,127 @@
+{
+  "id": "step6:R1:N05-bootstrap-foundation",
+  "task_ids": [
+    "ports:A07.2",
+    "ports:A07.foundation"
+  ],
+  "scope": "Qualify/repair dependency-ready actual binding/bootstrap/carrier scaffold and exact common owner inputs; full A07.3/installed/default gates retain prerequisites.",
+  "inspect_paths": [
+    "packages/values/bindings/backend.ts",
+    "packages/values/bindings/bootstrap.ts",
+    "packages/values/bindings/carriers.ts",
+    "packages/values/bindings/src/lib.rs",
+    "packages/values/bindings/src/exact.rs",
+    "packages/values/scripts/build-semantics.mjs",
+    "packages/values/scripts/stage-semantics.mjs",
+    "packages/values/src/index.ts",
+    "packages/values/semantics/src/lib.rs",
+    "packages/values/semantics/src/transport/exact.rs",
+    "packages/values/test/exact-bootstrap.test.ts"
+  ],
+  "writable_paths": [
+    "packages/values/bindings/backend.ts",
+    "packages/values/bindings/bootstrap.ts",
+    "packages/values/bindings/carriers.ts",
+    "packages/values/test/exact-bootstrap.test.ts",
+    "docs/research/package-subsystem-ports-20261006/evidence/implementation/exact-values/host/bootstrap-current.json",
+    "packages/values/test/exact-bootstrap.workerd.mjs"
+  ],
+  "acceptance": [
+    "Actual pinned glue/backend/carrier identity/freezing/BigInt synchronous behavior Node/Bun, selected startup failure visible",
+    "Actual workerd scaffold producer/consumer proof where existing delivery boundary is available, never mocked-loader acceptance",
+    "Name/release exact values shared source/ABI/module input to R2; no simultaneous common file writers"
+  ],
+  "role": "R1",
+  "base": "7b500f75f7b665c6b37d8307179e861c49761138",
+  "run_id": "codex-step6-20261006T235151Z",
+  "private_output_root": "/private/tmp/canlang-rust-port-codex-step6-20261006T235151Z/R1",
+  "model": "gpt-6.1-sol",
+  "reasoning_effort": "high",
+  "model_reason": "Known producer/ABI/private-core or actual Cargo assembly join risks; user step6 and task-specific N05/N06 allocation select Sol high.",
+  "execution_authorized": true,
+  "source_input_sha256": {
+    "implementation/remaining-work/tasks.json": {
+      "exists": true,
+      "sha256": "cd01ebb2276e9bbd362085070b985811543f4bcb1d7ad0d0ac0530d3092bc3f4"
+    },
+    "implementation/rust-port-lanes.json": {
+      "exists": true,
+      "sha256": "4936af9c418fbf8accb9932e24abb622d11563d776fb271c6dac111615439033"
+    },
+    "implementation/rust-port-orchestration/packets.json": {
+      "exists": true,
+      "sha256": "5cb1d1c4dabe7b8d5f5d9959298b4d3d31112012493a7e4f78e3bd64f92f55ae"
+    },
+    "docs/research/package-library-audit-20261006/adoption-sequence.json": {
+      "exists": true,
+      "sha256": "d93dcb00638680b1b861c90ec6a445267942b8ca6f7ca479fb60bc0386ca3a9f"
+    },
+    "docs/research/package-library-audit-20261006/model-allocation-20261007.json": {
+      "exists": true,
+      "sha256": "b4a6f780f3f70f136c1fce3984e04bad0637cee50a44b1bd3d813e3adcb2e05b"
+    },
+    "implementation/rust-port-orchestration/contracts-20261007/ownership.json": {
+      "exists": true,
+      "sha256": "728cbd42913d7eef29c3686d282f796f101076224860a88afd9f71fb184200df"
+    },
+    "docs/research/package-subsystem-ports-20261006/evidence/input-validation/prepared-hook-review.md": {
+      "exists": true,
+      "sha256": "8264d4a6063d1e0b3ee3933cefe2c20bbe039abcdc7b6668f6ee91a984ccbda0"
+    },
+    "docs/research/package-subsystem-ports-20261006/evidence/input-validation/v01-review.md": {
+      "exists": true,
+      "sha256": "82c0970b2c9a15add89875c0379aecdf2ff0e69de0f3357231c34f8a9a30b15d"
+    },
+    "docs/research/package-subsystem-ports-20261006/evidence/input-validation/plan-contract.md": {
+      "exists": true,
+      "sha256": "52e2cfb8c5509a8d18e732c3d9135e730445656c23b038ff29215bc090081b6b"
+    },
+    "packages/values/bindings/backend.ts": {
+      "exists": true,
+      "sha256": "4863a9b9f30c4551a6220a44caaa03094a643f51f71088de5ef613b7a34508fa"
+    },
+    "packages/values/bindings/bootstrap.ts": {
+      "exists": true,
+      "sha256": "2758815f0eaca231326b764f7841bb6295b0703d9e804ec28980570c61910ae6"
+    },
+    "packages/values/bindings/carriers.ts": {
+      "exists": true,
+      "sha256": "657f643c92fefe1d4303f609748860ed7c496544093fb57e5ea9fd7063fca3d0"
+    },
+    "packages/values/bindings/src/lib.rs": {
+      "exists": true,
+      "sha256": "3b1f7fefefd13438a04afa5b288600c590fba65e14dc8961f2fcff999e830ca6"
+    },
+    "packages/values/bindings/src/exact.rs": {
+      "exists": true,
+      "sha256": "179c5201b342eb7578d18795b0d1935023b22820174477aef0ffe9c66318a423"
+    },
+    "packages/values/scripts/build-semantics.mjs": {
+      "exists": true,
+      "sha256": "d458ab84db7ef0c97945bd361d4ad961d52e947af546fd2c1bbb84644f5a9a71"
+    },
+    "packages/values/scripts/stage-semantics.mjs": {
+      "exists": true,
+      "sha256": "7103d8d25dd579eef418420a427d1acb8ab444aceeaf24cc4f0a1d3f41c486a8"
+    },
+    "packages/values/src/index.ts": {
+      "exists": true,
+      "sha256": "d92ac7192a8739ddbfaf32ccc64e0aeba7fb30726e7bf40d7e81eb9a239d61c4"
+    },
+    "packages/values/semantics/src/lib.rs": {
+      "exists": true,
+      "sha256": "63a800b7809ddc932331343e17cae24ad2eb18ea5f4a2a44d70e81bceb6275de"
+    },
+    "packages/values/semantics/src/transport/exact.rs": {
+      "exists": true,
+      "sha256": "7c2f5600bf4c72b5ccfef82500113e28f1fc3131a0f818dff8e205b802142817"
+    },
+    "packages/values/test/exact-bootstrap.test.ts": {
+      "exists": true,
+      "sha256": "1d66735d556b45ce5c38ba037ec71c3e71e9f28dfcbaf72e2f5e5b5f82b8d432"
+    }
+  },
+  "assigned_agent": "/root/step6_r1_values",
+  "ack_observed": true,
+  "runtime_status": "bootstrap_actual_consumer_repair"
+}
