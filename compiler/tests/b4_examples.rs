@@ -143,6 +143,10 @@ fn span_of(src: &str, needle: &str, occurrence: usize) -> (u32, u32) {
 }
 
 /// Diagnostics with `code` whose primary span covers `offset`.
+fn codes(diags: &[Diagnostic]) -> Vec<&str> {
+    diags.iter().map(|d| d.code).collect()
+}
+
 fn covering<'a>(diags: &'a [Diagnostic], code: &str, offset: u32) -> Vec<&'a Diagnostic> {
     diags
         .iter()
@@ -750,4 +754,69 @@ fn t36_report_parent_override_resolved() {
         hits.is_empty(),
         "resolved CanReport.can has no E5008: {hits:?}"
     );
+}
+
+/// T02 pilot B1: a `Cap.op.completed` handler body sees the DESIGN §8
+/// delivery envelope — `event.status` claims the closed outcome
+/// vocabulary and `event.result` carries the op's declared result
+/// (narrowed non-null past `!=null`), so result members resolve.
+#[test]
+fn t02_completion_body_sees_typed_envelope() {
+    const SRC: &str = "app Probe\nGiven\n contract Outcome { source:text, state:enum(pending,done)=pending }\n capability BoxV1 version=1\n  fetch(source:text) -> Outcome\nWhen\n scenario fetched on=BoxV1.fetch.completed\n  do\n   if event.status==succeeded and event.result!=null\n    let got=event.result\n    require got.state==done\nThen\n";
+    let (_program, diags) = check_src(SRC, None);
+    assert!(
+        diags.is_empty(),
+        "completion handler body is clean: {diags:?}"
+    );
+}
+
+/// T02 pilot B2 (intended-rejection witness): a top-level
+/// `preferences` invariant passes the Nullable-by-design `actor`
+/// to a `user` parameter, so `E3001` still fires. The guarded
+/// opposing case stays clean.
+#[test]
+fn t02_preferences_invariant_nullable_actor_rejected() {
+    const SRC: &str = "app Probe\nGiven\n derive needs(person:user):bool = true\n preferences { view:enum(all,today)=all }\n invariant preferences: needs(actor)\nWhen\nThen\n";
+    let (_program, diags) = check_src(SRC, None);
+    assert_eq!(codes(&diags), vec!["E3001"], "{diags:?}");
+}
+
+/// T02 pilot B2 opposing case: null-guarded `actor` narrows, so
+/// the same invariant is clean.
+#[test]
+fn t02_preferences_invariant_guarded_actor_accepted() {
+    const SRC: &str = "app Probe\nGiven\n derive needs(person:user):bool = true\n preferences { view:enum(all,today)=all }\n invariant preferences: actor==null or needs(actor)\nWhen\nThen\n";
+    let (_program, diags) = check_src(SRC, None);
+    assert!(
+        diags.is_empty(),
+        "guarded preferences invariant is clean: {diags:?}"
+    );
+}
+
+/// T02 pilot B3 (intended-rejection witness): a derive calling
+/// the catalog `state-read` builtin `active_member` still fails
+/// `E3010` derive purity (DESIGN:137; catalog notes "Needs
+/// membership state"). Skips without the real catalog.
+#[test]
+fn t02_derive_state_read_builtin_rejected() {
+    let Some(catalog) = real_catalog() else {
+        eprintln!("SKIP t02_derive_state_read_builtin_rejected: no packages/values/dist/catalog.json");
+        return;
+    };
+    const SRC: &str = "app Probe\nGiven\n derive staff(person:user):bool = active_member(person,team)\nWhen\nThen\n";
+    let (_program, diags) = check_src(SRC, Some(&catalog));
+    assert_eq!(codes(&diags), vec!["E3010"], "{diags:?}");
+}
+
+/// T02 pilot B3 opposing case: a pure derive with no effectful
+/// call stays clean under the same catalog.
+#[test]
+fn t02_derive_pure_accepted() {
+    let Some(catalog) = real_catalog() else {
+        eprintln!("SKIP t02_derive_pure_accepted: no packages/values/dist/catalog.json");
+        return;
+    };
+    const SRC: &str = "app Probe\nGiven\n derive staff(person:user):bool = true\nWhen\nThen\n";
+    let (_program, diags) = check_src(SRC, Some(&catalog));
+    assert!(diags.is_empty(), "pure derive is clean: {diags:?}");
 }
