@@ -2,16 +2,16 @@
   "schema_version": 1,
   "phase": "planning",
   "execution_authorized": false,
-  "global_orchestrator": "Codex",
+  "global_orchestrator": "Codex for package programme",
   "independent_reviewer": "Codex",
-  "main_integrator": "Codex",
+  "main_integrator": "Codex for package releases; independent compiler agent retains its own authority",
   "muse_global_coordinator": null,
   "worktrees": {
     "created": false,
     "isolated_by_default": false,
     "future_setup_requires_authorization": true,
-    "main_mutator": "Codex",
-    "shared_checkout_git_mutator": "Codex only",
+    "main_mutator": "Codex for package releases; independent compiler agent also commits",
+    "shared_checkout_git_mutator": "Codex for package subagents only; preserve concurrent compiler-agent Git authority",
     "exact_file_leases_required": true
   },
   "cadence": {
@@ -36,10 +36,10 @@
   "authority": {
     "root_owns": [
       "central checklist",
-      "global exact-file leases",
+      "exact-file leases within package allocation",
       "cross-lane handoffs",
       "independent review",
-      "main integration",
+      "main integration of package releases",
       "living file-tree coverage and decisions",
       "monitor and cleanup roster",
       "all recurring supervision",
@@ -96,5 +96,21 @@
     "source": "/Users/vince/.codex/skills/model-selection/SKILL.md",
     "global_high_or_max_default": false
   },
-  "ordered_start_checklist": "implementation/RUST-PORT-START-HERE.md"
+  "ordered_start_checklist": "implementation/RUST-PORT-START-HERE.md",
+  "concurrent_external_work": {
+    "source": "human FYI on 2026-10-07",
+    "scope": "compiler/",
+    "agent_identity": "not supplied; do not infer a session identity",
+    "independent_commits_expected": true,
+    "package_edit_boundary": "finite assigned packages/ and owned package evidence only",
+    "shared_seams": [
+      "root manifests/locks",
+      "shared build declarations",
+      "specification/decision records",
+      "compiler API/ABI and generated-artifact interfaces"
+    ],
+    "commit_policy": "explicit-path commit preserving unrelated staged entries, or acknowledged short Git handoff",
+    "checkout_policy": "no shared checkout switch/reset/rebase beneath the external writer",
+    "acceptance_policy": "record before/after HEAD and exact relevant source hashes; requalify changed producer/consumer seams without invalidating unchanged narrow package witnesses"
+  }
 }

@@ -5,7 +5,7 @@
   "run_dir": null,
   "roles": [],
   "native_timers": [],
-  "main_integrator": "Codex in chat 01a10c5a-0fb5-7343-9659-c3efab311c0c",
+  "main_integrator": "Codex in chat 01a10c5a-0fb5-7343-9659-c3efab311c0c for package releases; independent compiler writer retained",
   "plan": "implementation/RUST-PORT-EXECUTION-PLAN.md",
   "planning_source_base": "309644a6881909d8dba32560bc6711f67e00a7ab",
   "historical_runtime": "/private/tmp/canlang-idle-20261006T041507Z/monitor.json",
@@ -15,5 +15,6 @@
   "muse_native_recurring_jobs_allowed": false,
   "proposed_codex_supervision_minutes": 15,
   "executor": "Codex collaboration subagents",
-  "local_recurring_jobs_allowed": false
+  "local_recurring_jobs_allowed": false,
+  "concurrent_external_work": "Human reports compiler agent editing and committing independently; preserve its files/index and qualify shared producer-consumer seams."
 }
