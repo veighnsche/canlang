@@ -1,0 +1,20 @@
+{
+  "packet": "first:R3:N03-work-number-maintenance",
+  "reviewer": "/root/review_c_n03",
+  "verdict": "PASS_SOURCE_ONLY",
+  "checked": [
+    "Nine source hashes and four exact private copies",
+    "Original donor leaves match frozen baseline;72 caller expectations plus10213bit corpus",
+    "Pinned ryu-js1.0.3 archive/license/features with no normal transitive dependencies",
+    "Original embedded plus selected witness test logs rows53/receipt70/linkage45/recovery79;TS74",
+    "Earlier failures and negative controls retained"
+  ],
+  "limits": [
+    "Complete StateError extra-field parity and Bun NaN payload difference remain residuals",
+    "Minus-zero native checks establish bits, not entire success envelope",
+    "Official manifest/lock/root registration and W04.4 branch/installed/Wasm gates remain open"
+  ],
+  "recorded_at_utc": "2026-10-06T23:29:31.534800+00:00",
+  "source_base": "c6896fd2dea782d8ed6412769337b76eb899ca53",
+  "reran_builds": false
+}

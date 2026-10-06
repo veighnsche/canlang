@@ -1,0 +1,22 @@
+{
+  "packet": "first:R1:N02-values-number-maintenance",
+  "reviewer": "/root/review_a_n02",
+  "model": "gpt-6.1-sol",
+  "effort": "medium",
+  "verdict": "PASS_FINITE_FORMATTER_MAINTENANCE",
+  "source_base": "c6896fd2dea782d8ed6412769337b76eb899ca53",
+  "recorded_at_utc": "2026-10-06T23:30:11.493454+00:00",
+  "checked": [
+    "All8 source candidate release hashes and listed private artifact hashes",
+    "Frozen10213 independent primitive observations and131 original donor callers",
+    "Exact ryu-js1.0.3 pin/checksum/features/license; unchanged special guards",
+    "Actual native82 tests,2 donor tests, private regenerated matching ABI1/exact_call diagnostics",
+    "Separate raw-bitWasm harness;12 actual corrupted fixtures rejected;noEmit0"
+  ],
+  "limits": [
+    "Public SchemaError mapping and stored scale-0 unqualified",
+    "UTF16/truncation and original A03/A04/A07/installed/default acceptance open",
+    "JSON binding diagnostics do not preserve raw bit channels; distinct harness demonstrates that scope"
+  ],
+  "reran_builds": false
+}

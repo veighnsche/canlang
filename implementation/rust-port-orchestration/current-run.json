@@ -1,22 +1,125 @@
 {
   "schema_version": 1,
-  "phase": "planning",
-  "execution_authorized": false,
-  "run_dir": null,
-  "roles": [],
+  "phase": "running",
+  "execution_authorized": true,
+  "run_dir": "/Users/vince/Projects/canlang/implementation/rust-port-orchestration/runs/codex-first-20261006T231809Z",
+  "roles": [
+    {
+      "worker": "A",
+      "agent": "/root/worker_a_n02",
+      "collaboration_handle": "/root/worker_a_n02",
+      "packet_id": "first:R1:N02-values-number-maintenance",
+      "model": "gpt-6.1-sol",
+      "effort": "medium",
+      "source_base": "c6896fd2dea782d8ed6412769337b76eb899ca53",
+      "private_root": "/private/tmp/canlang-rust-port-codex-first-20261006T231809Z/packets/R1-N02",
+      "ack_path": "/private/tmp/canlang-rust-port-codex-first-20261006T231809Z/packets/R1-N02/ACK.json",
+      "ack_sha256": "0e2f774cafdca786aa6d0b3c615543c352a8fc692a9198352df1c74cb9694631",
+      "ack_observed": true,
+      "status": "released_for_independent_review",
+      "writable_paths": [
+        "packages/values/semantics/src/representations/numeric.rs",
+        "packages/values/semantics/tests/numeric_text_contract.rs",
+        "packages/values/test/numeric-text.contract.test.ts",
+        "packages/values/conformance/numeric-text.oracle.mjs",
+        "packages/values/conformance/numeric-text.json",
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/exact-values/core/n01-values-number-text.json",
+        "packages/values/semantics/Cargo.toml",
+        "packages/values/Cargo.lock"
+      ],
+      "writer_released": true,
+      "active_commands": [],
+      "release_manifest": {
+        "path": "/private/tmp/canlang-rust-port-codex-first-20261006T231809Z/packets/R1-N02/FINAL.json",
+        "sha256": "ce27f891d6ecfd64fcdcc46a0f9e80b25d064db484f84b3768707179518ab6ec"
+      }
+    },
+    {
+      "worker": "B",
+      "agent": "/root/worker_b_v01",
+      "collaboration_handle": "/root/worker_b_v01",
+      "packet_id": "first:R2:V01-consumed-owner-contracts",
+      "model": "gpt-6.1-sol",
+      "effort": "high",
+      "source_base": "c6896fd2dea782d8ed6412769337b76eb899ca53",
+      "private_root": "/private/tmp/canlang-rust-port-codex-first-20261006T231809Z/packets/R2-V01",
+      "ack_path": "/private/tmp/canlang-rust-port-codex-first-20261006T231809Z/packets/R2-V01/ACK.json",
+      "ack_sha256": "60135b97e48a33c922d4e8b1c53ceca6e81f76d513ca24e6ea58e1cd0759f71c",
+      "ack_observed": true,
+      "status": "released_for_independent_review",
+      "writable_paths": [
+        "docs/research/package-subsystem-ports-20261006/evidence/input-validation/contracts.md",
+        "docs/research/package-subsystem-ports-20261006/evidence/input-validation/caller-inventory.json",
+        "docs/research/package-subsystem-ports-20261006/evidence/input-validation/current-ts.json",
+        "docs/research/package-subsystem-ports-20261006/evidence/input-validation/http-adoption-gate.md",
+        "docs/research/package-subsystem-ports-20261006/evidence/input-validation/state-contract.md",
+        "docs/research/package-subsystem-ports-20261006/evidence/input-validation/plan-contract.md",
+        "docs/research/package-subsystem-ports-20261006/evidence/input-validation/v01-review.md",
+        "docs/research/package-subsystem-ports-20261006/evidence/input-validation/prepared-hook-review.md"
+      ],
+      "writer_released": true,
+      "active_commands": [],
+      "release_manifest": {
+        "path": "/private/tmp/canlang-rust-port-codex-first-20261006T231809Z/packets/R2-V01/release-manifest.json",
+        "sha256": "d7be7c8c5915afcf305d9691e23e2201b1f33da5312a2be686e9ce90c945e7c1"
+      }
+    },
+    {
+      "worker": "C",
+      "agent": "/root/worker_c_n03",
+      "collaboration_handle": "/root/worker_c_n03",
+      "packet_id": "first:R3:N03-work-number-maintenance",
+      "model": "gpt-6.1-sol",
+      "effort": "medium",
+      "source_base": "c6896fd2dea782d8ed6412769337b76eb899ca53",
+      "private_root": "/private/tmp/canlang-rust-port-codex-first-20261006T231809Z/packets/R3-N03",
+      "ack_path": "/private/tmp/canlang-rust-port-codex-first-20261006T231809Z/packets/R3-N03/ACK.json",
+      "ack_sha256": "81b487b845cd1c05c3558ac8ec0900ce0a44ce0a566751e57f70403c8bd20906",
+      "ack_observed": true,
+      "status": "released_for_independent_review",
+      "writable_paths": [
+        "packages/work-kernel/decisions/rows.rs",
+        "packages/work-kernel/decisions/receipt.rs",
+        "packages/work-kernel/decisions/linkage.rs",
+        "packages/work-kernel/decisions/recovery.rs",
+        "packages/work-kernel/decisions/numeric_text.rs",
+        "packages/work-kernel/conformance/numeric-text.contract.test.ts",
+        "packages/work-kernel/conformance/numeric-text.oracle.mjs",
+        "packages/work-kernel/conformance/fixtures/numeric-text.json",
+        "packages/work-kernel/conformance/native-numeric-text.rs",
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/work-transitions/handoffs/n01-work-number-text.json"
+      ],
+      "writer_released": true,
+      "active_commands": [],
+      "release_manifest": {
+        "path": "/private/tmp/canlang-rust-port-codex-first-20261006T231809Z/packets/R3-N03/RESULT.json",
+        "sha256": "e2302902d6721ed05d8e76ef8a26e7cae8e3e443bad49ea9e7ae49daf9ed6bfb"
+      }
+    }
+  ],
   "native_timers": [],
   "main_integrator": "Codex in chat 01a10c5a-0fb5-7343-9659-c3efab311c0c for package releases; independent compiler writer retained",
   "plan": "implementation/RUST-PORT-EXECUTION-PLAN.md",
-  "planning_source_base": "74f7271f7d3d49c929c769a5175de20e4525acef",
+  "planning_source_base": "c6896fd2dea782d8ed6412769337b76eb899ca53",
   "historical_runtime": "/private/tmp/canlang-idle-20261006T041507Z/monitor.json",
   "historical_runtime_authority": "stopped evidence only; never restore or infer new identity, startup or dispatch",
   "preparation_hold": true,
-  "note": "Planning checkpoint and finite first queue published only. No implementation runtime/roles/goals/timers/output roots are active. Human implementation release is required; preparation/native-release HOLD is separate.",
+  "note": "Human released step4: only the three named finite packets and scoped reviews/repairs. Future successor packets require a separate explicit finite assignment within human scope. Preparation/native-release HOLD remains. No historical runtime restored.",
   "muse_native_recurring_jobs_allowed": false,
   "proposed_codex_supervision_minutes": 15,
   "executor": "Codex collaboration subagents",
   "local_recurring_jobs_allowed": false,
   "concurrent_external_work": "Human reports compiler agent editing and committing independently; preserve its files/index and qualify shared producer-consumer seams.",
   "first_packet_queue": "implementation/rust-port-orchestration/packets.json",
-  "planning_step3_deliverable_complete": true
+  "planning_step3_deliverable_complete": true,
+  "run_id": "codex-first-20261006T231809Z",
+  "authorized_packet_ids": [
+    "first:R1:N02-values-number-maintenance",
+    "first:R2:V01-consumed-owner-contracts",
+    "first:R3:N03-work-number-maintenance"
+  ],
+  "human_release_reference": "Human step4 in this chat, 2026-10-07",
+  "supervisor_status": "ACTIVE",
+  "monitor": "/Users/vince/Projects/canlang/implementation/rust-port-orchestration/runs/codex-first-20261006T231809Z/monitor.json",
+  "updated_at_utc": "2026-10-06T23:29:31.534800+00:00"
 }
