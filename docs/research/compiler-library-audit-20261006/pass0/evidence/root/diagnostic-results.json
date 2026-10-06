@@ -1,0 +1,33 @@
+{
+  "scope": "independent JSON parsing, fixed key order, source bytes and decoded string values; CLI newline is an existing caller contract, not exercised by this public serializer probe",
+  "matches_expected": true,
+  "parsed": {
+    "tool": "can",
+    "tool_version": "pass0",
+    "language_version": "1.0",
+    "schema_version": 1,
+    "sources": [
+      {
+        "id": 0,
+        "path": "unicode.can",
+        "sha256": "d057d762c282cc153b25d6c1c37333883010b7c70af2f0c58e749dc1567f1000"
+      }
+    ],
+    "complete": true,
+    "diagnostics": [
+      {
+        "code": "E3001",
+        "severity": "error",
+        "message": "controls \b\f and 😀",
+        "primary": {
+          "file": 0,
+          "start": 6,
+          "end": 7
+        },
+        "related": [],
+        "tags": []
+      }
+    ],
+    "omitted": 0
+  }
+}

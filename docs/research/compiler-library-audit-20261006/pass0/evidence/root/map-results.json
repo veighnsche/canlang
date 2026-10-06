@@ -1,0 +1,30 @@
+{
+  "scope": "fresh compiler map builder/serializer -> independent Node decoder -> actual internal Can runtime lookup on authored Unicode fixture; not browser or installed-artifact navigation",
+  "node": "v24.21.0",
+  "produced": {
+    "version": 3,
+    "file": "unicode.mjs",
+    "sources": [
+      "unicode.can"
+    ],
+    "sourcesContent": [
+      "é😀x"
+    ],
+    "names": [],
+    "mappings": "AAAM"
+  },
+  "fixture_matches": true,
+  "independent": {
+    "generatedLine": 0,
+    "generatedColumn": 0,
+    "originalSource": "unicode.can",
+    "originalLine": 0,
+    "originalColumn": 6
+  },
+  "consumer": {
+    "source": "unicode.can",
+    "line": 1,
+    "column": 7
+  },
+  "matches_expected": true
+}

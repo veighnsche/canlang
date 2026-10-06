@@ -1,0 +1,397 @@
+{
+  "scope": "direct textual helper uses, including function pointers, in defining files; cross-file production SHA callers; enclosing function from nearest declaration, not a complete inferred call graph",
+  "sites": [
+    {
+      "path": "compiler/src/analysis/types.rs",
+      "line": 2931,
+      "enclosing_function": "check_schedule_key_unique",
+      "helper": "unescape_json",
+      "source": ".and_then(unescape_json)"
+    },
+    {
+      "path": "compiler/src/analysis/types.rs",
+      "line": 4211,
+      "enclosing_function": "check_caption",
+      "helper": "string_literal_value",
+      "source": "if string_literal_value(node, cx.text).is_none() {"
+    },
+    {
+      "path": "compiler/src/analysis/types.rs",
+      "line": 4296,
+      "enclosing_function": "check_description_slot",
+      "helper": "string_literal_value",
+      "source": "if string_literal_value(literal, cx.text).is_none() {"
+    },
+    {
+      "path": "compiler/src/analysis/types.rs",
+      "line": 4335,
+      "enclosing_function": "check_description_slot",
+      "helper": "string_literal_value",
+      "source": "Some(found) if string_literal_value(found, cx.text).is_some() => {}"
+    },
+    {
+      "path": "compiler/src/analysis/types.rs",
+      "line": 4370,
+      "enclosing_function": "check_message_value",
+      "helper": "string_literal_value",
+      "source": "let base_text = string_literal_value(base, cx.text).unwrap_or_default();"
+    },
+    {
+      "path": "compiler/src/analysis/types.rs",
+      "line": 4400,
+      "enclosing_function": "check_message_value",
+      "helper": "string_literal_value",
+      "source": "string_literal_value(key_node, cx.text).unwrap_or_default()"
+    },
+    {
+      "path": "compiler/src/analysis/types.rs",
+      "line": 4402,
+      "enclosing_function": "check_message_value",
+      "helper": "string_leaf_value",
+      "source": "string_leaf_value(key_node, cx.text).unwrap_or_default()"
+    },
+    {
+      "path": "compiler/src/analysis/types.rs",
+      "line": 4406,
+      "enclosing_function": "check_message_value",
+      "helper": "valid_locale",
+      "source": "if let Some(problem) = valid_locale(&tag) {"
+    },
+    {
+      "path": "compiler/src/analysis/types.rs",
+      "line": 4432,
+      "enclosing_function": "check_message_value",
+      "helper": "string_literal_value",
+      "source": "if let Some(text) = string_literal_value(value, cx.text) {"
+    },
+    {
+      "path": "compiler/src/analysis/types.rs",
+      "line": 4569,
+      "enclosing_function": "check_text_or_message",
+      "helper": "string_literal_value",
+      "source": "if string_literal_value(node, cx.text).is_some() {"
+    },
+    {
+      "path": "compiler/src/analysis/types.rs",
+      "line": 4909,
+      "enclosing_function": "collect_module_sources",
+      "helper": "string_literal_value",
+      "source": "&& let Some(tag) = string_literal_value(source, &text)"
+    },
+    {
+      "path": "compiler/src/analysis/types.rs",
+      "line": 5671,
+      "enclosing_function": "phase2_context",
+      "helper": "string_literal_value",
+      "source": "&& let Some(tag) = string_literal_value(default, text)"
+    },
+    {
+      "path": "compiler/src/analysis/types.rs",
+      "line": 5672,
+      "enclosing_function": "phase2_context",
+      "helper": "valid_locale",
+      "source": "&& let Some(problem) = valid_locale(&tag)"
+    },
+    {
+      "path": "compiler/src/analysis/types.rs",
+      "line": 5719,
+      "enclosing_function": "phase2_owner_attrs",
+      "helper": "string_literal_value",
+      "source": "&& let Some(tag) = string_literal_value(source, text)"
+    },
+    {
+      "path": "compiler/src/analysis/types.rs",
+      "line": 5720,
+      "enclosing_function": "phase2_owner_attrs",
+      "helper": "valid_locale",
+      "source": "&& let Some(problem) = valid_locale(&tag)"
+    },
+    {
+      "path": "compiler/src/analysis/types.rs",
+      "line": 6397,
+      "enclosing_function": "check_page_static_text",
+      "helper": "string_literal_value",
+      "source": "if string_literal_value(node, cx.text).is_some() {"
+    },
+    {
+      "path": "compiler/src/analysis/types.rs",
+      "line": 6404,
+      "enclosing_function": "check_page_static_text",
+      "helper": "string_literal_value",
+      "source": ".and_then(|lit| string_literal_value(lit, cx.text))"
+    },
+    {
+      "path": "compiler/src/analysis/types.rs",
+      "line": 7208,
+      "enclosing_function": "check_fixture_file",
+      "helper": "string_literal_value",
+      "source": "match string_literal_value(literal, cx.text) {"
+    },
+    {
+      "path": "compiler/src/analysis/types.rs",
+      "line": 7688,
+      "enclosing_function": "check_fixture_envelope",
+      "helper": "string_literal_value",
+      "source": "SyntaxKind::Literal => string_literal_value(v, cx.text),"
+    },
+    {
+      "path": "compiler/src/analysis/types.rs",
+      "line": 7775,
+      "enclosing_function": "string_literal_value",
+      "helper": "unescape_json",
+      "source": "unescape_json(body)"
+    },
+    {
+      "path": "compiler/src/analysis/types.rs",
+      "line": 7786,
+      "enclosing_function": "string_leaf_value",
+      "helper": "unescape_json",
+      "source": "unescape_json(body)"
+    },
+    {
+      "path": "compiler/src/analysis/types.rs",
+      "line": 9962,
+      "enclosing_function": "type_literal",
+      "helper": "unescape_json",
+      "source": "let value = body.and_then(unescape_json).unwrap_or_default();"
+    },
+    {
+      "path": "compiler/src/analysis/types.rs",
+      "line": 9973,
+      "enclosing_function": "type_literal",
+      "helper": "validated_shape",
+      "source": "&& let Some(problem) = validated_shape(*s, &value)"
+    },
+    {
+      "path": "compiler/src/analysis/types.rs",
+      "line": 13715,
+      "enclosing_function": "check_local_instant_time",
+      "helper": "unescape_json",
+      "source": ".and_then(unescape_json)"
+    },
+    {
+      "path": "compiler/src/analysis/types.rs",
+      "line": 13749,
+      "enclosing_function": "check_format_call",
+      "helper": "unescape_json",
+      "source": ".and_then(unescape_json)"
+    },
+    {
+      "path": "compiler/src/analysis/types.rs",
+      "line": 13785,
+      "enclosing_function": "check_checked_constructor",
+      "helper": "unescape_json",
+      "source": ".and_then(unescape_json)"
+    },
+    {
+      "path": "compiler/src/analysis/types.rs",
+      "line": 14362,
+      "enclosing_function": "inhabit_validated",
+      "helper": "unescape_json",
+      "source": ".and_then(unescape_json),"
+    },
+    {
+      "path": "compiler/src/analysis/types.rs",
+      "line": 14368,
+      "enclosing_function": "inhabit_validated",
+      "helper": "validated_shape",
+      "source": "match validated_shape(want, &text) {"
+    },
+    {
+      "path": "compiler/src/analysis/types.rs",
+      "line": 15371,
+      "enclosing_function": "validated_shape",
+      "helper": "valid_url",
+      "source": "Scalar::Url => valid_url(value),"
+    },
+    {
+      "path": "compiler/src/analysis/types.rs",
+      "line": 15372,
+      "enclosing_function": "validated_shape",
+      "helper": "valid_locale",
+      "source": "Scalar::Locale => valid_locale(value),"
+    },
+    {
+      "path": "compiler/src/cli.rs",
+      "line": 954,
+      "enclosing_function": "run_docs_with_platform",
+      "helper": "write_file_atomic",
+      "source": "if let Err(err) = write_file_atomic(Path::new(path), &markdown) {"
+    },
+    {
+      "path": "compiler/src/cli.rs",
+      "line": 1328,
+      "enclosing_function": "run_fmt",
+      "helper": "write_file_atomic",
+      "source": "&& let Err(err) = write_file_atomic(path, output)"
+    },
+    {
+      "path": "compiler/src/codegen/ir.rs",
+      "line": 672,
+      "enclosing_function": "decode_string",
+      "helper": "unescape_json",
+      "source": "unescape_json(body)"
+    },
+    {
+      "path": "compiler/src/codegen/ir.rs",
+      "line": 2032,
+      "enclosing_function": "decode_message_node",
+      "helper": "literal_string",
+      "source": "source: literal_string(self.db, node).unwrap_or_default(),"
+    },
+    {
+      "path": "compiler/src/codegen/ir.rs",
+      "line": 2043,
+      "enclosing_function": "decode_message_node",
+      "helper": "literal_string",
+      "source": "&& let Some(text) = literal_string(self.db, child)"
+    },
+    {
+      "path": "compiler/src/codegen/ir.rs",
+      "line": 2089,
+      "enclosing_function": "decode_variant",
+      "helper": "literal_string_opt",
+      "source": "let value = literal_string_opt(self.db, literal)?;"
+    },
+    {
+      "path": "compiler/src/codegen/ir.rs",
+      "line": 2363,
+      "enclosing_function": "decode_literal",
+      "helper": "decode_string",
+      "source": "SyntaxKind::String => IrExpr::Text(decode_string(text)),"
+    },
+    {
+      "path": "compiler/src/codegen/ir.rs",
+      "line": 2610,
+      "enclosing_function": "literal_string_opt",
+      "helper": "decode_string",
+      "source": "SyntaxKind::String => Some(Some(decode_string(slice(db, leaf.span)))),"
+    },
+    {
+      "path": "compiler/src/codegen/ir.rs",
+      "line": 2618,
+      "enclosing_function": "literal_string",
+      "helper": "literal_string_opt",
+      "source": "literal_string_opt(db, node).flatten()"
+    },
+    {
+      "path": "compiler/src/codegen/ir.rs",
+      "line": 2985,
+      "enclosing_function": "decode_format_call",
+      "helper": "literal_string",
+      "source": "literal_string(self.db, value)"
+    },
+    {
+      "path": "compiler/src/codegen/ir.rs",
+      "line": 5033,
+      "enclosing_function": "build_migrations",
+      "helper": "sha256_hex",
+      "source": "body_digest: sha256_hex(canonical.as_bytes()),"
+    },
+    {
+      "path": "compiler/src/codegen/ir.rs",
+      "line": 5278,
+      "enclosing_function": "decode_page",
+      "helper": "literal_string",
+      "source": "literal_string(self.db, &title_node).map(|source| IrMessage {"
+    },
+    {
+      "path": "compiler/src/codegen/ir.rs",
+      "line": 6610,
+      "enclosing_function": "decode_caption_header",
+      "helper": "literal_string",
+      "source": "if let Some(source) = literal_string(self.db, child) {"
+    },
+    {
+      "path": "compiler/src/codegen/ir.rs",
+      "line": 7444,
+      "enclosing_function": "opens_spelling",
+      "helper": "literal_string",
+      "source": "SyntaxKind::Literal => literal_string(db, node),"
+    },
+    {
+      "path": "compiler/src/codegen/ir.rs",
+      "line": 7572,
+      "enclosing_function": "static_text",
+      "helper": "literal_string",
+      "source": "literal_string(db, n)"
+    },
+    {
+      "path": "compiler/src/codegen/ir.rs",
+      "line": 7577,
+      "enclosing_function": "static_text",
+      "helper": "literal_string",
+      "source": "SyntaxKind::Literal => literal_string(db, node),"
+    },
+    {
+      "path": "compiler/src/docs.rs",
+      "line": 961,
+      "enclosing_function": "source_revision",
+      "helper": "sha256_hex",
+      "source": "sha256_hex(&bytes)"
+    },
+    {
+      "path": "compiler/src/ide/fixes.rs",
+      "line": 137,
+      "enclosing_function": "apply_fix",
+      "helper": "sha256_hex",
+      "source": "if sha256_hex(text.as_bytes()) != fix.expected_sha256 {"
+    },
+    {
+      "path": "compiler/src/lsp/server.rs",
+      "line": 502,
+      "enclosing_function": "diagnostic_fix_to_action",
+      "helper": "sha256_hex",
+      "source": "let edits = if crate::source::sha256_hex(text.as_bytes()) == fix.expected_sha256 {"
+    },
+    {
+      "path": "compiler/src/source.rs",
+      "line": 44,
+      "enclosing_function": "add",
+      "helper": "sha256_hex",
+      "source": "let sha256 = sha256_hex(text.as_bytes());"
+    },
+    {
+      "path": "compiler/src/source.rs",
+      "line": 265,
+      "enclosing_function": "sha256_vectors",
+      "helper": "sha256_hex",
+      "source": "sha256_hex(b\"\"),"
+    },
+    {
+      "path": "compiler/src/source.rs",
+      "line": 269,
+      "enclosing_function": "sha256_vectors",
+      "helper": "sha256_hex",
+      "source": "sha256_hex(b\"abc\"),"
+    },
+    {
+      "path": "compiler/src/source.rs",
+      "line": 274,
+      "enclosing_function": "sha256_vectors",
+      "helper": "sha256_hex",
+      "source": "sha256_hex(b\"abcdbcdecdefdefgefghfghighijhijkijkljklmklmnlmnomnopnopq\"),"
+    },
+    {
+      "path": "compiler/src/source.rs",
+      "line": 280,
+      "enclosing_function": "sha256_vectors",
+      "helper": "sha256_hex",
+      "source": "sha256_hex(&[b'a'; 55]),"
+    },
+    {
+      "path": "compiler/src/source.rs",
+      "line": 284,
+      "enclosing_function": "sha256_vectors",
+      "helper": "sha256_hex",
+      "source": "sha256_hex(&[b'c'; 56]),"
+    },
+    {
+      "path": "compiler/src/source.rs",
+      "line": 288,
+      "enclosing_function": "sha256_vectors",
+      "helper": "sha256_hex",
+      "source": "sha256_hex(&[b'b'; 64]),"
+    }
+  ]
+}

@@ -1,0 +1,124 @@
+{
+  "schema_version": 1,
+  "packets": [
+    "C05D",
+    "C05A",
+    "C08"
+  ],
+  "cases": [
+    {
+      "id": "diagnostic_shape",
+      "boundary": "compact diagnostic envelope",
+      "input": {
+        "fixture": "foundation.rs diagnostic envelope plus controls/Unicode"
+      },
+      "expected": {
+        "required_fields": [
+          "tool",
+          "tool_version",
+          "language_version",
+          "schema_version",
+          "sources",
+          "complete",
+          "diagnostics",
+          "omitted"
+        ],
+        "schema_version": 1,
+        "key_order": "fixed: tool first, omitted last; preserve owning diagnostic contract order",
+        "primary_units": "UTF-8 byte offsets",
+        "related_array": true,
+        "tags_array": true,
+        "compact_single_line": true,
+        "cli_trailing_newline": true
+      },
+      "oracle": "diagnostic.rs declared envelope + owning contracts/diagnostic.ts + foundation/authoring consumers",
+      "current_observation": "Field order and minimal escape spellings are classified separately in matrix",
+      "readiness": "ready"
+    },
+    {
+      "id": "exact_wire_values",
+      "boundary": "compiler literal JSON and runtime decoding",
+      "input": {
+        "values": [
+          {
+            "type": "int",
+            "value": "9223372036854775807",
+            "expected": {"encoded":"9223372036854775807","bigint_decimal":"9223372036854775807"}
+          },
+          {
+            "type": "decimal",
+            "value": "12345678901234567890.1200",
+            "expected": {"encoded":"12345678901234567890.12","decimal_coef":"123456789012345678901200","decimal_scale":4}
+          },
+          {
+            "type": "duration",
+            "value": "1200",
+            "expected": {"encoded":"1200","bigint_decimal":"1200"}
+          },
+          {
+            "type": "money",
+            "value": {
+              "minor": "9223372036854775807",
+              "currency": "EUR"
+            },
+            "expected": {"encoded":{"minor":"9223372036854775807","currency":"EUR"},"money_minor":"9223372036854775807","currency":"EUR"}
+          }
+        ]
+      },
+      "expected": {
+        "numeric_values_remain_decimal_strings": true,
+        "decimal_authored_scale": 4,
+        "decimal_runtime_reencode": "12345678901234567890.12",
+        "no_binary_float_intermediary": true
+      },
+      "oracle": "literal_json + owning wire/decimal declarations; public export results record actual round trips",
+      "current_observation": "No new arithmetic or schema policy selected",
+      "readiness": "ready"
+    },
+    {
+      "id": "map_unicode_byte_profile",
+      "boundary": "existing Can runtime source map profile",
+      "input": {
+        "source": "é😀x",
+        "byte_offset": 6,
+        "map": {
+          "version": 3,
+          "file": "unicode.mjs",
+          "sources": [
+            "unicode.can"
+          ],
+          "sourcesContent": [
+            "é😀x"
+          ],
+          "names": [],
+          "mappings": "AAAM"
+        }
+      },
+      "expected": {
+        "original_line_0": 0,
+        "original_column_0": 6,
+        "can_runtime_line_1": 1,
+        "can_runtime_column_1": 7
+      },
+      "oracle": "source.rs documented byte columns; encoded integer independently decoded by Node built-in SourceMap and actual Can consumer",
+      "current_observation": "Current compiler supplies byte columns; consumers return the same number with one-based display",
+      "readiness": "ready"
+    },
+    {
+      "id": "map_utf16_navigation",
+      "boundary": "future browser/editor original-source navigation",
+      "input": {
+        "source": "é😀x",
+        "target": "x"
+      },
+      "expected": {
+        "utf16_column_0": 3,
+        "policy": "consumer qualification required"
+      },
+      "oracle": "UTF-16 arithmetic is independently known; its application to original .can consumer not established",
+      "current_observation": "No browser-navigation failure demonstrated",
+      "readiness": "gated",
+      "gate": "Actual browser/editor consumer contract before changing Can byte profile"
+    }
+  ]
+}

@@ -93,6 +93,8 @@ The native [values core](../../../packages/values/semantics/src/lib.rs) now cont
 
 The [detailed sequence of implementation passes](implementation-passes.md) expands these packets into contracts, exact scope, deliverables, acceptance checks, dependency joins and parallel writer ownership. It remains a proposal; pass labels are not canonical task IDs or implementation releases.
 
+[Pass 0 contracts and outcome witnesses](pass0/README.md), prepared 2026-10-07, pin fresh compiler and owning package inputs, exact packet writers, byte/semantic compatibility and scoped unresolved gates. This preparation implements no compiler repair or candidate dependency.
+
 | Packet | Changes and defining owners | Dependency and acceptance |
 | --- | --- | --- |
 | Decode ownership | Consume lexer-decoded strings in IR and applicable analysis paths; remove secondary decoders | Independent small fix; assert control escapes and supplementary Unicode survive source → IR → JS |

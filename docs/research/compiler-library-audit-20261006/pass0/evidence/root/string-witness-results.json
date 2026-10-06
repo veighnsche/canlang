@@ -1,0 +1,133 @@
+[
+  {
+    "id": "controls_and_pair",
+    "independent": {
+      "valid": true,
+      "codepoints": [
+        8,
+        12,
+        128512
+      ]
+    },
+    "lexer": {
+      "valid": true,
+      "codepoints": [
+        8,
+        12,
+        128512
+      ]
+    },
+    "matches_expected": true
+  },
+  {
+    "id": "bmp_unicode",
+    "independent": {
+      "valid": true,
+      "codepoints": [
+        233
+      ]
+    },
+    "lexer": {
+      "valid": true,
+      "codepoints": [
+        233
+      ]
+    },
+    "matches_expected": true
+  },
+  {
+    "id": "quote_slash_backslash",
+    "independent": {
+      "valid": true,
+      "codepoints": [
+        34,
+        47,
+        92
+      ]
+    },
+    "lexer": {
+      "valid": true,
+      "codepoints": [
+        34,
+        47,
+        92
+      ]
+    },
+    "matches_expected": true
+  },
+  {
+    "id": "raw_supplementary",
+    "independent": {
+      "valid": true,
+      "codepoints": [
+        233,
+        128512
+      ]
+    },
+    "lexer": {
+      "valid": true,
+      "codepoints": [
+        233,
+        128512
+      ]
+    },
+    "matches_expected": true
+  },
+  {
+    "id": "line_controls",
+    "independent": {
+      "valid": true,
+      "codepoints": [
+        10,
+        13,
+        9
+      ]
+    },
+    "lexer": {
+      "valid": true,
+      "codepoints": [
+        10,
+        13,
+        9
+      ]
+    },
+    "matches_expected": true
+  },
+  {
+    "id": "empty_string",
+    "independent": {
+      "valid": true,
+      "codepoints": []
+    },
+    "lexer": {
+      "valid": true,
+      "codepoints": []
+    },
+    "matches_expected": true
+  },
+  {
+    "id": "unpaired_high",
+    "independent": {
+      "valid": false,
+      "reason": "Unicode scalar contract rejects unpaired surrogate"
+    },
+    "lexer": {
+      "valid": false,
+      "start": 2,
+      "end": 3
+    },
+    "matches_expected": true
+  },
+  {
+    "id": "unknown_escape",
+    "independent": {
+      "valid": false
+    },
+    "lexer": {
+      "valid": false,
+      "start": 2,
+      "end": 3
+    },
+    "matches_expected": true
+  }
+]

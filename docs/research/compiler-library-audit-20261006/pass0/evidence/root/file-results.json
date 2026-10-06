@@ -1,0 +1,55 @@
+{
+  "host_scope": "macOS only, subprocess umask 0022, local regular/link fixtures; no ACL/durability/race or alternate-host qualification",
+  "results": [
+    {
+      "case": "rewrite",
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "mode_before": "0600",
+      "mode_after": "0644",
+      "bytes_after": "app F\nGiven\nWhen\nThen\n",
+      "inode_unchanged": false,
+      "symlink_after": false,
+      "classification": "observed mode-preservation defect"
+    },
+    {
+      "case": "noop",
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "mode_before": "0600",
+      "mode_after": "0600",
+      "bytes_after": "app F\nGiven\nWhen\nThen\n",
+      "inode_unchanged": true,
+      "symlink_after": false,
+      "classification": "established no-op invariant"
+    },
+    {
+      "case": "symlink",
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "mode_before": "0600",
+      "mode_after": "0644",
+      "bytes_after": "app F\nGiven\nWhen\nThen\n",
+      "inode_unchanged": false,
+      "symlink_after": false,
+      "peer_bytes_after": "app F   \nGiven\nWhen\nThen",
+      "classification": "existing behavior; link policy remains gated"
+    },
+    {
+      "case": "hardlink",
+      "exit": 0,
+      "stdout": "",
+      "stderr": "",
+      "mode_before": "0600",
+      "mode_after": "0644",
+      "bytes_after": "app F\nGiven\nWhen\nThen\n",
+      "inode_unchanged": false,
+      "symlink_after": false,
+      "peer_bytes_after": "app F   \nGiven\nWhen\nThen",
+      "classification": "existing behavior; link policy remains gated"
+    }
+  ]
+}

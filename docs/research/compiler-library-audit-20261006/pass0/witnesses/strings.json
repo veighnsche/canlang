@@ -1,0 +1,126 @@
+{
+  "schema_version": 1,
+  "packet": "C01",
+  "status": "implementation witnesses; product regressions are added with repair",
+  "oracle": "Explicit decoded code points checked independently with Python JSON grammar; lexer payload is the source owner, not the sole oracle",
+  "cases": [
+    {
+      "id": "controls_and_pair",
+      "boundary": "source string through literal lowering",
+      "input": {
+        "token": "\"\\b\\f\\uD83D\\uDE00\""
+      },
+      "expected": {
+        "codepoints": [
+          8,
+          12,
+          128512
+        ]
+      },
+      "current_observation": "Prior live emission probe returns bf followed by two replacement characters; fresh probe is captured separately",
+      "readiness": "ready"
+    },
+    {
+      "id": "bmp_unicode",
+      "boundary": "literal and metadata lowering",
+      "input": {
+        "token": "\"\\u00E9\""
+      },
+      "expected": {
+        "codepoints": [
+          233
+        ]
+      },
+      "current_observation": "No defect claimed; implementation witness",
+      "readiness": "ready"
+    },
+    {
+      "id": "quote_slash_backslash",
+      "boundary": "literal and metadata lowering",
+      "input": {
+        "token": "\"\\\"\\/\\\\\""
+      },
+      "expected": {
+        "codepoints": [
+          34,
+          47,
+          92
+        ]
+      },
+      "current_observation": "Implementation witness",
+      "readiness": "ready"
+    },
+    {
+      "id": "raw_supplementary",
+      "boundary": "source string payload",
+      "input": {
+        "token": "\"é😀\""
+      },
+      "expected": {
+        "codepoints": [
+          233,
+          128512
+        ]
+      },
+      "current_observation": "Implementation witness",
+      "readiness": "ready"
+    },
+    {
+      "id": "line_controls",
+      "boundary": "literal and metadata lowering",
+      "input": {
+        "token": "\"\\n\\r\\t\""
+      },
+      "expected": {
+        "codepoints": [
+          10,
+          13,
+          9
+        ]
+      },
+      "current_observation": "Implementation witness",
+      "readiness": "ready"
+    },
+    {
+      "id": "empty_string",
+      "boundary": "missing payload versus authored empty value",
+      "input": {
+        "token": "\"\""
+      },
+      "expected": {
+        "codepoints": [],
+        "missing_payload": false
+      },
+      "current_observation": "Implementation witness",
+      "readiness": "ready"
+    },
+    {
+      "id": "unpaired_high",
+      "boundary": "source diagnostics",
+      "input": {
+        "token": "\"\\uD83D\""
+      },
+      "expected": {
+        "valid": false,
+        "code": "E1006",
+        "source_span": "preserve lexer span contract"
+      },
+      "current_observation": "Existing syntax tests cover illegal escapes; do not manufacture an emitted value",
+      "readiness": "ready"
+    },
+    {
+      "id": "unknown_escape",
+      "boundary": "source diagnostics",
+      "input": {
+        "token": "\"\\q\""
+      },
+      "expected": {
+        "valid": false,
+        "code": "E1006",
+        "source_span": "preserve lexer span contract"
+      },
+      "current_observation": "Existing syntax tests cover illegal escapes",
+      "readiness": "ready"
+    }
+  ]
+}
