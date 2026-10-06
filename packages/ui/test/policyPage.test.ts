@@ -2,9 +2,13 @@ import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import type { PresentationContext } from "../../contracts/src/presentation.js";
 import {
+  isReadableSelector,
   policyDumpSections,
   policyPage,
+  resolveReadableSelector,
+  selectReadableLeaves,
   type PolicyDump,
+  type ReadableModelSchema,
 } from "../src/policyPage.js";
 
 function makeContext(overrides: Partial<PresentationContext> = {}): PresentationContext {
@@ -178,5 +182,140 @@ describe("policyPage", () => {
     });
     assert.ok(!html.includes("<script>"), "no raw script");
     assert.ok(html.includes("x&quot;&gt;&lt;script&gt;"), "escaped heading");
+  });
+});
+
+const PARITY_MODEL: ReadableModelSchema = {
+  fields: {
+    title: { kind: "scalar" },
+    owner: { kind: "reference" },
+    amount: { kind: "money" },
+    request: { kind: "delivery" },
+    shipment: { kind: "delivery", opaque: true },
+  },
+  parent: "Program",
+};
+
+describe("readable selectors (A5 T08 parity)", () => {
+  it("S1: accepts bare id/version roots as terminal metadata (A pin a5_s1_ui_columns_accept_id_version)", () => {
+    const selection = selectReadableLeaves(PARITY_MODEL, ["id", "version", "title", "created"]);
+    assert.deepEqual(
+      selection.resolved.map((entry) => [entry.selector, entry.leaf]),
+      [
+        ["id", "metadata"],
+        ["version", "metadata"],
+        ["title", "field"],
+        ["created", "metadata"],
+      ],
+    );
+    assert.deepEqual(selection.failed, []);
+    for (const entry of selection.resolved) {
+      assert.equal(entry.fact, null);
+      assert.equal(entry.permission, null);
+      assert.equal(entry.writable, false);
+    }
+  });
+
+  it("S1: rejects id/version descent (A pin a5_s1_id_version_descent_rejected)", () => {
+    for (const selector of ["id.tag", "version.n"]) {
+      const result = resolveReadableSelector(PARITY_MODEL, selector);
+      assert.equal(result.ok, false);
+      assert.ok(result.ok === false && result.reason.includes("descends past terminal metadata"));
+    }
+  });
+
+  it("S2: accepts delivery leaves in projections, rejects them in predicates", () => {
+    const projected = resolveReadableSelector(PARITY_MODEL, "request.status", "projection");
+    assert.equal(projected.ok, true);
+    assert.ok(projected.ok && projected.leaf === "delivery");
+    const defaulted = resolveReadableSelector(PARITY_MODEL, "request.status");
+    assert.equal(defaulted.ok, true);
+    const predicated = resolveReadableSelector(PARITY_MODEL, "request.status", "predicate");
+    assert.equal(predicated.ok, false);
+    assert.deepEqual(
+      predicated.ok === false ? predicated.reason : null,
+      `selector "request.status" addresses delivery 'request' in a predicate: ` +
+        `delivery leaves resolve only in projections, never in filter=/search=`,
+    );
+  });
+
+  it("S2: helpers thread the predicate context; bare delivery roots stay readable", () => {
+    assert.equal(isReadableSelector(PARITY_MODEL, "request.result", "predicate"), false);
+    assert.equal(isReadableSelector(PARITY_MODEL, "request.result"), true);
+    assert.equal(isReadableSelector(PARITY_MODEL, "request", "predicate"), true);
+    const selection = selectReadableLeaves(PARITY_MODEL, ["request.error", "title"], "predicate");
+    assert.deepEqual(
+      selection.resolved.map((entry) => entry.selector),
+      ["title"],
+    );
+    assert.deepEqual(
+      selection.failed.map((entry) => entry.selector),
+      ["request.error"],
+    );
+  });
+
+  it("S2: rejects unknown contexts with a TypeError", () => {
+    assert.throws(
+      () => resolveReadableSelector(PARITY_MODEL, "title", "filter" as never),
+      new TypeError("resolveReadableSelector: context must be 'projection' or 'predicate'"),
+    );
+  });
+
+  it("S3: opaque delivery fields defer progress and unknown interiors (CanChat:28 shape)", () => {
+    for (const selector of ["shipment.progress.state", "shipment.progress.detail", "shipment.bogus"]) {
+      const result = resolveReadableSelector(PARITY_MODEL, selector);
+      assert.equal(result.ok, true, selector);
+      assert.ok(result.ok && result.leaf === "deferred", selector);
+      assert.ok(result.ok && result.fact === null && result.writable === false, selector);
+    }
+  });
+
+  it("S3: declared delivery fields still reject progress and unknown members", () => {
+    const progress = resolveReadableSelector(PARITY_MODEL, "request.progress.state");
+    assert.equal(progress.ok, false);
+    assert.ok(
+      progress.ok === false && progress.reason.includes("nested progress needs receipt-observation"),
+    );
+    const unknown = resolveReadableSelector(PARITY_MODEL, "request.bogus");
+    assert.equal(unknown.ok, false);
+    assert.ok(unknown.ok === false && unknown.reason.includes("unknown member 'bogus'"));
+  });
+
+  it("S3: opaque models defer unknown roots but resolve declared paths normally", () => {
+    const opaque: ReadableModelSchema = { ...PARITY_MODEL, opaque: true };
+    const deferred = resolveReadableSelector(opaque, "whatever.deep.path");
+    assert.equal(deferred.ok, true);
+    assert.ok(deferred.ok && deferred.leaf === "deferred");
+    const plain = resolveReadableSelector(PARITY_MODEL, "whatever");
+    assert.equal(plain.ok, false);
+    assert.deepEqual(plain.ok === false ? plain.reason : null, "unknown member 'whatever'");
+    assert.equal(isReadableSelector(opaque, "title"), true);
+    assert.equal(isReadableSelector(opaque, "parent"), true);
+    assert.equal(isReadableSelector(opaque, "created"), true);
+  });
+
+  it("S4 pin: reference interiors stay rejected in projections and predicates", () => {
+    for (const context of ["projection", "predicate"] as const) {
+      const declared = resolveReadableSelector(PARITY_MODEL, "owner.id", context);
+      assert.equal(declared.ok, false, context);
+      assert.deepEqual(
+        declared.ok === false ? declared.reason : null,
+        `selector "owner.id" traverses reference 'owner': ` +
+          `selectors cannot grant another record's fields`,
+        context,
+      );
+    }
+  });
+
+  it("S4 pin: reserved-root reference interiors stay rejected (created_by.id)", () => {
+    for (const context of ["projection", "predicate"] as const) {
+      const reserved = resolveReadableSelector(PARITY_MODEL, "created_by.id", context);
+      assert.equal(reserved.ok, false, context);
+      assert.deepEqual(
+        reserved.ok === false ? reserved.reason : null,
+        `selector "created_by.id" descends past terminal metadata 'created_by'`,
+        context,
+      );
+    }
   });
 });
