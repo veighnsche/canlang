@@ -5,20 +5,32 @@
   "checkpoint_advanced": false,
   "initial_main": "2b22cb4ecf637cce4bf90a17238cce12de045ba4",
   "current_merge": {
-    "branch": "codex/remaining-lane-a-compiler",
-    "tip": "d7aea366046da1141edf172436977b02abdffb97",
-    "before": "83048732fa80e5bbf599e29f02abeba673d23cf2",
-    "scope": "retained compiler proposal/routing records; implementation already integrated",
+    "branch": "audit/input-validation-review",
+    "tip": "e5d5758d6ee8b557ddbef8c878046f57431684ba",
+    "before": "3f47f4fd318e3f3ad28fab8eccbf427d7f060864",
+    "scope": "retained historical input-validation audit at its original scope",
     "merge_output": "Automatic merge went well; stopped before committing as requested\n",
     "source_delta": [
-      "A\tcompiler/A2B-COMPOSITE-UNIQUE-CONVENTION.md",
-      "A\tcompiler/A2B-NAMED-ARGS-CONVENTION.md",
-      "A\tcompiler/A2B-ROUTING.json",
-      "A\tcompiler/A2B-UI-NODE-FACTORY-CONVENTION.md",
-      "A\tcompiler/A5-T08-PARITY-PROPOSAL.md"
+      "A\tdocs/research/package-subsystem-ports-20261006/implementation-plans/input-validation.audit.md"
     ]
   },
-  "previous_merges": [],
+  "previous_merges": [
+    {
+      "branch": "codex/remaining-lane-a-compiler",
+      "tip": "d7aea366046da1141edf172436977b02abdffb97",
+      "before": "83048732fa80e5bbf599e29f02abeba673d23cf2",
+      "scope": "retained compiler proposal/routing records; implementation already integrated",
+      "merge_output": "Automatic merge went well; stopped before committing as requested\n",
+      "source_delta": [
+        "A\tcompiler/A2B-COMPOSITE-UNIQUE-CONVENTION.md",
+        "A\tcompiler/A2B-NAMED-ARGS-CONVENTION.md",
+        "A\tcompiler/A2B-ROUTING.json",
+        "A\tcompiler/A2B-UI-NODE-FACTORY-CONVENTION.md",
+        "A\tcompiler/A5-T08-PARITY-PROPOSAL.md"
+      ],
+      "result": "3f47f4fd318e3f3ad28fab8eccbf427d7f060864"
+    }
+  ],
   "accumulated_structural_delta_since_complete_checkpoint": [
     "A\t.github/ci/README.md",
     "A\t.github/ci/ts-gate.mjs",
@@ -181,6 +193,7 @@
     "A\tdocs/ideal-filetree-plan/allocations.json",
     "A\tdocs/ideal-filetree-plan/backlog.json",
     "A\tdocs/ideal-filetree-plan/baseline.md",
+    "A\tdocs/ideal-filetree-plan/consolidation-20261006.json",
     "A\tdocs/ideal-filetree-plan/consultations.md",
     "A\tdocs/ideal-filetree-plan/desired-tree.md",
     "A\tdocs/ideal-filetree-plan/findings.md",
@@ -447,6 +460,7 @@
     "A\tdocs/research/package-subsystem-ports-20261006/implementation-plans/exact-values.md",
     "A\tdocs/research/package-subsystem-ports-20261006/implementation-plans/exact-values.tasks.json",
     "A\tdocs/research/package-subsystem-ports-20261006/implementation-plans/execution-manifest.json",
+    "A\tdocs/research/package-subsystem-ports-20261006/implementation-plans/input-validation.audit.md",
     "A\tdocs/research/package-subsystem-ports-20261006/implementation-plans/input-validation.md",
     "A\tdocs/research/package-subsystem-ports-20261006/implementation-plans/input-validation.tasks.json",
     "A\tdocs/research/package-subsystem-ports-20261006/implementation-plans/shared.tasks.json",
