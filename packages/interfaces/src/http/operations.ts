@@ -37,7 +37,7 @@ import type {
 } from '@canlang/contracts';
 import { IdentityError, deriveCsrfToken } from '@canlang/identity';
 import type { HttpDeps, OperationInputShape, SchemaCatalog } from '../ports.js';
-import { checkArtifactOperation, checkArtifactOperations, isDeliveryField } from '../mcp/schemas.js';
+import { checkArtifactOperation, checkArtifactOperations, checkBoundArguments, isDeliveryField } from '../mcp/schemas.js';
 import type {
   ArtifactOperationSlice,
   CheckedArtifactDeliveryField,
@@ -247,6 +247,17 @@ export async function handleOperationRequest(
     const closedError = checkClosedInputs(businessInputs, shape);
     if (closedError !== null) {
       return denyOrRerender(deps, request, operation, closedError, seen, authed);
+    }
+    // E1 bound-input wiring: framing first, then each present value binds
+    // to its derived declaration (delivery binds to nothing — submitted
+    // receipts fail here when framing admits them). Catalogs without the
+    // derived channel keep framing-only behavior.
+    const derived = deps.catalog.derivedFor?.(operation) ?? null;
+    if (derived !== null) {
+      const boundError = checkBoundArguments(derived, businessInputs);
+      if (boundError !== null) {
+        return denyOrRerender(deps, request, operation, boundError, seen, authed);
+      }
     }
 
     const envelope: MutationEnvelope = { operation, operation_id: operationId, inputs: businessInputs };

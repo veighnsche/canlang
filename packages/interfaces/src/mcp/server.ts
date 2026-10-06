@@ -56,7 +56,7 @@ import { logBusinessError, logInternalError } from '../errors/logging.js';
 import { checkClosedInputs, validateOperationId } from '../envelope/validate.js';
 import { parseMutationRef, parseReadRef } from '../envelope/refs.js';
 import { listToolsFor } from './discovery.js';
-import { handleModeAllowed } from './schemas.js';
+import { checkBoundArguments, handleModeAllowed } from './schemas.js';
 import { wwwAuthenticateChallenge } from '../oauth/metadata.js';
 
 /** MCP server version advertised in `serverInfo`. */
@@ -261,6 +261,15 @@ async function invokeHandleMode(
       inputs[named.name] = args[named.name];
     }
   }
+  // E1 bound-input wiring for handle mode: the sealed handle is not a
+  // derived member, so the checker binds the carried non-ref values only.
+  const derived = deps.catalog.derivedFor?.(descriptor.name) ?? null;
+  if (derived !== null) {
+    const boundError = checkBoundArguments(derived, inputs);
+    if (boundError !== null) {
+      throw new McpError(ErrorCode.InvalidParams, boundError.message);
+    }
+  }
   const envelope: MutationEnvelope = {
     operation: descriptor.name,
     operation_id: operationId,
@@ -331,6 +340,16 @@ async function invokeOrdinaryMode(
       if ('error' in parsed) {
         throw new McpError(ErrorCode.InvalidParams, parsed.error.message);
       }
+    }
+  }
+  // E1 bound-input wiring: framing first (above), then each present value
+  // binds to its derived declaration. Catalogs without the derived
+  // channel keep framing-only behavior.
+  const derived = deps.catalog.derivedFor?.(descriptor.name) ?? null;
+  if (derived !== null) {
+    const boundError = checkBoundArguments(derived, businessInputs);
+    if (boundError !== null) {
+      throw new McpError(ErrorCode.InvalidParams, boundError.message);
     }
   }
   if (mutation) {
