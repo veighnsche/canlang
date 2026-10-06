@@ -648,8 +648,11 @@ fn display_type(program: &CheckedProgram, module: ModuleId, ty: &ResolvedType) -
         ResolvedType::Enum { cases, .. } => format!("enum({})", cases.join(",")),
         ResolvedType::Record { symbol, .. } => name(*symbol),
         ResolvedType::Message(id) => format!("message {}", name(*id)),
-        ResolvedType::Action { targets, .. } => {
-            let ops: Vec<String> = targets.iter().map(|t| name(*t)).collect();
+        ResolvedType::Action {
+            targets, external, ..
+        } => {
+            let mut ops: Vec<String> = targets.iter().map(|t| name(*t)).collect();
+            ops.extend(external.iter().cloned());
             format!("action({})", ops.join(","))
         }
         ResolvedType::Invocation { targets } => {
