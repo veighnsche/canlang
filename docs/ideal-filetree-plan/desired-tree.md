@@ -2645,4 +2645,49 @@ tools/test_jev.py
 tsconfig.base.json
 tsconfig.check.json
 vitest.config.ts
+docs/ideal-filetree-plan/main-merge-20261006.json [B]
+implementation/REMAINING-IMPLEMENTATION-LANES.md
+implementation/challenge-audit-run/recovery-checkpoint.md
+packages/cloudflare/test/runtime/t34-f7-fanout-durable.test.ts [+]
+packages/cloudflare/test/runtime/t34-f7-fanout.test.ts [+]
+packages/contracts/test/fanout-records.test.ts
+packages/contracts/test/t19a-derived-inputs.test.ts
+packages/contracts/test/t19b-depth.test.ts
+packages/contracts/test/t20a-presentation.test.ts
+packages/contracts/test/t26-progress-relations.test.ts
+packages/interfaces/test/t19a-derivation.test.ts
+packages/interfaces/test/t19b-depth.test.ts
+packages/interfaces/test/t20a-presentation.test.ts
+packages/state/src/fanout/cohort.ts
+packages/state/src/fanout/lifecycle.ts
+packages/state/src/fanout/membership.ts
+packages/state/src/fanout/outcome.ts
+packages/state/src/fanout/progress.ts
+packages/state/src/fanout/tables.ts
+packages/state/src/receipt/grants.ts
+packages/state/src/receipt/join.ts
+packages/state/src/receipt/tables.ts
+packages/state/test/fanout/t34-f5-admission.test.ts [+]
+packages/state/test/fanout/t34-f5-child-join.test.ts [+]
+packages/state/test/fanout/t34-f5-durable.test.ts [+]
+packages/state/test/fanout/t34-f5-lifecycle.test.ts [+]
+packages/state/test/fanout/t34-f5-membership.test.ts [+]
+packages/state/test/fanout/t34-f5-progress.test.ts [+]
+packages/state/test/fanout/test-driver.ts [+]
+packages/state/test/fanout/work-loader.ts [+]
+packages/state/test/mutation/t18-defaults-durable.test.ts [+]
+packages/state/test/receipt/t25-receipt-durable.test.ts [+]
+packages/state/test/receipt/t25-receipt-join.test.ts [+]
+packages/state/test/receipt/work-loader.ts [+]
+packages/ui/test/t20a-generated-forms.test.ts
+packages/work/test/dispatch/t34-f3-claim.test.ts [+]
+packages/work/test/dispatch/t34-f3-progress.test.ts [+]
+packages/work/test/dispatch/t34-f3-record.test.ts [+]
+packages/work/test/kernel/t34-f2-durable.test.ts [+]
+packages/work/test/kernel/t34-f2-tables.test.ts [+]
+packages/work/test/observation/t26-progress.test.ts [+]
+packages/work/test/recovery/t26-durable.test.ts [+]
+packages/work/test/recovery/t26-resume.test.ts [+]
+packages/work/test/recovery/t34-f4-durable.test.ts [+]
+packages/work/test/recovery/t34-f4-scan.test.ts [+]
 ```

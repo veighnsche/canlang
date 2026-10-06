@@ -2,6 +2,12 @@
 
 This is the current planning entry point for `/Users/vince/Projects/canlang`. The audit stops at reviewed ownership, exact target allocations, dependency-ordered tasks and future parallel lanes. It authorizes no implementation, product test/build, install, service/database operation, Git mutation or dispatch.
 
+Current maintenance: the branch history is now on `main`; the implementation is
+user-stopped. The [main-merge reconciliation](ideal-filetree-plan/main-merge-20261006.json)
+updates path accountability and current decisions through `1126544`. The original
+audit paragraphs below retain their historical capture scope; they do not establish
+current product acceptance or imply active writers.
+
 | Baseline | Value |
 | --- | --- |
 | Permanent initial review | `e93adebb3397ef2545efee82006d8227bc361518` |
@@ -49,3 +55,26 @@ After **every merge**, its handler must reconcile all accumulated changes since 
 Final structural capture also records `c300d467b3863fd096d81e8666152859ab36f028`, which landed T32 Cloudflare integration and two tests after the primary/T25 review. Those additions are allocated with deep review pending. The complete reconciliation checkpoint remains `8249342`; no late integration closure is inferred.
 
 The later `b82c0de` T34 planning/handoff record incorporates the corrected durable per-child direction. Actual producer contracts, exact authoritative membership, atomic checkpoints/recovery and qualification remain implementation obligations; the original-pinned backlog remains historical.
+
+## Main merge reconciliation, 2026-10-06
+
+All 118 branch commits were fast-forwarded onto `main` through `1126544`, preserving
+their hashes and the exact source tree. The [merge record](ideal-filetree-plan/main-merge-20261006.json)
+accounts for all 487 changed paths since the complete checkpoint and registers
+44 newer source inputs with exact defining owners/targets. Current structural
+coverage is updated; primary audit evidence remains pinned to its historical source.
+The complete checkpoint stays at `8249342`: deep joined-path review and product
+qualification remain unfinished. This bookkeeping is not implementation acceptance.
+
+F1–F5 fanout mechanisms, T25 receipt persistence/fences, T18 engine initialization,
+T19 derivation and T20 form factories now exist in committed source. F6/F7/T26 are
+explicitly unfinished checkpoints. Historical blanket absence claims are superseded
+at that mechanism scope; generated serving, production receipt/default/form joins,
+C05 discovery/import cutover, C08/C09 and original R01 remain open. New test drivers
+and colocated witnesses have testing successors gated on actual caller/discovery
+cutover. Existing retirement decisions remain unchanged.
+
+The old implementation run is user-stopped, its heartbeat paused, and only the main
+checkout remains. No Muse instances, timers, worktrees or implementation are launched
+by this merge. The separate [remaining implementation plan](../implementation/REMAINING-IMPLEMENTATION-LANES.md)
+defines that finite authorized backlog; this file-tree plan does not expand it.

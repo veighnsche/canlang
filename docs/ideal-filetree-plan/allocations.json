@@ -1315,5 +1315,489 @@
     "gate": "C05 runner discovery and T25/T26 exact source-to-execution joins",
     "responsibility_record": "late T25 isolated mechanism test; preserve status/rejection fixtures without claiming full generated workflow",
     "packet": "R04"
+  },
+  {
+    "source": "implementation/REMAINING-IMPLEMENTATION-LANES.md",
+    "decision": "retain",
+    "destinations": [
+      "implementation/REMAINING-IMPLEMENTATION-LANES.md"
+    ],
+    "responsibility_record": "Retain implementation-evidence within its existing defining owner; no duplicate runtime authority",
+    "gate": "Retain authored context and dated evidence; no source move or runtime acceptance inferred",
+    "review": "Merged committed source registration and scoped read-only responsibility review; no product execution or semantic acceptance",
+    "packet": "R07"
+  },
+  {
+    "source": "implementation/challenge-audit-run/recovery-checkpoint.md",
+    "decision": "retain",
+    "destinations": [
+      "implementation/challenge-audit-run/recovery-checkpoint.md"
+    ],
+    "responsibility_record": "Retain implementation-evidence within its existing defining owner; no duplicate runtime authority",
+    "gate": "Retain authored context and dated evidence; no source move or runtime acceptance inferred",
+    "review": "Merged committed source registration and scoped read-only responsibility review; no product execution or semantic acceptance",
+    "packet": "R07"
+  },
+  {
+    "source": "packages/cloudflare/src/runtime/t34-f7-fanout-durable.test.ts",
+    "decision": "move-test-harness",
+    "destinations": [
+      "packages/cloudflare/test/runtime/t34-f7-fanout-durable.test.ts"
+    ],
+    "responsibility_record": "Testing-owned witness/driver; preserve actual imports and proof scope before relocation",
+    "gate": "C05/R08 discovery and relative-import cutover; owning C08/C09 proof before any move",
+    "review": "Merged committed source registration and scoped read-only responsibility review; no product execution or semantic acceptance",
+    "packet": "R06"
+  },
+  {
+    "source": "packages/cloudflare/src/runtime/t34-f7-fanout.test.ts",
+    "decision": "move-test-harness",
+    "destinations": [
+      "packages/cloudflare/test/runtime/t34-f7-fanout.test.ts"
+    ],
+    "responsibility_record": "Testing-owned witness/driver; preserve actual imports and proof scope before relocation",
+    "gate": "C05/R08 discovery and relative-import cutover; owning C08/C09 proof before any move",
+    "review": "Merged committed source registration and scoped read-only responsibility review; no product execution or semantic acceptance",
+    "packet": "R06"
+  },
+  {
+    "source": "packages/contracts/test/fanout-records.test.ts",
+    "decision": "retain",
+    "destinations": [
+      "packages/contracts/test/fanout-records.test.ts"
+    ],
+    "responsibility_record": "Retain shared-contracts within its existing defining owner; no duplicate runtime authority",
+    "gate": "Owning producer/consumer and C08/C09/R01 qualification remain open; provenance is retained",
+    "review": "Merged committed source registration and scoped read-only responsibility review; no product execution or semantic acceptance",
+    "packet": "R02"
+  },
+  {
+    "source": "packages/contracts/test/t19a-derived-inputs.test.ts",
+    "decision": "retain",
+    "destinations": [
+      "packages/contracts/test/t19a-derived-inputs.test.ts"
+    ],
+    "responsibility_record": "Retain shared-contracts within its existing defining owner; no duplicate runtime authority",
+    "gate": "Owning producer/consumer and C08/C09/R01 qualification remain open; provenance is retained",
+    "review": "Merged committed source registration and scoped read-only responsibility review; no product execution or semantic acceptance",
+    "packet": "R02"
+  },
+  {
+    "source": "packages/contracts/test/t19b-depth.test.ts",
+    "decision": "retain",
+    "destinations": [
+      "packages/contracts/test/t19b-depth.test.ts"
+    ],
+    "responsibility_record": "Retain shared-contracts within its existing defining owner; no duplicate runtime authority",
+    "gate": "Owning producer/consumer and C08/C09/R01 qualification remain open; provenance is retained",
+    "review": "Merged committed source registration and scoped read-only responsibility review; no product execution or semantic acceptance",
+    "packet": "R02"
+  },
+  {
+    "source": "packages/contracts/test/t20a-presentation.test.ts",
+    "decision": "retain",
+    "destinations": [
+      "packages/contracts/test/t20a-presentation.test.ts"
+    ],
+    "responsibility_record": "Retain shared-contracts within its existing defining owner; no duplicate runtime authority",
+    "gate": "Owning producer/consumer and C08/C09/R01 qualification remain open; provenance is retained",
+    "review": "Merged committed source registration and scoped read-only responsibility review; no product execution or semantic acceptance",
+    "packet": "R02"
+  },
+  {
+    "source": "packages/contracts/test/t26-progress-relations.test.ts",
+    "decision": "retain",
+    "destinations": [
+      "packages/contracts/test/t26-progress-relations.test.ts"
+    ],
+    "responsibility_record": "Retain shared-contracts within its existing defining owner; no duplicate runtime authority",
+    "gate": "Owning producer/consumer and C08/C09/R01 qualification remain open; provenance is retained",
+    "review": "Merged committed source registration and scoped read-only responsibility review; no product execution or semantic acceptance",
+    "packet": "R02"
+  },
+  {
+    "source": "packages/interfaces/test/t19a-derivation.test.ts",
+    "decision": "retain",
+    "destinations": [
+      "packages/interfaces/test/t19a-derivation.test.ts"
+    ],
+    "responsibility_record": "Retain interfaces within its existing defining owner; no duplicate runtime authority",
+    "gate": "Owning producer/consumer and C08/C09/R01 qualification remain open; provenance is retained",
+    "review": "Merged committed source registration and scoped read-only responsibility review; no product execution or semantic acceptance",
+    "packet": "R05"
+  },
+  {
+    "source": "packages/interfaces/test/t19b-depth.test.ts",
+    "decision": "retain",
+    "destinations": [
+      "packages/interfaces/test/t19b-depth.test.ts"
+    ],
+    "responsibility_record": "Retain interfaces within its existing defining owner; no duplicate runtime authority",
+    "gate": "Owning producer/consumer and C08/C09/R01 qualification remain open; provenance is retained",
+    "review": "Merged committed source registration and scoped read-only responsibility review; no product execution or semantic acceptance",
+    "packet": "R05"
+  },
+  {
+    "source": "packages/interfaces/test/t20a-presentation.test.ts",
+    "decision": "retain",
+    "destinations": [
+      "packages/interfaces/test/t20a-presentation.test.ts"
+    ],
+    "responsibility_record": "Retain interfaces within its existing defining owner; no duplicate runtime authority",
+    "gate": "Owning producer/consumer and C08/C09/R01 qualification remain open; provenance is retained",
+    "review": "Merged committed source registration and scoped read-only responsibility review; no product execution or semantic acceptance",
+    "packet": "R05"
+  },
+  {
+    "source": "packages/state/src/fanout/cohort.ts",
+    "decision": "retain",
+    "destinations": [
+      "packages/state/src/fanout/cohort.ts"
+    ],
+    "responsibility_record": "Retain canonical-state within its existing defining owner; no duplicate runtime authority",
+    "gate": "Owning producer/consumer and C08/C09/R01 qualification remain open; provenance is retained",
+    "review": "Merged committed source registration and scoped read-only responsibility review; no product execution or semantic acceptance",
+    "packet": "R03"
+  },
+  {
+    "source": "packages/state/src/fanout/lifecycle.ts",
+    "decision": "retain",
+    "destinations": [
+      "packages/state/src/fanout/lifecycle.ts"
+    ],
+    "responsibility_record": "Retain canonical-state within its existing defining owner; no duplicate runtime authority",
+    "gate": "Owning producer/consumer and C08/C09/R01 qualification remain open; provenance is retained",
+    "review": "Merged committed source registration and scoped read-only responsibility review; no product execution or semantic acceptance",
+    "packet": "R03"
+  },
+  {
+    "source": "packages/state/src/fanout/membership.ts",
+    "decision": "retain",
+    "destinations": [
+      "packages/state/src/fanout/membership.ts"
+    ],
+    "responsibility_record": "Retain canonical-state within its existing defining owner; no duplicate runtime authority",
+    "gate": "Owning producer/consumer and C08/C09/R01 qualification remain open; provenance is retained",
+    "review": "Merged committed source registration and scoped read-only responsibility review; no product execution or semantic acceptance",
+    "packet": "R03"
+  },
+  {
+    "source": "packages/state/src/fanout/outcome.ts",
+    "decision": "retain",
+    "destinations": [
+      "packages/state/src/fanout/outcome.ts"
+    ],
+    "responsibility_record": "Retain canonical-state within its existing defining owner; no duplicate runtime authority",
+    "gate": "Owning producer/consumer and C08/C09/R01 qualification remain open; provenance is retained",
+    "review": "Merged committed source registration and scoped read-only responsibility review; no product execution or semantic acceptance",
+    "packet": "R03"
+  },
+  {
+    "source": "packages/state/src/fanout/progress.ts",
+    "decision": "retain",
+    "destinations": [
+      "packages/state/src/fanout/progress.ts"
+    ],
+    "responsibility_record": "Retain canonical-state within its existing defining owner; no duplicate runtime authority",
+    "gate": "Owning producer/consumer and C08/C09/R01 qualification remain open; provenance is retained",
+    "review": "Merged committed source registration and scoped read-only responsibility review; no product execution or semantic acceptance",
+    "packet": "R03"
+  },
+  {
+    "source": "packages/state/src/fanout/t34-f5-admission.test.ts",
+    "decision": "move-test-harness",
+    "destinations": [
+      "packages/state/test/fanout/t34-f5-admission.test.ts"
+    ],
+    "responsibility_record": "Testing-owned witness/driver; preserve actual imports and proof scope before relocation",
+    "gate": "C05/R08 discovery and relative-import cutover; owning C08/C09 proof before any move",
+    "review": "Merged committed source registration and scoped read-only responsibility review; no product execution or semantic acceptance",
+    "packet": "R03"
+  },
+  {
+    "source": "packages/state/src/fanout/t34-f5-child-join.test.ts",
+    "decision": "move-test-harness",
+    "destinations": [
+      "packages/state/test/fanout/t34-f5-child-join.test.ts"
+    ],
+    "responsibility_record": "Testing-owned witness/driver; preserve actual imports and proof scope before relocation",
+    "gate": "C05/R08 discovery and relative-import cutover; owning C08/C09 proof before any move",
+    "review": "Merged committed source registration and scoped read-only responsibility review; no product execution or semantic acceptance",
+    "packet": "R03"
+  },
+  {
+    "source": "packages/state/src/fanout/t34-f5-durable.test.ts",
+    "decision": "move-test-harness",
+    "destinations": [
+      "packages/state/test/fanout/t34-f5-durable.test.ts"
+    ],
+    "responsibility_record": "Testing-owned witness/driver; preserve actual imports and proof scope before relocation",
+    "gate": "C05/R08 discovery and relative-import cutover; owning C08/C09 proof before any move",
+    "review": "Merged committed source registration and scoped read-only responsibility review; no product execution or semantic acceptance",
+    "packet": "R03"
+  },
+  {
+    "source": "packages/state/src/fanout/t34-f5-lifecycle.test.ts",
+    "decision": "move-test-harness",
+    "destinations": [
+      "packages/state/test/fanout/t34-f5-lifecycle.test.ts"
+    ],
+    "responsibility_record": "Testing-owned witness/driver; preserve actual imports and proof scope before relocation",
+    "gate": "C05/R08 discovery and relative-import cutover; owning C08/C09 proof before any move",
+    "review": "Merged committed source registration and scoped read-only responsibility review; no product execution or semantic acceptance",
+    "packet": "R03"
+  },
+  {
+    "source": "packages/state/src/fanout/t34-f5-membership.test.ts",
+    "decision": "move-test-harness",
+    "destinations": [
+      "packages/state/test/fanout/t34-f5-membership.test.ts"
+    ],
+    "responsibility_record": "Testing-owned witness/driver; preserve actual imports and proof scope before relocation",
+    "gate": "C05/R08 discovery and relative-import cutover; owning C08/C09 proof before any move",
+    "review": "Merged committed source registration and scoped read-only responsibility review; no product execution or semantic acceptance",
+    "packet": "R03"
+  },
+  {
+    "source": "packages/state/src/fanout/t34-f5-progress.test.ts",
+    "decision": "move-test-harness",
+    "destinations": [
+      "packages/state/test/fanout/t34-f5-progress.test.ts"
+    ],
+    "responsibility_record": "Testing-owned witness/driver; preserve actual imports and proof scope before relocation",
+    "gate": "C05/R08 discovery and relative-import cutover; owning C08/C09 proof before any move",
+    "review": "Merged committed source registration and scoped read-only responsibility review; no product execution or semantic acceptance",
+    "packet": "R03"
+  },
+  {
+    "source": "packages/state/src/fanout/tables.ts",
+    "decision": "retain",
+    "destinations": [
+      "packages/state/src/fanout/tables.ts"
+    ],
+    "responsibility_record": "Retain canonical-state within its existing defining owner; no duplicate runtime authority",
+    "gate": "Owning producer/consumer and C08/C09/R01 qualification remain open; provenance is retained",
+    "review": "Merged committed source registration and scoped read-only responsibility review; no product execution or semantic acceptance",
+    "packet": "R03"
+  },
+  {
+    "source": "packages/state/src/fanout/test-driver.ts",
+    "decision": "move-test-harness",
+    "destinations": [
+      "packages/state/test/fanout/test-driver.ts"
+    ],
+    "responsibility_record": "Testing-owned witness/driver; preserve actual imports and proof scope before relocation",
+    "gate": "C05/R08 discovery and relative-import cutover; owning C08/C09 proof before any move",
+    "review": "Merged committed source registration and scoped read-only responsibility review; no product execution or semantic acceptance",
+    "packet": "R03"
+  },
+  {
+    "source": "packages/state/src/fanout/work-loader.ts",
+    "decision": "move-test-harness",
+    "destinations": [
+      "packages/state/test/fanout/work-loader.ts"
+    ],
+    "responsibility_record": "Testing-owned witness/driver; preserve actual imports and proof scope before relocation",
+    "gate": "C05/R08 discovery and relative-import cutover; owning C08/C09 proof before any move",
+    "review": "Merged committed source registration and scoped read-only responsibility review; no product execution or semantic acceptance",
+    "packet": "R03"
+  },
+  {
+    "source": "packages/state/src/mutation/t18-defaults-durable.test.ts",
+    "decision": "move-test-harness",
+    "destinations": [
+      "packages/state/test/mutation/t18-defaults-durable.test.ts"
+    ],
+    "responsibility_record": "Testing-owned witness/driver; preserve actual imports and proof scope before relocation",
+    "gate": "C05/R08 discovery and relative-import cutover; owning C08/C09 proof before any move",
+    "review": "Merged committed source registration and scoped read-only responsibility review; no product execution or semantic acceptance",
+    "packet": "R03"
+  },
+  {
+    "source": "packages/state/src/receipt/grants.ts",
+    "decision": "retain",
+    "destinations": [
+      "packages/state/src/receipt/grants.ts"
+    ],
+    "responsibility_record": "Retain canonical-state within its existing defining owner; no duplicate runtime authority",
+    "gate": "Owning producer/consumer and C08/C09/R01 qualification remain open; provenance is retained",
+    "review": "Merged committed source registration and scoped read-only responsibility review; no product execution or semantic acceptance",
+    "packet": "R03"
+  },
+  {
+    "source": "packages/state/src/receipt/join.ts",
+    "decision": "retain",
+    "destinations": [
+      "packages/state/src/receipt/join.ts"
+    ],
+    "responsibility_record": "Retain canonical-state within its existing defining owner; no duplicate runtime authority",
+    "gate": "Owning producer/consumer and C08/C09/R01 qualification remain open; provenance is retained",
+    "review": "Merged committed source registration and scoped read-only responsibility review; no product execution or semantic acceptance",
+    "packet": "R03"
+  },
+  {
+    "source": "packages/state/src/receipt/t25-receipt-durable.test.ts",
+    "decision": "move-test-harness",
+    "destinations": [
+      "packages/state/test/receipt/t25-receipt-durable.test.ts"
+    ],
+    "responsibility_record": "Testing-owned witness/driver; preserve actual imports and proof scope before relocation",
+    "gate": "C05/R08 discovery and relative-import cutover; owning C08/C09 proof before any move",
+    "review": "Merged committed source registration and scoped read-only responsibility review; no product execution or semantic acceptance",
+    "packet": "R03"
+  },
+  {
+    "source": "packages/state/src/receipt/t25-receipt-join.test.ts",
+    "decision": "move-test-harness",
+    "destinations": [
+      "packages/state/test/receipt/t25-receipt-join.test.ts"
+    ],
+    "responsibility_record": "Testing-owned witness/driver; preserve actual imports and proof scope before relocation",
+    "gate": "C05/R08 discovery and relative-import cutover; owning C08/C09 proof before any move",
+    "review": "Merged committed source registration and scoped read-only responsibility review; no product execution or semantic acceptance",
+    "packet": "R03"
+  },
+  {
+    "source": "packages/state/src/receipt/tables.ts",
+    "decision": "retain",
+    "destinations": [
+      "packages/state/src/receipt/tables.ts"
+    ],
+    "responsibility_record": "Retain canonical-state within its existing defining owner; no duplicate runtime authority",
+    "gate": "Owning producer/consumer and C08/C09/R01 qualification remain open; provenance is retained",
+    "review": "Merged committed source registration and scoped read-only responsibility review; no product execution or semantic acceptance",
+    "packet": "R03"
+  },
+  {
+    "source": "packages/state/src/receipt/work-loader.ts",
+    "decision": "move-test-harness",
+    "destinations": [
+      "packages/state/test/receipt/work-loader.ts"
+    ],
+    "responsibility_record": "Testing-owned witness/driver; preserve actual imports and proof scope before relocation",
+    "gate": "C05/R08 discovery and relative-import cutover; owning C08/C09 proof before any move",
+    "review": "Merged committed source registration and scoped read-only responsibility review; no product execution or semantic acceptance",
+    "packet": "R03"
+  },
+  {
+    "source": "packages/ui/test/t20a-generated-forms.test.ts",
+    "decision": "retain",
+    "destinations": [
+      "packages/ui/test/t20a-generated-forms.test.ts"
+    ],
+    "responsibility_record": "Retain presentation within its existing defining owner; no duplicate runtime authority",
+    "gate": "Owning producer/consumer and C08/C09/R01 qualification remain open; provenance is retained",
+    "review": "Merged committed source registration and scoped read-only responsibility review; no product execution or semantic acceptance",
+    "packet": "R05"
+  },
+  {
+    "source": "packages/work/src/dispatch/t34-f3-claim.test.ts",
+    "decision": "move-test-harness",
+    "destinations": [
+      "packages/work/test/dispatch/t34-f3-claim.test.ts"
+    ],
+    "responsibility_record": "Testing-owned witness/driver; preserve actual imports and proof scope before relocation",
+    "gate": "C05/R08 discovery and relative-import cutover; owning C08/C09 proof before any move",
+    "review": "Merged committed source registration and scoped read-only responsibility review; no product execution or semantic acceptance",
+    "packet": "R04"
+  },
+  {
+    "source": "packages/work/src/dispatch/t34-f3-progress.test.ts",
+    "decision": "move-test-harness",
+    "destinations": [
+      "packages/work/test/dispatch/t34-f3-progress.test.ts"
+    ],
+    "responsibility_record": "Testing-owned witness/driver; preserve actual imports and proof scope before relocation",
+    "gate": "C05/R08 discovery and relative-import cutover; owning C08/C09 proof before any move",
+    "review": "Merged committed source registration and scoped read-only responsibility review; no product execution or semantic acceptance",
+    "packet": "R04"
+  },
+  {
+    "source": "packages/work/src/dispatch/t34-f3-record.test.ts",
+    "decision": "move-test-harness",
+    "destinations": [
+      "packages/work/test/dispatch/t34-f3-record.test.ts"
+    ],
+    "responsibility_record": "Testing-owned witness/driver; preserve actual imports and proof scope before relocation",
+    "gate": "C05/R08 discovery and relative-import cutover; owning C08/C09 proof before any move",
+    "review": "Merged committed source registration and scoped read-only responsibility review; no product execution or semantic acceptance",
+    "packet": "R04"
+  },
+  {
+    "source": "packages/work/src/kernel/t34-f2-durable.test.ts",
+    "decision": "move-test-harness",
+    "destinations": [
+      "packages/work/test/kernel/t34-f2-durable.test.ts"
+    ],
+    "responsibility_record": "Testing-owned witness/driver; preserve actual imports and proof scope before relocation",
+    "gate": "C05/R08 discovery and relative-import cutover; owning C08/C09 proof before any move",
+    "review": "Merged committed source registration and scoped read-only responsibility review; no product execution or semantic acceptance",
+    "packet": "R04"
+  },
+  {
+    "source": "packages/work/src/kernel/t34-f2-tables.test.ts",
+    "decision": "move-test-harness",
+    "destinations": [
+      "packages/work/test/kernel/t34-f2-tables.test.ts"
+    ],
+    "responsibility_record": "Testing-owned witness/driver; preserve actual imports and proof scope before relocation",
+    "gate": "C05/R08 discovery and relative-import cutover; owning C08/C09 proof before any move",
+    "review": "Merged committed source registration and scoped read-only responsibility review; no product execution or semantic acceptance",
+    "packet": "R04"
+  },
+  {
+    "source": "packages/work/src/observation/t26-progress.test.ts",
+    "decision": "move-test-harness",
+    "destinations": [
+      "packages/work/test/observation/t26-progress.test.ts"
+    ],
+    "responsibility_record": "Testing-owned witness/driver; preserve actual imports and proof scope before relocation",
+    "gate": "C05/R08 discovery and relative-import cutover; owning C08/C09 proof before any move",
+    "review": "Merged committed source registration and scoped read-only responsibility review; no product execution or semantic acceptance",
+    "packet": "R04"
+  },
+  {
+    "source": "packages/work/src/recovery/t26-durable.test.ts",
+    "decision": "move-test-harness",
+    "destinations": [
+      "packages/work/test/recovery/t26-durable.test.ts"
+    ],
+    "responsibility_record": "Testing-owned witness/driver; preserve actual imports and proof scope before relocation",
+    "gate": "C05/R08 discovery and relative-import cutover; owning C08/C09 proof before any move",
+    "review": "Merged committed source registration and scoped read-only responsibility review; no product execution or semantic acceptance",
+    "packet": "R04"
+  },
+  {
+    "source": "packages/work/src/recovery/t26-resume.test.ts",
+    "decision": "move-test-harness",
+    "destinations": [
+      "packages/work/test/recovery/t26-resume.test.ts"
+    ],
+    "responsibility_record": "Testing-owned witness/driver; preserve actual imports and proof scope before relocation",
+    "gate": "C05/R08 discovery and relative-import cutover; owning C08/C09 proof before any move",
+    "review": "Merged committed source registration and scoped read-only responsibility review; no product execution or semantic acceptance",
+    "packet": "R04"
+  },
+  {
+    "source": "packages/work/src/recovery/t34-f4-durable.test.ts",
+    "decision": "move-test-harness",
+    "destinations": [
+      "packages/work/test/recovery/t34-f4-durable.test.ts"
+    ],
+    "responsibility_record": "Testing-owned witness/driver; preserve actual imports and proof scope before relocation",
+    "gate": "C05/R08 discovery and relative-import cutover; owning C08/C09 proof before any move",
+    "review": "Merged committed source registration and scoped read-only responsibility review; no product execution or semantic acceptance",
+    "packet": "R04"
+  },
+  {
+    "source": "packages/work/src/recovery/t34-f4-scan.test.ts",
+    "decision": "move-test-harness",
+    "destinations": [
+      "packages/work/test/recovery/t34-f4-scan.test.ts"
+    ],
+    "responsibility_record": "Testing-owned witness/driver; preserve actual imports and proof scope before relocation",
+    "gate": "C05/R08 discovery and relative-import cutover; owning C08/C09 proof before any move",
+    "review": "Merged committed source registration and scoped read-only responsibility review; no product execution or semantic acceptance",
+    "packet": "R04"
   }
 ]

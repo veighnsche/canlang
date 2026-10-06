@@ -28,3 +28,26 @@ Keep the twelve semantic workspace owners while fixing their actual joins. A sin
 `tools/can_parser.py` remains in the target until its syntax-only parity and every active caller migrate. The editor's custom-client zero-dependency/empty-typeRoots policy is retained; replacement needs an explicit policy decision. `runtime/executors.ts` is a conditional retirement candidate: prove its real callers are absent or cut over to the one canonical work row producer, including durable parity, before removal. Node staging moves update CLI/dev/testkit/worker-boundary imports together. Memory storage moves preserve an explicit testing export and all durable/memory test imports. Common scenario validation moves require provider-wide differential evidence, not textual similarity.
 
 No whole-package retirement is selected. New app identity/policy/time/context facts require explicit producer-consumer cutovers before release. Existing artifact compatibility failures need documented diagnostics/recompilation/version policy. The exact leaf allocations and their gates are in [allocations.json](allocations.json); [tasks](tasks.md) own every split and join.
+
+## Main merge reconciliation, 2026-10-06
+
+All 118 branch commits were fast-forwarded onto `main` through `1126544`, preserving
+their hashes and the exact source tree. The [merge record](main-merge-20261006.json)
+accounts for all 487 changed paths since the complete checkpoint and registers
+44 newer source inputs with exact defining owners/targets. Current structural
+coverage is updated; primary audit evidence remains pinned to its historical source.
+The complete checkpoint stays at `8249342`: deep joined-path review and product
+qualification remain unfinished. This bookkeeping is not implementation acceptance.
+
+F1–F5 fanout mechanisms, T25 receipt persistence/fences, T18 engine initialization,
+T19 derivation and T20 form factories now exist in committed source. F6/F7/T26 are
+explicitly unfinished checkpoints. Historical blanket absence claims are superseded
+at that mechanism scope; generated serving, production receipt/default/form joins,
+C05 discovery/import cutover, C08/C09 and original R01 remain open. New test drivers
+and colocated witnesses have testing successors gated on actual caller/discovery
+cutover. Existing retirement decisions remain unchanged.
+
+The old implementation run is user-stopped, its heartbeat paused, and only the main
+checkout remains. No Muse instances, timers, worktrees or implementation are launched
+by this merge. The separate [remaining implementation plan](../../implementation/REMAINING-IMPLEMENTATION-LANES.md)
+defines that finite authorized backlog; this file-tree plan does not expand it.

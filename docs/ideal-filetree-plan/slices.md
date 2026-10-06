@@ -31,3 +31,26 @@ See the [compiler](reviews/compiler.md), [runtime](reviews/runtime.md), [platfor
 Final structural capture also records `c300d467b3863fd096d81e8666152859ab36f028`, which landed T32 Cloudflare integration and two tests after the primary/T25 review. Those additions are allocated with deep review pending. The complete reconciliation checkpoint remains `8249342`; no late integration closure is inferred.
 
 Later planning-only drift through `b82c0de` adds the T34 slice plan and coordinator adjudication/handoff record. The source was inspected as planning evidence: durable per-child direction is incorporated in that run, while actual fanout membership/checkpoint/recovery implementation and verification remain outstanding. Original-pinned checklist states in backlog.json are not relabeled as current.
+
+## Main merge reconciliation, 2026-10-06
+
+All 118 branch commits were fast-forwarded onto `main` through `1126544`, preserving
+their hashes and the exact source tree. The [merge record](main-merge-20261006.json)
+accounts for all 487 changed paths since the complete checkpoint and registers
+44 newer source inputs with exact defining owners/targets. Current structural
+coverage is updated; primary audit evidence remains pinned to its historical source.
+The complete checkpoint stays at `8249342`: deep joined-path review and product
+qualification remain unfinished. This bookkeeping is not implementation acceptance.
+
+F1–F5 fanout mechanisms, T25 receipt persistence/fences, T18 engine initialization,
+T19 derivation and T20 form factories now exist in committed source. F6/F7/T26 are
+explicitly unfinished checkpoints. Historical blanket absence claims are superseded
+at that mechanism scope; generated serving, production receipt/default/form joins,
+C05 discovery/import cutover, C08/C09 and original R01 remain open. New test drivers
+and colocated witnesses have testing successors gated on actual caller/discovery
+cutover. Existing retirement decisions remain unchanged.
+
+The old implementation run is user-stopped, its heartbeat paused, and only the main
+checkout remains. No Muse instances, timers, worktrees or implementation are launched
+by this merge. The separate [remaining implementation plan](../../implementation/REMAINING-IMPLEMENTATION-LANES.md)
+defines that finite authorized backlog; this file-tree plan does not expand it.

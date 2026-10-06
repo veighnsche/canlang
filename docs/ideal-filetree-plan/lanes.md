@@ -1,6 +1,6 @@
 # Parallel lanes and writer ownership
 
-This is a future scheduling plan, not a launched run. The checkout currently has external compiler/state/work/platform writers. Their exact reservations and releases must be obtained from the owning coordinator before any implementation dispatch. Preserve its finite original/supplemental goals.
+This is a future scheduling plan. The prior implementation was stopped by the user; its three prematurely allocated replacement worktrees were removed. Before any future dispatch, reconcile preserved source and establish the authorized coordinator, exact reservations and released handoffs. Preserve the finite original/supplemental goals.
 
 | Lane | Packets | Exclusive source families and joins |
 | --- | --- | --- |
@@ -14,6 +14,29 @@ This is a future scheduling plan, not a launched run. The checkout currently has
 
 Initial independent work can prepare G01 requirements, C04 identity/browser cases and C05 graph/test inventory while the C01 contract writer freezes producer facts. Then release C01 compiler/state/platform consumers in dependency order, followed by C02 context/app identity. C03 gate and C04 identity fixes can run together if shared env/auth files are explicitly disjoint. C05 configuration cutover serializes manifests/workflows. C06 installed journeys start only after producer joins; C08 follows individual original gates rather than waiting for unrelated fanout. R decompositions follow stabilized semantics, with R02 producer exports before dependent consumers; R08 closes the union.
 
-With three available worker slots, choose ready disjoint packets rather than equating the seven responsibility lanes with seven concurrent writers. Read-only challengers may work alongside writers only against a named immutable baseline. Integration checks use one agreed heavy-command slot; no foreign lock or cache is removed. This audit did not operate the external run's locks.
+Apply the user's current Muse hierarchy on authorized execution: more than four genuinely parallel lanes use a dedicated coordinator and separate implementer instances/worktrees; four or fewer use one coordinator's native subagents within its actual limit. Each implementer may use its locally limited subagents. Isolate mutable outputs and schedule expensive commands with explicit grants; there is no shared directory-lock protocol or global three-worker cap. Read-only challengers use a named immutable baseline. No execution or timer is started by this plan.
 
 Each dispatch must name exact current/successor files, frozen producer interface, requirement and failure cases, revision/dirty baseline, challenger, release evidence and verification scope. A packet completes when the intended path is exercised, not when code or a review document exists. After every merge, reconcile all accumulated changes into the single current plan before advancing its complete checkpoint.
+
+## Main merge reconciliation, 2026-10-06
+
+All 118 branch commits were fast-forwarded onto `main` through `1126544`, preserving
+their hashes and the exact source tree. The [merge record](main-merge-20261006.json)
+accounts for all 487 changed paths since the complete checkpoint and registers
+44 newer source inputs with exact defining owners/targets. Current structural
+coverage is updated; primary audit evidence remains pinned to its historical source.
+The complete checkpoint stays at `8249342`: deep joined-path review and product
+qualification remain unfinished. This bookkeeping is not implementation acceptance.
+
+F1–F5 fanout mechanisms, T25 receipt persistence/fences, T18 engine initialization,
+T19 derivation and T20 form factories now exist in committed source. F6/F7/T26 are
+explicitly unfinished checkpoints. Historical blanket absence claims are superseded
+at that mechanism scope; generated serving, production receipt/default/form joins,
+C05 discovery/import cutover, C08/C09 and original R01 remain open. New test drivers
+and colocated witnesses have testing successors gated on actual caller/discovery
+cutover. Existing retirement decisions remain unchanged.
+
+The old implementation run is user-stopped, its heartbeat paused, and only the main
+checkout remains. No Muse instances, timers, worktrees or implementation are launched
+by this merge. The separate [remaining implementation plan](../../implementation/REMAINING-IMPLEMENTATION-LANES.md)
+defines that finite authorized backlog; this file-tree plan does not expand it.

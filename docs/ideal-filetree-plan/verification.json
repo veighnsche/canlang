@@ -305,5 +305,26 @@
     "larger test duties structurally inspected with selected raw cases, not all-line independent semantics",
     "source workflows not installed or executed; earlier transcripts retain original scope",
     "no complete checkpoint advancement; prescribed support templates missing"
-  ]
+  ],
+  "merge_reconciliation": {
+    "record": "docs/ideal-filetree-plan/main-merge-20261006.json",
+    "source_tip": "1126544868df1762f96d1936c3139a420d6afbf5",
+    "complete_checkpoint_retained": "8249342707d3280e88e39e8c911b7e457828f31f",
+    "status": "structural-and-scoped-responsibility-reconciliation",
+    "semantic_acceptance": false,
+    "new_inputs_registered": 44,
+    "artifact_checks": {
+      "json_records": 9,
+      "current_source_inputs": 2219,
+      "target_leaves": 2515,
+      "draft_leaves": 148,
+      "bookkeeping_leaves": 22,
+      "checkpoint_delta_paths": 487,
+      "new_source_registrations": 44,
+      "desired_tree_leaf_rows": 2685,
+      "local_links_checked": 132,
+      "errors": [],
+      "product_tests_run": false
+    }
+  }
 }

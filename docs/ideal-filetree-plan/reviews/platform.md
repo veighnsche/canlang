@@ -142,3 +142,26 @@ The editor custom client is explicitly the current zero-dependency policy (`clie
 The root graph recommendations were independently challenged using release/e2e workflow paths, package dependency manifests and the compiled loader's compiler checks. Retain semantic package owners provisionally; fix real source/dist/publication joins and evaluate consolidation later with the same consumer/shipping outcomes. No performance or maintenance winner was measured here.
 
 The invoked skill's referenced procedure/records/scheduling files and checker are absent in its installed directory. This review follows the available SKILL.md and does not claim its missing checker ran. JEV advice and hard owner/protocol ratification belong to the root consultation record; existing advice is reusable only for its recorded scope.
+
+## Main merge reconciliation, 2026-10-06
+
+All 118 branch commits were fast-forwarded onto `main` through `1126544`, preserving
+their hashes and the exact source tree. The [merge record](../main-merge-20261006.json)
+accounts for all 487 changed paths since the complete checkpoint and registers
+44 newer source inputs with exact defining owners/targets. Current structural
+coverage is updated; primary audit evidence remains pinned to its historical source.
+The complete checkpoint stays at `8249342`: deep joined-path review and product
+qualification remain unfinished. This bookkeeping is not implementation acceptance.
+
+F1–F5 fanout mechanisms, T25 receipt persistence/fences, T18 engine initialization,
+T19 derivation and T20 form factories now exist in committed source. F6/F7/T26 are
+explicitly unfinished checkpoints. Historical blanket absence claims are superseded
+at that mechanism scope; generated serving, production receipt/default/form joins,
+C05 discovery/import cutover, C08/C09 and original R01 remain open. New test drivers
+and colocated witnesses have testing successors gated on actual caller/discovery
+cutover. Existing retirement decisions remain unchanged.
+
+The old implementation run is user-stopped, its heartbeat paused, and only the main
+checkout remains. No Muse instances, timers, worktrees or implementation are launched
+by this merge. The separate [remaining implementation plan](../../../implementation/REMAINING-IMPLEMENTATION-LANES.md)
+defines that finite authorized backlog; this file-tree plan does not expand it.

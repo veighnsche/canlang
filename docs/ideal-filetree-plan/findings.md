@@ -32,3 +32,26 @@ Platform invocation is a host adapter over state authority, not a second state e
 Worker `artifact.js` is generated deployment data. The old proposed `worker/artifact.ts` and demo-schema fixture are removed from the selected allocation; retain explicit registry/invoker/dispatch composition modules instead. Python syntax retirement remains conditional. Localization-sharing/profile questions and custom-client migration remain open before their specific cutovers.
 
 Target allocation covers all source leaves; that does not mean each advertised workflow is implemented. Pending requirements, unreviewed internal duties and incomplete challenge remain visible in [slices](slices.md) and gate their implementation packets. Priority is behavioral joins before moving the same defective behavior into smaller files.
+
+## Main merge reconciliation, 2026-10-06
+
+All 118 branch commits were fast-forwarded onto `main` through `1126544`, preserving
+their hashes and the exact source tree. The [merge record](main-merge-20261006.json)
+accounts for all 487 changed paths since the complete checkpoint and registers
+44 newer source inputs with exact defining owners/targets. Current structural
+coverage is updated; primary audit evidence remains pinned to its historical source.
+The complete checkpoint stays at `8249342`: deep joined-path review and product
+qualification remain unfinished. This bookkeeping is not implementation acceptance.
+
+F1–F5 fanout mechanisms, T25 receipt persistence/fences, T18 engine initialization,
+T19 derivation and T20 form factories now exist in committed source. F6/F7/T26 are
+explicitly unfinished checkpoints. Historical blanket absence claims are superseded
+at that mechanism scope; generated serving, production receipt/default/form joins,
+C05 discovery/import cutover, C08/C09 and original R01 remain open. New test drivers
+and colocated witnesses have testing successors gated on actual caller/discovery
+cutover. Existing retirement decisions remain unchanged.
+
+The old implementation run is user-stopped, its heartbeat paused, and only the main
+checkout remains. No Muse instances, timers, worktrees or implementation are launched
+by this merge. The separate [remaining implementation plan](../../implementation/REMAINING-IMPLEMENTATION-LANES.md)
+defines that finite authorized backlog; this file-tree plan does not expand it.

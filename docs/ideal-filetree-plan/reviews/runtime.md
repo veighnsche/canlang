@@ -60,11 +60,11 @@ Migration now has durable failure records and prior phase/cursors; unexpected fa
 
 `handlerContract` is optional and stored additively. Older rows use the attested predecessor contract; new staging does not by itself prove every future producer persists that contract. Installed maintenance still needs exact old/new producer evidence and interruption/activation tests. The review does not convert trusted bare ID sets or a type-only description into unforgeable delivery evidence.
 
-### R07 — Fanout remains gated
+### R07 — Historical fanout finding; current qualification remains open
 
-T33's three JEV reports disagree and have low confidence; alternate equivalent wording does not support taking a plurality as approval. The bounded-atomic option lacks an established whole-model production cohort bound. The durable-checkpoint option changes child identity, recovery and cancellation obligations. A development witness with at most two rows establishes neither cap nor production requirement.
+At the primary capture, T33's three JEV reports disagreed and had low confidence; alternate equivalent wording did not support taking a plurality as approval. The bounded-atomic option lacked an established whole-model production cohort bound. The durable-checkpoint option changed child identity, recovery and cancellation obligations. A development witness with at most two rows established neither cap nor production requirement.
 
-Independently retain the T33/T34 gate and record-bound root recurrence. Resolve the missing production workload bound and intended cancellation/supersession semantics before dependent fanout emission or durable schema work. Independent policy, clock, lifecycle and decomposition repairs remain available.
+That earlier workload-bound request is superseded by the committed corrected companion evidence and durable per-child decision described below. Preserve complete finite cohorts without introducing a new population estimate gate. Current qualification concerns the exact authoritative membership, child effect/checkpoint, cancellation/supersession and generated serving chain; F1–F5 mechanisms exist while F6/F7/T26 checkpoints and full T34 proof remain unfinished.
 
 ### R08 — File/service boundaries are retained, not declared installed
 
@@ -104,7 +104,7 @@ The following allocations revise the prior ledger. Root retains every other curr
 | `packages/state/src/storage/d1.ts`, `durable-object.ts` | Retain their exact execution adapters; shared exact `packages/state/src/storage/sql/{query,row-codecs,commit-plan,migration-plan}.ts`, current `storage/schema.ts`. New failure/discard SQL belongs in migration-plan with adapter-specific execution preserved. |
 | `packages/state/src/storage/memory.ts` | Prior successors `packages/state/src/testing/{memory-storage,memory-query,memory-probe}.ts` retained; move all real state/testkit/Cloudflare imports and export an explicit testing subpath before source retirement. |
 | `packages/work/src/kernel/commands.ts` | Retain assembler; prior exact `kernel/commands/{dispatch,occurrence,schedule,every,arguments}.ts`, plus `packages/work/src/kernel/commands/staging.ts` and `packages/work/src/kernel/commands/recovery.ts`. Eleven installed commands, including the new two, remain one command registry. |
-| `packages/work/src/kernel/tables.ts` | Retain assembler and prior exact `packages/work/src/kernel/tables/{dispatch,occurrence,schedule,every,supersession,row}.ts`; no new fanout columns until R07. |
+| `packages/work/src/kernel/tables.ts` | Retain assembler and prior exact `packages/work/src/kernel/tables/{dispatch,occurrence,schedule,every,supersession,row}.ts`; committed F2 fanout rows now exist. Preserve canonical contract/migration and producer/consumer proofs before structural cutover. |
 
 The remaining runtime-owned prior allocations are retained exactly, recorded individually in the JSON: files `ports.ts`, upload/fs adapter and upload decomposition; services HTTP/provider request-response/run splits and testing harness/scenario extraction; state migration transition/validation, grants and query decomposition; work observation/testing and ports/testing. Their unchanged evidence is reused at structural responsibility scope, not advanced to installed success. Platform owns the accepted build artifact/modules moves and Worker assembly split in its ledger.
 
@@ -147,4 +147,27 @@ Retain exact defining leaves `packages/work/src/observation/{association,observa
 
 The separately read, untracked [T33 resolution](../../../implementation/challenge-audit-run/t33-resolution.md) supplies material companion requirements omitted from the earlier mixed consultation: complete finite admitted cohorts, per-child current evaluation and failure isolation, parent-trigger durability, and remaining/failed progress. Its corrected triple advice is reported as high-confidence direction A, and the resolution records durable per-child execution with authoritative membership cutoff, stable identities, atomic child effect/checkpoint, bounded execution units, honest resource admission and no automatic coverage-losing supersession.
 
-R07 above is historical evidence for the original fixed pin and its incomplete consultation context. Production population estimates are not a prerequisite for preserving the stated complete-cohort contract, and the old request for such estimates must not become a new gate. The bounded resolution is design/proof-plan source, not delivered fanout. Gate G01 now concerns verification of corrected inputs, ratified owner handoff/incorporation, and the actual membership/identity/checkpoint/recovery producers and proofs. The runtime still has no fanout substrate. The resolution's claimed adoption and intended behavior are recorded without certifying handoff, execution or original-app qualification, and without overruling its authored body.
+R07 above is historical evidence for the original fixed pin and its incomplete consultation context. Production population estimates are not a prerequisite for preserving the stated complete-cohort contract, and the old request for such estimates must not become a new gate. The corrected resolution and consultation records are committed; F1–F5 mechanism source now provides a fanout substrate. G01/C09 concerns actual membership/identity/checkpoint/recovery and generated-serving qualification. F6/F7/T26 remain unfinished checkpoints. Mechanism source and reported unit proofs do not certify complete original-app delivery.
+
+## Main merge reconciliation, 2026-10-06
+
+All 118 branch commits were fast-forwarded onto `main` through `1126544`, preserving
+their hashes and the exact source tree. The [merge record](../main-merge-20261006.json)
+accounts for all 487 changed paths since the complete checkpoint and registers
+44 newer source inputs with exact defining owners/targets. Current structural
+coverage is updated; primary audit evidence remains pinned to its historical source.
+The complete checkpoint stays at `8249342`: deep joined-path review and product
+qualification remain unfinished. This bookkeeping is not implementation acceptance.
+
+F1–F5 fanout mechanisms, T25 receipt persistence/fences, T18 engine initialization,
+T19 derivation and T20 form factories now exist in committed source. F6/F7/T26 are
+explicitly unfinished checkpoints. Historical blanket absence claims are superseded
+at that mechanism scope; generated serving, production receipt/default/form joins,
+C05 discovery/import cutover, C08/C09 and original R01 remain open. New test drivers
+and colocated witnesses have testing successors gated on actual caller/discovery
+cutover. Existing retirement decisions remain unchanged.
+
+The old implementation run is user-stopped, its heartbeat paused, and only the main
+checkout remains. No Muse instances, timers, worktrees or implementation are launched
+by this merge. The separate [remaining implementation plan](../../../implementation/REMAINING-IMPLEMENTATION-LANES.md)
+defines that finite authorized backlog; this file-tree plan does not expand it.
