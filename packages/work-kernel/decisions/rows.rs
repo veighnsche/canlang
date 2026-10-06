@@ -2,9 +2,11 @@
 //!
 //! Data-only Rust port of `src/rows.ts` (frozen at the W02.2 extraction,
 //! proven against the same independent TS oracle corpus
-//! `conformance/fixtures/rows/`). Standalone file: compiles and tests
-//! with `rustc --edition 2021 --test decisions/rows.rs` — no Cargo
-//! membership, no dependencies, no host I/O. Integrator registration
+//! `conformance/fixtures/rows/`). N03 replaces the standalone rustc test
+//! route with an isolated private Cargo project containing exact copies of this
+//! file and numeric_text.rs, with ryu-js =1.0.3 (default features off).
+//! Original embedded vectors and immutable caller witnesses run there.
+//! Official product Cargo/root registration remains pending. Integrator registration
 //! (lib.rs assembly + differential execution) is W04.4's; shared shapes
 //! stay duplicated here until then.
 //!
@@ -34,6 +36,9 @@
 //!   corpus ports 1:1 by case id.
 //! - Error parity is name/code/message; class identity differs by
 //!   module on every backend (same rule as the TS suites).
+
+#[path = "numeric_text.rs"]
+mod numeric_text;
 
 use std::collections::HashSet;
 use std::rc::Rc;
@@ -229,53 +234,12 @@ fn json_escape_into(units: &[u16], out: &mut String) {
 
 /// JS `String(n)` number rendering (also JSON for finite values).
 fn js_num(n: f64) -> String {
-    if n.is_nan() {
-        return "NaN".to_string();
-    }
-    if n == f64::INFINITY {
-        return "Infinity".to_string();
-    }
-    if n == f64::NEG_INFINITY {
-        return "-Infinity".to_string();
-    }
-    if n.to_bits() == 0 || n.to_bits() == 0x8000_0000_0000_0000 {
-        return "0".to_string();
-    }
-    let abs = n.abs();
-    if n.fract() == 0.0 && abs < 1e21 {
-        return format!("{}", n as i64);
-    }
-    if (1e-6..1e21).contains(&abs) {
-        return format!("{}", n);
-    }
-    // Exponential range: shortest digits from the positional rendering.
-    let plain = format!("{}", abs);
-    let dot = plain.find('.').unwrap_or(plain.len());
-    let digits: String = plain.chars().filter(|c| c.is_ascii_digit()).collect();
-    let first = digits.find(|c| c != '0').unwrap_or(digits.len());
-    let mut sig: String = digits[first..].to_string();
-    while sig.ends_with('0') && sig.len() > 1 {
-        sig.pop();
-    }
-    // Decimal exponent of the first significant digit + 1.
-    let exp = dot as i64 - first as i64 - 1;
-    let mut mantissa = String::new();
-    mantissa.push(sig.chars().next().unwrap_or('0'));
-    if sig.len() > 1 {
-        mantissa.push('.');
-        mantissa.push_str(&sig[1..]);
-    }
-    let sign = if exp < 0 { "-" } else { "+" };
-    let head = if n < 0.0 { "-" } else { "" };
-    format!("{}{}e{}{}", head, mantissa, sign, exp.abs())
+    numeric_text::string(n)
 }
 
 /// `JSON.stringify` number rendering (non-finite becomes null).
 fn js_json_num(n: f64) -> String {
-    if !n.is_finite() {
-        return "null".to_string();
-    }
-    js_num(n)
+    numeric_text::json_token(n)
 }
 
 /// V8-compatible `JSON.stringify` for the value model.
@@ -6958,3 +6922,8 @@ mod units {
         assert_eq!(Value::Num(f64::NAN), Value::Num(f64::NAN));
     }
 }
+
+// N03 immutable witnesses: private Cargo route, not standalone rustc.
+#[cfg(test)]
+#[path = "../conformance/native-numeric-text.rs"]
+mod n03_numeric_tests;
