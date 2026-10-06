@@ -1023,3 +1023,174 @@ fn containment_cycle_terminates() {
         &[("E2008", "A", 1), ("E2008", "B", 2)],
     );
 }
+
+// --- T25-L1 leaf grants ------------------------------------------------------
+
+const LEAF_GRANT_MAIL: &str = r#"# Mail-shaped leaf grants stay clean.
+package p
+ use p {Mail as Box} from=deployment.mail
+ Given
+  export capability Mail version=1
+   send(to:text) -> Ack
+  contract Ack { ok:bool }
+  Item { title:text, notification:delivery(Box.send)? }
+  derive Item.notice_state:text = row.title
+  policy Item read=members fields=title,notice_state,notification.status
+ When
+ Then
+"#;
+
+const LEAF_GRANT_SCHEMA: &str = r#"# Declared observation leaves are well-formed grants.
+package p
+ use p {Mail as Box} from=deployment.mail
+ Given
+  export capability Mail version=1
+   send(to:text) -> Ack
+  contract Ack { ok:bool }
+  Item { title:text, notification:delivery(Box.send)? }
+  derive Item.notice_state:text = row.title
+  policy Item read=members fields=notice_state
+  policy Item read=members fields=notification.id,notification.result,notification.error
+  policy Item read=members fields=notification
+ When
+ Then
+"#;
+
+#[test]
+fn t25_l1_valid_leaf_grants_stay_clean() {
+    // The checker accepts every well-formed spelling independently: the
+    // derived field alone, the derived field plus its status-leaf
+    // dependency, each declared observation leaf, and the whole-field
+    // grant. Which leaves are readable under a grant (withholding,
+    // parent-subsumes, no-implicit-expansion) is runtime (T25-L3).
+    let catalog = fixture();
+    assert_codes(LEAF_GRANT_MAIL, Some(&catalog), &[]);
+    assert_codes(LEAF_GRANT_SCHEMA, Some(&catalog), &[]);
+}
+
+const LEAF_GRANT_VALUES: &str = r#"# Embedded value leaves stay clean.
+app Shop
+Given
+ contract Profile { name:text }
+ Item { title:text, profile:Profile?, amount:money }
+ policy Item read=members fields=profile.name,amount.minor,amount.currency
+When
+Then
+"#;
+
+#[test]
+fn t25_l1_embedded_value_leaves_stay_clean() {
+    // Contract descent and money value leaves are typed value
+    // components, not references: no E4012.
+    let catalog = fixture();
+    assert_codes(LEAF_GRANT_VALUES, Some(&catalog), &[]);
+}
+
+const LEAF_GRANT_BOGUS: &str = r#"# Unknown delivery leaf rejected.
+package p
+ use p {Mail as Box} from=deployment.mail
+ Given
+  export capability Mail version=1
+   send(to:text) -> Ack
+  contract Ack { ok:bool }
+  Item { title:text, notification:delivery(Box.send)? }
+  policy Item read=members fields=notification.bogus
+ When
+ Then
+"#;
+
+const LEAF_GRANT_CROSS_RECORD: &str = r#"# Cross-record traversal rejected.
+app Shop
+Given
+ Service { title:text }
+ Item { title:text, service:Service? }
+ policy Item read=members fields=service.title
+When
+Then
+"#;
+
+#[test]
+fn t25_l1_unsupported_traversal_stays_e2013() {
+    // Unknown observation leaves and traversal through a model
+    // reference to another record's fields fail in the types pass
+    // (E2013); L1 adds no second diagnostic.
+    let catalog = fixture();
+    let (_, _, diags) = run(LEAF_GRANT_BOGUS, Some(&catalog));
+    assert_findings(
+        LEAF_GRANT_BOGUS,
+        &diags,
+        &[("E2013", "notification.bogus", 1)],
+    );
+    let (_, _, diags) = run(LEAF_GRANT_CROSS_RECORD, Some(&catalog));
+    assert_findings(
+        LEAF_GRANT_CROSS_RECORD,
+        &diags,
+        &[("E2013", "service.title", 1)],
+    );
+}
+
+const LEAF_GRANT_USER: &str = r#"# User-reference traversal rejected.
+app Shop
+Given
+ Item { title:text, owner:user }
+ policy Item read=members fields=title,owner.id
+When
+Then
+"#;
+
+#[test]
+fn t25_l1_user_traversal_is_e4012() {
+    let catalog = fixture();
+    let (_, _, diags) = run(LEAF_GRANT_USER, Some(&catalog));
+    assert_findings(LEAF_GRANT_USER, &diags, &[("E4012", "owner.id", 1)]);
+}
+
+const LEAF_GRANT_MEMBER: &str = r#"# Member-reference traversal rejected.
+app Shop
+Given
+ Todo { title:text, assignee:member? }
+ policy Todo read=members fields=assignee.user.id
+ policy Todo read=members fields=created_by.id
+When
+Then
+"#;
+
+#[test]
+fn t25_l1_member_traversal_is_e4012() {
+    // Member chains (through nullable too) and reserved user-metadata
+    // heads traverse references: E4012 on each path.
+    let catalog = fixture();
+    let (_, _, diags) = run(LEAF_GRANT_MEMBER, Some(&catalog));
+    assert_findings(
+        LEAF_GRANT_MEMBER,
+        &diags,
+        &[
+            ("E4012", "assignee.user.id", 1),
+            ("E4012", "created_by.id", 1),
+        ],
+    );
+}
+
+const LEAF_GRANT_UNKNOWN_SOLO: &str = r#"# Unknown leaves stay E2013-only.
+app Shop
+Given
+ contract Profile { name:text }
+ Item { title:text, profile:Profile?, owner:user }
+ policy Item read=members fields=profile.bogus,owner.bogus
+When
+Then
+"#;
+
+#[test]
+fn t25_l1_unknown_leaves_stay_e2013_only() {
+    // Unknown segments fail in the types pass even on reference bases
+    // (`owner.bogus` is not `owner.id`); L1 stays silent, so each bad
+    // path reports exactly one diagnostic.
+    let catalog = fixture();
+    let (_, _, diags) = run(LEAF_GRANT_UNKNOWN_SOLO, Some(&catalog));
+    assert_findings(
+        LEAF_GRANT_UNKNOWN_SOLO,
+        &diags,
+        &[("E2013", "profile.bogus", 1), ("E2013", "owner.bogus", 1)],
+    );
+}

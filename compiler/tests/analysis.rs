@@ -522,7 +522,7 @@ fn explain_round_trip_source_codes() {
         .collect();
     assert_eq!(
         entries.len(),
-        15 + 19 + 16 + 9 + 2,
+        15 + 19 + 17 + 9 + 2,
         "E2/E3/E4/E5/E6001/E6002 entry count"
     );
     let mut seen = BTreeSet::new();
