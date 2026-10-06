@@ -1,0 +1,232 @@
+{
+  "id": "first:R2:V01-consumed-owner-contracts",
+  "worker": "B",
+  "responsibility": "R2 (borrowed V01.3 state contract included)",
+  "ready_scope": "V01.1\u2013V01.4 current caller/state/plan contracts and named approvals, plus finite hook semantics specification; no product source writes.",
+  "planning_readiness": "contract-ready-original-direct-inputs-credited",
+  "contracts": [],
+  "original_ids": [
+    "ports:V01.1",
+    "ports:V01.2",
+    "ports:V01.3",
+    "ports:V01.4"
+  ],
+  "writable_paths": [
+    "docs/research/package-subsystem-ports-20261006/evidence/input-validation/contracts.md",
+    "docs/research/package-subsystem-ports-20261006/evidence/input-validation/caller-inventory.json",
+    "docs/research/package-subsystem-ports-20261006/evidence/input-validation/current-ts.json",
+    "docs/research/package-subsystem-ports-20261006/evidence/input-validation/http-adoption-gate.md",
+    "docs/research/package-subsystem-ports-20261006/evidence/input-validation/state-contract.md",
+    "docs/research/package-subsystem-ports-20261006/evidence/input-validation/plan-contract.md",
+    "docs/research/package-subsystem-ports-20261006/evidence/input-validation/v01-review.md",
+    "docs/research/package-subsystem-ports-20261006/evidence/input-validation/prepared-hook-review.md"
+  ],
+  "assembly_handoff": {
+    "owner": "R1",
+    "exact_requests": [
+      "packages/values/src/index.ts"
+    ],
+    "request": "Hook spec and later schema/wire release precede any exact public export join. R2 cannot write index.ts or common Rust profiles/bindings."
+  },
+  "acceptance": [
+    "Record required named owner reviews at actually consumed scope, not content-only conditional pass. Current HTTP injected handler seam distinct from absent-factory 501 and Rust adoption.",
+    "Preserve readRevision\u2192hash(raw)\u2192readReceipt\u2192replay OR age\u2192membership/by\u2192normalization/ref extraction\u2192ordered loads, read auth first; protected graph never crosses arbitrary OperationInvoker.",
+    "Specify success-only genuine factory/producer registration and complete source/version/schema/default/lifetime identity; the observed artifact-${ARTIFACT_VERSION} handoff is an input to review, not a universal provenance rule. Copied owner metadata/private tokens, no shape/freeze certification.",
+    "Resolve private entry admission/core call boundary avoiding recursion through public validation/codec functions, unchanged public exports/signatures, pre-evaluation abstention, default/schema accessor order and no semantic exception retry."
+  ],
+  "successors": [
+    "next:R2:V02.6-hooks-conditional"
+  ],
+  "sequence_role": "first",
+  "execution_authorized": true,
+  "active_lease": true,
+  "assigned_agent": "/root/worker_b_v01",
+  "operator_ack": {
+    "path": "/private/tmp/canlang-rust-port-codex-first-20261006T231809Z/packets/R2-V01/ACK.json",
+    "sha256": "60135b97e48a33c922d4e8b1c53ceca6e81f76d513ca24e6ea58e1cd0759f71c",
+    "root_observed": true
+  },
+  "activation_base": "c6896fd2dea782d8ed6412769337b76eb899ca53",
+  "planning_base": "74f7271f7d3d49c929c769a5175de20e4525acef",
+  "adds_canonical_obligation": false,
+  "lease_reference": null,
+  "contract_inputs": [],
+  "source_inputs": [
+    "implementation/remaining-work/tasks.json",
+    "implementation/rust-port-lanes.json",
+    "implementation/rust-port-orchestration/contracts-20261007/ownership.json",
+    "implementation/rust-port-orchestration/contracts-20261007/packets.json",
+    "docs/research/package-library-audit-20261006/adoption-sequence.json",
+    "docs/research/package-subsystem-ports-20261006/implementation-plans/input-validation.md",
+    "docs/research/package-subsystem-ports-20261006/implementation-plans/input-validation.tasks.json",
+    "packages/values/src/schema.ts",
+    "packages/values/src/wire.ts",
+    "packages/values/src/index.ts",
+    "packages/values/src/prepared/plan.ts",
+    "packages/values/src/prepared/validation.ts",
+    "packages/values/src/prepared/codec.ts",
+    "packages/state/src/invocation/admission.ts",
+    "packages/state/src/invocation/invoke.ts",
+    "packages/state/src/invocation/registry.ts",
+    "packages/interfaces/src/http/operations.ts",
+    "packages/interfaces/src/mcp/server.ts",
+    "packages/cloudflare/src/worker/assembly.ts",
+    "docs/research/package-subsystem-ports-20261006/evidence/input-validation/v01-review.md",
+    "docs/research/package-subsystem-ports-20261006/evidence/input-validation/prepared-plan-handoff.md",
+    "docs/research/package-subsystem-ports-20261006/evidence/input-validation/contracts.md",
+    "docs/research/package-subsystem-ports-20261006/evidence/input-validation/caller-inventory.json",
+    "docs/research/package-subsystem-ports-20261006/evidence/input-validation/current-ts.json",
+    "docs/research/package-subsystem-ports-20261006/evidence/input-validation/http-adoption-gate.md",
+    "docs/research/package-subsystem-ports-20261006/evidence/input-validation/state-contract.md",
+    "docs/research/package-subsystem-ports-20261006/evidence/input-validation/plan-contract.md",
+    "docs/research/package-subsystem-ports-20261006/evidence/input-validation/prepared-hook-review.md"
+  ],
+  "hash_index": "first-packets-20261007/source-checkpoint.json#input_sha256",
+  "private_output_root_template": "/private/tmp/canlang-rust-port-{{RUN_ID}}/packets/R2-V01",
+  "outputs_created": false,
+  "model_selection": {
+    "model": "gpt-6.1-sol",
+    "reasoning_effort": "high",
+    "reason": "First packet includes unfrozen private hook/provenance/callback/evaluation seam across owners; high is justified. Pure approved contract receipt indexing can split to Luna low."
+  },
+  "prepared_fixture_subpacket_model": {
+    "model": "gpt-6-luna",
+    "reasoning_effort": "medium",
+    "reason": "Defined fixture capture mechanics only after actual owner contract; immutable expected bytes are distinct from native acceptance."
+  },
+  "independent_review_model": {
+    "model": "gpt-6.1-sol",
+    "reasoning_effort": "high",
+    "reason": "Finite critical-invariant review; R2 retains high for its unresolved private provenance/core-call seam."
+  },
+  "evidence_writes": [],
+  "assembly_handoff_is_not_leaf_write_permission": true,
+  "completion_rule": "Return exact source hashes, candidate files, independent oracle, command handles/logs/exits and negative controls; release writer/commands to Codex. Codex reviews then commits explicit owned paths. No parent/default/installed claim from this leaf.",
+  "canonical_task_ids": [
+    "ports:V01.1",
+    "ports:V01.2",
+    "ports:V01.3",
+    "ports:V01.4"
+  ],
+  "canonical_snapshot_index": "preserved_original_records",
+  "private_output_root": "/private/tmp/canlang-rust-port-codex-first-20261006T231809Z/packets/R2-V01",
+  "human_release_reference": "Human step4 in this chat, 2026-10-07: Start three finite Codex packets.",
+  "runtime_status": "working",
+  "allowed_checks": "Read-only source/hash inspections and named packet checks with private mutable output; request heavy-command permit from Codex before each actual heavy check. No publication/CI/push.",
+  "source_input_sha256": {
+    "implementation/remaining-work/tasks.json": {
+      "exists": true,
+      "sha256": "cd01ebb2276e9bbd362085070b985811543f4bcb1d7ad0d0ac0530d3092bc3f4"
+    },
+    "implementation/rust-port-lanes.json": {
+      "exists": true,
+      "sha256": "4936af9c418fbf8accb9932e24abb622d11563d776fb271c6dac111615439033"
+    },
+    "implementation/rust-port-orchestration/contracts-20261007/ownership.json": {
+      "exists": true,
+      "sha256": "728cbd42913d7eef29c3686d282f796f101076224860a88afd9f71fb184200df"
+    },
+    "implementation/rust-port-orchestration/contracts-20261007/packets.json": {
+      "exists": true,
+      "sha256": "bee5b952faf2fa136cc3a3f1268db1544f5e222ca05d5de3534dc15ddd730308"
+    },
+    "docs/research/package-library-audit-20261006/adoption-sequence.json": {
+      "exists": true,
+      "sha256": "d93dcb00638680b1b861c90ec6a445267942b8ca6f7ca479fb60bc0386ca3a9f"
+    },
+    "docs/research/package-subsystem-ports-20261006/implementation-plans/input-validation.md": {
+      "exists": true,
+      "sha256": "5ec351c6dd69dbb06fb8a933789ceb1309957b8f5b9d38dbda8c87f87f650363"
+    },
+    "docs/research/package-subsystem-ports-20261006/implementation-plans/input-validation.tasks.json": {
+      "exists": true,
+      "sha256": "03d024eb78dd16a9cfa96ebccfdb03eb3a61b03b18192e337921c178570d695b"
+    },
+    "packages/values/src/schema.ts": {
+      "exists": true,
+      "sha256": "8216016fd7467e3ac6b23b79a06a3d55d9aff2f4bfba3a1d0ecc77c2760f5772"
+    },
+    "packages/values/src/wire.ts": {
+      "exists": true,
+      "sha256": "73832128fd4b2db93d08770836271323d61bed02647ca83fd21bdd9496054f03"
+    },
+    "packages/values/src/index.ts": {
+      "exists": true,
+      "sha256": "d92ac7192a8739ddbfaf32ccc64e0aeba7fb30726e7bf40d7e81eb9a239d61c4"
+    },
+    "packages/values/src/prepared/plan.ts": {
+      "exists": true,
+      "sha256": "31cc0a8a09774f5a6754372700b41269cd3df73de4171574053fbab661faa0d4"
+    },
+    "packages/values/src/prepared/validation.ts": {
+      "exists": true,
+      "sha256": "34d0723b0491b54908fecf7494f1e5bd16bf78b470473ab2d1108f322c3e3e76"
+    },
+    "packages/values/src/prepared/codec.ts": {
+      "exists": true,
+      "sha256": "ffe679d4db03ea3944c7af94a1eb88cb3398207dc319d41ce5413f39786e04a0"
+    },
+    "packages/state/src/invocation/admission.ts": {
+      "exists": true,
+      "sha256": "c83e7b06b932e7e16402f0c815121a917f7b63daa90e4000fd822d16b1fc1ba6"
+    },
+    "packages/state/src/invocation/invoke.ts": {
+      "exists": true,
+      "sha256": "37f76500d8b0ed9959cf0110c70b0750263b9c0134fc19194229db1924ca4670"
+    },
+    "packages/state/src/invocation/registry.ts": {
+      "exists": true,
+      "sha256": "38f59e468f47bf4e065ce23865ba57c72cdf4d9bce145cbd11a3eac084ca79c0"
+    },
+    "packages/interfaces/src/http/operations.ts": {
+      "exists": true,
+      "sha256": "44f9bc9a95e16867b058c079cb82fbe915274bb166c27fe210906f7dec6ab37a"
+    },
+    "packages/interfaces/src/mcp/server.ts": {
+      "exists": true,
+      "sha256": "20d68f0cc3a0984f2094dffe971895d789d57ce05c07032e3696dc9fcaf7c8c6"
+    },
+    "packages/cloudflare/src/worker/assembly.ts": {
+      "exists": true,
+      "sha256": "489bf7f70fbb692227c9eb0482df42475b87ae2951d60abbc72d782fe2d51628"
+    },
+    "docs/research/package-subsystem-ports-20261006/evidence/input-validation/v01-review.md": {
+      "exists": true,
+      "sha256": "480f1df588f46c715b756d81a7920916b56a01fe6f135cd4a8d3852b571f0ab2"
+    },
+    "docs/research/package-subsystem-ports-20261006/evidence/input-validation/prepared-plan-handoff.md": {
+      "exists": true,
+      "sha256": "0aae241624cfd1baf886f3e6ae6cc492b2341d43a5271997c895b6a93c58fb65"
+    },
+    "docs/research/package-subsystem-ports-20261006/evidence/input-validation/contracts.md": {
+      "exists": true,
+      "sha256": "da715398103028cdbdbdcec8de5ed0a8bf6d55f5e84f842ade5d459eb31be67d"
+    },
+    "docs/research/package-subsystem-ports-20261006/evidence/input-validation/caller-inventory.json": {
+      "exists": true,
+      "sha256": "ea7833171cacd6add6fee4b063e4d60cd48a77e40c5cb2dd9089ca93c69ece63"
+    },
+    "docs/research/package-subsystem-ports-20261006/evidence/input-validation/current-ts.json": {
+      "exists": true,
+      "sha256": "5b1c8b941bd86510a24a55b1f3d73e61f4438061162caea3122af286582e484e"
+    },
+    "docs/research/package-subsystem-ports-20261006/evidence/input-validation/http-adoption-gate.md": {
+      "exists": true,
+      "sha256": "6ee52249dcce9104ed1a9aeadc9e05b2452ba2bd6f98aa48e00faade2781117b"
+    },
+    "docs/research/package-subsystem-ports-20261006/evidence/input-validation/state-contract.md": {
+      "exists": true,
+      "sha256": "4f0a9d5981eb2b68fef406e062baa2c337a3bb78baeafc2c890fb7f07f3aa5ba"
+    },
+    "docs/research/package-subsystem-ports-20261006/evidence/input-validation/plan-contract.md": {
+      "exists": true,
+      "sha256": "5de45338d7e15d2694922fadf3d3eb21ec9c7916803c1c91d38044787f4060e5"
+    },
+    "docs/research/package-subsystem-ports-20261006/evidence/input-validation/prepared-hook-review.md": {
+      "exists": false,
+      "sha256": null
+    }
+  },
+  "assembly_write_paths": [],
+  "assembly_transfer": "No assembly source write transfer."
+}

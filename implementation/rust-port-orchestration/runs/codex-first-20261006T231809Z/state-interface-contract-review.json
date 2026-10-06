@@ -1,0 +1,72 @@
+{
+  "id": "CODEX-PH2-PH4-FUTURE-CONTRACT-20261007",
+  "reviewer": "Originating Codex / state-interface acceptance",
+  "reviewed_at_utc": "2026-10-06T23:28:51.798888+00:00",
+  "hook_path": "docs/research/package-subsystem-ports-20261006/evidence/input-validation/prepared-hook-review.md",
+  "hook_sha256": "8264d4a6063d1e0b3ee3933cefe2c20bbe039abcdc7b6668f6ee91a984ccbda0",
+  "consumed_state_contract_sha256": "c829647c2c4afe6e9a13bbacc005b7781953ea92968b7c21d79f4bbbf42cfef2",
+  "verdict": "accepted_future_contract_with_explicit_qualifications",
+  "scope": [
+    "PH2 success-only staged owner and request provenance",
+    "PH4 protected canonical bridge and unchanged state/interface evaluation positions"
+  ],
+  "mandatory_qualifications": [
+    "A successful public loader alone is not data-only authority: by/when receive mutable descriptor aliases; only audited true-owner callback/alias context may mint, otherwise legacy abstention without new public failure or reordered reads.",
+    "Keep raw request hashing, receipt replay and authorization at their original positions. Protected graph isolation must be proven in the actual bridge; unknown arbitrary OperationInvoker/MCP/form paths retain legacy.",
+    "Current HTTP source/default sibling binding exists; absent factory501 and actual runtime/native/deployed proof remain separate.",
+    "No source factoring/module lease, prepared hook implementation, native transport, installed default or whole V01 acceptance is granted."
+  ],
+  "source_inputs": [
+    {
+      "path": "packages/state/src/invocation/registry.ts",
+      "sha256": "38f59e468f47bf4e065ce23865ba57c72cdf4d9bce145cbd11a3eac084ca79c0"
+    },
+    {
+      "path": "packages/state/src/invocation/prepared-inputs.ts",
+      "sha256": "3dad1154a046905899d87197fbe8f0ea77a397552348fc80d105fb81a769f6b6"
+    },
+    {
+      "path": "packages/state/src/invocation/admission.ts",
+      "sha256": "c83e7b06b932e7e16402f0c815121a917f7b63daa90e4000fd822d16b1fc1ba6"
+    },
+    {
+      "path": "packages/state/src/invocation/invoke.ts",
+      "sha256": "37f76500d8b0ed9959cf0110c70b0750263b9c0134fc19194229db1924ca4670"
+    },
+    {
+      "path": "packages/interfaces/src/http/limits.ts",
+      "sha256": "6a5b2277decf0a79ed7d05acca9fd24afd7df56082a02b8c48cdde3efd503bfc"
+    },
+    {
+      "path": "packages/interfaces/src/http/operations.ts",
+      "sha256": "44f9bc9a95e16867b058c079cb82fbe915274bb166c27fe210906f7dec6ab37a"
+    },
+    {
+      "path": "packages/interfaces/src/mcp/server.ts",
+      "sha256": "20d68f0cc3a0984f2094dffe971895d789d57ce05c07032e3696dc9fcaf7c8c6"
+    },
+    {
+      "path": "packages/interfaces/src/ports.ts",
+      "sha256": "b326f155d580543bd83f2aa00b8c1be18a468399474cb957e220d5c32f0c3629"
+    },
+    {
+      "path": "packages/cloudflare/src/worker/main.ts",
+      "sha256": "2335ee597c4d053960423baa07d1fb621b2b01e4f065a68881a94292f29a26ba"
+    },
+    {
+      "path": "packages/cloudflare/src/worker/assembly.ts",
+      "sha256": "489bf7f70fbb692227c9eb0482df42475b87ae2951d60abbc72d782fe2d51628"
+    },
+    {
+      "path": "packages/cloudflare/src/deploy/bundle.ts",
+      "sha256": "c655fed4ef03d35d39fc52811abc4d41516d2bf8e52fcf4a499d17e8f9057ed1"
+    }
+  ],
+  "unresolved": [
+    "Exact internal core placement/owner transfer",
+    "Actual protected producer and bridge trace gates",
+    "C03 native ABI/lifetime transport receipt",
+    "V08/C04 installed workerd consumer",
+    "V09 bridge adoption"
+  ]
+}

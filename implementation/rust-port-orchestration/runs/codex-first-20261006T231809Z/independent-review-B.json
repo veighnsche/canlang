@@ -1,0 +1,21 @@
+{
+  "packet": "first:R2:V01-consumed-owner-contracts",
+  "reviewer": "/root/review_b_v01",
+  "verdict": "PASS_FUTURE_CONTRACT_ONLY",
+  "checked": [
+    "Eight initial released hashes and18 exact current-source hashes",
+    "13 source excerpt records",
+    "R1 PH1-PH3 receipt at frozen hook hash",
+    "Three equivalent JEV raw requests/results; advice only",
+    "Recursion/read/default/loader-callback/replay/auth/HTTP source seams"
+  ],
+  "limits": [
+    "No source factoring, native transport, installed/deployed or parent approval",
+    "Audited loader context required; public loader success alone not provenance",
+    "Future protected graph isolation includes shallow-copy nested result aliases; otherwise abstain",
+    "Sealed pending wording historical; actual receipt ledger now current"
+  ],
+  "recorded_at_utc": "2026-10-06T23:29:31.534800+00:00",
+  "source_base": "c6896fd2dea782d8ed6412769337b76eb899ca53",
+  "reran_builds": false
+}

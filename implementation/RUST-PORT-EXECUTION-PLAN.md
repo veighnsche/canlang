@@ -1,6 +1,6 @@
 # Codex subagent execution plan for the Rust-port queues
 
-**Planning only. Implementation remains deferred.** The human instruction on 2026-10-07 replaces the proposed Muse workers with economical Codex subagents and requires early, frequent commits. This document starts no implementation, worktree, runtime, build, goal or schedule. Native preparation/native-release remains **HUMAN HOLD**.
+**The human released the first three finite packets on 2026-10-07 (step 4).** Codex started them from planning checkpoint `c6896fd2dea782d8ed6412769337b76eb899ca53`, after exact input and file acknowledgments. [Current runtime](rust-port-orchestration/current-run.json) and its linked monitor record actual workers, command handles, releases and independent reviews. The frozen planning queue remains historical input; it does not authorize successor dispatch. Native preparation/native-release remains **HUMAN HOLD**.
 
 Begin with the [ordered start-here checklist](RUST-PORT-START-HERE.md): finish scope/contracts/packet planning, then release three bounded worker packets, numeric repairs, actual binding/assembly joins, parallel import/map work, installed consumers and selected adapter follow-ups. Review and commit each released slice throughout; there is no all-lane waiting wave.
 
@@ -59,7 +59,7 @@ Preserve all original prerequisites, including these narrow joins:
 - `W05.1 → W05.2 → C04.work-assets → W05.4 → W05.3`: actual installed consumers.
 - `P05.2 → C04.preparation-join → P05.3 → P05.4` and `P09.1 + C04.graph → C04.native-release`, both retaining the HOLD.
 
-First packets remain candidates until preflight reconciles live source/evidence. R1's foundation/numeric work, R2's validation contracts, R3's fact/delivery work and R4's A05.3/V01.3 unblockers do not become ready merely from their presence in a packet. Queue original V01/A03/A04/A05 reviews only after complete prerequisites. Keep A04.5 UTF-16/truncation residuals, actual W04.4 registration and T08/T26/product consumer acceptance visible.
+The first three packets passed activation preflight and acknowledged exact inputs in the current runtime. Future packets remain candidates until their own live source/evidence reconciliation and finite assignment. R1's foundation/numeric work, R2's validation contracts, R3's fact/delivery work and R4's A05.3/V01.3 unblockers do not become ready merely from their presence in a packet. Queue original V01/A03/A04/A05 reviews only after complete prerequisites. Keep A04.5 UTF-16/truncation residuals, actual W04.4 registration and T08/T26/product consumer acceptance visible.
 
 The library sequence releases numeric contracts separately for values/work/escaping, imports separately from maps, and identity profiles separately. Import/map leaves join only at actual composition and installed delivery. Preserve interfaces→ui CSV dependency direction, token/digest/error bytes and explicit consumer authority. Identity/CSV/service additions need finite selected scope. Held native parser planning does not permit preparation implementation.
 
@@ -73,10 +73,10 @@ Codex independently reviews released slices promptly, requests bounded repairs, 
 
 ## Supervision, readiness and closure
 
-The existing same-chat 15-minute supervisor remains **PAUSED**. While Codex is actively working, use collaboration completion/messages and bounded command handles directly; do not wait for a scheduled wake to handle ready work. A later heartbeat must verify that actual subagent handles remain supported and recoverable before claiming continuation; report files alone are not a wake or dispatch. No local agent schedules are introduced.
+The existing same-chat 15-minute supervisor is **ACTIVE** for this first-packet runtime. While Codex is actively working, use collaboration completion/messages and bounded command handles directly; do not wait for a scheduled wake to handle ready work. A later heartbeat must verify that actual subagent handles remain supported and recoverable before claiming continuation; report files alone are not a wake or dispatch. No local agent schedules are introduced.
 
-Implementation still needs an actual human release. There is no all-four startup barrier: each finite packet starts when its own readiness and ownership are resolved. Current planning/null runtime is not an active run. Honor actual pause/cancel separately from heartbeat pause and verify affected writers/commands stop. Do not restore killed Muse generations or adopt historical goals.
+The step-4 release authorizes only the three recorded packets and their bounded checks, reviews and repairs. Successors require a separate finite assignment within the human's selected scope. There is no all-four startup barrier: each finite packet starts when its own readiness and ownership are resolved. Honor actual pause/cancel separately from heartbeat pause and verify affected writers/commands stop. Do not restore killed Muse generations or adopt historical goals.
 
 Close only selected accepted outcomes with real installed/native/Wasm/host consumers, whole-call budgets and rollback gates where claimed. Keep conditional/deferred/held and wider unfinished programme duties truthful. Retain compact evidence and unique work; clean only released owned resources. Retire supervision only when no authorized follow-up remains.
 
-Planning verification checks documents, IDs, dependency references, authority, model policy, capacity and holds. It is not product acceptance and launches no product work.
+Historical planning verification checks documents, IDs, dependency references, authority, model policy, capacity and holds. Product acceptance is recorded separately in the current runtime with exact source and command evidence.

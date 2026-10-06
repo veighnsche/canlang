@@ -1,0 +1,267 @@
+{
+  "schema_version": 1,
+  "run_id": "codex-first-20261006T231809Z",
+  "phase": "released_reviewed_awaiting_commits",
+  "execution_authorized": true,
+  "human_release_reference": "Human step4 in this chat, 2026-10-07",
+  "source_base": "c6896fd2dea782d8ed6412769337b76eb899ca53",
+  "readiness_input_drift": [],
+  "packet_files": [
+    "packet-A.json",
+    "packet-B.json",
+    "packet-C.json"
+  ],
+  "authorized_packet_ids": [
+    "first:R1:N02-values-number-maintenance",
+    "first:R2:V01-consumed-owner-contracts",
+    "first:R3:N03-work-number-maintenance"
+  ],
+  "human_preparation_hold": true,
+  "canonical_statuses_changed": false,
+  "roles": [
+    {
+      "worker": "A",
+      "agent": "/root/worker_a_n02",
+      "collaboration_handle": "/root/worker_a_n02",
+      "packet_id": "first:R1:N02-values-number-maintenance",
+      "model": "gpt-6.1-sol",
+      "effort": "medium",
+      "source_base": "c6896fd2dea782d8ed6412769337b76eb899ca53",
+      "private_root": "/private/tmp/canlang-rust-port-codex-first-20261006T231809Z/packets/R1-N02",
+      "ack_path": "/private/tmp/canlang-rust-port-codex-first-20261006T231809Z/packets/R1-N02/ACK.json",
+      "ack_sha256": "0e2f774cafdca786aa6d0b3c615543c352a8fc692a9198352df1c74cb9694631",
+      "ack_observed": true,
+      "status": "released_for_independent_review",
+      "writable_paths": [
+        "packages/values/semantics/src/representations/numeric.rs",
+        "packages/values/semantics/tests/numeric_text_contract.rs",
+        "packages/values/test/numeric-text.contract.test.ts",
+        "packages/values/conformance/numeric-text.oracle.mjs",
+        "packages/values/conformance/numeric-text.json",
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/exact-values/core/n01-values-number-text.json",
+        "packages/values/semantics/Cargo.toml",
+        "packages/values/Cargo.lock"
+      ],
+      "writer_released": true,
+      "active_commands": [],
+      "release_manifest": {
+        "path": "/private/tmp/canlang-rust-port-codex-first-20261006T231809Z/packets/R1-N02/FINAL.json",
+        "sha256": "ce27f891d6ecfd64fcdcc46a0f9e80b25d064db484f84b3768707179518ab6ec"
+      }
+    },
+    {
+      "worker": "B",
+      "agent": "/root/worker_b_v01",
+      "collaboration_handle": "/root/worker_b_v01",
+      "packet_id": "first:R2:V01-consumed-owner-contracts",
+      "model": "gpt-6.1-sol",
+      "effort": "high",
+      "source_base": "c6896fd2dea782d8ed6412769337b76eb899ca53",
+      "private_root": "/private/tmp/canlang-rust-port-codex-first-20261006T231809Z/packets/R2-V01",
+      "ack_path": "/private/tmp/canlang-rust-port-codex-first-20261006T231809Z/packets/R2-V01/ACK.json",
+      "ack_sha256": "60135b97e48a33c922d4e8b1c53ceca6e81f76d513ca24e6ea58e1cd0759f71c",
+      "ack_observed": true,
+      "status": "released_for_independent_review",
+      "writable_paths": [
+        "docs/research/package-subsystem-ports-20261006/evidence/input-validation/contracts.md",
+        "docs/research/package-subsystem-ports-20261006/evidence/input-validation/caller-inventory.json",
+        "docs/research/package-subsystem-ports-20261006/evidence/input-validation/current-ts.json",
+        "docs/research/package-subsystem-ports-20261006/evidence/input-validation/http-adoption-gate.md",
+        "docs/research/package-subsystem-ports-20261006/evidence/input-validation/state-contract.md",
+        "docs/research/package-subsystem-ports-20261006/evidence/input-validation/plan-contract.md",
+        "docs/research/package-subsystem-ports-20261006/evidence/input-validation/v01-review.md",
+        "docs/research/package-subsystem-ports-20261006/evidence/input-validation/prepared-hook-review.md"
+      ],
+      "writer_released": true,
+      "active_commands": [],
+      "release_manifest": {
+        "path": "/private/tmp/canlang-rust-port-codex-first-20261006T231809Z/packets/R2-V01/release-manifest.json",
+        "sha256": "d7be7c8c5915afcf305d9691e23e2201b1f33da5312a2be686e9ce90c945e7c1"
+      }
+    },
+    {
+      "worker": "C",
+      "agent": "/root/worker_c_n03",
+      "collaboration_handle": "/root/worker_c_n03",
+      "packet_id": "first:R3:N03-work-number-maintenance",
+      "model": "gpt-6.1-sol",
+      "effort": "medium",
+      "source_base": "c6896fd2dea782d8ed6412769337b76eb899ca53",
+      "private_root": "/private/tmp/canlang-rust-port-codex-first-20261006T231809Z/packets/R3-N03",
+      "ack_path": "/private/tmp/canlang-rust-port-codex-first-20261006T231809Z/packets/R3-N03/ACK.json",
+      "ack_sha256": "81b487b845cd1c05c3558ac8ec0900ce0a44ce0a566751e57f70403c8bd20906",
+      "ack_observed": true,
+      "status": "released_for_independent_review",
+      "writable_paths": [
+        "packages/work-kernel/decisions/rows.rs",
+        "packages/work-kernel/decisions/receipt.rs",
+        "packages/work-kernel/decisions/linkage.rs",
+        "packages/work-kernel/decisions/recovery.rs",
+        "packages/work-kernel/decisions/numeric_text.rs",
+        "packages/work-kernel/conformance/numeric-text.contract.test.ts",
+        "packages/work-kernel/conformance/numeric-text.oracle.mjs",
+        "packages/work-kernel/conformance/fixtures/numeric-text.json",
+        "packages/work-kernel/conformance/native-numeric-text.rs",
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/work-transitions/handoffs/n01-work-number-text.json"
+      ],
+      "writer_released": true,
+      "active_commands": [],
+      "release_manifest": {
+        "path": "/private/tmp/canlang-rust-port-codex-first-20261006T231809Z/packets/R3-N03/RESULT.json",
+        "sha256": "e2302902d6721ed05d8e76ef8a26e7cae8e3e443bad49ea9e7ae49daf9ed6bfb"
+      }
+    }
+  ],
+  "command_capacity": {
+    "max_concurrent_heavy": 2,
+    "slots": [],
+    "editing_holds_command_slot": false
+  },
+  "shared_checkout_git_owner": "Codex for these package workers; independent compiler writer retains its files/index/commits",
+  "foreign_status": [
+    " M compiler/Cargo.lock",
+    " M compiler/Cargo.toml",
+    " M compiler/src/analysis/types.rs",
+    " M compiler/tests/analysis.rs",
+    " M docs/ideal-filetree-plan.md",
+    " M docs/ideal-filetree-plan/finished-product/tasks.md",
+    " M docs/specification/DECISIONS.md",
+    " M implementation/CHALLENGE-AUDIT-PLAN.md",
+    " M implementation/REMAINING-WORK.md",
+    " M implementation/RUST-PORT-LANES.md",
+    "?? docs/research/compiler-library-audit-20261006/pass3/",
+    "?? implementation/rust-port-orchestration/runs/",
+    "?? output/build-in-public/compiler-pass1-e835db8-20261007.png",
+    "?? output/build-in-public/compiler-pass2-74f7271-20261007.png",
+    "?? output/build-in-public/compiler-pass2-74f7271-20261007.txt"
+  ],
+  "supervisor_status": "ACTIVE",
+  "local_recurring_jobs": [],
+  "main_integrator": "Codex",
+  "no_muse_or_tmux": true,
+  "material_progress": {
+    "A": "Actual native values-semantics82 tests pass including10213 primitive and131 donor checks; matching privately regenerated bindingsWasm/direct raw-bitWasm both pass;12 mutation controls fail as required. Final noEmit types check pending.",
+    "B": "Eight contract/evidence files released; original direct credit preserved; source HTTP seam and callback provenance facts verified; actual R1 future PH1-PH3 review received; Codex PH2/PH4 and clean independent contract review pending.",
+    "C": "Source/commands released: exact private copied leaves rows53/receipt70/linkage45/recovery79 and TS74 pass,10213 bits plus72 frozen callers. Full StateError extra fields/hostNaN-bit residuals and official assembly remain open; independent source review active."
+  },
+  "command_permits": [
+    {
+      "id": "A-heavy-001",
+      "worker": "A",
+      "state": "released",
+      "session": 26629,
+      "exit": 101,
+      "result": "sandbox DNS prevented compile"
+    },
+    {
+      "id": "A-heavy-002",
+      "worker": "A",
+      "state": "released",
+      "session": 41299,
+      "exit": 101,
+      "result": "formatter/donors pass, negative control selector defect repaired"
+    },
+    {
+      "id": "A-heavy-003",
+      "worker": "A",
+      "state": "released",
+      "session": 1004,
+      "exit": 0,
+      "result": "native package82 tests"
+    },
+    {
+      "id": "A-heavy-004",
+      "worker": "A",
+      "state": "released",
+      "session": 52087,
+      "exit": 0,
+      "result": "actual bindingsWasm passes; initial private lock closure retry required"
+    },
+    {
+      "id": "A-heavy-005",
+      "worker": "A",
+      "state": "released",
+      "session": 50518,
+      "exit": 0,
+      "result": "private raw-bit harnessWasm, exact17 entry dependency closure"
+    },
+    {
+      "id": "A-heavy-006",
+      "worker": "A",
+      "state": "released",
+      "session": 62309,
+      "exit": 0,
+      "result": "private regenerated webglue/raw-bitWasm donor checks; transport limits retained"
+    },
+    {
+      "id": "C-heavy-001",
+      "worker": "C",
+      "state": "released",
+      "result": "initial DNS/test-only assertion failures retained; no production mismatch inferred"
+    },
+    {
+      "id": "C-js-001",
+      "worker": "C",
+      "state": "released",
+      "session": 95367,
+      "exit": 1,
+      "result": "hostNaN/StateError residuals retained, finite numeric projection clarified"
+    },
+    {
+      "id": "C-heavy-002",
+      "worker": "C",
+      "state": "released",
+      "handles": [
+        "1e156b",
+        "21df56",
+        "bcbd8c",
+        77993
+      ],
+      "exit": 0,
+      "result": "53/70/45/79 exact private leaf tests"
+    },
+    {
+      "id": "C-js-002",
+      "worker": "C",
+      "state": "released",
+      "session": 32239,
+      "exit": 0,
+      "result": "74 finite numeric gates; full error-envelope claim withheld"
+    },
+    {
+      "id": "A-typecheck-001",
+      "worker": "A",
+      "state": "released",
+      "session": 65469,
+      "scope": "read-only package TypeScript --noEmit",
+      "exit": 0
+    }
+  ],
+  "updated_at_utc": "2026-10-06T23:30:11.493454+00:00",
+  "independent_review": [
+    {
+      "agent": "/root/review_c_n03",
+      "model": "gpt-6.1-sol",
+      "effort": "high",
+      "verdict": "PASS_SOURCE_ONLY",
+      "completed": true,
+      "reason": "Four copied Rust leaves and original donor/source residual identity joins"
+    },
+    {
+      "agent": "/root/review_b_v01",
+      "model": "gpt-6.1-sol",
+      "effort": "high",
+      "verdict": "PASS_FUTURE_CONTRACT_ONLY",
+      "completed": true,
+      "reason": "Private core/provenance/default/evaluation-order cross-owner seam"
+    },
+    {
+      "agent": "/root/review_a_n02",
+      "model": "gpt-6.1-sol",
+      "effort": "medium",
+      "reason": "Frozen scalar formatter and narrow actual bindings witness",
+      "verdict": "PASS_FINITE_FORMATTER_MAINTENANCE",
+      "completed": true
+    }
+  ]
+}
