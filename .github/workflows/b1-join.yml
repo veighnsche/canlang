@@ -28,16 +28,15 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: "22"
+          node-version: "24"
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version: "1.4.2"
       - name: Install from lock
         run: bun install --frozen-lockfile
       - name: Build values dist and emit catalog
-        # packages/values "catalog" script = build (tsc) + emit-catalog.mjs.
+        # The catalog task builds values and its declared producers first.
         run: bun run catalog
-        working-directory: packages/values
       - name: Print catalog version and entry count
         run: node -e "const c = require('./packages/values/dist/catalog.json'); console.log('catalog', c.catalog_version + ':', c.entries.length, 'entries,', c.features.length, 'features');"
       - name: Upload catalog
@@ -51,12 +50,12 @@ jobs:
     needs: build-catalog
     steps:
       - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: dtolnay/rust-toolchain@89b12181fb390509a0842a86cc55eeb8eb928c1d
         with:
           toolchain: "1.99.0"
       - uses: actions/setup-node@v4
         with:
-          node-version: "22"
+          node-version: "24"
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version: "1.4.2"
@@ -68,13 +67,13 @@ jobs:
       - name: B1 join test (must PASS STRICT, not skip)
         run: |
           set -o pipefail
-          cargo test --test b1_join -- --nocapture 2>&1 | tee /tmp/b1_join.log
+          cargo test --locked --test b1_join -- --nocapture 2>&1 | tee /tmp/b1_join.log
           grep -q "2 passed" /tmp/b1_join.log || { echo "FAIL: b1_join did not pass both joins"; exit 1; }
           grep -q "SKIP b1_teamtasks_artifact\|SKIP b2_expenseflow_artifact" /tmp/b1_join.log && { echo "FAIL: b1_join SKIPPED (catalog missing?) — strict proof required"; exit 1; }
           echo "proves: b1_join passed STRICT against the real catalog (both joins, zero SKIP)"
         working-directory: compiler
       - name: Build can
-        run: cargo build
+        run: cargo build --locked
         working-directory: compiler
       - name: Honest-gap pin (exit 10, 3xE6008, zero other codes)
         run: |

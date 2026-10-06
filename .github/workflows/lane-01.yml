@@ -28,7 +28,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           submodules: recursive
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: dtolnay/rust-toolchain@89b12181fb390509a0842a86cc55eeb8eb928c1d
         with:
           toolchain: "1.99.0"
           components: rustfmt, clippy
@@ -36,7 +36,7 @@ jobs:
         run: cargo fmt --check
         working-directory: compiler
       - name: Clippy (warnings denied)
-        run: cargo clippy --all-targets -- -D warnings
+        run: cargo clippy --locked --all-targets -- -D warnings
         working-directory: compiler
       - name: Build
         run: cargo build --locked
@@ -51,14 +51,14 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: "22"
+          node-version: "24"
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version: "1.4.2"
       - name: Typecheck owned contract boundaries
         # packages/contracts assembly (package.json/index) is lane 7 owned;
         # lane 1 verifies its two files standalone until the join lands.
-        run: bunx -p typescript@5.6.3 tsc --noEmit --strict --skipLibCheck packages/contracts/src/artifact.ts packages/contracts/src/diagnostic.ts
+        run: bunx -p typescript@5.9.3 tsc --noEmit --strict --skipLibCheck packages/contracts/src/artifact.ts packages/contracts/src/diagnostic.ts
 
   editor:
     runs-on: ubuntu-latest
@@ -66,7 +66,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: "22"
+          node-version: "24"
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version: "1.4.2"
@@ -79,8 +79,10 @@ jobs:
         # @types/node, and bare tsc auto-includes it (red under npm too).
         run: |
           mkdir -p /tmp/empty-typeroot
-          bunx -p typescript@5.6.3 tsc --noEmit --strict --target es2022 --lib es2022 --typeRoots /tmp/empty-typeroot editors/vscode/src/extension.ts editors/vscode/src/client.ts
-      - uses: dtolnay/rust-toolchain@stable
+          bunx -p typescript@5.9.3 tsc --noEmit --strict --target es2022 --lib es2022 --typeRoots /tmp/empty-typeroot editors/vscode/src/extension.ts editors/vscode/src/client.ts
+      - uses: dtolnay/rust-toolchain@89b12181fb390509a0842a86cc55eeb8eb928c1d
+        with:
+          toolchain: "1.99.0"
       - name: Build can (debug, for LSP round-trip)
         run: cargo build --locked
         working-directory: compiler

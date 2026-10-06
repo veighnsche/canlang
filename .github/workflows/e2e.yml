@@ -13,11 +13,13 @@ on:
       - "playwright.config.ts"
       - "package.json"
       - "bun.lock"
+      - "bunfig.toml"
+      - "turbo.json"
+      - "scripts/**"
+      - "tsconfig*.json"
+      - "compiler/**"
       - ".github/workflows/e2e.yml"
-      - "packages/ui/**"
-      - "packages/identity/**"
-      - "packages/contracts/**"
-      - "packages/cloudflare/**"
+      - "packages/**"
       # The hand-built fixture witnesses examples/TeamTasks.can bytes;
       # without this, example replans (slice 23) break e2e silently.
       - "examples/**"
@@ -28,11 +30,13 @@ on:
       - "playwright.config.ts"
       - "package.json"
       - "bun.lock"
+      - "bunfig.toml"
+      - "turbo.json"
+      - "scripts/**"
+      - "tsconfig*.json"
+      - "compiler/**"
       - ".github/workflows/e2e.yml"
-      - "packages/ui/**"
-      - "packages/identity/**"
-      - "packages/contracts/**"
-      - "packages/cloudflare/**"
+      - "packages/**"
       - "examples/**"
   workflow_dispatch:
 
@@ -43,10 +47,13 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: "22"
+          node-version: "24"
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version: "1.4.2"
+      - uses: dtolnay/rust-toolchain@89b12181fb390509a0842a86cc55eeb8eb928c1d
+        with:
+          toolchain: "1.99.0"
       - name: Install from lock
         run: bun install --frozen-lockfile
       - name: Cache Playwright browsers
@@ -58,8 +65,8 @@ jobs:
         run: bunx playwright install --with-deps chromium
       - name: Build lane-07 dists
         run: bun run build
-      - name: Build producer dists bundled into the worker
-        run: bun run --filter @canlang/ui build && bun run --filter @canlang/identity build
+      - name: Build compiler for compiled fixtures
+        run: bun run build:compiler
       - name: Typecheck e2e harness
         run: bun run typecheck:e2e
       - name: Run e2e (or report pending)
