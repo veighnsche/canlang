@@ -295,15 +295,15 @@ async function testPrincipal(store: IdentityStore, cookie: string): Promise<Reso
 test('generated ui fields map the REAL derivation for every formable pilot op', () => {
   assert.deepEqual(
     generatedFields(deriveOperationInputs(REVIEW_OP), 'scenario').map((f) => f.path),
-    ['notes', 'limit', 'nick'],
+    ['notes', 'limit', 'nick', 'nick__null'],
   );
   assert.deepEqual(
     generatedFields(deriveOperationInputs(GADGET_CREATE_OP), 'create').map((f) => f.path),
-    ['title', 'stock', 'price', 'state', 'owner', 'owner__version', 'tags', 'ids', 'code'],
+    ['title', 'stock', 'price', 'state', 'owner', 'owner__version', 'owner__null', 'tags', 'ids', 'code'],
   );
   assert.deepEqual(
     generatedFields(deriveOperationInputs(GADGET_UPDATE_OP), 'update').map((f) => f.path),
-    ['title', 'stock', 'price', 'state', 'owner', 'owner__version', 'tags', 'ids', 'code'],
+    ['title', 'stock', 'price', 'state', 'owner', 'owner__version', 'owner__null', 'tags', 'ids', 'code'],
   );
   assert.deepEqual(
     generatedFields(deriveOperationInputs(MEMBER_CREATE_OP), 'create').map((f) => f.path),
@@ -544,12 +544,11 @@ test('business denials re-render full-page with safe messages only', async () =>
   assert.ok(!garbage.html.includes('leak'));
 });
 
-test('ref-object drafts degrade gracefully inside the resilient render', async () => {
+test('ref-object drafts carry onto generated companions in the re-render', async () => {
   const t = await createTestDeps({});
-  // Object-valued drafts (a composed `{id, version}` ref) cannot fill a
-  // text widget: the resilient render drops the value per-field while
-  // the inline error still explains. Full ref-draft carry-through is
-  // T20b (needs a draft-projection rule).
+  // Object-valued drafts (a composed `{id, version}` ref) flatten onto
+  // the generated id + `__version` companions (R5: generatedDraftValues),
+  // so the ref draft redisplays while the inline error still explains.
   const fields = generatedFields(deriveOperationInputs(GADGET_UPDATE_OP), 'update');
   const applied = applyDrafts(fields, 'update', { record: { id: 'g1', version: '3' }, changes: { title: 't' } });
   assert.equal(applied.find((f) => f.path === 'title')?.value, 't');
@@ -583,6 +582,8 @@ test('ref-object drafts degrade gracefully inside the resilient render', async (
   });
   assert.equal(rendered.status, 400);
   assert.ok(rendered.html.includes('Bad owner.'));
+  assert.ok(rendered.html.includes('value="o9"'), 'ref id draft redisplays');
+  assert.ok(rendered.html.includes('value="2"'), 'ref version draft redisplays');
 });
 
 test('csrfTokenForSession covers pages and mintOperationId mints canonical ids', async () => {

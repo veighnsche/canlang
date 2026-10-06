@@ -127,6 +127,36 @@ export interface FieldError {
  * (MCP: `isError=true`); protocol errors stay JSON-RPC errors (DESIGN
  * section 10). Existence-hiding lookups surface as `not_found`.
  */
+/**
+ * L3-carried conflict current (E2b/F1 Q3 join): the current row behind a
+ * `conflict` (409) denial, so the re-render path — which cannot query
+ * rows by design — can still show what changed. `values` is keyed by
+ * GENERATED dot-path (`title`, `address.zip`), deliberately NOT JSON
+ * Pointers, so entries cannot mis-join with `fields[].path` (which
+ * points into submitted inputs).
+ *
+ * Population rules (fail-closed): `values` = submitted-input fields
+ * intersect row data, MINUS serverOnly fields (exclusions threaded
+ * from the table/descriptor holder) MINUS secret-kind values by shape
+ * (defense-in-depth); absent keys are never null-guessed. Admission
+ * populates full currents (row in hand, zero extra reads);
+ * commit-race populates metadata + empty `values` (re-reading there
+ * would be TOCTOU-indicative); fence-moved and receipt-reuse
+ * conflicts leave `conflict` ABSENT (no row). `updatedBy` is
+ * projection-visible metadata already — no new disclosure.
+ */
+export interface ConflictCurrent {
+  readonly message: string;
+  readonly current: {
+    readonly model: string;
+    readonly id: string;
+    readonly version: number;
+    readonly updated: string;
+    readonly updatedBy: string;
+    readonly values: { readonly [fieldPath: string]: unknown };
+  };
+}
+
 export interface BusinessError {
   readonly code: BusinessErrorCode;
   readonly message: string;
@@ -136,6 +166,10 @@ export interface BusinessError {
    * (e.g. `busy` contention, `delivery_unknown` reconciliation; DESIGN
    * section 7 retry/replay rules). Lane-06 authored member. */
   readonly retryable?: boolean;
+  /** Present only on `conflict` denials with a carried row (see
+   * `ConflictCurrent`); absent otherwise. Rendered by state
+   * `toBusinessError` and every transport assembly mirror. */
+  readonly conflict?: ConflictCurrent;
 }
 
 /**
@@ -489,9 +523,11 @@ export interface DerivedOperationInputs {
 /* shape; numerics bind to their canonical wire shapes; delivery      */
 /* binds to nothing — any submitted value rejects. Binding mismatch   */
 /* is `validation`; version staleness against the current admitted    */
-/* version stays L3-owned (`conflict`). Strings, datetimes, booleans, */
-/* and array-element nullability carry no declared set to bind and    */
-/* pass through to L3 admission untouched.                             */
+/* version stays L3-owned (`conflict`). Strings, booleans, and        */
+/* array-element nullability carry no declared set to bind and pass   */
+/* through to L3 admission untouched. Datetimes are decoded at the   */
+/* dispatcher boundary with the canonical values-wire decode (E2b):  */
+/* millis-pinned RFC3339 UTC; L3 judges presence only.                */
 /* ------------------------------------------------------------------ */
 
 /**

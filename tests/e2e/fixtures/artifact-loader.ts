@@ -38,10 +38,10 @@
  */
 import { execFileSync, spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
-import { mkdtempSync, readdirSync, readFileSync, rmSync, statSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync, statSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { fileURLToPath, pathToFileURL } from "node:url";
-import { join, relative, sep } from "node:path";
+import { join, relative } from "node:path";
 import type { LocalD1 } from "@canlang/cloudflare";
 import type { CompileArtifact, StoragePort } from "@canlang/contracts";
 import {
@@ -66,6 +66,7 @@ import {
   buildTeamTasksWorkerSource,
   teamTasksArtifact,
 } from "./handbuilt/teamtasks.js";
+import { readVendorTree } from "./vendor-trees.js";
 
 export const ARTIFACT_VERSION_SUPPORTED = 1;
 
@@ -158,33 +159,6 @@ function assertSourceWitness(root: string, relativePath: string, wantSha256: str
         `update the fixture, never the pin alone`,
     );
   }
-}
-
-function readVendorTree(root: string, distSubdir: string, prefix: string, buildCommand: string): Record<string, string> {
-  const base = join(root, distSubdir);
-  try {
-    if (!statSync(base).isDirectory()) throw new Error("not a directory");
-  } catch {
-    throw new Error(`e2e loader: ${distSubdir} not built; run \`${buildCommand}\` first`);
-  }
-  const modules: Record<string, string> = {};
-  const walk = (dir: string): void => {
-    for (const entry of readdirSync(dir)) {
-      const full = join(dir, entry);
-      if (statSync(full).isDirectory()) {
-        walk(full);
-        continue;
-      }
-      if (!entry.endsWith(".js")) continue;
-      const key = `${prefix}/${relative(base, full).split(sep).join("/")}`;
-      modules[key] = readFileSync(full, "utf8");
-    }
-  };
-  walk(base);
-  if (Object.keys(modules).length === 0) {
-    throw new Error(`e2e loader: no .js modules found under ${distSubdir}; run \`${buildCommand}\``);
-  }
-  return modules;
 }
 
 function assertFileBuilt(root: string, distRelative: string, buildCommand: string): void {

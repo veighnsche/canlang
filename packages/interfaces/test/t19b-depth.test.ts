@@ -918,11 +918,19 @@ test('bound arguments: arrays, nullability, and L3 pass-throughs', () => {
   const title = derivedInput(deriveOperationInputs(LEDGER_CREATE), 'title');
   assert.ok(checkBoundArgument(title, null) !== null);
 
-  // Strings, datetimes, and booleans carry no declared set: L3 admission owns them.
+  // Strings and booleans carry no declared set: L3 admission owns them.
   assert.equal(checkBoundArgument(title, 'anything'), null);
   assert.equal(checkBoundArgument(title, 5), null);
+  // Datetimes decode through the canonical values-wire form (E2b/F-R4):
+  // L3 admission judges presence only, so the dispatcher owns the shape.
   const when: DerivedWritableInput = { name: 'when', kind: 'datetime', required: false };
-  assert.equal(checkBoundArgument(when, 'not-a-datetime'), null);
+  assert.equal(checkBoundArgument(when, '2026-10-06T06:00:00.000Z'), null);
+  const noMillis = checkBoundArgument(when, '2026-10-06T06:00:00Z');
+  assert.ok(noMillis !== null);
+  assert.equal(noMillis.fields?.[0]?.path, '/when');
+  assert.equal(noMillis.fields?.[0]?.code, 'binding_mismatch');
+  assert.ok(checkBoundArgument(when, 'not-a-datetime') !== null);
+  assert.ok(checkBoundArgument(when, 1728192000000) !== null);
   const flag: DerivedWritableInput = { name: 'flag', kind: 'boolean', required: false };
   assert.equal(checkBoundArgument(flag, 'yes'), null);
 });
