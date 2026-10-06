@@ -387,6 +387,8 @@ describe("table row expansion", () => {
     expect(stashedRowOf(scope)?.inputs).toEqual({ title: "t", author: { name: "a" } });
     expect(stashedRowOf(scope)?.cells).toEqual(["members", "a"]);
     expect(fixtureValuesOf(scope)?.get("author")).toEqual({ name: "seed" });
+    // Baseline stash: pre-application roots for live fixture matching.
+    expect(stashedRowOf(scope)?.baselineInputs).toEqual({ title: "t", author: { name: "seed" } });
     await second.setup(new MemoryScope(), memoryAccounts());
     expect(second.expected).toEqual({ error: "rule_failed" });
   });

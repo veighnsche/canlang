@@ -357,7 +357,10 @@ pilotTest.describe("challenge pilot", () => {
     }
     expect(completed.result.status).toBe("committed");
     const doneRow = await island.store.load(TASK as ModelName, id as RecordId);
-    const doneData = doneRow?.data as Record<string, unknown>;
+    if (doneRow === null) {
+      throw new Error(`pilot: completed row ${id} not readable`);
+    }
+    const doneData = doneRow.data as Record<string, unknown>;
     expect(doneData["done"]).toBe(true);
     expect(doneData["completed_by"]).not.toBeNull();
 
@@ -366,7 +369,7 @@ pilotTest.describe("challenge pilot", () => {
       {
         operation: COMPLETE as OperationName,
         operation_id: freshOperationId(actors.now) as OperationId,
-        inputs: { task: { id, version: String(doneRow?.version ?? 2) } },
+        inputs: { task: { id, version: String(doneRow.version) } },
       },
       actors.member.identity,
     );
@@ -379,7 +382,7 @@ pilotTest.describe("challenge pilot", () => {
       {
         operation: REOPEN as OperationName,
         operation_id: freshOperationId(actors.now) as OperationId,
-        inputs: { task: { id, version: String(doneRow?.version ?? 2) } },
+        inputs: { task: { id, version: String(doneRow.version) } },
       },
       actors.member.identity,
     );

@@ -35,6 +35,7 @@ import type {
 import {
   fixtureValuesOf,
   loadExampleSuite,
+  stashedRowOf,
   type FixtureBindings,
 } from "@canlang/testkit";
 import { runTable, type CallOutcome, type RowScope } from "@canlang/testkit";
@@ -96,10 +97,14 @@ function toCreateInput(field: string, value: unknown, what: string): { creatable
     return { creatable: true, input: mapped };
   }
   if (isRecord(value)) {
-    // `{kind:'user', id}` (e.g. `assignee=self`) maps to the id string:
-    // user-typed MCP inputs are plain strings (codegen/js.rs).
+    // `{kind:'user', id}` (e.g. `assignee=self`) passes through
+    // VERBATIM: the canonical path stores inputs verbatim (probe-proven)
+    // and downstream `same()` comparisons need tagged refs — a bare id
+    // string would throw `invalid-construction` there. (The MCP
+    // transport projection renders user inputs as strings; that
+    // projection is not this path.)
     if (value["kind"] === "user" && typeof value["id"] === "string") {
-      return { creatable: true, input: value["id"] };
+      return { creatable: true, input: value };
     }
     return { unmapped: `${what}: field ${JSON.stringify(field)} is a nested object with no input mapping` };
   }
@@ -108,6 +113,14 @@ function toCreateInput(field: string, value: unknown, what: string): { creatable
 
 export class PilotExamples {
   private readonly provisioned = new WeakMap<RowScope, Map<string, LiveRecord>>();
+  /**
+   * Per-row revision markers: live provisioning (creates +
+   * establishment) legitimately commits inside the invoke window the
+   * rejection proof measures. Snapshots subtract the measured
+   * provisioning bumps so the proof covers exactly the operation under
+   * test — a real leak still trips it.
+   */
+  private readonly invokeMarks = new WeakMap<RowScope, { start: number; provisioned: number }>();
 
   constructor(private readonly deps: PilotExampleDeps) {}
 
@@ -124,11 +137,20 @@ export class PilotExamples {
     return cached;
   }
 
-  private fixtureName(scope: RowScope, value: unknown): string | null {
+  /**
+   * Maps one applied ref input back to its fixture. Applied roots are
+   * CLONES (input-cell application never mutates provisioned values),
+   * so identity matches against the STASHED BASELINE root of the same
+   * input name — the exact object the `inputs` closure returned.
+   */
+  private fixtureName(scope: RowScope, inputName: string): string | null {
+    const baseline = stashedRowOf(scope)?.baselineInputs;
+    const root = isRecord(baseline) ? baseline[inputName] : undefined;
+    if (root === undefined) return null;
     const values = fixtureValuesOf(scope);
     if (values === undefined) return null;
     for (const [name, candidate] of values) {
-      if (candidate === value) return name;
+      if (candidate === root) return name;
     }
     return null;
   }
@@ -234,10 +256,10 @@ export class PilotExamples {
           `pilot examples: input ${JSON.stringify(field.name)} of ${operation} is neither a fixture value nor a record ref`,
         );
       }
-      const fixture = this.fixtureName(scope, value);
+      const fixture = this.fixtureName(scope, field.name);
       if (fixture === null) {
         throw new Error(
-          `pilot examples: input ${JSON.stringify(field.name)} of ${operation} matches no provisioned fixture`,
+          `pilot examples: input ${JSON.stringify(field.name)} of ${operation} matches no provisioned fixture via its baseline root`,
         );
       }
       const live = await this.ensureLiveRecord(scope, fixture, field.field.model, value);
@@ -256,7 +278,12 @@ export class PilotExamples {
     if (!isRecord(call.inputs)) {
       throw new Error(`pilot examples: inputs of ${call.operation} are not an object`);
     }
+    const start = Number(await this.deps.store.readRevision());
     const inputs = await this.substituteRefs(call.scope, call.operation, call.inputs);
+    this.invokeMarks.set(call.scope, {
+      start,
+      provisioned: Number(await this.deps.store.readRevision()),
+    });
     const outcome = await this.deps.invoker.invokeMutation(
       {
         operation: call.operation as FqOperationName,
@@ -290,10 +317,19 @@ export class PilotExamples {
 
   createScope = async (_rowIndex: number): Promise<RowScope> => {
     const store = this.deps.store;
-    return {
-      snapshot: async (): Promise<ReportValue> => Number(await store.readRevision()),
+    const marks = this.invokeMarks;
+    let scope!: RowScope;
+    scope = {
+      snapshot: async (): Promise<ReportValue> => {
+        // Before invoke the marks are unset: raw revision. After
+        // invoke: revision minus measured provisioning bumps.
+        const mark = marks.get(scope);
+        const revision = Number(await store.readRevision());
+        return mark === undefined ? revision : revision - (mark.provisioned - mark.start);
+      },
       dispose: async (): Promise<void> => {},
     };
+    return scope;
   };
 
   /**

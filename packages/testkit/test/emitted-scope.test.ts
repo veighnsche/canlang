@@ -116,6 +116,33 @@ describe("genuine emitted scope convention", () => {
     expect(result.rows[1]?.rejection).toEqual({ error: "rule_failed", sideEffectsAbsent: true });
   });
 
+  it("rejects unsafe selector segments loud", async () => {
+    const url = await writeModule(
+      "unsafe.mjs",
+      `export function exampleFixtures({ self, other, imported }) {
+        void self; void other; void imported;
+        return {
+          fixtures: {},
+          examples: [{
+            operation: "todo.Task.create",
+            dependencies: [],
+            inputs: async (c, s) => ({ task: {} }),
+            selectors: ["task.__proto__"],
+            observations: [],
+            rows: [{ dependencies: [], values: async (c, s) => [{}], expected: async (c, s) => [] }],
+          }],
+        };
+      }
+      `,
+    );
+    const suite = await loadExampleSuite(url, bindings(), {});
+    const row = suite.rows[0];
+    if (row === undefined) throw new Error("expected one row");
+    await expect(
+      row.setup(new MemoryScope(), { self: "s", other: "o", outsider: "x", users: {} }),
+    ).rejects.toThrow(/unsafe segment "__proto__"/);
+  });
+
   it("sequence closures read fixtures as scope properties", async () => {
     const url = await writeModule("sequence.mjs", SEQUENCE_MODULE);
     const invoke: ExampleHooks["invokeCall"] = async (): Promise<CallOutcome> => ({ ok: true });

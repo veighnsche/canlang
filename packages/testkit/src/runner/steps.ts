@@ -48,6 +48,13 @@ export type InvokeCall = (call: StepCall) => Promise<CallOutcome>;
 export interface StashedRow {
   readonly fixtures: ReadonlyMap<string, unknown>;
   readonly inputs: unknown;
+  /**
+   * Table inputs BEFORE row-cell application (same roots the evaluated
+   * `inputs` closure returned, so live provisioners can match applied
+   * roots back to provisioned fixtures by identity). Null for sequences
+   * and legacy rows, which apply no cells.
+   */
+  readonly baselineInputs: unknown;
   /** Evaluated row cells in selector order (`as`-cell included). */
   readonly cells: readonly unknown[];
   /** Evaluated expected values, or null when an exact error is expected. */
