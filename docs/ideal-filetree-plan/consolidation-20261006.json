@@ -5,11 +5,11 @@
   "checkpoint_advanced": false,
   "initial_main": "2b22cb4ecf637cce4bf90a17238cce12de045ba4",
   "current_merge": {
-    "branch": "codex/remaining-lane-d-work-providers",
-    "tip": "0f1cea80dbd39c8443fbe261a25fa4af4ffdffc1",
-    "before": "6f2fbf16910b2dadc4a0765cddfc1e8017166feb",
-    "scope": "history reconciliation; unfinished canonical preparation separately checkpointed; human hold retained",
-    "merge_output": "Automatic merge went well; stopped before committing as requested\n",
+    "branch": "codex/remaining-lane-b-core-state",
+    "tip": "8b1f7f47fc5649c10fbec23430184d780aebf2b2",
+    "before": "8e751e0feaeb65206b46d839925e6eca81df58ca",
+    "scope": "history reconciliation; preserve newer current prepared-input registry and canonical kernel checkpoint",
+    "merge_output": "Auto-merging packages/contracts/src/wire.ts\nAuto-merging packages/state/src/invocation/registry.ts\nAutomatic merge went well; stopped before committing as requested\n",
     "source_delta": []
   },
   "previous_merges": [
@@ -159,6 +159,15 @@
       "merge_output": "Automatic merge went well; stopped before committing as requested\n",
       "source_delta": [],
       "result": "6f2fbf16910b2dadc4a0765cddfc1e8017166feb"
+    },
+    {
+      "branch": "codex/remaining-lane-d-work-providers",
+      "tip": "0f1cea80dbd39c8443fbe261a25fa4af4ffdffc1",
+      "before": "6f2fbf16910b2dadc4a0765cddfc1e8017166feb",
+      "scope": "history reconciliation; unfinished canonical preparation separately checkpointed; human hold retained",
+      "merge_output": "Automatic merge went well; stopped before committing as requested\n",
+      "source_delta": [],
+      "result": "8e751e0feaeb65206b46d839925e6eca81df58ca"
     }
   ],
   "accumulated_structural_delta_since_complete_checkpoint": [
