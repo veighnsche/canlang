@@ -97,6 +97,9 @@ async function setupWorld(): Promise<B1World> {
     refs: loaded.refs,
     serverInits: loaded.serverInits,
     nullableFields: loaded.nullableFields,
+    // B5: every B1 agreement below holds under declared ownership too
+    // (Member parented to Team, Team a declared root).
+    containment: loaded.containment,
   });
   return { store, memberships, alice, loaded, table };
 }

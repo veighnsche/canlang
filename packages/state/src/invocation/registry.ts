@@ -52,7 +52,7 @@ import type {
 } from '../../../contracts/src/artifact.js';
 import { validateByPredicate, type ByPredicate } from '../policy/roles.js';
 import { validatePredicateShape } from '../policy/grants.js';
-import type { InterimRefDef } from '../mutation/models.js';
+import type { InterimContainment, InterimRefDef } from '../mutation/models.js';
 
 /**
  * INTERIM input descriptor. Scalar bounds arrive with S5/L2; S3 validates
@@ -193,8 +193,11 @@ export type ServerInitKind = 'actor' | 'now' | 'random_secret';
  * refs derived from singular top-level `ref` field tags (array-of-ref tags
  * are skipped — ref paths treat arrays as opaque leaves, so deriving them
  * would reject valid creates; T04b formalizes), per-operation input
- * array markers, T18 per-field server initializers, and T18
- * known-nullable field names (both keyed by model, then field).
+ * array markers, T18 per-field server initializers, T18
+ * known-nullable field names (both keyed by model, then field), and B5
+ * declared ownership per model (additive `parent`/`scope` members the
+ * frozen intake cannot hold; one entry per model, empty for declared
+ * team-scope roots).
  */
 export interface ConvertedArtifactDescriptors {
   readonly set: ExecutionDescriptorSet;
@@ -204,6 +207,7 @@ export interface ConvertedArtifactDescriptors {
   >;
   readonly serverInits: ReadonlyMap<ModelName, ReadonlyMap<string, ServerInitKind>>;
   readonly nullableFields: ReadonlyMap<ModelName, ReadonlySet<string>>;
+  readonly containment: ReadonlyMap<ModelName, InterimContainment>;
 }
 
 /** Fully loaded artifact: registry + models + engine-local model attachments. */
@@ -211,6 +215,7 @@ export interface LoadedArtifactDescriptors extends LoadedDescriptorSet {
   readonly refs: ReadonlyMap<ModelName, ReadonlyArray<InterimRefDef>>;
   readonly serverInits: ReadonlyMap<ModelName, ReadonlyMap<string, ServerInitKind>>;
   readonly nullableFields: ReadonlyMap<ModelName, ReadonlySet<string>>;
+  readonly containment: ReadonlyMap<ModelName, InterimContainment>;
 }
 
 const KNOWN_OPERATION_KINDS: ReadonlySet<string> = new Set([
@@ -718,10 +723,10 @@ export function loadExecutionDescriptorSet(
  * intake: `artifact_version` must equal 1 (the pinned artifact contract);
  * absent `operations`/`models` read as "no descriptors", never as an error;
  * model `fields` arrays fold into records by name and additive members drop
- * (except the T18 engine-local channels — server inits and known-nullable
- * names — which ride beside the intake like refs). Unknown
- * operation/input/default kinds — or any malformed/dangling member —
- * reject the WHOLE conversion.
+ * (except the engine-local channels — T18 server inits and known-nullable
+ * names plus B5 declared ownership — which ride beside the intake like
+ * refs). Unknown operation/input/default kinds — or any
+ * malformed/dangling member — reject the WHOLE conversion.
  */
 export function artifactToDescriptorSet(
   artifact: ArtifactDescriptorSlice,
@@ -759,6 +764,7 @@ export function artifactToDescriptorSet(
   const refs = new Map<ModelName, InterimRefDef[]>();
   const serverInits = new Map<ModelName, Map<string, ServerInitKind>>();
   const nullableFields = new Map<ModelName, Set<string>>();
+  const containment = new Map<ModelName, InterimContainment>();
   const models: CanonicalModelDescriptor[] = [];
   for (const model of rawModels as ArtifactModel[]) {
     if (!Array.isArray(model.fields)) {
@@ -888,6 +894,44 @@ export function artifactToDescriptorSet(
     refs.set(model.name as ModelName, modelRefs);
     serverInits.set(model.name as ModelName, modelInits);
     nullableFields.set(model.name as ModelName, modelNullable);
+    // B5 declared ownership (adopted T28-A): `parent` marks a contained
+    // child of that canonical model; `scope: 'app'` marks an app root;
+    // neither marks a team-scope root (the default — the empty entry
+    // still arms root enforcement). Dangling parents reject the whole
+    // set (mirroring ref targets); cycles reject at table build.
+    const ownership = `containment on model ${JSON.stringify(model.name)}`;
+    const declaredParent: unknown = model.parent;
+    const declaredScope: unknown = model.scope;
+    if (declaredParent !== undefined) {
+      if (typeof declaredParent !== 'string' || declaredParent === '') {
+        fail(
+          'malformed_descriptor',
+          `Invalid ${ownership}: parent must be a non-empty model name.`,
+        );
+      }
+      if (!modelNames.has(declaredParent)) {
+        fail(
+          'dangling_reference',
+          `Invalid ${ownership}: model ${JSON.stringify(declaredParent)} has no descriptor in this set.`,
+        );
+      }
+    }
+    if (declaredScope !== undefined && declaredScope !== 'app') {
+      fail(
+        'malformed_descriptor',
+        `Invalid ${ownership}: scope is "app" when present.`,
+      );
+    }
+    if (declaredParent !== undefined && declaredScope !== undefined) {
+      fail(
+        'malformed_descriptor',
+        `Invalid ${ownership}: parent and scope are mutually exclusive.`,
+      );
+    }
+    containment.set(model.name as ModelName, {
+      ...(declaredParent !== undefined ? { parent: declaredParent as ModelName } : {}),
+      ...(declaredScope !== undefined ? { scope: 'app' as const } : {}),
+    });
   }
   const operations: CanonicalOperationDescriptor[] = [];
   const inputArrays: Record<string, Record<string, { readonly required: boolean }>> = {};
@@ -1022,7 +1066,7 @@ export function artifactToDescriptorSet(
     operations,
     models,
   };
-  return { set, refs, inputArrays, serverInits, nullableFields };
+  return { set, refs, inputArrays, serverInits, nullableFields, containment };
 }
 
 /**
@@ -1053,5 +1097,15 @@ export function loadArtifactDescriptors(
   const nullableFields: Map<ModelName, ReadonlySet<string>> = new Map(
     [...converted.nullableFields].map(([model, names]) => [model, new Set(names)]),
   );
-  return { registry: loaded.registry, models: loaded.models, refs, serverInits, nullableFields };
+  const containment: Map<ModelName, InterimContainment> = new Map(
+    [...converted.containment].map(([model, declared]) => [model, { ...declared }]),
+  );
+  return {
+    registry: loaded.registry,
+    models: loaded.models,
+    refs,
+    serverInits,
+    nullableFields,
+    containment,
+  };
 }
