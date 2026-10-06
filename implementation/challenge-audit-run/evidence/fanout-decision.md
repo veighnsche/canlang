@@ -1636,3 +1636,197 @@ CanVolunteer.can fanout neighborhoods; CHALLENGE-AUDIT-PLAN.md:392-398.
   scheduling. Gate-needs status after this slice: items 1/2/3/4/5/6/7/8
   fed; item 9 (coordinator-run JEV) + item 10 full plan (post-adoption)
   remain.
+
+## §R10-FULL — Adopted A contract + Item-10/T34 matrix (transcription record)
+
+Writer: T34-prep evidence writer. Status: **RECORD — transcribes NOTHING
+new.** This section transcribes the adopted decision recorded in
+`implementation/challenge-audit-run/t33-resolution.md` (Codex-owned,
+read-only, never edited here): the 9 first-contract points (§C1–§C9)
+and the 10 Item-10/T34 matrix rows (§M1–§M10). Every quote below is
+verbatim from the resolution; each carries its source line cite. No new
+semantics, no rewording, no JEV, no adoption beyond recording the
+adopted decision. APPEND-ONLY: all prior sections byte-identical, no
+checklist-marker edits.
+
+Adoption record (t33-resolution.md:13, verbatim): "[INFERRED] Adopt A's
+durable per-child direction for both existing cohort spellings.
+Preserve the complete finite admitted-cohort contract through bounded
+execution units. Do not adopt a fixed 500-row or transaction-sized
+semantic fanout cap from tiny examples. No infinite storage/resource
+promise is made: resource admission must be explicit and fail before
+claiming an admitted complete run; admitted work may remain
+pending/attention when resources are unavailable, never silently
+truncate or report success. Confidence high for this choice; a revised
+adopted atomic-cap requirement or equally faithful cheaper complete
+continuation would change it."
+
+Architecture record (t33-resolution.md:27, verbatim): "The architecture
+direction is adopted. Precise storage representations, runtime errors
+and membership implementation must come from actual owning producers
+and be recorded before emission/qualification. A missing
+membership/recovery capability is a T34 implementation obligation, not
+permission to weaken the contract."
+
+### §C1–§C9 — Concrete first contract (t33-resolution.md:15-25, verbatim)
+
+§C1. Authoritative membership (t33-resolution.md:17): "freeze canonical
+record identities in the owning store at an explicit
+source-occurrence/handler admission cutoff. T34 must demonstrate exact
+membership across bounded enumeration, concurrent inserts/moves/deletes
+and process failures. Late inserts are excluded from that occurrence;
+an eventual owner directory or unsupported high-water assumption is
+insufficient. Retain the complete frozen identity set or another proven
+equivalent authoritative membership mechanism. Failure to establish it
+is a capability/admission failure, not successful partial enumeration.
+Do not claim that current live D1 fencing alone provides historical
+snapshots."
+
+§C2. Source versus child success (t33-resolution.md:18): "parent/source
+success means its own domain truth and durable fanout intent committed
+atomically. Child progress is separate. Volunteer cancellation stays
+effective while stored child updates/notices are pending or fail."
+
+§C3. Stable identities (t33-resolution.md:19): "derive child occurrence
+identity from parent/source occurrence, canonical handler identity and
+canonical record identity. The handler component prevents
+Commitment/Swap or other handlers on one source event from colliding.
+Duplicate delivery replays existing parent/child outcomes; compatible
+release rules must preserve identities under the established
+event/receipt contract."
+
+§C4. Current authority and body evaluation (t33-resolution.md:20): "use
+the source's verified owner/team context, with fresh child checkpoint,
+current record/parent state and adopted T32 permission/revocation
+fence. Cohort membership does not grant authority or freeze
+eligibility. Preserve null-or-match filters, sticky conflict/obsolete
+state, reminder pairing and current version guards; Commitment and Swap
+handlers need no ordering dependency."
+
+§C5. Atomic child checkpoint (t33-resolution.md:21): "child's
+domain/history/replay changes, emitted events, keyed
+schedules/cancellations, outbox/dispatch intents, terminal outcome and
+checkpoint advancement must commit together in one supported owner
+transaction. Never acknowledge a child before its effects are durable;
+never re-execute committed effects after checkpoint-crash recovery.
+Cross-store atomicity remains unsupported until independently
+supplied."
+
+§C6. Failures and progress (t33-resolution.md:22): "isolate business
+rejection/terminal failure from siblings. Retain
+pending/running/completed/skipped/failed information and bounded
+retry/exhaustion attribution. Fully terminal with failures means
+attention, not successful completion. Missing/inaccessible records and
+infrastructure read failures must remain distinct; no silent successful
+skip. Provider acceptance is not delivery/read proof, and one logical
+notice intent is not an exactly-once external-email guarantee."
+
+§C7. Concurrent lifecycle (t33-resolution.md:23): "frozen identity
+membership persists through later changes; current body/authority/
+version checks decide each child. A demonstrably deleted child gets an
+explicit terminal skipped/deleted outcome; moved records are
+re-evaluated against current parent/body conditions, with
+non-applicable work explicitly accounted. Unknown lookup/authority
+failure cannot masquerade as deletion. Preserve data minimization on
+operator progress."
+
+§C8. Supersession default (t33-resolution.md:24): "retain independent
+source occurrences and evaluate their children against current guards.
+Do not automatically discard an older sweep merely because a newer
+filtered event exists: employee/location/account/roster coverage can
+differ. Duplicate occurrence replay is distinct from semantic
+supersession. Skipping undispatched children for a successor requires
+an explicitly adopted coverage-preserving rule and proof; no such new
+authoring syntax is introduced here. Already admitted/provider-accepted
+work follows existing reconciliation boundaries. Confidence medium for
+this conservative unpinned default; new authored re-trigger
+requirements could change it."
+
+§C9. Resource boundaries (t33-resolution.md:25): "bound each
+transaction/page/claim/retry and scheduler turn, with fair resumable
+processing. Chunk size is not cohort size. Resource exhaustion is
+explicit before admission or honest pending/attention afterward. Do not
+fabricate an unreviewed numeric deployment quota or widen ordinary
+bounded loops. Keep invalid/cross-owner/unimplemented cohort forms
+diagnosed until complete producers/checker/runtime joins exist."
+
+### §M1–§M10 — Item10 / T34 acceptance plan (t33-resolution.md:29-42, verbatim)
+
+§M1. Witness "499/500/501/1000 identities"
+(t33-resolution.md:33): "Every admitted identity receives one accounted
+outcome, independent of chunk boundaries; ordinary inline-loop overflow
+still rejects atomically. These are proof cohorts, not observed
+population estimates."
+
+§M2. Witness "Crash at enumeration/claim/effect/checkpoint boundaries"
+(t33-resolution.md:34): "Authoritative membership survives; no lost
+identity or acknowledged unfinished effect; committed child effects are
+not repeated. Prove actual restart using real durable substrate, not
+only two live handles."
+
+§M3. Witness "Duplicate source/child deliveries"
+(t33-resolution.md:35): "Stable parent+handler+record identity,
+parent/child receipt replay, no duplicated logical notices/events/
+checkpoints."
+
+§M4. Witness "Concurrent insert/move/delete" (t33-resolution.md:36):
+"Assert the exact cutoff and current-body/lifecycle policy; no phantom
+admitted membership, silently lost member or failed lookup reported
+deleted."
+
+§M5. Witness "Child rejection/authority loss" (t33-resolution.md:37):
+"Other children continue; current T32 permission/revocation fence
+prevents stale authorization; terminal failure changes aggregate
+status to attention."
+
+§M6. Witness "Transient retry/exhaustion" (t33-resolution.md:38):
+"Bounded retries reuse identity; pending/failed attribution honest; no
+stalled child starves others."
+
+§M7. Witness "Two differently filtered source events during flight"
+(t33-resolution.md:39): "Both retain coverage under the
+no-automatic-supersession default; any future suppression rule proves
+successor coverage and admitted-work reconciliation."
+
+§M8. Witness "Worker fairness/cancellation" (t33-resolution.md:40):
+"Bounded scheduling progresses all admitted identities; no promise of
+provider cancellation beyond its accepted contract."
+
+§M9. Witness "Owning app workflows" (t33-resolution.md:41): "Original
+Shift commitment/swap and Volunteer refresh/cancel bodies, guards and
+notices execute without semantic trimming. T40 remains blocked until
+actual matching T34/checker/emission/authority/fixture joins pass."
+
+§M10. Witness "Negative controls" (t33-resolution.md:42):
+"Unsupported/cross-owner cohort, unavailable membership producer,
+truncated enumeration, false complete/atomic outcome, fabricated caller
+grant, partial checkpoint and ordinary overflow remain failing."
+
+### §R10-FULL handoff record
+
+- Handoff record (t33-resolution.md:46, verbatim in substance): "T34
+  remains implementation work; no parent task or native original goal
+  is false-completed."
+- Reservation record (t33-resolution.md:48, verbatim in substance):
+  "Before any active saved-plan/contract/normative edit or
+  implementation dispatch, verify affected writer release and exact
+  reservations" — "completion requires the full
+  membership/identity/checkpoint/recovery contract and proofs" —
+  "Retain T08 parity, T16c/T17 limits, deploy failures,
+  bound-send/B8/cross-store gaps, separate D closure and cleanup."
+- Dependency-status note (observed, NOT resolution text): resolution
+  line 48 names T25a as owning overlapping work/receipt/contract
+  files; tasks.md T33 evidence (tasks.md:287) records "T25a verified
+  RELEASED (landed 9830ba9, both writers released) — T34 joins need
+  not serialize behind it (T18 still active and preserved)." T24 is
+  ticked COMPLETE (tasks.md:224); T32 is ticked COMPLETE
+  (tasks.md:280); T18 is ACTIVE (tasks.md:177-182, Evidence: pending).
+  T34 work-kernel slices may precede T18; L1/L3 T34 joins serialize
+  AFTER T18 release. See `t34-plan.md` for the ordered slice plan.
+- Writer: T34-prep evidence writer. APPENDED this section ONLY to
+  `implementation/challenge-audit-run/evidence/fanout-decision.md`;
+  all drafts, normative docs, tasks/monitor/inbox, code (state/
+  compiler/cloudflare/work/contracts/values/identity), drafts,
+  `t33-resolution.md`, the correction dir, and all other evidence
+  files untouched; no JEV run; no Git; no builds; no tests run.
+- Release: this file is RELEASED to the coordinator.
