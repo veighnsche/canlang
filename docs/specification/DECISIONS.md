@@ -837,3 +837,8 @@ Accepted integration choice: browser client and polling; full binder/installed w
 ### 2026-10-06 — Consolidate codex/values-rust-port into main
 
 Accepted integration choice: native exact-values/validation code and bindings; opt-in scaffold, rollout/installed/backend gates remain open. Preserve all commit ancestry through a merge, retain newer main on historical overlapping patches, and keep authored/source intent and unfinished gates visible. Structural changes since checkpoint are recorded in `docs/ideal-filetree-plan/consolidation-20261006.json`; the complete checkpoint is unchanged because source closure is incomplete. This is repository consolidation, not programme acceptance or worker resumption.
+
+
+### 2026-10-06 — Consolidate codex/remaining-lane-c-runtime into main
+
+Accepted integration choice: history reconciliation; dirty C build graph separately integrated. Preserve all commit ancestry through a merge, retain newer main on historical overlapping patches, and keep authored/source intent and unfinished gates visible. Structural changes since checkpoint are recorded in `docs/ideal-filetree-plan/consolidation-20261006.json`; the complete checkpoint is unchanged because source closure is incomplete. This is repository consolidation, not programme acceptance or worker resumption.
