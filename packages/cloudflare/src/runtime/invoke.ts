@@ -3292,9 +3292,11 @@ export function mapReceiptJoinOutcome(outcome: unknown): SelectedReceiptServed {
  * Q2-D1: true ONLY when an observer-module import failed because the
  * module itself is absent (B-half not landed / not vendored). Node
  * reports the missing specifier in `Cannot find module '<missing>'`;
- * the match anchors on the MISSING module being observer.js — a
- * nested missing dep inside a present observer.js names the nested
- * path (observer.js appears only as the importer) and reads as
+ * the match anchors on the MISSING module being exactly
+ * `receipt/observer.js` (N-R1: a bare `observer.js` anchor would
+ * also match a same-named file in another directory). A nested
+ * missing dep inside a present observer.js names the nested path
+ * (observer.js appears only as the importer) and reads as
  * broken-B, never absent. Unknown shapes (workerd misses) read as
  * broken: fail-closed loud, never a masking fallback.
  */
@@ -3304,7 +3306,7 @@ export function isObserverModuleAbsent(error: unknown): boolean {
   if (record["code"] !== "ERR_MODULE_NOT_FOUND") return false;
   const message = record["message"];
   if (typeof message !== "string") return false;
-  return /^Cannot find module '[^']*observer\.js'/.test(message);
+  return /^Cannot find module '[^']*receipt\/observer\.js'/.test(message);
 }
 
 async function resolveReceiptObserver(
