@@ -96,20 +96,121 @@ pub struct RpcCall {
     pub id: Option<Json>,
     /// Method name, e.g. `textDocument/hover`.
     pub method: String,
-    /// Params object/array, or [`Json::Null`] when absent.
-    pub params: Json,
+    /// Structured params, preserving omission separately from explicit null.
+    pub params: Option<Json>,
 }
 
-/// Decode a parsed message body into a call. Returns `None` when the value
-/// is not an object with a string `method`.
-pub fn parse_call(message: &Json) -> Option<RpcCall> {
-    let method = message.get("method")?.as_str()?.to_string();
-    let id = match message.get("id") {
-        None | Some(Json::Null) => None,
-        Some(id) => Some(id.clone()),
+/// Invalid envelope, with a unique legal request id when safe to echo.
+#[derive(Debug, Clone)]
+pub struct RpcCallError {
+    /// Unique legal id to echo, or null correlation when absent or invalid.
+    pub id: Option<Json>,
+}
+
+/// Interpret an LSP integer exactly, without floating-point rounding or
+/// allocation proportional to a decimal exponent. JSON grammar is already parsed.
+pub(crate) fn integer_value(value: &Json) -> Option<i32> {
+    let Json::Num(raw) = value else { return None };
+    let negative = raw.starts_with('-');
+    let unsigned = raw.strip_prefix('-').unwrap_or(raw);
+    let (coefficient, exponent) = unsigned.split_once(['e', 'E']).unwrap_or((unsigned, "0"));
+    let fractional = coefficient
+        .split_once('.')
+        .map_or(0, |(_, tail)| tail.len());
+    let mut significant = 0usize;
+    let mut trailing = 0usize;
+    for digit in coefficient.bytes().filter(|b| *b != b'.') {
+        if significant == 0 && digit == b'0' {
+            continue;
+        }
+        significant += 1;
+        trailing = if digit == b'0' { trailing + 1 } else { 0 };
+    }
+    if significant == 0 {
+        return Some(0);
+    }
+    let exponent_negative = exponent.starts_with('-');
+    let mut power = 0i64;
+    for digit in exponent.trim_start_matches(['-', '+']).bytes() {
+        power = power
+            .saturating_mul(10)
+            .saturating_add(i64::from(digit - b'0'));
+    }
+    if exponent_negative {
+        power = -power;
+    }
+    power = power
+        .saturating_sub(fractional as i64)
+        .saturating_add(trailing as i64);
+    let digits = significant - trailing;
+    if power < 0 || (digits as i64).saturating_add(power) > 10 {
+        return None;
+    }
+    // Re-fold only the significant prefix, dropping all trailing zero digits.
+    let mut magnitude = 0i64;
+    for digit in coefficient
+        .bytes()
+        .filter(|b| *b != b'.')
+        .skip_while(|b| *b == b'0')
+        .take(digits)
+    {
+        magnitude = magnitude * 10 + i64::from(digit - b'0');
+    }
+    for _ in 0..power {
+        magnitude *= 10;
+    }
+    if negative {
+        magnitude = -magnitude;
+    }
+    i32::try_from(magnitude).ok()
+}
+
+pub(crate) fn valid_id(value: &Json) -> bool {
+    matches!(value, Json::Str(_)) || integer_value(value).is_some()
+}
+
+/// Admit the JSON-RPC envelope before lifecycle or method-specific validation.
+pub fn parse_call(message: &Json) -> Result<RpcCall, RpcCallError> {
+    let Json::Obj(members) = message else {
+        return Err(RpcCallError { id: None });
     };
-    let params = message.get("params").cloned().unwrap_or(Json::Null);
-    Some(RpcCall { id, method, params })
+    let mut reserved = [0usize; 4];
+    for (key, _) in members {
+        if let Some(index) = ["jsonrpc", "id", "method", "params"]
+            .iter()
+            .position(|name| key == name)
+        {
+            reserved[index] += 1;
+        }
+    }
+    let id = if reserved[1] == 1 {
+        message.get("id").filter(|id| valid_id(id)).cloned()
+    } else {
+        None
+    };
+    let invalid = || RpcCallError { id: id.clone() };
+    if reserved.iter().any(|count| *count > 1)
+        || (reserved[1] == 1 && id.is_none())
+        || message.get("jsonrpc").and_then(Json::as_str) != Some("2.0")
+    {
+        return Err(invalid());
+    }
+    let method = message
+        .get("method")
+        .and_then(Json::as_str)
+        .ok_or_else(invalid)?;
+    let params = message.get("params");
+    if let Some(params) = params
+        && !matches!(params, Json::Obj(_) | Json::Arr(_))
+        && !(matches!(params, Json::Null) && matches!(method, "shutdown" | "exit"))
+    {
+        return Err(invalid());
+    }
+    Ok(RpcCall {
+        id,
+        method: method.to_string(),
+        params: params.cloned(),
+    })
 }
 
 /// Build a success response body for `id`.
@@ -242,6 +343,16 @@ mod tests {
     }
 
     #[test]
+    fn framing_preserves_the_bare_lf_compatibility_extension() {
+        let mut reader = BufReader::new(Drip {
+            data: b"Content-Length: 2\n\n{}",
+            pos: 0,
+        });
+        assert_eq!(read_message(&mut reader).unwrap(), Some(b"{}".to_vec()));
+        assert_eq!(read_message(&mut reader).unwrap(), None);
+    }
+
+    #[test]
     fn framing_preserves_malformed_utf8_and_the_next_frame() {
         // All would be repairable into JSON strings by lossy conversion.
         let invalid_sequences: &[&[u8]] = &[
@@ -362,6 +473,80 @@ mod tests {
     }
 
     #[test]
+    fn exact_lsp_integers_accept_decimal_equivalents_without_rounding() {
+        let accepted = [
+            ("-0", 0),
+            ("1.0", 1),
+            ("1e0", 1),
+            ("0.1e1", 1),
+            ("1000e-3", 1),
+            ("2.147483647e9", i32::MAX),
+            ("-2.147483648e9", i32::MIN),
+            ("0e999999999999999999999", 0),
+            ("21474836470e-1", i32::MAX),
+        ];
+        for (raw, expected) in accepted {
+            assert_eq!(integer_value(&parse(raw).unwrap()), Some(expected), "{raw}");
+        }
+        for raw in [
+            "1.0000000000000000001",
+            "2147483648",
+            "-2147483649",
+            "1e-1000",
+            "21474836480e-1",
+            "1e999999999999999999999",
+        ] {
+            assert_eq!(integer_value(&parse(raw).unwrap()), None, "{raw}");
+        }
+    }
+
+    #[test]
+    fn envelopes_reject_reserved_duplicates_and_preserve_safe_correlation() {
+        for key in ["jsonrpc", "method", "params"] {
+            let duplicate = match key {
+                "jsonrpc" => r#""jsonrpc":"2.0""#,
+                "method" => r#""method":"m""#,
+                _ => r#""params":{}"#,
+            };
+            let message = parse(&format!(
+                r#"{{"jsonrpc":"2.0","id":1e0,"method":"m","params":{{}},{duplicate}}}"#
+            ))
+            .unwrap();
+            assert_eq!(
+                parse_call(&message).unwrap_err().id,
+                Some(Json::Num("1e0".into()))
+            );
+        }
+        let message = parse(r#"{"jsonrpc":"2.0","id":1,"\u0069d":2,"method":"m"}"#).unwrap();
+        assert!(parse_call(&message).unwrap_err().id.is_none());
+        for raw in [
+            r#"{"id":1.0,"method":"m"}"#,
+            r#"{"jsonrpc":"1.0","id":1.0,"method":"m"}"#,
+            r#"{"jsonrpc":"2.0","id":1.0,"method":false}"#,
+            r#"{"jsonrpc":"2.0","id":1.0,"method":"m","params":true}"#,
+        ] {
+            assert_eq!(
+                parse_call(&parse(raw).unwrap()).unwrap_err().id,
+                Some(Json::Num("1.0".into()))
+            );
+        }
+        for id in ["null", "true", "{}", "[]", "1.5", "2147483648"] {
+            let message = parse(&format!(r#"{{"jsonrpc":"2.0","id":{id},"method":"m"}}"#)).unwrap();
+            assert!(parse_call(&message).unwrap_err().id.is_none(), "{id}");
+        }
+        assert!(
+            parse_call(&parse(r#"{"jsonrpc":"2.0","method":"m","x":1,"x":2}"#).unwrap()).is_ok()
+        );
+        let omitted =
+            parse_call(&parse(r#"{"jsonrpc":"2.0","method":"shutdown"}"#).unwrap()).unwrap();
+        assert!(omitted.id.is_none() && omitted.params.is_none());
+        let null =
+            parse_call(&parse(r#"{"jsonrpc":"2.0","method":"shutdown","params":null}"#).unwrap())
+                .unwrap();
+        assert_eq!(null.params, Some(Json::Null));
+    }
+
+    #[test]
     fn rpc_builders_shape() {
         let id = Json::Num("7".to_string());
         let ok = response_ok(&id, Json::Null);
@@ -370,7 +555,8 @@ mod tests {
         assert!(err.contains("\"code\":-32601") && err.contains("\"message\":\"nope\""));
         let note = notification("m", Json::Obj(vec![]));
         assert!(note.contains("\"method\":\"m\"") && !note.contains("\"id\""));
-        let call = parse_call(&parse(r#"{"method":"m","params":[1]}"#).unwrap()).unwrap();
+        let call =
+            parse_call(&parse(r#"{"jsonrpc":"2.0","method":"m","params":[1]}"#).unwrap()).unwrap();
         assert!(call.id.is_none() && call.method == "m");
     }
 }

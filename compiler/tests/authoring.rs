@@ -650,7 +650,7 @@ impl Read for Drip<'_> {
 fn transport_framing_round_trip_with_split_reads() {
     use lsp::transport as t;
     let bodies: [&[u8]; 3] = [
-        br#"{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}"#,
+        br#"{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"processId":null,"rootUri":null,"capabilities":{}}}"#,
         "😀 multibyte ✓".as_bytes(),
         br#"[1,{"a":[true,null,"x"]}]"#,
     ];
@@ -688,10 +688,10 @@ fn server_publishes_only_current_versions() {
     use lsp::transport as t;
 
     let mut server = Server::new(StubAnalysis);
-    let init = t::parse(r#"{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}"#).unwrap();
+    let init = t::parse(r#"{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"processId":null,"rootUri":null,"capabilities":{}}}"#).unwrap();
     server.handle_json(&init);
     let open = t::parse(
-        r#"{"jsonrpc":"2.0","method":"textDocument/didOpen","params":{"textDocument":{"uri":"file:///a.can","version":1,"text":"app A\n"}}}"#,
+        r#"{"jsonrpc":"2.0","method":"textDocument/didOpen","params":{"textDocument":{"uri":"file:///a.can","languageId":"can","version":1,"text":"app A\n"}}}"#,
     )
     .unwrap();
     server.handle_json(&open);
@@ -720,10 +720,10 @@ fn server_publishes_nothing_after_close() {
     use lsp::transport as t;
 
     let mut server = Server::new(StubAnalysis);
-    let init = t::parse(r#"{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}"#).unwrap();
+    let init = t::parse(r#"{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"processId":null,"rootUri":null,"capabilities":{}}}"#).unwrap();
     server.handle_json(&init);
     let open = t::parse(
-        r#"{"jsonrpc":"2.0","method":"textDocument/didOpen","params":{"textDocument":{"uri":"file:///b.can","version":1,"text":"app B\n"}}}"#,
+        r#"{"jsonrpc":"2.0","method":"textDocument/didOpen","params":{"textDocument":{"uri":"file:///b.can","languageId":"can","version":1,"text":"app B\n"}}}"#,
     )
     .unwrap();
     server.handle_json(&open);
@@ -744,10 +744,10 @@ fn server_ignores_incremental_only_changes() {
     // ignored (documented limitation), so no new version is enqueued and
     // the tracked text stays at version 1.
     let mut server = Server::new(StubAnalysis);
-    let init = t::parse(r#"{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}"#).unwrap();
+    let init = t::parse(r#"{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"processId":null,"rootUri":null,"capabilities":{}}}"#).unwrap();
     server.handle_json(&init);
     let open = t::parse(
-        r#"{"jsonrpc":"2.0","method":"textDocument/didOpen","params":{"textDocument":{"uri":"file:///c.can","version":1,"text":"app C\n"}}}"#,
+        r#"{"jsonrpc":"2.0","method":"textDocument/didOpen","params":{"textDocument":{"uri":"file:///c.can","languageId":"can","version":1,"text":"app C\n"}}}"#,
     )
     .unwrap();
     server.handle_json(&open);
@@ -901,7 +901,7 @@ fn server_reports_method_not_found() {
     use lsp::transport as t;
 
     let mut server = Server::new(StubAnalysis);
-    let init = t::parse(r#"{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}"#).unwrap();
+    let init = t::parse(r#"{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"processId":null,"rootUri":null,"capabilities":{}}}"#).unwrap();
     let responses = server.handle_json(&init);
     assert!(responses[0].contains("semanticTokensProvider"));
     let bad = t::parse(r#"{"jsonrpc":"2.0","id":2,"method":"nope","params":{}}"#).unwrap();
