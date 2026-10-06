@@ -101,6 +101,33 @@ export async function evaluateBy(
   );
 }
 
+/**
+ * B4-authority: whether a `by` predicate can authorize ONLY through the
+ * caller's own live membership row. The commit-time explicit revocation
+ * check ("actor+team present but no live active membership → void") is
+ * valid solely for such gates; every other gate admits callers whose
+ * authority never flowed from their membership row, so a missing or
+ * removed caller row must not void the commit — the live `evaluateBy`
+ * re-check still guards genuinely lost permission for every gate.
+ *
+ * Necessity ("every satisfying assignment needs an active caller
+ * membership"): `members`/`owner`/`{role}` need the caller's row;
+ * `public`/`authenticated` need nobody's row (`authenticated` needs the
+ * actor alone); `{roleSubject}` needs the SUBJECT's row, never the
+ * caller's; `{and}` needs it when ANY term does; `{or}` only when EVERY
+ * term does; `{not}` never (a negation is satisfiable without caller
+ * membership — `not: 'members'` admits exactly the membership-less).
+ */
+export function byRequiresCallerMembership(by: ByPredicate): boolean {
+  if (by === 'members' || by === 'owner') return true;
+  if (by === 'public' || by === 'authenticated') return false;
+  if ('and' in by) return by.and.some(byRequiresCallerMembership);
+  if ('or' in by) return by.or.every(byRequiresCallerMembership);
+  if ('not' in by) return false;
+  if ('role' in by) return true;
+  return false; // `{ roleSubject }`: the subject's row, not the caller's.
+}
+
 /** Built-in `by` predicate names. */
 const BY_BUILTINS: ReadonlySet<string> = new Set([
   'members',
