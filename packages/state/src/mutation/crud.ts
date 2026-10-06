@@ -392,11 +392,18 @@ function generatedRecordInput(def: GeneratedOperationDef): Extract<
  * parsing). The def's engine-local `when`, when present, threads into
  * update/delete exactly like interim CRUD (creates never carry one).
  *
- * Core-scope limits: generated creates set no parent linkage (descriptors
- * carry no parent input — parent-defaulted fields read as missing on
- * parentless creates per the pipeline rule); read/scenario kinds are
- * executor mismatches (reads serve through `invokeRead` plus the query
- * port, scenarios through emitted handlers).
+ * T18: child-model creates consume the synthesized `parent` ref input
+ * (L1 emission, unversioned, caller-required) as record linkage: the
+ * admission-loaded parent row becomes the write's parent (existence,
+ * unarchived, and fencing all verified at admission; the pipeline
+ * re-verifies), and `parent` is deleted from field data — it is
+ * linkage, never a field. Parent-defaulted fields then resolve off the
+ * loaded parent; parentless creates (root models) keep the pipeline
+ * missing-reads-missing rule.
+ *
+ * Core-scope limits: read/scenario kinds are executor mismatches (reads
+ * serve through `invokeRead` plus the query port, scenarios through
+ * emitted handlers).
  */
 export function generatedCrudExecute(
   input: GeneratedCrudExecuteInput,
@@ -412,7 +419,29 @@ export function generatedCrudExecute(
 
     if (kind === 'create') {
       const model = generatedCreateModel(def, table);
+      // T18: the synthesized `parent` ref input (child-model creates
+      // only) becomes record linkage. The target model comes from the
+      // descriptor (no name parsing); the id comes from the
+      // admission-loaded ref (admission proved existence, unarchived,
+      // and fence enrollment). A declared-but-unloaded parent is a
+      // wiring bug (admission loads every declared ref).
+      const parentInput = def.descriptor.inputs.find(
+        (input): input is Extract<CanonicalInputDef, { kind: 'ref' }> =>
+          input.kind === 'ref' && input.name === 'parent',
+      );
+      let parent: { readonly model: ModelName; readonly id: RecordId } | undefined;
       const data: Record<string, unknown> = { ...call.inputs };
+      if (parentInput !== undefined) {
+        const parentRef = call.recordRefs.find((entry) => entry.param === parentInput.name);
+        if (parentRef === undefined) {
+          throw new Error(
+            `generatedCrudExecute for operation ${JSON.stringify(def.descriptor.name as string)} ` +
+              'got an admitted call with no loaded parent ref.',
+          );
+        }
+        parent = { model: parentInput.model, id: parentRef.id };
+        delete data[parentInput.name];
+      }
       const effects = await runMutationWrites({
         table,
         writes: [
@@ -421,6 +450,7 @@ export function generatedCrudExecute(
             model,
             id: call.context.operationId as unknown as RecordId,
             data,
+            ...(parent !== undefined ? { parent } : {}),
           },
         ],
         context: call.context,

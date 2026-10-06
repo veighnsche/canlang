@@ -114,7 +114,8 @@ export type IncompatibleArtifactReason =
   | 'malformed_descriptor'
   | 'duplicate_name'
   | 'dangling_reference'
-  | 'unsupported_composite_unique';
+  | 'unsupported_composite_unique'
+  | 'unsupported_server_init';
 
 /**
  * Precise incompatible-artifact failure: the descriptor set (or artifact
@@ -179,11 +180,21 @@ export type ArtifactDescriptorSlice = Pick<
 >;
 
 /**
+ * T18 engine-resolvable server initializer (closed subset of L1
+ * `ArtifactServerInit`: `actor` stamps the invoking actor as a wire
+ * `{id}` user value, `now` stamps the frozen invocation clock as an RFC
+ * 3339 millis datetime string, `random_secret` mints fresh opaque hex
+ * material per execution).
+ */
+export type ServerInitKind = 'actor' | 'now' | 'random_secret';
+
+/**
  * Converted artifact descriptors: the folded intake set, engine-local model
  * refs derived from singular top-level `ref` field tags (array-of-ref tags
  * are skipped — ref paths treat arrays as opaque leaves, so deriving them
- * would reject valid creates; T04b formalizes), and per-operation input
- * array markers.
+ * would reject valid creates; T04b formalizes), per-operation input
+ * array markers, T18 per-field server initializers, and T18
+ * known-nullable field names (both keyed by model, then field).
  */
 export interface ConvertedArtifactDescriptors {
   readonly set: ExecutionDescriptorSet;
@@ -191,11 +202,15 @@ export interface ConvertedArtifactDescriptors {
   readonly inputArrays: Readonly<
     Record<string, Readonly<Record<string, { readonly required: boolean }>>>
   >;
+  readonly serverInits: ReadonlyMap<ModelName, ReadonlyMap<string, ServerInitKind>>;
+  readonly nullableFields: ReadonlyMap<ModelName, ReadonlySet<string>>;
 }
 
-/** Fully loaded artifact: registry + models + engine-local model refs. */
+/** Fully loaded artifact: registry + models + engine-local model attachments. */
 export interface LoadedArtifactDescriptors extends LoadedDescriptorSet {
   readonly refs: ReadonlyMap<ModelName, ReadonlyArray<InterimRefDef>>;
+  readonly serverInits: ReadonlyMap<ModelName, ReadonlyMap<string, ServerInitKind>>;
+  readonly nullableFields: ReadonlyMap<ModelName, ReadonlySet<string>>;
 }
 
 const KNOWN_OPERATION_KINDS: ReadonlySet<string> = new Set([
@@ -224,6 +239,9 @@ const KNOWN_DEFAULT_KINDS: ReadonlySet<string> = new Set([
   'server',
   'derived',
 ]);
+
+/** T18 closed server-init tokens the engine resolves (L1 `ArtifactServerInit` minus `computed`). */
+const KNOWN_SERVER_INITS: ReadonlySet<string> = new Set(['actor', 'now', 'random_secret']);
 
 const KNOWN_DELETE_MODES: ReadonlySet<string> = new Set(['archive', 'remove', 'none']);
 
@@ -699,8 +717,10 @@ export function loadExecutionDescriptorSet(
  * Convert a compiled artifact's T15a descriptor slice into the folded T04a
  * intake: `artifact_version` must equal 1 (the pinned artifact contract);
  * absent `operations`/`models` read as "no descriptors", never as an error;
- * model `fields` arrays fold into records by name and additive members drop.
- * Unknown operation/input/default kinds — or any malformed/dangling member —
+ * model `fields` arrays fold into records by name and additive members drop
+ * (except the T18 engine-local channels — server inits and known-nullable
+ * names — which ride beside the intake like refs). Unknown
+ * operation/input/default kinds — or any malformed/dangling member —
  * reject the WHOLE conversion.
  */
 export function artifactToDescriptorSet(
@@ -737,6 +757,8 @@ export function artifactToDescriptorSet(
     modelNames.add(name);
   }
   const refs = new Map<ModelName, InterimRefDef[]>();
+  const serverInits = new Map<ModelName, Map<string, ServerInitKind>>();
+  const nullableFields = new Map<ModelName, Set<string>>();
   const models: CanonicalModelDescriptor[] = [];
   for (const model of rawModels as ArtifactModel[]) {
     if (!Array.isArray(model.fields)) {
@@ -748,6 +770,8 @@ export function artifactToDescriptorSet(
     const seenFields = new Set<string>();
     const fields: Record<string, CanonicalModelDescriptor['fields'][string]> = {};
     const modelRefs: InterimRefDef[] = [];
+    const modelInits = new Map<string, ServerInitKind>();
+    const modelNullable = new Set<string>();
     for (const field of model.fields) {
       if (typeof field.name !== 'string' || field.name === '') {
         fail(
@@ -788,6 +812,48 @@ export function artifactToDescriptorSet(
         ...(array !== undefined ? { array } : {}),
         ...(fallback !== undefined ? { default: fallback } : {}),
       };
+      // T18 engine-local channels (the frozen intake has no slots; the
+      // model-table builder consumes these beside the intake, like refs).
+      // `init` rides `server` defaults only (`checkDefault` already folds
+      // the kind; anything there on other kinds is additive tolerance).
+      // Absent `init` reads as unspecified (pre-T18 artifacts): the
+      // engine resolves nothing — never invented. `computed` rejects the
+      // WHOLE set: silent absence would be wrong, so T04b vocabulary is
+      // required, not optional.
+      if (fallback?.kind === 'server') {
+        const declared = field.default;
+        const rawInit: unknown =
+          declared !== undefined && declared.kind === 'server' ? declared.init : undefined;
+        if (rawInit !== undefined) {
+          if (typeof rawInit !== 'string') {
+            fail(
+              'malformed_descriptor',
+              `Invalid ${what}: server init tokens are strings.`,
+            );
+          }
+          if (rawInit === 'computed') {
+            fail(
+              'unsupported_server_init',
+              `Invalid ${what}: this server initializer needs T04b vocabulary and ` +
+                'cannot load in the T18 core scope.',
+            );
+          }
+          if (!KNOWN_SERVER_INITS.has(rawInit)) {
+            fail(
+              'malformed_descriptor',
+              `Unknown server init ${JSON.stringify(rawInit)} for ${what}; ` +
+                'supported: actor, now, random_secret.',
+            );
+          }
+          modelInits.set(field.name, rawInit as ServerInitKind);
+        }
+      }
+      // Additive `nullable: true` marks known-nullable fields (omitted
+      // fills null on create, L2 parity); anything else reads as unknown
+      // and never rejects (hand-built fixtures omit it).
+      if (field.nullable === true) {
+        modelNullable.add(field.name);
+      }
       // Engine-local ref derivation: singular top-level `ref` tags become
       // pipeline ref paths (archived-target + disposal enforcement). Every
       // other tag — scalars, enum, T04b previews, unknown futures — is
@@ -820,6 +886,8 @@ export function artifactToDescriptorSet(
       ...(model.uniqueKeys !== undefined ? { uniqueKeys: [...model.uniqueKeys] } : {}),
     });
     refs.set(model.name as ModelName, modelRefs);
+    serverInits.set(model.name as ModelName, modelInits);
+    nullableFields.set(model.name as ModelName, modelNullable);
   }
   const operations: CanonicalOperationDescriptor[] = [];
   const inputArrays: Record<string, Record<string, { readonly required: boolean }>> = {};
@@ -954,7 +1022,7 @@ export function artifactToDescriptorSet(
     operations,
     models,
   };
-  return { set, refs, inputArrays };
+  return { set, refs, inputArrays, serverInits, nullableFields };
 }
 
 /**
@@ -977,5 +1045,13 @@ export function loadArtifactDescriptors(
   for (const [model, modelRefs] of converted.refs) {
     refs.set(model, deepFreezeLoaded([...modelRefs]));
   }
-  return { registry: loaded.registry, models: loaded.models, refs };
+  // Fresh maps per load (caller-owned, like `refs` above): the inner
+  // contents are immutable primitives, so no deeper freeze applies.
+  const serverInits: Map<ModelName, ReadonlyMap<string, ServerInitKind>> = new Map(
+    [...converted.serverInits].map(([model, inits]) => [model, new Map(inits)]),
+  );
+  const nullableFields: Map<ModelName, ReadonlySet<string>> = new Map(
+    [...converted.nullableFields].map(([model, names]) => [model, new Set(names)]),
+  );
+  return { registry: loaded.registry, models: loaded.models, refs, serverInits, nullableFields };
 }

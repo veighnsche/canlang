@@ -39,6 +39,7 @@ import {
   type InterimHookSchedule,
   type InterimHookStagedWrite,
   type InterimModelDef,
+  type InterimServerInit,
   type ModelTable,
 } from './models.js';
 
@@ -139,6 +140,43 @@ function actorFor(context: InvocationContext): string {
   return (
     context.actor?.userId ?? (context.kind === 'test' ? 'test' : (context.trustedSource ?? 'public'))
   );
+}
+
+/**
+ * T18: resolve one closed-set server initializer (creation only, omitted
+ * fields only — `serverOnly` rejects every caller-supplied value, so
+ * these fields always arrive omitted). `actor` stamps the row's own
+ * attribution identity as a wire `{id}` user value; `now` stamps the
+ * frozen invocation clock (retry- and replay-stable: fence retries
+ * re-execute pre-commit, while replays return the committed row instead
+ * of re-evaluating); `random_secret` mints 256-bit opaque hex material
+ * per execution — stable per COMMITTED operation identity through that
+ * same replay path (the receipt records it; a retry that re-executes
+ * has committed nothing yet). Randomness comes from the ambient
+ * `globalThis.crypto` port (node and workerd both provide it — the same
+ * seam `replay.ts` hashes with).
+ */
+function evalServerInit(
+  init: InterimServerInit,
+  now: number,
+  actor: string,
+): unknown {
+  if (init === 'actor') {
+    return { id: actor };
+  }
+  if (init === 'now') {
+    if (!Number.isFinite(now)) {
+      throw new Error('Mutation pipeline needs a finite context.now to resolve server=now.');
+    }
+    return new Date(now).toISOString();
+  }
+  const bytes = new Uint8Array(32);
+  globalThis.crypto.getRandomValues(bytes);
+  let hex = '';
+  for (const byte of bytes) {
+    hex += byte.toString(16).padStart(2, '0');
+  }
+  return hex;
 }
 
 /** Prototype-safe property definition for caller-keyed candidate objects. */
@@ -828,6 +866,16 @@ export async function runMutationWrites(input: MutationWritesInput): Promise<Mut
     // via the provisional map for uniformity (batch-earlier writes visible).
     const before = await getRow(write.model, id);
 
+    // T18/R27 ADOPTED RULE (one rule over creation defaults, server
+    // initialization, updates, and hooks): server-owned fields resolve
+    // in the engine at creation (closed init set, omitted-only, before
+    // hooks) and are excluded from every caller input; the ordinary
+    // update path rejects them (checker E3001 at authoring, `serverOnly`
+    // at admission/execution); ONLY hook adjustment of the pending
+    // record (`set event.after`, DESIGN §518) may rewrite them; replay
+    // never re-evaluates (the committed row is returned). Re-anchoring a
+    // COMMITTED server-owned field from an operation body stays rejected
+    // (checker-pinned); a supported re-anchor mechanism is future work.
     if (write.op === 'create') {
       if (before !== null) {
         throw new StateError('validation', 'Record already exists.');
@@ -858,45 +906,69 @@ export async function runMutationWrites(input: MutationWritesInput): Promise<Mut
         }
         parent = { model: write.parent.model, id: write.parent.id };
       }
+      // T18 creation evaluation order per omitted field: caller data
+      // (above) wins over everything; then literal defaults, parent-path
+      // defaults, required-array rejection, known-nullable null-fill
+      // (L2 parity: nullable arrays yield null, so this precedes the
+      // array-empty fill), ordinary-array omit-to-empty, and finally
+      // closed-set server initializers — hooks observe all of it.
       for (const [field, fieldDef] of Object.entries(def.fields)) {
         if (Object.hasOwn(candidate, field)) {
           continue;
         }
         const fallback = fieldDef.default;
-        if (fallback === undefined) {
-          // T16a: no default — the T09 array marker decides. Ordinary
-          // arrays omit to `[]` (recorded like any resolved omission-fill);
-          // required arrays reject omission outright. Explicit defaults
-          // (handled below) always win over omit-to-empty.
-          const marker = fieldDef.array;
-          if (marker === undefined) {
-            continue;
+        if (fallback !== undefined) {
+          if (isParentPathDefault(fallback)) {
+            // No parent, or an unresolvable path, reads as missing — the
+            // required check below decides, so optional parent-bound fields
+            // never block parentless creates.
+            if (parentRow === null) {
+              continue;
+            }
+            const resolved = resolveRowPath(parentRow, fallback.parentPath);
+            // An unresolvable parent path reads as missing (the required check
+            // below decides); only recorded when it actually defaults.
+            if (resolved === undefined) {
+              continue;
+            }
+            safeSet(candidate, field, structuredClone(resolved));
+            safeSet(resolvedDefaults, field, structuredClone(resolved));
+          } else {
+            safeSet(candidate, field, structuredClone(fallback));
+            safeSet(resolvedDefaults, field, structuredClone(fallback));
           }
-          if (marker.required) {
-            throw new StateError('validation', `Missing required field ${JSON.stringify(field)}.`);
-          }
+          continue;
+        }
+        // No default: required-array omission rejects (L2 required-first
+        // agreement — emission marks these required, so the verdict below
+        // would match; failing here keeps the T16a message stable).
+        const marker = fieldDef.array;
+        if (marker?.required === true) {
+          throw new StateError('validation', `Missing required field ${JSON.stringify(field)}.`);
+        }
+        // T18: known-nullable fills null (L2 parity); unknown nullability
+        // (hand-built defs, fixtures) skips with prior behavior intact.
+        if (fieldDef.nullable === true) {
+          safeSet(candidate, field, null);
+          safeSet(resolvedDefaults, field, null);
+          continue;
+        }
+        // T16a: the T09 array marker decides. Ordinary arrays omit to `[]`
+        // (recorded like any resolved omission-fill). Explicit defaults
+        // (handled above) always win over omit-to-empty.
+        if (marker !== undefined) {
           safeSet(candidate, field, []);
           safeSet(resolvedDefaults, field, []);
           continue;
         }
-        if (isParentPathDefault(fallback)) {
-          // No parent, or an unresolvable path, reads as missing — the
-          // required check below decides, so optional parent-bound fields
-          // never block parentless creates.
-          if (parentRow === null) {
-            continue;
-          }
-          const resolved = resolveRowPath(parentRow, fallback.parentPath);
-          // An unresolvable parent path reads as missing (the required check
-          // below decides); only recorded when it actually defaults.
-          if (resolved === undefined) {
-            continue;
-          }
-          safeSet(candidate, field, structuredClone(resolved));
-          safeSet(resolvedDefaults, field, structuredClone(resolved));
-        } else {
-          safeSet(candidate, field, structuredClone(fallback));
-          safeSet(resolvedDefaults, field, structuredClone(fallback));
+        // T18: closed-set server init, the last prep step before hooks.
+        // Unspecified inits (pre-T18 artifacts, intake-direct tables)
+        // resolve nothing — the field stays missing, never invented.
+        const init = fieldDef.server;
+        if (init !== undefined) {
+          const resolved = evalServerInit(init, now, actor);
+          safeSet(candidate, field, resolved);
+          safeSet(resolvedDefaults, field, resolved);
         }
       }
       checkRequired(candidate, def);
@@ -906,9 +978,10 @@ export async function runMutationWrites(input: MutationWritesInput): Promise<Mut
         stagedBy !== null
           ? candidate
           : await runHooks(def, 'create', candidate, null, id, sink);
-      // Hooks are trusted otherwise (they may set server-only fields), but
-      // the contract checks re-run: no undeclared fields, required present,
-      // JSON-safe values.
+      // Hooks are trusted otherwise (adopted R27 rule: hooks adjusting
+      // the pending record are the ONLY writers that may set server-only
+      // fields), but the contract checks re-run: no undeclared fields,
+      // required present, JSON-safe values.
       checkKnownFields(hooked, def);
       checkRequired(hooked, def);
       checkJsonSafe(hooked, def);
