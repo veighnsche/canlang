@@ -1,0 +1,1 @@
+{"record": "integration-20261006-e-v2", "generation": "canlang-fresh-20261006T052409Z", "base": "7934048", "integrates": ["E cases v2 6d96e68 (2 new files, v1 untouched)"], "coverage": "packages/values/conformance/owned-input/v2/", "coordinator_decisions": ["G fixforward ACCEPTED (cargo79/79 tsc0 node37/37 corroborated); G rebasing stack onto main"]}
