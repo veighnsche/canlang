@@ -1,0 +1,2910 @@
+{
+  "provenance": {
+    "frozen_at_head": "a9476a4fedaf1c0b472ce8c33925b4090f176836",
+    "donors": {
+      "receipt": "packages/work/src/receipt/index.ts",
+      "recovery": "packages/work/src/recovery/index.ts",
+      "stateReceipt": "packages/state/src/receipt/tables.ts",
+      "transact": "packages/state/src/ports/transact.ts"
+    },
+    "donor_digests": {
+      "receipt": "5085f392192a1059c9a5d3bcf679e4984b77a0ab4a5e799bcd17812e8060d6e3",
+      "recovery": "c973d3b8fafd4db66ff2b6b278e3ff49c8121601b5d21665507e4ee3ff231859",
+      "stateReceipt": "ef64dfe3862e3a0aa2f21e9eeca6affbe66a8a0f832efc7da9f5e6e01d8b3866",
+      "transact": "2e39d28afc9655fce540411f446065af5b625eecd4d0fa71c4bc15021554491a"
+    },
+    "note": "Frozen independent originals captured from LIVE donors. Re-freeze recipe: see test headers."
+  },
+  "cases": [
+    {
+      "id": "inventory-mixed",
+      "fn": "buildInventory",
+      "input": [
+        {
+          "outboxItems": [
+            {
+              "id": "u1",
+              "operationId": "op-1",
+              "source": "emit",
+              "occurrenceIndex": 0,
+              "request": {},
+              "originOccurrence": null,
+              "attempts": 0,
+              "state": "uncertain"
+            },
+            {
+              "id": "u2",
+              "operationId": "op-1",
+              "source": "emit",
+              "occurrenceIndex": 0,
+              "request": {},
+              "originOccurrence": null,
+              "attempts": 0,
+              "state": "uncertain"
+            },
+            {
+              "id": "p1",
+              "operationId": "op-1",
+              "source": "emit",
+              "occurrenceIndex": 0,
+              "request": {},
+              "originOccurrence": null,
+              "attempts": 0,
+              "state": "pending"
+            },
+            {
+              "id": "c1",
+              "operationId": "op-1",
+              "source": "emit",
+              "occurrenceIndex": 0,
+              "request": {},
+              "originOccurrence": null,
+              "attempts": 0,
+              "state": "claimed"
+            },
+            {
+              "id": "d1",
+              "operationId": "op-1",
+              "source": "emit",
+              "occurrenceIndex": 0,
+              "request": {},
+              "originOccurrence": null,
+              "attempts": 0,
+              "state": "dead"
+            },
+            {
+              "id": "x1",
+              "operationId": "op-1",
+              "source": "emit",
+              "occurrenceIndex": 0,
+              "request": {},
+              "originOccurrence": null,
+              "attempts": 0,
+              "state": "delivered"
+            }
+          ],
+          "dueOccurrences": [
+            {},
+            {}
+          ],
+          "committedAtMs": {
+            "$resolver": {
+              "u1": 500,
+              "u2": 100
+            }
+          }
+        }
+      ],
+      "expect": {
+        "ok": {
+          "outboxPending": 1,
+          "outboxClaimed": 1,
+          "outboxUncertain": 2,
+          "outboxDead": 1,
+          "dueOccurrences": 2,
+          "oldestUncertainAt": 100
+        }
+      }
+    },
+    {
+      "id": "inventory-unknown-commits",
+      "fn": "buildInventory",
+      "input": [
+        {
+          "outboxItems": [
+            {
+              "id": "u1",
+              "operationId": "op-1",
+              "source": "emit",
+              "occurrenceIndex": 0,
+              "request": {},
+              "originOccurrence": null,
+              "attempts": 0,
+              "state": "uncertain"
+            },
+            {
+              "id": "u2",
+              "operationId": "op-1",
+              "source": "emit",
+              "occurrenceIndex": 0,
+              "request": {},
+              "originOccurrence": null,
+              "attempts": 0,
+              "state": "uncertain"
+            }
+          ],
+          "dueOccurrences": [],
+          "committedAtMs": {
+            "$resolver": {
+              "u1": {
+                "$num": "NaN"
+              },
+              "u2": null
+            }
+          }
+        }
+      ],
+      "expect": {
+        "ok": {
+          "outboxPending": 0,
+          "outboxClaimed": 0,
+          "outboxUncertain": 2,
+          "outboxDead": 0,
+          "dueOccurrences": 0,
+          "oldestUncertainAt": null
+        }
+      }
+    },
+    {
+      "id": "inventory-empty",
+      "fn": "buildInventory",
+      "input": [
+        {
+          "outboxItems": [],
+          "dueOccurrences": [],
+          "committedAtMs": {
+            "$resolver": {}
+          }
+        }
+      ],
+      "expect": {
+        "ok": {
+          "outboxPending": 0,
+          "outboxClaimed": 0,
+          "outboxUncertain": 0,
+          "outboxDead": 0,
+          "dueOccurrences": 0,
+          "oldestUncertainAt": null
+        }
+      }
+    },
+    {
+      "id": "work-inventory-mixed",
+      "fn": "buildWorkInventory",
+      "input": [
+        {
+          "outboxItems": [
+            {
+              "id": "b",
+              "operationId": "op-1",
+              "source": "emit",
+              "occurrenceIndex": 0,
+              "request": {},
+              "originOccurrence": null,
+              "attempts": 0,
+              "state": "claimed"
+            },
+            {
+              "id": "a",
+              "operationId": "op-1",
+              "source": "emit",
+              "occurrenceIndex": 0,
+              "request": {},
+              "originOccurrence": null,
+              "attempts": 0,
+              "state": "pending"
+            },
+            {
+              "id": "u",
+              "operationId": "op-1",
+              "source": "emit",
+              "occurrenceIndex": 0,
+              "request": {},
+              "originOccurrence": null,
+              "attempts": 0,
+              "state": "uncertain"
+            },
+            {
+              "id": "s",
+              "operationId": "op-1",
+              "source": "emit",
+              "occurrenceIndex": 0,
+              "request": {},
+              "originOccurrence": null,
+              "attempts": 0,
+              "state": "delivered"
+            },
+            {
+              "id": "f",
+              "operationId": "op-1",
+              "source": "emit",
+              "occurrenceIndex": 0,
+              "request": {},
+              "originOccurrence": null,
+              "attempts": 0,
+              "state": "failed"
+            },
+            {
+              "id": "d",
+              "operationId": "op-1",
+              "source": "emit",
+              "occurrenceIndex": 0,
+              "request": {},
+              "originOccurrence": null,
+              "attempts": 0,
+              "state": "dead"
+            }
+          ],
+          "handlerContractFor": {
+            "$resolver": {
+              "a": "ca",
+              "b": "cb",
+              "u": "cu"
+            }
+          }
+        }
+      ],
+      "expect": {
+        "ok": [
+          {
+            "intentId": "a",
+            "handlerContract": "ca",
+            "state": "undispatched"
+          },
+          {
+            "intentId": "b",
+            "handlerContract": "cb",
+            "state": "inflight"
+          },
+          {
+            "intentId": "u",
+            "handlerContract": "cu",
+            "state": "uncertain"
+          }
+        ]
+      }
+    },
+    {
+      "id": "work-inventory-unmapped",
+      "fn": "buildWorkInventory",
+      "input": [
+        {
+          "outboxItems": [
+            {
+              "id": "a",
+              "operationId": "op-1",
+              "source": "emit",
+              "occurrenceIndex": 0,
+              "request": {},
+              "originOccurrence": null,
+              "attempts": 0,
+              "state": "pending"
+            }
+          ],
+          "handlerContractFor": {
+            "$resolver": {
+              "a": ""
+            }
+          }
+        }
+      ],
+      "expect": {
+        "throw": {
+          "name": "Error",
+          "message": "buildWorkInventory: no handler-contract mapping for \"a\" (the assembly must supply the deployment vocabulary)."
+        }
+      }
+    },
+    {
+      "id": "work-inventory-unknown-state",
+      "fn": "buildWorkInventory",
+      "input": [
+        {
+          "outboxItems": [
+            {
+              "id": "a",
+              "operationId": "op-1",
+              "source": "emit",
+              "occurrenceIndex": 0,
+              "request": {},
+              "originOccurrence": null,
+              "attempts": 0,
+              "state": "bogus"
+            }
+          ],
+          "handlerContractFor": {
+            "$resolver": {
+              "a": "c"
+            }
+          }
+        }
+      ],
+      "expect": {
+        "throw": {
+          "name": "Error",
+          "message": "buildWorkInventory: item \"a\" has unknown state \"bogus\"."
+        }
+      }
+    },
+    {
+      "id": "scan-one-page",
+      "fn": "scanDueBatch",
+      "input": [
+        {
+          "$supplierPages": [
+            {
+              "rows": [
+                {
+                  "r": 1
+                }
+              ],
+              "nextCursor": null
+            }
+          ]
+        },
+        {
+          "limit": 5
+        }
+      ],
+      "expect": {
+        "ok": {
+          "rows": [
+            {
+              "r": 1
+            }
+          ],
+          "nextCursor": null,
+          "done": true
+        }
+      }
+    },
+    {
+      "id": "scan-has-more",
+      "fn": "scanDueBatch",
+      "input": [
+        {
+          "$supplierPages": [
+            {
+              "rows": [
+                {
+                  "r": 1
+                },
+                {
+                  "r": 2
+                }
+              ],
+              "nextCursor": "c1"
+            }
+          ]
+        },
+        {
+          "cursor": null,
+          "limit": 2
+        }
+      ],
+      "expect": {
+        "ok": {
+          "rows": [
+            {
+              "r": 1
+            },
+            {
+              "r": 2
+            }
+          ],
+          "nextCursor": "c1",
+          "done": false
+        }
+      }
+    },
+    {
+      "id": "scan-over-delivery",
+      "fn": "scanDueBatch",
+      "input": [
+        {
+          "$supplierPages": [
+            {
+              "rows": [
+                {
+                  "r": 1
+                },
+                {
+                  "r": 2
+                },
+                {
+                  "r": 3
+                }
+              ],
+              "nextCursor": null
+            }
+          ]
+        },
+        {
+          "limit": 2
+        }
+      ],
+      "expect": {
+        "throw": {
+          "name": "RangeError",
+          "message": "scanDueBatch: supplier over-delivered 3 rows for limit 2"
+        }
+      }
+    },
+    {
+      "id": "scan-bad-limit",
+      "fn": "scanDueBatch",
+      "input": [
+        {
+          "$supplierPages": []
+        },
+        {
+          "limit": 0
+        }
+      ],
+      "expect": {
+        "throw": {
+          "name": "RangeError",
+          "message": "scanDueBatch: limit must be an integer >= 1"
+        }
+      }
+    },
+    {
+      "id": "drain-two-pages",
+      "fn": "drainDueScan",
+      "input": [
+        {
+          "$supplierPages": [
+            {
+              "rows": [
+                {
+                  "r": 1
+                }
+              ],
+              "nextCursor": "c1"
+            },
+            {
+              "rows": [
+                {
+                  "r": 2
+                }
+              ],
+              "nextCursor": null
+            }
+          ]
+        },
+        {
+          "limit": 5,
+          "maxBatches": 5
+        }
+      ],
+      "expect": {
+        "ok": {
+          "rows": [
+            {
+              "r": 1
+            },
+            {
+              "r": 2
+            }
+          ],
+          "nextCursor": null,
+          "done": true,
+          "batches": 2
+        }
+      }
+    },
+    {
+      "id": "drain-capped",
+      "fn": "drainDueScan",
+      "input": [
+        {
+          "$supplierPages": [
+            {
+              "rows": [
+                {
+                  "r": 1
+                }
+              ],
+              "nextCursor": "c1"
+            },
+            {
+              "rows": [
+                {
+                  "r": 2
+                }
+              ],
+              "nextCursor": "c2"
+            },
+            {
+              "rows": [
+                {
+                  "r": 3
+                }
+              ],
+              "nextCursor": null
+            }
+          ]
+        },
+        {
+          "limit": 5,
+          "maxBatches": 2
+        }
+      ],
+      "expect": {
+        "ok": {
+          "rows": [
+            {
+              "r": 1
+            },
+            {
+              "r": 2
+            }
+          ],
+          "nextCursor": "c2",
+          "done": false,
+          "batches": 2
+        }
+      }
+    },
+    {
+      "id": "drain-bad-cap",
+      "fn": "drainDueScan",
+      "input": [
+        {
+          "$supplierPages": []
+        },
+        {
+          "limit": 5,
+          "maxBatches": 0
+        }
+      ],
+      "expect": {
+        "throw": {
+          "name": "RangeError",
+          "message": "drainDueScan: maxBatches must be an integer >= 1"
+        }
+      }
+    },
+    {
+      "id": "claim-stale-boundary",
+      "fn": "isClaimStale",
+      "input": [
+        {
+          "outboxId": "o",
+          "claimId": "c",
+          "claimedAt": 100
+        },
+        150,
+        50
+      ],
+      "expect": {
+        "ok": true
+      }
+    },
+    {
+      "id": "claim-fresh",
+      "fn": "isClaimStale",
+      "input": [
+        {
+          "outboxId": "o",
+          "claimId": "c",
+          "claimedAt": 101
+        },
+        150,
+        50
+      ],
+      "expect": {
+        "ok": false
+      }
+    },
+    {
+      "id": "claim-bad-now",
+      "fn": "isClaimStale",
+      "input": [
+        {
+          "outboxId": "o",
+          "claimId": "c",
+          "claimedAt": 1
+        },
+        -1,
+        50
+      ],
+      "expect": {
+        "throw": {
+          "name": "RangeError",
+          "message": "isClaimStale: nowMs must be finite and >= 0"
+        }
+      }
+    },
+    {
+      "id": "claim-bad-maxage",
+      "fn": "isClaimStale",
+      "input": [
+        {
+          "outboxId": "o",
+          "claimId": "c",
+          "claimedAt": 1
+        },
+        50,
+        {
+          "$num": "NaN"
+        }
+      ],
+      "expect": {
+        "throw": {
+          "name": "RangeError",
+          "message": "isClaimStale: maxClaimAgeMs must be finite and >= 0"
+        }
+      }
+    },
+    {
+      "id": "find-stale-sorted",
+      "fn": "findStaleClaims",
+      "input": [
+        [
+          {
+            "outboxId": "b",
+            "claimId": "cb",
+            "claimedAt": 1
+          },
+          {
+            "outboxId": "a",
+            "claimId": "ca",
+            "claimedAt": 1
+          },
+          {
+            "outboxId": "f",
+            "claimId": "cf",
+            "claimedAt": 1000
+          }
+        ],
+        500,
+        100
+      ],
+      "expect": {
+        "ok": [
+          {
+            "outboxId": "a",
+            "claimId": "ca",
+            "claimedAt": 1
+          },
+          {
+            "outboxId": "b",
+            "claimId": "cb",
+            "claimedAt": 1
+          }
+        ]
+      }
+    },
+    {
+      "id": "release-stale",
+      "fn": "releaseStaleClaims",
+      "input": [
+        [
+          {
+            "id": "s1",
+            "operationId": "op-1",
+            "source": "emit",
+            "occurrenceIndex": 0,
+            "request": {},
+            "originOccurrence": null,
+            "attempts": 0,
+            "state": "claimed"
+          },
+          {
+            "id": "s2",
+            "operationId": "op-1",
+            "source": "emit",
+            "occurrenceIndex": 0,
+            "request": {},
+            "originOccurrence": null,
+            "attempts": 0,
+            "state": "claimed"
+          },
+          {
+            "id": "live",
+            "operationId": "op-1",
+            "source": "emit",
+            "occurrenceIndex": 0,
+            "request": {},
+            "originOccurrence": null,
+            "attempts": 0,
+            "state": "claimed"
+          },
+          {
+            "id": "p",
+            "operationId": "op-1",
+            "source": "emit",
+            "occurrenceIndex": 0,
+            "request": {},
+            "originOccurrence": null,
+            "attempts": 0,
+            "state": "pending"
+          }
+        ],
+        [
+          {
+            "outboxId": "s2",
+            "claimId": "c2",
+            "claimedAt": 1
+          },
+          {
+            "outboxId": "s1",
+            "claimId": "c1",
+            "claimedAt": 1
+          },
+          {
+            "outboxId": "live",
+            "claimId": "c3",
+            "claimedAt": 900
+          }
+        ],
+        500,
+        100
+      ],
+      "expect": {
+        "ok": {
+          "items": [
+            {
+              "id": "s1",
+              "operationId": "op-1",
+              "source": "emit",
+              "occurrenceIndex": 0,
+              "request": {},
+              "originOccurrence": null,
+              "attempts": 0,
+              "state": "pending"
+            },
+            {
+              "id": "s2",
+              "operationId": "op-1",
+              "source": "emit",
+              "occurrenceIndex": 0,
+              "request": {},
+              "originOccurrence": null,
+              "attempts": 0,
+              "state": "pending"
+            },
+            {
+              "id": "live",
+              "operationId": "op-1",
+              "source": "emit",
+              "occurrenceIndex": 0,
+              "request": {},
+              "originOccurrence": null,
+              "attempts": 0,
+              "state": "claimed"
+            },
+            {
+              "id": "p",
+              "operationId": "op-1",
+              "source": "emit",
+              "occurrenceIndex": 0,
+              "request": {},
+              "originOccurrence": null,
+              "attempts": 0,
+              "state": "pending"
+            }
+          ],
+          "releasedIds": [
+            "s1",
+            "s2"
+          ]
+        }
+      }
+    },
+    {
+      "id": "release-last-claim-wins",
+      "fn": "releaseStaleClaims",
+      "input": [
+        [
+          {
+            "id": "d",
+            "operationId": "op-1",
+            "source": "emit",
+            "occurrenceIndex": 0,
+            "request": {},
+            "originOccurrence": null,
+            "attempts": 0,
+            "state": "claimed"
+          }
+        ],
+        [
+          {
+            "outboxId": "d",
+            "claimId": "old",
+            "claimedAt": 1
+          },
+          {
+            "outboxId": "d",
+            "claimId": "new",
+            "claimedAt": 900
+          }
+        ],
+        500,
+        100
+      ],
+      "expect": {
+        "ok": {
+          "items": [
+            {
+              "id": "d",
+              "operationId": "op-1",
+              "source": "emit",
+              "occurrenceIndex": 0,
+              "request": {},
+              "originOccurrence": null,
+              "attempts": 0,
+              "state": "claimed"
+            }
+          ],
+          "releasedIds": []
+        }
+      }
+    },
+    {
+      "id": "staging-retry",
+      "fn": "recordStagingFailure",
+      "input": [
+        {
+          "item": {
+            "id": "obx-1",
+            "operationId": "op-1",
+            "source": "emit",
+            "occurrenceIndex": 0,
+            "request": {},
+            "originOccurrence": null,
+            "attempts": 2,
+            "state": "pending"
+          },
+          "cause": {
+            "kind": "transient",
+            "code": "E",
+            "message": "m"
+          },
+          "nowMs": 5000,
+          "firstAttemptAtMs": 10
+        }
+      ],
+      "expect": {
+        "ok": {
+          "item": {
+            "id": "obx-1",
+            "operationId": "op-1",
+            "source": "emit",
+            "occurrenceIndex": 0,
+            "request": {},
+            "originOccurrence": null,
+            "attempts": 3,
+            "state": "pending"
+          },
+          "disposition": "retry",
+          "retryClass": "transient",
+          "retryable": true
+        }
+      }
+    },
+    {
+      "id": "staging-dead",
+      "fn": "recordStagingFailure",
+      "input": [
+        {
+          "item": {
+            "id": "obx-1",
+            "operationId": "op-1",
+            "source": "emit",
+            "occurrenceIndex": 0,
+            "request": {},
+            "originOccurrence": null,
+            "attempts": 7,
+            "state": "pending"
+          },
+          "cause": {
+            "kind": "transient",
+            "code": "E",
+            "message": "m"
+          },
+          "nowMs": 5000,
+          "firstAttemptAtMs": 10
+        }
+      ],
+      "expect": {
+        "ok": {
+          "item": {
+            "id": "obx-1",
+            "operationId": "op-1",
+            "source": "emit",
+            "occurrenceIndex": 0,
+            "request": {},
+            "originOccurrence": null,
+            "attempts": 8,
+            "state": "dead"
+          },
+          "disposition": "dead",
+          "retryClass": "transient",
+          "retryable": false
+        }
+      }
+    },
+    {
+      "id": "staging-terminal",
+      "fn": "recordStagingFailure",
+      "input": [
+        {
+          "item": {
+            "id": "obx-1",
+            "operationId": "op-1",
+            "source": "emit",
+            "occurrenceIndex": 0,
+            "request": {},
+            "originOccurrence": null,
+            "attempts": 0,
+            "state": "pending"
+          },
+          "cause": {
+            "kind": "permanent",
+            "code": "E",
+            "message": "m"
+          },
+          "nowMs": 50,
+          "firstAttemptAtMs": 10
+        }
+      ],
+      "expect": {
+        "ok": {
+          "item": {
+            "id": "obx-1",
+            "operationId": "op-1",
+            "source": "emit",
+            "occurrenceIndex": 0,
+            "request": {},
+            "originOccurrence": null,
+            "attempts": 1,
+            "state": "failed"
+          },
+          "disposition": "terminal",
+          "retryClass": "terminal",
+          "retryable": false
+        }
+      }
+    },
+    {
+      "id": "staging-bad-state",
+      "fn": "recordStagingFailure",
+      "input": [
+        {
+          "item": {
+            "id": "obx-1",
+            "operationId": "op-1",
+            "source": "emit",
+            "occurrenceIndex": 0,
+            "request": {},
+            "originOccurrence": null,
+            "attempts": 0,
+            "state": "dead"
+          },
+          "cause": {
+            "kind": "transient",
+            "code": "E",
+            "message": "m"
+          },
+          "nowMs": 50,
+          "firstAttemptAtMs": 10
+        }
+      ],
+      "expect": {
+        "throw": {
+          "name": "Error",
+          "message": "recordStagingFailure: item obx-1 is dead; failures apply to pending/claimed items only"
+        }
+      }
+    },
+    {
+      "id": "staging-bad-policy",
+      "fn": "recordStagingFailure",
+      "input": [
+        {
+          "item": {
+            "id": "obx-1",
+            "operationId": "op-1",
+            "source": "emit",
+            "occurrenceIndex": 0,
+            "request": {},
+            "originOccurrence": null,
+            "attempts": 0,
+            "state": "pending"
+          },
+          "cause": {
+            "kind": "transient",
+            "code": "E",
+            "message": "m"
+          },
+          "nowMs": 50,
+          "firstAttemptAtMs": 10,
+          "policy": {
+            "maxAttempts": 1,
+            "horizonMs": -5
+          }
+        }
+      ],
+      "expect": {
+        "throw": {
+          "name": "RangeError",
+          "message": "recordStagingFailure: policy.horizonMs must be finite and > 0"
+        }
+      }
+    },
+    {
+      "id": "plan-mixed",
+      "fn": "planRecoveryScan",
+      "input": [
+        {
+          "rows": [
+            {
+              "item": {
+                "id": "sk",
+                "operationId": "op-1",
+                "source": "emit",
+                "occurrenceIndex": 0,
+                "request": {},
+                "originOccurrence": null,
+                "attempts": 0,
+                "state": "pending"
+              },
+              "guardVerdict": false,
+              "firstAttemptAtMs": null,
+              "retryClass": null
+            },
+            {
+              "item": {
+                "id": "pn",
+                "operationId": "op-1",
+                "source": "emit",
+                "occurrenceIndex": 0,
+                "request": {},
+                "originOccurrence": null,
+                "attempts": 0,
+                "state": "pending"
+              },
+              "guardVerdict": null,
+              "firstAttemptAtMs": null,
+              "retryClass": null
+            },
+            {
+              "item": {
+                "id": "rs",
+                "operationId": "op-1",
+                "source": "emit",
+                "occurrenceIndex": 0,
+                "request": {},
+                "originOccurrence": null,
+                "attempts": 0,
+                "state": "claimed"
+              },
+              "guardVerdict": null,
+              "firstAttemptAtMs": null,
+              "retryClass": null
+            },
+            {
+              "item": {
+                "id": "fr",
+                "operationId": "op-1",
+                "source": "emit",
+                "occurrenceIndex": 0,
+                "request": {},
+                "originOccurrence": null,
+                "attempts": 0,
+                "state": "claimed"
+              },
+              "guardVerdict": null,
+              "firstAttemptAtMs": null,
+              "retryClass": null
+            },
+            {
+              "item": {
+                "id": "rt",
+                "operationId": "op-1",
+                "source": "emit",
+                "occurrenceIndex": 0,
+                "request": {},
+                "originOccurrence": null,
+                "attempts": 2,
+                "state": "failed"
+              },
+              "guardVerdict": null,
+              "firstAttemptAtMs": 100,
+              "retryClass": "transient"
+            },
+            {
+              "item": {
+                "id": "dd",
+                "operationId": "op-1",
+                "source": "emit",
+                "occurrenceIndex": 0,
+                "request": {},
+                "originOccurrence": null,
+                "attempts": 8,
+                "state": "failed"
+              },
+              "guardVerdict": null,
+              "firstAttemptAtMs": 100,
+              "retryClass": "transient"
+            },
+            {
+              "item": {
+                "id": "tm",
+                "operationId": "op-1",
+                "source": "emit",
+                "occurrenceIndex": 0,
+                "request": {},
+                "originOccurrence": null,
+                "attempts": 1,
+                "state": "failed"
+              },
+              "guardVerdict": null,
+              "firstAttemptAtMs": 100,
+              "retryClass": "terminal"
+            },
+            {
+              "item": {
+                "id": "un",
+                "operationId": "op-1",
+                "source": "emit",
+                "occurrenceIndex": 0,
+                "request": {},
+                "originOccurrence": null,
+                "attempts": 1,
+                "state": "failed"
+              },
+              "guardVerdict": null,
+              "firstAttemptAtMs": 100,
+              "retryClass": null
+            },
+            {
+              "item": {
+                "id": "aw",
+                "operationId": "op-1",
+                "source": "emit",
+                "occurrenceIndex": 0,
+                "request": {},
+                "originOccurrence": null,
+                "attempts": 0,
+                "state": "uncertain"
+              },
+              "guardVerdict": null,
+              "firstAttemptAtMs": null,
+              "retryClass": null
+            },
+            {
+              "item": {
+                "id": "ry",
+                "operationId": "op-1",
+                "source": "emit",
+                "occurrenceIndex": 0,
+                "request": {},
+                "originOccurrence": null,
+                "attempts": 0,
+                "state": "uncertain"
+              },
+              "guardVerdict": null,
+              "firstAttemptAtMs": null,
+              "retryClass": null
+            },
+            {
+              "item": {
+                "id": "rc",
+                "operationId": "op-1",
+                "source": "emit",
+                "occurrenceIndex": 0,
+                "request": {},
+                "originOccurrence": null,
+                "attempts": 0,
+                "state": "uncertain"
+              },
+              "guardVerdict": null,
+              "firstAttemptAtMs": null,
+              "retryClass": null
+            },
+            {
+              "item": {
+                "id": "dv",
+                "operationId": "op-1",
+                "source": "emit",
+                "occurrenceIndex": 0,
+                "request": {},
+                "originOccurrence": null,
+                "attempts": 0,
+                "state": "delivered"
+              },
+              "guardVerdict": null,
+              "firstAttemptAtMs": null,
+              "retryClass": null
+            },
+            {
+              "item": {
+                "id": "de",
+                "operationId": "op-1",
+                "source": "emit",
+                "occurrenceIndex": 0,
+                "request": {},
+                "originOccurrence": null,
+                "attempts": 0,
+                "state": "dead"
+              },
+              "guardVerdict": null,
+              "firstAttemptAtMs": null,
+              "retryClass": null
+            }
+          ],
+          "claims": [
+            {
+              "outboxId": "rs",
+              "claimId": "c1",
+              "claimedAt": 1
+            },
+            {
+              "outboxId": "fr",
+              "claimId": "c2",
+              "claimedAt": 900
+            }
+          ],
+          "nowMs": 500,
+          "maxClaimAgeMs": 100,
+          "evidence": {
+            "$resolver": {
+              "ry": {
+                "kind": "not-found"
+              },
+              "rc": {
+                "kind": "failed",
+                "code": "E",
+                "message": "m"
+              }
+            }
+          }
+        }
+      ],
+      "expect": {
+        "ok": {
+          "resume": [
+            "rs"
+          ],
+          "retry": [
+            "rt",
+            "ry"
+          ],
+          "reconcile": [
+            "rc"
+          ],
+          "awaiting": [
+            "aw"
+          ],
+          "skipped": [
+            "sk"
+          ],
+          "terminal": [
+            "tm",
+            "un"
+          ],
+          "dead": [
+            "dd"
+          ]
+        }
+      }
+    },
+    {
+      "id": "plan-null-anchor",
+      "fn": "planRecoveryScan",
+      "input": [
+        {
+          "rows": [
+            {
+              "item": {
+                "id": "h",
+                "operationId": "op-1",
+                "source": "emit",
+                "occurrenceIndex": 0,
+                "request": {},
+                "originOccurrence": null,
+                "attempts": 1,
+                "state": "failed"
+              },
+              "guardVerdict": null,
+              "firstAttemptAtMs": null,
+              "retryClass": "transient"
+            }
+          ],
+          "claims": [],
+          "evidence": {
+            "$resolver": {}
+          },
+          "nowMs": 99999999,
+          "maxClaimAgeMs": 100
+        }
+      ],
+      "expect": {
+        "ok": {
+          "resume": [],
+          "retry": [
+            "h"
+          ],
+          "reconcile": [],
+          "awaiting": [],
+          "skipped": [],
+          "terminal": [],
+          "dead": []
+        }
+      }
+    },
+    {
+      "id": "plan-bad-now",
+      "fn": "planRecoveryScan",
+      "input": [
+        {
+          "rows": [],
+          "claims": [],
+          "evidence": {
+            "$resolver": {}
+          },
+          "nowMs": -1,
+          "maxClaimAgeMs": 100
+        }
+      ],
+      "expect": {
+        "throw": {
+          "name": "RangeError",
+          "message": "planRecoveryScan: nowMs must be finite and >= 0"
+        }
+      }
+    },
+    {
+      "id": "plan-bad-policy",
+      "fn": "planRecoveryScan",
+      "input": [
+        {
+          "rows": [],
+          "claims": [],
+          "evidence": {
+            "$resolver": {}
+          },
+          "nowMs": 5,
+          "maxClaimAgeMs": 100,
+          "policy": {
+            "maxAttempts": 0,
+            "horizonMs": 5
+          }
+        }
+      ],
+      "expect": {
+        "throw": {
+          "name": "RangeError",
+          "message": "planRecoveryScan: policy.maxAttempts must be an integer >= 1"
+        }
+      }
+    },
+    {
+      "id": "fanout-stale-boundary",
+      "fn": "isFanoutClaimStale",
+      "input": [
+        100,
+        150,
+        50
+      ],
+      "expect": {
+        "ok": true
+      }
+    },
+    {
+      "id": "fanout-fresh",
+      "fn": "isFanoutClaimStale",
+      "input": [
+        101,
+        150,
+        50
+      ],
+      "expect": {
+        "ok": false
+      }
+    },
+    {
+      "id": "fanout-stale-bad",
+      "fn": "isFanoutClaimStale",
+      "input": [
+        -1,
+        150,
+        50
+      ],
+      "expect": {
+        "throw": {
+          "name": "RangeError",
+          "message": "isFanoutClaimStale: claimedAtMs must be finite and >= 0"
+        }
+      }
+    },
+    {
+      "id": "fanout-exhausted-attempts",
+      "fn": "isFanoutChildExhausted",
+      "input": [
+        8,
+        100,
+        500,
+        {
+          "maxAttempts": 8,
+          "horizonMs": 1000
+        }
+      ],
+      "expect": {
+        "ok": true
+      }
+    },
+    {
+      "id": "fanout-exhausted-horizon",
+      "fn": "isFanoutChildExhausted",
+      "input": [
+        1,
+        100,
+        1200,
+        {
+          "maxAttempts": 8,
+          "horizonMs": 1000
+        }
+      ],
+      "expect": {
+        "ok": true
+      }
+    },
+    {
+      "id": "fanout-null-anchor",
+      "fn": "isFanoutChildExhausted",
+      "input": [
+        1,
+        null,
+        999999,
+        {
+          "maxAttempts": 8,
+          "horizonMs": 1000
+        }
+      ],
+      "expect": {
+        "ok": false
+      }
+    },
+    {
+      "id": "fanout-within-budget",
+      "fn": "isFanoutChildExhausted",
+      "input": [
+        1,
+        100,
+        500,
+        {
+          "maxAttempts": 8,
+          "horizonMs": 1000
+        }
+      ],
+      "expect": {
+        "ok": false
+      }
+    },
+    {
+      "id": "fanout-exhausted-bad-policy",
+      "fn": "isFanoutChildExhausted",
+      "input": [
+        1,
+        100,
+        500,
+        {
+          "maxAttempts": 8,
+          "horizonMs": 0
+        }
+      ],
+      "expect": {
+        "throw": {
+          "name": "RangeError",
+          "message": "isFanoutChildExhausted: policy.horizonMs must be finite and > 0"
+        }
+      }
+    },
+    {
+      "id": "fanout-plan-resume",
+      "fn": "planFanoutRecoveryScan",
+      "input": [
+        {
+          "fanoutId": "fanout/v1/o/h/model",
+          "intent": {
+            "fanoutId": "fanout/v1/o/h/model",
+            "sourceOccurrence": "o",
+            "handler": "h",
+            "cohort": "model",
+            "members": [
+              "r1"
+            ],
+            "memberCount": 1
+          },
+          "checkpoint": {
+            "fanoutId": "fanout/v1/o/h/model",
+            "completed": [],
+            "cursor": null
+          },
+          "rows": [
+            {
+              "child": {
+                "fanoutId": "fanout/v1/o/h/model",
+                "parentOccurrence": "o",
+                "handler": "h",
+                "recordId": "r1",
+                "childId": "fanout-child/v1/o/h/r1",
+                "state": "running",
+                "attempts": 0,
+                "causeKind": null,
+                "causeReason": null
+              },
+              "claimedAtMs": 1,
+              "guardVerdict": true,
+              "firstAttemptAtMs": 400,
+              "lifecycle": {
+                "status": "present"
+              }
+            }
+          ],
+          "nowMs": 500,
+          "maxClaimAgeMs": 100
+        }
+      ],
+      "expect": {
+        "ok": {
+          "resume": [
+            "fanout-child/v1/o/h/r1"
+          ],
+          "skipped": [],
+          "dead": [],
+          "failed": [],
+          "admit": [],
+          "uncertain": [],
+          "phantoms": [],
+          "checkpointGaps": [],
+          "finishEnumeration": false
+        }
+      }
+    },
+    {
+      "id": "fanout-plan-uncertain-fresh",
+      "fn": "planFanoutRecoveryScan",
+      "input": [
+        {
+          "fanoutId": "fanout/v1/o/h/model",
+          "intent": {
+            "fanoutId": "fanout/v1/o/h/model",
+            "sourceOccurrence": "o",
+            "handler": "h",
+            "cohort": "model",
+            "members": [
+              "r1"
+            ],
+            "memberCount": 1
+          },
+          "checkpoint": {
+            "fanoutId": "fanout/v1/o/h/model",
+            "completed": [],
+            "cursor": null
+          },
+          "rows": [
+            {
+              "child": {
+                "fanoutId": "fanout/v1/o/h/model",
+                "parentOccurrence": "o",
+                "handler": "h",
+                "recordId": "r1",
+                "childId": "fanout-child/v1/o/h/r1",
+                "state": "running",
+                "attempts": 0,
+                "causeKind": null,
+                "causeReason": null
+              },
+              "claimedAtMs": 450,
+              "guardVerdict": true,
+              "firstAttemptAtMs": 400,
+              "lifecycle": {
+                "status": "present"
+              }
+            }
+          ],
+          "nowMs": 500,
+          "maxClaimAgeMs": 100
+        }
+      ],
+      "expect": {
+        "ok": {
+          "resume": [],
+          "skipped": [],
+          "dead": [],
+          "failed": [],
+          "admit": [],
+          "uncertain": [
+            "fanout-child/v1/o/h/r1"
+          ],
+          "phantoms": [],
+          "checkpointGaps": [],
+          "finishEnumeration": false
+        }
+      }
+    },
+    {
+      "id": "fanout-plan-uncertain-null",
+      "fn": "planFanoutRecoveryScan",
+      "input": [
+        {
+          "fanoutId": "fanout/v1/o/h/model",
+          "intent": {
+            "fanoutId": "fanout/v1/o/h/model",
+            "sourceOccurrence": "o",
+            "handler": "h",
+            "cohort": "model",
+            "members": [
+              "r1"
+            ],
+            "memberCount": 1
+          },
+          "checkpoint": {
+            "fanoutId": "fanout/v1/o/h/model",
+            "completed": [],
+            "cursor": null
+          },
+          "rows": [
+            {
+              "child": {
+                "fanoutId": "fanout/v1/o/h/model",
+                "parentOccurrence": "o",
+                "handler": "h",
+                "recordId": "r1",
+                "childId": "fanout-child/v1/o/h/r1",
+                "state": "running",
+                "attempts": 0,
+                "causeKind": null,
+                "causeReason": null
+              },
+              "claimedAtMs": null,
+              "guardVerdict": true,
+              "firstAttemptAtMs": null,
+              "lifecycle": {
+                "status": "present"
+              }
+            }
+          ],
+          "nowMs": 500,
+          "maxClaimAgeMs": 100
+        }
+      ],
+      "expect": {
+        "ok": {
+          "resume": [],
+          "skipped": [],
+          "dead": [],
+          "failed": [],
+          "admit": [],
+          "uncertain": [
+            "fanout-child/v1/o/h/r1"
+          ],
+          "phantoms": [],
+          "checkpointGaps": [],
+          "finishEnumeration": false
+        }
+      }
+    },
+    {
+      "id": "fanout-plan-skipped-deleted",
+      "fn": "planFanoutRecoveryScan",
+      "input": [
+        {
+          "fanoutId": "fanout/v1/o/h/model",
+          "intent": {
+            "fanoutId": "fanout/v1/o/h/model",
+            "sourceOccurrence": "o",
+            "handler": "h",
+            "cohort": "model",
+            "members": [
+              "r1"
+            ],
+            "memberCount": 1
+          },
+          "checkpoint": {
+            "fanoutId": "fanout/v1/o/h/model",
+            "completed": [],
+            "cursor": null
+          },
+          "rows": [
+            {
+              "child": {
+                "fanoutId": "fanout/v1/o/h/model",
+                "parentOccurrence": "o",
+                "handler": "h",
+                "recordId": "r1",
+                "childId": "fanout-child/v1/o/h/r1",
+                "state": "running",
+                "attempts": 0,
+                "causeKind": null,
+                "causeReason": null
+              },
+              "claimedAtMs": 1,
+              "guardVerdict": true,
+              "firstAttemptAtMs": 400,
+              "lifecycle": {
+                "status": "deleted"
+              }
+            }
+          ],
+          "nowMs": 500,
+          "maxClaimAgeMs": 100
+        }
+      ],
+      "expect": {
+        "ok": {
+          "resume": [],
+          "skipped": [
+            {
+              "childId": "fanout-child/v1/o/h/r1",
+              "reason": "deleted"
+            }
+          ],
+          "dead": [],
+          "failed": [],
+          "admit": [],
+          "uncertain": [],
+          "phantoms": [],
+          "checkpointGaps": [],
+          "finishEnumeration": false
+        }
+      }
+    },
+    {
+      "id": "fanout-plan-failed-unknown",
+      "fn": "planFanoutRecoveryScan",
+      "input": [
+        {
+          "fanoutId": "fanout/v1/o/h/model",
+          "intent": {
+            "fanoutId": "fanout/v1/o/h/model",
+            "sourceOccurrence": "o",
+            "handler": "h",
+            "cohort": "model",
+            "members": [
+              "r1"
+            ],
+            "memberCount": 1
+          },
+          "checkpoint": {
+            "fanoutId": "fanout/v1/o/h/model",
+            "completed": [],
+            "cursor": null
+          },
+          "rows": [
+            {
+              "child": {
+                "fanoutId": "fanout/v1/o/h/model",
+                "parentOccurrence": "o",
+                "handler": "h",
+                "recordId": "r1",
+                "childId": "fanout-child/v1/o/h/r1",
+                "state": "running",
+                "attempts": 0,
+                "causeKind": null,
+                "causeReason": null
+              },
+              "claimedAtMs": 1,
+              "guardVerdict": true,
+              "firstAttemptAtMs": 400,
+              "lifecycle": {
+                "status": "unknown",
+                "reason": "missing-record"
+              }
+            }
+          ],
+          "nowMs": 500,
+          "maxClaimAgeMs": 100
+        }
+      ],
+      "expect": {
+        "ok": {
+          "resume": [],
+          "skipped": [],
+          "dead": [],
+          "failed": [
+            {
+              "childId": "fanout-child/v1/o/h/r1",
+              "reason": "missing-record"
+            }
+          ],
+          "admit": [],
+          "uncertain": [],
+          "phantoms": [],
+          "checkpointGaps": [],
+          "finishEnumeration": false
+        }
+      }
+    },
+    {
+      "id": "fanout-plan-skipped-guard",
+      "fn": "planFanoutRecoveryScan",
+      "input": [
+        {
+          "fanoutId": "fanout/v1/o/h/model",
+          "intent": {
+            "fanoutId": "fanout/v1/o/h/model",
+            "sourceOccurrence": "o",
+            "handler": "h",
+            "cohort": "model",
+            "members": [
+              "r1"
+            ],
+            "memberCount": 1
+          },
+          "checkpoint": {
+            "fanoutId": "fanout/v1/o/h/model",
+            "completed": [],
+            "cursor": null
+          },
+          "rows": [
+            {
+              "child": {
+                "fanoutId": "fanout/v1/o/h/model",
+                "parentOccurrence": "o",
+                "handler": "h",
+                "recordId": "r1",
+                "childId": "fanout-child/v1/o/h/r1",
+                "state": "running",
+                "attempts": 0,
+                "causeKind": null,
+                "causeReason": null
+              },
+              "claimedAtMs": 1,
+              "guardVerdict": false,
+              "firstAttemptAtMs": 400,
+              "lifecycle": {
+                "status": "present"
+              }
+            }
+          ],
+          "nowMs": 500,
+          "maxClaimAgeMs": 100
+        }
+      ],
+      "expect": {
+        "ok": {
+          "resume": [],
+          "skipped": [
+            {
+              "childId": "fanout-child/v1/o/h/r1",
+              "reason": "non-applicable"
+            }
+          ],
+          "dead": [],
+          "failed": [],
+          "admit": [],
+          "uncertain": [],
+          "phantoms": [],
+          "checkpointGaps": [],
+          "finishEnumeration": false
+        }
+      }
+    },
+    {
+      "id": "fanout-plan-dead",
+      "fn": "planFanoutRecoveryScan",
+      "input": [
+        {
+          "fanoutId": "fanout/v1/o/h/model",
+          "intent": {
+            "fanoutId": "fanout/v1/o/h/model",
+            "sourceOccurrence": "o",
+            "handler": "h",
+            "cohort": "model",
+            "members": [
+              "r1"
+            ],
+            "memberCount": 1
+          },
+          "checkpoint": {
+            "fanoutId": "fanout/v1/o/h/model",
+            "completed": [],
+            "cursor": null
+          },
+          "rows": [
+            {
+              "child": {
+                "fanoutId": "fanout/v1/o/h/model",
+                "parentOccurrence": "o",
+                "handler": "h",
+                "recordId": "r1",
+                "childId": "fanout-child/v1/o/h/r1",
+                "state": "running",
+                "attempts": 8,
+                "causeKind": null,
+                "causeReason": null
+              },
+              "claimedAtMs": 1,
+              "guardVerdict": true,
+              "firstAttemptAtMs": 400,
+              "lifecycle": {
+                "status": "present"
+              }
+            }
+          ],
+          "nowMs": 500,
+          "maxClaimAgeMs": 100
+        }
+      ],
+      "expect": {
+        "ok": {
+          "resume": [],
+          "skipped": [],
+          "dead": [
+            "fanout-child/v1/o/h/r1"
+          ],
+          "failed": [],
+          "admit": [],
+          "uncertain": [],
+          "phantoms": [],
+          "checkpointGaps": [],
+          "finishEnumeration": false
+        }
+      }
+    },
+    {
+      "id": "fanout-plan-pending-deleted",
+      "fn": "planFanoutRecoveryScan",
+      "input": [
+        {
+          "fanoutId": "fanout/v1/o/h/model",
+          "intent": {
+            "fanoutId": "fanout/v1/o/h/model",
+            "sourceOccurrence": "o",
+            "handler": "h",
+            "cohort": "model",
+            "members": [
+              "r1"
+            ],
+            "memberCount": 1
+          },
+          "checkpoint": {
+            "fanoutId": "fanout/v1/o/h/model",
+            "completed": [],
+            "cursor": null
+          },
+          "rows": [
+            {
+              "child": {
+                "fanoutId": "fanout/v1/o/h/model",
+                "parentOccurrence": "o",
+                "handler": "h",
+                "recordId": "r1",
+                "childId": "fanout-child/v1/o/h/r1",
+                "state": "pending",
+                "attempts": 0,
+                "causeKind": null,
+                "causeReason": null
+              },
+              "claimedAtMs": null,
+              "guardVerdict": null,
+              "firstAttemptAtMs": null,
+              "lifecycle": {
+                "status": "deleted"
+              }
+            }
+          ],
+          "nowMs": 500,
+          "maxClaimAgeMs": 100
+        }
+      ],
+      "expect": {
+        "ok": {
+          "resume": [],
+          "skipped": [
+            {
+              "childId": "fanout-child/v1/o/h/r1",
+              "reason": "deleted"
+            }
+          ],
+          "dead": [],
+          "failed": [],
+          "admit": [],
+          "uncertain": [],
+          "phantoms": [],
+          "checkpointGaps": [],
+          "finishEnumeration": false
+        }
+      }
+    },
+    {
+      "id": "fanout-plan-pending-quiet",
+      "fn": "planFanoutRecoveryScan",
+      "input": [
+        {
+          "fanoutId": "fanout/v1/o/h/model",
+          "intent": {
+            "fanoutId": "fanout/v1/o/h/model",
+            "sourceOccurrence": "o",
+            "handler": "h",
+            "cohort": "model",
+            "members": [
+              "r1"
+            ],
+            "memberCount": 1
+          },
+          "checkpoint": {
+            "fanoutId": "fanout/v1/o/h/model",
+            "completed": [],
+            "cursor": null
+          },
+          "rows": [
+            {
+              "child": {
+                "fanoutId": "fanout/v1/o/h/model",
+                "parentOccurrence": "o",
+                "handler": "h",
+                "recordId": "r1",
+                "childId": "fanout-child/v1/o/h/r1",
+                "state": "pending",
+                "attempts": 0,
+                "causeKind": null,
+                "causeReason": null
+              },
+              "claimedAtMs": null,
+              "guardVerdict": true,
+              "firstAttemptAtMs": null,
+              "lifecycle": {
+                "status": "present"
+              }
+            }
+          ],
+          "nowMs": 500,
+          "maxClaimAgeMs": 100
+        }
+      ],
+      "expect": {
+        "ok": {
+          "resume": [],
+          "skipped": [],
+          "dead": [],
+          "failed": [],
+          "admit": [],
+          "uncertain": [],
+          "phantoms": [],
+          "checkpointGaps": [],
+          "finishEnumeration": false
+        }
+      }
+    },
+    {
+      "id": "fanout-plan-terminal-stands",
+      "fn": "planFanoutRecoveryScan",
+      "input": [
+        {
+          "fanoutId": "fanout/v1/o/h/model",
+          "intent": {
+            "fanoutId": "fanout/v1/o/h/model",
+            "sourceOccurrence": "o",
+            "handler": "h",
+            "cohort": "model",
+            "members": [
+              "r1"
+            ],
+            "memberCount": 1
+          },
+          "checkpoint": {
+            "fanoutId": "fanout/v1/o/h/model",
+            "completed": [],
+            "cursor": null
+          },
+          "rows": [
+            {
+              "child": {
+                "fanoutId": "fanout/v1/o/h/model",
+                "parentOccurrence": "o",
+                "handler": "h",
+                "recordId": "r1",
+                "childId": "fanout-child/v1/o/h/r1",
+                "state": "failed",
+                "attempts": 2,
+                "causeKind": "failed",
+                "causeReason": "terminal"
+              },
+              "claimedAtMs": 1,
+              "guardVerdict": false,
+              "firstAttemptAtMs": 400,
+              "lifecycle": {
+                "status": "present"
+              }
+            }
+          ],
+          "nowMs": 500,
+          "maxClaimAgeMs": 100
+        }
+      ],
+      "expect": {
+        "ok": {
+          "resume": [],
+          "skipped": [],
+          "dead": [],
+          "failed": [],
+          "admit": [],
+          "uncertain": [],
+          "phantoms": [],
+          "checkpointGaps": [],
+          "finishEnumeration": false
+        }
+      }
+    },
+    {
+      "id": "fanout-plan-admit",
+      "fn": "planFanoutRecoveryScan",
+      "input": [
+        {
+          "fanoutId": "fanout/v1/o/h/model",
+          "intent": {
+            "fanoutId": "fanout/v1/o/h/model",
+            "sourceOccurrence": "o",
+            "handler": "h",
+            "cohort": "model",
+            "members": [
+              "rx"
+            ],
+            "memberCount": 1
+          },
+          "checkpoint": {
+            "fanoutId": "fanout/v1/o/h/model",
+            "completed": [],
+            "cursor": null
+          },
+          "rows": [],
+          "nowMs": 500,
+          "maxClaimAgeMs": 100
+        }
+      ],
+      "expect": {
+        "ok": {
+          "resume": [],
+          "skipped": [],
+          "dead": [],
+          "failed": [],
+          "admit": [
+            "rx"
+          ],
+          "uncertain": [],
+          "phantoms": [],
+          "checkpointGaps": [],
+          "finishEnumeration": false
+        }
+      }
+    },
+    {
+      "id": "fanout-plan-phantom",
+      "fn": "planFanoutRecoveryScan",
+      "input": [
+        {
+          "fanoutId": "fanout/v1/o/h/model",
+          "intent": {
+            "fanoutId": "fanout/v1/o/h/model",
+            "sourceOccurrence": "o",
+            "handler": "h",
+            "cohort": "model",
+            "members": [
+              "r1"
+            ],
+            "memberCount": 1
+          },
+          "checkpoint": {
+            "fanoutId": "fanout/v1/o/h/model",
+            "completed": [],
+            "cursor": null
+          },
+          "rows": [
+            {
+              "child": {
+                "fanoutId": "fanout/v1/o/h/model",
+                "parentOccurrence": "o",
+                "handler": "h",
+                "recordId": "ghost",
+                "childId": "fanout-child/v1/o/h/ghost",
+                "state": "pending",
+                "attempts": 0,
+                "causeKind": null,
+                "causeReason": null
+              },
+              "claimedAtMs": null,
+              "guardVerdict": null,
+              "firstAttemptAtMs": null,
+              "lifecycle": {
+                "status": "present"
+              }
+            }
+          ],
+          "nowMs": 500,
+          "maxClaimAgeMs": 100
+        }
+      ],
+      "expect": {
+        "ok": {
+          "resume": [],
+          "skipped": [],
+          "dead": [],
+          "failed": [],
+          "admit": [
+            "r1"
+          ],
+          "uncertain": [],
+          "phantoms": [
+            "fanout-child/v1/o/h/ghost"
+          ],
+          "checkpointGaps": [],
+          "finishEnumeration": false
+        }
+      }
+    },
+    {
+      "id": "fanout-plan-gap",
+      "fn": "planFanoutRecoveryScan",
+      "input": [
+        {
+          "fanoutId": "fanout/v1/o/h/model",
+          "intent": {
+            "fanoutId": "fanout/v1/o/h/model",
+            "sourceOccurrence": "o",
+            "handler": "h",
+            "cohort": "model",
+            "members": [
+              "r1"
+            ],
+            "memberCount": 1
+          },
+          "checkpoint": {
+            "fanoutId": "fanout/v1/o/h/model",
+            "completed": [
+              "done1"
+            ],
+            "cursor": null
+          },
+          "rows": [],
+          "nowMs": 500,
+          "maxClaimAgeMs": 100
+        }
+      ],
+      "expect": {
+        "ok": {
+          "resume": [],
+          "skipped": [],
+          "dead": [],
+          "failed": [],
+          "admit": [
+            "r1"
+          ],
+          "uncertain": [],
+          "phantoms": [],
+          "checkpointGaps": [
+            "done1"
+          ],
+          "finishEnumeration": false
+        }
+      }
+    },
+    {
+      "id": "fanout-plan-finish",
+      "fn": "planFanoutRecoveryScan",
+      "input": [
+        {
+          "fanoutId": "fanout/v1/o/h/model",
+          "intent": {
+            "fanoutId": "fanout/v1/o/h/model",
+            "sourceOccurrence": "o",
+            "handler": "h",
+            "cohort": "model",
+            "members": [
+              "r1"
+            ],
+            "memberCount": 1
+          },
+          "checkpoint": {
+            "fanoutId": "fanout/v1/o/h/model",
+            "completed": [
+              "r1"
+            ],
+            "cursor": "cur"
+          },
+          "rows": [
+            {
+              "child": {
+                "fanoutId": "fanout/v1/o/h/model",
+                "parentOccurrence": "o",
+                "handler": "h",
+                "recordId": "r1",
+                "childId": "fanout-child/v1/o/h/r1",
+                "state": "completed",
+                "attempts": 0,
+                "causeKind": "completed",
+                "causeReason": null
+              },
+              "claimedAtMs": null,
+              "guardVerdict": null,
+              "firstAttemptAtMs": null,
+              "lifecycle": {
+                "status": "present"
+              }
+            }
+          ],
+          "nowMs": 500,
+          "maxClaimAgeMs": 100
+        }
+      ],
+      "expect": {
+        "ok": {
+          "resume": [],
+          "skipped": [],
+          "dead": [],
+          "failed": [],
+          "admit": [],
+          "uncertain": [],
+          "phantoms": [],
+          "checkpointGaps": [],
+          "finishEnumeration": true
+        }
+      }
+    },
+    {
+      "id": "fanout-plan-intent-mismatch",
+      "fn": "planFanoutRecoveryScan",
+      "input": [
+        {
+          "fanoutId": "fanout/v1/o/h/model",
+          "intent": {
+            "fanoutId": "other",
+            "sourceOccurrence": "o",
+            "handler": "h",
+            "cohort": "model",
+            "members": [
+              "r1"
+            ],
+            "memberCount": 1
+          },
+          "checkpoint": {
+            "fanoutId": "fanout/v1/o/h/model",
+            "completed": [],
+            "cursor": null
+          },
+          "rows": [],
+          "nowMs": 500,
+          "maxClaimAgeMs": 100
+        }
+      ],
+      "expect": {
+        "throw": {
+          "name": "Error",
+          "message": "planFanoutRecoveryScan: intent carries a different fanoutId."
+        }
+      }
+    },
+    {
+      "id": "fanout-plan-child-mismatch",
+      "fn": "planFanoutRecoveryScan",
+      "input": [
+        {
+          "fanoutId": "fanout/v1/o/h/model",
+          "intent": {
+            "fanoutId": "fanout/v1/o/h/model",
+            "sourceOccurrence": "o",
+            "handler": "h",
+            "cohort": "model",
+            "members": [
+              "r1"
+            ],
+            "memberCount": 1
+          },
+          "checkpoint": {
+            "fanoutId": "fanout/v1/o/h/model",
+            "completed": [],
+            "cursor": null
+          },
+          "rows": [
+            {
+              "child": {
+                "fanoutId": "other",
+                "parentOccurrence": "o",
+                "handler": "h",
+                "recordId": "r1",
+                "childId": "fanout-child/v1/o/h/r1",
+                "state": "pending",
+                "attempts": 0,
+                "causeKind": null,
+                "causeReason": null
+              },
+              "claimedAtMs": null,
+              "guardVerdict": null,
+              "firstAttemptAtMs": null,
+              "lifecycle": {
+                "status": "present"
+              }
+            }
+          ],
+          "nowMs": 500,
+          "maxClaimAgeMs": 100
+        }
+      ],
+      "expect": {
+        "throw": {
+          "name": "Error",
+          "message": "planFanoutRecoveryScan: child row carries a different fanoutId."
+        }
+      }
+    },
+    {
+      "id": "fanout-plan-unknown-state",
+      "fn": "planFanoutRecoveryScan",
+      "input": [
+        {
+          "fanoutId": "fanout/v1/o/h/model",
+          "intent": {
+            "fanoutId": "fanout/v1/o/h/model",
+            "sourceOccurrence": "o",
+            "handler": "h",
+            "cohort": "model",
+            "members": [
+              "r1"
+            ],
+            "memberCount": 1
+          },
+          "checkpoint": {
+            "fanoutId": "fanout/v1/o/h/model",
+            "completed": [],
+            "cursor": null
+          },
+          "rows": [
+            {
+              "child": {
+                "fanoutId": "fanout/v1/o/h/model",
+                "parentOccurrence": "o",
+                "handler": "h",
+                "recordId": "r1",
+                "childId": "fanout-child/v1/o/h/r1",
+                "state": "held",
+                "attempts": 0,
+                "causeKind": null,
+                "causeReason": null
+              },
+              "claimedAtMs": null,
+              "guardVerdict": null,
+              "firstAttemptAtMs": null,
+              "lifecycle": {
+                "status": "present"
+              }
+            }
+          ],
+          "nowMs": 500,
+          "maxClaimAgeMs": 100
+        }
+      ],
+      "expect": {
+        "throw": {
+          "name": "Error",
+          "message": "planFanoutRecoveryScan: child \"fanout-child/v1/o/h/r1\" has unknown state \"held\"."
+        }
+      }
+    },
+    {
+      "id": "fanout-plan-unknown-lifecycle",
+      "fn": "planFanoutRecoveryScan",
+      "input": [
+        {
+          "fanoutId": "fanout/v1/o/h/model",
+          "intent": {
+            "fanoutId": "fanout/v1/o/h/model",
+            "sourceOccurrence": "o",
+            "handler": "h",
+            "cohort": "model",
+            "members": [
+              "r1"
+            ],
+            "memberCount": 1
+          },
+          "checkpoint": {
+            "fanoutId": "fanout/v1/o/h/model",
+            "completed": [],
+            "cursor": null
+          },
+          "rows": [
+            {
+              "child": {
+                "fanoutId": "fanout/v1/o/h/model",
+                "parentOccurrence": "o",
+                "handler": "h",
+                "recordId": "r1",
+                "childId": "fanout-child/v1/o/h/r1",
+                "state": "pending",
+                "attempts": 0,
+                "causeKind": null,
+                "causeReason": null
+              },
+              "claimedAtMs": null,
+              "guardVerdict": null,
+              "firstAttemptAtMs": null,
+              "lifecycle": {
+                "status": "weird"
+              }
+            }
+          ],
+          "nowMs": 500,
+          "maxClaimAgeMs": 100
+        }
+      ],
+      "expect": {
+        "throw": {
+          "name": "Error",
+          "message": "planFanoutRecoveryScan: child \"fanout-child/v1/o/h/r1\" has unknown lifecycle \"weird\"."
+        }
+      }
+    },
+    {
+      "id": "fanout-plan-unknown-reason",
+      "fn": "planFanoutRecoveryScan",
+      "input": [
+        {
+          "fanoutId": "fanout/v1/o/h/model",
+          "intent": {
+            "fanoutId": "fanout/v1/o/h/model",
+            "sourceOccurrence": "o",
+            "handler": "h",
+            "cohort": "model",
+            "members": [
+              "r1"
+            ],
+            "memberCount": 1
+          },
+          "checkpoint": {
+            "fanoutId": "fanout/v1/o/h/model",
+            "completed": [],
+            "cursor": null
+          },
+          "rows": [
+            {
+              "child": {
+                "fanoutId": "fanout/v1/o/h/model",
+                "parentOccurrence": "o",
+                "handler": "h",
+                "recordId": "r1",
+                "childId": "fanout-child/v1/o/h/r1",
+                "state": "pending",
+                "attempts": 0,
+                "causeKind": null,
+                "causeReason": null
+              },
+              "claimedAtMs": null,
+              "guardVerdict": null,
+              "firstAttemptAtMs": null,
+              "lifecycle": {
+                "status": "unknown",
+                "reason": "bogus"
+              }
+            }
+          ],
+          "nowMs": 500,
+          "maxClaimAgeMs": 100
+        }
+      ],
+      "expect": {
+        "throw": {
+          "name": "Error",
+          "message": "planFanoutRecoveryScan: child \"fanout-child/v1/o/h/r1\" has unknown lifecycle reason \"bogus\"."
+        }
+      }
+    },
+    {
+      "id": "fanout-plan-bad-claimed",
+      "fn": "planFanoutRecoveryScan",
+      "input": [
+        {
+          "fanoutId": "fanout/v1/o/h/model",
+          "intent": {
+            "fanoutId": "fanout/v1/o/h/model",
+            "sourceOccurrence": "o",
+            "handler": "h",
+            "cohort": "model",
+            "members": [
+              "r1"
+            ],
+            "memberCount": 1
+          },
+          "checkpoint": {
+            "fanoutId": "fanout/v1/o/h/model",
+            "completed": [],
+            "cursor": null
+          },
+          "rows": [
+            {
+              "child": {
+                "fanoutId": "fanout/v1/o/h/model",
+                "parentOccurrence": "o",
+                "handler": "h",
+                "recordId": "r1",
+                "childId": "fanout-child/v1/o/h/r1",
+                "state": "pending",
+                "attempts": 0,
+                "causeKind": null,
+                "causeReason": null
+              },
+              "claimedAtMs": -5,
+              "guardVerdict": null,
+              "firstAttemptAtMs": null,
+              "lifecycle": {
+                "status": "present"
+              }
+            }
+          ],
+          "nowMs": 500,
+          "maxClaimAgeMs": 100
+        }
+      ],
+      "expect": {
+        "throw": {
+          "name": "RangeError",
+          "message": "planFanoutRecoveryScan: claimedAtMs must be finite and >= 0"
+        }
+      }
+    },
+    {
+      "id": "resume-mixed",
+      "fn": "planRelatedProgressResume",
+      "input": [
+        {
+          "relation": "std.EmailV1.send",
+          "rows": [
+            {
+              "relation": "std.EmailV1.send",
+              "association": {
+                "deliveryId": "b",
+                "revision": 1
+              },
+              "receipt": {
+                "deliveryId": "b",
+                "revision": 1,
+                "status": "pending"
+              }
+            },
+            {
+              "relation": "std.EmailV1.send",
+              "association": {
+                "deliveryId": "a",
+                "revision": 2
+              },
+              "receipt": {
+                "deliveryId": "a",
+                "revision": 2,
+                "status": "unknown"
+              }
+            },
+            {
+              "relation": "std.EmailV1.send",
+              "association": {
+                "deliveryId": "d",
+                "revision": 1
+              },
+              "receipt": {
+                "deliveryId": "d",
+                "revision": 1,
+                "status": "succeeded"
+              }
+            },
+            {
+              "relation": "std.EmailV1.send",
+              "association": {
+                "deliveryId": "c",
+                "revision": 3
+              },
+              "receipt": {
+                "deliveryId": "c",
+                "revision": 3,
+                "status": "failed"
+              }
+            },
+            {
+              "relation": "std.EmailV1.send",
+              "association": {
+                "deliveryId": "e",
+                "revision": 0
+              },
+              "receipt": {
+                "deliveryId": "e",
+                "revision": 0,
+                "status": "skipped"
+              }
+            }
+          ]
+        }
+      ],
+      "expect": {
+        "ok": {
+          "relation": "std.EmailV1.send",
+          "resume": [
+            "a",
+            "b"
+          ],
+          "settled": [
+            "c",
+            "d",
+            "e"
+          ]
+        }
+      }
+    },
+    {
+      "id": "resume-relation-mismatch",
+      "fn": "planRelatedProgressResume",
+      "input": [
+        {
+          "relation": "std.EmailV1.send",
+          "rows": [
+            {
+              "relation": "std.MailboxV1.reply",
+              "association": {
+                "deliveryId": "a",
+                "revision": 1
+              },
+              "receipt": {
+                "deliveryId": "a",
+                "revision": 1,
+                "status": "pending"
+              }
+            }
+          ]
+        }
+      ],
+      "expect": {
+        "throw": {
+          "name": "Error",
+          "message": "planRelatedProgressResume: row for \"a\" carries relation \"std.MailboxV1.reply\", expected \"std.EmailV1.send\"."
+        }
+      }
+    },
+    {
+      "id": "resume-unknown-relation",
+      "fn": "planRelatedProgressResume",
+      "input": [
+        {
+          "relation": "std.NopeV1.x",
+          "rows": []
+        }
+      ],
+      "expect": {
+        "throw": {
+          "name": "RangeError",
+          "message": "planRelatedProgressResume: unknown progress relation \"std.NopeV1.x\""
+        }
+      }
+    },
+    {
+      "id": "resume-empty-relation",
+      "fn": "planRelatedProgressResume",
+      "input": [
+        {
+          "relation": "",
+          "rows": []
+        }
+      ],
+      "expect": {
+        "throw": {
+          "name": "TypeError",
+          "message": "planRelatedProgressResume: relation must be a non-empty T13 delivery-observable target"
+        }
+      }
+    },
+    {
+      "id": "resume-unknown-status",
+      "fn": "planRelatedProgressResume",
+      "input": [
+        {
+          "relation": "std.EmailV1.send",
+          "rows": [
+            {
+              "relation": "std.EmailV1.send",
+              "association": {
+                "deliveryId": "a",
+                "revision": 1
+              },
+              "receipt": {
+                "deliveryId": "a",
+                "revision": 1,
+                "status": "held"
+              }
+            }
+          ]
+        }
+      ],
+      "expect": {
+        "throw": {
+          "name": "Error",
+          "message": "planRelatedProgressResume: row for \"a\" has unknown status \"held\"."
+        }
+      }
+    },
+    {
+      "id": "resume-delivery-skew",
+      "fn": "planRelatedProgressResume",
+      "input": [
+        {
+          "relation": "std.EmailV1.send",
+          "rows": [
+            {
+              "relation": "std.EmailV1.send",
+              "association": {
+                "deliveryId": "a",
+                "revision": 1
+              },
+              "receipt": {
+                "deliveryId": "b",
+                "revision": 1,
+                "status": "pending"
+              }
+            }
+          ]
+        }
+      ],
+      "expect": {
+        "throw": {
+          "name": "Error",
+          "message": "planRelatedProgressResume: receipt \"b\" does not belong to association \"a\"."
+        }
+      }
+    },
+    {
+      "id": "resume-revision-skew",
+      "fn": "planRelatedProgressResume",
+      "input": [
+        {
+          "relation": "std.EmailV1.send",
+          "rows": [
+            {
+              "relation": "std.EmailV1.send",
+              "association": {
+                "deliveryId": "a",
+                "revision": 1
+              },
+              "receipt": {
+                "deliveryId": "a",
+                "revision": 2,
+                "status": "pending"
+              }
+            }
+          ]
+        }
+      ],
+      "expect": {
+        "throw": {
+          "name": "Error",
+          "message": "planRelatedProgressResume: association revision 1 disagrees with receipt revision 2."
+        }
+      }
+    },
+    {
+      "id": "resume-empty",
+      "fn": "planRelatedProgressResume",
+      "input": [
+        {
+          "relation": "std.EmailV1.send",
+          "rows": []
+        }
+      ],
+      "expect": {
+        "ok": {
+          "relation": "std.EmailV1.send",
+          "resume": [],
+          "settled": []
+        }
+      }
+    }
+  ]
+}

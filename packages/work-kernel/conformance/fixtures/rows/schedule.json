@@ -1,0 +1,268 @@
+{
+  "provenance": {
+    "frozen_at_head": "7e050080c2d8178040d4e1ade785c195a796b67f",
+    "donor": "packages/work/src/kernel/tables.ts",
+    "donor_digest": "392c8a30f73b804638312ba09685666a0eb8734c33d7d41c3a3158ae4371a57e",
+    "note": "Frozen independent originals captured from LIVE donors. rows.ts must reproduce BOTH directions. Re-freeze recipe: see rows.test.ts header."
+  },
+  "cases": [
+    {
+      "id": "new-ok",
+      "direction": "work",
+      "fn": "newScheduleRow",
+      "input": [
+        {
+          "occurrenceId": "occ-2",
+          "key": "k-1",
+          "scopeApp": "app",
+          "scopeOwner": "own",
+          "scopeOwnerPackage": "pkg",
+          "at": 100,
+          "event": "tick",
+          "payload": {
+            "a": [
+              1,
+              2
+            ]
+          },
+          "replaces": null,
+          "state": "pending"
+        },
+        {
+          "nowMs": 1728000000000,
+          "actor": "w02.2-freeze"
+        }
+      ],
+      "expect": {
+        "ok": {
+          "id": "occ-2",
+          "version": 1,
+          "created": 1728000000000,
+          "updated": 1728000000000,
+          "createdBy": "w02.2-freeze",
+          "updatedBy": "w02.2-freeze",
+          "archivedAt": null,
+          "parent": null,
+          "data": {
+            "occurrenceId": "occ-2",
+            "key": "k-1",
+            "scopeApp": "app",
+            "scopeOwner": "own",
+            "scopeOwnerPackage": "pkg",
+            "at": 100,
+            "event": "tick",
+            "payload": {
+              "a": [
+                1,
+                2
+              ]
+            },
+            "replaces": null,
+            "state": "pending"
+          }
+        }
+      }
+    },
+    {
+      "id": "read-ok",
+      "direction": "work",
+      "fn": "readScheduleRow",
+      "input": [
+        {
+          "id": "occ-2",
+          "version": 1,
+          "created": 1728000000000,
+          "updated": 1728000000000,
+          "createdBy": "w02.2-freeze",
+          "updatedBy": "w02.2-freeze",
+          "archivedAt": null,
+          "parent": null,
+          "data": {
+            "occurrenceId": "occ-2",
+            "key": "k-1",
+            "scopeApp": "app",
+            "scopeOwner": "own",
+            "scopeOwnerPackage": "pkg",
+            "at": 100,
+            "event": "tick",
+            "payload": {
+              "a": [
+                1,
+                2
+              ]
+            },
+            "replaces": null,
+            "state": "pending"
+          }
+        }
+      ],
+      "expect": {
+        "ok": {
+          "occurrenceId": "occ-2",
+          "key": "k-1",
+          "scopeApp": "app",
+          "scopeOwner": "own",
+          "scopeOwnerPackage": "pkg",
+          "at": 100,
+          "event": "tick",
+          "payload": {
+            "a": [
+              1,
+              2
+            ]
+          },
+          "replaces": null,
+          "state": "pending"
+        }
+      }
+    },
+    {
+      "id": "read-bad-state",
+      "direction": "work",
+      "fn": "readScheduleRow",
+      "input": [
+        {
+          "id": "x",
+          "version": 1,
+          "created": 1728000000000,
+          "updated": 1728000000000,
+          "createdBy": "w02.2-freeze",
+          "updatedBy": "w02.2-freeze",
+          "archivedAt": null,
+          "parent": null,
+          "data": {
+            "occurrenceId": "occ-2",
+            "key": "k-1",
+            "scopeApp": "app",
+            "scopeOwner": "own",
+            "scopeOwnerPackage": "pkg",
+            "at": 100,
+            "event": "tick",
+            "payload": {
+              "a": [
+                1,
+                2
+              ]
+            },
+            "replaces": null,
+            "state": "held"
+          }
+        }
+      ],
+      "expect": {
+        "throw": {
+          "name": "KernelTableError",
+          "message": "work.schedule.state is unknown: \"held\"."
+        }
+      }
+    },
+    {
+      "id": "scope-rebuild",
+      "direction": "work",
+      "fn": "scheduleRowScope",
+      "input": [
+        {
+          "occurrenceId": "occ-2",
+          "key": "k-1",
+          "scopeApp": "app",
+          "scopeOwner": "own",
+          "scopeOwnerPackage": "pkg",
+          "at": 100,
+          "event": "tick",
+          "payload": {
+            "a": [
+              1,
+              2
+            ]
+          },
+          "replaces": null,
+          "state": "pending"
+        }
+      ],
+      "expect": {
+        "ok": {
+          "app": "app",
+          "owner": "own",
+          "ownerPackage": "pkg"
+        }
+      }
+    },
+    {
+      "id": "query-by-key",
+      "direction": "work",
+      "fn": "scheduleByKeyQuery",
+      "input": [
+        {
+          "app": "app",
+          "owner": "own",
+          "ownerPackage": "pkg"
+        },
+        "k-1"
+      ],
+      "expect": {
+        "ok": {
+          "model": "work.schedule",
+          "where": {
+            "op": "and",
+            "args": [
+              {
+                "op": "eq",
+                "field": "key",
+                "value": "k-1"
+              },
+              {
+                "op": "eq",
+                "field": "scopeApp",
+                "value": "app"
+              },
+              {
+                "op": "eq",
+                "field": "scopeOwner",
+                "value": "own"
+              },
+              {
+                "op": "eq",
+                "field": "scopeOwnerPackage",
+                "value": "pkg"
+              }
+            ]
+          },
+          "authority": "owner"
+        }
+      }
+    },
+    {
+      "id": "new-fn-payload",
+      "direction": "work",
+      "fn": "newScheduleRow",
+      "input": [
+        {
+          "occurrenceId": "occ-2",
+          "key": "k-1",
+          "scopeApp": "app",
+          "scopeOwner": "own",
+          "scopeOwnerPackage": "pkg",
+          "at": 100,
+          "event": "tick",
+          "payload": {
+            "f": {
+              "$fn": true
+            }
+          },
+          "replaces": null,
+          "state": "pending"
+        },
+        {
+          "nowMs": 1728000000000,
+          "actor": "w02.2-freeze"
+        }
+      ],
+      "expect": {
+        "throw": {
+          "name": "KernelTableError",
+          "message": "work.schedule data.payload.f is not JSON-safe."
+        }
+      }
+    }
+  ]
+}

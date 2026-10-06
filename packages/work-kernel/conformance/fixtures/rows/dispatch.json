@@ -1,0 +1,723 @@
+{
+  "provenance": {
+    "frozen_at_head": "7e050080c2d8178040d4e1ade785c195a796b67f",
+    "donor": "packages/work/src/kernel/tables.ts",
+    "donor_digest": "392c8a30f73b804638312ba09685666a0eb8734c33d7d41c3a3158ae4371a57e",
+    "note": "Frozen independent originals captured from LIVE donors. rows.ts must reproduce BOTH directions. Re-freeze recipe: see rows.test.ts header."
+  },
+  "cases": [
+    {
+      "id": "new-ok",
+      "direction": "work",
+      "fn": "newDispatchRow",
+      "input": [
+        {
+          "intentId": "obx-1",
+          "operationId": "op-9",
+          "source": "emit",
+          "occurrenceIndex": 3,
+          "originOccurrence": "occ-0"
+        },
+        {
+          "nowMs": 1728000000000,
+          "actor": "w02.2-freeze"
+        }
+      ],
+      "expect": {
+        "ok": {
+          "id": "obx-1",
+          "version": 1,
+          "created": 1728000000000,
+          "updated": 1728000000000,
+          "createdBy": "w02.2-freeze",
+          "updatedBy": "w02.2-freeze",
+          "archivedAt": null,
+          "parent": null,
+          "data": {
+            "intentId": "obx-1",
+            "operationId": "op-9",
+            "source": "emit",
+            "occurrenceIndex": 3,
+            "originOccurrence": "occ-0",
+            "state": "pending",
+            "attempts": 0,
+            "claimId": null,
+            "claimedAtMs": null,
+            "guardVerdict": null,
+            "deliveryId": null,
+            "errorCode": null,
+            "errorMessage": null,
+            "availableAtMs": null,
+            "firstAttemptAtMs": null,
+            "retryClass": null
+          }
+        }
+      }
+    },
+    {
+      "id": "new-bad-nowms",
+      "direction": "work",
+      "fn": "newDispatchRow",
+      "input": [
+        {
+          "intentId": "obx-1",
+          "operationId": "op-9",
+          "source": "emit",
+          "occurrenceIndex": 3,
+          "originOccurrence": "occ-0"
+        },
+        {
+          "nowMs": -1,
+          "actor": "x"
+        }
+      ],
+      "expect": {
+        "throw": {
+          "name": "KernelTableError",
+          "message": "work.dispatch: nowMs must be finite epoch ms >= 0."
+        }
+      }
+    },
+    {
+      "id": "new-bad-actor",
+      "direction": "work",
+      "fn": "newDispatchRow",
+      "input": [
+        {
+          "intentId": "obx-1",
+          "operationId": "op-9",
+          "source": "emit",
+          "occurrenceIndex": 3,
+          "originOccurrence": "occ-0"
+        },
+        {
+          "nowMs": 1,
+          "actor": ""
+        }
+      ],
+      "expect": {
+        "throw": {
+          "name": "KernelTableError",
+          "message": "work.dispatch: actor must be a non-empty string."
+        }
+      }
+    },
+    {
+      "id": "new-nonfinite-nested",
+      "direction": "work",
+      "fn": "newOccurrenceRow",
+      "input": [
+        {
+          "occurrenceId": "o",
+          "status": "completed",
+          "result": {
+            "n": {
+              "$num": "Infinity"
+            }
+          },
+          "code": null,
+          "message": null,
+          "recordedAtMs": 5
+        },
+        {
+          "nowMs": 1728000000000,
+          "actor": "w02.2-freeze"
+        }
+      ],
+      "expect": {
+        "throw": {
+          "name": "KernelTableError",
+          "message": "work.occurrence data.result.n must be finite JSON."
+        }
+      }
+    },
+    {
+      "id": "read-ok",
+      "direction": "work",
+      "fn": "readDispatchRow",
+      "input": [
+        {
+          "id": "obx-1",
+          "version": 1,
+          "created": 1728000000000,
+          "updated": 1728000000000,
+          "createdBy": "w02.2-freeze",
+          "updatedBy": "w02.2-freeze",
+          "archivedAt": null,
+          "parent": null,
+          "data": {
+            "intentId": "obx-1",
+            "operationId": "op-9",
+            "source": "emit",
+            "occurrenceIndex": 3,
+            "originOccurrence": "occ-0",
+            "state": "claimed",
+            "attempts": 2,
+            "claimId": "c1",
+            "claimedAtMs": 100,
+            "guardVerdict": true,
+            "deliveryId": null,
+            "errorCode": null,
+            "errorMessage": null,
+            "availableAtMs": null,
+            "firstAttemptAtMs": 90,
+            "retryClass": null
+          }
+        }
+      ],
+      "expect": {
+        "ok": {
+          "intentId": "obx-1",
+          "operationId": "op-9",
+          "source": "emit",
+          "occurrenceIndex": 3,
+          "originOccurrence": "occ-0",
+          "state": "claimed",
+          "attempts": 2,
+          "claimId": "c1",
+          "claimedAtMs": 100,
+          "guardVerdict": true,
+          "deliveryId": null,
+          "errorCode": null,
+          "errorMessage": null,
+          "availableAtMs": null,
+          "firstAttemptAtMs": 90,
+          "retryClass": null
+        }
+      }
+    },
+    {
+      "id": "read-bad-state",
+      "direction": "work",
+      "fn": "readDispatchRow",
+      "input": [
+        {
+          "id": "x",
+          "version": 1,
+          "created": 1728000000000,
+          "updated": 1728000000000,
+          "createdBy": "w02.2-freeze",
+          "updatedBy": "w02.2-freeze",
+          "archivedAt": null,
+          "parent": null,
+          "data": {
+            "intentId": "obx-1",
+            "operationId": "op-9",
+            "source": "emit",
+            "occurrenceIndex": 3,
+            "originOccurrence": "occ-0",
+            "state": "bogus",
+            "attempts": 0,
+            "claimId": null,
+            "claimedAtMs": null,
+            "guardVerdict": null,
+            "deliveryId": null,
+            "errorCode": null,
+            "errorMessage": null,
+            "availableAtMs": null,
+            "firstAttemptAtMs": null,
+            "retryClass": null
+          }
+        }
+      ],
+      "expect": {
+        "throw": {
+          "name": "KernelTableError",
+          "message": "work.dispatch.state is unknown: \"bogus\"."
+        }
+      }
+    },
+    {
+      "id": "read-bad-guard",
+      "direction": "work",
+      "fn": "readDispatchRow",
+      "input": [
+        {
+          "id": "x",
+          "version": 1,
+          "created": 1728000000000,
+          "updated": 1728000000000,
+          "createdBy": "w02.2-freeze",
+          "updatedBy": "w02.2-freeze",
+          "archivedAt": null,
+          "parent": null,
+          "data": {
+            "intentId": "obx-1",
+            "operationId": "op-9",
+            "source": "emit",
+            "occurrenceIndex": 3,
+            "originOccurrence": "occ-0",
+            "state": "pending",
+            "attempts": 0,
+            "claimId": null,
+            "claimedAtMs": null,
+            "guardVerdict": 0,
+            "deliveryId": null,
+            "errorCode": null,
+            "errorMessage": null,
+            "availableAtMs": null,
+            "firstAttemptAtMs": null,
+            "retryClass": null
+          }
+        }
+      ],
+      "expect": {
+        "throw": {
+          "name": "KernelTableError",
+          "message": "work.dispatch.guardVerdict must be boolean or null."
+        }
+      }
+    },
+    {
+      "id": "read-bad-retryclass",
+      "direction": "work",
+      "fn": "readDispatchRow",
+      "input": [
+        {
+          "id": "x",
+          "version": 1,
+          "created": 1728000000000,
+          "updated": 1728000000000,
+          "createdBy": "w02.2-freeze",
+          "updatedBy": "w02.2-freeze",
+          "archivedAt": null,
+          "parent": null,
+          "data": {
+            "intentId": "obx-1",
+            "operationId": "op-9",
+            "source": "emit",
+            "occurrenceIndex": 3,
+            "originOccurrence": "occ-0",
+            "state": "failed",
+            "attempts": 1,
+            "claimId": null,
+            "claimedAtMs": null,
+            "guardVerdict": null,
+            "deliveryId": null,
+            "errorCode": "E",
+            "errorMessage": "m",
+            "availableAtMs": null,
+            "firstAttemptAtMs": 1,
+            "retryClass": "maybe"
+          }
+        }
+      ],
+      "expect": {
+        "throw": {
+          "name": "KernelTableError",
+          "message": "work.dispatch.retryClass must be transient, terminal or null."
+        }
+      }
+    },
+    {
+      "id": "read-array-data",
+      "direction": "work",
+      "fn": "readDispatchRow",
+      "input": [
+        {
+          "id": "x",
+          "version": 1,
+          "created": 1728000000000,
+          "updated": 1728000000000,
+          "createdBy": "w02.2-freeze",
+          "updatedBy": "w02.2-freeze",
+          "archivedAt": null,
+          "parent": null,
+          "data": []
+        }
+      ],
+      "expect": {
+        "throw": {
+          "name": "KernelTableError",
+          "message": "work.dispatch data must be an object."
+        }
+      }
+    },
+    {
+      "id": "read-fractional-attempts",
+      "direction": "work",
+      "fn": "readDispatchRow",
+      "input": [
+        {
+          "id": "x",
+          "version": 1,
+          "created": 1728000000000,
+          "updated": 1728000000000,
+          "createdBy": "w02.2-freeze",
+          "updatedBy": "w02.2-freeze",
+          "archivedAt": null,
+          "parent": null,
+          "data": {
+            "intentId": "obx-1",
+            "operationId": "op-9",
+            "source": "emit",
+            "occurrenceIndex": 3,
+            "originOccurrence": "occ-0",
+            "state": "pending",
+            "attempts": 1.5,
+            "claimId": null,
+            "claimedAtMs": null,
+            "guardVerdict": null,
+            "deliveryId": null,
+            "errorCode": null,
+            "errorMessage": null,
+            "availableAtMs": null,
+            "firstAttemptAtMs": null,
+            "retryClass": null
+          }
+        }
+      ],
+      "expect": {
+        "throw": {
+          "name": "KernelTableError",
+          "message": "work.dispatch.attempts must be an integer >= 0."
+        }
+      }
+    },
+    {
+      "id": "new-negzero-index",
+      "direction": "work",
+      "fn": "newDispatchRow",
+      "input": [
+        {
+          "intentId": "obx-1",
+          "operationId": "op-9",
+          "source": "emit",
+          "occurrenceIndex": {
+            "$num": "-0"
+          },
+          "originOccurrence": "occ-0"
+        },
+        {
+          "nowMs": 1728000000000,
+          "actor": "w02.2-freeze"
+        }
+      ],
+      "expect": {
+        "ok": {
+          "id": "obx-1",
+          "version": 1,
+          "created": 1728000000000,
+          "updated": 1728000000000,
+          "createdBy": "w02.2-freeze",
+          "updatedBy": "w02.2-freeze",
+          "archivedAt": null,
+          "parent": null,
+          "data": {
+            "intentId": "obx-1",
+            "operationId": "op-9",
+            "source": "emit",
+            "occurrenceIndex": {
+              "$num": "-0"
+            },
+            "originOccurrence": "occ-0",
+            "state": "pending",
+            "attempts": 0,
+            "claimId": null,
+            "claimedAtMs": null,
+            "guardVerdict": null,
+            "deliveryId": null,
+            "errorCode": null,
+            "errorMessage": null,
+            "availableAtMs": null,
+            "firstAttemptAtMs": null,
+            "retryClass": null
+          }
+        }
+      }
+    },
+    {
+      "id": "read-state-number",
+      "direction": "work",
+      "fn": "readDispatchRow",
+      "input": [
+        {
+          "id": "x",
+          "version": 1,
+          "created": 1728000000000,
+          "updated": 1728000000000,
+          "createdBy": "w02.2-freeze",
+          "updatedBy": "w02.2-freeze",
+          "archivedAt": null,
+          "parent": null,
+          "data": {
+            "intentId": "obx-1",
+            "operationId": "op-9",
+            "source": "emit",
+            "occurrenceIndex": 3,
+            "originOccurrence": "occ-0",
+            "state": 5,
+            "attempts": 0,
+            "claimId": null,
+            "claimedAtMs": null,
+            "guardVerdict": null,
+            "deliveryId": null,
+            "errorCode": null,
+            "errorMessage": null,
+            "availableAtMs": null,
+            "firstAttemptAtMs": null,
+            "retryClass": null
+          }
+        }
+      ],
+      "expect": {
+        "throw": {
+          "name": "KernelTableError",
+          "message": "work.dispatch.state must be a non-empty string."
+        }
+      }
+    },
+    {
+      "id": "read-state-big",
+      "direction": "work",
+      "fn": "readDispatchRow",
+      "input": [
+        {
+          "id": "x",
+          "version": 1,
+          "created": 1728000000000,
+          "updated": 1728000000000,
+          "createdBy": "w02.2-freeze",
+          "updatedBy": "w02.2-freeze",
+          "archivedAt": null,
+          "parent": null,
+          "data": {
+            "intentId": "obx-1",
+            "operationId": "op-9",
+            "source": "emit",
+            "occurrenceIndex": 3,
+            "originOccurrence": "occ-0",
+            "state": 1e+21,
+            "attempts": 0,
+            "claimId": null,
+            "claimedAtMs": null,
+            "guardVerdict": null,
+            "deliveryId": null,
+            "errorCode": null,
+            "errorMessage": null,
+            "availableAtMs": null,
+            "firstAttemptAtMs": null,
+            "retryClass": null
+          }
+        }
+      ],
+      "expect": {
+        "throw": {
+          "name": "KernelTableError",
+          "message": "work.dispatch.state must be a non-empty string."
+        }
+      }
+    },
+    {
+      "id": "read-state-nan",
+      "direction": "work",
+      "fn": "readDispatchRow",
+      "input": [
+        {
+          "id": "x",
+          "version": 1,
+          "created": 1728000000000,
+          "updated": 1728000000000,
+          "createdBy": "w02.2-freeze",
+          "updatedBy": "w02.2-freeze",
+          "archivedAt": null,
+          "parent": null,
+          "data": {
+            "intentId": "obx-1",
+            "operationId": "op-9",
+            "source": "emit",
+            "occurrenceIndex": 3,
+            "originOccurrence": "occ-0",
+            "state": {
+              "$num": "NaN"
+            },
+            "attempts": 0,
+            "claimId": null,
+            "claimedAtMs": null,
+            "guardVerdict": null,
+            "deliveryId": null,
+            "errorCode": null,
+            "errorMessage": null,
+            "availableAtMs": null,
+            "firstAttemptAtMs": null,
+            "retryClass": null
+          }
+        }
+      ],
+      "expect": {
+        "throw": {
+          "name": "KernelTableError",
+          "message": "work.dispatch.state must be a non-empty string."
+        }
+      }
+    },
+    {
+      "id": "read-state-true",
+      "direction": "work",
+      "fn": "readDispatchRow",
+      "input": [
+        {
+          "id": "x",
+          "version": 1,
+          "created": 1728000000000,
+          "updated": 1728000000000,
+          "createdBy": "w02.2-freeze",
+          "updatedBy": "w02.2-freeze",
+          "archivedAt": null,
+          "parent": null,
+          "data": {
+            "intentId": "obx-1",
+            "operationId": "op-9",
+            "source": "emit",
+            "occurrenceIndex": 3,
+            "originOccurrence": "occ-0",
+            "state": true,
+            "attempts": 0,
+            "claimId": null,
+            "claimedAtMs": null,
+            "guardVerdict": null,
+            "deliveryId": null,
+            "errorCode": null,
+            "errorMessage": null,
+            "availableAtMs": null,
+            "firstAttemptAtMs": null,
+            "retryClass": null
+          }
+        }
+      ],
+      "expect": {
+        "throw": {
+          "name": "KernelTableError",
+          "message": "work.dispatch.state must be a non-empty string."
+        }
+      }
+    },
+    {
+      "id": "read-state-nested",
+      "direction": "work",
+      "fn": "readDispatchRow",
+      "input": [
+        {
+          "id": "x",
+          "version": 1,
+          "created": 1728000000000,
+          "updated": 1728000000000,
+          "createdBy": "w02.2-freeze",
+          "updatedBy": "w02.2-freeze",
+          "archivedAt": null,
+          "parent": null,
+          "data": {
+            "intentId": "obx-1",
+            "operationId": "op-9",
+            "source": "emit",
+            "occurrenceIndex": 3,
+            "originOccurrence": "occ-0",
+            "state": {
+              "a": [
+                1,
+                "x"
+              ]
+            },
+            "attempts": 0,
+            "claimId": null,
+            "claimedAtMs": null,
+            "guardVerdict": null,
+            "deliveryId": null,
+            "errorCode": null,
+            "errorMessage": null,
+            "availableAtMs": null,
+            "firstAttemptAtMs": null,
+            "retryClass": null
+          }
+        }
+      ],
+      "expect": {
+        "throw": {
+          "name": "KernelTableError",
+          "message": "work.dispatch.state must be a non-empty string."
+        }
+      }
+    },
+    {
+      "id": "with-row-data-ok",
+      "direction": "work",
+      "fn": "withRowData",
+      "input": [
+        {
+          "id": "obx-1",
+          "version": 1,
+          "created": 1728000000000,
+          "updated": 1728000000000,
+          "createdBy": "w02.2-freeze",
+          "updatedBy": "w02.2-freeze",
+          "archivedAt": null,
+          "parent": null,
+          "data": {
+            "a": 1
+          }
+        },
+        {
+          "a": 2
+        },
+        {
+          "nowMs": 1728000000000,
+          "actor": "w02.2-freeze"
+        },
+        "work.dispatch"
+      ],
+      "expect": {
+        "ok": {
+          "id": "obx-1",
+          "version": 2,
+          "created": 1728000000000,
+          "updated": 1728000000000,
+          "createdBy": "w02.2-freeze",
+          "updatedBy": "w02.2-freeze",
+          "archivedAt": null,
+          "parent": null,
+          "data": {
+            "a": 2
+          }
+        }
+      }
+    },
+    {
+      "id": "query-by-origin",
+      "direction": "work",
+      "fn": "dispatchByOriginQuery",
+      "input": [
+        "occ-7"
+      ],
+      "expect": {
+        "ok": {
+          "model": "work.dispatch",
+          "where": {
+            "op": "eq",
+            "field": "originOccurrence",
+            "value": "occ-7"
+          },
+          "authority": "owner"
+        }
+      }
+    },
+    {
+      "id": "query-by-state",
+      "direction": "work",
+      "fn": "dispatchByStateQuery",
+      "input": [
+        "dead"
+      ],
+      "expect": {
+        "ok": {
+          "model": "work.dispatch",
+          "where": {
+            "op": "eq",
+            "field": "state",
+            "value": "dead"
+          },
+          "authority": "owner"
+        }
+      }
+    }
+  ]
+}

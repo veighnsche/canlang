@@ -1,0 +1,9 @@
+[package]
+name = "canlang-work-kernel"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+name = "canlang_work_kernel"
+crate-type = ["cdylib", "rlib"]
+path = "rust/lib.rs"

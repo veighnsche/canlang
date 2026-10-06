@@ -1,0 +1,208 @@
+{
+  "provenance": {
+    "frozen_at_head": "7e050080c2d8178040d4e1ade785c195a796b67f",
+    "donor": "packages/work/src/kernel/tables.ts",
+    "donor_digest": "392c8a30f73b804638312ba09685666a0eb8734c33d7d41c3a3158ae4371a57e",
+    "note": "Frozen independent originals captured from LIVE donors. rows.ts must reproduce BOTH directions. Re-freeze recipe: see rows.test.ts header."
+  },
+  "cases": [
+    {
+      "id": "id-encoding",
+      "direction": "work",
+      "fn": "everySlotRowId",
+      "input": [
+        "my app",
+        "h/1",
+        "team",
+        "o+t"
+      ],
+      "expect": {
+        "ok": "every/v1/my%20app/h%2F1/team/o%2Bt"
+      }
+    },
+    {
+      "id": "id-lone-surrogate",
+      "direction": "work",
+      "fn": "everySlotRowId",
+      "input": [
+        "a\ud800x",
+        "h",
+        "app",
+        "o"
+      ],
+      "expect": {
+        "throw": {
+          "name": "URIError",
+          "message": "String contained an illegal UTF-16 sequence."
+        }
+      }
+    },
+    {
+      "id": "new-ok",
+      "direction": "work",
+      "fn": "newEverySlotRow",
+      "input": [
+        {
+          "scopeKey": "k",
+          "app": "a",
+          "handler": "h",
+          "scope": "team",
+          "owner": "o",
+          "slot": 99
+        },
+        {
+          "nowMs": 1728000000000,
+          "actor": "w02.2-freeze"
+        }
+      ],
+      "expect": {
+        "ok": {
+          "id": "every/v1/a/h/team/o",
+          "version": 1,
+          "created": 1728000000000,
+          "updated": 1728000000000,
+          "createdBy": "w02.2-freeze",
+          "updatedBy": "w02.2-freeze",
+          "archivedAt": null,
+          "parent": null,
+          "data": {
+            "scopeKey": "k",
+            "app": "a",
+            "handler": "h",
+            "scope": "team",
+            "owner": "o",
+            "slot": 99
+          }
+        }
+      }
+    },
+    {
+      "id": "read-ok",
+      "direction": "work",
+      "fn": "readEverySlotRow",
+      "input": [
+        {
+          "id": "every/v1/a/h/team/o",
+          "version": 1,
+          "created": 1728000000000,
+          "updated": 1728000000000,
+          "createdBy": "w02.2-freeze",
+          "updatedBy": "w02.2-freeze",
+          "archivedAt": null,
+          "parent": null,
+          "data": {
+            "scopeKey": "k",
+            "app": "a",
+            "handler": "h",
+            "scope": "team",
+            "owner": "o",
+            "slot": 99
+          }
+        }
+      ],
+      "expect": {
+        "ok": {
+          "scopeKey": "k",
+          "app": "a",
+          "handler": "h",
+          "scope": "team",
+          "owner": "o",
+          "slot": 99
+        }
+      }
+    },
+    {
+      "id": "read-bad-scope",
+      "direction": "work",
+      "fn": "readEverySlotRow",
+      "input": [
+        {
+          "id": "x",
+          "version": 1,
+          "created": 1728000000000,
+          "updated": 1728000000000,
+          "createdBy": "w02.2-freeze",
+          "updatedBy": "w02.2-freeze",
+          "archivedAt": null,
+          "parent": null,
+          "data": {
+            "scopeKey": "k",
+            "app": "a",
+            "handler": "h",
+            "scope": "org",
+            "owner": "o",
+            "slot": 1
+          }
+        }
+      ],
+      "expect": {
+        "throw": {
+          "name": "KernelTableError",
+          "message": "work.every_slot.scope must be team or app, got \"org\"."
+        }
+      }
+    },
+    {
+      "id": "read-scope-number",
+      "direction": "work",
+      "fn": "readEverySlotRow",
+      "input": [
+        {
+          "id": "x",
+          "version": 1,
+          "created": 1728000000000,
+          "updated": 1728000000000,
+          "createdBy": "w02.2-freeze",
+          "updatedBy": "w02.2-freeze",
+          "archivedAt": null,
+          "parent": null,
+          "data": {
+            "scopeKey": "k",
+            "app": "a",
+            "handler": "h",
+            "scope": 5,
+            "owner": "o",
+            "slot": 1
+          }
+        }
+      ],
+      "expect": {
+        "throw": {
+          "name": "KernelTableError",
+          "message": "work.every_slot.scope must be team or app, got 5."
+        }
+      }
+    },
+    {
+      "id": "read-fractional-slot",
+      "direction": "work",
+      "fn": "readEverySlotRow",
+      "input": [
+        {
+          "id": "x",
+          "version": 1,
+          "created": 1728000000000,
+          "updated": 1728000000000,
+          "createdBy": "w02.2-freeze",
+          "updatedBy": "w02.2-freeze",
+          "archivedAt": null,
+          "parent": null,
+          "data": {
+            "scopeKey": "k",
+            "app": "a",
+            "handler": "h",
+            "scope": "app",
+            "owner": "o",
+            "slot": 2.5
+          }
+        }
+      ],
+      "expect": {
+        "throw": {
+          "name": "KernelTableError",
+          "message": "work.every_slot.slot must be an integer >= 0."
+        }
+      }
+    }
+  ]
+}

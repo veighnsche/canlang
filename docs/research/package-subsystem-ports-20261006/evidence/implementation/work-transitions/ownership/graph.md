@@ -20,13 +20,17 @@ Planning record only; no implementation authorized.
   runtime edge. (Note: the filetree ownership note claiming runtime
   state-port calls from work does not match this import evidence;
   treat that claim as unverified, not as fact.)
-- `state -> work`: **zero static edges**. The two work-loaders
-  (`fanout/work-loader.ts`, `receipt/work-loader.ts`) import work
-  modules dynamically by file URL for byte-parity checks only, and
-  `fanout/tables.ts` documents that it never imports work sources.
+- `state -> work`: **zero static edges**. The fanout work-loader
+  imports work modules dynamically by file URL for byte-parity
+  checks only (test-only); the receipt work-loader is
+  additionally loaded by the cloudflare D3b Node/memory serving
+  edge (see DRIFT-SUPPLEMENT D3b below). `fanout/tables.ts`
+  documents that it never imports work sources.
 - `cloudflare -> work`: **zero static edges**. `runtime/invoke.ts`
   documents that work helpers "arrive INJECTED — `@canlang/work` has
   no dist build"; `activate.ts` receives gates by producer join.
+  The D3b edge is a dynamic `cloudflare -> state` producer read,
+  not a static edge; static-edge counts are unchanged.
 - Shared edges: all three packages statically import only
   `contracts/` (relative `../../../contracts/src/*.js`, types and
   small value constants). The contracts-only type graph is already
@@ -104,3 +108,17 @@ scope), state owner (transact/registry consumption), cloudflare
 owner (runtime invoke + producer seam), C04 delivery owner (the
 three requests above). W02.1 must not start until this choice is
 approved.
+
+## DRIFT-SUPPLEMENT D3b (2026-10-06, session 01a10fab-cc9d-7331, head `ef35e95`)
+
+`packages/cloudflare/src/runtime/invoke.ts:3321-3330` consumes
+`packages/state/src/receipt/work-loader.ts` (built at
+`state/dist/state/src/receipt/work-loader.js`) via the canonical
+producer read (`loadProducerModule` + `requireProducerFn`, `:1259`;
+specifier `:2965`). Reconciled with `files.json`
+(`edges_verified.state_to_work` + `drift_supplement_d3b`): no
+completed graph is invented — the dynamic edge is recorded as
+observed, static counts unchanged. Packaged/deployed observer
+loading stays UNQUALIFIED (`bundle.ts:212-213` excludes both
+vendor work-loaders). Full record: `contracts/callers.json`
+`drift_supplement_d3b`.

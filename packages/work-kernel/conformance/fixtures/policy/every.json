@@ -1,0 +1,703 @@
+{
+  "provenance": {
+    "frozen_at_head": "07d9d022b8c289cf330735957e0e9b64c605ca08",
+    "donors": {
+      "receipt": "packages/work/src/receipt/index.ts",
+      "every": "packages/work/src/schedule/every.ts"
+    },
+    "donor_digests": {
+      "receipt": "5085f392192a1059c9a5d3bcf679e4984b77a0ab4a5e799bcd17812e8060d6e3",
+      "every": "60854aa7c190ef69f29bde0f68e1e26ae68de98c782fa82d64e4f2e822e046e9"
+    },
+    "note": "Frozen independent originals captured from LIVE donors. No direction axis: policy donors are work-only; occurrenceId in every/admitted is host-derived (see every.test.ts). Re-freeze recipe: see test headers."
+  },
+  "cases": [
+    {
+      "id": "slot-zero",
+      "fn": "computeEverySlot",
+      "input": [
+        0,
+        1000
+      ],
+      "expect": {
+        "ok": {
+          "slot": 0,
+          "slotStartMs": 0
+        }
+      }
+    },
+    {
+      "id": "slot-mid",
+      "fn": "computeEverySlot",
+      "input": [
+        1500,
+        1000
+      ],
+      "expect": {
+        "ok": {
+          "slot": 1,
+          "slotStartMs": 1000
+        }
+      }
+    },
+    {
+      "id": "slot-exact-boundary",
+      "fn": "computeEverySlot",
+      "input": [
+        2000,
+        1000
+      ],
+      "expect": {
+        "ok": {
+          "slot": 2,
+          "slotStartMs": 2000
+        }
+      }
+    },
+    {
+      "id": "slot-fractional-now",
+      "fn": "computeEverySlot",
+      "input": [
+        1500.9,
+        1000
+      ],
+      "expect": {
+        "ok": {
+          "slot": 1,
+          "slotStartMs": 1000
+        }
+      }
+    },
+    {
+      "id": "slot-minute-period",
+      "fn": "computeEverySlot",
+      "input": [
+        91500,
+        60000
+      ],
+      "expect": {
+        "ok": {
+          "slot": 60,
+          "slotStartMs": 60000
+        }
+      }
+    },
+    {
+      "id": "slot-bad-now",
+      "fn": "computeEverySlot",
+      "input": [
+        -1,
+        1000
+      ],
+      "expect": {
+        "throw": {
+          "name": "RangeError",
+          "message": "computeEverySlot: nowMs must be finite UTC epoch ms >= 0"
+        }
+      }
+    },
+    {
+      "id": "slot-nan-now",
+      "fn": "computeEverySlot",
+      "input": [
+        {
+          "$num": "NaN"
+        },
+        1000
+      ],
+      "expect": {
+        "throw": {
+          "name": "RangeError",
+          "message": "computeEverySlot: nowMs must be finite UTC epoch ms >= 0"
+        }
+      }
+    },
+    {
+      "id": "slot-zero-period",
+      "fn": "computeEverySlot",
+      "input": [
+        1000,
+        0
+      ],
+      "expect": {
+        "throw": {
+          "name": "RangeError",
+          "message": "computeEverySlot: periodMs must be a positive integer multiple of 1000"
+        }
+      }
+    },
+    {
+      "id": "slot-nonmultiple-period",
+      "fn": "computeEverySlot",
+      "input": [
+        1000,
+        1500
+      ],
+      "expect": {
+        "throw": {
+          "name": "RangeError",
+          "message": "computeEverySlot: periodMs must be a positive integer multiple of 1000"
+        }
+      }
+    },
+    {
+      "id": "slot-fractional-period",
+      "fn": "computeEverySlot",
+      "input": [
+        1000,
+        2500.5
+      ],
+      "expect": {
+        "throw": {
+          "name": "RangeError",
+          "message": "computeEverySlot: periodMs must be a positive integer multiple of 1000"
+        }
+      }
+    },
+    {
+      "id": "scope-key",
+      "fn": "everyScopeKey",
+      "input": [
+        "team",
+        "o1"
+      ],
+      "expect": {
+        "ok": "team:o1"
+      }
+    },
+    {
+      "id": "tick-empty-scopes",
+      "fn": "admitEveryTick",
+      "input": [
+        {
+          "nowMs": 5000,
+          "periodMs": 1000,
+          "app": "a",
+          "handler": "h",
+          "scopes": [],
+          "previousSlots": {}
+        }
+      ],
+      "expect": {
+        "ok": {
+          "slot": 5,
+          "slotStartMs": 5000,
+          "admitted": []
+        }
+      }
+    },
+    {
+      "id": "tick-admit-one",
+      "fn": "admitEveryTick",
+      "input": [
+        {
+          "nowMs": 5000,
+          "periodMs": 1000,
+          "app": "a",
+          "handler": "h",
+          "scopes": [
+            {
+              "scope": "team",
+              "owner": "t1"
+            }
+          ],
+          "previousSlots": {
+            "team:t1": 3
+          }
+        }
+      ],
+      "expect": {
+        "ok": {
+          "slot": 5,
+          "slotStartMs": 5000,
+          "admitted": [
+            {
+              "occurrenceId": "evr_ef48bfaf1dc2f1a7f66066a1f97f21d9ca63ab99db6b718cca63ecc2bec18e78",
+              "app": "a",
+              "handler": "h",
+              "scope": "team",
+              "owner": "t1",
+              "slot": 5
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "tick-new-scope",
+      "fn": "admitEveryTick",
+      "input": [
+        {
+          "nowMs": 5000,
+          "periodMs": 1000,
+          "app": "a",
+          "handler": "h",
+          "scopes": [
+            {
+              "scope": "app",
+              "owner": "n1"
+            }
+          ],
+          "previousSlots": {}
+        }
+      ],
+      "expect": {
+        "ok": {
+          "slot": 5,
+          "slotStartMs": 5000,
+          "admitted": []
+        }
+      }
+    },
+    {
+      "id": "tick-removed-scope",
+      "fn": "admitEveryTick",
+      "input": [
+        {
+          "nowMs": 5000,
+          "periodMs": 1000,
+          "app": "a",
+          "handler": "h",
+          "scopes": [],
+          "previousSlots": {
+            "team:gone": 1
+          }
+        }
+      ],
+      "expect": {
+        "ok": {
+          "slot": 5,
+          "slotStartMs": 5000,
+          "admitted": []
+        }
+      }
+    },
+    {
+      "id": "tick-previous-eq-slot",
+      "fn": "admitEveryTick",
+      "input": [
+        {
+          "nowMs": 5000,
+          "periodMs": 1000,
+          "app": "a",
+          "handler": "h",
+          "scopes": [
+            {
+              "scope": "team",
+              "owner": "t1"
+            }
+          ],
+          "previousSlots": {
+            "team:t1": 5
+          }
+        }
+      ],
+      "expect": {
+        "ok": {
+          "slot": 5,
+          "slotStartMs": 5000,
+          "admitted": []
+        }
+      }
+    },
+    {
+      "id": "tick-previous-gt-slot",
+      "fn": "admitEveryTick",
+      "input": [
+        {
+          "nowMs": 5000,
+          "periodMs": 1000,
+          "app": "a",
+          "handler": "h",
+          "scopes": [
+            {
+              "scope": "team",
+              "owner": "t1"
+            }
+          ],
+          "previousSlots": {
+            "team:t1": 9
+          }
+        }
+      ],
+      "expect": {
+        "ok": {
+          "slot": 5,
+          "slotStartMs": 5000,
+          "admitted": []
+        }
+      }
+    },
+    {
+      "id": "tick-duplicate-scopes",
+      "fn": "admitEveryTick",
+      "input": [
+        {
+          "nowMs": 5000,
+          "periodMs": 1000,
+          "app": "a",
+          "handler": "h",
+          "scopes": [
+            {
+              "scope": "team",
+              "owner": "t1"
+            },
+            {
+              "scope": "team",
+              "owner": "t1"
+            }
+          ],
+          "previousSlots": {
+            "team:t1": 0
+          }
+        }
+      ],
+      "expect": {
+        "ok": {
+          "slot": 5,
+          "slotStartMs": 5000,
+          "admitted": [
+            {
+              "occurrenceId": "evr_ef48bfaf1dc2f1a7f66066a1f97f21d9ca63ab99db6b718cca63ecc2bec18e78",
+              "app": "a",
+              "handler": "h",
+              "scope": "team",
+              "owner": "t1",
+              "slot": 5
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "tick-sorted",
+      "fn": "admitEveryTick",
+      "input": [
+        {
+          "nowMs": 61000,
+          "periodMs": 60000,
+          "app": "a",
+          "handler": "h",
+          "scopes": [
+            {
+              "scope": "team",
+              "owner": "b"
+            },
+            {
+              "scope": "app",
+              "owner": "a"
+            },
+            {
+              "scope": "team",
+              "owner": "a"
+            }
+          ],
+          "previousSlots": {
+            "team:b": 0,
+            "app:a": 0,
+            "team:a": 0
+          }
+        }
+      ],
+      "expect": {
+        "ok": {
+          "slot": 60,
+          "slotStartMs": 60000,
+          "admitted": [
+            {
+              "occurrenceId": "evr_217f01e43fe2317812e98c970dbe33e29fc16b01d0f3de9f2af741e0c7b51dac",
+              "app": "a",
+              "handler": "h",
+              "scope": "app",
+              "owner": "a",
+              "slot": 60
+            },
+            {
+              "occurrenceId": "evr_ebef9032559a5b1bf43e69596240d6c4d3d94b5f704ffeaa96d32e30ba6f6929",
+              "app": "a",
+              "handler": "h",
+              "scope": "team",
+              "owner": "a",
+              "slot": 60
+            },
+            {
+              "occurrenceId": "evr_de250219ebdbdd8731874e0b8a223b0847e5872cc2063ad2a48fac2096b4de75",
+              "app": "a",
+              "handler": "h",
+              "scope": "team",
+              "owner": "b",
+              "slot": 60
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "tick-coalesce",
+      "fn": "admitEveryTick",
+      "input": [
+        {
+          "nowMs": 500000,
+          "periodMs": 1000,
+          "app": "a",
+          "handler": "h",
+          "scopes": [
+            {
+              "scope": "team",
+              "owner": "t1"
+            }
+          ],
+          "previousSlots": {
+            "team:t1": 2
+          }
+        }
+      ],
+      "expect": {
+        "ok": {
+          "slot": 500,
+          "slotStartMs": 500000,
+          "admitted": [
+            {
+              "occurrenceId": "evr_ac2068a4b0267b52ee5b6f2d8ddc8d5b2b128b6f1a86b1a8e814f917758e8bbf",
+              "app": "a",
+              "handler": "h",
+              "scope": "team",
+              "owner": "t1",
+              "slot": 500
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "tick-colon-owner",
+      "fn": "admitEveryTick",
+      "input": [
+        {
+          "nowMs": 5000,
+          "periodMs": 1000,
+          "app": "a",
+          "handler": "h",
+          "scopes": [
+            {
+              "scope": "team",
+              "owner": "a:b"
+            }
+          ],
+          "previousSlots": {
+            "team:a:b": 1
+          }
+        }
+      ],
+      "expect": {
+        "ok": {
+          "slot": 5,
+          "slotStartMs": 5000,
+          "admitted": [
+            {
+              "occurrenceId": "evr_6a5c51632ac32bd3ee671b4b1d4c96b960f18b07ee282f0d213cd54d24b66bd9",
+              "app": "a",
+              "handler": "h",
+              "scope": "team",
+              "owner": "a:b",
+              "slot": 5
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "tick-root-scope",
+      "fn": "admitEveryTick",
+      "input": [
+        {
+          "nowMs": 5000,
+          "periodMs": 1000,
+          "app": "a",
+          "handler": "h",
+          "scopes": [
+            {
+              "scope": "root",
+              "owner": "r"
+            }
+          ],
+          "previousSlots": {}
+        }
+      ],
+      "expect": {
+        "throw": {
+          "name": "RootRecurrenceNotSupportedError",
+          "code": "ROOT_RECURRING_UNSUPPORTED",
+          "scope": "root",
+          "message": "work: recurring every() fanout covers team/app scopes only; rejected scope 'root' (root recurrence uses explicit record-bound schedule)"
+        }
+      }
+    },
+    {
+      "id": "tick-empty-owner",
+      "fn": "admitEveryTick",
+      "input": [
+        {
+          "nowMs": 5000,
+          "periodMs": 1000,
+          "app": "a",
+          "handler": "h",
+          "scopes": [
+            {
+              "scope": "team",
+              "owner": ""
+            }
+          ],
+          "previousSlots": {}
+        }
+      ],
+      "expect": {
+        "throw": {
+          "name": "RangeError",
+          "message": "admitEveryTick: scope owner must be a non-empty string"
+        }
+      }
+    },
+    {
+      "id": "tick-empty-app",
+      "fn": "admitEveryTick",
+      "input": [
+        {
+          "nowMs": 5000,
+          "periodMs": 1000,
+          "app": "",
+          "handler": "h",
+          "scopes": [],
+          "previousSlots": {}
+        }
+      ],
+      "expect": {
+        "throw": {
+          "name": "RangeError",
+          "message": "admitEveryTick: app must be a non-empty string"
+        }
+      }
+    },
+    {
+      "id": "tick-empty-handler",
+      "fn": "admitEveryTick",
+      "input": [
+        {
+          "nowMs": 5000,
+          "periodMs": 1000,
+          "app": "a",
+          "handler": "",
+          "scopes": [],
+          "previousSlots": {}
+        }
+      ],
+      "expect": {
+        "throw": {
+          "name": "RangeError",
+          "message": "admitEveryTick: handler must be a non-empty string"
+        }
+      }
+    },
+    {
+      "id": "tick-bad-previous-fraction",
+      "fn": "admitEveryTick",
+      "input": [
+        {
+          "nowMs": 5000,
+          "periodMs": 1000,
+          "app": "a",
+          "handler": "h",
+          "scopes": [
+            {
+              "scope": "team",
+              "owner": "t1"
+            }
+          ],
+          "previousSlots": {
+            "team:t1": 1.5
+          }
+        }
+      ],
+      "expect": {
+        "throw": {
+          "name": "RangeError",
+          "message": "admitEveryTick: previous slot for team:t1 must be a non-negative integer"
+        }
+      }
+    },
+    {
+      "id": "tick-bad-previous-negative",
+      "fn": "admitEveryTick",
+      "input": [
+        {
+          "nowMs": 5000,
+          "periodMs": 1000,
+          "app": "a",
+          "handler": "h",
+          "scopes": [
+            {
+              "scope": "team",
+              "owner": "t1"
+            }
+          ],
+          "previousSlots": {
+            "team:t1": -2
+          }
+        }
+      ],
+      "expect": {
+        "throw": {
+          "name": "RangeError",
+          "message": "admitEveryTick: previous slot for team:t1 must be a non-negative integer"
+        }
+      }
+    },
+    {
+      "id": "tick-bad-previous-type",
+      "fn": "admitEveryTick",
+      "input": [
+        {
+          "nowMs": 5000,
+          "periodMs": 1000,
+          "app": "a",
+          "handler": "h",
+          "scopes": [
+            {
+              "scope": "team",
+              "owner": "t1"
+            }
+          ],
+          "previousSlots": {
+            "team:t1": "x"
+          }
+        }
+      ],
+      "expect": {
+        "throw": {
+          "name": "RangeError",
+          "message": "admitEveryTick: previous slot for team:t1 must be a non-negative integer"
+        }
+      }
+    },
+    {
+      "id": "tick-bad-period",
+      "fn": "admitEveryTick",
+      "input": [
+        {
+          "nowMs": 5000,
+          "periodMs": 1500,
+          "app": "a",
+          "handler": "h",
+          "scopes": [],
+          "previousSlots": {}
+        }
+      ],
+      "expect": {
+        "throw": {
+          "name": "RangeError",
+          "message": "computeEverySlot: periodMs must be a positive integer multiple of 1000"
+        }
+      }
+    }
+  ]
+}

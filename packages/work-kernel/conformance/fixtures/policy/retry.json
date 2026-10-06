@@ -1,0 +1,499 @@
+{
+  "provenance": {
+    "frozen_at_head": "07d9d022b8c289cf330735957e0e9b64c605ca08",
+    "donors": {
+      "receipt": "packages/work/src/receipt/index.ts",
+      "every": "packages/work/src/schedule/every.ts"
+    },
+    "donor_digests": {
+      "receipt": "5085f392192a1059c9a5d3bcf679e4984b77a0ab4a5e799bcd17812e8060d6e3",
+      "every": "60854aa7c190ef69f29bde0f68e1e26ae68de98c782fa82d64e4f2e822e046e9"
+    },
+    "note": "Frozen independent originals captured from LIVE donors. No direction axis: policy donors are work-only; occurrenceId in every/admitted is host-derived (see every.test.ts). Re-freeze recipe: see test headers."
+  },
+  "cases": [
+    {
+      "id": "classify-transient",
+      "fn": "classifyFailure",
+      "input": [
+        {
+          "kind": "transient",
+          "code": "E",
+          "message": "m"
+        }
+      ],
+      "expect": {
+        "ok": "transient"
+      }
+    },
+    {
+      "id": "classify-permanent",
+      "fn": "classifyFailure",
+      "input": [
+        {
+          "kind": "permanent",
+          "code": "E",
+          "message": "m"
+        }
+      ],
+      "expect": {
+        "ok": "terminal"
+      }
+    },
+    {
+      "id": "classify-require-false",
+      "fn": "classifyFailure",
+      "input": [
+        {
+          "kind": "handler-require-false",
+          "require": "r1"
+        }
+      ],
+      "expect": {
+        "ok": "terminal"
+      }
+    },
+    {
+      "id": "backoff-attempt0-min",
+      "fn": "computeBackoff",
+      "input": [
+        {
+          "attempt": 0,
+          "firstAttemptAtMs": 1000,
+          "nowMs": 1000,
+          "random": {
+            "$randomSample": 0
+          }
+        }
+      ],
+      "expect": {
+        "ok": {
+          "exhausted": false,
+          "delayMs": 500,
+          "notBeforeMs": 1500
+        }
+      }
+    },
+    {
+      "id": "backoff-attempt1-max",
+      "fn": "computeBackoff",
+      "input": [
+        {
+          "attempt": 1,
+          "firstAttemptAtMs": 1000,
+          "nowMs": 1000,
+          "random": {
+            "$randomSample": 1
+          }
+        }
+      ],
+      "expect": {
+        "ok": {
+          "exhausted": false,
+          "delayMs": 1000,
+          "notBeforeMs": 2000
+        }
+      }
+    },
+    {
+      "id": "backoff-attempt2-mid",
+      "fn": "computeBackoff",
+      "input": [
+        {
+          "attempt": 2,
+          "firstAttemptAtMs": 0,
+          "nowMs": 500,
+          "random": {
+            "$randomSample": 0.5
+          }
+        }
+      ],
+      "expect": {
+        "ok": {
+          "exhausted": false,
+          "delayMs": 1500,
+          "notBeforeMs": 2000
+        }
+      }
+    },
+    {
+      "id": "backoff-cap-1h",
+      "fn": "computeBackoff",
+      "input": [
+        {
+          "attempt": 100,
+          "firstAttemptAtMs": 0,
+          "nowMs": 500,
+          "random": {
+            "$randomSample": 0.5
+          }
+        }
+      ],
+      "expect": {
+        "ok": {
+          "exhausted": true,
+          "delayMs": 0,
+          "notBeforeMs": 500
+        }
+      }
+    },
+    {
+      "id": "backoff-shift-overflow",
+      "fn": "computeBackoff",
+      "input": [
+        {
+          "attempt": 1000000000000000,
+          "firstAttemptAtMs": 0,
+          "nowMs": 500,
+          "policy": {
+            "maxAttempts": 1e+21,
+            "horizonMs": 1e+21
+          },
+          "random": {
+            "$randomSample": 0.5
+          }
+        }
+      ],
+      "expect": {
+        "ok": {
+          "exhausted": false,
+          "delayMs": 2700000,
+          "notBeforeMs": 2700500
+        }
+      }
+    },
+    {
+      "id": "backoff-nan-sample",
+      "fn": "computeBackoff",
+      "input": [
+        {
+          "attempt": 3,
+          "firstAttemptAtMs": 0,
+          "nowMs": 100,
+          "random": {
+            "$randomSample": {
+              "$num": "NaN"
+            }
+          }
+        }
+      ],
+      "expect": {
+        "ok": {
+          "exhausted": false,
+          "delayMs": 2000,
+          "notBeforeMs": 2100
+        }
+      }
+    },
+    {
+      "id": "backoff-clamp-high",
+      "fn": "computeBackoff",
+      "input": [
+        {
+          "attempt": 3,
+          "firstAttemptAtMs": 0,
+          "nowMs": 100,
+          "random": {
+            "$randomSample": 2
+          }
+        }
+      ],
+      "expect": {
+        "ok": {
+          "exhausted": false,
+          "delayMs": 4000,
+          "notBeforeMs": 4100
+        }
+      }
+    },
+    {
+      "id": "backoff-clamp-low",
+      "fn": "computeBackoff",
+      "input": [
+        {
+          "attempt": 3,
+          "firstAttemptAtMs": 0,
+          "nowMs": 100,
+          "random": {
+            "$randomSample": -3
+          }
+        }
+      ],
+      "expect": {
+        "ok": {
+          "exhausted": false,
+          "delayMs": 2000,
+          "notBeforeMs": 2100
+        }
+      }
+    },
+    {
+      "id": "backoff-inf-sample",
+      "fn": "computeBackoff",
+      "input": [
+        {
+          "attempt": 3,
+          "firstAttemptAtMs": 0,
+          "nowMs": 100,
+          "random": {
+            "$randomSample": {
+              "$num": "Infinity"
+            }
+          }
+        }
+      ],
+      "expect": {
+        "ok": {
+          "exhausted": false,
+          "delayMs": 2000,
+          "notBeforeMs": 2100
+        }
+      }
+    },
+    {
+      "id": "backoff-exhausted-attempts",
+      "fn": "computeBackoff",
+      "input": [
+        {
+          "attempt": 8,
+          "firstAttemptAtMs": 0,
+          "nowMs": 100,
+          "random": {
+            "$randomSample": 0.5
+          }
+        }
+      ],
+      "expect": {
+        "ok": {
+          "exhausted": true,
+          "delayMs": 0,
+          "notBeforeMs": 100
+        }
+      }
+    },
+    {
+      "id": "backoff-exhausted-horizon-exact",
+      "fn": "computeBackoff",
+      "input": [
+        {
+          "attempt": 1,
+          "firstAttemptAtMs": 0,
+          "nowMs": 86400000,
+          "random": {
+            "$randomSample": 0.5
+          }
+        }
+      ],
+      "expect": {
+        "ok": {
+          "exhausted": true,
+          "delayMs": 0,
+          "notBeforeMs": 86400000
+        }
+      }
+    },
+    {
+      "id": "backoff-fractional-under-horizon",
+      "fn": "computeBackoff",
+      "input": [
+        {
+          "attempt": 1,
+          "firstAttemptAtMs": 0,
+          "nowMs": 86399999.5,
+          "random": {
+            "$randomSample": 0.5
+          }
+        }
+      ],
+      "expect": {
+        "ok": {
+          "exhausted": false,
+          "delayMs": 750,
+          "notBeforeMs": 86400749.5
+        }
+      }
+    },
+    {
+      "id": "backoff-fractional-now",
+      "fn": "computeBackoff",
+      "input": [
+        {
+          "attempt": 1,
+          "firstAttemptAtMs": 0,
+          "nowMs": 100.5,
+          "random": {
+            "$randomSample": 0.25
+          }
+        }
+      ],
+      "expect": {
+        "ok": {
+          "exhausted": false,
+          "delayMs": 625,
+          "notBeforeMs": 725.5
+        }
+      }
+    },
+    {
+      "id": "backoff-custom-policy",
+      "fn": "computeBackoff",
+      "input": [
+        {
+          "attempt": 1,
+          "firstAttemptAtMs": 0,
+          "nowMs": 500,
+          "policy": {
+            "maxAttempts": 2,
+            "horizonMs": 1000
+          },
+          "random": {
+            "$randomSample": 0.5
+          }
+        }
+      ],
+      "expect": {
+        "ok": {
+          "exhausted": false,
+          "delayMs": 750,
+          "notBeforeMs": 1250
+        }
+      }
+    },
+    {
+      "id": "backoff-bad-max-attempts",
+      "fn": "computeBackoff",
+      "input": [
+        {
+          "attempt": 1,
+          "firstAttemptAtMs": 0,
+          "nowMs": 500,
+          "policy": {
+            "maxAttempts": 0,
+            "horizonMs": 1000
+          },
+          "random": {
+            "$randomSample": 0.5
+          }
+        }
+      ],
+      "expect": {
+        "throw": {
+          "name": "RangeError",
+          "message": "receipt: policy.maxAttempts must be an integer >= 1"
+        }
+      }
+    },
+    {
+      "id": "backoff-bad-horizon",
+      "fn": "computeBackoff",
+      "input": [
+        {
+          "attempt": 1,
+          "firstAttemptAtMs": 0,
+          "nowMs": 500,
+          "policy": {
+            "maxAttempts": 2,
+            "horizonMs": 0
+          },
+          "random": {
+            "$randomSample": 0.5
+          }
+        }
+      ],
+      "expect": {
+        "throw": {
+          "name": "RangeError",
+          "message": "receipt: policy.horizonMs must be finite and > 0"
+        }
+      }
+    },
+    {
+      "id": "backoff-bad-attempt",
+      "fn": "computeBackoff",
+      "input": [
+        {
+          "attempt": -1,
+          "firstAttemptAtMs": 0,
+          "nowMs": 500,
+          "random": {
+            "$randomSample": 0.5
+          }
+        }
+      ],
+      "expect": {
+        "throw": {
+          "name": "RangeError",
+          "message": "computeBackoff: attempt must be a non-negative integer"
+        }
+      }
+    },
+    {
+      "id": "backoff-fractional-attempt",
+      "fn": "computeBackoff",
+      "input": [
+        {
+          "attempt": 1.5,
+          "firstAttemptAtMs": 0,
+          "nowMs": 500,
+          "random": {
+            "$randomSample": 0.5
+          }
+        }
+      ],
+      "expect": {
+        "throw": {
+          "name": "RangeError",
+          "message": "computeBackoff: attempt must be a non-negative integer"
+        }
+      }
+    },
+    {
+      "id": "backoff-nan-now",
+      "fn": "computeBackoff",
+      "input": [
+        {
+          "attempt": 1,
+          "firstAttemptAtMs": 0,
+          "nowMs": null,
+          "random": {
+            "$randomSample": 0.5
+          }
+        }
+      ],
+      "expect": {
+        "throw": {
+          "name": "RangeError",
+          "message": "computeBackoff: nowMs must be finite and >= 0"
+        }
+      }
+    },
+    {
+      "id": "backoff-negative-first",
+      "fn": "computeBackoff",
+      "input": [
+        {
+          "attempt": 1,
+          "firstAttemptAtMs": -5,
+          "nowMs": 500,
+          "random": {
+            "$randomSample": 0.5
+          }
+        }
+      ],
+      "expect": {
+        "throw": {
+          "name": "RangeError",
+          "message": "computeBackoff: firstAttemptAtMs must be finite and >= 0"
+        }
+      }
+    }
+  ],
+  "consts": {
+    "DEFAULT_RETRY_POLICY": {
+      "maxAttempts": 8,
+      "horizonMs": 86400000
+    },
+    "BACKOFF_BASE_DELAY_MS": 1000,
+    "BACKOFF_MAX_DELAY_MS": 3600000
+  }
+}

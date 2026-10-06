@@ -1,0 +1,1027 @@
+{
+  "provenance": {
+    "frozen_at_head": "7e050080c2d8178040d4e1ade785c195a796b67f",
+    "donor": "packages/work/src/kernel/tables.ts",
+    "donor_digest": "392c8a30f73b804638312ba09685666a0eb8734c33d7d41c3a3158ae4371a57e",
+    "note": "Frozen independent originals captured from LIVE donors. rows.ts must reproduce BOTH directions. Re-freeze recipe: see rows.test.ts header."
+  },
+  "cases": [
+    {
+      "id": "new-ok-sorted",
+      "direction": "work",
+      "fn": "newFanoutIntentRow",
+      "input": [
+        {
+          "sourceOccurrence": "occ-5",
+          "handler": "h/commit",
+          "cohort": "model",
+          "members": [
+            "b",
+            "A",
+            "z",
+            "é",
+            "a\ud800y"
+          ]
+        },
+        {
+          "nowMs": 1728000000000,
+          "actor": "w02.2-freeze"
+        }
+      ],
+      "expect": {
+        "ok": {
+          "id": "fanout/v1/occ-5/h%2Fcommit/model",
+          "version": 1,
+          "created": 1728000000000,
+          "updated": 1728000000000,
+          "createdBy": "w02.2-freeze",
+          "updatedBy": "w02.2-freeze",
+          "archivedAt": null,
+          "parent": null,
+          "data": {
+            "fanoutId": "fanout/v1/occ-5/h%2Fcommit/model",
+            "sourceOccurrence": "occ-5",
+            "handler": "h/commit",
+            "cohort": "model",
+            "members": [
+              "A",
+              "a\ud800y",
+              "b",
+              "z",
+              "é"
+            ],
+            "memberCount": 5
+          }
+        }
+      }
+    },
+    {
+      "id": "new-duplicate",
+      "direction": "work",
+      "fn": "newFanoutIntentRow",
+      "input": [
+        {
+          "sourceOccurrence": "occ-5",
+          "handler": "h/commit",
+          "cohort": "model",
+          "members": [
+            "a",
+            "a"
+          ]
+        },
+        {
+          "nowMs": 1728000000000,
+          "actor": "w02.2-freeze"
+        }
+      ],
+      "expect": {
+        "throw": {
+          "name": "KernelTableError",
+          "message": "work.fanout_intent.members contains a duplicate identity: \"a\"."
+        }
+      }
+    },
+    {
+      "id": "new-nonarray",
+      "direction": "work",
+      "fn": "newFanoutIntentRow",
+      "input": [
+        {
+          "sourceOccurrence": "occ-5",
+          "handler": "h/commit",
+          "cohort": "model",
+          "members": "nope"
+        },
+        {
+          "nowMs": 1728000000000,
+          "actor": "w02.2-freeze"
+        }
+      ],
+      "expect": {
+        "throw": {
+          "name": "KernelTableError",
+          "message": "work.fanout_intent.members must be an array of canonical record ids."
+        }
+      }
+    },
+    {
+      "id": "new-empty-member",
+      "direction": "work",
+      "fn": "newFanoutIntentRow",
+      "input": [
+        {
+          "sourceOccurrence": "occ-5",
+          "handler": "h/commit",
+          "cohort": "model",
+          "members": [
+            "ok",
+            ""
+          ]
+        },
+        {
+          "nowMs": 1728000000000,
+          "actor": "w02.2-freeze"
+        }
+      ],
+      "expect": {
+        "throw": {
+          "name": "KernelTableError",
+          "message": "work.fanout_intent.members entries must be non-empty strings."
+        }
+      }
+    },
+    {
+      "id": "id-derivation",
+      "direction": "work",
+      "fn": "fanoutIntentRowId",
+      "input": [
+        "occ-5",
+        "h/commit",
+        "model"
+      ],
+      "expect": {
+        "ok": "fanout/v1/occ-5/h%2Fcommit/model"
+      }
+    },
+    {
+      "id": "id-empty-handler",
+      "direction": "work",
+      "fn": "fanoutIntentRowId",
+      "input": [
+        "occ-5",
+        "",
+        "model"
+      ],
+      "expect": {
+        "throw": {
+          "name": "KernelTableError",
+          "message": "fanout handler must be a non-empty string."
+        }
+      }
+    },
+    {
+      "id": "id-bad-cohort",
+      "direction": "work",
+      "fn": "fanoutIntentRowId",
+      "input": [
+        "occ-5",
+        "h",
+        "bogus"
+      ],
+      "expect": {
+        "throw": {
+          "name": "KernelTableError",
+          "message": "fanout cohort must be model or anchored-collection, got \"bogus\"."
+        }
+      }
+    },
+    {
+      "id": "read-ok",
+      "direction": "work",
+      "fn": "readFanoutIntentRow",
+      "input": [
+        {
+          "id": "fanout/v1/occ-5/h%2Fcommit/model",
+          "version": 1,
+          "created": 1728000000000,
+          "updated": 1728000000000,
+          "createdBy": "w02.2-freeze",
+          "updatedBy": "w02.2-freeze",
+          "archivedAt": null,
+          "parent": null,
+          "data": {
+            "fanoutId": "fanout/v1/occ-5/h%2Fcommit/model",
+            "sourceOccurrence": "occ-5",
+            "handler": "h/commit",
+            "cohort": "model",
+            "members": [
+              "A",
+              "b"
+            ],
+            "memberCount": 2
+          }
+        }
+      ],
+      "expect": {
+        "ok": {
+          "fanoutId": "fanout/v1/occ-5/h%2Fcommit/model",
+          "sourceOccurrence": "occ-5",
+          "handler": "h/commit",
+          "cohort": "model",
+          "members": [
+            "A",
+            "b"
+          ],
+          "memberCount": 2
+        }
+      }
+    },
+    {
+      "id": "read-count-mismatch",
+      "direction": "work",
+      "fn": "readFanoutIntentRow",
+      "input": [
+        {
+          "id": "fanout/v1/occ-5/h%2Fcommit/model",
+          "version": 1,
+          "created": 1728000000000,
+          "updated": 1728000000000,
+          "createdBy": "w02.2-freeze",
+          "updatedBy": "w02.2-freeze",
+          "archivedAt": null,
+          "parent": null,
+          "data": {
+            "fanoutId": "fanout/v1/occ-5/h%2Fcommit/model",
+            "sourceOccurrence": "occ-5",
+            "handler": "h/commit",
+            "cohort": "model",
+            "members": [
+              "A",
+              "b"
+            ],
+            "memberCount": 3
+          }
+        }
+      ],
+      "expect": {
+        "throw": {
+          "name": "KernelTableError",
+          "message": "work.fanout_intent.memberCount 3 mismatches members length 2."
+        }
+      }
+    },
+    {
+      "id": "read-count-huge",
+      "direction": "work",
+      "fn": "readFanoutIntentRow",
+      "input": [
+        {
+          "id": "fanout/v1/occ-5/h%2Fcommit/model",
+          "version": 1,
+          "created": 1728000000000,
+          "updated": 1728000000000,
+          "createdBy": "w02.2-freeze",
+          "updatedBy": "w02.2-freeze",
+          "archivedAt": null,
+          "parent": null,
+          "data": {
+            "fanoutId": "fanout/v1/occ-5/h%2Fcommit/model",
+            "sourceOccurrence": "occ-5",
+            "handler": "h/commit",
+            "cohort": "model",
+            "members": [
+              "A",
+              "b"
+            ],
+            "memberCount": 1e+21
+          }
+        }
+      ],
+      "expect": {
+        "throw": {
+          "name": "KernelTableError",
+          "message": "work.fanout_intent.memberCount 1e+21 mismatches members length 2."
+        }
+      }
+    },
+    {
+      "id": "read-derivation-mismatch",
+      "direction": "work",
+      "fn": "readFanoutIntentRow",
+      "input": [
+        {
+          "id": "fanout/v1/other/h/model",
+          "version": 1,
+          "created": 1728000000000,
+          "updated": 1728000000000,
+          "createdBy": "w02.2-freeze",
+          "updatedBy": "w02.2-freeze",
+          "archivedAt": null,
+          "parent": null,
+          "data": {
+            "fanoutId": "fanout/v1/other/h/model",
+            "sourceOccurrence": "occ-5",
+            "handler": "h",
+            "cohort": "model",
+            "members": [],
+            "memberCount": 0
+          }
+        }
+      ],
+      "expect": {
+        "throw": {
+          "name": "KernelTableError",
+          "message": "work.fanout_intent.fanoutId is not the cutoff+cohort derivation."
+        }
+      }
+    },
+    {
+      "id": "read-rowid-mismatch",
+      "direction": "work",
+      "fn": "readFanoutIntentRow",
+      "input": [
+        {
+          "id": "wrong-id",
+          "version": 1,
+          "created": 1728000000000,
+          "updated": 1728000000000,
+          "createdBy": "w02.2-freeze",
+          "updatedBy": "w02.2-freeze",
+          "archivedAt": null,
+          "parent": null,
+          "data": {
+            "fanoutId": "fanout/v1/occ-5/h/model",
+            "sourceOccurrence": "occ-5",
+            "handler": "h",
+            "cohort": "model",
+            "members": [],
+            "memberCount": 0
+          }
+        }
+      ],
+      "expect": {
+        "throw": {
+          "name": "KernelTableError",
+          "message": "work.fanout_intent row id must equal its fanoutId."
+        }
+      }
+    },
+    {
+      "id": "new-ok-sorted",
+      "direction": "state",
+      "fn": "newFanoutIntentRow",
+      "input": [
+        {
+          "sourceOccurrence": "occ-5",
+          "handler": "h/commit",
+          "cohort": "model",
+          "members": [
+            "b",
+            "A",
+            "z",
+            "é",
+            "a\ud800y"
+          ]
+        },
+        {
+          "nowMs": 1728000000000,
+          "actor": "w02.2-freeze"
+        }
+      ],
+      "expect": {
+        "ok": {
+          "id": "fanout/v1/occ-5/h%2Fcommit/model",
+          "version": 1,
+          "created": 1728000000000,
+          "updated": 1728000000000,
+          "createdBy": "w02.2-freeze",
+          "updatedBy": "w02.2-freeze",
+          "archivedAt": null,
+          "parent": null,
+          "data": {
+            "fanoutId": "fanout/v1/occ-5/h%2Fcommit/model",
+            "sourceOccurrence": "occ-5",
+            "handler": "h/commit",
+            "cohort": "model",
+            "members": [
+              "A",
+              "a\ud800y",
+              "b",
+              "z",
+              "é"
+            ],
+            "memberCount": 5
+          }
+        }
+      }
+    },
+    {
+      "id": "new-duplicate",
+      "direction": "state",
+      "fn": "newFanoutIntentRow",
+      "input": [
+        {
+          "sourceOccurrence": "occ-5",
+          "handler": "h/commit",
+          "cohort": "model",
+          "members": [
+            "a",
+            "a"
+          ]
+        },
+        {
+          "nowMs": 1728000000000,
+          "actor": "w02.2-freeze"
+        }
+      ],
+      "expect": {
+        "throw": {
+          "name": "StateError",
+          "code": "validation",
+          "message": "work.fanout_intent.members contains a duplicate identity: \"a\"."
+        }
+      }
+    },
+    {
+      "id": "new-nonarray",
+      "direction": "state",
+      "fn": "newFanoutIntentRow",
+      "input": [
+        {
+          "sourceOccurrence": "occ-5",
+          "handler": "h/commit",
+          "cohort": "model",
+          "members": "nope"
+        },
+        {
+          "nowMs": 1728000000000,
+          "actor": "w02.2-freeze"
+        }
+      ],
+      "expect": {
+        "throw": {
+          "name": "StateError",
+          "code": "validation",
+          "message": "work.fanout_intent.members must be an array of canonical record ids."
+        }
+      }
+    },
+    {
+      "id": "new-empty-member",
+      "direction": "state",
+      "fn": "newFanoutIntentRow",
+      "input": [
+        {
+          "sourceOccurrence": "occ-5",
+          "handler": "h/commit",
+          "cohort": "model",
+          "members": [
+            "ok",
+            ""
+          ]
+        },
+        {
+          "nowMs": 1728000000000,
+          "actor": "w02.2-freeze"
+        }
+      ],
+      "expect": {
+        "throw": {
+          "name": "StateError",
+          "code": "validation",
+          "message": "work.fanout_intent.members entries must be non-empty strings."
+        }
+      }
+    },
+    {
+      "id": "id-derivation",
+      "direction": "state",
+      "fn": "fanoutIntentRowId",
+      "input": [
+        "occ-5",
+        "h/commit",
+        "model"
+      ],
+      "expect": {
+        "ok": "fanout/v1/occ-5/h%2Fcommit/model"
+      }
+    },
+    {
+      "id": "id-empty-handler",
+      "direction": "state",
+      "fn": "fanoutIntentRowId",
+      "input": [
+        "occ-5",
+        "",
+        "model"
+      ],
+      "expect": {
+        "throw": {
+          "name": "StateError",
+          "code": "validation",
+          "message": "Fanout handler must be a non-empty string."
+        }
+      }
+    },
+    {
+      "id": "id-bad-cohort",
+      "direction": "state",
+      "fn": "fanoutIntentRowId",
+      "input": [
+        "occ-5",
+        "h",
+        "bogus"
+      ],
+      "expect": {
+        "throw": {
+          "name": "StateError",
+          "code": "validation",
+          "message": "Fanout cohort must be model or anchored-collection, got \"bogus\"."
+        }
+      }
+    },
+    {
+      "id": "read-ok",
+      "direction": "state",
+      "fn": "readFanoutIntentRow",
+      "input": [
+        {
+          "id": "fanout/v1/occ-5/h%2Fcommit/model",
+          "version": 1,
+          "created": 1728000000000,
+          "updated": 1728000000000,
+          "createdBy": "w02.2-freeze",
+          "updatedBy": "w02.2-freeze",
+          "archivedAt": null,
+          "parent": null,
+          "data": {
+            "fanoutId": "fanout/v1/occ-5/h%2Fcommit/model",
+            "sourceOccurrence": "occ-5",
+            "handler": "h/commit",
+            "cohort": "model",
+            "members": [
+              "A",
+              "b"
+            ],
+            "memberCount": 2
+          }
+        }
+      ],
+      "expect": {
+        "ok": {
+          "fanoutId": "fanout/v1/occ-5/h%2Fcommit/model",
+          "sourceOccurrence": "occ-5",
+          "handler": "h/commit",
+          "cohort": "model",
+          "members": [
+            "A",
+            "b"
+          ],
+          "memberCount": 2
+        }
+      }
+    },
+    {
+      "id": "read-count-mismatch",
+      "direction": "state",
+      "fn": "readFanoutIntentRow",
+      "input": [
+        {
+          "id": "fanout/v1/occ-5/h%2Fcommit/model",
+          "version": 1,
+          "created": 1728000000000,
+          "updated": 1728000000000,
+          "createdBy": "w02.2-freeze",
+          "updatedBy": "w02.2-freeze",
+          "archivedAt": null,
+          "parent": null,
+          "data": {
+            "fanoutId": "fanout/v1/occ-5/h%2Fcommit/model",
+            "sourceOccurrence": "occ-5",
+            "handler": "h/commit",
+            "cohort": "model",
+            "members": [
+              "A",
+              "b"
+            ],
+            "memberCount": 3
+          }
+        }
+      ],
+      "expect": {
+        "throw": {
+          "name": "StateError",
+          "code": "validation",
+          "message": "work.fanout_intent.memberCount 3 mismatches members length 2."
+        }
+      }
+    },
+    {
+      "id": "read-count-huge",
+      "direction": "state",
+      "fn": "readFanoutIntentRow",
+      "input": [
+        {
+          "id": "fanout/v1/occ-5/h%2Fcommit/model",
+          "version": 1,
+          "created": 1728000000000,
+          "updated": 1728000000000,
+          "createdBy": "w02.2-freeze",
+          "updatedBy": "w02.2-freeze",
+          "archivedAt": null,
+          "parent": null,
+          "data": {
+            "fanoutId": "fanout/v1/occ-5/h%2Fcommit/model",
+            "sourceOccurrence": "occ-5",
+            "handler": "h/commit",
+            "cohort": "model",
+            "members": [
+              "A",
+              "b"
+            ],
+            "memberCount": 1e+21
+          }
+        }
+      ],
+      "expect": {
+        "throw": {
+          "name": "StateError",
+          "code": "validation",
+          "message": "work.fanout_intent.memberCount 1e+21 mismatches members length 2."
+        }
+      }
+    },
+    {
+      "id": "read-derivation-mismatch",
+      "direction": "state",
+      "fn": "readFanoutIntentRow",
+      "input": [
+        {
+          "id": "fanout/v1/other/h/model",
+          "version": 1,
+          "created": 1728000000000,
+          "updated": 1728000000000,
+          "createdBy": "w02.2-freeze",
+          "updatedBy": "w02.2-freeze",
+          "archivedAt": null,
+          "parent": null,
+          "data": {
+            "fanoutId": "fanout/v1/other/h/model",
+            "sourceOccurrence": "occ-5",
+            "handler": "h",
+            "cohort": "model",
+            "members": [],
+            "memberCount": 0
+          }
+        }
+      ],
+      "expect": {
+        "throw": {
+          "name": "StateError",
+          "code": "validation",
+          "message": "work.fanout_intent.fanoutId is not the cutoff+cohort derivation."
+        }
+      }
+    },
+    {
+      "id": "read-rowid-mismatch",
+      "direction": "state",
+      "fn": "readFanoutIntentRow",
+      "input": [
+        {
+          "id": "wrong-id",
+          "version": 1,
+          "created": 1728000000000,
+          "updated": 1728000000000,
+          "createdBy": "w02.2-freeze",
+          "updatedBy": "w02.2-freeze",
+          "archivedAt": null,
+          "parent": null,
+          "data": {
+            "fanoutId": "fanout/v1/occ-5/h/model",
+            "sourceOccurrence": "occ-5",
+            "handler": "h",
+            "cohort": "model",
+            "members": [],
+            "memberCount": 0
+          }
+        }
+      ],
+      "expect": {
+        "throw": {
+          "name": "StateError",
+          "code": "validation",
+          "message": "work.fanout_intent row id must equal its fanoutId."
+        }
+      }
+    },
+    {
+      "id": "identity-set-ok",
+      "direction": "state",
+      "fn": "checkFanoutIdentitySet",
+      "input": [
+        [
+          "m2",
+          "m1"
+        ],
+        "probe"
+      ],
+      "expect": {
+        "ok": [
+          "m1",
+          "m2"
+        ]
+      }
+    },
+    {
+      "id": "identity-set-duplicate",
+      "direction": "state",
+      "fn": "checkFanoutIdentitySet",
+      "input": [
+        [
+          "d",
+          "d"
+        ],
+        "probe"
+      ],
+      "expect": {
+        "throw": {
+          "name": "StateError",
+          "code": "validation",
+          "message": "probe contains a duplicate identity: \"d\"."
+        }
+      }
+    },
+    {
+      "id": "with-fn-data",
+      "direction": "work",
+      "fn": "withRowData",
+      "input": [
+        {
+          "id": "r",
+          "version": 1,
+          "created": 1728000000000,
+          "updated": 1728000000000,
+          "createdBy": "w02.2-freeze",
+          "updatedBy": "w02.2-freeze",
+          "archivedAt": null,
+          "parent": null,
+          "data": {}
+        },
+        {
+          "f": {
+            "$fn": true
+          }
+        },
+        {
+          "nowMs": 1728000000000,
+          "actor": "w02.2-freeze"
+        },
+        "work.fanout_intent"
+      ],
+      "expect": {
+        "throw": {
+          "name": "KernelTableError",
+          "message": "work.fanout_intent data.f is not JSON-safe."
+        }
+      }
+    },
+    {
+      "id": "with-fn-data",
+      "direction": "state",
+      "fn": "withFanoutRowData",
+      "input": [
+        {
+          "id": "r",
+          "version": 1,
+          "created": 1728000000000,
+          "updated": 1728000000000,
+          "createdBy": "w02.2-freeze",
+          "updatedBy": "w02.2-freeze",
+          "archivedAt": null,
+          "parent": null,
+          "data": {}
+        },
+        {
+          "f": {
+            "$fn": true
+          }
+        },
+        {
+          "nowMs": 1728000000000,
+          "actor": "w02.2-freeze"
+        }
+      ],
+      "expect": {
+        "throw": {
+          "name": "DataCloneError",
+          "code": 25,
+          "message": "The object can not be cloned."
+        }
+      }
+    },
+    {
+      "id": "with-nan-data",
+      "direction": "work",
+      "fn": "withRowData",
+      "input": [
+        {
+          "id": "r",
+          "version": 1,
+          "created": 1728000000000,
+          "updated": 1728000000000,
+          "createdBy": "w02.2-freeze",
+          "updatedBy": "w02.2-freeze",
+          "archivedAt": null,
+          "parent": null,
+          "data": {}
+        },
+        {
+          "n": {
+            "$num": "NaN"
+          }
+        },
+        {
+          "nowMs": 1728000000000,
+          "actor": "w02.2-freeze"
+        },
+        "work.fanout_intent"
+      ],
+      "expect": {
+        "throw": {
+          "name": "KernelTableError",
+          "message": "work.fanout_intent data.n must be finite JSON."
+        }
+      }
+    },
+    {
+      "id": "with-nan-data",
+      "direction": "state",
+      "fn": "withFanoutRowData",
+      "input": [
+        {
+          "id": "r",
+          "version": 1,
+          "created": 1728000000000,
+          "updated": 1728000000000,
+          "createdBy": "w02.2-freeze",
+          "updatedBy": "w02.2-freeze",
+          "archivedAt": null,
+          "parent": null,
+          "data": {}
+        },
+        {
+          "n": {
+            "$num": "NaN"
+          }
+        },
+        {
+          "nowMs": 1728000000000,
+          "actor": "w02.2-freeze"
+        }
+      ],
+      "expect": {
+        "ok": {
+          "id": "r",
+          "version": 2,
+          "created": 1728000000000,
+          "updated": 1728000000000,
+          "createdBy": "w02.2-freeze",
+          "updatedBy": "w02.2-freeze",
+          "archivedAt": null,
+          "parent": null,
+          "data": {
+            "n": {
+              "$num": "NaN"
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "with-ok",
+      "direction": "work",
+      "fn": "withRowData",
+      "input": [
+        {
+          "id": "r",
+          "version": 1,
+          "created": 1728000000000,
+          "updated": 1728000000000,
+          "createdBy": "w02.2-freeze",
+          "updatedBy": "w02.2-freeze",
+          "archivedAt": null,
+          "parent": null,
+          "data": {
+            "a": 1
+          }
+        },
+        {
+          "a": 2
+        },
+        {
+          "nowMs": 1728000000000,
+          "actor": "w02.2-freeze"
+        },
+        "work.fanout_intent"
+      ],
+      "expect": {
+        "ok": {
+          "id": "r",
+          "version": 2,
+          "created": 1728000000000,
+          "updated": 1728000000000,
+          "createdBy": "w02.2-freeze",
+          "updatedBy": "w02.2-freeze",
+          "archivedAt": null,
+          "parent": null,
+          "data": {
+            "a": 2
+          }
+        }
+      }
+    },
+    {
+      "id": "with-ok",
+      "direction": "state",
+      "fn": "withFanoutRowData",
+      "input": [
+        {
+          "id": "r",
+          "version": 1,
+          "created": 1728000000000,
+          "updated": 1728000000000,
+          "createdBy": "w02.2-freeze",
+          "updatedBy": "w02.2-freeze",
+          "archivedAt": null,
+          "parent": null,
+          "data": {
+            "a": 1
+          }
+        },
+        {
+          "a": 2
+        },
+        {
+          "nowMs": 1728000000000,
+          "actor": "w02.2-freeze"
+        }
+      ],
+      "expect": {
+        "ok": {
+          "id": "r",
+          "version": 2,
+          "created": 1728000000000,
+          "updated": 1728000000000,
+          "createdBy": "w02.2-freeze",
+          "updatedBy": "w02.2-freeze",
+          "archivedAt": null,
+          "parent": null,
+          "data": {
+            "a": 2
+          }
+        }
+      }
+    },
+    {
+      "id": "with-bad-actor",
+      "direction": "work",
+      "fn": "withRowData",
+      "input": [
+        {
+          "id": "r",
+          "version": 1,
+          "created": 1728000000000,
+          "updated": 1728000000000,
+          "createdBy": "w02.2-freeze",
+          "updatedBy": "w02.2-freeze",
+          "archivedAt": null,
+          "parent": null,
+          "data": {}
+        },
+        {},
+        {
+          "nowMs": 1,
+          "actor": ""
+        },
+        "work.fanout_intent"
+      ],
+      "expect": {
+        "throw": {
+          "name": "KernelTableError",
+          "message": "work.fanout_intent: actor must be a non-empty string."
+        }
+      }
+    },
+    {
+      "id": "with-bad-actor",
+      "direction": "state",
+      "fn": "withFanoutRowData",
+      "input": [
+        {
+          "id": "r",
+          "version": 1,
+          "created": 1728000000000,
+          "updated": 1728000000000,
+          "createdBy": "w02.2-freeze",
+          "updatedBy": "w02.2-freeze",
+          "archivedAt": null,
+          "parent": null,
+          "data": {}
+        },
+        {},
+        {
+          "nowMs": 1,
+          "actor": ""
+        }
+      ],
+      "expect": {
+        "throw": {
+          "name": "StateError",
+          "code": "validation",
+          "message": "fanout: actor must be a non-empty string."
+        }
+      }
+    }
+  ]
+}
