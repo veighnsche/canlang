@@ -1,0 +1,16 @@
+{
+  "argv": [
+    "/private/tmp/canlang-turbo-probe-20261006.89738Q/tooling/node_modules/.bin/turbo",
+    "--skip-infer",
+    "--no-update-notifier",
+    "run",
+    "build",
+    "--filter=@probe/js",
+    "--cache=local:rw"
+  ],
+  "cwd": "/private/tmp/canlang-turbo-probe-20261006.89738Q/native/named-control",
+  "exit": 0,
+  "stdout": "\n   \u2022 turbo 2.11.7\n   \u2022 Packages in scope: @probe/js\n   \u2022 Running build in 1 package\n   \u2022 Remote caching disabled\n\n@probe/js:build: cache miss, executing 17376a723f3508f2\n@probe/js:build: $ node -e \"console.log('JS build')\"\n@probe/js:build: JS build\n\n Tasks:    1 successful, 1 total\nCached:    0 cached, 1 total\n  Time:    92ms \n\n",
+  "stderr": "",
+  "seconds": 6.171
+}

@@ -1,0 +1,3 @@
+[workspace]
+members=["crates/core","crates/app","packages/dual"]
+resolver="2"

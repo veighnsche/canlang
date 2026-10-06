@@ -1,0 +1,14 @@
+{
+  "argv": [
+    "/private/tmp/canlang-turbo-probe-20261006.89738Q/tooling/node_modules/.bin/turbo",
+    "--skip-infer",
+    "--no-update-notifier",
+    "ls",
+    "--output=json"
+  ],
+  "cwd": "/private/tmp/canlang-turbo-probe-20261006.89738Q/native/named-control",
+  "exit": 0,
+  "stdout": "{\n  \"packageManager\": \"bun\",\n  \"packages\": {\n    \"count\": 6,\n    \"items\": [\n      {\n        \"name\": \"@probe/dual\",\n        \"path\": \"packages/dual\"\n      },\n      {\n        \"name\": \"@probe/js\",\n        \"path\": \"packages/js\"\n      },\n      {\n        \"name\": \"probe-app\",\n        \"path\": \"crates/app\"\n      },\n      {\n        \"name\": \"probe-core\",\n        \"path\": \"crates/core\"\n      },\n      {\n        \"name\": \"probe-dual\",\n        \"path\": \"packages/dual\"\n      },\n      {\n        \"name\": \"probe-native-workspace\",\n        \"path\": \"\"\n      }\n    ]\n  }\n}\n",
+  "stderr": "\u2022 turbo 2.11.7\n",
+  "seconds": 6.123
+}

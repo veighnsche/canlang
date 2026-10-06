@@ -1,0 +1,2977 @@
+{
+  "scratch": "/private/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/canlang-turbo-cache-sNsBEN",
+  "checkout": "/Users/vince/Projects/canlang",
+  "node": "v24.21.0",
+  "scope": "13 TypeScript build tasks; native, catalog, preparation and release tasks are outside this cache proof",
+  "hashProbeLimit": "Lock/config/assets/environment/tool identities are dry-run invalidation probes; no alternate toolchain or native target is executed",
+  "phases": [
+    {
+      "name": "cold",
+      "exitCode": 0,
+      "globalInternalDependenciesHash": "d9a5b0b78277d653",
+      "tasks": [
+        {
+          "id": "@canlang/cloudflare#build",
+          "hash": "b47f6c06b10e73a7",
+          "cache": "MISS",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/cloudflare#build:prepare",
+          "hash": "c79047ff7d3f848d",
+          "cache": "MISS",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/contracts#build",
+          "hash": "bd19d31341c7fe45",
+          "cache": "MISS",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/contracts#build:prepare",
+          "hash": "5ffdada2d6d451ee",
+          "cache": "MISS",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/files#build",
+          "hash": "8ac019b8ecda0597",
+          "cache": "MISS",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/files#build:prepare",
+          "hash": "962d854d85532b79",
+          "cache": "MISS",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/identity#build",
+          "hash": "95515cbe34321202",
+          "cache": "MISS",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/identity#build:prepare",
+          "hash": "b19c709b710badba",
+          "cache": "MISS",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/interfaces#build",
+          "hash": "8e6524c0c6310e39",
+          "cache": "MISS",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/interfaces#build:prepare",
+          "hash": "b61224e8f7340fe5",
+          "cache": "MISS",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/services#build",
+          "hash": "3d6fad5ae53c5438",
+          "cache": "MISS",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/services#build:prepare",
+          "hash": "df6fdc9cb24abcf4",
+          "cache": "MISS",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/state#build",
+          "hash": "9490a527f2387cb2",
+          "cache": "MISS",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/state#build:prepare",
+          "hash": "f76918e8bc841856",
+          "cache": "MISS",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/stdlib#build",
+          "hash": "43d6e0811b86f730",
+          "cache": "MISS",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/stdlib#build:prepare",
+          "hash": "cc734becc8a5c0a4",
+          "cache": "MISS",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/testkit#build",
+          "hash": "617f8237c65037db",
+          "cache": "MISS",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/testkit#build:prepare",
+          "hash": "bc66a7b9d83e664a",
+          "cache": "MISS",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/ui#build",
+          "hash": "d48114a984d20415",
+          "cache": "MISS",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/ui#build:prepare",
+          "hash": "95cbc753853cf0f0",
+          "cache": "MISS",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/values#build",
+          "hash": "aa984135649556d0",
+          "cache": "MISS",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/values#build:prepare",
+          "hash": "259a5b9ed9d8df14",
+          "cache": "MISS",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/work#build",
+          "hash": "9beed47d245b78a2",
+          "cache": "MISS",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/work#build:prepare",
+          "hash": "8884d0496d847ecd",
+          "cache": "MISS",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/work-kernel#build",
+          "hash": "4b88d71d103e731c",
+          "cache": "MISS",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/work-kernel#build:prepare",
+          "hash": "f78e5a0cca3d4b50",
+          "cache": "MISS",
+          "exitCode": 0
+        }
+      ]
+    },
+    {
+      "name": "unchanged-warm",
+      "exitCode": 0,
+      "globalInternalDependenciesHash": "d9a5b0b78277d653",
+      "tasks": [
+        {
+          "id": "@canlang/cloudflare#build",
+          "hash": "b47f6c06b10e73a7",
+          "cache": "HIT",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/cloudflare#build:prepare",
+          "hash": "c79047ff7d3f848d",
+          "cache": "MISS",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/contracts#build",
+          "hash": "bd19d31341c7fe45",
+          "cache": "HIT",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/contracts#build:prepare",
+          "hash": "5ffdada2d6d451ee",
+          "cache": "MISS",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/files#build",
+          "hash": "8ac019b8ecda0597",
+          "cache": "HIT",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/files#build:prepare",
+          "hash": "962d854d85532b79",
+          "cache": "MISS",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/identity#build",
+          "hash": "95515cbe34321202",
+          "cache": "HIT",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/identity#build:prepare",
+          "hash": "b19c709b710badba",
+          "cache": "MISS",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/interfaces#build",
+          "hash": "8e6524c0c6310e39",
+          "cache": "HIT",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/interfaces#build:prepare",
+          "hash": "b61224e8f7340fe5",
+          "cache": "MISS",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/services#build",
+          "hash": "3d6fad5ae53c5438",
+          "cache": "HIT",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/services#build:prepare",
+          "hash": "df6fdc9cb24abcf4",
+          "cache": "MISS",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/state#build",
+          "hash": "9490a527f2387cb2",
+          "cache": "HIT",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/state#build:prepare",
+          "hash": "f76918e8bc841856",
+          "cache": "MISS",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/stdlib#build",
+          "hash": "43d6e0811b86f730",
+          "cache": "HIT",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/stdlib#build:prepare",
+          "hash": "cc734becc8a5c0a4",
+          "cache": "MISS",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/testkit#build",
+          "hash": "617f8237c65037db",
+          "cache": "HIT",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/testkit#build:prepare",
+          "hash": "bc66a7b9d83e664a",
+          "cache": "MISS",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/ui#build",
+          "hash": "d48114a984d20415",
+          "cache": "HIT",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/ui#build:prepare",
+          "hash": "95cbc753853cf0f0",
+          "cache": "MISS",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/values#build",
+          "hash": "aa984135649556d0",
+          "cache": "HIT",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/values#build:prepare",
+          "hash": "259a5b9ed9d8df14",
+          "cache": "MISS",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/work#build",
+          "hash": "9beed47d245b78a2",
+          "cache": "HIT",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/work#build:prepare",
+          "hash": "8884d0496d847ecd",
+          "cache": "MISS",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/work-kernel#build",
+          "hash": "4b88d71d103e731c",
+          "cache": "HIT",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/work-kernel#build:prepare",
+          "hash": "f78e5a0cca3d4b50",
+          "cache": "MISS",
+          "exitCode": 0
+        }
+      ],
+      "outputFiles": 2242,
+      "inventorySha256": "90d244f7d4bd5a20ddc79da680bee596f325df8da783d01a90e64f37b16bf3ed"
+    },
+    {
+      "name": "full-restore",
+      "exitCode": 0,
+      "globalInternalDependenciesHash": "d9a5b0b78277d653",
+      "tasks": [
+        {
+          "id": "@canlang/cloudflare#build",
+          "hash": "b47f6c06b10e73a7",
+          "cache": "HIT",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/cloudflare#build:prepare",
+          "hash": "c79047ff7d3f848d",
+          "cache": "MISS",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/contracts#build",
+          "hash": "bd19d31341c7fe45",
+          "cache": "HIT",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/contracts#build:prepare",
+          "hash": "5ffdada2d6d451ee",
+          "cache": "MISS",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/files#build",
+          "hash": "8ac019b8ecda0597",
+          "cache": "HIT",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/files#build:prepare",
+          "hash": "962d854d85532b79",
+          "cache": "MISS",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/identity#build",
+          "hash": "95515cbe34321202",
+          "cache": "HIT",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/identity#build:prepare",
+          "hash": "b19c709b710badba",
+          "cache": "MISS",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/interfaces#build",
+          "hash": "8e6524c0c6310e39",
+          "cache": "HIT",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/interfaces#build:prepare",
+          "hash": "b61224e8f7340fe5",
+          "cache": "MISS",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/services#build",
+          "hash": "3d6fad5ae53c5438",
+          "cache": "HIT",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/services#build:prepare",
+          "hash": "df6fdc9cb24abcf4",
+          "cache": "MISS",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/state#build",
+          "hash": "9490a527f2387cb2",
+          "cache": "HIT",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/state#build:prepare",
+          "hash": "f76918e8bc841856",
+          "cache": "MISS",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/stdlib#build",
+          "hash": "43d6e0811b86f730",
+          "cache": "HIT",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/stdlib#build:prepare",
+          "hash": "cc734becc8a5c0a4",
+          "cache": "MISS",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/testkit#build",
+          "hash": "617f8237c65037db",
+          "cache": "HIT",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/testkit#build:prepare",
+          "hash": "bc66a7b9d83e664a",
+          "cache": "MISS",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/ui#build",
+          "hash": "d48114a984d20415",
+          "cache": "HIT",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/ui#build:prepare",
+          "hash": "95cbc753853cf0f0",
+          "cache": "MISS",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/values#build",
+          "hash": "aa984135649556d0",
+          "cache": "HIT",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/values#build:prepare",
+          "hash": "259a5b9ed9d8df14",
+          "cache": "MISS",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/work#build",
+          "hash": "9beed47d245b78a2",
+          "cache": "HIT",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/work#build:prepare",
+          "hash": "8884d0496d847ecd",
+          "cache": "MISS",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/work-kernel#build",
+          "hash": "4b88d71d103e731c",
+          "cache": "HIT",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/work-kernel#build:prepare",
+          "hash": "f78e5a0cca3d4b50",
+          "cache": "MISS",
+          "exitCode": 0
+        }
+      ],
+      "outputFiles": 2242,
+      "inventorySha256": "90d244f7d4bd5a20ddc79da680bee596f325df8da783d01a90e64f37b16bf3ed"
+    },
+    {
+      "name": "dist-only-restore",
+      "exitCode": 0,
+      "globalInternalDependenciesHash": "d9a5b0b78277d653",
+      "tasks": [
+        {
+          "id": "@canlang/cloudflare#build",
+          "hash": "b47f6c06b10e73a7",
+          "cache": "HIT",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/cloudflare#build:prepare",
+          "hash": "c79047ff7d3f848d",
+          "cache": "MISS",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/contracts#build",
+          "hash": "bd19d31341c7fe45",
+          "cache": "HIT",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/contracts#build:prepare",
+          "hash": "5ffdada2d6d451ee",
+          "cache": "MISS",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/files#build",
+          "hash": "8ac019b8ecda0597",
+          "cache": "HIT",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/files#build:prepare",
+          "hash": "962d854d85532b79",
+          "cache": "MISS",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/identity#build",
+          "hash": "95515cbe34321202",
+          "cache": "HIT",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/identity#build:prepare",
+          "hash": "b19c709b710badba",
+          "cache": "MISS",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/interfaces#build",
+          "hash": "8e6524c0c6310e39",
+          "cache": "HIT",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/interfaces#build:prepare",
+          "hash": "b61224e8f7340fe5",
+          "cache": "MISS",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/services#build",
+          "hash": "3d6fad5ae53c5438",
+          "cache": "HIT",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/services#build:prepare",
+          "hash": "df6fdc9cb24abcf4",
+          "cache": "MISS",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/state#build",
+          "hash": "9490a527f2387cb2",
+          "cache": "HIT",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/state#build:prepare",
+          "hash": "f76918e8bc841856",
+          "cache": "MISS",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/stdlib#build",
+          "hash": "43d6e0811b86f730",
+          "cache": "HIT",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/stdlib#build:prepare",
+          "hash": "cc734becc8a5c0a4",
+          "cache": "MISS",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/testkit#build",
+          "hash": "617f8237c65037db",
+          "cache": "HIT",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/testkit#build:prepare",
+          "hash": "bc66a7b9d83e664a",
+          "cache": "MISS",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/ui#build",
+          "hash": "d48114a984d20415",
+          "cache": "HIT",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/ui#build:prepare",
+          "hash": "95cbc753853cf0f0",
+          "cache": "MISS",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/values#build",
+          "hash": "aa984135649556d0",
+          "cache": "HIT",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/values#build:prepare",
+          "hash": "259a5b9ed9d8df14",
+          "cache": "MISS",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/work#build",
+          "hash": "9beed47d245b78a2",
+          "cache": "HIT",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/work#build:prepare",
+          "hash": "8884d0496d847ecd",
+          "cache": "MISS",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/work-kernel#build",
+          "hash": "4b88d71d103e731c",
+          "cache": "HIT",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/work-kernel#build:prepare",
+          "hash": "f78e5a0cca3d4b50",
+          "cache": "MISS",
+          "exitCode": 0
+        }
+      ],
+      "outputFiles": 2242,
+      "inventorySha256": "90d244f7d4bd5a20ddc79da680bee596f325df8da783d01a90e64f37b16bf3ed"
+    },
+    {
+      "name": "executable-restore",
+      "exitCode": 0,
+      "globalInternalDependenciesHash": "d9a5b0b78277d653",
+      "tasks": [
+        {
+          "id": "@canlang/cloudflare#build",
+          "hash": "b47f6c06b10e73a7",
+          "cache": "HIT",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/cloudflare#build:prepare",
+          "hash": "c79047ff7d3f848d",
+          "cache": "MISS",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/contracts#build",
+          "hash": "bd19d31341c7fe45",
+          "cache": "HIT",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/contracts#build:prepare",
+          "hash": "5ffdada2d6d451ee",
+          "cache": "MISS",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/files#build",
+          "hash": "8ac019b8ecda0597",
+          "cache": "HIT",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/files#build:prepare",
+          "hash": "962d854d85532b79",
+          "cache": "MISS",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/identity#build",
+          "hash": "95515cbe34321202",
+          "cache": "HIT",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/identity#build:prepare",
+          "hash": "b19c709b710badba",
+          "cache": "MISS",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/interfaces#build",
+          "hash": "8e6524c0c6310e39",
+          "cache": "HIT",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/interfaces#build:prepare",
+          "hash": "b61224e8f7340fe5",
+          "cache": "MISS",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/services#build",
+          "hash": "3d6fad5ae53c5438",
+          "cache": "HIT",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/services#build:prepare",
+          "hash": "df6fdc9cb24abcf4",
+          "cache": "MISS",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/state#build",
+          "hash": "9490a527f2387cb2",
+          "cache": "HIT",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/state#build:prepare",
+          "hash": "f76918e8bc841856",
+          "cache": "MISS",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/stdlib#build",
+          "hash": "43d6e0811b86f730",
+          "cache": "HIT",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/stdlib#build:prepare",
+          "hash": "cc734becc8a5c0a4",
+          "cache": "MISS",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/testkit#build",
+          "hash": "617f8237c65037db",
+          "cache": "HIT",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/testkit#build:prepare",
+          "hash": "bc66a7b9d83e664a",
+          "cache": "MISS",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/ui#build",
+          "hash": "d48114a984d20415",
+          "cache": "HIT",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/ui#build:prepare",
+          "hash": "95cbc753853cf0f0",
+          "cache": "MISS",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/values#build",
+          "hash": "aa984135649556d0",
+          "cache": "HIT",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/values#build:prepare",
+          "hash": "259a5b9ed9d8df14",
+          "cache": "MISS",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/work#build",
+          "hash": "9beed47d245b78a2",
+          "cache": "HIT",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/work#build:prepare",
+          "hash": "8884d0496d847ecd",
+          "cache": "MISS",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/work-kernel#build",
+          "hash": "4b88d71d103e731c",
+          "cache": "HIT",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/work-kernel#build:prepare",
+          "hash": "f78e5a0cca3d4b50",
+          "cache": "MISS",
+          "exitCode": 0
+        }
+      ],
+      "outputFiles": 2242,
+      "inventorySha256": "90d244f7d4bd5a20ddc79da680bee596f325df8da783d01a90e64f37b16bf3ed"
+    },
+    {
+      "name": "upstream-api-change",
+      "exitCode": 0,
+      "globalInternalDependenciesHash": "d9a5b0b78277d653",
+      "tasks": [
+        {
+          "id": "@canlang/cloudflare#build",
+          "hash": "23fde95e065434b2",
+          "cache": "MISS",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/cloudflare#build:prepare",
+          "hash": "c79047ff7d3f848d",
+          "cache": "MISS",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/contracts#build",
+          "hash": "6f4564cf90d5175e",
+          "cache": "MISS",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/contracts#build:prepare",
+          "hash": "0d7d39236af57f17",
+          "cache": "MISS",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/files#build",
+          "hash": "0cc67325e497050a",
+          "cache": "MISS",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/files#build:prepare",
+          "hash": "962d854d85532b79",
+          "cache": "MISS",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/identity#build",
+          "hash": "b3da1385e4a98a38",
+          "cache": "MISS",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/identity#build:prepare",
+          "hash": "b19c709b710badba",
+          "cache": "MISS",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/interfaces#build",
+          "hash": "17a4fb30e7b81664",
+          "cache": "MISS",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/interfaces#build:prepare",
+          "hash": "b61224e8f7340fe5",
+          "cache": "MISS",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/services#build",
+          "hash": "4e251eb66eb7a863",
+          "cache": "MISS",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/services#build:prepare",
+          "hash": "df6fdc9cb24abcf4",
+          "cache": "MISS",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/state#build",
+          "hash": "3d21bde9e23fc7c0",
+          "cache": "MISS",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/state#build:prepare",
+          "hash": "f76918e8bc841856",
+          "cache": "MISS",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/stdlib#build",
+          "hash": "ef00c7eda94e2fe5",
+          "cache": "MISS",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/stdlib#build:prepare",
+          "hash": "cc734becc8a5c0a4",
+          "cache": "MISS",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/testkit#build",
+          "hash": "b45b9e2edecebf3b",
+          "cache": "MISS",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/testkit#build:prepare",
+          "hash": "bc66a7b9d83e664a",
+          "cache": "MISS",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/ui#build",
+          "hash": "cab51cc4432c19b6",
+          "cache": "MISS",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/ui#build:prepare",
+          "hash": "95cbc753853cf0f0",
+          "cache": "MISS",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/values#build",
+          "hash": "ed19e23439af77b9",
+          "cache": "MISS",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/values#build:prepare",
+          "hash": "259a5b9ed9d8df14",
+          "cache": "MISS",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/work#build",
+          "hash": "1a456ed6b670944a",
+          "cache": "MISS",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/work#build:prepare",
+          "hash": "8884d0496d847ecd",
+          "cache": "MISS",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/work-kernel#build",
+          "hash": "11cada6a62e56a75",
+          "cache": "MISS",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/work-kernel#build:prepare",
+          "hash": "f78e5a0cca3d4b50",
+          "cache": "MISS",
+          "exitCode": 0
+        }
+      ]
+    },
+    {
+      "name": "mutated-uncached-rebuild",
+      "exitCode": 0,
+      "globalInternalDependenciesHash": "d9a5b0b78277d653",
+      "tasks": [
+        {
+          "id": "@canlang/cloudflare#build",
+          "hash": "23fde95e065434b2",
+          "cache": "MISS",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/cloudflare#build:prepare",
+          "hash": "c79047ff7d3f848d",
+          "cache": "MISS",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/contracts#build",
+          "hash": "6f4564cf90d5175e",
+          "cache": "MISS",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/contracts#build:prepare",
+          "hash": "0d7d39236af57f17",
+          "cache": "MISS",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/files#build",
+          "hash": "0cc67325e497050a",
+          "cache": "MISS",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/files#build:prepare",
+          "hash": "962d854d85532b79",
+          "cache": "MISS",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/identity#build",
+          "hash": "b3da1385e4a98a38",
+          "cache": "MISS",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/identity#build:prepare",
+          "hash": "b19c709b710badba",
+          "cache": "MISS",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/interfaces#build",
+          "hash": "17a4fb30e7b81664",
+          "cache": "MISS",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/interfaces#build:prepare",
+          "hash": "b61224e8f7340fe5",
+          "cache": "MISS",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/services#build",
+          "hash": "4e251eb66eb7a863",
+          "cache": "MISS",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/services#build:prepare",
+          "hash": "df6fdc9cb24abcf4",
+          "cache": "MISS",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/state#build",
+          "hash": "3d21bde9e23fc7c0",
+          "cache": "MISS",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/state#build:prepare",
+          "hash": "f76918e8bc841856",
+          "cache": "MISS",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/stdlib#build",
+          "hash": "ef00c7eda94e2fe5",
+          "cache": "MISS",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/stdlib#build:prepare",
+          "hash": "cc734becc8a5c0a4",
+          "cache": "MISS",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/testkit#build",
+          "hash": "b45b9e2edecebf3b",
+          "cache": "MISS",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/testkit#build:prepare",
+          "hash": "bc66a7b9d83e664a",
+          "cache": "MISS",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/ui#build",
+          "hash": "cab51cc4432c19b6",
+          "cache": "MISS",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/ui#build:prepare",
+          "hash": "95cbc753853cf0f0",
+          "cache": "MISS",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/values#build",
+          "hash": "ed19e23439af77b9",
+          "cache": "MISS",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/values#build:prepare",
+          "hash": "259a5b9ed9d8df14",
+          "cache": "MISS",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/work#build",
+          "hash": "1a456ed6b670944a",
+          "cache": "MISS",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/work#build:prepare",
+          "hash": "8884d0496d847ecd",
+          "cache": "MISS",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/work-kernel#build",
+          "hash": "11cada6a62e56a75",
+          "cache": "MISS",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/work-kernel#build:prepare",
+          "hash": "f78e5a0cca3d4b50",
+          "cache": "MISS",
+          "exitCode": 0
+        }
+      ],
+      "outputFiles": 2242,
+      "inventorySha256": "5623b604873eff3ff96e535eed6ed781ea85b5e17ac896f9c3c758e148fe700e"
+    },
+    {
+      "name": "baseline-restore",
+      "exitCode": 0,
+      "globalInternalDependenciesHash": "d9a5b0b78277d653",
+      "tasks": [
+        {
+          "id": "@canlang/cloudflare#build",
+          "hash": "b47f6c06b10e73a7",
+          "cache": "HIT",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/cloudflare#build:prepare",
+          "hash": "c79047ff7d3f848d",
+          "cache": "MISS",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/contracts#build",
+          "hash": "bd19d31341c7fe45",
+          "cache": "HIT",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/contracts#build:prepare",
+          "hash": "5ffdada2d6d451ee",
+          "cache": "MISS",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/files#build",
+          "hash": "8ac019b8ecda0597",
+          "cache": "HIT",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/files#build:prepare",
+          "hash": "962d854d85532b79",
+          "cache": "MISS",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/identity#build",
+          "hash": "95515cbe34321202",
+          "cache": "HIT",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/identity#build:prepare",
+          "hash": "b19c709b710badba",
+          "cache": "MISS",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/interfaces#build",
+          "hash": "8e6524c0c6310e39",
+          "cache": "HIT",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/interfaces#build:prepare",
+          "hash": "b61224e8f7340fe5",
+          "cache": "MISS",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/services#build",
+          "hash": "3d6fad5ae53c5438",
+          "cache": "HIT",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/services#build:prepare",
+          "hash": "df6fdc9cb24abcf4",
+          "cache": "MISS",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/state#build",
+          "hash": "9490a527f2387cb2",
+          "cache": "HIT",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/state#build:prepare",
+          "hash": "f76918e8bc841856",
+          "cache": "MISS",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/stdlib#build",
+          "hash": "43d6e0811b86f730",
+          "cache": "HIT",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/stdlib#build:prepare",
+          "hash": "cc734becc8a5c0a4",
+          "cache": "MISS",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/testkit#build",
+          "hash": "617f8237c65037db",
+          "cache": "HIT",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/testkit#build:prepare",
+          "hash": "bc66a7b9d83e664a",
+          "cache": "MISS",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/ui#build",
+          "hash": "d48114a984d20415",
+          "cache": "HIT",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/ui#build:prepare",
+          "hash": "95cbc753853cf0f0",
+          "cache": "MISS",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/values#build",
+          "hash": "aa984135649556d0",
+          "cache": "HIT",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/values#build:prepare",
+          "hash": "259a5b9ed9d8df14",
+          "cache": "MISS",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/work#build",
+          "hash": "9beed47d245b78a2",
+          "cache": "HIT",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/work#build:prepare",
+          "hash": "8884d0496d847ecd",
+          "cache": "MISS",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/work-kernel#build",
+          "hash": "4b88d71d103e731c",
+          "cache": "HIT",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/work-kernel#build:prepare",
+          "hash": "f78e5a0cca3d4b50",
+          "cache": "MISS",
+          "exitCode": 0
+        }
+      ],
+      "outputFiles": 2242,
+      "inventorySha256": "90d244f7d4bd5a20ddc79da680bee596f325df8da783d01a90e64f37b16bf3ed"
+    },
+    {
+      "name": "separate-owner-preservation",
+      "exitCode": 0,
+      "globalInternalDependenciesHash": "d9a5b0b78277d653",
+      "tasks": [
+        {
+          "id": "@canlang/cloudflare#build",
+          "hash": "b47f6c06b10e73a7",
+          "cache": "MISS",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/cloudflare#build:prepare",
+          "hash": "c79047ff7d3f848d",
+          "cache": "MISS",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/contracts#build",
+          "hash": "bd19d31341c7fe45",
+          "cache": "MISS",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/contracts#build:prepare",
+          "hash": "5ffdada2d6d451ee",
+          "cache": "MISS",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/files#build",
+          "hash": "8ac019b8ecda0597",
+          "cache": "MISS",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/files#build:prepare",
+          "hash": "962d854d85532b79",
+          "cache": "MISS",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/identity#build",
+          "hash": "95515cbe34321202",
+          "cache": "MISS",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/identity#build:prepare",
+          "hash": "b19c709b710badba",
+          "cache": "MISS",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/interfaces#build",
+          "hash": "8e6524c0c6310e39",
+          "cache": "MISS",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/interfaces#build:prepare",
+          "hash": "b61224e8f7340fe5",
+          "cache": "MISS",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/services#build",
+          "hash": "3d6fad5ae53c5438",
+          "cache": "MISS",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/services#build:prepare",
+          "hash": "df6fdc9cb24abcf4",
+          "cache": "MISS",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/state#build",
+          "hash": "9490a527f2387cb2",
+          "cache": "MISS",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/state#build:prepare",
+          "hash": "f76918e8bc841856",
+          "cache": "MISS",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/stdlib#build",
+          "hash": "43d6e0811b86f730",
+          "cache": "MISS",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/stdlib#build:prepare",
+          "hash": "cc734becc8a5c0a4",
+          "cache": "MISS",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/testkit#build",
+          "hash": "617f8237c65037db",
+          "cache": "MISS",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/testkit#build:prepare",
+          "hash": "bc66a7b9d83e664a",
+          "cache": "MISS",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/ui#build",
+          "hash": "d48114a984d20415",
+          "cache": "MISS",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/ui#build:prepare",
+          "hash": "95cbc753853cf0f0",
+          "cache": "MISS",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/values#build",
+          "hash": "aa984135649556d0",
+          "cache": "MISS",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/values#build:prepare",
+          "hash": "259a5b9ed9d8df14",
+          "cache": "MISS",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/work#build",
+          "hash": "9beed47d245b78a2",
+          "cache": "MISS",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/work#build:prepare",
+          "hash": "8884d0496d847ecd",
+          "cache": "MISS",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/work-kernel#build",
+          "hash": "4b88d71d103e731c",
+          "cache": "MISS",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/work-kernel#build:prepare",
+          "hash": "f78e5a0cca3d4b50",
+          "cache": "MISS",
+          "exitCode": 0
+        }
+      ]
+    },
+    {
+      "name": "separate-owner-cache-exclusion",
+      "exitCode": 0,
+      "globalInternalDependenciesHash": "d9a5b0b78277d653",
+      "tasks": [
+        {
+          "id": "@canlang/cloudflare#build",
+          "hash": "b47f6c06b10e73a7",
+          "cache": "HIT",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/cloudflare#build:prepare",
+          "hash": "c79047ff7d3f848d",
+          "cache": "MISS",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/contracts#build",
+          "hash": "bd19d31341c7fe45",
+          "cache": "HIT",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/contracts#build:prepare",
+          "hash": "5ffdada2d6d451ee",
+          "cache": "MISS",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/files#build",
+          "hash": "8ac019b8ecda0597",
+          "cache": "HIT",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/files#build:prepare",
+          "hash": "962d854d85532b79",
+          "cache": "MISS",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/identity#build",
+          "hash": "95515cbe34321202",
+          "cache": "HIT",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/identity#build:prepare",
+          "hash": "b19c709b710badba",
+          "cache": "MISS",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/interfaces#build",
+          "hash": "8e6524c0c6310e39",
+          "cache": "HIT",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/interfaces#build:prepare",
+          "hash": "b61224e8f7340fe5",
+          "cache": "MISS",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/services#build",
+          "hash": "3d6fad5ae53c5438",
+          "cache": "HIT",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/services#build:prepare",
+          "hash": "df6fdc9cb24abcf4",
+          "cache": "MISS",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/state#build",
+          "hash": "9490a527f2387cb2",
+          "cache": "HIT",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/state#build:prepare",
+          "hash": "f76918e8bc841856",
+          "cache": "MISS",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/stdlib#build",
+          "hash": "43d6e0811b86f730",
+          "cache": "HIT",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/stdlib#build:prepare",
+          "hash": "cc734becc8a5c0a4",
+          "cache": "MISS",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/testkit#build",
+          "hash": "617f8237c65037db",
+          "cache": "HIT",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/testkit#build:prepare",
+          "hash": "bc66a7b9d83e664a",
+          "cache": "MISS",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/ui#build",
+          "hash": "d48114a984d20415",
+          "cache": "HIT",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/ui#build:prepare",
+          "hash": "95cbc753853cf0f0",
+          "cache": "MISS",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/values#build",
+          "hash": "aa984135649556d0",
+          "cache": "HIT",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/values#build:prepare",
+          "hash": "259a5b9ed9d8df14",
+          "cache": "MISS",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/work#build",
+          "hash": "9beed47d245b78a2",
+          "cache": "HIT",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/work#build:prepare",
+          "hash": "8884d0496d847ecd",
+          "cache": "MISS",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/work-kernel#build",
+          "hash": "4b88d71d103e731c",
+          "cache": "HIT",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/work-kernel#build:prepare",
+          "hash": "f78e5a0cca3d4b50",
+          "cache": "MISS",
+          "exitCode": 0
+        }
+      ],
+      "outputFiles": 2242,
+      "inventorySha256": "90d244f7d4bd5a20ddc79da680bee596f325df8da783d01a90e64f37b16bf3ed"
+    },
+    {
+      "name": "leaf-api-change",
+      "exitCode": 0,
+      "globalInternalDependenciesHash": "d9a5b0b78277d653",
+      "tasks": [
+        {
+          "id": "@canlang/cloudflare#build",
+          "hash": "b47f6c06b10e73a7",
+          "cache": "HIT",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/cloudflare#build:prepare",
+          "hash": "c79047ff7d3f848d",
+          "cache": "MISS",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/contracts#build",
+          "hash": "bd19d31341c7fe45",
+          "cache": "HIT",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/contracts#build:prepare",
+          "hash": "5ffdada2d6d451ee",
+          "cache": "MISS",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/files#build",
+          "hash": "8ac019b8ecda0597",
+          "cache": "HIT",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/files#build:prepare",
+          "hash": "962d854d85532b79",
+          "cache": "MISS",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/identity#build",
+          "hash": "95515cbe34321202",
+          "cache": "HIT",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/identity#build:prepare",
+          "hash": "b19c709b710badba",
+          "cache": "MISS",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/interfaces#build",
+          "hash": "8e6524c0c6310e39",
+          "cache": "HIT",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/interfaces#build:prepare",
+          "hash": "b61224e8f7340fe5",
+          "cache": "MISS",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/services#build",
+          "hash": "3d6fad5ae53c5438",
+          "cache": "HIT",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/services#build:prepare",
+          "hash": "df6fdc9cb24abcf4",
+          "cache": "MISS",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/state#build",
+          "hash": "9490a527f2387cb2",
+          "cache": "HIT",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/state#build:prepare",
+          "hash": "f76918e8bc841856",
+          "cache": "MISS",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/stdlib#build",
+          "hash": "43d6e0811b86f730",
+          "cache": "HIT",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/stdlib#build:prepare",
+          "hash": "cc734becc8a5c0a4",
+          "cache": "MISS",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/testkit#build",
+          "hash": "2a7d42b538772fe8",
+          "cache": "MISS",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/testkit#build:prepare",
+          "hash": "487946cfc85b85b4",
+          "cache": "MISS",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/ui#build",
+          "hash": "d48114a984d20415",
+          "cache": "HIT",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/ui#build:prepare",
+          "hash": "95cbc753853cf0f0",
+          "cache": "MISS",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/values#build",
+          "hash": "aa984135649556d0",
+          "cache": "HIT",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/values#build:prepare",
+          "hash": "259a5b9ed9d8df14",
+          "cache": "MISS",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/work#build",
+          "hash": "9beed47d245b78a2",
+          "cache": "HIT",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/work#build:prepare",
+          "hash": "8884d0496d847ecd",
+          "cache": "MISS",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/work-kernel#build",
+          "hash": "4b88d71d103e731c",
+          "cache": "HIT",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/work-kernel#build:prepare",
+          "hash": "f78e5a0cca3d4b50",
+          "cache": "MISS",
+          "exitCode": 0
+        }
+      ]
+    },
+    {
+      "name": "leaf-source-change",
+      "exitCode": 0,
+      "globalInternalDependenciesHash": "1427d06438098101",
+      "tasks": [
+        {
+          "id": "@canlang/cloudflare#build",
+          "hash": "5d6e5eb385deb667",
+          "cache": "MISS",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/cloudflare#build:prepare",
+          "hash": "3e955fccec99afba",
+          "cache": "MISS",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/contracts#build",
+          "hash": "cb216233d7fc1f55",
+          "cache": "MISS",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/contracts#build:prepare",
+          "hash": "6b883f163b50fb52",
+          "cache": "MISS",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/files#build",
+          "hash": "835f2a00e36fc30e",
+          "cache": "MISS",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/files#build:prepare",
+          "hash": "581e23ac2a5d5560",
+          "cache": "MISS",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/identity#build",
+          "hash": "d8e755bf45aad209",
+          "cache": "MISS",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/identity#build:prepare",
+          "hash": "7a1d37873bf8a48b",
+          "cache": "MISS",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/interfaces#build",
+          "hash": "854aeb0f98a913d2",
+          "cache": "MISS",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/interfaces#build:prepare",
+          "hash": "1ebc5f3c7e92bc8b",
+          "cache": "MISS",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/services#build",
+          "hash": "74a3cbc9ea5be1ce",
+          "cache": "MISS",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/services#build:prepare",
+          "hash": "b40c37492e64762d",
+          "cache": "MISS",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/state#build",
+          "hash": "3f00e87ef16cbc7c",
+          "cache": "MISS",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/state#build:prepare",
+          "hash": "0590f84cf5dde927",
+          "cache": "MISS",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/stdlib#build",
+          "hash": "98605966ad1471d6",
+          "cache": "MISS",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/stdlib#build:prepare",
+          "hash": "3b285164d07dc72d",
+          "cache": "MISS",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/testkit#build",
+          "hash": "f419e6e6ebe5e1b9",
+          "cache": "MISS",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/testkit#build:prepare",
+          "hash": "a8a77535fcdccc57",
+          "cache": "MISS",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/ui#build",
+          "hash": "8bf1835eb35736e0",
+          "cache": "MISS",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/ui#build:prepare",
+          "hash": "ff4d933f004ce1ab",
+          "cache": "MISS",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/values#build",
+          "hash": "f88bdf0a48b58fba",
+          "cache": "MISS",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/values#build:prepare",
+          "hash": "90a2abf70723fbc7",
+          "cache": "MISS",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/work#build",
+          "hash": "bdadce9a3053b6b9",
+          "cache": "MISS",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/work#build:prepare",
+          "hash": "1ebc61d5007d85b2",
+          "cache": "MISS",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/work-kernel#build",
+          "hash": "b6dad4003d5953e1",
+          "cache": "MISS",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/work-kernel#build:prepare",
+          "hash": "22ad2242a36fc109",
+          "cache": "MISS",
+          "exitCode": 0
+        }
+      ]
+    },
+    {
+      "name": "source-rollback-with-extra-outputs",
+      "exitCode": 0,
+      "globalInternalDependenciesHash": "d9a5b0b78277d653",
+      "tasks": [
+        {
+          "id": "@canlang/cloudflare#build",
+          "hash": "b47f6c06b10e73a7",
+          "cache": "HIT",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/cloudflare#build:prepare",
+          "hash": "c79047ff7d3f848d",
+          "cache": "MISS",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/contracts#build",
+          "hash": "bd19d31341c7fe45",
+          "cache": "HIT",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/contracts#build:prepare",
+          "hash": "5ffdada2d6d451ee",
+          "cache": "MISS",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/files#build",
+          "hash": "8ac019b8ecda0597",
+          "cache": "HIT",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/files#build:prepare",
+          "hash": "962d854d85532b79",
+          "cache": "MISS",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/identity#build",
+          "hash": "95515cbe34321202",
+          "cache": "HIT",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/identity#build:prepare",
+          "hash": "b19c709b710badba",
+          "cache": "MISS",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/interfaces#build",
+          "hash": "8e6524c0c6310e39",
+          "cache": "HIT",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/interfaces#build:prepare",
+          "hash": "b61224e8f7340fe5",
+          "cache": "MISS",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/services#build",
+          "hash": "3d6fad5ae53c5438",
+          "cache": "HIT",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/services#build:prepare",
+          "hash": "df6fdc9cb24abcf4",
+          "cache": "MISS",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/state#build",
+          "hash": "9490a527f2387cb2",
+          "cache": "HIT",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/state#build:prepare",
+          "hash": "f76918e8bc841856",
+          "cache": "MISS",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/stdlib#build",
+          "hash": "43d6e0811b86f730",
+          "cache": "HIT",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/stdlib#build:prepare",
+          "hash": "cc734becc8a5c0a4",
+          "cache": "MISS",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/testkit#build",
+          "hash": "617f8237c65037db",
+          "cache": "HIT",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/testkit#build:prepare",
+          "hash": "bc66a7b9d83e664a",
+          "cache": "MISS",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/ui#build",
+          "hash": "d48114a984d20415",
+          "cache": "HIT",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/ui#build:prepare",
+          "hash": "95cbc753853cf0f0",
+          "cache": "MISS",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/values#build",
+          "hash": "aa984135649556d0",
+          "cache": "HIT",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/values#build:prepare",
+          "hash": "259a5b9ed9d8df14",
+          "cache": "MISS",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/work#build",
+          "hash": "9beed47d245b78a2",
+          "cache": "HIT",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/work#build:prepare",
+          "hash": "8884d0496d847ecd",
+          "cache": "MISS",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/work-kernel#build",
+          "hash": "4b88d71d103e731c",
+          "cache": "HIT",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/work-kernel#build:prepare",
+          "hash": "f78e5a0cca3d4b50",
+          "cache": "MISS",
+          "exitCode": 0
+        }
+      ],
+      "outputFiles": 2242,
+      "inventorySha256": "90d244f7d4bd5a20ddc79da680bee596f325df8da783d01a90e64f37b16bf3ed"
+    },
+    {
+      "name": "leaf-extra-output-cache-restore",
+      "exitCode": 0,
+      "globalInternalDependenciesHash": "1427d06438098101",
+      "tasks": [
+        {
+          "id": "@canlang/cloudflare#build",
+          "hash": "5d6e5eb385deb667",
+          "cache": "HIT",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/cloudflare#build:prepare",
+          "hash": "3e955fccec99afba",
+          "cache": "MISS",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/contracts#build",
+          "hash": "cb216233d7fc1f55",
+          "cache": "HIT",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/contracts#build:prepare",
+          "hash": "6b883f163b50fb52",
+          "cache": "MISS",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/files#build",
+          "hash": "835f2a00e36fc30e",
+          "cache": "HIT",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/files#build:prepare",
+          "hash": "581e23ac2a5d5560",
+          "cache": "MISS",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/identity#build",
+          "hash": "d8e755bf45aad209",
+          "cache": "HIT",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/identity#build:prepare",
+          "hash": "7a1d37873bf8a48b",
+          "cache": "MISS",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/interfaces#build",
+          "hash": "854aeb0f98a913d2",
+          "cache": "HIT",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/interfaces#build:prepare",
+          "hash": "1ebc5f3c7e92bc8b",
+          "cache": "MISS",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/services#build",
+          "hash": "74a3cbc9ea5be1ce",
+          "cache": "HIT",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/services#build:prepare",
+          "hash": "b40c37492e64762d",
+          "cache": "MISS",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/state#build",
+          "hash": "3f00e87ef16cbc7c",
+          "cache": "HIT",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/state#build:prepare",
+          "hash": "0590f84cf5dde927",
+          "cache": "MISS",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/stdlib#build",
+          "hash": "98605966ad1471d6",
+          "cache": "HIT",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/stdlib#build:prepare",
+          "hash": "3b285164d07dc72d",
+          "cache": "MISS",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/testkit#build",
+          "hash": "f419e6e6ebe5e1b9",
+          "cache": "HIT",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/testkit#build:prepare",
+          "hash": "a8a77535fcdccc57",
+          "cache": "MISS",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/ui#build",
+          "hash": "8bf1835eb35736e0",
+          "cache": "HIT",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/ui#build:prepare",
+          "hash": "ff4d933f004ce1ab",
+          "cache": "MISS",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/values#build",
+          "hash": "f88bdf0a48b58fba",
+          "cache": "HIT",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/values#build:prepare",
+          "hash": "90a2abf70723fbc7",
+          "cache": "MISS",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/work#build",
+          "hash": "bdadce9a3053b6b9",
+          "cache": "HIT",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/work#build:prepare",
+          "hash": "1ebc61d5007d85b2",
+          "cache": "MISS",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/work-kernel#build",
+          "hash": "b6dad4003d5953e1",
+          "cache": "HIT",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/work-kernel#build:prepare",
+          "hash": "22ad2242a36fc109",
+          "cache": "MISS",
+          "exitCode": 0
+        }
+      ]
+    },
+    {
+      "name": "leaf-source-deletion",
+      "exitCode": 0,
+      "globalInternalDependenciesHash": "d9a5b0b78277d653",
+      "tasks": [
+        {
+          "id": "@canlang/cloudflare#build",
+          "hash": "b47f6c06b10e73a7",
+          "cache": "HIT",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/cloudflare#build:prepare",
+          "hash": "c79047ff7d3f848d",
+          "cache": "MISS",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/contracts#build",
+          "hash": "bd19d31341c7fe45",
+          "cache": "HIT",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/contracts#build:prepare",
+          "hash": "5ffdada2d6d451ee",
+          "cache": "MISS",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/files#build",
+          "hash": "8ac019b8ecda0597",
+          "cache": "HIT",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/files#build:prepare",
+          "hash": "962d854d85532b79",
+          "cache": "MISS",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/identity#build",
+          "hash": "95515cbe34321202",
+          "cache": "HIT",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/identity#build:prepare",
+          "hash": "b19c709b710badba",
+          "cache": "MISS",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/interfaces#build",
+          "hash": "8e6524c0c6310e39",
+          "cache": "HIT",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/interfaces#build:prepare",
+          "hash": "b61224e8f7340fe5",
+          "cache": "MISS",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/services#build",
+          "hash": "3d6fad5ae53c5438",
+          "cache": "HIT",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/services#build:prepare",
+          "hash": "df6fdc9cb24abcf4",
+          "cache": "MISS",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/state#build",
+          "hash": "9490a527f2387cb2",
+          "cache": "HIT",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/state#build:prepare",
+          "hash": "f76918e8bc841856",
+          "cache": "MISS",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/stdlib#build",
+          "hash": "43d6e0811b86f730",
+          "cache": "HIT",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/stdlib#build:prepare",
+          "hash": "cc734becc8a5c0a4",
+          "cache": "MISS",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/testkit#build",
+          "hash": "43a1561b1cb8390f",
+          "cache": "MISS",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/testkit#build:prepare",
+          "hash": "41f42d18dded596b",
+          "cache": "MISS",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/ui#build",
+          "hash": "d48114a984d20415",
+          "cache": "HIT",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/ui#build:prepare",
+          "hash": "95cbc753853cf0f0",
+          "cache": "MISS",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/values#build",
+          "hash": "aa984135649556d0",
+          "cache": "HIT",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/values#build:prepare",
+          "hash": "259a5b9ed9d8df14",
+          "cache": "MISS",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/work#build",
+          "hash": "9beed47d245b78a2",
+          "cache": "HIT",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/work#build:prepare",
+          "hash": "8884d0496d847ecd",
+          "cache": "MISS",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/work-kernel#build",
+          "hash": "4b88d71d103e731c",
+          "cache": "HIT",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/work-kernel#build:prepare",
+          "hash": "f78e5a0cca3d4b50",
+          "cache": "MISS",
+          "exitCode": 0
+        }
+      ]
+    },
+    {
+      "name": "source-rollback-without-preclean",
+      "exitCode": 0,
+      "globalInternalDependenciesHash": "d9a5b0b78277d653",
+      "tasks": [
+        {
+          "id": "@canlang/cloudflare#build",
+          "hash": "b47f6c06b10e73a7",
+          "cache": "HIT",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/cloudflare#build:prepare",
+          "hash": "c79047ff7d3f848d",
+          "cache": "MISS",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/contracts#build",
+          "hash": "bd19d31341c7fe45",
+          "cache": "HIT",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/contracts#build:prepare",
+          "hash": "5ffdada2d6d451ee",
+          "cache": "MISS",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/files#build",
+          "hash": "8ac019b8ecda0597",
+          "cache": "HIT",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/files#build:prepare",
+          "hash": "962d854d85532b79",
+          "cache": "MISS",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/identity#build",
+          "hash": "95515cbe34321202",
+          "cache": "HIT",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/identity#build:prepare",
+          "hash": "b19c709b710badba",
+          "cache": "MISS",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/interfaces#build",
+          "hash": "8e6524c0c6310e39",
+          "cache": "HIT",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/interfaces#build:prepare",
+          "hash": "b61224e8f7340fe5",
+          "cache": "MISS",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/services#build",
+          "hash": "3d6fad5ae53c5438",
+          "cache": "HIT",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/services#build:prepare",
+          "hash": "df6fdc9cb24abcf4",
+          "cache": "MISS",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/state#build",
+          "hash": "9490a527f2387cb2",
+          "cache": "HIT",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/state#build:prepare",
+          "hash": "f76918e8bc841856",
+          "cache": "MISS",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/stdlib#build",
+          "hash": "43d6e0811b86f730",
+          "cache": "HIT",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/stdlib#build:prepare",
+          "hash": "cc734becc8a5c0a4",
+          "cache": "MISS",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/testkit#build",
+          "hash": "617f8237c65037db",
+          "cache": "HIT",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/testkit#build:prepare",
+          "hash": "bc66a7b9d83e664a",
+          "cache": "MISS",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/ui#build",
+          "hash": "d48114a984d20415",
+          "cache": "HIT",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/ui#build:prepare",
+          "hash": "95cbc753853cf0f0",
+          "cache": "MISS",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/values#build",
+          "hash": "aa984135649556d0",
+          "cache": "HIT",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/values#build:prepare",
+          "hash": "259a5b9ed9d8df14",
+          "cache": "MISS",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/work#build",
+          "hash": "9beed47d245b78a2",
+          "cache": "HIT",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/work#build:prepare",
+          "hash": "8884d0496d847ecd",
+          "cache": "MISS",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/work-kernel#build",
+          "hash": "4b88d71d103e731c",
+          "cache": "HIT",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/work-kernel#build:prepare",
+          "hash": "f78e5a0cca3d4b50",
+          "cache": "MISS",
+          "exitCode": 0
+        }
+      ],
+      "outputFiles": 2242,
+      "inventorySha256": "90d244f7d4bd5a20ddc79da680bee596f325df8da783d01a90e64f37b16bf3ed"
+    },
+    {
+      "name": "producer-failure",
+      "exitCode": 1,
+      "globalInternalDependenciesHash": "d9a5b0b78277d653",
+      "tasks": [
+        {
+          "id": "@canlang/cloudflare#build:prepare",
+          "hash": "c79047ff7d3f848d",
+          "cache": "MISS",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/contracts#build",
+          "hash": "d7f095c38ec91abe",
+          "cache": "MISS",
+          "exitCode": 1
+        },
+        {
+          "id": "@canlang/contracts#build:prepare",
+          "hash": "e7bbb7fe339f16bd",
+          "cache": "MISS",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/files#build:prepare",
+          "hash": "962d854d85532b79",
+          "cache": "MISS",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/identity#build:prepare",
+          "hash": "b19c709b710badba",
+          "cache": "MISS",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/interfaces#build:prepare",
+          "hash": "b61224e8f7340fe5",
+          "cache": "MISS",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/services#build:prepare",
+          "hash": "df6fdc9cb24abcf4",
+          "cache": "MISS",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/state#build:prepare",
+          "hash": "f76918e8bc841856",
+          "cache": "MISS",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/stdlib#build:prepare",
+          "hash": "cc734becc8a5c0a4",
+          "cache": "MISS",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/testkit#build:prepare",
+          "hash": "bc66a7b9d83e664a",
+          "cache": "MISS",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/ui#build:prepare",
+          "hash": "95cbc753853cf0f0",
+          "cache": "MISS",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/values#build:prepare",
+          "hash": "259a5b9ed9d8df14",
+          "cache": "MISS",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/work#build:prepare",
+          "hash": "8884d0496d847ecd",
+          "cache": "MISS",
+          "exitCode": 0
+        },
+        {
+          "id": "@canlang/work-kernel#build:prepare",
+          "hash": "f78e5a0cca3d4b50",
+          "cache": "MISS",
+          "exitCode": 0
+        }
+      ]
+    }
+  ],
+  "probes": [
+    {
+      "name": "separate-output-ownership",
+      "preservedByProducerAndExcludedFromCache": [
+        "packages/values/dist/catalog.json",
+        "packages/cloudflare/dist/preparation/cache-proof-host/can-preparation",
+        "packages/cloudflare/dist/preparation/cache-proof-host/can-preparation.exe",
+        "packages/cloudflare/dist/preparation/cache-proof-host/manifest.json"
+      ]
+    },
+    {
+      "name": "leaf-api-change",
+      "changed": [
+        "@canlang/testkit#build"
+      ],
+      "unrelatedWarmHits": 12
+    },
+    {
+      "name": "leaf-source-change",
+      "changed": [
+        "@canlang/cloudflare#build",
+        "@canlang/contracts#build",
+        "@canlang/files#build",
+        "@canlang/identity#build",
+        "@canlang/interfaces#build",
+        "@canlang/services#build",
+        "@canlang/state#build",
+        "@canlang/stdlib#build",
+        "@canlang/testkit#build",
+        "@canlang/ui#build",
+        "@canlang/values#build",
+        "@canlang/work#build",
+        "@canlang/work-kernel#build"
+      ],
+      "manifestDependencyClosure": [
+        "@canlang/testkit#build"
+      ],
+      "explicitInputChanges": [
+        "@canlang/testkit#build"
+      ],
+      "unrelatedWarmHits": 0,
+      "cause": "new source file changes the root internal workspace file inventory hash"
+    },
+    {
+      "name": "A-B-A-rollback-without-manual-output-cleaning",
+      "cachedBuildHits": 13,
+      "actualPreparationExecutions": 13,
+      "absentOutputs": [
+        "packages/testkit/dist/__turbo_cache_deletion_proof__.js",
+        "packages/testkit/dist/__turbo_cache_deletion_proof__.d.ts",
+        "packages/testkit/dist/__turbo_cache_deletion_proof__.js.map",
+        "packages/testkit/dist/__turbo_cache_deletion_proof__.d.ts.map"
+      ]
+    },
+    {
+      "name": "leaf-source-deletion",
+      "changed": [
+        "@canlang/testkit#build"
+      ],
+      "unrelatedWarmHits": 12,
+      "absentOutputs": [
+        "packages/testkit/dist/__turbo_cache_deletion_proof__.js",
+        "packages/testkit/dist/__turbo_cache_deletion_proof__.d.ts",
+        "packages/testkit/dist/__turbo_cache_deletion_proof__.js.map",
+        "packages/testkit/dist/__turbo_cache_deletion_proof__.d.ts.map"
+      ]
+    },
+    {
+      "name": "lock-change",
+      "changed": [
+        "@canlang/cloudflare#build",
+        "@canlang/contracts#build",
+        "@canlang/files#build",
+        "@canlang/identity#build",
+        "@canlang/interfaces#build",
+        "@canlang/services#build",
+        "@canlang/state#build",
+        "@canlang/stdlib#build",
+        "@canlang/testkit#build",
+        "@canlang/ui#build",
+        "@canlang/values#build",
+        "@canlang/work#build",
+        "@canlang/work-kernel#build"
+      ]
+    },
+    {
+      "name": "shared-config-change",
+      "changed": [
+        "@canlang/cloudflare#build",
+        "@canlang/contracts#build",
+        "@canlang/files#build",
+        "@canlang/identity#build",
+        "@canlang/interfaces#build",
+        "@canlang/services#build",
+        "@canlang/state#build",
+        "@canlang/stdlib#build",
+        "@canlang/testkit#build",
+        "@canlang/ui#build",
+        "@canlang/values#build",
+        "@canlang/work#build",
+        "@canlang/work-kernel#build"
+      ]
+    },
+    {
+      "name": "browser-source-change",
+      "changed": [
+        "@canlang/cloudflare#build",
+        "@canlang/contracts#build",
+        "@canlang/files#build",
+        "@canlang/identity#build",
+        "@canlang/interfaces#build",
+        "@canlang/services#build",
+        "@canlang/state#build",
+        "@canlang/stdlib#build",
+        "@canlang/testkit#build",
+        "@canlang/ui#build",
+        "@canlang/values#build",
+        "@canlang/work#build",
+        "@canlang/work-kernel#build"
+      ]
+    },
+    {
+      "name": "generated-wasm-change",
+      "changed": [
+        "@canlang/cloudflare#build",
+        "@canlang/contracts#build",
+        "@canlang/files#build",
+        "@canlang/identity#build",
+        "@canlang/interfaces#build",
+        "@canlang/services#build",
+        "@canlang/state#build",
+        "@canlang/stdlib#build",
+        "@canlang/testkit#build",
+        "@canlang/ui#build",
+        "@canlang/values#build",
+        "@canlang/work#build",
+        "@canlang/work-kernel#build"
+      ]
+    },
+    {
+      "name": "identity-CAN_BUILD_HOST",
+      "changed": [
+        "@canlang/cloudflare#build",
+        "@canlang/contracts#build",
+        "@canlang/files#build",
+        "@canlang/identity#build",
+        "@canlang/interfaces#build",
+        "@canlang/services#build",
+        "@canlang/state#build",
+        "@canlang/stdlib#build",
+        "@canlang/testkit#build",
+        "@canlang/ui#build",
+        "@canlang/values#build",
+        "@canlang/work#build",
+        "@canlang/work-kernel#build"
+      ]
+    },
+    {
+      "name": "identity-CAN_BUILD_NODE",
+      "changed": [
+        "@canlang/cloudflare#build",
+        "@canlang/contracts#build",
+        "@canlang/files#build",
+        "@canlang/identity#build",
+        "@canlang/interfaces#build",
+        "@canlang/services#build",
+        "@canlang/state#build",
+        "@canlang/stdlib#build",
+        "@canlang/testkit#build",
+        "@canlang/ui#build",
+        "@canlang/values#build",
+        "@canlang/work#build",
+        "@canlang/work-kernel#build"
+      ]
+    },
+    {
+      "name": "identity-CAN_BUILD_BUN",
+      "changed": [
+        "@canlang/cloudflare#build",
+        "@canlang/contracts#build",
+        "@canlang/files#build",
+        "@canlang/identity#build",
+        "@canlang/interfaces#build",
+        "@canlang/services#build",
+        "@canlang/state#build",
+        "@canlang/stdlib#build",
+        "@canlang/testkit#build",
+        "@canlang/ui#build",
+        "@canlang/values#build",
+        "@canlang/work#build",
+        "@canlang/work-kernel#build"
+      ]
+    },
+    {
+      "name": "environment-NODE_ENV",
+      "changed": [
+        "@canlang/cloudflare#build",
+        "@canlang/contracts#build",
+        "@canlang/files#build",
+        "@canlang/identity#build",
+        "@canlang/interfaces#build",
+        "@canlang/services#build",
+        "@canlang/state#build",
+        "@canlang/stdlib#build",
+        "@canlang/testkit#build",
+        "@canlang/ui#build",
+        "@canlang/values#build",
+        "@canlang/work#build",
+        "@canlang/work-kernel#build"
+      ]
+    },
+    {
+      "name": "environment-TZ",
+      "changed": [
+        "@canlang/cloudflare#build",
+        "@canlang/contracts#build",
+        "@canlang/files#build",
+        "@canlang/identity#build",
+        "@canlang/interfaces#build",
+        "@canlang/services#build",
+        "@canlang/state#build",
+        "@canlang/stdlib#build",
+        "@canlang/testkit#build",
+        "@canlang/ui#build",
+        "@canlang/values#build",
+        "@canlang/work#build",
+        "@canlang/work-kernel#build"
+      ]
+    },
+    {
+      "name": "producer-failure",
+      "blockedDependents": [
+        "@canlang/cloudflare#build",
+        "@canlang/files#build",
+        "@canlang/identity#build",
+        "@canlang/interfaces#build",
+        "@canlang/services#build",
+        "@canlang/state#build",
+        "@canlang/testkit#build",
+        "@canlang/ui#build",
+        "@canlang/values#build",
+        "@canlang/work#build",
+        "@canlang/work-kernel#build",
+        "@canlang/stdlib#build"
+      ]
+    }
+  ],
+  "bun": "1.4.2",
+  "turbo": "2.11.7",
+  "sourceInvalidationPolicy": "Observed with the root ownership declarations intact: the existing testkit API edit follows its manifest closure (one miss, 12 unrelated hits). Adding a testkit source module, editing browser CSS, and changing committed WASM bytes change the root internal-dependency global identity and conservatively invalidate all 13 builds. This report describes those fixtures, not a universal selectivity guarantee.",
+  "result": "passed"
+}

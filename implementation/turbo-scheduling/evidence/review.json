@@ -1,0 +1,148 @@
+{
+  "reviewer": "independent clean-room Turbo scheduling/cache review agent",
+  "reviewed_at_utc": "2026-10-06T19:32:48.582060+00:00",
+  "head": "7fd8c6bf4717feeffc70b46819377b74b353e117",
+  "status": "accepted_in_reviewed_scope",
+  "scope": "Turbo wrappers/configuration, package task coverage, artifact cleanup/restoration, verifier, release workflow order and final documentation claims; earlier package/Worker repairs preserved.",
+  "remaining_p1_p2_findings": [],
+  "resolved_findings": [
+    {
+      "priority": "P2",
+      "problem": "Turbo cached A -> emitted B -> cached A extraction retained B-only outputs when cleanup ran only inside the cacheable task.",
+      "resolution": "Each of the 13 cacheable producer builds now depends on its own uncached build:prepare, which cleans owned emissions and incremental state before execution or restoration.",
+      "independent_reproduction": "Original scratch fixture reproduced the orphan; repeated fixture with the new prerequisite restored baseline bytes and removed the obsolete output.",
+      "accepted_full_workspace_regression_proof": "cache/source-rollback-with-extra-outputs.summary.json and cache/source-rollback-without-preclean.summary.json: 13 build hits after 13 successful actual preparations; both complete inventories equal the cold inventory."
+    }
+  ],
+  "accepted_cache_evidence": {
+    "report": "cache/report.json",
+    "report_sha256": "d5f5663e2bba6c40821f57ca5c954df3740c564d5eb5a8c52e0361da5b13d5a6",
+    "result": "passed",
+    "actual_phases": 17,
+    "probes": 15,
+    "copied_report_matches_independently_reviewed_raw_report": true,
+    "source_snapshot_files": 1177,
+    "source_snapshot_acceptance_check": "At final cache acceptance, all 1177 recorded files matched both live checkout and frozen workspace SHA-256 bytes and modes; zero differences. Later documentation additions are outside that historical comparison.",
+    "current_source_pins": "All entries in source-pins.json independently compared with current files; zero SHA-256 differences at this review.",
+    "output_files": 2242,
+    "output_bytes": 18166656,
+    "cli_mode": "0755",
+    "independently_compared_inventories": [
+      "full-restore",
+      "dist-only-restore",
+      "executable-restore",
+      "source-rollback-with-extra-outputs",
+      "source-rollback-without-preclean"
+    ],
+    "producer_failure": "Raw executed summary contains only 13 successful uncached preparations and the actually failing contracts build; all 12 dependent builds are absent.",
+    "hash_probe_limit": "Nine lock/config/assets/host/tool/environment checks are dry-run invalidation probes; alternate tools/platforms and native generation were not executed by this cache proof.",
+    "selectivity_limit": "Existing testkit API edit/deletion retains 12 unrelated hits. New testkit module/browser CSS/committed WASM fixtures conservatively invalidate all 13 through the root internal-dependency global identity; no universal selectivity/performance claim."
+  },
+  "test_coverage_evidence": {
+    "raw_accepted_log": "/private/tmp/canlang-turbo-all-tests-accepted.log",
+    "raw_log_sha256": "95d5ca80c50809b253c15ccaadc1b7f206054b9a2b1dceb3746cf0f43e0993b1",
+    "independently_read_log": true,
+    "successful_tasks": 38,
+    "cached_builds": 13,
+    "actual_test_commands": 12,
+    "root_vitest": {
+      "files": 64,
+      "passed": 636
+    },
+    "node_commands": {
+      "owning_package_commands": 10,
+      "emitted_cloudflare_runtime_commands": 1,
+      "passed": 4904,
+      "failed": 0,
+      "skipped": 1
+    },
+    "existing_skip": "The combined run retained the existing absent-catalog fixture skip. Explicit uncached catalog generation and follow-up owning values tests subsequently passed all 873 tests with zero skips.",
+    "serial_scheduling": "test:all/test:packages use Turbo --concurrency=1; complete producer prerequisites and real test commands remain, while standalone build permits four concurrent tasks.",
+    "previous_attempts": "Workerd CWD issues were fixed in owning commands; asset test timeout under competing jobs is retained as an unsuccessful attempt. No test/assertion/timeout threshold was removed or changed.",
+    "archived_accepted_log": "tests-all.log"
+  },
+  "configuration_and_release_review": {
+    "cacheable_family": "Only ordinary TS producer build tasks use caching; build:prepare, typecheck, tests, catalog/native/tool adapters and stamp/manifest/verify remain uncached.",
+    "identities": "Actual host/architecture, executing Node version and exact Bun version are derived by the wrapper; strict environment hashing includes those identities, shared configuration, lock and builder scripts.",
+    "separate_outputs": "Values catalog and packaged preparation executable/manifest filenames are preserved by TS cleanup and excluded from TS archives; compiled preparation TS is retained.",
+    "native_ownership": "No Cargo autodiscovery, native cache qualification, preparation release/adoption or invented Go/uv owner is enabled.",
+    "remote_cache": "Disabled.",
+    "release_workflow": "node-libraries executes bun run release immediately before pack; the dry graph orders all 13 builds -> uncached stamp -> uncached manifest -> uncached verify, with no post-verification rebuild.",
+    "uncached_reproducibility": "build:uncached uses --cache=, independently observed to bypass cache reads/writes in the scratch fixture."
+  },
+  "documentation_review": {
+    "result": "Claims match retained raw evidence and stated execution limits; no remaining concrete correction requested.",
+    "reviewed_files_sha256": {
+      "implementation/turbo-scheduling/README.md": "d45d3e12391b3b26ed64c809a7f4d0352969f31a783470cb9539d699d5ebf4ef",
+      "docs/dev-setup.md": "acbd89149bee808cfdf82bec59e19e84463369b88d6782bc51f1fb1bfb9d50fc",
+      "README.md": "e0db3b018be13e525388ea50b8c2d25bbf7088079b25be95a4af0598bf30b6a4",
+      "docs/specification/DECISIONS.md": "3d54a5c6226e63458a703f6b6c9b1dfcc3a977170f00a714c2bce7cefbfae703",
+      "docs/ideal-filetree-plan.md": "84249e128f2b926a582ce406318f83856b6ab7e7e39c6adec19e4cd69dc2a020",
+      "turbo.json": "cc16a9643415a299b431170a8a602e4136639dc2cd8c513cf3159fd4b3ee0995",
+      "package.json": "b06e3d2505117e396a5f764eea34c32a83ac7ecd64894c37ce0ff87b7aed0a4d",
+      "scripts/run-tasks.mjs": "3e055c26a0130829843f52cf5ddbf6b45e32bbc7a8a4d0124d8db2a8b107cc37",
+      "scripts/build-package.mjs": "fbf81db868a96e416981c439371f85285ed3832dfb4e13fa2256c9243f2a6330",
+      "scripts/verify-turbo-cache.mjs": "5408f8de97336bb9ae476e53378b2d7c25ad5243690f0907e0d5952cec0f3a06",
+      ".github/workflows/release.yml": "c5bfc92a96e5c1f52b2a2ebab43e2d58f32f2174f6bb0e7f5b80cd2b0075491d"
+    },
+    "preserved_limits": [
+      "No merge/publication or complete living-plan checkpoint advancement.",
+      "Full browser/editor/alternate-host/remote-cache and native release/adoption obligations remain explicit.",
+      "Compiler Git identity is preserved by an uncached adapter; the TS cache proof does not certify native artifact caching."
+    ]
+  },
+  "finalized_at_utc": "2026-10-06T19:34:58.044014+00:00",
+  "final_parent_evidence_review": {
+    "status": "accepted",
+    "verification_record": "verification.json",
+    "verification_sha256": "53734fab99d3f5b024852ed30572d66f4e2c6ed124df3777740bb9e5e4634b08",
+    "method": "Independently read saved command logs and actual Turbo summaries; compared installed-worker.json to the original consumer evidence. No build/test/installed run was repeated during this acceptance review.",
+    "catalog": {
+      "successful_tasks": 5,
+      "build_hits": 2,
+      "generator_uncached": true,
+      "catalog_entries": 59
+    },
+    "owning_values_follow_up": {
+      "successful_tasks": 5,
+      "passed": 873,
+      "failed": 0,
+      "skipped": 0,
+      "prior_catalog_skip_exercised": true
+    },
+    "cached_release": {
+      "successful_tasks": 29,
+      "restored_builds": 13,
+      "actual_uncached_preparations": 13,
+      "uncached_successful_validations": [
+        "release:stamp",
+        "release:manifest",
+        "release:verify"
+      ]
+    },
+    "installed_worker": {
+      "evidence": "installed-worker.json",
+      "matches_original_consumer_evidence": true,
+      "checkout_read": "ERR_ACCESS_DENIED",
+      "production_workerd_d1_auth_status": 401,
+      "compiled_wasm": {
+        "abi": 1,
+        "add_int_1_2": "3"
+      },
+      "missing_corrupt_wasm_css_negative_cases": 4,
+      "scope_limit": "Node filesystem permissions do not extend to Bun/workerd subprocesses. Browser resource serving, full installed-host/release acceptance and absent receipt observer remain outside this selected proof."
+    },
+    "evidence_sha256": {
+      "catalog.log": "d39b7efa7e348a87019635a4768a02dc8a59bb46a54a61f631723fb2595774a4",
+      "catalog.summary.json": "7b0810a034562413bd64417fd893352dc887bd16bbf461fca3be3d2a86beb77e",
+      "values-catalog-tests.log": "af65ef8b6f3a0f9939e547ba76b8bbe09ee183b3b126493aa6f612550e3fd629",
+      "values-catalog-tests.summary.json": "219e413cde61003779c1c588ee220eceba6b1f3084a0e3ed43db1267aec44d05",
+      "release.log": "7fa001268dfce8380d04519e5f39d86eee9b6cf93c90fae2fee0ed640b513eb2",
+      "release.summary.json": "f897525ad2a081d60b92085d1d2179b7fb20b771a8df2dec6f73c78360dccea1",
+      "installed-worker.log": "9dc4368e6398bdd87de7ceb5183ece02affcd2f24f798db95bde0a34419d7e58",
+      "installed-worker.json": "ee8f4580d06a30ef33e904a93bc3bb727a9854d5b5b4201363081f70763f1db8",
+      "tests-all.log": "95d5ca80c50809b253c15ccaadc1b7f206054b9a2b1dceb3746cf0f43e0993b1"
+    },
+    "remaining_concrete_findings": []
+  }
+}

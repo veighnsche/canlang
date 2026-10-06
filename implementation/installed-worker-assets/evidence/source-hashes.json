@@ -1,0 +1,13 @@
+{
+  "packages/cloudflare/src/deploy/bundle.ts": "c655fed4ef03d35d39fc52811abc4d41516d2bf8e52fcf4a499d17e8f9057ed1",
+  "packages/cloudflare/src/deploy/producer-files.ts": "8ac214b19c81f74b9cf3561cf26c4c67a43ca20f28eedc8f94ef58574b72f6ba",
+  "packages/cloudflare/src/deploy/package-assets.ts": "878ee72f2d40d5a9ea457836d87934c217132b345ea8af80d9c1a48fe374993f",
+  "packages/cloudflare/package.json": "2021c39f40fb3eccbb20232f945e676002607f350958f0df003fd943cbfc89b5",
+  "packages/cloudflare/src/preparation/host.ts": "ee47c2dd8e45a50bac5dcdbd8592b447069348bdcfdb07e06ea6fe85b679bff1",
+  "packages/cloudflare/src/preparation/build-adapter.ts": "ddbd1eb6abc50c1dfa1ccc59cfdd8f3e54cc5d296356004c794f2556f1053383",
+  "packages/cloudflare/test/deploy-bundle.test.ts": "2febb90a3639d63cc3bfc96d0d89f2df78035cdda389669367db373040fa5752",
+  "packages/cloudflare/test/deploy-package-assets.test.ts": "41b9ea6dc9ce4598b76be010f5cfb3a5d4a9e59022e5c60c08609de9768a0110",
+  "packages/cloudflare/test/package-assets.test.ts": "81fefac7f4b5f4d1a2744547bb38779a4402e4bf2beaa24fcbc3a2e43e5708fd",
+  "scripts/verify-installed-worker.mjs": "8ebae8411ae98fd13a69b912a2c703947a0127b9daf537a31dcf8858be4d40a2",
+  "package.json": "1434a54aa86fb998a1052e27fb26d34e3f22711845a44530be08973275e058cd"
+}

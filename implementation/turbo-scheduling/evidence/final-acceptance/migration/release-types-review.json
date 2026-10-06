@@ -1,0 +1,110 @@
+{
+  "review": "independent read-only source and raw artifact inspection; no producer/build/test suites executed",
+  "sourceSha256": {
+    "scripts/pack-release.mjs": "f7f22dc79a36a6a6a1c37fa0264d5aaef1e2731aa27c5019fa67eff88b8cb169",
+    "scripts/verify-installed-types.mjs": "e342511eda8e25b80514d9fe6c3d5195a2cdd45d95b2e7a669d9a50416daebce",
+    "implementation/turbo-scheduling/evidence/final-acceptance/types/evidence.json": "4dfaac9b4b4f3a37b5a9cb939d6536a6afcace3cc2a2cf0457f6ec9864f3b82c"
+  },
+  "currentOwners": [
+    "@canlang/cloudflare",
+    "@canlang/contracts",
+    "@canlang/files",
+    "@canlang/identity",
+    "@canlang/interfaces",
+    "@canlang/services",
+    "@canlang/state",
+    "@canlang/stdlib",
+    "@canlang/testkit",
+    "@canlang/ui",
+    "@canlang/values",
+    "@canlang/work",
+    "@canlang/work-kernel"
+  ],
+  "internalRuntimeClosures": {
+    "@canlang/ui": [
+      "@canlang/contracts"
+    ],
+    "@canlang/work-kernel": [
+      "@canlang/contracts"
+    ],
+    "@canlang/identity": [
+      "@canlang/contracts"
+    ],
+    "@canlang/contracts": [],
+    "@canlang/cloudflare": [
+      "@canlang/contracts",
+      "@canlang/identity",
+      "@canlang/interfaces",
+      "@canlang/state",
+      "@canlang/stdlib",
+      "@canlang/ui",
+      "@canlang/values",
+      "@canlang/work"
+    ],
+    "@canlang/values": [
+      "@canlang/contracts"
+    ],
+    "@canlang/state": [
+      "@canlang/contracts"
+    ],
+    "@canlang/testkit": [
+      "@canlang/cloudflare",
+      "@canlang/contracts",
+      "@canlang/identity",
+      "@canlang/interfaces",
+      "@canlang/state",
+      "@canlang/stdlib",
+      "@canlang/ui",
+      "@canlang/values",
+      "@canlang/work"
+    ],
+    "@canlang/work": [
+      "@canlang/contracts",
+      "@canlang/state"
+    ],
+    "@canlang/files": [
+      "@canlang/contracts",
+      "@canlang/services"
+    ],
+    "@canlang/stdlib": [
+      "@canlang/contracts",
+      "@canlang/values"
+    ],
+    "@canlang/services": [
+      "@canlang/contracts"
+    ],
+    "@canlang/interfaces": [
+      "@canlang/contracts",
+      "@canlang/identity",
+      "@canlang/ui",
+      "@canlang/values"
+    ]
+  },
+  "installedTypes": {
+    "owners": 13,
+    "typedExports": 150,
+    "linker": "isolated",
+    "ownedDiagnostics": 0,
+    "undeclaredOwnedImports": 0,
+    "vendorDiagnosticsByFile": {
+      "node_modules/.bun/miniflare@4.20260730.0/node_modules/miniflare/dist/src/index.d.ts": 797
+    },
+    "negativeCases": [
+      {
+        "case": "missing contracts declaration",
+        "diagnostics": 981,
+        "ownedDiagnostics": 184,
+        "gateRejected": true
+      },
+      {
+        "case": "corrupt contracts declaration",
+        "diagnostics": 1738,
+        "ownedDiagnostics": 941,
+        "gateRejected": true
+      }
+    ],
+    "baselineRestoredEqual": true
+  },
+  "packingStatus": "source implementation reviewed; final root graph/workflow and actual pack evidence await parent integration/execution",
+  "findings": []
+}

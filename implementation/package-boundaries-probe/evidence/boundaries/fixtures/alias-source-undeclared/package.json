@@ -1,0 +1,8 @@
+{
+  "name": "boundary-probe",
+  "private": true,
+  "packageManager": "bun@1.4.2",
+  "workspaces": [
+    "packages/*"
+  ]
+}

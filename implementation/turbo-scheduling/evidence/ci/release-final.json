@@ -1,0 +1,14 @@
+{
+  "argv": [
+    "ruby",
+    "-rpsych",
+    "-e",
+    "Psych.parse_file(\".github/workflows/release.yml\"); puts \"release.yml parsed\""
+  ],
+  "exit": 0,
+  "stdout": "release.yml parsed\n",
+  "stderr": "",
+  "workflow_sha256": "c5bfc92a96e5c1f52b2a2ebab43e2d58f32f2174f6bb0e7f5b80cd2b0075491d",
+  "ordering": "bun run release immediately before pack; no subsequent TS build",
+  "node_libraries_section": "\n    runs-on: ubuntu-latest\n    steps:\n      - uses: actions/checkout@v4\n      - uses: actions/setup-node@v4\n        with:\n          node-version: \"22\"\n      - uses: oven-sh/setup-bun@v2\n        with:\n          bun-version: \"1.4.2\"\n      - name: Install from lock\n        run: bun install --frozen-lockfile\n      - name: Build and verify release packages\n        # Producer restoration precedes uncached version and manifest checks.\n        run: bun run release\n      - name: Pack publishable workspaces\n        # Only non-private workspaces with a dist build. Private internals\n        # (identity, interfaces, work, services, files) and the ui lib join\n        # this loop when their owners flip them public.\n        run: |\n          mkdir -p release-artifacts\n          for w in contracts cloudflare testkit state values; do\n            (cd \"packages/$w\" && bun pm pack >/dev/null && mv ./*.tgz \"$GITHUB_WORKSPACE/release-artifacts/\")\n          done\n      - uses: actions/upload-artifact@v4\n        with:\n          name: node-libraries\n          path: release-artifacts/*.tgz\n\n"
+}

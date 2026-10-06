@@ -1,0 +1,145 @@
+[
+  {
+    "name": "@canlang/cloudflare",
+    "version": "0.1.0",
+    "file": "cloudflare.tgz",
+    "bytes": 478881,
+    "sha256": "283a268c801dd84b71e26a64eb64707fcd4bfaadd907f72743659ba93452d308",
+    "dependencies": {
+      "@canlang/contracts": "0.1.0",
+      "@canlang/interfaces": "0.1.0",
+      "miniflare": "4.20260730.0",
+      "@canlang/identity": "0.1.0",
+      "@canlang/state": "0.1.0",
+      "@canlang/work": "0.0.0",
+      "@canlang/ui": "0.1.0",
+      "@canlang/stdlib": "0.1.0",
+      "@canlang/values": "0.1.0"
+    }
+  },
+  {
+    "name": "@canlang/contracts",
+    "version": "0.1.0",
+    "file": "contracts.tgz",
+    "bytes": 105380,
+    "sha256": "ff844fea131f44fb0723812088b5288cb136975f733c369c9901ec04bcd59d40",
+    "dependencies": {}
+  },
+  {
+    "name": "@canlang/files",
+    "version": "0.0.0",
+    "file": "files.tgz",
+    "bytes": 61465,
+    "sha256": "5a96e5e621d7c9b9ab1aa7af9184e5f7d5a0539e0455cbbdcba2c40446cb936f",
+    "dependencies": {
+      "@canlang/contracts": "0.1.0",
+      "@canlang/services": "0.0.0"
+    }
+  },
+  {
+    "name": "@canlang/identity",
+    "version": "0.1.0",
+    "file": "identity.tgz",
+    "bytes": 81120,
+    "sha256": "cf8be268a69f3d1c3ce6e5adb969bcc5f964c7e537b24d247b18b393833e9cb7",
+    "dependencies": {
+      "@canlang/contracts": "0.1.0"
+    }
+  },
+  {
+    "name": "@canlang/interfaces",
+    "version": "0.1.0",
+    "file": "interfaces.tgz",
+    "bytes": 390144,
+    "sha256": "49b78be866b83b6270c4043fead53f83c145c486c52f29eb13ea4594807347b4",
+    "dependencies": {
+      "@canlang/contracts": "0.1.0",
+      "@canlang/identity": "0.1.0",
+      "@canlang/ui": "0.1.0",
+      "@canlang/values": "0.1.0",
+      "@modelcontextprotocol/sdk": "1.32.0"
+    }
+  },
+  {
+    "name": "@canlang/services",
+    "version": "0.0.0",
+    "file": "services.tgz",
+    "bytes": 124573,
+    "sha256": "4f082d81e000f9c2a5723f2acb071a11a52c06c723d52812257c0db55a805766",
+    "dependencies": {
+      "@canlang/contracts": "0.1.0"
+    }
+  },
+  {
+    "name": "@canlang/state",
+    "version": "0.1.0",
+    "file": "state.tgz",
+    "bytes": 643908,
+    "sha256": "36550d383cf33dda7fd47aa3b33ba9ad8790dc3cc5b5894e8e1b370116858dbf",
+    "dependencies": {
+      "@canlang/contracts": "0.1.0"
+    }
+  },
+  {
+    "name": "@canlang/stdlib",
+    "version": "0.1.0",
+    "file": "stdlib.tgz",
+    "bytes": 8347,
+    "sha256": "3ef34b977b70ca6468567cca5d842739e3354cff5ed8a940867c3264f27ae926",
+    "dependencies": {
+      "@canlang/values": "0.1.0"
+    }
+  },
+  {
+    "name": "@canlang/testkit",
+    "version": "0.1.0",
+    "file": "testkit.tgz",
+    "bytes": 55534,
+    "sha256": "fd2a0ca45c82d5994cdaad95fb14bdbeb1d00713a4de9089579b1b4e0d54e61e",
+    "dependencies": {
+      "@canlang/cloudflare": "0.1.0",
+      "@canlang/contracts": "0.1.0"
+    }
+  },
+  {
+    "name": "@canlang/ui",
+    "version": "0.1.0",
+    "file": "ui.tgz",
+    "bytes": 550466,
+    "sha256": "96aa5c64febb8d9debb5cd5f2b3ac8759dbe3e19529069b2fc0cbb0c4ef607d5",
+    "dependencies": {
+      "@canlang/contracts": "0.1.0"
+    }
+  },
+  {
+    "name": "@canlang/values",
+    "version": "0.1.0",
+    "file": "values.tgz",
+    "bytes": 507560,
+    "sha256": "08c840566f80c5a2bf111f6dcfc9eee6e0f67c00323299cd79ffe0ba9ef04683",
+    "dependencies": {
+      "@canlang/contracts": "0.1.0"
+    }
+  },
+  {
+    "name": "@canlang/work-kernel",
+    "version": "0.1.0",
+    "file": "work-kernel.tgz",
+    "bytes": 73464,
+    "sha256": "4a5242ba17b2336fb4a89afe068897e226242f67c51b93d342e9df0462f17649",
+    "dependencies": {
+      "@canlang/contracts": "0.1.0"
+    }
+  },
+  {
+    "name": "@canlang/work",
+    "version": "0.0.0",
+    "file": "work.tgz",
+    "bytes": 321654,
+    "sha256": "14edd8f34f0d5e4d121489bd0d49f39567994a6abbfa024eed047caf9275ceab",
+    "dependencies": {
+      "@canlang/contracts": "0.1.0",
+      "@canlang/state": "0.1.0"
+    }
+  }
+]

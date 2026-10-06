@@ -1,0 +1,773 @@
+{
+  "status": "success",
+  "checkout": "/Users/vince/Projects/canlang",
+  "payload": "/Users/vince/Projects/canlang/output/release-artifacts",
+  "scratch": "/private/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/canlang-release-artifact-consumer-OzAVKW",
+  "consumer": "/private/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/canlang-release-artifact-consumer-OzAVKW/consumer",
+  "node": "v24.21.0",
+  "commands": [
+    {
+      "label": "bun-version",
+      "executable": "bun",
+      "args": [
+        "--version"
+      ],
+      "cwd": "/private/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/canlang-release-artifact-consumer-OzAVKW/consumer",
+      "exit": 0,
+      "signal": null,
+      "error": null,
+      "stdoutLog": "/private/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/canlang-release-artifact-consumer-OzAVKW/logs/bun-version.stdout.log",
+      "stdoutSha256": "b99b4c7cdf236f59bc9f65d963deaecae3b16a7dad87939cacb9057f7664daee",
+      "stderrLog": "/private/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/canlang-release-artifact-consumer-OzAVKW/logs/bun-version.stderr.log",
+      "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "label": "manifest-cloudflare",
+      "executable": "tar",
+      "args": [
+        "-xOf",
+        "/Users/vince/Projects/canlang/output/release-artifacts/cloudflare-0.1.0.tgz",
+        "package/package.json"
+      ],
+      "cwd": "/private/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/canlang-release-artifact-consumer-OzAVKW/consumer",
+      "exit": 0,
+      "signal": null,
+      "error": null,
+      "stdoutLog": "/private/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/canlang-release-artifact-consumer-OzAVKW/logs/manifest-cloudflare.stdout.log",
+      "stdoutSha256": "2ff396ab83b07c7885ff42305cb6ccfec95e3205fbd499a182f710f722e56140",
+      "stderrLog": "/private/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/canlang-release-artifact-consumer-OzAVKW/logs/manifest-cloudflare.stderr.log",
+      "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "label": "manifest-contracts",
+      "executable": "tar",
+      "args": [
+        "-xOf",
+        "/Users/vince/Projects/canlang/output/release-artifacts/contracts-0.1.0.tgz",
+        "package/package.json"
+      ],
+      "cwd": "/private/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/canlang-release-artifact-consumer-OzAVKW/consumer",
+      "exit": 0,
+      "signal": null,
+      "error": null,
+      "stdoutLog": "/private/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/canlang-release-artifact-consumer-OzAVKW/logs/manifest-contracts.stdout.log",
+      "stdoutSha256": "77d6b51fade16c2c304664ec5ee55c820121314e7b6ab8cdca6266ce21c78bf3",
+      "stderrLog": "/private/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/canlang-release-artifact-consumer-OzAVKW/logs/manifest-contracts.stderr.log",
+      "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "label": "manifest-files",
+      "executable": "tar",
+      "args": [
+        "-xOf",
+        "/Users/vince/Projects/canlang/output/release-artifacts/files-0.0.0.tgz",
+        "package/package.json"
+      ],
+      "cwd": "/private/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/canlang-release-artifact-consumer-OzAVKW/consumer",
+      "exit": 0,
+      "signal": null,
+      "error": null,
+      "stdoutLog": "/private/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/canlang-release-artifact-consumer-OzAVKW/logs/manifest-files.stdout.log",
+      "stdoutSha256": "d15feb1341338635872322cf90690e52d90975b3a5d89745c5ce077e49371fab",
+      "stderrLog": "/private/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/canlang-release-artifact-consumer-OzAVKW/logs/manifest-files.stderr.log",
+      "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "label": "manifest-identity",
+      "executable": "tar",
+      "args": [
+        "-xOf",
+        "/Users/vince/Projects/canlang/output/release-artifacts/identity-0.1.0.tgz",
+        "package/package.json"
+      ],
+      "cwd": "/private/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/canlang-release-artifact-consumer-OzAVKW/consumer",
+      "exit": 0,
+      "signal": null,
+      "error": null,
+      "stdoutLog": "/private/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/canlang-release-artifact-consumer-OzAVKW/logs/manifest-identity.stdout.log",
+      "stdoutSha256": "2995013cf41835d84fc8ad0bd5be0a3adf36e823f24530a667f8930df1448f7d",
+      "stderrLog": "/private/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/canlang-release-artifact-consumer-OzAVKW/logs/manifest-identity.stderr.log",
+      "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "label": "manifest-interfaces",
+      "executable": "tar",
+      "args": [
+        "-xOf",
+        "/Users/vince/Projects/canlang/output/release-artifacts/interfaces-0.1.0.tgz",
+        "package/package.json"
+      ],
+      "cwd": "/private/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/canlang-release-artifact-consumer-OzAVKW/consumer",
+      "exit": 0,
+      "signal": null,
+      "error": null,
+      "stdoutLog": "/private/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/canlang-release-artifact-consumer-OzAVKW/logs/manifest-interfaces.stdout.log",
+      "stdoutSha256": "43fc4c5a8fcd2a673e5aa0deb4918b0448e35034a9ccad6e06660022c8fcf2e2",
+      "stderrLog": "/private/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/canlang-release-artifact-consumer-OzAVKW/logs/manifest-interfaces.stderr.log",
+      "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "label": "manifest-services",
+      "executable": "tar",
+      "args": [
+        "-xOf",
+        "/Users/vince/Projects/canlang/output/release-artifacts/services-0.0.0.tgz",
+        "package/package.json"
+      ],
+      "cwd": "/private/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/canlang-release-artifact-consumer-OzAVKW/consumer",
+      "exit": 0,
+      "signal": null,
+      "error": null,
+      "stdoutLog": "/private/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/canlang-release-artifact-consumer-OzAVKW/logs/manifest-services.stdout.log",
+      "stdoutSha256": "ea908368d8346aeaf4710c4ca2d3c433d5cfdbd026c0576c27c866dddcd8ebe9",
+      "stderrLog": "/private/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/canlang-release-artifact-consumer-OzAVKW/logs/manifest-services.stderr.log",
+      "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "label": "manifest-state",
+      "executable": "tar",
+      "args": [
+        "-xOf",
+        "/Users/vince/Projects/canlang/output/release-artifacts/state-0.1.0.tgz",
+        "package/package.json"
+      ],
+      "cwd": "/private/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/canlang-release-artifact-consumer-OzAVKW/consumer",
+      "exit": 0,
+      "signal": null,
+      "error": null,
+      "stdoutLog": "/private/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/canlang-release-artifact-consumer-OzAVKW/logs/manifest-state.stdout.log",
+      "stdoutSha256": "d14fadac79320d0f3e651d5f0f30796e34491a73fca7046b7d8e841d87f393b2",
+      "stderrLog": "/private/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/canlang-release-artifact-consumer-OzAVKW/logs/manifest-state.stderr.log",
+      "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "label": "manifest-stdlib",
+      "executable": "tar",
+      "args": [
+        "-xOf",
+        "/Users/vince/Projects/canlang/output/release-artifacts/stdlib-0.1.0.tgz",
+        "package/package.json"
+      ],
+      "cwd": "/private/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/canlang-release-artifact-consumer-OzAVKW/consumer",
+      "exit": 0,
+      "signal": null,
+      "error": null,
+      "stdoutLog": "/private/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/canlang-release-artifact-consumer-OzAVKW/logs/manifest-stdlib.stdout.log",
+      "stdoutSha256": "da306a2a711e526009ea7b3e7edeaa134b40e00f4935460df1ef65eca6c34747",
+      "stderrLog": "/private/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/canlang-release-artifact-consumer-OzAVKW/logs/manifest-stdlib.stderr.log",
+      "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "label": "manifest-testkit",
+      "executable": "tar",
+      "args": [
+        "-xOf",
+        "/Users/vince/Projects/canlang/output/release-artifacts/testkit-0.1.0.tgz",
+        "package/package.json"
+      ],
+      "cwd": "/private/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/canlang-release-artifact-consumer-OzAVKW/consumer",
+      "exit": 0,
+      "signal": null,
+      "error": null,
+      "stdoutLog": "/private/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/canlang-release-artifact-consumer-OzAVKW/logs/manifest-testkit.stdout.log",
+      "stdoutSha256": "93a88b4f71e03aa4dd09b1ea6c9c4fc27ed83afceb676978458e4669f4929e98",
+      "stderrLog": "/private/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/canlang-release-artifact-consumer-OzAVKW/logs/manifest-testkit.stderr.log",
+      "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "label": "manifest-ui",
+      "executable": "tar",
+      "args": [
+        "-xOf",
+        "/Users/vince/Projects/canlang/output/release-artifacts/ui-0.1.0.tgz",
+        "package/package.json"
+      ],
+      "cwd": "/private/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/canlang-release-artifact-consumer-OzAVKW/consumer",
+      "exit": 0,
+      "signal": null,
+      "error": null,
+      "stdoutLog": "/private/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/canlang-release-artifact-consumer-OzAVKW/logs/manifest-ui.stdout.log",
+      "stdoutSha256": "091ebac1c4c7e0055123423f9400907b090ceaa496fc4c353630d14f7369ec42",
+      "stderrLog": "/private/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/canlang-release-artifact-consumer-OzAVKW/logs/manifest-ui.stderr.log",
+      "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "label": "manifest-values",
+      "executable": "tar",
+      "args": [
+        "-xOf",
+        "/Users/vince/Projects/canlang/output/release-artifacts/values-0.1.0.tgz",
+        "package/package.json"
+      ],
+      "cwd": "/private/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/canlang-release-artifact-consumer-OzAVKW/consumer",
+      "exit": 0,
+      "signal": null,
+      "error": null,
+      "stdoutLog": "/private/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/canlang-release-artifact-consumer-OzAVKW/logs/manifest-values.stdout.log",
+      "stdoutSha256": "4ab3b6c972ff5dd9e7349af5d37a2eeb7ff30a4a01dea5b33eed1ae690ceed89",
+      "stderrLog": "/private/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/canlang-release-artifact-consumer-OzAVKW/logs/manifest-values.stderr.log",
+      "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "label": "manifest-work",
+      "executable": "tar",
+      "args": [
+        "-xOf",
+        "/Users/vince/Projects/canlang/output/release-artifacts/work-0.0.0.tgz",
+        "package/package.json"
+      ],
+      "cwd": "/private/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/canlang-release-artifact-consumer-OzAVKW/consumer",
+      "exit": 0,
+      "signal": null,
+      "error": null,
+      "stdoutLog": "/private/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/canlang-release-artifact-consumer-OzAVKW/logs/manifest-work.stdout.log",
+      "stdoutSha256": "8626a7606fe4875fbadab9e191d82c9ab2c8153f0a847e1d4addc19fd10a4b3f",
+      "stderrLog": "/private/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/canlang-release-artifact-consumer-OzAVKW/logs/manifest-work.stderr.log",
+      "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "label": "manifest-work-kernel",
+      "executable": "tar",
+      "args": [
+        "-xOf",
+        "/Users/vince/Projects/canlang/output/release-artifacts/work-kernel-0.1.0.tgz",
+        "package/package.json"
+      ],
+      "cwd": "/private/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/canlang-release-artifact-consumer-OzAVKW/consumer",
+      "exit": 0,
+      "signal": null,
+      "error": null,
+      "stdoutLog": "/private/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/canlang-release-artifact-consumer-OzAVKW/logs/manifest-work-kernel.stdout.log",
+      "stdoutSha256": "680069381e33aa1393badcb942ef22502b29e9554f47bc82021d5b40ca9f446d",
+      "stderrLog": "/private/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/canlang-release-artifact-consumer-OzAVKW/logs/manifest-work-kernel.stderr.log",
+      "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "label": "isolated-install",
+      "executable": "bun",
+      "args": [
+        "install",
+        "--ignore-scripts"
+      ],
+      "cwd": "/private/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/canlang-release-artifact-consumer-OzAVKW/consumer",
+      "exit": 0,
+      "signal": null,
+      "error": null,
+      "stdoutLog": "/private/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/canlang-release-artifact-consumer-OzAVKW/logs/isolated-install.stdout.log",
+      "stdoutSha256": "8e8560303e18d2a7afbf0e763afab7dd9928600fb09eb22ca8ae5de96132eb22",
+      "stderrLog": "/private/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/canlang-release-artifact-consumer-OzAVKW/logs/isolated-install.stderr.log",
+      "stderrSha256": "5ba7e43ab904893bcba5ae4f48cc15468d378040a42ad90ba453321cb52ec111"
+    },
+    {
+      "label": "installed-worker",
+      "executable": "/Users/vince/.vite-plus/js_runtime/node/24.21.0/bin/node",
+      "args": [
+        "--permission",
+        "--allow-fs-read=/private/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/canlang-release-artifact-consumer-OzAVKW",
+        "--allow-fs-write=/private/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/canlang-release-artifact-consumer-OzAVKW",
+        "--allow-child-process",
+        "/private/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/canlang-release-artifact-consumer-OzAVKW/consumer/verify.mjs",
+        "--consumer",
+        "/Users/vince/Projects/canlang"
+      ],
+      "cwd": "/private/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/canlang-release-artifact-consumer-OzAVKW/consumer",
+      "exit": 0,
+      "signal": null,
+      "error": null,
+      "stdoutLog": "/private/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/canlang-release-artifact-consumer-OzAVKW/logs/installed-worker.stdout.log",
+      "stdoutSha256": "bc269471a08340e1859393268388b9293804447a579e0d93c4e562d0024b9d35",
+      "stderrLog": "/private/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/canlang-release-artifact-consumer-OzAVKW/logs/installed-worker.stderr.log",
+      "stderrSha256": "5c6c405393c1c19f29dcfcc5562c74f6ec0ff0580a3a19f281717faef8a6a853"
+    }
+  ],
+  "packages": [
+    {
+      "name": "@canlang/cloudflare",
+      "version": "0.1.0",
+      "private": false,
+      "tarball": "/Users/vince/Projects/canlang/output/release-artifacts/cloudflare-0.1.0.tgz",
+      "copiedTarball": "/private/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/canlang-release-artifact-consumer-OzAVKW/tarballs/cloudflare-0.1.0.tgz",
+      "bytes": 478622,
+      "sha256": "1410532684f10a5bcdceb20d4c6436163a7d8debb4cccabe25506feb7a835445",
+      "internalDependencies": {
+        "dependencies": {
+          "@canlang/contracts": {
+            "sourceRange": "workspace:*",
+            "packedRange": "0.1.0",
+            "targetVersion": "0.1.0"
+          },
+          "@canlang/identity": {
+            "sourceRange": "workspace:*",
+            "packedRange": "0.1.0",
+            "targetVersion": "0.1.0"
+          },
+          "@canlang/interfaces": {
+            "sourceRange": "workspace:*",
+            "packedRange": "0.1.0",
+            "targetVersion": "0.1.0"
+          },
+          "@canlang/state": {
+            "sourceRange": "workspace:*",
+            "packedRange": "0.1.0",
+            "targetVersion": "0.1.0"
+          },
+          "@canlang/stdlib": {
+            "sourceRange": "workspace:*",
+            "packedRange": "0.1.0",
+            "targetVersion": "0.1.0"
+          },
+          "@canlang/ui": {
+            "sourceRange": "workspace:*",
+            "packedRange": "0.1.0",
+            "targetVersion": "0.1.0"
+          },
+          "@canlang/values": {
+            "sourceRange": "workspace:*",
+            "packedRange": "0.1.0",
+            "targetVersion": "0.1.0"
+          },
+          "@canlang/work": {
+            "sourceRange": "workspace:*",
+            "packedRange": "0.0.0",
+            "targetVersion": "0.0.0"
+          }
+        },
+        "devDependencies": {
+          "@canlang/files": {
+            "sourceRange": "workspace:*",
+            "packedRange": "0.0.0",
+            "targetVersion": "0.0.0"
+          }
+        }
+      },
+      "internalRuntimeClosure": [
+        "@canlang/contracts",
+        "@canlang/identity",
+        "@canlang/interfaces",
+        "@canlang/state",
+        "@canlang/stdlib",
+        "@canlang/ui",
+        "@canlang/values",
+        "@canlang/work"
+      ]
+    },
+    {
+      "name": "@canlang/contracts",
+      "version": "0.1.0",
+      "private": false,
+      "tarball": "/Users/vince/Projects/canlang/output/release-artifacts/contracts-0.1.0.tgz",
+      "copiedTarball": "/private/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/canlang-release-artifact-consumer-OzAVKW/tarballs/contracts-0.1.0.tgz",
+      "bytes": 105380,
+      "sha256": "ff844fea131f44fb0723812088b5288cb136975f733c369c9901ec04bcd59d40",
+      "internalDependencies": {},
+      "internalRuntimeClosure": []
+    },
+    {
+      "name": "@canlang/files",
+      "version": "0.0.0",
+      "private": true,
+      "tarball": "/Users/vince/Projects/canlang/output/release-artifacts/files-0.0.0.tgz",
+      "copiedTarball": "/private/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/canlang-release-artifact-consumer-OzAVKW/tarballs/files-0.0.0.tgz",
+      "bytes": 61465,
+      "sha256": "5a96e5e621d7c9b9ab1aa7af9184e5f7d5a0539e0455cbbdcba2c40446cb936f",
+      "internalDependencies": {
+        "dependencies": {
+          "@canlang/contracts": {
+            "sourceRange": "workspace:*",
+            "packedRange": "0.1.0",
+            "targetVersion": "0.1.0"
+          },
+          "@canlang/services": {
+            "sourceRange": "workspace:*",
+            "packedRange": "0.0.0",
+            "targetVersion": "0.0.0"
+          }
+        }
+      },
+      "internalRuntimeClosure": [
+        "@canlang/contracts",
+        "@canlang/services"
+      ]
+    },
+    {
+      "name": "@canlang/identity",
+      "version": "0.1.0",
+      "private": true,
+      "tarball": "/Users/vince/Projects/canlang/output/release-artifacts/identity-0.1.0.tgz",
+      "copiedTarball": "/private/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/canlang-release-artifact-consumer-OzAVKW/tarballs/identity-0.1.0.tgz",
+      "bytes": 81120,
+      "sha256": "cf8be268a69f3d1c3ce6e5adb969bcc5f964c7e537b24d247b18b393833e9cb7",
+      "internalDependencies": {
+        "dependencies": {
+          "@canlang/contracts": {
+            "sourceRange": "workspace:*",
+            "packedRange": "0.1.0",
+            "targetVersion": "0.1.0"
+          }
+        }
+      },
+      "internalRuntimeClosure": [
+        "@canlang/contracts"
+      ]
+    },
+    {
+      "name": "@canlang/interfaces",
+      "version": "0.1.0",
+      "private": true,
+      "tarball": "/Users/vince/Projects/canlang/output/release-artifacts/interfaces-0.1.0.tgz",
+      "copiedTarball": "/private/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/canlang-release-artifact-consumer-OzAVKW/tarballs/interfaces-0.1.0.tgz",
+      "bytes": 390144,
+      "sha256": "49b78be866b83b6270c4043fead53f83c145c486c52f29eb13ea4594807347b4",
+      "internalDependencies": {
+        "dependencies": {
+          "@canlang/contracts": {
+            "sourceRange": "workspace:*",
+            "packedRange": "0.1.0",
+            "targetVersion": "0.1.0"
+          },
+          "@canlang/identity": {
+            "sourceRange": "workspace:*",
+            "packedRange": "0.1.0",
+            "targetVersion": "0.1.0"
+          },
+          "@canlang/ui": {
+            "sourceRange": "workspace:*",
+            "packedRange": "0.1.0",
+            "targetVersion": "0.1.0"
+          },
+          "@canlang/values": {
+            "sourceRange": "workspace:*",
+            "packedRange": "0.1.0",
+            "targetVersion": "0.1.0"
+          }
+        }
+      },
+      "internalRuntimeClosure": [
+        "@canlang/contracts",
+        "@canlang/identity",
+        "@canlang/ui",
+        "@canlang/values"
+      ]
+    },
+    {
+      "name": "@canlang/services",
+      "version": "0.0.0",
+      "private": true,
+      "tarball": "/Users/vince/Projects/canlang/output/release-artifacts/services-0.0.0.tgz",
+      "copiedTarball": "/private/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/canlang-release-artifact-consumer-OzAVKW/tarballs/services-0.0.0.tgz",
+      "bytes": 124573,
+      "sha256": "4f082d81e000f9c2a5723f2acb071a11a52c06c723d52812257c0db55a805766",
+      "internalDependencies": {
+        "dependencies": {
+          "@canlang/contracts": {
+            "sourceRange": "workspace:*",
+            "packedRange": "0.1.0",
+            "targetVersion": "0.1.0"
+          }
+        }
+      },
+      "internalRuntimeClosure": [
+        "@canlang/contracts"
+      ]
+    },
+    {
+      "name": "@canlang/state",
+      "version": "0.1.0",
+      "private": false,
+      "tarball": "/Users/vince/Projects/canlang/output/release-artifacts/state-0.1.0.tgz",
+      "copiedTarball": "/private/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/canlang-release-artifact-consumer-OzAVKW/tarballs/state-0.1.0.tgz",
+      "bytes": 643908,
+      "sha256": "36550d383cf33dda7fd47aa3b33ba9ad8790dc3cc5b5894e8e1b370116858dbf",
+      "internalDependencies": {
+        "dependencies": {
+          "@canlang/contracts": {
+            "sourceRange": "workspace:*",
+            "packedRange": "0.1.0",
+            "targetVersion": "0.1.0"
+          }
+        }
+      },
+      "internalRuntimeClosure": [
+        "@canlang/contracts"
+      ]
+    },
+    {
+      "name": "@canlang/stdlib",
+      "version": "0.1.0",
+      "private": false,
+      "tarball": "/Users/vince/Projects/canlang/output/release-artifacts/stdlib-0.1.0.tgz",
+      "copiedTarball": "/private/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/canlang-release-artifact-consumer-OzAVKW/tarballs/stdlib-0.1.0.tgz",
+      "bytes": 8347,
+      "sha256": "3ef34b977b70ca6468567cca5d842739e3354cff5ed8a940867c3264f27ae926",
+      "internalDependencies": {
+        "dependencies": {
+          "@canlang/values": {
+            "sourceRange": "workspace:*",
+            "packedRange": "0.1.0",
+            "targetVersion": "0.1.0"
+          }
+        }
+      },
+      "internalRuntimeClosure": [
+        "@canlang/contracts",
+        "@canlang/values"
+      ]
+    },
+    {
+      "name": "@canlang/testkit",
+      "version": "0.1.0",
+      "private": false,
+      "tarball": "/Users/vince/Projects/canlang/output/release-artifacts/testkit-0.1.0.tgz",
+      "copiedTarball": "/private/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/canlang-release-artifact-consumer-OzAVKW/tarballs/testkit-0.1.0.tgz",
+      "bytes": 55534,
+      "sha256": "fd2a0ca45c82d5994cdaad95fb14bdbeb1d00713a4de9089579b1b4e0d54e61e",
+      "internalDependencies": {
+        "dependencies": {
+          "@canlang/cloudflare": {
+            "sourceRange": "workspace:*",
+            "packedRange": "0.1.0",
+            "targetVersion": "0.1.0"
+          },
+          "@canlang/contracts": {
+            "sourceRange": "workspace:*",
+            "packedRange": "0.1.0",
+            "targetVersion": "0.1.0"
+          }
+        },
+        "devDependencies": {
+          "@canlang/identity": {
+            "sourceRange": "workspace:*",
+            "packedRange": "0.1.0",
+            "targetVersion": "0.1.0"
+          },
+          "@canlang/services": {
+            "sourceRange": "workspace:*",
+            "packedRange": "0.0.0",
+            "targetVersion": "0.0.0"
+          },
+          "@canlang/state": {
+            "sourceRange": "workspace:*",
+            "packedRange": "0.1.0",
+            "targetVersion": "0.1.0"
+          },
+          "@canlang/values": {
+            "sourceRange": "workspace:*",
+            "packedRange": "0.1.0",
+            "targetVersion": "0.1.0"
+          },
+          "@canlang/work": {
+            "sourceRange": "workspace:*",
+            "packedRange": "0.0.0",
+            "targetVersion": "0.0.0"
+          }
+        }
+      },
+      "internalRuntimeClosure": [
+        "@canlang/cloudflare",
+        "@canlang/contracts",
+        "@canlang/identity",
+        "@canlang/interfaces",
+        "@canlang/state",
+        "@canlang/stdlib",
+        "@canlang/ui",
+        "@canlang/values",
+        "@canlang/work"
+      ]
+    },
+    {
+      "name": "@canlang/ui",
+      "version": "0.1.0",
+      "private": true,
+      "tarball": "/Users/vince/Projects/canlang/output/release-artifacts/ui-0.1.0.tgz",
+      "copiedTarball": "/private/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/canlang-release-artifact-consumer-OzAVKW/tarballs/ui-0.1.0.tgz",
+      "bytes": 550466,
+      "sha256": "96aa5c64febb8d9debb5cd5f2b3ac8759dbe3e19529069b2fc0cbb0c4ef607d5",
+      "internalDependencies": {
+        "dependencies": {
+          "@canlang/contracts": {
+            "sourceRange": "workspace:*",
+            "packedRange": "0.1.0",
+            "targetVersion": "0.1.0"
+          }
+        }
+      },
+      "internalRuntimeClosure": [
+        "@canlang/contracts"
+      ]
+    },
+    {
+      "name": "@canlang/values",
+      "version": "0.1.0",
+      "private": false,
+      "tarball": "/Users/vince/Projects/canlang/output/release-artifacts/values-0.1.0.tgz",
+      "copiedTarball": "/private/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/canlang-release-artifact-consumer-OzAVKW/tarballs/values-0.1.0.tgz",
+      "bytes": 507560,
+      "sha256": "08c840566f80c5a2bf111f6dcfc9eee6e0f67c00323299cd79ffe0ba9ef04683",
+      "internalDependencies": {
+        "dependencies": {
+          "@canlang/contracts": {
+            "sourceRange": "workspace:*",
+            "packedRange": "0.1.0",
+            "targetVersion": "0.1.0"
+          }
+        }
+      },
+      "internalRuntimeClosure": [
+        "@canlang/contracts"
+      ]
+    },
+    {
+      "name": "@canlang/work",
+      "version": "0.0.0",
+      "private": true,
+      "tarball": "/Users/vince/Projects/canlang/output/release-artifacts/work-0.0.0.tgz",
+      "copiedTarball": "/private/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/canlang-release-artifact-consumer-OzAVKW/tarballs/work-0.0.0.tgz",
+      "bytes": 321654,
+      "sha256": "14edd8f34f0d5e4d121489bd0d49f39567994a6abbfa024eed047caf9275ceab",
+      "internalDependencies": {
+        "dependencies": {
+          "@canlang/contracts": {
+            "sourceRange": "workspace:*",
+            "packedRange": "0.1.0",
+            "targetVersion": "0.1.0"
+          },
+          "@canlang/state": {
+            "sourceRange": "workspace:*",
+            "packedRange": "0.1.0",
+            "targetVersion": "0.1.0"
+          }
+        }
+      },
+      "internalRuntimeClosure": [
+        "@canlang/contracts",
+        "@canlang/state"
+      ]
+    },
+    {
+      "name": "@canlang/work-kernel",
+      "version": "0.1.0",
+      "private": false,
+      "tarball": "/Users/vince/Projects/canlang/output/release-artifacts/work-kernel-0.1.0.tgz",
+      "copiedTarball": "/private/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/canlang-release-artifact-consumer-OzAVKW/tarballs/work-kernel-0.1.0.tgz",
+      "bytes": 73464,
+      "sha256": "4a5242ba17b2336fb4a89afe068897e226242f67c51b93d342e9df0462f17649",
+      "internalDependencies": {
+        "dependencies": {
+          "@canlang/contracts": {
+            "sourceRange": "workspace:*",
+            "packedRange": "0.1.0",
+            "targetVersion": "0.1.0"
+          }
+        }
+      },
+      "internalRuntimeClosure": [
+        "@canlang/contracts"
+      ]
+    }
+  ],
+  "scope": "Exact release tarball closure under Bun isolated installation and installed Worker checks; no build, repack, registry publication or native release/adoption.",
+  "bun": "1.4.2",
+  "payloadManifestSha256": "9cd905dc05e9ccbcfaf1143aea1b4f10ded535631bd5c432e58724540c6375d4",
+  "distManifestSha256": "a722a47f74b29f8d89065d6c35b7ade5d00d2488b221a434e267426e62fb8efe",
+  "verifierSha256": "0b9b9758046303bacdc2e302f465c19c5ca2f45f0667f885e56ae43752f76443",
+  "worker": {
+    "node": "v24.21.0",
+    "checkoutRead": "ERR_ACCESS_DENIED",
+    "bunPermissionLimit": "Bun and workerd subprocesses do not inherit Node filesystem permissions; resolved producer entries and emitted runtime bytes are checked.",
+    "directDependencies": [
+      "@canlang/cloudflare"
+    ],
+    "linker": "isolated",
+    "installConfiguration": "[install]\nlinker = \"isolated\"\n",
+    "directPackageBindings": [
+      "cloudflare"
+    ],
+    "ownerEntryRealpath": "/private/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/canlang-release-artifact-consumer-OzAVKW/consumer/node_modules/.bun/@canlang+cloudflare@+private+var+folders+5x+bpszcvmj1tddmjp35y21dt680000gn+T+canlan+c81e7cac06ad7683+2b91fc17bf64bdfd/node_modules/@canlang/cloudflare/dist/deploy/bundle.js",
+    "ownerResolutions": {
+      "@canlang/cloudflare/worker": "/private/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/canlang-release-artifact-consumer-OzAVKW/consumer/node_modules/.bun/@canlang+cloudflare@+private+var+folders+5x+bpszcvmj1tddmjp35y21dt680000gn+T+canlan+c81e7cac06ad7683+2b91fc17bf64bdfd/node_modules/@canlang/cloudflare/dist/worker/entry.js",
+      "@canlang/cloudflare/worker/main": "/private/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/canlang-release-artifact-consumer-OzAVKW/consumer/node_modules/.bun/@canlang+cloudflare@+private+var+folders+5x+bpszcvmj1tddmjp35y21dt680000gn+T+canlan+c81e7cac06ad7683+2b91fc17bf64bdfd/node_modules/@canlang/cloudflare/dist/worker/main.js",
+      "@canlang/cloudflare/runtime/mcp-registry": "/private/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/canlang-release-artifact-consumer-OzAVKW/consumer/node_modules/.bun/@canlang+cloudflare@+private+var+folders+5x+bpszcvmj1tddmjp35y21dt680000gn+T+canlan+c81e7cac06ad7683+2b91fc17bf64bdfd/node_modules/@canlang/cloudflare/dist/runtime/mcp-registry.js",
+      "@canlang/interfaces/mcp/server": "/private/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/canlang-release-artifact-consumer-OzAVKW/consumer/node_modules/.bun/@canlang+interfaces@+private+var+folders+5x+bpszcvmj1tddmjp35y21dt680000gn+T+canlan+207e0f44871480c5+2b91fc17bf64bdfd/node_modules/@canlang/interfaces/dist/src/mcp/server.js",
+      "@canlang/interfaces/http/operations": "/private/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/canlang-release-artifact-consumer-OzAVKW/consumer/node_modules/.bun/@canlang+interfaces@+private+var+folders+5x+bpszcvmj1tddmjp35y21dt680000gn+T+canlan+207e0f44871480c5+2b91fc17bf64bdfd/node_modules/@canlang/interfaces/dist/src/http/operations.js",
+      "@canlang/contracts/distribution": "/private/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/canlang-release-artifact-consumer-OzAVKW/consumer/node_modules/.bun/@canlang+contracts@+private+var+folders+5x+bpszcvmj1tddmjp35y21dt680000gn+T+canlan+77e6376546be4547/node_modules/@canlang/contracts/dist/distribution.js",
+      "@canlang/ui/distribution": "/private/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/canlang-release-artifact-consumer-OzAVKW/consumer/node_modules/.bun/@canlang+ui@+private+var+folders+5x+bpszcvmj1tddmjp35y21dt680000gn+T+canlan+e833caf8a3a15905/node_modules/@canlang/ui/dist/src/distribution.js",
+      "@canlang/identity/distribution": "/private/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/canlang-release-artifact-consumer-OzAVKW/consumer/node_modules/.bun/@canlang+identity@+private+var+folders+5x+bpszcvmj1tddmjp35y21dt680000gn+T+canlan+ca4f1f159d941220/node_modules/@canlang/identity/dist/src/distribution.js",
+      "@canlang/stdlib/distribution": "/private/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/canlang-release-artifact-consumer-OzAVKW/consumer/node_modules/.bun/@canlang+stdlib@+private+var+folders+5x+bpszcvmj1tddmjp35y21dt680000gn+T+canlan+3f0a2132af6d4372/node_modules/@canlang/stdlib/dist/src/distribution.js",
+      "@canlang/state/distribution": "/private/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/canlang-release-artifact-consumer-OzAVKW/consumer/node_modules/.bun/@canlang+state@+private+var+folders+5x+bpszcvmj1tddmjp35y21dt680000gn+T+canlan+063a157bfcd92e15/node_modules/@canlang/state/dist/src/distribution.js",
+      "@canlang/values/distribution": "/private/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/canlang-release-artifact-consumer-OzAVKW/consumer/node_modules/.bun/@canlang+values@+private+var+folders+5x+bpszcvmj1tddmjp35y21dt680000gn+T+canlan+b27a0f11848ba939/node_modules/@canlang/values/dist/src/distribution.js",
+      "@canlang/values/bindings/generated/values_semantics_bg.wasm": "/private/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/canlang-release-artifact-consumer-OzAVKW/consumer/node_modules/.bun/@canlang+values@+private+var+folders+5x+bpszcvmj1tddmjp35y21dt680000gn+T+canlan+b27a0f11848ba939/node_modules/@canlang/values/dist/bindings/generated/values_semantics_bg.wasm",
+      "@canlang/values/bindings/backend": "/private/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/canlang-release-artifact-consumer-OzAVKW/consumer/node_modules/.bun/@canlang+values@+private+var+folders+5x+bpszcvmj1tddmjp35y21dt680000gn+T+canlan+b27a0f11848ba939/node_modules/@canlang/values/dist/bindings/backend.js",
+      "@canlang/state/receipt": "/private/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/canlang-release-artifact-consumer-OzAVKW/consumer/node_modules/.bun/@canlang+state@+private+var+folders+5x+bpszcvmj1tddmjp35y21dt680000gn+T+canlan+063a157bfcd92e15/node_modules/@canlang/state/dist/src/receipt/index.js"
+    },
+    "installedLocations": [
+      "node_modules/.bun/@canlang+cloudflare@+private+var+folders+5x+bpszcvmj1tddmjp35y21dt680000gn+T+canlan+c81e7cac06ad7683+2b91fc17bf64bdfd/node_modules/@canlang/cloudflare/dist/deploy/bundle.js",
+      "node_modules/.bun/@canlang+cloudflare@+private+var+folders+5x+bpszcvmj1tddmjp35y21dt680000gn+T+canlan+c81e7cac06ad7683+2b91fc17bf64bdfd/node_modules/@canlang/cloudflare/dist/worker/entry.js",
+      "node_modules/.bun/@canlang+cloudflare@+private+var+folders+5x+bpszcvmj1tddmjp35y21dt680000gn+T+canlan+c81e7cac06ad7683+2b91fc17bf64bdfd/node_modules/@canlang/cloudflare/dist/worker/main.js",
+      "node_modules/.bun/@canlang+cloudflare@+private+var+folders+5x+bpszcvmj1tddmjp35y21dt680000gn+T+canlan+c81e7cac06ad7683+2b91fc17bf64bdfd/node_modules/@canlang/cloudflare/dist/runtime/mcp-registry.js",
+      "node_modules/.bun/@canlang+interfaces@+private+var+folders+5x+bpszcvmj1tddmjp35y21dt680000gn+T+canlan+207e0f44871480c5+2b91fc17bf64bdfd/node_modules/@canlang/interfaces/dist/src/mcp/server.js",
+      "node_modules/.bun/@canlang+interfaces@+private+var+folders+5x+bpszcvmj1tddmjp35y21dt680000gn+T+canlan+207e0f44871480c5+2b91fc17bf64bdfd/node_modules/@canlang/interfaces/dist/src/http/operations.js",
+      "node_modules/.bun/@canlang+contracts@+private+var+folders+5x+bpszcvmj1tddmjp35y21dt680000gn+T+canlan+77e6376546be4547/node_modules/@canlang/contracts/dist/distribution.js",
+      "node_modules/.bun/@canlang+contracts@+private+var+folders+5x+bpszcvmj1tddmjp35y21dt680000gn+T+canlan+77e6376546be4547/node_modules/@canlang/contracts/dist",
+      "node_modules/.bun/@canlang+ui@+private+var+folders+5x+bpszcvmj1tddmjp35y21dt680000gn+T+canlan+e833caf8a3a15905/node_modules/@canlang/ui/dist/src/distribution.js",
+      "node_modules/.bun/@canlang+ui@+private+var+folders+5x+bpszcvmj1tddmjp35y21dt680000gn+T+canlan+e833caf8a3a15905/node_modules/@canlang/ui/dist/src",
+      "node_modules/.bun/@canlang+identity@+private+var+folders+5x+bpszcvmj1tddmjp35y21dt680000gn+T+canlan+ca4f1f159d941220/node_modules/@canlang/identity/dist/src/distribution.js",
+      "node_modules/.bun/@canlang+identity@+private+var+folders+5x+bpszcvmj1tddmjp35y21dt680000gn+T+canlan+ca4f1f159d941220/node_modules/@canlang/identity/dist/src",
+      "node_modules/.bun/@canlang+stdlib@+private+var+folders+5x+bpszcvmj1tddmjp35y21dt680000gn+T+canlan+3f0a2132af6d4372/node_modules/@canlang/stdlib/dist/src/distribution.js",
+      "node_modules/.bun/@canlang+stdlib@+private+var+folders+5x+bpszcvmj1tddmjp35y21dt680000gn+T+canlan+3f0a2132af6d4372/node_modules/@canlang/stdlib/dist/src",
+      "node_modules/.bun/@canlang+state@+private+var+folders+5x+bpszcvmj1tddmjp35y21dt680000gn+T+canlan+063a157bfcd92e15/node_modules/@canlang/state/dist/src/distribution.js",
+      "node_modules/.bun/@canlang+state@+private+var+folders+5x+bpszcvmj1tddmjp35y21dt680000gn+T+canlan+063a157bfcd92e15/node_modules/@canlang/state/dist/src",
+      "node_modules/.bun/@canlang+values@+private+var+folders+5x+bpszcvmj1tddmjp35y21dt680000gn+T+canlan+b27a0f11848ba939/node_modules/@canlang/values/dist/src/distribution.js",
+      "node_modules/.bun/@canlang+values@+private+var+folders+5x+bpszcvmj1tddmjp35y21dt680000gn+T+canlan+b27a0f11848ba939/node_modules/@canlang/values/dist/src",
+      "node_modules/.bun/@canlang+values@+private+var+folders+5x+bpszcvmj1tddmjp35y21dt680000gn+T+canlan+b27a0f11848ba939/node_modules/@canlang/values/dist/bindings",
+      "node_modules/.bun/@canlang+ui@+private+var+folders+5x+bpszcvmj1tddmjp35y21dt680000gn+T+canlan+e833caf8a3a15905/node_modules/@canlang/ui/dist/browser",
+      "node_modules/.bun/@canlang+cloudflare@+private+var+folders+5x+bpszcvmj1tddmjp35y21dt680000gn+T+canlan+c81e7cac06ad7683+2b91fc17bf64bdfd/node_modules/@canlang/cloudflare/dist/deploy/bundle.js",
+      "node_modules/.bun/@canlang+cloudflare@+private+var+folders+5x+bpszcvmj1tddmjp35y21dt680000gn+T+canlan+c81e7cac06ad7683+2b91fc17bf64bdfd/node_modules/@canlang/cloudflare/dist/deploy/producer-files.js",
+      "node_modules/.bun/@canlang+values@+private+var+folders+5x+bpszcvmj1tddmjp35y21dt680000gn+T+canlan+b27a0f11848ba939/node_modules/@canlang/values/dist/bindings/generated/values_semantics_bg.wasm",
+      "node_modules/.bun/@canlang+values@+private+var+folders+5x+bpszcvmj1tddmjp35y21dt680000gn+T+canlan+b27a0f11848ba939/node_modules/@canlang/values/dist/bindings/generated/values_semantics_bg.wasm",
+      "node_modules/.bun/@canlang+values@+private+var+folders+5x+bpszcvmj1tddmjp35y21dt680000gn+T+canlan+b27a0f11848ba939/node_modules/@canlang/values/dist/bindings/backend.js",
+      "node_modules/.bun/@canlang+state@+private+var+folders+5x+bpszcvmj1tddmjp35y21dt680000gn+T+canlan+063a157bfcd92e15/node_modules/@canlang/state/dist/src/receipt/index.js",
+      "node_modules/.bun/@canlang+cloudflare@+private+var+folders+5x+bpszcvmj1tddmjp35y21dt680000gn+T+canlan+c81e7cac06ad7683+2b91fc17bf64bdfd/node_modules/@canlang/cloudflare/dist/dev/local-run.js"
+    ],
+    "esmCondition": "import.js",
+    "workerModules": 159,
+    "productionWorker": {
+      "initializeStatus": 401,
+      "body": "{\"error\":{\"code\":\"forbidden\",\"message\":\"Authentication required.\"}}"
+    },
+    "wasm": {
+      "key": "vendor/values-bindings/generated/values_semantics_bg.wasm",
+      "bytes": 622216,
+      "sha256": "b0d44d9a4af37d23eacbde9c9841ef0c75822bd97e9e151c11af4a5cb4561b2f",
+      "compiledModule": "ABI accepted; add-int(1,2)=3",
+      "workerd": {
+        "compiled": true,
+        "abi": 1,
+        "sum": "3"
+      }
+    },
+    "browser": {
+      "browser/bootstrap.js": {
+        "bytes": 10300,
+        "sha256": "e26a1833631bd3b94ca2d690c74fe654c9a1a071b188d402f3b0d8c96ae59cd0",
+        "contentType": "application/javascript"
+      },
+      "browser/can-style.css": {
+        "bytes": 1155983,
+        "sha256": "5cdb8bf94708637e24d344062333cb68b4efbf06b284a5f16200c54eecf46333",
+        "contentType": "text/css"
+      },
+      "browser/polling.js": {
+        "bytes": 6057,
+        "sha256": "f47f6a1087745b50d20bf723fee0a23599a6fbe2f13a52d7557ee7d24ef066d7",
+        "contentType": "application/javascript"
+      }
+    },
+    "negativeCases": [
+      "missing values_semantics_bg.wasm",
+      "corrupt values_semantics_bg.wasm",
+      "missing can-style.css",
+      "corrupt can-style.css"
+    ],
+    "observer": "exact missing producer remains fail-closed"
+  }
+}

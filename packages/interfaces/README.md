@@ -64,18 +64,20 @@ Key exports (all verified in `src/`):
 
 ## Scripts
 
-Only these scripts exist in `package.json` (run from the package directory):
+From the repository root, after `bun install --frozen-lockfile`:
 
-| Script      | Command                                                   |
-| ----------- | --------------------------------------------------------- |
-| `build`     | `tsc -p tsconfig.json && cp -r test/fixtures dist/interfaces/test/fixtures` |
-| `typecheck` | `tsc -p tsconfig.json --noEmit`                           |
-| `test`      | `bun run build && node --test "dist/interfaces/test/**/*.test.js"` |
-| `clean`     | `rm -rf dist/`                                            |
+```sh
+bun run build --filter=@canlang/interfaces
+bun run --filter @canlang/interfaces typecheck
+bun run --filter @canlang/interfaces test
+```
 
-Build: `bun run build` emits `dist/` (JS + declarations + source maps)
-plus copied test fixtures. Test: `bun run test` rebuilds, then runs the
-compiled tests with `node --test`.
+The filtered root build schedules this package and its declared producer
+dependencies. It emits only each owner’s outputs, cleaning them before execution
+or cache restoration. Package `typecheck` and `test` use the same graph, then
+run the owning TypeScript check or compiled `node:test` suite uncached.
+Internal `build:emit`, `typecheck:check`, and `test:unit` tasks are execution
+steps; use the public commands above to prepare dependencies.
 
 ## Source layout
 
@@ -109,3 +111,10 @@ and typed ingress verification (S8), L7 worker assembly at B1.
 
 No `LICENSE` file or `license` field exists in the repo, so no license
 pointer is given.
+
+## Distribution API
+
+`@canlang/interfaces/distribution` exposes the producer-owned compiled module
+directory URL for portable Worker staging. Tests remain outside that module
+inventory. Compilation stays within each owning package; public commands also
+prepare declared dependencies.

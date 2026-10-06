@@ -1,0 +1,170 @@
+[
+  {
+    "case": "allowed-root",
+    "desired_policy": "Allow",
+    "turbo_result": "Passed",
+    "exit_code": 0,
+    "notes": ""
+  },
+  {
+    "case": "undeclared-root",
+    "desired_policy": "Reject",
+    "turbo_result": "Detected",
+    "exit_code": 1,
+    "notes": ""
+  },
+  {
+    "case": "sibling-source-declared",
+    "desired_policy": "Reject",
+    "turbo_result": "Detected",
+    "exit_code": 1,
+    "notes": ""
+  },
+  {
+    "case": "sibling-source-undeclared",
+    "desired_policy": "Reject",
+    "turbo_result": "Detected",
+    "exit_code": 1,
+    "notes": ""
+  },
+  {
+    "case": "sibling-dist-declared",
+    "desired_policy": "Reject",
+    "turbo_result": "Detected",
+    "exit_code": 1,
+    "notes": ""
+  },
+  {
+    "case": "unexported-subpath",
+    "desired_policy": "Reject",
+    "turbo_result": "Passed",
+    "exit_code": 0,
+    "notes": "Bun runtime rejects (runtime.json); Turbo does not enforce exports here."
+  },
+  {
+    "case": "alias-source-declared",
+    "desired_policy": "Reject",
+    "turbo_result": "Detected",
+    "exit_code": 1,
+    "notes": ""
+  },
+  {
+    "case": "alias-source-undeclared",
+    "desired_policy": "Reject",
+    "turbo_result": "Detected",
+    "exit_code": 1,
+    "notes": ""
+  },
+  {
+    "case": "type-only-import-undeclared",
+    "desired_policy": "Reject",
+    "turbo_result": "Detected",
+    "exit_code": 1,
+    "notes": ""
+  },
+  {
+    "case": "type-only-export-undeclared",
+    "desired_policy": "Reject",
+    "turbo_result": "Detected",
+    "exit_code": 1,
+    "notes": ""
+  },
+  {
+    "case": "type-query-undeclared",
+    "desired_policy": "Reject",
+    "turbo_result": "Passed",
+    "exit_code": 0,
+    "notes": "Coverage gap for proposed boundary gate."
+  },
+  {
+    "case": "reexport-undeclared",
+    "desired_policy": "Reject",
+    "turbo_result": "Detected",
+    "exit_code": 1,
+    "notes": ""
+  },
+  {
+    "case": "reexport-sibling",
+    "desired_policy": "Reject",
+    "turbo_result": "Detected",
+    "exit_code": 1,
+    "notes": ""
+  },
+  {
+    "case": "dynamic-literal-undeclared",
+    "desired_policy": "Reject",
+    "turbo_result": "Detected",
+    "exit_code": 1,
+    "notes": ""
+  },
+  {
+    "case": "dynamic-constant-undeclared",
+    "desired_policy": "Reject",
+    "turbo_result": "Passed",
+    "exit_code": 0,
+    "notes": "Coverage gap for proposed boundary gate."
+  },
+  {
+    "case": "dynamic-concat-sibling",
+    "desired_policy": "Reject",
+    "turbo_result": "Passed",
+    "exit_code": 0,
+    "notes": "Coverage gap for proposed boundary gate."
+  },
+  {
+    "case": "dynamic-computed-sibling",
+    "desired_policy": "Reject",
+    "turbo_result": "Passed",
+    "exit_code": 0,
+    "notes": "Coverage gap for proposed boundary gate."
+  },
+  {
+    "case": "fs-read-sibling",
+    "desired_policy": "Review owned API / reject producer bypass",
+    "turbo_result": "Passed",
+    "exit_code": 0,
+    "notes": "No semantic producer/data distinction; explicit ownership policy required."
+  },
+  {
+    "case": "url-sibling",
+    "desired_policy": "Review owned API / reject producer bypass",
+    "turbo_result": "Passed",
+    "exit_code": 0,
+    "notes": "No semantic producer/data distinction; explicit ownership policy required."
+  },
+  {
+    "case": "fs-read-local-control",
+    "desired_policy": "Allow",
+    "turbo_result": "Passed",
+    "exit_code": 0,
+    "notes": ""
+  },
+  {
+    "case": "test-undeclared",
+    "desired_policy": "Reject",
+    "turbo_result": "Detected",
+    "exit_code": 1,
+    "notes": ""
+  },
+  {
+    "case": "test-sibling",
+    "desired_policy": "Reject",
+    "turbo_result": "Detected",
+    "exit_code": 1,
+    "notes": ""
+  },
+  {
+    "case": "root-tool-undeclared",
+    "desired_policy": "Reject",
+    "turbo_result": "Passed",
+    "exit_code": 0,
+    "notes": "Root-owned tooling not diagnosed."
+  },
+  {
+    "case": "root-tool-sibling",
+    "desired_policy": "Reject",
+    "turbo_result": "Passed",
+    "exit_code": 0,
+    "notes": "Root-owned tooling not diagnosed."
+  }
+]

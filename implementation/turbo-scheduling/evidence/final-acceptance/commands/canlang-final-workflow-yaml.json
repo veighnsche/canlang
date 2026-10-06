@@ -1,0 +1,83 @@
+[
+  {
+    "file": ".github/workflows/b1-join.yml",
+    "jobs": [
+      "build-catalog",
+      "b1-gate"
+    ]
+  },
+  {
+    "file": ".github/workflows/b2-join.yml",
+    "jobs": [
+      "build",
+      "b2-gate"
+    ]
+  },
+  {
+    "file": ".github/workflows/e2e.yml",
+    "jobs": [
+      "playwright"
+    ]
+  },
+  {
+    "file": ".github/workflows/integration.yml",
+    "jobs": [
+      "workspace",
+      "tools"
+    ]
+  },
+  {
+    "file": ".github/workflows/lane-01.yml",
+    "jobs": [
+      "rust",
+      "contracts",
+      "editor"
+    ]
+  },
+  {
+    "file": ".github/workflows/lane-02.yml",
+    "jobs": [
+      "values"
+    ]
+  },
+  {
+    "file": ".github/workflows/lane-03.yml",
+    "jobs": [
+      "state",
+      "stdlib"
+    ]
+  },
+  {
+    "file": ".github/workflows/lane-04.yml",
+    "jobs": [
+      "package"
+    ]
+  },
+  {
+    "file": ".github/workflows/lane-05.yml",
+    "jobs": [
+      "check"
+    ]
+  },
+  {
+    "file": ".github/workflows/lane-06.yml",
+    "jobs": [
+      "contracts-conformance"
+    ]
+  },
+  {
+    "file": ".github/workflows/release.yml",
+    "jobs": [
+      "rust-binary",
+      "node-libraries",
+      "editor-bundle"
+    ]
+  },
+  {
+    "file": ".github/workflows/ts-gates.yml",
+    "jobs": [
+      "request",
+      "gate"
+    ]
+  }
+]

@@ -1,0 +1,576 @@
+{
+  "finalPins": {
+    "files": 48,
+    "mismatches": []
+  },
+  "snapshotCurrent": {
+    "files": 1181,
+    "mismatches": []
+  },
+  "snapshotScratch": {
+    "files": 1181,
+    "mismatches": []
+  },
+  "restoreInventories": {
+    "unchanged-warm": {
+      "files": 2242,
+      "equalsCold": true
+    },
+    "full-restore": {
+      "files": 2242,
+      "equalsCold": true
+    },
+    "dist-only-restore": {
+      "files": 2242,
+      "equalsCold": true
+    },
+    "executable-restore": {
+      "files": 2242,
+      "equalsCold": true
+    },
+    "source-rollback-with-extra-outputs": {
+      "files": 2242,
+      "equalsCold": true
+    },
+    "baseline-restore": {
+      "files": 2242,
+      "equalsCold": true
+    }
+  },
+  "mutatedUncachedEqual": true,
+  "cacheCommands": {
+    "identity-CAN_BUILD_BUN.command": 0,
+    "source-rollback-without-preclean.command": 0,
+    "full-restore.command": 0,
+    "bun-version.command": 0,
+    "generated-wasm-change.command": 0,
+    "identity-CAN_BUILD_NODE.command": 0,
+    "baseline.command": 0,
+    "identity-CAN_BUILD_HOST.command": 0,
+    "unchanged-warm.command": 0,
+    "leaf-source-change.command": 0,
+    "leaf-source-deletion.command": 0,
+    "leaf-api-change.command": 0,
+    "dist-only-restore.command": 0,
+    "separate-owner-cache-exclusion.command": 0,
+    "browser-source-change.command": 0,
+    "baseline-restore.command": 0,
+    "environment-NODE_ENV.command": 0,
+    "environment-TZ.command": 0,
+    "turbo-version.command": 0,
+    "executable-restore.command": 0,
+    "shared-config-change.command": 0,
+    "leaf-extra-output-cache-restore.command": 0,
+    "cold.command": 0,
+    "separate-owner-preservation.command": 0,
+    "mutated-uncached-rebuild.command": 0,
+    "frozen-install.command": 0,
+    "producer-failure.command": 1,
+    "lock-change.command": 0,
+    "source-rollback-with-extra-outputs.command": 0,
+    "upstream-api-change.command": 0
+  },
+  "cachePhases": {
+    "cold": {
+      "builds": 13,
+      "cache": {
+        "MISS": 13
+      },
+      "exitCodes": {
+        "@canlang/cloudflare#build": 0,
+        "@canlang/contracts#build": 0,
+        "@canlang/files#build": 0,
+        "@canlang/identity#build": 0,
+        "@canlang/interfaces#build": 0,
+        "@canlang/services#build": 0,
+        "@canlang/state#build": 0,
+        "@canlang/stdlib#build": 0,
+        "@canlang/testkit#build": 0,
+        "@canlang/ui#build": 0,
+        "@canlang/values#build": 0,
+        "@canlang/work#build": 0,
+        "@canlang/work-kernel#build": 0
+      },
+      "commandExit": 0
+    },
+    "unchanged-warm": {
+      "builds": 13,
+      "cache": {
+        "HIT": 13
+      },
+      "exitCodes": {
+        "@canlang/cloudflare#build": 0,
+        "@canlang/contracts#build": 0,
+        "@canlang/files#build": 0,
+        "@canlang/identity#build": 0,
+        "@canlang/interfaces#build": 0,
+        "@canlang/services#build": 0,
+        "@canlang/state#build": 0,
+        "@canlang/stdlib#build": 0,
+        "@canlang/testkit#build": 0,
+        "@canlang/ui#build": 0,
+        "@canlang/values#build": 0,
+        "@canlang/work#build": 0,
+        "@canlang/work-kernel#build": 0
+      },
+      "commandExit": 0
+    },
+    "full-restore": {
+      "builds": 13,
+      "cache": {
+        "HIT": 13
+      },
+      "exitCodes": {
+        "@canlang/cloudflare#build": 0,
+        "@canlang/contracts#build": 0,
+        "@canlang/files#build": 0,
+        "@canlang/identity#build": 0,
+        "@canlang/interfaces#build": 0,
+        "@canlang/services#build": 0,
+        "@canlang/state#build": 0,
+        "@canlang/stdlib#build": 0,
+        "@canlang/testkit#build": 0,
+        "@canlang/ui#build": 0,
+        "@canlang/values#build": 0,
+        "@canlang/work#build": 0,
+        "@canlang/work-kernel#build": 0
+      },
+      "commandExit": 0
+    },
+    "producer-failure": {
+      "builds": 1,
+      "cache": {
+        "MISS": 1
+      },
+      "exitCodes": {
+        "@canlang/contracts#build": 1
+      },
+      "commandExit": 1
+    }
+  },
+  "releaseTarballs": [
+    {
+      "name": "@canlang/cloudflare",
+      "shaMatches": true,
+      "bytesMatch": true,
+      "sourceManifestMatches": true,
+      "versionMatches": true,
+      "privateMatches": true
+    },
+    {
+      "name": "@canlang/contracts",
+      "shaMatches": true,
+      "bytesMatch": true,
+      "sourceManifestMatches": true,
+      "versionMatches": true,
+      "privateMatches": true
+    },
+    {
+      "name": "@canlang/files",
+      "shaMatches": true,
+      "bytesMatch": true,
+      "sourceManifestMatches": true,
+      "versionMatches": true,
+      "privateMatches": true
+    },
+    {
+      "name": "@canlang/identity",
+      "shaMatches": true,
+      "bytesMatch": true,
+      "sourceManifestMatches": true,
+      "versionMatches": true,
+      "privateMatches": true
+    },
+    {
+      "name": "@canlang/interfaces",
+      "shaMatches": true,
+      "bytesMatch": true,
+      "sourceManifestMatches": true,
+      "versionMatches": true,
+      "privateMatches": true
+    },
+    {
+      "name": "@canlang/services",
+      "shaMatches": true,
+      "bytesMatch": true,
+      "sourceManifestMatches": true,
+      "versionMatches": true,
+      "privateMatches": true
+    },
+    {
+      "name": "@canlang/state",
+      "shaMatches": true,
+      "bytesMatch": true,
+      "sourceManifestMatches": true,
+      "versionMatches": true,
+      "privateMatches": true
+    },
+    {
+      "name": "@canlang/stdlib",
+      "shaMatches": true,
+      "bytesMatch": true,
+      "sourceManifestMatches": true,
+      "versionMatches": true,
+      "privateMatches": true
+    },
+    {
+      "name": "@canlang/testkit",
+      "shaMatches": true,
+      "bytesMatch": true,
+      "sourceManifestMatches": true,
+      "versionMatches": true,
+      "privateMatches": true
+    },
+    {
+      "name": "@canlang/ui",
+      "shaMatches": true,
+      "bytesMatch": true,
+      "sourceManifestMatches": true,
+      "versionMatches": true,
+      "privateMatches": true
+    },
+    {
+      "name": "@canlang/values",
+      "shaMatches": true,
+      "bytesMatch": true,
+      "sourceManifestMatches": true,
+      "versionMatches": true,
+      "privateMatches": true
+    },
+    {
+      "name": "@canlang/work",
+      "shaMatches": true,
+      "bytesMatch": true,
+      "sourceManifestMatches": true,
+      "versionMatches": true,
+      "privateMatches": true
+    },
+    {
+      "name": "@canlang/work-kernel",
+      "shaMatches": true,
+      "bytesMatch": true,
+      "sourceManifestMatches": true,
+      "versionMatches": true,
+      "privateMatches": true
+    }
+  ],
+  "commandLogHashes": {
+    "canlang-ci-acceptance-frozen.log": true,
+    "canlang-ci-acceptance-native.log": true,
+    "canlang-final-artifact-consumer.log": true,
+    "canlang-final-b1-locked.log": true,
+    "canlang-final-boundaries.log": true,
+    "canlang-final-boundary-tests.log": true,
+    "canlang-final-build.log": true,
+    "canlang-final-catalog.log": true,
+    "canlang-final-ci-tests.log": true,
+    "canlang-final-compiler-build.log": true,
+    "canlang-final-contract-profile.log": true,
+    "canlang-final-e2e-types.log": true,
+    "canlang-final-editor-emit.log": true,
+    "canlang-final-editor-types.log": true,
+    "canlang-final-installed-types.log": true,
+    "canlang-final-installed-worker.log": true,
+    "canlang-final-lsp.log": true,
+    "canlang-final-playwright-list.log": true,
+    "canlang-final-release-pack.log": true,
+    "canlang-final-repro.json": true,
+    "canlang-final-repro.log": true,
+    "canlang-final-repro.py": true,
+    "canlang-final-source-inventory.json": true,
+    "canlang-final-test-all.log": true,
+    "canlang-final-typecheck.log": true,
+    "canlang-final-workflow-yaml.json": true
+  },
+  "artifactConsumerCommands": [
+    {
+      "label": "bun-version",
+      "exit": 0,
+      "logHashesMatch": true
+    },
+    {
+      "label": "manifest-cloudflare",
+      "exit": 0,
+      "logHashesMatch": true
+    },
+    {
+      "label": "manifest-contracts",
+      "exit": 0,
+      "logHashesMatch": true
+    },
+    {
+      "label": "manifest-files",
+      "exit": 0,
+      "logHashesMatch": true
+    },
+    {
+      "label": "manifest-identity",
+      "exit": 0,
+      "logHashesMatch": true
+    },
+    {
+      "label": "manifest-interfaces",
+      "exit": 0,
+      "logHashesMatch": true
+    },
+    {
+      "label": "manifest-services",
+      "exit": 0,
+      "logHashesMatch": true
+    },
+    {
+      "label": "manifest-state",
+      "exit": 0,
+      "logHashesMatch": true
+    },
+    {
+      "label": "manifest-stdlib",
+      "exit": 0,
+      "logHashesMatch": true
+    },
+    {
+      "label": "manifest-testkit",
+      "exit": 0,
+      "logHashesMatch": true
+    },
+    {
+      "label": "manifest-ui",
+      "exit": 0,
+      "logHashesMatch": true
+    },
+    {
+      "label": "manifest-values",
+      "exit": 0,
+      "logHashesMatch": true
+    },
+    {
+      "label": "manifest-work",
+      "exit": 0,
+      "logHashesMatch": true
+    },
+    {
+      "label": "manifest-work-kernel",
+      "exit": 0,
+      "logHashesMatch": true
+    },
+    {
+      "label": "isolated-install",
+      "exit": 0,
+      "logHashesMatch": true
+    },
+    {
+      "label": "installed-worker",
+      "exit": 0,
+      "logHashesMatch": true
+    }
+  ],
+  "owningRawCounts": {
+    "@canlang/state:test:unit": {
+      "tests": 821,
+      "pass": 821,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0
+    },
+    "@canlang/work-kernel:test:unit": {
+      "tests": 371,
+      "pass": 371,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0
+    },
+    "@canlang/services:test:unit": {
+      "tests": 146,
+      "pass": 146,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0
+    },
+    "@canlang/ui:test:unit": {
+      "tests": 935,
+      "pass": 935,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0
+    },
+    "@canlang/values:test:unit": {
+      "tests": 873,
+      "pass": 873,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0
+    },
+    "@canlang/identity:test:unit": {
+      "tests": 68,
+      "pass": 68,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0
+    },
+    "@canlang/work:test:unit": {
+      "tests": 835,
+      "pass": 835,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0
+    },
+    "@canlang/files:test:unit": {
+      "tests": 83,
+      "pass": 83,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0
+    },
+    "@canlang/stdlib:test:unit": {
+      "tests": 4,
+      "pass": 4,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0
+    },
+    "@canlang/interfaces:test:unit": {
+      "tests": 504,
+      "pass": 504,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0
+    },
+    "@canlang/cloudflare:test:runtime": {
+      "tests": 265,
+      "pass": 265,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0
+    }
+  },
+  "rootRawTests": 636,
+  "uncachedRepro": {
+    "runs": 2,
+    "files": 2229,
+    "equalInventories": true,
+    "commandExits": [
+      0,
+      0
+    ],
+    "commands": [
+      [
+        "bun",
+        "run",
+        "build:uncached"
+      ],
+      [
+        "bun",
+        "run",
+        "build:uncached"
+      ]
+    ]
+  },
+  "finalInstalledTypes": {
+    "owners": 13,
+    "exports": 150,
+    "linker": "isolated",
+    "ownedDiagnostics": 0,
+    "undeclared": 0,
+    "vendorDiagnostics": 797,
+    "vendorFiles": [
+      "node_modules/.bun/miniflare@4.20260730.0/node_modules/miniflare/dist/src/index.d.ts"
+    ],
+    "negativeCases": [
+      {
+        "case": "missing contracts declaration",
+        "diagnostics": 981,
+        "ownedDiagnostics": 184,
+        "gateRejected": true
+      },
+      {
+        "case": "corrupt contracts declaration",
+        "diagnostics": 1738,
+        "ownedDiagnostics": 941,
+        "gateRejected": true
+      }
+    ],
+    "restoredEqualsBaseline": true
+  },
+  "finalInstalledWorker": {
+    "linker": "isolated",
+    "directDependencies": [
+      "@canlang/cloudflare"
+    ],
+    "directPackageBindings": [
+      "cloudflare"
+    ],
+    "checkoutRead": "ERR_ACCESS_DENIED",
+    "productionWorker": {
+      "initializeStatus": 401,
+      "body": "{\"error\":{\"code\":\"forbidden\",\"message\":\"Authentication required.\"}}"
+    },
+    "negativeCases": [
+      "missing values_semantics_bg.wasm",
+      "corrupt values_semantics_bg.wasm",
+      "missing can-style.css",
+      "corrupt can-style.css"
+    ],
+    "observer": "exact missing producer remains fail-closed"
+  },
+  "rawTotalPassed": 5541,
+  "rawSkips": 0,
+  "finalGraphMismatches": [],
+  "finalManifestGraph": {
+    "@canlang/ui": [
+      "@canlang/contracts"
+    ],
+    "@canlang/work-kernel": [
+      "@canlang/contracts"
+    ],
+    "@canlang/identity": [
+      "@canlang/contracts"
+    ],
+    "@canlang/contracts": [],
+    "@canlang/cloudflare": [
+      "@canlang/contracts",
+      "@canlang/files",
+      "@canlang/identity",
+      "@canlang/interfaces",
+      "@canlang/state",
+      "@canlang/stdlib",
+      "@canlang/ui",
+      "@canlang/values",
+      "@canlang/work"
+    ],
+    "@canlang/values": [
+      "@canlang/contracts"
+    ],
+    "@canlang/state": [
+      "@canlang/contracts"
+    ],
+    "@canlang/testkit": [
+      "@canlang/cloudflare",
+      "@canlang/contracts",
+      "@canlang/identity",
+      "@canlang/services",
+      "@canlang/state",
+      "@canlang/values",
+      "@canlang/work"
+    ],
+    "@canlang/work": [
+      "@canlang/contracts",
+      "@canlang/state"
+    ],
+    "@canlang/files": [
+      "@canlang/contracts",
+      "@canlang/services"
+    ],
+    "@canlang/stdlib": [
+      "@canlang/values"
+    ],
+    "@canlang/services": [
+      "@canlang/contracts"
+    ],
+    "@canlang/interfaces": [
+      "@canlang/contracts",
+      "@canlang/identity",
+      "@canlang/ui",
+      "@canlang/values"
+    ]
+  }
+}

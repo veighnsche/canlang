@@ -1,0 +1,9 @@
+{"mode": "offline", "argv": ["metadata", "--format-version", "1", "--no-deps", "--manifest-path", "/private/tmp/canlang-turbo-probe-20261006.89738Q/native/named-control/Cargo.toml"]}
+{"mode": "offline", "argv": ["metadata", "--format-version", "1", "--locked", "--all-features", "--manifest-path", "/private/tmp/canlang-turbo-probe-20261006.89738Q/native/named-control/Cargo.toml"]}
+{"mode": "offline", "argv": ["metadata", "--format-version", "1", "--locked", "--all-features", "--manifest-path", "/private/tmp/canlang-turbo-probe-20261006.89738Q/native/named-control/Cargo.toml"]}
+{"mode": "offline", "argv": ["metadata", "--format-version", "1", "--locked", "--all-features", "--manifest-path", "/private/tmp/canlang-turbo-probe-20261006.89738Q/native/named-control/Cargo.toml"]}
+{"mode": "offline", "argv": ["metadata", "--format-version", "1", "--locked", "--all-features", "--manifest-path", "/private/tmp/canlang-turbo-probe-20261006.89738Q/native/named-control/Cargo.toml"]}
+{"mode": "offline", "argv": ["metadata", "--format-version", "1", "--locked", "--all-features", "--manifest-path", "/private/tmp/canlang-turbo-probe-20261006.89738Q/native/named-control/Cargo.toml"]}
+{"mode": "offline", "argv": ["metadata", "--format-version", "1", "--no-deps", "--manifest-path", "/private/tmp/canlang-turbo-probe-20261006.89738Q/native/named-control/Cargo.toml"]}
+{"mode": "denied", "argv": ["metadata", "--format-version", "1", "--locked", "--all-features", "--manifest-path", "/private/tmp/canlang-turbo-probe-20261006.89738Q/native/named-control/Cargo.toml"]}
+{"mode": "denied", "argv": ["metadata", "--format-version", "1", "--no-deps", "--manifest-path", "/private/tmp/canlang-turbo-probe-20261006.89738Q/native/named-control/Cargo.toml"]}

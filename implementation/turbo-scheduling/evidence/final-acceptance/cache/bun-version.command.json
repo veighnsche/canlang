@@ -1,0 +1,7 @@
+{
+  "executable": "bun",
+  "arguments": [
+    "--version"
+  ],
+  "exitCode": 0
+}

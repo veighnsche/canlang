@@ -1,0 +1,11 @@
+{
+  "argv": [
+    "/Users/vince/.bun/bin/bun",
+    "run",
+    "packages/a/src/index.ts"
+  ],
+  "exit_code": 0,
+  "stdout": "1\n",
+  "stderr": "",
+  "cwd": "/private/tmp/canlang-turbo-probe-20261006.89738Q/boundaries/allowed-root"
+}

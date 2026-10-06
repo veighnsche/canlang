@@ -1,0 +1,9 @@
+{
+  "executable": "bun",
+  "arguments": [
+    "install",
+    "--frozen-lockfile",
+    "--ignore-scripts"
+  ],
+  "exitCode": 0
+}

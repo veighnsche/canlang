@@ -1,0 +1,11 @@
+{
+  "argv": [
+    "shasum",
+    "-a",
+    "256",
+    "/private/tmp/canlang-turbo-probe-20261006.89738Q/tooling/node_modules/.bin/turbo"
+  ],
+  "exit_code": 0,
+  "stdout": "dd000efaa64f567f0986a84d363bbe7cf95a831010f6f6dbfd21770c89a8523d  /private/tmp/canlang-turbo-probe-20261006.89738Q/tooling/node_modules/.bin/turbo\n",
+  "stderr": ""
+}

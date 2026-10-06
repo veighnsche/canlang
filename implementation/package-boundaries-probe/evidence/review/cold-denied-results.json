@@ -1,0 +1,34 @@
+[
+  {
+    "argv": [
+      "/private/tmp/canlang-turbo-probe-20261006.89738Q/tooling/node_modules/.bin/turbo",
+      "--skip-infer",
+      "--no-update-notifier",
+      "run",
+      "build",
+      "--filter=@probe/js",
+      "--dry-run=json"
+    ],
+    "cwd": "/private/tmp/canlang-review-cold-w1_65l61/fixture",
+    "exit": 0,
+    "stdout": "{\n  \"id\": \"3KKdApXjTb9FsDNYSFeo1DZVHD3\",\n  \"version\": \"1\",\n  \"turboVersion\": \"2.11.7\",\n  \"monorepo\": true,\n  \"globalCacheInputs\": {\n    \"rootKey\": \"I can\u2019t see ya, but I know you\u2019re here\",\n    \"files\": {},\n    \"hashOfExternalDependencies\": \"459c029558afe716\",\n    \"hashOfInternalDependencies\": \"\",\n    \"environmentVariables\": {\n      \"specified\": {\n        \"env\": [],\n        \"passThroughEnv\": null\n      },\n      \"configured\": [],\n      \"inferred\": [],\n      \"passthrough\": null\n    },\n    \"engines\": null\n  },\n  \"packages\": [\n    \"@probe/js\"\n  ],\n  \"envMode\": \"strict\",\n  \"frameworkInference\": true,\n  \"tasks\": [\n    {\n      \"taskId\": \"@probe/js#build\",\n      \"task\": \"build\",\n      \"package\": \"@probe/js\",\n      \"hash\": \"17376a723f3508f2\",\n      \"inputs\": {\n        \"package.json\": \"d4f970343c02160a81893a0dd6f3c9c9543d2212\"\n      },\n      \"hashOfExternalDependencies\": \"459c029558afe716\",\n      \"cache\": {\n        \"local\": false,\n        \"remote\": false,\n        \"status\": \"MISS\",\n        \"timeSaved\": 0\n      },\n      \"command\": \"node -e \\\"console.log('JS build')\\\"\",\n      \"cliArguments\": [],\n      \"outputs\": null,\n      \"excludedOutputs\": null,\n      \"logFile\": \"packages/js/.turbo/turbo-build.log\",\n      \"directory\": \"packages/js\",\n      \"dependencies\": [],\n      \"dependents\": [],\n      \"with\": [],\n      \"resolvedTaskDefinition\": {\n        \"outputs\": [],\n        \"cache\": true,\n        \"dependsOn\": [\n          \"^build\"\n        ],\n        \"inputs\": [],\n        \"outputLogs\": \"full\",\n        \"persistent\": false,\n        \"interruptible\": false,\n        \"env\": [],\n        \"passThroughEnv\": null,\n        \"interactive\": false\n      },\n      \"expandedOutputs\": [],\n      \"framework\": \"\",\n      \"envMode\": \"strict\",\n      \"environmentVariables\": {\n        \"specified\": {\n          \"env\": [],\n          \"passThroughEnv\": null\n        },\n        \"configured\": [],\n        \"inferred\": [],\n        \"passthrough\": null\n      }\n    }\n  ],\n  \"user\": \"\",\n  \"scm\": {\n    \"type\": \"git\",\n    \"sha\": null,\n    \"branch\": null\n  }\n}\n\n",
+    "stderr": "",
+    "calls_after": ""
+  },
+  {
+    "argv": [
+      "/private/tmp/canlang-turbo-probe-20261006.89738Q/tooling/node_modules/.bin/turbo",
+      "--skip-infer",
+      "--no-update-notifier",
+      "run",
+      "build",
+      "--filter=probe-app",
+      "--dry-run=json"
+    ],
+    "cwd": "/private/tmp/canlang-review-cold-w1_65l61/fixture",
+    "exit": 1,
+    "stdout": "",
+    "stderr": "  x `cargo metadata` failed: review cold cargo unavailable\n\n",
+    "calls_after": "[\"metadata\", \"--format-version\", \"1\", \"--locked\", \"--all-features\", \"--manifest-path\", \"/private/tmp/canlang-review-cold-w1_65l61/fixture/Cargo.toml\"]\n[\"metadata\", \"--format-version\", \"1\", \"--no-deps\", \"--manifest-path\", \"/private/tmp/canlang-review-cold-w1_65l61/fixture/Cargo.toml\"]\n"
+  }
+]

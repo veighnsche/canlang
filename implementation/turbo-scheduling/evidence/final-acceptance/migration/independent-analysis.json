@@ -1,0 +1,214 @@
+{
+  "full-restore": {
+    "files": 2242,
+    "exactlyEqualCold": true,
+    "differences": []
+  },
+  "dist-only-restore": {
+    "files": 2242,
+    "exactlyEqualCold": true,
+    "differences": []
+  },
+  "executable-restore": {
+    "files": 2242,
+    "exactlyEqualCold": true,
+    "differences": []
+  },
+  "source-rollback-with-extra-outputs": {
+    "files": 2242,
+    "exactlyEqualCold": true,
+    "differences": []
+  },
+  "baseline-restore": {
+    "files": 2242,
+    "exactlyEqualCold": true,
+    "differences": []
+  },
+  "pins": {
+    "current": {
+      "filesCompared": 1177,
+      "differences": [
+        "dist-manifest.json",
+        "packages/contracts/README.md",
+        "packages/files/README.md",
+        "packages/identity/README.md",
+        "packages/interfaces/README.md",
+        "packages/services/README.md",
+        "packages/stdlib/README.md",
+        "packages/values/README.md",
+        "packages/work/README.md"
+      ]
+    },
+    "isolatedWorkspace": {
+      "filesCompared": 1177,
+      "differences": []
+    }
+  },
+  "manifestExportFiles": [
+    {
+      "owner": "@canlang/cloudflare",
+      "missing": []
+    },
+    {
+      "owner": "@canlang/contracts",
+      "missing": []
+    },
+    {
+      "owner": "@canlang/files",
+      "missing": []
+    },
+    {
+      "owner": "@canlang/identity",
+      "missing": []
+    },
+    {
+      "owner": "@canlang/interfaces",
+      "missing": []
+    },
+    {
+      "owner": "@canlang/services",
+      "missing": []
+    },
+    {
+      "owner": "@canlang/state",
+      "missing": []
+    },
+    {
+      "owner": "@canlang/stdlib",
+      "missing": []
+    },
+    {
+      "owner": "@canlang/testkit",
+      "missing": []
+    },
+    {
+      "owner": "@canlang/ui",
+      "missing": []
+    },
+    {
+      "owner": "@canlang/values",
+      "missing": []
+    },
+    {
+      "owner": "@canlang/work",
+      "missing": []
+    },
+    {
+      "owner": "@canlang/work-kernel",
+      "missing": []
+    }
+  ],
+  "manifestGraph": {
+    "@canlang/cloudflare": [
+      "@canlang/contracts",
+      "@canlang/files",
+      "@canlang/identity",
+      "@canlang/interfaces",
+      "@canlang/state",
+      "@canlang/stdlib",
+      "@canlang/ui",
+      "@canlang/values",
+      "@canlang/work"
+    ],
+    "@canlang/contracts": [],
+    "@canlang/files": [
+      "@canlang/contracts",
+      "@canlang/services"
+    ],
+    "@canlang/identity": [
+      "@canlang/contracts"
+    ],
+    "@canlang/interfaces": [
+      "@canlang/contracts",
+      "@canlang/identity",
+      "@canlang/ui",
+      "@canlang/values"
+    ],
+    "@canlang/services": [
+      "@canlang/contracts"
+    ],
+    "@canlang/state": [
+      "@canlang/contracts"
+    ],
+    "@canlang/stdlib": [
+      "@canlang/values"
+    ],
+    "@canlang/testkit": [
+      "@canlang/cloudflare",
+      "@canlang/contracts",
+      "@canlang/identity",
+      "@canlang/services",
+      "@canlang/state",
+      "@canlang/values",
+      "@canlang/work"
+    ],
+    "@canlang/ui": [
+      "@canlang/contracts"
+    ],
+    "@canlang/values": [
+      "@canlang/contracts"
+    ],
+    "@canlang/work": [
+      "@canlang/contracts",
+      "@canlang/state"
+    ],
+    "@canlang/work-kernel": [
+      "@canlang/contracts"
+    ]
+  },
+  "buildGraphMismatch": [],
+  "originalTestCommands": {
+    "cloudflare": {
+      "before": null,
+      "now": null
+    },
+    "contracts": {
+      "before": null,
+      "now": null
+    },
+    "files": {
+      "before": "node --test 'test/**/*.test.ts'",
+      "now": "node --test \"dist/test/**/*.test.js\""
+    },
+    "identity": {
+      "before": "bun run build && node --test \"dist/identity/test/**/*.test.js\"",
+      "now": "node --test \"dist/test/**/*.test.js\""
+    },
+    "interfaces": {
+      "before": "bun run build && node --test \"dist/interfaces/test/**/*.test.js\"",
+      "now": "node --test \"dist/test/**/*.test.js\""
+    },
+    "services": {
+      "before": "node --test 'test/**/*.test.ts'",
+      "now": "node --test \"dist/test/**/*.test.js\""
+    },
+    "state": {
+      "before": "bun run build && node --test \"dist/state/test/**/*.test.js\"",
+      "now": "node --test \"dist/test/**/*.test.js\" \"dist/src/**/*.test.js\""
+    },
+    "stdlib": {
+      "before": "bun run build && node --test \"dist/test/**/*.test.js\"",
+      "now": "node --test \"dist/test/**/*.test.js\""
+    },
+    "testkit": {
+      "before": null,
+      "now": null
+    },
+    "ui": {
+      "before": "bun run build && node --test \"dist/ui/test/**/*.test.js\"",
+      "now": "node --test \"dist/test/**/*.test.js\""
+    },
+    "values": {
+      "before": "bun run build && node --test \"dist/values/test/**/*.test.js\"",
+      "now": "node --test \"dist/test/**/*.test.js\""
+    },
+    "work": {
+      "before": "node --test 'test/**/*.test.ts'",
+      "now": "cd ../.. && node --test \"packages/work/dist/test/**/*.test.js\" \"packages/work/dist/src/**/*.test.js\""
+    },
+    "work-kernel": {
+      "before": "bun run build && node --test 'dist/conformance/**/*.test.js'",
+      "now": "node --test 'dist/conformance/**/*.test.js'"
+    }
+  }
+}

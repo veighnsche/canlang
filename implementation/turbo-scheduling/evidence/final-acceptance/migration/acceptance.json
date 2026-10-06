@@ -1,0 +1,39 @@
+{
+  "status": "accepted",
+  "scope": "Unmerged local package/Bun/Turbo/CI/release/documentation migration at the final executable/configuration pins; precise Can installed declaration/consumer and Worker asset scope.",
+  "method": "Independent actual-source review and raw evidence comparison; no prior review.json verdict read or used; no live producer execution.",
+  "findings": [],
+  "sourceHead": "7fd8c6bf4717feeffc70b46819377b74b353e117",
+  "sourcePins": {
+    "executableConfig": 48,
+    "completeCacheSnapshot": 1181,
+    "currentAndScratchMismatchCount": 0
+  },
+  "evidenceSha256": {
+    "source-pins.json": "4e4c3588bf39bd9a55d16c9d6e5f918fbb8c5053d872f9a36d3a5ed8ccc3bb43",
+    "cache/snapshot.json": "f665f041aaca4e056bde784b3f87f7af3ed5110b077eb957df8a4b72dce30293",
+    "cache/report.json": "debb4f802e3b25e01aaa792ce89bc63e613cfda3aabfbf61741406d95a1dc517",
+    "verification.json": "88a39d5a758966620e73d2e06a7916c808d24f4c931c6c88dbf5e7e576b2984e",
+    "installed-types/evidence.json": "f3c630f086d080ffedc37d453e1579d8a924d1c0b53631b99c361a91577de08f",
+    "installed-worker/evidence.json": "adeb6fa69e226fd9b9b923451def7223f5e02c1e26a80355afe765ac91ef525d",
+    "ci-release/release-artifact-manifest.json": "9cd905dc05e9ccbcfaf1143aea1b4f10ded535631bd5c432e58724540c6375d4",
+    "ci-release/artifact-consumer-probe.result.json": "ab4ff191c2f6bbd2cf225e1b36c39f3af5c7c71dea8eba5a23a54176a3497943"
+  },
+  "passed": {
+    "manifestBuildGraphMismatches": 0,
+    "allTests": 5541,
+    "allTestSkips": 0,
+    "cacheRestoreFiles": 2242,
+    "typedOwners": 13,
+    "typedExports": 150,
+    "ownedConsumerDiagnostics": 0,
+    "undeclaredOwnedImports": 0,
+    "releaseExactTarballs": 13
+  },
+  "limitations": [
+    "797 pinned Miniflare-only diagnostics retained; whole-program strict third-party library typing is not passed.",
+    "Node filesystem permissions do not govern Bun/workerd subprocesses; canonical installed entry paths and emitted bytes are separately checked.",
+    "Hosted CI/TS receipts, complete browser journeys, VSIX packaging, native/WASM regeneration, alternate-host release qualification and remote caching were not newly executed.",
+    "No merge/publication, preparation release/adoption HOLD resumption, original product gate closure or complete living-plan checkpoint advance."
+  ]
+}

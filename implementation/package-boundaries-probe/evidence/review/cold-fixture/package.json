@@ -1,0 +1,8 @@
+{
+  "name": "native-probe-root",
+  "private": true,
+  "packageManager": "bun@1.4.2",
+  "workspaces": [
+    "packages/*"
+  ]
+}

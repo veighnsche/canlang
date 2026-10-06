@@ -8,15 +8,18 @@ browser business-state store, no second CRUD/policy engine.
 Contract: `packages/contracts/src/presentation.ts` (lane 05 owned). Compiler
 emission (lane 1) and route dispatch (lane 6) consume that contract.
 
-## B0 wiring (temporary)
+## Package boundaries
 
-This package extends the lane 7 root `tsconfig.base.json` and builds inside
-the root bun workspace (no member lockfile; the root bun.lock stays lane-07-owned).
-Sources import `../contracts/src/presentation.ts` via an explicit relative
-path — the same workspace-wide member pattern used by state/values/identity
-(the contracts index join serves external consumers; member TS keeps direct
-module imports). No duplicate definitions: the contract file is the single
-source of truth.
+This package extends the root `tsconfig.base.json` and builds only its own
+source and tests into `dist/src` and `dist/test`. Contracts are consumed through
+the declared `@canlang/contracts` workspace dependency. The root workspace owns
+the dependency lockfile.
+
+The `@canlang/ui/distribution` API supplies the compiled module and browser
+asset directory URLs used by Worker staging. Browser assets remain in
+`dist/browser`; the browser build validates their local import closure and the
+pinned daisyUI version. Browser export and print consumers have explicit
+`@canlang/ui/browser/export` and `@canlang/ui/browser/print` APIs.
 
 ## Layout
 

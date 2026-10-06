@@ -1,0 +1,32 @@
+{
+  "command": [
+    "/private/tmp/canlang-turbo-probe-20261006.89738Q/tooling/node_modules/.bin/turbo",
+    "--skip-infer",
+    "--no-update-notifier",
+    "--no-color",
+    "--root-turbo-json",
+    "/private/tmp/canlang-turbo-probe-20261006.89738Q/repository-boundaries/turbo.json",
+    "boundaries"
+  ],
+  "cwd": "/Users/vince/Projects/canlang",
+  "exit_code": 1,
+  "timed_out": false,
+  "elapsed_seconds": 5.644,
+  "head": "7fd8c6bf4717feeffc70b46819377b74b353e117",
+  "protected_files": 946,
+  "changed_protected_files": [],
+  "stdout_bytes": 72,
+  "stderr_bytes": 335137,
+  "scope": "Native flags off; package-boundary diagnostics only; no task/build execution",
+  "diagnostics": {
+    "parsed_diagnostics": 566,
+    "counts": {
+      "undeclared-package": 57,
+      "outside-package": 509
+    },
+    "scope": "Workspace tests included; root tooling, non-workspace editor, native source and unsupported loading forms excluded from complete coverage.",
+    "reported_checked_files": 612,
+    "reported_packages": 13,
+    "reported_issues": 566
+  }
+}

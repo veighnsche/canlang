@@ -1,0 +1,16 @@
+{
+  "argv": [
+    "/private/tmp/canlang-turbo-probe-20261006.89738Q/tooling/node_modules/.bin/turbo",
+    "--skip-infer",
+    "--no-update-notifier",
+    "run",
+    "build",
+    "--filter=probe-app",
+    "--dry-run=json"
+  ],
+  "cwd": "/private/tmp/canlang-turbo-probe-20261006.89738Q/native/named-control",
+  "exit": 1,
+  "stdout": "",
+  "stderr": "  x `cargo metadata` failed: controlled probe: cargo unavailable\n\n",
+  "seconds": 5.765
+}

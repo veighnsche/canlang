@@ -1,0 +1,188 @@
+{
+  "status": "static-closure-confirmed; actual pack pending parent release sequence",
+  "ownerCount": 13,
+  "previousArtifactOwners": [
+    "@canlang/contracts",
+    "@canlang/cloudflare",
+    "@canlang/testkit",
+    "@canlang/state",
+    "@canlang/values"
+  ],
+  "missingDirectRuntimeOwners": [
+    {
+      "consumer": "@canlang/cloudflare",
+      "dependency": "@canlang/interfaces",
+      "range": "workspace:*",
+      "private": true
+    },
+    {
+      "consumer": "@canlang/cloudflare",
+      "dependency": "@canlang/identity",
+      "range": "workspace:*",
+      "private": true
+    },
+    {
+      "consumer": "@canlang/cloudflare",
+      "dependency": "@canlang/work",
+      "range": "workspace:*",
+      "private": true
+    },
+    {
+      "consumer": "@canlang/cloudflare",
+      "dependency": "@canlang/ui",
+      "range": "workspace:*",
+      "private": true
+    },
+    {
+      "consumer": "@canlang/cloudflare",
+      "dependency": "@canlang/stdlib",
+      "range": "workspace:*",
+      "private": false
+    }
+  ],
+  "ownerFacts": [
+    {
+      "name": "@canlang/cloudflare",
+      "version": "0.1.0",
+      "private": false,
+      "source": "packages/cloudflare/package.json",
+      "sha256": "5a24f4fcd94013cedf1acedab37dd1a4f57cf47c1b4a15e0fcac70e719a4b07c",
+      "internalRuntimeDependencies": [
+        "@canlang/contracts",
+        "@canlang/identity",
+        "@canlang/interfaces",
+        "@canlang/state",
+        "@canlang/stdlib",
+        "@canlang/ui",
+        "@canlang/values",
+        "@canlang/work"
+      ]
+    },
+    {
+      "name": "@canlang/contracts",
+      "version": "0.1.0",
+      "private": false,
+      "source": "packages/contracts/package.json",
+      "sha256": "77d6b51fade16c2c304664ec5ee55c820121314e7b6ab8cdca6266ce21c78bf3",
+      "internalRuntimeDependencies": []
+    },
+    {
+      "name": "@canlang/files",
+      "version": "0.0.0",
+      "private": true,
+      "source": "packages/files/package.json",
+      "sha256": "fb7e88d7cef8bf0ccaee3990901b99751dad6575f2ab78ed13867b535a58ca7c",
+      "internalRuntimeDependencies": [
+        "@canlang/contracts",
+        "@canlang/services"
+      ]
+    },
+    {
+      "name": "@canlang/identity",
+      "version": "0.1.0",
+      "private": true,
+      "source": "packages/identity/package.json",
+      "sha256": "dfd0cc78fbfbf250c7a63c3558ecbbe66fe9aeb371cb537b0153cf04b9b4f3b3",
+      "internalRuntimeDependencies": [
+        "@canlang/contracts"
+      ]
+    },
+    {
+      "name": "@canlang/interfaces",
+      "version": "0.1.0",
+      "private": true,
+      "source": "packages/interfaces/package.json",
+      "sha256": "8f3639d8cbbe1e5d0e4af4c1d92352fbdb66f56994c3863d54274f4258c47cad",
+      "internalRuntimeDependencies": [
+        "@canlang/contracts",
+        "@canlang/identity",
+        "@canlang/ui",
+        "@canlang/values"
+      ]
+    },
+    {
+      "name": "@canlang/services",
+      "version": "0.0.0",
+      "private": true,
+      "source": "packages/services/package.json",
+      "sha256": "160607d0145fa9f3b39568a64c17bbbcbdded562ee75d231d8e3046df9dcab7e",
+      "internalRuntimeDependencies": [
+        "@canlang/contracts"
+      ]
+    },
+    {
+      "name": "@canlang/state",
+      "version": "0.1.0",
+      "private": false,
+      "source": "packages/state/package.json",
+      "sha256": "cb41b927046a074cad9e267fd4eba6f630a0aad7157d333b0efe3dca9e37aa52",
+      "internalRuntimeDependencies": [
+        "@canlang/contracts"
+      ]
+    },
+    {
+      "name": "@canlang/stdlib",
+      "version": "0.1.0",
+      "private": false,
+      "source": "packages/stdlib/package.json",
+      "sha256": "1f5dda9a1bc0390590943772e7665e357e1337e705bb15c825c40eb2fcf5883b",
+      "internalRuntimeDependencies": [
+        "@canlang/values"
+      ]
+    },
+    {
+      "name": "@canlang/testkit",
+      "version": "0.1.0",
+      "private": false,
+      "source": "packages/testkit/package.json",
+      "sha256": "d4836564d2f24cb9181944e53f1c37596af4ca88c61bd117252ffa0b368b2ced",
+      "internalRuntimeDependencies": [
+        "@canlang/cloudflare",
+        "@canlang/contracts"
+      ]
+    },
+    {
+      "name": "@canlang/ui",
+      "version": "0.1.0",
+      "private": true,
+      "source": "packages/ui/package.json",
+      "sha256": "14dd85da8bea318201aad0490034ab147f1282dc174dfac94be0506a9c5a1425",
+      "internalRuntimeDependencies": [
+        "@canlang/contracts"
+      ]
+    },
+    {
+      "name": "@canlang/values",
+      "version": "0.1.0",
+      "private": false,
+      "source": "packages/values/package.json",
+      "sha256": "e542125300e2ee229f96bd37cc66af50c8982e588c26c9ba6cf363640688618f",
+      "internalRuntimeDependencies": [
+        "@canlang/contracts"
+      ]
+    },
+    {
+      "name": "@canlang/work",
+      "version": "0.0.0",
+      "private": true,
+      "source": "packages/work/package.json",
+      "sha256": "c4ca397414147a1e544db045d2fb883aa2aa85d56c8ded8b17a188c1cf6ac906",
+      "internalRuntimeDependencies": [
+        "@canlang/contracts",
+        "@canlang/state"
+      ]
+    },
+    {
+      "name": "@canlang/work-kernel",
+      "version": "0.1.0",
+      "private": false,
+      "source": "packages/work-kernel/package.json",
+      "sha256": "5b2b5267aaa3f92ae8284fa8c8464bd7831023e4f2ce190623886210fcd84a07",
+      "internalRuntimeDependencies": [
+        "@canlang/contracts"
+      ]
+    }
+  ],
+  "packerSha256": "f7f22dc79a36a6a6a1c37fa0264d5aaef1e2731aa27c5019fa67eff88b8cb169",
+  "verification": "node --check scripts/pack-release.mjs passes; no live packing, native build, registry publication or release adoption executed by this writer"
+}

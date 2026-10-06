@@ -1,0 +1,58 @@
+[
+  {
+    "before": "packages/contracts/test/t26-progress-relations.test.ts",
+    "after": "packages/work/test/t26-progress-relations.test.ts",
+    "testTitlesBefore": 10,
+    "testTitlesAfter": 10,
+    "sameTitles": true
+  },
+  {
+    "before": "packages/state/src/receipt/t25-receipt-durable.test.ts",
+    "after": "packages/work/test/state-receipt/t25-receipt-durable.test.ts",
+    "testTitlesBefore": 3,
+    "testTitlesAfter": 3,
+    "sameTitles": true
+  },
+  {
+    "before": "packages/state/src/receipt/t25-receipt-join.test.ts",
+    "after": "packages/work/test/state-receipt/t25-receipt-join.test.ts",
+    "testTitlesBefore": 33,
+    "testTitlesAfter": 33,
+    "sameTitles": true
+  },
+  {
+    "before": "packages/state/src/fanout/t34-f5-child-join.test.ts",
+    "after": "packages/work/test/state-fanout/t34-f5-child-join.test.ts",
+    "testTitlesBefore": 21,
+    "testTitlesAfter": 21,
+    "sameTitles": true
+  },
+  {
+    "before": "packages/state/src/fanout/t34-f5-durable.test.ts",
+    "after": "packages/work/test/state-fanout/t34-f5-durable.test.ts",
+    "testTitlesBefore": 4,
+    "testTitlesAfter": 4,
+    "sameTitles": true
+  },
+  {
+    "before": "packages/state/src/fanout/t34-f5-lifecycle.test.ts",
+    "after": "packages/work/test/state-fanout/t34-f5-lifecycle.test.ts",
+    "testTitlesBefore": 14,
+    "testTitlesAfter": 14,
+    "sameTitles": true
+  },
+  {
+    "before": "packages/state/src/fanout/t34-f5-membership.test.ts",
+    "after": "packages/work/test/state-fanout/t34-f5-membership.test.ts",
+    "testTitlesBefore": 23,
+    "testTitlesAfter": 23,
+    "sameTitles": true
+  },
+  {
+    "before": "packages/state/src/fanout/t34-f5-progress.test.ts",
+    "after": "packages/work/test/state-fanout/t34-f5-progress.test.ts",
+    "testTitlesBefore": 9,
+    "testTitlesAfter": 9,
+    "sameTitles": true
+  }
+]

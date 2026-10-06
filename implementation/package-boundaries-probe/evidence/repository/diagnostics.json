@@ -1,0 +1,3977 @@
+{
+  "summary": {
+    "parsed_diagnostics": 566,
+    "counts": {
+      "undeclared-package": 57,
+      "outside-package": 509
+    },
+    "scope": "Workspace tests included; root tooling, non-workspace editor, native source and unsupported loading forms excluded from complete coverage.",
+    "reported_checked_files": 612,
+    "reported_packages": 13,
+    "reported_issues": 566
+  },
+  "diagnostics": [
+    {
+      "message": "cannot import package `vitest` because it is not a dependency",
+      "kind": "undeclared-package",
+      "path": "/Users/vince/Projects/canlang/packages/testkit/test/table.test.ts",
+      "line": 1,
+      "column": 38
+    },
+    {
+      "message": "cannot import package `vitest` because it is not a dependency",
+      "kind": "undeclared-package",
+      "path": "/Users/vince/Projects/canlang/packages/testkit/test/fixtures.test.ts",
+      "line": 5,
+      "column": 61
+    },
+    {
+      "message": "cannot import package `vitest` because it is not a dependency",
+      "kind": "undeclared-package",
+      "path": "/Users/vince/Projects/canlang/packages/testkit/test/report.test.ts",
+      "line": 1,
+      "column": 38
+    },
+    {
+      "message": "cannot import package `vitest` because it is not a dependency",
+      "kind": "undeclared-package",
+      "path": "/Users/vince/Projects/canlang/packages/testkit/test/seeds.test.ts",
+      "line": 1,
+      "column": 38
+    },
+    {
+      "message": "cannot import package `vitest` because it is not a dependency",
+      "kind": "undeclared-package",
+      "path": "/Users/vince/Projects/canlang/packages/testkit/test/emitted-scope.test.ts",
+      "line": 13,
+      "column": 61
+    },
+    {
+      "message": "cannot import package `vitest` because it is not a dependency",
+      "kind": "undeclared-package",
+      "path": "/Users/vince/Projects/canlang/packages/testkit/test/equal.test.ts",
+      "line": 1,
+      "column": 38
+    },
+    {
+      "message": "cannot import package `vitest` because it is not a dependency",
+      "kind": "undeclared-package",
+      "path": "/Users/vince/Projects/canlang/packages/testkit/test/loader.test.ts",
+      "line": 5,
+      "column": 61
+    },
+    {
+      "message": "cannot import package `vitest` because it is not a dependency",
+      "kind": "undeclared-package",
+      "path": "/Users/vince/Projects/canlang/packages/testkit/test/dispatch.test.ts",
+      "line": 1,
+      "column": 38
+    },
+    {
+      "message": "cannot import package `vitest` because it is not a dependency",
+      "kind": "undeclared-package",
+      "path": "/Users/vince/Projects/canlang/packages/testkit/test/accounts.test.ts",
+      "line": 1,
+      "column": 38
+    },
+    {
+      "message": "import `../../../../packages/values/src/money.ts` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/testkit/conformance/ports/observations.mjs",
+      "line": 25,
+      "column": 105
+    },
+    {
+      "message": "import `../../../../packages/values/src/decimal.ts` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/testkit/conformance/ports/observations.mjs",
+      "line": 24,
+      "column": 85
+    },
+    {
+      "message": "import `../../../../packages/values/src/array.ts` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/testkit/conformance/ports/observations.mjs",
+      "line": 27,
+      "column": 36
+    },
+    {
+      "message": "import `../../../../packages/cloudflare/src/runtime/artifact.ts` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/testkit/conformance/ports/observations.mjs",
+      "line": 32,
+      "column": 35
+    },
+    {
+      "message": "import `../../../../packages/values/src/temporal.ts` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/testkit/conformance/ports/observations.mjs",
+      "line": 26,
+      "column": 111
+    },
+    {
+      "message": "import `../../../../packages/values/src/int.ts` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/testkit/conformance/ports/observations.mjs",
+      "line": 23,
+      "column": 92
+    },
+    {
+      "message": "import `../../../../packages/cloudflare/src/deploy/compat.ts` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/testkit/conformance/ports/observations.mjs",
+      "line": 33,
+      "column": 43
+    },
+    {
+      "message": "import `../../../../packages/values/src/schema.ts` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/testkit/conformance/ports/observations.mjs",
+      "line": 28,
+      "column": 48
+    },
+    {
+      "message": "import `../../../../packages/work/src/receipt/index.ts` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/testkit/conformance/ports/observations.mjs",
+      "line": 30,
+      "column": 107
+    },
+    {
+      "message": "import `../../../../packages/values/src/wire.ts` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/testkit/conformance/ports/observations.mjs",
+      "line": 29,
+      "column": 42
+    },
+    {
+      "message": "import `../../../../packages/work/src/schedule/every.ts` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/testkit/conformance/ports/observations.mjs",
+      "line": 31,
+      "column": 78
+    },
+    {
+      "message": "import `../../../../cloudflare/dist/deploy/bundle.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/testkit/conformance/ports/loader-smoke/workerd.mjs",
+      "line": 32,
+      "column": 56
+    },
+    {
+      "message": "import `../../../../cloudflare/dist/dev/local-run.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/testkit/conformance/ports/loader-smoke/workerd.mjs",
+      "line": 33,
+      "column": 31
+    },
+    {
+      "message": "import `../../services/src/mail/adapter.ts` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/testkit/test/playback.test.ts",
+      "line": 20,
+      "column": 32
+    },
+    {
+      "message": "import `../../services/src/ports.ts` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/testkit/test/playback.test.ts",
+      "line": 25,
+      "column": 8
+    },
+    {
+      "message": "import `../../services/src/scenarios.ts` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/testkit/test/playback.test.ts",
+      "line": 41,
+      "column": 8
+    },
+    {
+      "message": "import `../../services/src/scenarios.ts` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/testkit/test/playback.test.ts",
+      "line": 42,
+      "column": 36
+    },
+    {
+      "message": "import `../../services/src/media/mapping.ts` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/testkit/test/playback.test.ts",
+      "line": 31,
+      "column": 29
+    },
+    {
+      "message": "import `../../services/src/judgments/systemone.ts` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/testkit/test/playback.test.ts",
+      "line": 28,
+      "column": 34
+    },
+    {
+      "message": "cannot import package `vitest` because it is not a dependency",
+      "kind": "undeclared-package",
+      "path": "/Users/vince/Projects/canlang/packages/testkit/test/playback.test.ts",
+      "line": 17,
+      "column": 38
+    },
+    {
+      "message": "import `../../services/src/media/harness.ts` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/testkit/test/playback.test.ts",
+      "line": 32,
+      "column": 44
+    },
+    {
+      "message": "import `../../contracts/src/services.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/testkit/test/playback.test.ts",
+      "line": 50,
+      "column": 8
+    },
+    {
+      "message": "import `../../services/src/media/comfyui.ts` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/testkit/test/playback.test.ts",
+      "line": 30,
+      "column": 38
+    },
+    {
+      "message": "import `../../services/src/models/harness.ts` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/testkit/test/playback.test.ts",
+      "line": 27,
+      "column": 45
+    },
+    {
+      "message": "import `../../services/src/judgments/harness.ts` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/testkit/test/playback.test.ts",
+      "line": 29,
+      "column": 48
+    },
+    {
+      "message": "import `../../services/src/models/ollama.ts` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/testkit/test/playback.test.ts",
+      "line": 26,
+      "column": 35
+    },
+    {
+      "message": "cannot import package `vitest` because it is not a dependency",
+      "kind": "undeclared-package",
+      "path": "/Users/vince/Projects/canlang/packages/testkit/test/isolation.test.ts",
+      "line": 2,
+      "column": 38
+    },
+    {
+      "message": "import `../../contracts/src/files.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/files/src/ports.ts",
+      "line": 35,
+      "column": 8
+    },
+    {
+      "message": "import `../../services/src/scenarios.ts` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/files/src/scenarios.ts",
+      "line": 21,
+      "column": 36
+    },
+    {
+      "message": "import `../../../contracts/src/wire.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/files/src/finalize/index.ts",
+      "line": 41,
+      "column": 42
+    },
+    {
+      "message": "import `../../../contracts/src/files.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/files/src/finalize/index.ts",
+      "line": 32,
+      "column": 8
+    },
+    {
+      "message": "import `../../../contracts/src/files.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/files/src/retention/index.ts",
+      "line": 16,
+      "column": 8
+    },
+    {
+      "message": "import `../../../contracts/src/files.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/files/src/provenance/index.ts",
+      "line": 16,
+      "column": 8
+    },
+    {
+      "message": "import `../../contracts/src/files.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/files/test/helpers.ts",
+      "line": 9,
+      "column": 8
+    },
+    {
+      "message": "import `../../../contracts/src/wire.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/files/src/upload/index.ts",
+      "line": 26,
+      "column": 42
+    },
+    {
+      "message": "import `../../../contracts/src/files.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/files/src/upload/index.ts",
+      "line": 25,
+      "column": 8
+    },
+    {
+      "message": "import `../../contracts/src/files.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/files/test/contract-shapes.test.ts",
+      "line": 17,
+      "column": 8
+    },
+    {
+      "message": "import `../../contracts/src/wire.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/files/test/contract-shapes.test.ts",
+      "line": 24,
+      "column": 8
+    },
+    {
+      "message": "import `../../services/src/scenarios.ts` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/files/test/scenarios.test.ts",
+      "line": 8,
+      "column": 35
+    },
+    {
+      "message": "import `../../contracts/src/wire.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/files/src/bridge.ts",
+      "line": 25,
+      "column": 8
+    },
+    {
+      "message": "import `../../contracts/src/files.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/files/src/bridge.ts",
+      "line": 26,
+      "column": 37
+    },
+    {
+      "message": "import `../../services/src/media/mapping.ts` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/files/test/provider-output.test.ts",
+      "line": 26,
+      "column": 29
+    },
+    {
+      "message": "import `../../contracts/src/services.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/files/test/provider-output.test.ts",
+      "line": 19,
+      "column": 8
+    },
+    {
+      "message": "import `../../services/src/media/harness.ts` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/files/test/provider-output.test.ts",
+      "line": 24,
+      "column": 44
+    },
+    {
+      "message": "import `../../services/src/media/harness.ts` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/files/test/provider-output.test.ts",
+      "line": 25,
+      "column": 44
+    },
+    {
+      "message": "import `../../services/src/media/comfyui.ts` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/files/test/provider-output.test.ts",
+      "line": 23,
+      "column": 8
+    },
+    {
+      "message": "import `../../contracts/src/presentation.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/ui/src/catalog.ts",
+      "line": 27,
+      "column": 8
+    },
+    {
+      "message": "import `../../../contracts/src/presentation.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/ui/src/csv/confirm.ts",
+      "line": 27,
+      "column": 42
+    },
+    {
+      "message": "import `../../contracts/src/presentation.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/ui/test/navigation.test.ts",
+      "line": 11,
+      "column": 8
+    },
+    {
+      "message": "import `../../contracts/src/presentation.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/ui/test/t20b-client.test.ts",
+      "line": 3,
+      "column": 28
+    },
+    {
+      "message": "import `../../contracts/src/presentation.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/ui/test/t20b-client.test.ts",
+      "line": 18,
+      "column": 42
+    },
+    {
+      "message": "import `../../contracts/src/wire.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/ui/test/t20b-client.test.ts",
+      "line": 4,
+      "column": 45
+    },
+    {
+      "message": "import `../../contracts/src/presentation.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/ui/src/collections.ts",
+      "line": 29,
+      "column": 8
+    },
+    {
+      "message": "import `../../contracts/src/presentation.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/ui/src/collections.ts",
+      "line": 30,
+      "column": 28
+    },
+    {
+      "message": "import `../../contracts/src/presentation.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/ui/test/t20b-generated-depth.test.ts",
+      "line": 6,
+      "column": 8
+    },
+    {
+      "message": "import `../../contracts/src/wire.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/ui/test/t20b-generated-depth.test.ts",
+      "line": 7,
+      "column": 45
+    },
+    {
+      "message": "import `../../contracts/src/presentation.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/ui/test/collections.test.ts",
+      "line": 13,
+      "column": 8
+    },
+    {
+      "message": "import `../../contracts/src/presentation.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/ui/src/htmx.ts",
+      "line": 22,
+      "column": 8
+    },
+    {
+      "message": "import `../../contracts/src/presentation.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/ui/test/csv.test.ts",
+      "line": 3,
+      "column": 42
+    },
+    {
+      "message": "import `../../contracts/src/presentation.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/ui/test/csv.test.ts",
+      "line": 4,
+      "column": 28
+    },
+    {
+      "message": "import `../../contracts/src/presentation.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/ui/test/components.test.ts",
+      "line": 7,
+      "column": 8
+    },
+    {
+      "message": "import `../../contracts/src/presentation.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/ui/src/index.ts",
+      "line": 377,
+      "column": 8
+    },
+    {
+      "message": "import `../../contracts/src/presentation.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/ui/src/index.ts",
+      "line": 383,
+      "column": 8
+    },
+    {
+      "message": "import `../../contracts/src/presentation.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/ui/src/overlays.ts",
+      "line": 59,
+      "column": 8
+    },
+    {
+      "message": "import `../../contracts/src/presentation.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/ui/test/t20a-generated-forms.test.ts",
+      "line": 7,
+      "column": 8
+    },
+    {
+      "message": "import `../../contracts/src/presentation.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/ui/test/t20a-generated-forms.test.ts",
+      "line": 15,
+      "column": 8
+    },
+    {
+      "message": "import `../../contracts/src/wire.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/ui/test/t20a-generated-forms.test.ts",
+      "line": 16,
+      "column": 45
+    },
+    {
+      "message": "import `../../../contracts/src/presentation.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/ui/src/browser/export.ts",
+      "line": 34,
+      "column": 28
+    },
+    {
+      "message": "import `../../contracts/src/presentation.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/ui/src/settings.ts",
+      "line": 40,
+      "column": 8
+    },
+    {
+      "message": "import `../../contracts/src/presentation.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/ui/src/settings.ts",
+      "line": 41,
+      "column": 28
+    },
+    {
+      "message": "import `../../../contracts/src/presentation.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/ui/src/csv/parse.ts",
+      "line": 33,
+      "column": 8
+    },
+    {
+      "message": "import `../../../contracts/src/presentation.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/ui/src/csv/parse.ts",
+      "line": 34,
+      "column": 28
+    },
+    {
+      "message": "import `../../contracts/src/presentation.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/ui/src/components.ts",
+      "line": 25,
+      "column": 8
+    },
+    {
+      "message": "import `../../contracts/src/presentation.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/ui/src/appearance.ts",
+      "line": 14,
+      "column": 8
+    },
+    {
+      "message": "import `../../contracts/src/presentation.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/ui/src/policyPage.ts",
+      "line": 25,
+      "column": 8
+    },
+    {
+      "message": "import `../../contracts/src/presentation.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/ui/src/media.ts",
+      "line": 36,
+      "column": 8
+    },
+    {
+      "message": "import `../../contracts/src/presentation.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/ui/src/panels.ts",
+      "line": 47,
+      "column": 8
+    },
+    {
+      "message": "import `../../contracts/src/presentation.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/ui/src/panels.ts",
+      "line": 48,
+      "column": 28
+    },
+    {
+      "message": "import `../../contracts/src/presentation.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/ui/test/forms.test.ts",
+      "line": 3,
+      "column": 28
+    },
+    {
+      "message": "import `../../contracts/src/presentation.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/ui/test/forms.test.ts",
+      "line": 12,
+      "column": 8
+    },
+    {
+      "message": "import `../../contracts/src/presentation.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/ui/test/forms.test.ts",
+      "line": 13,
+      "column": 53
+    },
+    {
+      "message": "import `../../contracts/src/presentation.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/ui/test/overlays.test.ts",
+      "line": 8,
+      "column": 8
+    },
+    {
+      "message": "import `../../contracts/src/presentation.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/ui/test/catalog.test.ts",
+      "line": 8,
+      "column": 8
+    },
+    {
+      "message": "import `../../../contracts/src/presentation.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/ui/test/fixtures/descriptors.ts",
+      "line": 11,
+      "column": 8
+    },
+    {
+      "message": "import `../../contracts/src/presentation.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/ui/src/groups.ts",
+      "line": 52,
+      "column": 8
+    },
+    {
+      "message": "import `../../contracts/src/presentation.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/ui/src/leaves.ts",
+      "line": 47,
+      "column": 8
+    },
+    {
+      "message": "import `../../contracts/src/presentation.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/ui/src/review.ts",
+      "line": 24,
+      "column": 8
+    },
+    {
+      "message": "import `../../contracts/src/presentation.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/ui/test/settings.test.ts",
+      "line": 6,
+      "column": 8
+    },
+    {
+      "message": "import `../../contracts/src/presentation.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/ui/src/forms.ts",
+      "line": 18,
+      "column": 8
+    },
+    {
+      "message": "import `../../contracts/src/presentation.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/ui/src/forms.ts",
+      "line": 32,
+      "column": 8
+    },
+    {
+      "message": "import `../../contracts/src/presentation.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/ui/src/forms.ts",
+      "line": 33,
+      "column": 46
+    },
+    {
+      "message": "import `../../contracts/src/wire.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/ui/src/forms.ts",
+      "line": 39,
+      "column": 8
+    },
+    {
+      "message": "import `../../contracts/src/presentation.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/ui/src/messages.ts",
+      "line": 29,
+      "column": 8
+    },
+    {
+      "message": "import `../../contracts/src/presentation.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/ui/test/shell.test.ts",
+      "line": 6,
+      "column": 8
+    },
+    {
+      "message": "import `../../contracts/src/presentation.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/ui/test/shell.test.ts",
+      "line": 15,
+      "column": 8
+    },
+    {
+      "message": "import `../../contracts/src/presentation.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/ui/test/htmx.test.ts",
+      "line": 8,
+      "column": 8
+    },
+    {
+      "message": "import `../../contracts/src/presentation.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/ui/test/groups.test.ts",
+      "line": 7,
+      "column": 8
+    },
+    {
+      "message": "import `../../contracts/src/presentation.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/ui/test/leaves.test.ts",
+      "line": 10,
+      "column": 8
+    },
+    {
+      "message": "import `../../contracts/src/presentation.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/ui/test/media.test.ts",
+      "line": 3,
+      "column": 42
+    },
+    {
+      "message": "import `../../contracts/src/presentation.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/ui/test/policyPage.test.ts",
+      "line": 3,
+      "column": 42
+    },
+    {
+      "message": "import `../../contracts/src/presentation.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/ui/test/panels.test.ts",
+      "line": 7,
+      "column": 8
+    },
+    {
+      "message": "import `../../contracts/src/presentation.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/ui/test/controls.test.ts",
+      "line": 8,
+      "column": 8
+    },
+    {
+      "message": "import `../../contracts/src/presentation.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/ui/test/journeys.test.ts",
+      "line": 22,
+      "column": 8
+    },
+    {
+      "message": "import `../../contracts/src/presentation.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/ui/test/review.test.ts",
+      "line": 3,
+      "column": 42
+    },
+    {
+      "message": "import `../../contracts/src/presentation.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/ui/src/shell.ts",
+      "line": 14,
+      "column": 8
+    },
+    {
+      "message": "import `../../contracts/src/presentation.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/ui/src/shell.ts",
+      "line": 24,
+      "column": 8
+    },
+    {
+      "message": "import `../../../contracts/src/presentation.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/ui/src/csv/preview.ts",
+      "line": 26,
+      "column": 42
+    },
+    {
+      "message": "import `../../../contracts/src/presentation.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/ui/src/csv/preview.ts",
+      "line": 27,
+      "column": 28
+    },
+    {
+      "message": "import `../../contracts/src/presentation.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/ui/src/client.ts",
+      "line": 16,
+      "column": 28
+    },
+    {
+      "message": "import `../../contracts/src/presentation.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/ui/src/client.ts",
+      "line": 17,
+      "column": 31
+    },
+    {
+      "message": "import `../../contracts/src/wire.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/ui/src/client.ts",
+      "line": 26,
+      "column": 8
+    },
+    {
+      "message": "import `../../contracts/src/presentation.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/ui/src/controls.ts",
+      "line": 44,
+      "column": 8
+    },
+    {
+      "message": "import `../../contracts/src/presentation.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/ui/src/controls.ts",
+      "line": 45,
+      "column": 33
+    },
+    {
+      "message": "import `../../contracts/src/presentation.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/ui/src/navigation.ts",
+      "line": 31,
+      "column": 8
+    },
+    {
+      "message": "import `../../contracts/src/presentation.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/ui/src/navigation.ts",
+      "line": 32,
+      "column": 28
+    },
+    {
+      "message": "import `../../contracts/src/wire.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/interfaces/test/wire.test.ts",
+      "line": 29,
+      "column": 8
+    },
+    {
+      "message": "import `../../contracts/src/wire.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/interfaces/test/wire.test.ts",
+      "line": 40,
+      "column": 8
+    },
+    {
+      "message": "import `../../contracts/src/presentation.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/interfaces/test/export-print.test.ts",
+      "line": 34,
+      "column": 38
+    },
+    {
+      "message": "import `../../contracts/src/wire.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/interfaces/test/export-print.test.ts",
+      "line": 33,
+      "column": 56
+    },
+    {
+      "message": "import `../../contracts/src/artifact.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/interfaces/test/export-route.test.ts",
+      "line": 22,
+      "column": 34
+    },
+    {
+      "message": "import `../../contracts/src/artifact.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/interfaces/test/export-route.test.ts",
+      "line": 23,
+      "column": 40
+    },
+    {
+      "message": "import `../../contracts/src/presentation.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/interfaces/test/export-route.test.ts",
+      "line": 21,
+      "column": 38
+    },
+    {
+      "message": "import `../../contracts/src/wire.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/interfaces/test/export-route.test.ts",
+      "line": 20,
+      "column": 38
+    },
+    {
+      "message": "import `../../contracts/src/artifact.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/interfaces/test/e2b-transport-seams.test.ts",
+      "line": 23,
+      "column": 34
+    },
+    {
+      "message": "import `../../contracts/src/artifact.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/interfaces/test/e2b-transport-seams.test.ts",
+      "line": 24,
+      "column": 40
+    },
+    {
+      "message": "import `../../ui/src/forms.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/interfaces/test/e2b-transport-seams.test.ts",
+      "line": 48,
+      "column": 33
+    },
+    {
+      "message": "import `../../contracts/src/artifact.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/interfaces/test/t19b-depth.test.ts",
+      "line": 48,
+      "column": 34
+    },
+    {
+      "message": "import `../../contracts/src/artifact.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/interfaces/test/t19b-depth.test.ts",
+      "line": 49,
+      "column": 40
+    },
+    {
+      "message": "import `../../contracts/src/wire.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/interfaces/test/t19b-depth.test.ts",
+      "line": 50,
+      "column": 67
+    },
+    {
+      "message": "import `../../contracts/src/artifact.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/interfaces/test/owned-mcp.test.ts",
+      "line": 23,
+      "column": 34
+    },
+    {
+      "message": "import `../../contracts/src/artifact.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/interfaces/test/owned-mcp.test.ts",
+      "line": 24,
+      "column": 40
+    },
+    {
+      "message": "import `../../contracts/src/artifact.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/interfaces/test/d3b-receipt-read.test.ts",
+      "line": 21,
+      "column": 34
+    },
+    {
+      "message": "import `../../contracts/src/artifact.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/interfaces/test/d3b-receipt-read.test.ts",
+      "line": 22,
+      "column": 40
+    },
+    {
+      "message": "import `../../contracts/src/artifact.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/interfaces/test/e2-dispatch-agreement.test.ts",
+      "line": 23,
+      "column": 34
+    },
+    {
+      "message": "import `../../contracts/src/artifact.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/interfaces/test/e2-dispatch-agreement.test.ts",
+      "line": 24,
+      "column": 40
+    },
+    {
+      "message": "import `../../ui/src/forms.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/interfaces/test/e2-dispatch-agreement.test.ts",
+      "line": 46,
+      "column": 57
+    },
+    {
+      "message": "import `../../ui/src/browser/print.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/interfaces/test/export-join.test.ts",
+      "line": 45,
+      "column": 67
+    },
+    {
+      "message": "import `../../contracts/src/presentation.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/interfaces/test/export-join.test.ts",
+      "line": 27,
+      "column": 38
+    },
+    {
+      "message": "import `../../contracts/src/wire.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/interfaces/test/export-join.test.ts",
+      "line": 26,
+      "column": 38
+    },
+    {
+      "message": "import `../../ui/src/browser/export.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/interfaces/test/export-join.test.ts",
+      "line": 43,
+      "column": 8
+    },
+    {
+      "message": "import `../../ui/src/browser/export.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/interfaces/test/export-join.test.ts",
+      "line": 44,
+      "column": 35
+    },
+    {
+      "message": "import `../../contracts/src/artifact.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/interfaces/test/csv-review.test.ts",
+      "line": 31,
+      "column": 34
+    },
+    {
+      "message": "import `../../contracts/src/artifact.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/interfaces/test/csv-review.test.ts",
+      "line": 32,
+      "column": 40
+    },
+    {
+      "message": "import `../../contracts/src/artifact.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/interfaces/test/t19a-derivation.test.ts",
+      "line": 53,
+      "column": 34
+    },
+    {
+      "message": "import `../../contracts/src/artifact.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/interfaces/test/t19a-derivation.test.ts",
+      "line": 54,
+      "column": 40
+    },
+    {
+      "message": "import `../../contracts/src/artifact.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/interfaces/test/t20a-presentation.test.ts",
+      "line": 19,
+      "column": 34
+    },
+    {
+      "message": "import `../../contracts/src/artifact.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/interfaces/test/t20a-presentation.test.ts",
+      "line": 20,
+      "column": 40
+    },
+    {
+      "message": "import `../../ui/src/forms.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/interfaces/test/t20a-presentation.test.ts",
+      "line": 52,
+      "column": 8
+    },
+    {
+      "message": "import `../../contracts/src/artifact.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/interfaces/test/owned-http.test.ts",
+      "line": 22,
+      "column": 34
+    },
+    {
+      "message": "import `../../contracts/src/artifact.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/interfaces/test/owned-http.test.ts",
+      "line": 23,
+      "column": 40
+    },
+    {
+      "message": "import `../../contracts/src/artifact.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/interfaces/test/csv-route.test.ts",
+      "line": 25,
+      "column": 34
+    },
+    {
+      "message": "import `../../contracts/src/artifact.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/interfaces/test/csv-route.test.ts",
+      "line": 26,
+      "column": 40
+    },
+    {
+      "message": "import `../../contracts/src/artifact.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/interfaces/test/csv-join.test.ts",
+      "line": 32,
+      "column": 34
+    },
+    {
+      "message": "import `../../contracts/src/artifact.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/interfaces/test/csv-join.test.ts",
+      "line": 33,
+      "column": 40
+    },
+    {
+      "message": "import `../../contracts/src/artifact.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/interfaces/test/e1-bound-dispatch.test.ts",
+      "line": 21,
+      "column": 34
+    },
+    {
+      "message": "import `../../contracts/src/artifact.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/interfaces/test/e1-bound-dispatch.test.ts",
+      "line": 22,
+      "column": 40
+    },
+    {
+      "message": "import `../../../contracts/src/services.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/services/src/models/ollama.ts",
+      "line": 35,
+      "column": 8
+    },
+    {
+      "message": "import `../../../contracts/src/services.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/services/src/http/pagination.ts",
+      "line": 11,
+      "column": 8
+    },
+    {
+      "message": "import `../../../contracts/src/services.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/services/src/media/comfyui.ts",
+      "line": 36,
+      "column": 8
+    },
+    {
+      "message": "import `../../../contracts/src/services.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/services/src/mail/adapter.ts",
+      "line": 26,
+      "column": 8
+    },
+    {
+      "message": "import `../../../contracts/src/services.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/services/src/media/mapping.ts",
+      "line": 28,
+      "column": 8
+    },
+    {
+      "message": "import `../../contracts/src/services.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/services/test/pagination.test.ts",
+      "line": 17,
+      "column": 8
+    },
+    {
+      "message": "import `../../contracts/src/services.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/services/test/scenarios.test.ts",
+      "line": 47,
+      "column": 8
+    },
+    {
+      "message": "import `../../contracts/src/services.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/services/test/mail-redaction.test.ts",
+      "line": 22,
+      "column": 37
+    },
+    {
+      "message": "import `../../contracts/src/services.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/services/test/models-ollama.test.ts",
+      "line": 25,
+      "column": 8
+    },
+    {
+      "message": "import `../../../contracts/src/services.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/services/src/mail/redact.ts",
+      "line": 10,
+      "column": 36
+    },
+    {
+      "message": "import `../../contracts/src/services.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/services/test/mail-adapter.test.ts",
+      "line": 30,
+      "column": 8
+    },
+    {
+      "message": "import `../../contracts/src/services.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/services/test/judgments-systemone.test.ts",
+      "line": 19,
+      "column": 41
+    },
+    {
+      "message": "import `../../contracts/src/services.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/services/test/media-comfyui.test.ts",
+      "line": 28,
+      "column": 8
+    },
+    {
+      "message": "import `../../../contracts/src/services.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/services/src/judgments/systemone.ts",
+      "line": 39,
+      "column": 8
+    },
+    {
+      "message": "import `../../contracts/src/services.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/services/src/ports.ts",
+      "line": 29,
+      "column": 8
+    },
+    {
+      "message": "import `../../contracts/src/services.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/services/test/contract-shapes.test.ts",
+      "line": 29,
+      "column": 8
+    },
+    {
+      "message": "cannot import package `vitest` because it is not a dependency",
+      "kind": "undeclared-package",
+      "path": "/Users/vince/Projects/canlang/packages/cloudflare/test/artifact.test.ts",
+      "line": 4,
+      "column": 38
+    },
+    {
+      "message": "import `../../../state/dist/state/test/invocation/fixtures.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/cloudflare/src/runtime/t34-f7-fanout.test.ts",
+      "line": 50,
+      "column": 8
+    },
+    {
+      "message": "import `../../../state/dist/state/test/invocation/fixtures.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/cloudflare/src/runtime/t34-f7-fanout.test.ts",
+      "line": 51,
+      "column": 42
+    },
+    {
+      "message": "import `../../../state/dist/state/src/storage/memory.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/cloudflare/src/runtime/t34-f7-fanout.test.ts",
+      "line": 35,
+      "column": 37
+    },
+    {
+      "message": "import `../../../state/dist/state/src/invocation/registry.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/cloudflare/src/runtime/t34-f7-fanout.test.ts",
+      "line": 37,
+      "column": 40
+    },
+    {
+      "message": "import `../../../state/dist/state/src/errors.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/cloudflare/src/runtime/t34-f7-fanout.test.ts",
+      "line": 52,
+      "column": 28
+    },
+    {
+      "message": "import `../../../state/dist/state/src/storage/port.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/cloudflare/src/runtime/t34-f7-fanout.test.ts",
+      "line": 36,
+      "column": 36
+    },
+    {
+      "message": "import `../../../state/dist/state/src/storage/memory.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/cloudflare/src/runtime/d3b-selected-receipt.test.ts",
+      "line": 37,
+      "column": 41
+    },
+    {
+      "message": "import `../../../state/dist/state/src/receipt/tables.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/cloudflare/src/runtime/d3b-selected-receipt.test.ts",
+      "line": 43,
+      "column": 8
+    },
+    {
+      "message": "import `../../../state/dist/state/src/receipt/work-loader.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/cloudflare/src/runtime/d3b-observer-seam.test.ts",
+      "line": 44,
+      "column": 36
+    },
+    {
+      "message": "import `../../../state/dist/state/src/storage/memory.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/cloudflare/src/runtime/d3b-observer-seam.test.ts",
+      "line": 37,
+      "column": 41
+    },
+    {
+      "message": "import `../../../state/dist/state/src/receipt/tables.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/cloudflare/src/runtime/d3b-observer-seam.test.ts",
+      "line": 43,
+      "column": 8
+    },
+    {
+      "message": "import `../../../interfaces/dist/interfaces/src/testing.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/cloudflare/src/runtime/d3b-join-assembly.test.ts",
+      "line": 48,
+      "column": 8
+    },
+    {
+      "message": "import `../../../state/dist/state/src/storage/memory.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/cloudflare/src/runtime/d3b-join-assembly.test.ts",
+      "line": 49,
+      "column": 41
+    },
+    {
+      "message": "import `../../../state/dist/state/src/receipt/tables.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/cloudflare/src/runtime/d3b-join-assembly.test.ts",
+      "line": 55,
+      "column": 8
+    },
+    {
+      "message": "import `../../../state/dist/state/test/invocation/fixtures.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/cloudflare/src/runtime/t34-f7-emitted-cohorts.test.ts",
+      "line": 30,
+      "column": 8
+    },
+    {
+      "message": "import `../../../state/dist/state/src/storage/memory.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/cloudflare/src/runtime/t34-f7-emitted-cohorts.test.ts",
+      "line": 21,
+      "column": 37
+    },
+    {
+      "message": "cannot import package `vitest` because it is not a dependency",
+      "kind": "undeclared-package",
+      "path": "/Users/vince/Projects/canlang/packages/cloudflare/test/deploy-cli.test.ts",
+      "line": 5,
+      "column": 38
+    },
+    {
+      "message": "cannot import package `vitest` because it is not a dependency",
+      "kind": "undeclared-package",
+      "path": "/Users/vince/Projects/canlang/packages/cloudflare/test/runtime-stdlib.test.ts",
+      "line": 6,
+      "column": 49
+    },
+    {
+      "message": "import `../../state/dist/state/src/storage/memory.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/cloudflare/test/runtime-stdlib.test.ts",
+      "line": 23,
+      "column": 41
+    },
+    {
+      "message": "cannot import package `vitest` because it is not a dependency",
+      "kind": "undeclared-package",
+      "path": "/Users/vince/Projects/canlang/packages/cloudflare/test/mcp-grant-route.test.ts",
+      "line": 16,
+      "column": 38
+    },
+    {
+      "message": "import `../../interfaces/dist/interfaces/src/ports.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/cloudflare/test/http-operations-route.test.ts",
+      "line": 48,
+      "column": 47
+    },
+    {
+      "message": "import `../../interfaces/dist/interfaces/src/ports.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/cloudflare/test/http-operations-route.test.ts",
+      "line": 49,
+      "column": 45
+    },
+    {
+      "message": "import `../../interfaces/dist/interfaces/src/http/formErrors.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/cloudflare/test/http-operations-route.test.ts",
+      "line": 55,
+      "column": 8
+    },
+    {
+      "message": "import `../../interfaces/dist/interfaces/src/testing.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/cloudflare/test/http-operations-route.test.ts",
+      "line": 56,
+      "column": 59
+    },
+    {
+      "message": "cannot import package `vitest` because it is not a dependency",
+      "kind": "undeclared-package",
+      "path": "/Users/vince/Projects/canlang/packages/cloudflare/test/http-operations-route.test.ts",
+      "line": 33,
+      "column": 49
+    },
+    {
+      "message": "import `../../interfaces/dist/interfaces/src/mcp/server.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/cloudflare/test/http-operations-route.test.ts",
+      "line": 50,
+      "column": 34
+    },
+    {
+      "message": "import `../../interfaces/dist/interfaces/src/http/operations.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/cloudflare/test/http-operations-route.test.ts",
+      "line": 47,
+      "column": 8
+    },
+    {
+      "message": "import `../../state/dist/state/src/storage/memory.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/cloudflare/test/http-operations-route.test.ts",
+      "line": 42,
+      "column": 41
+    },
+    {
+      "message": "import `../../state/dist/state/src/index.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/cloudflare/test/http-operations-route.test.ts",
+      "line": 41,
+      "column": 8
+    },
+    {
+      "message": "import `../../../state/dist/state/src/ports/transact.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/cloudflare/src/runtime/t24b-dispatch-execution.test.ts",
+      "line": 32,
+      "column": 37
+    },
+    {
+      "message": "import `../../../state/dist/state/src/storage/memory.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/cloudflare/src/runtime/t24b-dispatch-execution.test.ts",
+      "line": 31,
+      "column": 41
+    },
+    {
+      "message": "import `../../interfaces/dist/interfaces/src/ports.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/cloudflare/test/mcpd-env-assembly.test.ts",
+      "line": 50,
+      "column": 45
+    },
+    {
+      "message": "cannot import package `vitest` because it is not a dependency",
+      "kind": "undeclared-package",
+      "path": "/Users/vince/Projects/canlang/packages/cloudflare/test/mcpd-env-assembly.test.ts",
+      "line": 37,
+      "column": 49
+    },
+    {
+      "message": "import `../../interfaces/dist/interfaces/src/mcp/server.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/cloudflare/test/mcpd-env-assembly.test.ts",
+      "line": 49,
+      "column": 34
+    },
+    {
+      "message": "cannot import package `vitest` because it is not a dependency",
+      "kind": "undeclared-package",
+      "path": "/Users/vince/Projects/canlang/packages/cloudflare/test/release.test.ts",
+      "line": 4,
+      "column": 38
+    },
+    {
+      "message": "cannot import package `vitest` because it is not a dependency",
+      "kind": "undeclared-package",
+      "path": "/Users/vince/Projects/canlang/packages/cloudflare/test/runtime-context.test.ts",
+      "line": 1,
+      "column": 38
+    },
+    {
+      "message": "cannot import package `vitest` because it is not a dependency",
+      "kind": "undeclared-package",
+      "path": "/Users/vince/Projects/canlang/packages/cloudflare/test/modules.test.ts",
+      "line": 5,
+      "column": 38
+    },
+    {
+      "message": "cannot import package `vitest` because it is not a dependency",
+      "kind": "undeclared-package",
+      "path": "/Users/vince/Projects/canlang/packages/cloudflare/test/compat.test.ts",
+      "line": 1,
+      "column": 38
+    },
+    {
+      "message": "cannot import package `vitest` because it is not a dependency",
+      "kind": "undeclared-package",
+      "path": "/Users/vince/Projects/canlang/packages/cloudflare/test/worker-boundary.test.ts",
+      "line": 2,
+      "column": 38
+    },
+    {
+      "message": "cannot import package `vitest` because it is not a dependency",
+      "kind": "undeclared-package",
+      "path": "/Users/vince/Projects/canlang/packages/cloudflare/test/dev-smoke.test.ts",
+      "line": 2,
+      "column": 38
+    },
+    {
+      "message": "import `../../../state/dist/state/src/storage/memory.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/cloudflare/src/runtime/t16b-canonical.test.ts",
+      "line": 49,
+      "column": 41
+    },
+    {
+      "message": "import `../../../state/dist/state/src/storage/d1.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/cloudflare/src/runtime/t34-f7-fanout-durable.test.ts",
+      "line": 36,
+      "column": 47
+    },
+    {
+      "message": "import `../../../state/dist/state/src/storage/port.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/cloudflare/src/runtime/t34-f7-fanout-durable.test.ts",
+      "line": 40,
+      "column": 8
+    },
+    {
+      "message": "import `../../../state/dist/state/src/invocation/registry.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/cloudflare/src/runtime/t34-f7-fanout-durable.test.ts",
+      "line": 41,
+      "column": 40
+    },
+    {
+      "message": "import `../../../state/dist/state/test/invocation/fixtures.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/cloudflare/src/runtime/t34-f7-fanout-durable.test.ts",
+      "line": 54,
+      "column": 8
+    },
+    {
+      "message": "import `../../../state/dist/state/test/invocation/fixtures.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/cloudflare/src/runtime/t34-f7-fanout-durable.test.ts",
+      "line": 55,
+      "column": 42
+    },
+    {
+      "message": "cannot import package `vitest` because it is not a dependency",
+      "kind": "undeclared-package",
+      "path": "/Users/vince/Projects/canlang/packages/cloudflare/test/worker-main.test.ts",
+      "line": 28,
+      "column": 49
+    },
+    {
+      "message": "cannot import package `vitest` because it is not a dependency",
+      "kind": "undeclared-package",
+      "path": "/Users/vince/Projects/canlang/packages/cloudflare/test/mcp-derived.test.ts",
+      "line": 14,
+      "column": 38
+    },
+    {
+      "message": "import `../../interfaces/dist/interfaces/src/http/operations.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/cloudflare/test/mcp-derived.test.ts",
+      "line": 16,
+      "column": 47
+    },
+    {
+      "message": "cannot import package `vitest` because it is not a dependency",
+      "kind": "undeclared-package",
+      "path": "/Users/vince/Projects/canlang/packages/cloudflare/test/activation-refusal.test.ts",
+      "line": 9,
+      "column": 38
+    },
+    {
+      "message": "cannot import package `vitest` because it is not a dependency",
+      "kind": "undeclared-package",
+      "path": "/Users/vince/Projects/canlang/packages/cloudflare/test/plan.test.ts",
+      "line": 1,
+      "column": 38
+    },
+    {
+      "message": "import `../../../state/dist/state/src/storage/d1.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/cloudflare/src/runtime/d3b-durable-serve.test.ts",
+      "line": 51,
+      "column": 47
+    },
+    {
+      "message": "import `../../../state/dist/state/src/receipt/work-loader.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/cloudflare/src/runtime/d3b-durable-serve.test.ts",
+      "line": 58,
+      "column": 36
+    },
+    {
+      "message": "import `../../../state/dist/state/src/receipt/tables.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/cloudflare/src/runtime/d3b-durable-serve.test.ts",
+      "line": 57,
+      "column": 8
+    },
+    {
+      "message": "cannot import package `vitest` because it is not a dependency",
+      "kind": "undeclared-package",
+      "path": "/Users/vince/Projects/canlang/packages/cloudflare/test/preparation-publication.test.ts",
+      "line": 18,
+      "column": 38
+    },
+    {
+      "message": "import `../../interfaces/dist/interfaces/src/ports.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/cloudflare/test/mcp-route.test.ts",
+      "line": 54,
+      "column": 8
+    },
+    {
+      "message": "import `../../interfaces/dist/interfaces/src/testing.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/cloudflare/test/mcp-route.test.ts",
+      "line": 48,
+      "column": 8
+    },
+    {
+      "message": "cannot import package `vitest` because it is not a dependency",
+      "kind": "undeclared-package",
+      "path": "/Users/vince/Projects/canlang/packages/cloudflare/test/mcp-route.test.ts",
+      "line": 29,
+      "column": 49
+    },
+    {
+      "message": "import `../../interfaces/dist/interfaces/src/mcp/server.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/cloudflare/test/mcp-route.test.ts",
+      "line": 43,
+      "column": 34
+    },
+    {
+      "message": "import `../../interfaces/dist/interfaces/src/http/operations.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/cloudflare/test/mcp-route.test.ts",
+      "line": 44,
+      "column": 47
+    },
+    {
+      "message": "import `../../state/dist/state/src/storage/memory.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/cloudflare/test/mcp-route.test.ts",
+      "line": 40,
+      "column": 41
+    },
+    {
+      "message": "cannot import package `vitest` because it is not a dependency",
+      "kind": "undeclared-package",
+      "path": "/Users/vince/Projects/canlang/packages/cloudflare/test/invoke.test.ts",
+      "line": 1,
+      "column": 38
+    },
+    {
+      "message": "import `../../interfaces/dist/interfaces/src/uploads/principals.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/cloudflare/test/assembly.test.ts",
+      "line": 46,
+      "column": 38
+    },
+    {
+      "message": "import `../../files/src/finalize/index.ts` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/cloudflare/test/assembly.test.ts",
+      "line": 72,
+      "column": 8
+    },
+    {
+      "message": "import `../../interfaces/dist/interfaces/src/uploads/routes.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/cloudflare/test/assembly.test.ts",
+      "line": 47,
+      "column": 37
+    },
+    {
+      "message": "import `../../interfaces/dist/interfaces/src/testing.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/cloudflare/test/assembly.test.ts",
+      "line": 48,
+      "column": 51
+    },
+    {
+      "message": "cannot import package `vitest` because it is not a dependency",
+      "kind": "undeclared-package",
+      "path": "/Users/vince/Projects/canlang/packages/cloudflare/test/assembly.test.ts",
+      "line": 17,
+      "column": 49
+    },
+    {
+      "message": "import `../../files/src/upload/index.ts` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/cloudflare/test/assembly.test.ts",
+      "line": 64,
+      "column": 8
+    },
+    {
+      "message": "import `../../files/src/ports.ts` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/cloudflare/test/assembly.test.ts",
+      "line": 56,
+      "column": 8
+    },
+    {
+      "message": "import `../../state/dist/state/src/storage/memory.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/cloudflare/test/assembly.test.ts",
+      "line": 30,
+      "column": 41
+    },
+    {
+      "message": "import `../../interfaces/dist/interfaces/src/uploads/kernel.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/cloudflare/test/assembly.test.ts",
+      "line": 45,
+      "column": 8
+    },
+    {
+      "message": "cannot import package `vitest` because it is not a dependency",
+      "kind": "undeclared-package",
+      "path": "/Users/vince/Projects/canlang/packages/cloudflare/test/artifact-operations.test.ts",
+      "line": 14,
+      "column": 38
+    },
+    {
+      "message": "import `../../../state/dist/state/src/storage/d1.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/cloudflare/src/runtime/t24b-dispatch-durable.test.ts",
+      "line": 38,
+      "column": 47
+    },
+    {
+      "message": "import `../../../state/dist/state/src/storage/port.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/cloudflare/src/runtime/t24b-dispatch-durable.test.ts",
+      "line": 39,
+      "column": 60
+    },
+    {
+      "message": "cannot import package `vitest` because it is not a dependency",
+      "kind": "undeclared-package",
+      "path": "/Users/vince/Projects/canlang/packages/cloudflare/test/deploy-bundle.test.ts",
+      "line": 4,
+      "column": 38
+    },
+    {
+      "message": "import `../../interfaces/dist/interfaces/src/http/operations.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/cloudflare/test/deploy-bundle.test.ts",
+      "line": 21,
+      "column": 47
+    },
+    {
+      "message": "import `../../../state/dist/state/src/storage/d1.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/cloudflare/src/runtime/t32b-cloudflare-durable.test.ts",
+      "line": 46,
+      "column": 47
+    },
+    {
+      "message": "import `../../../state/dist/state/src/storage/port.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/cloudflare/src/runtime/t32b-cloudflare-durable.test.ts",
+      "line": 47,
+      "column": 60
+    },
+    {
+      "message": "cannot import package `vitest` because it is not a dependency",
+      "kind": "undeclared-package",
+      "path": "/Users/vince/Projects/canlang/packages/cloudflare/test/mcp-permissions.test.ts",
+      "line": 14,
+      "column": 38
+    },
+    {
+      "message": "import `../../interfaces/dist/interfaces/src/ports.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/cloudflare/test/mcp-permissions.test.ts",
+      "line": 16,
+      "column": 59
+    },
+    {
+      "message": "import `../../../state/dist/state/src/storage/memory.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/cloudflare/src/runtime/t17b-cloudflare-flip.test.ts",
+      "line": 45,
+      "column": 41
+    },
+    {
+      "message": "cannot import package `vitest` because it is not a dependency",
+      "kind": "undeclared-package",
+      "path": "/Users/vince/Projects/canlang/packages/cloudflare/test/mixed-output-rejection.test.ts",
+      "line": 4,
+      "column": 38
+    },
+    {
+      "message": "cannot import package `vitest` because it is not a dependency",
+      "kind": "undeclared-package",
+      "path": "/Users/vince/Projects/canlang/packages/cloudflare/test/installed.test.ts",
+      "line": 6,
+      "column": 38
+    },
+    {
+      "message": "cannot import package `vitest` because it is not a dependency",
+      "kind": "undeclared-package",
+      "path": "/Users/vince/Projects/canlang/packages/cloudflare/test/cli.test.ts",
+      "line": 5,
+      "column": 38
+    },
+    {
+      "message": "cannot import package `vitest` because it is not a dependency",
+      "kind": "undeclared-package",
+      "path": "/Users/vince/Projects/canlang/packages/cloudflare/test/activate.test.ts",
+      "line": 14,
+      "column": 38
+    },
+    {
+      "message": "import `../../work/src/recovery/index.ts` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/cloudflare/test/activate.test.ts",
+      "line": 25,
+      "column": 36
+    },
+    {
+      "message": "import `../../state/src/migration/activate.ts` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/cloudflare/test/activate.test.ts",
+      "line": 26,
+      "column": 42
+    },
+    {
+      "message": "import `../../state/src/migration/transition.ts` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/cloudflare/test/activate.test.ts",
+      "line": 27,
+      "column": 45
+    },
+    {
+      "message": "cannot import package `vitest` because it is not a dependency",
+      "kind": "undeclared-package",
+      "path": "/Users/vince/Projects/canlang/packages/cloudflare/test/sourcemap.test.ts",
+      "line": 5,
+      "column": 38
+    },
+    {
+      "message": "cannot import package `vitest` because it is not a dependency",
+      "kind": "undeclared-package",
+      "path": "/Users/vince/Projects/canlang/packages/cloudflare/test/zero-config.test.ts",
+      "line": 4,
+      "column": 38
+    },
+    {
+      "message": "cannot import package `vitest` because it is not a dependency",
+      "kind": "undeclared-package",
+      "path": "/Users/vince/Projects/canlang/packages/cloudflare/test/activate-cli.test.ts",
+      "line": 20,
+      "column": 38
+    },
+    {
+      "message": "cannot import package `vitest` because it is not a dependency",
+      "kind": "undeclared-package",
+      "path": "/Users/vince/Projects/canlang/packages/cloudflare/test/deploy-plan.test.ts",
+      "line": 1,
+      "column": 38
+    },
+    {
+      "message": "cannot import package `vitest` because it is not a dependency",
+      "kind": "undeclared-package",
+      "path": "/Users/vince/Projects/canlang/packages/cloudflare/test/artifact-field-descriptions.test.ts",
+      "line": 11,
+      "column": 38
+    },
+    {
+      "message": "cannot import package `vitest` because it is not a dependency",
+      "kind": "undeclared-package",
+      "path": "/Users/vince/Projects/canlang/packages/cloudflare/test/preparation-protocol.test.ts",
+      "line": 5,
+      "column": 53
+    },
+    {
+      "message": "import `../../../state/dist/state/src/storage/d1.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/cloudflare/src/runtime/t17b-durable.test.ts",
+      "line": 40,
+      "column": 47
+    },
+    {
+      "message": "cannot import package `vitest` because it is not a dependency",
+      "kind": "undeclared-package",
+      "path": "/Users/vince/Projects/canlang/packages/cloudflare/test/review.test.ts",
+      "line": 4,
+      "column": 38
+    },
+    {
+      "message": "import `../../../state/dist/state/src/storage/memory.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/cloudflare/src/runtime/t32b-cloudflare.test.ts",
+      "line": 52,
+      "column": 41
+    },
+    {
+      "message": "import `../../../state/dist/state/src/mutation/t18-shop.artifact.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/cloudflare/src/runtime/t32b-cloudflare.test.ts",
+      "line": 53,
+      "column": 40
+    },
+    {
+      "message": "cannot import package `vitest` because it is not a dependency",
+      "kind": "undeclared-package",
+      "path": "/Users/vince/Projects/canlang/packages/cloudflare/test/deploy-apply.test.ts",
+      "line": 1,
+      "column": 42
+    },
+    {
+      "message": "cannot import package `vitest` because it is not a dependency",
+      "kind": "undeclared-package",
+      "path": "/Users/vince/Projects/canlang/packages/cloudflare/test/mixed-output-controls.test.ts",
+      "line": 5,
+      "column": 38
+    },
+    {
+      "message": "cannot import package `vitest` because it is not a dependency",
+      "kind": "undeclared-package",
+      "path": "/Users/vince/Projects/canlang/packages/cloudflare/test/runtime-executors.test.ts",
+      "line": 1,
+      "column": 38
+    },
+    {
+      "message": "import `../../../contracts/src/work.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/state/src/fanout/t34-f5-progress.test.ts",
+      "line": 21,
+      "column": 34
+    },
+    {
+      "message": "import `../../../contracts/src/state.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/state/src/fanout/t34-f5-progress.test.ts",
+      "line": 20,
+      "column": 8
+    },
+    {
+      "message": "import `../../contracts/src/state.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/state/src/index.ts",
+      "line": 19,
+      "column": 40
+    },
+    {
+      "message": "import `../../contracts/src/state.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/state/src/index.ts",
+      "line": 57,
+      "column": 8
+    },
+    {
+      "message": "import `../../../contracts/src/state.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/state/src/ports/read.ts",
+      "line": 17,
+      "column": 8
+    },
+    {
+      "message": "import `../../../contracts/src/state.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/state/src/mutation/pipeline.ts",
+      "line": 29,
+      "column": 8
+    },
+    {
+      "message": "import `../../../contracts/src/artifact.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/state/src/mutation/t18-defaults.test.ts",
+      "line": 22,
+      "column": 38
+    },
+    {
+      "message": "import `../../../contracts/src/state.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/state/src/mutation/t18-defaults.test.ts",
+      "line": 28,
+      "column": 8
+    },
+    {
+      "message": "import `../../../contracts/src/state.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/state/src/query/index.ts",
+      "line": 32,
+      "column": 8
+    },
+    {
+      "message": "import `../../../contracts/src/work.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/state/src/fanout/lifecycle.ts",
+      "line": 28,
+      "column": 41
+    },
+    {
+      "message": "import `../../../contracts/src/state.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/state/src/fanout/lifecycle.ts",
+      "line": 27,
+      "column": 8
+    },
+    {
+      "message": "import `../../../contracts/src/state.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/state/src/invocation/t32b-fence.test.ts",
+      "line": 21,
+      "column": 40
+    },
+    {
+      "message": "import `../../../contracts/src/state.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/state/test/storage/conformance.ts",
+      "line": 43,
+      "column": 8
+    },
+    {
+      "message": "import `../../../contracts/src/state.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/state/src/storage/d1.ts",
+      "line": 51,
+      "column": 8
+    },
+    {
+      "message": "import `../../contracts/src/state.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/state/test/scaffold.test.ts",
+      "line": 4,
+      "column": 40
+    },
+    {
+      "message": "import `../../../contracts/src/state.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/state/src/migration/retain.ts",
+      "line": 30,
+      "column": 8
+    },
+    {
+      "message": "import `../../../contracts/src/state.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/state/test/invocation/invoke.test.ts",
+      "line": 19,
+      "column": 34
+    },
+    {
+      "message": "import `../../../contracts/src/artifact.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/state/src/invocation/invoke-read.test.ts",
+      "line": 22,
+      "column": 8
+    },
+    {
+      "message": "import `../../../contracts/src/state.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/state/src/invocation/invoke-read.test.ts",
+      "line": 24,
+      "column": 45
+    },
+    {
+      "message": "import `../../../contracts/src/wire.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/state/src/invocation/invoke-read.test.ts",
+      "line": 23,
+      "column": 35
+    },
+    {
+      "message": "import `../../../contracts/src/artifact.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/state/src/invocation/b2-read-proofs.test.ts",
+      "line": 29,
+      "column": 38
+    },
+    {
+      "message": "import `../../../contracts/src/wire.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/state/src/invocation/b2-read-proofs.test.ts",
+      "line": 37,
+      "column": 35
+    },
+    {
+      "message": "import `../../../contracts/src/state.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/state/src/invocation/b2-read-proofs.test.ts",
+      "line": 36,
+      "column": 8
+    },
+    {
+      "message": "import `../../../contracts/src/artifact.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/state/src/mutation/generated-crud.test.ts",
+      "line": 15,
+      "column": 8
+    },
+    {
+      "message": "import `../../../contracts/src/state.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/state/src/mutation/generated-crud.test.ts",
+      "line": 16,
+      "column": 72
+    },
+    {
+      "message": "import `../../../contracts/src/state.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/state/src/migration/recover.ts",
+      "line": 33,
+      "column": 8
+    },
+    {
+      "message": "import `../../../contracts/src/state.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/state/test/ports/t24a-dispatch-join.test.ts",
+      "line": 26,
+      "column": 8
+    },
+    {
+      "message": "import `../../../contracts/src/state.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/state/src/invocation/t32b-wire.test.ts",
+      "line": 22,
+      "column": 37
+    },
+    {
+      "message": "import `../../../contracts/src/state.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/state/src/ports/system.ts",
+      "line": 31,
+      "column": 8
+    },
+    {
+      "message": "import `../../contracts/src/state.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/state/src/catalog.ts",
+      "line": 1,
+      "column": 40
+    },
+    {
+      "message": "import `../../../contracts/src/state.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/state/src/query/engine.ts",
+      "line": 25,
+      "column": 8
+    },
+    {
+      "message": "import `../../../contracts/src/state.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/state/test/migration/stage.test.ts",
+      "line": 13,
+      "column": 8
+    },
+    {
+      "message": "import `../../../contracts/src/state.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/state/test/query/aggregates.test.ts",
+      "line": 12,
+      "column": 36
+    },
+    {
+      "message": "import `../../../contracts/src/identity.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/state/src/fanout/t34-f5-durable.test.ts",
+      "line": 40,
+      "column": 39
+    },
+    {
+      "message": "import `../../../contracts/src/work.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/state/src/fanout/t34-f5-durable.test.ts",
+      "line": 41,
+      "column": 34
+    },
+    {
+      "message": "import `../../../contracts/src/state.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/state/src/fanout/t34-f5-durable.test.ts",
+      "line": 39,
+      "column": 8
+    },
+    {
+      "message": "import `../../contracts/src/wire.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/state/src/errors.ts",
+      "line": 2,
+      "column": 65
+    },
+    {
+      "message": "import `../../contracts/src/state.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/state/src/errors.ts",
+      "line": 1,
+      "column": 37
+    },
+    {
+      "message": "import `../../../contracts/src/state.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/state/src/migration/index.ts",
+      "line": 52,
+      "column": 8
+    },
+    {
+      "message": "import `../../../contracts/src/state.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/state/test/storage/do.test.ts",
+      "line": 24,
+      "column": 8
+    },
+    {
+      "message": "import `../../../contracts/src/state.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/state/test/migration/invalidate.test.ts",
+      "line": 8,
+      "column": 64
+    },
+    {
+      "message": "import `../../../contracts/src/state.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/state/test/migration/fixtures.ts",
+      "line": 21,
+      "column": 8
+    },
+    {
+      "message": "import `../../../contracts/src/work.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/state/src/receipt/t25-receipt-join.test.ts",
+      "line": 22,
+      "column": 38
+    },
+    {
+      "message": "import `../../../contracts/src/state.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/state/src/receipt/t25-receipt-join.test.ts",
+      "line": 21,
+      "column": 8
+    },
+    {
+      "message": "import `../../../contracts/src/work.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/state/src/fanout/tables.ts",
+      "line": 34,
+      "column": 8
+    },
+    {
+      "message": "import `../../../contracts/src/state.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/state/src/fanout/tables.ts",
+      "line": 28,
+      "column": 8
+    },
+    {
+      "message": "import `../../../contracts/src/state.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/state/test/invocation/owned-admission.test.ts",
+      "line": 25,
+      "column": 8
+    },
+    {
+      "message": "import `../../../contracts/src/wire.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/state/test/invocation/owned-admission.test.ts",
+      "line": 26,
+      "column": 47
+    },
+    {
+      "message": "import `../../../contracts/src/wire.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/state/test/mutation/staged-durable.test.ts",
+      "line": 25,
+      "column": 37
+    },
+    {
+      "message": "import `../../../contracts/src/state.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/state/test/mutation/staged-durable.test.ts",
+      "line": 24,
+      "column": 8
+    },
+    {
+      "message": "import `../../../contracts/src/artifact.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/state/src/mutation/b1-generated-parity.test.ts",
+      "line": 24,
+      "column": 38
+    },
+    {
+      "message": "import `../../../contracts/src/state.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/state/src/mutation/b1-generated-parity.test.ts",
+      "line": 33,
+      "column": 8
+    },
+    {
+      "message": "import `../../../contracts/src/state.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/state/test/migration/adapters.test.ts",
+      "line": 21,
+      "column": 8
+    },
+    {
+      "message": "import `../../../contracts/src/state.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/state/src/fanout/work-loader.ts",
+      "line": 25,
+      "column": 8
+    },
+    {
+      "message": "import `../../../contracts/src/work.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/state/src/fanout/work-loader.ts",
+      "line": 36,
+      "column": 8
+    },
+    {
+      "message": "import `../../../contracts/src/state.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/state/src/migration/activate.ts",
+      "line": 65,
+      "column": 8
+    },
+    {
+      "message": "import `../../../contracts/src/state.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/state/test/migration/recover.test.ts",
+      "line": 11,
+      "column": 56
+    },
+    {
+      "message": "import `../../../contracts/src/state.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/state/test/ports/t24a-dispatch-join-durable.test.ts",
+      "line": 35,
+      "column": 8
+    },
+    {
+      "message": "import `../../../contracts/src/state.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/state/src/migration/validate.ts",
+      "line": 55,
+      "column": 8
+    },
+    {
+      "message": "import `../../../contracts/src/artifact.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/state/src/mutation/b1-generated-parity-durable.test.ts",
+      "line": 20,
+      "column": 38
+    },
+    {
+      "message": "import `../../../contracts/src/wire.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/state/src/mutation/b1-generated-parity-durable.test.ts",
+      "line": 30,
+      "column": 37
+    },
+    {
+      "message": "import `../../../contracts/src/state.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/state/src/mutation/b1-generated-parity-durable.test.ts",
+      "line": 29,
+      "column": 8
+    },
+    {
+      "message": "import `../../../contracts/src/state.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/state/src/fanout/progress.ts",
+      "line": 19,
+      "column": 8
+    },
+    {
+      "message": "import `../../../contracts/src/work.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/state/src/fanout/progress.ts",
+      "line": 14,
+      "column": 37
+    },
+    {
+      "message": "import `../../../contracts/src/work.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/state/src/fanout/t34-f5-membership.test.ts",
+      "line": 25,
+      "column": 39
+    },
+    {
+      "message": "import `../../../contracts/src/state.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/state/src/fanout/t34-f5-membership.test.ts",
+      "line": 24,
+      "column": 8
+    },
+    {
+      "message": "import `../../../contracts/src/state.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/state/src/invocation/admission.ts",
+      "line": 26,
+      "column": 8
+    },
+    {
+      "message": "import `../../../contracts/src/wire.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/state/src/invocation/admission.ts",
+      "line": 31,
+      "column": 8
+    },
+    {
+      "message": "import `../../../contracts/src/state.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/state/test/query/fixtures.ts",
+      "line": 19,
+      "column": 8
+    },
+    {
+      "message": "import `../../../contracts/src/identity.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/state/test/query/fixtures.ts",
+      "line": 10,
+      "column": 27
+    },
+    {
+      "message": "import `../../../contracts/src/values.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/state/test/query/fixtures.ts",
+      "line": 11,
+      "column": 46
+    },
+    {
+      "message": "import `../../../contracts/src/state.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/state/src/fanout/outcome.ts",
+      "line": 21,
+      "column": 8
+    },
+    {
+      "message": "import `../../../contracts/src/work.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/state/src/fanout/outcome.ts",
+      "line": 26,
+      "column": 8
+    },
+    {
+      "message": "import `../../../contracts/src/identity.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/state/src/fanout/t34-f5-child-join.test.ts",
+      "line": 30,
+      "column": 39
+    },
+    {
+      "message": "import `../../../contracts/src/work.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/state/src/fanout/t34-f5-child-join.test.ts",
+      "line": 35,
+      "column": 8
+    },
+    {
+      "message": "import `../../../contracts/src/state.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/state/src/fanout/t34-f5-child-join.test.ts",
+      "line": 29,
+      "column": 8
+    },
+    {
+      "message": "import `../../../contracts/src/state.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/state/test/migration/resume.test.ts",
+      "line": 15,
+      "column": 8
+    },
+    {
+      "message": "import `../../../contracts/src/artifact.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/state/src/mutation/t18-defaults-durable.test.ts",
+      "line": 22,
+      "column": 38
+    },
+    {
+      "message": "import `../../../contracts/src/wire.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/state/src/mutation/t18-defaults-durable.test.ts",
+      "line": 29,
+      "column": 37
+    },
+    {
+      "message": "import `../../../contracts/src/state.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/state/src/mutation/t18-defaults-durable.test.ts",
+      "line": 28,
+      "column": 8
+    },
+    {
+      "message": "import `../../../contracts/src/state.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/state/src/migration/stage.ts",
+      "line": 37,
+      "column": 8
+    },
+    {
+      "message": "import `../../../contracts/src/artifact.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/state/src/storage/data-plane-durable.test.ts",
+      "line": 27,
+      "column": 8
+    },
+    {
+      "message": "import `../../../contracts/src/state.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/state/src/storage/data-plane-durable.test.ts",
+      "line": 34,
+      "column": 8
+    },
+    {
+      "message": "import `../../../contracts/src/identity.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/state/test/invocation/roles.test.ts",
+      "line": 14,
+      "column": 33
+    },
+    {
+      "message": "import `../../../contracts/src/state.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/state/src/invocation/context.ts",
+      "line": 19,
+      "column": 8
+    },
+    {
+      "message": "import `../../../contracts/src/identity.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/state/src/invocation/context.ts",
+      "line": 20,
+      "column": 39
+    },
+    {
+      "message": "import `../../../contracts/src/state.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/state/src/invocation/prepared-inputs.ts",
+      "line": 40,
+      "column": 8
+    },
+    {
+      "message": "import `../../../contracts/src/wire.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/state/src/invocation/prepared-inputs.ts",
+      "line": 41,
+      "column": 47
+    },
+    {
+      "message": "import `../../../contracts/src/state.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/state/src/fanout/membership.ts",
+      "line": 37,
+      "column": 8
+    },
+    {
+      "message": "import `../../../contracts/src/work.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/state/src/fanout/membership.ts",
+      "line": 41,
+      "column": 8
+    },
+    {
+      "message": "import `../../../contracts/src/wire.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/state/src/mutation/t32b-wire-durable.test.ts",
+      "line": 28,
+      "column": 37
+    },
+    {
+      "message": "import `../../../contracts/src/state.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/state/src/mutation/t32b-wire-durable.test.ts",
+      "line": 27,
+      "column": 8
+    },
+    {
+      "message": "import `../../../contracts/src/work.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/state/src/fanout/t34-f5-lifecycle.test.ts",
+      "line": 23,
+      "column": 34
+    },
+    {
+      "message": "import `../../../contracts/src/state.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/state/src/fanout/t34-f5-lifecycle.test.ts",
+      "line": 22,
+      "column": 8
+    },
+    {
+      "message": "import `../../../contracts/src/state.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/state/test/ports/system.test.ts",
+      "line": 9,
+      "column": 35
+    },
+    {
+      "message": "import `../../../contracts/src/state.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/state/src/storage/schema.ts",
+      "line": 22,
+      "column": 31
+    },
+    {
+      "message": "import `../../../contracts/src/state.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/state/src/migration/mapper.ts",
+      "line": 17,
+      "column": 61
+    },
+    {
+      "message": "import `../../../contracts/src/artifact.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/state/src/mutation/b5-contained-parity.test.ts",
+      "line": 39,
+      "column": 38
+    },
+    {
+      "message": "import `../../../contracts/src/state.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/state/src/mutation/b5-contained-parity.test.ts",
+      "line": 44,
+      "column": 8
+    },
+    {
+      "message": "import `../../../contracts/src/state.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/state/src/mutation/models.ts",
+      "line": 21,
+      "column": 8
+    },
+    {
+      "message": "import `../../../contracts/src/identity.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/state/src/policy/roles.ts",
+      "line": 11,
+      "column": 33
+    },
+    {
+      "message": "import `../../../contracts/src/state.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/state/src/storage/port.ts",
+      "line": 9,
+      "column": 52
+    },
+    {
+      "message": "import `../../../contracts/src/state.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/state/src/storage/port.ts",
+      "line": 11,
+      "column": 34
+    },
+    {
+      "message": "import `../../../contracts/src/work.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/state/src/receipt/join.ts",
+      "line": 34,
+      "column": 8
+    },
+    {
+      "message": "import `../../../contracts/src/state.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/state/src/receipt/join.ts",
+      "line": 41,
+      "column": 8
+    },
+    {
+      "message": "import `../../../contracts/src/state.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/state/src/storage/memory.ts",
+      "line": 43,
+      "column": 8
+    },
+    {
+      "message": "import `../../../contracts/src/identity.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/state/test/ports/fixtures.ts",
+      "line": 10,
+      "column": 27
+    },
+    {
+      "message": "import `../../../contracts/src/state.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/state/test/ports/fixtures.ts",
+      "line": 19,
+      "column": 8
+    },
+    {
+      "message": "import `../../../contracts/src/wire.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/state/test/ports/fixtures.ts",
+      "line": 20,
+      "column": 37
+    },
+    {
+      "message": "import `../../../contracts/src/state.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/state/src/migration/transition.ts",
+      "line": 31,
+      "column": 8
+    },
+    {
+      "message": "import `../../../contracts/src/artifact.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/state/src/ports/data-plane.test.ts",
+      "line": 24,
+      "column": 8
+    },
+    {
+      "message": "import `../../../contracts/src/state.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/state/src/ports/data-plane.test.ts",
+      "line": 31,
+      "column": 8
+    },
+    {
+      "message": "import `../../../contracts/src/work.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/state/src/fanout/test-driver.ts",
+      "line": 43,
+      "column": 8
+    },
+    {
+      "message": "import `../../../contracts/src/state.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/state/src/fanout/test-driver.ts",
+      "line": 35,
+      "column": 8
+    },
+    {
+      "message": "import `../../../contracts/src/identity.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/state/src/fanout/test-driver.ts",
+      "line": 36,
+      "column": 39
+    },
+    {
+      "message": "import `../../../contracts/src/state.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/state/src/receipt/t25-receipt-durable.test.ts",
+      "line": 27,
+      "column": 8
+    },
+    {
+      "message": "import `../../../contracts/src/state.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/state/src/effects/staging.ts",
+      "line": 25,
+      "column": 8
+    },
+    {
+      "message": "import `../../../contracts/src/state.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/state/src/ports/transact.ts",
+      "line": 20,
+      "column": 8
+    },
+    {
+      "message": "import `../../../contracts/src/identity.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/state/src/ports/transact.ts",
+      "line": 21,
+      "column": 39
+    },
+    {
+      "message": "import `../../../contracts/src/wire.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/state/src/ports/transact.ts",
+      "line": 26,
+      "column": 8
+    },
+    {
+      "message": "import `../../../contracts/src/state.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/state/test/invocation/admission.test.ts",
+      "line": 16,
+      "column": 40
+    },
+    {
+      "message": "import `../../../contracts/src/artifact.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/state/src/invocation/b2-conflict-currents.test.ts",
+      "line": 27,
+      "column": 8
+    },
+    {
+      "message": "import `../../../contracts/src/state.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/state/src/invocation/b2-conflict-currents.test.ts",
+      "line": 34,
+      "column": 8
+    },
+    {
+      "message": "import `../../../contracts/src/artifact.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/state/src/invocation/descriptor-join.test.ts",
+      "line": 16,
+      "column": 8
+    },
+    {
+      "message": "import `../../../contracts/src/state.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/state/src/invocation/descriptor-join.test.ts",
+      "line": 17,
+      "column": 45
+    },
+    {
+      "message": "import `../../../contracts/src/state.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/state/src/invocation/descriptor-join.test.ts",
+      "line": 31,
+      "column": 34
+    },
+    {
+      "message": "import `../../../contracts/src/state.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/state/src/mutation/b1-scenario-parity.test.ts",
+      "line": 26,
+      "column": 42
+    },
+    {
+      "message": "import `../../../contracts/src/state.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/state/test/migration/transition.test.ts",
+      "line": 12,
+      "column": 8
+    },
+    {
+      "message": "import `../../../contracts/src/identity.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/state/src/fanout/t34-f5-admission.test.ts",
+      "line": 23,
+      "column": 39
+    },
+    {
+      "message": "import `../../../contracts/src/work.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/state/src/fanout/t34-f5-admission.test.ts",
+      "line": 24,
+      "column": 49
+    },
+    {
+      "message": "import `../../../contracts/src/state.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/state/src/fanout/t34-f5-admission.test.ts",
+      "line": 22,
+      "column": 8
+    },
+    {
+      "message": "import `../../../contracts/src/work.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/state/src/receipt/tables.ts",
+      "line": 30,
+      "column": 8
+    },
+    {
+      "message": "import `../../../contracts/src/state.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/state/src/receipt/tables.ts",
+      "line": 40,
+      "column": 8
+    },
+    {
+      "message": "import `../../../contracts/src/state.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/state/src/policy/grants.ts",
+      "line": 18,
+      "column": 8
+    },
+    {
+      "message": "import `../../../contracts/src/identity.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/state/src/policy/grants.ts",
+      "line": 19,
+      "column": 33
+    },
+    {
+      "message": "import `../../../contracts/src/state.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/state/test/mutation/create.test.ts",
+      "line": 9,
+      "column": 37
+    },
+    {
+      "message": "import `../../../contracts/src/state.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/state/test/migration/retain.test.ts",
+      "line": 17,
+      "column": 8
+    },
+    {
+      "message": "import `../../../contracts/src/state.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/state/src/mutation/b5-contained-parity-durable.test.ts",
+      "line": 26,
+      "column": 8
+    },
+    {
+      "message": "import `../../../contracts/src/identity.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/state/test/invocation/fixtures.ts",
+      "line": 28,
+      "column": 8
+    },
+    {
+      "message": "import `../../../contracts/src/state.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/state/test/invocation/fixtures.ts",
+      "line": 48,
+      "column": 8
+    },
+    {
+      "message": "import `../../../contracts/src/wire.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/state/test/invocation/fixtures.ts",
+      "line": 29,
+      "column": 39
+    },
+    {
+      "message": "import `../../../contracts/src/artifact.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/state/src/invocation/b2-reads-durable.test.ts",
+      "line": 27,
+      "column": 38
+    },
+    {
+      "message": "import `../../../contracts/src/state.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/state/src/invocation/b2-reads-durable.test.ts",
+      "line": 32,
+      "column": 8
+    },
+    {
+      "message": "import `../../../contracts/src/state.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/state/src/storage/durable-object.ts",
+      "line": 49,
+      "column": 8
+    },
+    {
+      "message": "import `../../../contracts/src/state.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/state/test/ports/staging.test.ts",
+      "line": 8,
+      "column": 47
+    },
+    {
+      "message": "import `../../../contracts/src/state.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/state/test/migration/activate.test.ts",
+      "line": 15,
+      "column": 8
+    },
+    {
+      "message": "import `../../../contracts/src/work.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/state/src/invocation/invoke.ts",
+      "line": 37,
+      "column": 36
+    },
+    {
+      "message": "import `../../../contracts/src/state.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/state/src/invocation/invoke.ts",
+      "line": 29,
+      "column": 8
+    },
+    {
+      "message": "import `../../../contracts/src/identity.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/state/src/invocation/invoke.ts",
+      "line": 36,
+      "column": 39
+    },
+    {
+      "message": "import `../../../contracts/src/wire.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/state/src/invocation/invoke.ts",
+      "line": 35,
+      "column": 8
+    },
+    {
+      "message": "import `../../../contracts/src/wire.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/state/src/invocation/invoke.ts",
+      "line": 38,
+      "column": 35
+    },
+    {
+      "message": "import `../../../contracts/src/wire.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/state/src/invocation/replay.ts",
+      "line": 8,
+      "column": 35
+    },
+    {
+      "message": "import `../../../contracts/src/work.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/state/src/receipt/work-loader.ts",
+      "line": 22,
+      "column": 8
+    },
+    {
+      "message": "import `../../../contracts/src/identity.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/state/test/mutation/fixtures.ts",
+      "line": 9,
+      "column": 27
+    },
+    {
+      "message": "import `../../../contracts/src/state.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/state/test/mutation/fixtures.ts",
+      "line": 20,
+      "column": 8
+    },
+    {
+      "message": "import `../../../contracts/src/wire.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/state/test/mutation/fixtures.ts",
+      "line": 21,
+      "column": 55
+    },
+    {
+      "message": "import `../../../contracts/src/work.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/state/src/fanout/cohort.ts",
+      "line": 17,
+      "column": 8
+    },
+    {
+      "message": "import `../../../contracts/src/state.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/state/test/mutation/staged.test.ts",
+      "line": 20,
+      "column": 32
+    },
+    {
+      "message": "import `../../../contracts/src/state.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/state/src/invocation/registry.ts",
+      "line": 47,
+      "column": 8
+    },
+    {
+      "message": "import `../../../contracts/src/artifact.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/state/src/invocation/registry.ts",
+      "line": 52,
+      "column": 8
+    },
+    {
+      "message": "import `../../../contracts/src/state.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/state/src/receipt/grants.ts",
+      "line": 35,
+      "column": 43
+    },
+    {
+      "message": "import `../../../contracts/src/work.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/state/src/receipt/grants.ts",
+      "line": 34,
+      "column": 38
+    },
+    {
+      "message": "import `../../../contracts/src/state.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/state/src/mutation/crud.ts",
+      "line": 17,
+      "column": 8
+    },
+    {
+      "message": "import `../../../contracts/src/values.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/values/src/prepared/validation.ts",
+      "line": 27,
+      "column": 31
+    },
+    {
+      "message": "import `../../contracts/src/values.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/values/src/catalog.ts",
+      "line": 1,
+      "column": 68
+    },
+    {
+      "message": "import `../../contracts/src/values.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/values/src/timezone.ts",
+      "line": 24,
+      "column": 47
+    },
+    {
+      "message": "import `../../contracts/src/values.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/values/src/index.ts",
+      "line": 6,
+      "column": 20
+    },
+    {
+      "message": "import `../../contracts/src/values.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/values/src/index.ts",
+      "line": 7,
+      "column": 41
+    },
+    {
+      "message": "import `../../../contracts/src/values.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/values/src/prepared/plan.ts",
+      "line": 27,
+      "column": 8
+    },
+    {
+      "message": "import `../../contracts/src/values.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/values/bindings/carriers.ts",
+      "line": 12,
+      "column": 8
+    },
+    {
+      "message": "import `../../contracts/src/values.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/values/src/temporal.ts",
+      "line": 30,
+      "column": 47
+    },
+    {
+      "message": "import `../../contracts/src/values.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/values/src/money.ts",
+      "line": 1,
+      "column": 33
+    },
+    {
+      "message": "import `../../contracts/src/values.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/values/test/catalog.test.ts",
+      "line": 4,
+      "column": 41
+    },
+    {
+      "message": "import `../../contracts/src/values.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/values/src/decimal.ts",
+      "line": 35,
+      "column": 47
+    },
+    {
+      "message": "import `../../contracts/src/values.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/values/test/array.test.ts",
+      "line": 3,
+      "column": 33
+    },
+    {
+      "message": "import `../../contracts/src/values.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/values/bindings/backend.ts",
+      "line": 12,
+      "column": 44
+    },
+    {
+      "message": "import `../../contracts/src/values.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/values/src/kinds.ts",
+      "line": 14,
+      "column": 8
+    },
+    {
+      "message": "import `../../contracts/src/values.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/values/src/wire.ts",
+      "line": 107,
+      "column": 8
+    },
+    {
+      "message": "import `../../contracts/src/values.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/values/src/icu.ts",
+      "line": 5,
+      "column": 8
+    },
+    {
+      "message": "import `../../contracts/src/values.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/values/src/errors.ts",
+      "line": 1,
+      "column": 32
+    },
+    {
+      "message": "import `../../contracts/src/values.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/values/test/equality.test.ts",
+      "line": 3,
+      "column": 44
+    },
+    {
+      "message": "import `../../contracts/src/values.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/values/src/text.ts",
+      "line": 1,
+      "column": 32
+    },
+    {
+      "message": "import `../../contracts/src/values.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/values/src/array.ts",
+      "line": 47,
+      "column": 58
+    },
+    {
+      "message": "import `../../contracts/src/values.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/values/src/stdlib-pure.ts",
+      "line": 42,
+      "column": 8
+    },
+    {
+      "message": "import `../../../contracts/src/values.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/values/src/prepared/codec.ts",
+      "line": 29,
+      "column": 42
+    },
+    {
+      "message": "import `../../contracts/src/values.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/values/src/schema.ts",
+      "line": 96,
+      "column": 8
+    },
+    {
+      "message": "import `../../contracts/src/values.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/values/src/equality.ts",
+      "line": 56,
+      "column": 8
+    },
+    {
+      "message": "import `../../contracts/src/values.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/values/test/wire.test.ts",
+      "line": 3,
+      "column": 42
+    },
+    {
+      "message": "import `../../contracts/src/values.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/values/test/temporal.test.ts",
+      "line": 3,
+      "column": 47
+    },
+    {
+      "message": "import `../../contracts/src/values.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/values/test/conformance.test.ts",
+      "line": 33,
+      "column": 42
+    },
+    {
+      "message": "import `../../contracts/src/values.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/values/test/schema.test.ts",
+      "line": 3,
+      "column": 57
+    },
+    {
+      "message": "import `../../contracts/src/values.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/values/test/timezone.test.ts",
+      "line": 3,
+      "column": 47
+    },
+    {
+      "message": "import `../../contracts/src/identity.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/identity/test/contracts.test.ts",
+      "line": 18,
+      "column": 8
+    },
+    {
+      "message": "import `../../contracts/src/identity.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/identity/test/contracts.test.ts",
+      "line": 25,
+      "column": 8
+    },
+    {
+      "message": "cannot import package `vitest` because it is not a dependency",
+      "kind": "undeclared-package",
+      "path": "/Users/vince/Projects/canlang/packages/contracts/test/provider-ratification.test.ts",
+      "line": 1,
+      "column": 38
+    },
+    {
+      "message": "cannot import package `vitest` because it is not a dependency",
+      "kind": "undeclared-package",
+      "path": "/Users/vince/Projects/canlang/packages/contracts/test/t19b-depth.test.ts",
+      "line": 1,
+      "column": 38
+    },
+    {
+      "message": "cannot import package `vitest` because it is not a dependency",
+      "kind": "undeclared-package",
+      "path": "/Users/vince/Projects/canlang/packages/contracts/test/t20a-presentation.test.ts",
+      "line": 1,
+      "column": 38
+    },
+    {
+      "message": "import `../../work/src/observation/association.ts` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/contracts/test/t26-progress-relations.test.ts",
+      "line": 13,
+      "column": 44
+    },
+    {
+      "message": "cannot import package `vitest` because it is not a dependency",
+      "kind": "undeclared-package",
+      "path": "/Users/vince/Projects/canlang/packages/contracts/test/t26-progress-relations.test.ts",
+      "line": 1,
+      "column": 38
+    },
+    {
+      "message": "cannot import package `vitest` because it is not a dependency",
+      "kind": "undeclared-package",
+      "path": "/Users/vince/Projects/canlang/packages/contracts/test/examples.test.ts",
+      "line": 1,
+      "column": 38
+    },
+    {
+      "message": "cannot import package `vitest` because it is not a dependency",
+      "kind": "undeclared-package",
+      "path": "/Users/vince/Projects/canlang/packages/contracts/test/deployment.test.ts",
+      "line": 1,
+      "column": 38
+    },
+    {
+      "message": "cannot import package `vitest` because it is not a dependency",
+      "kind": "undeclared-package",
+      "path": "/Users/vince/Projects/canlang/packages/contracts/test/t19a-derived-inputs.test.ts",
+      "line": 1,
+      "column": 38
+    },
+    {
+      "message": "cannot import package `vitest` because it is not a dependency",
+      "kind": "undeclared-package",
+      "path": "/Users/vince/Projects/canlang/packages/contracts/test/assembly.test.ts",
+      "line": 1,
+      "column": 38
+    },
+    {
+      "message": "import `../../files/src/upload/index.ts` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/contracts/test/assembly.test.ts",
+      "line": 10,
+      "column": 37
+    },
+    {
+      "message": "cannot import package `vitest` because it is not a dependency",
+      "kind": "undeclared-package",
+      "path": "/Users/vince/Projects/canlang/packages/contracts/test/fanout-records.test.ts",
+      "line": 1,
+      "column": 38
+    },
+    {
+      "message": "import `../../../contracts/src/state.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/work/src/kernel/commands.ts",
+      "line": 36,
+      "column": 8
+    },
+    {
+      "message": "import `../../../state/src/ports/system.ts` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/work/src/kernel/commands.ts",
+      "line": 40,
+      "column": 8
+    },
+    {
+      "message": "import `../../../contracts/src/work.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/work/src/kernel/commands.ts",
+      "line": 48,
+      "column": 8
+    },
+    {
+      "message": "import `../../../contracts/src/work.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/work/src/kernel/commands.ts",
+      "line": 82,
+      "column": 37
+    },
+    {
+      "message": "import `../../../contracts/src/work.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/work/src/observation/ports.ts",
+      "line": 13,
+      "column": 38
+    },
+    {
+      "message": "import `../../../state/dist/state/src/storage/d1.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/work/src/kernel/t34-f2-durable.test.ts",
+      "line": 36,
+      "column": 47
+    },
+    {
+      "message": "import `../../../contracts/src/state.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/work/src/kernel/t34-f2-durable.test.ts",
+      "line": 35,
+      "column": 8
+    },
+    {
+      "message": "import `../../../state/dist/state/src/storage/port.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/work/src/kernel/t34-f2-durable.test.ts",
+      "line": 40,
+      "column": 8
+    },
+    {
+      "message": "import `../../contracts/src/work.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/work/test/recovery.test.ts",
+      "line": 10,
+      "column": 8
+    },
+    {
+      "message": "import `../../../contracts/src/work.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/work/src/recovery/t34-f4-scan.test.ts",
+      "line": 17,
+      "column": 8
+    },
+    {
+      "message": "import `../../contracts/src/work.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/work/test/observation.test.ts",
+      "line": 8,
+      "column": 8
+    },
+    {
+      "message": "import `../../../contracts/src/work.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/work/src/observation/association.ts",
+      "line": 34,
+      "column": 8
+    },
+    {
+      "message": "import `../../../contracts/src/work.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/work/src/kernel/tables.ts",
+      "line": 57,
+      "column": 8
+    },
+    {
+      "message": "import `../../../contracts/src/state.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/work/src/kernel/tables.ts",
+      "line": 41,
+      "column": 8
+    },
+    {
+      "message": "import `../../../contracts/src/work.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/work/src/intent/index.ts",
+      "line": 16,
+      "column": 8
+    },
+    {
+      "message": "import `../../../contracts/src/work.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/work/src/receipt/index.ts",
+      "line": 25,
+      "column": 8
+    },
+    {
+      "message": "import `../../contracts/src/work.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/work/test/live-serve-addressing.test.ts",
+      "line": 34,
+      "column": 8
+    },
+    {
+      "message": "import `../../contracts/src/state.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/work/test/kernel-tables.test.ts",
+      "line": 8,
+      "column": 32
+    },
+    {
+      "message": "import `../../contracts/src/work.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/work/test/schedule.test.ts",
+      "line": 4,
+      "column": 58
+    },
+    {
+      "message": "import `../../../contracts/src/work.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/work/src/schedule/index.ts",
+      "line": 31,
+      "column": 8
+    },
+    {
+      "message": "import `../../../contracts/src/state.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/work/src/dispatch/t34-f3-progress.test.ts",
+      "line": 15,
+      "column": 32
+    },
+    {
+      "message": "import `../../../contracts/src/work.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/work/src/dispatch/t34-f3-progress.test.ts",
+      "line": 14,
+      "column": 36
+    },
+    {
+      "message": "import `../../contracts/src/work.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/work/test/contract-shapes.test.ts",
+      "line": 20,
+      "column": 8
+    },
+    {
+      "message": "import `../../../state/dist/state/src/storage/d1.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/work/src/recovery/t34-f4-durable.test.ts",
+      "line": 51,
+      "column": 47
+    },
+    {
+      "message": "import `../../../contracts/src/work.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/work/src/recovery/t34-f4-durable.test.ts",
+      "line": 50,
+      "column": 8
+    },
+    {
+      "message": "import `../../../contracts/src/state.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/work/src/recovery/t34-f4-durable.test.ts",
+      "line": 45,
+      "column": 8
+    },
+    {
+      "message": "import `../../../state/dist/state/src/storage/port.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/work/src/recovery/t34-f4-durable.test.ts",
+      "line": 52,
+      "column": 40
+    },
+    {
+      "message": "import `../../../contracts/src/state.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/work/src/dispatch/index.ts",
+      "line": 44,
+      "column": 32
+    },
+    {
+      "message": "import `../../../contracts/src/work.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/work/src/dispatch/index.ts",
+      "line": 30,
+      "column": 8
+    },
+    {
+      "message": "import `../../../contracts/src/work.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/work/src/dispatch/index.ts",
+      "line": 43,
+      "column": 8
+    },
+    {
+      "message": "import `../../../contracts/src/state.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/work/src/kernel/t34-f2-tables.test.ts",
+      "line": 28,
+      "column": 8
+    },
+    {
+      "message": "import `../../../state/dist/state/src/storage/memory.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/work/src/kernel/t34-f2-tables.test.ts",
+      "line": 29,
+      "column": 41
+    },
+    {
+      "message": "import `../../../state/dist/state/src/storage/port.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/work/src/kernel/t34-f2-tables.test.ts",
+      "line": 30,
+      "column": 40
+    },
+    {
+      "message": "import `../../../contracts/src/work.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/work/src/observation/t25a-progress.test.ts",
+      "line": 14,
+      "column": 8
+    },
+    {
+      "message": "import `../../contracts/src/work.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/work/test/receipt.test.ts",
+      "line": 4,
+      "column": 33
+    },
+    {
+      "message": "import `../../../contracts/src/work.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/work/src/observation/t25a-selected.test.ts",
+      "line": 16,
+      "column": 8
+    },
+    {
+      "message": "import `../../../contracts/src/work.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/work/src/observation/t26-progress.test.ts",
+      "line": 17,
+      "column": 8
+    },
+    {
+      "message": "import `../../contracts/src/work.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/work/test/dispatch-unavailable.test.ts",
+      "line": 24,
+      "column": 33
+    },
+    {
+      "message": "import `../../contracts/src/work.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/work/src/ports.ts",
+      "line": 51,
+      "column": 8
+    },
+    {
+      "message": "import `../../../contracts/src/work.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/work/src/observation/observation.ts",
+      "line": 64,
+      "column": 8
+    },
+    {
+      "message": "import `../../../state/dist/state/src/storage/d1.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/work/src/recovery/t26-durable.test.ts",
+      "line": 53,
+      "column": 47
+    },
+    {
+      "message": "import `../../../contracts/src/work.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/work/src/recovery/t26-durable.test.ts",
+      "line": 43,
+      "column": 8
+    },
+    {
+      "message": "import `../../../contracts/src/state.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/work/src/recovery/t26-durable.test.ts",
+      "line": 52,
+      "column": 8
+    },
+    {
+      "message": "import `../../../state/dist/state/src/storage/port.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/work/src/recovery/t26-durable.test.ts",
+      "line": 54,
+      "column": 40
+    },
+    {
+      "message": "import `../../../contracts/src/work.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/work/src/recovery/t26-resume.test.ts",
+      "line": 13,
+      "column": 8
+    },
+    {
+      "message": "import `../../contracts/src/work.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/work/test/event.test.ts",
+      "line": 4,
+      "column": 43
+    },
+    {
+      "message": "import `../../contracts/src/work.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/work/test/dispatch.test.ts",
+      "line": 4,
+      "column": 33
+    },
+    {
+      "message": "import `../../contracts/src/state.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/work/test/kernel-commands.test.ts",
+      "line": 14,
+      "column": 8
+    },
+    {
+      "message": "import `../../state/src/ports/system.ts` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/work/test/kernel-commands.test.ts",
+      "line": 19,
+      "column": 8
+    },
+    {
+      "message": "import `../../state/dist/state/src/ports/system.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/work/test/t24a-staging-join.test.ts",
+      "line": 33,
+      "column": 38
+    },
+    {
+      "message": "import `../../contracts/src/work.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/work/test/t24a-staging-join.test.ts",
+      "line": 21,
+      "column": 8
+    },
+    {
+      "message": "import `../../contracts/src/state.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/work/test/t24a-staging-join.test.ts",
+      "line": 27,
+      "column": 8
+    },
+    {
+      "message": "import `../../state/src/ports/system.ts` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/work/test/t24a-staging-join.test.ts",
+      "line": 32,
+      "column": 8
+    },
+    {
+      "message": "import `../../state/dist/state/src/storage/memory.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/work/test/t24a-staging-join.test.ts",
+      "line": 34,
+      "column": 41
+    },
+    {
+      "message": "import `../../state/dist/state/src/ports/transact.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/work/test/t24a-staging-join.test.ts",
+      "line": 35,
+      "column": 37
+    },
+    {
+      "message": "import `../../../contracts/src/work.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/work/src/schedule/every.ts",
+      "line": 17,
+      "column": 72
+    },
+    {
+      "message": "import `../../../contracts/src/state.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/work/src/recovery/index.ts",
+      "line": 34,
+      "column": 40
+    },
+    {
+      "message": "import `../../../contracts/src/work.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/work/src/recovery/index.ts",
+      "line": 33,
+      "column": 8
+    },
+    {
+      "message": "import `../../../contracts/src/state.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/work/src/dispatch/t34-f3-record.test.ts",
+      "line": 14,
+      "column": 32
+    },
+    {
+      "message": "import `../../../contracts/src/work.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/work/src/dispatch/t34-f3-record.test.ts",
+      "line": 13,
+      "column": 49
+    },
+    {
+      "message": "import `../../../contracts/src/state.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/work/src/dispatch/t34-f3-claim.test.ts",
+      "line": 14,
+      "column": 32
+    },
+    {
+      "message": "import `../../../contracts/src/work.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/work/src/dispatch/t34-f3-claim.test.ts",
+      "line": 13,
+      "column": 36
+    },
+    {
+      "message": "import `../../../contracts/src/work.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/work/src/dispatch/t32b-fence.test.ts",
+      "line": 10,
+      "column": 33
+    },
+    {
+      "message": "import `../../../contracts/src/work.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/work/src/event/index.ts",
+      "line": 16,
+      "column": 57
+    },
+    {
+      "message": "import `../../state/dist/state/src/receipt/work-loader.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/work/test/b3-mirror-conformance.test.ts",
+      "line": 109,
+      "column": 8
+    },
+    {
+      "message": "import `../../state/dist/state/src/receipt/grants.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/work/test/b3-mirror-conformance.test.ts",
+      "line": 87,
+      "column": 8
+    },
+    {
+      "message": "import `../../state/dist/state/src/receipt/grants.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/work/test/b3-mirror-conformance.test.ts",
+      "line": 88,
+      "column": 42
+    },
+    {
+      "message": "import `../../state/dist/state/src/receipt/join.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/work/test/b3-mirror-conformance.test.ts",
+      "line": 73,
+      "column": 36
+    },
+    {
+      "message": "import `../../state/dist/state/src/receipt/join.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/work/test/b3-mirror-conformance.test.ts",
+      "line": 74,
+      "column": 44
+    },
+    {
+      "message": "import `../../state/dist/state/src/receipt/join.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/work/test/b3-mirror-conformance.test.ts",
+      "line": 80,
+      "column": 8
+    },
+    {
+      "message": "import `../../contracts/src/state.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/work/test/b3-mirror-conformance.test.ts",
+      "line": 57,
+      "column": 8
+    },
+    {
+      "message": "import `../../state/dist/state/src/errors.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/work/test/b3-mirror-conformance.test.ts",
+      "line": 113,
+      "column": 28
+    },
+    {
+      "message": "import `../../state/dist/state/src/policy/roles.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/work/test/b3-mirror-conformance.test.ts",
+      "line": 112,
+      "column": 39
+    },
+    {
+      "message": "import `../../contracts/src/work.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/work/test/b3-mirror-conformance.test.ts",
+      "line": 48,
+      "column": 8
+    },
+    {
+      "message": "import `../../state/dist/state/src/storage/memory.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/work/test/b3-mirror-conformance.test.ts",
+      "line": 110,
+      "column": 41
+    },
+    {
+      "message": "import `../../state/dist/state/src/policy/grants.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/work/test/b3-mirror-conformance.test.ts",
+      "line": 111,
+      "column": 34
+    },
+    {
+      "message": "import `../../state/dist/state/src/receipt/tables.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/work/test/b3-mirror-conformance.test.ts",
+      "line": 100,
+      "column": 8
+    },
+    {
+      "message": "import `../../state/dist/state/src/receipt/tables.js` leaves the package",
+      "kind": "outside-package",
+      "path": "/Users/vince/Projects/canlang/packages/work/test/b3-mirror-conformance.test.ts",
+      "line": 104,
+      "column": 8
+    }
+  ]
+}

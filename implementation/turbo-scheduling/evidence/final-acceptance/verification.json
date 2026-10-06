@@ -1,0 +1,107 @@
+{
+  "status": "passed",
+  "head": "7fd8c6bf4717feeffc70b46819377b74b353e117",
+  "scope": "Unmerged local package/Bun/Turbo/CI/release/documentation migration; hosted CI/browser/native-release/VSIX/product gates remain separate.",
+  "profile": {
+    "node": "24.21.0",
+    "bun": "1.4.2",
+    "turbo": "2.11.7",
+    "typescript": "5.9.3",
+    "rust": "1.99.0",
+    "linker": "isolated",
+    "host": "darwin-arm64"
+  },
+  "checks": {
+    "build": 26,
+    "typecheck": 40,
+    "typecheck_e2e": 27,
+    "ci_helper_tests": 32,
+    "boundary_negative_tests": 12,
+    "boundaries": {
+      "owners": 13,
+      "files": 681,
+      "violations": 0,
+      "auditExpressions": 576
+    },
+    "all_tests": {
+      "tasks": 38,
+      "root": 636,
+      "owning_node_runtime": 4905,
+      "total": 5541,
+      "failed": 0,
+      "skipped": 0
+    },
+    "catalog": "actual uncached generation before complete values emission fixture",
+    "installed_types": {
+      "owners": 13,
+      "typed_exports": 150,
+      "ownedConsumerDiagnostics": 0,
+      "undeclaredOwnedImports": 0,
+      "thirdPartyMiniflareDiagnostics": 797,
+      "negativeControls": "missing/corrupt declarations reject actual gate; exact baseline restoration"
+    },
+    "installed_worker": "isolated Cloudflare-only direct tarball consumer; denied Node checkout reads; production workerd/D1 401; selected CompiledWasm ABI1/add-int=3; missing/corrupt WASM/CSS reject",
+    "release_pack": {
+      "tasks": 30,
+      "owners": 13,
+      "privateFlags": "preserved",
+      "payloadConsumer": "exact archived bytes independently installed and Worker/asset checks pass"
+    },
+    "uncached_repro": {
+      "files": 2229,
+      "equal": true,
+      "cachedTasks": 0,
+      "builds": 2,
+      "subset": "JS/d.ts/maps as existing CI gate"
+    },
+    "native_preparation": "cold Rust1.99.0 locked private debug test prerequisite under /private/tmp",
+    "compiler_build": "uncached locked Rust1.99.0 public build adapter",
+    "b1_join": "2 passed,0 failed/ignored",
+    "editor": "TS5.9.3 isolated typecheck+CommonJS emit; actual native LSP capability round-trip pass",
+    "playwright": "44 tests discovered in10files; journeys not executed",
+    "cache": {
+      "phases": 17,
+      "probes": 15,
+      "files": 2242,
+      "bytes": 18165975,
+      "snapshotInputs": 1181,
+      "result": "passed"
+    }
+  },
+  "logFiles": {
+    "canlang-ci-acceptance-frozen.log": "c73a34f383cc887c011934b1da9ec574acf5a9a037c46f9202eb1aa4c72f9092",
+    "canlang-ci-acceptance-native.log": "48891d06bd387bddd911a1c3f6f24f7164d143a5612ed893581428fad8002a3f",
+    "canlang-final-artifact-consumer.log": "a345a6a9ed2521ed4735fc82f782a9c0a62e66fe00bfd4a3522c807b5b3286bd",
+    "canlang-final-b1-locked.log": "2e18d6d8bff9902ea5a1e1549e27821a62db648d02ca0ea6f3e2b58a15a5ea88",
+    "canlang-final-boundaries.log": "f7ab8b290342731af94a25547be0e1be2fe31acc2d104f784b31b60da33454f5",
+    "canlang-final-boundary-tests.log": "5ee8dc8d25b5ed31dde3688a6aa27c8bc61ac0886653ae2b25241e41aa1b6b03",
+    "canlang-final-build.log": "5d8e7ee5e228366530cab8aa503c5a62500e1ab1f2526bdf081387443c2c68a1",
+    "canlang-final-catalog.log": "7409b9c7327f524d6c921c82fc09385936de94580567985f46a5858a5a4b5050",
+    "canlang-final-ci-tests.log": "eb0933d57ba3a4f39db993c080e91d60028cbaf84112c648bb54c27be7e161c4",
+    "canlang-final-compiler-build.log": "8b8cbe6856805ae3c482514e8920bb9b867140ef2f2316b661adc02a48824595",
+    "canlang-final-contract-profile.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "canlang-final-e2e-types.log": "8f787c290d87252f025f17c48af6e0ca6a4a4cfc27494e471bd54c06bff1b2f8",
+    "canlang-final-editor-emit.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "canlang-final-editor-types.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "canlang-final-installed-types.log": "289133521a69b3af5b8f29a83aaaf3538e28a92cfd2f384fb92cf2c87c847d1c",
+    "canlang-final-installed-worker.log": "45fc7f3d18ee13a20718676577a8df301333a5563f4b5786a478303a8c91e5a0",
+    "canlang-final-lsp.log": "051cc0b7864eab60ca39b79e28d34c0112df037f79039acf2bae784abfd6c9df",
+    "canlang-final-playwright-list.log": "6f0bca96853233ae46b8f473e9ee91842f2264f34771168e78bc3e51445c17af",
+    "canlang-final-release-pack.log": "cbc0667ddfbaf0071258c3378dec86126d22a25b6a055ce1a8835d0b35d386d0",
+    "canlang-final-repro.json": "f572242561829adaa88ed2c68a79e777a2b725ab98c16c24c216ada77af9de00",
+    "canlang-final-repro.log": "5229e30ccb337de8b12335cf88dbc7479aa3551cacbfae29f6b84f26121e547c",
+    "canlang-final-repro.py": "d9ad3398f4ef5f1e704ae34eaa110c92b87b75a0cb02816731580bcb4da36107",
+    "canlang-final-source-inventory.json": "868e6b1cf7dc38b9eae230b247ea6202ebcb2ab2346f1e894b848595965de139",
+    "canlang-final-test-all.log": "0e70a61ea397553e0da9f1fcb8787b1dd65e5f407cd3d325b3cf3df42b2f4d75",
+    "canlang-final-typecheck.log": "1d545511fcb15efa6b43079572b8cadc3cd665e7aca96e141118ff9e79a533ac",
+    "canlang-final-workflow-yaml.json": "1fc9c368bcd54f9738cb14909fb05aa89acd174bccace755136a15422ed88117",
+    "canlang-final-boundaries-final.log": "ce1ef893d96c51e07be4542e26a53fad7fd7481f36cf0eeeda148984b0a72433",
+    "canlang-final-cache.log": "41e43bdd6d6b8d4f3d90dd41f3d301b51dd7e4eac694d4c690b7497a5b904f2a"
+  },
+  "limitations": [
+    "797 pinned Miniflare SDK declaration diagnostics retained; Can/consumer gate does not claim whole-program strict library success.",
+    "Node permissions do not constrain Bun/workerd children; installed realpaths and emitted bytes are checked separately.",
+    "No hosted workflows/receipts, full browser journeys, VSIX package, native/Wasm regeneration or alternate-host releases newly executed.",
+    "Preparation release/adoption HOLD and original product gates retained; no merge/publication/checkpoint advancement."
+  ]
+}

@@ -1,0 +1,13 @@
+{
+  "argv": [
+    "/private/tmp/canlang-turbo-probe-20261006.89738Q/tooling/node_modules/.bin/turbo",
+    "boundaries",
+    "--no-color",
+    "--no-update-notifier",
+    "--skip-infer"
+  ],
+  "cwd": "/private/tmp/canlang-turbo-probe-20261006.89738Q/boundaries/alias-source-declared",
+  "exit_code": 1,
+  "stdout": "Checking packages...\nChecked 5 files in 2 packages, 1 issue found\n",
+  "stderr": "\u2022 turbo 2.11.7\n  x import `@alias/b` leaves the package\n   ,-[/private/tmp/canlang-turbo-probe-20261006.89738Q/boundaries/alias-source-declared/packages/a/src/index.ts:1:23]\n 1 | import { value } from '@alias/b'; console.log(value);\n   :                       ^^^^^|^^^^\n   :                            `-- file imported here\n   `----\n  help: `@alias/b` resolves to path `../b/src/index.ts` which is outside of\n        `@probe/a`\n\n"
+}

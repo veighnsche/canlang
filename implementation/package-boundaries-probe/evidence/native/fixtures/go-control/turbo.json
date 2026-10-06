@@ -1,0 +1,14 @@
+{
+  "futureFlags": {
+    "experimentalGoWorkspaces": true
+  },
+  "tasks": {
+    "build": {
+      "dependsOn": [
+        "^build"
+      ]
+    },
+    "check": {},
+    "test": {}
+  }
+}

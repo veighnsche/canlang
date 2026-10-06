@@ -1,0 +1,35 @@
+PASS README.md: build
+PASS README.md: typecheck
+PASS README.md: check:boundaries
+PASS README.md: build:compiler
+PASS README.md: build
+PASS README.md: build:uncached
+PASS README.md: test
+PASS README.md: test:all
+PASS README.md: test:compiler
+PASS README.md: release
+PASS README.md: release:pack
+PASS README.md: verify:installed-types
+PASS docs/dev-setup.md: build
+PASS docs/dev-setup.md: typecheck
+PASS docs/dev-setup.md: check:boundaries
+PASS docs/dev-setup.md: test
+PASS docs/dev-setup.md: test
+PASS docs/dev-setup.md: test:all
+PASS docs/dev-setup.md: build
+PASS docs/dev-setup.md: verify:turbo-cache
+PASS docs/dev-setup.md: build:uncached
+PASS docs/dev-setup.md: test:tools
+PASS docs/dev-setup.md: build:compiler
+PASS docs/dev-setup.md: test:compiler
+PASS docs/dev-setup.md: catalog
+PASS docs/dev-setup.md: release
+PASS docs/dev-setup.md: release:pack
+PASS docs/dev-setup.md: verify:installed-types
+PASS docs/dev-setup.md: build
+PASS docs/install.md: build
+PASS docs/install.md: release
+PASS docs/install.md: release:pack
+PASS docs/install.md: verify:installed-types
+Local Markdown links resolve; diff check clean. No producers executed.
+PASS release:pack public dry-run: 30 tasks; pack depends on release verification.

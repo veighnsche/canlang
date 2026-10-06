@@ -1,0 +1,80 @@
+[
+  {
+    "name": "@canlang/cloudflare",
+    "exit": 0,
+    "output": "/private/tmp/canlang-installed-verification/tarballs/cloudflare.tgz\n",
+    "error": ""
+  },
+  {
+    "name": "@canlang/contracts",
+    "exit": 0,
+    "output": "/private/tmp/canlang-installed-verification/tarballs/contracts.tgz\n",
+    "error": ""
+  },
+  {
+    "name": "@canlang/files",
+    "exit": 0,
+    "output": "/private/tmp/canlang-installed-verification/tarballs/files.tgz\n",
+    "error": ""
+  },
+  {
+    "name": "@canlang/identity",
+    "exit": 0,
+    "output": "/private/tmp/canlang-installed-verification/tarballs/identity.tgz\n",
+    "error": ""
+  },
+  {
+    "name": "@canlang/interfaces",
+    "exit": 0,
+    "output": "/private/tmp/canlang-installed-verification/tarballs/interfaces.tgz\n",
+    "error": ""
+  },
+  {
+    "name": "@canlang/services",
+    "exit": 0,
+    "output": "/private/tmp/canlang-installed-verification/tarballs/services.tgz\n",
+    "error": ""
+  },
+  {
+    "name": "@canlang/state",
+    "exit": 0,
+    "output": "/private/tmp/canlang-installed-verification/tarballs/state.tgz\n",
+    "error": ""
+  },
+  {
+    "name": "@canlang/stdlib",
+    "exit": 0,
+    "output": "/private/tmp/canlang-installed-verification/tarballs/stdlib.tgz\n",
+    "error": ""
+  },
+  {
+    "name": "@canlang/testkit",
+    "exit": 0,
+    "output": "/private/tmp/canlang-installed-verification/tarballs/testkit.tgz\n",
+    "error": ""
+  },
+  {
+    "name": "@canlang/ui",
+    "exit": 0,
+    "output": "/private/tmp/canlang-installed-verification/tarballs/ui.tgz\n",
+    "error": ""
+  },
+  {
+    "name": "@canlang/values",
+    "exit": 0,
+    "output": "/private/tmp/canlang-installed-verification/tarballs/values.tgz\n",
+    "error": ""
+  },
+  {
+    "name": "@canlang/work",
+    "exit": 0,
+    "output": "/private/tmp/canlang-installed-verification/tarballs/work.tgz\n",
+    "error": ""
+  },
+  {
+    "name": "@canlang/work-kernel",
+    "exit": 0,
+    "output": "/private/tmp/canlang-installed-verification/tarballs/work-kernel.tgz\n",
+    "error": ""
+  }
+]

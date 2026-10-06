@@ -1,0 +1,187 @@
+{
+  "runtime": "v24.21.0",
+  "imports": [
+    {
+      "specifier": "@canlang/cloudflare",
+      "file": "node_modules/@canlang/cloudflare/dist/index.js",
+      "exports": 5
+    },
+    {
+      "specifier": "@canlang/contracts",
+      "file": "node_modules/@canlang/contracts/dist/index.js",
+      "exports": 62
+    },
+    {
+      "specifier": "@canlang/files",
+      "file": "node_modules/@canlang/files/dist/src/index.js",
+      "exports": 45
+    },
+    {
+      "specifier": "@canlang/identity",
+      "file": "node_modules/@canlang/identity/dist/src/index.js",
+      "exports": 74
+    },
+    {
+      "specifier": "@canlang/interfaces",
+      "file": "node_modules/@canlang/interfaces/dist/src/index.js",
+      "exports": 120
+    },
+    {
+      "specifier": "@canlang/services",
+      "file": "node_modules/@canlang/services/dist/src/index.js",
+      "exports": 64
+    },
+    {
+      "specifier": "@canlang/state",
+      "file": "node_modules/@canlang/state/dist/src/index.js",
+      "exports": 42
+    },
+    {
+      "specifier": "@canlang/stdlib",
+      "file": "node_modules/@canlang/stdlib/dist/src/index.js",
+      "exports": 140
+    },
+    {
+      "specifier": "@canlang/testkit",
+      "file": "node_modules/@canlang/testkit/dist/index.js",
+      "exports": 33
+    },
+    {
+      "specifier": "@canlang/ui",
+      "file": "node_modules/@canlang/ui/dist/src/index.js",
+      "exports": 161
+    },
+    {
+      "specifier": "@canlang/values",
+      "file": "node_modules/@canlang/values/dist/src/index.js",
+      "exports": 155
+    },
+    {
+      "specifier": "@canlang/work",
+      "file": "node_modules/@canlang/work/dist/src/index.js",
+      "exports": 134
+    },
+    {
+      "specifier": "@canlang/work-kernel",
+      "file": "node_modules/@canlang/work-kernel/dist/src/index.js",
+      "exports": 8
+    }
+  ],
+  "mapCount": 1110,
+  "mapEscapes": [],
+  "assets": [
+    {
+      "package": "values",
+      "path": "dist/bindings/generated/values_semantics_bg.wasm",
+      "sha256": "b0d44d9a4af37d23eacbde9c9841ef0c75822bd97e9e151c11af4a5cb4561b2f",
+      "bytes": 622216
+    }
+  ],
+  "wasm": {
+    "asset": "/private/tmp/canlang-installed-verification/consumer/node_modules/@canlang/values/dist/bindings/generated/values_semantics_bg.wasm",
+    "sha256": "b0d44d9a4af37d23eacbde9c9841ef0c75822bd97e9e151c11af4a5cb4561b2f",
+    "bytes": 622216,
+    "bootstrap": "ABI accepted; add-int(1,2)=3",
+    "corpus": "/private/tmp/canlang-installed-verification/consumer/node_modules/@canlang/values/conformance/v1/values.json"
+  },
+  "observer": "absent exact-owning-module rejection preserved",
+  "workReceipt": "direct installed producer functions available",
+  "bundle": {
+    "main": "worker/main.js",
+    "modules": 152,
+    "sha256": "6c97a889d78c3e2242e2f4f1a6d4ac9789185c6cc9ca843507abf0964c17053f",
+    "mcpBytes": 677377,
+    "httpBytes": 245894,
+    "writtenFiles": 153
+  },
+  "install": {
+    "mode": "production; ignore-scripts",
+    "externalDependencies": 131,
+    "localPackages": 13,
+    "unpublishedVersions": "scratch-only overrides point all @canlang transitive dependencies at unchanged local tarballs; initial registry resolution returned404"
+  },
+  "cliTest": {
+    "ok": true,
+    "executedRows": 0,
+    "independence": "Node24 resolve hook rejects any @canlang/testkit import; installed CLI boot still passed",
+    "artifact": "cli-test.artifact.json"
+  },
+  "installedObserverTests": {
+    "seam": {
+      "pass": 5,
+      "fail": 0
+    },
+    "durableD1AndWorkerd": {
+      "pass": 4,
+      "fail": 0
+    },
+    "deployedMissingObserver": "loud refusal verified"
+  },
+  "tarballs": [
+    {
+      "file": "/private/tmp/canlang-installed-verification/tarballs/cloudflare.tgz",
+      "sha256": "6afca063a54639eddacf4d5c8d4c07fb8a353aac98ee9c3c081fc06709817b5e",
+      "bytes": 471468
+    },
+    {
+      "file": "/private/tmp/canlang-installed-verification/tarballs/contracts.tgz",
+      "sha256": "02278e5bdea229cbfd6b4b0e02c4467769e01e085ebbde6843791517265e4549",
+      "bytes": 105314
+    },
+    {
+      "file": "/private/tmp/canlang-installed-verification/tarballs/files.tgz",
+      "sha256": "8fb90267cf94ea8bc605546fe8e3769d77c8e485fd08124c4b47b81af2e0de2b",
+      "bytes": 61240
+    },
+    {
+      "file": "/private/tmp/canlang-installed-verification/tarballs/identity.tgz",
+      "sha256": "bc74329c01828da62f383018f1ad3e2a78b82f09451c5c5eef0dceaa413b27b7",
+      "bytes": 80893
+    },
+    {
+      "file": "/private/tmp/canlang-installed-verification/tarballs/interfaces.tgz",
+      "sha256": "3f4170c270af1a15de280381b1da0589339059d560dce00e3769e4f2c2ae95e9",
+      "bytes": 389981
+    },
+    {
+      "file": "/private/tmp/canlang-installed-verification/tarballs/services.tgz",
+      "sha256": "c87d0f8f30e53befbabb2a37d4c6bb1aafaafcd30c1f7dd706594101754bcd4b",
+      "bytes": 124379
+    },
+    {
+      "file": "/private/tmp/canlang-installed-verification/tarballs/state.tgz",
+      "sha256": "9d6f0be099481be89779ef9d436ab3ba864a9e80f9aa179aa03eceb808d3b1e5",
+      "bytes": 643851
+    },
+    {
+      "file": "/private/tmp/canlang-installed-verification/tarballs/stdlib.tgz",
+      "sha256": "001a9958bfb96e11f75afe1906b7893b35cb7888eb4e98e533b17c240ea68ebb",
+      "bytes": 8184
+    },
+    {
+      "file": "/private/tmp/canlang-installed-verification/tarballs/testkit.tgz",
+      "sha256": "0ca3500ed64af861824765968ebb57e1f3e89a53c3fc48f448214ea2562fdd4e",
+      "bytes": 55469
+    },
+    {
+      "file": "/private/tmp/canlang-installed-verification/tarballs/ui.tgz",
+      "sha256": "fc38849655fec32c73f86506c122451aec22040940cddf14a7a1c0510a0e863d",
+      "bytes": 550393
+    },
+    {
+      "file": "/private/tmp/canlang-installed-verification/tarballs/values.tgz",
+      "sha256": "aef9445f7c3d11a7889fe60a13a35a8f38003d2bfb7be55299e7e4f74651ce7d",
+      "bytes": 503374
+    },
+    {
+      "file": "/private/tmp/canlang-installed-verification/tarballs/work-kernel.tgz",
+      "sha256": "6793bdabb65d2e4bd17a4e1d3320d36047986d39e689cd93cff8b91cbc31962d",
+      "bytes": 73390
+    },
+    {
+      "file": "/private/tmp/canlang-installed-verification/tarballs/work.tgz",
+      "sha256": "372e92ba0a67476aab9fd2f5708309a6847ccedf42ebf729a0d674734ac86c2e",
+      "bytes": 321473
+    }
+  ]
+}

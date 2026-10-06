@@ -1,0 +1,16 @@
+{
+  "argv": [
+    "/private/tmp/canlang-turbo-probe-20261006.89738Q/tooling/node_modules/.bin/turbo",
+    "--skip-infer",
+    "--no-update-notifier",
+    "run",
+    "build",
+    "--filter=@probe/dual",
+    "--dry-run=json"
+  ],
+  "cwd": "/private/tmp/canlang-turbo-probe-20261006.89738Q/native/named-control",
+  "exit": 0,
+  "stdout": "{\n  \"id\": \"3KKcdHnn0oID8vCdz8jWogM58qF\",\n  \"version\": \"1\",\n  \"turboVersion\": \"2.11.7\",\n  \"monorepo\": true,\n  \"globalCacheInputs\": {\n    \"rootKey\": \"I can\u2019t see ya, but I know you\u2019re here\",\n    \"files\": {},\n    \"hashOfExternalDependencies\": \"459c029558afe716\",\n    \"hashOfInternalDependencies\": \"\",\n    \"environmentVariables\": {\n      \"specified\": {\n        \"env\": [],\n        \"passThroughEnv\": null\n      },\n      \"configured\": [],\n      \"inferred\": [],\n      \"passthrough\": null\n    },\n    \"engines\": null\n  },\n  \"packages\": [\n    \"@probe/dual\"\n  ],\n  \"envMode\": \"strict\",\n  \"frameworkInference\": true,\n  \"tasks\": [\n    {\n      \"taskId\": \"@probe/dual#build\",\n      \"task\": \"build\",\n      \"package\": \"@probe/dual\",\n      \"hash\": \"5c7eca60619ff4c9\",\n      \"inputs\": {\n        \"Cargo.toml\": \"55bea1c0e048c0cd1f9eb04fada467c459cc5777\",\n        \"package.json\": \"3b7af733b012ee20e39e5cb066d28c0bfb87031e\",\n        \"src/lib.rs\": \"a284af9ff959add8caa7e3ae1d2b58d0545aed72\"\n      },\n      \"hashOfExternalDependencies\": \"459c029558afe716\",\n      \"cache\": {\n        \"local\": false,\n        \"remote\": false,\n        \"status\": \"MISS\",\n        \"timeSaved\": 0\n      },\n      \"command\": \"node -e \\\"console.log('JS dual build')\\\"\",\n      \"cliArguments\": [],\n      \"outputs\": null,\n      \"excludedOutputs\": null,\n      \"logFile\": \"packages/dual/.turbo/turbo-build-probe-dual-04c1951f20693210.log\",\n      \"directory\": \"packages/dual\",\n      \"dependencies\": [],\n      \"dependents\": [],\n      \"with\": [],\n      \"resolvedTaskDefinition\": {\n        \"outputs\": [],\n        \"cache\": true,\n        \"dependsOn\": [\n          \"^build\"\n        ],\n        \"inputs\": [],\n        \"outputLogs\": \"full\",\n        \"persistent\": false,\n        \"interruptible\": false,\n        \"env\": [],\n        \"passThroughEnv\": null,\n        \"interactive\": false\n      },\n      \"expandedOutputs\": [],\n      \"framework\": \"\",\n      \"envMode\": \"strict\",\n      \"environmentVariables\": {\n        \"specified\": {\n          \"env\": [],\n          \"passThroughEnv\": null\n        },\n        \"configured\": [],\n        \"inferred\": [],\n        \"passthrough\": null\n      }\n    }\n  ],\n  \"user\": \"\",\n  \"scm\": {\n    \"type\": \"git\",\n    \"sha\": null,\n    \"branch\": null\n  }\n}\n\n",
+  "stderr": "",
+  "seconds": 5.983
+}

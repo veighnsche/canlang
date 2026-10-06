@@ -1,0 +1,1446 @@
+{
+  "control-ls": {
+    "exit": 1,
+    "argv": [
+      "/private/tmp/canlang-turbo-probe-20261006.89738Q/tooling/node_modules/.bin/turbo",
+      "ls",
+      "--output=json",
+      "--no-update-notifier"
+    ],
+    "cwd": "/private/tmp/canlang-turbo-probe-20261006.89738Q/native/root-control"
+  },
+  "version": {
+    "exit": 0,
+    "argv": [
+      "/private/tmp/canlang-turbo-probe-20261006.89738Q/tooling/node_modules/.bin/turbo",
+      "--version"
+    ],
+    "cwd": "/private/tmp/canlang-turbo-probe-20261006.89738Q/native"
+  },
+  "actual-ts-only-cargo-denied": {
+    "exit": 0,
+    "argv": [
+      "/private/tmp/canlang-turbo-probe-20261006.89738Q/tooling/node_modules/.bin/turbo",
+      "run",
+      "build",
+      "--filter=@canlang/contracts",
+      "--dry-run=json",
+      "--no-update-notifier"
+    ],
+    "cwd": "/private/tmp/canlang-turbo-probe-20261006.89738Q/native/actual",
+    "packages": [
+      "@canlang/contracts"
+    ],
+    "tasks": [
+      {
+        "taskId": "@canlang/contracts#build",
+        "command": "tsc -p tsconfig.json",
+        "dependencies": [],
+        "outputs": null,
+        "cache": true
+      }
+    ]
+  },
+  "actual-native-filter": {
+    "exit": 1,
+    "argv": [
+      "/private/tmp/canlang-turbo-probe-20261006.89738Q/tooling/node_modules/.bin/turbo",
+      "run",
+      "check",
+      "--filter=canlang-compiler",
+      "--dry-run=json",
+      "--no-update-notifier"
+    ],
+    "cwd": "/private/tmp/canlang-turbo-probe-20261006.89738Q/native/actual"
+  },
+  "named-dual-cargo": {
+    "exit": 0,
+    "argv": [
+      "/private/tmp/canlang-turbo-probe-20261006.89738Q/tooling/node_modules/.bin/turbo",
+      "--skip-infer",
+      "--no-update-notifier",
+      "run",
+      "build",
+      "--filter=probe-dual",
+      "--dry-run=json"
+    ],
+    "cwd": "/private/tmp/canlang-turbo-probe-20261006.89738Q/native/named-control",
+    "packages": [
+      "probe-dual"
+    ],
+    "tasks": [
+      {
+        "taskId": "probe-dual#build",
+        "command": "cargo build --package=probe-dual --locked",
+        "dependencies": [],
+        "outputs": null,
+        "cache": false
+      }
+    ]
+  },
+  "help-main": {
+    "exit": 0,
+    "argv": [
+      "/private/tmp/canlang-turbo-probe-20261006.89738Q/tooling/node_modules/.bin/turbo",
+      "--help"
+    ],
+    "cwd": "/private/tmp/canlang-turbo-probe-20261006.89738Q/native"
+  },
+  "named-native-app": {
+    "exit": 0,
+    "argv": [
+      "/private/tmp/canlang-turbo-probe-20261006.89738Q/tooling/node_modules/.bin/turbo",
+      "--skip-infer",
+      "--no-update-notifier",
+      "run",
+      "build",
+      "--filter=probe-app",
+      "--dry-run=json"
+    ],
+    "cwd": "/private/tmp/canlang-turbo-probe-20261006.89738Q/native/named-control",
+    "packages": [
+      "probe-app"
+    ],
+    "tasks": [
+      {
+        "taskId": "probe-app#build",
+        "command": "cargo build --package=probe-app --locked",
+        "dependencies": [
+          "probe-core#build"
+        ],
+        "outputs": [
+          "../../target/debug/probe-app"
+        ],
+        "cache": true
+      },
+      {
+        "taskId": "probe-core#build",
+        "command": "cargo build --package=probe-core --locked",
+        "dependencies": [],
+        "outputs": null,
+        "cache": false
+      }
+    ]
+  },
+  "actual-ls": {
+    "exit": 0,
+    "argv": [
+      "/private/tmp/canlang-turbo-probe-20261006.89738Q/tooling/node_modules/.bin/turbo",
+      "ls",
+      "--output=json",
+      "--no-update-notifier"
+    ],
+    "cwd": "/private/tmp/canlang-turbo-probe-20261006.89738Q/native/actual",
+    "packages": {
+      "count": 13,
+      "items": [
+        {
+          "name": "@canlang/cloudflare",
+          "path": "packages/cloudflare"
+        },
+        {
+          "name": "@canlang/contracts",
+          "path": "packages/contracts"
+        },
+        {
+          "name": "@canlang/files",
+          "path": "packages/files"
+        },
+        {
+          "name": "@canlang/identity",
+          "path": "packages/identity"
+        },
+        {
+          "name": "@canlang/interfaces",
+          "path": "packages/interfaces"
+        },
+        {
+          "name": "@canlang/services",
+          "path": "packages/services"
+        },
+        {
+          "name": "@canlang/state",
+          "path": "packages/state"
+        },
+        {
+          "name": "@canlang/stdlib",
+          "path": "packages/stdlib"
+        },
+        {
+          "name": "@canlang/testkit",
+          "path": "packages/testkit"
+        },
+        {
+          "name": "@canlang/ui",
+          "path": "packages/ui"
+        },
+        {
+          "name": "@canlang/values",
+          "path": "packages/values"
+        },
+        {
+          "name": "@canlang/work",
+          "path": "packages/work"
+        },
+        {
+          "name": "@canlang/work-kernel",
+          "path": "packages/work-kernel"
+        }
+      ]
+    }
+  },
+  "control-ts-only": {
+    "exit": 1,
+    "argv": [
+      "/private/tmp/canlang-turbo-probe-20261006.89738Q/tooling/node_modules/.bin/turbo",
+      "run",
+      "build",
+      "--filter=@probe/js",
+      "--dry-run=json",
+      "--no-update-notifier"
+    ],
+    "cwd": "/private/tmp/canlang-turbo-probe-20261006.89738Q/native/root-control"
+  },
+  "help-run": {
+    "exit": 0,
+    "argv": [
+      "/private/tmp/canlang-turbo-probe-20261006.89738Q/tooling/node_modules/.bin/turbo",
+      "run",
+      "--help"
+    ],
+    "cwd": "/private/tmp/canlang-turbo-probe-20261006.89738Q/native"
+  },
+  "nested-ls": {
+    "exit": 0,
+    "argv": [
+      "/private/tmp/canlang-turbo-probe-20261006.89738Q/tooling/node_modules/.bin/turbo",
+      "ls",
+      "--output=json",
+      "--no-update-notifier"
+    ],
+    "cwd": "/private/tmp/canlang-turbo-probe-20261006.89738Q/native/nested-control",
+    "packages": {
+      "count": 2,
+      "items": [
+        {
+          "name": "@probe/dual",
+          "path": "packages/dual"
+        },
+        {
+          "name": "@probe/js",
+          "path": "packages/js"
+        }
+      ]
+    }
+  },
+  "control-native-app": {
+    "exit": 1,
+    "argv": [
+      "/private/tmp/canlang-turbo-probe-20261006.89738Q/tooling/node_modules/.bin/turbo",
+      "run",
+      "build",
+      "--filter=probe-app",
+      "--dry-run=json",
+      "--no-update-notifier"
+    ],
+    "cwd": "/private/tmp/canlang-turbo-probe-20261006.89738Q/native/root-control"
+  },
+  "control-dual-cargo": {
+    "exit": 1,
+    "argv": [
+      "/private/tmp/canlang-turbo-probe-20261006.89738Q/tooling/node_modules/.bin/turbo",
+      "run",
+      "build",
+      "--filter=probe-dual",
+      "--dry-run=json",
+      "--no-update-notifier"
+    ],
+    "cwd": "/private/tmp/canlang-turbo-probe-20261006.89738Q/native/root-control"
+  },
+  "go-build-dry": {
+    "exit": 1,
+    "argv": [
+      "/private/tmp/canlang-turbo-probe-20261006.89738Q/tooling/node_modules/.bin/turbo",
+      "--skip-infer",
+      "--no-update-notifier",
+      "run",
+      "build",
+      "--dry-run=json"
+    ],
+    "cwd": "/private/tmp/canlang-turbo-probe-20261006.89738Q/native/go-control"
+  },
+  "python-named-check-dry": {
+    "exit": 0,
+    "argv": [
+      "/private/tmp/canlang-turbo-probe-20261006.89738Q/tooling/node_modules/.bin/turbo",
+      "--skip-infer",
+      "--no-update-notifier",
+      "run",
+      "check",
+      "--dry-run=json"
+    ],
+    "cwd": "/private/tmp/canlang-turbo-probe-20261006.89738Q/native/python-named-control",
+    "packages": [
+      "probe-python-app",
+      "probe-python-core",
+      "probe-python-workspace"
+    ],
+    "tasks": [
+      {
+        "taskId": "probe-python-workspace#check",
+        "command": "uv check --frozen --all-packages",
+        "dependencies": [],
+        "outputs": null,
+        "cache": false
+      }
+    ]
+  },
+  "go-check-dry": {
+    "exit": 1,
+    "argv": [
+      "/private/tmp/canlang-turbo-probe-20261006.89738Q/tooling/node_modules/.bin/turbo",
+      "--skip-infer",
+      "--no-update-notifier",
+      "run",
+      "check",
+      "--dry-run=json"
+    ],
+    "cwd": "/private/tmp/canlang-turbo-probe-20261006.89738Q/native/go-control"
+  },
+  "python-named-build-dry": {
+    "exit": 0,
+    "argv": [
+      "/private/tmp/canlang-turbo-probe-20261006.89738Q/tooling/node_modules/.bin/turbo",
+      "--skip-infer",
+      "--no-update-notifier",
+      "run",
+      "build",
+      "--dry-run=json"
+    ],
+    "cwd": "/private/tmp/canlang-turbo-probe-20261006.89738Q/native/python-named-control",
+    "packages": [
+      "probe-python-app",
+      "probe-python-core",
+      "probe-python-workspace"
+    ],
+    "tasks": []
+  },
+  "uv-version": {
+    "exit": 0,
+    "argv": [
+      "/private/tmp/canlang-turbo-probe-20261006.89738Q/native/language-wrappers/uv",
+      "--version"
+    ],
+    "cwd": "/private/tmp/canlang-turbo-probe-20261006.89738Q/native"
+  },
+  "nested-build-dry": {
+    "exit": 0,
+    "argv": [
+      "/private/tmp/canlang-turbo-probe-20261006.89738Q/tooling/node_modules/.bin/turbo",
+      "run",
+      "build",
+      "--dry-run=json",
+      "--no-update-notifier"
+    ],
+    "cwd": "/private/tmp/canlang-turbo-probe-20261006.89738Q/native/nested-control",
+    "packages": [
+      "@probe/dual",
+      "@probe/js"
+    ],
+    "tasks": [
+      {
+        "taskId": "@probe/dual#build",
+        "command": "node -e \"console.log('JS dual build')\"",
+        "dependencies": [],
+        "outputs": null,
+        "cache": true
+      },
+      {
+        "taskId": "@probe/js#build",
+        "command": "node -e \"console.log('JS build')\"",
+        "dependencies": [],
+        "outputs": null,
+        "cache": true
+      }
+    ]
+  },
+  "named-ls": {
+    "exit": 0,
+    "argv": [
+      "/private/tmp/canlang-turbo-probe-20261006.89738Q/tooling/node_modules/.bin/turbo",
+      "--skip-infer",
+      "--no-update-notifier",
+      "ls",
+      "--output=json"
+    ],
+    "cwd": "/private/tmp/canlang-turbo-probe-20261006.89738Q/native/named-control",
+    "packages": {
+      "count": 6,
+      "items": [
+        {
+          "name": "@probe/dual",
+          "path": "packages/dual"
+        },
+        {
+          "name": "@probe/js",
+          "path": "packages/js"
+        },
+        {
+          "name": "probe-app",
+          "path": "crates/app"
+        },
+        {
+          "name": "probe-core",
+          "path": "crates/core"
+        },
+        {
+          "name": "probe-dual",
+          "path": "packages/dual"
+        },
+        {
+          "name": "probe-native-workspace",
+          "path": ""
+        }
+      ]
+    }
+  },
+  "nested-check-dry": {
+    "exit": 0,
+    "argv": [
+      "/private/tmp/canlang-turbo-probe-20261006.89738Q/tooling/node_modules/.bin/turbo",
+      "run",
+      "check",
+      "--dry-run=json",
+      "--no-update-notifier"
+    ],
+    "cwd": "/private/tmp/canlang-turbo-probe-20261006.89738Q/native/nested-control",
+    "packages": [
+      "@probe/dual",
+      "@probe/js"
+    ],
+    "tasks": [
+      {
+        "taskId": "@probe/dual#check",
+        "command": "<NONEXISTENT>",
+        "dependencies": [],
+        "outputs": null,
+        "cache": true
+      },
+      {
+        "taskId": "@probe/js#check",
+        "command": "<NONEXISTENT>",
+        "dependencies": [],
+        "outputs": null,
+        "cache": true
+      }
+    ]
+  },
+  "go-local-ls": {
+    "exit": 0,
+    "argv": [
+      "/private/tmp/canlang-turbo-probe-20261006.89738Q/tooling/node_modules/.bin/turbo",
+      "--skip-infer",
+      "--no-update-notifier",
+      "ls",
+      "--output=json"
+    ],
+    "cwd": "/private/tmp/canlang-turbo-probe-20261006.89738Q/native/go-local-replace-control",
+    "packages": {
+      "count": 3,
+      "items": [
+        {
+          "name": "app",
+          "path": "go/app"
+        },
+        {
+          "name": "core",
+          "path": "go/core"
+        },
+        {
+          "name": "go-workspace",
+          "path": ""
+        }
+      ]
+    }
+  },
+  "same-name-build-dry": {
+    "exit": 1,
+    "argv": [
+      "/private/tmp/canlang-turbo-probe-20261006.89738Q/tooling/node_modules/.bin/turbo",
+      "--skip-infer",
+      "--no-update-notifier",
+      "run",
+      "build",
+      "--filter=probe-dual",
+      "--dry-run=json"
+    ],
+    "cwd": "/private/tmp/canlang-turbo-probe-20261006.89738Q/native/same-name-control"
+  },
+  "control-dual-js": {
+    "exit": 1,
+    "argv": [
+      "/private/tmp/canlang-turbo-probe-20261006.89738Q/tooling/node_modules/.bin/turbo",
+      "run",
+      "build",
+      "--filter=@probe/dual",
+      "--dry-run=json",
+      "--no-update-notifier"
+    ],
+    "cwd": "/private/tmp/canlang-turbo-probe-20261006.89738Q/native/root-control"
+  },
+  "python-build-dry": {
+    "exit": 1,
+    "argv": [
+      "/private/tmp/canlang-turbo-probe-20261006.89738Q/tooling/node_modules/.bin/turbo",
+      "--skip-infer",
+      "--no-update-notifier",
+      "run",
+      "build",
+      "--dry-run=json"
+    ],
+    "cwd": "/private/tmp/canlang-turbo-probe-20261006.89738Q/native/python-control"
+  },
+  "python-check-dry": {
+    "exit": 1,
+    "argv": [
+      "/private/tmp/canlang-turbo-probe-20261006.89738Q/tooling/node_modules/.bin/turbo",
+      "--skip-infer",
+      "--no-update-notifier",
+      "run",
+      "check",
+      "--dry-run=json"
+    ],
+    "cwd": "/private/tmp/canlang-turbo-probe-20261006.89738Q/native/python-control"
+  },
+  "go-version": {
+    "exit": 0,
+    "argv": [
+      "/private/tmp/canlang-turbo-probe-20261006.89738Q/native/language-wrappers/go",
+      "version"
+    ],
+    "cwd": "/private/tmp/canlang-turbo-probe-20261006.89738Q/native"
+  },
+  "go-ls": {
+    "exit": 1,
+    "argv": [
+      "/private/tmp/canlang-turbo-probe-20261006.89738Q/tooling/node_modules/.bin/turbo",
+      "--skip-infer",
+      "--no-update-notifier",
+      "ls",
+      "--output=json"
+    ],
+    "cwd": "/private/tmp/canlang-turbo-probe-20261006.89738Q/native/go-control"
+  },
+  "named-workspace-check": {
+    "exit": 0,
+    "argv": [
+      "/private/tmp/canlang-turbo-probe-20261006.89738Q/tooling/node_modules/.bin/turbo",
+      "--skip-infer",
+      "--no-update-notifier",
+      "run",
+      "check",
+      "--filter=probe-native-workspace",
+      "--dry-run=json"
+    ],
+    "cwd": "/private/tmp/canlang-turbo-probe-20261006.89738Q/native/named-control",
+    "packages": [
+      "probe-native-workspace"
+    ],
+    "tasks": [
+      {
+        "taskId": "probe-native-workspace#check",
+        "command": "cargo check --workspace --locked",
+        "dependencies": [],
+        "outputs": null,
+        "cache": true
+      }
+    ]
+  },
+  "control-build-dry": {
+    "exit": 1,
+    "argv": [
+      "/private/tmp/canlang-turbo-probe-20261006.89738Q/tooling/node_modules/.bin/turbo",
+      "run",
+      "build",
+      "--dry-run=json",
+      "--no-update-notifier"
+    ],
+    "cwd": "/private/tmp/canlang-turbo-probe-20261006.89738Q/native/root-control"
+  },
+  "named-ts-only-cargo-denied": {
+    "exit": 0,
+    "argv": [
+      "/private/tmp/canlang-turbo-probe-20261006.89738Q/tooling/node_modules/.bin/turbo",
+      "--skip-infer",
+      "--no-update-notifier",
+      "run",
+      "build",
+      "--filter=@probe/js",
+      "--dry-run=json"
+    ],
+    "cwd": "/private/tmp/canlang-turbo-probe-20261006.89738Q/native/named-control",
+    "packages": [
+      "@probe/js"
+    ],
+    "tasks": [
+      {
+        "taskId": "@probe/js#build",
+        "command": "node -e \"console.log('JS build')\"",
+        "dependencies": [],
+        "outputs": null,
+        "cache": true
+      }
+    ]
+  },
+  "control-check-dry": {
+    "exit": 1,
+    "argv": [
+      "/private/tmp/canlang-turbo-probe-20261006.89738Q/tooling/node_modules/.bin/turbo",
+      "run",
+      "check",
+      "--dry-run=json",
+      "--no-update-notifier"
+    ],
+    "cwd": "/private/tmp/canlang-turbo-probe-20261006.89738Q/native/root-control"
+  },
+  "help-ls": {
+    "exit": 0,
+    "argv": [
+      "/private/tmp/canlang-turbo-probe-20261006.89738Q/tooling/node_modules/.bin/turbo",
+      "ls",
+      "--help"
+    ],
+    "cwd": "/private/tmp/canlang-turbo-probe-20261006.89738Q/native"
+  },
+  "python-named-ls": {
+    "exit": 0,
+    "argv": [
+      "/private/tmp/canlang-turbo-probe-20261006.89738Q/tooling/node_modules/.bin/turbo",
+      "--skip-infer",
+      "--no-update-notifier",
+      "ls",
+      "--output=json"
+    ],
+    "cwd": "/private/tmp/canlang-turbo-probe-20261006.89738Q/native/python-named-control",
+    "packages": {
+      "count": 3,
+      "items": [
+        {
+          "name": "probe-python-app",
+          "path": "py/app"
+        },
+        {
+          "name": "probe-python-core",
+          "path": "py/core"
+        },
+        {
+          "name": "probe-python-workspace",
+          "path": ""
+        }
+      ]
+    }
+  },
+  "old-actual-ls": {
+    "exit": 0,
+    "argv": [
+      "/private/tmp/canlang-turbo-probe-20261006.89738Q/tooling-2.11.0/node_modules/.bin/turbo",
+      "--skip-infer",
+      "--no-update-notifier",
+      "ls",
+      "--output=json"
+    ],
+    "cwd": "/private/tmp/canlang-turbo-probe-20261006.89738Q/native/actual",
+    "packages": {
+      "count": 13,
+      "items": [
+        {
+          "name": "@canlang/cloudflare",
+          "path": "packages/cloudflare"
+        },
+        {
+          "name": "@canlang/contracts",
+          "path": "packages/contracts"
+        },
+        {
+          "name": "@canlang/files",
+          "path": "packages/files"
+        },
+        {
+          "name": "@canlang/identity",
+          "path": "packages/identity"
+        },
+        {
+          "name": "@canlang/interfaces",
+          "path": "packages/interfaces"
+        },
+        {
+          "name": "@canlang/services",
+          "path": "packages/services"
+        },
+        {
+          "name": "@canlang/state",
+          "path": "packages/state"
+        },
+        {
+          "name": "@canlang/stdlib",
+          "path": "packages/stdlib"
+        },
+        {
+          "name": "@canlang/testkit",
+          "path": "packages/testkit"
+        },
+        {
+          "name": "@canlang/ui",
+          "path": "packages/ui"
+        },
+        {
+          "name": "@canlang/values",
+          "path": "packages/values"
+        },
+        {
+          "name": "@canlang/work",
+          "path": "packages/work"
+        },
+        {
+          "name": "@canlang/work-kernel",
+          "path": "packages/work-kernel"
+        }
+      ]
+    }
+  },
+  "help-query": {
+    "exit": 0,
+    "argv": [
+      "/private/tmp/canlang-turbo-probe-20261006.89738Q/tooling/node_modules/.bin/turbo",
+      "query",
+      "--help"
+    ],
+    "cwd": "/private/tmp/canlang-turbo-probe-20261006.89738Q/native"
+  },
+  "named-ts-only-executed": {
+    "exit": 0,
+    "argv": [
+      "/private/tmp/canlang-turbo-probe-20261006.89738Q/tooling/node_modules/.bin/turbo",
+      "--skip-infer",
+      "--no-update-notifier",
+      "run",
+      "build",
+      "--filter=@probe/js",
+      "--cache=local:rw"
+    ],
+    "cwd": "/private/tmp/canlang-turbo-probe-20261006.89738Q/native/named-control"
+  },
+  "old-named-ls": {
+    "exit": 0,
+    "argv": [
+      "/private/tmp/canlang-turbo-probe-20261006.89738Q/tooling-2.11.0/node_modules/.bin/turbo",
+      "--skip-infer",
+      "--no-update-notifier",
+      "ls",
+      "--output=json"
+    ],
+    "cwd": "/private/tmp/canlang-turbo-probe-20261006.89738Q/native/named-control",
+    "packages": {
+      "count": 6,
+      "items": [
+        {
+          "name": "@probe/dual",
+          "path": "packages/dual"
+        },
+        {
+          "name": "@probe/js",
+          "path": "packages/js"
+        },
+        {
+          "name": "probe-app",
+          "path": "crates/app"
+        },
+        {
+          "name": "probe-core",
+          "path": "crates/core"
+        },
+        {
+          "name": "probe-dual",
+          "path": "packages/dual"
+        },
+        {
+          "name": "probe-native-workspace",
+          "path": ""
+        }
+      ]
+    }
+  },
+  "control-cargo-metadata": {
+    "exit": 0,
+    "argv": [
+      "/Users/vince/.cargo/bin/cargo",
+      "metadata",
+      "--offline",
+      "--format-version=1",
+      "--manifest-path",
+      "/private/tmp/canlang-turbo-probe-20261006.89738Q/native/root-control/Cargo.toml"
+    ],
+    "cwd": "/private/tmp/canlang-turbo-probe-20261006.89738Q/native/root-control",
+    "packages": [
+      {
+        "name": "probe-app",
+        "version": "0.1.0",
+        "id": "path+file:///private/tmp/canlang-turbo-probe-20261006.89738Q/native/root-control/crates/app#probe-app@0.1.0",
+        "license": null,
+        "license_file": null,
+        "description": null,
+        "source": null,
+        "dependencies": [
+          {
+            "name": "probe-core",
+            "source": null,
+            "req": "*",
+            "kind": null,
+            "rename": null,
+            "optional": false,
+            "uses_default_features": true,
+            "features": [],
+            "target": null,
+            "registry": null,
+            "path": "/private/tmp/canlang-turbo-probe-20261006.89738Q/native/root-control/crates/core"
+          }
+        ],
+        "targets": [
+          {
+            "kind": [
+              "bin"
+            ],
+            "crate_types": [
+              "bin"
+            ],
+            "name": "probe-app",
+            "src_path": "/private/tmp/canlang-turbo-probe-20261006.89738Q/native/root-control/crates/app/src/main.rs",
+            "edition": "2021",
+            "doc": true,
+            "doctest": false,
+            "test": true
+          }
+        ],
+        "features": {},
+        "manifest_path": "/private/tmp/canlang-turbo-probe-20261006.89738Q/native/root-control/crates/app/Cargo.toml",
+        "metadata": null,
+        "publish": null,
+        "authors": [],
+        "categories": [],
+        "keywords": [],
+        "readme": null,
+        "repository": null,
+        "homepage": null,
+        "documentation": null,
+        "edition": "2021",
+        "links": null,
+        "default_run": null,
+        "rust_version": null
+      },
+      {
+        "name": "probe-core",
+        "version": "0.1.0",
+        "id": "path+file:///private/tmp/canlang-turbo-probe-20261006.89738Q/native/root-control/crates/core#probe-core@0.1.0",
+        "license": null,
+        "license_file": null,
+        "description": null,
+        "source": null,
+        "dependencies": [],
+        "targets": [
+          {
+            "kind": [
+              "lib"
+            ],
+            "crate_types": [
+              "lib"
+            ],
+            "name": "probe_core",
+            "src_path": "/private/tmp/canlang-turbo-probe-20261006.89738Q/native/root-control/crates/core/src/lib.rs",
+            "edition": "2021",
+            "doc": true,
+            "doctest": true,
+            "test": true
+          }
+        ],
+        "features": {},
+        "manifest_path": "/private/tmp/canlang-turbo-probe-20261006.89738Q/native/root-control/crates/core/Cargo.toml",
+        "metadata": null,
+        "publish": null,
+        "authors": [],
+        "categories": [],
+        "keywords": [],
+        "readme": null,
+        "repository": null,
+        "homepage": null,
+        "documentation": null,
+        "edition": "2021",
+        "links": null,
+        "default_run": null,
+        "rust_version": null
+      },
+      {
+        "name": "probe-dual",
+        "version": "0.1.0",
+        "id": "path+file:///private/tmp/canlang-turbo-probe-20261006.89738Q/native/root-control/packages/dual#probe-dual@0.1.0",
+        "license": null,
+        "license_file": null,
+        "description": null,
+        "source": null,
+        "dependencies": [],
+        "targets": [
+          {
+            "kind": [
+              "lib"
+            ],
+            "crate_types": [
+              "lib"
+            ],
+            "name": "probe_dual",
+            "src_path": "/private/tmp/canlang-turbo-probe-20261006.89738Q/native/root-control/packages/dual/src/lib.rs",
+            "edition": "2021",
+            "doc": true,
+            "doctest": true,
+            "test": true
+          }
+        ],
+        "features": {},
+        "manifest_path": "/private/tmp/canlang-turbo-probe-20261006.89738Q/native/root-control/packages/dual/Cargo.toml",
+        "metadata": null,
+        "publish": null,
+        "authors": [],
+        "categories": [],
+        "keywords": [],
+        "readme": null,
+        "repository": null,
+        "homepage": null,
+        "documentation": null,
+        "edition": "2021",
+        "links": null,
+        "default_run": null,
+        "rust_version": null
+      }
+    ]
+  },
+  "go-local-check-dry": {
+    "exit": 0,
+    "argv": [
+      "/private/tmp/canlang-turbo-probe-20261006.89738Q/tooling/node_modules/.bin/turbo",
+      "--skip-infer",
+      "--no-update-notifier",
+      "run",
+      "check",
+      "--dry-run=json"
+    ],
+    "cwd": "/private/tmp/canlang-turbo-probe-20261006.89738Q/native/go-local-replace-control",
+    "packages": [
+      "app",
+      "core",
+      "go-workspace"
+    ],
+    "tasks": [
+      {
+        "taskId": "app#check",
+        "command": "<NONEXISTENT>",
+        "dependencies": [],
+        "outputs": null,
+        "cache": true
+      },
+      {
+        "taskId": "core#check",
+        "command": "<NONEXISTENT>",
+        "dependencies": [],
+        "outputs": null,
+        "cache": true
+      },
+      {
+        "taskId": "go-workspace#check",
+        "command": "<NONEXISTENT>",
+        "dependencies": [],
+        "outputs": null,
+        "cache": true
+      }
+    ]
+  },
+  "named-build-dry": {
+    "exit": 0,
+    "argv": [
+      "/private/tmp/canlang-turbo-probe-20261006.89738Q/tooling/node_modules/.bin/turbo",
+      "--skip-infer",
+      "--no-update-notifier",
+      "run",
+      "build",
+      "--dry-run=json"
+    ],
+    "cwd": "/private/tmp/canlang-turbo-probe-20261006.89738Q/native/named-control",
+    "packages": [
+      "@probe/dual",
+      "@probe/js",
+      "probe-app",
+      "probe-core",
+      "probe-dual",
+      "probe-native-workspace"
+    ],
+    "tasks": [
+      {
+        "taskId": "@probe/dual#build",
+        "command": "node -e \"console.log('JS dual build')\"",
+        "dependencies": [],
+        "outputs": null,
+        "cache": true
+      },
+      {
+        "taskId": "@probe/js#build",
+        "command": "node -e \"console.log('JS build')\"",
+        "dependencies": [],
+        "outputs": null,
+        "cache": true
+      },
+      {
+        "taskId": "probe-app#build",
+        "command": "cargo build --package=probe-app --locked",
+        "dependencies": [
+          "probe-core#build"
+        ],
+        "outputs": [
+          "../../target/debug/probe-app"
+        ],
+        "cache": true
+      },
+      {
+        "taskId": "probe-core#build",
+        "command": "cargo build --package=probe-core --locked",
+        "dependencies": [],
+        "outputs": null,
+        "cache": false
+      }
+    ]
+  },
+  "named-dual-js": {
+    "exit": 0,
+    "argv": [
+      "/private/tmp/canlang-turbo-probe-20261006.89738Q/tooling/node_modules/.bin/turbo",
+      "--skip-infer",
+      "--no-update-notifier",
+      "run",
+      "build",
+      "--filter=@probe/dual",
+      "--dry-run=json"
+    ],
+    "cwd": "/private/tmp/canlang-turbo-probe-20261006.89738Q/native/named-control",
+    "packages": [
+      "@probe/dual"
+    ],
+    "tasks": [
+      {
+        "taskId": "@probe/dual#build",
+        "command": "node -e \"console.log('JS dual build')\"",
+        "dependencies": [],
+        "outputs": null,
+        "cache": true
+      }
+    ]
+  },
+  "go-local-build-dry": {
+    "exit": 0,
+    "argv": [
+      "/private/tmp/canlang-turbo-probe-20261006.89738Q/tooling/node_modules/.bin/turbo",
+      "--skip-infer",
+      "--no-update-notifier",
+      "run",
+      "build",
+      "--dry-run=json"
+    ],
+    "cwd": "/private/tmp/canlang-turbo-probe-20261006.89738Q/native/go-local-replace-control",
+    "packages": [
+      "app",
+      "core",
+      "go-workspace"
+    ],
+    "tasks": [
+      {
+        "taskId": "app#build",
+        "command": "go build .",
+        "dependencies": [
+          "core#build"
+        ],
+        "outputs": null,
+        "cache": false
+      },
+      {
+        "taskId": "core#build",
+        "command": "go build ./...",
+        "dependencies": [],
+        "outputs": null,
+        "cache": false
+      }
+    ]
+  },
+  "named-check-dry": {
+    "exit": 0,
+    "argv": [
+      "/private/tmp/canlang-turbo-probe-20261006.89738Q/tooling/node_modules/.bin/turbo",
+      "--skip-infer",
+      "--no-update-notifier",
+      "run",
+      "check",
+      "--dry-run=json"
+    ],
+    "cwd": "/private/tmp/canlang-turbo-probe-20261006.89738Q/native/named-control",
+    "packages": [
+      "@probe/dual",
+      "@probe/js",
+      "probe-app",
+      "probe-core",
+      "probe-dual",
+      "probe-native-workspace"
+    ],
+    "tasks": [
+      {
+        "taskId": "@probe/dual#check",
+        "command": "<NONEXISTENT>",
+        "dependencies": [],
+        "outputs": null,
+        "cache": true
+      },
+      {
+        "taskId": "@probe/js#check",
+        "command": "<NONEXISTENT>",
+        "dependencies": [],
+        "outputs": null,
+        "cache": true
+      },
+      {
+        "taskId": "probe-native-workspace#check",
+        "command": "cargo check --workspace --locked",
+        "dependencies": [],
+        "outputs": null,
+        "cache": true
+      }
+    ]
+  },
+  "same-name-ls": {
+    "exit": 1,
+    "argv": [
+      "/private/tmp/canlang-turbo-probe-20261006.89738Q/tooling/node_modules/.bin/turbo",
+      "--skip-infer",
+      "--no-update-notifier",
+      "ls",
+      "--output=json"
+    ],
+    "cwd": "/private/tmp/canlang-turbo-probe-20261006.89738Q/native/same-name-control"
+  },
+  "python-ls": {
+    "exit": 1,
+    "argv": [
+      "/private/tmp/canlang-turbo-probe-20261006.89738Q/tooling/node_modules/.bin/turbo",
+      "--skip-infer",
+      "--no-update-notifier",
+      "ls",
+      "--output=json"
+    ],
+    "cwd": "/private/tmp/canlang-turbo-probe-20261006.89738Q/native/python-control"
+  },
+  "nested-ts-only-cargo-denied": {
+    "exit": 0,
+    "argv": [
+      "/private/tmp/canlang-turbo-probe-20261006.89738Q/tooling/node_modules/.bin/turbo",
+      "run",
+      "build",
+      "--filter=@probe/js",
+      "--dry-run=json",
+      "--no-update-notifier"
+    ],
+    "cwd": "/private/tmp/canlang-turbo-probe-20261006.89738Q/native/nested-control",
+    "packages": [
+      "@probe/js"
+    ],
+    "tasks": [
+      {
+        "taskId": "@probe/js#build",
+        "command": "node -e \"console.log('JS build')\"",
+        "dependencies": [],
+        "outputs": null,
+        "cache": true
+      }
+    ]
+  },
+  "actual-check-dry": {
+    "exit": 0,
+    "argv": [
+      "/private/tmp/canlang-turbo-probe-20261006.89738Q/tooling/node_modules/.bin/turbo",
+      "run",
+      "check",
+      "--dry-run=json",
+      "--no-update-notifier"
+    ],
+    "cwd": "/private/tmp/canlang-turbo-probe-20261006.89738Q/native/actual",
+    "packages": [
+      "@canlang/cloudflare",
+      "@canlang/contracts",
+      "@canlang/files",
+      "@canlang/identity",
+      "@canlang/interfaces",
+      "@canlang/services",
+      "@canlang/state",
+      "@canlang/stdlib",
+      "@canlang/testkit",
+      "@canlang/ui",
+      "@canlang/values",
+      "@canlang/work",
+      "@canlang/work-kernel"
+    ],
+    "tasks": [
+      {
+        "taskId": "@canlang/cloudflare#check",
+        "command": "<NONEXISTENT>",
+        "dependencies": [],
+        "outputs": null,
+        "cache": true
+      },
+      {
+        "taskId": "@canlang/contracts#check",
+        "command": "<NONEXISTENT>",
+        "dependencies": [],
+        "outputs": null,
+        "cache": true
+      },
+      {
+        "taskId": "@canlang/files#check",
+        "command": "<NONEXISTENT>",
+        "dependencies": [],
+        "outputs": null,
+        "cache": true
+      },
+      {
+        "taskId": "@canlang/identity#check",
+        "command": "<NONEXISTENT>",
+        "dependencies": [],
+        "outputs": null,
+        "cache": true
+      },
+      {
+        "taskId": "@canlang/interfaces#check",
+        "command": "<NONEXISTENT>",
+        "dependencies": [],
+        "outputs": null,
+        "cache": true
+      },
+      {
+        "taskId": "@canlang/services#check",
+        "command": "<NONEXISTENT>",
+        "dependencies": [],
+        "outputs": null,
+        "cache": true
+      },
+      {
+        "taskId": "@canlang/state#check",
+        "command": "<NONEXISTENT>",
+        "dependencies": [],
+        "outputs": null,
+        "cache": true
+      },
+      {
+        "taskId": "@canlang/stdlib#check",
+        "command": "<NONEXISTENT>",
+        "dependencies": [],
+        "outputs": null,
+        "cache": true
+      },
+      {
+        "taskId": "@canlang/testkit#check",
+        "command": "<NONEXISTENT>",
+        "dependencies": [],
+        "outputs": null,
+        "cache": true
+      },
+      {
+        "taskId": "@canlang/ui#check",
+        "command": "<NONEXISTENT>",
+        "dependencies": [],
+        "outputs": null,
+        "cache": true
+      },
+      {
+        "taskId": "@canlang/values#check",
+        "command": "<NONEXISTENT>",
+        "dependencies": [],
+        "outputs": null,
+        "cache": true
+      },
+      {
+        "taskId": "@canlang/work#check",
+        "command": "<NONEXISTENT>",
+        "dependencies": [],
+        "outputs": null,
+        "cache": true
+      },
+      {
+        "taskId": "@canlang/work-kernel#check",
+        "command": "<NONEXISTENT>",
+        "dependencies": [],
+        "outputs": null,
+        "cache": true
+      }
+    ]
+  },
+  "actual-build-dry": {
+    "exit": 0,
+    "argv": [
+      "/private/tmp/canlang-turbo-probe-20261006.89738Q/tooling/node_modules/.bin/turbo",
+      "run",
+      "build",
+      "--dry-run=json",
+      "--no-update-notifier"
+    ],
+    "cwd": "/private/tmp/canlang-turbo-probe-20261006.89738Q/native/actual",
+    "packages": [
+      "@canlang/cloudflare",
+      "@canlang/contracts",
+      "@canlang/files",
+      "@canlang/identity",
+      "@canlang/interfaces",
+      "@canlang/services",
+      "@canlang/state",
+      "@canlang/stdlib",
+      "@canlang/testkit",
+      "@canlang/ui",
+      "@canlang/values",
+      "@canlang/work",
+      "@canlang/work-kernel"
+    ],
+    "tasks": [
+      {
+        "taskId": "@canlang/cloudflare#build",
+        "command": "tsc -p tsconfig.json",
+        "dependencies": [
+          "@canlang/contracts#build",
+          "@canlang/identity#build",
+          "@canlang/interfaces#build"
+        ],
+        "outputs": null,
+        "cache": true
+      },
+      {
+        "taskId": "@canlang/contracts#build",
+        "command": "tsc -p tsconfig.json",
+        "dependencies": [],
+        "outputs": null,
+        "cache": true
+      },
+      {
+        "taskId": "@canlang/files#build",
+        "command": "<NONEXISTENT>",
+        "dependencies": [],
+        "outputs": null,
+        "cache": true
+      },
+      {
+        "taskId": "@canlang/identity#build",
+        "command": "tsc -p tsconfig.json && cp -r test/fixtures dist/identity/test/fixtures",
+        "dependencies": [
+          "@canlang/contracts#build"
+        ],
+        "outputs": null,
+        "cache": true
+      },
+      {
+        "taskId": "@canlang/interfaces#build",
+        "command": "tsc -p tsconfig.json && cp -r test/fixtures dist/interfaces/test/fixtures",
+        "dependencies": [
+          "@canlang/contracts#build",
+          "@canlang/identity#build",
+          "@canlang/ui#build",
+          "@canlang/values#build"
+        ],
+        "outputs": null,
+        "cache": true
+      },
+      {
+        "taskId": "@canlang/services#build",
+        "command": "<NONEXISTENT>",
+        "dependencies": [],
+        "outputs": null,
+        "cache": true
+      },
+      {
+        "taskId": "@canlang/state#build",
+        "command": "tsc -p tsconfig.json",
+        "dependencies": [],
+        "outputs": null,
+        "cache": true
+      },
+      {
+        "taskId": "@canlang/stdlib#build",
+        "command": "tsc -p tsconfig.json",
+        "dependencies": [
+          "@canlang/values#build"
+        ],
+        "outputs": null,
+        "cache": true
+      },
+      {
+        "taskId": "@canlang/testkit#build",
+        "command": "tsc -p tsconfig.json",
+        "dependencies": [
+          "@canlang/cloudflare#build",
+          "@canlang/contracts#build"
+        ],
+        "outputs": null,
+        "cache": true
+      },
+      {
+        "taskId": "@canlang/ui#build",
+        "command": "tsc -p tsconfig.json && node scripts/build-browser.mjs",
+        "dependencies": [],
+        "outputs": null,
+        "cache": true
+      },
+      {
+        "taskId": "@canlang/values#build",
+        "command": "tsc -p tsconfig.json && node scripts/stage-semantics.mjs",
+        "dependencies": [],
+        "outputs": null,
+        "cache": true
+      },
+      {
+        "taskId": "@canlang/work#build",
+        "command": "<NONEXISTENT>",
+        "dependencies": [],
+        "outputs": null,
+        "cache": true
+      },
+      {
+        "taskId": "@canlang/work-kernel#build",
+        "command": "tsc -p tsconfig.json",
+        "dependencies": [
+          "@canlang/contracts#build"
+        ],
+        "outputs": null,
+        "cache": true
+      }
+    ]
+  },
+  "old-version": {
+    "exit": 0,
+    "argv": [
+      "/private/tmp/canlang-turbo-probe-20261006.89738Q/tooling-2.11.0/node_modules/.bin/turbo",
+      "--skip-infer",
+      "--no-update-notifier",
+      "--version"
+    ],
+    "cwd": "/private/tmp/canlang-turbo-probe-20261006.89738Q/native/named-control"
+  },
+  "named-native-cargo-denied": {
+    "exit": 1,
+    "argv": [
+      "/private/tmp/canlang-turbo-probe-20261006.89738Q/tooling/node_modules/.bin/turbo",
+      "--skip-infer",
+      "--no-update-notifier",
+      "run",
+      "build",
+      "--filter=probe-app",
+      "--dry-run=json"
+    ],
+    "cwd": "/private/tmp/canlang-turbo-probe-20261006.89738Q/native/named-control"
+  }
+}

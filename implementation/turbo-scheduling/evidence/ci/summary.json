@@ -1,0 +1,43 @@
+{
+  "checks": {
+    "workflow_yaml": "12 parsed via Ruby Psych",
+    "receipt_tests": "13 passed, zero skipped",
+    "build_owners": 13,
+    "package_typechecks": 13,
+    "root_typecheck": true,
+    "node_test_owners": 10,
+    "root_vitest_scope": "contracts/cloudflare/testkit/integration",
+    "emitted_cloudflare_runtime": "retained uncached",
+    "release_chain": "13 producer builds -> uncached stamp -> uncached manifest -> uncached verify",
+    "compiler": "standalone Cargo, uncached; Git embedding retained",
+    "wasm": "values semantics and work-kernel WASM explicit opt-in, uncached; absent from ordinary build",
+    "editor": "outside Bun workspace, owning workflow compile/icon/LSP/package commands retained",
+    "release_workflow": "Build and verify release packages: bun run release immediately before pack; no build after stamp/verify",
+    "release_workflow_sha256": "c5bfc92a96e5c1f52b2a2ebab43e2d58f32f2174f6bb0e7f5b80cd2b0075491d"
+  },
+  "unexecuted_in_this_audit": [
+    "actual full build or cache proof (parent owns execution)",
+    "package/unit/root/e2e test executions and browser installation",
+    "actual release stamp/manifest/verify and archive/vsix/native artifact jobs",
+    "compiler build/test/fmt/clippy and commit-change binary witness",
+    "values Rust/glue regeneration, work-kernel WASM build, loader-smoke Rust/Node/Bun/workerd execution",
+    "preparation private debug-build prerequisite and remote TS receipt execution",
+    "editor CommonJS compile/icon/LSP/package and Python parser/JEV executions"
+  ],
+  "remaining_obligations": [
+    "Editor and parser/loader/native release checks remain owning workflows or documented commands, not comprehensive Turbo adapters. No blanket mixed-toolchain execution proof from TS graph."
+  ],
+  "evidence_files": [
+    "build-dry.json",
+    "build-dry.stderr",
+    "catalog-dry.json",
+    "catalog-dry.stderr",
+    "coverage-dry.json",
+    "coverage-dry.stderr",
+    "receipt-tests.log",
+    "release-final.json",
+    "summary.json",
+    "verification-commands.json",
+    "workflow-parse.json"
+  ]
+}

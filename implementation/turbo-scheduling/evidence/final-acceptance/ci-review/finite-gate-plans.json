@@ -1,0 +1,1158 @@
+{
+  "values": [
+    {
+      "id": "revision",
+      "phase": "preflight",
+      "argv": [
+        "git",
+        "rev-parse",
+        "HEAD"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "isTest": false,
+      "env": null
+    },
+    {
+      "id": "node-version",
+      "phase": "preflight",
+      "argv": [
+        "node",
+        "--version"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "isTest": false,
+      "env": null
+    },
+    {
+      "id": "bun-version",
+      "phase": "preflight",
+      "argv": [
+        "bun",
+        "--version"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "isTest": false,
+      "env": null
+    },
+    {
+      "id": "install",
+      "phase": "install",
+      "argv": [
+        "bun",
+        "install",
+        "--frozen-lockfile"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "isTest": false,
+      "env": null
+    },
+    {
+      "id": "build",
+      "phase": "build",
+      "argv": [
+        "bun",
+        "run",
+        "build",
+        "--filter=@canlang/values"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "isTest": false,
+      "env": null
+    },
+    {
+      "id": "typecheck",
+      "phase": "gate",
+      "argv": [
+        "bun",
+        "run",
+        "typecheck"
+      ],
+      "cwd": "/Users/vince/Projects/canlang/packages/values",
+      "isTest": false,
+      "env": null
+    },
+    {
+      "id": "tests",
+      "phase": "gate",
+      "argv": [
+        "bun",
+        "run",
+        "test"
+      ],
+      "cwd": "/Users/vince/Projects/canlang/packages/values",
+      "isTest": true,
+      "env": null
+    },
+    {
+      "id": "catalog",
+      "phase": "gate",
+      "argv": [
+        "bun",
+        "run",
+        "catalog"
+      ],
+      "cwd": "/Users/vince/Projects/canlang/packages/values",
+      "isTest": false,
+      "env": null
+    },
+    {
+      "id": "clean-tree",
+      "phase": "final",
+      "argv": [
+        "git",
+        "diff",
+        "--exit-code",
+        "HEAD"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "isTest": false,
+      "env": null
+    }
+  ],
+  "state": [
+    {
+      "id": "revision",
+      "phase": "preflight",
+      "argv": [
+        "git",
+        "rev-parse",
+        "HEAD"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "isTest": false,
+      "env": null
+    },
+    {
+      "id": "node-version",
+      "phase": "preflight",
+      "argv": [
+        "node",
+        "--version"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "isTest": false,
+      "env": null
+    },
+    {
+      "id": "bun-version",
+      "phase": "preflight",
+      "argv": [
+        "bun",
+        "--version"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "isTest": false,
+      "env": null
+    },
+    {
+      "id": "install",
+      "phase": "install",
+      "argv": [
+        "bun",
+        "install",
+        "--frozen-lockfile"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "isTest": false,
+      "env": null
+    },
+    {
+      "id": "build",
+      "phase": "build",
+      "argv": [
+        "bun",
+        "run",
+        "build",
+        "--filter=@canlang/state"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "isTest": false,
+      "env": null
+    },
+    {
+      "id": "typecheck",
+      "phase": "gate",
+      "argv": [
+        "bun",
+        "run",
+        "typecheck"
+      ],
+      "cwd": "/Users/vince/Projects/canlang/packages/state",
+      "isTest": false,
+      "env": null
+    },
+    {
+      "id": "tests",
+      "phase": "gate",
+      "argv": [
+        "bun",
+        "run",
+        "test"
+      ],
+      "cwd": "/Users/vince/Projects/canlang/packages/state",
+      "isTest": true,
+      "env": null
+    },
+    {
+      "id": "clean-tree",
+      "phase": "final",
+      "argv": [
+        "git",
+        "diff",
+        "--exit-code",
+        "HEAD"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "isTest": false,
+      "env": null
+    }
+  ],
+  "stdlib": [
+    {
+      "id": "revision",
+      "phase": "preflight",
+      "argv": [
+        "git",
+        "rev-parse",
+        "HEAD"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "isTest": false,
+      "env": null
+    },
+    {
+      "id": "node-version",
+      "phase": "preflight",
+      "argv": [
+        "node",
+        "--version"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "isTest": false,
+      "env": null
+    },
+    {
+      "id": "bun-version",
+      "phase": "preflight",
+      "argv": [
+        "bun",
+        "--version"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "isTest": false,
+      "env": null
+    },
+    {
+      "id": "install",
+      "phase": "install",
+      "argv": [
+        "bun",
+        "install",
+        "--frozen-lockfile"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "isTest": false,
+      "env": null
+    },
+    {
+      "id": "build",
+      "phase": "build",
+      "argv": [
+        "bun",
+        "run",
+        "build",
+        "--filter=@canlang/stdlib"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "isTest": false,
+      "env": null
+    },
+    {
+      "id": "typecheck",
+      "phase": "gate",
+      "argv": [
+        "bun",
+        "run",
+        "typecheck"
+      ],
+      "cwd": "/Users/vince/Projects/canlang/packages/stdlib",
+      "isTest": false,
+      "env": null
+    },
+    {
+      "id": "tests",
+      "phase": "gate",
+      "argv": [
+        "bun",
+        "run",
+        "test"
+      ],
+      "cwd": "/Users/vince/Projects/canlang/packages/stdlib",
+      "isTest": true,
+      "env": null
+    },
+    {
+      "id": "clean-tree",
+      "phase": "final",
+      "argv": [
+        "git",
+        "diff",
+        "--exit-code",
+        "HEAD"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "isTest": false,
+      "env": null
+    }
+  ],
+  "identity": [
+    {
+      "id": "revision",
+      "phase": "preflight",
+      "argv": [
+        "git",
+        "rev-parse",
+        "HEAD"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "isTest": false,
+      "env": null
+    },
+    {
+      "id": "node-version",
+      "phase": "preflight",
+      "argv": [
+        "node",
+        "--version"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "isTest": false,
+      "env": null
+    },
+    {
+      "id": "bun-version",
+      "phase": "preflight",
+      "argv": [
+        "bun",
+        "--version"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "isTest": false,
+      "env": null
+    },
+    {
+      "id": "install",
+      "phase": "install",
+      "argv": [
+        "bun",
+        "install",
+        "--frozen-lockfile"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "isTest": false,
+      "env": null
+    },
+    {
+      "id": "build",
+      "phase": "build",
+      "argv": [
+        "bun",
+        "run",
+        "build",
+        "--filter=@canlang/identity"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "isTest": false,
+      "env": null
+    },
+    {
+      "id": "typecheck",
+      "phase": "gate",
+      "argv": [
+        "bun",
+        "run",
+        "typecheck"
+      ],
+      "cwd": "/Users/vince/Projects/canlang/packages/identity",
+      "isTest": false,
+      "env": null
+    },
+    {
+      "id": "tests",
+      "phase": "gate",
+      "argv": [
+        "bun",
+        "run",
+        "test"
+      ],
+      "cwd": "/Users/vince/Projects/canlang/packages/identity",
+      "isTest": true,
+      "env": null
+    },
+    {
+      "id": "clean-tree",
+      "phase": "final",
+      "argv": [
+        "git",
+        "diff",
+        "--exit-code",
+        "HEAD"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "isTest": false,
+      "env": null
+    }
+  ],
+  "ui": [
+    {
+      "id": "revision",
+      "phase": "preflight",
+      "argv": [
+        "git",
+        "rev-parse",
+        "HEAD"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "isTest": false,
+      "env": null
+    },
+    {
+      "id": "node-version",
+      "phase": "preflight",
+      "argv": [
+        "node",
+        "--version"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "isTest": false,
+      "env": null
+    },
+    {
+      "id": "bun-version",
+      "phase": "preflight",
+      "argv": [
+        "bun",
+        "--version"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "isTest": false,
+      "env": null
+    },
+    {
+      "id": "install",
+      "phase": "install",
+      "argv": [
+        "bun",
+        "install",
+        "--frozen-lockfile"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "isTest": false,
+      "env": null
+    },
+    {
+      "id": "build",
+      "phase": "build",
+      "argv": [
+        "bun",
+        "run",
+        "build",
+        "--filter=@canlang/ui"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "isTest": false,
+      "env": null
+    },
+    {
+      "id": "typecheck",
+      "phase": "gate",
+      "argv": [
+        "bun",
+        "run",
+        "typecheck"
+      ],
+      "cwd": "/Users/vince/Projects/canlang/packages/ui",
+      "isTest": false,
+      "env": null
+    },
+    {
+      "id": "tests",
+      "phase": "gate",
+      "argv": [
+        "bun",
+        "run",
+        "test"
+      ],
+      "cwd": "/Users/vince/Projects/canlang/packages/ui",
+      "isTest": true,
+      "env": null
+    },
+    {
+      "id": "clean-tree",
+      "phase": "final",
+      "argv": [
+        "git",
+        "diff",
+        "--exit-code",
+        "HEAD"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "isTest": false,
+      "env": null
+    }
+  ],
+  "interfaces": [
+    {
+      "id": "revision",
+      "phase": "preflight",
+      "argv": [
+        "git",
+        "rev-parse",
+        "HEAD"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "isTest": false,
+      "env": null
+    },
+    {
+      "id": "node-version",
+      "phase": "preflight",
+      "argv": [
+        "node",
+        "--version"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "isTest": false,
+      "env": null
+    },
+    {
+      "id": "bun-version",
+      "phase": "preflight",
+      "argv": [
+        "bun",
+        "--version"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "isTest": false,
+      "env": null
+    },
+    {
+      "id": "install",
+      "phase": "install",
+      "argv": [
+        "bun",
+        "install",
+        "--frozen-lockfile"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "isTest": false,
+      "env": null
+    },
+    {
+      "id": "build",
+      "phase": "build",
+      "argv": [
+        "bun",
+        "run",
+        "build",
+        "--filter=@canlang/interfaces"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "isTest": false,
+      "env": null
+    },
+    {
+      "id": "typecheck",
+      "phase": "gate",
+      "argv": [
+        "bun",
+        "run",
+        "typecheck"
+      ],
+      "cwd": "/Users/vince/Projects/canlang/packages/interfaces",
+      "isTest": false,
+      "env": null
+    },
+    {
+      "id": "tests",
+      "phase": "gate",
+      "argv": [
+        "bun",
+        "run",
+        "test"
+      ],
+      "cwd": "/Users/vince/Projects/canlang/packages/interfaces",
+      "isTest": true,
+      "env": null
+    },
+    {
+      "id": "clean-tree",
+      "phase": "final",
+      "argv": [
+        "git",
+        "diff",
+        "--exit-code",
+        "HEAD"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "isTest": false,
+      "env": null
+    }
+  ],
+  "work": [
+    {
+      "id": "revision",
+      "phase": "preflight",
+      "argv": [
+        "git",
+        "rev-parse",
+        "HEAD"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "isTest": false,
+      "env": null
+    },
+    {
+      "id": "node-version",
+      "phase": "preflight",
+      "argv": [
+        "node",
+        "--version"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "isTest": false,
+      "env": null
+    },
+    {
+      "id": "bun-version",
+      "phase": "preflight",
+      "argv": [
+        "bun",
+        "--version"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "isTest": false,
+      "env": null
+    },
+    {
+      "id": "install",
+      "phase": "install",
+      "argv": [
+        "bun",
+        "install",
+        "--frozen-lockfile"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "isTest": false,
+      "env": null
+    },
+    {
+      "id": "build",
+      "phase": "build",
+      "argv": [
+        "bun",
+        "run",
+        "build",
+        "--filter=@canlang/work"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "isTest": false,
+      "env": null
+    },
+    {
+      "id": "typecheck",
+      "phase": "gate",
+      "argv": [
+        "bun",
+        "run",
+        "typecheck"
+      ],
+      "cwd": "/Users/vince/Projects/canlang/packages/work",
+      "isTest": false,
+      "env": null
+    },
+    {
+      "id": "tests",
+      "phase": "gate",
+      "argv": [
+        "bun",
+        "run",
+        "test"
+      ],
+      "cwd": "/Users/vince/Projects/canlang/packages/work",
+      "isTest": true,
+      "env": null
+    },
+    {
+      "id": "clean-tree",
+      "phase": "final",
+      "argv": [
+        "git",
+        "diff",
+        "--exit-code",
+        "HEAD"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "isTest": false,
+      "env": null
+    }
+  ],
+  "cloudflare": [
+    {
+      "id": "revision",
+      "phase": "preflight",
+      "argv": [
+        "git",
+        "rev-parse",
+        "HEAD"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "isTest": false,
+      "env": null
+    },
+    {
+      "id": "node-version",
+      "phase": "preflight",
+      "argv": [
+        "node",
+        "--version"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "isTest": false,
+      "env": null
+    },
+    {
+      "id": "bun-version",
+      "phase": "preflight",
+      "argv": [
+        "bun",
+        "--version"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "isTest": false,
+      "env": null
+    },
+    {
+      "id": "install",
+      "phase": "install",
+      "argv": [
+        "bun",
+        "install",
+        "--frozen-lockfile"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "isTest": false,
+      "env": null
+    },
+    {
+      "id": "build",
+      "phase": "build",
+      "argv": [
+        "bun",
+        "run",
+        "build"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "isTest": false,
+      "env": null
+    },
+    {
+      "id": "native-install",
+      "phase": "native",
+      "argv": [
+        "rustup",
+        "toolchain",
+        "install",
+        "1.99.0",
+        "--profile",
+        "minimal"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "isTest": false,
+      "env": null,
+      "timeoutMs": 900000
+    },
+    {
+      "id": "rustc-version",
+      "phase": "native",
+      "argv": [
+        "rustc",
+        "+1.99.0",
+        "--version"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "isTest": false,
+      "env": null
+    },
+    {
+      "id": "cargo-version",
+      "phase": "native",
+      "argv": [
+        "cargo",
+        "+1.99.0",
+        "--version"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "isTest": false,
+      "env": null
+    },
+    {
+      "id": "native-build",
+      "phase": "native",
+      "argv": [
+        "cargo",
+        "+1.99.0",
+        "build",
+        "--locked",
+        "--bin",
+        "can-preparation",
+        "--manifest-path",
+        "/Users/vince/Projects/canlang/packages/cloudflare/preparation/Cargo.toml"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "isTest": false,
+      "env": {
+        "CARGO_TARGET_DIR": "/private/tmp/can-ci-static/ts-gate-native/cloudflare"
+      },
+      "timeoutMs": 900000
+    },
+    {
+      "id": "typecheck",
+      "phase": "gate",
+      "argv": [
+        "bun",
+        "run",
+        "typecheck"
+      ],
+      "cwd": "/Users/vince/Projects/canlang/packages/cloudflare",
+      "isTest": false,
+      "env": null
+    },
+    {
+      "id": "tests",
+      "phase": "gate",
+      "argv": [
+        "bunx",
+        "vitest",
+        "run",
+        "packages/cloudflare/test"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "isTest": true,
+      "env": {
+        "CAN_PREPARATION_BIN": "/private/tmp/can-ci-static/ts-gate-native/cloudflare/debug/can-preparation"
+      }
+    },
+    {
+      "id": "runtime-tests",
+      "phase": "gate",
+      "argv": [
+        "node",
+        "--test",
+        "packages/cloudflare/dist/**/*.test.js"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "isTest": true,
+      "env": {
+        "CAN_PREPARATION_BIN": "/private/tmp/can-ci-static/ts-gate-native/cloudflare/debug/can-preparation"
+      }
+    },
+    {
+      "id": "clean-tree",
+      "phase": "final",
+      "argv": [
+        "git",
+        "diff",
+        "--exit-code",
+        "HEAD"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "isTest": false,
+      "env": null
+    }
+  ],
+  "testkit": [
+    {
+      "id": "revision",
+      "phase": "preflight",
+      "argv": [
+        "git",
+        "rev-parse",
+        "HEAD"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "isTest": false,
+      "env": null
+    },
+    {
+      "id": "node-version",
+      "phase": "preflight",
+      "argv": [
+        "node",
+        "--version"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "isTest": false,
+      "env": null
+    },
+    {
+      "id": "bun-version",
+      "phase": "preflight",
+      "argv": [
+        "bun",
+        "--version"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "isTest": false,
+      "env": null
+    },
+    {
+      "id": "install",
+      "phase": "install",
+      "argv": [
+        "bun",
+        "install",
+        "--frozen-lockfile"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "isTest": false,
+      "env": null
+    },
+    {
+      "id": "build",
+      "phase": "build",
+      "argv": [
+        "bun",
+        "run",
+        "build"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "isTest": false,
+      "env": null
+    },
+    {
+      "id": "typecheck",
+      "phase": "gate",
+      "argv": [
+        "bun",
+        "run",
+        "typecheck"
+      ],
+      "cwd": "/Users/vince/Projects/canlang/packages/testkit",
+      "isTest": false,
+      "env": null
+    },
+    {
+      "id": "tests",
+      "phase": "gate",
+      "argv": [
+        "bunx",
+        "vitest",
+        "run",
+        "packages/testkit/test"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "isTest": true,
+      "env": null
+    },
+    {
+      "id": "clean-tree",
+      "phase": "final",
+      "argv": [
+        "git",
+        "diff",
+        "--exit-code",
+        "HEAD"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "isTest": false,
+      "env": null
+    }
+  ],
+  "workspace": [
+    {
+      "id": "revision",
+      "phase": "preflight",
+      "argv": [
+        "git",
+        "rev-parse",
+        "HEAD"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "isTest": false,
+      "env": null
+    },
+    {
+      "id": "node-version",
+      "phase": "preflight",
+      "argv": [
+        "node",
+        "--version"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "isTest": false,
+      "env": null
+    },
+    {
+      "id": "bun-version",
+      "phase": "preflight",
+      "argv": [
+        "bun",
+        "--version"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "isTest": false,
+      "env": null
+    },
+    {
+      "id": "install",
+      "phase": "install",
+      "argv": [
+        "bun",
+        "install",
+        "--frozen-lockfile"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "isTest": false,
+      "env": null
+    },
+    {
+      "id": "build",
+      "phase": "build",
+      "argv": [
+        "bun",
+        "run",
+        "build"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "isTest": false,
+      "env": null
+    },
+    {
+      "id": "native-install",
+      "phase": "native",
+      "argv": [
+        "rustup",
+        "toolchain",
+        "install",
+        "1.99.0",
+        "--profile",
+        "minimal"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "isTest": false,
+      "env": null,
+      "timeoutMs": 900000
+    },
+    {
+      "id": "rustc-version",
+      "phase": "native",
+      "argv": [
+        "rustc",
+        "+1.99.0",
+        "--version"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "isTest": false,
+      "env": null
+    },
+    {
+      "id": "cargo-version",
+      "phase": "native",
+      "argv": [
+        "cargo",
+        "+1.99.0",
+        "--version"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "isTest": false,
+      "env": null
+    },
+    {
+      "id": "native-build",
+      "phase": "native",
+      "argv": [
+        "cargo",
+        "+1.99.0",
+        "build",
+        "--locked",
+        "--bin",
+        "can-preparation",
+        "--manifest-path",
+        "/Users/vince/Projects/canlang/packages/cloudflare/preparation/Cargo.toml"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "isTest": false,
+      "env": {
+        "CARGO_TARGET_DIR": "/private/tmp/can-ci-static/ts-gate-native/workspace"
+      },
+      "timeoutMs": 900000
+    },
+    {
+      "id": "boundaries",
+      "phase": "gate",
+      "argv": [
+        "bun",
+        "run",
+        "check:boundaries"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "isTest": false,
+      "env": null
+    },
+    {
+      "id": "boundary-tests",
+      "phase": "gate",
+      "argv": [
+        "node",
+        "--test",
+        "scripts/check-package-boundaries.test.mjs"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "isTest": true,
+      "env": {
+        "CAN_PREPARATION_BIN": "/private/tmp/can-ci-static/ts-gate-native/workspace/debug/can-preparation"
+      }
+    },
+    {
+      "id": "typecheck",
+      "phase": "gate",
+      "argv": [
+        "bun",
+        "run",
+        "typecheck"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "isTest": false,
+      "env": null
+    },
+    {
+      "id": "tests",
+      "phase": "gate",
+      "argv": [
+        "bunx",
+        "vitest",
+        "run"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "isTest": true,
+      "env": {
+        "CAN_PREPARATION_BIN": "/private/tmp/can-ci-static/ts-gate-native/workspace/debug/can-preparation"
+      },
+      "timeoutMs": 900000
+    },
+    {
+      "id": "clean-tree",
+      "phase": "final",
+      "argv": [
+        "git",
+        "diff",
+        "--exit-code",
+        "HEAD"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "isTest": false,
+      "env": null
+    }
+  ]
+}

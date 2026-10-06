@@ -1,0 +1,14 @@
+{
+  "futureFlags": {
+    "experimentalPythonWorkspaces": true
+  },
+  "tasks": {
+    "build": {
+      "dependsOn": [
+        "^build"
+      ]
+    },
+    "check": {},
+    "test": {}
+  }
+}

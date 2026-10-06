@@ -1,0 +1,14 @@
+{
+  "argv": [
+    "/private/tmp/canlang-turbo-probe-20261006.89738Q/tooling-2.11.0/node_modules/.bin/turbo",
+    "--skip-infer",
+    "--no-update-notifier",
+    "ls",
+    "--output=json"
+  ],
+  "cwd": "/private/tmp/canlang-turbo-probe-20261006.89738Q/native/actual",
+  "exit": 0,
+  "stdout": "{\n  \"packageManager\": \"bun\",\n  \"packages\": {\n    \"count\": 13,\n    \"items\": [\n      {\n        \"name\": \"@canlang/cloudflare\",\n        \"path\": \"packages/cloudflare\"\n      },\n      {\n        \"name\": \"@canlang/contracts\",\n        \"path\": \"packages/contracts\"\n      },\n      {\n        \"name\": \"@canlang/files\",\n        \"path\": \"packages/files\"\n      },\n      {\n        \"name\": \"@canlang/identity\",\n        \"path\": \"packages/identity\"\n      },\n      {\n        \"name\": \"@canlang/interfaces\",\n        \"path\": \"packages/interfaces\"\n      },\n      {\n        \"name\": \"@canlang/services\",\n        \"path\": \"packages/services\"\n      },\n      {\n        \"name\": \"@canlang/state\",\n        \"path\": \"packages/state\"\n      },\n      {\n        \"name\": \"@canlang/stdlib\",\n        \"path\": \"packages/stdlib\"\n      },\n      {\n        \"name\": \"@canlang/testkit\",\n        \"path\": \"packages/testkit\"\n      },\n      {\n        \"name\": \"@canlang/ui\",\n        \"path\": \"packages/ui\"\n      },\n      {\n        \"name\": \"@canlang/values\",\n        \"path\": \"packages/values\"\n      },\n      {\n        \"name\": \"@canlang/work\",\n        \"path\": \"packages/work\"\n      },\n      {\n        \"name\": \"@canlang/work-kernel\",\n        \"path\": \"packages/work-kernel\"\n      }\n    ]\n  }\n}\n",
+  "stderr": "\u2022 turbo 2.11.0\n",
+  "seconds": 5.876
+}

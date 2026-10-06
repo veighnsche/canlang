@@ -1,0 +1,198 @@
+{
+  "head": "7fd8c6bf4717feeffc70b46819377b74b353e117",
+  "scope": "Final executable/configuration acceptance pins. Complete build input snapshot is cache/snapshot.json; documentation evidence is independently reviewed.",
+  "files": {
+    ".github/ci/gate-plan.mjs": {
+      "sha256": "f9d62c4271436262fdd77bb8c3c4a9ad5f10bb199709cc8013ca353f0a34754e",
+      "mode": "0o644"
+    },
+    ".github/ci/ts-gate.mjs": {
+      "sha256": "c3e617a9f382de5a5572c0c6c967bffdedc1eac9b26547853a10930bc3b75b76",
+      "mode": "0o644"
+    },
+    ".github/ci/ts-gate.test.mjs": {
+      "sha256": "45cc4a56ea2bf087cb4ccb44b0dcc396e91a848ae5b4233de6fc500e3ad66e52",
+      "mode": "0o644"
+    },
+    ".github/ci/verify-receipt.mjs": {
+      "sha256": "ba9f8f1e9e5eab5d8fd93fccd40059d7fb71bbdf395e3cdda18549d171182bcf",
+      "mode": "0o644"
+    },
+    ".github/ci/verify-receipt.test.mjs": {
+      "sha256": "dff7125216f85bd2fe17f79b3b05a2837b95801e9e0f258d0726b80d976fe6f7",
+      "mode": "0o644"
+    },
+    ".github/workflows/b1-join.yml": {
+      "sha256": "43fb863992165a86cb0f9a3b1aa10a19cd116a572958e937ecb80c8f868973b8",
+      "mode": "0o644"
+    },
+    ".github/workflows/b2-join.yml": {
+      "sha256": "f64932f41758a26b94fb3f44a86aaa4d6a863b18f0f7377782fc577c2511c1c9",
+      "mode": "0o644"
+    },
+    ".github/workflows/e2e.yml": {
+      "sha256": "d7435619372c415b39197a02af7ac5d3feb0849b5b595e86da206c0a1ec3cc2c",
+      "mode": "0o644"
+    },
+    ".github/workflows/integration.yml": {
+      "sha256": "30d42504310c839729478df2ece5d0da64eafb9ec0c09bdf41f38d7c4e782661",
+      "mode": "0o644"
+    },
+    ".github/workflows/lane-01.yml": {
+      "sha256": "f33d4437c17269ec9e4da4855b76b3a22f75460810514a73e2421c17fbf5a01c",
+      "mode": "0o644"
+    },
+    ".github/workflows/lane-02.yml": {
+      "sha256": "8cdd0aea79fb28f574bab92b2866cf404e009db50bd80b96f126931f92057d83",
+      "mode": "0o644"
+    },
+    ".github/workflows/lane-03.yml": {
+      "sha256": "f9cc3ae780b8c7ef076ea8ea092f35f22042fe685321bf54b92bfe01b66ae82f",
+      "mode": "0o644"
+    },
+    ".github/workflows/lane-04.yml": {
+      "sha256": "3ec81e57f21339e64308cbf678486a9621d8e0633d3e617788c2f7f09b2fbd30",
+      "mode": "0o644"
+    },
+    ".github/workflows/lane-05.yml": {
+      "sha256": "31cf62897f0bd3596502adf36d8ac546f752081ffd3d6475450a8d2108b1e5d9",
+      "mode": "0o644"
+    },
+    ".github/workflows/lane-06.yml": {
+      "sha256": "a419f97d5fa7a35dcd39c3bd5ad077d1e12cd22df47fd0db2b41814b9cdf7c8c",
+      "mode": "0o644"
+    },
+    ".github/workflows/release.yml": {
+      "sha256": "4b53efe348150ef76a01c939e83d5f3b0f439359f71c80ee5fea9c33c6102045",
+      "mode": "0o644"
+    },
+    ".github/workflows/ts-gates.yml": {
+      "sha256": "1f7cd95ffb6c6f4425d75f1ae76f6fd26d8c40a8512c139d33e562c3b453b167",
+      "mode": "0o644"
+    },
+    ".gitignore": {
+      "sha256": "9cb17101a153d07b791e08aaed6f8e0e8449cbf13c004faea9238b32760be36b",
+      "mode": "0o644"
+    },
+    "bun.lock": {
+      "sha256": "28eeb481d3b6ce420b1ccc6573581572b47da25a0b8eb5ff833d1143e5cc4c19",
+      "mode": "0o644"
+    },
+    "bunfig.toml": {
+      "sha256": "486ae875aa8c4c9588d4797bd1809ef3982b79b475bc68ff101942eeb06d5907",
+      "mode": "0o644"
+    },
+    "implementation/turbo-scheduling/evidence/final-acceptance/ci-release/artifact-consumer-probe.mjs": {
+      "sha256": "ac9ec05392bfbcbdeb25adf6e4134d31df8dab358ff34689ed03cec0a18a0b8e",
+      "mode": "0o644"
+    },
+    "package.json": {
+      "sha256": "b857df2e35cfb40e1bb62738ed4ef59d53ce30b25b2a7f9d6f0f76df8bce02f3",
+      "mode": "0o644"
+    },
+    "packages/cloudflare/package.json": {
+      "sha256": "5a24f4fcd94013cedf1acedab37dd1a4f57cf47c1b4a15e0fcac70e719a4b07c",
+      "mode": "0o644"
+    },
+    "packages/cloudflare/src/release/stamp.ts": {
+      "sha256": "d731f609c69be92b2fce043e8670b08a40da5c4f23dd72f0647e33d628be6863",
+      "mode": "0o644"
+    },
+    "packages/cloudflare/src/runtime/env-assembly.ts": {
+      "sha256": "d39b218d24926884b627a30dadb5a1bf46db87cfbc1e6834b6f01ee136b95c25",
+      "mode": "0o644"
+    },
+    "packages/cloudflare/src/runtime/invoke.ts": {
+      "sha256": "bc08e559d905ed285bb7beff9db0d3e43c808a604face535b5305f444ffae15d",
+      "mode": "0o644"
+    },
+    "packages/contracts/package.json": {
+      "sha256": "77d6b51fade16c2c304664ec5ee55c820121314e7b6ab8cdca6266ce21c78bf3",
+      "mode": "0o644"
+    },
+    "packages/files/package.json": {
+      "sha256": "fb7e88d7cef8bf0ccaee3990901b99751dad6575f2ab78ed13867b535a58ca7c",
+      "mode": "0o644"
+    },
+    "packages/identity/package.json": {
+      "sha256": "dfd0cc78fbfbf250c7a63c3558ecbbe66fe9aeb371cb537b0153cf04b9b4f3b3",
+      "mode": "0o644"
+    },
+    "packages/interfaces/package.json": {
+      "sha256": "8f3639d8cbbe1e5d0e4af4c1d92352fbdb66f56994c3863d54274f4258c47cad",
+      "mode": "0o644"
+    },
+    "packages/services/package.json": {
+      "sha256": "160607d0145fa9f3b39568a64c17bbbcbdded562ee75d231d8e3046df9dcab7e",
+      "mode": "0o644"
+    },
+    "packages/state/package.json": {
+      "sha256": "cb41b927046a074cad9e267fd4eba6f630a0aad7157d333b0efe3dca9e37aa52",
+      "mode": "0o644"
+    },
+    "packages/stdlib/package.json": {
+      "sha256": "1f5dda9a1bc0390590943772e7665e357e1337e705bb15c825c40eb2fcf5883b",
+      "mode": "0o644"
+    },
+    "packages/testkit/package.json": {
+      "sha256": "d4836564d2f24cb9181944e53f1c37596af4ca88c61bd117252ffa0b368b2ced",
+      "mode": "0o644"
+    },
+    "packages/ui/package.json": {
+      "sha256": "14dd85da8bea318201aad0490034ab147f1282dc174dfac94be0506a9c5a1425",
+      "mode": "0o644"
+    },
+    "packages/values/package.json": {
+      "sha256": "e542125300e2ee229f96bd37cc66af50c8982e588c26c9ba6cf363640688618f",
+      "mode": "0o644"
+    },
+    "packages/work-kernel/package.json": {
+      "sha256": "5b2b5267aaa3f92ae8284fa8c8464bd7831023e4f2ce190623886210fcd84a07",
+      "mode": "0o644"
+    },
+    "packages/work/package.json": {
+      "sha256": "c4ca397414147a1e544db045d2fb883aa2aa85d56c8ded8b17a188c1cf6ac906",
+      "mode": "0o644"
+    },
+    "scripts/build-package.mjs": {
+      "sha256": "fbf81db868a96e416981c439371f85285ed3832dfb4e13fa2256c9243f2a6330",
+      "mode": "0o644"
+    },
+    "scripts/check-package-boundaries.mjs": {
+      "sha256": "82f0917472fa04d92de890f927877645833fd86b75f8e0f61b59968a118017ca",
+      "mode": "0o644"
+    },
+    "scripts/check-package-boundaries.test.mjs": {
+      "sha256": "a61d5c643e89d5637723f88db04c84cb1f25082188fbb51a5afac17e8f44e479",
+      "mode": "0o644"
+    },
+    "scripts/pack-release.mjs": {
+      "sha256": "f7f22dc79a36a6a6a1c37fa0264d5aaef1e2731aa27c5019fa67eff88b8cb169",
+      "mode": "0o644"
+    },
+    "scripts/run-tasks.mjs": {
+      "sha256": "3e055c26a0130829843f52cf5ddbf6b45e32bbc7a8a4d0124d8db2a8b107cc37",
+      "mode": "0o644"
+    },
+    "scripts/verify-installed-types.mjs": {
+      "sha256": "e342511eda8e25b80514d9fe6c3d5195a2cdd45d95b2e7a669d9a50416daebce",
+      "mode": "0o644"
+    },
+    "scripts/verify-installed-worker.mjs": {
+      "sha256": "0b9b9758046303bacdc2e302f465c19c5ca2f45f0667f885e56ae43752f76443",
+      "mode": "0o644"
+    },
+    "scripts/verify-turbo-cache.mjs": {
+      "sha256": "5408f8de97336bb9ae476e53378b2d7c25ad5243690f0907e0d5952cec0f3a06",
+      "mode": "0o644"
+    },
+    "tsconfig.base.json": {
+      "sha256": "56d05912029f16842996d66df2e6fc4279950a243874a794d9ff2e13e220ded8",
+      "mode": "0o644"
+    },
+    "turbo.json": {
+      "sha256": "2f908d0dfa6b20fb38ae182a66eeaf564da6007d4404299032dbf3fe5df2d2b4",
+      "mode": "0o644"
+    }
+  }
+}
