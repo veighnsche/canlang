@@ -656,9 +656,10 @@ fn golden_teamtasks_structure() {
     }
     // Codegen diagnostics: zero E6006 (every emission-needed position
     // is checked and bridged), zero E6007 (the golden catalog verifies
-    // every referenced builtin), and three E6008 for catalog UI
-    // factories with no §13 lowering (`tooltip`/`delete`/`collapse`;
-    // `breadcrumbs`/`input`/`textarea`/`pagination` lower now).
+    // every referenced builtin), and two E6008 for catalog UI
+    // factories with no §13 lowering (`tooltip`/`collapse`;
+    // `breadcrumbs`/`input`/`textarea`/`pagination` lower now, and
+    // A2b closed `delete`).
     for diag in &diags {
         assert!(
             diag.code == "E6006" || diag.code == "E6007" || diag.code == "E6008",
@@ -684,10 +685,10 @@ fn golden_teamtasks_structure() {
     );
     assert_eq!(
         diags.iter().filter(|d| d.code == "E6008").count(),
-        3,
+        2,
         "unsupported count"
     );
-    for (word, n) in [("tooltip", 1), ("delete", 1), ("collapse", 1)] {
+    for (word, n) in [("tooltip", 1), ("collapse", 1)] {
         assert_eq!(
             diags
                 .iter()
@@ -4430,7 +4431,8 @@ fn t15a_model_field_tags() {
 /// (T15a) Model descriptors end to end: every pilot field kind emits with
 /// its T09 requiredness/omission/server distinctions, T11 exact decimal
 /// defaults (including integral 0/1 in decimal positions), field-level
-/// and composite unique keys, and the default archive delete mode.
+/// unique keys only (composites shed to `uniques`, A2b), and the
+/// default archive delete mode.
 /// TEST-ONLY artifact: see module docs.
 #[test]
 fn t15a_models_shape_end_to_end() {
@@ -4442,7 +4444,7 @@ fn t15a_models_shape_end_to_end() {
     );
     let model = t15a_model(&artifact, "Shop.Gadget");
     assert_eq!(model.delete_mode, "archive");
-    assert_eq!(model.unique_keys, vec!["code".to_string(), "title,stock".to_string()]);
+    assert_eq!(model.unique_keys, vec!["code".to_string()]);
     assert!(model.parent.is_none() && !model.scope_app, "team scope default");
     let title = t15a_field(model, "title");
     assert!(title.required && !title.server_only && !title.nullable);
@@ -4509,7 +4511,7 @@ fn t15a_models_shape_end_to_end() {
     assert!(json.contains("\"models\":[{"), "models key: {json}");
     assert!(json.contains("\"deleteMode\":\"archive\""), "mode: {json}");
     assert!(
-        json.contains("\"uniqueKeys\":[\"code\",\"title,stock\"]"),
+        json.contains("\"uniqueKeys\":[\"code\"]"),
         "keys: {json}"
     );
 }
@@ -7278,5 +7280,107 @@ fn a2a_action_external_targets_lower_to_schema() {
     assert!(
         js.contains("act:{type:\"action\",targets:[\"maintain.inspect\",\"success.complete\"],nullable:true}"),
         "action schema with canonical targets:\n{js}"
+    );
+}
+
+/// A2b named→positional: builtin calls with named arguments lower
+/// positionally in catalog signature order (`money(minor,currency)`
+/// here; the corpus `fold=` 4th slot takes the same path), whether
+/// fully named out of order or mixed positional + named.
+#[test]
+fn a2b_named_args_lower_positionally_in_signature_order() {
+    let src = "package shop\n Given\n  M { x:int }\n  policy M read=members\n When\n  scenario tick() by=members\n   do\n    let a = money(currency=\"EUR\", minor=25)\n    let b = money(30, currency=\"USD\")\n Then\n";
+    let (artifact, diags) = a2a_emit(src);
+    assert!(
+        diags.iter().all(|d| d.code != "E6006" && d.code != "E6008"),
+        "named calls lower without gaps: {diags:?}"
+    );
+    let js = &artifact.modules[0].js;
+    assert!(
+        js.contains("money(25n,\"EUR\")"),
+        "out-of-order named args reorder:\n{js}"
+    );
+    assert!(
+        js.contains("money(30n,\"USD\")"),
+        "mixed positional+named fills in order:\n{js}"
+    );
+}
+
+/// A2b composite-unique: the model entry carries a sparse `uniques`
+/// member with fields in source order; the `where=` predicate is a
+/// `Model.unique.N` registry rule beside the invariants — referenced
+/// from `uniques`, never listed in `invariants`.
+#[test]
+fn a2b_composite_unique_emits_sparse_member_and_registry_rule() {
+    let src = "package shop\n Given\n  M { x:int, current:bool }\n  policy M read=members\n  invariant M: row.x>0\n  unique M fields=x where=row.current\n When\n Then\n";
+    let (artifact, diags) = a2a_emit(src);
+    assert!(
+        diags.iter().all(|d| d.code != "E6006" && d.code != "E6008"),
+        "uniques lower without gaps: {diags:?}"
+    );
+    let js = &artifact.modules[0].js;
+    assert!(
+        js.contains("uniques:[{fields:[\"x\"],where:\"M.unique.1\"}]"),
+        "sparse uniques member:\n{js}"
+    );
+    assert!(
+        js.contains("\"M.unique.1\":(c,row)=>"),
+        "where rule beside invariants:\n{js}"
+    );
+    assert!(
+        js.contains("invariants:[\"M.require.1\"]"),
+        "invariants list holds only the row invariant:\n{js}"
+    );
+}
+
+/// A2b UI profiles: radio/select join the field-control arm,
+/// fieldset is a captioned group, fab groups first/rest into
+/// main/actions, chat_bubble dissolves slots into slot props, and
+/// bare delete infers the full deleteRecord card.
+#[test]
+fn a2b_ui_profiles_lower_to_factories() {
+    let src = "app Probe uses=[shop]\npackage shop\n Given\n  export Item { name:text label=\"Item\"@{nl=\"Artikel\"} }\n  policy Item read=members\n When\n  crud Item by=members fields=name\n Then\n  page / title=\"Shop\"\n   card \"Go\"\n    form Item.create\n     fieldset \"Details\"\n      input name\n      radio name\n      select name\n    fab\n     button opens=dlg\n     button opens=dlg\n    modal \"Dialog\" id=dlg\n     slot content\n      text \"x\"\n    list Item\n     chat_bubble\n      slot content\n       content row.name\n      slot header\n       text row.name\n     delete\n";
+    let (artifact, diags) = a2a_emit(src);
+    assert!(
+        diags.iter().all(|d| d.code != "E6006" && d.code != "E6008"),
+        "profiles lower without gaps: {diags:?}"
+    );
+    let js = &artifact.modules[0].js;
+    assert!(
+        js.contains("fieldset({context:c,caption:message(\"Details\"),children:[input({context:c,field:\"name\"}),radio({context:c,field:\"name\"}),select({context:c,field:\"name\"})]})"),
+        "fieldset group + field controls:\n{js}"
+    );
+    assert!(
+        js.contains("fab({context:c,main:[button({context:c,opens:\"dlg\"})],actions:[button({context:c,opens:\"dlg\"})]})"),
+        "fab main+actions:\n{js}"
+    );
+    assert!(
+        js.contains("chatBubble({context:rowView,content:[content({context:rowView,value:row.name})],header:[text({context:rowView,values:[row.name]})]})"),
+        "chat slots dissolve to props:\n{js}"
+    );
+    assert!(
+        js.contains("deleteRecord({context:rowView,operation:\"shop.Item.delete\",record:row,mode:\"archive\",action:\"/api/operations/shop.Item.delete\",operationId:\"shop.Item.delete\",itemLabel:\"Item\",confirm:\"Archive this Item?\",idPrefix:\"delete-shop-Item\"})"),
+        "delete infers the full card:\n{js}"
+    );
+}
+
+/// A2b require desugar: page-level `require` gates admission (never
+/// renders); nested container `require` keeps its local gate.
+#[test]
+fn a2b_require_desugars_to_admit_and_gate() {
+    let src = "package shop\n Given\n  M { x:int }\n  policy M read=members\n When\n  scenario tick() by=members\n   do let done = 1\n Then\n  page /jobs title=\"Jobs\"\n   require members\n   card \"Go\"\n    text \"hi\"\n";
+    let (artifact, diags) = a2a_emit(src);
+    assert!(
+        diags.iter().all(|d| d.code != "E6006" && d.code != "E6008"),
+        "require lowers without gaps: {diags:?}"
+    );
+    let js = &artifact.modules[0].js;
+    assert!(
+        js.contains("check(hasRole(c,\"members\"),\"forbidden\")"),
+        "page require gates admission:\n{js}"
+    );
+    assert!(
+        !js.contains("require({"),
+        "require never renders:\n{js}"
     );
 }
