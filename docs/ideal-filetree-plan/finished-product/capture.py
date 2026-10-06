@@ -112,7 +112,7 @@ def capture():
     delta=[]
     for record in git('diff','--name-status',CHECKPOINT,pin).decode().splitlines():
         bits=record.split('\t');delta.append({'change':bits[0],'paths':bits[1:]})
-    contracts=['AGENTS.md','REQUIREMENTS.md','DESIGN.md','GRAMMAR.md','DECISIONS.md',
+    contracts=['AGENTS.md','docs/specification/REQUIREMENTS.md','docs/specification/DESIGN.md','docs/specification/GRAMMAR.md','docs/specification/DECISIONS.md',
                'implementation/CONTRACTS.md','implementation/CHALLENGE-AUDIT-PLAN.md',
                'implementation/DESCRIPTION-REFERENCE-PLAN.md','implementation/REMAINING-IMPLEMENTATION-LANES.md',
                'implementation/challenge-audit-run/t33-resolution.md','implementation/challenge-audit-run/evidence/t34-plan.md']

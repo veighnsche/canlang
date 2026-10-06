@@ -28,6 +28,9 @@ pub mod transport {
     pub const TREE_TOO_MANY_UNITS: &str = "tree-too-many-units";
     /// A tagged node has an unknown tag or malformed fields.
     pub const BAD_NODE: &str = "bad-node";
+    /// Well-formed message in the wrong state: unknown kind, resume
+    /// with no open token, token mismatch, replay, or second Begin.
+    pub const PROTOCOL_VIOLATION: &str = "protocol-violation";
 }
 
 /// Semantic-class failure codes: evaluation started and refused.
@@ -36,4 +39,6 @@ pub mod transport {
 pub mod semantic {
     /// Scaffold marker until P04+ lands job execution.
     pub const UNIMPLEMENTED: &str = "unimplemented";
+    /// Host-requested cancel acknowledged; session ends cleanly.
+    pub const ABORTED: &str = "aborted";
 }

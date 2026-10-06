@@ -137,3 +137,101 @@ pub fn write_json(writer: &mut impl Write, value: &impl Serialize) -> Result<(),
     let bytes = serde_json::to_vec(value).map_err(FrameError::Json)?;
     write_frame(writer, TAG_JSON, &bytes)
 }
+
+// ---------------------------------------------------------------------------
+// Session messages (P03.3). Host→core and core→host JSON shapes. Tokens are
+// u64 session counters starting at 1; one NeedHost is open at a time and
+// each token resumes exactly once, in issue order.
+// ---------------------------------------------------------------------------
+
+/// Host opens a job after the handshake. `mode` names the CLI mode
+/// (`build`, `deploy-preview`, ...); P04+ validates it against real
+/// execution, the scaffold echoes it into `Prepared`.
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct Begin {
+    pub begin: BeginBody,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct BeginBody {
+    pub mode: String,
+}
+
+/// Host answers the single open NeedHost. `payload` is stage-defined
+/// JSON carried opaquely by the core.
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct Resume {
+    pub resume: ResumeBody,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct ResumeBody {
+    pub token: u64,
+    pub payload: serde_json::Value,
+}
+
+/// Host cancels the session. The core answers `Failed{aborted}` once
+/// and exits 0; in-flight host work stays host-owned.
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct Abort {
+    pub abort: AbortBody,
+}
+
+#[derive(Debug, Deserialize, Default)]
+pub struct AbortBody {
+    pub reason: Option<String>,
+}
+
+/// Parsed host→core message (handshake handled separately).
+#[derive(Debug)]
+pub enum HostMessage {
+    Begin(BeginBody),
+    Resume(ResumeBody),
+    Abort(AbortBody),
+}
+
+/// Classify one JSON payload. `None` means well-formed JSON of an
+/// unknown shape — a protocol violation, never a guess.
+pub fn parse_host_message(payload: &[u8]) -> Option<HostMessage> {
+    if let Ok(msg) = serde_json::from_slice::<Begin>(payload) {
+        return Some(HostMessage::Begin(msg.begin));
+    }
+    if let Ok(msg) = serde_json::from_slice::<Resume>(payload) {
+        return Some(HostMessage::Resume(msg.resume));
+    }
+    if let Ok(msg) = serde_json::from_slice::<Abort>(payload) {
+        return Some(HostMessage::Abort(msg.abort));
+    }
+    None
+}
+
+/// Core requests one host stage. `token` is the exact resume key.
+#[derive(Debug, Serialize)]
+pub struct NeedHost {
+    pub need: NeedBody,
+}
+
+#[derive(Debug, Serialize)]
+pub struct NeedBody {
+    pub token: u64,
+    pub stage: String,
+    pub request: serde_json::Value,
+}
+
+/// Core finished the job. `stages` lists executed stages in order;
+/// `scaffold` is true until P04+ lands real execution.
+#[derive(Debug, Serialize)]
+pub struct Prepared {
+    pub prepared: PreparedBody,
+}
+
+#[derive(Debug, Serialize)]
+pub struct PreparedBody {
+    pub scaffold: bool,
+    pub mode: String,
+    pub stages: Vec<String>,
+    pub resumes: Vec<serde_json::Value>,
+}

@@ -1,6 +1,6 @@
 # Initial delivery recipe selectors
 
-This is a focused draft-contract decision, with a [Can witness](jev/delivery-recipe-overrides-20261004/witness.can), [desired JavaScript witness](jev/delivery-recipe-overrides-20261004/witness.mjs), and [three saved consultations](jev/delivery-recipe-overrides-20261004/wording-check.md). Shared DESIGN/GRAMMAR and application files are deliberately unchanged in this lane. Nothing here implements provisioning or a runner.
+This is a focused draft-contract decision, with a [Can witness](jev/delivery-recipe-overrides-20261004/witness.can), [desired JavaScript witness](jev/delivery-recipe-overrides-20261004/witness.mjs), and [three saved consultations](jev/delivery-recipe-overrides-20261004/README.md#source-wording-check). Shared DESIGN/GRAMMAR and application files are deliberately unchanged in this lane. Nothing here implements provisioning or a runner.
 
 ## Verified problem and alternatives
 

@@ -6,9 +6,9 @@ Run this evaluation as `gpt-6.1-sol` with `ultra` reasoning, using focused subag
 
 Evaluate whether companies can economically replace selected subscriptions with AI-generated applications tailored to their departments. Staff describe needs and review outcomes; they are not expected to program. Adoption is primary. Measure reliable generation, use, change and ownership, preserving business behavior when assessing token savings. Challenge the DSL's value and the economics of ownership; neither is assumed to win.
 
-Own **F001–F003, F015; E001–E006, E008, E010–E025, E098–E101, E103–E105**: 34 items. The live [ownership map and handoffs](../../../EVALUATION.md#orchestrator-ownership) are authoritative. B owns source semantics and E102 alternative comparisons; C owns interfaces, targets and provider/toolchain evidence. Root coordinates routing and checklist updates.
+Own **F001–F003, F015; E001–E006, E008, E010–E025, E098–E101, E103–E105**: 34 items. The live [ownership map and handoffs](../PLAN.md#orchestrator-ownership) are authoritative. B owns source semantics and E102 alternative comparisons; C owns interfaces, targets and provider/toolchain evidence. Root coordinates routing and checklist updates.
 
-Apply the shared [draft-only boundary](../../../EVALUATION.md#draft-only-product-evaluation) and [fair comparison rules](../../../EVALUATION.md#fair-comparison-rules), including in JEV's mock-company inputs. A records the common company outcomes, starting situation, support and economic horizon in existing evidence, and aligns experiment assistance and cost boundaries. Evaluate prospective product value; present shipping readiness is outside scope. Missing implementation cannot be a reason to reject Can or an adoption blocker. The `.mjs` files are handwritten desired outputs, not generated code.
+Apply the shared [draft-only boundary](../PLAN.md#draft-only-product-evaluation) and [fair comparison rules](../PLAN.md#fair-comparison-rules), including in JEV's mock-company inputs. A records the common company outcomes, starting situation, support and economic horizon in existing evidence, and aligns experiment assistance and cost boundaries. Evaluate prospective product value; present shipping readiness is outside scope. Missing implementation cannot be a reason to reject Can or an adoption blocker. The `.mjs` files are handwritten desired outputs, not generated code.
 
 Future outputs: `design/evaluation/ADOPTION.md` and supporting artifacts under `design/evaluation/evidence/adoption/`. Keep report editing with this orchestrator; give workers separate evidence paths.
 
@@ -44,7 +44,7 @@ Check every version for leading questions, loaded labels, assumed benefits, omit
 
 ## Evidence, deliverable and completion
 
-Apply the shared [improvement-feedback requirement](../../../EVALUATION.md#improvement-feedback-for-negative-findings) to every supported negative result. Consolidate causes and recommendations from B/C into an adoption-focused improvement path with expected benefits, tradeoffs and re-evaluation under the same comparison conditions; preserve original findings and uncertainty.
+Apply the shared [improvement-feedback requirement](../PLAN.md#improvement-feedback-for-negative-findings) to every supported negative result. Consolidate causes and recommendations from B/C into an adoption-focused improvement path with expected benefits, tradeoffs and re-evaluation under the same comparison conditions; preserve original findings and uncertainty.
 
 Keep the baseline and live design/Can/MJS files unchanged. Bounded scratch experiments are permitted; feature implementation and broad redesign are outside this evaluation. Source inspection, parser acceptance, static review, simulation and executed behavior are different evidence types. Proposed imports are not working capabilities. Do not present hypothetical company profiles as real customer research.
 

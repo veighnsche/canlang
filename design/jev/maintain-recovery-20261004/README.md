@@ -1,0 +1,14 @@
+# Maintain recovery consultation
+
+<a id="source-review"></a>
+
+## review.md
+
+Three semantically equivalent fresh consultations chose frozen source/resource/payload recovery. Returned probabilities were frozen=1,new_source=0; frozen=.99,new_source=.01; frozen=.97,new_source=.03 (third confidence=.94). No option disagreement. Probabilities and confidence remain raw in responses; no threshold grants approval. Owner idempotency and monotone verified outcomes are authored prerequisites reviewed separately, not proven by agreement. Initial sandbox network attempts failed without responses; the authorized network escalation completed all three consultations.
+
+<a id="source-wording-check"></a>
+
+## wording-check.md
+
+All three requests preserve authority, exact code, frozen source/resource/payload, ambiguous acceptance, provider idempotency requirement, monotone verified outcomes, role/location guards, reopen race constraint, and both alternatives with concrete tradeoffs. Every explanatory prose field was rewritten; identifiers and actual code remain fixed. Requests differ in full serialized wording.
+
