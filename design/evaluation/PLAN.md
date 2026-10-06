@@ -20,17 +20,17 @@ Real design problems remain reviewable: conflicting contracts, missing required 
 
 ## Inputs and current boundaries
 
-- [REQUIREMENTS.md](REQUIREMENTS.md) defines the audience, adoption goal and language requirements.
-- [DESIGN.md](DESIGN.md), [GRAMMAR.md](GRAMMAR.md) and [DECISIONS.md](DECISIONS.md) record current semantics, syntax and decisions. Historical proposals are not automatically current rules.
+- [REQUIREMENTS.md](../../docs/specification/REQUIREMENTS.md) defines the audience, adoption goal and language requirements.
+- [DESIGN.md](../../docs/specification/DESIGN.md), [GRAMMAR.md](../../docs/specification/GRAMMAR.md) and [DECISIONS.md](../../docs/specification/DECISIONS.md) record current semantics, syntax and decisions. Historical proposals are not automatically current rules.
 - The current draft set contains 39 app requirement/source pairs and 21 handwritten desired JavaScript targets, plus shared packages and reference examples. Confirm the inventory at evaluation start rather than assuming these counts remain fixed.
-- [WORKSPACE_OPERATOR.md](draft/WORKSPACE_OPERATOR.md) and [PORTFOLIO.md](draft/PORTFOLIO.md) provide one substantial business case. They do not define the entire market for CanLang.
-- [MIGRATION.md](draft/MIGRATION.md) records previous coverage and gaps. Verify each relevant entry against current source; the record may lag edits.
+- [WORKSPACE_OPERATOR.md](../../draft/WORKSPACE_OPERATOR.md) and [PORTFOLIO.md](../../draft/PORTFOLIO.md) provide one substantial business case. They do not define the entire market for CanLang.
+- [MIGRATION.md](../../draft/MIGRATION.md) records previous coverage and gaps. Verify each relevant entry against current source; the record may lag edits.
 - Given-block constraints use `invariant`. Execution guards and presentation gates retain `require`. Evaluate the current canonical spelling, not obsolete examples.
 - Shared runtime and library contracts are proposed. Structural parsing and JavaScript syntax checks do not establish executed workflow correctness. Record the actual evidence available for each conclusion.
 
 ## Shared evaluation baseline
 
-Use the captured source and inventory in [baseline-20261004T041647Z](design/evaluation/baseline-20261004T041647Z/README.md) for this evaluation. The snapshot preserves the design documents, app requirements, Can sources and desired JavaScript targets together. Cite paths and lines within that snapshot; identify any later source changes or additional evidence explicitly. This capture establishes the reference version, not a correctness or completeness verdict.
+Use the captured source and inventory in [baseline-20261004T041647Z](baseline-20261004T041647Z/README.md) for this evaluation. The snapshot preserves the design documents, app requirements, Can sources and desired JavaScript targets together. Cite paths and lines within that snapshot; identify any later source changes or additional evidence explicitly. This capture establishes the reference version, not a correctness or completeness verdict.
 
 ## Orchestrator ownership
 
@@ -38,13 +38,13 @@ These are assigned responsibilities for the evaluation; recording them does not 
 
 Execution started and completed on 2026-10-04 with collaboration owners `/root/evaluation_adoption`, `/root/evaluation_language` and `/root/evaluation_interfaces`, using the model/effort allocation below. Reports, bounded experiments, independent source reviews and both JEV roles are complete. Root shared the collaboration slots with the three owners; bounded experiment/review workers ran between owner phases. Source-baseline integrity was verified against all 115 manifest entries at dispatch and completion.
 
-Completed, 2026-10-04: all **120 items** have recorded results with one accountable owner: A’s [34-item adoption report and integrated verdict](design/evaluation/ADOPTION.md), B’s [47-item language report](design/evaluation/LANGUAGE.md), and C’s [39-item interface report](design/evaluation/INTERFACES.md). Checked items mean **assessed with recorded findings and limits**, not all-positive findings, a perfected design or executed correctness. The adoption report contains the finite prioritized correction plan, with 12 consolidated causes and unchanged reevaluation criteria. The frozen baseline and live language/app/desired-target sources remain unchanged; proposed corrections are future work. [Completion verification](design/evaluation/verification.json) records coverage, evidence integrity and checks performed.
+Completed, 2026-10-04: all **120 items** have recorded results with one accountable owner: A’s [34-item adoption report and integrated verdict](ADOPTION.md), B’s [47-item language report](LANGUAGE.md), and C’s [39-item interface report](INTERFACES.md). Checked items mean **assessed with recorded findings and limits**, not all-positive findings, a perfected design or executed correctness. The adoption report contains the finite prioritized correction plan, with 12 consolidated causes and unchanged reevaluation criteria. The frozen baseline and live language/app/desired-target sources remain unchanged; proposed corrections are future work. [Completion verification](verification.json) records coverage, evidence integrity and checks performed.
 
 | Owner | Orchestrator | Model and effort | Assignment brief | Owned report |
 | --- | --- | --- | --- | --- |
-| A | Adoption and AI efficiency | GPT-6.1 Sol — Ultra | [Adoption brief](design/evaluation/briefs/ADOPTION.md) | `design/evaluation/ADOPTION.md` |
-| B | Language and business behavior | GPT-6 Astra — Ultra | [Language brief](design/evaluation/briefs/LANGUAGE.md) | `design/evaluation/LANGUAGE.md` |
-| C | Interfaces and JavaScript | GPT-6.1 Sol — Ultra | [Interfaces brief](design/evaluation/briefs/INTERFACES.md) | `design/evaluation/INTERFACES.md` |
+| A | Adoption and AI efficiency | GPT-6.1 Sol — Ultra | [Adoption brief](briefs/ADOPTION.md) | `design/evaluation/ADOPTION.md` |
+| B | Language and business behavior | GPT-6 Astra — Ultra | [Language brief](briefs/LANGUAGE.md) | `design/evaluation/LANGUAGE.md` |
+| C | Interfaces and JavaScript | GPT-6.1 Sol — Ultra | [Interfaces brief](briefs/INTERFACES.md) | `design/evaluation/INTERFACES.md` |
 
 The following table is the authoritative ownership map. Ranges are inclusive; it covers all 15 foundation questions and 105 detailed tasks. The reports will contain item results and findings, with links to contributed evidence. A owns the integrated verdict within its report; separate duplicate verdict reports are unnecessary.
 
@@ -125,7 +125,7 @@ Keep one improvement recommendation per consolidated cause, with the existing ac
 
 Prioritize findings as adoption blockers, significant friction, or polish. Give every proposed remedy a disposition: keep the current rule, clarify it, simplify it, correct an app/target, investigate with a bounded experiment, or defer/exclude it with an explicit audience/scope consequence. Do not require a numerical approval threshold or claim a high aggregate score cancels a serious permission or behavior defect.
 
-Difficult design decisions follow [AGENTS.md](AGENTS.md): supply researched evidence to JEV, make three fresh consultations with semantically equivalent alternatives and fully rewritten explanatory prose, retain uncertainty, investigate disagreement, and treat its judgments as advice. This task list itself does not require a consultation on every item.
+Difficult design decisions follow [AGENTS.md](../../AGENTS.md): supply researched evidence to JEV, make three fresh consultations with semantically equivalent alternatives and fully rewritten explanatory prose, retain uncertainty, investigate disagreement, and treat its judgments as advice. This task list itself does not require a consultation on every item.
 
 Before sending each consultation, check the entire request for framing bias: context, instructions, questions, company profiles, criteria and option descriptions. Remove leading questions, loaded labels, assumed conclusions and references to our preferred answer or earlier JEV votes. Give competing options comparable detail and apply the same evidentiary standard to their benefits, costs and uncertainties; include material counterevidence. Preserve genuine evidence differences rather than inventing false balance. Do not select company assumptions to manufacture support for CanLang. Check both semantic equivalence and full-request wording differences across the three versions: paraphrasing a biased premise does not remove its bias, and unanimous results do not prove neutrality.
 
