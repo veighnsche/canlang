@@ -25,9 +25,20 @@
  * body (the natural location for a flat HTML form's hidden field); both must
  * still verify against the session token.
  */
-import type { BusinessError, ClosedInputs, MutationEnvelope, ResolvedIdentity } from '@canlang/contracts';
+import { ARTIFACT_VERSION } from '@canlang/contracts';
+import type {
+  ArtifactOperation,
+  BusinessError,
+  ClosedInputs,
+  DerivedOperationInputs,
+  DerivedWritableInput,
+  MutationEnvelope,
+  ResolvedIdentity,
+} from '@canlang/contracts';
 import { IdentityError, deriveCsrfToken } from '@canlang/identity';
-import type { HttpDeps } from '../ports.js';
+import type { HttpDeps, OperationInputShape, SchemaCatalog } from '../ports.js';
+import { checkArtifactOperation, checkArtifactOperations } from '../mcp/schemas.js';
+import type { ArtifactOperationSlice, CheckedArtifactField, CheckedArtifactOperation } from '../mcp/schemas.js';
 import { buildBusinessError, fromUnknown, toHttpResponse } from '../errors/envelope.js';
 import { logBusinessError, logInternalError } from '../errors/logging.js';
 import { checkClosedInputs, validateOperationId } from '../envelope/validate.js';
@@ -257,4 +268,121 @@ export async function handleOperationRequest(
     const { status, body } = toHttpResponse(error);
     return jsonErrorResponse(body, status);
   }
+}
+
+/* ------------------------------------------------------------------ */
+/* T19a checked derivation: artifact operations -> HTTP input shapes.  */
+/* Every builder checks through the shared `mcp/schemas.ts` rule, so  */
+/* the HTTP catalog derives the same writable allowlist the MCP       */
+/* registry/tools derive from the same checked operation.              */
+/* ------------------------------------------------------------------ */
+
+/**
+ * A version-fenced derived catalog: the dispatch `shapeFor` view plus
+ * the `derivedFor` documented-optionality view (defaults pinned
+ * verbatim, versioned flags, array markers) for parity checks and the
+ * T20 form join. Bound to a single artifact slice — a new artifact
+ * requires a fresh derivation; stale shapes never serve new traffic.
+ */
+export interface DerivedInputCatalog extends SchemaCatalog {
+  derivedFor(operation: string): DerivedOperationInputs | null;
+}
+
+/** Project one checked input to its wire documented-optionality shape. */
+function toDerivedInput(field: CheckedArtifactField): DerivedWritableInput {
+  const common = {
+    name: field.name,
+    required: field.required,
+    ...(field.nullable === undefined ? {} : { nullable: field.nullable }),
+    ...(field.array === undefined ? {} : { array: field.array }),
+    ...(field.default === undefined ? {} : { default: field.default }),
+    ...(field.description === undefined ? {} : { description: field.description }),
+  };
+  const tag = field.field;
+  switch (tag.kind) {
+    case 'ref':
+      return { ...common, kind: 'ref', model: tag.model, versioned: tag.requireVersion };
+    case 'enum':
+      return { ...common, kind: 'enum', enumValues: [...tag.values] };
+    case 'string':
+      return { ...common, kind: 'string' };
+    case 'integer':
+      return { ...common, kind: 'integer' };
+    case 'decimal':
+      return { ...common, kind: 'decimal' };
+    case 'money':
+      return { ...common, kind: 'money' };
+    case 'datetime':
+      return { ...common, kind: 'datetime' };
+    case 'boolean':
+      return { ...common, kind: 'boolean' };
+    case 'file':
+      return { ...common, kind: 'file' };
+  }
+}
+
+/** Project one checked operation to its wire derived-inputs shape. */
+function checkedToDerivedInputs(checked: CheckedArtifactOperation): DerivedOperationInputs {
+  return {
+    operation: checked.name,
+    kind: checked.kind,
+    artifactVersion: ARTIFACT_VERSION,
+    inputs: Object.freeze(checked.fields.map(toDerivedInput)),
+  };
+}
+
+/**
+ * Derive the documented writable inputs for one artifact operation:
+ * allowlist, required sets, versioned flags, and verbatim
+ * `literal`/`parent` defaults. Server-owned inputs, unknown kinds, and
+ * malformed members reject via `IncompatibleDescriptorError`.
+ */
+export function deriveOperationInputs(op: ArtifactOperation): DerivedOperationInputs {
+  return checkedToDerivedInputs(checkArtifactOperation(op));
+}
+
+/**
+ * Derive the dispatch input shape for one artifact operation: the
+ * closed `allowed` allowlist (emission order; array inputs are single
+ * named members) and its `required` subset. Same rule as
+ * `deriveOperationInputs`, framing projection.
+ */
+export function deriveOperationShape(op: ArtifactOperation): OperationInputShape {
+  const checked = checkArtifactOperation(op);
+  const allowed: string[] = [];
+  const required: string[] = [];
+  for (const named of checked.fields) {
+    allowed.push(named.name);
+    if (named.required) required.push(named.name);
+  }
+  return { allowed: Object.freeze(allowed), required: Object.freeze(required) };
+}
+
+/**
+ * Build the HTTP input catalog for one version-fenced artifact slice:
+ * `shapeFor` serves dispatch framing (unknown operations read null —
+ * the existing `not_found` path), `derivedFor` serves the documented
+ * optionality. Any unknown kind, server-owned input, duplicate, or
+ * version mismatch rejects the whole slice — nothing derives partially.
+ */
+export function catalogFromArtifactOperations(slice: ArtifactOperationSlice): DerivedInputCatalog {
+  const shapes = new Map<string, OperationInputShape>();
+  const derived = new Map<string, DerivedOperationInputs>();
+  for (const checked of checkArtifactOperations(slice)) {
+    const allowed: string[] = [];
+    const required: string[] = [];
+    for (const named of checked.fields) {
+      allowed.push(named.name);
+      if (named.required) required.push(named.name);
+    }
+    shapes.set(
+      checked.name,
+      { allowed: Object.freeze(allowed), required: Object.freeze(required) },
+    );
+    derived.set(checked.name, checkedToDerivedInputs(checked));
+  }
+  return {
+    shapeFor: (operation: string): OperationInputShape | null => shapes.get(operation) ?? null,
+    derivedFor: (operation: string): DerivedOperationInputs | null => derived.get(operation) ?? null,
+  };
 }

@@ -277,3 +277,35 @@ export const SYSTEM_TEAM_TOOL_NAMES = [
 ] as const;
 
 export type SystemTeamToolName = (typeof SYSTEM_TEAM_TOOL_NAMES)[number];
+
+/* ------------------------------------------------------------------ */
+/* T19a equal-authority interface submission. Types and pinned rules   */
+/* only; HTTP dispatch lives in @canlang/interfaces                   */
+/* (`http/operations.ts`), MCP dispatch beside it. Part of            */
+/* IDENTITY_CONTRACT_VERSION 1 (additive).                            */
+/*                                                                     */
+/* Equal-authority rule (pinned here, proved by the L6 T19a            */
+/* derivation tests): an interface submission carries the same        */
+/* authority as the direct call — no privilege change through the     */
+/* interface. Both transports resolve the caller through the same     */
+/* verified-identity constructor (HTTP: session cookie + CSRF; MCP:   */
+/* grant Bearer) [REDACTED] unchanged to the canonical invocation. The   */
+/* interface never adds grants, roles, team scope, or membership; an  */
+/* allowed caller passes and a disallowed caller fails identically    */
+/* through the interface and direct paths.                            */
+/* ------------------------------------------------------------------ */
+
+/** The transport that carried an interface submission. */
+export type InterfaceTransport = 'http' | 'mcp';
+
+/**
+ * T19a one interface submission: the verified caller identity plus the
+ * operation it invoked, tagged by transport. The identity is the exact
+ * `ResolvedIdentity` the canonical invocation admits — shared object,
+ * never a re-derived or widened copy.
+ */
+export interface InterfaceSubmission {
+  readonly identity: ResolvedIdentity;
+  readonly operation: string;
+  readonly transport: InterfaceTransport;
+}
