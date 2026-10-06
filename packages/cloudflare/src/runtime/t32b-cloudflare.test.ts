@@ -238,8 +238,20 @@ export function canApp() {
   return {
     calls,
     policy: {
-      operations: { "acme.Todo.create": { by: ["members"] } },
-      models: {}
+      operations: {
+        "acme.Todo.create": { by: ["members"] },
+        // B7: the seam scenarios declare EXPLICIT-public admission
+        // (the interim-implicit posture this section was designed
+        // around — absent entries now deny): the mechanism's
+        // revocation check skips under public projection, so the
+        // seam's caller.roles guard stays the tripwire.
+        "acme.Shop.place": { by: ["public"] },
+        "acme.Shop.hooked": { by: ["public"] },
+        "acme.Shop.boomThrow": { by: ["public"] }
+      },
+      models: {
+        "acme.Todo": { read: ["Todo.read.1"], public: ["Todo.read.1"] }
+      }
     },
     Todo: { create: throwing },
     Shop: {
@@ -367,10 +379,11 @@ async function modelRows(store: StoragePort, model: string): Promise<StoredRow[]
 /* ------------------------------------------------------------------ */
 /* Site (a): scenario path through the real seam.                      */
 /*                                                                     */
-/* Scenarios admit `public` at the canonical gate, so the mechanism's  */
-/* revocation check skips (by-aware projection) and the SEAM's         */
-/* `caller.roles` guard is the membership tripwire — revocation and    */
-/* role flips void with `forbidden` naming the guard.                  */
+/* Scenarios admit `public` at the canonical gate (DECLARED gates,   */
+/* B7 — the interim-implicit posture made explicit), so the            */
+/* mechanism's revocation check skips (by-aware projection) and the    */
+/* SEAM's `caller.roles` guard is the membership tripwire —            */
+/* revocation and role flips void with `forbidden` naming the guard.   */
 /* ------------------------------------------------------------------ */
 
 describe("T32b scenario seam (guards + readings + revision fence)", () => {
@@ -1455,6 +1468,11 @@ export function canApp() {
         "Shop.Member.delete": { by: ["members"] },
         "acme.Plain.create": { by: ["members"] },
         "acme.Plain.update": { by: ["members"] },
+        "acme.Probe.selfCancel": { by: ["members"] },
+        "acme.Probe.updateRemove": { by: ["members"] },
+        "acme.Probe.archiveTouch": { by: ["members"] },
+        "acme.Probe.orphanMember": { by: ["members"] },
+        "acme.Probe.ghostMember": { by: ["members"] },
       },
     },
     read: {
