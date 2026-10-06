@@ -1,0 +1,76 @@
+{
+  "outbox_id": {
+    "inputs": {
+      "operationId": "op-baseline",
+      "source": "cap/send",
+      "occurrenceIndex": 0
+    },
+    "output": "obx_c89608a6a6f8887651f977b14105ff18d9639ae888bfed540091cffc72d279f3"
+  },
+  "every_slot": {
+    "inputs": {
+      "nowMs": 1750000000000,
+      "periodMs": 60000
+    },
+    "output": {
+      "slot": 1749999960,
+      "slotStartMs": 1749999960000
+    }
+  },
+  "every_scope_key": {
+    "inputs": {
+      "scope": "team",
+      "owner": "team1"
+    },
+    "output": "team:team1"
+  },
+  "recurring_occurrence_id": {
+    "inputs": {
+      "app": "app1",
+      "handler": "h1",
+      "scope": "team",
+      "owner": "team1",
+      "slot": 29166666
+    },
+    "output": "evr_0529d8c7822c84bad99bb3632a6e255368eb17e75a7dc25eb5c0dc5e364d5511"
+  },
+  "every_slot_row_id": {
+    "inputs": {
+      "app": "app1",
+      "handler": "h1",
+      "scope": "team",
+      "owner": "team1"
+    },
+    "output": "every/v1/app1/h1/team/team1"
+  },
+  "fanout_intent_row_id": {
+    "inputs": {
+      "sourceOccurrence": "occ_baseline_1",
+      "handler": "h1",
+      "cohort": "model"
+    },
+    "output": "fanout/v1/occ_baseline_1/h1/model"
+  },
+  "fanout_checkpoint_row_id": {
+    "inputs": {
+      "fanoutId": "fanout/v1/occ_baseline_1/h1/model"
+    },
+    "output": "fanout/v1/occ_baseline_1/h1/model"
+  },
+  "fanout_child_row_id": {
+    "inputs": {
+      "parentOccurrence": "occ_baseline_1",
+      "handler": "h1",
+      "recordId": "rec-a"
+    },
+    "output": "fanout-child/v1/occ_baseline_1/h1/rec-a"
+  },
+  "association_row_id": {
+    "inputs": {
+      "model": "Todo",
+      "recordId": "r1",
+      "field": "status"
+    },
+    "output": "receipt-assoc/v1/Todo/r1/status"
+  }
+}

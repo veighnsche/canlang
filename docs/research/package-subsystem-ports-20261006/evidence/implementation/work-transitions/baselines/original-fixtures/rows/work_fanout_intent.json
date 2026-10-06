@@ -1,0 +1,26 @@
+{
+  "model": "work.fanout_intent",
+  "constructor_input": {
+    "constructor": "newFanoutIntentRow",
+    "input": {
+      "sourceOccurrence": "occ_baseline_1",
+      "handler": "h1",
+      "cohort": "model",
+      "members": [
+        "rec-b",
+        "rec-a"
+      ]
+    },
+    "meta": {
+      "nowMs": 1750000000000,
+      "actor": "w01.3-baseline"
+    },
+    "note": "members sorted canonical by constructor"
+  },
+  "row_id": "fanout/v1/occ_baseline_1/h1/model",
+  "d1_data_bytes": "{\"fanoutId\":\"fanout/v1/occ_baseline_1/h1/model\",\"sourceOccurrence\":\"occ_baseline_1\",\"handler\":\"h1\",\"cohort\":\"model\",\"members\":[\"rec-a\",\"rec-b\"],\"memberCount\":2}",
+  "do_data_bytes": "{\"fanoutId\":\"fanout/v1/occ_baseline_1/h1/model\",\"sourceOccurrence\":\"occ_baseline_1\",\"handler\":\"h1\",\"cohort\":\"model\",\"members\":[\"rec-a\",\"rec-b\"],\"memberCount\":2}",
+  "d1_equals_do": true,
+  "byte_length_utf8": 160,
+  "sha256": "ba13500953d7316b7539c6061587cb95de7ae5b5ade7cdf3917685c957551c3e"
+}

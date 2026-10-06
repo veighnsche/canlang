@@ -313,8 +313,9 @@ export interface ArtifactModelField {
  * folds the `fields` array into a record by `name` and drops the
  * additive field members): `deleteMode` is `archive` (default),
  * `remove` (declared) or `none` (no enabled delete operation);
- * `uniqueKeys` holds field-level unique names plus one comma-joined
- * entry per composite unique, in source order. Additive ownership
+ * `uniqueKeys` holds field-level unique names only, in source order
+ * (composite uniques moved to the `uniques` member of
+ * `appDefinition.models`; A2b shed the comma-joined fold). Additive ownership
  * (`parent` for `Model in Parent` children, `scope: 'app'` for
  * `Model in app`) carries the T28-A containment rule; absent both
  * means team scope (the default). References between models use
