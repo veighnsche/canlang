@@ -1,5 +1,4 @@
 [workspace]
-members = ["semantics"]
-# `bindings` (Wasm crate) joins this workspace in the A07 tranche; the
-# compiler is never a member of this package-local workspace.
+members = ["semantics", "bindings"]
+# The compiler is never a member of this package-local workspace.
 resolver = "2"

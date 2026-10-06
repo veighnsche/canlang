@@ -1,0 +1,32 @@
+{
+  "builder": "packages/values/scripts/build-semantics.mjs",
+  "rustc": "rustc 1.99.0 (b940084d7 2026-09-28)",
+  "wasm_bindgen": "0.2.129",
+  "wasm_bindgen_crate": "0.2.129",
+  "semantics_crate": "path ../semantics",
+  "target": "wasm32-unknown-unknown",
+  "profile": "release",
+  "bindgen_target": "web",
+  "sources": [
+    "src/exact.rs",
+    "src/lib.rs"
+  ],
+  "files": {
+    "values_semantics.d.ts": {
+      "sha256": "8316f7a556eeadc04a8d47cfa354e71a059d2ae9de016abfa94c5f69d383bd45",
+      "bytes": 1805
+    },
+    "values_semantics.js": {
+      "sha256": "a761980a4acaedd80f952783e26d6c4134c548989491bcbffb64586816d6c8c4",
+      "bytes": 7051
+    },
+    "values_semantics_bg.wasm": {
+      "sha256": "f9df0ddd9cca605136b2d38ea62eacd706048fb1652ca1f9a647c0d6b049d6ca",
+      "bytes": 515599
+    },
+    "values_semantics_bg.wasm.d.ts": {
+      "sha256": "0a570936c33b31970f25d22593676ca58623fae9074a8db9dc4f92cd0a3e43bb",
+      "bytes": 518
+    }
+  }
+}
