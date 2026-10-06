@@ -187,7 +187,9 @@ test('FP.EXPORT-DISPATCH: repeats replay-safe with deterministic descriptors; li
   const first = await exportOk(t, { operation: OPERATION });
   const second = await exportOk(t, { operation: OPERATION });
   assert.equal(second.csv, first.csv);
-  assert.equal(second.as_of, first.as_of);
+  /* Currency is wall-clock: consecutive runs may straddle a millisecond
+   * (main flake ...50.503Z vs ...50.502Z), so proximity — not identity. */
+  assert.ok(Math.abs(Date.parse(second.as_of) - Date.parse(first.as_of)) < 60_000);
   assert.equal(t.invoker.reads.length, 2);
   assert.deepEqual(t.invoker.reads[1]!.envelope, t.invoker.reads[0]!.envelope);
   const capped = await exportOk(t, { operation: OPERATION, limit: 1 });
