@@ -5408,5 +5408,11 @@
       "shared_sources": []
     }
   },
-  "open_semantic_review": "Structural inventory is exhaustive at pin; exhaustive source/control-path/independent test-body review remains an explicit FP.SOURCE-CLOSURE gate, not inferred from path or symbol counts."
+  "open_semantic_review": "Structural inventory is exhaustive at pin; exhaustive source/control-path/independent test-body review remains an explicit FP.SOURCE-CLOSURE gate, not inferred from path or symbol counts.",
+  "consolidation_refresh": {
+    "source_pin": "fdb059c634c32c83760f35dd9175f49d9821762d",
+    "record": "consolidation-review.json",
+    "scope": "current source availability and retained staged work; original duties, task dependencies and historical semantic reviews unchanged",
+    "source_closure": "FP.SOURCE-CLOSURE OPEN; complete checkpoint unchanged"
+  }
 }

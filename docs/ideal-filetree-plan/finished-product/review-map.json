@@ -132,5 +132,11 @@
     "primary": "root complete three-file diff/tests and actual mirror/fence source",
     "challenger": "reviews/late-dispatch.json",
     "scope": "current source/target carrier, pure callback vs real async/held-claim order, unavailable decoder/injection and actual server enrollment; no runtime execution"
+  },
+  "consolidation_refresh": {
+    "source_pin": "fdb059c634c32c83760f35dd9175f49d9821762d",
+    "record": "consolidation-review.json",
+    "scope": "current source availability and retained staged work; original duties, task dependencies and historical semantic reviews unchanged",
+    "source_closure": "FP.SOURCE-CLOSURE OPEN; complete checkpoint unchanged"
   }
 }

@@ -1,0 +1,8287 @@
+{
+  "source_pin": "fdb059c634c32c83760f35dd9175f49d9821762d",
+  "complete_checkpoint": "8249342707d3280e88e39e8c911b7e457828f31f",
+  "checkpoint_advanced": false,
+  "prior_catalog_pin": "5edc3bac2a341fbda0bb432649e90ba70d3c05db",
+  "ordered_merges": [
+    {
+      "branch": "codex/remaining-lane-a-compiler",
+      "tip": "d7aea366046da1141edf172436977b02abdffb97",
+      "before": "83048732fa80e5bbf599e29f02abeba673d23cf2",
+      "scope": "retained compiler proposal/routing records; implementation already integrated",
+      "merge_output": "Automatic merge went well; stopped before committing as requested\n",
+      "source_delta": [
+        "A\tcompiler/A2B-COMPOSITE-UNIQUE-CONVENTION.md",
+        "A\tcompiler/A2B-NAMED-ARGS-CONVENTION.md",
+        "A\tcompiler/A2B-ROUTING.json",
+        "A\tcompiler/A2B-UI-NODE-FACTORY-CONVENTION.md",
+        "A\tcompiler/A5-T08-PARITY-PROPOSAL.md"
+      ],
+      "result": "3f47f4fd318e3f3ad28fab8eccbf427d7f060864"
+    },
+    {
+      "branch": "audit/input-validation-review",
+      "tip": "e5d5758d6ee8b557ddbef8c878046f57431684ba",
+      "before": "3f47f4fd318e3f3ad28fab8eccbf427d7f060864",
+      "scope": "retained historical input-validation audit at its original scope",
+      "merge_output": "Automatic merge went well; stopped before committing as requested\n",
+      "source_delta": [
+        "A\tdocs/research/package-subsystem-ports-20261006/implementation-plans/input-validation.audit.md"
+      ],
+      "result": "f834f18b0fe2e3d0cf3a80cdc80bbf1b195fc149"
+    },
+    {
+      "branch": "codex/remaining-lane-e-interfaces",
+      "tip": "124549269653fa1d96404181e1916d6aa99e0576",
+      "before": "f834f18b0fe2e3d0cf3a80cdc80bbf1b195fc149",
+      "scope": "browser assets producer; route mounting and product joins remain incomplete",
+      "merge_output": "Automatic merge went well; stopped before committing as requested\n",
+      "source_delta": [
+        "A\tpackages/interfaces/src/http/assets.ts",
+        "A\tpackages/interfaces/test/browser-assets.test.ts"
+      ],
+      "result": "9ee67afcb7e4c0538dc11bcb53dcb075c0023ea6"
+    },
+    {
+      "branch": "codex/remaining-lane-f-ui",
+      "tip": "6c02fcedff8f7b3cd0a94cc5806ff3b56c621dca",
+      "before": "9ee67afcb7e4c0538dc11bcb53dcb075c0023ea6",
+      "scope": "browser client and polling; full binder/installed workflow acceptance remains incomplete",
+      "merge_output": "Automatic merge went well; stopped before committing as requested\n",
+      "source_delta": [
+        "M\tpackages/ui/package.json",
+        "A\tpackages/ui/scripts/build-browser.mjs",
+        "A\tpackages/ui/src/browser/bootstrap.ts",
+        "A\tpackages/ui/src/browser/polling.ts",
+        "A\tpackages/ui/src/browser/style.css"
+      ],
+      "result": "9d0bdf3ed5725c825d6712bb261cd2b74ac9170e"
+    },
+    {
+      "branch": "codex/values-rust-port",
+      "tip": "e1f7acb0e419f37395b539d1f4b07543920477aa",
+      "before": "9d0bdf3ed5725c825d6712bb261cd2b74ac9170e",
+      "scope": "native exact-values/validation code and bindings; opt-in scaffold, rollout/installed/backend gates remain open",
+      "merge_output": "Automatic merge went well; stopped before committing as requested\n",
+      "source_delta": [
+        "A\tdocs/research/package-subsystem-ports-20261006/evidence/implementation/exact-values/core/binding-smoke-20261006.json",
+        "A\tdocs/research/package-subsystem-ports-20261006/evidence/implementation/exact-values/core/scope.json",
+        "A\tdocs/research/package-subsystem-ports-20261006/evidence/implementation/exact-values/fixtures/budgets.json",
+        "A\tdocs/research/package-subsystem-ports-20261006/evidence/implementation/exact-values/fixtures/parity-ledger.json",
+        "A\tdocs/research/package-subsystem-ports-20261006/evidence/implementation/exact-values/fixtures/parity-run-20261006.json",
+        "A\tdocs/research/package-subsystem-ports-20261006/evidence/implementation/exact-values/host/bootstrap-20261006.json",
+        "A\tdocs/research/package-subsystem-ports-20261006/evidence/input-validation/abi-binding-smoke.json",
+        "A\tdocs/research/package-subsystem-ports-20261006/evidence/input-validation/v032-v034-20261006.json",
+        "A\tdocs/research/package-subsystem-ports-20261006/evidence/input-validation/v033-owned-input-20261006.json",
+        "A\tpackages/values/Cargo.lock",
+        "A\tpackages/values/Cargo.toml",
+        "A\tpackages/values/bindings/Cargo.toml",
+        "A\tpackages/values/bindings/backend.ts",
+        "A\tpackages/values/bindings/bootstrap.ts",
+        "A\tpackages/values/bindings/carriers.ts",
+        "A\tpackages/values/bindings/generated/BUILD.json",
+        "A\tpackages/values/bindings/generated/values_semantics.d.ts",
+        "A\tpackages/values/bindings/generated/values_semantics.js",
+        "A\tpackages/values/bindings/generated/values_semantics_bg.wasm",
+        "A\tpackages/values/bindings/generated/values_semantics_bg.wasm.d.ts",
+        "A\tpackages/values/bindings/owned-input.ts",
+        "M\tpackages/values/bindings/plans.ts",
+        "A\tpackages/values/bindings/src/exact.rs",
+        "A\tpackages/values/bindings/src/lib.rs",
+        "A\tpackages/values/bindings/src/validation.rs",
+        "A\tpackages/values/bindings/validation.ts",
+        "A\tpackages/values/conformance/ports/exact/cases.json",
+        "A\tpackages/values/conformance/ports/exact/differential.mjs",
+        "M\tpackages/values/package.json",
+        "A\tpackages/values/scripts/build-semantics.mjs",
+        "A\tpackages/values/scripts/emit-semantics-inputs.mjs",
+        "A\tpackages/values/semantics/Cargo.toml",
+        "A\tpackages/values/semantics/currency-facts.json",
+        "A\tpackages/values/semantics/examples/conformance.rs",
+        "A\tpackages/values/semantics/src/aggregates/decimal.rs",
+        "A\tpackages/values/semantics/src/aggregates/integer.rs",
+        "A\tpackages/values/semantics/src/aggregates/mod.rs",
+        "A\tpackages/values/semantics/src/aggregates/money.rs",
+        "A\tpackages/values/semantics/src/aggregates/numeric.rs",
+        "A\tpackages/values/semantics/src/codecs/mod.rs",
+        "A\tpackages/values/semantics/src/codecs/numeric.rs",
+        "A\tpackages/values/semantics/src/currency_facts.rs",
+        "A\tpackages/values/semantics/src/failures.rs",
+        "A\tpackages/values/semantics/src/input.rs",
+        "A\tpackages/values/semantics/src/lib.rs",
+        "A\tpackages/values/semantics/src/numeric/decimal.rs",
+        "A\tpackages/values/semantics/src/numeric/integer.rs",
+        "A\tpackages/values/semantics/src/numeric/mod.rs",
+        "A\tpackages/values/semantics/src/numeric/money.rs",
+        "A\tpackages/values/semantics/src/numeric/rounding.rs",
+        "A\tpackages/values/semantics/src/plans.rs",
+        "A\tpackages/values/semantics/src/profiles.rs",
+        "A\tpackages/values/semantics/src/representations/mod.rs",
+        "A\tpackages/values/semantics/src/representations/numeric.rs",
+        "A\tpackages/values/semantics/src/temporal/civil.rs",
+        "A\tpackages/values/semantics/src/temporal/duration.rs",
+        "A\tpackages/values/semantics/src/temporal/instant.rs",
+        "A\tpackages/values/semantics/src/temporal/mod.rs",
+        "A\tpackages/values/semantics/src/transport/exact.rs",
+        "A\tpackages/values/semantics/src/transport/mod.rs",
+        "A\tpackages/values/semantics/tests/aggregate_vectors.rs",
+        "A\tpackages/values/semantics/tests/decimal_vectors.rs",
+        "A\tpackages/values/semantics/tests/input_validation.rs",
+        "A\tpackages/values/semantics/tests/input_validation/conformance_v1.rs",
+        "A\tpackages/values/semantics/tests/input_validation/input.rs",
+        "A\tpackages/values/semantics/tests/input_validation/validation.rs",
+        "A\tpackages/values/semantics/tests/integer_vectors.rs",
+        "A\tpackages/values/semantics/tests/money_vectors.rs",
+        "A\tpackages/values/semantics/tests/rounding_vectors.rs",
+        "A\tpackages/values/semantics/tests/temporal_vectors.rs",
+        "A\tpackages/values/test/exact-bootstrap.test.ts",
+        "A\tpackages/values/test/owned-input.test.ts",
+        "M\tpackages/values/test/prepared-validation.test.ts",
+        "A\tpackages/values/test/validation-binding.test.ts",
+        "M\tpackages/values/tsconfig.json"
+      ],
+      "result": "f46b8878014da0b66fd08476094f0446f9017329"
+    },
+    {
+      "branch": "codex/remaining-lane-c-runtime",
+      "tip": "6236b47e2a344c9ad72c2d74bfeb8b8d46c57d06",
+      "before": "f46b8878014da0b66fd08476094f0446f9017329",
+      "scope": "history reconciliation; dirty C build graph separately integrated",
+      "merge_output": "Automatic merge went well; stopped before committing as requested\n",
+      "source_delta": [],
+      "result": "6f2fbf16910b2dadc4a0765cddfc1e8017166feb"
+    },
+    {
+      "branch": "codex/remaining-lane-d-work-providers",
+      "tip": "0f1cea80dbd39c8443fbe261a25fa4af4ffdffc1",
+      "before": "6f2fbf16910b2dadc4a0765cddfc1e8017166feb",
+      "scope": "history reconciliation; unfinished canonical preparation separately checkpointed; human hold retained",
+      "merge_output": "Automatic merge went well; stopped before committing as requested\n",
+      "source_delta": [],
+      "result": "8e751e0feaeb65206b46d839925e6eca81df58ca"
+    },
+    {
+      "branch": "codex/remaining-lane-b-core-state",
+      "tip": "8b1f7f47fc5649c10fbec23430184d780aebf2b2",
+      "before": "8e751e0feaeb65206b46d839925e6eca81df58ca",
+      "scope": "history reconciliation; preserve newer current prepared-input registry and canonical kernel checkpoint",
+      "merge_output": "Auto-merging packages/contracts/src/wire.ts\nAuto-merging packages/state/src/invocation/registry.ts\nAutomatic merge went well; stopped before committing as requested\n",
+      "source_delta": [],
+      "result": "facdf90c48340e5a479b4f601b0df6b5afa4f3e2"
+    },
+    {
+      "branch": "port/artifact-preparation",
+      "tip": "01af11aa693258ba811216a639085ffbec7f22d4",
+      "before": "facdf90c48340e5a479b4f601b0df6b5afa4f3e2",
+      "scope": "history reconciliation; no additional net source",
+      "merge_output": "Automatic merge went well; stopped before committing as requested\n",
+      "source_delta": [],
+      "result": "c4bdd3e0ef716d92e9a4471bbdd77626704a1ea6"
+    },
+    {
+      "branch": "codex/ci-gates/bootstrap-20261006",
+      "tip": "baacbc398da34320229dc78d06d2ac0a87b6a730",
+      "before": "c4bdd3e0ef716d92e9a4471bbdd77626704a1ea6",
+      "scope": "history reconciliation; preserve current stricter receipts and pinned native prerequisites",
+      "merge_output": "Auto-merging .github/ci/README.md\nAuto-merging .github/ci/ts-gate.mjs\nAuto-merging .github/ci/ts-gate.test.mjs\nAuto-merging .github/ci/verify-receipt.mjs\nAuto-merging .github/ci/verify-receipt.test.mjs\nAutomatic merge went well; stopped before committing as requested\n",
+      "source_delta": [],
+      "result": "9d9c8e3f89da01d339a75280ee446b82d7dacc3c"
+    },
+    {
+      "branch": "codex/remaining-lane-g-journeys",
+      "tip": "bc6a9d99c5cfd0e4f8336e953bc30a16a16df991",
+      "before": "9d9c8e3f89da01d339a75280ee446b82d7dacc3c",
+      "scope": "history reconciliation; retain current draft descendant instead of stale predecessor",
+      "merge_output": "Automatic merge went well; stopped before committing as requested\n",
+      "source_delta": [],
+      "result": "36e26044e3656be26d6a6542a4f5f3e096940ff2"
+    },
+    {
+      "branch": "origin/codex/remaining-lane-f-ui",
+      "tip": "6026049dff23dff84555d55993b9e04333bbdd03",
+      "before": "36e26044e3656be26d6a6542a4f5f3e096940ff2",
+      "scope": "remote instrumentation history reconciliation; code already cherry-picked and current browser implementation retained",
+      "merge_output": "Automatic merge went well; stopped before committing as requested\n",
+      "source_delta": [],
+      "result": "b9b3811c5e4325546ac7a2de51e58553358bce50"
+    }
+  ],
+  "source_checkpoints": [
+    {
+      "commit": "d42107f",
+      "scope": "B unfinished work-kernel and W01 evidence; 57 files preserved, completion not inferred"
+    },
+    {
+      "commit": "1c604e7",
+      "scope": "D native preparation and pending/HOLD evidence; 28 files preserved"
+    },
+    {
+      "commit": "8304873",
+      "scope": "C build graph; two files"
+    },
+    {
+      "commit": "fdb059c634c32c83760f35dd9175f49d9821762d",
+      "scope": "stage complete verified binding inventory before copies; explicit opt-in selection unchanged; repair only negative test-fixture typing; ABI evidence line endings normalized; original receipt bytes retained in branch/history",
+      "source_delta": [
+        "M\tdocs/research/package-subsystem-ports-20261006/evidence/input-validation/abi-binding-smoke.json",
+        "M\tpackages/cloudflare/test/mcp-derived.test.ts",
+        "M\tpackages/cloudflare/test/mixed-output-rejection.test.ts",
+        "M\tpackages/values/package.json",
+        "A\tpackages/values/scripts/stage-semantics.mjs"
+      ]
+    }
+  ],
+  "current_tracked_paths": 2567,
+  "historical_catalog_inputs": 243,
+  "accumulated_checkpoint_delta": [
+    {
+      "change": "A",
+      "paths": [
+        ".github/ci/README.md"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        ".github/ci/ts-gate.mjs"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        ".github/ci/ts-gate.test.mjs"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        ".github/ci/verify-receipt.mjs"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        ".github/ci/verify-receipt.test.mjs"
+      ]
+    },
+    {
+      "change": "M",
+      "paths": [
+        ".github/workflows/b1-join.yml"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        ".github/workflows/b2-join.yml"
+      ]
+    },
+    {
+      "change": "M",
+      "paths": [
+        ".github/workflows/lane-01.yml"
+      ]
+    },
+    {
+      "change": "M",
+      "paths": [
+        ".github/workflows/release.yml"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        ".github/workflows/ts-gates.yml"
+      ]
+    },
+    {
+      "change": "M",
+      "paths": [
+        ".gitignore"
+      ]
+    },
+    {
+      "change": "M",
+      "paths": [
+        "AGENTS.md"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "LICENSE"
+      ]
+    },
+    {
+      "change": "M",
+      "paths": [
+        "README.md"
+      ]
+    },
+    {
+      "change": "M",
+      "paths": [
+        "bun.lock"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "compiler/A2B-COMPOSITE-UNIQUE-CONVENTION.md"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "compiler/A2B-NAMED-ARGS-CONVENTION.md"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "compiler/A2B-ROUTING.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "compiler/A2B-UI-NODE-FACTORY-CONVENTION.md"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "compiler/A5-T08-PARITY-PROPOSAL.md"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "compiler/B4-G-NONHOOK-CONTEXT-BINDINGS.md"
+      ]
+    },
+    {
+      "change": "M",
+      "paths": [
+        "compiler/Cargo.toml"
+      ]
+    },
+    {
+      "change": "M",
+      "paths": [
+        "compiler/README.md"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "compiler/build.rs"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "compiler/can-completions.bash"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "compiler/can-completions.fish"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "compiler/can-completions.zsh"
+      ]
+    },
+    {
+      "change": "M",
+      "paths": [
+        "compiler/src/analysis/catalog.rs"
+      ]
+    },
+    {
+      "change": "M",
+      "paths": [
+        "compiler/src/analysis/effects.rs"
+      ]
+    },
+    {
+      "change": "M",
+      "paths": [
+        "compiler/src/analysis/examples.rs"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "compiler/src/analysis/migrate_check.rs"
+      ]
+    },
+    {
+      "change": "M",
+      "paths": [
+        "compiler/src/analysis/mod.rs"
+      ]
+    },
+    {
+      "change": "M",
+      "paths": [
+        "compiler/src/analysis/resolve.rs"
+      ]
+    },
+    {
+      "change": "M",
+      "paths": [
+        "compiler/src/analysis/types.rs"
+      ]
+    },
+    {
+      "change": "M",
+      "paths": [
+        "compiler/src/cli.rs"
+      ]
+    },
+    {
+      "change": "M",
+      "paths": [
+        "compiler/src/codegen/artifact.rs"
+      ]
+    },
+    {
+      "change": "M",
+      "paths": [
+        "compiler/src/codegen/ir.rs"
+      ]
+    },
+    {
+      "change": "M",
+      "paths": [
+        "compiler/src/codegen/js.rs"
+      ]
+    },
+    {
+      "change": "M",
+      "paths": [
+        "compiler/src/codegen/mod.rs"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "compiler/src/docs.rs"
+      ]
+    },
+    {
+      "change": "M",
+      "paths": [
+        "compiler/src/explain.rs"
+      ]
+    },
+    {
+      "change": "M",
+      "paths": [
+        "compiler/src/ide/queries.rs"
+      ]
+    },
+    {
+      "change": "M",
+      "paths": [
+        "compiler/src/lib.rs"
+      ]
+    },
+    {
+      "change": "M",
+      "paths": [
+        "compiler/src/lint/driver.rs"
+      ]
+    },
+    {
+      "change": "M",
+      "paths": [
+        "compiler/src/lsp/server.rs"
+      ]
+    },
+    {
+      "change": "M",
+      "paths": [
+        "compiler/src/main.rs"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "compiler/src/policy.rs"
+      ]
+    },
+    {
+      "change": "M",
+      "paths": [
+        "compiler/src/syntax/cst.rs"
+      ]
+    },
+    {
+      "change": "M",
+      "paths": [
+        "compiler/src/syntax/mod.rs"
+      ]
+    },
+    {
+      "change": "M",
+      "paths": [
+        "compiler/src/syntax/parser.rs"
+      ]
+    },
+    {
+      "change": "M",
+      "paths": [
+        "compiler/tests/analysis.rs"
+      ]
+    },
+    {
+      "change": "M",
+      "paths": [
+        "compiler/tests/authoring.rs"
+      ]
+    },
+    {
+      "change": "M",
+      "paths": [
+        "compiler/tests/b1_join.rs"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "compiler/tests/b3_authoring_join.rs"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "compiler/tests/b3_i5.rs"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "compiler/tests/b3_migrate.rs"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "compiler/tests/b3_s4.rs"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "compiler/tests/b4_check.rs"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "compiler/tests/b4_examples.rs"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "compiler/tests/b4_parse.rs"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "compiler/tests/b4_resolve.rs"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "compiler/tests/b4_setparent.rs"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "compiler/tests/b4_witness.rs"
+      ]
+    },
+    {
+      "change": "M",
+      "paths": [
+        "compiler/tests/check.rs"
+      ]
+    },
+    {
+      "change": "M",
+      "paths": [
+        "compiler/tests/codegen.rs"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "compiler/tests/common/lsp_driver.rs"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "compiler/tests/data/AuthoringDemo.can"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "compiler/tests/data/s4_fix.can"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "compiler/tests/docs.rs"
+      ]
+    },
+    {
+      "change": "M",
+      "paths": [
+        "compiler/tests/effects.rs"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "compiler/tests/exe.rs"
+      ]
+    },
+    {
+      "change": "M",
+      "paths": [
+        "compiler/tests/ide.rs"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "compiler/tests/mcp_p1.rs"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "compiler/tests/mcp_p4.rs"
+      ]
+    },
+    {
+      "change": "M",
+      "paths": [
+        "design/AI-AND-SERVICE-DRAFTS.md"
+      ]
+    },
+    {
+      "change": "M",
+      "paths": [
+        "design/UI-COMPONENTS.md"
+      ]
+    },
+    {
+      "change": "M",
+      "paths": [
+        "design/complex-apps/inbox.md"
+      ]
+    },
+    {
+      "change": "M",
+      "paths": [
+        "design/delivery-recipe-overrides-20261004.md"
+      ]
+    },
+    {
+      "change": "R096",
+      "paths": [
+        "EVALUATION.md",
+        "design/evaluation/PLAN.md"
+      ]
+    },
+    {
+      "change": "M",
+      "paths": [
+        "design/evaluation/briefs/ADOPTION.md"
+      ]
+    },
+    {
+      "change": "M",
+      "paths": [
+        "design/evaluation/briefs/INTERFACES.md"
+      ]
+    },
+    {
+      "change": "M",
+      "paths": [
+        "design/evaluation/briefs/LANGUAGE.md"
+      ]
+    },
+    {
+      "change": "M",
+      "paths": [
+        "design/jev/README.md"
+      ]
+    },
+    {
+      "change": "R075",
+      "paths": [
+        "design/jev/cafe-completion-20261004/analysis.md",
+        "design/jev/cafe-completion-20261004/README.md"
+      ]
+    },
+    {
+      "change": "D",
+      "paths": [
+        "design/jev/cafe-completion-20261004/equivalence.md"
+      ]
+    },
+    {
+      "change": "R069",
+      "paths": [
+        "design/jev/catch-intake-20261004/assessment.md",
+        "design/jev/catch-intake-20261004/README.md"
+      ]
+    },
+    {
+      "change": "D",
+      "paths": [
+        "design/jev/catch-intake-20261004/wording-check.md"
+      ]
+    },
+    {
+      "change": "R056",
+      "paths": [
+        "design/jev/check-completion-20261004/decision.md",
+        "design/jev/check-completion-20261004/README.md"
+      ]
+    },
+    {
+      "change": "D",
+      "paths": [
+        "design/jev/check-completion-20261004/wording-check.md"
+      ]
+    },
+    {
+      "change": "R054",
+      "paths": [
+        "design/jev/complex-enrich-20261004/assessment.md",
+        "design/jev/complex-enrich-20261004/README.md"
+      ]
+    },
+    {
+      "change": "D",
+      "paths": [
+        "design/jev/complex-enrich-20261004/wording.md"
+      ]
+    },
+    {
+      "change": "R059",
+      "paths": [
+        "design/jev/complex-inbox-20261004/verification.md",
+        "design/jev/complex-inbox-20261004/README.md"
+      ]
+    },
+    {
+      "change": "D",
+      "paths": [
+        "design/jev/complex-inbox-20261004/authoring-comparison.md"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "design/jev/complex-sync-20261004/README.md"
+      ]
+    },
+    {
+      "change": "D",
+      "paths": [
+        "design/jev/complex-sync-20261004/assessment.md"
+      ]
+    },
+    {
+      "change": "D",
+      "paths": [
+        "design/jev/complex-sync-20261004/wording.md"
+      ]
+    },
+    {
+      "change": "M",
+      "paths": [
+        "design/jev/crm-connections-reschedule-20261004/README.md"
+      ]
+    },
+    {
+      "change": "D",
+      "paths": [
+        "design/jev/crm-connections-reschedule-20261004/verification.md"
+      ]
+    },
+    {
+      "change": "R062",
+      "paths": [
+        "design/jev/daisyui-catalog-20261004/assessment.md",
+        "design/jev/daisyui-catalog-20261004/README.md"
+      ]
+    },
+    {
+      "change": "D",
+      "paths": [
+        "design/jev/daisyui-catalog-20261004/wording-check.md"
+      ]
+    },
+    {
+      "change": "R075",
+      "paths": [
+        "design/jev/delivery-recipe-overrides-20261004/verification.md",
+        "design/jev/delivery-recipe-overrides-20261004/README.md"
+      ]
+    },
+    {
+      "change": "D",
+      "paths": [
+        "design/jev/delivery-recipe-overrides-20261004/wording-check.md"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "design/jev/description-reference-20261005/README.md"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "design/jev/description-reference-20261005/request-1.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "design/jev/description-reference-20261005/request-2.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "design/jev/description-reference-20261005/request-3.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "design/jev/description-reference-20261005/result-1.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "design/jev/description-reference-20261005/result-2.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "design/jev/description-reference-20261005/result-3.json"
+      ]
+    },
+    {
+      "change": "R067",
+      "paths": [
+        "design/jev/desk-handoff-20261004/review.md",
+        "design/jev/desk-handoff-20261004/README.md"
+      ]
+    },
+    {
+      "change": "D",
+      "paths": [
+        "design/jev/desk-handoff-20261004/wording-check.md"
+      ]
+    },
+    {
+      "change": "R055",
+      "paths": [
+        "design/jev/feedback-completion-20261004/analysis.md",
+        "design/jev/feedback-completion-20261004/README.md"
+      ]
+    },
+    {
+      "change": "D",
+      "paths": [
+        "design/jev/feedback-completion-20261004/equivalence.md"
+      ]
+    },
+    {
+      "change": "R055",
+      "paths": [
+        "design/jev/hire-onboard-20261004/assessment.md",
+        "design/jev/hire-onboard-20261004/README.md"
+      ]
+    },
+    {
+      "change": "D",
+      "paths": [
+        "design/jev/hire-onboard-20261004/wording-check.md"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "design/jev/hire-retention-20261004/README.md"
+      ]
+    },
+    {
+      "change": "D",
+      "paths": [
+        "design/jev/hire-retention-20261004/assessment.md"
+      ]
+    },
+    {
+      "change": "D",
+      "paths": [
+        "design/jev/hire-retention-20261004/corrected-wording-check.md"
+      ]
+    },
+    {
+      "change": "D",
+      "paths": [
+        "design/jev/hire-retention-20261004/correction.md"
+      ]
+    },
+    {
+      "change": "D",
+      "paths": [
+        "design/jev/hire-retention-20261004/wording-check.md"
+      ]
+    },
+    {
+      "change": "R083",
+      "paths": [
+        "design/jev/loyalty-eligibility-20261004/assessment.md",
+        "design/jev/loyalty-eligibility-20261004/README.md"
+      ]
+    },
+    {
+      "change": "D",
+      "paths": [
+        "design/jev/loyalty-eligibility-20261004/wording-check.md"
+      ]
+    },
+    {
+      "change": "R064",
+      "paths": [
+        "design/jev/maintain-inspection-progress/verification.md",
+        "design/jev/maintain-inspection-progress/README.md"
+      ]
+    },
+    {
+      "change": "D",
+      "paths": [
+        "design/jev/maintain-inspection-progress/decision.md"
+      ]
+    },
+    {
+      "change": "R052",
+      "paths": [
+        "design/jev/maintain-recovery-20261004/review.md",
+        "design/jev/maintain-recovery-20261004/README.md"
+      ]
+    },
+    {
+      "change": "D",
+      "paths": [
+        "design/jev/maintain-recovery-20261004/wording-check.md"
+      ]
+    },
+    {
+      "change": "R057",
+      "paths": [
+        "design/jev/mcp-file-handoff-20261004/assessment.md",
+        "design/jev/mcp-file-handoff-20261004/README.md"
+      ]
+    },
+    {
+      "change": "D",
+      "paths": [
+        "design/jev/mcp-file-handoff-20261004/wording-check.md"
+      ]
+    },
+    {
+      "change": "R053",
+      "paths": [
+        "design/jev/member-consumed-stage-20261004/assessment.md",
+        "design/jev/member-consumed-stage-20261004/README.md"
+      ]
+    },
+    {
+      "change": "D",
+      "paths": [
+        "design/jev/member-consumed-stage-20261004/wording-check.md"
+      ]
+    },
+    {
+      "change": "R066",
+      "paths": [
+        "design/jev/member-owner-20261004/assessment.md",
+        "design/jev/member-owner-20261004/README.md"
+      ]
+    },
+    {
+      "change": "D",
+      "paths": [
+        "design/jev/member-owner-20261004/wording-check.md"
+      ]
+    },
+    {
+      "change": "R069",
+      "paths": [
+        "design/jev/muse-feedback-20261004/assessment.md",
+        "design/jev/muse-feedback-20261004/README.md"
+      ]
+    },
+    {
+      "change": "D",
+      "paths": [
+        "design/jev/muse-feedback-20261004/bounded-review.md"
+      ]
+    },
+    {
+      "change": "R069",
+      "paths": [
+        "design/jev/record-input-admission-20261004/assessment.md",
+        "design/jev/record-input-admission-20261004/README.md"
+      ]
+    },
+    {
+      "change": "D",
+      "paths": [
+        "design/jev/record-input-admission-20261004/wording-check.md"
+      ]
+    },
+    {
+      "change": "R064",
+      "paths": [
+        "design/jev/rent-sales-producer-20261004/assessment.md",
+        "design/jev/rent-sales-producer-20261004/README.md"
+      ]
+    },
+    {
+      "change": "D",
+      "paths": [
+        "design/jev/rent-sales-producer-20261004/wording-check.md"
+      ]
+    },
+    {
+      "change": "R062",
+      "paths": [
+        "design/jev/rent-sales-version-boundary-20261004/assessment.md",
+        "design/jev/rent-sales-version-boundary-20261004/README.md"
+      ]
+    },
+    {
+      "change": "D",
+      "paths": [
+        "design/jev/rent-sales-version-boundary-20261004/wording-check.md"
+      ]
+    },
+    {
+      "change": "R083",
+      "paths": [
+        "design/jev/stats-breakdown-20261004/assessment.md",
+        "design/jev/stats-breakdown-20261004/README.md"
+      ]
+    },
+    {
+      "change": "D",
+      "paths": [
+        "design/jev/stats-breakdown-20261004/wording-check.md"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "design/jev/t33-context-correction-20261006/README.md"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "design/jev/t33-context-correction-20261006/request-1.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "design/jev/t33-context-correction-20261006/request-2.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "design/jev/t33-context-correction-20261006/request-3.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "design/jev/t33-context-correction-20261006/result-1.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "design/jev/t33-context-correction-20261006/result-2.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "design/jev/t33-context-correction-20261006/result-3.json"
+      ]
+    },
+    {
+      "change": "R082",
+      "paths": [
+        "design/jev/time-completion-20261004/analysis.md",
+        "design/jev/time-completion-20261004/README.md"
+      ]
+    },
+    {
+      "change": "D",
+      "paths": [
+        "design/jev/time-completion-20261004/wording-check.md"
+      ]
+    },
+    {
+      "change": "M",
+      "paths": [
+        "design/muse-migration-20261004/feedback-design.md"
+      ]
+    },
+    {
+      "change": "M",
+      "paths": [
+        "design/muse-migration-20261004/progress-design.md"
+      ]
+    },
+    {
+      "change": "M",
+      "paths": [
+        "design/owner-fanout-20261004.md"
+      ]
+    },
+    {
+      "change": "M",
+      "paths": [
+        "design/research-ai-capabilities-20261004.md"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "docs/authoring-demo.md"
+      ]
+    },
+    {
+      "change": "M",
+      "paths": [
+        "docs/dev-setup.md"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "docs/ideal-filetree-plan.md"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "docs/ideal-filetree-plan/allocations.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "docs/ideal-filetree-plan/backlog.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "docs/ideal-filetree-plan/baseline.md"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "docs/ideal-filetree-plan/consolidation-20261006.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "docs/ideal-filetree-plan/consultations.md"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "docs/ideal-filetree-plan/desired-tree.md"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "docs/ideal-filetree-plan/findings.md"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "docs/ideal-filetree-plan/finished-product/FP.IDENTITY-CONTRACT.contract.md"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "docs/ideal-filetree-plan/finished-product/apps.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "docs/ideal-filetree-plan/finished-product/apps.md"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "docs/ideal-filetree-plan/finished-product/baseline.md"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "docs/ideal-filetree-plan/finished-product/capture.py"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "docs/ideal-filetree-plan/finished-product/check.py"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "docs/ideal-filetree-plan/finished-product/consultations.md"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "docs/ideal-filetree-plan/finished-product/consultations/request-1.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "docs/ideal-filetree-plan/finished-product/consultations/request-2.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "docs/ideal-filetree-plan/finished-product/consultations/request-3.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "docs/ideal-filetree-plan/finished-product/consultations/result-1.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "docs/ideal-filetree-plan/finished-product/consultations/result-2.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "docs/ideal-filetree-plan/finished-product/consultations/result-3.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "docs/ideal-filetree-plan/finished-product/converge.py"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "docs/ideal-filetree-plan/finished-product/documentation-inventory.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "docs/ideal-filetree-plan/finished-product/documentation-review.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "docs/ideal-filetree-plan/finished-product/entry-integration.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "docs/ideal-filetree-plan/finished-product/findings.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "docs/ideal-filetree-plan/finished-product/findings.md"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "docs/ideal-filetree-plan/finished-product/inventory.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "docs/ideal-filetree-plan/finished-product/late-source.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "docs/ideal-filetree-plan/finished-product/late-source.md"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "docs/ideal-filetree-plan/finished-product/oversized.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "docs/ideal-filetree-plan/finished-product/ownership.md"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "docs/ideal-filetree-plan/finished-product/requirements.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "docs/ideal-filetree-plan/finished-product/review-map.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "docs/ideal-filetree-plan/finished-product/reviews/apps-delivery.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "docs/ideal-filetree-plan/finished-product/reviews/apps-delivery.md"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "docs/ideal-filetree-plan/finished-product/reviews/apps-language.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "docs/ideal-filetree-plan/finished-product/reviews/apps-language.md"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "docs/ideal-filetree-plan/finished-product/reviews/apps-work.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "docs/ideal-filetree-plan/finished-product/reviews/apps-work.md"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "docs/ideal-filetree-plan/finished-product/reviews/delivery.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "docs/ideal-filetree-plan/finished-product/reviews/delivery.md"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "docs/ideal-filetree-plan/finished-product/reviews/language.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "docs/ideal-filetree-plan/finished-product/reviews/language.md"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "docs/ideal-filetree-plan/finished-product/reviews/late-challenge-language.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "docs/ideal-filetree-plan/finished-product/reviews/late-challenge-language.md"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "docs/ideal-filetree-plan/finished-product/reviews/late-dispatch.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "docs/ideal-filetree-plan/finished-product/reviews/late-dispatch.md"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "docs/ideal-filetree-plan/finished-product/reviews/late-work-tests.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "docs/ideal-filetree-plan/finished-product/reviews/late-work-tests.md"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "docs/ideal-filetree-plan/finished-product/reviews/product.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "docs/ideal-filetree-plan/finished-product/reviews/product.md"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "docs/ideal-filetree-plan/finished-product/reviews/work.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "docs/ideal-filetree-plan/finished-product/reviews/work.md"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "docs/ideal-filetree-plan/finished-product/target-tree.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "docs/ideal-filetree-plan/finished-product/target-tree.md"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "docs/ideal-filetree-plan/finished-product/tasks.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "docs/ideal-filetree-plan/finished-product/tasks.md"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "docs/ideal-filetree-plan/finished-product/verification.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "docs/ideal-filetree-plan/finished-product/workflows.md"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "docs/ideal-filetree-plan/integration-20261006-a-b4g.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "docs/ideal-filetree-plan/integration-20261006-a-t02.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "docs/ideal-filetree-plan/integration-20261006-a-table.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "docs/ideal-filetree-plan/integration-20261006-a1.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "docs/ideal-filetree-plan/integration-20261006-a2a-d3bwire.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "docs/ideal-filetree-plan/integration-20261006-a2b.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "docs/ideal-filetree-plan/integration-20261006-a3.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "docs/ideal-filetree-plan/integration-20261006-a4.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "docs/ideal-filetree-plan/integration-20261006-a5.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "docs/ideal-filetree-plan/integration-20261006-a5p2.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "docs/ideal-filetree-plan/integration-20261006-b1-b2.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "docs/ideal-filetree-plan/integration-20261006-b3.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "docs/ideal-filetree-plan/integration-20261006-b4-authority.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "docs/ideal-filetree-plan/integration-20261006-b4.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "docs/ideal-filetree-plan/integration-20261006-b5.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "docs/ideal-filetree-plan/integration-20261006-b7-emitter.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "docs/ideal-filetree-plan/integration-20261006-b7-serve-c04r.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "docs/ideal-filetree-plan/integration-20261006-buildfix.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "docs/ideal-filetree-plan/integration-20261006-c-join.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "docs/ideal-filetree-plan/integration-20261006-c032-c051.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "docs/ideal-filetree-plan/integration-20261006-c041-gates.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "docs/ideal-filetree-plan/integration-20261006-c042.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "docs/ideal-filetree-plan/integration-20261006-c04r03.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "docs/ideal-filetree-plan/integration-20261006-c1-c4.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "docs/ideal-filetree-plan/integration-20261006-c2.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "docs/ideal-filetree-plan/integration-20261006-c3.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "docs/ideal-filetree-plan/integration-20261006-ci-native.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "docs/ideal-filetree-plan/integration-20261006-ci.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "docs/ideal-filetree-plan/integration-20261006-d2.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "docs/ideal-filetree-plan/integration-20261006-d3a.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "docs/ideal-filetree-plan/integration-20261006-d3b-d3c.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "docs/ideal-filetree-plan/integration-20261006-d3bjoin.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "docs/ideal-filetree-plan/integration-20261006-d3bserve.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "docs/ideal-filetree-plan/integration-20261006-e-v2.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "docs/ideal-filetree-plan/integration-20261006-e1.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "docs/ideal-filetree-plan/integration-20261006-e2a.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "docs/ideal-filetree-plan/integration-20261006-e2b.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "docs/ideal-filetree-plan/integration-20261006-e5001.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "docs/ideal-filetree-plan/integration-20261006-f1.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "docs/ideal-filetree-plan/integration-20261006-fcapture.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "docs/ideal-filetree-plan/integration-20261006-fpcsv.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "docs/ideal-filetree-plan/integration-20261006-fpcsvcat.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "docs/ideal-filetree-plan/integration-20261006-fpcsvd.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "docs/ideal-filetree-plan/integration-20261006-fpcsvjoin.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "docs/ideal-filetree-plan/integration-20261006-fpcsvui.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "docs/ideal-filetree-plan/integration-20261006-fpexp.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "docs/ideal-filetree-plan/integration-20261006-fpexpb.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "docs/ideal-filetree-plan/integration-20261006-fpexpd.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "docs/ideal-filetree-plan/integration-20261006-fpexpjoin.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "docs/ideal-filetree-plan/integration-20261006-g-lg00-lg01.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "docs/ideal-filetree-plan/integration-20261006-identd.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "docs/ideal-filetree-plan/integration-20261006-intake.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "docs/ideal-filetree-plan/integration-20261006-lg02.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "docs/ideal-filetree-plan/integration-20261006-lg03.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "docs/ideal-filetree-plan/integration-20261006-lg03a.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "docs/ideal-filetree-plan/integration-20261006-mirror.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "docs/ideal-filetree-plan/integration-20261006-n1s.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "docs/ideal-filetree-plan/integration-20261006-o2.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "docs/ideal-filetree-plan/integration-20261006-p012.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "docs/ideal-filetree-plan/integration-20261006-p032.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "docs/ideal-filetree-plan/integration-20261006-p033.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "docs/ideal-filetree-plan/integration-20261006-p034.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "docs/ideal-filetree-plan/integration-20261006-p091p03.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "docs/ideal-filetree-plan/integration-20261006-q2r.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "docs/ideal-filetree-plan/integration-20261006-q3.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "docs/ideal-filetree-plan/integration-20261006-q4.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "docs/ideal-filetree-plan/integration-20261006-r01-residual.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "docs/ideal-filetree-plan/integration-20261006-r01.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "docs/ideal-filetree-plan/integration-20261006-s3pin.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "docs/ideal-filetree-plan/integration-20261006-v021.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "docs/ideal-filetree-plan/integration-20261006-v022.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "docs/ideal-filetree-plan/integration-20261006-v023.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "docs/ideal-filetree-plan/integration-20261006-v024.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "docs/ideal-filetree-plan/integration-20261006-v025.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "docs/ideal-filetree-plan/integration-20261006-v031.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "docs/ideal-filetree-plan/integration-20261006-v034ts.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "docs/ideal-filetree-plan/integration-20261006-w013.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "docs/ideal-filetree-plan/inventory.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "docs/ideal-filetree-plan/lanes.md"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "docs/ideal-filetree-plan/main-merge-20261006.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "docs/ideal-filetree-plan/ownership.md"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "docs/ideal-filetree-plan/prior-review.md"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "docs/ideal-filetree-plan/reviews/compiler-coverage.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "docs/ideal-filetree-plan/reviews/compiler.md"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "docs/ideal-filetree-plan/reviews/platform-coverage.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "docs/ideal-filetree-plan/reviews/platform.md"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "docs/ideal-filetree-plan/reviews/repository.md"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "docs/ideal-filetree-plan/reviews/runtime-coverage.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "docs/ideal-filetree-plan/reviews/runtime.md"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "docs/ideal-filetree-plan/slices.md"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "docs/ideal-filetree-plan/target-tree.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "docs/ideal-filetree-plan/tasks.md"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "docs/ideal-filetree-plan/verification.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "docs/install.md"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "docs/research/package-subsystem-ports-20261006/README.md"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "docs/research/package-subsystem-ports-20261006/boundary-options.md"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "docs/research/package-subsystem-ports-20261006/evidence/arithmetic-probe.mjs"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "docs/research/package-subsystem-ports-20261006/evidence/arithmetic-probe.result.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "docs/research/package-subsystem-ports-20261006/evidence/boundary-options/request-1.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "docs/research/package-subsystem-ports-20261006/evidence/boundary-options/request-2.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "docs/research/package-subsystem-ports-20261006/evidence/boundary-options/request-3.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "docs/research/package-subsystem-ports-20261006/evidence/boundary-options/result-1.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "docs/research/package-subsystem-ports-20261006/evidence/boundary-options/result-2.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "docs/research/package-subsystem-ports-20261006/evidence/boundary-options/result-3.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "docs/research/package-subsystem-ports-20261006/evidence/boundary-options/verification.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "docs/research/package-subsystem-ports-20261006/evidence/full-evaluation/artifact-tests.log"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "docs/research/package-subsystem-ports-20261006/evidence/full-evaluation/cloudflare-typecheck.log"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "docs/research/package-subsystem-ports-20261006/evidence/full-evaluation/request-1.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "docs/research/package-subsystem-ports-20261006/evidence/full-evaluation/request-2.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "docs/research/package-subsystem-ports-20261006/evidence/full-evaluation/request-3.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "docs/research/package-subsystem-ports-20261006/evidence/full-evaluation/result-1.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "docs/research/package-subsystem-ports-20261006/evidence/full-evaluation/result-2.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "docs/research/package-subsystem-ports-20261006/evidence/full-evaluation/result-3.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "docs/research/package-subsystem-ports-20261006/evidence/full-evaluation/source-snapshot.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "docs/research/package-subsystem-ports-20261006/evidence/full-evaluation/values-boundary-probe.mjs"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "docs/research/package-subsystem-ports-20261006/evidence/full-evaluation/values-boundary-probe.result.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "docs/research/package-subsystem-ports-20261006/evidence/full-evaluation/values-build.log"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "docs/research/package-subsystem-ports-20261006/evidence/full-evaluation/values-tests.log"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "docs/research/package-subsystem-ports-20261006/evidence/full-evaluation/verification.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "docs/research/package-subsystem-ports-20261006/evidence/full-evaluation/work-artifact-probe.mjs"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "docs/research/package-subsystem-ports-20261006/evidence/full-evaluation/work-artifact-probe.result.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "docs/research/package-subsystem-ports-20261006/evidence/full-evaluation/work-decision-tests.log"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "docs/research/package-subsystem-ports-20261006/evidence/full-evaluation/work-progress-tests.log"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "docs/research/package-subsystem-ports-20261006/evidence/full-evaluation/work-typecheck.log"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation-plans/request-1.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation-plans/request-2.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation-plans/request-3.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation-plans/result-1.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation-plans/result-2.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation-plans/result-3.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation-plans/verification.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/artifact-preparation/P01.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/artifact-preparation/P02.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/artifact-preparation/P03.foundation.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/artifact-preparation/P03.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/artifact-preparation/baseline.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/artifact-preparation/blocked-gates.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/artifact-preparation/bundle-join-request.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/artifact-preparation/inventory.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/artifact-preparation/native-release-request.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/artifact-preparation/prepared-ts.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/artifact-preparation/stage-contract.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/exact-values/core/binding-smoke-20261006.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/exact-values/core/contracts.md"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/exact-values/core/scope.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/exact-values/fixtures/budgets.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/exact-values/fixtures/parity-ledger.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/exact-values/fixtures/parity-run-20261006.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/exact-values/host/bootstrap-20261006.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/shared/C01.ready.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/shared/C02.ready.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/shared/C03.ready.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/shared/C05.ready.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/shared/loader-smoke.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/shared/ownership.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/shared/pins.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/shared/prepared-baseline-contract.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/shared/scope.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/shared/transport-contracts.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/shared/workloads.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/work-transitions/baselines/current-ts.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/work-transitions/baselines/original-fixtures/clone-vectors.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/work-transitions/baselines/original-fixtures/identity-vectors.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/work-transitions/baselines/original-fixtures/persisted-bytes.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/work-transitions/baselines/original-fixtures/rows/work_dispatch.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/work-transitions/baselines/original-fixtures/rows/work_every_slot.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/work-transitions/baselines/original-fixtures/rows/work_fanout_checkpoint.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/work-transitions/baselines/original-fixtures/rows/work_fanout_child.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/work-transitions/baselines/original-fixtures/rows/work_fanout_intent.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/work-transitions/baselines/original-fixtures/rows/work_occurrence.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/work-transitions/baselines/original-fixtures/rows/work_receipt.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/work-transitions/baselines/original-fixtures/rows/work_receipt_association.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/work-transitions/baselines/original-fixtures/rows/work_schedule.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/work-transitions/baselines/original-fixtures/rows/work_supersession.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/work-transitions/baselines/verify.log"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/work-transitions/contracts/budgets.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/work-transitions/contracts/callers.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/work-transitions/contracts/coverage.md"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/work-transitions/contracts/profiles.md"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/work-transitions/contracts/workloads.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/work-transitions/handoffs/abi.md"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/work-transitions/handoffs/build-request.md"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/work-transitions/handoffs/foundation.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/work-transitions/ownership/files.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/work-transitions/ownership/graph.md"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/work-transitions/w01-gate.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "docs/research/package-subsystem-ports-20261006/evidence/input-validation/abi-binding-smoke.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "docs/research/package-subsystem-ports-20261006/evidence/input-validation/abi-decisions.md"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "docs/research/package-subsystem-ports-20261006/evidence/input-validation/abi-vectors.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "docs/research/package-subsystem-ports-20261006/evidence/input-validation/caller-inventory.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "docs/research/package-subsystem-ports-20261006/evidence/input-validation/contracts.md"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "docs/research/package-subsystem-ports-20261006/evidence/input-validation/current-ts.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "docs/research/package-subsystem-ports-20261006/evidence/input-validation/http-adoption-gate.md"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "docs/research/package-subsystem-ports-20261006/evidence/input-validation/plan-contract.md"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "docs/research/package-subsystem-ports-20261006/evidence/input-validation/prepared-http.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "docs/research/package-subsystem-ports-20261006/evidence/input-validation/prepared-mcp.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "docs/research/package-subsystem-ports-20261006/evidence/input-validation/prepared-plan-handoff.md"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "docs/research/package-subsystem-ports-20261006/evidence/input-validation/prepared-state.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "docs/research/package-subsystem-ports-20261006/evidence/input-validation/prepared-values.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "docs/research/package-subsystem-ports-20261006/evidence/input-validation/state-contract.md"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "docs/research/package-subsystem-ports-20261006/evidence/input-validation/v01-review.md"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "docs/research/package-subsystem-ports-20261006/evidence/input-validation/v032-v034-20261006.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "docs/research/package-subsystem-ports-20261006/evidence/input-validation/v033-owned-input-20261006.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "docs/research/package-subsystem-ports-20261006/evidence/lane-conversion/README.md"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "docs/research/package-subsystem-ports-20261006/evidence/lane-conversion/before.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "docs/research/package-subsystem-ports-20261006/evidence/lane-conversion/verification.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "docs/research/package-subsystem-ports-20261006/evidence/lane-conversion/verify.py"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "docs/research/package-subsystem-ports-20261006/evidence/request-1.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "docs/research/package-subsystem-ports-20261006/evidence/request-2.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "docs/research/package-subsystem-ports-20261006/evidence/request-3.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "docs/research/package-subsystem-ports-20261006/evidence/result-1.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "docs/research/package-subsystem-ports-20261006/evidence/result-2.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "docs/research/package-subsystem-ports-20261006/evidence/result-3.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "docs/research/package-subsystem-ports-20261006/full-evaluation.md"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "docs/research/package-subsystem-ports-20261006/implementation-plans/README.md"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "docs/research/package-subsystem-ports-20261006/implementation-plans/artifact-preparation.md"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "docs/research/package-subsystem-ports-20261006/implementation-plans/artifact-preparation.tasks.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "docs/research/package-subsystem-ports-20261006/implementation-plans/exact-values.md"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "docs/research/package-subsystem-ports-20261006/implementation-plans/exact-values.tasks.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "docs/research/package-subsystem-ports-20261006/implementation-plans/execution-manifest.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "docs/research/package-subsystem-ports-20261006/implementation-plans/input-validation.audit.md"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "docs/research/package-subsystem-ports-20261006/implementation-plans/input-validation.md"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "docs/research/package-subsystem-ports-20261006/implementation-plans/input-validation.tasks.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "docs/research/package-subsystem-ports-20261006/implementation-plans/shared.tasks.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "docs/research/package-subsystem-ports-20261006/implementation-plans/work-transitions.md"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "docs/research/package-subsystem-ports-20261006/implementation-plans/work-transitions.tasks.json"
+      ]
+    },
+    {
+      "change": "R076",
+      "paths": [
+        "DECISIONS.md",
+        "docs/specification/DECISIONS.md"
+      ]
+    },
+    {
+      "change": "R095",
+      "paths": [
+        "DESIGN.md",
+        "docs/specification/DESIGN.md"
+      ]
+    },
+    {
+      "change": "R095",
+      "paths": [
+        "GRAMMAR.md",
+        "docs/specification/GRAMMAR.md"
+      ]
+    },
+    {
+      "change": "R098",
+      "paths": [
+        "REQUIREMENTS.md",
+        "docs/specification/REQUIREMENTS.md"
+      ]
+    },
+    {
+      "change": "M",
+      "paths": [
+        "draft"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "editors/vscode/.empty-typeroot/.gitkeep"
+      ]
+    },
+    {
+      "change": "M",
+      "paths": [
+        "editors/vscode/.vscodeignore"
+      ]
+    },
+    {
+      "change": "M",
+      "paths": [
+        "editors/vscode/AUDIT-RESOLUTION.md"
+      ]
+    },
+    {
+      "change": "M",
+      "paths": [
+        "editors/vscode/GRAMMAR-AUDIT.md"
+      ]
+    },
+    {
+      "change": "M",
+      "paths": [
+        "editors/vscode/README.md"
+      ]
+    },
+    {
+      "change": "D",
+      "paths": [
+        "editors/vscode/audit-astra/REPORT.md"
+      ]
+    },
+    {
+      "change": "D",
+      "paths": [
+        "editors/vscode/audit-astra/build-inventory.py"
+      ]
+    },
+    {
+      "change": "D",
+      "paths": [
+        "editors/vscode/audit-astra/changed-during-audit.json"
+      ]
+    },
+    {
+      "change": "D",
+      "paths": [
+        "editors/vscode/audit-astra/changed-rule-current-path.txt"
+      ]
+    },
+    {
+      "change": "D",
+      "paths": [
+        "editors/vscode/audit-astra/changed-rule-recheck-20261004T020201Z/RECHECK.md"
+      ]
+    },
+    {
+      "change": "D",
+      "paths": [
+        "editors/vscode/audit-astra/changed-rule-recheck-20261004T020201Z/inline-require-probe.cjs"
+      ]
+    },
+    {
+      "change": "D",
+      "paths": [
+        "editors/vscode/audit-astra/changed-rule-recheck-20261004T020201Z/inline-require-theme-evidence.json"
+      ]
+    },
+    {
+      "change": "D",
+      "paths": [
+        "editors/vscode/audit-astra/changed-rule-recheck-20261004T020201Z/inline-require-theme-result.md"
+      ]
+    },
+    {
+      "change": "D",
+      "paths": [
+        "editors/vscode/audit-astra/changed-rule-recheck-20261004T020201Z/manifest.json"
+      ]
+    },
+    {
+      "change": "D",
+      "paths": [
+        "editors/vscode/audit-astra/changed-rule-recheck-20261004T020201Z/probe-results.json"
+      ]
+    },
+    {
+      "change": "D",
+      "paths": [
+        "editors/vscode/audit-astra/changed-rule-recheck-20261004T020201Z/probes.json"
+      ]
+    },
+    {
+      "change": "D",
+      "paths": [
+        "editors/vscode/audit-astra/changed-rule-recheck-20261004T020201Z/results.txt"
+      ]
+    },
+    {
+      "change": "D",
+      "paths": [
+        "editors/vscode/audit-astra/changed-rule-recheck-20261004T020201Z/snapshot/GRAMMAR.md"
+      ]
+    },
+    {
+      "change": "D",
+      "paths": [
+        "editors/vscode/audit-astra/changed-rule-recheck-20261004T020201Z/snapshot/editors/vscode/package.json"
+      ]
+    },
+    {
+      "change": "D",
+      "paths": [
+        "editors/vscode/audit-astra/changed-rule-recheck-20261004T020201Z/snapshot/editors/vscode/syntaxes/can.tmLanguage.json"
+      ]
+    },
+    {
+      "change": "D",
+      "paths": [
+        "editors/vscode/audit-astra/changed-rule-recheck-20261004T020201Z/sources/inline-do-require.can"
+      ]
+    },
+    {
+      "change": "D",
+      "paths": [
+        "editors/vscode/audit-astra/changed-rule-recheck-20261004T020201Z/sources/multiline-parenthesized-form.can"
+      ]
+    },
+    {
+      "change": "D",
+      "paths": [
+        "editors/vscode/audit-astra/changed-rule-recheck-20261004T020201Z/sources/owned-model-app.can"
+      ]
+    },
+    {
+      "change": "D",
+      "paths": [
+        "editors/vscode/audit-astra/changed-rule-recheck-20261004T020201Z/sources/owned-model-capability.can"
+      ]
+    },
+    {
+      "change": "D",
+      "paths": [
+        "editors/vscode/audit-astra/changed-rule-recheck-20261004T020201Z/sources/owned-model-contract.can"
+      ]
+    },
+    {
+      "change": "D",
+      "paths": [
+        "editors/vscode/audit-astra/changed-rule-recheck-20261004T020201Z/sources/owned-model-event.can"
+      ]
+    },
+    {
+      "change": "D",
+      "paths": [
+        "editors/vscode/audit-astra/changed-rule-recheck-20261004T020201Z/sources/owned-model-package.can"
+      ]
+    },
+    {
+      "change": "D",
+      "paths": [
+        "editors/vscode/audit-astra/changed-rule-recheck-20261004T020201Z/sources/owned-model-role.can"
+      ]
+    },
+    {
+      "change": "D",
+      "paths": [
+        "editors/vscode/audit-astra/changed-rule-recheck-20261004T020201Z/sources/qualified-migration-targets.can"
+      ]
+    },
+    {
+      "change": "D",
+      "paths": [
+        "editors/vscode/audit-astra/changed-rule-recheck-20261004T020201Z/tokenize.cjs"
+      ]
+    },
+    {
+      "change": "D",
+      "paths": [
+        "editors/vscode/audit-astra/corpus-tokens.json"
+      ]
+    },
+    {
+      "change": "D",
+      "paths": [
+        "editors/vscode/audit-astra/description-probe.cjs"
+      ]
+    },
+    {
+      "change": "D",
+      "paths": [
+        "editors/vscode/audit-astra/description-results.json"
+      ]
+    },
+    {
+      "change": "D",
+      "paths": [
+        "editors/vscode/audit-astra/description-results.txt"
+      ]
+    },
+    {
+      "change": "D",
+      "paths": [
+        "editors/vscode/audit-astra/execution-presentation-latest-results.json"
+      ]
+    },
+    {
+      "change": "D",
+      "paths": [
+        "editors/vscode/audit-astra/execution-presentation-probe-results.json"
+      ]
+    },
+    {
+      "change": "D",
+      "paths": [
+        "editors/vscode/audit-astra/execution-presentation-probes.json"
+      ]
+    },
+    {
+      "change": "D",
+      "paths": [
+        "editors/vscode/audit-astra/execution-presentation-tokenize.cjs"
+      ]
+    },
+    {
+      "change": "D",
+      "paths": [
+        "editors/vscode/audit-astra/final-changed-files/DECISIONS.md"
+      ]
+    },
+    {
+      "change": "D",
+      "paths": [
+        "editors/vscode/audit-astra/final-changed-files/DESIGN.md"
+      ]
+    },
+    {
+      "change": "D",
+      "paths": [
+        "editors/vscode/audit-astra/final-changed-files/draft/CanField.can"
+      ]
+    },
+    {
+      "change": "D",
+      "paths": [
+        "editors/vscode/audit-astra/final-changed-files/draft/CanMaintain.can"
+      ]
+    },
+    {
+      "change": "D",
+      "paths": [
+        "editors/vscode/audit-astra/final-changed-files/draft/CanMember.can"
+      ]
+    },
+    {
+      "change": "D",
+      "paths": [
+        "editors/vscode/audit-astra/final-changed-files/draft/CanRent.can"
+      ]
+    },
+    {
+      "change": "D",
+      "paths": [
+        "editors/vscode/audit-astra/final-changed-files/draft/shared/Locations.can"
+      ]
+    },
+    {
+      "change": "D",
+      "paths": [
+        "editors/vscode/audit-astra/final-changed-files/editors/vscode/README.md"
+      ]
+    },
+    {
+      "change": "D",
+      "paths": [
+        "editors/vscode/audit-astra/final-changed-files/editors/vscode/check-highlighting.cjs"
+      ]
+    },
+    {
+      "change": "D",
+      "paths": [
+        "editors/vscode/audit-astra/final-changed-files/editors/vscode/package.json"
+      ]
+    },
+    {
+      "change": "D",
+      "paths": [
+        "editors/vscode/audit-astra/final-changed-files/editors/vscode/syntaxes/can.tmLanguage.json"
+      ]
+    },
+    {
+      "change": "D",
+      "paths": [
+        "editors/vscode/audit-astra/final-file-drift.json"
+      ]
+    },
+    {
+      "change": "D",
+      "paths": [
+        "editors/vscode/audit-astra/final-palette-swap-settings.json"
+      ]
+    },
+    {
+      "change": "D",
+      "paths": [
+        "editors/vscode/audit-astra/followup-013-theme-evidence.json"
+      ]
+    },
+    {
+      "change": "D",
+      "paths": [
+        "editors/vscode/audit-astra/followup-013-theme-probe.cjs"
+      ]
+    },
+    {
+      "change": "D",
+      "paths": [
+        "editors/vscode/audit-astra/followup-013-theme.md"
+      ]
+    },
+    {
+      "change": "D",
+      "paths": [
+        "editors/vscode/audit-astra/followup-013/manifest.json"
+      ]
+    },
+    {
+      "change": "D",
+      "paths": [
+        "editors/vscode/audit-astra/followup-013/package.json"
+      ]
+    },
+    {
+      "change": "D",
+      "paths": [
+        "editors/vscode/audit-astra/followup-013/syntaxes/can.tmLanguage.json"
+      ]
+    },
+    {
+      "change": "D",
+      "paths": [
+        "editors/vscode/audit-astra/inventory-execution-presentation.md"
+      ]
+    },
+    {
+      "change": "D",
+      "paths": [
+        "editors/vscode/audit-astra/inventory-foundation.md"
+      ]
+    },
+    {
+      "change": "D",
+      "paths": [
+        "editors/vscode/audit-astra/latest-corpus-tokens.json"
+      ]
+    },
+    {
+      "change": "D",
+      "paths": [
+        "editors/vscode/audit-astra/latest-extension/package.json"
+      ]
+    },
+    {
+      "change": "D",
+      "paths": [
+        "editors/vscode/audit-astra/latest-extension/syntaxes/can.tmLanguage.json"
+      ]
+    },
+    {
+      "change": "D",
+      "paths": [
+        "editors/vscode/audit-astra/latest-probe-results.json"
+      ]
+    },
+    {
+      "change": "D",
+      "paths": [
+        "editors/vscode/audit-astra/latest-probe-results.txt"
+      ]
+    },
+    {
+      "change": "D",
+      "paths": [
+        "editors/vscode/audit-astra/probe-results.json"
+      ]
+    },
+    {
+      "change": "D",
+      "paths": [
+        "editors/vscode/audit-astra/probe-results.txt"
+      ]
+    },
+    {
+      "change": "D",
+      "paths": [
+        "editors/vscode/audit-astra/probe-tokenization.cjs"
+      ]
+    },
+    {
+      "change": "D",
+      "paths": [
+        "editors/vscode/audit-astra/probes.json"
+      ]
+    },
+    {
+      "change": "D",
+      "paths": [
+        "editors/vscode/audit-astra/production-coverage.csv"
+      ]
+    },
+    {
+      "change": "D",
+      "paths": [
+        "editors/vscode/audit-astra/recheck-20261004T014855Z/RECHECK.md"
+      ]
+    },
+    {
+      "change": "D",
+      "paths": [
+        "editors/vscode/audit-astra/recheck-20261004T014855Z/execution-probes.json"
+      ]
+    },
+    {
+      "change": "D",
+      "paths": [
+        "editors/vscode/audit-astra/recheck-20261004T014855Z/execution-recheck.md"
+      ]
+    },
+    {
+      "change": "D",
+      "paths": [
+        "editors/vscode/audit-astra/recheck-20261004T014855Z/execution-results.json"
+      ]
+    },
+    {
+      "change": "D",
+      "paths": [
+        "editors/vscode/audit-astra/recheck-20261004T014855Z/execution-results.txt"
+      ]
+    },
+    {
+      "change": "D",
+      "paths": [
+        "editors/vscode/audit-astra/recheck-20261004T014855Z/execution-sources/valid-backend-context.can"
+      ]
+    },
+    {
+      "change": "D",
+      "paths": [
+        "editors/vscode/audit-astra/recheck-20261004T014855Z/execution-sources/valid-contextual-models.can"
+      ]
+    },
+    {
+      "change": "D",
+      "paths": [
+        "editors/vscode/audit-astra/recheck-20261004T014855Z/execution-sources/valid-crud-examples.can"
+      ]
+    },
+    {
+      "change": "D",
+      "paths": [
+        "editors/vscode/audit-astra/recheck-20261004T014855Z/execution-sources/valid-inline-structural-guards.can"
+      ]
+    },
+    {
+      "change": "D",
+      "paths": [
+        "editors/vscode/audit-astra/recheck-20261004T014855Z/execution-sources/valid-joined-query.can"
+      ]
+    },
+    {
+      "change": "D",
+      "paths": [
+        "editors/vscode/audit-astra/recheck-20261004T014855Z/execution-sources/valid-operation-slots.can"
+      ]
+    },
+    {
+      "change": "D",
+      "paths": [
+        "editors/vscode/audit-astra/recheck-20261004T014855Z/execution-sources/valid-operator-operand-boundaries.can"
+      ]
+    },
+    {
+      "change": "D",
+      "paths": [
+        "editors/vscode/audit-astra/recheck-20261004T014855Z/execution-sources/valid-owned-contextual-models.can"
+      ]
+    },
+    {
+      "change": "D",
+      "paths": [
+        "editors/vscode/audit-astra/recheck-20261004T014855Z/execution-sources/valid-qualified-operation-parentheses.can"
+      ]
+    },
+    {
+      "change": "D",
+      "paths": [
+        "editors/vscode/audit-astra/recheck-20261004T014855Z/execution-sources/valid-query-contextual-names.can"
+      ]
+    },
+    {
+      "change": "D",
+      "paths": [
+        "editors/vscode/audit-astra/recheck-20261004T014855Z/execution-sources/valid-scenario-examples-contextual.can"
+      ]
+    },
+    {
+      "change": "D",
+      "paths": [
+        "editors/vscode/audit-astra/recheck-20261004T014855Z/execution-sources/valid-ui-query-and-guards.can"
+      ]
+    },
+    {
+      "change": "D",
+      "paths": [
+        "editors/vscode/audit-astra/recheck-20261004T014855Z/execution-tokenize.cjs"
+      ]
+    },
+    {
+      "change": "D",
+      "paths": [
+        "editors/vscode/audit-astra/recheck-20261004T014855Z/foundation-can-probes/F4-inline-contextual-type-atoms.can"
+      ]
+    },
+    {
+      "change": "D",
+      "paths": [
+        "editors/vscode/audit-astra/recheck-20261004T014855Z/foundation-can-probes/F4-multiline-contextual-type-atoms.can"
+      ]
+    },
+    {
+      "change": "D",
+      "paths": [
+        "editors/vscode/audit-astra/recheck-20261004T014855Z/foundation-can-probes/F4-multiline-signature-types.can"
+      ]
+    },
+    {
+      "change": "D",
+      "paths": [
+        "editors/vscode/audit-astra/recheck-20261004T014855Z/foundation-can-probes/F6-selector-literal-prefix-names.can"
+      ]
+    },
+    {
+      "change": "D",
+      "paths": [
+        "editors/vscode/audit-astra/recheck-20261004T014855Z/foundation-can-probes/F6-spaced-signed-and-qualified-selectors.can"
+      ]
+    },
+    {
+      "change": "D",
+      "paths": [
+        "editors/vscode/audit-astra/recheck-20261004T014855Z/foundation-can-probes/F7-multiline-values-shorthand.can"
+      ]
+    },
+    {
+      "change": "D",
+      "paths": [
+        "editors/vscode/audit-astra/recheck-20261004T014855Z/foundation-can-probes/F7-route-type-subroles.can"
+      ]
+    },
+    {
+      "change": "D",
+      "paths": [
+        "editors/vscode/audit-astra/recheck-20261004T014855Z/foundation-can-probes/F7-whitespace-array-suffixes.can"
+      ]
+    },
+    {
+      "change": "D",
+      "paths": [
+        "editors/vscode/audit-astra/recheck-20261004T014855Z/foundation-can-probes/F8-model-field-handler-shapes.can"
+      ]
+    },
+    {
+      "change": "D",
+      "paths": [
+        "editors/vscode/audit-astra/recheck-20261004T014855Z/foundation-can-probes/F8-original-maintenance.can"
+      ]
+    },
+    {
+      "change": "D",
+      "paths": [
+        "editors/vscode/audit-astra/recheck-20261004T014855Z/foundation-can-probes/F8-qualified-target-paths.can"
+      ]
+    },
+    {
+      "change": "D",
+      "paths": [
+        "editors/vscode/audit-astra/recheck-20261004T014855Z/foundation-probes.json"
+      ]
+    },
+    {
+      "change": "D",
+      "paths": [
+        "editors/vscode/audit-astra/recheck-20261004T014855Z/foundation-recheck.md"
+      ]
+    },
+    {
+      "change": "D",
+      "paths": [
+        "editors/vscode/audit-astra/recheck-20261004T014855Z/foundation-results.json"
+      ]
+    },
+    {
+      "change": "D",
+      "paths": [
+        "editors/vscode/audit-astra/recheck-20261004T014855Z/foundation-results.txt"
+      ]
+    },
+    {
+      "change": "D",
+      "paths": [
+        "editors/vscode/audit-astra/recheck-20261004T014855Z/foundation-tokenize.cjs"
+      ]
+    },
+    {
+      "change": "D",
+      "paths": [
+        "editors/vscode/audit-astra/recheck-20261004T014855Z/inline-require-evidence.json"
+      ]
+    },
+    {
+      "change": "D",
+      "paths": [
+        "editors/vscode/audit-astra/recheck-20261004T014855Z/manifest.json"
+      ]
+    },
+    {
+      "change": "D",
+      "paths": [
+        "editors/vscode/audit-astra/recheck-20261004T014855Z/original-probe-results.txt"
+      ]
+    },
+    {
+      "change": "D",
+      "paths": [
+        "editors/vscode/audit-astra/recheck-20261004T014855Z/original-probes.json"
+      ]
+    },
+    {
+      "change": "D",
+      "paths": [
+        "editors/vscode/audit-astra/recheck-20261004T014855Z/owned-model-minimal-probes.json"
+      ]
+    },
+    {
+      "change": "D",
+      "paths": [
+        "editors/vscode/audit-astra/recheck-20261004T014855Z/owned-model-minimal-results.json"
+      ]
+    },
+    {
+      "change": "D",
+      "paths": [
+        "editors/vscode/audit-astra/recheck-20261004T014855Z/owned-model-minimal-results.txt"
+      ]
+    },
+    {
+      "change": "D",
+      "paths": [
+        "editors/vscode/audit-astra/recheck-20261004T014855Z/owned-model-minimal-sources/app.can"
+      ]
+    },
+    {
+      "change": "D",
+      "paths": [
+        "editors/vscode/audit-astra/recheck-20261004T014855Z/owned-model-minimal-sources/capability.can"
+      ]
+    },
+    {
+      "change": "D",
+      "paths": [
+        "editors/vscode/audit-astra/recheck-20261004T014855Z/owned-model-minimal-sources/contract.can"
+      ]
+    },
+    {
+      "change": "D",
+      "paths": [
+        "editors/vscode/audit-astra/recheck-20261004T014855Z/owned-model-minimal-sources/event.can"
+      ]
+    },
+    {
+      "change": "D",
+      "paths": [
+        "editors/vscode/audit-astra/recheck-20261004T014855Z/owned-model-minimal-sources/package.can"
+      ]
+    },
+    {
+      "change": "D",
+      "paths": [
+        "editors/vscode/audit-astra/recheck-20261004T014855Z/owned-model-minimal-sources/role.can"
+      ]
+    },
+    {
+      "change": "D",
+      "paths": [
+        "editors/vscode/audit-astra/recheck-20261004T014855Z/owned-model-minimal.cjs"
+      ]
+    },
+    {
+      "change": "D",
+      "paths": [
+        "editors/vscode/audit-astra/recheck-20261004T014855Z/probe-results.json"
+      ]
+    },
+    {
+      "change": "D",
+      "paths": [
+        "editors/vscode/audit-astra/recheck-20261004T014855Z/replay-original.cjs"
+      ]
+    },
+    {
+      "change": "D",
+      "paths": [
+        "editors/vscode/audit-astra/recheck-20261004T014855Z/root-focused-probes.json"
+      ]
+    },
+    {
+      "change": "D",
+      "paths": [
+        "editors/vscode/audit-astra/recheck-20261004T014855Z/root-focused-results.json"
+      ]
+    },
+    {
+      "change": "D",
+      "paths": [
+        "editors/vscode/audit-astra/recheck-20261004T014855Z/root-focused-results.txt"
+      ]
+    },
+    {
+      "change": "D",
+      "paths": [
+        "editors/vscode/audit-astra/recheck-20261004T014855Z/root-focused.cjs"
+      ]
+    },
+    {
+      "change": "D",
+      "paths": [
+        "editors/vscode/audit-astra/recheck-20261004T014855Z/snapshot/AGENTS.md"
+      ]
+    },
+    {
+      "change": "D",
+      "paths": [
+        "editors/vscode/audit-astra/recheck-20261004T014855Z/snapshot/GRAMMAR.md"
+      ]
+    },
+    {
+      "change": "D",
+      "paths": [
+        "editors/vscode/audit-astra/recheck-20261004T014855Z/snapshot/editors/vscode/package.json"
+      ]
+    },
+    {
+      "change": "D",
+      "paths": [
+        "editors/vscode/audit-astra/recheck-20261004T014855Z/snapshot/editors/vscode/syntaxes/can.tmLanguage.json"
+      ]
+    },
+    {
+      "change": "D",
+      "paths": [
+        "editors/vscode/audit-astra/recheck-20261004T014855Z/source-drift.json"
+      ]
+    },
+    {
+      "change": "D",
+      "paths": [
+        "editors/vscode/audit-astra/recheck-20261004T014855Z/theme-evidence.json"
+      ]
+    },
+    {
+      "change": "D",
+      "paths": [
+        "editors/vscode/audit-astra/recheck-20261004T014855Z/theme-probe.cjs"
+      ]
+    },
+    {
+      "change": "D",
+      "paths": [
+        "editors/vscode/audit-astra/recheck-20261004T014855Z/theme-report.md"
+      ]
+    },
+    {
+      "change": "D",
+      "paths": [
+        "editors/vscode/audit-astra/recheck-current-path.txt"
+      ]
+    },
+    {
+      "change": "D",
+      "paths": [
+        "editors/vscode/audit-astra/snapshot-manifest.json"
+      ]
+    },
+    {
+      "change": "D",
+      "paths": [
+        "editors/vscode/audit-astra/snapshot/AGENTS.md"
+      ]
+    },
+    {
+      "change": "D",
+      "paths": [
+        "editors/vscode/audit-astra/snapshot/DECISIONS.md"
+      ]
+    },
+    {
+      "change": "D",
+      "paths": [
+        "editors/vscode/audit-astra/snapshot/DESIGN.md"
+      ]
+    },
+    {
+      "change": "D",
+      "paths": [
+        "editors/vscode/audit-astra/snapshot/GRAMMAR.md"
+      ]
+    },
+    {
+      "change": "D",
+      "paths": [
+        "editors/vscode/audit-astra/snapshot/draft/CanAffiliate.can"
+      ]
+    },
+    {
+      "change": "D",
+      "paths": [
+        "editors/vscode/audit-astra/snapshot/draft/CanApprove.can"
+      ]
+    },
+    {
+      "change": "D",
+      "paths": [
+        "editors/vscode/audit-astra/snapshot/draft/CanBoard.can"
+      ]
+    },
+    {
+      "change": "D",
+      "paths": [
+        "editors/vscode/audit-astra/snapshot/draft/CanBook.can"
+      ]
+    },
+    {
+      "change": "D",
+      "paths": [
+        "editors/vscode/audit-astra/snapshot/draft/CanCRM.can"
+      ]
+    },
+    {
+      "change": "D",
+      "paths": [
+        "editors/vscode/audit-astra/snapshot/draft/CanCatch.can"
+      ]
+    },
+    {
+      "change": "D",
+      "paths": [
+        "editors/vscode/audit-astra/snapshot/draft/CanCheck.can"
+      ]
+    },
+    {
+      "change": "D",
+      "paths": [
+        "editors/vscode/audit-astra/snapshot/draft/CanContract.can"
+      ]
+    },
+    {
+      "change": "D",
+      "paths": [
+        "editors/vscode/audit-astra/snapshot/draft/CanCustomer.can"
+      ]
+    },
+    {
+      "change": "D",
+      "paths": [
+        "editors/vscode/audit-astra/snapshot/draft/CanDesk.can"
+      ]
+    },
+    {
+      "change": "D",
+      "paths": [
+        "editors/vscode/audit-astra/snapshot/draft/CanEvent.can"
+      ]
+    },
+    {
+      "change": "D",
+      "paths": [
+        "editors/vscode/audit-astra/snapshot/draft/CanExpense.can"
+      ]
+    },
+    {
+      "change": "D",
+      "paths": [
+        "editors/vscode/audit-astra/snapshot/draft/CanFeedback.can"
+      ]
+    },
+    {
+      "change": "D",
+      "paths": [
+        "editors/vscode/audit-astra/snapshot/draft/CanField.can"
+      ]
+    },
+    {
+      "change": "D",
+      "paths": [
+        "editors/vscode/audit-astra/snapshot/draft/CanGrant.can"
+      ]
+    },
+    {
+      "change": "D",
+      "paths": [
+        "editors/vscode/audit-astra/snapshot/draft/CanHire.can"
+      ]
+    },
+    {
+      "change": "D",
+      "paths": [
+        "editors/vscode/audit-astra/snapshot/draft/CanInvoice.can"
+      ]
+    },
+    {
+      "change": "D",
+      "paths": [
+        "editors/vscode/audit-astra/snapshot/draft/CanLearn.can"
+      ]
+    },
+    {
+      "change": "D",
+      "paths": [
+        "editors/vscode/audit-astra/snapshot/draft/CanLeave.can"
+      ]
+    },
+    {
+      "change": "D",
+      "paths": [
+        "editors/vscode/audit-astra/snapshot/draft/CanLoyalty.can"
+      ]
+    },
+    {
+      "change": "D",
+      "paths": [
+        "editors/vscode/audit-astra/snapshot/draft/CanMail.can"
+      ]
+    },
+    {
+      "change": "D",
+      "paths": [
+        "editors/vscode/audit-astra/snapshot/draft/CanMaintain.can"
+      ]
+    },
+    {
+      "change": "D",
+      "paths": [
+        "editors/vscode/audit-astra/snapshot/draft/CanMember.can"
+      ]
+    },
+    {
+      "change": "D",
+      "paths": [
+        "editors/vscode/audit-astra/snapshot/draft/CanOnboard.can"
+      ]
+    },
+    {
+      "change": "D",
+      "paths": [
+        "editors/vscode/audit-astra/snapshot/draft/CanPropose.can"
+      ]
+    },
+    {
+      "change": "D",
+      "paths": [
+        "editors/vscode/audit-astra/snapshot/draft/CanPurchase.can"
+      ]
+    },
+    {
+      "change": "D",
+      "paths": [
+        "editors/vscode/audit-astra/snapshot/draft/CanReception.can"
+      ]
+    },
+    {
+      "change": "D",
+      "paths": [
+        "editors/vscode/audit-astra/snapshot/draft/CanRefer.can"
+      ]
+    },
+    {
+      "change": "D",
+      "paths": [
+        "editors/vscode/audit-astra/snapshot/draft/CanRent.can"
+      ]
+    },
+    {
+      "change": "D",
+      "paths": [
+        "editors/vscode/audit-astra/snapshot/draft/CanReport.can"
+      ]
+    },
+    {
+      "change": "D",
+      "paths": [
+        "editors/vscode/audit-astra/snapshot/draft/CanShift.can"
+      ]
+    },
+    {
+      "change": "D",
+      "paths": [
+        "editors/vscode/audit-astra/snapshot/draft/CanStats.can"
+      ]
+    },
+    {
+      "change": "D",
+      "paths": [
+        "editors/vscode/audit-astra/snapshot/draft/CanStock.can"
+      ]
+    },
+    {
+      "change": "D",
+      "paths": [
+        "editors/vscode/audit-astra/snapshot/draft/CanSuccess.can"
+      ]
+    },
+    {
+      "change": "D",
+      "paths": [
+        "editors/vscode/audit-astra/snapshot/draft/CanTable.can"
+      ]
+    },
+    {
+      "change": "D",
+      "paths": [
+        "editors/vscode/audit-astra/snapshot/draft/CanTime.can"
+      ]
+    },
+    {
+      "change": "D",
+      "paths": [
+        "editors/vscode/audit-astra/snapshot/draft/CanTrade.can"
+      ]
+    },
+    {
+      "change": "D",
+      "paths": [
+        "editors/vscode/audit-astra/snapshot/draft/CanVolunteer.can"
+      ]
+    },
+    {
+      "change": "D",
+      "paths": [
+        "editors/vscode/audit-astra/snapshot/draft/shared/Employees.can"
+      ]
+    },
+    {
+      "change": "D",
+      "paths": [
+        "editors/vscode/audit-astra/snapshot/draft/shared/Locations.can"
+      ]
+    },
+    {
+      "change": "D",
+      "paths": [
+        "editors/vscode/audit-astra/snapshot/draft/shared/Suppliers.can"
+      ]
+    },
+    {
+      "change": "D",
+      "paths": [
+        "editors/vscode/audit-astra/snapshot/editors/vscode/GRAMMAR-AUDIT.md"
+      ]
+    },
+    {
+      "change": "D",
+      "paths": [
+        "editors/vscode/audit-astra/snapshot/editors/vscode/README.md"
+      ]
+    },
+    {
+      "change": "D",
+      "paths": [
+        "editors/vscode/audit-astra/snapshot/editors/vscode/check-highlighting.cjs"
+      ]
+    },
+    {
+      "change": "D",
+      "paths": [
+        "editors/vscode/audit-astra/snapshot/editors/vscode/package.json"
+      ]
+    },
+    {
+      "change": "D",
+      "paths": [
+        "editors/vscode/audit-astra/snapshot/editors/vscode/syntaxes/can.tmLanguage.json"
+      ]
+    },
+    {
+      "change": "D",
+      "paths": [
+        "editors/vscode/audit-astra/snapshot/examples/ExpenseFlow.can"
+      ]
+    },
+    {
+      "change": "D",
+      "paths": [
+        "editors/vscode/audit-astra/snapshot/examples/TeamTasks.can"
+      ]
+    },
+    {
+      "change": "D",
+      "paths": [
+        "editors/vscode/audit-astra/theme-installation-evidence-005813.json"
+      ]
+    },
+    {
+      "change": "D",
+      "paths": [
+        "editors/vscode/audit-astra/theme-installation-evidence-010004.json"
+      ]
+    },
+    {
+      "change": "D",
+      "paths": [
+        "editors/vscode/audit-astra/theme-installation-evidence-010146.json"
+      ]
+    },
+    {
+      "change": "D",
+      "paths": [
+        "editors/vscode/audit-astra/theme-installation-evidence.json"
+      ]
+    },
+    {
+      "change": "D",
+      "paths": [
+        "editors/vscode/audit-astra/theme-installation.md"
+      ]
+    },
+    {
+      "change": "D",
+      "paths": [
+        "editors/vscode/audit-astra/theme-probe.cjs"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "editors/vscode/generate-file-icons.cjs"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "editors/vscode/images/file-icon-dark.svg"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "editors/vscode/images/file-icon-light.svg"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "editors/vscode/images/icon-dark.png"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "editors/vscode/images/icon.png"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "editors/vscode/images/logo.svg"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "editors/vscode/images/previews/README.md"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "editors/vscode/images/previews/browser-dark-dark-512.png"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "editors/vscode/images/previews/browser-dark-white-512.png"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "editors/vscode/images/previews/browser-light-dark-512.png"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "editors/vscode/images/previews/browser-light-white-512.png"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "editors/vscode/images/previews/browser-media-verification.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "editors/vscode/images/previews/dark-dark-16.png"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "editors/vscode/images/previews/dark-dark-48.png"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "editors/vscode/images/previews/dark-dark-512.png"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "editors/vscode/images/previews/dark-white-16.png"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "editors/vscode/images/previews/dark-white-48.png"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "editors/vscode/images/previews/dark-white-512.png"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "editors/vscode/images/previews/file-icon-offset.png"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "editors/vscode/images/previews/file-icon-verification.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "editors/vscode/images/previews/geometry-verification.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "editors/vscode/images/previews/light-dark-16.png"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "editors/vscode/images/previews/light-dark-48.png"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "editors/vscode/images/previews/light-dark-512.png"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "editors/vscode/images/previews/light-white-16.png"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "editors/vscode/images/previews/light-white-48.png"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "editors/vscode/images/previews/light-white-512.png"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "editors/vscode/images/previews/master-dark-1254.png"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "editors/vscode/images/previews/package-verification.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "editors/vscode/images/previews/renderer-comparison.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "editors/vscode/images/previews/side-by-side-1254.png"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "editors/vscode/images/previews/small-sizes.png"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "editors/vscode/images/previews/themes-512.png"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "editors/vscode/images/previews/vector-dark-1254.png"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "editors/vscode/images/previews/vector-transparent-1254.png"
+      ]
+    },
+    {
+      "change": "M",
+      "paths": [
+        "editors/vscode/package.json"
+      ]
+    },
+    {
+      "change": "M",
+      "paths": [
+        "editors/vscode/src/client.ts"
+      ]
+    },
+    {
+      "change": "M",
+      "paths": [
+        "editors/vscode/src/extension.ts"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "editors/vscode/test/lsp-capabilities.can"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "editors/vscode/test/lsp-capabilities.cjs"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "editors/vscode/test/lsp-codeaction.can"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "examples/expenseflow-demo/README.md"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "examples/expenseflow-demo/demo.mjs"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "examples/expenseflow-demo/expenses.policy.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "examples/expenseflow-demo/prove.mjs"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "implementation/CHALLENGE-AUDIT-PLAN.md"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "implementation/D3B-OBSERVER-SEAM-CONTRACT.md"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "implementation/D3B-PRODUCTION-QUAL-PLAN.md"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "implementation/DESCRIPTION-REFERENCE-PLAN.md"
+      ]
+    },
+    {
+      "change": "M",
+      "paths": [
+        "implementation/PLAN.md"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "implementation/REMAINING-IMPLEMENTATION-LANES.md"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "implementation/challenge-audit-run/evidence/app-intent.md"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "implementation/challenge-audit-run/evidence/containment-decision.md"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "implementation/challenge-audit-run/evidence/continuation-contract.md"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "implementation/challenge-audit-run/evidence/execution-contract.md"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "implementation/challenge-audit-run/evidence/fanout-decision.md"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "implementation/challenge-audit-run/evidence/hook-decision.md"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "implementation/challenge-audit-run/evidence/interface-inventory.md"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "implementation/challenge-audit-run/evidence/jev-b4-fence-20261006/request-1.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "implementation/challenge-audit-run/evidence/jev-b4-fence-20261006/request-2.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "implementation/challenge-audit-run/evidence/jev-b4-fence-20261006/request-3.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "implementation/challenge-audit-run/evidence/jev-b4-fence-20261006/result-1.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "implementation/challenge-audit-run/evidence/jev-b4-fence-20261006/result-2.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "implementation/challenge-audit-run/evidence/jev-b4-fence-20261006/result-3.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "implementation/challenge-audit-run/evidence/jev-b4-fence-20261006/review.md"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "implementation/challenge-audit-run/evidence/jev-t28-20261005/README.md"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "implementation/challenge-audit-run/evidence/jev-t28-20261005/request-1.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "implementation/challenge-audit-run/evidence/jev-t28-20261005/request-2.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "implementation/challenge-audit-run/evidence/jev-t28-20261005/request-3.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "implementation/challenge-audit-run/evidence/jev-t28-20261005/result-1.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "implementation/challenge-audit-run/evidence/jev-t28-20261005/result-2.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "implementation/challenge-audit-run/evidence/jev-t28-20261005/result-3.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "implementation/challenge-audit-run/evidence/jev-t31a-20261005/README.md"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "implementation/challenge-audit-run/evidence/jev-t31a-20261005/request-1.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "implementation/challenge-audit-run/evidence/jev-t31a-20261005/request-2.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "implementation/challenge-audit-run/evidence/jev-t31a-20261005/request-3.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "implementation/challenge-audit-run/evidence/jev-t31a-20261005/result-1.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "implementation/challenge-audit-run/evidence/jev-t31a-20261005/result-2.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "implementation/challenge-audit-run/evidence/jev-t31a-20261005/result-3.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "implementation/challenge-audit-run/evidence/jev-t32a-20261005/README.md"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "implementation/challenge-audit-run/evidence/jev-t32a-20261005/request-1.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "implementation/challenge-audit-run/evidence/jev-t32a-20261005/request-2.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "implementation/challenge-audit-run/evidence/jev-t32a-20261005/request-3.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "implementation/challenge-audit-run/evidence/jev-t32a-20261005/result-1.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "implementation/challenge-audit-run/evidence/jev-t32a-20261005/result-2.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "implementation/challenge-audit-run/evidence/jev-t32a-20261005/result-3.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "implementation/challenge-audit-run/evidence/jev-t33-20261006/README.md"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "implementation/challenge-audit-run/evidence/jev-t33-20261006/request-1.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "implementation/challenge-audit-run/evidence/jev-t33-20261006/request-2.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "implementation/challenge-audit-run/evidence/jev-t33-20261006/request-3.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "implementation/challenge-audit-run/evidence/jev-t33-20261006/result-1.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "implementation/challenge-audit-run/evidence/jev-t33-20261006/result-2.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "implementation/challenge-audit-run/evidence/jev-t33-20261006/result-3.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "implementation/challenge-audit-run/evidence/read-decision.md"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "implementation/challenge-audit-run/evidence/root-causes.md"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "implementation/challenge-audit-run/evidence/t34-plan.md"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "implementation/challenge-audit-run/monitor.md"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "implementation/challenge-audit-run/recovery-checkpoint.md"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "implementation/challenge-audit-run/remaining-tasks.md"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "implementation/challenge-audit-run/start-assign/lane-A.md"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "implementation/challenge-audit-run/start-assign/lane-B.md"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "implementation/challenge-audit-run/start-assign/lane-C.md"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "implementation/challenge-audit-run/start-assign/lane-D.md"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "implementation/challenge-audit-run/start-assign/lane-E.md"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "implementation/challenge-audit-run/start-assign/lane-F.md"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "implementation/challenge-audit-run/start-assign/lane-G.md"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "implementation/challenge-audit-run/t33-resolution.md"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "implementation/challenge-audit-run/tasks.md"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "implementation/description-reference-run/evidence/independent-acceptance-20261005.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "implementation/description-reference-run/evidence/independent-locale-recheck-20261005.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "implementation/description-reference-run/evidence/integration.md"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "implementation/description-reference-run/review.md"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "implementation/description-reference-run/tasks.md"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "implementation/evidence/b2-follow-through.md"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "implementation/evidence/b3-i1.md"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "implementation/evidence/b3-i2.md"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "implementation/evidence/b3-i3.md"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "implementation/evidence/b3-i4.md"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "implementation/evidence/b3-i5.md"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "implementation/evidence/b3-i6.md"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "implementation/evidence/b4-draft-defects.md"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "implementation/evidence/b4-f1.md"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "implementation/evidence/b4-f2.md"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "implementation/evidence/b4-f3.md"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "implementation/evidence/b4-f4.md"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "implementation/evidence/b4-proposals.md"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "implementation/evidence/b5-j1.md"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "implementation/evidence/b5-j2.md"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "implementation/evidence/b5-j3.md"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "implementation/evidence/mcp-p1.md"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "implementation/evidence/mcp-p2.md"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "implementation/evidence/mcp-p3.md"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "implementation/evidence/mcp-p4.md"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "implementation/evidence/mcpd-a.md"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "implementation/evidence/mcpd-b.md"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "implementation/evidence/mcpd-c.md"
+      ]
+    },
+    {
+      "change": "M",
+      "paths": [
+        "implementation/status/frontend-catalog-migration.md"
+      ]
+    },
+    {
+      "change": "M",
+      "paths": [
+        "implementation/status/lane-01.md"
+      ]
+    },
+    {
+      "change": "M",
+      "paths": [
+        "package.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/cloudflare/conformance/preparation/cases.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/cloudflare/conformance/preparation/differential.mjs"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/cloudflare/conformance/preparation/workloads.mjs"
+      ]
+    },
+    {
+      "change": "M",
+      "paths": [
+        "packages/cloudflare/package.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/cloudflare/preparation/Cargo.lock"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/cloudflare/preparation/Cargo.toml"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/cloudflare/preparation/rust-toolchain.toml"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/cloudflare/preparation/src/artifact.rs"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/cloudflare/preparation/src/compatibility.rs"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/cloudflare/preparation/src/failures.rs"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/cloudflare/preparation/src/input.rs"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/cloudflare/preparation/src/job.rs"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/cloudflare/preparation/src/lib.rs"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/cloudflare/preparation/src/main.rs"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/cloudflare/preparation/src/modules.rs"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/cloudflare/preparation/src/plan.rs"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/cloudflare/preparation/src/protocol.rs"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/cloudflare/preparation/src/release.rs"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/cloudflare/preparation/src/render.rs"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/cloudflare/preparation/src/review.rs"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/cloudflare/preparation/tests/artifact.rs"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/cloudflare/preparation/tests/compatibility.rs"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/cloudflare/preparation/tests/modules.rs"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/cloudflare/preparation/tests/outputs.rs"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/cloudflare/preparation/tests/plan.rs"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/cloudflare/preparation/tests/protocol.rs"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/cloudflare/preparation/tests/release.rs"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/cloudflare/preparation/tests/vectors.rs"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/cloudflare/scripts/build-preparation.mjs"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/cloudflare/scripts/package-preparation.mjs"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/cloudflare/src/cli/docs.ts"
+      ]
+    },
+    {
+      "change": "M",
+      "paths": [
+        "packages/cloudflare/src/cli/platform.ts"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/cloudflare/src/deploy/activate.ts"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/cloudflare/src/deploy/bundle.ts"
+      ]
+    },
+    {
+      "change": "M",
+      "paths": [
+        "packages/cloudflare/src/deploy/compat.ts"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/cloudflare/src/deploy/installed.ts"
+      ]
+    },
+    {
+      "change": "M",
+      "paths": [
+        "packages/cloudflare/src/deploy/plan.ts"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/cloudflare/src/deploy/render.ts"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/cloudflare/src/deploy/review.ts"
+      ]
+    },
+    {
+      "change": "M",
+      "paths": [
+        "packages/cloudflare/src/dev/local-run.ts"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/cloudflare/src/dev/zero-config.ts"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/cloudflare/src/preparation/build-adapter.ts"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/cloudflare/src/preparation/executable-manifest.ts"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/cloudflare/src/preparation/executable.ts"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/cloudflare/src/preparation/host.ts"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/cloudflare/src/preparation/inputs.ts"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/cloudflare/src/preparation/protocol.ts"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/cloudflare/src/preparation/publication.ts"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/cloudflare/src/release/manifest.ts"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/cloudflare/src/release/stamp.ts"
+      ]
+    },
+    {
+      "change": "M",
+      "paths": [
+        "packages/cloudflare/src/runtime/artifact.ts"
+      ]
+    },
+    {
+      "change": "M",
+      "paths": [
+        "packages/cloudflare/src/runtime/context.ts"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/cloudflare/src/runtime/d3b-durable-serve.test.ts"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/cloudflare/src/runtime/d3b-join-assembly.test.ts"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/cloudflare/src/runtime/d3b-observer-seam.test.ts"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/cloudflare/src/runtime/d3b-selected-receipt.test.ts"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/cloudflare/src/runtime/env-assembly.ts"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/cloudflare/src/runtime/executors.ts"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/cloudflare/src/runtime/grant-route.ts"
+      ]
+    },
+    {
+      "change": "M",
+      "paths": [
+        "packages/cloudflare/src/runtime/invoke.ts"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/cloudflare/src/runtime/mcp-permissions.ts"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/cloudflare/src/runtime/mcp-registry.ts"
+      ]
+    },
+    {
+      "change": "M",
+      "paths": [
+        "packages/cloudflare/src/runtime/modules.ts"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/cloudflare/src/runtime/sourcemap.ts"
+      ]
+    },
+    {
+      "change": "M",
+      "paths": [
+        "packages/cloudflare/src/runtime/stdlib.ts"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/cloudflare/src/runtime/t16b-canonical.test.ts"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/cloudflare/src/runtime/t17b-cloudflare-flip.test.ts"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/cloudflare/src/runtime/t17b-durable.test.ts"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/cloudflare/src/runtime/t24b-dispatch-durable.test.ts"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/cloudflare/src/runtime/t24b-dispatch-execution.test.ts"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/cloudflare/src/runtime/t32b-cloudflare-durable.test.ts"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/cloudflare/src/runtime/t32b-cloudflare.test.ts"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/cloudflare/src/runtime/t34-f7-emitted-cohorts.test.ts"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/cloudflare/src/runtime/t34-f7-fanout-durable.test.ts"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/cloudflare/src/runtime/t34-f7-fanout.test.ts"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/cloudflare/src/upgrade/apply.ts"
+      ]
+    },
+    {
+      "change": "M",
+      "paths": [
+        "packages/cloudflare/src/worker/assembly.ts"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/cloudflare/src/worker/main.ts"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/cloudflare/test/activate-cli.test.ts"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/cloudflare/test/activate.test.ts"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/cloudflare/test/activation-refusal.test.ts"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/cloudflare/test/artifact-field-descriptions.test.ts"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/cloudflare/test/artifact-operations.test.ts"
+      ]
+    },
+    {
+      "change": "M",
+      "paths": [
+        "packages/cloudflare/test/assembly.test.ts"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/cloudflare/test/deploy-apply.test.ts"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/cloudflare/test/deploy-bundle.test.ts"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/cloudflare/test/deploy-cli.test.ts"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/cloudflare/test/deploy-plan.test.ts"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/cloudflare/test/fixtures/teamtasks-activate/teamtasks-bad.artifact.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/cloudflare/test/fixtures/teamtasks-activate/teamtasks-bad.descriptor.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/cloudflare/test/fixtures/teamtasks-activate/teamtasks-bad.local.environment.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/cloudflare/test/fixtures/teamtasks-activate/teamtasks-bad.target.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/cloudflare/test/fixtures/teamtasks-activate/teamtasks-good.artifact.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/cloudflare/test/fixtures/teamtasks-activate/teamtasks-good.descriptor.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/cloudflare/test/fixtures/teamtasks-activate/teamtasks-good.local.environment.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/cloudflare/test/fixtures/teamtasks-activate/teamtasks-good.store.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/cloudflare/test/fixtures/teamtasks-activate/teamtasks-good.target.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/cloudflare/test/http-operations-route.test.ts"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/cloudflare/test/installed.test.ts"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/cloudflare/test/mcp-derived.test.ts"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/cloudflare/test/mcp-grant-route.test.ts"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/cloudflare/test/mcp-permissions.test.ts"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/cloudflare/test/mcp-route.test.ts"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/cloudflare/test/mcpd-env-assembly.test.ts"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/cloudflare/test/mixed-output-controls.test.ts"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/cloudflare/test/mixed-output-rejection.test.ts"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/cloudflare/test/preparation-protocol.test.ts"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/cloudflare/test/preparation-publication.test.ts"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/cloudflare/test/release.test.ts"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/cloudflare/test/review.test.ts"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/cloudflare/test/runtime-executors.test.ts"
+      ]
+    },
+    {
+      "change": "M",
+      "paths": [
+        "packages/cloudflare/test/runtime-stdlib.test.ts"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/cloudflare/test/sourcemap.test.ts"
+      ]
+    },
+    {
+      "change": "M",
+      "paths": [
+        "packages/cloudflare/test/worker-boundary.test.ts"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/cloudflare/test/worker-main.test.ts"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/cloudflare/test/zero-config.test.ts"
+      ]
+    },
+    {
+      "change": "M",
+      "paths": [
+        "packages/contracts/package.json"
+      ]
+    },
+    {
+      "change": "M",
+      "paths": [
+        "packages/contracts/src/artifact.ts"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/contracts/src/deployment-assets.ts"
+      ]
+    },
+    {
+      "change": "M",
+      "paths": [
+        "packages/contracts/src/deployment.ts"
+      ]
+    },
+    {
+      "change": "M",
+      "paths": [
+        "packages/contracts/src/files.ts"
+      ]
+    },
+    {
+      "change": "M",
+      "paths": [
+        "packages/contracts/src/identity.ts"
+      ]
+    },
+    {
+      "change": "M",
+      "paths": [
+        "packages/contracts/src/index.ts"
+      ]
+    },
+    {
+      "change": "M",
+      "paths": [
+        "packages/contracts/src/presentation.ts"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/contracts/src/reference.ts"
+      ]
+    },
+    {
+      "change": "M",
+      "paths": [
+        "packages/contracts/src/services.ts"
+      ]
+    },
+    {
+      "change": "M",
+      "paths": [
+        "packages/contracts/src/state.ts"
+      ]
+    },
+    {
+      "change": "M",
+      "paths": [
+        "packages/contracts/src/values.ts"
+      ]
+    },
+    {
+      "change": "M",
+      "paths": [
+        "packages/contracts/src/wire.ts"
+      ]
+    },
+    {
+      "change": "M",
+      "paths": [
+        "packages/contracts/src/work.ts"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/contracts/test/fanout-records.test.ts"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/contracts/test/provider-ratification.test.ts"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/contracts/test/t19a-derived-inputs.test.ts"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/contracts/test/t19b-depth.test.ts"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/contracts/test/t20a-presentation.test.ts"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/contracts/test/t26-progress-relations.test.ts"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/files/README.md"
+      ]
+    },
+    {
+      "change": "M",
+      "paths": [
+        "packages/files/package.json"
+      ]
+    },
+    {
+      "change": "M",
+      "paths": [
+        "packages/files/src/bridge.ts"
+      ]
+    },
+    {
+      "change": "M",
+      "paths": [
+        "packages/files/src/catalog.ts"
+      ]
+    },
+    {
+      "change": "M",
+      "paths": [
+        "packages/files/src/finalize/index.ts"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/files/test/provider-output.test.ts"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/identity/README.md"
+      ]
+    },
+    {
+      "change": "M",
+      "paths": [
+        "packages/identity/package.json"
+      ]
+    },
+    {
+      "change": "M",
+      "paths": [
+        "packages/identity/src/authentication/revocation.ts"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/identity/src/authentication/t16b-context.test.ts"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/identity/src/authentication/t32b-revocation.test.ts"
+      ]
+    },
+    {
+      "change": "M",
+      "paths": [
+        "packages/identity/src/index.ts"
+      ]
+    },
+    {
+      "change": "M",
+      "paths": [
+        "packages/identity/src/ports.ts"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/identity/src/sessions/presession.ts"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/identity/src/storage/d1.ts"
+      ]
+    },
+    {
+      "change": "M",
+      "paths": [
+        "packages/identity/src/testing.ts"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/identity/test/b4-credential-liveness.test.ts"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/identity/test/d1.test.ts"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/identity/test/presession.test.ts"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/interfaces/README.md"
+      ]
+    },
+    {
+      "change": "M",
+      "paths": [
+        "packages/interfaces/package.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/interfaces/src/docs/reference.ts"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/interfaces/src/envelope/prepared.ts"
+      ]
+    },
+    {
+      "change": "M",
+      "paths": [
+        "packages/interfaces/src/errors/envelope.ts"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/interfaces/src/http/assets.ts"
+      ]
+    },
+    {
+      "change": "M",
+      "paths": [
+        "packages/interfaces/src/http/auth.ts"
+      ]
+    },
+    {
+      "change": "M",
+      "paths": [
+        "packages/interfaces/src/http/context.ts"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/interfaces/src/http/csv.ts"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/interfaces/src/http/export.ts"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/interfaces/src/http/formErrors.ts"
+      ]
+    },
+    {
+      "change": "M",
+      "paths": [
+        "packages/interfaces/src/http/operations.ts"
+      ]
+    },
+    {
+      "change": "M",
+      "paths": [
+        "packages/interfaces/src/http/pages.ts"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/interfaces/src/http/presentation.ts"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/interfaces/src/http/print.ts"
+      ]
+    },
+    {
+      "change": "M",
+      "paths": [
+        "packages/interfaces/src/http/routes.ts"
+      ]
+    },
+    {
+      "change": "M",
+      "paths": [
+        "packages/interfaces/src/index.ts"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/interfaces/src/instrumentation/intake.ts"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/interfaces/src/mcp/prepared.ts"
+      ]
+    },
+    {
+      "change": "M",
+      "paths": [
+        "packages/interfaces/src/mcp/schemas.ts"
+      ]
+    },
+    {
+      "change": "M",
+      "paths": [
+        "packages/interfaces/src/mcp/server.ts"
+      ]
+    },
+    {
+      "change": "M",
+      "paths": [
+        "packages/interfaces/src/mcp/tools.ts"
+      ]
+    },
+    {
+      "change": "M",
+      "paths": [
+        "packages/interfaces/src/ports.ts"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/interfaces/src/uploads/kernel.ts"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/interfaces/test/b4-spend-race.test.ts"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/interfaces/test/browser-assets.test.ts"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/interfaces/test/csv-join.test.ts"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/interfaces/test/csv-review.test.ts"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/interfaces/test/csv-route.test.ts"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/interfaces/test/d3b-receipt-read.test.ts"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/interfaces/test/docs-reference.test.ts"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/interfaces/test/e1-bound-dispatch.test.ts"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/interfaces/test/e2-dispatch-agreement.test.ts"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/interfaces/test/e2b-transport-seams.test.ts"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/interfaces/test/export-join.test.ts"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/interfaces/test/export-print.test.ts"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/interfaces/test/export-route.test.ts"
+      ]
+    },
+    {
+      "change": "M",
+      "paths": [
+        "packages/interfaces/test/http-auth.test.ts"
+      ]
+    },
+    {
+      "change": "M",
+      "paths": [
+        "packages/interfaces/test/http-operations.test.ts"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/interfaces/test/http-presentation.test.ts"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/interfaces/test/intake.test.ts"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/interfaces/test/mcp-field-descriptions.test.ts"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/interfaces/test/owned-http.test.ts"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/interfaces/test/owned-mcp.test.ts"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/interfaces/test/t19a-derivation.test.ts"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/interfaces/test/t19b-depth.test.ts"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/interfaces/test/t20a-presentation.test.ts"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/interfaces/test/uploads-kernel.test.ts"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/services/README.md"
+      ]
+    },
+    {
+      "change": "M",
+      "paths": [
+        "packages/services/package.json"
+      ]
+    },
+    {
+      "change": "M",
+      "paths": [
+        "packages/state/package.json"
+      ]
+    },
+    {
+      "change": "M",
+      "paths": [
+        "packages/state/src/effects/staging.ts"
+      ]
+    },
+    {
+      "change": "M",
+      "paths": [
+        "packages/state/src/errors.ts"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/state/src/fanout/cohort.ts"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/state/src/fanout/lifecycle.ts"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/state/src/fanout/membership.ts"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/state/src/fanout/outcome.ts"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/state/src/fanout/progress.ts"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/state/src/fanout/t34-f5-admission.test.ts"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/state/src/fanout/t34-f5-child-join.test.ts"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/state/src/fanout/t34-f5-durable.test.ts"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/state/src/fanout/t34-f5-lifecycle.test.ts"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/state/src/fanout/t34-f5-membership.test.ts"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/state/src/fanout/t34-f5-progress.test.ts"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/state/src/fanout/tables.ts"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/state/src/fanout/test-driver.ts"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/state/src/fanout/work-loader.ts"
+      ]
+    },
+    {
+      "change": "M",
+      "paths": [
+        "packages/state/src/invocation/admission.ts"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/state/src/invocation/b2-conflict-currents.test.ts"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/state/src/invocation/b2-read-proofs.test.ts"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/state/src/invocation/b2-reads-durable.test.ts"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/state/src/invocation/b4-by-aware-fence.test.ts"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/state/src/invocation/descriptor-join.test.ts"
+      ]
+    },
+    {
+      "change": "M",
+      "paths": [
+        "packages/state/src/invocation/index.ts"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/state/src/invocation/invoke-read.test.ts"
+      ]
+    },
+    {
+      "change": "M",
+      "paths": [
+        "packages/state/src/invocation/invoke.ts"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/state/src/invocation/prepared-inputs.ts"
+      ]
+    },
+    {
+      "change": "M",
+      "paths": [
+        "packages/state/src/invocation/registry.ts"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/state/src/invocation/t32b-fence.test.ts"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/state/src/invocation/t32b-wire.test.ts"
+      ]
+    },
+    {
+      "change": "M",
+      "paths": [
+        "packages/state/src/migration/activate.ts"
+      ]
+    },
+    {
+      "change": "M",
+      "paths": [
+        "packages/state/src/migration/index.ts"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/state/src/migration/recover.ts"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/state/src/migration/retain.ts"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/state/src/mutation/b1-generated-parity-durable.test.ts"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/state/src/mutation/b1-generated-parity.test.ts"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/state/src/mutation/b1-scenario-parity.test.ts"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/state/src/mutation/b5-contained-parity-durable.test.ts"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/state/src/mutation/b5-contained-parity.test.ts"
+      ]
+    },
+    {
+      "change": "M",
+      "paths": [
+        "packages/state/src/mutation/crud.ts"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/state/src/mutation/generated-crud.test.ts"
+      ]
+    },
+    {
+      "change": "M",
+      "paths": [
+        "packages/state/src/mutation/index.ts"
+      ]
+    },
+    {
+      "change": "M",
+      "paths": [
+        "packages/state/src/mutation/models.ts"
+      ]
+    },
+    {
+      "change": "M",
+      "paths": [
+        "packages/state/src/mutation/pipeline.ts"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/state/src/mutation/t18-defaults-durable.test.ts"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/state/src/mutation/t18-defaults.test.ts"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/state/src/mutation/t18-shop.artifact.ts"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/state/src/mutation/t18-shop.can"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/state/src/mutation/t32b-wire-durable.test.ts"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/state/src/mutation/t32b-wire-transitive.test.ts"
+      ]
+    },
+    {
+      "change": "M",
+      "paths": [
+        "packages/state/src/policy/roles.ts"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/state/src/ports/data-plane.test.ts"
+      ]
+    },
+    {
+      "change": "M",
+      "paths": [
+        "packages/state/src/ports/read.ts"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/state/src/ports/t32b-read.test.ts"
+      ]
+    },
+    {
+      "change": "M",
+      "paths": [
+        "packages/state/src/ports/transact.ts"
+      ]
+    },
+    {
+      "change": "M",
+      "paths": [
+        "packages/state/src/query/engine.ts"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/state/src/query/t32b-fence.test.ts"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/state/src/receipt/b3-delivery-schema.test.ts"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/state/src/receipt/grants.ts"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/state/src/receipt/join.ts"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/state/src/receipt/t25-receipt-durable.test.ts"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/state/src/receipt/t25-receipt-join.test.ts"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/state/src/receipt/tables.ts"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/state/src/receipt/work-loader.ts"
+      ]
+    },
+    {
+      "change": "M",
+      "paths": [
+        "packages/state/src/storage/d1.ts"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/state/src/storage/data-plane-durable.test.ts"
+      ]
+    },
+    {
+      "change": "M",
+      "paths": [
+        "packages/state/src/storage/durable-object.ts"
+      ]
+    },
+    {
+      "change": "M",
+      "paths": [
+        "packages/state/src/storage/memory.ts"
+      ]
+    },
+    {
+      "change": "M",
+      "paths": [
+        "packages/state/src/storage/port.ts"
+      ]
+    },
+    {
+      "change": "M",
+      "paths": [
+        "packages/state/src/storage/schema.ts"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/state/test/invocation/owned-admission.test.ts"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/state/test/migration/adapters.test.ts"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/state/test/migration/recover.test.ts"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/state/test/migration/retain.test.ts"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/state/test/mutation/staged-durable.test.ts"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/state/test/mutation/staged.test.ts"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/state/test/ports/t24a-dispatch-join-durable.test.ts"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/state/test/ports/t24a-dispatch-join.test.ts"
+      ]
+    },
+    {
+      "change": "M",
+      "paths": [
+        "packages/state/test/storage/do.test.ts"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/stdlib/README.md"
+      ]
+    },
+    {
+      "change": "M",
+      "paths": [
+        "packages/stdlib/package.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/testkit/conformance/ports/loader-smoke/Cargo.lock"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/testkit/conformance/ports/loader-smoke/Cargo.toml"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/testkit/conformance/ports/loader-smoke/host.mjs"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/testkit/conformance/ports/loader-smoke/src/lib.rs"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/testkit/conformance/ports/loader-smoke/workerd.mjs"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/testkit/conformance/ports/observations.mjs"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/testkit/conformance/ports/transport-vectors.mjs"
+      ]
+    },
+    {
+      "change": "M",
+      "paths": [
+        "packages/testkit/package.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/testkit/src/fixtures/b2-delivery.ts"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/testkit/src/fixtures/b2-revocation.ts"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/testkit/src/fixtures/b2-storage.ts"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/testkit/src/fixtures/recipes.ts"
+      ]
+    },
+    {
+      "change": "M",
+      "paths": [
+        "packages/testkit/src/index.ts"
+      ]
+    },
+    {
+      "change": "M",
+      "paths": [
+        "packages/testkit/src/reporting/report.ts"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/testkit/src/runner/dispatch.ts"
+      ]
+    },
+    {
+      "change": "M",
+      "paths": [
+        "packages/testkit/src/runner/loader.ts"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/testkit/src/runner/steps.ts"
+      ]
+    },
+    {
+      "change": "M",
+      "paths": [
+        "packages/testkit/src/scopes/local.ts"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/testkit/test/dispatch.test.ts"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/testkit/test/emitted-scope.test.ts"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/testkit/test/fixtures.test.ts"
+      ]
+    },
+    {
+      "change": "M",
+      "paths": [
+        "packages/ui/package.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/ui/scripts/build-browser.mjs"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/ui/src/browser/bootstrap.ts"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/ui/src/browser/export.ts"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/ui/src/browser/instrumentation.ts"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/ui/src/browser/polling.ts"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/ui/src/browser/print.ts"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/ui/src/browser/style.css"
+      ]
+    },
+    {
+      "change": "M",
+      "paths": [
+        "packages/ui/src/catalog.ts"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/ui/src/client.ts"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/ui/src/csv/confirm.ts"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/ui/src/csv/parse.ts"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/ui/src/csv/preview.ts"
+      ]
+    },
+    {
+      "change": "M",
+      "paths": [
+        "packages/ui/src/forms.ts"
+      ]
+    },
+    {
+      "change": "M",
+      "paths": [
+        "packages/ui/src/index.ts"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/ui/src/policyPage.ts"
+      ]
+    },
+    {
+      "change": "M",
+      "paths": [
+        "packages/ui/src/shell.ts"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/ui/test/browser-export.test.ts"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/ui/test/browser-instrumentation.test.ts"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/ui/test/browser-print.test.ts"
+      ]
+    },
+    {
+      "change": "M",
+      "paths": [
+        "packages/ui/test/catalog.test.ts"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/ui/test/csv.test.ts"
+      ]
+    },
+    {
+      "change": "M",
+      "paths": [
+        "packages/ui/test/forms.test.ts"
+      ]
+    },
+    {
+      "change": "M",
+      "paths": [
+        "packages/ui/test/journeys.test.ts"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/ui/test/policyPage.test.ts"
+      ]
+    },
+    {
+      "change": "M",
+      "paths": [
+        "packages/ui/test/shell.test.ts"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/ui/test/t20a-generated-forms.test.ts"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/ui/test/t20b-client.test.ts"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/ui/test/t20b-generated-depth.test.ts"
+      ]
+    },
+    {
+      "change": "M",
+      "paths": [
+        "packages/ui/test/themes.test.ts"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/values/Cargo.lock"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/values/Cargo.toml"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/values/bindings/Cargo.toml"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/values/bindings/backend.ts"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/values/bindings/bootstrap.ts"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/values/bindings/carriers.ts"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/values/bindings/generated/BUILD.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/values/bindings/generated/values_semantics.d.ts"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/values/bindings/generated/values_semantics.js"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/values/bindings/generated/values_semantics_bg.wasm"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/values/bindings/generated/values_semantics_bg.wasm.d.ts"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/values/bindings/owned-input.ts"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/values/bindings/plans.ts"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/values/bindings/src/exact.rs"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/values/bindings/src/lib.rs"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/values/bindings/src/validation.rs"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/values/bindings/validation.ts"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/values/conformance/owned-input/v1/README.md"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/values/conformance/owned-input/v1/cases.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/values/conformance/owned-input/v2/README.md"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/values/conformance/owned-input/v2/cases.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/values/conformance/ports/exact/cases.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/values/conformance/ports/exact/differential.mjs"
+      ]
+    },
+    {
+      "change": "M",
+      "paths": [
+        "packages/values/package.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/values/scripts/build-semantics.mjs"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/values/scripts/emit-semantics-inputs.mjs"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/values/scripts/stage-semantics.mjs"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/values/semantics/Cargo.toml"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/values/semantics/currency-facts.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/values/semantics/examples/conformance.rs"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/values/semantics/src/aggregates/decimal.rs"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/values/semantics/src/aggregates/integer.rs"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/values/semantics/src/aggregates/mod.rs"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/values/semantics/src/aggregates/money.rs"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/values/semantics/src/aggregates/numeric.rs"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/values/semantics/src/codecs/mod.rs"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/values/semantics/src/codecs/numeric.rs"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/values/semantics/src/currency_facts.rs"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/values/semantics/src/failures.rs"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/values/semantics/src/input.rs"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/values/semantics/src/lib.rs"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/values/semantics/src/numeric/decimal.rs"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/values/semantics/src/numeric/integer.rs"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/values/semantics/src/numeric/mod.rs"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/values/semantics/src/numeric/money.rs"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/values/semantics/src/numeric/rounding.rs"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/values/semantics/src/plans.rs"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/values/semantics/src/profiles.rs"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/values/semantics/src/representations/mod.rs"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/values/semantics/src/representations/numeric.rs"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/values/semantics/src/temporal/civil.rs"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/values/semantics/src/temporal/duration.rs"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/values/semantics/src/temporal/instant.rs"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/values/semantics/src/temporal/mod.rs"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/values/semantics/src/transport/exact.rs"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/values/semantics/src/transport/mod.rs"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/values/semantics/tests/aggregate_vectors.rs"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/values/semantics/tests/decimal_vectors.rs"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/values/semantics/tests/input_validation.rs"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/values/semantics/tests/input_validation/conformance_v1.rs"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/values/semantics/tests/input_validation/input.rs"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/values/semantics/tests/input_validation/validation.rs"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/values/semantics/tests/integer_vectors.rs"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/values/semantics/tests/money_vectors.rs"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/values/semantics/tests/rounding_vectors.rs"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/values/semantics/tests/temporal_vectors.rs"
+      ]
+    },
+    {
+      "change": "M",
+      "paths": [
+        "packages/values/src/array.ts"
+      ]
+    },
+    {
+      "change": "M",
+      "paths": [
+        "packages/values/src/decimal.ts"
+      ]
+    },
+    {
+      "change": "M",
+      "paths": [
+        "packages/values/src/locale.ts"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/values/src/prepared/codec.ts"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/values/src/prepared/plan.ts"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/values/src/prepared/validation.ts"
+      ]
+    },
+    {
+      "change": "M",
+      "paths": [
+        "packages/values/src/schema.ts"
+      ]
+    },
+    {
+      "change": "M",
+      "paths": [
+        "packages/values/src/wire.ts"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/values/test/exact-bootstrap.test.ts"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/values/test/legacy-validation-traces.test.ts"
+      ]
+    },
+    {
+      "change": "M",
+      "paths": [
+        "packages/values/test/locale.test.ts"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/values/test/owned-input.test.ts"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/values/test/prepared-validation.test.ts"
+      ]
+    },
+    {
+      "change": "M",
+      "paths": [
+        "packages/values/test/schema.test.ts"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/values/test/validation-binding.test.ts"
+      ]
+    },
+    {
+      "change": "M",
+      "paths": [
+        "packages/values/tsconfig.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/work-kernel/Cargo.lock"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/work-kernel/Cargo.toml"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/work-kernel/bindings/host-values.ts"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/work-kernel/conformance/every.test.ts"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/work-kernel/conformance/fixtures/policy/every.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/work-kernel/conformance/fixtures/policy/lifecycle.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/work-kernel/conformance/fixtures/policy/retry.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/work-kernel/conformance/fixtures/receipts/linkage.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/work-kernel/conformance/fixtures/receipts/receipt.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/work-kernel/conformance/fixtures/receipts/recovery.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/work-kernel/conformance/fixtures/rows/dispatch.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/work-kernel/conformance/fixtures/rows/every_slot.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/work-kernel/conformance/fixtures/rows/fanout_checkpoint.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/work-kernel/conformance/fixtures/rows/fanout_child.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/work-kernel/conformance/fixtures/rows/fanout_intent.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/work-kernel/conformance/fixtures/rows/occurrence.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/work-kernel/conformance/fixtures/rows/schedule.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/work-kernel/conformance/fixtures/rows/supersession.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/work-kernel/conformance/fixtures/traces/refs.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/work-kernel/conformance/lifecycle.test.ts"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/work-kernel/conformance/linkage.test.ts"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/work-kernel/conformance/receipt.test.ts"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/work-kernel/conformance/recovery.test.ts"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/work-kernel/conformance/retry.test.ts"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/work-kernel/conformance/rows.test.ts"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/work-kernel/decisions/every.rs"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/work-kernel/decisions/lifecycle.rs"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/work-kernel/decisions/linkage.rs"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/work-kernel/decisions/receipt.rs"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/work-kernel/decisions/recovery.rs"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/work-kernel/decisions/retry.rs"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/work-kernel/decisions/rows.rs"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/work-kernel/package.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/work-kernel/rust/lib.rs"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/work-kernel/src/every.ts"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/work-kernel/src/facts.ts"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/work-kernel/src/index.ts"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/work-kernel/src/lifecycle.ts"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/work-kernel/src/linkage.ts"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/work-kernel/src/receipt.ts"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/work-kernel/src/recovery.ts"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/work-kernel/src/retry.ts"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/work-kernel/src/rows.ts"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/work-kernel/tsconfig.json"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/work/README.md"
+      ]
+    },
+    {
+      "change": "M",
+      "paths": [
+        "packages/work/package.json"
+      ]
+    },
+    {
+      "change": "M",
+      "paths": [
+        "packages/work/src/dispatch/index.ts"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/work/src/dispatch/t32b-fence.test.ts"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/work/src/dispatch/t34-f3-claim.test.ts"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/work/src/dispatch/t34-f3-progress.test.ts"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/work/src/dispatch/t34-f3-record.test.ts"
+      ]
+    },
+    {
+      "change": "M",
+      "paths": [
+        "packages/work/src/intent/index.ts"
+      ]
+    },
+    {
+      "change": "M",
+      "paths": [
+        "packages/work/src/kernel/commands.ts"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/work/src/kernel/t34-f2-durable.test.ts"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/work/src/kernel/t34-f2-tables.test.ts"
+      ]
+    },
+    {
+      "change": "M",
+      "paths": [
+        "packages/work/src/kernel/tables.ts"
+      ]
+    },
+    {
+      "change": "M",
+      "paths": [
+        "packages/work/src/observation/association.ts"
+      ]
+    },
+    {
+      "change": "M",
+      "paths": [
+        "packages/work/src/observation/observation.ts"
+      ]
+    },
+    {
+      "change": "M",
+      "paths": [
+        "packages/work/src/observation/ports.ts"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/work/src/observation/t25a-progress.test.ts"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/work/src/observation/t25a-selected.test.ts"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/work/src/observation/t26-progress.test.ts"
+      ]
+    },
+    {
+      "change": "M",
+      "paths": [
+        "packages/work/src/ports.ts"
+      ]
+    },
+    {
+      "change": "M",
+      "paths": [
+        "packages/work/src/receipt/index.ts"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/work/src/receipt/t25a-consistency.test.ts"
+      ]
+    },
+    {
+      "change": "M",
+      "paths": [
+        "packages/work/src/recovery/index.ts"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/work/src/recovery/t26-durable.test.ts"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/work/src/recovery/t26-resume.test.ts"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/work/src/recovery/t34-f4-durable.test.ts"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/work/src/recovery/t34-f4-scan.test.ts"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/work/test/b3-mirror-conformance.test.ts"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/work/test/dispatch-unavailable.test.ts"
+      ]
+    },
+    {
+      "change": "M",
+      "paths": [
+        "packages/work/test/kernel-commands.test.ts"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/work/test/live-serve-addressing.test.ts"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "packages/work/test/t24a-staging-join.test.ts"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "tests/e2e/apps/challenge-pilot-patched.spec.ts"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "tests/e2e/apps/challenge-pilot.spec.ts"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "tests/e2e/apps/compiled-identity.spec.ts"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "tests/e2e/apps/compiled-journey.spec.ts"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "tests/e2e/apps/pilot-legs.ts"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "tests/e2e/apps/teamtasks-mcp.spec.ts"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "tests/e2e/bridges/mcp-bridge.ts"
+      ]
+    },
+    {
+      "change": "M",
+      "paths": [
+        "tests/e2e/fixtures/artifact-loader.ts"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "tests/e2e/fixtures/cando-seed.spec.ts"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "tests/e2e/fixtures/cando-seed.ts"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "tests/e2e/fixtures/compiled-seed.ts"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "tests/e2e/fixtures/compiled-shop.can"
+      ]
+    },
+    {
+      "change": "M",
+      "paths": [
+        "tests/e2e/fixtures/e2e-test.ts"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "tests/e2e/fixtures/example-hooks.ts"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "tests/e2e/fixtures/handbuilt/mcp-bundle-entry.js"
+      ]
+    },
+    {
+      "change": "M",
+      "paths": [
+        "tests/e2e/fixtures/handbuilt/teamtasks-worker.mjs"
+      ]
+    },
+    {
+      "change": "M",
+      "paths": [
+        "tests/e2e/fixtures/handbuilt/teamtasks.ts"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "tests/e2e/fixtures/mcp-grants.ts"
+      ]
+    },
+    {
+      "change": "R083",
+      "paths": [
+        "editors/vscode/audit-astra/snapshot/draft/CanDo.can",
+        "tests/e2e/fixtures/patched-pilot/CanDo.can"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "tests/e2e/fixtures/patched-pilot/Employees.can"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "tests/e2e/fixtures/patched-pilot/Locations.can"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "tests/e2e/fixtures/patched-pilot/PROVENANCE.md"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "tests/e2e/fixtures/pilot-examples.spec.ts"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "tests/e2e/fixtures/pilot-examples.ts"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "tests/e2e/fixtures/pilot-seed.ts"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "tests/e2e/fixtures/vendor-trees.ts"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "tests/e2e/fixtures/vendor-walk.spec.ts"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "tests/integration/b2-d1-fence.test.ts"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "tests/integration/b2-delivery.test.ts"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "tests/integration/b2-do-local.test.ts"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "tests/integration/b2-revocation.test.ts"
+      ]
+    },
+    {
+      "change": "M",
+      "paths": [
+        "tools/README.md"
+      ]
+    },
+    {
+      "change": "A",
+      "paths": [
+        "tools/b3-s4-demo.sh"
+      ]
+    }
+  ],
+  "draft_current_pin": "a55a0f700f07f6f972d9d6091b0fdbceee399eb9",
+  "retained_review_scope": "Old primary/app/challenger/late-source records remain byte/revision scoped; no new deep independent review or product qualification claimed.",
+  "product_test_evidence": {
+    "status": "scoped root verification; original full installed/backend/provider/human gates remain",
+    "records": [
+      {
+        "log": "/private/tmp/canlang-consolidation-20261006/build.log",
+        "sha256": "977fe98d90bc5f7411d4591d52d4a9d3f2c22012645b8c004daee0e54798ae48",
+        "performer": "root consolidation handler",
+        "revision_scope": "consolidated source plus source fixes fdb059c634c32c83760f35dd9175f49d9821762d; log/command-specific run scope, not full installed release"
+      },
+      {
+        "log": "/private/tmp/canlang-consolidation-20261006/typecheck-repaired.log",
+        "sha256": "91d54ffbee73a3ac72294d090e58d77745f8b93edbf94b862807698273a6505a",
+        "performer": "root consolidation handler",
+        "revision_scope": "consolidated source plus source fixes fdb059c634c32c83760f35dd9175f49d9821762d; log/command-specific run scope, not full installed release"
+      },
+      {
+        "log": "/private/tmp/canlang-consolidation-20261006/values-ts-tests-repaired.log",
+        "sha256": "18c696403b44cceadce703b181ca537eeb55075445c9b6c6988a73ffceaccf59",
+        "performer": "root consolidation handler",
+        "revision_scope": "consolidated source plus source fixes fdb059c634c32c83760f35dd9175f49d9821762d; log/command-specific run scope, not full installed release",
+        "tests": 873,
+        "pass": 873,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      {
+        "log": "/private/tmp/canlang-consolidation-20261006/values-rust-tests.log",
+        "sha256": "2055e2f5616f2220dd14cb405673b82475118adc40909265df0c254a63f879d2",
+        "performer": "root consolidation handler",
+        "revision_scope": "consolidated source plus source fixes fdb059c634c32c83760f35dd9175f49d9821762d; log/command-specific run scope, not full installed release",
+        "rust_summary": [
+          {
+            "pass": 0,
+            "fail": 0,
+            "ignored": 0
+          },
+          {
+            "pass": 14,
+            "fail": 0,
+            "ignored": 0
+          },
+          {
+            "pass": 3,
+            "fail": 0,
+            "ignored": 0
+          },
+          {
+            "pass": 11,
+            "fail": 0,
+            "ignored": 0
+          },
+          {
+            "pass": 21,
+            "fail": 0,
+            "ignored": 0
+          },
+          {
+            "pass": 6,
+            "fail": 0,
+            "ignored": 0
+          },
+          {
+            "pass": 8,
+            "fail": 0,
+            "ignored": 0
+          },
+          {
+            "pass": 6,
+            "fail": 0,
+            "ignored": 0
+          },
+          {
+            "pass": 10,
+            "fail": 0,
+            "ignored": 0
+          },
+          {
+            "pass": 0,
+            "fail": 0,
+            "ignored": 0
+          },
+          {
+            "pass": 0,
+            "fail": 0,
+            "ignored": 0
+          }
+        ],
+        "pass": 79
+      },
+      {
+        "log": "/private/tmp/canlang-consolidation-20261006/interfaces-tests.log",
+        "sha256": "97775c4ad6401762b65c0755af98ae8d5d25ebefd7cdd81e8d8add11a5a31db9",
+        "performer": "root consolidation handler",
+        "revision_scope": "consolidated source plus source fixes fdb059c634c32c83760f35dd9175f49d9821762d; log/command-specific run scope, not full installed release",
+        "tests": 504,
+        "pass": 504,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      {
+        "log": "/private/tmp/canlang-consolidation-20261006/ui-tests.log",
+        "sha256": "a442216ea7e948dcf72d76418b65d6f24926d7307fd0ed26a7dc7cbbb354cacc",
+        "performer": "root consolidation handler",
+        "revision_scope": "consolidated source plus source fixes fdb059c634c32c83760f35dd9175f49d9821762d; log/command-specific run scope, not full installed release",
+        "tests": 935,
+        "pass": 935,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      {
+        "log": "/private/tmp/canlang-consolidation-20261006/work-kernel-tests.log",
+        "sha256": "60841c5e8b86be8386a51a0e27fb09ca5b267041abdb41cd71c07a661519e625",
+        "performer": "root consolidation handler",
+        "revision_scope": "consolidated source plus source fixes fdb059c634c32c83760f35dd9175f49d9821762d; log/command-specific run scope, not full installed release",
+        "tests": 371,
+        "pass": 371,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      {
+        "log": "/private/tmp/canlang-consolidation-20261006/semantics-staging-check.json",
+        "sha256": "f2f7b0f7e40c2dce0dd2d71064fc5f8bc8e6843774f41b79a74acf003c2b30bf",
+        "performer": "root consolidation handler",
+        "revision_scope": "consolidated source plus source fixes fdb059c634c32c83760f35dd9175f49d9821762d; log/command-specific run scope, not full installed release",
+        "result": {
+          "exit": 1,
+          "integrity_refusal": true,
+          "no_partial_dist": true,
+          "real_dist_files_equal": true
+        }
+      },
+      {
+        "log": "/private/tmp/canlang-consolidation-20261006/vitest-unsandboxed.log",
+        "sha256": "d4bc9a38e7acf79c1fc1c1ab667d7e549c0533dd6bfb76ee98f497186a539749",
+        "performer": "root consolidation handler",
+        "scope": "63 files / 606 tests passed, root reported exit 0; workerd local process/socket permission scope"
+      },
+      {
+        "log": "/private/tmp/canlang-consolidation-20261006/vitest.log",
+        "sha256": "d1fab664a3198a9c11ed3353c2f5d86f97d2460ebe9920182e519c7313d1f410",
+        "performer": "root consolidation handler",
+        "scope": "first sandbox run timed out on workerd and was stopped; unsuccessful attempt preserved, superseded only by separate unsandboxed run"
+      },
+      {
+        "log": "/private/tmp/canlang-consolidation-20261006/sandbox-vitest-stop.json",
+        "sha256": "d5128c935d65e8a805411801743cea7161d6f5e14f18fa5feb7318fa44a4f545",
+        "performer": "root consolidation handler",
+        "scope": "root stop evidence for owned sandbox Vitest processes"
+      }
+    ],
+    "limitations": "log counts prove only executed suites; no outside-checkout install, remote qualification, human HOLD release, W01 review or full app journey acceptance follows",
+    "final_build_rerun": {
+      "exit": 0,
+      "log": "/private/tmp/canlang-consolidation-20261006/build-final.log",
+      "sha256": "977fe98d90bc5f7411d4591d52d4a9d3f2c22012645b8c004daee0e54798ae48",
+      "source_head": "fdb059c634c32c83760f35dd9175f49d9821762d",
+      "scope": "full combined workspace build with verified values binding staging; no independent whole-programme release acceptance"
+    }
+  },
+  "four_dimensions": {
+    "source_coverage": "all current tracked and prior historical identities structurally catalogued; exhaustive semantic review remains FP.SOURCE-CLOSURE",
+    "workflow_tracing": "prior 12 capability/app intent records reused only at exact scope; newly available source does not prove required workflow joins",
+    "independent_challenge": "historical challenges retained; consolidation review covers structural ownership/stage/provenance, not every branch/test body",
+    "exact_target_allocation": "new inputs allocated to existing owner or gated retained leaf; previous target/cutover/required duties preserved"
+  },
+  "open_gates": {
+    "B": "W01 owner review pending; extracted TS/Rust bodies and conformance retained without W02/W08 acceptance or installed native consumer claim",
+    "D": "human HOLD and P04-P11/native release/installed gates remain; stale missing-shared-exports blocker reconciled by root with current main evidence only",
+    "values": "real source/generated bindings preserved as opt-in scaffold; backend selection before evaluation/no failure replay; rollout/parity/installed/whole-call economics remain gated",
+    "E": "asset handler source retained; route mounting/page/current authority/installed browser joins remain required",
+    "F": "bootstrap/CSS/polling retained; full binder/DOM/installed/auth/current-action workflows remain required",
+    "A": "compiler routing/convention/parity documents retain proposal status; source closure not inferred",
+    "draft": "current descendant retained; no rollback to historic review pin"
+  },
+  "staging_scope": "Read stage-semantics.mjs: complete names/lengths/SHA validated before any mkdir/write; no module instantiation. Local dist equality and corrupt-input refusal are distinct from installed supported release.",
+  "publication_state": {
+    "primary_main": "local consolidated; remote push needs explicit human approval after automatic review rejection",
+    "drafts": "a55a0f7 referenced and preserved locally; remote main remains2d67312; publication needs explicit human approval",
+    "remote_cleanup": "three obsolete CanLang branches retain their current remote state until consolidated main is published and ancestry reverified",
+    "prs": "131 inspected, zero open; historical97/107 closed and adopted by99/118 respectively"
+  }
+}

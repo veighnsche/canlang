@@ -1,3 +1,11 @@
+# Consolidated current structural baseline
+
+Current source pin `fdb059c634c32c83760f35dd9175f49d9821762d`, branch `main`. The prior structural catalog `5edc3bac2a341fbda0bb432649e90ba70d3c05db` and its semantic/review pins remain historical evidence. Current tracked parent paths: 2567; retained historical predecessor identities: 243; accumulated changes since complete checkpoint: 1305. [Consolidation review](consolidation-review.json) carries ordered merges and the four separate completion dimensions. The complete checkpoint `8249342707d3280e88e39e8c911b7e457828f31f` remains unchanged because `FP.SOURCE-CLOSURE` is open.
+
+The retained baseline text below describes its original observation only; its old writer/running-state and counts are historical. Consolidation stops the prior worker run and preserves unfinished source; it does not resume execution or replace current authority/installed workflow gates. No source acceptance follows from refreshed hashes.
+
+## Prior catalog and review provenance
+
 # Inputs, baselines and writer boundary
 
 Literal checkout `/Users/vince/Projects/canlang`, branch `main`, current structural/catalog pin `5edc3bac2a341fbda0bb432649e90ba70d3c05db`; initial new semantic review `cf36983c768c32e0a63ac33c3b45a94dc75dc2d3`. The independent draft pin is `40656da211a410cb6fb363a9c2afc3010fcb8b29` with 148 nested paths. Parent tracked catalog: 2344; other-owner added inputs: 47. All 605 accumulated path deltas since complete checkpoint `8249342707d3280e88e39e8c911b7e457828f31f` are recorded, including deletion/move history; no checkpoint advances. Historical primary `350163ad661e61b667809a5f78b608c23812a5f0` is a separate review baseline. [Late source](late-source.md) accounts for the post-review paths at their distinct recorded review scopes and supersedes only stated source-availability claims.
