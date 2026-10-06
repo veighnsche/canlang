@@ -32,6 +32,20 @@ The verifier checks GitHub's exact workflow path and attempt job conclusion, art
 
 A matching package receipt replaces that local gate only. Coordinator acceptance still requires its named critical witnesses, relevant joined/main checks, supported-host limits, exact writer/command release and independent Codex review. No receipt automatically authorizes merge, default-backend adoption, deployment or public release.
 
+## Native prerequisite (cloudflare/workspace only)
+
+Those profiles' tests spawn the `can-preparation` binary, which a cold runner
+lacks (only `darwin-arm64` is packaged). After the SHA check and before tests,
+the gate installs pinned toolchain 1.99.0 (`--profile minimal`), records
+`rustc`/`cargo` versions, and runs an isolated `--locked` debug build of
+`packages/cloudflare/preparation` with a private `CARGO_TARGET_DIR` outside the
+checkout. Test children receive the built binary via `CAN_PREPARATION_BIN`.
+Crate lockfile, toolchain file, and built executable hashes land in
+`receipt.native_prerequisite`; logs/hashes upload, never the target dir or
+binary. A failed prerequisite fails the receipt and skips dependent tests.
+Other profiles run no native prerequisite. The verifier rejects receipts that
+omit/fail it or advertise inconsistent binary/lock hashes.
+
 ## Local tooling checks
 
 ```sh
