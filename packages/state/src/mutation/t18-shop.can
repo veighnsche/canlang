@@ -1,0 +1,10 @@
+app Shop
+Given
+ Team { name:text, owner:user, stock:int=0, kind:enum(home,away)=home, note:text?, tags:text[], flags:text[]!, made:datetime server=now, by:user server=actor, token:secret server=random_secret() }
+ Member in Team { name:text, buddy:user=parent.owner, nick:text?, state:enum(new,old)=new, seen:datetime server=now }
+ policy Team read=members
+ policy Member read=members
+When
+ crud Team by=members fields=name,owner,stock,kind,note,tags,flags
+ crud Member by=members fields=name,buddy,nick,state
+Then

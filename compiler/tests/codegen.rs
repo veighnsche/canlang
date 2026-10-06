@@ -3042,7 +3042,8 @@ fn golden_catalog() -> (Catalog, PathBuf) {
 {"id":"sum","kind":"builtin","signature":"sum(domain:C<T>,currency:currency)->money","effects":"state-read","availability":"implemented","owner":"lane-02"},
 {"id":"money","kind":"builtin","signature":"money(minor:int,currency:currency)->money","effects":"pure","availability":"implemented","owner":"lane-02"},
 {"id":"trim","kind":"builtin","signature":"trim(value:text)->text","effects":"pure","availability":"implemented","owner":"lane-02"},
-{"id":"format","kind":"builtin","signature":"format(descriptor:message)->text","effects":"pure","availability":"implemented","owner":"lane-02"}
+{"id":"format","kind":"builtin","signature":"format(descriptor:message)->text","effects":"pure","availability":"implemented","owner":"lane-02"},
+{"id":"random_secret","kind":"builtin","signature":"random_secret()->secret","effects":"server-default-only","availability":"external","owner":"lane-03"}
 ]}"#,
     )
     .expect("write golden catalog");
@@ -4084,7 +4085,7 @@ fn t15a_field_default_mapping() {
         "computed non-parent has no T04a vocabulary"
     );
     let server = js::js_field_default(None, Some(&IrServer::Actor)).expect("server maps");
-    assert_eq!(server.to_json(), "{\"kind\":\"server\"}");
+    assert_eq!(server.to_json(), "{\"kind\":\"server\",\"init\":\"actor\"}");
     // Server wins over any default (spellings are mutually exclusive in
     // grammar; the descriptor stays total either way).
     let both = js::js_field_default(
@@ -4092,7 +4093,7 @@ fn t15a_field_default_mapping() {
         Some(&IrServer::Now),
     )
     .expect("server wins");
-    assert_eq!(both.to_json(), "{\"kind\":\"server\"}");
+    assert_eq!(both.to_json(), "{\"kind\":\"server\",\"init\":\"now\"}");
 }
 
 /// Build one synthetic model field item for tag tests.
@@ -4486,7 +4487,7 @@ fn t15a_models_shape_end_to_end() {
     assert!(by.server_only && !by.required);
     assert_eq!(
         by.default.as_ref().map(|d| d.to_json()).as_deref(),
-        Some("{\"kind\":\"server\"}")
+        Some("{\"kind\":\"server\",\"init\":\"actor\"}")
     );
     let create = d03_operation(&artifact, "Shop.Gadget.create");
     assert!(
@@ -6735,5 +6736,233 @@ console.log(JSON.stringify(verdict));
             .and_then(|v| v.as_str()),
         Some("widget"),
         "{stdout}"
+    );
+}
+
+/// (T18) Server-initializer mapping: `actor`/`now` map to their closed
+/// tokens, exactly `random_secret()` maps to `random_secret`, and every
+/// other computed spelling maps to opaque `computed` (the L3 loader
+/// rejects those sets fail-closed; descriptors stay total).
+#[test]
+fn t18_server_init_mapping() {
+    assert_eq!(
+        js::js_server_init(&IrServer::Actor),
+        js::JsServerInit::Actor
+    );
+    assert_eq!(js::js_server_init(&IrServer::Now), js::JsServerInit::Now);
+    let secret_call = typed(
+        IrExpr::Call {
+            target: IrCallTarget::Builtin {
+                id: "random_secret".to_string(),
+                awaited: false,
+            },
+            args: vec![],
+        },
+        ResolvedType::Unknown,
+    );
+    assert_eq!(
+        js::js_server_init(&IrServer::Computed(secret_call)),
+        js::JsServerInit::RandomSecret
+    );
+    // Arity matters: `random_secret(x)` is not the closed spelling.
+    let secret_arity = typed(
+        IrExpr::Call {
+            target: IrCallTarget::Builtin {
+                id: "random_secret".to_string(),
+                awaited: false,
+            },
+            args: vec![int_lit(1)],
+        },
+        ResolvedType::Unknown,
+    );
+    assert_eq!(
+        js::js_server_init(&IrServer::Computed(secret_arity)),
+        js::JsServerInit::Computed
+    );
+    // Non-call computed expressions (e.g. `now+1h`) are opaque too.
+    let now_plus = typed(
+        IrExpr::Binary {
+            op: IrBinOp::Add,
+            left: Box::new(typed(
+                IrExpr::Name("now".to_string()),
+                ResolvedType::Unknown,
+            )),
+            right: Box::new(typed(IrExpr::DurationMs(3_600_000), ResolvedType::Unknown)),
+        },
+        ResolvedType::Unknown,
+    );
+    assert_eq!(
+        js::js_server_init(&IrServer::Computed(now_plus)),
+        js::JsServerInit::Computed
+    );
+    assert_eq!(
+        js::js_field_default(None, Some(&IrServer::Now))
+            .expect("now maps")
+            .to_json(),
+        "{\"kind\":\"server\",\"init\":\"now\"}"
+    );
+}
+
+/// (T18) Server initializers end to end: the three closed spellings emit
+/// their `init` tokens on the model descriptor and stay out of create
+/// inputs (never caller-provided).
+/// TEST-ONLY artifact: see module docs.
+#[test]
+fn t18_server_init_end_to_end() {
+    let src = "app Shop\nGiven\n Token { name:text, value:secret server=random_secret() }\n Ping { label:text, by:user server=actor, at:datetime server=now }\n policy Token read=members\n policy Ping read=members\nWhen\n crud Token by=members fields=name\n crud Ping by=members fields=label\nThen\n";
+    let (_program, artifact, diags) = d03_emit(src);
+    assert!(
+        diags.iter().all(|d| d.code != "E6006"),
+        "no analysis gaps: {diags:?}"
+    );
+    // T18: the external `random_secret` (lane-03 engine-executed) is not
+    // a JS-link `E6007` dependency from server position.
+    assert!(
+        diags.iter().all(|d| d.code != "E6007"),
+        "no link check on engine-executed inits: {diags:?}"
+    );
+    // The emitted schema slot is the link-free marker, never a callable
+    // over an unlinked import.
+    assert!(
+        artifact
+            .modules
+            .iter()
+            .any(|m| m.js.contains("server:\"random_secret\"")),
+        "server slot marker"
+    );
+    let token = t15a_model(&artifact, "Shop.Token");
+    let value = t15a_field(token, "value");
+    assert!(value.server_only && !value.required);
+    assert_eq!(
+        value.default.as_ref().map(|d| d.to_json()).as_deref(),
+        Some("{\"kind\":\"server\",\"init\":\"random_secret\"}")
+    );
+    let ping = t15a_model(&artifact, "Shop.Ping");
+    assert_eq!(
+        t15a_field(ping, "by")
+            .default
+            .as_ref()
+            .map(|d| d.to_json())
+            .as_deref(),
+        Some("{\"kind\":\"server\",\"init\":\"actor\"}")
+    );
+    assert_eq!(
+        t15a_field(ping, "at")
+            .default
+            .as_ref()
+            .map(|d| d.to_json())
+            .as_deref(),
+        Some("{\"kind\":\"server\",\"init\":\"now\"}")
+    );
+    for op in ["Shop.Token.create", "Shop.Ping.create"] {
+        let create = d03_operation(&artifact, op);
+        assert!(
+            create
+                .inputs
+                .iter()
+                .all(|input| input.name != "value" && input.name != "by" && input.name != "at"),
+            "server fields never caller-provided in {op}: {:?}",
+            create.inputs.iter().map(|i| &i.name).collect::<Vec<_>>()
+        );
+    }
+    // The envelope carries the init tokens per artifact.ts.
+    let json = artifact::to_json(&artifact);
+    assert!(
+        json.contains("\"init\":\"random_secret\""),
+        "random_secret init: {json}"
+    );
+    assert!(json.contains("\"init\":\"actor\""), "actor init: {json}");
+    assert!(json.contains("\"init\":\"now\""), "now init: {json}");
+}
+
+/// (T18) Child-model creates synthesize the caller-required unversioned
+/// `parent` linkage input; root creates, updates, and deletes carry
+/// none (linkage is immutable after creation).
+/// TEST-ONLY artifact: see module docs.
+#[test]
+fn t18_child_create_parent_input() {
+    let src = "app Shop\nGiven\n Team { name:text }\n Member in Team { name:text }\n policy Team read=members\n policy Member read=members\nWhen\n crud Team by=members fields=name\n crud Member by=members fields=name\nThen\n";
+    let (_program, artifact, diags) = d03_emit(src);
+    assert!(
+        diags.iter().all(|d| d.code != "E6006"),
+        "no analysis gaps: {diags:?}"
+    );
+    let member = t15a_model(&artifact, "Shop.Member");
+    assert_eq!(member.parent.as_deref(), Some("Shop.Team"));
+    let create = d03_operation(&artifact, "Shop.Member.create");
+    let parent = d03_input(create, "parent");
+    assert!(parent.required && !parent.nullable, "parent required");
+    match &parent.field {
+        js::JsMcpField::Ref {
+            model,
+            require_version,
+        } => {
+            assert_eq!(model, "Shop.Team");
+            assert!(!require_version, "parents are unversioned");
+        }
+        other => panic!("parent input is a ref: {other:?}"),
+    }
+    for op in ["Shop.Member.update", "Shop.Member.delete"] {
+        let operation = d03_operation(&artifact, op);
+        assert!(
+            operation.inputs.iter().all(|input| input.name != "parent"),
+            "no parent on {op}: {:?}",
+            operation.inputs.iter().map(|i| &i.name).collect::<Vec<_>>()
+        );
+    }
+    let root_create = d03_operation(&artifact, "Shop.Team.create");
+    assert!(
+        root_create
+            .inputs
+            .iter()
+            .all(|input| input.name != "parent"),
+        "no parent on root creates: {:?}",
+        root_create
+            .inputs
+            .iter()
+            .map(|i| &i.name)
+            .collect::<Vec<_>>()
+    );
+    // The envelope carries the parent input per artifact.ts.
+    let json = artifact::to_json(&artifact);
+    assert!(json.contains("\"name\":\"parent\""), "parent input: {json}");
+}
+
+/// (T18/R27) Server-owned checker pin: an ordinary operation-body `set`
+/// of a `server=` field rejects (`E3001`), while a hook adjusting its
+/// pending record (`set event.after`) draws no diagnostic. The T18
+/// engine matches: callers never supply server-owned values and only
+/// hook adjustment rewrites them.
+#[test]
+fn t18_r27_server_owned_checker() {
+    let src = "app T\nGiven\n M { t:text, armed:datetime server=now }\nWhen\n scenario fix(rec:M) by=members\n  do\n   set rec {armed=now}\n scenario h on=M.update\n  do\n   set event.after {armed=now}\nThen\n";
+    // Analysis diagnostics (not emit): `d03_emit` drops them, so drive
+    // `check_example` directly like the golden helpers do.
+    let mut db = SourceDb::new();
+    let id = db.add("t18.can".to_string(), src.to_string());
+    let (catalog, path) = golden_catalog();
+    let (_program, result) = check_example(&db, id, Some(&catalog));
+    let _ = std::fs::remove_file(&path);
+    let armed: Vec<_> = result
+        .diagnostics
+        .iter()
+        .filter(|d| d.message.contains("armed"))
+        .collect();
+    assert_eq!(
+        armed.len(),
+        1,
+        "one armed diagnostic: {:?}",
+        result.diagnostics
+    );
+    let only = armed[0];
+    assert_eq!(only.code, "E3001");
+    assert_eq!(only.message, "server-owned field 'armed' cannot be set");
+    // The diagnostic points at the ordinary `set`, never the hook body.
+    let ordinary = src.find("set rec {armed").expect("ordinary set");
+    let hook = src.find("scenario h").expect("hook");
+    let start = only.primary.start as usize;
+    assert!(
+        start >= ordinary && start < hook,
+        "E3001 on the ordinary path: {start} in {src:?}"
     );
 }

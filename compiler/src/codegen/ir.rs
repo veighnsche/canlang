@@ -4288,7 +4288,18 @@ impl<'a> Cx<'a> {
                     _ => {}
                 }
             }
-            Some(IrServer::Computed(self.decode_expr(&scope, &node)))
+            // T18: server initializers execute in the L3 engine, never in
+            // the emitted JS — builtin references decoded here are not
+            // link-time `E6007` dependencies (the engine owns
+            // `random_secret`, not the stdlib). Truncate exactly the
+            // entries this decode appended (positional, so builtins also
+            // used in linked positions keep their true-span entries);
+            // `g13_seen` still suppresses the effects fallback for these
+            // ids, which is precisely the engine-executed posture.
+            let seen = self.builtins_seen.len();
+            let lowered = self.decode_expr(&scope, &node);
+            self.builtins_seen.truncate(seen);
+            Some(IrServer::Computed(lowered))
         });
         let mut modifiers = IrModifiers::default();
         for modifier in &data.modifiers {

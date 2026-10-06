@@ -302,6 +302,33 @@ impl JsMcpField {
     }
 }
 
+/// One T18 closed-set server initializer (JSON shape of
+/// `artifact.ts` `ArtifactServerInit`).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum JsServerInit {
+    /// `server=actor`: the invoking actor as a wire `{id}` user value.
+    Actor,
+    /// `server=now`: the frozen invocation clock as RFC 3339 millis.
+    Now,
+    /// `server=random_secret()`: fresh opaque hex material per execution.
+    RandomSecret,
+    /// Any other `server=` expression (e.g. `server=now+1h`): the L3
+    /// loader rejects such sets fail-closed (T04b vocabulary).
+    Computed,
+}
+
+impl JsServerInit {
+    /// Compact JSON token per `artifact.ts` `ArtifactServerInit`.
+    pub fn to_json(self) -> &'static str {
+        match self {
+            JsServerInit::Actor => "\"actor\"",
+            JsServerInit::Now => "\"now\"",
+            JsServerInit::RandomSecret => "\"random_secret\"",
+            JsServerInit::Computed => "\"computed\"",
+        }
+    }
+}
+
 /// One source-derived field default (JSON shape of `ArtifactFieldDefault`,
 /// mirroring L3 `CanonicalFieldDefault`).
 #[derive(Debug, Clone)]
@@ -313,8 +340,8 @@ pub enum JsFieldDefault {
     /// Dot path off the loaded parent row (create only; leading `parent.`
     /// stripped, e.g. `parent.parent.user` renders `"parent.user"`).
     Parent { path: String },
-    /// Engine-resolved server initializer (any `server=` spelling).
-    Server,
+    /// Engine-resolved server initializer (T18 closed `init` vocabulary).
+    Server(JsServerInit),
     /// Derived value marker (derived fields only; T18 executes).
     Derived,
 }
@@ -327,19 +354,46 @@ impl JsFieldDefault {
             JsFieldDefault::Parent { path } => {
                 format!("{{\"kind\":\"parent\",\"path\":{}}}", js_string(path))
             }
-            JsFieldDefault::Server => "{\"kind\":\"server\"}".to_string(),
+            JsFieldDefault::Server(init) => {
+                format!("{{\"kind\":\"server\",\"init\":{}}}", init.to_json())
+            }
             JsFieldDefault::Derived => "{\"kind\":\"derived\"}".to_string(),
         }
+    }
+}
+
+/// True for exactly `random_secret()` (no arguments): the one computed
+/// `server=` spelling the T18 closed set executes.
+fn is_random_secret_call(expr: &TypedExpr) -> bool {
+    match &expr.expr {
+        IrExpr::Call { target, args } => {
+            matches!(target, IrCallTarget::Builtin { id, .. } if id == "random_secret")
+                && args.is_empty()
+        }
+        _ => false,
+    }
+}
+
+/// Map one server initializer to the T18 closed `init` vocabulary.
+/// Total: non-closed computed expressions map to `Computed` (the L3
+/// loader rejects them fail-closed); descriptors never fail compilation.
+pub fn js_server_init(server: &IrServer) -> JsServerInit {
+    match server {
+        IrServer::Actor => JsServerInit::Actor,
+        IrServer::Now => JsServerInit::Now,
+        IrServer::Computed(expr) if is_random_secret_call(expr) => JsServerInit::RandomSecret,
+        IrServer::Computed(_) => JsServerInit::Computed,
     }
 }
 
 /// Map one field/parameter default plus server initializer to its
 /// descriptor form, or `None` when the default has no T04a vocabulary.
 ///
-/// `server=` (any spelling) wins as `{kind:"server"}` and literal
-/// defaults encode via [`literal_json`]; computed defaults map only
-/// when they are a parent path ([`parent_path`]). Any other computed
-/// default (a non-parent expression) maps to `None`: the caller keeps
+/// `server=` (any spelling) wins as `{kind:"server",init:...}` (T18
+/// closed vocabulary via [`js_server_init`]) and literal defaults
+/// encode via [`literal_json`]; computed defaults map only when they
+/// are a parent path ([`parent_path`]). Any other computed default (a
+/// non-parent expression) maps to `None`: the caller keeps
 /// `required: false` and the emitted `default(c)` callable preserves
 /// execution — T04b grows the vocabulary. Total and diagnostic-free:
 /// descriptors never fail compilation.
@@ -347,8 +401,8 @@ pub fn js_field_default(
     default: Option<&IrDefault>,
     server: Option<&IrServer>,
 ) -> Option<JsFieldDefault> {
-    if server.is_some() {
-        return Some(JsFieldDefault::Server);
+    if let Some(server) = server {
+        return Some(JsFieldDefault::Server(js_server_init(server)));
     }
     match default {
         None => None,
@@ -2281,11 +2335,18 @@ impl<'a> Emitter<'a> {
         }
     }
 
-    /// Lower a server initializer: fixed `actor`/`now` or a callable.
+    /// Lower a server initializer: fixed `actor`/`now`/`random_secret`
+    /// markers or a callable. `random_secret()` is engine-executed (T18:
+    /// never JS-linked — the catalog marks it external and
+    /// non-client-callable), so it lowers to a link-free marker like
+    /// `actor`/`now` rather than a callable over an unlinked import.
     fn lower_server(&mut self, server: &IrServer) -> String {
         match server {
             IrServer::Actor => "\"actor\"".to_string(),
             IrServer::Now => "\"now\"".to_string(),
+            IrServer::Computed(expr) if is_random_secret_call(expr) => {
+                "\"random_secret\"".to_string()
+            }
             IrServer::Computed(expr) => {
                 let body = self.lower_expr(expr);
                 let prefix = if expr_uses_async(expr) { "async" } else { "" };
@@ -4303,6 +4364,7 @@ impl<'a> Emitter<'a> {
                     };
                     let IrItemKind::Model {
                         fields: model_fields,
+                        owner,
                         ..
                     } = &model_item.kind
                     else {
@@ -4406,7 +4468,34 @@ impl<'a> Emitter<'a> {
                         description: None,
                     };
                     let inputs = match op {
-                        CrudOp::Create => flat,
+                        CrudOp::Create => {
+                            // T18: child-model creates synthesize the
+                            // caller-required unversioned `parent` linkage
+                            // input (source mandates `parent=` on child
+                            // creates; the L3 executor consumes it as
+                            // linkage, never field data). A dangling owner
+                            // row omits the input (never a panic); a model
+                            // field literally named `parent` trips the
+                            // duplicate-name guard below and omits the op.
+                            let mut inputs = flat;
+                            if let IrOwner::ChildOf(parent_id) = owner
+                                && let Some(parent_item) = self.ir.items.get(parent_id.0 as usize)
+                            {
+                                inputs.push(JsOperationField {
+                                    name: "parent".to_string(),
+                                    field: JsMcpField::Ref {
+                                        model: parent_item.canonical.clone(),
+                                        require_version: false,
+                                    },
+                                    required: true,
+                                    nullable: false,
+                                    array_required: None,
+                                    default: None,
+                                    description: None,
+                                });
+                            }
+                            inputs
+                        }
                         CrudOp::Update => {
                             // Changes are partial: every flattened field is
                             // optional beside the versioned record, and

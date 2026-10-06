@@ -198,6 +198,21 @@ export interface ArtifactOperationInput {
 export type ArtifactOperationKind = 'read' | 'create' | 'update' | 'delete' | 'scenario';
 
 /**
+ * T18 closed server-initializer vocabulary (additive `init` payload on the
+ * `server` default member). The L3 engine resolves exactly `actor` (the
+ * invoking actor as a wire `{id}` user value), `now` (the frozen
+ * invocation clock as an RFC 3339 millis datetime string), and
+ * `random_secret` (fresh opaque hex material per execution, stable per
+ * committed operation identity through the replay path). `computed` marks
+ * a server initializer outside that closed set (e.g. `server=now+1h`):
+ * descriptors stay total and diagnostic-free, and the L3 loader rejects
+ * such sets fail-closed (T04b grows the execution vocabulary). Absent
+ * `init` reads as unspecified (pre-T18 artifacts): the engine resolves
+ * nothing and the field stays missing, never invented.
+ */
+export type ArtifactServerInit = 'actor' | 'now' | 'random_secret' | 'computed';
+
+/**
  * T15a source-derived default vocabulary (JSON shape of L3
  * `CanonicalFieldDefault` in `state.ts`). The two spellings must stay
  * identical: `literal` carries a wire-encoded JSON value (ints, decimals
@@ -205,12 +220,14 @@ export type ArtifactOperationKind = 'read' | 'create' | 'update' | 'delete' | 's
  * `{minor, currency}`, never a JS Number); `parent` carries the dot path
  * off the loaded parent row (create only, leading `parent.` stripped);
  * `server`/`derived` mark engine-resolved values (T18 execution) and
- * exclude the field from writable inputs.
+ * exclude the field from writable inputs. T18 adds the optional `init`
+ * payload on `server` (see `ArtifactServerInit`); L3 intake readers keep
+ * ignoring extra members and only kinds reject.
  */
 export type ArtifactFieldDefault =
   | { kind: 'literal'; value: unknown }
   | { kind: 'parent'; path: string }
-  | { kind: 'server' }
+  | { kind: 'server'; init?: ArtifactServerInit }
   | { kind: 'derived' };
 
 /**
@@ -325,6 +342,13 @@ export interface ArtifactModel {
  * (`""` when the operation carries none — generated CRUD operations
  * never inherit captions). `inputs` is the closed typed input schema
  * derived from the operation signature.
+ *
+ * T18: child-model creates (`models[].parent` set) synthesize one
+ * `parent` input beside the flattened fields — an unversioned `ref` to
+ * the parent model, caller-required (source mandates `parent=` on
+ * child creates). The L3 executor consumes it as record linkage, never
+ * as field data. Update/delete carry no parent input (linkage is
+ * immutable); root-model creates carry none.
  */
 export interface ArtifactOperation {
   /** Canonical operation identity, e.g. `expenses.approve`. */

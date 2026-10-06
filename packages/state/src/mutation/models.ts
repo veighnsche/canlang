@@ -49,9 +49,18 @@ export function isParentPathDefault(value: unknown): value is InterimParentPathD
 }
 
 /**
+ * T18 engine-resolvable server initializer (mirrors the loader's
+ * `ServerInitKind` without importing the invocation layer: `actor` stamps
+ * the invoking actor as a wire `{id}` user value, `now` stamps the frozen
+ * invocation clock as an RFC 3339 millis datetime string, `random_secret`
+ * mints fresh opaque hex material per execution).
+ */
+export type InterimServerInit = 'actor' | 'now' | 'random_secret';
+
+/**
  * One interim field: presence requirement, caller-writability, and an
  * optional default. `serverOnly` fields reject caller-supplied values; their
- * values come from defaults, hooks, or (later) server evaluation only.
+ * values come from defaults, hooks, or server evaluation only.
  * `default` is a JSON literal, or exactly `{ parentPath }` for a parent-row
  * lookup (create only). Without a supplied parent — or when the path does
  * not resolve — the default reads as missing and the required check decides,
@@ -62,12 +71,28 @@ export function isParentPathDefault(value: unknown): value is InterimParentPathD
  * singular): ordinary arrays (`required: false`) omit to empty on create,
  * required arrays (`required: true`) reject omission. Absent on hand-built
  * interim defs, which keep their exact prior behavior.
+ *
+ * T18: `server` records the closed-set engine initializer for a
+ * server-resolved field, evaluated at creation for omitted fields only
+ * (after literal/parent defaults and the null/array fills, before hooks
+ * — hooks observe the resolved value and, per the adopted R27 rule, are
+ * the only writers that may adjust it). Mutually exclusive with
+ * `default` (source spellings are exclusive too). Absent on hand-built
+ * interim defs, which keep their exact prior behavior.
+ *
+ * T18: `nullable: true` records a KNOWN-nullable field (artifact
+ * declared): omitted fills null on create (L2 parity, before the
+ * array-empty fill — nullable arrays yield null). Absent reads as
+ * unknown: no fill, exact prior behavior (hand-built defs and
+ * fixtures omit it).
  */
 export interface InterimFieldDef {
   readonly required: boolean;
   readonly serverOnly: boolean;
   readonly default?: unknown;
   readonly array?: { readonly required: boolean };
+  readonly server?: InterimServerInit;
+  readonly nullable?: boolean;
 }
 
 /**
@@ -275,11 +300,12 @@ function deepFreeze<T>(value: T, seen: Set<unknown> = new Set()): T {
  *
  * Throws plain `Error` on programmer bugs: empty/duplicate model names,
  * malformed field names, non-boolean `required`/`serverOnly`, malformed
- * array markers, unserializable or malformed defaults, malformed ref paths
- * or empty ref models, duplicate ref paths, unknown or duplicate unique-key
- * fields, unknown delete modes, malformed hooks/invariants/locks (empty
- * names, dupes, bad ops, non-function `run`/`check`, malformed lock `when`
- * shapes), or non-serializable descriptor data.
+ * array markers, unserializable or malformed defaults, T18 unknown server
+ * inits, `server`+`default` doubles, or non-boolean `nullable`, malformed
+ * ref paths or empty ref models, duplicate ref paths, unknown or duplicate
+ * unique-key fields, unknown delete modes, malformed hooks/invariants/locks
+ * (empty names, dupes, bad ops, non-function `run`/`check`, malformed lock
+ * `when` shapes), or non-serializable descriptor data.
  */
 export function buildModelTable(models: ReadonlyArray<InterimModelDef>): ModelTable {
   const table = new Map<ModelName, InterimModelDef>();
@@ -340,6 +366,29 @@ export function buildModelTable(models: ReadonlyArray<InterimModelDef>): ModelTa
             );
           }
         }
+      }
+      // T18: closed init set; `server` and `default` are mutually
+      // exclusive (source spellings are exclusive too — a hand-built def
+      // carrying both is a programmer bug, never a precedence rule).
+      if (field.server !== undefined) {
+        if (field.server !== 'actor' && field.server !== 'now' && field.server !== 'random_secret') {
+          throw new Error(
+            `Invalid server init for field ${JSON.stringify(name)} on model ` +
+              `${JSON.stringify(model)}: supported: actor, now, random_secret.`,
+          );
+        }
+        if (field.default !== undefined) {
+          throw new Error(
+            `Invalid field ${JSON.stringify(name)} on model ${JSON.stringify(model)}: ` +
+              'server initializers and defaults are mutually exclusive.',
+          );
+        }
+      }
+      if (field.nullable !== undefined && typeof field.nullable !== 'boolean') {
+        throw new Error(
+          `Invalid field ${JSON.stringify(name)} on model ${JSON.stringify(model)}: ` +
+            'nullable must be a boolean.',
+        );
       }
     }
     if (!Array.isArray(def.refs)) {
@@ -540,6 +589,22 @@ export interface CanonicalModelTableOptions {
    * the T16a core scope (T04b extends the contract).
    */
   readonly refs?: ReadonlyMap<ModelName, ReadonlyArray<InterimRefDef>>;
+  /**
+   * T18 server initializers per model then field (the loader's
+   * `serverInits` channel: additive artifact `init` tokens the frozen
+   * intake cannot hold). A field listed here resolves its init at
+   * creation; fields without an entry resolve nothing. Intake-direct
+   * callers (no artifact) omit this and keep the pre-T18 posture.
+   */
+  readonly serverInits?: ReadonlyMap<ModelName, ReadonlyMap<string, InterimServerInit>>;
+  /**
+   * T18 known-nullable field names per model (the loader's
+   * `nullableFields` channel: additive artifact `nullable` flags).
+   * Listed fields fill null when omitted on create (L2 parity);
+   * unlisted fields keep the exact prior behavior (absent stays
+   * absent — never filled, never rejected).
+   */
+  readonly nullableFields?: ReadonlyMap<ModelName, ReadonlySet<string>>;
 }
 
 /**
@@ -549,12 +614,15 @@ export interface CanonicalModelTableOptions {
  *
  * Conversion: `required`/`serverOnly`/array markers map directly; `literal`
  * defaults map to JSON literals, `parent` defaults to `{ parentPath }`
- * lookups; `server`/`derived` defaults map to NO pipeline default (their
- * values are engine-resolved by T18 — emission marks them non-required, so
- * they never block creates — and `serverOnly` still rejects caller values).
- * Composite unique keys (comma-joined) throw plain `Error` naming T04b:
- * silently dropping a uniqueness constraint would admit duplicates, so the
- * loader rejects such sets first and this guard is unreachable via it.
+ * lookups; `server` defaults map to NO pipeline `default` — their values
+ * resolve from the `serverInits` channel instead (T18 execution; emission
+ * marks them non-required, so they never block creates, and `serverOnly`
+ * still rejects caller values). `derived` defaults map to nothing: derived
+ * fields stay absent from stored rows (L2 drops them from validated output
+ * the same way; read-time projection is T04b). Composite unique keys
+ * (comma-joined) throw plain `Error` naming T04b: silently dropping a
+ * uniqueness constraint would admit duplicates, so the loader rejects such
+ * sets first and this guard is unreachable via it.
  */
 export function buildModelTableFromCanonical(
   models: ReadonlyArray<CanonicalModelDescriptor>,
@@ -585,11 +653,15 @@ export function buildModelTableFromCanonical(
         // `server`/`derived`: no pipeline default (T18 execution); the
         // descriptor's `serverOnly` still rejects caller-supplied values.
       }
+      const serverInit = opts.serverInits?.get(model.name)?.get(name);
+      const knownNullable = opts.nullableFields?.get(model.name)?.has(name) === true;
       fields[name] = {
         required: field.required,
         serverOnly: field.serverOnly,
         ...(hasFallback ? { default: fallback } : {}),
         ...(field.array !== undefined ? { array: { required: field.array.required } } : {}),
+        ...(serverInit !== undefined ? { server: serverInit } : {}),
+        ...(knownNullable ? { nullable: true } : {}),
       };
     }
     const uniqueKeys = model.uniqueKeys ?? [];
