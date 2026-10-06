@@ -5576,3 +5576,961 @@ fn t15b_no_regress_t15a_mixed() {
         attempt.module.js
     );
 }
+
+// --- T31 staged-hook emission ------------------------------------------------
+// TEST-ONLY artifacts: see module docs. The T31 tests pin the adopted Rule A
+// (staged_flat) compiler remainder over the committed T31-core state engine:
+// static staging bans with near-miss controls, hook-body emission calling
+// the engine's stage/schedule/cancel surface, and end-to-end execution of
+// emitted hooks against the real engine (bun driver over workspace sources).
+// Failing-first: the E4052/E4053/E4054 ban tests fail until the effects pass
+// grows the bans; every emission test fails until hook lowering lands.
+
+/// Check one inline T31 source through the full pipeline with the golden
+/// catalog (every builtin used below is implemented there).
+fn t31_program(src: &str, catalog: &Catalog) -> (SourceDb, CheckedProgram, DiagnosticResult) {
+    let mut db = SourceDb::new();
+    let id = db.add("t31.can".to_string(), src.to_string());
+    let (program, result) = check_example(&db, id, Some(catalog));
+    (db, program, result)
+}
+
+fn t31_codes(result: &DiagnosticResult) -> Vec<&str> {
+    result.diagnostics.iter().map(|d| d.code).collect()
+}
+
+/// (T31) Same-model staging is barred (NARROW bar, matching the engine):
+/// a hook on M.create cannot stage a create of M, even though the
+/// operation differs from the trigger.
+#[test]
+fn t31_same_model_create_barred() {
+    let (catalog, path) = golden_catalog();
+    let src = "app T\nGiven\n M { t:text }\nWhen\n scenario h on=M.create\n  do\n   create M {t=\"x\"} as m\nThen\n";
+    let (_db, _program, result) = t31_program(src, &catalog);
+    let _ = std::fs::remove_file(&path);
+    assert_eq!(
+        t31_codes(&result),
+        vec!["E4052"],
+        "{:?}",
+        result.diagnostics
+    );
+    assert!(
+        result.diagnostics[0].message.contains("same-model"),
+        "diagnostic names the bar: {}",
+        result.diagnostics[0].message
+    );
+}
+
+/// (T31) Same-model staging covers set: a hook on M.update cannot set an
+/// M-typed row, even one it just staged (each statement reports once).
+#[test]
+fn t31_same_model_set_barred() {
+    let (catalog, path) = golden_catalog();
+    let src = "app T\nGiven\n M { t:text }\nWhen\n scenario h on=M.update\n  do\n   create M {t=\"x\"} as m\n   set m {t=\"y\"}\nThen\n";
+    let (_db, _program, result) = t31_program(src, &catalog);
+    let _ = std::fs::remove_file(&path);
+    assert_eq!(
+        t31_codes(&result),
+        vec!["E4052", "E4052"],
+        "{:?}",
+        result.diagnostics
+    );
+}
+
+/// (T31) CONTROL: other-model staging stays legal, and the pending-record
+/// adjustment (`set event.after`) is never same-model staging.
+#[test]
+fn t31_cross_model_staging_legal() {
+    let (catalog, path) = golden_catalog();
+    let src = "app T\nGiven\n M { t:text }\n N { m:text }\nWhen\n scenario h on=M.create\n  do\n   set event.after {t=\"y\"}\n   create N {m=\"x\"} as n\n   set n {m=\"z\"}\nThen\n";
+    let (_db, _program, result) = t31_program(src, &catalog);
+    let _ = std::fs::remove_file(&path);
+    assert!(result.diagnostics.is_empty(), "{:?}", result.diagnostics);
+}
+
+/// (T31) Staged deletes are barred: a hook cannot delete, even an
+/// other-model row it just staged.
+#[test]
+fn t31_staged_delete_barred() {
+    let (catalog, path) = golden_catalog();
+    let src = "app T\nGiven\n M { t:text }\n N { m:text }\nWhen\n scenario h on=M.update\n  do\n   create N {m=\"x\"} as n\n   delete n\nThen\n";
+    let (_db, _program, result) = t31_program(src, &catalog);
+    let _ = std::fs::remove_file(&path);
+    assert_eq!(
+        t31_codes(&result),
+        vec!["E4053"],
+        "{:?}",
+        result.diagnostics
+    );
+    assert!(
+        result.diagnostics[0].message.contains("create/set only"),
+        "diagnostic names the rule: {}",
+        result.diagnostics[0].message
+    );
+}
+
+/// (T31) CONTROL: `delete` outside hooks stays legal; the staged-delete
+/// bar never leaks into ordinary scenarios.
+#[test]
+fn t31_delete_outside_hook_legal() {
+    let (catalog, path) = golden_catalog();
+    let src =
+        "app T\nGiven\n N { m:text }\nWhen\n scenario s(n:N) by=members\n  do\n   delete n\nThen\n";
+    let (_db, _program, result) = t31_program(src, &catalog);
+    let _ = std::fs::remove_file(&path);
+    assert!(result.diagnostics.is_empty(), "{:?}", result.diagnostics);
+}
+
+/// (T31) Delete hooks cannot stage writes: a create in an on-delete hook
+/// is rejected even for an other-model target.
+#[test]
+fn t31_delete_hook_create_barred() {
+    let (catalog, path) = golden_catalog();
+    let src = "app T\nGiven\n M { t:text }\n N { m:text }\nWhen\n scenario h on=M.delete\n  do\n   create N {m=\"x\"} as n\nThen\n";
+    let (_db, _program, result) = t31_program(src, &catalog);
+    let _ = std::fs::remove_file(&path);
+    assert_eq!(
+        t31_codes(&result),
+        vec!["E4054"],
+        "{:?}",
+        result.diagnostics
+    );
+    assert!(
+        result.diagnostics[0].message.contains("cannot stage"),
+        "diagnostic names the rule: {}",
+        result.diagnostics[0].message
+    );
+}
+
+/// (T31) Delete-hook staging covers set: each staged statement in a
+/// delete hook reports once.
+#[test]
+fn t31_delete_hook_set_barred() {
+    let (catalog, path) = golden_catalog();
+    let src = "app T\nGiven\n M { t:text }\n N { m:text }\nWhen\n scenario h on=M.delete\n  do\n   create N {m=\"x\"} as n\n   set n {m=\"y\"}\nThen\n";
+    let (_db, _program, result) = t31_program(src, &catalog);
+    let _ = std::fs::remove_file(&path);
+    assert_eq!(
+        t31_codes(&result),
+        vec!["E4054", "E4054"],
+        "{:?}",
+        result.diagnostics
+    );
+}
+
+/// (T31) Delete-hook staging covers timers: schedule in a delete hook is
+/// rejected (the at= value reads the typed before side).
+#[test]
+fn t31_delete_hook_schedule_barred() {
+    let (catalog, path) = golden_catalog();
+    let src = "app T\nGiven\n M { t:text, due:datetime }\n event Due { s:text }\nWhen\n scenario h on=M.delete\n  do\n   schedule \"k\" at=event.before.due event=Due {s=\"x\"}\nThen\n";
+    let (_db, _program, result) = t31_program(src, &catalog);
+    let _ = std::fs::remove_file(&path);
+    assert_eq!(
+        t31_codes(&result),
+        vec!["E4054"],
+        "{:?}",
+        result.diagnostics
+    );
+}
+
+/// (T31) Delete-hook staging covers cancel.
+#[test]
+fn t31_delete_hook_cancel_barred() {
+    let (catalog, path) = golden_catalog();
+    let src =
+        "app T\nGiven\n M { t:text }\nWhen\n scenario h on=M.delete\n  do\n   cancel \"k\"\nThen\n";
+    let (_db, _program, result) = t31_program(src, &catalog);
+    let _ = std::fs::remove_file(&path);
+    assert_eq!(
+        t31_codes(&result),
+        vec!["E4054"],
+        "{:?}",
+        result.diagnostics
+    );
+}
+
+/// (T31) ORDER: in a delete hook the delete-hook rule wins over the
+/// same-model rule, and each statement still reports exactly once.
+#[test]
+fn t31_delete_hook_same_model_order() {
+    let (catalog, path) = golden_catalog();
+    let src = "app T\nGiven\n M { t:text }\nWhen\n scenario h on=M.delete\n  do\n   create M {t=\"x\"} as m\nThen\n";
+    let (_db, _program, result) = t31_program(src, &catalog);
+    let _ = std::fs::remove_file(&path);
+    assert_eq!(
+        t31_codes(&result),
+        vec!["E4054"],
+        "{:?}",
+        result.diagnostics
+    );
+}
+
+/// (T31) CONTROL: a delete hook may still read its before side and reject
+/// by throwing (require); reads plus require stay clean.
+#[test]
+fn t31_delete_hook_require_read_legal() {
+    let (catalog, path) = golden_catalog();
+    let src = "app T\nGiven\n M { t:text }\nWhen\n scenario h on=M.delete\n  require event.before.t!=\"x\"\n  do\n   let x = event.before.t\nThen\n";
+    let (_db, _program, result) = t31_program(src, &catalog);
+    let _ = std::fs::remove_file(&path);
+    assert!(result.diagnostics.is_empty(), "{:?}", result.diagnostics);
+}
+
+/// (T31) A delete hook cannot adjust its target (settled types rule): the
+/// one E3009 stands alone — the new delete-hook ban must not double-fire
+/// on the pending record.
+#[test]
+fn t31_delete_hook_after_adjust_rejected() {
+    let (catalog, path) = golden_catalog();
+    let src = "app T\nGiven\n M { t:text }\nWhen\n scenario h on=M.delete\n  do\n   set event.after {t=\"x\"}\nThen\n";
+    let (_db, _program, result) = t31_program(src, &catalog);
+    let _ = std::fs::remove_file(&path);
+    assert_eq!(
+        t31_codes(&result),
+        vec!["E3009"],
+        "{:?}",
+        result.diagnostics
+    );
+}
+
+/// (T31) The before snapshot is read-only (settled types rule): exactly
+/// one E3009, never joined by a staging diagnostic.
+#[test]
+fn t31_before_snapshot_write_rejected() {
+    let (catalog, path) = golden_catalog();
+    let src = "app T\nGiven\n M { t:text }\nWhen\n scenario h on=M.update\n  do\n   set event.before {t=\"x\"}\nThen\n";
+    let (_db, _program, result) = t31_program(src, &catalog);
+    let _ = std::fs::remove_file(&path);
+    assert_eq!(
+        t31_codes(&result),
+        vec!["E3009"],
+        "{:?}",
+        result.diagnostics
+    );
+}
+
+/// (T31) The pending record cannot be deleted (settled types rule): the
+/// E3009 owns the pending target, never joined by the staged-delete ban.
+#[test]
+fn t31_pending_delete_rejected_once() {
+    let (catalog, path) = golden_catalog();
+    let src = "app T\nGiven\n M { t:text }\nWhen\n scenario h on=M.update\n  do\n   delete event.after\nThen\n";
+    let (_db, _program, result) = t31_program(src, &catalog);
+    let _ = std::fs::remove_file(&path);
+    assert_eq!(
+        t31_codes(&result),
+        vec!["E3009"],
+        "{:?}",
+        result.diagnostics
+    );
+}
+
+/// (T31) The before snapshot cannot be deleted either: exactly one E3009,
+/// never joined by the staged-delete ban.
+#[test]
+fn t31_before_delete_rejected_once() {
+    let (catalog, path) = golden_catalog();
+    let src = "app T\nGiven\n M { t:text }\nWhen\n scenario h on=M.update\n  do\n   delete event.before\nThen\n";
+    let (_db, _program, result) = t31_program(src, &catalog);
+    let _ = std::fs::remove_file(&path);
+    assert_eq!(
+        t31_codes(&result),
+        vec!["E3009"],
+        "{:?}",
+        result.diagnostics
+    );
+}
+
+/// (T31) CONTROL: before/after READS stay legal in hooks; only writes to
+/// the snapshot side are barred.
+#[test]
+fn t31_before_after_reads_legal() {
+    let (catalog, path) = golden_catalog();
+    let src = "app T\nGiven\n M { t:text }\nWhen\n scenario h on=M.update\n  do\n   let a = event.before.t\n   let b = event.after.t\nThen\n";
+    let (_db, _program, result) = t31_program(src, &catalog);
+    let _ = std::fs::remove_file(&path);
+    assert!(result.diagnostics.is_empty(), "{:?}", result.diagnostics);
+}
+
+/// (T31) CONTROL: verified declared-reference writes outside hooks stay
+/// clean; the staging bans never leak past hook bodies.
+#[test]
+fn t31_verified_ref_set_outside_hook_legal() {
+    let (catalog, path) = golden_catalog();
+    let src = "app T\nGiven\n N { m:text }\n event Pk { item:N }\nWhen\n scenario h on=Pk\n  do\n   set event.item {m=\"x\"}\nThen\n";
+    let (_db, _program, result) = t31_program(src, &catalog);
+    let _ = std::fs::remove_file(&path);
+    assert!(result.diagnostics.is_empty(), "{:?}", result.diagnostics);
+}
+
+/// (T31) Bans apply at depth: a same-model create nested in an `if`
+/// inside a hook is still barred.
+#[test]
+fn t31_nested_same_model_barred() {
+    let (catalog, path) = golden_catalog();
+    let src = "app T\nGiven\n M { t:text, flag:bool }\nWhen\n scenario h on=M.create\n  do\n   if event.after.flag\n    create M {t=\"y\",flag=true} as m\nThen\n";
+    let (_db, _program, result) = t31_program(src, &catalog);
+    let _ = std::fs::remove_file(&path);
+    assert_eq!(
+        t31_codes(&result),
+        vec!["E4052"],
+        "{:?}",
+        result.diagnostics
+    );
+}
+
+/// (T31) Hook run shape: the emitted run function adjusts the candidate,
+/// stages a parented child plus timers through the hook context, and
+/// registers under its trigger key with the scenario identity.
+#[test]
+fn t31_hook_run_shape() {
+    let (catalog, path) = golden_catalog();
+    let src = "app T\nGiven\n M { t:text, flag:bool, due:datetime }\n C in M { m:text }\n event Due { s:text }\nWhen\n scenario h on=M.update\n  do\n   require event.after.t!=\"x\"\n   set event.after {t=\"done\"}\n   if event.after.flag\n    create C {parent=event.after,m=\"note\"} as c\n    schedule event.after.t at=event.after.due event=Due {s=\"done\"}\n   cancel \"deadline:old\"\nThen\n";
+    let (db, program, result) = t31_program(src, &catalog);
+    assert!(result.diagnostics.is_empty(), "{:?}", result.diagnostics);
+    let (artifact, diags) = emit_test_only(&program, &db, &result, Some(&catalog));
+    let _ = std::fs::remove_file(&path);
+    assert!(diags.is_empty(), "{diags:?}");
+    let js = &artifact.modules[0].js;
+    // Registry entry: trigger key, scenario identity, engine op spelling.
+    assert!(
+        js.contains("hooks:{\"T.M.update\":{name:\"T.h\",ops:[\"update\"],run:async function h("),
+        "registry:\n{js}"
+    );
+    // Engine-shaped signature over the candidate and hook context.
+    assert!(
+        js.contains("run:async function h($candidate,$hookCtx){"),
+        "signature:\n{js}"
+    );
+    // Live event views: after aliases the candidate's fields plus trigger
+    // identity and the reserved version; before is the frozen snapshot.
+    assert!(
+        js.contains("const event={after:{...$candidate,id:$hookCtx.triggerId"),
+        "after view:\n{js}"
+    );
+    assert!(
+        js.contains("version:($hookCtx.before?$hookCtx.before.version+1:1)"),
+        "reserved version:\n{js}"
+    );
+    assert!(js.contains("let $stagedNext=0;"), "staged counter:\n{js}");
+    assert!(js.contains("let $pending;"), "pending temp:\n{js}");
+    // Pending adjustment assigns the same changes to both the candidate
+    // the engine commits and the live after view later reads observe.
+    assert!(
+        js.contains(
+            "$pending={t:\"done\"};Object.assign($candidate,$pending);Object.assign(event.after,$pending);"
+        ),
+        "pending adjustment:\n{js}"
+    );
+    // Guards reject by throwing, exactly like scenarios.
+    assert!(
+        js.contains("check(event.after.t !== \"x\");"),
+        "guard:\n{js}"
+    );
+    // Parented child: deterministic trigger-derived id, triggerId parenting.
+    assert!(
+        js.contains("const c={id:$hookCtx.triggerId+\"/staged/\"+($stagedNext++)};"),
+        "staged id:\n{js}"
+    );
+    assert!(
+        js.contains("$hookCtx.stage({op:\"create\",model:\"T.C\",id:c.id,parent:{model:\"T.M\",id:event.after.id},data:{m:\"note\"}});"),
+        "staged create:\n{js}"
+    );
+    // Timers stage through the hook context with the canonical event.
+    assert!(
+        js.contains("$hookCtx.schedule({key:event.after.t,at:event.after.due,event:\"T.Due\",payload:{s:\"done\"}});"),
+        "staged schedule:\n{js}"
+    );
+    assert!(
+        js.contains("$hookCtx.cancel(\"deadline:old\");"),
+        "staged cancel:\n{js}"
+    );
+    assert!(js.contains("return $candidate;"), "candidate return:\n{js}");
+    // Hooks are reactive, not operations: the operations member stays empty.
+    assert!(js.contains("operations:{}"), "operations member:\n{js}");
+    // Explicit callable linkage into the hooks registry.
+    let callable = artifact
+        .callables
+        .iter()
+        .find(|c| c.id == "T.h")
+        .expect("T.h callable");
+    assert_eq!(callable.kind, "handler");
+    assert_eq!(callable.member, vec!["hooks", "T.M.update", "run"]);
+    assert_sourcemap_valid(&artifact, 0, &db, "t31-hook");
+    t31_assert_parses(js, "run-shape");
+}
+
+/// (T31) Delete-hook registry: a read/require-only delete hook emits with
+/// the engine `remove` op spelling under its source trigger key.
+#[test]
+fn t31_hook_delete_op_registry() {
+    let (catalog, path) = golden_catalog();
+    let src = "app T\nGiven\n M { t:text }\nWhen\n scenario g on=M.delete\n  do\n   require event.before.t!=\"x\"\n   let x = event.before.t\nThen\n";
+    let (db, program, result) = t31_program(src, &catalog);
+    assert!(result.diagnostics.is_empty(), "{:?}", result.diagnostics);
+    let (artifact, diags) = emit_test_only(&program, &db, &result, Some(&catalog));
+    let _ = std::fs::remove_file(&path);
+    assert!(diags.is_empty(), "{diags:?}");
+    let js = &artifact.modules[0].js;
+    assert!(
+        js.contains("hooks:{\"T.M.delete\":{name:\"T.g\",ops:[\"remove\"],run:async function g("),
+        "registry:\n{js}"
+    );
+    assert!(
+        js.contains("const x = event.before.t;"),
+        "before read:\n{js}"
+    );
+    assert!(js.contains("return $candidate;"), "candidate return:\n{js}");
+    t31_assert_parses(js, "delete-registry");
+}
+
+/// (T31) Non-hook schedules lower (the payload decodes from the effect
+/// arguments, not the unset value slot).
+#[test]
+fn t31_plain_schedule_lowers() {
+    let (catalog, path) = golden_catalog();
+    let src = "app T\nGiven\n N { m:text, due:datetime }\n event Due { s:text }\nWhen\n scenario s(n:N) by=members\n  do\n   schedule \"k-1\" at=n.due event=Due {s=\"x\"}\nThen\n";
+    let (db, program, result) = t31_program(src, &catalog);
+    assert!(result.diagnostics.is_empty(), "{:?}", result.diagnostics);
+    let (artifact, diags) = emit_test_only(&program, &db, &result, Some(&catalog));
+    let _ = std::fs::remove_file(&path);
+    assert!(diags.is_empty(), "{diags:?}");
+    let js = &artifact.modules[0].js;
+    assert!(
+        js.contains("await schedule(c,\"k-1\",n.due,\"T.Due\",{s:\"x\"});"),
+        "schedule lowering:\n{js}"
+    );
+    t31_assert_parses(js, "plain-schedule");
+}
+
+/// (T31) `emit` in hooks is checker-clean but has no hook lowering (Rule A
+/// stages no outbox writes): loud E6008 with a fail-closed placeholder,
+/// while the hook entry itself still registers.
+#[test]
+fn t31_hook_emit_unsupported() {
+    let (catalog, path) = golden_catalog();
+    let src = "app T\nGiven\n M { t:text }\n event Due { s:text }\nWhen\n scenario h on=M.create\n  do\n   emit Due {s=\"x\"}\nThen\n";
+    let (db, program, result) = t31_program(src, &catalog);
+    assert!(result.diagnostics.is_empty(), "{:?}", result.diagnostics);
+    let (artifact, diags) = emit_test_only(&program, &db, &result, Some(&catalog));
+    let _ = std::fs::remove_file(&path);
+    assert!(
+        diags
+            .iter()
+            .any(|d| d.code == "E6008" && d.message.contains("emit")),
+        "emit E6008: {diags:?}"
+    );
+    let js = &artifact.modules[0].js;
+    assert!(
+        js.contains("hooks:{\"T.M.create\""),
+        "entry registers:\n{js}"
+    );
+    assert!(js.contains("has no lowering"), "placeholder:\n{js}");
+}
+
+/// (T31) Queries in hooks have no lowering: the engine hands hooks no
+/// store, so a storage read fails loud instead of emitting a dangling `c`.
+#[test]
+fn t31_hook_query_unsupported() {
+    let (catalog, path) = golden_catalog();
+    let src = "app T\nGiven\n M { t:text }\n N { m:text }\nWhen\n scenario h on=M.update\n  do\n   let n = count(N)\nThen\n";
+    let (db, program, result) = t31_program(src, &catalog);
+    assert!(result.diagnostics.is_empty(), "{:?}", result.diagnostics);
+    let (_artifact, diags) = emit_test_only(&program, &db, &result, Some(&catalog));
+    let _ = std::fs::remove_file(&path);
+    assert!(
+        diags
+            .iter()
+            .any(|d| d.code == "E6008" && d.message.contains("hook")),
+        "query E6008: {diags:?}"
+    );
+}
+
+/// (T31) Ambient-context equality in hooks has no lowering: decimal `==`
+/// needs `equalValue(c, ...)` and hooks have no `c`.
+#[test]
+fn t31_hook_decimal_eq_unsupported() {
+    let (catalog, path) = golden_catalog();
+    let src = "app T\nGiven\n M { d:decimal }\nWhen\n scenario h on=M.update\n  do\n   require event.after.d==event.before.d\n   set event.after {d=event.before.d}\nThen\n";
+    let (db, program, result) = t31_program(src, &catalog);
+    assert!(result.diagnostics.is_empty(), "{:?}", result.diagnostics);
+    let (_artifact, diags) = emit_test_only(&program, &db, &result, Some(&catalog));
+    let _ = std::fs::remove_file(&path);
+    assert!(
+        diags
+            .iter()
+            .any(|d| d.code == "E6008" && d.message.contains("hook")),
+        "equality E6008: {diags:?}"
+    );
+}
+
+/// (T31) Hook statement backstops, lowered directly: delete, valued
+/// return and send have no hook lowering (unreachable on clean programs —
+/// the checker owns delete, the parser requires return values and the
+/// types pass rejects them in void scenarios — but the lowering stays
+/// total). A bare return exits early with the pending candidate. Exiting
+/// hook mode restores scenario lowering.
+#[test]
+fn t31_hook_stmt_backstops() {
+    let ir = fixture_ir();
+    let mut emitter = Emitter::new(&ir);
+    emitter.enter_hook(SymbolId(0));
+    let delete = IrStmt::Delete {
+        record: typed(
+            IrExpr::Name("row".to_string()),
+            ResolvedType::Scalar(Scalar::Text),
+        ),
+        mode: IrDeleteMode::Archive,
+        span: sp(0, 1),
+    };
+    let returned = IrStmt::Return {
+        value: Some(int_lit(1)),
+        span: sp(0, 1),
+    };
+    let send = IrStmt::Send {
+        operation: "x.y".to_string(),
+        args: typed(IrExpr::Object(Vec::new()), ResolvedType::Unknown),
+        when: None,
+        binding: None,
+        span: sp(0, 1),
+    };
+    for stmt in [&delete, &returned, &send] {
+        let lines = emitter.lower_stmt(stmt, 0);
+        assert!(
+            lines[0].0.contains("throw new Error"),
+            "hook placeholder: {:?}",
+            lines[0].0
+        );
+    }
+    let bare = IrStmt::Return {
+        value: None,
+        span: sp(0, 1),
+    };
+    let lines = emitter.lower_stmt(&bare, 0);
+    assert!(
+        lines[0].0.contains("return $candidate;"),
+        "hook early return: {:?}",
+        lines[0].0
+    );
+    emitter.exit_hook();
+    let lines = emitter.lower_stmt(&delete, 0);
+    assert!(
+        lines[0].0.contains("deleteRecord"),
+        "scenario lowering restored: {:?}",
+        lines[0].0
+    );
+    let lines = emitter.lower_stmt(&returned, 0);
+    assert!(
+        lines[0].0.contains("return 1n;"),
+        "scenario lowering restored: {:?}",
+        lines[0].0
+    );
+    let (diags, _, _, _) = emitter.finish();
+    let hook_diags: Vec<_> = diags.iter().filter(|d| d.code == "E6008").collect();
+    assert_eq!(hook_diags.len(), 3, "{diags:?}");
+    assert!(
+        hook_diags.iter().all(|d| d.message.contains("hook")),
+        "hook attribution: {diags:?}"
+    );
+}
+
+/// (T31) Hook expression gaps, lowered directly: queries, delivery reads,
+/// message formatting, role gates and capability calls all need the
+/// ambient context hooks do not receive.
+#[test]
+fn t31_hook_expr_gaps() {
+    let ir = fixture_ir();
+    let mut emitter = Emitter::new(&ir);
+    emitter.enter_hook(SymbolId(0));
+    let query = typed(
+        IrExpr::Query(IrQuery {
+            domain: IrQueryDomain::Model("demo.Widget".to_string()),
+            parent: None,
+            where_pred: None,
+            where_async: false,
+            order: Vec::new(),
+            limit: None,
+            archived: None,
+            select: None,
+            select_param: None,
+        }),
+        ResolvedType::Unknown,
+    );
+    let delivery = typed(
+        IrExpr::DeliveryRead {
+            record: Box::new(text_lit("r")),
+            field: "f".to_string(),
+            props: vec!["status".to_string()],
+        },
+        ResolvedType::Unknown,
+    );
+    let format = typed(
+        IrExpr::Format {
+            descriptor: Box::new(text_lit("m")),
+            locale: None,
+        },
+        ResolvedType::Scalar(Scalar::Text),
+    );
+    let role = typed(
+        IrExpr::HasRole {
+            role: "members".to_string(),
+            person: None,
+        },
+        ResolvedType::Scalar(Scalar::Bool),
+    );
+    let call = typed(
+        IrExpr::Call {
+            target: IrCallTarget::CapabilityOp("demo.Svc.ping".to_string()),
+            args: Vec::new(),
+        },
+        ResolvedType::Scalar(Scalar::Bool),
+    );
+    for expr in [&query, &delivery, &format, &role, &call] {
+        assert!(
+            emitter.lower_expr(expr).contains("throw"),
+            "hook placeholder for {:?}",
+            expr.expr
+        );
+    }
+    let (diags, _, _, _) = emitter.finish();
+    let hook_diags: Vec<_> = diags.iter().filter(|d| d.code == "E6008").collect();
+    assert_eq!(hook_diags.len(), 5, "{diags:?}");
+    assert!(
+        hook_diags.iter().all(|d| d.message.contains("hook")),
+        "hook attribution: {diags:?}"
+    );
+}
+
+/// Fresh unique stage directory under the system temp dir for T31
+/// engine drivers (emitted module plus driver script).
+fn t31_stage_dir(stem: &str) -> PathBuf {
+    use std::sync::atomic::{AtomicU64, Ordering};
+    static COUNTER: AtomicU64 = AtomicU64::new(0);
+    let dir = std::env::temp_dir().join(format!(
+        "can-t31-{}-{}-{stem}",
+        std::process::id(),
+        COUNTER.fetch_add(1, Ordering::SeqCst)
+    ));
+    std::fs::create_dir_all(&dir).unwrap();
+    dir
+}
+
+/// Workspace root above the compiler package under test.
+fn t31_workspace_root() -> PathBuf {
+    PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .parent()
+        .expect("workspace root")
+        .to_path_buf()
+}
+
+/// Assert emitted `js` parses as a module (node --check parses only, never
+/// executes or resolves imports).
+fn t31_assert_parses(js: &str, stem: &str) {
+    let dir = t31_stage_dir(stem);
+    std::fs::write(dir.join("check.mjs"), js).unwrap();
+    let out = std::process::Command::new("node")
+        .arg("--check")
+        .arg("check.mjs")
+        .current_dir(&dir)
+        .output()
+        .expect("spawn node --check");
+    assert!(
+        out.status.success(),
+        "node --check failed: {}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+}
+
+/// (T31) End to end: the emitted hook descriptor drives the REAL engine —
+/// a parented child plus cancel/schedule through admit, pipeline and one
+/// fenced commit, asserting receipt versions, history identity, the single
+/// revision step and the committed timer set. The bun driver imports the
+/// workspace engine sources directly (always current, no dist staleness)
+/// plus the byte-verbatim emitted module, which must import nothing.
+#[test]
+fn t31_e2e_emitted_hook_drives_engine() {
+    let (catalog, path) = golden_catalog();
+    let src = "app T\nGiven\n M { t:text, timer:text, due:datetime }\n C in M { m:text }\n event Due { s:text }\nWhen\n scenario h on=M.update\n  do\n   set event.after {t=\"done\"}\n   create C {parent=event.after,m=\"note\"} as c\n   cancel \"deadline:old\"\n   schedule event.after.timer at=event.after.due event=Due {s=\"done\"}\nThen\n";
+    let (db, program, result) = t31_program(src, &catalog);
+    assert!(result.diagnostics.is_empty(), "{:?}", result.diagnostics);
+    let (artifact, diags) = emit_test_only(&program, &db, &result, Some(&catalog));
+    let _ = std::fs::remove_file(&path);
+    assert!(diags.is_empty(), "{diags:?}");
+    let js = &artifact.modules[0].js;
+    for line in js.lines() {
+        assert!(
+            !line.trim_start().starts_with("import "),
+            "emitted hook must import nothing: {line}"
+        );
+    }
+    let dir = t31_stage_dir("engine");
+    std::fs::write(dir.join("emitted.mjs"), js).unwrap();
+    let fixtures = t31_workspace_root().join("packages/state/test/mutation/fixtures.ts");
+    assert!(fixtures.exists(), "engine fixtures: {}", fixtures.display());
+    let driver = r##"
+import { canApp } from './emitted.mjs';
+import {
+  setupMutation, modelDef, field, crudCreate, crudUpdate, mustLoad,
+  readCrudReceipt, asModel, asId, FIXED_NOW,
+} from '@@FIXTURES@@';
+const verdict = {};
+try {
+  const desc = canApp().hooks['T.M.update'];
+  verdict.hookName = desc.name;
+  verdict.now = FIXED_NOW;
+  const world = await setupMutation([
+    modelDef('T.M', {
+      fields: { t: field(), timer: field(), due: field() },
+      hooks: [{ name: desc.name, ops: desc.ops, run: desc.run }],
+    }),
+    modelDef('T.C', { fields: { m: field() } }),
+  ]);
+  await crudCreate(world, 'T.M', {
+    id: 'c-1', data: { t: 'new', timer: 'deadline:c-1', due: FIXED_NOW },
+  });
+  const fence = await world.store.readRevision();
+  await world.store.commit({
+    expectedRevision: fence, writes: [], history: [], receipt: null, outbox: [],
+    schedules: [
+      { op: 'replace', key: 'deadline:old', at: FIXED_NOW, event: 'T.Due', payload: {} },
+    ],
+    uniqueClaims: [], uniqueReleases: [],
+  });
+  const revSeeded = await world.store.readRevision();
+  const { out, operationId } = await crudUpdate(
+    world, 'T.M', 'c-1', { version: 1, patch: { t: 'go' } },
+  );
+  verdict.status = out.status;
+  verdict.operationId = operationId;
+  verdict.revisionDelta = (await world.store.readRevision()) - revSeeded;
+  const m = await mustLoad(world.store, asModel('T.M'), 'c-1');
+  verdict.mVersion = m.version;
+  verdict.mData = m.data;
+  const c = await mustLoad(world.store, asModel('T.C'), 'c-1/staged/0');
+  verdict.childVersion = c.version;
+  verdict.childParent = c.parent;
+  verdict.childData = c.data;
+  const receipt = await readCrudReceipt(world, { operation: 'T.M.update', operationId });
+  verdict.receipt = receipt?.outcome.status === 'committed'
+    ? receipt.outcome.recordVersions : null;
+  const histM = await world.store.historyFor(asModel('T.M'), asId('c-1'));
+  const histC = await world.store.historyFor(asModel('T.C'), asId('c-1/staged/0'));
+  const lastM = histM[histM.length - 1];
+  const lastC = histC[histC.length - 1];
+  verdict.historyOps = [lastM?.operation, lastC?.operation];
+  verdict.historyOpIds = [lastM?.operationId, lastC?.operationId];
+  verdict.oldSchedule = await world.store.scheduleGet('deadline:old');
+  verdict.newSchedule = await world.store.scheduleGet('deadline:c-1');
+  verdict.ok = true;
+} catch (error) {
+  verdict.ok = false;
+  verdict.error = String(error?.stack ?? error);
+}
+console.log(JSON.stringify(verdict));
+"##
+    .replace("@@FIXTURES@@", &fixtures.display().to_string());
+    std::fs::write(dir.join("driver.ts"), driver).unwrap();
+    let bun = std::process::Command::new("bun").arg("--version").output();
+    assert!(
+        bun.is_ok_and(|o| o.status.success()),
+        "t31 e2e needs bun (the repo packageManager)"
+    );
+    let out = std::process::Command::new("bun")
+        .arg("driver.ts")
+        .current_dir(&dir)
+        .output()
+        .expect("spawn bun driver");
+    assert!(
+        out.status.success(),
+        "driver failed: stdout={} stderr={}",
+        String::from_utf8_lossy(&out.stdout),
+        String::from_utf8_lossy(&out.stderr)
+    );
+    let stdout = String::from_utf8_lossy(&out.stdout);
+    let verdict = canlang_compiler::json::parse(stdout.trim()).expect("verdict parses");
+    assert_eq!(
+        verdict.get("ok").and_then(|v| v.as_bool()),
+        Some(true),
+        "verdict: {stdout}"
+    );
+    let get = |key: &str| verdict.get(key).cloned().unwrap_or(Json::Null);
+    assert_eq!(get("hookName").as_str(), Some("T.h"), "{stdout}");
+    assert_eq!(get("status").as_str(), Some("committed"), "{stdout}");
+    assert_eq!(get("revisionDelta").as_i64(), Some(1), "{stdout}");
+    assert_eq!(get("mVersion").as_i64(), Some(2), "{stdout}");
+    let data = get("mData");
+    assert_eq!(
+        data.get("t").and_then(|v| v.as_str()),
+        Some("done"),
+        "{stdout}"
+    );
+    assert_eq!(
+        data.get("timer").and_then(|v| v.as_str()),
+        Some("deadline:c-1"),
+        "{stdout}"
+    );
+    assert_eq!(
+        data.get("due").and_then(|v| v.as_i64()),
+        get("now").as_i64(),
+        "{stdout}"
+    );
+    assert_eq!(get("childVersion").as_i64(), Some(1), "{stdout}");
+    let parent = get("childParent");
+    assert_eq!(
+        parent.get("model").and_then(|v| v.as_str()),
+        Some("T.M"),
+        "{stdout}"
+    );
+    assert_eq!(
+        parent.get("id").and_then(|v| v.as_str()),
+        Some("c-1"),
+        "{stdout}"
+    );
+    assert_eq!(
+        get("childData").get("m").and_then(|v| v.as_str()),
+        Some("note"),
+        "{stdout}"
+    );
+    match get("receipt") {
+        Json::Arr(rows) => {
+            assert_eq!(rows.len(), 2, "{stdout}");
+            assert_eq!(rows[0].get("model").and_then(|v| v.as_str()), Some("T.M"));
+            assert_eq!(rows[0].get("id").and_then(|v| v.as_str()), Some("c-1"));
+            assert_eq!(rows[0].get("version").and_then(|v| v.as_i64()), Some(2));
+            assert_eq!(rows[1].get("model").and_then(|v| v.as_str()), Some("T.C"));
+            assert_eq!(
+                rows[1].get("id").and_then(|v| v.as_str()),
+                Some("c-1/staged/0")
+            );
+            assert_eq!(rows[1].get("version").and_then(|v| v.as_i64()), Some(1));
+        }
+        other => panic!("receipt versions: {other:?}"),
+    }
+    match get("historyOps") {
+        Json::Arr(ops) => {
+            assert_eq!(ops.len(), 2, "{stdout}");
+            assert_eq!(ops[0].as_str(), Some("T.M.update"));
+            assert_eq!(ops[1].as_str(), Some("T.M.update"));
+        }
+        other => panic!("history ops: {other:?}"),
+    }
+    match get("historyOpIds") {
+        Json::Arr(ids) => {
+            assert_eq!(ids.len(), 2, "{stdout}");
+            assert_eq!(ids[0].as_str(), get("operationId").as_str());
+            assert_eq!(ids[1].as_str(), get("operationId").as_str());
+        }
+        other => panic!("history op ids: {other:?}"),
+    }
+    assert_eq!(get("oldSchedule"), Json::Null, "{stdout}");
+    let timer = get("newSchedule");
+    assert_eq!(
+        timer.get("key").and_then(|v| v.as_str()),
+        Some("deadline:c-1"),
+        "{stdout}"
+    );
+    assert_eq!(
+        timer.get("at").and_then(|v| v.as_i64()),
+        get("now").as_i64(),
+        "{stdout}"
+    );
+    assert_eq!(
+        timer.get("event").and_then(|v| v.as_str()),
+        Some("T.Due"),
+        "{stdout}"
+    );
+    assert_eq!(
+        timer
+            .get("payload")
+            .and_then(|v| v.get("s"))
+            .and_then(|v| v.as_str()),
+        Some("done"),
+        "{stdout}"
+    );
+}
+
+/// (T31) Attribution: a staged-write failure names the staging hook. The
+/// empty timer key is checker-clean (a value, never a type error) but the
+/// engine rejects it, attributing to the emitted hook identity — the
+/// scenario canonical threaded through emission.
+#[test]
+fn t31_e2e_staged_failure_names_hook() {
+    let (catalog, path) = golden_catalog();
+    let src = "app T\nGiven\n M { t:text, due:datetime }\n event Due { s:text }\nWhen\n scenario h2 on=M.create\n  do\n   schedule \"\" at=event.after.due event=Due {s=\"x\"}\nThen\n";
+    let (db, program, result) = t31_program(src, &catalog);
+    assert!(result.diagnostics.is_empty(), "{:?}", result.diagnostics);
+    let (artifact, diags) = emit_test_only(&program, &db, &result, Some(&catalog));
+    let _ = std::fs::remove_file(&path);
+    assert!(diags.is_empty(), "{diags:?}");
+    let js = &artifact.modules[0].js;
+    let dir = t31_stage_dir("attribution");
+    std::fs::write(dir.join("emitted.mjs"), js).unwrap();
+    let fixtures = t31_workspace_root().join("packages/state/test/mutation/fixtures.ts");
+    assert!(fixtures.exists(), "engine fixtures: {}", fixtures.display());
+    let driver = r##"
+import { canApp } from './emitted.mjs';
+import {
+  setupMutation, modelDef, field, crudCreate, captureStateError, FIXED_NOW,
+} from '@@FIXTURES@@';
+const verdict = {};
+try {
+  const desc = canApp().hooks['T.M.create'];
+  verdict.hookName = desc.name;
+  const world = await setupMutation([
+    modelDef('T.M', {
+      fields: { t: field(), due: field() },
+      hooks: [{ name: desc.name, ops: desc.ops, run: desc.run }],
+    }),
+  ]);
+  const error = await captureStateError(
+    crudCreate(world, 'T.M', { id: 'c-9', data: { t: 'new', due: FIXED_NOW } }),
+  );
+  verdict.code = error.code;
+  verdict.message = error.message;
+  verdict.ok = true;
+} catch (error) {
+  verdict.ok = false;
+  verdict.error = String(error?.stack ?? error);
+}
+console.log(JSON.stringify(verdict));
+"##
+    .replace("@@FIXTURES@@", &fixtures.display().to_string());
+    std::fs::write(dir.join("driver.ts"), driver).unwrap();
+    let out = std::process::Command::new("bun")
+        .arg("driver.ts")
+        .current_dir(&dir)
+        .output()
+        .expect("spawn bun driver");
+    assert!(
+        out.status.success(),
+        "driver failed: stdout={} stderr={}",
+        String::from_utf8_lossy(&out.stdout),
+        String::from_utf8_lossy(&out.stderr)
+    );
+    let stdout = String::from_utf8_lossy(&out.stdout);
+    let verdict = canlang_compiler::json::parse(stdout.trim()).expect("verdict parses");
+    assert_eq!(
+        verdict.get("ok").and_then(|v| v.as_bool()),
+        Some(true),
+        "verdict: {stdout}"
+    );
+    assert_eq!(
+        verdict.get("hookName").and_then(|v| v.as_str()),
+        Some("T.h2"),
+        "{stdout}"
+    );
+    assert_eq!(
+        verdict.get("code").and_then(|v| v.as_str()),
+        Some("validation"),
+        "{stdout}"
+    );
+    let message = verdict
+        .get("message")
+        .and_then(|v| v.as_str())
+        .unwrap_or_default();
+    assert!(
+        message.contains("\"T.h2\"") && message.contains("\"T.M\""),
+        "hook attribution: {message}"
+    );
+}

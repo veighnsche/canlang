@@ -522,7 +522,7 @@ fn explain_round_trip_source_codes() {
         .collect();
     assert_eq!(
         entries.len(),
-        15 + 19 + 13 + 9 + 2,
+        15 + 19 + 16 + 9 + 2,
         "E2/E3/E4/E5/E6001/E6002 entry count"
     );
     let mut seen = BTreeSet::new();
@@ -873,6 +873,18 @@ fn draft_outcome_table() {
     // Git: /tmp dumps retained (t35r25-base-corpus.json,
     // t35r25-new-corpus.json); the base verifies byte-identical to
     // the R23 new dump.
+    // T31-emit re-pin 2026-10-06 (hook staging bans E4052/53/54:
+    // same-model staging, staged deletes, delete-hook writes): 1
+    // file net-increase (CanDiscover 85 -> 86), 51 unchanged;
+    // table total +1 (5041 -> 5042). The +1 is the single E4052
+    // at Discover:252 `set evidence {analysis=request}` in the
+    // on=Evidence.create hook, confirmed by `can check`
+    // (file total 86, E4052 x1, all other families unchanged).
+    // E4053/E4054 add 0 in both harnesses; CanCheck holds at 38
+    // (the `set event.after` pending-record adjustment stays
+    // exempt). Whole-corpus (all-52) differential 2061 -> 2062
+    // (+1): the same Discover:252 E4052 is the only E4-family
+    // diagnostic corpus-wide (E2 1134, E3 906, E5 17, E1 4).
     let table: &[(&str, usize)] = &[
         ("draft/CanAffiliate.can", 48),
         ("draft/CanApprove.can", 47),
@@ -887,7 +899,7 @@ fn draft_outcome_table() {
         ("draft/CanCustomer.can", 59),
         ("draft/CanDecide.can", 27),
         ("draft/CanDesk.can", 85),
-        ("draft/CanDiscover.can", 85),
+        ("draft/CanDiscover.can", 86),
         ("draft/CanDo.can", 45),
         ("draft/CanEnrich.can", 19),
         ("draft/CanEvent.can", 311),
