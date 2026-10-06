@@ -24,7 +24,7 @@ Freeze the contracts needed by the next packet only:
 
 ## Pass 1 Remove redundant source string decoding
 
-**Delegation reminder:** choose economical Codex models and reasoning levels per packet; [start with Luna/Sol at low or medium](#economical-codex-delegation-and-commit-cadence) and justify escalation.
+**Delegation reminder:** Sol low for IR; Sol medium for analysis and review. Follow the [researched task allocation](model-allocation-20261007.md#pass-1) and justify escalation.
 
 **Priority and effort:** immediate correctness repair; small to medium depending on caller coverage. Requires only the relevant Pass 0 source/string contract.
 
@@ -38,7 +38,7 @@ Cover backspace, form feed, quotes, slashes/backslashes, BMP Unicode and supplem
 
 ## Pass 2 Repair LSP byte and envelope admission
 
-**Delegation reminder:** choose economical Codex models and reasoning levels per packet; [start with Luna/Sol at low or medium](#economical-codex-delegation-and-commit-cadence) and justify escalation.
+**Delegation reminder:** Sol medium for admission; high for unresolved protocol decisions. Follow the [researched task allocation](model-allocation-20261007.md#pass-2) and justify escalation.
 
 **Priority and effort:** immediate authoring-tool correctness; small to medium. Can run independently of Pass 1 and the JSON library migration.
 
@@ -52,7 +52,7 @@ Exercise malformed UTF-8, wrong protocol version, malformed parameters, illegal 
 
 ## Pass 3 Qualify URL and locale admission
 
-**Delegation reminder:** choose economical Codex models and reasoning levels per packet; [start with Luna/Sol at low or medium](#economical-codex-delegation-and-commit-cadence) and justify escalation.
+**Delegation reminder:** Sol medium for URL/locale qualification; high for owner-policy conflicts. Follow the [researched task allocation](model-allocation-20261007.md#pass-3) and justify escalation.
 
 **Priority and effort:** high correctness priority; medium. Its URL and locale subpackets share `analysis/types.rs` and need one writer or sequential releases.
 
@@ -66,7 +66,7 @@ Use actual `@canlang/values` exports for differential admission/canonicalization
 
 ## Pass 4 Replace hashing and temporary-file ownership
 
-**Delegation reminder:** choose economical Codex models and reasoning levels per packet; [start with Luna/Sol at low or medium](#economical-codex-delegation-and-commit-cadence) and justify escalation.
+**Delegation reminder:** Sol low for hashing; Sol medium for files. Follow the [researched task allocation](model-allocation-20261007.md#pass-4) and justify escalation.
 
 **Priority and effort:** formatting permissions are urgent; hashing is a small maintenance improvement. Both packets can start after their own Pass 0 contract without waiting for Passes 1–3 to finish.
 
@@ -80,7 +80,7 @@ Primary owners: `source.rs` for hashing; `cli.rs` for writes; one `compiler/Carg
 
 ## Pass 5 Migrate typed JSON output
 
-**Delegation reminder:** choose economical Codex models and reasoning levels per packet; [start with Luna/Sol at low or medium](#economical-codex-delegation-and-commit-cadence) and justify escalation.
+**Delegation reminder:** Sol low for released diagnostic/docs conversions; medium for other serializer families. Follow the [researched task allocation](model-allocation-20261007.md#pass-5) and justify escalation.
 
 **Priority and effort:** next standardization step; medium to high across all serializer consumers. Release it in small serializer-family changes.
 
@@ -94,7 +94,7 @@ Primary owners include `diagnostic.rs`, `codegen/artifact.rs`, serializer portio
 
 ## Pass 6 Replace the JSON input engine
 
-**Delegation reminder:** choose economical Codex models and reasoning levels per packet; [start with Luna/Sol at low or medium](#economical-codex-delegation-and-commit-cadence) and justify escalation.
+**Delegation reminder:** Sol high for shared input compatibility; split routine helpers into cheaper tasks. Follow the [researched task allocation](model-allocation-20261007.md#pass-6) and justify escalation.
 
 **Priority and effort:** substantial compatibility work; medium to high. Prefer this after a minimal Pass 5 release establishes the shared representations and adapters.
 
@@ -108,7 +108,7 @@ Primary owners: `json.rs`, catalog loader adapters and affected LSP callers. Reu
 
 ## Pass 7 Adopt typed LSP output and consolidate URI handling
 
-**Delegation reminder:** choose economical Codex models and reasoning levels per packet; [start with Luna/Sol at low or medium](#economical-codex-delegation-and-commit-cadence) and justify escalation.
+**Delegation reminder:** Sol medium for DTO/URI adapters; high for cross-owner conflicts. Follow the [researched task allocation](model-allocation-20261007.md#pass-7) and justify escalation.
 
 **Priority and effort:** medium, after Pass 2 admission and the relevant Pass 5 serialization seam. It does not need every Pass 6 input caller to be migrated.
 
@@ -122,7 +122,7 @@ Primary owners: `lsp/server.rs`, associated adapters, IDE/source conversion wher
 
 ## Pass 8 Qualify source-map coordinates and replace the codec
 
-**Delegation reminder:** choose economical Codex models and reasoning levels per packet; [start with Luna/Sol at low or medium](#economical-codex-delegation-and-commit-cadence) and justify escalation.
+**Delegation reminder:** Sol medium for the released byte-profile codec; high for coordinate-policy conflicts. Follow the [researched task allocation](model-allocation-20261007.md#pass-8) and justify escalation.
 
 **Priority and effort:** medium, with a consumer decision before implementation. Can overlap other serialization work once its exact writer and coordinate contract are released.
 
@@ -136,7 +136,7 @@ Primary owners: `codegen/sourcemap.rs`, the affected artifact serialization seam
 
 ## Pass 9 Evaluate the remaining mechanisms separately
 
-**Delegation reminder:** choose economical Codex models and reasoning levels per packet; [start with Luna/Sol at low or medium](#economical-codex-delegation-and-commit-cadence) and justify escalation.
+**Delegation reminder:** Use the candidate-specific low/medium/high allocation; release a bounded packet first. Follow the [researched task allocation](model-allocation-20261007.md#pass-9) and justify escalation.
 
 **Priority and effort:** conditional packets with their own benefit and preservation criteria. No requirement to finish all of them before releasing the earlier improvements.
 
@@ -154,7 +154,7 @@ Rowan, Salsa and a JS AST/printer migration are separate architectural projects.
 
 ## Pass 10 Qualify the final compiler and retire obsolete paths
 
-**Delegation reminder:** choose economical Codex models and reasoning levels per packet; [start with Luna/Sol at low or medium](#economical-codex-delegation-and-commit-cadence) and justify escalation.
+**Delegation reminder:** Luna low/medium for checks and receipts; Sol medium for substantive review. Follow the [researched task allocation](model-allocation-20261007.md#pass-10) and justify escalation.
 
 **Priority and effort:** required completion of the selected core substitutions, with consumer scope matched to the changed boundaries.
 
@@ -197,7 +197,9 @@ One compiler dependency integrator owns `compiler/Cargo.toml` and `compiler/Carg
 | Implementation or review requiring technical judgment | `gpt-6.1-sol`, `medium` | LSP admission, file replacement, URL/locale adapters, JSON input representation and substantive independent review |
 | Unresolved cross-file semantics or consequential alternatives | `gpt-6.1-sol`, `high`, only with a recorded reason | Escalate the affected packet for actual ambiguity or failure; do not raise every worker because the overall programme is large |
 
-Current model availability comes from the dispatcher. [Official Luna documentation](https://developers.openai.com/api/docs/models/gpt-6-luna) and [official Sol documentation](https://developers.openai.com/api/docs/models/gpt-6.1-sol), checked 2026-10-06, support the model/effort comparison; API token prices are not Codex subscription-usage measurements. Account for context size, retries and review when selecting the economical option. Do not claim a measured programme cost saving before execution.
+[Task-specific allocation, researched 2026-10-07](model-allocation-20261007.md), refines this general table for all 16 Pass 0 packets, optional comparisons and final qualification. It records official model/reasoning guidance, supported dispatcher settings, Codex credit rates separately from API prices, and concrete escalation triggers. These are proposed starting settings inferred from the task contracts; no source or experiment establishes a measured optimum for this compiler. In particular, C06 starts at Sol high for already identified cross-caller compatibility work.
+
+Current model availability comes from the dispatcher. The [official selection guide](https://developers.openai.com/api/docs/guides/model-selection) and [Codex models guidance](https://learn.chatgpt.com/docs/models) inform the allocation; verify choices on actual released packets. Account for context, retries, review and available usage data. Do not estimate included subscription usage from API prices or claim programme savings before execution.
 
 Use no more than the available worker slots and assign only released, disjoint writers. A useful first implementation dispatch is a narrow Sol string-repair packet, a bounded LSP packet and a Luna regression/contract packet; rotate work as results arrive. The root handles shared dependency joins and can retain file-policy decisions until their prerequisites are ready. Implementers do not own their acceptance verdict.
 
