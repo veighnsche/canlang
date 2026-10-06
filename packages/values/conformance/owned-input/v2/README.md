@@ -1,4 +1,16 @@
-# Owned-input conformance fixtures v1
+# Owned-input conformance fixtures v2
+
+Migration from v1 (D1 ruling on G's V03.2 divergence note; v1 frozen,
+never edited): (1) `tags/forged-sentinel-is-data` transport tag
+`object` → `entries` with the ordered entries carried — v1 used two
+tags for one node kind, inconsistent with every `keys/*` row;
+adopted from G. (2) `length/id-257-units-rejects` check `text-units`
+→ `id-units` — the pinned `MAX_ID_LENGTH = 256` contract bound stays
+distinct from caller text budgets; adopted from G. Codes unchanged:
+`length/oversized` (base-contract mechanism vocabulary, C03.1),
+`length/bound-exceeded` + `check` (breach kind + location stay in
+separate fields; per-check codes would duplicate the location into
+the code). All other rows byte-identical to v1.
 
 Versioned consumer fixtures for the V03.2 ordered input transport arena
 and the V03.3 private parser token (validation ABI extension v1 over

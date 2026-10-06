@@ -342,6 +342,12 @@ describe("Q2 observer seam (injected production leg + work-loader fallback)", ()
     ) as Error & { code: string };
     nested.code = "ERR_MODULE_NOT_FOUND";
     assert.equal(isObserverModuleAbsent(nested), false);
+    // Same file name in another directory: anchored out (N-R1).
+    const namesake = new Error(
+      "Cannot find module '/repo/packages/state/dist/state/src/billing/observer.js' imported from '/repo/packages/cloudflare/dist/runtime/invoke.js'",
+    ) as Error & { code: string };
+    namesake.code = "ERR_MODULE_NOT_FOUND";
+    assert.equal(isObserverModuleAbsent(namesake), false);
     // Wrong code, unshaped, and primitive errors: all loud.
     assert.equal(isObserverModuleAbsent(new Error("boom")), false);
     assert.equal(isObserverModuleAbsent({ code: "ERR_MODULE_NOT_FOUND" }), false);

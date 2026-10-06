@@ -219,9 +219,13 @@ export async function policyPage(props: PolicyPageProps): Promise<string> {
 /**
  * Safe record metadata readable through policy `fields=` and UI
  * `columns=`/`filter=` selectors (R07: authorized history/relationship
- * disclosure, e.g. Approve:18). Identity/concurrency metadata (`id`,
- * `version`) is never a readable grant: it names the record for
- * lookup/concurrency, and no draft grants it via `fields=`.
+ * disclosure, e.g. Approve:18). Identity/concurrency roots (`id`,
+ * `version`) are terminal readable grants (A5/S1: `draft/CanEvent.can`
+ * grants bare `id,version` via `fields=`, so authored draft grants beat
+ * the stricter pre-A5 rule; reading one's own row identity discloses
+ * nothing new since IDs/versions already circulate as opaque locators
+ * and concurrency tokens per DESIGN §5). Like all safe metadata they
+ * admit no descent and confer no fact, permission, or writability.
  */
 export const SAFE_READABLE_METADATA: readonly string[] = [
   "created",
@@ -229,6 +233,8 @@ export const SAFE_READABLE_METADATA: readonly string[] = [
   "created_by",
   "updated_by",
   "archived_at",
+  "id",
+  "version",
 ];
 
 /** Whether `name` is safe readable metadata (see `SAFE_READABLE_METADATA`). */
@@ -257,6 +263,15 @@ export interface ReadableFieldSchema {
   readonly kind: ReadableFieldKind;
   /** Sub-fields for `kind: "contract"`; ignored otherwise. */
   readonly fields?: Record<string, ReadableFieldSchema>;
+  /**
+   * Unavailable-schema (opaque) marker (A5/S3): the field's schema has
+   * not landed (T13/T14), so interiors defer — they resolve accepted
+   * with leaf `"deferred"` exactly as the checker accepts them
+   * silently — instead of failing as unknown members. Only set this
+   * when the producer genuinely lacks the schema; never to widen a
+   * declared field.
+   */
+  readonly opaque?: boolean;
 }
 
 /**
@@ -272,14 +287,40 @@ export interface ReadableModelSchema {
    * because selectors cannot grant another record's fields (DESIGN L310).
    */
   readonly parent?: string;
+  /**
+   * Unavailable-schema (opaque) marker (A5/S3): the whole model schema
+   * has not landed, so unknown roots defer — accepted with leaf
+   * `"deferred"` — instead of failing as unknown members. Declared
+   * fields, `parent`, and safe metadata still resolve normally.
+   */
+  readonly opaque?: boolean;
 }
+
+/**
+ * Selector read context (A5/S2): `projection` is policy `fields=` and
+ * UI `columns=`; `predicate` is UI `filter=`/`search=`. Delivery leaves
+ * resolve only in projections: per-row receipt observation in
+ * predicates would enroll fences per evaluated row (DESIGN §8.1) and
+ * its lowering is unbuilt runtime work, so the checker must not accept
+ * what emission cannot lower.
+ */
+export type ReadableSelectorContext = "projection" | "predicate";
 
 /**
  * Resolved leaf class: which canonical root accepted the path. `field`
  * is a declared-field terminal (bare root, any kind); `value` is a leaf
- * reached through at least one singular embedded contract.
+ * reached through at least one singular embedded contract; `deferred`
+ * is an unavailable-schema (opaque) path accepted silently to match
+ * the checker's deferral (A5/S3) — accepted, never diagnosed.
  */
-export type ReadableLeafKind = "field" | "parent" | "metadata" | "money" | "value" | "delivery";
+export type ReadableLeafKind =
+  | "field"
+  | "parent"
+  | "metadata"
+  | "money"
+  | "value"
+  | "delivery"
+  | "deferred";
 
 /** Accepted readable selector. Readability carries no fact, grant, or writability. */
 export interface ReadableSelectorOk {
@@ -330,18 +371,27 @@ function assertReadableModel(model: ReadableModelSchema): void {
  * path: declared fields first (mirroring ordinary member lookup
  * precedence), then the containment `parent` root, then safe metadata;
  * descent only through singular embedded contracts, money leaves, and
- * terminal delivery leaves. Nullability never blocks resolution: a
- * selector supplies no non-null fact, so nullable intermediates resolve
- * exactly like non-null ones. Every rejection fails closed with a
- * purpose-specific reason; malformed model/selector *types* throw.
+ * terminal delivery leaves. `context` selects the projection
+ * (`fields=`/`columns=`) or predicate (`filter=`/`search=`) read
+ * context; delivery leaves resolve only in projections (A5/S2).
+ * Nullability never blocks resolution: a selector supplies no non-null
+ * fact, so nullable intermediates resolve exactly like non-null ones.
+ * Unavailable-schema (opaque) bases defer — accepted with leaf
+ * `"deferred"` — instead of failing (A5/S3). Every other rejection
+ * fails closed with a purpose-specific reason; malformed
+ * model/selector/context *types* throw.
  */
 export function resolveReadableSelector(
   model: ReadableModelSchema,
   selector: string,
+  context: ReadableSelectorContext = "projection",
 ): ReadableSelectorResult {
   assertReadableModel(model);
   if (typeof selector !== "string") {
     throw new TypeError("resolveReadableSelector: selector must be a string");
+  }
+  if (context !== "projection" && context !== "predicate") {
+    throw new TypeError("resolveReadableSelector: context must be 'projection' or 'predicate'");
   }
   const segments = selector.split(".");
   const [root, ...rest] = segments;
@@ -353,7 +403,7 @@ export function resolveReadableSelector(
   }
   const declared = model.fields[root];
   if (declared !== undefined) {
-    return resolveFieldPath(selector, root, declared, rest);
+    return resolveFieldPath(selector, root, declared, rest, context);
   }
   if (root === "parent") {
     if (model.parent === undefined) {
@@ -377,15 +427,17 @@ export function resolveReadableSelector(
     }
     return readable(selector, "metadata");
   }
-  if (root === "id" || root === "version") {
-    return unreadable(selector, `reserved identity metadata '${root}' is never a readable grant`);
+  if (model.opaque === true) {
+    return readable(selector, "deferred");
   }
   return unreadable(selector, `unknown member '${root}'`);
 }
 
 /**
- * Resolve the remainder of a declared-field path. Only singular embedded
- * values admit descent; references, arrays, files, secrets, actions, and
+ * Resolve the remainder of a declared-field path. Unavailable-schema
+ * (opaque) holders defer (A5/S3); otherwise only singular embedded
+ * values admit descent, delivery leaves resolve only in projections
+ * (A5/S2), and references, arrays, files, secrets, actions, and
  * terminal scalars/leaves all fail closed.
  */
 function resolveFieldPath(
@@ -393,6 +445,7 @@ function resolveFieldPath(
   root: string,
   field: ReadableFieldSchema,
   rest: readonly string[],
+  context: ReadableSelectorContext,
 ): ReadableSelectorResult {
   if (rest.length === 0) {
     return readable(selector, "field");
@@ -402,6 +455,19 @@ function resolveFieldPath(
   let descended = false;
   for (const [index, segment] of rest.entries()) {
     const last = index === rest.length - 1;
+    if (current.opaque === true) {
+      // Known delivery-observation leaves stay terminal on opaque
+      // deliveries too (A5-N1: mirrors A's E2013 pin on the Opaque
+      // "external delivery target" arm — descent past id/status/
+      // error/result fails even when the schema is unavailable).
+      if (current.kind === "delivery" && DELIVERY_LEAVES.includes(segment) && !last) {
+        return unreadable(
+          selector,
+          `selector ${JSON.stringify(selector)} descends past terminal delivery leaf '${segment}'`,
+        );
+      }
+      return readable(selector, "deferred");
+    }
     if (current.kind === "contract") {
       const next = current.fields?.[segment];
       if (next === undefined) {
@@ -431,6 +497,13 @@ function resolveFieldPath(
       return readable(selector, "money");
     }
     if (current.kind === "delivery") {
+      if (context === "predicate") {
+        return unreadable(
+          selector,
+          `selector ${JSON.stringify(selector)} addresses delivery '${holder}' in a predicate: ` +
+            `delivery leaves resolve only in projections, never in filter=/search=`,
+        );
+      }
       if (segment === "progress") {
         return unreadable(
           selector,
@@ -492,10 +565,13 @@ export interface ReadableLeafSelection {
  * union paths (DESIGN L310): the result holds exactly the valid inputs —
  * a leaf never expands to its container or siblings, so naming
  * `amount.currency` resolves only that leaf, never `amount`/`minor`.
+ * `context` applies to every entry: projection for `fields=`/`columns=`
+ * lists, predicate for `filter=`/`search=` lists (A5/S2).
  */
 export function selectReadableLeaves(
   model: ReadableModelSchema,
   selectors: ReadonlyArray<string>,
+  context: ReadableSelectorContext = "projection",
 ): ReadableLeafSelection {
   assertReadableModel(model);
   if (!Array.isArray(selectors)) {
@@ -504,7 +580,7 @@ export function selectReadableLeaves(
   const resolved: ReadableSelectorOk[] = [];
   const failed: ReadableSelectorError[] = [];
   for (const selector of selectors) {
-    const result = resolveReadableSelector(model, selector);
+    const result = resolveReadableSelector(model, selector, context);
     if (result.ok) {
       resolved.push(result);
     } else {
@@ -514,7 +590,14 @@ export function selectReadableLeaves(
   return { resolved, failed };
 }
 
-/** Whether `selector` resolves through the canonical readable path. */
-export function isReadableSelector(model: ReadableModelSchema, selector: string): boolean {
-  return resolveReadableSelector(model, selector).ok;
+/**
+ * Whether `selector` resolves through the canonical readable path in
+ * the given read context (projection by default; A5/S2).
+ */
+export function isReadableSelector(
+  model: ReadableModelSchema,
+  selector: string,
+  context: ReadableSelectorContext = "projection",
+): boolean {
+  return resolveReadableSelector(model, selector, context).ok;
 }

@@ -1,0 +1,902 @@
+{
+  "meta": {
+    "version": 2,
+    "transportVersion": "v0",
+    "extensionVersion": 1,
+    "abiVectors": "docs/research/package-subsystem-ports-20261006/evidence/input-validation/abi-vectors.json",
+    "decisions": "docs/research/package-subsystem-ports-20261006/evidence/input-validation/abi-decisions.md",
+    "note": "v2: forged-sentinel tag object->entries (in-fixture consistency); id-257 check text-units->id-units (pinned bound distinct from text budgets). See README migration note. Never edited in place."
+  },
+  "transportCases": [
+    {
+      "area": "f64",
+      "expect": {
+        "host": {
+          "$f64": "8000000000000000"
+        },
+        "transport": {
+          "$tag": "f64",
+          "bits": "8000000000000000"
+        }
+      },
+      "harness": "future-arena",
+      "id": "f64/neg-zero-distinct",
+      "input": {
+        "source": "-0"
+      },
+      "rule": "abi-decisions.md#D1; transport-contracts.json#scalars.f64"
+    },
+    {
+      "area": "f64",
+      "expect": {
+        "host": {
+          "$f64": "0000000000000000"
+        },
+        "note": "proves the transport distinguishes +0 from -0 by bits, not by decimal rendering ('0' === '0')",
+        "transport": {
+          "$tag": "f64",
+          "bits": "0000000000000000"
+        }
+      },
+      "harness": "future-arena",
+      "id": "f64/pos-zero-contrast",
+      "input": {
+        "source": "0"
+      },
+      "rule": "abi-decisions.md#D1"
+    },
+    {
+      "area": "f64",
+      "expect": {
+        "host": {
+          "$f64": "4340000000000000"
+        },
+        "note": "9007199254740993 is unrepresentable; host rounds to 9007199254740992 and the transport carries the ROUNDED bits (host truth, never the source spelling)",
+        "transport": {
+          "$tag": "f64",
+          "bits": "4340000000000000"
+        }
+      },
+      "harness": "future-arena",
+      "id": "f64/huge-rounded-integer",
+      "input": {
+        "source": "9007199254740993"
+      },
+      "rule": "abi-decisions.md#D1; transport-contracts.json#scalars.f64"
+    },
+    {
+      "area": "f64",
+      "expect": {
+        "host": {
+          "$f64": "3fb999999999999a"
+        },
+        "transport": {
+          "$tag": "f64",
+          "bits": "3fb999999999999a"
+        }
+      },
+      "harness": "future-arena",
+      "id": "f64/one-tenth-bits",
+      "input": {
+        "source": "0.1"
+      },
+      "rule": "abi-decisions.md#D1"
+    },
+    {
+      "area": "f64",
+      "expect": {
+        "host": {
+          "$f64": "7ff0000000000000"
+        },
+        "note": "overflow spelling reaches the profile rejection stage as +Infinity; never pre-collapsed, never an error at the transport",
+        "transport": {
+          "$tag": "f64",
+          "bits": "7ff0000000000000"
+        }
+      },
+      "harness": "future-arena",
+      "id": "f64/1e400-infinity",
+      "input": {
+        "source": "1e400"
+      },
+      "rule": "abi-decisions.md#D1; transport-contracts.json#scalars.f64"
+    },
+    {
+      "area": "f64",
+      "expect": {
+        "host": {
+          "$f64": "444b1ae4d6e2ef50",
+          "renders": "1e+21"
+        },
+        "note": "integer-valued double: JSON.stringify renders '1e+21' but the value is exact; bits are the observation, rendering is not",
+        "transport": {
+          "$tag": "f64",
+          "bits": "444b1ae4d6e2ef50"
+        }
+      },
+      "harness": "future-arena",
+      "id": "f64/integer-valued-rendering",
+      "input": {
+        "source": "1e21"
+      },
+      "rule": "abi-decisions.md#D1"
+    },
+    {
+      "area": "text",
+      "expect": {
+        "host": {
+          "$text": "\ud800",
+          "units": 1
+        },
+        "transport": {
+          "$tag": "text",
+          "units": 1
+        }
+      },
+      "harness": "future-arena",
+      "id": "text/lone-surrogate-preserved",
+      "input": {
+        "source": "\"\\ud800\""
+      },
+      "rule": "abi-decisions.md#D2; transport-contracts.json#text.lossless_utf16"
+    },
+    {
+      "area": "text",
+      "expect": {
+        "host": {
+          "$text": "\ud83d\ude00",
+          "units": 2
+        },
+        "note": "control: a valid pair is 2 code units; vectors never count it as 1 character",
+        "transport": {
+          "$tag": "text",
+          "units": 2
+        }
+      },
+      "harness": "future-arena",
+      "id": "text/surrogate-pair-control",
+      "input": {
+        "source": "\"\\ud83d\\ude00\""
+      },
+      "rule": "abi-decisions.md#D2"
+    },
+    {
+      "area": "text",
+      "expect": {
+        "host": {
+          "$text": "a\nb\tc",
+          "units": 5
+        },
+        "transport": {
+          "$tag": "text",
+          "units": 5
+        }
+      },
+      "harness": "future-arena",
+      "id": "text/controls-are-data",
+      "input": {
+        "source": "\"a\\nb\\tc\""
+      },
+      "rule": "abi-decisions.md#D2"
+    },
+    {
+      "area": "text",
+      "expect": {
+        "host": {
+          "$text": "",
+          "units": 0
+        },
+        "note": "empty text is a text node with 0 units \u2014 distinct from a missing position (presence D3)",
+        "transport": {
+          "$tag": "text",
+          "units": 0
+        }
+      },
+      "harness": "future-arena",
+      "id": "text/empty-vs-missing",
+      "input": {
+        "source": "\"\""
+      },
+      "rule": "abi-decisions.md#D2; abi-decisions.md#D3"
+    },
+    {
+      "area": "keys",
+      "expect": {
+        "host": {
+          "entries": [
+            [
+              "1",
+              "b"
+            ],
+            [
+              "2",
+              "a"
+            ],
+            [
+              "c",
+              "d"
+            ]
+          ]
+        },
+        "transport": {
+          "entries": [
+            [
+              "1",
+              "b"
+            ],
+            [
+              "2",
+              "a"
+            ],
+            [
+              "c",
+              "d"
+            ]
+          ],
+          "tag": "entries"
+        }
+      },
+      "harness": "future-arena",
+      "id": "keys/integer-like-order",
+      "input": {
+        "source": "{\"2\":\"a\",\"1\":\"b\",\"c\":\"d\"}"
+      },
+      "rule": "abi-decisions.md#D2; transport-contracts.json#text.enumeration"
+    },
+    {
+      "area": "keys",
+      "expect": {
+        "host": {
+          "entries": [
+            [
+              "b",
+              1
+            ],
+            [
+              "a",
+              2
+            ]
+          ]
+        },
+        "transport": {
+          "entries": [
+            [
+              "b",
+              1
+            ],
+            [
+              "a",
+              2
+            ]
+          ],
+          "tag": "entries"
+        }
+      },
+      "harness": "future-arena",
+      "id": "keys/insertion-order",
+      "input": {
+        "source": "{\"b\":1,\"a\":2}"
+      },
+      "rule": "abi-decisions.md#D2"
+    },
+    {
+      "area": "keys",
+      "expect": {
+        "host": {
+          "entries": [
+            [
+              "a",
+              2
+            ]
+          ],
+          "lastWins": 2
+        },
+        "note": "host last-wins is NOT the transport: the arena preserves both entries as data; profiles consume per frozen rule",
+        "transport": {
+          "entries": [
+            [
+              "a",
+              1
+            ],
+            [
+              "a",
+              2
+            ]
+          ],
+          "tag": "entries"
+        }
+      },
+      "harness": "future-arena",
+      "id": "keys/duplicates-preserved",
+      "input": {
+        "source": "{\"a\":1,\"a\":2}"
+      },
+      "rule": "abi-decisions.md#D2; transport-contracts.json#scalars.numeric_strings"
+    },
+    {
+      "area": "keys",
+      "expect": {
+        "host": {
+          "entries": [
+            [
+              "__proto__",
+              {
+                "x": 1
+              }
+            ]
+          ],
+          "own": true,
+          "prototypeUntouched": true
+        },
+        "transport": {
+          "entries": [
+            [
+              "__proto__",
+              {
+                "x": 1
+              }
+            ]
+          ],
+          "tag": "entries"
+        }
+      },
+      "harness": "future-arena",
+      "id": "keys/own-proto-is-data",
+      "input": {
+        "source": "{\"__proto__\":{\"x\":1}}"
+      },
+      "rule": "abi-decisions.md#D2; transport-contracts.json#text.enumeration"
+    },
+    {
+      "area": "keys",
+      "expect": {
+        "host": {
+          "entries": [
+            [
+              "\ud800",
+              1
+            ]
+          ],
+          "keyUnits": 1
+        },
+        "transport": {
+          "entries": [
+            [
+              "\ud800",
+              1
+            ]
+          ],
+          "tag": "entries"
+        }
+      },
+      "harness": "future-arena",
+      "id": "keys/lone-surrogate-key",
+      "input": {
+        "source": "{\"\\ud800\":1}"
+      },
+      "rule": "abi-decisions.md#D2; transport-contracts.json#text.lossless_utf16"
+    },
+    {
+      "area": "order",
+      "expect": {
+        "firstUnknown": "extraB",
+        "order": [
+          "qty",
+          "extraB",
+          "extraA"
+        ]
+      },
+      "harness": "future-arena",
+      "id": "order/http-first-unknown-enumeration",
+      "input": {
+        "entries": [
+          [
+            "qty",
+            2
+          ],
+          [
+            "extraB",
+            1
+          ],
+          [
+            "extraA",
+            2
+          ]
+        ],
+        "shape": {
+          "allowed": [
+            "qty"
+          ]
+        }
+      },
+      "rule": "abi-decisions.md#D6; interfaces/src/envelope/validate.ts#checkClosedInputs"
+    },
+    {
+      "area": "order",
+      "expect": {
+        "consumedOrder": [
+          "1",
+          "2",
+          "c"
+        ]
+      },
+      "harness": "future-arena",
+      "id": "order/integer-key-order-consumed",
+      "input": {
+        "source": "{\"2\":\"a\",\"1\":\"b\",\"c\":\"d\"}"
+      },
+      "rule": "abi-decisions.md#D2; abi-decisions.md#D6"
+    },
+    {
+      "area": "order",
+      "expect": {
+        "profiles": {
+          "interfaces": "admit (VERSION_PATTERN digits-only: zero/leading-zeros/arbitrary magnitude)",
+          "state": "reject (CANONICAL_VERSION_RE strict nonzero)"
+        },
+        "transport": {
+          "$tag": "text",
+          "value": "007"
+        }
+      },
+      "harness": "future-arena",
+      "id": "order/version-domain-split",
+      "input": {
+        "source": "\"007\""
+      },
+      "rule": "contracts.md#mcp-ordinary/v1 + state-generated/v1; interfaces/src/envelope/refs.ts#VERSION_PATTERN"
+    },
+    {
+      "area": "text",
+      "expect": {
+        "host": {
+          "$text": "123",
+          "units": 3
+        },
+        "note": "numeric-looking text is text, never a number; kind tag text, never f64",
+        "transport": {
+          "$tag": "text",
+          "units": 3
+        }
+      },
+      "harness": "future-arena",
+      "id": "text/numeric-string-stays-text",
+      "input": {
+        "source": "\"123\""
+      },
+      "rule": "abi-decisions.md#D2; transport-contracts.json#scalars.numeric_strings"
+    },
+    {
+      "area": "keys",
+      "expect": {
+        "host": {
+          "entries": [
+            [
+              "1",
+              "c"
+            ],
+            [
+              "2",
+              "b"
+            ],
+            [
+              "01",
+              "a"
+            ]
+          ]
+        },
+        "note": "'01' is not canonical integer-like (leading zero): canonical keys ascend first, numeric-string keys keep insertion position",
+        "transport": {
+          "entries": [
+            [
+              "1",
+              "c"
+            ],
+            [
+              "2",
+              "b"
+            ],
+            [
+              "01",
+              "a"
+            ]
+          ],
+          "tag": "entries"
+        }
+      },
+      "harness": "future-arena",
+      "id": "keys/numeric-string-key-order",
+      "input": {
+        "source": "{\"01\":\"a\",\"2\":\"b\",\"1\":\"c\"}"
+      },
+      "rule": "abi-decisions.md#D2; transport-contracts.json#scalars.numeric_strings"
+    },
+    {
+      "area": "kinds",
+      "expect": {
+        "host": true,
+        "transport": {
+          "$tag": "bool",
+          "value": true
+        }
+      },
+      "harness": "future-arena",
+      "id": "kinds/bool-true",
+      "input": {
+        "source": "true"
+      },
+      "rule": "abi-decisions.md#D2"
+    },
+    {
+      "area": "kinds",
+      "expect": {
+        "host": [
+          1,
+          "a",
+          null,
+          false
+        ],
+        "note": "arrays keep element order and mixed kinds; null elements are own-null positions, never holes",
+        "transport": {
+          "$tag": "array",
+          "length": 4
+        }
+      },
+      "harness": "future-arena",
+      "id": "kinds/array-mixed",
+      "input": {
+        "source": "[1,\"a\",null,false]"
+      },
+      "rule": "abi-decisions.md#D2"
+    },
+    {
+      "area": "kinds",
+      "expect": {
+        "host": {
+          "entries": []
+        },
+        "note": "empty object is an entries node with zero entries \u2014 distinct from a missing position (presence D3)",
+        "transport": {
+          "entries": [],
+          "tag": "entries"
+        }
+      },
+      "harness": "future-arena",
+      "id": "kinds/empty-object",
+      "input": {
+        "source": "{}"
+      },
+      "rule": "abi-decisions.md#D2; abi-decisions.md#D3"
+    }
+  ],
+  "tagCases": [
+    {
+      "area": "presence",
+      "expect": {
+        "host": {
+          "a": null,
+          "b": "missing"
+        },
+        "transport": {
+          "a": {
+            "$tag": "own-null"
+          },
+          "b": {
+            "$tag": "missing"
+          }
+        }
+      },
+      "harness": "future-arena",
+      "id": "presence/missing-vs-null",
+      "input": {
+        "absentKey": "b",
+        "source": "{\"a\":null}"
+      },
+      "rule": "abi-decisions.md#D3; transport-contracts.json#presence.rule"
+    },
+    {
+      "area": "presence",
+      "expect": {
+        "note": "state 'preserve explicit null': null survives to the profile as own-null, never filled, never dropped",
+        "transport": {
+          "a": {
+            "$tag": "own-null"
+          }
+        }
+      },
+      "harness": "future-arena",
+      "id": "presence/explicit-null-preserved",
+      "input": {
+        "source": "{\"a\":null}"
+      },
+      "rule": "abi-decisions.md#D3; abi-decisions.md#D4"
+    },
+    {
+      "area": "tags",
+      "expect": {
+        "note": "identity bytes are owned by V03.4 registration handles; this vector pins THAT identity is carried, not its encoding",
+        "transport": {
+          "$tag": "default-applied",
+          "carriesIdentity": true,
+          "position": "missing"
+        }
+      },
+      "harness": "future-arena",
+      "id": "tags/default-applied-carries-identity",
+      "input": {
+        "position": "missing",
+        "registry": "plan-defaults"
+      },
+      "rule": "abi-decisions.md#D4"
+    },
+    {
+      "area": "tags",
+      "expect": {
+        "transport": {
+          "$tag": "default-absent"
+        }
+      },
+      "harness": "future-arena",
+      "id": "tags/default-absent-when-present",
+      "input": {
+        "position": "present",
+        "value": {
+          "$f64": "3ff0000000000000"
+        }
+      },
+      "rule": "abi-decisions.md#D4"
+    },
+    {
+      "area": "tags",
+      "expect": {
+        "note": "minted by the profile update stage; the transport never parses a sentinel out of caller JSON (see forged-sentinel-is-data)",
+        "transport": {
+          "$tag": "update-omitted",
+          "mintedBy": "profile"
+        }
+      },
+      "harness": "future-arena",
+      "id": "tags/update-omitted-minted",
+      "input": {
+        "mode": "update",
+        "position": "omitted"
+      },
+      "rule": "abi-decisions.md#D5; values/src/schema.ts#UPDATE_OMITTED"
+    },
+    {
+      "area": "tags",
+      "expect": {
+        "host": {
+          "$omitted": true
+        },
+        "note": "caller-shaped sentinel markers are DATA: the arena carries the ordered entries; no sentinel tag is ever minted from caller JSON",
+        "transport": {
+          "$tag": "entries",
+          "entries": [
+            [
+              "$omitted",
+              true
+            ]
+          ]
+        }
+      },
+      "harness": "future-arena",
+      "id": "tags/forged-sentinel-is-data",
+      "input": {
+        "source": "{\"$omitted\":true}"
+      },
+      "rule": "abi-decisions.md#D5"
+    },
+    {
+      "area": "tags",
+      "expect": {
+        "transport": {
+          "$tag": "dropped-unknown",
+          "path": "/extra"
+        }
+      },
+      "harness": "future-arena",
+      "id": "tags/dropped-unknown-with-path",
+      "input": {
+        "entries": [
+          [
+            "qty",
+            2
+          ],
+          [
+            "extra",
+            9
+          ]
+        ],
+        "shape": {
+          "allowed": [
+            "qty"
+          ]
+        }
+      },
+      "rule": "abi-decisions.md#D6"
+    },
+    {
+      "area": "tags",
+      "expect": {
+        "transport": {
+          "qty": {
+            "$tag": "f64",
+            "bits": "4000000000000000"
+          }
+        }
+      },
+      "harness": "future-arena",
+      "id": "tags/drop-never-known",
+      "input": {
+        "entries": [
+          [
+            "qty",
+            2
+          ]
+        ],
+        "shape": {
+          "allowed": [
+            "qty"
+          ]
+        }
+      },
+      "rule": "abi-decisions.md#D6"
+    }
+  ],
+  "lengthCases": [
+    {
+      "area": "length",
+      "expect": {
+        "note": "256 UTF-16 units (pair counts 2) passes; units match JS .length and the refs.ts check",
+        "ok": true,
+        "units": 256
+      },
+      "harness": "future-arena",
+      "id": "length/id-256-units-ok",
+      "input": {
+        "kind": "record-id",
+        "units": 256
+      },
+      "rule": "abi-decisions.md#D7; interfaces/src/envelope/refs.ts#MAX_ID_LENGTH"
+    },
+    {
+      "area": "length",
+      "expect": {
+        "check": "id-units",
+        "code": "length/bound-exceeded",
+        "ok": false,
+        "stage": "transport",
+        "note": "id-units: the pinned MAX_ID_LENGTH=256 contract bound, distinct from caller text budgets"
+      },
+      "harness": "future-arena",
+      "id": "length/id-257-units-rejects",
+      "input": {
+        "kind": "record-id",
+        "units": 257
+      },
+      "rule": "abi-decisions.md#D7; interfaces/src/envelope/refs.ts#MAX_ID_LENGTH"
+    },
+    {
+      "area": "length",
+      "expect": {
+        "check": "nodes",
+        "code": "length/oversized",
+        "note": "mechanism pinned (reject before traversal); the numeric cap is a V03-measure/V07-fix hypothesis, NOT pinned here",
+        "ok": false,
+        "stage": "transport"
+      },
+      "harness": "future-arena",
+      "id": "length/node-count-before-traverse",
+      "input": {
+        "available": 11,
+        "declared": 10
+      },
+      "rule": "abi-decisions.md#D7; transport-contracts.json#corruption_rules"
+    },
+    {
+      "area": "length",
+      "expect": {
+        "check": "depth",
+        "code": "length/bound-exceeded",
+        "ok": false,
+        "stage": "transport"
+      },
+      "harness": "future-arena",
+      "id": "length/depth-before-descent",
+      "input": {
+        "breachesDepth": true
+      },
+      "rule": "abi-decisions.md#D7"
+    },
+    {
+      "area": "length",
+      "expect": {
+        "note": "0 units passes length; emptiness never reads as missing (presence D3)",
+        "ok": true,
+        "units": 0
+      },
+      "harness": "future-arena",
+      "id": "length/empty-text-ok",
+      "input": {
+        "kind": "text",
+        "units": 0
+      },
+      "rule": "abi-decisions.md#D7; abi-decisions.md#D3"
+    }
+  ],
+  "exclusionCases": [
+    {
+      "area": "presence",
+      "expect": {
+        "holds": "no arena-from-JSON node ever carries own-undefined; the tag exists only for host-carrier lineage (V03.3)"
+      },
+      "harness": "must-hold",
+      "id": "presence/undefined-never-from-json",
+      "input": {
+        "note": "undefined has no JSON spelling"
+      },
+      "rule": "abi-decisions.md#D3"
+    },
+    {
+      "area": "presence",
+      "expect": {
+        "holds": "JSON.parse creates own data properties only; inherited tags never arise from JSON text"
+      },
+      "harness": "must-hold",
+      "id": "presence/inherited-never-from-json",
+      "input": {
+        "note": "no JSON source produces inherited positions"
+      },
+      "rule": "abi-decisions.md#D3"
+    },
+    {
+      "area": "presence",
+      "expect": {
+        "holds": "JSON.parse creates data properties only; accessor tags never arise from JSON text"
+      },
+      "harness": "must-hold",
+      "id": "presence/accessor-never-from-json",
+      "input": {
+        "note": "no JSON source produces accessors"
+      },
+      "rule": "abi-decisions.md#D3"
+    },
+    {
+      "area": "exclusion",
+      "expect": {
+        "holds": "no validation-profile transport frame uses the number-rejecting opaque json codec"
+      },
+      "harness": "must-hold",
+      "id": "exclusion/opaque-json-never-transport",
+      "input": {
+        "note": "json codec rejects every number (base contract transport_exclusions)"
+      },
+      "rule": "abi-decisions.md#D8; current-ts.json#baseline_obligations"
+    },
+    {
+      "area": "exclusion",
+      "expect": {
+        "holds": "malformed JSON fails at the host parse stage with host diagnostics; the arena never receives unparsed text"
+      },
+      "harness": "must-hold",
+      "id": "exclusion/host-parse-errors-stay-host",
+      "input": {
+        "note": "byte caps, BOM, syntax errors match the current host stage (V03.3 acceptance)"
+      },
+      "rule": "abi-decisions.md#D8"
+    },
+    {
+      "area": "exclusion",
+      "expect": {
+        "holds": "declared counts are validated before any conversion; overflow rejects before coercion, never coerce-then-check"
+      },
+      "harness": "must-hold",
+      "id": "exclusion/no-coerce-then-check",
+      "input": {
+        "note": "fixed-width counts reject before coercion (V03.1 acceptance)"
+      },
+      "rule": "abi-decisions.md#D8; transport-contracts.json#corruption_rules"
+    }
+  ]
+}
