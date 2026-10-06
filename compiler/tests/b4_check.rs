@@ -412,6 +412,45 @@ fn t08_selector_grants_no_fact() {
     assert_eq!(codes(&diags), vec!["E3001"], "{diags:?}");
 }
 
+/// (A5/S1) Bare `id`/`version` are terminal readable roots in UI
+/// selectors too (CanEvent:41 grants them in policy `fields=`).
+#[test]
+fn a5_s1_ui_columns_accept_id_version() {
+    let catalog = fixture();
+    let src = "app T\nGiven\n M { title:text }\n policy M read=members\nWhen\nThen\n page /t title=\"T\"\n  table M columns=id,version,title,created\n";
+    let diags = check(src, Some(&catalog));
+    assert!(diags.is_empty(), "ui id/version roots: {diags:?}");
+}
+
+/// (A5/S1) `id`/`version` admit no descent in policy or UI contexts.
+#[test]
+fn a5_s1_id_version_descent_rejected() {
+    let catalog = fixture();
+    let src = "app T\nGiven\n M { title:text }\n policy M read=members fields=id.tag\nWhen\nThen\n page /t title=\"T\"\n  table M columns=version.n\n";
+    let diags = check(src, Some(&catalog));
+    assert_eq!(codes(&diags), vec!["E2013", "E2013"], "{diags:?}");
+}
+
+/// (A5/S4) Reference interiors are `E4012` in UI `columns=` exactly
+/// as in policy `fields=`: declared `user` chain.
+#[test]
+fn a5_s4_ui_columns_reference_interior_e4012() {
+    let catalog = fixture();
+    let src = "app T\nGiven\n M { owner:user, title:text }\n policy M read=members\nWhen\nThen\n page /t title=\"T\"\n  table M columns=owner.id,title\n";
+    let diags = check(src, Some(&catalog));
+    assert_eq!(codes(&diags), vec!["E4012"], "{diags:?}");
+}
+
+/// (A5/S4) Reserved-root reference interiors are `E4012` in UI
+/// `filter=` too (`created_by.id` resolves, then the grant fails).
+#[test]
+fn a5_s4_ui_filter_reserved_reference_e4012() {
+    let catalog = fixture();
+    let src = "app T\nGiven\n M { title:text }\n policy M read=members\nWhen\nThen\n page /t title=\"T\"\n  table M columns=title filter=created_by.id\n";
+    let diags = check(src, Some(&catalog));
+    assert_eq!(codes(&diags), vec!["E4012"], "{diags:?}");
+}
+
 /// (T05) Affiliate if/else (R01): the `else` of `p==null` proves
 /// `p` non-null for member reads and the `set` target; the
 /// then-branch create does not disturb the join.
