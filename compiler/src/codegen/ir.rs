@@ -38,7 +38,7 @@
 //! [`ModuleId`] index both tables.
 
 use crate::analysis::catalog::{Availability, Catalog, Effects, std_capability};
-use crate::analysis::effects::EffectVerb;
+use crate::analysis::effects::{EffectVerb, PolicyRule};
 use crate::analysis::migrate_check::{self, OwnerModelView};
 use crate::analysis::resolve::{
     CrudOp, FixtureTarget, ModelOwner, ModuleId, ModuleKind, SymbolId, SymbolKind,
@@ -304,6 +304,10 @@ pub struct IrGrant {
     pub rule: String,
     /// Field grants as dotted selector paths (empty omits `fields`).
     pub fields: Vec<String>,
+    /// Explicit-public provenance (B7 phase-1): true iff `read=` is
+    /// exactly the `public` spelling with no `where=`, so serve may
+    /// honor the grant without rule-fn evaluation.
+    pub public: bool,
 }
 
 /// One composite uniqueness constraint (checked but §13 has no member
@@ -1072,6 +1076,10 @@ pub enum IrCallTarget {
     /// Capability operation by canonical id: imported from its owning
     /// package module and invoked as `await op(c, ...)`.
     CapabilityOp(String),
+    /// Derived function by canonical id: emitted as a module-scope
+    /// named function and invoked as `await name(c, ...)` (always
+    /// awaited: emitted derives are `async`).
+    DeriveFn(String),
 }
 
 /// Binary operators.
@@ -1313,9 +1321,12 @@ pub enum IrStmt {
         span: Span,
     },
     /// `for item in domain` → `for (const item of await domain)`.
+    /// `limit` is the fail-closed bound (DESIGN §5 table): fail the
+    /// operation when more than N items would be processed.
     For {
         item: String,
         domain: TypedExpr,
+        limit: Option<TypedExpr>,
         body: Vec<IrStmt>,
         span: Span,
     },
@@ -1362,7 +1373,7 @@ pub enum IrDefault {
 pub enum IrServer {
     Actor,
     Now,
-    Computed(TypedExpr),
+    Computed(Box<TypedExpr>),
 }
 
 /// One typed message parameter.
@@ -1416,6 +1427,10 @@ pub struct IrPage {
     pub group: Option<String>,
     /// Whether `nav:"none"` was authored.
     pub nav_none: bool,
+    /// `poll=` cadence in millis, if authored → BigInt.
+    pub poll: Option<i128>,
+    /// `refresh=` canonical user mutation, if authored.
+    pub refresh: Option<String>,
     /// Admission guards in source order.
     pub admit: Vec<IrGuard>,
     /// Render body: UI factory nodes in source order.
@@ -2417,6 +2432,11 @@ impl<'a> Cx<'a> {
             "now" if scope.in_hook => return member_of("$hookCtx", "now", ty, span),
             "actor" => return member_of("c", "actor", ty, span),
             "now" => return member_of("c", "now", ty, span),
+            // B4-G/O2: non-hook bodies read team/operation off the
+            // ambient context like actor/now; hooks keep the legacy
+            // fallthrough until T34-Q5 settles the hook-side contract.
+            "team" if !scope.in_hook => return member_of("c", "team", ty, span),
+            "operation" if !scope.in_hook => return member_of("c", "operation", ty, span),
             _ => {}
         }
         if is_test_account(name) {
@@ -2828,9 +2848,14 @@ impl<'a> Cx<'a> {
                     };
                 }
                 Some(SymbolKind::DeriveFn { .. }) => {
-                    return IrExpr::Unsupported {
-                        what: format!("call to derived function `{name}`"),
-                        why: "no §13 call lowering exists".to_string(),
+                    // Named arguments are rejected up front in
+                    // `decode_call`; only positional args arrive here.
+                    return IrExpr::Call {
+                        target: IrCallTarget::DeriveFn(self.canonical(id)),
+                        args: args
+                            .iter()
+                            .map(|(_, value)| self.decode_expr(scope, value))
+                            .collect(),
                     };
                 }
                 _ => {}
@@ -3328,7 +3353,9 @@ pub fn expr_uses_async(expr: &TypedExpr) -> bool {
         IrExpr::Call { target, args } => {
             matches!(
                 target,
-                IrCallTarget::Builtin { awaited: true, .. } | IrCallTarget::CapabilityOp(_)
+                IrCallTarget::Builtin { awaited: true, .. }
+                    | IrCallTarget::CapabilityOp(_)
+                    | IrCallTarget::DeriveFn(_)
             ) || args.iter().any(expr_uses_async)
         }
         IrExpr::DeliveryRead { .. } => true,
@@ -3377,6 +3404,29 @@ pub fn expr_uses_async(expr: &TypedExpr) -> bool {
 /// subject predicates, boolean combinations, or an arbitrary checked
 /// boolean expression.
 impl<'a> Cx<'a> {
+    /// Explicit-public read provenance (B7 phase-1): true iff the grant
+    /// reads exactly `public` with no `where=`. Serve honors such grants
+    /// without rule-fn evaluation (rejected) or T04b-class evaluation
+    /// (deferred); predicated `read=public where=` stays fail-closed.
+    /// Pure: no diagnostics, safe to call during decode.
+    fn is_explicit_public_read(&self, policy: &PolicyRule) -> bool {
+        if policy.where_predicate.is_some() {
+            return false;
+        }
+        let Some(key) = policy.read.as_ref() else {
+            return false;
+        };
+        let Some(node) = self.node(key) else {
+            return false;
+        };
+        if node.kind != SyntaxKind::NameRef {
+            return false;
+        }
+        kids(node)
+            .iter()
+            .any(|n| name_text(self.db, n).as_deref() == Some("public"))
+    }
+
     fn decode_guard(&mut self, scope: &Scope, key: &NodeKey) -> IrGuard {
         let Some(node) = self.node(key).cloned() else {
             let span = Span::new(key.file, key.start, key.end);
@@ -3633,24 +3683,23 @@ impl<'a> Cx<'a> {
                 }
             }
             EffectVerb::For => {
-                if effect.limit.is_some() {
-                    // Limits fail on excess; dropping one would change
-                    // semantics, so the whole loop stays loud.
-                    return unsupported_stmt(
-                        "for limit",
-                        "bounded loops have no §13 lowering",
-                        span,
-                    );
-                }
                 let item = effect.item.clone().unwrap_or_default();
                 let domain = effect
                     .domain
                     .as_ref()
                     .map(|key| self.decode_anchored(scope, key, &format!("{what} domain")));
+                // The bound stays fail-closed: the emitter fetches the
+                // domain, then fails the operation past N items (DESIGN
+                // §5 `for item in query limit=N`).
+                let limit = effect
+                    .limit
+                    .as_ref()
+                    .map(|key| self.decode_anchored(scope, key, &format!("{what} limit")));
                 match domain {
                     Some(domain) => IrStmt::For {
                         item,
                         domain,
+                        limit,
                         body: effect
                             .then_effects
                             .iter()
@@ -4017,9 +4066,13 @@ impl<'a> Cx<'a> {
             .policies
             .iter()
             .enumerate()
-            .map(|(index, policy)| IrGrant {
-                rule: format!("{}.read.{}", symbol.name, index + 1),
-                fields: policy.fields.clone(),
+            .map(|(index, policy)| {
+                let public = self.is_explicit_public_read(policy);
+                IrGrant {
+                    rule: format!("{}.read.{}", symbol.name, index + 1),
+                    fields: policy.fields.clone(),
+                    public,
+                }
             })
             .collect();
         let invariants = data
@@ -4364,7 +4417,7 @@ impl<'a> Cx<'a> {
             let seen = self.builtins_seen.len();
             let lowered = self.decode_expr(&scope, &node);
             self.builtins_seen.truncate(seen);
-            Some(IrServer::Computed(lowered))
+            Some(IrServer::Computed(Box::new(lowered)))
         });
         let mut modifiers = IrModifiers::default();
         for modifier in &data.modifiers {
@@ -5160,10 +5213,10 @@ impl<'a> Cx<'a> {
             }
         });
         let description = self.owner_description(module, &page.node);
-        let (path, order, group, nav_none) = node
+        let (path, order, group, nav_none, poll, refresh) = node
             .as_ref()
             .map(|n| self.decode_page_head(module, n))
-            .unwrap_or_else(|| ("/".to_string(), None, None, false));
+            .unwrap_or_else(|| ("/".to_string(), None, None, false, None, None));
         let mut admit = Vec::new();
         let mut render = Vec::new();
         if let Some(node) = node.as_ref() {
@@ -5204,6 +5257,8 @@ impl<'a> Cx<'a> {
             order,
             group,
             nav_none,
+            poll,
+            refresh,
             admit,
             render,
             fn_name,
@@ -5213,16 +5268,28 @@ impl<'a> Cx<'a> {
     }
 
     /// Decode the page head: route pattern plus `order`/`group`/`nav`.
-    /// `data`/`poll`/`refresh` have no lowering and stay loud `E6008`.
+    /// `data` has no lowering and stays loud `E6008`. `poll` decodes
+    /// the checked constant duration to millis; `refresh` resolves the
+    /// named canonical user mutation (DESIGN §9; `refresh` requires
+    /// `poll`, checked in types).
     fn decode_page_head(
         &mut self,
         module: ModuleId,
         node: &SyntaxNode,
-    ) -> (String, Option<i128>, Option<String>, bool) {
+    ) -> (
+        String,
+        Option<i128>,
+        Option<String>,
+        bool,
+        Option<i128>,
+        Option<String>,
+    ) {
         let mut path = "/".to_string();
         let mut order = None;
         let mut group = None;
         let mut nav_none = false;
+        let mut poll = None;
+        let mut refresh = None;
         for child in kids(node) {
             match child.kind {
                 SyntaxKind::Route => {
@@ -5284,14 +5351,43 @@ impl<'a> Cx<'a> {
                                 ));
                             }
                         }
-                        "poll" | "refresh" => {
-                            self.diags.push(Diagnostic::error(
-                                "E6008",
-                                format!(
-                                    "cannot lower page {name}: page {name} has no §13 lowering"
-                                ),
-                                child.span,
-                            ));
+                        "poll" => {
+                            // The checker proves a context-free constant
+                            // duration (1s..1h); decode the same literal
+                            // to millis (shared suffix table above).
+                            let duration = value.and_then(|v| match v.kind {
+                                SyntaxKind::Duration => Some(*v),
+                                SyntaxKind::Literal => {
+                                    kids(v).into_iter().find(|l| l.kind == SyntaxKind::Duration)
+                                }
+                                _ => None,
+                            });
+                            match duration.and_then(|d| duration_millis(self.text(d.span))) {
+                                Some(ms) => poll = Some(ms),
+                                None => {
+                                    let at = value.map(|v| v.span).unwrap_or(child.span);
+                                    self.diags.push(Diagnostic::error(
+                                        "E6008",
+                                        "cannot lower page poll: only constant durations lower"
+                                            .to_string(),
+                                        at,
+                                    ));
+                                }
+                            }
+                        }
+                        "refresh" => {
+                            match value.and_then(|v| self.resolve_operation_target(module, v)) {
+                                Some(op) => refresh = Some(self.canonical(op)),
+                                None => {
+                                    let at = value.map(|v| v.span).unwrap_or(child.span);
+                                    self.diags.push(Diagnostic::error(
+                                        "E6008",
+                                        "cannot lower page refresh: only a canonical user mutation lowers"
+                                            .to_string(),
+                                        at,
+                                    ));
+                                }
+                            }
                         }
                         _ => {}
                     }
@@ -5299,8 +5395,7 @@ impl<'a> Cx<'a> {
                 _ => {}
             }
         }
-        let _ = module;
-        (path, order, group, nav_none)
+        (path, order, group, nav_none, poll, refresh)
     }
 
     /// Normalize a route pattern. Static segments concatenate; dynamic
@@ -7852,7 +7947,9 @@ impl<'a> Cx<'a> {
             IrExpr::Call { target, args } => {
                 let id = match target {
                     IrCallTarget::Builtin { id, .. } => id.as_str(),
-                    IrCallTarget::CapabilityOp(_) => return ResolvedType::Unknown,
+                    IrCallTarget::CapabilityOp(_) | IrCallTarget::DeriveFn(_) => {
+                        return ResolvedType::Unknown
+                    }
                 };
                 match id {
                     "count" => ResolvedType::Scalar(Scalar::Int),

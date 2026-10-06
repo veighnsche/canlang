@@ -57,6 +57,30 @@ export type RecipeProvisioner = (
   provisioned: ReadonlyMap<string, unknown>,
 ) => unknown | Promise<unknown>;
 
+/**
+ * Closure scope facade: genuine L1 suites read fixtures as PROPERTIES on
+ * the scope argument (`s.open_task`, `member_of("s", ...)` in
+ * compiler/src/codegen/ir.rs) while the harness accumulates and probes
+ * them as a Map. The facade IS the same Map (identity, iteration, and
+ * bound methods preserved) with fixture-name property reads added, so
+ * both conventions hold. A fixture literally named like a Map member
+ * (`get`, `size`, …) shadows that member on property reads only.
+ */
+export function scopeFacade(map: ReadonlyMap<string, unknown>): ReadonlyMap<string, unknown> {
+  return new Proxy(map, {
+    get(target, property, _receiver) {
+      if (typeof property === "string" && target.has(property)) {
+        return target.get(property);
+      }
+      const value: unknown = Reflect.get(target, property);
+      return typeof value === "function" ? value.bind(target) : value;
+    },
+    has(target, property) {
+      return (typeof property === "string" && target.has(property)) || Reflect.has(target, property);
+    },
+  });
+}
+
 export type FixtureRecipeKind = "model" | "user" | "file" | "delivery";
 
 export interface FixtureRecipe {
@@ -283,7 +307,7 @@ export async function provisionFixtureValues(
     }
     let value: unknown;
     try {
-      value = await recipe.provision(caller, provisioned);
+      value = await recipe.provision(caller, scopeFacade(provisioned));
     } catch (thrown) {
       throw new FixtureSetupError(name, `fixture provisioning failed: ${detailOf(thrown)}`, {
         cause: thrown,
@@ -321,7 +345,7 @@ export async function extractSuiteUsers(
     }
     let value: unknown;
     try {
-      value = await recipe.provision(caller, values);
+      value = await recipe.provision(caller, scopeFacade(values));
     } catch (thrown) {
       throw new FixtureSetupError(name, `user fixture provisioning failed: ${detailOf(thrown)}`, {
         cause: thrown,

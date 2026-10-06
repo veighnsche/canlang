@@ -1,0 +1,1295 @@
+W01.3 verify.log — current-TS evidence run (immutable)
+base: c07c51e5d381baac7cdae3dc9d347b6e27187d98 (lane D + main 1f0baea merge)
+grant: G-D-W013-01 pid=95149 bun=1.4.2 node=v24.21.0
+exits: CMD1=0 CMD2=0 CMD3=2 CMD4=0(249/249) CMD5=0(479/479)
+--- raw log follows ---
+EVIDENCE_PID=95149
+DATE_UTC=2026-10-06T11:29:34Z
+HEAD=c07c51e5d381baac7cdae3dc9d347b6e27187d98
+DIRTY_LINES=       0
+BUN_VERSION=1.4.2
+NODE_VERSION=v24.21.0
+=== CMD1: cd packages/work && /Users/vince/.bun/bin/bun run typecheck ===
+$ tsc --noEmit
+EXIT_CMD1=0
+=== CMD2: cd packages/state && /Users/vince/.bun/bin/bun run build ===
+$ tsc -p tsconfig.json
+EXIT_CMD2=0
+=== CMD3: cd packages/cloudflare && /Users/vince/.bun/bin/bun run build ===
+$ tsc -p tsconfig.json
+src/cli/platform.ts(65,35): error TS2307: Cannot find module '@canlang/contracts' or its corresponding type declarations.
+src/cli/platform.ts(73,8): error TS2307: Cannot find module '@canlang/contracts' or its corresponding type declarations.
+src/cli/platform.ts(270,40): error TS7006: Parameter 'callable' implicitly has an 'any' type.
+src/cli/platform.ts(271,32): error TS7006: Parameter 'page' implicitly has an 'any' type.
+src/cli/platform.ts(640,40): error TS7006: Parameter 'callable' implicitly has an 'any' type.
+src/cli/platform.ts(641,32): error TS7006: Parameter 'page' implicitly has an 'any' type.
+src/cli/platform.ts(691,27): error TS7006: Parameter 'reason' implicitly has an 'any' type.
+src/cli/platform.ts(843,38): error TS7006: Parameter 'reason' implicitly has an 'any' type.
+src/deploy/activate.ts(60,8): error TS2307: Cannot find module '@canlang/contracts' or its corresponding type declarations.
+src/deploy/bundle.ts(95,8): error TS2307: Cannot find module '@canlang/contracts' or its corresponding type declarations.
+src/deploy/bundle.ts(96,33): error TS2307: Cannot find module '@canlang/contracts' or its corresponding type declarations.
+src/deploy/bundle.ts(97,47): error TS2307: Cannot find module '@canlang/interfaces' or its corresponding type declarations.
+src/deploy/bundle.ts(549,38): error TS7006: Parameter 'm' implicitly has an 'any' type.
+src/deploy/bundle.ts(1006,52): error TS7006: Parameter 'mod' implicitly has an 'any' type.
+src/deploy/compat.ts(6,8): error TS2307: Cannot find module '@canlang/contracts' or its corresponding type declarations.
+src/deploy/compat.ts(60,8): error TS7006: Parameter 'candidate' implicitly has an 'any' type.
+src/deploy/plan.ts(6,8): error TS2307: Cannot find module '@canlang/contracts' or its corresponding type declarations.
+src/deploy/plan.ts(63,6): error TS7006: Parameter 'candidate' implicitly has an 'any' type.
+src/deploy/plan.ts(139,15): error TS2322: Type 'any' is not assignable to type 'never'.
+src/dev/local-run.ts(3,43): error TS2307: Cannot find module '@canlang/contracts' or its corresponding type declarations.
+src/release/stamp.ts(141,35): error TS2307: Cannot find module '@canlang/contracts' or its corresponding type declarations.
+src/runtime/artifact.ts(12,38): error TS2307: Cannot find module '@canlang/contracts' or its corresponding type declarations.
+src/runtime/context.ts(19,76): error TS2307: Cannot find module '@canlang/contracts' or its corresponding type declarations.
+src/runtime/env-assembly.ts(60,8): error TS2307: Cannot find module '@canlang/contracts' or its corresponding type declarations.
+src/runtime/executors.ts(35,8): error TS2307: Cannot find module '@canlang/contracts' or its corresponding type declarations.
+src/runtime/executors.ts(193,12): error TS7006: Parameter 'model' implicitly has an 'any' type.
+src/runtime/executors.ts(193,19): error TS7006: Parameter 'id' implicitly has an 'any' type.
+src/runtime/executors.ts(194,13): error TS7006: Parameter 'spec' implicitly has an 'any' type.
+src/runtime/executors.ts(195,14): error TS7006: Parameter 'batch' implicitly has an 'any' type.
+src/runtime/executors.ts(196,19): error TS7006: Parameter 'identity' implicitly has an 'any' type.
+src/runtime/executors.ts(198,19): error TS7006: Parameter 'key' implicitly has an 'any' type.
+src/runtime/executors.ts(199,20): error TS7006: Parameter 'now' implicitly has an 'any' type.
+src/runtime/executors.ts(199,25): error TS7006: Parameter 'limit' implicitly has an 'any' type.
+src/runtime/executors.ts(200,18): error TS7006: Parameter 'model' implicitly has an 'any' type.
+src/runtime/executors.ts(200,25): error TS7006: Parameter 'recordId' implicitly has an 'any' type.
+src/runtime/executors.ts(201,29): error TS7006: Parameter 'owner' implicitly has an 'any' type.
+src/runtime/executors.ts(202,29): error TS7006: Parameter 'migrationId' implicitly has an 'any' type.
+src/runtime/executors.ts(203,22): error TS7006: Parameter 'migrationId' implicitly has an 'any' type.
+src/runtime/executors.ts(203,35): error TS7006: Parameter 'cursor' implicitly has an 'any' type.
+src/runtime/executors.ts(203,43): error TS7006: Parameter 'limit' implicitly has an 'any' type.
+src/runtime/executors.ts(204,26): error TS7006: Parameter 'input' implicitly has an 'any' type.
+src/runtime/executors.ts(205,29): error TS7006: Parameter 'input' implicitly has an 'any' type.
+src/runtime/executors.ts(206,29): error TS7006: Parameter 'input' implicitly has an 'any' type.
+src/runtime/executors.ts(207,29): error TS7006: Parameter 'migrationId' implicitly has an 'any' type.
+src/runtime/executors.ts(208,30): error TS7006: Parameter 'input' implicitly has an 'any' type.
+src/runtime/executors.ts(209,25): error TS7006: Parameter 'input' implicitly has an 'any' type.
+src/runtime/executors.ts(210,28): error TS7006: Parameter 'migrationId' implicitly has an 'any' type.
+src/runtime/grant-route.ts(32,68): error TS2307: Cannot find module '@canlang/contracts' or its corresponding type declarations.
+src/runtime/invoke.ts(86,8): error TS2307: Cannot find module '@canlang/contracts' or its corresponding type declarations.
+src/runtime/invoke.ts(275,44): error TS7006: Parameter 'entry' implicitly has an 'any' type.
+src/runtime/invoke.ts(301,45): error TS7006: Parameter 'entry' implicitly has an 'any' type.
+src/runtime/invoke.ts(303,47): error TS7006: Parameter 'entry' implicitly has an 'any' type.
+src/runtime/invoke.ts(1510,12): error TS7006: Parameter 'model' implicitly has an 'any' type.
+src/runtime/invoke.ts(1510,19): error TS7006: Parameter 'id' implicitly has an 'any' type.
+src/runtime/invoke.ts(1511,13): error TS7006: Parameter 'spec' implicitly has an 'any' type.
+src/runtime/invoke.ts(1522,19): error TS7006: Parameter 'identity' implicitly has an 'any' type.
+src/runtime/invoke.ts(1524,19): error TS7006: Parameter 'key' implicitly has an 'any' type.
+src/runtime/invoke.ts(1525,20): error TS7006: Parameter 'now' implicitly has an 'any' type.
+src/runtime/invoke.ts(1525,25): error TS7006: Parameter 'limit' implicitly has an 'any' type.
+src/runtime/invoke.ts(1526,18): error TS7006: Parameter 'model' implicitly has an 'any' type.
+src/runtime/invoke.ts(1526,25): error TS7006: Parameter 'recordId' implicitly has an 'any' type.
+src/runtime/invoke.ts(1527,29): error TS7006: Parameter 'owner' implicitly has an 'any' type.
+src/runtime/invoke.ts(1528,29): error TS7006: Parameter 'migrationId' implicitly has an 'any' type.
+src/runtime/invoke.ts(1529,22): error TS7006: Parameter 'migrationId' implicitly has an 'any' type.
+src/runtime/invoke.ts(1529,35): error TS7006: Parameter 'cursor' implicitly has an 'any' type.
+src/runtime/invoke.ts(1529,43): error TS7006: Parameter 'limit' implicitly has an 'any' type.
+src/runtime/invoke.ts(1530,26): error TS7006: Parameter 'input' implicitly has an 'any' type.
+src/runtime/invoke.ts(1531,29): error TS7006: Parameter 'input' implicitly has an 'any' type.
+src/runtime/invoke.ts(1532,29): error TS7006: Parameter 'input' implicitly has an 'any' type.
+src/runtime/invoke.ts(1533,29): error TS7006: Parameter 'migrationId' implicitly has an 'any' type.
+src/runtime/invoke.ts(1534,30): error TS7006: Parameter 'input' implicitly has an 'any' type.
+src/runtime/invoke.ts(1535,25): error TS7006: Parameter 'input' implicitly has an 'any' type.
+src/runtime/invoke.ts(1536,28): error TS7006: Parameter 'migrationId' implicitly has an 'any' type.
+src/runtime/invoke.ts(2288,18): error TS7006: Parameter 'model' implicitly has an 'any' type.
+src/runtime/invoke.ts(2288,25): error TS7006: Parameter 'id' implicitly has an 'any' type.
+src/runtime/invoke.ts(2294,19): error TS7006: Parameter 'spec' implicitly has an 'any' type.
+src/runtime/invoke.ts(2326,19): error TS7006: Parameter 'identity' implicitly has an 'any' type.
+src/runtime/invoke.ts(2328,19): error TS7006: Parameter 'key' implicitly has an 'any' type.
+src/runtime/invoke.ts(2329,20): error TS7006: Parameter 'now' implicitly has an 'any' type.
+src/runtime/invoke.ts(2329,25): error TS7006: Parameter 'limit' implicitly has an 'any' type.
+src/runtime/invoke.ts(2330,18): error TS7006: Parameter 'model' implicitly has an 'any' type.
+src/runtime/invoke.ts(2330,25): error TS7006: Parameter 'recordId' implicitly has an 'any' type.
+src/runtime/invoke.ts(2331,29): error TS7006: Parameter 'owner' implicitly has an 'any' type.
+src/runtime/invoke.ts(2332,29): error TS7006: Parameter 'migrationId' implicitly has an 'any' type.
+src/runtime/invoke.ts(2333,22): error TS7006: Parameter 'migrationId' implicitly has an 'any' type.
+src/runtime/invoke.ts(2333,35): error TS7006: Parameter 'cursor' implicitly has an 'any' type.
+src/runtime/invoke.ts(2333,43): error TS7006: Parameter 'limit' implicitly has an 'any' type.
+src/runtime/invoke.ts(2334,26): error TS7006: Parameter 'input' implicitly has an 'any' type.
+src/runtime/invoke.ts(2335,29): error TS7006: Parameter 'input' implicitly has an 'any' type.
+src/runtime/invoke.ts(2336,29): error TS7006: Parameter 'input' implicitly has an 'any' type.
+src/runtime/invoke.ts(2337,29): error TS7006: Parameter 'migrationId' implicitly has an 'any' type.
+src/runtime/invoke.ts(2338,30): error TS7006: Parameter 'input' implicitly has an 'any' type.
+src/runtime/invoke.ts(2339,25): error TS7006: Parameter 'input' implicitly has an 'any' type.
+src/runtime/invoke.ts(2340,28): error TS7006: Parameter 'migrationId' implicitly has an 'any' type.
+src/runtime/invoke.ts(2597,52): error TS7006: Parameter 'grant' implicitly has an 'any' type.
+src/runtime/invoke.ts(2646,38): error TS7006: Parameter 'grant' implicitly has an 'any' type.
+src/runtime/invoke.ts(3157,12): error TS7006: Parameter 'model' implicitly has an 'any' type.
+src/runtime/invoke.ts(3157,19): error TS7006: Parameter 'id' implicitly has an 'any' type.
+src/runtime/invoke.ts(3158,13): error TS7006: Parameter 'spec' implicitly has an 'any' type.
+src/runtime/invoke.ts(3159,14): error TS7006: Parameter 'batch' implicitly has an 'any' type.
+src/runtime/invoke.ts(3160,19): error TS7006: Parameter 'identity' implicitly has an 'any' type.
+src/runtime/invoke.ts(3162,19): error TS7006: Parameter 'key' implicitly has an 'any' type.
+src/runtime/invoke.ts(3163,20): error TS7006: Parameter 'now' implicitly has an 'any' type.
+src/runtime/invoke.ts(3163,25): error TS7006: Parameter 'limit' implicitly has an 'any' type.
+src/runtime/invoke.ts(3164,18): error TS7006: Parameter 'model' implicitly has an 'any' type.
+src/runtime/invoke.ts(3164,25): error TS7006: Parameter 'recordId' implicitly has an 'any' type.
+src/runtime/invoke.ts(3165,29): error TS7006: Parameter 'owner' implicitly has an 'any' type.
+src/runtime/invoke.ts(3166,29): error TS7006: Parameter 'migrationId' implicitly has an 'any' type.
+src/runtime/invoke.ts(3167,22): error TS7006: Parameter 'migrationId' implicitly has an 'any' type.
+src/runtime/invoke.ts(3167,35): error TS7006: Parameter 'cursor' implicitly has an 'any' type.
+src/runtime/invoke.ts(3167,43): error TS7006: Parameter 'limit' implicitly has an 'any' type.
+src/runtime/invoke.ts(3168,26): error TS7006: Parameter 'input' implicitly has an 'any' type.
+src/runtime/invoke.ts(3169,29): error TS7006: Parameter 'input' implicitly has an 'any' type.
+src/runtime/invoke.ts(3170,29): error TS7006: Parameter 'input' implicitly has an 'any' type.
+src/runtime/invoke.ts(3171,29): error TS7006: Parameter 'migrationId' implicitly has an 'any' type.
+src/runtime/invoke.ts(3172,30): error TS7006: Parameter 'input' implicitly has an 'any' type.
+src/runtime/invoke.ts(3173,25): error TS7006: Parameter 'input' implicitly has an 'any' type.
+src/runtime/invoke.ts(3174,28): error TS7006: Parameter 'migrationId' implicitly has an 'any' type.
+src/runtime/mcp-permissions.ts(49,56): error TS2307: Cannot find module '@canlang/contracts' or its corresponding type declarations.
+src/runtime/mcp-registry.ts(24,80): error TS2307: Cannot find module '@canlang/contracts' or its corresponding type declarations.
+src/runtime/modules.ts(26,54): error TS2307: Cannot find module '@canlang/contracts' or its corresponding type declarations.
+src/runtime/sourcemap.ts(19,32): error TS2307: Cannot find module '@canlang/contracts' or its corresponding type declarations.
+src/runtime/stdlib.ts(58,8): error TS2307: Cannot find module '@canlang/contracts' or its corresponding type declarations.
+src/runtime/t16b-canonical.test.ts(46,8): error TS2307: Cannot find module '@canlang/contracts' or its corresponding type declarations.
+src/runtime/t16b-canonical.test.ts(47,48): error TS2307: Cannot find module '@canlang/identity' or its corresponding type declarations.
+src/runtime/t16b-canonical.test.ts(48,62): error TS2307: Cannot find module '@canlang/identity/testing' or its corresponding type declarations.
+src/runtime/t17b-cloudflare-flip.test.ts(42,8): error TS2307: Cannot find module '@canlang/contracts' or its corresponding type declarations.
+src/runtime/t17b-cloudflare-flip.test.ts(43,48): error TS2307: Cannot find module '@canlang/identity' or its corresponding type declarations.
+src/runtime/t17b-cloudflare-flip.test.ts(44,62): error TS2307: Cannot find module '@canlang/identity/testing' or its corresponding type declarations.
+src/runtime/t17b-cloudflare-flip.test.ts(809,20): error TS7006: Parameter 'row' implicitly has an 'any' type.
+src/runtime/t17b-cloudflare-flip.test.ts(818,20): error TS7006: Parameter 'row' implicitly has an 'any' type.
+src/runtime/t17b-cloudflare-flip.test.ts(825,18): error TS7006: Parameter 'row' implicitly has an 'any' type.
+src/runtime/t17b-cloudflare-flip.test.ts(923,18): error TS7006: Parameter 'entry' implicitly has an 'any' type.
+src/runtime/t17b-cloudflare-flip.test.ts(964,22): error TS7006: Parameter 'entry' implicitly has an 'any' type.
+src/runtime/t17b-cloudflare-flip.test.ts(976,22): error TS7006: Parameter 'entry' implicitly has an 'any' type.
+src/runtime/t17b-cloudflare-flip.test.ts(1263,18): error TS7006: Parameter 'entry' implicitly has an 'any' type.
+src/runtime/t17b-cloudflare-flip.test.ts(1267,13): error TS7006: Parameter 'entry' implicitly has an 'any' type.
+src/runtime/t17b-cloudflare-flip.test.ts(1268,16): error TS7006: Parameter 'title' implicitly has an 'any' type.
+src/runtime/t17b-durable.test.ts(37,8): error TS2307: Cannot find module '@canlang/contracts' or its corresponding type declarations.
+src/runtime/t17b-durable.test.ts(38,48): error TS2307: Cannot find module '@canlang/identity' or its corresponding type declarations.
+src/runtime/t17b-durable.test.ts(39,62): error TS2307: Cannot find module '@canlang/identity/testing' or its corresponding type declarations.
+src/runtime/t17b-durable.test.ts(291,18): error TS7006: Parameter 'entry' implicitly has an 'any' type.
+src/runtime/t24b-dispatch-durable.test.ts(37,8): error TS2307: Cannot find module '@canlang/contracts' or its corresponding type declarations.
+src/runtime/t24b-dispatch-durable.test.ts(211,13): error TS7006: Parameter 'spec' implicitly has an 'any' type.
+src/runtime/t24b-dispatch-durable.test.ts(212,14): error TS7006: Parameter 'batch' implicitly has an 'any' type.
+src/runtime/t24b-dispatch-durable.test.ts(213,19): error TS7006: Parameter 'identity' implicitly has an 'any' type.
+src/runtime/t24b-dispatch-durable.test.ts(215,19): error TS7006: Parameter 'key' implicitly has an 'any' type.
+src/runtime/t24b-dispatch-durable.test.ts(216,20): error TS7006: Parameter 'now' implicitly has an 'any' type.
+src/runtime/t24b-dispatch-durable.test.ts(216,25): error TS7006: Parameter 'limit' implicitly has an 'any' type.
+src/runtime/t24b-dispatch-durable.test.ts(217,18): error TS7006: Parameter 'model' implicitly has an 'any' type.
+src/runtime/t24b-dispatch-durable.test.ts(217,25): error TS7006: Parameter 'recordId' implicitly has an 'any' type.
+src/runtime/t24b-dispatch-durable.test.ts(218,29): error TS7006: Parameter 'owner' implicitly has an 'any' type.
+src/runtime/t24b-dispatch-durable.test.ts(219,29): error TS7006: Parameter 'migrationId' implicitly has an 'any' type.
+src/runtime/t24b-dispatch-durable.test.ts(220,22): error TS7006: Parameter 'migrationId' implicitly has an 'any' type.
+src/runtime/t24b-dispatch-durable.test.ts(220,35): error TS7006: Parameter 'cursor' implicitly has an 'any' type.
+src/runtime/t24b-dispatch-durable.test.ts(220,43): error TS7006: Parameter 'limit' implicitly has an 'any' type.
+src/runtime/t24b-dispatch-durable.test.ts(222,26): error TS7006: Parameter 'input' implicitly has an 'any' type.
+src/runtime/t24b-dispatch-durable.test.ts(223,29): error TS7006: Parameter 'input' implicitly has an 'any' type.
+src/runtime/t24b-dispatch-durable.test.ts(224,29): error TS7006: Parameter 'input' implicitly has an 'any' type.
+src/runtime/t24b-dispatch-durable.test.ts(225,29): error TS7006: Parameter 'migrationId' implicitly has an 'any' type.
+src/runtime/t24b-dispatch-durable.test.ts(226,30): error TS7006: Parameter 'input' implicitly has an 'any' type.
+src/runtime/t24b-dispatch-durable.test.ts(227,25): error TS7006: Parameter 'input' implicitly has an 'any' type.
+src/runtime/t24b-dispatch-durable.test.ts(228,28): error TS7006: Parameter 'migrationId' implicitly has an 'any' type.
+src/runtime/t24b-dispatch-durable.test.ts(290,31): error TS7006: Parameter 'intent' implicitly has an 'any' type.
+src/runtime/t24b-dispatch-durable.test.ts(657,43): error TS7006: Parameter 'intent' implicitly has an 'any' type.
+src/runtime/t24b-dispatch-execution.test.ts(30,8): error TS2307: Cannot find module '@canlang/contracts' or its corresponding type declarations.
+src/runtime/t24b-dispatch-execution.test.ts(177,31): error TS7006: Parameter 'intent' implicitly has an 'any' type.
+src/runtime/t24b-dispatch-execution.test.ts(301,49): error TS7006: Parameter 'intent' implicitly has an 'any' type.
+src/runtime/t24b-dispatch-execution.test.ts(349,49): error TS7006: Parameter 'intent' implicitly has an 'any' type.
+src/runtime/t24b-dispatch-execution.test.ts(440,49): error TS7006: Parameter 'intent' implicitly has an 'any' type.
+src/runtime/t24b-dispatch-execution.test.ts(594,49): error TS7006: Parameter 'intent' implicitly has an 'any' type.
+src/runtime/t24b-dispatch-execution.test.ts(641,49): error TS7006: Parameter 'intent' implicitly has an 'any' type.
+src/runtime/t24b-dispatch-execution.test.ts(729,49): error TS7006: Parameter 'entry' implicitly has an 'any' type.
+src/runtime/t24b-dispatch-execution.test.ts(777,51): error TS7006: Parameter 'entry' implicitly has an 'any' type.
+src/runtime/t24b-dispatch-execution.test.ts(931,49): error TS7006: Parameter 'intent' implicitly has an 'any' type.
+src/runtime/t24b-dispatch-execution.test.ts(1073,49): error TS7006: Parameter 'intent' implicitly has an 'any' type.
+src/runtime/t32b-cloudflare-durable.test.ts(43,8): error TS2307: Cannot find module '@canlang/contracts' or its corresponding type declarations.
+src/runtime/t32b-cloudflare-durable.test.ts(44,48): error TS2307: Cannot find module '@canlang/identity' or its corresponding type declarations.
+src/runtime/t32b-cloudflare-durable.test.ts(45,62): error TS2307: Cannot find module '@canlang/identity/testing' or its corresponding type declarations.
+src/runtime/t32b-cloudflare-durable.test.ts(349,13): error TS7006: Parameter 'spec' implicitly has an 'any' type.
+src/runtime/t32b-cloudflare-durable.test.ts(350,14): error TS7006: Parameter 'batch' implicitly has an 'any' type.
+src/runtime/t32b-cloudflare-durable.test.ts(351,19): error TS7006: Parameter 'identity' implicitly has an 'any' type.
+src/runtime/t32b-cloudflare-durable.test.ts(353,19): error TS7006: Parameter 'key' implicitly has an 'any' type.
+src/runtime/t32b-cloudflare-durable.test.ts(354,20): error TS7006: Parameter 'now' implicitly has an 'any' type.
+src/runtime/t32b-cloudflare-durable.test.ts(354,25): error TS7006: Parameter 'limit' implicitly has an 'any' type.
+src/runtime/t32b-cloudflare-durable.test.ts(355,18): error TS7006: Parameter 'model' implicitly has an 'any' type.
+src/runtime/t32b-cloudflare-durable.test.ts(355,25): error TS7006: Parameter 'recordId' implicitly has an 'any' type.
+src/runtime/t32b-cloudflare-durable.test.ts(356,29): error TS7006: Parameter 'owner' implicitly has an 'any' type.
+src/runtime/t32b-cloudflare-durable.test.ts(357,29): error TS7006: Parameter 'migrationId' implicitly has an 'any' type.
+src/runtime/t32b-cloudflare-durable.test.ts(358,22): error TS7006: Parameter 'migrationId' implicitly has an 'any' type.
+src/runtime/t32b-cloudflare-durable.test.ts(358,35): error TS7006: Parameter 'cursor' implicitly has an 'any' type.
+src/runtime/t32b-cloudflare-durable.test.ts(358,43): error TS7006: Parameter 'limit' implicitly has an 'any' type.
+src/runtime/t32b-cloudflare-durable.test.ts(360,26): error TS7006: Parameter 'input' implicitly has an 'any' type.
+src/runtime/t32b-cloudflare-durable.test.ts(361,29): error TS7006: Parameter 'input' implicitly has an 'any' type.
+src/runtime/t32b-cloudflare-durable.test.ts(362,29): error TS7006: Parameter 'input' implicitly has an 'any' type.
+src/runtime/t32b-cloudflare-durable.test.ts(363,29): error TS7006: Parameter 'migrationId' implicitly has an 'any' type.
+src/runtime/t32b-cloudflare-durable.test.ts(364,30): error TS7006: Parameter 'input' implicitly has an 'any' type.
+src/runtime/t32b-cloudflare-durable.test.ts(365,25): error TS7006: Parameter 'input' implicitly has an 'any' type.
+src/runtime/t32b-cloudflare-durable.test.ts(366,28): error TS7006: Parameter 'migrationId' implicitly has an 'any' type.
+src/runtime/t32b-cloudflare-durable.test.ts(503,31): error TS7006: Parameter 'intent' implicitly has an 'any' type.
+src/runtime/t32b-cloudflare-durable.test.ts(723,42): error TS7006: Parameter 'intent' implicitly has an 'any' type.
+src/runtime/t32b-cloudflare.test.ts(49,8): error TS2307: Cannot find module '@canlang/contracts' or its corresponding type declarations.
+src/runtime/t32b-cloudflare.test.ts(50,48): error TS2307: Cannot find module '@canlang/identity' or its corresponding type declarations.
+src/runtime/t32b-cloudflare.test.ts(51,62): error TS2307: Cannot find module '@canlang/identity/testing' or its corresponding type declarations.
+src/runtime/t32b-cloudflare.test.ts(812,31): error TS7006: Parameter 'intent' implicitly has an 'any' type.
+src/runtime/t32b-cloudflare.test.ts(818,52): error TS7006: Parameter 'intent' implicitly has an 'any' type.
+src/runtime/t32b-cloudflare.test.ts(1557,30): error TS7006: Parameter 'op' implicitly has an 'any' type.
+src/runtime/t32b-cloudflare.test.ts(1971,18): error TS7006: Parameter 'entry' implicitly has an 'any' type.
+src/runtime/t32b-cloudflare.test.ts(2003,18): error TS7006: Parameter 'entry' implicitly has an 'any' type.
+src/runtime/t34-f7-emitted-cohorts.test.ts(20,44): error TS2307: Cannot find module '@canlang/contracts' or its corresponding type declarations.
+src/runtime/t34-f7-fanout-durable.test.ts(35,8): error TS2307: Cannot find module '@canlang/contracts' or its corresponding type declarations.
+src/runtime/t34-f7-fanout-durable.test.ts(185,13): error TS7006: Parameter 'spec' implicitly has an 'any' type.
+src/runtime/t34-f7-fanout-durable.test.ts(186,14): error TS7006: Parameter 'batch' implicitly has an 'any' type.
+src/runtime/t34-f7-fanout-durable.test.ts(187,19): error TS7006: Parameter 'identity' implicitly has an 'any' type.
+src/runtime/t34-f7-fanout-durable.test.ts(189,19): error TS7006: Parameter 'key' implicitly has an 'any' type.
+src/runtime/t34-f7-fanout-durable.test.ts(190,20): error TS7006: Parameter 'now' implicitly has an 'any' type.
+src/runtime/t34-f7-fanout-durable.test.ts(190,25): error TS7006: Parameter 'limit' implicitly has an 'any' type.
+src/runtime/t34-f7-fanout-durable.test.ts(191,18): error TS7006: Parameter 'model' implicitly has an 'any' type.
+src/runtime/t34-f7-fanout-durable.test.ts(191,25): error TS7006: Parameter 'recordId' implicitly has an 'any' type.
+src/runtime/t34-f7-fanout-durable.test.ts(192,29): error TS7006: Parameter 'owner' implicitly has an 'any' type.
+src/runtime/t34-f7-fanout-durable.test.ts(193,29): error TS7006: Parameter 'migrationId' implicitly has an 'any' type.
+src/runtime/t34-f7-fanout-durable.test.ts(194,22): error TS7006: Parameter 'migrationId' implicitly has an 'any' type.
+src/runtime/t34-f7-fanout-durable.test.ts(194,35): error TS7006: Parameter 'cursor' implicitly has an 'any' type.
+src/runtime/t34-f7-fanout-durable.test.ts(194,43): error TS7006: Parameter 'limit' implicitly has an 'any' type.
+src/runtime/t34-f7-fanout-durable.test.ts(196,26): error TS7006: Parameter 'input' implicitly has an 'any' type.
+src/runtime/t34-f7-fanout-durable.test.ts(197,29): error TS7006: Parameter 'input' implicitly has an 'any' type.
+src/runtime/t34-f7-fanout-durable.test.ts(198,29): error TS7006: Parameter 'input' implicitly has an 'any' type.
+src/runtime/t34-f7-fanout-durable.test.ts(199,29): error TS7006: Parameter 'migrationId' implicitly has an 'any' type.
+src/runtime/t34-f7-fanout-durable.test.ts(200,30): error TS7006: Parameter 'input' implicitly has an 'any' type.
+src/runtime/t34-f7-fanout-durable.test.ts(201,25): error TS7006: Parameter 'input' implicitly has an 'any' type.
+src/runtime/t34-f7-fanout-durable.test.ts(202,28): error TS7006: Parameter 'migrationId' implicitly has an 'any' type.
+src/runtime/t34-f7-fanout.test.ts(34,8): error TS2307: Cannot find module '@canlang/contracts' or its corresponding type declarations.
+src/runtime/t34-f7-fanout.test.ts(1808,29): error TS7006: Parameter 'intent' implicitly has an 'any' type.
+src/upgrade/apply.ts(21,62): error TS2307: Cannot find module '@canlang/contracts' or its corresponding type declarations.
+src/worker/assembly.ts(103,8): error TS2307: Cannot find module '@canlang/contracts' or its corresponding type declarations.
+src/worker/assembly.ts(799,9): error TS2358: The left-hand side of an 'instanceof' expression must be of type 'any', an object type or a type parameter.
+src/worker/assembly.ts(800,49): error TS2339: Property 'message' does not exist on type 'never'.
+src/worker/assembly.ts(987,30): error TS2345: Argument of type 'number | undefined' is not assignable to parameter of type 'number'.
+  Type 'undefined' is not assignable to type 'number'.
+src/worker/assembly.ts(1071,32): error TS2345: Argument of type 'number | undefined' is not assignable to parameter of type 'number'.
+  Type 'undefined' is not assignable to type 'number'.
+src/worker/assembly.ts(1393,34): error TS2345: Argument of type 'number | undefined' is not assignable to parameter of type 'number'.
+  Type 'undefined' is not assignable to type 'number'.
+src/worker/assembly.ts(1397,9): error TS2345: Argument of type 'number | undefined' is not assignable to parameter of type 'number'.
+  Type 'undefined' is not assignable to type 'number'.
+src/worker/assembly.ts(1424,34): error TS2345: Argument of type 'number | undefined' is not assignable to parameter of type 'number'.
+  Type 'undefined' is not assignable to type 'number'.
+src/worker/assembly.ts(1428,9): error TS2345: Argument of type 'number | undefined' is not assignable to parameter of type 'number'.
+  Type 'undefined' is not assignable to type 'number'.
+src/worker/assembly.ts(1434,9): error TS2345: Argument of type 'number | undefined' is not assignable to parameter of type 'number'.
+  Type 'undefined' is not assignable to type 'number'.
+src/worker/main.ts(63,70): error TS2307: Cannot find module '@canlang/contracts' or its corresponding type declarations.
+EXIT_CMD3=2
+=== CMD4: cd packages/work && node --test 'test/**/*.test.ts' ===
+▶ d3a locator differential (work vs B3 mirror)
+  ✔ throws the same class on null (3.180875ms)
+  ✔ throws the same class on undefined (0.075584ms)
+  ✔ throws the same class on string (0.057208ms)
+  ✔ throws the same class on array (0.044583ms)
+  ✔ throws the same class on extra key (0.057333ms)
+  ✔ throws the same class on record text id (0.036708ms)
+  ✔ throws the same class on record null (0.039084ms)
+  ✔ throws the same class on record array (0.037208ms)
+  ✔ throws the same class on field non-string (0.047166ms)
+  ✔ throws the same class on field empty (0.081333ms)
+  ✔ throws the same class on field dotted (0.044625ms)
+  ✔ throws the same class on field brackets (0.031792ms)
+  ✔ accepts the same valid shapes with mirrored outputs (0.356958ms)
+  ✔ pins the explicit delta: B3 requires the record store id, work does not (1.622875ms)
+✔ d3a locator differential (work vs B3 mirror) (6.73525ms)
+▶ d3a B3 grant closures satisfy the work leaf-grant contract
+  ✔ whole-field grants authorize every leaf (0.3245ms)
+  ✔ leaf grants authorize exactly that leaf (0.095875ms)
+  ✔ grants nothing on other fields and never expands upward (0.05625ms)
+  ✔ denies before presence: null association consults the same closures (0.041458ms)
+  ✔ is consulted exactly once per unique selected leaf (0.064916ms)
+✔ d3a B3 grant closures satisfy the work leaf-grant contract (0.67825ms)
+▶ d3a B3 retention closures satisfy the work content contract
+  ✔ discloses retained content before expiry (0.092333ms)
+  ✔ withholds at and past the expiry instant (boundary inclusive) (0.031916ms)
+  ✔ fails closed on ref mismatch (0.037667ms)
+  ✔ bypasses the closure for inline content without consulting it (0.034917ms)
+✔ d3a B3 retention closures satisfy the work content contract (0.247459ms)
+▶ d3a static pins hold at runtime
+  ✔ live work exports satisfy the B3 loader mirror types (0.031292ms)
+✔ d3a static pins hold at runtime (0.0555ms)
+▶ d3a re-pointing consumes B3 rows in work kernels
+  ✔ provisions a receipt first, then associates it in a later batch (0.9225ms)
+  ✔ refuses association writes without a same-batch receipt (D call sites) (6.682333ms)
+  ✔ re-points one field across two pre-existing receipts (0.762333ms)
+✔ d3a re-pointing consumes B3 rows in work kernels (8.484666ms)
+▶ d3a join differential (B3 read path vs work mechanism)
+  ✔ agrees on full selected reads (granted leaves, fence revision) (1.399084ms)
+  ✔ agrees on leaf denial (same denied set, nothing else) (0.912292ms)
+  ✔ agrees on null association (no receipt, no fence) (0.164459ms)
+  ✔ agrees on retained-content expiry through the join binding (1.075083ms)
+✔ d3a join differential (B3 read path vs work mechanism) (3.679083ms)
+▶ work contracts
+  ✔ models a committed change event as immutable identities (2.62775ms)
+  ✔ models a keyed scheduled occurrence with owner scope (0.075667ms)
+  ✔ models a recurring occurrence with app, handler, owner and slot (0.203833ms)
+  ✔ derives outbox identity from operation, source and index (0.422208ms)
+  ✔ models dispatch claims and guard verdicts (0.098541ms)
+  ✔ observes receipts with revision, status, result and closed error (0.391792ms)
+  ✔ summarizes pending work for recovery hooks (0.060333ms)
+✔ work contracts (4.9845ms)
+▶ dispatch: unavailable targets refuse explicitly
+  ✔ returns the explicit verdict without touching guard or claims (0.957666ms)
+  ✔ claims available targets on the existing path (0.115916ms)
+  ✔ skips the check when availability is unknown (backward compatible) (0.085167ms)
+  ✔ pins the exact transport-contract shape (0.074334ms)
+✔ dispatch: unavailable targets refuse explicitly (2.279ms)
+▶ dispatch: unavailable ordering (lifecycle first, guard/authority never)
+  ✔ earlier lifecycle refusals win without consulting availability (0.188375ms)
+  ✔ unavailable beats guard-false and revoked without consulting either (0.082417ms)
+  ✔ executes admitted bound-checked sends end to end (E1-grounded inputs) (0.115458ms)
+  ✔ repeats identically: unavailable is stable, never a claim race (0.087625ms)
+✔ dispatch: unavailable ordering (lifecycle first, guard/authority never) (0.604042ms)
+▶ dispatch: commit failure causes no send
+  ✔ refuses staged intents without touching guard, supersession or claims (1.6955ms)
+✔ dispatch: commit failure causes no send (2.319417ms)
+▶ dispatch: atomic check order
+  ✔ checks supersession before the guard (0.153417ms)
+  ✔ checks the guard before claiming (14.924833ms)
+✔ dispatch: atomic check order (15.200542ms)
+▶ dispatch: guard matrix
+  ✔ delivers unconditionally when the predicate is absent (0.255667ms)
+  ✔ claims when the guard evaluates true (0.303042ms)
+  ✔ skips with a verdict when the guard evaluates false (0.580458ms)
+✔ dispatch: guard matrix (2.551292ms)
+▶ dispatch: claim issuance
+  ✔ issues claims with injected ids and timestamps (2.067167ms)
+  ✔ refuses settled items without claiming (2.696125ms)
+✔ dispatch: claim issuance (5.267542ms)
+▶ event: occurrence admission
+  ✔ executes once and records the receipt (3.410625ms)
+  ✔ replays the recorded receipt on duplicate delivery without re-executing (0.092375ms)
+  ✔ records terminal failures and replays them (0.072334ms)
+  ✔ propagates transient throws without recording so the same occurrence retries (0.477416ms)
+  ✔ keeps independent occurrences independent (0.158542ms)
+✔ event: occurrence admission (6.695584ms)
+▶ event: committed-change payload handling
+  ✔ loads current authority state and handles on first delivery (0.171625ms)
+  ✔ skips loading and handling on duplicate delivery (0.088375ms)
+  ✔ passes a null current state when the record is gone (0.068583ms)
+  ✔ rejects malformed committed-change payloads (0.142375ms)
+✔ event: committed-change payload handling (0.632042ms)
+▶ every: UTC-epoch slot computation
+  ✔ aligns slots to the UTC epoch (2.033792ms)
+  ✔ derives stable occurrence ids (0.478875ms)
+  ✔ rejects invalid clocks and periods (0.195917ms)
+✔ every: UTC-epoch slot computation (7.705792ms)
+▶ every: per-scope coalescing
+  ✔ admits one occurrence per eligible pre-existing scope at the current slot (0.671459ms)
+  ✔ coalesces missed slots to one current occurrence (0.340958ms)
+  ✔ admits nothing for new scopes until the next slot (0.327833ms)
+  ✔ admits nothing for removed scopes and dedupes repeated scopes (0.245917ms)
+  ✔ admits nothing when the slot was already admitted (0.180417ms)
+  ✔ is deterministic across identical ticks (0.267459ms)
+✔ every: per-scope coalescing (3.85775ms)
+▶ every: scope rejection
+  ✔ rejects root scope with a typed error (1.919875ms)
+  ✔ rejects any other non-team/app scope the same way (0.190042ms)
+✔ every: scope rejection (2.318875ms)
+▶ intent: stable outbox-id derivation
+  ✔ derives the same id for the same inputs (0.649709ms)
+  ✔ derives distinct ids per occurrence index, source and operation (0.087292ms)
+  ✔ rejects empty identities and negative indexes (0.175333ms)
+✔ intent: stable outbox-id derivation (1.41325ms)
+▶ intent: frozen-request builder
+  ✔ deep-freezes the built request (10.21125ms)
+  ✔ clones so later caller mutation cannot leak in (0.101458ms)
+  ✔ rejects uncloneable requests (0.292125ms)
+  ✔ rejects non-record requests the fence cannot carry (1.518334ms)
+✔ intent: frozen-request builder (13.036959ms)
+▶ intent: commit gate
+  ✔ stages intents without a commit marker (1.294375ms)
+  ✔ refuses staged intents at the gate but passes committed ones (4.071125ms)
+  ✔ rejects invalid commit markers (0.15325ms)
+✔ intent: commit gate (5.814792ms)
+▶ kernel commands: registry shape
+  ✔ exports 9 uniquely named dot-namespaced commands (0.669333ms)
+✔ kernel commands: registry shape (1.483708ms)
+▶ kernel commands: dispatch.claim
+  ✔ claims pending rows with a fenced conditional update (1.541333ms)
+  ✔ refuses superseded, guard-pinned, held and settled rows without writes (1.719375ms)
+  ✔ defers pending rows with a future availability (0.260916ms)
+  ✔ reports settled before guard-false on terminal rows (0.207042ms)
+  ✔ throws loudly on missing rows and bad args (0.516625ms)
+✔ kernel commands: dispatch.claim (4.612ms)
+▶ kernel commands: dispatch.record-attempt
+  ✔ records terminal attempts with attempts+1, cleared claim and ack (0.524959ms)
+  ✔ acks terminally settled intents and records skips without attempts (0.311042ms)
+  ✔ requires a retry class on failed outcomes and stores it (0.235667ms)
+  ✔ rejects rival claims, unclaimed rows and malformed outcomes (0.438ms)
+✔ kernel commands: dispatch.record-attempt (1.763125ms)
+▶ kernel commands: dispatch.requeue
+  ✔ returns ready uncertain/failed rows to pending with cleared outcome (0.445542ms)
+  ✔ refuses terminal failures and evidence-less uncertain rows (0.22825ms)
+  ✔ holds deferred rows and dead-letters exhausted ones (0.268916ms)
+  ✔ refuses non-retryable rows and validates the budget (0.200167ms)
+✔ kernel commands: dispatch.requeue (1.29675ms)
+▶ kernel commands: dispatch.release
+  ✔ releases stale claims and keeps fresh or absent ones (0.352375ms)
+✔ kernel commands: dispatch.release (0.430125ms)
+▶ kernel commands: dispatch.supersede
+  ✔ marks pending origin intents, skipping others and existing marks (0.408375ms)
+✔ kernel commands: dispatch.supersede (0.463333ms)
+▶ kernel commands: occurrence.put-receipt
+  ✔ inserts receipts once and replays duplicates (0.182042ms)
+  ✔ rejects bad statuses (0.070667ms)
+✔ kernel commands: occurrence.put-receipt (0.311583ms)
+▶ kernel commands: schedule.put
+  ✔ inserts with the L3 replace op when the key is fresh (0.234042ms)
+  ✔ replaces pending predecessors with lineage and intent marks (0.186625ms)
+  ✔ follows replaces linkage past lexicographic order (0.094708ms)
+  ✔ converges racing twin heads on the next put (0.128167ms)
+  ✔ leaves non-pending predecessors to complete and rejects bad payloads (0.110834ms)
+✔ kernel commands: schedule.put (0.813875ms)
+▶ kernel commands: schedule.cancel
+  ✔ cancels pending entries with marks and the L3 cancel op (0.496292ms)
+  ✔ cancels the linked head past lexicographic order (0.084583ms)
+  ✔ cancels every live head on a raced key (0.096375ms)
+  ✔ no-ops on missing and terminal keys (0.064166ms)
+✔ kernel commands: schedule.cancel (0.799625ms)
+▶ kernel commands: schedule key embedding
+  ✔ embeds scope percent-encoded with ownerPackage second (0.111458ms)
+  ✔ holds 128 exactly and fails closed at 129 in put and cancel (0.093291ms)
+✔ kernel commands: schedule key embedding (0.237542ms)
+▶ kernel commands: every.advance-slot
+  ✔ initializes, advances and holds slots (0.167ms)
+  ✔ tracks slots independently per app and handler (0.049459ms)
+  ✔ rejects root scopes exactly like admission (0.050625ms)
+✔ kernel commands: every.advance-slot (0.298208ms)
+▶ kernel tables: dispatch rows
+  ✔ builds pending producer rows that read back exactly (0.739666ms)
+  ✔ rejects unknown states, bad verdicts and negative attempts (0.246708ms)
+  ✔ defaults retryClass to null and rejects unknown classes (0.082875ms)
+✔ kernel tables: dispatch rows (1.62375ms)
+▶ kernel tables: occurrence rows
+  ✔ round-trips receipts including null-able fields (0.132917ms)
+  ✔ rejects unknown statuses (0.063417ms)
+✔ kernel tables: occurrence rows (0.269292ms)
+▶ kernel tables: schedule rows
+  ✔ round-trips lineage with a rebuildable scope (0.137458ms)
+  ✔ rejects non-record payloads and unknown states (0.075334ms)
+  ✔ round-trips the replaces lineage link (0.100375ms)
+✔ kernel tables: schedule rows (0.411417ms)
+▶ kernel tables: every-slot and supersession rows
+  ✔ round-trips slot trackers keyed by app, handler and scope (0.119125ms)
+  ✔ keys tracker ids per app and handler (0.102916ms)
+  ✔ round-trips supersession marks (0.079792ms)
+✔ kernel tables: every-slot and supersession rows (0.376167ms)
+▶ kernel tables: updates and queries
+  ✔ withRowData bumps the version with fresh metadata (0.10775ms)
+  ✔ builders reject bad metadata and non-JSON data (0.065208ms)
+  ✔ builders deep-isolate nested staged data (0.078375ms)
+  ✔ query builders address flat fields on the owned models (0.102875ms)
+✔ kernel tables: updates and queries (0.424791ms)
+▶ d3b served envelope validation map
+  ✔ accepts loaded-row-shaped records with extra row keys (0.86325ms)
+  ✔ rejects text-id records: the server resolves, the kernel never looks up (0.563083ms)
+  ✔ rejects envelope-shape violations as caller validation errors (0.281209ms)
+  ✔ rejects malformed selected sets as caller validation errors (0.237958ms)
+  ✔ collapses duplicate leaves to first-selected order (0.169709ms)
+✔ d3b served envelope validation map (3.38575ms)
+▶ d3b served-shape reads through work mechanics
+  ✔ observes with the fence revision the server enrolls (0.674125ms)
+  ✔ reads id-only without a fence revision (0.217541ms)
+  ✔ denies before presence: denial reveals nothing servable as null (0.262375ms)
+  ✔ defends against row/decoy disagreement loudly (0.292541ms)
+✔ d3b served-shape reads through work mechanics (1.767417ms)
+▶ association: matching current completions
+  ✔ matches the current id, source and minimum revision (3.831708ms)
+  ✔ accepts newer revisions as monotone (0.163459ms)
+  ✔ ignores extra envelope payload beyond the matching keys (0.067166ms)
+✔ association: matching current completions (6.132542ms)
+▶ association: old attempts and mismatches
+  ✔ old-attempt completions never match the current association (0.07325ms)
+  ✔ rejects foreign sources (0.050792ms)
+  ✔ rejects older revisions at the monotone boundary (0.116875ms)
+  ✔ checks id before source before revision (0.166ms)
+✔ association: old attempts and mismatches (0.516791ms)
+▶ association: malformed input never throws
+  ✔ returns a safe non-match for adversary-shaped completions (0.1105ms)
+  ✔ reasons never reflect adversary content (0.129541ms)
+✔ association: malformed input never throws (0.38025ms)
+▶ association: trusted parameters throw loudly
+  ✔ rejects malformed association ids (0.230709ms)
+  ✔ rejects malformed expected sources (0.057584ms)
+  ✔ rejects malformed minimum revisions (0.071875ms)
+✔ association: trusted parameters throw loudly (0.435958ms)
+▶ observation: leaf-grant matrix
+  ✔ full grant discloses every requested leaf (1.58525ms)
+  ✔ status-only grant sees status with null result/error but keeps id (0.226458ms)
+  ✔ no grant sees nulls but keeps id and the status summary (0.1775ms)
+  ✔ result-only grant discloses the result while the error stays null (0.171917ms)
+  ✔ error-only grant discloses a failed error (0.147791ms)
+  ✔ unrequested leaves read null even when granted (0.117459ms)
+  ✔ empty request still carries the id/status summary (0.574041ms)
+  ✔ unknown requested properties throw instead of leaking (1.988041ms)
+  ✔ grant port is consulted exactly for requested nullable leaves (0.173291ms)
+  ✔ duplicate requests consult the grant port once (0.089333ms)
+✔ observation: leaf-grant matrix (8.194917ms)
+▶ observation: revision echo and fence signaling
+  ✔ echoes the enrolled observation revision (0.629625ms)
+  ✔ a newer receipt revision differs so the fence invalidates (0.604875ms)
+✔ observation: revision echo and fence signaling (1.366042ms)
+▶ observation: withheld vs pending vs failed triples
+  ✔ pending has no outcome (0.424416ms)
+  ✔ succeeded discloses an available result (0.04225ms)
+  ✔ succeeded with withheld result keeps its summary (0.023583ms)
+  ✔ succeeded with genuinely-null result (0.062375ms)
+  ✔ failed discloses its closed error (0.02375ms)
+  ✔ unknown carries a diagnostic error or null (0.019916ms)
+  ✔ unknown without diagnostics (0.0185ms)
+  ✔ skipped discloses nothing (0.018583ms)
+  ✔ withheld, ungranted and genuinely-null results share one triple (0.536542ms)
+  ✔ denied result never consults the availability policy (1.17475ms)
+  ✔ inline results never consult the availability policy (0.074042ms)
+  ✔ remote results consult the policy once with ref and time (0.080333ms)
+  ✔ withheld content is never refilled: repeat reads stay null (1.0695ms)
+✔ observation: withheld vs pending vs failed triples (3.851167ms)
+▶ observation: no lookup by text id
+  ✔ values flow only from the supplied stored receipt (0.106916ms)
+✔ observation: no lookup by text id (0.157ms)
+▶ observation: input validation
+  ✔ rejects bad clocks, receipts and content refs (0.463ms)
+  ✔ ignores unusable content refs when the result is not disclosed (0.041792ms)
+  ✔ normalizes undefined stored payloads to null (0.084875ms)
+✔ observation: input validation (0.681958ms)
+▶ observation: test-only doubles
+  ✔ allow-all, deny-all and grant sets decide per leaf (0.05025ms)
+  ✔ scripted availability replays then repeats, rejecting empty scripts (0.060916ms)
+  ✔ availability map fails closed on unknown refs (0.027416ms)
+✔ observation: test-only doubles (0.191833ms)
+▶ receipt: outcome recording
+  ✔ records delivery (0.642917ms)
+  ✔ records ambiguity as uncertain (0.07ms)
+  ✔ rejects outcomes for non-live items (0.194166ms)
+✔ receipt: outcome recording (1.366708ms)
+▶ receipt: transient retry vs terminal failure
+  ✔ retries transient failures under the SAME occurrence (0.106666ms)
+  ✔ fails terminally on a false authored require (0.065208ms)
+  ✔ fails terminally on permanent errors and stops retries (0.049583ms)
+  ✔ classifies causes directly (0.042834ms)
+  ✔ dead-letters transient failures past the attempt cap (0.058334ms)
+  ✔ dead-letters transient failures past the horizon (0.064584ms)
+✔ receipt: transient retry vs terminal failure (0.541167ms)
+▶ receipt: backoff schedule
+  ✔ uses exponential delays with injected jitter inside documented bounds (0.204334ms)
+  ✔ hits the exact jitter bounds (0.050625ms)
+  ✔ exhausts at the attempt cap and the 24h horizon by default (0.057ms)
+  ✔ rejects negative attempts and clocks (0.06ms)
+  ✔ honors custom policies and rejects invalid ones (0.04975ms)
+✔ receipt: backoff schedule (0.511083ms)
+▶ receipt: unknown until reconciled
+  ✔ stays unknown without evidence (0.059916ms)
+  ✔ never touches non-uncertain items (0.0335ms)
+  ✔ resolves on delivered, failed and not-found evidence (0.038541ms)
+✔ receipt: unknown until reconciled (0.179583ms)
+▶ receipt: dead letters and observations
+  ✔ lists dead-letter items visibly in stable order (0.079792ms)
+  ✔ assembles receipt observations from recorded fields (0.193042ms)
+✔ receipt: dead letters and observations (0.449083ms)
+▶ recovery: pending-work inventory
+  ✔ counts states and reports the oldest uncertain commit (3.475916ms)
+  ✔ reports null oldestUncertainAt when nothing is uncertain (0.537083ms)
+✔ recovery: pending-work inventory (4.703208ms)
+▶ recovery: work-inventory enumeration
+  ✔ maps live states, omits terminal items and sorts by intent id (0.222792ms)
+  ✔ returns an empty inventory for empty or fully settled input (0.06525ms)
+  ✔ throws listing every unmapped item instead of unattestable rows (0.232625ms)
+  ✔ throws on unknown states as shape drift (0.144084ms)
+✔ recovery: work-inventory enumeration (0.806916ms)
+▶ recovery: bounded due-work scan
+  ✔ pages through batches with an explicit resume cursor (1.346041ms)
+  ✔ never silently truncates: drain reports done=false with a resume cursor at the cap (0.329417ms)
+  ✔ rejects invalid limits and loud over-delivery (0.137958ms)
+✔ recovery: bounded due-work scan (4.525167ms)
+▶ recovery: stale-claim expiry
+  ✔ treats the age boundary as stale (0.149375ms)
+  ✔ finds stale claims in stable order (0.108583ms)
+  ✔ releases only claimed items whose recorded claim is stale (0.282917ms)
+✔ recovery: stale-claim expiry (0.954541ms)
+▶ schedule: keyed put
+  ✔ inserts a fresh pending occurrence with a minted id (1.338875ms)
+  ✔ rejects non-pending and malformed entries (0.432458ms)
+  ✔ freezes record payloads and rejects non-records the fence cannot carry (1.447834ms)
+  ✔ rejected replacements leave the previous entry and intents untouched (0.320167ms)
+✔ schedule: keyed put (4.455667ms)
+▶ schedule: replace supersedes pending occurrences
+  ✔ supersedes the previous pending occurrence and returns its id (0.556708ms)
+  ✔ put over a pending key is also a replace (0.196667ms)
+  ✔ supersedes undispatched delivery intents and returns their ids (0.279958ms)
+  ✔ never touches provider-accepted work: claimed/uncertain/settled items complete (0.278833ms)
+  ✔ isolates same-event keys: cancelling one never skips another (0.768875ms)
+  ✔ collects undispatched intents by exact occurrence match only (0.133ms)
+✔ schedule: replace supersedes pending occurrences (2.880375ms)
+▶ schedule: cancel
+  ✔ cancels a pending occurrence and supersedes its undispatched intents (0.329292ms)
+  ✔ marks admitted entries cancelled while in-flight work may complete (0.179792ms)
+  ✔ cancel is idempotent over missing and terminal keys (0.086ms)
+✔ schedule: cancel (0.779333ms)
+▶ t24a planDispatchStaging: origins, guards, skips
+  ✔ stages unconditional and guard-true effects with their origins (0.837833ms)
+  ✔ records guard-false effects as skips, never silent (0.110292ms)
+  ✔ fails the whole batch closed on duplicates, bad requests and evaluator throws (0.243917ms)
+  ✔ carries fanout lineage through staged and skipped with no fanout rule (0.158ms)
+✔ t24a planDispatchStaging: origins, guards, skips (1.785ms)
+▶ t24a intent lifecycle
+  ✔ maps persisted state plus pinned verdict onto staged/claimed/done/failed/skipped (0.079458ms)
+✔ t24a intent lifecycle (0.130042ms)
+▶ t24a claim identity
+  ✔ matches the winning claim id for idempotent replay, refuses others (0.059375ms)
+✔ t24a claim identity (0.098958ms)
+▶ t24a recordStagingFailure: retryable-vs-terminal dispositions
+  ✔ retries transient failures within budget, dead-letters past it (0.14075ms)
+  ✔ finalizes terminal failures and rejects settled items (0.125542ms)
+  ✔ matches recordOutcome exactly on shared failure inputs (0.168291ms)
+✔ t24a recordStagingFailure: retryable-vs-terminal dispositions (0.54025ms)
+▶ t24a planRecoveryScan: resuming interrupted claims
+  ✔ sorts every actionable row into exactly one list, id-sorted (0.262791ms)
+  ✔ applies the exact stale boundary and validates inputs (0.074916ms)
+✔ t24a planRecoveryScan: resuming interrupted claims (0.396417ms)
+▶ t24a work.dispatch.stage command
+  ✔ stages dispatch rows plus outbox intents in one staging with pinned verdicts (0.55175ms)
+  ✔ fails closed on empty, duplicate and incoherent batches (0.189208ms)
+  ✔ replays matching rows without writes and refuses mismatched origins (0.124875ms)
+✔ t24a work.dispatch.stage command (0.916792ms)
+▶ t24a work.dispatch.recover command
+  ✔ releases stale claims in id order, observes uncertain, touches nothing else (0.320584ms)
+  ✔ pages bounded batches with an exact resume cursor and never truncates silently (0.135917ms)
+✔ t24a work.dispatch.recover command (0.487916ms)
+▶ t24a registry join on the memory store (MEMORY-ONLY)
+  ✔ commits dispatch rows plus outbox intents in one fence revision (0.690458ms)
+  ✔ voids the whole join when the run key mismatches (trigger rollback) (0.126334ms)
+  ✔ grants exactly one winner under concurrent delivery (MEMORY-ONLY) (0.818209ms)
+  ✔ resumes an interrupted claim through recover plus reclaim (MEMORY-ONLY) (0.462375ms)
+  ✔ pins the L3 join literal against the L4 dispatch table (0.028ms)
+✔ t24a registry join on the memory store (MEMORY-ONLY) (2.201625ms)
+ℹ tests 249
+ℹ suites 69
+ℹ pass 249
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 348.658125
+EXIT_CMD4=0
+=== CMD5: cd packages/work && node --test <14 colocated files> ===
+▶ T32b dispatch claim-time fence
+  ✔ claims when the transitive scope is fresh and authority revalidates (1.429125ms)
+  ✔ refuses a transitive dispatch that inherited the trigger checkpoint (0.448083ms)
+  ✔ denies the effect when authority revoked between trigger and handler (0.097166ms)
+  ✔ evaluates the guard over the claim-time snapshot, never a carried one (0.092875ms)
+  ✔ attempts without a fence keep the exact pre-T32b behavior (0.071334ms)
+✔ T32b dispatch claim-time fence (3.061041ms)
+▶ t34-f3 claim: exactly-one-winner under concurrency
+  ✔ grants one winner; the loser holds the existing claim, never a duplicate (0.760167ms)
+  ✔ serializes unconditional racers (null snapshot) the same way (0.1485ms)
+  ✔ keys claims by parent+handler+record: sibling handlers never collide (0.144ms)
+  ✔ fails closed when the producer row is missing (never invents) (0.19375ms)
+✔ t34-f3 claim: exactly-one-winner under concurrency (1.720875ms)
+▶ t34-f3 claim: stale snapshots never admit
+  ✔ refuses a stale version without running fence or guard (0.46175ms)
+✔ t34-f3 claim: stale snapshots never admit (0.52775ms)
+▶ t34-f3 claim: guard re-evaluated on the CURRENT snapshot
+  ✔ sees the claim-time value, never the frozen inputs (0.150708ms)
+  ✔ claims when the current snapshot passes (0.07475ms)
+  ✔ propagates evaluator throws with the row still pending (fail-closed) (0.086625ms)
+✔ t34-f3 claim: guard re-evaluated on the CURRENT snapshot (0.416209ms)
+▶ t34-f3 claim: T32 fence consulted (reused seam)
+  ✔ claims when the transitive scope is fresh and authority revalidates (0.11225ms)
+  ✔ preserves refused-inherited-scope as failed without running the guard (0.135916ms)
+  ✔ preserves refused-revoked as failed after the guard passes (0.09525ms)
+  ✔ keeps exact pre-T32b behavior when no fence is presented (0.054291ms)
+✔ t34-f3 claim: T32 fence consulted (reused seam) (0.476334ms)
+▶ t34-f3 claim: duplicate delivery replays the recorded outcome
+  ✔ replays terminal outcomes, minting nothing (no version bump) (0.11025ms)
+✔ t34-f3 claim: duplicate delivery replays the recorded outcome (0.149458ms)
+▶ t34-f3 progress: attention on terminal failure, never success
+  ✔ reports attention when terminal with failures (never successful completion) (1.288583ms)
+  ✔ reports clean terminal success only with zero failures (0.173041ms)
+  ✔ stays non-terminal (no attention) while any child is pending or running (0.109958ms)
+  ✔ carries data-minimized counts only (no child rows leak) (0.102459ms)
+  ✔ refuses cross-fanout rows (no leak across fanouts) (0.188208ms)
+✔ t34-f3 progress: attention on terminal failure, never success (2.757542ms)
+▶ t34-f3 scheduling: bounded turns progress ALL children (no starvation)
+  ✔ pages pending children id-sorted with an honest resume signal (0.212958ms)
+  ✔ schedules pending only: running and terminal rows never reschedule (0.118625ms)
+  ✔ is fair under a stalled child: the sweep continues past the retry (0.157334ms)
+  ✔ chunk size is not cohort size: every limit visits the same identities (0.168666ms)
+  ✔ fails closed on bad limits and cursors (0.106792ms)
+✔ t34-f3 scheduling: bounded turns progress ALL children (no starvation) (0.903417ms)
+▶ t34-f3 record: terminal attribution
+  ✔ records completed with attempts++ on the same row (1.105041ms)
+  ✔ records skipped/deleted and skipped/non-applicable without attempts++ (0.18875ms)
+  ✔ records each terminal failed reason with attempts++ (0.23275ms)
+  ✔ refuses a supplied exhausted reason (the horizon derives it) (0.200709ms)
+  ✔ requires a running claim (live-but-idle throws, nothing recorded) (0.170208ms)
+  ✔ fails closed on bad policy and timestamps (0.118208ms)
+✔ t34-f3 record: terminal attribution (2.54325ms)
+▶ t34-f3 record: bounded retry horizon, same identity
+  ✔ retries transient within budget: pending, attempts++ on the same row (0.159709ms)
+  ✔ exhausts on the attempt cap: failed/exhausted dead-letter, same identity (0.12625ms)
+  ✔ exhausts on the time horizon even below the attempt cap (0.094917ms)
+✔ t34-f3 record: bounded retry horizon, same identity (0.496959ms)
+▶ t34-f3 record: isolation per child (sibling unaffected)
+  ✔ isolates business rejection: sibling stays pending and claimable (3.138208ms)
+  ✔ isolates revocation: the revoked child fails while the sibling proceeds (0.452708ms)
+✔ t34-f3 record: isolation per child (sibling unaffected) (3.81375ms)
+▶ t34-f3 record: duplicate delivery replays the recorded outcome
+  ✔ replays terminal records, minting nothing (0.240042ms)
+✔ t34-f3 record: duplicate delivery replays the recorded outcome (0.351ms)
+▶ t34-f2 durable fanout tables on real D1
+  ✔ commits the intent once and refuses any redefinition of the frozen set (193.694583ms)
+  ✔ upserts the checkpoint: completed-set plus cursor under the version fence (270.480042ms)
+  ✔ keys child rows by the full parent+handler+record identity (144.37925ms)
+  ✔ M1 proof cohorts 499/500/501/1000 page completely with one row each (12814.483792ms)
+  ✔ done:false means resume across the exact-multiple boundary (103.065584ms)
+  ✔ §C9 chunk size is not cohort size on this substrate (8359.307208ms)
+  ✔ scopes pages per fanout: sibling handlers never leak rows (139.843ms)
+✔ t34-f2 durable fanout tables on real D1 (24771.239333ms)
+▶ t34-f2 durable fanout tables on real DO SQLite
+  ✔ commits the intent once and refuses any redefinition of the frozen set (16.934666ms)
+  ✔ upserts the checkpoint: completed-set plus cursor under the version fence (15.746458ms)
+  ✔ keys child rows by the full parent+handler+record identity (14.04575ms)
+  ✔ M1 proof cohorts 499/500/501/1000 page completely with one row each (118.908709ms)
+  ✔ done:false means resume across the exact-multiple boundary (11.210958ms)
+  ✔ §C9 chunk size is not cohort size on this substrate (437.949875ms)
+  ✔ scopes pages per fanout: sibling handlers never leak rows (4.882625ms)
+✔ t34-f2 durable fanout tables on real DO SQLite (620.069083ms)
+▶ t34-f2 intent rows
+  ✔ round-trips both cohort spellings with a frozen sorted member set (1.010042ms)
+  ✔ allows an empty frozen set: an admitted-empty cohort still commits (0.088792ms)
+  ✔ derives the intent id deterministically under cutoff+cohort (0.066833ms)
+  ✔ rejects bad cohorts, members, counts and id derivations (0.42425ms)
+✔ t34-f2 intent rows (2.300084ms)
+▶ t34-f2 checkpoint rows
+  ✔ round-trips the completed set plus cursor (0.224792ms)
+  ✔ advances the completed set purely: merge, dedupe, sorted, cursor carried (0.387959ms)
+  ✔ rejects empty cursors, duplicate completed ids and row-id drift (0.498084ms)
+✔ t34-f2 checkpoint rows (1.659583ms)
+▶ t34-f2 child rows
+  ✔ round-trips every lifecycle state with its closed cause (0.356ms)
+  ✔ keys rows by the full parent+handler+record identity (0.21975ms)
+  ✔ prevents handler collisions: Commitment/Swap on one source never share a row (0.260125ms)
+  ✔ rejects unknown states, open causes and id drift (0.518375ms)
+✔ t34-f2 child rows (2.284083ms)
+▶ t34-f2 page queries
+  ✔ builds bounded id-sorted page specs with and without a cursor (0.178667ms)
+  ✔ folds pages honestly: done only on a short page, resume otherwise (1.077833ms)
+✔ t34-f2 page queries (1.319ms)
+▶ t34-f2 memory store: intent insert-once
+  ✔ commits the intent once and refuses any redefinition (1.384042ms)
+  ✔ keeps distinct cutoffs, handlers and cohorts independent (2.243792ms)
+✔ t34-f2 memory store: intent insert-once (3.791333ms)
+▶ t34-f2 memory store: checkpoint upsert
+  ✔ inserts once then advances the completed set plus cursor by conditional update (0.941375ms)
+✔ t34-f2 memory store: checkpoint upsert (1.0425ms)
+▶ t34-f2 memory store: child rows and bounded paging
+  ✔ M1 proof cohorts 499/500/501/1000: every admitted identity visited exactly once (68.513667ms)
+  ✔ done:false means resume: an exact-multiple cohort ends with an honest empty page (0.353333ms)
+  ✔ §C9 chunk size is not cohort size: every chunking visits the same identities (66.530167ms)
+  ✔ scopes pages per fanout: sibling handlers and fanouts never leak rows (0.288875ms)
+  ✔ rejects a duplicate child row under the same full identity (0.18225ms)
+✔ t34-f2 memory store: child rows and bounded paging (136.086542ms)
+▶ t25a progress: monotone application
+  ✔ advances both records to the progress revision with its payload (1.628625ms)
+  ✔ replays equal revisions idempotently (0.133583ms)
+  ✔ ignores extra envelope fields beyond the progress keys (0.069416ms)
+  ✔ normalizes missing payload keys to null (0.074875ms)
+✔ t25a progress: monotone application (2.599375ms)
+▶ t25a progress: stale attempts never overwrite
+  ✔ refuses older revisions without touching either record (0.115958ms)
+  ✔ refuses superseded-attempt progress: old attempts keep their own receipts (0.052333ms)
+  ✔ refuses foreign sources (0.053541ms)
+  ✔ refuses malformed progress without throwing (0.146209ms)
+  ✔ refuses inconsistent envelopes without throwing (0.597833ms)
+  ✔ checks correlation before consistency (0.6ms)
+  ✔ matches the correlation verdict of matchAssociatedCompletion (0.302625ms)
+✔ t25a progress: stale attempts never overwrite (2.533792ms)
+▶ t25a progress: trusted store agreement throws loudly
+  ✔ rejects misshapen associations and receipts (0.634333ms)
+  ✔ rejects foreign receipts and revision skew (0.168083ms)
+  ✔ never mutates its inputs (0.136708ms)
+✔ t25a progress: trusted store agreement throws loudly (1.090792ms)
+▶ t25a lifecycle on the memory map (MEMORY-ONLY)
+  ✔ replaces the association without letting stale progress overwrite it (1.075083ms)
+✔ t25a lifecycle on the memory map (MEMORY-ONLY) (1.167917ms)
+▶ t25a locator: resolving the record/field binding
+  ✔ resolves the live record object and the plain field name (0.69825ms)
+  ✔ rejects non-object locators (0.40025ms)
+  ✔ rejects a text id as the record: there is no string-ID lookup (0.168584ms)
+  ✔ rejects null, missing and non-object records (0.156875ms)
+  ✔ rejects smuggled locator keys instead of ignoring them (0.179792ms)
+  ✔ rejects empty, missing, non-string and traversal fields (0.225166ms)
+✔ t25a locator: resolving the record/field binding (3.000417ms)
+▶ t25a authorize: every selected leaf must be granted
+  ✔ authorizes a fully granted selection (1.074875ms)
+  ✔ denies the whole read when any selected leaf is denied (0.6845ms)
+  ✔ consults the port exactly once per unique leaf, including id/status (0.264459ms)
+  ✔ rejects empty, unknown and non-array selections (0.249917ms)
+✔ t25a authorize: every selected leaf must be granted (3.024125ms)
+▶ t25a project: exactly the selected leaves, nothing more
+  ✔ projects precisely the unique selected keys (0.240792ms)
+  ✔ projects an empty object for an empty selection (0.093917ms)
+  ✔ rejects unknown and non-array selections (0.09825ms)
+✔ t25a project: exactly the selected leaves, nothing more (0.582125ms)
+▶ t25a fence: mutable selections enroll, id-only does not
+  ✔ enrolls status/result/error and skips id-only reads (0.153209ms)
+  ✔ rejects unknown and non-array selections (0.113375ms)
+✔ t25a fence: mutable selections enroll, id-only does not (0.34775ms)
+▶ t25a entry: status-only disclosure stays restricted
+  ✔ observes exactly the granted status leaf with its fence revision (0.43975ms)
+  ✔ projects a granted subset even under a full grant (0.164083ms)
+  ✔ denies a wider selection under a status-only grant (0.118875ms)
+  ✔ denies id reads under a status-only grant (0.087459ms)
+  ✔ reads id-only without a fence enrollment (0.132ms)
+✔ t25a entry: status-only disclosure stays restricted (1.104792ms)
+▶ t25a entry: null means an actually null association
+  ✔ returns null-association for a granted unassociated read (0.122ms)
+  ✔ denies an unassociated read instead of returning null (0.105791ms)
+✔ t25a entry: null means an actually null association (0.344167ms)
+▶ t25a entry: withheld content and snapshot reads
+  ✔ keeps the granted result key present-but-null when withheld (0.131791ms)
+  ✔ returns snapshots: later store changes never rewrite a projection (0.127208ms)
+  ✔ never accepts a projection back as a locator (0.236375ms)
+✔ t25a entry: withheld content and snapshot reads (0.616167ms)
+▶ t25a entry: trusted store agreement throws loudly
+  ✔ rejects null disagreement and foreign or skewed rows (0.346667ms)
+  ✔ rejects malformed locators, selections and clocks (0.114583ms)
+✔ t25a entry: trusted store agreement throws loudly (0.520375ms)
+▶ t25a pins: fence and dispatch shapes (no execution join)
+  ✔ pins the enrolled revision to the stored and echoed revisions (0.078084ms)
+  ✔ pins delivery ids to the dispatch outbox id shape (0.161292ms)
+  ✔ pins the enrolled revision to the fence checkpoint slot (0.187875ms)
+✔ t25a pins: fence and dispatch shapes (no execution join) (0.536417ms)
+▶ t26 relation universe
+  ✔ qualifies 16 relations (ordered T13 equality pinned in contracts) (1.605417ms)
+  ✔ rejects unknown trusted bindings loudly (declaration bug, never a refusal) (0.487208ms)
+  ✔ pins the terminal receipt states (0.1575ms)
+✔ t26 relation universe (3.778708ms)
+▶ t26 progress on std.EmailV1.send
+  ✔ applies correlated terminal progress with exactly one notification (0.651167ms)
+  ✔ applies failed and skipped terminal payloads with their notifications (0.114792ms)
+  ✔ applies uncertain progress without notifying, then notifies on resolve (0.073584ms)
+  ✔ replays duplicate delivery identically and mints nothing (0.13925ms)
+  ✔ refuses newer hostile re-drives on terminal rows without touching them (0.189167ms)
+  ✔ replays same-revision hostile envelopes with stored truth verbatim (0.098959ms)
+  ✔ reports T25a refusals before terminal gating (0.089667ms)
+  ✔ cancels pending receipts to skipped with exactly one notification (0.118167ms)
+  ✔ leaves terminal receipts untouched under cancellation (0.113ms)
+  ✔ refuses stale cancellations without touching pending rows (0.042625ms)
+  ✔ reads the retained outcome on late usage after terminal (0.347959ms)
+  ✔ echoes the relation on null and denied reads (0.09425ms)
+  ✔ rejects unknown-relation progress without touching records (0.044333ms)
+  ✔ refuses cross-relation correlation without touching records (0.032625ms)
+  ✔ treats a missing relation claim as malformed (0.036292ms)
+  ✔ checks relation routing before id/source/revision (0.033ms)
+  ✔ preserves T25a correlation verdicts under a valid relation (0.040584ms)
+  ✔ throws loudly on unknown trusted bindings and skewed stores (0.163417ms)
+✔ t26 progress on std.EmailV1.send (3.4185ms)
+▶ t26 progress on std.ErrorsV1.report
+  ✔ applies correlated terminal progress with exactly one notification (0.094916ms)
+  ✔ applies failed and skipped terminal payloads with their notifications (0.027791ms)
+  ✔ applies uncertain progress without notifying, then notifies on resolve (0.028875ms)
+  ✔ replays duplicate delivery identically and mints nothing (0.024083ms)
+  ✔ refuses newer hostile re-drives on terminal rows without touching them (0.02125ms)
+  ✔ replays same-revision hostile envelopes with stored truth verbatim (0.019167ms)
+  ✔ reports T25a refusals before terminal gating (0.02175ms)
+  ✔ cancels pending receipts to skipped with exactly one notification (0.027541ms)
+  ✔ leaves terminal receipts untouched under cancellation (0.08ms)
+  ✔ refuses stale cancellations without touching pending rows (0.0235ms)
+  ✔ reads the retained outcome on late usage after terminal (0.042416ms)
+  ✔ echoes the relation on null and denied reads (0.03525ms)
+  ✔ rejects unknown-relation progress without touching records (0.019083ms)
+  ✔ refuses cross-relation correlation without touching records (0.022167ms)
+  ✔ treats a missing relation claim as malformed (0.021167ms)
+  ✔ checks relation routing before id/source/revision (0.017583ms)
+  ✔ preserves T25a correlation verdicts under a valid relation (0.018625ms)
+  ✔ throws loudly on unknown trusted bindings and skewed stores (0.048417ms)
+✔ t26 progress on std.ErrorsV1.report (0.768959ms)
+▶ t26 progress on std.PaymentsV1.collect
+  ✔ applies correlated terminal progress with exactly one notification (0.084584ms)
+  ✔ applies failed and skipped terminal payloads with their notifications (0.02ms)
+  ✔ applies uncertain progress without notifying, then notifies on resolve (0.017875ms)
+  ✔ replays duplicate delivery identically and mints nothing (0.019959ms)
+  ✔ refuses newer hostile re-drives on terminal rows without touching them (0.018333ms)
+  ✔ replays same-revision hostile envelopes with stored truth verbatim (0.0215ms)
+  ✔ reports T25a refusals before terminal gating (0.019459ms)
+  ✔ cancels pending receipts to skipped with exactly one notification (0.022458ms)
+  ✔ leaves terminal receipts untouched under cancellation (0.026791ms)
+  ✔ refuses stale cancellations without touching pending rows (0.018083ms)
+  ✔ reads the retained outcome on late usage after terminal (0.618875ms)
+  ✔ echoes the relation on null and denied reads (0.050375ms)
+  ✔ rejects unknown-relation progress without touching records (0.020167ms)
+  ✔ refuses cross-relation correlation without touching records (0.019167ms)
+  ✔ treats a missing relation claim as malformed (0.028166ms)
+  ✔ checks relation routing before id/source/revision (0.020792ms)
+  ✔ preserves T25a correlation verdicts under a valid relation (0.019625ms)
+  ✔ throws loudly on unknown trusted bindings and skewed stores (0.052625ms)
+✔ t26 progress on std.PaymentsV1.collect (1.256208ms)
+▶ t26 progress on std.PaymentsV1.refund
+  ✔ applies correlated terminal progress with exactly one notification (0.062416ms)
+  ✔ applies failed and skipped terminal payloads with their notifications (0.024792ms)
+  ✔ applies uncertain progress without notifying, then notifies on resolve (0.015291ms)
+  ✔ replays duplicate delivery identically and mints nothing (0.013917ms)
+  ✔ refuses newer hostile re-drives on terminal rows without touching them (0.017667ms)
+  ✔ replays same-revision hostile envelopes with stored truth verbatim (0.014417ms)
+  ✔ reports T25a refusals before terminal gating (0.015125ms)
+  ✔ cancels pending receipts to skipped with exactly one notification (0.016917ms)
+  ✔ leaves terminal receipts untouched under cancellation (0.016542ms)
+  ✔ refuses stale cancellations without touching pending rows (0.015291ms)
+  ✔ reads the retained outcome on late usage after terminal (0.038958ms)
+  ✔ echoes the relation on null and denied reads (0.026333ms)
+  ✔ rejects unknown-relation progress without touching records (0.014625ms)
+  ✔ refuses cross-relation correlation without touching records (0.014333ms)
+  ✔ treats a missing relation claim as malformed (0.019583ms)
+  ✔ checks relation routing before id/source/revision (0.013916ms)
+  ✔ preserves T25a correlation verdicts under a valid relation (0.014667ms)
+  ✔ throws loudly on unknown trusted bindings and skewed stores (0.037875ms)
+✔ t26 progress on std.PaymentsV1.refund (0.537667ms)
+▶ t26 progress on std.PaymentsV1.cancel
+  ✔ applies correlated terminal progress with exactly one notification (0.058666ms)
+  ✔ applies failed and skipped terminal payloads with their notifications (0.016667ms)
+  ✔ applies uncertain progress without notifying, then notifies on resolve (0.014125ms)
+  ✔ replays duplicate delivery identically and mints nothing (0.013875ms)
+  ✔ refuses newer hostile re-drives on terminal rows without touching them (0.014208ms)
+  ✔ replays same-revision hostile envelopes with stored truth verbatim (0.014875ms)
+  ✔ reports T25a refusals before terminal gating (0.014583ms)
+  ✔ cancels pending receipts to skipped with exactly one notification (0.015458ms)
+  ✔ leaves terminal receipts untouched under cancellation (0.015375ms)
+  ✔ refuses stale cancellations without touching pending rows (0.013833ms)
+  ✔ reads the retained outcome on late usage after terminal (0.035458ms)
+  ✔ echoes the relation on null and denied reads (0.025875ms)
+  ✔ rejects unknown-relation progress without touching records (0.013708ms)
+  ✔ refuses cross-relation correlation without touching records (0.0135ms)
+  ✔ treats a missing relation claim as malformed (0.013417ms)
+  ✔ checks relation routing before id/source/revision (0.014625ms)
+  ✔ preserves T25a correlation verdicts under a valid relation (0.015667ms)
+  ✔ throws loudly on unknown trusted bindings and skewed stores (0.038583ms)
+✔ t26 progress on std.PaymentsV1.cancel (0.489792ms)
+▶ t26 progress on std.PaymentsV1.reconcile
+  ✔ applies correlated terminal progress with exactly one notification (0.132458ms)
+  ✔ applies failed and skipped terminal payloads with their notifications (0.047167ms)
+  ✔ applies uncertain progress without notifying, then notifies on resolve (0.022ms)
+  ✔ replays duplicate delivery identically and mints nothing (0.018417ms)
+  ✔ refuses newer hostile re-drives on terminal rows without touching them (0.016958ms)
+  ✔ replays same-revision hostile envelopes with stored truth verbatim (0.015916ms)
+  ✔ reports T25a refusals before terminal gating (0.018083ms)
+  ✔ cancels pending receipts to skipped with exactly one notification (0.018ms)
+  ✔ leaves terminal receipts untouched under cancellation (0.017166ms)
+  ✔ refuses stale cancellations without touching pending rows (0.019917ms)
+  ✔ reads the retained outcome on late usage after terminal (0.045708ms)
+  ✔ echoes the relation on null and denied reads (0.031875ms)
+  ✔ rejects unknown-relation progress without touching records (0.014625ms)
+  ✔ refuses cross-relation correlation without touching records (0.020791ms)
+  ✔ treats a missing relation claim as malformed (0.014041ms)
+  ✔ checks relation routing before id/source/revision (0.014125ms)
+  ✔ preserves T25a correlation verdicts under a valid relation (0.017417ms)
+  ✔ throws loudly on unknown trusted bindings and skewed stores (0.041041ms)
+✔ t26 progress on std.PaymentsV1.reconcile (0.670083ms)
+▶ t26 progress on std.TextGenerationV1.generate
+  ✔ applies correlated terminal progress with exactly one notification (0.068792ms)
+  ✔ applies failed and skipped terminal payloads with their notifications (0.021416ms)
+  ✔ applies uncertain progress without notifying, then notifies on resolve (0.015125ms)
+  ✔ replays duplicate delivery identically and mints nothing (0.0145ms)
+  ✔ refuses newer hostile re-drives on terminal rows without touching them (0.014542ms)
+  ✔ replays same-revision hostile envelopes with stored truth verbatim (0.018667ms)
+  ✔ reports T25a refusals before terminal gating (0.01525ms)
+  ✔ cancels pending receipts to skipped with exactly one notification (0.0175ms)
+  ✔ leaves terminal receipts untouched under cancellation (0.045917ms)
+  ✔ refuses stale cancellations without touching pending rows (0.018875ms)
+  ✔ reads the retained outcome on late usage after terminal (0.038ms)
+  ✔ echoes the relation on null and denied reads (0.035583ms)
+  ✔ rejects unknown-relation progress without touching records (0.014583ms)
+  ✔ refuses cross-relation correlation without touching records (0.0135ms)
+  ✔ treats a missing relation claim as malformed (0.014542ms)
+  ✔ checks relation routing before id/source/revision (0.075334ms)
+  ✔ preserves T25a correlation verdicts under a valid relation (0.104708ms)
+  ✔ throws loudly on unknown trusted bindings and skewed stores (0.117833ms)
+✔ t26 progress on std.TextGenerationV1.generate (1.745125ms)
+▶ t26 progress on std.TextGenerationV1.cancel
+  ✔ applies correlated terminal progress with exactly one notification (0.21975ms)
+  ✔ applies failed and skipped terminal payloads with their notifications (0.05625ms)
+  ✔ applies uncertain progress without notifying, then notifies on resolve (0.037541ms)
+  ✔ replays duplicate delivery identically and mints nothing (0.037042ms)
+  ✔ refuses newer hostile re-drives on terminal rows without touching them (0.036666ms)
+  ✔ replays same-revision hostile envelopes with stored truth verbatim (0.045125ms)
+  ✔ reports T25a refusals before terminal gating (0.038291ms)
+  ✔ cancels pending receipts to skipped with exactly one notification (0.050708ms)
+  ✔ leaves terminal receipts untouched under cancellation (0.115959ms)
+  ✔ refuses stale cancellations without touching pending rows (0.0565ms)
+  ✔ reads the retained outcome on late usage after terminal (0.078792ms)
+  ✔ echoes the relation on null and denied reads (0.077042ms)
+  ✔ rejects unknown-relation progress without touching records (0.039417ms)
+  ✔ refuses cross-relation correlation without touching records (0.051542ms)
+  ✔ treats a missing relation claim as malformed (0.037791ms)
+  ✔ checks relation routing before id/source/revision (0.036166ms)
+  ✔ preserves T25a correlation verdicts under a valid relation (0.039541ms)
+  ✔ throws loudly on unknown trusted bindings and skewed stores (0.103375ms)
+✔ t26 progress on std.TextGenerationV1.cancel (1.51075ms)
+▶ t26 progress on std.TextGenerationV1.reconcile
+  ✔ applies correlated terminal progress with exactly one notification (0.45875ms)
+  ✔ applies failed and skipped terminal payloads with their notifications (0.190667ms)
+  ✔ applies uncertain progress without notifying, then notifies on resolve (0.026834ms)
+  ✔ replays duplicate delivery identically and mints nothing (0.021959ms)
+  ✔ refuses newer hostile re-drives on terminal rows without touching them (0.02075ms)
+  ✔ replays same-revision hostile envelopes with stored truth verbatim (0.016666ms)
+  ✔ reports T25a refusals before terminal gating (0.019875ms)
+  ✔ cancels pending receipts to skipped with exactly one notification (0.017875ms)
+  ✔ leaves terminal receipts untouched under cancellation (0.02125ms)
+  ✔ refuses stale cancellations without touching pending rows (0.239958ms)
+  ✔ reads the retained outcome on late usage after terminal (0.042333ms)
+  ✔ echoes the relation on null and denied reads (0.038584ms)
+  ✔ rejects unknown-relation progress without touching records (0.017417ms)
+  ✔ refuses cross-relation correlation without touching records (0.014708ms)
+  ✔ treats a missing relation claim as malformed (0.059584ms)
+  ✔ checks relation routing before id/source/revision (0.025459ms)
+  ✔ preserves T25a correlation verdicts under a valid relation (0.133625ms)
+  ✔ throws loudly on unknown trusted bindings and skewed stores (0.045083ms)
+✔ t26 progress on std.TextGenerationV1.reconcile (2.235292ms)
+▶ t26 progress on std.ImagesV1.inspect
+  ✔ applies correlated terminal progress with exactly one notification (0.148917ms)
+  ✔ applies failed and skipped terminal payloads with their notifications (0.019417ms)
+  ✔ applies uncertain progress without notifying, then notifies on resolve (0.017042ms)
+  ✔ replays duplicate delivery identically and mints nothing (0.300625ms)
+  ✔ refuses newer hostile re-drives on terminal rows without touching them (0.09075ms)
+  ✔ replays same-revision hostile envelopes with stored truth verbatim (0.050958ms)
+  ✔ reports T25a refusals before terminal gating (0.036334ms)
+  ✔ cancels pending receipts to skipped with exactly one notification (0.031791ms)
+  ✔ leaves terminal receipts untouched under cancellation (0.02075ms)
+  ✔ refuses stale cancellations without touching pending rows (0.019167ms)
+  ✔ reads the retained outcome on late usage after terminal (0.097ms)
+  ✔ echoes the relation on null and denied reads (0.030333ms)
+  ✔ rejects unknown-relation progress without touching records (0.014625ms)
+  ✔ refuses cross-relation correlation without touching records (0.013833ms)
+  ✔ treats a missing relation claim as malformed (0.015959ms)
+  ✔ checks relation routing before id/source/revision (0.015375ms)
+  ✔ preserves T25a correlation verdicts under a valid relation (0.015375ms)
+  ✔ throws loudly on unknown trusted bindings and skewed stores (0.040458ms)
+✔ t26 progress on std.ImagesV1.inspect (1.227792ms)
+▶ t26 progress on std.ImagesV1.validate
+  ✔ applies correlated terminal progress with exactly one notification (0.142041ms)
+  ✔ applies failed and skipped terminal payloads with their notifications (0.052334ms)
+  ✔ applies uncertain progress without notifying, then notifies on resolve (0.060209ms)
+  ✔ replays duplicate delivery identically and mints nothing (0.029917ms)
+  ✔ refuses newer hostile re-drives on terminal rows without touching them (0.017917ms)
+  ✔ replays same-revision hostile envelopes with stored truth verbatim (0.020166ms)
+  ✔ reports T25a refusals before terminal gating (0.016166ms)
+  ✔ cancels pending receipts to skipped with exactly one notification (0.016708ms)
+  ✔ leaves terminal receipts untouched under cancellation (0.017208ms)
+  ✔ refuses stale cancellations without touching pending rows (0.030125ms)
+  ✔ reads the retained outcome on late usage after terminal (0.102667ms)
+  ✔ echoes the relation on null and denied reads (0.025708ms)
+  ✔ rejects unknown-relation progress without touching records (0.014833ms)
+  ✔ refuses cross-relation correlation without touching records (0.014209ms)
+  ✔ treats a missing relation claim as malformed (0.013208ms)
+  ✔ checks relation routing before id/source/revision (0.014208ms)
+  ✔ preserves T25a correlation verdicts under a valid relation (0.015375ms)
+  ✔ throws loudly on unknown trusted bindings and skewed stores (0.336416ms)
+✔ t26 progress on std.ImagesV1.validate (1.080042ms)
+▶ t26 progress on std.ImagesV1.submit
+  ✔ applies correlated terminal progress with exactly one notification (4.397084ms)
+  ✔ applies failed and skipped terminal payloads with their notifications (0.043792ms)
+  ✔ applies uncertain progress without notifying, then notifies on resolve (0.0245ms)
+  ✔ replays duplicate delivery identically and mints nothing (0.031042ms)
+  ✔ refuses newer hostile re-drives on terminal rows without touching them (0.022125ms)
+  ✔ replays same-revision hostile envelopes with stored truth verbatim (0.016208ms)
+  ✔ reports T25a refusals before terminal gating (0.106458ms)
+  ✔ cancels pending receipts to skipped with exactly one notification (0.075084ms)
+  ✔ leaves terminal receipts untouched under cancellation (0.047625ms)
+  ✔ refuses stale cancellations without touching pending rows (0.039625ms)
+  ✔ reads the retained outcome on late usage after terminal (0.057167ms)
+  ✔ echoes the relation on null and denied reads (0.073875ms)
+  ✔ rejects unknown-relation progress without touching records (0.045291ms)
+  ✔ refuses cross-relation correlation without touching records (0.058333ms)
+  ✔ treats a missing relation claim as malformed (0.089ms)
+  ✔ checks relation routing before id/source/revision (0.019667ms)
+  ✔ preserves T25a correlation verdicts under a valid relation (0.018583ms)
+  ✔ throws loudly on unknown trusted bindings and skewed stores (0.052042ms)
+✔ t26 progress on std.ImagesV1.submit (5.847041ms)
+▶ t26 progress on std.ImagesV1.cancel
+  ✔ applies correlated terminal progress with exactly one notification (0.11375ms)
+  ✔ applies failed and skipped terminal payloads with their notifications (0.038792ms)
+  ✔ applies uncertain progress without notifying, then notifies on resolve (0.021083ms)
+  ✔ replays duplicate delivery identically and mints nothing (0.031125ms)
+  ✔ refuses newer hostile re-drives on terminal rows without touching them (0.031542ms)
+  ✔ replays same-revision hostile envelopes with stored truth verbatim (0.059292ms)
+  ✔ reports T25a refusals before terminal gating (0.022375ms)
+  ✔ cancels pending receipts to skipped with exactly one notification (0.018625ms)
+  ✔ leaves terminal receipts untouched under cancellation (0.09625ms)
+  ✔ refuses stale cancellations without touching pending rows (0.09675ms)
+  ✔ reads the retained outcome on late usage after terminal (0.36925ms)
+  ✔ echoes the relation on null and denied reads (0.043791ms)
+  ✔ rejects unknown-relation progress without touching records (0.01975ms)
+  ✔ refuses cross-relation correlation without touching records (0.01625ms)
+  ✔ treats a missing relation claim as malformed (0.048792ms)
+  ✔ checks relation routing before id/source/revision (0.012916ms)
+  ✔ preserves T25a correlation verdicts under a valid relation (0.020333ms)
+  ✔ throws loudly on unknown trusted bindings and skewed stores (0.118167ms)
+✔ t26 progress on std.ImagesV1.cancel (1.625459ms)
+▶ t26 progress on std.ImagesV1.reconcile
+  ✔ applies correlated terminal progress with exactly one notification (0.125333ms)
+  ✔ applies failed and skipped terminal payloads with their notifications (0.016875ms)
+  ✔ applies uncertain progress without notifying, then notifies on resolve (0.0155ms)
+  ✔ replays duplicate delivery identically and mints nothing (0.121667ms)
+  ✔ refuses newer hostile re-drives on terminal rows without touching them (0.069625ms)
+  ✔ replays same-revision hostile envelopes with stored truth verbatim (0.01525ms)
+  ✔ reports T25a refusals before terminal gating (0.016166ms)
+  ✔ cancels pending receipts to skipped with exactly one notification (0.016125ms)
+  ✔ leaves terminal receipts untouched under cancellation (0.015375ms)
+  ✔ refuses stale cancellations without touching pending rows (0.014375ms)
+  ✔ reads the retained outcome on late usage after terminal (0.499625ms)
+  ✔ echoes the relation on null and denied reads (0.150792ms)
+  ✔ rejects unknown-relation progress without touching records (0.068ms)
+  ✔ refuses cross-relation correlation without touching records (0.037083ms)
+  ✔ treats a missing relation claim as malformed (0.20975ms)
+  ✔ checks relation routing before id/source/revision (0.026125ms)
+  ✔ preserves T25a correlation verdicts under a valid relation (0.022084ms)
+  ✔ throws loudly on unknown trusted bindings and skewed stores (0.052875ms)
+✔ t26 progress on std.ImagesV1.reconcile (1.910125ms)
+▶ t26 progress on std.MailboxV1.reply
+  ✔ applies correlated terminal progress with exactly one notification (0.27225ms)
+  ✔ applies failed and skipped terminal payloads with their notifications (0.085208ms)
+  ✔ applies uncertain progress without notifying, then notifies on resolve (0.039541ms)
+  ✔ replays duplicate delivery identically and mints nothing (0.050208ms)
+  ✔ refuses newer hostile re-drives on terminal rows without touching them (0.041208ms)
+  ✔ replays same-revision hostile envelopes with stored truth verbatim (0.031875ms)
+  ✔ reports T25a refusals before terminal gating (0.042042ms)
+  ✔ cancels pending receipts to skipped with exactly one notification (0.03875ms)
+  ✔ leaves terminal receipts untouched under cancellation (0.037875ms)
+  ✔ refuses stale cancellations without touching pending rows (0.07375ms)
+  ✔ reads the retained outcome on late usage after terminal (0.033042ms)
+  ✔ echoes the relation on null and denied reads (0.083958ms)
+  ✔ rejects unknown-relation progress without touching records (0.027875ms)
+  ✔ refuses cross-relation correlation without touching records (0.023125ms)
+  ✔ treats a missing relation claim as malformed (0.017417ms)
+  ✔ checks relation routing before id/source/revision (0.013833ms)
+  ✔ preserves T25a correlation verdicts under a valid relation (0.016291ms)
+  ✔ throws loudly on unknown trusted bindings and skewed stores (0.0645ms)
+✔ t26 progress on std.MailboxV1.reply (2.599375ms)
+▶ t26 progress on std.MailboxV1.reconcile
+  ✔ applies correlated terminal progress with exactly one notification (0.057458ms)
+  ✔ applies failed and skipped terminal payloads with their notifications (0.014458ms)
+  ✔ applies uncertain progress without notifying, then notifies on resolve (0.340958ms)
+  ✔ replays duplicate delivery identically and mints nothing (0.072ms)
+  ✔ refuses newer hostile re-drives on terminal rows without touching them (0.041625ms)
+  ✔ replays same-revision hostile envelopes with stored truth verbatim (0.032708ms)
+  ✔ reports T25a refusals before terminal gating (0.035375ms)
+  ✔ cancels pending receipts to skipped with exactly one notification (0.059958ms)
+  ✔ leaves terminal receipts untouched under cancellation (0.461958ms)
+  ✔ refuses stale cancellations without touching pending rows (0.025959ms)
+  ✔ reads the retained outcome on late usage after terminal (0.025708ms)
+  ✔ echoes the relation on null and denied reads (0.21725ms)
+  ✔ rejects unknown-relation progress without touching records (0.0525ms)
+  ✔ refuses cross-relation correlation without touching records (0.0325ms)
+  ✔ treats a missing relation claim as malformed (0.033209ms)
+  ✔ checks relation routing before id/source/revision (0.028041ms)
+  ✔ preserves T25a correlation verdicts under a valid relation (0.033125ms)
+  ✔ throws loudly on unknown trusted bindings and skewed stores (0.154375ms)
+✔ t26 progress on std.MailboxV1.reconcile (2.011541ms)
+▶ t26 memory lifecycle (MEMORY-ONLY)
+  ✔ runs one relation end to end: progress, duplicate, cancel, late read (0.433666ms)
+✔ t26 memory lifecycle (MEMORY-ONLY) (0.47375ms)
+▶ t25a consistency: accepted status/payload triples
+  ✔ accepts succeeded with a result and a null error (0.655ms)
+  ✔ accepts succeeded with a genuinely-null result (0.169334ms)
+  ✔ accepts failed with a null result and a closed error (0.140333ms)
+  ✔ accepts unknown with a null result and a diagnostic error or null (0.110167ms)
+  ✔ accepts skipped with nulls (0.092541ms)
+✔ t25a consistency: accepted status/payload triples (4.295916ms)
+▶ t25a consistency: refused triples
+  ✔ refuses succeeded carrying an error (0.633417ms)
+  ✔ refuses failed carrying a result or missing its error (0.1695ms)
+  ✔ refuses unknown carrying a result (0.399541ms)
+  ✔ refuses skipped carrying a result or an error (0.172875ms)
+  ✔ refuses pending: a receipt is never progress (0.15325ms)
+  ✔ refuses unknown statuses without throwing (0.142083ms)
+  ✔ refuses malformed errors without throwing (0.255ms)
+✔ t25a consistency: refused triples (2.264083ms)
+▶ t25a consistency: transport boundaries
+  ✔ reads missing payload keys as null (0.302708ms)
+  ✔ accepts the closed string-pair error shape only (0.053291ms)
+✔ t25a consistency: transport boundaries (0.556333ms)
+▶ t25a consistency: extras rejection (closed DeliveryError)
+  ✔ refuses failed errors carrying extras (0.061459ms)
+  ✔ refuses unknown diagnostic errors carrying extras (0.028792ms)
+  ✔ admits only the exact {code, message} pair, so retained observations never carry extras (2.234042ms)
+✔ t25a consistency: extras rejection (closed DeliveryError) (2.43925ms)
+▶ t26 durable restart on real D1
+  ✔ pending pairs resume to terminal exactly; terminal rows never re-drive (3117.447791ms)
+  ✔ a cancelled pair stays void across restart and never re-emits (368.499125ms)
+✔ t26 durable restart on real D1 (3486.402958ms)
+▶ t26 durable restart on real DO SQLite
+  ✔ pending pairs resume to terminal exactly; terminal rows never re-drive (156.377792ms)
+  ✔ a cancelled pair stays void across restart and never re-emits (116.550708ms)
+✔ t26 durable restart on real DO SQLite (273.30225ms)
+▶ t26 resume scan
+  ✔ resumes pending and unknown rows, settles terminal rows (1.932917ms)
+  ✔ sorts both lists by delivery id for stable evidence (0.220709ms)
+  ✔ plans nothing over an empty row set (0.215208ms)
+  ✔ refuses cross-relation rows instead of scanning them (0.657042ms)
+  ✔ throws loudly on corrupt rows instead of planning around them (0.161209ms)
+✔ t26 resume scan (4.91075ms)
+▶ t34-f4 durable restart on real D1
+  ✔ M2 mid-enumeration kill resumes admission exactly (4302.235ms)
+  ✔ M2 mid-claim kill holds the lease, then resumes exactly (1222.280875ms)
+  ✔ M2 mid-effect kill replays at most the un-checkpointed child (1050.031083ms)
+  ✔ M2 mid-checkpoint kill never re-executes committed effects (1076.465958ms)
+  ✔ M3 duplicate occurrence delivery replays without new rows (1014.024083ms)
+  ✔ M4 insert/move/delete across restart follows the lifecycle policy (1558.030166ms)
+  ✔ M7 two occurrences complete independently across restart (1979.995958ms)
+✔ t34-f4 durable restart on real D1 (12203.928458ms)
+▶ t34-f4 durable restart on real DO SQLite
+  ✔ M2 mid-enumeration kill resumes admission exactly (145.386041ms)
+  ✔ M2 mid-claim kill holds the lease, then resumes exactly (139.473291ms)
+  ✔ M2 mid-effect kill replays at most the un-checkpointed child (105.883875ms)
+  ✔ M2 mid-checkpoint kill never re-executes committed effects (98.361083ms)
+  ✔ M3 duplicate occurrence delivery replays without new rows (94.618875ms)
+  ✔ M4 insert/move/delete across restart follows the lifecycle policy (117.700709ms)
+  ✔ M7 two occurrences complete independently across restart (134.114166ms)
+✔ t34-f4 durable restart on real DO SQLite (835.994917ms)
+▶ t34-f4 scan: stale-claim resume vs fresh-claim observation
+  ✔ running + stale claim resumes; pending rows need no recovery action (2.087459ms)
+  ✔ running + fresh claim is uncertain (observed read-only, never released) (0.391833ms)
+  ✔ running + unknown claim age is uncertain (fail closed, never released) (0.121292ms)
+  ✔ staleness boundary is inclusive: age == max is stale, max - 1 is fresh (0.167959ms)
+  ✔ pending rows ignore even stale claim instants (T24 precedent) (0.107541ms)
+  ✔ lifecycle and guard never race a live claim: fresh running + deleted stays uncertain (0.106959ms)
+✔ t34-f4 scan: stale-claim resume vs fresh-claim observation (15.75225ms)
+▶ t34-f4 scan: exhaustion pins dead (failed/exhausted)
+  ✔ recorded attempts at the cap pin dead; one below resumes (0.115167ms)
+  ✔ horizon boundary is inclusive: elapsed == horizon pins dead (1.993208ms)
+  ✔ null first-attempt anchor checks attempts only (horizon never started) (0.798458ms)
+  ✔ default policy is the adopted retry default (8 attempts): 7 resumes, 8 dead (0.317583ms)
+✔ t34-f4 scan: exhaustion pins dead (failed/exhausted) (3.399584ms)
+▶ t34-f4 scan: terminal rows are never re-executed
+  ✔ completed/skipped/failed rows appear in no action list, even when guard/lifecycle disagree (0.215209ms)
+✔ t34-f4 scan: terminal rows are never re-executed (2.329208ms)
+▶ t34-f4 scan: lifecycle and guard pins (M4)
+  ✔ pending + guard-false pins skipped/non-applicable (pending + stale running alike) (0.267125ms)
+  ✔ demonstrably deleted pins skipped/deleted (pending + stale running alike) (0.075917ms)
+  ✔ moved records re-evaluate: guard-false skips, guard-true resumes (0.055709ms)
+  ✔ unknown lookup pins failed with its closed reason — never deleted, never skipped (0.078916ms)
+  ✔ lifecycle pins win over exhaustion: deleted + spent budget still skips deleted (3.104625ms)
+✔ t34-f4 scan: lifecycle and guard pins (M4) (3.7085ms)
+▶ t34-f4 scan: exact cutoff — admit, phantoms, gaps (M4)
+  ✔ admits frozen members with no row and no completion — nothing else (0.1215ms)
+  ✔ completed-without-row is a gap (attention), never an admit, never auto-completed (0.054208ms)
+  ✔ completed members with only a live row are gaps too (partial checkpoint) (0.300208ms)
+  ✔ rows outside the frozen set are phantoms (attention, never driven) (2.370792ms)
+  ✔ finishEnumeration only when the cursor is stale with nothing to admit and no gaps (0.350375ms)
+✔ t34-f4 scan: exact cutoff — admit, phantoms, gaps (M4) (3.3925ms)
+▶ t34-f4 scan: fanout scoping (M7 no shared checkpoint)
+  ✔ rejects intent, checkpoint, or rows from another fanout (0.973792ms)
+  ✔ two occurrences plan independently: same record, separate fanouts, separate lists (0.740666ms)
+✔ t34-f4 scan: fanout scoping (M7 no shared checkpoint) (1.809542ms)
+▶ t34-f4 scan: validation and stable evidence
+  ✔ rejects bad clocks, ages, policies, and anchors (0.805375ms)
+  ✔ fails closed on unknown row states and lifecycle shapes (0.308166ms)
+  ✔ sorts every list for stable evidence (0.114791ms)
+  ✔ empty fanout plans empty (no phantom admit, no false finish) (0.0925ms)
+✔ t34-f4 scan: validation and stable evidence (1.606958ms)
+ℹ tests 479
+ℹ suites 68
+ℹ pass 479
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 25901.839333
+EXIT_CMD5=0
+EVIDENCE_DONE_UTC=2026-10-06T11:30:05Z

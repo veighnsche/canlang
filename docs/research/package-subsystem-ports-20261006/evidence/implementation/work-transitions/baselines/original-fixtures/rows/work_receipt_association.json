@@ -1,0 +1,24 @@
+{
+  "model": "work.receipt_association",
+  "constructor_input": {
+    "constructor": "newAssociationRow",
+    "input": {
+      "recordModel": "Todo",
+      "recordId": "r1",
+      "field": "status",
+      "deliveryId": "dlv_1",
+      "source": "decl@app1",
+      "revision": 3
+    },
+    "meta": {
+      "nowMs": 1750000000000,
+      "actor": "w01.3-baseline"
+    }
+  },
+  "row_id": "receipt-assoc/v1/Todo/r1/status",
+  "d1_data_bytes": "{\"recordModel\":\"Todo\",\"recordId\":\"r1\",\"field\":\"status\",\"deliveryId\":\"dlv_1\",\"source\":\"decl@app1\",\"revision\":3}",
+  "do_data_bytes": "{\"recordModel\":\"Todo\",\"recordId\":\"r1\",\"field\":\"status\",\"deliveryId\":\"dlv_1\",\"source\":\"decl@app1\",\"revision\":3}",
+  "d1_equals_do": true,
+  "byte_length_utf8": 110,
+  "sha256": "a9bad442cdef4f0765e7dd7481242a79fee63f4a46ccf687e6bdbc2130bac42c"
+}

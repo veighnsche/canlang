@@ -1,0 +1,16 @@
+{
+ "integration": "b4-authority",
+ "date": "2026-10-06",
+ "main_before": "bf68e17 (Vince docs-only: package port research, no code impact)",
+ "commits": [
+  "bb479c2 Lane B B4-authority: by-aware commit-time revocation check + compound-gate suite through invoke"
+ ],
+ "lane_commits": [
+  "8b1f7f4 (4 files +315/-34: roles.ts/admission.ts/invoke.ts + b4 test)"
+ ],
+ "patch_id identical": true,
+ "coverage": "state: byRequiresCallerMembership (members/owner/role=true; public/authenticated/roleSubject=false; and=any, or=every, not=false) + admission step-3 explicit void gating + invoke by-projection removed (faithful identity; public/authenticated verdict-identical) + b4-by-aware-fence.test.ts (necessity table + 9 invoke-level: or/not/subject no-false-void, mid-flight revoke voids, builtins regression)",
+ "decisions": "JEV keep_wide STANDS carried; narrower/hook-bounds/per-write/E/D stay parked",
+ "gate": "CANONICAL GREEN: state build 0, 899/899 (889+10); lane: b4 10/10, values 751/751, catalog 59/15",
+ "lane_report": "5b65a206"
+}
