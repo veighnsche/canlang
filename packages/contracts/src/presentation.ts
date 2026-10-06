@@ -1753,6 +1753,39 @@ export const GENERATED_FORM_TYPE_FOR_KIND = {
  */
 export const GENERATED_REF_VERSION_SUFFIX = "__version";
 
+/**
+ * T20b companion suffixes (pinned for the E2b/F1 join; UI-local
+ * GENERATED_REF_VERSION_SUFFIX precedent above). Each companion is a
+ * client-flat-map member that the submission projection consumes and
+ * never forwards to the envelope: `__null` marks explicit-null intent
+ * on nullable inputs only (ignored on non-nullable — tamper-proof);
+ * `__currency` carries the verbatim caller-supplied money currency next
+ * to `amount` (minor); `__fold` disambiguates ambiguous wall times
+ * ('earlier'/'later'). Companion names never enter the closed-inputs
+ * envelope themselves.
+ */
+export const GENERATED_NULL_SUFFIX = "__null";
+export const GENERATED_CURRENCY_SUFFIX = "__currency";
+export const GENERATED_FOLD_SUFFIX = "__fold";
+
+/**
+ * T20b delivery-input presentation rule: a `delivery` derived input
+ * renders as an informational receipt-binding notice in emission order
+ * (capability.operation vN + result nominal + verbatim leaf table) —
+ * never as a submittable field. The submission projection emits no
+ * member for it, even if tampered client state carries one, per the
+ * T19b wire rule (wire.ts: `delivery` entries are declared bindings,
+ * not submittable members; a submitted `delivery` member fails
+ * `validation` like an unknown member). Display-only, no envelope
+ * member, no projection output.
+ *
+ * The rule is documentary: no runtime member is exported because a
+ * delivery input produces no field, no companion, and no envelope
+ * member. The T20a contract test continues to pin the nine pilot
+ * kinds; delivery stays absent from GENERATED_FORM_TYPE_FOR_KIND by
+ * design (the factory fails closed on it, like any unlisted kind).
+ */
+
 /** Caller overrides for generated fields; everything defaults verbatim. */
 export interface GeneratedFormOverrides {
   /**

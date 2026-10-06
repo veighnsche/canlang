@@ -29,6 +29,7 @@ import { pathToFileURL } from "node:url";
 import { afterEach, describe, expect, it } from "vitest";
 import type {
   CompileArtifact,
+  DerivedOperationInputs,
   ModelName,
   MutationEnvelope,
   OperationId,
@@ -40,6 +41,7 @@ import { createTestMemoryStorage } from "../../state/dist/state/src/storage/memo
 // Cross-package journey imports: interfaces DIST (never src), per the
 // assembly.test.ts precedent. Root `build` builds interfaces dist first.
 import { createMcpHandler } from "../../interfaces/dist/interfaces/src/mcp/server.js";
+import { catalogFromArtifactOperations } from "../../interfaces/dist/interfaces/src/http/operations.js";
 import {
   createGrantFixture,
   createIdentityFixture,
@@ -62,6 +64,7 @@ import {
   createArtifactCatalog,
   createArtifactRegistry,
   createDenyClosedMcpPermissions,
+  type BakedDerivedInputs,
 } from "../src/runtime/mcp-registry.js";
 
 /* ------------------------------------------------------------------ */
@@ -81,9 +84,12 @@ function fixtureArtifactForTypes(): CompileArtifact {
 
 const _registryConforms: RealOperationRegistry = createArtifactRegistry(fixtureArtifactForTypes());
 const _catalogConforms: RealSchemaCatalog = createArtifactCatalog(fixtureArtifactForTypes());
+// E1 channel mirror: a derived-carrying catalog also satisfies the real catalog type.
+const _catalogDerivedConforms: RealSchemaCatalog = createArtifactCatalog(fixtureArtifactForTypes(), {});
 const _permissionsConform: RealMcpPermissions = createDenyClosedMcpPermissions();
 void _registryConforms;
 void _catalogConforms;
+void _catalogDerivedConforms;
 void _permissionsConform;
 
 // The assembled `McpDeps` mirror matches the real one in every member
@@ -187,6 +193,10 @@ function fixtureModels(): unknown[] {
       fields: [
         { name: "title", required: true, serverOnly: false, field: { kind: "string" } },
         { name: "done", required: false, serverOnly: false, field: { kind: "boolean" } },
+        // C1: plain string at the model layer; the OPERATION declares
+        // the enum (see the bound-check test) so only the derived
+        // channel — never model validation — rejects non-members.
+        { name: "priority", required: false, serverOnly: false, field: { kind: "string" } },
       ],
       deleteMode: "remove",
     },
@@ -195,6 +205,14 @@ function fixtureModels(): unknown[] {
 
 const OPS_SOURCE = `export function canApp() {
   return {
+    // B7: the create declares its admission gate (absent entries
+    // deny) and Todo carries explicit-public read provenance
+    // (absent reads serve zero grants) so the canonical pins
+    // still commit and read back.
+    policy: {
+      operations: { "acme.Todo.create": { by: ["members"] } },
+      models: { "acme.Todo": { read: ["Todo.read.1"], public: ["Todo.read.1"] } },
+    },
     todoRead: async (c, input) => ({ rows: [{ id: "t1", title: "fixture" }], caller: c.caller.userId, inputs: input.inputs }),
     todoCreate: async (c, input) => ({ status: "committed", operation_id: input.operation_id, title: input.inputs.title, caller: c.caller.userId }),
   };
@@ -203,13 +221,14 @@ const OPS_SOURCE = `export function canApp() {
 // T17c: CRUD operations SKIP their handlers on the canonical path (the
 // pipeline executes), so the echoes above never run for converted pins
 // — the module still must export canApp() for policy transcription
-// (absent policy admits public).
+// (B7: absent policy now DENIES, so the fixture declares its gates).
 
 async function assembleMcpWorker(opts: {
   ops?: unknown[];
   permissions?: AssemblyDeps["mcp"] extends { permissions?: infer P } | undefined ? P : never;
   withFactory?: boolean;
   canonical?: boolean;
+  derivedInputs?: BakedDerivedInputs;
 }): Promise<{
   fetch: (req: Request) => Promise<Response>;
   grantToken: string;
@@ -243,6 +262,7 @@ async function assembleMcpWorker(opts: {
           mcp: {
             createHandler: _factoryShape,
             ...(opts.permissions === undefined ? {} : { permissions: opts.permissions }),
+            ...(opts.derivedInputs === undefined ? {} : { derivedInputs: opts.derivedInputs }),
           },
         }),
   };
@@ -576,6 +596,90 @@ describe("worker POST /mcp", () => {
       grant: grantToken,
     });
     expect(noId.body.error?.code).toBe(-32602);
+  });
+
+  it("bound-checks MCP calls when derived inputs are joined (C1 mirror)", async () => {
+    // Framing admits any present string; only the bound checker
+    // rejects enum non-members. With derivedInputs joined (the
+    // production shape the P-B bake stages), the worker answers
+    // InvalidParams; without, the same call commits framing-only
+    // (E1 legacy — the gap this mirror closes).
+    const ops = [
+      {
+        name: MUT_OP,
+        kind: "create",
+        description: "Create with priority.",
+        inputs: {
+          fields: [
+            { name: "title", field: { kind: "string" }, required: true },
+            { name: "priority", field: { kind: "enum", values: ["low", "high"] }, required: false },
+          ],
+        },
+      },
+    ];
+    const bakeFor = (artifact: CompileArtifact): BakedDerivedInputs => {
+      const real = catalogFromArtifactOperations(artifact);
+      const baked: Record<string, DerivedOperationInputs> = {};
+      for (const op of artifact.operations ?? []) {
+        const derived = real.derivedFor(op.name);
+        if (derived === null) throw new Error(`no derivation for ${op.name}`);
+        baked[op.name] = derived;
+      }
+      return baked;
+    };
+    const bakeArtifact = fixtureArtifact();
+    (bakeArtifact as unknown as { operations: unknown[] }).operations = ops;
+    const baked = bakeFor(bakeArtifact);
+
+    const { fetch, grantToken } = await assembleMcpWorker({
+      ops,
+      permissions: allowAllPermissions(),
+      canonical: true,
+      derivedInputs: baked,
+    });
+    const bad = await mcpCall(
+      fetch,
+      "tools/call",
+      {
+        name: MUT_OP,
+        arguments: { operation_id: freshOperationId(), title: "x", priority: "urgent" },
+      },
+      { grant: grantToken },
+    );
+    expect(bad.body.error?.code).toBe(-32602);
+    expect(bad.body.error?.message).toContain('Invalid value for input "priority"');
+
+    const good = await mcpCall(
+      fetch,
+      "tools/call",
+      {
+        name: MUT_OP,
+        arguments: { operation_id: freshOperationId(), title: "x", priority: "high" },
+      },
+      { grant: grantToken },
+    );
+    expect(good.body.error).toBeUndefined();
+    const committed = JSON.parse(
+      ((good.body.result as ToolResultBody).content[0]?.text ?? "null") as string,
+    ) as { status: string; result: { data: Record<string, unknown> } };
+    expect(committed.status).toBe("committed");
+    expect(committed.result.data).toEqual({ title: "x", priority: "high" });
+
+    const legacy = await assembleMcpWorker({ ops, permissions: allowAllPermissions(), canonical: true });
+    const unbound = await mcpCall(
+      legacy.fetch,
+      "tools/call",
+      {
+        name: MUT_OP,
+        arguments: { operation_id: freshOperationId(), title: "x", priority: "urgent" },
+      },
+      { grant: legacy.grantToken },
+    );
+    expect(unbound.body.error).toBeUndefined();
+    const legacyCommitted = JSON.parse(
+      ((unbound.body.result as ToolResultBody).content[0]?.text ?? "null") as string,
+    ) as { status: string };
+    expect(legacyCommitted.status).toBe("committed");
   });
 
   it("deny-closed by default: empty list, forbidden calls, no oracle", async () => {

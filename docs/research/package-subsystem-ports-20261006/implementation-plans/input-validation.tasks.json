@@ -1,0 +1,1803 @@
+{
+  "plan": "input-validation",
+  "lanes": [
+    {
+      "id": "V-integrator",
+      "title": "Shared values and ABI integration owner",
+      "owns": [
+        "packages/values/Cargo.toml",
+        "packages/values/Cargo.lock",
+        "packages/values/semantics/Cargo.toml",
+        "packages/values/bindings/Cargo.toml",
+        "packages/values/semantics/src/lib.rs",
+        "packages/values/semantics/src/codecs/mod.rs",
+        "packages/values/semantics/src/profiles.rs",
+        "packages/values/bindings/src/lib.rs",
+        "packages/values/bindings/src/validation.rs",
+        "packages/values/bindings/validation.ts",
+        "packages/values/bindings/backend.ts",
+        "packages/values/bindings/bootstrap.ts",
+        "packages/values/src/schema.ts",
+        "packages/values/src/wire.ts",
+        "packages/values/src/index.ts",
+        "packages/values/tsconfig.json",
+        "packages/values/package.json",
+        "packages/values/semantics/tests/input_validation.rs",
+        "packages/values/test/validation-binding.test.ts",
+        "packages/cloudflare/test/owned-input-delivery.test.ts",
+        "docs/research/package-subsystem-ports-20261006/evidence/input-validation/prepared-hook-review.md",
+        "docs/research/package-subsystem-ports-20261006/evidence/input-validation/abi-binding-smoke.json",
+        "docs/research/package-subsystem-ports-20261006/evidence/input-validation/http-default-deployment.json",
+        "docs/research/package-subsystem-ports-20261006/evidence/input-validation/selection-rollback.json",
+        "docs/research/package-subsystem-ports-20261006/evidence/input-validation/final-source-checks.md",
+        "docs/research/package-subsystem-ports-20261006/evidence/input-validation/verify.log"
+      ]
+    },
+    {
+      "id": "V-plan",
+      "title": "Owner plans and schema preparation",
+      "owns": [
+        "packages/values/semantics/src/plans.rs",
+        "packages/values/src/prepared/plan.ts",
+        "packages/values/bindings/plans.ts",
+        "packages/values/test/prepared-validation.test.ts",
+        "docs/research/package-subsystem-ports-20261006/evidence/input-validation/plan-contract.md",
+        "docs/research/package-subsystem-ports-20261006/evidence/input-validation/prepared-plan-handoff.md"
+      ]
+    },
+    {
+      "id": "V-input",
+      "title": "Parser provenance, arenas and lifetimes",
+      "owns": [
+        "packages/values/semantics/src/input.rs",
+        "packages/values/bindings/owned-input.ts",
+        "packages/interfaces/src/http/limits.ts",
+        "packages/values/test/owned-input.test.ts",
+        "packages/values/test/validation-lifecycle.test.ts",
+        "packages/values/semantics/tests/input_validation/input.rs",
+        "docs/research/package-subsystem-ports-20261006/evidence/input-validation/resource-policy.md"
+      ]
+    },
+    {
+      "id": "V-values",
+      "title": "Values interpreter, codecs and materialization",
+      "owns": [
+        "packages/values/semantics/src/validation.rs",
+        "packages/values/semantics/src/codecs/owned.rs",
+        "packages/values/semantics/src/profiles/values.rs",
+        "packages/values/src/prepared/codec.ts",
+        "packages/values/src/prepared/validation.ts",
+        "packages/values/bindings/materialize.ts",
+        "packages/values/bindings/predicates.ts",
+        "packages/values/test/legacy-validation-traces.test.ts",
+        "packages/values/semantics/tests/input_validation/values.rs",
+        "docs/research/package-subsystem-ports-20261006/evidence/input-validation/prepared-values.json",
+        "docs/research/package-subsystem-ports-20261006/evidence/input-validation/host-predicates.json"
+      ]
+    },
+    {
+      "id": "V-http",
+      "title": "HTTP profile and owning handler/module join",
+      "owns": [
+        "packages/values/semantics/src/profiles/http.rs",
+        "packages/interfaces/src/envelope/prepared.ts",
+        "packages/interfaces/src/http/operations.ts",
+        "packages/interfaces/test/owned-http.test.ts",
+        "packages/cloudflare/src/worker/assembly.ts",
+        "packages/cloudflare/test/owned-http-route.test.ts",
+        "packages/values/semantics/tests/input_validation/http.rs",
+        "docs/research/package-subsystem-ports-20261006/evidence/input-validation/http-adoption-gate.md",
+        "docs/research/package-subsystem-ports-20261006/evidence/input-validation/prepared-http.json",
+        "docs/research/package-subsystem-ports-20261006/evidence/input-validation/http-profile-differential.json",
+        "docs/research/package-subsystem-ports-20261006/evidence/input-validation/http-consumer.json"
+      ]
+    },
+    {
+      "id": "V-state",
+      "title": "Generated-state profile and canonical bridge",
+      "owns": [
+        "packages/values/semantics/src/profiles/state.rs",
+        "packages/state/src/invocation/prepared-inputs.ts",
+        "packages/state/src/invocation/registry.ts",
+        "packages/state/src/invocation/admission.ts",
+        "packages/state/src/invocation/invoke.ts",
+        "packages/cloudflare/src/runtime/invoke.ts",
+        "packages/state/test/invocation/owned-admission.test.ts",
+        "packages/values/semantics/tests/input_validation/state.rs",
+        "docs/research/package-subsystem-ports-20261006/evidence/input-validation/state-contract.md",
+        "docs/research/package-subsystem-ports-20261006/evidence/input-validation/prepared-state.json",
+        "docs/research/package-subsystem-ports-20261006/evidence/input-validation/state-profile-differential.json",
+        "docs/research/package-subsystem-ports-20261006/evidence/input-validation/bridge-handoff.md",
+        "docs/research/package-subsystem-ports-20261006/evidence/input-validation/state-replay-traces.json",
+        "docs/research/package-subsystem-ports-20261006/evidence/input-validation/state-copy-cost.json"
+      ]
+    },
+    {
+      "id": "V-mcp",
+      "title": "MCP provenance decision and ordinary profile",
+      "owns": [
+        "packages/values/semantics/src/profiles/mcp.rs",
+        "packages/interfaces/src/mcp/prepared.ts",
+        "packages/interfaces/src/mcp/schemas.ts",
+        "packages/interfaces/src/mcp/server.ts",
+        "packages/interfaces/test/owned-mcp.test.ts",
+        "packages/values/semantics/tests/input_validation/mcp.rs",
+        "docs/research/package-subsystem-ports-20261006/evidence/input-validation/mcp-provenance.md",
+        "docs/research/package-subsystem-ports-20261006/evidence/input-validation/prepared-mcp.json",
+        "docs/research/package-subsystem-ports-20261006/evidence/input-validation/mcp-profile-differential.json",
+        "docs/research/package-subsystem-ports-20261006/evidence/input-validation/mcp-consumer.json"
+      ]
+    },
+    {
+      "id": "V-forms",
+      "title": "Independent forms source assessment and optional producer",
+      "owns": [
+        "packages/interfaces/src/http/forms-owned.ts",
+        "packages/interfaces/test/owned-forms.test.ts",
+        "docs/research/package-subsystem-ports-20261006/evidence/input-validation/forms-provenance.md",
+        "docs/research/package-subsystem-ports-20261006/evidence/input-validation/forms-consumer.json"
+      ]
+    },
+    {
+      "id": "V-evidence",
+      "title": "Fixtures, resource harness and acceptance ledger",
+      "owns": [
+        "packages/values/conformance/owned-input/v1/",
+        "docs/ideal-filetree-plan.md",
+        "docs/research/package-subsystem-ports-20261006/evidence/input-validation/contracts.md",
+        "docs/research/package-subsystem-ports-20261006/evidence/input-validation/caller-inventory.json",
+        "docs/research/package-subsystem-ports-20261006/evidence/input-validation/current-ts.json",
+        "docs/research/package-subsystem-ports-20261006/evidence/input-validation/abi-vectors.json",
+        "docs/research/package-subsystem-ports-20261006/evidence/input-validation/abi-decisions.md",
+        "docs/research/package-subsystem-ports-20261006/evidence/input-validation/prepared-ts.json",
+        "docs/research/package-subsystem-ports-20261006/evidence/input-validation/values-differential.json",
+        "docs/research/package-subsystem-ports-20261006/evidence/input-validation/http-resources.json",
+        "docs/research/package-subsystem-ports-20261006/evidence/input-validation/resources.json",
+        "docs/research/package-subsystem-ports-20261006/evidence/input-validation/http-completion.md",
+        "docs/research/package-subsystem-ports-20261006/evidence/input-validation/optional-coverage.md",
+        "docs/research/package-subsystem-ports-20261006/evidence/input-validation/profile-differential.json",
+        "docs/research/package-subsystem-ports-20261006/evidence/input-validation/measurement-contract.md",
+        "docs/research/package-subsystem-ports-20261006/evidence/input-validation/measurements.json",
+        "docs/research/package-subsystem-ports-20261006/evidence/input-validation/rollout-decision.md",
+        "docs/research/package-subsystem-ports-20261006/evidence/input-validation/filetree-review.md",
+        "docs/research/package-subsystem-ports-20261006/evidence/input-validation/completion-ledger.md"
+      ]
+    }
+  ],
+  "tasks": [
+    {
+      "id": "V01.1",
+      "parent": "V01",
+      "title": "Freeze caller contracts and workload registry",
+      "lane": "V-evidence",
+      "wave": 1,
+      "depends_on": [
+        "C01.ready"
+      ],
+      "writes": [
+        "docs/research/package-subsystem-ports-20261006/evidence/input-validation/contracts.md",
+        "docs/research/package-subsystem-ports-20261006/evidence/input-validation/caller-inventory.json",
+        "docs/research/package-subsystem-ports-20261006/evidence/input-validation/current-ts.json"
+      ],
+      "kind": "work",
+      "required": true,
+      "acceptance": [
+        "Owners review each admitted domain, error/order/identity obligation and consumer; public arbitrary-unknown and hand-built schemas remain fully legacy TS.",
+        "contracts.md and caller-inventory.json distinguish deployed MCP, HTTP 501, forms and handle mode; no full-port claim."
+      ]
+    },
+    {
+      "id": "V01.2",
+      "parent": "V01",
+      "title": "Assess bounded HTTP adoption join",
+      "lane": "V-http",
+      "wave": 1,
+      "depends_on": [
+        "C01.ready"
+      ],
+      "writes": [
+        "docs/research/package-subsystem-ports-20261006/evidence/input-validation/http-adoption-gate.md"
+      ],
+      "kind": "work",
+      "required": true,
+      "acceptance": [
+        "C01 source-owner contract names exact existing-handler join and owning files, or states absence without inventing a new HTTP feature.",
+        "Package/workerd fixture proof and default deployed adoption are separately testable gates; blocked join retains default 501."
+      ]
+    },
+    {
+      "id": "V01.3",
+      "parent": "V01",
+      "title": "Freeze state sequencing and bridge contract",
+      "lane": "V-state",
+      "wave": 1,
+      "depends_on": [
+        "C01.ready"
+      ],
+      "writes": [
+        "docs/research/package-subsystem-ports-20261006/evidence/input-validation/state-contract.md"
+      ],
+      "kind": "work",
+      "required": true,
+      "acceptance": [
+        "Contract preserves readRevision \u2192 hash(raw) \u2192 readReceipt \u2192 replay OR age \u2192 membership/by \u2192 normalize/ref-extract \u2192 ordered loads and read auth-first.",
+        "Protected graph never crosses arbitrary OperationInvoker callbacks; unproven/generated-handler/internal calls retain legacy TS."
+      ]
+    },
+    {
+      "id": "V01.4",
+      "parent": "V01",
+      "title": "Agree owner-plan and shared-file handoffs",
+      "lane": "V-plan",
+      "wave": 1,
+      "depends_on": [
+        "C01.ready"
+      ],
+      "writes": [
+        "docs/research/package-subsystem-ports-20261006/evidence/input-validation/plan-contract.md"
+      ],
+      "kind": "work",
+      "required": true,
+      "acceptance": [
+        "No second currency, Decimal, wire authority, catalog or compiler work; immutable data copies and private owner tokens establish provenance, never freeze/shape alone.",
+        "Each lane has exclusive module files and exact-values publishes A03.foundation before arithmetic completion."
+      ]
+    },
+    {
+      "id": "V10.1",
+      "parent": "V10",
+      "title": "Inspect installed MCP SDK producer seam early",
+      "lane": "V-mcp",
+      "wave": 1,
+      "depends_on": [
+        "C01.ready"
+      ],
+      "writes": [
+        "docs/research/package-subsystem-ports-20261006/evidence/input-validation/mcp-provenance.md"
+      ],
+      "kind": "work",
+      "required": true,
+      "acceptance": [
+        "Decision includes source/version and evidence that a protected graph can stay inaccessible until conversion; types, freeze or SDK object inspection do not certify it.",
+        "Deferred MCP is explicitly unported and does not block HTTP preparation or deployment package proof."
+      ]
+    },
+    {
+      "id": "V10.2",
+      "parent": "V10",
+      "title": "Assess forms producer separately",
+      "lane": "V-forms",
+      "wave": 1,
+      "depends_on": [
+        "C01.ready"
+      ],
+      "writes": [
+        "docs/research/package-subsystem-ports-20261006/evidence/input-validation/forms-provenance.md"
+      ],
+      "kind": "work",
+      "required": true,
+      "acceptance": [
+        "No JSON lineage is inferred for form objects; coercion, duplicate and current __proto__ semantics are explicit.",
+        "Decision permits independent HTTP JSON progress and states that deferred forms are not ported."
+      ]
+    },
+    {
+      "id": "V02.1",
+      "parent": "V02",
+      "title": "Prepare immutable owner plans in TS",
+      "lane": "V-plan",
+      "wave": 2,
+      "depends_on": [
+        "V01",
+        "C02.ready"
+      ],
+      "writes": [
+        "packages/values/src/prepared/plan.ts",
+        "packages/values/test/prepared-validation.test.ts",
+        "docs/research/package-subsystem-ports-20261006/evidence/input-validation/prepared-plan-handoff.md"
+      ],
+      "kind": "work",
+      "required": true,
+      "acceptance": [
+        "Descriptor/default/bounds mutation, forged schema tags and freeze-without-provenance do not mutate registered plans or promote legacy schemas.",
+        "Owner-plan TS fixtures preserve current descriptor normalization/default validation semantics and synchronous behavior."
+      ]
+    },
+    {
+      "id": "V02.2",
+      "parent": "V02",
+      "title": "Prepare values AST codec and whole-call comparator",
+      "lane": "V-values",
+      "wave": 2,
+      "depends_on": [
+        "V02.1",
+        "C02.ready"
+      ],
+      "writes": [
+        "packages/values/src/prepared/codec.ts",
+        "packages/values/src/prepared/validation.ts",
+        "packages/values/test/legacy-validation-traces.test.ts",
+        "docs/research/package-subsystem-ports-20261006/evidence/input-validation/prepared-values.json"
+      ],
+      "kind": "work",
+      "required": true,
+      "acceptance": [
+        "Current/prepared TS agree over values matrix and legacy traces; getters are never eagerly snapshotted or shadow-executed.",
+        "Prepared TS is independently adoptable; hand-built schemas and unknown encode/decode inputs retain full legacy scope."
+      ]
+    },
+    {
+      "id": "V02.3",
+      "parent": "V02",
+      "title": "Prepare interfaces HTTP framing/binding plan",
+      "lane": "V-http",
+      "wave": 2,
+      "depends_on": [
+        "V01",
+        "C02.ready"
+      ],
+      "writes": [
+        "packages/interfaces/src/envelope/prepared.ts",
+        "packages/interfaces/test/owned-http.test.ts",
+        "docs/research/package-subsystem-ports-20261006/evidence/input-validation/prepared-http.json"
+      ],
+      "kind": "work",
+      "required": true,
+      "acceptance": [
+        "First unknown JS-enumeration key, first missing shape field, first bound derived-input error remain in order; explicit own null/undefined differs from values.",
+        "HTTP currency-string/string-boolean deferral rules remain distinct; no defaults or manufactured values schema."
+      ]
+    },
+    {
+      "id": "V02.4",
+      "parent": "V02",
+      "title": "Prepare generated-state owner plan",
+      "lane": "V-state",
+      "wave": 2,
+      "depends_on": [
+        "V01",
+        "C02.ready"
+      ],
+      "writes": [
+        "packages/state/src/invocation/prepared-inputs.ts",
+        "packages/state/src/invocation/registry.ts",
+        "packages/state/test/invocation/owned-admission.test.ts",
+        "docs/research/package-subsystem-ports-20261006/evidence/input-validation/prepared-state.json"
+      ],
+      "kind": "work",
+      "required": true,
+      "acceptance": [
+        "Generated scalars stay presence-only, strict positive \u226415-digit versions and extra-ref permissiveness persist; operation defaults stay host-owned.",
+        "Generated fills are fresh arrays/shallow copy, interim input identity unchanged; permissive unknown loader results never enter owned cache."
+      ]
+    },
+    {
+      "id": "V02.5",
+      "parent": "V02",
+      "title": "Prepare ordinary MCP plan independently of adoption",
+      "lane": "V-mcp",
+      "wave": 2,
+      "depends_on": [
+        "V01",
+        "C02.ready",
+        "V02.3"
+      ],
+      "writes": [
+        "packages/interfaces/src/mcp/prepared.ts",
+        "packages/interfaces/src/mcp/schemas.ts",
+        "packages/interfaces/test/owned-mcp.test.ts",
+        "docs/research/package-subsystem-ports-20261006/evidence/input-validation/prepared-mcp.json"
+      ],
+      "kind": "work",
+      "required": true,
+      "acceptance": [
+        "Exact ref keys/ID \u2264256 UTF-16 units and arbitrary digits versions remain MCP-specific; query operation_id remains unknown business member.",
+        "InvalidParams projection and sealed host path preserved; pure profile work proceeds even when SDK adoption is deferred."
+      ]
+    },
+    {
+      "id": "V02.6",
+      "parent": "V02",
+      "title": "Wire private prepared hooks without public API drift",
+      "lane": "V-integrator",
+      "wave": 2,
+      "depends_on": [
+        "V02.1",
+        "V02.2"
+      ],
+      "writes": [
+        "packages/values/src/schema.ts",
+        "packages/values/src/wire.ts",
+        "packages/values/src/index.ts",
+        "docs/research/package-subsystem-ports-20261006/evidence/input-validation/prepared-hook-review.md"
+      ],
+      "kind": "work",
+      "required": true,
+      "acceptance": [
+        "A1/B2 current/facade legacy traces match; unknown/default/schema accessors observe the old evaluation order.",
+        "Private prepared calls reach extracted modules while unknown callers remain TS; no semantic exception retry."
+      ]
+    },
+    {
+      "id": "V03.1",
+      "parent": "V03",
+      "title": "Define validation ABI extension and decision vectors",
+      "lane": "V-evidence",
+      "wave": 2,
+      "depends_on": [
+        "V01",
+        "C03.ready",
+        "A03.foundation"
+      ],
+      "writes": [
+        "docs/research/package-subsystem-ports-20261006/evidence/input-validation/abi-vectors.json",
+        "docs/research/package-subsystem-ports-20261006/evidence/input-validation/abi-decisions.md",
+        "packages/values/conformance/owned-input/v1/cases.json",
+        "packages/values/conformance/owned-input/v1/README.md"
+      ],
+      "kind": "work",
+      "required": true,
+      "acceptance": [
+        "Vectors distinguish -0, huge rounded JSON integers, 1e400, numeric strings, null/bool/array/object, lone surrogate keys/text and own __proto__.",
+        "Host JSON semantics preserved; number-free opaque json is never used as transport, fixed-width counts reject before coercion."
+      ]
+    },
+    {
+      "id": "V03.2",
+      "parent": "V03",
+      "title": "Build ordered input transport arena",
+      "lane": "V-input",
+      "wave": 2,
+      "depends_on": [
+        "V03.1"
+      ],
+      "writes": [
+        "packages/values/semantics/src/input.rs",
+        "packages/values/semantics/tests/input_validation/input.rs"
+      ],
+      "kind": "work",
+      "required": true,
+      "acceptance": [
+        "Host parser numeric outcomes including nonfinite and -0 remain representable and reach appropriate profile/hash rejection stage.",
+        "Numeric-looking key order, duplicate JSON keys, own __proto__, controls and lone surrogates retain exact data."
+      ]
+    },
+    {
+      "id": "V03.3",
+      "parent": "V03",
+      "title": "Create private parser token and controlled lineage",
+      "lane": "V-input",
+      "wave": 2,
+      "depends_on": [
+        "V01",
+        "C03.ready",
+        "A03.foundation"
+      ],
+      "writes": [
+        "packages/values/bindings/owned-input.ts",
+        "packages/interfaces/src/http/limits.ts",
+        "packages/values/test/owned-input.test.ts"
+      ],
+      "kind": "work",
+      "required": true,
+      "acceptance": [
+        "Forged tokens, frozen proxies, schema tags and mutated/exposed public copies cannot enter owned execution; no adopt(unknown).",
+        "Malformed/empty/scalar-root JSON, byte caps/chunk cancellation, BOM and syntax errors match current host stage; forms retain their path."
+      ]
+    },
+    {
+      "id": "V03.4",
+      "parent": "V03",
+      "title": "Implement owner registration and generation handles",
+      "lane": "V-plan",
+      "wave": 2,
+      "depends_on": [
+        "V02.1",
+        "V03.1"
+      ],
+      "writes": [
+        "packages/values/semantics/src/plans.rs",
+        "packages/values/bindings/plans.ts",
+        "packages/values/test/prepared-validation.test.ts"
+      ],
+      "kind": "work",
+      "required": true,
+      "acceptance": [
+        "Accessor/proxy schemas remain legacy; pre/post-registration mutation, schema identity reuse, forged defaults and duplicate/invalid descriptors cannot corrupt plans.",
+        "Foreign/stale/disposed handles fail construction before execution, release is idempotent and no caller-controlled unbounded type-string cache."
+      ]
+    },
+    {
+      "id": "V02.7",
+      "parent": "V02",
+      "title": "Publish complete current and prepared-TS comparator ledger",
+      "lane": "V-evidence",
+      "wave": 3,
+      "depends_on": [
+        "V02.1",
+        "V02.2",
+        "V02.3",
+        "V02.4",
+        "V02.5",
+        "V02.6"
+      ],
+      "writes": [
+        "docs/research/package-subsystem-ports-20261006/evidence/input-validation/prepared-ts.json"
+      ],
+      "kind": "work",
+      "required": true,
+      "acceptance": [
+        "Current/prepared baselines are separate auditable measured outcomes, not inferred from extraction or removed string parsing.",
+        "A1\u2013A3/B2 traces and default/empty/sentinel identity agree; prepared TS remains independently adoptable."
+      ]
+    },
+    {
+      "id": "V04.1",
+      "parent": "V04",
+      "title": "Implement ordered values traversal and policy",
+      "lane": "V-values",
+      "wave": 3,
+      "depends_on": [
+        "V02.2",
+        "V03.2",
+        "V03.4",
+        "A04.5",
+        "A05.3",
+        "A04.2"
+      ],
+      "writes": [
+        "packages/values/semantics/src/validation.rs",
+        "packages/values/semantics/src/profiles/values.rs",
+        "packages/values/semantics/tests/input_validation/values.rs"
+      ],
+      "kind": "work",
+      "required": true,
+      "acceptance": [
+        "B1 native fixed/seeded fixtures match all ordered errors, paths and values; failure never publishes partial result.",
+        "No JSON Schema/Serde default policy; create/update/nullability/nullable-array precedence and legacy presence remain unchanged."
+      ]
+    },
+    {
+      "id": "V04.2",
+      "parent": "V04",
+      "title": "Implement owned codec dispatch and materialization",
+      "lane": "V-values",
+      "wave": 3,
+      "depends_on": [
+        "V04.1"
+      ],
+      "writes": [
+        "packages/values/semantics/src/codecs/owned.rs",
+        "packages/values/bindings/materialize.ts",
+        "packages/values/semantics/tests/input_validation/values.rs"
+      ],
+      "kind": "work",
+      "required": true,
+      "acceptance": [
+        "Exact spelling/leading zeros/-0/scale/canonical text, numeric JSON refusal, money currency/keys and temporal edges match shared oracle.",
+        "Repeated defaults/empty arrays keep identity and frozen structure; returned structural BigInt/Decimal/Money match TS, generated-state arrays stay fresh."
+      ]
+    },
+    {
+      "id": "V06.1",
+      "parent": "V06",
+      "title": "Implement HTTP-only native profile",
+      "lane": "V-http",
+      "wave": 3,
+      "depends_on": [
+        "V02.3",
+        "V03.2",
+        "V03.4",
+        "A04.5",
+        "A05.3"
+      ],
+      "writes": [
+        "packages/values/semantics/src/profiles/http.rs",
+        "packages/values/semantics/tests/input_validation/http.rs",
+        "packages/interfaces/test/owned-http.test.ts"
+      ],
+      "kind": "work",
+      "required": true,
+      "acceptance": [
+        "No values interpreter or URL/Intl predicate prerequisite; HTTP first unknown \u2192 first missing \u2192 first bound order and path spelling match.",
+        "HTTP ref extras/currency-string and deferred string/boolean semantics remain permissive as baseline; top-level/action_handle rules unchanged."
+      ]
+    },
+    {
+      "id": "V06.2",
+      "parent": "V06",
+      "title": "Implement generated-state native profile",
+      "lane": "V-state",
+      "wave": 3,
+      "depends_on": [
+        "V02.4",
+        "V03.2",
+        "V03.4"
+      ],
+      "writes": [
+        "packages/values/semantics/src/profiles/state.rs",
+        "packages/values/semantics/tests/input_validation/state.rs",
+        "packages/state/test/invocation/owned-admission.test.ts"
+      ],
+      "kind": "work",
+      "required": true,
+      "acceptance": [
+        "Native vectors preserve safe-number conversion, extra ref-member permissiveness, unescaped legacy paths and state-specific error accumulation.",
+        "No external store/auth/ref loads are performed by pure profile; model/defaulted scenario callable remains host-owned."
+      ]
+    },
+    {
+      "id": "V06.3",
+      "parent": "V06",
+      "title": "Implement ordinary MCP native policy",
+      "lane": "V-mcp",
+      "wave": 3,
+      "depends_on": [
+        "V02.5",
+        "V03.2",
+        "V03.4",
+        "A04.5",
+        "A05.3"
+      ],
+      "writes": [
+        "packages/values/semantics/src/profiles/mcp.rs",
+        "packages/values/semantics/tests/input_validation/mcp.rs",
+        "packages/interfaces/test/owned-mcp.test.ts"
+      ],
+      "kind": "work",
+      "required": true,
+      "acceptance": [
+        "Native pure fixtures agree with current/prepared including multi-error disagreement cases; sealed mode untouched.",
+        "Implementation of profile alone never certifies SDK producer seam or claims deployed migration."
+      ]
+    },
+    {
+      "id": "V03.5",
+      "parent": "V03",
+      "title": "Land coordinated minimal binding and shared module registrations",
+      "lane": "V-integrator",
+      "wave": 3,
+      "depends_on": [
+        "V03.2",
+        "V03.4",
+        "C04.ready",
+        "A07.foundation"
+      ],
+      "writes": [
+        "packages/values/semantics/src/lib.rs",
+        "packages/values/semantics/src/profiles.rs",
+        "packages/values/semantics/src/codecs/mod.rs",
+        "packages/values/bindings/src/lib.rs",
+        "packages/values/bindings/src/validation.rs",
+        "packages/values/bindings/validation.ts",
+        "packages/values/semantics/tests/input_validation.rs",
+        "packages/values/test/validation-binding.test.ts",
+        "docs/research/package-subsystem-ports-20261006/evidence/input-validation/abi-binding-smoke.json"
+      ],
+      "kind": "work",
+      "required": true,
+      "acceptance": [
+        "Actual binding, not serializer-only simulation, preserves bits/UTF-16/keys and checks malformed version/length/fixed-width overflow before coercion.",
+        "C04 smoke inventory and bootstrap checks prove real bytes; fake bindings and native-only JSON cannot complete V03."
+      ]
+    },
+    {
+      "id": "V06.8",
+      "parent": "V06",
+      "title": "Register HTTP action after exact binding handoff",
+      "lane": "V-integrator",
+      "wave": 4,
+      "depends_on": [
+        "V06.1",
+        "V03.5",
+        "A07"
+      ],
+      "writes": [
+        "packages/values/semantics/src/lib.rs",
+        "packages/values/semantics/src/profiles.rs",
+        "packages/values/bindings/src/lib.rs",
+        "packages/values/bindings/src/validation.rs",
+        "packages/values/bindings/validation.ts",
+        "packages/values/semantics/tests/input_validation.rs"
+      ],
+      "kind": "work",
+      "required": true,
+      "acceptance": [
+        "Actual HTTP whole-profile binding compiles and runs without waiting for values/predicates/SDK/forms; no duplicate numeric transport or shared-file race."
+      ]
+    },
+    {
+      "id": "V06.9",
+      "parent": "V06",
+      "title": "Register generated-state action in serial integration queue",
+      "lane": "V-integrator",
+      "wave": 4,
+      "depends_on": [
+        "V06.2",
+        "V06.8"
+      ],
+      "writes": [
+        "packages/values/semantics/src/lib.rs",
+        "packages/values/semantics/src/profiles.rs",
+        "packages/values/bindings/src/validation.rs",
+        "packages/values/bindings/validation.ts",
+        "packages/values/semantics/tests/input_validation.rs"
+      ],
+      "kind": "work",
+      "required": true,
+      "acceptance": [
+        "State actual binding compiles against presence/ref policy without full values traversal; integrator alone edits shared roots."
+      ]
+    },
+    {
+      "id": "V06.10",
+      "parent": "V06",
+      "title": "Register ordinary MCP action in serial integration queue",
+      "lane": "V-integrator",
+      "wave": 4,
+      "depends_on": [
+        "V06.3",
+        "V06.9"
+      ],
+      "writes": [
+        "packages/values/semantics/src/lib.rs",
+        "packages/values/semantics/src/profiles.rs",
+        "packages/values/bindings/src/validation.rs",
+        "packages/values/bindings/validation.ts",
+        "packages/values/semantics/tests/input_validation.rs"
+      ],
+      "kind": "work",
+      "required": true,
+      "acceptance": [
+        "Pure MCP actual binding compiles and owns separate profile policy; no implication of verified SDK lineage."
+      ]
+    },
+    {
+      "id": "V04.4",
+      "parent": "V04",
+      "title": "Register values interpreter and materialization in serial queue",
+      "lane": "V-integrator",
+      "wave": 4,
+      "depends_on": [
+        "V04.2",
+        "V06.10"
+      ],
+      "writes": [
+        "packages/values/semantics/src/lib.rs",
+        "packages/values/semantics/src/profiles.rs",
+        "packages/values/semantics/src/codecs/mod.rs",
+        "packages/values/bindings/src/validation.rs",
+        "packages/values/bindings/validation.ts",
+        "packages/values/semantics/tests/input_validation.rs"
+      ],
+      "kind": "work",
+      "required": true,
+      "acceptance": [
+        "Actual whole values calls reconstruct structural/default/sentinel results and ordered failures; shared module edits remain serialized."
+      ]
+    },
+    {
+      "id": "V05.1",
+      "parent": "V05",
+      "title": "Prove demand-ordered host predicate protocol",
+      "lane": "V-values",
+      "wave": 4,
+      "depends_on": [
+        "V04.2",
+        "V04.4"
+      ],
+      "writes": [
+        "packages/values/bindings/predicates.ts",
+        "packages/values/semantics/src/codecs/owned.rs",
+        "packages/values/semantics/tests/input_validation/values.rs",
+        "docs/research/package-subsystem-ports-20261006/evidence/input-validation/host-predicates.json"
+      ],
+      "kind": "work",
+      "required": true,
+      "acceptance": [
+        "No lossy String conversion or eager precomputation before earlier violations; runtime URL/locale/timezone/currency behavior matches.",
+        "Unsupported plan fallback precedes input evaluation, never retries semantic exceptions; HTTP can progress without these callbacks."
+      ]
+    },
+    {
+      "id": "V05.2",
+      "parent": "V05",
+      "title": "Encode retained interpreter results inside request",
+      "lane": "V-values",
+      "wave": 4,
+      "depends_on": [
+        "V05.1"
+      ],
+      "writes": [
+        "packages/values/semantics/src/codecs/owned.rs",
+        "packages/values/bindings/materialize.ts",
+        "packages/values/semantics/tests/input_validation/values.rs"
+      ],
+      "kind": "work",
+      "required": true,
+      "acceptance": [
+        "Same-call normalize+encode parity preserves scale/canonical text, shape/error paths and structural/default identity.",
+        "Request-scoped result cannot be forged, reused after disposal or adopted from arbitrary unknown."
+      ]
+    },
+    {
+      "id": "V05.3",
+      "parent": "V05",
+      "title": "Wire proved predicate and retained-encode glue",
+      "lane": "V-integrator",
+      "wave": 4,
+      "depends_on": [
+        "V05.2",
+        "V04.4"
+      ],
+      "writes": [
+        "packages/values/bindings/src/validation.rs",
+        "packages/values/bindings/validation.ts",
+        "packages/values/test/validation-binding.test.ts"
+      ],
+      "kind": "work",
+      "required": true,
+      "acceptance": [
+        "Host invocation order, unsupported-plan selection and lossless text/error formatting agree through actual binding; same-session results never escape disposal."
+      ]
+    },
+    {
+      "id": "V04.3",
+      "parent": "V04",
+      "title": "Run actual-binding values parity and identity",
+      "lane": "V-evidence",
+      "wave": 4,
+      "depends_on": [
+        "V04.2",
+        "V04.4"
+      ],
+      "writes": [
+        "docs/research/package-subsystem-ports-20261006/evidence/input-validation/values-differential.json",
+        "packages/values/conformance/owned-input/v1/cases.json"
+      ],
+      "kind": "work",
+      "required": true,
+      "acceptance": [
+        "B1/B2/A1 have zero unexplained differences for supported values profile; no partial output on failure.",
+        "Tagged UTF-16/f64 fixtures do not collapse -0/nonfinite/identity and retained legacy traces prove Rust is not invoked."
+      ]
+    },
+    {
+      "id": "V06.4",
+      "parent": "V06",
+      "title": "Run independent HTTP actual-binding profile parity",
+      "lane": "V-http",
+      "wave": 4,
+      "depends_on": [
+        "V06.1",
+        "V06.8"
+      ],
+      "writes": [
+        "packages/interfaces/test/owned-http.test.ts",
+        "docs/research/package-subsystem-ports-20261006/evidence/input-validation/http-profile-differential.json"
+      ],
+      "kind": "work",
+      "required": true,
+      "acceptance": [
+        "A2/B2 errors and raw business inputs agree including optional-property absence and baseline pointer spelling.",
+        "Binding does not allocate/validate before host auth/CSRF/ID stages when installed at consumer."
+      ]
+    },
+    {
+      "id": "V06.5",
+      "parent": "V06",
+      "title": "Run state actual-binding profile parity",
+      "lane": "V-state",
+      "wave": 4,
+      "depends_on": [
+        "V06.2",
+        "V06.9"
+      ],
+      "writes": [
+        "packages/state/test/invocation/owned-admission.test.ts",
+        "docs/research/package-subsystem-ports-20261006/evidence/input-validation/state-profile-differential.json"
+      ],
+      "kind": "work",
+      "required": true,
+      "acceptance": [
+        "A3/B2 pure state matches current aggregate paths/errors and ordered refs without store side effects.",
+        "Generated defaults/scalars/interim identity remain in owning scope."
+      ]
+    },
+    {
+      "id": "V06.6",
+      "parent": "V06",
+      "title": "Run MCP actual-binding profile parity",
+      "lane": "V-mcp",
+      "wave": 4,
+      "depends_on": [
+        "V06.3",
+        "V06.10"
+      ],
+      "writes": [
+        "packages/interfaces/test/owned-mcp.test.ts",
+        "docs/research/package-subsystem-ports-20261006/evidence/input-validation/mcp-profile-differential.json"
+      ],
+      "kind": "work",
+      "required": true,
+      "acceptance": [
+        "A2/B2 preserve exact refs, ID UTF-16 limits, InvalidParams and sealed-path selection.",
+        "Passing vectors do not mark MCP production port complete when SDK branch is deferred."
+      ]
+    },
+    {
+      "id": "V07.1",
+      "parent": "V07",
+      "title": "Finalize request/plan limits and cleanup implementation",
+      "lane": "V-input",
+      "wave": 4,
+      "depends_on": [
+        "V03.2",
+        "V03.3",
+        "V03.4",
+        "V03.5",
+        "C05.ready"
+      ],
+      "writes": [
+        "packages/values/semantics/src/input.rs",
+        "packages/values/bindings/owned-input.ts",
+        "packages/values/test/validation-lifecycle.test.ts",
+        "docs/research/package-subsystem-ports-20261006/evidence/input-validation/resource-policy.md"
+      ],
+      "kind": "work",
+      "required": true,
+      "acceptance": [
+        "Stale/foreign/generation handles reject before Rust; traps/stack overflow are adapter failures, not legacy cycle RangeError.",
+        "No active eviction, global result retention or unchecked counts; public legacy domain unchanged."
+      ]
+    },
+    {
+      "id": "V07.5",
+      "parent": "V07",
+      "title": "Apply finalized owner-plan budget and release policy",
+      "lane": "V-plan",
+      "wave": 4,
+      "depends_on": [
+        "V07.1",
+        "V03.4"
+      ],
+      "writes": [
+        "packages/values/semantics/src/plans.rs",
+        "packages/values/bindings/plans.ts",
+        "packages/values/src/prepared/plan.ts",
+        "packages/values/test/prepared-validation.test.ts"
+      ],
+      "kind": "work",
+      "required": true,
+      "acceptance": [
+        "Registration over budget rejects owner before serving; no active plan eviction, stale handle execution or retained defaults after owner disposal.",
+        "Same prepared/Rust owner contract applies without caching arbitrary schemas or narrowing legacy exports."
+      ]
+    },
+    {
+      "id": "V07.2",
+      "parent": "V07",
+      "title": "Prove HTTP resource readiness independently",
+      "lane": "V-evidence",
+      "wave": 4,
+      "depends_on": [
+        "V07.1",
+        "V07.5",
+        "V06.4"
+      ],
+      "writes": [
+        "docs/research/package-subsystem-ports-20261006/evidence/input-validation/http-resources.json",
+        "packages/values/conformance/owned-input/v1/resources.mjs"
+      ],
+      "kind": "work",
+      "required": true,
+      "acceptance": [
+        "Owned prepared TS and Rust enforce same fixed policy; memory plateaus and no result/default survives its owner scope.",
+        "HTTP rollout is unblocked by completed HTTP resource evidence, without waiting for optional MCP/forms or values predicates."
+      ]
+    },
+    {
+      "id": "V07.3",
+      "parent": "V07",
+      "title": "Apply owned budgets to prepared values comparator",
+      "lane": "V-values",
+      "wave": 4,
+      "depends_on": [
+        "V07.1",
+        "V05.2"
+      ],
+      "writes": [
+        "packages/values/src/prepared/validation.ts",
+        "packages/values/src/prepared/codec.ts"
+      ],
+      "kind": "work",
+      "required": true,
+      "acceptance": [
+        "Selected backend does not change owned limits; unsupported legacy plans keep old success/exception domain.",
+        "Earlier semantic failures retain precedence over later predicates/allocation work."
+      ]
+    },
+    {
+      "id": "V07.4",
+      "parent": "V07",
+      "title": "Complete cross-profile resource proof",
+      "lane": "V-evidence",
+      "wave": 4,
+      "depends_on": [
+        "V07.2",
+        "V07.3",
+        "V06.5",
+        "V06.6",
+        "V05.3"
+      ],
+      "writes": [
+        "docs/research/package-subsystem-ports-20261006/evidence/input-validation/resources.json",
+        "packages/values/conformance/owned-input/v1/resources.mjs"
+      ],
+      "kind": "work",
+      "required": true,
+      "acceptance": [
+        "B3 measured memory plateaus under representative and adversarial workloads; defined limits have no Rust traps and no stale cross-request reuse.",
+        "No defaults survive owner release or results request disposal; state successful replay incurs no new-plan budget before replay."
+      ]
+    },
+    {
+      "id": "V09.1",
+      "parent": "V09",
+      "title": "Implement canonical private provenance bridge handoff",
+      "lane": "V-state",
+      "wave": 4,
+      "depends_on": [
+        "V01.3",
+        "V03.3",
+        "V02.4",
+        "W06.runtimehandoff"
+      ],
+      "writes": [
+        "packages/cloudflare/src/runtime/invoke.ts",
+        "packages/state/src/invocation/prepared-inputs.ts",
+        "docs/research/package-subsystem-ports-20261006/evidence/input-validation/bridge-handoff.md"
+      ],
+      "kind": "work",
+      "required": true,
+      "acceptance": [
+        "HTTP lane consumes bridge API without editing runtime/invoke.ts; state lane alone owns bridge modules.",
+        "Public copy mutation loses token use; unknown/custom callbacks retain legacy validation; copy cost is separately observable."
+      ]
+    },
+    {
+      "id": "V08.1",
+      "parent": "V08",
+      "title": "Install whole HTTP action at existing validation point",
+      "lane": "V-http",
+      "wave": 5,
+      "depends_on": [
+        "V06.4",
+        "V07.2",
+        "V03.3",
+        "V09.1",
+        "C04.ready",
+        "A07"
+      ],
+      "writes": [
+        "packages/interfaces/src/http/operations.ts",
+        "packages/interfaces/test/owned-http.test.ts"
+      ],
+      "kind": "work",
+      "required": true,
+      "acceptance": [
+        "A2/B4 order/status/body, body-cap/malformed JSON, top-level/action_handle, missing/unknown/bounds and HTML redisplay match.",
+        "No Rust work before current validation point; one selected backend per request and no semantic-error retry."
+      ]
+    },
+    {
+      "id": "V08.2",
+      "parent": "V08",
+      "title": "Prove actual handler package consumer in workerd",
+      "lane": "V-http",
+      "wave": 5,
+      "depends_on": [
+        "V08.1",
+        "V09.1",
+        "C04.values-assets"
+      ],
+      "writes": [
+        "packages/cloudflare/test/owned-http-route.test.ts",
+        "docs/research/package-subsystem-ports-20261006/evidence/input-validation/http-consumer.json"
+      ],
+      "kind": "work",
+      "required": true,
+      "acceptance": [
+        "B4/A2 real workerd request reaches existing owning handler and canonical state invocation; mock or fixture-only JS binding is insufficient.",
+        "Report package consumer proof separately from default deployed traffic; unit injected invoker does not certify deployment."
+      ]
+    },
+    {
+      "id": "V08.3",
+      "parent": "V08",
+      "title": "Decide bounded default deployment adoption",
+      "lane": "V-http",
+      "wave": 5,
+      "depends_on": [
+        "V01.2",
+        "V08.2"
+      ],
+      "writes": [
+        "docs/research/package-subsystem-ports-20261006/evidence/input-validation/http-adoption-gate.md"
+      ],
+      "kind": "work",
+      "required": true,
+      "acceptance": [
+        "Decision cannot create a new HTTP feature or treat fixture-only workerd as real default production use.",
+        "Default join acceptance explicitly dispatches V08.4/V08.5; absence leaves package completion possible with deployed adoption blocked."
+      ]
+    },
+    {
+      "id": "V08.4",
+      "parent": "V08",
+      "title": "Land owning assembly join when accepted",
+      "lane": "V-http",
+      "wave": 5,
+      "depends_on": [
+        "V08.3",
+        "V09.1"
+      ],
+      "writes": [
+        "packages/cloudflare/src/worker/assembly.ts",
+        "packages/cloudflare/test/owned-http-route.test.ts"
+      ],
+      "kind": "work",
+      "required": false,
+      "acceptance": [
+        "Owning default route serves existing handler rather than interim 501; no new server/feature scope.",
+        "A4/B4 assembly and workerd trace preserves host stages and sealed/other routes."
+      ],
+      "activation_condition": "V08.3 accepts bounded HTTP join"
+    },
+    {
+      "id": "V08.5",
+      "parent": "V08",
+      "title": "Verify shared delivery module join when accepted",
+      "lane": "V-integrator",
+      "wave": 5,
+      "depends_on": [
+        "V08.4",
+        "C04.validation-join",
+        "A07"
+      ],
+      "writes": [
+        "packages/cloudflare/test/owned-input-delivery.test.ts",
+        "docs/research/package-subsystem-ports-20261006/evidence/input-validation/http-default-deployment.json"
+      ],
+      "kind": "work",
+      "required": false,
+      "acceptance": [
+        "A4/B4 owning joined entry/map serves actual handler using shipped binary, not fixture-only module inventory.",
+        "Missing/corrupt/wrong-version binaries fail visibly; release inventory/source maps never decode Wasm as text."
+      ],
+      "activation_condition": "V08.3 accepts bounded HTTP join"
+    },
+    {
+      "id": "V08.6",
+      "parent": "V08",
+      "title": "Close HTTP package and deployment ledger separately",
+      "lane": "V-evidence",
+      "wave": 5,
+      "depends_on": [
+        "V08.2",
+        "V08.3"
+      ],
+      "writes": [
+        "docs/research/package-subsystem-ports-20261006/evidence/input-validation/http-completion.md"
+      ],
+      "kind": "work",
+      "required": true,
+      "acceptance": [
+        "Package gate is complete only with actual handler/binding/workerd proof.",
+        "Default deployment is enabled only on accepted implemented join or explicitly blocked; optional branch boxes remain open when deferred."
+      ],
+      "conditional_dependencies": [
+        {
+          "when": "V08.3 accepts bounded HTTP join",
+          "depends_on": [
+            "V08.4",
+            "V08.5"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "V09.2",
+      "parent": "V09",
+      "title": "Install owned state execution after replay/auth only",
+      "lane": "V-state",
+      "wave": 5,
+      "depends_on": [
+        "V06.5",
+        "V07.2",
+        "V09.1",
+        "A07"
+      ],
+      "writes": [
+        "packages/state/src/invocation/admission.ts",
+        "packages/state/src/invocation/invoke.ts",
+        "packages/state/src/invocation/prepared-inputs.ts"
+      ],
+      "kind": "work",
+      "required": true,
+      "acceptance": [
+        "Matching receipt replays even when input is now expired/forbidden/malformed or current plan/budget fails; conflicting raw reuse fails before normalizing.",
+        "Array fills/defaults never change persisted hash; admission/load/stale/archive/conflict-current/fence/read order unchanged."
+      ]
+    },
+    {
+      "id": "V09.3",
+      "parent": "V09",
+      "title": "Prove durable state consumer traces and copy cost",
+      "lane": "V-state",
+      "wave": 5,
+      "depends_on": [
+        "V09.2",
+        "V08.2",
+        "V07.4"
+      ],
+      "writes": [
+        "packages/state/test/invocation/owned-admission.test.ts",
+        "docs/research/package-subsystem-ports-20261006/evidence/input-validation/state-replay-traces.json",
+        "docs/research/package-subsystem-ports-20261006/evidence/input-validation/state-copy-cost.json"
+      ],
+      "kind": "work",
+      "required": true,
+      "acceptance": [
+        "Exact mutation trace and read auth-first match baseline; no eager ref loads on earlier failure, toJSON legacy ordering unchanged.",
+        "Raw digest/receipt compatibility and replay survive backend change; copies included in economic evidence."
+      ]
+    },
+    {
+      "id": "V10.3",
+      "parent": "V10",
+      "title": "Decide MCP adoption from complete seam and profile proof",
+      "lane": "V-mcp",
+      "wave": 5,
+      "depends_on": [
+        "V10.1",
+        "V06.6",
+        "V07.4",
+        "C04.ready",
+        "A07"
+      ],
+      "writes": [
+        "docs/research/package-subsystem-ports-20261006/evidence/input-validation/mcp-provenance.md"
+      ],
+      "kind": "work",
+      "required": true,
+      "acceptance": [
+        "Only parser-created internal lineage before exposure, without second parse or object adoption, enables branch.",
+        "HTTP package/default gate remains independent; deferred result cannot be labelled full MCP port."
+      ]
+    },
+    {
+      "id": "V10.4",
+      "parent": "V10",
+      "title": "Implement SDK-owned ordinary path only when accepted",
+      "lane": "V-mcp",
+      "wave": 5,
+      "depends_on": [
+        "V10.3",
+        "V08.2"
+      ],
+      "writes": [
+        "packages/interfaces/src/mcp/server.ts",
+        "packages/interfaces/src/mcp/schemas.ts",
+        "packages/interfaces/test/owned-mcp.test.ts",
+        "docs/research/package-subsystem-ports-20261006/evidence/input-validation/mcp-consumer.json"
+      ],
+      "kind": "work",
+      "required": false,
+      "acceptance": [
+        "A2/B4 SDK JSON-RPC framing/error/results and InvalidParams agree; sealed mode keeps current orchestration.",
+        "Actual consumer proof, not profile fixtures alone, is required before MCP adoption enabled."
+      ],
+      "activation_condition": "V10.3 accepts MCP producer"
+    },
+    {
+      "id": "V10.5",
+      "parent": "V10",
+      "title": "Implement faithful form producer only when accepted",
+      "lane": "V-forms",
+      "wave": 5,
+      "depends_on": [
+        "V10.2",
+        "V07.2",
+        "V08.2"
+      ],
+      "writes": [
+        "packages/interfaces/src/http/forms-owned.ts",
+        "packages/interfaces/test/owned-forms.test.ts",
+        "docs/research/package-subsystem-ports-20261006/evidence/input-validation/forms-consumer.json"
+      ],
+      "kind": "work",
+      "required": false,
+      "acceptance": [
+        "Forms current/prepared/binding semantics and error/form draft match; no silent __proto__ fix or arbitrary-object adoption.",
+        "Unproved producer remains TS and branch incomplete."
+      ],
+      "activation_condition": "V10.2 accepts form producer"
+    },
+    {
+      "id": "V10.6",
+      "parent": "V10",
+      "title": "Hook accepted form producer through HTTP owner",
+      "lane": "V-http",
+      "wave": 5,
+      "depends_on": [
+        "V10.5",
+        "V08.1"
+      ],
+      "writes": [
+        "packages/interfaces/src/http/operations.ts",
+        "packages/interfaces/test/owned-http.test.ts"
+      ],
+      "kind": "work",
+      "required": false,
+      "acceptance": [
+        "Optional forms acceptance proves complete consumer and faithful protected lineage; HTTP JSON semantics preserved."
+      ],
+      "activation_condition": "V10.2 accepts form producer"
+    },
+    {
+      "id": "V10.7",
+      "parent": "V10",
+      "title": "Close optional adoption decisions without false completion",
+      "lane": "V-evidence",
+      "wave": 5,
+      "depends_on": [
+        "V10.3",
+        "V10.2"
+      ],
+      "writes": [
+        "docs/research/package-subsystem-ports-20261006/evidence/input-validation/optional-coverage.md"
+      ],
+      "kind": "work",
+      "required": true,
+      "acceptance": [
+        "MCP/forms deferred/legacy status never marks their full port done; required scope-review gate may close while optional work remains open.",
+        "HTTP progress/measurement only consumes decision ledger, not deferred implementation."
+      ],
+      "conditional_dependencies": [
+        {
+          "when": "V10.3 accepts MCP producer",
+          "depends_on": [
+            "V10.4"
+          ]
+        },
+        {
+          "when": "V10.2 accepts form producer",
+          "depends_on": [
+            "V10.5",
+            "V10.6"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "V06.7",
+      "parent": "V06",
+      "title": "Assemble profile differential ledger",
+      "lane": "V-evidence",
+      "wave": 6,
+      "depends_on": [
+        "V06.4",
+        "V06.5",
+        "V06.6"
+      ],
+      "writes": [
+        "docs/research/package-subsystem-ports-20261006/evidence/input-validation/profile-differential.json"
+      ],
+      "kind": "work",
+      "required": true,
+      "acceptance": [
+        "All owned rows agree across current/prepared/native/actual binding; native-only JSON not credited.",
+        "Separate HTTP first errors, state aggregates, values accumulations and MCP stages remain visible."
+      ]
+    },
+    {
+      "id": "V11.1",
+      "parent": "V11",
+      "title": "Precommit workloads and numeric adoption budgets",
+      "lane": "V-evidence",
+      "wave": 2,
+      "depends_on": [
+        "V01",
+        "C05.ready"
+      ],
+      "writes": [
+        "docs/research/package-subsystem-ports-20261006/evidence/input-validation/measurement-contract.md"
+      ],
+      "kind": "work",
+      "required": true,
+      "acceptance": [
+        "Precommitment precedes final comparisons and contains representative malformed/error-heavy HTTP/state/replay workloads plus supported MCP only.",
+        "Worker CPU timing follows shared harness policy; leaf/native timings or removed type parsing cannot justify adoption."
+      ]
+    },
+    {
+      "id": "V11.2",
+      "parent": "V11",
+      "title": "Prepare private release selection and rollback join",
+      "lane": "V-integrator",
+      "wave": 6,
+      "depends_on": [
+        "V02",
+        "V07",
+        "V08",
+        "V09",
+        "V10",
+        "C04.ready",
+        "C04.values-assets",
+        "A07"
+      ],
+      "writes": [
+        "packages/values/bindings/backend.ts",
+        "packages/values/bindings/bootstrap.ts",
+        "packages/values/bindings/validation.ts",
+        "packages/values/tsconfig.json",
+        "packages/values/package.json",
+        "packages/values/Cargo.toml",
+        "packages/values/Cargo.lock",
+        "packages/values/semantics/Cargo.toml",
+        "packages/values/bindings/Cargo.toml",
+        "docs/research/package-subsystem-ports-20261006/evidence/input-validation/selection-rollback.json"
+      ],
+      "kind": "work",
+      "required": true,
+      "acceptance": [
+        "Missing/corrupt/version/ABI/init failures in selected Rust fail startup; ordinary package API remains synchronous/importable.",
+        "No receipt/raw-hash/default/schema migration and no duplicate auth/store/provider execution or shadowing legacy getters."
+      ]
+    },
+    {
+      "id": "V11.3",
+      "parent": "V11",
+      "title": "Measure complete selected calls and retained resources",
+      "lane": "V-evidence",
+      "wave": 6,
+      "depends_on": [
+        "V11.1",
+        "V11.2",
+        "V05",
+        "V06",
+        "V07",
+        "V08",
+        "V09",
+        "V10",
+        "C05.ready"
+      ],
+      "writes": [
+        "docs/research/package-subsystem-ports-20261006/evidence/input-validation/measurements.json"
+      ],
+      "kind": "work",
+      "required": true,
+      "acceptance": [
+        "Zero unexplained parity differences and complete-call budgets assessed at precommitted thresholds; core-entry counts show real routing.",
+        "Results distinguish package fixture, default deployment and deferred consumers; no Rust-only interpreter or parser-removal inference."
+      ]
+    },
+    {
+      "id": "V11.4",
+      "parent": "V11",
+      "title": "Review Rust versus prepared-TS adoption decision",
+      "lane": "V-evidence",
+      "wave": 6,
+      "depends_on": [
+        "V11.3"
+      ],
+      "writes": [
+        "docs/research/package-subsystem-ports-20261006/evidence/input-validation/rollout-decision.md"
+      ],
+      "kind": "work",
+      "required": true,
+      "acceptance": [
+        "No benefit retains prepared TS and experiment evidence; supported selected Rust requires C04, HTTP package/resource/parity and rollback proof.",
+        "State normalization stays after replay/auth even if HTTP enabled; deferred production paths never claimed migrated."
+      ]
+    },
+    {
+      "id": "V12.1",
+      "parent": "V12",
+      "title": "Audit changed source, exports and release inventory",
+      "lane": "V-integrator",
+      "wave": 7,
+      "depends_on": [
+        "V11"
+      ],
+      "writes": [
+        "docs/research/package-subsystem-ports-20261006/evidence/input-validation/final-source-checks.md",
+        "docs/research/package-subsystem-ports-20261006/evidence/input-validation/verify.log"
+      ],
+      "kind": "work",
+      "required": true,
+      "acceptance": [
+        "No unexplained new diagnostic, public handle/export drift or hidden retained TS; complete source/output/lifetime ledger is reviewable.",
+        "Rollback/release bytes and raw receipt digest/schema remain unchanged; missing gate reported explicitly."
+      ]
+    },
+    {
+      "id": "V12.2",
+      "parent": "V12",
+      "title": "Reconcile living filetree after actual merges",
+      "lane": "V-evidence",
+      "wave": 7,
+      "depends_on": [
+        "V12.1"
+      ],
+      "writes": [
+        "docs/ideal-filetree-plan.md",
+        "docs/research/package-subsystem-ports-20261006/evidence/input-validation/filetree-review.md"
+      ],
+      "kind": "work",
+      "required": true,
+      "acceptance": [
+        "Merged implementation coverage/checkpoint reflects complete reviewed changes; this planning conversion itself does not advance it.",
+        "Final source list distinguishes implemented, proposed, unsupported and retained TS with ownership."
+      ]
+    },
+    {
+      "id": "V12.3",
+      "parent": "V12",
+      "title": "Review declared-port completion and gaps",
+      "lane": "V-evidence",
+      "wave": 7,
+      "depends_on": [
+        "V12.1",
+        "V12.2"
+      ],
+      "writes": [
+        "docs/research/package-subsystem-ports-20261006/evidence/input-validation/rollout-decision.md",
+        "docs/research/package-subsystem-ports-20261006/evidence/input-validation/completion-ledger.md"
+      ],
+      "kind": "work",
+      "required": true,
+      "acceptance": [
+        "Declared owned port is complete only with supported real binding and actual handler workerd proof plus rollback/resources/source review.",
+        "Blocked adoption or deferred optional branches stay labelled; never claim complete legacy validator/MCP/forms migration."
+      ]
+    },
+    {
+      "id": "V01",
+      "parent": null,
+      "title": "Caller and ownership contracts reviewed",
+      "lane": "V-evidence",
+      "wave": 1,
+      "depends_on": [
+        "V01.1",
+        "V01.2",
+        "V01.3",
+        "V01.4"
+      ],
+      "writes": [],
+      "kind": "gate",
+      "required": true,
+      "acceptance": [
+        "Five profile/input domains, workloads, baseline and HTTP/source ownership gap agreed."
+      ]
+    },
+    {
+      "id": "V02",
+      "parent": null,
+      "title": "Prepared TS complete-call baseline reviewed",
+      "lane": "V-evidence",
+      "wave": 3,
+      "depends_on": [
+        "V02.1",
+        "V02.2",
+        "V02.3",
+        "V02.4",
+        "V02.5",
+        "V02.6",
+        "V02.7"
+      ],
+      "writes": [],
+      "kind": "gate",
+      "required": true,
+      "acceptance": [
+        "A1\u2013A3/B2 current/prepared semantics, identity, order, timings and retained legacy traces agree."
+      ]
+    },
+    {
+      "id": "V03",
+      "parent": null,
+      "title": "Versioned ownership ABI proved through actual binding",
+      "lane": "V-evidence",
+      "wave": 3,
+      "depends_on": [
+        "V03.1",
+        "V03.2",
+        "V03.3",
+        "V03.4",
+        "V03.5"
+      ],
+      "writes": [],
+      "kind": "gate",
+      "required": true,
+      "acceptance": [
+        "Same-call scalar/UTF-16/provenance/handle vectors pass native, Node/Bun and C04 workerd; references/version/limit decisions recorded."
+      ]
+    },
+    {
+      "id": "V04",
+      "parent": null,
+      "title": "Values ordered interpreter and identity proved",
+      "lane": "V-evidence",
+      "wave": 4,
+      "depends_on": [
+        "V04.1",
+        "V04.2",
+        "V04.3",
+        "V04.4"
+      ],
+      "writes": [],
+      "kind": "gate",
+      "required": true,
+      "acceptance": [
+        "Complete values semantics match shared A04/A05 exact codecs through native and binding; identity/no partial results proved."
+      ]
+    },
+    {
+      "id": "V05",
+      "parent": null,
+      "title": "Host predicate and optional encode contract proved",
+      "lane": "V-evidence",
+      "wave": 4,
+      "depends_on": [
+        "V05.1",
+        "V05.2",
+        "V05.3"
+      ],
+      "writes": [],
+      "kind": "gate",
+      "required": true,
+      "acceptance": [
+        "Demand-ordered host text/predicates/errors and same-session encoding match; unsupported plans selected TS before execution."
+      ]
+    },
+    {
+      "id": "V06",
+      "parent": null,
+      "title": "Independent policy profiles reviewed",
+      "lane": "V-evidence",
+      "wave": 6,
+      "depends_on": [
+        "V06.1",
+        "V06.2",
+        "V06.3",
+        "V06.4",
+        "V06.5",
+        "V06.6",
+        "V06.7",
+        "V06.8",
+        "V06.9",
+        "V06.10"
+      ],
+      "writes": [],
+      "kind": "gate",
+      "required": true,
+      "acceptance": [
+        "HTTP/MCP/state pure profile parity includes intentional version/ref/error/presence disagreements; no invented values schemas."
+      ]
+    },
+    {
+      "id": "V07",
+      "parent": null,
+      "title": "All owned resource/lifetime gates reviewed",
+      "lane": "V-evidence",
+      "wave": 5,
+      "depends_on": [
+        "V07.1",
+        "V07.2",
+        "V07.3",
+        "V07.4",
+        "V07.5"
+      ],
+      "writes": [],
+      "kind": "gate",
+      "required": true,
+      "acceptance": [
+        "B3 same prepared/Rust versioned budget and cleanup plateau evidence reviewed; no legacy narrowing or pre-replay Rust work."
+      ]
+    },
+    {
+      "id": "V08",
+      "parent": null,
+      "title": "Actual HTTP package consumer and adoption ledger reviewed",
+      "lane": "V-evidence",
+      "wave": 5,
+      "depends_on": [
+        "V08.1",
+        "V08.2",
+        "V08.3",
+        "V08.6"
+      ],
+      "writes": [],
+      "kind": "gate",
+      "required": true,
+      "acceptance": [
+        "B4 actual handler/canonical invocation/Wasm/workerd proved; accepted join requires V08.4/V08.5 or default 501 remains explicitly blocked."
+      ]
+    },
+    {
+      "id": "V09",
+      "parent": null,
+      "title": "Canonical owned-state sequencing and durable proof reviewed",
+      "lane": "V-evidence",
+      "wave": 5,
+      "depends_on": [
+        "V09.1",
+        "V09.2",
+        "V09.3"
+      ],
+      "writes": [],
+      "kind": "gate",
+      "required": true,
+      "acceptance": [
+        "A3/A4/B4 raw hash/receipt replay/auth/ref loads/fences/reads and protected copy cost match; unproven paths retained TS."
+      ]
+    },
+    {
+      "id": "V10",
+      "parent": null,
+      "title": "Optional MCP/forms outcome ledger reviewed",
+      "lane": "V-evidence",
+      "wave": 5,
+      "depends_on": [
+        "V10.1",
+        "V10.2",
+        "V10.3",
+        "V10.7"
+      ],
+      "writes": [],
+      "kind": "gate",
+      "required": true,
+      "acceptance": [
+        "Decision review only: accepted MCP/forms require conditional consumer task proofs; deferred optional task boxes stay open and their full ports are not complete."
+      ]
+    },
+    {
+      "id": "V11",
+      "parent": null,
+      "title": "Measured backend/adoption and rollback decision reviewed",
+      "lane": "V-evidence",
+      "wave": 6,
+      "depends_on": [
+        "V11.1",
+        "V11.2",
+        "V11.3",
+        "V11.4"
+      ],
+      "writes": [],
+      "kind": "gate",
+      "required": true,
+      "acceptance": [
+        "B5 actual complete-call evidence and precommitted budgets/native reuse justify selected outcome; unsupported/default deployment scope explicit."
+      ]
+    },
+    {
+      "id": "V12",
+      "parent": null,
+      "title": "Final declared owned-port completion review",
+      "lane": "V-evidence",
+      "wave": 7,
+      "depends_on": [
+        "V12.1",
+        "V12.2",
+        "V12.3"
+      ],
+      "writes": [],
+      "kind": "gate",
+      "required": true,
+      "acceptance": [
+        "Final-source-checks, verify.log, rollout decision and merged filetree review complete; definition of done satisfied or adoption blocked explicitly."
+      ]
+    }
+  ]
+}

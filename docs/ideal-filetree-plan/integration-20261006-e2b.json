@@ -1,0 +1,16 @@
+{
+ "integration": "e2b",
+ "date": "2026-10-06",
+ "main_before": "011fced",
+ "commits": [
+  "ef3f680 E2b: transport parity, null/datetime seams, R5/R6 F1 joins"
+ ],
+ "lane_commits": [
+  "0c665df (interfaces-only, 10 files +907/-63, parent 0bfc72f)"
+ ],
+ "patch_id identical": true,
+ "coverage": "interfaces: envelope conflict option, formErrors R6 mapping + R5 pre-flatten + safe passthrough, operations action_handle carve-out, mcp datetime values-wire decode + null-defers-to-binding; tests: e2b-transport-seams + t19b datetime + t20a/E2a F1 repins (16 new)",
+ "decisions": "HTTP action_handle OUT (loud validation reject, MCP-only); identity/** untouched (no E2b need); E2b acceptance met (bracket names, CSRF/context, safe errors, full/partial agree; no parallel validation engine)",
+ "gate": "CANONICAL GREEN: interfaces build 0, 419/419; lane gate identical",
+ "lane_report": "1fb0fdde (writer reservation released; repairs on request)"
+}

@@ -16,7 +16,10 @@
  * sub-handlers) is not a dependency of this package, so page GETs run
  * through a minimal interim dispatcher below (anonymous identity, the real
  * descriptor `admit`/`render`, no shell, exact paths only). The interfaces
- * join replaces it. Mutations/auth are 501 until that join. `/files/*`
+ * join replaces it. Auth stays 501 until that join; C3 joins POST
+ * `/api/operations/*` through the real `handleOperationRequest`
+ * (`AssemblyDeps.http.createOperationHandler`, same catalog + invoker
+ * as MCP). `/files/*`
  * routes match explicitly (a documented mirror of the uploads routes):
  * unknown paths/methods are `not_found`, and known routes are 501 naming
  * the exact unmet seam (files binding vs identity join) — never fake
@@ -80,6 +83,7 @@ import type {
   BusinessError,
   BusinessErrorCode,
   CompileArtifact,
+  ConflictCurrent,
   ContentCheck,
   FinalizeResult,
   FinalizedFile,
@@ -95,6 +99,7 @@ import type {
   ThemeTokens,
   UploadIntentGrant,
   UploadIntentRequest,
+  VerifiedIngressEnvelope,
 } from "@canlang/contracts";
 import type { AssembledModules } from "../runtime/modules.js";
 import type { HandlerContext } from "../runtime/context.js";
@@ -106,6 +111,7 @@ import type {
   RequiresProvidedVersions,
 } from "../runtime/invoke.js";
 import type {
+  BakedDerivedInputs,
   McpPermissions,
   OperationRegistry,
   SchemaCatalog,
@@ -254,11 +260,126 @@ export type McpHandlerFactory = (deps: McpDeps) => (request: Request) => Promise
  * MCP join inputs. `createHandler` absent -> `/mcp` answers the explicit
  * interim 501 naming the interfaces join. `permissions` absent -> the
  * deny-closed interim adapter (join J2 pending; see
- * `createDenyClosedMcpPermissions`).
+ * `createDenyClosedMcpPermissions`). `derivedInputs` absent -> the
+ * catalog serves framing shapes only (E1 legacy; bound checking
+ * stays off on the MCP path until the P-B join stages the data).
  */
 export interface McpJoin {
   readonly createHandler?: McpHandlerFactory;
   readonly permissions?: McpPermissions;
+  /** C1 deploy-baked E1 channel (`worker/derived-inputs.js` via the P-B join). */
+  readonly derivedInputs?: BakedDerivedInputs;
+}
+
+/** Mirror of `RateLimitDecision` (`packages/interfaces/src/ports.ts:103`). */
+export interface RateLimitDecision {
+  readonly allowed: boolean;
+  readonly retryAfterMs: number;
+}
+
+/** Mirror of `RateLimiter` (`packages/interfaces/src/ports.ts:108`). */
+export interface RateLimiter {
+  check(key: string, limit: number, windowMs: number): Promise<RateLimitDecision>;
+}
+
+/** Mirror of `FileUseInfo` (`packages/interfaces/src/ports.ts:225`). */
+export interface FileUseInfo {
+  usesFiles(app: AppInfo): boolean;
+}
+
+/** Mirror of `IngressBinding` (`packages/interfaces/src/ports.ts:360`). */
+export interface IngressBinding {
+  readonly namespace: string;
+  readonly adapter: string;
+  readonly team: string;
+  readonly owner: string;
+}
+
+/** Mirror of `IngressBindings` (`packages/interfaces/src/ports.ts:367`). */
+export interface IngressBindings {
+  bindingFor(namespace: string): IngressBinding | null;
+}
+
+/** Mirror of `IngressVerifier` (`packages/interfaces/src/ports.ts:376`). */
+export interface IngressVerifier {
+  verify(
+    binding: IngressBinding,
+    input: { headers: Record<string, string>; body: Uint8Array },
+  ): Promise<VerifiedIngressEnvelope | null>;
+}
+
+/** Mirror of `DelegatedContext` (`packages/interfaces/src/ports.ts:388`). */
+export interface DelegatedContext {
+  readonly actor: null;
+  readonly team: string;
+  readonly owner: string;
+  readonly namespace: string;
+  readonly causation: VerifiedIngressEnvelope;
+}
+
+/** Mirror of `IngressSink` (`packages/interfaces/src/ports.ts:397`). */
+export interface IngressSink {
+  accept(context: DelegatedContext, event: unknown): Promise<{ accepted: boolean }>;
+}
+
+/**
+ * Mirror of `HttpDeps` (`packages/interfaces/src/ports.ts:128`). The C3
+ * worker assembly constructs these per `/api/operations/*` request; the
+ * interfaces join replaces the mirror with the real import. Same three
+ * documented seams as `McpDeps` (`identity.store`, single-app
+ * `registry`/`files` widenings, `string` brand/labels). Members the op
+ * route never touches (pages, limiter, secureCookies, uploads, ingress)
+ * bind interim fail-closed stubs — the op handler reads exactly app,
+ * invoker, catalog, logger, clock, and identity (see
+ * `handleOperationRequest`), so the stubs never execute there.
+ */
+export interface HttpDeps {
+  readonly app: AppInfo;
+  readonly pages: PageRegistry;
+  readonly invoker: OperationInvoker;
+  readonly catalog: SchemaCatalog;
+  readonly limiter: RateLimiter;
+  readonly logger: Logger;
+  readonly clock: InterfacesClock;
+  readonly identity: IdentityDeps;
+  readonly secureCookies: boolean;
+  readonly uploads: {
+    readonly files: FileUseInfo;
+    readonly kernel: InterimFileKernel;
+  };
+  readonly ingress: {
+    readonly bindings: IngressBindings;
+    readonly verifier: IngressVerifier;
+    readonly sink: IngressSink;
+  };
+}
+
+/**
+ * Mirror of `handleOperationRequest`
+ * (`packages/interfaces/src/http/operations.ts:168`): the real POST
+ * `/api/operations/<operation>` chain over assembled deps. Injected
+ * through `AssemblyDeps.http` because `@canlang/interfaces` is not a
+ * dependency of this package; the deploy join supplies the real
+ * function (bundled for workerd), exactly as tests supply it from
+ * interfaces dist.
+ */
+export type HttpOperationHandlerFactory = (
+  deps: HttpDeps,
+) => (req: Request, op: string) => Promise<Response>;
+
+/**
+ * HTTP op-route join inputs. `createOperationHandler` absent ->
+ * `/api/operations/*` keeps the explicit interim 501 naming the
+ * interfaces join. `derivedInputs` absent -> the catalog serves
+ * framing shapes only (E1 legacy; bound checking stays off on the
+ * HTTP path until the P-B join stages the data) — the SAME bake the
+ * MCP path consumes, so browser/MCP bound rules agree by
+ * construction.
+ */
+export interface HttpJoin {
+  readonly createOperationHandler?: HttpOperationHandlerFactory;
+  /** C1 deploy-baked E1 channel, shared verbatim with the MCP path. */
+  readonly derivedInputs?: BakedDerivedInputs;
 }
 
 /**
@@ -354,8 +475,8 @@ export type { HandlerContext };
 /** Sibling `createArtifactRegistry(artifact)` (`src/runtime/mcp-registry.ts`; P2). */
 type CreateArtifactRegistry = (artifact: CompileArtifact) => OperationRegistry;
 
-/** Sibling `createArtifactCatalog(artifact)` (`src/runtime/mcp-registry.ts`; P2). */
-type CreateArtifactCatalog = (artifact: CompileArtifact) => SchemaCatalog;
+/** Sibling `createArtifactCatalog(artifact, baked?)` (`src/runtime/mcp-registry.ts`; P2 + C1 derived channel). */
+type CreateArtifactCatalog = (artifact: CompileArtifact, baked?: BakedDerivedInputs) => SchemaCatalog;
 
 /** Sibling `createDenyClosedMcpPermissions()` (`src/runtime/mcp-registry.ts`; P2). */
 type CreateDenyClosedMcpPermissions = () => McpPermissions;
@@ -423,6 +544,14 @@ export interface AssemblyDeps {
    * interim 501 naming the join.
    */
   mcp?: McpJoin;
+  /**
+   * C3 HTTP op-route join inputs. Absent until the op-route join
+   * lands; while absent (or without `createOperationHandler`),
+   * `/api/operations/*` keeps the explicit interim 501 naming the
+   * join. Auth/pages/uploads/ingress stay interim regardless — this
+   * join covers operation POSTs only.
+   */
+  http?: HttpJoin;
 }
 
 /** Assembled worker: serving fetch plus registry counts. */
@@ -657,6 +786,10 @@ function isBusinessErrorLike(value: unknown): value is BusinessError {
  * mirroring the `fromUnknown` rule (`interfaces/src/errors/envelope.ts:99`:
  * unexpected failures are `rule_failed`, `retryable: false`, no leak).
  * Interim narrowing: `fields` are dropped until the envelope join.
+ * C2/B2 (Q3): a carried `conflict` current renders through (mirror of
+ * state `toBusinessError` — present only on `conflict` denials with a
+ * carried row); absent everywhere else. Never throws (an error renderer
+ * must not mask the error it renders).
  */
 function toBusinessError(error: unknown, operationId?: string): BusinessError {
   const base: { code: BusinessErrorCode; message: string } = isBusinessErrorLike(error)
@@ -666,12 +799,14 @@ function toBusinessError(error: unknown, operationId?: string): BusinessError {
       : error instanceof Error
         ? { code: "rule_failed", message: error.message }
         : { code: "rule_failed", message: INTERIM_REJECTION_MESSAGE };
+  const conflict: unknown = isRecord(error) ? error["conflict"] : undefined;
+  const carried = conflict !== undefined ? { conflict: conflict as ConflictCurrent } : {};
   if (operationId === undefined || operationId === "") {
-    return { ...base, retryable: false };
+    return { ...base, retryable: false, ...carried };
   }
   // `BusinessError.operation_id` is the wire-plain `OperationId` (an alias
   // for `string`), so no brand cast is needed here.
-  return { ...base, operation_id: operationId, retryable: false };
+  return { ...base, operation_id: operationId, retryable: false, ...carried };
 }
 
 async function loadSiblingFn<T>(specifier: string, file: string, binding: string): Promise<T> {
@@ -995,6 +1130,7 @@ interface InterimDispatchContext {
   readonly store: StoragePort;
   readonly identityStore: unknown;
   readonly mcp: McpJoin | undefined;
+  readonly http: HttpJoin | undefined;
 }
 
 /** Same-origin upload-intents path advertised in the MCP `_meta` block. */
@@ -1031,7 +1167,7 @@ async function handleMcpRequest(req: Request, ctx: InterimDispatchContext): Prom
       "createArtifactCatalog",
     );
     registry = createArtifactRegistry(ctx.artifact);
-    catalog = createArtifactCatalog(ctx.artifact);
+    catalog = createArtifactCatalog(ctx.artifact, ctx.mcp?.derivedInputs);
     if (ctx.mcp?.permissions !== undefined) {
       permissions = ctx.mcp.permissions;
     } else {
@@ -1100,6 +1236,117 @@ async function handleMcpRequest(req: Request, ctx: InterimDispatchContext): Prom
   return factory(deps)(req);
 }
 
+/** C3 `/api/operations/` prefix (mirrors `OPERATIONS_PREFIX` in interfaces routing). */
+const HTTP_OPERATIONS_PREFIX = "/api/operations/";
+
+/**
+ * C3 `/api/operations/*` route: assemble the real `HttpDeps` and
+ * delegate to the injected op handler (the real
+ * `handleOperationRequest`). Every method delegates (the handler owns
+ * method semantics: non-POST is `not_found`); without the factory the
+ * route keeps the explicit interim 501. Catalog build failures are
+ * contained here as a 500 naming the entry — pages keep serving.
+ *
+ * The catalog serves the SAME baked `derivedInputs` the MCP path
+ * consumes, and the invoker is THE same `buildInvoker` bridge, so
+ * browser/MCP bound rules and invocation agree by construction.
+ * Members the op handler never touches (pages, limiter,
+ * secureCookies, uploads, ingress) bind interim fail-closed stubs.
+ */
+async function handleHttpOperationRequest(
+  req: Request,
+  ctx: InterimDispatchContext,
+  pathname: string,
+): Promise<Response> {
+  const factory = ctx.http?.createOperationHandler;
+  if (factory === undefined || typeof factory !== "function") {
+    return interimUnavailable(
+      "operation invocation needs the interfaces join (handleOperationRequest via " +
+        "AssemblyDeps.http.createOperationHandler); the worker serves pages only until it lands",
+    );
+  }
+  let catalog: SchemaCatalog;
+  try {
+    const createArtifactCatalog = await loadSiblingFn<CreateArtifactCatalog>(
+      "../runtime/mcp-registry.js",
+      "runtime/mcp-registry.ts",
+      "createArtifactCatalog",
+    );
+    catalog = createArtifactCatalog(ctx.artifact, ctx.http?.derivedInputs);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    return jsonResponse({ code: "http-catalog", message }, 500);
+  }
+  const now = ctx.now;
+  const unjoined = (family: string): never => {
+    throw new Error(`assembly: ${family} is unbound until its join lands (unreachable on the op route)`);
+  };
+  const deps: HttpDeps = {
+    app: ctx.app,
+    pages: { descriptors: (): readonly PageDescriptor[] => [] },
+    invoker: buildInvoker(ctx.artifact, ctx.asm, ctx.store, {
+      memberships: ctx.identityStore as CanonicalMembershipReader,
+      source: "http",
+      now,
+    }),
+    catalog,
+    limiter: {
+      check: async (): Promise<RateLimitDecision> => unjoined("rate limiter"),
+    },
+    logger: {
+      log: (level: LogLevel, message: string, fields?: Record<string, unknown>): void => {
+        if (fields === undefined) console.log(`[http] ${level} ${message}`);
+        else console.log(`[http] ${level} ${message}`, fields);
+      },
+    },
+    clock: { nowMs: () => now() },
+    identity: {
+      store: ctx.identityStore,
+      mail: {
+        sendMail: async (): Promise<void> => {
+          throw new Error("assembly: mail is unbound on the HTTP op path (no op flow sends mail)");
+        },
+      },
+      clock: { nowMs: () => now() },
+      verifyBaseUrl: "",
+      recoveryBaseUrl: "",
+      inviteBaseUrl: "",
+      sessionMaxAgeSeconds: 0,
+    },
+    // The op handler never writes cookies (identity resolves from the
+    // request); the auth join owns the real deployment flag.
+    secureCookies: false,
+    uploads: {
+      files: {
+        usesFiles: (_app: AppInfo): boolean => {
+          void _app;
+          return ctx.files?.usesFiles ?? false;
+        },
+      },
+      kernel: {
+        maxBytes: (): number => unjoined("file kernel"),
+        createIntent: async (): Promise<InterimKernelCreateOutcome> => unjoined("file kernel"),
+        append: async (): Promise<InterimKernelAppendOutcome> => unjoined("file kernel"),
+        complete: async (): Promise<InterimKernelCompleteOutcome> => unjoined("file kernel"),
+        finalize: async (): Promise<InterimKernelFinalizeOutcome> => unjoined("file kernel"),
+      },
+    },
+    ingress: {
+      bindings: { bindingFor: (): IngressBinding | null => unjoined("ingress bindings") },
+      verifier: { verify: async (): Promise<VerifiedIngressEnvelope | null> => unjoined("ingress verifier") },
+      sink: { accept: async (): Promise<{ accepted: boolean }> => unjoined("ingress sink") },
+    },
+  };
+  let op = pathname.slice(HTTP_OPERATIONS_PREFIX.length);
+  try {
+    op = decodeURIComponent(op);
+  } catch {
+    // Malformed escape: pass through raw — the handler's operation
+    // shape check answers `not_found` (never a 500).
+  }
+  return factory(deps)(req, op);
+}
+
 function buildInterimFetch(
   descriptors: readonly PageDescriptor[],
   ctx: InterimDispatchContext,
@@ -1112,10 +1359,8 @@ function buildInterimFetch(
     if (pathname === "/mcp") {
       return handleMcpRequest(req, ctx);
     }
-    if (pathname.startsWith("/api/operations/")) {
-      return interimUnavailable(
-        "operation invocation needs the interfaces join (handleOperationRequest) and the worker invoke/context siblings",
-      );
+    if (pathname.startsWith(HTTP_OPERATIONS_PREFIX)) {
+      return handleHttpOperationRequest(req, ctx, pathname);
     }
     if (pathname.startsWith("/auth/")) {
       return interimUnavailable("auth routes need the interfaces join (handleAuthRequest)");
@@ -1445,6 +1690,7 @@ export async function assembleWorker(
     store: deps.store,
     identityStore: deps.identityStore,
     mcp: deps.mcp,
+    http: deps.http,
   });
 
   // Real entry wiring (mirrors entry.ts; not a fork): dynamic import keeps

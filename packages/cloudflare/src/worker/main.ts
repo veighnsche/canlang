@@ -27,6 +27,8 @@
  * | `./assembly.js`              | `assembleWorker`                       | P-A    |
  * | `./artifact.js`              | `artifact`, `modules`, `verdict`       | P-B    |
  * | `./mcp-handler.js`           | `createHandler` (default accepted)     | P-B    |
+ * | `./http-operations.js`       | `handleOperationRequest` (default)     | C3     |
+ * | `./derived-inputs.js`        | `derivedInputs`                        | P-B    |
  * | `../runtime/env-assembly.js` | `buildProductionDeps`                  | P-C    |
  * | `../runtime/grant-route.js`  | `handleMcpGrant`                       | P-C    |
  *
@@ -48,13 +50,23 @@
  * the staged artifact. Absent module -> `undefined` -> assembly's
  * deny-closed interim (safe, serves empty discovery); present-but-wrong
  * export -> loud 500.
+ *
+ * `AssemblyDeps.mcp.derivedInputs` comes from the staged
+ * `./derived-inputs.js` (`derivedInputs` export, baked at deploy by
+ * the REAL interfaces derivation). Absent module -> `undefined` ->
+ * the catalog serves framing shapes only (E1 legacy); present-but-
+ * wrong export -> loud 500. C3 feeds the SAME bake to
+ * `AssemblyDeps.http.derivedInputs`, so both transports check the
+ * same bound rules.
  */
 
 import type { ActivationVerdict, CompileArtifact, StoragePort } from "@canlang/contracts";
 import type { AssembledModules } from "../runtime/modules.js";
+import type { BakedDerivedInputs } from "../runtime/mcp-registry.js";
 import type {
   AssembledWorker,
   AssemblyDeps,
+  HttpOperationHandlerFactory,
   McpHandlerFactory,
   McpPermissions,
 } from "./assembly.js";
@@ -159,6 +171,10 @@ export interface MainLoaders {
   readonly loadGrantHandler?: () => Promise<HandleMcpGrantFn | undefined>;
   /** Resolves `undefined` when `../runtime/mcp-permissions.js` is absent (-> deny-closed). */
   readonly loadMcpPermissions?: () => Promise<CreateMemberMcpPermissionsFn | undefined>;
+  /** Resolves `undefined` when `./derived-inputs.js` is absent (-> framing-only catalog). */
+  readonly loadDerivedInputs?: () => Promise<BakedDerivedInputs | undefined>;
+  /** Resolves `undefined` when `./http-operations.js` is absent (-> assembly 501 on the op route). */
+  readonly loadHttpOperationsFactory?: () => Promise<HttpOperationHandlerFactory | undefined>;
 }
 
 /* ------------------------------------------------------------------ */
@@ -224,9 +240,11 @@ const ENTRY_SPECIFIER: string = "./entry.js";
 const ASSEMBLY_SPECIFIER: string = "./assembly.js";
 const STAGED_SPECIFIER: string = "./artifact.js";
 const MCP_HANDLER_SPECIFIER: string = "./mcp-handler.js";
+const HTTP_OPERATIONS_SPECIFIER: string = "./http-operations.js";
 const ENV_ASSEMBLY_SPECIFIER: string = "../runtime/env-assembly.js";
 const GRANT_ROUTE_SPECIFIER: string = "../runtime/grant-route.js";
 const MCP_PERMISSIONS_SPECIFIER: string = "../runtime/mcp-permissions.js";
+const DERIVED_INPUTS_SPECIFIER: string = "./derived-inputs.js";
 
 /**
  * Mirror of `loadSiblingFn` (`worker/assembly.ts:634`): static
@@ -353,6 +371,56 @@ async function defaultLoadMcpPermissions(): Promise<CreateMemberMcpPermissionsFn
   return factory as CreateMemberMcpPermissionsFn;
 }
 
+async function defaultLoadHttpOperationsFactory(): Promise<HttpOperationHandlerFactory | undefined> {
+  let mod: unknown;
+  try {
+    mod = await import(HTTP_OPERATIONS_SPECIFIER);
+  } catch {
+    // Absent bundle: main passes no factory and `/api/operations/*`
+    // keeps assembly's own interim 501 naming the join.
+    return undefined;
+  }
+  if (!isRecord(mod)) {
+    throw new Error(
+      "deploy main: worker sibling ./http-operations.js imported a non-module namespace",
+    );
+  }
+  const chain: unknown = mod["handleOperationRequest"] ?? mod["default"];
+  if (typeof chain !== "function") {
+    throw new Error(
+      'deploy main: worker sibling ./http-operations.js has no function export "handleOperationRequest"',
+    );
+  }
+  // Join-contract curry (arity adaptation only, identical behavior):
+  // the bundle stays a pure re-export so no entry-path comment leaks
+  // the tmpdir (bundle determinism); this stable source does the rest.
+  const handle = chain as (deps: unknown, req: Request, op: string) => Promise<Response>;
+  return ((deps) => (req, op) => handle(deps, req, op)) as HttpOperationHandlerFactory;
+}
+
+async function defaultLoadDerivedInputs(): Promise<BakedDerivedInputs | undefined> {
+  let mod: unknown;
+  try {
+    mod = await import(DERIVED_INPUTS_SPECIFIER);
+  } catch {
+    // Absent bake: the catalog serves framing shapes only (E1
+    // legacy; bound checking stays off on the MCP path).
+    return undefined;
+  }
+  if (!isRecord(mod)) {
+    throw new Error(
+      "deploy main: worker sibling ./derived-inputs.js imported a non-module namespace",
+    );
+  }
+  const baked: unknown = mod["derivedInputs"];
+  if (!isRecord(baked)) {
+    throw new Error(
+      'deploy main: worker sibling ./derived-inputs.js has no object export "derivedInputs"',
+    );
+  }
+  return baked as BakedDerivedInputs;
+}
+
 /**
  * Fail-fast shape check on the staged deployment (production `./artifact.js`
  * or an injected loader — garbage fails loud either way, naming the bad
@@ -418,6 +486,8 @@ export function createMainFetch(loaders: MainLoaders = {}): WorkerFetch {
   const loadMcp = loaders.loadMcpHandlerFactory ?? defaultLoadMcpHandlerFactory;
   const loadGrant = loaders.loadGrantHandler ?? defaultLoadGrantHandler;
   const loadPerms = loaders.loadMcpPermissions ?? defaultLoadMcpPermissions;
+  const loadDerived = loaders.loadDerivedInputs ?? defaultLoadDerivedInputs;
+  const loadHttpOps = loaders.loadHttpOperationsFactory ?? defaultLoadHttpOperationsFactory;
 
   const prodDepsByEnv = new WeakMap<object, Promise<ProductionDeps>>();
   const workerByEnv = new WeakMap<object, Promise<AssembledWorker>>();
@@ -430,6 +500,8 @@ export function createMainFetch(loaders: MainLoaders = {}): WorkerFetch {
   const getMcpFactory = memoize(() => loadMcp());
   const getGrantHandler = memoize(() => loadGrant());
   const getPermsFactory = memoize(() => loadPerms());
+  const getDerivedInputs = memoize(() => loadDerived());
+  const getHttpOpsFactory = memoize(() => loadHttpOps());
   const getAssemble = memoize(() => loadAssemble());
 
   function prodDepsFor(env: Record<string, unknown>): Promise<ProductionDeps> {
@@ -453,21 +525,34 @@ export function createMainFetch(loaders: MainLoaders = {}): WorkerFetch {
     validateStagedDeployment(staged);
     const deps = await prodDepsFor(env);
     const factory = await getMcpFactory();
+    const httpFactory = await getHttpOpsFactory();
     const permFactory = factory === undefined ? undefined : await getPermsFactory();
+    const derivedInputs =
+      factory === undefined && httpFactory === undefined ? undefined : await getDerivedInputs();
     const assembleWorker = await getAssemble();
-    const assemblyDeps: AssemblyDeps =
-      factory === undefined
-        ? { store: deps.store, identityStore: deps.identityStore }
+    const assemblyDeps: AssemblyDeps = {
+      store: deps.store,
+      identityStore: deps.identityStore,
+      ...(factory === undefined
+        ? null
         : {
-            store: deps.store,
-            identityStore: deps.identityStore,
             mcp: {
               createHandler: factory,
               ...(permFactory === undefined
                 ? null
                 : { permissions: permFactory(staged.artifact) }),
+              ...(derivedInputs === undefined ? null : { derivedInputs }),
             },
-          };
+          }),
+      ...(httpFactory === undefined
+        ? null
+        : {
+            http: {
+              createOperationHandler: httpFactory,
+              ...(derivedInputs === undefined ? null : { derivedInputs }),
+            },
+          }),
+    };
     try {
       return await assembleWorker(staged.artifact, staged.modules, assemblyDeps, staged.verdict);
     } catch (err) {

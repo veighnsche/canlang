@@ -1,0 +1,175 @@
+{
+  "date": "2026-10-06",
+  "source_checkpoint": "3d1f8f062f9650c061f6cb87c8af9afb2c01b0e5",
+  "observed_head": "3571077c2397ec37071536f0f41b8fe0473a4716",
+  "concurrent_committed_files": [
+    "compiler/tests/analysis.rs",
+    "compiler/tests/b4_examples.rs"
+  ],
+  "package_source_hashes_checked": 124,
+  "source_hash_mismatches": [],
+  "task_count": 230,
+  "required_task_count": 220,
+  "optional_task_count": 10,
+  "by_plan": {
+    "artifact-preparation": {
+      "tasks": 44,
+      "required": 43,
+      "lanes": 11
+    },
+    "exact-values": {
+      "tasks": 44,
+      "required": 44,
+      "lanes": 10
+    },
+    "input-validation": {
+      "tasks": 73,
+      "required": 68,
+      "lanes": 9
+    },
+    "shared": {
+      "tasks": 25,
+      "required": 25,
+      "lanes": 5
+    },
+    "work-transitions": {
+      "tasks": 44,
+      "required": 40,
+      "lanes": 8
+    }
+  },
+  "original_parent_gates_preserved": 42,
+  "all_checkboxes_unchecked": true,
+  "graph_acyclic_including_all_conditional_edges": true,
+  "local_links_checked": 39,
+  "ordered_or_exclusively_owned_overlapping_write_pairs": 130,
+  "unordered_cross_lane_write_conflicts": [],
+  "non_task_contract_preservation": {
+    "work-transitions.md": {
+      "original_non_task_prefix_preserved": false,
+      "original_non_task_suffix_preserved": true,
+      "reviewed_nonsemantic_refinements": [
+        {
+          "new": "`packages/cloudflare/src/runtime/t24b-dispatch-execution.test.ts` and `t24b-dispatch-durable.test.ts`",
+          "previous": "`packages/cloudflare/src/runtime/t24b-dispatch{,-durable}.test.ts`"
+        },
+        {
+          "new": "prepared.ts                        # integrator composition of lane modules",
+          "previous": "prepared.ts                        # consolidated TS comparator"
+        },
+        {
+          "new": "    rows.ts                            # rows lane",
+          "previous": "no separate lane file"
+        },
+        {
+          "new": "    retry.ts",
+          "previous": "no separate lane file"
+        },
+        {
+          "new": "    every.ts",
+          "previous": "no separate lane file"
+        },
+        {
+          "new": "    lifecycle.ts                       # policy lane",
+          "previous": "no separate lane file"
+        },
+        {
+          "new": "    receipt.ts",
+          "previous": "no separate lane file"
+        },
+        {
+          "new": "    recovery.ts",
+          "previous": "no separate lane file"
+        },
+        {
+          "new": "    linkage.ts                         # receipts/recovery/linkage lane",
+          "previous": "no separate lane file"
+        },
+        {
+          "new": "    retry.test.ts",
+          "previous": "no separate lane file"
+        },
+        {
+          "new": "    every.test.ts",
+          "previous": "no separate lane file"
+        },
+        {
+          "new": "    lifecycle.test.ts",
+          "previous": "no separate lane file"
+        },
+        {
+          "new": "    receipt.test.ts",
+          "previous": "no separate lane file"
+        },
+        {
+          "new": "    recovery.test.ts",
+          "previous": "no separate lane file"
+        },
+        {
+          "new": "    linkage.test.ts",
+          "previous": "no separate lane file"
+        }
+      ],
+      "all_other_non_task_contracts_preserved": true
+    },
+    "artifact-preparation.md": {
+      "original_non_task_prefix_preserved": true,
+      "original_non_task_suffix_preserved": true,
+      "reviewed_nonsemantic_refinements": [],
+      "all_other_non_task_contracts_preserved": true
+    },
+    "exact-values.md": {
+      "original_non_task_prefix_preserved": false,
+      "original_non_task_suffix_preserved": false,
+      "reviewed_nonsemantic_refinements": [
+        {
+          "new": "aggregates/{mod,numeric,integer,decimal,money}.rs",
+          "previous": "aggregates/{mod,numeric}.rs"
+        },
+        {
+          "new": "tests/{integer_vectors,rounding_vectors,decimal_vectors,money_vectors,temporal_vectors,aggregate_vectors}.rs",
+          "previous": "tests/{numeric_vectors,temporal_vectors,aggregate_vectors}.rs"
+        },
+        {
+          "new": "A03.1, completed by A03.foundation, owns",
+          "previous": "A03 owns"
+        },
+        {
+          "new": "A03.foundation exposes workspace/representations/failures before independent algorithm work; A03\u2013A06 native tasks consume C01\u2013C03 readiness through their explicit leaf dependencies. C04.ready must pass before A07 actual Worker binding integration.",
+          "previous": "A03\u2013A06 can proceed natively after C01\u2013C03; C04 must pass before A07 Worker integration."
+        },
+        {
+          "new": "scripts listed in the checklist",
+          "previous": "scripts listed in the task table"
+        }
+      ],
+      "all_other_non_task_contracts_preserved": true
+    },
+    "input-validation.md": {
+      "original_non_task_prefix_preserved": true,
+      "original_non_task_suffix_preserved": true,
+      "reviewed_nonsemantic_refinements": [],
+      "all_other_non_task_contracts_preserved": true
+    }
+  },
+  "resource_valid_dispatch_profiles": {
+    "declared-required-scope": 70,
+    "accepted-port-branches": 73
+  },
+  "production_source_edits": false,
+  "implementation_tests_or_benchmarks_run": false,
+  "documents": {
+    "docs/research/package-subsystem-ports-20261006/implementation-plans/README.md": "c65c2e81d0c5c3322dfb65a755bd5a6714f669eb06e1e225e2ff1be05f272a48",
+    "docs/research/package-subsystem-ports-20261006/implementation-plans/artifact-preparation.md": "68dcaf6d9720685bb77e166add8a4018e576e67058f72d4ea7869d3a8a144793",
+    "docs/research/package-subsystem-ports-20261006/implementation-plans/artifact-preparation.tasks.json": "2985b1b40b12cc9754d86f7720b783ea053aac8acd34239c0962d66f43c84aef",
+    "docs/research/package-subsystem-ports-20261006/implementation-plans/exact-values.md": "05d0ede96076efd3a2bdb60552d4b537e88e43a7500a5f9c5987a0fabdbf0c29",
+    "docs/research/package-subsystem-ports-20261006/implementation-plans/exact-values.tasks.json": "bf940aa4222d9fae2185bdda6ca0a642e8574f36348070003f14566a0cd917bd",
+    "docs/research/package-subsystem-ports-20261006/implementation-plans/execution-manifest.json": "3fe03f3ff97f09fd45971c81162a5552052f15b19eb58b3ef647913e49a9a328",
+    "docs/research/package-subsystem-ports-20261006/implementation-plans/input-validation.md": "5ec351c6dd69dbb06fb8a933789ceb1309957b8f5b9d38dbda8c87f87f650363",
+    "docs/research/package-subsystem-ports-20261006/implementation-plans/input-validation.tasks.json": "03d024eb78dd16a9cfa96ebccfdb03eb3a61b03b18192e337921c178570d695b",
+    "docs/research/package-subsystem-ports-20261006/implementation-plans/shared.tasks.json": "4ce369e02d466f194427cbfbaa3c232757eba1c8d791bc03921cec3545851327",
+    "docs/research/package-subsystem-ports-20261006/implementation-plans/work-transitions.md": "6c9f996516fcdb74d0511ce50231af3e8f8b5238ae38df66dacae54cc9c7725f",
+    "docs/research/package-subsystem-ports-20261006/implementation-plans/work-transitions.tasks.json": "541e6d1da88de731bbf7d4ea0ed08ab9d0ec2c891cb979712442ced6ab504fc2"
+  },
+  "issues": []
+}

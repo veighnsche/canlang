@@ -1,0 +1,13 @@
+{
+ "schema_version": 1,
+ "observed_utc": "2026-10-06T06:01:30Z",
+ "change": "cherry-pick 6dcf919b49205eab1bc01bad6212342aa529d016 (lane A) as 65fc60db87fff6ca84c5319c0e62d872bcde320e on main",
+ "changed_paths": 1,
+ "paths": [
+  "compiler/tests/effects.rs"
+ ],
+ "coverage_delta": "test-only (+10/-7): F6 panic guard + expectation order fix; no src changes, moves, or duty transfers",
+ "complete_checkpoint_retained": "8249342707d3280e88e39e8c911b7e457828f31f",
+ "area_decisions_unchanged": true,
+ "verification": "lane full cargo test 873/0 + clippy -D warnings 0 + fmt-own-clean (G-A-A1-01/G-A-A1-02 released); coordinator diff-reviewed, no independent re-run (test-only, disjoint from E1/E2a)"
+}

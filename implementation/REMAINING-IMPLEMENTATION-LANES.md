@@ -5,6 +5,15 @@ The user requested this reorganization after more than twelve hours of wall time
 This document does not authorize restarting the stopped Muse session or launching
 replacement instances. Explicit human restart permission remains required.
 
+Execution status, 2026-10-06 (coordinator 01a10f6d-4be0-7560-915d-a8bc1fefe571):
+the quoted human START released the hold. Frozen base for all eight checkouts
+is `b30d52a22516643533795f79d7d0fb111a6c0f04`; all 118 historical/checkpoint
+commits are on `main`; seven lane worktrees exist on their recorded
+`codex/remaining-lane-*` branches. Stopped-state/c82eb3c/dirty-work statements
+above describe earlier planning and are superseded as scheduling facts only;
+language decisions and acceptance requirements below remain authoritative.
+Live progress: `implementation/challenge-audit-run/remaining-tasks.md`.
+
 Preparation correction, 2026-10-06: the user cancelled preliminary worktree
 allocation to resolve untracked files first. The three created A/B/C checkouts
 were archived and removed; D–G were not created. See the

@@ -1,0 +1,93 @@
+{
+  "request": {
+    "state": "Implementation planning at source checkpoint 30e211dae891cfdca3f6322ce45c46c426138830 on October 6 2026. Four existing package responsibilities will be ported with unchanged compiler and feature-named folders: exact values, owned-input validation, work/state transitions, native artifact preparation. No Rust implementation/performance proof exists. Existing JS APIs and error/evaluation order remain obligations; new private domains can be declared separately. Values semantics plus binding crates can share arithmetic and ordered plan modules. BigInt-first scratch preserves accepted raw arbitrarily wide operands. Generated JS still consumes structural BigInts, Decimal coef/scale and Money minor fields; handles help complete operations, not ordinary expression chains.\nObserved work graph: private @canlang/work version0.0.0 has only noEmit typecheck and TS test scripts, no build/dist/exports. Work kernel commands import state system definitions. State fanout tables explicitly mirror work without importing its source and have StateError vs KernelTableError profiles. Work withRowData performs JSON-safety checking then structuredClone; state wrapper clones directly. Cloudflare production uses state fanout producers and authoritative fenced commits, not work's test-only memory store. Its fixed vendor tree lacks work. A shared pure work-owned mechanism must avoid state->full-work->state, preserve separate wrappers, and become an actual dist/vendor/release dependency.\nValues/work public operations are synchronous. Repository packages are ESM; Workers can import a precompiled WebAssembly.Module, instantiate before requests, and call functions synchronously thereafter. Current repository deployment/local/testkit carries only JS text. Real binary assets/loaders/glue compatibility remain unproved. Explicit TS mode is a release choice; selecting Rust then retrying failed semantic operations in TS can repeat observable effects and conceal divergence. Import-time bootstrap compatibility for plain Node and Worker package exports must be tested before default replacement; no requirement to introduce native addons or fetch per call.\nValidation sees fresh JSON/form inside interfaces handleOperationRequest. Only host JSON.parse currently proves a useful fresh-input domain; form assignment/coercion, SDK MCP arguments, arbitrary unknown schema values do not yet have equivalent provenance. Cloudflare worker assembly currently returns 501 for /api/operations; actual MCP is deployed via an injected factory. State hashes raw inputs/checks receipts before age/auth/normalization. Closing an owning HTTP route join or verifying SDK parse ownership is an adoption task; a Wasm test fixture alone cannot establish current production integration. Complete legacy validator remains separate TS. Preserve JS lone-surrogate text, own __proto__, enumeration, presence, numbers and differing first-error/collected-error profiles.\nNative preparation spans current artifact semantic checks, release facts, compatibility, module graph, deploy plans/review/render and staged output. The JS CLI currently loads/parses artifact and descriptor/environment/target, checks compat, refuses bare deploy before build, calls activation, then Bun MCP build + owner interfaces derivation, builds plan, loads previous plan, renders; preview writes no deployment files, --yes checks compiler match before writes and Wrangler apply. Native ownership of artifact/indexes/buffers is useful, but eagerly collecting all inputs/errors changes that order. Retain host syntax diagnostics and JS owner catalogs, activation and live apply. Native job can be a single process session, request coarse host stages as needed, retain state, and stage reviewed bytes in a private temp area for later host publishing. JS-only hashes/rendered bytes must remain exact; mixed binary format is explicitly versioned. Native platform distribution is additional work. Compare alternatives at the same public outcomes; speed unproven.",
+    "questions": {
+      "kernel_owner": {
+        "type": "choice",
+        "instructions": "Which shared pure-mechanism owner best makes work/state reuse acyclic and shippable while preserving profiles and producer responsibility?",
+        "criteria": {
+          "leaf_package": "Create a work-owned responsibility package work-kernel, depending only on contracts; work/state/Cloudflare consume its pure exports. Add build order, vendoring and release inventory. Clear package DAG, with one extra package and migration work.",
+          "work_subpath": "Keep implementation in work and create an independently built/exported pure subpath with enforced graph isolation and binary delivery. Fewer package names, but state depends on a package whose other commands depend on state and build/export discipline is essential.",
+          "mirrored_adapters": "Retain work/state wrappers and separate mirrored semantic implementations with shared conformance fixtures; lowest packaging churn and current layering, but continued duplication and less migration ownership."
+        }
+      },
+      "bootstrap": {
+        "type": "choice",
+        "instructions": "Which readiness and rollback policy best preserves synchronous APIs without hiding errors during initial runtime adoption?",
+        "criteria": {
+          "explicit_bootstrap": "Prove import/runtime initialization on actual Node/workerd; select TS or Rust at build/release startup, keep existing sync calls after readiness, and fail Rust-mode bootstrap/integrity/semantic errors without cross-backend retry. Some callers stay TS until integration is proven.",
+          "automatic_fallback": "Load Rust opportunistically and fall back to TS on loader or operation failure. Broad immediate availability and less bootstrap integration, but error/observable-read duplication can change semantics and obscure defects.",
+          "async_api": "Change migrated helpers to return promises so each caller can wait for loading; simple loading propagation but changes public sync APIs and generated JS caller assumptions."
+        }
+      },
+      "validation_adoption": {
+        "type": "choice",
+        "instructions": "How should the first owned-input validator demonstrate a real package consumer without claiming nonexistent deployed HTTP integration?",
+        "criteria": {
+          "bounded_join_gate": "Port the existing HTTP JSON operation handler, prove real Wasm loading there, and require either a bounded owning HTTP route join or verified MCP SDK parser ownership before deployed default adoption. Retain TS for unproved paths; separates implementation from adoption but adds a join gate.",
+          "fixture_completion": "Port the HTTP handler and accept a custom workerd fixture as complete deployed migration, deferring the501 owning route and MCP provenance. Smallest near-term work and real handler exercised, but production integration claim is not demonstrated.",
+          "whole_interfaces": "Migrate all transport parsing/servers and complete the HTTP endpoint first, bringing every callback under Rust-owned input. Broad complete transport control, but changes ownership and greatly increases unrelated scope."
+        }
+      },
+      "native_boundary": {
+        "type": "choice",
+        "instructions": "Which native preparation boundary best retains data while respecting current host stage/error order and review/apply behavior?",
+        "criteria": {
+          "staged_job": "One native process/session owns semantic artifact and module state; demand coarse host parse/build/catalog/activation/previous-plan stages in current order, emit review data and private staged bytes, publish/apply via existing host only. More protocol work, bounded crossings and retained ownership.",
+          "eager_snapshot": "Collect host parse/build/verdict/previous-plan facts before a single stateless native call. Very simple API and pure calculation, but early collection can change refusal/error/callback order and ownership benefit is reduced.",
+          "whole_cli": "Move filesystem discovery, activation, JS build, review, output and Wrangler orchestration into Rust. Fewer host boundaries, but reimplements JS owners and broadens portability and deployment responsibility."
+        }
+      }
+    },
+    "model": "jev-latest"
+  },
+  "response": {
+    "model": "jev-1.13.0",
+    "answers": {
+      "kernel_owner": {
+        "type": "choice",
+        "choice": "leaf_package",
+        "confidence": 0.99,
+        "probabilities": {
+          "mirrored_adapters": 0.0,
+          "leaf_package": 0.99,
+          "work_subpath": 0.01
+        }
+      },
+      "bootstrap": {
+        "type": "choice",
+        "choice": "explicit_bootstrap",
+        "confidence": 1.0,
+        "probabilities": {
+          "async_api": 0.0,
+          "explicit_bootstrap": 1.0,
+          "automatic_fallback": 0.0
+        }
+      },
+      "validation_adoption": {
+        "type": "choice",
+        "choice": "bounded_join_gate",
+        "confidence": 0.95,
+        "probabilities": {
+          "whole_interfaces": 0.0,
+          "bounded_join_gate": 0.97,
+          "fixture_completion": 0.03
+        }
+      },
+      "native_boundary": {
+        "type": "choice",
+        "choice": "staged_job",
+        "confidence": 1.0,
+        "probabilities": {
+          "staged_job": 1.0,
+          "eager_snapshot": 0.0,
+          "whole_cli": 0.0
+        }
+      }
+    },
+    "usage": {
+      "input_tokens": 1905,
+      "output_tokens": 179
+    }
+  }
+}

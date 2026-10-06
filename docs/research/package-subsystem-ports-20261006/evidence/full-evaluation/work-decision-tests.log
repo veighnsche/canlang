@@ -1,0 +1,115 @@
+▶ t34-f4 scan: stale-claim resume vs fresh-claim observation
+  ✔ running + stale claim resumes; pending rows need no recovery action (2.399959ms)
+  ✔ running + fresh claim is uncertain (observed read-only, never released) (0.184875ms)
+  ✔ running + unknown claim age is uncertain (fail closed, never released) (0.26175ms)
+  ✔ staleness boundary is inclusive: age == max is stale, max - 1 is fresh (0.271833ms)
+  ✔ pending rows ignore even stale claim instants (T24 precedent) (0.14425ms)
+  ✔ lifecycle and guard never race a live claim: fresh running + deleted stays uncertain (0.087958ms)
+✔ t34-f4 scan: stale-claim resume vs fresh-claim observation (4.242625ms)
+▶ t34-f4 scan: exhaustion pins dead (failed/exhausted)
+  ✔ recorded attempts at the cap pin dead; one below resumes (0.118041ms)
+  ✔ horizon boundary is inclusive: elapsed == horizon pins dead (0.141708ms)
+  ✔ null first-attempt anchor checks attempts only (horizon never started) (0.057291ms)
+  ✔ default policy is the adopted retry default (8 attempts): 7 resumes, 8 dead (0.121583ms)
+✔ t34-f4 scan: exhaustion pins dead (failed/exhausted) (0.569083ms)
+▶ t34-f4 scan: terminal rows are never re-executed
+  ✔ completed/skipped/failed rows appear in no action list, even when guard/lifecycle disagree (0.128125ms)
+✔ t34-f4 scan: terminal rows are never re-executed (0.172417ms)
+▶ t34-f4 scan: lifecycle and guard pins (M4)
+  ✔ pending + guard-false pins skipped/non-applicable (pending + stale running alike) (0.122792ms)
+  ✔ demonstrably deleted pins skipped/deleted (pending + stale running alike) (0.055083ms)
+  ✔ moved records re-evaluate: guard-false skips, guard-true resumes (0.044459ms)
+  ✔ unknown lookup pins failed with its closed reason — never deleted, never skipped (0.0725ms)
+  ✔ lifecycle pins win over exhaustion: deleted + spent budget still skips deleted (0.037583ms)
+✔ t34-f4 scan: lifecycle and guard pins (M4) (0.401333ms)
+▶ t34-f4 scan: exact cutoff — admit, phantoms, gaps (M4)
+  ✔ admits frozen members with no row and no completion — nothing else (0.058833ms)
+  ✔ completed-without-row is a gap (attention), never an admit, never auto-completed (0.037833ms)
+  ✔ completed members with only a live row are gaps too (partial checkpoint) (0.035625ms)
+  ✔ rows outside the frozen set are phantoms (attention, never driven) (0.036834ms)
+  ✔ finishEnumeration only when the cursor is stale with nothing to admit and no gaps (0.070917ms)
+✔ t34-f4 scan: exact cutoff — admit, phantoms, gaps (M4) (0.2965ms)
+▶ t34-f4 scan: fanout scoping (M7 no shared checkpoint)
+  ✔ rejects intent, checkpoint, or rows from another fanout (0.268708ms)
+  ✔ two occurrences plan independently: same record, separate fanouts, separate lists (0.480333ms)
+✔ t34-f4 scan: fanout scoping (M7 no shared checkpoint) (0.80425ms)
+▶ t34-f4 scan: validation and stable evidence
+  ✔ rejects bad clocks, ages, policies, and anchors (0.293ms)
+  ✔ fails closed on unknown row states and lifecycle shapes (0.133875ms)
+  ✔ sorts every list for stable evidence (0.046042ms)
+  ✔ empty fanout plans empty (no phantom admit, no false finish) (0.036042ms)
+✔ t34-f4 scan: validation and stable evidence (0.572208ms)
+▶ every: UTC-epoch slot computation
+  ✔ aligns slots to the UTC epoch (1.857458ms)
+  ✔ derives stable occurrence ids (1.845666ms)
+  ✔ rejects invalid clocks and periods (0.498625ms)
+✔ every: UTC-epoch slot computation (5.171375ms)
+▶ every: per-scope coalescing
+  ✔ admits one occurrence per eligible pre-existing scope at the current slot (0.572291ms)
+  ✔ coalesces missed slots to one current occurrence (0.170209ms)
+  ✔ admits nothing for new scopes until the next slot (0.188917ms)
+  ✔ admits nothing for removed scopes and dedupes repeated scopes (0.196125ms)
+  ✔ admits nothing when the slot was already admitted (0.152458ms)
+  ✔ is deterministic across identical ticks (0.22ms)
+✔ every: per-scope coalescing (1.928417ms)
+▶ every: scope rejection
+  ✔ rejects root scope with a typed error (0.188417ms)
+  ✔ rejects any other non-team/app scope the same way (0.056209ms)
+✔ every: scope rejection (0.313083ms)
+▶ receipt: outcome recording
+  ✔ records delivery (0.956917ms)
+  ✔ records ambiguity as uncertain (0.0985ms)
+  ✔ rejects outcomes for non-live items (0.257792ms)
+✔ receipt: outcome recording (3.773667ms)
+▶ receipt: transient retry vs terminal failure
+  ✔ retries transient failures under the SAME occurrence (0.137ms)
+  ✔ fails terminally on a false authored require (0.392834ms)
+  ✔ fails terminally on permanent errors and stops retries (0.153834ms)
+  ✔ classifies causes directly (0.0785ms)
+  ✔ dead-letters transient failures past the attempt cap (0.070458ms)
+  ✔ dead-letters transient failures past the horizon (0.092709ms)
+✔ receipt: transient retry vs terminal failure (1.302917ms)
+▶ receipt: backoff schedule
+  ✔ uses exponential delays with injected jitter inside documented bounds (0.303125ms)
+  ✔ hits the exact jitter bounds (0.065166ms)
+  ✔ exhausts at the attempt cap and the 24h horizon by default (0.081667ms)
+  ✔ rejects negative attempts and clocks (0.078542ms)
+  ✔ honors custom policies and rejects invalid ones (0.0565ms)
+✔ receipt: backoff schedule (0.680667ms)
+▶ receipt: unknown until reconciled
+  ✔ stays unknown without evidence (0.067458ms)
+  ✔ never touches non-uncertain items (0.042333ms)
+  ✔ resolves on delivered, failed and not-found evidence (0.045709ms)
+✔ receipt: unknown until reconciled (0.206541ms)
+▶ receipt: dead letters and observations
+  ✔ lists dead-letter items visibly in stable order (0.078666ms)
+  ✔ assembles receipt observations from recorded fields (0.081083ms)
+✔ receipt: dead letters and observations (0.192417ms)
+▶ recovery: pending-work inventory
+  ✔ counts states and reports the oldest uncertain commit (1.06725ms)
+  ✔ reports null oldestUncertainAt when nothing is uncertain (0.084042ms)
+✔ recovery: pending-work inventory (1.745958ms)
+▶ recovery: work-inventory enumeration
+  ✔ maps live states, omits terminal items and sorts by intent id (1.260083ms)
+  ✔ returns an empty inventory for empty or fully settled input (0.13775ms)
+  ✔ throws listing every unmapped item instead of unattestable rows (0.545542ms)
+  ✔ throws on unknown states as shape drift (0.08225ms)
+✔ recovery: work-inventory enumeration (2.219917ms)
+▶ recovery: bounded due-work scan
+  ✔ pages through batches with an explicit resume cursor (0.1905ms)
+  ✔ never silently truncates: drain reports done=false with a resume cursor at the cap (0.158833ms)
+  ✔ rejects invalid limits and loud over-delivery (0.098083ms)
+✔ recovery: bounded due-work scan (0.579833ms)
+▶ recovery: stale-claim expiry
+  ✔ treats the age boundary as stale (0.112917ms)
+  ✔ finds stale claims in stable order (0.067541ms)
+  ✔ releases only claimed items whose recorded claim is stale (0.09775ms)
+✔ recovery: stale-claim expiry (0.33175ms)
+ℹ tests 69
+ℹ suites 19
+ℹ pass 69
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 139.4955

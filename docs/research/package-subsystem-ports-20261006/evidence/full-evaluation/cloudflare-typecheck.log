@@ -1,0 +1,7 @@
+$ tsc --noEmit -p tsconfig.json
+src/runtime/invoke.ts(5911,136): error TS2339: Property 'kind' does not exist on type 'never'.
+src/runtime/t34-f7-fanout-durable.test.ts(660,7): error TS2349: This expression is not callable.
+  Type 'never' has no call signatures.
+src/runtime/t34-f7-fanout.test.ts(1879,7): error TS2552: Cannot find name 'stageTriggerJoin'. Did you mean 'triggerJoin'?
+src/runtime/t34-f7-fanout.test.ts(1897,7): error TS2552: Cannot find name 'stageTriggerJoin'. Did you mean 'triggerJoin'?
+error: script "typecheck" exited with code 1

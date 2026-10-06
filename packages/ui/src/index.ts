@@ -172,8 +172,35 @@ export {
   fieldInputName,
   form,
   formatDatetimeLocal,
+  formFragmentWrap,
+  generatedDraftValues,
+  generatedFields,
+  generatedForm,
   pointerToFieldName,
+  projectGeneratedInputs,
 } from "./forms.js";
+export {
+  applyDocumentRerender,
+  applyFormRerender,
+  collectFormValues,
+  GeneratedSubmitError,
+  submitGeneratedForm,
+} from "./client.js";
+export type {
+  CollectedForm,
+  DomControlLike,
+  DomFileLike,
+  DomFormLike,
+  FileLike,
+  GeneratedSubmitErrorCode,
+  GeneratedSubmitResult,
+  SubmitFetch,
+  SubmitFetchHeaders,
+  SubmitFetchInit,
+  SubmitFetchResponse,
+  SubmitGeneratedFormInput,
+  SwapDocumentLike,
+} from "./client.js";
 export { LANE05_CATALOG_VERSION, UI_CATALOG } from "./catalog.js";
 // Temporary B0 wiring: re-exported contract types until lane 7 assembles
 // @canlang/contracts; see README.

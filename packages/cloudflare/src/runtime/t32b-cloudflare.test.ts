@@ -50,6 +50,7 @@ import type {
 import { resolveIdentity, sha256HexText } from "@canlang/identity";
 import { createFrozenClock, createMemoryIdentityStore } from "@canlang/identity/testing";
 import { createTestMemoryStorage } from "../../../state/dist/state/src/storage/memory.js";
+import { T18_SHOP_ARTIFACT_JSON } from "../../../state/dist/state/src/mutation/t18-shop.artifact.js";
 import { buildInvoker } from "../worker/assembly.js";
 import type { AssembledModules } from "../worker/assembly.js";
 import { assembleDispatchCommands } from "../worker/assembly.js";
@@ -57,6 +58,7 @@ import {
   createWorkerDispatchJoinPort,
   createWorkerDispatchRegistry,
   driveDispatchIntent,
+  loadCanonicalDescriptors,
   loadDispatchSystemProducers,
   readDispatchExecutionRow,
   seamTriggerPoint,
@@ -236,8 +238,20 @@ export function canApp() {
   return {
     calls,
     policy: {
-      operations: { "acme.Todo.create": { by: ["members"] } },
-      models: {}
+      operations: {
+        "acme.Todo.create": { by: ["members"] },
+        // B7: the seam scenarios declare EXPLICIT-public admission
+        // (the interim-implicit posture this section was designed
+        // around — absent entries now deny): the mechanism's
+        // revocation check skips under public projection, so the
+        // seam's caller.roles guard stays the tripwire.
+        "acme.Shop.place": { by: ["public"] },
+        "acme.Shop.hooked": { by: ["public"] },
+        "acme.Shop.boomThrow": { by: ["public"] }
+      },
+      models: {
+        "acme.Todo": { read: ["Todo.read.1"], public: ["Todo.read.1"] }
+      }
     },
     Todo: { create: throwing },
     Shop: {
@@ -365,10 +379,11 @@ async function modelRows(store: StoragePort, model: string): Promise<StoredRow[]
 /* ------------------------------------------------------------------ */
 /* Site (a): scenario path through the real seam.                      */
 /*                                                                     */
-/* Scenarios admit `public` at the canonical gate, so the mechanism's  */
-/* revocation check skips (by-aware projection) and the SEAM's         */
-/* `caller.roles` guard is the membership tripwire — revocation and    */
-/* role flips void with `forbidden` naming the guard.                  */
+/* Scenarios admit `public` at the canonical gate (DECLARED gates,   */
+/* B7 — the interim-implicit posture made explicit), so the            */
+/* mechanism's revocation check skips (by-aware projection) and the    */
+/* SEAM's `caller.roles` guard is the membership tripwire —            */
+/* revocation and role flips void with `forbidden` naming the guard.   */
 /* ------------------------------------------------------------------ */
 
 describe("T32b scenario seam (guards + readings + revision fence)", () => {
@@ -1090,6 +1105,243 @@ describe("T32b fenced dispatch drives (real kernel verdicts)", () => {
     assert.equal(data.attempts, 0);
   });
 
+  it("buckets an unavailable target to the terminal transport member (target + echo, no call/record)", async () => {
+    // D3 transport half: the kernel's exact-keys verdict
+    // `{status,outboxId,target}` maps to the `unavailable` outcome
+    // member. Port stub, not the real kernel: this checkout's work
+    // kernel predates D's availability verdict (9c7b67c), so the
+    // stub returns the D-pinned exact shape verbatim; the
+    // real-kernel join (availability injection plumbing through the
+    // fence input) is a follow-up.
+    const { store } = createTestMemoryStorage();
+    const stack = await workerStack(store);
+    const seed = await seedIdentity();
+    const attemptDispatch = (() => ({
+      status: "unavailable",
+      outboxId: "obx_d1",
+      target: "Mail.send",
+    })) as unknown as FenceAttemptDispatchFn;
+    await stageIntents(stack, [stageInput({ intentId: "obx_d1" })]);
+    const intent = await pendingIntent(stack, "obx_d1");
+    const revisionBefore = await store.readRevision();
+    let providerCalls = 0;
+    const outcome = await driveDispatchIntent({
+      ...driveDefaults(stack, intent),
+      callProvider: (async () => {
+        providerCalls += 1;
+        return deliveredOutcome();
+      }) as DispatchProviderCaller,
+      fence: {
+        owner: seed.teamId,
+        revalidateAuthority: liveAuthority(seed),
+        attemptDispatch,
+      },
+    });
+    assert.equal(outcome.status, "unavailable");
+    if (outcome.status !== "unavailable") throw new Error("unreachable");
+    assert.equal(outcome.target, "Mail.send");
+    assert.equal(providerCalls, 0);
+    assert.deepEqual(outcome.fence, {
+      checkpoint: { revision: revisionBefore + 1, owner: seed.teamId },
+      triggerRevision: null,
+    });
+    const data = readDispatchExecutionRow(await dispatchRow(stack, "obx_d1"));
+    assert.equal(data.state, "claimed");
+    assert.equal(data.claimId, outcome.claimId);
+    assert.equal(data.attempts, 0);
+    assert.deepEqual(await pendingIds(stack), ["obx_d1"]);
+    assert.equal(await store.readRevision(), revisionBefore + 1);
+  });
+
+  it("buckets unavailable BEFORE the guard (guard never evaluates, no skip ceremony)", async () => {
+    const { store } = createTestMemoryStorage();
+    const stack = await workerStack(store);
+    const seed = await seedIdentity();
+    const attemptDispatch = (() => ({
+      status: "unavailable",
+      outboxId: "obx_d2",
+      target: "Mail.send",
+    })) as unknown as FenceAttemptDispatchFn;
+    await stageIntents(stack, [
+      stageInput({ intentId: "obx_d2", guard: "eligible()", guardVerdict: true }),
+    ]);
+    const intent = await pendingIntent(stack, "obx_d2");
+    let guardEvals = 0;
+    let providerCalls = 0;
+    const outcome = await driveDispatchIntent({
+      ...driveDefaults(stack, intent),
+      evaluateGuard: () => {
+        guardEvals += 1;
+        return false;
+      },
+      readStateSnapshot: () => ({ eligible: false }),
+      callProvider: (async () => {
+        providerCalls += 1;
+        return deliveredOutcome();
+      }) as DispatchProviderCaller,
+      fence: {
+        owner: seed.teamId,
+        revalidateAuthority: liveAuthority(seed),
+        attemptDispatch,
+      },
+    });
+    // Unavailable precedes the guard: bucketed, NOT skipped — and
+    // the guard NEVER evaluated (a skip would ack + pin false).
+    assert.equal(outcome.status, "unavailable");
+    assert.equal(guardEvals, 0);
+    assert.equal(providerCalls, 0);
+    assert.deepEqual(await pendingIds(stack), ["obx_d2"]);
+    const data = readDispatchExecutionRow(await dispatchRow(stack, "obx_d2"));
+    assert.equal(data.guardVerdict, true);
+    assert.equal(data.attempts, 0);
+  });
+
+  it("documents drive-side order: snapshot + live authority run before unavailable is consulted (short-circuit deferred)", async () => {
+    // Ordering qualifier (R01-residual review): the KERNEL checks
+    // unavailable before guard/authority evaluation — but the DRIVE
+    // cannot know the verdict before consulting the kernel, so its
+    // fence-time snapshot pull + live authority re-read run FIRST
+    // (runFenceGate awaits both before attemptDispatch). True
+    // short-circuit (skipping those reads for unavailable targets)
+    // arrives only with ACTUAL availability injection — the fence
+    // input carries no availability port yet (follow-up). Guard
+    // evaluation itself never runs (kernel-side skip); inherited /
+    // superseded / settled precedence stays kernel-side, untouched.
+    const { store } = createTestMemoryStorage();
+    const stack = await workerStack(store);
+    const seed = await seedIdentity();
+    const attemptDispatch = (() => ({
+      status: "unavailable",
+      outboxId: "obx_d4",
+      target: "Mail.send",
+    })) as unknown as FenceAttemptDispatchFn;
+    await stageIntents(stack, [
+      stageInput({ intentId: "obx_d4", guard: "eligible()", guardVerdict: true }),
+    ]);
+    const intent = await pendingIntent(stack, "obx_d4");
+    const live = liveAuthority(seed);
+    let snapshotPulls = 0;
+    let authorityCalls = 0;
+    let guardEvals = 0;
+    let providerCalls = 0;
+    const outcome = await driveDispatchIntent({
+      ...driveDefaults(stack, intent),
+      evaluateGuard: () => {
+        guardEvals += 1;
+        return true;
+      },
+      readStateSnapshot: () => {
+        snapshotPulls += 1;
+        return { eligible: true };
+      },
+      callProvider: (async () => {
+        providerCalls += 1;
+        return deliveredOutcome();
+      }) as DispatchProviderCaller,
+      fence: {
+        owner: seed.teamId,
+        revalidateAuthority: async () => {
+          authorityCalls += 1;
+          return live();
+        },
+        attemptDispatch,
+      },
+    });
+    assert.equal(outcome.status, "unavailable");
+    // Drive-side reads ran (documented order — NOT a short-circuit
+    // claim); kernel-side guard evaluation + provider never did.
+    assert.equal(snapshotPulls, 1);
+    assert.equal(authorityCalls, 1);
+    assert.equal(guardEvals, 0);
+    assert.equal(providerCalls, 0);
+  });
+
+  it("lets throwing fence ports preempt unavailable (no silent short-circuit)", async () => {
+    // Same qualifier, failure side: a throwing snapshot reader or
+    // authority re-read surfaces INSTEAD of the unavailable verdict
+    // (the kernel is never consulted). Pinned so a future
+    // availability-injection join can flip these to short-circuit
+    // deliberately, with this test as the tripwire.
+    const { store } = createTestMemoryStorage();
+    const stack = await workerStack(store);
+    const seed = await seedIdentity();
+    await stageIntents(stack, [
+      stageInput({ intentId: "obx_d5a", guard: "eligible()", guardVerdict: true }),
+      stageInput({ intentId: "obx_d5b", guard: "eligible()", guardVerdict: true }),
+    ]);
+    const attemptDispatch = ((..._args: Array<unknown>) => {
+      throw new Error("kernel consulted despite throwing fence port");
+    }) as unknown as FenceAttemptDispatchFn;
+    const intentA = await pendingIntent(stack, "obx_d5a");
+    const intentB = await pendingIntent(stack, "obx_d5b");
+    await assert.rejects(
+      () =>
+        driveDispatchIntent({
+          ...driveDefaults(stack, intentA),
+          readStateSnapshot: () => {
+            throw new Error("snapshot reader down");
+          },
+          fence: {
+            owner: seed.teamId,
+            revalidateAuthority: liveAuthority(seed),
+            attemptDispatch,
+          },
+        }),
+      /snapshot reader down/,
+      "throwing snapshot preempts",
+    );
+    await assert.rejects(
+      () =>
+        driveDispatchIntent({
+          ...driveDefaults(stack, intentB),
+          readStateSnapshot: () => ({ eligible: true }),
+          fence: {
+            owner: seed.teamId,
+            revalidateAuthority: () => {
+              throw new Error("authority reader down");
+            },
+            attemptDispatch,
+          },
+        }),
+      /authority reader down/,
+      "throwing authority preempts",
+    );
+  });
+
+  it("refuses unavailable verdicts naming another intent or missing the target (skew tripwires)", async () => {
+    const { store } = createTestMemoryStorage();
+    const stack = await workerStack(store);
+    const seed = await seedIdentity();
+    await stageIntents(stack, [
+      stageInput({ intentId: "obx_d3a" }),
+      stageInput({ intentId: "obx_d3b" }),
+      stageInput({ intentId: "obx_d3c" }),
+    ]);
+    for (const [name, intentId, verdict, pattern] of [
+      ["wrong-intent", "obx_d3a", { status: "unavailable", outboxId: "obx_other", target: "Mail.send" }, /names another intent/],
+      ["missing-target", "obx_d3b", { status: "unavailable", outboxId: "obx_d3b" }, /lost its outboxId\/target/],
+      ["empty-target", "obx_d3c", { status: "unavailable", outboxId: "obx_d3c", target: "" }, /lost its outboxId\/target/],
+    ] as const) {
+      // Fresh intent per case: the skew throw lands AFTER the claim
+      // wins, so a reused intent would drive held, not skewed.
+      const intent = await pendingIntent(stack, intentId);
+      const attemptDispatch = (() => verdict) as unknown as FenceAttemptDispatchFn;
+      await assert.rejects(
+        () =>
+          driveDispatchIntent({
+            ...driveDefaults(stack, intent),
+            fence: {
+              owner: seed.teamId,
+              revalidateAuthority: liveAuthority(seed),
+              attemptDispatch,
+            },
+          }),
+        pattern,
+        name,
+      );
+    }
+  });
+
   it("ignores authority without a fence (exact pre-T32b behavior)", async () => {
     const { store } = createTestMemoryStorage();
     const stack = await workerStack(store);
@@ -1169,5 +1421,868 @@ describe("T32b fenced dispatch drives (real kernel verdicts)", () => {
       }),
       /needs revalidateAuthority/,
     );
+  });
+});
+
+/* ------------------------------------------------------------------ */
+/* T32c C2 production joins (T18/read threading through the seam).      */
+/*                                                                     */
+/* The fence artifact above is hand-written T15a shape; these pins run */
+/* the REAL production T18 shop slice (server inits, nullable fields,  */
+/* containment, archive deleteMode, serverOnly fields) plus one        */
+/* serverOnly-free model and three probe scenarios through the REAL    */
+/* serving seam:                                                       */
+/*  - site 1+5: serverInits/nullableFields/containment reach the       */
+/*    model-table build (nullable fill, server resolution,             */
+/*    missing-parent verdict);                                         */
+/*  - site 2: gateArchivedTargets on scenario stageWrite;              */
+/*  - site 3+4: ConflictServerOnly threading + assembly                */
+/*    toBusinessError conflict mirror (bb1ca7a);                       */
+/*  - self-cancel netting verdict (B1): create+remove commits (never   */
+/*    throws); archive-mode pairs persist an archived stub.            */
+/* CRUD ops run the canonical mechanism path (module CRUD exports are  */
+/* tripwires, fence precedent); scenario probes use the cloudflare     */
+/* stdlib shape (create/set/deleteRecord with explicit model+id).      */
+/* ------------------------------------------------------------------ */
+
+const C2_MODULE = `import { create, set, deleteRecord } from "../stdlib.js";
+export const hooks = { midway: null };
+export const calls = [];
+const throwing = () => { throw new Error("t32c-proof: CRUD handler must never run on the canonical path"); };
+export function canApp() {
+  return {
+    calls,
+    policy: {
+      roles: [],
+      models: {
+        "Shop.Team": { read: ["Team.read.1"] },
+        "Shop.Member": { read: ["Member.read.1"] },
+        "acme.Plain": { read: ["Plain.read.1"] },
+      },
+      operations: {
+        "Shop.Team.create": { by: ["members"] },
+        "Shop.Team.update": { by: ["members"] },
+        "Shop.Team.delete": { by: ["members"] },
+        "Shop.Member.create": { by: ["members"] },
+        "Shop.Member.update": { by: ["members"] },
+        "Shop.Member.delete": { by: ["members"] },
+        "acme.Plain.create": { by: ["members"] },
+        "acme.Plain.update": { by: ["members"] },
+        "acme.Probe.selfCancel": { by: ["members"] },
+        "acme.Probe.updateRemove": { by: ["members"] },
+        "acme.Probe.archiveTouch": { by: ["members"] },
+        "acme.Probe.orphanMember": { by: ["members"] },
+        "acme.Probe.ghostMember": { by: ["members"] },
+      },
+    },
+    read: {
+      "Team.read.1": (c, row) => true,
+      "Member.read.1": (c, row) => true,
+      "Plain.read.1": (c, row) => true,
+    },
+    createTeam: throwing,
+    updateTeam: throwing,
+    deleteTeam: throwing,
+    createMember: throwing,
+    updateMember: throwing,
+    deleteMember: throwing,
+    createPlain: throwing,
+    updatePlain: throwing,
+    Probe: {
+      selfCancel: async (c, input) => {
+        calls.push("selfCancel");
+        const row = await create(c, "Shop.Team", {
+          id: input.inputs.key,
+          data: { name: "tmp-" + input.inputs.key, owner: input.inputs.owner, flags: [] },
+        });
+        await deleteRecord(c, "Shop.Team", row.id);
+        return { id: row.id };
+      },
+      updateRemove: async (c, input) => {
+        calls.push("updateRemove");
+        const row = await create(c, "Shop.Team", {
+          id: input.inputs.key,
+          data: { name: "tmp-" + input.inputs.key, owner: input.inputs.owner, flags: [] },
+        });
+        await set(c, "Shop.Team", row.id, { name: "v2-" + input.inputs.key });
+        await deleteRecord(c, "Shop.Team", row.id);
+        return { id: row.id };
+      },
+      archiveTouch: async (c, input) => {
+        calls.push("archiveTouch");
+        const row = await set(c, "Shop.Team", input.inputs.id, { name: "touched" });
+        return { id: row.id, version: row.version };
+      },
+      orphanMember: async (c, input) => {
+        calls.push("orphanMember");
+        const row = await create(c, "Shop.Member", {
+          id: input.inputs.key,
+          data: { name: "orphan-" + input.inputs.key, buddy: input.inputs.owner },
+        });
+        return { id: row.id };
+      },
+      ghostMember: async (c, input) => {
+        calls.push("ghostMember");
+        const row = await create(c, "Shop.Member", {
+          id: input.inputs.key,
+          data: { name: "ghost-" + input.inputs.key, buddy: input.inputs.owner },
+          parent: { model: "Shop.Team", id: "ghost-" + input.inputs.key },
+        });
+        return { id: row.id };
+      },
+    },
+  };
+}
+`;
+
+/**
+ * Production T18 shop slice (ops + models verbatim from the REAL
+ * compiler artifact JSON) plus a serverOnly-free model (empty
+ * exclusion-set proof) and the probe scenarios. Callables point at
+ * the C2 fixture module (top-level CRUD tripwires, nested probes).
+ */
+function c2Artifact(module: string): CompileArtifact {
+  const t18 = JSON.parse(T18_SHOP_ARTIFACT_JSON) as CompileArtifact;
+  const keepOps = new Set([
+    "Shop.Team.create",
+    "Shop.Team.update",
+    "Shop.Team.delete",
+    "Shop.Member.create",
+    "Shop.Member.update",
+    "Shop.Member.delete",
+  ]);
+  const t18Operations = t18.operations ?? [];
+  assert.ok(t18Operations.length > 0, "T18 slice needs operations");
+  const operations = [
+    ...t18Operations.filter((op) => keepOps.has(op.name as string)),
+    {
+      name: "acme.Plain.create",
+      kind: "create",
+      description: "",
+      inputs: { fields: [{ name: "title", field: { kind: "string" }, required: true }] },
+    },
+    {
+      name: "acme.Plain.update",
+      kind: "update",
+      description: "",
+      inputs: {
+        fields: [
+          {
+            name: "record",
+            field: { kind: "ref", model: "acme.Plain", requireVersion: true },
+            required: true,
+          },
+          { name: "title", field: { kind: "string" }, required: false },
+        ],
+      },
+    },
+    {
+      name: "acme.Probe.selfCancel",
+      kind: "scenario",
+      description: "",
+      inputs: { fields: [strInput("key", true), strInput("owner", true)] },
+    },
+    {
+      name: "acme.Probe.updateRemove",
+      kind: "scenario",
+      description: "",
+      inputs: { fields: [strInput("key", true), strInput("owner", true)] },
+    },
+    {
+      name: "acme.Probe.archiveTouch",
+      kind: "scenario",
+      description: "",
+      inputs: { fields: [strInput("id", true)] },
+    },
+    {
+      name: "acme.Probe.orphanMember",
+      kind: "scenario",
+      description: "",
+      inputs: { fields: [strInput("key", true), strInput("owner", true)] },
+    },
+    {
+      name: "acme.Probe.ghostMember",
+      kind: "scenario",
+      description: "",
+      inputs: { fields: [strInput("key", true), strInput("owner", true)] },
+    },
+  ];
+  const t18Models = t18.models ?? [];
+  assert.ok(t18Models.length > 0, "T18 slice needs models");
+  const models = [
+    ...t18Models,
+    {
+      name: "acme.Plain",
+      fields: [{ name: "title", field: { kind: "string" }, required: true, serverOnly: false }],
+      deleteMode: "remove",
+    },
+  ];
+  const crudTripwire = (id: string, member: string) => ({
+    id,
+    kind: "operation",
+    module,
+    export: `C2_${member}`,
+    member: [member],
+  });
+  const callables = [
+    crudTripwire("Shop.Team.create", "createTeam"),
+    crudTripwire("Shop.Team.update", "updateTeam"),
+    crudTripwire("Shop.Team.delete", "deleteTeam"),
+    crudTripwire("Shop.Member.create", "createMember"),
+    crudTripwire("Shop.Member.update", "updateMember"),
+    crudTripwire("Shop.Member.delete", "deleteMember"),
+    crudTripwire("acme.Plain.create", "createPlain"),
+    crudTripwire("acme.Plain.update", "updatePlain"),
+    { id: "acme.Probe.selfCancel", kind: "operation", module, export: "Probe_selfCancel", member: ["Probe", "selfCancel"] },
+    { id: "acme.Probe.updateRemove", kind: "operation", module, export: "Probe_updateRemove", member: ["Probe", "updateRemove"] },
+    { id: "acme.Probe.archiveTouch", kind: "operation", module, export: "Probe_archiveTouch", member: ["Probe", "archiveTouch"] },
+    { id: "acme.Probe.orphanMember", kind: "operation", module, export: "Probe_orphanMember", member: ["Probe", "orphanMember"] },
+    { id: "acme.Probe.ghostMember", kind: "operation", module, export: "Probe_ghostMember", member: ["Probe", "ghostMember"] },
+  ];
+  return {
+    artifact_version: 1,
+    language_version: t18.language_version,
+    tool_version: t18.tool_version,
+    sources: t18.sources,
+    modules: [],
+    callables,
+    pages: [],
+    requires: t18.requires,
+    tests: [],
+    operations,
+    models,
+  } as unknown as CompileArtifact;
+}
+
+async function c2Setup(): Promise<{
+  url: string;
+  asm: AssembledModules;
+  artifact: CompileArtifact;
+  store: StoragePort;
+  seed: SeededIdentity;
+  mod: FixtureModule;
+}> {
+  const dir = tempDir();
+  const url = writeModule(dir, "c2ops.mjs", C2_MODULE);
+  const asm = stubAsm(dir, { "c2ops.mjs": url });
+  const artifact = c2Artifact("c2ops.mjs");
+  const { store } = createTestMemoryStorage();
+  const seed = await seedIdentity();
+  const mod = (await import(url)) as FixtureModule;
+  return { url, asm, artifact, store, seed, mod };
+}
+
+/** Structural read of the carried conflict (contracts-dist agnostic). */
+function carriedConflict(error: unknown): {
+  readonly message: string;
+  readonly current: {
+    readonly model: string;
+    readonly id: string;
+    readonly version: number;
+    readonly updated: string;
+    readonly updatedBy: string;
+    readonly values: { readonly [fieldPath: string]: unknown };
+  };
+} | undefined {
+  const holder = error as unknown as { conflict?: unknown };
+  return holder.conflict as
+    | {
+        readonly message: string;
+        readonly current: {
+          readonly model: string;
+          readonly id: string;
+          readonly version: number;
+          readonly updated: string;
+          readonly updatedBy: string;
+          readonly values: { readonly [fieldPath: string]: unknown };
+        };
+      }
+    | undefined;
+}
+
+describe("T32c C2 site 1+5 (serverInits + nullable fill through CRUD create)", () => {
+  it("resolves server inits and fills omitted nullable on the quiet path", async () => {
+    const { asm, artifact, store, seed } = await c2Setup();
+    const invoker = buildInvoker(artifact, asm, store, {
+      memberships: seed.store,
+      now: () => seed.now,
+    });
+    const identity = await identityFor(seed, seed.memberToken);
+    const outcome = await invoker.invokeMutation(
+      mutationEnvelope("Shop.Team.create", freshOperationId(seed.now), {
+        name: "alpha",
+        owner: seed.memberId,
+        flags: [],
+      }),
+      identity,
+    );
+    assert.ok(!("error" in outcome), `create must commit: ${JSON.stringify(outcome)}`);
+    const rows = await modelRows(store, "Shop.Team");
+    assert.equal(rows.length, 1);
+    const row = rows[0];
+    assert.ok(row !== undefined);
+    assert.equal(row.version, 1);
+    // Nullable channel: omitted nullable stores EXPLICIT null.
+    assert.equal(row.data["note"], null);
+    // Server-init channel: now/actor/random_secret resolve at creation.
+    assert.equal(row.data["made"], new Date(seed.now).toISOString());
+    assert.deepEqual(row.data["by"], { id: seed.memberId });
+    assert.match(row.data["token"] as string, /^[0-9a-f]{64}$/);
+  });
+});
+
+describe("T32c C2 site 3+4 (conflict currents + assembly mirror, bb1ca7a)", () => {
+  it("stale Team update carries full currents minus serverOnly minus secrets", async () => {
+    const { asm, artifact, store, seed } = await c2Setup();
+    const invoker = buildInvoker(artifact, asm, store, {
+      memberships: seed.store,
+      now: () => seed.now,
+    });
+    const identity = await identityFor(seed, seed.memberToken);
+    const created = await invoker.invokeMutation(
+      mutationEnvelope("Shop.Team.create", freshOperationId(seed.now), {
+        name: "alpha",
+        owner: seed.memberId,
+        flags: [],
+      }),
+      identity,
+    );
+    assert.ok(!("error" in created), `create must commit: ${JSON.stringify(created)}`);
+    const rows = await modelRows(store, "Shop.Team");
+    const first = rows[0];
+    assert.ok(first !== undefined);
+    const id = first.id;
+    const v2 = await invoker.invokeMutation(
+      mutationEnvelope("Shop.Team.update", freshOperationId(seed.now), {
+        record: { id, version: "1" },
+        name: "bravo",
+      }),
+      identity,
+    );
+    assert.ok(!("error" in v2), `fresh update must commit: ${JSON.stringify(v2)}`);
+    const stale = await invoker.invokeMutation(
+      mutationEnvelope("Shop.Team.update", freshOperationId(seed.now), {
+        record: { id, version: "1" },
+        name: "charlie",
+      }),
+      identity,
+    );
+    assert.ok("error" in stale, "stale version must conflict");
+    assert.equal(stale.error.code, "conflict");
+    const conflict = carriedConflict(stale.error);
+    assert.ok(conflict !== undefined && conflict !== null, "conflict must carry the current row");
+    assert.equal(conflict.current.model, "Shop.Team");
+    assert.equal(conflict.current.id, id);
+    assert.equal(conflict.current.version, 2);
+    // submitted∩row minus serverOnly (made/by) minus secrets (token):
+    // the submitted field with its CURRENT value, plus the admitted
+    // normalization (absent optional arrays fill []).
+    assert.deepEqual(conflict.current.values, { name: "bravo", tags: [] });
+    assert.ok(typeof conflict.current.updated === "string" && conflict.current.updated !== "");
+    assert.ok(typeof conflict.current.updatedBy === "string" && conflict.current.updatedBy !== "");
+    assert.ok(typeof conflict.message === "string" && conflict.message !== "");
+  });
+
+  it("stale Plain update carries full currents (empty exclusion set)", async () => {
+    const { asm, artifact, store, seed } = await c2Setup();
+    const invoker = buildInvoker(artifact, asm, store, {
+      memberships: seed.store,
+      now: () => seed.now,
+    });
+    const identity = await identityFor(seed, seed.memberToken);
+    const created = await invoker.invokeMutation(
+      mutationEnvelope("acme.Plain.create", freshOperationId(seed.now), { title: "p1" }),
+      identity,
+    );
+    assert.ok(!("error" in created), `create must commit: ${JSON.stringify(created)}`);
+    const rows = await modelRows(store, "acme.Plain");
+    const first = rows[0];
+    assert.ok(first !== undefined);
+    const id = first.id;
+    const v2 = await invoker.invokeMutation(
+      mutationEnvelope("acme.Plain.update", freshOperationId(seed.now), {
+        record: { id, version: "1" },
+        title: "p2",
+      }),
+      identity,
+    );
+    assert.ok(!("error" in v2), `fresh update must commit: ${JSON.stringify(v2)}`);
+    const stale = await invoker.invokeMutation(
+      mutationEnvelope("acme.Plain.update", freshOperationId(seed.now), {
+        record: { id, version: "1" },
+        title: "p3",
+      }),
+      identity,
+    );
+    assert.ok("error" in stale, "stale version must conflict");
+    assert.equal(stale.error.code, "conflict");
+    // A serverOnly-free model MUST still hold an (empty) exclusion
+    // entry: a missing entry degrades to metadata-only values.
+    const conflict = carriedConflict(stale.error);
+    assert.ok(conflict !== undefined && conflict !== null, "conflict must carry the current row");
+    assert.deepEqual(conflict.current.values, { title: "p2" });
+  });
+});
+
+describe("T32c C2 site 2 (scenario archive gate on stageWrite)", () => {
+  it("scenario set() on an archived row fails EXACTLY like admission", async () => {
+    const { asm, artifact, store, seed, mod } = await c2Setup();
+    const invoker = buildInvoker(artifact, asm, store, {
+      memberships: seed.store,
+      now: () => seed.now,
+    });
+    const identity = await identityFor(seed, seed.memberToken);
+    const created = await invoker.invokeMutation(
+      mutationEnvelope("Shop.Team.create", freshOperationId(seed.now), {
+        name: "doomed",
+        owner: seed.memberId,
+        flags: [],
+      }),
+      identity,
+    );
+    assert.ok(!("error" in created), `create must commit: ${JSON.stringify(created)}`);
+    const rows = await modelRows(store, "Shop.Team");
+    const first = rows[0];
+    assert.ok(first !== undefined);
+    const id = first.id;
+    const deleted = await invoker.invokeMutation(
+      mutationEnvelope("Shop.Team.delete", freshOperationId(seed.now), {
+        record: { id, version: "1" },
+      }),
+      identity,
+    );
+    assert.ok(!("error" in deleted), `archive delete must commit: ${JSON.stringify(deleted)}`);
+    const outcome = await invoker.invokeMutation(
+      mutationEnvelope("acme.Probe.archiveTouch", freshOperationId(seed.now), { id }),
+      identity,
+    );
+    assert.ok("error" in outcome, "touching an archived row must fail");
+    assert.equal(outcome.error.code, "validation");
+    assert.equal(outcome.error.message, "Archived records cannot be used here.");
+    assert.deepEqual(mod.calls, ["archiveTouch"]);
+  });
+});
+
+describe("T32c C2 site 1+5 (containment enforcement on the child model)", () => {
+  it("parents link (defaults + nullable) while orphans fail missing-parent", async () => {
+    const { asm, artifact, store, seed, mod } = await c2Setup();
+    const invoker = buildInvoker(artifact, asm, store, {
+      memberships: seed.store,
+      now: () => seed.now,
+    });
+    const identity = await identityFor(seed, seed.memberToken);
+    const created = await invoker.invokeMutation(
+      mutationEnvelope("Shop.Team.create", freshOperationId(seed.now), {
+        name: "parent",
+        owner: seed.memberId,
+        flags: [],
+      }),
+      identity,
+    );
+    assert.ok(!("error" in created), `parent create must commit: ${JSON.stringify(created)}`);
+    const teams = await modelRows(store, "Shop.Team");
+    const team = teams[0];
+    assert.ok(team !== undefined);
+    const membered = await invoker.invokeMutation(
+      mutationEnvelope("Shop.Member.create", freshOperationId(seed.now), {
+        name: "m1",
+        parent: { model: "Shop.Team", id: team.id },
+      }),
+      identity,
+    );
+    assert.ok(!("error" in membered), `child create must commit: ${JSON.stringify(membered)}`);
+    const members = await modelRows(store, "Shop.Member");
+    assert.equal(members.length, 1);
+    const member = members[0];
+    assert.ok(member !== undefined);
+    assert.deepEqual(member.parent, { model: "Shop.Team", id: team.id });
+    assert.equal(member.data["buddy"], seed.memberId);
+    assert.equal(member.data["nick"], null);
+    assert.equal(member.data["seen"], new Date(seed.now).toISOString());
+    const orphan = await invoker.invokeMutation(
+      mutationEnvelope("acme.Probe.orphanMember", freshOperationId(seed.now), {
+        key: "o1",
+        owner: seed.memberId,
+      }),
+      identity,
+    );
+    assert.ok("error" in orphan, "parentless child create must fail");
+    assert.equal(orphan.error.code, "validation");
+    assert.match(orphan.error.message, /Missing required parent/);
+    assert.equal((await modelRows(store, "Shop.Member")).length, 1);
+    const ghost = await invoker.invokeMutation(
+      mutationEnvelope("Shop.Member.create", freshOperationId(seed.now), {
+        name: "g1",
+        parent: { model: "Shop.Team", id: "ghost-1" },
+      }),
+      identity,
+    );
+    assert.ok("error" in ghost, "ghost-parent child create must fail");
+    // CRUD path: admission resolves the parent ref input first —
+    // existence-hiding lookup surfaces as not_found.
+    assert.equal(ghost.error.code, "not_found");
+    assert.match(ghost.error.message, /Record not found/);
+    assert.equal((await modelRows(store, "Shop.Member")).length, 1);
+    const scenarioGhost = await invoker.invokeMutation(
+      mutationEnvelope("acme.Probe.ghostMember", freshOperationId(seed.now), {
+        key: "g2",
+        owner: seed.memberId,
+      }),
+      identity,
+    );
+    assert.ok("error" in scenarioGhost, "scenario ghost-parent create must fail");
+    // Scenario path: no per-write admission — the pipeline's
+    // containment branch reports the engine validation.
+    assert.equal(scenarioGhost.error.code, "validation");
+    assert.match(scenarioGhost.error.message, /Parent record not found/);
+    assert.equal((await modelRows(store, "Shop.Member")).length, 1);
+    assert.deepEqual(mod.calls, ["orphanMember", "ghostMember"]);
+  });
+});
+
+describe("T32c C2 self-cancel netting verdict (B1, production shape)", () => {
+  it("create+remove of an archive-mode record commits an archived stub (no throw)", async () => {
+    // B1 nets same-batch self-canceling writes in the pipeline
+    // (pipeline.ts:285): the scenario-seam "verdict" for a
+    // self-canceling scenario is a COMMIT, never an authoring-call
+    // throw. Archive-mode pairs persist an archived stub with a
+    // create+archive trail (T17b memoCycle proves the interim shape;
+    // this pins the production T18 shape through the same seam).
+    const { asm, artifact, store, seed, mod } = await c2Setup();
+    const invoker = buildInvoker(artifact, asm, store, {
+      memberships: seed.store,
+      now: () => seed.now,
+    });
+    const identity = await identityFor(seed, seed.memberToken);
+    const outcome = await invoker.invokeMutation(
+      mutationEnvelope("acme.Probe.selfCancel", freshOperationId(seed.now), {
+        key: "tmp-1",
+        owner: seed.memberId,
+      }),
+      identity,
+    );
+    assert.ok("result" in outcome, `self-cancel must commit: ${JSON.stringify(outcome)}`);
+    assert.equal((outcome.result as MutationResult).status, "committed");
+    const row = await store.load("Shop.Team" as ModelName, "tmp-1" as RecordId);
+    assert.ok(row !== null);
+    assert.equal(row.archivedAt, seed.now);
+    const trail = await store.historyFor("Shop.Team" as ModelName, "tmp-1" as RecordId);
+    assert.deepEqual(
+      trail.map((entry) => entry.change),
+      ["create", "archive"],
+    );
+    assert.deepEqual(mod.calls, ["selfCancel"]);
+  });
+
+  it("create+update+remove of an archive-mode record commits the full trail (I00 gap pin)", async () => {
+    // B-answer relay (C2): update+remove-through-seam was the unpinned
+    // I00 remainder after B retracted version-error-as-scenario-seam.
+    // Like create+remove it nets and COMMITS (B1 pipeline netting);
+    // the intermediate update persists in the committed trail.
+    const { asm, artifact, store, seed, mod } = await c2Setup();
+    const invoker = buildInvoker(artifact, asm, store, {
+      memberships: seed.store,
+      now: () => seed.now,
+    });
+    const identity = await identityFor(seed, seed.memberToken);
+    const outcome = await invoker.invokeMutation(
+      mutationEnvelope("acme.Probe.updateRemove", freshOperationId(seed.now), {
+        key: "tmp-2",
+        owner: seed.memberId,
+      }),
+      identity,
+    );
+    assert.ok("result" in outcome, `update+remove must commit: ${JSON.stringify(outcome)}`);
+    assert.equal((outcome.result as MutationResult).status, "committed");
+    const row = await store.load("Shop.Team" as ModelName, "tmp-2" as RecordId);
+    assert.ok(row !== null);
+    assert.equal(row.archivedAt, seed.now);
+    assert.equal(row.data["name"], "v2-tmp-2");
+    const trail = await store.historyFor("Shop.Team" as ModelName, "tmp-2" as RecordId);
+    assert.deepEqual(
+      trail.map((entry) => entry.change),
+      ["create", "update", "archive"],
+    );
+    assert.deepEqual(mod.calls, ["updateRemove"]);
+  });
+});
+
+/* ------------------------------------------------------------------ */
+/* R01: validate-before-retry pins (committed repro collateral).       */
+/*                                                                     */
+/* The C3 strip retry drops delivery-kind op inputs after the          */
+/* loader's delivery-kind rejection — but the loader's kind gate       */
+/* precedes its envelope checks, so without pre-retry validation a     */
+/* malformed additive envelope on a delivery input would be             */
+/* silently dropped and the set would load. These pins hold the        */
+/* repaired boundary through the public                                */
+/* `loadCanonicalDescriptors(asm, artifact)`: (a) valid delivery       */
+/* still loads via the retry, (b) ordinary unknown kinds still        */
+/* reject without retry, (d) the same malformation on a carried        */
+/* input rejects (control), (c)/(c2) malformed delivery envelopes      */
+/* reject with the loader's own class + vocabulary.                    */
+/* ------------------------------------------------------------------ */
+
+/** Verbatim T15b-pinned delivery descriptor (artifact-operations RETRY shape). */
+function r01DeliveryField(): Record<string, unknown> {
+  return {
+    name: "attempt",
+    field: {
+      kind: "delivery",
+      capability: "std.EmailV1",
+      operation: "send",
+      version: 1,
+      result: { name: "EmailAccepted", fields: [{ name: "reference", type: "text" }] },
+    },
+    required: false,
+  };
+}
+
+function r01ScenarioOp(artifact: CompileArtifact): Record<string, unknown> {
+  const ops = (artifact as unknown as { operations: Array<Record<string, unknown>> }).operations;
+  const op = ops.find((entry) => entry["name"] === "acme.Probe.selfCancel");
+  assert.ok(op !== undefined, "c2 artifact carries acme.Probe.selfCancel");
+  return op;
+}
+
+function r01WithScenarioField(
+  artifact: CompileArtifact,
+  field: Record<string, unknown>,
+): CompileArtifact {
+  return r01WithScenarioFields(artifact, [field]);
+}
+
+function r01WithScenarioFields(
+  artifact: CompileArtifact,
+  fields: Array<Record<string, unknown>>,
+): CompileArtifact {
+  const clone = JSON.parse(JSON.stringify(artifact)) as unknown as CompileArtifact;
+  const op = r01ScenarioOp(clone);
+  const inputs = op["inputs"] as Record<string, unknown>;
+  (inputs["fields"] as Array<unknown>).push(...fields);
+  return clone;
+}
+
+/**
+ * R01-residual: in-place variant (no JSON round-trip) for values
+ * JSON cannot carry (function literal defaults — the round-trip
+ * would launder the very unserializability under test). Safe:
+ * every `c2Setup` artifact is already fresh per test.
+ */
+function r01WithScenarioFieldsInPlace(
+  artifact: CompileArtifact,
+  fields: Array<Record<string, unknown>>,
+): CompileArtifact {
+  const op = r01ScenarioOp(artifact);
+  const inputs = op["inputs"] as Record<string, unknown>;
+  (inputs["fields"] as Array<unknown>).push(...fields);
+  return artifact;
+}
+
+async function r01LoadRejection(
+  asm: AssembledModules,
+  artifact: CompileArtifact,
+): Promise<{ name: string; reason: unknown; message: string }> {
+  try {
+    await loadCanonicalDescriptors(asm, artifact);
+  } catch (error) {
+    assert.ok(error instanceof Error, "loader rejects with an Error");
+    const holder = error as unknown as { name?: unknown; reason?: unknown };
+    assert.equal(typeof holder.name, "string");
+    return { name: holder.name as string, reason: holder.reason, message: error.message };
+  }
+  assert.fail("load must reject");
+}
+
+describe("R01 validate-before-retry (dropped delivery envelopes prove pre-strip)", () => {
+  it("(a) valid delivery input loads via the strip retry", async () => {
+    const { asm, artifact } = await c2Setup();
+    const loaded = await loadCanonicalDescriptors(asm, r01WithScenarioField(artifact, r01DeliveryField()));
+    assert.ok(loaded.registry.has("acme.Probe.selfCancel"), "scenario op loads stripped");
+    assert.ok(loaded.deliveryFields.has("Shop.Team"), "model schema intact");
+  });
+
+  it("(b) ordinary unknown input kind rejects without retry", async () => {
+    const { asm, artifact } = await c2Setup();
+    const rejection = await r01LoadRejection(
+      asm,
+      r01WithScenarioField(artifact, { name: "x", field: { kind: "bogus" }, required: true }),
+    );
+    assert.equal(rejection.name, "IncompatibleArtifactError");
+    assert.equal(rejection.reason, "unknown_input_kind");
+    assert.match(rejection.message, /Unknown input kind "bogus"/);
+  });
+
+  it("(d) control: malformed array marker on a carried input rejects", async () => {
+    const { asm, artifact } = await c2Setup();
+    const rejection = await r01LoadRejection(
+      asm,
+      r01WithScenarioField(artifact, {
+        name: "s",
+        field: { kind: "string" },
+        required: true,
+        array: { required: "invalid" },
+      }),
+    );
+    assert.equal(rejection.name, "IncompatibleArtifactError");
+    assert.equal(rejection.reason, "malformed_descriptor");
+    assert.match(rejection.message, /array markers carry a boolean required/);
+  });
+
+  it("(c) delivery input with a malformed array marker rejects (no laundering)", async () => {
+    const { asm, artifact } = await c2Setup();
+    const field = r01DeliveryField();
+    field["array"] = { required: "invalid" };
+    const rejection = await r01LoadRejection(asm, r01WithScenarioField(artifact, field));
+    assert.equal(rejection.name, "IncompatibleArtifactError");
+    assert.equal(rejection.reason, "malformed_descriptor");
+    assert.match(rejection.message, /array markers carry a boolean required/);
+  });
+
+  it("(c2) delivery input with a non-boolean required rejects (no laundering)", async () => {
+    const { asm, artifact } = await c2Setup();
+    const field = r01DeliveryField();
+    field["required"] = "yes";
+    const rejection = await r01LoadRejection(asm, r01WithScenarioField(artifact, field));
+    assert.equal(rejection.name, "IncompatibleArtifactError");
+    assert.equal(rejection.reason, "malformed_descriptor");
+    assert.match(rejection.message, /required must be a boolean/);
+  });
+
+  it("(c3) delivery input with an unknown default kind rejects in loader vocabulary", async () => {
+    const { asm, artifact } = await c2Setup();
+    const field = r01DeliveryField();
+    field["default"] = { kind: "bogus" };
+    const rejection = await r01LoadRejection(asm, r01WithScenarioField(artifact, field));
+    assert.equal(rejection.name, "IncompatibleArtifactError");
+    assert.equal(rejection.reason, "unknown_default_kind");
+    assert.match(rejection.message, /Unknown default kind "bogus"/);
+  });
+
+  it("(e) delivery-first name collision rejects duplicate_name (strip would erase it)", async () => {
+    const { asm, artifact } = await c2Setup();
+    const delivery = r01DeliveryField();
+    delivery["name"] = "x";
+    const rejection = await r01LoadRejection(
+      asm,
+      r01WithScenarioFields(artifact, [delivery, { name: "x", field: { kind: "string" }, required: true }]),
+    );
+    assert.equal(rejection.name, "IncompatibleArtifactError");
+    assert.equal(rejection.reason, "duplicate_name");
+    assert.match(rejection.message, /Duplicate input "x" on operation "acme\.Probe\.selfCancel"/);
+  });
+
+  it("(e2) string-first name collision rejects duplicate_name (loader order, no retry)", async () => {
+    const { asm, artifact } = await c2Setup();
+    const delivery = r01DeliveryField();
+    delivery["name"] = "x";
+    const rejection = await r01LoadRejection(
+      asm,
+      r01WithScenarioFields(artifact, [{ name: "x", field: { kind: "string" }, required: true }, delivery]),
+    );
+    assert.equal(rejection.name, "IncompatibleArtifactError");
+    assert.equal(rejection.reason, "duplicate_name");
+    assert.match(rejection.message, /Duplicate input "x" on operation "acme\.Probe\.selfCancel"/);
+  });
+
+  it("(e3) delivery/delivery name collision rejects duplicate_name", async () => {
+    const { asm, artifact } = await c2Setup();
+    const first = r01DeliveryField();
+    first["name"] = "x";
+    const second = r01DeliveryField();
+    second["name"] = "x";
+    const rejection = await r01LoadRejection(asm, r01WithScenarioFields(artifact, [first, second]));
+    assert.equal(rejection.name, "IncompatibleArtifactError");
+    assert.equal(rejection.reason, "duplicate_name");
+    assert.match(rejection.message, /Duplicate input "x" on operation "acme\.Probe\.selfCancel"/);
+  });
+
+  it("(f) delivery empty parent-dot-path default rejects (owning dot-path rule)", async () => {
+    const { asm, artifact } = await c2Setup();
+    const field = r01DeliveryField();
+    field["default"] = { kind: "parent", path: "" };
+    const rejection = await r01LoadRejection(asm, r01WithScenarioField(artifact, field));
+    assert.equal(rejection.name, "IncompatibleArtifactError");
+    assert.equal(rejection.reason, "malformed_descriptor");
+    assert.match(rejection.message, /dot path: ""/);
+  });
+
+  it("(f2) delivery empty-segment parent-dot-path default rejects", async () => {
+    const { asm, artifact } = await c2Setup();
+    const field = r01DeliveryField();
+    field["default"] = { kind: "parent", path: "a..b" };
+    const rejection = await r01LoadRejection(asm, r01WithScenarioField(artifact, field));
+    assert.equal(rejection.name, "IncompatibleArtifactError");
+    assert.equal(rejection.reason, "malformed_descriptor");
+    assert.match(rejection.message, /dot path: "a\.\.b"/);
+  });
+
+  it("(f3) control: string empty parent-dot-path default rejects (loader)", async () => {
+    const { asm, artifact } = await c2Setup();
+    const rejection = await r01LoadRejection(
+      asm,
+      r01WithScenarioField(artifact, {
+        name: "s",
+        field: { kind: "string" },
+        required: true,
+        default: { kind: "parent", path: "" },
+      }),
+    );
+    assert.equal(rejection.name, "IncompatibleArtifactError");
+    assert.equal(rejection.reason, "malformed_descriptor");
+    assert.match(rejection.message, /dot path: ""/);
+  });
+
+  it("(f4) delivery valid parent-dot-path default loads (positive preserved)", async () => {
+    const { asm, artifact } = await c2Setup();
+    const field = r01DeliveryField();
+    field["default"] = { kind: "parent", path: "a.b" };
+    const loaded = await loadCanonicalDescriptors(asm, r01WithScenarioField(artifact, field));
+    assert.ok(loaded.registry.has("acme.Probe.selfCancel"), "scenario op loads stripped");
+  });
+
+  it("(f5) delivery non-serializable literal default rejects (owning serializability)", async () => {
+    const { asm, artifact } = await c2Setup();
+    const field = r01DeliveryField();
+    field["default"] = { kind: "literal", value: () => 1 };
+    const rejection = await r01LoadRejection(asm, r01WithScenarioFieldsInPlace(artifact, [field]));
+    assert.equal(rejection.name, "IncompatibleArtifactError");
+    assert.equal(rejection.reason, "malformed_descriptor");
+    assert.match(rejection.message, /values must be serializable data/);
+  });
+
+  it("(f6) control: string non-serializable literal default rejects (loader)", async () => {
+    const { asm, artifact } = await c2Setup();
+    const rejection = await r01LoadRejection(
+      asm,
+      r01WithScenarioFieldsInPlace(artifact, [
+        { name: "s", field: { kind: "string" }, required: true, default: { kind: "literal", value: () => 2 } },
+      ]),
+    );
+    assert.equal(rejection.name, "IncompatibleArtifactError");
+    assert.equal(rejection.reason, "malformed_descriptor");
+    assert.match(rejection.message, /values must be serializable data/);
+  });
+});
+
+describe("T32c C3/B3 (delivery-field schema rides the loaded set)", () => {
+  it("carries the loader-built whole-set schema (empty sets for delivery-less models)", async () => {
+    // Ruling B batch-2: the registry consumes B3's receipt/schema —
+    // every loaded model holds an entry (empty set when the model has
+    // no T15b delivery field tags). The T18 slice + Plain carry no
+    // delivery tags, so all three entries are empty; the T25 receipt
+    // join (D3) consumes this map downstream. Live observation serving
+    // is explicitly NOT C3 (D3-with-B follow-up).
+    const { asm, artifact } = await c2Setup();
+    const loaded = await loadCanonicalDescriptors(asm, artifact);
+    assert.ok(loaded.deliveryFields instanceof Map);
+    assert.deepEqual(
+      [...loaded.deliveryFields.keys()].sort(),
+      ["Shop.Member", "Shop.Team", "acme.Plain"].sort(),
+    );
+    for (const [model, fields] of loaded.deliveryFields) {
+      assert.ok(fields instanceof Set, `${model} holds a field set`);
+      assert.equal(fields.size, 0, `${model} has no delivery tags`);
+    }
   });
 });

@@ -1,0 +1,16 @@
+{
+ "integration": "lg03a",
+ "date": "2026-10-06",
+ "main_before": "09ab537",
+ "commits": [
+  "2c9da87 lane-g LG03a: dispatch adapters, vendor skip, CanDo seeding, held live binding"
+ ],
+ "lane_commits": [
+  "5e53f25 (11 files in-boundary)"
+ ],
+ "patch_id identical": true,
+ "coverage": "testkit dispatch adapters (normalize/populate/compose) + async observeScope; tests/e2e fixtures vendor-trees.ts (exact-keys skip) + vendor-walk.spec + CanDo seed plan/validation/order-fixed seeding + held example-hooks.ts (no callers)",
+ "decisions": "live runs correctly HELD for C1/E2b slices; live-run inputs recorded",
+ "gate": "CANONICAL GREEN: vitest testkit 122/122 (10 files); lane: 66/66 vitest + 6/6 playwright + zero root-gate errors + e2e gate at pre-existing 10",
+ "lane_report": "4bc460e3"
+}

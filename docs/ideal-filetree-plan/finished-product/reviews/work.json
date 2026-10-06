@@ -1,0 +1,4647 @@
+{
+  "schema_version": 1,
+  "review": "finished-product-work",
+  "checkout": "/Users/vince/Projects/canlang",
+  "date": "2026-10-06",
+  "permitted_mutations": [
+    "docs/ideal-filetree-plan/finished-product/reviews/work.md",
+    "docs/ideal-filetree-plan/finished-product/reviews/work.json"
+  ],
+  "implementation_authorized": false,
+  "product_checks_executed": false,
+  "git_operations_performed": false,
+  "port_historical_source_checkpoint": "3d1f8f062f9650c061f6cb87c8af9afb2c01b0e5",
+  "current_pin_kind": "direct current working-file SHA-256; no Git checkpoint advancement",
+  "contract_precedence": [
+    "human requirements/.can intended workflows",
+    "adopted corrected T33 resolution",
+    "owning versioned contracts",
+    "later source/delivery availability",
+    "historical task acceptance at original scope only"
+  ],
+  "source_pins": [
+    {
+      "path": "AGENTS.md",
+      "sha256": "2dba019011bda7810242fe8f8d82961781c0d05efb8792cc9eea70ac8d8047ba",
+      "bytes": 1668,
+      "lines": 10,
+      "proof_scope": "pinned current bytes; body inspection limited to duties cited in review, not exhaustive certification"
+    },
+    {
+      "path": "DESIGN.md",
+      "sha256": "d1d2f54645c653c8562f5caa54856bb4d6db6aeac90907cd56e140b9f6c435a5",
+      "bytes": 267575,
+      "lines": 1118,
+      "proof_scope": "pinned current bytes; body inspection limited to duties cited in review, not exhaustive certification"
+    },
+    {
+      "path": "REQUIREMENTS.md",
+      "sha256": "52d7dd395cee7ef8dd8bb095340c0e6e31df06268e37a1479dc373a10ef1c1cd",
+      "bytes": 47304,
+      "lines": 224,
+      "proof_scope": "pinned current bytes; body inspection limited to duties cited in review, not exhaustive certification"
+    },
+    {
+      "path": "compiler/src/analysis/catalog.rs",
+      "sha256": "ce23e264abc3a89b21d3d2e29be01ee8a9b04e2522ed0b2fd77310bc714901c5",
+      "bytes": 101281,
+      "lines": 2702,
+      "proof_scope": "accepted contract/challenge source inspected at cited sections"
+    },
+    {
+      "path": "compiler/src/analysis/examples.rs",
+      "sha256": "ead013a4b4691ef582c79eed63b5993345b919b0a5ea1579b4c9a09b6bd1b1ec",
+      "bytes": 119795,
+      "lines": 3306,
+      "proof_scope": "accepted contract/challenge source inspected at cited sections"
+    },
+    {
+      "path": "compiler/src/codegen/js.rs",
+      "sha256": "08effb5d3505be9581326a456cbcbbed3c3a3abbf2154548f73f4924b5d9f055",
+      "bytes": 225175,
+      "lines": 5582,
+      "proof_scope": "accepted contract/challenge source inspected at cited sections"
+    },
+    {
+      "path": "compiler/src/docs.rs",
+      "sha256": "0253b7b28b306bd775e1ba683df3726fca0fc03b3f2e858d306efad6ba6c4b43",
+      "bytes": 52773,
+      "lines": 1392,
+      "proof_scope": "accepted contract/challenge source inspected at cited sections"
+    },
+    {
+      "path": "compiler/src/syntax/cst.rs",
+      "sha256": "afcd094b8a9606c1cc09910c00eca4619b3394cc1a3abcdae5ab51413c0e9bb6",
+      "bytes": 13466,
+      "lines": 456,
+      "proof_scope": "accepted contract/challenge source inspected at cited sections"
+    },
+    {
+      "path": "compiler/src/syntax/parser.rs",
+      "sha256": "b9eabdacca842a94ff7764de2369af6058378ec31de7b82feeecbdedb793890b",
+      "bytes": 256856,
+      "lines": 6418,
+      "proof_scope": "accepted contract/challenge source inspected at cited sections"
+    },
+    {
+      "path": "design/complex-apps/knowledge.md",
+      "sha256": "657f15de292ff1d4d875f1ea0908440a90a58c2a288e2b2b21abebd6240a8c0c",
+      "bytes": 21212,
+      "lines": 122,
+      "proof_scope": "accepted contract/challenge source inspected at cited sections"
+    },
+    {
+      "path": "design/jev/complex-knowledge-20261004/1.result.json",
+      "sha256": "501a9b36773675104aedef45609a603b7c9ebfc610d259a86352e511567c093f",
+      "bytes": 4863,
+      "lines": 58,
+      "proof_scope": "accepted contract/challenge source inspected at cited sections"
+    },
+    {
+      "path": "design/jev/complex-knowledge-20261004/2.result.json",
+      "sha256": "cd8ed27491703949d979674103a7634bcc5937837ae690f2fa412f700ce29f2b",
+      "bytes": 4885,
+      "lines": 58,
+      "proof_scope": "accepted contract/challenge source inspected at cited sections"
+    },
+    {
+      "path": "design/jev/complex-knowledge-20261004/3.result.json",
+      "sha256": "1376fdbb1e951f0303ecdb9db33b076fd241fb2372f5ae50a7c96e01119bece8",
+      "bytes": 5021,
+      "lines": 58,
+      "proof_scope": "accepted contract/challenge source inspected at cited sections"
+    },
+    {
+      "path": "docs/ideal-filetree-plan/finished-product/reviews/language.json",
+      "sha256": "212995f173006939c93bc692107625db293f957e4a6a476a464426695da36117",
+      "bytes": 194808,
+      "lines": 4078,
+      "proof_scope": "reconciled challenge artifact; final 35-duty corpus/required-semantics repair source reviewed"
+    },
+    {
+      "path": "docs/ideal-filetree-plan/finished-product/reviews/language.md",
+      "sha256": "9c8ca70d5ca9a78abf72b632079d4718343a521de7148434764791d27f777b84",
+      "bytes": 35722,
+      "lines": 135,
+      "proof_scope": "reconciled challenge artifact; final 35-duty corpus/required-semantics repair source reviewed"
+    },
+    {
+      "path": "docs/research/package-subsystem-ports-20261006/implementation-plans/execution-manifest.json",
+      "sha256": "3fe03f3ff97f09fd45971c81162a5552052f15b19eb58b3ef647913e49a9a328",
+      "bytes": 315364,
+      "lines": 9442,
+      "proof_scope": "pinned current bytes; body inspection limited to duties cited in review, not exhaustive certification"
+    },
+    {
+      "path": "docs/research/package-subsystem-ports-20261006/implementation-plans/shared.tasks.json",
+      "sha256": "4ce369e02d466f194427cbfbaa3c232757eba1c8d791bc03921cec3545851327",
+      "bytes": 25268,
+      "lines": 680,
+      "proof_scope": "pinned current bytes; body inspection limited to duties cited in review, not exhaustive certification"
+    },
+    {
+      "path": "docs/research/package-subsystem-ports-20261006/implementation-plans/work-transitions.md",
+      "sha256": "6c9f996516fcdb74d0511ce50231af3e8f8b5238ae38df66dacae54cc9c7725f",
+      "bytes": 91083,
+      "lines": 546,
+      "proof_scope": "pinned current bytes; body inspection limited to duties cited in review, not exhaustive certification"
+    },
+    {
+      "path": "docs/research/package-subsystem-ports-20261006/implementation-plans/work-transitions.tasks.json",
+      "sha256": "541e6d1da88de731bbf7d4ea0ed08ab9d0ec2c891cb979712442ced6ab504fc2",
+      "bytes": 46072,
+      "lines": 1095,
+      "proof_scope": "pinned current bytes; body inspection limited to duties cited in review, not exhaustive certification"
+    },
+    {
+      "path": "draft/CanChat.can",
+      "sha256": "a507e133cd29022b873f50ae6b856a34bd8caf3abac28c691bde56ad103de2f1",
+      "bytes": 21258,
+      "lines": 278,
+      "proof_scope": "pinned current bytes; body inspection limited to duties cited in review, not exhaustive certification"
+    },
+    {
+      "path": "draft/CanCreative.can",
+      "sha256": "a65f6aaf3c0ee3eeefe064a44eb7a72782d7edae02ed693a434e23c72c16bd52",
+      "bytes": 23221,
+      "lines": 287,
+      "proof_scope": "pinned current bytes; body inspection limited to duties cited in review, not exhaustive certification"
+    },
+    {
+      "path": "draft/CanExpense.can",
+      "sha256": "6fa07ded3b52d97eb0e3c73bb5c0bcb64c9bece7b5167155de37cf0622ee2aa9",
+      "bytes": 46344,
+      "lines": 503,
+      "proof_scope": "pinned current bytes; body inspection limited to duties cited in review, not exhaustive certification"
+    },
+    {
+      "path": "draft/CanGallery.can",
+      "sha256": "a5eedb40bbe9b3efab41fd3576058a6b100b5b3f151f2b1a3410897798023083",
+      "bytes": 11450,
+      "lines": 149,
+      "proof_scope": "pinned current bytes; body inspection limited to duties cited in review, not exhaustive certification"
+    },
+    {
+      "path": "draft/CanKnowledge.can",
+      "sha256": "ce08ee68b969820747157d5412675f8179e7b0424c4087b886885aef2f78871d",
+      "bytes": 29521,
+      "lines": 392,
+      "proof_scope": "pinned current bytes; body inspection limited to duties cited in review, not exhaustive certification"
+    },
+    {
+      "path": "draft/CanShift.can",
+      "sha256": "2377c3229156d495a9d3c06bfcbc7eb527ad196001d61765445d9d52e0a40998",
+      "bytes": 43934,
+      "lines": 393,
+      "proof_scope": "pinned current bytes; body inspection limited to duties cited in review, not exhaustive certification"
+    },
+    {
+      "path": "draft/CanVolunteer.can",
+      "sha256": "7ad2d4d3e862473da3841c5e2718340caa5e8b79467798848ee09023c3280b06",
+      "bytes": 25126,
+      "lines": 280,
+      "proof_scope": "pinned current bytes; body inspection limited to duties cited in review, not exhaustive certification"
+    },
+    {
+      "path": "implementation/CHALLENGE-AUDIT-PLAN.md",
+      "sha256": "c71f9a33cea8dcd4024e1bdda72294029d7a10995d588736d51aca5c1fdf2202",
+      "bytes": 67012,
+      "lines": 641,
+      "proof_scope": "pinned current bytes; body inspection limited to duties cited in review, not exhaustive certification"
+    },
+    {
+      "path": "implementation/CONTRACTS.md",
+      "sha256": "7750365ff46288777a53f3bc7e387187d1a1f9d9b4ca8d9e70d915e17614d27c",
+      "bytes": 10772,
+      "lines": 60,
+      "proof_scope": "pinned current bytes; body inspection limited to duties cited in review, not exhaustive certification"
+    },
+    {
+      "path": "implementation/DESCRIPTION-REFERENCE-PLAN.md",
+      "sha256": "88633a4c29c3a8749adf59b56d5fb8c39e69f17de66e983abf9c5b57a48a5429",
+      "bytes": 24481,
+      "lines": 150,
+      "proof_scope": "pinned current bytes; body inspection limited to duties cited in review, not exhaustive certification"
+    },
+    {
+      "path": "implementation/REMAINING-IMPLEMENTATION-LANES.md",
+      "sha256": "ffa464ed1ef7181de0cbcfebf755d86f851a44700dc8ba03007500677416efcf",
+      "bytes": 29146,
+      "lines": 378,
+      "proof_scope": "pinned current bytes; body inspection limited to duties cited in review, not exhaustive certification"
+    },
+    {
+      "path": "implementation/challenge-audit-run/evidence/fanout-decision.md",
+      "sha256": "47c64ec04491b0e37911e33d2eb38124a04bcc19acf26727d171816294c05ea8",
+      "bytes": 107981,
+      "lines": 1832,
+      "proof_scope": "pinned current bytes; body inspection limited to duties cited in review, not exhaustive certification"
+    },
+    {
+      "path": "implementation/challenge-audit-run/evidence/t34-plan.md",
+      "sha256": "f3ce146c18658b7081963db5e43b2f70113f3a31509db71b3cc13f3fa82f8eb1",
+      "bytes": 10800,
+      "lines": 200,
+      "proof_scope": "pinned current bytes; body inspection limited to duties cited in review, not exhaustive certification"
+    },
+    {
+      "path": "implementation/challenge-audit-run/remaining-tasks.md",
+      "sha256": "5a119c8dd72d700863da029820f3823c4e8a251c25b8d38777ab7dda4a1c880d",
+      "bytes": 30041,
+      "lines": 445,
+      "proof_scope": "pinned current bytes; body inspection limited to duties cited in review, not exhaustive certification"
+    },
+    {
+      "path": "implementation/challenge-audit-run/t33-resolution.md",
+      "sha256": "b4a310ce2e3d9eccbc2d6a8c98381d531897ff0ce76feaed84a3d84490d59d05",
+      "bytes": 10751,
+      "lines": 48,
+      "proof_scope": "pinned current bytes; body inspection limited to duties cited in review, not exhaustive certification"
+    },
+    {
+      "path": "packages/cloudflare/package.json",
+      "sha256": "c731b0686aee994a29eff82613b4b599e22c5898eea43f1a2aaddd61f1a9807d",
+      "bytes": 1080,
+      "lines": 40,
+      "proof_scope": "pinned current bytes; body inspection limited to duties cited in review, not exhaustive certification"
+    },
+    {
+      "path": "packages/cloudflare/src/deploy/bundle.ts",
+      "sha256": "66bb7f572f6abe03cd87c6bd5d8b7fd78ea814e0817c992d102b3df3606c3a5e",
+      "bytes": 39451,
+      "lines": 958,
+      "proof_scope": "pinned current bytes; body inspection limited to duties cited in review, not exhaustive certification"
+    },
+    {
+      "path": "packages/cloudflare/src/dev/local-run.ts",
+      "sha256": "d7a460471c4a88c18fdacac8263c6d96247b0f1666e4e8b40e5c714f847fe1ec",
+      "bytes": 3414,
+      "lines": 90,
+      "proof_scope": "pinned current bytes; body inspection limited to duties cited in review, not exhaustive certification"
+    },
+    {
+      "path": "packages/cloudflare/src/release/manifest.ts",
+      "sha256": "0f1253522b0ee681173f788700835facdeb3bd2028daf2a461b75f1dc4c8a48d",
+      "bytes": 6729,
+      "lines": 173,
+      "proof_scope": "pinned current bytes; body inspection limited to duties cited in review, not exhaustive certification"
+    },
+    {
+      "path": "packages/cloudflare/src/release/stamp.ts",
+      "sha256": "0282040393e8c163de46a0f3f7cfc1634dd05369fbad4a5603ee06cdec6c0e0e",
+      "bytes": 6325,
+      "lines": 161,
+      "proof_scope": "pinned current bytes; body inspection limited to duties cited in review, not exhaustive certification"
+    },
+    {
+      "path": "packages/cloudflare/src/runtime/env-assembly.ts",
+      "sha256": "40dff84e04743988b289b9e754fdb8e54f1d66b836c1dbbce0a61949fb4d83ad",
+      "bytes": 13089,
+      "lines": 345,
+      "proof_scope": "pinned current bytes; body inspection limited to duties cited in review, not exhaustive certification"
+    },
+    {
+      "path": "packages/cloudflare/src/runtime/invoke.ts",
+      "sha256": "7e90840e2dbbba0c274b76d4c54ae0777832a0b4ef13ce18100141ade509287b",
+      "bytes": 278628,
+      "lines": 6685,
+      "proof_scope": "pinned current bytes; body inspection limited to duties cited in review, not exhaustive certification"
+    },
+    {
+      "path": "packages/cloudflare/src/runtime/stdlib.ts",
+      "sha256": "ced1c72a0244f7691471dd2aae3a88a3ae6198f67837af4008549df8bbc1662e",
+      "bytes": 12613,
+      "lines": 299,
+      "proof_scope": "pinned current bytes; body inspection limited to duties cited in review, not exhaustive certification"
+    },
+    {
+      "path": "packages/cloudflare/src/worker/assembly.ts",
+      "sha256": "77e382718864ec01a0be1290685de0c6f9e40abcb7642f8e6623a2f2fbac596c",
+      "bytes": 58989,
+      "lines": 1476,
+      "proof_scope": "pinned current bytes; body inspection limited to duties cited in review, not exhaustive certification"
+    },
+    {
+      "path": "packages/cloudflare/tsconfig.json",
+      "sha256": "8288e51cec217797ce3fcb51b33f70f55c705b4eefbc4d530fa28c4706ed781b",
+      "bytes": 183,
+      "lines": 9,
+      "proof_scope": "pinned current bytes; body inspection limited to duties cited in review, not exhaustive certification"
+    },
+    {
+      "path": "packages/contracts/src/artifact.ts",
+      "sha256": "6b114ad0b55d14cca73b133e09d3b0ccc8b15cf57ac0c6f7864432bc11e72ee3",
+      "bytes": 17939,
+      "lines": 446,
+      "proof_scope": "pinned current bytes; body inspection limited to duties cited in review, not exhaustive certification"
+    },
+    {
+      "path": "packages/contracts/src/files.ts",
+      "sha256": "919549d102b9c30709f292942f327bf3d6cd723e554aa9862750179adda163b0",
+      "bytes": 5205,
+      "lines": 161,
+      "proof_scope": "pinned current bytes; body inspection limited to duties cited in review, not exhaustive certification"
+    },
+    {
+      "path": "packages/contracts/src/services.ts",
+      "sha256": "91b1580b0b1c884af6ef0c2f162aad0f75cd76d41a369a087ec5310367ee4ebf",
+      "bytes": 40036,
+      "lines": 1190,
+      "proof_scope": "pinned current bytes; body inspection limited to duties cited in review, not exhaustive certification"
+    },
+    {
+      "path": "packages/contracts/src/state.ts",
+      "sha256": "dd9263d8cae2eda4d046678c3d564217c54e0ae77d9b8d2e9b40c213ed588236",
+      "bytes": 35642,
+      "lines": 920,
+      "proof_scope": "pinned current bytes; body inspection limited to duties cited in review, not exhaustive certification"
+    },
+    {
+      "path": "packages/contracts/src/work.ts",
+      "sha256": "c7d674c84f536389398b61b5b23c9c469114e88b5373edf5580136636f009207",
+      "bytes": 23899,
+      "lines": 639,
+      "proof_scope": "pinned current bytes; body inspection limited to duties cited in review, not exhaustive certification"
+    },
+    {
+      "path": "packages/files/package.json",
+      "sha256": "3b6b481429318b383a2964d0f794cc4b819f4454aad822c36cca51b99f9909ba",
+      "bytes": 454,
+      "lines": 16,
+      "proof_scope": "pinned current bytes; body inspection limited to duties cited in review, not exhaustive certification"
+    },
+    {
+      "path": "packages/files/src/bridge.ts",
+      "sha256": "6b228ad78582c0f6577ef8905eda5c9a85025e85bfa60142e917ceea1882b782",
+      "bytes": 7618,
+      "lines": 240,
+      "proof_scope": "pinned current bytes; body inspection limited to duties cited in review, not exhaustive certification"
+    },
+    {
+      "path": "packages/files/src/catalog.ts",
+      "sha256": "51cfbb1f9435b3bfb33296960f4618ff937cd3a6016baafd44395b3893408923",
+      "bytes": 1704,
+      "lines": 46,
+      "proof_scope": "pinned current bytes; body inspection limited to duties cited in review, not exhaustive certification"
+    },
+    {
+      "path": "packages/files/src/finalize/index.ts",
+      "sha256": "94274398c9d2de8cd75cc0f199ed479cec8b69d983500dc765456cdf9d1c40d1",
+      "bytes": 21865,
+      "lines": 612,
+      "proof_scope": "pinned current bytes; body inspection limited to duties cited in review, not exhaustive certification"
+    },
+    {
+      "path": "packages/files/src/ports.ts",
+      "sha256": "a137201a75b4df2409a9d3391a5852c1a6ca96192ae10bce6fd0f1d8f0ee69f1",
+      "bytes": 10833,
+      "lines": 337,
+      "proof_scope": "pinned current bytes; body inspection limited to duties cited in review, not exhaustive certification"
+    },
+    {
+      "path": "packages/files/src/provenance/index.ts",
+      "sha256": "6f6138feccfcb5d45f0c16393d8ef13f2d804eedd0c4dea5b21da7132c3b9b5d",
+      "bytes": 4489,
+      "lines": 147,
+      "proof_scope": "pinned current bytes; body inspection limited to duties cited in review, not exhaustive certification"
+    },
+    {
+      "path": "packages/files/src/retention/index.ts",
+      "sha256": "f71ecd238474dfaf6a2ee6438b0f8533b3f5914f9ee475e1c75ab22e71f05d73",
+      "bytes": 5046,
+      "lines": 158,
+      "proof_scope": "pinned current bytes; body inspection limited to duties cited in review, not exhaustive certification"
+    },
+    {
+      "path": "packages/files/src/upload/fs-blob-store.ts",
+      "sha256": "44e18d6eef9ac71d35e766a63c7cdcc19d57adf4f7722802f73c0387bfb21d59",
+      "bytes": 2467,
+      "lines": 90,
+      "proof_scope": "pinned current bytes; body inspection limited to duties cited in review, not exhaustive certification"
+    },
+    {
+      "path": "packages/files/src/upload/index.ts",
+      "sha256": "65d07700899e1a0346596cd10ff01194f831c5b56ec8ee1dbb39d8189438fdf6",
+      "bytes": 17233,
+      "lines": 503,
+      "proof_scope": "pinned current bytes; body inspection limited to duties cited in review, not exhaustive certification"
+    },
+    {
+      "path": "packages/files/tsconfig.json",
+      "sha256": "f3601c069391f8cacce4000d2d5770dea47b4b2193c1a501a40851b6638a8e09",
+      "bytes": 334,
+      "lines": 13,
+      "proof_scope": "pinned current bytes; body inspection limited to duties cited in review, not exhaustive certification"
+    },
+    {
+      "path": "packages/services/package.json",
+      "sha256": "6b52aa8f58cf5e2ce3fd96287fb2388347a7ab84b415d8fd1b7f0f3f2828bc68",
+      "bytes": 463,
+      "lines": 16,
+      "proof_scope": "pinned current bytes; body inspection limited to duties cited in review, not exhaustive certification"
+    },
+    {
+      "path": "packages/services/src/catalog.ts",
+      "sha256": "40b36de7ad8c84f1105e2bb274bdfad6ccebaf455c98a8ef7e542813e6a1af30",
+      "bytes": 1159,
+      "lines": 46,
+      "proof_scope": "pinned current bytes; body inspection limited to duties cited in review, not exhaustive certification"
+    },
+    {
+      "path": "packages/services/src/http/client.ts",
+      "sha256": "240c2731b2a88ef18ba69a117c5e83cd7a5eba36bd2e65cd6c6cd3901719402f",
+      "bytes": 16959,
+      "lines": 571,
+      "proof_scope": "pinned current bytes; body inspection limited to duties cited in review, not exhaustive certification"
+    },
+    {
+      "path": "packages/services/src/http/errors.ts",
+      "sha256": "8b97f7d6fe8fdcc0acca684865b1b1591035bd9eb82da1e920f7cf4645890c9b",
+      "bytes": 3052,
+      "lines": 87,
+      "proof_scope": "pinned current bytes; body inspection limited to duties cited in review, not exhaustive certification"
+    },
+    {
+      "path": "packages/services/src/http/pagination.ts",
+      "sha256": "752dbc774bb75844f8c73a10a831e4dab37d7930cd46e9f074504cc2fb04c7b1",
+      "bytes": 2935,
+      "lines": 104,
+      "proof_scope": "pinned current bytes; body inspection limited to duties cited in review, not exhaustive certification"
+    },
+    {
+      "path": "packages/services/src/judgments/systemone.ts",
+      "sha256": "b006fed138592e808d0d88ab2f423288d5fa0d552ccdda7bcb22997b8a80e53b",
+      "bytes": 25442,
+      "lines": 806,
+      "proof_scope": "pinned current bytes; body inspection limited to duties cited in review, not exhaustive certification"
+    },
+    {
+      "path": "packages/services/src/mail/adapter.ts",
+      "sha256": "78c977e2be0c5aedbf3245167ec628a5ccdd065d0ff46fc894b95ae9417087e0",
+      "bytes": 20570,
+      "lines": 675,
+      "proof_scope": "pinned current bytes; body inspection limited to duties cited in review, not exhaustive certification"
+    },
+    {
+      "path": "packages/services/src/mail/redact.ts",
+      "sha256": "a486b1747f5e8ca8b93943f04f17fd8fdb2b2943db5f8b3d0c4adfc847b7f342",
+      "bytes": 2304,
+      "lines": 64,
+      "proof_scope": "pinned current bytes; body inspection limited to duties cited in review, not exhaustive certification"
+    },
+    {
+      "path": "packages/services/src/media/comfyui.ts",
+      "sha256": "d35508e4dd957b246ce9161c9c12ff78a332de93bed5084f09f0ab7131b3392c",
+      "bytes": 22566,
+      "lines": 676,
+      "proof_scope": "pinned current bytes; body inspection limited to duties cited in review, not exhaustive certification"
+    },
+    {
+      "path": "packages/services/src/media/mapping.ts",
+      "sha256": "8593d2bd0a59d3736546d004a50c30e68e600a4b6891cfb90fbec03f39999a14",
+      "bytes": 7923,
+      "lines": 222,
+      "proof_scope": "pinned current bytes; body inspection limited to duties cited in review, not exhaustive certification"
+    },
+    {
+      "path": "packages/services/src/models/ollama.ts",
+      "sha256": "40050322c7cabaa6909e96b57e78663ee0c216c54f18be27c11e8ea1702c8367",
+      "bytes": 23140,
+      "lines": 744,
+      "proof_scope": "pinned current bytes; body inspection limited to duties cited in review, not exhaustive certification"
+    },
+    {
+      "path": "packages/services/src/ports.ts",
+      "sha256": "785246b21813fa884de8e699c50eb93cb4a4f7c12c5f7cb8b3a6918d2240c97b",
+      "bytes": 14813,
+      "lines": 466,
+      "proof_scope": "pinned current bytes; body inspection limited to duties cited in review, not exhaustive certification"
+    },
+    {
+      "path": "packages/services/tsconfig.json",
+      "sha256": "a1e6e7f6c6f28273fa1da308b8ff1a7e345a45cb1743d7edafc1078f68f0445c",
+      "bytes": 337,
+      "lines": 13,
+      "proof_scope": "pinned current bytes; body inspection limited to duties cited in review, not exhaustive certification"
+    },
+    {
+      "path": "packages/state/package.json",
+      "sha256": "8738dda6fb9e255d8f5f09ba4ede346587d741434816b12ab8e85b582df7778c",
+      "bytes": 761,
+      "lines": 27,
+      "proof_scope": "pinned current bytes; body inspection limited to duties cited in review, not exhaustive certification"
+    },
+    {
+      "path": "packages/state/src/effects/staging.ts",
+      "sha256": "8308dc5c711e9bdddf29d6ffc43cfeab0de8ea86c6f6e986a528b6afca8f1b7b",
+      "bytes": 15629,
+      "lines": 401,
+      "proof_scope": "pinned current bytes; body inspection limited to duties cited in review, not exhaustive certification"
+    },
+    {
+      "path": "packages/state/src/fanout/cohort.ts",
+      "sha256": "1bbebe580d152693524a11dac0a47bad7aabf409ccef143c9f0a2ae55f6302d4",
+      "bytes": 5011,
+      "lines": 131,
+      "proof_scope": "pinned current bytes; body inspection limited to duties cited in review, not exhaustive certification"
+    },
+    {
+      "path": "packages/state/src/fanout/lifecycle.ts",
+      "sha256": "03da745fe9ff06c957938bb4d0a501f03f1c3fe813a6e35c19ee59a58795ca7b",
+      "bytes": 4682,
+      "lines": 127,
+      "proof_scope": "pinned current bytes; body inspection limited to duties cited in review, not exhaustive certification"
+    },
+    {
+      "path": "packages/state/src/fanout/membership.ts",
+      "sha256": "9a4bb3eed1849e60bdd208f854c6837945736adcdfe121706545312785b2c73f",
+      "bytes": 24500,
+      "lines": 744,
+      "proof_scope": "pinned current bytes; body inspection limited to duties cited in review, not exhaustive certification"
+    },
+    {
+      "path": "packages/state/src/fanout/outcome.ts",
+      "sha256": "bf0088d4ff97c7ecc39d0ffb48be43d203ee99b9d80860a959060be41f64939a",
+      "bytes": 10319,
+      "lines": 276,
+      "proof_scope": "pinned current bytes; body inspection limited to duties cited in review, not exhaustive certification"
+    },
+    {
+      "path": "packages/state/src/fanout/progress.ts",
+      "sha256": "78a0b69ef8d4dc1ac1c29ee2f7eac265c59278103e0f6957e6d78dc997bda378",
+      "bytes": 4609,
+      "lines": 146,
+      "proof_scope": "pinned current bytes; body inspection limited to duties cited in review, not exhaustive certification"
+    },
+    {
+      "path": "packages/state/src/fanout/tables.ts",
+      "sha256": "cf3c6344ce4ee2335cf774e8bd7c68768520502ad2007ff9addd0c92dc6043c8",
+      "bytes": 20982,
+      "lines": 596,
+      "proof_scope": "pinned current bytes; body inspection limited to duties cited in review, not exhaustive certification"
+    },
+    {
+      "path": "packages/state/src/invocation/admission.ts",
+      "sha256": "9e608e50d665b7024adae94beeb17f81dea4a550a73f797336ea614c04d4b986",
+      "bytes": 28253,
+      "lines": 717,
+      "proof_scope": "pinned current bytes; body inspection limited to duties cited in review, not exhaustive certification"
+    },
+    {
+      "path": "packages/state/src/invocation/context.ts",
+      "sha256": "9c3909dae9e64ff35edea4bb6dcf8cc21dc9fd026706d944d2e6074ddda04ff8",
+      "bytes": 4966,
+      "lines": 133,
+      "proof_scope": "pinned current bytes; body inspection limited to duties cited in review, not exhaustive certification"
+    },
+    {
+      "path": "packages/state/src/invocation/invoke.ts",
+      "sha256": "c939720addeb9918233c522970ff9c431be0fd77a97fb749e53560e14cecc9a6",
+      "bytes": 24050,
+      "lines": 588,
+      "proof_scope": "pinned current bytes; body inspection limited to duties cited in review, not exhaustive certification"
+    },
+    {
+      "path": "packages/state/src/invocation/registry.ts",
+      "sha256": "648038e260dddb601171834d4277e42a823cfedc7bec55acd0b606d57a3803ad",
+      "bytes": 47362,
+      "lines": 1162,
+      "proof_scope": "pinned current bytes; body inspection limited to duties cited in review, not exhaustive certification"
+    },
+    {
+      "path": "packages/state/src/invocation/replay.ts",
+      "sha256": "e49348f4af1799070b8743ca0f12e712a6371df997eedf0ad7f5e8d75f106558",
+      "bytes": 2485,
+      "lines": 71,
+      "proof_scope": "pinned current bytes; body inspection limited to duties cited in review, not exhaustive certification"
+    },
+    {
+      "path": "packages/state/src/migration/activate.ts",
+      "sha256": "967addf463fba8015854808f8a18133a964d5936071ee9919b310ac80d26a240",
+      "bytes": 30837,
+      "lines": 828,
+      "proof_scope": "pinned current bytes; body inspection limited to duties cited in review, not exhaustive certification"
+    },
+    {
+      "path": "packages/state/src/migration/mapper.ts",
+      "sha256": "b4bf17b928f1b83894d90cc018908bad9e4c39afad51a319be357df54d93567d",
+      "bytes": 9237,
+      "lines": 255,
+      "proof_scope": "pinned current bytes; body inspection limited to duties cited in review, not exhaustive certification"
+    },
+    {
+      "path": "packages/state/src/migration/recover.ts",
+      "sha256": "e4d1ea6dfb35ef4c90c58513e4411e85d440165c660a0a7b7f122a8861662250",
+      "bytes": 10669,
+      "lines": 293,
+      "proof_scope": "pinned current bytes; body inspection limited to duties cited in review, not exhaustive certification"
+    },
+    {
+      "path": "packages/state/src/migration/retain.ts",
+      "sha256": "6a016c56f39dd36cc44b43dc634975be8d1768e0aa934d105078dd4700df6da8",
+      "bytes": 7129,
+      "lines": 175,
+      "proof_scope": "pinned current bytes; body inspection limited to duties cited in review, not exhaustive certification"
+    },
+    {
+      "path": "packages/state/src/migration/stage.ts",
+      "sha256": "21011aa84a443a12e0cec3b1a1a0d09c264d26750663b6c14ab45c43323693b7",
+      "bytes": 10674,
+      "lines": 301,
+      "proof_scope": "pinned current bytes; body inspection limited to duties cited in review, not exhaustive certification"
+    },
+    {
+      "path": "packages/state/src/migration/transition.ts",
+      "sha256": "c30a09c371940481aa510e71e3e37e3b3b68acd530664ac3c720b7abf84133e3",
+      "bytes": 29266,
+      "lines": 793,
+      "proof_scope": "pinned current bytes; body inspection limited to duties cited in review, not exhaustive certification"
+    },
+    {
+      "path": "packages/state/src/migration/validate.ts",
+      "sha256": "543ebf8d925e0ba1a65c0dd2508ed0853c4621decd57a53339658363c9c8cbc2",
+      "bytes": 31727,
+      "lines": 850,
+      "proof_scope": "pinned current bytes; body inspection limited to duties cited in review, not exhaustive certification"
+    },
+    {
+      "path": "packages/state/src/mutation/crud.ts",
+      "sha256": "372036a5f58a9515f340388d18aefcddf6086741626e794256ac913e6afb3533",
+      "bytes": 19839,
+      "lines": 534,
+      "proof_scope": "pinned current bytes; body inspection limited to duties cited in review, not exhaustive certification"
+    },
+    {
+      "path": "packages/state/src/mutation/models.ts",
+      "sha256": "35d6a7121a8a45fe3c4cc3b72c319bcc4d4c6985a363464cfacd5865ddce2d95",
+      "bytes": 32860,
+      "lines": 800,
+      "proof_scope": "pinned current bytes; body inspection limited to duties cited in review, not exhaustive certification"
+    },
+    {
+      "path": "packages/state/src/mutation/pipeline.ts",
+      "sha256": "c2baeb62ece3b5bf1506a454e2cd254cd8b3e30fc4ddc6d36d3f06a2d96d7482",
+      "bytes": 57686,
+      "lines": 1456,
+      "proof_scope": "pinned current bytes; body inspection limited to duties cited in review, not exhaustive certification"
+    },
+    {
+      "path": "packages/state/src/policy/grants.ts",
+      "sha256": "042947880c0df946f85406075fb14d9b6cc593dde5806c9c67a36b4a60644793",
+      "bytes": 17114,
+      "lines": 519,
+      "proof_scope": "pinned current bytes; body inspection limited to duties cited in review, not exhaustive certification"
+    },
+    {
+      "path": "packages/state/src/policy/roles.ts",
+      "sha256": "d033b2028be641b066caa3d29c2315d622f3085c43c1af068b11b4ddedd05765",
+      "bytes": 7416,
+      "lines": 193,
+      "proof_scope": "pinned current bytes; body inspection limited to duties cited in review, not exhaustive certification"
+    },
+    {
+      "path": "packages/state/src/ports/read.ts",
+      "sha256": "28b684622807a9e64f4049c31cb2a6f57da27af409159e218b4a9d6b76217e48",
+      "bytes": 4475,
+      "lines": 111,
+      "proof_scope": "pinned current bytes; body inspection limited to duties cited in review, not exhaustive certification"
+    },
+    {
+      "path": "packages/state/src/ports/system.ts",
+      "sha256": "19408e9e613f0c9107263571a2bc2c9a767326ce34e30968d72ef7ecb8197488",
+      "bytes": 9686,
+      "lines": 265,
+      "proof_scope": "pinned current bytes; body inspection limited to duties cited in review, not exhaustive certification"
+    },
+    {
+      "path": "packages/state/src/ports/transact.ts",
+      "sha256": "2e39d28afc9655fce540411f446065af5b625eecd4d0fa71c4bc15021554491a",
+      "bytes": 17298,
+      "lines": 464,
+      "proof_scope": "pinned current bytes; body inspection limited to duties cited in review, not exhaustive certification"
+    },
+    {
+      "path": "packages/state/src/query/engine.ts",
+      "sha256": "b308d161b6c1187055337aaffababeccc6bceed7466c3261cccb066c5432e9ca",
+      "bytes": 32251,
+      "lines": 934,
+      "proof_scope": "pinned current bytes; body inspection limited to duties cited in review, not exhaustive certification"
+    },
+    {
+      "path": "packages/state/src/receipt/grants.ts",
+      "sha256": "5e451c34948bd6e6421bb33f0e3fd221e294f82dd1820e49dad2a187081a801a",
+      "bytes": 8660,
+      "lines": 233,
+      "proof_scope": "pinned current bytes; body inspection limited to duties cited in review, not exhaustive certification"
+    },
+    {
+      "path": "packages/state/src/receipt/join.ts",
+      "sha256": "0b834c3e90e04a1b5471f0dcaedb443538f0e214f1ccdada86b8e3f262b7f39b",
+      "bytes": 13788,
+      "lines": 345,
+      "proof_scope": "pinned current bytes; body inspection limited to duties cited in review, not exhaustive certification"
+    },
+    {
+      "path": "packages/state/src/receipt/tables.ts",
+      "sha256": "ef64dfe3862e3a0aa2f21e9eeca6affbe66a8a0f832efc7da9f5e6e01d8b3866",
+      "bytes": 19636,
+      "lines": 583,
+      "proof_scope": "pinned current bytes; body inspection limited to duties cited in review, not exhaustive certification"
+    },
+    {
+      "path": "packages/state/src/storage/d1.ts",
+      "sha256": "60feb9d36583674f64d4b06fdd1fd879d416b0f9c4bf1a44255f7013bc8d8355",
+      "bytes": 52550,
+      "lines": 1406,
+      "proof_scope": "pinned current bytes; body inspection limited to duties cited in review, not exhaustive certification"
+    },
+    {
+      "path": "packages/state/src/storage/durable-object.ts",
+      "sha256": "12ffd8452d9df190a21359cd1df9bbf4e8c8a2105947168bf2a9c8426c1de56f",
+      "bytes": 53358,
+      "lines": 1500,
+      "proof_scope": "pinned current bytes; body inspection limited to duties cited in review, not exhaustive certification"
+    },
+    {
+      "path": "packages/state/src/storage/port.ts",
+      "sha256": "f07e21c4609ac4491f5b951e52787bb41f583d7ca38a8922891bf77fd7de27ed",
+      "bytes": 3587,
+      "lines": 101,
+      "proof_scope": "pinned current bytes; body inspection limited to duties cited in review, not exhaustive certification"
+    },
+    {
+      "path": "packages/state/src/storage/schema.ts",
+      "sha256": "153a40955bb0ba966ced70e6692e40e06a5e704aead5b07043190630e24725d4",
+      "bytes": 6222,
+      "lines": 78,
+      "proof_scope": "pinned current bytes; body inspection limited to duties cited in review, not exhaustive certification"
+    },
+    {
+      "path": "packages/state/tsconfig.json",
+      "sha256": "7f503579e1b4fbb73ac927c490d6dd41f65c13ee5a58cc62275b01d3282ba149",
+      "bytes": 753,
+      "lines": 22,
+      "proof_scope": "pinned current bytes; body inspection limited to duties cited in review, not exhaustive certification"
+    },
+    {
+      "path": "packages/stdlib/package.json",
+      "sha256": "78dd476ddcf3e3712b6aad8ae7656cbf4e3487732c568b78a56cc497679d0499",
+      "bytes": 692,
+      "lines": 28,
+      "proof_scope": "pinned current bytes; body inspection limited to duties cited in review, not exhaustive certification"
+    },
+    {
+      "path": "packages/stdlib/tsconfig.json",
+      "sha256": "aa6afcb95ef1b6ab41c2e28f5f99a317307ae2188d1aa0ebf2005c0b3a0c72ff",
+      "bytes": 642,
+      "lines": 22,
+      "proof_scope": "pinned current bytes; body inspection limited to duties cited in review, not exhaustive certification"
+    },
+    {
+      "path": "packages/testkit/src/scopes/local.ts",
+      "sha256": "68eacdc3c2eecdae8235f89f1b6a479ee2a3bdfb31dd8ef1f090d3102b9e44ba",
+      "bytes": 2798,
+      "lines": 82,
+      "proof_scope": "pinned current bytes; body inspection limited to duties cited in review, not exhaustive certification"
+    },
+    {
+      "path": "packages/work/package.json",
+      "sha256": "0a1c6e05419645ba565e76dd3ee6a3bd68a6b576319d33e04c592584f030e05a",
+      "bytes": 447,
+      "lines": 16,
+      "proof_scope": "pinned current bytes; body inspection limited to duties cited in review, not exhaustive certification"
+    },
+    {
+      "path": "packages/work/src/dispatch/index.ts",
+      "sha256": "8f276d853b3c594e5fa208e249159a97f8e2a45bc267a006528d3887c1a4e686",
+      "bytes": 30480,
+      "lines": 834,
+      "proof_scope": "pinned current bytes; body inspection limited to duties cited in review, not exhaustive certification"
+    },
+    {
+      "path": "packages/work/src/event/index.ts",
+      "sha256": "37e7fe2958d59857014d748754e7d29b0121c4e07c7456a3afe24c9a6340f94f",
+      "bytes": 4474,
+      "lines": 109,
+      "proof_scope": "pinned current bytes; body inspection limited to duties cited in review, not exhaustive certification"
+    },
+    {
+      "path": "packages/work/src/intent/index.ts",
+      "sha256": "a19031f4ec0a2a7ba78341d1d0ab00050e56cd1d5d39fcde6e145224b53dfff8",
+      "bytes": 14378,
+      "lines": 392,
+      "proof_scope": "pinned current bytes; body inspection limited to duties cited in review, not exhaustive certification"
+    },
+    {
+      "path": "packages/work/src/kernel/commands.ts",
+      "sha256": "b78ba7004c147887ea15e9ab872fca52c0367e9c4d16399f22b2fdaabbacef8d",
+      "bytes": 46168,
+      "lines": 1340,
+      "proof_scope": "pinned current bytes; body inspection limited to duties cited in review, not exhaustive certification"
+    },
+    {
+      "path": "packages/work/src/kernel/tables.ts",
+      "sha256": "392c8a30f73b804638312ba09685666a0eb8734c33d7d41c3a3158ae4371a57e",
+      "bytes": 39638,
+      "lines": 1105,
+      "proof_scope": "pinned current bytes; body inspection limited to duties cited in review, not exhaustive certification"
+    },
+    {
+      "path": "packages/work/src/observation/association.ts",
+      "sha256": "0167f94013df2bda615d670c7c7a38e9e489c3ee079da619dffe8a7d47e25b2e",
+      "bytes": 22423,
+      "lines": 576,
+      "proof_scope": "pinned current bytes; body inspection limited to duties cited in review, not exhaustive certification"
+    },
+    {
+      "path": "packages/work/src/observation/observation.ts",
+      "sha256": "29b86efe60a54398cf9f669b405dab381d3e337d3fca6fbb3cfba8aae876d24a",
+      "bytes": 17447,
+      "lines": 431,
+      "proof_scope": "pinned current bytes; body inspection limited to duties cited in review, not exhaustive certification"
+    },
+    {
+      "path": "packages/work/src/observation/ports.ts",
+      "sha256": "f139df952bc72b77ec14eab6050291ab3a138e1eba6c071e95ba3323ee35056e",
+      "bytes": 5229,
+      "lines": 153,
+      "proof_scope": "pinned current bytes; body inspection limited to duties cited in review, not exhaustive certification"
+    },
+    {
+      "path": "packages/work/src/receipt/index.ts",
+      "sha256": "5085f392192a1059c9a5d3bcf679e4984b77a0ab4a5e799bcd17812e8060d6e3",
+      "bytes": 13979,
+      "lines": 396,
+      "proof_scope": "pinned current bytes; body inspection limited to duties cited in review, not exhaustive certification"
+    },
+    {
+      "path": "packages/work/src/recovery/index.ts",
+      "sha256": "c973d3b8fafd4db66ff2b6b278e3ff49c8121601b5d21665507e4ee3ff231859",
+      "bytes": 37116,
+      "lines": 998,
+      "proof_scope": "pinned current bytes; body inspection limited to duties cited in review, not exhaustive certification"
+    },
+    {
+      "path": "packages/work/src/schedule/every.ts",
+      "sha256": "60854aa7c190ef69f29bde0f68e1e26ae68de98c782fa82d64e4f2e822e046e9",
+      "bytes": 6200,
+      "lines": 178,
+      "proof_scope": "pinned current bytes; body inspection limited to duties cited in review, not exhaustive certification"
+    },
+    {
+      "path": "packages/work/src/schedule/index.ts",
+      "sha256": "364f1e5538a504eb7c25291cebd114e704e704dc35105a127865650bfed75279",
+      "bytes": 7264,
+      "lines": 190,
+      "proof_scope": "pinned current bytes; body inspection limited to duties cited in review, not exhaustive certification"
+    },
+    {
+      "path": "packages/work/tsconfig.json",
+      "sha256": "06830ded9cb6c092482a625543406a63d042410be6bf6464e830882ede78abe5",
+      "bytes": 333,
+      "lines": 13,
+      "proof_scope": "pinned current bytes; body inspection limited to duties cited in review, not exhaustive certification"
+    }
+  ],
+  "slices": [
+    {
+      "id": "W-AUTH",
+      "title": "Canonical verified state authority, replay and projection",
+      "disposition": "REQUIRED",
+      "requirement_authority": [
+        "REQUIREMENTS.md:179-212",
+        "implementation/CONTRACTS.md:Transactions, identities and disclosure"
+      ],
+      "current_defining_files": [
+        "packages/state/src/invocation/context.ts",
+        "packages/state/src/invocation/admission.ts",
+        "packages/state/src/invocation/replay.ts",
+        "packages/state/src/invocation/invoke.ts",
+        "packages/state/src/invocation/registry.ts",
+        "packages/state/src/query/engine.ts",
+        "packages/state/src/policy/grants.ts",
+        "packages/state/src/policy/roles.ts",
+        "packages/state/src/ports/read.ts",
+        "packages/state/src/ports/transact.ts",
+        "packages/state/src/ports/system.ts"
+      ],
+      "target_defining_files": [
+        {
+          "path": "packages/state/src/invocation/context.ts",
+          "language": "TypeScript",
+          "state": "existing-retained",
+          "owner": "state"
+        },
+        {
+          "path": "packages/state/src/invocation/admission.ts",
+          "language": "TypeScript",
+          "state": "existing-retained",
+          "owner": "state"
+        },
+        {
+          "path": "packages/state/src/invocation/replay.ts",
+          "language": "TypeScript",
+          "state": "existing-retained",
+          "owner": "state"
+        },
+        {
+          "path": "packages/state/src/invocation/invoke.ts",
+          "language": "TypeScript",
+          "state": "existing-retained",
+          "owner": "state"
+        },
+        {
+          "path": "packages/state/src/invocation/registry.ts",
+          "language": "TypeScript",
+          "state": "existing-retained",
+          "owner": "state"
+        },
+        {
+          "path": "packages/state/src/query/engine.ts",
+          "language": "TypeScript",
+          "state": "existing-retained",
+          "owner": "state"
+        },
+        {
+          "path": "packages/state/src/policy/grants.ts",
+          "language": "TypeScript",
+          "state": "existing-retained",
+          "owner": "state"
+        },
+        {
+          "path": "packages/state/src/policy/roles.ts",
+          "language": "TypeScript",
+          "state": "existing-retained",
+          "owner": "state"
+        },
+        {
+          "path": "packages/state/src/ports/read.ts",
+          "language": "TypeScript",
+          "state": "existing-retained",
+          "owner": "state"
+        },
+        {
+          "path": "packages/state/src/ports/transact.ts",
+          "language": "TypeScript",
+          "state": "existing-retained",
+          "owner": "state"
+        },
+        {
+          "path": "packages/state/src/ports/system.ts",
+          "language": "TypeScript",
+          "state": "existing-retained",
+          "owner": "state"
+        }
+      ],
+      "duties": [
+        "Registry is compiler-owned descriptor intake; verified selected-app identity/team enters only through canonical admission.",
+        "Read revision before state-dependent reads; hash raw inputs; existing receipt replay before unseen age/authorization/normalization; conflicting reuse rejects.",
+        "Authorize current row/leaf projection and record/ref/current-version authority separately; stale archived refs preserve first-error order.",
+        "One supported owner commit; bounded contention; canonical rejected receipt is explicit empty-effects exception, programmer exceptions retain contract."
+      ],
+      "dependencies": [
+        "T04",
+        "T15",
+        "T16",
+        "T17",
+        "B2",
+        "C2",
+        "T37"
+      ],
+      "availability_gaps": [
+        "invokeRead at 431 validates then refuses descriptor inputs: current generic port does not prove finished filtered/parameterized read serving.",
+        "Registry explicitly rejects unsupported_server_init/composite_unique; T04 complete consumer matrix remains open."
+      ],
+      "evidence_level": "source-and-contract-inspection; no execution",
+      "independent_challenge": "pending",
+      "target_status": "finished-product allocation; not implementation acceptance",
+      "review_scope": "primary source/contracts; challenger pending"
+    },
+    {
+      "id": "W-MUT",
+      "title": "Canonical CRUD/scenario mutation, defaults, constraints and history",
+      "disposition": "REQUIRED",
+      "requirement_authority": [
+        "REQUIREMENTS.md:218",
+        "implementation/CHALLENGE-AUDIT-PLAN.md:T16-T18"
+      ],
+      "current_defining_files": [
+        "packages/state/src/mutation/models.ts",
+        "packages/state/src/mutation/crud.ts",
+        "packages/state/src/mutation/pipeline.ts"
+      ],
+      "target_defining_files": [
+        {
+          "path": "packages/state/src/mutation/models.ts",
+          "language": "TypeScript",
+          "state": "existing-retained",
+          "owner": "state"
+        },
+        {
+          "path": "packages/state/src/mutation/crud.ts",
+          "language": "TypeScript",
+          "state": "existing-retained",
+          "owner": "state"
+        },
+        {
+          "path": "packages/state/src/mutation/pipeline.ts",
+          "language": "TypeScript",
+          "state": "existing-retained",
+          "owner": "state"
+        },
+        {
+          "path": "packages/state/src/mutation/defaults.ts",
+          "language": "TypeScript",
+          "state": "new-proposed",
+          "owner": "state"
+        },
+        {
+          "path": "packages/state/src/mutation/constraints.ts",
+          "language": "TypeScript",
+          "state": "new-proposed",
+          "owner": "state"
+        },
+        {
+          "path": "packages/state/src/mutation/history.ts",
+          "language": "TypeScript",
+          "state": "new-proposed",
+          "owner": "state"
+        }
+      ],
+      "duties": [
+        "One mutation pipeline for every write path; normalize/default/nullable/array/server values in specified order.",
+        "Apply locks/invariants/ref/unique rules, resulting row versions, history and resolved-default receipts atomically.",
+        "Retire hand-built interim descriptor intake only after generated parity for actual types and actual installed consumers."
+      ],
+      "dependencies": [
+        "T09",
+        "T15",
+        "T16",
+        "T17",
+        "T18",
+        "B1",
+        "C2"
+      ],
+      "availability_gaps": [
+        "models.ts still exposes InterimModelDef and interim default shape; canonical descriptor conversion exists but not every accepted expression is executable."
+      ],
+      "evidence_level": "source-and-contract-inspection; no execution",
+      "independent_challenge": "pending",
+      "target_status": "finished-product allocation; not implementation acceptance",
+      "review_scope": "primary source/contracts; challenger pending"
+    },
+    {
+      "id": "W-OWNER",
+      "title": "Imported containment, parent/team/lifetime ownership",
+      "disposition": "REQUIRED",
+      "requirement_authority": [
+        "implementation/CHALLENGE-AUDIT-PLAN.md:T28-T29",
+        "REQUIREMENTS.md:194,210"
+      ],
+      "current_defining_files": [
+        "packages/state/src/mutation/models.ts",
+        "packages/state/src/mutation/pipeline.ts",
+        "packages/state/src/invocation/registry.ts",
+        "packages/state/src/invocation/admission.ts"
+      ],
+      "target_defining_files": [
+        {
+          "path": "packages/state/src/mutation/models.ts",
+          "language": "TypeScript",
+          "state": "existing-retained",
+          "owner": "state"
+        },
+        {
+          "path": "packages/state/src/mutation/pipeline.ts",
+          "language": "TypeScript",
+          "state": "existing-retained",
+          "owner": "state"
+        },
+        {
+          "path": "packages/state/src/invocation/registry.ts",
+          "language": "TypeScript",
+          "state": "existing-retained",
+          "owner": "state"
+        },
+        {
+          "path": "packages/state/src/invocation/admission.ts",
+          "language": "TypeScript",
+          "state": "existing-retained",
+          "owner": "state"
+        },
+        {
+          "path": "packages/state/src/mutation/containment.ts",
+          "language": "TypeScript",
+          "state": "new-proposed",
+          "owner": "state"
+        }
+      ],
+      "duties": [
+        "Declaring identity/import aliases and consumer-owned containment derive source dependencies and authority.",
+        "Parent storage/team/lifetime/relationship/cycle rules and immutable parent linkage apply across CRUD/scenarios/hooks.",
+        "Reverse collections preserve current owner evidence; imported containment gates only actual consumers, not all fanout."
+      ],
+      "dependencies": [
+        "T28",
+        "T29",
+        "T15",
+        "T16",
+        "T17",
+        "A4",
+        "B5"
+      ],
+      "availability_gaps": [],
+      "evidence_level": "source-and-contract-inspection; no execution",
+      "independent_challenge": "pending",
+      "target_status": "finished-product allocation; not implementation acceptance",
+      "review_scope": "primary source/contracts; challenger pending"
+    },
+    {
+      "id": "W-HOOK",
+      "title": "Provenance and flat secondary hook staging",
+      "disposition": "REQUIRED",
+      "requirement_authority": [
+        "implementation/CHALLENGE-AUDIT-PLAN.md:T30-T31",
+        "packages/state/src/mutation/pipeline.ts:269-283"
+      ],
+      "current_defining_files": [
+        "packages/state/src/mutation/pipeline.ts",
+        "packages/state/src/mutation/models.ts"
+      ],
+      "target_defining_files": [
+        {
+          "path": "packages/state/src/mutation/pipeline.ts",
+          "language": "TypeScript",
+          "state": "existing-retained",
+          "owner": "state"
+        },
+        {
+          "path": "packages/state/src/mutation/models.ts",
+          "language": "TypeScript",
+          "state": "existing-retained",
+          "owner": "state"
+        },
+        {
+          "path": "packages/state/src/mutation/hooks.ts",
+          "language": "TypeScript",
+          "state": "new-proposed",
+          "owner": "state"
+        }
+      ],
+      "duties": [
+        "Create/update hook secondary create/set/timer staging retains hook provenance, written order, immutable before and provisional prior rows.",
+        "Same-model staged writes, staged delete/remove and hook reentry remain forbidden; secondary writes use caller constraints minus hook recursion.",
+        "Fresh transitive checkpoints, versions/history/replay and atomic rollback; hook send/emit expansion is deferred."
+      ],
+      "dependencies": [
+        "T30",
+        "T31a",
+        "T31",
+        "B4",
+        "T16",
+        "T17"
+      ],
+      "availability_gaps": [],
+      "evidence_level": "source-and-contract-inspection; no execution",
+      "independent_challenge": "pending",
+      "target_status": "finished-product allocation; not implementation acceptance",
+      "review_scope": "primary source/contracts; challenger pending"
+    },
+    {
+      "id": "W-READ",
+      "title": "Authoritative predicates, revocation and dispatch spend fence",
+      "disposition": "REQUIRED",
+      "requirement_authority": [
+        "implementation/CHALLENGE-AUDIT-PLAN.md:T32",
+        "implementation/challenge-audit-run/evidence/fanout-decision.md:C4"
+      ],
+      "current_defining_files": [
+        "packages/state/src/invocation/admission.ts",
+        "packages/state/src/query/engine.ts",
+        "packages/work/src/dispatch/index.ts"
+      ],
+      "target_defining_files": [
+        {
+          "path": "packages/state/src/invocation/admission.ts",
+          "language": "TypeScript",
+          "state": "existing-retained",
+          "owner": "state"
+        },
+        {
+          "path": "packages/state/src/query/engine.ts",
+          "language": "TypeScript",
+          "state": "existing-retained",
+          "owner": "state"
+        },
+        {
+          "path": "packages/work/src/dispatch/index.ts",
+          "language": "TypeScript",
+          "state": "existing-retained",
+          "owner": "work"
+        },
+        {
+          "path": "packages/cloudflare/src/runtime/work/dispatch.ts",
+          "language": "TypeScript",
+          "state": "new-proposed",
+          "owner": "cloudflare"
+        }
+      ],
+      "duties": [
+        "Authorizing owner reads enroll current bounded checkpoint; eventual viewer output cannot authorize writes.",
+        "Hooks/handlers/children open fresh transitive scope and live authority revalidation; false guard avoids later authority/provider demand.",
+        "Retain owner revision fence baseline and current refusal order; narrower per-record fence is separately deferred."
+      ],
+      "dependencies": [
+        "T32a",
+        "T32b",
+        "T24",
+        "B4",
+        "C2"
+      ],
+      "availability_gaps": [],
+      "evidence_level": "source-and-contract-inspection; no execution",
+      "independent_challenge": "pending",
+      "target_status": "finished-product allocation; not implementation acceptance",
+      "review_scope": "primary source/contracts; challenger pending"
+    },
+    {
+      "id": "W-DISPATCH",
+      "title": "Durable intents, events, schedules and provider dispatch",
+      "disposition": "REQUIRED",
+      "requirement_authority": [
+        "REQUIREMENTS.md:189-192",
+        "implementation/CHALLENGE-AUDIT-PLAN.md:T24"
+      ],
+      "current_defining_files": [
+        "packages/work/src/intent/index.ts",
+        "packages/work/src/event/index.ts",
+        "packages/work/src/schedule/index.ts",
+        "packages/work/src/schedule/every.ts",
+        "packages/work/src/dispatch/index.ts",
+        "packages/work/src/kernel/commands.ts",
+        "packages/work/src/kernel/tables.ts",
+        "packages/state/src/effects/staging.ts",
+        "packages/state/src/ports/system.ts",
+        "packages/state/src/ports/transact.ts"
+      ],
+      "target_defining_files": [
+        {
+          "path": "packages/work/src/intent/index.ts",
+          "language": "TypeScript",
+          "state": "existing-retained",
+          "owner": "work"
+        },
+        {
+          "path": "packages/work/src/event/index.ts",
+          "language": "TypeScript",
+          "state": "existing-retained",
+          "owner": "work"
+        },
+        {
+          "path": "packages/work/src/schedule/index.ts",
+          "language": "TypeScript",
+          "state": "existing-retained",
+          "owner": "work"
+        },
+        {
+          "path": "packages/work/src/schedule/every.ts",
+          "language": "TypeScript",
+          "state": "existing-retained",
+          "owner": "work"
+        },
+        {
+          "path": "packages/work/src/dispatch/index.ts",
+          "language": "TypeScript",
+          "state": "existing-retained",
+          "owner": "work"
+        },
+        {
+          "path": "packages/work/src/kernel/commands.ts",
+          "language": "TypeScript",
+          "state": "existing-retained",
+          "owner": "work"
+        },
+        {
+          "path": "packages/work/src/kernel/tables.ts",
+          "language": "TypeScript",
+          "state": "existing-retained",
+          "owner": "work"
+        },
+        {
+          "path": "packages/state/src/effects/staging.ts",
+          "language": "TypeScript",
+          "state": "existing-retained",
+          "owner": "state"
+        },
+        {
+          "path": "packages/state/src/ports/system.ts",
+          "language": "TypeScript",
+          "state": "existing-retained",
+          "owner": "state"
+        },
+        {
+          "path": "packages/state/src/ports/transact.ts",
+          "language": "TypeScript",
+          "state": "existing-retained",
+          "owner": "state"
+        },
+        {
+          "path": "packages/cloudflare/src/runtime/work/dispatch.ts",
+          "language": "TypeScript",
+          "state": "new-proposed",
+          "owner": "cloudflare"
+        }
+      ],
+      "duties": [
+        "Atomic source/history/replay/outbox/dispatch/schedule staging before provider work.",
+        "Durable claim, wrapper-specific refusal/guard/live authority ordering, stable identity and honest accepted/failed/uncertain result.",
+        "Retry/backoff/first-attempt horizon/exhaustion, keyed replacement/supersession and receipt association preserve cancellation/recovery; external transport is at least once."
+      ],
+      "dependencies": [
+        "T13",
+        "T14",
+        "T16",
+        "T17",
+        "T24",
+        "C3",
+        "D3"
+      ],
+      "availability_gaps": [
+        "Cloudflare runtime/stdlib.ts has loud unsupported effect shells at 222-252; correct installed invocation-scoped producer cutover remains required."
+      ],
+      "evidence_level": "source-and-contract-inspection; no execution",
+      "independent_challenge": "pending",
+      "target_status": "finished-product allocation; not implementation acceptance",
+      "review_scope": "primary source/contracts; challenger pending"
+    },
+    {
+      "id": "W-RECEIPT",
+      "title": "Typed associations, selected disclosure and retention fences",
+      "disposition": "REQUIRED",
+      "requirement_authority": [
+        "REQUIREMENTS.md:191",
+        "implementation/CHALLENGE-AUDIT-PLAN.md:T25"
+      ],
+      "current_defining_files": [
+        "packages/state/src/receipt/tables.ts",
+        "packages/state/src/receipt/join.ts",
+        "packages/state/src/receipt/grants.ts",
+        "packages/work/src/receipt/index.ts",
+        "packages/work/src/observation/association.ts",
+        "packages/work/src/observation/observation.ts",
+        "packages/work/src/observation/ports.ts",
+        "packages/state/src/invocation/registry.ts"
+      ],
+      "target_defining_files": [
+        {
+          "path": "packages/state/src/receipt/tables.ts",
+          "language": "TypeScript",
+          "state": "existing-retained",
+          "owner": "state"
+        },
+        {
+          "path": "packages/state/src/receipt/join.ts",
+          "language": "TypeScript",
+          "state": "existing-retained",
+          "owner": "state"
+        },
+        {
+          "path": "packages/state/src/receipt/grants.ts",
+          "language": "TypeScript",
+          "state": "existing-retained",
+          "owner": "state"
+        },
+        {
+          "path": "packages/work/src/receipt/index.ts",
+          "language": "TypeScript",
+          "state": "existing-retained",
+          "owner": "work"
+        },
+        {
+          "path": "packages/work/src/observation/association.ts",
+          "language": "TypeScript",
+          "state": "existing-retained",
+          "owner": "work"
+        },
+        {
+          "path": "packages/work/src/observation/observation.ts",
+          "language": "TypeScript",
+          "state": "existing-retained",
+          "owner": "work"
+        },
+        {
+          "path": "packages/work/src/observation/ports.ts",
+          "language": "TypeScript",
+          "state": "existing-retained",
+          "owner": "work"
+        },
+        {
+          "path": "packages/state/src/invocation/registry.ts",
+          "language": "TypeScript",
+          "state": "existing-retained",
+          "owner": "state"
+        },
+        {
+          "path": "packages/cloudflare/src/runtime/work/receipts.ts",
+          "language": "TypeScript",
+          "state": "new-proposed",
+          "owner": "cloudflare"
+        }
+      ],
+      "duties": [
+        "Loader-owned declared deliveryFields, locator+relation identity, selected leaf grants, deny-before-presence and current revision enroll.",
+        "Status-only reads demand no result sibling/content callback; association mismatch is loud, content expiry respects result permission.",
+        "Keep pending-stored receipt profile distinct from completion envelope and terminal receipt immutability."
+      ],
+      "dependencies": [
+        "T13",
+        "T14",
+        "T24",
+        "T25",
+        "B3",
+        "C3",
+        "D3"
+      ],
+      "availability_gaps": [
+        "State injected observer and test-only work-loader prove only their specified mechanism, not production caller wiring."
+      ],
+      "evidence_level": "source-and-contract-inspection; no execution",
+      "independent_challenge": "pending",
+      "target_status": "finished-product allocation; not implementation acceptance",
+      "review_scope": "primary source/contracts; challenger pending"
+    },
+    {
+      "id": "W-PROGRESS",
+      "title": "Related observable progress, cancel, late usage and notification",
+      "disposition": "REQUIRED",
+      "requirement_authority": [
+        "implementation/CHALLENGE-AUDIT-PLAN.md:T26",
+        "draft/CanChat.can:66-193",
+        "draft/CanCreative.can:93-185"
+      ],
+      "current_defining_files": [
+        "packages/work/src/observation/association.ts",
+        "packages/work/src/observation/observation.ts",
+        "packages/work/src/observation/ports.ts",
+        "packages/work/src/recovery/index.ts"
+      ],
+      "target_defining_files": [
+        {
+          "path": "packages/work/src/observation/association.ts",
+          "language": "TypeScript",
+          "state": "existing-retained",
+          "owner": "work"
+        },
+        {
+          "path": "packages/work/src/observation/observation.ts",
+          "language": "TypeScript",
+          "state": "existing-retained",
+          "owner": "work"
+        },
+        {
+          "path": "packages/work/src/observation/ports.ts",
+          "language": "TypeScript",
+          "state": "existing-retained",
+          "owner": "work"
+        },
+        {
+          "path": "packages/work/src/recovery/index.ts",
+          "language": "TypeScript",
+          "state": "existing-retained",
+          "owner": "work"
+        },
+        {
+          "path": "packages/cloudflare/src/runtime/work/progress.ts",
+          "language": "TypeScript",
+          "state": "new-proposed",
+          "owner": "cloudflare"
+        }
+      ],
+      "duties": [
+        "Qualify each relation independently; checked trusted binding plus delivery/source/revision/sequence correlation, duplicate replay and immutable terminal receipts.",
+        "Cancellation is evidence-driven; late usage accounted separately exactly once without changing terminal receipt; terminal notification emitted once.",
+        "Uncertain/held/awaiting states resume under real restart; no invented named wait/continuation API."
+      ],
+      "dependencies": [
+        "T13b",
+        "T25",
+        "T26",
+        "D1",
+        "C3",
+        "D3",
+        "T40"
+      ],
+      "availability_gaps": [
+        "Historical D1 module acceptance excludes production call-site/B3/C3/D3; original app evidence remains separate."
+      ],
+      "evidence_level": "source-and-contract-inspection; no execution",
+      "independent_challenge": "pending",
+      "target_status": "finished-product allocation; not implementation acceptance",
+      "review_scope": "primary source/contracts; challenger pending"
+    },
+    {
+      "id": "W-FANOUT",
+      "title": "Complete authoritative finite cohorts and independent durable children",
+      "disposition": "REQUIRED",
+      "requirement_authority": [
+        "implementation/challenge-audit-run/t33-resolution.md:C1-C9,M1-M10",
+        "draft/CanShift.can:237-248",
+        "draft/CanVolunteer.can:47-52,178-185"
+      ],
+      "current_defining_files": [
+        "packages/state/src/fanout/cohort.ts",
+        "packages/state/src/fanout/membership.ts",
+        "packages/state/src/fanout/lifecycle.ts",
+        "packages/state/src/fanout/outcome.ts",
+        "packages/state/src/fanout/progress.ts",
+        "packages/state/src/fanout/tables.ts",
+        "packages/state/src/invocation/invoke.ts",
+        "packages/state/src/ports/transact.ts",
+        "packages/work/src/kernel/tables.ts",
+        "packages/work/src/dispatch/index.ts",
+        "packages/work/src/recovery/index.ts"
+      ],
+      "target_defining_files": [
+        {
+          "path": "packages/state/src/fanout/cohort.ts",
+          "language": "TypeScript",
+          "state": "existing-retained",
+          "owner": "state"
+        },
+        {
+          "path": "packages/state/src/fanout/membership.ts",
+          "language": "TypeScript",
+          "state": "existing-retained",
+          "owner": "state"
+        },
+        {
+          "path": "packages/state/src/fanout/lifecycle.ts",
+          "language": "TypeScript",
+          "state": "existing-retained",
+          "owner": "state"
+        },
+        {
+          "path": "packages/state/src/fanout/outcome.ts",
+          "language": "TypeScript",
+          "state": "existing-retained",
+          "owner": "state"
+        },
+        {
+          "path": "packages/state/src/fanout/progress.ts",
+          "language": "TypeScript",
+          "state": "existing-retained",
+          "owner": "state"
+        },
+        {
+          "path": "packages/state/src/fanout/tables.ts",
+          "language": "TypeScript",
+          "state": "existing-retained",
+          "owner": "state"
+        },
+        {
+          "path": "packages/state/src/invocation/invoke.ts",
+          "language": "TypeScript",
+          "state": "existing-retained",
+          "owner": "state"
+        },
+        {
+          "path": "packages/state/src/ports/transact.ts",
+          "language": "TypeScript",
+          "state": "existing-retained",
+          "owner": "state"
+        },
+        {
+          "path": "packages/work/src/kernel/tables.ts",
+          "language": "TypeScript",
+          "state": "existing-retained",
+          "owner": "work"
+        },
+        {
+          "path": "packages/work/src/dispatch/index.ts",
+          "language": "TypeScript",
+          "state": "existing-retained",
+          "owner": "work"
+        },
+        {
+          "path": "packages/work/src/recovery/index.ts",
+          "language": "TypeScript",
+          "state": "existing-retained",
+          "owner": "work"
+        },
+        {
+          "path": "packages/cloudflare/src/runtime/work/fanout-trigger.ts",
+          "language": "TypeScript",
+          "state": "new-proposed",
+          "owner": "cloudflare"
+        },
+        {
+          "path": "packages/cloudflare/src/runtime/work/fanout-claim.ts",
+          "language": "TypeScript",
+          "state": "new-proposed",
+          "owner": "cloudflare"
+        },
+        {
+          "path": "packages/cloudflare/src/runtime/work/fanout-child.ts",
+          "language": "TypeScript",
+          "state": "new-proposed",
+          "owner": "cloudflare"
+        },
+        {
+          "path": "packages/cloudflare/src/runtime/work/fanout-scheduler.ts",
+          "language": "TypeScript",
+          "state": "new-proposed",
+          "owner": "cloudflare"
+        }
+      ],
+      "duties": [
+        "Source truth+fanout intent atomic; complete canonical frozen identities at owner source-occurrence/handler cutoff; revision-stable bounded enumeration, no eventual directory/high-water assumption.",
+        "Both bare-model and parent-anchored spellings; stable parent+handler+record identity, duplicate parent/child replay.",
+        "Independent fresh child state/body/authority/versions; membership grants no authority; child domain/history/replay/events/schedules/outbox/terminal outcome/checkpoint atomic.",
+        "Sibling failure isolation; demonstrable deleted -> explicit skipped/deleted, moved -> current body, unknown/inaccessible/infra -> distinct visible failure.",
+        "Fair bounded pages/claim/retry/turns; no cohort cap or automatic filtered sweep supersession; honest preadmission failure or admitted pending/attention.",
+        "Frozen membership/checkpoint survives actual process restart; no acknowledged undurable child, no repeated committed effects."
+      ],
+      "dependencies": [
+        "T33",
+        "T34/F1",
+        "T34/F2",
+        "T34/F3",
+        "T34/F4",
+        "T34/F5",
+        "T34/F6",
+        "T34/F7",
+        "T34/F8",
+        "T40",
+        "LG04"
+      ],
+      "availability_gaps": [
+        "Full original M1-M10 with matching checked/emitted cohorts/authority/fixtures remains required; memory claim/test driver is not durable qualification."
+      ],
+      "evidence_level": "source-and-contract-inspection; no execution",
+      "independent_challenge": "pending",
+      "target_status": "finished-product allocation; not implementation acceptance",
+      "review_scope": "primary source/contracts; challenger pending"
+    },
+    {
+      "id": "W-RECOVERY",
+      "title": "Ordinary and fanout act-time recovery",
+      "disposition": "REQUIRED",
+      "requirement_authority": [
+        "implementation/CHALLENGE-AUDIT-PLAN.md:T24,T26,T34",
+        "docs/research/package-subsystem-ports-20261006/implementation-plans/work-transitions.md:Required behavior and trace vectors"
+      ],
+      "current_defining_files": [
+        "packages/work/src/recovery/index.ts",
+        "packages/work/src/receipt/index.ts"
+      ],
+      "target_defining_files": [
+        {
+          "path": "packages/work/src/recovery/index.ts",
+          "language": "TypeScript",
+          "state": "existing-retained",
+          "owner": "work"
+        },
+        {
+          "path": "packages/work/src/receipt/index.ts",
+          "language": "TypeScript",
+          "state": "existing-retained",
+          "owner": "work"
+        },
+        {
+          "path": "packages/cloudflare/src/runtime/work/recovery.ts",
+          "language": "TypeScript",
+          "state": "new-proposed",
+          "owner": "cloudflare"
+        }
+      ],
+      "duties": [
+        "Inventory/due/stale claims and uncertain evidence plans are separate from host scan/drain loops.",
+        "Only uncertain rows demand evidence, in observed order; last duplicate claim wins; exceptions stop later demand.",
+        "Reread live evidence/row/authority at action time; claim races, incomplete admission/checkpoint and stale release resume honestly; bounded retries never starve siblings."
+      ],
+      "dependencies": [
+        "T24",
+        "T26",
+        "T34/F4",
+        "W06.3",
+        "W07.1"
+      ],
+      "availability_gaps": [],
+      "evidence_level": "source-and-contract-inspection; no execution",
+      "independent_challenge": "pending",
+      "target_status": "finished-product allocation; not implementation acceptance",
+      "review_scope": "primary source/contracts; challenger pending"
+    },
+    {
+      "id": "W-PROVIDER",
+      "title": "Checked capabilities and provider-owned transport/evidence",
+      "disposition": "REQUIRED",
+      "requirement_authority": [
+        "REQUIREMENTS.md:192,198",
+        "implementation/CONTRACTS.md:Transactions, identities and disclosure",
+        "packages/contracts/src/services.ts:727"
+      ],
+      "current_defining_files": [
+        "packages/services/src/http/client.ts",
+        "packages/services/src/http/errors.ts",
+        "packages/services/src/http/pagination.ts",
+        "packages/services/src/mail/adapter.ts",
+        "packages/services/src/mail/redact.ts",
+        "packages/services/src/models/ollama.ts",
+        "packages/services/src/judgments/systemone.ts",
+        "packages/services/src/media/comfyui.ts",
+        "packages/services/src/media/mapping.ts",
+        "packages/services/src/catalog.ts",
+        "packages/services/src/ports.ts"
+      ],
+      "target_defining_files": [
+        {
+          "path": "packages/services/src/http/client.ts",
+          "language": "TypeScript",
+          "state": "existing-retained",
+          "owner": "services"
+        },
+        {
+          "path": "packages/services/src/http/errors.ts",
+          "language": "TypeScript",
+          "state": "existing-retained",
+          "owner": "services"
+        },
+        {
+          "path": "packages/services/src/http/pagination.ts",
+          "language": "TypeScript",
+          "state": "existing-retained",
+          "owner": "services"
+        },
+        {
+          "path": "packages/services/src/mail/adapter.ts",
+          "language": "TypeScript",
+          "state": "existing-retained",
+          "owner": "services"
+        },
+        {
+          "path": "packages/services/src/mail/redact.ts",
+          "language": "TypeScript",
+          "state": "existing-retained",
+          "owner": "services"
+        },
+        {
+          "path": "packages/services/src/models/ollama.ts",
+          "language": "TypeScript",
+          "state": "existing-retained",
+          "owner": "services"
+        },
+        {
+          "path": "packages/services/src/judgments/systemone.ts",
+          "language": "TypeScript",
+          "state": "existing-retained",
+          "owner": "services"
+        },
+        {
+          "path": "packages/services/src/media/comfyui.ts",
+          "language": "TypeScript",
+          "state": "existing-retained",
+          "owner": "services"
+        },
+        {
+          "path": "packages/services/src/media/mapping.ts",
+          "language": "TypeScript",
+          "state": "existing-retained",
+          "owner": "services"
+        },
+        {
+          "path": "packages/services/src/catalog.ts",
+          "language": "TypeScript",
+          "state": "existing-retained",
+          "owner": "services"
+        },
+        {
+          "path": "packages/services/src/ports.ts",
+          "language": "TypeScript",
+          "state": "existing-retained",
+          "owner": "services"
+        },
+        {
+          "path": "packages/services/src/standard/text-generation.ts",
+          "language": "TypeScript",
+          "state": "new-proposed",
+          "owner": "services"
+        },
+        {
+          "path": "packages/services/src/standard/images.ts",
+          "language": "TypeScript",
+          "state": "new-proposed",
+          "owner": "services"
+        },
+        {
+          "path": "packages/services/src/standard/payments.ts",
+          "language": "TypeScript",
+          "state": "new-proposed",
+          "owner": "services"
+        },
+        {
+          "path": "packages/services/src/standard/mailbox.ts",
+          "language": "TypeScript",
+          "state": "new-proposed",
+          "owner": "services"
+        },
+        {
+          "path": "packages/cloudflare/src/runtime/work/providers.ts",
+          "language": "TypeScript",
+          "state": "new-proposed",
+          "owner": "cloudflare"
+        }
+      ],
+      "duties": [
+        "Checked canonical requests/results/errors/events match provisioned adapter and capability version; credentials/server redaction, bounded payload/transport/timeouts.",
+        "Durable provider-run association, source/revision to delivery/job lookup, cancellation/reconciliation and verified ingress preserve uncertain outcomes.",
+        "Std TextGeneration/Images/Payments/Mailbox contract-only mechanisms need actual producer mappings; adapter ai.* wire is not relabeled silently.",
+        "Business budgets/approval/cost and completion remain .can authored; no transport success invents business evidence."
+      ],
+      "dependencies": [
+        "T12",
+        "T13",
+        "T14",
+        "T24",
+        "D3",
+        "T39",
+        "T40"
+      ],
+      "availability_gaps": [
+        "std TextGeneration/Images/Payments/Mailbox are contract-only or missing installed bindings; catalog lists ai.Chat/Images/SystemOne and Email only.",
+        "ports.ts currently mixes adapter interfaces and Node controlled-server harness; split test-only harness before Worker build."
+      ],
+      "evidence_level": "source-and-contract-inspection; no execution",
+      "independent_challenge": "pending",
+      "target_status": "finished-product allocation; not implementation acceptance",
+      "review_scope": "primary source/contracts; challenger pending"
+    },
+    {
+      "id": "W-FILE",
+      "title": "Receiving-app finalized file lifecycle and host persistence",
+      "disposition": "REQUIRED",
+      "requirement_authority": [
+        "REQUIREMENTS.md:193",
+        "implementation/CHALLENGE-AUDIT-PLAN.md:T27",
+        "packages/files/src/ports.ts:1-26"
+      ],
+      "current_defining_files": [
+        "packages/files/src/upload/index.ts",
+        "packages/files/src/upload/fs-blob-store.ts",
+        "packages/files/src/finalize/index.ts",
+        "packages/files/src/provenance/index.ts",
+        "packages/files/src/retention/index.ts",
+        "packages/files/src/bridge.ts",
+        "packages/files/src/ports.ts",
+        "packages/files/src/catalog.ts"
+      ],
+      "target_defining_files": [
+        {
+          "path": "packages/files/src/upload/index.ts",
+          "language": "TypeScript",
+          "state": "existing-retained",
+          "owner": "files"
+        },
+        {
+          "path": "packages/files/src/upload/fs-blob-store.ts",
+          "language": "TypeScript",
+          "state": "existing-retained",
+          "owner": "files"
+        },
+        {
+          "path": "packages/files/src/finalize/index.ts",
+          "language": "TypeScript",
+          "state": "existing-retained",
+          "owner": "files"
+        },
+        {
+          "path": "packages/files/src/provenance/index.ts",
+          "language": "TypeScript",
+          "state": "existing-retained",
+          "owner": "files"
+        },
+        {
+          "path": "packages/files/src/retention/index.ts",
+          "language": "TypeScript",
+          "state": "existing-retained",
+          "owner": "files"
+        },
+        {
+          "path": "packages/files/src/bridge.ts",
+          "language": "TypeScript",
+          "state": "existing-retained",
+          "owner": "files"
+        },
+        {
+          "path": "packages/files/src/ports.ts",
+          "language": "TypeScript",
+          "state": "existing-retained",
+          "owner": "files"
+        },
+        {
+          "path": "packages/files/src/catalog.ts",
+          "language": "TypeScript",
+          "state": "existing-retained",
+          "owner": "files"
+        },
+        {
+          "path": "packages/files/src/storage/metadata.ts",
+          "language": "TypeScript",
+          "state": "new-proposed",
+          "owner": "files"
+        },
+        {
+          "path": "packages/files/src/storage/blob.ts",
+          "language": "TypeScript",
+          "state": "new-proposed",
+          "owner": "files"
+        },
+        {
+          "path": "packages/files/src/storage/recovery.ts",
+          "language": "TypeScript",
+          "state": "new-proposed",
+          "owner": "files"
+        },
+        {
+          "path": "packages/cloudflare/src/runtime/work/files.ts",
+          "language": "TypeScript",
+          "state": "new-proposed",
+          "owner": "cloudflare"
+        }
+      ],
+      "duties": [
+        "Intent and byte intake are principal/app/team/provenance-bound, type/size-limited and partial transfers unusable.",
+        "Finalize exact retry identity+digest into immutable receiving-app ref; duplicate provider result slot reuses ref, conflicting bytes/foreign URL/id/provenance refuses.",
+        "Authorized attach/read/content retention and owner metadata fences; separate blob store has crash/recovery protocol with no cross-store atomicity promise.",
+        "Provider outputs finalized before receipt Output.image; expired metadata/replay identity remains distinct from content existence and read permission."
+      ],
+      "dependencies": [
+        "T26-image",
+        "T27",
+        "D2",
+        "C3",
+        "T22b",
+        "T40-image"
+      ],
+      "availability_gaps": [
+        "File IntentStore/FinalizedStore doubles explicitly non-durable/non-atomic; FS bytes are local evidence, R2 host join still required.",
+        "Async durable adapter interface must be agreed before implementation; existing sync memory fa\u00e7ade cannot establish remote metadata transaction."
+      ],
+      "evidence_level": "source-and-contract-inspection; no execution",
+      "independent_challenge": "pending",
+      "target_status": "finished-product allocation; not implementation acceptance",
+      "review_scope": "primary source/contracts; challenger pending"
+    },
+    {
+      "id": "W-LIFETIME",
+      "title": "Owner lifetime expiry and sensitive-copy disposal",
+      "disposition": "REQUIRED",
+      "requirement_authority": [
+        "REQUIREMENTS.md:194",
+        "DESIGN.md:7.1"
+      ],
+      "current_defining_files": [
+        "packages/state/src/ports/system.ts",
+        "packages/state/src/storage/port.ts",
+        "packages/state/src/storage/schema.ts",
+        "packages/state/src/storage/d1.ts",
+        "packages/state/src/storage/durable-object.ts",
+        "packages/files/src/retention/index.ts"
+      ],
+      "target_defining_files": [
+        {
+          "path": "packages/state/src/ports/system.ts",
+          "language": "TypeScript",
+          "state": "existing-retained",
+          "owner": "state"
+        },
+        {
+          "path": "packages/state/src/storage/port.ts",
+          "language": "TypeScript",
+          "state": "existing-retained",
+          "owner": "state"
+        },
+        {
+          "path": "packages/state/src/storage/schema.ts",
+          "language": "TypeScript",
+          "state": "existing-retained",
+          "owner": "state"
+        },
+        {
+          "path": "packages/state/src/storage/d1.ts",
+          "language": "TypeScript",
+          "state": "existing-retained",
+          "owner": "state"
+        },
+        {
+          "path": "packages/state/src/storage/durable-object.ts",
+          "language": "TypeScript",
+          "state": "existing-retained",
+          "owner": "state"
+        },
+        {
+          "path": "packages/files/src/retention/index.ts",
+          "language": "TypeScript",
+          "state": "existing-retained",
+          "owner": "files"
+        },
+        {
+          "path": "packages/state/src/retention/expiry.ts",
+          "language": "TypeScript",
+          "state": "new-proposed",
+          "owner": "state"
+        },
+        {
+          "path": "packages/state/src/retention/disposal.ts",
+          "language": "TypeScript",
+          "state": "new-proposed",
+          "owner": "state"
+        },
+        {
+          "path": "packages/state/src/retention/recovery.ts",
+          "language": "TypeScript",
+          "state": "new-proposed",
+          "owner": "state"
+        }
+      ],
+      "duties": [
+        "Owner-expiry command independent of user CRUD covers expired archived/locked whole records with child/ref rules and no resurrection.",
+        "Dispose sensitive local domain/history/receipt/outbox copies preserving safe replay identity; do not reuse migration pending-work retention as expiry.",
+        "Report physical erasure delays and recover interrupted disposal through persistent owner progress."
+      ],
+      "dependencies": [
+        "compiler-retain-descriptor",
+        "canonical-system-command",
+        "storage-reference-lifetime",
+        "file-retention-join"
+      ],
+      "availability_gaps": [
+        "No dedicated owner expiry implementation identified in inspected state defining chain; allocate required missing owner, not permanent deferral."
+      ],
+      "evidence_level": "source-and-contract-inspection; no execution",
+      "independent_challenge": "pending",
+      "target_status": "finished-product allocation; not implementation acceptance",
+      "review_scope": "primary source/contracts; challenger pending"
+    },
+    {
+      "id": "W-UPGRADE",
+      "title": "Source-derived migration and compatible retained pending work",
+      "disposition": "REQUIRED",
+      "requirement_authority": [
+        "REQUIREMENTS.md:195",
+        "implementation/CONTRACTS.md:Migration and BDD joins"
+      ],
+      "current_defining_files": [
+        "packages/state/src/migration/transition.ts",
+        "packages/state/src/migration/mapper.ts",
+        "packages/state/src/migration/stage.ts",
+        "packages/state/src/migration/validate.ts",
+        "packages/state/src/migration/activate.ts",
+        "packages/state/src/migration/recover.ts",
+        "packages/state/src/migration/retain.ts",
+        "packages/state/src/storage/port.ts",
+        "packages/state/src/storage/schema.ts",
+        "packages/state/src/storage/d1.ts",
+        "packages/state/src/storage/durable-object.ts"
+      ],
+      "target_defining_files": [
+        {
+          "path": "packages/state/src/migration/transition.ts",
+          "language": "TypeScript",
+          "state": "existing-retained",
+          "owner": "state"
+        },
+        {
+          "path": "packages/state/src/migration/mapper.ts",
+          "language": "TypeScript",
+          "state": "existing-retained",
+          "owner": "state"
+        },
+        {
+          "path": "packages/state/src/migration/stage.ts",
+          "language": "TypeScript",
+          "state": "existing-retained",
+          "owner": "state"
+        },
+        {
+          "path": "packages/state/src/migration/validate.ts",
+          "language": "TypeScript",
+          "state": "existing-retained",
+          "owner": "state"
+        },
+        {
+          "path": "packages/state/src/migration/activate.ts",
+          "language": "TypeScript",
+          "state": "existing-retained",
+          "owner": "state"
+        },
+        {
+          "path": "packages/state/src/migration/recover.ts",
+          "language": "TypeScript",
+          "state": "existing-retained",
+          "owner": "state"
+        },
+        {
+          "path": "packages/state/src/migration/retain.ts",
+          "language": "TypeScript",
+          "state": "existing-retained",
+          "owner": "state"
+        },
+        {
+          "path": "packages/state/src/storage/port.ts",
+          "language": "TypeScript",
+          "state": "existing-retained",
+          "owner": "state"
+        },
+        {
+          "path": "packages/state/src/storage/schema.ts",
+          "language": "TypeScript",
+          "state": "existing-retained",
+          "owner": "state"
+        },
+        {
+          "path": "packages/state/src/storage/d1.ts",
+          "language": "TypeScript",
+          "state": "existing-retained",
+          "owner": "state"
+        },
+        {
+          "path": "packages/state/src/storage/durable-object.ts",
+          "language": "TypeScript",
+          "state": "existing-retained",
+          "owner": "state"
+        }
+      ],
+      "duties": [
+        "Exact installed predecessor/desired declarations with typed mapping; constraints/locks/ref/file/lifetime/attribution retained.",
+        "Maintenance stages/validates/fenced activation/recovery; unknown baselines/unsupported transfer reject and pending work identities/contracts remain truthful.",
+        "Replace interim directive/model intake through owning compiled descriptor; never create parallel interpreter or public migration business tool."
+      ],
+      "dependencies": [
+        "compiler-snapshot-migration-producer",
+        "platform-activation-recovery",
+        "pending-work-compatibility"
+      ],
+      "availability_gaps": [
+        "transition.ts documents INTERIM execution intake; source migration compiler/activation join must supply full owning plan."
+      ],
+      "evidence_level": "source-and-contract-inspection; no execution",
+      "independent_challenge": "pending",
+      "target_status": "finished-product allocation; not implementation acceptance",
+      "review_scope": "primary source/contracts; challenger pending"
+    },
+    {
+      "id": "W-CORPUS",
+      "title": "Accepted model-bound knowledge corpus, current grounded disclosure and index lifecycle",
+      "disposition": "REQUIRED",
+      "requirement_authority": [
+        "DESIGN.md:694-698",
+        "design/complex-apps/knowledge.md:Corpus contract",
+        "draft/CanKnowledge.can:25,143-175,209-234"
+      ],
+      "current_defining_files": [
+        "compiler/src/syntax/parser.rs",
+        "compiler/src/syntax/cst.rs",
+        "compiler/src/analysis/catalog.rs",
+        "packages/contracts/src/services.ts"
+      ],
+      "target_defining_files": [
+        {
+          "path": "packages/contracts/src/corpus.ts",
+          "language": "TypeScript",
+          "state": "new-proposed defining implementation of accepted draft contract",
+          "owner": "contracts"
+        },
+        {
+          "path": "packages/state/src/corpus/sources.ts",
+          "language": "TypeScript",
+          "state": "new-proposed defining implementation of accepted draft contract",
+          "owner": "state"
+        },
+        {
+          "path": "packages/state/src/corpus/grounded.ts",
+          "language": "TypeScript",
+          "state": "new-proposed defining implementation of accepted draft contract",
+          "owner": "state"
+        },
+        {
+          "path": "packages/state/src/corpus/available.ts",
+          "language": "TypeScript",
+          "state": "new-proposed defining implementation of accepted draft contract",
+          "owner": "state"
+        },
+        {
+          "path": "packages/state/src/corpus/status.ts",
+          "language": "TypeScript",
+          "state": "new-proposed defining implementation of accepted draft contract",
+          "owner": "state"
+        },
+        {
+          "path": "packages/services/src/corpus/index.ts",
+          "language": "TypeScript",
+          "state": "new-proposed defining implementation of accepted draft contract",
+          "owner": "services"
+        },
+        {
+          "path": "packages/services/src/corpus/controller.ts",
+          "language": "TypeScript",
+          "state": "new-proposed defining implementation of accepted draft contract",
+          "owner": "services"
+        },
+        {
+          "path": "packages/services/src/corpus/extract.ts",
+          "language": "TypeScript",
+          "state": "new-proposed defining implementation of accepted draft contract",
+          "owner": "services"
+        },
+        {
+          "path": "packages/services/src/corpus/normalize.ts",
+          "language": "TypeScript",
+          "state": "new-proposed defining implementation of accepted draft contract",
+          "owner": "services"
+        },
+        {
+          "path": "packages/cloudflare/src/runtime/work/corpus.ts",
+          "language": "TypeScript",
+          "state": "new-proposed defining implementation of accepted draft contract",
+          "owner": "cloudflare"
+        },
+        {
+          "path": "packages/testkit/src/fixtures/corpus.ts",
+          "language": "TypeScript",
+          "state": "new-proposed defining implementation of accepted draft contract",
+          "owner": "testkit"
+        }
+      ],
+      "duties": [
+        "Compiler derives four effect operations answer/cancel/reconcile/refresh and two bounded reads status/available plus typed Run and opaque Answer from owning model/scope/title/content/where/binding declaration.",
+        "Capture genuine originating principal/team/scope/request digest; no authored principal/ACL/source URL or userless trusted employee answer.",
+        "Authorize current full source row/selected-field/file grants and eligibility before supplying exact immutable/extracted source revisions to model. Index metadata is only prefilter.",
+        "Index committed eligible source changes; bounded refresh targets exact immutable revision, one per revision/minute; enqueue acknowledgement never implies searchable freshness.",
+        "Coverage complete means all currently eligible authorized sources confirmed indexed at retrieval checkpoint; source/extraction/model failure remains incomplete/unavailable, no successful empty/truncated scope. Pinned limits 1000 eligible revisions/topic, 12 context sources and 64000 extracted scalars/request.",
+        "Retain every actual model-context source, even uncited; validate statement/citation/source/extraction/locator/exact quote before protected opaque value. No arbitrary text conversion/provider passthrough/HTML/URL.",
+        "Recheck originating principal plus viewer/current membership/all used sources at retrieval/dispatch/progress/final/history/reconnect/cache/MCP read. Used-source revocation/withdrawal/supersession withholds whole answer/citations.",
+        "Unrelated authorized scope change retains still-valid used-context answer only historical/as-of; current answer requires new explicit bounded retrieval; availability false only null/used-context invalidation, infrastructure failure stays failure and read fence enrolls.",
+        "Isolated fixture recipe validates genuine seeded caller/scope/source/file/extraction/grants/bounds/quotes and mints proof; setup cannot fabricate opaque constructor/grant/freshness.",
+        "Business publication/audience/budgets/escalation remain .can; controller provider/index I/O remains TS; no new corpus-vs-library grammar decision."
+      ],
+      "dependencies": [
+        "accepted-corpus-compiler-interface-and-opaque-type",
+        "canonical-current-source-read-fence",
+        "work-associated-progress-dispatch",
+        "file-extraction-finalization",
+        "provider-index-controller",
+        "testkit-corpus-normalizer",
+        "CanKnowledge-original-sequences"
+      ],
+      "availability_gaps": [
+        "SyntaxKind::Corpus and parser attribute shape exist; catalog.rs explicitly omits executable B8 members as T12 scope. That is implementation availability, not product language deferral.",
+        "Owning source proof/index/controller/current grounded disclosure installed join and original workflow qualification remain unfinished."
+      ],
+      "target_status": "required finished allocation, not implementation acceptance",
+      "review_scope": "primary source/contracts; independent challenge pending"
+    },
+    {
+      "id": "W-KERNEL",
+      "title": "Work-owned closed semantic responsibility leaf",
+      "disposition": "ACCEPTED-CONDITIONAL",
+      "authority": [
+        "docs/research/package-subsystem-ports-20261006/implementation-plans/work-transitions.md",
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation-plans/result-1.json",
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation-plans/result-2.json",
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation-plans/result-3.json"
+      ],
+      "target_defining_files": [
+        {
+          "path": "packages/work-kernel/src/index.ts",
+          "language": "TypeScript",
+          "state": "accepted-target-proposed-not-implemented",
+          "owner": "work"
+        },
+        {
+          "path": "packages/work-kernel/src/facts.ts",
+          "language": "TypeScript",
+          "state": "accepted-target-proposed-not-implemented",
+          "owner": "work"
+        },
+        {
+          "path": "packages/work-kernel/src/prepared.ts",
+          "language": "TypeScript",
+          "state": "accepted-target-proposed-not-implemented",
+          "owner": "work"
+        },
+        {
+          "path": "packages/work-kernel/src/profiles.ts",
+          "language": "TypeScript",
+          "state": "accepted-target-proposed-not-implemented",
+          "owner": "work"
+        },
+        {
+          "path": "packages/work-kernel/src/backend.ts",
+          "language": "TypeScript",
+          "state": "accepted-target-proposed-not-implemented",
+          "owner": "work"
+        },
+        {
+          "path": "packages/work-kernel/src/rows.ts",
+          "language": "TypeScript",
+          "state": "accepted-target-proposed-not-implemented",
+          "owner": "work"
+        },
+        {
+          "path": "packages/work-kernel/src/lifecycle.ts",
+          "language": "TypeScript",
+          "state": "accepted-target-proposed-not-implemented",
+          "owner": "work"
+        },
+        {
+          "path": "packages/work-kernel/src/retry.ts",
+          "language": "TypeScript",
+          "state": "accepted-target-proposed-not-implemented",
+          "owner": "work"
+        },
+        {
+          "path": "packages/work-kernel/src/receipt.ts",
+          "language": "TypeScript",
+          "state": "accepted-target-proposed-not-implemented",
+          "owner": "work"
+        },
+        {
+          "path": "packages/work-kernel/src/recovery.ts",
+          "language": "TypeScript",
+          "state": "accepted-target-proposed-not-implemented",
+          "owner": "work"
+        },
+        {
+          "path": "packages/work-kernel/src/linkage.ts",
+          "language": "TypeScript",
+          "state": "accepted-target-proposed-not-implemented",
+          "owner": "work"
+        },
+        {
+          "path": "packages/work-kernel/src/every.ts",
+          "language": "TypeScript",
+          "state": "accepted-target-proposed-not-implemented",
+          "owner": "work"
+        },
+        {
+          "path": "packages/work-kernel/decisions/lib.rs",
+          "language": "Rust",
+          "state": "accepted-target-proposed-not-implemented",
+          "owner": "work"
+        },
+        {
+          "path": "packages/work-kernel/decisions/rows.rs",
+          "language": "Rust",
+          "state": "accepted-target-proposed-not-implemented",
+          "owner": "work"
+        },
+        {
+          "path": "packages/work-kernel/decisions/lifecycle.rs",
+          "language": "Rust",
+          "state": "accepted-target-proposed-not-implemented",
+          "owner": "work"
+        },
+        {
+          "path": "packages/work-kernel/decisions/retry.rs",
+          "language": "Rust",
+          "state": "accepted-target-proposed-not-implemented",
+          "owner": "work"
+        },
+        {
+          "path": "packages/work-kernel/decisions/receipt.rs",
+          "language": "Rust",
+          "state": "accepted-target-proposed-not-implemented",
+          "owner": "work"
+        },
+        {
+          "path": "packages/work-kernel/decisions/recovery.rs",
+          "language": "Rust",
+          "state": "accepted-target-proposed-not-implemented",
+          "owner": "work"
+        },
+        {
+          "path": "packages/work-kernel/decisions/linkage.rs",
+          "language": "Rust",
+          "state": "accepted-target-proposed-not-implemented",
+          "owner": "work"
+        },
+        {
+          "path": "packages/work-kernel/decisions/every.rs",
+          "language": "Rust",
+          "state": "accepted-target-proposed-not-implemented",
+          "owner": "work"
+        },
+        {
+          "path": "packages/work-kernel/bindings/wasm.rs",
+          "language": "Rust",
+          "state": "accepted-target-proposed-not-implemented",
+          "owner": "work"
+        },
+        {
+          "path": "packages/work-kernel/bindings/loader.ts",
+          "language": "TypeScript",
+          "state": "accepted-target-proposed-not-implemented",
+          "owner": "work"
+        },
+        {
+          "path": "packages/work-kernel/bindings/host-values.ts",
+          "language": "TypeScript",
+          "state": "accepted-target-proposed-not-implemented",
+          "owner": "work"
+        },
+        {
+          "path": "packages/work-kernel/package.json",
+          "language": "build/configuration",
+          "state": "accepted-target-proposed-not-implemented",
+          "owner": "work"
+        },
+        {
+          "path": "packages/work-kernel/tsconfig.json",
+          "language": "build/configuration",
+          "state": "accepted-target-proposed-not-implemented",
+          "owner": "work"
+        },
+        {
+          "path": "packages/work-kernel/Cargo.toml",
+          "language": "build/configuration",
+          "state": "accepted-target-proposed-not-implemented",
+          "owner": "work"
+        },
+        {
+          "path": "packages/work-kernel/Cargo.lock",
+          "language": "build/configuration",
+          "state": "accepted-target-proposed-not-implemented",
+          "owner": "work"
+        },
+        {
+          "path": "packages/work-kernel/conformance/rows.test.ts",
+          "language": "TypeScript",
+          "state": "accepted-target-proposed-not-implemented",
+          "owner": "work"
+        },
+        {
+          "path": "packages/work-kernel/conformance/lifecycle.test.ts",
+          "language": "TypeScript",
+          "state": "accepted-target-proposed-not-implemented",
+          "owner": "work"
+        },
+        {
+          "path": "packages/work-kernel/conformance/retry.test.ts",
+          "language": "TypeScript",
+          "state": "accepted-target-proposed-not-implemented",
+          "owner": "work"
+        },
+        {
+          "path": "packages/work-kernel/conformance/receipt.test.ts",
+          "language": "TypeScript",
+          "state": "accepted-target-proposed-not-implemented",
+          "owner": "work"
+        },
+        {
+          "path": "packages/work-kernel/conformance/recovery.test.ts",
+          "language": "TypeScript",
+          "state": "accepted-target-proposed-not-implemented",
+          "owner": "work"
+        },
+        {
+          "path": "packages/work-kernel/conformance/linkage.test.ts",
+          "language": "TypeScript",
+          "state": "accepted-target-proposed-not-implemented",
+          "owner": "work"
+        },
+        {
+          "path": "packages/work-kernel/conformance/every.test.ts",
+          "language": "TypeScript",
+          "state": "accepted-target-proposed-not-implemented",
+          "owner": "work"
+        },
+        {
+          "path": "packages/work-kernel/conformance/transitions.test.ts",
+          "language": "TypeScript",
+          "state": "accepted-target-proposed-not-implemented",
+          "owner": "work"
+        },
+        {
+          "path": "packages/work-kernel/conformance/traces.test.ts",
+          "language": "TypeScript",
+          "state": "accepted-target-proposed-not-implemented",
+          "owner": "work"
+        },
+        {
+          "path": "packages/work-kernel/conformance/persisted.test.ts",
+          "language": "TypeScript",
+          "state": "accepted-target-proposed-not-implemented",
+          "owner": "work"
+        },
+        {
+          "path": "packages/work-kernel/measurement/complete-calls.ts",
+          "language": "TypeScript",
+          "state": "accepted-target-proposed-not-implemented",
+          "owner": "work"
+        }
+      ],
+      "duties": [
+        "Closed row codec/identity/set/lifecycle/retry/receipt/recovery/linkage/slot decisions over ordered owner-produced inert facts.",
+        "Keep JS Number fractional/wide range/rounding, UTF-16/surrogate/escaping, missing/undefined/null/value presence, wrapper first error, clone profile and opaque payload identity.",
+        "Host TS keeps I/O/callback demand/RNG/clock/identity/hash/auth/commit/retry; no capability enters ABI.",
+        "Select backend before semantics, dispose call-local refs on every exit, fail selected missing/corrupt/wrong version binary visibly; no same-call retry/fallback.",
+        "Enable Rust only under W01-W08 real reuse or material complete-call benefit/parity/resource/install/rollback evidence; prepared TS is a fair acceptable evaluation outcome."
+      ],
+      "required_semantics_independent_of_port": true,
+      "dependency_graph": {
+        "leaf": "contracts-only type dependency",
+        "state": "values + work-kernel + provider-neutral ports",
+        "work": "state system ports + work-kernel + owned adapters",
+        "cloudflare": "assembled state/work/provider/file hosts + work-kernel",
+        "forbidden": [
+          "state -> full work",
+          "state -> public stdlib",
+          "work-kernel -> state/full-work/Node crypto/test loaders"
+        ]
+      },
+      "independent_challenge": "pending",
+      "availability_gaps": [
+        "No work-kernel package exists at review capture; W01-W08 are proposal/evaluation tasks, no executed port acceptance."
+      ],
+      "target_status": "finished-product allocation; not implementation acceptance",
+      "review_scope": "primary source/contracts; challenger pending"
+    }
+  ],
+  "dispositions": {
+    "REQUIRED": [
+      "W-AUTH",
+      "W-MUT",
+      "W-OWNER",
+      "W-HOOK",
+      "W-READ",
+      "W-DISPATCH",
+      "W-RECEIPT",
+      "W-PROGRESS",
+      "W-FANOUT",
+      "W-RECOVERY",
+      "W-PROVIDER",
+      "W-FILE",
+      "W-LIFETIME",
+      "W-UPGRADE",
+      "W-CORPUS"
+    ],
+    "ACCEPTED-CONDITIONAL": [
+      "W-KERNEL Rust rollout after W01-W08; prepared TS remains fair retained backend"
+    ],
+    "DEFERRED": [
+      "W09 request/resume Rust scheduler",
+      "hook send/emit expansion",
+      "narrower per-record/team fence",
+      "recurrence host-hash translation until byte proof",
+      "cross-store transactions until supplied",
+      "new sweep suppression authoring semantics"
+    ],
+    "DECLINED": [
+      "state -> full work/public stdlib cycle",
+      "Rust live authority/I/O/commit hidden in closed facts",
+      "same-call Rust trap semantic fallback",
+      "silent ABI numeric narrowing",
+      "500-row semantic fanout cap",
+      "eventual directory as complete cohort",
+      "automatic newer-filtered-event supersession",
+      "exactly-once external email/cancellation claims",
+      "test memory/file/provider fixtures as deployed implementation"
+    ]
+  },
+  "work_port_tasks": [
+    {
+      "id": "W01.1",
+      "parent": "W01",
+      "title": "Pin production/test-only caller, wait and delivery-schema coverage",
+      "lane": "work-contracts",
+      "kind": "work",
+      "required": true,
+      "depends_on": [
+        "C01.ready"
+      ],
+      "writes": [
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/work-transitions/contracts/callers.json",
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/work-transitions/contracts/profiles.md"
+      ],
+      "acceptance": [
+        "Inventory every source table and public shell listed above; distinguish memory fixtures from real Cloudflare F7/durable consumers and the absent named wait API.",
+        "Record loader-owned deliveryFields from registry, empty per-model membership sets, finite delivery tag version and presence-only result leaves; include b3-delivery-schema and receipt memory/durable baseline fixtures."
+      ],
+      "mapped_slices": [
+        "W-AUTH",
+        "W-RECEIPT",
+        "W-FANOUT",
+        "W-KERNEL"
+      ],
+      "disposition": "ACCEPTED-CONDITIONAL",
+      "current_evidence": "declared task contract read; not executed here"
+    },
+    {
+      "id": "W01.2",
+      "parent": "W01",
+      "title": "Choose the pure leaf graph and assign single writers",
+      "lane": "work-contracts",
+      "kind": "work",
+      "required": true,
+      "depends_on": [
+        "C01.ready"
+      ],
+      "writes": [
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/work-transitions/ownership/graph.md",
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/work-transitions/ownership/files.json"
+      ],
+      "acceptance": [
+        "Compare contracts-only work-kernel versus isolated work subpath fairly; preserve root JEV advice as advice and record source graph evidence.",
+        "Assign one work integrator for shared manifests, module entry, profiles, state transact and runtime invoke; submit root build/lock and binary delivery requests to C04 owner."
+      ],
+      "mapped_slices": [
+        "W-AUTH",
+        "W-RECEIPT",
+        "W-FANOUT",
+        "W-KERNEL"
+      ],
+      "disposition": "ACCEPTED-CONDITIONAL",
+      "current_evidence": "declared task contract read; not executed here"
+    },
+    {
+      "id": "W01.3",
+      "parent": "W01",
+      "title": "Capture unchanged behavior, clone and persisted-byte baseline",
+      "lane": "work-evidence",
+      "kind": "work",
+      "required": true,
+      "depends_on": [
+        "C05.ready"
+      ],
+      "writes": [
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/work-transitions/baselines/current-ts.json",
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/work-transitions/baselines/verify.log",
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/work-transitions/baselines/original-fixtures/"
+      ],
+      "acceptance": [
+        "Run existing command block against inspected sources, retain logs and failures; failed noEmitOnError builds cannot supply stale dist evidence.",
+        "Save original row/result identity, state clone-only versus work safety-then-clone, error/trace ordering and actual D1/DO persisted bytes in immutable evidence as an independent oracle; pure owner lanes copy/hash their golden fixture subsets later."
+      ],
+      "mapped_slices": [
+        "W-AUTH",
+        "W-RECEIPT",
+        "W-FANOUT",
+        "W-KERNEL"
+      ],
+      "disposition": "ACCEPTED-CONDITIONAL",
+      "current_evidence": "declared task contract read; not executed here"
+    },
+    {
+      "id": "W01.4",
+      "parent": "W01",
+      "title": "Ratify workload, budget and supported-profile ledger",
+      "lane": "work-contracts",
+      "kind": "work",
+      "required": true,
+      "depends_on": [
+        "W01.1",
+        "W01.2",
+        "W01.3",
+        "C05.ready"
+      ],
+      "writes": [
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/work-transitions/contracts/workloads.json",
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/work-transitions/contracts/budgets.json",
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/work-transitions/contracts/coverage.md"
+      ],
+      "acceptance": [
+        "Nominate tiny/page/501-member/error/restart/recovery workloads and numeric latency/memory/binary budgets before seeing Rust comparisons.",
+        "Identify retained unknown-object/callback/host hashing/recurrence hash paths and new operation resource limits without silently narrowing legacy inputs."
+      ],
+      "mapped_slices": [
+        "W-AUTH",
+        "W-RECEIPT",
+        "W-FANOUT",
+        "W-KERNEL"
+      ],
+      "disposition": "ACCEPTED-CONDITIONAL",
+      "current_evidence": "declared task contract read; not executed here"
+    },
+    {
+      "id": "W02.1",
+      "parent": "W02",
+      "title": "Create publishable package-local manifests and build roots",
+      "lane": "work-integrator",
+      "kind": "work",
+      "required": true,
+      "depends_on": [
+        "W01.2",
+        "C02.ready"
+      ],
+      "writes": [
+        "packages/work-kernel/package.json",
+        "packages/work-kernel/tsconfig.json",
+        "packages/work-kernel/Cargo.toml",
+        "packages/work-kernel/Cargo.lock",
+        "packages/work-kernel/src/index.ts",
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/work-transitions/handoffs/build-request.md"
+      ],
+      "acceptance": [
+        "Pin @canlang/work-kernel to release 0.1.0; define pure JS/backend exports, files/dist shipping and contracts-only type graph; no unpublished private workspace runtime dependency.",
+        "Declare build/typecheck/build:wasm scripts and conformance include/output roots plus minimal neutral TS entry/interfaces; submit root build/bun.lock and shared consumer dependency request to C04.graph without editing shared manifests or platform globals."
+      ],
+      "mapped_slices": [
+        "W-DISPATCH",
+        "W-RECOVERY",
+        "W-RECEIPT",
+        "W-FANOUT",
+        "W-KERNEL"
+      ],
+      "disposition": "ACCEPTED-CONDITIONAL",
+      "current_evidence": "declared task contract read; not executed here"
+    },
+    {
+      "id": "W02.2",
+      "parent": "W02",
+      "title": "Extract ordered row, identity and set TS mechanisms",
+      "lane": "work-rows",
+      "kind": "work",
+      "required": true,
+      "depends_on": [
+        "W01.1",
+        "W01.3",
+        "W02.1"
+      ],
+      "writes": [
+        "packages/work-kernel/src/rows.ts",
+        "packages/work-kernel/conformance/rows.test.ts",
+        "packages/work-kernel/conformance/fixtures/rows/"
+      ],
+      "acceptance": [
+        "Preserve all eight table shapes, metadata, default presence, JSON-safety versus clone-only profiles, JS counts and UTF-16 identity/set order.",
+        "Compare both producer directions against frozen originals; do not use both wrappers calling the same helper as the sole oracle."
+      ],
+      "mapped_slices": [
+        "W-DISPATCH",
+        "W-RECOVERY",
+        "W-RECEIPT",
+        "W-FANOUT",
+        "W-KERNEL"
+      ],
+      "disposition": "ACCEPTED-CONDITIONAL",
+      "current_evidence": "declared task contract read; not executed here"
+    },
+    {
+      "id": "W02.3",
+      "parent": "W02",
+      "title": "Extract retry, recurrence and lifecycle TS decisions",
+      "lane": "work-policy",
+      "kind": "work",
+      "required": true,
+      "depends_on": [
+        "W01.1",
+        "W01.3",
+        "W02.1"
+      ],
+      "writes": [
+        "packages/work-kernel/src/retry.ts",
+        "packages/work-kernel/src/every.ts",
+        "packages/work-kernel/src/lifecycle.ts",
+        "packages/work-kernel/conformance/retry.test.ts",
+        "packages/work-kernel/conformance/every.test.ts",
+        "packages/work-kernel/conformance/lifecycle.test.ts",
+        "packages/work-kernel/conformance/fixtures/policy/"
+      ],
+      "acceptance": [
+        "Retain finite fractional times, Number count arithmetic, horizon/stale boundaries and explicit supplied random sample; no clock/RNG/evidence side effects in pure module.",
+        "Keep hashing and exact recurrence bytes host-owned; encodeURIComponent lone-surrogate exceptions remain separate from digest UTF-8 replacement behavior."
+      ],
+      "mapped_slices": [
+        "W-DISPATCH",
+        "W-RECOVERY",
+        "W-RECEIPT",
+        "W-FANOUT",
+        "W-KERNEL"
+      ],
+      "disposition": "ACCEPTED-CONDITIONAL",
+      "current_evidence": "declared task contract read; not executed here"
+    },
+    {
+      "id": "W02.4",
+      "parent": "W02",
+      "title": "Extract receipt, recovery and linkage TS decisions",
+      "lane": "work-receipts",
+      "kind": "work",
+      "required": true,
+      "depends_on": [
+        "W01.1",
+        "W01.3",
+        "W02.1"
+      ],
+      "writes": [
+        "packages/work-kernel/src/receipt.ts",
+        "packages/work-kernel/src/recovery.ts",
+        "packages/work-kernel/src/linkage.ts",
+        "packages/work-kernel/conformance/receipt.test.ts",
+        "packages/work-kernel/conformance/recovery.test.ts",
+        "packages/work-kernel/conformance/linkage.test.ts",
+        "packages/work-kernel/conformance/fixtures/receipts/"
+      ],
+      "acceptance": [
+        "Keep stored-pending receipt profile distinct, wrapper-specific faults, result host references, last duplicate claim wins and JS-sorted output.",
+        "Preserve dispatch/fanout/receipt assertion scope, including global checkpoint-without-outcome check, receipt-only allowed updates, guard-false row-only inserts and cursor-only plain-store path."
+      ],
+      "mapped_slices": [
+        "W-DISPATCH",
+        "W-RECOVERY",
+        "W-RECEIPT",
+        "W-FANOUT",
+        "W-KERNEL"
+      ],
+      "disposition": "ACCEPTED-CONDITIONAL",
+      "current_evidence": "declared task contract read; not executed here"
+    },
+    {
+      "id": "W02.5",
+      "parent": "W02",
+      "title": "Compose package TS fa\u00e7ade and legacy row wrappers",
+      "lane": "work-integrator",
+      "kind": "work",
+      "required": true,
+      "depends_on": [
+        "W02.2",
+        "W02.3",
+        "W02.4",
+        "C04.graph"
+      ],
+      "writes": [
+        "packages/work-kernel/src/index.ts",
+        "packages/work-kernel/src/prepared.ts",
+        "packages/work-kernel/src/profiles.ts",
+        "packages/work-kernel/src/backend.ts",
+        "packages/work-kernel/conformance/transitions.test.ts",
+        "packages/work/src/kernel/tables.ts",
+        "packages/state/src/fanout/tables.ts",
+        "packages/state/src/fanout/outcome.ts",
+        "packages/state/src/receipt/tables.ts"
+      ],
+      "acceptance": [
+        "Single integrator assembles entries and profiles; preserve work/state/runtime classes/messages, pending pin policy, row clone/metadata and same exported synchronous shapes.",
+        "Build/typecheck leaf and consumers; installed exports resolve without full work/state/test-loader/Node-crypto runtime imports. Run proposed conformance glob and baseline suites."
+      ],
+      "mapped_slices": [
+        "W-DISPATCH",
+        "W-RECOVERY",
+        "W-RECEIPT",
+        "W-FANOUT",
+        "W-KERNEL"
+      ],
+      "disposition": "ACCEPTED-CONDITIONAL",
+      "current_evidence": "declared task contract read; not executed here"
+    },
+    {
+      "id": "W03.1",
+      "parent": "W03",
+      "title": "Freeze ordered facts and policy-specific ABI types",
+      "lane": "work-integrator",
+      "kind": "work",
+      "required": true,
+      "depends_on": [
+        "W01.1",
+        "W01.2",
+        "W02.1",
+        "C03.ready"
+      ],
+      "writes": [
+        "packages/work-kernel/src/facts.ts",
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/work-transitions/handoffs/abi.md"
+      ],
+      "acceptance": [
+        "Define version/profile/error/UTF-16/presence/f64/conditional version transport and producer provenance, validating number ranges before fixed-width conversion.",
+        "Reject foreign/version/profile/corrupt facts before semantic callbacks; opaque payload refs are not authority capabilities."
+      ],
+      "mapped_slices": [
+        "W-READ",
+        "W-RECEIPT",
+        "W-RECOVERY",
+        "W-KERNEL"
+      ],
+      "disposition": "ACCEPTED-CONDITIONAL",
+      "current_evidence": "declared task contract read; not executed here"
+    },
+    {
+      "id": "W03.2",
+      "parent": "W03",
+      "title": "Implement call-local opaque reference lifecycle",
+      "lane": "work-host",
+      "kind": "work",
+      "required": true,
+      "depends_on": [
+        "W03.1"
+      ],
+      "writes": [
+        "packages/work-kernel/bindings/host-values.ts",
+        "packages/work-kernel/conformance/fixtures/traces/refs.json"
+      ],
+      "acceptance": [
+        "Retain result identity or required structuredClone at the existing profile point; Rust cannot inspect untouched payloads/metadata.",
+        "Dispose on success, exception, cancel and rejected load; reject stale/cross-call indices, bound allocation and preserve clone failures."
+      ],
+      "mapped_slices": [
+        "W-READ",
+        "W-RECEIPT",
+        "W-RECOVERY",
+        "W-KERNEL"
+      ],
+      "disposition": "ACCEPTED-CONDITIONAL",
+      "current_evidence": "declared task contract read; not executed here"
+    },
+    {
+      "id": "W03.3",
+      "parent": "W03",
+      "title": "Extract demand-ordered legacy host shells and trace tests",
+      "lane": "work-host",
+      "kind": "work",
+      "required": true,
+      "depends_on": [
+        "W02.5",
+        "W03.1",
+        "W03.2"
+      ],
+      "writes": [
+        "packages/work/src/dispatch/index.ts",
+        "packages/work/src/receipt/index.ts",
+        "packages/work/src/recovery/index.ts",
+        "packages/work/src/observation/association.ts",
+        "packages/work/src/observation/observation.ts",
+        "packages/work/src/observation/ports.ts",
+        "packages/work/src/schedule/every.ts",
+        "packages/work/src/kernel/commands.ts",
+        "packages/work-kernel/conformance/traces.test.ts",
+        "packages/work-kernel/conformance/fixtures/traces/"
+      ],
+      "acceptance": [
+        "Keep commit/inherited/supersession/pending/guard/authority/mint/clock orders distinct by shell; exhaustion/validation demand zero RNG samples, eligible backoff exactly one.",
+        "Recovery validates/processes rows in order and demands uncertain-only evidence before later rows, stopping at original exception; retain TS callback paths where extraction is uneconomical.",
+        "Full/selected grant/content/fence traces differ; preserve getter/proxy reads, sparse arrays, aliases/cycles and original thrown values, including throwing never-throws predicates."
+      ],
+      "mapped_slices": [
+        "W-READ",
+        "W-RECEIPT",
+        "W-RECOVERY",
+        "W-KERNEL"
+      ],
+      "disposition": "ACCEPTED-CONDITIONAL",
+      "current_evidence": "declared task contract read; not executed here"
+    },
+    {
+      "id": "W03.4",
+      "parent": "W03",
+      "title": "Verify closed-fact provenance and prepared-vs-legacy traces",
+      "lane": "work-evidence",
+      "kind": "work",
+      "required": true,
+      "depends_on": [
+        "W03.3",
+        "W03.2",
+        "W02.5"
+      ],
+      "writes": [
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/work-transitions/baselines/prepared-ts.json",
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/work-transitions/baselines/trace-parity.json"
+      ],
+      "acceptance": [
+        "Use actual D1/DO parser/controlled producer ownership; annotation, freezing, arbitrary StoragePort output or inspection never certify inertness.",
+        "Prepared/unprepared outputs/errors/identity/clone and stop-on-error traces match across invalid fields/lifecycle/presence/proxies/sparse/aliased data; no load/query/invoke/commit capability enters facts."
+      ],
+      "mapped_slices": [
+        "W-READ",
+        "W-RECEIPT",
+        "W-RECOVERY",
+        "W-KERNEL"
+      ],
+      "disposition": "ACCEPTED-CONDITIONAL",
+      "current_evidence": "declared task contract read; not executed here"
+    },
+    {
+      "id": "W04.1",
+      "parent": "W04",
+      "title": "Port native ordered rows and identity sets",
+      "lane": "work-rows",
+      "kind": "work",
+      "required": true,
+      "depends_on": [
+        "W02.2",
+        "W03.1",
+        "C03.ready"
+      ],
+      "writes": [
+        "packages/work-kernel/decisions/rows.rs"
+      ],
+      "acceptance": [
+        "Native row/identity/set vectors agree with independent TS oracle for shape, first fault, metadata/presence, count rounding and lossless UTF-16; no host I/O.",
+        "Done for this branch: implementation plus native test vectors/source review are ready for integrator registration; assembled native compile and differential execution are certified by W04.4 before W04 closes."
+      ],
+      "mapped_slices": [
+        "W-KERNEL"
+      ],
+      "disposition": "ACCEPTED-CONDITIONAL",
+      "current_evidence": "declared task contract read; not executed here"
+    },
+    {
+      "id": "W04.2",
+      "parent": "W04",
+      "title": "Port native retry, recurrence and lifecycle decisions",
+      "lane": "work-policy",
+      "kind": "work",
+      "required": true,
+      "depends_on": [
+        "W02.3",
+        "W03.1",
+        "C03.ready"
+      ],
+      "writes": [
+        "packages/work-kernel/decisions/retry.rs",
+        "packages/work-kernel/decisions/every.rs",
+        "packages/work-kernel/decisions/lifecycle.rs"
+      ],
+      "acceptance": [
+        "Native supplied-sample backoff/slot/coalescing/classification matches fractional/wide-number/error cases; clock/RNG/hash/provider/security operations stay host-owned.",
+        "Done for this branch: implementation plus native test vectors/source review are ready for integrator registration; assembled native compile and differential execution are certified by W04.4 before W04 closes."
+      ],
+      "mapped_slices": [
+        "W-KERNEL"
+      ],
+      "disposition": "ACCEPTED-CONDITIONAL",
+      "current_evidence": "declared task contract read; not executed here"
+    },
+    {
+      "id": "W04.3",
+      "parent": "W04",
+      "title": "Port native receipt, recovery and linkage decisions",
+      "lane": "work-receipts",
+      "kind": "work",
+      "required": true,
+      "depends_on": [
+        "W02.4",
+        "W03.1",
+        "C03.ready"
+      ],
+      "writes": [
+        "packages/work-kernel/decisions/receipt.rs",
+        "packages/work-kernel/decisions/recovery.rs",
+        "packages/work-kernel/decisions/linkage.rs"
+      ],
+      "acceptance": [
+        "Native ordered batch decisions/faults/ref indices and proposed conditional writes agree with separate stored-pending and wrapper profiles; no stronger converse linkage policy.",
+        "Done for this branch: implementation plus native test vectors/source review are ready for integrator registration; assembled native compile and differential execution are certified by W04.4 before W04 closes."
+      ],
+      "mapped_slices": [
+        "W-KERNEL"
+      ],
+      "disposition": "ACCEPTED-CONDITIONAL",
+      "current_evidence": "declared task contract read; not executed here"
+    },
+    {
+      "id": "W04.4",
+      "parent": "W04",
+      "title": "Register native modules and run shared conformance",
+      "lane": "work-integrator",
+      "kind": "work",
+      "required": true,
+      "depends_on": [
+        "W04.1",
+        "W04.2",
+        "W04.3",
+        "W03.4"
+      ],
+      "writes": [
+        "packages/work-kernel/decisions/lib.rs",
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/work-transitions/handoffs/native-conformance.json",
+        "packages/work-kernel/Cargo.toml",
+        "packages/work-kernel/Cargo.lock"
+      ],
+      "acceptance": [
+        "Only integrator edits lib.rs/module registrations; matching immutable vectors drive native and prepared TS outputs.",
+        "Run cargo test --locked, cargo fmt --check and cargo clippy --locked --all-targets -- -D warnings; inspect imports/features for forbidden host authority, preserve exact faults and materialization demand."
+      ],
+      "mapped_slices": [
+        "W-KERNEL"
+      ],
+      "disposition": "ACCEPTED-CONDITIONAL",
+      "current_evidence": "declared task contract read; not executed here"
+    },
+    {
+      "id": "W05.1",
+      "parent": "W05",
+      "title": "Build pinned package-specific Wasm adapter and bootstrap",
+      "lane": "work-integrator",
+      "kind": "work",
+      "required": true,
+      "depends_on": [
+        "W04.4",
+        "W03.2",
+        "C04.ready",
+        "C04.graph"
+      ],
+      "writes": [
+        "packages/work-kernel/bindings/wasm.rs",
+        "packages/work-kernel/bindings/loader.ts",
+        "packages/work-kernel/src/backend.ts",
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/work-transitions/handoffs/assets.json",
+        "packages/work-kernel/package.json",
+        "packages/work-kernel/Cargo.toml",
+        "packages/work-kernel/Cargo.lock"
+      ],
+      "acceptance": [
+        "Implement pinned build:wasm/glue toolchain against Cargo binding version; compile wasm32 target and use one synchronously callable initialized instance.",
+        "Select TS/Rust before evaluating operations; selected Rust missing/corrupt/ABI/init errors fail visibly, no lazy call bootstrap or fallback rerun."
+      ],
+      "mapped_slices": [
+        "W-KERNEL"
+      ],
+      "disposition": "ACCEPTED-CONDITIONAL",
+      "current_evidence": "declared task contract read; not executed here"
+    },
+    {
+      "id": "W05.2",
+      "parent": "W05",
+      "title": "Submit package-specific vendor/build/release integration request",
+      "lane": "work-integrator",
+      "kind": "work",
+      "required": true,
+      "depends_on": [
+        "W05.1"
+      ],
+      "writes": [
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/work-transitions/handoffs/delivery-request.md"
+      ],
+      "acceptance": [
+        "Provide exact vendor/work-kernel entry, bare-import rewriting, binary asset/integrity and required dist-root manifest facts to C04 owner; do not edit bundle.ts, local-run.ts, testkit globals, root build or root lock.",
+        "Done when exact generated asset hashes/import keys/shipping requirements and loader contract are accepted by the C04 owner; request publication is not final generated-binary delivery proof."
+      ],
+      "mapped_slices": [
+        "W-KERNEL"
+      ],
+      "disposition": "ACCEPTED-CONDITIONAL",
+      "current_evidence": "declared task contract read; not executed here"
+    },
+    {
+      "id": "W05.3",
+      "parent": "W05",
+      "title": "Verify actual staged workerd binary and loader failures",
+      "lane": "work-evidence",
+      "kind": "work",
+      "required": true,
+      "depends_on": [
+        "W05.4",
+        "C04.ready"
+      ],
+      "writes": [
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/work-transitions/release/delivery.json",
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/work-transitions/release/loader-errors.json"
+      ],
+      "acceptance": [
+        "Run package build:wasm and cargo --features wasm-bindings plus owning C04 actual module-map workerd checks; use non-UTF8 bytes, compare written hashes, missing/corrupt/wrong ABI and cold/warm bootstrap.",
+        "Prove one instance across bundled/vendor consumer paths and text-only legacy byte parity; installed package acceptance does not rely on source checkout imports."
+      ],
+      "mapped_slices": [
+        "W-KERNEL"
+      ],
+      "disposition": "ACCEPTED-CONDITIONAL",
+      "current_evidence": "declared task contract read; not executed here"
+    },
+    {
+      "id": "W06.1",
+      "parent": "W06",
+      "title": "Join state staging and assertions to the selected pure kernel",
+      "lane": "work-integrator",
+      "kind": "work",
+      "required": true,
+      "depends_on": [
+        "W05.3",
+        "W02.5",
+        "W03.4"
+      ],
+      "writes": [
+        "packages/state/src/fanout/tables.ts",
+        "packages/state/src/fanout/outcome.ts",
+        "packages/state/src/ports/transact.ts",
+        "packages/state/src/receipt/tables.ts"
+      ],
+      "acceptance": [
+        "Retain original expectedVersion and host expectedRevision timing, reader-only stages, pending-versus-running outcome rules, loader-owned delivery membership and wrapper fault order.",
+        "Linkage assertion stays before one store commit; raw admission hashing/replay/age/auth/normalization and current rejection-receipt behavior stay in owning host."
+      ],
+      "mapped_slices": [
+        "W-AUTH",
+        "W-DISPATCH",
+        "W-FANOUT",
+        "W-KERNEL"
+      ],
+      "disposition": "ACCEPTED-CONDITIONAL",
+      "current_evidence": "declared task contract read; not executed here"
+    },
+    {
+      "id": "W06.2",
+      "parent": "W06",
+      "title": "Join canonical Cloudflare runtime through existing producer seams",
+      "lane": "work-integrator",
+      "kind": "work",
+      "required": true,
+      "depends_on": [
+        "W06.1"
+      ],
+      "writes": [
+        "packages/cloudflare/src/runtime/invoke.ts",
+        "packages/cloudflare/src/runtime/work-kernel-pilot.test.ts"
+      ],
+      "acceptance": [
+        "Single integrator replaces only matching decode/outcome/staleness/decision mechanisms in real F7/recovery consumer; fresh guard/authority/evidence/reloads/claim and child-unit commits remain TS.",
+        "Exercise actual bound binary with canonical source+intent/claim/record/progress/recovery/replay flow; membership cutoff does not grant authority and no terminal child is reinvoked."
+      ],
+      "mapped_slices": [
+        "W-AUTH",
+        "W-DISPATCH",
+        "W-FANOUT",
+        "W-KERNEL"
+      ],
+      "disposition": "ACCEPTED-CONDITIONAL",
+      "current_evidence": "declared task contract read; not executed here"
+    },
+    {
+      "id": "W06.runtimehandoff",
+      "parent": "W06",
+      "title": "Release canonical runtime file to validation owner",
+      "lane": "work-integrator",
+      "kind": "gate",
+      "required": true,
+      "depends_on": [
+        "W06.2"
+      ],
+      "writes": [
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/work-transitions/handoffs/runtime-source-map.md",
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/work-transitions/handoffs/runtime-owner.json"
+      ],
+      "acceptance": [
+        "Record exact reviewed invoke.ts source hash, exports/producer seams and work consumer traces; no work lane writes runtime/invoke.ts after this handoff.",
+        "Validation canonical runtime writer depends on W06.runtimehandoff in root global DAG; state pure validation can proceed earlier. Integrator resolves queued patches serially and refreshes downstream fixtures against final runtime source."
+      ],
+      "mapped_slices": [
+        "W-AUTH",
+        "W-DISPATCH",
+        "W-FANOUT",
+        "W-KERNEL"
+      ],
+      "disposition": "ACCEPTED-CONDITIONAL",
+      "current_evidence": "declared task contract read; not executed here"
+    },
+    {
+      "id": "W06.3",
+      "parent": "W06",
+      "title": "Prove D1/DO race, crash and restart pilot with actual binary",
+      "lane": "work-integrator",
+      "kind": "work",
+      "required": true,
+      "depends_on": [
+        "W06.runtimehandoff",
+        "W05.3",
+        "V09.1"
+      ],
+      "writes": [
+        "packages/cloudflare/src/runtime/work-kernel-pilot-durable.test.ts",
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/work-transitions/durable/pilot.json"
+      ],
+      "acceptance": [
+        "Run real staged Wasm inside workerd, retain file-backed persist dirs, dispose/kill and fresh boot; Node Wasm plus RPC store proxy alone is insufficient.",
+        "Exactly one winner per existing claim/child commit unit, atomic terminal outcome/checkpoint with domain/history/replay/outbox/schedule, fresh siblings/revocation and refusal/error/caller retry behavior.",
+        "Uncertainty/not-found-to-delivered action-time evidence races and held/awaiting progress remain unresolved until real evidence; exceptions commit nothing except explicitly owned canonical rejected receipt path.",
+        "Run against final canonical runtime source after validation V09.1 completes its last runtime/invoke.ts write; this coordinated source-stability dependency is not a requirement for work pure modules or the early package foundation."
+      ],
+      "mapped_slices": [
+        "W-AUTH",
+        "W-DISPATCH",
+        "W-FANOUT",
+        "W-KERNEL"
+      ],
+      "disposition": "ACCEPTED-CONDITIONAL",
+      "current_evidence": "declared task contract read; not executed here"
+    },
+    {
+      "id": "W07.1",
+      "parent": "W07",
+      "title": "Verify persisted bytes, backend swaps and mixed-failure precedence",
+      "lane": "work-evidence",
+      "kind": "work",
+      "required": true,
+      "depends_on": [
+        "W06.3",
+        "W03.4",
+        "C05.ready"
+      ],
+      "writes": [
+        "packages/work-kernel/conformance/persisted.test.ts",
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/work-transitions/durable/bytes.json",
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/work-transitions/durable/error-order.json"
+      ],
+      "acceptance": [
+        "Three backends match records.data/metadata/receipt raw hash/default/outcome/outbox/schedule/checkpoint bytes; restart TS persistence under Rust and Rust persistence under TS.",
+        "Test malformed linkage+stale version, valid linkage+stale version+cyclic clone-only state data, then current versions+cyclic data; join\u2192revision/version\u2192serialization error precedence and zero writes match."
+      ],
+      "mapped_slices": [
+        "W-AUTH",
+        "W-RECOVERY",
+        "W-FANOUT",
+        "W-KERNEL"
+      ],
+      "disposition": "ACCEPTED-CONDITIONAL",
+      "current_evidence": "declared task contract read; not executed here"
+    },
+    {
+      "id": "W07.2",
+      "parent": "W07",
+      "title": "Implement reproducible complete-call measurement runner",
+      "lane": "work-evidence",
+      "kind": "work",
+      "required": true,
+      "depends_on": [
+        "W01.4",
+        "W03.4",
+        "C05.ready"
+      ],
+      "writes": [
+        "packages/work-kernel/measurement/complete-calls.ts",
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/work-transitions/measurements/environment.json"
+      ],
+      "acceptance": [
+        "Define --backend ts|prepared-ts|wasm with identical payloads, evidence/RNG sequences and host storage workloads; record versions/hash/inventory/repetitions and machine-readable output.",
+        "Integrate C05 local CPU harness, not Worker performance clock; later execution includes conversion/host demand/wall durable time, cold/warm/error distributions and memory/asset metrics."
+      ],
+      "mapped_slices": [
+        "W-AUTH",
+        "W-RECOVERY",
+        "W-FANOUT",
+        "W-KERNEL"
+      ],
+      "disposition": "ACCEPTED-CONDITIONAL",
+      "current_evidence": "declared task contract read; not executed here"
+    },
+    {
+      "id": "W07.3",
+      "parent": "W07",
+      "title": "Run final parity, resource and complete-flow measurements",
+      "lane": "work-evidence",
+      "kind": "work",
+      "required": true,
+      "depends_on": [
+        "W07.1",
+        "W07.2",
+        "W06.3",
+        "C05.ready"
+      ],
+      "writes": [
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/work-transitions/measurements/results.json",
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/work-transitions/measurements/resources.json",
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/work-transitions/final/verify.log"
+      ],
+      "acceptance": [
+        "Run existing suites plus W04\u2013W06/proposed conformance and measurement commands against successfully built final sources; no stale-dist passing claims.",
+        "Report cold/warm/conversion/host demand/full turn/child/recovery, variability, peak/live/linear memory, disposal and bounded batch/cache limits, raw/compressed assets and precommitted budget pass/fail; zero unexplained parity differences."
+      ],
+      "mapped_slices": [
+        "W-AUTH",
+        "W-RECOVERY",
+        "W-FANOUT",
+        "W-KERNEL"
+      ],
+      "disposition": "ACCEPTED-CONDITIONAL",
+      "current_evidence": "declared task contract read; not executed here"
+    },
+    {
+      "id": "W08.1",
+      "parent": "W08",
+      "title": "Make explicit native-reuse or prepared-TS benefit decision",
+      "lane": "work-evidence",
+      "kind": "work",
+      "required": true,
+      "depends_on": [
+        "W07"
+      ],
+      "writes": [
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/work-transitions/release/adoption.md",
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/work-transitions/release/coverage.json"
+      ],
+      "acceptance": [
+        "Use reviewed root JEV disagreement advice plus source/runtime evidence; enable Rust only for concrete reuse or material complete-call improvement over prepared TS that justifies release cost.",
+        "Record supported/retained unknown-object/callback/demand loops/host hashing/deferred scheduler coverage and ownership; retain TS is a completed evaluation outcome."
+      ],
+      "mapped_slices": [
+        "W-KERNEL"
+      ],
+      "disposition": "ACCEPTED-CONDITIONAL",
+      "current_evidence": "declared task contract read; not executed here"
+    },
+    {
+      "id": "W08.2",
+      "parent": "W08",
+      "title": "Rehearse release selection, disposal and rollback",
+      "lane": "work-integrator",
+      "kind": "work",
+      "required": true,
+      "depends_on": [
+        "W08.1",
+        "W05.3"
+      ],
+      "writes": [
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/work-transitions/release/rollback.json"
+      ],
+      "acceptance": [
+        "Begin disabled/TS default, then reproducible pinned opt-in; no source runtime edit after handoff and no semantic retry after trap/integrity/error.",
+        "Exercise backend swap on same persisted rows/receipts, clean instance reload/disposed refs, real packaged binary and release verification without deployment/activation; no schema/digest migration."
+      ],
+      "mapped_slices": [
+        "W-KERNEL"
+      ],
+      "disposition": "ACCEPTED-CONDITIONAL",
+      "current_evidence": "declared task contract read; not executed here"
+    },
+    {
+      "id": "W08.3",
+      "parent": "W08",
+      "title": "Close source checks and implementation completion ledger",
+      "lane": "work-evidence",
+      "kind": "work",
+      "required": true,
+      "depends_on": [
+        "W08.2",
+        "W08.1"
+      ],
+      "writes": [
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/work-transitions/final/source-checks.md",
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/work-transitions/final/completion.md"
+      ],
+      "acceptance": [
+        "Report refreshed source map, exact commands/results/baseline failures, real installed/durable scope and retained paths; no isolated-native or memory-only completion claim.",
+        "Each eventual merge handler reconciles living file-tree coverage/decisions against all changes since checkpoint; planning itself performs no merge/checkpoint update."
+      ],
+      "mapped_slices": [
+        "W-KERNEL"
+      ],
+      "disposition": "ACCEPTED-CONDITIONAL",
+      "current_evidence": "declared task contract read; not executed here"
+    },
+    {
+      "id": "W09.1",
+      "parent": "W09",
+      "title": "Specify separate request/resume scheduler contract and consultation",
+      "lane": "work-scheduler",
+      "kind": "work",
+      "required": false,
+      "depends_on": [
+        "W08"
+      ],
+      "writes": [
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/work-transitions/scheduler/contract.md"
+      ],
+      "acceptance": [
+        "Separately authorized project only: load/query/checkpoint/snapshot/guard/authority/invoke/final batch requests, exact demand/order, cancellation/disposal, host exceptions/refusals, versions/revisions and caller-owned retries.",
+        "Get own verified-context three-equivalent JEV review; Rust may request I/O but host owns authority and one final commit submission."
+      ],
+      "mapped_slices": [
+        "W-KERNEL"
+      ],
+      "disposition": "DEFERRED",
+      "current_evidence": "declared task contract read; not executed here"
+    },
+    {
+      "id": "W09.2",
+      "parent": "W09",
+      "title": "Prototype scheduler only against a real continuation consumer",
+      "lane": "work-scheduler",
+      "kind": "work",
+      "required": false,
+      "depends_on": [
+        "W09.1"
+      ],
+      "writes": [
+        "packages/work-kernel/continuations/",
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/work-transitions/scheduler/prototype.json"
+      ],
+      "acceptance": [
+        "Require a real generated fanout/wait continuation consumer, complete runtime traces/restart proof and bounded retained-state/reuse benefit beyond W08; memory-only proof is insufficient.",
+        "No-go for reordered/eager auth/callbacks, stale checkpoints, hidden commit/retry loops, broken sync API, unbounded memory or unjustified protocol cost."
+      ],
+      "mapped_slices": [
+        "W-KERNEL"
+      ],
+      "disposition": "DEFERRED",
+      "current_evidence": "declared task contract read; not executed here"
+    },
+    {
+      "id": "W09.3",
+      "parent": "W09",
+      "title": "Record separate scheduler go/no-go and rollout requirements",
+      "lane": "work-scheduler",
+      "kind": "work",
+      "required": false,
+      "depends_on": [
+        "W09.2"
+      ],
+      "writes": [
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/work-transitions/scheduler/decision.md"
+      ],
+      "acceptance": [
+        "Own tests/budgets/rollout decision required; do not promote data-only ABI into scheduler silently. W01\u2013W08 completion excludes this optional project."
+      ],
+      "mapped_slices": [
+        "W-KERNEL"
+      ],
+      "disposition": "DEFERRED",
+      "current_evidence": "declared task contract read; not executed here"
+    },
+    {
+      "id": "W01",
+      "parent": null,
+      "title": "Capture consumer contracts and behavioral traces \u2014 completion gate",
+      "lane": "work-contracts",
+      "kind": "gate",
+      "required": true,
+      "depends_on": [
+        "W01.1",
+        "W01.2",
+        "W01.3",
+        "W01.4"
+      ],
+      "writes": [],
+      "acceptance": [
+        "All child tasks completed with their exact source, commands/results and pass/retain-TS evidence.",
+        "Parent gate retains the detailed deliverable/acceptance contract below; no incomplete supported-domain migration or test-only consumer claim."
+      ],
+      "mapped_slices": [
+        "W-AUTH",
+        "W-RECEIPT",
+        "W-FANOUT",
+        "W-KERNEL"
+      ],
+      "disposition": "ACCEPTED-CONDITIONAL",
+      "current_evidence": "declared task contract read; not executed here"
+    },
+    {
+      "id": "W02",
+      "parent": null,
+      "title": "Consolidate matching TypeScript mechanics first \u2014 completion gate",
+      "lane": "work-integrator",
+      "kind": "gate",
+      "required": true,
+      "depends_on": [
+        "W02.1",
+        "W02.foundation",
+        "W02.2",
+        "W02.3",
+        "W02.4",
+        "W02.5"
+      ],
+      "writes": [],
+      "acceptance": [
+        "All child tasks completed with their exact source, commands/results and pass/retain-TS evidence.",
+        "Parent gate retains the detailed deliverable/acceptance contract below; no incomplete supported-domain migration or test-only consumer claim."
+      ],
+      "mapped_slices": [
+        "W-DISPATCH",
+        "W-RECOVERY",
+        "W-RECEIPT",
+        "W-FANOUT",
+        "W-KERNEL"
+      ],
+      "disposition": "ACCEPTED-CONDITIONAL",
+      "current_evidence": "declared task contract read; not executed here"
+    },
+    {
+      "id": "W03",
+      "parent": null,
+      "title": "Prepare closed batch facts and host references \u2014 completion gate",
+      "lane": "work-evidence",
+      "kind": "gate",
+      "required": true,
+      "depends_on": [
+        "W03.1",
+        "W03.2",
+        "W03.3",
+        "W03.4"
+      ],
+      "writes": [],
+      "acceptance": [
+        "All child tasks completed with their exact source, commands/results and pass/retain-TS evidence.",
+        "Parent gate retains the detailed deliverable/acceptance contract below; no incomplete supported-domain migration or test-only consumer claim."
+      ],
+      "mapped_slices": [
+        "W-READ",
+        "W-RECEIPT",
+        "W-RECOVERY",
+        "W-KERNEL"
+      ],
+      "disposition": "ACCEPTED-CONDITIONAL",
+      "current_evidence": "declared task contract read; not executed here"
+    },
+    {
+      "id": "W04",
+      "parent": null,
+      "title": "Implement data-only Rust kernel and native conformance \u2014 completion gate",
+      "lane": "work-integrator",
+      "kind": "gate",
+      "required": true,
+      "depends_on": [
+        "W04.1",
+        "W04.2",
+        "W04.3",
+        "W04.4"
+      ],
+      "writes": [],
+      "acceptance": [
+        "All child tasks completed with their exact source, commands/results and pass/retain-TS evidence.",
+        "Parent gate retains the detailed deliverable/acceptance contract below; no incomplete supported-domain migration or test-only consumer claim."
+      ],
+      "mapped_slices": [
+        "W-KERNEL"
+      ],
+      "disposition": "ACCEPTED-CONDITIONAL",
+      "current_evidence": "declared task contract read; not executed here"
+    },
+    {
+      "id": "W05",
+      "parent": null,
+      "title": "Deliver and initialize the actual Wasm consumer \u2014 completion gate",
+      "lane": "work-integrator",
+      "kind": "gate",
+      "required": true,
+      "depends_on": [
+        "W05.1",
+        "W05.2",
+        "W05.3",
+        "W05.4"
+      ],
+      "writes": [],
+      "acceptance": [
+        "All child tasks completed with their exact source, commands/results and pass/retain-TS evidence.",
+        "Parent gate retains the detailed deliverable/acceptance contract below; no incomplete supported-domain migration or test-only consumer claim."
+      ],
+      "mapped_slices": [
+        "W-KERNEL"
+      ],
+      "disposition": "ACCEPTED-CONDITIONAL",
+      "current_evidence": "declared task contract read; not executed here"
+    },
+    {
+      "id": "W06",
+      "parent": null,
+      "title": "Pilot state staging through actual Cloudflare durable paths \u2014 completion gate",
+      "lane": "work-integrator",
+      "kind": "gate",
+      "required": true,
+      "depends_on": [
+        "W06.1",
+        "W06.2",
+        "W06.runtimehandoff",
+        "W06.3"
+      ],
+      "writes": [],
+      "acceptance": [
+        "All child tasks completed with their exact source, commands/results and pass/retain-TS evidence.",
+        "Parent gate retains the detailed deliverable/acceptance contract below; no incomplete supported-domain migration or test-only consumer claim."
+      ],
+      "mapped_slices": [
+        "W-AUTH",
+        "W-DISPATCH",
+        "W-FANOUT",
+        "W-KERNEL"
+      ],
+      "disposition": "ACCEPTED-CONDITIONAL",
+      "current_evidence": "declared task contract read; not executed here"
+    },
+    {
+      "id": "W07",
+      "parent": null,
+      "title": "Differential, persisted-byte and resource gates \u2014 completion gate",
+      "lane": "work-evidence",
+      "kind": "gate",
+      "required": true,
+      "depends_on": [
+        "W07.1",
+        "W07.2",
+        "W07.3"
+      ],
+      "writes": [],
+      "acceptance": [
+        "All child tasks completed with their exact source, commands/results and pass/retain-TS evidence.",
+        "Parent gate retains the detailed deliverable/acceptance contract below; no incomplete supported-domain migration or test-only consumer claim."
+      ],
+      "mapped_slices": [
+        "W-AUTH",
+        "W-RECOVERY",
+        "W-FANOUT",
+        "W-KERNEL"
+      ],
+      "disposition": "ACCEPTED-CONDITIONAL",
+      "current_evidence": "declared task contract read; not executed here"
+    },
+    {
+      "id": "W08",
+      "parent": null,
+      "title": "Decide adoption, rollout and rollback \u2014 completion gate",
+      "lane": "work-evidence",
+      "kind": "gate",
+      "required": true,
+      "depends_on": [
+        "W08.1",
+        "W08.2",
+        "W08.3"
+      ],
+      "writes": [],
+      "acceptance": [
+        "All child tasks completed with their exact source, commands/results and pass/retain-TS evidence.",
+        "Parent gate retains the detailed deliverable/acceptance contract below; no incomplete supported-domain migration or test-only consumer claim."
+      ],
+      "mapped_slices": [
+        "W-KERNEL"
+      ],
+      "disposition": "ACCEPTED-CONDITIONAL",
+      "current_evidence": "declared task contract read; not executed here"
+    },
+    {
+      "id": "W09",
+      "parent": null,
+      "title": "Deferred request/resume scheduler contract, separate go/no-go \u2014 completion gate",
+      "lane": "work-scheduler",
+      "kind": "gate",
+      "required": false,
+      "depends_on": [
+        "W09.1",
+        "W09.2",
+        "W09.3"
+      ],
+      "writes": [],
+      "acceptance": [
+        "All child tasks completed with their exact source, commands/results and pass/retain-TS evidence.",
+        "Parent gate retains the detailed deliverable/acceptance contract below; no incomplete supported-domain migration or test-only consumer claim."
+      ],
+      "mapped_slices": [
+        "W-KERNEL"
+      ],
+      "disposition": "DEFERRED",
+      "current_evidence": "declared task contract read; not executed here"
+    },
+    {
+      "id": "W02.foundation",
+      "parent": "W02",
+      "title": "Release minimal pure package foundation to shared graph owner",
+      "lane": "work-integrator",
+      "kind": "gate",
+      "required": true,
+      "depends_on": [
+        "W02.1"
+      ],
+      "writes": [
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/work-transitions/handoffs/foundation.json"
+      ],
+      "acceptance": [
+        "Verify standalone minimal work-kernel entry/interfaces, local build roots, exports, 0.1.0 shipping and contracts-only DAG; semantic modules and consumer joins are not required to publish this foundation.",
+        "C04.graph depends on W02.foundation and C04.asset; foundation never waits for C04.graph. Shared graph owner alone changes root package.json/bun.lock and state/Cloudflare/stdlib/testkit consumer manifests/build order."
+      ],
+      "mapped_slices": [
+        "W-DISPATCH",
+        "W-RECOVERY",
+        "W-RECEIPT",
+        "W-FANOUT",
+        "W-KERNEL"
+      ],
+      "disposition": "ACCEPTED-CONDITIONAL",
+      "current_evidence": "declared task contract read; not executed here"
+    },
+    {
+      "id": "W05.4",
+      "parent": "W05",
+      "title": "Verify fulfilled assets in outside-checkout install and release",
+      "lane": "work-integrator",
+      "kind": "work",
+      "required": true,
+      "depends_on": [
+        "W05.2",
+        "C04.work-assets"
+      ],
+      "writes": [
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/work-transitions/handoffs/installed-package.json"
+      ],
+      "acceptance": [
+        "Verify actual packaged installation outside checkout, 0.1.0 release:stamp and required dist/binary manifest coverage; test-loader exclusions remain intact.",
+        "C04.work-assets fulfils W05.2 after shared graph and independent smoke readiness; verify the final generated kernel/glue, exact vendor/import map, required binary hashes and packaged release outside checkout. The tiny C04.ready smoke alone cannot certify these outputs."
+      ],
+      "mapped_slices": [
+        "W-KERNEL"
+      ],
+      "disposition": "ACCEPTED-CONDITIONAL",
+      "current_evidence": "declared task contract read; not executed here"
+    }
+  ],
+  "shared_gate_duties": [
+    {
+      "id": "C01.1",
+      "title": "Recheck source checkpoint, scope and live owners",
+      "kind": "work",
+      "depends_on": [],
+      "acceptance": [
+        "Existing packages-only functionality, source changes, baseline failures and coverage limits have owners; scope remains revisable with evidence."
+      ],
+      "writes": [
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/shared/scope.json"
+      ],
+      "work_boundary_role": "source/caller/scope/exclusive writer inventory",
+      "evidence": "shared plan gate, not performed"
+    },
+    {
+      "id": "C01.2",
+      "title": "Assign exclusive resources and dispatch capacity",
+      "kind": "work",
+      "depends_on": [
+        "C01.1"
+      ],
+      "acceptance": [
+        "No two active tasks write one shared file/lane; workers consume ready backlog and blockers name an owner and exit condition."
+      ],
+      "writes": [
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/shared/ownership.json"
+      ],
+      "work_boundary_role": "source/caller/scope/exclusive writer inventory",
+      "evidence": "shared plan gate, not performed"
+    },
+    {
+      "id": "C01.ready",
+      "title": "Common scope and ownership ready",
+      "kind": "gate",
+      "depends_on": [
+        "C01.1",
+        "C01.2"
+      ],
+      "acceptance": [
+        "Package inventories can proceed; this is the common readiness gate, not completion of A01/V01/W01/P01."
+      ],
+      "writes": [
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/shared/C01.ready.json"
+      ],
+      "work_boundary_role": "source/caller/scope/exclusive writer inventory",
+      "evidence": "shared plan gate, not performed"
+    },
+    {
+      "id": "C02.1",
+      "title": "Publish prepared-boundary and observable-trace method",
+      "kind": "work",
+      "depends_on": [
+        "C01.ready"
+      ],
+      "acceptance": [
+        "Each plan can extract independently; matching source traces and full consumer evidence are explicit acceptance, not assumed from common scaffolding."
+      ],
+      "writes": [
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/shared/prepared-baseline-contract.json"
+      ],
+      "work_boundary_role": "prepared observable trace boundary",
+      "evidence": "shared plan gate, not performed"
+    },
+    {
+      "id": "C02.ready",
+      "title": "Prepared-boundary method ready",
+      "kind": "gate",
+      "depends_on": [
+        "C02.1"
+      ],
+      "acceptance": [
+        "A02/V02/W02/P02 contribute their own prepared evidence later."
+      ],
+      "writes": [
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/shared/C02.ready.json"
+      ],
+      "work_boundary_role": "prepared observable trace boundary",
+      "evidence": "shared plan gate, not performed"
+    },
+    {
+      "id": "C03.1",
+      "title": "Freeze minimal versioned transport and profile handoffs",
+      "kind": "work",
+      "depends_on": [
+        "C01.ready"
+      ],
+      "acceptance": [
+        "Minimal smoke contracts and pinning/toolchain choices are executable; scalar semantics remain values-owned, catalogs/declarations producer-owned."
+      ],
+      "writes": [
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/shared/transport-contracts.json"
+      ],
+      "work_boundary_role": "version/profile/transport/pinning ABI",
+      "evidence": "shared plan gate, not performed"
+    },
+    {
+      "id": "C03.2",
+      "title": "Build encoder/decoder vectors and pinning spike",
+      "kind": "work",
+      "depends_on": [
+        "C03.1"
+      ],
+      "acceptance": [
+        "Bad versions/lengths are rejected; no latest-version example is accepted without actual build evidence; common proof does not require full semantic modules."
+      ],
+      "writes": [
+        "packages/testkit/conformance/ports/transport-vectors.mjs",
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/shared/pins.json"
+      ],
+      "work_boundary_role": "version/profile/transport/pinning ABI",
+      "evidence": "shared plan gate, not performed"
+    },
+    {
+      "id": "C03.ready",
+      "title": "Minimal ABI and pinning contracts ready",
+      "kind": "gate",
+      "depends_on": [
+        "C03.2"
+      ],
+      "acceptance": [
+        "Subsystem native foundations may begin; full binding/protocol conformance joins C03.complete."
+      ],
+      "writes": [
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/shared/C03.ready.json"
+      ],
+      "work_boundary_role": "version/profile/transport/pinning ABI",
+      "evidence": "shared plan gate, not performed"
+    },
+    {
+      "id": "C04.asset",
+      "title": "Land typed text/binary asset contract and host plumbing",
+      "kind": "work",
+      "depends_on": [
+        "C03.ready"
+      ],
+      "acceptance": [
+        "Binary lengths/hashes are exact; CompiledWasm is verified against the installed API; text-only hash/order/serialization fixtures pass."
+      ],
+      "writes": [
+        "packages/contracts/src/deployment-assets.ts",
+        "packages/contracts/src/index.ts",
+        "packages/cloudflare/src/deploy/bundle.ts",
+        "packages/cloudflare/src/dev/local-run.ts",
+        "packages/testkit/src/scopes/local.ts"
+      ],
+      "work_boundary_role": "real binary/build/vendor/install/release asset consumer delivery",
+      "evidence": "shared plan gate, not performed"
+    },
+    {
+      "id": "C04.1",
+      "title": "Build tiny actual binding and smoke fixture",
+      "kind": "work",
+      "depends_on": [
+        "C03.ready"
+      ],
+      "acceptance": [
+        "Native/Node/Bun glue startup and synchronous entry actually execute; missing/corrupt/wrong-ABI module fails, no semantic fallback."
+      ],
+      "writes": [
+        "packages/testkit/conformance/ports/loader-smoke/Cargo.toml",
+        "packages/testkit/conformance/ports/loader-smoke/Cargo.lock",
+        "packages/testkit/conformance/ports/loader-smoke/src/lib.rs",
+        "packages/testkit/conformance/ports/loader-smoke/host.mjs"
+      ],
+      "work_boundary_role": "real binary/build/vendor/install/release asset consumer delivery",
+      "evidence": "shared plan gate, not performed"
+    },
+    {
+      "id": "C04.2",
+      "title": "Prove actual local workerd and deployment-map loader",
+      "kind": "work",
+      "depends_on": [
+        "C04.asset",
+        "C04.1"
+      ],
+      "acceptance": [
+        "No fake Wasm replies/text markers; one initialized instance, malformed bytes/startup failures and text-only legacy parity pass."
+      ],
+      "writes": [
+        "packages/testkit/conformance/ports/loader-smoke/workerd.mjs",
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/shared/loader-smoke.json"
+      ],
+      "work_boundary_role": "real binary/build/vendor/install/release asset consumer delivery",
+      "evidence": "shared plan gate, not performed"
+    },
+    {
+      "id": "C04.ready",
+      "title": "Tiny actual loader and typed asset proof ready",
+      "kind": "gate",
+      "depends_on": [
+        "C04.2"
+      ],
+      "acceptance": [
+        "Runtime plans may verify their own generated bindings next. This gate does not certify actual values/work assets, final vendor maps or installed consumers. Native JS-only preparation is independent of this Wasm proof."
+      ],
+      "writes": [
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/shared/C04.ready.json"
+      ],
+      "work_boundary_role": "real binary/build/vendor/install/release asset consumer delivery",
+      "evidence": "shared plan gate, not performed"
+    },
+    {
+      "id": "C04.graph",
+      "title": "Land root and consumer dependency/build graph",
+      "kind": "work",
+      "depends_on": [
+        "W02.foundation",
+        "C04.asset"
+      ],
+      "acceptance": [
+        "Root/consumer build and lockfile graph is executable, no state\u2192full-work cycle, and no compiler Cargo workspace is introduced. This gate does not certify final work assets."
+      ],
+      "writes": [
+        "package.json",
+        "bun.lock",
+        "packages/cloudflare/package.json",
+        "packages/state/package.json",
+        "packages/stdlib/package.json",
+        "packages/testkit/package.json"
+      ],
+      "work_boundary_role": "real binary/build/vendor/install/release asset consumer delivery",
+      "evidence": "shared plan gate, not performed"
+    },
+    {
+      "id": "C04.values-assets",
+      "title": "Fulfil actual values binding and vendor inventory",
+      "kind": "work",
+      "depends_on": [
+        "A07.foundation",
+        "C04.graph",
+        "C04.ready"
+      ],
+      "acceptance": [
+        "Values consumers use actual shipped assets, not the smoke fixture; native binary is excluded from Worker maps; missing/corrupt/version errors fail visibly."
+      ],
+      "writes": [
+        "packages/cloudflare/src/deploy/bundle.ts",
+        "packages/cloudflare/src/release/stamp.ts",
+        "packages/cloudflare/src/release/manifest.ts"
+      ],
+      "work_boundary_role": "real binary/build/vendor/install/release asset consumer delivery",
+      "evidence": "shared plan gate, not performed"
+    },
+    {
+      "id": "C04.work-assets",
+      "title": "Fulfil work generated asset and package request",
+      "kind": "work",
+      "depends_on": [
+        "W05.2",
+        "C04.graph",
+        "C04.ready"
+      ],
+      "acceptance": [
+        "Actual work binary and package are in built runtime/deploy/testkit inventory; W05.4/W05.3 certify installed package and workerd afterward."
+      ],
+      "writes": [
+        "packages/cloudflare/src/deploy/bundle.ts",
+        "packages/cloudflare/src/dev/local-run.ts",
+        "packages/testkit/src/scopes/local.ts",
+        "packages/cloudflare/src/release/stamp.ts",
+        "packages/cloudflare/src/release/manifest.ts"
+      ],
+      "work_boundary_role": "real binary/build/vendor/install/release asset consumer delivery",
+      "evidence": "shared plan gate, not performed"
+    },
+    {
+      "id": "C04.preparation-join",
+      "title": "Land native bundle-helper integration",
+      "kind": "work",
+      "depends_on": [
+        "P05.2",
+        "C04.asset"
+      ],
+      "acceptance": [
+        "P05 host/native lanes receive reviewed exports/source hash; no duplicated catalog or arbitrary asset format; initial JS-only native consumer does not wait for C04.ready."
+      ],
+      "writes": [
+        "packages/cloudflare/src/deploy/bundle.ts"
+      ],
+      "work_boundary_role": "real binary/build/vendor/install/release asset consumer delivery",
+      "evidence": "shared plan gate, not performed"
+    },
+    {
+      "id": "C04.native-release",
+      "title": "Land native command, stamp and dist inventory",
+      "kind": "work",
+      "depends_on": [
+        "P09.1",
+        "C04.graph"
+      ],
+      "acceptance": [
+        "Native supported-host binaries/notices/dist metadata ship through owning manifest; P09.2 must prove actual installed launch, no user compiler."
+      ],
+      "writes": [
+        "packages/cloudflare/package.json",
+        "packages/cloudflare/src/release/stamp.ts",
+        "packages/cloudflare/src/release/manifest.ts"
+      ],
+      "work_boundary_role": "real binary/build/vendor/install/release asset consumer delivery",
+      "evidence": "shared plan gate, not performed"
+    },
+    {
+      "id": "C04.validation-join",
+      "title": "Fulfil accepted validation route or record declined join",
+      "kind": "work",
+      "depends_on": [
+        "V08.3",
+        "C04.values-assets"
+      ],
+      "acceptance": [
+        "Accepted delivery integration completes after V08.4 and its own module checks; subsequent V08.5 proves deployment, required by V08.6 before accepted outcome completion. A declined branch changes no route and never certifies deployed adoption."
+      ],
+      "writes": [
+        "packages/cloudflare/src/deploy/bundle.ts",
+        "packages/cloudflare/src/dev/local-run.ts",
+        "packages/testkit/src/scopes/local.ts"
+      ],
+      "work_boundary_role": "real binary/build/vendor/install/release asset consumer delivery",
+      "evidence": "shared plan gate, not performed"
+    },
+    {
+      "id": "C05.1",
+      "title": "Publish observer schema, workloads and budget procedure",
+      "kind": "work",
+      "depends_on": [
+        "C01.ready"
+      ],
+      "acceptance": [
+        "Early actual TS observations are executable; getters/callbacks and side-effectful calls are never shadow-run twice; provisional speed cutoffs remain explicitly ratified/replaced before comparisons."
+      ],
+      "writes": [
+        "packages/testkit/conformance/ports/observations.mjs",
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/shared/workloads.json"
+      ],
+      "work_boundary_role": "independent conformance/resource/complete-call budgets",
+      "evidence": "shared plan gate, not performed"
+    },
+    {
+      "id": "C05.ready",
+      "title": "Common conformance and measurement harness ready",
+      "kind": "gate",
+      "depends_on": [
+        "C05.1"
+      ],
+      "acceptance": [
+        "Subsystem observers add real adapter/distribution cases later; unit/native timings do not certify adoption."
+      ],
+      "writes": [
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/shared/C05.ready.json"
+      ],
+      "work_boundary_role": "independent conformance/resource/complete-call budgets",
+      "evidence": "shared plan gate, not performed"
+    },
+    {
+      "id": "C01.complete",
+      "title": "All caller inventories and scope records reviewed",
+      "kind": "gate",
+      "depends_on": [
+        "C01.ready",
+        "A01",
+        "V01",
+        "W01",
+        "P01"
+      ],
+      "acceptance": [
+        "Every migrated path has an owner, admitted-input contract, real consumer and explicit retained/deferred scope."
+      ],
+      "writes": [
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/shared/C01.complete.json"
+      ],
+      "work_boundary_role": "source/caller/scope/exclusive writer inventory",
+      "evidence": "shared plan gate, not performed"
+    },
+    {
+      "id": "C02.complete",
+      "title": "All matching prepared TS boundaries reviewed",
+      "kind": "gate",
+      "depends_on": [
+        "C02.ready",
+        "A02",
+        "V02",
+        "W02",
+        "P02"
+      ],
+      "acceptance": [
+        "Zero unexplained prepared/current TS observable differences; extraction never collapses differing policies."
+      ],
+      "writes": [
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/shared/C02.complete.json"
+      ],
+      "work_boundary_role": "prepared observable trace boundary",
+      "evidence": "shared plan gate, not performed"
+    },
+    {
+      "id": "C03.complete",
+      "title": "All actual binding and protocol contracts reviewed",
+      "kind": "gate",
+      "depends_on": [
+        "C03.ready",
+        "A07",
+        "V03",
+        "W03",
+        "P03"
+      ],
+      "acceptance": [
+        "Version, presence, lifetime, corruption and binding/native negative evidence is complete for each selected profile."
+      ],
+      "writes": [
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/shared/C03.complete.json"
+      ],
+      "work_boundary_role": "version/profile/transport/pinning ABI",
+      "evidence": "shared plan gate, not performed"
+    },
+    {
+      "id": "C04.complete",
+      "title": "All declared distribution and consumer assets reviewed",
+      "kind": "gate",
+      "depends_on": [
+        "C04.ready",
+        "C04.graph",
+        "C04.values-assets",
+        "C04.work-assets",
+        "C04.preparation-join",
+        "C04.native-release",
+        "C04.validation-join",
+        "A08",
+        "V11",
+        "W05",
+        "P09",
+        "P05.mixed"
+      ],
+      "acceptance": [
+        "Generated package-specific glue, actual consumers and supported installed hosts pass; declined validation route retains its visible adoption gap."
+      ],
+      "writes": [
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/shared/C04.complete.json"
+      ],
+      "work_boundary_role": "real binary/build/vendor/install/release asset consumer delivery",
+      "evidence": "shared plan gate, not performed"
+    },
+    {
+      "id": "C05.complete",
+      "title": "All parity, budget and rollout evidence reviewed",
+      "kind": "gate",
+      "depends_on": [
+        "C05.ready",
+        "A10",
+        "V11",
+        "W07",
+        "P10"
+      ],
+      "acceptance": [
+        "No unexplained observable differences; actual complete-call/native-reuse adoption and resource decisions retain raw evidence."
+      ],
+      "writes": [
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/shared/C05.complete.json"
+      ],
+      "work_boundary_role": "independent conformance/resource/complete-call budgets",
+      "evidence": "shared plan gate, not performed"
+    }
+  ],
+  "global_manifest_joins": [
+    {
+      "before": "W02.foundation",
+      "after": "C04.graph",
+      "reason": "minimal independent pure package foundation before shared root graph"
+    },
+    {
+      "before": "W05.2",
+      "after": "C04.work-assets",
+      "reason": "accepted package asset/vendor/delivery request before global asset owner fulfillment"
+    },
+    {
+      "before": "C04.work-assets",
+      "after": "W05.4",
+      "reason": "outside-checkout installed release needs fulfilled actual assets"
+    },
+    {
+      "before": "W05.4",
+      "after": "W05.3",
+      "reason": "actual staged workerd/delivery loader proof uses accepted installed binary"
+    },
+    {
+      "before": "W06.2",
+      "after": "W06.runtimehandoff",
+      "reason": "release exact canonical runtime source to validation writer"
+    },
+    {
+      "before": "W06.runtimehandoff",
+      "after": "V09.1",
+      "reason": "one writer for canonical Cloudflare invoke source"
+    },
+    {
+      "before": "V09.1",
+      "after": "W06.3",
+      "reason": "final joined durable binary proof against source-stable canonical runtime"
+    }
+  ],
+  "fanout_matrix": {
+    "authority": "implementation/challenge-audit-run/t33-resolution.md:29-42",
+    "source_vs_children": "source success commits own truth + durable intent; children separately admitted/progressed",
+    "membership": "complete frozen canonical owner identities at explicit source occurrence/handler cutoff; bounded revision-stable enumeration, never partial complete",
+    "M1": "499/500/501/1000 independently accounted identities + ordinary inline overflow negative",
+    "M2": "actual restart enumeration/claim/effect/checkpoint; no lost membership or repeated committed effects",
+    "M3": "duplicate source/child stable parent+handler+record replay",
+    "M4": "insert/move/delete exact cutoff/current lifecycle; failed lookup never deletion",
+    "M5": "rejection/revocation sibling isolation + current fence + aggregate attention",
+    "M6": "bounded transient retry/exhaustion attribution + no starvation",
+    "M7": "two differently filtered events both retain coverage/no automatic supersession",
+    "M8": "fair bounded turn/cancellation within provider contract",
+    "M9": "unchanged original Shift/Volunteer guards/bodies/notices with actual compiler/runtime/fixture joins",
+    "M10": "unsupported/cross-owner/unavailable/truncated/false complete/fabricated grant/partial checkpoint/ordinary overflow negatives"
+  },
+  "cutovers": [
+    {
+      "current": [
+        "packages/work/src/kernel/tables.ts",
+        "packages/state/src/fanout/tables.ts",
+        "packages/state/src/fanout/outcome.ts",
+        "packages/state/src/receipt/tables.ts",
+        "packages/state/src/ports/transact.ts",
+        "packages/cloudflare/src/runtime/invoke.ts"
+      ],
+      "retire": "matching duplicate mechanism bodies only; retain synchronous public wrappers/error classes/owner staging policy",
+      "successors": [
+        "packages/work-kernel/src/index.ts",
+        "packages/work-kernel/src/facts.ts",
+        "packages/work-kernel/src/prepared.ts",
+        "packages/work-kernel/src/profiles.ts",
+        "packages/work-kernel/src/backend.ts",
+        "packages/work-kernel/src/rows.ts",
+        "packages/work-kernel/src/lifecycle.ts",
+        "packages/work-kernel/src/retry.ts",
+        "packages/work-kernel/src/receipt.ts",
+        "packages/work-kernel/src/recovery.ts",
+        "packages/work-kernel/src/linkage.ts",
+        "packages/work-kernel/src/every.ts",
+        "packages/work-kernel/decisions/lib.rs",
+        "packages/work-kernel/decisions/rows.rs",
+        "packages/work-kernel/decisions/lifecycle.rs",
+        "packages/work-kernel/decisions/retry.rs",
+        "packages/work-kernel/decisions/receipt.rs",
+        "packages/work-kernel/decisions/recovery.rs",
+        "packages/work-kernel/decisions/linkage.rs",
+        "packages/work-kernel/decisions/every.rs"
+      ],
+      "gate": [
+        "W02.5",
+        "W03.4",
+        "W05.3",
+        "W06.1",
+        "W06.2",
+        "W06.3",
+        "W07",
+        "W08"
+      ]
+    },
+    {
+      "current": [
+        "packages/state/src/mutation/pipeline.ts"
+      ],
+      "retire": "moved default/constraint/history/hook/containment bodies after actual import cutover; retain single coordinator",
+      "successors": [
+        "packages/state/src/mutation/defaults.ts",
+        "packages/state/src/mutation/constraints.ts",
+        "packages/state/src/mutation/history.ts",
+        "packages/state/src/mutation/hooks.ts",
+        "packages/state/src/mutation/containment.ts"
+      ],
+      "gate": [
+        "one canonical mutation authority",
+        "generated/scenario/hook parity",
+        "rollback/replay/version/ref/lifetime proof"
+      ]
+    },
+    {
+      "current": [
+        "packages/cloudflare/src/runtime/invoke.ts"
+      ],
+      "retire": "moved work orchestration body blocks; retain compatibility fa\u00e7ade/core invocation duties delegated to platform owner",
+      "successors": [
+        "packages/cloudflare/src/runtime/work/dispatch.ts",
+        "packages/cloudflare/src/runtime/work/receipts.ts",
+        "packages/cloudflare/src/runtime/work/progress.ts",
+        "packages/cloudflare/src/runtime/work/recovery.ts",
+        "packages/cloudflare/src/runtime/work/fanout-trigger.ts",
+        "packages/cloudflare/src/runtime/work/fanout-claim.ts",
+        "packages/cloudflare/src/runtime/work/fanout-child.ts",
+        "packages/cloudflare/src/runtime/work/fanout-scheduler.ts",
+        "packages/cloudflare/src/runtime/work/providers.ts",
+        "packages/cloudflare/src/runtime/work/files.ts"
+      ],
+      "gate": [
+        "exact producer import/export inventory",
+        "single runtime writer and validation handoff",
+        "actual Worker build/vendor/install discovery",
+        "T24-T27/T34 and original app joins"
+      ]
+    },
+    {
+      "current": [
+        "packages/services/src/ports.ts",
+        "packages/files/src/ports.ts"
+      ],
+      "retire": "Node controlled server/test-only memory constructors from production entries, not interface authority",
+      "successors": [
+        "packages/services/test/support/controlled-mail-server.ts",
+        "packages/services/src/ports.ts",
+        "packages/files/test/support/stores.ts",
+        "packages/files/src/ports.ts"
+      ],
+      "gate": [
+        "separate Worker-safe adapter/file build and package exports",
+        "real durable owner/file/provider ports",
+        "independent existing harness preserved"
+      ]
+    },
+    {
+      "current": [
+        "packages/cloudflare/src/runtime/stdlib.ts"
+      ],
+      "retire": "unsupported effect shells only after all claimed production callers use canonical effect producer",
+      "successors": [
+        "packages/cloudflare/src/runtime/work/dispatch.ts",
+        "packages/cloudflare/src/runtime/work/receipts.ts",
+        "packages/cloudflare/src/runtime/work/progress.ts",
+        "packages/cloudflare/src/runtime/work/providers.ts",
+        "packages/cloudflare/src/runtime/work/files.ts"
+      ],
+      "gate": [
+        "generated caller-chain truthfulness",
+        "atomic source/effects rollback",
+        "installed original workflow proof"
+      ]
+    }
+  ],
+  "pending_issues": [
+    {
+      "id": "WORK-PENDING-CORPUS-JOIN",
+      "disposition": "REQUIRED unfinished producer/runtime integration",
+      "authority": [
+        "DESIGN.md:694-698",
+        "design/complex-apps/knowledge.md:Corpus contract",
+        "design/jev/complex-knowledge-20261004/1.result.json",
+        "design/jev/complex-knowledge-20261004/2.result.json",
+        "design/jev/complex-knowledge-20261004/3.result.json"
+      ],
+      "gap": "Complete interface already accepted; compiler-generated members/opaque Answer, current source proof, index/controller/progress/grounded disclosure and isolated fixture joins remain required.",
+      "targets": [
+        "packages/contracts/src/corpus.ts",
+        "packages/state/src/corpus/sources.ts",
+        "packages/state/src/corpus/grounded.ts",
+        "packages/state/src/corpus/available.ts",
+        "packages/state/src/corpus/status.ts",
+        "packages/services/src/corpus/index.ts",
+        "packages/services/src/corpus/controller.ts",
+        "packages/services/src/corpus/extract.ts",
+        "packages/services/src/corpus/normalize.ts",
+        "packages/cloudflare/src/runtime/work/corpus.ts",
+        "packages/testkit/src/fixtures/corpus.ts"
+      ],
+      "consultation": "Existing divided three-call advice and adopted reasoning preserved; no grammar reopening or new calls."
+    },
+    {
+      "id": "WORK-PENDING-FILE-HOST",
+      "disposition": "REQUIRED interface join",
+      "gap": "sync memory ports are not durable remote metadata/blob authority; exact async protocol/import/caller contract must agree before implementation",
+      "target": [
+        "packages/files/src/storage/metadata.ts",
+        "packages/files/src/storage/blob.ts",
+        "packages/files/src/storage/recovery.ts"
+      ]
+    },
+    {
+      "id": "WORK-PENDING-LIFETIME",
+      "disposition": "REQUIRED producer/runtime join",
+      "gap": "owner expiry requires actual compiled lifetime metadata and sensitive-copy/replay-safe disposal; existing migration retain is different capability",
+      "target": [
+        "packages/state/src/retention/expiry.ts",
+        "packages/state/src/retention/disposal.ts",
+        "packages/state/src/retention/recovery.ts"
+      ]
+    },
+    {
+      "id": "WORK-PENDING-PROVIDER-MAPPING",
+      "disposition": "REQUIRED installed consumer join",
+      "gap": "std TextGeneration/Images/Payments/Mailbox contract-only transport/progress/cancellation/lookup mapping to provisioned adapters; no inferred provider choice",
+      "target": [
+        "packages/services/src/standard/text-generation.ts",
+        "packages/services/src/standard/images.ts",
+        "packages/services/src/standard/payments.ts",
+        "packages/services/src/standard/mailbox.ts"
+      ]
+    },
+    {
+      "id": "WORK-PENDING-RUST-ADOPTION",
+      "disposition": "ACCEPTED-CONDITIONAL",
+      "gap": "W01-W08 complete-call parity/reuse/resource/install/rollback evidence absent; no speed or enabled runtime claim"
+    }
+  ],
+  "verification": {
+    "performed": [
+      "source and contract reads",
+      "task/gate JSON inspection",
+      "current SHA-256 pins",
+      "review artifact JSON generation"
+    ],
+    "not_performed": [
+      "product tests/builds",
+      "port benchmarks",
+      "native/Wasm compilation",
+      "installed/durable/live provider journeys",
+      "Git commands/mutations",
+      "services/provider calls",
+      "worker/process/timer operations",
+      "checklist edits"
+    ],
+    "source_coverage": "defining duty review with selective source bodies; pinned remaining dependency files are inventory/contract evidence, not exhaustive independent reread",
+    "workflow_tracing": "intended state/authority/failure/termination and actual defining seams recorded for all slices",
+    "independent_challenge": "pending",
+    "exact_target_allocation": "defining retained and proposed leaves expanded; root owns complete global inventory/target convergence",
+    "skill_limit": "installed main ideal-filetree skill read; referenced procedure/records/scheduling unavailable; no template completion claim"
+  },
+  "independent_language_challenge": {
+    "reviewed_artifacts": [
+      "docs/ideal-filetree-plan/finished-product/reviews/language.md",
+      "docs/ideal-filetree-plan/finished-product/reviews/language.json"
+    ],
+    "capture_duties": 34,
+    "stage": "independent source/planning challenge; no executed regression or corpus certification",
+    "findings": [
+      {
+        "id": "WL-C01",
+        "severity": "material missing required duty",
+        "status": "resolved in reviewed LANG-CORPUS-GROUNDED required duty with exact target producer/runtime/proof joins",
+        "subject": "accepted corpus generated interface/opaque grounded type producer",
+        "evidence": [
+          "DESIGN.md:694-698",
+          "design/complex-apps/knowledge.md:13-63",
+          "compiler/src/syntax/parser.rs:4008-4034",
+          "compiler/src/analysis/catalog.rs:2347"
+        ],
+        "change_required": "Add REQUIRED corpus declaration resolution/checking/derived interface Run/opaque Answer/effects/IR/emission/contract handoff and actual fixture/current-source-read joins; no new language-adoption consultation.",
+        "opposing_case": "LANG-INTERFACES can cover general imports, but does not allocate distinct corpus opaque authority/type/generated member lifecycle and named Knowledge gap."
+      },
+      {
+        "id": "WL-C02",
+        "severity": "confirmed source finding",
+        "status": "independently corroborates L-F01",
+        "evidence": [
+          "compiler/src/docs.rs:510",
+          "compiler/src/codegen/js.rs:4846-4850",
+          "compiler/src/docs.rs:532-555"
+        ],
+        "change_required": "Stored-field creation_required needs owning ordinary-array omission metadata; do not generalize field-only marker to signature parameter rules.",
+        "execution_proof": false
+      },
+      {
+        "id": "WL-C03",
+        "severity": "confirmed scope/availability finding",
+        "status": "independently corroborates L-F02 and V09 host order",
+        "evidence": [
+          "compiler/src/codegen/js.rs:1495",
+          "packages/state/src/invocation/admission.ts:299-368",
+          "docs/research/package-subsystem-ports-20261006/implementation-plans/input-validation.md:44"
+        ],
+        "change_required": "Preserve separate required compiler decimal lowering/metadata duties, package-only port scope and raw replay/hash before normalization; no same-call fallback/trap rerun."
+      },
+      {
+        "id": "WL-C04",
+        "severity": "wording/classification clarification",
+        "status": "resolved: containment/effects/fanout REQUIRED, accepted semantics vs execution gates explicit; no automatic filtered-sweep supersession/no semantic 500 cap",
+        "evidence": [
+          "implementation/challenge-audit-run/t33-resolution.md:C1-C9",
+          "docs/ideal-filetree-plan/finished-product/reviews/language.json:LANG-CONTAINMENT,LANG-EFFECTS,LANG-FANOUT,LANG-LIFETIME-EVOLUTION"
+        ],
+        "change_required": "Classify adopted required semantic scope separately from actual availability/qualification; explicitly no automatic filtered-sweep supersession/no numeric cohort cap. Existing lifetime/evolution duty covers retain/migration; no missing-duty allegation."
+      }
+    ],
+    "retained_after_challenge": [
+      "Rust exact/owned closed mechanisms vs TS callback/unknown/identity/locale/timezone authority fits inspected source",
+      "min/max original carrier identity and callback short-circuit demand remain TS",
+      "reference Rust extraction/existing TS static locale selection and truthful unknown availability preserved",
+      "compiler-unchanged scoped to package port, not finished challenge/compiler requirements"
+    ],
+    "completion_limit": "Planning allocation/classification challenge completed; confirmed L-F01/L-F02 are future implementation defects and no runtime behavior was executed.",
+    "reconciled_duties": 35,
+    "status": "completed independent planning challenge; material omissions/classification resolved in owner artifacts; actual behavioral findings remain future implementation gates",
+    "initial_artifact_pins": [
+      {
+        "path": "docs/ideal-filetree-plan/finished-product/reviews/language.md",
+        "sha256": "54523fb8bc20da2cf15472c10803c7a2d2c7486260b58d8df2e0190ef12e6bb1",
+        "bytes": 29071,
+        "lines": 112,
+        "proof_scope": "accepted contract/challenge source inspected at cited sections"
+      },
+      {
+        "path": "docs/ideal-filetree-plan/finished-product/reviews/language.json",
+        "sha256": "1d29bee4bd3a59c03cbd4cf331a2bf6c2ecb61498d8747ce1871c98a34188f06",
+        "bytes": 173903,
+        "lines": 3787,
+        "proof_scope": "accepted contract/challenge source inspected at cited sections"
+      }
+    ]
+  }
+}
