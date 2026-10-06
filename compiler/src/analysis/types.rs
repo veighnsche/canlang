@@ -5247,7 +5247,9 @@ impl<'a> Typer<'a> {
                 continue;
             }
             // Policy `fields=` and UI `columns=` additionally accept
-            // delivery-observation leaves (DESIGN §7.1); every other
+            // delivery-observation leaves (DESIGN §8.1, B4 scope;
+            // A5/S2 keeps `filter=`/`search=` excluded until
+            // predicate-observation lowering lands); every other
             // selector keeps the contract-only rule below.
             if segments.len() > 1
                 && (node.kind == SyntaxKind::Policy || what == "columns")
