@@ -11,4 +11,3 @@ Three semantically equivalent fresh consultations chose frozen source/resource/p
 ## wording-check.md
 
 All three requests preserve authority, exact code, frozen source/resource/payload, ambiguous acceptance, provider idempotency requirement, monotone verified outcomes, role/location guards, reopen race constraint, and both alternatives with concrete tradeoffs. Every explanatory prose field was rewritten; identifiers and actual code remain fixed. Requests differ in full serialized wording.
-

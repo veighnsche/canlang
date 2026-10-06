@@ -11,4 +11,3 @@ All three independent rewrites favor canonical_forms. Returned probability canon
 ## wording-check.md
 
 Three requests preserve the same verified canonical permissions, source ownership, scheduler stage facts, configured-integration absence, alternatives and tradeoffs. Context, question and all option prose are different in each request; code is deliberately identical evidence. JSON fields and technical identifiers are preserved. Full prose fields were pairwise compared before calls.
-
