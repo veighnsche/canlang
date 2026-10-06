@@ -2,8 +2,13 @@ import { existsSync, mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import type { DeployBundle } from "../src/deploy/bundle.js";
-import { attachBinaries, writeDeployBundleMixed } from "../src/deploy/bundle.js";
+import type { DeployBundle, MixedDeployBundle } from "../src/deploy/bundle.js";
+import {
+  attachBinaries,
+  bundleMixedSha256,
+  inventorizeAssets,
+  writeDeployBundleMixed,
+} from "../src/deploy/bundle.js";
 
 function textBundle(): DeployBundle {
   const modules = { "worker/main.js": "export default {};" };
@@ -21,6 +26,17 @@ function textBundle(): DeployBundle {
 
 function freshOutDir(): string {
   return join(tmpdir(), `can-mixed-reject-${process.pid}-${Math.random().toString(36).slice(2)}`);
+}
+
+/**
+ * Binaries map with an own enumerable `__proto__` key. An object literal
+ * `{"__proto__": ...}` would set the prototype instead of an own key;
+ * defineProperty (like JSON.parse) yields the adversarial own-key shape.
+ */
+function ownProtoBinaries(bytes: Uint8Array): Record<string, Uint8Array> {
+  const binaries: Record<string, Uint8Array> = {};
+  Object.defineProperty(binaries, "__proto__", { value: bytes, enumerable: true });
+  return binaries;
 }
 
 describe("mixed output rejection (corrective negatives)", () => {
@@ -69,5 +85,58 @@ describe("mixed output rejection (corrective negatives)", () => {
     const written = writeDeployBundleMixed(mixed, outDir);
     expect(mixed.mixedSha256).toBe(before);
     expect(written.files.some((file) => file.endsWith("evil.wasm"))).toBe(false);
+  });
+
+  it("N5a: own __proto__ binary key refuses loudly at attach (never silent loss)", () => {
+    expect(() => attachBinaries(textBundle(), ownProtoBinaries(new Uint8Array([7])))).toThrow(
+      /binary module key must not be "__proto__"/,
+    );
+  });
+
+  it("N5b: own __proto__ binary key refuses at pre-output write, nothing written", () => {
+    const outDir = freshOutDir();
+    const bundle = textBundle();
+    // Digest computed over the proto-less inventory so that only the
+    // snapshot refusal (not a digest mismatch) can reject this bundle.
+    const smuggled: MixedDeployBundle = {
+      ...bundle,
+      binaries: ownProtoBinaries(new Uint8Array([7])),
+      mixedSha256: bundleMixedSha256(bundle.mainModule, inventorizeAssets(bundle.modules, {})),
+    };
+    expect(() => writeDeployBundleMixed(smuggled, outDir)).toThrow(/binary module key must not be "__proto__"/);
+    expect(existsSync(outDir)).toBe(false);
+  });
+
+  it("N5c: own __proto__ text module key refuses loudly at attach", () => {
+    const modules: Record<string, string> = {};
+    Object.defineProperty(modules, "__proto__", { value: "export default {};", enumerable: true });
+    expect(() => attachBinaries({ ...textBundle(), modules }, {})).toThrow(
+      /text module key must not be "__proto__"/,
+    );
+  });
+
+  it("N5d: post-attach __proto__ assignment refuses loudly at write", () => {
+    const outDir = mkdtempSync(join(tmpdir(), "can-mixed-reject-"));
+    const mixed = attachBinaries(textBundle(), { "kernel.wasm": new Uint8Array([0, 1, 2, 3]) });
+    mixed.binaries["__proto__"] = new Uint8Array([9]);
+    expect(() => writeDeployBundleMixed(mixed, outDir)).toThrow(/binary module key must not be "__proto__"/);
+  });
+
+  it("N6: returned bundle bytes are copies — input buffer mutation cannot change them", () => {
+    const input = new Uint8Array([0, 1, 2, 3]);
+    const mixed = attachBinaries(textBundle(), { "kernel.wasm": input });
+    input[0] = 99;
+    expect(Array.from(mixed.binaries["kernel.wasm"] as Uint8Array)).toEqual([0, 1, 2, 3]);
+  });
+
+  it("C4: inherited-name keys (toString/constructor) attach and write as ordinary entries", () => {
+    const outDir = mkdtempSync(join(tmpdir(), "can-mixed-reject-"));
+    const mixed = attachBinaries(textBundle(), {
+      toString: new Uint8Array([1]),
+      constructor: new Uint8Array([2]),
+    });
+    const written = writeDeployBundleMixed(mixed, outDir);
+    expect(written.files.some((file) => file.endsWith("toString"))).toBe(true);
+    expect(written.files.some((file) => file.endsWith("constructor"))).toBe(true);
   });
 });

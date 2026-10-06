@@ -34,7 +34,12 @@ TDEPS={'T01':[],'T02':['T01'],'T03':[],'T04':[],'T05':['T03'],'T06':['T05'],
  'T38':['T37'],'T39':['T37'],'T40':['T37'],'T41':['T02','T37','T38','T39','T40']}
 TCAPS={1:['F12'],2:['F01','F12'],3:['F01'],4:['F01','F03','F08','F12'],5:['F01'],6:['F01','F04'],7:['F01'],8:['F01','F09'],9:['F01','F02'],10:['F01','F02'],11:['F01','F02'],12:['F01','F05'],13:['F01','F02','F05'],14:['F01','F05','F12'],15:['F01','F03','F08','F12'],16:['F03','F08'],17:['F03'],18:['F02','F03'],19:['F08','F09'],20:['F08','F09'],21:['F11','F12'],22:['F12'],23:['F12'],24:['F03','F05'],25:['F06'],26:['F06'],27:['F07'],28:['F01','F03'],29:['F01','F03'],30:['F01','F03'],31:['F03'],32:['F03','F05','F08'],33:['F06'],34:['F01','F03','F06','F12'],35:['F01'],36:['F01','F12'],37:['F12'],38:['F12'],39:['F12'],40:['F12'],41:['F11','F12']}
 
-def link(path): return f'../../../../{path}'
+def link(path):
+    review=OUT/'documentation-review.json'
+    if review.exists():
+        locations=json.loads(review.read_text()).get('root_locations',[])
+        path=next((r['target'] for r in locations if r['source']==path and r.get('execution_status')=='applied locally'),path)
+    return f'../../../../{path}'
 
 def load_reviews():
     return {n:json.loads((OUT/'reviews'/f'{n}.json').read_text()) for n in ('language','work','delivery','product')}
@@ -355,6 +360,7 @@ def converge():
        'parent_completion_policy':'Readiness/foundation gates release actual consumers; parent closes only full promised scope, positive/negative/installed/recovery evidence; decline acceleration never declines mandatory interface workflow.',
        'legacy_findings_policy':'Old C01-C15/R01-R08 are historical corrective/decomposition evidence. Revalidate against current source and current owner acceptance before allocating duplicate work; original R01 independent review and coordinator C01 remain their own scopes.'})
     write_docs(inventory,ds,allocations,leaves,ports,challenge,descriptions,extra,supplemental,order)
+    apply_documentation_review()
     print(json.dumps({'duties':len(ds),'port_tasks':len(ports),'challenge_tasks':len(challenge),'description_tasks':len(descriptions),'new_packets':len(extra),'input_allocations':len(allocations),'target_leaves':len(leaves),'directory_reservations':len(reservations),'ordered_tasks':len(order)}))
 
 def write_docs(inv,ds,alloc,leaves,ports,challenge,descriptions,extra,supplemental,order):
@@ -426,5 +432,116 @@ Retirement applies to matching duplicate mechanism bodies only after complete ca
     for t in challenge+descriptions:tasks.append(f"| {t['id']} | {', '.join(t['capabilities'])} | {t['title']} |")
     tasks+=['','## Verification ladder','','1. Adjudicate source/intent roots and freeze owner contract/profiles/ABI, retaining deliberate negatives and independent expected values.','2. Verify current/prepared/real Rust or native mechanism behavior with complete admitted domains, bytes/identity/errors/demand/host predicate traces and disposal.','3. Produce source-derived descriptors/catalogs/callables/examples and prove real canonical admission/commit/read joins, permitted hook/retention/corpus behavior.','4. Qualify actual package/module/browser/native outputs outside checkout and in real workerd/D1/DO: startup, missing/corrupt/ABI errors, built consumers, restart/fences/rollback.','5. Run original browser/MCP/compiled examples and causal workflow matrices with provider/file evidence honestly labeled. All cohort M1–M10 and original finite sizes retained.','6. Compare complete caller/job economics/current and prepared TS, conversion/startup/resources and actual reuse; choose backend/default/rollout with same persisted data rollback. No performance claimed before measurement.','7. Reconcile corpus advertised scope and all accumulated merge deltas; only complete independent review can advance living checkpoint.','','All these are future acceptance duties; this audit ran only its documented read-only planning checks.']
     (OUT/'tasks.md').write_text('\n'.join(tasks)+'\n')
+
+def apply_documentation_review():
+    """Join selected documentation dispositions without recapturing historical source pins."""
+    review_path=OUT/'documentation-review.json'
+    if not review_path.exists():return
+    review=json.loads(review_path.read_text())
+    tree=json.loads((OUT/'target-tree.json').read_text())
+    catalog=json.loads((OUT/'tasks.json').read_text())
+    requirements=json.loads((OUT/'requirements.json').read_text())
+    findings=json.loads((OUT/'findings.json').read_text())
+    selections={source:r for r in review['selected_allocations'] for source in r['sources']}
+    remap={source:r['target'] for source,r in selections.items()}
+    for a in tree['input_allocations']:
+        if a['source'] in selections:
+            r=selections[a['source']]
+            a.update(targets=[r['target']],decision=r['decision'],gate=r['gate'],
+                     documentation_review='documentation-review.json',
+                     semantic_review='Document roles, reference dependencies and independent focused review; topic deletion requires complete content-preservation gate.')
+    leaves={}
+    def add_leaf(row):
+        path=remap.get(row['path'],row['path'])
+        v=leaves.setdefault(path,dict(row,path=path,owner=owner(path)))
+        for key in ('sources','duties','tasks','dispositions'):
+            v[key]=sorted(set(v.get(key,[]))|set(row.get(key,[])))
+        if path!=row['path']:
+            v['status']='existing relocated document' if path in {r['target'] for r in review['root_locations']} else 'proposed consolidated topic record; source notes still retained'
+    for row in tree['target_leaves']:add_leaf(row)
+    def ensure_leaf(path,task=None):
+        if path.endswith('/'):return
+        path=remap.get(path,path)
+        if path not in leaves:
+            leaves[path]={'path':path,'owner':owner(path),'capability':capability(path),'sources':[],
+                          'duties':['documentation ownership or planning bookkeeping'],'tasks':[],
+                          'dispositions':['REQUIRED'],'status':'existing' if (ROOT/path).is_file() else 'proposed defining leaf'}
+        if task and task not in leaves[path]['tasks']:leaves[path]['tasks'].append(task)
+    for name in ('documentation-inventory.json','documentation-review.json'):
+        ensure_leaf(str((OUT/name).relative_to(ROOT)))
+    for source,r in selections.items():
+        ensure_leaf(r['target'],r['task'])
+        leaves[r['target']]['sources']=sorted(set(leaves[r['target']]['sources'])|{source})
+        if r.get('execution_status')=='applied locally':
+            leaves[r['target']]['status']='existing relocated document' if r['task']=='DOC01' else 'existing consolidated consultation record; original source sections and evidence retained'
+    selected_sources=set(selections)
+    tree['retirements']=[r for r in tree['retirements'] if r['predecessor'] not in selected_sources]
+    tree['retirements'] += [{'predecessor':source,'successors':[r['target']],'gate':r['gate'],
+                            'retirement':'completed editor audit retired from working tree; exact bytes and logical paths recover from pinned Git revision' if r['task']=='DOC07' else 'root relocation applied locally; original historical evidence preserved' if r['task']=='DOC01' else 'lossless consultation consolidation applied locally; original sections retained, superseded file retired' if r.get('execution_status')=='applied locally' else 'proposed lossless consolidation; source not deleted here'} for source,r in sorted(selections.items()) if source!=r['target']]
+    tree['documentation_review']='documentation-review.json'
+    catalog['tasks']=[t for t in catalog['tasks'] if t['namespace']!='documentation']+review['tasks']
+    for t in catalog['tasks']:
+        t['target_writes']=sorted({remap.get(p,p) for p in t.get('target_writes',t.get('writes',[])) if not p.endswith('/')})
+        if t['namespace']=='documentation':
+            t['target_writes']=sorted({remap.get(p,p) for p in t['writes'] if not p.endswith('/')})
+            if t['disposition']!='DEFERRED':
+                for p in t['target_writes']:ensure_leaf(p,t['id'])
+    ids={t['id'] for t in catalog['tasks']}
+    deps={t['id']:set(t.get('depends_on',[]))|{d for c in t.get('conditional_dependencies',[]) for d in c['depends_on']} for t in catalog['tasks']}
+    done=set();order=[]
+    while len(done)<len(ids):
+        ready=sorted(i for i in ids-done if deps[i]<=done)
+        assert ready,{'cycle_or_missing':sorted(ids-done)}
+        order+=ready;done.update(ready)
+    catalog['topological_order_all_conditional_edges']=order
+    conflicts=collections.defaultdict(list)
+    for t in catalog['tasks']:
+        for p in t['target_writes']:conflicts[p].append(t['id'])
+    catalog['exclusive_writer_conflicts']={p:tasks for p,tasks in sorted(conflicts.items()) if len(tasks)>1}
+    requirements['duties']=[d for d in requirements['duties'] if not d['id'].startswith('DOCUMENTATION-')]
+    for t in review['tasks']:
+        requirements['duties'].append({'id':'DOCUMENTATION-'+t['id'],'review':'documentation-review.json',
+            'requirement':t['title'],'disposition':t['disposition'],'source_paths':t['writes'],
+            'target_paths':t['target_writes'],'task_ids':[t['id']],'gate':t['gate'],
+            'evidence':['documentation-inventory.json','documentation-review.json'],
+            'availability':t['execution_status']})
+    findings['items']=[r for r in findings['items'] if r['id']!='BOUND-DOCUMENTATION']
+    findings['items'].append({'id':'BOUND-DOCUMENTATION','boundary':'documentation authority, navigation and evidence',
+        'finding':'Only README and AGENTS remain at root; four specification owners and the completed evaluation plan relocated. Selected 52-to-25 topic consolidation preserves corrections and uncertainty; captured duplicate bytes are retained until reconstruction proof.',
+        'owner_gate':'DOC01 and DOC02 applied locally; DOC03-DOC05 require exact owner/content gates; DOC06 deferred' if review.get('execution',{}).get('topic_consolidation') else 'DOC01 applied locally; DOC02-DOC05 require exact owner/content gates; DOC06 deferred',
+        'classification':'accepted documentation placement; conditional content consolidation',
+        'status':'Root relocation and selected27-file consolidation applied; further pruning remains conditional/deferred' if review.get('execution',{}).get('topic_consolidation') else 'Root relocation applied; broader pruning not executed','evidence':'documentation-review.json'})
+    retired_audit=review.get('execution',{}).get('completed_editor_audit',{})
+    if retired_audit:
+        leaves['docs/ideal-filetree-plan/finished-product/documentation-review.json']['status']='existing documentation disposition and pinned Git recovery ledger'
+        finding=findings['items'][-1]
+        finding['finding']+=' Completed editor audit has no live build/test/install consumer; all 187 files recover exactly from its pinned Git revision.'
+        finding['owner_gate']+='; DOC07 editor audit retirement applied locally; other captured evidence remains under DOC06'
+        finding['status']+='; 187 editor archive files including 23 Markdown retired from working tree'
+    for leaf in leaves.values():
+        for key in ('sources','duties','tasks','dispositions'):leaf[key]=sorted(set(leaf[key]))
+    tree['target_leaves']=sorted(leaves.values(),key=lambda r:r['path'])
+    for name,value in [('target-tree.json',tree),('tasks.json',catalog),('requirements.json',requirements),('findings.json',findings)]:dump(name,value)
+    target=OUT/'target-tree.md'
+    text=target.read_text()
+    text=re.sub(r'```text\n[\s\S]*?\n```','```text\n'+'\n'.join(sorted(leaves))+'\n```',text,count=1)
+    target.write_text(text)
+    # Reuse existing narrative owners; the audit introduces no additional Markdown pages.
+    def section(file,body):
+        text=file.read_text();start='<!-- documentation-review:start -->';end='<!-- documentation-review:end -->'
+        text=re.sub(re.escape(start)+r'[\s\S]*?'+re.escape(end)+r'\n?', '',text).rstrip()
+        file.write_text(text+'\n\n'+start+'\n'+body.rstrip()+'\n'+end+'\n')
+    common='## Markdown placement and consolidation\n\nOnly `README.md` and `AGENTS.md` remain at the repository root. The current requirements, design, grammar, and decision log are in `docs/specification/`; the completed evaluation plan is `design/evaluation/PLAN.md`. These five moves and live reference repairs are applied locally, including the separate draft working tree; publication and complete checkpoint advancement remain separate.\n\n[Documentation inventory](documentation-inventory.json) records 490 tracked and three added Markdown paths at its observation. [Review and migration ledger](documentation-review.json) retains every disposition, original hash, exact successor, task and preservation gate. The selected target consolidates 52 small assessment/correction notes into 25 topic records, potentially reducing Markdown by 27 files. This consolidation remains future work. Moving the five root files alone does not reduce total file count. Frozen captures, final report bytes and raw consultation JSON retain their provenance.\n\nKeep project decisions in `docs/specification/DECISIONS.md`; proposals and accepted decisions have distinct status. Prior-plan prose, shared setup guidance and superseded launch instructions have further scoped review tasks; archival moves alone are not pruning. All 493 paths are structurally accounted for, but focused semantic review does not certify every paragraph for deletion.'
+    if review.get('execution',{}).get('topic_consolidation'):
+        common=common.replace('The selected target consolidates 52 small assessment/correction notes into 25 topic records, potentially reducing Markdown by 27 files. This consolidation remains future work.',
+            'The selected consolidation is applied: 52 assessment/correction notes now form 25 topic records, reducing Markdown by 27 files. All original source blocks, corrections, uncertainty, witnesses and limitations were preserved under heading/navigation normalization and independently cross-reviewed; 169 raw JSON records remain byte-identical. Stable source anchors replace old note paths. The ledger records original hashes, section preservation hashes, live reference repairs and 51 retired predecessors; one existing README was retained and 24 new successors created.')
+    if retired_audit:
+        common+='\n\nThe completed `editors/vscode/audit-astra/` working copies are retired: 187 files, including 23 Markdown files and 42,687,533 bytes. No build/test/install consumer depends on them; the active highlighting checker retains the defect regressions. The existing ledger pins all original paths, sizes and SHA-256 hashes to Git revision `'+retired_audit['revision']+'`; a fresh archive extraction reproduced every byte. Existing audit navigation uses commit-pinned links and recovery instructions. This scoped retirement does not authorize pruning other captures, change historical review conclusions, or advance the checkpoint. DOC06 remains deferred for broader storage deduplication.'
+    for name in ('ownership.md','findings.md','workflows.md','target-tree.md'):section(OUT/name,common)
+    task_text=common+'\n\n| Task | Selected work | Execution / gate |\n| --- | --- | --- |\n'
+    for t in review['tasks']:task_text+=f"| {t['id']} | {t['title']} | {t['execution_status']}; {t['gate']} |\n"
+    task_text+='\nThese documentation tasks do not impose a global barrier on product lanes. Serialize actual overlapping document writers and preserve active coordinator records until the owning handoff.'
+    section(OUT/'tasks.md',task_text)
+    section(ROOT/'docs/ideal-filetree-plan.md',common.replace('(documentation-inventory.json)','(ideal-filetree-plan/finished-product/documentation-inventory.json)').replace('(documentation-review.json)','(ideal-filetree-plan/finished-product/documentation-review.json)'))
 
 if __name__=='__main__':converge()

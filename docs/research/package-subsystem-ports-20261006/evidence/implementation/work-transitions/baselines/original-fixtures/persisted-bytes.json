@@ -1,0 +1,95 @@
+{
+  "revision_after_commit": 1,
+  "rows": [
+    {
+      "model": "work.dispatch",
+      "id": "obx_c89608a6a6f8887651f977b14105ff18d9639ae888bfed540091cffc72d279f3",
+      "d1_data_bytes": "{\"intentId\":\"obx_c89608a6a6f8887651f977b14105ff18d9639ae888bfed540091cffc72d279f3\",\"operationId\":\"op-baseline\",\"source\":\"cap/send\",\"occurrenceIndex\":0,\"originOccurrence\":null,\"state\":\"pending\",\"attempts\":0,\"claimId\":null,\"claimedAtMs\":null,\"guardVerdict\":null,\"deliveryId\":null,\"errorCode\":null,\"errorMessage\":null,\"availableAtMs\":null,\"firstAttemptAtMs\":null,\"retryClass\":null}",
+      "do_data_bytes": "{\"intentId\":\"obx_c89608a6a6f8887651f977b14105ff18d9639ae888bfed540091cffc72d279f3\",\"operationId\":\"op-baseline\",\"source\":\"cap/send\",\"occurrenceIndex\":0,\"originOccurrence\":null,\"state\":\"pending\",\"attempts\":0,\"claimId\":null,\"claimedAtMs\":null,\"guardVerdict\":null,\"deliveryId\":null,\"errorCode\":null,\"errorMessage\":null,\"availableAtMs\":null,\"firstAttemptAtMs\":null,\"retryClass\":null}",
+      "d1_equals_do": true,
+      "byte_length_utf8": 378,
+      "sha256": "a232500891d745d1991a8e7b9d9b9110b00cfa7106b1d1d52e14dba70ff4caab"
+    },
+    {
+      "model": "work.occurrence",
+      "id": "occ_baseline_1",
+      "d1_data_bytes": "{\"occurrenceId\":\"occ_baseline_1\",\"status\":\"completed\",\"result\":{\"ok\":true},\"code\":null,\"message\":null,\"recordedAtMs\":1750000000000}",
+      "do_data_bytes": "{\"occurrenceId\":\"occ_baseline_1\",\"status\":\"completed\",\"result\":{\"ok\":true},\"code\":null,\"message\":null,\"recordedAtMs\":1750000000000}",
+      "d1_equals_do": true,
+      "byte_length_utf8": 131,
+      "sha256": "29517611e39a8a17cff17213eb6b3f241ab13154b855f60194fb789c9d982403"
+    },
+    {
+      "model": "work.schedule",
+      "id": "occ_baseline_1",
+      "d1_data_bytes": "{\"occurrenceId\":\"occ_baseline_1\",\"key\":\"report\",\"scopeApp\":\"app1\",\"scopeOwner\":\"team1\",\"scopeOwnerPackage\":\"pkg1\",\"at\":1750000000000,\"event\":\"evt\",\"payload\":{\"a\":1},\"replaces\":null,\"state\":\"pending\"}",
+      "do_data_bytes": "{\"occurrenceId\":\"occ_baseline_1\",\"key\":\"report\",\"scopeApp\":\"app1\",\"scopeOwner\":\"team1\",\"scopeOwnerPackage\":\"pkg1\",\"at\":1750000000000,\"event\":\"evt\",\"payload\":{\"a\":1},\"replaces\":null,\"state\":\"pending\"}",
+      "d1_equals_do": true,
+      "byte_length_utf8": 199,
+      "sha256": "2daa39b22ad03ecf434f3ad702da99cbba91382c37eff5548f5646148dca0b07"
+    },
+    {
+      "model": "work.every_slot",
+      "id": "every/v1/app1/h1/team/team1",
+      "d1_data_bytes": "{\"scopeKey\":\"team:team1\",\"app\":\"app1\",\"handler\":\"h1\",\"scope\":\"team\",\"owner\":\"team1\",\"slot\":500}",
+      "do_data_bytes": "{\"scopeKey\":\"team:team1\",\"app\":\"app1\",\"handler\":\"h1\",\"scope\":\"team\",\"owner\":\"team1\",\"slot\":500}",
+      "d1_equals_do": true,
+      "byte_length_utf8": 95,
+      "sha256": "a961b6d852b89f6bfb055928bf1b9b3c3e9c47c8d1e6e03d74903a8d82296c58"
+    },
+    {
+      "model": "work.supersession",
+      "id": "obx_c89608a6a6f8887651f977b14105ff18d9639ae888bfed540091cffc72d279f3",
+      "d1_data_bytes": "{\"outboxId\":\"obx_c89608a6a6f8887651f977b14105ff18d9639ae888bfed540091cffc72d279f3\",\"byOccurrenceId\":null,\"markedAtMs\":1750000000000}",
+      "do_data_bytes": "{\"outboxId\":\"obx_c89608a6a6f8887651f977b14105ff18d9639ae888bfed540091cffc72d279f3\",\"byOccurrenceId\":null,\"markedAtMs\":1750000000000}",
+      "d1_equals_do": true,
+      "byte_length_utf8": 132,
+      "sha256": "2da445d0502a0d017f22e9e76df12aeb7897a24577ebfca90aef29fff33f2b9c"
+    },
+    {
+      "model": "work.fanout_intent",
+      "id": "fanout/v1/occ_baseline_1/h1/model",
+      "d1_data_bytes": "{\"fanoutId\":\"fanout/v1/occ_baseline_1/h1/model\",\"sourceOccurrence\":\"occ_baseline_1\",\"handler\":\"h1\",\"cohort\":\"model\",\"members\":[\"rec-a\",\"rec-b\"],\"memberCount\":2}",
+      "do_data_bytes": "{\"fanoutId\":\"fanout/v1/occ_baseline_1/h1/model\",\"sourceOccurrence\":\"occ_baseline_1\",\"handler\":\"h1\",\"cohort\":\"model\",\"members\":[\"rec-a\",\"rec-b\"],\"memberCount\":2}",
+      "d1_equals_do": true,
+      "byte_length_utf8": 160,
+      "sha256": "ba13500953d7316b7539c6061587cb95de7ae5b5ade7cdf3917685c957551c3e"
+    },
+    {
+      "model": "work.fanout_checkpoint",
+      "id": "fanout/v1/occ_baseline_1/h1/model",
+      "d1_data_bytes": "{\"fanoutId\":\"fanout/v1/occ_baseline_1/h1/model\",\"completed\":[\"rec-a\"],\"cursor\":null}",
+      "do_data_bytes": "{\"fanoutId\":\"fanout/v1/occ_baseline_1/h1/model\",\"completed\":[\"rec-a\"],\"cursor\":null}",
+      "d1_equals_do": true,
+      "byte_length_utf8": 84,
+      "sha256": "9e7e3eedafe432281a90ec53efb24c41f5cf5642504bd29d5c545e2583191948"
+    },
+    {
+      "model": "work.fanout_child",
+      "id": "fanout-child/v1/occ_baseline_1/h1/rec-a",
+      "d1_data_bytes": "{\"fanoutId\":\"fanout/v1/occ_baseline_1/h1/model\",\"parentOccurrence\":\"occ_baseline_1\",\"handler\":\"h1\",\"recordId\":\"rec-a\",\"childId\":\"fanout-child/v1/occ_baseline_1/h1/rec-a\",\"state\":\"pending\",\"attempts\":0,\"causeKind\":null,\"causeReason\":null}",
+      "do_data_bytes": "{\"fanoutId\":\"fanout/v1/occ_baseline_1/h1/model\",\"parentOccurrence\":\"occ_baseline_1\",\"handler\":\"h1\",\"recordId\":\"rec-a\",\"childId\":\"fanout-child/v1/occ_baseline_1/h1/rec-a\",\"state\":\"pending\",\"attempts\":0,\"causeKind\":null,\"causeReason\":null}",
+      "d1_equals_do": true,
+      "byte_length_utf8": 237,
+      "sha256": "c5afd0131046f7500f010380ffd79f038fd0a9f5cbd847d43123c15034244fe0"
+    },
+    {
+      "model": "work.receipt_association",
+      "id": "receipt-assoc/v1/Todo/r1/status",
+      "d1_data_bytes": "{\"recordModel\":\"Todo\",\"recordId\":\"r1\",\"field\":\"status\",\"deliveryId\":\"dlv_1\",\"source\":\"decl@app1\",\"revision\":3}",
+      "do_data_bytes": "{\"recordModel\":\"Todo\",\"recordId\":\"r1\",\"field\":\"status\",\"deliveryId\":\"dlv_1\",\"source\":\"decl@app1\",\"revision\":3}",
+      "d1_equals_do": true,
+      "byte_length_utf8": 110,
+      "sha256": "a9bad442cdef4f0765e7dd7481242a79fee63f4a46ccf687e6bdbc2130bac42c"
+    },
+    {
+      "model": "work.receipt",
+      "id": "dlv_1",
+      "d1_data_bytes": "{\"deliveryId\":\"dlv_1\",\"revision\":3,\"status\":\"succeeded\",\"result\":{\"ok\":true},\"error\":null,\"contentRef\":null,\"resultExpiresAtMs\":null}",
+      "do_data_bytes": "{\"deliveryId\":\"dlv_1\",\"revision\":3,\"status\":\"succeeded\",\"result\":{\"ok\":true},\"error\":null,\"contentRef\":null,\"resultExpiresAtMs\":null}",
+      "d1_equals_do": true,
+      "byte_length_utf8": 133,
+      "sha256": "67fb49c080943bd77d6f952cd9c6e0412cae018d0906b1e501ca76558289ffbd"
+    }
+  ]
+}

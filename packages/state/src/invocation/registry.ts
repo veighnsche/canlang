@@ -57,6 +57,10 @@ import {
   createDeliverySchema,
   type DeliveryFieldSchema,
 } from '../receipt/grants.js';
+import {
+  prepareDescriptorInputs,
+  type PreparedOperationPlan,
+} from './prepared-inputs.js';
 
 /**
  * INTERIM input descriptor. Scalar bounds arrive with S5/L2; S3 validates
@@ -93,6 +97,15 @@ export interface GeneratedOperationDef {
   readonly by: ByPredicate;
   readonly when?: QueryPredicate;
   readonly inputArrays: Readonly<Record<string, { readonly required: boolean }>>;
+  /**
+   * V02.4 prepared-inputs plan (`state-generated/v1`): copied data-only
+   * input metadata for this def, built fresh at load. Present on every
+   * loader-produced def; absent on synthetic/interim-derived defs, which
+   * carry no proven producer provenance. Admission ignores it (a later
+   * bridge handoff consumes it); the prepared validator is pinned
+   * against the current-TS validator, never a second authority.
+   */
+  readonly preparedInputs?: PreparedOperationPlan;
 }
 
 /** True for loader-produced generated defs (never for interim defs). */
@@ -708,6 +721,11 @@ export function loadExecutionDescriptorSet(
       by: frozenBy,
       ...(when !== undefined ? { when: deepFreezeLoaded(when) } : {}),
       inputArrays: deepFreezeLoaded(arrayMarkers),
+      // V02.4: fresh prepared-inputs plan per def per load — never a
+      // cached lookup by operation name. Built from the validated
+      // descriptor, so whole-set rejection below/above leaves no
+      // partial plan behind (the def is only registered on success).
+      preparedInputs: deepFreezeLoaded(prepareDescriptorInputs(descriptor, arrayMarkers)),
     };
     registry.set(opName, Object.freeze(def));
   }

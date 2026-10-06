@@ -6,11 +6,11 @@ The reported lexical defects F1–F8 and F10 have been corrected in the focused 
 
 The packaged grammar SHA-256 is **`5b81968086d429b8b5156badc7efd712b0016f37aaaf576cd4489beed0214ea3`**. Version 0.1.5 changes the version label and documentation after this grammar was tested. Earlier working source and installed copies both used 0.1.4 with different grammar bytes; conclusions below refer to hashes, rather than assuming the version label identifies a snapshot.
 
-The [original independent audit](audit-astra/REPORT.md) remains historical evidence. Its [first correction recheck](audit-astra/recheck-20261004T014855Z/RECHECK.md) verified most cases and identified four narrower survivors. Its [final changed-rule rerun](audit-astra/changed-rule-recheck-20261004T020201Z/RECHECK.md), captured at 04:02:01 Europe/Brussels on October 4, independently passes those four groups against the exact final hash above. Both editor engines separately resolve both inline `require` guards to white/bold.
+The completed audit working copies have been retired; exact bytes remain in Git revision `e5fa27c3cbe6c00e4ec76ea61005a3f1d3e65faa`. The [original independent audit](https://github.com/veighnsche/canlang/blob/e5fa27c3cbe6c00e4ec76ea61005a3f1d3e65faa/editors/vscode/audit-astra/REPORT.md) remains historical evidence. Its [first correction recheck](https://github.com/veighnsche/canlang/blob/e5fa27c3cbe6c00e4ec76ea61005a3f1d3e65faa/editors/vscode/audit-astra/recheck-20261004T014855Z/RECHECK.md) verified most cases and identified four narrower survivors. Its [final changed-rule rerun](https://github.com/veighnsche/canlang/blob/e5fa27c3cbe6c00e4ec76ea61005a3f1d3e65faa/editors/vscode/audit-astra/changed-rule-recheck-20261004T020201Z/RECHECK.md), captured at 04:02:01 Europe/Brussels on October 4, independently passes those four groups against the exact final hash above. Both editor engines separately resolve both inline `require` guards to white/bold.
 
 ## Per-finding disposition
 
-The original probe IDs link to the preserved [probe definitions](audit-astra/probes.json). Some original fragments omit their required enclosing sections. Final checks place those fragments in Given/When/Then and scenario/page contexts; an orphan page outside Then intentionally does not acquire presentation scopes.
+The original probe IDs link to the preserved [probe definitions](https://github.com/veighnsche/canlang/blob/e5fa27c3cbe6c00e4ec76ea61005a3f1d3e65faa/editors/vscode/audit-astra/probes.json). Some original fragments omit their required enclosing sections. Final checks place those fragments in Given/When/Then and scenario/page contexts; an orphan page outside Then intentionally does not acquire presentation scopes.
 
 | Finding and original reproduction | Correction in the final grammar | Verification and boundary |
 | --- | --- | --- |
@@ -35,3 +35,15 @@ Smaller observations were also addressed: capability signatures after semicolons
 - The VSIX contains five entries: package manifest, grammar, README and two packaging metadata files. It contributes no executable entry point, language server, diagnostics, dependencies or replacement theme. `.ail` remains registered; obsolete Canlang is absent from both active extension registries.
 
 Source counts can change while other workers edit the drafts. The final checker output and installation capture are retained in the paired evidence. A corpus sweep confirms tokenizer stability for those captured inputs; it does not prove complete grammar coverage, closed-header validity, grants, name/type resolution, business requirements or executable examples. No UI interaction or reload was performed. Existing IDE windows need a reload to apply the new installed grammar; visible rendering is unverified.
+
+## Recover the historical audit
+
+All 187 original files, including the frozen snapshots, reports, manifests and probe runners, are preserved at that revision. The [recovery ledger](../../docs/ideal-filetree-plan/finished-product/documentation-review.json) records every original path, size and SHA-256 hash; a fresh Git archive extraction matched all of them. To restore the original layout outside the checkout:
+
+```sh
+mkdir -p /tmp/can-highlighting-audit
+git archive --format=tar --output=/tmp/can-highlighting-audit.tar e5fa27c3cbe6c00e4ec76ea61005a3f1d3e65faa editors/vscode/audit-astra
+tar -xf /tmp/can-highlighting-audit.tar -C /tmp/can-highlighting-audit
+```
+
+The current `check-highlighting.cjs` retains the regression cases. Restoring historical runners does not reproduce their original IDE versions or installed settings; the reports retain their original evidence limits. This removes 23 Markdown files and about 43 MB from the working tree; Git history still stores the evidence.

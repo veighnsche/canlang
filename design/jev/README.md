@@ -162,7 +162,7 @@ All three responses identify `jev-1.13.0` and select the same alternatives:
 
 Agreement does not mean equal strength. R2 coherence probability varies from 0.41 to 0.92, with unresolved probability as high as 0.35; required-default probability varies from 0.47 to 0.87, with explicit-marker alternatives at 0.39/0.41 in B/C. No explanatory prose was returned. The concrete R2 design therefore specifies resource derivation from runtime-included file types, excludes schema-only provider storage, applies defaults after merging explicit deviations, and keeps content/authorization checks. This makes the implementation contract explicit while honoring the user directive; it is not proven correct by JEV. Scalar requiredness remains a proposal rather than being silently adopted despite variable confidence.
 
-There are no different winning choices to resolve, but the confidence/probability changes show material wording sensitivity. The detailed [audit](../../DECISIONS.md#token-repetition-audit) separates implemented source/default normalizations from proposed grammar changes and measurements from actual token/runtime benchmarks. Only uniform R2/setup and default-equivalent CRUD/lock attributes were applied in this round. Capability-version, loop-budget and implicit-app identity candidates were found by the audit but not separate questions in this consultation.
+There are no different winning choices to resolve, but the confidence/probability changes show material wording sensitivity. The detailed [audit](../../docs/specification/DECISIONS.md#token-repetition-audit) separates implemented source/default normalizations from proposed grammar changes and measurements from actual token/runtime benchmarks. Only uniform R2/setup and default-equivalent CRUD/lock attributes were applied in this round. Capability-version, loop-budget and implicit-app identity candidates were found by the audit but not separate questions in this consultation.
 
 The three requests used 7,078 input tokens and 1,182 output tokens. Recorded totals across thirteen successful consultations are 36,597 input tokens and 3,928 output tokens, covering 76 judgments. Saved requests/responses are evidence of the supplied alternatives, not a parser, compiler, execution test or guaranteed removal of bias.
 
@@ -189,7 +189,7 @@ All responses identify `jev-1.13.0`. Values below are the returned yes probabili
 
 The disagreement was investigated by comparing the questions against their shared evidence. They retain the same null/default/array exceptions, non-team ownership choices, mandatory by/on, atomic rollback, example attachment and explicit binding boundaries. No fact reversal was found. Nevertheless, scalar requiredness, roles and operation markers vary materially with wording. Complete parser/diagnostic rules and actual generation measurements are absent; JEV returned no explanation, so the cause of individual scores cannot be asserted. The earlier forced-choice confidence and these independent property probabilities are different outputs and must not be directly compared as a single correctness scale.
 
-Grouped imports have a narrow observed range here, which makes them a more consistent advisory candidate in this review, not an automatically approved or verified grammar. The remaining proposals are unsettled. No fixed cutoff, averaging, majority vote or repeated calls until a preferred answer was obtained were used. No larger grammar proposal was adopted or `.can` source changed in this NOUL round. [The audit](../../DECISIONS.md#token-repetition-audit) now records this additional uncertainty.
+Grouped imports have a narrow observed range here, which makes them a more consistent advisory candidate in this review, not an automatically approved or verified grammar. The remaining proposals are unsettled. No fixed cutoff, averaging, majority vote or repeated calls until a preferred answer was obtained were used. No larger grammar proposal was adopted or `.can` source changed in this NOUL round. [The audit](../../docs/specification/DECISIONS.md#token-repetition-audit) now records this additional uncertainty.
 
 These three calls used 3,789 input tokens and 348 output tokens. Across sixteen successful consultations, totals are 40,386 input tokens and 4,276 output tokens, covering 94 judgments. This NOUL review establishes neither an exclusive question type nor a default for subsequent consultations.
 
@@ -743,10 +743,10 @@ The three `rent-final-gaps-20261004-{a,b,c}` requests/results, wording check and
 - [Feedback completion](feedback-completion-20261004/): three fresh requests assessed contribution limits, retained votes, moderation and the actual Desk intake boundary; returned choice probabilities .99/1/1 for the recorded proposal, treated as advice rather than correctness proof.
 
 - [Shared attribution capture](shared-attribution-capture-20261004-a.questions.json), [second](shared-attribution-capture-20261004-b.questions.json), [third](shared-attribution-capture-20261004-c.questions.json): owner-local common capture advice; matching result files preserve probabilities and uncertainty.
-- [Rent commercial producer](rent-sales-producer-20261004/assessment.md) and [version-boundary correction](rent-sales-version-boundary-20261004/assessment.md): initial NOUL .86/.60/.39 triggered investigation; a concrete booking-version conflict was fixed with child commercial state. Corrected .84/.78/.61 remains advice, not proof.
-- [Desk maintenance handoff](desk-handoff-20261004/review.md): three source-grounded choices favored the existing owning operation (.71/.96/.93; confidence .41/.92/.85). Full requests/results and wording review retained; contracts remain unexecuted.
+- [Rent commercial producer](rent-sales-producer-20261004/README.md#source-assessment) and [version-boundary correction](rent-sales-version-boundary-20261004/README.md#source-assessment): initial NOUL .86/.60/.39 triggered investigation; a concrete booking-version conflict was fixed with child commercial state. Corrected .84/.78/.61 remains advice, not proof.
+- [Desk maintenance handoff](desk-handoff-20261004/README.md#source-review): three source-grounded choices favored the existing owning operation (.71/.96/.93; confidence .41/.92/.85). Full requests/results and wording review retained; contracts remain unexecuted.
 
-- [Record-input admission](record-input-admission-20261004/assessment.md): three fresh choices split (.83/.77 for operation authority; .51 for a read prerequisite in the third). Investigation preserves the existing separate read/write boundary, explicit guards and safe output; this is not unanimous validation.
+- [Record-input admission](record-input-admission-20261004/README.md#source-assessment): three fresh choices split (.83/.77 for operation authority; .51 for a read prerequisite in the third). Investigation preserves the existing separate read/write boundary, explicit guards and safe output; this is not unanimous validation.
 
 ### Check lifecycle completion — October 4, 2026
 
@@ -762,7 +762,7 @@ The three `rent-final-gaps-20261004-{a,b,c}` requests/results, wording check and
 
 ### Hiring retention and onboarding handoff — October 4, 2026
 
-[Retention evidence and correction](hire-retention-20261004/correction.md) preserves the invalid initial consultation premise (block derives do not exist) and superseding fresh requests/results. The corrected three choices favor nullable deadlines with returned probability/confidence 1 in each; this is advice, not proof. Closure stores one nullable parent deadline, reopening cannot revive expired candidates, and existing retain syntax consumes it. [Handoff consultations](hire-onboard-20261004/) review canonical Employee creation/reuse followed by an explicit authorized onboarding start instead of duplicating staff identity or automatically granting roles.
+[Retention evidence and correction](hire-retention-20261004/README.md#source-correction) preserves the invalid initial consultation premise (block derives do not exist) and superseding fresh requests/results. The corrected three choices favor nullable deadlines with returned probability/confidence 1 in each; this is advice, not proof. Closure stores one nullable parent deadline, reopening cannot revive expired candidates, and existing retain syntax consumes it. [Handoff consultations](hire-onboard-20261004/) review canonical Employee creation/reuse followed by an explicit authorized onboarding start instead of duplicating staff identity or automatically granting roles.
 
 ### Café reservation completion — October 4, 2026
 
@@ -775,3 +775,37 @@ The three `rent-final-gaps-20261004-{a,b,c}` requests/results, wording check and
 ### Website dimension breakdowns — October 4, 2026
 
 [Three fresh choices and disagreement analysis](stats-breakdown-20261004/) compare an existing typed business-report capability with a new general analytics-read surface. They disagree: capability .98, shared analytics .62, capability .86 (full distributions/confidences saved). The selected scoped contract uses existing asynchronous primitives and explicitly discloses weighted estimates and incomplete groups; no adapter/query implementation is claimed.
+
+<!-- consolidated-topic-records:start -->
+## Consolidated topic records
+
+These records combine each topic’s assessment, request comparison, correction history, and verification notes. Original source sections have stable anchors; exact request/result JSON and supporting evidence remain in their topic directories. This organization changes no design verdict or execution claim.
+
+| Topic | Record |
+| --- | --- |
+| CanTable completion consultation | [Consultation record](cafe-completion-20261004/README.md) |
+| CanCatch intake contract consultation | [Consultation record](catch-intake-20261004/README.md) |
+| CanCheck completion consultation | [Consultation record](check-completion-20261004/README.md) |
+| Enrichment declaration consultation | [Consultation record](complex-enrich-20261004/README.md) |
+| CanInbox authoring comparison and verification | [Consultation record](complex-inbox-20261004/README.md) |
+| CanSync preservation policy consultation | [Consultation record](complex-sync-20261004/README.md) |
+| CRM appointment replacement consultation and verification | [Consultation record](crm-connections-reschedule-20261004/README.md) |
+| daisyUI component vocabulary consultation | [Consultation record](daisyui-catalog-20261004/README.md) |
+| Delivery recipe override consultation | [Consultation record](delivery-recipe-overrides-20261004/README.md) |
+| Desk handoff consultation | [Consultation record](desk-handoff-20261004/README.md) |
+| Feedback completion consultation | [Consultation record](feedback-completion-20261004/README.md) |
+| Hire onboarding consultation | [Consultation record](hire-onboard-20261004/README.md) |
+| Hire retention consultation and correction history | [Consultation record](hire-retention-20261004/README.md) |
+| Loyalty eligibility consultation | [Consultation record](loyalty-eligibility-20261004/README.md) |
+| Maintain inspection progress consultation | [Consultation record](maintain-inspection-progress/README.md) |
+| Maintain recovery consultation | [Consultation record](maintain-recovery-20261004/README.md) |
+| Shared attachment handoff consultation | [Consultation record](mcp-file-handoff-20261004/README.md) |
+| Consumed membership replacement consultation | [Consultation record](member-consumed-stage-20261004/README.md) |
+| Membership allocation ownership consultation | [Consultation record](member-owner-20261004/README.md) |
+| Feedback history and Product selector consultation | [Consultation record](muse-feedback-20261004/README.md) |
+| Record-input admission consultation | [Consultation record](record-input-admission-20261004/README.md) |
+| Initial rental sales producer consultation | [Consultation record](rent-sales-producer-20261004/README.md) |
+| Corrected rental sales version boundary consultation | [Consultation record](rent-sales-version-boundary-20261004/README.md) |
+| Weighted statistics report consultation | [Consultation record](stats-breakdown-20261004/README.md) |
+| CanTime correction consultation | [Consultation record](time-completion-20261004/README.md) |
+<!-- consolidated-topic-records:end -->
