@@ -73,7 +73,7 @@ Codex independently reviews released slices promptly, requests bounded repairs, 
 
 ## Supervision, readiness and closure
 
-The existing same-chat 15-minute supervisor is **ACTIVE** for this first-packet runtime. While Codex is actively working, use collaboration completion/messages and bounded command handles directly; do not wait for a scheduled wake to handle ready work. A later heartbeat must verify that actual subagent handles remain supported and recoverable before claiming continuation; report files alone are not a wake or dispatch. No local agent schedules are introduced.
+The first three packets are reviewed and committed; the existing same-chat 15-minute supervisor is **PAUSED** between finite releases. While Codex is actively working, use collaboration completion/messages and bounded command handles directly; do not wait for a scheduled wake to handle ready work. A later heartbeat must verify that actual subagent handles remain supported and recoverable before claiming continuation; report files alone are not a wake or dispatch. No local agent schedules are introduced.
 
 The step-4 release authorizes only the three recorded packets and their bounded checks, reviews and repairs. Successors require a separate finite assignment within the human's selected scope. There is no all-four startup barrier: each finite packet starts when its own readiness and ownership are resolved. Honor actual pause/cancel separately from heartbeat pause and verify affected writers/commands stop. Do not restore killed Muse generations or adopt historical goals.
 

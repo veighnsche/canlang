@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "phase": "running",
+  "phase": "first_packets_complete",
   "execution_authorized": true,
   "run_dir": "/Users/vince/Projects/canlang/implementation/rust-port-orchestration/runs/codex-first-20261006T231809Z",
   "roles": [
@@ -16,7 +16,7 @@
       "ack_path": "/private/tmp/canlang-rust-port-codex-first-20261006T231809Z/packets/R1-N02/ACK.json",
       "ack_sha256": "0e2f774cafdca786aa6d0b3c615543c352a8fc692a9198352df1c74cb9694631",
       "ack_observed": true,
-      "status": "released_for_independent_review",
+      "status": "completed_narrow_scope",
       "writable_paths": [
         "packages/values/semantics/src/representations/numeric.rs",
         "packages/values/semantics/tests/numeric_text_contract.rs",
@@ -32,7 +32,8 @@
       "release_manifest": {
         "path": "/private/tmp/canlang-rust-port-codex-first-20261006T231809Z/packets/R1-N02/FINAL.json",
         "sha256": "ce27f891d6ecfd64fcdcc46a0f9e80b25d064db484f84b3768707179518ab6ec"
-      }
+      },
+      "integrated_commit": "a34aa16fcf85e1241145bd6d92d9ca175420f20d"
     },
     {
       "worker": "B",
@@ -46,7 +47,7 @@
       "ack_path": "/private/tmp/canlang-rust-port-codex-first-20261006T231809Z/packets/R2-V01/ACK.json",
       "ack_sha256": "60135b97e48a33c922d4e8b1c53ceca6e81f76d513ca24e6ea58e1cd0759f71c",
       "ack_observed": true,
-      "status": "released_for_independent_review",
+      "status": "completed_narrow_scope",
       "writable_paths": [
         "docs/research/package-subsystem-ports-20261006/evidence/input-validation/contracts.md",
         "docs/research/package-subsystem-ports-20261006/evidence/input-validation/caller-inventory.json",
@@ -62,7 +63,8 @@
       "release_manifest": {
         "path": "/private/tmp/canlang-rust-port-codex-first-20261006T231809Z/packets/R2-V01/release-manifest.json",
         "sha256": "d7be7c8c5915afcf305d9691e23e2201b1f33da5312a2be686e9ce90c945e7c1"
-      }
+      },
+      "integrated_commit": "a35fcae114b722823435a0f2ed19ab0345d3f0bf"
     },
     {
       "worker": "C",
@@ -76,7 +78,7 @@
       "ack_path": "/private/tmp/canlang-rust-port-codex-first-20261006T231809Z/packets/R3-N03/ACK.json",
       "ack_sha256": "81b487b845cd1c05c3558ac8ec0900ce0a44ce0a566751e57f70403c8bd20906",
       "ack_observed": true,
-      "status": "released_for_independent_review",
+      "status": "completed_narrow_scope",
       "writable_paths": [
         "packages/work-kernel/decisions/rows.rs",
         "packages/work-kernel/decisions/receipt.rs",
@@ -94,7 +96,8 @@
       "release_manifest": {
         "path": "/private/tmp/canlang-rust-port-codex-first-20261006T231809Z/packets/R3-N03/RESULT.json",
         "sha256": "e2302902d6721ed05d8e76ef8a26e7cae8e3e443bad49ea9e7ae49daf9ed6bfb"
-      }
+      },
+      "integrated_commit": "bcaa5db13e8c903b388dd0f419c9e65866065981"
     }
   ],
   "native_timers": [],
@@ -119,7 +122,9 @@
     "first:R3:N03-work-number-maintenance"
   ],
   "human_release_reference": "Human step4 in this chat, 2026-10-07",
-  "supervisor_status": "ACTIVE",
+  "supervisor_status": "PAUSED",
   "monitor": "/Users/vince/Projects/canlang/implementation/rust-port-orchestration/runs/codex-first-20261006T231809Z/monitor.json",
-  "updated_at_utc": "2026-10-06T23:29:31.534800+00:00"
+  "updated_at_utc": "2026-10-06T23:33:28.706258+00:00",
+  "future_dispatch_authorized": false,
+  "completion_verification": "implementation/rust-port-orchestration/runs/codex-first-20261006T231809Z/completion-verification.json"
 }

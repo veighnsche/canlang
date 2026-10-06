@@ -39,7 +39,7 @@
   ],
   "sequence_role": "first",
   "execution_authorized": true,
-  "active_lease": true,
+  "active_lease": false,
   "assigned_agent": "/root/worker_b_v01",
   "operator_ack": {
     "path": "/private/tmp/canlang-rust-port-codex-first-20261006T231809Z/packets/R2-V01/ACK.json",
@@ -111,7 +111,7 @@
   "canonical_snapshot_index": "preserved_original_records",
   "private_output_root": "/private/tmp/canlang-rust-port-codex-first-20261006T231809Z/packets/R2-V01",
   "human_release_reference": "Human step4 in this chat, 2026-10-07: Start three finite Codex packets.",
-  "runtime_status": "working",
+  "runtime_status": "completed_narrow_scope",
   "allowed_checks": "Read-only source/hash inspections and named packet checks with private mutable output; request heavy-command permit from Codex before each actual heavy check. No publication/CI/push.",
   "source_input_sha256": {
     "implementation/remaining-work/tasks.json": {
@@ -228,5 +228,8 @@
     }
   },
   "assembly_write_paths": [],
-  "assembly_transfer": "No assembly source write transfer."
+  "assembly_transfer": "No assembly source write transfer.",
+  "writer_released": true,
+  "command_released": true,
+  "integrated_commit": "a35fcae114b722823435a0f2ed19ab0345d3f0bf"
 }
