@@ -2417,6 +2417,11 @@ impl<'a> Cx<'a> {
             "now" if scope.in_hook => return member_of("$hookCtx", "now", ty, span),
             "actor" => return member_of("c", "actor", ty, span),
             "now" => return member_of("c", "now", ty, span),
+            // B4-G/O2: non-hook bodies read team/operation off the
+            // ambient context like actor/now; hooks keep the legacy
+            // fallthrough until T34-Q5 settles the hook-side contract.
+            "team" if !scope.in_hook => return member_of("c", "team", ty, span),
+            "operation" if !scope.in_hook => return member_of("c", "operation", ty, span),
             _ => {}
         }
         if is_test_account(name) {
