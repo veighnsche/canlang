@@ -133,15 +133,17 @@ export class NativePlanRegistry {
   /**
    * Disposes one handle. Idempotent and total: unissued handles are
    * silent no-ops (teardown paths never fail); genuineness is
-   * enforced at adopt/get.
+   * enforced at adopt/get. Disposal marks ONLY handles this registry
+   * resolves: a cross-registry release must not re-code a foreign
+   * handle as disposed.
    */
   release(handle: unknown): void {
     if (typeof handle !== "object" || handle === null || !ISSUED_HANDLES.has(handle)) {
       return;
     }
-    this.disposed.add(handle);
     const entry = this.byHandle.get(handle);
     if (entry !== undefined) {
+      this.disposed.add(handle);
       this.live.delete(entry);
       this.scopes.get(entry.owner)?.delete(entry.plan.id);
     }
@@ -150,7 +152,10 @@ export class NativePlanRegistry {
   /**
    * Retires the current generation and starts the next. Older handles
    * go stale; plan.ts plans are untouched (no eviction anywhere:
-   * release stays the only removal of live entries).
+   * release stays the only removal of live entries). The live set is
+   * reclaimed immediately, freeing bound (N2: the native half counts
+   * retired-unreleased plans against its bound until release —
+   * recorded divergence, same release-frees rule in both halves).
    */
   retireGeneration(): number {
     for (const entry of this.live) {
