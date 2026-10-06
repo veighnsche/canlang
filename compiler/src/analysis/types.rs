@@ -3290,6 +3290,21 @@ impl<'a> Typer<'a> {
                 },
             );
         }
+        // A validated delivery completion types the handler payload
+        // with the DESIGN §8 envelope instead of `{opaque}`: the
+        // op's declared result flows to `event.result` and the closed
+        // status vocabulary to `event.status`.
+        if let Some(on) = attribute_value(node, "on", text)
+            && let Some(envelope) = self.on_completion_payload(module, text, on)
+        {
+            env.insert(
+                NarrowKey {
+                    decl: DeclKey::CtxEvent,
+                    path: Vec::new(),
+                },
+                envelope,
+            );
+        }
         // `by=` authorization narrows `actor` for guards and the body
         // (DESIGN §3); the resolver already narrowed
         // members/owner/authenticated, so this only adds role
@@ -3398,6 +3413,68 @@ impl<'a> Typer<'a> {
             }
             _ => None,
         }
+    }
+
+    /// Delivery envelope behind a handler's `on=Cap.op.completed`
+    /// (DESIGN §8): `delivery_id:text`,
+    /// `status:enum(pending,succeeded,failed,unknown,skipped)`,
+    /// `result:R?` from the op's declared result, `error:{opaque}`.
+    /// Mirrors the examples pass T35/R24 envelope, with the closed
+    /// DESIGN:654 status vocabulary so bare outcomes claim. Anything
+    /// else yields `None` (payload stays opaque).
+    fn on_completion_payload(
+        &self,
+        module: ModuleId,
+        text: &str,
+        on: &SyntaxNode,
+    ) -> Option<ResolvedType> {
+        if on.kind != SyntaxKind::Path {
+            return None;
+        }
+        let segments = path_segments(on, text);
+        if segments.len() != 3 || segments[2] != "completed" {
+            return None;
+        }
+        let head = self.prod_or_imported(module, segments[0])?;
+        let SymbolKind::Capability { ops, .. } = &self.tables.symbols[head.0 as usize].kind
+        else {
+            return None;
+        };
+        let op = ops
+            .iter()
+            .copied()
+            .find(|o| self.tables.symbols[o.0 as usize].name == segments[1])?;
+        let result = self
+            .results
+            .get(&op)
+            .cloned()
+            .flatten()
+            .map(|r| {
+                if matches!(r, ResolvedType::Nullable(_)) {
+                    r
+                } else {
+                    ResolvedType::Nullable(Box::new(r))
+                }
+            })
+            .unwrap_or(ResolvedType::Null);
+        Some(ResolvedType::Object(vec![
+            (
+                "delivery_id".to_string(),
+                ResolvedType::Scalar(Scalar::Text),
+            ),
+            (
+                "status".to_string(),
+                ResolvedType::Enum {
+                    cases: ["pending", "succeeded", "failed", "unknown", "skipped"]
+                        .iter()
+                        .map(|s| s.to_string())
+                        .collect(),
+                    owner: None,
+                },
+            ),
+            ("result".to_string(), result),
+            ("error".to_string(), ResolvedType::Opaque("delivery error")),
+        ]))
     }
 
     /// Whether a `by=`/`read=` authorization expression proves an
