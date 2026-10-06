@@ -44,6 +44,7 @@
  * store. Additive only: no T24b/T32b path above is modified.
  */
 import type {
+  ArtifactCohortDescriptor,
   ClaimId,
   CompileArtifact,
   DispatchClaim,
@@ -68,6 +69,7 @@ import type {
   OutboxItemState,
   QuerySpec,
   Receipt,
+  ReceiptProperty,
   RecordId,
   RecordVersion,
   ResolvedIdentity,
@@ -78,6 +80,7 @@ import type {
   CommitBatch,
   CommitResult,
   ProjectedRecord,
+  SelectedReceiptProjection,
   StoragePort,
   StoredRow,
   UniqueClaim,
@@ -490,16 +493,18 @@ export async function invokeCallableInOccurrence(
 /*                                                                      */
 /* Admission authorization (T04a §3: "until T16 maps generated          */
 /* policy"): the descriptor intake carries no `by`, so L7 transcribes   */
-/* the emitted `canApp().policy.operations[name]` manifest. The         */
-/* transcription covers exactly the established subset — absent entry   */
-/* (the emitter returns None iff the operation carries no admission     */
-/* content at all) admits `public`; Role-only `by` spellings map        */
-/* 1:1 (builtins literal, declared roles to `{role}`, multiples to      */
-/* `{and}` — the emitter joins guards with `&&`); anything else         */
-/* (`gated`, `when`, `requires`, malformed or unknown members) refuses  */
-/* the whole set LOUD at load, naming T04b, instead of running          */
-/* unguarded. Scenario operations admit `public` at the canonical gate  */
-/* because their emitted handler still runs its full inlined gate       */
+/* the emitted `canApp().policy.operations[name]` manifest. B7          */
+/* fail-closed: absent entry (the emitter returns None iff the          */
+/* operation carries no admission content at all) denies via            */
+/* `{not: "public"}` (S4 "no policy means deny" — per-call typed        */
+/* denial); role-only `by` spellings map 1:1 (builtins literal,         */
+/* declared roles to `{role}`, multiples to `{and}` — the emitter       */
+/* joins guards with `&&`); anything else (`gated`, `when`,             */
+/* `requires`, malformed or unknown members) refuses the whole set      */
+/* LOUD at load, naming T04b, instead of running unguarded. Scenario    */
+/* operations join the same transcription (absent -> deny); their       */
+/* leading `require` guards are dropped from the outer gate because     */
+/* the emitted handler still runs them inlined post-admission           */
 /* (interim-exact); CRUD operations skip their handler (the pipeline    */
 /* executes), so the transcribed gate is their only guard. This join    */
 /* also fixes three interim deny-all bugs in the direction of the       */
@@ -624,20 +629,22 @@ export function readOperationPolicyEntry(registry: unknown, opName: string): unk
 
 /**
  * Transcribe one CRUD manifest entry to its canonical `by` predicate.
- * Absent entry -> `public` (no admission content — the handler ran no
- * check in interim either). Role-only `by` spellings map 1:1
- * (predicate spellings verbatim, declared roles to `{role}`, multiples
- * to `{and}` per the emitter's `&&` join). Every other content —
- * `gated` (subject/expression/compound gates collapsed by the
- * emitter), `when` (the predicate is emitted code, not data),
- * `requires`, malformed shapes, unknown members — refuses LOUD: the
- * pipeline enforces nothing itself, so an untranscribable gate must
- * block the set (T04b carries generated policy) rather than run
- * unguarded. Plain `Error` (caller-side refusal, mirroring the
- * loader's engine-local policy channel).
+ * B7 fail-closed: absent entry -> `{not: "public"}` (no admission
+ * content is DENY — S4 "no policy means deny"; the always-false
+ * predicate in existing vocabulary, so gateless operations fail
+ * per-call with typed denial instead of admitting). Role-only `by`
+ * spellings map 1:1 (predicate spellings verbatim, declared roles
+ * to `{role}`, multiples to `{and}` per the emitter's `&&` join).
+ * Every other content — `gated` (subject/expression/compound gates
+ * collapsed by the emitter), `when` (the predicate is emitted code,
+ * not data), `requires`, malformed shapes, unknown members —
+ * refuses LOUD: the pipeline enforces nothing itself, so an
+ * untranscribable gate must block the set (T04b carries generated
+ * policy) rather than run unguarded. Plain `Error` (caller-side
+ * refusal, mirroring the loader's engine-local policy channel).
  */
 export function mapCrudPolicyToBy(opName: string, entry: unknown): CanonicalByPredicate {
-  if (entry === undefined || entry === null) return "public";
+  if (entry === undefined || entry === null) return { not: "public" };
   const where = `t16b: operation ${JSON.stringify(opName)} cannot admit in the T16 core scope (T04b carries generated policy)`;
   if (!isUnknownRecord(entry)) {
     throw new Error(`${where}: malformed policy entry (not an object).`);
@@ -691,40 +698,65 @@ export function mapCrudPolicyToBy(opName: string, entry: unknown): CanonicalByPr
   return terms.length === 1 ? first : { and: terms };
 }
 
+/**
+ * B7: scenario admission transcription. Same mapping as CRUD
+ * (absent -> deny, role-only `by` 1:1, gated/when/malformed loud)
+ * EXCEPT the entry's `requires` count is dropped before
+ * delegating: scenario leading `require` guards execute inlined in
+ * the emitted handler post-admission (interim-exact — the handler
+ * runs for scenarios, unlike the CRUD pipeline which skips it),
+ * so the outer gate transcribes `by` only. A scenario with no
+ * entry at all still denies (missing guard is a defect, S5) —
+ * its inlined guards never get to run.
+ */
+export function mapScenarioPolicyToBy(opName: string, entry: unknown): CanonicalByPredicate {
+  if (!isUnknownRecord(entry)) return mapCrudPolicyToBy(opName, entry);
+  const { requires: _handlerEnforced, ...admission } = entry;
+  return mapCrudPolicyToBy(opName, admission);
+}
+
 /* ------------------------------------------------------------------ */
 /* T17b read-policy transcription (PolicyTable grants).                 */
 /*                                                                      */
 /* Mirrors the CRUD by-transcription above, over the `policy.models`    */
 /* manifest map (`compiler/src/codegen/js.rs` `emit_policy_member`:     */
-/* `models: { Model: { read?: [ruleIds], invariants?: [...], locks?:    */
-/* [...] } }`). The emitted read rules are boolean FUNCTIONS (`(c,row)  */
-/* => ...` in the registry `read` map) — code, not admittable data,     */
-/* exactly like CRUD `when` — so they are NEVER transcribed:            */
+/* `models: { Model: { read?: [ruleIds], public?: [ruleIds],            */
+/* invariants?: [...], locks?: [...] } }`). The emitted read rules are  */
+/* boolean FUNCTIONS (`(c,row) => ...` in the registry `read` map) —    */
+/* code, not admittable data, exactly like CRUD `when` — so they are    */
+/* NEVER transcribed, except through the B7 `public` provenance union  */
+/* below (S4: matching grants union; only provable-public slices are    */
+/* honored, unevaluable slices are omitted fail-closed):                */
 /*                                                                      */
 /* - Absent entry (or an entry with no `read` member, or an empty       */
-/*   `read` array): no read content — transcribe ONE public grant over  */
-/*   all declared model fields. Interim-exact: the interim `records()`  */
-/*   served full stored rows for these models, and operation admission  */
-/*   (`def.by`) still gates the read call itself.                        */
-/* - Present non-empty `read` array (well-formed rule ids): the model   */
+/*   `read` array): no read content — B7 fail-closed: ZERO grants       */
+/*   (deny-with-empty; S4 "no policy means deny"). The read gate stays  */
+/*   `public` — visibility comes from the grants, and zero grants      */
+/*   serve zero rows.                                                   */
+/* - Present non-empty `read` array with NO `public` marks: the model   */
 /*   is RULED — its reads refuse LOUD at serve time with `validation`   */
 /*   naming T04b (T04b carries generated policy; serving would run      */
 /*   unguarded). Per-read refusal, not whole-set: read rules gate only  */
 /*   reads, so CRUD/scenario serving stays up with precise per-read     */
 /*   errors (unlike CRUD gates, where the gate is the op's only guard). */
+/* - Present `public` marks (B7 phase-1 provenance: rule ids the        */
+/*   emitter proves unconditionally public — `read=` exactly            */
+/*   `public`, no `where=`): honor ONE public grant over all declared   */
+/*   model fields (S4 omitted-fields rule; secret-kind values still     */
+/*   omitted by the engine). RULED iff rules exist beyond the marks:    */
+/*   pure-public models serve; pure-where models refuse loud            */
+/*   (unchanged); mixed models serve the public slice (fail-closed      */
+/*   under-grant — the unevaluable slices are omitted, never            */
+/*   widened).                                                          */
 /* - Malformed shapes (non-object entry, unknown members, malformed     */
-/*   `read` array): refuse LOUD at preload — the programmer-bug class,  */
-/*   mirroring the CRUD malformed handling.                             */
+/*   `read`/`public` arrays): refuse LOUD at preload — the              */
+/*   programmer-bug class, mirroring the CRUD malformed handling.       */
 /*                                                                      */
-/* Read-`by` posture (T17b decision, recorded): KEEP PUBLIC + GRANTS.   */
-/* Read defs keep `by: public` at the canonical gate (T16b preload      */
-/* behavior, unchanged — `invokeRead` honors `def.by` either way) and   */
-/* visibility for servable models comes from the transcribed grants.    */
-/* The rejected alternative (transcribe read gates into `def.by`) is    */
-/* unimplementable in the core scope — rule bodies are emitted code —   */
-/* and buys nothing: ruled reads refuse either way. Consequence,        */
-/* pinned: rule-less models serve full rows to every operation-admitted */
-/* caller, including callers the CRUD gates would deny; ruled models    */
+/* Read-`by` posture (T17b decision, kept): KEEP PUBLIC + GRANTS. Read  */
+/* defs keep `by: public` at the canonical gate and visibility for      */
+/* servable models comes from the transcribed grants. Consequence,      */
+/* pinned: gateless models serve NOTHING to anyone (zero grants);       */
+/* public-marked models serve full rows to every caller; ruled models   */
 /* never serve (loud `validation`, never silent empty).                 */
 /*                                                                      */
 /* `secretFields` transcribes as `[]`: T15a descriptors carry no secret */
@@ -735,15 +767,12 @@ export function mapCrudPolicyToBy(opName: string, entry: unknown): CanonicalByPr
 /* write, so stored data never exceeds them); metadata always ships in  */
 /* the projected record envelope.                                       */
 /*                                                                      */
-/* Join-point note (T17b finding, T16c-owned): like the CRUD manifest   */
-/* above, this reads `canApp().policy` (the T16b join point). DESIGN    */
-/* §13 says `canApp()` never spreads `appDefinition`, and the compiler  */
-/* emits `policy` only into `appDefinition` — so on current compiler    */
-/* output the manifest reads absent here (public transcription). The    */
-/* transcription is correct under either source; aligning the join      */
-/* point (compiler emits into `canApp`, or the runtime reads            */
-/* `appDefinition`) is a cross-lane contract change for T16c, NOT done  */
-/* here. See the T17b release report.                                   */
+/* Join-point note (B7: resolved): like the CRUD manifest above, this   */
+/* reads `canApp().policy` (the T16b join point). The B7 phase-1        */
+/* emitter emits `policy` into BOTH `appDefinition` and `canApp()`      */
+/* from the same builder — identical content — so the loader keeps      */
+/* its existing `canApp().policy` read (the A2-vs-A1 distinction is     */
+/* moot on content; no fixture churn, no second source).                */
 /* ------------------------------------------------------------------ */
 
 /**
@@ -780,7 +809,7 @@ export function readModelPolicyEntry(registry: unknown, model: string): unknown 
 
 /** One model's transcribed read posture: servable grants or ruled refusal. */
 export interface TranscribedReadPolicy {
-  /** True when the model carries read rules (serve-time `validation`, never served). */
+  /** True when the model carries read rules with no public marks (serve-time `validation`, never served). */
   readonly ruled: boolean;
   /** The table-builder input; `null` when ruled (ruled models are omitted from the table). */
   readonly input: CanonicalModelPolicyInput | null;
@@ -788,13 +817,17 @@ export interface TranscribedReadPolicy {
 
 /**
  * Transcribe one model manifest entry to its table-builder input.
- * Absent entry / no `read` member / empty `read` array -> ONE public
- * grant over `declaredFields`. A well-formed non-empty `read` array ->
- * RULED (`ruled: true`, no input — the serve paths refuse loud naming
- * T04b). Malformed shapes and unknown members throw LOUD at preload
- * (the programmer-bug class, mirroring `mapCrudPolicyToBy`). Plain
- * `Error` (caller-side refusal, mirroring the loader's engine-local
- * policy channel).
+ * B7 fail-closed: absent entry / no `read` member / empty `read`
+ * array -> ZERO grants (deny-with-empty). A well-formed non-empty
+ * `read` array with no `public` marks -> RULED (`ruled: true`, no
+ * input — the serve paths refuse loud naming T04b). Present
+ * `public` marks (B7 phase-1 emitter provenance) -> ONE honored
+ * public grant over `declaredFields`, RULED iff rules exist beyond
+ * the marks (mixed models serve the public slice; pure-where
+ * models refuse loud, unchanged). Malformed shapes and unknown
+ * members throw LOUD at preload (the programmer-bug class,
+ * mirroring `mapCrudPolicyToBy`). Plain `Error` (caller-side
+ * refusal, mirroring the loader's engine-local policy channel).
  */
 export function mapReadRulesToPolicy(
   model: string,
@@ -806,22 +839,41 @@ export function mapReadRulesToPolicy(
     ruled: false,
     input: inputs,
   });
+  const emptyInput = (): CanonicalModelPolicyInput => ({
+    model,
+    secretFields: [],
+    grants: [],
+  });
   const publicInput = (): CanonicalModelPolicyInput => ({
     model,
     secretFields: [],
     grants: [{ by: "public", fields: [...declaredFields] }],
   });
-  if (entry === undefined || entry === null) return servable(publicInput());
+  if (entry === undefined || entry === null) return servable(emptyInput());
   if (!isUnknownRecord(entry)) {
     throw new Error(`${where}: malformed policy entry (not an object).`);
   }
   for (const key of Object.keys(entry)) {
-    if (key !== "read" && key !== "invariants" && key !== "locks") {
+    if (key !== "read" && key !== "public" && key !== "invariants" && key !== "locks") {
       throw new Error(`${where}: unknown policy member ${JSON.stringify(key)}.`);
     }
   }
   const rules: unknown = entry["read"];
-  if (rules === undefined) return servable(publicInput());
+  const marks: unknown = entry["public"];
+  if (marks !== undefined) {
+    if (!Array.isArray(marks) || !marks.every((id) => typeof id === "string" && id.length > 0)) {
+      throw new Error(`${where}: malformed public marks (array of non-empty rule ids).`);
+    }
+  }
+  if (rules === undefined) {
+    // No rules but provenance marks is emitter skew (the emitter
+    // always walks the same grant list for both) — loud, never
+    // honored-into-public.
+    if (marks !== undefined && (marks as string[]).length > 0) {
+      throw new Error(`${where}: public marks without read rules (emitter skew?).`);
+    }
+    return servable(emptyInput());
+  }
   if (
     !Array.isArray(rules) ||
     !rules.every((rule) => typeof rule === "string" && rule.length > 0)
@@ -830,8 +882,26 @@ export function mapReadRulesToPolicy(
       `${where}: malformed read rules (array of non-empty rule ids).`,
     );
   }
-  if (rules.length === 0) return servable(publicInput());
-  return { ruled: true, input: null };
+  if (rules.length === 0) {
+    if (marks !== undefined && (marks as string[]).length > 0) {
+      throw new Error(`${where}: public marks without read rules (emitter skew?).`);
+    }
+    return servable(emptyInput());
+  }
+  const marked = new Set((marks ?? []) as string[]);
+  for (const id of marked) {
+    if (!(rules as string[]).includes(id)) {
+      throw new Error(
+        `${where}: public mark ${JSON.stringify(id)} names no emitted rule (emitter skew?).`,
+      );
+    }
+  }
+  if (marked.size === 0) return { ruled: true, input: null };
+  // Marked: honor the provable-public slice. Rules beyond the marks
+  // are omitted fail-closed (mixed models serve the public slice,
+  // never the unevaluable remainder) — ruled stays false because
+  // the served content is fully guarded by the honored grant.
+  return servable(publicInput());
 }
 
 /* ------------------------------------------------------------------ */
@@ -871,7 +941,32 @@ interface StateRegistryProducer {
     readonly registry: ReadonlyMap<string, unknown>;
     readonly models: ReadonlyArray<unknown>;
     readonly refs: ReadonlyMap<string, ReadonlyArray<{ readonly field: string; readonly model: string }>>;
+    /**
+     * C2 production joins (B1/B2/B5): engine-local channels the frozen
+     * intake cannot hold, passed through to the table builder beside
+     * `refs` (never inspected here). T18 `serverInits` (model, then
+     * field, then init kind), T18 `nullableFields` (model, then
+     * known-nullable field names), B5 `containment` (model, then the
+     * declared-ownership member). B3 `deliveryFields` (model, then
+     * delivery-tagged field names) rides alongside for the T25
+     * receipt join (consumed downstream, never by the table builder).
+     */
+    readonly serverInits: ReadonlyMap<string, ReadonlyMap<string, unknown>>;
+    readonly nullableFields: ReadonlyMap<string, ReadonlySet<string>>;
+    readonly containment: ReadonlyMap<string, unknown>;
+    readonly deliveryFields: ReadonlyMap<string, ReadonlySet<string>>;
   };
+  /**
+   * R01: the loader's own whole-set rejection class, for the
+   * pre-retry dropped-entry validation (the retry must throw
+   * errors indistinguishable from what the loader would have
+   * thrown had the kind been known — same class, reason, and
+   * message vocabulary). Retires with the C3 strip.
+   */
+  readonly IncompatibleArtifactError: new (
+    reason: string,
+    message: string,
+  ) => Error;
 }
 
 /**
@@ -980,6 +1075,13 @@ interface StateInvokeProducer {
     readonly memberships: CanonicalMembershipReader;
     readonly clock: { nowMs(): number };
     readonly execute: (call: CanonicalSeamCall) => Promise<CanonicalExecutionEffects>;
+    /**
+     * C2/B2 (Q3): serverOnly exclusions for denial currents (mirror of
+     * `ConflictServerOnly`). The holder builds it from the loaded
+     * models; absent reads as unknown and stale-ref denials carry
+     * metadata-only currents.
+     */
+    readonly conflictServerOnly?: ReadonlyMap<string, ReadonlySet<string>>;
   }): Promise<MutationResult>;
   /** T17b: canonical generated-read entry (scenario `records()` calls it per read). */
   invokeRead(input: {
@@ -1009,6 +1111,15 @@ interface StateModelsProducer {
     models: ReadonlyArray<unknown>,
     opts: {
       readonly refs: ReadonlyMap<string, ReadonlyArray<{ readonly field: string; readonly model: string }>>;
+      /**
+       * C2 production joins (mirror of `CanonicalModelTableOptions`):
+       * the loader's engine-local channels, forwarded verbatim. Every
+       * member is optional at the producer (omission keeps the legacy
+       * posture); the seam always forwards all four.
+       */
+      readonly serverInits?: ReadonlyMap<string, ReadonlyMap<string, unknown>>;
+      readonly nullableFields?: ReadonlyMap<string, ReadonlySet<string>>;
+      readonly containment?: ReadonlyMap<string, unknown>;
     },
   ): unknown;
 }
@@ -1056,6 +1167,22 @@ export interface CanonicalModelPolicyInput {
  */
 interface StateGrantsProducer {
   buildPolicyTable(policies: ReadonlyArray<CanonicalModelPolicyInput>): unknown;
+  /**
+   * D3b: REAL `matchGrants` (structural subset — the engine reads
+   * `grants[].by/when` only). The receipt pre-load authZ evaluates
+   * the owner row through it, the same primitive the join's
+   * leaf-grant resolution uses.
+   */
+  matchGrants(
+    policy: { readonly grants: ReadonlyArray<{ readonly by: unknown; readonly when?: unknown }> },
+    byCtx: {
+      readonly actorUserId: string | null;
+      readonly teamId: string | null;
+      readonly membership: Membership | null;
+      readonly memberships: CanonicalMembershipReader;
+    },
+    row: StoredRow,
+  ): Promise<ReadonlyArray<unknown>>;
 }
 
 /** T17b: one pipeline write as handed to `runMutationWrites` (no `when`: stdlib carries none). */
@@ -1106,6 +1233,15 @@ interface StatePipelineProducer {
      * enrolled dependencies never cross (the point carries none).
      */
     readonly trigger?: { readonly revision: Revision; readonly owner: string };
+    /**
+     * C2/B1: gate update/remove writes against archived targets with
+     * the EXACT admission rule (`validation` / `Archived records
+     * cannot be used here.`). CRUD inherits the gate from admission;
+     * scenario-staged writes bypass per-write admission, so the seam
+     * passes `true` for CRUD/scenario parity. Absent reads as false
+     * (privileged direct callers may touch archived rows).
+     */
+    readonly gateArchivedTargets?: boolean;
   }): Promise<CanonicalPipelineResult>;
 }
 
@@ -1188,13 +1324,27 @@ async function loadCanonicalStateProducers(): Promise<CanonicalStateProducers> {
     "buildPolicyTable",
     "state grants producer",
   );
+  const matchGrants = requireProducerFn(
+    grantsMod,
+    "matchGrants",
+    "state grants producer",
+  );
   const runMutationWrites = requireProducerFn(
     pipelineMod,
     "runMutationWrites",
     "state pipeline producer",
   );
+  const IncompatibleArtifactError = requireProducerFn(
+    registryMod,
+    "IncompatibleArtifactError",
+    "state registry producer",
+  );
   return {
-    registry: { loadArtifactDescriptors: loadArtifactDescriptors as StateRegistryProducer["loadArtifactDescriptors"] },
+    registry: {
+      loadArtifactDescriptors: loadArtifactDescriptors as StateRegistryProducer["loadArtifactDescriptors"],
+      IncompatibleArtifactError:
+        IncompatibleArtifactError as unknown as StateRegistryProducer["IncompatibleArtifactError"],
+    },
     invoke: {
       invoke: invoke as StateInvokeProducer["invoke"],
       invokeRead: invokeRead as StateInvokeProducer["invokeRead"],
@@ -1203,7 +1353,10 @@ async function loadCanonicalStateProducers(): Promise<CanonicalStateProducers> {
     models: { buildModelTableFromCanonical: buildModelTableFromCanonical as StateModelsProducer["buildModelTableFromCanonical"] },
     errors: StateError as unknown as StateErrorsProducer,
     transact: { createReadInvoker: createReadInvoker as StateTransactProducer["createReadInvoker"] },
-    grants: { buildPolicyTable: buildPolicyTable as StateGrantsProducer["buildPolicyTable"] },
+    grants: {
+      buildPolicyTable: buildPolicyTable as StateGrantsProducer["buildPolicyTable"],
+      matchGrants: matchGrants as StateGrantsProducer["matchGrants"],
+    },
     pipeline: { runMutationWrites: runMutationWrites as StatePipelineProducer["runMutationWrites"] },
   };
 }
@@ -1531,7 +1684,11 @@ export interface LoadedCanonicalDescriptors {
   readonly table: unknown;
   readonly policy: unknown;
   readonly ruledModels: ReadonlySet<string>;
+  /** C3/B3: loader-built delivery-field schema, carried for the T25 receipt join (D3 consumes). */
+  readonly deliveryFields: ReadonlyMap<string, ReadonlySet<string>>;
   readonly producers: CanonicalStateProducers;
+  /** C2/B2 (Q3): holder-built serverOnly exclusions, passed to every invoke. */
+  readonly conflictServerOnly: ReadonlyMap<string, ReadonlySet<string>>;
 }
 
 /**
@@ -1550,10 +1707,9 @@ const canonicalCache = new WeakMap<CompileArtifact, LoadedCanonicalDescriptors>(
  * incoherent policy). Lenient shape, strict errors: modules without a
  * `canApp()` factory (page/asset modules) are skipped, but an import
  * failure, a throwing `canApp()`, or a malformed `policy.models` map
- * throws — policy that cannot be established never degrades to
- * public-by-omission. An empty scan (no registry-bearing modules)
- * yields no entries: rule-less transcription (no policy content was
- * found anywhere to transcribe).
+ * throws. B7 no-skip: modules without `policy`/`models` members feed
+ * ABSENT (deny) rather than rule-less-public — an empty scan yields
+ * no entries and every model transcribes zero grants.
  */
 async function collectModelPolicyManifests(asm: AssembledModules): Promise<Map<string, unknown>> {
   const merged = new Map<string, unknown>();
@@ -1646,6 +1802,259 @@ function canonicalModelName(model: unknown, index: number): string {
 }
 
 /**
+ * C2/B2 (Q3): holder-built serverOnly exclusions for denial currents
+ * (mirror of `ConflictServerOnly`: model, then serverOnly field
+ * names). Models without serverOnly fields carry an EMPTY set (values
+ * flow); the map is built once at load and passed to every invoke, so
+ * stale-ref denials carry full currents instead of metadata-only.
+ * Loud on skew (the loader guarantees boolean flags — anything else
+ * is loader/artifact skew, and guessing here would leak or over-redact).
+ */
+function buildConflictServerOnly(
+  models: ReadonlyArray<unknown>,
+): ReadonlyMap<string, ReadonlySet<string>> {
+  const map = new Map<string, ReadonlySet<string>>();
+  for (const [index, model] of models.entries()) {
+    const name = canonicalModelName(model, index);
+    if (!isUnknownRecord(model)) {
+      throw new Error(`c2: loaded model ${JSON.stringify(name)} is not an object (loader/artifact skew?)`);
+    }
+    const fields: unknown = model["fields"];
+    if (!isUnknownRecord(fields)) {
+      throw new Error(
+        `c2: loaded model ${JSON.stringify(name)} carries no fields map (loader/artifact skew?)`,
+      );
+    }
+    const names = new Set<string>();
+    for (const [field, def] of Object.entries(fields)) {
+      if (!isUnknownRecord(def) || typeof def["serverOnly"] !== "boolean") {
+        throw new Error(
+          `c2: field ${JSON.stringify(field)} on model ${JSON.stringify(name)} ` +
+            `carries no boolean serverOnly flag (loader/artifact skew?)`,
+        );
+      }
+      if (def["serverOnly"] === true) {
+        names.add(field);
+      }
+    }
+    map.set(name, names);
+  }
+  return map;
+}
+
+/**
+ * C3: strip `delivery`-kind op inputs for the L3 descriptor load.
+ * Delivery bindings are dispatch-layer only (E framing excludes them
+ * and both transports' bound checkers reject submitted ones — the C3
+ * agreement pins prove it), so L3 can never observe a delivery value
+ * and its descriptors must not name the kind the L3 loader rejects.
+ * Shallow-copies only the touched levels; never mutates the caller
+ * artifact. DELETE THIS when the state loader accepts delivery op
+ * inputs (B-loader-tolerance): the retry below then never triggers,
+ * and this helper becomes dead code to remove with its pins.
+ */
+/**
+ * R01: the ONE delivery-entry predicate shared by the C3 strip and
+ * the pre-retry validation — an entry the strip drops is exactly
+ * an entry the validation checks (no drift between dropped and
+ * checked sets).
+ */
+function isDeliveryInputEntry(entry: unknown): boolean {
+  if (!isUnknownRecord(entry)) return false;
+  const field: unknown = entry["field"];
+  return isUnknownRecord(field) && field["kind"] === "delivery";
+}
+
+function stripDeliveryInputs(artifact: CompileArtifact): CompileArtifact {
+  const operations = (artifact as unknown as { operations?: unknown }).operations;
+  if (!Array.isArray(operations)) return artifact;
+  let stripped = false;
+  const mapped = operations.map((op) => {
+    if (!isUnknownRecord(op)) return op;
+    const inputs: unknown = op["inputs"];
+    if (!isUnknownRecord(inputs)) return op;
+    const fields: unknown = inputs["fields"];
+    if (!Array.isArray(fields)) return op;
+    const kept = fields.filter((entry) => !isDeliveryInputEntry(entry));
+    if (kept.length === fields.length) return op;
+    stripped = true;
+    return { ...op, inputs: { ...inputs, fields: kept } };
+  });
+  if (!stripped) return artifact;
+  return { ...artifact, operations: mapped } as CompileArtifact;
+}
+
+/** C3: true only for the L3 loader's delivery-kind whole-set rejection. */
+function isDeliveryKindRejection(err: unknown): boolean {
+  if (!(err instanceof Error)) return false;
+  if ((err as { name?: unknown }).name !== "IncompatibleArtifactError") return false;
+  if ((err as { reason?: unknown }).reason !== "unknown_input_kind") return false;
+  return err.message.includes('"delivery"');
+}
+
+/**
+ * R01: contract-level default kinds (`contracts/state.ts`
+ * `CanonicalFieldDef.default`). Inline literals with a cite, not a
+ * second vocabulary: the state loader owns default semantics
+ * (serializability, dot-paths); this checks membership only.
+ * DELETE THIS with the C3 strip (B-loader-tolerance).
+ */
+const R01_CONTRACT_DEFAULT_KINDS: ReadonlySet<string> = new Set([
+  "literal",
+  "parent",
+  "server",
+  "derived",
+]);
+
+/**
+ * R01: validate every delivery entry the C3 strip is about to drop,
+ * BEFORE the stripped retry. The loader's kind gate precedes its
+ * envelope checks, so without this a malformed additive envelope on
+ * a delivery input (bad `required`, bad `array` marker, misshapen
+ * `default`) is silently dropped and the set loads — bypassing
+ * whole-set rejection. Non-delivery entries need no envelope
+ * pre-check: the stripped retry validates them fully (name
+ * uniqueness is the exception — see
+ * `assertOriginalInputNameUniqueness`, which must run over the
+ * FULL original list because the strip erases collisions).
+ *
+ * Owning envelope semantics in loader vocabulary (`required`
+ * boolean, `array` marker, FULL ordinary `default` validation
+ * mirroring the registry's `checkDefault`/`checkLoadDotPath`,
+ * non-empty name — the registry gates the retry would otherwise
+ * skip past the kind gate, plus the name gate for delivery entries
+ * ordered after the first): failures throw the loader's OWN
+ * rejection class with its message vocabulary, indistinguishable
+ * from a loader rejection. Delivery-descriptor internals
+ * (capability/version fencing) stay with B-loader-tolerance —
+ * dropped entries never execute.
+ * DELETE THIS with the C3 strip.
+ */
+function assertDroppedDeliveryEnvelopes(
+  producers: CanonicalStateProducers,
+  artifact: CompileArtifact,
+): void {
+  const fail = (reason: string, message: string): never => {
+    throw new producers.registry.IncompatibleArtifactError(reason, message);
+  };
+  const operations = (artifact as unknown as { operations?: unknown }).operations;
+  if (!Array.isArray(operations)) return;
+  for (const op of operations) {
+    if (!isUnknownRecord(op)) continue;
+    const inputs: unknown = op["inputs"];
+    if (!isUnknownRecord(inputs)) continue;
+    const fields: unknown = inputs["fields"];
+    if (!Array.isArray(fields)) continue;
+    const opName: unknown = op["name"];
+    for (const entry of fields) {
+      if (!isDeliveryInputEntry(entry)) continue;
+      const record = entry as Record<string, unknown>;
+      const name: unknown = record["name"];
+      if (typeof name !== "string" || name === "") {
+        fail(
+          "malformed_descriptor",
+          `Invalid artifact operation ${JSON.stringify(opName)}: inputs need non-empty names.`,
+        );
+      }
+      const what = `input ${JSON.stringify(name)} on operation ${JSON.stringify(opName)}`;
+      if (typeof record["required"] !== "boolean") {
+        fail("malformed_descriptor", `Invalid ${what}: required must be a boolean.`);
+      }
+      const fallback: unknown = record["default"];
+      if (fallback !== undefined) {
+        if (!isUnknownRecord(fallback) || typeof fallback["kind"] !== "string") {
+          fail("malformed_descriptor", `Invalid default for ${what}: a default object needs a kind.`);
+        }
+        const fallbackRecord = fallback as Record<string, unknown>;
+        const kind = fallbackRecord["kind"] as string;
+        if (!R01_CONTRACT_DEFAULT_KINDS.has(kind)) {
+          fail(
+            "unknown_default_kind",
+            `Unknown default kind ${JSON.stringify(kind)} for ${what}; ` +
+              "supported: literal, parent, server, derived.",
+          );
+        }
+        // Owning default semantics (registry `checkDefault`, same
+        // order, same vocabulary): literal values must be
+        // serializable data; parent paths must be valid dot-paths
+        // (registry `checkLoadDotPath`: non-empty, no empty
+        // segments); server/derived carry no payload.
+        if (kind === "literal") {
+          try {
+            structuredClone(fallbackRecord["value"]);
+          } catch {
+            fail(
+              "malformed_descriptor",
+              `Invalid literal default for ${what}: values must be serializable data.`,
+            );
+          }
+        }
+        if (kind === "parent") {
+          if (typeof fallbackRecord["path"] !== "string") {
+            fail("malformed_descriptor", `Invalid parent default for ${what}: path must be a dot-path string.`);
+          }
+          const dotPath = fallbackRecord["path"] as string;
+          if (dotPath === "" || dotPath.split(".").some((segment) => segment === "")) {
+            fail("malformed_descriptor", `Invalid parent default for ${what} dot path: ${JSON.stringify(dotPath)}.`);
+          }
+        }
+      }
+      const array: unknown = record["array"];
+      if (array !== undefined) {
+        if (!isUnknownRecord(array) || typeof array["required"] !== "boolean") {
+          fail("malformed_descriptor", `Invalid ${what}: array markers carry a boolean required.`);
+        }
+      }
+    }
+  }
+}
+
+/**
+ * R01-residual: name uniqueness over the FULL original per-op input
+ * list, BEFORE the C3 strip drops delivery entries. The loader
+ * checks names/duplicates before the kind gate per entry — but it
+ * fails fast at the FIRST delivery-kind entry, so collisions at or
+ * after that entry never surface on the full load, and the strip
+ * then erases the delivery side of the collision (delivery/string
+ * in delivery-first order, delivery/delivery). Entries without a
+ * usable name are skipped here: delivery ones fail the envelope
+ * name gate, retained ones fail on the stripped retry — either
+ * way before any load succeeds. Runs BEFORE the envelope
+ * validation, mirroring the loader's per-entry gate order
+ * (name/duplicate precede envelope checks). Loader's OWN rejection
+ * class + `duplicate_name` vocabulary.
+ * DELETE THIS with the C3 strip.
+ */
+function assertOriginalInputNameUniqueness(
+  producers: CanonicalStateProducers,
+  artifact: CompileArtifact,
+): void {
+  const operations = (artifact as unknown as { operations?: unknown }).operations;
+  if (!Array.isArray(operations)) return;
+  for (const op of operations) {
+    if (!isUnknownRecord(op)) continue;
+    const inputs: unknown = op["inputs"];
+    if (!isUnknownRecord(inputs)) continue;
+    const fields: unknown = inputs["fields"];
+    if (!Array.isArray(fields)) continue;
+    const seen = new Set<string>();
+    for (const entry of fields) {
+      if (!isUnknownRecord(entry)) continue;
+      const name: unknown = entry["name"];
+      if (typeof name !== "string" || name === "") continue;
+      if (seen.has(name)) {
+        throw new producers.registry.IncompatibleArtifactError(
+          "duplicate_name",
+          `Duplicate input ${JSON.stringify(name)} on operation ` +
+            `${JSON.stringify(op["name"])}.`,
+        );
+      }
+      seen.add(name);
+    }
+  }
+}
+
+/**
  * Load a generated artifact's canonical set: transcribe every CRUD
  * admission gate from its emitted policy manifest, verify every
  * scenario operation links an `operation` callable, load descriptors
@@ -1654,6 +2063,21 @@ function canonicalModelName(model: unknown, index: number): string {
  * build the model table. Reads need no callable (T17b: `invokeRead`
  * serves them through the transcribed `policy` below). Throws precise
  * errors; never a partial set.
+ *
+ * C3: the L3 load runs against the full artifact first; ONLY on the
+ * loader's delivery-kind rejection it retries once with delivery op
+ * inputs stripped (see `stripDeliveryInputs`) — delivery is
+ * dispatch-layer only, so the stripped descriptors are exactly what
+ * L3 executes. Any other rejection propagates verbatim.
+ *
+ * R01: before the stripped retry, the FULL original input list
+ * proves name uniqueness (`assertOriginalInputNameUniqueness` —
+ * the strip would erase delivery-side collisions) and every
+ * to-be-dropped delivery entry proves its envelope
+ * (`assertDroppedDeliveryEnvelopes`) — the loader's kind gate
+ * precedes its envelope checks, so the retry would otherwise
+ * launder malformed additives into acceptance. Whole-set
+ * rejection preserved.
  */
 export async function loadCanonicalDescriptors(
   asm: AssembledModules,
@@ -1670,12 +2094,16 @@ export async function loadCanonicalDescriptors(
       const registry = await importPolicyRegistry(asm, callable.module, op.name);
       crudBy.set(op.name, mapCrudPolicyToBy(op.name, readOperationPolicyEntry(registry, op.name)));
     } else if (op.kind === "scenario") {
-      resolvePreloadCallable(artifact, op);
+      // B7: scenarios join admission transcription (absent -> deny;
+      // their leading require guards stay handler-enforced inside).
+      const callable = resolvePreloadCallable(artifact, op);
+      const registry = await importPolicyRegistry(asm, callable.module, op.name);
+      crudBy.set(op.name, mapScenarioPolicyToBy(op.name, readOperationPolicyEntry(registry, op.name)));
     }
   }
-  const loaded = producers.registry.loadArtifactDescriptors(artifact, {
-    by: (op) => {
-      if (op.kind === "create" || op.kind === "update" || op.kind === "delete") {
+  const byOptions = {
+    by: (op: { kind: string; name: string }) => {
+      if (op.kind === "create" || op.kind === "update" || op.kind === "delete" || op.kind === "scenario") {
         const predicate = crudBy.get(op.name);
         if (predicate === undefined) {
           throw new Error(
@@ -1685,15 +2113,32 @@ export async function loadCanonicalDescriptors(
         }
         return predicate;
       }
-      // Scenarios admit `public` at the canonical gate — their emitted
-      // handler still runs the full inlined gate (interim-exact).
       // Reads admit `public` at the gate (T17b read-by posture: keep
       // public + grants — visibility comes from the transcribed
-      // PolicyTable, and `invokeRead` serves them).
+      // PolicyTable, and `invokeRead` serves them). B7: deny-with-empty
+      // comes from zero grants, so the gate stays public.
       return "public";
     },
+  };
+  let loaded: ReturnType<typeof producers.registry.loadArtifactDescriptors>;
+  try {
+    loaded = producers.registry.loadArtifactDescriptors(artifact, byOptions);
+  } catch (err) {
+    if (!isDeliveryKindRejection(err)) throw err;
+    // R01: validate-before-retry — the FULL original input list
+    // proves name uniqueness first (the strip would erase
+    // collisions), then dropped delivery entries prove their
+    // envelopes before the strip drops the evidence.
+    assertOriginalInputNameUniqueness(producers, artifact);
+    assertDroppedDeliveryEnvelopes(producers, artifact);
+    loaded = producers.registry.loadArtifactDescriptors(stripDeliveryInputs(artifact), byOptions);
+  }
+  const table = producers.models.buildModelTableFromCanonical(loaded.models, {
+    refs: loaded.refs,
+    serverInits: loaded.serverInits,
+    nullableFields: loaded.nullableFields,
+    containment: loaded.containment,
   });
-  const table = producers.models.buildModelTableFromCanonical(loaded.models, { refs: loaded.refs });
   // T17b: transcribe the read policy over the LOADED models (validated
   // names + declared fields — never the raw artifact). Ruled models are
   // omitted from the table (fail-closed even under a missed check) and
@@ -1721,6 +2166,8 @@ export async function loadCanonicalDescriptors(
     policy,
     ruledModels,
     producers,
+    conflictServerOnly: buildConflictServerOnly(loaded.models),
+    deliveryFields: loaded.deliveryFields,
   };
   canonicalCache.set(artifact, canonical);
   return canonical;
@@ -2323,6 +2770,9 @@ async function runScenarioSeam(
           ],
           context: call.context,
           store: overlay,
+          // C2/B1: admission-parity archive gate (CRUD inherits it from
+          // admission; scenario writes bypass per-write admission).
+          gateArchivedTargets: true,
           // T32b: the triggering checkpoint point — hook bodies name it
           // back as their `triggerRevision` when they open fresh
           // transitive scopes. Absent on checkpoint-less calls.
@@ -2466,6 +2916,9 @@ export async function invokeMutationCanonical(
     store: opts.store,
     memberships: opts.memberships,
     clock: { nowMs: opts.now },
+    // C2/B2 (Q3): holder-built exclusions — stale-ref denials carry
+    // full currents (minus serverOnly) instead of metadata-only.
+    conflictServerOnly: loaded.conflictServerOnly,
     execute: async (call: CanonicalSeamCall): Promise<CanonicalExecutionEffects> => {
       // T32b: BOTH paths inherit both-site commit revalidation through
       // state invoke: the runtime `call` is the full admitted call
@@ -2490,6 +2943,500 @@ export async function invokeMutationCanonical(
 }
 
 /* ------------------------------------------------------------------ */
+/* D3b selected-receipt serving (Receipt.read -> T25 join).              */
+/*                                                                      */
+/* Joint contract (G1 locked): op `Receipt.read`, closed inputs         */
+/* {recordId, field, selected[]}, kind:read read-def, MCP-first route,  */
+/* revisions as JSON numbers. The serving layer bridges the text-id     */
+/* envelope to the join's row-object locator: model binds statically    */
+/* from the load-time B3 delivery schema (C1 — never envelope text),    */
+/* recordId resolves through the authorized pre-load (existence-hiding */
+/* not_found), and the REAL T25 join runs with the REAL work observer  */
+/* from the state work-loader. Outcomes serve 1:1 (observed /           */
+/* denied-as-data / discriminator-carrying null-association); caller    */
+/* errors are `StateError` (assembly maps through `toBusinessError`),   */
+/* skew is loud plain `Error`.                                          */
+/* ------------------------------------------------------------------ */
+
+/** D3b serving operation (G1-locked joint name). */
+export const RECEIPT_READ_OPERATION = "Receipt.read";
+
+const STATE_RECEIPT_JOIN_SPECIFIER = "../../../state/dist/state/src/receipt/join.js";
+const STATE_RECEIPT_WORK_LOADER_SPECIFIER = "../../../state/dist/state/src/receipt/work-loader.js";
+/**
+ * Q2: B's worker-safe observer module (SEAM CONTRACT — absent until
+ * the B-half lands; F's Q3 rewrite maps it to
+ * `vendor/state/receipt/observer.js`).
+ */
+const STATE_RECEIPT_OBSERVER_SPECIFIER = "../../../state/dist/state/src/receipt/observer.js";
+
+/**
+ * D3b: 1:1 served selected-receipt outcome (E wire-half contract).
+ * Revisions are JSON numbers (G4). `denied` is DATA (which leaves
+ * were withheld), never an error; `null-association` carries the
+ * discriminator so it never masquerades as denial.
+ */
+export type SelectedReceiptServed =
+  | {
+      readonly outcome: "observed";
+      readonly projection: SelectedReceiptProjection;
+      readonly fenceRevision: number | null;
+      readonly readRevision: number;
+    }
+  | {
+      readonly outcome: "denied";
+      readonly denied: ReadonlyArray<ReceiptProperty>;
+      readonly readRevision: number;
+    }
+  | { readonly outcome: "null-association"; readonly readRevision: number };
+
+/**
+ * D3b: per-call owner-fence handle (structural mirror of the engine
+ * `FenceScope` — only the revision + record enrollment the serving
+ * path touches). Standalone served reads take NO fence (B openQ_fence
+ * answered: fenceless + reported readRevision); nested callers thread
+ * theirs and the pre-load enrolls the owner row in it (B C3).
+ */
+export interface SelectedReceiptFence {
+  readonly revision: number;
+  enroll(dependency: {
+    readonly kind: "record";
+    readonly model: string;
+    readonly id: string;
+    readonly version: number;
+  }): void;
+}
+
+/**
+ * Q2: injected production observer (per-call binding, mirroring the
+ * `invokeReadCanonical` pattern). When present, serving uses it
+ * directly and touches NEITHER the observer module NOR the
+ * work-loader leg — the production leg without B's module landed.
+ */
+export interface SelectedReceiptObserverBinding {
+  readonly observeSelectedReceipt: (input: unknown) => unknown;
+}
+
+export interface SelectedReceiptReadOpts {
+  readonly asm: AssembledModules;
+  readonly artifact: CompileArtifact;
+  /** Q2: injected observer wins over module resolution (production leg). */
+  readonly observer?: SelectedReceiptObserverBinding;
+  /** Must be `Receipt.read` (routing assert — skew tripwire otherwise). */
+  readonly operation: string;
+  readonly inputs: Record<string, unknown>;
+  /** Transport-verified identity (resolved from the credential per request). */
+  readonly identity: ResolvedIdentity;
+  readonly store: StoragePort;
+  readonly memberships: CanonicalMembershipReader;
+  readonly fence?: SelectedReceiptFence;
+  readonly now?: () => number;
+}
+
+/** D3b: structural view of the state receipt-join module (input/output mirrors only what serving touches). */
+interface StateReceiptJoinProducer {
+  observeSelectedReceiptJoin(input: {
+    readonly locator: { readonly record: { readonly id: string }; readonly field: string };
+    readonly selected: ReadonlyArray<string>;
+    readonly model: string;
+    readonly schema: ReadonlyMap<string, ReadonlySet<string>>;
+    readonly policy: unknown;
+    readonly caller: { readonly actorUserId: string | null; readonly teamId: string | null };
+    readonly memberships: CanonicalMembershipReader;
+    readonly store: StoragePort;
+    readonly fence?: SelectedReceiptFence;
+    readonly nowMs: number;
+    readonly observeSelected: (input: unknown) => unknown;
+  }): Promise<unknown>;
+}
+
+/** D3b: structural view of the state receipt work-loader module. */
+interface StateReceiptWorkLoaderProducer {
+  loadWorkReceiptFns(): Promise<{
+    readonly observeSelectedReceipt: (input: unknown) => unknown;
+  }>;
+}
+
+/**
+ * Q2 SEAM CONTRACT (B-half input — see
+ * `implementation/D3B-OBSERVER-SEAM-CONTRACT.md`): structural view of
+ * B's worker-safe observer module
+ * (`packages/state/src/receipt/observer.ts`, zero node imports).
+ * Same observer shape as the work-loader leg, new module + loader
+ * name so production never touches the TEST-ONLY bridge.
+ */
+export interface StateReceiptObserverProducer {
+  loadSelectedReceiptObserver(): Promise<SelectedReceiptObserverBinding>;
+}
+
+const RECEIPT_READ_INPUT_KEYS: ReadonlyArray<string> = ["recordId", "field", "selected"];
+
+const RECEIPT_LEAVES: ReadonlySet<string> = new Set(["id", "status", "result", "error"]);
+
+const RECEIPT_PROJECTION_KEYS: ReadonlySet<string> = new Set(["id", "status", "result", "error"]);
+
+/**
+ * D3b: validate the closed serving envelope (C1 + C7). Exactly
+ * {recordId, field, selected} — a `model` key rejects explicitly
+ * (bound server-side, never trusted), every other unknown key
+ * rejects as unclosed. Kernel TypeError/RangeError classes are
+ * unreachable past this point by construction (same accept/reject
+ * table, thrown as `StateError` validation here instead).
+ */
+function assertReceiptReadInputs(
+  StateError: StateErrorsProducer,
+  inputs: Record<string, unknown>,
+): { readonly recordId: string; readonly field: string; readonly selected: ReceiptProperty[] } {
+  for (const key of Object.keys(inputs)) {
+    if (key === "model") {
+      throw new StateError(
+        "validation",
+        `Receipt.read must not carry model (bound server-side from the delivery schema).`,
+      );
+    }
+    if (!RECEIPT_READ_INPUT_KEYS.includes(key)) {
+      throw new StateError(
+        "validation",
+        `Receipt.read inputs must be exactly {recordId, field, selected} (unknown key ${JSON.stringify(key)}).`,
+      );
+    }
+  }
+  const recordId: unknown = inputs["recordId"];
+  if (typeof recordId !== "string" || recordId === "") {
+    throw new StateError("validation", `Receipt.read recordId must be a non-empty string.`);
+  }
+  const field: unknown = inputs["field"];
+  if (typeof field !== "string" || field === "") {
+    throw new StateError("validation", `Receipt.read field must be a non-empty plain name.`);
+  }
+  if (field.includes(".") || field.includes("[") || field.includes("]")) {
+    throw new StateError("validation", `Receipt.read field must be a plain name, never traversal.`);
+  }
+  const selected: unknown = inputs["selected"];
+  if (!Array.isArray(selected)) {
+    throw new StateError("validation", `Receipt.read selected must be an array.`);
+  }
+  if (selected.length === 0) {
+    throw new StateError("validation", `Receipt.read selected must not be empty.`);
+  }
+  for (const property of selected) {
+    if (typeof property !== "string" || !RECEIPT_LEAVES.has(property)) {
+      throw new StateError(
+        "validation",
+        `Receipt.read selected carries unknown property ${JSON.stringify(String(property))}.`,
+      );
+    }
+  }
+  return { recordId, field, selected: [...(selected as string[])] as ReceiptProperty[] };
+}
+
+/**
+ * D3b: bind the owning model statically from the load-time B3
+ * delivery schema (C1/C2 — the serving operation's binding, never
+ * envelope text). Zero declarers is an undeclared field; multiple
+ * declarers is ambiguous — both refuse loud as caller validation
+ * (fail-closed; recordIds are model-scoped, never probed across).
+ */
+function bindReceiptModel(
+  StateError: StateErrorsProducer,
+  deliveryFields: ReadonlyMap<string, ReadonlySet<string>>,
+  field: string,
+): string {
+  const declarers: string[] = [];
+  for (const [model, fields] of deliveryFields.entries()) {
+    if (fields.has(field)) declarers.push(model);
+  }
+  if (declarers.length === 0) {
+    throw new StateError(
+      "validation",
+      `Receipt.read field ${JSON.stringify(field)} is not a declared delivery field.`,
+    );
+  }
+  if (declarers.length > 1) {
+    throw new StateError(
+      "validation",
+      `Receipt.read field ${JSON.stringify(field)} is declared by multiple models; cannot bind.`,
+    );
+  }
+  return declarers[0] as string;
+}
+
+/**
+ * D3b: route through the server-side read descriptor (C1 — the routed
+ * op descriptor anchors routing + admission). Unknown operations
+ * reject with the engine's exact text; a present-but-wrong def
+ * (non-read kind, non-public gate, row predicate) is loader skew —
+ * loud, never admitted or mis-served. The public gate admits all
+ * (engine `evaluateBy` returns true for `public`); visibility comes
+ * from leaf grants (denied-as-data), never the gate.
+ */
+function assertReceiptReadDef(
+  StateError: StateErrorsProducer,
+  registry: ReadonlyMap<string, unknown>,
+): void {
+  const def: unknown = registry.get(RECEIPT_READ_OPERATION);
+  if (def === undefined) {
+    throw new StateError("validation", `Unknown operation "${RECEIPT_READ_OPERATION}".`);
+  }
+  if (!isUnknownRecord(def) || def["generated"] !== true) {
+    throw new Error(`d3b: Receipt.read def is not a generated def (loader/artifact skew?)`);
+  }
+  const descriptor: unknown = def["descriptor"];
+  if (!isUnknownRecord(descriptor) || descriptor["kind"] !== "read") {
+    throw new Error(`d3b: Receipt.read def is not a read def (loader/artifact skew?)`);
+  }
+  if (def["by"] !== "public") {
+    throw new Error(`d3b: Receipt.read gate is not public (loader skew?)`);
+  }
+  if (def["when"] !== undefined) {
+    throw new Error(`d3b: Receipt.read def carries a row predicate (unsupported)`);
+  }
+}
+
+/**
+ * D3b: reserved-name collision guard. An app model named `Receipt`
+ * plus a `Receipt.read` read op would silently hijack model serving
+ * into receipt serving (or vice versa) — refuse loud instead. Static
+ * per artifact (deployment bug class), checked per call.
+ */
+function assertNoReceiptModelCollision(artifact: CompileArtifact): void {
+  const models: unknown = (artifact as unknown as { models?: unknown }).models;
+  if (!Array.isArray(models)) return;
+  for (const model of models) {
+    if (isUnknownRecord(model) && model["name"] === "Receipt") {
+      throw new Error(
+        `d3b: artifact declares both model "Receipt" and operation "Receipt.read" (reserved collision?)`,
+      );
+    }
+  }
+}
+
+/**
+ * D3b: map the join outcome 1:1 onto the served shape (G4: revisions
+ * are JSON numbers). Unknown discriminators, misshapen projections,
+ * and non-numeric revisions are mechanism skew — loud, never served.
+ */
+export function mapReceiptJoinOutcome(outcome: unknown): SelectedReceiptServed {
+  if (!isUnknownRecord(outcome) || typeof outcome["outcome"] !== "string") {
+    throw new Error(`d3b: join served no outcome discriminator (invoke/dist skew?)`);
+  }
+  const readRevision: unknown = outcome["readRevision"];
+  if (typeof readRevision !== "number") {
+    throw new Error(`d3b: join served a non-numeric readRevision (invoke/dist skew?)`);
+  }
+  const discriminator: string = outcome["outcome"] as string;
+  if (discriminator === "observed") {
+    const projection: unknown = outcome["projection"];
+    if (!isUnknownRecord(projection)) {
+      throw new Error(`d3b: join served a non-object projection (invoke/dist skew?)`);
+    }
+    for (const key of Object.keys(projection)) {
+      if (!RECEIPT_PROJECTION_KEYS.has(key)) {
+        throw new Error(`d3b: join served unknown projection key ${JSON.stringify(key)} (skew?)`);
+      }
+    }
+    const fenceRevision: unknown = outcome["fenceRevision"];
+    if (fenceRevision !== null && (typeof fenceRevision !== "number" || !Number.isInteger(fenceRevision) || fenceRevision < 0)) {
+      throw new Error(`d3b: join served a non-numeric fenceRevision (invoke/dist skew?)`);
+    }
+    return {
+      outcome: "observed",
+      projection: projection as unknown as SelectedReceiptProjection,
+      fenceRevision: fenceRevision as number | null,
+      readRevision,
+    };
+  }
+  if (discriminator === "denied") {
+    const denied: unknown = outcome["denied"];
+    if (
+      !Array.isArray(denied) ||
+      denied.length === 0 ||
+      !denied.every((leaf: unknown) => typeof leaf === "string" && RECEIPT_LEAVES.has(leaf))
+    ) {
+      throw new Error(`d3b: join served a malformed denied set (invoke/dist skew?)`);
+    }
+    return { outcome: "denied", denied: [...(denied as string[])] as ReceiptProperty[], readRevision };
+  }
+  if (discriminator === "null-association") {
+    return { outcome: "null-association", readRevision };
+  }
+  throw new Error(`d3b: join served unknown outcome ${JSON.stringify(discriminator)} (skew?)`);
+}
+
+/**
+ * D3b: serve one `Receipt.read` through the REAL T25 join with the
+ * REAL work observer (loaded per call via the state work-loader —
+ * bound per call, never cached, the `invokeReadCanonical` pattern).
+ *
+ * Evaluation order (B C4 + the join's own order): routed read-def
+ * (C1) -> closed envelope (C1/C7) -> field+model binding (C2) ->
+ * fence-join revision read (conflict when a nested checkpoint moved)
+ * -> owner pre-load (not_found) -> grant authZ (existence-hiding
+ * not_found — identical text, so denied-vs-missing never leaks) ->
+ * nested pre-load enrollment (B C3) -> the join (locator contributes
+ * ONLY the string id — the join re-loads the CURRENT row) -> 1:1
+ * outcome mapping. Reads commit nothing and receipt nothing. Caller
+ * errors are `StateError`; skew is loud plain `Error`.
+ *
+ * Q2 observer resolution (ordered, loud at the end): an injected
+ * `opts.observer` wins outright (production leg / assembly binding);
+ * else B's worker-safe observer module once it lands + F
+ * vendors/rewrites it; else — absent-module ONLY — the TEST-ONLY
+ * work-loader leg (checkout/dev until then). A present-but-broken
+ * observer (eval throw, missing export, loader/shape failure) is
+ * loud, never masked by the fallback (D1). When NEITHER module
+ * resolves — the worker before the B+F halves — the work-loader
+ * leg throws its existing loud t16b error: refusal, never silent.
+ */
+/**
+ * Q2-D1: true ONLY when an observer-module import failed because the
+ * module itself is absent (B-half not landed / not vendored). Node
+ * reports the missing specifier in `Cannot find module '<missing>'`;
+ * the match anchors on the MISSING module being exactly
+ * `receipt/observer.js` (N-R1: a bare `observer.js` anchor would
+ * also match a same-named file in another directory). A nested
+ * missing dep inside a present observer.js names the nested path
+ * (observer.js appears only as the importer) and reads as
+ * broken-B, never absent. Unknown shapes (workerd misses) read as
+ * broken: fail-closed loud, never a masking fallback.
+ */
+export function isObserverModuleAbsent(error: unknown): boolean {
+  if (typeof error !== "object" || error === null) return false;
+  const record = error as Record<string, unknown>;
+  if (record["code"] !== "ERR_MODULE_NOT_FOUND") return false;
+  const message = record["message"];
+  if (typeof message !== "string") return false;
+  return /^Cannot find module '[^']*receipt\/observer\.js'/.test(message);
+}
+
+async function resolveReceiptObserver(
+  injected: SelectedReceiptReadOpts["observer"],
+): Promise<(input: unknown) => unknown> {
+  if (injected !== undefined) return injected.observeSelectedReceipt;
+  // Presence probe: absent-module ONLY falls back to the work-loader
+  // leg. A present-but-broken observer (eval throw, missing export,
+  // loader/shape failure) stays loud below — broken B is never
+  // masked by the fallback.
+  try {
+    await import(STATE_RECEIPT_OBSERVER_SPECIFIER);
+  } catch (error) {
+    if (!isObserverModuleAbsent(error)) throw error;
+    const loaderMod = await loadProducerModule(
+      STATE_RECEIPT_WORK_LOADER_SPECIFIER,
+      "state receipt work-loader producer",
+    );
+    const loadWorkReceiptFns = requireProducerFn(
+      loaderMod,
+      "loadWorkReceiptFns",
+      "state receipt work-loader producer",
+    ) as unknown as StateReceiptWorkLoaderProducer["loadWorkReceiptFns"];
+    const { observeSelectedReceipt } = await loadWorkReceiptFns();
+    return observeSelectedReceipt;
+  }
+  const observerMod = await loadProducerModule(
+    STATE_RECEIPT_OBSERVER_SPECIFIER,
+    "state receipt observer producer",
+  );
+  const loadSelectedReceiptObserver = requireProducerFn(
+    observerMod,
+    "loadSelectedReceiptObserver",
+    "state receipt observer producer",
+  ) as unknown as StateReceiptObserverProducer["loadSelectedReceiptObserver"];
+  const { observeSelectedReceipt } = await loadSelectedReceiptObserver();
+  if (typeof observeSelectedReceipt !== "function") {
+    throw new Error(`t16b: state receipt observer producer served no observeSelectedReceipt function`);
+  }
+  return observeSelectedReceipt as (input: unknown) => unknown;
+}
+
+export async function invokeSelectedReceiptRead(
+  opts: SelectedReceiptReadOpts,
+): Promise<SelectedReceiptServed> {
+  if (opts.operation !== RECEIPT_READ_OPERATION) {
+    throw new Error(`d3b: receipt serving routed operation ${JSON.stringify(opts.operation)} (skew?)`);
+  }
+  assertCanonicalStore(opts.store, opts.operation);
+  assertCanonicalMemberships(opts.memberships, opts.operation);
+  assertNoReceiptModelCollision(opts.artifact);
+  const loaded = await loadCanonicalDescriptors(opts.asm, opts.artifact);
+  const StateError = loaded.producers.errors;
+  assertReceiptReadDef(StateError, loaded.registry);
+  const { recordId, field, selected } = assertReceiptReadInputs(StateError, opts.inputs);
+  const model = bindReceiptModel(StateError, loaded.deliveryFields, field);
+  // Fence-join revision FIRST (C4): no grant or observation runs
+  // before this read; a moved nested checkpoint conflicts here, and
+  // the join re-checks against its own read below.
+  const fenceReadRevision = await opts.store.readRevision();
+  if (opts.fence !== undefined && opts.fence.revision !== fenceReadRevision) {
+    throw new StateError(
+      "conflict",
+      `Fence checkpoint moved before this read (enrolled at revision ${opts.fence.revision}, ` +
+        `now at ${fenceReadRevision}); re-fence the operation.`,
+    );
+  }
+  const owner = await opts.store.load(model as ModelName, recordId as RecordId);
+  if (owner === null) {
+    throw new StateError("not_found", "Receipt owner record not found.");
+  }
+  // Caller facts mirror the engine admit mapping verbatim (B C6):
+  // nulls when absent, live membership resolution both ways.
+  const actorUserId = opts.identity.actor === null ? null : opts.identity.actor.user_id;
+  const teamId = opts.identity.team === null ? null : opts.identity.team.team_id;
+  const membership =
+    actorUserId !== null && teamId !== null
+      ? await opts.memberships.findMembership(teamId, actorUserId)
+      : null;
+  const policyTable = loaded.policy as ReadonlyMap<string, unknown>;
+  const modelPolicy: unknown = policyTable.get(model);
+  if (modelPolicy !== undefined) {
+    if (!isUnknownRecord(modelPolicy) || !Array.isArray(modelPolicy["grants"])) {
+      throw new Error(`d3b: owner policy entry is not a grant list (loader skew?)`);
+    }
+    const matched = await loaded.producers.grants.matchGrants(
+      modelPolicy as { readonly grants: ReadonlyArray<{ readonly by: unknown; readonly when?: unknown }> },
+      { actorUserId, teamId, membership, memberships: opts.memberships },
+      owner,
+    );
+    if (!Array.isArray(matched)) {
+      throw new Error(`d3b: matchGrants served no grant array (invoke/dist skew?)`);
+    }
+    if (matched.length === 0) {
+      // Authorized-path miss: identical text to the missing row
+      // (existence-hiding — denied-vs-missing must never leak).
+      throw new StateError("not_found", "Receipt owner record not found.");
+    }
+  } else {
+    // No policy entry grants nothing (engine precedent: deny, never
+    // error) — identical text, same hiding.
+    throw new StateError("not_found", "Receipt owner record not found.");
+  }
+  if (opts.fence !== undefined) {
+    opts.fence.enroll({ kind: "record", model, id: owner.id, version: owner.version });
+  }
+  const joinMod = await loadProducerModule(STATE_RECEIPT_JOIN_SPECIFIER, "state receipt join producer");
+  const observeSelectedReceiptJoin = requireProducerFn(
+    joinMod,
+    "observeSelectedReceiptJoin",
+    "state receipt join producer",
+  ) as unknown as StateReceiptJoinProducer["observeSelectedReceiptJoin"];
+  const observeSelectedReceipt = await resolveReceiptObserver(opts.observer);
+  const outcome = await observeSelectedReceiptJoin({
+    locator: { record: { id: recordId }, field },
+    selected,
+    model,
+    schema: loaded.deliveryFields,
+    policy: loaded.policy,
+    caller: { actorUserId, teamId },
+    memberships: opts.memberships,
+    store: opts.store,
+    ...(opts.fence === undefined ? {} : { fence: opts.fence }),
+    nowMs: (opts.now ?? Date.now)(),
+    observeSelected: observeSelectedReceipt,
+  });
+  return mapReceiptJoinOutcome(outcome);
+}
+
+/* ------------------------------------------------------------------ */
 /* T17b canonical read entry (assembly flip target).                    */
 /* ------------------------------------------------------------------ */
 
@@ -2502,7 +3449,10 @@ export async function invokeMutationCanonical(
  * read port (`createReadInvoker`) over the call's store + live
  * memberships and delegates routing (unknown operations,
  * mutation-envelope mismatches), admission (`def.by`), closed-shape
- * validation, and viewer projection to `invokeRead`. Reads commit
+ * validation, and viewer projection to `invokeRead`. `Receipt.read`
+ * instead routes to `invokeSelectedReceiptRead` (D3b join serving;
+ * the return widens to the 1:1 outcome — assembly consumes
+ * `ReadResult = unknown`, so no worker change). Reads commit
  * nothing and receipt nothing. Throws the canonical `StateError` on
  * business outcomes and plain `Error` on wiring bugs — the assembly
  * maps both through its established `toBusinessError` rule.
@@ -2516,11 +3466,22 @@ export interface CanonicalReadOpts {
   readonly identity: ResolvedIdentity;
   readonly store: StoragePort;
   readonly memberships: CanonicalMembershipReader;
+  /**
+   * Q2-D2: production observer binding for `Receipt.read` (spread
+   * through to `invokeSelectedReceiptRead` — the injection leg is
+   * reachable from the canonical read path, not future).
+   */
+  readonly observer?: SelectedReceiptObserverBinding;
 }
 
-export async function invokeReadCanonical(opts: CanonicalReadOpts): Promise<CanonicalReadServed> {
+export async function invokeReadCanonical(
+  opts: CanonicalReadOpts,
+): Promise<CanonicalReadServed | SelectedReceiptServed> {
   assertCanonicalStore(opts.store, opts.operation);
   assertCanonicalMemberships(opts.memberships, opts.operation);
+  if (opts.operation === RECEIPT_READ_OPERATION) {
+    return invokeSelectedReceiptRead({ ...opts });
+  }
   const loaded = await loadCanonicalDescriptors(opts.asm, opts.artifact);
   const model = readModelForOperation(opts.operation);
   if (model !== null && loaded.ruledModels.has(model)) {
@@ -2865,17 +3826,22 @@ type FenceAttemptVerdict =
   | { readonly status: "claimed"; readonly claim: { readonly outboxId: string; readonly claimId: string; readonly claimedAt: number } }
   | { readonly status: "skipped" }
   | { readonly status: "refused-inherited-scope" }
-  | { readonly status: "refused-revoked" };
+  | { readonly status: "refused-revoked" }
+  | { readonly status: "unavailable"; readonly outboxId: string; readonly target: string };
 
 /**
  * T32b: fail-closed read of the injected kernel's verdict. `claimed`
  * carries the held claim back (shape-checked; the drive asserts it
  * equals the held claim); `skipped` runs the existing skip ceremony;
- * the two refused statuses return. Every other status is unreachable
- * by construction — the drive attests a committed pending intent
- * (the claim run just proved pending + non-superseded) — so anything
- * else (superseded/refused-state/refused-uncommitted/unknown) is a
- * loud wiring error, never a silent drive.
+ * the two refused statuses return; `unavailable` (D3: the send's
+ * deployment target is unavailable — kernel exact-keys shape
+ * `{status,outboxId,target}`) carries its target for the transport
+ * half (the drive asserts the outbox identity, mirroring
+ * `claimed`). Every other status is unreachable by construction —
+ * the drive attests a committed pending intent (the claim run just
+ * proved pending + non-superseded) — so anything else
+ * (superseded/refused-state/refused-uncommitted/unknown) is a loud
+ * wiring error, never a silent drive.
  */
 function checkFenceAttemptVerdict(value: unknown): FenceAttemptVerdict {
   if (!isUnknownRecord(value) || typeof value["status"] !== "string") {
@@ -2885,6 +3851,14 @@ function checkFenceAttemptVerdict(value: unknown): FenceAttemptVerdict {
   if (status === "skipped") return { status };
   if (status === "refused-inherited-scope") return { status };
   if (status === "refused-revoked") return { status };
+  if (status === "unavailable") {
+    const outboxId: unknown = value["outboxId"];
+    const target: unknown = value["target"];
+    if (typeof outboxId !== "string" || outboxId === "" || typeof target !== "string" || target === "") {
+      throw new Error(`t32b: fence kernel unavailable verdict lost its outboxId/target (producer skew?)`);
+    }
+    return { status, outboxId, target };
+  }
   if (status === "claimed") {
     const claim: unknown = value["claim"];
     if (!isUnknownRecord(claim)) {
@@ -3594,6 +4568,25 @@ export type DriveDispatchOutcome =
       readonly intentId: string;
       readonly claimId: string;
       readonly fence: DriveDispatchFenceEcho;
+    }
+  /**
+   * D3 transport half (D-routed): the send's deployment target is
+   * unavailable (unbound provider, scoped-out capability) — the
+   * kernel refused BEFORE guard evaluation and the drive maps the
+   * verdict here with the echoed target. Terminal and explicit per
+   * the kernel contract (never re-driven like refused-*, never
+   * retried — repeating the identical send fails identically until
+   * the deployment changes); downstream transport owns the terminal
+   * surfacing (D proposes `rule_failed` naming the target,
+   * `retryable: false`). Same no-call/no-record posture as the
+   * refused members; the echo carries the checkpoint fenced under.
+   */
+  | {
+      readonly status: "unavailable";
+      readonly intentId: string;
+      readonly claimId: string;
+      readonly target: string;
+      readonly fence: DriveDispatchFenceEcho;
     };
 
 /**
@@ -3606,7 +4599,19 @@ export type DriveDispatchOutcome =
  * proceeds to the provider); `skipped` runs the shared skip ceremony;
  * refused verdicts return with the fence echo (no provider call, no
  * record, no ack — the held claim ages out and the sweeper re-drives
- * from scratch).
+ * from scratch); `unavailable` (D3) buckets to the terminal
+ * transport member with the echoed target (never re-driven —
+ * downstream transport owns the terminal surfacing).
+ *
+ * Ordering qualifier (R01-residual review): the KERNEL checks
+ * unavailable before guard/authority evaluation — but this drive
+ * awaits the snapshot pull + live authority re-read BEFORE
+ * consulting the kernel, so throwing fence ports preempt an
+ * unavailable verdict (pinned, not silently short-circuited).
+ * True short-circuit arrives only with ACTUAL availability
+ * injection (the fence input carries no availability port yet —
+ * follow-up). Inherited/superseded/settled precedence stays
+ * kernel-side, untouched by this mapping.
  */
 async function runFenceGate(input: {
   readonly opts: DriveDispatchIntentOpts;
@@ -3715,6 +4720,12 @@ async function runFenceGate(input: {
     }
     return recordSkip(guard);
   }
+  if (verdict.status === "unavailable") {
+    if (verdict.outboxId !== intentId) {
+      throw new Error(`t32b: fence kernel unavailable verdict names another intent (producer skew?)`);
+    }
+    return { status: verdict.status, intentId, claimId: heldClaimId, target: verdict.target, fence: echo };
+  }
   return { status: verdict.status, intentId, claimId: heldClaimId, fence: echo };
 }
 
@@ -3799,8 +4810,10 @@ export async function driveDispatchIntent(
     // T32b: the fenced gate — the guard re-eval moves INSIDE the real
     // kernel call (same evaluator, same snapshot, same single
     // evaluation), so refused-inherited-scope precedes the guard and
-    // refused-revoked follows it per the committed ordering. Claimed
-    // falls through to the provider below; anything else returns.
+    // refused-revoked follows it per the committed ordering (D3:
+    // unavailable precedes the guard too — the kernel never
+    // evaluates guards for unavailable targets). Claimed falls
+    // through to the provider below; anything else returns.
     const fenced = await runFenceGate({
       opts,
       fence: opts.fence,
@@ -5188,6 +6201,181 @@ export async function stageFanoutTriggerJoin(
   }
 }
 
+/* -- T34-F7/C1 emitted-cohort consumer (generated-serving join). -- */
+
+/**
+ * T34-F7/C1: emitted `appDefinition.cohorts` member shape (F6
+ * `ArtifactCohortDescriptor`, keyed by canonical handler identity).
+ * Test fixtures annotate with this so the honest emission shape is
+ * a compile-time constraint, not a comment.
+ */
+export type EmittedAppDefinitionCohorts = Readonly<Record<string, ArtifactCohortDescriptor>>;
+
+/**
+ * T34-F7/C1: emitted `appDefinition.models` containment view. Only
+ * `parent` is read (the `ChildOf` edge renders `parent:` — the
+ * compiler, not this join, owns that edge); richer members pass
+ * through untouched.
+ */
+export type EmittedAppDefinitionModels = Readonly<
+  Record<string, { readonly parent?: string } | undefined>
+>;
+
+/**
+ * T34-F7/C1: resolve one emitted `appDefinition.cohorts[handler]`
+ * descriptor plus its trigger context into the runtime
+ * `FanoutCohortSpec` the trigger join stages. This is the actual
+ * Cloudflare consumer of the F6 emission: the compiler descriptor
+ * never carries owner, identity sets, quotas, or cursors (all
+ * runtime-owned), so the operating owner arrives from the trigger
+ * context, and anchored cohorts resolve their parent id from the
+ * trigger event plus their parent model from the emitted
+ * containment edge.
+ *
+ * Fail-loud throughout (an honest compiler emits checked cohorts
+ * only — E4055 stays fail-closed with no descriptor): a trigger
+ * for a handler with no descriptor, a malformed descriptor, a
+ * non-event-rooted parent path, an unresolvable parent id, or a
+ * child with no contained parent all throw naming the handler.
+ * Well-formed specs still flow through the trigger join's own
+ * admission diagnoses (unsupported model, unknown anchor).
+ *
+ * The header `as` binding (`bind`) is shape-checked and otherwise
+ * ignored here: child-variable binding rides the scheduler body
+ * port when the compiled handler body runs, not the cohort spec.
+ */
+export interface ResolveEmittedFanoutCohortInput {
+  /** Entry module's emitted `appDefinition.cohorts` member (untrusted: validated). */
+  readonly cohorts: unknown;
+  /** Canonical handler identity admitting this cohort (=== cutoff.handler at the join). */
+  readonly handler: string;
+  /** Operating owner attested for the resolved spec. */
+  readonly owner: string;
+  /** Trigger event record the anchored parent path resolves against (`event` root). */
+  readonly event: unknown;
+  /** Entry module's emitted `appDefinition.models` member (anchored parent-model only). */
+  readonly models: unknown;
+}
+
+function readEmittedCohortRecord(value: unknown, what: string, handler: string): Record<string, unknown> {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) {
+    throw new Error(`t34-f7: emitted fanout ${what} for handler ${JSON.stringify(handler)} must be an object.`);
+  }
+  return value as Record<string, unknown>;
+}
+
+function readEmittedCohortString(value: unknown, what: string, handler: string): string {
+  if (typeof value !== "string" || value === "") {
+    throw new Error(
+      `t34-f7: emitted fanout ${what} for handler ${JSON.stringify(handler)} must be a non-empty string.`,
+    );
+  }
+  return value;
+}
+
+export function resolveEmittedFanoutCohort(input: ResolveEmittedFanoutCohortInput): FanoutCohortSpec {
+  if (typeof input.handler !== "string" || input.handler === "") {
+    throw new Error("t34-f7: emitted fanout cohort resolution needs a non-empty handler identity.");
+  }
+  if (typeof input.owner !== "string" || input.owner === "") {
+    throw new Error("t34-f7: emitted fanout cohort resolution needs a non-empty operating owner.");
+  }
+  const cohorts = readEmittedCohortRecord(input.cohorts, "appDefinition.cohorts", input.handler);
+  const raw = cohorts[input.handler];
+  if (raw === undefined) {
+    throw new Error(
+      `t34-f7: handler ${JSON.stringify(input.handler)} names no emitted fanout cohort ` +
+        `(${Object.keys(cohorts).length} emitted cohorts; triggers fire for fanout handlers only).`,
+    );
+  }
+  const descriptor = readEmittedCohortRecord(raw, "cohort descriptor", input.handler);
+  const kind: unknown = descriptor["kind"];
+  if (kind !== "model" && kind !== "anchored-collection") {
+    throw new Error(
+      `t34-f7: emitted fanout cohort for handler ${JSON.stringify(input.handler)} has kind ` +
+        `${JSON.stringify(kind)} (want "model" or "anchored-collection").`,
+    );
+  }
+  const model = readEmittedCohortString(descriptor["model"], "cohort model", input.handler);
+  const bind: unknown = descriptor["bind"];
+  if (typeof bind !== "string" && bind !== null) {
+    throw new Error(
+      `t34-f7: emitted fanout cohort for handler ${JSON.stringify(input.handler)} has a non-string ` +
+        `non-null "as" binding.`,
+    );
+  }
+  if (kind === "model") {
+    return { kind: "model", owner: input.owner, model };
+  }
+  // Anchored: parent id from the trigger event, parent model from
+  // the emitted containment edge. Both are required: freezing over
+  // a mis-specified collection would bless the wrong sweep.
+  const parentPath = readEmittedCohortString(descriptor["parent"], "cohort parent path", input.handler);
+  const segments = parentPath.split(".");
+  if (segments[0] !== "event" || segments.length < 2 || segments.some((segment) => segment === "")) {
+    throw new Error(
+      `t34-f7: emitted fanout cohort for handler ${JSON.stringify(input.handler)} has a non-event-rooted ` +
+        `parent path ${JSON.stringify(parentPath)} (want "event.<field>[.<field>]").`,
+    );
+  }
+  const models = readEmittedCohortRecord(input.models, "appDefinition.models", input.handler);
+  const child = readEmittedCohortRecord(models[model], `model ${JSON.stringify(model)}`, input.handler);
+  const parentModel = readEmittedCohortString(
+    child["parent"],
+    `contained parent of model ${JSON.stringify(model)}`,
+    input.handler,
+  );
+  let current: unknown = input.event;
+  for (const segment of segments.slice(1)) {
+    current = readEmittedCohortRecord(current, `event segment ${JSON.stringify(segment)}`, input.handler)[segment];
+  }
+  if (typeof current !== "string" || current === "") {
+    throw new Error(
+      `t34-f7: emitted fanout cohort for handler ${JSON.stringify(input.handler)} resolves parent path ` +
+        `${JSON.stringify(parentPath)} to a non-string id.`,
+    );
+  }
+  return { kind: "anchored-collection", owner: input.owner, model, parent: { model: parentModel, id: current } };
+}
+
+/**
+ * T34-F7/C1: stage one emitted cohort's trigger join: look the
+ * `cutoff.handler` descriptor up in the entry module's emitted
+ * `appDefinition.cohorts`, resolve it against the trigger context,
+ * and stage through the real `stageFanoutTriggerJoin`. The cutoff
+ * handler is the single lookup key (no second handler field, no
+ * skew); resolution throws fail-loud before ANY store write, and
+ * admission diagnoses flow through unchanged.
+ *
+ * This entry is the serving join the worker's fanout driver calls;
+ * it is intentionally NOT a seventh assembly segment (the six
+ * segments are the composed mechanism entries; the driver supplies
+ * the entry module + trigger event per fire).
+ */
+export interface StageEmittedFanoutTriggerJoinOpts extends Omit<StageFanoutTriggerJoinOpts, "cohort"> {
+  /** Entry module's emitted `appDefinition.cohorts` member (untrusted: validated). */
+  readonly cohorts: unknown;
+  /** Entry module's emitted `appDefinition.models` member (anchored parent-model only). */
+  readonly models: unknown;
+  /** Trigger event record the anchored parent path resolves against. */
+  readonly event: unknown;
+}
+
+export async function stageEmittedFanoutTriggerJoin(
+  opts: StageEmittedFanoutTriggerJoinOpts,
+): Promise<StageFanoutTriggerJoinOutcome> {
+  const cohort = resolveEmittedFanoutCohort({
+    cohorts: opts.cohorts,
+    handler: opts.cutoff.handler,
+    owner: opts.owner,
+    event: opts.event,
+    models: opts.models,
+  });
+  // The emission keys (cohorts/models/event) ride the spread and are
+  // ignored downstream; every staged field arrives explicitly.
+  return stageFanoutTriggerJoin({ ...opts, cohort });
+}
+
 /* -- T34-F7 durable fenced claim/record (F3 TEST-ONLY replacement). -- */
 
 /**
@@ -5768,14 +6956,31 @@ export interface FanoutSchedulerBodyEffects {
 }
 
 /**
+ * T34-F7: attempt identity handed to the child body for effect
+ * attribution.
+ */
+export interface FanoutSchedulerBodyAttempt {
+  /**
+   * The attempt's invoking operation id (=== ctx.operationId at the
+   * unit commit): body-staged outbox intents and history entries
+   * MUST carry this id — state staging forbids cross-operation
+   * attribution.
+   */
+  readonly operationId: string;
+}
+
+/**
  * T34-F7: injected child-body port (the deployed handler stages the
  * child's domain effects and returns the attempt result; a
  * `StateError` throw with code `rule_failed` is the business
  * rejection). Called only for claimed children — pins never invoke.
+ * The attempt carries the invoking operation id so staged effects
+ * attribute to this attempt (C1: bodies cannot guess it).
  */
 export type FanoutSchedulerBodyPort = (
   child: FanoutChildId,
   domainRow: StoredRow,
+  attempt: FanoutSchedulerBodyAttempt,
 ) => FanoutSchedulerBodyEffects | Promise<FanoutSchedulerBodyEffects>;
 
 /** T34-F7: canonical-invoke inputs for executed children (all pass-through). */
@@ -5905,10 +7110,10 @@ async function driveFanoutTurnChild(input: {
   if (data.state === "running") {
     return { childId: data.childId, recordId: data.recordId, status: "held", detail: "running-held" };
   }
+  // F1 `FanoutChildCause` is closed (completed | skipped+reason |
+  // failed+reason): past the completed check the reason always exists.
   const pinDetail = (outcome: FanoutChildOutcome): string =>
-    outcome.cause.kind === "completed"
-      ? "completed"
-      : `${outcome.state}/${outcome.cause.kind === "skipped" || outcome.cause.kind === "failed" ? outcome.cause.reason : outcome.cause.kind}`;
+    outcome.cause.kind === "completed" ? "completed" : `${outcome.state}/${outcome.cause.reason}`;
   const tryPin = async (
     row: StoredRow,
     result:
@@ -6017,7 +7222,7 @@ async function driveFanoutTurnChild(input: {
     readonly result: unknown;
   }> => {
     void call;
-    const effects = await input.body(child, domainRow as StoredRow);
+    const effects = await input.body(child, domainRow as StoredRow, { operationId });
     checkFanoutAttemptResult(effects.result);
     // Fresh fanout rows per execution (invoke retries re-execute, so
     // versions re-read — never carried across attempts).

@@ -1,0 +1,424 @@
+{
+  "schema_version": 1,
+  "review": "Independent late work B3 mirror conformance test review",
+  "repository": "/Users/vince/Projects/canlang",
+  "date": "2026-10-06",
+  "incoming_commit": {
+    "sha": "1f5c1b55f68450f1f904a994d5c0a67057a77ca1",
+    "evidence": "Parent-supplied new main identity/addition scope; no Git command executed by this review."
+  },
+  "checkpoint_advanced": false,
+  "permitted_changes": [
+    "docs/ideal-filetree-plan/finished-product/reviews/late-work-tests.md",
+    "docs/ideal-filetree-plan/finished-product/reviews/late-work-tests.json"
+  ],
+  "source_pins": [
+    {
+      "path": "packages/work/test/b3-mirror-conformance.test.ts",
+      "sha256": "4955b48ec09b37d0b1adfd07fdd59d6f0a871846a425298c54bcbc0db235e744",
+      "lines": 902,
+      "inspection": "entire file"
+    },
+    {
+      "path": "packages/state/src/receipt/join.ts",
+      "sha256": "0b834c3e90e04a1b5471f0dcaedb443538f0e214f1ccdada86b8e3f262b7f39b",
+      "lines": 345,
+      "inspection": "entire file"
+    },
+    {
+      "path": "packages/state/src/receipt/grants.ts",
+      "sha256": "5e451c34948bd6e6421bb33f0e3fd221e294f82dd1820e49dad2a187081a801a",
+      "lines": 233,
+      "inspection": "entire file"
+    },
+    {
+      "path": "packages/state/src/receipt/tables.ts",
+      "sha256": "ef64dfe3862e3a0aa2f21e9eeca6affbe66a8a0f832efc7da9f5e6e01d8b3866",
+      "lines": 583,
+      "inspection": "selected defining consumer bodies"
+    },
+    {
+      "path": "packages/state/src/receipt/work-loader.ts",
+      "sha256": "f7fdfa0737835691a30bde622db3d63459dbfdd2de503be85896f34e7bc952f4",
+      "lines": 105,
+      "inspection": "entire file"
+    },
+    {
+      "path": "packages/work/src/observation/association.ts",
+      "sha256": "0167f94013df2bda615d670c7c7a38e9e489c3ee079da619dffe8a7d47e25b2e",
+      "lines": 576,
+      "inspection": "selected defining consumer bodies"
+    },
+    {
+      "path": "packages/work/src/observation/observation.ts",
+      "sha256": "29b86efe60a54398cf9f669b405dab381d3e337d3fca6fbb3cfba8aae876d24a",
+      "lines": 431,
+      "inspection": "selected defining consumer bodies"
+    },
+    {
+      "path": "packages/work/src/receipt/index.ts",
+      "sha256": "5085f392192a1059c9a5d3bcf679e4984b77a0ab4a5e799bcd17812e8060d6e3",
+      "lines": 396,
+      "inspection": "selected defining consumer bodies"
+    },
+    {
+      "path": "packages/work/tsconfig.json",
+      "sha256": "06830ded9cb6c092482a625543406a63d042410be6bf6464e830882ede78abe5",
+      "lines": 13,
+      "inspection": "entire file"
+    },
+    {
+      "path": "packages/work/package.json",
+      "sha256": "0a1c6e05419645ba565e76dd3ee6a3bd68a6b576319d33e04c592584f030e05a",
+      "lines": 16,
+      "inspection": "entire file"
+    }
+  ],
+  "built_import_inventory": [
+    {
+      "path": "packages/state/dist/state/src/receipt/join.js",
+      "present": true,
+      "sha256": "0e6c3913be2cfe47dc3b3a15f4d0da420a537ba239df3096438bab84cc87f41a",
+      "claim": "Filesystem presence/hash only; not rebuilt or source-equivalence/execution verified."
+    },
+    {
+      "path": "packages/state/dist/state/src/receipt/grants.js",
+      "present": true,
+      "sha256": "31c9e5cae16b4c7b04d0c5ee748ee3957732e0811e82b6c3e61e6227498cfd16",
+      "claim": "Filesystem presence/hash only; not rebuilt or source-equivalence/execution verified."
+    },
+    {
+      "path": "packages/state/dist/state/src/receipt/tables.js",
+      "present": true,
+      "sha256": "d9c8f55ff1f5035106600ff0a19cb8a90774a280b78a7026266ab980d76d74e1",
+      "claim": "Filesystem presence/hash only; not rebuilt or source-equivalence/execution verified."
+    },
+    {
+      "path": "packages/state/dist/state/src/receipt/work-loader.js",
+      "present": true,
+      "sha256": "3e6f8fa50fb0286a478e26dedb1fd15285f08b92a50e3465e57b97f95dda13b9",
+      "claim": "Filesystem presence/hash only; not rebuilt or source-equivalence/execution verified."
+    }
+  ],
+  "test_read_coverage": "Entire 902 lines including assumptions/imports/helpers/static pins/all assertions; selected real consumer defining bodies inspected.",
+  "suites": [
+    {
+      "id": "LW-A",
+      "range": [
+        170,
+        236
+      ],
+      "kind": "locator differential",
+      "asserted": "Malformed null/undefined/text/array/extra-key/record-shape/field-shape locators throw same error class; one valid object returns corresponding opaque record vs string stored-id shapes. Explicit extra state record-id restriction rejects empty record/nonstring id.",
+      "meaning": "Source-present finite differential over actual work source resolver and imported built B3 resolver; intentional L3 identity delta is not mirror drift.",
+      "limits": "No declared delivery membership, model/schema/reference authenticity or generated caller proof. Error classes only, not all messages; finite listed malformed/valid battery."
+    },
+    {
+      "id": "LW-B",
+      "range": [
+        238,
+        331
+      ],
+      "kind": "grant closure consumed by real work selected observation",
+      "asserted": "Whole notification path grants all four leaves; status leaf grants status only; sibling/deeper path cannot grant parent; empty denied including absent association; permitted absent gives null association; duplicate selected leaves consulted once per unique property.",
+      "meaning": "Actual createSelectedGrants closure plugged into actual observeSelectedReceipt, independent expected outcome assertions for exact leaf projection/deny-before-presence.",
+      "limits": "Pre-resolved Set paths; no authenticated role/row-level matching/revocation/membership lookup/field-context mismatch battery here. Current grant acquisition independently remains state owner duty."
+    },
+    {
+      "id": "LW-C",
+      "range": [
+        333,
+        400
+      ],
+      "kind": "retention closure consumed by real work observation",
+      "asserted": "External content before expiry or null expiry retained; at/past expiry hidden; wrong bound ref hidden; inline null contentRef bypasses closure and consultation count stays zero.",
+      "meaning": "Exact now < expiry boundary and content-ref equality consumed by real observeReceipt. Inline bypass deliberately follows inline-content-retained-with-summary contract.",
+      "limits": "No physical erasure, owner/subtree/history/outbox/private receipt disposal or safe replay proof. No current file/source grant nor result typed-shape/secret redaction proof. Inline always available is not justification to store expiring sensitive data inline without correct owner lifetime policy."
+    },
+    {
+      "id": "LW-D",
+      "range": [
+        402,
+        423
+      ],
+      "kind": "directional static assignment/export pins",
+      "asserted": "JoinObserverInput assigned to SelectedReceiptInput; SelectedReceiptOutcome to JoinObserverOutcome; ReceiptProgressOutcome to WorkProgressOutcome; actual observe/apply/consistency exports fit mirror function types. Runtime only typeof functions and null cast placeholder checks.",
+      "meaning": "Work tsconfig includes test/**/*.ts and noEmit script offers static check gate. Data-flow directions are useful exact call-boundary assignability pins.",
+      "limits": "Not independent bidirectional type-equivalence proof for every shape, nor runtime output semantics. isConsistentCompletion only pinned as callable here; no payload truth table in this added file. Typecheck not run."
+    },
+    {
+      "id": "LW-E",
+      "range": [
+        490,
+        702
+      ],
+      "kind": "association repoint over real B3 commitJoin + memory storage",
+      "asserted": "Provision receipt first, then associate via later batch that also touches existing receipt. Missing same-batch receipt refuses association and leaves no row. Repoint one field del_1\u2192del_2 touching new existing receipt; old envelope rejected id-mismatch on current pair and old receipt remains processable in isolated pure kernel. Loaded B3 rows agree with hand pair for one succeeded progress.",
+      "meaning": "Actual assertReceiptJoin/row codecs/memory commit called, not a handwritten commit algorithm. Same-batch association + receipt requirement is source-present for preexisting receipts and repoint.",
+      "limits": "Applied progress computed but not committed back; late old result only pure calculation, not persisted completion/recovery. Missing-partner negative is present, revision-mismatch/duplicate/stale-version/restart/concurrent/fence/store durability require separate suites. Helpers omit domain receipt/history/outbox/schedules and use trusted arbitrary owner/source fixtures."
+    },
+    {
+      "id": "LW-F",
+      "range": [
+        704,
+        902
+      ],
+      "kind": "memory join versus direct work kernel",
+      "asserted": "observeSelectedReceiptJoin directly injects actual work observer, uses real state policy paths/retention/rows; agrees with hand-built current pair on granted status/result, denied result, authorized absent, and expired/future external result. Checks readRevision is a number then strips it; checks explicit expected projection and fenceRevision.",
+      "meaning": "Useful integration differential for wiring/row decoding/closure binding, with explicit expected outcomes beyond common implementation comparison. Decoy owner.notification cannot supply delivery id.",
+      "limits": "Both branches share actual observer plus createSelectedGrants/createRetentionContentPolicy/resolveLeafGrantPaths; this cannot independently prove all those mechanisms. Only public grant and null membership. No fence argument; numeric fenceRevision does not prove enrollment/invalidation. Actual runtime loader/compiled generated app/HTTP/MCP/provider and D1/DO restart/concurrency absent."
+    }
+  ],
+  "assessment": {
+    "disposition": "ACCEPT narrow T25 boundary conformance addition as source-present unexecuted coverage; REQUIRED full receipt/lifecycle/installed gates remain open",
+    "not_a_product_change": "New test only per parent supplied delta; no new receipt kernel/host mechanism or product workflow inferred.",
+    "independence": "A compares distinct resolvers; B/C consume real state closures in real work with explicit assertions; E reads actual constructed store rows. F shares real kernels and closures, so it checks join wiring rather than independently derives receipt semantics. Static pins check intended assignment directions, not complete bidirectional equivalence.",
+    "material_defect_found": "No demonstrated new product/runtime defect from this source reading. Declared limited scope is largely candid; narrow any broader full-receipt-proof or bidirectional-equivalence summaries."
+  },
+  "residual_gates": [
+    {
+      "id": "LW-R01",
+      "disposition": "REQUIRED",
+      "duty": "Fresh build/typecheck and execution environment",
+      "reason": "Imports state/dist JS/d.ts directly; work scripts do not build state. Dist files exist and are pinned separately, but provenance/rebuild equivalence and passing typecheck/test execution were not verified in this planning audit. Only a reproducible fresh owner build and controlled relevant execution can turn source-present checks into executed evidence.",
+      "capabilities": [
+        "F01",
+        "F12"
+      ],
+      "source_sites": [
+        "packages/work/tsconfig.json:12",
+        "packages/work/package.json:10",
+        "packages/work/test/b3-mirror-conformance.test.ts:82"
+      ]
+    },
+    {
+      "id": "LW-R02",
+      "disposition": "REQUIRED",
+      "duty": "Actual field/schema and current authority join",
+      "reason": "Keep assertDeliveryField/registry-generated model-field membership, resolveLeafGrantPaths real current membership/role/row when union, related record/file grant and owner lifetime/revocation. New public-only test does not complete that proof.",
+      "capabilities": [
+        "F03",
+        "F04",
+        "F07",
+        "F08"
+      ],
+      "source_sites": [
+        "packages/state/src/receipt/grants.ts:125",
+        "packages/state/src/receipt/grants.ts:157",
+        "packages/state/src/receipt/join.ts:264"
+      ]
+    },
+    {
+      "id": "LW-R03",
+      "disposition": "REQUIRED",
+      "duty": "Owner read fence and real storage consistency",
+      "reason": "Join reads expected checkpoint before row loads and enrolls current receipt row when mutable leaf observed; new F omits fence. Retain actual D1/DO source-side enrolled version rejection, busy/conflict, duplicate/reordered commits and restart recovery qualification. Existing other suites may provide separate evidence but are not rerun here.",
+      "capabilities": [
+        "F03",
+        "F06",
+        "F12"
+      ],
+      "source_sites": [
+        "packages/state/src/receipt/join.ts:273",
+        "packages/state/src/receipt/join.ts:337",
+        "packages/state/src/receipt/tables.ts:574"
+      ]
+    },
+    {
+      "id": "LW-R04",
+      "disposition": "REQUIRED",
+      "duty": "Real progress/source commit and terminal relations",
+      "reason": "T25 applyReceiptProgress deliberately ignores terminal immutability; T26 applyRelatedProgress binds relation then gates terminal retention/notifications. Added test only applies one new succeeded envelope and old-id rejection, no stored progress/terminal/cancel/notification producer proof. Retain complete relation-specific real producer/current handler/recovery matrices.",
+      "capabilities": [
+        "F05",
+        "F06",
+        "F12"
+      ],
+      "source_sites": [
+        "packages/work/src/observation/association.ts:271",
+        "packages/work/src/observation/association.ts:447",
+        "packages/work/test/b3-mirror-conformance.test.ts:551",
+        "packages/work/test/b3-mirror-conformance.test.ts:699"
+      ]
+    },
+    {
+      "id": "LW-R05",
+      "disposition": "REQUIRED",
+      "duty": "Declared typed result, consistency and safe errors",
+      "reason": "Kernel isConsistentCompletion validates status/null/closed error shape, not declared result type or error redaction; static typeof pin is not all-status/error mirror truth table. Real admitted adapter + compiler wire schema and complete malformed/duplicate/equal-revision receipt evidence remain necessary.",
+      "capabilities": [
+        "F02",
+        "F05",
+        "F06"
+      ],
+      "source_sites": [
+        "packages/work/src/receipt/index.ts:326",
+        "packages/state/src/receipt/tables.ts:238",
+        "packages/work/test/b3-mirror-conformance.test.ts:412"
+      ]
+    },
+    {
+      "id": "LW-R06",
+      "disposition": "REQUIRED",
+      "duty": "Retention disposal and readable content",
+      "reason": "Expiry projection agreement only with supplied contentRef/expiry facts; owner-driven expiry must dispose sensitive local records/history/receipt/outbox/file copies, preserve non-sensitive replay and report physical delay. Current source/file authority and receiving file lifecycle remain distinct.",
+      "capabilities": [
+        "F03",
+        "F07"
+      ],
+      "source_sites": [
+        "packages/state/src/receipt/grants.ts:220",
+        "packages/work/src/observation/observation.ts:133"
+      ]
+    },
+    {
+      "id": "LW-R07",
+      "disposition": "REQUIRED",
+      "duty": "Installed consumer path",
+      "reason": "Named join/commit call-site source inventory found this and existing state tests plus defining modules; no non-test named production wiring found in inspected packages. Headers production wiring statements are intended boundary, not installed proof. Retain real compiled generated association update and selected browser/MCP read/provider commit under one canonical authority.",
+      "capabilities": [
+        "F08",
+        "F11",
+        "F12"
+      ],
+      "source_sites": [
+        "packages/state/src/receipt/join.ts:14",
+        "packages/state/src/receipt/work-loader.ts:1",
+        "packages/work/test/b3-mirror-conformance.test.ts:785"
+      ]
+    },
+    {
+      "id": "LW-R08",
+      "disposition": "REQUIRED",
+      "duty": "Full durable dispatch, receipt/business distinction and fanout",
+      "reason": "This test has no queue/claim/current dispatch recheck/provider transport/retry/exhaustion/fanout cohort or real app money/custody/approval outcome. Scope does not reduce W-DISPATCH/W-RECEIPT/W-PROGRESS/W-FANOUT/W-RECOVERY required target.",
+      "capabilities": [
+        "F05",
+        "F06",
+        "F11",
+        "F12"
+      ],
+      "source_sites": [
+        "packages/work/test/b3-mirror-conformance.test.ts:34"
+      ]
+    }
+  ],
+  "prior_evidence_preservation": "Existing state join/durable test sources and T25/T26 source kernels remain retained; absence from this added battery is not proof those sources do not exist. They require their own actual fresh execution/pinned installed producer evidence.",
+  "ownership": "New file stays work-owned conformance test. B3 state mirrors/authority/storage remain state; actual work kernels stay work leaf; test-only built-state import adds no state production dependency on full work. Pending Rust work semantic leaf allocation unchanged; no copied adapter/state authority.",
+  "verification": {
+    "tests_run": false,
+    "typecheck_run": false,
+    "build_run": false,
+    "Git_run": false,
+    "service_calls": false,
+    "source_documents_only": true,
+    "JSON_structure_checked": true,
+    "runtime_completed": false
+  },
+  "test_declaration_inventory": [
+    {
+      "line": 172,
+      "declaration": "describe('d3a locator differential (work vs B3 mirror)', () => {"
+    },
+    {
+      "line": 189,
+      "declaration": "it(`throws the same class on ${name}`, () => {"
+    },
+    {
+      "line": 212,
+      "declaration": "it('accepts the same valid shapes with mirrored outputs', () => {"
+    },
+    {
+      "line": 221,
+      "declaration": "it('pins the explicit delta: B3 requires the record store id, work does not', () => {"
+    },
+    {
+      "line": 240,
+      "declaration": "describe('d3a B3 grant closures satisfy the work leaf-grant contract', () => {"
+    },
+    {
+      "line": 272,
+      "declaration": "it('whole-field grants authorize every leaf', () => {"
+    },
+    {
+      "line": 280,
+      "declaration": "it('leaf grants authorize exactly that leaf', () => {"
+    },
+    {
+      "line": 292,
+      "declaration": "it('grants nothing on other fields and never expands upward', () => {"
+    },
+    {
+      "line": 304,
+      "declaration": "it('denies before presence: null association consults the same closures', () => {"
+    },
+    {
+      "line": 311,
+      "declaration": "it('is consulted exactly once per unique selected leaf', () => {"
+    },
+    {
+      "line": 335,
+      "declaration": "describe('d3a B3 retention closures satisfy the work content contract', () => {"
+    },
+    {
+      "line": 356,
+      "declaration": "it('discloses retained content before expiry', () => {"
+    },
+    {
+      "line": 361,
+      "declaration": "it('withholds at and past the expiry instant (boundary inclusive)', () => {"
+    },
+    {
+      "line": 366,
+      "declaration": "it('fails closed on ref mismatch', () => {"
+    },
+    {
+      "line": 380,
+      "declaration": "it('bypasses the closure for inline content without consulting it', () => {"
+    },
+    {
+      "line": 414,
+      "declaration": "describe('d3a static pins hold at runtime', () => {"
+    },
+    {
+      "line": 415,
+      "declaration": "it('live work exports satisfy the B3 loader mirror types', () => {"
+    },
+    {
+      "line": 492,
+      "declaration": "describe('d3a re-pointing consumes B3 rows in work kernels', () => {"
+    },
+    {
+      "line": 493,
+      "declaration": "it('provisions a receipt first, then associates it in a later batch', async () => {"
+    },
+    {
+      "line": 566,
+      "declaration": "it('refuses association writes without a same-batch receipt (D call sites)', async () => {"
+    },
+    {
+      "line": 595,
+      "declaration": "it('re-points one field across two pre-existing receipts', async () => {"
+    },
+    {
+      "line": 706,
+      "declaration": "describe('d3a join differential (B3 read path vs work mechanism)', () => {"
+    },
+    {
+      "line": 810,
+      "declaration": "it('agrees on full selected reads (granted leaves, fence revision)', async () => {"
+    },
+    {
+      "line": 835,
+      "declaration": "it('agrees on leaf denial (same denied set, nothing else)', async () => {"
+    },
+    {
+      "line": 856,
+      "declaration": "it('agrees on null association (no receipt, no fence)', async () => {"
+    },
+    {
+      "line": 876,
+      "declaration": "it('agrees on retained-content expiry through the join binding', async () => {"
+    }
+  ]
+}

@@ -31,6 +31,13 @@
  *   mirroring `tests/e2e/fixtures/artifact-loader.ts` `buildMcpBundle`
  *   INCLUDING its marker check. Bundling (not vendoring) is required
  *   because transitive MCP SDK deps (ajv, content-type) ship CJS only.
+ * - `worker/http-operations.js` (C3): the real `handleOperationRequest`
+ *   POST chain, `bun build --target=browser --format=esm` from a pure
+ *   re-export entry (MCP-identical shape, so no entry-path comment
+ *   leaks the tmpdir and the bundle stays deterministic). The main's
+ *   join contract curries it (`(deps) => (req, op) => ...` — arity
+ *   adaptation in stable main source, no bundle logic). Same flags,
+ *   marker check, and loud errors as the MCP bundle.
  * - `runtime/<pinned>.js`: the workerd-safe dist runtime files the worker
  *   graph loads (`context`, `invoke` + `sourcemap`, `mcp-registry` for
  *   assembly; `env-assembly`, `grant-route` for main). Pinned by name —
@@ -45,8 +52,9 @@
  *   repo-relative specifier baked into @canlang/ui dist (same bytes,
  *   second key). Producer imports inside staged vendor trees
  *   (`@canlang/values` in stdlib today) and pinned-runtime files
- *   (`@canlang/identity`, the state-D1 checkout path) are rewritten to
- *   module-relative `vendor/` keys; `assertLinksResolve` then refuses
+ *   (`@canlang/identity`, `@canlang/contracts`, the state-D1 checkout
+ *   path) are rewritten to module-relative `vendor/` keys;
+ *   `assertLinksResolve` then refuses
  *   any dangling or bare import. Acknowledged gap: dynamic imports
  *   through variables (the rewritten `*_SPECIFIER` consts) are
  *   statically invisible to the check — they are covered behaviorally
@@ -77,15 +85,28 @@ import { createHash } from "node:crypto";
 import { mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { basename, dirname, join, posix, relative, sep } from "node:path";
-import type { ActivationVerdict, ArtifactModule, CompileArtifact } from "@canlang/contracts";
+import type {
+  ActivationVerdict,
+  ArtifactModule,
+  AssetInventory,
+  CompileArtifact,
+  DeploymentAsset,
+  DerivedOperationInputs,
+} from "@canlang/contracts";
+import { ASSET_DIGEST_V2 } from "@canlang/contracts";
+import { catalogFromArtifactOperations } from "@canlang/interfaces";
 import { STDLIB_SPECIFIER, UI_SPECIFIER, type AssembledModules } from "../runtime/modules.js";
 
 /** Main module key: the deployed worker entry within the module map. */
 export const DEPLOY_MAIN_MODULE = "worker/main.js";
 /** MCP handler key: the sibling `./mcp-handler.js` bundle convention. */
 export const MCP_HANDLER_MODULE = "worker/mcp-handler.js";
+/** HTTP operations key: the sibling `./http-operations.js` bundle convention (C3). */
+export const HTTP_OPERATIONS_MODULE = "worker/http-operations.js";
 /** Staged-deployment key: the sibling `./artifact.js` join contract. */
 export const ARTIFACT_MODULE = "worker/artifact.js";
+/** Derived-inputs key: the sibling `./derived-inputs.js` E1 join contract (C1 bake). */
+export const DERIVED_INPUTS_MODULE = "worker/derived-inputs.js";
 /** Assembly key: the base every portable module URL resolves against. */
 const ASSEMBLY_MODULE_KEY = "worker/assembly.js";
 /**
@@ -110,7 +131,7 @@ export const WORKER_MAIN_DIST_RELATIVE = posix.join("packages", "cloudflare", "d
 export const WORKER_MAIN_MISSING = "worker-main-missing";
 
 /** Real-producer dists the MCP bundle is byte-built from (never stubbed). */
-const INTERFACES_MCP_SERVER_DIST = posix.join(
+export const INTERFACES_MCP_SERVER_DIST = posix.join(
   "packages",
   "interfaces",
   "dist",
@@ -119,7 +140,17 @@ const INTERFACES_MCP_SERVER_DIST = posix.join(
   "mcp",
   "server.js",
 );
-const MCP_REGISTRY_DIST = posix.join("packages", "cloudflare", "dist", "runtime", "mcp-registry.js");
+/** Real-producer dist the HTTP operations bundle is byte-built from (never stubbed). */
+export const INTERFACES_HTTP_OPERATIONS_DIST = posix.join(
+  "packages",
+  "interfaces",
+  "dist",
+  "interfaces",
+  "src",
+  "http",
+  "operations.js",
+);
+export const MCP_REGISTRY_DIST = posix.join("packages", "cloudflare", "dist", "runtime", "mcp-registry.js");
 
 /**
  * Marker check, mirroring the e2e loader: the bundle MUST still export the
@@ -130,6 +161,17 @@ export const MCP_BUNDLE_MARKERS: readonly string[] = [
   "createMcpHandler",
   "createArtifactRegistry",
   "createArtifactCatalog",
+  "IdentityError",
+];
+
+/**
+ * C3 marker set for the HTTP operations bundle: the real op chain and
+ * the bundle's own `IdentityError` copy (the op handler catches
+ * `IdentityError` from request identity resolution, so the same
+ * no-mixing invariant as MCP applies).
+ */
+export const HTTP_BUNDLE_MARKERS: readonly string[] = [
+  "handleOperationRequest",
   "IdentityError",
 ];
 
@@ -162,11 +204,28 @@ const VENDOR_TREES: readonly VendorTree[] = [
   },
 ];
 
+/**
+ * Staged keys never vendored: TEST-ONLY bridges with node-only imports
+ * (see the walk exclusion). Exact keys, no blast radius.
+ */
+const TEST_ONLY_VENDOR_KEYS: ReadonlySet<string> = new Set([
+  "vendor/state/fanout/work-loader.js",
+  "vendor/state/receipt/work-loader.js",
+  // D3b Q3: the receipt join + worker-safe observer producers are
+  // production-vendored — intentionally ABSENT here (present in the
+  // vendor walk, resolved by the rewrite map above).
+]);
+
 /** Vendor entry keys (mirroring each package's `main`). */
 const UI_VENDOR_ENTRY = "vendor/ui/index.js";
 const STDLIB_VENDOR_ENTRY = "vendor/stdlib/index.js";
 const IDENTITY_VENDOR_ENTRY = "vendor/identity/index.js";
+/** Mirrors `@canlang/contracts` package `main` (`./dist/index.js`). */
+const CONTRACTS_VENDOR_ENTRY = "vendor/contracts/index.js";
 const STATE_D1_VENDOR_ENTRY = "vendor/state/storage/d1.js";
+/** D3b receipt producers (C's Q2 contract vendor keys). */
+const STATE_RECEIPT_JOIN_VENDOR_ENTRY = "vendor/state/receipt/join.js";
+const STATE_RECEIPT_OBSERVER_VENDOR_ENTRY = "vendor/state/receipt/observer.js";
 const VALUES_VENDOR_ENTRY = "vendor/values/index.js";
 
 export interface BuildDeployBundleOptions {
@@ -197,6 +256,8 @@ export interface DeployBundle {
   sha256: string;
   /** Byte size of the MCP handler bundle (proof of a real bundle). */
   mcpBundleBytes: number;
+  /** Byte size of the HTTP operations bundle (proof of a real bundle). */
+  httpOperationsBytes: number;
 }
 
 export interface WrittenDeployBundle {
@@ -241,7 +302,7 @@ function withCode(error: Error, code: string): Error {
   return error;
 }
 
-function assertFileBuilt(repoRoot: string, distRelative: string, buildCommand: string): string {
+export function assertFileBuilt(repoRoot: string, distRelative: string, buildCommand: string): string {
   const full = join(repoRoot, distRelative);
   try {
     if (!statSync(full).isFile()) throw new Error("not a file");
@@ -326,6 +387,16 @@ function readVendorTree(repoRoot: string, tree: VendorTree): Record<string, stri
       // runs them from dist) but must never vendor — workerd has no
       // node:test resolution. The deploy-bundle/cli suites pin this.
       if (entry.endsWith(".test.js")) continue;
+      // C4: TEST-ONLY bridges emit beside sources under non-test names
+      // (state's `work-loader.js` file-URL juggling for the T25/F5 join
+      // proofs: node:url/node:path, zero non-test importers — comments
+      // only). They are test code the suffix rule cannot see; never
+      // vendor them, same rule as above. If lane B relocates these
+      // helpers under `test/`, the entries below become no-ops (prune
+      // then); a newly added node-only helper fails the link check
+      // loud, as before.
+      const vendorKey = `${tree.prefix}/${relative(base, full).split(sep).join("/")}`;
+      if (TEST_ONLY_VENDOR_KEYS.has(vendorKey)) continue;
       const key = `${tree.prefix}/${relative(base, full).split(sep).join("/")}`;
       modules[key] = rewriteVendorImports(readFileSync(full, "utf8"), key);
     }
@@ -412,13 +483,25 @@ function rewriteArtifactImports(js: string, modulePath: string): string {
  */
 const IDENTITY_SOURCE_SPECIFIER = "@canlang/identity";
 const STATE_D1_SOURCE_SPECIFIER = "../../../state/dist/state/src/storage/d1.js";
+/** D3b receipt producers (C's Q2 seam consts in pinned `invoke.js`). */
+const STATE_RECEIPT_JOIN_SOURCE_SPECIFIER = "../../../state/dist/state/src/receipt/join.js";
+const STATE_RECEIPT_OBSERVER_SOURCE_SPECIFIER = "../../../state/dist/state/src/receipt/observer.js";
 const VALUES_SOURCE_SPECIFIER = "@canlang/values";
+/** Contracts version constants (`loadContractVersions` in pinned `invoke.js`). */
+const CONTRACTS_SOURCE_SPECIFIER = "@canlang/contracts";
 
 /** Rewrite pinned-runtime producer imports to module-relative `vendor/` keys. */
 function rewriteRuntimeImports(js: string, moduleKey: string): string {
   const mapped = (spec: string): string => {
     if (spec === IDENTITY_SOURCE_SPECIFIER) return relativeSpecifier(moduleKey, IDENTITY_VENDOR_ENTRY);
     if (spec === STATE_D1_SOURCE_SPECIFIER) return relativeSpecifier(moduleKey, STATE_D1_VENDOR_ENTRY);
+    if (spec === STATE_RECEIPT_JOIN_SOURCE_SPECIFIER) {
+      return relativeSpecifier(moduleKey, STATE_RECEIPT_JOIN_VENDOR_ENTRY);
+    }
+    if (spec === STATE_RECEIPT_OBSERVER_SOURCE_SPECIFIER) {
+      return relativeSpecifier(moduleKey, STATE_RECEIPT_OBSERVER_VENDOR_ENTRY);
+    }
+    if (spec === CONTRACTS_SOURCE_SPECIFIER) return relativeSpecifier(moduleKey, CONTRACTS_VENDOR_ENTRY);
     return spec;
   };
   const swap = (_full: string, pre: string, spec: string, post: string): string =>
@@ -434,6 +517,9 @@ function rewriteRuntimeImports(js: string, moduleKey: string): string {
   for (const [source, entry] of [
     [IDENTITY_SOURCE_SPECIFIER, IDENTITY_VENDOR_ENTRY],
     [STATE_D1_SOURCE_SPECIFIER, STATE_D1_VENDOR_ENTRY],
+    [STATE_RECEIPT_JOIN_SOURCE_SPECIFIER, STATE_RECEIPT_JOIN_VENDOR_ENTRY],
+    [STATE_RECEIPT_OBSERVER_SOURCE_SPECIFIER, STATE_RECEIPT_OBSERVER_VENDOR_ENTRY],
+    [CONTRACTS_SOURCE_SPECIFIER, CONTRACTS_VENDOR_ENTRY],
   ] as const) {
     out = out.split(source).join(relativeSpecifier(moduleKey, entry));
   }
@@ -503,12 +589,37 @@ function stageArtifactModules(artifact: CompileArtifact): Record<string, string>
 }
 
 /**
+ * Build the `derived-inputs.js` module (C1): the REAL interfaces
+ * derivation (`catalogFromArtifactOperations`) for the staged
+ * artifact's operations, baked to data at deploy time. The worker
+ * serves it verbatim through the catalog's E1 `derivedFor` channel
+ * — no parallel derivation rule exists anywhere. Malformed
+ * operations or version skew throw here (the derivation's own
+ * loud errors); the bake covers every staged operation exactly.
+ */
+export function buildDerivedInputsModule(artifact: CompileArtifact): string {
+  const catalog = catalogFromArtifactOperations(artifact);
+  const baked: Record<string, DerivedOperationInputs> = {};
+  for (const op of artifact.operations ?? []) {
+    const derived = catalog.derivedFor(op.name);
+    if (derived === null) {
+      throw new Error(
+        `deploy bundle: derived bake produced no inputs for operation ${JSON.stringify(op.name)} ` +
+          `(derivation skew)`,
+      );
+    }
+    baked[op.name] = derived;
+  }
+  return `export const derivedInputs = ${JSON.stringify(baked)};\n`;
+}
+
+/**
  * Build the `mcp-handler.js` module: the real MCP handler chain bundled
  * self-contained for workerd. Mirrors the e2e loader's `buildMcpBundle`
  * (same flags, same marker check, same loud errors) with a generated entry
  * using absolute dist paths so tmp paths never leak into bundle bytes.
  */
-function buildMcpBundle(repoRoot: string): string {
+export function buildMcpBundle(repoRoot: string): string {
   const serverDist = assertFileBuilt(
     repoRoot,
     INTERFACES_MCP_SERVER_DIST,
@@ -563,6 +674,67 @@ function buildMcpBundle(repoRoot: string): string {
     if (!contents.includes(marker)) {
       throw new Error(
         `deploy bundle: MCP bundle build dropped ${marker}; refusing a skewed bundle ` +
+          `(rebuild the producer dists and retry)`,
+      );
+    }
+  }
+  return contents;
+}
+
+/**
+ * Build the `http-operations.js` module (C3): the real HTTP op-POST
+ * chain bundled self-contained for workerd. Mirrors `buildMcpBundle`
+ * (same flags, same marker check, same loud errors) with a pure
+ * re-export entry: any entry-local code makes bun emit an
+ * entry-path comment that leaks the random tmpdir and breaks bundle
+ * determinism, so the main's join-contract currying lives in stable
+ * main source instead (see `defaultLoadHttpOperationsFactory`).
+ */
+export function buildHttpOperationsBundle(repoRoot: string): string {
+  const operationsDist = assertFileBuilt(
+    repoRoot,
+    INTERFACES_HTTP_OPERATIONS_DIST,
+    "bun run --filter @canlang/interfaces build",
+  );
+  const workDir = mkdtempSync(join(tmpdir(), "can-deploy-http-"));
+  const entryFile = join(workDir, "http-bundle-entry.js");
+  const outFile = join(workDir, "http-bundle.mjs");
+  const toPosixAbsolute = (path: string): string => path.split(sep).join(posix.sep);
+  writeFileSync(
+    entryFile,
+    `export { handleOperationRequest } from ${JSON.stringify(toPosixAbsolute(operationsDist))};\n`,
+    "utf8",
+  );
+  try {
+    execFileSync(
+      "bun",
+      ["build", entryFile, "--format=esm", "--target=browser", `--outfile=${outFile}`],
+      { stdio: "pipe" },
+    );
+  } catch (err) {
+    rmSync(workDir, { force: true, recursive: true });
+    const detail = err instanceof Error ? err.message : String(err);
+    if (detail.includes("ENOENT")) {
+      throw new Error(
+        "deploy bundle: `bun` is not on PATH, needed to bundle the HTTP operations chain; " +
+          "install bun (https://bun.sh) or deploy via `bun run`",
+      );
+    }
+    throw new Error(
+      `deploy bundle: HTTP bundle build failed (\`bun build\` on the generated entry); ` +
+        `the interfaces dist must be built. Underlying error: ${detail}`,
+    );
+  }
+  let contents: string;
+  try {
+    contents = readFileSync(outFile, "utf8");
+  } finally {
+    rmSync(workDir, { force: true, recursive: true });
+  }
+  for (const marker of HTTP_BUNDLE_MARKERS) {
+    if (!contents.includes(marker)) {
+      throw new Error(
+        `deploy bundle: HTTP bundle build dropped ${marker}; refusing a skewed bundle ` +
           `(rebuild the producer dists and retry)`,
       );
     }
@@ -845,11 +1017,13 @@ export function buildDeployBundle(
     Object.assign(modules, readVendorTree(options.repoRoot, tree));
   }
   modules[MCP_HANDLER_MODULE] = buildMcpBundle(options.repoRoot);
+  modules[HTTP_OPERATIONS_MODULE] = buildHttpOperationsBundle(options.repoRoot);
   modules[ARTIFACT_MODULE] = renderStagedDeployment(
     artifact,
     portableAssembledModules(artifact.modules.map((mod) => mod.path)),
     options.verdict,
   );
+  modules[DERIVED_INPUTS_MODULE] = buildDerivedInputsModule(artifact);
   assertWorkerdLoadable(modules);
   assertLinksResolve(modules);
   const sorted: Record<string, string> = {};
@@ -862,6 +1036,7 @@ export function buildDeployBundle(
     moduleCount: Object.keys(sorted).length,
     sha256: bundleSha256(DEPLOY_MAIN_MODULE, sorted),
     mcpBundleBytes: (sorted[MCP_HANDLER_MODULE] as string).length,
+    httpOperationsBytes: (sorted[HTTP_OPERATIONS_MODULE] as string).length,
   };
 }
 
@@ -886,6 +1061,7 @@ export function writeDeployBundle(bundle: DeployBundle, outDir: string): Written
     sha256: bundle.sha256,
     moduleCount: bundle.moduleCount,
     mcpBundleBytes: bundle.mcpBundleBytes,
+    httpOperationsBytes: bundle.httpOperationsBytes,
     modules: Object.keys(bundle.modules)
       .sort()
       .map((key) => ({ key, bytes: (bundle.modules[key] as string).length })),
@@ -895,4 +1071,221 @@ export function writeDeployBundle(bundle: DeployBundle, outDir: string): Written
   files.push(manifestFile);
   files.sort();
   return { dir, mainFile: join(dir, bundle.mainModule), files };
+}
+
+/* ------------------------------------------------------------------ */
+/* C04.asset: typed text/binary inventory + versioned mixed digests.     */
+/* The v1 text-only path above is untouched: same inputs still yield    */
+/* identical modules, sha256, manifest bytes, and file layout. Binary  */
+/* assets travel alongside (never through) the text rewriting/linking  */
+/* stages, which stay text-only.                                        */
+/* ------------------------------------------------------------------ */
+
+/** A text-only bundle plus staged binary modules and their v2 digest. */
+export interface MixedDeployBundle extends DeployBundle {
+  /** Binary module key -> raw bytes (never empty-keyed, never colliding with text keys). */
+  binaries: Record<string, Uint8Array>;
+  /** `ASSET_DIGEST_V2` over the full typed inventory (text + binary). */
+  mixedSha256: string;
+}
+
+/**
+ * Build the typed inventory for one bundle: text modules become text
+ * assets, binaries become binary assets. A key present in both maps is
+ * a loud error (no silent shadowing in either direction), as is an
+ * empty key (unwritable by definition) or the reserved `__proto__` key
+ * (unrepresentable on a plain object map without silent loss).
+ */
+export function inventorizeAssets(
+  modules: Record<string, string>,
+  binaries: Record<string, Uint8Array> = {},
+): AssetInventory {
+  // Null-prototype map: the collision check below must be exact (inherited
+  // names such as "toString" are legitimate keys, not collisions), and no
+  // entry may vanish through the inherited `__proto__` setter.
+  const inventory: Record<string, DeploymentAsset> = Object.create(null);
+  for (const [key, text] of Object.entries(modules)) {
+    if (key === "") {
+      throw new Error("deploy bundle: text module key must not be empty");
+    }
+    if (key === "__proto__") {
+      throw new Error('deploy bundle: text module key must not be "__proto__"');
+    }
+    inventory[key] = { kind: "text", text };
+  }
+  for (const [key, bytes] of Object.entries(binaries)) {
+    if (key === "") {
+      throw new Error("deploy bundle: binary module key must not be empty");
+    }
+    if (key === "__proto__") {
+      throw new Error('deploy bundle: binary module key must not be "__proto__"');
+    }
+    if (inventory[key] !== undefined) {
+      throw new Error(`deploy bundle: binary key ${JSON.stringify(key)} collides with a text module`);
+    }
+    inventory[key] = { kind: "binary", bytes };
+  }
+  return inventory;
+}
+
+/**
+ * Writer-generated manifest paths, reserved across the whole mixed
+ * inventory. No text or binary module may normalize to one of these:
+ * the writer owns them and would otherwise silently overwrite module
+ * bytes (or module bytes would overwrite the manifest).
+ */
+const RESERVED_MIXED_OUTPUTS: ReadonlySet<string> = new Set(["bundle.json", "bundle.mixed.json"]);
+
+/**
+ * Pre-write output-layout validation for mixed bundles. Runs BEFORE
+ * any output write: containment for every key, normalized-alias
+ * rejection across text+binary maps (`worker/./main.js` aliases
+ * `worker/main.js`), and reserved-manifest reservation. Loud errors
+ * only; the v1 text-only writer is untouched by this check.
+ */
+function assertMixedOutputLayout(
+  modules: Record<string, string>,
+  binaries: Record<string, Uint8Array>,
+): void {
+  const seen = new Map<string, string>();
+  const consider = (key: string, what: string): void => {
+    assertSafeRelativePath(key, what);
+    const normalized = posix.normalize(key);
+    if (RESERVED_MIXED_OUTPUTS.has(normalized)) {
+      throw new Error(
+        `deploy bundle: ${what} ${JSON.stringify(key)} reserves writer manifest path ${JSON.stringify(normalized)}`,
+      );
+    }
+    const prior = seen.get(normalized);
+    if (prior !== undefined) {
+      throw new Error(
+        `deploy bundle: ${what} ${JSON.stringify(key)} aliases ${JSON.stringify(prior)} after normalization`,
+      );
+    }
+    seen.set(normalized, key);
+  };
+  for (const key of Object.keys(modules)) consider(key, "to write text module");
+  for (const key of Object.keys(binaries)) consider(key, "to write binary module");
+}
+
+/** Byte-copy every binary map entry: the snapshot owns its bytes. */
+function snapshotBinaries(binaries: Record<string, Uint8Array>): Record<string, Uint8Array> {
+  // Null-prototype accumulator: an own `__proto__` entry must never vanish
+  // through the inherited setter (plain `{}` + assignment would silently
+  // drop it before inventory/digest/write). `__proto__` keys refuse loudly
+  // below instead, matching the inventory contract.
+  const snapshot: Record<string, Uint8Array> = Object.create(null);
+  for (const [key, bytes] of Object.entries(binaries)) {
+    if (key === "__proto__") {
+      throw new Error('deploy bundle: binary module key must not be "__proto__"');
+    }
+    snapshot[key] = new Uint8Array(bytes);
+  }
+  return snapshot;
+}
+
+/** sha256 of raw bytes, hex. Binary lengths/hashes are exact: no text normalization. */
+export function sha256Bytes(bytes: Uint8Array): string {
+  return createHash("sha256").update(bytes).digest("hex");
+}
+
+/**
+ * `ASSET_DIGEST_V2`: sha256 over length-prefixed mixed frames in
+ * key-sorted order: u32be(keyUtf8) + key + u8(kind: 1=text, 2=binary)
+ * + u64be(byteLength) + rawBytes. Deterministic for the same inventory.
+ */
+export function bundleMixedSha256(mainModule: string, inventory: AssetInventory): string {
+  const hash = createHash("sha256");
+  const encoder = new TextEncoder();
+  const mainBytes = encoder.encode(mainModule);
+  const mainLen = Buffer.alloc(4);
+  mainLen.writeUInt32BE(mainBytes.length, 0);
+  hash.update(mainLen);
+  hash.update(mainBytes);
+  for (const key of Object.keys(inventory).sort()) {
+    const asset = inventory[key] as DeploymentAsset;
+    const keyBytes = encoder.encode(key);
+    const keyLen = Buffer.alloc(4);
+    keyLen.writeUInt32BE(keyBytes.length, 0);
+    hash.update(keyLen);
+    hash.update(keyBytes);
+    const raw = asset.kind === "binary" ? asset.bytes : encoder.encode(asset.text);
+    hash.update(Buffer.from([asset.kind === "binary" ? 2 : 1]));
+    const len = Buffer.alloc(8);
+    len.writeBigUInt64BE(BigInt(raw.length), 0);
+    hash.update(len);
+    hash.update(raw);
+  }
+  return hash.digest("hex");
+}
+
+/**
+ * Attach binary modules to a built text-only bundle. The text bundle
+ * (modules, sha256, counts) passes through untouched; the text map is
+ * copied and every binary is byte-copied, so later caller mutation of
+ * the input maps or buffers cannot change the returned bundle. The v2
+ * digest covers exactly the attached snapshot.
+ */
+export function attachBinaries(
+  bundle: DeployBundle,
+  binaries: Record<string, Uint8Array>,
+): MixedDeployBundle {
+  const modules = { ...bundle.modules };
+  const snapshot = snapshotBinaries(binaries);
+  const inventory = inventorizeAssets(modules, snapshot);
+  return {
+    ...bundle,
+    modules,
+    binaries: snapshot,
+    mixedSha256: bundleMixedSha256(bundle.mainModule, inventory),
+  };
+}
+
+/**
+ * Write a mixed bundle: text modules exactly as `writeDeployBundle`
+ * (same paths, bytes, v1 manifest shape for the text half), binaries as
+ * raw bytes, plus a versioned `bundle.mixed.json` manifest carrying the
+ * digest version, both digests, and per-entry kind/bytes/sha256.
+ *
+ * Coherence (corrective): the writer snapshots the binaries, validates
+ * the output layout (containment, normalized aliases, reserved
+ * manifests) BEFORE any output write, then recomputes the v2 digest
+ * over the exact output snapshot and rejects when it differs from the
+ * bundle's cached aggregate. Caller or buffer mutation after attach
+ * therefore fails loudly instead of shipping a lying manifest.
+ */
+export function writeDeployBundleMixed(bundle: MixedDeployBundle, outDir: string): WrittenDeployBundle {
+  const modules = { ...bundle.modules };
+  const binaries = snapshotBinaries(bundle.binaries);
+  assertMixedOutputLayout(modules, binaries);
+  const recomputed = bundleMixedSha256(bundle.mainModule, inventorizeAssets(modules, binaries));
+  if (recomputed !== bundle.mixedSha256) {
+    throw new Error(
+      "deploy bundle: mixed digest mismatch — the bundle changed after attach; refusing to write",
+    );
+  }
+  const written = writeDeployBundle({ ...bundle, modules }, outDir);
+  const dir = written.dir;
+  const binaryEntries: Array<{ key: string; kind: "binary"; bytes: number; sha256: string }> = [];
+  for (const key of Object.keys(binaries).sort()) {
+    assertSafeRelativePath(key, "to write binary module");
+    const bytes = binaries[key] as Uint8Array;
+    const full = join(dir, key);
+    mkdirSync(dirname(full), { recursive: true });
+    writeFileSync(full, bytes);
+    binaryEntries.push({ key, kind: "binary", bytes: bytes.length, sha256: sha256Bytes(bytes) });
+  }
+  const manifest = {
+    digestVersion: ASSET_DIGEST_V2,
+    mainModule: bundle.mainModule,
+    sha256: bundle.sha256,
+    mixedSha256: bundle.mixedSha256,
+    moduleCount: bundle.moduleCount,
+    binaryCount: binaryEntries.length,
+    binaries: binaryEntries,
+  };
+  const manifestFile = join(dir, "bundle.mixed.json");
+  writeFileSync(manifestFile, `${JSON.stringify(manifest, null, 2)}\n`, "utf8");
+  const files = [...written.files, ...binaryEntries.map((entry) => join(dir, entry.key)), manifestFile].sort();
+  return { dir, mainFile: written.mainFile, files };
 }

@@ -1,5 +1,6 @@
 import { Miniflare, type DispatchFetch } from "miniflare";
 import type { D1Database } from "@cloudflare/workers-types";
+import { COMPILED_WASM_MODULE_TYPE } from "@canlang/contracts";
 
 type DispatchInit = Parameters<DispatchFetch>[1];
 type DispatchResult = ReturnType<DispatchFetch>;
@@ -16,6 +17,13 @@ export interface LocalDevOptions {
   mainModule: string;
   /** ESM module name -> source. The main module is the worker entry. */
   modules: Readonly<Record<string, string>>;
+  /**
+   * C04.asset: binary module name -> raw bytes, staged as `CompiledWasm`
+   * (pinned installed mapping; verified vs miniflare@4.20260730.0 types).
+   * Absent by default; text-only callers are byte-identical. A name
+   * present in both maps is a loud error, never a silent shadow.
+   */
+  binaryModules?: Readonly<Record<string, Uint8Array>>;
   d1Databases?: readonly LocalD1[];
   /** Plain (non-secret) vars exposed as JSON bindings. */
   vars?: Readonly<Record<string, unknown>>;
@@ -61,13 +69,25 @@ export async function startLocalDev(options: LocalDevOptions): Promise<LocalDev>
   }
   const withMap = (name: string, contents: string): string =>
     contents + inlineMapComment(options.sourceMaps?.[name]);
-  const modules = [
+  const modules: Array<{
+    path: string;
+    type: "ESModule" | typeof COMPILED_WASM_MODULE_TYPE;
+    contents: string | Uint8Array<ArrayBuffer>;
+  }> = [
     { path: options.mainModule, type: "ESModule" as const, contents: withMap(options.mainModule, mainContents) },
   ];
   for (const [name, contents] of Object.entries(options.modules)) {
     if (name !== options.mainModule) {
       modules.push({ path: name, type: "ESModule" as const, contents: withMap(name, contents) });
     }
+  }
+  for (const [name, bytes] of Object.entries(options.binaryModules ?? {})) {
+    if (options.modules[name] !== undefined) {
+      throw new Error(`local dev binary module ${name} collides with a text module`);
+    }
+    // The installed miniflare API takes `Uint8Array<ArrayBuffer>`; copy so
+    // any caller buffer (Buffer, views) stages with exact same bytes.
+    modules.push({ path: name, type: COMPILED_WASM_MODULE_TYPE, contents: new Uint8Array(bytes) });
   }
   const d1Databases: Record<string, string> = {};
   for (const database of options.d1Databases ?? []) {

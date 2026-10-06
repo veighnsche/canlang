@@ -1,9 +1,0 @@
-{
-  "capturedUtc": "2026-10-04T02:02:01.899789+00:00",
-  "files": {
-    "editors/vscode/package.json": "4f8070598f759489d880ceec73e506c8bd82bb870dc5dd6a290886cfbc7c0cd6",
-    "editors/vscode/syntaxes/can.tmLanguage.json": "5b81968086d429b8b5156badc7efd712b0016f37aaaf576cd4489beed0214ea3",
-    "GRAMMAR.md": "bd21a290fb4fa0b753cfe6e655b7aca4e65763dd5b42b7c36c7e83b825b24014"
-  },
-  "version": "0.1.4"
-}

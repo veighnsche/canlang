@@ -1,0 +1,15 @@
+[package]
+name = "can-preparation"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.99"
+description = "Native artifact-preparation job process (stdin/stdout protocol)"
+license = "MIT"
+
+[[bin]]
+name = "can-preparation"
+path = "src/main.rs"
+
+[dependencies]
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"

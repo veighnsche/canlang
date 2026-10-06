@@ -1,0 +1,34 @@
+{
+  "request": {
+    "questions": {
+      "fence_scope": {
+        "criteria": {
+          "keep_wide": "Affirm the status quo boundary: revocation protection comes from re-asserting one deployment-wide revision at commit plus live revalidation of permission and revocation, so every intervening write — related or not — voids the commit. Enrollment records stay explanatory. Rationale for keeping: smallest proven surface, no new proof obligations, uniform rule every author already follows. Rationale against: couples independent tenants through shared version movement, multiplies retries as write load grows, repeats predicate work on each mutation, and leaves D1 contention as the principal unmeasured hazard.",
+          "narrow": "Move the boundary inward: revocation protection comes from re-checking exactly the enrolled membership and record dependencies at commit, so only movement in what the operation touched voids it. Rationale for moving: removes cross-tenant invalidation coupling, cuts spurious retries, keeps the fence proportional to the operation. Rationale against: demands fresh assertion bookkeeping with a D1 durability case, a second fence semantic to specify, test, and document, and confidence that every authorizing read is in fact enrolled ( gaps would silently authorize)."
+        },
+        "instructions": "Settle the parked T32a remainder for B4: should the fence that guards fenced commits against mid-flight revocation remain the single database-wide revision check, or should it narrow to the enrolled per-team and per-record dependencies — judging strictly by safety preservation against coupling and proof burden?",
+        "type": "choice"
+      }
+    },
+    "state": "Context: CanLang state engine, T32b checkpoint fence, the checkpoint_fence alternative adopted at T32a. Inspection-verified. (1) Commit path: the engine re-asserts the settled revision without exception and revalidates permission and revocation live; a commit survives only if nothing was written after its checkpoint. (2) Dependency enrollment: state-dependent reads join the owner checkpoint tagged by kind (membership: team plus user; record: version seen); the tags are presently used to attribute invalidations and to keep the narrower-fence question alive. (3) Eventual reads are display-only and rejected as authorizers everywhere. (4) Documented downsides of the wide check: authority-layer failure coupling (distant membership writes cancel local operations), contention-driven conflict growth, twice-paid predicate cost, and D1 contention as the foremost unmeasured runtime exposure. (5) Documented loose ends: compound gates admittable absent caller membership risk false voiding (suite never routes compounds through invoke; permanent fix is a mechanism-owned by-aware check), and revocation versus an already-fenced batch needs a storage-atomicity answer for durable proof. (6) T32a adopted the fence and explicitly deferred the wide-vs-narrow scope call. Zero contention measurements; zero production traffic.",
+    "model": "jev-latest"
+  },
+  "response": {
+    "model": "jev-1.13.0",
+    "answers": {
+      "fence_scope": {
+        "type": "choice",
+        "choice": "narrow",
+        "confidence": 0.03,
+        "probabilities": {
+          "narrow": 0.52,
+          "keep_wide": 0.48
+        }
+      }
+    },
+    "usage": {
+      "input_tokens": 878,
+      "output_tokens": 37
+    }
+  }
+}

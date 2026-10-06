@@ -1,5 +1,0 @@
-migration Rename from="old"
- rename before.Task to pkg.Work
- rename before.Task.title to pkg.Work.name
- backfill Work
-  do set row {name=before.title}

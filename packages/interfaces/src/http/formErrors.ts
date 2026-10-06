@@ -17,6 +17,7 @@
 import type {
   BusinessError,
   ClosedInputs,
+  ConflictCurrent,
   DerivedOperationInputs,
   FieldError,
   FormFieldDef,
@@ -27,12 +28,19 @@ import type {
   PresentationContext,
 } from '@canlang/contracts';
 import type { MessageValue } from '@canlang/contracts';
-import { escapeAttr, escapeHtml, form } from '@canlang/ui';
+import { escapeAttr, escapeHtml, form, generatedDraftValues } from '@canlang/ui';
 import { buildBusinessError, fromUnknown, httpStatusFor } from '../errors/envelope.js';
 import { PUBLIC_ERROR_MESSAGES, isBusinessErrorCode } from '../errors/safe.js';
 
 /** Base form props for one operation; drafts apply per request on top. */
 export interface FormErrorBinding {
+  /**
+   * The derived operation this binding was generated from (set only by
+   * `bindingFromDerived`); marks GENERATED bindings for the R6 conflict
+   * mapping, whose carried currents key by generated dot-path and cannot
+   * join hand-built field paths.
+   */
+  readonly derived?: DerivedOperationInputs;
   /** Canonical operation name, e.g. `expenses.Expense.create`. */
   readonly operation: string;
   /** POST target the form submits to. */
@@ -108,6 +116,7 @@ export function bindingFromDerived(input: DerivedFormBindingInput): FormErrorBin
     );
   }
   return {
+    derived: input.derived,
     operation: input.derived.operation,
     action: input.action,
     mode: input.mode,
@@ -130,16 +139,40 @@ function isSafeFieldError(value: unknown): value is FieldError {
   );
 }
 
+/** True for a well-shaped L3-carried conflict current (all members safe). */
+function isSafeConflictCurrent(value: unknown): value is ConflictCurrent {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) return false;
+  const record = value as Record<string, unknown>;
+  if (typeof record['message'] !== 'string') return false;
+  const current = record['current'];
+  if (typeof current !== 'object' || current === null || Array.isArray(current)) return false;
+  const row = current as Record<string, unknown>;
+  return (
+    typeof row['model'] === 'string' &&
+    typeof row['id'] === 'string' &&
+    typeof row['version'] === 'number' &&
+    typeof row['updated'] === 'string' &&
+    typeof row['updatedBy'] === 'string' &&
+    typeof row['values'] === 'object' &&
+    row['values'] !== null &&
+    !Array.isArray(row['values'])
+  );
+}
+
 /**
  * Project a denial onto the safe render envelope: known code (unknown
  * codes fail closed to the generic `rule_failed` envelope, which also
  * keeps the re-render status defined), string message (else the generic
  * safe text for the code), well-shaped string-only field errors (anything
- * else is dropped, never rendered), and well-typed `operation_id` /
- * `retryable` passthrough. Extra members never survive — the renderer
- * below can only interpolate safe strings. Well-formed envelopes keep
- * every member (a missing `retryable` normalizes to the code default),
- * so established renders are byte-identical.
+ * else is dropped, never rendered), well-typed `operation_id` /
+ * `retryable` passthrough, and the L3-carried `conflict` current when
+ * the code is `conflict` and the member is well-shaped (anything else —
+ * malformed currents, or currents on non-conflict codes — is dropped,
+ * so the render falls back to the failed banner). Extra members never
+ * survive — the renderer below can only interpolate safe strings.
+ * Well-formed envelopes keep every member (a missing `retryable`
+ * normalizes to the code default), so established renders are
+ * byte-identical.
  */
 export function safeFormError(error: BusinessError): BusinessError {
   if (!isBusinessErrorCode(error.code)) {
@@ -154,10 +187,13 @@ export function safeFormError(error: BusinessError): BusinessError {
         message: field.message,
       }))
     : undefined;
+  const conflict =
+    code === 'conflict' && isSafeConflictCurrent(error.conflict) ? error.conflict : undefined;
   return buildBusinessError(code, message, {
     ...(typeof error.operation_id === 'string' ? { operation_id: error.operation_id } : {}),
     ...(fields === undefined ? {} : { fields }),
     ...(typeof error.retryable === 'boolean' ? { retryable: error.retryable } : {}),
+    ...(conflict === undefined ? {} : { conflict }),
   });
 }
 
@@ -204,8 +240,23 @@ export function applyDrafts(
   });
 }
 
-/** Map a denial to the re-rendered form's outcome banner. */
-export function errorOutcome(error: BusinessError): FormOutcome {
+/**
+ * Map a denial to the re-rendered form's outcome banner. R6: a conflict
+ * with L3-carried currents on a GENERATED binding renders the conflict
+ * outcome (currents keyed by generated dot-path for the per-field
+ * "current value" join); anything else — no currents, or a hand-built
+ * binding whose paths cannot join — keeps the failed banner. Drafts are
+ * untouched either way: they stay in field values, never overwritten by
+ * current values.
+ */
+export function errorOutcome(error: BusinessError, binding?: FormErrorBinding): FormOutcome {
+  if (error.code === 'conflict' && binding?.derived !== undefined && error.conflict !== undefined) {
+    return {
+      status: 'conflict',
+      current: { ...error.conflict.current.values },
+      message: error.conflict.message,
+    };
+  }
   return { status: 'failed', error };
 }
 
@@ -292,6 +343,16 @@ export async function renderFormError(input: RenderFormErrorInput): Promise<Rend
   // every member, so established renders are byte-identical).
   const error = safeFormError(input.error);
   const record = binding.mode === 'update' ? draftRecord(input.draftInputs) : undefined;
+  // R5: generated bindings flatten drafts through F's generatedDraftValues
+  // (ref→id + __version, money→minor + __currency, arrays→JSON text,
+  // explicit null→__null, update reads changes.*) so both sides agree on
+  // every draft shape; the flat map feeds the established applyDrafts path
+  // (its update fallback composes — a flat map has no `changes` key).
+  // Hand bindings keep verbatim drafts.
+  const drafts =
+    binding.derived === undefined
+      ? input.draftInputs
+      : generatedDraftValues(binding.derived, binding.mode, input.draftInputs);
   const props: FormProps = {
     context: input.context,
     action: binding.action,
@@ -300,9 +361,9 @@ export async function renderFormError(input: RenderFormErrorInput): Promise<Rend
     mode: binding.mode,
     ...(record === undefined ? {} : { record }),
     timeZone: binding.timeZone,
-    fields: applyDrafts(binding.fields, binding.mode, input.draftInputs),
+    fields: applyDrafts(binding.fields, binding.mode, drafts),
     ...(error.fields === undefined ? {} : { errors: error.fields }),
-    outcome: errorOutcome(error),
+    outcome: errorOutcome(error, binding),
     submit: binding.submit,
     ...(binding.cancelHref === undefined ? {} : { cancelHref: binding.cancelHref }),
     idPrefix: binding.idPrefix,

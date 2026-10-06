@@ -224,9 +224,12 @@ pub enum ResolvedType {
     /// `bound` names the inputs pre-bound at construction (`Some`
     /// from the `action()` constructor, `None` for values whose
     /// construction site is unknown, e.g. action-typed parameters).
+    /// `external` carries bound-import targets as canonical
+    /// `provider.name` strings (they have no local symbol).
     Action {
         targets: Vec<SymbolId>,
         bound: Option<Vec<String>>,
+        external: Vec<String>,
     },
     /// `invocation(op,…)` complete-call value (DESIGN §2.2) over
     /// canonical user mutations. Always carries complete arguments;
@@ -315,11 +318,14 @@ impl ResolvedType {
             ResolvedType::Message(id) => {
                 format!("message {}", record_name(tables, module, *id))
             }
-            ResolvedType::Action { targets, .. } => {
-                let ops: Vec<String> = targets
+            ResolvedType::Action {
+                targets, external, ..
+            } => {
+                let mut ops: Vec<String> = targets
                     .iter()
                     .map(|t| record_name(tables, module, *t))
                     .collect();
+                ops.extend(external.iter().cloned());
                 format!("action({})", ops.join(","))
             }
             ResolvedType::Invocation { targets } => {
@@ -1620,7 +1626,12 @@ impl<'a> Typer<'a> {
         let ty = self.expr(cx, target, None);
         match ty {
             ResolvedType::Operation(id) => self.call_operation(cx, node, target, id, object),
-            ResolvedType::Action { targets, bound } => {
+            // External members have no local schemas, so `call`
+            // checks cover the local targets only (the provider
+            // package is absent by definition).
+            ResolvedType::Action {
+                targets, bound, ..
+            } => {
                 self.call_action(cx, node, target, &targets, bound.as_deref(), object);
             }
             ResolvedType::Invocation { targets } => {
@@ -3290,6 +3301,21 @@ impl<'a> Typer<'a> {
                 },
             );
         }
+        // A validated delivery completion types the handler payload
+        // with the DESIGN §8 envelope instead of `{opaque}`: the
+        // op's declared result flows to `event.result` and the closed
+        // status vocabulary to `event.status`.
+        if let Some(on) = attribute_value(node, "on", text)
+            && let Some(envelope) = self.on_completion_payload(module, text, on)
+        {
+            env.insert(
+                NarrowKey {
+                    decl: DeclKey::CtxEvent,
+                    path: Vec::new(),
+                },
+                envelope,
+            );
+        }
         // `by=` authorization narrows `actor` for guards and the body
         // (DESIGN §3); the resolver already narrowed
         // members/owner/authenticated, so this only adds role
@@ -3398,6 +3424,68 @@ impl<'a> Typer<'a> {
             }
             _ => None,
         }
+    }
+
+    /// Delivery envelope behind a handler's `on=Cap.op.completed`
+    /// (DESIGN §8): `delivery_id:text`,
+    /// `status:enum(pending,succeeded,failed,unknown,skipped)`,
+    /// `result:R?` from the op's declared result, `error:{opaque}`.
+    /// Mirrors the examples pass T35/R24 envelope, with the closed
+    /// DESIGN:654 status vocabulary so bare outcomes claim. Anything
+    /// else yields `None` (payload stays opaque).
+    fn on_completion_payload(
+        &self,
+        module: ModuleId,
+        text: &str,
+        on: &SyntaxNode,
+    ) -> Option<ResolvedType> {
+        if on.kind != SyntaxKind::Path {
+            return None;
+        }
+        let segments = path_segments(on, text);
+        if segments.len() != 3 || segments[2] != "completed" {
+            return None;
+        }
+        let head = self.prod_or_imported(module, segments[0])?;
+        let SymbolKind::Capability { ops, .. } = &self.tables.symbols[head.0 as usize].kind
+        else {
+            return None;
+        };
+        let op = ops
+            .iter()
+            .copied()
+            .find(|o| self.tables.symbols[o.0 as usize].name == segments[1])?;
+        let result = self
+            .results
+            .get(&op)
+            .cloned()
+            .flatten()
+            .map(|r| {
+                if matches!(r, ResolvedType::Nullable(_)) {
+                    r
+                } else {
+                    ResolvedType::Nullable(Box::new(r))
+                }
+            })
+            .unwrap_or(ResolvedType::Null);
+        Some(ResolvedType::Object(vec![
+            (
+                "delivery_id".to_string(),
+                ResolvedType::Scalar(Scalar::Text),
+            ),
+            (
+                "status".to_string(),
+                ResolvedType::Enum {
+                    cases: ["pending", "succeeded", "failed", "unknown", "skipped"]
+                        .iter()
+                        .map(|s| s.to_string())
+                        .collect(),
+                    owner: None,
+                },
+            ),
+            ("result".to_string(), result),
+            ("error".to_string(), ResolvedType::Opaque("delivery error")),
+        ]))
     }
 
     /// Whether a `by=`/`read=` authorization expression proves an
@@ -5159,7 +5247,9 @@ impl<'a> Typer<'a> {
                 continue;
             }
             // Policy `fields=` and UI `columns=` additionally accept
-            // delivery-observation leaves (DESIGN §7.1); every other
+            // delivery-observation leaves (DESIGN §8.1, B4 scope;
+            // A5/S2 keeps `filter=`/`search=` excluded until
+            // predicate-observation lowering lands); every other
             // selector keeps the contract-only rule below.
             if segments.len() > 1
                 && (node.kind == SyntaxKind::Policy || what == "columns")
@@ -9265,6 +9355,7 @@ impl<'a> Typer<'a> {
         node: &SyntaxNode,
     ) -> ResolvedType {
         let mut targets = Vec::new();
+        let mut external = Vec::new();
         let mut bad = false;
         for child in kids(node) {
             if child.kind != SyntaxKind::Path {
@@ -9340,18 +9431,26 @@ impl<'a> Typer<'a> {
                     }
                 },
                 None => {
-                    // Resolver diagnosed (`E2001`/`E2013`).
-                    bad = true;
+                    // Bound-import targets carry no symbol; the
+                    // resolver records their canonical identity
+                    // instead (valid per DESIGN §2.1).
+                    if let Some(canonical) = self.tables.node_external_op.get(&key).cloned() {
+                        external.push(canonical);
+                    } else {
+                        // Resolver diagnosed (`E2001`/`E2013`).
+                        bad = true;
+                    }
                 }
             }
         }
-        if bad || targets.is_empty() {
+        if bad || (targets.is_empty() && external.is_empty()) {
             ResolvedType::Error
         } else {
             // Type-position values have unknown construction sites.
             ResolvedType::Action {
                 targets,
                 bound: None,
+                external,
             }
         }
     }
@@ -9711,9 +9810,18 @@ impl<'a> Typer<'a> {
                 true
             }
             (ResolvedType::Message(a), ResolvedType::Message(b)) => a == b,
-            (ResolvedType::Action { targets: a, .. }, ResolvedType::Action { targets: b, .. }) => {
-                a.iter().all(|t| b.contains(t))
-            }
+            (
+                ResolvedType::Action {
+                    targets: a,
+                    external: ae,
+                    ..
+                },
+                ResolvedType::Action {
+                    targets: b,
+                    external: be,
+                    ..
+                },
+            ) => a.iter().all(|t| b.contains(t)) && ae.iter().all(|t| be.contains(t)),
             (ResolvedType::Invocation { targets: a }, ResolvedType::Invocation { targets: b }) => {
                 a.iter().all(|t| b.contains(t))
             }
@@ -14800,6 +14908,7 @@ impl<'a> Typer<'a> {
                 Some(op) => ResolvedType::Action {
                     targets: vec![op],
                     bound: Some(trial.action_bound.clone().unwrap_or_default()),
+                    external: Vec::new(),
                 },
                 None => ResolvedType::Opaque("unbound action result"),
             },
@@ -14873,12 +14982,14 @@ fn loose_equal(a: &ResolvedType, b: &ResolvedType) -> bool {
             ResolvedType::Action {
                 targets: a,
                 bound: ab,
+                external: ae,
             },
             ResolvedType::Action {
                 targets: b,
                 bound: bb,
+                external: be,
             },
-        ) => a == b && ab == bb,
+        ) => a == b && ab == bb && ae == be,
         (ResolvedType::Invocation { targets: a }, ResolvedType::Invocation { targets: b }) => {
             a == b
         }

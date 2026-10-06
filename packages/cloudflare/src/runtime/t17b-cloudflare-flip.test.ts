@@ -389,8 +389,17 @@ const SHOP_POLICY_JSON = JSON.stringify({
     "acme.Todo.create": { by: ["members"] },
     "acme.Todo.update": { by: ["owner"] },
     "acme.Todo.delete": { by: ["acme.Clerk"] },
+    // B7: every scenario declares its admission gate (gateless
+    // scenarios deny at the canonical gate — S4/S5).
+    ...Object.fromEntries(SCENARIOS.map((scenario) => [scenario.op, { by: ["members"] }])),
   },
   models: {
+    // B7: served models carry explicit-public provenance (read +
+    // public marks, the A-emitter phase-1 shape); Sealed stays
+    // pure-ruled (loud refusal); gateless models deny-with-empty.
+    "acme.Todo": { read: ["Todo.read.1"], public: ["Todo.read.1"] },
+    "acme.Memo": { read: ["Memo.read.1"], public: ["Memo.read.1"] },
+    "acme.Sku": { read: ["Sku.read.1"], public: ["Sku.read.1"] },
     "acme.Sealed": { read: ["Sealed.read.1"] },
   },
 });
@@ -510,19 +519,28 @@ export function canApp() {
 }
 
 describe("T17b read-policy transcription (PolicyTable grants)", () => {
-  it("transcribes absent/empty read content to public grants; rules mark ruled; malformed throws", () => {
+  it("transcribes absent/empty read content to ZERO grants; rules mark ruled; malformed throws", () => {
+    // B7 fail-closed (joint decision overturns the interim-exact
+    // public-grant default): no read content is deny-with-empty —
+    // S4 "no policy means deny".
     const fields = ["title", "done"];
     assert.deepEqual(mapReadRulesToPolicy("acme.Todo", undefined, fields), {
       ruled: false,
-      input: { model: "acme.Todo", secretFields: [], grants: [{ by: "public", fields }] },
+      input: { model: "acme.Todo", secretFields: [], grants: [] },
     });
-    assert.deepEqual(mapReadRulesToPolicy("acme.Todo", null, fields).ruled, false);
-    // Invariants/locks-only entries carry no read content: servable.
-    assert.deepEqual(
-      mapReadRulesToPolicy("acme.Todo", { invariants: ["Todo.require.1"] }, fields).ruled,
-      false,
-    );
-    assert.deepEqual(mapReadRulesToPolicy("acme.Todo", { read: [] }, fields).ruled, false);
+    assert.deepEqual(mapReadRulesToPolicy("acme.Todo", null, fields), {
+      ruled: false,
+      input: { model: "acme.Todo", secretFields: [], grants: [] },
+    });
+    // Invariants/locks-only entries carry no read content: zero grants.
+    assert.deepEqual(mapReadRulesToPolicy("acme.Todo", { invariants: ["Todo.require.1"] }, fields), {
+      ruled: false,
+      input: { model: "acme.Todo", secretFields: [], grants: [] },
+    });
+    assert.deepEqual(mapReadRulesToPolicy("acme.Todo", { read: [] }, fields), {
+      ruled: false,
+      input: { model: "acme.Todo", secretFields: [], grants: [] },
+    });
     // Well-formed rules: ruled, no table input (serve-time refusal, never served).
     assert.deepEqual(mapReadRulesToPolicy("acme.Todo", { read: ["Todo.read.1"] }, fields), {
       ruled: true,
@@ -559,6 +577,47 @@ describe("T17b read-policy transcription (PolicyTable grants)", () => {
       () => mapReadRulesToPolicy("acme.Todo", { read: ["Todo.read.1"], audit: true }, fields),
       /T04b carries generated policy/,
     );
+  });
+
+  it("honors B7 public provenance; skew marks refuse loud", () => {
+    const fields = ["title", "done"];
+    const publicInput = {
+      model: "acme.Todo",
+      secretFields: [],
+      grants: [{ by: "public", fields }],
+    };
+    // Pure-public: all rules marked -> honored grant, not ruled.
+    assert.deepEqual(
+      mapReadRulesToPolicy("acme.Todo", { read: ["Todo.read.1"], public: ["Todo.read.1"] }, fields),
+      { ruled: false, input: publicInput },
+    );
+    // Mixed: marked slice honored (public grant), unevaluable rules
+    // omitted fail-closed — ruled stays false (served content is
+    // fully guarded by the honored grant).
+    assert.deepEqual(
+      mapReadRulesToPolicy(
+        "acme.Todo",
+        { read: ["Todo.read.1", "Todo.read.2"], public: ["Todo.read.1"] },
+        fields,
+      ),
+      { ruled: false, input: publicInput },
+    );
+    // Empty marks array honors nothing: rules stand -> ruled.
+    assert.deepEqual(
+      mapReadRulesToPolicy("acme.Todo", { read: ["Todo.read.1"], public: [] }, fields),
+      { ruled: true, input: null },
+    );
+    // Skew: marks without rules, marks naming no rule, malformed
+    // marks — all loud, never honored-into-public.
+    for (const [name, entry, pattern] of [
+      ["marks-without-read", { public: ["Todo.read.1"] }, /public marks without read rules/],
+      ["marks-with-empty-read", { read: [], public: ["Todo.read.1"] }, /public marks without read rules/],
+      ["mark-names-no-rule", { read: ["Todo.read.1"], public: ["Todo.read.9"] }, /names no emitted rule/],
+      ["malformed-marks", { read: ["Todo.read.1"], public: "Todo.read.1" }, /malformed public marks/],
+      ["empty-mark", { read: ["Todo.read.1"], public: [""] }, /malformed public marks/],
+    ] as const) {
+      assert.throws(() => mapReadRulesToPolicy("acme.Todo", entry, fields), pattern, name);
+    }
   });
 
   it("reads model manifest entries defensively; malformed shapes fail loud", () => {
@@ -919,7 +978,7 @@ describe("T17b scenario staging (one atomic commit with receipt + history)", () 
     );
   });
 
-  it("rejects re-archiving with the engine message; staged writes roll back to a receipt-only revision", async () => {
+  it("rejects re-archiving with the B1 admission-parity verdict; staged writes roll back to a receipt-only revision", async () => {
     const { asm, artifact, store, seed } = await shopSetup();
     const invoker = buildInvoker(artifact, asm, store, {
       memberships: seed.store,
@@ -933,7 +992,10 @@ describe("T17b scenario staging (one atomic commit with receipt + history)", () 
     );
     assert.ok("error" in outcome, "re-archive must fail");
     assert.equal(outcome.error.code, "validation");
-    assert.match(outcome.error.message, /already archived/);
+    // B1: gated callers (the scenario seam passes gateArchivedTargets)
+    // report admission's verdict RATHER THAN the archive-mode engine
+    // verdict (pipeline.ts, "rather than ... `already archived`").
+    assert.equal(outcome.error.message, "Archived records cannot be used here.");
     // Bookkeeping only: revision +1 for the rejected receipt; no rows, no history.
     assert.equal(await store.readRevision(), 1);
     assert.equal((await modelRows(store, "acme.Memo")).length, 0);
@@ -1030,7 +1092,7 @@ describe("T17b records() refusals (unservable shapes fail loud, never mis-served
 });
 
 describe("T17b ruled reads (refuse loud; other serving stays up)", () => {
-  it("refuses ruled-model reads at the router and in handlers while CRUD + rule-less reads serve", async () => {
+  it("refuses ruled-model reads at the router and in handlers while CRUD + public-marked reads serve", async () => {
     const { asm, artifact, store, seed } = await shopSetup();
     const invoker = buildInvoker(artifact, asm, store, {
       memberships: seed.store,
@@ -1063,7 +1125,7 @@ describe("T17b ruled reads (refuse loud; other serving stays up)", () => {
     );
     assert.ok("result" in created, `CRUD must serve, got ${JSON.stringify(created)}`);
     const served = await invoker.invokeRead({ operation: "acme.Todo.read", inputs: {} }, identity);
-    assert.ok("result" in served, `rule-less read must serve, got ${JSON.stringify(served)}`);
+    assert.ok("result" in served, `public-marked read must serve, got ${JSON.stringify(served)}`);
     const result = served.result as { records: Array<{ data: Record<string, unknown> }> };
     assert.equal(result.records.length, 1);
     assert.deepEqual(result.records[0]?.data, { title: "served" });
@@ -1313,7 +1375,14 @@ describe("T17b receipt defaults (keyed per write)", () => {
 });
 
 describe("T17b parent linkage (validated, staged, attributed)", () => {
-  it("links existing parents and refuses ghosts with the engine message", async () => {
+  it("declared roots refuse ad-hoc parent linkage (B5); production linkage pins live in T32c", async () => {
+    // B5 declared ownership: artifact models without a `parent` member
+    // are DECLARED roots (models.ts: "absent `parent` marks a DECLARED
+    // root"), so ad-hoc supplied parents fail with "not allowed" —
+    // the pre-B5 legacy posture (accept any supplied parent) survives
+    // only for hand-built defs, never loader-built tables. Positive
+    // linkage + ghost refusal on production shape are pinned by the
+    // T32c C2 containment test (Shop.Member in Shop.Team).
     const { asm, artifact, store, seed } = await shopSetup();
     const invoker = buildInvoker(artifact, asm, store, {
       memberships: seed.store,
@@ -1324,17 +1393,16 @@ describe("T17b parent linkage (validated, staged, attributed)", () => {
       mutationEnvelope("acme.Shop.linkOk", freshOperationId(seed.now), { parent: "p-1", child: "c-1" }),
       identity,
     );
-    assert.ok("result" in linked, `want result, got ${JSON.stringify(linked)}`);
-    assert.deepEqual((linked.result as MutationResult).result, {
-      parent: { model: "acme.Todo", id: "p-1" },
-    });
+    assert.ok("error" in linked, "ad-hoc parent on a declared root must fail");
+    assert.equal(linked.error.code, "validation");
+    assert.equal(linked.error.message, 'Parent linkage is not allowed for model "acme.Todo".');
     const ghosted = await invoker.invokeMutation(
       mutationEnvelope("acme.Shop.linkGhost", freshOperationId(seed.now), { child: "c-2", ghost: "nope" }),
       identity,
     );
     assert.ok("error" in ghosted, "ghost parent must fail");
     assert.equal(ghosted.error.code, "validation");
-    assert.match(ghosted.error.message, /Parent record not found/);
+    assert.equal(ghosted.error.message, 'Parent linkage is not allowed for model "acme.Todo".');
     assert.equal(await store.load("acme.Todo" as ModelName, "c-2" as RecordId), null);
   });
 });
@@ -1379,8 +1447,8 @@ describe("T17b stale revisions conflict (CRUD path, row untouched)", () => {
   });
 });
 
-describe("T17b read posture (public grants serve every admitted caller; shapes validate closed)", () => {
-  it("serves rule-less models to outsiders and anonymous callers with full rows", async () => {
+describe("T17b read posture (honored-public serves all; gateless denies empty; shapes validate closed)", () => {
+  it("serves public-marked models to outsiders and anonymous callers with full rows", async () => {
     const { asm, artifact, store, seed } = await shopSetup();
     const invoker = buildInvoker(artifact, asm, store, {
       memberships: seed.store,
@@ -1392,8 +1460,9 @@ describe("T17b read posture (public grants serve every admitted caller; shapes v
       memberIdentity,
     );
     assert.ok("result" in created, `want result, got ${JSON.stringify(created)}`);
-    // Outsider (no membership) and anonymous callers both serve: rule-less
-    // models transcribe to public grants (the keep-public+grants posture).
+    // Outsider (no membership) and anonymous callers both serve: the
+    // Todo public mark honors to a public grant (the S4 explicit
+    // exception — keep-public+grants posture, now provenanced).
     const outsiderIdentity = await identityFor(seed, seed.outsiderToken);
     for (const [name, caller] of [
       ["outsider", outsiderIdentity],
@@ -1404,6 +1473,38 @@ describe("T17b read posture (public grants serve every admitted caller; shapes v
       const result = served.result as { records: Array<{ data: Record<string, unknown> }> };
       assert.equal(result.records.length, 1, name);
       assert.deepEqual(result.records[0]?.data, { title: "open", done: true }, name);
+    }
+  });
+
+  it("denies gateless models with EMPTY records to every caller (B7 deny-with-empty)", async () => {
+    // Same artifact, but the Todo model entry is dropped from the
+    // manifest: zero grants serve zero rows — success-shaped, never
+    // loud (loud is reserved for ruled models), never rows.
+    const gateless = JSON.stringify({
+      ...JSON.parse(SHOP_POLICY_JSON) as Record<string, unknown>,
+      models: { "acme.Sealed": { read: ["Sealed.read.1"] } },
+    });
+    const { asm, artifact, store, seed } = await shopSetup(gateless);
+    const invoker = buildInvoker(artifact, asm, store, {
+      memberships: seed.store,
+      now: () => seed.now,
+    });
+    const memberIdentity = await identityFor(seed, seed.memberToken);
+    const created = await invoker.invokeMutation(
+      mutationEnvelope("acme.Todo.create", freshOperationId(seed.now), { title: "open", done: true }),
+      memberIdentity,
+    );
+    assert.ok("result" in created, `want result, got ${JSON.stringify(created)}`);
+    const outsiderIdentity = await identityFor(seed, seed.outsiderToken);
+    for (const [name, caller] of [
+      ["member", memberIdentity],
+      ["outsider", outsiderIdentity],
+      ["anonymous", anonymousIdentity()],
+    ] as const) {
+      const served = await invoker.invokeRead({ operation: "acme.Todo.read", inputs: {} }, caller);
+      assert.ok("result" in served, `${name} must succeed-shaped, got ${JSON.stringify(served)}`);
+      const result = served.result as { records: Array<unknown> };
+      assert.equal(result.records.length, 0, `${name} sees zero rows`);
     }
   });
 

@@ -172,8 +172,35 @@ export {
   fieldInputName,
   form,
   formatDatetimeLocal,
+  formFragmentWrap,
+  generatedDraftValues,
+  generatedFields,
+  generatedForm,
   pointerToFieldName,
+  projectGeneratedInputs,
 } from "./forms.js";
+export {
+  applyDocumentRerender,
+  applyFormRerender,
+  collectFormValues,
+  GeneratedSubmitError,
+  submitGeneratedForm,
+} from "./client.js";
+export type {
+  CollectedForm,
+  DomControlLike,
+  DomFileLike,
+  DomFormLike,
+  FileLike,
+  GeneratedSubmitErrorCode,
+  GeneratedSubmitResult,
+  SubmitFetch,
+  SubmitFetchHeaders,
+  SubmitFetchInit,
+  SubmitFetchResponse,
+  SubmitGeneratedFormInput,
+  SwapDocumentLike,
+} from "./client.js";
 export { LANE05_CATALOG_VERSION, UI_CATALOG } from "./catalog.js";
 // Temporary B0 wiring: re-exported contract types until lane 7 assembles
 // @canlang/contracts; see README.
@@ -354,3 +381,50 @@ export {
   PRESENTATION_CONTRACT_VERSION,
   TEAM_FIELD,
 } from "../../contracts/src/presentation.js";
+export {
+  CSV_CSRF_HEADER,
+  CSV_UI_MAX_ROWS,
+  csvReviewForm,
+  digestBusinessError,
+  parseCsvText,
+} from "./csv/parse.js";
+export type {
+  CsvBusinessError,
+  CsvClientParse,
+  CsvClientRow,
+  CsvOperationChoice,
+  CsvRenewalHook,
+  CsvReviewFormProps,
+} from "./csv/parse.js";
+export {
+  csvPreviewSection,
+  parseReviewPayload,
+  submitCsvReview,
+} from "./csv/preview.js";
+export type {
+  CsvConsentModel,
+  CsvPreviewProps,
+  CsvPreviewRow,
+  CsvReviewModel,
+  CsvRowStatus,
+  SubmitCsvReviewInput,
+  SubmitCsvReviewResult,
+} from "./csv/preview.js";
+export {
+  collectCommitSelections,
+  csvConfirmSection,
+  mintOperationId,
+  parseCommitPayload,
+  submitCsvCommit,
+} from "./csv/confirm.js";
+export type {
+  CollectCommitSelectionsResult,
+  CsvCommitOutcomeModel,
+  CsvCommitRowOutcome,
+  CsvCommitRowStatus,
+  CsvCommitSelection,
+  CsvConfirmProps,
+  CsvFrozenPrincipal,
+  SubmitCsvCommitInput,
+  SubmitCsvCommitResult,
+} from "./csv/confirm.js";

@@ -693,14 +693,14 @@ describe("error journeys", () => {
 });
 
 describe("discovery journeys", () => {
-  it("enumerates and filters the full 88-entry surface programmatically", () => {
+  it("enumerates and filters the full 91-entry surface programmatically", () => {
     const entries = UI_CATALOG.entries;
-    assert.equal(entries.length, 88);
+    assert.equal(entries.length, 91);
 
     const byKind = entries.filter((entry) => entry.kind === "component");
-    assert.equal(byKind.length, 88, "kind filter keeps the whole surface");
+    assert.equal(byKind.length, 91, "kind filter keeps the whole surface");
     const byOwner = entries.filter((entry) => entry.owner === "lane-05");
-    assert.equal(byOwner.length, 88, "owner filter keeps the whole surface");
+    assert.equal(byOwner.length, 91, "owner filter keeps the whole surface");
 
     const profiles = new Set(entries.map((entry) => entry.profile));
     assert.deepStrictEqual(
@@ -723,7 +723,7 @@ describe("discovery journeys", () => {
       assert.ok(slice.length > 0, `${profile} has entries`);
       partitioned += slice.length;
     }
-    assert.equal(partitioned, 88, "profile partitions cover the surface");
+    assert.equal(partitioned, 91, "profile partitions cover the surface");
 
     const fields = entries.filter((entry) => entry.profile === "field-control");
     assert.ok(
@@ -742,7 +742,7 @@ describe("discovery journeys", () => {
     const implemented = UI_CATALOG.entries.filter(
       (entry) => entry.availability === "implemented",
     );
-    assert.equal(implemented.length, 88, "the whole surface resolves, none planned");
+    assert.equal(implemented.length, 91, "the whole surface resolves, none planned");
     for (const entry of implemented) {
       const target = record[entry.js];
       assert.equal(typeof target, "function", `${entry.js} resolves to a callable export`);

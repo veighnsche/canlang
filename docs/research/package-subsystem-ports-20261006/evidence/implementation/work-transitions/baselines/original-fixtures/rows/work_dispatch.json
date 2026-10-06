@@ -1,0 +1,23 @@
+{
+  "model": "work.dispatch",
+  "constructor_input": {
+    "constructor": "newDispatchRow",
+    "input": {
+      "intentId": "<derived obx>",
+      "operationId": "op-baseline",
+      "source": "cap/send",
+      "occurrenceIndex": 0,
+      "originOccurrence": null
+    },
+    "meta": {
+      "nowMs": 1750000000000,
+      "actor": "w01.3-baseline"
+    }
+  },
+  "row_id": "obx_c89608a6a6f8887651f977b14105ff18d9639ae888bfed540091cffc72d279f3",
+  "d1_data_bytes": "{\"intentId\":\"obx_c89608a6a6f8887651f977b14105ff18d9639ae888bfed540091cffc72d279f3\",\"operationId\":\"op-baseline\",\"source\":\"cap/send\",\"occurrenceIndex\":0,\"originOccurrence\":null,\"state\":\"pending\",\"attempts\":0,\"claimId\":null,\"claimedAtMs\":null,\"guardVerdict\":null,\"deliveryId\":null,\"errorCode\":null,\"errorMessage\":null,\"availableAtMs\":null,\"firstAttemptAtMs\":null,\"retryClass\":null}",
+  "do_data_bytes": "{\"intentId\":\"obx_c89608a6a6f8887651f977b14105ff18d9639ae888bfed540091cffc72d279f3\",\"operationId\":\"op-baseline\",\"source\":\"cap/send\",\"occurrenceIndex\":0,\"originOccurrence\":null,\"state\":\"pending\",\"attempts\":0,\"claimId\":null,\"claimedAtMs\":null,\"guardVerdict\":null,\"deliveryId\":null,\"errorCode\":null,\"errorMessage\":null,\"availableAtMs\":null,\"firstAttemptAtMs\":null,\"retryClass\":null}",
+  "d1_equals_do": true,
+  "byte_length_utf8": 378,
+  "sha256": "a232500891d745d1991a8e7b9d9b9110b00cfa7106b1d1d52e14dba70ff4caab"
+}

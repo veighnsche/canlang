@@ -38,7 +38,7 @@
 //! [`ModuleId`] index both tables.
 
 use crate::analysis::catalog::{Availability, Catalog, Effects, std_capability};
-use crate::analysis::effects::EffectVerb;
+use crate::analysis::effects::{EffectVerb, PolicyRule};
 use crate::analysis::migrate_check::{self, OwnerModelView};
 use crate::analysis::resolve::{
     CrudOp, FixtureTarget, ModelOwner, ModuleId, ModuleKind, SymbolId, SymbolKind,
@@ -304,10 +304,15 @@ pub struct IrGrant {
     pub rule: String,
     /// Field grants as dotted selector paths (empty omits `fields`).
     pub fields: Vec<String>,
+    /// Explicit-public provenance (B7 phase-1): true iff `read=` is
+    /// exactly the `public` spelling with no `where=`, so serve may
+    /// honor the grant without rule-fn evaluation.
+    pub public: bool,
 }
 
-/// One composite uniqueness constraint (checked but §13 has no member
-/// shape, so the lowering reports it as `E6008`).
+/// One composite uniqueness constraint: sparse `uniques` member on
+/// the model entry, with a conditional predicate registered as
+/// `Model.unique.N` beside the invariants (A2b).
 #[derive(Debug, Clone)]
 pub struct IrUnique {
     /// Constrained fields as dotted selector paths.
@@ -1072,6 +1077,10 @@ pub enum IrCallTarget {
     /// Capability operation by canonical id: imported from its owning
     /// package module and invoked as `await op(c, ...)`.
     CapabilityOp(String),
+    /// Derived function by canonical id: emitted as a module-scope
+    /// named function and invoked as `await name(c, ...)` (always
+    /// awaited: emitted derives are `async`).
+    DeriveFn(String),
 }
 
 /// Binary operators.
@@ -1313,9 +1322,12 @@ pub enum IrStmt {
         span: Span,
     },
     /// `for item in domain` → `for (const item of await domain)`.
+    /// `limit` is the fail-closed bound (DESIGN §5 table): fail the
+    /// operation when more than N items would be processed.
     For {
         item: String,
         domain: TypedExpr,
+        limit: Option<TypedExpr>,
         body: Vec<IrStmt>,
         span: Span,
     },
@@ -1362,7 +1374,7 @@ pub enum IrDefault {
 pub enum IrServer {
     Actor,
     Now,
-    Computed(TypedExpr),
+    Computed(Box<TypedExpr>),
 }
 
 /// One typed message parameter.
@@ -1416,6 +1428,10 @@ pub struct IrPage {
     pub group: Option<String>,
     /// Whether `nav:"none"` was authored.
     pub nav_none: bool,
+    /// `poll=` cadence in millis, if authored → BigInt.
+    pub poll: Option<i128>,
+    /// `refresh=` canonical user mutation, if authored.
+    pub refresh: Option<String>,
     /// Admission guards in source order.
     pub admit: Vec<IrGuard>,
     /// Render body: UI factory nodes in source order.
@@ -2417,6 +2433,11 @@ impl<'a> Cx<'a> {
             "now" if scope.in_hook => return member_of("$hookCtx", "now", ty, span),
             "actor" => return member_of("c", "actor", ty, span),
             "now" => return member_of("c", "now", ty, span),
+            // B4-G/O2: non-hook bodies read team/operation off the
+            // ambient context like actor/now; hooks keep the legacy
+            // fallthrough until T34-Q5 settles the hook-side contract.
+            "team" if !scope.in_hook => return member_of("c", "team", ty, span),
+            "operation" if !scope.in_hook => return member_of("c", "operation", ty, span),
             _ => {}
         }
         if is_test_account(name) {
@@ -2762,15 +2783,11 @@ impl<'a> Cx<'a> {
                 why: "no callee".to_string(),
             };
         };
-        // Named arguments have no positional lowering (except the
-        // `format` locale, consumed below).
+        // A2b: named arguments lower positionally for builtin
+        // catalog calls (ordered in `decode_name_call`); `format`
+        // keeps its locale carve-out, and message/role/derive
+        // calls keep the loud gap below.
         let callee_name = callee_name(self.db, callee);
-        if callee_name.as_deref() != Some("format") && args.iter().any(|(name, _)| name.is_some()) {
-            return IrExpr::Unsupported {
-                what: format!("call to {}", callee_name.unwrap_or_default()),
-                why: "named arguments have no §13 lowering".to_string(),
-            };
-        }
         match callee.kind {
             SyntaxKind::NameRef => {
                 let name = callee_name.unwrap_or_default();
@@ -2795,7 +2812,16 @@ impl<'a> Cx<'a> {
         if name == "format" {
             return self.decode_format_call(scope, args, ty, span);
         }
+        let has_named = args.iter().any(|(arg_name, _)| arg_name.is_some());
         if let Some((id, _)) = self.resolve_member(scope.module, name) {
+            // A2b: only builtin catalog calls positionalize named
+            // arguments; message/role/derive calls keep the gap.
+            if has_named {
+                return IrExpr::Unsupported {
+                    what: format!("call to {name}"),
+                    why: "named arguments have no §13 lowering".to_string(),
+                };
+            }
             let kind = self
                 .program
                 .symbols
@@ -2828,9 +2854,15 @@ impl<'a> Cx<'a> {
                     };
                 }
                 Some(SymbolKind::DeriveFn { .. }) => {
-                    return IrExpr::Unsupported {
-                        what: format!("call to derived function `{name}`"),
-                        why: "no §13 call lowering exists".to_string(),
+                    // Named arguments are rejected above for
+                    // resolved callees; only positional args
+                    // arrive here.
+                    return IrExpr::Call {
+                        target: IrCallTarget::DeriveFn(self.canonical(id)),
+                        args: args
+                            .iter()
+                            .map(|(_, value)| self.decode_expr(scope, value))
+                            .collect(),
                     };
                 }
                 _ => {}
@@ -2845,6 +2877,14 @@ impl<'a> Cx<'a> {
             (None, Some(_)) => false,
         };
         if !is_builtin {
+            // A2b: named arguments were rejected before target
+            // classification; keep that message for named calls.
+            if has_named {
+                return IrExpr::Unsupported {
+                    what: format!("call to {name}"),
+                    why: "named arguments have no §13 lowering".to_string(),
+                };
+            }
             return IrExpr::Unsupported {
                 what: format!("call to `{name}`"),
                 why: "call target is not a builtin, message or role".to_string(),
@@ -2858,6 +2898,20 @@ impl<'a> Cx<'a> {
             .and_then(|catalog| catalog.lookup(name))
             .and_then(|entry| entry.effects)
             .is_some_and(|effects| effects == Effects::StateRead);
+        // A2b: named arguments lower positionally in catalog
+        // signature order; without an orderable signature the loud
+        // gap stays (analysis owns unknown names via `E3005`).
+        let ordered: Vec<&SyntaxNode> = if has_named {
+            let Some(ordered) = self.order_builtin_args(name, args) else {
+                return IrExpr::Unsupported {
+                    what: format!("call to {name}"),
+                    why: "named arguments have no §13 lowering".to_string(),
+                };
+            };
+            ordered
+        } else {
+            args.iter().map(|(_, value)| *value).collect()
+        };
         self.builtins_seen.push(ReferencedBuiltin {
             id: name.to_string(),
             span,
@@ -2868,11 +2922,42 @@ impl<'a> Cx<'a> {
                 id: name.to_string(),
                 awaited,
             },
-            args: args
+            args: ordered
                 .iter()
-                .map(|(_, value)| self.decode_expr(scope, value))
+                .map(|value| self.decode_expr(scope, value))
                 .collect(),
         }
+    }
+
+    /// A2b: order builtin call arguments positionally per the
+    /// catalog signature — positionals fill the next unfilled
+    /// parameter in order, named fill by name (mirrors analysis
+    /// `bind_arguments`). `None` when there is no catalog, no
+    /// arity-matching overload, or an unknown/duplicate name.
+    fn order_builtin_args<'n>(
+        &self,
+        name: &str,
+        args: &[(Option<String>, &'n SyntaxNode)],
+    ) -> Option<Vec<&'n SyntaxNode>> {
+        let overloads = self.catalog?.overloads(name)?;
+        let overload = overloads.iter().find(|o| o.params.len() == args.len())?;
+        let mut slots: Vec<Option<&SyntaxNode>> = vec![None; overload.params.len()];
+        for (arg_name, value) in args {
+            match arg_name {
+                None => {
+                    let next = slots.iter().position(|s| s.is_none())?;
+                    slots[next] = Some(*value);
+                }
+                Some(arg_name) => {
+                    let idx = overload.params.iter().position(|p| p.name == *arg_name)?;
+                    if slots[idx].is_some() {
+                        return None;
+                    }
+                    slots[idx] = Some(*value);
+                }
+            }
+        }
+        slots.into_iter().collect()
     }
 
     /// Decode a `format(descriptor, locale?)` call.
@@ -3328,7 +3413,9 @@ pub fn expr_uses_async(expr: &TypedExpr) -> bool {
         IrExpr::Call { target, args } => {
             matches!(
                 target,
-                IrCallTarget::Builtin { awaited: true, .. } | IrCallTarget::CapabilityOp(_)
+                IrCallTarget::Builtin { awaited: true, .. }
+                    | IrCallTarget::CapabilityOp(_)
+                    | IrCallTarget::DeriveFn(_)
             ) || args.iter().any(expr_uses_async)
         }
         IrExpr::DeliveryRead { .. } => true,
@@ -3377,6 +3464,29 @@ pub fn expr_uses_async(expr: &TypedExpr) -> bool {
 /// subject predicates, boolean combinations, or an arbitrary checked
 /// boolean expression.
 impl<'a> Cx<'a> {
+    /// Explicit-public read provenance (B7 phase-1): true iff the grant
+    /// reads exactly `public` with no `where=`. Serve honors such grants
+    /// without rule-fn evaluation (rejected) or T04b-class evaluation
+    /// (deferred); predicated `read=public where=` stays fail-closed.
+    /// Pure: no diagnostics, safe to call during decode.
+    fn is_explicit_public_read(&self, policy: &PolicyRule) -> bool {
+        if policy.where_predicate.is_some() {
+            return false;
+        }
+        let Some(key) = policy.read.as_ref() else {
+            return false;
+        };
+        let Some(node) = self.node(key) else {
+            return false;
+        };
+        if node.kind != SyntaxKind::NameRef {
+            return false;
+        }
+        kids(node)
+            .iter()
+            .any(|n| name_text(self.db, n).as_deref() == Some("public"))
+    }
+
     fn decode_guard(&mut self, scope: &Scope, key: &NodeKey) -> IrGuard {
         let Some(node) = self.node(key).cloned() else {
             let span = Span::new(key.file, key.start, key.end);
@@ -3633,24 +3743,23 @@ impl<'a> Cx<'a> {
                 }
             }
             EffectVerb::For => {
-                if effect.limit.is_some() {
-                    // Limits fail on excess; dropping one would change
-                    // semantics, so the whole loop stays loud.
-                    return unsupported_stmt(
-                        "for limit",
-                        "bounded loops have no §13 lowering",
-                        span,
-                    );
-                }
                 let item = effect.item.clone().unwrap_or_default();
                 let domain = effect
                     .domain
                     .as_ref()
                     .map(|key| self.decode_anchored(scope, key, &format!("{what} domain")));
+                // The bound stays fail-closed: the emitter fetches the
+                // domain, then fails the operation past N items (DESIGN
+                // §5 `for item in query limit=N`).
+                let limit = effect
+                    .limit
+                    .as_ref()
+                    .map(|key| self.decode_anchored(scope, key, &format!("{what} limit")));
                 match domain {
                     Some(domain) => IrStmt::For {
                         item,
                         domain,
+                        limit,
                         body: effect
                             .then_effects
                             .iter()
@@ -4017,9 +4126,13 @@ impl<'a> Cx<'a> {
             .policies
             .iter()
             .enumerate()
-            .map(|(index, policy)| IrGrant {
-                rule: format!("{}.read.{}", symbol.name, index + 1),
-                fields: policy.fields.clone(),
+            .map(|(index, policy)| {
+                let public = self.is_explicit_public_read(policy);
+                IrGrant {
+                    rule: format!("{}.read.{}", symbol.name, index + 1),
+                    fields: policy.fields.clone(),
+                    public,
+                }
             })
             .collect();
         let invariants = data
@@ -4364,7 +4477,7 @@ impl<'a> Cx<'a> {
             let seen = self.builtins_seen.len();
             let lowered = self.decode_expr(&scope, &node);
             self.builtins_seen.truncate(seen);
-            Some(IrServer::Computed(lowered))
+            Some(IrServer::Computed(Box::new(lowered)))
         });
         let mut modifiers = IrModifiers::default();
         for modifier in &data.modifiers {
@@ -4634,6 +4747,30 @@ impl<'a> Cx<'a> {
                     invariants.push(IrRuleFn {
                         id: format!("{}.require.{}", symbol.name, index + 1),
                         pred,
+                        span,
+                    });
+                }
+                for (index, unique) in data.uniques.iter().enumerate() {
+                    // A2b: conditional uniques register their `where=`
+                    // predicate beside the invariants
+                    // (`Model.unique.N`); the model entry references
+                    // the id from its `uniques` member, never from
+                    // its `invariants` list (not a row invariant).
+                    let Some(key) = unique.where_predicate.as_ref() else {
+                        continue;
+                    };
+                    let span = Span::new(
+                        unique.node.file,
+                        unique.node.start,
+                        unique.node.end,
+                    );
+                    invariants.push(IrRuleFn {
+                        id: format!("{}.unique.{}", symbol.name, index + 1),
+                        pred: self.decode_anchored(
+                            &scope,
+                            key,
+                            &format!("unique constraint on {}", symbol.canonical),
+                        ),
                         span,
                     });
                 }
@@ -5160,16 +5297,27 @@ impl<'a> Cx<'a> {
             }
         });
         let description = self.owner_description(module, &page.node);
-        let (path, order, group, nav_none) = node
+        let (path, order, group, nav_none, poll, refresh) = node
             .as_ref()
             .map(|n| self.decode_page_head(module, n))
-            .unwrap_or_else(|| ("/".to_string(), None, None, false));
+            .unwrap_or_else(|| ("/".to_string(), None, None, false, None, None));
         let mut admit = Vec::new();
         let mut render = Vec::new();
         if let Some(node) = node.as_ref() {
             for child in kids(node) {
                 match child.kind {
                     SyntaxKind::Require => {
+                        if let Some(pred) =
+                            kids(child).iter().find(|n| is_expression(n.kind)).copied()
+                        {
+                            admit.push(self.decode_guard_node(&scope, pred));
+                        }
+                    }
+                    // A2b: page-level `require` parses as a `UiLeaf`
+                    // (not `Require`); it gates admission, never
+                    // renders. Nested container `require` keeps its
+                    // gate via `decode_gate`.
+                    SyntaxKind::UiLeaf if is_gate_leaf(self.db, child) => {
                         if let Some(pred) =
                             kids(child).iter().find(|n| is_expression(n.kind)).copied()
                         {
@@ -5204,6 +5352,8 @@ impl<'a> Cx<'a> {
             order,
             group,
             nav_none,
+            poll,
+            refresh,
             admit,
             render,
             fn_name,
@@ -5213,16 +5363,28 @@ impl<'a> Cx<'a> {
     }
 
     /// Decode the page head: route pattern plus `order`/`group`/`nav`.
-    /// `data`/`poll`/`refresh` have no lowering and stay loud `E6008`.
+    /// `data` has no lowering and stays loud `E6008`. `poll` decodes
+    /// the checked constant duration to millis; `refresh` resolves the
+    /// named canonical user mutation (DESIGN §9; `refresh` requires
+    /// `poll`, checked in types).
     fn decode_page_head(
         &mut self,
         module: ModuleId,
         node: &SyntaxNode,
-    ) -> (String, Option<i128>, Option<String>, bool) {
+    ) -> (
+        String,
+        Option<i128>,
+        Option<String>,
+        bool,
+        Option<i128>,
+        Option<String>,
+    ) {
         let mut path = "/".to_string();
         let mut order = None;
         let mut group = None;
         let mut nav_none = false;
+        let mut poll = None;
+        let mut refresh = None;
         for child in kids(node) {
             match child.kind {
                 SyntaxKind::Route => {
@@ -5284,14 +5446,43 @@ impl<'a> Cx<'a> {
                                 ));
                             }
                         }
-                        "poll" | "refresh" => {
-                            self.diags.push(Diagnostic::error(
-                                "E6008",
-                                format!(
-                                    "cannot lower page {name}: page {name} has no §13 lowering"
-                                ),
-                                child.span,
-                            ));
+                        "poll" => {
+                            // The checker proves a context-free constant
+                            // duration (1s..1h); decode the same literal
+                            // to millis (shared suffix table above).
+                            let duration = value.and_then(|v| match v.kind {
+                                SyntaxKind::Duration => Some(*v),
+                                SyntaxKind::Literal => {
+                                    kids(v).into_iter().find(|l| l.kind == SyntaxKind::Duration)
+                                }
+                                _ => None,
+                            });
+                            match duration.and_then(|d| duration_millis(self.text(d.span))) {
+                                Some(ms) => poll = Some(ms),
+                                None => {
+                                    let at = value.map(|v| v.span).unwrap_or(child.span);
+                                    self.diags.push(Diagnostic::error(
+                                        "E6008",
+                                        "cannot lower page poll: only constant durations lower"
+                                            .to_string(),
+                                        at,
+                                    ));
+                                }
+                            }
+                        }
+                        "refresh" => {
+                            match value.and_then(|v| self.resolve_operation_target(module, v)) {
+                                Some(op) => refresh = Some(self.canonical(op)),
+                                None => {
+                                    let at = value.map(|v| v.span).unwrap_or(child.span);
+                                    self.diags.push(Diagnostic::error(
+                                        "E6008",
+                                        "cannot lower page refresh: only a canonical user mutation lowers"
+                                            .to_string(),
+                                        at,
+                                    ));
+                                }
+                            }
                         }
                         _ => {}
                     }
@@ -5299,8 +5490,7 @@ impl<'a> Cx<'a> {
                 _ => {}
             }
         }
-        let _ = module;
-        (path, order, group, nav_none)
+        (path, order, group, nav_none, poll, refresh)
     }
 
     /// Normalize a route pattern. Static segments concatenate; dynamic
@@ -5558,7 +5748,12 @@ impl<'a> Cx<'a> {
         row_ctx: Option<(SymbolId, String)>,
     ) -> Option<IrUi> {
         match word {
-            "input" | "textarea" => Some(self.decode_field_control(scope, node, word, row_ctx)),
+            "input" | "textarea" | "radio" | "select" => {
+                Some(self.decode_field_control(scope, node, word, row_ctx))
+            }
+            "fieldset" => Some(self.decode_fieldset(scope, node, row_ctx)),
+            "fab" => Some(self.decode_fab(scope, node, row_ctx)),
+            "chat_bubble" => Some(self.decode_chat_bubble(scope, node, row_ctx)),
             "button" => Some(self.decode_button(scope, node, row_ctx)),
             "modal" | "drawer" => Some(self.decode_modal(scope, node, word, row_ctx)),
             "divider" => Some(self.decode_divider(scope, node, row_ctx)),
@@ -5645,6 +5840,19 @@ impl<'a> Cx<'a> {
         }
         for (name, value) in ui_attributes(self.db, node) {
             if let Some(value) = value {
+                // A2b: radio/select admit tone+size only (F catalog);
+                // input/textarea keep the pass-through.
+                if (word == "radio" || word == "select")
+                    && is_appearance_attr(&name)
+                    && !ui_appearance_admitted(word, &name)
+                {
+                    self.diags.push(Diagnostic::error(
+                        "E6008",
+                        format!("cannot lower {word}: appearance admits tone and size only"),
+                        value.span,
+                    ));
+                    continue;
+                }
                 props.push((name.clone(), self.decode_word_attr(scope, &name, value)));
             }
         }
@@ -5669,6 +5877,205 @@ impl<'a> Cx<'a> {
     /// Decode a bound `button`: exactly one binding attribute (`action`,
     /// `submit`, `target`, `opens`). `opens` names a declared local panel,
     /// so it lowers to a string, never a value reference.
+    /// Decode a `fieldset`: a captioned group over existing form
+    /// fields (A2b). Appearance admits nothing (F catalog).
+    fn decode_fieldset(
+        &mut self,
+        scope: &Scope,
+        node: &SyntaxNode,
+        row_ctx: Option<(SymbolId, String)>,
+    ) -> IrUi {
+        let mut props = Vec::new();
+        match self.decode_caption_header(scope.module, node) {
+            Some(caption) => props.push((
+                "caption".to_string(),
+                TypedExpr::new(
+                    IrExpr::Message(caption),
+                    ResolvedType::Scalar(Scalar::Text),
+                    node.span,
+                ),
+            )),
+            None => {
+                self.diags.push(Diagnostic::error(
+                    "E6008",
+                    "cannot lower fieldset: fieldset needs a caption".to_string(),
+                    node.span,
+                ));
+            }
+        }
+        for (name, value) in ui_attributes(self.db, node) {
+            if let Some(value) = value {
+                if is_appearance_attr(&name) {
+                    self.diags.push(Diagnostic::error(
+                        "E6008",
+                        "cannot lower fieldset: appearance admits nothing".to_string(),
+                        value.span,
+                    ));
+                    continue;
+                }
+                props.push((name.clone(), self.decode_word_attr(scope, &name, value)));
+            }
+        }
+        let children = self.decode_ui_children(scope, node, row_ctx);
+        if children.is_empty() {
+            self.diags.push(Diagnostic::error(
+                "E6008",
+                "cannot lower fieldset: fieldset needs grouped fields".to_string(),
+                node.span,
+            ));
+        }
+        IrUi {
+            factory: "fieldset".to_string(),
+            props,
+            children,
+            row_scope: None,
+            gate: self.decode_gate(scope, node),
+            span: node.span,
+        }
+    }
+
+    /// Decode a `fab`: buttons only (a compiler-side constraint; F
+    /// renders any `PageChildren`). The first button is the main
+    /// trigger, the rest are the action suite — emission groups
+    /// them as `main`/`actions` (A2b). Appearance admits nothing.
+    fn decode_fab(
+        &mut self,
+        scope: &Scope,
+        node: &SyntaxNode,
+        row_ctx: Option<(SymbolId, String)>,
+    ) -> IrUi {
+        let mut props = Vec::new();
+        if kids(node).iter().any(|n| is_expression(n.kind)) {
+            self.diags.push(Diagnostic::error(
+                "E6008",
+                "cannot lower fab: fab takes no positional header".to_string(),
+                node.span,
+            ));
+        }
+        for (name, value) in ui_attributes(self.db, node) {
+            if let Some(value) = value {
+                if is_appearance_attr(&name) {
+                    self.diags.push(Diagnostic::error(
+                        "E6008",
+                        "cannot lower fab: appearance admits nothing".to_string(),
+                        value.span,
+                    ));
+                    continue;
+                }
+                props.push((name.clone(), self.decode_word_attr(scope, &name, value)));
+            }
+        }
+        let children = self.decode_ui_children(scope, node, row_ctx);
+        for child in &children {
+            if child.factory != "button" {
+                self.diags.push(Diagnostic::error(
+                    "E6008",
+                    format!(
+                        "cannot lower fab: fab takes buttons only, found {}",
+                        child.factory
+                    ),
+                    child.span,
+                ));
+            }
+        }
+        if children.len() < 2 {
+            self.diags.push(Diagnostic::error(
+                "E6008",
+                "cannot lower fab: fab needs a main trigger plus action items".to_string(),
+                node.span,
+            ));
+        }
+        IrUi {
+            factory: "fab".to_string(),
+            props,
+            children,
+            row_scope: None,
+            gate: self.decode_gate(scope, node),
+            span: node.span,
+        }
+    }
+
+    /// Decode a `chat_bubble`: `slot <name>` children group into the
+    /// catalog slot props (`content` required, `header`/`avatar`/
+    /// `footer` optional); emission dissolves the wrappers (A2b).
+    /// Appearance admits tone only (F catalog).
+    fn decode_chat_bubble(
+        &mut self,
+        scope: &Scope,
+        node: &SyntaxNode,
+        row_ctx: Option<(SymbolId, String)>,
+    ) -> IrUi {
+        let mut props = Vec::new();
+        if kids(node).iter().any(|n| is_expression(n.kind)) {
+            self.diags.push(Diagnostic::error(
+                "E6008",
+                "cannot lower chat_bubble: chat_bubble takes slot children, not a header"
+                    .to_string(),
+                node.span,
+            ));
+        }
+        for (name, value) in ui_attributes(self.db, node) {
+            if let Some(value) = value {
+                if is_appearance_attr(&name) && !ui_appearance_admitted("chat_bubble", &name) {
+                    self.diags.push(Diagnostic::error(
+                        "E6008",
+                        "cannot lower chat_bubble: appearance admits tone only".to_string(),
+                        value.span,
+                    ));
+                    continue;
+                }
+                props.push((name.clone(), self.decode_word_attr(scope, &name, value)));
+            }
+        }
+        let mut children = Vec::new();
+        for child in kids(node) {
+            if !is_ui_node(child.kind) || is_gate_leaf(self.db, child) {
+                continue;
+            }
+            if child.kind != SyntaxKind::Slot {
+                self.diags.push(Diagnostic::error(
+                    "E6008",
+                    "cannot lower chat_bubble: chat_bubble takes slot children only".to_string(),
+                    child.span,
+                ));
+                continue;
+            }
+            match slot_name(self.db, child).as_deref() {
+                Some("content" | "header" | "avatar" | "footer") => {
+                    if let Some(ui) = self.decode_ui(scope, child, row_ctx.clone()) {
+                        children.push(ui);
+                    }
+                }
+                _ => {
+                    self.diags.push(Diagnostic::error(
+                        "E6008",
+                        "cannot lower chat_bubble: unknown slot (content, header, avatar, footer)"
+                            .to_string(),
+                        child.span,
+                    ));
+                }
+            }
+        }
+        if !children
+            .iter()
+            .any(|c| ui_slot_name(c) == Some("content"))
+        {
+            self.diags.push(Diagnostic::error(
+                "E6008",
+                "cannot lower chat_bubble: chat_bubble needs a content slot".to_string(),
+                node.span,
+            ));
+        }
+        IrUi {
+            factory: "chatBubble".to_string(),
+            props,
+            children,
+            row_scope: None,
+            gate: self.decode_gate(scope, node),
+            span: node.span,
+        }
+    }
+
     fn decode_button(
         &mut self,
         scope: &Scope,
@@ -6718,6 +7125,114 @@ impl<'a> Cx<'a> {
         }
     }
 
+    /// Decode a bare `delete` leaf to the `deleteRecord`
+    /// confirmation card (A2b). The row record and delete operation
+    /// mirror bare `edit`; the compiler supplies every required
+    /// `DeleteProps` member (F verdict): `action` posts to the
+    /// canonical operation endpoint, `operationId` is the operation
+    /// seed (the runtime owns intent minting), `mode` is `archive`
+    /// for bare deletes (no remove spelling exists in grammar),
+    /// `itemLabel` is the model label (or name), and `idPrefix` is
+    /// a per-model slug.
+    fn decode_delete_leaf(
+        &mut self,
+        scope: &Scope,
+        node: &SyntaxNode,
+        row_ctx: Option<(SymbolId, String)>,
+    ) -> IrUi {
+        let mut props = Vec::new();
+        let Some((model, row)) = row_ctx else {
+            self.diags.push(Diagnostic::error(
+                "E6008",
+                "cannot lower delete: delete needs a row record".to_string(),
+                node.span,
+            ));
+            return IrUi {
+                factory: "deleteRecord".to_string(),
+                props,
+                children: Vec::new(),
+                row_scope: None,
+                gate: self.decode_gate(scope, node),
+                span: node.span,
+            };
+        };
+        let op = self.program.symbols.iter().find_map(|s| match &s.kind {
+            SymbolKind::CrudOp { model: m, op } if *m == model && *op == CrudOp::Delete => {
+                Some(s.id)
+            }
+            _ => None,
+        });
+        let Some(op) = op else {
+            self.diags.push(Diagnostic::error(
+                "E6008",
+                format!(
+                    "cannot lower delete: {} has no delete operation",
+                    self.local_name(model)
+                ),
+                node.span,
+            ));
+            return IrUi {
+                factory: "deleteRecord".to_string(),
+                props,
+                children: Vec::new(),
+                row_scope: None,
+                gate: self.decode_gate(scope, node),
+                span: node.span,
+            };
+        };
+        let canonical = self.canonical(op);
+        let model_canonical = self.canonical(model);
+        let name = self.local_name(model);
+        let text = |value: String| TypedExpr::new(IrExpr::Text(value), ResolvedType::Scalar(Scalar::Text), node.span);
+        props.push(("operation".to_string(), text(canonical.clone())));
+        props.push((
+            "record".to_string(),
+            TypedExpr::new(IrExpr::Name(row), ResolvedType::Unknown, node.span),
+        ));
+        props.push(("mode".to_string(), text("archive".to_string())));
+        props.push((
+            "action".to_string(),
+            text(format!("/api/operations/{canonical}")),
+        ));
+        props.push(("operationId".to_string(), text(canonical.clone())));
+        let label_key = self
+            .program
+            .effects
+            .models
+            .get(&model)
+            .and_then(|data| data.label);
+        let label = label_key
+            .as_ref()
+            .and_then(|key| self.decode_message_value(scope.module, key));
+        match label {
+            Some(caption) => props.push((
+                "itemLabel".to_string(),
+                TypedExpr::new(
+                    IrExpr::Message(caption),
+                    ResolvedType::Scalar(Scalar::Text),
+                    node.span,
+                ),
+            )),
+            None => props.push(("itemLabel".to_string(), text(name.clone()))),
+        }
+        props.push((
+            "confirm".to_string(),
+            text(format!("Archive this {name}?")),
+        ));
+        props.push((
+            "idPrefix".to_string(),
+            text(format!("delete-{}", model_canonical.replace('.', "-"))),
+        ));
+        IrUi {
+            factory: "deleteRecord".to_string(),
+            props,
+            children: Vec::new(),
+            row_scope: None,
+            gate: self.decode_gate(scope, node),
+            span: node.span,
+        }
+    }
+
     /// Decode a `UiLeaf` (`text`, `history`, `metrics`, `actions`, ...).
     fn decode_leaf(
         &mut self,
@@ -6726,6 +7241,11 @@ impl<'a> Cx<'a> {
         word: &str,
         row_ctx: Option<(SymbolId, String)>,
     ) -> Option<IrUi> {
+        // A2b: `delete` maps to the `deleteRecord` js name with
+        // inferred props; every other leaf keeps its word.
+        if word == "delete" {
+            return Some(self.decode_delete_leaf(scope, node, row_ctx));
+        }
         let mut props = Vec::new();
         match word {
             "text" => {
@@ -6868,6 +7388,41 @@ fn is_ui_node(kind: SyntaxKind) -> bool {
 /// instead and are decoded by the page, never here).
 fn is_gate_leaf(db: &SourceDb, node: &SyntaxNode) -> bool {
     node.kind == SyntaxKind::UiLeaf && ui_word(db, node) == "require"
+}
+
+/// Slot name of a decoded `slot` node (`None` for anything else),
+/// for grouping slotted suites at emission (A2b `chatBubble`).
+pub fn ui_slot_name(node: &IrUi) -> Option<&str> {
+    if node.factory != "slot" {
+        return None;
+    }
+    node.props.iter().find_map(|(key, value)| {
+        if key == "name" {
+            match &value.expr {
+                IrExpr::Text(name) => Some(name.as_str()),
+                _ => None,
+            }
+        } else {
+            None
+        }
+    })
+}
+
+/// Whether an appearance attribute is admitted on an A2b UI node
+/// (F catalog rule: absent appearance admits nothing — radio/select
+/// take tone+size, chat_bubble tone only, the rest nothing).
+fn ui_appearance_admitted(word: &str, name: &str) -> bool {
+    match word {
+        "radio" | "select" => matches!(name, "tone" | "size"),
+        "chat_bubble" => name == "tone",
+        _ => false,
+    }
+}
+
+/// Whether an attribute name is an appearance knob (the closed set
+/// `decode_word_attr` lowers to spelling strings).
+fn is_appearance_attr(name: &str) -> bool {
+    matches!(name, "tone" | "size" | "variant" | "orientation")
 }
 
 /// Input-selector spelling of a field-control header (`NameRef` or
@@ -7852,7 +8407,9 @@ impl<'a> Cx<'a> {
             IrExpr::Call { target, args } => {
                 let id = match target {
                     IrCallTarget::Builtin { id, .. } => id.as_str(),
-                    IrCallTarget::CapabilityOp(_) => return ResolvedType::Unknown,
+                    IrCallTarget::CapabilityOp(_) | IrCallTarget::DeriveFn(_) => {
+                        return ResolvedType::Unknown
+                    }
                 };
                 match id {
                     "count" => ResolvedType::Scalar(Scalar::Int),

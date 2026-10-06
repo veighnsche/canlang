@@ -1,5 +1,0 @@
-app Models
-Given
- capability in app {title:text}
-When
-Then

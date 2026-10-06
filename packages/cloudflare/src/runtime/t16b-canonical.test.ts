@@ -56,6 +56,7 @@ import {
   loadCanonicalDescriptors,
   loadContractVersions,
   mapCrudPolicyToBy,
+  mapScenarioPolicyToBy,
   readOperationPolicyEntry,
   withCanonicalCommitGuard,
 } from "./invoke.js";
@@ -90,15 +91,27 @@ function freshOperationId(atMs: number): string {
   return `${timeHex.slice(0, 8)}-${timeHex.slice(8, 12)}-7${rand.slice(0, 3)}-8${rand.slice(4, 7)}-${rand.slice(7, 19)}`;
 }
 
-const OPS_MODULE = `const calls = [];
+// B7: the shop fixture declares its gates (CRUD + restock admission,
+// Todo explicit-public reads) — gateless operations deny, gateless
+// models serve empty. Variants drop members to pin the denial paths.
+const OPS_POLICY_FULL = JSON.stringify({
+  operations: {
+    "acme.Todo.create": { by: ["members"] },
+    "acme.Todo.update": { by: ["owner"] },
+    "acme.Todo.delete": { by: ["acme.Clerk"] },
+    "acme.Shop.restock": { by: ["members"] },
+  },
+  models: {
+    "acme.Todo": { read: ["Todo.read.1"], public: ["Todo.read.1"] },
+  },
+});
+
+function opsModule(policyJson: string): string {
+  return `const calls = [];
 export function canApp() {
   return {
     calls,
-    policy: { operations: {
-      "acme.Todo.create": { by: ["members"] },
-      "acme.Todo.update": { by: ["owner"] },
-      "acme.Todo.delete": { by: ["acme.Clerk"] }
-    } },
+    policy: ${policyJson},
     Todo: {
       create: async () => { throw new Error("t16b-proof: CRUD handler must never run on the canonical path"); },
       update: async () => { throw new Error("t16b-proof: CRUD handler must never run on the canonical path"); },
@@ -113,12 +126,15 @@ export function canApp() {
   };
 }
 `;
+}
+
+const OPS_MODULE = opsModule(OPS_POLICY_FULL);
 
 const COMMIT_MODULE = `const calls = [];
 export function canApp() {
   return {
     calls,
-    policy: { operations: {} },
+    policy: { operations: { "acme.Shop.restock": { by: ["members"] } } },
     Shop: {
       restock: async (c, input) => {
         calls.push("commit-attempt");
@@ -419,7 +435,14 @@ describe("T16b router (generated vs interim)", () => {
 
 describe("T16b policy transcription (CRUD gates)", () => {
   it("maps the established subset; refuses the rest LOUD naming T04b", () => {
-    assert.equal(mapCrudPolicyToBy("op", undefined), "public");
+    // B7 fail-closed (joint decision overturns the interim-exact
+    // `public` default): absent entry denies via {not: "public"} —
+    // S4 "no policy means deny", per-call typed denial.
+    assert.deepEqual(mapCrudPolicyToBy("op", undefined), { not: "public" });
+    assert.deepEqual(mapCrudPolicyToBy("op", null), { not: "public" });
+    // Explicit public is still honored 1:1 (the S4 explicit
+    // exception) — only the *absent* default flipped to deny.
+    assert.equal(mapCrudPolicyToBy("op", { by: ["public"] }), "public");
     assert.equal(mapCrudPolicyToBy("op", { by: ["members"] }), "members");
     assert.equal(mapCrudPolicyToBy("op", { by: ["owner"] }), "owner");
     assert.deepEqual(mapCrudPolicyToBy("op", { by: ["acme.Clerk"] }), { role: "acme.Clerk" });
@@ -443,6 +466,31 @@ describe("T16b policy transcription (CRUD gates)", () => {
       () => mapCrudPolicyToBy("acme.Todo.create", { by: ["members"], gated: true }),
       /T04b carries generated policy/,
     );
+  });
+
+  it("transcribes scenario admission; requires stays handler-enforced", () => {
+    // B7: scenarios join admission transcription. Absent entry
+    // denies like CRUD; `by` maps 1:1; the leading-require count is
+    // dropped (the emitted handler runs requires inlined
+    // post-admission); gated/when/malformed refuse loud.
+    assert.deepEqual(mapScenarioPolicyToBy("op", undefined), { not: "public" });
+    assert.deepEqual(mapScenarioPolicyToBy("op", null), { not: "public" });
+    assert.equal(mapScenarioPolicyToBy("op", { by: ["members"] }), "members");
+    assert.equal(mapScenarioPolicyToBy("op", { by: ["public"] }), "public");
+    assert.deepEqual(mapScenarioPolicyToBy("op", { by: ["members"], requires: 3 }), "members");
+    assert.deepEqual(
+      mapScenarioPolicyToBy("op", { by: ["members", "owner"], requires: 1 }),
+      { and: ["members", "owner"] },
+    );
+    for (const entry of [
+      { by: ["members"], gated: true },
+      { by: ["members"], when: true },
+      {},
+      { by: [] },
+      { by: ["members"], audit: true },
+    ]) {
+      assert.throws(() => mapScenarioPolicyToBy("acme.Probe.case", entry), /T04b|malformed|unknown policy member/);
+    }
   });
 
   it("reads manifest entries defensively; malformed shapes fail loud", () => {
@@ -702,9 +750,22 @@ describe("T16b canonical scenario (handler as the execute seam)", () => {
     assert.equal(await store.readRevision(), revisionAfterCommit);
   });
 
-  it("serves public callers on ungated scenarios with zero memberships", async () => {
+  it("denies gateless scenarios with typed denial; gated members still commit", async () => {
+    // B7 flip (joint decision overturns interim-exact ungated
+    // admission): no policy entry is {not: public} — typed denial,
+    // handler never runs. Members on the gated fixture still commit.
+    const gatelessPolicy = JSON.stringify({
+      operations: {
+        "acme.Todo.create": { by: ["members"] },
+        "acme.Todo.update": { by: ["owner"] },
+        "acme.Todo.delete": { by: ["acme.Clerk"] },
+      },
+      models: {
+        "acme.Todo": { read: ["Todo.read.1"], public: ["Todo.read.1"] },
+      },
+    });
     const dir = tempDir();
-    const url = writeModule(dir, "ops.mjs", OPS_MODULE);
+    const url = writeModule(dir, "ops.mjs", opsModule(gatelessPolicy));
     const asm = stubAsm(dir, { "ops.mjs": url });
     const artifact = generatedArtifact("ops.mjs");
     const { store } = createTestMemoryStorage();
@@ -713,21 +774,24 @@ describe("T16b canonical scenario (handler as the execute seam)", () => {
       memberships: seed.store,
       now: () => seed.now,
     });
-    const identity = await identityFor(seed, seed.outsiderToken);
-    const outcome = await invoker.invokeMutation(
-      mutationEnvelope("acme.Shop.restock", freshOperationId(seed.now), { sku: "pub" }),
-      identity,
-    );
-    assert.ok("result" in outcome, `want result, got ${JSON.stringify(outcome)}`);
-    assert.equal((outcome.result as MutationResult).status, "committed");
-    const registry = (await import(url)) as {
-      canApp(): { calls: Array<{ caller: string; memberships: string[] }> };
-    };
-    const calls = registry.canApp().calls;
-    const last = calls[calls.length - 1];
-    assert.ok(last !== undefined);
-    assert.equal(last.caller, seed.outsiderId);
-    assert.deepEqual(last.memberships, []);
+    const revisionBefore = await store.readRevision();
+    for (const [name, token] of [
+      ["outsider", seed.outsiderToken],
+      ["member", seed.memberToken],
+    ] as const) {
+      const identity = await identityFor(seed, token);
+      const outcome = await invoker.invokeMutation(
+        mutationEnvelope("acme.Shop.restock", freshOperationId(seed.now), { sku: "pub" }),
+        identity,
+      );
+      assert.ok("error" in outcome, `${name} on gateless op must deny`);
+      assert.equal(outcome.error.code, "forbidden");
+    }
+    assert.equal(await store.readRevision(), revisionBefore);
+    const registry = (await import(url)) as { canApp(): { calls: unknown[] } };
+    assert.equal(registry.canApp().calls.length, 0);
+    // (Gated members still commit — covered by "runs the handler
+    // once" on the full OPS_MODULE fixture.)
   });
 });
 

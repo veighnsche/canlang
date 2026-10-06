@@ -1,0 +1,78 @@
+{
+  "request": {
+    "state": "Use the inspected package tree30e211dae891cfdca3f6322ce45c46c426138830 to advise on coherent Rust boundaries. Existing package implementations only; do not modify the compiler or use a language name for folders. Preserve legacy exports, error/evaluation policies, authorization and replay; a newly declared private owned-input interface may coexist. We have not built/proven these Rust designs or measured speed. Historical7/5/7/7 scores are for the prior narrower candidates and cannot be reassigned merely by reducing their contract.\nValues can combine arithmetic/carriers with runtime AST plans, wire codecs and full validation/encoding batches. Field ASTs already exist, though leaf/union paths reparse; prepared TS is an alternative. Fresh HTTP JSON/form parser output offers a real inert boundary before existing framing/bound consumers; interfaces MCP bound checking now uses values datetime, but arbitrary SDK/in-process calls still have JS observability. Parser-owned input provenance can exclude proxies/getters/holes/functions/cycles for the new API; keep legacy unknown evaluation and shared identities on its existing path. Parsed JSON still needs lossless UTF16/ordered keys, explicit numbers/proto/presence and compatible errors. Do not use Can opaque json for transport because it forbids numbers. Retain data through several Rust stages only where a real workflow supports it; current JS numeric field/BigInt use requires materialization, and complete emitted expression execution would be an excluded compiler project. Different interface/value/state validation policies stay explicit. State hashes raw inputs and replays receipts before age/auth/validation; normalization cannot move earlier. Full stableStringify observes toJSON/accessors and JS numeric rendering/UTF16 sorting, so strict data serialization is a declared additional domain.\nWork's useful wider unit spans work and state row shapes/codecs, mirrored lifecycle policies/outcome+checkpoint staging, receipt observation and recovery plans, conditional batch linkage. Production Cloudflare durable claim/record behavior is distinct from the work test memory store. A shared pure core can remove mirrors while TS retains live reads, guards, memberships, providers and final fenced commit; preserve owner/error profiles and intentionally different call order. Resumable Rust command/scheduler sessions are a later way to retain state and request needed host operations in exact order, including fresh checkpoints/snapshots and expected-version batch, rather than eager facts. Refusals/exceptions/rereads/retry/atomicity remain required. Full DB/auth/provider migration widens the problem. Adjacent declarative query folds can share owned rows but must preserve projection before where, floating-number ordering/aggregate and overflow-limit semantics; staged migration invariants still execute JS callbacks.\nArtifacts may become one native preparation operation: input/index ownership, release facts/tree inventory, typed byte-safe module graph/staging, compatibility, deployment plans, previous-plan diffs and JSON/TOML review. Existing TS helpers have no subprocess boundary between them. Native helper replacement would introduce crossings; job ownership can avoid them. Preserve artifact extensions/first errors, arbitrary surrogate source text, ordered diagnostics/resources, exact render/hash contract and open schedule mapping. Manifest hashing already accepts binary dist files and Node crypto is native. Real MCP bundling uses Bun and derived inputs call owning interfaces catalog logic. Use prebuilt outputs or a single explicit JS build adapter; native retains graph/buffers and returns small preview/manifest/plan results. One adapter parse is allowed and must be admitted. Keep activation producer checks and Wrangler application with their current owner. Preview creates no deployment files, and write/apply must use the reviewed content. Replacing Bun, interfaces derivation, the Worker or all deployment merely to avoid one boundary is broad added work. Common text/binary asset contracts, pinned Wasm initialization, reproducible outputs and real workerd tests improve runtime migration even if preparation stays TS. All payoff and new feasibility ranges remain proposals.",
+    "questions": {
+      "values_boundary": {
+        "type": "choice",
+        "instructions": "For values arithmetic and validation, select the boundary approach that most credibly simplifies useful native adoption under the stated compatibility/workflow constraints. Balance ownership/conversion reduction, implementation scope, delivery and maintenance, without assuming a speed gain or requiring a port.",
+        "criteria": {
+          "owned_pipeline": "Own exact representations and prepared schema/codec work through whole operations on proven parser-created data; preserve the broader JS exports separately. Eliminates internal per-leaf transfer and a real new domain excludes exotic evaluation; costs include profiles, Unicode, loading and benchmark comparison.",
+          "legacy_full_port": "Expand Rust values ownership while maintaining every legacy input and observable JS result. Gives a complete native backend yet needs the same getter/identity host protocol plus larger implementation.",
+          "ts_preparation": "Improve present TS AST/plan/whole-input dispatch, measure actual cost, postpone backend adoption. Strongest simplicity and compatible behavior, less immediate native reuse."
+        }
+      },
+      "work_boundary": {
+        "type": "choice",
+        "instructions": "For work/state lifecycle and recovery, select the boundary approach that most credibly simplifies useful native adoption under the stated compatibility/workflow constraints. Balance ownership/conversion reduction, implementation scope, delivery and maintenance, without assuming a speed gain or requiring a port.",
+        "criteria": {
+          "transition_core": "Make shared codecs, lifecycle/progress/receipt/recovery transitions and commit linkage one cross-package native core with unchanged host acts. Removes duplicated rules but retains IO boundaries and public policy differences.",
+          "resumable_commands": "Move that core plus orchestration into request/resume Rust sessions; JS performs each requested read/check/invoke/conditional commit. More useful native state ownership with harder trace/lifetime/error handling.",
+          "whole_runtime": "Migrate database, live authority, invocation and provider work together with policy. Reduced language partitioning, greatly increased platform/correctness scope.",
+          "ts_consolidation": "Unify existing duplicated policy/codec mechanisms in TS. Cheap migration preparation/consistency, postpones Rust policy sharing and measurement."
+        }
+      },
+      "artifact_boundary": {
+        "type": "choice",
+        "instructions": "For local artifact and deployment preparation, select the boundary approach that most credibly simplifies useful native adoption under the stated compatibility/workflow constraints. Balance ownership/conversion reduction, implementation scope, delivery and maintenance, without assuming a speed gain or requiring a port.",
+        "criteria": {
+          "owned_preparation": "A Rust local job owns verified artifact and release inputs, graph/binary staging and plan/review outputs; obtains needed JS from one builder/prebuilt files and leaves activation/apply owners. Good coarse reuse boundary; compatibility/distribution still matter.",
+          "helper_exports": "Expose separate Rust artifact/compatibility/planning replacements behind present wrappers. Incremental compatibility is easier, repeated conversion and split workflow ownership persist.",
+          "full_platform": "Build a broader Rust CLI/bundler/Worker/deployment platform to eliminate the remaining adapter. Strong native ambition with substantially larger interfaces and scope risk.",
+          "ts_asset_upgrade": "Keep preparation in TS and implement shared binary-safe asset/manifest/initialization support. Enables kernel adoption with fewer local changes, no native preparation replacement."
+        }
+      }
+    },
+    "model": "jev-latest"
+  },
+  "response": {
+    "model": "jev-1.13.0",
+    "answers": {
+      "values_boundary": {
+        "type": "choice",
+        "choice": "owned_pipeline",
+        "confidence": 0.84,
+        "probabilities": {
+          "ts_preparation": 0.11,
+          "owned_pipeline": 0.89,
+          "legacy_full_port": 0.0
+        }
+      },
+      "work_boundary": {
+        "type": "choice",
+        "choice": "transition_core",
+        "confidence": 0.98,
+        "probabilities": {
+          "transition_core": 0.98,
+          "whole_runtime": 0.0,
+          "resumable_commands": 0.01,
+          "ts_consolidation": 0.01
+        }
+      },
+      "artifact_boundary": {
+        "type": "choice",
+        "choice": "owned_preparation",
+        "confidence": 0.98,
+        "probabilities": {
+          "ts_asset_upgrade": 0.02,
+          "full_platform": 0.0,
+          "helper_exports": 0.0,
+          "owned_preparation": 0.98
+        }
+      }
+    },
+    "usage": {
+      "input_tokens": 1864,
+      "output_tokens": 152
+    }
+  }
+}

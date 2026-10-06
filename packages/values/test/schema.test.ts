@@ -1010,3 +1010,47 @@ describe("schema sentinel", () => {
     assert.strictEqual(out["b"], UPDATE_OMITTED);
   });
 });
+
+describe("B1 L3 creation agreement", () => {
+  // The L2 omission table must agree with the L3 pipeline creation order
+  // (caller wins, then literal, required-array rejection, nullable null,
+  // array [], server init, hooks): literal/nullable/array/required pins
+  // live in the suites above — this block pins the remaining rows.
+  // Parent-path defaults are not expressible in FieldDescriptor (no L2
+  // bridge yet; no production consumer feeds L2 output into L3), so L3
+  // alone resolves them — no live divergence by construction.
+
+  it("drops omitted server/derived fields on create (L3 resolves or absents)", () => {
+    const schema = normalizeSchema({
+      contracts: {
+        M: contract({
+          name: field("text"),
+          made: field("datetime", { server: true }),
+          vessel: field("text", { derived: true }),
+        }),
+      },
+    });
+    const out = validateValue(schema, "M", { name: "n" }, "create") as ContractValue;
+    // Complementary by design: L2 drops the keys; L3 resolves server
+    // inits at creation and leaves derived fields absent from rows.
+    assert.deepEqual(out, { name: "n" });
+    assert.ok(!Object.hasOwn(out, "made"));
+    assert.ok(!Object.hasOwn(out, "vessel"));
+  });
+
+  it("fills omitted required-with-default (matches L3 fill-then-pass)", () => {
+    const schema = normalizeSchema({
+      contracts: { M: contract({ x: field("text", { default: "d" }) }) },
+    });
+    const out = validateValue(schema, "M", {}, "create") as ContractValue;
+    assert.deepEqual(out, { x: "d" });
+  });
+
+  it("fails omitted required arrays (matches L3 required-array rejection)", () => {
+    const schema = normalizeSchema({
+      contracts: { M: contract({ f: field("text[]!") }) },
+    });
+    const violations = assertSchemaError(() => validateValue(schema, "M", {}, "create"));
+    assert.deepEqual(codesOf(violations), ['["f"]:"required"']);
+  });
+});

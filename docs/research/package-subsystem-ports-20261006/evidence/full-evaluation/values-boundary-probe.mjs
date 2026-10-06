@@ -1,0 +1,43 @@
+// Run from repository root with Bun; imports current TS source.
+import assert from 'node:assert/strict';
+import { addInt, compareInt } from '../../../../../packages/values/src/int.ts';
+import { addDecimal, Decimal } from '../../../../../packages/values/src/decimal.ts';
+import { decodeValue, encodeValue } from '../../../../../packages/values/src/wire.ts';
+import { normalizeSchema, validateValue } from '../../../../../packages/values/src/schema.ts';
+const out = {};
+const huge = 10n ** 1000n;
+assert.equal(addInt(huge, -huge), 0n);
+assert.equal(compareInt(huge, huge), 0);
+assert.equal(addDecimal(huge, -huge).coef, 0n);
+out.arbitraryBigintCancellation = true;
+const schema = normalizeSchema({contracts: { C: {fields: {a: {type: 'text'}}}}});
+let reads = 0;
+const input = Object.defineProperty({}, 'a', {enumerable: true, get(){ return `read-${++reads}`; }});
+assert.equal(validateValue(schema, 'C', input, 'create').a, 'read-2');
+out.knownContractGetterReads = reads;
+const lone = '\ud800';
+assert.equal(decodeValue('text', lone), lone);
+assert.equal(encodeValue('text', lone), lone);
+const obj = Object.fromEntries([[lone, lone], ['__proto__', 'safe']]);
+const json = decodeValue('json', obj);
+assert.equal(json[lone], lone);
+assert.equal(Object.getOwnPropertyDescriptor(json, '__proto__').value, 'safe');
+assert.equal(Object.getPrototypeOf(json), Object.prototype);
+out.loneSurrogateAndProtoKey = true;
+assert.deepEqual(decodeValue('json', new Date(0)), {});
+out.dateObjectDecodedAsEmptyOpaqueObject = true;
+let numeric;
+try {decodeValue('json', {n: 0});} catch(e){ numeric = e.violations.map(v=>({path:v.path,code:v.code})); }
+assert.deepEqual(numeric, [{path:['n'],code:'type'}]);
+out.opaqueNumberRejected = numeric;
+const def = normalizeSchema({contracts: { D: {fields: { a: {type:'text[]',default:['x']}, b:{type:'text[]'}}}}});
+const d1 = validateValue(def,'D',{},'create');
+const d2 = validateValue(def,'D',{},'create');
+assert.equal(d1.a,d2.a); assert.equal(d1.b,d2.b);
+out.sharedDefaultAndEmptyIdentity = true;
+const cycle = {}; cycle.self = cycle;
+let cycleError;
+try {decodeValue('json',cycle);} catch(e){cycleError=e.name;}
+assert.equal(cycleError,'RangeError');
+out.cycleError = cycleError;
+console.log(JSON.stringify(out,null,2));
