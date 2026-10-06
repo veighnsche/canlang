@@ -76,3 +76,34 @@ second requires A. C is out; D needs the emitter-remodeling answer
 implementation hold until adoption — no T34 work begins per the prep
 file's gate rule. No active writer is affected (T18/T32b-cf disjoint);
 independent work continues.
+
+## CORRECTION NOTE (2026-10-06, Codex supervision — this section supersedes the mixed verdict above; nothing above was edited or deleted)
+
+The packet behind the R1/R2/R3 calls above omitted material existing
+intent and is superseded. Coordinator-owned errors:
+
+1. The state + B criterion said "nothing in the drafts pins atomic
+   vs per-child outcomes." FALSE: Shift.md:81 (old 500-row sweep
+   rejection gone; one terminal outcome per admitted identity;
+   current child evaluation; sibling failure isolation) and
+   Volunteer.md:73 (parent durable-trigger success before children
+   finish; remaining/failed progress) pin per-child semantics — and
+   the prep file this coordinator verified (fanout-decision.md:478-535)
+   already quoted them. The JEV state failed to carry them.
+2. "Wrong B fails silently" framing was tendentious: B rejects
+   overflow visibly (honest). B's real mismatch is child failure
+   isolation/progress + a new sweep capacity bound.
+3. "C ruled out unanimously" overclaimed: low probabilities across
+   three calls are not a rejection. C/D are ruled out by the
+   resolution on draft-outcome grounds, not by vote-counting. D was
+   never proved impossible (sole-roster remodeling conceivable but
+   unsupplied and unfaithful as analyzed).
+
+Resolution: ADOPT A (durable per-child fanout) for both each= forms —
+see Codex-owned `implementation/challenge-audit-run/t33-resolution.md`
+(first contract + Item-10/T34 matrix) and
+`design/jev/t33-context-correction-20261006/` (3 fresh corrected
+consultations: A .92/.95/.99, conf .88/.93/.97, no retries — advice
+corroborating the draft-grounded recommendation). No further JEV for
+this question unless new material uncertainty arises. T33 ticked on
+adoption + proof-plan record; T34 implementation/proof pending.
