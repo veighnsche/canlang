@@ -1,102 +1,82 @@
-# V01.4 — Owner-plan and shared-file handoffs
+# V01.4 — Current owner-plan and finite hook handoffs
 
-Task: V01.4 (lane `V-plan`, wave 1, after `C01.ready`). Produced
-2026-10-06T08:42:35Z by lane F session 01a10fab-d28b-7563-9d14-ebd2ddf4e8c9.
-Planning record only; no implementation authorized.
+Finite packet B, 2026-10-07; activation base
+`c6896fd2dea782d8ed6412769337b76eb899ca53`. Static contract refresh only.
+This supersedes the old generic owner agreements at `bb479c2` for the
+finite current consumed hook. `prepared-plan-handoff.md` remains historical
+V02.1 implementation evidence and is read-only in this packet.
 
-- Head verified: `bb479c2fd9a1e0a3604f946aff0205c7bdf45e06`
-- Companion: `contracts.md` (profiles), `caller-inventory.json`,
-  `current-ts.json`, `http-adoption-gate.md`, `state-contract.md`.
+## Current preparation credit and integration gaps
 
-## Owner-plan agreements (with exact-values / C03 owners)
+V02.1 plan preparation and V02.2 wrapper/comparator preparation keep their
+original direct credit. No all-V01 barrier is introduced. The current
+plan module copies ordered metadata under issued owners; wrappers resolve
+plans and delegate to legacy public functions. This establishes useful
+preparation work, not a safe public/native dispatch hook.
 
-- **Factory provenance**: `normalizeSchema` may record provenance for
-  newly constructed normalized outputs internally, but only within
-  genuine factory/producer paths. A structurally accepted hand-built
-  `NormalizedSchema` remains legacy; unknown string wrappers and
-  structural acceptance stay outside any plan cache. The private
-  factory hook patch specification goes to V-integrator (V02.6).
-- **Copied owner metadata**: owner loaders (interfaces/state plans)
-  copy and validate data-only metadata internally at registration;
-  never merely cache a frozen object returned by a permissive
-  unknown-input loader. Post-registration public-object mutation
-  cannot modify the plan. **Freeze/shape alone never establishes
-  provenance** — only immutable data copies plus private owner tokens.
-- **Schema/artifact revisions**: plan IDs carry ABI/profile version,
-  backend instance, generation, and owner revision, bound to an
-  artifact/normalized-schema owner scope (`ARTIFACT_VERSION = 1`,
-  `contracts/src/artifact.ts:14`). A new artifact is a new scope; no
-  hashless global cache by operation name or caller type string.
-  Registration copies ordered metadata (resolved dispatch, field
-  order, bounds, trim/default metadata, default tokens,
-  allowed/required lists, ref rules, error projection).
-- **Default references**: `DefaultRef` resolves through the plan
-  owner's shared frozen default registry (repeated defaulted calls
-  return the same object); implicit empty arrays reuse the canonical
-  frozen `EMPTY_ARRAY` (`values/src/array.ts:72-76`); `UPDATE_OMITTED`
-  resolves to the existing symbol; engine-resolved markers drop keys.
-- **Plan handles**: `registerValidationPlan(ownerPlan, profileVersion)`
-  accepts only a private owner token, yielding a generation-tagged
-  `PlanId`. Foreign/stale/disposed handles fail construction before
-  execution; release is idempotent; no caller-controlled unbounded
-  type-string cache. `beginOwnedInput`/`executeOwned`/`materialize`/
-  `disposeRequest` follow the C03 transport contract (UTF-16,
-  f64 bits, explicit presence, envelopes, budgets).
+A production hook must consume PH1–PH4 in `prepared-hook-review.md`:
 
-## No-second-authority rule
+- PH1: private non-public TS core calls, preserving original assertions,
+  parsing, traversal and errors once; public APIs remain full legacy TS.
+  Current public prepared delegates cannot be redirected recursively.
+- PH2: success-only factory output identity separate from adoption;
+  complete producer/schema/descriptor/artifact/load/request/backend,
+  version/generation/lifetime binding and copied owner metadata. Record
+  only after whole producer success. `artifact-1` is format version,
+  never universal provenance or content/load identity.
+- PH3: canonical schema defaults resolve by original immutable identity;
+  `EMPTY_ARRAY`, `UPDATE_OMITTED` and engine key-dropping stay canonical.
+  Current default copying and class-instance rejection do not establish
+  complete carrier compatibility. Exact-values owns every carrier/codec.
+- PH4: protected graph stays private on audited canonical bridge only;
+  arbitrary invokers/SDK/forms remain legacy. State validation is after
+  replay/age/auth; reads authorize first; no semantic exception retry.
 
-Validation creates no second currency table, Decimal implementation,
-wire authority, catalog, or compiler work. It imports numeric
-representations/codecs from exact-values (A03–A06 mechanisms) and must
-not redefine them; currency/catalog facts come from the owning
-TS sources; the compiler is untouched. Shared mechanisms, never shared
-policy: each profile keeps its own error projection and permissiveness.
+Ordered copy requirements remain: resolved dispatch, field/section order,
+required/allowed lists, type/bounds/trim/default-origin/server metadata,
+refs/error projection and owner-derived channels. No public frozen or
+readonly object, `generated` tag, copied caller token, or shape can mint
+ownership. Scope release/disposal invalidates eligibility; no unbounded
+caller-controlled type/name cache or hashless global artifact-version
+cache. Native request/plan budget/version envelopes remain C03/V07-owned.
 
-## Shared-file handoffs (V-integrator)
+## Consumed ownership and exact successor
 
-Exact-values creates manifests, lockfile, failures, and `lib.rs` at
-**A03.foundation** (gate: workspace, representations, failures,
-transport contract, and shared module ownership usable; validation may
-begin without awaiting full A03 integer/rounding work). After the
-explicit arithmetic/C03 handoff, **V-integrator is the only validation
-editor** of: shared manifests (`values/Cargo.toml`, lockfile,
-`semantics/Cargo.toml`, `bindings/Cargo.toml`), `semantics/src/lib.rs`,
-`profiles.rs` module registration, `codecs/mod.rs`, ABI entry/glue,
-`bindings/src/{lib,validation}.rs`, TS `bindings/{validation,backend,
-bootstrap}.ts`, public hooks (`src/{schema,wire,index}.ts`,
-`package.json`, `tsconfig.json`), and build/export/release glue.
-Generated binding output is reproducible, never hand-edited.
-V-integrator queues patches until A04/A05 numeric/temporal and A07
-loader owners release shared files; **no lane edits another lane's
-module**. V-plan owns `semantics/src/plans.rs`, `src/prepared/plan.ts`,
-`bindings/plans.ts`, `test/prepared-validation.test.ts` exclusively.
+B writes only its eight evidence/contract paths and private receipts.
+R1/A reviews the actual values core/factory/default contract PH1–PH3.
+Codex reviews actual interfaces/state PH2/PH4 and sequencing. These are
+named finite acceptance receipts, not an inferred approval from prose.
+R1 PH1–PH3 future-contract ACK is recorded in `v01-review.md`; Codex
+state/interfaces acceptance remains pending. Implementation/source
+allocation/native adoption remain proposals. Record exact reviewed
+file hash and consumed clauses; any material change needs fresh review.
 
-Related handoffs: C04 alone owns typed inventory/`bundle.ts`/
-`local-run`/testkit and the shared manifest graph; C04.validation-join
-consumes the V08.3 decision; V09.1 is the narrow canonical-bridge
-handoff (V-state edits `runtime/invoke.ts` + admission; V-http
-consumes in `operations.ts`/assembly + fixture, never editing the
-bridge).
+The successor `next:R2:V02.6-hooks-conditional` must wait for those exact
+receipts and the consumed schema/wire source owner release. R2 has no
+write authority over `packages/values/src/index.ts` or common Rust/profile/
+binding files. Any internal core-module placement is an R1 ownership/
+assembly decision; proposed source factoring does not allocate new files.
+R1 alone performs exact public export joins after source owners release.
+No adoption function/token/recorder/core may leak through index wildcard
+exports or stdlib/package exports.
 
-## Responsibility layout vs living filetree (recorded, not implemented)
+C03 native transport, R1 exact-values/A03 foundation and arithmetic/
+temporal/loader shared-source releases remain their own consumed gates.
+V08/C04 actual workerd/delivery and V09 audited canonical bridge adoption
+are later separate consumers. This record neither fabricates their ACKs
+nor withdraws original direct V02.1/V02.2 dependencies.
 
-- Values ownership row (exact values, omission/default order, pure
-  operations, one locale catalog) is consistent: plans/codecs live in
-  the values-owned crate; TS façades keep public behavior.
-- `packages/values/conformance/v1/` is already allocated; new
-  `conformance/owned-input/v1/` needs a target-tree allocation entry.
-- Proposed `semantics/` leaves (`input.rs`, `plans.rs`, `profiles.rs`,
-  `validation.rs`, `codecs/owned.rs`, `profiles/{values,http,state,
-  mcp}.rs`) and `src/prepared/*.ts` are unallocated new leaf families:
-  per `scope.json`, they need an explicit ownership/filetree decision
-  (ownership.md selects no new language boundary today) before any
-  implementation lane writes them. This record advances no checkpoint
-  and modifies no plan file.
+## Decisions and verification boundary
 
-## Owner review status
+Proposal PH1 selected private-only separated core after three equivalent
+JEV `choice` consultations, unanimous at 0.96/0.97/0.97 confidence. Raw
+requests/responses and uncertainty are private under packet R2-V01.
+PH2–PH4 correct the observed identity/lifetime/default/bridge gaps; owner
+review and future trace/negative-control evidence remain required.
 
-Required (recorded, not assumed): exact-values core integrator (A03
-foundation contents + handoff order), C03 ABI owner (transport/version
-envelope), validation owner (plan/traversal/profile split), V08/C04
-delivery owners (join consumption). Each handoff above needs its
-owner's review before V02 extraction begins.
+No second numeric, Decimal, wire, currency/catalog or compiler authority.
+No source implementation, native build, shared DECISIONS edit, task status
+edit, plan checkpoint advance, CI, Git or deployment performed by B.
+Codex records accepted decisions and performs coherent docs commit after
+review; living filetree reconciliation belongs to the merger. Existing
+unallocated leaf-family history is not treated as source-write permission.
