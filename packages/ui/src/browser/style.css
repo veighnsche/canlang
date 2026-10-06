@@ -1,0 +1,144 @@
+/**
+ * CanLang browser source layer (FP.BROWSER, lane F owned).
+ *
+ * Hand-authored plain CSS — no Tailwind compiler is installed, so
+ * every rule here is explicit and reviewed. The browser build
+ * (`ui/scripts/build-browser.mjs`) assembles the installed
+ * stylesheet as: daisyUI (pinned) + `ui/themes.css` (pinned data
+ * themes + density) + this file. This layer loads LAST, so its
+ * rules win ties deliberately and narrowly:
+ *
+ * - `can-*` structural markup hooks owned by this package (the
+ *   reviewed set from the themes class audit; presentation stays in
+ *   daisyUI — hooks carry layout/role only, never color or theme).
+ * - Minimal rules for the reviewed tailwind-utility tokens used in
+ *   src markup (the audited set; values match Tailwind v4 spacing,
+ *   type, and radius scales so a future compiler pass stays
+ *   byte-compatible where it matters).
+ * - Keyboard/focus accessibility the components assume: visible
+ *   focus, dialog focus containment affordance, sr-only correctness
+ *   (mirrors Tailwind's sr-only exactly), and
+ *   prefers-reduced-motion handling for framework transitions.
+ *
+ * Never add component skins, page backgrounds, brand colors, or
+ * theme variables here — those live in daisyUI + themes.css. Never
+ * add a token the class audit does not know: new markup classes
+ * must land in the audit first (themes.test.ts).
+ */
+
+/* -- can-* structural hooks (layout/role only) --------------------------- */
+
+.can-brand {
+  display: flex;
+  align-items: center;
+}
+
+.can-region {
+  display: block;
+}
+
+.can-settings-panel {
+  display: block;
+  min-width: 0;
+}
+
+.can-settings-sidebar {
+  display: block;
+}
+
+.can-account,
+.can-delivery,
+.can-more {
+  display: inline;
+}
+
+/* -- Reviewed utility tokens (minimal Tailwind-scale rules) -------------- */
+
+.absolute { position: absolute; }
+.flex { display: flex; }
+.flex-1 { flex: 1 1 0%; }
+.flex-col { flex-direction: column; }
+.font-bold { font-weight: 700; }
+.gap-2 { gap: 0.5rem; }
+.gap-4 { gap: 1rem; }
+.grid { display: grid; }
+.grid-cols-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.h-4 { height: 1rem; }
+.hidden { display: none; }
+.min-h-full { min-height: 100%; }
+.overflow-y-auto { overflow-y: auto; }
+.p-2 { padding: 0.5rem; }
+.p-4 { padding: 1rem; }
+.px-4 { padding-left: 1rem; padding-right: 1rem; }
+.py-3 { padding-top: 0.75rem; padding-bottom: 0.75rem; }
+.right-2 { right: 0.5rem; }
+.rounded-full { border-radius: 9999px; }
+.shadow { box-shadow: var(--shadow, 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1)); }
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
+}
+.text-2xl { font-size: 1.5rem; line-height: 2rem; }
+.text-3xl { font-size: 1.875rem; line-height: 2.25rem; }
+.text-lg { font-size: 1.125rem; line-height: 1.75rem; }
+.text-xl { font-size: 1.25rem; line-height: 1.75rem; }
+.top-2 { top: 0.5rem; }
+.w-12 { width: 3rem; }
+.w-64 { width: 16rem; }
+.w-80 { width: 20rem; }
+.w-full { width: 100%; }
+
+/* Responsive shell variants (`lg:drawer-open`, `lg:hidden`) ship in
+ * daisyUI itself — deliberately NOT mirrored here (verified against
+ * the pinned daisyui.css; duplicates would risk specificity drift).
+ */
+
+/* -- Keyboard/focus accessibility ---------------------------------------- */
+
+:focus-visible {
+  outline: 2px solid var(--color-primary, currentColor);
+  outline-offset: 2px;
+}
+
+/* Swapped main content receives programmatic focus (bootstrap.ts);
+ * never show a focus ring for mouse users on the container itself. */
+#can-main:focus:not(:focus-visible) {
+  outline: none;
+}
+
+/* Native dialog opened via :target (overlays.ts modal pattern):
+ * ensure the box can take the focus bootstrap assigns it. */
+dialog.modal {
+  margin: auto;
+}
+
+/* Details dropdowns closed by Escape (bootstrap.ts) keep native
+ * marker behavior; no custom marker styling. */
+
+/* -- Poll-region hooks ---------------------------------------------------- */
+
+/* Stale styling hook for regions awaiting a fresh poll response
+ * (carries no inherited hx-* attributes; purely presentational). */
+[data-can-poll][data-can-stale="true"] {
+  opacity: 0.75;
+}
+
+/* -- Reduced motion ------------------------------------------------------- */
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
