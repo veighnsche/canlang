@@ -8279,9 +8279,28 @@
   },
   "staging_scope": "Read stage-semantics.mjs: complete names/lengths/SHA validated before any mkdir/write; no module instantiation. Local dist equality and corrupt-input refusal are distinct from installed supported release.",
   "publication_state": {
-    "primary_main": "local consolidated; remote push needs explicit human approval after automatic review rejection",
-    "drafts": "a55a0f7 referenced and preserved locally; remote main remains2d67312; publication needs explicit human approval",
-    "remote_cleanup": "three obsolete CanLang branches retain their current remote state until consolidated main is published and ancestry reverified",
-    "prs": "131 inspected, zero open; historical97/107 closed and adopted by99/118 respectively"
+    "primary_main": {
+      "published_source_and_plan_commit": "8606d0ddccc2c99d95f41bb820c69ffd2dca26f1",
+      "fast_forward_verified": true,
+      "subsequent_bookkeeping": "Publication receipt only; current source pin and all programme gates unchanged."
+    },
+    "drafts": {
+      "published_commit": "a55a0f700f07f6f972d9d6091b0fdbceee399eb9",
+      "remote_main_verified_equal": true
+    },
+    "remote_cleanup": {
+      "state": "three fully integrated branches deleted atomically after main publication and tip/PR rechecks",
+      "deleted_branches": [
+        "codex/ci-gates/bootstrap-20261006",
+        "codex/remaining-lane-c-runtime",
+        "codex/remaining-lane-f-ui"
+      ]
+    },
+    "prs": "131 historical records inspected; live check confirms zero open in both repositories; historical97/107 adopted by99/118",
+    "authority": "Approve publication and branch cleanup",
+    "verified_at": "2026-10-06T16:29:49.703386+00:00",
+    "previous_blocker": "Automatic approval review required explicit remote-publication permission; the human subsequently approved.",
+    "evidence_directory": "/private/tmp/canlang-consolidation-20261006",
+    "restart_or_programme_acceptance": false
   }
 }
