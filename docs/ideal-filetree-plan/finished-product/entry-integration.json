@@ -1,0 +1,10 @@
+{
+  "entry": "docs/ideal-filetree-plan.md",
+  "prior_sha256": "1c239160831882f06fd9c19f7ec319945a03a98e3b420f71315cee7245460ddb",
+  "current_sha256": "29bce35652d1f87f3423e98b417a88c0bc3331aef80ab802806ce5c7d1745ba8",
+  "catalog_pin": "5edc3bac2a341fbda0bb432649e90ba70d3c05db",
+  "complete_checkpoint": "8249342707d3280e88e39e8c911b7e457828f31f",
+  "checkpoint_advanced": false,
+  "historical_scope_preserved": "Existing primary/merge/integration records retained; current target is finished-product only",
+  "scope": "planning entry integration; active source/evidence untouched"
+}
