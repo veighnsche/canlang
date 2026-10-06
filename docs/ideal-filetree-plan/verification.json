@@ -1,0 +1,309 @@
+{
+  "checker": "read-only custom Python standard-library artifact check; installed skill checker unavailable",
+  "primary_pin": "350163ad661e61b667809a5f78b608c23812a5f0",
+  "complete_checkpoint_retained": "8249342707d3280e88e39e8c911b7e457828f31f",
+  "later_scoped_pin": "9830ba93951ded193b13bcbfb9eaea04e6252d24",
+  "final_observed_head": "b82c0de8650b41a55bee35d8a98a8e707285eaf9",
+  "counts": {
+    "primary_tracked": 2155,
+    "primary_delta": 391,
+    "initial_added_records": 3,
+    "unchanged_parent_reuse": 1764,
+    "source_inputs": 2175,
+    "target_leaves": 2471,
+    "draft_leaves": 148,
+    "bookkeeping_leaves": 21,
+    "allocations": 92,
+    "active_local_links_checked": 111,
+    "original_backlog_tasks": 41
+  },
+  "primary_delta_root_inspection_paths": [
+    ".github/workflows/b1-join.yml",
+    ".github/workflows/b2-join.yml",
+    ".github/workflows/lane-01.yml",
+    ".github/workflows/release.yml",
+    ".gitignore",
+    "AGENTS.md",
+    "DECISIONS.md",
+    "DESIGN.md",
+    "GRAMMAR.md",
+    "LICENSE",
+    "README.md",
+    "bun.lock",
+    "design/jev/description-reference-20261005/README.md",
+    "design/jev/description-reference-20261005/request-1.json",
+    "design/jev/description-reference-20261005/request-2.json",
+    "design/jev/description-reference-20261005/request-3.json",
+    "design/jev/description-reference-20261005/result-1.json",
+    "design/jev/description-reference-20261005/result-2.json",
+    "design/jev/description-reference-20261005/result-3.json",
+    "docs/authoring-demo.md",
+    "docs/dev-setup.md",
+    "docs/ideal-filetree-plan.md",
+    "docs/install.md",
+    "implementation/CHALLENGE-AUDIT-PLAN.md",
+    "implementation/DESCRIPTION-REFERENCE-PLAN.md",
+    "implementation/PLAN.md",
+    "implementation/challenge-audit-run/evidence/app-intent.md",
+    "implementation/challenge-audit-run/evidence/containment-decision.md",
+    "implementation/challenge-audit-run/evidence/continuation-contract.md",
+    "implementation/challenge-audit-run/evidence/execution-contract.md",
+    "implementation/challenge-audit-run/evidence/fanout-decision.md",
+    "implementation/challenge-audit-run/evidence/hook-decision.md",
+    "implementation/challenge-audit-run/evidence/interface-inventory.md",
+    "implementation/challenge-audit-run/evidence/jev-t28-20261005/README.md",
+    "implementation/challenge-audit-run/evidence/jev-t28-20261005/request-1.json",
+    "implementation/challenge-audit-run/evidence/jev-t28-20261005/request-2.json",
+    "implementation/challenge-audit-run/evidence/jev-t28-20261005/request-3.json",
+    "implementation/challenge-audit-run/evidence/jev-t28-20261005/result-1.json",
+    "implementation/challenge-audit-run/evidence/jev-t28-20261005/result-2.json",
+    "implementation/challenge-audit-run/evidence/jev-t28-20261005/result-3.json",
+    "implementation/challenge-audit-run/evidence/jev-t31a-20261005/README.md",
+    "implementation/challenge-audit-run/evidence/jev-t31a-20261005/request-1.json",
+    "implementation/challenge-audit-run/evidence/jev-t31a-20261005/request-2.json",
+    "implementation/challenge-audit-run/evidence/jev-t31a-20261005/request-3.json",
+    "implementation/challenge-audit-run/evidence/jev-t31a-20261005/result-1.json",
+    "implementation/challenge-audit-run/evidence/jev-t31a-20261005/result-2.json",
+    "implementation/challenge-audit-run/evidence/jev-t31a-20261005/result-3.json",
+    "implementation/challenge-audit-run/evidence/jev-t32a-20261005/README.md",
+    "implementation/challenge-audit-run/evidence/jev-t32a-20261005/request-1.json",
+    "implementation/challenge-audit-run/evidence/jev-t32a-20261005/request-2.json",
+    "implementation/challenge-audit-run/evidence/jev-t32a-20261005/request-3.json",
+    "implementation/challenge-audit-run/evidence/jev-t32a-20261005/result-1.json",
+    "implementation/challenge-audit-run/evidence/jev-t32a-20261005/result-2.json",
+    "implementation/challenge-audit-run/evidence/jev-t32a-20261005/result-3.json",
+    "implementation/challenge-audit-run/evidence/jev-t33-20261006/README.md",
+    "implementation/challenge-audit-run/evidence/jev-t33-20261006/request-1.json",
+    "implementation/challenge-audit-run/evidence/jev-t33-20261006/request-2.json",
+    "implementation/challenge-audit-run/evidence/jev-t33-20261006/request-3.json",
+    "implementation/challenge-audit-run/evidence/jev-t33-20261006/result-1.json",
+    "implementation/challenge-audit-run/evidence/jev-t33-20261006/result-2.json",
+    "implementation/challenge-audit-run/evidence/jev-t33-20261006/result-3.json",
+    "implementation/challenge-audit-run/evidence/read-decision.md",
+    "implementation/challenge-audit-run/evidence/root-causes.md",
+    "implementation/challenge-audit-run/monitor.md",
+    "implementation/challenge-audit-run/tasks.md",
+    "implementation/description-reference-run/evidence/independent-acceptance-20261005.json",
+    "implementation/description-reference-run/evidence/independent-locale-recheck-20261005.json",
+    "implementation/description-reference-run/evidence/integration.md",
+    "implementation/description-reference-run/review.md",
+    "implementation/description-reference-run/tasks.md",
+    "implementation/evidence/b2-follow-through.md",
+    "implementation/evidence/b3-i1.md",
+    "implementation/evidence/b3-i2.md",
+    "implementation/evidence/b3-i3.md",
+    "implementation/evidence/b3-i4.md",
+    "implementation/evidence/b3-i5.md",
+    "implementation/evidence/b3-i6.md",
+    "implementation/evidence/b4-draft-defects.md",
+    "implementation/evidence/b4-f1.md",
+    "implementation/evidence/b4-f2.md",
+    "implementation/evidence/b4-f3.md",
+    "implementation/evidence/b4-f4.md",
+    "implementation/evidence/b4-proposals.md",
+    "implementation/evidence/b5-j1.md",
+    "implementation/evidence/b5-j2.md",
+    "implementation/evidence/b5-j3.md",
+    "implementation/evidence/mcp-p1.md",
+    "implementation/evidence/mcp-p2.md",
+    "implementation/evidence/mcp-p3.md",
+    "implementation/evidence/mcp-p4.md",
+    "implementation/evidence/mcpd-a.md",
+    "implementation/evidence/mcpd-b.md",
+    "implementation/evidence/mcpd-c.md",
+    "implementation/status/lane-01.md",
+    "package.json"
+  ],
+  "current_status_excluding_owned_plan": [
+    {
+      "status": " M",
+      "path": "compiler/src/codegen/ir.rs"
+    },
+    {
+      "status": " M",
+      "path": "compiler/src/codegen/js.rs"
+    },
+    {
+      "status": " M",
+      "path": "compiler/tests/codegen.rs"
+    },
+    {
+      "status": " M",
+      "path": "implementation/challenge-audit-run/monitor.md"
+    },
+    {
+      "status": " M",
+      "path": "implementation/description-reference-run/tasks.md"
+    },
+    {
+      "status": " M",
+      "path": "packages/contracts/src/artifact.ts"
+    },
+    {
+      "status": " M",
+      "path": "packages/contracts/src/work.ts"
+    },
+    {
+      "status": " M",
+      "path": "packages/state/src/invocation/registry.ts"
+    },
+    {
+      "status": " M",
+      "path": "packages/state/src/mutation/crud.ts"
+    },
+    {
+      "status": " M",
+      "path": "packages/state/src/mutation/models.ts"
+    },
+    {
+      "status": " M",
+      "path": "packages/state/src/mutation/pipeline.ts"
+    },
+    {
+      "status": "??",
+      "path": "design/jev/t33-context-correction-20261006/"
+    },
+    {
+      "status": "??",
+      "path": "implementation/challenge-audit-run/t33-resolution.md"
+    },
+    {
+      "status": "??",
+      "path": "implementation/description-reference-run/evidence/independent-acceptance-20261005.json"
+    },
+    {
+      "status": "??",
+      "path": "implementation/description-reference-run/evidence/independent-locale-recheck-20261005.json"
+    },
+    {
+      "status": "??",
+      "path": "implementation/description-reference-run/review.md"
+    },
+    {
+      "status": "??",
+      "path": "packages/contracts/test/fanout-records.test.ts"
+    },
+    {
+      "status": "??",
+      "path": "packages/state/src/mutation/t18-defaults-durable.test.ts"
+    },
+    {
+      "status": "??",
+      "path": "packages/state/src/mutation/t18-defaults.test.ts"
+    },
+    {
+      "status": "??",
+      "path": "packages/state/src/mutation/t18-shop.artifact.ts"
+    },
+    {
+      "status": "??",
+      "path": "packages/state/src/mutation/t18-shop.can"
+    }
+  ],
+  "hash_drift_after_catalog": [
+    {
+      "path": "compiler/src/codegen/ir.rs",
+      "catalog_sha256": "bdefa1d1460fa18f3afa85b53008ce3cb1e393f2a4b538fe32623378dc89017b",
+      "final_sha256": "0b3715c4c42dbe8c570d5f8c26cd32f54d074b36401b51e6a603db89749ccabf"
+    },
+    {
+      "path": "compiler/src/codegen/js.rs",
+      "catalog_sha256": "8f0f1f48727d8df6c8b77cd216aa26480f94be0ca77d400e503c75b4d0d9c6eb",
+      "final_sha256": "7316b7954861e69d875c9884e3b639b63aad695e7f5142c4e0e0694e7e3222e0"
+    },
+    {
+      "path": "compiler/tests/codegen.rs",
+      "catalog_sha256": "1446568f7eadd2c2cfd1feca5518bd9f0cdb9b2e19917cc9f7180bfe0c0fc91a",
+      "final_sha256": "6c15b557f015f9155220aba336f18750495e43b129adab505acaaa9f0403c539"
+    },
+    {
+      "path": "implementation/challenge-audit-run/evidence/fanout-decision.md",
+      "catalog_sha256": "046a34b7f33ee4ed958edfc065c862e7edbba845a4f884010baf431fc1df27ac",
+      "final_sha256": "47c64ec04491b0e37911e33d2eb38124a04bcc19acf26727d171816294c05ea8"
+    },
+    {
+      "path": "implementation/challenge-audit-run/evidence/jev-t33-20261006/README.md",
+      "catalog_sha256": "2ffa369c7c7291739be5ce30ec5392e3102a94fd06295acbd450816cecda0706",
+      "final_sha256": "9f6a0b1f2c530f7a5e0d582e13fa5973392027e521780d078166d626543551f2"
+    },
+    {
+      "path": "implementation/challenge-audit-run/monitor.md",
+      "catalog_sha256": "60c22725e85412b89df890e45680c8edcf29574dc78b8cf73b7c984d78e00590",
+      "final_sha256": "e9aefa09eded0d8592d2eb9a08129ce77d2c8f097d61af1a5a26b8c173de2ab3"
+    },
+    {
+      "path": "implementation/challenge-audit-run/tasks.md",
+      "catalog_sha256": "681ffc45111827a064fdf5462e3914904f087190f3b2c77bf1126f567394c7a4",
+      "final_sha256": "c34deb7635a1a8e1e9f6310c95c232ec98660c2d6ca5a851ec69a053666f3a77"
+    },
+    {
+      "path": "packages/contracts/src/work.ts",
+      "catalog_sha256": "c102a4790afdef1dcff45d563157e993897af2ec913bdad4b05366f073229150",
+      "final_sha256": "e42cf1746f06b819eea0d33d8399385aeeb90f3a7e2eb53aee591458a1d08c7c"
+    },
+    {
+      "path": "packages/state/src/invocation/registry.ts",
+      "catalog_sha256": "5d38ef70a560dfc91ad9304ddac8c789399c07c8637e5220c5f1e042ea57ca7e",
+      "final_sha256": "7573d3e384d71a709a98be70cae0e6451a24ab316139c905428c075809e538d0"
+    },
+    {
+      "path": "packages/state/src/mutation/crud.ts",
+      "catalog_sha256": "23fdbc4d05293f4711b9764650a35e5e935d1c2f15ec542c5fbaf368e27316ae",
+      "final_sha256": "372036a5f58a9515f340388d18aefcddf6086741626e794256ac913e6afb3533"
+    },
+    {
+      "path": "packages/state/src/mutation/models.ts",
+      "catalog_sha256": "eb9185a66d7dfd59531723c20e93424f3473f3384e694cd4305f620c77212bf2",
+      "final_sha256": "34163567f0aefdfb993d0773ee832b705c14d748082d4b73cf0525a123c855cd"
+    },
+    {
+      "path": "packages/state/src/mutation/pipeline.ts",
+      "catalog_sha256": "ebfc604f8c6bfdeb7ed174b7e70f49320ae86a97b3bafa5f88ea37750c55e755",
+      "final_sha256": "0df13e66d243841d00d69fc6aff2f11b89d3e44f49282baf50497c83962e713b"
+    },
+    {
+      "path": "packages/work/src/observation/association.ts",
+      "catalog_sha256": "d71caf4c468ac4cf9760c84bbdf0e64c27c2ada2767a2f9ea5902e20dbb28390",
+      "final_sha256": "6d698b57864341b570cec9abd6c5c2497f036dd95c851034f6dac40d7ba3157a"
+    },
+    {
+      "path": "packages/work/src/observation/observation.ts",
+      "catalog_sha256": "f64a9df9649162c40527ec5707489d0d21bf7bc2ead32cb9c94f6a20355648bb",
+      "final_sha256": "f4393f7e9cab01d31eb04a650bd130d4d0c50c0c4b5b67a88a0fb1974762dfce"
+    },
+    {
+      "path": "packages/work/src/observation/ports.ts",
+      "catalog_sha256": "5fb0e1bc2eeee3342932bb116806f14f6b63e6f0cfc6d00573bf90e2840a9ee6",
+      "final_sha256": "f139df952bc72b77ec14eab6050291ab3a138e1eba6c071e95ba3323ee35056e"
+    },
+    {
+      "path": "packages/work/src/receipt/index.ts",
+      "catalog_sha256": "68a1e69482fd82e8182b433979a540a6f5a4f3ded0daf53a072890a6fe09db23",
+      "final_sha256": "4c40374880b6cfb8a7d405ff00ef869e1f4672ae567faac06be1c19b70f925bf"
+    },
+    {
+      "path": "packages/state/src/mutation/t18-defaults.test.ts",
+      "catalog_sha256": "aee9384e7dd51bb4867640092db2685ba2c3616f65c9ef576f5c7dbbff6bb05e",
+      "final_sha256": "26a0899a4751596fc4e206c8e5ee4a6cfeaa05d173a5dac8955931844bf147c7"
+    }
+  ],
+  "tracked_paths_added_after_catalog": [],
+  "artifact_errors": [],
+  "passes": {
+    "source_target_accountability": true,
+    "unique_paths_case_file_directory_rust_modules": true,
+    "local_markdown_links_and_fences": true
+  },
+  "not_performed": [
+    "installed skill check_artifacts.py (missing)",
+    "product tests/builds",
+    "install/stage/live service/provider journeys",
+    "source/Git/service/database mutations"
+  ],
+  "remaining_limits": [
+    "moving T18/T32 dirty source/fixtures require deep responsibility and protocol review",
+    "larger test duties structurally inspected with selected raw cases, not all-line independent semantics",
+    "source workflows not installed or executed; earlier transcripts retain original scope",
+    "no complete checkpoint advancement; prescribed support templates missing"
+  ]
+}
