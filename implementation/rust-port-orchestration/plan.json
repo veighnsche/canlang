@@ -115,5 +115,9 @@
     "commit_policy": "explicit-path commit preserving unrelated staged entries, or acknowledged short Git handoff",
     "checkout_policy": "no shared checkout switch/reset/rebase beneath the external writer",
     "acceptance_policy": "record before/after HEAD and exact relevant source hashes; requalify changed producer/consumer seams without invalidating unchanged narrow package witnesses"
-  }
+  },
+  "selected_scope_checkpoint": "implementation/rust-port-orchestration/preflight-20261007/SCOPE-CHECKPOINT.md",
+  "current_ready_blocked_queue": "implementation/rust-port-orchestration/preflight-20261007/scope-queue.json",
+  "planning_step1_deliverable_complete": true,
+  "contract_freeze_step2": "pending"
 }

@@ -6,6 +6,8 @@ The numbered steps give priority and prerequisite order. A later ready task may 
 
 The [sourced model allocation](../docs/research/package-library-audit-20261006/model-allocation-20261007.md) supplies task-specific starting choices and cheaper subtask splits. These are researched judgments, not benchmarked optimums.
 
+Step 1 now has a [completed planning scope/source checkpoint](rust-port-orchestration/preflight-20261007/SCOPE-CHECKPOINT.md) and a [single ready/blocked queue](rust-port-orchestration/preflight-20261007/scope-queue.json). Step 2 contracts remain pending; implementation is still deferred.
+
 ## Finish planning first
 
 1. **Lock the selected scope and current source checkpoint.** Reconcile the existing remaining ledger against current source and narrow credited evidence. Keep original IDs and prerequisites. Select the Rust-port work plus its required library/delivery/consumer changes. Give identity, CSV and services explicit finite selected packets before dispatch; keep unrelated product backlog and held preparation separate. Output: one ready/blocked queue with the exact reason for each blocker. Related units: P01/P02. **Economical delegation reminder:** Use Luna low for inventory/crosswalk extraction and Sol medium for P01/P02 interpretation; use Sol high only for an actual source/evidence contradiction. Recheck the least expensive supported reliable choice for every finite dispatch and record its reason.
