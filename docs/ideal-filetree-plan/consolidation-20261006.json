@@ -5,11 +5,11 @@
   "checkpoint_advanced": false,
   "initial_main": "2b22cb4ecf637cce4bf90a17238cce12de045ba4",
   "current_merge": {
-    "branch": "codex/remaining-lane-b-core-state",
-    "tip": "8b1f7f47fc5649c10fbec23430184d780aebf2b2",
-    "before": "8e751e0feaeb65206b46d839925e6eca81df58ca",
-    "scope": "history reconciliation; preserve newer current prepared-input registry and canonical kernel checkpoint",
-    "merge_output": "Auto-merging packages/contracts/src/wire.ts\nAuto-merging packages/state/src/invocation/registry.ts\nAutomatic merge went well; stopped before committing as requested\n",
+    "branch": "port/artifact-preparation",
+    "tip": "01af11aa693258ba811216a639085ffbec7f22d4",
+    "before": "facdf90c48340e5a479b4f601b0df6b5afa4f3e2",
+    "scope": "history reconciliation; no additional net source",
+    "merge_output": "Automatic merge went well; stopped before committing as requested\n",
     "source_delta": []
   },
   "previous_merges": [
@@ -168,6 +168,15 @@
       "merge_output": "Automatic merge went well; stopped before committing as requested\n",
       "source_delta": [],
       "result": "8e751e0feaeb65206b46d839925e6eca81df58ca"
+    },
+    {
+      "branch": "codex/remaining-lane-b-core-state",
+      "tip": "8b1f7f47fc5649c10fbec23430184d780aebf2b2",
+      "before": "8e751e0feaeb65206b46d839925e6eca81df58ca",
+      "scope": "history reconciliation; preserve newer current prepared-input registry and canonical kernel checkpoint",
+      "merge_output": "Auto-merging packages/contracts/src/wire.ts\nAuto-merging packages/state/src/invocation/registry.ts\nAutomatic merge went well; stopped before committing as requested\n",
+      "source_delta": [],
+      "result": "facdf90c48340e5a479b4f601b0df6b5afa4f3e2"
     }
   ],
   "accumulated_structural_delta_since_complete_checkpoint": [
@@ -614,7 +623,7 @@
     "A\tdocs/research/package-subsystem-ports-20261006/implementation-plans/shared.tasks.json",
     "A\tdocs/research/package-subsystem-ports-20261006/implementation-plans/work-transitions.md",
     "A\tdocs/research/package-subsystem-ports-20261006/implementation-plans/work-transitions.tasks.json",
-    "R079\tDECISIONS.md\tdocs/specification/DECISIONS.md",
+    "R078\tDECISIONS.md\tdocs/specification/DECISIONS.md",
     "R095\tDESIGN.md\tdocs/specification/DESIGN.md",
     "R095\tGRAMMAR.md\tdocs/specification/GRAMMAR.md",
     "R098\tREQUIREMENTS.md\tdocs/specification/REQUIREMENTS.md",
