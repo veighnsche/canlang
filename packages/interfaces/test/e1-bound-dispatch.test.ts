@@ -389,10 +389,12 @@ test('E1 MCP: handle mode binds carried members', async () => {
 });
 
 test('E1 parity: both transports reach the same verdicts', async () => {
-  // Explicit null on a nullable ref is excluded: MCP framing owns strict
-  // ref shape (rejects null, pre-existing) while binding owns nullability
-  // (accepts) — the transports differed there before E1 and differ
-  // identically now; E1 changes neither framing rule.
+  // Explicit null on a nullable ref is excluded here: MCP framing owned
+  // strict ref shape (rejects null, pre-existing) while binding owned
+  // nullability (accepts) — the transports differed there before E1 and
+  // E1 changed neither framing rule. E2b unifies them (null defers to
+  // binding on MCP when the derived channel declares the input); see
+  // e2b-transport-seams.test.ts for the unified parity coverage.
   const valids: Record<string, unknown>[] = [
     { ...VALID_CREATE },
     { ...VALID_CREATE, stock: '3' },
