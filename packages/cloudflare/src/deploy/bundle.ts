@@ -78,17 +78,18 @@
 
 import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
-import { mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { lstatSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { fileURLToPath } from "node:url";
 import { resolveProducerFile } from "./producer-files.js";
+import { gatherDeploymentAssets, type PackageAssetSelection, type PackageResource } from "./package-assets.js";
 import { distribution as contractsDistribution } from "@canlang/contracts/distribution";
 import { distribution as uiDistribution } from "@canlang/ui/distribution";
 import { distribution as identityDistribution } from "@canlang/identity/distribution";
 import { distribution as stdlibDistribution } from "@canlang/stdlib/distribution";
 import { distribution as stateDistribution } from "@canlang/state/distribution";
 import { distribution as valuesDistribution } from "@canlang/values/distribution";
-import { dirname, join, posix, relative, sep } from "node:path";
+import { dirname, join, posix, relative, resolve, sep } from "node:path";
 import type {
   ActivationVerdict,
   ArtifactModule,
@@ -496,6 +497,12 @@ function rewriteRuntimeImports(js: string, moduleKey: string): string {
  */
 function rewriteVendorImports(js: string, moduleKey: string): string {
   const mapped = (spec: string): string => {
+    if (moduleKey.startsWith("vendor/values-bindings/") && isRelativeSpecifier(spec)) {
+      const target = posix.normalize(posix.join(posix.dirname(moduleKey), spec));
+      if (target.startsWith("vendor/src/")) {
+        return relativeSpecifier(moduleKey, `vendor/values/${target.slice("vendor/src/".length)}`);
+      }
+    }
     if (spec === STDLIB_SPECIFIER) return relativeSpecifier(moduleKey, STDLIB_VENDOR_ENTRY);
     if (spec === UI_SPECIFIER) return relativeSpecifier(moduleKey, UI_VENDOR_ENTRY);
     if (spec === IDENTITY_SOURCE_SPECIFIER) return relativeSpecifier(moduleKey, IDENTITY_VENDOR_ENTRY);
@@ -921,8 +928,11 @@ function collectLinkSpecifiers(js: string): string[] {
   return specs;
 }
 
-export function assertLinksResolve(modules: Readonly<Record<string, string>>): void {
-  const keys = new Set(Object.keys(modules));
+export function assertLinksResolve(
+  modules: Readonly<Record<string, string>>,
+  binaryKeys: readonly string[] = [],
+): void {
+  const keys = new Set([...Object.keys(modules), ...binaryKeys]);
   for (const [name, contents] of Object.entries(modules)) {
     const stripped = blankCommonJsWrappers(blankStringsAndComments(contents, true));
     for (const spec of collectLinkSpecifiers(stripped)) {
@@ -1254,4 +1264,195 @@ export function writeDeployBundleMixed(bundle: MixedDeployBundle, outDir: string
   writeFileSync(manifestFile, `${JSON.stringify(manifest, null, 2)}\n`, "utf8");
   const files = [...written.files, ...binaryEntries.map((entry) => join(dir, entry.key)), manifestFile].sort();
   return { dir, mainFile: written.mainFile, files };
+}
+
+/** Optional package assets do not select or initialize a runtime backend. */
+export interface BuildPackageDeployBundleOptions extends BuildDeployBundleOptions {
+  assets?: PackageAssetSelection;
+}
+
+/** Worker modules/WASM and separately served browser resources. */
+export interface PackageDeployBundle extends MixedDeployBundle {
+  resources: Record<string, PackageResource>;
+  /** Digest of sorted resource keys, content types, byte lengths and hashes. */
+  resourcesSha256: string;
+}
+
+function snapshotResources(resources: Record<string, PackageResource>): Record<string, PackageResource> {
+  const snapshot: Record<string, PackageResource> = Object.create(null);
+  for (const [key, resource] of Object.entries(resources)) {
+    if (key === "__proto__") throw new Error('deploy bundle: resource key must not be "__proto__"');
+    snapshot[key] = { bytes: new Uint8Array(resource.bytes), contentType: resource.contentType };
+  }
+  return snapshot;
+}
+
+function resourceEntries(resources: Record<string, PackageResource>): Array<{
+  key: string; contentType: string; bytes: number; sha256: string;
+}> {
+  return Object.keys(resources).sort().map((key) => {
+    const resource = resources[key] as PackageResource;
+    return { key, contentType: resource.contentType, bytes: resource.bytes.length, sha256: sha256Bytes(resource.bytes) };
+  });
+}
+
+function resourcesSha256(resources: Record<string, PackageResource>): string {
+  return createHash("sha256")
+    .update(JSON.stringify({ version: 1, resources: resourceEntries(resources) }))
+    .digest("hex");
+}
+
+/**
+ * Resolve explicit assets from the installed owning packages. Binding JS uses
+ * the same vendor rewrite/link checks as ordinary producers. Browser resources
+ * remain outside the Worker module inventory, including browser JavaScript.
+ */
+export function buildDeployBundleWithAssets(
+  artifact: CompileArtifact,
+  options: BuildPackageDeployBundleOptions,
+): PackageDeployBundle {
+  const assets = gatherDeploymentAssets(options.assets);
+  const base = buildDeployBundle(artifact, options);
+  const modules = { ...base.modules };
+  for (const [key, js] of Object.entries(assets.modules)) {
+    if (Object.hasOwn(modules, key)) {
+      throw new Error(`deploy bundle: package asset ${JSON.stringify(key)} collides with a text module`);
+    }
+    modules[key] = rewriteVendorImports(js, key);
+  }
+  assertWorkerdLoadable(modules);
+  assertLinksResolve(modules, Object.keys(assets.binaries));
+  const sorted = Object.fromEntries(Object.entries(modules).sort(([a], [b]) => a < b ? -1 : a > b ? 1 : 0));
+  const mixed = attachBinaries({
+    ...base,
+    modules: sorted,
+    moduleCount: Object.keys(sorted).length,
+    sha256: bundleSha256(base.mainModule, sorted),
+  }, assets.binaries);
+  const resources = snapshotResources(assets.resources);
+  assertPackageOutputLayout(mixed.modules, mixed.binaries, resources);
+  return { ...mixed, resources, resourcesSha256: resourcesSha256(resources) };
+}
+
+/** Validate the complete resource/module layout before creating the output. */
+function assertPackageOutputLayout(
+  modules: Record<string, string>,
+  binaries: Record<string, Uint8Array>,
+  resources: Record<string, PackageResource>,
+): void {
+  assertMixedOutputLayout(modules, binaries);
+  const seen = new Map<string, string>();
+  for (const [what, keys] of [
+    ["text module", Object.keys(modules)],
+    ["binary module", Object.keys(binaries)],
+    ["resource", Object.keys(resources)],
+  ] as const) {
+    for (const key of keys) {
+      assertSafeRelativePath(key, `to write ${what}`);
+      const normalized = posix.normalize(key);
+      if (normalized === "." || key.includes("\\")) {
+        throw new Error(`deploy bundle: invalid output path ${JSON.stringify(key)}`);
+      }
+      if (RESERVED_MIXED_OUTPUTS.has(normalized) || normalized === "bundle.resources.json") {
+        throw new Error(`deploy bundle: ${what} ${JSON.stringify(key)} reserves writer manifest path`);
+      }
+      const prior = seen.get(normalized);
+      if (prior !== undefined) {
+        throw new Error(`deploy bundle: ${what} ${JSON.stringify(key)} aliases ${JSON.stringify(prior)} after normalization`);
+      }
+      seen.set(normalized, key);
+    }
+  }
+  // A file cannot also be an ancestor directory of a second output.
+  // Include manifests so paths beneath writer-owned files also refuse.
+  const outputs = new Set([...seen.keys(), ...RESERVED_MIXED_OUTPUTS, "bundle.resources.json"]);
+  for (const key of outputs) {
+    let parent = posix.dirname(key);
+    while (parent !== ".") {
+      if (outputs.has(parent)) {
+        throw new Error(`deploy bundle: output ${JSON.stringify(key)} has file/directory collision with ${JSON.stringify(parent)}`);
+      }
+      parent = posix.dirname(parent);
+    }
+  }
+}
+
+/** Existing output entries must not redirect any file write through symlinks. */
+function assertPackageOutputFiles(
+  outDir: string,
+  keys: readonly string[],
+): void {
+  const inspect = (path: string, directory: boolean): boolean => {
+    let info;
+    try {
+      info = lstatSync(path);
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code === "ENOENT") return false;
+      throw error;
+    }
+    if (info.isSymbolicLink()) {
+      throw new Error(`deploy bundle: refusing output symlink ${JSON.stringify(path)}`);
+    }
+    if (directory ? !info.isDirectory() : !info.isFile()) {
+      throw new Error(`deploy bundle: existing output has file/directory collision at ${JSON.stringify(path)}`);
+    }
+    return true;
+  };
+  const root = resolve(outDir);
+  const rootExists = inspect(root, true);
+  // A canonical existing ancestor proves that the requested root is not
+  // reached through an alias. Inspect only the nearest existing parent so
+  // permission-scoped consumers need no filesystem access above their root.
+  let existing = root;
+  if (!rootExists) {
+    do {
+      existing = dirname(existing);
+    } while (!inspect(existing, true));
+  }
+  if (realpathSync(existing) !== existing) {
+    throw new Error(`deploy bundle: refusing output symlink in ancestors of ${JSON.stringify(root)}`);
+  }
+  if (!rootExists) return;
+  for (const key of keys) {
+    const parts = posix.normalize(key).split("/");
+    let current = root;
+    for (let index = 0; index < parts.length; index++) {
+      current = join(current, parts[index] as string);
+      if (!inspect(current, index < parts.length - 1)) break;
+    }
+  }
+}
+
+/**
+ * Write explicit package assets with exact bytes and a resource manifest.
+ * Output paths and their parents must be free of symlinks; use a canonical
+ * parent directory when the host supplies an alias such as macOS `/var`.
+ */
+export function writeDeployBundleWithAssets(bundle: PackageDeployBundle, outDir: string): WrittenDeployBundle {
+  const modules = { ...bundle.modules };
+  const binaries = snapshotBinaries(bundle.binaries);
+  const resources = snapshotResources(bundle.resources);
+  assertPackageOutputLayout(modules, binaries, resources);
+  assertPackageOutputFiles(outDir, [
+    ...Object.keys(modules), ...Object.keys(binaries), ...Object.keys(resources),
+    ...RESERVED_MIXED_OUTPUTS, "bundle.resources.json",
+  ]);
+  if (resourcesSha256(resources) !== bundle.resourcesSha256) {
+    throw new Error("deploy bundle: resource digest mismatch — the bundle changed after build; refusing to write");
+  }
+  const written = writeDeployBundleMixed({ ...bundle, modules, binaries }, resolve(outDir));
+  const entries = resourceEntries(resources);
+  for (const { key } of entries) {
+    const full = join(written.dir, key);
+    mkdirSync(dirname(full), { recursive: true });
+    writeFileSync(full, (resources[key] as PackageResource).bytes);
+  }
+  const manifestFile = join(written.dir, "bundle.resources.json");
+  writeFileSync(manifestFile, `${JSON.stringify({
+    version: 1, resourcesSha256: bundle.resourcesSha256, resources: entries,
+  }, null, 2)}\n`, "utf8");
+  return {
+    ...written,
+    files: [...written.files, ...entries.map(({ key }) => join(written.dir, key)), manifestFile].sort(),
+  };
 }
