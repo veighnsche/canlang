@@ -24,11 +24,16 @@ import type {
   StoragePort,
   StoredRow,
 } from '../../../contracts/src/state.js';
-import type { ClosedInputs, FieldError } from '../../../contracts/src/wire.js';
+import type {
+  ClosedInputs,
+  ConflictCurrent,
+  FieldError,
+} from '../../../contracts/src/wire.js';
 import type { GeneratedOperationDef, InterimOperationDef } from './registry.js';
 import { isGeneratedOperationDef } from './registry.js';
 import type { ByPredicate, MembershipReader } from '../policy/roles.js';
 import { evaluateBy } from '../policy/roles.js';
+import { isSecretValue } from '../policy/grants.js';
 import { assertOperationIdAge } from './context.js';
 import { hashInputs } from './replay.js';
 import { StateError } from '../errors.js';
@@ -82,6 +87,17 @@ export interface PendingRef {
   id: RecordId;
   expectedVersion: RecordVersion | null;
 }
+
+/**
+ * B2 (Q3): serverOnly field names per model, threaded from the
+ * table/descriptor holder (the seam builds it from the loaded models) so
+ * admission-denial currents exclude server-resolved fields. Keyed by
+ * model name; a model with no serverOnly fields carries an EMPTY set
+ * (values flow). A MISSING map — or a model missing from it — reads as
+ * unknown exclusions: currents carry metadata only (`values: {}`),
+ * fail closed. Never inferred, never guessed.
+ */
+export type ConflictServerOnly = ReadonlyMap<string, ReadonlySet<string>>;
 
 /**
  * T17a: the interim input descriptor translated 1:1 onto a synthetic
@@ -286,6 +302,12 @@ export async function admit(input: {
   context: InvocationContext;
   store: StoragePort;
   memberships: MembershipReader;
+  /**
+   * B2 (Q3): serverOnly exclusions for denial currents (see
+   * `ConflictServerOnly`). Absent reads as unknown: stale-ref denials
+   * still carry row metadata, but `values` stays `{}`.
+   */
+  conflictServerOnly?: ConflictServerOnly;
 }): Promise<AdmittedCall> {
   const { def, inputs, context, store, memberships } = input;
   // DESIGN §7 step 1: read the primary revision BEFORE all other
@@ -352,7 +374,40 @@ export async function admit(input: {
       throw new StateError('not_found', 'Record not found.');
     }
     if (ref.expectedVersion !== null && row.version !== ref.expectedVersion) {
-      throw new StateError('conflict', 'Stale record version.');
+      // B2 (Q3): the row is in hand — carry full per-binding currents
+      // (zero extra reads). `values` = submitted-input names intersect
+      // row data, MINUS serverOnly fields (holder-threaded exclusions)
+      // MINUS secret-kind values by shape (defense in depth). Unknown
+      // exclusions (no map, or no entry for this model) carry metadata
+      // only — fail closed, never guessed.
+      const excluded = input.conflictServerOnly?.get(ref.model as string);
+      const values: Record<string, unknown> = {};
+      if (excluded !== undefined) {
+        for (const name of Object.keys(admittedInputs)) {
+          if (!Object.hasOwn(row.data, name) || excluded.has(name)) {
+            continue;
+          }
+          const current = row.data[name];
+          if (isSecretValue(current)) {
+            continue;
+          }
+          values[name] = structuredClone(current);
+        }
+      }
+      const conflict: ConflictCurrent = {
+        message:
+          `Input ${JSON.stringify(`/${ref.param}`)} is stale (expected version ` +
+          `${ref.expectedVersion as number}, current ${row.version as number}).`,
+        current: {
+          model: ref.model as string,
+          id: ref.id as string,
+          version: row.version as number,
+          updated: new Date(row.updated).toISOString(),
+          updatedBy: row.updatedBy,
+          values,
+        },
+      };
+      throw new StateError('conflict', 'Stale record version.', null, { conflict });
     }
     // L3-authored mapping (coordinator-confirmed): archived targets exist
     // but are ineligible for new references, which is a
