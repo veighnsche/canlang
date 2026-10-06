@@ -138,7 +138,7 @@ jobs:
               f.write(f"Task: `{receipt['task_id']}`\n\nSource: `{receipt['source_sha']}`\n\n[Run]({url})\n\n")
               f.write('| Command | Exit | Status |\n|---|---:|---|\n')
               for c in receipt['commands']:
-                  cmd = ' '.join(c['argv']).replace('|', '\|')
+                  cmd = ' '.join(c['argv']).replace('|', r'\|')
                   f.write(f"| `{cmd}` | {c.get('exit')} | {c['status']} |\n")
           PYRECEIPT
       - name: Upload immutable receipt and raw logs

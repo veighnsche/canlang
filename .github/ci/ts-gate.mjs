@@ -26,6 +26,15 @@ export function runChild(argv, { cwd, timeoutMs = 600000 } = {}) {
   });
 }
 export function testCounts(text) {
+  text = text.replace(/\x1b\[[0-9;]*m/g, '');
+  const summaries = [...text.matchAll(/^\s*Tests\s+(.+)$/gm)];
+  if (summaries.length) {
+    const summary = summaries.at(-1)[1];
+    const count = name => Number(summary.match(new RegExp('(\\d+)\\s+' + name))?.[1] ?? 0);
+    const total = summary.match(/\((\d+)\)/)?.[1];
+    const pass = count('passed'), fail = count('failed'), skipped = count('skipped');
+    return { tests: total === undefined ? pass + fail + skipped : Number(total), pass, fail, skipped };
+  }
   const get = name => {
     const matches = [...text.matchAll(new RegExp('(?:#|ℹ)\\s*' + name + '\\s+(\\d+)', 'g'))];
     return matches.length ? Number(matches.at(-1)[1]) : null;
@@ -107,7 +116,7 @@ export async function main(env = process.env, cwd = process.cwd()) {
         recorded.status = 'failed'; recorded.error = 'Known test counts show zero executed tests or all tests skipped';
       }
     }
-    await command(['git', 'diff', '--exit-code']);
+    await command(['git', 'diff', '--exit-code', 'HEAD']);
     async function manifest(dirPath) {
       for (const entry of await readdir(dirPath, { withFileTypes: true })) {
         const full = path.join(dirPath, entry.name);

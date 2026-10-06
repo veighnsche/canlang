@@ -19,3 +19,9 @@ test('node test count formats and absent counts', () => {
   assert.deepEqual(testCounts('ℹ tests 2\nℹ pass 1\nℹ fail 0\nℹ skipped 1'), { tests: 2, pass: 1, fail: 0, skipped: 1 });
   assert.deepEqual(testCounts('build complete'), { tests: null, pass: null, fail: null, skipped: null });
 });
+
+test('Vitest ANSI summaries expose all-skipped and mixed test counts', () => {
+  assert.deepEqual(testCounts('\x1b[32m Tests  3 skipped (3)\x1b[0m'), { tests: 3, pass: 0, fail: 0, skipped: 3 });
+  assert.deepEqual(testCounts(' Tests  2 failed | 7 passed | 1 skipped (10)'), { tests: 10, pass: 7, fail: 2, skipped: 1 });
+  assert.deepEqual(testCounts(' Tests  4 passed (4)'), { tests: 4, pass: 4, fail: 0, skipped: 0 });
+});
