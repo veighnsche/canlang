@@ -342,7 +342,7 @@ fn lsp_eof_and_shutdown_exit_cleanly() {
         .expect("spawn can lsp");
     let mut input = child.stdin.take().expect("lsp stdin");
     for body in [
-        r#"{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}"#,
+        r#"{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"processId":null,"rootUri":null,"capabilities":{}}}"#,
         r#"{"jsonrpc":"2.0","method":"initialized","params":{}}"#,
         r#"{"jsonrpc":"2.0","id":2,"method":"shutdown","params":{}}"#,
         r#"{"jsonrpc":"2.0","method":"exit","params":{}}"#,

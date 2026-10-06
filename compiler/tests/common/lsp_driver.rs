@@ -102,7 +102,10 @@ impl LspDriver {
 
     /// `initialize` + `initialized`: returns the initialize response body.
     pub fn initialize(&mut self) -> io::Result<String> {
-        let response = self.request("initialize", "{}")?;
+        let response = self.request(
+            "initialize",
+            r#"{"processId":null,"rootUri":null,"capabilities":{}}"#,
+        )?;
         self.notify("initialized", "{}")?;
         Ok(response)
     }
@@ -143,7 +146,7 @@ impl LspDriver {
         push_json_str(&mut params, uri);
         params.push_str("},\"range\":");
         params.push_str(&range_json(start, end));
-        params.push('}');
+        params.push_str(",\"context\":{\"diagnostics\":[]}}");
         self.request("textDocument/codeAction", &params)
     }
 

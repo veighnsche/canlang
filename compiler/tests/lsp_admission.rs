@@ -1,8 +1,8 @@
 //! Admission witnesses through the shipped `can lsp` stdio process.
 //!
 //! Keep raw request bytes here: framing must consume the original body even
-//! when its encoding is invalid. Gated envelope/ID/params policies belong in
-//! later witnesses once their decisions are accepted.
+//! when its encoding is invalid. Expected outcomes below freeze the accepted
+//! envelope, ID, parameter, and lifecycle admission decisions.
 
 use canlang_compiler::lsp::transport::{self, Json};
 use std::io::{self, Cursor, Read, Write};
@@ -151,6 +151,46 @@ fn assert_number_id(response: &Json, expected: &str) {
     }
 }
 
+fn call(id: Option<&str>, method: &str, params: Option<&str>) -> Vec<u8> {
+    let id = id.map(|id| format!(",\"id\":{id}")).unwrap_or_default();
+    let params = params
+        .map(|params| format!(",\"params\":{params}"))
+        .unwrap_or_default();
+    format!("{{\"jsonrpc\":\"2.0\"{id},\"method\":\"{method}\"{params}}}").into_bytes()
+}
+
+fn messages(bodies: impl IntoIterator<Item = Vec<u8>>) -> Transcript {
+    run(bodies.into_iter().flat_map(|body| frame(&body)).collect())
+}
+
+fn assert_error(response: &Json, code: i64, id_json: &str) {
+    assert_eq!(
+        response.get("id"),
+        Some(&transport::parse(id_json).expect("expected ID JSON"))
+    );
+    assert_eq!(
+        response
+            .get("error")
+            .and_then(|error| error.get("code"))
+            .and_then(Json::as_i64),
+        Some(code),
+        "{response:?}"
+    );
+    assert!(response.get("result").is_none(), "{response:?}");
+}
+
+/// A successful second initialize proves the rejected first message neither
+/// dispatched nor poisoned lifecycle state, as well as checking frame count.
+fn rejected_then_initialize(body: Vec<u8>, code: i64, id_json: &str) {
+    let output = messages([body, initialize("99")]);
+    output.assert_exit(0);
+    let responses = output.responses();
+    assert_eq!(responses.len(), 2, "{responses:?}");
+    assert_error(&responses[0], code, id_json);
+    assert_number_id(&responses[1], "99");
+    assert_success(&responses[1]);
+}
+
 #[test]
 fn malformed_utf8_is_one_parse_error_and_does_not_initialize() {
     let cases: [(&str, &[u8]); 6] = [
@@ -253,4 +293,445 @@ fn exit_before_shutdown_has_exit_code_one() {
     let output = run(frame(br#"{"jsonrpc":"2.0","method":"exit"}"#));
     output.assert_exit(1);
     assert!(output.stdout.is_empty());
+}
+
+#[test]
+fn accepted_integral_ids_preserve_the_original_number_lexeme() {
+    for id in [
+        "-2147483648",
+        "2147483647",
+        "-0",
+        "1.0",
+        "1e0",
+        "1E+0",
+        "-0E-999999999999999999999",
+        "0.1e1",
+        "1000e-3",
+        "2.147483647e9",
+        "-2.147483648e9",
+        "0e999999999999999999999",
+        "21474836470e-1",
+    ] {
+        let output = messages([initialize(id)]);
+        output.assert_exit(0);
+        let responses = output.responses();
+        assert_eq!(responses.len(), 1, "ID {id}: {responses:?}");
+        assert_success(&responses[0]);
+        assert_number_id(&responses[0], id);
+    }
+}
+
+#[test]
+fn illegal_ids_are_null_correlated_and_never_initialize() {
+    for id in [
+        "true",
+        "null",
+        "{}",
+        "[]",
+        "1.5",
+        "1.0000000000000000001",
+        "2147483648",
+        "-2147483649",
+        "1e-1000",
+        "1e-999999999999999999999",
+        "21474836480e-1",
+    ] {
+        rejected_then_initialize(initialize(id), -32600, "null");
+    }
+}
+
+#[test]
+fn malformed_envelopes_correlate_only_a_unique_legal_id() {
+    for (body, id) in [
+        (r#"{"id":7,"method":"initialize","params":{}}"#, "7"),
+        (
+            r#"{"jsonrpc":"1.0","id":7,"method":"initialize","params":{}}"#,
+            "7",
+        ),
+        (
+            r#"{"jsonrpc":2,"id":7,"method":"initialize","params":{}}"#,
+            "7",
+        ),
+        (
+            r#"{"jsonrpc":"2.0","id":"readable","method":false}"#,
+            r#""readable""#,
+        ),
+        (r#"{"jsonrpc":"2.0","id":7,"params":{}}"#, "7"),
+        (
+            r#"{"jsonrpc":"2.0","id":7,"method":"initialize","params":false}"#,
+            "7",
+        ),
+        (
+            r#"{"jsonrpc":"2.0","method":"initialize","params":false}"#,
+            "null",
+        ),
+        (r#"{"jsonrpc":"2.0","id":false,"method":false}"#, "null"),
+        (r#"{"method":"initialize"}"#, "null"),
+        (r#"{"jsonrpc":"2.0","method":4}"#, "null"),
+        ("[]", "null"),
+        ("null", "null"),
+        ("42", "null"),
+    ] {
+        rejected_then_initialize(body.as_bytes().to_vec(), -32600, id);
+    }
+}
+
+#[test]
+fn decoded_reserved_duplicate_keys_are_rejected_before_dispatch() {
+    for (body, id) in [
+        (
+            r#"{"jsonrpc":"2.0","jsonrpc":"2.0","id":7,"method":"initialize"}"#,
+            "7",
+        ),
+        (
+            r#"{"jsonrpc":"2.0","id":7,"method":"initialize","metho\u0064":"initialize"}"#,
+            "7",
+        ),
+        (
+            r#"{"jsonrpc":"2.0","id":7,"method":"initialize","params":{},"para\u006ds":{}}"#,
+            "7",
+        ),
+        (
+            r#"{"jsonrpc":"2.0","id":7,"i\u0064":7,"method":"initialize"}"#,
+            "null",
+        ),
+        (r#"{"jsonrpc":"1.0","id":7,"id":8,"method":false}"#, "null"),
+        (
+            r#"{"jsonrpc":"2.0","method":"initialize","method":"initialize"}"#,
+            "null",
+        ),
+    ] {
+        rejected_then_initialize(body.as_bytes().to_vec(), -32600, id);
+    }
+}
+
+#[test]
+fn malformed_json_is_a_null_parse_error_and_consumes_the_frame() {
+    for body in [
+        r#"{"jsonrpc":"2.0","id":7,"method":"initialize",}"#,
+        r#"{"jsonrpc":"2.0","id":7,"method":"initialize"} trailing"#,
+        r#"{"jsonrpc":"2.0","id":"\uD800","method":"initialize"}"#,
+    ] {
+        rejected_then_initialize(body.as_bytes().to_vec(), -32700, "null");
+    }
+}
+
+#[test]
+fn invalid_initialize_fields_do_not_initialize() {
+    for params in [
+        "{}",
+        "[]",
+        r#"{"processId":null,"rootUri":null}"#,
+        r#"{"processId":true,"rootUri":null,"capabilities":{}}"#,
+        r#"{"processId":2147483648,"rootUri":null,"capabilities":{}}"#,
+        r#"{"processId":null,"rootUri":false,"capabilities":{}}"#,
+        r#"{"processId":null,"rootUri":null,"capabilities":[]}"#,
+    ] {
+        rejected_then_initialize(call(Some("7"), "initialize", Some(params)), -32602, "7");
+    }
+    rejected_then_initialize(call(Some("7"), "initialize", None), -32602, "7");
+    rejected_then_initialize(call(Some("7"), "initialize", Some("null")), -32600, "7");
+}
+
+#[test]
+fn initialize_admits_unknown_capabilities_and_extensions() {
+    let output = messages([call(
+        Some("7"),
+        "initialize",
+        Some(
+            r#"{"processId":123,"rootUri":"file:///workspace","capabilities":{"experimental":{"future":true}},"futureOption":[1,2]}"#,
+        ),
+    )]);
+    output.assert_exit(0);
+    let responses = output.responses();
+    assert_eq!(responses.len(), 1);
+    assert_number_id(&responses[0], "7");
+    assert_success(&responses[0]);
+}
+
+#[test]
+fn lifecycle_precedence_is_envelope_then_lifecycle_then_method_then_params() {
+    let output = messages([
+        call(Some("1"), "textDocument/hover", Some("{}")),
+        call(Some("2"), "future/unknown", Some("{}")),
+        call(Some("3"), "textDocument/hover", Some("false")),
+        initialize("4"),
+        call(Some("5"), "future/unknown", Some("[]")),
+        call(Some("6"), "future/unknown", Some("false")),
+        call(Some("7"), "shutdown", None),
+        call(Some("8"), "textDocument/hover", Some("{}")),
+        call(Some("9"), "future/unknown", Some("[]")),
+        call(Some("10"), "textDocument/hover", Some("false")),
+        call(None, "exit", None),
+    ]);
+    output.assert_exit(0);
+    let responses = output.responses();
+    assert_eq!(responses.len(), 10, "{responses:?}");
+    for (index, code, id) in [
+        (0, -32002, "1"),
+        (1, -32002, "2"),
+        (2, -32600, "3"),
+        (4, -32601, "5"),
+        (5, -32600, "6"),
+        (7, -32600, "8"),
+        (8, -32600, "9"),
+        (9, -32600, "10"),
+    ] {
+        assert_error(&responses[index], code, id);
+    }
+    assert_success(&responses[3]);
+    assert_success(&responses[6]);
+}
+
+#[test]
+fn shutdown_and_exit_accept_absent_null_and_empty_object_params() {
+    for params in [None, Some("null"), Some("{}")] {
+        let output = messages([
+            initialize("1"),
+            call(Some("2"), "shutdown", params),
+            call(None, "exit", params),
+        ]);
+        output.assert_exit(0);
+        let responses = output.responses();
+        assert_eq!(responses.len(), 2);
+        assert_success(&responses[0]);
+        assert_success(&responses[1]);
+        assert_eq!(responses[1].get("result"), Some(&Json::Null));
+    }
+}
+
+#[test]
+fn invalid_shutdown_and_exit_params_do_not_change_lifecycle() {
+    for params in [r#"{"unexpected":true}"#, "[]"] {
+        let output = messages([
+            initialize("1"),
+            call(Some("2"), "shutdown", Some(params)),
+            call(None, "exit", Some(params)),
+            call(Some("3"), "future/unknown", Some("{}")),
+            call(Some("4"), "shutdown", None),
+            call(None, "exit", None),
+        ]);
+        output.assert_exit(0);
+        let responses = output.responses();
+        assert_eq!(responses.len(), 4, "{responses:?}");
+        assert_success(&responses[0]);
+        assert_error(&responses[1], -32602, "2");
+        assert_error(&responses[2], -32601, "3");
+        assert_success(&responses[3]);
+    }
+}
+
+const DOC_PARAMS: &str = r#"{"textDocument":{"uri":"file:///admission.can"}}"#;
+const OPEN_PARAMS: &str = r#"{"textDocument":{"uri":"file:///admission.can","languageId":"can","version":1,"text":"app Admission\n"}}"#;
+
+#[test]
+fn notifications_outside_ready_cannot_open_documents_or_publish() {
+    let output = messages([
+        call(None, "textDocument/didOpen", Some(OPEN_PARAMS)),
+        initialize("1"),
+        call(
+            Some("2"),
+            "textDocument/semanticTokens/full",
+            Some(DOC_PARAMS),
+        ),
+        call(Some("3"), "shutdown", None),
+        call(None, "textDocument/didOpen", Some(OPEN_PARAMS)),
+        call(
+            None,
+            "textDocument/didChange",
+            Some(
+                r#"{"textDocument":{"uri":"file:///admission.can","version":2},"contentChanges":[{"text":"app Changed\n"}]}"#,
+            ),
+        ),
+        call(None, "exit", None),
+    ]);
+    output.assert_exit(0);
+    let responses = output.responses();
+    assert_eq!(
+        responses.len(),
+        3,
+        "notifications must not publish: {responses:?}"
+    );
+    assert_success(&responses[0]);
+    assert_error(&responses[1], -32602, "2");
+    assert_success(&responses[2]);
+}
+
+#[test]
+fn malformed_did_open_is_silent_and_does_not_create_a_document() {
+    for params in [
+        r#"{"textDocument":{"uri":"file:///admission.can","version":1,"text":"app Admission\n"}}"#,
+        r#"{"textDocument":{"uri":"file:///admission.can","languageId":"can","version":2147483648,"text":"app Admission\n"}}"#,
+        r#"{"textDocument":{"uri":"file:///admission.can","languageId":"can","version":1,"text":false}}"#,
+    ] {
+        let output = messages([
+            initialize("1"),
+            call(None, "textDocument/didOpen", Some(params)),
+            call(
+                Some("2"),
+                "textDocument/semanticTokens/full",
+                Some(DOC_PARAMS),
+            ),
+        ]);
+        output.assert_exit(0);
+        let responses = output.responses();
+        assert_eq!(responses.len(), 2, "{responses:?}");
+        assert_success(&responses[0]);
+        assert_error(&responses[1], -32602, "2");
+    }
+}
+
+#[test]
+fn malformed_did_change_does_not_mutate_or_publish_a_new_version() {
+    for params in [
+        r#"{"textDocument":{"uri":"file:///admission.can"},"contentChanges":[{"text":"app Changed\n"}]}"#,
+        r#"{"textDocument":{"uri":"file:///admission.can","version":2147483648},"contentChanges":[{"text":"app Changed\n"}]}"#,
+        r#"{"textDocument":{"uri":"file:///admission.can","version":2},"contentChanges":{}}"#,
+        r#"{"textDocument":{"uri":"file:///admission.can","version":2},"contentChanges":[{"text":"app Changed\n"},{"text":false}]}"#,
+        r#"{"textDocument":{"uri":"file:///admission.can","version":2},"contentChanges":[{"text":"app Changed\n"},{"text":"x","range":{"start":{"line":0,"character":0},"end":{"line":2147483648,"character":0}}}]}"#,
+    ] {
+        let output = messages([
+            initialize("1"),
+            call(None, "textDocument/didOpen", Some(OPEN_PARAMS)),
+            call(None, "textDocument/didChange", Some(params)),
+            call(
+                Some("2"),
+                "textDocument/semanticTokens/full",
+                Some(DOC_PARAMS),
+            ),
+        ]);
+        output.assert_exit(0);
+        let frames = output.responses();
+        assert_eq!(frames.len(), 3, "{frames:?}");
+        assert_success(&frames[0]);
+        assert_eq!(
+            frames[1].get("method").and_then(Json::as_str),
+            Some("textDocument/publishDiagnostics")
+        );
+        assert_eq!(
+            frames[1]
+                .get("params")
+                .and_then(|p| p.get("version"))
+                .and_then(Json::as_i64),
+            Some(1)
+        );
+        assert_number_id(&frames[2], "2");
+        assert_success(&frames[2]);
+    }
+}
+
+#[test]
+fn known_method_field_errors_reply_to_requests_and_leave_notifications_silent() {
+    for (method, params) in [
+        (
+            "textDocument/hover",
+            r#"{"textDocument":{"uri":"file:///admission.can"},"position":{"line":2147483648,"character":0}}"#,
+        ),
+        (
+            "textDocument/references",
+            r#"{"textDocument":{"uri":"file:///admission.can"},"position":{"line":0,"character":0},"context":{}}"#,
+        ),
+        (
+            "textDocument/codeAction",
+            r#"{"textDocument":{"uri":"file:///admission.can"},"range":{"start":{"line":0,"character":0},"end":{"line":0,"character":1}},"context":{"diagnostics":false}}"#,
+        ),
+        (
+            "textDocument/rename",
+            r#"{"textDocument":{"uri":"file:///admission.can"},"position":{"line":0,"character":0},"newName":false}"#,
+        ),
+    ] {
+        let output = messages([
+            initialize("1"),
+            call(None, "textDocument/didOpen", Some(OPEN_PARAMS)),
+            call(Some("2"), method, Some(params)),
+            call(None, method, Some(params)),
+            call(None, "initialized", Some("[]")),
+            call(Some("3"), "shutdown", None),
+            call(None, "exit", None),
+        ]);
+        output.assert_exit(0);
+        let frames = output.responses();
+        assert_eq!(frames.len(), 4, "{method}: {frames:?}");
+        assert_success(&frames[0]);
+        assert_eq!(
+            frames[1].get("method").and_then(Json::as_str),
+            Some("textDocument/publishDiagnostics")
+        );
+        assert_error(&frames[2], -32602, "2");
+        assert_success(&frames[3]);
+    }
+}
+
+#[test]
+fn valid_notification_envelopes_are_silent_without_initializing() {
+    let output = messages([
+        call(None, "initialize", Some(INITIALIZE_PARAMS)),
+        call(None, "future/unknown", Some("{}")),
+        initialize("1"),
+        call(None, "initialized", Some("{}")),
+        call(None, "future/unknown", Some("[]")),
+        call(Some("2"), "shutdown", None),
+        call(None, "exit", None),
+    ]);
+    output.assert_exit(0);
+    let responses = output.responses();
+    assert_eq!(responses.len(), 2, "{responses:?}");
+    assert_success(&responses[0]);
+    assert_success(&responses[1]);
+}
+
+#[test]
+fn valid_required_contexts_and_maximum_position_are_admitted() {
+    let output = messages([
+        initialize("1"),
+        call(None, "textDocument/didOpen", Some(OPEN_PARAMS)),
+        call(
+            Some("2"),
+            "textDocument/references",
+            Some(
+                r#"{"textDocument":{"uri":"file:///admission.can"},"position":{"line":0,"character":0},"context":{"includeDeclaration":true}}"#,
+            ),
+        ),
+        call(
+            Some("3"),
+            "textDocument/codeAction",
+            Some(
+                r#"{"textDocument":{"uri":"file:///admission.can"},"range":{"start":{"line":0,"character":0},"end":{"line":0,"character":1}},"context":{"diagnostics":[]}}"#,
+            ),
+        ),
+        call(
+            Some("4"),
+            "textDocument/hover",
+            Some(
+                r#"{"textDocument":{"uri":"file:///admission.can"},"position":{"line":2147483647,"character":2147483647}}"#,
+            ),
+        ),
+    ]);
+    output.assert_exit(0);
+    let frames = output.responses();
+    assert_eq!(frames.len(), 5, "{frames:?}");
+    for index in [0, 2, 3, 4] {
+        assert_success(&frames[index]);
+    }
+    assert_eq!(frames[4].get("result"), Some(&Json::Null));
+}
+
+#[test]
+fn primitive_shutdown_and_exit_params_are_envelope_errors() {
+    let output = messages([
+        initialize("1"),
+        call(Some("2"), "shutdown", Some("false")),
+        call(None, "exit", Some("false")),
+        call(Some("3"), "future/unknown", Some("{}")),
+        call(Some("4"), "shutdown", None),
+        call(None, "exit", None),
+    ]);
+    output.assert_exit(0);
+    let responses = output.responses();
+    assert_eq!(responses.len(), 5, "{responses:?}");
+    assert_success(&responses[0]);
+    assert_error(&responses[1], -32600, "2");
+    assert_error(&responses[2], -32600, "null");
+    assert_error(&responses[3], -32601, "3");
+    assert_success(&responses[4]);
 }

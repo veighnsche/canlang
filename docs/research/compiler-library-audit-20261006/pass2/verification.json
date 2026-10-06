@@ -1,0 +1,123 @@
+{
+  "schema_version": 1,
+  "date": "2026-10-07",
+  "packet": "C02",
+  "status": "complete within the frozen byte/envelope contract",
+  "capture_head": "653cb2ac1b13e1b41e472ae06fa64eaf2024e453",
+  "early_commit": "bf4b0ca",
+  "profile": "profile.json",
+  "input_manifest_files": 671,
+  "inputs_changed_from_early_commit": [
+    "compiler/src/lsp/server.rs",
+    "compiler/src/lsp/transport.rs",
+    "compiler/tests/authoring.rs",
+    "compiler/tests/common/lsp_driver.rs",
+    "compiler/tests/exe.rs",
+    "compiler/tests/ide.rs",
+    "compiler/tests/lsp_admission.rs"
+  ],
+  "package_inputs_changed": false,
+  "checks": {
+    "lsp-unit": {
+      "exit": 0,
+      "passed": 23,
+      "per_suite": [
+        23
+      ]
+    },
+    "affected-suite": {
+      "exit": 0,
+      "passed": 102,
+      "per_suite": [
+        30,
+        3,
+        4,
+        11,
+        31,
+        23
+      ]
+    },
+    "full-suite": {
+      "exit": 0,
+      "passed": 945,
+      "per_suite": [
+        96,
+        0,
+        32,
+        30,
+        2,
+        3,
+        4,
+        9,
+        4,
+        279,
+        25,
+        20,
+        11,
+        4,
+        8,
+        35,
+        117,
+        29,
+        44,
+        11,
+        20,
+        4,
+        31,
+        29,
+        23,
+        3,
+        18,
+        1,
+        53,
+        0
+      ]
+    },
+    "final-lsp": {
+      "exit": 0,
+      "passed": 120,
+      "per_suite": [
+        97,
+        23
+      ]
+    },
+    "clippy": {
+      "exit": 0,
+      "all_targets": true,
+      "warnings_as_errors": true
+    },
+    "git_diff_check": {
+      "exit": 0
+    }
+  },
+  "full_suite_snapshot": "Before an equivalent Clippy conditional flatten and the final bare-LF/case additions; final complete library and process tests cover the delivered bytes.",
+  "formatting": {
+    "baseline_revision": "bf4b0ca",
+    "baseline_exit": 1,
+    "current_exit": 1,
+    "baseline_hunks": 88,
+    "current_hunks": 88,
+    "normalized_diffs_identical": true,
+    "new_hunks": [],
+    "removed_hunks": []
+  },
+  "independent_numeric_oracle": "numeric-oracle.json",
+  "editor_capability_probe": "editor-capabilities.log",
+  "delegation": {
+    "admission": "gpt-6.1-sol medium",
+    "transport_witnesses": "gpt-6.1-sol medium",
+    "process_witnesses": "gpt-6.1-sol medium",
+    "independent_review": "reused gpt-6.1-sol medium transport worker; read-only",
+    "protocol_decisions": "gpt-6.1-sol high, confined to unresolved gates and split-advice investigation",
+    "fixture_alignment": "coordinator; Sol low dispatch and subsequent worker reuse were rejected by thread limit",
+    "cost_savings_measured": false
+  },
+  "remaining_scope": [
+    "header charset/duplicate lengths/budgets/recovery gates",
+    "full optional/ignored LSP schema validation",
+    "typed DTO and framework transport packets",
+    "Linux/Windows process qualification"
+  ],
+  "merge_performed": false,
+  "living_checkpoint_advanced": false
+}

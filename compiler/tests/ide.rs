@@ -666,7 +666,11 @@ fn notify(method: &str, params: &str) -> t::Json {
 
 fn real_server() -> Server<RealAnalysis> {
     let mut server = Server::new(RealAnalysis::new(None));
-    let responses = server.handle_json(&request("1", "initialize", "{}"));
+    let responses = server.handle_json(&request(
+        "1",
+        "initialize",
+        r#"{"processId":null,"rootUri":null,"capabilities":{}}"#,
+    ));
     assert_eq!(responses.len(), 1);
     assert!(responses[0].contains("capabilities"));
     server.handle_json(&notify("initialized", "{}"));
@@ -677,7 +681,7 @@ fn open_doc(server: &mut Server<RealAnalysis>, uri: &str, version: i32, text: &s
     // JSON-escape the document text for the notification body.
     let mut escaped = String::from("{\"textDocument\":{\"uri\":\"");
     escaped.push_str(uri);
-    escaped.push_str("\",\"version\":");
+    escaped.push_str("\",\"languageId\":\"can\",\"version\":");
     escaped.push_str(&version.to_string());
     escaped.push_str(",\"text\":");
     canlang_compiler::diagnostic::push_json_str(&mut escaped, text);
@@ -727,7 +731,11 @@ fn server_capability_negotiation() {
     // Every advertised provider below has a passing test proving it
     // works (one per provider in this file).
     let mut server = Server::new(RealAnalysis::new(None));
-    let responses = server.handle_json(&request("1", "initialize", "{}"));
+    let responses = server.handle_json(&request(
+        "1",
+        "initialize",
+        r#"{"processId":null,"rootUri":null,"capabilities":{}}"#,
+    ));
     assert_eq!(responses.len(), 1);
     let capabilities = &responses[0];
     for provider in [
@@ -794,7 +802,7 @@ fn server_hover_definition_references_roundtrip() {
     let references = server.handle_json(&request(
         "4",
         "textDocument/references",
-        r#"{"textDocument":{"uri":"file:///a.can"},"position":{"line":7,"character":19}}"#,
+        r#"{"textDocument":{"uri":"file:///a.can"},"position":{"line":7,"character":19},"context":{"includeDeclaration":true}}"#,
     ));
     assert_eq!(
         references[0].matches("file:///a.can").count(),
@@ -869,7 +877,7 @@ fn server_code_action_fix_application() {
     let actions = server.handle_json(&request(
         "2",
         "textDocument/codeAction",
-        r#"{"textDocument":{"uri":"file:///a.can"},"range":{"start":{"line":6,"character":11},"end":{"line":6,"character":13}}}"#,
+        r#"{"textDocument":{"uri":"file:///a.can"},"range":{"start":{"line":6,"character":11},"end":{"line":6,"character":13}},"context":{"diagnostics":[]}}"#,
     ));
     assert!(actions[0].contains("redundant"), "{}", actions[0]);
     assert!(actions[0].contains("\"newText\":\".\""), "{}", actions[0]);
@@ -878,7 +886,7 @@ fn server_code_action_fix_application() {
     let none = server.handle_json(&request(
         "3",
         "textDocument/codeAction",
-        r#"{"textDocument":{"uri":"file:///a.can"},"range":{"start":{"line":0,"character":0},"end":{"line":0,"character":3}}}"#,
+        r#"{"textDocument":{"uri":"file:///a.can"},"range":{"start":{"line":0,"character":0},"end":{"line":0,"character":3}},"context":{"diagnostics":[]}}"#,
     ));
     assert!(none[0].contains("\"result\":[]"), "{}", none[0]);
     // The contract gate: the same fix refused against stale bytes.
