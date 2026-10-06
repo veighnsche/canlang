@@ -1,8 +1,8 @@
 {
   "schema_version": 1,
   "run_id": "codex-n04-20261006T233602Z",
-  "phase": "running_N04",
-  "execution_authorized": true,
+  "phase": "complete_N04_finite_release",
+  "execution_authorized": false,
   "source_base": "dffde556b84d618f62fd0bd3e8e7e0c98e2ce5fd",
   "packet": "packet-N04.json",
   "preparation_hold": true,
@@ -22,8 +22,8 @@
       "ack_path": "/private/tmp/canlang-rust-port-codex-n04-20261006T233602Z/mechanics-ACK.json",
       "ack_sha256": "81db3c08f71635c5dc4e0b8fe290a569a390d4160e36698e206b4ca8bbbef1d8",
       "ack_observed": true,
-      "status": "working",
-      "writer_released": false
+      "status": "released_complete",
+      "writer_released": true
     },
     {
       "worker": "fixtures",
@@ -40,8 +40,10 @@
       "ack_path": "/private/tmp/canlang-rust-port-codex-n04-20261006T233602Z/fixtures-ACK.json",
       "ack_sha256": "4bb4fa563072d332f36b67539fb119e029cbf77142fe9a05f3bd608a4e2278f5",
       "ack_observed": true,
-      "status": "working",
-      "writer_released": false
+      "status": "released_complete",
+      "writer_released": true,
+      "release_path": "/private/tmp/canlang-rust-port-codex-n04-20261006T233602Z/fixtures/release.json",
+      "fixture_sha256": "f5cde655ca236332542ba1ff2db824d744bc8f649e4e4284ba3f3287459229be"
     }
   ],
   "command_capacity": {
@@ -52,15 +54,49 @@
   "command_permits": [
     {
       "id": "N04-native-001",
-      "worker": "mechanics",
-      "state": "granted_awaiting_start",
-      "scope": "locked/offline values-semantics native package,privatetarget/jobs2"
+      "command": "CARGO_TARGET_DIR=/private/tmp/canlang-rust-port-codex-n04-20261006T233602Z/target-native cargo test --offline --locked --manifest-path packages/values/Cargo.toml -p values-semantics -j 2",
+      "session_id": 45910,
+      "exit": 101,
+      "log": "/private/tmp/canlang-rust-port-codex-n04-20261006T233602Z/native-001.log",
+      "released": true,
+      "reason": "Test negative control admitted wrong input length condition; long currency owning caller exposes preserved astral-cut residual."
+    },
+    {
+      "id": "N04-native-002",
+      "session_id": 41139,
+      "exit": 0,
+      "log": "/private/tmp/canlang-rust-port-codex-n04-20261006T233602Z/native-002.log",
+      "released": true
     },
     {
       "id": "N04-wasm-build-001",
-      "worker": "mechanics",
-      "state": "granted_after_native_release",
-      "scope": "sequential actual bindingswasm build,privatetarget/jobs2"
+      "session_id": 13419,
+      "exit": 0,
+      "log": "/private/tmp/canlang-rust-port-codex-n04-20261006T233602Z/bindings-wasm-001.log",
+      "released": true
+    },
+    {
+      "id": "N04-string-wasm-001",
+      "session_id": 38562,
+      "exit": 0,
+      "log": "/private/tmp/canlang-rust-port-codex-n04-20261006T233602Z/string-wasm-build-001.log",
+      "released": true
+    },
+    {
+      "id": "N04-string-wasm-run-001",
+      "session_id": 13385,
+      "exit": 0,
+      "log": "/private/tmp/canlang-rust-port-codex-n04-20261006T233602Z/string-wasm-run-001.log",
+      "released": true
+    },
+    {
+      "id": "N04-root-noemit-001",
+      "worker": "Codex",
+      "session_id": 25637,
+      "state": "complete_released",
+      "exit": 0,
+      "scope": "node node_modules/typescript/bin/tsc -p packages/values/tsconfig.json --noEmit",
+      "log": "/private/tmp/canlang-rust-port-codex-n04-20261006T233602Z/root-values-noemit.log"
     }
   ],
   "accepted_prior_releases": {
@@ -68,14 +104,50 @@
     "N03_source_only": "bcaa5db"
   },
   "canonical_parent_statuses_changed": false,
-  "supervisor_status": "ACTIVE",
+  "supervisor_status": "PAUSED",
   "foreign_compiler_and_shared_docs_preserved": true,
-  "updated_at_utc": "2026-10-06T23:37:40.101554+00:00",
+  "updated_at_utc": "2026-10-06T23:47:55.494936+00:00",
   "expected_interleaving": {
     "fixture_ack_numeric_rs_drift": "Root admitted declared mechanic helper change; owningTS/frozen donor inputs remain original and exact."
   },
   "material_progress": {
-    "mechanics": "Actual concrete-str helper delta; unchanged truncation; offline dependency/checksum/license proof",
-    "fixtures": "Original corpus/TS inputs ACKed; actual source donor capture preparing"
+    "mechanics": "Released and independently accepted helper only; source commit 36df46e28dc971f92a467e8543d8176e6f943483",
+    "fixtures": "Released 93 rows + 23 actual original TS caller observations; portable current Node recapture; four corrupted fixture clones reject semantic assertion"
+  },
+  "review": {
+    "agent": "/root/review_n04",
+    "model": "gpt-6.1-sol",
+    "effort": "medium",
+    "status": "accepted_finite_helper_scope",
+    "previous_dispatch_failure": "Initial thread limit; actual supported spawn succeeded after fixture release. No fabricated reviewer."
+  },
+  "narrow_limits": [
+    "89 Rust-str helper parity / 88 primitive actual-wire parity / 1 primitive cut residual / 4 unpaired TS-only",
+    "One real long-currency caller actual-field cut residual; original JS units retained",
+    "Nominal-string caller stays TS-only; native payload layer is not public SchemaError backend qualification",
+    "A04.5/full codec/installed/default unchanged; preparation HUMAN HOLD"
+  ],
+  "source_commit": "36df46e28dc971f92a467e8543d8176e6f943483",
+  "active_commands": [],
+  "all_writers_released": true,
+  "independent_review": "independent-review.json",
+  "future_dispatch_authorized": false,
+  "retained_resources": {
+    "owner": "Codex package programme",
+    "private_root": "/private/tmp/canlang-rust-port-codex-n04-20261006T233602Z",
+    "status": "Retain raw evidence/private outputs for follow-up; no shared cache/foreign cleanup",
+    "pending_cleanup": "Exact private native/bindings/wrapper targets and source staging after evidence-retention requirements resolve"
+  },
+  "supervisor_confirmation": {
+    "automation_id": "canlang-challenge-implementation",
+    "status": "PAUSED",
+    "rrule": "RRULE:FREQ=MINUTELY;INTERVAL=15",
+    "supported_tool_update_ack": true,
+    "config_verified": true
+  },
+  "deliverables": {
+    "poster": "output/build-in-public/values-n04-36df46e-20261007.png",
+    "tweet": "output/build-in-public/values-n04-36df46e-20261007.txt",
+    "scope": "local artifacts only, not published"
   }
 }

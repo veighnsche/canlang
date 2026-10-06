@@ -1,0 +1,39 @@
+[
+  {
+    "id": "N04-native-001",
+    "command": "CARGO_TARGET_DIR=/private/tmp/canlang-rust-port-codex-n04-20261006T233602Z/target-native cargo test --offline --locked --manifest-path packages/values/Cargo.toml -p values-semantics -j 2",
+    "session_id": 45910,
+    "exit": 101,
+    "log": "/private/tmp/canlang-rust-port-codex-n04-20261006T233602Z/native-001.log",
+    "released": true,
+    "reason": "Test negative control admitted wrong input length condition; long currency owning caller exposes preserved astral-cut residual."
+  },
+  {
+    "id": "N04-native-002",
+    "session_id": 41139,
+    "exit": 0,
+    "log": "/private/tmp/canlang-rust-port-codex-n04-20261006T233602Z/native-002.log",
+    "released": true
+  },
+  {
+    "id": "N04-wasm-build-001",
+    "session_id": 13419,
+    "exit": 0,
+    "log": "/private/tmp/canlang-rust-port-codex-n04-20261006T233602Z/bindings-wasm-001.log",
+    "released": true
+  },
+  {
+    "id": "N04-string-wasm-001",
+    "session_id": 38562,
+    "exit": 0,
+    "log": "/private/tmp/canlang-rust-port-codex-n04-20261006T233602Z/string-wasm-build-001.log",
+    "released": true
+  },
+  {
+    "id": "N04-string-wasm-run-001",
+    "session_id": 13385,
+    "exit": 0,
+    "log": "/private/tmp/canlang-rust-port-codex-n04-20261006T233602Z/string-wasm-run-001.log",
+    "released": true
+  }
+]

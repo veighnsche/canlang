@@ -38,5 +38,7 @@
       "reason": "Isolated complete caller/error identity and residual domain review",
       "files": []
     }
-  ]
+  ],
+  "actual_review_agent": "/root/review_n04",
+  "review_dispatch_observed_at_utc": "2026-10-06T23:44:38.591219+00:00"
 }

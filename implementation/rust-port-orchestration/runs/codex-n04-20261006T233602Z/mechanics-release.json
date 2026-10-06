@@ -1,0 +1,14 @@
+{
+  "product_sha256": {
+    "packages/values/semantics/src/codecs/numeric.rs": "6f06587f264ae4365739c7fbbbb9e2fe9e3b4319c5cc6fc71e056594dc740217",
+    "packages/values/semantics/tests/string_escape_contract.rs": "e596cd37c93470fa5d954f6d7b9c426451e3dbaf0a6ab16af7299e255cbfb30f",
+    "packages/values/test/string-escape.contract.test.ts": "b6c56ec4b4d2ce395fdd45b54c3522125ba587cbcb32b91cbe579159328b8df6",
+    "packages/values/conformance/string-escape.oracle.mjs": "3f183e7ee80243f7ed839de9f0785685e4dcd1da42a2e9c5de386a9cb0e0f24a",
+    "packages/values/conformance/string-escape.json": "f5cde655ca236332542ba1ff2db824d744bc8f649e4e4284ba3f3287459229be",
+    "docs/research/package-subsystem-ports-20261006/evidence/implementation/exact-values/core/n01-rust-str-escape.json": "68423ad35b565845e09f65d312bc8d552c5ab3e43c145fbc0c433d2cb46ce87f"
+  },
+  "private_root": "/private/tmp/canlang-rust-port-codex-n04-20261006T233602Z",
+  "writer_released": true,
+  "commands_released": true,
+  "no_git_actions": true
+}
