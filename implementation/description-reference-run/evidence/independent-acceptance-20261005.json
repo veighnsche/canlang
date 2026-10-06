@@ -1,0 +1,399 @@
+{
+  "status": "remaining-controls-passed",
+  "revision": "d736b9c",
+  "owned_bytes": 14502734,
+  "open_observation": "Explicit requested en with owning source=en and app default=nl rendered Dutch; verdict pending contract review.",
+  "records": [
+    {
+      "label": "Rust inputs match pinned released revision",
+      "args": [
+        "git",
+        "diff",
+        "--exit-code",
+        "d736b9c",
+        "--",
+        "compiler/src",
+        "compiler/tests",
+        "compiler/Cargo.toml",
+        "compiler/Cargo.lock"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "exit": 0,
+      "seconds": 0.01
+    },
+    {
+      "label": "true-clean documented root build in owned snapshot",
+      "args": [
+        "bun",
+        "run",
+        "build"
+      ],
+      "cwd": "/private/tmp/canlang-challenge-20261005-01a10c5a/independent-d07-20261005-2230/snapshot",
+      "exit": 0,
+      "seconds": 5.57
+    },
+    {
+      "label": "root-emitted platform mode",
+      "mode": "0o755",
+      "path": "/private/tmp/canlang-challenge-20261005-01a10c5a/independent-d07-20261005-2230/snapshot/packages/cloudflare/dist/cli/platform.js"
+    },
+    {
+      "label": "pinned reference renderer suite",
+      "args": [
+        "node",
+        "--test",
+        "dist/interfaces/test/docs-reference.test.js"
+      ],
+      "cwd": "/private/tmp/canlang-challenge-20261005-01a10c5a/independent-d07-20261005-2230/snapshot/packages/interfaces",
+      "exit": 0,
+      "seconds": 0.11
+    },
+    {
+      "label": "producer catalog emission",
+      "args": [
+        "bun",
+        "run",
+        "catalog"
+      ],
+      "cwd": "/private/tmp/canlang-challenge-20261005-01a10c5a/independent-d07-20261005-2230/snapshot/packages/values",
+      "exit": 0,
+      "seconds": 0.76
+    },
+    {
+      "label": "independent Rust documentation suite",
+      "args": [
+        "cargo",
+        "test",
+        "--offline",
+        "--locked",
+        "--manifest-path",
+        "compiler/Cargo.toml",
+        "--test",
+        "docs"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "exit": 0,
+      "seconds": 6.44
+    },
+    {
+      "label": "independent compiler CLI unit controls",
+      "args": [
+        "cargo",
+        "test",
+        "--offline",
+        "--locked",
+        "--manifest-path",
+        "compiler/Cargo.toml",
+        "--lib",
+        "cli::tests"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "exit": 0,
+      "seconds": 2.68
+    },
+    {
+      "label": "independent docs executable controls",
+      "args": [
+        "cargo",
+        "test",
+        "--offline",
+        "--locked",
+        "--manifest-path",
+        "compiler/Cargo.toml",
+        "--test",
+        "exe",
+        "docs"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "exit": 0,
+      "seconds": 1.79
+    },
+    {
+      "label": "build released can executable",
+      "args": [
+        "cargo",
+        "build",
+        "--offline",
+        "--locked",
+        "--manifest-path",
+        "compiler/Cargo.toml",
+        "--bin",
+        "can"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "exit": 0,
+      "seconds": 0.03
+    },
+    {
+      "label": "explicit Dutch default app-first",
+      "args": [
+        "/Users/vince/Projects/canlang/compiler/target/debug/can",
+        "docs",
+        "--catalog=/private/tmp/canlang-challenge-20261005-01a10c5a/independent-d07-20261005-2230/snapshot/packages/values/dist/catalog.json",
+        "shop-app.can",
+        "shop-pkg.can"
+      ],
+      "cwd": "/private/tmp/canlang-challenge-20261005-01a10c5a/independent-d07-20261005-2230/fixtures",
+      "exit": 0,
+      "seconds": 0.45
+    },
+    {
+      "label": "explicit Dutch default package-first",
+      "args": [
+        "/Users/vince/Projects/canlang/compiler/target/debug/can",
+        "docs",
+        "--catalog=/private/tmp/canlang-challenge-20261005-01a10c5a/independent-d07-20261005-2230/snapshot/packages/values/dist/catalog.json",
+        "shop-pkg.can",
+        "shop-app.can"
+      ],
+      "cwd": "/private/tmp/canlang-challenge-20261005-01a10c5a/independent-d07-20261005-2230/fixtures",
+      "exit": 0,
+      "seconds": 0.11
+    },
+    {
+      "label": "unavailable requested locale uses configured default then source",
+      "args": [
+        "/Users/vince/Projects/canlang/compiler/target/debug/can",
+        "docs",
+        "--catalog=/private/tmp/canlang-challenge-20261005-01a10c5a/independent-d07-20261005-2230/snapshot/packages/values/dist/catalog.json",
+        "--locale=de",
+        "shop-app.can",
+        "shop-pkg.can"
+      ],
+      "cwd": "/private/tmp/canlang-challenge-20261005-01a10c5a/independent-d07-20261005-2230/fixtures",
+      "exit": 0,
+      "seconds": 0.11
+    },
+    {
+      "label": "explicit source locale",
+      "args": [
+        "/Users/vince/Projects/canlang/compiler/target/debug/can",
+        "docs",
+        "--catalog=/private/tmp/canlang-challenge-20261005-01a10c5a/independent-d07-20261005-2230/snapshot/packages/values/dist/catalog.json",
+        "--locale=en",
+        "shop-app.can",
+        "shop-pkg.can"
+      ],
+      "cwd": "/private/tmp/canlang-challenge-20261005-01a10c5a/independent-d07-20261005-2230/fixtures",
+      "exit": 0,
+      "seconds": 0.11
+    },
+    {
+      "label": "absent default with Dutch authored source selects pinned English",
+      "args": [
+        "/Users/vince/Projects/canlang/compiler/target/debug/can",
+        "docs",
+        "--catalog=/private/tmp/canlang-challenge-20261005-01a10c5a/independent-d07-20261005-2230/snapshot/packages/values/dist/catalog.json",
+        "shop-app.can",
+        "shop-pkg.can"
+      ],
+      "cwd": "/private/tmp/canlang-challenge-20261005-01a10c5a/independent-d07-20261005-2230/fixtures",
+      "exit": 0,
+      "seconds": 0.43
+    },
+    {
+      "label": "absent default package-first",
+      "args": [
+        "/Users/vince/Projects/canlang/compiler/target/debug/can",
+        "docs",
+        "--catalog=/private/tmp/canlang-challenge-20261005-01a10c5a/independent-d07-20261005-2230/snapshot/packages/values/dist/catalog.json",
+        "shop-pkg.can",
+        "shop-app.can"
+      ],
+      "cwd": "/private/tmp/canlang-challenge-20261005-01a10c5a/independent-d07-20261005-2230/fixtures",
+      "exit": 0,
+      "seconds": 0.11
+    },
+    {
+      "label": "operand shop-app.can",
+      "args": [
+        "/Users/vince/Projects/canlang/compiler/target/debug/can",
+        "docs",
+        "--catalog=/private/tmp/canlang-challenge-20261005-01a10c5a/independent-d07-20261005-2230/snapshot/packages/values/dist/catalog.json",
+        "shop-app.can",
+        "shop-pkg.can"
+      ],
+      "cwd": "/private/tmp/canlang-challenge-20261005-01a10c5a/independent-d07-20261005-2230/fixtures",
+      "exit": 0,
+      "seconds": 0.1
+    },
+    {
+      "label": "operand ./shop-app.can",
+      "args": [
+        "/Users/vince/Projects/canlang/compiler/target/debug/can",
+        "docs",
+        "--catalog=/private/tmp/canlang-challenge-20261005-01a10c5a/independent-d07-20261005-2230/snapshot/packages/values/dist/catalog.json",
+        "./shop-app.can",
+        "shop-pkg.can"
+      ],
+      "cwd": "/private/tmp/canlang-challenge-20261005-01a10c5a/independent-d07-20261005-2230/fixtures",
+      "exit": 0,
+      "seconds": 0.1
+    },
+    {
+      "label": "operand /private/tmp/canlang-challenge-20261005-01a10c5a/independent-d07-20261005-2230/fixtures/shop-app.can",
+      "args": [
+        "/Users/vince/Projects/canlang/compiler/target/debug/can",
+        "docs",
+        "--catalog=/private/tmp/canlang-challenge-20261005-01a10c5a/independent-d07-20261005-2230/snapshot/packages/values/dist/catalog.json",
+        "/private/tmp/canlang-challenge-20261005-01a10c5a/independent-d07-20261005-2230/fixtures/shop-app.can",
+        "shop-pkg.can"
+      ],
+      "cwd": "/private/tmp/canlang-challenge-20261005-01a10c5a/independent-d07-20261005-2230/fixtures",
+      "exit": 0,
+      "seconds": 0.14
+    },
+    {
+      "label": "operand ././shop-app.can",
+      "args": [
+        "/Users/vince/Projects/canlang/compiler/target/debug/can",
+        "docs",
+        "--catalog=/private/tmp/canlang-challenge-20261005-01a10c5a/independent-d07-20261005-2230/snapshot/packages/values/dist/catalog.json",
+        "././shop-app.can",
+        "shop-pkg.can"
+      ],
+      "cwd": "/private/tmp/canlang-challenge-20261005-01a10c5a/independent-d07-20261005-2230/fixtures",
+      "exit": 0,
+      "seconds": 0.12
+    },
+    {
+      "label": "equivalent output SHA-256",
+      "sha256": "4c3ef65e77969771837412a3d87d003a4593a9e05ba9ed67064bb41e8adb6937"
+    },
+    {
+      "label": "external relative operand",
+      "args": [
+        "/Users/vince/Projects/canlang/compiler/target/debug/can",
+        "docs",
+        "--catalog=/private/tmp/canlang-challenge-20261005-01a10c5a/independent-d07-20261005-2230/snapshot/packages/values/dist/catalog.json",
+        "../external.can"
+      ],
+      "cwd": "/private/tmp/canlang-challenge-20261005-01a10c5a/independent-d07-20261005-2230/fixtures",
+      "exit": 0,
+      "seconds": 0.11
+    },
+    {
+      "label": "external absolute operand",
+      "args": [
+        "/Users/vince/Projects/canlang/compiler/target/debug/can",
+        "docs",
+        "--catalog=/private/tmp/canlang-challenge-20261005-01a10c5a/independent-d07-20261005-2230/snapshot/packages/values/dist/catalog.json",
+        "/private/tmp/canlang-challenge-20261005-01a10c5a/independent-d07-20261005-2230/external.can"
+      ],
+      "cwd": "/private/tmp/canlang-challenge-20261005-01a10c5a/independent-d07-20261005-2230/fixtures",
+      "exit": 0,
+      "seconds": 0.11
+    },
+    {
+      "label": "authored scenario sequence reaches real Markdown",
+      "args": [
+        "/Users/vince/Projects/canlang/compiler/target/debug/can",
+        "docs",
+        "--catalog=/private/tmp/canlang-challenge-20261005-01a10c5a/independent-d07-20261005-2230/snapshot/packages/values/dist/catalog.json",
+        "sequence.can"
+      ],
+      "cwd": "/private/tmp/canlang-challenge-20261005-01a10c5a/independent-d07-20261005-2230/fixtures",
+      "exit": 0,
+      "seconds": 0.12
+    },
+    {
+      "label": "out-file mode",
+      "args": [
+        "/Users/vince/Projects/canlang/compiler/target/debug/can",
+        "docs",
+        "--catalog=/private/tmp/canlang-challenge-20261005-01a10c5a/independent-d07-20261005-2230/snapshot/packages/values/dist/catalog.json",
+        "--out=/private/tmp/canlang-challenge-20261005-01a10c5a/independent-d07-20261005-2230/fixtures/reference.md",
+        "shop-app.can",
+        "shop-pkg.can"
+      ],
+      "cwd": "/private/tmp/canlang-challenge-20261005-01a10c5a/independent-d07-20261005-2230/fixtures",
+      "exit": 0,
+      "seconds": 0.11
+    },
+    {
+      "label": "missing platform truthful tool failure",
+      "args": [
+        "/Users/vince/Projects/canlang/compiler/target/debug/can",
+        "docs",
+        "--catalog=/private/tmp/canlang-challenge-20261005-01a10c5a/independent-d07-20261005-2230/snapshot/packages/values/dist/catalog.json",
+        "shop-app.can",
+        "shop-pkg.can"
+      ],
+      "cwd": "/private/tmp/canlang-challenge-20261005-01a10c5a/independent-d07-20261005-2230/fixtures",
+      "exit": 2,
+      "seconds": 0.01
+    },
+    {
+      "label": "analysis rejection produces no reference file",
+      "args": [
+        "/Users/vince/Projects/canlang/compiler/target/debug/can",
+        "docs",
+        "--catalog=/private/tmp/canlang-challenge-20261005-01a10c5a/independent-d07-20261005-2230/snapshot/packages/values/dist/catalog.json",
+        "--out=/private/tmp/canlang-challenge-20261005-01a10c5a/independent-d07-20261005-2230/fixtures/rejected.md",
+        "broken.can"
+      ],
+      "cwd": "/private/tmp/canlang-challenge-20261005-01a10c5a/independent-d07-20261005-2230/fixtures",
+      "exit": 10,
+      "seconds": 0.0
+    },
+    {
+      "label": "source overwrite refused",
+      "args": [
+        "/Users/vince/Projects/canlang/compiler/target/debug/can",
+        "docs",
+        "--catalog=/private/tmp/canlang-challenge-20261005-01a10c5a/independent-d07-20261005-2230/snapshot/packages/values/dist/catalog.json",
+        "--out=/private/tmp/canlang-challenge-20261005-01a10c5a/independent-d07-20261005-2230/fixtures/shop-app.can",
+        "shop-app.can",
+        "shop-pkg.can"
+      ],
+      "cwd": "/private/tmp/canlang-challenge-20261005-01a10c5a/independent-d07-20261005-2230/fixtures",
+      "exit": 2,
+      "seconds": 0.0
+    },
+    {
+      "label": "Rust inputs remain pinned after checks",
+      "args": [
+        "git",
+        "diff",
+        "--exit-code",
+        "d736b9c",
+        "--",
+        "compiler/src",
+        "compiler/tests",
+        "compiler/Cargo.toml",
+        "compiler/Cargo.lock"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "exit": 0,
+      "seconds": 0.01
+    }
+  ],
+  "test_counts": {
+    "reference_renderer": 49,
+    "compiler_docs": 29,
+    "cli_units": 16,
+    "docs_executable": 3
+  },
+  "explicit_source_locale_observation": {
+    "label": "explicit source locale",
+    "args": [
+      "/Users/vince/Projects/canlang/compiler/target/debug/can",
+      "docs",
+      "--catalog=/private/tmp/canlang-challenge-20261005-01a10c5a/independent-d07-20261005-2230/snapshot/packages/values/dist/catalog.json",
+      "--locale=en",
+      "shop-app.can",
+      "shop-pkg.can"
+    ],
+    "cwd": "/private/tmp/canlang-challenge-20261005-01a10c5a/independent-d07-20261005-2230/fixtures",
+    "exit": 0,
+    "seconds": 0.11,
+    "stdout_tail": "# Interne declaratie-referentie\n\n- Source revision: `d6b4575daec910f885c1ad9d89f768eae09119b3caea5b56abb940e16ee4bb5b`\n- Catalog version: `0.1.0-lane02-draft`\n- Language version: `1.0`\n- Requested locale: `en`\n- App default locale: `nl`\n\n## Eigenaren\n\n- [`shop`](#owner-shop)\n  - [`shop.Gadget`](#decl-shop-gadget)\n  - [`shop.Widget`](#decl-shop-widget)\n\n<a id=\"owner-shop\"></a>\n\n### `shop`\n\n#### Declaraties\n\n<a id=\"decl-shop-gadget\"></a>\n\n##### `shop.Gadget` (model)\n\nGedeelde tekst.\n\n- Bron: `shop-pkg.can` (107\u2013167)\n\n**Velden**\n\n| Veld | Type | Nullable | Verplicht | Standaard | Beperkingen | Beschrijving |\n| --- | --- | --- | --- | --- | --- | --- |\n| `title` | `text` | no | yes | \u2014 | \u2014 | Titel. |\n\n<a id=\"decl-shop-widget\"></a>\n\n##### `shop.Widget` (model)\n\nWidget prose.\n\n- Bron: `shop-pkg.can` (185\u2013209)\n\n**Velden**\n\n| Veld | Type | Nullable | Verplicht | Standaard | Beperkingen | Beschrijving |\n| --- | --- | --- | --- | --- | --- | --- |\n| `title` | `text` | no | yes | \u2014 | \u2014 | Geen beschrijving. |\n\n#### Operaties\n\n## Beschikbaarheid\n\n**implementatiestatus onbekend**\n",
+    "stderr_tail": ""
+  },
+  "artifact_policy": "Pinned clean TypeScript snapshot with existing dependency links; released current compiler inputs matched d736b9c before/after; no installs/new Rust cache/current platform outputs removed.",
+  "explicit_source_locale_fixture": {
+    "shop-app.can": "app Shop uses=[shop] source=\"en\"\ncontext\n locale default=\"nl\"\n",
+    "shop-pkg.can": "package shop source=\"en\"\n Given\n  export message blurb = \"Shared source.\"@{nl=\"Gedeelde tekst.\"}\n  #= blurb\n  Gadget { title:text desc=\"Display title.\"@{nl=\"Titel.\"} }\n  # Widget prose.\n  Widget { title:text }\n  policy Gadget read=members\n  policy Widget read=members\n When\n Then\n"
+  },
+  "cleanup": "Own released pinned snapshot removed after compact command evidence preservation; fixtures/scripts/local log retained for focused repair; all shared dependencies and caches preserved."
+}

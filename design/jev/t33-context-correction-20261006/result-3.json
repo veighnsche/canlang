@@ -1,0 +1,38 @@
+{
+  "request": {
+    "state": "This corrects a material omission in the prior T33 fanout consultation, not an implementation result. Choose a fanout design for four primary .can draft sites: Shift review_commitment/review_swap enumerate bare Commitment/Swap models with null-or-match filters after five EligibilityReview emitters, only two supplying roster; Volunteer refresh_reminders enumerates Signup and filters one opportunity, cancel_signup uses event.opportunity.Signup. Primary .can separates committed parent cancel truth/event from its each= child body and uses distinct explicit limit=100/500 inline loops elsewhere. .mjs witnesses expose per-child handlers/routing, not an implemented dispatcher.\nSupporting companion prose existed in draft commit3c9b544 before this implementation run. Its user authorship is not independently certified and companions are not executable proof, but it explains primary source intent. CanShift.md81 expressly says 499/500/501/1000 admitted identities share the complete finite contract and the old rejecting500 transaction bounds are gone; each child reads current state at its checkpoint; failed children do not stop siblings; exhausted scans with failed children report attention, never successful completion. CanVolunteer.md73 says cancellation success is parent truth plus durable trigger committed, not that all children already ran, and exposes remaining/failed-child progress. Existing fanout-decision.md524-535 had already recorded these distinctions but the prior JEV state omitted them and B criteria falsely claimed atomic-versus-per-child outcomes were unpinned. Largest actual examples have two records; that observation is not a declared maximum and does not erase the companion contract.\nThe acceptance bar is faithful complete Shift eligibility sweeps, Volunteer reminder refresh and cancellation with retry-safe notice intents, plus retained negatives: no silently truncated cohorts, no false completed/atomic status, ordinary bounded loops reject overflow, unsupported required features remain diagnosed. T24 atomic staging/dispatch and T32 owner checkpoint/commit authority fencing have landed with reported memory/D1/DO evidence; cloudflare join still running, narrow fencing/restarts not universally proven. Existing receipts do not implement fanout checkpointing. No draft pins exact membership cutoff, insert/move/remove policy or re-trigger supersession; those remain explicit engineering decisions/proofs. Every option must be evaluated against the same outcomes, safety, implementability, authoring simplicity, migration and total proof/maintenance costs. Finite-cohort completeness and bounded execution pages are different from a semantic cohort cardinality cap; no option promises infinite resources. Honest resource admission may refuse before committing an unsupported run, never truncate an admitted one. Prior responses were soft and split, so choose from corrected verified context; do not treat majority as mandate.",
+    "questions": {
+      "fanout_rule": {
+        "type": "choice",
+        "criteria": {
+          "durable_checkpointed": "Adopt complete finite cohorts for both existing spellings, with authoritative frozen identity membership, stable parent/record child identities, independent bounded child transactions and receipts, atomically advanced durable outcomes/checkpoints, current child authority/eligibility, isolated failures/retries and truthful aggregate progress. Parent durable intent stages atomically with triggering commit. Bounded pages do not impose the old500 semantic cohort cap. Exact cutoff/concurrent-change/supersession/resource admission rules need a concrete T34 proof plan. Cost: substantial new intent/checkpoint/enumeration/recovery/correlation machinery and durable completeness, crash, duplicate, conflict, rejected-child and retry proofs. Strongest opposing case: expensive workflow machinery for only four sites, tiny current examples and no measured production-scale demand; it introduces checkpoint/recovery failure modes and storage/admission costs.",
+          "bounded_atomic": "Adopt each= as one atomic transaction over a hard capped cohort; overflow visibly rejects, whole-handler conflicts/rejections roll back all its children, one receipt replays the entire handler. An atomic handler can run AFTER the source parent event commits, preserving immediate parent cancellation, so do not falsely claim all such designs roll back source truth. Cheaper implementation/proof and stronger all-child atomicity for deliberately capped workloads. Cost: explicit revision/scoping of supporting no500-cap, independent-child failure and remaining/failed-child progress requirements; actual tiny examples cannot justify that revision. No silent overflow/truncation is permitted. Strongest opposing case: transaction cap and one contested child can strand whole-model sweeps; per-child semantics require a different product contract.",
+          "no_primitive": "Keep each= rejected and propose ordinary bounded queries/continuations or per-record operations. Lowest new primitive cost; could reuse existing receipts if a complete continuation/recovery design is demonstrated. Cost: migration and per-site reproof at four sites; presently no equally complete restart/progress/coverage design is supplied. Required unsupported workflows remain explicitly blocked, never called implemented. Strongest opposing case: removing the spelling does not satisfy completeness and shifts repeated cursor/identity/recovery plumbing onto authors.",
+          "anchored_only": "Adopt durable checkpointed semantics only for parent-anchored reverse collections, retaining rejection of bare models until complete whole-model coverage is supplied. Volunteer cancel_signup fits; refresh_reminders could be remodeled. Cost: much of durable machinery still needed; two Shift sites are stranded by current event shapes because no single authored anchor covers all five emitters, unless emitters/cohort lookup are reworked and proved. Strongest opposing case: pays durable costs while forcing a partially arbitrary cohort distinction and failing the unchanged flagship sweeps; narrower authoritative membership is nevertheless easier to prove."
+        },
+        "instructions": "Under the unchanged acceptance bar, select the strongest tradeoff across semantic preservation, safe completeness, practical implementation, authoring economy and cumulative verification/maintenance effort. Give each alternative its stated defenses and costs; retain uncertainty about membership timing and production populations without silently weakening declared outcomes."
+      }
+    },
+    "model": "jev-latest"
+  },
+  "response": {
+    "model": "jev-1.13.0",
+    "answers": {
+      "fanout_rule": {
+        "type": "choice",
+        "choice": "durable_checkpointed",
+        "confidence": 0.97,
+        "probabilities": {
+          "bounded_atomic": 0.0,
+          "durable_checkpointed": 0.99,
+          "anchored_only": 0.0,
+          "no_primitive": 0.01
+        }
+      }
+    },
+    "usage": {
+      "input_tokens": 1552,
+      "output_tokens": 65
+    }
+  }
+}
