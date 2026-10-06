@@ -1813,3 +1813,47 @@ fn c01_invalid_delivery_status_keeps_payload_diagnostics() {
         );
     }
 }
+
+/// C03U: independent owner vectors exercise both contextual defaults and
+/// overload literal inhabitation. `url_witness` is a TEST-ONLY catalog shape,
+/// not a claimed runtime builtin; public values are checked separately.
+#[test]
+fn c03_url_owner_admission_and_source_anchors() {
+    let (catalog, catalog_diags) = load_json_catalog(
+        r#"{
+      "language_version":"1.0","catalog_version":"url-test-only",
+      "entries":[{"id":"url_witness","js":"urlWitness","owner":"test","kind":"builtin",
+        "signature":"url_witness(value:url)->url","effects":"pure","availability":"implemented"}]
+    }"#,
+    );
+    assert!(catalog_diags.is_empty(), "{catalog_diags:?}");
+    let catalog = catalog.unwrap();
+    let vectors = canlang_compiler::json::parse(include_str!(
+        "../../docs/research/compiler-library-audit-20261006/pass3/url/vectors.json"
+    ))
+    .unwrap();
+    for case in vectors.as_arr().unwrap() {
+        let value = case
+            .get("value")
+            .and_then(canlang_compiler::json::Json::as_str)
+            .unwrap();
+        let valid = case.get("expected") == Some(&canlang_compiler::json::Json::Bool(true));
+        let token =
+            canlang_compiler::json::render(&canlang_compiler::json::Json::Str(value.to_string()));
+        for src in [
+            format!(
+                "app T\nGiven\n M {{ link:url={token} }}\n policy M read=members\nWhen\nThen\n"
+            ),
+            format!(
+                "app T\nGiven\nWhen\n scenario s() by=members\n  do\n   let link=url_witness({token})\nThen\n"
+            ),
+        ] {
+            let diags = check(&src, Some(&catalog));
+            if valid {
+                assert_clean(&src, Some(&catalog));
+            } else {
+                assert_findings(&src, &diags, &[("E3001", &token, 1)]);
+            }
+        }
+    }
+}
