@@ -1,5 +1,5 @@
 import type { StateErrorCode } from '../../contracts/src/state.js';
-import type { BusinessError, FieldError } from '../../contracts/src/wire.js';
+import type { BusinessError, ConflictCurrent, FieldError } from '../../contracts/src/wire.js';
 import { FenceConflictError, StorageConstraintError } from './storage/port.js';
 
 /**
@@ -11,12 +11,20 @@ export class StateError extends Error {
   readonly details: unknown;
   readonly retryable?: boolean;
   readonly fields?: FieldError[];
+  /**
+   * B2 (Q3): L3-carried conflict currents. Present ONLY on `conflict`
+   * denials with a carried row (admission stale-ref, commit version
+   * race); absent on every other code and on row-less conflicts
+   * (fence-moved, receipt-reuse). Rendered onto the wire by
+   * `toBusinessError` (unlike `details`, which never renders).
+   */
+  readonly conflict?: ConflictCurrent;
 
   constructor(
     code: StateErrorCode,
     message: string,
     details?: unknown,
-    opts?: { retryable?: boolean; fields?: FieldError[] },
+    opts?: { retryable?: boolean; fields?: FieldError[]; conflict?: ConflictCurrent },
   ) {
     super(message);
     this.name = 'StateError';
@@ -24,6 +32,7 @@ export class StateError extends Error {
     this.details = details ?? null;
     if (opts?.retryable !== undefined) this.retryable = opts.retryable;
     if (opts?.fields !== undefined) this.fields = opts.fields;
+    if (opts?.conflict !== undefined) this.conflict = opts.conflict;
   }
 }
 
@@ -63,7 +72,29 @@ export function storageToStateError(error: unknown): unknown {
           : error.kind === 'receipt_reuse'
             ? 'Conflicting reuse of this operation identity.'
             : 'Conflicting write.';
-      return new StateError('conflict', message);
+      // B2 (Q3): commit-race version conflicts carry metadata-only
+      // currents (the adapter compared against this stored row); values
+      // stay `{}` by pin — re-reading there would be TOCTOU-indicative.
+      // Missing-row versions, uniques, and receipt-reuse carry nothing.
+      const row = error.kind === 'version' ? error.conflictRow : undefined;
+      if (row === undefined) {
+        return new StateError('conflict', message);
+      }
+      return new StateError('conflict', message, null, {
+        conflict: {
+          message:
+            `Record ${JSON.stringify(row.model)} ${JSON.stringify(row.id)} changed during ` +
+            `commit (stored version ${row.version}).`,
+          current: {
+            model: row.model,
+            id: row.id,
+            version: row.version,
+            updated: new Date(row.updated).toISOString(),
+            updatedBy: row.updatedBy,
+            values: {},
+          },
+        },
+      });
     }
     throw error;
   }
@@ -78,5 +109,7 @@ export function toBusinessError(error: StateError, operationId?: string): Busine
     ...(operationId !== undefined ? { operation_id: operationId } : {}),
     ...(error.fields !== undefined ? { fields: error.fields } : {}),
     ...(error.retryable !== undefined ? { retryable: error.retryable } : {}),
+    // B2 (Q3): carried currents render through; absent everywhere else.
+    ...(error.conflict !== undefined ? { conflict: error.conflict } : {}),
   };
 }
