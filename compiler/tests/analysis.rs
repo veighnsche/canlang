@@ -885,8 +885,41 @@ fn draft_outcome_table() {
     // exempt). Whole-corpus (all-52) differential 2061 -> 2062
     // (+1): the same Discover:252 E4052 is the only E4-family
     // diagnostic corpus-wide (E2 1134, E3 906, E5 17, E1 4).
+    // T36 re-pin 2026-10-06 (draft corrections at 40656da, checker
+    // untouched): 5 files net-decrease, 47 unchanged, zero
+    // net-increase; table total -13 (5040 -> 5027). Every delta is
+    // draft-explained, verified by old-vs-new `can check`
+    // differentials under the real catalog (this same harness):
+    // CanEvent 311 -> 309 (-E5004 x2, vestigial `as` caller columns
+    // dropped from the two trusted-handler tables :258/:262);
+    // CanGrant 50 -> 48 (-E2017 x1 fixture cycle 'submitted' -E3015
+    // x1 `state` consequence; R20 rename to `submitted_app`);
+    // CanMail 149 -> 147 (-E2017 x1 cycle 'parcel' -E3015 x1 `kind`
+    // consequence; R20 rename to `parcel_item`); CanReport 45 -> 42
+    // (-E2017 x1 cycle 'unavailable' -E3015 x1 `state` consequence
+    // -E5008 x2 server-owned `parent` overrides, the T35/R24-pinned
+    // :110/:113 pair; R20 rename to `unavailable_run` + R24
+    // `service_run` fixture; +E2001 x1 new `test_site` site in the
+    // pre-existing single-file cross-file-provider class, 1 -> 2);
+    // CanShift 191 -> 187 (-E2017 x2 cycles 'assignment'+'duty'
+    // -E3015 x2 `kind` consequences; R20 rename to
+    // `reception_duty`). Removed E2017 x5 + E5004 x2 + E5008 x2 +
+    // E3015 x5 = 14, added E2001 x1, net -13. Zero checker-dropped.
+    // T02 re-pin 2026-10-06 (B1 checker fix: the types pass now
+    // types `on=Cap.op.completed` handler payloads with the DESIGN
+    // §8 delivery envelope instead of `{opaque}`, so completion
+    // bodies resolve `event.status`/`event.result` members): 11
+    // files net-decrease, 41 unchanged, zero net-increase; table
+    // total -66 (5027 -> 4961). Every delta is B1-explained
+    // (E2001/E3001/E3010 inside completion handlers resolving):
+    // CanAffiliate 48 -> 40, CanDiscover 86 -> 69, CanDo 45 -> 38
+    // (pilot-closure floor 10 -> 3 under the real catalog:
+    // CanDo:44 E3001 + Employees:8,:9 E3010), CanInvoice 379 ->
+    // 371, CanPropose 135 -> 131, CanPurchase 148 -> 146,
+    // CanReception 190 -> 186, CanReport 42 -> 34, CanStats 35 ->
+    // 31, CanSync 19 -> 17, CanWorkbench 84 -> 82.
     let table: &[(&str, usize)] = &[
-        ("draft/CanAffiliate.can", 48),
+        ("draft/CanAffiliate.can", 40),
         ("draft/CanApprove.can", 47),
         ("draft/CanBoard.can", 3),
         ("draft/CanBook.can", 161),
@@ -899,42 +932,42 @@ fn draft_outcome_table() {
         ("draft/CanCustomer.can", 59),
         ("draft/CanDecide.can", 27),
         ("draft/CanDesk.can", 85),
-        ("draft/CanDiscover.can", 86),
-        ("draft/CanDo.can", 45),
+        ("draft/CanDiscover.can", 69),
+        ("draft/CanDo.can", 38),
         ("draft/CanEnrich.can", 19),
-        ("draft/CanEvent.can", 311),
+        ("draft/CanEvent.can", 309),
         ("draft/CanExpense.can", 95),
         ("draft/CanFeedback.can", 13),
         ("draft/CanField.can", 115),
         ("draft/CanGallery.can", 23),
-        ("draft/CanGrant.can", 50),
+        ("draft/CanGrant.can", 48),
         ("draft/CanHire.can", 126),
         ("draft/CanInbox.can", 100),
-        ("draft/CanInvoice.can", 379),
+        ("draft/CanInvoice.can", 371),
         ("draft/CanKnowledge.can", 50),
         ("draft/CanLearn.can", 50),
         ("draft/CanLeave.can", 79),
         ("draft/CanLoyalty.can", 71),
-        ("draft/CanMail.can", 149),
+        ("draft/CanMail.can", 147),
         ("draft/CanMaintain.can", 123),
         ("draft/CanMember.can", 338),
         ("draft/CanOnboard.can", 55),
-        ("draft/CanPropose.can", 135),
-        ("draft/CanPurchase.can", 148),
-        ("draft/CanReception.can", 190),
+        ("draft/CanPropose.can", 131),
+        ("draft/CanPurchase.can", 146),
+        ("draft/CanReception.can", 186),
         ("draft/CanRefer.can", 79),
         ("draft/CanRent.can", 634),
-        ("draft/CanReport.can", 45),
-        ("draft/CanShift.can", 191),
-        ("draft/CanStats.can", 35),
+        ("draft/CanReport.can", 34),
+        ("draft/CanShift.can", 187),
+        ("draft/CanStats.can", 31),
         ("draft/CanStock.can", 60),
         ("draft/CanSuccess.can", 50),
-        ("draft/CanSync.can", 19),
-        ("draft/CanTable.can", 33),
+        ("draft/CanSync.can", 17),
+        ("draft/CanTable.can", 31),
         ("draft/CanTime.can", 126),
         ("draft/CanTrade.can", 18),
         ("draft/CanVolunteer.can", 76),
-        ("draft/CanWorkbench.can", 84),
+        ("draft/CanWorkbench.can", 82),
         ("draft/shared/Employees.can", 8),
         ("draft/shared/Locations.can", 5),
         ("draft/shared/Suppliers.can", 6),

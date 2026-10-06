@@ -2204,11 +2204,40 @@ impl<'a> Resolver<'a> {
                     ));
                     continue;
                 }
-                Some(ScopedName::Imported { .. }) | Some(ScopedName::External { .. }) => {
+                Some(ScopedName::Imported { target, bound }) => {
+                    // T28-A (plain_import_containment): a plain-imported
+                    // stored model contains exactly like a local one;
+                    // bound (from=) parents stay rejected (remote:
+                    // reference field instead).
+                    if bound {
+                        diags.push(Diagnostic::error(
+                            "E2008",
+                            format!(
+                                "containment target '{}' is a bound (from=) import; containment needs a plain-imported or package-local parent",
+                                segments[0]
+                            ),
+                            span,
+                        ));
+                        continue;
+                    }
+                    if !matches!(
+                        self.tables.symbols[target.0 as usize].kind,
+                        SymbolKind::Model { .. }
+                    ) {
+                        diags.push(Diagnostic::error(
+                            "E2008",
+                            format!("containment target '{}' is not a stored model", segments[0]),
+                            span,
+                        ));
+                        continue;
+                    }
+                    target
+                }
+                Some(ScopedName::External { .. }) => {
                     diags.push(Diagnostic::error(
                         "E2008",
                         format!(
-                            "containment target '{}' is imported; containment needs a package-local parent",
+                            "containment target '{}' is external; containment needs a plain-imported or package-local parent",
                             segments[0]
                         ),
                         span,

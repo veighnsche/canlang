@@ -12,7 +12,7 @@ use canlang_compiler::analysis::CheckedProgram;
 use canlang_compiler::analysis::catalog::{Catalog, CatalogRequest, load_catalog};
 use canlang_compiler::analysis::check_program;
 use canlang_compiler::analysis::effects::CheckedDescription;
-use canlang_compiler::analysis::resolve::SymbolKind;
+use canlang_compiler::analysis::resolve::{ModelOwner, SymbolKind};
 use canlang_compiler::diagnostic::Diagnostic;
 use canlang_compiler::explain;
 use canlang_compiler::source::{SourceDb, Span};
@@ -3421,4 +3421,161 @@ fn t35r23_no_crud_declaration_stays_rejected() {
     );
     let (start, end) = span_of(src, "Bare.update", 1);
     assert_eq!((diags[0].primary.start, diags[0].primary.end), (start, end));
+}
+
+// --- T29 imported containment (T28-A plain_import_containment) ----------------
+//
+// `Child in ImportedParent` through a plain import carries exactly the
+// local-containment semantics (ChildOf linkage, protected `parent`
+// binding, parent-scoped behavior); bound (`from=`) and external
+// parents stay rejected with E2008, and containment cycles are
+// detected over the whole-app index.
+
+/// Canonical containing parent of a model, when linked.
+fn child_of(program: &CheckedProgram, child: &str) -> Option<String> {
+    let symbol = program.symbols.iter().find(|s| s.canonical == child)?;
+    match &symbol.kind {
+        SymbolKind::Model {
+            owner: ModelOwner::ChildOf(parent),
+            ..
+        } => Some(program.symbols[parent.0 as usize].canonical.clone()),
+        _ => None,
+    }
+}
+
+/// (T29) A plain-imported stored model contains exactly like a local
+/// one: zero E2008 and a ChildOf link to the owner's model.
+#[test]
+fn t29_plain_imported_parent_accepted() {
+    let src = "package employee\n Given\n  export Employee { name:text }\n  policy Employee read=members\n When\n Then\npackage expense\n use employee {Employee}\n Given\n  Expense in Employee { amount:int }\n  policy Expense read=members\n When\n Then\n";
+    let (program, diags) = check_full(src);
+    assert!(
+        diags.iter().all(|d| d.code != "E2008"),
+        "plain-imported parent must not draw E2008: {diags:?}"
+    );
+    assert_eq!(
+        child_of(&program, "expense.Expense").as_deref(),
+        Some("employee.Employee")
+    );
+}
+
+/// (T29) Bound (`from=`) parents stay rejected as containment
+/// targets: remote packages take a reference field instead.
+#[test]
+fn t29_bound_parent_rejected() {
+    let src = "package employee\n Given\n  export Employee { name:text }\n  policy Employee read=members\n When\n Then\npackage expense\n use employee {Employee} from=deployment.prod\n Given\n  Expense in Employee { amount:int }\n  policy Expense read=members\n When\n Then\n";
+    let diags = check(src, None);
+    assert_eq!(codes(&diags), vec!["E2008"], "{diags:?}");
+    assert!(
+        diags[0].message.contains("bound (from=)"),
+        "{}",
+        diags[0].message
+    );
+}
+
+/// (T29) External (unknown-provider) parents stay rejected.
+#[test]
+fn t29_external_parent_rejected() {
+    let src = "package expense\n use nowhere {Widget} from=deployment.prod\n Given\n  Gadget in Widget { amount:int }\n  policy Gadget read=members\n When\n Then\n";
+    let diags = check(src, None);
+    assert_eq!(codes(&diags), vec!["E2008"], "{diags:?}");
+    assert!(
+        diags[0].message.contains("is external"),
+        "{}",
+        diags[0].message
+    );
+}
+
+/// (T29) A plain-imported non-model is not a stored container.
+#[test]
+fn t29_imported_non_model_rejected() {
+    let src = "package employee\n Given\n  export Employee { name:text }\n  export event Hired { employee:Employee }\n  policy Employee read=members\n When\n Then\npackage expense\n use employee {Employee,Hired}\n Given\n  Expense in Hired { amount:int }\n  policy Expense read=members\n When\n Then\n";
+    let diags = check(src, None);
+    assert_eq!(codes(&diags), vec!["E2008"], "{diags:?}");
+    assert!(
+        diags[0].message.contains("not a stored model"),
+        "{}",
+        diags[0].message
+    );
+}
+
+/// (T29) Containment cycles are detected across packages, same as
+/// local cycles.
+#[test]
+fn t29_cross_package_cycle_rejected() {
+    let src = "package a\n use b {Y}\n Given\n  export X in Y { amount:int }\n  policy X read=members\n When\n Then\npackage b\n use a {X}\n Given\n  export Y in X { amount:int }\n  policy Y read=members\n When\n Then\n";
+    let diags = check(src, None);
+    assert_eq!(codes(&diags), vec!["E2008", "E2008"], "{diags:?}");
+    assert!(
+        diags
+            .iter()
+            .all(|d| d.message.contains("containment cycle")),
+        "{diags:?}"
+    );
+}
+
+/// (T29) The imported link behaves like containment downstream: a
+/// create without the protected `parent` binding fails.
+#[test]
+fn t29_imported_child_create_requires_parent() {
+    let src = "package employee\n Given\n  export Employee { name:text }\n  policy Employee read=members\n When\n Then\npackage expense\n use employee {Employee}\n Given\n  Expense in Employee { amount:int }\n  policy Expense read=members\n When\n  scenario file() by=members\n   do\n    create Expense {amount=1} as e\n Then\n";
+    let diags = check(src, None);
+    assert!(
+        diags.iter().any(|d| d.message.contains("'parent'")),
+        "create without parent must fail naming parent: {diags:?}"
+    );
+}
+
+// --- A3 boundary proofs: page titles + order keys ----------------------------
+
+/// (A3 P1) A page with a static `title=` checks clean.
+#[test]
+fn a3_page_title_present_clean() {
+    let src = "app T\nGiven\n Meeting { title:text }\n Amendment { text:text }\n policy Meeting read=members\n policy Amendment read=members\nWhen\nThen\n page /t title=\"T\"\n  list Meeting\n   timeline Amendment\n    slot item\n     text row.text\n";
+    let diags = check(src, Some(&fixture()));
+    assert!(diags.is_empty(), "{diags:?}");
+}
+
+/// (A3 P1) A page without `title=` is `E1204` at parse: the parser
+/// requires the attribute, so the checker's `E3001` "page needs title="
+/// arm is parser-shadowed (kept as defense in depth).
+#[test]
+fn a3_page_title_missing_e1204() {
+    let src = "app T\nGiven\n Meeting { title:text }\n Amendment { text:text }\n policy Meeting read=members\n policy Amendment read=members\nWhen\nThen\n page /t\n  list Meeting\n   timeline Amendment\n    slot item\n     text row.text\n";
+    let diags = check(src, Some(&fixture()));
+    assert_eq!(codes(&diags), vec!["E1204"], "{diags:?}");
+    assert!(
+        diags[0].message.contains("missing required attribute"),
+        "{}",
+        diags[0].message
+    );
+}
+
+/// (A3 P3) An order key over an ordered scalar checks clean.
+#[test]
+fn a3_order_key_ordered_clean() {
+    let src = "app T\nGiven\n M { active:bool, n:int }\n policy M read=members\nWhen\n scenario s() by=members\n  do\n   let x = count(M as m where m.active order=m.n select m)\nThen\n";
+    let diags = check(src, Some(&fixture()));
+    assert!(diags.is_empty(), "{diags:?}");
+}
+
+/// (A3 P3) An order key over a non-ordered scalar is `E3006`.
+#[test]
+fn a3_order_key_unordered_e3006() {
+    let src = "app T\nGiven\n M { active:bool, n:int }\n policy M read=members\nWhen\n scenario s() by=members\n  do\n   let x = count(M as m where m.active order=m.active select m)\nThen\n";
+    let diags = check(src, Some(&fixture()));
+    assert_eq!(codes(&diags), vec!["E3006"], "{diags:?}");
+    assert!(
+        diags[0].message.contains("must be ordered scalars"),
+        "{}",
+        diags[0].message
+    );
+}
+
+/// (A3 P3) A nullable datetime order key checks clean (unwrap + ordered).
+#[test]
+fn a3_order_key_nullable_datetime_clean() {
+    let src = "app T\nGiven\n M { active:bool, due:datetime? }\n policy M read=members\nWhen\n scenario s() by=members\n  do\n   let x = count(M as m where m.active order=m.due select m)\nThen\n";
+    let diags = check(src, Some(&fixture()));
+    assert!(diags.is_empty(), "{diags:?}");
 }

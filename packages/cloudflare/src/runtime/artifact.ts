@@ -111,6 +111,11 @@ const OPERATION_FIELD_KINDS: ReadonlySet<string> = new Set([
   "boolean",
   "file",
   "enum",
+  // T15b provider receipt bindings (T04b-ratified
+  // `ArtifactDeliveryDescriptor`): valid artifact members, carried
+  // through for the registry (which excludes them from framing)
+  // and the deploy-baked derived channel (which serves them).
+  "delivery",
 ]);
 const SHA256_HEX = /^[0-9a-f]{64}$/;
 
@@ -288,7 +293,7 @@ export function parseArtifactText(text: string, sourcePath: string): LoadedArtif
           fail(
             path,
             `${fieldWhere}.field.kind must be one of ` +
-              `ref|string|integer|decimal|money|datetime|boolean|file|enum ` +
+              `ref|string|integer|decimal|money|datetime|boolean|file|enum|delivery ` +
               `(got ${JSON.stringify(schema.kind)})`,
           );
         }
@@ -308,6 +313,40 @@ export function parseArtifactText(text: string, sourcePath: string): LoadedArtif
             !values.every((value) => typeof value === "string")
           ) {
             fail(path, `${fieldWhere}.field.values must be a non-empty array of strings`);
+          }
+        }
+        if (schema.kind === "delivery") {
+          // T15b `ArtifactDeliveryDescriptor` (T04b-ratified):
+          // structural presence only. Send-target identity and
+          // version fencing are semantic (derivation-owned,
+          // enforced at deploy-bake), never re-derived here — this
+          // check stays strictly weaker than the derivation, so
+          // deploy-valid descriptors always load.
+          if (!isNonEmptyString(schema.capability)) {
+            fail(path, `${fieldWhere}.field.capability must be a non-empty string`);
+          }
+          if (!isNonEmptyString(schema.operation)) {
+            fail(path, `${fieldWhere}.field.operation must be a non-empty string`);
+          }
+          if (typeof schema.version !== "number") {
+            fail(path, `${fieldWhere}.field.version must be a number`);
+          }
+          const result: unknown = schema.result;
+          if (!isRecord(result)) {
+            fail(path, `${fieldWhere}.field.result must be an object`);
+          }
+          if (!isNonEmptyString(result.name)) {
+            fail(path, `${fieldWhere}.field.result.name must be a non-empty string`);
+          }
+          const leaves: unknown = result.fields;
+          if (
+            !Array.isArray(leaves) ||
+            !leaves.every(
+              (leaf): boolean =>
+                isRecord(leaf) && isNonEmptyString(leaf.name) && typeof leaf.type === "string",
+            )
+          ) {
+            fail(path, `${fieldWhere}.field.result.fields must be an array of {name, type} leaves`);
           }
         }
       }

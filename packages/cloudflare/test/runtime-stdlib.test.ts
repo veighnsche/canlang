@@ -160,7 +160,7 @@ export function canApp() {
       },
       mkParent: async (c, input) => {
         await create(c, "acme.Todo", { id: input.inputs.parent, data: { title: "parent" } });
-        return create(c, "acme.Todo", {
+        return create(c, "acme.Sub", {
           id: input.inputs.child,
           data: { title: "child" },
           parent: { model: "acme.Todo", id: input.inputs.parent },
@@ -210,6 +210,20 @@ function todoModel(): unknown {
   };
 }
 
+// B5 declared ownership: linkage needs a DECLARED child (ad-hoc
+// parents on the parentless Todo root are refused); the T17c
+// pass-through pin stages through this child.
+function subModel(): unknown {
+  return {
+    name: "acme.Sub",
+    fields: [
+      { name: "title", required: true, serverOnly: false, field: { kind: "string" } },
+    ],
+    deleteMode: "remove",
+    parent: "acme.Todo",
+  };
+}
+
 const SCENARIOS: ReadonlyArray<{ op: string; fn: string; params: ReadonlyArray<string> }> = [
   { op: "acme.Shop.mkCreate", fn: "mkCreate", params: ["key", "title"] },
   { op: "acme.Shop.mkParent", fn: "mkParent", params: ["parent", "child"] },
@@ -253,7 +267,7 @@ function shopArtifact(module: string): CompileArtifact {
         },
       })),
     ],
-    models: [todoModel()],
+    models: [todoModel(), subModel()],
   } as unknown as CompileArtifact;
 }
 
@@ -371,7 +385,7 @@ describe("create", () => {
       model: "acme.Todo",
       id: "t1",
     });
-    const stored = await s.store.load("acme.Todo" as ModelName, "t2" as RecordId);
+    const stored = await s.store.load("acme.Sub" as ModelName, "t2" as RecordId);
     expect(stored?.parent).toEqual({ model: "acme.Todo", id: "t1" });
   });
 });

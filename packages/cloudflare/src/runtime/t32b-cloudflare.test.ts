@@ -50,6 +50,7 @@ import type {
 import { resolveIdentity, sha256HexText } from "@canlang/identity";
 import { createFrozenClock, createMemoryIdentityStore } from "@canlang/identity/testing";
 import { createTestMemoryStorage } from "../../../state/dist/state/src/storage/memory.js";
+import { T18_SHOP_ARTIFACT_JSON } from "../../../state/dist/state/src/mutation/t18-shop.artifact.js";
 import { buildInvoker } from "../worker/assembly.js";
 import type { AssembledModules } from "../worker/assembly.js";
 import { assembleDispatchCommands } from "../worker/assembly.js";
@@ -57,6 +58,7 @@ import {
   createWorkerDispatchJoinPort,
   createWorkerDispatchRegistry,
   driveDispatchIntent,
+  loadCanonicalDescriptors,
   loadDispatchSystemProducers,
   readDispatchExecutionRow,
   seamTriggerPoint,
@@ -1169,5 +1171,605 @@ describe("T32b fenced dispatch drives (real kernel verdicts)", () => {
       }),
       /needs revalidateAuthority/,
     );
+  });
+});
+
+/* ------------------------------------------------------------------ */
+/* T32c C2 production joins (T18/read threading through the seam).      */
+/*                                                                     */
+/* The fence artifact above is hand-written T15a shape; these pins run */
+/* the REAL production T18 shop slice (server inits, nullable fields,  */
+/* containment, archive deleteMode, serverOnly fields) plus one        */
+/* serverOnly-free model and three probe scenarios through the REAL    */
+/* serving seam:                                                       */
+/*  - site 1+5: serverInits/nullableFields/containment reach the       */
+/*    model-table build (nullable fill, server resolution,             */
+/*    missing-parent verdict);                                         */
+/*  - site 2: gateArchivedTargets on scenario stageWrite;              */
+/*  - site 3+4: ConflictServerOnly threading + assembly                */
+/*    toBusinessError conflict mirror (bb1ca7a);                       */
+/*  - self-cancel netting verdict (B1): create+remove commits (never   */
+/*    throws); archive-mode pairs persist an archived stub.            */
+/* CRUD ops run the canonical mechanism path (module CRUD exports are  */
+/* tripwires, fence precedent); scenario probes use the cloudflare     */
+/* stdlib shape (create/set/deleteRecord with explicit model+id).      */
+/* ------------------------------------------------------------------ */
+
+const C2_MODULE = `import { create, set, deleteRecord } from "../stdlib.js";
+export const hooks = { midway: null };
+export const calls = [];
+const throwing = () => { throw new Error("t32c-proof: CRUD handler must never run on the canonical path"); };
+export function canApp() {
+  return {
+    calls,
+    policy: {
+      roles: [],
+      models: {
+        "Shop.Team": { read: ["Team.read.1"] },
+        "Shop.Member": { read: ["Member.read.1"] },
+        "acme.Plain": { read: ["Plain.read.1"] },
+      },
+      operations: {
+        "Shop.Team.create": { by: ["members"] },
+        "Shop.Team.update": { by: ["members"] },
+        "Shop.Team.delete": { by: ["members"] },
+        "Shop.Member.create": { by: ["members"] },
+        "Shop.Member.update": { by: ["members"] },
+        "Shop.Member.delete": { by: ["members"] },
+        "acme.Plain.create": { by: ["members"] },
+        "acme.Plain.update": { by: ["members"] },
+      },
+    },
+    read: {
+      "Team.read.1": (c, row) => true,
+      "Member.read.1": (c, row) => true,
+      "Plain.read.1": (c, row) => true,
+    },
+    createTeam: throwing,
+    updateTeam: throwing,
+    deleteTeam: throwing,
+    createMember: throwing,
+    updateMember: throwing,
+    deleteMember: throwing,
+    createPlain: throwing,
+    updatePlain: throwing,
+    Probe: {
+      selfCancel: async (c, input) => {
+        calls.push("selfCancel");
+        const row = await create(c, "Shop.Team", {
+          id: input.inputs.key,
+          data: { name: "tmp-" + input.inputs.key, owner: input.inputs.owner, flags: [] },
+        });
+        await deleteRecord(c, "Shop.Team", row.id);
+        return { id: row.id };
+      },
+      updateRemove: async (c, input) => {
+        calls.push("updateRemove");
+        const row = await create(c, "Shop.Team", {
+          id: input.inputs.key,
+          data: { name: "tmp-" + input.inputs.key, owner: input.inputs.owner, flags: [] },
+        });
+        await set(c, "Shop.Team", row.id, { name: "v2-" + input.inputs.key });
+        await deleteRecord(c, "Shop.Team", row.id);
+        return { id: row.id };
+      },
+      archiveTouch: async (c, input) => {
+        calls.push("archiveTouch");
+        const row = await set(c, "Shop.Team", input.inputs.id, { name: "touched" });
+        return { id: row.id, version: row.version };
+      },
+      orphanMember: async (c, input) => {
+        calls.push("orphanMember");
+        const row = await create(c, "Shop.Member", {
+          id: input.inputs.key,
+          data: { name: "orphan-" + input.inputs.key, buddy: input.inputs.owner },
+        });
+        return { id: row.id };
+      },
+      ghostMember: async (c, input) => {
+        calls.push("ghostMember");
+        const row = await create(c, "Shop.Member", {
+          id: input.inputs.key,
+          data: { name: "ghost-" + input.inputs.key, buddy: input.inputs.owner },
+          parent: { model: "Shop.Team", id: "ghost-" + input.inputs.key },
+        });
+        return { id: row.id };
+      },
+    },
+  };
+}
+`;
+
+/**
+ * Production T18 shop slice (ops + models verbatim from the REAL
+ * compiler artifact JSON) plus a serverOnly-free model (empty
+ * exclusion-set proof) and the probe scenarios. Callables point at
+ * the C2 fixture module (top-level CRUD tripwires, nested probes).
+ */
+function c2Artifact(module: string): CompileArtifact {
+  const t18 = JSON.parse(T18_SHOP_ARTIFACT_JSON) as CompileArtifact;
+  const keepOps = new Set([
+    "Shop.Team.create",
+    "Shop.Team.update",
+    "Shop.Team.delete",
+    "Shop.Member.create",
+    "Shop.Member.update",
+    "Shop.Member.delete",
+  ]);
+  const t18Operations = t18.operations ?? [];
+  assert.ok(t18Operations.length > 0, "T18 slice needs operations");
+  const operations = [
+    ...t18Operations.filter((op) => keepOps.has(op.name as string)),
+    {
+      name: "acme.Plain.create",
+      kind: "create",
+      description: "",
+      inputs: { fields: [{ name: "title", field: { kind: "string" }, required: true }] },
+    },
+    {
+      name: "acme.Plain.update",
+      kind: "update",
+      description: "",
+      inputs: {
+        fields: [
+          {
+            name: "record",
+            field: { kind: "ref", model: "acme.Plain", requireVersion: true },
+            required: true,
+          },
+          { name: "title", field: { kind: "string" }, required: false },
+        ],
+      },
+    },
+    {
+      name: "acme.Probe.selfCancel",
+      kind: "scenario",
+      description: "",
+      inputs: { fields: [strInput("key", true), strInput("owner", true)] },
+    },
+    {
+      name: "acme.Probe.updateRemove",
+      kind: "scenario",
+      description: "",
+      inputs: { fields: [strInput("key", true), strInput("owner", true)] },
+    },
+    {
+      name: "acme.Probe.archiveTouch",
+      kind: "scenario",
+      description: "",
+      inputs: { fields: [strInput("id", true)] },
+    },
+    {
+      name: "acme.Probe.orphanMember",
+      kind: "scenario",
+      description: "",
+      inputs: { fields: [strInput("key", true), strInput("owner", true)] },
+    },
+    {
+      name: "acme.Probe.ghostMember",
+      kind: "scenario",
+      description: "",
+      inputs: { fields: [strInput("key", true), strInput("owner", true)] },
+    },
+  ];
+  const t18Models = t18.models ?? [];
+  assert.ok(t18Models.length > 0, "T18 slice needs models");
+  const models = [
+    ...t18Models,
+    {
+      name: "acme.Plain",
+      fields: [{ name: "title", field: { kind: "string" }, required: true, serverOnly: false }],
+      deleteMode: "remove",
+    },
+  ];
+  const crudTripwire = (id: string, member: string) => ({
+    id,
+    kind: "operation",
+    module,
+    export: `C2_${member}`,
+    member: [member],
+  });
+  const callables = [
+    crudTripwire("Shop.Team.create", "createTeam"),
+    crudTripwire("Shop.Team.update", "updateTeam"),
+    crudTripwire("Shop.Team.delete", "deleteTeam"),
+    crudTripwire("Shop.Member.create", "createMember"),
+    crudTripwire("Shop.Member.update", "updateMember"),
+    crudTripwire("Shop.Member.delete", "deleteMember"),
+    crudTripwire("acme.Plain.create", "createPlain"),
+    crudTripwire("acme.Plain.update", "updatePlain"),
+    { id: "acme.Probe.selfCancel", kind: "operation", module, export: "Probe_selfCancel", member: ["Probe", "selfCancel"] },
+    { id: "acme.Probe.updateRemove", kind: "operation", module, export: "Probe_updateRemove", member: ["Probe", "updateRemove"] },
+    { id: "acme.Probe.archiveTouch", kind: "operation", module, export: "Probe_archiveTouch", member: ["Probe", "archiveTouch"] },
+    { id: "acme.Probe.orphanMember", kind: "operation", module, export: "Probe_orphanMember", member: ["Probe", "orphanMember"] },
+    { id: "acme.Probe.ghostMember", kind: "operation", module, export: "Probe_ghostMember", member: ["Probe", "ghostMember"] },
+  ];
+  return {
+    artifact_version: 1,
+    language_version: t18.language_version,
+    tool_version: t18.tool_version,
+    sources: t18.sources,
+    modules: [],
+    callables,
+    pages: [],
+    requires: t18.requires,
+    tests: [],
+    operations,
+    models,
+  } as unknown as CompileArtifact;
+}
+
+async function c2Setup(): Promise<{
+  url: string;
+  asm: AssembledModules;
+  artifact: CompileArtifact;
+  store: StoragePort;
+  seed: SeededIdentity;
+  mod: FixtureModule;
+}> {
+  const dir = tempDir();
+  const url = writeModule(dir, "c2ops.mjs", C2_MODULE);
+  const asm = stubAsm(dir, { "c2ops.mjs": url });
+  const artifact = c2Artifact("c2ops.mjs");
+  const { store } = createTestMemoryStorage();
+  const seed = await seedIdentity();
+  const mod = (await import(url)) as FixtureModule;
+  return { url, asm, artifact, store, seed, mod };
+}
+
+/** Structural read of the carried conflict (contracts-dist agnostic). */
+function carriedConflict(error: unknown): {
+  readonly message: string;
+  readonly current: {
+    readonly model: string;
+    readonly id: string;
+    readonly version: number;
+    readonly updated: string;
+    readonly updatedBy: string;
+    readonly values: { readonly [fieldPath: string]: unknown };
+  };
+} | undefined {
+  const holder = error as unknown as { conflict?: unknown };
+  return holder.conflict as
+    | {
+        readonly message: string;
+        readonly current: {
+          readonly model: string;
+          readonly id: string;
+          readonly version: number;
+          readonly updated: string;
+          readonly updatedBy: string;
+          readonly values: { readonly [fieldPath: string]: unknown };
+        };
+      }
+    | undefined;
+}
+
+describe("T32c C2 site 1+5 (serverInits + nullable fill through CRUD create)", () => {
+  it("resolves server inits and fills omitted nullable on the quiet path", async () => {
+    const { asm, artifact, store, seed } = await c2Setup();
+    const invoker = buildInvoker(artifact, asm, store, {
+      memberships: seed.store,
+      now: () => seed.now,
+    });
+    const identity = await identityFor(seed, seed.memberToken);
+    const outcome = await invoker.invokeMutation(
+      mutationEnvelope("Shop.Team.create", freshOperationId(seed.now), {
+        name: "alpha",
+        owner: seed.memberId,
+        flags: [],
+      }),
+      identity,
+    );
+    assert.ok(!("error" in outcome), `create must commit: ${JSON.stringify(outcome)}`);
+    const rows = await modelRows(store, "Shop.Team");
+    assert.equal(rows.length, 1);
+    const row = rows[0];
+    assert.ok(row !== undefined);
+    assert.equal(row.version, 1);
+    // Nullable channel: omitted nullable stores EXPLICIT null.
+    assert.equal(row.data["note"], null);
+    // Server-init channel: now/actor/random_secret resolve at creation.
+    assert.equal(row.data["made"], new Date(seed.now).toISOString());
+    assert.deepEqual(row.data["by"], { id: seed.memberId });
+    assert.match(row.data["token"] as string, /^[0-9a-f]{64}$/);
+  });
+});
+
+describe("T32c C2 site 3+4 (conflict currents + assembly mirror, bb1ca7a)", () => {
+  it("stale Team update carries full currents minus serverOnly minus secrets", async () => {
+    const { asm, artifact, store, seed } = await c2Setup();
+    const invoker = buildInvoker(artifact, asm, store, {
+      memberships: seed.store,
+      now: () => seed.now,
+    });
+    const identity = await identityFor(seed, seed.memberToken);
+    const created = await invoker.invokeMutation(
+      mutationEnvelope("Shop.Team.create", freshOperationId(seed.now), {
+        name: "alpha",
+        owner: seed.memberId,
+        flags: [],
+      }),
+      identity,
+    );
+    assert.ok(!("error" in created), `create must commit: ${JSON.stringify(created)}`);
+    const rows = await modelRows(store, "Shop.Team");
+    const first = rows[0];
+    assert.ok(first !== undefined);
+    const id = first.id;
+    const v2 = await invoker.invokeMutation(
+      mutationEnvelope("Shop.Team.update", freshOperationId(seed.now), {
+        record: { id, version: "1" },
+        name: "bravo",
+      }),
+      identity,
+    );
+    assert.ok(!("error" in v2), `fresh update must commit: ${JSON.stringify(v2)}`);
+    const stale = await invoker.invokeMutation(
+      mutationEnvelope("Shop.Team.update", freshOperationId(seed.now), {
+        record: { id, version: "1" },
+        name: "charlie",
+      }),
+      identity,
+    );
+    assert.ok("error" in stale, "stale version must conflict");
+    assert.equal(stale.error.code, "conflict");
+    const conflict = carriedConflict(stale.error);
+    assert.ok(conflict !== undefined && conflict !== null, "conflict must carry the current row");
+    assert.equal(conflict.current.model, "Shop.Team");
+    assert.equal(conflict.current.id, id);
+    assert.equal(conflict.current.version, 2);
+    // submitted∩row minus serverOnly (made/by) minus secrets (token):
+    // the submitted field with its CURRENT value, plus the admitted
+    // normalization (absent optional arrays fill []).
+    assert.deepEqual(conflict.current.values, { name: "bravo", tags: [] });
+    assert.ok(typeof conflict.current.updated === "string" && conflict.current.updated !== "");
+    assert.ok(typeof conflict.current.updatedBy === "string" && conflict.current.updatedBy !== "");
+    assert.ok(typeof conflict.message === "string" && conflict.message !== "");
+  });
+
+  it("stale Plain update carries full currents (empty exclusion set)", async () => {
+    const { asm, artifact, store, seed } = await c2Setup();
+    const invoker = buildInvoker(artifact, asm, store, {
+      memberships: seed.store,
+      now: () => seed.now,
+    });
+    const identity = await identityFor(seed, seed.memberToken);
+    const created = await invoker.invokeMutation(
+      mutationEnvelope("acme.Plain.create", freshOperationId(seed.now), { title: "p1" }),
+      identity,
+    );
+    assert.ok(!("error" in created), `create must commit: ${JSON.stringify(created)}`);
+    const rows = await modelRows(store, "acme.Plain");
+    const first = rows[0];
+    assert.ok(first !== undefined);
+    const id = first.id;
+    const v2 = await invoker.invokeMutation(
+      mutationEnvelope("acme.Plain.update", freshOperationId(seed.now), {
+        record: { id, version: "1" },
+        title: "p2",
+      }),
+      identity,
+    );
+    assert.ok(!("error" in v2), `fresh update must commit: ${JSON.stringify(v2)}`);
+    const stale = await invoker.invokeMutation(
+      mutationEnvelope("acme.Plain.update", freshOperationId(seed.now), {
+        record: { id, version: "1" },
+        title: "p3",
+      }),
+      identity,
+    );
+    assert.ok("error" in stale, "stale version must conflict");
+    assert.equal(stale.error.code, "conflict");
+    // A serverOnly-free model MUST still hold an (empty) exclusion
+    // entry: a missing entry degrades to metadata-only values.
+    const conflict = carriedConflict(stale.error);
+    assert.ok(conflict !== undefined && conflict !== null, "conflict must carry the current row");
+    assert.deepEqual(conflict.current.values, { title: "p2" });
+  });
+});
+
+describe("T32c C2 site 2 (scenario archive gate on stageWrite)", () => {
+  it("scenario set() on an archived row fails EXACTLY like admission", async () => {
+    const { asm, artifact, store, seed, mod } = await c2Setup();
+    const invoker = buildInvoker(artifact, asm, store, {
+      memberships: seed.store,
+      now: () => seed.now,
+    });
+    const identity = await identityFor(seed, seed.memberToken);
+    const created = await invoker.invokeMutation(
+      mutationEnvelope("Shop.Team.create", freshOperationId(seed.now), {
+        name: "doomed",
+        owner: seed.memberId,
+        flags: [],
+      }),
+      identity,
+    );
+    assert.ok(!("error" in created), `create must commit: ${JSON.stringify(created)}`);
+    const rows = await modelRows(store, "Shop.Team");
+    const first = rows[0];
+    assert.ok(first !== undefined);
+    const id = first.id;
+    const deleted = await invoker.invokeMutation(
+      mutationEnvelope("Shop.Team.delete", freshOperationId(seed.now), {
+        record: { id, version: "1" },
+      }),
+      identity,
+    );
+    assert.ok(!("error" in deleted), `archive delete must commit: ${JSON.stringify(deleted)}`);
+    const outcome = await invoker.invokeMutation(
+      mutationEnvelope("acme.Probe.archiveTouch", freshOperationId(seed.now), { id }),
+      identity,
+    );
+    assert.ok("error" in outcome, "touching an archived row must fail");
+    assert.equal(outcome.error.code, "validation");
+    assert.equal(outcome.error.message, "Archived records cannot be used here.");
+    assert.deepEqual(mod.calls, ["archiveTouch"]);
+  });
+});
+
+describe("T32c C2 site 1+5 (containment enforcement on the child model)", () => {
+  it("parents link (defaults + nullable) while orphans fail missing-parent", async () => {
+    const { asm, artifact, store, seed, mod } = await c2Setup();
+    const invoker = buildInvoker(artifact, asm, store, {
+      memberships: seed.store,
+      now: () => seed.now,
+    });
+    const identity = await identityFor(seed, seed.memberToken);
+    const created = await invoker.invokeMutation(
+      mutationEnvelope("Shop.Team.create", freshOperationId(seed.now), {
+        name: "parent",
+        owner: seed.memberId,
+        flags: [],
+      }),
+      identity,
+    );
+    assert.ok(!("error" in created), `parent create must commit: ${JSON.stringify(created)}`);
+    const teams = await modelRows(store, "Shop.Team");
+    const team = teams[0];
+    assert.ok(team !== undefined);
+    const membered = await invoker.invokeMutation(
+      mutationEnvelope("Shop.Member.create", freshOperationId(seed.now), {
+        name: "m1",
+        parent: { model: "Shop.Team", id: team.id },
+      }),
+      identity,
+    );
+    assert.ok(!("error" in membered), `child create must commit: ${JSON.stringify(membered)}`);
+    const members = await modelRows(store, "Shop.Member");
+    assert.equal(members.length, 1);
+    const member = members[0];
+    assert.ok(member !== undefined);
+    assert.deepEqual(member.parent, { model: "Shop.Team", id: team.id });
+    assert.equal(member.data["buddy"], seed.memberId);
+    assert.equal(member.data["nick"], null);
+    assert.equal(member.data["seen"], new Date(seed.now).toISOString());
+    const orphan = await invoker.invokeMutation(
+      mutationEnvelope("acme.Probe.orphanMember", freshOperationId(seed.now), {
+        key: "o1",
+        owner: seed.memberId,
+      }),
+      identity,
+    );
+    assert.ok("error" in orphan, "parentless child create must fail");
+    assert.equal(orphan.error.code, "validation");
+    assert.match(orphan.error.message, /Missing required parent/);
+    assert.equal((await modelRows(store, "Shop.Member")).length, 1);
+    const ghost = await invoker.invokeMutation(
+      mutationEnvelope("Shop.Member.create", freshOperationId(seed.now), {
+        name: "g1",
+        parent: { model: "Shop.Team", id: "ghost-1" },
+      }),
+      identity,
+    );
+    assert.ok("error" in ghost, "ghost-parent child create must fail");
+    // CRUD path: admission resolves the parent ref input first —
+    // existence-hiding lookup surfaces as not_found.
+    assert.equal(ghost.error.code, "not_found");
+    assert.match(ghost.error.message, /Record not found/);
+    assert.equal((await modelRows(store, "Shop.Member")).length, 1);
+    const scenarioGhost = await invoker.invokeMutation(
+      mutationEnvelope("acme.Probe.ghostMember", freshOperationId(seed.now), {
+        key: "g2",
+        owner: seed.memberId,
+      }),
+      identity,
+    );
+    assert.ok("error" in scenarioGhost, "scenario ghost-parent create must fail");
+    // Scenario path: no per-write admission — the pipeline's
+    // containment branch reports the engine validation.
+    assert.equal(scenarioGhost.error.code, "validation");
+    assert.match(scenarioGhost.error.message, /Parent record not found/);
+    assert.equal((await modelRows(store, "Shop.Member")).length, 1);
+    assert.deepEqual(mod.calls, ["orphanMember", "ghostMember"]);
+  });
+});
+
+describe("T32c C2 self-cancel netting verdict (B1, production shape)", () => {
+  it("create+remove of an archive-mode record commits an archived stub (no throw)", async () => {
+    // B1 nets same-batch self-canceling writes in the pipeline
+    // (pipeline.ts:285): the scenario-seam "verdict" for a
+    // self-canceling scenario is a COMMIT, never an authoring-call
+    // throw. Archive-mode pairs persist an archived stub with a
+    // create+archive trail (T17b memoCycle proves the interim shape;
+    // this pins the production T18 shape through the same seam).
+    const { asm, artifact, store, seed, mod } = await c2Setup();
+    const invoker = buildInvoker(artifact, asm, store, {
+      memberships: seed.store,
+      now: () => seed.now,
+    });
+    const identity = await identityFor(seed, seed.memberToken);
+    const outcome = await invoker.invokeMutation(
+      mutationEnvelope("acme.Probe.selfCancel", freshOperationId(seed.now), {
+        key: "tmp-1",
+        owner: seed.memberId,
+      }),
+      identity,
+    );
+    assert.ok("result" in outcome, `self-cancel must commit: ${JSON.stringify(outcome)}`);
+    assert.equal((outcome.result as MutationResult).status, "committed");
+    const row = await store.load("Shop.Team" as ModelName, "tmp-1" as RecordId);
+    assert.ok(row !== null);
+    assert.equal(row.archivedAt, seed.now);
+    const trail = await store.historyFor("Shop.Team" as ModelName, "tmp-1" as RecordId);
+    assert.deepEqual(
+      trail.map((entry) => entry.change),
+      ["create", "archive"],
+    );
+    assert.deepEqual(mod.calls, ["selfCancel"]);
+  });
+
+  it("create+update+remove of an archive-mode record commits the full trail (I00 gap pin)", async () => {
+    // B-answer relay (C2): update+remove-through-seam was the unpinned
+    // I00 remainder after B retracted version-error-as-scenario-seam.
+    // Like create+remove it nets and COMMITS (B1 pipeline netting);
+    // the intermediate update persists in the committed trail.
+    const { asm, artifact, store, seed, mod } = await c2Setup();
+    const invoker = buildInvoker(artifact, asm, store, {
+      memberships: seed.store,
+      now: () => seed.now,
+    });
+    const identity = await identityFor(seed, seed.memberToken);
+    const outcome = await invoker.invokeMutation(
+      mutationEnvelope("acme.Probe.updateRemove", freshOperationId(seed.now), {
+        key: "tmp-2",
+        owner: seed.memberId,
+      }),
+      identity,
+    );
+    assert.ok("result" in outcome, `update+remove must commit: ${JSON.stringify(outcome)}`);
+    assert.equal((outcome.result as MutationResult).status, "committed");
+    const row = await store.load("Shop.Team" as ModelName, "tmp-2" as RecordId);
+    assert.ok(row !== null);
+    assert.equal(row.archivedAt, seed.now);
+    assert.equal(row.data["name"], "v2-tmp-2");
+    const trail = await store.historyFor("Shop.Team" as ModelName, "tmp-2" as RecordId);
+    assert.deepEqual(
+      trail.map((entry) => entry.change),
+      ["create", "update", "archive"],
+    );
+    assert.deepEqual(mod.calls, ["updateRemove"]);
+  });
+});
+
+describe("T32c C3/B3 (delivery-field schema rides the loaded set)", () => {
+  it("carries the loader-built whole-set schema (empty sets for delivery-less models)", async () => {
+    // Ruling B batch-2: the registry consumes B3's receipt/schema —
+    // every loaded model holds an entry (empty set when the model has
+    // no T15b delivery field tags). The T18 slice + Plain carry no
+    // delivery tags, so all three entries are empty; the T25 receipt
+    // join (D3) consumes this map downstream. Live observation serving
+    // is explicitly NOT C3 (D3-with-B follow-up).
+    const { asm, artifact } = await c2Setup();
+    const loaded = await loadCanonicalDescriptors(asm, artifact);
+    assert.ok(loaded.deliveryFields instanceof Map);
+    assert.deepEqual(
+      [...loaded.deliveryFields.keys()].sort(),
+      ["Shop.Member", "Shop.Team", "acme.Plain"].sort(),
+    );
+    for (const [model, fields] of loaded.deliveryFields) {
+      assert.ok(fields instanceof Set, `${model} holds a field set`);
+      assert.equal(fields.size, 0, `${model} has no delivery tags`);
+    }
   });
 });
