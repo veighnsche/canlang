@@ -10,7 +10,7 @@
     "dist/"
   ],
   "scripts": {
-    "build": "tsc -p tsconfig.json",
+    "build": "tsc -p tsconfig.json && node scripts/stage-semantics.mjs",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "bun run build && node --test \"dist/values/test/**/*.test.js\"",
     "catalog": "bun run build && node scripts/emit-catalog.mjs",

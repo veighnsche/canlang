@@ -77,7 +77,7 @@ describe("mixed output rejection (corrective negatives)", () => {
 
   it("N4c: caller mutating attach inputs after attach cannot change the bundle", () => {
     const outDir = mkdtempSync(join(tmpdir(), "can-mixed-reject-"));
-    const binaries = { "kernel.wasm": new Uint8Array([0, 1, 2, 3]) };
+    const binaries: Record<string, Uint8Array> = { "kernel.wasm": new Uint8Array([0, 1, 2, 3]) };
     const mixed = attachBinaries(textBundle(), binaries);
     (binaries["kernel.wasm"] as Uint8Array)[0] = 99;
     binaries["evil.wasm"] = new Uint8Array([9]);
