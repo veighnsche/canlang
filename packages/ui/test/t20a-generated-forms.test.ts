@@ -244,18 +244,21 @@ function fieldByPath(fields: readonly FormFieldDef[], path: string): FormFieldDe
 
 describe("generated fields", () => {
   it("renders one field per derived input in emission order", () => {
+    // T20b SUPERSEDE: nullable inputs gain their explicit-null companion
+    // (the old pins below contradict the specified T20b rule, so they are
+    // re-pinned here; see t20b-generated-depth.test.ts for the rule).
     assert.deepEqual(
       generatedFields(REVIEW, "scenario").map((field) => field.path),
-      ["notes", "limit", "nick"],
+      ["notes", "limit", "nick", "nick__null"],
     );
     assert.deepEqual(
       generatedFields(GADGET_CREATE, "create").map((field) => field.path),
-      ["title", "stock", "price", "state", "owner", "owner__version", "tags", "ids", "code"],
+      ["title", "stock", "price", "state", "owner", "owner__version", "owner__null", "tags", "ids", "code"],
     );
     // The update `record` binds as hidden id/version instead of a field.
     assert.deepEqual(
       generatedFields(GADGET_UPDATE, "update").map((field) => field.path),
-      ["title", "stock", "price", "state", "owner", "owner__version", "tags", "ids", "code"],
+      ["title", "stock", "price", "state", "owner", "owner__version", "owner__null", "tags", "ids", "code"],
     );
     assert.deepEqual(
       generatedFields(MEMBER_CREATE, "create").map((field) => field.path),
@@ -582,10 +585,10 @@ describe("submission projection", () => {
     );
   });
 
-  it("holds datetime and file values for their owning joins", () => {
-    // Mapping-rule probes (no pilot input is datetime/file): present
-    // values throw precisely instead of guessing a typed value, while
-    // absent optionals still omit.
+  it("resolves datetime values and carries file ids (T20b supersede)", () => {
+    // T20b SUPERSEDE: the T20a placeholder throws are replaced by the
+    // specified projection — wall-to-instant in the form zone, opaque
+    // file ids verbatim — while absent optionals still omit.
     const withWhen: DerivedOperationInputs = {
       ...STORE_CREATE,
       inputs: [...STORE_CREATE.inputs, { name: "when", kind: "datetime", required: false }],
@@ -593,9 +596,13 @@ describe("submission projection", () => {
     assert.deepEqual(projectGeneratedInputs(withWhen, "create", { "inputs[title]": "t" }), {
       title: "t",
     });
-    assert.throws(
-      () => projectGeneratedInputs(withWhen, "create", { "inputs[when]": "2026-01-01T10:00" }),
-      /wall-to-instant projection \(T20b\)/,
+    assert.deepEqual(
+      projectGeneratedInputs(withWhen, "create", {
+        timezone: "UTC",
+        "inputs[title]": "t",
+        "inputs[when]": "2026-01-01T10:00",
+      }),
+      { title: "t", when: "2026-01-01T10:00:00.000Z" },
     );
     const withFile: DerivedOperationInputs = {
       ...STORE_CREATE,
@@ -604,9 +611,12 @@ describe("submission projection", () => {
     assert.deepEqual(projectGeneratedInputs(withFile, "create", { "inputs[title]": "t" }), {
       title: "t",
     });
-    assert.throws(
-      () => projectGeneratedInputs(withFile, "create", { "inputs[scan]": "f1" }),
-      /needs S7 upload intents/,
+    assert.deepEqual(
+      projectGeneratedInputs(withFile, "create", {
+        "inputs[title]": "t",
+        "inputs[scan]": "file-opaque-1",
+      }),
+      { title: "t", scan: "file-opaque-1" },
     );
   });
 });

@@ -46,13 +46,36 @@ export type StorageConstraintKind =
 export class StorageConstraintError extends Error {
   readonly kind: StorageConstraintKind;
   readonly detail: string;
+  /**
+   * B2 (Q3): the stored row behind a `version` mismatch (commit-race
+   * currents). Set ONLY when the adapter compared against a loaded
+   * stored row; missing-row mismatches leave it absent (no row). The
+   * error mapper renders metadata-only currents from it — never values
+   * (re-reading or value-mapping there would be TOCTOU-indicative).
+   */
+  readonly conflictRow?: VersionConflictRow;
 
-  constructor(kind: StorageConstraintKind, detail: string) {
+  constructor(kind: StorageConstraintKind, detail: string, conflictRow?: VersionConflictRow) {
     super(`${kind}: ${detail}`);
     this.name = 'StorageConstraintError';
     this.kind = kind;
     this.detail = detail;
+    if (conflictRow !== undefined) this.conflictRow = conflictRow;
   }
+}
+
+/**
+ * B2 (Q3): stored-row identity behind a version mismatch. Epoch-millis
+ * `updated` plus the winning writer; the mapper renders the
+ * millis-pinned RFC 3339 instant. Field values are deliberately NOT
+ * carried here (commit-race currents are metadata-only by pin).
+ */
+export interface VersionConflictRow {
+  readonly model: string;
+  readonly id: string;
+  readonly version: number;
+  readonly updated: number;
+  readonly updatedBy: string;
 }
 
 /**

@@ -930,7 +930,7 @@ fn draft_outcome_table() {
         ("draft/CanStock.can", 60),
         ("draft/CanSuccess.can", 50),
         ("draft/CanSync.can", 19),
-        ("draft/CanTable.can", 33),
+        ("draft/CanTable.can", 31),
         ("draft/CanTime.can", 126),
         ("draft/CanTrade.can", 18),
         ("draft/CanVolunteer.can", 76),

@@ -32,6 +32,7 @@ const THEME_NAMES = [
 const CAN_HOOKS = new Set([
   "can-account",
   "can-brand",
+  "can-delivery",
   "can-more",
   "can-region",
   "can-settings-panel",
