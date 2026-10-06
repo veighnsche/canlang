@@ -11,7 +11,11 @@
  * variants through message()/resolveCaption).
  */
 
-import { CSRF_FIELD } from "../../contracts/src/presentation.js";
+import {
+  CSRF_FIELD,
+  GENERATED_FORM_TYPE_FOR_KIND,
+  GENERATED_REF_VERSION_SUFFIX,
+} from "../../contracts/src/presentation.js";
 import type {
   ActionProps,
   ActionsProps,
@@ -21,10 +25,13 @@ import type {
   FormMode,
   FormOutcome,
   FormProps,
+  GeneratedFormOverrides,
+  GeneratedFormProps,
   MessageValue,
   PresentationContext,
 } from "../../contracts/src/presentation.js";
 import type { FieldError, MutationRef } from "../../contracts/src/presentation.js";
+import type { ClosedInputs, DerivedOperationInputs, DerivedWritableInput } from "../../contracts/src/wire.js";
 import { escapeAttr, escapeHtml, safeHref } from "./escape.js";
 // C4b explicit-control dispatch + label/validator fragment reuse. This is a
 // forms<->controls import cycle, safe under ESM: both modules touch the
@@ -1035,4 +1042,366 @@ export async function actions(props: ActionsProps): Promise<string> {
     parts.push(await action({ ...item, context: props.context }));
   }
   return `<div class="flex gap-2">${parts.join("")}</div>`;
+}
+
+/**
+ * T20a generated operation forms over T19a derived inputs (pilot scope).
+ *
+ * generatedFields() maps one DerivedOperationInputs to its FormFieldDef[]
+ * under the presentation contract's pinned rule (one field per derived
+ * input in emission order; the update `record` binds as hidden id/version
+ * instead); generatedForm() renders those fields through the canonical
+ * form() factory, so error re-renders through the same binding produce
+ * the same structure for fragment morphing. projectGeneratedInputs() is
+ * the client-side submission projection: flat submitted form values back
+ * to the closed envelope inputs the real dispatcher admits. The L6
+ * transport carries `inputs` as JSON text (or a JSON body) — bracket
+ * field names are never expanded server-side — so this projection is the
+ * documented form-to-envelope step; production clients run it before
+ * submit (L7 wiring remainder), and the dispatcher still judges
+ * presence, shape and business validity on the envelope.
+ */
+
+/**
+ * Mode/derivation agreement: the caller states the form mode and the
+ * factory verifies it against the derived kind. `read`/`delete`
+ * derivations have no generated form — reads are not forms and deletes
+ * render the delete card — so any mismatch throws naming both.
+ */
+function assertGeneratedMode(derived: DerivedOperationInputs, mode: FormMode): void {
+  if (derived.kind !== mode) {
+    throw new Error(
+      `generated form for ${JSON.stringify(derived.operation)}: mode ${JSON.stringify(mode)} ` +
+        `does not agree with derived kind ${JSON.stringify(derived.kind)} ` +
+        `(read/delete derivations have no generated form).`,
+    );
+  }
+}
+
+/** True for the update `record` input, which binds as hidden id/version. */
+function isBoundRecord(input: DerivedWritableInput, mode: FormMode): boolean {
+  return mode === "update" && input.kind === "ref" && input.name === "record";
+}
+
+/**
+ * One derived input's literal prefill, verbatim. Money object literals
+ * (`{minor, currency}` wire shape) prefill their minor units — the form
+ * widget is minor-only by S4 design; array literals travel JSON-encoded.
+ * `parent` defaults prefill nothing: omission defers to the engine.
+ */
+function literalPrefill(input: DerivedWritableInput): unknown {
+  const fallback = input.default;
+  if (fallback === undefined || fallback.kind !== "literal") {
+    return undefined;
+  }
+  let prefill: unknown = fallback.value;
+  if (
+    input.kind === "money" &&
+    typeof prefill === "object" &&
+    prefill !== null &&
+    !Array.isArray(prefill) &&
+    "minor" in prefill
+  ) {
+    prefill = (prefill as Record<string, unknown>)["minor"];
+  }
+  if (input.array !== undefined && typeof prefill !== "string") {
+    const json: string | undefined = JSON.stringify(prefill);
+    if (json !== undefined) {
+      prefill = json;
+    }
+  }
+  return prefill;
+}
+
+function generatedLabel(
+  path: string,
+  labels: Record<string, MessageValue> | undefined,
+): MessageValue {
+  return labels?.[path] ?? path;
+}
+
+/**
+ * Map one T19a derived operation to its form fields: one field per
+ * derived input in emission order (the update `record` binds as hidden
+ * id/version and is excluded), widgets per the pinned kind table, enum
+ * options from the derived values verbatim, literal defaults prefilled
+ * verbatim, and a `__version` text companion after each versioned
+ * non-record ref. Unknown kinds, ref inputs without a boolean versioned
+ * flag, enums without values, and prefill keys matching no generated
+ * path all throw precisely — never a guessed widget or a dropped value.
+ */
+export function generatedFields(
+  derived: DerivedOperationInputs,
+  mode: FormMode,
+  overrides: GeneratedFormOverrides = {},
+): FormFieldDef[] {
+  assertGeneratedMode(derived, mode);
+  const fields: FormFieldDef[] = [];
+  for (const input of derived.inputs) {
+    if (isBoundRecord(input, mode)) {
+      continue;
+    }
+    // String-indexed on purpose: kinds outside the pinned pilot table
+    // (T19b depth, or JS-only inventions) read undefined and throw below.
+    const table = GENERATED_FORM_TYPE_FOR_KIND as Record<string, string | undefined>;
+    const type: unknown = table[input.kind];
+    if (typeof type !== "string") {
+      throw new Error(
+        `generated form for ${JSON.stringify(derived.operation)}: ` +
+          `unknown input kind ${JSON.stringify(input.kind)} on ${JSON.stringify(input.name)}.`,
+      );
+    }
+    if (input.kind === "ref" && input.versioned !== true && input.versioned !== false) {
+      throw new Error(
+        `generated form for ${JSON.stringify(derived.operation)}: ` +
+          `ref input ${JSON.stringify(input.name)} needs a boolean versioned flag.`,
+      );
+    }
+    const field: FormFieldDef = {
+      path: input.name,
+      label: generatedLabel(input.name, overrides.labels),
+      type,
+      required: input.required,
+      ...(input.kind === "enum"
+        ? {
+            options: ((): ReadonlyArray<{ readonly value: string; readonly label: MessageValue }> => {
+              if (input.enumValues === undefined) {
+                throw new Error(
+                  `generated form for ${JSON.stringify(derived.operation)}: ` +
+                    `enum input ${JSON.stringify(input.name)} needs enumValues.`,
+                );
+              }
+              return input.enumValues.map((value) => ({ value, label: value }));
+            })(),
+          }
+        : {}),
+      ...(literalPrefill(input) === undefined ? {} : { value: literalPrefill(input) }),
+    };
+    fields.push(field);
+    if (input.kind === "ref" && input.versioned === true) {
+      const companion = `${input.name}${GENERATED_REF_VERSION_SUFFIX}`;
+      fields.push({
+        path: companion,
+        label: generatedLabel(companion, overrides.labels),
+        type: "text",
+        required: input.required,
+      });
+    }
+  }
+  const values = overrides.values ?? {};
+  const paths = new Set(fields.map((field) => field.path));
+  for (const key of Object.keys(values)) {
+    if (!paths.has(key)) {
+      throw new Error(
+        `generated form for ${JSON.stringify(derived.operation)}: ` +
+          `unknown prefill path ${JSON.stringify(key)}.`,
+      );
+    }
+  }
+  if (Object.keys(values).length === 0) {
+    return fields;
+  }
+  return fields.map((field) =>
+    Object.prototype.hasOwnProperty.call(values, field.path)
+      ? { ...field, value: values[field.path] }
+      : field,
+  );
+}
+
+/**
+ * Canonical generated operation form: generatedFields() rendered through
+ * form(), carrying the same hidden operation/operation_id/CSRF/timezone
+ * fields (plus the bound record) as every bound form. Update mode
+ * requires the bound record; denials re-render through the same fields
+ * via the operation's error binding.
+ */
+export async function generatedForm(props: GeneratedFormProps): Promise<string> {
+  const fields = generatedFields(props.derived, props.mode, {
+    ...(props.labels === undefined ? {} : { labels: props.labels }),
+    ...(props.values === undefined ? {} : { values: props.values }),
+  });
+  return form({
+    context: props.context,
+    action: props.action,
+    operation: props.derived.operation,
+    operationId: props.operationId,
+    mode: props.mode,
+    ...(props.record === undefined ? {} : { record: props.record }),
+    timeZone: props.timeZone,
+    fields,
+    ...(props.errors === undefined ? {} : { errors: props.errors }),
+    ...(props.outcome === undefined ? {} : { outcome: props.outcome }),
+    submit: props.submit,
+    ...(props.cancelHref === undefined ? {} : { cancelHref: props.cancelHref }),
+    idPrefix: props.idPrefix,
+  });
+}
+
+/**
+ * Stable swap-target wrap for a rendered form fragment:
+ * `<div id="<idPrefix>-form">`. Byte-identical in shape to the error
+ * re-render's fragment wrap, so HTMX morph swaps target one stable node
+ * for both the initial and the re-rendered form.
+ */
+export function formFragmentWrap(idPrefix: string, formHtml: string): string {
+  return `<div id="${escapeAttr(`${idPrefix}-form`)}">${formHtml}</div>`;
+}
+
+function projectionFailure(derived: DerivedOperationInputs, message: string): Error {
+  return new Error(`generated submit for ${JSON.stringify(derived.operation)}: ${message}`);
+}
+
+/**
+ * Project one array member: absent/empty optional arrays omit (omission
+ * defers to the engine); anything present must parse as a JSON array,
+ * else the projection throws precisely — the envelope never carries a
+ * malformed array.
+ */
+function projectArrayValue(
+  derived: DerivedOperationInputs,
+  input: DerivedWritableInput,
+  raw: string | undefined,
+): { readonly omit: boolean; readonly value?: readonly unknown[] } {
+  if (raw === undefined || raw === "") {
+    if (!input.required) {
+      return { omit: true };
+    }
+    throw projectionFailure(
+      derived,
+      `array input ${JSON.stringify(input.name)} needs JSON-array text.`,
+    );
+  }
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw) as unknown;
+  } catch {
+    throw projectionFailure(
+      derived,
+      `array input ${JSON.stringify(input.name)} needs JSON-array text.`,
+    );
+  }
+  if (!Array.isArray(parsed)) {
+    throw projectionFailure(
+      derived,
+      `array input ${JSON.stringify(input.name)} needs JSON-array text.`,
+    );
+  }
+  return { omit: false, value: parsed };
+}
+
+/**
+ * Client-side submission projection: flat submitted form values (one
+ * entry per rendered field name, as a form parser yields them) back to
+ * the closed envelope inputs for one derived operation. Reads exactly
+ * the names the generated form renders — `inputs[name]` under
+ * create/scenario, `inputs[changes][name]` under update, the record
+ * hiddens, and `__version` companions — and ignores every other member
+ * (transport fields, submit buttons, tampered extras never enter the
+ * envelope). Absent members omit so the dispatcher judges presence;
+ * empty optional scalars omit so omission defers to the engine; bools
+ * coerce (`"true"`/`"false"`, absent reads unchecked-false); refs
+ * compose `{id}`/`{id, version}`. Present-but-unprojectable values
+ * (malformed array JSON, non-bool text) throw precisely, as do
+ * `datetime` values (wall-to-instant conversion is T20b) and `file`
+ * values (S7 upload intents) — the projection never guesses a typed
+ * value. Business validity always stays with the dispatcher/engine.
+ */
+export function projectGeneratedInputs(
+  derived: DerivedOperationInputs,
+  mode: FormMode,
+  form: Record<string, string>,
+): ClosedInputs {
+  assertGeneratedMode(derived, mode);
+  const root = (name: string): string =>
+    mode === "update" ? `inputs[changes][${name}]` : `inputs[${name}]`;
+  const out: Record<string, unknown> = {};
+  for (const input of derived.inputs) {
+    if (isBoundRecord(input, mode)) {
+      const id = form["inputs[record][id]"];
+      const version = form["inputs[record][version]"];
+      if (id === undefined && version === undefined) {
+        continue;
+      }
+      out[input.name] = {
+        ...(id === undefined ? {} : { id }),
+        ...(version === undefined ? {} : { version }),
+      };
+      continue;
+    }
+    if (input.kind === "ref") {
+      const id = form[root(input.name)];
+      if ((id === undefined || id === "") && !input.required) {
+        continue;
+      }
+      if (input.versioned === true) {
+        const version = form[root(`${input.name}${GENERATED_REF_VERSION_SUFFIX}`)];
+        out[input.name] = {
+          id: id ?? "",
+          ...(version === undefined ? {} : { version }),
+        };
+      } else {
+        out[input.name] = { id: id ?? "" };
+      }
+      continue;
+    }
+    const raw = form[root(input.name)];
+    if (input.array !== undefined) {
+      const projected = projectArrayValue(derived, input, raw);
+      if (!projected.omit) {
+        out[input.name] = projected.value;
+      }
+      continue;
+    }
+    if (input.kind === "boolean") {
+      if (raw === undefined) {
+        out[input.name] = false;
+      } else if (raw === "true") {
+        out[input.name] = true;
+      } else if (raw === "false") {
+        out[input.name] = false;
+      } else {
+        throw projectionFailure(
+          derived,
+          `bool input ${JSON.stringify(input.name)} needs "true" or "false".`,
+        );
+      }
+      continue;
+    }
+    if (input.kind === "datetime") {
+      if (raw === undefined || raw === "") {
+        if (!input.required) {
+          continue;
+        }
+        throw projectionFailure(
+          derived,
+          `datetime input ${JSON.stringify(input.name)} needs wall-to-instant projection (T20b).`,
+        );
+      }
+      throw projectionFailure(
+        derived,
+        `datetime input ${JSON.stringify(input.name)} needs wall-to-instant projection (T20b).`,
+      );
+    }
+    if (input.kind === "file") {
+      if (raw === undefined || raw === "") {
+        if (!input.required) {
+          continue;
+        }
+      }
+      throw projectionFailure(
+        derived,
+        `file input ${JSON.stringify(input.name)} needs S7 upload intents.`,
+      );
+    }
+    if (raw === undefined || raw === "") {
+      if (!input.required) {
+        continue;
+      }
+      if (raw === undefined) {
+        continue;
+      }
+    }
+    out[input.name] = raw;
+  }
+  return out;
 }
