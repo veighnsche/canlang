@@ -55,7 +55,7 @@ export function stashedRowOf(scope: RowScope): StashedRow | undefined {
 
 const EMPTY_PROVISIONED: ReadonlyMap<string, unknown> = new Map();
 
-const EMPTY_STASH: StashedRow = { fixtures: EMPTY_PROVISIONED, inputs: null, cells: [], expectedValues: [] };
+const EMPTY_STASH: StashedRow = { fixtures: EMPTY_PROVISIONED, inputs: null, baselineInputs: null, cells: [], expectedValues: [] };
 
 function detailOf(thrown: unknown): string {
   return thrown instanceof Error ? thrown.message : String(thrown);
@@ -99,10 +99,18 @@ function applyInputCells(
   return applied;
 }
 
+const UNSAFE_PATH_SEGMENTS: ReadonlySet<string> = new Set(["__proto__", "constructor", "prototype"]);
+
 function setPath(root: unknown, selector: string, value: unknown, where: string): unknown {
   const segments = selector.split(".");
   if (segments.length === 0 || segments.some((segment) => segment.length === 0)) {
     throw new Error(`${where}: selector ${JSON.stringify(selector)} is not a dotted path`);
+  }
+  const poisoned = segments.find((segment) => UNSAFE_PATH_SEGMENTS.has(segment));
+  if (poisoned !== undefined) {
+    throw new Error(
+      `${where}: selector ${JSON.stringify(selector)} uses unsafe segment ${JSON.stringify(poisoned)}`,
+    );
   }
   const set = (node: unknown, at: number): unknown => {
     const head = segments[at] as string;
@@ -358,7 +366,7 @@ function mapLegacyRow(
     setup: async (scope) => {
       const provisioned = await provisionFixtureValues(order, suite, bindings, userValues);
       fixtureValues.set(scope, provisioned);
-      stashedRows.set(scope, { fixtures: provisioned, inputs: null, cells: [], expectedValues: [] });
+      stashedRows.set(scope, { fixtures: provisioned, inputs: null, baselineInputs: null, cells: [], expectedValues: [] });
     },
     invoke: unsupportedInvoker,
     expected: { values: [], observations: [] },
@@ -436,7 +444,7 @@ async function mapTableRow(
         throw new Error(`${where}: row has neither expected nor error`);
       }
       fixtureValues.set(scope, provisioned);
-      stashedRows.set(scope, { fixtures: provisioned, inputs, cells: cellsRaw, expectedValues });
+      stashedRows.set(scope, { fixtures: provisioned, inputs, baselineInputs: baseline, cells: cellsRaw, expectedValues });
     },
     invoke: async (scope, rowCaller) => {
       if (invoke === undefined) {
@@ -510,7 +518,7 @@ async function mapSequenceRow(
     setup: async (scope) => {
       const provisioned = await provisionFixtureValues(order, suite, bindings, userValues);
       fixtureValues.set(scope, provisioned);
-      stashedRows.set(scope, { fixtures: provisioned, inputs: null, cells: [], expectedValues: [] });
+      stashedRows.set(scope, { fixtures: provisioned, inputs: null, baselineInputs: null, cells: [], expectedValues: [] });
     },
     invoke: async (scope, rowCaller) => {
       if (invoke === undefined) {

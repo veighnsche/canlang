@@ -130,10 +130,12 @@ export async function seedPilotActors(): Promise<PilotActors> {
   const clock = testing.createFrozenClock(now);
   const store = testing.createMemoryIdentityStore({ clock });
   const team = await store.createTeam({});
-  // Role grants are canonical (`{module}.{Role}`); `members` is active
-  // membership itself and needs no grant.
-  const manager = await createActor(testing, identity, store, team.team_id, now, "ada@pilot.test", ["todo.task_manager", "employee.hr"], true);
-  const member = await createActor(testing, identity, store, team.team_id, now, "bob@pilot.test", [], true);
+  // Role grants are canonical (`{module}.{Role}`). `members` is granted
+  // EXPLICITLY: scenario `by=members` lowers to `hasRole(c,"members")`
+  // (probe-proven: without the grant every scenario rejects `forbidden`;
+  // only the CRUD path treats active membership as implicit).
+  const manager = await createActor(testing, identity, store, team.team_id, now, "ada@pilot.test", ["members", "todo.task_manager", "employee.hr"], true);
+  const member = await createActor(testing, identity, store, team.team_id, now, "bob@pilot.test", ["members"], true);
   const outsider = await createActor(
     testing,
     identity,
