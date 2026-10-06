@@ -1,0 +1,14 @@
+{
+  "compiler_baseline": "bf4b0ca764e034ad0093abca52cb6958dfc59ab8",
+  "previous_compiler_code": "e835db8",
+  "catalog_sha256": "cd984f375e0d6cbcc2bc6aca5ad5ea5b1b3d3ba9cd17b15ab94e4b15e74ced62",
+  "host": "macOS-27.0.1-arm64-arm-64bit-Mach-O",
+  "machine": "arm64",
+  "rustc": "rustc 1.99.0 (b940084d7 2026-09-28)",
+  "cargo": "cargo 1.99.0 (5f94df478 2026-08-27)",
+  "node": "v24.21.0",
+  "target_dir": "/private/tmp/canlang-compiler-pass2",
+  "baseline_body_limit": 67108864,
+  "baseline_json_depth": 64,
+  "file_count": 671
+}

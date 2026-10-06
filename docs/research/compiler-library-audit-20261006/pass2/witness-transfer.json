@@ -1,0 +1,273 @@
+{
+  "source": "../pass0/witnesses/lsp.json",
+  "c02_outcomes_promoted": 29,
+  "c02_framing_gates_deferred": 2,
+  "c06_cases_unchanged": 13,
+  "mapping_is": "Contract-outcome transfer, sometimes stronger input families; not a byte-for-byte copy of every saved probe.",
+  "cases": [
+    {
+      "id": "id_min",
+      "boundary": "C02",
+      "status": "promoted contract outcome",
+      "permanent_witness": "accepted_integral_ids_preserve_the_original_number_lexeme"
+    },
+    {
+      "id": "id_max",
+      "boundary": "C02",
+      "status": "promoted contract outcome",
+      "permanent_witness": "accepted_integral_ids_preserve_the_original_number_lexeme"
+    },
+    {
+      "id": "id_negative_zero",
+      "boundary": "C02",
+      "status": "promoted contract outcome",
+      "permanent_witness": "accepted_integral_ids_preserve_the_original_number_lexeme"
+    },
+    {
+      "id": "id_string",
+      "boundary": "C02",
+      "status": "promoted contract outcome",
+      "permanent_witness": "valid_unicode_string_id_keeps_its_semantic_value"
+    },
+    {
+      "id": "id_absent",
+      "boundary": "C02",
+      "status": "promoted contract outcome",
+      "permanent_witness": "valid_notification_envelopes_are_silent_without_initializing"
+    },
+    {
+      "id": "id_null",
+      "boundary": "C02",
+      "status": "promoted contract outcome",
+      "permanent_witness": "illegal_ids_are_null_correlated_and_never_initialize"
+    },
+    {
+      "id": "id_bool",
+      "boundary": "C02",
+      "status": "promoted contract outcome",
+      "permanent_witness": "illegal_ids_are_null_correlated_and_never_initialize"
+    },
+    {
+      "id": "id_array",
+      "boundary": "C02",
+      "status": "promoted contract outcome",
+      "permanent_witness": "illegal_ids_are_null_correlated_and_never_initialize"
+    },
+    {
+      "id": "id_object",
+      "boundary": "C02",
+      "status": "promoted contract outcome",
+      "permanent_witness": "illegal_ids_are_null_correlated_and_never_initialize"
+    },
+    {
+      "id": "id_fraction",
+      "boundary": "C02",
+      "status": "promoted contract outcome",
+      "permanent_witness": "illegal_ids_are_null_correlated_and_never_initialize"
+    },
+    {
+      "id": "id_above_lsp_range",
+      "boundary": "C02",
+      "status": "promoted contract outcome",
+      "permanent_witness": "illegal_ids_are_null_correlated_and_never_initialize"
+    },
+    {
+      "id": "wrong_version",
+      "boundary": "C02",
+      "status": "promoted contract outcome",
+      "permanent_witness": "malformed_envelopes_correlate_only_a_unique_legal_id"
+    },
+    {
+      "id": "number_version",
+      "boundary": "C02",
+      "status": "promoted contract outcome",
+      "permanent_witness": "malformed_envelopes_correlate_only_a_unique_legal_id"
+    },
+    {
+      "id": "params_scalar",
+      "boundary": "C02",
+      "status": "promoted contract outcome",
+      "permanent_witness": "malformed_envelopes_correlate_only_a_unique_legal_id"
+    },
+    {
+      "id": "params_null",
+      "boundary": "C02",
+      "status": "promoted contract outcome",
+      "permanent_witness": "invalid_initialize_fields_do_not_initialize"
+    },
+    {
+      "id": "params_missing_initialize",
+      "boundary": "C02",
+      "status": "promoted contract outcome",
+      "permanent_witness": "invalid_initialize_fields_do_not_initialize"
+    },
+    {
+      "id": "invalid_utf8",
+      "boundary": "C02",
+      "status": "promoted contract outcome",
+      "permanent_witness": "malformed_utf8_is_one_parse_error_and_does_not_initialize"
+    },
+    {
+      "id": "malformed_json",
+      "boundary": "C02",
+      "status": "promoted contract outcome",
+      "permanent_witness": "malformed_json_is_a_null_parse_error_and_consumes_the_frame"
+    },
+    {
+      "id": "valid_notification_unknown",
+      "boundary": "C02",
+      "status": "promoted contract outcome",
+      "permanent_witness": "valid_notification_envelopes_are_silent_without_initializing"
+    },
+    {
+      "id": "invalid_request_no_id",
+      "boundary": "C02",
+      "status": "promoted contract outcome",
+      "permanent_witness": "malformed_envelopes_correlate_only_a_unique_legal_id"
+    },
+    {
+      "id": "duplicate_id",
+      "boundary": "C02",
+      "status": "promoted contract outcome",
+      "permanent_witness": "decoded_reserved_duplicate_keys_are_rejected_before_dispatch"
+    },
+    {
+      "id": "integer_exponent_id",
+      "boundary": "C02",
+      "status": "promoted contract outcome",
+      "permanent_witness": "accepted_integral_ids_preserve_the_original_number_lexeme"
+    },
+    {
+      "id": "preinit_request",
+      "boundary": "C02",
+      "status": "promoted contract outcome",
+      "permanent_witness": "lifecycle_precedence_is_envelope_then_lifecycle_then_method_then_params"
+    },
+    {
+      "id": "exit_before_shutdown",
+      "boundary": "C02",
+      "status": "promoted contract outcome",
+      "permanent_witness": "exit_before_shutdown_has_exit_code_one"
+    },
+    {
+      "id": "preinit_didopen",
+      "boundary": "C02",
+      "status": "promoted contract outcome",
+      "permanent_witness": "notifications_outside_ready_cannot_open_documents_or_publish"
+    },
+    {
+      "id": "shutdown_handshake",
+      "boundary": "C02",
+      "status": "promoted contract outcome",
+      "permanent_witness": "lifecycle_precedence_is_envelope_then_lifecycle_then_method_then_params"
+    },
+    {
+      "id": "integer_accessor_-0",
+      "boundary": "C06",
+      "status": "deferred to C06",
+      "permanent_witness": null
+    },
+    {
+      "id": "integer_accessor_1e0",
+      "boundary": "C06",
+      "status": "deferred to C06",
+      "permanent_witness": null
+    },
+    {
+      "id": "integer_accessor_1.0",
+      "boundary": "C06",
+      "status": "deferred to C06",
+      "permanent_witness": null
+    },
+    {
+      "id": "integer_accessor_9223372036854775807",
+      "boundary": "C06",
+      "status": "deferred to C06",
+      "permanent_witness": null
+    },
+    {
+      "id": "integer_accessor_9223372036854775808",
+      "boundary": "C06",
+      "status": "deferred to C06",
+      "permanent_witness": null
+    },
+    {
+      "id": "depth_64_scalar",
+      "boundary": "C06",
+      "status": "deferred to C06",
+      "permanent_witness": null
+    },
+    {
+      "id": "depth_65_scalar",
+      "boundary": "C06",
+      "status": "deferred to C06",
+      "permanent_witness": null
+    },
+    {
+      "id": "depth_65_empty",
+      "boundary": "C06",
+      "status": "deferred to C06",
+      "permanent_witness": null
+    },
+    {
+      "id": "depth_66_empty",
+      "boundary": "C06",
+      "status": "deferred to C06",
+      "permanent_witness": null
+    },
+    {
+      "id": "duplicates_first_match",
+      "boundary": "C06",
+      "status": "deferred to C06",
+      "permanent_witness": null
+    },
+    {
+      "id": "leading_zero",
+      "boundary": "C06",
+      "status": "deferred to C06",
+      "permanent_witness": null
+    },
+    {
+      "id": "surrogate_pair",
+      "boundary": "C06",
+      "status": "deferred to C06",
+      "permanent_witness": null
+    },
+    {
+      "id": "unpaired_surrogate",
+      "boundary": "C06",
+      "status": "deferred to C06",
+      "permanent_witness": null
+    },
+    {
+      "id": "body_cap_plus_one",
+      "boundary": "C02",
+      "status": "promoted contract outcome",
+      "permanent_witness": "lsp::transport::tests::malformed_content_length_values_rejected"
+    },
+    {
+      "id": "truncated_body",
+      "boundary": "C02",
+      "status": "promoted contract outcome",
+      "permanent_witness": "torn_headers_and_body_keep_the_existing_clean_disconnect_exit"
+    },
+    {
+      "id": "bare_lf",
+      "boundary": "C02",
+      "status": "promoted contract outcome",
+      "permanent_witness": "lsp::transport::tests::framing_preserves_the_bare_lf_compatibility_extension"
+    },
+    {
+      "id": "duplicate_length",
+      "boundary": "C02",
+      "status": "framing gate remains deferred; no production change",
+      "permanent_witness": null
+    },
+    {
+      "id": "unsupported_charset",
+      "boundary": "C02",
+      "status": "framing gate remains deferred; no production change",
+      "permanent_witness": null
+    }
+  ]
+}

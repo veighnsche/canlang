@@ -1,0 +1,11 @@
+{
+  "oracle": "Python Decimal -> Fraction; fixed signed32 expected values and raw response ID bytes",
+  "binary": "/private/tmp/canlang-compiler-pass2/debug/can",
+  "binary_sha256": "5e565dd9a027d174614f03626b106aea0b181961cc42697376e16e3d0148c29f",
+  "cases": 656,
+  "accepted": 145,
+  "rejected": 511,
+  "exit": 0,
+  "stderr_empty": true,
+  "huge_exponent_cases": "Permanent Rust process/unit witnesses cover saturating exponents and zero separately."
+}

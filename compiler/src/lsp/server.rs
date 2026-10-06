@@ -576,21 +576,20 @@ impl<A: LanguageAnalysis> Server<A> {
     /// notification bodies to send. Diagnostics for document sync are not
     /// returned here; drain them with [`Server::pump`].
     pub fn handle_json(&mut self, message: &Json) -> Vec<String> {
-        let Some(call) = t::parse_call(message) else {
-            // Not a call at all; only answer if an id is present to echo.
-            if let Some(id) = message.get("id") {
+        let call = match t::parse_call(message) {
+            Ok(call) => call,
+            Err(error) => {
                 return vec![t::response_err(
-                    Some(id),
+                    error.id.as_ref(),
                     t::error_code::INVALID_REQUEST,
                     "not a JSON-RPC call",
                 )];
             }
-            return Vec::new();
         };
         match call.id {
-            Some(id) => self.handle_request(&id, &call.method, &call.params),
+            Some(id) => self.handle_request(&id, &call.method, call.params.as_ref()),
             None => {
-                self.handle_notification(&call.method, &call.params);
+                self.handle_notification(&call.method, call.params.as_ref());
                 Vec::new()
             }
         }
@@ -612,10 +611,17 @@ impl<A: LanguageAnalysis> Server<A> {
         out
     }
 
-    fn handle_request(&mut self, id: &Json, method: &str, params: &Json) -> Vec<String> {
+    fn handle_request(&mut self, id: &Json, method: &str, params: Option<&Json>) -> Vec<String> {
         if method == "initialize" {
             return match self.lifecycle {
                 Lifecycle::PreInit => {
+                    if !valid_params(method, params) {
+                        return vec![t::response_err(
+                            Some(id),
+                            t::error_code::INVALID_PARAMS,
+                            "bad initialize parameters",
+                        )];
+                    }
                     self.lifecycle = Lifecycle::Ready;
                     vec![t::response_ok(id, capabilities())]
                 }
@@ -640,6 +646,15 @@ impl<A: LanguageAnalysis> Server<A> {
                 "server is shut down",
             )];
         }
+        if known_request(method) && !valid_params(method, params) {
+            return vec![t::response_err(
+                Some(id),
+                t::error_code::INVALID_PARAMS,
+                "bad method parameters",
+            )];
+        }
+        let absent = Json::Null;
+        let params = params.unwrap_or(&absent);
         let response = match method {
             "shutdown" => {
                 self.lifecycle = Lifecycle::Shutdown;
@@ -826,7 +841,15 @@ impl<A: LanguageAnalysis> Server<A> {
         self.docs.get(uri).map(|doc| doc.id)
     }
 
-    fn handle_notification(&mut self, method: &str, params: &Json) {
+    fn handle_notification(&mut self, method: &str, params: Option<&Json>) {
+        if method != "exit" && self.lifecycle != Lifecycle::Ready {
+            return;
+        }
+        if !valid_params(method, params) {
+            return;
+        }
+        let absent = Json::Null;
+        let params = params.unwrap_or(&absent);
         match method {
             "initialized" => {}
             // `$/cancelRequest` is a no-op by design: every request is
@@ -844,9 +867,9 @@ impl<A: LanguageAnalysis> Server<A> {
                 let Some(doc) = params.get("textDocument") else {
                     return;
                 };
-                let (Some(uri), version, Some(text)) = (
+                let (Some(uri), Some(version), Some(text)) = (
                     doc.get("uri").and_then(Json::as_str),
-                    doc.get("version").and_then(Json::as_i64).unwrap_or(0),
+                    doc.get("version").and_then(t::integer_value),
                     doc.get("text").and_then(Json::as_str),
                 ) else {
                     return;
@@ -860,7 +883,6 @@ impl<A: LanguageAnalysis> Server<A> {
                     Some(open) if open.text == text => open.id,
                     _ => self.db.add(uri_to_path(uri), text.to_string()),
                 };
-                let version = version.clamp(i32::MIN as i64, i32::MAX as i64) as i32;
                 self.docs.insert(
                     uri.to_string(),
                     OpenDoc {
@@ -872,12 +894,12 @@ impl<A: LanguageAnalysis> Server<A> {
                 self.pending.push_back((uri.to_string(), version));
             }
             "textDocument/didChange" => {
-                let (Some(selector), version) = (
+                let (Some(selector), Some(version)) = (
                     params.get("textDocument"),
                     params
                         .get("textDocument")
                         .and_then(|d| d.get("version"))
-                        .and_then(Json::as_i64),
+                        .and_then(t::integer_value),
                 ) else {
                     return;
                 };
@@ -902,9 +924,6 @@ impl<A: LanguageAnalysis> Server<A> {
                 let Some(full) = full else {
                     return;
                 };
-                let version = version
-                    .unwrap_or(open.version as i64 + 1)
-                    .clamp(i32::MIN as i64, i32::MAX as i64) as i32;
                 // No-op change (identical text): reuse the live SourceId so
                 // a keystroke that nets no new text never grows the
                 // append-only SourceDb. Versions still advance and the new
@@ -1123,6 +1142,105 @@ fn code_action_json(action: CodeAction) -> Json {
     Json::Obj(members)
 }
 
+fn known_request(method: &str) -> bool {
+    matches!(
+        method,
+        "initialize"
+            | "shutdown"
+            | "textDocument/hover"
+            | "textDocument/completion"
+            | "textDocument/definition"
+            | "textDocument/references"
+            | "textDocument/rename"
+            | "textDocument/semanticTokens/full"
+            | "textDocument/codeAction"
+    )
+}
+
+fn no_params(params: Option<&Json>) -> bool {
+    matches!(params, None | Some(Json::Null))
+        || matches!(params, Some(Json::Obj(fields)) if fields.is_empty())
+}
+
+/// Validate only fields consumed or required by supported methods. Extensions
+/// and ignored optional client schemas remain forward-compatible.
+fn valid_params(method: &str, params: Option<&Json>) -> bool {
+    if matches!(method, "shutdown" | "exit") {
+        return no_params(params);
+    }
+    let Some(params @ Json::Obj(_)) = params else {
+        return false;
+    };
+    match method {
+        "initialize" => {
+            (matches!(params.get("processId"), Some(Json::Null))
+                || params.get("processId").and_then(t::integer_value).is_some())
+                && matches!(params.get("rootUri"), Some(Json::Null | Json::Str(_)))
+                && matches!(params.get("capabilities"), Some(Json::Obj(_)))
+        }
+        "initialized" => true,
+        "$/cancelRequest" => params.get("id").is_some_and(t::valid_id),
+        "textDocument/hover" | "textDocument/completion" | "textDocument/definition" => {
+            parse_pos_request(params).is_some()
+        }
+        "textDocument/references" => {
+            parse_pos_request(params).is_some()
+                && matches!(
+                    params
+                        .get("context")
+                        .and_then(|c| c.get("includeDeclaration")),
+                    Some(Json::Bool(_))
+                )
+        }
+        "textDocument/rename" => {
+            parse_pos_request(params).is_some()
+                && params.get("newName").and_then(Json::as_str).is_some()
+        }
+        "textDocument/semanticTokens/full" | "textDocument/didClose" => doc_of(params).is_some(),
+        "textDocument/codeAction" => {
+            doc_of(params).is_some()
+                && params.get("range").and_then(parse_range).is_some()
+                && params
+                    .get("context")
+                    .and_then(|c| c.get("diagnostics"))
+                    .and_then(Json::as_arr)
+                    .is_some()
+        }
+        "textDocument/didOpen" => {
+            doc_of(params).is_some()
+                && params.get("textDocument").is_some_and(|doc| {
+                    doc.get("languageId").and_then(Json::as_str).is_some()
+                        && doc.get("version").and_then(t::integer_value).is_some()
+                        && doc.get("text").and_then(Json::as_str).is_some()
+                })
+        }
+        "textDocument/didChange" => {
+            doc_of(params).is_some()
+                && params
+                    .get("textDocument")
+                    .and_then(|doc| doc.get("version"))
+                    .and_then(t::integer_value)
+                    .is_some()
+                && params
+                    .get("contentChanges")
+                    .and_then(Json::as_arr)
+                    .is_some_and(|changes| {
+                        changes.iter().all(|change| {
+                            matches!(change, Json::Obj(_))
+                                && change.get("text").and_then(Json::as_str).is_some()
+                                && change
+                                    .get("range")
+                                    .is_none_or(|range| parse_range(range).is_some())
+                                && change.get("rangeLength").is_none_or(|length| {
+                                    parse_coord(t::integer_value(length)).is_some()
+                                })
+                        })
+                    })
+        }
+        _ => true,
+    }
+}
+
 fn doc_of(params: &Json) -> Option<String> {
     params
         .get("textDocument")
@@ -1131,22 +1249,16 @@ fn doc_of(params: &Json) -> Option<String> {
         .map(str::to_string)
 }
 
-/// Narrow one wire coordinate to `u32`, rejecting negatives and
-/// over-`u32::MAX` values (which a bare `as u32` would wrap) so callers
-/// answer `INVALID_PARAMS` instead of operating on a wrapped position.
-fn parse_coord(value: Option<i64>) -> Option<u32> {
-    let n = value?;
-    if n < 0 || n > u32::MAX as i64 {
-        return None;
-    }
-    Some(n as u32)
+/// LSP uinteger is nonnegative and bounded by signed 32-bit MAX.
+fn parse_coord(value: Option<i32>) -> Option<u32> {
+    u32::try_from(value?).ok()
 }
 
 fn parse_pos(params: &Json) -> Option<TextPos> {
     let pos = params.get("position")?;
     Some(TextPos {
-        line: parse_coord(pos.get("line")?.as_i64())?,
-        character: parse_coord(pos.get("character")?.as_i64())?,
+        line: parse_coord(pos.get("line").and_then(t::integer_value))?,
+        character: parse_coord(pos.get("character").and_then(t::integer_value))?,
     })
 }
 
@@ -1155,12 +1267,12 @@ fn parse_range(value: &Json) -> Option<LspRange> {
     let end = value.get("end")?;
     Some(LspRange {
         start: TextPos {
-            line: parse_coord(start.get("line")?.as_i64())?,
-            character: parse_coord(start.get("character")?.as_i64())?,
+            line: parse_coord(start.get("line").and_then(t::integer_value))?,
+            character: parse_coord(start.get("character").and_then(t::integer_value))?,
         },
         end: TextPos {
-            line: parse_coord(end.get("line")?.as_i64())?,
-            character: parse_coord(end.get("character")?.as_i64())?,
+            line: parse_coord(end.get("line").and_then(t::integer_value))?,
+            character: parse_coord(end.get("character").and_then(t::integer_value))?,
         },
     })
 }
@@ -1289,11 +1401,70 @@ mod tests {
 
     fn initialized_server() -> Server<StubAnalysis> {
         let mut server = Server::new(StubAnalysis);
-        let responses = server.handle_json(&request("1", "initialize", "{}"));
+        let responses = server.handle_json(&request(
+            "1",
+            "initialize",
+            r#"{"processId":null,"rootUri":null,"capabilities":{}}"#,
+        ));
         assert_eq!(responses.len(), 1);
         assert!(responses[0].contains("capabilities"));
         server.handle_json(&notify("initialized", "{}"));
         server
+    }
+
+    #[test]
+    fn invalid_notifications_and_initialize_leave_state_unchanged() {
+        let mut server = Server::new(StubAnalysis);
+        let open = notify(
+            "textDocument/didOpen",
+            r#"{"textDocument":{"uri":"file:///a.can","languageId":"can","version":1,"text":"app A"}}"#,
+        );
+        assert!(server.handle_json(&open).is_empty());
+        assert!(server.docs.is_empty());
+        assert!(
+            server
+                .handle_json(&request("1", "initialize", "{}"))
+                .first()
+                .unwrap()
+                .contains("-32602")
+        );
+        assert_eq!(server.lifecycle, Lifecycle::PreInit);
+        assert!(
+            server
+                .handle_json(&notify(
+                    "initialize",
+                    r#"{"processId":null,"rootUri":null,"capabilities":{}}"#
+                ))
+                .is_empty()
+        );
+        assert_eq!(server.lifecycle, Lifecycle::PreInit);
+        let mut server = initialized_server();
+        server.handle_json(&open);
+        let source = server.docs["file:///a.can"].id;
+        for params in [
+            r#"{"textDocument":{"uri":"file:///a.can"},"contentChanges":[{"text":"bad"}]}"#,
+            r#"{"textDocument":{"uri":"file:///a.can","version":2147483648},"contentChanges":[{"text":"bad"}]}"#,
+            r#"{"textDocument":{"uri":"file:///a.can","version":2},"contentChanges":[{"text":"bad"},{"range":null,"text":"bad"}]}"#,
+        ] {
+            assert!(
+                server
+                    .handle_json(&notify("textDocument/didChange", params))
+                    .is_empty()
+            );
+            assert_eq!(server.docs["file:///a.can"].id, source);
+            assert_eq!(server.pending_count(), 1);
+        }
+        server.handle_json(&request("2", "shutdown", "{}"));
+        server.handle_json(&notify(
+            "textDocument/didClose",
+            r#"{"textDocument":{"uri":"file:///a.can"}}"#,
+        ));
+        assert_eq!(server.docs.len(), 1);
+        server.handle_json(&notify("exit", r#"{"extension":true}"#));
+        assert!(!server.exited());
+        server.handle_json(&notify("exit", "null"));
+        assert!(server.exited());
+        assert_eq!(server.exit_code(), 0);
     }
 
     #[test]
@@ -1321,7 +1492,7 @@ mod tests {
         let mut server = initialized_server();
         server.handle_json(&notify(
             "textDocument/didOpen",
-            r#"{"textDocument":{"uri":"file:///a.can","version":1,"text":"app A\n"}}"#,
+            r#"{"textDocument":{"uri":"file:///a.can","version":1,"languageId":"can","text":"app A\n"}}"#,
         ));
         let hover = server.handle_json(&request(
             "2",
@@ -1456,10 +1627,14 @@ mod tests {
     #[test]
     fn completion_response_carries_integer_kinds() {
         let mut server = Server::new(KindsAnalysis);
-        server.handle_json(&request("1", "initialize", "{}"));
+        server.handle_json(&request(
+            "1",
+            "initialize",
+            r#"{"processId":null,"rootUri":null,"capabilities":{}}"#,
+        ));
         server.handle_json(&notify(
             "textDocument/didOpen",
-            r#"{"textDocument":{"uri":"file:///a.can","version":1,"text":"app A\n"}}"#,
+            r#"{"textDocument":{"uri":"file:///a.can","version":1,"languageId":"can","text":"app A\n"}}"#,
         ));
         let responses = server.handle_json(&request(
             "2",
@@ -1478,7 +1653,7 @@ mod tests {
         let mut server = initialized_server();
         server.handle_json(&notify(
             "textDocument/didOpen",
-            r#"{"textDocument":{"uri":"file:///a.can","version":1,"text":"app A\n"}}"#,
+            r#"{"textDocument":{"uri":"file:///a.can","version":1,"languageId":"can","text":"app A\n"}}"#,
         ));
         // 2^32 would wrap to 0 with a bare `as u32`; it must reject.
         let wrapped = server.handle_json(&request(
@@ -1496,15 +1671,15 @@ mod tests {
         let bad_range = server.handle_json(&request(
             "4",
             "textDocument/codeAction",
-            r#"{"textDocument":{"uri":"file:///a.can"},"range":{"start":{"line":0,"character":0},"end":{"line":9999999999,"character":0}}}"#,
+            r#"{"textDocument":{"uri":"file:///a.can"},"range":{"start":{"line":0,"character":0},"end":{"line":9999999999,"character":0}},"context":{"diagnostics":[]}}"#,
         ));
         assert!(bad_range[0].contains("-32602"), "{}", bad_range[0]);
-        // u32::MAX itself is representable and still parses (stub hover
+        // i32::MAX itself is representable and still parses (stub hover
         // answers null, not INVALID_PARAMS).
         let boundary = server.handle_json(&request(
             "5",
             "textDocument/hover",
-            r#"{"textDocument":{"uri":"file:///a.can"},"position":{"line":4294967295,"character":0}}"#,
+            r#"{"textDocument":{"uri":"file:///a.can"},"position":{"line":2147483647,"character":0}}"#,
         ));
         assert!(boundary[0].contains("\"result\":null"), "{}", boundary[0]);
     }
@@ -1529,7 +1704,7 @@ mod tests {
         let mut server = initialized_server();
         server.handle_json(&notify(
             "textDocument/didOpen",
-            r#"{"textDocument":{"uri":"file:///a.can","version":1,"text":"app A\n"}}"#,
+            r#"{"textDocument":{"uri":"file:///a.can","version":1,"languageId":"can","text":"app A\n"}}"#,
         ));
         server.handle_json(&notify(
             "textDocument/didChange",

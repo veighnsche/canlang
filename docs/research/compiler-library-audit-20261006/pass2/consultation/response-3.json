@@ -1,0 +1,163 @@
+{
+  "request": {
+    "state": {
+      "task": "Can compiler Pass 2 only: strict UTF-8 and supported LSP 3.17 envelope admission. User prioritizes complete authoring workflows, compatibility of intended legal behavior, simplicity and economical implementation. Current hand-written JSON parser stays; no framework, DTO, URI, full-sync or header redesign.",
+      "verified": "Official LSP 3.17 defines request IDs string|signed 32-bit integer, response IDs additionally null, version 2.0, optional params object|array. It specifies numeric values but not JSON numeric lexemes. JSON-RPC 2.0 requires no response for notifications, errors -32600 invalid request/-32602 invalid parameters, detected ID correlation and null when undetectable. Explicit null ID must not collapse to absent ID under the supported LSP profile. JSON objects permit duplicate members with interoperability ambiguity.",
+      "sources": [
+        "https://raw.githubusercontent.com/microsoft/language-server-protocol/gh-pages/_specifications/lsp/3.17/specification.md",
+        "https://www.jsonrpc.org/specification",
+        "https://www.rfc-editor.org/rfc/rfc8259",
+        "https://raw.githubusercontent.com/microsoft/language-server-protocol/gh-pages/_specifications/lsp/3.17/general/initialize.md"
+      ],
+      "code": "Json stores raw numeric lexemes and ordered duplicate object pairs; get returns first member. parse_call currently checks only method string, accepts all IDs except collapsing explicit null into notification, and ignores version. initialize changes state before any params validation. Numeric response IDs already preserve raw lexemes. String IDs preserve decoded values. 64 MiB inclusive body cap and depth64 stay. Unknown capabilities/extension fields must stay accepted.",
+      "callers": "Production VS Code initialize includes processId:null, rootUri:null, capabilities object; it uses references includeDeclaration and codeAction diagnostics context. VS Code stop and capability probe send shutdown/exit params:null. Rust process driver/server/authoring/IDE tests initialize with {}; many fixtures omit didOpen languageId or references/codeAction required context. Updating compiler fixtures is authorized; changing editor production client is outside this packet. Rust driver uses shutdown/exit params:{}.",
+      "scope": "Requests before initialization currently receive -32002, post-shutdown -32600, unknown ready-state methods -32601. These precedence rules should stay unless justified. Notifications before initialization except exit must be dropped; after shutdown except exit should not mutate/publish. initialize must validate params before changing state. Full-sync document behavior, fallback/clamped versions and stale update policy are separate contracts; do not redesign them under a shape repair. Strict required-field validation means known mandatory protocol fields and consumed types, not implementing every optional or ignored diagnostic/capability schema.",
+      "limits": "No option may echo boolean/object/array or out-of-range numeric IDs in an LSP response. Invalid-ID and duplicate-ID requests use null correlation. Unsupported charset, duplicate/invalid Content-Length, header budgets, LF extension and recovery remain separately classified and deferred; byte-invalid complete frames are parse errors -32700 and consume their known body boundary."
+    },
+    "questions": {
+      "numeric_ids": {
+        "type": "choice",
+        "instructions": "Recommend an implementable boundary policy for the facts in state. Consider the same outcomes for every alternative: legal-client operation, malformed-message rejection, faithful IDs, scoped implementation and explicit uncertainty. Boundary: numeric ids.",
+        "criteria": {
+          "integer_lexemes": "Admit only JSON integer lexical forms within signed32 range, including -0; echo raw lexeme. Simple explicit profile, but excludes integral spellings such as 1.0 and 1e0 previously accepted and not expressly forbidden by LSP.",
+          "integer_values": "Admit any mathematically integral JSON number within signed32 range, including -0, 1.0 and 1e0; echo raw lexeme. Aligns value-based typing and legal-value compatibility; requires exact decimal/exponent validation without floating point.",
+          "unresolved": "Evidence is insufficient to select; name the missing boundary in the answer if supported."
+        }
+      },
+      "duplicates": {
+        "type": "choice",
+        "instructions": "Recommend an implementable boundary policy for the facts in state. Consider the same outcomes for every alternative: legal-client operation, malformed-message rejection, faithful IDs, scoped implementation and explicit uncertainty. Boundary: duplicates.",
+        "criteria": {
+          "first_member": "Keep first-match behavior for repeated jsonrpc/id/method/params, preserving observed acceptance while leaving ambiguous interpretations possible.",
+          "reject_reserved": "Reject duplicate decoded reserved envelope members jsonrpc/id/method/params. For duplicate id use null; for other duplicates echo a unique admitted ID. Unknown extension duplicates stay unchanged; no shared JSON parser change.",
+          "unresolved": "Defer this envelope boundary until more evidence."
+        }
+      },
+      "invalid_correlation": {
+        "type": "choice",
+        "instructions": "Recommend an implementable boundary policy for the facts in state. Consider the same outcomes for every alternative: legal-client operation, malformed-message rejection, faithful IDs, scoped implementation and explicit uncertainty. Boundary: invalid correlation.",
+        "criteria": {
+          "legal_detected_id": "On wrong version/method or malformed envelope params, echo a unique admitted string/integer ID; use null when absent, duplicate or invalid. Retains client correlation without emitting illegal IDs.",
+          "always_null": "Use null for every invalid-envelope -32600 response, even with a unique admitted ID. Simple uniform malformed-request mapping, but loses usable request correlation.",
+          "unresolved": "Defer the correlation boundary."
+        }
+      },
+      "primitive_params": {
+        "type": "choice",
+        "instructions": "Recommend an implementable boundary policy for the facts in state. Consider the same outcomes for every alternative: legal-client operation, malformed-message rejection, faithful IDs, scoped implementation and explicit uncertainty. Boundary: primitive params.",
+        "criteria": {
+          "envelope_error": "Primitive params invalidate the envelope (-32600), including absent-ID malformed messages, which receive null-ID error. Narrow shutdown/exit no-param compatibility can be exempted separately.",
+          "method_error": "Recognizable call with primitive params is method-invalid (-32602 for requests); absent-ID calls remain notifications and receive no response. Version/method/ID envelope failures still -32600.",
+          "unresolved": "Defer the error/no-response boundary."
+        }
+      },
+      "no_param_methods": {
+        "type": "choice",
+        "instructions": "Recommend an implementable boundary policy for the facts in state. Consider the same outcomes for every alternative: legal-client operation, malformed-message rejection, faithful IDs, scoped implementation and explicit uncertainty. Boundary: no param methods.",
+        "criteria": {
+          "compatibility": "For shutdown/exit admit omitted params, explicit null and empty object only. Preserve actual editor and Rust caller workflows with a narrow documented compatibility extension.",
+          "omission_only": "Require omitted params for shutdown/exit and change callers, including production editor, before rollout. Closest literal reading of method docs, wider migration scope.",
+          "unresolved": "Defer no-param boundary."
+        }
+      },
+      "method_shapes": {
+        "type": "choice",
+        "instructions": "Recommend an implementable boundary policy for the facts in state. Consider the same outcomes for every alternative: legal-client operation, malformed-message rejection, faithful IDs, scoped implementation and explicit uncertainty. Boundary: method shapes.",
+        "criteria": {
+          "consumed_only": "Validate envelope and fields handlers currently consume, preserving incomplete initialize/didOpen/context fixtures. Smaller change, but accepts missing required protocol fields and may initialize malformed requests.",
+          "required_projection": "Validate known mandatory method fields and consumed types, correcting compiler fixtures. Keep unknown extensions and ignored optional schemas; preserve separately owned full-sync and document-version policies. Larger bounded migration with independent malformed-field witnesses.",
+          "unresolved": "Defer method shape boundary."
+        }
+      },
+      "precedence": {
+        "type": "choice",
+        "instructions": "Recommend an implementable boundary policy for the facts in state. Consider the same outcomes for every alternative: legal-client operation, malformed-message rejection, faithful IDs, scoped implementation and explicit uncertainty. Boundary: precedence.",
+        "criteria": {
+          "lifecycle_first": "After envelope admission, retain lifecycle before method availability/params; validate initialize params before its state change. Preinit -32002, shutdown -32600, unknown ready method -32601.",
+          "method_first": "After envelope admission validate method availability/params before lifecycle, yielding method errors for preinit/shutdown calls. More schema-specific but changes existing tool mappings.",
+          "unresolved": "Defer precedence boundary."
+        }
+      }
+    },
+    "model": "jev-latest"
+  },
+  "response": {
+    "model": "jev-1.13.0",
+    "answers": {
+      "numeric_ids": {
+        "type": "choice",
+        "choice": "integer_lexemes",
+        "confidence": 0.4,
+        "probabilities": {
+          "integer_values": 0.38,
+          "integer_lexemes": 0.6,
+          "unresolved": 0.02
+        }
+      },
+      "duplicates": {
+        "type": "choice",
+        "choice": "reject_reserved",
+        "confidence": 0.75,
+        "probabilities": {
+          "first_member": 0.16,
+          "unresolved": 0.0,
+          "reject_reserved": 0.84
+        }
+      },
+      "invalid_correlation": {
+        "type": "choice",
+        "choice": "legal_detected_id",
+        "confidence": 0.83,
+        "probabilities": {
+          "legal_detected_id": 0.89,
+          "always_null": 0.1,
+          "unresolved": 0.01
+        }
+      },
+      "primitive_params": {
+        "type": "choice",
+        "choice": "method_error",
+        "confidence": 0.48,
+        "probabilities": {
+          "envelope_error": 0.34,
+          "method_error": 0.65,
+          "unresolved": 0.01
+        }
+      },
+      "no_param_methods": {
+        "type": "choice",
+        "choice": "compatibility",
+        "confidence": 0.96,
+        "probabilities": {
+          "compatibility": 0.97,
+          "unresolved": 0.02,
+          "omission_only": 0.01
+        }
+      },
+      "method_shapes": {
+        "type": "choice",
+        "choice": "required_projection",
+        "confidence": 0.98,
+        "probabilities": {
+          "consumed_only": 0.01,
+          "unresolved": 0.0,
+          "required_projection": 0.99
+        }
+      },
+      "precedence": {
+        "type": "choice",
+        "choice": "lifecycle_first",
+        "confidence": 1.0,
+        "probabilities": {
+          "lifecycle_first": 1.0,
+          "method_first": 0.0,
+          "unresolved": 0.0
+        }
+      }
+    },
+    "usage": {
+      "input_tokens": 2285,
+      "output_tokens": 323
+    }
+  }
+}
