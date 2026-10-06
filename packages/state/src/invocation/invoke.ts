@@ -35,10 +35,17 @@ import type {
 import type { ResolvedIdentity } from '../../../contracts/src/identity.js';
 import type { OperationRegistry } from './registry.js';
 import { isGeneratedOperationDef } from './registry.js';
-import type { MembershipReader } from '../policy/roles.js';
+import type { ByPredicate, MembershipReader } from '../policy/roles.js';
 import { evaluateBy } from '../policy/roles.js';
 import type { PolicyTable } from '../policy/grants.js';
-import { admit, receiptIdentityFor, validateCallInputs, type AdmittedCall } from './admission.js';
+import {
+  admit,
+  receiptIdentityFor,
+  revalidateCommitForFence,
+  validateCallInputs,
+  type AdmittedCall,
+  type GuardRevalidation,
+} from './admission.js';
 import { queryRecords } from '../query/index.js';
 import { buildContext, type ClockPort } from './context.js';
 import { StateError, storageToStateError } from '../errors.js';
@@ -58,6 +65,23 @@ export interface ExecutionEffects {
   uniqueReleases: UniqueRelease[];
   resolvedDefaults: Record<string, unknown>;
   result: unknown;
+  /**
+   * T32b-wire: guard predicates the fenced commit re-evaluates live against
+   * CURRENT state (after the revision assertion, before the commit). Offered
+   * by executors whose business predicates read NON-fenced state (membership
+   * roles, external facts) — anything row-derived is already covered by the
+   * revision assertion, which voids on any intervening write. A guard that
+   * flips voids the commit with `forbidden` naming the guard. Absent (the
+   * CRUD executors offer none yet) reads as no guards.
+   */
+  guards?: GuardRevalidation[];
+  /**
+   * T32b-wire: readings offered as authorization evidence for the commit's
+   * eventual bar. Any eventual-marked reading refuses the commit with
+   * `validation` — display-only reads never authorize. Absent reads as no
+   * offered readings.
+   */
+  readings?: unknown[];
 }
 
 /** S3 execution seam: interim handlers implement business evaluation. */
@@ -79,6 +103,42 @@ function recordVersionsOf(writes: ReadonlyArray<DomainWrite>): Array<{
     }
   }
   return versions;
+}
+
+/**
+ * T32b-wire: project the commit-time revalidation identity by `by`-necessity.
+ * The mechanism's explicit revocation check (actor+team present but no live
+ * active membership → `forbidden`) is valid ONLY when caller membership
+ * authorizes the operation — otherwise it false-voids callers the gate never
+ * required membership from (t16b pins public callers on ungated scenarios
+ * with zero membership rows). `public` authorizes without any identity, so
+ * both project to null (the explicit check skips; `evaluateBy(public)` is
+ * identically true); `authenticated` authorizes on the actor alone, so the
+ * team projects to null (the explicit check needs both non-null, while
+ * `evaluateBy` still sees the actor faithfully). Every other predicate —
+ * caller-gated builtins, roles, and compounds — passes the faithful
+ * identity: correct for all membership-necessary gates. KNOWN EDGE
+ * (mechanism-coupling remainder, reported): compound gates that can admit
+ * WITHOUT caller membership (`or` with a membership-free branch taken
+ * publicly, `not: 'members'`, subject-gated reads with a dead caller row)
+ * still run the explicit check under the faithful identity and can
+ * false-void; no suite exercises compounds through invoke. The durable fix
+ * is a `by`-aware explicit check inside the mechanism, which owns both
+ * `evaluateBy` and the live reader.
+ */
+function fenceRevalidationIdentity(
+  by: ByPredicate,
+  context: { readonly actor?: { readonly userId: string } | null; readonly team?: { readonly teamId: string } | null },
+): { readonly actorUserId: string | null; readonly teamId: string | null } {
+  const actorUserId = context.actor?.userId ?? null;
+  const teamId = context.team?.teamId ?? null;
+  if (by === 'public') {
+    return { actorUserId: null, teamId: null };
+  }
+  if (by === 'authenticated') {
+    return { actorUserId, teamId: null };
+  }
+  return { actorUserId, teamId };
 }
 
 /**
@@ -167,6 +227,39 @@ export async function invoke(input: {
       if (!(error instanceof StateError)) {
         throw error;
       }
+      // T32b-wire REJECTED-RECEIPT FENCE RULE: rejected receipts respect the
+      // fence too. A moved revision retries like any contention (the next
+      // pass replays or recomputes); but a rejection that itself raced a
+      // revocation STILL RECORDS — the business verdict was already decided
+      // on admitted authority, revocation voids WRITES, and a rejected
+      // receipt carries none (writes/history/outbox/schedules/uniques all
+      // empty, so domain writes can never commit here). The ORIGINAL error
+      // is rethrown, never the fence's forbidden; replays observe the
+      // rejection deterministically. Guards are unknowable on this path
+      // (the executor threw before returning any), so only the checkpoint
+      // revision plus live `by`/revocation revalidate.
+      if (call.checkpoint !== undefined) {
+        try {
+          await revalidateCommitForFence({
+            checkpoint: call.checkpoint,
+            by: call.def.by,
+            guards: [],
+            ...fenceRevalidationIdentity(call.def.by, context),
+            kind: context.kind,
+            store: input.store,
+            memberships: input.memberships,
+          });
+        } catch (fenceError) {
+          if (fenceError instanceof StateError && fenceError.code === 'conflict') {
+            continue;
+          }
+          if (!(fenceError instanceof StateError && fenceError.code === 'forbidden')) {
+            throw fenceError;
+          }
+          // Forbidden (revoked mid-flight): fall through and record the
+          // rejection — the rule above. No domain writes can commit here.
+        }
+      }
       const rejected: Receipt = {
         identity: receiptIdentityFor(context),
         inputHash: call.inputHash,
@@ -203,6 +296,35 @@ export async function invoke(input: {
         throw storageToStateError(commitError);
       }
       throw error;
+    }
+    // T32b-wire: commit-time fence revalidation between execute and commit
+    // (checkpoint from admission, `by` + executor guards re-read live, trusted
+    // skips step 3 exactly like admission — the mechanism owns that rule). A
+    // moved checkpoint retries like any fence contention (consuming an
+    // attempt; the next pass re-admits from scratch); a voided commit
+    // (revoked authority, flipped guard, eventual evidence) throws with
+    // NOTHING committed and no receipt recorded, so a later retry with a new
+    // identity re-admits cleanly. Calls admitted without a checkpoint (older
+    // constructed calls) skip revalidation — the commit's expectedRevision
+    // fence still applies unconditionally.
+    if (call.checkpoint !== undefined) {
+      try {
+        await revalidateCommitForFence({
+          checkpoint: call.checkpoint,
+          by: call.def.by,
+          guards: effects.guards ?? [],
+          ...fenceRevalidationIdentity(call.def.by, context),
+          kind: context.kind,
+          store: input.store,
+          memberships: input.memberships,
+          ...(effects.readings !== undefined ? { readings: effects.readings } : {}),
+        });
+      } catch (fenceError) {
+        if (fenceError instanceof StateError && fenceError.code === 'conflict') {
+          continue;
+        }
+        throw fenceError;
+      }
     }
     const receipt: Receipt = {
       identity: receiptIdentityFor(context),
