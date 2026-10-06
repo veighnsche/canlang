@@ -1,1 +1,151 @@
-{"entries":{"decodeValue":{"callers":["packages/interfaces/src/mcp/schemas.ts (datetime values-codec delegation)","packages/stdlib/src/index.ts (re-export)","packages/values/test/* (conformance/index/schema/wire)"],"disposition":"owned AST codec for parser-owned inputs; legacy wrapper retained for unknown values","signature":"decodeValue(typeId: string, wire: unknown): CanValue","source":"packages/values/src/wire.ts"},"encodeValue":{"callers":["packages/stdlib/src/index.ts (re-export)","packages/values/test/* (conformance/index/schema/wire)"],"disposition":"encode consumes interpreter-produced results in-scope only; legacy wrapper retained","signature":"encodeValue(typeId: string, value: CanValue): WireValue","source":"packages/values/src/wire.ts"},"normalizeSchema":{"callers":["packages/stdlib/src/index.ts (re-export)","packages/values/test/* (conformance/index/schema)"],"disposition":"retain public unknown normalization; owned ordered plans only within genuine factory/producer paths; hand-built schemas stay legacy even when structurally accepted","signature":"normalizeSchema(descriptor: unknown): NormalizedSchema","source":"packages/values/src/schema.ts"},"validateOperationInput":{"callers":["packages/stdlib/src/index.ts (re-export)","packages/values/test/* (conformance/index/schema)"],"disposition":"public wrapper preserved; private owned variant shares prepared AST/leaf plans","signature":"validateOperationInput(...) (public value/operation wrapper; accumulated violations; mutation refs; operation ID)","source":"packages/values/src/schema.ts"},"validateValue":{"callers":["packages/stdlib/src/index.ts (re-export)","packages/values/test/* (conformance/index/schema/wire)"],"disposition":"public wrapper preserved; private owned variant shares prepared AST/leaf plans","signature":"validateValue(...) (overloads; public value wrapper)","source":"packages/values/src/schema.ts"}},"generated_by":"lane F session 01a10fab-d28b-7563-9d14-ebd2ddf4e8c9 (V01.1); caller lists verified via git grep at head; test callers enumerated representatively, not exhaustively","head":"bb479c2fd9a1e0a3604f946aff0205c7bdf45e06","interfaces_helpers":{"binding":{"callers":["packages/interfaces/src/http/operations.ts (dispatch after framing)","packages/interfaces/src/mcp/server.ts","packages/cloudflare/src/runtime/mcp-registry.ts","packages/interfaces/test/t19b-depth.test.ts"],"disposition":"derive prepared binding plans after owner checks; preserve distinct error projection and permissiveness","entries":["checkDecimalLiteral","checkBoundArguments"],"source":"packages/interfaces/src/mcp/schemas.ts"},"framing":{"disposition":"keep clock/ID orchestration host-owned; separate interfaces framing profile (first-unknown-then-first-missing)","entries":["extractUuidV7Ms","validateOperationId","checkClosedInputs"],"source":"packages/interfaces/src/envelope/validate.ts"},"mcp_refs":{"disposition":"MCP profile preserves extra ref stage and null-deferral order; SDK provenance must be proved first","source":"packages/interfaces/src/envelope/refs.ts + mcp/server.ts"},"parsers":{"caps":"JSON_BODY_MAX_BYTES = FORM_BODY_MAX_BYTES = 1048576","disposition":"internal parser-provenance production on the same capped reader/TextDecoder/JSON.parse; provenance recorded at creation; public signatures unchanged; form fallback preserved","entries":["readCappedBody","parseJsonBody","parseFormBody","parseCollectionQuery"],"source":"packages/interfaces/src/http/limits.ts"}},"modes":{"deployed_mcp":{"evidence":"worker/assembly.ts: createMcpHandler injected by deploy join; POST /mcp served once joined; without factory, interim 501 naming the join","note":"real factory path; does not resolve SDK argument-provenance question","status":"join-gated production path"},"forms":{"evidence":"packages/ui generated forms (projectGeneratedInputs); parseFormBody coercion","status":"fully legacy TS until V10 faithful producer"},"handle_mode":{"evidence":"contracts/src/wire.ts, contracts/src/presentation.ts; interfaces http/operations.ts, mcp/schemas.ts, mcp/server.ts; e1-bound-dispatch + e2b-transport-seams tests","status":"separate TS orchestration; outside owned-input scope"},"http_501":{"evidence":"worker/assembly.ts: known routes return explicit interim 501 naming the interfaces join; mutations/auth 501 until join","status":"interim dispatcher; V08 proves port with actual handler + workerd fixture; default adoption gated on bounded existing-handler join"}},"no_full_port_claim":true,"public_unknown_remains_legacy":true,"schema_version":1,"state_admission":{"disposition":"separate generated-state profile at the same private validator point after replay/age/auth; thread proven input ownership without changing mutation/read ordering; receipt replay/hash untouched and position-frozen","entries":["validateCallInputs(def, inputs): ValidatedCallInputs","admit(input) (async)","revalidateCommitForFence(input) (async; B4 by-aware)","openFenceScope / enrollImportedParentRead / openTransitiveScope / openFanoutChildScope","requireAuthorizingRead / isEventualRead"],"source":"packages/state/src/invocation/admission.ts (+ registry.ts loader, replay.ts, invoke.ts ordering)"},"task":"V01.1"}
+{
+  "entries": {
+    "decodeValue": {
+      "callers": [
+        "packages/interfaces/src/mcp/schemas.ts (datetime values-codec delegation)",
+        "packages/stdlib/src/index.ts (re-export)",
+        "packages/values/test/* (conformance/index/schema/wire)",
+        "packages/values/src/schema.ts (canonical leaf/default/bound decode)",
+        "packages/values/src/prepared/codec.ts (public delegate; preparation only)",
+        "packages/values/src/prepared/validation.ts (whole-call comparator)"
+      ],
+      "disposition": "owned AST codec for parser-owned inputs; legacy wrapper retained for unknown values",
+      "signature": "decodeValue(typeId: string, wire: unknown): CanValue",
+      "source": "packages/values/src/wire.ts"
+    },
+    "encodeValue": {
+      "callers": [
+        "packages/stdlib/src/index.ts (re-export)",
+        "packages/values/test/* (conformance/index/schema/wire)",
+        "packages/values/src/schema.ts (canonical bound rendering)",
+        "packages/values/src/prepared/codec.ts (public delegate; preparation only)",
+        "packages/values/src/prepared/validation.ts (whole-call comparator)"
+      ],
+      "disposition": "encode consumes interpreter-produced results in-scope only; legacy wrapper retained",
+      "signature": "encodeValue(typeId: string, value: CanValue): WireValue",
+      "source": "packages/values/src/wire.ts"
+    },
+    "normalizeSchema": {
+      "callers": [
+        "packages/stdlib/src/index.ts (re-export)",
+        "packages/values/test/* (conformance/index/schema)"
+      ],
+      "disposition": "retain public unknown normalization; owned ordered plans only within genuine factory/producer paths; hand-built schemas stay legacy even when structurally accepted",
+      "signature": "normalizeSchema(descriptor: unknown): NormalizedSchema",
+      "source": "packages/values/src/schema.ts"
+    },
+    "validateOperationInput": {
+      "callers": [
+        "packages/stdlib/src/index.ts (re-export)",
+        "packages/values/test/* (conformance/index/schema)"
+      ],
+      "disposition": "public wrapper preserved; private owned variant shares prepared AST/leaf plans",
+      "signature": "validateOperationInput(...) (public value/operation wrapper; accumulated violations; mutation refs; operation ID)",
+      "source": "packages/values/src/schema.ts"
+    },
+    "validateValue": {
+      "callers": [
+        "packages/stdlib/src/index.ts (re-export)",
+        "packages/values/test/* (conformance/index/schema/wire)",
+        "packages/values/src/prepared/validation.ts (public delegate; preparation only)"
+      ],
+      "disposition": "public wrapper preserved; private owned variant shares prepared AST/leaf plans",
+      "signature": "validateValue(...) (overloads; public value wrapper)",
+      "source": "packages/values/src/schema.ts"
+    }
+  },
+  "generated_by": "finite packet first:R2:V01-consumed-owner-contracts; static inspection 2026-10-07",
+  "interfaces_helpers": {
+    "binding": {
+      "callers": [
+        "packages/interfaces/src/http/operations.ts (dispatch after framing)",
+        "packages/interfaces/src/mcp/server.ts",
+        "packages/cloudflare/src/runtime/mcp-registry.ts",
+        "packages/interfaces/test/t19b-depth.test.ts"
+      ],
+      "disposition": "derive prepared binding plans after owner checks; preserve distinct error projection and permissiveness",
+      "entries": [
+        "checkDecimalLiteral",
+        "checkBoundArguments"
+      ],
+      "source": "packages/interfaces/src/mcp/schemas.ts"
+    },
+    "framing": {
+      "disposition": "keep clock/ID orchestration host-owned; separate interfaces framing profile (first-unknown-then-first-missing)",
+      "entries": [
+        "extractUuidV7Ms",
+        "validateOperationId",
+        "checkClosedInputs"
+      ],
+      "source": "packages/interfaces/src/envelope/validate.ts"
+    },
+    "mcp_refs": {
+      "disposition": "MCP profile preserves extra ref stage and null-deferral order; SDK provenance must be proved first",
+      "source": "packages/interfaces/src/envelope/refs.ts + mcp/server.ts"
+    },
+    "parsers": {
+      "caps": "JSON_BODY_MAX_BYTES = FORM_BODY_MAX_BYTES = 1048576",
+      "disposition": "internal parser-provenance production on the same capped reader/TextDecoder/JSON.parse; provenance recorded at creation; public signatures unchanged; form fallback preserved",
+      "entries": [
+        "readCappedBody",
+        "parseJsonBody",
+        "parseFormBody",
+        "parseCollectionQuery"
+      ],
+      "source": "packages/interfaces/src/http/limits.ts",
+      "provenance_status": "proposed success-only producer hook; current parseJsonBody only returns host JSON.parse output"
+    }
+  },
+  "modes": {
+    "deployed_mcp": {
+      "evidence": "worker/assembly.ts: createMcpHandler injected by deploy join; POST /mcp served once joined; without factory, interim 501 naming the join",
+      "note": "real factory path; does not resolve SDK argument-provenance question",
+      "status": "join-gated production path"
+    },
+    "forms": {
+      "evidence": "packages/ui generated forms (projectGeneratedInputs); parseFormBody coercion",
+      "status": "fully legacy TS until V10 faithful producer"
+    },
+    "handle_mode": {
+      "evidence": "contracts/src/wire.ts, contracts/src/presentation.ts; interfaces http/operations.ts, mcp/schemas.ts, mcp/server.ts; e1-bound-dispatch + e2b-transport-seams tests",
+      "status": "separate TS orchestration; outside owned-input scope"
+    },
+    "http_501": {
+      "status": "absent-factory fallback; present source default operation join; runtime/native/deployed proof separate",
+      "evidence": "assembly.ts HttpJoin + http? + handleHttpOperationRequest; worker/main.ts defaultLoadHttpOperationsFactory/buildWorker; deploy/bundle.ts buildHttpOperationsBundle",
+      "note": "Auth/pages/uploads/ingress remain outside operation POST join; no claim that running deployment supplied factory."
+    }
+  },
+  "no_full_port_claim": true,
+  "public_unknown_remains_legacy": true,
+  "schema_version": 1,
+  "state_admission": {
+    "disposition": "separate generated-state profile at the same private validator point after replay/age/auth; thread proven input ownership without changing mutation/read ordering; receipt replay/hash untouched and position-frozen",
+    "entries": [
+      "validateCallInputs(def, inputs): ValidatedCallInputs",
+      "admit(input) (async)",
+      "revalidateCommitForFence(input) (async; B4 by-aware)",
+      "openFenceScope / enrollImportedParentRead / openTransitiveScope / openFanoutChildScope",
+      "requireAuthorizingRead / isEventualRead"
+    ],
+    "source": "packages/state/src/invocation/admission.ts (+ registry.ts loader, replay.ts, invoke.ts ordering)",
+    "provenance_status": "loader preparedInputs copies observed; generated tag and readonly registry are structural only; private capability publication must await whole-set success",
+    "callback_alias_gap": "opts.by/when receive mutable descriptor before freeze/preparation; typed prepareDescriptorInputs and generated tag do not certify callback lineage. Only audited owner loader context may mint private metadata; other public loader paths remain legacy."
+  },
+  "task": "V01.1",
+  "historical_head": "bb479c2fd9a1e0a3604f946aff0205c7bdf45e06",
+  "head": "c6896fd2dea782d8ed6412769337b76eb899ca53",
+  "finite_hook_contract": {
+    "source": "prepared-hook-review.md",
+    "proposals": [
+      "PH1 private nonrecursive core",
+      "PH2 success-only complete identity",
+      "PH3 canonical default identity",
+      "PH4 protected bridge and state order"
+    ],
+    "owner_approvals": "actual R1 PH1\u2013PH3 future-contract ACK at hook SHA-256 8264d4a6063d1e0b3ee3933cefe2c20bbe039abcdc7b6668f6ee91a984ccbda0; Codex state/interfaces pending",
+    "public_prepared_adoption": false,
+    "mcp_sdk_provenance_proved": false,
+    "form_provenance_proved": false
+  }
+}
