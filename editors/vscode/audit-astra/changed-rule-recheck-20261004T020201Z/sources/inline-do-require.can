@@ -1,7 +1,0 @@
-app Guards
-Given
- Item {ready:bool}
-When
- scenario check(item:Item) by=members
-  do require item.ready; require item.ready
-Then

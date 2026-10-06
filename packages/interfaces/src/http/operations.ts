@@ -35,7 +35,7 @@ import type {
   MutationEnvelope,
   ResolvedIdentity,
 } from '@canlang/contracts';
-import { IdentityError, deriveCsrfToken } from '@canlang/identity';
+import { IdentityError, assertCredentialLive, deriveCsrfToken, sha256HexText } from '@canlang/identity';
 import type { HttpDeps, OperationInputShape, SchemaCatalog } from '../ports.js';
 import { checkArtifactOperation, checkArtifactOperations, checkBoundArguments, isDeliveryField } from '../mcp/schemas.js';
 import type {
@@ -279,6 +279,16 @@ export async function handleOperationRequest(
       }
     }
 
+    /* B4 commit-time credential liveness: the session is re-read from
+     * CURRENT store facts just before the commit — a revocation (or
+     * expiry) landing between admission and commit voids the in-flight
+     * operation. IdentityError falls into the shared catch below and
+     * denies with the admission-identical message (no oracle). */
+    await assertCredentialLive(deps.identity.store, {
+      kind: 'session',
+      tokenHash: await sha256HexText(sessionToken),
+      now: new Date(deps.clock.nowMs()).toISOString(),
+    });
     const envelope: MutationEnvelope = { operation, operation_id: operationId, inputs: businessInputs };
     const outcome = await deps.invoker.invokeMutation(envelope, identity);
     if ('error' in outcome) {

@@ -1,5 +1,0 @@
-app Models
-Given
- role in app {title:text}
-When
-Then

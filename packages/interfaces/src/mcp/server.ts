@@ -43,7 +43,7 @@ import type {
   ResolvedIdentity,
 } from '@canlang/contracts';
 import { FILE_TRANSFER_META_KEY } from '@canlang/contracts';
-import { assertAudience, IdentityError, resolveIdentity } from '@canlang/identity';
+import { assertAudience, IdentityError, assertCredentialLive, resolveIdentity, sha256HexText } from '@canlang/identity';
 import type {
   McpDeps,
   McpOperationKind,
@@ -109,7 +109,7 @@ function bearerToken(request: Request): string | null {
 async function resolveGrantIdentity(
   deps: McpDeps,
   request: Request,
-): Promise<ResolvedIdentity | Response> {
+): Promise<{ identity: ResolvedIdentity; grantTokenHash: string } | Response> {
   const token = bearerToken(request);
   if (token === null) {
     return errorResponse(401, buildBusinessError('forbidden', 'Authentication required.'), wwwAuthenticateChallenge(request.url));
@@ -121,7 +121,9 @@ async function resolveGrantIdentity(
       { clock: deps.clock },
     );
     assertAudience(identity.binding, 'mcp-grant');
-    return identity;
+    // B4: capture the credential hash at admission; the commit-time
+    // fence re-reads this hash from current store facts.
+    return { identity, grantTokenHash: await sha256HexText(token) };
   } catch (err) {
     if (err instanceof IdentityError) {
       return errorResponse(401, buildBusinessError(err.code, err.message), wwwAuthenticateChallenge(request.url));
@@ -183,7 +185,26 @@ async function invokeMutationOutcome(
   deps: McpDeps,
   identity: ResolvedIdentity,
   envelope: MutationEnvelope,
+  grantTokenHash: string,
 ): Promise<ToolCallResult> {
+  /* B4 commit-time credential liveness: the grant is re-read from
+   * CURRENT store facts just before the commit — a revocation (or
+   * expiry) landing between admission and commit voids the in-flight
+   * call with the admission-identical `isError` forbidden (no oracle).
+   * Unexpected store faults stay 500-class, as below. */
+  try {
+    await assertCredentialLive(deps.identity.store, {
+      kind: 'mcp_grant',
+      tokenHash: grantTokenHash,
+      now: new Date(deps.clock.nowMs()).toISOString(),
+    });
+  } catch (err) {
+    if (err instanceof IdentityError) {
+      return errorResult(deps, envelope.operation, buildBusinessError('forbidden', err.message));
+    }
+    logInternalError(deps.logger, err, { route: 'mcp', tool: envelope.operation });
+    throw new McpError(ErrorCode.InternalError, 'Internal error.');
+  }
   let outcome: MutationOutcome;
   try {
     outcome = await deps.invoker.invokeMutation(envelope, identity);
@@ -221,6 +242,7 @@ async function invokeReadOutcome(
 async function invokeHandleMode(
   deps: McpDeps,
   identity: ResolvedIdentity,
+  grantTokenHash: string,
   descriptor: OperationDescriptor,
   args: Record<string, unknown>,
 ): Promise<ToolCallResult> {
@@ -275,7 +297,7 @@ async function invokeHandleMode(
     operation_id: operationId,
     inputs,
   };
-  return invokeMutationOutcome(deps, identity, envelope);
+  return invokeMutationOutcome(deps, identity, envelope, grantTokenHash);
 }
 
 /**
@@ -286,6 +308,7 @@ async function invokeHandleMode(
 async function invokeOrdinaryMode(
   deps: McpDeps,
   identity: ResolvedIdentity,
+  grantTokenHash: string,
   descriptor: OperationDescriptor,
   args: Record<string, unknown>,
 ): Promise<ToolCallResult> {
@@ -367,7 +390,7 @@ async function invokeOrdinaryMode(
       operation_id: operationId,
       inputs: businessInputs,
     };
-    return invokeMutationOutcome(deps, identity, envelope);
+    return invokeMutationOutcome(deps, identity, envelope, grantTokenHash);
   }
   const envelope: ReadEnvelope = { operation: descriptor.name, inputs: businessInputs };
   return invokeReadOutcome(deps, identity, envelope);
@@ -376,6 +399,7 @@ async function invokeOrdinaryMode(
 async function handleToolCall(
   deps: McpDeps,
   identity: ResolvedIdentity,
+  grantTokenHash: string,
   name: string,
   args: unknown,
 ): Promise<ToolCallResult> {
@@ -403,9 +427,9 @@ async function handleToolCall(
   }
   const record = args as Record<string, unknown>;
   if ('action_handle' in record) {
-    return invokeHandleMode(deps, identity, descriptor, record);
+    return invokeHandleMode(deps, identity, grantTokenHash, descriptor, record);
   }
-  return invokeOrdinaryMode(deps, identity, descriptor, record);
+  return invokeOrdinaryMode(deps, identity, grantTokenHash, descriptor, record);
 }
 
 /**
@@ -426,7 +450,7 @@ export function createMcpHandler(deps: McpDeps): (request: Request) => Promise<R
   return async (request: Request): Promise<Response> => {
     const authed = await resolveGrantIdentity(deps, request);
     if (authed instanceof Response) return authed;
-    const identity = authed;
+    const { identity, grantTokenHash } = authed;
 
     const server = new Server(
       { name: SERVER_NAME, version: MCP_SERVER_VERSION },
@@ -450,7 +474,7 @@ export function createMcpHandler(deps: McpDeps): (request: Request) => Promise<R
       return listToolsFor(deps, identity).then((tools) => ({ tools }));
     });
     server.setRequestHandler(CallToolRequestSchema, (call) => {
-      return handleToolCall(deps, identity, call.params.name, call.params.arguments);
+      return handleToolCall(deps, identity, grantTokenHash, call.params.name, call.params.arguments);
     });
 
     // Stateless: omitting `sessionIdGenerator` leaves it undefined, so each
