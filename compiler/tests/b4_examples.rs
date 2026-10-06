@@ -726,28 +726,28 @@ fn t35r24_propose_result_and_value_version_observable() {
     );
 }
 
-/// Draft pins (bucket-a retention): CanReport:110/:113 `run.parent`
-/// override stored containment identity and stay `E5008`.
+/// Draft pin (bucket-a resolution): T36 replaced the CanReport:110/:113
+/// `run.parent` per-row overrides with the `service_run` fixture
+/// (parent=service_backlog), so the rescoped tables carry no `E5008`.
+/// (Was `t35r24_report_parent_stays_rejected`; the R24 rule itself
+/// stays pinned inline by `t35r24_contained_parent_rejected`.)
 #[test]
-fn t35r24_report_parent_stays_rejected() {
+fn t36_report_parent_override_resolved() {
     let Some(catalog) = real_catalog() else {
-        eprintln!("SKIP t35r24_report_parent_stays_rejected: no packages/values/dist/catalog.json");
+        eprintln!("SKIP t36_report_parent_override_resolved: no packages/values/dist/catalog.json");
         return;
     };
     let (db, id, text) = load_draft("CanReport.can");
     let (_program, diags) = check_program(&db, &[id], Some(&catalog));
     for header in [
-        "as,run.parent,run.state -> result.quantity,result.state,result.complete",
-        "as,run.parent,run.state,run.checkpoint.complete,run.rows -> result.quantity,result.amount,result.state,result.complete",
+        "as,run.state -> result.quantity,result.state,result.complete",
+        "as,run.state,run.checkpoint.complete,run.rows -> result.quantity,result.amount,result.state,result.complete",
     ] {
-        let (start, _) = span_of(&text, header, 1);
-        let offset = start + "as,run.".len() as u32;
-        let hits = covering(&diags, "E5008", offset);
-        assert_eq!(hits.len(), 1, "stored {header} rejected: {diags:?}");
-        assert!(
-            hits[0].message.contains("server-owned"),
-            "{}",
-            hits[0].message
-        );
+        let _ = span_of(&text, header, 1);
     }
+    let hits: Vec<_> = diags.iter().filter(|d| d.code == "E5008").collect();
+    assert!(
+        hits.is_empty(),
+        "resolved CanReport.can has no E5008: {hits:?}"
+    );
 }
