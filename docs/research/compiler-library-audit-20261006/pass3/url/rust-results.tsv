@@ -1,0 +1,29 @@
+url_basic	true	OK	https://example.com/path
+url_unicode_panic	false	ERR	relative URL without a base
+url_bracketed_bad	false	ERR	invalid IPv6 address
+url_port_high	false	ERR	invalid port number
+url_userinfo	true	OK	https://user:pass@example.com/
+url_case	true	OK	https://example.com/a
+url_unicode_host	true	OK	https://xn--9ca.example/a
+url_backslash	true	OK	https://example.com/a
+url_trimmed	true	OK	https://example.com/a
+url_space_path	true	OK	https://example.com/a%20b
+url_relative	false	ERR	relative URL without a base
+url_non_http	false	OK	ftp://example.com/a
+url_ipv6	true	OK	https://[::1]/a
+url_port_empty	true	OK	https://example.com/a
+bracket_unclosed	false	ERR	invalid IPv6 address
+bracket_suffix	false	ERR	invalid IPv6 address
+port_65535	true	OK	https://example.com:65535/
+port_65536	false	ERR	invalid port number
+port_nondigit	false	ERR	invalid port number
+host_missing	false	ERR	empty host
+proto_relative	false	ERR	relative URL without a base
+http_no_slashes	true	OK	http://example.com/a
+ascii_tab	true	OK	http://example.com/a
+unicode_idna	true	OK	https://xn--fa-hia.de/a
+unicode_joiner	false	ERR	invalid international domain name
+unicode_space	false	ERR	invalid international domain name
+ipv4_legacy	true	OK	http://127.0.0.1/a
+host_bad_percent	false	ERR	invalid international domain name
+path_bad_percent	true	OK	https://example.com/%zz

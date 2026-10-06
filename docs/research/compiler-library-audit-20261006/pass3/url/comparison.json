@@ -1,0 +1,637 @@
+[
+  {
+    "id": "url_basic",
+    "value": "https://example.com/path",
+    "expected": true,
+    "public": {
+      "id": "url_basic",
+      "value": "https://example.com/path",
+      "expected": true,
+      "valid": true,
+      "decode": "https://example.com/path",
+      "encodeDirect": "https://example.com/path",
+      "roundtrip": "https://example.com/path",
+      "matches": true
+    },
+    "candidate_valid": true,
+    "candidate_status": "OK",
+    "candidate_detail": "https://example.com/path",
+    "parity": true
+  },
+  {
+    "id": "url_unicode_panic",
+    "value": "💥💥💥",
+    "expected": false,
+    "public": {
+      "id": "url_unicode_panic",
+      "value": "💥💥💥",
+      "expected": false,
+      "valid": false,
+      "decode": {
+        "kind": "schema",
+        "name": "SchemaError"
+      },
+      "encodeDirect": {
+        "code": "invalid-construction",
+        "kind": "value",
+        "name": "ValueError"
+      },
+      "matches": true
+    },
+    "candidate_valid": false,
+    "candidate_status": "ERR",
+    "candidate_detail": "relative URL without a base",
+    "parity": true
+  },
+  {
+    "id": "url_bracketed_bad",
+    "value": "https://[garbage]",
+    "expected": false,
+    "public": {
+      "id": "url_bracketed_bad",
+      "value": "https://[garbage]",
+      "expected": false,
+      "valid": false,
+      "decode": {
+        "kind": "schema",
+        "name": "SchemaError"
+      },
+      "encodeDirect": {
+        "code": "invalid-construction",
+        "kind": "value",
+        "name": "ValueError"
+      },
+      "matches": true
+    },
+    "candidate_valid": false,
+    "candidate_status": "ERR",
+    "candidate_detail": "invalid IPv6 address",
+    "parity": true
+  },
+  {
+    "id": "url_port_high",
+    "value": "https://host:999999",
+    "expected": false,
+    "public": {
+      "id": "url_port_high",
+      "value": "https://host:999999",
+      "expected": false,
+      "valid": false,
+      "decode": {
+        "kind": "schema",
+        "name": "SchemaError"
+      },
+      "encodeDirect": {
+        "code": "invalid-construction",
+        "kind": "value",
+        "name": "ValueError"
+      },
+      "matches": true
+    },
+    "candidate_valid": false,
+    "candidate_status": "ERR",
+    "candidate_detail": "invalid port number",
+    "parity": true
+  },
+  {
+    "id": "url_userinfo",
+    "value": "https://user:pass@example.com",
+    "expected": true,
+    "public": {
+      "id": "url_userinfo",
+      "value": "https://user:pass@example.com",
+      "expected": true,
+      "valid": true,
+      "decode": "https://user:pass@example.com",
+      "encodeDirect": "https://user:pass@example.com",
+      "roundtrip": "https://user:pass@example.com",
+      "matches": true
+    },
+    "candidate_valid": true,
+    "candidate_status": "OK",
+    "candidate_detail": "https://user:pass@example.com/",
+    "parity": true
+  },
+  {
+    "id": "url_case",
+    "value": "HTTPS://EXAMPLE.COM/a",
+    "expected": true,
+    "public": {
+      "id": "url_case",
+      "value": "HTTPS://EXAMPLE.COM/a",
+      "expected": true,
+      "valid": true,
+      "decode": "HTTPS://EXAMPLE.COM/a",
+      "encodeDirect": "HTTPS://EXAMPLE.COM/a",
+      "roundtrip": "HTTPS://EXAMPLE.COM/a",
+      "matches": true
+    },
+    "candidate_valid": true,
+    "candidate_status": "OK",
+    "candidate_detail": "https://example.com/a",
+    "parity": true
+  },
+  {
+    "id": "url_unicode_host",
+    "value": "https://é.example/a",
+    "expected": true,
+    "public": {
+      "id": "url_unicode_host",
+      "value": "https://é.example/a",
+      "expected": true,
+      "valid": true,
+      "decode": "https://é.example/a",
+      "encodeDirect": "https://é.example/a",
+      "roundtrip": "https://é.example/a",
+      "matches": true
+    },
+    "candidate_valid": true,
+    "candidate_status": "OK",
+    "candidate_detail": "https://xn--9ca.example/a",
+    "parity": true
+  },
+  {
+    "id": "url_backslash",
+    "value": "https://example.com\\a",
+    "expected": true,
+    "public": {
+      "id": "url_backslash",
+      "value": "https://example.com\\a",
+      "expected": true,
+      "valid": true,
+      "decode": "https://example.com\\a",
+      "encodeDirect": "https://example.com\\a",
+      "roundtrip": "https://example.com\\a",
+      "matches": true
+    },
+    "candidate_valid": true,
+    "candidate_status": "OK",
+    "candidate_detail": "https://example.com/a",
+    "parity": true
+  },
+  {
+    "id": "url_trimmed",
+    "value": " https://example.com/a ",
+    "expected": true,
+    "public": {
+      "id": "url_trimmed",
+      "value": " https://example.com/a ",
+      "expected": true,
+      "valid": true,
+      "decode": " https://example.com/a ",
+      "encodeDirect": " https://example.com/a ",
+      "roundtrip": " https://example.com/a ",
+      "matches": true
+    },
+    "candidate_valid": true,
+    "candidate_status": "OK",
+    "candidate_detail": "https://example.com/a",
+    "parity": true
+  },
+  {
+    "id": "url_space_path",
+    "value": "https://example.com/a b",
+    "expected": true,
+    "public": {
+      "id": "url_space_path",
+      "value": "https://example.com/a b",
+      "expected": true,
+      "valid": true,
+      "decode": "https://example.com/a b",
+      "encodeDirect": "https://example.com/a b",
+      "roundtrip": "https://example.com/a b",
+      "matches": true
+    },
+    "candidate_valid": true,
+    "candidate_status": "OK",
+    "candidate_detail": "https://example.com/a%20b",
+    "parity": true
+  },
+  {
+    "id": "url_relative",
+    "value": "/a",
+    "expected": false,
+    "public": {
+      "id": "url_relative",
+      "value": "/a",
+      "expected": false,
+      "valid": false,
+      "decode": {
+        "kind": "schema",
+        "name": "SchemaError"
+      },
+      "encodeDirect": {
+        "code": "invalid-construction",
+        "kind": "value",
+        "name": "ValueError"
+      },
+      "matches": true
+    },
+    "candidate_valid": false,
+    "candidate_status": "ERR",
+    "candidate_detail": "relative URL without a base",
+    "parity": true
+  },
+  {
+    "id": "url_non_http",
+    "value": "ftp://example.com/a",
+    "expected": false,
+    "public": {
+      "id": "url_non_http",
+      "value": "ftp://example.com/a",
+      "expected": false,
+      "valid": false,
+      "decode": {
+        "kind": "schema",
+        "name": "SchemaError"
+      },
+      "encodeDirect": {
+        "code": "invalid-construction",
+        "kind": "value",
+        "name": "ValueError"
+      },
+      "matches": true
+    },
+    "candidate_valid": false,
+    "candidate_status": "OK",
+    "candidate_detail": "ftp://example.com/a",
+    "parity": true
+  },
+  {
+    "id": "url_ipv6",
+    "value": "https://[::1]:443/a",
+    "expected": true,
+    "public": {
+      "id": "url_ipv6",
+      "value": "https://[::1]:443/a",
+      "expected": true,
+      "valid": true,
+      "decode": "https://[::1]:443/a",
+      "encodeDirect": "https://[::1]:443/a",
+      "roundtrip": "https://[::1]:443/a",
+      "matches": true
+    },
+    "candidate_valid": true,
+    "candidate_status": "OK",
+    "candidate_detail": "https://[::1]/a",
+    "parity": true
+  },
+  {
+    "id": "url_port_empty",
+    "value": "https://example.com:/a",
+    "expected": true,
+    "public": {
+      "id": "url_port_empty",
+      "value": "https://example.com:/a",
+      "expected": true,
+      "valid": true,
+      "decode": "https://example.com:/a",
+      "encodeDirect": "https://example.com:/a",
+      "roundtrip": "https://example.com:/a",
+      "matches": true
+    },
+    "candidate_valid": true,
+    "candidate_status": "OK",
+    "candidate_detail": "https://example.com/a",
+    "parity": true
+  },
+  {
+    "id": "bracket_unclosed",
+    "value": "https://[::1",
+    "expected": false,
+    "public": {
+      "id": "bracket_unclosed",
+      "value": "https://[::1",
+      "expected": false,
+      "valid": false,
+      "decode": {
+        "kind": "schema",
+        "name": "SchemaError"
+      },
+      "encodeDirect": {
+        "code": "invalid-construction",
+        "kind": "value",
+        "name": "ValueError"
+      },
+      "matches": true
+    },
+    "candidate_valid": false,
+    "candidate_status": "ERR",
+    "candidate_detail": "invalid IPv6 address",
+    "parity": true
+  },
+  {
+    "id": "bracket_suffix",
+    "value": "https://[::1]junk",
+    "expected": false,
+    "public": {
+      "id": "bracket_suffix",
+      "value": "https://[::1]junk",
+      "expected": false,
+      "valid": false,
+      "decode": {
+        "kind": "schema",
+        "name": "SchemaError"
+      },
+      "encodeDirect": {
+        "code": "invalid-construction",
+        "kind": "value",
+        "name": "ValueError"
+      },
+      "matches": true
+    },
+    "candidate_valid": false,
+    "candidate_status": "ERR",
+    "candidate_detail": "invalid IPv6 address",
+    "parity": true
+  },
+  {
+    "id": "port_65535",
+    "value": "https://example.com:65535",
+    "expected": true,
+    "public": {
+      "id": "port_65535",
+      "value": "https://example.com:65535",
+      "expected": true,
+      "valid": true,
+      "decode": "https://example.com:65535",
+      "encodeDirect": "https://example.com:65535",
+      "roundtrip": "https://example.com:65535",
+      "matches": true
+    },
+    "candidate_valid": true,
+    "candidate_status": "OK",
+    "candidate_detail": "https://example.com:65535/",
+    "parity": true
+  },
+  {
+    "id": "port_65536",
+    "value": "https://example.com:65536",
+    "expected": false,
+    "public": {
+      "id": "port_65536",
+      "value": "https://example.com:65536",
+      "expected": false,
+      "valid": false,
+      "decode": {
+        "kind": "schema",
+        "name": "SchemaError"
+      },
+      "encodeDirect": {
+        "code": "invalid-construction",
+        "kind": "value",
+        "name": "ValueError"
+      },
+      "matches": true
+    },
+    "candidate_valid": false,
+    "candidate_status": "ERR",
+    "candidate_detail": "invalid port number",
+    "parity": true
+  },
+  {
+    "id": "port_nondigit",
+    "value": "https://example.com:abc",
+    "expected": false,
+    "public": {
+      "id": "port_nondigit",
+      "value": "https://example.com:abc",
+      "expected": false,
+      "valid": false,
+      "decode": {
+        "kind": "schema",
+        "name": "SchemaError"
+      },
+      "encodeDirect": {
+        "code": "invalid-construction",
+        "kind": "value",
+        "name": "ValueError"
+      },
+      "matches": true
+    },
+    "candidate_valid": false,
+    "candidate_status": "ERR",
+    "candidate_detail": "invalid port number",
+    "parity": true
+  },
+  {
+    "id": "host_missing",
+    "value": "https://",
+    "expected": false,
+    "public": {
+      "id": "host_missing",
+      "value": "https://",
+      "expected": false,
+      "valid": false,
+      "decode": {
+        "kind": "schema",
+        "name": "SchemaError"
+      },
+      "encodeDirect": {
+        "code": "invalid-construction",
+        "kind": "value",
+        "name": "ValueError"
+      },
+      "matches": true
+    },
+    "candidate_valid": false,
+    "candidate_status": "ERR",
+    "candidate_detail": "empty host",
+    "parity": true
+  },
+  {
+    "id": "proto_relative",
+    "value": "//example.com/a",
+    "expected": false,
+    "public": {
+      "id": "proto_relative",
+      "value": "//example.com/a",
+      "expected": false,
+      "valid": false,
+      "decode": {
+        "kind": "schema",
+        "name": "SchemaError"
+      },
+      "encodeDirect": {
+        "code": "invalid-construction",
+        "kind": "value",
+        "name": "ValueError"
+      },
+      "matches": true
+    },
+    "candidate_valid": false,
+    "candidate_status": "ERR",
+    "candidate_detail": "relative URL without a base",
+    "parity": true
+  },
+  {
+    "id": "http_no_slashes",
+    "value": "http:example.com/a",
+    "expected": true,
+    "public": {
+      "id": "http_no_slashes",
+      "value": "http:example.com/a",
+      "expected": true,
+      "valid": true,
+      "decode": "http:example.com/a",
+      "encodeDirect": "http:example.com/a",
+      "roundtrip": "http:example.com/a",
+      "matches": true
+    },
+    "candidate_valid": true,
+    "candidate_status": "OK",
+    "candidate_detail": "http://example.com/a",
+    "parity": true
+  },
+  {
+    "id": "ascii_tab",
+    "value": "ht\ttp://example.com/a",
+    "expected": true,
+    "public": {
+      "id": "ascii_tab",
+      "value": "ht\ttp://example.com/a",
+      "expected": true,
+      "valid": true,
+      "decode": "ht\ttp://example.com/a",
+      "encodeDirect": "ht\ttp://example.com/a",
+      "roundtrip": "ht\ttp://example.com/a",
+      "matches": true
+    },
+    "candidate_valid": true,
+    "candidate_status": "OK",
+    "candidate_detail": "http://example.com/a",
+    "parity": true
+  },
+  {
+    "id": "unicode_idna",
+    "value": "https://faß.de/a",
+    "expected": true,
+    "public": {
+      "id": "unicode_idna",
+      "value": "https://faß.de/a",
+      "expected": true,
+      "valid": true,
+      "decode": "https://faß.de/a",
+      "encodeDirect": "https://faß.de/a",
+      "roundtrip": "https://faß.de/a",
+      "matches": true
+    },
+    "candidate_valid": true,
+    "candidate_status": "OK",
+    "candidate_detail": "https://xn--fa-hia.de/a",
+    "parity": true
+  },
+  {
+    "id": "unicode_joiner",
+    "value": "https://a‍b.example/a",
+    "expected": false,
+    "public": {
+      "id": "unicode_joiner",
+      "value": "https://a‍b.example/a",
+      "expected": false,
+      "valid": false,
+      "decode": {
+        "kind": "schema",
+        "name": "SchemaError"
+      },
+      "encodeDirect": {
+        "code": "invalid-construction",
+        "kind": "value",
+        "name": "ValueError"
+      },
+      "matches": true
+    },
+    "candidate_valid": false,
+    "candidate_status": "ERR",
+    "candidate_detail": "invalid international domain name",
+    "parity": true
+  },
+  {
+    "id": "unicode_space",
+    "value": "https://a b.example/a",
+    "expected": false,
+    "public": {
+      "id": "unicode_space",
+      "value": "https://a b.example/a",
+      "expected": false,
+      "valid": false,
+      "decode": {
+        "kind": "schema",
+        "name": "SchemaError"
+      },
+      "encodeDirect": {
+        "code": "invalid-construction",
+        "kind": "value",
+        "name": "ValueError"
+      },
+      "matches": true
+    },
+    "candidate_valid": false,
+    "candidate_status": "ERR",
+    "candidate_detail": "invalid international domain name",
+    "parity": true
+  },
+  {
+    "id": "ipv4_legacy",
+    "value": "http://0x7f.1/a",
+    "expected": true,
+    "public": {
+      "id": "ipv4_legacy",
+      "value": "http://0x7f.1/a",
+      "expected": true,
+      "valid": true,
+      "decode": "http://0x7f.1/a",
+      "encodeDirect": "http://0x7f.1/a",
+      "roundtrip": "http://0x7f.1/a",
+      "matches": true
+    },
+    "candidate_valid": true,
+    "candidate_status": "OK",
+    "candidate_detail": "http://127.0.0.1/a",
+    "parity": true
+  },
+  {
+    "id": "host_bad_percent",
+    "value": "https://%zz.example/a",
+    "expected": false,
+    "public": {
+      "id": "host_bad_percent",
+      "value": "https://%zz.example/a",
+      "expected": false,
+      "valid": false,
+      "decode": {
+        "kind": "schema",
+        "name": "SchemaError"
+      },
+      "encodeDirect": {
+        "code": "invalid-construction",
+        "kind": "value",
+        "name": "ValueError"
+      },
+      "matches": true
+    },
+    "candidate_valid": false,
+    "candidate_status": "ERR",
+    "candidate_detail": "invalid international domain name",
+    "parity": true
+  },
+  {
+    "id": "path_bad_percent",
+    "value": "https://example.com/%zz",
+    "expected": true,
+    "public": {
+      "id": "path_bad_percent",
+      "value": "https://example.com/%zz",
+      "expected": true,
+      "valid": true,
+      "decode": "https://example.com/%zz",
+      "encodeDirect": "https://example.com/%zz",
+      "roundtrip": "https://example.com/%zz",
+      "matches": true
+    },
+    "candidate_valid": true,
+    "candidate_status": "OK",
+    "candidate_detail": "https://example.com/%zz",
+    "parity": true
+  }
+]

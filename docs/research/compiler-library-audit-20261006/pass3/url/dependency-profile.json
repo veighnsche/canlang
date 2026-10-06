@@ -1,0 +1,261 @@
+[
+  {
+    "name": "displaydoc",
+    "version": "0.2.7",
+    "rust_version": "1.71.0",
+    "license": "MIT OR Apache-2.0",
+    "build": false
+  },
+  {
+    "name": "form_urlencoded",
+    "version": "1.2.2",
+    "rust_version": "1.51",
+    "license": "MIT OR Apache-2.0",
+    "build": false
+  },
+  {
+    "name": "icu_collections",
+    "version": "2.3.0",
+    "rust_version": "1.88",
+    "license": "Unicode-3.0",
+    "build": false
+  },
+  {
+    "name": "icu_locale_core",
+    "version": "2.3.0",
+    "rust_version": "1.88",
+    "license": "Unicode-3.0",
+    "build": false
+  },
+  {
+    "name": "icu_normalizer",
+    "version": "2.3.0",
+    "rust_version": "1.88",
+    "license": "Unicode-3.0",
+    "build": false
+  },
+  {
+    "name": "icu_normalizer_data",
+    "version": "2.3.0",
+    "rust_version": "1.88",
+    "license": "Unicode-3.0",
+    "build": "build.rs"
+  },
+  {
+    "name": "icu_properties",
+    "version": "2.3.0",
+    "rust_version": "1.88",
+    "license": "Unicode-3.0",
+    "build": false
+  },
+  {
+    "name": "icu_properties_data",
+    "version": "2.3.0",
+    "rust_version": "1.88",
+    "license": "Unicode-3.0",
+    "build": "build.rs"
+  },
+  {
+    "name": "icu_provider",
+    "version": "2.3.1",
+    "rust_version": "1.88",
+    "license": "Unicode-3.0",
+    "build": false
+  },
+  {
+    "name": "idna",
+    "version": "1.1.0",
+    "rust_version": "1.57",
+    "license": "MIT OR Apache-2.0",
+    "build": false
+  },
+  {
+    "name": "idna_adapter",
+    "version": "1.2.2",
+    "rust_version": "1.86",
+    "license": "Apache-2.0 OR MIT",
+    "build": false
+  },
+  {
+    "name": "litemap",
+    "version": "0.8.3",
+    "rust_version": "1.82",
+    "license": "Unicode-3.0",
+    "build": false
+  },
+  {
+    "name": "percent-encoding",
+    "version": "2.3.2",
+    "rust_version": "1.51",
+    "license": "MIT OR Apache-2.0",
+    "build": false
+  },
+  {
+    "name": "potential_utf",
+    "version": "0.1.6",
+    "rust_version": "1.82",
+    "license": "Unicode-3.0",
+    "build": false
+  },
+  {
+    "name": "proc-macro2",
+    "version": "1.0.107",
+    "rust_version": "1.71",
+    "license": "MIT OR Apache-2.0",
+    "build": "build.rs"
+  },
+  {
+    "name": "quote",
+    "version": "1.0.47",
+    "rust_version": "1.71",
+    "license": "MIT OR Apache-2.0",
+    "build": "build.rs"
+  },
+  {
+    "name": "serde",
+    "version": "1.0.229",
+    "rust_version": "1.56",
+    "license": "MIT OR Apache-2.0",
+    "build": "build.rs"
+  },
+  {
+    "name": "serde_core",
+    "version": "1.0.229",
+    "rust_version": "1.56",
+    "license": "MIT OR Apache-2.0",
+    "build": "build.rs"
+  },
+  {
+    "name": "serde_derive",
+    "version": "1.0.229",
+    "rust_version": "1.71",
+    "license": "MIT OR Apache-2.0",
+    "build": false
+  },
+  {
+    "name": "smallvec",
+    "version": "1.16.2",
+    "rust_version": null,
+    "license": "MIT OR Apache-2.0",
+    "build": false
+  },
+  {
+    "name": "stable_deref_trait",
+    "version": "1.2.1",
+    "rust_version": null,
+    "license": "MIT OR Apache-2.0",
+    "build": false
+  },
+  {
+    "name": "syn",
+    "version": "2.0.119",
+    "rust_version": "1.71",
+    "license": "MIT OR Apache-2.0",
+    "build": false
+  },
+  {
+    "name": "syn",
+    "version": "3.0.6",
+    "rust_version": "1.71",
+    "license": "MIT OR Apache-2.0",
+    "build": false
+  },
+  {
+    "name": "synstructure",
+    "version": "0.13.2",
+    "rust_version": null,
+    "license": "MIT",
+    "build": false
+  },
+  {
+    "name": "synstructure",
+    "version": "0.14.0",
+    "rust_version": "1.71",
+    "license": "MIT",
+    "build": false
+  },
+  {
+    "name": "tinystr",
+    "version": "0.8.4",
+    "rust_version": "1.82",
+    "license": "Unicode-3.0",
+    "build": false
+  },
+  {
+    "name": "unicode-ident",
+    "version": "1.0.26",
+    "rust_version": "1.71",
+    "license": "(MIT OR Apache-2.0) AND Unicode-3.0",
+    "build": false
+  },
+  {
+    "name": "url",
+    "version": "2.5.8",
+    "rust_version": "1.63",
+    "license": "MIT OR Apache-2.0",
+    "build": false
+  },
+  {
+    "name": "utf8_iter",
+    "version": "1.0.4",
+    "rust_version": null,
+    "license": "Apache-2.0 OR MIT",
+    "build": null
+  },
+  {
+    "name": "writeable",
+    "version": "0.6.4",
+    "rust_version": "1.82",
+    "license": "Unicode-3.0",
+    "build": false
+  },
+  {
+    "name": "yoke",
+    "version": "0.8.3",
+    "rust_version": "1.82",
+    "license": "Unicode-3.0",
+    "build": false
+  },
+  {
+    "name": "yoke-derive",
+    "version": "0.8.2",
+    "rust_version": null,
+    "license": "Unicode-3.0",
+    "build": false
+  },
+  {
+    "name": "zerofrom",
+    "version": "0.1.8",
+    "rust_version": "1.71.1",
+    "license": "Unicode-3.0",
+    "build": false
+  },
+  {
+    "name": "zerofrom-derive",
+    "version": "0.1.8",
+    "rust_version": "1.71.1",
+    "license": "Unicode-3.0",
+    "build": false
+  },
+  {
+    "name": "zerotrie",
+    "version": "0.2.5",
+    "rust_version": "1.82",
+    "license": "Unicode-3.0",
+    "build": false
+  },
+  {
+    "name": "zerovec",
+    "version": "0.11.8",
+    "rust_version": "1.83",
+    "license": "Unicode-3.0",
+    "build": false
+  },
+  {
+    "name": "zerovec-derive",
+    "version": "0.11.6",
+    "rust_version": null,
+    "license": "Unicode-3.0",
+    "build": false
+  }
+]

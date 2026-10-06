@@ -1,0 +1,136 @@
+{
+  "date": "2026-10-07",
+  "implementation_commit": "f3612ea",
+  "source_baseline": "74f7271",
+  "status": {
+    "C03U": "implemented; required macOS aarch64 and Linux x86_64 targets qualified",
+    "C03L": "failed direct candidate; product replacement gated"
+  },
+  "macOS": {
+    "full_suite": {
+      "passed": 948,
+      "failed": 0,
+      "log": "full-suite.log"
+    },
+    "clippy": {
+      "all_targets": true,
+      "deny_warnings": true,
+      "exit": 0,
+      "log": "clippy.log"
+    },
+    "analysis": {
+      "vectors": 29,
+      "routes": 2,
+      "cases": 58,
+      "E3001_literal_byte_anchors": true,
+      "log": "url/analysis.log"
+    },
+    "actual_public_api": {
+      "vectors": 29,
+      "accepted": 15,
+      "invalid": 14,
+      "trusted_origin_witnesses": 3,
+      "decode_error": "SchemaError/schema/format",
+      "encode_error": "ValueError/invalid-construction",
+      "entry_and_hash": "url/public-results.json"
+    },
+    "production_metadata": {
+      "accepted_defaults": 15,
+      "real_catalog": true,
+      "production_completeness_gate": true,
+      "unmodified_emitted_modules": true,
+      "actual_UI_and_values": true,
+      "application_operation_execution": false,
+      "explicit_skip_possible": true,
+      "executed_seam_log": "url/runtime.log"
+    },
+    "release": {
+      "build_exit": 0,
+      "cli_qualified_vectors": 29,
+      "original_cli_qualified_vectors": 16,
+      "results": "url/release-results.json",
+      "original_results": "url/release-baseline-results.json",
+      "size_and_dependencies": "dependency-profile.json"
+    }
+  },
+  "locale": {
+    "candidate": "icu_locale_core 2.3.0 full Locale, alloc, default features false",
+    "cases": 53,
+    "duplicate_pairs": 6,
+    "admission_mismatches": 4,
+    "identity_mismatches": 7,
+    "actual_exports": [
+      "canonicalLocale",
+      "decodeValue",
+      "encodeValue",
+      "makeMessageDescriptor"
+    ],
+    "independent_replay": "Sol high independent replay of 53 inputs and6pairs; root final bare-export replay",
+    "existing_heuristic_retained": true,
+    "new_policy_selected": false,
+    "consultation": "not required to retain user-defined failed-candidate gate; future consequential alternatives still gated",
+    "review": "locale/independent-review.md"
+  },
+  "inputs": {
+    "baseline_pins": 676,
+    "final_pins": 677,
+    "changed": [
+      "compiler/Cargo.lock",
+      "compiler/Cargo.toml",
+      "compiler/src/analysis/types.rs",
+      "compiler/tests/analysis.rs"
+    ],
+    "added": [
+      "compiler/tests/value_admission.rs"
+    ],
+    "owner_catalog_runtime_drift": [],
+    "concurrent_package_Rust_changes": "outside pinned comparison inputs and this implementation"
+  },
+  "formatting": {
+    "baseline_hunks": 88,
+    "current_hunks": 88,
+    "same_normalized_hunks": true,
+    "normalization": "checkout prefix and diagnostic line number only"
+  },
+  "delegation": {
+    "qualification_writer_regression_review": "gpt-6.1-sol medium",
+    "locale_owner_conflict_review": "gpt-6.1-sol high",
+    "high_justification": "four admission and seven identity failures plus lost transform field data",
+    "measured_savings": false
+  },
+  "installed_artifacts_qualified": false,
+  "merge": false,
+  "plan_checkpoint_advanced": false,
+  "log_hygiene": "trailing whitespace/final blank lines trimmed; outcome assertions run before normalization",
+  "linux": {
+    "target": "x86_64-unknown-linux-gnu",
+    "runtime": "local Docker Linux amd64 under emulation on ARM64 engine",
+    "image_manifest_digest": "sha256:24e632c09342c20abf8312cf4f61430a911c01ed3a5e4c02b87292b1c39c5273",
+    "amd64_image_id": "sha256:458b145eb2406e832adc9c9536d487c5d264401a4ce63adbeced3fe91292616c",
+    "binary_bytes": 2877648,
+    "binary_sha256": "b8716b217872ca6b01e3803cc38a32deceaf50d028773c7fb6412735ac5f7444",
+    "lib_tests": 97,
+    "analysis_vectors": 29,
+    "analysis_routes": 2,
+    "release_cli_qualified": 29,
+    "initial_failure": "Initial lib run lacked unchanged examples/ExpenseFlow.can in isolated copy; 96passed/1missingfixture. Added exact pinned fixture and reran 97/97; no product change. Final release rerun reuses the isolated target.",
+    "limits": [
+      "Not a native x86_64 hardware performance measurement",
+      "Actual Node/package production seam executed on macOS only",
+      "Installed artifact/release bundle not qualified"
+    ],
+    "evidence": "linux/results.json",
+    "baseline_comparison": {
+      "baseline_revision": "74f7271",
+      "baseline_binary_bytes": 2689400,
+      "baseline_binary_sha256": "413eba9521d777844cfc55b991d02d8328305e54324dae576faf1237b5e2c5fc",
+      "current_binary_bytes": 2877648,
+      "increase_bytes": 188248,
+      "increase_percent": 7.0,
+      "source_manifest": "../linux-baseline-source-manifest.json",
+      "same_image_and_release_profile": true,
+      "limit": "binary bytes only; no native hardware/startup/memory/installed artifact comparison"
+    },
+    "distribution": "Debian GNU/Linux 13.7 (trixie)"
+  }
+}

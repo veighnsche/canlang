@@ -1,0 +1,6 @@
+[package]
+name="canlang-pass3-url-candidate"
+version="0.0.0"
+edition="2024"
+[dependencies]
+url={version="=2.5.8",default-features=false,features=["std"]}

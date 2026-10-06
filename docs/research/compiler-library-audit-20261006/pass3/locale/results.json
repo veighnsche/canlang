@@ -1,0 +1,1892 @@
+{
+  "host": {
+    "node": "v24.21.0",
+    "icu": "78.3",
+    "cldr": "48.0"
+  },
+  "entry": "file:///Users/vince/Projects/canlang/packages/values/dist/src/index.js",
+  "entry_sha256": "51bbc15972a6836a4e1b4cebf6b2bd5b48e34405ff7f09062ad65b449dc1093c",
+  "candidate": {
+    "crate": "icu_locale_core",
+    "version": "2.3.0",
+    "features": [
+      "alloc"
+    ],
+    "defaultFeatures": false,
+    "binary_sha256": "852027d5b7a39edf01daa9ed19940cbf049611750555be921c35e4af9bd373eb"
+  },
+  "cases": [
+    {
+      "input": "",
+      "core": {
+        "input": "",
+        "ok": false,
+        "result": "InvalidLanguage"
+      },
+      "canonical": {
+        "ok": false,
+        "name": "ValueError",
+        "code": "invalid-construction",
+        "message": "locale must be a non-empty BCP 47 tag",
+        "violations": null
+      },
+      "decode": {
+        "ok": false,
+        "name": "SchemaError",
+        "code": null,
+        "message": "schema validation failed with 1 violation(s)",
+        "violations": [
+          {
+            "path": [],
+            "code": "format",
+            "message": "locale is malformed",
+            "expected": "canonical BCP 47 language tag",
+            "actual": "\"\""
+          }
+        ]
+      },
+      "encode": {
+        "ok": false,
+        "name": "ValueError",
+        "code": "invalid-construction",
+        "message": "invalid BCP 47 tag \"\" at $",
+        "violations": null
+      },
+      "descriptor": {
+        "ok": false,
+        "name": "ValueError",
+        "code": "invalid-construction",
+        "message": "message variant tag must be a non-empty BCP 47 tag",
+        "violations": null
+      }
+    },
+    {
+      "input": "en-u-ca-gregory",
+      "core": {
+        "input": "en-u-ca-gregory",
+        "ok": true,
+        "result": "en-u-ca-gregory"
+      },
+      "canonical": {
+        "ok": true,
+        "value": "en-u-ca-gregory"
+      },
+      "decode": {
+        "ok": true,
+        "value": "en-u-ca-gregory"
+      },
+      "encode": {
+        "ok": true,
+        "value": "en-u-ca-gregory"
+      },
+      "descriptor": {
+        "ok": true,
+        "value": {
+          "en-u-ca-gregory": "V"
+        }
+      }
+    },
+    {
+      "input": "en-x-private",
+      "core": {
+        "input": "en-x-private",
+        "ok": true,
+        "result": "en-x-private"
+      },
+      "canonical": {
+        "ok": true,
+        "value": "en-x-private"
+      },
+      "decode": {
+        "ok": true,
+        "value": "en-x-private"
+      },
+      "encode": {
+        "ok": true,
+        "value": "en-x-private"
+      },
+      "descriptor": {
+        "ok": true,
+        "value": {
+          "en-x-private": "V"
+        }
+      }
+    },
+    {
+      "input": "en-US-US",
+      "core": {
+        "input": "en-US-US",
+        "ok": false,
+        "result": "InvalidSubtag"
+      },
+      "canonical": {
+        "ok": false,
+        "name": "ValueError",
+        "code": "invalid-construction",
+        "message": "invalid BCP 47 tag: en-US-US",
+        "violations": null
+      },
+      "decode": {
+        "ok": false,
+        "name": "SchemaError",
+        "code": null,
+        "message": "schema validation failed with 1 violation(s)",
+        "violations": [
+          {
+            "path": [],
+            "code": "format",
+            "message": "locale is malformed",
+            "expected": "canonical BCP 47 language tag",
+            "actual": "\"en-US-US\""
+          }
+        ]
+      },
+      "encode": {
+        "ok": false,
+        "name": "ValueError",
+        "code": "invalid-construction",
+        "message": "invalid BCP 47 tag \"en-US-US\" at $",
+        "violations": null
+      },
+      "descriptor": {
+        "ok": false,
+        "name": "ValueError",
+        "code": "invalid-construction",
+        "message": "message variant tag is not a valid BCP 47 tag: en-US-US",
+        "violations": null
+      }
+    },
+    {
+      "input": "sl-rozaj-rozaj",
+      "core": {
+        "input": "sl-rozaj-rozaj",
+        "ok": false,
+        "result": "InvalidSubtag"
+      },
+      "canonical": {
+        "ok": false,
+        "name": "ValueError",
+        "code": "invalid-construction",
+        "message": "invalid BCP 47 tag: sl-rozaj-rozaj",
+        "violations": null
+      },
+      "decode": {
+        "ok": false,
+        "name": "SchemaError",
+        "code": null,
+        "message": "schema validation failed with 1 violation(s)",
+        "violations": [
+          {
+            "path": [],
+            "code": "format",
+            "message": "locale is malformed",
+            "expected": "canonical BCP 47 language tag",
+            "actual": "\"sl-rozaj-rozaj\""
+          }
+        ]
+      },
+      "encode": {
+        "ok": false,
+        "name": "ValueError",
+        "code": "invalid-construction",
+        "message": "invalid BCP 47 tag \"sl-rozaj-rozaj\" at $",
+        "violations": null
+      },
+      "descriptor": {
+        "ok": false,
+        "name": "ValueError",
+        "code": "invalid-construction",
+        "message": "message variant tag is not a valid BCP 47 tag: sl-rozaj-rozaj",
+        "violations": null
+      }
+    },
+    {
+      "input": "EN-us",
+      "core": {
+        "input": "EN-us",
+        "ok": true,
+        "result": "en-US"
+      },
+      "canonical": {
+        "ok": true,
+        "value": "en-US"
+      },
+      "decode": {
+        "ok": true,
+        "value": "en-US"
+      },
+      "encode": {
+        "ok": true,
+        "value": "en-US"
+      },
+      "descriptor": {
+        "ok": true,
+        "value": {
+          "en-US": "V"
+        }
+      }
+    },
+    {
+      "input": "iw",
+      "core": {
+        "input": "iw",
+        "ok": true,
+        "result": "iw"
+      },
+      "canonical": {
+        "ok": true,
+        "value": "he"
+      },
+      "decode": {
+        "ok": true,
+        "value": "he"
+      },
+      "encode": {
+        "ok": true,
+        "value": "he"
+      },
+      "descriptor": {
+        "ok": true,
+        "value": {
+          "he": "V"
+        }
+      }
+    },
+    {
+      "input": "he",
+      "core": {
+        "input": "he",
+        "ok": true,
+        "result": "he"
+      },
+      "canonical": {
+        "ok": true,
+        "value": "he"
+      },
+      "decode": {
+        "ok": true,
+        "value": "he"
+      },
+      "encode": {
+        "ok": true,
+        "value": "he"
+      },
+      "descriptor": {
+        "ok": true,
+        "value": {
+          "he": "V"
+        }
+      }
+    },
+    {
+      "input": "en_US",
+      "core": {
+        "input": "en_US",
+        "ok": false,
+        "result": "InvalidLanguage"
+      },
+      "canonical": {
+        "ok": false,
+        "name": "ValueError",
+        "code": "invalid-construction",
+        "message": "invalid BCP 47 tag: en_US",
+        "violations": null
+      },
+      "decode": {
+        "ok": false,
+        "name": "SchemaError",
+        "code": null,
+        "message": "schema validation failed with 1 violation(s)",
+        "violations": [
+          {
+            "path": [],
+            "code": "format",
+            "message": "locale is malformed",
+            "expected": "canonical BCP 47 language tag",
+            "actual": "\"en_US\""
+          }
+        ]
+      },
+      "encode": {
+        "ok": false,
+        "name": "ValueError",
+        "code": "invalid-construction",
+        "message": "invalid BCP 47 tag \"en_US\" at $",
+        "violations": null
+      },
+      "descriptor": {
+        "ok": false,
+        "name": "ValueError",
+        "code": "invalid-construction",
+        "message": "message variant tag is not a valid BCP 47 tag: en_US",
+        "violations": null
+      }
+    },
+    {
+      "input": "x-private",
+      "core": {
+        "input": "x-private",
+        "ok": false,
+        "result": "InvalidLanguage"
+      },
+      "canonical": {
+        "ok": false,
+        "name": "ValueError",
+        "code": "invalid-construction",
+        "message": "invalid BCP 47 tag: x-private",
+        "violations": null
+      },
+      "decode": {
+        "ok": false,
+        "name": "SchemaError",
+        "code": null,
+        "message": "schema validation failed with 1 violation(s)",
+        "violations": [
+          {
+            "path": [],
+            "code": "format",
+            "message": "locale is malformed",
+            "expected": "canonical BCP 47 language tag",
+            "actual": "\"x-private\""
+          }
+        ]
+      },
+      "encode": {
+        "ok": false,
+        "name": "ValueError",
+        "code": "invalid-construction",
+        "message": "invalid BCP 47 tag \"x-private\" at $",
+        "violations": null
+      },
+      "descriptor": {
+        "ok": false,
+        "name": "ValueError",
+        "code": "invalid-construction",
+        "message": "message variant tag is not a valid BCP 47 tag: x-private",
+        "violations": null
+      }
+    },
+    {
+      "input": "und",
+      "core": {
+        "input": "und",
+        "ok": true,
+        "result": "und"
+      },
+      "canonical": {
+        "ok": true,
+        "value": "und"
+      },
+      "decode": {
+        "ok": true,
+        "value": "und"
+      },
+      "encode": {
+        "ok": true,
+        "value": "und"
+      },
+      "descriptor": {
+        "ok": true,
+        "value": {
+          "und": "V"
+        }
+      }
+    },
+    {
+      "input": "i-klingon",
+      "core": {
+        "input": "i-klingon",
+        "ok": false,
+        "result": "InvalidLanguage"
+      },
+      "canonical": {
+        "ok": false,
+        "name": "ValueError",
+        "code": "invalid-construction",
+        "message": "invalid BCP 47 tag: i-klingon",
+        "violations": null
+      },
+      "decode": {
+        "ok": false,
+        "name": "SchemaError",
+        "code": null,
+        "message": "schema validation failed with 1 violation(s)",
+        "violations": [
+          {
+            "path": [],
+            "code": "format",
+            "message": "locale is malformed",
+            "expected": "canonical BCP 47 language tag",
+            "actual": "\"i-klingon\""
+          }
+        ]
+      },
+      "encode": {
+        "ok": false,
+        "name": "ValueError",
+        "code": "invalid-construction",
+        "message": "invalid BCP 47 tag \"i-klingon\" at $",
+        "violations": null
+      },
+      "descriptor": {
+        "ok": false,
+        "name": "ValueError",
+        "code": "invalid-construction",
+        "message": "message variant tag is not a valid BCP 47 tag: i-klingon",
+        "violations": null
+      }
+    },
+    {
+      "input": "en-GB-oed",
+      "core": {
+        "input": "en-GB-oed",
+        "ok": false,
+        "result": "InvalidSubtag"
+      },
+      "canonical": {
+        "ok": false,
+        "name": "ValueError",
+        "code": "invalid-construction",
+        "message": "invalid BCP 47 tag: en-GB-oed",
+        "violations": null
+      },
+      "decode": {
+        "ok": false,
+        "name": "SchemaError",
+        "code": null,
+        "message": "schema validation failed with 1 violation(s)",
+        "violations": [
+          {
+            "path": [],
+            "code": "format",
+            "message": "locale is malformed",
+            "expected": "canonical BCP 47 language tag",
+            "actual": "\"en-GB-oed\""
+          }
+        ]
+      },
+      "encode": {
+        "ok": false,
+        "name": "ValueError",
+        "code": "invalid-construction",
+        "message": "invalid BCP 47 tag \"en-GB-oed\" at $",
+        "violations": null
+      },
+      "descriptor": {
+        "ok": false,
+        "name": "ValueError",
+        "code": "invalid-construction",
+        "message": "message variant tag is not a valid BCP 47 tag: en-GB-oed",
+        "violations": null
+      }
+    },
+    {
+      "input": "zh-min-nan",
+      "core": {
+        "input": "zh-min-nan",
+        "ok": false,
+        "result": "InvalidSubtag"
+      },
+      "canonical": {
+        "ok": false,
+        "name": "ValueError",
+        "code": "invalid-construction",
+        "message": "invalid BCP 47 tag: zh-min-nan",
+        "violations": null
+      },
+      "decode": {
+        "ok": false,
+        "name": "SchemaError",
+        "code": null,
+        "message": "schema validation failed with 1 violation(s)",
+        "violations": [
+          {
+            "path": [],
+            "code": "format",
+            "message": "locale is malformed",
+            "expected": "canonical BCP 47 language tag",
+            "actual": "\"zh-min-nan\""
+          }
+        ]
+      },
+      "encode": {
+        "ok": false,
+        "name": "ValueError",
+        "code": "invalid-construction",
+        "message": "invalid BCP 47 tag \"zh-min-nan\" at $",
+        "violations": null
+      },
+      "descriptor": {
+        "ok": false,
+        "name": "ValueError",
+        "code": "invalid-construction",
+        "message": "message variant tag is not a valid BCP 47 tag: zh-min-nan",
+        "violations": null
+      }
+    },
+    {
+      "input": "en-123",
+      "core": {
+        "input": "en-123",
+        "ok": true,
+        "result": "en-123"
+      },
+      "canonical": {
+        "ok": true,
+        "value": "en-123"
+      },
+      "decode": {
+        "ok": true,
+        "value": "en-123"
+      },
+      "encode": {
+        "ok": true,
+        "value": "en-123"
+      },
+      "descriptor": {
+        "ok": true,
+        "value": {
+          "en-123": "V"
+        }
+      }
+    },
+    {
+      "input": "en-12",
+      "core": {
+        "input": "en-12",
+        "ok": false,
+        "result": "InvalidSubtag"
+      },
+      "canonical": {
+        "ok": false,
+        "name": "ValueError",
+        "code": "invalid-construction",
+        "message": "invalid BCP 47 tag: en-12",
+        "violations": null
+      },
+      "decode": {
+        "ok": false,
+        "name": "SchemaError",
+        "code": null,
+        "message": "schema validation failed with 1 violation(s)",
+        "violations": [
+          {
+            "path": [],
+            "code": "format",
+            "message": "locale is malformed",
+            "expected": "canonical BCP 47 language tag",
+            "actual": "\"en-12\""
+          }
+        ]
+      },
+      "encode": {
+        "ok": false,
+        "name": "ValueError",
+        "code": "invalid-construction",
+        "message": "invalid BCP 47 tag \"en-12\" at $",
+        "violations": null
+      },
+      "descriptor": {
+        "ok": false,
+        "name": "ValueError",
+        "code": "invalid-construction",
+        "message": "message variant tag is not a valid BCP 47 tag: en-12",
+        "violations": null
+      }
+    },
+    {
+      "input": "en-1234",
+      "core": {
+        "input": "en-1234",
+        "ok": true,
+        "result": "en-1234"
+      },
+      "canonical": {
+        "ok": true,
+        "value": "en-1234"
+      },
+      "decode": {
+        "ok": true,
+        "value": "en-1234"
+      },
+      "encode": {
+        "ok": true,
+        "value": "en-1234"
+      },
+      "descriptor": {
+        "ok": true,
+        "value": {
+          "en-1234": "V"
+        }
+      }
+    },
+    {
+      "input": "en-000",
+      "core": {
+        "input": "en-000",
+        "ok": true,
+        "result": "en-000"
+      },
+      "canonical": {
+        "ok": true,
+        "value": "en-000"
+      },
+      "decode": {
+        "ok": true,
+        "value": "en-000"
+      },
+      "encode": {
+        "ok": true,
+        "value": "en-000"
+      },
+      "descriptor": {
+        "ok": true,
+        "value": {
+          "en-000": "V"
+        }
+      }
+    },
+    {
+      "input": "en-001",
+      "core": {
+        "input": "en-001",
+        "ok": true,
+        "result": "en-001"
+      },
+      "canonical": {
+        "ok": true,
+        "value": "en-001"
+      },
+      "decode": {
+        "ok": true,
+        "value": "en-001"
+      },
+      "encode": {
+        "ok": true,
+        "value": "en-001"
+      },
+      "descriptor": {
+        "ok": true,
+        "value": {
+          "en-001": "V"
+        }
+      }
+    },
+    {
+      "input": "en-1A2",
+      "core": {
+        "input": "en-1A2",
+        "ok": false,
+        "result": "InvalidSubtag"
+      },
+      "canonical": {
+        "ok": false,
+        "name": "ValueError",
+        "code": "invalid-construction",
+        "message": "invalid BCP 47 tag: en-1A2",
+        "violations": null
+      },
+      "decode": {
+        "ok": false,
+        "name": "SchemaError",
+        "code": null,
+        "message": "schema validation failed with 1 violation(s)",
+        "violations": [
+          {
+            "path": [],
+            "code": "format",
+            "message": "locale is malformed",
+            "expected": "canonical BCP 47 language tag",
+            "actual": "\"en-1A2\""
+          }
+        ]
+      },
+      "encode": {
+        "ok": false,
+        "name": "ValueError",
+        "code": "invalid-construction",
+        "message": "invalid BCP 47 tag \"en-1A2\" at $",
+        "violations": null
+      },
+      "descriptor": {
+        "ok": false,
+        "name": "ValueError",
+        "code": "invalid-construction",
+        "message": "message variant tag is not a valid BCP 47 tag: en-1A2",
+        "violations": null
+      }
+    },
+    {
+      "input": "en-u-ca-gregory-ca-buddhist",
+      "core": {
+        "input": "en-u-ca-gregory-ca-buddhist",
+        "ok": true,
+        "result": "en-u-ca-gregory"
+      },
+      "canonical": {
+        "ok": true,
+        "value": "en-u-ca-gregory"
+      },
+      "decode": {
+        "ok": true,
+        "value": "en-u-ca-gregory"
+      },
+      "encode": {
+        "ok": true,
+        "value": "en-u-ca-gregory"
+      },
+      "descriptor": {
+        "ok": true,
+        "value": {
+          "en-u-ca-gregory": "V"
+        }
+      }
+    },
+    {
+      "input": "en-u-abc-abc",
+      "core": {
+        "input": "en-u-abc-abc",
+        "ok": true,
+        "result": "en-u-abc"
+      },
+      "canonical": {
+        "ok": true,
+        "value": "en-u-abc"
+      },
+      "decode": {
+        "ok": true,
+        "value": "en-u-abc"
+      },
+      "encode": {
+        "ok": true,
+        "value": "en-u-abc"
+      },
+      "descriptor": {
+        "ok": true,
+        "value": {
+          "en-u-abc": "V"
+        }
+      }
+    },
+    {
+      "input": "en-a-foo-a-bar",
+      "core": {
+        "input": "en-a-foo-a-bar",
+        "ok": false,
+        "result": "DuplicatedExtension"
+      },
+      "canonical": {
+        "ok": false,
+        "name": "ValueError",
+        "code": "invalid-construction",
+        "message": "invalid BCP 47 tag: en-a-foo-a-bar",
+        "violations": null
+      },
+      "decode": {
+        "ok": false,
+        "name": "SchemaError",
+        "code": null,
+        "message": "schema validation failed with 1 violation(s)",
+        "violations": [
+          {
+            "path": [],
+            "code": "format",
+            "message": "locale is malformed",
+            "expected": "canonical BCP 47 language tag",
+            "actual": "\"en-a-foo-a-bar\""
+          }
+        ]
+      },
+      "encode": {
+        "ok": false,
+        "name": "ValueError",
+        "code": "invalid-construction",
+        "message": "invalid BCP 47 tag \"en-a-foo-a-bar\" at $",
+        "violations": null
+      },
+      "descriptor": {
+        "ok": false,
+        "name": "ValueError",
+        "code": "invalid-construction",
+        "message": "message variant tag is not a valid BCP 47 tag: en-a-foo-a-bar",
+        "violations": null
+      }
+    },
+    {
+      "input": "abcd",
+      "core": {
+        "input": "abcd",
+        "ok": false,
+        "result": "InvalidLanguage"
+      },
+      "canonical": {
+        "ok": false,
+        "name": "ValueError",
+        "code": "invalid-construction",
+        "message": "invalid BCP 47 tag: abcd",
+        "violations": null
+      },
+      "decode": {
+        "ok": false,
+        "name": "SchemaError",
+        "code": null,
+        "message": "schema validation failed with 1 violation(s)",
+        "violations": [
+          {
+            "path": [],
+            "code": "format",
+            "message": "locale is malformed",
+            "expected": "canonical BCP 47 language tag",
+            "actual": "\"abcd\""
+          }
+        ]
+      },
+      "encode": {
+        "ok": false,
+        "name": "ValueError",
+        "code": "invalid-construction",
+        "message": "invalid BCP 47 tag \"abcd\" at $",
+        "violations": null
+      },
+      "descriptor": {
+        "ok": false,
+        "name": "ValueError",
+        "code": "invalid-construction",
+        "message": "message variant tag is not a valid BCP 47 tag: abcd",
+        "violations": null
+      }
+    },
+    {
+      "input": "abcde",
+      "core": {
+        "input": "abcde",
+        "ok": false,
+        "result": "InvalidLanguage"
+      },
+      "canonical": {
+        "ok": true,
+        "value": "abcde"
+      },
+      "decode": {
+        "ok": true,
+        "value": "abcde"
+      },
+      "encode": {
+        "ok": true,
+        "value": "abcde"
+      },
+      "descriptor": {
+        "ok": true,
+        "value": {
+          "abcde": "V"
+        }
+      }
+    },
+    {
+      "input": "abcdefgh",
+      "core": {
+        "input": "abcdefgh",
+        "ok": false,
+        "result": "InvalidLanguage"
+      },
+      "canonical": {
+        "ok": true,
+        "value": "abcdefgh"
+      },
+      "decode": {
+        "ok": true,
+        "value": "abcdefgh"
+      },
+      "encode": {
+        "ok": true,
+        "value": "abcdefgh"
+      },
+      "descriptor": {
+        "ok": true,
+        "value": {
+          "abcdefgh": "V"
+        }
+      }
+    },
+    {
+      "input": "abcdefghi",
+      "core": {
+        "input": "abcdefghi",
+        "ok": false,
+        "result": "InvalidLanguage"
+      },
+      "canonical": {
+        "ok": false,
+        "name": "ValueError",
+        "code": "invalid-construction",
+        "message": "invalid BCP 47 tag: abcdefghi",
+        "violations": null
+      },
+      "decode": {
+        "ok": false,
+        "name": "SchemaError",
+        "code": null,
+        "message": "schema validation failed with 1 violation(s)",
+        "violations": [
+          {
+            "path": [],
+            "code": "format",
+            "message": "locale is malformed",
+            "expected": "canonical BCP 47 language tag",
+            "actual": "\"abcdefghi\""
+          }
+        ]
+      },
+      "encode": {
+        "ok": false,
+        "name": "ValueError",
+        "code": "invalid-construction",
+        "message": "invalid BCP 47 tag \"abcdefghi\" at $",
+        "violations": null
+      },
+      "descriptor": {
+        "ok": false,
+        "name": "ValueError",
+        "code": "invalid-construction",
+        "message": "message variant tag is not a valid BCP 47 tag: abcdefghi",
+        "violations": null
+      }
+    },
+    {
+      "input": "abcde-US-u-ca-gregory",
+      "core": {
+        "input": "abcde-US-u-ca-gregory",
+        "ok": false,
+        "result": "InvalidLanguage"
+      },
+      "canonical": {
+        "ok": true,
+        "value": "abcde-US-u-ca-gregory"
+      },
+      "decode": {
+        "ok": true,
+        "value": "abcde-US-u-ca-gregory"
+      },
+      "encode": {
+        "ok": true,
+        "value": "abcde-US-u-ca-gregory"
+      },
+      "descriptor": {
+        "ok": true,
+        "value": {
+          "abcde-US-u-ca-gregory": "V"
+        }
+      }
+    },
+    {
+      "input": "en-t-abcde",
+      "core": {
+        "input": "en-t-abcde",
+        "ok": false,
+        "result": "InvalidExtension"
+      },
+      "canonical": {
+        "ok": true,
+        "value": "en-t-abcde"
+      },
+      "decode": {
+        "ok": true,
+        "value": "en-t-abcde"
+      },
+      "encode": {
+        "ok": true,
+        "value": "en-t-abcde"
+      },
+      "descriptor": {
+        "ok": true,
+        "value": {
+          "en-t-abcde": "V"
+        }
+      }
+    },
+    {
+      "input": "en-u-ca-islamicc",
+      "core": {
+        "input": "en-u-ca-islamicc",
+        "ok": true,
+        "result": "en-u-ca-islamicc"
+      },
+      "canonical": {
+        "ok": true,
+        "value": "en-u-ca-islamic-civil"
+      },
+      "decode": {
+        "ok": true,
+        "value": "en-u-ca-islamic-civil"
+      },
+      "encode": {
+        "ok": true,
+        "value": "en-u-ca-islamic-civil"
+      },
+      "descriptor": {
+        "ok": true,
+        "value": {
+          "en-u-ca-islamic-civil": "V"
+        }
+      }
+    },
+    {
+      "input": "sh",
+      "core": {
+        "input": "sh",
+        "ok": true,
+        "result": "sh"
+      },
+      "canonical": {
+        "ok": true,
+        "value": "sr-Latn"
+      },
+      "decode": {
+        "ok": true,
+        "value": "sr-Latn"
+      },
+      "encode": {
+        "ok": true,
+        "value": "sr-Latn"
+      },
+      "descriptor": {
+        "ok": true,
+        "value": {
+          "sr-Latn": "V"
+        }
+      }
+    },
+    {
+      "input": "mo",
+      "core": {
+        "input": "mo",
+        "ok": true,
+        "result": "mo"
+      },
+      "canonical": {
+        "ok": true,
+        "value": "ro"
+      },
+      "decode": {
+        "ok": true,
+        "value": "ro"
+      },
+      "encode": {
+        "ok": true,
+        "value": "ro"
+      },
+      "descriptor": {
+        "ok": true,
+        "value": {
+          "ro": "V"
+        }
+      }
+    },
+    {
+      "input": "en-SU",
+      "core": {
+        "input": "en-SU",
+        "ok": true,
+        "result": "en-SU"
+      },
+      "canonical": {
+        "ok": true,
+        "value": "en-RU"
+      },
+      "decode": {
+        "ok": true,
+        "value": "en-RU"
+      },
+      "encode": {
+        "ok": true,
+        "value": "en-RU"
+      },
+      "descriptor": {
+        "ok": true,
+        "value": {
+          "en-RU": "V"
+        }
+      }
+    },
+    {
+      "input": "en-u-kn-true",
+      "core": {
+        "input": "en-u-kn-true",
+        "ok": true,
+        "result": "en-u-kn"
+      },
+      "canonical": {
+        "ok": true,
+        "value": "en-u-kn"
+      },
+      "decode": {
+        "ok": true,
+        "value": "en-u-kn"
+      },
+      "encode": {
+        "ok": true,
+        "value": "en-u-kn"
+      },
+      "descriptor": {
+        "ok": true,
+        "value": {
+          "en-u-kn": "V"
+        }
+      }
+    },
+    {
+      "input": "en-t-iw",
+      "core": {
+        "input": "en-t-iw",
+        "ok": true,
+        "result": "en-t-iw"
+      },
+      "canonical": {
+        "ok": true,
+        "value": "en-t-he"
+      },
+      "decode": {
+        "ok": true,
+        "value": "en-t-he"
+      },
+      "encode": {
+        "ok": true,
+        "value": "en-t-he"
+      },
+      "descriptor": {
+        "ok": true,
+        "value": {
+          "en-t-he": "V"
+        }
+      }
+    },
+    {
+      "input": "en-x-a",
+      "core": {
+        "input": "en-x-a",
+        "ok": true,
+        "result": "en-x-a"
+      },
+      "canonical": {
+        "ok": true,
+        "value": "en-x-a"
+      },
+      "decode": {
+        "ok": true,
+        "value": "en-x-a"
+      },
+      "encode": {
+        "ok": true,
+        "value": "en-x-a"
+      },
+      "descriptor": {
+        "ok": true,
+        "value": {
+          "en-x-a": "V"
+        }
+      }
+    },
+    {
+      "input": "en-t-en-us",
+      "core": {
+        "input": "en-t-en-us",
+        "ok": true,
+        "result": "en-t-en-us"
+      },
+      "canonical": {
+        "ok": true,
+        "value": "en-t-en-us"
+      },
+      "decode": {
+        "ok": true,
+        "value": "en-t-en-us"
+      },
+      "encode": {
+        "ok": true,
+        "value": "en-t-en-us"
+      },
+      "descriptor": {
+        "ok": true,
+        "value": {
+          "en-t-en-us": "V"
+        }
+      }
+    },
+    {
+      "input": "en-t-m0-true",
+      "core": {
+        "input": "en-t-m0-true",
+        "ok": true,
+        "result": "en-t-m0-true"
+      },
+      "canonical": {
+        "ok": true,
+        "value": "en-t-m0-true"
+      },
+      "decode": {
+        "ok": true,
+        "value": "en-t-m0-true"
+      },
+      "encode": {
+        "ok": true,
+        "value": "en-t-m0-true"
+      },
+      "descriptor": {
+        "ok": true,
+        "value": {
+          "en-t-m0-true": "V"
+        }
+      }
+    },
+    {
+      "input": "en-t-m0-foo-m0-bar",
+      "core": {
+        "input": "en-t-m0-foo-m0-bar",
+        "ok": true,
+        "result": "en-t-m0-foo"
+      },
+      "canonical": {
+        "ok": true,
+        "value": "en-t-m0-bar-m0-foo"
+      },
+      "decode": {
+        "ok": true,
+        "value": "en-t-m0-bar-m0-foo"
+      },
+      "encode": {
+        "ok": true,
+        "value": "en-t-m0-bar-m0-foo"
+      },
+      "descriptor": {
+        "ok": true,
+        "value": {
+          "en-t-m0-bar-m0-foo": "V"
+        }
+      }
+    },
+    {
+      "input": "en-u-1a-abc",
+      "core": {
+        "input": "en-u-1a-abc",
+        "ok": true,
+        "result": "en-u-1a-abc"
+      },
+      "canonical": {
+        "ok": true,
+        "value": "en-u-1a-abc"
+      },
+      "decode": {
+        "ok": true,
+        "value": "en-u-1a-abc"
+      },
+      "encode": {
+        "ok": true,
+        "value": "en-u-1a-abc"
+      },
+      "descriptor": {
+        "ok": true,
+        "value": {
+          "en-u-1a-abc": "V"
+        }
+      }
+    },
+    {
+      "input": "en-u-a1-abc",
+      "core": {
+        "input": "en-u-a1-abc",
+        "ok": false,
+        "result": "InvalidExtension"
+      },
+      "canonical": {
+        "ok": false,
+        "name": "ValueError",
+        "code": "invalid-construction",
+        "message": "invalid BCP 47 tag: en-u-a1-abc",
+        "violations": null
+      },
+      "decode": {
+        "ok": false,
+        "name": "SchemaError",
+        "code": null,
+        "message": "schema validation failed with 1 violation(s)",
+        "violations": [
+          {
+            "path": [],
+            "code": "format",
+            "message": "locale is malformed",
+            "expected": "canonical BCP 47 language tag",
+            "actual": "\"en-u-a1-abc\""
+          }
+        ]
+      },
+      "encode": {
+        "ok": false,
+        "name": "ValueError",
+        "code": "invalid-construction",
+        "message": "invalid BCP 47 tag \"en-u-a1-abc\" at $",
+        "violations": null
+      },
+      "descriptor": {
+        "ok": false,
+        "name": "ValueError",
+        "code": "invalid-construction",
+        "message": "message variant tag is not a valid BCP 47 tag: en-u-a1-abc",
+        "violations": null
+      }
+    },
+    {
+      "input": "en-u-ca",
+      "core": {
+        "input": "en-u-ca",
+        "ok": true,
+        "result": "en-u-ca"
+      },
+      "canonical": {
+        "ok": true,
+        "value": "en-u-ca"
+      },
+      "decode": {
+        "ok": true,
+        "value": "en-u-ca"
+      },
+      "encode": {
+        "ok": true,
+        "value": "en-u-ca"
+      },
+      "descriptor": {
+        "ok": true,
+        "value": {
+          "en-u-ca": "V"
+        }
+      }
+    },
+    {
+      "input": "en-u",
+      "core": {
+        "input": "en-u",
+        "ok": false,
+        "result": "InvalidExtension"
+      },
+      "canonical": {
+        "ok": false,
+        "name": "ValueError",
+        "code": "invalid-construction",
+        "message": "invalid BCP 47 tag: en-u",
+        "violations": null
+      },
+      "decode": {
+        "ok": false,
+        "name": "SchemaError",
+        "code": null,
+        "message": "schema validation failed with 1 violation(s)",
+        "violations": [
+          {
+            "path": [],
+            "code": "format",
+            "message": "locale is malformed",
+            "expected": "canonical BCP 47 language tag",
+            "actual": "\"en-u\""
+          }
+        ]
+      },
+      "encode": {
+        "ok": false,
+        "name": "ValueError",
+        "code": "invalid-construction",
+        "message": "invalid BCP 47 tag \"en-u\" at $",
+        "violations": null
+      },
+      "descriptor": {
+        "ok": false,
+        "name": "ValueError",
+        "code": "invalid-construction",
+        "message": "message variant tag is not a valid BCP 47 tag: en-u",
+        "violations": null
+      }
+    },
+    {
+      "input": "en-x",
+      "core": {
+        "input": "en-x",
+        "ok": false,
+        "result": "InvalidExtension"
+      },
+      "canonical": {
+        "ok": false,
+        "name": "ValueError",
+        "code": "invalid-construction",
+        "message": "invalid BCP 47 tag: en-x",
+        "violations": null
+      },
+      "decode": {
+        "ok": false,
+        "name": "SchemaError",
+        "code": null,
+        "message": "schema validation failed with 1 violation(s)",
+        "violations": [
+          {
+            "path": [],
+            "code": "format",
+            "message": "locale is malformed",
+            "expected": "canonical BCP 47 language tag",
+            "actual": "\"en-x\""
+          }
+        ]
+      },
+      "encode": {
+        "ok": false,
+        "name": "ValueError",
+        "code": "invalid-construction",
+        "message": "invalid BCP 47 tag \"en-x\" at $",
+        "violations": null
+      },
+      "descriptor": {
+        "ok": false,
+        "name": "ValueError",
+        "code": "invalid-construction",
+        "message": "message variant tag is not a valid BCP 47 tag: en-x",
+        "violations": null
+      }
+    },
+    {
+      "input": "en-a-a",
+      "core": {
+        "input": "en-a-a",
+        "ok": false,
+        "result": "InvalidExtension"
+      },
+      "canonical": {
+        "ok": false,
+        "name": "ValueError",
+        "code": "invalid-construction",
+        "message": "invalid BCP 47 tag: en-a-a",
+        "violations": null
+      },
+      "decode": {
+        "ok": false,
+        "name": "SchemaError",
+        "code": null,
+        "message": "schema validation failed with 1 violation(s)",
+        "violations": [
+          {
+            "path": [],
+            "code": "format",
+            "message": "locale is malformed",
+            "expected": "canonical BCP 47 language tag",
+            "actual": "\"en-a-a\""
+          }
+        ]
+      },
+      "encode": {
+        "ok": false,
+        "name": "ValueError",
+        "code": "invalid-construction",
+        "message": "invalid BCP 47 tag \"en-a-a\" at $",
+        "violations": null
+      },
+      "descriptor": {
+        "ok": false,
+        "name": "ValueError",
+        "code": "invalid-construction",
+        "message": "message variant tag is not a valid BCP 47 tag: en-a-a",
+        "violations": null
+      }
+    },
+    {
+      "input": "en-a-12",
+      "core": {
+        "input": "en-a-12",
+        "ok": true,
+        "result": "en-a-12"
+      },
+      "canonical": {
+        "ok": true,
+        "value": "en-a-12"
+      },
+      "decode": {
+        "ok": true,
+        "value": "en-a-12"
+      },
+      "encode": {
+        "ok": true,
+        "value": "en-a-12"
+      },
+      "descriptor": {
+        "ok": true,
+        "value": {
+          "en-a-12": "V"
+        }
+      }
+    },
+    {
+      "input": "en-t-en-US-US",
+      "core": {
+        "input": "en-t-en-US-US",
+        "ok": false,
+        "result": "InvalidExtension"
+      },
+      "canonical": {
+        "ok": false,
+        "name": "ValueError",
+        "code": "invalid-construction",
+        "message": "invalid BCP 47 tag: en-t-en-US-US",
+        "violations": null
+      },
+      "decode": {
+        "ok": false,
+        "name": "SchemaError",
+        "code": null,
+        "message": "schema validation failed with 1 violation(s)",
+        "violations": [
+          {
+            "path": [],
+            "code": "format",
+            "message": "locale is malformed",
+            "expected": "canonical BCP 47 language tag",
+            "actual": "\"en-t-en-US-US\""
+          }
+        ]
+      },
+      "encode": {
+        "ok": false,
+        "name": "ValueError",
+        "code": "invalid-construction",
+        "message": "invalid BCP 47 tag \"en-t-en-US-US\" at $",
+        "violations": null
+      },
+      "descriptor": {
+        "ok": false,
+        "name": "ValueError",
+        "code": "invalid-construction",
+        "message": "message variant tag is not a valid BCP 47 tag: en-t-en-US-US",
+        "violations": null
+      }
+    },
+    {
+      "input": "en-t-sl-rozaj-rozaj",
+      "core": {
+        "input": "en-t-sl-rozaj-rozaj",
+        "ok": false,
+        "result": "InvalidSubtag"
+      },
+      "canonical": {
+        "ok": false,
+        "name": "ValueError",
+        "code": "invalid-construction",
+        "message": "invalid BCP 47 tag: en-t-sl-rozaj-rozaj",
+        "violations": null
+      },
+      "decode": {
+        "ok": false,
+        "name": "SchemaError",
+        "code": null,
+        "message": "schema validation failed with 1 violation(s)",
+        "violations": [
+          {
+            "path": [],
+            "code": "format",
+            "message": "locale is malformed",
+            "expected": "canonical BCP 47 language tag",
+            "actual": "\"en-t-sl-rozaj-rozaj\""
+          }
+        ]
+      },
+      "encode": {
+        "ok": false,
+        "name": "ValueError",
+        "code": "invalid-construction",
+        "message": "invalid BCP 47 tag \"en-t-sl-rozaj-rozaj\" at $",
+        "violations": null
+      },
+      "descriptor": {
+        "ok": false,
+        "name": "ValueError",
+        "code": "invalid-construction",
+        "message": "message variant tag is not a valid BCP 47 tag: en-t-sl-rozaj-rozaj",
+        "violations": null
+      }
+    },
+    {
+      "input": "sl-ROZAJ-rozaj",
+      "core": {
+        "input": "sl-ROZAJ-rozaj",
+        "ok": false,
+        "result": "InvalidSubtag"
+      },
+      "canonical": {
+        "ok": false,
+        "name": "ValueError",
+        "code": "invalid-construction",
+        "message": "invalid BCP 47 tag: sl-ROZAJ-rozaj",
+        "violations": null
+      },
+      "decode": {
+        "ok": false,
+        "name": "SchemaError",
+        "code": null,
+        "message": "schema validation failed with 1 violation(s)",
+        "violations": [
+          {
+            "path": [],
+            "code": "format",
+            "message": "locale is malformed",
+            "expected": "canonical BCP 47 language tag",
+            "actual": "\"sl-ROZAJ-rozaj\""
+          }
+        ]
+      },
+      "encode": {
+        "ok": false,
+        "name": "ValueError",
+        "code": "invalid-construction",
+        "message": "invalid BCP 47 tag \"sl-ROZAJ-rozaj\" at $",
+        "violations": null
+      },
+      "descriptor": {
+        "ok": false,
+        "name": "ValueError",
+        "code": "invalid-construction",
+        "message": "message variant tag is not a valid BCP 47 tag: sl-ROZAJ-rozaj",
+        "violations": null
+      }
+    },
+    {
+      "input": "en-Latn-US",
+      "core": {
+        "input": "en-Latn-US",
+        "ok": true,
+        "result": "en-Latn-US"
+      },
+      "canonical": {
+        "ok": true,
+        "value": "en-Latn-US"
+      },
+      "decode": {
+        "ok": true,
+        "value": "en-Latn-US"
+      },
+      "encode": {
+        "ok": true,
+        "value": "en-Latn-US"
+      },
+      "descriptor": {
+        "ok": true,
+        "value": {
+          "en-Latn-US": "V"
+        }
+      }
+    },
+    {
+      "input": "en-US-Latn",
+      "core": {
+        "input": "en-US-Latn",
+        "ok": false,
+        "result": "InvalidSubtag"
+      },
+      "canonical": {
+        "ok": false,
+        "name": "ValueError",
+        "code": "invalid-construction",
+        "message": "invalid BCP 47 tag: en-US-Latn",
+        "violations": null
+      },
+      "decode": {
+        "ok": false,
+        "name": "SchemaError",
+        "code": null,
+        "message": "schema validation failed with 1 violation(s)",
+        "violations": [
+          {
+            "path": [],
+            "code": "format",
+            "message": "locale is malformed",
+            "expected": "canonical BCP 47 language tag",
+            "actual": "\"en-US-Latn\""
+          }
+        ]
+      },
+      "encode": {
+        "ok": false,
+        "name": "ValueError",
+        "code": "invalid-construction",
+        "message": "invalid BCP 47 tag \"en-US-Latn\" at $",
+        "violations": null
+      },
+      "descriptor": {
+        "ok": false,
+        "name": "ValueError",
+        "code": "invalid-construction",
+        "message": "message variant tag is not a valid BCP 47 tag: en-US-Latn",
+        "violations": null
+      }
+    },
+    {
+      "input": "en💥",
+      "core": {
+        "input": "en💥",
+        "ok": false,
+        "result": "InvalidLanguage"
+      },
+      "canonical": {
+        "ok": false,
+        "name": "ValueError",
+        "code": "invalid-construction",
+        "message": "invalid BCP 47 tag: en💥",
+        "violations": null
+      },
+      "decode": {
+        "ok": false,
+        "name": "SchemaError",
+        "code": null,
+        "message": "schema validation failed with 1 violation(s)",
+        "violations": [
+          {
+            "path": [],
+            "code": "format",
+            "message": "locale is malformed",
+            "expected": "canonical BCP 47 language tag",
+            "actual": "\"en💥\""
+          }
+        ]
+      },
+      "encode": {
+        "ok": false,
+        "name": "ValueError",
+        "code": "invalid-construction",
+        "message": "invalid BCP 47 tag \"en💥\" at $",
+        "violations": null
+      },
+      "descriptor": {
+        "ok": false,
+        "name": "ValueError",
+        "code": "invalid-construction",
+        "message": "message variant tag is not a valid BCP 47 tag: en💥",
+        "violations": null
+      }
+    },
+    {
+      "input": "💥💥💥",
+      "core": {
+        "input": "💥💥💥",
+        "ok": false,
+        "result": "InvalidLanguage"
+      },
+      "canonical": {
+        "ok": false,
+        "name": "ValueError",
+        "code": "invalid-construction",
+        "message": "invalid BCP 47 tag: 💥💥💥",
+        "violations": null
+      },
+      "decode": {
+        "ok": false,
+        "name": "SchemaError",
+        "code": null,
+        "message": "schema validation failed with 1 violation(s)",
+        "violations": [
+          {
+            "path": [],
+            "code": "format",
+            "message": "locale is malformed",
+            "expected": "canonical BCP 47 language tag",
+            "actual": "\"💥💥💥\""
+          }
+        ]
+      },
+      "encode": {
+        "ok": false,
+        "name": "ValueError",
+        "code": "invalid-construction",
+        "message": "invalid BCP 47 tag \"💥💥💥\" at $",
+        "violations": null
+      },
+      "descriptor": {
+        "ok": false,
+        "name": "ValueError",
+        "code": "invalid-construction",
+        "message": "message variant tag is not a valid BCP 47 tag: 💥💥💥",
+        "violations": null
+      }
+    }
+  ],
+  "duplicates": [
+    {
+      "tags": [
+        "iw",
+        "he"
+      ],
+      "result": {
+        "ok": false,
+        "name": "ValueError",
+        "code": "invalid-construction",
+        "message": "duplicate canonical message variant tag: he",
+        "violations": null
+      }
+    },
+    {
+      "tags": [
+        "nl",
+        "NL"
+      ],
+      "result": {
+        "ok": false,
+        "name": "ValueError",
+        "code": "invalid-construction",
+        "message": "duplicate canonical message variant tag: nl",
+        "violations": null
+      }
+    },
+    {
+      "tags": [
+        "en-u-ca-islamicc",
+        "en-u-ca-islamic-civil"
+      ],
+      "result": {
+        "ok": false,
+        "name": "ValueError",
+        "code": "invalid-construction",
+        "message": "duplicate canonical message variant tag: en-u-ca-islamic-civil",
+        "violations": null
+      }
+    },
+    {
+      "tags": [
+        "sh",
+        "sr-Latn"
+      ],
+      "result": {
+        "ok": false,
+        "name": "ValueError",
+        "code": "invalid-construction",
+        "message": "duplicate canonical message variant tag: sr-Latn",
+        "violations": null
+      }
+    },
+    {
+      "tags": [
+        "en-u-kn-true",
+        "en-u-kn"
+      ],
+      "result": {
+        "ok": false,
+        "name": "ValueError",
+        "code": "invalid-construction",
+        "message": "duplicate canonical message variant tag: en-u-kn",
+        "violations": null
+      }
+    },
+    {
+      "tags": [
+        "en-t-iw",
+        "en-t-he"
+      ],
+      "result": {
+        "ok": false,
+        "name": "ValueError",
+        "code": "invalid-construction",
+        "message": "duplicate canonical message variant tag: en-t-he",
+        "violations": null
+      }
+    }
+  ]
+}
