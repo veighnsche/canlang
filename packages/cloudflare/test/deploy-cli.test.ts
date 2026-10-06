@@ -140,7 +140,9 @@ describe("can-platform deploy/test/build local paths (B5-J3)", () => {
     const second = await runCli(["deploy", "--artifact", artifact, "--env", "prod", "--preview"]);
     expect(second.code).toBe(0);
     expect(envelope(second.stdout)).toMatchObject({ changed: false });
-  });
+    // C3: two CLI runs × two bun bundles each (MCP + HTTP op chain)
+    // exceed the 5s default under load; bounded explicit timeout.
+  }, 30000);
 
   it("deploy refuses an incompatible bundle (compat gate first)", async () => {
     const { artifact } = deployBundle();
