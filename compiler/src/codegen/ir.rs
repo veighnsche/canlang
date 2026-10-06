@@ -663,43 +663,6 @@ fn slice(db: &SourceDb, span: Span) -> &str {
         .unwrap_or("")
 }
 
-/// Decode a `String` token slice (including quotes) to its value.
-fn decode_string(slice: &str) -> String {
-    let body = slice
-        .strip_prefix('"')
-        .and_then(|s| s.strip_suffix('"'))
-        .unwrap_or(slice);
-    unescape_json(body)
-}
-
-/// Minimal JSON string-body unescape (mirrors the analysis decoder).
-fn unescape_json(body: &str) -> String {
-    let mut out = String::with_capacity(body.len());
-    let mut chars = body.chars();
-    while let Some(c) = chars.next() {
-        if c != '\\' {
-            out.push(c);
-            continue;
-        }
-        match chars.next() {
-            Some('"') => out.push('"'),
-            Some('\\') => out.push('\\'),
-            Some('/') => out.push('/'),
-            Some('n') => out.push('\n'),
-            Some('r') => out.push('\r'),
-            Some('t') => out.push('\t'),
-            Some('u') => {
-                let hex: String = chars.by_ref().take(4).collect();
-                let code = u32::from_str_radix(&hex, 16).unwrap_or(0);
-                out.push(char::from_u32(code).unwrap_or('\u{FFFD}'));
-            }
-            Some(other) => out.push(other),
-            None => {}
-        }
-    }
-    out
-}
-
 /// Find the CST node for `key` by span plus kind discriminant (total).
 fn find_node<'t>(tree: &'t SyntaxNode, key: &NodeKey) -> Option<&'t SyntaxNode> {
     if tree.span.start == key.start && tree.span.end == key.end && tree.kind as u8 == key.kind {
@@ -2029,20 +1992,18 @@ impl<'a> Cx<'a> {
             // accepts it), so it decodes to source-only text instead
             // of silently dropping the label.
             SyntaxKind::Literal => Some(IrMessage {
-                source: literal_string(self.db, node).unwrap_or_default(),
+                source: literal_string(self.db, node)?,
                 variants: Vec::new(),
                 params: Vec::new(),
             }),
             SyntaxKind::MessageValue => {
-                let mut source = String::new();
+                let mut source = None;
                 let mut variants = Vec::new();
                 for child in kids(node) {
                     match child.kind {
                         SyntaxKind::Literal => {
-                            if source.is_empty()
-                                && let Some(text) = literal_string(self.db, child)
-                            {
-                                source = text;
+                            if source.is_none() {
+                                source = Some(literal_string(self.db, child)?);
                             }
                         }
                         SyntaxKind::MessageVariant => {
@@ -2054,7 +2015,7 @@ impl<'a> Cx<'a> {
                     }
                 }
                 Some(IrMessage {
-                    source,
+                    source: source?,
                     variants,
                     params: Vec::new(),
                 })
@@ -2360,7 +2321,13 @@ impl<'a> Cx<'a> {
                 },
             },
             SyntaxKind::Decimal => IrExpr::Decimal(text.to_string()),
-            SyntaxKind::String => IrExpr::Text(decode_string(text)),
+            SyntaxKind::String => match leaf.token().and_then(|token| token.string_value.clone()) {
+                Some(value) => IrExpr::Text(value),
+                None => IrExpr::Unsupported {
+                    what: "string literal".to_string(),
+                    why: "no valid lexer payload".to_string(),
+                },
+            },
             SyntaxKind::Duration => match duration_millis(text) {
                 Some(ms) => IrExpr::DurationMs(ms),
                 None => IrExpr::Unsupported {
@@ -2600,14 +2567,15 @@ fn path_text(db: &SourceDb, node: &SyntaxNode) -> String {
         .join(".")
 }
 
-/// String value of a `Literal` string, or `None` for `null`/other.
+/// Lexer-owned string value: `Some(None)` is authored `null`, while
+/// missing/invalid payloads and non-string literals return `None`.
 fn literal_string_opt(db: &SourceDb, node: &SyntaxNode) -> Option<Option<String>> {
     if node.kind != SyntaxKind::Literal {
         return None;
     }
     let leaf = kids(node).into_iter().next()?;
     match leaf.kind {
-        SyntaxKind::String => Some(Some(decode_string(slice(db, leaf.span)))),
+        SyntaxKind::String => leaf.token()?.string_value.clone().map(Some),
         SyntaxKind::Name if slice(db, leaf.span) == "null" => Some(None),
         _ => None,
     }
@@ -2616,6 +2584,40 @@ fn literal_string_opt(db: &SourceDb, node: &SyntaxNode) -> Option<Option<String>
 /// String value of a `Literal` string (total: non-strings yield `None`).
 fn literal_string(db: &SourceDb, node: &SyntaxNode) -> Option<String> {
     literal_string_opt(db, node).flatten()
+}
+
+#[cfg(test)]
+mod string_payload_tests {
+    use super::*;
+    use crate::syntax::lexer::{Token, TokenKind};
+
+    /// Synthetic CST recovery boundary: raw source must never substitute
+    /// for an absent lexer payload, even when its spelling looks valid.
+    #[test]
+    fn c01_literal_string_distinguishes_empty_null_and_missing_payload() {
+        let mut db = SourceDb::new();
+        let file = db.add("payload.can".to_string(), "\"\" null".to_string());
+        let literal = |kind, span, string_value| {
+            SyntaxNode::enclosing(
+                SyntaxKind::Literal,
+                vec![SyntaxNode::token_leaf(Token {
+                    kind,
+                    span,
+                    string_value,
+                })],
+            )
+        };
+        let empty = literal(
+            TokenKind::String,
+            Span::new(file, 0, 2),
+            Some(String::new()),
+        );
+        let missing = literal(TokenKind::String, Span::new(file, 0, 2), None);
+        let null = literal(TokenKind::Name, Span::new(file, 3, 7), None);
+        assert_eq!(literal_string_opt(&db, &empty), Some(Some(String::new())));
+        assert_eq!(literal_string_opt(&db, &missing), None);
+        assert_eq!(literal_string_opt(&db, &null), Some(None));
+    }
 }
 
 impl<'a> Cx<'a> {
@@ -4759,11 +4761,7 @@ impl<'a> Cx<'a> {
                     let Some(key) = unique.where_predicate.as_ref() else {
                         continue;
                     };
-                    let span = Span::new(
-                        unique.node.file,
-                        unique.node.start,
-                        unique.node.end,
-                    );
+                    let span = Span::new(unique.node.file, unique.node.start, unique.node.end);
                     invariants.push(IrRuleFn {
                         id: format!("{}.unique.{}", symbol.name, index + 1),
                         pred: self.decode_anchored(
@@ -6056,10 +6054,7 @@ impl<'a> Cx<'a> {
                 }
             }
         }
-        if !children
-            .iter()
-            .any(|c| ui_slot_name(c) == Some("content"))
-        {
+        if !children.iter().any(|c| ui_slot_name(c) == Some("content")) {
             self.diags.push(Diagnostic::error(
                 "E6008",
                 "cannot lower chat_bubble: chat_bubble needs a content slot".to_string(),
@@ -7183,7 +7178,13 @@ impl<'a> Cx<'a> {
         let canonical = self.canonical(op);
         let model_canonical = self.canonical(model);
         let name = self.local_name(model);
-        let text = |value: String| TypedExpr::new(IrExpr::Text(value), ResolvedType::Scalar(Scalar::Text), node.span);
+        let text = |value: String| {
+            TypedExpr::new(
+                IrExpr::Text(value),
+                ResolvedType::Scalar(Scalar::Text),
+                node.span,
+            )
+        };
         props.push(("operation".to_string(), text(canonical.clone())));
         props.push((
             "record".to_string(),
@@ -7215,10 +7216,7 @@ impl<'a> Cx<'a> {
             )),
             None => props.push(("itemLabel".to_string(), text(name.clone()))),
         }
-        props.push((
-            "confirm".to_string(),
-            text(format!("Archive this {name}?")),
-        ));
+        props.push(("confirm".to_string(), text(format!("Archive this {name}?"))));
         props.push((
             "idPrefix".to_string(),
             text(format!("delete-{}", model_canonical.replace('.', "-"))),
@@ -8408,7 +8406,7 @@ impl<'a> Cx<'a> {
                 let id = match target {
                     IrCallTarget::Builtin { id, .. } => id.as_str(),
                     IrCallTarget::CapabilityOp(_) | IrCallTarget::DeriveFn(_) => {
-                        return ResolvedType::Unknown
+                        return ResolvedType::Unknown;
                     }
                 };
                 match id {
