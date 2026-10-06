@@ -499,15 +499,16 @@ describe("form field widgets", () => {
     );
   });
 
-  it("throws naming S7 upload intents for file types", async () => {
-    await assert.rejects(
-      form(makeFormProps({ fields: [field("avatar", { type: "file" })] })),
-      /S7 upload intents/,
-    );
-    await assert.rejects(
-      form(makeFormProps({ fields: [field("clip", { type: "file.video" })] })),
-      /S7 upload intents/,
-    );
+  it("renders file types as S7 slots (T20b supersede)", async () => {
+    // T20b SUPERSEDE: bare file-typed fields render the S7-backed slot
+    // (unnamed picker + hidden finalized id) instead of throwing; the
+    // client uploads picked bytes through intents and submits the id.
+    const html = await form(makeFormProps({ fields: [field("avatar", { type: "file" })] }));
+    assert.ok(html.includes('<input type="file" data-can-file="avatar"'));
+    assert.ok(html.includes('name="inputs[avatar]" value=""'));
+    const video = await form(makeFormProps({ fields: [field("clip", { type: "file.video" })] }));
+    assert.ok(video.includes('<input type="file" data-can-file="clip"'));
+    assert.ok(video.includes('name="inputs[clip]" value=""'));
   });
 
   it("throws a precise error for unknown types", async () => {
