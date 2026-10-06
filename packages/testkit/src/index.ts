@@ -5,5 +5,6 @@ export * from "./fixtures/recipes.js";
 export * from "./fixtures/seeds.js";
 export * from "./reporting/report.js";
 export * from "./runner/loader.js";
+export * from "./runner/steps.js";
 export * from "./runner/table.js";
 export * from "./scopes/local.js";
