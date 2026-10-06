@@ -58,6 +58,7 @@ import {
   createWorkerDispatchJoinPort,
   createWorkerDispatchRegistry,
   driveDispatchIntent,
+  loadCanonicalDescriptors,
   loadDispatchSystemProducers,
   readDispatchExecutionRow,
   seamTriggerPoint,
@@ -1242,6 +1243,16 @@ export function canApp() {
         await deleteRecord(c, "Shop.Team", row.id);
         return { id: row.id };
       },
+      updateRemove: async (c, input) => {
+        calls.push("updateRemove");
+        const row = await create(c, "Shop.Team", {
+          id: input.inputs.key,
+          data: { name: "tmp-" + input.inputs.key, owner: input.inputs.owner, flags: [] },
+        });
+        await set(c, "Shop.Team", row.id, { name: "v2-" + input.inputs.key });
+        await deleteRecord(c, "Shop.Team", row.id);
+        return { id: row.id };
+      },
       archiveTouch: async (c, input) => {
         calls.push("archiveTouch");
         const row = await set(c, "Shop.Team", input.inputs.id, { name: "touched" });
@@ -1317,6 +1328,12 @@ function c2Artifact(module: string): CompileArtifact {
       inputs: { fields: [strInput("key", true), strInput("owner", true)] },
     },
     {
+      name: "acme.Probe.updateRemove",
+      kind: "scenario",
+      description: "",
+      inputs: { fields: [strInput("key", true), strInput("owner", true)] },
+    },
+    {
       name: "acme.Probe.archiveTouch",
       kind: "scenario",
       description: "",
@@ -1362,6 +1379,7 @@ function c2Artifact(module: string): CompileArtifact {
     crudTripwire("acme.Plain.create", "createPlain"),
     crudTripwire("acme.Plain.update", "updatePlain"),
     { id: "acme.Probe.selfCancel", kind: "operation", module, export: "Probe_selfCancel", member: ["Probe", "selfCancel"] },
+    { id: "acme.Probe.updateRemove", kind: "operation", module, export: "Probe_updateRemove", member: ["Probe", "updateRemove"] },
     { id: "acme.Probe.archiveTouch", kind: "operation", module, export: "Probe_archiveTouch", member: ["Probe", "archiveTouch"] },
     { id: "acme.Probe.orphanMember", kind: "operation", module, export: "Probe_orphanMember", member: ["Probe", "orphanMember"] },
     { id: "acme.Probe.ghostMember", kind: "operation", module, export: "Probe_ghostMember", member: ["Probe", "ghostMember"] },
@@ -1699,5 +1717,59 @@ describe("T32c C2 self-cancel netting verdict (B1, production shape)", () => {
       ["create", "archive"],
     );
     assert.deepEqual(mod.calls, ["selfCancel"]);
+  });
+
+  it("create+update+remove of an archive-mode record commits the full trail (I00 gap pin)", async () => {
+    // B-answer relay (C2): update+remove-through-seam was the unpinned
+    // I00 remainder after B retracted version-error-as-scenario-seam.
+    // Like create+remove it nets and COMMITS (B1 pipeline netting);
+    // the intermediate update persists in the committed trail.
+    const { asm, artifact, store, seed, mod } = await c2Setup();
+    const invoker = buildInvoker(artifact, asm, store, {
+      memberships: seed.store,
+      now: () => seed.now,
+    });
+    const identity = await identityFor(seed, seed.memberToken);
+    const outcome = await invoker.invokeMutation(
+      mutationEnvelope("acme.Probe.updateRemove", freshOperationId(seed.now), {
+        key: "tmp-2",
+        owner: seed.memberId,
+      }),
+      identity,
+    );
+    assert.ok("result" in outcome, `update+remove must commit: ${JSON.stringify(outcome)}`);
+    assert.equal((outcome.result as MutationResult).status, "committed");
+    const row = await store.load("Shop.Team" as ModelName, "tmp-2" as RecordId);
+    assert.ok(row !== null);
+    assert.equal(row.archivedAt, seed.now);
+    assert.equal(row.data["name"], "v2-tmp-2");
+    const trail = await store.historyFor("Shop.Team" as ModelName, "tmp-2" as RecordId);
+    assert.deepEqual(
+      trail.map((entry) => entry.change),
+      ["create", "update", "archive"],
+    );
+    assert.deepEqual(mod.calls, ["updateRemove"]);
+  });
+});
+
+describe("T32c C3/B3 (delivery-field schema rides the loaded set)", () => {
+  it("carries the loader-built whole-set schema (empty sets for delivery-less models)", async () => {
+    // Ruling B batch-2: the registry consumes B3's receipt/schema —
+    // every loaded model holds an entry (empty set when the model has
+    // no T15b delivery field tags). The T18 slice + Plain carry no
+    // delivery tags, so all three entries are empty; the T25 receipt
+    // join (D3) consumes this map downstream. Live observation serving
+    // is explicitly NOT C3 (D3-with-B follow-up).
+    const { asm, artifact } = await c2Setup();
+    const loaded = await loadCanonicalDescriptors(asm, artifact);
+    assert.ok(loaded.deliveryFields instanceof Map);
+    assert.deepEqual(
+      [...loaded.deliveryFields.keys()].sort(),
+      ["Shop.Member", "Shop.Team", "acme.Plain"].sort(),
+    );
+    for (const [model, fields] of loaded.deliveryFields) {
+      assert.ok(fields instanceof Set, `${model} holds a field set`);
+      assert.equal(fields.size, 0, `${model} has no delivery tags`);
+    }
   });
 });
