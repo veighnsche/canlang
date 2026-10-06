@@ -1,6 +1,0 @@
-migration Rename from="old"
- rename before.Task to Work; rename before.Task.title to Work.name
- drop before.Task; drop before.Task.old
- invalidate before.refresh; invalidate before.not
- backfill Work
-  do set row {name=before.title}

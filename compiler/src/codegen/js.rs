@@ -1015,11 +1015,15 @@ fn is_ui_factory(factory: &str) -> bool {
             | "breadcrumbs"
             | "button"
             | "card"
+            | "chatBubble"
             | "content"
             | "copy"
+            | "deleteRecord"
             | "details"
             | "divider"
             | "edit"
+            | "fab"
+            | "fieldset"
             | "form"
             | "history"
             | "input"
@@ -1028,6 +1032,8 @@ fn is_ui_factory(factory: &str) -> bool {
             | "metrics"
             | "modal"
             | "pagination"
+            | "radio"
+            | "select"
             | "slot"
             | "stat"
             | "tab"
@@ -3075,7 +3081,43 @@ impl<'a> Emitter<'a> {
                 ));
             }
             None => {
-                if !node.children.is_empty() {
+                // A2b: `fab` and `chatBubble` take grouped suites,
+                // never `children` (their F props have no children
+                // slot; shapes validated at decode).
+                if node.factory == "fab" {
+                    let mut kids = node.children.iter();
+                    if let Some(main) = kids.next() {
+                        props.push(format!("main:[{}]", self.lower_ui_ctx(main, ctx)));
+                    }
+                    let rest: Vec<String> =
+                        kids.map(|c| self.lower_ui_ctx(c, ctx)).collect();
+                    props.push(format!("actions:[{}]", rest.join(",")));
+                } else if node.factory == "chatBubble" {
+                    // Slot children group by slot name in
+                    // first-seen order; non-slot children were
+                    // rejected at decode and are skipped (total).
+                    let mut names: Vec<&str> = Vec::new();
+                    for child in &node.children {
+                        if let Some(name) = crate::codegen::ir::ui_slot_name(child)
+                            && !names.contains(&name)
+                        {
+                            names.push(name);
+                        }
+                    }
+                    for name in names {
+                        // Slots dissolve: F takes the grouped
+                        // children, not `slot()` wrappers.
+                        let mut group: Vec<String> = Vec::new();
+                        for child in node.children.iter().filter(|c| {
+                            crate::codegen::ir::ui_slot_name(c) == Some(name)
+                        }) {
+                            for grand in &child.children {
+                                group.push(self.lower_ui_ctx(grand, ctx));
+                            }
+                        }
+                        props.push(format!("{name}:[{}]", group.join(",")));
+                    }
+                } else if !node.children.is_empty() {
                     let children = node
                         .children
                         .iter()
@@ -3771,14 +3813,32 @@ impl<'a> Emitter<'a> {
             if retain.is_some() {
                 members.push(format!("retainUntil:{}", js_string(&item.name)));
             }
-            for unique in &uniques {
-                // Composite uniques are checked but have no §13 member
-                // shape: loud `E6008`, omitted from the member.
-                self.unsupported(
-                    "unique constraint",
-                    "composite unique constraints have no §13 lowering",
-                    unique.span,
-                );
+            // A2b: sparse `uniques` member; each entry inherits the
+            // enclosing model entry scope (explicit `parent`/`app`
+            // or the default team scope — no scope tag). The
+            // `where` id references the `Model.unique.N` rule
+            // registered beside the invariants.
+            if !uniques.is_empty() {
+                let entries: Vec<String> = uniques
+                    .iter()
+                    .enumerate()
+                    .map(|(index, unique)| {
+                        let fields = unique
+                            .fields
+                            .iter()
+                            .map(|f| js_string(f))
+                            .collect::<Vec<_>>()
+                            .join(",");
+                        match unique.where_predicate {
+                            Some(_) => format!(
+                                "{{fields:[{fields}],where:{}}}",
+                                js_string(&format!("{}.unique.{}", item.name, index + 1))
+                            ),
+                            None => format!("{{fields:[{fields}]}}"),
+                        }
+                    })
+                    .collect();
+                members.push(format!("uniques:[{}]", entries.join(",")));
             }
             members.push(self.emit_fields_schema(&fields));
             let derived = self.emit_derived_member(item.id);
@@ -4800,10 +4860,7 @@ impl<'a> Emitter<'a> {
         let mut models = Vec::new();
         for item in &self.ir.items {
             let IrItemKind::Model {
-                fields,
-                owner,
-                uniques,
-                ..
+                fields, owner, ..
             } = &item.kind
             else {
                 continue;
@@ -4834,9 +4891,11 @@ impl<'a> Emitter<'a> {
                 };
                 out_fields.push(self.model_field(field_item));
             }
-            // Unique keys in source order: field-level `unique` names
-            // first (field order), then one comma-joined entry per
-            // composite unique (declaration order).
+            // Unique keys in source order: field-level `unique`
+            // names only (field order). Composite uniques live on
+            // the `uniques` member of `appDefinition.models`
+            // (A2b); the old comma-joined fold is shed (B verdict:
+            // actively false, load-bearing for T16/T17).
             let mut unique_keys = Vec::new();
             for field_id in fields {
                 let Some(field_item) = self.ir.items.get(field_id.0 as usize) else {
@@ -4847,9 +4906,6 @@ impl<'a> Emitter<'a> {
                 {
                     unique_keys.push(field_item.name.clone());
                 }
-            }
-            for unique in uniques {
-                unique_keys.push(unique.fields.join(","));
             }
             models.push(JsModel {
                 name: item.canonical.clone(),

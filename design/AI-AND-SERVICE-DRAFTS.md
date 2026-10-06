@@ -12,7 +12,7 @@ The existing apps already have workflows beyond CRUD, including reservations, as
 
 ## What exists, and what is actually missing
 
-[DESIGN §8](../DESIGN.md) already provides typed capability imports, durable `send`, associated delivery references, verified events, final completions and receiving-app finalization of provider files. Those mechanisms can represent final LLM replies, classifier answers, image submission and completion. Provider-defined events can also carry progress. Therefore these are not all expressiveness failures.
+[DESIGN §8](../docs/specification/DESIGN.md) already provides typed capability imports, durable `send`, associated delivery references, verified events, final completions and receiving-app finalization of provider files. Those mechanisms can represent final LLM replies, classifier answers, image submission and completion. Provider-defined events can also carry progress. Therefore these are not all expressiveness failures.
 
 The demonstrated missing **shared contracts** are narrower:
 

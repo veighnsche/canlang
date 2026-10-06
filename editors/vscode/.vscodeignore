@@ -1,6 +1,5 @@
 # Local-only assets excluded from the packaged VSIX (see README.md).
 src/**
-audit-astra/**
 images/previews/**
 .vscode/**
 check-highlighting.cjs
