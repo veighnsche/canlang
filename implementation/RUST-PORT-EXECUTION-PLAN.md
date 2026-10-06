@@ -2,6 +2,8 @@
 
 **Planning only. Implementation remains deferred.** The human instruction on 2026-10-07 replaces the proposed Muse workers with economical Codex subagents and requires early, frequent commits. This document starts no implementation, worktree, runtime, build, goal or schedule. Native preparation/native-release remains **HUMAN HOLD**.
 
+Begin with the [ordered start-here checklist](RUST-PORT-START-HERE.md): finish scope/contracts/packet planning, then release three bounded worker packets, numeric repairs, actual binding/assembly joins, parallel import/map work, installed consumers and selected adapter follow-ups. Review and commit each released slice throughout; there is no all-lane waiting wave.
+
 ## Authority and bounded scope
 
 Codex is the sole orchestrator, scheduled supervisor, independent acceptance owner and main integrator. Use the exposed collaboration tools to dispatch finite Codex subagent packets. No Muse processes, tmux role topology, peer handshakes, permanent lane coordinators or local recurring schedules are required. The earlier [Muse proposal](rust-port-orchestration/legacy/MUSE-EXECUTION-PROPOSAL.md) and its startup templates are superseded evidence, not instructions to activate.
