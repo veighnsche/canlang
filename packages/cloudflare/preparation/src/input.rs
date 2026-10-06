@@ -70,6 +70,133 @@ struct WireNode {
     entries: Option<Vec<(Vec<u16>, WireNode)>>,
 }
 
+/// Shared admitted-tree accessors (P04.2): algorithm lanes read
+/// validated facts through these; each mirrors one JS predicate.
+pub fn units_eq(units: &[u16], text: &str) -> bool {
+    units.len() == text.len() && units.iter().zip(text.bytes()).all(|(u, b)| *u == b as u16)
+}
+
+/// Object member lookup by ASCII key (`undefined` when absent or not an object).
+pub fn obj_get<'a>(node: &'a Node, key: &str) -> Option<&'a Node> {
+    match node {
+        Node::Obj(entries) => entries
+            .iter()
+            .find(|(k, _)| units_eq(k, key))
+            .map(|(_, v)| v),
+        _ => None,
+    }
+}
+
+pub fn as_text(node: &Node) -> Option<&Vec<u16>> {
+    match node {
+        Node::Text(units) => Some(units),
+        _ => None,
+    }
+}
+
+pub fn nonempty_text(node: &Node) -> Option<&Vec<u16>> {
+    as_text(node).filter(|units| !units.is_empty())
+}
+
+pub fn as_num(node: &Node) -> Option<(u64, &str)> {
+    match node {
+        Node::Num { bits, spelling } => Some((*bits, spelling.as_str())),
+        _ => None,
+    }
+}
+
+pub fn as_arr(node: &Node) -> Option<&Vec<Node>> {
+    match node {
+        Node::Arr(items) => Some(items),
+        _ => None,
+    }
+}
+
+pub fn as_obj(node: &Node) -> Option<&Vec<(Vec<u16>, Node)>> {
+    match node {
+        Node::Obj(entries) => Some(entries),
+        _ => None,
+    }
+}
+
+pub fn as_bool(node: &Node) -> Option<bool> {
+    match node {
+        Node::Bool(v) => Some(*v),
+        _ => None,
+    }
+}
+
+/// WTF-16 → Unicode for rendered detail strings. Matches Node's
+/// stdout encoding (lone surrogates become U+FFFD); all well-formed
+/// text renders byte-exactly.
+pub fn render_text(units: &[u16]) -> String {
+    String::from_utf16_lossy(units)
+}
+
+/// Exact `JSON.stringify` for a string over UTF-16 units: quotes
+/// only `"`, `\` and C0 controls (short escapes where JS has them);
+/// lone surrogates become lowercase `\uXXXX`; pairs and the rest
+/// pass raw.
+pub fn json_quote(units: &[u16]) -> String {
+    let mut out = String::with_capacity(units.len() + 2);
+    out.push('"');
+    let mut i = 0;
+    while i < units.len() {
+        let u = units[i];
+        match u {
+            0x22 => out.push_str("\\\""),
+            0x5C => out.push_str("\\\\"),
+            0x08 => out.push_str("\\b"),
+            0x09 => out.push_str("\\t"),
+            0x0A => out.push_str("\\n"),
+            0x0C => out.push_str("\\f"),
+            0x0D => out.push_str("\\r"),
+            0x00..=0x1F => {
+                out.push_str(&format!("\\u{u:04x}"));
+            }
+            0xD800..=0xDBFF => {
+                if i + 1 < units.len() && (0xDC00..=0xDFFF).contains(&units[i + 1]) {
+                    let hi = u as u32 - 0xD800;
+                    let lo = units[i + 1] as u32 - 0xDC00;
+                    // Valid pair: always a defined scalar value.
+                    if let Some(ch) = char::from_u32(0x1_0000 + (hi << 10) + lo) {
+                        out.push(ch);
+                    }
+                    i += 1;
+                } else {
+                    out.push_str(&format!("\\u{u:04x}"));
+                }
+            }
+            0xDC00..=0xDFFF => {
+                out.push_str(&format!("\\u{u:04x}"));
+            }
+            _ => {
+                // BMP scalar: every non-surrogate unit is a valid char.
+                out.push(char::from_u32(u as u32).unwrap_or('\u{FFFD}'));
+            }
+        }
+        i += 1;
+    }
+    out.push('"');
+    out
+}
+
+/// JS `String(value)` over reachable shapes. Numbers use canonical
+/// spellings (parsed-domain numbers are finite, where `String(n)`
+/// equals `JSON.stringify(n)`); arrays join with commas; objects
+/// render `[object Object]`.
+pub fn js_string(node: &Node) -> String {
+    match node {
+        Node::Null => "null".to_string(),
+        Node::Bool(true) => "true".to_string(),
+        Node::Bool(false) => "false".to_string(),
+        Node::Num { spelling, .. } => spelling.clone(),
+        Node::Text(units) => render_text(units),
+        Node::Arr(items) => items.iter().map(js_string).collect::<Vec<_>>().join(","),
+        Node::Obj(_) => "[object Object]".to_string(),
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct DecodeError {
     pub code: &'static str,
@@ -223,6 +350,35 @@ pub fn decode_tree(json: &[u8]) -> Result<Node, DecodeError> {
         .map_err(|e| DecodeError::new(transport::BAD_NODE, format!("tree is not a node: {e}")))?;
     let mut budget = Budget { nodes: 0, units: 0 };
     decode_node(&wire, 1, &mut budget)
+}
+
+/// Encode one node to the tagged wire JSON (P04.4 `ACTIVATION_REQUEST`
+/// carries the core-computed installed facts back to the host in this
+/// form: the host already holds the other `activate()` inputs, and the
+/// core's installed reading stays the single authority). Shapes mirror
+/// `inputs.ts encodeNode` exactly (`num` bits are 16 lowercase hex).
+pub fn encode_tree(node: &Node) -> serde_json::Value {
+    match node {
+        Node::Null => serde_json::json!({"t": "null"}),
+        Node::Bool(v) => serde_json::json!({"t": "bool", "v": v}),
+        Node::Num { bits, spelling } => serde_json::json!({
+            "t": "num",
+            "bits": format!("{bits:016x}"),
+            "spelling": spelling,
+        }),
+        Node::Text(units) => serde_json::json!({"t": "text", "units": units}),
+        Node::Arr(items) => serde_json::json!({
+            "t": "arr",
+            "items": items.iter().map(encode_tree).collect::<Vec<_>>(),
+        }),
+        Node::Obj(entries) => serde_json::json!({
+            "t": "obj",
+            "entries": entries
+                .iter()
+                .map(|(key, value)| serde_json::json!([key, encode_tree(value)]))
+                .collect::<Vec<_>>(),
+        }),
+    }
 }
 
 #[cfg(test)]
