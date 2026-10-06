@@ -1,0 +1,134 @@
+{
+  "id": "step6:R2:N05-private-validation-join",
+  "task_ids": [
+    "ports:V02.6",
+    "ports:V03.4",
+    "ports:V03.5"
+  ],
+  "scope": "Consume accepted PH1\u2013PH4 contracts and exact R1 input; implement dependency-ready genuine private core/hook and finite registration/profile joins with trace/owner controls. Shared Rust/ABI writes require R1 release.",
+  "inspect_paths": [
+    "packages/values/src/schema.ts",
+    "packages/values/src/wire.ts",
+    "packages/values/src/index.ts",
+    "packages/values/src/prepared/plan.ts",
+    "packages/values/src/prepared/validation.ts",
+    "packages/values/src/prepared/codec.ts",
+    "packages/values/semantics/src/plans.rs",
+    "packages/values/semantics/src/profiles.rs",
+    "packages/values/bindings/plans.ts",
+    "packages/values/test/prepared-hook.test.ts",
+    "packages/values/test/prepared-validation.test.ts"
+  ],
+  "writable_paths_initial": [
+    "docs/research/package-subsystem-ports-20261006/evidence/input-validation/step6-readiness.json"
+  ],
+  "acceptance": [
+    "No recursive prepared/public delegation; public legacy behavior and export signatures retain exact assertion/parse/traversal/error order",
+    "No universal artifact-version provenance or adoption from factory identity/freeze/shape; canonical defaults/complete identity/lifetime and graph isolation retain PH2\u20134",
+    "Propose exact private core paths and finite schema/wire/prepared/test writes to R1/root before source edits, then execute acknowledged handoff; no planning-only stop if ready source or disjoint unblocker exists"
+  ],
+  "role": "R2",
+  "base": "7b500f75f7b665c6b37d8307179e861c49761138",
+  "run_id": "codex-step6-20261006T235151Z",
+  "private_output_root": "/private/tmp/canlang-rust-port-codex-step6-20261006T235151Z/R2",
+  "model": "gpt-6.1-sol",
+  "reasoning_effort": "high",
+  "model_reason": "Known producer/ABI/private-core or actual Cargo assembly join risks; user step6 and task-specific N05/N06 allocation select Sol high.",
+  "execution_authorized": true,
+  "source_input_sha256": {
+    "implementation/remaining-work/tasks.json": {
+      "exists": true,
+      "sha256": "cd01ebb2276e9bbd362085070b985811543f4bcb1d7ad0d0ac0530d3092bc3f4"
+    },
+    "implementation/rust-port-lanes.json": {
+      "exists": true,
+      "sha256": "4936af9c418fbf8accb9932e24abb622d11563d776fb271c6dac111615439033"
+    },
+    "implementation/rust-port-orchestration/packets.json": {
+      "exists": true,
+      "sha256": "5cb1d1c4dabe7b8d5f5d9959298b4d3d31112012493a7e4f78e3bd64f92f55ae"
+    },
+    "docs/research/package-library-audit-20261006/adoption-sequence.json": {
+      "exists": true,
+      "sha256": "d93dcb00638680b1b861c90ec6a445267942b8ca6f7ca479fb60bc0386ca3a9f"
+    },
+    "docs/research/package-library-audit-20261006/model-allocation-20261007.json": {
+      "exists": true,
+      "sha256": "b4a6f780f3f70f136c1fce3984e04bad0637cee50a44b1bd3d813e3adcb2e05b"
+    },
+    "implementation/rust-port-orchestration/contracts-20261007/ownership.json": {
+      "exists": true,
+      "sha256": "728cbd42913d7eef29c3686d282f796f101076224860a88afd9f71fb184200df"
+    },
+    "docs/research/package-subsystem-ports-20261006/evidence/input-validation/prepared-hook-review.md": {
+      "exists": true,
+      "sha256": "8264d4a6063d1e0b3ee3933cefe2c20bbe039abcdc7b6668f6ee91a984ccbda0"
+    },
+    "docs/research/package-subsystem-ports-20261006/evidence/input-validation/v01-review.md": {
+      "exists": true,
+      "sha256": "82c0970b2c9a15add89875c0379aecdf2ff0e69de0f3357231c34f8a9a30b15d"
+    },
+    "docs/research/package-subsystem-ports-20261006/evidence/input-validation/plan-contract.md": {
+      "exists": true,
+      "sha256": "52e2cfb8c5509a8d18e732c3d9135e730445656c23b038ff29215bc090081b6b"
+    },
+    "packages/values/src/schema.ts": {
+      "exists": true,
+      "sha256": "8216016fd7467e3ac6b23b79a06a3d55d9aff2f4bfba3a1d0ecc77c2760f5772"
+    },
+    "packages/values/src/wire.ts": {
+      "exists": true,
+      "sha256": "73832128fd4b2db93d08770836271323d61bed02647ca83fd21bdd9496054f03"
+    },
+    "packages/values/src/index.ts": {
+      "exists": true,
+      "sha256": "d92ac7192a8739ddbfaf32ccc64e0aeba7fb30726e7bf40d7e81eb9a239d61c4"
+    },
+    "packages/values/src/prepared/plan.ts": {
+      "exists": true,
+      "sha256": "31cc0a8a09774f5a6754372700b41269cd3df73de4171574053fbab661faa0d4"
+    },
+    "packages/values/src/prepared/validation.ts": {
+      "exists": true,
+      "sha256": "34d0723b0491b54908fecf7494f1e5bd16bf78b470473ab2d1108f322c3e3e76"
+    },
+    "packages/values/src/prepared/codec.ts": {
+      "exists": true,
+      "sha256": "ffe679d4db03ea3944c7af94a1eb88cb3398207dc319d41ce5413f39786e04a0"
+    },
+    "packages/values/semantics/src/plans.rs": {
+      "exists": true,
+      "sha256": "a273a9ae85ffb1492f3780713774a01722f2b9cd0db2740ffe5e81f10ded4a7c"
+    },
+    "packages/values/semantics/src/profiles.rs": {
+      "exists": true,
+      "sha256": "6f98f6f6d90be53ad32ac539331a9e421e5743c0db8bc0e7253f28e1191db625"
+    },
+    "packages/values/bindings/plans.ts": {
+      "exists": true,
+      "sha256": "a611f1dbb44c14afc5a213b5ee664db486c83676fccf83a0344043d1464d4274"
+    },
+    "packages/values/test/prepared-hook.test.ts": {
+      "exists": false,
+      "sha256": null
+    },
+    "packages/values/test/prepared-validation.test.ts": {
+      "exists": true,
+      "sha256": "66042a3bf631a1160959bf1f58c5078c8db35843aafd2f29e666a9dca3879458"
+    }
+  },
+  "assigned_agent": "/root/step6_r2_validation",
+  "ack_observed": true,
+  "runtime_status": "private_core_hook_implementation",
+  "writable_paths": [
+    "packages/values/src/schema.ts",
+    "packages/values/src/wire.ts",
+    "packages/values/src/internal/schema-core.ts",
+    "packages/values/src/internal/wire-core.ts",
+    "packages/values/src/prepared/validation.ts",
+    "packages/values/src/prepared/codec.ts",
+    "packages/values/test/prepared-hook.test.ts",
+    "docs/research/package-subsystem-ports-20261006/evidence/input-validation/step6-readiness.json"
+  ],
+  "defining_owner_handoff_ack_observed": true
+}

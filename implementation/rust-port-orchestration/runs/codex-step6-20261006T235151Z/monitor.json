@@ -1,0 +1,116 @@
+{
+  "schema_version": 1,
+  "run_id": "codex-step6-20261006T235151Z",
+  "phase": "step6_running",
+  "execution_authorized": true,
+  "human_release_reference": "Human step6 in this chat,2026-10-07",
+  "base": "7b500f75f7b665c6b37d8307179e861c49761138",
+  "preparation_hold": true,
+  "roles": [
+    {
+      "role": "R1",
+      "agent": "/root/step6_r1_values",
+      "packet": "packet-R1.json",
+      "model": "gpt-6.1-sol",
+      "effort": "high",
+      "ack_observed": true,
+      "status": "bootstrap_actual_consumer_repair",
+      "writer_released": false
+    },
+    {
+      "role": "R2",
+      "agent": "/root/step6_r2_validation",
+      "packet": "packet-R2.json",
+      "model": "gpt-6.1-sol",
+      "effort": "high",
+      "ack_observed": true,
+      "status": "private_core_hook_implementation",
+      "writer_released": false
+    },
+    {
+      "role": "R3",
+      "agent": "/root/review_b_v01",
+      "packet": "packet-R3.json",
+      "model": "gpt-6.1-sol",
+      "effort": "high",
+      "ack_observed": true,
+      "status": "real_Cargo_registration",
+      "writer_released": false,
+      "reused_completed_handle": true,
+      "fresh_spawn_failed": "agent thread limit reached"
+    }
+  ],
+  "command_capacity": {
+    "max_concurrent_heavy": 2,
+    "slots": [],
+    "jobs_per_build": 2,
+    "private_outputs": true
+  },
+  "canonical_parent_statuses_changed": false,
+  "no_muse_tmux_local_timers": true,
+  "foreign_compiler_and_shared_docs_preserved": true,
+  "future_dispatch_authorized": false,
+  "updated_at_utc": "2026-10-06T23:57:30.308603+00:00",
+  "supervisor_status": "ACTIVE",
+  "command_permits": [
+    {
+      "id": "R1-B1",
+      "role": "R1",
+      "status": "granted_awaiting_actual_start",
+      "scope": "Private exact-source values tsc baseline+Node/Bun focus; R2 source handoff before live compilation"
+    },
+    {
+      "id": "R3-C1",
+      "role": "R3",
+      "status": "initial_complete_released",
+      "scope": "Sequential offline/locked actual Cargo native test/fmt/clippy, private target,jobs2",
+      "native_exit": 0,
+      "native_tests": 319,
+      "fmt_exit": 1,
+      "clippy_exit": 101,
+      "handle_receipts": "Owner actual receipt file due; all3 reported complete",
+      "concurrency_note": "Owner reported accidental brief fmt/clippy overlap; both completed, subsequent recipes strictly sequential"
+    },
+    {
+      "id": "R2-C1",
+      "role": "R2",
+      "status": "granted_awaiting_actual_start",
+      "scope": "Private staged exact TS tsc thenfocusedNode tests conformance/original accessor traces, concurrency2"
+    }
+  ],
+  "source_handoffs": [
+    {
+      "from": "R1 defining values owner",
+      "to": "R2",
+      "receipt": "R1 exact placement/no overlap and root ACK actual collaboration messages",
+      "paths": [
+        "packages/values/src/schema.ts",
+        "packages/values/src/wire.ts",
+        "packages/values/src/internal/schema-core.ts",
+        "packages/values/src/internal/wire-core.ts",
+        "packages/values/src/prepared/validation.ts",
+        "packages/values/src/prepared/codec.ts",
+        "packages/values/test/prepared-hook.test.ts"
+      ],
+      "limits": "No index/common Rust/ABI/plans/bindings write transfer; full private-owner/adoption lifetime remains gated"
+    }
+  ],
+  "material_progress": {
+    "R1": "Actual bootstrap repeatedinit/CompiledWasm admission defect identified; private trackedbaseline supplied, narrow repair active",
+    "R2": "Private core extraction/facades implemented in actual leased files; inverse-original-body proof/stable hashes supplied, focused original-trace gates granted",
+    "R3": "Actual decision modules registered and319native tests passed; fmt1/clippy101 integration repairs in exactextendedleaves, initial overlap recorded"
+  },
+  "lease_extensions": {
+    "R1": [
+      "packages/values/test/exact-bootstrap.workerd.mjs"
+    ],
+    "R3": [
+      "packages/work-kernel/decisions/rows.rs",
+      "packages/work-kernel/decisions/receipt.rs",
+      "packages/work-kernel/decisions/recovery.rs",
+      "packages/work-kernel/decisions/linkage.rs",
+      "packages/work-kernel/decisions/numeric_text.rs"
+    ],
+    "limits": "R3 sharedformatterimport/cfgtestmechanics and fmt only, noalgorithm/fixturechanges"
+  }
+}

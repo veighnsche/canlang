@@ -1,0 +1,152 @@
+{
+  "id": "step6:R3:N06-registered-decisions",
+  "task_ids": [
+    "ports:W04.1",
+    "ports:W04.2",
+    "ports:W04.3",
+    "ports:W04.4"
+  ],
+  "scope": "Register selected existing pure decision modules in actual work-kernel Cargo root, reconcile exact Rust data types, actual native differential/compile/test/fmt/clippy gates; retain W03.1/W03.4 consumer qualifications until real production proof.",
+  "inspect_paths": [
+    "packages/work-kernel/Cargo.toml",
+    "packages/work-kernel/Cargo.lock",
+    "packages/work-kernel/rust/lib.rs",
+    "packages/work-kernel/decisions/numeric_text.rs",
+    "packages/work-kernel/decisions/rows.rs",
+    "packages/work-kernel/decisions/retry.rs",
+    "packages/work-kernel/decisions/every.rs",
+    "packages/work-kernel/decisions/lifecycle.rs",
+    "packages/work-kernel/decisions/receipt.rs",
+    "packages/work-kernel/decisions/recovery.rs",
+    "packages/work-kernel/decisions/linkage.rs",
+    "packages/work-kernel/src/facts.ts",
+    "packages/work-kernel/src/index.ts",
+    "packages/work-kernel/conformance/native-numeric-text.rs"
+  ],
+  "writable_paths": [
+    "packages/work-kernel/Cargo.toml",
+    "packages/work-kernel/Cargo.lock",
+    "packages/work-kernel/rust/lib.rs",
+    "packages/work-kernel/decisions/lib.rs",
+    "packages/work-kernel/conformance/registered-native.rs",
+    "packages/work-kernel/conformance/registered-differential.mjs",
+    "docs/research/package-subsystem-ports-20261006/evidence/implementation/work-transitions/handoffs/native-conformance.json"
+  ],
+  "acceptance": [
+    "Actual root executes all selected decisions, cannot count empty VERSION-only build",
+    "Immutable original TS vectors/numeric/error/fault/presence/lossless UTF16/number channels feed registered Rust and independent TS observations",
+    "Locked test/fmt/clippy and forbidden host-authority imports/features reviewed; no hidden I/O/callback authority or W04.4 completion from missing W03.4 prerequisites",
+    "Request precise leaf/test file extension if compile/conformance defect requires; no root/bun.lock/compiler/consumer delivery edits without owner handoff"
+  ],
+  "role": "R3",
+  "base": "7b500f75f7b665c6b37d8307179e861c49761138",
+  "run_id": "codex-step6-20261006T235151Z",
+  "private_output_root": "/private/tmp/canlang-rust-port-codex-step6-20261006T235151Z/R3",
+  "model": "gpt-6.1-sol",
+  "reasoning_effort": "high",
+  "model_reason": "Known producer/ABI/private-core or actual Cargo assembly join risks; user step6 and task-specific N05/N06 allocation select Sol high.",
+  "execution_authorized": true,
+  "source_input_sha256": {
+    "implementation/remaining-work/tasks.json": {
+      "exists": true,
+      "sha256": "cd01ebb2276e9bbd362085070b985811543f4bcb1d7ad0d0ac0530d3092bc3f4"
+    },
+    "implementation/rust-port-lanes.json": {
+      "exists": true,
+      "sha256": "4936af9c418fbf8accb9932e24abb622d11563d776fb271c6dac111615439033"
+    },
+    "implementation/rust-port-orchestration/packets.json": {
+      "exists": true,
+      "sha256": "5cb1d1c4dabe7b8d5f5d9959298b4d3d31112012493a7e4f78e3bd64f92f55ae"
+    },
+    "docs/research/package-library-audit-20261006/adoption-sequence.json": {
+      "exists": true,
+      "sha256": "d93dcb00638680b1b861c90ec6a445267942b8ca6f7ca479fb60bc0386ca3a9f"
+    },
+    "docs/research/package-library-audit-20261006/model-allocation-20261007.json": {
+      "exists": true,
+      "sha256": "b4a6f780f3f70f136c1fce3984e04bad0637cee50a44b1bd3d813e3adcb2e05b"
+    },
+    "implementation/rust-port-orchestration/contracts-20261007/ownership.json": {
+      "exists": true,
+      "sha256": "728cbd42913d7eef29c3686d282f796f101076224860a88afd9f71fb184200df"
+    },
+    "docs/research/package-subsystem-ports-20261006/evidence/input-validation/prepared-hook-review.md": {
+      "exists": true,
+      "sha256": "8264d4a6063d1e0b3ee3933cefe2c20bbe039abcdc7b6668f6ee91a984ccbda0"
+    },
+    "docs/research/package-subsystem-ports-20261006/evidence/input-validation/v01-review.md": {
+      "exists": true,
+      "sha256": "82c0970b2c9a15add89875c0379aecdf2ff0e69de0f3357231c34f8a9a30b15d"
+    },
+    "docs/research/package-subsystem-ports-20261006/evidence/input-validation/plan-contract.md": {
+      "exists": true,
+      "sha256": "52e2cfb8c5509a8d18e732c3d9135e730445656c23b038ff29215bc090081b6b"
+    },
+    "packages/work-kernel/Cargo.toml": {
+      "exists": true,
+      "sha256": "553dbdbb7d912cff34af5641017a27879ce5885f7395cdeb004a5bd9148c0374"
+    },
+    "packages/work-kernel/Cargo.lock": {
+      "exists": true,
+      "sha256": "4337a64e41e2ada24f61e1fbdd3621427d88832e5c978536c58cf4d2257950a9"
+    },
+    "packages/work-kernel/rust/lib.rs": {
+      "exists": true,
+      "sha256": "33177d2d67ebc8138a11937f00231436cbabc14d1ea6a9b7449cac10f36c2e98"
+    },
+    "packages/work-kernel/decisions/numeric_text.rs": {
+      "exists": true,
+      "sha256": "2b8f51a8da20de130d278f6c81d080656ba450b70c807a0e94ce4289bd3b5eb6"
+    },
+    "packages/work-kernel/decisions/rows.rs": {
+      "exists": true,
+      "sha256": "42f0fcbc4cc1dd31f8ef6dd180c717529c01a87b3548c262ef3095f273943393"
+    },
+    "packages/work-kernel/decisions/retry.rs": {
+      "exists": true,
+      "sha256": "f2d2ee809e2fa112a67de4c699361e214b49885a9b24a02849df80c1903c11cb"
+    },
+    "packages/work-kernel/decisions/every.rs": {
+      "exists": true,
+      "sha256": "9d25cc9b22d28fe2e8c6cd31b18d5605649d15f4c1b70d46ab6860caf79def23"
+    },
+    "packages/work-kernel/decisions/lifecycle.rs": {
+      "exists": true,
+      "sha256": "70af017dd928e49f0528a6a2a88df913c6ff3f3c8dcb47294b2781953c9f1342"
+    },
+    "packages/work-kernel/decisions/receipt.rs": {
+      "exists": true,
+      "sha256": "71f914d0732e217b11836d52cb5ba9c913aa2b4923f0d6e6a73493418e4d885d"
+    },
+    "packages/work-kernel/decisions/recovery.rs": {
+      "exists": true,
+      "sha256": "0954637f04bad18e684d449f5397922b764087c2fd1b90b91e5a1bfb389d9ec2"
+    },
+    "packages/work-kernel/decisions/linkage.rs": {
+      "exists": true,
+      "sha256": "ce6e9b790a8e5dffb2f4eb83237a8fc8f4a646f868ad8da98cb2cc948bae546d"
+    },
+    "packages/work-kernel/src/facts.ts": {
+      "exists": true,
+      "sha256": "d10518896028ef5243d066fab4938fcb3657b0b85a90feea680a9dfdaeb6c61a"
+    },
+    "packages/work-kernel/src/index.ts": {
+      "exists": true,
+      "sha256": "19d90ce21117e04456f95e44d5d51f7303fd9b17cbf236813b673173eedc4c49"
+    },
+    "packages/work-kernel/conformance/native-numeric-text.rs": {
+      "exists": true,
+      "sha256": "add8194c697abfb55e3fb0671bb67471733d6b126db66ad43548d9a97606ac64"
+    }
+  },
+  "assigned_agent": "/root/review_b_v01",
+  "ack_observed": true,
+  "runtime_status": "real_Cargo_registration",
+  "dependency_lease": {
+    "ryu-js": "=1.0.3; normal,no defaultfeatures",
+    "serde_json": "=1.0.151; dev-only if used,default/std",
+    "offline_lock_resolution": true
+  },
+  "dispatcher_retry": "Fresh spawn hit thread limit; reuse available completed Solhighreview handle with actual finite new assignment ACK."
+}

@@ -1,0 +1,35 @@
+{
+  "checked_at_utc": "2026-10-06T23:57:30.308603+00:00",
+  "skill": "/Users/vince/.codex/skills/model-selection/SKILL.md",
+  "official_pages_opened": [
+    "https://developers.openai.com/api/docs/pricing",
+    "https://developers.openai.com/api/docs/models/gpt-6.1-sol"
+  ],
+  "supported_high_observed": true,
+  "choice_is_task_risk_inference_not_benchmark": true,
+  "API_prices_not_subscription_measurement": true,
+  "actual_dispatches": [
+    {
+      "role": "R1",
+      "agent": "/root/step6_r1_values",
+      "model": "gpt-6.1-sol",
+      "reasoning_effort": "high",
+      "reason": "Full actual ABI/carrier/bootstrap and Worker asset join; lower effort risks hidden repeated-init/default errors."
+    },
+    {
+      "role": "R2",
+      "agent": "/root/step6_r2_validation",
+      "model": "gpt-6.1-sol",
+      "reasoning_effort": "high",
+      "reason": "Cross-file private core, nonrecursive hook and genuine provenance/default/evaluation contract; high per N05 known risk."
+    },
+    {
+      "role": "R3",
+      "agent": "/root/review_b_v01",
+      "model": "gpt-6.1-sol",
+      "reasoning_effort": "high",
+      "reason": "Actual Cargo/common numeric module assembly and independent native/TS decision parity per N06; reused completed high-effort handle after new spawn thread cap."
+    }
+  ],
+  "leaf_check_rule": "A separately dispatched fixed consumer check may use Sol medium; repeated receipt indexing may use Luna low. No available extra slot or broad whole-lane permanent goal assumed."
+}

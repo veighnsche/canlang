@@ -1,46 +1,40 @@
 {
   "schema_version": 1,
-  "phase": "complete_N04_finite_release",
-  "execution_authorized": false,
-  "run_dir": "/Users/vince/Projects/canlang/implementation/rust-port-orchestration/runs/codex-n04-20261006T233602Z",
+  "phase": "step6_running",
+  "execution_authorized": true,
+  "run_dir": "/Users/vince/Projects/canlang/implementation/rust-port-orchestration/runs/codex-step6-20261006T235151Z",
   "roles": [
     {
-      "worker": "mechanics",
-      "agent": "/root/worker_n04_mechanics",
-      "packet_id": "N04-mechanics",
+      "role": "R1",
+      "agent": "/root/step6_r1_values",
+      "packet": "packet-R1.json",
       "model": "gpt-6.1-sol",
-      "effort": "low",
-      "reason": "Frozen concrete-str helper; existingserde_json; source+same-module/integration Rust tests, no manifests",
-      "owned_files": [
-        "packages/values/semantics/src/codecs/numeric.rs",
-        "packages/values/semantics/tests/string_escape_contract.rs",
-        "docs/research/package-subsystem-ports-20261006/evidence/implementation/exact-values/core/n01-rust-str-escape.json"
-      ],
-      "ack_path": "/private/tmp/canlang-rust-port-codex-n04-20261006T233602Z/mechanics-ACK.json",
-      "ack_sha256": "81db3c08f71635c5dc4e0b8fe290a569a390d4160e36698e206b4ca8bbbef1d8",
+      "effort": "high",
       "ack_observed": true,
-      "status": "released_complete",
-      "writer_released": true
+      "status": "bootstrap_actual_consumer_repair",
+      "writer_released": false
     },
     {
-      "worker": "fixtures",
-      "agent": "/root/worker_n04_fixtures",
-      "packet_id": "N04-fixtures",
-      "model": "gpt-6-luna",
-      "effort": "medium",
-      "reason": "Prepared93string corpus, specified original caller extraction and TS witness mechanics",
-      "owned_files": [
-        "packages/values/test/string-escape.contract.test.ts",
-        "packages/values/conformance/string-escape.oracle.mjs",
-        "packages/values/conformance/string-escape.json"
-      ],
-      "ack_path": "/private/tmp/canlang-rust-port-codex-n04-20261006T233602Z/fixtures-ACK.json",
-      "ack_sha256": "4bb4fa563072d332f36b67539fb119e029cbf77142fe9a05f3bd608a4e2278f5",
+      "role": "R2",
+      "agent": "/root/step6_r2_validation",
+      "packet": "packet-R2.json",
+      "model": "gpt-6.1-sol",
+      "effort": "high",
       "ack_observed": true,
-      "status": "released_complete",
-      "writer_released": true,
-      "release_path": "/private/tmp/canlang-rust-port-codex-n04-20261006T233602Z/fixtures/release.json",
-      "fixture_sha256": "f5cde655ca236332542ba1ff2db824d744bc8f649e4e4284ba3f3287459229be"
+      "status": "private_core_hook_implementation",
+      "writer_released": false
+    },
+    {
+      "role": "R3",
+      "agent": "/root/review_b_v01",
+      "packet": "packet-R3.json",
+      "model": "gpt-6.1-sol",
+      "effort": "high",
+      "ack_observed": true,
+      "status": "real_Cargo_registration",
+      "writer_released": false,
+      "reused_completed_handle": true,
+      "fresh_spawn_failed": "agent thread limit reached"
     }
   ],
   "native_timers": [],
@@ -50,7 +44,7 @@
   "historical_runtime": "/private/tmp/canlang-idle-20261006T041507Z/monitor.json",
   "historical_runtime_authority": "stopped evidence only; never restore or infer new identity, startup or dispatch",
   "preparation_hold": true,
-  "note": "Human step5 numeric corrections landed as separate narrow N02/N03/N04 releases. All N04 writers/commands released; no successor dispatch. Parent A04.5/W04.4/installed/default acceptance unchanged.",
+  "note": "Human step6 active finite R1/R2/R3 joins; exact owner handoff before writes; no preparation/default adoption; previous narrow releases retained.",
   "muse_native_recurring_jobs_allowed": false,
   "proposed_codex_supervision_minutes": 15,
   "executor": "Codex collaboration subagents",
@@ -58,14 +52,18 @@
   "concurrent_external_work": "Human reports compiler agent editing and committing independently; preserve its files/index and qualify shared producer-consumer seams.",
   "first_packet_queue": "implementation/rust-port-orchestration/packets.json",
   "planning_step3_deliverable_complete": true,
-  "run_id": "codex-n04-20261006T233602Z",
-  "authorized_packet_ids": [],
-  "human_release_reference": "Human step5 in this chat,2026-10-07",
-  "supervisor_status": "PAUSED",
-  "monitor": "/Users/vince/Projects/canlang/implementation/rust-port-orchestration/runs/codex-n04-20261006T233602Z/monitor.json",
-  "updated_at_utc": "2026-10-06T23:47:55.494936+00:00",
+  "run_id": "codex-step6-20261006T235151Z",
+  "authorized_packet_ids": [
+    "step6:R1:N05-bootstrap-foundation",
+    "step6:R2:N05-private-validation-join",
+    "step6:R3:N06-registered-decisions"
+  ],
+  "human_release_reference": "Human step6 in this chat,2026-10-07",
+  "supervisor_status": "ACTIVE",
+  "monitor": "/Users/vince/Projects/canlang/implementation/rust-port-orchestration/runs/codex-step6-20261006T235151Z/monitor.json",
+  "updated_at_utc": "2026-10-06T23:51:51.195174+00:00",
   "future_dispatch_authorized": false,
-  "previous_completed_run": "/Users/vince/Projects/canlang/implementation/rust-port-orchestration/runs/codex-first-20261006T231809Z",
+  "previous_completed_run": "/Users/vince/Projects/canlang/implementation/rust-port-orchestration/runs/codex-n04-20261006T233602Z",
   "source_commit": "36df46e28dc971f92a467e8543d8176e6f943483",
   "completed_packet_ids": [
     "next:R1:N04-helper"
