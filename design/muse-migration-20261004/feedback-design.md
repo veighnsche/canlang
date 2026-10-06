@@ -452,6 +452,6 @@ Handoff verification: the initial parser accepted an in-memory application of th
 
 Application checks: parse the non-sequence Can subset; `node --check` the entire desired target; compare new Can/JS declaration schemas, guards/effects, selected result fields, explicit Product bindings and every added sequence step. Preserve the two existing private generic-history sites. Confirm no public Decision read grant and no generic history under the general public suggestion detail. Report full runtime/privacy/UI checks as unexecuted. No broad corpus audit is requested.
 
-One [bounded independent Astra review](../jev/muse-feedback-20261004/bounded-review.md) found no concrete application or disclosure blocker; it did not run the design.
+One [bounded independent Astra review](../jev/muse-feedback-20261004/README.md#source-bounded-review) found no concrete application or disclosure blocker; it did not run the design.
 
 There is no unresolved business-policy question in this bounded handoff. Coordinator acceptance remains required before Muse applies this proposed design. The compiler, type checker, transaction engine, query budgets, actual reference-filter rendering, public-cache invalidation, direct-ID enforcement and BDD execution remain existing implementation gaps; this handoff does not close them.
