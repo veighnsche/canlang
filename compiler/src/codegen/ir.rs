@@ -193,6 +193,9 @@ pub enum IrItemKind {
     Scenario {
         params: Vec<SymbolId>,
         trusted: bool,
+        /// Pre-commit hook trigger, when `on=Model.create/update/delete`
+        /// (T31 Rule A); other handler triggers keep the `E6008`.
+        hook: Option<IrHook>,
         result: Option<ResolvedType>,
         /// Whether `read=true` was declared (G1).
         read: bool,
@@ -1178,6 +1181,18 @@ impl IrDeleteMode {
     }
 }
 
+/// Pre-commit hook trigger (T31 Rule A): the hooked model plus the
+/// triggering operation. Emission registers one run function per trigger
+/// under the source trigger key (`Model.delete` for deletes) with the
+/// engine op spelling (`remove`) in the descriptor.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct IrHook {
+    /// Hooked (triggering) model.
+    pub model: SymbolId,
+    /// Triggering operation.
+    pub op: CrudOp,
+}
+
 /// Checked effect/handler statements in source order.
 #[derive(Debug, Clone)]
 pub enum IrStmt {
@@ -1759,11 +1774,12 @@ impl<'a> Cx<'a> {
                     result_node.is_some(),
                     &mut self.diags,
                 );
-                let (read, by, label, description, expose_excluded, guards, effects) =
+                let (read, by, label, description, expose_excluded, guards, effects, hook) =
                     self.decode_scenario(symbol);
                 IrItemKind::Scenario {
                     params: params.clone(),
                     trusted: *trusted,
+                    hook,
                     result,
                     read,
                     by,
@@ -1903,6 +1919,10 @@ struct Scope {
     /// field-placement controls need one. Collections reset it (their
     /// scope ends field placement unless nested under another owner).
     in_field_owner: bool,
+    /// Whether decoding sits inside a pre-commit hook body (T31 Rule A):
+    /// context vars read the hook context (`$hookCtx`) instead of the
+    /// ambient operation context (`c`), which hooks never receive.
+    in_hook: bool,
 }
 
 impl Scope {
@@ -1916,6 +1936,7 @@ impl Scope {
             sequence_lets: HashSet::new(),
             name_types: HashMap::new(),
             in_field_owner: false,
+            in_hook: false,
         }
     }
 }
@@ -2346,6 +2367,10 @@ impl<'a> Cx<'a> {
             "c" | "row" | "event" | "result" | "parent" | "preferences" | "s" | "b" => {
                 return IrExpr::Name(name.to_string());
             }
+            // T31 Rule A: hooks read actor/now off their hook context;
+            // the run function binds `$hookCtx`, never `c`.
+            "actor" if scope.in_hook => return member_of("$hookCtx", "actor", ty, span),
+            "now" if scope.in_hook => return member_of("$hookCtx", "now", ty, span),
             "actor" => return member_of("c", "actor", ty, span),
             "now" => return member_of("c", "now", ty, span),
             _ => {}
@@ -3497,14 +3522,10 @@ impl<'a> Cx<'a> {
             }
             EffectVerb::Send => self.decode_send(scope, effect, what, span),
             EffectVerb::Schedule => {
-                let (Some(key), Some(at), Some(payload)) = (
-                    effect.key.as_ref(),
-                    effect.at.as_ref(),
-                    effect.value.as_ref(),
-                ) else {
+                let (Some(key), Some(at)) = (effect.key.as_ref(), effect.at.as_ref()) else {
                     return unsupported_stmt(
                         "schedule statement",
-                        "key, instant or payload is not published",
+                        "key or instant is not published",
                         span,
                     );
                 };
@@ -3519,15 +3540,14 @@ impl<'a> Cx<'a> {
                         span,
                     );
                 }
+                // The payload is the schedule object's entries (T31: the
+                // value slot was never published for schedules, so every
+                // schedule read as unlowered before this).
                 IrStmt::Schedule {
                     key: self.decode_anchored(scope, key, &format!("{what} schedule key")),
                     at: self.decode_anchored(scope, at, &format!("{what} schedule instant")),
                     event,
-                    payload: self.decode_anchored(
-                        scope,
-                        payload,
-                        &format!("{what} schedule payload"),
-                    ),
+                    payload: self.effect_args_object(scope, effect),
                     span,
                 }
             }
@@ -3625,6 +3645,43 @@ impl<'a> Cx<'a> {
         }
     }
 
+    /// Decode a `set`/`delete` record path: single names decode as values;
+    /// multi-segment paths (`event.after.parent`) decode as member chains
+    /// (T31: the flat value decode fused them into one mushy identifier).
+    /// Only the outermost link carries the checked target type; inner links
+    /// are untyped member navigation.
+    fn decode_record_path(&mut self, scope: &Scope, node: &SyntaxNode) -> TypedExpr {
+        if node.kind == SyntaxKind::Path {
+            let text = path_text(self.db, node);
+            let segments: Vec<&str> = text.split('.').collect();
+            if segments.len() > 1 {
+                let span = node.span;
+                let mut expr = TypedExpr::new(
+                    IrExpr::Name(segments[0].to_string()),
+                    ResolvedType::Unknown,
+                    span,
+                );
+                for (index, field) in segments.iter().skip(1).enumerate() {
+                    let last = index + 1 == segments.len() - 1;
+                    expr = TypedExpr::new(
+                        IrExpr::Member {
+                            base: Box::new(expr),
+                            field: (*field).to_string(),
+                        },
+                        if last {
+                            self.node_type(node)
+                        } else {
+                            ResolvedType::Unknown
+                        },
+                        span,
+                    );
+                }
+                return expr;
+            }
+        }
+        self.decode_expr(scope, node)
+    }
+
     /// Decode a `set` effect (record path re-read from the anchored node).
     fn decode_set(
         &mut self,
@@ -3643,7 +3700,7 @@ impl<'a> Cx<'a> {
         let Some(record_node) = record_node else {
             return unsupported_stmt("set statement", "no record path is published", span);
         };
-        let record = self.decode_expr(scope, &record_node);
+        let record = self.decode_record_path(scope, &record_node);
         let model = match &effect.target {
             Some(crate::analysis::effects::EffectTarget::Record { model }) => *model,
             Some(crate::analysis::effects::EffectTarget::PendingRecord { model }) => Some(*model),
@@ -3676,7 +3733,7 @@ impl<'a> Cx<'a> {
         let Some(record_node) = record_node else {
             return unsupported_stmt("delete statement", "no record path is published", span);
         };
-        let record = self.decode_expr(scope, &record_node);
+        let record = self.decode_record_path(scope, &record_node);
         let model = match &effect.target {
             Some(crate::analysis::effects::EffectTarget::Record { model }) => *model,
             _ => None,
@@ -4019,8 +4076,18 @@ impl<'a> Cx<'a> {
         bool,
         Vec<IrStmt>,
         Vec<IrStmt>,
+        Option<IrHook>,
     ) {
-        let empty = (false, Vec::new(), None, None, false, Vec::new(), Vec::new());
+        let empty = (
+            false,
+            Vec::new(),
+            None,
+            None,
+            false,
+            Vec::new(),
+            Vec::new(),
+            None,
+        );
         let data = self.program.effects.scenarios.get(&symbol.id).cloned();
         let Some(data) = data else {
             self.gap(
@@ -4032,7 +4099,7 @@ impl<'a> Cx<'a> {
             );
             return empty;
         };
-        let scope = Scope::module(symbol.module);
+        let mut scope = Scope::module(symbol.module);
         let by = data
             .by
             .as_ref()
@@ -4054,16 +4121,27 @@ impl<'a> Cx<'a> {
                 symbol.span,
             ));
         }
-        if data.on.is_some() {
-            self.diags.push(Diagnostic::error(
-                "E6008",
-                format!(
-                    "cannot lower scenario {}: handler triggers have no §13 member lowering",
-                    symbol.canonical,
-                ),
-                symbol.span,
-            ));
-        }
+        // T31 Rule A: pre-commit hooks lower to engine run functions;
+        // every other handler trigger keeps its `E6008`.
+        let hook = match &data.on {
+            Some(crate::analysis::effects::HandlerSource::Hook { model, op }) => Some(IrHook {
+                model: *model,
+                op: *op,
+            }),
+            Some(_) => {
+                self.diags.push(Diagnostic::error(
+                    "E6008",
+                    format!(
+                        "cannot lower scenario {}: handler triggers have no §13 member lowering",
+                        symbol.canonical,
+                    ),
+                    symbol.span,
+                ));
+                None
+            }
+            None => None,
+        };
+        scope.in_hook = hook.is_some();
         let what = symbol.canonical.clone();
         let guards = data
             .guards
@@ -4083,6 +4161,7 @@ impl<'a> Cx<'a> {
             data.expose_none,
             guards,
             effects,
+            hook,
         )
     }
 

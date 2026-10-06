@@ -41,7 +41,19 @@
 //! - `E4051` mixed handler scope: an `on=every(...)` handler whose
 //!   owner-bound queries, writes and local-call dependencies span both
 //!   app-scoped and team-scoped models (DESIGN §6).
+//! - `E4052` same-model staging: a hook stages `create`/`set` of its own
+//!   trigger model (T31 Rule A NARROW bar: all same-model CRUD barred,
+//!   matching the engine; the pending-record adjustment is not staging).
+//! - `E4053` staged delete: a `delete` inside a hook body (T31 Rule A:
+//!   hooks stage create/set only).
+//! - `E4054` delete-hook staging: a `create`/`set`/`schedule`/`cancel`
+//!   inside a delete hook (T31 Rule A: delete hooks reject by throwing,
+//!   never stage).
 //!
+//! Each staging ban reports once per statement and stands down when an
+//! earlier finding already covers the statement (fix-and-reveal); the
+//! types pass keeps its pending-record and snapshot messages (`E3009`),
+//! which these bans never duplicate.
 //! Trusted-handler shape rules (`by`/`on` exclusivity, no client parameters,
 //! no export/label/read attributes) are the parser's (`E12xx`); handler
 //! source validation, duplicate hooks, pending-record rules and hook
@@ -2486,6 +2498,7 @@ impl<'a> Cx<'a> {
                     effect.target = Some(EffectTarget::Model(model));
                     if self.checks_on {
                         self.check_own_mutation(module, text, node, path, model, "create");
+                        self.check_hook_staging_create(module, text, node, model);
                     }
                 }
                 effect.args = effect_args(text, node);
@@ -2499,6 +2512,10 @@ impl<'a> Cx<'a> {
                     && let Some(EffectTarget::Record { model: Some(model) }) = &effect.target
                 {
                     self.check_own_mutation(module, text, node, path, *model, "set");
+                }
+                if self.checks_on {
+                    let target = effect.target.clone();
+                    self.check_hook_staging_set(module, text, node, &target);
                 }
                 effect.args = effect_args(text, node);
             }
@@ -2520,6 +2537,10 @@ impl<'a> Cx<'a> {
                             tight_span(text, path.unwrap_or(node)),
                         ));
                     }
+                }
+                if self.checks_on {
+                    let target = effect.target.clone();
+                    self.check_hook_staging_delete(module, text, node, &target);
                 }
             }
             SyntaxKind::Call => {
@@ -2593,6 +2614,9 @@ impl<'a> Cx<'a> {
                     effect.target = Some(EffectTarget::Event(event));
                 }
                 effect.args = effect_args(text, node);
+                if self.checks_on {
+                    self.check_hook_staging_timer(module, text, node);
+                }
             }
             SyntaxKind::Cancel => {
                 effect.verb = EffectVerb::Cancel;
@@ -2601,6 +2625,9 @@ impl<'a> Cx<'a> {
                     .find(|n| is_expression(n.kind))
                     .copied()
                     .map(NodeKey::of);
+                if self.checks_on {
+                    self.check_hook_staging_timer(module, text, node);
+                }
             }
             SyntaxKind::Return => {
                 effect.verb = EffectVerb::Return;
@@ -2830,6 +2857,164 @@ impl<'a> Cx<'a> {
                 self.show(module, model),
             ),
             tight_span(text, path.unwrap_or(node)),
+        ));
+    }
+
+    /// Whether `span` already carries a finding: an earlier pass's
+    /// diagnostic inside this statement, or an own-pass finding on it.
+    /// The staging bans stand down then, so each statement reports once
+    /// and deeper findings surface fix-and-reveal after the blocker clears.
+    fn prior_finding_inside(&self, span: Span) -> bool {
+        self.diags.iter().any(|d| {
+            d.primary.file == span.file
+                && d.primary.start >= span.start
+                && d.primary.end <= span.end
+        })
+    }
+
+    /// E4054/E4052: a `create` inside a hook. Delete hooks ban every
+    /// target (E4054); create/update hooks ban their own trigger model
+    /// (E4052, the NARROW bar: op-agnostic, matching the engine).
+    fn check_hook_staging_create(
+        &mut self,
+        module: ModuleId,
+        text: &str,
+        node: &SyntaxNode,
+        model: SymbolId,
+    ) {
+        let Some((trigger, op)) = self.current_hook else {
+            return;
+        };
+        let span = tight_span(text, node);
+        if self.prior_finding_inside(span) {
+            return;
+        }
+        if op == CrudOp::Delete {
+            self.diags.push(Diagnostic::error(
+                "E4054",
+                format!(
+                    "hook on {}.{} runs on a delete and cannot stage secondary writes; only create/update hooks stage",
+                    self.show(module, trigger),
+                    op.as_str(),
+                ),
+                span,
+            ));
+            return;
+        }
+        if model != trigger {
+            return;
+        }
+        self.diags.push(Diagnostic::error(
+            "E4052",
+            format!(
+                "hook on {}.{} cannot stage create of its own model '{}'; same-model writes are barred (triggering-path recursion)",
+                self.show(module, trigger),
+                op.as_str(),
+                self.show(module, model),
+            ),
+            span,
+        ));
+    }
+
+    /// E4054/E4052: a `set` inside a hook. The pending-record adjustment
+    /// (`set event.after`) is always legal here — the types pass owns its
+    /// delete-hook message — and untyped targets already reported upstream.
+    fn check_hook_staging_set(
+        &mut self,
+        module: ModuleId,
+        text: &str,
+        node: &SyntaxNode,
+        target: &Option<EffectTarget>,
+    ) {
+        let Some((trigger, op)) = self.current_hook else {
+            return;
+        };
+        let Some(EffectTarget::Record { model: Some(model) }) = target else {
+            return;
+        };
+        let span = tight_span(text, node);
+        if self.prior_finding_inside(span) {
+            return;
+        }
+        if op == CrudOp::Delete {
+            self.diags.push(Diagnostic::error(
+                "E4054",
+                format!(
+                    "hook on {}.{} runs on a delete and cannot stage secondary writes; only create/update hooks stage",
+                    self.show(module, trigger),
+                    op.as_str(),
+                ),
+                span,
+            ));
+            return;
+        }
+        if *model != trigger {
+            return;
+        }
+        self.diags.push(Diagnostic::error(
+            "E4052",
+            format!(
+                "hook on {}.{} cannot stage set of its own model '{}'; same-model writes are barred (triggering-path recursion)",
+                self.show(module, trigger),
+                op.as_str(),
+                self.show(module, *model),
+            ),
+            span,
+        ));
+    }
+
+    /// E4053: a `delete` inside a hook (any op). Pending and untyped
+    /// targets keep their types-pass messages (`E3009`/`E3001`); only a
+    /// typed stored row bans here.
+    fn check_hook_staging_delete(
+        &mut self,
+        module: ModuleId,
+        text: &str,
+        node: &SyntaxNode,
+        target: &Option<EffectTarget>,
+    ) {
+        let Some((trigger, op)) = self.current_hook else {
+            return;
+        };
+        let Some(EffectTarget::Record { model: Some(_) }) = target else {
+            return;
+        };
+        let span = tight_span(text, node);
+        if self.prior_finding_inside(span) {
+            return;
+        }
+        self.diags.push(Diagnostic::error(
+            "E4053",
+            format!(
+                "hook on {}.{} cannot delete; hooks stage create/set only (staged deletes are barred)",
+                self.show(module, trigger),
+                op.as_str(),
+            ),
+            span,
+        ));
+    }
+
+    /// E4054: a `schedule`/`cancel` inside a delete hook. Create/update
+    /// hooks stage timers freely; only the delete op bans here.
+    fn check_hook_staging_timer(&mut self, module: ModuleId, text: &str, node: &SyntaxNode) {
+        let Some((trigger, op)) = self.current_hook else {
+            return;
+        };
+        if op != CrudOp::Delete {
+            return;
+        }
+        let span = tight_span(text, node);
+        if self.prior_finding_inside(span) {
+            return;
+        }
+        self.diags.push(Diagnostic::error(
+            "E4054",
+            format!(
+                "hook on {}.{} runs on a delete and cannot stage timers; only create/update hooks stage",
+                self.show(module, trigger),
+                op.as_str(),
+            ),
+            span,
         ));
     }
 

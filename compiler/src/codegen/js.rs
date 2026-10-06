@@ -24,12 +24,12 @@
 //! CRUD `create`/`set` with `when`.
 
 use crate::analysis::catalog::{StdOperation, nominal_schema, std_capability};
-use crate::analysis::resolve::{CrudOp, ModuleKind};
+use crate::analysis::resolve::{CrudOp, ModuleKind, SymbolId};
 use crate::analysis::types::{ResolvedType, Scalar};
 use crate::codegen::ir::{
-    IrBinOp, IrCallTarget, IrDefault, IrExpr, IrFieldLabel, IrGuard, IrItem, IrItemKind, IrMessage,
-    IrOwner, IrPage, IrProgram, IrServer, IrStmt, IrType, IrUi, IrUnOp, ReferencedBuiltin,
-    ScalarFamily, TypedExpr, expr_uses_async, is_structural, scalar_family,
+    IrBinOp, IrCallTarget, IrDefault, IrExpr, IrFieldLabel, IrGuard, IrHook, IrItem, IrItemKind,
+    IrMessage, IrOwner, IrPage, IrProgram, IrServer, IrStmt, IrType, IrUi, IrUnOp,
+    ReferencedBuiltin, ScalarFamily, TypedExpr, expr_uses_async, is_structural, scalar_family,
 };
 use crate::diagnostic::Diagnostic;
 use crate::source::Span;
@@ -1103,6 +1103,19 @@ pub struct Emitter<'a> {
     builtins: Vec<ReferencedBuiltin>,
     callables: Vec<JsCallable>,
     pages: Vec<JsPage>,
+    /// Hook lowering state while emitting one hook run function (T31):
+    /// `Some` exactly between [`Emitter::enter_hook`] and
+    /// [`Emitter::exit_hook`]. Statements and expressions consult it to
+    /// stage through the hook context instead of the ambient `c`.
+    hook: Option<HookState>,
+}
+
+/// Hook lowering state: the trigger model. (The staged-id counter lives
+/// in the emitted run function itself as `$stagedNext`, resetting per
+/// trigger invocation, so the emitter keeps no counter.)
+struct HookState {
+    /// Trigger model symbol (same-model backstop inside lowering).
+    trigger: SymbolId,
 }
 
 impl<'a> Emitter<'a> {
@@ -1124,7 +1137,19 @@ impl<'a> Emitter<'a> {
             builtins: Vec::new(),
             callables: Vec::new(),
             pages: Vec::new(),
+            hook: None,
         }
+    }
+
+    /// Enter hook lowering for one trigger model: statements stage through
+    /// `$hookCtx` and ambient-context expressions report `E6008`.
+    pub fn enter_hook(&mut self, trigger: SymbolId) {
+        self.hook = Some(HookState { trigger });
+    }
+
+    /// Leave hook lowering, restoring scenario lowering.
+    pub fn exit_hook(&mut self) {
+        self.hook = None;
     }
 
     /// Drain diagnostics, builtin references, callables and pages.
@@ -1152,6 +1177,19 @@ impl<'a> Emitter<'a> {
     /// failing loudly at runtime.
     fn throw_expr(&self, message: &str) -> String {
         format!("(() => {{ throw new Error({}); }})()", js_string(message))
+    }
+
+    /// Whether hook lowering is active.
+    fn in_hook(&self) -> bool {
+        self.hook.is_some()
+    }
+
+    /// Hook-context gap: `what` needs the ambient operation context, which
+    /// hooks never receive. Reports `E6008` and returns the throwing
+    /// placeholder.
+    fn hook_gap(&mut self, what: &str, why: &str, span: Span) -> String {
+        self.unsupported(what, why, span);
+        self.throw_expr(&format!("{what} has no lowering"))
     }
 
     /// Import lines in deterministic order: stdlib, UI, then relative
@@ -1463,12 +1501,28 @@ impl<'a> Emitter<'a> {
                     .collect();
                 format!("{{{}}}", parts.join(","))
             }
-            IrExpr::Query(query) => self.lower_query(query, span),
+            IrExpr::Query(query) => {
+                if self.in_hook() {
+                    return self.hook_gap(
+                        "hook query",
+                        "hooks read event.after/event.before; queries have no hook lowering",
+                        span,
+                    );
+                }
+                self.lower_query(query, span)
+            }
             IrExpr::DeliveryRead {
                 record,
                 field,
                 props,
             } => {
+                if self.in_hook() {
+                    return self.hook_gap(
+                        "hook delivery read",
+                        "delivery reads need the ambient context, which hooks do not receive",
+                        span,
+                    );
+                }
                 self.stdlib.insert("delivery".to_string());
                 let record_text = self.lower_expr(record);
                 let props_text = props
@@ -1483,6 +1537,13 @@ impl<'a> Emitter<'a> {
             }
             IrExpr::Message(message) => self.lower_message(message),
             IrExpr::Format { descriptor, locale } => {
+                if self.in_hook() {
+                    return self.hook_gap(
+                        "hook message format",
+                        "message formatting needs the ambient context, which hooks do not receive",
+                        span,
+                    );
+                }
                 self.stdlib.insert("format".to_string());
                 let descriptor_text = self.lower_expr(descriptor);
                 let locale_text = match locale {
@@ -1492,6 +1553,13 @@ impl<'a> Emitter<'a> {
                 format!("format(c,{descriptor_text},{{locale:{locale_text}}})")
             }
             IrExpr::HasRole { role, person } => {
+                if self.in_hook() {
+                    return self.hook_gap(
+                        "hook role gate",
+                        "role gates need the ambient context, which hooks do not receive",
+                        span,
+                    );
+                }
                 self.stdlib.insert("hasRole".to_string());
                 match person {
                     Some(person) => {
@@ -1544,6 +1612,13 @@ impl<'a> Emitter<'a> {
                 }
             }
             IrCallTarget::CapabilityOp(canonical) => {
+                if self.in_hook() {
+                    return self.hook_gap(
+                        "hook capability call",
+                        "capability calls need the ambient context, which hooks do not receive",
+                        span,
+                    );
+                }
                 let (local, module) = match self.by_canonical.get(canonical) {
                     Some(index) => {
                         let item = &self.ir.items[*index];
@@ -1669,6 +1744,13 @@ impl<'a> Emitter<'a> {
             }
         }
         if is_structural(&left.ty) || is_structural(&right.ty) {
+            if self.in_hook() {
+                return self.hook_gap(
+                    "hook equality",
+                    "structural equality needs the ambient context (equalValue(c, ...)), which hooks do not receive",
+                    span,
+                );
+            }
             self.stdlib.insert("equalValue".to_string());
             let id = self.canonical_type_id(&left.ty, span);
             let l = self.lower_expr(left);
@@ -1688,6 +1770,13 @@ impl<'a> Emitter<'a> {
                 negate_call(negate, &format!("equalMoney({l},{r})"))
             }
             (Some(ScalarFamily::Decimal), Some(ScalarFamily::Decimal)) => {
+                if self.in_hook() {
+                    return self.hook_gap(
+                        "hook equality",
+                        "decimal equality needs the ambient context (equalValue(c, ...)), which hooks do not receive",
+                        span,
+                    );
+                }
                 self.stdlib.insert("equalValue".to_string());
                 let l = self.lower_expr(left);
                 let r = self.lower_expr(right);
@@ -2269,6 +2358,9 @@ impl<'a> Emitter<'a> {
                 binding,
                 span,
             } => {
+                if self.hook.is_some() {
+                    return self.lower_hook_create(model, input, binding, *span, &pad);
+                }
                 self.stdlib.insert("create".to_string());
                 let input_text = self.lower_expr(input);
                 let when_text = when
@@ -2293,6 +2385,9 @@ impl<'a> Emitter<'a> {
                 when,
                 span,
             } => {
+                if self.hook.is_some() {
+                    return self.lower_hook_set(record, changes, *span, &pad);
+                }
                 self.stdlib.insert("set".to_string());
                 let record_text = self.lower_expr(record);
                 let changes_text = self.lower_expr(changes);
@@ -2306,6 +2401,20 @@ impl<'a> Emitter<'a> {
                 )]
             }
             IrStmt::Delete { record, mode, span } => {
+                if self.hook.is_some() {
+                    self.unsupported(
+                        "delete effect",
+                        "hooks stage create/set only; deletes have no hook lowering",
+                        *span,
+                    );
+                    return vec![(
+                        format!(
+                            "{pad}throw new Error({});",
+                            js_string("delete in hooks has no lowering")
+                        ),
+                        *span,
+                    )];
+                }
                 self.stdlib.insert("deleteRecord".to_string());
                 let record_text = self.lower_expr(record);
                 vec![(
@@ -2342,6 +2451,20 @@ impl<'a> Emitter<'a> {
                 payload,
                 span,
             } => {
+                if self.hook.is_some() {
+                    self.unsupported(
+                        "emit effect",
+                        "Rule A stages no outbox writes from hooks; emit has no hook lowering",
+                        *span,
+                    );
+                    return vec![(
+                        format!(
+                            "{pad}throw new Error({});",
+                            js_string("emit in hooks has no lowering")
+                        ),
+                        *span,
+                    )];
+                }
                 self.stdlib.insert("emit".to_string());
                 let payload_text = self.lower_expr(payload);
                 vec![(
@@ -2356,6 +2479,20 @@ impl<'a> Emitter<'a> {
                 binding,
                 span,
             } => {
+                if self.hook.is_some() {
+                    self.unsupported(
+                        "send effect",
+                        "Rule A stages no outbox writes from hooks; send has no hook lowering",
+                        *span,
+                    );
+                    return vec![(
+                        format!(
+                            "{pad}throw new Error({});",
+                            js_string("send in hooks has no lowering")
+                        ),
+                        *span,
+                    )];
+                }
                 self.stdlib.insert("send".to_string());
                 let args_text = self.lower_expr(args);
                 let when_text = when
@@ -2384,6 +2521,18 @@ impl<'a> Emitter<'a> {
                 payload,
                 span,
             } => {
+                if self.hook.is_some() {
+                    let key_text = self.lower_expr(key);
+                    let at_text = self.lower_expr(at);
+                    let payload_text = self.lower_expr(payload);
+                    return vec![(
+                        format!(
+                            "{pad}$hookCtx.schedule({{key:{key_text},at:{at_text},event:{},payload:{payload_text}}});",
+                            js_string(event)
+                        ),
+                        *span,
+                    )];
+                }
                 self.stdlib.insert("schedule".to_string());
                 let key_text = self.lower_expr(key);
                 let at_text = self.lower_expr(at);
@@ -2397,17 +2546,40 @@ impl<'a> Emitter<'a> {
                 )]
             }
             IrStmt::Cancel { key, span } => {
+                if self.hook.is_some() {
+                    let key_text = self.lower_expr(key);
+                    return vec![(format!("{pad}$hookCtx.cancel({key_text});"), *span)];
+                }
                 self.stdlib.insert("cancel".to_string());
                 let key_text = self.lower_expr(key);
                 vec![(format!("{pad}await cancel(c,{key_text});"), *span)]
             }
-            IrStmt::Return { value, span } => vec![(
-                match value {
-                    Some(v) => format!("{pad}return {};", self.lower_expr(v)),
-                    None => format!("{pad}return;"),
-                },
-                *span,
-            )],
+            IrStmt::Return { value, span } => {
+                if self.hook.is_some() {
+                    if value.is_none() {
+                        return vec![(format!("{pad}return $candidate;"), *span)];
+                    }
+                    self.unsupported(
+                        "return value",
+                        "hooks return the pending candidate; return values have no hook lowering",
+                        *span,
+                    );
+                    return vec![(
+                        format!(
+                            "{pad}throw new Error({});",
+                            js_string("return value in hooks has no lowering")
+                        ),
+                        *span,
+                    )];
+                }
+                vec![(
+                    match value {
+                        Some(v) => format!("{pad}return {};", self.lower_expr(v)),
+                        None => format!("{pad}return;"),
+                    },
+                    *span,
+                )]
+            }
             IrStmt::Require { cond, span } => {
                 self.stdlib.insert("check".to_string());
                 let cond_text = self.lower_expr(cond);
@@ -2466,6 +2638,197 @@ impl<'a> Emitter<'a> {
                 )]
             }
         }
+    }
+
+    /// Canonical identity of the hook trigger, if the row resolves.
+    fn hook_trigger_canonical(&self) -> Option<String> {
+        let trigger = self.hook.as_ref()?.trigger;
+        self.ir
+            .items
+            .get(trigger.0 as usize)
+            .map(|item| item.canonical.clone())
+    }
+
+    /// Lower a `create` inside a hook: bind a deterministic trigger-derived
+    /// id, then stage `{op, model, id, parent?, data}` through the hook
+    /// context. The `parent` linkage splits off the data object as
+    /// `{model, id}`; `parent=event.after` resolves through the live after
+    /// view to the pending record the engine provisionalizes.
+    fn lower_hook_create(
+        &mut self,
+        model: &str,
+        input: &TypedExpr,
+        binding: &Option<String>,
+        span: Span,
+        pad: &str,
+    ) -> Vec<(String, Span)> {
+        // Same-model backstop (unreachable on clean programs: E4052 owns it).
+        if self.hook_trigger_canonical().as_deref() == Some(model) {
+            self.unsupported(
+                "hook create",
+                "a hook cannot stage its own trigger model",
+                span,
+            );
+            return vec![(
+                format!(
+                    "{pad}throw new Error({});",
+                    js_string("hook create of its own model has no lowering")
+                ),
+                span,
+            )];
+        }
+        let IrExpr::Object(entries) = &input.expr else {
+            self.unsupported("hook create", "staged input is not an object", span);
+            return vec![(
+                format!(
+                    "{pad}throw new Error({});",
+                    js_string("hook create input has no lowering")
+                ),
+                span,
+            )];
+        };
+        let mut parent_text = String::new();
+        let mut data_entries: Vec<(String, TypedExpr)> = Vec::new();
+        for (key, value) in entries {
+            if key != "parent" {
+                data_entries.push((key.clone(), value.clone()));
+                continue;
+            }
+            let ResolvedType::Record { symbol, .. } = &value.ty else {
+                self.unsupported("hook create parent", "staged parent is not a record", span);
+                return vec![(
+                    format!(
+                        "{pad}throw new Error({});",
+                        js_string("hook create parent has no lowering")
+                    ),
+                    span,
+                )];
+            };
+            let Some(parent_model) = self
+                .ir
+                .items
+                .get(symbol.0 as usize)
+                .map(|item| item.canonical.clone())
+            else {
+                self.unsupported(
+                    "hook create parent",
+                    "staged parent model does not resolve",
+                    span,
+                );
+                return vec![(
+                    format!(
+                        "{pad}throw new Error({});",
+                        js_string("hook create parent has no lowering")
+                    ),
+                    span,
+                )];
+            };
+            let base = self.lower_expr(value);
+            parent_text = format!(
+                ",parent:{{model:{},id:{}.id}}",
+                js_string(&parent_model),
+                parenthesize_operand(&base, &value.expr)
+            );
+        }
+        let data = self.lower_expr(&TypedExpr::new(
+            IrExpr::Object(data_entries),
+            ResolvedType::Unknown,
+            span,
+        ));
+        let id_ref = binding.clone().map(|name| sanitize_ident(&name));
+        let bind_line = match &id_ref {
+            Some(name) => {
+                format!("{pad}const {name}={{id:$hookCtx.triggerId+\"/staged/\"+($stagedNext++)}};")
+            }
+            None => {
+                format!("{pad}$pending={{id:$hookCtx.triggerId+\"/staged/\"+($stagedNext++)}};")
+            }
+        };
+        let id_ref = id_ref.unwrap_or_else(|| "$pending".to_string());
+        let stage_line = format!(
+            "{pad}$hookCtx.stage({{op:\"create\",model:{},id:{id_ref}.id{parent_text},data:{data}}});",
+            js_string(model)
+        );
+        vec![(bind_line, span), (stage_line, span)]
+    }
+
+    /// Lower a `set` inside a hook: `set event.after` assigns the same
+    /// changes to both the candidate the engine commits and the live after
+    /// view; any other stored row stages an update addressed by model plus
+    /// record id (staged writes carry no admission predicate).
+    fn lower_hook_set(
+        &mut self,
+        record: &TypedExpr,
+        changes: &TypedExpr,
+        span: Span,
+        pad: &str,
+    ) -> Vec<(String, Span)> {
+        if matches!(&record.expr, IrExpr::Member { base, field }
+            if field == "after" && matches!(&base.expr, IrExpr::Name(name) if name == "event"))
+        {
+            let changes_text = self.lower_expr(changes);
+            return vec![(
+                format!(
+                    "{pad}$pending={changes_text};Object.assign($candidate,$pending);Object.assign(event.after,$pending);"
+                ),
+                span,
+            )];
+        }
+        let ResolvedType::Record { symbol, .. } = &record.ty else {
+            self.unsupported("hook set", "staged set target is not a stored record", span);
+            return vec![(
+                format!(
+                    "{pad}throw new Error({});",
+                    js_string("hook set target has no lowering")
+                ),
+                span,
+            )];
+        };
+        // Same-model backstop, including let-aliased trigger rows
+        // (unreachable on clean programs: E4052 owns them).
+        if self
+            .hook
+            .as_ref()
+            .is_some_and(|hook| hook.trigger == *symbol)
+        {
+            self.unsupported(
+                "hook set",
+                "a hook cannot stage its own trigger model",
+                span,
+            );
+            return vec![(
+                format!(
+                    "{pad}throw new Error({});",
+                    js_string("hook set of its own model has no lowering")
+                ),
+                span,
+            )];
+        }
+        let Some(target_model) = self
+            .ir
+            .items
+            .get(symbol.0 as usize)
+            .map(|item| item.canonical.clone())
+        else {
+            self.unsupported("hook set", "staged set target model does not resolve", span);
+            return vec![(
+                format!(
+                    "{pad}throw new Error({});",
+                    js_string("hook set target has no lowering")
+                ),
+                span,
+            )];
+        };
+        let base = self.lower_expr(record);
+        let changes_text = self.lower_expr(changes);
+        vec![(
+            format!(
+                "{pad}$hookCtx.stage({{op:\"update\",model:{},id:{}.id,data:{changes_text}}});",
+                js_string(&target_model),
+                parenthesize_operand(&base, &record.expr)
+            ),
+            span,
+        )]
     }
 
     /// Lower a guard to its boolean expression. A source `by` lowers to
@@ -2813,15 +3176,47 @@ fn crud_when_key(when: Option<&String>) -> Option<String> {
     when.map(|key| sanitize_ident(key))
 }
 
+/// Registry key for one hook: the source trigger spelling
+/// (`Model.delete` for deletes), unique by construction (at most one hook
+/// per model/operation).
+fn hook_trigger_key(ir: &IrProgram, hook: &IrHook) -> String {
+    let model = ir
+        .items
+        .get(hook.model.0 as usize)
+        .map(|item| item.canonical.clone())
+        .unwrap_or_else(|| "unknown".to_string());
+    format!("{model}.{}", hook.op.as_str())
+}
+
+/// Engine op spelling for one hook trigger op (`remove` for deletes).
+fn hook_engine_op(op: CrudOp) -> &'static str {
+    match op {
+        CrudOp::Create => "create",
+        CrudOp::Update => "update",
+        CrudOp::Delete => "remove",
+    }
+}
+
 /// Registry path segments into the module's `canApp()` return object for
 /// one callable item (explicit linkage: the runtime walks these, it never
 /// re-derives handler names). Scenarios and derived functions address
-/// their top-level handler, CRUD ops their generated handler, derived
-/// fields their `derives` map entry. Segments stay an array because keys
-/// contain dots (`Todo.total`), so no joined string is unambiguous.
+/// their top-level handler, hooks their `hooks` registry entry, CRUD ops
+/// their generated handler, derived fields their `derives` map entry.
+/// Segments stay an array because keys contain dots (`Todo.total`), so no
+/// joined string is unambiguous.
 fn registry_member(ir: &IrProgram, item: &IrItem) -> Vec<String> {
     match &item.kind {
-        IrItemKind::Scenario { .. } | IrItemKind::DeriveFn { .. } => {
+        IrItemKind::Scenario { hook, .. } => {
+            if let Some(hook) = hook {
+                return vec![
+                    "hooks".to_string(),
+                    hook_trigger_key(ir, hook),
+                    "run".to_string(),
+                ];
+            }
+            vec![sanitize_ident(&item.name)]
+        }
+        IrItemKind::DeriveFn { .. } => {
             vec![sanitize_ident(&item.name)]
         }
         IrItemKind::CrudOp { model, op, .. } => {
@@ -3401,6 +3796,9 @@ impl<'a> Emitter<'a> {
         let mut operations = Vec::new();
         for item in &self.ir.items.clone() {
             match &item.kind {
+                // Hooks are reactive, not operations: their descriptor lives
+                // in the `hooks` registry, so they contribute no entry here.
+                IrItemKind::Scenario { hook: Some(_), .. } => {}
                 IrItemKind::Scenario {
                     params,
                     result,
@@ -4525,6 +4923,7 @@ impl<'a> Emitter<'a> {
         self.emit_retention_map(out, entry_span);
         self.emit_preferences_valid(out, entry_span);
         self.emit_derives_map(out, entry_span);
+        self.emit_hooks_map(out, entry_span);
         self.emit_handler_fns(out);
         out.push(entry_span, Some("canApp".to_string()), "};}");
     }
@@ -4679,17 +5078,100 @@ impl<'a> Emitter<'a> {
 
     /// Emit operation handlers (scenarios, generated CRUD) and derived
     /// functions with their decoded bodies.
+    /// Emit the `hooks` map: one engine-shaped `{name, ops, run}`
+    /// descriptor per pre-commit hook, keyed by source trigger. The run
+    /// function binds `($candidate, $hookCtx)`, builds the live `event`
+    /// views over the candidate plus trigger identity, stages through the
+    /// hook context, and returns the pending candidate. Sparse like every
+    /// other `canApp()` member: omitted when the program declares no hooks.
+    fn emit_hooks_map(&mut self, out: &mut JsWriter, span: Span) {
+        let hooks: Vec<IrItem> = self
+            .ir
+            .items
+            .iter()
+            .filter(|item| matches!(&item.kind, IrItemKind::Scenario { hook: Some(_), .. }))
+            .cloned()
+            .collect();
+        if hooks.is_empty() {
+            return;
+        }
+        for (index, item) in hooks.iter().enumerate() {
+            let IrItemKind::Scenario {
+                hook: Some(hook),
+                guards,
+                effects,
+                ..
+            } = &item.kind
+            else {
+                continue;
+            };
+            let hook = *hook;
+            let handler = sanitize_ident(&item.name);
+            let key = hook_trigger_key(self.ir, &hook);
+            let prefix = if index == 0 { "hooks:{" } else { "" };
+            out.push(
+                item.span,
+                Some(item.canonical.clone()),
+                &format!(
+                    "{prefix}{}:{{name:{},ops:[{}],run:async function {handler}($candidate,$hookCtx){{",
+                    js_string(&key),
+                    js_string(&item.canonical),
+                    js_string(hook_engine_op(hook.op))
+                ),
+            );
+            out.push(
+                item.span,
+                Some(item.canonical.clone()),
+                "const event={after:{...$candidate,id:$hookCtx.triggerId,version:($hookCtx.before?$hookCtx.before.version+1:1),parent:($hookCtx.before?$hookCtx.before.parent:null)},before:($hookCtx.before?{...$hookCtx.before.data,id:$hookCtx.before.id,version:$hookCtx.before.version,parent:$hookCtx.before.parent}:null)};",
+            );
+            out.push(
+                item.span,
+                Some(item.canonical.clone()),
+                "let $stagedNext=0;",
+            );
+            out.push(item.span, Some(item.canonical.clone()), "let $pending;");
+            self.enter_hook(hook.model);
+            for guard in guards {
+                for (line, span) in self.lower_stmt(guard, 0) {
+                    out.push(span, Some(item.canonical.clone()), &line);
+                }
+            }
+            for effect in effects {
+                for (line, span) in self.lower_stmt(effect, 0) {
+                    out.push(span, Some(item.canonical.clone()), &line);
+                }
+            }
+            self.exit_hook();
+            out.push(
+                item.span,
+                Some(item.canonical.clone()),
+                "return $candidate;",
+            );
+            let sep = if index + 1 == hooks.len() { "" } else { "," };
+            let mut close = "}}".to_string();
+            close.push_str(sep);
+            out.push(item.span, Some(item.canonical.clone()), &close);
+        }
+        out.push(span, Some("canApp".to_string()), "},");
+    }
+
     fn emit_handler_fns(&mut self, out: &mut JsWriter) {
         for item in &self.ir.items.clone() {
             match &item.kind {
                 IrItemKind::Scenario {
                     params,
                     trusted,
+                    hook,
                     by,
                     guards,
                     effects,
                     ..
                 } => {
+                    // Hooks emit as inline run functions in the `hooks`
+                    // registry, never as top-level handler methods.
+                    if hook.is_some() {
+                        continue;
+                    }
                     let handler = sanitize_ident(&item.name);
                     let signature = if *trusted {
                         "c,{event}".to_string()

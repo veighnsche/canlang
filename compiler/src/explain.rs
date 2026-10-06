@@ -97,7 +97,7 @@ pub fn entry_to_text(info: &CodeInfo) -> String {
     out
 }
 
-const CATALOG: [CodeInfo; 112] = [
+const CATALOG: [CodeInfo; 115] = [
     CodeInfo {
         code: "E1001",
         title: "bare-carriage-return",
@@ -745,6 +745,30 @@ const CATALOG: [CodeInfo; 112] = [
         explanation: "An `on=every` handler spans app- and team-scoped models across queries, writes and transitive local calls. One handler keeps one scope. Split the handler per scope.",
         example_valid: "app Shop\nGiven\n AppConfig in app { name:text }\n Todo { title:text }\n policy AppConfig read=members\nWhen\n scenario team_only on=every(5m)\n  do\n   let m=count(Todo)\nThen\n",
         example_invalid: "app Shop\nGiven\n AppConfig in app { name:text }\n Todo { title:text }\n policy AppConfig read=members\nWhen\n scenario tick on=every(5m)\n  do\n   let n=count(Todo)\n   create AppConfig {name=\"x\"} as c\nThen\n",
+    },
+    CodeInfo {
+        code: "E4052",
+        title: "hook-same-model-staging",
+        severity: Severity::Error,
+        explanation: "A create/update hook stages a `create`/`set` of its own trigger model. Same-model writes are barred: the staged write would re-trigger the hook (triggering-path recursion). Stage writes to other models instead; adjusting the pending record (`set event.after`) is never staging.",
+        example_valid: "app T\nGiven\n M { t:text }\n N { m:text }\nWhen\n scenario h on=M.create\n  do\n   set event.after {t=\"y\"}\n   create N {m=\"x\"} as n\n   set n {m=\"z\"}\nThen\n",
+        example_invalid: "app T\nGiven\n M { t:text }\nWhen\n scenario h on=M.create\n  do\n   create M {t=\"x\"} as m\nThen\n",
+    },
+    CodeInfo {
+        code: "E4053",
+        title: "hook-staged-delete",
+        severity: Severity::Error,
+        explanation: "A hook body deletes a row. Hooks stage `create`/`set` only; staged deletes are barred. Drop the `delete` from the hook (ordinary scenarios still delete).",
+        example_valid: "app T\nGiven\n N { m:text }\nWhen\n scenario s(n:N) by=members\n  do\n   delete n\nThen\n",
+        example_invalid: "app T\nGiven\n M { t:text }\n N { m:text }\nWhen\n scenario h on=M.update\n  do\n   create N {m=\"x\"} as n\n   delete n\nThen\n",
+    },
+    CodeInfo {
+        code: "E4054",
+        title: "delete-hook-staging",
+        severity: Severity::Error,
+        explanation: "A delete hook stages a secondary write or timer (`create`/`set`/`schedule`/`cancel`). Only create/update hooks stage; delete hooks observe the removal. Move the staged write to a create/update hook.",
+        example_valid: "app T\nGiven\n M { t:text }\nWhen\n scenario h on=M.delete\n  do\n   let x=1\nThen\n",
+        example_invalid: "app T\nGiven\n M { t:text }\n N { m:text }\nWhen\n scenario h on=M.delete\n  do\n   create N {m=\"x\"} as n\nThen\n",
     },
     CodeInfo {
         code: "E5001",
