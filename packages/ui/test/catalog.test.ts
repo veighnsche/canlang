@@ -120,6 +120,9 @@ describe("component catalog", () => {
       themeController: 1,
       board: 1,
       csvImport: 1,
+      csvReviewForm: 1,
+      csvPreviewSection: 1,
+      csvConfirmSection: 1,
       fileControl: 1,
       review: 1,
       tabs: 1,
@@ -145,7 +148,7 @@ describe("component catalog", () => {
     }
   });
 
-  it("covers all 68 approved Can words plus 20 infrastructure entries", () => {
+  it("covers all 68 approved Can words plus 23 infrastructure entries", () => {
     const wordIds = [
       "accordion", "alert", "aura", "avatar", "badge", "breadcrumbs", "button",
       "calendar", "card", "carousel", "chat_bubble", "checkbox", "collapse",
@@ -163,9 +166,10 @@ describe("component catalog", () => {
       "page-shell", "navigation", "title", "text", "content", "state", "form",
       "edit", "delete", "action", "actions", "settings", "export", "print",
       "history", "copy", "board", "review", "csv-import", "file",
+      "csv-review-form", "csv-preview", "csv-confirm",
     ];
     assert.equal(wordIds.length, 68);
-    assert.equal(infraIds.length, 20);
+    assert.equal(infraIds.length, 23);
     const words = new Set(wordIds);
     const infra = new Set(infraIds);
     const seen = new Set<string>();
@@ -182,8 +186,8 @@ describe("component catalog", () => {
       }
     }
     assert.equal(wordCount, 68);
-    assert.equal(infraCount, 20);
-    assert.equal(UI_CATALOG.entries.length, 88);
+    assert.equal(infraCount, 23);
+    assert.equal(UI_CATALOG.entries.length, 91);
     for (const id of [...wordIds, ...infraIds]) {
       assert.ok(seen.has(id), `catalog is missing entry ${id}`);
     }
@@ -396,6 +400,31 @@ describe("component catalog", () => {
       fieldInputName: "input-name helper, not a component",
       formatDatetimeLocal: "datetime renderer, not a component",
       pointerToFieldName: "json-pointer helper, not a component",
+      // forms.ts: generated-operation surface (T20a factories, T20b exports; not selectable words).
+      formFragmentWrap: "fragment-wrap helper, not a component",
+      generatedDraftValues: "draft-flattening helper, not a component",
+      generatedFields: "derived-input field mapper, not a component",
+      generatedForm: "generated operation form, not a selectable word",
+      projectGeneratedInputs: "submission-projection helper, not a component",
+      // client.ts: submit client for generated forms (T20b), not selectable words.
+      applyDocumentRerender: "denial-document swap helper, not a component",
+      applyFormRerender: "denial-fragment swap helper, not a component",
+      collectFormValues: "flat-map collector, not a component",
+      GeneratedSubmitError: "typed submit failure, not a component",
+      submitGeneratedForm: "envelope submitter, not a component",
+      // csv/parse.ts: text parsing and error guards (FP.CSV); csvReviewForm is cataloged.
+      CSV_CSRF_HEADER: "csrf header-name constant, not a component",
+      CSV_UI_MAX_ROWS: "row-cap constant, not a component",
+      digestBusinessError: "error digest helper, not a component",
+      parseCsvText: "text parser, not a component",
+      // csv/preview.ts: review payload parsers/submitter (FP.CSV); csvPreviewSection is cataloged.
+      parseReviewPayload: "form-data parser, not a component",
+      submitCsvReview: "envelope submitter, not a component",
+      // csv/confirm.ts: commit payload parsers/submitter (FP.CSV); csvConfirmSection is cataloged.
+      collectCommitSelections: "checkbox collector, not a component",
+      mintOperationId: "idempotency-key minter, not a component",
+      parseCommitPayload: "form-data parser, not a component",
+      submitCsvCommit: "envelope submitter, not a component",
       // catalog.ts: the shared producer itself.
       LANE05_CATALOG_VERSION: "catalog version constant, not a component",
       UI_CATALOG: "the catalog, not a component",
@@ -435,7 +464,7 @@ describe("component catalog", () => {
     }
   });
 
-  it("pins zero planned entries: all 88 are honestly implemented", () => {
+  it("pins zero planned entries: all 91 are honestly implemented", () => {
     const planned = UI_CATALOG.entries.filter(
       (entry) => entry.availability !== "implemented",
     );
@@ -444,6 +473,6 @@ describe("component catalog", () => {
       0,
       `planned entries remain: ${planned.map((entry) => `${entry.id}->${entry.js}`).join(", ")}`,
     );
-    assert.equal(UI_CATALOG.entries.length, 88);
+    assert.equal(UI_CATALOG.entries.length, 91);
   });
 });

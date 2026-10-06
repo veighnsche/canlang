@@ -1,0 +1,21 @@
+{
+  "model": "work.supersession",
+  "constructor_input": {
+    "constructor": "newSupersessionRow",
+    "input": {
+      "outboxId": "<derived obx>",
+      "byOccurrenceId": null,
+      "markedAtMs": 1750000000000
+    },
+    "meta": {
+      "nowMs": 1750000000000,
+      "actor": "w01.3-baseline"
+    }
+  },
+  "row_id": "obx_c89608a6a6f8887651f977b14105ff18d9639ae888bfed540091cffc72d279f3",
+  "d1_data_bytes": "{\"outboxId\":\"obx_c89608a6a6f8887651f977b14105ff18d9639ae888bfed540091cffc72d279f3\",\"byOccurrenceId\":null,\"markedAtMs\":1750000000000}",
+  "do_data_bytes": "{\"outboxId\":\"obx_c89608a6a6f8887651f977b14105ff18d9639ae888bfed540091cffc72d279f3\",\"byOccurrenceId\":null,\"markedAtMs\":1750000000000}",
+  "d1_equals_do": true,
+  "byte_length_utf8": 132,
+  "sha256": "2da445d0502a0d017f22e9e76df12aeb7897a24577ebfca90aef29fff33f2b9c"
+}

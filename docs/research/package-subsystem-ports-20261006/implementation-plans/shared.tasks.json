@@ -1,0 +1,680 @@
+{
+  "plan": "shared",
+  "source_checkpoint": "3d1f8f062f9650c061f6cb87c8af9afb2c01b0e5",
+  "lanes": [
+    {
+      "id": "C-contract",
+      "title": "Source and prepared-boundary contracts",
+      "owns": [
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/shared/prepared-baseline-contract.json",
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/shared/scope.json"
+      ]
+    },
+    {
+      "id": "C-abi",
+      "title": "Protocol vectors and binding spike",
+      "owns": [
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/shared/pins.json",
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/shared/transport-contracts.json",
+        "packages/testkit/conformance/ports/loader-smoke/Cargo.lock",
+        "packages/testkit/conformance/ports/loader-smoke/Cargo.toml",
+        "packages/testkit/conformance/ports/loader-smoke/host.mjs",
+        "packages/testkit/conformance/ports/loader-smoke/src/lib.rs",
+        "packages/testkit/conformance/ports/transport-vectors.mjs"
+      ]
+    },
+    {
+      "id": "C-delivery",
+      "title": "Exclusive global manifests, bundle and release integrator",
+      "owns": [
+        "bun.lock",
+        "package.json",
+        "packages/cloudflare/package.json",
+        "packages/cloudflare/src/deploy/bundle.ts",
+        "packages/cloudflare/src/dev/local-run.ts",
+        "packages/cloudflare/src/release/manifest.ts",
+        "packages/cloudflare/src/release/stamp.ts",
+        "packages/contracts/src/deployment-assets.ts",
+        "packages/contracts/src/index.ts",
+        "packages/state/package.json",
+        "packages/stdlib/package.json",
+        "packages/testkit/package.json",
+        "packages/testkit/src/scopes/local.ts"
+      ]
+    },
+    {
+      "id": "C-evidence",
+      "title": "Conformance, loader and workload evidence",
+      "owns": [
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/shared/loader-smoke.json",
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/shared/workloads.json",
+        "packages/testkit/conformance/ports/loader-smoke/workerd.mjs",
+        "packages/testkit/conformance/ports/observations.mjs"
+      ]
+    },
+    {
+      "id": "C-coordination",
+      "title": "Dispatch, ownership and completion review",
+      "owns": [
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/shared/C01.complete.json",
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/shared/C01.ready.json",
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/shared/C02.complete.json",
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/shared/C02.ready.json",
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/shared/C03.complete.json",
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/shared/C03.ready.json",
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/shared/C04.complete.json",
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/shared/C04.ready.json",
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/shared/C05.complete.json",
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/shared/C05.ready.json",
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/shared/ownership.json"
+      ]
+    }
+  ],
+  "tasks": [
+    {
+      "id": "C01.1",
+      "parent": "C01",
+      "title": "Recheck source checkpoint, scope and live owners",
+      "lane": "C-contract",
+      "wave": 0,
+      "depends_on": [],
+      "writes": [
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/shared/scope.json"
+      ],
+      "actions": [
+        "Compare current sources with the planning checkpoint; record caller/export/platform inventory template and untouched compiler/producer boundaries. Reconcile proposed responsibility layout with the living filetree before implementation, without implementing or advancing a checkpoint during planning."
+      ],
+      "kind": "work",
+      "required": true,
+      "acceptance": [
+        "Existing packages-only functionality, source changes, baseline failures and coverage limits have owners; scope remains revisable with evidence."
+      ]
+    },
+    {
+      "id": "C01.2",
+      "parent": "C01",
+      "title": "Assign exclusive resources and dispatch capacity",
+      "lane": "C-coordination",
+      "wave": 0,
+      "depends_on": [
+        "C01.1"
+      ],
+      "writes": [
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/shared/ownership.json"
+      ],
+      "actions": [
+        "Assign a single writer per logical lane and shared integration file; publish A/V binding and W/V runtime handoffs. Choose three implementation workers plus one coordinator by default; maintain ready and blocked queues."
+      ],
+      "kind": "work",
+      "required": true,
+      "acceptance": [
+        "No two active tasks write one shared file/lane; workers consume ready backlog and blockers name an owner and exit condition."
+      ]
+    },
+    {
+      "id": "C01.ready",
+      "parent": "C01",
+      "title": "Common scope and ownership ready",
+      "lane": "C-coordination",
+      "wave": 1,
+      "depends_on": [
+        "C01.1",
+        "C01.2"
+      ],
+      "writes": [
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/shared/C01.ready.json"
+      ],
+      "actions": [
+        "Review cited raw evidence before releasing the gate."
+      ],
+      "kind": "gate",
+      "required": true,
+      "acceptance": [
+        "Package inventories can proceed; this is the common readiness gate, not completion of A01/V01/W01/P01."
+      ]
+    },
+    {
+      "id": "C02.1",
+      "parent": "C02",
+      "title": "Publish prepared-boundary and observable-trace method",
+      "lane": "C-contract",
+      "wave": 1,
+      "depends_on": [
+        "C01.ready"
+      ],
+      "writes": [
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/shared/prepared-baseline-contract.json"
+      ],
+      "actions": [
+        "Agree current versus prepared TS comparisons, fixture attribution and extraction review rules. Preserve different error/presence/clone/auth/evaluation policies; do not rewrite exact arithmetic merely for a baseline."
+      ],
+      "kind": "work",
+      "required": true,
+      "acceptance": [
+        "Each plan can extract independently; matching source traces and full consumer evidence are explicit acceptance, not assumed from common scaffolding."
+      ]
+    },
+    {
+      "id": "C02.ready",
+      "parent": "C02",
+      "title": "Prepared-boundary method ready",
+      "lane": "C-coordination",
+      "wave": 2,
+      "depends_on": [
+        "C02.1"
+      ],
+      "writes": [
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/shared/C02.ready.json"
+      ],
+      "actions": [
+        "Review cited raw evidence before releasing the gate."
+      ],
+      "kind": "gate",
+      "required": true,
+      "acceptance": [
+        "A02/V02/W02/P02 contribute their own prepared evidence later."
+      ]
+    },
+    {
+      "id": "C03.1",
+      "parent": "C03",
+      "title": "Freeze minimal versioned transport and profile handoffs",
+      "lane": "C-abi",
+      "wave": 1,
+      "depends_on": [
+        "C01.ready"
+      ],
+      "writes": [
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/shared/transport-contracts.json"
+      ],
+      "actions": [
+        "Freeze explicit presence, f64/raw BigInt, UTF-16 key/string order, result/error envelopes, corruption and lifetime rules. Keep values/work/native payloads separately owned; no generic universal serializer/validator."
+      ],
+      "kind": "work",
+      "required": true,
+      "acceptance": [
+        "Minimal smoke contracts and pinning/toolchain choices are executable; scalar semantics remain values-owned, catalogs/declarations producer-owned."
+      ]
+    },
+    {
+      "id": "C03.2",
+      "parent": "C03",
+      "title": "Build encoder/decoder vectors and pinning spike",
+      "lane": "C-abi",
+      "wave": 2,
+      "depends_on": [
+        "C03.1"
+      ],
+      "writes": [
+        "packages/testkit/conformance/ports/transport-vectors.mjs",
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/shared/pins.json"
+      ],
+      "actions": [
+        "Test scalar/text/presence/version/length vectors and native/binding build choices against actual installed APIs and licenses/support. Timebox the minimal proof, recording a reproducible chosen route or bounded alternative."
+      ],
+      "kind": "work",
+      "required": true,
+      "acceptance": [
+        "Bad versions/lengths are rejected; no latest-version example is accepted without actual build evidence; common proof does not require full semantic modules."
+      ]
+    },
+    {
+      "id": "C03.ready",
+      "parent": "C03",
+      "title": "Minimal ABI and pinning contracts ready",
+      "lane": "C-coordination",
+      "wave": 3,
+      "depends_on": [
+        "C03.2"
+      ],
+      "writes": [
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/shared/C03.ready.json"
+      ],
+      "actions": [
+        "Review cited raw evidence before releasing the gate."
+      ],
+      "kind": "gate",
+      "required": true,
+      "acceptance": [
+        "Subsystem native foundations may begin; full binding/protocol conformance joins C03.complete."
+      ]
+    },
+    {
+      "id": "C04.asset",
+      "parent": "C04",
+      "title": "Land typed text/binary asset contract and host plumbing",
+      "lane": "C-delivery",
+      "wave": 4,
+      "depends_on": [
+        "C03.ready"
+      ],
+      "writes": [
+        "packages/contracts/src/deployment-assets.ts",
+        "packages/contracts/src/index.ts",
+        "packages/cloudflare/src/deploy/bundle.ts",
+        "packages/cloudflare/src/dev/local-run.ts",
+        "packages/testkit/src/scopes/local.ts"
+      ],
+      "actions": [
+        "Implement the agreed typed inventory, safe byte writing/propagation and pinned installed module type mapping; leave source rewriting/maps on text. Keep v1 text-only output byte-identical and version mixed digests/manifests."
+      ],
+      "kind": "work",
+      "required": true,
+      "acceptance": [
+        "Binary lengths/hashes are exact; CompiledWasm is verified against the installed API; text-only hash/order/serialization fixtures pass."
+      ]
+    },
+    {
+      "id": "C04.1",
+      "parent": "C04",
+      "title": "Build tiny actual binding and smoke fixture",
+      "lane": "C-abi",
+      "wave": 4,
+      "depends_on": [
+        "C03.ready"
+      ],
+      "writes": [
+        "packages/testkit/conformance/ports/loader-smoke/Cargo.toml",
+        "packages/testkit/conformance/ports/loader-smoke/Cargo.lock",
+        "packages/testkit/conformance/ports/loader-smoke/src/lib.rs",
+        "packages/testkit/conformance/ports/loader-smoke/host.mjs"
+      ],
+      "actions": [
+        "Build one pinned precompiled binding, synchronous startup/call and failure vector. Keep this fixture independent of work package graph and all arithmetic/validation implementations."
+      ],
+      "kind": "work",
+      "required": true,
+      "acceptance": [
+        "Native/Node/Bun glue startup and synchronous entry actually execute; missing/corrupt/wrong-ABI module fails, no semantic fallback."
+      ]
+    },
+    {
+      "id": "C04.2",
+      "parent": "C04",
+      "title": "Prove actual local workerd and deployment-map loader",
+      "lane": "C-evidence",
+      "wave": 5,
+      "depends_on": [
+        "C04.asset",
+        "C04.1"
+      ],
+      "writes": [
+        "packages/testkit/conformance/ports/loader-smoke/workerd.mjs",
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/shared/loader-smoke.json"
+      ],
+      "actions": [
+        "Run the real generated tiny binding through this repository built deployment map and local workerd/testkit propagation; record exact asset/import/bootstrap path."
+      ],
+      "kind": "work",
+      "required": true,
+      "acceptance": [
+        "No fake Wasm replies/text markers; one initialized instance, malformed bytes/startup failures and text-only legacy parity pass."
+      ]
+    },
+    {
+      "id": "C04.ready",
+      "parent": "C04",
+      "title": "Tiny actual loader and typed asset proof ready",
+      "lane": "C-coordination",
+      "wave": 6,
+      "depends_on": [
+        "C04.2"
+      ],
+      "writes": [
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/shared/C04.ready.json"
+      ],
+      "actions": [
+        "Review cited raw evidence before releasing the gate."
+      ],
+      "kind": "gate",
+      "required": true,
+      "acceptance": [
+        "Runtime plans may verify their own generated bindings next. This gate does not certify actual values/work assets, final vendor maps or installed consumers. Native JS-only preparation is independent of this Wasm proof."
+      ]
+    },
+    {
+      "id": "C04.graph",
+      "parent": "C04",
+      "title": "Land root and consumer dependency/build graph",
+      "lane": "C-delivery",
+      "wave": 5,
+      "depends_on": [
+        "W02.foundation",
+        "C04.asset"
+      ],
+      "writes": [
+        "package.json",
+        "bun.lock",
+        "packages/cloudflare/package.json",
+        "packages/state/package.json",
+        "packages/stdlib/package.json",
+        "packages/testkit/package.json"
+      ],
+      "actions": [
+        "Use the minimal emitted work-kernel contract to install acyclic runtime dependencies, explicit build order, exports and release commands. Apply other agreed common build hooks; package-local values/work/native manifests retain their designated owners."
+      ],
+      "kind": "work",
+      "required": true,
+      "acceptance": [
+        "Root/consumer build and lockfile graph is executable, no state\u2192full-work cycle, and no compiler Cargo workspace is introduced. This gate does not certify final work assets."
+      ]
+    },
+    {
+      "id": "C04.values-assets",
+      "parent": "C04",
+      "title": "Fulfil actual values binding and vendor inventory",
+      "lane": "C-delivery",
+      "wave": 7,
+      "depends_on": [
+        "A07.foundation",
+        "C04.graph",
+        "C04.ready"
+      ],
+      "writes": [
+        "packages/cloudflare/src/deploy/bundle.ts",
+        "packages/cloudflare/src/release/stamp.ts",
+        "packages/cloudflare/src/release/manifest.ts"
+      ],
+      "actions": [
+        "Integrate actual generated values glue/binary imports, vendor entry, shipped dist roots and release inventory using the frozen asset paths. Full arithmetic/validation rebuilds must continue to use those paths and validate final bytes in their own gates."
+      ],
+      "kind": "work",
+      "required": true,
+      "acceptance": [
+        "Values consumers use actual shipped assets, not the smoke fixture; native binary is excluded from Worker maps; missing/corrupt/version errors fail visibly."
+      ]
+    },
+    {
+      "id": "C04.work-assets",
+      "parent": "C04",
+      "title": "Fulfil work generated asset and package request",
+      "lane": "C-delivery",
+      "wave": 7,
+      "depends_on": [
+        "W05.2",
+        "C04.graph",
+        "C04.ready"
+      ],
+      "writes": [
+        "packages/cloudflare/src/deploy/bundle.ts",
+        "packages/cloudflare/src/dev/local-run.ts",
+        "packages/testkit/src/scopes/local.ts",
+        "packages/cloudflare/src/release/stamp.ts",
+        "packages/cloudflare/src/release/manifest.ts"
+      ],
+      "actions": [
+        "Apply W05.2 exact vendor/bare-import/binary/integrity/dist-root request, using real W05.1 outputs and the owning release stamp. Return reviewed source/asset hashes and completed integration evidence to work verification."
+      ],
+      "kind": "work",
+      "required": true,
+      "acceptance": [
+        "Actual work binary and package are in built runtime/deploy/testkit inventory; W05.4/W05.3 certify installed package and workerd afterward."
+      ]
+    },
+    {
+      "id": "C04.preparation-join",
+      "parent": "C04",
+      "title": "Land native bundle-helper integration",
+      "lane": "C-delivery",
+      "wave": 7,
+      "depends_on": [
+        "P05.2",
+        "C04.asset"
+      ],
+      "writes": [
+        "packages/cloudflare/src/deploy/bundle.ts"
+      ],
+      "actions": [
+        "Apply the exact P05.2 coarse stage/export request around the typed asset contract. Keep Bun and catalog derivation with their existing producer; preserve worker-missing fallback and all failure order."
+      ],
+      "kind": "work",
+      "required": true,
+      "acceptance": [
+        "P05 host/native lanes receive reviewed exports/source hash; no duplicated catalog or arbitrary asset format; initial JS-only native consumer does not wait for C04.ready."
+      ]
+    },
+    {
+      "id": "C04.native-release",
+      "parent": "C04",
+      "title": "Land native command, stamp and dist inventory",
+      "lane": "C-delivery",
+      "wave": 7,
+      "depends_on": [
+        "P09.1",
+        "C04.graph"
+      ],
+      "writes": [
+        "packages/cloudflare/package.json",
+        "packages/cloudflare/src/release/stamp.ts",
+        "packages/cloudflare/src/release/manifest.ts"
+      ],
+      "actions": [
+        "Integrate native package-local build/package scripts and executable manifest into current Cloudflare build/release/publication. Keep platform binaries outside Worker vendor maps."
+      ],
+      "kind": "work",
+      "required": true,
+      "acceptance": [
+        "Native supported-host binaries/notices/dist metadata ship through owning manifest; P09.2 must prove actual installed launch, no user compiler."
+      ]
+    },
+    {
+      "id": "C04.validation-join",
+      "parent": "C04",
+      "title": "Fulfil accepted validation route or record declined join",
+      "lane": "C-delivery",
+      "wave": 8,
+      "depends_on": [
+        "V08.3",
+        "C04.values-assets"
+      ],
+      "writes": [
+        "packages/cloudflare/src/deploy/bundle.ts",
+        "packages/cloudflare/src/dev/local-run.ts",
+        "packages/testkit/src/scopes/local.ts"
+      ],
+      "actions": [
+        "Read the owning HTTP adoption decision. If accepted, wait for V08.4 and integrate its actual assembled entry/module propagation; if declined, record an evidenced no-op and the default 501 gap."
+      ],
+      "kind": "work",
+      "required": true,
+      "acceptance": [
+        "Accepted delivery integration completes after V08.4 and its own module checks; subsequent V08.5 proves deployment, required by V08.6 before accepted outcome completion. A declined branch changes no route and never certifies deployed adoption."
+      ],
+      "conditional_dependencies": [
+        {
+          "when": "V08.3 accepts bounded HTTP join",
+          "depends_on": [
+            "V08.4"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "C05.1",
+      "parent": "C05",
+      "title": "Publish observer schema, workloads and budget procedure",
+      "lane": "C-evidence",
+      "wave": 1,
+      "depends_on": [
+        "C01.ready"
+      ],
+      "writes": [
+        "packages/testkit/conformance/ports/observations.mjs",
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/shared/workloads.json"
+      ],
+      "actions": [
+        "Create deterministic current-TS observers, raw-output/environment/resource schema and oracle/seed rules. Freeze selection and budget procedure before viewing Rust comparisons; measure current/prepared TS and complete consumers."
+      ],
+      "kind": "work",
+      "required": true,
+      "acceptance": [
+        "Early actual TS observations are executable; getters/callbacks and side-effectful calls are never shadow-run twice; provisional speed cutoffs remain explicitly ratified/replaced before comparisons."
+      ]
+    },
+    {
+      "id": "C05.ready",
+      "parent": "C05",
+      "title": "Common conformance and measurement harness ready",
+      "lane": "C-coordination",
+      "wave": 2,
+      "depends_on": [
+        "C05.1"
+      ],
+      "writes": [
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/shared/C05.ready.json"
+      ],
+      "actions": [
+        "Review cited raw evidence before releasing the gate."
+      ],
+      "kind": "gate",
+      "required": true,
+      "acceptance": [
+        "Subsystem observers add real adapter/distribution cases later; unit/native timings do not certify adoption."
+      ]
+    },
+    {
+      "id": "C01.complete",
+      "parent": "C01",
+      "title": "All caller inventories and scope records reviewed",
+      "lane": "C-coordination",
+      "wave": 9,
+      "depends_on": [
+        "C01.ready",
+        "A01",
+        "V01",
+        "W01",
+        "P01"
+      ],
+      "writes": [
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/shared/C01.complete.json"
+      ],
+      "actions": [
+        "Review cited raw evidence before releasing the gate."
+      ],
+      "kind": "gate",
+      "required": true,
+      "acceptance": [
+        "Every migrated path has an owner, admitted-input contract, real consumer and explicit retained/deferred scope."
+      ]
+    },
+    {
+      "id": "C02.complete",
+      "parent": "C02",
+      "title": "All matching prepared TS boundaries reviewed",
+      "lane": "C-coordination",
+      "wave": 10,
+      "depends_on": [
+        "C02.ready",
+        "A02",
+        "V02",
+        "W02",
+        "P02"
+      ],
+      "writes": [
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/shared/C02.complete.json"
+      ],
+      "actions": [
+        "Review cited raw evidence before releasing the gate."
+      ],
+      "kind": "gate",
+      "required": true,
+      "acceptance": [
+        "Zero unexplained prepared/current TS observable differences; extraction never collapses differing policies."
+      ]
+    },
+    {
+      "id": "C03.complete",
+      "parent": "C03",
+      "title": "All actual binding and protocol contracts reviewed",
+      "lane": "C-coordination",
+      "wave": 11,
+      "depends_on": [
+        "C03.ready",
+        "A07",
+        "V03",
+        "W03",
+        "P03"
+      ],
+      "writes": [
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/shared/C03.complete.json"
+      ],
+      "actions": [
+        "Review cited raw evidence before releasing the gate."
+      ],
+      "kind": "gate",
+      "required": true,
+      "acceptance": [
+        "Version, presence, lifetime, corruption and binding/native negative evidence is complete for each selected profile."
+      ]
+    },
+    {
+      "id": "C04.complete",
+      "parent": "C04",
+      "title": "All declared distribution and consumer assets reviewed",
+      "lane": "C-coordination",
+      "wave": 16,
+      "depends_on": [
+        "C04.ready",
+        "C04.graph",
+        "C04.values-assets",
+        "C04.work-assets",
+        "C04.preparation-join",
+        "C04.native-release",
+        "C04.validation-join",
+        "A08",
+        "V11",
+        "W05",
+        "P09",
+        "P05.mixed"
+      ],
+      "writes": [
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/shared/C04.complete.json"
+      ],
+      "actions": [
+        "Review cited raw evidence before releasing the gate."
+      ],
+      "kind": "gate",
+      "required": true,
+      "acceptance": [
+        "Generated package-specific glue, actual consumers and supported installed hosts pass; declined validation route retains its visible adoption gap."
+      ]
+    },
+    {
+      "id": "C05.complete",
+      "parent": "C05",
+      "title": "All parity, budget and rollout evidence reviewed",
+      "lane": "C-coordination",
+      "wave": 18,
+      "depends_on": [
+        "C05.ready",
+        "A10",
+        "V11",
+        "W07",
+        "P10"
+      ],
+      "writes": [
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/shared/C05.complete.json"
+      ],
+      "actions": [
+        "Review cited raw evidence before releasing the gate."
+      ],
+      "kind": "gate",
+      "required": true,
+      "acceptance": [
+        "No unexplained observable differences; actual complete-call/native-reuse adoption and resource decisions retain raw evidence."
+      ]
+    }
+  ],
+  "dispatch": {
+    "implementation_workers": 3,
+    "coordinator_workers": 1,
+    "exclusive_lanes": true,
+    "conditional_tasks_require_recorded_decision": true,
+    "waves_are_barriers": false
+  },
+  "notes": [
+    "All Cxx dependencies name readiness or exact handoff gates; Cxx.complete are aggregate outcomes only.",
+    "C04-delivery tasks can be ready together but run serially under one writer; no artificial cross-subsystem dependency is needed merely to serialize shared files.",
+    "Conditional accepted HTTP scope adds V08.4; declining leaves optional boxes unchecked and default deployment adoption blocked."
+  ]
+}

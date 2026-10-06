@@ -1,0 +1,16 @@
+{
+ "integration": "b5",
+ "date": "2026-10-06",
+ "main_before": "ef3f680",
+ "commits": [
+  "96cf12f lane B (B5): declared-ownership containment channel + pipeline enforcement"
+ ],
+ "lane_commits": [
+  "d22830b1944d567f60a0df4ab918cb6e264578c0 (7 files, state-only)"
+ ],
+ "patch_id identical": true,
+ "coverage": "state: loader containment channel (ArtifactModel.parent/scope; whole-set reject dangling/both-set/bad-scope) -> buildModelTable opts -> InterimModelDef.containment (shape+cycle) -> pipeline create enforcement (declared parent required, declared roots reject parents, legacy undeclared byte-identical); 23 new memory + 4 durable tests",
+ "decisions": "no subtree cascade (explicit remainder - needs design); lifetime unenforceable (L1 owes descriptors); team vacuous at storage; parent.* predicates T04b-owed. C2 note: pass containment: loaded.containment beside serverInits/nullableFields.",
+ "gate": "CANONICAL GREEN: state build 0, 884/884 (857+27); values 751/751",
+ "lane_report": "12cf6b49"
+}

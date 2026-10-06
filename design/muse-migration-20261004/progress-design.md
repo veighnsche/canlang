@@ -6,7 +6,7 @@ The immediate result is a bounded candidate that covers Shift eligibility reconc
 
 ## Evidence and decision boundary
 
-Read [the current workload split](../../draft/MIGRATION.md), [the earlier investigation](../owner-fanout-20261004.md), [the saved consultation](../jev/owner-fanout-20261004/review.md), [DESIGN §§2–7 and §13](../../DESIGN.md), and the current [Shift source](../../draft/CanShift.can), [target](../../draft/CanShift.mjs), [requirements](../../draft/CanShift.md), [Volunteer source](../../draft/CanVolunteer.can), [target](../../draft/CanVolunteer.mjs) and [requirements](../../draft/CanVolunteer.md). Employee identity/current membership was checked against [Employees.can](../../draft/shared/Employees.can).
+Read [the current workload split](../../draft/MIGRATION.md), [the earlier investigation](../owner-fanout-20261004.md), [the saved consultation](../jev/owner-fanout-20261004/review.md), [DESIGN §§2–7 and §13](../../docs/specification/DESIGN.md), and the current [Shift source](../../draft/CanShift.can), [target](../../draft/CanShift.mjs), [requirements](../../draft/CanShift.md), [Volunteer source](../../draft/CanVolunteer.can), [target](../../draft/CanVolunteer.mjs) and [requirements](../../draft/CanVolunteer.md). Employee identity/current membership was checked against [Employees.can](../../draft/shared/Employees.can).
 
 Verified constraints:
 

@@ -1,3 +1,0 @@
-# Wording/equivalence check
-
-All three requests preserve the same three fields, preparer/reviewer separation, Account-only If-Match support, stale-read/lost-reply uncertainty, existing draft mechanisms, complete alternatives and both costs. Context, selection question and option prose are freshly worded; technical identities/option keys remain stable. No vote or approval threshold is defined. Provider evidence: https://developer.salesforce.com/docs/platform/api-rest/guide/resources-sobject-retrieve-patch.html . No secrets, account data or proprietary provider payloads are included. This is a new synchronization-policy decision, not a retry of the rejected history or dependency exports.

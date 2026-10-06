@@ -1,0 +1,40 @@
+{
+  "broken_links_or_whitespace": [],
+  "consultations_checked": 3,
+  "input_tokens": 7434,
+  "output_tokens": 387,
+  "reported_score_minus_returned_distribution": {
+    "1:arithmetic": 0.03,
+    "1:validation": 0.0,
+    "1:work": 0.01,
+    "1:artifacts": -0.01,
+    "2:arithmetic": 0.02,
+    "2:validation": 0.0,
+    "2:work": 0.02,
+    "2:artifacts": -0.01,
+    "3:arithmetic": 0.03,
+    "3:validation": 0.01,
+    "3:work": 0.04,
+    "3:artifacts": -0.01
+  },
+  "returned_distribution_sums": {
+    "1:arithmetic": 1.0,
+    "1:validation": 1.0,
+    "1:work": 1.0,
+    "1:artifacts": 1.0,
+    "1:first_investment": 1.0,
+    "2:arithmetic": 1.0,
+    "2:validation": 1.0,
+    "2:work": 1.0,
+    "2:artifacts": 1.0,
+    "2:first_investment": 1.0,
+    "3:first_investment": 0.99,
+    "3:arithmetic": 1.0,
+    "3:validation": 1.0,
+    "3:work": 0.99,
+    "3:artifacts": 1.0
+  },
+  "source_hash_mismatches": [],
+  "selected_tests": 431,
+  "report_words": 3812
+}

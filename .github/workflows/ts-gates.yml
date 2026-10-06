@@ -1,0 +1,151 @@
+name: ts-gates
+run-name: TS gates · ${{ inputs.task_id || github.ref_name }} · ${{ inputs.gate || 'values' }}
+
+on:
+  push:
+    branches: ['codex/ci-gates/**']
+  workflow_dispatch:
+    inputs:
+      source_sha:
+        description: Exact committed source SHA to test (empty tests the workflow commit)
+        type: string
+        required: false
+      task_id:
+        description: Coordinator task or grant ID for the receipt
+        type: string
+        required: true
+      gate:
+        description: Package gate; all runs independent jobs
+        type: choice
+        required: true
+        default: values
+        options: [values, state, stdlib, identity, ui, interfaces, work, cloudflare, testkit, workspace, all]
+
+permissions:
+  contents: read
+
+# Different source commits and package gates run independently. Do not cancel a receipt in flight.
+concurrency:
+  group: ts-gates-${{ github.ref }}-${{ inputs.source_sha || github.sha }}-${{ inputs.gate || 'values' }}
+  cancel-in-progress: false
+
+jobs:
+  request:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    outputs:
+      matrix: ${{ steps.request.outputs.matrix }}
+      source_sha: ${{ steps.request.outputs.source_sha }}
+      task_id: ${{ steps.request.outputs.task_id }}
+    steps:
+      - id: request
+        name: Validate finite gate request
+        env:
+          REQUEST_SHA: ${{ inputs.source_sha || github.sha }}
+          REQUEST_GATE: ${{ inputs.gate || 'values' }}
+          REQUEST_TASK: ${{ inputs.task_id || github.ref_name }}
+        run: |
+          python3 - <<'PYREQ'
+          import json, os, re
+          profiles = ['values', 'state', 'stdlib', 'identity', 'ui', 'interfaces', 'work', 'cloudflare', 'testkit', 'workspace']
+          sha, gate, task = (os.environ[k] for k in ['REQUEST_SHA', 'REQUEST_GATE', 'REQUEST_TASK'])
+          if not re.fullmatch(r'[0-9a-f]{40}', sha): raise SystemExit('source_sha must be a full lowercase commit SHA')
+          if gate != 'all' and gate not in profiles: raise SystemExit('unknown gate')
+          if not re.fullmatch(r'[A-Za-z0-9][A-Za-z0-9._:/-]{0,159}', task): raise SystemExit('invalid task ID')
+          selected = profiles if gate == 'all' else [gate]
+          with open(os.environ['GITHUB_OUTPUT'], 'a') as f:
+              f.write('matrix=' + json.dumps({'profile': selected}) + '\n')
+              f.write('source_sha=' + sha + '\n')
+              f.write('task_id=' + task + '\n')
+          PYREQ
+
+  gate:
+    name: TS / ${{ matrix.profile }}
+    needs: request
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      max-parallel: 7
+      matrix: ${{ fromJSON(needs.request.outputs.matrix) }}
+    steps:
+      - id: tooling
+        name: Checkout pinned gate tooling
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ github.workflow_sha }}
+          path: gate-tools
+          persist-credentials: false
+          submodules: false
+      - id: source
+        name: Checkout exact source snapshot
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ needs.request.outputs.source_sha }}
+          path: candidate
+          persist-credentials: false
+          submodules: false
+      - id: node
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '24'
+      - id: bun
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
+        with:
+          bun-version: '1.4.2'
+      - id: gate
+        name: Run gate and write command receipts
+        working-directory: candidate
+        env:
+          CI_GATE_PROFILE: ${{ matrix.profile }}
+          CI_EXPECTED_SHA: ${{ needs.request.outputs.source_sha }}
+          CI_TASK_ID: ${{ needs.request.outputs.task_id }}
+          CI_RECEIPT_DIR: ${{ runner.temp }}/ts-gate-receipt
+          GITHUB_WORKFLOW_SHA: ${{ github.workflow_sha }}
+        run: node "$GITHUB_WORKSPACE/gate-tools/.github/ci/ts-gate.mjs"
+      - name: Preserve setup failure and summarize receipt
+        if: always()
+        env:
+          RECEIPT_DIR: ${{ runner.temp }}/ts-gate-receipt
+          SOURCE_SHA: ${{ needs.request.outputs.source_sha }}
+          PROFILE: ${{ matrix.profile }}
+          TASK_ID: ${{ needs.request.outputs.task_id }}
+          WORKFLOW_SHA: ${{ github.workflow_sha }}
+          TOOLING_OUTCOME: ${{ steps.tooling.outcome }}
+          SOURCE_OUTCOME: ${{ steps.source.outcome }}
+          NODE_OUTCOME: ${{ steps.node.outcome }}
+          BUN_OUTCOME: ${{ steps.bun.outcome }}
+          GATE_OUTCOME: ${{ steps.gate.outcome }}
+        run: |
+          python3 - <<'PYRECEIPT'
+          import json, os
+          from pathlib import Path
+          d = Path(os.environ['RECEIPT_DIR']); d.mkdir(parents=True, exist_ok=True)
+          p = d / 'receipt.json'
+          url = f"{os.environ['GITHUB_SERVER_URL']}/{os.environ['GITHUB_REPOSITORY']}/actions/runs/{os.environ['GITHUB_RUN_ID']}"
+          receipt = json.loads(p.read_text()) if p.exists() else {
+              'version': 1, 'status': 'infrastructure-failure', 'error': 'Gate did not write a receipt',
+              'expected_sha': os.environ['SOURCE_SHA'], 'source_sha': None,
+              'workflow_sha': os.environ['WORKFLOW_SHA'], 'profile': os.environ['PROFILE'],
+              'task_id': os.environ['TASK_ID'], 'run_id': os.environ['GITHUB_RUN_ID'],
+              'attempt': os.environ['GITHUB_RUN_ATTEMPT'], 'run_url': url, 'commands': []}
+          receipt['workflow_steps'] = {k.lower().removesuffix('_outcome'): os.environ[k] for k in
+              ['TOOLING_OUTCOME', 'SOURCE_OUTCOME', 'NODE_OUTCOME', 'BUN_OUTCOME', 'GATE_OUTCOME']}
+          if any(v != 'success' for v in receipt['workflow_steps'].values()): receipt['status'] = 'failed'
+          p.write_text(json.dumps(receipt, indent=2) + '\n')
+          with open(os.environ['GITHUB_STEP_SUMMARY'], 'a') as f:
+              f.write(f"### {receipt['profile']} — {receipt['status']}\n\n")
+              f.write(f"Task: `{receipt['task_id']}`\n\nSource: `{receipt['source_sha']}`\n\n[Run]({url})\n\n")
+              f.write('| Command | Exit | Status |\n|---|---:|---|\n')
+              for c in receipt['commands']:
+                  cmd = ' '.join(c['argv']).replace('|', r'\|')
+                  f.write(f"| `{cmd}` | {c.get('exit')} | {c['status']} |\n")
+          PYRECEIPT
+      - name: Upload immutable receipt and raw logs
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: ts-gate-${{ github.run_id }}-${{ github.run_attempt }}-${{ matrix.profile }}
+          path: ${{ runner.temp }}/ts-gate-receipt/
+          if-no-files-found: error
+          retention-days: 14

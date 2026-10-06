@@ -1,0 +1,20 @@
+{
+ "integration": "b1-b2",
+ "date": "2026-10-06",
+ "main_before": "4594011",
+ "commits": [
+  "3006266 lane B (B1): scenario-parity pipeline joins + CRUD-vs-scenario proofs",
+  "f9dd238 lane B (B2/Q3): L3-carried conflict currents + canonical read proofs"
+ ],
+ "lane_commits": [
+  "cef95042bd499c9496655d60294b824bc4c0fff7",
+  "a5dceda0379cb9c2658ac927a1d86009f6d60cc"
+ ],
+ "skipped": [
+  "3e89d8e (pins already on main via bb1ca7a)"
+ ],
+ "coverage": "packages/state/**: pipeline gateArchivedTargets, same-batch net uniques, loud default-collision guard, StateError.conflict+render, admission stale currents + ConflictServerOnly via invoke, D1/DO version-row attach; packages/values/**: 3 agreement pins",
+ "decisions": "B rulings carried (B2 existing-vocab Q3; B1 loud guard no Receipt change); scenario self-cancel (create+remove/update+remove same id, one scenario) fails at commit with version error - flagged for C2/I00 clearer verdict; layer splits documented (admission vs pipeline wording, CRUD vs scenario receipt [] pinning)",
+ "gate": "PENDING: canonical state+values suite gate queued behind G-F-F1-01 (TS slot held by F); then B1/B2 acceptance + B3-B5 assignment",
+ "lane_report": "fe6f65cd: state 857/857 (node --test dist/state), values 751/751, 43 new state tests + 3 values pins, clean tree at a5dceda"
+}

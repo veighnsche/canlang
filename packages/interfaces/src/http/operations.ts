@@ -35,9 +35,9 @@ import type {
   MutationEnvelope,
   ResolvedIdentity,
 } from '@canlang/contracts';
-import { IdentityError, deriveCsrfToken } from '@canlang/identity';
+import { IdentityError, assertCredentialLive, deriveCsrfToken, sha256HexText } from '@canlang/identity';
 import type { HttpDeps, OperationInputShape, SchemaCatalog } from '../ports.js';
-import { checkArtifactOperation, checkArtifactOperations, isDeliveryField } from '../mcp/schemas.js';
+import { checkArtifactOperation, checkArtifactOperations, checkBoundArguments, isDeliveryField } from '../mcp/schemas.js';
 import type {
   ArtifactOperationSlice,
   CheckedArtifactDeliveryField,
@@ -161,6 +161,9 @@ function coerceFormBody(form: Record<string, string>): Record<string, unknown> {
  * Leniency (documented): extra top-level envelope members beyond
  * operation/operation_id/inputs are ignored — only `inputs` is
  * closed-checked, since the URL (not the body) selects the operation.
+ * Carve-out (E2b): a top-level `action_handle` rejects loudly instead —
+ * sealed-handle submission is MCP-only, so it must never silently
+ * dispatch as an ordinary envelope.
  */
 export async function handleOperationRequest(
   deps: HttpDeps,
@@ -202,6 +205,22 @@ export async function handleOperationRequest(
     const record = body as Record<string, unknown>;
     if ('operation' in record && record['operation'] !== operation) {
       return deny(deps, buildBusinessError('validation', 'Body operation does not match the route.'), operation);
+    }
+    // E2b handle-mode boundary: sealed-handle submission is MCP-only, so a
+    // top-level `action_handle` (the MCP sibling spelling) rejects loudly
+    // instead of falling into the documented extra-member leniency — a
+    // misrouted handle call must never silently dispatch as ordinary.
+    if ('action_handle' in record) {
+      const message =
+        "Unknown top-level member 'action_handle': sealed-handle submission is MCP-only " +
+        '(tools/call); HTTP operation POSTs carry ordinary inputs.';
+      return deny(
+        deps,
+        buildBusinessError('validation', message, {
+          fields: [{ path: '/action_handle', code: 'unknown', message }],
+        }),
+        operation,
+      );
     }
     // Capture redisplay state best-effort: later denials re-render the form
     // when the request asks for HTML; `_csrf` is transport, never a draft.
@@ -248,7 +267,28 @@ export async function handleOperationRequest(
     if (closedError !== null) {
       return denyOrRerender(deps, request, operation, closedError, seen, authed);
     }
+    // E1 bound-input wiring: framing first, then each present value binds
+    // to its derived declaration (delivery binds to nothing — submitted
+    // receipts fail here when framing admits them). Catalogs without the
+    // derived channel keep framing-only behavior.
+    const derived = deps.catalog.derivedFor?.(operation) ?? null;
+    if (derived !== null) {
+      const boundError = checkBoundArguments(derived, businessInputs);
+      if (boundError !== null) {
+        return denyOrRerender(deps, request, operation, boundError, seen, authed);
+      }
+    }
 
+    /* B4 commit-time credential liveness: the session is re-read from
+     * CURRENT store facts just before the commit — a revocation (or
+     * expiry) landing between admission and commit voids the in-flight
+     * operation. IdentityError falls into the shared catch below and
+     * denies with the admission-identical message (no oracle). */
+    await assertCredentialLive(deps.identity.store, {
+      kind: 'session',
+      tokenHash: await sha256HexText(sessionToken),
+      now: new Date(deps.clock.nowMs()).toISOString(),
+    });
     const envelope: MutationEnvelope = { operation, operation_id: operationId, inputs: businessInputs };
     const outcome = await deps.invoker.invokeMutation(envelope, identity);
     if ('error' in outcome) {

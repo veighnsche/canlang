@@ -1,7 +1,0 @@
-# Focused highlighting probe.
-app Probe
-Given
- Thing {value:trim, other:unique, rest:server, low:min, high:max, caption:label, mode:enum, task:action}
- Other {items:a.trim, other:b.label, nullable:trim?, union:A|unique, compound:A | unique}
-When
-Then

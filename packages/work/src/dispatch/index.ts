@@ -2,9 +2,11 @@
  * Dispatch: atomic-order guard evaluation and claim issuance.
  *
  * Dispatch checks, in order: commit marker -> supersession -> pending state
- * -> guard -> claim (DESIGN section 6). A missing commit marker refuses
- * without sending; a superseded intent refuses before the guard runs; a
- * settled item refuses before guard evaluation; a false guard yields
+ * -> target availability -> guard -> claim (DESIGN section 6). A missing
+ * commit marker refuses without sending; a superseded intent refuses
+ * before the guard runs; a settled item refuses before guard evaluation;
+ * an unavailable target (D3, where deployment availability is injected)
+ * refuses explicitly before guard evaluation; a false guard yields
  * `skipped` with its verdict; otherwise a pending item receives a claim
  * carrying an injected claim id and timestamp.
  *
@@ -65,6 +67,24 @@ export interface DispatchDeps {
   claimIds: ClaimIdPort;
   supersessions: SupersessionPort;
   evaluateGuard: GuardEvaluator;
+  /**
+   * D3: deployment target availability, injected where the runtime
+   * knows it. Absent means unknown (existing behavior: no check).
+   * Present means enforced: sends to unavailable targets refuse
+   * explicitly instead of claiming or silently skipping.
+   */
+  availability?: TargetAvailabilityPort;
+}
+
+/**
+ * D3: deployment-known send-target availability. The key is the
+ * intent item's `source` path (capability operation path or
+ * queue/event target — the runtime constructs it as the dispatch
+ * target). Implementations answer from deployment bindings; the
+ * kernel only matches, never resolves providers itself.
+ */
+export interface TargetAvailabilityPort {
+  isTargetAvailable(target: string): boolean;
 }
 
 export interface DispatchAttempt {
@@ -126,16 +146,30 @@ export type DispatchOutcome =
    * the spend on its own.
    */
   | { status: 'refused-revoked'; outboxId: OutboxId }
+  /**
+   * D3: the send's target is unavailable in this deployment
+   * (unbound provider, scoped-out capability). Checked after
+   * lifecycle (committed/scoped/live) and before guard evaluation,
+   * so unavailable targets never evaluate guards and never claim.
+   * `target` echoes the intent item's source path. Terminal and
+   * explicit: the runtime surfaces this as a terminal business
+   * error (never re-driven like refused-*, never retried —
+   * repeating the identical send fails identically until the
+   * deployment changes). Transport mapping is runtime-owned.
+   */
+  | { status: 'unavailable'; outboxId: OutboxId; target: string }
   /** Claim issued for one provider-call attempt. */
   | { status: 'claimed'; claim: DispatchClaim };
 
 /**
  * Attempt one dispatch, evaluating inherited-scope -> supersession ->
- * guard -> revocation -> claim in order. Later checks never run once an
- * earlier one refuses: superseded intents never evaluate the guard,
- * uncommitted intents touch nothing, and a revoked authority never mints
- * a claim even when the guard passes (no cached snapshot authorizes a
- * spend — the claim-time revalidation is the authorization).
+ * state -> availability -> guard -> revocation -> claim in order. Later
+ * checks never run once an earlier one refuses: superseded intents
+ * never evaluate the guard, uncommitted intents touch nothing,
+ * unavailable targets never evaluate guards or mint claims, and a
+ * revoked authority never mints a claim even when the guard passes (no
+ * cached snapshot authorizes a spend — the claim-time revalidation is
+ * the authorization).
  */
 export function attemptDispatch(deps: DispatchDeps, attempt: DispatchAttempt): DispatchOutcome {
   const item = attempt.intent.item;
@@ -158,6 +192,13 @@ export function attemptDispatch(deps: DispatchDeps, attempt: DispatchAttempt): D
   }
   if (item.state !== 'pending') {
     return { status: 'refused-state', outboxId: item.id, state: item.state };
+  }
+  // D3: deployment-static admission before dynamic evaluation — an
+  // unavailable target refuses explicitly without consulting guards,
+  // authority, or claim ids. Absent availability means unknown (no
+  // check); fanout child claims carry no send target (untouched).
+  if (deps.availability !== undefined && !deps.availability.isTargetAvailable(item.source)) {
+    return { status: 'unavailable', outboxId: item.id, target: item.source };
   }
   const predicate = attempt.guard.predicate;
   if (predicate !== null) {

@@ -1,0 +1,14 @@
+{
+ "schema_version": 1,
+ "observed_utc": "2026-10-06T06:13:00Z",
+ "change": "cherry-pick 5cb456cb36691716e9a55e5d5375dff0a794435d (lane A) as db3a739 on main",
+ "changed_paths": 2,
+ "paths": [
+  "compiler/src/analysis/resolve.rs",
+  "compiler/tests/b4_check.rs"
+ ],
+ "coverage_delta": "compiler-owned T29 rule (+33/-3) + 6 t29_ tests (+105); no moves or duty transfers",
+ "complete_checkpoint_retained": "8249342707d3280e88e39e8c911b7e457828f31f",
+ "area_decisions_unchanged": true,
+ "verification": "lane t29 6/6 + full cargo 879/0 + clippy -D warnings 0 + fmt-own-clean (G-A-A4-01/02 released); whole-corpus 2062->1709 with per-family attribution + 5 audited unmaskings; coordinator diff-reviewed impl+tests"
+}

@@ -1,0 +1,1169 @@
+{
+  "plan": "artifact-preparation",
+  "source_checkpoint": "3d1f8f062f9650c061f6cb87c8af9afb2c01b0e5",
+  "lanes": [
+    {
+      "id": "P-contract",
+      "title": "Source contracts and coverage",
+      "owns": [
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/artifact-preparation/coverage.json",
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/artifact-preparation/inventory.json",
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/artifact-preparation/stage-contract.json",
+        "packages/cloudflare/README.md"
+      ]
+    },
+    {
+      "id": "P-evidence",
+      "title": "Baselines, conformance and measurements",
+      "owns": [
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/artifact-preparation/baseline.json",
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/artifact-preparation/cli-parity.json",
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/artifact-preparation/measurement.json",
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/artifact-preparation/mixed-assets.json",
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/artifact-preparation/module-parity.json",
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/artifact-preparation/prepared-ts.json",
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/artifact-preparation/publication.json",
+        "packages/cloudflare/conformance/preparation/cases.json",
+        "packages/cloudflare/conformance/preparation/differential.mjs",
+        "packages/cloudflare/conformance/preparation/workloads.mjs",
+        "packages/cloudflare/test/preparation-cli.test.ts",
+        "packages/cloudflare/test/preparation-mixed-assets.test.ts",
+        "packages/cloudflare/test/preparation-native.test.ts"
+      ]
+    },
+    {
+      "id": "P-coordination",
+      "title": "Completion review and dispatch",
+      "owns": [
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/artifact-preparation/P01.json",
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/artifact-preparation/P02.json",
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/artifact-preparation/P03.foundation.json",
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/artifact-preparation/P03.json",
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/artifact-preparation/P04.json",
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/artifact-preparation/P05.json",
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/artifact-preparation/P05.mixed.json",
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/artifact-preparation/P06.json",
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/artifact-preparation/P07.json",
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/artifact-preparation/P08.json",
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/artifact-preparation/P09.json",
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/artifact-preparation/P10.json",
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/artifact-preparation/P11.json"
+      ]
+    },
+    {
+      "id": "P-session",
+      "title": "Native protocol and single job integrator",
+      "owns": [
+        "packages/cloudflare/preparation/Cargo.lock",
+        "packages/cloudflare/preparation/Cargo.toml",
+        "packages/cloudflare/preparation/rust-toolchain.toml",
+        "packages/cloudflare/preparation/src/job.rs",
+        "packages/cloudflare/preparation/src/main.rs",
+        "packages/cloudflare/preparation/src/protocol.rs",
+        "packages/cloudflare/preparation/tests/protocol.rs",
+        "packages/cloudflare/preparation/tests/vectors.rs",
+        "packages/cloudflare/src/preparation/protocol.ts"
+      ]
+    },
+    {
+      "id": "P-input",
+      "title": "Lossless admitted-tree transport",
+      "owns": [
+        "packages/cloudflare/preparation/src/failures.rs",
+        "packages/cloudflare/preparation/src/input.rs",
+        "packages/cloudflare/src/preparation/inputs.ts"
+      ]
+    },
+    {
+      "id": "P-host",
+      "title": "Host launcher, build stages and CLI writer",
+      "owns": [
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/artifact-preparation/bundle-join-request.json",
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/artifact-preparation/rollback.json",
+        "packages/cloudflare/src/cli/platform.ts",
+        "packages/cloudflare/src/preparation/build-adapter.ts",
+        "packages/cloudflare/src/preparation/executable.ts",
+        "packages/cloudflare/src/preparation/host.ts",
+        "packages/cloudflare/src/preparation/publication.ts",
+        "packages/cloudflare/test/preparation-protocol.test.ts",
+        "packages/cloudflare/test/preparation-publication.test.ts"
+      ]
+    },
+    {
+      "id": "P-artifact",
+      "title": "Artifact indexes and semantic checks",
+      "owns": [
+        "packages/cloudflare/preparation/src/artifact.rs",
+        "packages/cloudflare/preparation/tests/artifact.rs"
+      ]
+    },
+    {
+      "id": "P-compatibility",
+      "title": "Compatibility policy calculations",
+      "owns": [
+        "packages/cloudflare/preparation/src/compatibility.rs",
+        "packages/cloudflare/preparation/tests/compatibility.rs"
+      ]
+    },
+    {
+      "id": "P-release",
+      "title": "Release calculations and native packaging",
+      "owns": [
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/artifact-preparation/native-release-request.json",
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/artifact-preparation/packaged-hosts.json",
+        "packages/cloudflare/preparation/src/release.rs",
+        "packages/cloudflare/preparation/tests/release.rs",
+        "packages/cloudflare/scripts/build-preparation.mjs",
+        "packages/cloudflare/scripts/package-preparation.mjs",
+        "packages/cloudflare/src/preparation/executable-manifest.ts",
+        "packages/cloudflare/test/preparation-packaged.test.ts"
+      ]
+    },
+    {
+      "id": "P-modules",
+      "title": "Module paths, rewriting and graph",
+      "owns": [
+        "packages/cloudflare/preparation/src/modules.rs",
+        "packages/cloudflare/preparation/tests/modules.rs"
+      ]
+    },
+    {
+      "id": "P-review",
+      "title": "Plans, rendering and review",
+      "owns": [
+        "packages/cloudflare/preparation/src/plan.rs",
+        "packages/cloudflare/preparation/src/render.rs",
+        "packages/cloudflare/preparation/src/review.rs",
+        "packages/cloudflare/preparation/tests/outputs.rs",
+        "packages/cloudflare/preparation/tests/plan.rs"
+      ]
+    }
+  ],
+  "tasks": [
+    {
+      "id": "P01.1",
+      "parent": "P01",
+      "title": "Freeze source, stage, caller and platform contracts",
+      "lane": "P-contract",
+      "wave": 1,
+      "depends_on": [
+        "C01.ready"
+      ],
+      "writes": [
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/artifact-preparation/inventory.json"
+      ],
+      "actions": [
+        "Within two working days, inventory migrated exports, retained synchronous helpers, actual CLI consumers, host claims and producer-owned facts. Assign exact source files; preserve the compiler boundary and additive artifact domain."
+      ],
+      "kind": "work",
+      "required": true,
+      "acceptance": [
+        "Every responsibility has a real caller and owner; stage/error/confirmation order is mapped; no compiler change is required."
+      ]
+    },
+    {
+      "id": "P01.2",
+      "parent": "P01",
+      "title": "Capture current source and installed CLI baselines",
+      "lane": "P-evidence",
+      "wave": 1,
+      "depends_on": [
+        "P01.1",
+        "C05.ready"
+      ],
+      "writes": [
+        "packages/cloudflare/conformance/preparation/cases.json",
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/artifact-preparation/baseline.json"
+      ],
+      "actions": [
+        "Build current dists before CLI evidence; record source-only and built CLI results separately. Capture fixture bytes, traces, baseline failures, supported hosts and precommitted workload/resource budgets."
+      ],
+      "kind": "work",
+      "required": true,
+      "acceptance": [
+        "No stale dist is treated as current parity; unrelated failures have owners; all P01 source suites and CLI modes are classified."
+      ]
+    },
+    {
+      "id": "P01",
+      "parent": "P01",
+      "title": "Source, baseline and release ownership complete",
+      "lane": "P-coordination",
+      "wave": 2,
+      "depends_on": [
+        "P01.1",
+        "P01.2"
+      ],
+      "writes": [
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/artifact-preparation/P01.json"
+      ],
+      "actions": [
+        "Review the linked leaf evidence and original scope ledger."
+      ],
+      "kind": "gate",
+      "required": true,
+      "acceptance": [
+        "Every migrated responsibility has an owner; zero required compiler changes; existing source-only tests and correctly built CLI tests classified. Record unrelated baseline failures without fixing them as part of planning."
+      ]
+    },
+    {
+      "id": "P02.1",
+      "parent": "P02",
+      "title": "Freeze prepared-job and coarse host-stage contracts",
+      "lane": "P-contract",
+      "wave": 2,
+      "depends_on": [
+        "P01",
+        "C02.ready",
+        "C03.ready",
+        "C05.ready"
+      ],
+      "writes": [
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/artifact-preparation/stage-contract.json"
+      ],
+      "actions": [
+        "Specify exact demand-driven steps, lossless tree fields, MCP/catalog requests, staged bytes and refusal/error traces. Specify a stable bundle/reference interface for parallel module and plan work."
+      ],
+      "kind": "work",
+      "required": true,
+      "acceptance": [
+        "Bare, preview, confirmed, preview+yes, compiler mismatch, missing worker and competing failures have exact stage expectations; no eager previous-plan reads or live apply."
+      ]
+    },
+    {
+      "id": "P02.2",
+      "parent": "P02",
+      "title": "Extract matching TS job and host wrappers",
+      "lane": "P-host",
+      "wave": 3,
+      "depends_on": [
+        "P02.1"
+      ],
+      "writes": [
+        "packages/cloudflare/src/preparation/host.ts",
+        "packages/cloudflare/src/preparation/build-adapter.ts",
+        "packages/cloudflare/src/cli/platform.ts"
+      ],
+      "actions": [
+        "Extract a prepared TS orchestration route around current helpers without reordering activation, Bun, catalog, render, review or publication. Initially delegate the existing bundle helper through its public boundary. Submit later bundle-internal changes to C04.preparation-join."
+      ],
+      "kind": "work",
+      "required": true,
+      "acceptance": [
+        "Current and prepared TS behavior, stdout/stderr, side-effect counts and bytes match; existing library helpers retain their route."
+      ]
+    },
+    {
+      "id": "P02.3",
+      "parent": "P02",
+      "title": "Build full-job differential and trace observers",
+      "lane": "P-evidence",
+      "wave": 4,
+      "depends_on": [
+        "P02.2"
+      ],
+      "writes": [
+        "packages/cloudflare/conformance/preparation/differential.mjs",
+        "packages/cloudflare/conformance/preparation/workloads.mjs",
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/artifact-preparation/prepared-ts.json"
+      ],
+      "actions": [
+        "Implement repeatable current/prepared TS observers and complete-job workload records. Preserve seeds, source/environment, output bytes and stage traces."
+      ],
+      "kind": "work",
+      "required": true,
+      "acceptance": [
+        "A reproducible comparator includes external stages and subprocess-ready timing boundaries; no duplicate host execution on effectful inputs."
+      ]
+    },
+    {
+      "id": "P02",
+      "parent": "P02",
+      "title": "Prepared TS comparator and stage traces complete",
+      "lane": "P-coordination",
+      "wave": 5,
+      "depends_on": [
+        "P02.2",
+        "P02.3"
+      ],
+      "writes": [
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/artifact-preparation/P02.json"
+      ],
+      "actions": [
+        "Review the linked leaf evidence and original scope ledger."
+      ],
+      "kind": "gate",
+      "required": true,
+      "acceptance": [
+        "Prepared TS preserves all existing behavior. Its whole-job cost is the primary comparator; fixtures cover bare/preview/confirmed paths, missing worker fallback and multiple competing failures. No new live apply calls."
+      ]
+    },
+    {
+      "id": "P03.1",
+      "parent": "P03",
+      "title": "Create package-local crate and executable scaffold",
+      "lane": "P-session",
+      "wave": 3,
+      "depends_on": [
+        "P02.1",
+        "C03.ready"
+      ],
+      "writes": [
+        "packages/cloudflare/preparation/Cargo.toml",
+        "packages/cloudflare/preparation/Cargo.lock",
+        "packages/cloudflare/preparation/rust-toolchain.toml",
+        "packages/cloudflare/preparation/src/main.rs",
+        "packages/cloudflare/preparation/src/job.rs",
+        "packages/cloudflare/preparation/src/protocol.rs"
+      ],
+      "actions": [
+        "Pin tested toolchain, crates, locks and protocol version. Create a standalone crate, explicit binary entry and retained-session scaffold; keep compiler and runtime kernels out of its dependency graph."
+      ],
+      "kind": "work",
+      "required": true,
+      "acceptance": [
+        "Native launch/framing proof is recorded within the declared spike; protocol stdout is clean and package-local builds reproduce."
+      ]
+    },
+    {
+      "id": "P03.foundation",
+      "parent": "P03",
+      "title": "Native crate and retained-session interface ready",
+      "lane": "P-coordination",
+      "wave": 4,
+      "depends_on": [
+        "P03.1"
+      ],
+      "writes": [
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/artifact-preparation/P03.foundation.json"
+      ],
+      "actions": [
+        "Review the linked leaf evidence and original scope ledger."
+      ],
+      "kind": "gate",
+      "required": true,
+      "acceptance": [
+        "The explicit foundation contract and its evidence are complete.",
+        "Algorithm lanes may start from the frozen interface without waiting for the complete host launcher or prepared TS measurement."
+      ]
+    },
+    {
+      "id": "P03.2",
+      "parent": "P03",
+      "title": "Implement lossless admitted-tree transfer",
+      "lane": "P-input",
+      "wave": 4,
+      "depends_on": [
+        "P03.foundation"
+      ],
+      "writes": [
+        "packages/cloudflare/preparation/src/input.rs",
+        "packages/cloudflare/preparation/src/failures.rs",
+        "packages/cloudflare/src/preparation/inputs.ts"
+      ],
+      "actions": [
+        "Transfer ordered tagged nodes, explicit presence/null, UTF-16 strings/keys, f64 bits and host canonical numeric spellings. Retain optional/admitted metadata and host JSON syntax diagnostics."
+      ],
+      "kind": "work",
+      "required": true,
+      "acceptance": [
+        "Surrogates, own __proto__, enumeration, exponent/negative-zero/nonfinite numbers, depth/size limits and malformed input vectors pass; serde metadata is not the compatibility renderer."
+      ]
+    },
+    {
+      "id": "P03.3",
+      "parent": "P03",
+      "title": "Implement ordered framed request/resume states",
+      "lane": "P-session",
+      "wave": 4,
+      "depends_on": [
+        "P03.foundation",
+        "P03.2"
+      ],
+      "writes": [
+        "packages/cloudflare/preparation/src/protocol.rs",
+        "packages/cloudflare/preparation/src/job.rs",
+        "packages/cloudflare/src/preparation/protocol.ts",
+        "packages/cloudflare/preparation/tests/protocol.rs"
+      ],
+      "actions": [
+        "Implement Begin/NeedHost/ResumeHost/Prepared/Failed, byte frames, token-once validation, limits, EOF/abort and structured failure mapping. Keep state and module buffers in one process."
+      ],
+      "kind": "work",
+      "required": true,
+      "acceptance": [
+        "Truncated/oversized frames, stage replay/skew/unknown versions, mismatched tokens and cancellation fail deterministically; no per-leaf IPC or semantic TS retry."
+      ]
+    },
+    {
+      "id": "P03.4",
+      "parent": "P03",
+      "title": "Build resolved native launcher and host lifecycle",
+      "lane": "P-host",
+      "wave": 5,
+      "depends_on": [
+        "P02.2",
+        "P03.3"
+      ],
+      "writes": [
+        "packages/cloudflare/src/preparation/executable.ts",
+        "packages/cloudflare/src/preparation/host.ts",
+        "packages/cloudflare/test/preparation-protocol.test.ts"
+      ],
+      "actions": [
+        "Resolve the selected executable explicitly; launch by argument arrays, bound stderr and resource handling, and release private sessions on success/error/timeout/cancel. Select TS/native before evaluation."
+      ],
+      "kind": "work",
+      "required": true,
+      "acceptance": [
+        "Real native launch, missing executable and version mismatch work as specified; one retained process per job; started native failure never falls through to TS."
+      ]
+    },
+    {
+      "id": "P03",
+      "parent": "P03",
+      "title": "Native protocol and complete retained-session proof complete",
+      "lane": "P-coordination",
+      "wave": 6,
+      "depends_on": [
+        "P02",
+        "P03.2",
+        "P03.3",
+        "P03.4"
+      ],
+      "writes": [
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/artifact-preparation/P03.json"
+      ],
+      "actions": [
+        "Review the linked leaf evidence and original scope ledger."
+      ],
+      "kind": "gate",
+      "required": true,
+      "acceptance": [
+        "One working day for toolchain/framing pins after native launch proof; two working days for the complete retained-session interface proof. Malformed/truncated/oversized frames, stage replay, unknown versions, surrogate keys and numeric bits are tested; stdout remains protocol-only. Future command: `cargo test --locked --manifest-path packages/cloudflare/preparation/Cargo.toml`."
+      ]
+    },
+    {
+      "id": "P04.1",
+      "parent": "P04",
+      "title": "Port artifact semantic indexes and identity checks",
+      "lane": "P-artifact",
+      "wave": 5,
+      "depends_on": [
+        "P03.2"
+      ],
+      "writes": [
+        "packages/cloudflare/preparation/src/artifact.rs",
+        "packages/cloudflare/preparation/tests/artifact.rs"
+      ],
+      "actions": [
+        "Port required-field, module/page/callable/test/operation cross-references and compiled identity in source order; preserve unknown/additive trees and source maps."
+      ],
+      "kind": "work",
+      "required": true,
+      "acceptance": [
+        "Source fixtures and multiple-error first-failure order match; malformed JSON remains a host parse error."
+      ]
+    },
+    {
+      "id": "P04.2",
+      "parent": "P04",
+      "title": "Port ordered compatibility calculations",
+      "lane": "P-compatibility",
+      "wave": 5,
+      "depends_on": [
+        "P03.2"
+      ],
+      "writes": [
+        "packages/cloudflare/preparation/src/compatibility.rs",
+        "packages/cloudflare/preparation/tests/compatibility.rs"
+      ],
+      "actions": [
+        "Consume current owner-produced target/runtime/compiler/version/capability/secret facts and calculate exact ordered compatibility reasons."
+      ],
+      "kind": "work",
+      "required": true,
+      "acceptance": [
+        "Accepted pre-release cases, missing secret names and reason ordering match; no new capability/version authority."
+      ]
+    },
+    {
+      "id": "P04.3",
+      "parent": "P04",
+      "title": "Port release manifest and stamp calculations",
+      "lane": "P-release",
+      "wave": 5,
+      "depends_on": [
+        "P03.2"
+      ],
+      "writes": [
+        "packages/cloudflare/preparation/src/release.rs",
+        "packages/cloudflare/preparation/tests/release.rs"
+      ],
+      "actions": [
+        "Consume raw files and owning package/stamp inputs; calculate sorted roots/files, SHA-256 and mismatch lines with current .tsbuildinfo exclusions."
+      ],
+      "kind": "work",
+      "required": true,
+      "acceptance": [
+        "Byte hashes, counts, sorting and mismatch order match; host remains the filesystem/release-fact authority."
+      ]
+    },
+    {
+      "id": "P04.4",
+      "parent": "P04",
+      "title": "Join acceptance and compatibility into native job",
+      "lane": "P-session",
+      "wave": 6,
+      "depends_on": [
+        "P03",
+        "P04.1",
+        "P04.2",
+        "P04.3"
+      ],
+      "writes": [
+        "packages/cloudflare/preparation/src/job.rs",
+        "packages/cloudflare/preparation/tests/vectors.rs"
+      ],
+      "actions": [
+        "Wire ordered artifact acceptance before companions/environment, build lockstep results, deploy compatibility and confirmation/activation requests."
+      ],
+      "kind": "work",
+      "required": true,
+      "acceptance": [
+        "Full stage traces retain early refusal points and the distinction between preview compiler warning and confirmed refusal before publication."
+      ]
+    },
+    {
+      "id": "P04",
+      "parent": "P04",
+      "title": "Artifact, identity, compatibility and release core complete",
+      "lane": "P-coordination",
+      "wave": 7,
+      "depends_on": [
+        "P04.4"
+      ],
+      "writes": [
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/artifact-preparation/P04.json"
+      ],
+      "actions": [
+        "Review the linked leaf evidence and original scope ledger."
+      ],
+      "kind": "gate",
+      "required": true,
+      "acceptance": [
+        "Native vectors match source fixtures and first-error order; malformed host JSON still follows host diagnostics. Dist file hashes/counts and all mismatch lines match existing raw-byte behavior. No new release/capability authority."
+      ]
+    },
+    {
+      "id": "P05.1",
+      "parent": "P05",
+      "title": "Port module inventory, rewriting and graph checks",
+      "lane": "P-modules",
+      "wave": 6,
+      "depends_on": [
+        "P04.1",
+        "P02.1"
+      ],
+      "writes": [
+        "packages/cloudflare/preparation/src/modules.rs",
+        "packages/cloudflare/preparation/tests/modules.rs"
+      ],
+      "actions": [
+        "Implement ordered paths, duplicate-last-wins merging, current import rewrites/markers, link/loadability order, JS text inventory and legacy serialization/digest. Read the typed C04 asset contract for future mixed modules."
+      ],
+      "kind": "work",
+      "required": true,
+      "acceptance": [
+        "JS-only keys/text/markers/v1 hashes and current string.length counts match; unresolved/bare imports retain refusal; no binary decoding as JS."
+      ]
+    },
+    {
+      "id": "P05.2",
+      "parent": "P05",
+      "title": "Produce two-phase real build-adapter contract",
+      "lane": "P-host",
+      "wave": 6,
+      "depends_on": [
+        "P02.2",
+        "P03.4",
+        "P02.1"
+      ],
+      "writes": [
+        "packages/cloudflare/src/preparation/build-adapter.ts",
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/artifact-preparation/bundle-join-request.json"
+      ],
+      "actions": [
+        "Implement distinct real Bun-MCP and interfaces-catalog host phases; submit exact bundle/helper/export changes to C04.preparation-join. Keep activation and catalog producers unchanged."
+      ],
+      "kind": "work",
+      "required": true,
+      "acceptance": [
+        "Requests preserve module/page checks before worker probe, vendor outputs before Bun, verdict render before catalog and loadability before links; legacy worker-missing path invokes neither phase."
+      ]
+    },
+    {
+      "id": "P05.3",
+      "parent": "P05",
+      "title": "Integrate real host build phases",
+      "lane": "P-host",
+      "wave": 7,
+      "depends_on": [
+        "P05.1",
+        "P05.2",
+        "C04.preparation-join"
+      ],
+      "writes": [
+        "packages/cloudflare/src/preparation/build-adapter.ts"
+      ],
+      "actions": [
+        "Join actual Bun and owning catalog results through the stable preparation inputs; preserve host errors and module bytes."
+      ],
+      "kind": "work",
+      "required": true,
+      "acceptance": [
+        "No mocked host outputs count as Bun/catalog integration evidence; each external stage occurs once at its current position."
+      ]
+    },
+    {
+      "id": "P05.4",
+      "parent": "P05",
+      "title": "Join module buffers and host resumes in native job",
+      "lane": "P-session",
+      "wave": 8,
+      "depends_on": [
+        "P04.4",
+        "P05.3"
+      ],
+      "writes": [
+        "packages/cloudflare/preparation/src/job.rs"
+      ],
+      "actions": [
+        "Wire inventory\u2192MCP resume\u2192artifact/verdict render\u2192catalog resume\u2192loadability/links, retaining buffers across requests."
+      ],
+      "kind": "work",
+      "required": true,
+      "acceptance": [
+        "Matching legacy-main fallback, cross-stage identities, ordered failures and full module output pass differential tests."
+      ]
+    },
+    {
+      "id": "P05.5",
+      "parent": "P05",
+      "title": "Prove JS-only bundle and real MCP output",
+      "lane": "P-evidence",
+      "wave": 9,
+      "depends_on": [
+        "P05.4"
+      ],
+      "writes": [
+        "packages/cloudflare/test/preparation-native.test.ts",
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/artifact-preparation/module-parity.json"
+      ],
+      "actions": [
+        "Run actual native process, source fixture differential and real MCP local-workerd loadability checks."
+      ],
+      "kind": "work",
+      "required": true,
+      "acceptance": [
+        "Real MCP output runs; marker-only checks are insufficient; JS-only bundle bytes/digests match without requiring a Wasm-loader proof."
+      ]
+    },
+    {
+      "id": "P05",
+      "parent": "P05",
+      "title": "Native module graph and ordered host build complete",
+      "lane": "P-coordination",
+      "wave": 10,
+      "depends_on": [
+        "P05.5"
+      ],
+      "writes": [
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/artifact-preparation/P05.json"
+      ],
+      "actions": [
+        "Review the linked leaf evidence and original scope ledger."
+      ],
+      "kind": "gate",
+      "required": true,
+      "acceptance": [
+        "Same JS text, imports, markers, key order and v1 digest for existing fixtures. Negative unresolved/bare imports preserve refusals. Real MCP output works in local workerd, not only text-marker tests. C04 is required only for mixed Wasm inventory acceptance.",
+        "The mixed-asset acceptance remains an explicit P05.mixed outcome gate joined at P11: enabled mixed support requires P05.6 proof; JS-only completion records mixed support as deferred and does not certify it."
+      ]
+    },
+    {
+      "id": "P05.6",
+      "parent": "P05",
+      "title": "Verify mixed text/Wasm preparation after loader proof",
+      "lane": "P-evidence",
+      "wave": 10,
+      "depends_on": [
+        "P05.5",
+        "C04.ready",
+        "C04.graph"
+      ],
+      "writes": [
+        "packages/cloudflare/test/preparation-mixed-assets.test.ts",
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/artifact-preparation/mixed-assets.json"
+      ],
+      "actions": [
+        "Exercise typed byte inventory, generated glue/imports and versioned manifest/digest with actual compiled Wasm; align publication paths with C04 delivery."
+      ],
+      "kind": "work",
+      "required": false,
+      "acceptance": [
+        "Exact lengths/hashes, unchanged JS-only v1 output and no Wasm-as-text rewriting are demonstrated in generated installed output."
+      ],
+      "activation_condition": "mixed-asset support is enabled for this release"
+    },
+    {
+      "id": "P05.mixed",
+      "parent": "P05",
+      "title": "Review enabled mixed-asset proof or declared JS-only limit",
+      "lane": "P-coordination",
+      "wave": 11,
+      "depends_on": [
+        "P05.5"
+      ],
+      "writes": [
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/artifact-preparation/P05.mixed.json"
+      ],
+      "actions": [
+        "Review the linked leaf evidence and original scope ledger."
+      ],
+      "kind": "gate",
+      "required": true,
+      "acceptance": [
+        "Enabled mixed support requires P05.6 real-byte/loader/installed-output evidence; JS-only completion records deferred mixed support, rejects unsupported mixed input before native evaluation, and never claims Wasm adoption."
+      ],
+      "conditional_dependencies": [
+        {
+          "when": "mixed-asset support is enabled for this release",
+          "depends_on": [
+            "P05.6"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "P06.1",
+      "parent": "P06",
+      "title": "Port resource and deploy-plan calculations",
+      "lane": "P-review",
+      "wave": 6,
+      "depends_on": [
+        "P04.1",
+        "P04.2",
+        "P02.1"
+      ],
+      "writes": [
+        "packages/cloudflare/preparation/src/plan.rs",
+        "packages/cloudflare/preparation/tests/plan.rs"
+      ],
+      "actions": [
+        "Use the stable bundle-reference contract to calculate resource resolution/order, schedules and deploy plans. Keep unmapped schedules and incomplete activation visible."
+      ],
+      "kind": "work",
+      "required": true,
+      "acceptance": [
+        "Plan objects, resource order and all source refusal cases match; this branch does not await full module implementation."
+      ]
+    },
+    {
+      "id": "P06.2",
+      "parent": "P06",
+      "title": "Port exact JSON/TOML rendering and review",
+      "lane": "P-review",
+      "wave": 7,
+      "depends_on": [
+        "P06.1",
+        "P03.2"
+      ],
+      "writes": [
+        "packages/cloudflare/preparation/src/render.rs",
+        "packages/cloudflare/preparation/src/review.rs",
+        "packages/cloudflare/preparation/tests/outputs.rs"
+      ],
+      "actions": [
+        "Implement UTF-16/JS enumeration-compatible serialization, exact TOML and keyed review diff order. Keep permissive admitted previous-plan fields and validation."
+      ],
+      "kind": "work",
+      "required": true,
+      "acceptance": [
+        "Complete bytes match host JSON.stringify/current TOML; nonfinite\u2192null/negative-zero and unknown previous-plan cases pass; no generic serializer parity assumption."
+      ]
+    },
+    {
+      "id": "P06.3",
+      "parent": "P06",
+      "title": "Join plan, prior-plan request and rendered review",
+      "lane": "P-session",
+      "wave": 9,
+      "depends_on": [
+        "P05.4",
+        "P06.2"
+      ],
+      "writes": [
+        "packages/cloudflare/preparation/src/job.rs"
+      ],
+      "actions": [
+        "Compute current plan before requesting prior plan; render/diff once and retain exact reviewed buffers/digests for later publication."
+      ],
+      "kind": "work",
+      "required": true,
+      "acceptance": [
+        "Repeated jobs are deterministic; missing/bad prior plans fail at existing stages; preview+yes still previews; confirmed mismatch refuses after preparation and before writes."
+      ]
+    },
+    {
+      "id": "P06",
+      "parent": "P06",
+      "title": "Plan, rendering and review integration complete",
+      "lane": "P-coordination",
+      "wave": 10,
+      "depends_on": [
+        "P06.3"
+      ],
+      "writes": [
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/artifact-preparation/P06.json"
+      ],
+      "actions": [
+        "Review the linked leaf evidence and original scope ledger."
+      ],
+      "kind": "gate",
+      "required": true,
+      "acceptance": [
+        "Byte-identical JS-only outputs and reason/diff ordering; preserve unknown fields where today's previous-plan/render path admits them. Repeated jobs deterministically yield the same result. A generic TOML/JSON library's output is insufficient evidence."
+      ]
+    },
+    {
+      "id": "P07.1",
+      "parent": "P07",
+      "title": "Implement contained staging and publication adapter",
+      "lane": "P-host",
+      "wave": 8,
+      "depends_on": [
+        "P03.4",
+        "P06.2",
+        "C03.ready"
+      ],
+      "writes": [
+        "packages/cloudflare/src/preparation/publication.ts",
+        "packages/cloudflare/test/preparation-publication.test.ts"
+      ],
+      "actions": [
+        "Validate private temp roots, relative paths, separator/traversal/symlink handling, exact lengths/hashes and reviewed bytes. Keep current confirmed writer/apply and failed-apply/manual-command policy."
+      ],
+      "kind": "work",
+      "required": true,
+      "acceptance": [
+        "Cleanup on every exit is tested; private preview staging is allowed but no deployment file publication; current partial-write behavior is classified honestly."
+      ]
+    },
+    {
+      "id": "P07.2",
+      "parent": "P07",
+      "title": "Verify actual job publication and mocked apply",
+      "lane": "P-evidence",
+      "wave": 11,
+      "depends_on": [
+        "P05",
+        "P06",
+        "P07.1"
+      ],
+      "writes": [
+        "packages/cloudflare/test/preparation-cli.test.ts",
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/artifact-preparation/publication.json"
+      ],
+      "actions": [
+        "Run bare/preview/confirmed/compiler-mismatch/cancel/error jobs against private directories and existing mocked apply seam."
+      ],
+      "kind": "work",
+      "required": true,
+      "acceptance": [
+        "Zero deployment files for bare/preview/mismatch; mocked apply consumes exactly reviewed bundle/config; no live deploy."
+      ]
+    },
+    {
+      "id": "P07",
+      "parent": "P07",
+      "title": "Staging, reviewed-write identity and apply handoff complete",
+      "lane": "P-coordination",
+      "wave": 12,
+      "depends_on": [
+        "P03",
+        "P05",
+        "P06",
+        "P07.1",
+        "P07.2"
+      ],
+      "writes": [
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/artifact-preparation/P07.json"
+      ],
+      "actions": [
+        "Review the linked leaf evidence and original scope ledger."
+      ],
+      "kind": "gate",
+      "required": true,
+      "acceptance": [
+        "Preview and bare deploy publish zero deployment files; compiler mismatch writes none; successful mocked apply sees the exact reviewed config/bundle. Existing failed-apply envelope/manual command and partial-write behavior remain honestly classified. No live deploy."
+      ]
+    },
+    {
+      "id": "P08.1",
+      "parent": "P08",
+      "title": "Join native build/preview/confirmed CLI selection",
+      "lane": "P-host",
+      "wave": 12,
+      "depends_on": [
+        "P07",
+        "P02.2",
+        "C05.ready"
+      ],
+      "writes": [
+        "packages/cloudflare/src/cli/platform.ts",
+        "packages/cloudflare/src/preparation/host.ts"
+      ],
+      "actions": [
+        "Integrate explicit release modes into current CLI using the complete preparation call; retain public synchronous helpers and original activation/apply boundaries."
+      ],
+      "kind": "work",
+      "required": true,
+      "acceptance": [
+        "Exactly one stdout envelope, matching exits/code/detail/stderr and no repeated external stages; selected-native startup failure is visible."
+      ]
+    },
+    {
+      "id": "P08.2",
+      "parent": "P08",
+      "title": "Run full CLI and installed-dist differential",
+      "lane": "P-evidence",
+      "wave": 13,
+      "depends_on": [
+        "P08.1",
+        "P02.3",
+        "C04.native-release"
+      ],
+      "writes": [
+        "packages/cloudflare/conformance/preparation/differential.mjs",
+        "packages/cloudflare/test/preparation-cli.test.ts",
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/artifact-preparation/cli-parity.json"
+      ],
+      "actions": [
+        "Compare current/prepared TS/native using real executable and freshly built installed dist; cover all negative, preview and confirmed mocked-apply modes."
+      ],
+      "kind": "work",
+      "required": true,
+      "acceptance": [
+        "No unexplained traces/bytes/errors; library helper routes remain declared and passing."
+      ]
+    },
+    {
+      "id": "P08",
+      "parent": "P08",
+      "title": "Actual native CLI consumer complete",
+      "lane": "P-coordination",
+      "wave": 14,
+      "depends_on": [
+        "P08.2"
+      ],
+      "writes": [
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/artifact-preparation/P08.json"
+      ],
+      "actions": [
+        "Review the linked leaf evidence and original scope ledger."
+      ],
+      "kind": "gate",
+      "required": true,
+      "acceptance": [
+        "One stdout envelope, matching exits/code/detail/stderr review and no repeated external stages. Run real native executable and generated installed `dist`, not mocked native replies. Public synchronous library helper tests still pass on their declared routes."
+      ]
+    },
+    {
+      "id": "P09.1",
+      "parent": "P09",
+      "title": "Build native packaging scripts and host inventory early",
+      "lane": "P-release",
+      "wave": 6,
+      "depends_on": [
+        "P03.foundation",
+        "P01.1"
+      ],
+      "writes": [
+        "packages/cloudflare/scripts/build-preparation.mjs",
+        "packages/cloudflare/scripts/package-preparation.mjs",
+        "packages/cloudflare/src/preparation/executable-manifest.ts",
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/artifact-preparation/native-release-request.json"
+      ],
+      "actions": [
+        "Create package-local reproducible builds, per-supported-host executable inventory, integrity/protocol/release metadata and licenses. Submit package command/export/stamp changes to C04.native-release."
+      ],
+      "kind": "work",
+      "required": true,
+      "acceptance": [
+        "Supported hosts derive from claims/consumers; normal installation will use prebuilt executables; scripts do not vendor native binaries into Workers."
+      ]
+    },
+    {
+      "id": "P09.2",
+      "parent": "P09",
+      "title": "Prove supported packaged executable launch",
+      "lane": "P-release",
+      "wave": 14,
+      "depends_on": [
+        "P08",
+        "P09.1",
+        "C04.native-release"
+      ],
+      "writes": [
+        "packages/cloudflare/test/preparation-packaged.test.ts",
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/artifact-preparation/packaged-hosts.json"
+      ],
+      "actions": [
+        "Build/package and launch outside the checkout on every claimed host; test corrupt/missing/wrong-architecture/protocol/release-skew cases."
+      ],
+      "kind": "work",
+      "required": true,
+      "acceptance": [
+        "Each supported host has actual build+launch evidence; unsupported hosts remain explicit; package includes executable/license/dist metadata and needs no user compiler."
+      ]
+    },
+    {
+      "id": "P09",
+      "parent": "P09",
+      "title": "Native build, publication and supported-host proof complete",
+      "lane": "P-coordination",
+      "wave": 15,
+      "depends_on": [
+        "P09.2"
+      ],
+      "writes": [
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/artifact-preparation/P09.json"
+      ],
+      "actions": [
+        "Review the linked leaf evidence and original scope ledger."
+      ],
+      "kind": "gate",
+      "required": true,
+      "acceptance": [
+        "Supported hosts actually build and launch packaged artifacts; wrong architecture, missing executable, corruption, release/protocol skew fail before jobs. Normal users do not require a compiler to install the built package. Native binary is not vendored into Workers."
+      ]
+    },
+    {
+      "id": "P10.1",
+      "parent": "P10",
+      "title": "Measure full-job adoption and resource budgets",
+      "lane": "P-evidence",
+      "wave": 15,
+      "depends_on": [
+        "P08",
+        "P09",
+        "C05.ready"
+      ],
+      "writes": [
+        "packages/cloudflare/conformance/preparation/workloads.mjs",
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/artifact-preparation/measurement.json"
+      ],
+      "actions": [
+        "Run precommitted current/prepared TS/native workloads including small preview startup, IPC, Bun/catalog, error and memory/temp-disk costs."
+      ],
+      "kind": "work",
+      "required": true,
+      "acceptance": [
+        "Recorded complete-call budgets pass or a concrete native consumer/reuse reason with explicit costs justifies adoption; no isolated-core speed claim."
+      ]
+    },
+    {
+      "id": "P10.2",
+      "parent": "P10",
+      "title": "Rehearse fixed release mode and rollback",
+      "lane": "P-host",
+      "wave": 16,
+      "depends_on": [
+        "P10.1"
+      ],
+      "writes": [
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/artifact-preparation/rollback.json"
+      ],
+      "actions": [
+        "Test native/TS releases against the same artifacts/manifests/persisted plans and selected backend bootstrap; avoid semantic fallback."
+      ],
+      "kind": "work",
+      "required": true,
+      "acceptance": [
+        "Rollback requires no persisted-data conversion; integrity failures never start a second implementation; evidence identifies rollout/default choice."
+      ]
+    },
+    {
+      "id": "P10",
+      "parent": "P10",
+      "title": "Measured adoption and rollback decision complete",
+      "lane": "P-coordination",
+      "wave": 17,
+      "depends_on": [
+        "P10.1",
+        "P10.2"
+      ],
+      "writes": [
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/artifact-preparation/P10.json"
+      ],
+      "actions": [
+        "Review the linked leaf evidence and original scope ledger."
+      ],
+      "kind": "gate",
+      "required": true,
+      "acceptance": [
+        "Meets the precommitted workload/release budget or records the concrete native consumer/reuse reason. Small previews include subprocess startup. TS rollback does not require artifact, manifest or persisted plan conversion."
+      ]
+    },
+    {
+      "id": "P11.1",
+      "parent": "P11",
+      "title": "Close package coverage and final release ledger",
+      "lane": "P-contract",
+      "wave": 17,
+      "depends_on": [
+        "P10",
+        "P05.mixed"
+      ],
+      "writes": [
+        "packages/cloudflare/README.md",
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/artifact-preparation/coverage.json"
+      ],
+      "actions": [
+        "List migrated mechanisms, actual native CLI scope, retained TS library helpers/host stages and any mixed-asset contract version. Recheck source/release evidence and hand final ownership to merge handler."
+      ],
+      "kind": "work",
+      "required": true,
+      "acceptance": [
+        "All planned mechanisms and gaps are classified; duplicate TS retirement is separate; eventual merge reconciles living filetree without advancing its checkpoint during planning."
+      ]
+    },
+    {
+      "id": "P11",
+      "parent": "P11",
+      "title": "Artifact preparation declared scope complete",
+      "lane": "P-coordination",
+      "wave": 18,
+      "depends_on": [
+        "P11.1"
+      ],
+      "writes": [
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/artifact-preparation/P11.json"
+      ],
+      "actions": [
+        "Review the linked leaf evidence and original scope ledger."
+      ],
+      "kind": "gate",
+      "required": true,
+      "acceptance": [
+        "Native selected scope, retained host/library paths and any mixed-asset contract change are explicit. Retirement of TS compatibility is separate. Eventual merge handler reconciles the living filetree; this plan does not advance its checkpoint."
+      ]
+    }
+  ],
+  "notes": [
+    "Wave numbers are display groups, not implicit barriers. Only depends_on controls readiness. One active writer per lane; C04 alone writes global manifests and bundle asset assembly.",
+    "P03.foundation releases the native interface early; artifact/compatibility/release, module, plan/review and packaging branches can overlap.",
+    "P05.mixed reviews the declared release scope at P11; enabling mixed support requires P05.6, while declared JS-only support records mixed adoption as blocked."
+  ]
+}
