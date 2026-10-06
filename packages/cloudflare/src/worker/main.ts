@@ -27,6 +27,7 @@
  * | `./assembly.js`              | `assembleWorker`                       | P-A    |
  * | `./artifact.js`              | `artifact`, `modules`, `verdict`       | P-B    |
  * | `./mcp-handler.js`           | `createHandler` (default accepted)     | P-B    |
+ * | `./derived-inputs.js`        | `derivedInputs`                        | P-B    |
  * | `../runtime/env-assembly.js` | `buildProductionDeps`                  | P-C    |
  * | `../runtime/grant-route.js`  | `handleMcpGrant`                       | P-C    |
  *
@@ -48,10 +49,17 @@
  * the staged artifact. Absent module -> `undefined` -> assembly's
  * deny-closed interim (safe, serves empty discovery); present-but-wrong
  * export -> loud 500.
+ *
+ * `AssemblyDeps.mcp.derivedInputs` comes from the staged
+ * `./derived-inputs.js` (`derivedInputs` export, baked at deploy by
+ * the REAL interfaces derivation). Absent module -> `undefined` ->
+ * the catalog serves framing shapes only (E1 legacy); present-but-
+ * wrong export -> loud 500.
  */
 
 import type { ActivationVerdict, CompileArtifact, StoragePort } from "@canlang/contracts";
 import type { AssembledModules } from "../runtime/modules.js";
+import type { BakedDerivedInputs } from "../runtime/mcp-registry.js";
 import type {
   AssembledWorker,
   AssemblyDeps,
@@ -159,6 +167,8 @@ export interface MainLoaders {
   readonly loadGrantHandler?: () => Promise<HandleMcpGrantFn | undefined>;
   /** Resolves `undefined` when `../runtime/mcp-permissions.js` is absent (-> deny-closed). */
   readonly loadMcpPermissions?: () => Promise<CreateMemberMcpPermissionsFn | undefined>;
+  /** Resolves `undefined` when `./derived-inputs.js` is absent (-> framing-only catalog). */
+  readonly loadDerivedInputs?: () => Promise<BakedDerivedInputs | undefined>;
 }
 
 /* ------------------------------------------------------------------ */
@@ -227,6 +237,7 @@ const MCP_HANDLER_SPECIFIER: string = "./mcp-handler.js";
 const ENV_ASSEMBLY_SPECIFIER: string = "../runtime/env-assembly.js";
 const GRANT_ROUTE_SPECIFIER: string = "../runtime/grant-route.js";
 const MCP_PERMISSIONS_SPECIFIER: string = "../runtime/mcp-permissions.js";
+const DERIVED_INPUTS_SPECIFIER: string = "./derived-inputs.js";
 
 /**
  * Mirror of `loadSiblingFn` (`worker/assembly.ts:634`): static
@@ -353,6 +364,29 @@ async function defaultLoadMcpPermissions(): Promise<CreateMemberMcpPermissionsFn
   return factory as CreateMemberMcpPermissionsFn;
 }
 
+async function defaultLoadDerivedInputs(): Promise<BakedDerivedInputs | undefined> {
+  let mod: unknown;
+  try {
+    mod = await import(DERIVED_INPUTS_SPECIFIER);
+  } catch {
+    // Absent bake: the catalog serves framing shapes only (E1
+    // legacy; bound checking stays off on the MCP path).
+    return undefined;
+  }
+  if (!isRecord(mod)) {
+    throw new Error(
+      "deploy main: worker sibling ./derived-inputs.js imported a non-module namespace",
+    );
+  }
+  const baked: unknown = mod["derivedInputs"];
+  if (!isRecord(baked)) {
+    throw new Error(
+      'deploy main: worker sibling ./derived-inputs.js has no object export "derivedInputs"',
+    );
+  }
+  return baked as BakedDerivedInputs;
+}
+
 /**
  * Fail-fast shape check on the staged deployment (production `./artifact.js`
  * or an injected loader — garbage fails loud either way, naming the bad
@@ -418,6 +452,7 @@ export function createMainFetch(loaders: MainLoaders = {}): WorkerFetch {
   const loadMcp = loaders.loadMcpHandlerFactory ?? defaultLoadMcpHandlerFactory;
   const loadGrant = loaders.loadGrantHandler ?? defaultLoadGrantHandler;
   const loadPerms = loaders.loadMcpPermissions ?? defaultLoadMcpPermissions;
+  const loadDerived = loaders.loadDerivedInputs ?? defaultLoadDerivedInputs;
 
   const prodDepsByEnv = new WeakMap<object, Promise<ProductionDeps>>();
   const workerByEnv = new WeakMap<object, Promise<AssembledWorker>>();
@@ -430,6 +465,7 @@ export function createMainFetch(loaders: MainLoaders = {}): WorkerFetch {
   const getMcpFactory = memoize(() => loadMcp());
   const getGrantHandler = memoize(() => loadGrant());
   const getPermsFactory = memoize(() => loadPerms());
+  const getDerivedInputs = memoize(() => loadDerived());
   const getAssemble = memoize(() => loadAssemble());
 
   function prodDepsFor(env: Record<string, unknown>): Promise<ProductionDeps> {
@@ -454,6 +490,7 @@ export function createMainFetch(loaders: MainLoaders = {}): WorkerFetch {
     const deps = await prodDepsFor(env);
     const factory = await getMcpFactory();
     const permFactory = factory === undefined ? undefined : await getPermsFactory();
+    const derivedInputs = factory === undefined ? undefined : await getDerivedInputs();
     const assembleWorker = await getAssemble();
     const assemblyDeps: AssemblyDeps =
       factory === undefined
@@ -466,6 +503,7 @@ export function createMainFetch(loaders: MainLoaders = {}): WorkerFetch {
               ...(permFactory === undefined
                 ? null
                 : { permissions: permFactory(staged.artifact) }),
+              ...(derivedInputs === undefined ? null : { derivedInputs }),
             },
           };
     try {

@@ -44,6 +44,7 @@
  * store. Additive only: no T24b/T32b path above is modified.
  */
 import type {
+  ArtifactCohortDescriptor,
   ClaimId,
   CompileArtifact,
   DispatchClaim,
@@ -5188,6 +5189,181 @@ export async function stageFanoutTriggerJoin(
   }
 }
 
+/* -- T34-F7/C1 emitted-cohort consumer (generated-serving join). -- */
+
+/**
+ * T34-F7/C1: emitted `appDefinition.cohorts` member shape (F6
+ * `ArtifactCohortDescriptor`, keyed by canonical handler identity).
+ * Test fixtures annotate with this so the honest emission shape is
+ * a compile-time constraint, not a comment.
+ */
+export type EmittedAppDefinitionCohorts = Readonly<Record<string, ArtifactCohortDescriptor>>;
+
+/**
+ * T34-F7/C1: emitted `appDefinition.models` containment view. Only
+ * `parent` is read (the `ChildOf` edge renders `parent:` — the
+ * compiler, not this join, owns that edge); richer members pass
+ * through untouched.
+ */
+export type EmittedAppDefinitionModels = Readonly<
+  Record<string, { readonly parent?: string } | undefined>
+>;
+
+/**
+ * T34-F7/C1: resolve one emitted `appDefinition.cohorts[handler]`
+ * descriptor plus its trigger context into the runtime
+ * `FanoutCohortSpec` the trigger join stages. This is the actual
+ * Cloudflare consumer of the F6 emission: the compiler descriptor
+ * never carries owner, identity sets, quotas, or cursors (all
+ * runtime-owned), so the operating owner arrives from the trigger
+ * context, and anchored cohorts resolve their parent id from the
+ * trigger event plus their parent model from the emitted
+ * containment edge.
+ *
+ * Fail-loud throughout (an honest compiler emits checked cohorts
+ * only — E4055 stays fail-closed with no descriptor): a trigger
+ * for a handler with no descriptor, a malformed descriptor, a
+ * non-event-rooted parent path, an unresolvable parent id, or a
+ * child with no contained parent all throw naming the handler.
+ * Well-formed specs still flow through the trigger join's own
+ * admission diagnoses (unsupported model, unknown anchor).
+ *
+ * The header `as` binding (`bind`) is shape-checked and otherwise
+ * ignored here: child-variable binding rides the scheduler body
+ * port when the compiled handler body runs, not the cohort spec.
+ */
+export interface ResolveEmittedFanoutCohortInput {
+  /** Entry module's emitted `appDefinition.cohorts` member (untrusted: validated). */
+  readonly cohorts: unknown;
+  /** Canonical handler identity admitting this cohort (=== cutoff.handler at the join). */
+  readonly handler: string;
+  /** Operating owner attested for the resolved spec. */
+  readonly owner: string;
+  /** Trigger event record the anchored parent path resolves against (`event` root). */
+  readonly event: unknown;
+  /** Entry module's emitted `appDefinition.models` member (anchored parent-model only). */
+  readonly models: unknown;
+}
+
+function readEmittedCohortRecord(value: unknown, what: string, handler: string): Record<string, unknown> {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) {
+    throw new Error(`t34-f7: emitted fanout ${what} for handler ${JSON.stringify(handler)} must be an object.`);
+  }
+  return value as Record<string, unknown>;
+}
+
+function readEmittedCohortString(value: unknown, what: string, handler: string): string {
+  if (typeof value !== "string" || value === "") {
+    throw new Error(
+      `t34-f7: emitted fanout ${what} for handler ${JSON.stringify(handler)} must be a non-empty string.`,
+    );
+  }
+  return value;
+}
+
+export function resolveEmittedFanoutCohort(input: ResolveEmittedFanoutCohortInput): FanoutCohortSpec {
+  if (typeof input.handler !== "string" || input.handler === "") {
+    throw new Error("t34-f7: emitted fanout cohort resolution needs a non-empty handler identity.");
+  }
+  if (typeof input.owner !== "string" || input.owner === "") {
+    throw new Error("t34-f7: emitted fanout cohort resolution needs a non-empty operating owner.");
+  }
+  const cohorts = readEmittedCohortRecord(input.cohorts, "appDefinition.cohorts", input.handler);
+  const raw = cohorts[input.handler];
+  if (raw === undefined) {
+    throw new Error(
+      `t34-f7: handler ${JSON.stringify(input.handler)} names no emitted fanout cohort ` +
+        `(${Object.keys(cohorts).length} emitted cohorts; triggers fire for fanout handlers only).`,
+    );
+  }
+  const descriptor = readEmittedCohortRecord(raw, "cohort descriptor", input.handler);
+  const kind: unknown = descriptor["kind"];
+  if (kind !== "model" && kind !== "anchored-collection") {
+    throw new Error(
+      `t34-f7: emitted fanout cohort for handler ${JSON.stringify(input.handler)} has kind ` +
+        `${JSON.stringify(kind)} (want "model" or "anchored-collection").`,
+    );
+  }
+  const model = readEmittedCohortString(descriptor["model"], "cohort model", input.handler);
+  const bind: unknown = descriptor["bind"];
+  if (typeof bind !== "string" && bind !== null) {
+    throw new Error(
+      `t34-f7: emitted fanout cohort for handler ${JSON.stringify(input.handler)} has a non-string ` +
+        `non-null "as" binding.`,
+    );
+  }
+  if (kind === "model") {
+    return { kind: "model", owner: input.owner, model };
+  }
+  // Anchored: parent id from the trigger event, parent model from
+  // the emitted containment edge. Both are required: freezing over
+  // a mis-specified collection would bless the wrong sweep.
+  const parentPath = readEmittedCohortString(descriptor["parent"], "cohort parent path", input.handler);
+  const segments = parentPath.split(".");
+  if (segments[0] !== "event" || segments.length < 2 || segments.some((segment) => segment === "")) {
+    throw new Error(
+      `t34-f7: emitted fanout cohort for handler ${JSON.stringify(input.handler)} has a non-event-rooted ` +
+        `parent path ${JSON.stringify(parentPath)} (want "event.<field>[.<field>]").`,
+    );
+  }
+  const models = readEmittedCohortRecord(input.models, "appDefinition.models", input.handler);
+  const child = readEmittedCohortRecord(models[model], `model ${JSON.stringify(model)}`, input.handler);
+  const parentModel = readEmittedCohortString(
+    child["parent"],
+    `contained parent of model ${JSON.stringify(model)}`,
+    input.handler,
+  );
+  let current: unknown = input.event;
+  for (const segment of segments.slice(1)) {
+    current = readEmittedCohortRecord(current, `event segment ${JSON.stringify(segment)}`, input.handler)[segment];
+  }
+  if (typeof current !== "string" || current === "") {
+    throw new Error(
+      `t34-f7: emitted fanout cohort for handler ${JSON.stringify(input.handler)} resolves parent path ` +
+        `${JSON.stringify(parentPath)} to a non-string id.`,
+    );
+  }
+  return { kind: "anchored-collection", owner: input.owner, model, parent: { model: parentModel, id: current } };
+}
+
+/**
+ * T34-F7/C1: stage one emitted cohort's trigger join: look the
+ * `cutoff.handler` descriptor up in the entry module's emitted
+ * `appDefinition.cohorts`, resolve it against the trigger context,
+ * and stage through the real `stageFanoutTriggerJoin`. The cutoff
+ * handler is the single lookup key (no second handler field, no
+ * skew); resolution throws fail-loud before ANY store write, and
+ * admission diagnoses flow through unchanged.
+ *
+ * This entry is the serving join the worker's fanout driver calls;
+ * it is intentionally NOT a seventh assembly segment (the six
+ * segments are the composed mechanism entries; the driver supplies
+ * the entry module + trigger event per fire).
+ */
+export interface StageEmittedFanoutTriggerJoinOpts extends Omit<StageFanoutTriggerJoinOpts, "cohort"> {
+  /** Entry module's emitted `appDefinition.cohorts` member (untrusted: validated). */
+  readonly cohorts: unknown;
+  /** Entry module's emitted `appDefinition.models` member (anchored parent-model only). */
+  readonly models: unknown;
+  /** Trigger event record the anchored parent path resolves against. */
+  readonly event: unknown;
+}
+
+export async function stageEmittedFanoutTriggerJoin(
+  opts: StageEmittedFanoutTriggerJoinOpts,
+): Promise<StageFanoutTriggerJoinOutcome> {
+  const cohort = resolveEmittedFanoutCohort({
+    cohorts: opts.cohorts,
+    handler: opts.cutoff.handler,
+    owner: opts.owner,
+    event: opts.event,
+    models: opts.models,
+  });
+  // The emission keys (cohorts/models/event) ride the spread and are
+  // ignored downstream; every staged field arrives explicitly.
+  return stageFanoutTriggerJoin({ ...opts, cohort });
+}
+
 /* -- T34-F7 durable fenced claim/record (F3 TEST-ONLY replacement). -- */
 
 /**
@@ -5768,14 +5944,31 @@ export interface FanoutSchedulerBodyEffects {
 }
 
 /**
+ * T34-F7: attempt identity handed to the child body for effect
+ * attribution.
+ */
+export interface FanoutSchedulerBodyAttempt {
+  /**
+   * The attempt's invoking operation id (=== ctx.operationId at the
+   * unit commit): body-staged outbox intents and history entries
+   * MUST carry this id — state staging forbids cross-operation
+   * attribution.
+   */
+  readonly operationId: string;
+}
+
+/**
  * T34-F7: injected child-body port (the deployed handler stages the
  * child's domain effects and returns the attempt result; a
  * `StateError` throw with code `rule_failed` is the business
  * rejection). Called only for claimed children — pins never invoke.
+ * The attempt carries the invoking operation id so staged effects
+ * attribute to this attempt (C1: bodies cannot guess it).
  */
 export type FanoutSchedulerBodyPort = (
   child: FanoutChildId,
   domainRow: StoredRow,
+  attempt: FanoutSchedulerBodyAttempt,
 ) => FanoutSchedulerBodyEffects | Promise<FanoutSchedulerBodyEffects>;
 
 /** T34-F7: canonical-invoke inputs for executed children (all pass-through). */
@@ -5905,10 +6098,10 @@ async function driveFanoutTurnChild(input: {
   if (data.state === "running") {
     return { childId: data.childId, recordId: data.recordId, status: "held", detail: "running-held" };
   }
+  // F1 `FanoutChildCause` is closed (completed | skipped+reason |
+  // failed+reason): past the completed check the reason always exists.
   const pinDetail = (outcome: FanoutChildOutcome): string =>
-    outcome.cause.kind === "completed"
-      ? "completed"
-      : `${outcome.state}/${outcome.cause.kind === "skipped" || outcome.cause.kind === "failed" ? outcome.cause.reason : outcome.cause.kind}`;
+    outcome.cause.kind === "completed" ? "completed" : `${outcome.state}/${outcome.cause.reason}`;
   const tryPin = async (
     row: StoredRow,
     result:
@@ -6017,7 +6210,7 @@ async function driveFanoutTurnChild(input: {
     readonly result: unknown;
   }> => {
     void call;
-    const effects = await input.body(child, domainRow as StoredRow);
+    const effects = await input.body(child, domainRow as StoredRow, { operationId });
     checkFanoutAttemptResult(effects.result);
     // Fresh fanout rows per execution (invoke retries re-execute, so
     // versions re-read — never carried across attempts).

@@ -106,6 +106,7 @@ import type {
   RequiresProvidedVersions,
 } from "../runtime/invoke.js";
 import type {
+  BakedDerivedInputs,
   McpPermissions,
   OperationRegistry,
   SchemaCatalog,
@@ -254,11 +255,15 @@ export type McpHandlerFactory = (deps: McpDeps) => (request: Request) => Promise
  * MCP join inputs. `createHandler` absent -> `/mcp` answers the explicit
  * interim 501 naming the interfaces join. `permissions` absent -> the
  * deny-closed interim adapter (join J2 pending; see
- * `createDenyClosedMcpPermissions`).
+ * `createDenyClosedMcpPermissions`). `derivedInputs` absent -> the
+ * catalog serves framing shapes only (E1 legacy; bound checking
+ * stays off on the MCP path until the P-B join stages the data).
  */
 export interface McpJoin {
   readonly createHandler?: McpHandlerFactory;
   readonly permissions?: McpPermissions;
+  /** C1 deploy-baked E1 channel (`worker/derived-inputs.js` via the P-B join). */
+  readonly derivedInputs?: BakedDerivedInputs;
 }
 
 /**
@@ -354,8 +359,8 @@ export type { HandlerContext };
 /** Sibling `createArtifactRegistry(artifact)` (`src/runtime/mcp-registry.ts`; P2). */
 type CreateArtifactRegistry = (artifact: CompileArtifact) => OperationRegistry;
 
-/** Sibling `createArtifactCatalog(artifact)` (`src/runtime/mcp-registry.ts`; P2). */
-type CreateArtifactCatalog = (artifact: CompileArtifact) => SchemaCatalog;
+/** Sibling `createArtifactCatalog(artifact, baked?)` (`src/runtime/mcp-registry.ts`; P2 + C1 derived channel). */
+type CreateArtifactCatalog = (artifact: CompileArtifact, baked?: BakedDerivedInputs) => SchemaCatalog;
 
 /** Sibling `createDenyClosedMcpPermissions()` (`src/runtime/mcp-registry.ts`; P2). */
 type CreateDenyClosedMcpPermissions = () => McpPermissions;
@@ -1031,7 +1036,7 @@ async function handleMcpRequest(req: Request, ctx: InterimDispatchContext): Prom
       "createArtifactCatalog",
     );
     registry = createArtifactRegistry(ctx.artifact);
-    catalog = createArtifactCatalog(ctx.artifact);
+    catalog = createArtifactCatalog(ctx.artifact, ctx.mcp?.derivedInputs);
     if (ctx.mcp?.permissions !== undefined) {
       permissions = ctx.mcp.permissions;
     } else {

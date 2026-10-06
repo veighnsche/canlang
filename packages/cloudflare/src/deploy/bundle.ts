@@ -45,8 +45,9 @@
  *   repo-relative specifier baked into @canlang/ui dist (same bytes,
  *   second key). Producer imports inside staged vendor trees
  *   (`@canlang/values` in stdlib today) and pinned-runtime files
- *   (`@canlang/identity`, the state-D1 checkout path) are rewritten to
- *   module-relative `vendor/` keys; `assertLinksResolve` then refuses
+ *   (`@canlang/identity`, `@canlang/contracts`, the state-D1 checkout
+ *   path) are rewritten to module-relative `vendor/` keys;
+ *   `assertLinksResolve` then refuses
  *   any dangling or bare import. Acknowledged gap: dynamic imports
  *   through variables (the rewritten `*_SPECIFIER` consts) are
  *   statically invisible to the check — they are covered behaviorally
@@ -77,7 +78,13 @@ import { createHash } from "node:crypto";
 import { mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { basename, dirname, join, posix, relative, sep } from "node:path";
-import type { ActivationVerdict, ArtifactModule, CompileArtifact } from "@canlang/contracts";
+import type {
+  ActivationVerdict,
+  ArtifactModule,
+  CompileArtifact,
+  DerivedOperationInputs,
+} from "@canlang/contracts";
+import { catalogFromArtifactOperations } from "@canlang/interfaces";
 import { STDLIB_SPECIFIER, UI_SPECIFIER, type AssembledModules } from "../runtime/modules.js";
 
 /** Main module key: the deployed worker entry within the module map. */
@@ -86,6 +93,8 @@ export const DEPLOY_MAIN_MODULE = "worker/main.js";
 export const MCP_HANDLER_MODULE = "worker/mcp-handler.js";
 /** Staged-deployment key: the sibling `./artifact.js` join contract. */
 export const ARTIFACT_MODULE = "worker/artifact.js";
+/** Derived-inputs key: the sibling `./derived-inputs.js` E1 join contract (C1 bake). */
+export const DERIVED_INPUTS_MODULE = "worker/derived-inputs.js";
 /** Assembly key: the base every portable module URL resolves against. */
 const ASSEMBLY_MODULE_KEY = "worker/assembly.js";
 /**
@@ -162,10 +171,21 @@ const VENDOR_TREES: readonly VendorTree[] = [
   },
 ];
 
+/**
+ * Staged keys never vendored: TEST-ONLY bridges with node-only imports
+ * (see the walk exclusion). Exact keys, no blast radius.
+ */
+const TEST_ONLY_VENDOR_KEYS: ReadonlySet<string> = new Set([
+  "vendor/state/fanout/work-loader.js",
+  "vendor/state/receipt/work-loader.js",
+]);
+
 /** Vendor entry keys (mirroring each package's `main`). */
 const UI_VENDOR_ENTRY = "vendor/ui/index.js";
 const STDLIB_VENDOR_ENTRY = "vendor/stdlib/index.js";
 const IDENTITY_VENDOR_ENTRY = "vendor/identity/index.js";
+/** Mirrors `@canlang/contracts` package `main` (`./dist/index.js`). */
+const CONTRACTS_VENDOR_ENTRY = "vendor/contracts/index.js";
 const STATE_D1_VENDOR_ENTRY = "vendor/state/storage/d1.js";
 const VALUES_VENDOR_ENTRY = "vendor/values/index.js";
 
@@ -326,6 +346,16 @@ function readVendorTree(repoRoot: string, tree: VendorTree): Record<string, stri
       // runs them from dist) but must never vendor — workerd has no
       // node:test resolution. The deploy-bundle/cli suites pin this.
       if (entry.endsWith(".test.js")) continue;
+      // C4: TEST-ONLY bridges emit beside sources under non-test names
+      // (state's `work-loader.js` file-URL juggling for the T25/F5 join
+      // proofs: node:url/node:path, zero non-test importers — comments
+      // only). They are test code the suffix rule cannot see; never
+      // vendor them, same rule as above. If lane B relocates these
+      // helpers under `test/`, the entries below become no-ops (prune
+      // then); a newly added node-only helper fails the link check
+      // loud, as before.
+      const vendorKey = `${tree.prefix}/${relative(base, full).split(sep).join("/")}`;
+      if (TEST_ONLY_VENDOR_KEYS.has(vendorKey)) continue;
       const key = `${tree.prefix}/${relative(base, full).split(sep).join("/")}`;
       modules[key] = rewriteVendorImports(readFileSync(full, "utf8"), key);
     }
@@ -413,12 +443,15 @@ function rewriteArtifactImports(js: string, modulePath: string): string {
 const IDENTITY_SOURCE_SPECIFIER = "@canlang/identity";
 const STATE_D1_SOURCE_SPECIFIER = "../../../state/dist/state/src/storage/d1.js";
 const VALUES_SOURCE_SPECIFIER = "@canlang/values";
+/** Contracts version constants (`loadContractVersions` in pinned `invoke.js`). */
+const CONTRACTS_SOURCE_SPECIFIER = "@canlang/contracts";
 
 /** Rewrite pinned-runtime producer imports to module-relative `vendor/` keys. */
 function rewriteRuntimeImports(js: string, moduleKey: string): string {
   const mapped = (spec: string): string => {
     if (spec === IDENTITY_SOURCE_SPECIFIER) return relativeSpecifier(moduleKey, IDENTITY_VENDOR_ENTRY);
     if (spec === STATE_D1_SOURCE_SPECIFIER) return relativeSpecifier(moduleKey, STATE_D1_VENDOR_ENTRY);
+    if (spec === CONTRACTS_SOURCE_SPECIFIER) return relativeSpecifier(moduleKey, CONTRACTS_VENDOR_ENTRY);
     return spec;
   };
   const swap = (_full: string, pre: string, spec: string, post: string): string =>
@@ -434,6 +467,7 @@ function rewriteRuntimeImports(js: string, moduleKey: string): string {
   for (const [source, entry] of [
     [IDENTITY_SOURCE_SPECIFIER, IDENTITY_VENDOR_ENTRY],
     [STATE_D1_SOURCE_SPECIFIER, STATE_D1_VENDOR_ENTRY],
+    [CONTRACTS_SOURCE_SPECIFIER, CONTRACTS_VENDOR_ENTRY],
   ] as const) {
     out = out.split(source).join(relativeSpecifier(moduleKey, entry));
   }
@@ -500,6 +534,31 @@ function stageArtifactModules(artifact: CompileArtifact): Record<string, string>
     staged[mod.path] = rewriteArtifactImports(mod.js, mod.path);
   }
   return staged;
+}
+
+/**
+ * Build the `derived-inputs.js` module (C1): the REAL interfaces
+ * derivation (`catalogFromArtifactOperations`) for the staged
+ * artifact's operations, baked to data at deploy time. The worker
+ * serves it verbatim through the catalog's E1 `derivedFor` channel
+ * — no parallel derivation rule exists anywhere. Malformed
+ * operations or version skew throw here (the derivation's own
+ * loud errors); the bake covers every staged operation exactly.
+ */
+function buildDerivedInputsModule(artifact: CompileArtifact): string {
+  const catalog = catalogFromArtifactOperations(artifact);
+  const baked: Record<string, DerivedOperationInputs> = {};
+  for (const op of artifact.operations ?? []) {
+    const derived = catalog.derivedFor(op.name);
+    if (derived === null) {
+      throw new Error(
+        `deploy bundle: derived bake produced no inputs for operation ${JSON.stringify(op.name)} ` +
+          `(derivation skew)`,
+      );
+    }
+    baked[op.name] = derived;
+  }
+  return `export const derivedInputs = ${JSON.stringify(baked)};\n`;
 }
 
 /**
@@ -850,6 +909,7 @@ export function buildDeployBundle(
     portableAssembledModules(artifact.modules.map((mod) => mod.path)),
     options.verdict,
   );
+  modules[DERIVED_INPUTS_MODULE] = buildDerivedInputsModule(artifact);
   assertWorkerdLoadable(modules);
   assertLinksResolve(modules);
   const sorted: Record<string, string> = {};
