@@ -1076,22 +1076,32 @@ export interface MixedDeployBundle extends DeployBundle {
  * Build the typed inventory for one bundle: text modules become text
  * assets, binaries become binary assets. A key present in both maps is
  * a loud error (no silent shadowing in either direction), as is an
- * empty key (unwritable by definition).
+ * empty key (unwritable by definition) or the reserved `__proto__` key
+ * (unrepresentable on a plain object map without silent loss).
  */
 export function inventorizeAssets(
   modules: Record<string, string>,
   binaries: Record<string, Uint8Array> = {},
 ): AssetInventory {
-  const inventory: Record<string, DeploymentAsset> = {};
+  // Null-prototype map: the collision check below must be exact (inherited
+  // names such as "toString" are legitimate keys, not collisions), and no
+  // entry may vanish through the inherited `__proto__` setter.
+  const inventory: Record<string, DeploymentAsset> = Object.create(null);
   for (const [key, text] of Object.entries(modules)) {
     if (key === "") {
       throw new Error("deploy bundle: text module key must not be empty");
+    }
+    if (key === "__proto__") {
+      throw new Error('deploy bundle: text module key must not be "__proto__"');
     }
     inventory[key] = { kind: "text", text };
   }
   for (const [key, bytes] of Object.entries(binaries)) {
     if (key === "") {
       throw new Error("deploy bundle: binary module key must not be empty");
+    }
+    if (key === "__proto__") {
+      throw new Error('deploy bundle: binary module key must not be "__proto__"');
     }
     if (inventory[key] !== undefined) {
       throw new Error(`deploy bundle: binary key ${JSON.stringify(key)} collides with a text module`);
@@ -1143,8 +1153,15 @@ function assertMixedOutputLayout(
 
 /** Byte-copy every binary map entry: the snapshot owns its bytes. */
 function snapshotBinaries(binaries: Record<string, Uint8Array>): Record<string, Uint8Array> {
-  const snapshot: Record<string, Uint8Array> = {};
+  // Null-prototype accumulator: an own `__proto__` entry must never vanish
+  // through the inherited setter (plain `{}` + assignment would silently
+  // drop it before inventory/digest/write). `__proto__` keys refuse loudly
+  // below instead, matching the inventory contract.
+  const snapshot: Record<string, Uint8Array> = Object.create(null);
   for (const [key, bytes] of Object.entries(binaries)) {
+    if (key === "__proto__") {
+      throw new Error('deploy bundle: binary module key must not be "__proto__"');
+    }
     snapshot[key] = new Uint8Array(bytes);
   }
   return snapshot;

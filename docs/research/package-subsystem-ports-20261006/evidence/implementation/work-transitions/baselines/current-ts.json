@@ -1,0 +1,125 @@
+{
+  "oracle": "W01.3 current-TS behavior, clone and persisted-byte baseline (immutable)",
+  "task": "W01.3",
+  "parent": "W01",
+  "base_commit": "c07c51e5d381baac7cdae3dc9d347b6e27187d98",
+  "base_note": "lane D branch codex/remaining-lane-d-work-providers at merge of main 1f0baea; tree clean at run start",
+  "captured_utc": "2026-10-06T11:29:34Z/2026-10-06T11:30:05Z",
+  "producer": "lane D work-evidence (grant G-D-W013-01, pid 95149)",
+  "method": "existing command block run against inspected sources; bytes captured through the real D1/DO adapter commit paths against recording fakes (insert-only); vectors executed against real constructors. Provenance of every pin is labeled source|test|probe.",
+  "verification": {
+    "runtime": { "bun": "1.4.2", "node": "v24.21.0" },
+    "commands": [
+      { "cmd": "cd packages/work && bun run typecheck", "exit": 0, "note": "tsc --noEmit" },
+      { "cmd": "cd packages/state && bun run build", "exit": 0, "note": "tsc -p tsconfig.json; fresh worktree-local dist only" },
+      { "cmd": "cd packages/cloudflare && bun run build", "exit": 2, "note": "pre-existing failure, out of lane scope; see cmd3_failure" },
+      { "cmd": "cd packages/work && node --test 'test/**/*.test.ts'", "exit": 0, "tests": 249, "suites": 69, "pass": 249, "fail": 0 },
+      { "cmd": "cd packages/work && node --test <14 colocated files>", "exit": 0, "tests": 479, "suites": 68, "pass": 479, "fail": 0 }
+    ],
+    "cmd3_failure": {
+      "provenance": "source|test",
+      "summary": "cloudflare build fails resolving @canlang/contracts and @canlang/identity (+ @canlang/interfaces once), cascading to TS7006 implicit-any errors; noEmitOnError honored so no dist was emitted and none is used as evidence",
+      "log": "verify.log CMD3 section"
+    },
+    "no_stale_dist": "only dist consumed is packages/state/dist freshly built by CMD2 (exit 0) at this base for the bytes probe; cloudflare dist absent (CMD3 exit 2) and unused; work sources executed from src via node type-stripping exactly as the green tests do"
+  },
+  "row_identity": {
+    "provenance": "source",
+    "tables": {
+      "work.dispatch": { "id": "intentId (OutboxId); row id == intent id", "state_set": ["pending", "claimed", "delivered", "failed", "uncertain", "dead"], "ref": "packages/work/src/kernel/tables.ts:68-103,153-160,453-475" },
+      "work.occurrence": { "id": "occurrenceId; put-if-absent receipt row", "status_set": ["completed", "failed"], "ref": "packages/work/src/kernel/tables.ts:105-113,477-488" },
+      "work.schedule": { "id": "occurrenceId (NOT the key); key looked up via flat scope fields; head resolves through backward replaces link, never id comparison", "state_set": ["pending", "admitted", "superseded", "cancelled"], "ref": "packages/work/src/kernel/tables.ts:115-132,490-501" },
+      "work.every_slot": { "id": "every/v1/{enc(app)}/{enc(handler)}/{scope}/{enc(owner)}", "ref": "packages/work/src/kernel/tables.ts:134-143,509-529" },
+      "work.supersession": { "id": "outboxId", "ref": "packages/work/src/kernel/tables.ts:145-151,531-542" },
+      "work.fanout_intent": { "id": "fanout/v1/{enc(sourceOccurrence)}/{enc(handler)}/{cohort}; store PK enforces insert-once per cutoff+cohort; members sorted canonical, deduped, memberCount duplicated flat and cross-checked on read", "ref": "packages/work/src/kernel/tables.ts:624-643,735-752,777-798,934-955" },
+      "work.fanout_checkpoint": { "id": "exactly the fanoutId; completed sorted deduped; cursor null only when enumeration fully admitted", "ref": "packages/work/src/kernel/tables.ts:645-659,754-757,800-856,957-970" },
+      "work.fanout_child": { "id": "fanout-child/v1/{enc(parentOccurrence)}/{enc(handler)}/{enc(recordId)}; childId duplicates row id flat and is re-derived on read; cause null until terminal; completed cause has no reason, skipped/failed need closed reasons", "state_set": ["pending", "running", "completed", "skipped", "failed"], "ref": "packages/work/src/kernel/tables.ts:661-698,759-775,858-932,972-998" },
+      "work.receipt_association": { "id": "receipt-assoc/v1/{enc(model)}/{enc(recordId)}/{enc(field)}; one row per locator; conditional update refuses decreased revision before the store", "ref": "packages/state/src/receipt/tables.ts:57-76,106-114,357-388" },
+      "work.receipt": { "id": "deliveryId, one row per delivery attempt", "status_set": ["pending", "succeeded", "failed", "unknown", "skipped"], "ref": "packages/state/src/receipt/tables.ts:78-99,402-412" }
+    },
+    "derivations": {
+      "outbox_id": { "rule": "obx_{sha256hex('can-work/outbox-id/v1\\0{operationId}\\0{source}\\0{occurrenceIndex}')}; non-empty operationId/source, integer occurrenceIndex >= 0 else RangeError", "ref": "packages/work/src/intent/index.ts:25-46", "vector": "original-fixtures/identity-vectors.json:outbox_id" },
+      "recurring_occurrence_id": { "rule": "evr_{sha256hex('can-work/every-id/v1\\0{app}\\0{handler}\\0{scope}\\0{owner}\\0{slot}')}", "ref": "packages/work/src/schedule/every.ts:97-110", "vector": "original-fixtures/identity-vectors.json:recurring_occurrence_id" },
+      "every_slot": { "rule": "slotStartMs=floor(nowMs/periodMs)*periodMs, slot=slotStartMs/1000; periodMs positive integer multiple of 1000", "ref": "packages/work/src/schedule/every.ts:80-93", "vector": "original-fixtures/identity-vectors.json:every_slot" },
+      "every_scope_key": { "rule": "'{scope}:{owner}' map key", "ref": "packages/work/src/schedule/every.ts:70-72" },
+      "claim_identity": { "rule": "opaque mints compared by equality only: unclaimed|held-by-caller|held-elsewhere; never ordered", "ref": "packages/work/src/dispatch/index.ts:238-254" },
+      "occurrence_ids_general": { "rule": "opaque runtime mints via OccurrenceIdPort.nextOccurrenceId; callers never compare for ordering", "ref": "packages/work/src/ports.ts:65-66, packages/work/src/kernel/tables.ts:126-128" }
+    }
+  },
+  "result_identity": {
+    "provenance": "source|test",
+    "occurrence_receipt_replay": "put-if-absent by occurrenceId; duplicate delivery replays the recorded receipt without re-executing; terminal failures replay; transient throws propagate unrecorded so the same occurrence retries (test: event occurrence admission, green in CMD4)",
+    "intent_lifecycle_map": "pending->staged (skipped when guard pinned false); claimed|uncertain->claimed; delivered->done; failed|dead->failed; terminal = done|failed|skipped (source: packages/work/src/intent/index.ts:360-378)",
+    "fanout_terminal_replay": "completed|skipped|failed rows project their recorded outcome and replay it, minting nothing; pending|running project null (source: packages/work/src/dispatch/index.ts:330-363)",
+    "commit_gate": "staged (commit null) never dispatches; requireCommitted throws 'staged but not committed; dispatch refused' (source: packages/work/src/intent/index.ts:385-392)"
+  },
+  "clone_semantics": {
+    "provenance": "source|probe",
+    "state_clone_only_primitive": {
+      "jsonClone": "bare structuredClone; any clone failure becomes StateError('validation', '<what> must be JSON data.') — never a raw DataCloneError (source: packages/state/src/internal/json.ts:16-22)",
+      "checkJsonSafe": "separate JSON.stringify probe; unserializable values (bigint, circular) become StateError('validation', '<what> holds non-JSON values.') (source: packages/state/src/internal/json.ts:29-35)",
+      "application_order": "CLONE FIRST, probe the clone after: staging clones args/payload via jsonClone(checkPlainObject(...)) then checkJsonSafe(cloned) (source: packages/state/src/effects/staging.ts:110-114,173-177)",
+      "not_frozen": "state clones are not frozen (probe: frozen=false)"
+    },
+    "work_safety_then_clone": {
+      "kernel_tables": "SAFETY FIRST: newRow/withRowData run recursive checkJsonSafe (finite JSON only; undefined/function/symbol/bigint rejected; cycles rejected with path) BEFORE structuredClone, so staged rows never alias caller data (source: packages/work/src/kernel/tables.ts:238-274,398-423,429-450)",
+      "freezeRequest": "structuredClone first (uncloneable -> raw DataCloneError, observed), then plain-record shape check (TypeError 'must be a plain JSON record'), then cycle-safe deep freeze in place (source: packages/work/src/intent/index.ts:58-83)",
+      "mirror_note": "state receipt tables.ts newRow/withRowData use the same safety-then-clone order as work kernel tables (source: packages/state/src/receipt/tables.ts:323-350)"
+    },
+    "vectors": "original-fixtures/clone-vectors.json (10 executed cases incl. DataCloneError vs StateError vs TypeError split)"
+  },
+  "error_trace_ordering": {
+    "provenance": "source|test",
+    "dispatch_attempt": "refused-uncommitted -> refused-inherited-scope -> superseded -> refused-state -> unavailable -> skipped(guard-false) -> refused-revoked -> claimed; later checks never run after a refusal (source: packages/work/src/dispatch/index.ts:174-224)",
+    "fanout_child_claim": "terminal-replay -> running-held -> stale-check -> inherited-scope -> guard-on-current -> revoked -> claim; replay/held bypass the fence as idempotent reads; refusals record terminal failed/inaccessible-record; guard-false records skipped/non-applicable; attempts increment for executed attempts only (source: packages/work/src/dispatch/index.ts:266-299)",
+    "staging_join": "per effect: guard-shape -> fanout-lineage -> derive id -> duplicate-id -> freeze request -> origin -> stage-time guard verdict (only explicit true stages; false/throws/non-boolean fail closed); whole batch fail-closed (source: packages/work/src/intent/index.ts:295-347)",
+    "observe_selected_receipt": "locator resolution (throws) -> selected-shape validation (throws) -> trusted store agreement incl. receipt/association revision equality (throws) -> leaf authorization (verdict; grants before presence, first-selected order) -> presence branch -> projection (source: packages/work/src/observation/observation.ts:322-330,338-382)",
+    "recovery_scan": "claimed+stale->resume; pending+guard-false->skipped; failed+transient+budget->retry, exhausted->dead, terminal|unclassified->terminal; uncertain+not-found->retry, delivered|failed evidence->reconcile, none->awaiting; delivered|dead settled; all lists id-sorted (source: packages/work/src/recovery/index.ts:449-466)",
+    "failure_classify_record": "transient kind->transient retry class, else terminal; delivered/failed/uncertain outcomes; transient keeps pending under SAME occurrence id until cap|horizon->dead; terminal->failed; uncertain resolves only via reconcileUncertain (source: packages/work/src/receipt/index.ts:54-56,100-137)",
+    "kernel_claim_pins": "test-pinned: superseded/guard-pinned/held/settled refuse without writes; settled reports before guard-false on terminal rows; missing rows and bad args throw loudly (test: kernel commands dispatch.claim, green in CMD4)"
+  },
+  "persisted_bytes": {
+    "provenance": "probe",
+    "method": "one row per table built by the real constructors with fixed inputs, committed insert-only (expectedRevision 0 -> 1) through the real createD1Storage and createDOStorage commit paths against recording fakes; the bound data parameter (INSERT INTO records, 12th binding) captured verbatim; adapters serialize with bare JSON.stringify(row.data) (source: packages/state/src/storage/d1.ts:721,744; packages/state/src/storage/durable-object.ts:676,697)",
+    "d1_equals_do": true,
+    "rows": {
+      "work.dispatch": { "sha256": "a232500891d745d1991a8e7b9d9b9110b00cfa7106b1d1d52e14dba70ff4caab", "bytes": 378 },
+      "work.occurrence": { "sha256": "29517611e39a8a17cff17213eb6b3f241ab13154b855f60194fb789c9d982403", "bytes": 131 },
+      "work.schedule": { "sha256": "2daa39b22ad03ecf434f3ad702da99cbba91382c37eff5548f5646148dca0b07", "bytes": 199 },
+      "work.every_slot": { "sha256": "a961b6d852b89f6bfb055928bf1b9b3c3e9c47c8d1e6e03d74903a8d82296c58", "bytes": 95 },
+      "work.supersession": { "sha256": "2da445d0502a0d017f22e9e76df12aeb7897a24577ebfca90aef29fff33f2b9c", "bytes": 132 },
+      "work.fanout_intent": { "sha256": "ba13500953d7316b7539c6061587cb95de7ae5b5ade7cdf3917685c957551c3e", "bytes": 160 },
+      "work.fanout_checkpoint": { "sha256": "9e7e3eedafe432281a90ec53efb24c41f5cf5642504bd29d5c545e2583191948", "bytes": 84 },
+      "work.fanout_child": { "sha256": "c5afd0131046f7500f010380ffd79f038fd0a9f5cbd847d43123c15034244fe0", "bytes": 237 },
+      "work.receipt_association": { "sha256": "a9bad442cdef4f0765e7dd7481242a79fee63f4a46ccf687e6bdbc2130bac42c", "bytes": 110 },
+      "work.receipt": { "sha256": "67fb49c080943bd77d6f952cd9c6e0412cae018d0906b1e501ca76558289ffbd", "bytes": 133 }
+    },
+    "full_table": "original-fixtures/persisted-bytes.json"
+  },
+  "schedule_key_pin": {
+    "provenance": "test",
+    "rule": "slash-joined percent-encoded app/ownerPackage/owner/key; total length over 128 UTF-16 units throws fail-closed, never truncates (source: packages/work/src/kernel/commands.ts:743-767, unexported embedScheduleKey)",
+    "observed": "key 'a/b c' + scope {app:'Can X', owner:'t/1', ownerPackage:'my pkg'} -> 'Can%20X/my%20pkg/t%2F1/a%2Fb%20c'; 128 holds, 129 throws /exceeds 128 characters/ in put and cancel (test: kernel commands schedule key embedding, green in CMD4)"
+  },
+  "fixtures_manifest": {
+    "verify.log": "93869f2f8fd08fdbf604667fd374296a043288b4baa9dea4122f9897e14c32a1",
+    "original-fixtures/clone-vectors.json": "1d89f67bc82da8f701f7c17601d36e3b5e8fad5e686417c82ff52208b36c31ec",
+    "original-fixtures/identity-vectors.json": "e116dfe8d3c87577084a975097b656c84554c27a3c3258ef5c6c386893a1e5b1",
+    "original-fixtures/persisted-bytes.json": "d0b60a23cf46cd2157e21f95d911266f2e1db3f6b602f60ff6f700d2edf6182c",
+    "original-fixtures/rows/work_dispatch.json": "d8c5c78a1e9c4702d1d386265a1f75ae2999dece701947e924ce89173133b0f4",
+    "original-fixtures/rows/work_every_slot.json": "c2dbd72f917f540b82a867841dcb7f9ee77643173094f4d618fc34ca29a33258",
+    "original-fixtures/rows/work_fanout_checkpoint.json": "ccf9040341ca032265d6b059b056802565e2a462cdc69ff1c84caa927d454692",
+    "original-fixtures/rows/work_fanout_child.json": "40e9e47812eec96e12994ceab6cda612c451e03fbee10c8716b4d8d74125184b",
+    "original-fixtures/rows/work_fanout_intent.json": "92b445406873b3b09859dfc468886dc48842c717a30d381241ce6692ec266484",
+    "original-fixtures/rows/work_occurrence.json": "fe7c9fee23ad6dc9e02f99a57977efc0eeff3328c6bd6a46c24cbeb0ebed6286",
+    "original-fixtures/rows/work_receipt.json": "7df963992b348cb2be9093a21b7ca470f1decbb110f5d6e37e206e3c73064e4b",
+    "original-fixtures/rows/work_receipt_association.json": "75b7f341cafcc910fe49974750e49a2677bf72c6aaf1da7458fb9f9fcc8a3a97",
+    "original-fixtures/rows/work_schedule.json": "ef4fefd3b8f145d11a23ac0d259e3fa264e9600b3a7261008289dafe53fed068",
+    "original-fixtures/rows/work_supersession.json": "d9327ba265b02326ff98d41bd0d6f6b0397f64d1275bb7bafc134724e26cb810"
+  },
+  "limits": [
+    "bytes captured through real adapter commit code but recording fakes, not live miniflare D1/DO handles",
+    "cloudflare build failure (CMD3=2) recorded, not repaired: out of lane D scope",
+    "owner lanes copy/hash golden fixture subsets later per W01.3 acceptance; this oracle is the independent frozen input"
+  ]
+}
