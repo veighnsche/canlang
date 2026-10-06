@@ -1,0 +1,11 @@
+# N04 concrete Rust-str escaping release
+
+Human step 5 released this finite helper packet from `dffde55`. N02 values formatter (`a34aa16`) and N03 work formatter source-only (`bcaa5db`) were already separate checked commits and were not replayed.
+
+N04 is independently reviewed and committed on main as `36df46e`. The production change replaces hand-written string escaping with the existing pinned `serde_json::to_string` concrete-str serializer. Manifest, lock, original TypeScript, number formatter and truncation are unchanged.
+
+[Independent review](independent-review.md), [exact committed-source verification](completion-verification.json) and [command receipts](command-receipts.json) support this narrow release: 86 native tests, two source-recapture TS tests with four rejected corruption controls, values noEmit, scoped rustfmt, the actual bindings Wasm build, and private actual-helper Wasm execution. The corpus has 89 Rust-str helper parity rows, 88 actual-wire parity rows, one primitive cut residual and four unpaired TS-only inputs. There are 23 original caller observations: 22 money payload comparisons with one separate long-currency cut residual; nominal-string validation stays TS-only. Raw original JS and native units remain separate.
+
+A04.5 lossless UTF-16/truncation, its A04.1/A04.3 prerequisites, public Wasm money-error mapping, installed consumers, full codec and default adoption remain open. Private same-module path/raw MoneyParts and private Wasm witnesses have narrower scope than public calls. Held preparation/native-release remains HUMAN HOLD.
+
+Mechanics used Sol low, prepared fixtures Luna medium, and independent caller/error review Sol medium. The initial reviewer dispatch hit the thread limit; a supported reviewer dispatch succeeded after fixture release. All writers and commands are released. The same-chat 15-minute supervisor is paused between finite releases. No successor packet, push, CI, merge/rebase or deployment was started. Concurrent compiler/shared-doc changes and index were preserved. Private evidence/targets remain owned by Codex for later bounded cleanup. Shared decision bookkeeping awaits the active document owner's exact handoff; this result selects no new codec policy.

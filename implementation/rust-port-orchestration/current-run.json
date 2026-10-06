@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
-  "phase": "running_N04",
-  "execution_authorized": true,
+  "phase": "complete_N04_finite_release",
+  "execution_authorized": false,
   "run_dir": "/Users/vince/Projects/canlang/implementation/rust-port-orchestration/runs/codex-n04-20261006T233602Z",
   "roles": [
     {
@@ -19,8 +19,8 @@
       "ack_path": "/private/tmp/canlang-rust-port-codex-n04-20261006T233602Z/mechanics-ACK.json",
       "ack_sha256": "81db3c08f71635c5dc4e0b8fe290a569a390d4160e36698e206b4ca8bbbef1d8",
       "ack_observed": true,
-      "status": "working",
-      "writer_released": false
+      "status": "released_complete",
+      "writer_released": true
     },
     {
       "worker": "fixtures",
@@ -37,8 +37,10 @@
       "ack_path": "/private/tmp/canlang-rust-port-codex-n04-20261006T233602Z/fixtures-ACK.json",
       "ack_sha256": "4bb4fa563072d332f36b67539fb119e029cbf77142fe9a05f3bd608a4e2278f5",
       "ack_observed": true,
-      "status": "working",
-      "writer_released": false
+      "status": "released_complete",
+      "writer_released": true,
+      "release_path": "/private/tmp/canlang-rust-port-codex-n04-20261006T233602Z/fixtures/release.json",
+      "fixture_sha256": "f5cde655ca236332542ba1ff2db824d744bc8f649e4e4284ba3f3287459229be"
     }
   ],
   "native_timers": [],
@@ -48,7 +50,7 @@
   "historical_runtime": "/private/tmp/canlang-idle-20261006T041507Z/monitor.json",
   "historical_runtime_authority": "stopped evidence only; never restore or infer new identity, startup or dispatch",
   "preparation_hold": true,
-  "note": "Human step5 releases N04 helper/fixtures/review only. N02 and N03 remain accepted narrow input commits; do not replay them or widen A04.5.",
+  "note": "Human step5 numeric corrections landed as separate narrow N02/N03/N04 releases. All N04 writers/commands released; no successor dispatch. Parent A04.5/W04.4/installed/default acceptance unchanged.",
   "muse_native_recurring_jobs_allowed": false,
   "proposed_codex_supervision_minutes": 15,
   "executor": "Codex collaboration subagents",
@@ -57,13 +59,15 @@
   "first_packet_queue": "implementation/rust-port-orchestration/packets.json",
   "planning_step3_deliverable_complete": true,
   "run_id": "codex-n04-20261006T233602Z",
-  "authorized_packet_ids": [
-    "next:R1:N04-helper"
-  ],
+  "authorized_packet_ids": [],
   "human_release_reference": "Human step5 in this chat,2026-10-07",
-  "supervisor_status": "ACTIVE",
+  "supervisor_status": "PAUSED",
   "monitor": "/Users/vince/Projects/canlang/implementation/rust-port-orchestration/runs/codex-n04-20261006T233602Z/monitor.json",
-  "updated_at_utc": "2026-10-06T23:36:02.880479+00:00",
+  "updated_at_utc": "2026-10-06T23:47:55.494936+00:00",
   "future_dispatch_authorized": false,
-  "previous_completed_run": "/Users/vince/Projects/canlang/implementation/rust-port-orchestration/runs/codex-first-20261006T231809Z"
+  "previous_completed_run": "/Users/vince/Projects/canlang/implementation/rust-port-orchestration/runs/codex-first-20261006T231809Z",
+  "source_commit": "36df46e28dc971f92a467e8543d8176e6f943483",
+  "completed_packet_ids": [
+    "next:R1:N04-helper"
+  ]
 }

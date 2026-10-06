@@ -13,8 +13,8 @@
   "contract": "n01.rust-str-escape.v1",
   "limits": "Only Rust-valid-str untruncated escaping. Tag 64-unit split actual_wire mismatch, preserve lone surrogate exclusion and TS routes. Do not close A04.5 or redesign lossless transport.",
   "sequence_role": "successor_candidate",
-  "execution_authorized": true,
-  "active_lease": true,
+  "execution_authorized": false,
+  "active_lease": false,
   "assigned_agent": null,
   "activation_base": "dffde556b84d618f62fd0bd3e8e7e0c98e2ce5fd",
   "planning_base": "74f7271f7d3d49c929c769a5175de20e4525acef",
@@ -57,7 +57,7 @@
     "packages/values/Cargo.toml"
   ],
   "private_output_root_template": "/private/tmp/canlang-rust-port-{{RUN_ID}}/packets/next-R1-N04-helper",
-  "outputs_created": false,
+  "outputs_created": true,
   "model_selection": {
     "model": "gpt-6.1-sol",
     "reasoning_effort": "low",
@@ -76,7 +76,7 @@
     "Untruncated helper parity for the valid-string surrogate-cut input; tag its actual_wire truncation mismatch separately; four unpaired inputs retain TS route.",
     "Only Rust-valid-str untruncated escaping. Tag 64-unit split actual_wire mismatch, preserve lone surrogate exclusion and TS routes. Do not close A04.5 or redesign lossless transport."
   ],
-  "dispatch_status": "candidate_requires_finite_activation_review",
+  "dispatch_status": "completed_finite_release",
   "packet_dependencies": [],
   "canonical_task_ids": [
     "ports:A04.5"
@@ -84,7 +84,7 @@
   "canonical_snapshot_index": "preserved_original_records",
   "human_release_reference": "Human step5 in this chat,2026-10-07",
   "private_output_root": "/private/tmp/canlang-rust-port-codex-n04-20261006T233602Z",
-  "runtime_status": "ready_for_dispatch",
+  "runtime_status": "accepted_finite_helper_committed",
   "preparation_hold": true,
   "source_input_sha256": {
     "implementation/remaining-work/tasks.json": {
@@ -239,5 +239,8 @@
       "reason": "Isolated complete caller/error identity and residual domain review",
       "files": []
     }
-  ]
+  ],
+  "source_commit": "36df46e28dc971f92a467e8543d8176e6f943483",
+  "writer_commands_released": true,
+  "independent_review": "independent-review.json"
 }

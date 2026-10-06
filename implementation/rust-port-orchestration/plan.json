@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
-  "phase": "implementation_N04",
-  "execution_authorized": true,
+  "phase": "complete_N04_finite_release",
+  "execution_authorized": false,
   "global_orchestrator": "Codex for package programme",
   "independent_reviewer": "Codex",
   "main_integrator": "Codex for package releases; independent compiler agent retains its own authority",
@@ -16,7 +16,7 @@
   },
   "cadence": {
     "root_minutes": 15,
-    "root_automation_status": "ACTIVE",
+    "root_automation_status": "PAUSED",
     "scheduled_controller": "Codex only",
     "local_recurring_jobs_allowed": false,
     "active_turn_completion_route": "collaboration messages and completion; no timer wait for ready work",
@@ -129,13 +129,12 @@
   "planning_checkpoint_step3": "implementation/rust-port-orchestration/first-packets-20261007/README.md",
   "first_packet_queue_verification": "implementation/rust-port-orchestration/first-packets-20261007/verification.json",
   "activation_run": "/Users/vince/Projects/canlang/implementation/rust-port-orchestration/runs/codex-n04-20261006T233602Z",
-  "active_authorized_packet_ids": [
-    "next:R1:N04-helper"
-  ],
+  "active_authorized_packet_ids": [],
   "completed_packet_ids": [
     "first:R1:N02-values-number-maintenance",
     "first:R2:V01-consumed-owner-contracts",
-    "first:R3:N03-work-number-maintenance"
+    "first:R3:N03-work-number-maintenance",
+    "next:R1:N04-helper"
   ],
   "future_dispatch_authorized": false
 }

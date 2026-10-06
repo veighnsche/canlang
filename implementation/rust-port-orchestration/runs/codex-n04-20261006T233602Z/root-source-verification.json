@@ -1,0 +1,123 @@
+{
+  "checked_at_utc": "2026-10-06T23:46:10.995036+00:00",
+  "base": "dffde556b84d618f62fd0bd3e8e7e0c98e2ce5fd",
+  "preserved_nonwritable_input_count": 25,
+  "preserved_nonwritable_inputs": {
+    "implementation/remaining-work/tasks.json": {
+      "exists": true,
+      "sha256": "cd01ebb2276e9bbd362085070b985811543f4bcb1d7ad0d0ac0530d3092bc3f4"
+    },
+    "implementation/rust-port-lanes.json": {
+      "exists": true,
+      "sha256": "4936af9c418fbf8accb9932e24abb622d11563d776fb271c6dac111615439033"
+    },
+    "implementation/rust-port-orchestration/contracts-20261007/ownership.json": {
+      "exists": true,
+      "sha256": "728cbd42913d7eef29c3686d282f796f101076224860a88afd9f71fb184200df"
+    },
+    "implementation/rust-port-orchestration/contracts-20261007/packets.json": {
+      "exists": true,
+      "sha256": "bee5b952faf2fa136cc3a3f1268db1544f5e222ca05d5de3534dc15ddd730308"
+    },
+    "docs/research/package-library-audit-20261006/adoption-sequence.json": {
+      "exists": true,
+      "sha256": "d93dcb00638680b1b861c90ec6a445267942b8ca6f7ca479fb60bc0386ca3a9f"
+    },
+    "implementation/rust-port-orchestration/contracts-20261007/strings-rust.md": {
+      "exists": true,
+      "sha256": "3c5d6f3bcedfdb4477cae48c15f1bcac62e8b579ae18f88414fe0840a0dadf8a"
+    },
+    "implementation/rust-port-orchestration/contracts-20261007/numeric-values.md": {
+      "exists": true,
+      "sha256": "cd0f1a9eadf78e3ba147294bd7b3ab51c38883afa4d51d6b4f1aa71e384e775b"
+    },
+    "implementation/rust-port-orchestration/contracts-20261007/numeric-common.md": {
+      "exists": true,
+      "sha256": "f7880accd442d74139a473244e9c87503129d325b8b89869842be05a22f9d404"
+    },
+    "implementation/rust-port-orchestration/contracts-20261007/numeric-contracts.json": {
+      "exists": true,
+      "sha256": "5d6a65f45fae1e8f967031b96e1e3b06042c0e5b3eb0a3861e7224325ed69337"
+    },
+    "implementation/rust-port-orchestration/contracts-20261007/oracles/manifest.json": {
+      "exists": true,
+      "sha256": "6766a330b4ed03cc3a28dbebc24b70662527a814b70abdb6dcd7058f2563bdfe"
+    },
+    "implementation/rust-port-orchestration/contracts-20261007/oracles/frozen-oracle.json.gz": {
+      "exists": true,
+      "sha256": "d4bfe45964e46da4b3970702428d4e336b46fd8391ef6fc12572748c138d2a7b"
+    },
+    "packages/values/semantics/src/representations/numeric.rs": {
+      "exists": true,
+      "sha256": "c012805095152f62168db2b00fa6c7a2ebc741f526f2e68a004bcfe3d149f13c"
+    },
+    "packages/values/semantics/src/numeric/decimal.rs": {
+      "exists": true,
+      "sha256": "53040e3de46f5e17d8c5025928bdb3ef2047e88d6fd488821686dcfbd026ade6"
+    },
+    "packages/values/semantics/src/numeric/money.rs": {
+      "exists": true,
+      "sha256": "5ab02d498fcc7031c079f5af884cbe2e5d3c2e7810127f012d928bb8c0516dad"
+    },
+    "packages/values/src/kinds.ts": {
+      "exists": true,
+      "sha256": "35cf9ba2ccadb5157d66423530af9c9eca9def2d74df3b43dd0d318d5427b0e7"
+    },
+    "packages/values/src/decimal.ts": {
+      "exists": true,
+      "sha256": "e4056e2849f928106b36f534ee72f3416fed9550c19da914dc9e02d4c14f592e"
+    },
+    "packages/values/src/wire.ts": {
+      "exists": true,
+      "sha256": "73832128fd4b2db93d08770836271323d61bed02647ca83fd21bdd9496054f03"
+    },
+    "packages/values/bindings/backend.ts": {
+      "exists": true,
+      "sha256": "4863a9b9f30c4551a6220a44caaa03094a643f51f71088de5ef613b7a34508fa"
+    },
+    "packages/values/bindings/carriers.ts": {
+      "exists": true,
+      "sha256": "657f643c92fefe1d4303f609748860ed7c496544093fb57e5ea9fd7063fca3d0"
+    },
+    "packages/values/semantics/Cargo.toml": {
+      "exists": true,
+      "sha256": "d9e3d080a35cc0c0fe5138bf235cb46f7c389469251833ec81b08b29e10583b8"
+    },
+    "packages/values/Cargo.lock": {
+      "exists": true,
+      "sha256": "653260b64e40898068cfed2728bb348d26284fe5af983ab3bf38d9d2aa57ebbe"
+    },
+    "packages/values/src/errors.ts": {
+      "exists": true,
+      "sha256": "a9a518f181e92d3b69be7ef8bb36d7e1001e276849a5ff9e976eef81fee569e8"
+    },
+    "packages/values/semantics/src/failures.rs": {
+      "exists": true,
+      "sha256": "28dca38a0670f354a25e5a9ab6e531c216f161c929413adc9c7276cddb51fc07"
+    },
+    "packages/values/semantics/src/transport/exact.rs": {
+      "exists": true,
+      "sha256": "7c2f5600bf4c72b5ccfef82500113e28f1fc3131a0f818dff8e205b802142817"
+    },
+    "packages/values/Cargo.toml": {
+      "exists": true,
+      "sha256": "083c91d33d9cf5c36b0c61e0e8f86b80bf1208bcf3202d681a77a52939e6efee"
+    }
+  },
+  "drift": [],
+  "only_production_delta_is_json_stringify": true,
+  "current_owned_sha256": {
+    "packages/values/semantics/src/codecs/numeric.rs": "6f06587f264ae4365739c7fbbbb9e2fe9e3b4319c5cc6fc71e056594dc740217",
+    "packages/values/semantics/tests/string_escape_contract.rs": "e596cd37c93470fa5d954f6d7b9c426451e3dbaf0a6ab16af7299e255cbfb30f",
+    "packages/values/test/string-escape.contract.test.ts": "b6c56ec4b4d2ce395fdd45b54c3522125ba587cbcb32b91cbe579159328b8df6",
+    "packages/values/conformance/string-escape.oracle.mjs": "3f183e7ee80243f7ed839de9f0785685e4dcd1da42a2e9c5de386a9cb0e0f24a",
+    "packages/values/conformance/string-escape.json": "f5cde655ca236332542ba1ff2db824d744bc8f649e4e4284ba3f3287459229be",
+    "docs/research/package-subsystem-ports-20261006/evidence/implementation/exact-values/core/n01-rust-str-escape.json": "68423ad35b565845e09f65d312bc8d552c5ab3e43c145fbc0c433d2cb46ce87f"
+  },
+  "root_noemit": {
+    "session_id": 25637,
+    "exit": 0,
+    "log": "/private/tmp/canlang-rust-port-codex-n04-20261006T233602Z/root-values-noemit.log"
+  },
+  "limits": "No parent codec/installed/default closure; foreign compiler and shared docs not covered by package snapshots."
+}

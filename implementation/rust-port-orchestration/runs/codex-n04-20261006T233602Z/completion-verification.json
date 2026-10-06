@@ -1,0 +1,86 @@
+{
+  "completed_at_utc": "2026-10-06T23:47:55.494936+00:00",
+  "scope": "N04 finite Rust-valid-str helper only",
+  "source_commit": "36df46e28dc971f92a467e8543d8176e6f943483",
+  "changed_paths_exactly_reviewed": true,
+  "committed_source_verification": {
+    "packages/values/semantics/src/codecs/numeric.rs": {
+      "reviewed_sha256": "6f06587f264ae4365739c7fbbbb9e2fe9e3b4319c5cc6fc71e056594dc740217",
+      "commit_blob_sha256": "6f06587f264ae4365739c7fbbbb9e2fe9e3b4319c5cc6fc71e056594dc740217",
+      "working_tree_sha256": "6f06587f264ae4365739c7fbbbb9e2fe9e3b4319c5cc6fc71e056594dc740217"
+    },
+    "packages/values/semantics/tests/string_escape_contract.rs": {
+      "reviewed_sha256": "e596cd37c93470fa5d954f6d7b9c426451e3dbaf0a6ab16af7299e255cbfb30f",
+      "commit_blob_sha256": "e596cd37c93470fa5d954f6d7b9c426451e3dbaf0a6ab16af7299e255cbfb30f",
+      "working_tree_sha256": "e596cd37c93470fa5d954f6d7b9c426451e3dbaf0a6ab16af7299e255cbfb30f"
+    },
+    "packages/values/test/string-escape.contract.test.ts": {
+      "reviewed_sha256": "b6c56ec4b4d2ce395fdd45b54c3522125ba587cbcb32b91cbe579159328b8df6",
+      "commit_blob_sha256": "b6c56ec4b4d2ce395fdd45b54c3522125ba587cbcb32b91cbe579159328b8df6",
+      "working_tree_sha256": "b6c56ec4b4d2ce395fdd45b54c3522125ba587cbcb32b91cbe579159328b8df6"
+    },
+    "packages/values/conformance/string-escape.oracle.mjs": {
+      "reviewed_sha256": "3f183e7ee80243f7ed839de9f0785685e4dcd1da42a2e9c5de386a9cb0e0f24a",
+      "commit_blob_sha256": "3f183e7ee80243f7ed839de9f0785685e4dcd1da42a2e9c5de386a9cb0e0f24a",
+      "working_tree_sha256": "3f183e7ee80243f7ed839de9f0785685e4dcd1da42a2e9c5de386a9cb0e0f24a"
+    },
+    "packages/values/conformance/string-escape.json": {
+      "reviewed_sha256": "f5cde655ca236332542ba1ff2db824d744bc8f649e4e4284ba3f3287459229be",
+      "commit_blob_sha256": "f5cde655ca236332542ba1ff2db824d744bc8f649e4e4284ba3f3287459229be",
+      "working_tree_sha256": "f5cde655ca236332542ba1ff2db824d744bc8f649e4e4284ba3f3287459229be"
+    },
+    "docs/research/package-subsystem-ports-20261006/evidence/implementation/exact-values/core/n01-rust-str-escape.json": {
+      "reviewed_sha256": "68423ad35b565845e09f65d312bc8d552c5ab3e43c145fbc0c433d2cb46ce87f",
+      "commit_blob_sha256": "68423ad35b565845e09f65d312bc8d552c5ab3e43c145fbc0c433d2cb46ce87f",
+      "working_tree_sha256": "68423ad35b565845e09f65d312bc8d552c5ab3e43c145fbc0c433d2cb46ce87f"
+    }
+  },
+  "independent_review": "independent-review.json",
+  "original_inputs": "root-source-verification.json",
+  "checks": {
+    "native_passed": 86,
+    "owning_source_TS_tests_passed": 2,
+    "corrupted_fixture_controls": 4,
+    "root_values_noemit_exit": 0,
+    "actual_bindings_wasm_build_exit": 0,
+    "private_helper_wasm_build_exit": 0,
+    "private_helper_wasm_node_exit": 0,
+    "rustfmt_two_paths_exit": 0
+  },
+  "retained_residuals": [
+    "89 Rust-str helper parity / 88 primitive actual-wire parity / 1 primitive cut residual / 4 unpaired TS-only",
+    "One real long-currency caller actual-field cut residual; original JS units retained",
+    "Nominal-string caller stays TS-only; native payload layer is not public SchemaError backend qualification",
+    "A04.5/full codec/installed/default unchanged; preparation HUMAN HOLD"
+  ],
+  "prior_independent_releases": {
+    "N02": "a34aa16fcf85e1241145bd6d92d9ca175420f20d",
+    "N03_source_only": "bcaa5db13e8c903b388dd0f419c9e65866065981"
+  },
+  "canonical_parent_status_changed": false,
+  "human_preparation_hold": true,
+  "all_writers_and_commands_released": true,
+  "foreign_compiler_index_docs_preserved": true,
+  "merge_rebase_push_CI_deployment": false,
+  "filetree_checkpoint_advanced": false,
+  "shared_DECISIONS_handoff_pending": "Compiler/shared-doc writer active; selected contract implementation/result recorded in this owned release. Reconcile shared decision record after exact writer handoff. No new semantic policy selected.",
+  "supervisor_confirmation": {
+    "automation_id": "canlang-challenge-implementation",
+    "status": "PAUSED",
+    "rrule": "RRULE:FREQ=MINUTELY;INTERVAL=15",
+    "supported_tool_update_ack": true,
+    "config_verified": true
+  },
+  "retained_owned_metadata": {
+    "implementation/rust-port-orchestration/runs/codex-n04-20261006T233602Z/root-source-verification.json": "008a986eedce6755d4d8362d2723cf434352fae44f65d2f03c5db7e6711e6ab1",
+    "implementation/rust-port-orchestration/runs/codex-n04-20261006T233602Z/monitor.json": "947d92a7ac873409416a29d12fe09e396854283e4583f436e33af2eebcd70ecd",
+    "implementation/rust-port-orchestration/runs/codex-n04-20261006T233602Z/independent-review.json": "5638f35bed28df2c2b48ac2ce6613e4e986514cac2c8176b5361ddc27c8a0af2",
+    "implementation/rust-port-orchestration/runs/codex-n04-20261006T233602Z/independent-review.md": "f5498c2ed6c9c959621457ba3b1b084a08131262394b73f4880919b96f8c01c6",
+    "implementation/rust-port-orchestration/runs/codex-n04-20261006T233602Z/command-receipts.json": "9b2705db1be1699d6de0d9a51fc5e5aa1a879b794d9f8c0856c92e10207b5ce1",
+    "implementation/rust-port-orchestration/runs/codex-n04-20261006T233602Z/mechanics-release.json": "be8ad1337fb512563b330f41c17ac75f514c24cfca593c235b0ee529808d3664",
+    "implementation/rust-port-orchestration/runs/codex-n04-20261006T233602Z/model-dispatches.json": "f557430696681e6b13be2e0a05a629300663481b7d1b35b0e5cfe9e676e92066",
+    "implementation/rust-port-orchestration/runs/codex-n04-20261006T233602Z/README.md": "38f0bfc80f91b3e0272e1230355b9f1eb289d7568de649a2ab703d186c0f42f6",
+    "implementation/rust-port-orchestration/runs/codex-n04-20261006T233602Z/fixtures-release.json": "0f68d6a8bd9c6c8fb0ee0f83a4e24955dec879fc13f737f3f2fb0842b0289b4e",
+    "implementation/rust-port-orchestration/runs/codex-n04-20261006T233602Z/packet-N04.json": "1270917d00a1d4b6e40389781f79c827c0ef4fb53ba1beb6d1d1e82535093d05"
+  }
+}

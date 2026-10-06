@@ -1,0 +1,38 @@
+{
+  "run": "codex-n04-20261006T233602Z",
+  "packet": "N04-helper",
+  "fixture_sha256": "f5cde655ca236332542ba1ff2db824d744bc8f649e4e4284ba3f3287459229be",
+  "paths": {
+    "packages/values/conformance/string-escape.json": "f5cde655ca236332542ba1ff2db824d744bc8f649e4e4284ba3f3287459229be",
+    "packages/values/conformance/string-escape.oracle.mjs": "3f183e7ee80243f7ed839de9f0785685e4dcd1da42a2e9c5de386a9cb0e0f24a",
+    "packages/values/test/string-escape.contract.test.ts": "b6c56ec4b4d2ce395fdd45b54c3522125ba587cbcb32b91cbe579159328b8df6",
+    "implementation/rust-port-orchestration/contracts-20261007/oracles/frozen-oracle.json.gz": "d4bfe45964e46da4b3970702428d4e336b46fd8391ef6fc12572748c138d2a7b"
+  },
+  "route_counts": {
+    "strings": 93,
+    "rustStrAdmitted": 89,
+    "helperParityAdmitted": 89,
+    "actualWireParityAdmitted": 88,
+    "astralCutResidual": [
+      "astral-cut:62"
+    ],
+    "jsOnlyUnpaired": [
+      "lone-high",
+      "lone-low",
+      "reversed-pair",
+      "unpaired-middle"
+    ],
+    "callerActualWireResiduals": [
+      "decode-long-currency-wire"
+    ]
+  },
+  "test_command": "bun test packages/values/test/string-escape.contract.test.ts",
+  "test_result": "2 pass, 0 fail; original-source regenerated semantic parity and four corrupted fixture variants rejected",
+  "engine": {
+    "node": "v24.21.0",
+    "v8": "13.6.233.17-node.53",
+    "platform": "darwin",
+    "arch": "arm64",
+    "execPath": "/Users/vince/.vite-plus/js_runtime/node/24.21.0/bin/node"
+  }
+}

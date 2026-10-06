@@ -1,0 +1,48 @@
+{
+  "packet": "N04-helper",
+  "contract": "n01.rust-str-escape.v1",
+  "verdict": "accept-finite-helper-scope",
+  "findings": [],
+  "reviewed_product_sha256": {
+    "packages/values/semantics/src/codecs/numeric.rs": "6f06587f264ae4365739c7fbbbb9e2fe9e3b4319c5cc6fc71e056594dc740217",
+    "packages/values/semantics/tests/string_escape_contract.rs": "e596cd37c93470fa5d954f6d7b9c426451e3dbaf0a6ab16af7299e255cbfb30f",
+    "packages/values/test/string-escape.contract.test.ts": "b6c56ec4b4d2ce395fdd45b54c3522125ba587cbcb32b91cbe579159328b8df6",
+    "packages/values/conformance/string-escape.oracle.mjs": "3f183e7ee80243f7ed839de9f0785685e4dcd1da42a2e9c5de386a9cb0e0f24a",
+    "packages/values/conformance/string-escape.json": "f5cde655ca236332542ba1ff2db824d744bc8f649e4e4284ba3f3287459229be",
+    "docs/research/package-subsystem-ports-20261006/evidence/implementation/exact-values/core/n01-rust-str-escape.json": "68423ad35b565845e09f65d312bc8d552c5ab3e43c145fbc0c433d2cb46ce87f"
+  },
+  "review_method": "Independent read-only source, original donor, frozen contract, release snapshot and receipt review; no duplicate builds or product edits.",
+  "verified": [
+    "Production numeric.rs diff changes only concrete str helper plus cfg(test) witnesses; truncate unchanged.",
+    "All 5 source hashes, 6 private artifact hashes, 10 log hashes, 25 donor hashes match recorded receipts; 14 original package inputs including manifests and lock unchanged.",
+    "Builtin JSON.stringify output units and valid UTF8 bytes checked against frozen93 corpus before original owning TS public callers are captured.",
+    "23 actual TS caller observations preserve outer error field presence/ownness, own-key order, numeric versus string path segments and ordered full violation fields; native layer compares22 money callers.",
+    "Portable TypeScript test recaptures donors with current Node; all four corrupted fixture variants are asserted to fail the same complete semantic comparison.",
+    "Native helper89 and actual_wire88 plus explicit primitive astral-cut residual1 and excluded unpaired4; long-currency caller has separate66 Rust versus67 JS units and no lossy conversion.",
+    "Nominal string wrong-wire observation remains TS whole-validation only.",
+    "Private same-module bracket paths and raw MoneyParts escaping witnesses correctly state narrower scope than public encodeValue.",
+    "Private witness executes actual-semantics json_stringify/actual_wire only; production bindings wasm build does not certify public money caller or host envelope execution.",
+    "Pinned serde_json1.0.151 checksum and default/std features unchanged; private lock closure has no drift and normal resolved feature equality."
+  ],
+  "receipts": {
+    "native_passed": 86,
+    "ts": "fixtures/test.log: 2 pass,0 fail; four corruption variants inside first test",
+    "noEmit": "root reported exit0/session25637; root-values-noemit.log empty",
+    "native_initial_exit": 101,
+    "corrected_native_exit": 0,
+    "bindings_wasm_build_exit": 0,
+    "private_wasm_build_exit": 0,
+    "private_wasm_execution_exit": 0,
+    "rustfmt_exit": 0
+  },
+  "retained_limits": [
+    "A04.5 remains open; prerequisite A04.1/A04.3 remain open.",
+    "One scalar-valid input has helper parity but actual_wire UTF16 astral-cut expected mismatch; no truncation edit.",
+    "Four unpaired UTF16 JS inputs are excluded from Rust str and retain TS routes.",
+    "Native Failure/violations and exact transport are separate payload layers; public SchemaError/ValueError host mapping remains unqualified.",
+    "Private same-module arbitrary path/raw MoneyParts witnesses are narrower than public scalar APIs; arbitrary raw currency probes are not public encodeValue parity.",
+    "Lossless UTF16 transport, target/caller, installed/default adoption gates remain open.",
+    "Long-currency caller diagnostic is actual_wire-only in private Wasm witness; full native money caller payload comparison exists, public Wasm money envelope does not."
+  ],
+  "foreign_changes": "compiler/src/source.rs and shared docs/orchestration/build-in-public outputs are unrelated writers and were neither modified nor included in finite helper verdict."
+}
