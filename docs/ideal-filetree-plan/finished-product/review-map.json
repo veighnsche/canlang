@@ -1,0 +1,136 @@
+{
+  "scope": "converged primary/challenger boundary decisions; supersedes pending markers in initial primary records only at stated reviewed scope",
+  "capabilities": [
+    {
+      "id": "F01",
+      "primary": "language",
+      "challenger": "work",
+      "incorporated_scope": "Source/declared composition/check/lower boundaries; corpus scope and exact literal/expression/availability correction",
+      "primary_record": "reviews/language.json",
+      "challenge_records": "reviews/work.md",
+      "completion_limit": "Consequential boundaries independently challenged; no exhaustive branch/body proof"
+    },
+    {
+      "id": "F02",
+      "primary": "language",
+      "challenger": "work",
+      "incorporated_scope": "Reference array requiredness and exact expression E6008; profiles/ownership and observable JS retained",
+      "primary_record": "reviews/language.json",
+      "challenge_records": "reviews/work.md",
+      "completion_limit": "Consequential boundaries independently challenged; no exhaustive branch/body proof"
+    },
+    {
+      "id": "F03",
+      "primary": "work",
+      "challenger": "language",
+      "incorporated_scope": "Current owner replay/hash order, complete cohorts, contracts-only leaf, storage/hooks/containment",
+      "primary_record": "reviews/work.json",
+      "challenge_records": "reviews/language.md",
+      "completion_limit": "Consequential boundaries independently challenged; no exhaustive branch/body proof"
+    },
+    {
+      "id": "F04",
+      "primary": "product",
+      "challenger": "delivery",
+      "incorporated_scope": "Typed conditional storage/context/fence participant required; system registration insufficient",
+      "primary_record": "reviews/product.json",
+      "challenge_records": "reviews/delivery.json",
+      "completion_limit": "Consequential boundaries independently challenged; no exhaustive branch/body proof"
+    },
+    {
+      "id": "F05",
+      "primary": "work",
+      "challenger": "language",
+      "incorporated_scope": "No provider atomicity; receiving files/durable scheduling needed independent of optional Rust W09",
+      "primary_record": "reviews/work.json",
+      "challenge_records": "reviews/language.md",
+      "completion_limit": "Consequential boundaries independently challenged; no exhaustive branch/body proof"
+    },
+    {
+      "id": "F06",
+      "primary": "work",
+      "challenger": "language",
+      "incorporated_scope": "Authoritative full finite cohort, fresh child authority and atomic terminal checkpoint; receipt/progress visibility",
+      "primary_record": "reviews/work.json",
+      "challenge_records": "reviews/language.md",
+      "completion_limit": "Consequential boundaries independently challenged; no exhaustive branch/body proof"
+    },
+    {
+      "id": "F07",
+      "primary": "work",
+      "challenger": "language",
+      "incorporated_scope": "Accepted all-used-context corpus and current revocation; explicit owner expiry vs file/migration retention",
+      "primary_record": "reviews/work.json",
+      "challenge_records": "reviews/language.md",
+      "completion_limit": "Consequential boundaries independently challenged; no exhaustive branch/body proof"
+    },
+    {
+      "id": "F08",
+      "primary": "product",
+      "challenger": "delivery",
+      "incorporated_scope": "Canonical browser/MCP schema/current authority; export/Print bounded and authorized",
+      "primary_record": "reviews/product.json",
+      "challenge_records": "reviews/delivery.json",
+      "completion_limit": "Consequential boundaries independently challenged; no exhaustive branch/body proof"
+    },
+    {
+      "id": "F09",
+      "primary": "product",
+      "challenger": "delivery",
+      "incorporated_scope": "Real installed DOM/assets, one-inflight lifecycle polling, preferences current consumer, pure server CSV row review",
+      "primary_record": "reviews/product.json",
+      "challenge_records": "reviews/delivery.json",
+      "completion_limit": "Consequential boundaries independently challenged; no exhaustive branch/body proof"
+    },
+    {
+      "id": "F10",
+      "primary": "language",
+      "challenger": "work",
+      "incorporated_scope": "Reference source present but array fact mismatch, deterministic owner catalog/reference joins and installed proof",
+      "primary_record": "reviews/language.json",
+      "challenge_records": "reviews/work.md",
+      "completion_limit": "Consequential boundaries independently challenged; no exhaustive branch/body proof"
+    },
+    {
+      "id": "F11",
+      "primary": "delivery",
+      "challenger": "product",
+      "incorporated_scope": "Required fenced stage/upgrade retained vs enhanced-online scope; actual Wasm/install/host qualification and packaging uncertainty",
+      "primary_record": "reviews/delivery.json",
+      "challenge_records": "findings.md",
+      "completion_limit": "Consequential boundaries independently challenged; no exhaustive branch/body proof"
+    },
+    {
+      "id": "F12",
+      "primary": "product",
+      "challenger": "delivery",
+      "incorporated_scope": "App required intent/caller/state/negatives differentiated from constructed artifact source tests; no test-count proof",
+      "primary_record": "reviews/product.json",
+      "challenge_records": "reviews/delivery.json",
+      "completion_limit": "Consequential boundaries independently challenged; no exhaustive branch/body proof"
+    }
+  ],
+  "app_challenge_cycle": {
+    "language": "apps-delivery.json independent_challenge",
+    "work": "apps-language.json independent_app_work_challenge",
+    "delivery": "apps-work.json delivery challenge"
+  },
+  "late_source_challenge": "reviews/late-challenge-language.json",
+  "root_incorporated_corrections": [
+    "actor/now runtime producer absent as well as team/operation lowering",
+    "retry detection message-token scope; bounded revalidation countercase, complete removed-descriptor owning validation gate",
+    "t32b constructed fixture handlers, not compiler output",
+    "Stock transfer conservation not paired reversal",
+    "state canonical maintenance authority beneath Cloudflare transport"
+  ],
+  "late_work_review": {
+    "primary": "reviews/late-work-tests.json",
+    "challenger": "root selected D/E/F test bodies and complete review claims",
+    "scope": "source-only actual shared-observer/closure oracle, directional types, uncommitted progress and fence enrollment limits; no full test-branch proof"
+  },
+  "late_dispatch_review": {
+    "primary": "root complete three-file diff/tests and actual mirror/fence source",
+    "challenger": "reviews/late-dispatch.json",
+    "scope": "current source/target carrier, pure callback vs real async/held-claim order, unavailable decoder/injection and actual server enrollment; no runtime execution"
+  }
+}
