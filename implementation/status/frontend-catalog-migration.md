@@ -38,7 +38,7 @@ No draft/shared/*.md and no examples companions exist.
 
 Excluded with reason (197 total .can files; 153 excluded):
 - design/evaluation/** snapshots + evidence experiments: frozen evaluation artifacts, referenced from evaluation/decision docs (EVALUATION.md, briefs/, verification.json, draft/MIGRATION.md, JEV assessments), not build/test inputs.
-- editors/vscode/audit-astra/** snapshots + probes: frozen audit evidence, referenced only from AUDIT-RESOLUTION.md/GRAMMAR-AUDIT.md, not build/test inputs.
+- The completed `editors/vscode/audit-astra/**` snapshots and probes were frozen audit evidence, not build/test inputs. Their working copies were later retired; [AUDIT-RESOLUTION.md](../../editors/vscode/AUDIT-RESOLUTION.md#recover-the-historical-audit) retains commit-pinned navigation and exact Git recovery.
 - design/*witness.can (canonical-exposure, historical-intake, delivery-recipe, optional-dependency x2, rent-history): frozen decision-evidence witnesses referenced from decision docs, not live inputs.
 - No maintained .can conformance/negative fixtures found outside the above (compiler tests use inline sources + examples/ + draft/ recursively per syntax.rs:71-72; parser tests glob the same 44 via examples/ + draft/ + draft/shared/ per test_can_parser.py:494-496).
 - Unmerged primary-writer apps (CanKnowledge, CanInbox, CanDiscover, CanSync, CanChat, CanCreative, CanGallery, dirty/working-tree drafts):
