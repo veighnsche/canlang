@@ -1,0 +1,34 @@
+{
+  "request": {
+    "questions": {
+      "fence_scope": {
+        "criteria": {
+          "keep_wide": "Stay with one global check: the committer compares the current database revision with the revision observed when the operation enrolled, and aborts the commit whenever they differ, regardless of which rows moved. Permission and revocation are additionally re-checked live. The per-read enrollment log is kept for diagnostics (which dependency invalidated the commit) but confers no narrowing. Price: unrelated workloads contend through a single global version (membership housekeeping can cancel an unrelated user transaction), retries climb with write volume, and every mutation evaluates its predicates twice; D1-level contention under this scheme is unmeasured and flagged as the leading runtime risk.",
+          "narrow": "Scope the abort check to what the operation actually depended on: the commit aborts only if an enrolled membership entry or an observed record version changed since enrollment; writes to untouched teams and records no longer cancel the operation. Price: new per-dependency assertion records with their own D1 durability argument, a specification plus gate plus documentation burden for a second fence flavor, and the danger that a read which influenced authorization but was never enrolled slips past the check."
+        },
+        "instructions": "As the B4 authority rule, which invalidation scope for fenced commits — global or dependency-scoped — better upholds the non-negotiable revocation behavior (a revocation landing between a read and its effect voids the commit instead of completing it) without imposing disproportionate coupling or unproven machinery?",
+        "type": "choice"
+      }
+    },
+    "state": "The CanLang store runs fenced operations under the T32b checkpoint fence (the adopted checkpoint_fence design from the T32a consultation). Established by inspection. (1) At commit, the engine unconditionally re-asserts the settled revision and re-runs permission and revocation checks against live authority; any write that landed after enrollment voids the commit. (2) Reads that an operation relies on are enrolled in its checkpoint with their identity (membership reads carry team and user; record reads carry the observed version); today that enrollment only attributes invalidations and holds open the narrower-fence question. (3) Eventual (display-only) reads are barred from authorizing anything. (4) The price of globality is documented: revocation bookkeeping becomes a deployment-wide contention source, hot rows inflate conflicts and retries, predicate work doubles per mutation, and D1 contention is the top unmeasured runtime risk. (5) Two edges stay open: compound authorization gates admittable without caller membership may be wrongly voided (nothing in the suite drives compounds through the invocation path; the lasting repair is a by-aware check owned by the mechanism), and a revocation landing against an already-fenced batch raises a storage-atomicity point for the durable proof. (6) The T32a round adopted the checkpoint fence while parking exactly this scope question for a later judgment. There are no contention measurements and no production observations.",
+    "model": "jev-latest"
+  },
+  "response": {
+    "model": "jev-1.13.0",
+    "answers": {
+      "fence_scope": {
+        "type": "choice",
+        "choice": "keep_wide",
+        "confidence": 0.74,
+        "probabilities": {
+          "narrow": 0.13,
+          "keep_wide": 0.87
+        }
+      }
+    },
+    "usage": {
+      "input_tokens": 902,
+      "output_tokens": 38
+    }
+  }
+}
