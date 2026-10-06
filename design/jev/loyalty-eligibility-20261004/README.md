@@ -39,4 +39,3 @@ Final focused checks: the syntax parser accepted the one Can source; `node --che
 ## wording-check.md
 
 Before dispatch, compared all three full requests. Every instruction, evidence paragraph, selection question and alternative description is freshly worded; technical identifiers remain fixed. Each preserves repeat paid/completed loyalty, actual Invoice financial ownership and Rent/Member producers, null/refer/affiliate routing, deliberate staff enrollment, configurable products/locations, no prohibition on intentional multiple enrollment, portfolio separation/unintended-award requirement, revisions/idempotency/tombstones and inactive-program reversals. All alternatives retain concrete benefits and costs; enrollment is not assumed safe merely because proposed. JEV is advisory, with probabilities preserved and no automatic threshold.
-

@@ -15,4 +15,3 @@ Chosen source keeps exact maintain.report by=authenticated and its verified-emai
 ## wording-check.md
 
 Before submission: all three full requests use distinct context, question and both option descriptions. Canonical source is unchanged technical evidence. Each preserves adoption/canonicality, original Ticket plus returned Repair, private-note and reservation boundaries, exact report actor/guards/read grants, support location scope, exports not authorization, equal asset location and no replacement. Both alternatives preserve their explicit reuse-versus-specific-policy tradeoff. No approval threshold is used.
-

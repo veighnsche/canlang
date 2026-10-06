@@ -2904,7 +2904,7 @@
       "review_gate": "Read every prose source, carry forward all premises/corrections/distributions/uncertainty/adoption and verification limits under explicit sections and old-file-to-section mapping; keep all raw JSON and pinned experiment/baseline bytes; repair live topic/index/source links and local bare-filename references; exact owner release and link/hash reconciliation precede retiring predecessor prose files. Groups differ; unsupported lossless merge retains its source and revises this target.",
       "current_path": "design/jev/delivery-recipe-overrides-20261004/README.md",
       "source_anchor": "source-verification",
-      "migration_sha256": "ce3566878db32a0b68748965633e0f44f65fafc99ef41c9a8b52e05a0dc6fc1d"
+      "migration_sha256": "23ea2e86e63ad93e448a6120d643011c3bbc5d2b4b4fbb2776d0ea00ec0d08e2"
     },
     {
       "path": "design/jev/delivery-recipe-overrides-20261004/wording-check.md",
@@ -2924,7 +2924,7 @@
       "review_gate": "Read every prose source, carry forward all premises/corrections/distributions/uncertainty/adoption and verification limits under explicit sections and old-file-to-section mapping; keep all raw JSON and pinned experiment/baseline bytes; repair live topic/index/source links and local bare-filename references; exact owner release and link/hash reconciliation precede retiring predecessor prose files. Groups differ; unsupported lossless merge retains its source and revises this target.",
       "current_path": "design/jev/delivery-recipe-overrides-20261004/README.md",
       "source_anchor": "source-wording-check",
-      "migration_sha256": "ce3566878db32a0b68748965633e0f44f65fafc99ef41c9a8b52e05a0dc6fc1d"
+      "migration_sha256": "23ea2e86e63ad93e448a6120d643011c3bbc5d2b4b4fbb2776d0ea00ec0d08e2"
     },
     {
       "path": "design/jev/description-reference-20261005/README.md",
@@ -2961,7 +2961,7 @@
       "review_gate": "Read every prose source, carry forward all premises/corrections/distributions/uncertainty/adoption and verification limits under explicit sections and old-file-to-section mapping; keep all raw JSON and pinned experiment/baseline bytes; repair live topic/index/source links and local bare-filename references; exact owner release and link/hash reconciliation precede retiring predecessor prose files. Groups differ; unsupported lossless merge retains its source and revises this target.",
       "current_path": "design/jev/desk-handoff-20261004/README.md",
       "source_anchor": "source-review",
-      "migration_sha256": "0d76b76675c0c8f3872cb2f4d0eb3ec10744137790b8e71e658e8881b414325d"
+      "migration_sha256": "eeaab0c5dc90c45979e07a1d14413384b355860b13580886b2dcfb466e5f8d2e"
     },
     {
       "path": "design/jev/desk-handoff-20261004/wording-check.md",
@@ -2981,7 +2981,7 @@
       "review_gate": "Read every prose source, carry forward all premises/corrections/distributions/uncertainty/adoption and verification limits under explicit sections and old-file-to-section mapping; keep all raw JSON and pinned experiment/baseline bytes; repair live topic/index/source links and local bare-filename references; exact owner release and link/hash reconciliation precede retiring predecessor prose files. Groups differ; unsupported lossless merge retains its source and revises this target.",
       "current_path": "design/jev/desk-handoff-20261004/README.md",
       "source_anchor": "source-wording-check",
-      "migration_sha256": "0d76b76675c0c8f3872cb2f4d0eb3ec10744137790b8e71e658e8881b414325d"
+      "migration_sha256": "eeaab0c5dc90c45979e07a1d14413384b355860b13580886b2dcfb466e5f8d2e"
     },
     {
       "path": "design/jev/draft-billing-evidence-20261004-wording.md",
@@ -3120,7 +3120,7 @@
       "review_gate": "Read every prose source, carry forward all premises/corrections/distributions/uncertainty/adoption and verification limits under explicit sections and old-file-to-section mapping; keep all raw JSON and pinned experiment/baseline bytes; repair live topic/index/source links and local bare-filename references; exact owner release and link/hash reconciliation precede retiring predecessor prose files. Groups differ; unsupported lossless merge retains its source and revises this target.",
       "current_path": "design/jev/feedback-completion-20261004/README.md",
       "source_anchor": "source-analysis",
-      "migration_sha256": "65ca44e4e9fb10d782e6bd1d667922cba37f1897a759c58f7e407bcc1d4af5ab"
+      "migration_sha256": "90a3fa2a83b84fb737d23cd7d802d53ca77cd47eaef63babf1f4e15c29ea1144"
     },
     {
       "path": "design/jev/feedback-completion-20261004/equivalence.md",
@@ -3140,7 +3140,7 @@
       "review_gate": "Read every prose source, carry forward all premises/corrections/distributions/uncertainty/adoption and verification limits under explicit sections and old-file-to-section mapping; keep all raw JSON and pinned experiment/baseline bytes; repair live topic/index/source links and local bare-filename references; exact owner release and link/hash reconciliation precede retiring predecessor prose files. Groups differ; unsupported lossless merge retains its source and revises this target.",
       "current_path": "design/jev/feedback-completion-20261004/README.md",
       "source_anchor": "source-equivalence",
-      "migration_sha256": "65ca44e4e9fb10d782e6bd1d667922cba37f1897a759c58f7e407bcc1d4af5ab"
+      "migration_sha256": "90a3fa2a83b84fb737d23cd7d802d53ca77cd47eaef63babf1f4e15c29ea1144"
     },
     {
       "path": "design/jev/fixture-actors-20261004/assessment.md",
@@ -3194,7 +3194,7 @@
       "review_gate": "Read every prose source, carry forward all premises/corrections/distributions/uncertainty/adoption and verification limits under explicit sections and old-file-to-section mapping; keep all raw JSON and pinned experiment/baseline bytes; repair live topic/index/source links and local bare-filename references; exact owner release and link/hash reconciliation precede retiring predecessor prose files. Groups differ; unsupported lossless merge retains its source and revises this target.",
       "current_path": "design/jev/hire-onboard-20261004/README.md",
       "source_anchor": "source-assessment",
-      "migration_sha256": "01bde816742708765afe105a9c4d2c842a1ab857ef7c2ac6f7d2d6f40fc1c6ff"
+      "migration_sha256": "54b8d352286231ff3583bae0695041b79e28f0a604a323e3f6f046c382884fb5"
     },
     {
       "path": "design/jev/hire-onboard-20261004/wording-check.md",
@@ -3214,7 +3214,7 @@
       "review_gate": "Read every prose source, carry forward all premises/corrections/distributions/uncertainty/adoption and verification limits under explicit sections and old-file-to-section mapping; keep all raw JSON and pinned experiment/baseline bytes; repair live topic/index/source links and local bare-filename references; exact owner release and link/hash reconciliation precede retiring predecessor prose files. Groups differ; unsupported lossless merge retains its source and revises this target.",
       "current_path": "design/jev/hire-onboard-20261004/README.md",
       "source_anchor": "source-wording-check",
-      "migration_sha256": "01bde816742708765afe105a9c4d2c842a1ab857ef7c2ac6f7d2d6f40fc1c6ff"
+      "migration_sha256": "54b8d352286231ff3583bae0695041b79e28f0a604a323e3f6f046c382884fb5"
     },
     {
       "path": "design/jev/hire-retention-20261004/assessment.md",
@@ -3234,7 +3234,7 @@
       "review_gate": "Read every prose source, carry forward all premises/corrections/distributions/uncertainty/adoption and verification limits under explicit sections and old-file-to-section mapping; keep all raw JSON and pinned experiment/baseline bytes; repair live topic/index/source links and local bare-filename references; exact owner release and link/hash reconciliation precede retiring predecessor prose files. Groups differ; unsupported lossless merge retains its source and revises this target.",
       "current_path": "design/jev/hire-retention-20261004/README.md",
       "source_anchor": "source-assessment",
-      "migration_sha256": "4e772a99fd8bf54e46fa83ebb4e30c2433b95788859936e1d9843a9dbbb8925b"
+      "migration_sha256": "c73c419acc563832ed53d197c26e3241f3a8703256b34edcf6cd3eb8505a2919"
     },
     {
       "path": "design/jev/hire-retention-20261004/corrected-wording-check.md",
@@ -3254,7 +3254,7 @@
       "review_gate": "Read every prose source, carry forward all premises/corrections/distributions/uncertainty/adoption and verification limits under explicit sections and old-file-to-section mapping; keep all raw JSON and pinned experiment/baseline bytes; repair live topic/index/source links and local bare-filename references; exact owner release and link/hash reconciliation precede retiring predecessor prose files. Groups differ; unsupported lossless merge retains its source and revises this target.",
       "current_path": "design/jev/hire-retention-20261004/README.md",
       "source_anchor": "source-corrected-wording-check",
-      "migration_sha256": "4e772a99fd8bf54e46fa83ebb4e30c2433b95788859936e1d9843a9dbbb8925b"
+      "migration_sha256": "c73c419acc563832ed53d197c26e3241f3a8703256b34edcf6cd3eb8505a2919"
     },
     {
       "path": "design/jev/hire-retention-20261004/correction.md",
@@ -3274,7 +3274,7 @@
       "review_gate": "Read every prose source, carry forward all premises/corrections/distributions/uncertainty/adoption and verification limits under explicit sections and old-file-to-section mapping; keep all raw JSON and pinned experiment/baseline bytes; repair live topic/index/source links and local bare-filename references; exact owner release and link/hash reconciliation precede retiring predecessor prose files. Groups differ; unsupported lossless merge retains its source and revises this target.",
       "current_path": "design/jev/hire-retention-20261004/README.md",
       "source_anchor": "source-correction",
-      "migration_sha256": "4e772a99fd8bf54e46fa83ebb4e30c2433b95788859936e1d9843a9dbbb8925b"
+      "migration_sha256": "c73c419acc563832ed53d197c26e3241f3a8703256b34edcf6cd3eb8505a2919"
     },
     {
       "path": "design/jev/hire-retention-20261004/wording-check.md",
@@ -3294,7 +3294,7 @@
       "review_gate": "Read every prose source, carry forward all premises/corrections/distributions/uncertainty/adoption and verification limits under explicit sections and old-file-to-section mapping; keep all raw JSON and pinned experiment/baseline bytes; repair live topic/index/source links and local bare-filename references; exact owner release and link/hash reconciliation precede retiring predecessor prose files. Groups differ; unsupported lossless merge retains its source and revises this target.",
       "current_path": "design/jev/hire-retention-20261004/README.md",
       "source_anchor": "source-wording-check",
-      "migration_sha256": "4e772a99fd8bf54e46fa83ebb4e30c2433b95788859936e1d9843a9dbbb8925b"
+      "migration_sha256": "c73c419acc563832ed53d197c26e3241f3a8703256b34edcf6cd3eb8505a2919"
     },
     {
       "path": "design/jev/loyalty-eligibility-20261004/assessment.md",
@@ -3314,7 +3314,7 @@
       "review_gate": "Read every prose source, carry forward all premises/corrections/distributions/uncertainty/adoption and verification limits under explicit sections and old-file-to-section mapping; keep all raw JSON and pinned experiment/baseline bytes; repair live topic/index/source links and local bare-filename references; exact owner release and link/hash reconciliation precede retiring predecessor prose files. Groups differ; unsupported lossless merge retains its source and revises this target.",
       "current_path": "design/jev/loyalty-eligibility-20261004/README.md",
       "source_anchor": "source-assessment",
-      "migration_sha256": "a08e65b947a3a25fb60371e51c08d85edca0b014060a11a22c489baeac6ed273"
+      "migration_sha256": "164803dcb2b8714d8e5bb93576e589e157e9e220a46fe9819a30bbac64ab98bc"
     },
     {
       "path": "design/jev/loyalty-eligibility-20261004/wording-check.md",
@@ -3334,7 +3334,7 @@
       "review_gate": "Read every prose source, carry forward all premises/corrections/distributions/uncertainty/adoption and verification limits under explicit sections and old-file-to-section mapping; keep all raw JSON and pinned experiment/baseline bytes; repair live topic/index/source links and local bare-filename references; exact owner release and link/hash reconciliation precede retiring predecessor prose files. Groups differ; unsupported lossless merge retains its source and revises this target.",
       "current_path": "design/jev/loyalty-eligibility-20261004/README.md",
       "source_anchor": "source-wording-check",
-      "migration_sha256": "a08e65b947a3a25fb60371e51c08d85edca0b014060a11a22c489baeac6ed273"
+      "migration_sha256": "164803dcb2b8714d8e5bb93576e589e157e9e220a46fe9819a30bbac64ab98bc"
     },
     {
       "path": "design/jev/maintain-inspection-progress/decision.md",
@@ -3354,7 +3354,7 @@
       "review_gate": "Read every prose source, carry forward all premises/corrections/distributions/uncertainty/adoption and verification limits under explicit sections and old-file-to-section mapping; keep all raw JSON and pinned experiment/baseline bytes; repair live topic/index/source links and local bare-filename references; exact owner release and link/hash reconciliation precede retiring predecessor prose files. Groups differ; unsupported lossless merge retains its source and revises this target.",
       "current_path": "design/jev/maintain-inspection-progress/README.md",
       "source_anchor": "source-decision",
-      "migration_sha256": "6161ae4262a0526d54c48e33ca263df71c8b3b2b49bca1cf21193c6881b43219"
+      "migration_sha256": "d82e077dc0370f4672de8353131b3968230ed5e21e7fa23eff12e3b1a0f16f5d"
     },
     {
       "path": "design/jev/maintain-inspection-progress/verification.md",
@@ -3374,7 +3374,7 @@
       "review_gate": "Read every prose source, carry forward all premises/corrections/distributions/uncertainty/adoption and verification limits under explicit sections and old-file-to-section mapping; keep all raw JSON and pinned experiment/baseline bytes; repair live topic/index/source links and local bare-filename references; exact owner release and link/hash reconciliation precede retiring predecessor prose files. Groups differ; unsupported lossless merge retains its source and revises this target.",
       "current_path": "design/jev/maintain-inspection-progress/README.md",
       "source_anchor": "source-verification",
-      "migration_sha256": "6161ae4262a0526d54c48e33ca263df71c8b3b2b49bca1cf21193c6881b43219"
+      "migration_sha256": "d82e077dc0370f4672de8353131b3968230ed5e21e7fa23eff12e3b1a0f16f5d"
     },
     {
       "path": "design/jev/maintain-recovery-20261004/review.md",
@@ -3394,7 +3394,7 @@
       "review_gate": "Read every prose source, carry forward all premises/corrections/distributions/uncertainty/adoption and verification limits under explicit sections and old-file-to-section mapping; keep all raw JSON and pinned experiment/baseline bytes; repair live topic/index/source links and local bare-filename references; exact owner release and link/hash reconciliation precede retiring predecessor prose files. Groups differ; unsupported lossless merge retains its source and revises this target.",
       "current_path": "design/jev/maintain-recovery-20261004/README.md",
       "source_anchor": "source-review",
-      "migration_sha256": "80e2f243fbabb9dede0c1144e93c5f45005bd22b6ee0b4bfa6415e7922d0aa2a"
+      "migration_sha256": "62b02175bdeff7c6696814317f94513620022c4bb7c124faaaf9534288839c46"
     },
     {
       "path": "design/jev/maintain-recovery-20261004/wording-check.md",
@@ -3414,7 +3414,7 @@
       "review_gate": "Read every prose source, carry forward all premises/corrections/distributions/uncertainty/adoption and verification limits under explicit sections and old-file-to-section mapping; keep all raw JSON and pinned experiment/baseline bytes; repair live topic/index/source links and local bare-filename references; exact owner release and link/hash reconciliation precede retiring predecessor prose files. Groups differ; unsupported lossless merge retains its source and revises this target.",
       "current_path": "design/jev/maintain-recovery-20261004/README.md",
       "source_anchor": "source-wording-check",
-      "migration_sha256": "80e2f243fbabb9dede0c1144e93c5f45005bd22b6ee0b4bfa6415e7922d0aa2a"
+      "migration_sha256": "62b02175bdeff7c6696814317f94513620022c4bb7c124faaaf9534288839c46"
     },
     {
       "path": "design/jev/mcp-file-handoff-20261004/assessment.md",

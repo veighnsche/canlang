@@ -21,4 +21,3 @@ No fixture planner, compiler, capability adapter, finalized-file receiving-prove
 ## wording-check.md
 
 All three independently rewritten requests retain the same initial-setup semantics, exact legal status envelopes, protected delivery identity/authority/request, file finalization provenance, complete independent assertions, no-runtime stage, and the same three alternatives with their costs. State, question instructions and every alternative description were rewritten; option identities remain stable. No source attachment, tenant record, credential or secret is included.
-

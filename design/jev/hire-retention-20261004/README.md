@@ -27,4 +27,3 @@ Initial requests/responses are superseded because they falsely asserted block-bo
 ## corrected-wording-check.md — corrected request comparison
 
 Pairwise full-field comparison of all three corrected requests confirms different context, question and each criterion prose. Semantically equivalent facts: after-closure180d only; explicit close/reopen/reclose; expiry-before-write and no resurrection; stored Vacancy.retention_until read by Candidate lifetime; no ternary/blockderive; nullable until vs conditionalattribute vs finiteintakerenewal alternatives; finiteancestorbounds and bounded sameowner pure deps; unchanged reference/files/lock/replay/disposal rules. All corrected returned probabilities/confidence are retained without thresholds. Initial consultations remain superseded evidence.
-
