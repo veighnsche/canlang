@@ -872,6 +872,17 @@ interface StateRegistryProducer {
     readonly registry: ReadonlyMap<string, unknown>;
     readonly models: ReadonlyArray<unknown>;
     readonly refs: ReadonlyMap<string, ReadonlyArray<{ readonly field: string; readonly model: string }>>;
+    /**
+     * C2 production joins (B1/B2/B5): engine-local channels the frozen
+     * intake cannot hold, passed through to the table builder beside
+     * `refs` (never inspected here). T18 `serverInits` (model, then
+     * field, then init kind), T18 `nullableFields` (model, then
+     * known-nullable field names), B5 `containment` (model, then the
+     * declared-ownership member).
+     */
+    readonly serverInits: ReadonlyMap<string, ReadonlyMap<string, unknown>>;
+    readonly nullableFields: ReadonlyMap<string, ReadonlySet<string>>;
+    readonly containment: ReadonlyMap<string, unknown>;
   };
 }
 
@@ -981,6 +992,13 @@ interface StateInvokeProducer {
     readonly memberships: CanonicalMembershipReader;
     readonly clock: { nowMs(): number };
     readonly execute: (call: CanonicalSeamCall) => Promise<CanonicalExecutionEffects>;
+    /**
+     * C2/B2 (Q3): serverOnly exclusions for denial currents (mirror of
+     * `ConflictServerOnly`). The holder builds it from the loaded
+     * models; absent reads as unknown and stale-ref denials carry
+     * metadata-only currents.
+     */
+    readonly conflictServerOnly?: ReadonlyMap<string, ReadonlySet<string>>;
   }): Promise<MutationResult>;
   /** T17b: canonical generated-read entry (scenario `records()` calls it per read). */
   invokeRead(input: {
@@ -1010,6 +1028,15 @@ interface StateModelsProducer {
     models: ReadonlyArray<unknown>,
     opts: {
       readonly refs: ReadonlyMap<string, ReadonlyArray<{ readonly field: string; readonly model: string }>>;
+      /**
+       * C2 production joins (mirror of `CanonicalModelTableOptions`):
+       * the loader's engine-local channels, forwarded verbatim. Every
+       * member is optional at the producer (omission keeps the legacy
+       * posture); the seam always forwards all four.
+       */
+      readonly serverInits?: ReadonlyMap<string, ReadonlyMap<string, unknown>>;
+      readonly nullableFields?: ReadonlyMap<string, ReadonlySet<string>>;
+      readonly containment?: ReadonlyMap<string, unknown>;
     },
   ): unknown;
 }
@@ -1107,6 +1134,15 @@ interface StatePipelineProducer {
      * enrolled dependencies never cross (the point carries none).
      */
     readonly trigger?: { readonly revision: Revision; readonly owner: string };
+    /**
+     * C2/B1: gate update/remove writes against archived targets with
+     * the EXACT admission rule (`validation` / `Archived records
+     * cannot be used here.`). CRUD inherits the gate from admission;
+     * scenario-staged writes bypass per-write admission, so the seam
+     * passes `true` for CRUD/scenario parity. Absent reads as false
+     * (privileged direct callers may touch archived rows).
+     */
+    readonly gateArchivedTargets?: boolean;
   }): Promise<CanonicalPipelineResult>;
 }
 
@@ -1533,6 +1569,8 @@ export interface LoadedCanonicalDescriptors {
   readonly policy: unknown;
   readonly ruledModels: ReadonlySet<string>;
   readonly producers: CanonicalStateProducers;
+  /** C2/B2 (Q3): holder-built serverOnly exclusions, passed to every invoke. */
+  readonly conflictServerOnly: ReadonlyMap<string, ReadonlySet<string>>;
 }
 
 /**
@@ -1647,6 +1685,47 @@ function canonicalModelName(model: unknown, index: number): string {
 }
 
 /**
+ * C2/B2 (Q3): holder-built serverOnly exclusions for denial currents
+ * (mirror of `ConflictServerOnly`: model, then serverOnly field
+ * names). Models without serverOnly fields carry an EMPTY set (values
+ * flow); the map is built once at load and passed to every invoke, so
+ * stale-ref denials carry full currents instead of metadata-only.
+ * Loud on skew (the loader guarantees boolean flags — anything else
+ * is loader/artifact skew, and guessing here would leak or over-redact).
+ */
+function buildConflictServerOnly(
+  models: ReadonlyArray<unknown>,
+): ReadonlyMap<string, ReadonlySet<string>> {
+  const map = new Map<string, ReadonlySet<string>>();
+  for (const [index, model] of models.entries()) {
+    const name = canonicalModelName(model, index);
+    if (!isUnknownRecord(model)) {
+      throw new Error(`c2: loaded model ${JSON.stringify(name)} is not an object (loader/artifact skew?)`);
+    }
+    const fields: unknown = model["fields"];
+    if (!isUnknownRecord(fields)) {
+      throw new Error(
+        `c2: loaded model ${JSON.stringify(name)} carries no fields map (loader/artifact skew?)`,
+      );
+    }
+    const names = new Set<string>();
+    for (const [field, def] of Object.entries(fields)) {
+      if (!isUnknownRecord(def) || typeof def["serverOnly"] !== "boolean") {
+        throw new Error(
+          `c2: field ${JSON.stringify(field)} on model ${JSON.stringify(name)} ` +
+            `carries no boolean serverOnly flag (loader/artifact skew?)`,
+        );
+      }
+      if (def["serverOnly"] === true) {
+        names.add(field);
+      }
+    }
+    map.set(name, names);
+  }
+  return map;
+}
+
+/**
  * Load a generated artifact's canonical set: transcribe every CRUD
  * admission gate from its emitted policy manifest, verify every
  * scenario operation links an `operation` callable, load descriptors
@@ -1694,7 +1773,12 @@ export async function loadCanonicalDescriptors(
       return "public";
     },
   });
-  const table = producers.models.buildModelTableFromCanonical(loaded.models, { refs: loaded.refs });
+  const table = producers.models.buildModelTableFromCanonical(loaded.models, {
+    refs: loaded.refs,
+    serverInits: loaded.serverInits,
+    nullableFields: loaded.nullableFields,
+    containment: loaded.containment,
+  });
   // T17b: transcribe the read policy over the LOADED models (validated
   // names + declared fields — never the raw artifact). Ruled models are
   // omitted from the table (fail-closed even under a missed check) and
@@ -1722,6 +1806,7 @@ export async function loadCanonicalDescriptors(
     policy,
     ruledModels,
     producers,
+    conflictServerOnly: buildConflictServerOnly(loaded.models),
   };
   canonicalCache.set(artifact, canonical);
   return canonical;
@@ -2324,6 +2409,9 @@ async function runScenarioSeam(
           ],
           context: call.context,
           store: overlay,
+          // C2/B1: admission-parity archive gate (CRUD inherits it from
+          // admission; scenario writes bypass per-write admission).
+          gateArchivedTargets: true,
           // T32b: the triggering checkpoint point — hook bodies name it
           // back as their `triggerRevision` when they open fresh
           // transitive scopes. Absent on checkpoint-less calls.
@@ -2467,6 +2555,9 @@ export async function invokeMutationCanonical(
     store: opts.store,
     memberships: opts.memberships,
     clock: { nowMs: opts.now },
+    // C2/B2 (Q3): holder-built exclusions — stale-ref denials carry
+    // full currents (minus serverOnly) instead of metadata-only.
+    conflictServerOnly: loaded.conflictServerOnly,
     execute: async (call: CanonicalSeamCall): Promise<CanonicalExecutionEffects> => {
       // T32b: BOTH paths inherit both-site commit revalidation through
       // state invoke: the runtime `call` is the full admitted call
