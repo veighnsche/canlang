@@ -1183,6 +1183,118 @@ describe("T32b fenced dispatch drives (real kernel verdicts)", () => {
     assert.equal(data.attempts, 0);
   });
 
+  it("documents drive-side order: snapshot + live authority run before unavailable is consulted (short-circuit deferred)", async () => {
+    // Ordering qualifier (R01-residual review): the KERNEL checks
+    // unavailable before guard/authority evaluation — but the DRIVE
+    // cannot know the verdict before consulting the kernel, so its
+    // fence-time snapshot pull + live authority re-read run FIRST
+    // (runFenceGate awaits both before attemptDispatch). True
+    // short-circuit (skipping those reads for unavailable targets)
+    // arrives only with ACTUAL availability injection — the fence
+    // input carries no availability port yet (follow-up). Guard
+    // evaluation itself never runs (kernel-side skip); inherited /
+    // superseded / settled precedence stays kernel-side, untouched.
+    const { store } = createTestMemoryStorage();
+    const stack = await workerStack(store);
+    const seed = await seedIdentity();
+    const attemptDispatch = (() => ({
+      status: "unavailable",
+      outboxId: "obx_d4",
+      target: "Mail.send",
+    })) as unknown as FenceAttemptDispatchFn;
+    await stageIntents(stack, [
+      stageInput({ intentId: "obx_d4", guard: "eligible()", guardVerdict: true }),
+    ]);
+    const intent = await pendingIntent(stack, "obx_d4");
+    const live = liveAuthority(seed);
+    let snapshotPulls = 0;
+    let authorityCalls = 0;
+    let guardEvals = 0;
+    let providerCalls = 0;
+    const outcome = await driveDispatchIntent({
+      ...driveDefaults(stack, intent),
+      evaluateGuard: () => {
+        guardEvals += 1;
+        return true;
+      },
+      readStateSnapshot: () => {
+        snapshotPulls += 1;
+        return { eligible: true };
+      },
+      callProvider: (async () => {
+        providerCalls += 1;
+        return deliveredOutcome();
+      }) as DispatchProviderCaller,
+      fence: {
+        owner: seed.teamId,
+        revalidateAuthority: async () => {
+          authorityCalls += 1;
+          return live();
+        },
+        attemptDispatch,
+      },
+    });
+    assert.equal(outcome.status, "unavailable");
+    // Drive-side reads ran (documented order — NOT a short-circuit
+    // claim); kernel-side guard evaluation + provider never did.
+    assert.equal(snapshotPulls, 1);
+    assert.equal(authorityCalls, 1);
+    assert.equal(guardEvals, 0);
+    assert.equal(providerCalls, 0);
+  });
+
+  it("lets throwing fence ports preempt unavailable (no silent short-circuit)", async () => {
+    // Same qualifier, failure side: a throwing snapshot reader or
+    // authority re-read surfaces INSTEAD of the unavailable verdict
+    // (the kernel is never consulted). Pinned so a future
+    // availability-injection join can flip these to short-circuit
+    // deliberately, with this test as the tripwire.
+    const { store } = createTestMemoryStorage();
+    const stack = await workerStack(store);
+    const seed = await seedIdentity();
+    await stageIntents(stack, [
+      stageInput({ intentId: "obx_d5a", guard: "eligible()", guardVerdict: true }),
+      stageInput({ intentId: "obx_d5b", guard: "eligible()", guardVerdict: true }),
+    ]);
+    const attemptDispatch = ((..._args: Array<unknown>) => {
+      throw new Error("kernel consulted despite throwing fence port");
+    }) as unknown as FenceAttemptDispatchFn;
+    const intentA = await pendingIntent(stack, "obx_d5a");
+    const intentB = await pendingIntent(stack, "obx_d5b");
+    await assert.rejects(
+      () =>
+        driveDispatchIntent({
+          ...driveDefaults(stack, intentA),
+          readStateSnapshot: () => {
+            throw new Error("snapshot reader down");
+          },
+          fence: {
+            owner: seed.teamId,
+            revalidateAuthority: liveAuthority(seed),
+            attemptDispatch,
+          },
+        }),
+      /snapshot reader down/,
+      "throwing snapshot preempts",
+    );
+    await assert.rejects(
+      () =>
+        driveDispatchIntent({
+          ...driveDefaults(stack, intentB),
+          readStateSnapshot: () => ({ eligible: true }),
+          fence: {
+            owner: seed.teamId,
+            revalidateAuthority: () => {
+              throw new Error("authority reader down");
+            },
+            attemptDispatch,
+          },
+        }),
+      /authority reader down/,
+      "throwing authority preempts",
+    );
+  });
+
   it("refuses unavailable verdicts naming another intent or missing the target (skew tripwires)", async () => {
     const { store } = createTestMemoryStorage();
     const stack = await workerStack(store);
@@ -1908,18 +2020,45 @@ function r01DeliveryField(): Record<string, unknown> {
   };
 }
 
+function r01ScenarioOp(artifact: CompileArtifact): Record<string, unknown> {
+  const ops = (artifact as unknown as { operations: Array<Record<string, unknown>> }).operations;
+  const op = ops.find((entry) => entry["name"] === "acme.Probe.selfCancel");
+  assert.ok(op !== undefined, "c2 artifact carries acme.Probe.selfCancel");
+  return op;
+}
+
 function r01WithScenarioField(
   artifact: CompileArtifact,
   field: Record<string, unknown>,
 ): CompileArtifact {
-  const clone = JSON.parse(JSON.stringify(artifact)) as {
-    operations: Array<Record<string, unknown>>;
-  };
-  const op = clone.operations.find((entry) => entry["name"] === "acme.Probe.selfCancel");
-  assert.ok(op !== undefined, "c2 artifact carries acme.Probe.selfCancel");
+  return r01WithScenarioFields(artifact, [field]);
+}
+
+function r01WithScenarioFields(
+  artifact: CompileArtifact,
+  fields: Array<Record<string, unknown>>,
+): CompileArtifact {
+  const clone = JSON.parse(JSON.stringify(artifact)) as unknown as CompileArtifact;
+  const op = r01ScenarioOp(clone);
   const inputs = op["inputs"] as Record<string, unknown>;
-  (inputs["fields"] as Array<unknown>).push(field);
-  return clone as unknown as CompileArtifact;
+  (inputs["fields"] as Array<unknown>).push(...fields);
+  return clone;
+}
+
+/**
+ * R01-residual: in-place variant (no JSON round-trip) for values
+ * JSON cannot carry (function literal defaults — the round-trip
+ * would launder the very unserializability under test). Safe:
+ * every `c2Setup` artifact is already fresh per test.
+ */
+function r01WithScenarioFieldsInPlace(
+  artifact: CompileArtifact,
+  fields: Array<Record<string, unknown>>,
+): CompileArtifact {
+  const op = r01ScenarioOp(artifact);
+  const inputs = op["inputs"] as Record<string, unknown>;
+  (inputs["fields"] as Array<unknown>).push(...fields);
+  return artifact;
 }
 
 async function r01LoadRejection(
@@ -2000,6 +2139,111 @@ describe("R01 validate-before-retry (dropped delivery envelopes prove pre-strip)
     assert.equal(rejection.name, "IncompatibleArtifactError");
     assert.equal(rejection.reason, "unknown_default_kind");
     assert.match(rejection.message, /Unknown default kind "bogus"/);
+  });
+
+  it("(e) delivery-first name collision rejects duplicate_name (strip would erase it)", async () => {
+    const { asm, artifact } = await c2Setup();
+    const delivery = r01DeliveryField();
+    delivery["name"] = "x";
+    const rejection = await r01LoadRejection(
+      asm,
+      r01WithScenarioFields(artifact, [delivery, { name: "x", field: { kind: "string" }, required: true }]),
+    );
+    assert.equal(rejection.name, "IncompatibleArtifactError");
+    assert.equal(rejection.reason, "duplicate_name");
+    assert.match(rejection.message, /Duplicate input "x" on operation "acme\.Probe\.selfCancel"/);
+  });
+
+  it("(e2) string-first name collision rejects duplicate_name (loader order, no retry)", async () => {
+    const { asm, artifact } = await c2Setup();
+    const delivery = r01DeliveryField();
+    delivery["name"] = "x";
+    const rejection = await r01LoadRejection(
+      asm,
+      r01WithScenarioFields(artifact, [{ name: "x", field: { kind: "string" }, required: true }, delivery]),
+    );
+    assert.equal(rejection.name, "IncompatibleArtifactError");
+    assert.equal(rejection.reason, "duplicate_name");
+    assert.match(rejection.message, /Duplicate input "x" on operation "acme\.Probe\.selfCancel"/);
+  });
+
+  it("(e3) delivery/delivery name collision rejects duplicate_name", async () => {
+    const { asm, artifact } = await c2Setup();
+    const first = r01DeliveryField();
+    first["name"] = "x";
+    const second = r01DeliveryField();
+    second["name"] = "x";
+    const rejection = await r01LoadRejection(asm, r01WithScenarioFields(artifact, [first, second]));
+    assert.equal(rejection.name, "IncompatibleArtifactError");
+    assert.equal(rejection.reason, "duplicate_name");
+    assert.match(rejection.message, /Duplicate input "x" on operation "acme\.Probe\.selfCancel"/);
+  });
+
+  it("(f) delivery empty parent-dot-path default rejects (owning dot-path rule)", async () => {
+    const { asm, artifact } = await c2Setup();
+    const field = r01DeliveryField();
+    field["default"] = { kind: "parent", path: "" };
+    const rejection = await r01LoadRejection(asm, r01WithScenarioField(artifact, field));
+    assert.equal(rejection.name, "IncompatibleArtifactError");
+    assert.equal(rejection.reason, "malformed_descriptor");
+    assert.match(rejection.message, /dot path: ""/);
+  });
+
+  it("(f2) delivery empty-segment parent-dot-path default rejects", async () => {
+    const { asm, artifact } = await c2Setup();
+    const field = r01DeliveryField();
+    field["default"] = { kind: "parent", path: "a..b" };
+    const rejection = await r01LoadRejection(asm, r01WithScenarioField(artifact, field));
+    assert.equal(rejection.name, "IncompatibleArtifactError");
+    assert.equal(rejection.reason, "malformed_descriptor");
+    assert.match(rejection.message, /dot path: "a\.\.b"/);
+  });
+
+  it("(f3) control: string empty parent-dot-path default rejects (loader)", async () => {
+    const { asm, artifact } = await c2Setup();
+    const rejection = await r01LoadRejection(
+      asm,
+      r01WithScenarioField(artifact, {
+        name: "s",
+        field: { kind: "string" },
+        required: true,
+        default: { kind: "parent", path: "" },
+      }),
+    );
+    assert.equal(rejection.name, "IncompatibleArtifactError");
+    assert.equal(rejection.reason, "malformed_descriptor");
+    assert.match(rejection.message, /dot path: ""/);
+  });
+
+  it("(f4) delivery valid parent-dot-path default loads (positive preserved)", async () => {
+    const { asm, artifact } = await c2Setup();
+    const field = r01DeliveryField();
+    field["default"] = { kind: "parent", path: "a.b" };
+    const loaded = await loadCanonicalDescriptors(asm, r01WithScenarioField(artifact, field));
+    assert.ok(loaded.registry.has("acme.Probe.selfCancel"), "scenario op loads stripped");
+  });
+
+  it("(f5) delivery non-serializable literal default rejects (owning serializability)", async () => {
+    const { asm, artifact } = await c2Setup();
+    const field = r01DeliveryField();
+    field["default"] = { kind: "literal", value: () => 1 };
+    const rejection = await r01LoadRejection(asm, r01WithScenarioFieldsInPlace(artifact, [field]));
+    assert.equal(rejection.name, "IncompatibleArtifactError");
+    assert.equal(rejection.reason, "malformed_descriptor");
+    assert.match(rejection.message, /values must be serializable data/);
+  });
+
+  it("(f6) control: string non-serializable literal default rejects (loader)", async () => {
+    const { asm, artifact } = await c2Setup();
+    const rejection = await r01LoadRejection(
+      asm,
+      r01WithScenarioFieldsInPlace(artifact, [
+        { name: "s", field: { kind: "string" }, required: true, default: { kind: "literal", value: () => 2 } },
+      ]),
+    );
+    assert.equal(rejection.name, "IncompatibleArtifactError");
+    assert.equal(rejection.reason, "malformed_descriptor");
+    assert.match(rejection.message, /values must be serializable data/);
   });
 });
 
