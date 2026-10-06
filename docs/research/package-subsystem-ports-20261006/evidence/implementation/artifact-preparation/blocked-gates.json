@@ -1,0 +1,129 @@
+{
+  "blocked_implementation": [
+    {
+      "blocked_on": [
+        "P05.3 adapter consumption/differential implementation; explicit human resume"
+      ],
+      "filed": "bundle-join-request.json (status submitted)",
+      "note": "Current bundle.ts exports are present; preserved adapter checkpoint does not consume them yet. This reconciliation resumes no implementation.",
+      "task": "P05.3"
+    },
+    {
+      "blocked_on": [
+        "P05.3"
+      ],
+      "task": "P05.4"
+    },
+    {
+      "blocked_on": [
+        "P05.4"
+      ],
+      "task": "P05.5"
+    },
+    {
+      "blocked_on": [
+        "P05.5",
+        "C04.ready",
+        "C04.graph"
+      ],
+      "task": "P05.6"
+    },
+    {
+      "blocked_on": [
+        "P05.4"
+      ],
+      "task": "P06.3"
+    },
+    {
+      "blocked_on": [
+        "P05-gate",
+        "P06-gate"
+      ],
+      "task": "P07.2"
+    },
+    {
+      "blocked_on": [
+        "P07-gate",
+        "C05.ready"
+      ],
+      "task": "P08.1"
+    },
+    {
+      "blocked_on": [
+        "P08.1",
+        "C04.native-release"
+      ],
+      "filed": "native-release-request.json (status submitted, via P09.1)",
+      "task": "P08.2"
+    },
+    {
+      "blocked_on": [
+        "P08-gate",
+        "C04.native-release"
+      ],
+      "task": "P09.2"
+    },
+    {
+      "blocked_on": [
+        "P08-gate",
+        "P09-gate",
+        "C05.ready"
+      ],
+      "task": "P10.1"
+    },
+    {
+      "blocked_on": [
+        "P10.1"
+      ],
+      "task": "P10.2"
+    },
+    {
+      "blocked_on": [
+        "P10-gate",
+        "P05.mixed"
+      ],
+      "task": "P11.1"
+    }
+  ],
+  "blocked_on_summary": [
+    "C04.preparation-join producer exports are on main (dd8fa70, integration-20261006-c-join.json); P05.3 adapter consumption/differential remains unimplemented and human-held.",
+    "C04.native-release (native-release-request.json still submitted)",
+    "coordinator completion gates P04-P11 (worker READYs filed, reviews pending)"
+  ],
+  "code_review_ready": [
+    "P04.1 (artifact.rs + tests/artifact.rs)",
+    "P04.2 (compatibility.rs + input.rs accessors + tests/compatibility.rs)",
+    "P04.3 (release.rs + Cargo sha2 + tests/release.rs)",
+    "P04.4 (job.rs join + protocol.rs/failures.rs/input.rs extensions + tests/vectors.rs)",
+    "P05.1 (modules.rs + tests/modules.rs)",
+    "P05.2 (build-adapter.ts + 4 protocol-suite tests)",
+    "P06.1 (plan.rs + tests/plan.rs)",
+    "P06.2 (render.rs + review.rs + tests/outputs.rs)",
+    "P07.1 (publication.ts + preparation-publication.test.ts)"
+  ],
+  "gate_status": {
+    "C04.graph": "pending (other lanes)",
+    "C04.native-release": "submitted, not accepted",
+    "C04.preparation-join": "producer exports present on main; coordinator narrow acceptance recorded; downstream P05.3 not implemented/accepted",
+    "C04.ready": "pending (other lanes)",
+    "C05.ready": "unverified by worker; downstream tasks gated upstream regardless"
+  },
+  "pending_coordinator_gates": [
+    "P04 (all inputs READY: P04.1-P04.4)",
+    "P05 (blocked on P05.5)",
+    "P06 (blocked on P06.3)",
+    "P07 (blocked on P05, P06, P07.2)",
+    "P08 (blocked on P08.2)",
+    "P09 (blocked on P09.2)",
+    "P10 (blocked on P10.1, P10.2)",
+    "P11 (blocked on P11.1)"
+  ],
+  "recorded_by": "lane-D worker (no git ops; all READY work uncommitted for coordinator handoff integration)",
+  "consolidation_reconciliation": {
+    "main_before": "2b22cb4ecf637cce4bf90a17238cce12de045ba4",
+    "date": "2026-10-06",
+    "implementation_state": "stopped; D port held by human",
+    "P07.1": "unaccepted checkpoint; publication verifier does not rehash staged files before publication, independent consolidation review finding",
+    "programme_acceptance": "not implied by preservation or focused tests"
+  }
+}

@@ -46,6 +46,14 @@ pub struct Failure {
 pub struct FailureBody {
     pub code: String,
     pub detail: String,
+    /// CLI command under execution (`build`/`deploy`); absent for
+    /// pre-Begin transport failures and `usage` (mirrors `fail(null,…)`).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub command: Option<String>,
+    /// Stage or gate that refused (`LOAD_ARTIFACT`, `COMPAT_GATE`,
+    /// …); absent for pre-stage transport failures.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub stage: Option<String>,
 }
 
 impl Failure {
@@ -54,6 +62,21 @@ impl Failure {
             error: FailureBody {
                 code: code.to_string(),
                 detail,
+                command: None,
+                stage: None,
+            },
+        }
+    }
+
+    /// Classified job refusal (P04.4): the CLI classification plus
+    /// the refusing stage, per the stage-contract `Failed` shape.
+    pub fn for_stage(command: &str, stage: &str, code: &str, detail: String) -> Self {
+        Failure {
+            error: FailureBody {
+                code: code.to_string(),
+                detail,
+                command: Some(command.to_string()),
+                stage: Some(stage.to_string()),
             },
         }
     }
@@ -144,9 +167,14 @@ pub fn write_json(writer: &mut impl Write, value: &impl Serialize) -> Result<(),
 // each token resumes exactly once, in issue order.
 // ---------------------------------------------------------------------------
 
-/// Host opens a job after the handshake. `mode` names the CLI mode
-/// (`build`, `deploy-preview`, ...); P04+ validates it against real
-/// execution, the scaffold echoes it into `Prepared`.
+/// Host opens a job after the handshake. `mode` names the CLI mode.
+/// A `Begin` WITHOUT `artifact_path` runs the frozen P03.3 scaffold
+/// script (protocol coverage; every mode echoes into `Prepared`).
+/// WITH `artifact_path`, mode `build`/`deploy` runs real P04.4
+/// execution; any other mode refuses `usage`. Flags mirror the CLI:
+/// deploy with `preview` warns-but-proceeds, without `preview` and
+/// without `yes` refuses `confirm-required`, with `yes` confirms
+/// (preview wins when both are set, exactly like the TS chain).
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Begin {
@@ -156,6 +184,17 @@ pub struct Begin {
 #[derive(Debug, Deserialize)]
 pub struct BeginBody {
     pub mode: String,
+    /// Artifact under preparation; presence selects real execution.
+    #[serde(default)]
+    pub artifact_path: Option<String>,
+    /// Deploy environment (`--env`); absent refuses `usage` after
+    /// artifact acceptance, matching TS refusal order.
+    #[serde(default)]
+    pub env: Option<String>,
+    #[serde(default)]
+    pub preview: bool,
+    #[serde(default)]
+    pub yes: bool,
 }
 
 /// Host answers the single open NeedHost. `payload` is stage-defined
@@ -221,8 +260,10 @@ pub struct NeedBody {
     pub request: serde_json::Value,
 }
 
-/// Core finished the job. `stages` lists executed stages in order;
-/// `scaffold` is true until P04+ lands real execution.
+/// Core finished the job. `stages` lists executed stages in order.
+/// Scaffold runs echo `resumes` (protocol coverage); real runs leave
+/// `resumes` empty — the host already holds every payload it sent —
+/// and report staged algorithm outputs in `outputs` instead.
 #[derive(Debug, Serialize)]
 pub struct Prepared {
     pub prepared: PreparedBody,
@@ -234,4 +275,5 @@ pub struct PreparedBody {
     pub mode: String,
     pub stages: Vec<String>,
     pub resumes: Vec<serde_json::Value>,
+    pub outputs: serde_json::Value,
 }
