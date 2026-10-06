@@ -17,6 +17,8 @@
 import type {
   BusinessError,
   ClosedInputs,
+  DerivedOperationInputs,
+  FieldError,
   FormFieldDef,
   FormMode,
   FormOutcome,
@@ -26,7 +28,8 @@ import type {
 } from '@canlang/contracts';
 import type { MessageValue } from '@canlang/contracts';
 import { escapeAttr, escapeHtml, form } from '@canlang/ui';
-import { httpStatusFor } from '../errors/envelope.js';
+import { buildBusinessError, fromUnknown, httpStatusFor } from '../errors/envelope.js';
+import { PUBLIC_ERROR_MESSAGES, isBusinessErrorCode } from '../errors/safe.js';
 
 /** Base form props for one operation; drafts apply per request on top. */
 export interface FormErrorBinding {
@@ -60,6 +63,102 @@ export function formBindingFor(operation: string): FormErrorBinding | undefined 
 /** Drop all bindings. Test-only: keeps the module registry hermetic. */
 export function clearFormBindings(): void {
   bindings.clear();
+}
+
+/* ------------------------------------------------------------------ */
+/* T20a generated-form bindings + safe error rendering (pilot scope).  */
+/* A generated binding pins one T19a derived operation to its base     */
+/* form props; the fields arrive assembled by the ui generated-fields */
+/* factory (L7 composes the two at integration — the same call shape  */
+/* the pilot tests use). Every denial renders through `safeFormError` */
+/* first, so only safe envelope members ever reach the markup.        */
+/* ------------------------------------------------------------------ */
+
+/** Inputs to {@link bindingFromDerived}: the derived op plus its form shell. */
+export interface DerivedFormBindingInput {
+  /** Checked T19a derivation this binding re-renders for. */
+  readonly derived: DerivedOperationInputs;
+  /** Must agree with `derived.kind` exactly (create/update/scenario). */
+  readonly mode: FormMode;
+  /** POST target the form submits to. */
+  readonly action: string;
+  /** Field defs WITHOUT values, assembled by the ui generated factory. */
+  readonly fields: ReadonlyArray<FormFieldDef>;
+  readonly submit: MessageValue;
+  readonly cancelHref?: string;
+  /** Caller-unique prefix for input ids (also anchors the fragment wrap). */
+  readonly idPrefix: string;
+  /** Resolved rendering timezone. */
+  readonly timeZone: string;
+}
+
+/**
+ * Build the re-render binding for one derived operation. The caller
+ * states the form mode and the constructor verifies it against the
+ * derived kind — a mismatch (including `read`/`delete` derivations,
+ * which have no generated form) throws naming both. The operation pins
+ * from the derivation, never from a second caller string.
+ */
+export function bindingFromDerived(input: DerivedFormBindingInput): FormErrorBinding {
+  if (input.derived.kind !== input.mode) {
+    throw new Error(
+      `form binding for ${JSON.stringify(input.derived.operation)}: mode ${JSON.stringify(input.mode)} ` +
+        `does not agree with derived kind ${JSON.stringify(input.derived.kind)} ` +
+        `(read/delete derivations have no generated form).`,
+    );
+  }
+  return {
+    operation: input.derived.operation,
+    action: input.action,
+    mode: input.mode,
+    fields: input.fields,
+    submit: input.submit,
+    ...(input.cancelHref === undefined ? {} : { cancelHref: input.cancelHref }),
+    idPrefix: input.idPrefix,
+    timeZone: input.timeZone,
+  };
+}
+
+/** True for a well-shaped field error (all members safe strings). */
+function isSafeFieldError(value: unknown): value is FieldError {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) return false;
+  const record = value as Record<string, unknown>;
+  return (
+    typeof record['path'] === 'string' &&
+    typeof record['code'] === 'string' &&
+    typeof record['message'] === 'string'
+  );
+}
+
+/**
+ * Project a denial onto the safe render envelope: known code (unknown
+ * codes fail closed to the generic `rule_failed` envelope, which also
+ * keeps the re-render status defined), string message (else the generic
+ * safe text for the code), well-shaped string-only field errors (anything
+ * else is dropped, never rendered), and well-typed `operation_id` /
+ * `retryable` passthrough. Extra members never survive — the renderer
+ * below can only interpolate safe strings. Well-formed envelopes keep
+ * every member (a missing `retryable` normalizes to the code default),
+ * so established renders are byte-identical.
+ */
+export function safeFormError(error: BusinessError): BusinessError {
+  if (!isBusinessErrorCode(error.code)) {
+    return fromUnknown(error);
+  }
+  const code = error.code;
+  const message = typeof error.message === 'string' ? error.message : PUBLIC_ERROR_MESSAGES[code];
+  const fields = Array.isArray(error.fields)
+    ? error.fields.filter(isSafeFieldError).map((field) => ({
+        path: field.path,
+        code: field.code,
+        message: field.message,
+      }))
+    : undefined;
+  return buildBusinessError(code, message, {
+    ...(typeof error.operation_id === 'string' ? { operation_id: error.operation_id } : {}),
+    ...(fields === undefined ? {} : { fields }),
+    ...(typeof error.retryable === 'boolean' ? { retryable: error.retryable } : {}),
+  });
 }
 
 /**
@@ -188,6 +287,10 @@ export interface RenderedFormError {
  */
 export async function renderFormError(input: RenderFormErrorInput): Promise<RenderedFormError> {
   const { binding } = input;
+  // Safe messages only: the denial projects onto the safe envelope
+  // before anything reaches the markup (well-formed envelopes keep
+  // every member, so established renders are byte-identical).
+  const error = safeFormError(input.error);
   const record = binding.mode === 'update' ? draftRecord(input.draftInputs) : undefined;
   const props: FormProps = {
     context: input.context,
@@ -198,8 +301,8 @@ export async function renderFormError(input: RenderFormErrorInput): Promise<Rend
     ...(record === undefined ? {} : { record }),
     timeZone: binding.timeZone,
     fields: applyDrafts(binding.fields, binding.mode, input.draftInputs),
-    ...(input.error.fields === undefined ? {} : { errors: input.error.fields }),
-    outcome: errorOutcome(input.error),
+    ...(error.fields === undefined ? {} : { errors: error.fields }),
+    outcome: errorOutcome(error),
     submit: binding.submit,
     ...(binding.cancelHref === undefined ? {} : { cancelHref: binding.cancelHref }),
     idPrefix: binding.idPrefix,
@@ -208,14 +311,14 @@ export async function renderFormError(input: RenderFormErrorInput): Promise<Rend
   if (input.fragment) {
     return {
       html: `<div id="${escapeAttr(`${binding.idPrefix}-form`)}">${rendered}</div>`,
-      status: httpStatusFor(input.error.code),
+      status: httpStatusFor(error.code),
     };
   }
   return {
     html:
       `<!DOCTYPE html><html lang="${escapeAttr(input.context.appDefaultLocale)}">` +
-      `<head><meta charset="utf-8"><title>${escapeHtml(input.error.message)}</title></head>` +
+      `<head><meta charset="utf-8"><title>${escapeHtml(error.message)}</title></head>` +
       `<body><main>${rendered}</main></body></html>`,
-    status: httpStatusFor(input.error.code),
+    status: httpStatusFor(error.code),
   };
 }
