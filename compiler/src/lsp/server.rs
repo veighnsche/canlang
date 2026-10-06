@@ -1245,10 +1245,12 @@ pub fn run_stdio() -> i32 {
                 continue;
             }
         };
-        let text = String::from_utf8_lossy(&body);
-        let responses = match t::parse(&text) {
-            Ok(message) => server.handle_json(&message),
-            Err(_) => vec![t::response_err(None, t::error_code::PARSE, "invalid JSON")],
+        let responses = match std::str::from_utf8(&body) {
+            Ok(text) => match t::parse(text) {
+                Ok(message) => server.handle_json(&message),
+                Err(_) => vec![t::response_err(None, t::error_code::PARSE, "invalid JSON")],
+            },
+            Err(_) => vec![t::response_err(None, t::error_code::PARSE, "invalid UTF-8")],
         };
         for response in responses {
             if t::write_message(&mut writer, response.as_bytes()).is_err() {
