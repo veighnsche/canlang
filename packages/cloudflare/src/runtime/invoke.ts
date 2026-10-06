@@ -878,11 +878,14 @@ interface StateRegistryProducer {
      * `refs` (never inspected here). T18 `serverInits` (model, then
      * field, then init kind), T18 `nullableFields` (model, then
      * known-nullable field names), B5 `containment` (model, then the
-     * declared-ownership member).
+     * declared-ownership member). B3 `deliveryFields` (model, then
+     * delivery-tagged field names) rides alongside for the T25
+     * receipt join (consumed downstream, never by the table builder).
      */
     readonly serverInits: ReadonlyMap<string, ReadonlyMap<string, unknown>>;
     readonly nullableFields: ReadonlyMap<string, ReadonlySet<string>>;
     readonly containment: ReadonlyMap<string, unknown>;
+    readonly deliveryFields: ReadonlyMap<string, ReadonlySet<string>>;
   };
 }
 
@@ -1568,6 +1571,8 @@ export interface LoadedCanonicalDescriptors {
   readonly table: unknown;
   readonly policy: unknown;
   readonly ruledModels: ReadonlySet<string>;
+  /** C3/B3: loader-built delivery-field schema, carried for the T25 receipt join (D3 consumes). */
+  readonly deliveryFields: ReadonlyMap<string, ReadonlySet<string>>;
   readonly producers: CanonicalStateProducers;
   /** C2/B2 (Q3): holder-built serverOnly exclusions, passed to every invoke. */
   readonly conflictServerOnly: ReadonlyMap<string, ReadonlySet<string>>;
@@ -1726,6 +1731,48 @@ function buildConflictServerOnly(
 }
 
 /**
+ * C3: strip `delivery`-kind op inputs for the L3 descriptor load.
+ * Delivery bindings are dispatch-layer only (E framing excludes them
+ * and both transports' bound checkers reject submitted ones — the C3
+ * agreement pins prove it), so L3 can never observe a delivery value
+ * and its descriptors must not name the kind the L3 loader rejects.
+ * Shallow-copies only the touched levels; never mutates the caller
+ * artifact. DELETE THIS when the state loader accepts delivery op
+ * inputs (B-loader-tolerance): the retry below then never triggers,
+ * and this helper becomes dead code to remove with its pins.
+ */
+function stripDeliveryInputs(artifact: CompileArtifact): CompileArtifact {
+  const operations = (artifact as unknown as { operations?: unknown }).operations;
+  if (!Array.isArray(operations)) return artifact;
+  let stripped = false;
+  const mapped = operations.map((op) => {
+    if (!isUnknownRecord(op)) return op;
+    const inputs: unknown = op["inputs"];
+    if (!isUnknownRecord(inputs)) return op;
+    const fields: unknown = inputs["fields"];
+    if (!Array.isArray(fields)) return op;
+    const kept = fields.filter((entry) => {
+      if (!isUnknownRecord(entry)) return true;
+      const field: unknown = entry["field"];
+      return !isUnknownRecord(field) || field["kind"] !== "delivery";
+    });
+    if (kept.length === fields.length) return op;
+    stripped = true;
+    return { ...op, inputs: { ...inputs, fields: kept } };
+  });
+  if (!stripped) return artifact;
+  return { ...artifact, operations: mapped } as CompileArtifact;
+}
+
+/** C3: true only for the L3 loader's delivery-kind whole-set rejection. */
+function isDeliveryKindRejection(err: unknown): boolean {
+  if (!(err instanceof Error)) return false;
+  if ((err as { name?: unknown }).name !== "IncompatibleArtifactError") return false;
+  if ((err as { reason?: unknown }).reason !== "unknown_input_kind") return false;
+  return err.message.includes('"delivery"');
+}
+
+/**
  * Load a generated artifact's canonical set: transcribe every CRUD
  * admission gate from its emitted policy manifest, verify every
  * scenario operation links an `operation` callable, load descriptors
@@ -1734,6 +1781,12 @@ function buildConflictServerOnly(
  * build the model table. Reads need no callable (T17b: `invokeRead`
  * serves them through the transcribed `policy` below). Throws precise
  * errors; never a partial set.
+ *
+ * C3: the L3 load runs against the full artifact first; ONLY on the
+ * loader's delivery-kind rejection it retries once with delivery op
+ * inputs stripped (see `stripDeliveryInputs`) — delivery is
+ * dispatch-layer only, so the stripped descriptors are exactly what
+ * L3 executes. Any other rejection propagates verbatim.
  */
 export async function loadCanonicalDescriptors(
   asm: AssembledModules,
@@ -1753,8 +1806,8 @@ export async function loadCanonicalDescriptors(
       resolvePreloadCallable(artifact, op);
     }
   }
-  const loaded = producers.registry.loadArtifactDescriptors(artifact, {
-    by: (op) => {
+  const byOptions = {
+    by: (op: { kind: string; name: string }) => {
       if (op.kind === "create" || op.kind === "update" || op.kind === "delete") {
         const predicate = crudBy.get(op.name);
         if (predicate === undefined) {
@@ -1772,7 +1825,14 @@ export async function loadCanonicalDescriptors(
       // PolicyTable, and `invokeRead` serves them).
       return "public";
     },
-  });
+  };
+  let loaded: ReturnType<typeof producers.registry.loadArtifactDescriptors>;
+  try {
+    loaded = producers.registry.loadArtifactDescriptors(artifact, byOptions);
+  } catch (err) {
+    if (!isDeliveryKindRejection(err)) throw err;
+    loaded = producers.registry.loadArtifactDescriptors(stripDeliveryInputs(artifact), byOptions);
+  }
   const table = producers.models.buildModelTableFromCanonical(loaded.models, {
     refs: loaded.refs,
     serverInits: loaded.serverInits,
@@ -1807,6 +1867,7 @@ export async function loadCanonicalDescriptors(
     ruledModels,
     producers,
     conflictServerOnly: buildConflictServerOnly(loaded.models),
+    deliveryFields: loaded.deliveryFields,
   };
   canonicalCache.set(artifact, canonical);
   return canonical;
