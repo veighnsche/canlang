@@ -40,7 +40,7 @@ import type {
   StoragePort,
 } from "../../state/dist/state/src/index.js";
 import { createTestMemoryStorage } from "../../state/dist/state/src/storage/memory.js";
-import { deriveCsrfToken } from "@canlang/identity";
+import { deriveCsrfToken, sha256HexText } from "@canlang/identity";
 import {
   catalogFromArtifactOperations,
   handleOperationRequest,
@@ -175,6 +175,15 @@ const throwing = () => { throw new Error("fixture: CRUD handler must never run o
 export function canApp() {
   return {
     calls,
+    // B7: every op declares its admission gate (absent entries
+    // deny) so the route pins still reach dispatch/validation.
+    policy: {
+      operations: {
+        "Shop.Gadget.create": { by: ["members"] },
+        "Receipts.notifyEmail": { by: ["members"] },
+        "Acme.Probe.echo": { by: ["members"] },
+      },
+    },
     Gadget: { create: throwing },
     Receipts: {
       notifyEmail: async (c, input) => {
@@ -288,6 +297,14 @@ async function assembleHttpOpsWorker(opts: {
   const asm: AssembledModules = { dir, entryUrl: "fixture-entry", moduleUrls: { "ops.mjs": moduleUrl } };
   const { store } = createTestMemoryStorage();
   const identity = await createIdentityFixture({});
+  // B7: the members gates need a teamful session (login mints
+  // last_team_id null); attach the fixture session to the fixture
+  // team so the cookie identity carries its membership.
+  const sessionRow = await identity.store.findSessionByTokenHash(
+    await sha256HexText(identity.sessionToken),
+  );
+  if (sessionRow === null) throw new Error("fixture: session row missing");
+  await identity.store.setSessionTeam(sessionRow.session_id, identity.teamId);
   const { token: grantToken } = await createGrantFixture(identity);
   const derivedInputs = bakeDerivedInputs(operations);
   const deps: AssemblyDeps = {
