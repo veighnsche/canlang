@@ -1,0 +1,34 @@
+{
+  "request": {
+    "questions": {
+      "fence_scope": {
+        "criteria": {
+          "keep_wide": "Keep the database-wide revision assertion as the revocation boundary: every fenced commit re-asserts the settled revision unconditionally and revalidates permission plus revocation against live authority, failing closed on any intervening write anywhere. The enrolled dependency list stays attribution-only. Cost: failure coupling at the authority layer (a membership-table write anywhere can void an unrelated in-flight operation), higher conflict/retry rates under contention, doubled predicate evaluation per mutation; D1 fence contention remains the first material runtime uncertainty.",
+          "narrow": "Adopt narrower per-team/per-record fence assertions: a fenced commit voids only when an enrolled dependency moved (the team's membership rows, the observed record versions) instead of on any database-wide revision move. Cost: narrowed-assertion bookkeeping plus a D1 durability proof for the narrower scope; risk that an unenrolled but authorizing read escapes invalidation; a second assertion kind to specify, gate, and teach."
+        },
+        "instructions": "For the B4 authority contract, which revocation boundary best preserves the adopted safety property (no mid-flight revocation silently authorizes a commit or spend) at acceptable coupling and proof cost?",
+        "type": "choice"
+      }
+    },
+    "state": "CanLang state engine, T32b checkpoint fence (adopted Alternative A, checkpoint_fence). Verified facts. (1) Every fenced commit re-asserts the settled revision unconditionally and revalidates permission plus revocation against live authority state, failing closed on any intervening change (admission.ts: fenced commit re-asserts revision unconditionally when a checkpoint is present). (2) State-dependent reads enroll in the operation owner checkpoint as CheckpointDependency values (membership kind with teamId+userId; record kind with observed version); the enrolled list currently exists for invalidating-read attribution and the still-open narrower-fence question. (3) Display-only eventual reads can never authorize (requireAuthorizingRead refuses them at every authorization boundary). (4) Known costs of the wide assertion: a membership-table write anywhere in the deployment can void an unrelated user in-flight operation; contended dependencies raise conflict/retry rates; commit-time revalidation doubles predicate evaluation per mutation; D1 fence contention is the first material runtime uncertainty. (5) Known open edges: compound gates that can admit without caller membership can false-void under the faithful identity (no suite exercises compounds through invoke; durable fix is a by-aware explicit check inside the mechanism); revocation racing an already-fenced commit batch is a storage-atomicity question for the durable fence proof. (6) T32a decided checkpoint_fence over read-at-effect and pinned snapshots, and explicitly left JEV-PENDING whether the database-wide fence is an acceptable revocation boundary or revocation needs a narrower per-team/per-record fence. No measured contention data exists; no production traffic has been observed.",
+    "model": "jev-latest"
+  },
+  "response": {
+    "model": "jev-1.13.0",
+    "answers": {
+      "fence_scope": {
+        "type": "choice",
+        "choice": "keep_wide",
+        "confidence": 0.13,
+        "probabilities": {
+          "narrow": 0.43,
+          "keep_wide": 0.57
+        }
+      }
+    },
+    "usage": {
+      "input_tokens": 901,
+      "output_tokens": 38
+    }
+  }
+}

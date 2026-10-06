@@ -1,0 +1,4084 @@
+{
+  "schema_version": 1,
+  "review": "language",
+  "repository": "/Users/vince/Projects/canlang",
+  "review_stage": "primary and independent work challenge reconciled; root full-tree join pending",
+  "baseline": {
+    "head": "cf36983c768c32e0a63ac33c3b45a94dc75dc2d3",
+    "draft_gitlink": "40656da211a410cb6fb363a9c2afc3010fcb8b29",
+    "draft_head": "40656da211a410cb6fb363a9c2afc3010fcb8b29",
+    "draft_dirty": false,
+    "draft_can_count": 52,
+    "draft_top_level_can_count": 49,
+    "draft_bundle_sha256": "cf177f5da0b0b79bd9338919255544c16680d1d005cf81968c6ed43a6c2a2cc0",
+    "parent_dirty_modified": [
+      "implementation/challenge-audit-run/remaining-tasks.md"
+    ],
+    "parent_untracked_groups": [
+      "docs/ideal-filetree-plan/integration-20261006-*.json",
+      "docs/research/package-subsystem-ports-20261006/evidence/implementation/",
+      "docs/research/package-subsystem-ports-20261006/evidence/input-validation/",
+      "implementation/challenge-audit-run/evidence/jev-b4-fence-20261006/"
+    ],
+    "port_plan_checkpoint": "3d1f8f062f9650c061f6cb87c8af9afb2c01b0e5",
+    "plan_hashes": {
+      "implementation/CHALLENGE-AUDIT-PLAN.md": "c71f9a33cea8dcd4024e1bdda72294029d7a10995d588736d51aca5c1fdf2202",
+      "implementation/DESCRIPTION-REFERENCE-PLAN.md": "88633a4c29c3a8749adf59b56d5fb8c39e69f17de66e983abf9c5b57a48a5429",
+      "implementation/REMAINING-IMPLEMENTATION-LANES.md": "ffa464ed1ef7181de0cbcfebf755d86f851a44700dc8ba03007500677416efcf",
+      "docs/research/package-subsystem-ports-20261006/implementation-plans/exact-values.md": "05d0ede96076efd3a2bdb60552d4b537e88e43a7500a5f9c5987a0fabdbf0c29",
+      "docs/research/package-subsystem-ports-20261006/implementation-plans/input-validation.md": "5ec351c6dd69dbb06fb8a933789ceb1309957b8f5b9d38dbda8c87f87f650363"
+    }
+  },
+  "performed": [
+    "read-only source and symbol inspection",
+    "read-only Git status/HEAD and draft gitlink",
+    "read-only manifest parsing and input hashes",
+    "write assigned review pair only"
+  ],
+  "not_performed": [
+    "compiler check",
+    "tests",
+    "builds",
+    "runtime/installed journey",
+    "Git/service/database/external-message mutation",
+    "implementation dispatch"
+  ],
+  "authority": [
+    "AGENTS.md",
+    "REQUIREMENTS.md",
+    "current authoritative .can intent",
+    "requested implementation plans"
+  ],
+  "buckets": {
+    "a": "proven source defect through draft owner",
+    "b": "accepted draft intent but rule/producer/integration missing",
+    "c": "directionally safe rule too strict; weaker safe contract",
+    "d": "proposal syntax until adopted complete contract",
+    "e": "deliberate rejection witness; runtime negatives not whole-file compile-negative"
+  },
+  "duties": [
+    {
+      "id": "LANG-IDENTITY",
+      "requirement": "App/package .can identity, concise composition, canonical imports and dependency closure",
+      "disposition": "REQUIRED",
+      "source_paths": [
+        "draft/CanExpense.can",
+        "draft/shared/Employees.can",
+        "compiler/src/analysis/resolve.rs"
+      ],
+      "evidence": [
+        "Expense app uses expense; Expense in imported Employee; grouped owner imports"
+      ],
+      "target_paths": [
+        "compiler/src/analysis/resolve.rs",
+        "compiler/src/analysis/catalog.rs",
+        "compiler/src/codegen/artifact.rs"
+      ],
+      "target_path_status": "selected defining leaf; predecessor .rs retained only until gated mod.rs/module cutover; new files unimplemented",
+      "language": "Can source / Rust",
+      "owner": "draft owner; compiler consumes owning declarations",
+      "task_ids": [
+        "T02",
+        "T12",
+        "T15",
+        "T28",
+        "T36"
+      ],
+      "cutover_gate": "Original composed apps retain identities/routes/resource conflict detection; imports supply no authority",
+      "retained_paths": [
+        "draft/CanExpense.can",
+        "draft/shared/Employees.can",
+        "compiler/src/analysis/resolve.rs"
+      ],
+      "availability": "source inspection only; no executed validation in this review"
+    },
+    {
+      "id": "LANG-SYNTAX",
+      "requirement": "Deterministic grammar/layout, contextual words, ## comments, do executable bindings",
+      "disposition": "REQUIRED",
+      "source_paths": [
+        "compiler/src/syntax/parser.rs",
+        "compiler/src/syntax/layout.rs",
+        "compiler/src/syntax/cst.rs",
+        "tools/can_parser.py"
+      ],
+      "evidence": [
+        "One compiler parser; inline desc and message suffix are source-present"
+      ],
+      "target_paths": [
+        "compiler/src/syntax/parser/mod.rs",
+        "compiler/src/syntax/layout.rs",
+        "compiler/src/syntax/cst.rs",
+        "compiler/src/syntax/lexer.rs",
+        "tools/can_parser.py"
+      ],
+      "target_path_status": "selected defining leaf; predecessor .rs retained only until gated mod.rs/module cutover; new files unimplemented",
+      "language": "Rust; synchronized Python tooling",
+      "owner": "compiler",
+      "task_ids": [
+        "T35",
+        "D02"
+      ],
+      "cutover_gate": "Same parser/checker/editor accepts authored forms; invalid ambiguity preserved; tooling mirror synchronized",
+      "retained_paths": [
+        "compiler/src/syntax/parser.rs",
+        "compiler/src/syntax/layout.rs",
+        "compiler/src/syntax/cst.rs",
+        "tools/can_parser.py"
+      ],
+      "availability": "source inspection only; no executed validation in this review"
+    },
+    {
+      "id": "LANG-FLOW",
+      "requirement": "Short circuit null facts and successful require continuation with alias/write invalidation",
+      "disposition": "REQUIRED",
+      "source_paths": [
+        "compiler/src/analysis/types.rs",
+        "draft/CanContract.can",
+        "draft/CanChat.can"
+      ],
+      "evidence": [
+        "types check ordered statements/invalidate_after; Contract previous null guard; Chat nullable allowance"
+      ],
+      "target_paths": [
+        "compiler/src/analysis/types/mod.rs",
+        "compiler/src/analysis/types/narrowing.rs",
+        "compiler/src/analysis/types/context.rs",
+        "compiler/src/analysis/types/statements.rs"
+      ],
+      "target_path_status": "selected defining leaf; predecessor .rs retained only until gated mod.rs/module cutover; new files unimplemented",
+      "language": "Rust",
+      "owner": "compiler",
+      "task_ids": [
+        "T03",
+        "T05",
+        "T07"
+      ],
+      "cutover_gate": "Independent true/false/NOT/AND/OR/branch/loop/alias controls; preserve evaluation order",
+      "retained_paths": [
+        "compiler/src/analysis/types.rs",
+        "draft/CanContract.can",
+        "draft/CanChat.can"
+      ],
+      "availability": "source inspection only; no executed validation in this review"
+    },
+    {
+      "id": "LANG-ACTOR",
+      "requirement": "Actor facts only after verified caller admission",
+      "disposition": "REQUIRED",
+      "source_paths": [
+        "compiler/src/analysis/types.rs",
+        "draft/CanExpense.can"
+      ],
+      "evidence": [
+        "Reviewer scenarios/policies; CRUD guard caller facts"
+      ],
+      "target_paths": [
+        "compiler/src/analysis/types/narrowing.rs",
+        "compiler/src/analysis/types/context.rs",
+        "compiler/src/analysis/types/statements.rs",
+        "compiler/src/analysis/types/calls.rs",
+        "compiler/src/analysis/types/scenarios.rs",
+        "compiler/src/analysis/types/mutations.rs",
+        "compiler/src/analysis/types/effect_calls.rs"
+      ],
+      "target_path_status": "selected defining leaf; predecessor .rs retained only until gated mod.rs/module cutover; new files unimplemented",
+      "language": "Rust",
+      "owner": "compiler + identity/state authority",
+      "task_ids": [
+        "T06",
+        "T16"
+      ],
+      "cutover_gate": "Public/trusted/pre-admission/other-subject remain nullable; runtime context verified",
+      "retained_paths": [
+        "compiler/src/analysis/types.rs",
+        "draft/CanExpense.can"
+      ],
+      "availability": "source inspection only; no executed validation in this review"
+    },
+    {
+      "id": "LANG-MEMBERS",
+      "requirement": "Canonical parent/value/metadata selectors with purpose-specific authority",
+      "disposition": "REQUIRED",
+      "source_paths": [
+        "compiler/src/analysis/types.rs",
+        "draft/CanExpense.can",
+        "draft/CanContract.can"
+      ],
+      "evidence": [
+        "check_selectors/navigate_selector; policy parent and metadata; money minor/currency"
+      ],
+      "target_paths": [
+        "compiler/src/analysis/types/members.rs"
+      ],
+      "target_path_status": "selected defining leaf; predecessor .rs retained only until gated mod.rs/module cutover; new files unimplemented",
+      "language": "Rust",
+      "owner": "compiler with state/UI reviews",
+      "task_ids": [
+        "T08"
+      ],
+      "cutover_gate": "No unknown leaf/descent/disclosure/metadata-write; selected schema gives no runtime fact",
+      "retained_paths": [
+        "compiler/src/analysis/types.rs",
+        "draft/CanExpense.can",
+        "draft/CanContract.can"
+      ],
+      "availability": "source inspection only; no executed validation in this review"
+    },
+    {
+      "id": "LANG-QUERY",
+      "requirement": "Filtered row facts, stable ordering and authorized query/aggregate domain",
+      "disposition": "REQUIRED",
+      "source_paths": [
+        "compiler/src/analysis/types.rs",
+        "draft/CanExpense.can"
+      ],
+      "evidence": [
+        "type_query/selected_row_facts; reviewer_choices filters same-name identities"
+      ],
+      "target_paths": [
+        "compiler/src/analysis/types/queries.rs"
+      ],
+      "target_path_status": "selected defining leaf; predecessor .rs retained only until gated mod.rs/module cutover; new files unimplemented",
+      "language": "Rust",
+      "owner": "compiler; runtime query remains state owner",
+      "task_ids": [
+        "T07",
+        "T35",
+        "T32"
+      ],
+      "cutover_gate": "No sibling/alias/nested-row fact leak; query result authorization and snapshot/fence join",
+      "retained_paths": [
+        "compiler/src/analysis/types.rs",
+        "draft/CanExpense.can"
+      ],
+      "availability": "source inspection only; no executed validation in this review"
+    },
+    {
+      "id": "LANG-CREATION",
+      "requirement": "Required/default/nullable/ordinary-array/server/derived facts remain separate",
+      "disposition": "REQUIRED",
+      "source_paths": [
+        "compiler/src/analysis/effects.rs",
+        "compiler/src/codegen/ir.rs",
+        "compiler/src/codegen/js.rs",
+        "packages/values/src/array.ts"
+      ],
+      "evidence": [
+        "required_array field_schema_marked is present; EMPTY_ARRAY canonical omission"
+      ],
+      "target_paths": [
+        "compiler/src/analysis/effects/declarations.rs",
+        "compiler/src/analysis/effects/tables.rs",
+        "compiler/src/codegen/ir/mod.rs",
+        "compiler/src/codegen/ir/model.rs",
+        "compiler/src/codegen/js/schema.rs",
+        "compiler/src/codegen/js/descriptors.rs",
+        "packages/contracts/src/artifact.ts"
+      ],
+      "target_path_status": "selected defining leaf; predecessor .rs retained only until gated mod.rs/module cutover; new files unimplemented",
+      "language": "Rust producer / TS contract",
+      "owner": "compiler; values defines semantics; state executes",
+      "task_ids": [
+        "T09",
+        "T15",
+        "T18",
+        "T19",
+        "D04",
+        "D06"
+      ],
+      "cutover_gate": "Actual emitted fields and form/MCP/reference/state agree including bounds on omitted arrays",
+      "retained_paths": [
+        "compiler/src/analysis/effects.rs",
+        "compiler/src/codegen/ir.rs",
+        "compiler/src/codegen/js.rs",
+        "packages/values/src/array.ts"
+      ],
+      "availability": "source inspection only; no executed validation in this review"
+    },
+    {
+      "id": "LANG-STRUCTURAL",
+      "requirement": "Closed expected-contract literal construction and canonical refs/enums",
+      "disposition": "REQUIRED",
+      "source_paths": [
+        "compiler/src/analysis/types.rs",
+        "draft/CanContract.can",
+        "packages/values/src/schema.ts"
+      ],
+      "evidence": [
+        "ExecutedParties snapshot/fixture object; expected entry values and recursive schema validator"
+      ],
+      "target_paths": [
+        "compiler/src/analysis/types/constructs.rs",
+        "compiler/src/analysis/types/schemas.rs",
+        "packages/values/src/schema.ts"
+      ],
+      "target_path_status": "selected defining leaf; predecessor .rs retained only until gated mod.rs/module cutover; new files unimplemented",
+      "language": "Rust compile checks / TS or conditional Rust runtime",
+      "owner": "compiler with values owner",
+      "task_ids": [
+        "T10",
+        "T14"
+      ],
+      "cutover_gate": "Known/unknown/required/nested/range/protected-provenance controls agree; no general nominal conversion",
+      "retained_paths": [
+        "compiler/src/analysis/types.rs",
+        "draft/CanContract.can",
+        "packages/values/src/schema.ts"
+      ],
+      "availability": "source inspection only; no executed validation in this review"
+    },
+    {
+      "id": "LANG-DECIMAL-CONTEXT",
+      "requirement": "Unique expected decimal source integral literals without Number/i64 coercion",
+      "disposition": "REQUIRED",
+      "source_paths": [
+        "compiler/src/analysis/types.rs",
+        "compiler/src/codegen/js.rs"
+      ],
+      "evidence": [
+        "decimal_expectation/integral_decimal_range source-present; IrExpr::Decimal still fails E6008"
+      ],
+      "target_paths": [
+        "compiler/src/analysis/types/literals.rs",
+        "compiler/src/codegen/ir/mod.rs",
+        "compiler/src/codegen/ir/model.rs",
+        "compiler/src/codegen/js/expressions.rs",
+        "packages/values/src/catalog.ts"
+      ],
+      "target_path_status": "selected defining leaf; predecessor .rs retained only until gated mod.rs/module cutover; new files unimplemented",
+      "language": "Rust compiler; TS owner constructor/catalog",
+      "owner": "compiler with values/catalog",
+      "task_ids": [
+        "T11",
+        "T15",
+        "T35"
+      ],
+      "cutover_gate": "Check exact spelling then emit owner-backed constructor for actual expressions/defaults/bounds; ambiguous and variable-coercion negatives retained",
+      "retained_paths": [
+        "compiler/src/analysis/types.rs",
+        "compiler/src/codegen/js.rs"
+      ],
+      "availability": "source inspection only; no executed validation in this review"
+    },
+    {
+      "id": "LANG-INTERFACES",
+      "requirement": "Owner-supplied versioned standard/bound schemas/effects/events/observable relations",
+      "disposition": "REQUIRED",
+      "source_paths": [
+        "compiler/src/analysis/catalog.rs",
+        "compiler/src/analysis/resolve.rs",
+        "compiler/src/analysis/effects.rs"
+      ],
+      "evidence": [
+        "Challenge T12-T14 import/recipe inventory, current catalog pipeline"
+      ],
+      "target_paths": [
+        "compiler/src/analysis/catalog.rs",
+        "compiler/src/analysis/types/calls.rs",
+        "compiler/src/analysis/types/scenarios.rs",
+        "compiler/src/analysis/types/mutations.rs",
+        "compiler/src/analysis/types/effect_calls.rs",
+        "compiler/src/analysis/effects/handlers.rs",
+        "compiler/src/analysis/effects/statements.rs"
+      ],
+      "target_path_status": "selected defining leaf; predecessor .rs retained only until gated mod.rs/module cutover; new files unimplemented",
+      "language": "Rust consumers; TS producer contracts",
+      "owner": "each provider/work/service owns declarations; compiler consumes",
+      "task_ids": [
+        "T12",
+        "T13",
+        "T14",
+        "T15"
+      ],
+      "cutover_gate": "Canonical aliases/versions and real producer compatibility; installed availability separate",
+      "retained_paths": [
+        "compiler/src/analysis/catalog.rs",
+        "compiler/src/analysis/resolve.rs",
+        "compiler/src/analysis/effects.rs"
+      ],
+      "availability": "source inspection only; no executed validation in this review"
+    },
+    {
+      "id": "LANG-PROVENANCE",
+      "requirement": "Resolved event/ref/pending/snapshot provenance rather than event spelling",
+      "disposition": "REQUIRED",
+      "source_paths": [
+        "compiler/src/analysis/types.rs",
+        "compiler/src/analysis/effects.rs",
+        "draft/CanLeave.can",
+        "draft/CanOnboard.can"
+      ],
+      "evidence": [
+        "Ordinary binding/event invalidation source; parent revision hooks"
+      ],
+      "target_paths": [
+        "compiler/src/analysis/types/calls.rs",
+        "compiler/src/analysis/types/scenarios.rs",
+        "compiler/src/analysis/types/mutations.rs",
+        "compiler/src/analysis/types/effect_calls.rs",
+        "compiler/src/analysis/effects/rules.rs",
+        "compiler/src/analysis/effects/handlers.rs"
+      ],
+      "target_path_status": "selected defining leaf; predecessor .rs retained only until gated mod.rs/module cutover; new files unimplemented",
+      "language": "Rust",
+      "owner": "compiler with state hook owner",
+      "task_ids": [
+        "T30",
+        "T31"
+      ],
+      "cutover_gate": "Rename invariance; immutable before/snapshot rejects; secondary writes wait accepted rollback/fence/order contract",
+      "retained_paths": [
+        "compiler/src/analysis/types.rs",
+        "compiler/src/analysis/effects.rs",
+        "draft/CanLeave.can",
+        "draft/CanOnboard.can"
+      ],
+      "availability": "source inspection only; no executed validation in this review"
+    },
+    {
+      "id": "LANG-CONTAINMENT",
+      "requirement": "Canonical imported parent identity, team/storage/lifetime/mutation separation",
+      "disposition": "REQUIRED",
+      "source_paths": [
+        "draft/CanExpense.can",
+        "compiler/src/analysis/resolve.rs",
+        "compiler/src/analysis/types.rs"
+      ],
+      "evidence": [
+        "Expense in Employee; T28 accepted-owner gate; latest lanes limits T29 to actual imported consumers"
+      ],
+      "target_paths": [
+        "compiler/src/analysis/resolve.rs",
+        "compiler/src/analysis/types/members.rs",
+        "packages/state/src/invocation/registry.ts"
+      ],
+      "target_path_status": "selected defining leaf; predecessor .rs retained only until gated mod.rs/module cutover; new files unimplemented",
+      "language": "Rust owner graph / TS state",
+      "owner": "compiler + state + draft owner",
+      "task_ids": [
+        "T28",
+        "T29"
+      ],
+      "cutover_gate": "Accepted source semantics remain required; producer/consumer/storage/authority and execution proof gates: Accepted local/remote/cycle/lifetime/reverse relation and actual owner persistence; import does not grant mutation",
+      "retained_paths": [
+        "draft/CanExpense.can",
+        "compiler/src/analysis/resolve.rs",
+        "compiler/src/analysis/types.rs"
+      ],
+      "availability": "source inspection only; no executed validation in this review"
+    },
+    {
+      "id": "LANG-EFFECTS",
+      "requirement": "Bounded authoritative reads with transitive effects/revalidation",
+      "disposition": "REQUIRED",
+      "source_paths": [
+        "compiler/src/analysis/effects.rs",
+        "compiler/src/analysis/catalog.rs",
+        "draft/CanChat.can",
+        "draft/shared/Employees.can"
+      ],
+      "evidence": [
+        "active_member state-read and guard admission context"
+      ],
+      "target_paths": [
+        "compiler/src/analysis/effects/rules.rs",
+        "compiler/src/analysis/effects/handlers.rs",
+        "compiler/src/analysis/types/calls.rs",
+        "compiler/src/analysis/types/scenarios.rs",
+        "compiler/src/analysis/types/mutations.rs",
+        "compiler/src/analysis/types/effect_calls.rs"
+      ],
+      "target_path_status": "selected defining leaf; predecessor .rs retained only until gated mod.rs/module cutover; new files unimplemented",
+      "language": "Rust effects; state supplies authority",
+      "owner": "compiler + state/work identity",
+      "task_ids": [
+        "T32"
+      ],
+      "cutover_gate": "Accepted source semantics remain required; producer/consumer/storage/authority and execution proof gates: Revocation/stale read/spending/commit evidence for each advertised context; do not relabel changing state as mathematical purity",
+      "retained_paths": [
+        "compiler/src/analysis/effects.rs",
+        "compiler/src/analysis/catalog.rs",
+        "draft/CanChat.can",
+        "draft/shared/Employees.can"
+      ],
+      "availability": "source inspection only; no executed validation in this review"
+    },
+    {
+      "id": "LANG-FANOUT",
+      "requirement": "Adopted original cohort/body/guard semantics and completeness",
+      "disposition": "REQUIRED",
+      "source_paths": [
+        "compiler/src/analysis/effects.rs",
+        "compiler/src/codegen/ir.rs",
+        "compiler/src/codegen/js.rs",
+        "draft/CanShift.can",
+        "draft/CanVolunteer.can"
+      ],
+      "evidence": [
+        "CohortData source-present; latest A1/F6 and LG04/F8 M1-M10 gates",
+        "Corrected T33 resolution adopts complete finite authoritative cohorts; prep bucket d superseded, remaining missing implementation is b"
+      ],
+      "target_paths": [
+        "compiler/src/analysis/effects/handlers.rs",
+        "compiler/src/analysis/effects/statements.rs",
+        "compiler/src/codegen/ir/mod.rs",
+        "compiler/src/codegen/ir/model.rs",
+        "compiler/src/codegen/js/effects.rs"
+      ],
+      "target_path_status": "selected defining leaf; predecessor .rs retained only until gated mod.rs/module cutover; new files unimplemented",
+      "language": "Rust source lowering; TS durable owner runtime",
+      "owner": "compiler + work/runtime; no launch",
+      "task_ids": [
+        "T33",
+        "T34",
+        "A1",
+        "LG04"
+      ],
+      "cutover_gate": "Accepted T33 semantics; both spellings/original guards/no automatic sweep supersession/no semantic 500 cap; full M1-M10 durable compiler/runtime original-app proof",
+      "retained_paths": [
+        "compiler/src/analysis/effects.rs",
+        "compiler/src/codegen/ir.rs",
+        "compiler/src/codegen/js.rs",
+        "draft/CanShift.can",
+        "draft/CanVolunteer.can"
+      ],
+      "availability": "source inspection only; no executed validation in this review"
+    },
+    {
+      "id": "LANG-EXAMPLE-FIXTURES",
+      "requirement": "Typed isolated fixture/recipe authority and setup-business error distinction",
+      "disposition": "REQUIRED",
+      "source_paths": [
+        "compiler/src/analysis/examples.rs",
+        "draft/CanExpense.can"
+      ],
+      "evidence": [
+        "FixtureRecipe and rich user/file/model/receipt witnesses"
+      ],
+      "target_paths": [
+        "compiler/src/analysis/examples/fixtures.rs",
+        "compiler/src/codegen/bdd.rs"
+      ],
+      "target_path_status": "selected defining leaf; predecessor .rs retained only until gated mod.rs/module cutover; new files unimplemented",
+      "language": "Rust checker/emission; TS testkit provisioning",
+      "owner": "compiler + testkit + canonical producers",
+      "task_ids": [
+        "T22",
+        "T36",
+        "LG00",
+        "LG01",
+        "LG02"
+      ],
+      "cutover_gate": "Fresh validated real fixture classes; forged authority fails; unresolved fixture cases block only dependent fixtures",
+      "retained_paths": [
+        "compiler/src/analysis/examples.rs",
+        "draft/CanExpense.can"
+      ],
+      "availability": "source inspection only; no executed validation in this review"
+    },
+    {
+      "id": "LANG-EXAMPLE-SEQUENCES",
+      "requirement": "Actual operation tables/causal calls/prior commits with independent observations",
+      "disposition": "REQUIRED",
+      "source_paths": [
+        "compiler/src/analysis/examples.rs",
+        "compiler/src/codegen/bdd.rs",
+        "draft/CanExpense.can",
+        "draft/CanContract.can"
+      ],
+      "evidence": [
+        "BehaviorTable/ExampleSequence; reviewer deactivate then query sequence; runtime error rows"
+      ],
+      "target_paths": [
+        "compiler/src/analysis/examples/tables.rs",
+        "compiler/src/analysis/examples/sequences.rs",
+        "compiler/src/codegen/bdd.rs"
+      ],
+      "target_path_status": "selected defining leaf; predecessor .rs retained only until gated mod.rs/module cutover; new files unimplemented",
+      "language": "Rust analyzed/emitted examples; TS executor",
+      "owner": "compiler + testkit/runtime",
+      "task_ids": [
+        "T21",
+        "T23",
+        "T37",
+        "T38",
+        "T39",
+        "T40",
+        "LG02",
+        "LG03",
+        "LG05"
+      ],
+      "cutover_gate": "Separate test-only artifacts; deliberately broken expectation fails; same canonical callable/state/identity; no inferred expected results",
+      "retained_paths": [
+        "compiler/src/analysis/examples.rs",
+        "compiler/src/codegen/bdd.rs",
+        "draft/CanExpense.can",
+        "draft/CanContract.can"
+      ],
+      "availability": "source inspection only; no executed validation in this review"
+    },
+    {
+      "id": "LANG-DIAGNOSTICS",
+      "requirement": "Site root disposition, related source spans, capability absence and truthful counters",
+      "disposition": "REQUIRED",
+      "source_paths": [
+        "compiler/src/diagnostic.rs",
+        "compiler/src/explain.rs",
+        "compiler/src/analysis/check.rs",
+        "implementation/DIAGNOSTICS.md"
+      ],
+      "evidence": [
+        "Pipeline E1xxx..E6xxx source; old 4524 diagnostics are historical only"
+      ],
+      "target_paths": [
+        "compiler/src/diagnostic.rs",
+        "compiler/src/explain.rs",
+        "compiler/src/analysis/check.rs"
+      ],
+      "target_path_status": "selected defining leaf; predecessor .rs retained only until gated mod.rs/module cutover; new files unimplemented",
+      "language": "Rust",
+      "owner": "compiler; per-app draft ledger owner",
+      "task_ids": [
+        "T01",
+        "T02",
+        "T35",
+        "T41",
+        "LG06"
+      ],
+      "cutover_gate": "Source-built fresh corpus and roots, b/c/d/e separate from availability, complete/omitted no suppression; no old count proof",
+      "retained_paths": [
+        "compiler/src/diagnostic.rs",
+        "compiler/src/explain.rs",
+        "compiler/src/analysis/check.rs",
+        "implementation/DIAGNOSTICS.md"
+      ],
+      "availability": "source inspection only; no executed validation in this review"
+    },
+    {
+      "id": "LANG-DESCRIPTION",
+      "requirement": "One static checked description with source language, optional variants/location",
+      "disposition": "REQUIRED",
+      "source_paths": [
+        "compiler/src/syntax/parser.rs",
+        "compiler/src/analysis/effects.rs",
+        "compiler/src/ide/queries.rs"
+      ],
+      "evidence": [
+        "checked_descriptions/description_source source-present; D02/D03 source-language consumer contract"
+      ],
+      "target_paths": [
+        "compiler/src/syntax/parser/mod.rs",
+        "compiler/src/analysis/effects/descriptions.rs",
+        "compiler/src/codegen/ir/mod.rs",
+        "compiler/src/codegen/ir/model.rs",
+        "compiler/src/codegen/js/schema.rs",
+        "compiler/src/codegen/js/descriptors.rs",
+        "compiler/src/ide/queries.rs"
+      ],
+      "target_path_status": "selected defining leaf; predecessor .rs retained only until gated mod.rs/module cutover; new files unimplemented",
+      "language": "Rust",
+      "owner": "compiler",
+      "task_ids": [
+        "D02",
+        "D03",
+        "D06"
+      ],
+      "cutover_gate": "Inline/#/legacy/shared static references same slot; duplicate/dynamic/parameterized rejects; labels remain captions; MCP/IDE source prose",
+      "retained_paths": [
+        "compiler/src/syntax/parser.rs",
+        "compiler/src/analysis/effects.rs",
+        "compiler/src/ide/queries.rs"
+      ],
+      "availability": "source inspection only; no executed validation in this review"
+    },
+    {
+      "id": "LANG-REFERENCE",
+      "requirement": "Deterministic internal reference from located checked facts and authored examples",
+      "disposition": "REQUIRED",
+      "source_paths": [
+        "compiler/src/docs.rs",
+        "packages/contracts/src/reference.ts",
+        "packages/interfaces/src/docs/reference.ts",
+        "packages/cloudflare/src/cli/docs.ts",
+        "compiler/src/cli.rs"
+      ],
+      "evidence": [
+        "Current extractor/render/CLI source present; L-F01 field requiredness ignores ordinary array marker"
+      ],
+      "target_paths": [
+        "compiler/src/docs.rs",
+        "packages/contracts/src/reference.ts",
+        "packages/interfaces/src/docs/reference.ts",
+        "packages/cloudflare/src/cli/docs.ts",
+        "compiler/src/cli.rs"
+      ],
+      "target_path_status": "selected defining leaf; predecessor .rs retained only until gated mod.rs/module cutover; new files unimplemented",
+      "language": "Rust extraction; TS contract/render bridge",
+      "owner": "compiler/interfaces/platform; locale remains values",
+      "task_ids": [
+        "D04",
+        "D05",
+        "D06",
+        "T09"
+      ],
+      "cutover_gate": "Source/catalog/locale deterministic; escape authored prose; no handler/example execution or false availability; requiredness owner parity; actual runtime renderer resolution",
+      "retained_paths": [
+        "compiler/src/docs.rs",
+        "packages/contracts/src/reference.ts",
+        "packages/interfaces/src/docs/reference.ts",
+        "packages/cloudflare/src/cli/docs.ts",
+        "compiler/src/cli.rs"
+      ],
+      "availability": "source inspection only; no executed validation in this review"
+    },
+    {
+      "id": "LANG-EDITOR",
+      "requirement": "Shared checked source identity/help across CLI/LSP/IDE/format/lint",
+      "disposition": "REQUIRED",
+      "source_paths": [
+        "compiler/src/lsp/server.rs",
+        "compiler/src/ide/queries.rs",
+        "compiler/src/format.rs",
+        "compiler/src/lint/driver.rs"
+      ],
+      "evidence": [
+        "Current interfaces consume analysis tables; descriptions source-language contract"
+      ],
+      "target_paths": [
+        "compiler/src/lsp/server.rs",
+        "compiler/src/lsp/transport.rs",
+        "compiler/src/ide/queries.rs",
+        "compiler/src/ide/fixes.rs",
+        "compiler/src/ide/tokens.rs",
+        "compiler/src/format.rs",
+        "compiler/src/lint/driver.rs",
+        "compiler/src/lint/rules.rs",
+        "compiler/src/policy.rs"
+      ],
+      "target_path_status": "selected defining leaf; predecessor .rs retained only until gated mod.rs/module cutover; new files unimplemented",
+      "language": "Rust",
+      "owner": "compiler/editor tooling",
+      "task_ids": [
+        "D06",
+        "T35"
+      ],
+      "cutover_gate": "Fresh located CLI/LSP error parity, stale-fix protection, format #/##/variants/order idempotence; no alternate semantics",
+      "retained_paths": [
+        "compiler/src/lsp/server.rs",
+        "compiler/src/ide/queries.rs",
+        "compiler/src/format.rs",
+        "compiler/src/lint/driver.rs"
+      ],
+      "availability": "source inspection only; no executed validation in this review"
+    },
+    {
+      "id": "LANG-LIFETIME-EVOLUTION",
+      "requirement": "retain and predecessor-pinned migration/backfill facts from .can; activation separate",
+      "disposition": "REQUIRED",
+      "source_paths": [
+        "compiler/src/analysis/migrate_check.rs",
+        "compiler/src/analysis/effects.rs",
+        "compiler/src/codegen/artifact.rs"
+      ],
+      "evidence": [
+        "RetainRule/migrations and emitted artifact migration registry"
+      ],
+      "target_paths": [
+        "compiler/src/analysis/migrate_check.rs",
+        "compiler/src/analysis/effects/mod.rs",
+        "compiler/src/codegen/ir/mod.rs",
+        "compiler/src/codegen/ir/model.rs",
+        "compiler/src/codegen/artifact.rs"
+      ],
+      "target_path_status": "selected defining leaf; predecessor .rs retained only until gated mod.rs/module cutover; new files unimplemented",
+      "language": "Rust compiler; TS maintenance runtime",
+      "owner": "compiler + state/platform migration owner",
+      "task_ids": [
+        "T15",
+        "T41"
+      ],
+      "cutover_gate": "Typed before/desired mapping retains locks/refs/file IDs/history; unknown baseline/unsupported transfer blocks activation; not business tool",
+      "retained_paths": [
+        "compiler/src/analysis/migrate_check.rs",
+        "compiler/src/analysis/effects.rs",
+        "compiler/src/codegen/artifact.rs"
+      ],
+      "availability": "source inspection only; no executed validation in this review"
+    },
+    {
+      "id": "LANG-COMPANY-REVIEW",
+      "requirement": "Business-language policy/action/exception/assumption review from same source revision",
+      "disposition": "REQUIRED",
+      "source_paths": [
+        "REQUIREMENTS.md",
+        "compiler/src/analysis/effects.rs",
+        "compiler/src/docs.rs"
+      ],
+      "evidence": [
+        "Requirement one canonical primitive and company staff review; Handbook execution explicitly excluded in current schedule"
+      ],
+      "target_paths": [
+        "compiler/src/analysis/effects/mod.rs",
+        "compiler/src/codegen/artifact.rs"
+      ],
+      "target_path_status": "selected defining leaf; predecessor .rs retained only until gated mod.rs/module cutover; new files unimplemented",
+      "language": "Rust checked facts; consumer owner pending specific Handbook contract",
+      "owner": "compiler produces facts; owning Handbook consumer remains separate",
+      "task_ids": [
+        "T02",
+        "T13",
+        "T41"
+      ],
+      "cutover_gate": "Minimal internal docs does not claim all policies or Handbook; no approval inferred from AI description; unsupported consumer stays visible",
+      "retained_paths": [
+        "REQUIREMENTS.md",
+        "compiler/src/analysis/effects.rs",
+        "compiler/src/docs.rs"
+      ],
+      "availability": "source inspection only; no executed validation in this review"
+    },
+    {
+      "id": "LANG-VALUES-CONTRACT",
+      "requirement": "Public exact carriers/catalog/currency/error and synchronous exports stay canonical",
+      "disposition": "REQUIRED",
+      "source_paths": [
+        "packages/contracts/src/values.ts",
+        "packages/values/src/kinds.ts",
+        "packages/values/src/errors.ts",
+        "packages/values/src/catalog.ts",
+        "packages/values/src/currency-data.ts",
+        "packages/values/src/index.ts",
+        "packages/stdlib/src/index.ts"
+      ],
+      "evidence": [
+        "BigInt/Decimal class/structural money; shape guards differ from table/member/result checks"
+      ],
+      "target_paths": [
+        "packages/contracts/src/values.ts",
+        "packages/values/src/kinds.ts",
+        "packages/values/src/errors.ts",
+        "packages/values/src/catalog.ts",
+        "packages/values/src/currency-data.ts",
+        "packages/values/src/index.ts",
+        "packages/stdlib/src/index.ts"
+      ],
+      "target_path_status": "selected defining leaf; predecessor .rs retained only until gated mod.rs/module cutover; new files unimplemented",
+      "language": "TypeScript",
+      "owner": "contracts/values/stdlib owners",
+      "task_ids": [
+        "C01",
+        "C03",
+        "A03.4",
+        "A07.2",
+        "A08.1",
+        "A08.2"
+      ],
+      "cutover_gate": "No wrapper public handle/init drift or duplicate table; original carrier/freezing/error identities and order",
+      "retained_paths": [
+        "packages/contracts/src/values.ts",
+        "packages/values/src/kinds.ts",
+        "packages/values/src/errors.ts",
+        "packages/values/src/catalog.ts",
+        "packages/values/src/currency-data.ts",
+        "packages/values/src/index.ts",
+        "packages/stdlib/src/index.ts"
+      ],
+      "availability": "source inspection only; no executed validation in this review"
+    },
+    {
+      "id": "LANG-EXACT-MECHANISM",
+      "requirement": "Reusable pure exact raw/scratch math and numeric scalar codecs",
+      "disposition": "ACCEPTED-CONDITIONAL",
+      "source_paths": [
+        "packages/values/src/int.ts",
+        "packages/values/src/decimal.ts",
+        "packages/values/src/money.ts",
+        "packages/values/src/temporal.ts",
+        "packages/values/src/array.ts"
+      ],
+      "evidence": [
+        "compareInt arbitrary magnitude; result-only narrowing; money scale before value; repeated decimal property reads"
+      ],
+      "target_paths": [
+        "packages/values/semantics/src/numeric/integer.rs",
+        "packages/values/semantics/src/numeric/decimal.rs",
+        "packages/values/semantics/src/numeric/rounding.rs",
+        "packages/values/semantics/src/numeric/money.rs",
+        "packages/values/semantics/src/temporal/civil.rs",
+        "packages/values/semantics/src/temporal/instant.rs",
+        "packages/values/semantics/src/temporal/duration.rs",
+        "packages/values/semantics/src/aggregates/integer.rs",
+        "packages/values/semantics/src/aggregates/decimal.rs",
+        "packages/values/semantics/src/aggregates/money.rs",
+        "packages/values/semantics/src/aggregates/numeric.rs",
+        "packages/values/semantics/src/codecs/numeric.rs"
+      ],
+      "target_path_status": "selected defining leaf; predecessor .rs retained only until gated mod.rs/module cutover; new files unimplemented",
+      "language": "Rust private native/Wasm",
+      "owner": "exact-values branch owners; shared integrator",
+      "task_ids": [
+        "A03",
+        "A04",
+        "A05",
+        "A06",
+        "A07",
+        "A10",
+        "A11"
+      ],
+      "cutover_gate": "Actual native+binding raw parts/error parity and complete-call/native reuse benefit; TS public unknown paths retained",
+      "retained_paths": [
+        "packages/values/src/int.ts",
+        "packages/values/src/decimal.ts",
+        "packages/values/src/money.ts",
+        "packages/values/src/temporal.ts",
+        "packages/values/src/array.ts"
+      ],
+      "availability": "source inspection only; no executed validation in this review"
+    },
+    {
+      "id": "LANG-OWNED-VALIDATOR",
+      "requirement": "Single ordered owned whole-action interpreter, no full unknown port claim",
+      "disposition": "ACCEPTED-CONDITIONAL",
+      "source_paths": [
+        "packages/values/src/schema.ts",
+        "packages/values/src/wire.ts",
+        "packages/values/src/types.ts"
+      ],
+      "evidence": [
+        "normalizeSchema/validateValue/validateOperationInput unknown access; wire codecs traverse typed/opaque paths"
+      ],
+      "target_paths": [
+        "packages/values/src/prepared/plan.ts",
+        "packages/values/src/prepared/codec.ts",
+        "packages/values/src/prepared/validation.ts",
+        "packages/values/semantics/src/input.rs",
+        "packages/values/semantics/src/plans.rs",
+        "packages/values/semantics/src/profiles.rs",
+        "packages/values/semantics/src/validation.rs",
+        "packages/values/semantics/src/codecs/owned.rs"
+      ],
+      "target_path_status": "selected defining leaf; predecessor .rs retained only until gated mod.rs/module cutover; new files unimplemented",
+      "language": "Rust owned core; TS prepared baseline/legacy fa\u00e7ades",
+      "owner": "validation owner + exact-values integrator",
+      "task_ids": [
+        "V02",
+        "V03",
+        "V04",
+        "V05",
+        "V06",
+        "V07",
+        "V11",
+        "V12"
+      ],
+      "cutover_gate": "UTF-16/f64/presence/default/ref/order/errors/materialization parity; unsupported plans select TS before execution; no partial outputs/trap retry",
+      "retained_paths": [
+        "packages/values/src/schema.ts",
+        "packages/values/src/wire.ts",
+        "packages/values/src/types.ts"
+      ],
+      "availability": "source inspection only; no executed validation in this review"
+    },
+    {
+      "id": "LANG-OWNED-PROFILES",
+      "requirement": "Independent HTTP/MCP/state policy and owner-derived plan projection",
+      "disposition": "ACCEPTED-CONDITIONAL",
+      "source_paths": [
+        "packages/interfaces/src/http/operations.ts",
+        "packages/interfaces/src/mcp/schemas.ts",
+        "packages/interfaces/src/mcp/server.ts",
+        "packages/state/src/invocation/admission.ts"
+      ],
+      "evidence": [
+        "HTTP first-error framing/binding differs from accumulated values/state and strict state version; MCP extra ref order"
+      ],
+      "target_paths": [
+        "packages/interfaces/src/envelope/prepared.ts",
+        "packages/state/src/invocation/prepared-inputs.ts",
+        "packages/values/semantics/src/profiles/http.rs",
+        "packages/values/semantics/src/profiles/state.rs",
+        "packages/values/semantics/src/profiles/mcp.rs"
+      ],
+      "target_path_status": "selected defining leaf; predecessor .rs retained only until gated mod.rs/module cutover; new files unimplemented",
+      "language": "TS owner plans; Rust profile mechanisms",
+      "owner": "HTTP/MCP/state owners + validation integrator",
+      "task_ids": [
+        "V01",
+        "V02",
+        "V06",
+        "V08",
+        "V09",
+        "V10"
+      ],
+      "cutover_gate": "Actual profile parity includes intentional disagreements; public schema loader/frozen tags not inert provenance; optional MCP/forms adoption gated",
+      "retained_paths": [
+        "packages/interfaces/src/http/operations.ts",
+        "packages/interfaces/src/mcp/schemas.ts",
+        "packages/interfaces/src/mcp/server.ts",
+        "packages/state/src/invocation/admission.ts"
+      ],
+      "availability": "source inspection only; no executed validation in this review"
+    },
+    {
+      "id": "LANG-HOST-OBSERVABLE",
+      "requirement": "Keep arbitrary JS unknown/carriers/callback traversal semantics until proof",
+      "disposition": "REQUIRED",
+      "source_paths": [
+        "packages/values/src/schema.ts",
+        "packages/values/src/wire.ts",
+        "packages/values/src/decimal.ts",
+        "packages/values/src/array.ts",
+        "packages/values/src/equality.ts",
+        "packages/state/src/invocation/replay.ts"
+      ],
+      "evidence": [
+        "Object.keys/property read iteration/toJSON/callbacks/default and min-max identities are observable"
+      ],
+      "target_paths": [
+        "packages/values/src/schema.ts",
+        "packages/values/src/wire.ts",
+        "packages/values/src/decimal.ts",
+        "packages/values/src/array.ts",
+        "packages/values/src/equality.ts",
+        "packages/state/src/invocation/replay.ts"
+      ],
+      "target_path_status": "selected defining leaf; predecessor .rs retained only until gated mod.rs/module cutover; new files unimplemented",
+      "language": "TypeScript host",
+      "owner": "values/state host owners",
+      "task_ids": [
+        "C01",
+        "C02",
+        "A02",
+        "A08",
+        "V01",
+        "V02",
+        "V05",
+        "V09"
+      ],
+      "cutover_gate": "Getter/proxy/cycle/hole/symbol/prototype/iteration/throw/callback/order/identity traces; no automatic snapshot adoption; raw replay hash unchanged",
+      "retained_paths": [
+        "packages/values/src/schema.ts",
+        "packages/values/src/wire.ts",
+        "packages/values/src/decimal.ts",
+        "packages/values/src/array.ts",
+        "packages/values/src/equality.ts",
+        "packages/state/src/invocation/replay.ts"
+      ],
+      "availability": "source inspection only; no executed validation in this review"
+    },
+    {
+      "id": "LANG-ABI-LIFECYCLE",
+      "requirement": "Private ownership tokens, plan generations, request lifecycle and selected startup",
+      "disposition": "ACCEPTED-CONDITIONAL",
+      "source_paths": [
+        "docs/research/package-subsystem-ports-20261006/implementation-plans/input-validation.md"
+      ],
+      "evidence": [
+        "Private WeakMap token/protected snapshot, ordered lossless transport, demand-ordered host predicate protocol proposed"
+      ],
+      "target_paths": [
+        "packages/values/bindings/backend.ts",
+        "packages/values/bindings/bootstrap.ts",
+        "packages/values/bindings/carriers.ts",
+        "packages/values/bindings/owned-input.ts",
+        "packages/values/bindings/plans.ts",
+        "packages/values/bindings/validation.ts",
+        "packages/values/bindings/materialize.ts",
+        "packages/values/bindings/src/lib.rs",
+        "packages/values/bindings/src/exact.rs",
+        "packages/values/semantics/src/transport/mod.rs",
+        "packages/values/semantics/src/transport/exact.rs"
+      ],
+      "target_path_status": "selected defining leaf; predecessor .rs retained only until gated mod.rs/module cutover; new files unimplemented",
+      "language": "TypeScript host / Rust private transport",
+      "owner": "one common integrator; validation token/plan/input owners",
+      "task_ids": [
+        "C03",
+        "A07",
+        "V03",
+        "V05",
+        "V07",
+        "V11"
+      ],
+      "cutover_gate": "No token after untrusted callback; release success/replay/denial/error/cancel/disconnect; generations block stale/foreign handles; limits versioned with no legacy narrowing",
+      "retained_paths": [
+        "docs/research/package-subsystem-ports-20261006/implementation-plans/input-validation.md"
+      ],
+      "availability": "source inspection only; no executed validation in this review"
+    },
+    {
+      "id": "LANG-CANONICAL-CONSUMERS",
+      "requirement": "Real HTTP/state bridge order/authority and separate production route proof",
+      "disposition": "REQUIRED",
+      "source_paths": [
+        "packages/interfaces/src/http/limits.ts",
+        "packages/interfaces/src/http/operations.ts",
+        "packages/state/src/invocation/invoke.ts",
+        "packages/state/src/invocation/replay.ts",
+        "packages/cloudflare/src/runtime/invoke.ts",
+        "packages/cloudflare/src/worker/assembly.ts"
+      ],
+      "evidence": [
+        "Owning handler source; assembly line 1128 explicit HTTP 501; rejected receipt flow source"
+      ],
+      "target_paths": [
+        "packages/interfaces/src/http/limits.ts",
+        "packages/interfaces/src/http/operations.ts",
+        "packages/state/src/invocation/registry.ts",
+        "packages/state/src/invocation/admission.ts",
+        "packages/state/src/invocation/invoke.ts",
+        "packages/state/src/invocation/replay.ts",
+        "packages/cloudflare/src/runtime/invoke.ts",
+        "packages/cloudflare/src/worker/assembly.ts"
+      ],
+      "target_path_status": "selected defining leaf; predecessor .rs retained only until gated mod.rs/module cutover; new files unimplemented",
+      "language": "TypeScript authority/transport",
+      "owner": "interfaces/state/runtime owners",
+      "task_ids": [
+        "T16",
+        "T17",
+        "T18",
+        "T19",
+        "V08",
+        "V09"
+      ],
+      "cutover_gate": "Verified identity/CSRF/body cap/framing; state replay before new validation; real store/fences; port fixture distinct from default deploy; preserving 501 is blocked scope not completion",
+      "retained_paths": [
+        "packages/interfaces/src/http/limits.ts",
+        "packages/interfaces/src/http/operations.ts",
+        "packages/state/src/invocation/invoke.ts",
+        "packages/state/src/invocation/replay.ts",
+        "packages/cloudflare/src/runtime/invoke.ts",
+        "packages/cloudflare/src/worker/assembly.ts"
+      ],
+      "availability": "source inspection only; no executed validation in this review"
+    },
+    {
+      "id": "LANG-BINARY-DELIVERY",
+      "requirement": "Versioned package JS/Wasm release inventory and actual Worker initialization",
+      "disposition": "ACCEPTED-CONDITIONAL",
+      "source_paths": [
+        "packages/values/package.json",
+        "packages/cloudflare/src/deploy/bundle.ts",
+        "packages/cloudflare/src/dev/local-run.ts",
+        "packages/testkit/src/scopes/local.ts"
+      ],
+      "evidence": [
+        "Current values package TS build/dist only; C04 owns binary delivery outside core"
+      ],
+      "target_paths": [
+        "packages/values/Cargo.toml",
+        "packages/values/Cargo.lock",
+        "packages/values/semantics/Cargo.toml",
+        "packages/values/bindings/Cargo.toml",
+        "packages/values/scripts/build-semantics.mjs",
+        "packages/values/scripts/emit-semantics-inputs.mjs",
+        "packages/values/package.json",
+        "packages/values/tsconfig.json",
+        "packages/cloudflare/src/deploy/bundle.ts",
+        "packages/cloudflare/src/dev/local-run.ts",
+        "packages/testkit/src/scopes/local.ts"
+      ],
+      "target_path_status": "selected defining leaf; predecessor .rs retained only until gated mod.rs/module cutover; new files unimplemented",
+      "language": "Cargo/Rust build; JS/TS release delivery",
+      "owner": "shared values integrator + C04 delivery owners",
+      "task_ids": [
+        "C04",
+        "A07",
+        "A10",
+        "V08",
+        "V11",
+        "V12"
+      ],
+      "cutover_gate": "Real bytes/digests/module registration/export declarations in released package; missing/corrupt/version/init selected assets fail startup; rollback supported",
+      "retained_paths": [
+        "packages/values/package.json",
+        "packages/cloudflare/src/deploy/bundle.ts",
+        "packages/cloudflare/src/dev/local-run.ts",
+        "packages/testkit/src/scopes/local.ts"
+      ],
+      "availability": "source inspection only; no executed validation in this review"
+    },
+    {
+      "id": "LANG-COMPILER-ENTRY",
+      "requirement": "One Rust compiler library/thin binary, source identities, ordered JSON protocol/source maps and truthful build provenance",
+      "disposition": "REQUIRED",
+      "source_paths": [
+        "compiler/src/lib.rs",
+        "compiler/src/main.rs",
+        "compiler/src/cli.rs",
+        "compiler/src/source.rs",
+        "compiler/src/json.rs",
+        "compiler/src/codegen/sourcemap.rs",
+        "compiler/Cargo.toml",
+        "compiler/Cargo.lock",
+        "compiler/build.rs",
+        "compiler/README.md",
+        "compiler/can-completions.bash",
+        "compiler/can-completions.fish",
+        "compiler/can-completions.zsh"
+      ],
+      "evidence": [
+        "lib one model; main panic to E7005 exit 2; source hash/span database; JSON raw lexemes/ordered keys; build.rs records commit"
+      ],
+      "target_paths": [
+        "compiler/src/lib.rs",
+        "compiler/src/main.rs",
+        "compiler/src/cli.rs",
+        "compiler/src/source.rs",
+        "compiler/src/json.rs",
+        "compiler/src/codegen/sourcemap.rs",
+        "compiler/Cargo.toml",
+        "compiler/Cargo.lock",
+        "compiler/build.rs",
+        "compiler/README.md",
+        "compiler/can-completions.bash",
+        "compiler/can-completions.fish",
+        "compiler/can-completions.zsh"
+      ],
+      "target_path_status": "selected defining leaf; predecessor .rs retained only until gated mod.rs/module cutover; new files unimplemented",
+      "language": "Rust; Cargo and shell packaging",
+      "owner": "compiler",
+      "task_ids": [
+        "T01",
+        "T35",
+        "T41",
+        "D05"
+      ],
+      "cutover_gate": "Actual source-built CLI/version/install/editor joins with consistent exits/help/flags and source spans; completion scripts mirror command vocabulary; compiler not values workspace member",
+      "retained_paths": [
+        "compiler/src/lib.rs",
+        "compiler/src/main.rs",
+        "compiler/src/cli.rs",
+        "compiler/src/source.rs",
+        "compiler/src/json.rs",
+        "compiler/src/codegen/sourcemap.rs",
+        "compiler/Cargo.toml",
+        "compiler/Cargo.lock",
+        "compiler/build.rs",
+        "compiler/README.md",
+        "compiler/can-completions.bash",
+        "compiler/can-completions.fish",
+        "compiler/can-completions.zsh"
+      ],
+      "availability": "source inspection only; no executed validation"
+    },
+    {
+      "id": "LANG-HOST-TEXT-TIME",
+      "requirement": "Retain required Unicode, static locale fallback, ICU profile and timezone host database semantics",
+      "disposition": "REQUIRED",
+      "source_paths": [
+        "packages/values/src/text.ts",
+        "packages/values/src/locale.ts",
+        "packages/values/src/icu.ts",
+        "packages/values/src/timezone.ts"
+      ],
+      "evidence": [
+        "locale canonicalLocale/resolveVariant; bounded ICU with exact digit formatting and fail-closed plural selection; pinned host zone data and explicit fold/gap"
+      ],
+      "target_paths": [
+        "packages/values/src/text.ts",
+        "packages/values/src/locale.ts",
+        "packages/values/src/icu.ts",
+        "packages/values/src/timezone.ts"
+      ],
+      "target_path_status": "selected defining leaf; predecessor .rs retained only until gated mod.rs/module cutover; new files unimplemented",
+      "language": "TypeScript host Intl",
+      "owner": "values",
+      "task_ids": [
+        "D05",
+        "D06",
+        "T35",
+        "T41"
+      ],
+      "cutover_gate": "Catalog/public exports remain complete; actual pinned host/date/locale/UTF-16/text/ICU conformance, no Rust clone or unstated timezone data upgrade",
+      "retained_paths": [
+        "packages/values/src/text.ts",
+        "packages/values/src/locale.ts",
+        "packages/values/src/icu.ts",
+        "packages/values/src/timezone.ts"
+      ],
+      "availability": "source inspection only; no executed validation"
+    },
+    {
+      "id": "LANG-PURE-DISPATCH",
+      "requirement": "Typed supplied-value builtin dispatch and finite action/invocation carriers; no authorization in makers",
+      "disposition": "REQUIRED",
+      "source_paths": [
+        "packages/values/src/stdlib-pure.ts",
+        "packages/values/src/array.ts",
+        "packages/values/src/equality.ts",
+        "packages/values/src/types.ts"
+      ],
+      "evidence": [
+        "stdlib action/invocation package supplied checked values; choose returns original input; query aggregates owned elsewhere"
+      ],
+      "target_paths": [
+        "packages/values/src/stdlib-pure.ts",
+        "packages/values/src/array.ts",
+        "packages/values/src/equality.ts",
+        "packages/values/src/types.ts"
+      ],
+      "target_path_status": "selected defining leaf; predecessor .rs retained only until gated mod.rs/module cutover; new files unimplemented",
+      "language": "TypeScript host; Rust compiler expected context",
+      "owner": "values supplied-value owner; compiler construction checks; state admission",
+      "task_ids": [
+        "T10",
+        "T12",
+        "T13",
+        "T14",
+        "T15",
+        "T41"
+      ],
+      "cutover_gate": "Finite typed canonical operations, full protected ref/version bindings at correct owner; no string dispatcher, callback port or implicit authority from carrier",
+      "retained_paths": [
+        "packages/values/src/stdlib-pure.ts",
+        "packages/values/src/array.ts",
+        "packages/values/src/equality.ts",
+        "packages/values/src/types.ts"
+      ],
+      "availability": "source inspection only; no executed validation"
+    },
+    {
+      "id": "LANG-CONFORMANCE-ARTIFACTS",
+      "requirement": "Meaningful compiler fixtures and published conformance remain versioned independent proof sources",
+      "disposition": "REQUIRED",
+      "source_paths": [
+        "compiler/tests/analysis.rs",
+        "compiler/tests/check.rs",
+        "compiler/tests/codegen.rs",
+        "compiler/tests/effects.rs",
+        "compiler/tests/b4_examples.rs",
+        "compiler/tests/docs.rs",
+        "packages/values/conformance/v1/README.md",
+        "packages/values/conformance/v1/values.json",
+        "packages/values/test/conformance.test.ts"
+      ],
+      "evidence": [
+        "Source-path inventory includes focused authored boundary fixtures; existing vectors are retained, not rewritten to port output"
+      ],
+      "target_paths": [
+        "compiler/tests/analysis.rs",
+        "compiler/tests/check.rs",
+        "compiler/tests/codegen.rs",
+        "compiler/tests/effects.rs",
+        "compiler/tests/b4_examples.rs",
+        "compiler/tests/docs.rs",
+        "packages/values/conformance/v1/README.md",
+        "packages/values/conformance/v1/values.json",
+        "packages/values/test/conformance.test.ts"
+      ],
+      "target_path_status": "selected defining leaf; predecessor .rs retained only until gated mod.rs/module cutover; new files unimplemented",
+      "language": "Rust/TypeScript test source; JSON vectors",
+      "owner": "compiler/values test owners",
+      "task_ids": [
+        "T01",
+        "T02",
+        "T23",
+        "T41",
+        "A02",
+        "A10",
+        "V02",
+        "V11",
+        "D06"
+      ],
+      "cutover_gate": "Executed proof future only; keep independent values/business observations and all targeted regression controls; port-private vectors supplement published v1",
+      "retained_paths": [
+        "compiler/tests/analysis.rs",
+        "compiler/tests/check.rs",
+        "compiler/tests/codegen.rs",
+        "compiler/tests/effects.rs",
+        "compiler/tests/b4_examples.rs",
+        "compiler/tests/docs.rs",
+        "packages/values/conformance/v1/README.md",
+        "packages/values/conformance/v1/values.json",
+        "packages/values/test/conformance.test.ts"
+      ],
+      "availability": "source inspection only; no executed validation"
+    },
+    {
+      "id": "LANG-CORPUS-GROUNDED",
+      "requirement": "Accepted model-bound corpus generates finite answer/cancel/reconcile/refresh/status/available, Run and opaque grounded Answer with all-used-context current disclosure",
+      "disposition": "REQUIRED",
+      "source_paths": [
+        "DESIGN.md",
+        "design/complex-apps/knowledge.md",
+        "draft/CanKnowledge.can",
+        "packages/contracts/src/services.ts",
+        "compiler/src/analysis/resolve.rs",
+        "compiler/src/analysis/types.rs",
+        "compiler/src/analysis/effects.rs",
+        "compiler/src/codegen/ir.rs",
+        "compiler/src/codegen/js.rs"
+      ],
+      "evidence": [
+        "DESIGN.md:696-698 complete corpus contract normative; knowledge.md:3 accepted, :37 genuine caller, :45 opaque nonconstructible answer, :49 all used sources/current viewer authority; CanKnowledge.can:25 declaration, :147 ask, :171 read_answer and revocation sequence; services.ts:703-715 B8 scope is T12 inventory only"
+      ],
+      "target_paths": [
+        "compiler/src/analysis/resolve.rs",
+        "compiler/src/analysis/types/model.rs",
+        "compiler/src/analysis/types/declarations.rs",
+        "compiler/src/analysis/types/members.rs",
+        "compiler/src/analysis/types/constructs.rs",
+        "compiler/src/analysis/types/calls.rs",
+        "compiler/src/analysis/types/effect_calls.rs",
+        "compiler/src/analysis/effects/declarations.rs",
+        "compiler/src/analysis/effects/tables.rs",
+        "compiler/src/analysis/effects/rules.rs",
+        "compiler/src/codegen/ir/model.rs",
+        "compiler/src/codegen/ir/decode_items.rs",
+        "compiler/src/codegen/ir/decode_expr.rs",
+        "compiler/src/codegen/js/descriptors.rs",
+        "compiler/src/codegen/js/expressions.rs",
+        "packages/contracts/src/corpus.ts"
+      ],
+      "target_path_status": "selected required defining allocation; new corpus.ts producer contract unimplemented; runtime/index/retrieval/disclosure producer joins require their owning protocol, not re-adoption of accepted grammar",
+      "language": "Rust compiler / TypeScript owning protected contract and runtime disclosure",
+      "owner": "compiler generates owner facts; corpus/work/state/interface/UI owners supply protected runtime and current disclosure",
+      "task_ids": [
+        "T12",
+        "T13",
+        "T14",
+        "T15",
+        "T22",
+        "T23",
+        "T32",
+        "T40",
+        "T41"
+      ],
+      "cutover_gate": "No plain structural/text answer or copy to provider; authentic origin/ref/proof/coverage; all used source row-field-file grants at retrieval/dispatch/progress/history/render/cache; revoked context withholds whole answer, unrelated change marked historical/as-of; real fixture/read revocation proof; B8 scope never declines requirement",
+      "retained_paths": [
+        "packages/contracts/src/services.ts"
+      ],
+      "availability": "required missing integration; no executed proof; no new grammar JEV gate"
+    }
+  ],
+  "task_manifest_allocations": [
+    {
+      "plan": "exact-values",
+      "id": "A01.1",
+      "title": "Freeze owner, caller and observable-contract inventory",
+      "lane": "core",
+      "depends_on": [
+        "C01.ready"
+      ],
+      "target_writes": [
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/exact-values/core/contracts.md"
+      ],
+      "owner_fit": "shared workspace/ABI/module/binding integrator; serial common-file writer",
+      "source_manifest": "docs/research/package-subsystem-ports-20261006/implementation-plans/exact-values.tasks.json",
+      "scope_limit": "package port only; compiler-unchanged does not complete required T09/T10/T11/T15/D-series compiler work",
+      "execution_status": "not executed by this planning review",
+      "acceptance_authority": "exact task acceptance in linked source_manifest; not repeated as current proof"
+    },
+    {
+      "plan": "exact-values",
+      "id": "A01.2",
+      "title": "Nominate complete-call workloads and ratify budgets",
+      "lane": "fixtures",
+      "depends_on": [
+        "A01.1",
+        "C05.ready"
+      ],
+      "target_writes": [
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/exact-values/fixtures/workload-contract.json"
+      ],
+      "owner_fit": "independent conformance/actual consumer/measurement/release review; no adoption inferred from task completion",
+      "source_manifest": "docs/research/package-subsystem-ports-20261006/implementation-plans/exact-values.tasks.json",
+      "scope_limit": "package port only; compiler-unchanged does not complete required T09/T10/T11/T15/D-series compiler work",
+      "execution_status": "not executed by this planning review",
+      "acceptance_authority": "exact task acceptance in linked source_manifest; not repeated as current proof"
+    },
+    {
+      "plan": "exact-values",
+      "id": "A01",
+      "title": "Scope and adoption contract complete",
+      "lane": "core",
+      "depends_on": [
+        "A01.1",
+        "A01.2"
+      ],
+      "target_writes": [],
+      "owner_fit": "shared workspace/ABI/module/binding integrator; serial common-file writer",
+      "source_manifest": "docs/research/package-subsystem-ports-20261006/implementation-plans/exact-values.tasks.json",
+      "scope_limit": "package port only; compiler-unchanged does not complete required T09/T10/T11/T15/D-series compiler work",
+      "execution_status": "not executed by this planning review",
+      "acceptance_authority": "exact task acceptance in linked source_manifest; not repeated as current proof"
+    },
+    {
+      "plan": "exact-values",
+      "id": "A02.1",
+      "title": "Capture deterministic raw and observable TS vectors",
+      "lane": "fixtures",
+      "depends_on": [
+        "A01",
+        "C02.ready",
+        "C05.ready"
+      ],
+      "target_writes": [
+        "packages/values/conformance/ports/exact/cases.json"
+      ],
+      "owner_fit": "independent conformance/actual consumer/measurement/release review; no adoption inferred from task completion",
+      "source_manifest": "docs/research/package-subsystem-ports-20261006/implementation-plans/exact-values.tasks.json",
+      "scope_limit": "package port only; compiler-unchanged does not complete required T09/T10/T11/T15/D-series compiler work",
+      "execution_status": "not executed by this planning review",
+      "acceptance_authority": "exact task acceptance in linked source_manifest; not repeated as current proof"
+    },
+    {
+      "plan": "exact-values",
+      "id": "A02.2",
+      "title": "Build current/prepared TS observers and differential shell",
+      "lane": "fixtures",
+      "depends_on": [
+        "A02.1"
+      ],
+      "target_writes": [
+        "packages/values/conformance/ports/exact/differential.mjs",
+        "packages/values/conformance/ports/exact/workloads.mjs",
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/exact-values/fixtures/ts-baseline.json"
+      ],
+      "owner_fit": "independent conformance/actual consumer/measurement/release review; no adoption inferred from task completion",
+      "source_manifest": "docs/research/package-subsystem-ports-20261006/implementation-plans/exact-values.tasks.json",
+      "scope_limit": "package port only; compiler-unchanged does not complete required T09/T10/T11/T15/D-series compiler work",
+      "execution_status": "not executed by this planning review",
+      "acceptance_authority": "exact task acceptance in linked source_manifest; not repeated as current proof"
+    },
+    {
+      "plan": "exact-values",
+      "id": "A02",
+      "title": "Observable numeric baseline ready",
+      "lane": "fixtures",
+      "depends_on": [
+        "A02.1",
+        "A02.2"
+      ],
+      "target_writes": [],
+      "owner_fit": "independent conformance/actual consumer/measurement/release review; no adoption inferred from task completion",
+      "source_manifest": "docs/research/package-subsystem-ports-20261006/implementation-plans/exact-values.tasks.json",
+      "scope_limit": "package port only; compiler-unchanged does not complete required T09/T10/T11/T15/D-series compiler work",
+      "execution_status": "not executed by this planning review",
+      "acceptance_authority": "exact task acceptance in linked source_manifest; not repeated as current proof"
+    },
+    {
+      "plan": "exact-values",
+      "id": "A03.1",
+      "title": "Build shared representations, failures and workspace foundation",
+      "lane": "core",
+      "depends_on": [
+        "A02",
+        "C03.ready"
+      ],
+      "target_writes": [
+        "packages/values/Cargo.toml",
+        "packages/values/Cargo.lock",
+        "packages/values/semantics/Cargo.toml",
+        "packages/values/bindings/Cargo.toml",
+        "packages/values/bindings/src/lib.rs",
+        "packages/values/semantics/src/lib.rs",
+        "packages/values/semantics/src/failures.rs",
+        "packages/values/semantics/src/representations/mod.rs",
+        "packages/values/semantics/src/representations/numeric.rs",
+        "packages/values/semantics/src/transport/mod.rs",
+        "packages/values/semantics/src/transport/exact.rs",
+        "packages/values/semantics/src/numeric/mod.rs",
+        "packages/values/semantics/src/temporal/mod.rs",
+        "packages/values/semantics/src/aggregates/mod.rs",
+        "packages/values/semantics/src/codecs/mod.rs",
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/exact-values/core/foundation.md"
+      ],
+      "owner_fit": "shared workspace/ABI/module/binding integrator; serial common-file writer",
+      "source_manifest": "docs/research/package-subsystem-ports-20261006/implementation-plans/exact-values.tasks.json",
+      "scope_limit": "package port only; compiler-unchanged does not complete required T09/T10/T11/T15/D-series compiler work",
+      "execution_status": "not executed by this planning review",
+      "acceptance_authority": "exact task acceptance in linked source_manifest; not repeated as current proof"
+    },
+    {
+      "plan": "exact-values",
+      "id": "A03.foundation",
+      "title": "Shared core foundation ready for independent algorithms and validation",
+      "lane": "core",
+      "depends_on": [
+        "A03.1"
+      ],
+      "target_writes": [],
+      "owner_fit": "shared workspace/ABI/module/binding integrator; serial common-file writer",
+      "source_manifest": "docs/research/package-subsystem-ports-20261006/implementation-plans/exact-values.tasks.json",
+      "scope_limit": "package port only; compiler-unchanged does not complete required T09/T10/T11/T15/D-series compiler work",
+      "execution_status": "not executed by this planning review",
+      "acceptance_authority": "exact task acceptance in linked source_manifest; not repeated as current proof"
+    },
+    {
+      "plan": "exact-values",
+      "id": "A03.2",
+      "title": "Port unrestricted integer mechanisms",
+      "lane": "integer",
+      "depends_on": [
+        "A03.foundation"
+      ],
+      "target_writes": [
+        "packages/values/semantics/src/numeric/integer.rs",
+        "packages/values/semantics/tests/integer_vectors.rs",
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/exact-values/integer/parity.json"
+      ],
+      "owner_fit": "Rust pure exact algorithm; keep raw observable host admission TS",
+      "source_manifest": "docs/research/package-subsystem-ports-20261006/implementation-plans/exact-values.tasks.json",
+      "scope_limit": "package port only; compiler-unchanged does not complete required T09/T10/T11/T15/D-series compiler work",
+      "execution_status": "not executed by this planning review",
+      "acceptance_authority": "exact task acceptance in linked source_manifest; not repeated as current proof"
+    },
+    {
+      "plan": "exact-values",
+      "id": "A03.3",
+      "title": "Port half-even rational and scale rounding",
+      "lane": "rounding",
+      "depends_on": [
+        "A03.foundation"
+      ],
+      "target_writes": [
+        "packages/values/semantics/src/numeric/rounding.rs",
+        "packages/values/semantics/tests/rounding_vectors.rs",
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/exact-values/rounding/parity.json"
+      ],
+      "owner_fit": "Rust pure exact algorithm; keep raw observable host admission TS",
+      "source_manifest": "docs/research/package-subsystem-ports-20261006/implementation-plans/exact-values.tasks.json",
+      "scope_limit": "package port only; compiler-unchanged does not complete required T09/T10/T11/T15/D-series compiler work",
+      "execution_status": "not executed by this planning review",
+      "acceptance_authority": "exact task acceptance in linked source_manifest; not repeated as current proof"
+    },
+    {
+      "plan": "exact-values",
+      "id": "A03.4",
+      "title": "Generate owner-derived currency and catalog build inputs",
+      "lane": "core",
+      "depends_on": [
+        "A03.foundation"
+      ],
+      "target_writes": [
+        "packages/values/scripts/emit-semantics-inputs.mjs",
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/exact-values/core/catalog-inputs.json"
+      ],
+      "owner_fit": "shared workspace/ABI/module/binding integrator; serial common-file writer",
+      "source_manifest": "docs/research/package-subsystem-ports-20261006/implementation-plans/exact-values.tasks.json",
+      "scope_limit": "package port only; compiler-unchanged does not complete required T09/T10/T11/T15/D-series compiler work",
+      "execution_status": "not executed by this planning review",
+      "acceptance_authority": "exact task acceptance in linked source_manifest; not repeated as current proof"
+    },
+    {
+      "plan": "exact-values",
+      "id": "A03",
+      "title": "Native integer and rounding foundation complete",
+      "lane": "core",
+      "depends_on": [
+        "A03.foundation",
+        "A03.2",
+        "A03.3",
+        "A03.4"
+      ],
+      "target_writes": [],
+      "owner_fit": "shared workspace/ABI/module/binding integrator; serial common-file writer",
+      "source_manifest": "docs/research/package-subsystem-ports-20261006/implementation-plans/exact-values.tasks.json",
+      "scope_limit": "package port only; compiler-unchanged does not complete required T09/T10/T11/T15/D-series compiler work",
+      "execution_status": "not executed by this planning review",
+      "acceptance_authority": "exact task acceptance in linked source_manifest; not repeated as current proof"
+    },
+    {
+      "plan": "exact-values",
+      "id": "A04.1",
+      "title": "Port decimal construction, parsing and stored parts",
+      "lane": "decimal",
+      "depends_on": [
+        "A03.foundation"
+      ],
+      "target_writes": [
+        "packages/values/semantics/src/numeric/decimal.rs",
+        "packages/values/semantics/tests/decimal_vectors.rs",
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/exact-values/decimal/construction.json"
+      ],
+      "owner_fit": "Rust pure exact algorithm; keep raw observable host admission TS",
+      "source_manifest": "docs/research/package-subsystem-ports-20261006/implementation-plans/exact-values.tasks.json",
+      "scope_limit": "package port only; compiler-unchanged does not complete required T09/T10/T11/T15/D-series compiler work",
+      "execution_status": "not executed by this planning review",
+      "acceptance_authority": "exact task acceptance in linked source_manifest; not repeated as current proof"
+    },
+    {
+      "plan": "exact-values",
+      "id": "A04.2",
+      "title": "Port decimal math and both ratio branches",
+      "lane": "decimal",
+      "depends_on": [
+        "A04.1",
+        "A03.2",
+        "A03.3"
+      ],
+      "target_writes": [
+        "packages/values/semantics/src/numeric/decimal.rs",
+        "packages/values/semantics/tests/decimal_vectors.rs",
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/exact-values/decimal/arithmetic.json"
+      ],
+      "owner_fit": "Rust pure exact algorithm; keep raw observable host admission TS",
+      "source_manifest": "docs/research/package-subsystem-ports-20261006/implementation-plans/exact-values.tasks.json",
+      "scope_limit": "package port only; compiler-unchanged does not complete required T09/T10/T11/T15/D-series compiler work",
+      "execution_status": "not executed by this planning review",
+      "acceptance_authority": "exact task acceptance in linked source_manifest; not repeated as current proof"
+    },
+    {
+      "plan": "exact-values",
+      "id": "A04.3",
+      "title": "Port currency and basic money operations",
+      "lane": "money",
+      "depends_on": [
+        "A03.foundation",
+        "A03.2",
+        "A03.4"
+      ],
+      "target_writes": [
+        "packages/values/semantics/src/numeric/money.rs",
+        "packages/values/semantics/tests/money_vectors.rs",
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/exact-values/money/basic.json"
+      ],
+      "owner_fit": "Rust pure exact algorithm; keep raw observable host admission TS",
+      "source_manifest": "docs/research/package-subsystem-ports-20261006/implementation-plans/exact-values.tasks.json",
+      "scope_limit": "package port only; compiler-unchanged does not complete required T09/T10/T11/T15/D-series compiler work",
+      "execution_status": "not executed by this planning review",
+      "acceptance_authority": "exact task acceptance in linked source_manifest; not repeated as current proof"
+    },
+    {
+      "plan": "exact-values",
+      "id": "A04.4",
+      "title": "Join money factors, one-round conversion and moneyRatio",
+      "lane": "money",
+      "depends_on": [
+        "A04.3",
+        "A04.2",
+        "A03.3"
+      ],
+      "target_writes": [
+        "packages/values/semantics/src/numeric/money.rs",
+        "packages/values/semantics/tests/money_vectors.rs",
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/exact-values/money/factors.json"
+      ],
+      "owner_fit": "Rust pure exact algorithm; keep raw observable host admission TS",
+      "source_manifest": "docs/research/package-subsystem-ports-20261006/implementation-plans/exact-values.tasks.json",
+      "scope_limit": "package port only; compiler-unchanged does not complete required T09/T10/T11/T15/D-series compiler work",
+      "execution_status": "not executed by this planning review",
+      "acceptance_authority": "exact task acceptance in linked source_manifest; not repeated as current proof"
+    },
+    {
+      "plan": "exact-values",
+      "id": "A04.5",
+      "title": "Expose pure numeric scalar codecs for validation reuse",
+      "lane": "core",
+      "depends_on": [
+        "A04.1",
+        "A04.3",
+        "C03.ready"
+      ],
+      "target_writes": [
+        "packages/values/semantics/src/codecs/numeric.rs",
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/exact-values/core/numeric-codecs.json"
+      ],
+      "owner_fit": "shared workspace/ABI/module/binding integrator; serial common-file writer",
+      "source_manifest": "docs/research/package-subsystem-ports-20261006/implementation-plans/exact-values.tasks.json",
+      "scope_limit": "package port only; compiler-unchanged does not complete required T09/T10/T11/T15/D-series compiler work",
+      "execution_status": "not executed by this planning review",
+      "acceptance_authority": "exact task acceptance in linked source_manifest; not repeated as current proof"
+    },
+    {
+      "plan": "exact-values",
+      "id": "A04",
+      "title": "Decimal, money and numeric codecs complete",
+      "lane": "core",
+      "depends_on": [
+        "A04.1",
+        "A04.2",
+        "A04.3",
+        "A04.4",
+        "A04.5"
+      ],
+      "target_writes": [],
+      "owner_fit": "shared workspace/ABI/module/binding integrator; serial common-file writer",
+      "source_manifest": "docs/research/package-subsystem-ports-20261006/implementation-plans/exact-values.tasks.json",
+      "scope_limit": "package port only; compiler-unchanged does not complete required T09/T10/T11/T15/D-series compiler work",
+      "execution_status": "not executed by this planning review",
+      "acceptance_authority": "exact task acceptance in linked source_manifest; not repeated as current proof"
+    },
+    {
+      "plan": "exact-values",
+      "id": "A05.1",
+      "title": "Port UTC civil dates and range operations",
+      "lane": "temporal",
+      "depends_on": [
+        "A03.foundation"
+      ],
+      "target_writes": [
+        "packages/values/semantics/src/temporal/civil.rs",
+        "packages/values/semantics/tests/temporal_vectors.rs",
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/exact-values/temporal/civil.json"
+      ],
+      "owner_fit": "Rust pure exact algorithm; keep raw observable host admission TS",
+      "source_manifest": "docs/research/package-subsystem-ports-20261006/implementation-plans/exact-values.tasks.json",
+      "scope_limit": "package port only; compiler-unchanged does not complete required T09/T10/T11/T15/D-series compiler work",
+      "execution_status": "not executed by this planning review",
+      "acceptance_authority": "exact task acceptance in linked source_manifest; not repeated as current proof"
+    },
+    {
+      "plan": "exact-values",
+      "id": "A05.2",
+      "title": "Port exact duration checks and operations",
+      "lane": "temporal",
+      "depends_on": [
+        "A03.foundation"
+      ],
+      "target_writes": [
+        "packages/values/semantics/src/temporal/duration.rs",
+        "packages/values/semantics/tests/temporal_vectors.rs",
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/exact-values/temporal/duration.json"
+      ],
+      "owner_fit": "Rust pure exact algorithm; keep raw observable host admission TS",
+      "source_manifest": "docs/research/package-subsystem-ports-20261006/implementation-plans/exact-values.tasks.json",
+      "scope_limit": "package port only; compiler-unchanged does not complete required T09/T10/T11/T15/D-series compiler work",
+      "execution_status": "not executed by this planning review",
+      "acceptance_authority": "exact task acceptance in linked source_manifest; not repeated as current proof"
+    },
+    {
+      "plan": "exact-values",
+      "id": "A05.3",
+      "title": "Port instant algorithms and temporal scalar codecs",
+      "lane": "temporal",
+      "depends_on": [
+        "A05.1",
+        "A05.2"
+      ],
+      "target_writes": [
+        "packages/values/semantics/src/temporal/instant.rs",
+        "packages/values/semantics/tests/temporal_vectors.rs",
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/exact-values/temporal/instant.json"
+      ],
+      "owner_fit": "Rust pure exact algorithm; keep raw observable host admission TS",
+      "source_manifest": "docs/research/package-subsystem-ports-20261006/implementation-plans/exact-values.tasks.json",
+      "scope_limit": "package port only; compiler-unchanged does not complete required T09/T10/T11/T15/D-series compiler work",
+      "execution_status": "not executed by this planning review",
+      "acceptance_authority": "exact task acceptance in linked source_manifest; not repeated as current proof"
+    },
+    {
+      "plan": "exact-values",
+      "id": "A05",
+      "title": "Temporal algorithms and scalar handoff complete",
+      "lane": "temporal",
+      "depends_on": [
+        "A05.1",
+        "A05.2",
+        "A05.3"
+      ],
+      "target_writes": [],
+      "owner_fit": "Rust pure exact algorithm; keep raw observable host admission TS",
+      "source_manifest": "docs/research/package-subsystem-ports-20261006/implementation-plans/exact-values.tasks.json",
+      "scope_limit": "package port only; compiler-unchanged does not complete required T09/T10/T11/T15/D-series compiler work",
+      "execution_status": "not executed by this planning review",
+      "acceptance_authority": "exact task acceptance in linked source_manifest; not repeated as current proof"
+    },
+    {
+      "plan": "exact-values",
+      "id": "A06.1",
+      "title": "Port owned integer and duration sums",
+      "lane": "aggregates",
+      "depends_on": [
+        "A03.2",
+        "A05.2",
+        "C02.ready"
+      ],
+      "target_writes": [
+        "packages/values/semantics/src/aggregates/integer.rs",
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/exact-values/aggregates/integer.json"
+      ],
+      "owner_fit": "Rust pure exact algorithm; keep raw observable host admission TS",
+      "source_manifest": "docs/research/package-subsystem-ports-20261006/implementation-plans/exact-values.tasks.json",
+      "scope_limit": "package port only; compiler-unchanged does not complete required T09/T10/T11/T15/D-series compiler work",
+      "execution_status": "not executed by this planning review",
+      "acceptance_authority": "exact task acceptance in linked source_manifest; not repeated as current proof"
+    },
+    {
+      "plan": "exact-values",
+      "id": "A06.2",
+      "title": "Port owned decimal sums",
+      "lane": "aggregates",
+      "depends_on": [
+        "A04.2",
+        "C02.ready"
+      ],
+      "target_writes": [
+        "packages/values/semantics/src/aggregates/decimal.rs",
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/exact-values/aggregates/decimal.json"
+      ],
+      "owner_fit": "Rust pure exact algorithm; keep raw observable host admission TS",
+      "source_manifest": "docs/research/package-subsystem-ports-20261006/implementation-plans/exact-values.tasks.json",
+      "scope_limit": "package port only; compiler-unchanged does not complete required T09/T10/T11/T15/D-series compiler work",
+      "execution_status": "not executed by this planning review",
+      "acceptance_authority": "exact task acceptance in linked source_manifest; not repeated as current proof"
+    },
+    {
+      "plan": "exact-values",
+      "id": "A06.3",
+      "title": "Port owned money sums",
+      "lane": "aggregates",
+      "depends_on": [
+        "A04.4",
+        "C02.ready"
+      ],
+      "target_writes": [
+        "packages/values/semantics/src/aggregates/money.rs",
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/exact-values/aggregates/money.json"
+      ],
+      "owner_fit": "Rust pure exact algorithm; keep raw observable host admission TS",
+      "source_manifest": "docs/research/package-subsystem-ports-20261006/implementation-plans/exact-values.tasks.json",
+      "scope_limit": "package port only; compiler-unchanged does not complete required T09/T10/T11/T15/D-series compiler work",
+      "execution_status": "not executed by this planning review",
+      "acceptance_authority": "exact task acceptance in linked source_manifest; not repeated as current proof"
+    },
+    {
+      "plan": "exact-values",
+      "id": "A06.4",
+      "title": "Integrate numeric comparisons and aggregate runner",
+      "lane": "aggregates",
+      "depends_on": [
+        "A06.1",
+        "A06.2",
+        "A06.3",
+        "A05.3"
+      ],
+      "target_writes": [
+        "packages/values/semantics/src/aggregates/numeric.rs",
+        "packages/values/semantics/tests/aggregate_vectors.rs",
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/exact-values/aggregates/parity.json"
+      ],
+      "owner_fit": "Rust pure exact algorithm; keep raw observable host admission TS",
+      "source_manifest": "docs/research/package-subsystem-ports-20261006/implementation-plans/exact-values.tasks.json",
+      "scope_limit": "package port only; compiler-unchanged does not complete required T09/T10/T11/T15/D-series compiler work",
+      "execution_status": "not executed by this planning review",
+      "acceptance_authority": "exact task acceptance in linked source_manifest; not repeated as current proof"
+    },
+    {
+      "plan": "exact-values",
+      "id": "A06",
+      "title": "Native aggregates and comparisons complete",
+      "lane": "aggregates",
+      "depends_on": [
+        "A06.1",
+        "A06.2",
+        "A06.3",
+        "A06.4"
+      ],
+      "target_writes": [],
+      "owner_fit": "Rust pure exact algorithm; keep raw observable host admission TS",
+      "source_manifest": "docs/research/package-subsystem-ports-20261006/implementation-plans/exact-values.tasks.json",
+      "scope_limit": "package port only; compiler-unchanged does not complete required T09/T10/T11/T15/D-series compiler work",
+      "execution_status": "not executed by this planning review",
+      "acceptance_authority": "exact task acceptance in linked source_manifest; not repeated as current proof"
+    },
+    {
+      "plan": "exact-values",
+      "id": "A07.1",
+      "title": "Prepare real binding build and initialization smoke",
+      "lane": "core",
+      "depends_on": [
+        "A03.foundation",
+        "C03.ready",
+        "C04.ready"
+      ],
+      "target_writes": [
+        "packages/values/bindings/src/lib.rs",
+        "packages/values/bindings/src/exact.rs",
+        "packages/values/bindings/generated/",
+        "packages/values/scripts/build-semantics.mjs",
+        "packages/values/package.json",
+        "packages/values/tsconfig.json",
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/exact-values/core/binding-smoke.json"
+      ],
+      "owner_fit": "shared workspace/ABI/module/binding integrator; serial common-file writer",
+      "source_manifest": "docs/research/package-subsystem-ports-20261006/implementation-plans/exact-values.tasks.json",
+      "scope_limit": "package port only; compiler-unchanged does not complete required T09/T10/T11/T15/D-series compiler work",
+      "execution_status": "not executed by this planning review",
+      "acceptance_authority": "exact task acceptance in linked source_manifest; not repeated as current proof"
+    },
+    {
+      "plan": "exact-values",
+      "id": "A07.2",
+      "title": "Prepare host carriers, backend registry and bootstrap checks",
+      "lane": "host",
+      "depends_on": [
+        "A03.foundation",
+        "C03.ready"
+      ],
+      "target_writes": [
+        "packages/values/bindings/backend.ts",
+        "packages/values/bindings/bootstrap.ts",
+        "packages/values/bindings/carriers.ts",
+        "packages/values/test/exact-bootstrap.test.ts",
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/exact-values/host/bootstrap.json"
+      ],
+      "owner_fit": "TS owner-produced provenance/profile or host adapter; private Rust whole-action counterpart only where manifest defines it",
+      "source_manifest": "docs/research/package-subsystem-ports-20261006/implementation-plans/exact-values.tasks.json",
+      "scope_limit": "package port only; compiler-unchanged does not complete required T09/T10/T11/T15/D-series compiler work",
+      "execution_status": "not executed by this planning review",
+      "acceptance_authority": "exact task acceptance in linked source_manifest; not repeated as current proof"
+    },
+    {
+      "plan": "exact-values",
+      "id": "A07.foundation",
+      "title": "Real binding and host bootstrap scaffold ready for validation",
+      "lane": "core",
+      "depends_on": [
+        "A07.1",
+        "A07.2"
+      ],
+      "target_writes": [],
+      "owner_fit": "shared workspace/ABI/module/binding integrator; serial common-file writer",
+      "source_manifest": "docs/research/package-subsystem-ports-20261006/implementation-plans/exact-values.tasks.json",
+      "scope_limit": "package port only; compiler-unchanged does not complete required T09/T10/T11/T15/D-series compiler work",
+      "execution_status": "not executed by this planning review",
+      "acceptance_authority": "exact task acceptance in linked source_manifest; not repeated as current proof"
+    },
+    {
+      "plan": "exact-values",
+      "id": "A07.3",
+      "title": "Join full semantic entries and actual-adapter differential",
+      "lane": "core",
+      "depends_on": [
+        "A03",
+        "A04",
+        "A05",
+        "A06",
+        "A07.foundation",
+        "V03.5"
+      ],
+      "target_writes": [
+        "packages/values/semantics/src/lib.rs",
+        "packages/values/bindings/src/lib.rs",
+        "packages/values/bindings/src/exact.rs",
+        "packages/values/bindings/generated/",
+        "packages/values/semantics/examples/conformance.rs",
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/exact-values/core/binding-parity.json"
+      ],
+      "owner_fit": "shared workspace/ABI/module/binding integrator; serial common-file writer",
+      "source_manifest": "docs/research/package-subsystem-ports-20261006/implementation-plans/exact-values.tasks.json",
+      "scope_limit": "package port only; compiler-unchanged does not complete required T09/T10/T11/T15/D-series compiler work",
+      "execution_status": "not executed by this planning review",
+      "acceptance_authority": "exact task acceptance in linked source_manifest; not repeated as current proof"
+    },
+    {
+      "plan": "exact-values",
+      "id": "A07",
+      "title": "Actual binding and full native/Wasm parity complete",
+      "lane": "core",
+      "depends_on": [
+        "A07.foundation",
+        "A07.3"
+      ],
+      "target_writes": [],
+      "owner_fit": "shared workspace/ABI/module/binding integrator; serial common-file writer",
+      "source_manifest": "docs/research/package-subsystem-ports-20261006/implementation-plans/exact-values.tasks.json",
+      "scope_limit": "package port only; compiler-unchanged does not complete required T09/T10/T11/T15/D-series compiler work",
+      "execution_status": "not executed by this planning review",
+      "acceptance_authority": "exact task acceptance in linked source_manifest; not repeated as current proof"
+    },
+    {
+      "plan": "exact-values",
+      "id": "A08.1",
+      "title": "Route proven public profiles behind unchanged fa\u00e7ades",
+      "lane": "host",
+      "depends_on": [
+        "A07",
+        "V02.6",
+        "C05.ready"
+      ],
+      "target_writes": [
+        "packages/values/src/int.ts",
+        "packages/values/src/decimal.ts",
+        "packages/values/src/money.ts",
+        "packages/values/src/kinds.ts",
+        "packages/values/src/temporal.ts",
+        "packages/values/src/array.ts",
+        "packages/values/src/equality.ts",
+        "packages/values/src/stdlib-pure.ts",
+        "packages/values/src/index.ts",
+        "packages/values/test/exact-backends.test.ts",
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/exact-values/host/public-routing.json"
+      ],
+      "owner_fit": "TS owner-produced provenance/profile or host adapter; private Rust whole-action counterpart only where manifest defines it",
+      "source_manifest": "docs/research/package-subsystem-ports-20261006/implementation-plans/exact-values.tasks.json",
+      "scope_limit": "package port only; compiler-unchanged does not complete required T09/T10/T11/T15/D-series compiler work",
+      "execution_status": "not executed by this planning review",
+      "acceptance_authority": "exact task acceptance in linked source_manifest; not repeated as current proof"
+    },
+    {
+      "plan": "exact-values",
+      "id": "A08.2",
+      "title": "Verify synchronous package and stdlib consumer assembly",
+      "lane": "consumer",
+      "depends_on": [
+        "A08.1",
+        "C04.values-assets"
+      ],
+      "target_writes": [
+        "packages/stdlib/test/exact-helper-chain.test.ts",
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/exact-values/consumer/stdlib.json"
+      ],
+      "owner_fit": "independent conformance/actual consumer/measurement/release review; no adoption inferred from task completion",
+      "source_manifest": "docs/research/package-subsystem-ports-20261006/implementation-plans/exact-values.tasks.json",
+      "scope_limit": "package port only; compiler-unchanged does not complete required T09/T10/T11/T15/D-series compiler work",
+      "execution_status": "not executed by this planning review",
+      "acceptance_authority": "exact task acceptance in linked source_manifest; not repeated as current proof"
+    },
+    {
+      "plan": "exact-values",
+      "id": "A08",
+      "title": "Selective public routing verified",
+      "lane": "host",
+      "depends_on": [
+        "A08.1",
+        "A08.2"
+      ],
+      "target_writes": [],
+      "owner_fit": "TS owner-produced provenance/profile or host adapter; private Rust whole-action counterpart only where manifest defines it",
+      "source_manifest": "docs/research/package-subsystem-ports-20261006/implementation-plans/exact-values.tasks.json",
+      "scope_limit": "package port only; compiler-unchanged does not complete required T09/T10/T11/T15/D-series compiler work",
+      "execution_status": "not executed by this planning review",
+      "acceptance_authority": "exact task acceptance in linked source_manifest; not repeated as current proof"
+    },
+    {
+      "plan": "exact-values",
+      "id": "A09.1",
+      "title": "Prepare joint owned HTTP/interface pilot fixtures",
+      "lane": "consumer",
+      "depends_on": [
+        "A01",
+        "A02",
+        "C02.ready",
+        "C03.ready",
+        "C05.ready"
+      ],
+      "target_writes": [
+        "packages/interfaces/test/exact-input-profile.test.ts",
+        "packages/testkit/test/exact-operation-consumer.test.ts",
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/exact-values/consumer/pilot-contract.json"
+      ],
+      "owner_fit": "independent conformance/actual consumer/measurement/release review; no adoption inferred from task completion",
+      "source_manifest": "docs/research/package-subsystem-ports-20261006/implementation-plans/exact-values.tasks.json",
+      "scope_limit": "package port only; compiler-unchanged does not complete required T09/T10/T11/T15/D-series compiler work",
+      "execution_status": "not executed by this planning review",
+      "acceptance_authority": "exact task acceptance in linked source_manifest; not repeated as current proof"
+    },
+    {
+      "plan": "exact-values",
+      "id": "A09.2",
+      "title": "Run whole-input pilot through actual Wasm consumer",
+      "lane": "consumer",
+      "depends_on": [
+        "A08",
+        "A09.1",
+        "V06",
+        "V07",
+        "V08",
+        "C02.ready",
+        "C03.ready",
+        "C04.ready",
+        "C05.ready"
+      ],
+      "target_writes": [
+        "packages/interfaces/test/exact-input-profile.test.ts",
+        "packages/testkit/test/exact-operation-consumer.test.ts",
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/exact-values/consumer/http-parity.json"
+      ],
+      "owner_fit": "independent conformance/actual consumer/measurement/release review; no adoption inferred from task completion",
+      "source_manifest": "docs/research/package-subsystem-ports-20261006/implementation-plans/exact-values.tasks.json",
+      "scope_limit": "package port only; compiler-unchanged does not complete required T09/T10/T11/T15/D-series compiler work",
+      "execution_status": "not executed by this planning review",
+      "acceptance_authority": "exact task acceptance in linked source_manifest; not repeated as current proof"
+    },
+    {
+      "plan": "exact-values",
+      "id": "A09",
+      "title": "Whole-input pilot and secondary helper-chain evidence complete",
+      "lane": "consumer",
+      "depends_on": [
+        "A08",
+        "A09.1",
+        "A09.2",
+        "V06",
+        "V07",
+        "V08",
+        "C02.ready",
+        "C03.ready",
+        "C04.ready",
+        "C05.ready"
+      ],
+      "target_writes": [],
+      "owner_fit": "independent conformance/actual consumer/measurement/release review; no adoption inferred from task completion",
+      "source_manifest": "docs/research/package-subsystem-ports-20261006/implementation-plans/exact-values.tasks.json",
+      "scope_limit": "package port only; compiler-unchanged does not complete required T09/T10/T11/T15/D-series compiler work",
+      "execution_status": "not executed by this planning review",
+      "acceptance_authority": "exact task acceptance in linked source_manifest; not repeated as current proof"
+    },
+    {
+      "plan": "exact-values",
+      "id": "A10.1",
+      "title": "Measure complete-call performance and resources",
+      "lane": "fixtures",
+      "depends_on": [
+        "A09",
+        "C05.ready"
+      ],
+      "target_writes": [
+        "packages/values/conformance/ports/exact/workloads.mjs",
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/exact-values/fixtures/measurements.json",
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/exact-values/fixtures/adoption-report.md"
+      ],
+      "owner_fit": "independent conformance/actual consumer/measurement/release review; no adoption inferred from task completion",
+      "source_manifest": "docs/research/package-subsystem-ports-20261006/implementation-plans/exact-values.tasks.json",
+      "scope_limit": "package port only; compiler-unchanged does not complete required T09/T10/T11/T15/D-series compiler work",
+      "execution_status": "not executed by this planning review",
+      "acceptance_authority": "exact task acceptance in linked source_manifest; not repeated as current proof"
+    },
+    {
+      "plan": "exact-values",
+      "id": "A10.2",
+      "title": "Verify packaged opt-in release and rollback",
+      "lane": "consumer",
+      "depends_on": [
+        "A10.1",
+        "A07"
+      ],
+      "target_writes": [
+        "packages/values/test/exact-release.test.ts",
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/exact-values/consumer/release-integrity.json",
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/exact-values/consumer/rollback.json"
+      ],
+      "owner_fit": "independent conformance/actual consumer/measurement/release review; no adoption inferred from task completion",
+      "source_manifest": "docs/research/package-subsystem-ports-20261006/implementation-plans/exact-values.tasks.json",
+      "scope_limit": "package port only; compiler-unchanged does not complete required T09/T10/T11/T15/D-series compiler work",
+      "execution_status": "not executed by this planning review",
+      "acceptance_authority": "exact task acceptance in linked source_manifest; not repeated as current proof"
+    },
+    {
+      "plan": "exact-values",
+      "id": "A10.3",
+      "title": "Review deployment provenance and default-adoption decision",
+      "lane": "consumer",
+      "depends_on": [
+        "A10.2",
+        "V08",
+        "V10"
+      ],
+      "target_writes": [
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/exact-values/consumer/rollout-decision.md"
+      ],
+      "owner_fit": "independent conformance/actual consumer/measurement/release review; no adoption inferred from task completion",
+      "source_manifest": "docs/research/package-subsystem-ports-20261006/implementation-plans/exact-values.tasks.json",
+      "scope_limit": "package port only; compiler-unchanged does not complete required T09/T10/T11/T15/D-series compiler work",
+      "execution_status": "not executed by this planning review",
+      "acceptance_authority": "exact task acceptance in linked source_manifest; not repeated as current proof"
+    },
+    {
+      "plan": "exact-values",
+      "id": "A10",
+      "title": "Measured release outcome and adoption gate recorded",
+      "lane": "consumer",
+      "depends_on": [
+        "A10.1",
+        "A10.2",
+        "A10.3"
+      ],
+      "target_writes": [],
+      "owner_fit": "independent conformance/actual consumer/measurement/release review; no adoption inferred from task completion",
+      "source_manifest": "docs/research/package-subsystem-ports-20261006/implementation-plans/exact-values.tasks.json",
+      "scope_limit": "package port only; compiler-unchanged does not complete required T09/T10/T11/T15/D-series compiler work",
+      "execution_status": "not executed by this planning review",
+      "acceptance_authority": "exact task acceptance in linked source_manifest; not repeated as current proof"
+    },
+    {
+      "plan": "exact-values",
+      "id": "A11.1",
+      "title": "Reconcile completion coverage and package documentation",
+      "lane": "consumer",
+      "depends_on": [
+        "A10"
+      ],
+      "target_writes": [
+        "packages/values/README.md",
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/exact-values/consumer/completion-ledger.md",
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/exact-values/consumer/final-source-checks.md"
+      ],
+      "owner_fit": "independent conformance/actual consumer/measurement/release review; no adoption inferred from task completion",
+      "source_manifest": "docs/research/package-subsystem-ports-20261006/implementation-plans/exact-values.tasks.json",
+      "scope_limit": "package port only; compiler-unchanged does not complete required T09/T10/T11/T15/D-series compiler work",
+      "execution_status": "not executed by this planning review",
+      "acceptance_authority": "exact task acceptance in linked source_manifest; not repeated as current proof"
+    },
+    {
+      "plan": "exact-values",
+      "id": "A11",
+      "title": "Selected exact-values implementation outcome complete",
+      "lane": "consumer",
+      "depends_on": [
+        "A11.1"
+      ],
+      "target_writes": [],
+      "owner_fit": "independent conformance/actual consumer/measurement/release review; no adoption inferred from task completion",
+      "source_manifest": "docs/research/package-subsystem-ports-20261006/implementation-plans/exact-values.tasks.json",
+      "scope_limit": "package port only; compiler-unchanged does not complete required T09/T10/T11/T15/D-series compiler work",
+      "execution_status": "not executed by this planning review",
+      "acceptance_authority": "exact task acceptance in linked source_manifest; not repeated as current proof"
+    },
+    {
+      "plan": "input-validation",
+      "id": "V01.1",
+      "title": "Freeze caller contracts and workload registry",
+      "lane": "V-evidence",
+      "depends_on": [
+        "C01.ready"
+      ],
+      "target_writes": [
+        "docs/research/package-subsystem-ports-20261006/evidence/input-validation/contracts.md",
+        "docs/research/package-subsystem-ports-20261006/evidence/input-validation/caller-inventory.json",
+        "docs/research/package-subsystem-ports-20261006/evidence/input-validation/current-ts.json"
+      ],
+      "owner_fit": "independent conformance/actual consumer/measurement/release review; no adoption inferred from task completion",
+      "source_manifest": "docs/research/package-subsystem-ports-20261006/implementation-plans/input-validation.tasks.json",
+      "scope_limit": "package port only; compiler-unchanged does not complete required T09/T10/T11/T15/D-series compiler work",
+      "execution_status": "not executed by this planning review",
+      "acceptance_authority": "exact task acceptance in linked source_manifest; not repeated as current proof"
+    },
+    {
+      "plan": "input-validation",
+      "id": "V01.2",
+      "title": "Assess bounded HTTP adoption join",
+      "lane": "V-http",
+      "depends_on": [
+        "C01.ready"
+      ],
+      "target_writes": [
+        "docs/research/package-subsystem-ports-20261006/evidence/input-validation/http-adoption-gate.md"
+      ],
+      "owner_fit": "TS owner-produced provenance/profile or host adapter; private Rust whole-action counterpart only where manifest defines it",
+      "source_manifest": "docs/research/package-subsystem-ports-20261006/implementation-plans/input-validation.tasks.json",
+      "scope_limit": "package port only; compiler-unchanged does not complete required T09/T10/T11/T15/D-series compiler work",
+      "execution_status": "not executed by this planning review",
+      "acceptance_authority": "exact task acceptance in linked source_manifest; not repeated as current proof"
+    },
+    {
+      "plan": "input-validation",
+      "id": "V01.3",
+      "title": "Freeze state sequencing and bridge contract",
+      "lane": "V-state",
+      "depends_on": [
+        "C01.ready"
+      ],
+      "target_writes": [
+        "docs/research/package-subsystem-ports-20261006/evidence/input-validation/state-contract.md"
+      ],
+      "owner_fit": "TS owner-produced provenance/profile or host adapter; private Rust whole-action counterpart only where manifest defines it",
+      "source_manifest": "docs/research/package-subsystem-ports-20261006/implementation-plans/input-validation.tasks.json",
+      "scope_limit": "package port only; compiler-unchanged does not complete required T09/T10/T11/T15/D-series compiler work",
+      "execution_status": "not executed by this planning review",
+      "acceptance_authority": "exact task acceptance in linked source_manifest; not repeated as current proof"
+    },
+    {
+      "plan": "input-validation",
+      "id": "V01.4",
+      "title": "Agree owner-plan and shared-file handoffs",
+      "lane": "V-plan",
+      "depends_on": [
+        "C01.ready"
+      ],
+      "target_writes": [
+        "docs/research/package-subsystem-ports-20261006/evidence/input-validation/plan-contract.md"
+      ],
+      "owner_fit": "TS owner-produced provenance/profile or host adapter; private Rust whole-action counterpart only where manifest defines it",
+      "source_manifest": "docs/research/package-subsystem-ports-20261006/implementation-plans/input-validation.tasks.json",
+      "scope_limit": "package port only; compiler-unchanged does not complete required T09/T10/T11/T15/D-series compiler work",
+      "execution_status": "not executed by this planning review",
+      "acceptance_authority": "exact task acceptance in linked source_manifest; not repeated as current proof"
+    },
+    {
+      "plan": "input-validation",
+      "id": "V10.1",
+      "title": "Inspect installed MCP SDK producer seam early",
+      "lane": "V-mcp",
+      "depends_on": [
+        "C01.ready"
+      ],
+      "target_writes": [
+        "docs/research/package-subsystem-ports-20261006/evidence/input-validation/mcp-provenance.md"
+      ],
+      "owner_fit": "TS owner-produced provenance/profile or host adapter; private Rust whole-action counterpart only where manifest defines it",
+      "source_manifest": "docs/research/package-subsystem-ports-20261006/implementation-plans/input-validation.tasks.json",
+      "scope_limit": "package port only; compiler-unchanged does not complete required T09/T10/T11/T15/D-series compiler work",
+      "execution_status": "not executed by this planning review",
+      "acceptance_authority": "exact task acceptance in linked source_manifest; not repeated as current proof"
+    },
+    {
+      "plan": "input-validation",
+      "id": "V10.2",
+      "title": "Assess forms producer separately",
+      "lane": "V-forms",
+      "depends_on": [
+        "C01.ready"
+      ],
+      "target_writes": [
+        "docs/research/package-subsystem-ports-20261006/evidence/input-validation/forms-provenance.md"
+      ],
+      "owner_fit": "TS owner-produced provenance/profile or host adapter; private Rust whole-action counterpart only where manifest defines it",
+      "source_manifest": "docs/research/package-subsystem-ports-20261006/implementation-plans/input-validation.tasks.json",
+      "scope_limit": "package port only; compiler-unchanged does not complete required T09/T10/T11/T15/D-series compiler work",
+      "execution_status": "not executed by this planning review",
+      "acceptance_authority": "exact task acceptance in linked source_manifest; not repeated as current proof"
+    },
+    {
+      "plan": "input-validation",
+      "id": "V02.1",
+      "title": "Prepare immutable owner plans in TS",
+      "lane": "V-plan",
+      "depends_on": [
+        "V01",
+        "C02.ready"
+      ],
+      "target_writes": [
+        "packages/values/src/prepared/plan.ts",
+        "packages/values/test/prepared-validation.test.ts",
+        "docs/research/package-subsystem-ports-20261006/evidence/input-validation/prepared-plan-handoff.md"
+      ],
+      "owner_fit": "TS owner-produced provenance/profile or host adapter; private Rust whole-action counterpart only where manifest defines it",
+      "source_manifest": "docs/research/package-subsystem-ports-20261006/implementation-plans/input-validation.tasks.json",
+      "scope_limit": "package port only; compiler-unchanged does not complete required T09/T10/T11/T15/D-series compiler work",
+      "execution_status": "not executed by this planning review",
+      "acceptance_authority": "exact task acceptance in linked source_manifest; not repeated as current proof"
+    },
+    {
+      "plan": "input-validation",
+      "id": "V02.2",
+      "title": "Prepare values AST codec and whole-call comparator",
+      "lane": "V-values",
+      "depends_on": [
+        "V02.1",
+        "C02.ready"
+      ],
+      "target_writes": [
+        "packages/values/src/prepared/codec.ts",
+        "packages/values/src/prepared/validation.ts",
+        "packages/values/test/legacy-validation-traces.test.ts",
+        "docs/research/package-subsystem-ports-20261006/evidence/input-validation/prepared-values.json"
+      ],
+      "owner_fit": "TS owner-produced provenance/profile or host adapter; private Rust whole-action counterpart only where manifest defines it",
+      "source_manifest": "docs/research/package-subsystem-ports-20261006/implementation-plans/input-validation.tasks.json",
+      "scope_limit": "package port only; compiler-unchanged does not complete required T09/T10/T11/T15/D-series compiler work",
+      "execution_status": "not executed by this planning review",
+      "acceptance_authority": "exact task acceptance in linked source_manifest; not repeated as current proof"
+    },
+    {
+      "plan": "input-validation",
+      "id": "V02.3",
+      "title": "Prepare interfaces HTTP framing/binding plan",
+      "lane": "V-http",
+      "depends_on": [
+        "V01",
+        "C02.ready"
+      ],
+      "target_writes": [
+        "packages/interfaces/src/envelope/prepared.ts",
+        "packages/interfaces/test/owned-http.test.ts",
+        "docs/research/package-subsystem-ports-20261006/evidence/input-validation/prepared-http.json"
+      ],
+      "owner_fit": "TS owner-produced provenance/profile or host adapter; private Rust whole-action counterpart only where manifest defines it",
+      "source_manifest": "docs/research/package-subsystem-ports-20261006/implementation-plans/input-validation.tasks.json",
+      "scope_limit": "package port only; compiler-unchanged does not complete required T09/T10/T11/T15/D-series compiler work",
+      "execution_status": "not executed by this planning review",
+      "acceptance_authority": "exact task acceptance in linked source_manifest; not repeated as current proof"
+    },
+    {
+      "plan": "input-validation",
+      "id": "V02.4",
+      "title": "Prepare generated-state owner plan",
+      "lane": "V-state",
+      "depends_on": [
+        "V01",
+        "C02.ready"
+      ],
+      "target_writes": [
+        "packages/state/src/invocation/prepared-inputs.ts",
+        "packages/state/src/invocation/registry.ts",
+        "packages/state/test/invocation/owned-admission.test.ts",
+        "docs/research/package-subsystem-ports-20261006/evidence/input-validation/prepared-state.json"
+      ],
+      "owner_fit": "TS owner-produced provenance/profile or host adapter; private Rust whole-action counterpart only where manifest defines it",
+      "source_manifest": "docs/research/package-subsystem-ports-20261006/implementation-plans/input-validation.tasks.json",
+      "scope_limit": "package port only; compiler-unchanged does not complete required T09/T10/T11/T15/D-series compiler work",
+      "execution_status": "not executed by this planning review",
+      "acceptance_authority": "exact task acceptance in linked source_manifest; not repeated as current proof"
+    },
+    {
+      "plan": "input-validation",
+      "id": "V02.5",
+      "title": "Prepare ordinary MCP plan independently of adoption",
+      "lane": "V-mcp",
+      "depends_on": [
+        "V01",
+        "C02.ready",
+        "V02.3"
+      ],
+      "target_writes": [
+        "packages/interfaces/src/mcp/prepared.ts",
+        "packages/interfaces/src/mcp/schemas.ts",
+        "packages/interfaces/test/owned-mcp.test.ts",
+        "docs/research/package-subsystem-ports-20261006/evidence/input-validation/prepared-mcp.json"
+      ],
+      "owner_fit": "TS owner-produced provenance/profile or host adapter; private Rust whole-action counterpart only where manifest defines it",
+      "source_manifest": "docs/research/package-subsystem-ports-20261006/implementation-plans/input-validation.tasks.json",
+      "scope_limit": "package port only; compiler-unchanged does not complete required T09/T10/T11/T15/D-series compiler work",
+      "execution_status": "not executed by this planning review",
+      "acceptance_authority": "exact task acceptance in linked source_manifest; not repeated as current proof"
+    },
+    {
+      "plan": "input-validation",
+      "id": "V02.6",
+      "title": "Wire private prepared hooks without public API drift",
+      "lane": "V-integrator",
+      "depends_on": [
+        "V02.1",
+        "V02.2"
+      ],
+      "target_writes": [
+        "packages/values/src/schema.ts",
+        "packages/values/src/wire.ts",
+        "packages/values/src/index.ts",
+        "docs/research/package-subsystem-ports-20261006/evidence/input-validation/prepared-hook-review.md"
+      ],
+      "owner_fit": "shared workspace/ABI/module/binding integrator; serial common-file writer",
+      "source_manifest": "docs/research/package-subsystem-ports-20261006/implementation-plans/input-validation.tasks.json",
+      "scope_limit": "package port only; compiler-unchanged does not complete required T09/T10/T11/T15/D-series compiler work",
+      "execution_status": "not executed by this planning review",
+      "acceptance_authority": "exact task acceptance in linked source_manifest; not repeated as current proof"
+    },
+    {
+      "plan": "input-validation",
+      "id": "V03.1",
+      "title": "Define validation ABI extension and decision vectors",
+      "lane": "V-evidence",
+      "depends_on": [
+        "V01",
+        "C03.ready",
+        "A03.foundation"
+      ],
+      "target_writes": [
+        "docs/research/package-subsystem-ports-20261006/evidence/input-validation/abi-vectors.json",
+        "docs/research/package-subsystem-ports-20261006/evidence/input-validation/abi-decisions.md",
+        "packages/values/conformance/owned-input/v1/cases.json",
+        "packages/values/conformance/owned-input/v1/README.md"
+      ],
+      "owner_fit": "independent conformance/actual consumer/measurement/release review; no adoption inferred from task completion",
+      "source_manifest": "docs/research/package-subsystem-ports-20261006/implementation-plans/input-validation.tasks.json",
+      "scope_limit": "package port only; compiler-unchanged does not complete required T09/T10/T11/T15/D-series compiler work",
+      "execution_status": "not executed by this planning review",
+      "acceptance_authority": "exact task acceptance in linked source_manifest; not repeated as current proof"
+    },
+    {
+      "plan": "input-validation",
+      "id": "V03.2",
+      "title": "Build ordered input transport arena",
+      "lane": "V-input",
+      "depends_on": [
+        "V03.1"
+      ],
+      "target_writes": [
+        "packages/values/semantics/src/input.rs",
+        "packages/values/semantics/tests/input_validation/input.rs"
+      ],
+      "owner_fit": "TS owner-produced provenance/profile or host adapter; private Rust whole-action counterpart only where manifest defines it",
+      "source_manifest": "docs/research/package-subsystem-ports-20261006/implementation-plans/input-validation.tasks.json",
+      "scope_limit": "package port only; compiler-unchanged does not complete required T09/T10/T11/T15/D-series compiler work",
+      "execution_status": "not executed by this planning review",
+      "acceptance_authority": "exact task acceptance in linked source_manifest; not repeated as current proof"
+    },
+    {
+      "plan": "input-validation",
+      "id": "V03.3",
+      "title": "Create private parser token and controlled lineage",
+      "lane": "V-input",
+      "depends_on": [
+        "V01",
+        "C03.ready",
+        "A03.foundation"
+      ],
+      "target_writes": [
+        "packages/values/bindings/owned-input.ts",
+        "packages/interfaces/src/http/limits.ts",
+        "packages/values/test/owned-input.test.ts"
+      ],
+      "owner_fit": "TS owner-produced provenance/profile or host adapter; private Rust whole-action counterpart only where manifest defines it",
+      "source_manifest": "docs/research/package-subsystem-ports-20261006/implementation-plans/input-validation.tasks.json",
+      "scope_limit": "package port only; compiler-unchanged does not complete required T09/T10/T11/T15/D-series compiler work",
+      "execution_status": "not executed by this planning review",
+      "acceptance_authority": "exact task acceptance in linked source_manifest; not repeated as current proof"
+    },
+    {
+      "plan": "input-validation",
+      "id": "V03.4",
+      "title": "Implement owner registration and generation handles",
+      "lane": "V-plan",
+      "depends_on": [
+        "V02.1",
+        "V03.1"
+      ],
+      "target_writes": [
+        "packages/values/semantics/src/plans.rs",
+        "packages/values/bindings/plans.ts",
+        "packages/values/test/prepared-validation.test.ts"
+      ],
+      "owner_fit": "TS owner-produced provenance/profile or host adapter; private Rust whole-action counterpart only where manifest defines it",
+      "source_manifest": "docs/research/package-subsystem-ports-20261006/implementation-plans/input-validation.tasks.json",
+      "scope_limit": "package port only; compiler-unchanged does not complete required T09/T10/T11/T15/D-series compiler work",
+      "execution_status": "not executed by this planning review",
+      "acceptance_authority": "exact task acceptance in linked source_manifest; not repeated as current proof"
+    },
+    {
+      "plan": "input-validation",
+      "id": "V02.7",
+      "title": "Publish complete current and prepared-TS comparator ledger",
+      "lane": "V-evidence",
+      "depends_on": [
+        "V02.1",
+        "V02.2",
+        "V02.3",
+        "V02.4",
+        "V02.5",
+        "V02.6"
+      ],
+      "target_writes": [
+        "docs/research/package-subsystem-ports-20261006/evidence/input-validation/prepared-ts.json"
+      ],
+      "owner_fit": "independent conformance/actual consumer/measurement/release review; no adoption inferred from task completion",
+      "source_manifest": "docs/research/package-subsystem-ports-20261006/implementation-plans/input-validation.tasks.json",
+      "scope_limit": "package port only; compiler-unchanged does not complete required T09/T10/T11/T15/D-series compiler work",
+      "execution_status": "not executed by this planning review",
+      "acceptance_authority": "exact task acceptance in linked source_manifest; not repeated as current proof"
+    },
+    {
+      "plan": "input-validation",
+      "id": "V04.1",
+      "title": "Implement ordered values traversal and policy",
+      "lane": "V-values",
+      "depends_on": [
+        "V02.2",
+        "V03.2",
+        "V03.4",
+        "A04.5",
+        "A05.3",
+        "A04.2"
+      ],
+      "target_writes": [
+        "packages/values/semantics/src/validation.rs",
+        "packages/values/semantics/src/profiles/values.rs",
+        "packages/values/semantics/tests/input_validation/values.rs"
+      ],
+      "owner_fit": "TS owner-produced provenance/profile or host adapter; private Rust whole-action counterpart only where manifest defines it",
+      "source_manifest": "docs/research/package-subsystem-ports-20261006/implementation-plans/input-validation.tasks.json",
+      "scope_limit": "package port only; compiler-unchanged does not complete required T09/T10/T11/T15/D-series compiler work",
+      "execution_status": "not executed by this planning review",
+      "acceptance_authority": "exact task acceptance in linked source_manifest; not repeated as current proof"
+    },
+    {
+      "plan": "input-validation",
+      "id": "V04.2",
+      "title": "Implement owned codec dispatch and materialization",
+      "lane": "V-values",
+      "depends_on": [
+        "V04.1"
+      ],
+      "target_writes": [
+        "packages/values/semantics/src/codecs/owned.rs",
+        "packages/values/bindings/materialize.ts",
+        "packages/values/semantics/tests/input_validation/values.rs"
+      ],
+      "owner_fit": "TS owner-produced provenance/profile or host adapter; private Rust whole-action counterpart only where manifest defines it",
+      "source_manifest": "docs/research/package-subsystem-ports-20261006/implementation-plans/input-validation.tasks.json",
+      "scope_limit": "package port only; compiler-unchanged does not complete required T09/T10/T11/T15/D-series compiler work",
+      "execution_status": "not executed by this planning review",
+      "acceptance_authority": "exact task acceptance in linked source_manifest; not repeated as current proof"
+    },
+    {
+      "plan": "input-validation",
+      "id": "V06.1",
+      "title": "Implement HTTP-only native profile",
+      "lane": "V-http",
+      "depends_on": [
+        "V02.3",
+        "V03.2",
+        "V03.4",
+        "A04.5",
+        "A05.3"
+      ],
+      "target_writes": [
+        "packages/values/semantics/src/profiles/http.rs",
+        "packages/values/semantics/tests/input_validation/http.rs",
+        "packages/interfaces/test/owned-http.test.ts"
+      ],
+      "owner_fit": "TS owner-produced provenance/profile or host adapter; private Rust whole-action counterpart only where manifest defines it",
+      "source_manifest": "docs/research/package-subsystem-ports-20261006/implementation-plans/input-validation.tasks.json",
+      "scope_limit": "package port only; compiler-unchanged does not complete required T09/T10/T11/T15/D-series compiler work",
+      "execution_status": "not executed by this planning review",
+      "acceptance_authority": "exact task acceptance in linked source_manifest; not repeated as current proof"
+    },
+    {
+      "plan": "input-validation",
+      "id": "V06.2",
+      "title": "Implement generated-state native profile",
+      "lane": "V-state",
+      "depends_on": [
+        "V02.4",
+        "V03.2",
+        "V03.4"
+      ],
+      "target_writes": [
+        "packages/values/semantics/src/profiles/state.rs",
+        "packages/values/semantics/tests/input_validation/state.rs",
+        "packages/state/test/invocation/owned-admission.test.ts"
+      ],
+      "owner_fit": "TS owner-produced provenance/profile or host adapter; private Rust whole-action counterpart only where manifest defines it",
+      "source_manifest": "docs/research/package-subsystem-ports-20261006/implementation-plans/input-validation.tasks.json",
+      "scope_limit": "package port only; compiler-unchanged does not complete required T09/T10/T11/T15/D-series compiler work",
+      "execution_status": "not executed by this planning review",
+      "acceptance_authority": "exact task acceptance in linked source_manifest; not repeated as current proof"
+    },
+    {
+      "plan": "input-validation",
+      "id": "V06.3",
+      "title": "Implement ordinary MCP native policy",
+      "lane": "V-mcp",
+      "depends_on": [
+        "V02.5",
+        "V03.2",
+        "V03.4",
+        "A04.5",
+        "A05.3"
+      ],
+      "target_writes": [
+        "packages/values/semantics/src/profiles/mcp.rs",
+        "packages/values/semantics/tests/input_validation/mcp.rs",
+        "packages/interfaces/test/owned-mcp.test.ts"
+      ],
+      "owner_fit": "TS owner-produced provenance/profile or host adapter; private Rust whole-action counterpart only where manifest defines it",
+      "source_manifest": "docs/research/package-subsystem-ports-20261006/implementation-plans/input-validation.tasks.json",
+      "scope_limit": "package port only; compiler-unchanged does not complete required T09/T10/T11/T15/D-series compiler work",
+      "execution_status": "not executed by this planning review",
+      "acceptance_authority": "exact task acceptance in linked source_manifest; not repeated as current proof"
+    },
+    {
+      "plan": "input-validation",
+      "id": "V03.5",
+      "title": "Land coordinated minimal binding and shared module registrations",
+      "lane": "V-integrator",
+      "depends_on": [
+        "V03.2",
+        "V03.4",
+        "C04.ready",
+        "A07.foundation"
+      ],
+      "target_writes": [
+        "packages/values/semantics/src/lib.rs",
+        "packages/values/semantics/src/profiles.rs",
+        "packages/values/semantics/src/codecs/mod.rs",
+        "packages/values/bindings/src/lib.rs",
+        "packages/values/bindings/src/validation.rs",
+        "packages/values/bindings/validation.ts",
+        "packages/values/semantics/tests/input_validation.rs",
+        "packages/values/test/validation-binding.test.ts",
+        "docs/research/package-subsystem-ports-20261006/evidence/input-validation/abi-binding-smoke.json"
+      ],
+      "owner_fit": "shared workspace/ABI/module/binding integrator; serial common-file writer",
+      "source_manifest": "docs/research/package-subsystem-ports-20261006/implementation-plans/input-validation.tasks.json",
+      "scope_limit": "package port only; compiler-unchanged does not complete required T09/T10/T11/T15/D-series compiler work",
+      "execution_status": "not executed by this planning review",
+      "acceptance_authority": "exact task acceptance in linked source_manifest; not repeated as current proof"
+    },
+    {
+      "plan": "input-validation",
+      "id": "V06.8",
+      "title": "Register HTTP action after exact binding handoff",
+      "lane": "V-integrator",
+      "depends_on": [
+        "V06.1",
+        "V03.5",
+        "A07"
+      ],
+      "target_writes": [
+        "packages/values/semantics/src/lib.rs",
+        "packages/values/semantics/src/profiles.rs",
+        "packages/values/bindings/src/lib.rs",
+        "packages/values/bindings/src/validation.rs",
+        "packages/values/bindings/validation.ts",
+        "packages/values/semantics/tests/input_validation.rs"
+      ],
+      "owner_fit": "shared workspace/ABI/module/binding integrator; serial common-file writer",
+      "source_manifest": "docs/research/package-subsystem-ports-20261006/implementation-plans/input-validation.tasks.json",
+      "scope_limit": "package port only; compiler-unchanged does not complete required T09/T10/T11/T15/D-series compiler work",
+      "execution_status": "not executed by this planning review",
+      "acceptance_authority": "exact task acceptance in linked source_manifest; not repeated as current proof"
+    },
+    {
+      "plan": "input-validation",
+      "id": "V06.9",
+      "title": "Register generated-state action in serial integration queue",
+      "lane": "V-integrator",
+      "depends_on": [
+        "V06.2",
+        "V06.8"
+      ],
+      "target_writes": [
+        "packages/values/semantics/src/lib.rs",
+        "packages/values/semantics/src/profiles.rs",
+        "packages/values/bindings/src/validation.rs",
+        "packages/values/bindings/validation.ts",
+        "packages/values/semantics/tests/input_validation.rs"
+      ],
+      "owner_fit": "shared workspace/ABI/module/binding integrator; serial common-file writer",
+      "source_manifest": "docs/research/package-subsystem-ports-20261006/implementation-plans/input-validation.tasks.json",
+      "scope_limit": "package port only; compiler-unchanged does not complete required T09/T10/T11/T15/D-series compiler work",
+      "execution_status": "not executed by this planning review",
+      "acceptance_authority": "exact task acceptance in linked source_manifest; not repeated as current proof"
+    },
+    {
+      "plan": "input-validation",
+      "id": "V06.10",
+      "title": "Register ordinary MCP action in serial integration queue",
+      "lane": "V-integrator",
+      "depends_on": [
+        "V06.3",
+        "V06.9"
+      ],
+      "target_writes": [
+        "packages/values/semantics/src/lib.rs",
+        "packages/values/semantics/src/profiles.rs",
+        "packages/values/bindings/src/validation.rs",
+        "packages/values/bindings/validation.ts",
+        "packages/values/semantics/tests/input_validation.rs"
+      ],
+      "owner_fit": "shared workspace/ABI/module/binding integrator; serial common-file writer",
+      "source_manifest": "docs/research/package-subsystem-ports-20261006/implementation-plans/input-validation.tasks.json",
+      "scope_limit": "package port only; compiler-unchanged does not complete required T09/T10/T11/T15/D-series compiler work",
+      "execution_status": "not executed by this planning review",
+      "acceptance_authority": "exact task acceptance in linked source_manifest; not repeated as current proof"
+    },
+    {
+      "plan": "input-validation",
+      "id": "V04.4",
+      "title": "Register values interpreter and materialization in serial queue",
+      "lane": "V-integrator",
+      "depends_on": [
+        "V04.2",
+        "V06.10"
+      ],
+      "target_writes": [
+        "packages/values/semantics/src/lib.rs",
+        "packages/values/semantics/src/profiles.rs",
+        "packages/values/semantics/src/codecs/mod.rs",
+        "packages/values/bindings/src/validation.rs",
+        "packages/values/bindings/validation.ts",
+        "packages/values/semantics/tests/input_validation.rs"
+      ],
+      "owner_fit": "shared workspace/ABI/module/binding integrator; serial common-file writer",
+      "source_manifest": "docs/research/package-subsystem-ports-20261006/implementation-plans/input-validation.tasks.json",
+      "scope_limit": "package port only; compiler-unchanged does not complete required T09/T10/T11/T15/D-series compiler work",
+      "execution_status": "not executed by this planning review",
+      "acceptance_authority": "exact task acceptance in linked source_manifest; not repeated as current proof"
+    },
+    {
+      "plan": "input-validation",
+      "id": "V05.1",
+      "title": "Prove demand-ordered host predicate protocol",
+      "lane": "V-values",
+      "depends_on": [
+        "V04.2",
+        "V04.4"
+      ],
+      "target_writes": [
+        "packages/values/bindings/predicates.ts",
+        "packages/values/semantics/src/codecs/owned.rs",
+        "packages/values/semantics/tests/input_validation/values.rs",
+        "docs/research/package-subsystem-ports-20261006/evidence/input-validation/host-predicates.json"
+      ],
+      "owner_fit": "TS owner-produced provenance/profile or host adapter; private Rust whole-action counterpart only where manifest defines it",
+      "source_manifest": "docs/research/package-subsystem-ports-20261006/implementation-plans/input-validation.tasks.json",
+      "scope_limit": "package port only; compiler-unchanged does not complete required T09/T10/T11/T15/D-series compiler work",
+      "execution_status": "not executed by this planning review",
+      "acceptance_authority": "exact task acceptance in linked source_manifest; not repeated as current proof"
+    },
+    {
+      "plan": "input-validation",
+      "id": "V05.2",
+      "title": "Encode retained interpreter results inside request",
+      "lane": "V-values",
+      "depends_on": [
+        "V05.1"
+      ],
+      "target_writes": [
+        "packages/values/semantics/src/codecs/owned.rs",
+        "packages/values/bindings/materialize.ts",
+        "packages/values/semantics/tests/input_validation/values.rs"
+      ],
+      "owner_fit": "TS owner-produced provenance/profile or host adapter; private Rust whole-action counterpart only where manifest defines it",
+      "source_manifest": "docs/research/package-subsystem-ports-20261006/implementation-plans/input-validation.tasks.json",
+      "scope_limit": "package port only; compiler-unchanged does not complete required T09/T10/T11/T15/D-series compiler work",
+      "execution_status": "not executed by this planning review",
+      "acceptance_authority": "exact task acceptance in linked source_manifest; not repeated as current proof"
+    },
+    {
+      "plan": "input-validation",
+      "id": "V05.3",
+      "title": "Wire proved predicate and retained-encode glue",
+      "lane": "V-integrator",
+      "depends_on": [
+        "V05.2",
+        "V04.4"
+      ],
+      "target_writes": [
+        "packages/values/bindings/src/validation.rs",
+        "packages/values/bindings/validation.ts",
+        "packages/values/test/validation-binding.test.ts"
+      ],
+      "owner_fit": "shared workspace/ABI/module/binding integrator; serial common-file writer",
+      "source_manifest": "docs/research/package-subsystem-ports-20261006/implementation-plans/input-validation.tasks.json",
+      "scope_limit": "package port only; compiler-unchanged does not complete required T09/T10/T11/T15/D-series compiler work",
+      "execution_status": "not executed by this planning review",
+      "acceptance_authority": "exact task acceptance in linked source_manifest; not repeated as current proof"
+    },
+    {
+      "plan": "input-validation",
+      "id": "V04.3",
+      "title": "Run actual-binding values parity and identity",
+      "lane": "V-evidence",
+      "depends_on": [
+        "V04.2",
+        "V04.4"
+      ],
+      "target_writes": [
+        "docs/research/package-subsystem-ports-20261006/evidence/input-validation/values-differential.json",
+        "packages/values/conformance/owned-input/v1/cases.json"
+      ],
+      "owner_fit": "independent conformance/actual consumer/measurement/release review; no adoption inferred from task completion",
+      "source_manifest": "docs/research/package-subsystem-ports-20261006/implementation-plans/input-validation.tasks.json",
+      "scope_limit": "package port only; compiler-unchanged does not complete required T09/T10/T11/T15/D-series compiler work",
+      "execution_status": "not executed by this planning review",
+      "acceptance_authority": "exact task acceptance in linked source_manifest; not repeated as current proof"
+    },
+    {
+      "plan": "input-validation",
+      "id": "V06.4",
+      "title": "Run independent HTTP actual-binding profile parity",
+      "lane": "V-http",
+      "depends_on": [
+        "V06.1",
+        "V06.8"
+      ],
+      "target_writes": [
+        "packages/interfaces/test/owned-http.test.ts",
+        "docs/research/package-subsystem-ports-20261006/evidence/input-validation/http-profile-differential.json"
+      ],
+      "owner_fit": "TS owner-produced provenance/profile or host adapter; private Rust whole-action counterpart only where manifest defines it",
+      "source_manifest": "docs/research/package-subsystem-ports-20261006/implementation-plans/input-validation.tasks.json",
+      "scope_limit": "package port only; compiler-unchanged does not complete required T09/T10/T11/T15/D-series compiler work",
+      "execution_status": "not executed by this planning review",
+      "acceptance_authority": "exact task acceptance in linked source_manifest; not repeated as current proof"
+    },
+    {
+      "plan": "input-validation",
+      "id": "V06.5",
+      "title": "Run state actual-binding profile parity",
+      "lane": "V-state",
+      "depends_on": [
+        "V06.2",
+        "V06.9"
+      ],
+      "target_writes": [
+        "packages/state/test/invocation/owned-admission.test.ts",
+        "docs/research/package-subsystem-ports-20261006/evidence/input-validation/state-profile-differential.json"
+      ],
+      "owner_fit": "TS owner-produced provenance/profile or host adapter; private Rust whole-action counterpart only where manifest defines it",
+      "source_manifest": "docs/research/package-subsystem-ports-20261006/implementation-plans/input-validation.tasks.json",
+      "scope_limit": "package port only; compiler-unchanged does not complete required T09/T10/T11/T15/D-series compiler work",
+      "execution_status": "not executed by this planning review",
+      "acceptance_authority": "exact task acceptance in linked source_manifest; not repeated as current proof"
+    },
+    {
+      "plan": "input-validation",
+      "id": "V06.6",
+      "title": "Run MCP actual-binding profile parity",
+      "lane": "V-mcp",
+      "depends_on": [
+        "V06.3",
+        "V06.10"
+      ],
+      "target_writes": [
+        "packages/interfaces/test/owned-mcp.test.ts",
+        "docs/research/package-subsystem-ports-20261006/evidence/input-validation/mcp-profile-differential.json"
+      ],
+      "owner_fit": "TS owner-produced provenance/profile or host adapter; private Rust whole-action counterpart only where manifest defines it",
+      "source_manifest": "docs/research/package-subsystem-ports-20261006/implementation-plans/input-validation.tasks.json",
+      "scope_limit": "package port only; compiler-unchanged does not complete required T09/T10/T11/T15/D-series compiler work",
+      "execution_status": "not executed by this planning review",
+      "acceptance_authority": "exact task acceptance in linked source_manifest; not repeated as current proof"
+    },
+    {
+      "plan": "input-validation",
+      "id": "V07.1",
+      "title": "Finalize request/plan limits and cleanup implementation",
+      "lane": "V-input",
+      "depends_on": [
+        "V03.2",
+        "V03.3",
+        "V03.4",
+        "V03.5",
+        "C05.ready"
+      ],
+      "target_writes": [
+        "packages/values/semantics/src/input.rs",
+        "packages/values/bindings/owned-input.ts",
+        "packages/values/test/validation-lifecycle.test.ts",
+        "docs/research/package-subsystem-ports-20261006/evidence/input-validation/resource-policy.md"
+      ],
+      "owner_fit": "TS owner-produced provenance/profile or host adapter; private Rust whole-action counterpart only where manifest defines it",
+      "source_manifest": "docs/research/package-subsystem-ports-20261006/implementation-plans/input-validation.tasks.json",
+      "scope_limit": "package port only; compiler-unchanged does not complete required T09/T10/T11/T15/D-series compiler work",
+      "execution_status": "not executed by this planning review",
+      "acceptance_authority": "exact task acceptance in linked source_manifest; not repeated as current proof"
+    },
+    {
+      "plan": "input-validation",
+      "id": "V07.5",
+      "title": "Apply finalized owner-plan budget and release policy",
+      "lane": "V-plan",
+      "depends_on": [
+        "V07.1",
+        "V03.4"
+      ],
+      "target_writes": [
+        "packages/values/semantics/src/plans.rs",
+        "packages/values/bindings/plans.ts",
+        "packages/values/src/prepared/plan.ts",
+        "packages/values/test/prepared-validation.test.ts"
+      ],
+      "owner_fit": "TS owner-produced provenance/profile or host adapter; private Rust whole-action counterpart only where manifest defines it",
+      "source_manifest": "docs/research/package-subsystem-ports-20261006/implementation-plans/input-validation.tasks.json",
+      "scope_limit": "package port only; compiler-unchanged does not complete required T09/T10/T11/T15/D-series compiler work",
+      "execution_status": "not executed by this planning review",
+      "acceptance_authority": "exact task acceptance in linked source_manifest; not repeated as current proof"
+    },
+    {
+      "plan": "input-validation",
+      "id": "V07.2",
+      "title": "Prove HTTP resource readiness independently",
+      "lane": "V-evidence",
+      "depends_on": [
+        "V07.1",
+        "V07.5",
+        "V06.4"
+      ],
+      "target_writes": [
+        "docs/research/package-subsystem-ports-20261006/evidence/input-validation/http-resources.json",
+        "packages/values/conformance/owned-input/v1/resources.mjs"
+      ],
+      "owner_fit": "independent conformance/actual consumer/measurement/release review; no adoption inferred from task completion",
+      "source_manifest": "docs/research/package-subsystem-ports-20261006/implementation-plans/input-validation.tasks.json",
+      "scope_limit": "package port only; compiler-unchanged does not complete required T09/T10/T11/T15/D-series compiler work",
+      "execution_status": "not executed by this planning review",
+      "acceptance_authority": "exact task acceptance in linked source_manifest; not repeated as current proof"
+    },
+    {
+      "plan": "input-validation",
+      "id": "V07.3",
+      "title": "Apply owned budgets to prepared values comparator",
+      "lane": "V-values",
+      "depends_on": [
+        "V07.1",
+        "V05.2"
+      ],
+      "target_writes": [
+        "packages/values/src/prepared/validation.ts",
+        "packages/values/src/prepared/codec.ts"
+      ],
+      "owner_fit": "TS owner-produced provenance/profile or host adapter; private Rust whole-action counterpart only where manifest defines it",
+      "source_manifest": "docs/research/package-subsystem-ports-20261006/implementation-plans/input-validation.tasks.json",
+      "scope_limit": "package port only; compiler-unchanged does not complete required T09/T10/T11/T15/D-series compiler work",
+      "execution_status": "not executed by this planning review",
+      "acceptance_authority": "exact task acceptance in linked source_manifest; not repeated as current proof"
+    },
+    {
+      "plan": "input-validation",
+      "id": "V07.4",
+      "title": "Complete cross-profile resource proof",
+      "lane": "V-evidence",
+      "depends_on": [
+        "V07.2",
+        "V07.3",
+        "V06.5",
+        "V06.6",
+        "V05.3"
+      ],
+      "target_writes": [
+        "docs/research/package-subsystem-ports-20261006/evidence/input-validation/resources.json",
+        "packages/values/conformance/owned-input/v1/resources.mjs"
+      ],
+      "owner_fit": "independent conformance/actual consumer/measurement/release review; no adoption inferred from task completion",
+      "source_manifest": "docs/research/package-subsystem-ports-20261006/implementation-plans/input-validation.tasks.json",
+      "scope_limit": "package port only; compiler-unchanged does not complete required T09/T10/T11/T15/D-series compiler work",
+      "execution_status": "not executed by this planning review",
+      "acceptance_authority": "exact task acceptance in linked source_manifest; not repeated as current proof"
+    },
+    {
+      "plan": "input-validation",
+      "id": "V09.1",
+      "title": "Implement canonical private provenance bridge handoff",
+      "lane": "V-state",
+      "depends_on": [
+        "V01.3",
+        "V03.3",
+        "V02.4",
+        "W06.runtimehandoff"
+      ],
+      "target_writes": [
+        "packages/cloudflare/src/runtime/invoke.ts",
+        "packages/state/src/invocation/prepared-inputs.ts",
+        "docs/research/package-subsystem-ports-20261006/evidence/input-validation/bridge-handoff.md"
+      ],
+      "owner_fit": "TS owner-produced provenance/profile or host adapter; private Rust whole-action counterpart only where manifest defines it",
+      "source_manifest": "docs/research/package-subsystem-ports-20261006/implementation-plans/input-validation.tasks.json",
+      "scope_limit": "package port only; compiler-unchanged does not complete required T09/T10/T11/T15/D-series compiler work",
+      "execution_status": "not executed by this planning review",
+      "acceptance_authority": "exact task acceptance in linked source_manifest; not repeated as current proof"
+    },
+    {
+      "plan": "input-validation",
+      "id": "V08.1",
+      "title": "Install whole HTTP action at existing validation point",
+      "lane": "V-http",
+      "depends_on": [
+        "V06.4",
+        "V07.2",
+        "V03.3",
+        "V09.1",
+        "C04.ready",
+        "A07"
+      ],
+      "target_writes": [
+        "packages/interfaces/src/http/operations.ts",
+        "packages/interfaces/test/owned-http.test.ts"
+      ],
+      "owner_fit": "TS owner-produced provenance/profile or host adapter; private Rust whole-action counterpart only where manifest defines it",
+      "source_manifest": "docs/research/package-subsystem-ports-20261006/implementation-plans/input-validation.tasks.json",
+      "scope_limit": "package port only; compiler-unchanged does not complete required T09/T10/T11/T15/D-series compiler work",
+      "execution_status": "not executed by this planning review",
+      "acceptance_authority": "exact task acceptance in linked source_manifest; not repeated as current proof"
+    },
+    {
+      "plan": "input-validation",
+      "id": "V08.2",
+      "title": "Prove actual handler package consumer in workerd",
+      "lane": "V-http",
+      "depends_on": [
+        "V08.1",
+        "V09.1",
+        "C04.values-assets"
+      ],
+      "target_writes": [
+        "packages/cloudflare/test/owned-http-route.test.ts",
+        "docs/research/package-subsystem-ports-20261006/evidence/input-validation/http-consumer.json"
+      ],
+      "owner_fit": "TS owner-produced provenance/profile or host adapter; private Rust whole-action counterpart only where manifest defines it",
+      "source_manifest": "docs/research/package-subsystem-ports-20261006/implementation-plans/input-validation.tasks.json",
+      "scope_limit": "package port only; compiler-unchanged does not complete required T09/T10/T11/T15/D-series compiler work",
+      "execution_status": "not executed by this planning review",
+      "acceptance_authority": "exact task acceptance in linked source_manifest; not repeated as current proof"
+    },
+    {
+      "plan": "input-validation",
+      "id": "V08.3",
+      "title": "Decide bounded default deployment adoption",
+      "lane": "V-http",
+      "depends_on": [
+        "V01.2",
+        "V08.2"
+      ],
+      "target_writes": [
+        "docs/research/package-subsystem-ports-20261006/evidence/input-validation/http-adoption-gate.md"
+      ],
+      "owner_fit": "TS owner-produced provenance/profile or host adapter; private Rust whole-action counterpart only where manifest defines it",
+      "source_manifest": "docs/research/package-subsystem-ports-20261006/implementation-plans/input-validation.tasks.json",
+      "scope_limit": "package port only; compiler-unchanged does not complete required T09/T10/T11/T15/D-series compiler work",
+      "execution_status": "not executed by this planning review",
+      "acceptance_authority": "exact task acceptance in linked source_manifest; not repeated as current proof"
+    },
+    {
+      "plan": "input-validation",
+      "id": "V08.4",
+      "title": "Land owning assembly join when accepted",
+      "lane": "V-http",
+      "depends_on": [
+        "V08.3",
+        "V09.1"
+      ],
+      "target_writes": [
+        "packages/cloudflare/src/worker/assembly.ts",
+        "packages/cloudflare/test/owned-http-route.test.ts"
+      ],
+      "owner_fit": "TS owner-produced provenance/profile or host adapter; private Rust whole-action counterpart only where manifest defines it",
+      "source_manifest": "docs/research/package-subsystem-ports-20261006/implementation-plans/input-validation.tasks.json",
+      "scope_limit": "package port only; compiler-unchanged does not complete required T09/T10/T11/T15/D-series compiler work",
+      "execution_status": "not executed by this planning review",
+      "acceptance_authority": "exact task acceptance in linked source_manifest; not repeated as current proof"
+    },
+    {
+      "plan": "input-validation",
+      "id": "V08.5",
+      "title": "Verify shared delivery module join when accepted",
+      "lane": "V-integrator",
+      "depends_on": [
+        "V08.4",
+        "C04.validation-join",
+        "A07"
+      ],
+      "target_writes": [
+        "packages/cloudflare/test/owned-input-delivery.test.ts",
+        "docs/research/package-subsystem-ports-20261006/evidence/input-validation/http-default-deployment.json"
+      ],
+      "owner_fit": "shared workspace/ABI/module/binding integrator; serial common-file writer",
+      "source_manifest": "docs/research/package-subsystem-ports-20261006/implementation-plans/input-validation.tasks.json",
+      "scope_limit": "package port only; compiler-unchanged does not complete required T09/T10/T11/T15/D-series compiler work",
+      "execution_status": "not executed by this planning review",
+      "acceptance_authority": "exact task acceptance in linked source_manifest; not repeated as current proof"
+    },
+    {
+      "plan": "input-validation",
+      "id": "V08.6",
+      "title": "Close HTTP package and deployment ledger separately",
+      "lane": "V-evidence",
+      "depends_on": [
+        "V08.2",
+        "V08.3"
+      ],
+      "target_writes": [
+        "docs/research/package-subsystem-ports-20261006/evidence/input-validation/http-completion.md"
+      ],
+      "owner_fit": "independent conformance/actual consumer/measurement/release review; no adoption inferred from task completion",
+      "source_manifest": "docs/research/package-subsystem-ports-20261006/implementation-plans/input-validation.tasks.json",
+      "scope_limit": "package port only; compiler-unchanged does not complete required T09/T10/T11/T15/D-series compiler work",
+      "execution_status": "not executed by this planning review",
+      "acceptance_authority": "exact task acceptance in linked source_manifest; not repeated as current proof"
+    },
+    {
+      "plan": "input-validation",
+      "id": "V09.2",
+      "title": "Install owned state execution after replay/auth only",
+      "lane": "V-state",
+      "depends_on": [
+        "V06.5",
+        "V07.2",
+        "V09.1",
+        "A07"
+      ],
+      "target_writes": [
+        "packages/state/src/invocation/admission.ts",
+        "packages/state/src/invocation/invoke.ts",
+        "packages/state/src/invocation/prepared-inputs.ts"
+      ],
+      "owner_fit": "TS owner-produced provenance/profile or host adapter; private Rust whole-action counterpart only where manifest defines it",
+      "source_manifest": "docs/research/package-subsystem-ports-20261006/implementation-plans/input-validation.tasks.json",
+      "scope_limit": "package port only; compiler-unchanged does not complete required T09/T10/T11/T15/D-series compiler work",
+      "execution_status": "not executed by this planning review",
+      "acceptance_authority": "exact task acceptance in linked source_manifest; not repeated as current proof"
+    },
+    {
+      "plan": "input-validation",
+      "id": "V09.3",
+      "title": "Prove durable state consumer traces and copy cost",
+      "lane": "V-state",
+      "depends_on": [
+        "V09.2",
+        "V08.2",
+        "V07.4"
+      ],
+      "target_writes": [
+        "packages/state/test/invocation/owned-admission.test.ts",
+        "docs/research/package-subsystem-ports-20261006/evidence/input-validation/state-replay-traces.json",
+        "docs/research/package-subsystem-ports-20261006/evidence/input-validation/state-copy-cost.json"
+      ],
+      "owner_fit": "TS owner-produced provenance/profile or host adapter; private Rust whole-action counterpart only where manifest defines it",
+      "source_manifest": "docs/research/package-subsystem-ports-20261006/implementation-plans/input-validation.tasks.json",
+      "scope_limit": "package port only; compiler-unchanged does not complete required T09/T10/T11/T15/D-series compiler work",
+      "execution_status": "not executed by this planning review",
+      "acceptance_authority": "exact task acceptance in linked source_manifest; not repeated as current proof"
+    },
+    {
+      "plan": "input-validation",
+      "id": "V10.3",
+      "title": "Decide MCP adoption from complete seam and profile proof",
+      "lane": "V-mcp",
+      "depends_on": [
+        "V10.1",
+        "V06.6",
+        "V07.4",
+        "C04.ready",
+        "A07"
+      ],
+      "target_writes": [
+        "docs/research/package-subsystem-ports-20261006/evidence/input-validation/mcp-provenance.md"
+      ],
+      "owner_fit": "TS owner-produced provenance/profile or host adapter; private Rust whole-action counterpart only where manifest defines it",
+      "source_manifest": "docs/research/package-subsystem-ports-20261006/implementation-plans/input-validation.tasks.json",
+      "scope_limit": "package port only; compiler-unchanged does not complete required T09/T10/T11/T15/D-series compiler work",
+      "execution_status": "not executed by this planning review",
+      "acceptance_authority": "exact task acceptance in linked source_manifest; not repeated as current proof"
+    },
+    {
+      "plan": "input-validation",
+      "id": "V10.4",
+      "title": "Implement SDK-owned ordinary path only when accepted",
+      "lane": "V-mcp",
+      "depends_on": [
+        "V10.3",
+        "V08.2"
+      ],
+      "target_writes": [
+        "packages/interfaces/src/mcp/server.ts",
+        "packages/interfaces/src/mcp/schemas.ts",
+        "packages/interfaces/test/owned-mcp.test.ts",
+        "docs/research/package-subsystem-ports-20261006/evidence/input-validation/mcp-consumer.json"
+      ],
+      "owner_fit": "TS owner-produced provenance/profile or host adapter; private Rust whole-action counterpart only where manifest defines it",
+      "source_manifest": "docs/research/package-subsystem-ports-20261006/implementation-plans/input-validation.tasks.json",
+      "scope_limit": "package port only; compiler-unchanged does not complete required T09/T10/T11/T15/D-series compiler work",
+      "execution_status": "not executed by this planning review",
+      "acceptance_authority": "exact task acceptance in linked source_manifest; not repeated as current proof"
+    },
+    {
+      "plan": "input-validation",
+      "id": "V10.5",
+      "title": "Implement faithful form producer only when accepted",
+      "lane": "V-forms",
+      "depends_on": [
+        "V10.2",
+        "V07.2",
+        "V08.2"
+      ],
+      "target_writes": [
+        "packages/interfaces/src/http/forms-owned.ts",
+        "packages/interfaces/test/owned-forms.test.ts",
+        "docs/research/package-subsystem-ports-20261006/evidence/input-validation/forms-consumer.json"
+      ],
+      "owner_fit": "TS owner-produced provenance/profile or host adapter; private Rust whole-action counterpart only where manifest defines it",
+      "source_manifest": "docs/research/package-subsystem-ports-20261006/implementation-plans/input-validation.tasks.json",
+      "scope_limit": "package port only; compiler-unchanged does not complete required T09/T10/T11/T15/D-series compiler work",
+      "execution_status": "not executed by this planning review",
+      "acceptance_authority": "exact task acceptance in linked source_manifest; not repeated as current proof"
+    },
+    {
+      "plan": "input-validation",
+      "id": "V10.6",
+      "title": "Hook accepted form producer through HTTP owner",
+      "lane": "V-http",
+      "depends_on": [
+        "V10.5",
+        "V08.1"
+      ],
+      "target_writes": [
+        "packages/interfaces/src/http/operations.ts",
+        "packages/interfaces/test/owned-http.test.ts"
+      ],
+      "owner_fit": "TS owner-produced provenance/profile or host adapter; private Rust whole-action counterpart only where manifest defines it",
+      "source_manifest": "docs/research/package-subsystem-ports-20261006/implementation-plans/input-validation.tasks.json",
+      "scope_limit": "package port only; compiler-unchanged does not complete required T09/T10/T11/T15/D-series compiler work",
+      "execution_status": "not executed by this planning review",
+      "acceptance_authority": "exact task acceptance in linked source_manifest; not repeated as current proof"
+    },
+    {
+      "plan": "input-validation",
+      "id": "V10.7",
+      "title": "Close optional adoption decisions without false completion",
+      "lane": "V-evidence",
+      "depends_on": [
+        "V10.3",
+        "V10.2"
+      ],
+      "target_writes": [
+        "docs/research/package-subsystem-ports-20261006/evidence/input-validation/optional-coverage.md"
+      ],
+      "owner_fit": "independent conformance/actual consumer/measurement/release review; no adoption inferred from task completion",
+      "source_manifest": "docs/research/package-subsystem-ports-20261006/implementation-plans/input-validation.tasks.json",
+      "scope_limit": "package port only; compiler-unchanged does not complete required T09/T10/T11/T15/D-series compiler work",
+      "execution_status": "not executed by this planning review",
+      "acceptance_authority": "exact task acceptance in linked source_manifest; not repeated as current proof"
+    },
+    {
+      "plan": "input-validation",
+      "id": "V06.7",
+      "title": "Assemble profile differential ledger",
+      "lane": "V-evidence",
+      "depends_on": [
+        "V06.4",
+        "V06.5",
+        "V06.6"
+      ],
+      "target_writes": [
+        "docs/research/package-subsystem-ports-20261006/evidence/input-validation/profile-differential.json"
+      ],
+      "owner_fit": "independent conformance/actual consumer/measurement/release review; no adoption inferred from task completion",
+      "source_manifest": "docs/research/package-subsystem-ports-20261006/implementation-plans/input-validation.tasks.json",
+      "scope_limit": "package port only; compiler-unchanged does not complete required T09/T10/T11/T15/D-series compiler work",
+      "execution_status": "not executed by this planning review",
+      "acceptance_authority": "exact task acceptance in linked source_manifest; not repeated as current proof"
+    },
+    {
+      "plan": "input-validation",
+      "id": "V11.1",
+      "title": "Precommit workloads and numeric adoption budgets",
+      "lane": "V-evidence",
+      "depends_on": [
+        "V01",
+        "C05.ready"
+      ],
+      "target_writes": [
+        "docs/research/package-subsystem-ports-20261006/evidence/input-validation/measurement-contract.md"
+      ],
+      "owner_fit": "independent conformance/actual consumer/measurement/release review; no adoption inferred from task completion",
+      "source_manifest": "docs/research/package-subsystem-ports-20261006/implementation-plans/input-validation.tasks.json",
+      "scope_limit": "package port only; compiler-unchanged does not complete required T09/T10/T11/T15/D-series compiler work",
+      "execution_status": "not executed by this planning review",
+      "acceptance_authority": "exact task acceptance in linked source_manifest; not repeated as current proof"
+    },
+    {
+      "plan": "input-validation",
+      "id": "V11.2",
+      "title": "Prepare private release selection and rollback join",
+      "lane": "V-integrator",
+      "depends_on": [
+        "V02",
+        "V07",
+        "V08",
+        "V09",
+        "V10",
+        "C04.ready",
+        "C04.values-assets",
+        "A07"
+      ],
+      "target_writes": [
+        "packages/values/bindings/backend.ts",
+        "packages/values/bindings/bootstrap.ts",
+        "packages/values/bindings/validation.ts",
+        "packages/values/tsconfig.json",
+        "packages/values/package.json",
+        "packages/values/Cargo.toml",
+        "packages/values/Cargo.lock",
+        "packages/values/semantics/Cargo.toml",
+        "packages/values/bindings/Cargo.toml",
+        "docs/research/package-subsystem-ports-20261006/evidence/input-validation/selection-rollback.json"
+      ],
+      "owner_fit": "shared workspace/ABI/module/binding integrator; serial common-file writer",
+      "source_manifest": "docs/research/package-subsystem-ports-20261006/implementation-plans/input-validation.tasks.json",
+      "scope_limit": "package port only; compiler-unchanged does not complete required T09/T10/T11/T15/D-series compiler work",
+      "execution_status": "not executed by this planning review",
+      "acceptance_authority": "exact task acceptance in linked source_manifest; not repeated as current proof"
+    },
+    {
+      "plan": "input-validation",
+      "id": "V11.3",
+      "title": "Measure complete selected calls and retained resources",
+      "lane": "V-evidence",
+      "depends_on": [
+        "V11.1",
+        "V11.2",
+        "V05",
+        "V06",
+        "V07",
+        "V08",
+        "V09",
+        "V10",
+        "C05.ready"
+      ],
+      "target_writes": [
+        "docs/research/package-subsystem-ports-20261006/evidence/input-validation/measurements.json"
+      ],
+      "owner_fit": "independent conformance/actual consumer/measurement/release review; no adoption inferred from task completion",
+      "source_manifest": "docs/research/package-subsystem-ports-20261006/implementation-plans/input-validation.tasks.json",
+      "scope_limit": "package port only; compiler-unchanged does not complete required T09/T10/T11/T15/D-series compiler work",
+      "execution_status": "not executed by this planning review",
+      "acceptance_authority": "exact task acceptance in linked source_manifest; not repeated as current proof"
+    },
+    {
+      "plan": "input-validation",
+      "id": "V11.4",
+      "title": "Review Rust versus prepared-TS adoption decision",
+      "lane": "V-evidence",
+      "depends_on": [
+        "V11.3"
+      ],
+      "target_writes": [
+        "docs/research/package-subsystem-ports-20261006/evidence/input-validation/rollout-decision.md"
+      ],
+      "owner_fit": "independent conformance/actual consumer/measurement/release review; no adoption inferred from task completion",
+      "source_manifest": "docs/research/package-subsystem-ports-20261006/implementation-plans/input-validation.tasks.json",
+      "scope_limit": "package port only; compiler-unchanged does not complete required T09/T10/T11/T15/D-series compiler work",
+      "execution_status": "not executed by this planning review",
+      "acceptance_authority": "exact task acceptance in linked source_manifest; not repeated as current proof"
+    },
+    {
+      "plan": "input-validation",
+      "id": "V12.1",
+      "title": "Audit changed source, exports and release inventory",
+      "lane": "V-integrator",
+      "depends_on": [
+        "V11"
+      ],
+      "target_writes": [
+        "docs/research/package-subsystem-ports-20261006/evidence/input-validation/final-source-checks.md",
+        "docs/research/package-subsystem-ports-20261006/evidence/input-validation/verify.log"
+      ],
+      "owner_fit": "shared workspace/ABI/module/binding integrator; serial common-file writer",
+      "source_manifest": "docs/research/package-subsystem-ports-20261006/implementation-plans/input-validation.tasks.json",
+      "scope_limit": "package port only; compiler-unchanged does not complete required T09/T10/T11/T15/D-series compiler work",
+      "execution_status": "not executed by this planning review",
+      "acceptance_authority": "exact task acceptance in linked source_manifest; not repeated as current proof"
+    },
+    {
+      "plan": "input-validation",
+      "id": "V12.2",
+      "title": "Reconcile living filetree after actual merges",
+      "lane": "V-evidence",
+      "depends_on": [
+        "V12.1"
+      ],
+      "target_writes": [
+        "docs/ideal-filetree-plan.md",
+        "docs/research/package-subsystem-ports-20261006/evidence/input-validation/filetree-review.md"
+      ],
+      "owner_fit": "independent conformance/actual consumer/measurement/release review; no adoption inferred from task completion",
+      "source_manifest": "docs/research/package-subsystem-ports-20261006/implementation-plans/input-validation.tasks.json",
+      "scope_limit": "package port only; compiler-unchanged does not complete required T09/T10/T11/T15/D-series compiler work",
+      "execution_status": "not executed by this planning review",
+      "acceptance_authority": "exact task acceptance in linked source_manifest; not repeated as current proof"
+    },
+    {
+      "plan": "input-validation",
+      "id": "V12.3",
+      "title": "Review declared-port completion and gaps",
+      "lane": "V-evidence",
+      "depends_on": [
+        "V12.1",
+        "V12.2"
+      ],
+      "target_writes": [
+        "docs/research/package-subsystem-ports-20261006/evidence/input-validation/rollout-decision.md",
+        "docs/research/package-subsystem-ports-20261006/evidence/input-validation/completion-ledger.md"
+      ],
+      "owner_fit": "independent conformance/actual consumer/measurement/release review; no adoption inferred from task completion",
+      "source_manifest": "docs/research/package-subsystem-ports-20261006/implementation-plans/input-validation.tasks.json",
+      "scope_limit": "package port only; compiler-unchanged does not complete required T09/T10/T11/T15/D-series compiler work",
+      "execution_status": "not executed by this planning review",
+      "acceptance_authority": "exact task acceptance in linked source_manifest; not repeated as current proof"
+    },
+    {
+      "plan": "input-validation",
+      "id": "V01",
+      "title": "Caller and ownership contracts reviewed",
+      "lane": "V-evidence",
+      "depends_on": [
+        "V01.1",
+        "V01.2",
+        "V01.3",
+        "V01.4"
+      ],
+      "target_writes": [],
+      "owner_fit": "independent conformance/actual consumer/measurement/release review; no adoption inferred from task completion",
+      "source_manifest": "docs/research/package-subsystem-ports-20261006/implementation-plans/input-validation.tasks.json",
+      "scope_limit": "package port only; compiler-unchanged does not complete required T09/T10/T11/T15/D-series compiler work",
+      "execution_status": "not executed by this planning review",
+      "acceptance_authority": "exact task acceptance in linked source_manifest; not repeated as current proof"
+    },
+    {
+      "plan": "input-validation",
+      "id": "V02",
+      "title": "Prepared TS complete-call baseline reviewed",
+      "lane": "V-evidence",
+      "depends_on": [
+        "V02.1",
+        "V02.2",
+        "V02.3",
+        "V02.4",
+        "V02.5",
+        "V02.6",
+        "V02.7"
+      ],
+      "target_writes": [],
+      "owner_fit": "independent conformance/actual consumer/measurement/release review; no adoption inferred from task completion",
+      "source_manifest": "docs/research/package-subsystem-ports-20261006/implementation-plans/input-validation.tasks.json",
+      "scope_limit": "package port only; compiler-unchanged does not complete required T09/T10/T11/T15/D-series compiler work",
+      "execution_status": "not executed by this planning review",
+      "acceptance_authority": "exact task acceptance in linked source_manifest; not repeated as current proof"
+    },
+    {
+      "plan": "input-validation",
+      "id": "V03",
+      "title": "Versioned ownership ABI proved through actual binding",
+      "lane": "V-evidence",
+      "depends_on": [
+        "V03.1",
+        "V03.2",
+        "V03.3",
+        "V03.4",
+        "V03.5"
+      ],
+      "target_writes": [],
+      "owner_fit": "independent conformance/actual consumer/measurement/release review; no adoption inferred from task completion",
+      "source_manifest": "docs/research/package-subsystem-ports-20261006/implementation-plans/input-validation.tasks.json",
+      "scope_limit": "package port only; compiler-unchanged does not complete required T09/T10/T11/T15/D-series compiler work",
+      "execution_status": "not executed by this planning review",
+      "acceptance_authority": "exact task acceptance in linked source_manifest; not repeated as current proof"
+    },
+    {
+      "plan": "input-validation",
+      "id": "V04",
+      "title": "Values ordered interpreter and identity proved",
+      "lane": "V-evidence",
+      "depends_on": [
+        "V04.1",
+        "V04.2",
+        "V04.3",
+        "V04.4"
+      ],
+      "target_writes": [],
+      "owner_fit": "independent conformance/actual consumer/measurement/release review; no adoption inferred from task completion",
+      "source_manifest": "docs/research/package-subsystem-ports-20261006/implementation-plans/input-validation.tasks.json",
+      "scope_limit": "package port only; compiler-unchanged does not complete required T09/T10/T11/T15/D-series compiler work",
+      "execution_status": "not executed by this planning review",
+      "acceptance_authority": "exact task acceptance in linked source_manifest; not repeated as current proof"
+    },
+    {
+      "plan": "input-validation",
+      "id": "V05",
+      "title": "Host predicate and optional encode contract proved",
+      "lane": "V-evidence",
+      "depends_on": [
+        "V05.1",
+        "V05.2",
+        "V05.3"
+      ],
+      "target_writes": [],
+      "owner_fit": "independent conformance/actual consumer/measurement/release review; no adoption inferred from task completion",
+      "source_manifest": "docs/research/package-subsystem-ports-20261006/implementation-plans/input-validation.tasks.json",
+      "scope_limit": "package port only; compiler-unchanged does not complete required T09/T10/T11/T15/D-series compiler work",
+      "execution_status": "not executed by this planning review",
+      "acceptance_authority": "exact task acceptance in linked source_manifest; not repeated as current proof"
+    },
+    {
+      "plan": "input-validation",
+      "id": "V06",
+      "title": "Independent policy profiles reviewed",
+      "lane": "V-evidence",
+      "depends_on": [
+        "V06.1",
+        "V06.2",
+        "V06.3",
+        "V06.4",
+        "V06.5",
+        "V06.6",
+        "V06.7",
+        "V06.8",
+        "V06.9",
+        "V06.10"
+      ],
+      "target_writes": [],
+      "owner_fit": "independent conformance/actual consumer/measurement/release review; no adoption inferred from task completion",
+      "source_manifest": "docs/research/package-subsystem-ports-20261006/implementation-plans/input-validation.tasks.json",
+      "scope_limit": "package port only; compiler-unchanged does not complete required T09/T10/T11/T15/D-series compiler work",
+      "execution_status": "not executed by this planning review",
+      "acceptance_authority": "exact task acceptance in linked source_manifest; not repeated as current proof"
+    },
+    {
+      "plan": "input-validation",
+      "id": "V07",
+      "title": "All owned resource/lifetime gates reviewed",
+      "lane": "V-evidence",
+      "depends_on": [
+        "V07.1",
+        "V07.2",
+        "V07.3",
+        "V07.4",
+        "V07.5"
+      ],
+      "target_writes": [],
+      "owner_fit": "independent conformance/actual consumer/measurement/release review; no adoption inferred from task completion",
+      "source_manifest": "docs/research/package-subsystem-ports-20261006/implementation-plans/input-validation.tasks.json",
+      "scope_limit": "package port only; compiler-unchanged does not complete required T09/T10/T11/T15/D-series compiler work",
+      "execution_status": "not executed by this planning review",
+      "acceptance_authority": "exact task acceptance in linked source_manifest; not repeated as current proof"
+    },
+    {
+      "plan": "input-validation",
+      "id": "V08",
+      "title": "Actual HTTP package consumer and adoption ledger reviewed",
+      "lane": "V-evidence",
+      "depends_on": [
+        "V08.1",
+        "V08.2",
+        "V08.3",
+        "V08.6"
+      ],
+      "target_writes": [],
+      "owner_fit": "independent conformance/actual consumer/measurement/release review; no adoption inferred from task completion",
+      "source_manifest": "docs/research/package-subsystem-ports-20261006/implementation-plans/input-validation.tasks.json",
+      "scope_limit": "package port only; compiler-unchanged does not complete required T09/T10/T11/T15/D-series compiler work",
+      "execution_status": "not executed by this planning review",
+      "acceptance_authority": "exact task acceptance in linked source_manifest; not repeated as current proof"
+    },
+    {
+      "plan": "input-validation",
+      "id": "V09",
+      "title": "Canonical owned-state sequencing and durable proof reviewed",
+      "lane": "V-evidence",
+      "depends_on": [
+        "V09.1",
+        "V09.2",
+        "V09.3"
+      ],
+      "target_writes": [],
+      "owner_fit": "independent conformance/actual consumer/measurement/release review; no adoption inferred from task completion",
+      "source_manifest": "docs/research/package-subsystem-ports-20261006/implementation-plans/input-validation.tasks.json",
+      "scope_limit": "package port only; compiler-unchanged does not complete required T09/T10/T11/T15/D-series compiler work",
+      "execution_status": "not executed by this planning review",
+      "acceptance_authority": "exact task acceptance in linked source_manifest; not repeated as current proof"
+    },
+    {
+      "plan": "input-validation",
+      "id": "V10",
+      "title": "Optional MCP/forms outcome ledger reviewed",
+      "lane": "V-evidence",
+      "depends_on": [
+        "V10.1",
+        "V10.2",
+        "V10.3",
+        "V10.7"
+      ],
+      "target_writes": [],
+      "owner_fit": "independent conformance/actual consumer/measurement/release review; no adoption inferred from task completion",
+      "source_manifest": "docs/research/package-subsystem-ports-20261006/implementation-plans/input-validation.tasks.json",
+      "scope_limit": "package port only; compiler-unchanged does not complete required T09/T10/T11/T15/D-series compiler work",
+      "execution_status": "not executed by this planning review",
+      "acceptance_authority": "exact task acceptance in linked source_manifest; not repeated as current proof"
+    },
+    {
+      "plan": "input-validation",
+      "id": "V11",
+      "title": "Measured backend/adoption and rollback decision reviewed",
+      "lane": "V-evidence",
+      "depends_on": [
+        "V11.1",
+        "V11.2",
+        "V11.3",
+        "V11.4"
+      ],
+      "target_writes": [],
+      "owner_fit": "independent conformance/actual consumer/measurement/release review; no adoption inferred from task completion",
+      "source_manifest": "docs/research/package-subsystem-ports-20261006/implementation-plans/input-validation.tasks.json",
+      "scope_limit": "package port only; compiler-unchanged does not complete required T09/T10/T11/T15/D-series compiler work",
+      "execution_status": "not executed by this planning review",
+      "acceptance_authority": "exact task acceptance in linked source_manifest; not repeated as current proof"
+    },
+    {
+      "plan": "input-validation",
+      "id": "V12",
+      "title": "Final declared owned-port completion review",
+      "lane": "V-evidence",
+      "depends_on": [
+        "V12.1",
+        "V12.2",
+        "V12.3"
+      ],
+      "target_writes": [],
+      "owner_fit": "independent conformance/actual consumer/measurement/release review; no adoption inferred from task completion",
+      "source_manifest": "docs/research/package-subsystem-ports-20261006/implementation-plans/input-validation.tasks.json",
+      "scope_limit": "package port only; compiler-unchanged does not complete required T09/T10/T11/T15/D-series compiler work",
+      "execution_status": "not executed by this planning review",
+      "acceptance_authority": "exact task acceptance in linked source_manifest; not repeated as current proof"
+    }
+  ],
+  "findings": [
+    {
+      "id": "L-F01",
+      "summary": "Reference stored-field creation_required omits ordinary-array marker",
+      "source": "compiler/src/docs.rs:507",
+      "opposing_case": "Historical MCP caller-required formula may be intentional; must still agree with current T09 field semantics",
+      "confidence": "high source mismatch; unexecuted runtime manifestation",
+      "owner": "compiler/reference with values/interface review",
+      "task_ids": [
+        "D04",
+        "D06",
+        "T09"
+      ],
+      "gate": "owner-derived requiredness parity; no generic parameter-rule change inferred"
+    },
+    {
+      "id": "L-F02",
+      "summary": "Package compiler-unchanged scope cannot complete contextual literal/expression/metadata/description challenge work",
+      "source": "compiler/src/codegen/js.rs:1495",
+      "opposing_case": "Bounded port should avoid compiler expansion; separate compiler owner can close the required join",
+      "confidence": "high",
+      "owner": "compiler with values/catalog and port consuming gate",
+      "task_ids": [
+        "T09",
+        "T10",
+        "T11",
+        "T15",
+        "T35",
+        "D02",
+        "D03",
+        "D04",
+        "D05",
+        "D06"
+      ],
+      "gate": "actual original source emission and consumer proof, separately owned from A/V tasks"
+    },
+    {
+      "id": "L-F03",
+      "summary": "Rust numeric/owned core does not warrant migrating TS locale/unknown/callback authority or adding compiler dependency",
+      "opposing_case": "Future direct pure-core reuse could reduce compile/runtime duplication and crossings",
+      "confidence": "high about present scope; future economics unknown",
+      "owner": "values/validation/compiler architecture",
+      "gate": "defer dependency/VM expansion until separate stable contract/version/build/semantics proof"
+    }
+  ],
+  "pending_issues": [
+    "original all-52 per-site intent/blocker verdict remains T02/T36/T41",
+    "decimal expression constructor/lowering",
+    "reference ordinary-array requiredness",
+    "accepted containment/hooks/read/fanout producer joins and authority/storage/execution proof",
+    "private input budgets and lifecycle parity",
+    "actual package/released Worker delivery and default HTTP route",
+    "optional MCP/forms provenance and adoption",
+    "prepared TS versus Rust complete-call measured decision",
+    "required accepted corpus/index/protected grounded producer-runtime disclosure implementation"
+  ],
+  "new_consequential_architecture_decision": null,
+  "completion_dimensions": {
+    "source_coverage": "defining language/values/validation/reference seams and representative originals; not every function or all-site corpus certificate",
+    "workflow_tracing": "compiler pipeline, runtime invocation/example/documentation/owned-profile lifecycle traced at source level; execution unverified",
+    "independent_challenge": "work reviewer challenged semantics and defining source seams; material omissions/corrections reconciled; root final integration pending",
+    "target_allocation": "35 duties with one selected compiler decomposition; 44 exact-values and 73 validation task entries; unimplemented targets and cutovers explicit"
+  },
+  "selected_decomposition": [
+    {
+      "source": "compiler/src/analysis/effects.rs",
+      "selected_targets": [
+        "compiler/src/analysis/effects/mod.rs",
+        "compiler/src/analysis/effects/tables.rs",
+        "compiler/src/analysis/effects/declarations.rs",
+        "compiler/src/analysis/effects/rules.rs",
+        "compiler/src/analysis/effects/handlers.rs",
+        "compiler/src/analysis/effects/statements.rs",
+        "compiler/src/analysis/effects/descriptions.rs",
+        "compiler/src/analysis/effects/migrations.rs"
+      ],
+      "decision": "selected responsibility split",
+      "cutover_gate": "One selected finished tree, inherited exact duty partition reconciled against current source roles; old audit not execution/correctness proof. Retain predecessor .rs only until exports/imports/pass order/diagnostics/spans/artifact bytes and independent tests plus actual consumers use mod.rs; then remove predecessor, never install both module roots. Functional fixes can land before structural cutover under existing reservations."
+    },
+    {
+      "source": "compiler/src/analysis/examples.rs",
+      "selected_targets": [
+        "compiler/src/analysis/examples/mod.rs",
+        "compiler/src/analysis/examples/tables.rs",
+        "compiler/src/analysis/examples/fixtures.rs",
+        "compiler/src/analysis/examples/selectors.rs",
+        "compiler/src/analysis/examples/sequences.rs",
+        "compiler/src/analysis/examples/messages.rs"
+      ],
+      "decision": "selected responsibility split",
+      "cutover_gate": "One selected finished tree, inherited exact duty partition reconciled against current source roles; old audit not execution/correctness proof. Retain predecessor .rs only until exports/imports/pass order/diagnostics/spans/artifact bytes and independent tests plus actual consumers use mod.rs; then remove predecessor, never install both module roots. Functional fixes can land before structural cutover under existing reservations."
+    },
+    {
+      "source": "compiler/src/analysis/types.rs",
+      "selected_targets": [
+        "compiler/src/analysis/types/mod.rs",
+        "compiler/src/analysis/types/model.rs",
+        "compiler/src/analysis/types/declarations.rs",
+        "compiler/src/analysis/types/expressions.rs",
+        "compiler/src/analysis/types/members.rs",
+        "compiler/src/analysis/types/operators.rs",
+        "compiler/src/analysis/types/narrowing.rs",
+        "compiler/src/analysis/types/constructs.rs",
+        "compiler/src/analysis/types/queries.rs",
+        "compiler/src/analysis/types/calls.rs",
+        "compiler/src/analysis/types/overloads.rs",
+        "compiler/src/analysis/types/statements.rs",
+        "compiler/src/analysis/types/mutations.rs",
+        "compiler/src/analysis/types/effect_calls.rs",
+        "compiler/src/analysis/types/scenarios.rs",
+        "compiler/src/analysis/types/schemas.rs",
+        "compiler/src/analysis/types/rules.rs",
+        "compiler/src/analysis/types/context.rs",
+        "compiler/src/analysis/types/ui.rs",
+        "compiler/src/analysis/types/fixtures.rs",
+        "compiler/src/analysis/types/literals.rs"
+      ],
+      "decision": "selected responsibility split",
+      "cutover_gate": "One selected finished tree, inherited exact duty partition reconciled against current source roles; old audit not execution/correctness proof. Retain predecessor .rs only until exports/imports/pass order/diagnostics/spans/artifact bytes and independent tests plus actual consumers use mod.rs; then remove predecessor, never install both module roots. Functional fixes can land before structural cutover under existing reservations."
+    },
+    {
+      "source": "compiler/src/codegen/ir.rs",
+      "selected_targets": [
+        "compiler/src/codegen/ir/mod.rs",
+        "compiler/src/codegen/ir/model.rs",
+        "compiler/src/codegen/ir/build.rs",
+        "compiler/src/codegen/ir/decode_expr.rs",
+        "compiler/src/codegen/ir/decode_effects.rs",
+        "compiler/src/codegen/ir/decode_items.rs",
+        "compiler/src/codegen/ir/decode_rules.rs",
+        "compiler/src/codegen/ir/decode_pages.rs",
+        "compiler/src/codegen/ir/decode_ui.rs",
+        "compiler/src/codegen/ir/decode_fixtures.rs",
+        "compiler/src/codegen/ir/decode_examples.rs",
+        "compiler/src/codegen/ir/literals.rs",
+        "compiler/src/codegen/ir/decode_forms.rs"
+      ],
+      "decision": "selected responsibility split",
+      "cutover_gate": "One selected finished tree, inherited exact duty partition reconciled against current source roles; old audit not execution/correctness proof. Retain predecessor .rs only until exports/imports/pass order/diagnostics/spans/artifact bytes and independent tests plus actual consumers use mod.rs; then remove predecessor, never install both module roots. Functional fixes can land before structural cutover under existing reservations."
+    },
+    {
+      "source": "compiler/src/codegen/js.rs",
+      "selected_targets": [
+        "compiler/src/codegen/js/mod.rs",
+        "compiler/src/codegen/js/writer.rs",
+        "compiler/src/codegen/js/expressions.rs",
+        "compiler/src/codegen/js/scalars.rs",
+        "compiler/src/codegen/js/schema.rs",
+        "compiler/src/codegen/js/effects.rs",
+        "compiler/src/codegen/js/pages.rs",
+        "compiler/src/codegen/js/definition.rs",
+        "compiler/src/codegen/js/registry.rs",
+        "compiler/src/codegen/js/packages.rs",
+        "compiler/src/codegen/js/descriptors.rs"
+      ],
+      "decision": "selected responsibility split",
+      "cutover_gate": "One selected finished tree, inherited exact duty partition reconciled against current source roles; old audit not execution/correctness proof. Retain predecessor .rs only until exports/imports/pass order/diagnostics/spans/artifact bytes and independent tests plus actual consumers use mod.rs; then remove predecessor, never install both module roots. Functional fixes can land before structural cutover under existing reservations."
+    },
+    {
+      "source": "compiler/src/syntax/parser.rs",
+      "selected_targets": [
+        "compiler/src/syntax/parser/mod.rs",
+        "compiler/src/syntax/parser/cursor.rs",
+        "compiler/src/syntax/parser/builder.rs",
+        "compiler/src/syntax/parser/recovery.rs",
+        "compiler/src/syntax/parser/modules.rs",
+        "compiler/src/syntax/parser/expressions.rs",
+        "compiler/src/syntax/parser/types.rs",
+        "compiler/src/syntax/parser/attributes.rs",
+        "compiler/src/syntax/parser/given.rs",
+        "compiler/src/syntax/parser/when.rs",
+        "compiler/src/syntax/parser/examples.rs",
+        "compiler/src/syntax/parser/ui.rs",
+        "compiler/src/syntax/parser/migrations.rs"
+      ],
+      "decision": "selected responsibility split",
+      "cutover_gate": "One selected finished tree, inherited exact duty partition reconciled against current source roles; old audit not execution/correctness proof. Retain predecessor .rs only until exports/imports/pass order/diagnostics/spans/artifact bytes and independent tests plus actual consumers use mod.rs; then remove predecessor, never install both module roots. Functional fixes can land before structural cutover under existing reservations."
+    }
+  ],
+  "independent_challenge_received": {
+    "reviewer": "target_work",
+    "reviewed": "language primary",
+    "accepted_findings": [
+      "L-F01 confirmed docs requiredness lacks array-marker; js.rs descriptor rule includes it",
+      "L-F02 confirmed Decimal expression E6008",
+      "Added omitted REQUIRED normative model-bound corpus/opaque grounded compiler duty",
+      "Reclassified adopted fanout and accepted semantics as required with execution gates, not still-unadopted proposal"
+    ],
+    "status": "work reviewer reread amended 35-duty artifact and reports no further material objection at reviewed scope; actual qualification remains future"
+  },
+  "independent_challenge_of_work": {
+    "reviewer": "language primary independently challenges work",
+    "reviewed_paths": [
+      "docs/ideal-filetree-plan/finished-product/reviews/work.md",
+      "docs/ideal-filetree-plan/finished-product/reviews/work.json"
+    ],
+    "reviewed_bytes": {
+      "docs/ideal-filetree-plan/finished-product/reviews/work.md": "1168f94deadcb47b079d14f4205649147132c301fbf83ff977b50883bbf75b0b",
+      "docs/ideal-filetree-plan/finished-product/reviews/work.json": "6be05a8d85bcaef153a66f1f7a3b65e5c413131f30f26f12cdb9a27afa980ea7"
+    },
+    "performed": "read-only contract/defining source and amended artifact inspection; no tests or runtime",
+    "findings": [
+      {
+        "id": "LC-W01",
+        "status": "challenged-and-reconciled",
+        "subject": "Accepted corpus versus T12 scoped producer inventory",
+        "source_facts": [
+          "DESIGN.md:696-698 complete corpus contract normative",
+          "design/complex-apps/knowledge.md:3,37,45,49-53 genuine origin, opaque all-model-used context current grants, historical/as-of, failure distinct from false",
+          "draft/CanKnowledge.can:25,147-190 model-bound declaration ask and read/revocation; :209-234 stop/reconcile",
+          "packages/contracts/src/services.ts:703-715 B8 excludes executable derived interface from T12, not product grammar"
+        ],
+        "original_gap": "Work pending issue originally described a new corpus interface/grammar decision with alternatives, despite adopted complete contract",
+        "resolution": "Amended W-CORPUS/WORK-PENDING-CORPUS-JOIN now required accepted compiler+producer/index/controller/protected-grounded/disclosure/fixture joins. No new grammar consultation. Language LANG-CORPUS-GROUNDED added; shared corpus.ts contract target reconciles owners",
+        "opposing_case": "T12 owner correctly refused inventing runtime corpus semantics while cataloging std DTOs; that restraint must remain, but cannot erase existing normative requirement"
+      },
+      {
+        "id": "LC-W02",
+        "status": "confirmed-boundary-with-proof-gate",
+        "subject": "Finite authoritative cohort and independent durable child lifecycle",
+        "source_facts": [
+          "Corrected t33-resolution.md C1-C9/M1-M10 adopts complete finite cohorts and no semantic 500 cap/automatic filtered sweep supersession",
+          "state/fanout/cohort.ts whole-model and anchored-collection owner attestations",
+          "state/fanout/membership.ts bounded enumeration plus explicit source-occurrence/handler cutoff and frozen membership; separate plain freeze vs child-join commits"
+        ],
+        "assessment": "W-FANOUT allocation retains exact source/intent and child commit units, coverage/failure/restart/fairness boundaries; real membership/restart/original-app matrix remains unexecuted. Do not infer historical D1 snapshot from source fence",
+        "opposing_case": "Atomic bounded sweep is simpler, but fails independently admitted full-cohort outcomes and separate failure/progress; old prep d is superseded"
+      },
+      {
+        "id": "LC-W03",
+        "status": "confirmed-owner-allocation",
+        "subject": "Work Rust responsibility leaf cannot duplicate admission/replay/storage authority",
+        "source_facts": [
+          "state/fanout/tables.ts explicitly retains StateError profile and previously avoids full work runtime imports",
+          "work/kernel/commands.ts header keeps registry/commit engine state-owned and type-only system port dependency",
+          "work-transitions.md target contracts-only work-kernel excludes state/full work/Node/test loaders; W09 request-resume separate"
+        ],
+        "assessment": "W-KERNEL leaf has coherent proposed build/export/vendor contract and sole mechanisms authority while TS state/work hosts retain demand/hash/admission/commit/lookup. Public wrappers and owner error policies retained; duplicate mechanism bodies retire only on complete caller/byte/trace/rollback proof. No claim measured Rust benefit",
+        "opposing_case": "An isolated work/transitions subpath may use fewer packages but still needs equivalent build DAG/export policing and delivery proof; accepted leaf advice is not execution proof"
+      },
+      {
+        "id": "LC-W04",
+        "status": "confirmed-required-host-lifecycle",
+        "subject": "Provider bytes, receiving app provenance/finalization and retention beyond file GC",
+        "source_facts": [
+          "files/provenance/index.ts binds receiving app/team/owner/principal/source and freezes final reference",
+          "files/bridge.ts uses principal resolver; model cannot choose upload identity metadata",
+          "files/retention/index.ts runRetention removes bytes/orphans while describeForReceipt keeps safe metadata summary",
+          "REQUIREMENTS.md retain model expiry also disposes sensitive local history/receipt/outbox while retaining safe replay identity"
+        ],
+        "assessment": "Work correctly keeps verified provider uncertainty separate, requires receiving-app immutable finalization and proposed durable metadata/blob/recovery joins, and distinguishes model expiry from migration retain/file GC. Async producer contract and actual recovery across stores remain required; no R2/state atomicity or receipt-status success inferred",
+        "opposing_case": "Pure/synchronous existing file ports are economical and testable but cannot substantiate remote durable metadata publication without separate host protocol/recovery proof"
+      },
+      {
+        "id": "LC-W05",
+        "status": "confirmed-required-scheduler-vs-optional-port",
+        "subject": "Required TS pending/recovery/fair scheduler does not become optional under W09",
+        "source_facts": [
+          "cloudflare/runtime/invoke.ts exports driveDispatchIntent at 3826, runRecoverySweep at 4169, runFanoutSchedulerTurn at 6480",
+          "work-transitions.md W06 pilot preserves held/awaiting progress/stale-claim recovery and real Wasm workerd evidence",
+          "work-transitions.md W09.1-W09.3 explicitly separate Rust request/resume continuation prototype requiring real consumer/fresh authority/disposal"
+        ],
+        "assessment": "Work target fanout-scheduler/recovery/progress remains REQUIRED host behavior. Only Rust ownership of full request/resume scheduling is deferred; data-only kernel results must not hide host await/demand/exceptions or add commit/retry loops. No unsupported named await-body language API is invented",
+        "opposing_case": "Retained Rust interpreter continuation may amortize calls, but has a genuinely new protocol/stale-authority/resource burden requiring its own evidence and adoption gate"
+      }
+    ],
+    "outcome": "Amended work primary is coherent at inspected owner boundaries; LC-W01 correction required and now verified. Remaining required joins and conditional port/adoption gates stay open; no executed product qualification."
+  },
+  "artifact_checks": {
+    "json_parse": "passed using Python standard library read/write",
+    "selected_predecessor_target_collision": "none among six selected compiler decompositions",
+    "task_namespace_uniqueness": "117 unique plan/id pairs",
+    "scope": "planning artifact integrity only; no implementation tests/builds"
+  }
+}

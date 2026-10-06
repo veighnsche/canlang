@@ -1,0 +1,27 @@
+{
+  "model": "work.receipt",
+  "constructor_input": {
+    "constructor": "newReceiptRow",
+    "input": {
+      "deliveryId": "dlv_1",
+      "revision": 3,
+      "status": "succeeded",
+      "result": {
+        "ok": true
+      },
+      "error": null,
+      "contentRef": null,
+      "resultExpiresAtMs": null
+    },
+    "meta": {
+      "nowMs": 1750000000000,
+      "actor": "w01.3-baseline"
+    }
+  },
+  "row_id": "dlv_1",
+  "d1_data_bytes": "{\"deliveryId\":\"dlv_1\",\"revision\":3,\"status\":\"succeeded\",\"result\":{\"ok\":true},\"error\":null,\"contentRef\":null,\"resultExpiresAtMs\":null}",
+  "do_data_bytes": "{\"deliveryId\":\"dlv_1\",\"revision\":3,\"status\":\"succeeded\",\"result\":{\"ok\":true},\"error\":null,\"contentRef\":null,\"resultExpiresAtMs\":null}",
+  "d1_equals_do": true,
+  "byte_length_utf8": 133,
+  "sha256": "67fb49c080943bd77d6f952cd9c6e0412cae018d0906b1e501ca76558289ffbd"
+}

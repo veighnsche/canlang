@@ -461,7 +461,7 @@ pub fn literal_json(expr: &TypedExpr) -> Option<String> {
         IrExpr::Call { target, args } => {
             let id = match target {
                 IrCallTarget::Builtin { id, .. } => id.as_str(),
-                IrCallTarget::CapabilityOp(_) => return None,
+                IrCallTarget::CapabilityOp(_) | IrCallTarget::DeriveFn(_) => return None,
             };
             match (id, args.as_slice()) {
                 ("money", [minor, currency])
@@ -910,6 +910,7 @@ pub fn emit_program(ir: &IrProgram) -> JsOutput {
         }
     }
     emitter.emit_app_definition(&mut body, entry_id);
+    emitter.emit_derive_fns(&mut body);
     emitter.emit_can_app(&mut body, entry_id, &operations);
     let mut out = JsWriter::new();
     out.push(
@@ -1162,6 +1163,10 @@ pub struct Emitter<'a> {
     /// [`Emitter::exit_hook`]. Statements and expressions consult it to
     /// stage through the hook context instead of the ambient `c`.
     hook: Option<HookState>,
+    /// Bounded-loop sequence: each `for ... limit` binds its own
+    /// `$forRowsN` fetch, so sequential loops never redeclare one
+    /// binding (source order keeps numbering deterministic).
+    loop_seq: usize,
 }
 
 /// Hook lowering state: the trigger model. (The staged-id counter lives
@@ -1192,6 +1197,7 @@ impl<'a> Emitter<'a> {
             callables: Vec::new(),
             pages: Vec::new(),
             hook: None,
+            loop_seq: 0,
         }
     }
 
@@ -1470,6 +1476,27 @@ impl<'a> Emitter<'a> {
                     inner_schema
                 }
             },
+            ResolvedType::Action {
+                targets, external, ..
+            } => {
+                // `{type:"action",targets:[canonical...]}` per the
+                // CanBoard/CanMaintain draft contract field schemas.
+                // Locals keep source order, then externals (mixed
+                // interleavings are not preserved).
+                let mut names: Vec<String> = targets
+                    .iter()
+                    .map(|s| self.ir.items[s.0 as usize].canonical.clone())
+                    .collect();
+                names.extend(external.iter().cloned());
+                format!(
+                    "type:\"action\",targets:[{}]",
+                    names
+                        .iter()
+                        .map(|n| js_string(n))
+                        .collect::<Vec<_>>()
+                        .join(",")
+                )
+            }
             other => {
                 let id = self.canonical_type_id(other, span);
                 self.unsupported(
@@ -1664,6 +1691,30 @@ impl<'a> Emitter<'a> {
                 } else {
                     call
                 }
+            }
+            IrCallTarget::DeriveFn(canonical) => {
+                if self.in_hook() {
+                    return self.hook_gap(
+                        "hook derive call",
+                        "derive calls need the ambient context (c), which hooks do not receive",
+                        span,
+                    );
+                }
+                let name = match self.by_canonical.get(canonical) {
+                    Some(index) => sanitize_ident(&self.ir.items[*index].name.clone()),
+                    None => {
+                        self.unsupported(
+                            "derive call",
+                            &format!("{canonical} is not a known symbol"),
+                            span,
+                        );
+                        return self.throw_expr(&format!("unknown derive {canonical}"));
+                    }
+                };
+                let parts: Vec<String> = args.iter().map(|a| self.lower_expr(a)).collect();
+                let mut all = vec!["c".to_string()];
+                all.extend(parts);
+                format!("await {}({})", name, all.join(","))
             }
             IrCallTarget::CapabilityOp(canonical) => {
                 if self.in_hook() {
@@ -2671,17 +2722,51 @@ impl<'a> Emitter<'a> {
             IrStmt::For {
                 item,
                 domain,
+                limit,
                 body,
                 span,
             } => {
                 let domain_text = self.lower_expr(domain);
-                let mut lines = vec![(
-                    format!(
-                        "{pad}for (const {} of await {domain_text}) {{",
-                        sanitize_ident(item)
-                    ),
+                // Model queries arrive already awaited (`await
+                // records(...)`); await any other domain exactly once
+                // (`await` on a plain array is harmless).
+                let awaited = match &domain.expr {
+                    IrExpr::Query(query)
+                        if matches!(
+                            query.domain,
+                            crate::codegen::ir::IrQueryDomain::Model(_)
+                        ) =>
+                    {
+                        domain_text.clone()
+                    }
+                    _ => format!("await {domain_text}"),
+                };
+                let mut lines = Vec::new();
+                // A bound loop fetches once, then fails past N items
+                // (DESIGN §5; `check(rows.length<=N,"limit")` per the
+                // CanCreative/CanDiscover draft bound checks). Each loop
+                // binds its own `$forRowsN` fetch.
+                let over = if let Some(bound) = limit {
+                    self.stdlib.insert("check".to_string());
+                    let rows = format!("$forRows{}", self.loop_seq);
+                    self.loop_seq += 1;
+                    let mut bound_text = self.lower_expr(bound);
+                    if expr_uses_async(bound) {
+                        bound_text = format!("await {bound_text}");
+                    }
+                    lines.push((format!("{pad}const {rows} = {awaited};"), *span));
+                    lines.push((
+                        format!("{pad}check({rows}.length<={bound_text},\"limit\");"),
+                        *span,
+                    ));
+                    rows
+                } else {
+                    awaited
+                };
+                lines.push((
+                    format!("{pad}for (const {} of {over}) {{", sanitize_ident(item)),
                     *span,
-                )];
+                ));
                 for stmt in body {
                     lines.extend(self.lower_stmt(stmt, indent + 1));
                 }
@@ -3073,6 +3158,15 @@ impl<'a> Emitter<'a> {
         }
         if page.nav_none {
             members.push("nav:\"none\"".to_string());
+        }
+        // `poll=`/`refresh=` (DESIGN §9): the cadence as exact-BigInt
+        // millis plus the canonical refresh mutation. Sparse like the
+        // other optional members; `admit`/`render` stay last per §13.
+        if let Some(poll) = page.poll {
+            members.push(format!("poll:{poll}n"));
+        }
+        if let Some(refresh) = &page.refresh {
+            members.push(format!("refresh:{}", js_string(refresh)));
         }
         let bindings = self.admit_preferences_js(&page.owner);
         let admit_body = if page.admit.is_empty() {
@@ -4096,6 +4190,17 @@ impl<'a> Emitter<'a> {
                     .collect::<Vec<_>>()
                     .join(",");
                 members.push(format!("read:[{rules}]"));
+                // B7 phase-1: explicit-public provenance, sparse like
+                // `read` (omitted when no grant is unconditionally
+                // public, so existing output is byte-identical).
+                let public = grants
+                    .iter()
+                    .filter(|grant| grant.public)
+                    .map(|grant| js_string(&grant.rule))
+                    .collect::<Vec<_>>();
+                if !public.is_empty() {
+                    members.push(format!("public:[{}]", public.join(",")));
+                }
             }
             if !invariants.is_empty() {
                 let ids = invariants
@@ -5072,6 +5177,17 @@ impl<'a> Emitter<'a> {
         self.emit_derives_map(out, entry_span);
         self.emit_hooks_map(out, entry_span);
         self.emit_handler_fns(out);
+        // B7 phase-1: the policy manifest inside `canApp()`, from the
+        // same builder as `appDefinition`, so the serve loader sees
+        // provenance without a second source. Sparse: omitted when the
+        // program has no policy content (byte-identical otherwise).
+        if let Some(policy) = self.emit_policy_member() {
+            out.push(
+                entry_span,
+                Some("canApp".to_string()),
+                &format!("{policy},"),
+            );
+        }
         out.push(entry_span, Some("canApp".to_string()), "};}");
     }
 
@@ -5302,6 +5418,51 @@ impl<'a> Emitter<'a> {
         out.push(span, Some("canApp".to_string()), "},");
     }
 
+    /// Emit derived functions as module-scope named functions
+    /// (`{export?}async function name(c,...params){...}` per the
+    /// CanChat/CanDiscover draft contract). Bodies reference parameters
+    /// by bare name, so the signature carries the declared params in
+    /// order (no `row`: derives are pure functions, DESIGN §2). Always
+    /// `async`: call sites uniformly `await`. Exported exactly when the
+    /// source derive is exported.
+    fn emit_derive_fns(&mut self, out: &mut JsWriter) {
+        for item in self.ir.items.clone() {
+            let IrItemKind::DeriveFn { params, expr, .. } = &item.kind else {
+                continue;
+            };
+            let name = sanitize_ident(&item.name);
+            let mut signature = vec!["c".to_string()];
+            for id in params {
+                signature.push(sanitize_ident(&self.ir.items[id.0 as usize].name.clone()));
+            }
+            let export = if item.exported { "export " } else { "" };
+            match expr {
+                Some(expr) => {
+                    let body_text = self.lower_expr(expr);
+                    out.push(
+                        item.span,
+                        Some(item.canonical.clone()),
+                        &format!(
+                            "{export}async function {name}({}){{return {body_text};}}",
+                            signature.join(",")
+                        ),
+                    );
+                }
+                None => {
+                    out.push(
+                        item.span,
+                        Some(item.canonical.clone()),
+                        &format!(
+                            "{export}async function {name}({}){{throw new Error({});}}",
+                            signature.join(","),
+                            js_string(&format!("unchecked derive: {}", item.canonical))
+                        ),
+                    );
+                }
+            }
+        }
+    }
+
     fn emit_handler_fns(&mut self, out: &mut JsWriter) {
         for item in &self.ir.items.clone() {
             match &item.kind {
@@ -5444,7 +5605,7 @@ impl<'a> Emitter<'a> {
                     }
                     out.push(item.span, Some(item.canonical.clone()), "},");
                 }
-                IrItemKind::DeriveFn { expr, .. } => {
+                IrItemKind::DeriveFn { .. } => {
                     let name = sanitize_ident(&item.name);
                     self.callables.push(JsCallable {
                         id: item.canonical.clone(),
@@ -5453,26 +5614,15 @@ impl<'a> Emitter<'a> {
                         member: registry_member(self.ir, item),
                         span: item.span,
                     });
-                    match expr {
-                        Some(expr) => {
-                            let body_text = self.lower_expr(expr);
-                            out.push(
-                                item.span,
-                                Some(item.canonical.clone()),
-                                &format!("async {name}(c,row){{return {body_text};}},"),
-                            );
-                        }
-                        None => {
-                            out.push(
-                                item.span,
-                                Some(item.canonical.clone()),
-                                &format!(
-                                    "async {name}(c,row){{throw new Error({});}},",
-                                    js_string(&format!("unchecked derive: {}", item.canonical))
-                                ),
-                            );
-                        }
-                    }
+                    // The implementation lives at module scope
+                    // (`emit_derive_fns`); the registry holds a
+                    // shorthand reference so the `[name]` member path
+                    // still resolves to the named function.
+                    out.push(
+                        item.span,
+                        Some(item.canonical.clone()),
+                        &format!("{name},"),
+                    );
                 }
                 IrItemKind::DeriveField { .. } => {}
                 _ => {}

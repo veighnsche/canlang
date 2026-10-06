@@ -1,0 +1,22 @@
+{
+  "model": "work.fanout_child",
+  "constructor_input": {
+    "constructor": "newFanoutChildRow",
+    "input": {
+      "fanoutId": "fanout/v1/occ_baseline_1/h1/model",
+      "parentOccurrence": "occ_baseline_1",
+      "handler": "h1",
+      "recordId": "rec-a"
+    },
+    "meta": {
+      "nowMs": 1750000000000,
+      "actor": "w01.3-baseline"
+    }
+  },
+  "row_id": "fanout-child/v1/occ_baseline_1/h1/rec-a",
+  "d1_data_bytes": "{\"fanoutId\":\"fanout/v1/occ_baseline_1/h1/model\",\"parentOccurrence\":\"occ_baseline_1\",\"handler\":\"h1\",\"recordId\":\"rec-a\",\"childId\":\"fanout-child/v1/occ_baseline_1/h1/rec-a\",\"state\":\"pending\",\"attempts\":0,\"causeKind\":null,\"causeReason\":null}",
+  "do_data_bytes": "{\"fanoutId\":\"fanout/v1/occ_baseline_1/h1/model\",\"parentOccurrence\":\"occ_baseline_1\",\"handler\":\"h1\",\"recordId\":\"rec-a\",\"childId\":\"fanout-child/v1/occ_baseline_1/h1/rec-a\",\"state\":\"pending\",\"attempts\":0,\"causeKind\":null,\"causeReason\":null}",
+  "d1_equals_do": true,
+  "byte_length_utf8": 237,
+  "sha256": "c5afd0131046f7500f010380ffd79f038fd0a9f5cbd847d43123c15034244fe0"
+}
