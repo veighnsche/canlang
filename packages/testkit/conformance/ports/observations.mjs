@@ -403,7 +403,7 @@ function main() {
     console.log(JSON.stringify({ status: "match", digest: report.digest }));
     return;
   }
-  console.log(JSON.stringify(report, args.pretty ? 2 : 0));
+  console.log(JSON.stringify(canonical(report), args.pretty ? 2 : 0));
 }
 
 const invoked = process.argv[1] !== undefined && import.meta.url === pathToFileURL(process.argv[1]).href;
