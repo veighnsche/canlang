@@ -346,14 +346,14 @@ function ids(): FixtureBindings {
   return { self: "s1", other: "o1", imported: {} };
 }
 
-const TABLE_MODULE = `const author = { dependencies: [], value: async (c, s) => ({ name: "a" }) };
+const TABLE_MODULE = `const author = { dependencies: [], value: async (c, s) => ({ name: "seed" }) };
 export function exampleFixtures(bindings) {
   return {
     fixtures: { author },
     examples: [{
       operation: "Todo.create",
-      dependencies: [],
-      inputs: async (c, s) => ({ title: "t" }),
+      dependencies: ["author"],
+      inputs: async (c, s) => ({ title: "t", author: s.author }),
       selectors: ["as", "author.name"],
       observations: [async (c, s) => s.get("author")],
       rows: [
@@ -373,7 +373,7 @@ describe("table row expansion", () => {
       { kind: "self" },
     ]);
     expect(suite.rows[0]?.seed).toEqual(["author"]);
-    expect(suite.rows[1]?.seed).toEqual([]);
+    expect(suite.rows[1]?.seed).toEqual(["author"]);
     const first = suite.rows[0];
     const second = suite.rows[1];
     if (first === undefined || second === undefined) {
@@ -382,8 +382,11 @@ describe("table row expansion", () => {
     const scope = new MemoryScope();
     await first.setup(scope, memoryAccounts());
     expect(first.expected).toEqual({ values: [{ name: "a" }], observations: [] });
-    expect(stashedRowOf(scope)?.inputs).toEqual({ title: "t" });
+    // Input cells apply along selector paths; the provisioned fixture the
+    // inputs were built from stays pristine (no aliasing).
+    expect(stashedRowOf(scope)?.inputs).toEqual({ title: "t", author: { name: "a" } });
     expect(stashedRowOf(scope)?.cells).toEqual(["members", "a"]);
+    expect(fixtureValuesOf(scope)?.get("author")).toEqual({ name: "seed" });
     await second.setup(new MemoryScope(), memoryAccounts());
     expect(second.expected).toEqual({ error: "rule_failed" });
   });
@@ -395,6 +398,10 @@ describe("table row expansion", () => {
         calls.push(call);
         return call.by === "members" ? { ok: true } : { ok: false, error: "rule_failed" };
       },
+      // Live rows reflect the applied inputs (genuine live-read posture);
+      // the static provisioned seed ("seed") must NOT leak through.
+      observeScope: async (_scope, stashed) =>
+        new Map([["author", (stashed.inputs as { author: unknown }).author]]),
     };
     const suite = await loadExampleSuite(await writeModule("run.mjs", TABLE_MODULE), ids(), hooks);
     const report = await runTable<RowScope>({
@@ -409,7 +416,7 @@ describe("table row expansion", () => {
       ["Todo.create", "members"],
       ["Todo.create", "s1"],
     ]);
-    expect(calls[0]?.inputs).toEqual({ title: "t" });
+    expect(calls[0]?.inputs).toEqual({ title: "t", author: { name: "a" } });
   });
 
   it("fails deliberately broken expectations with mismatches", async () => {
