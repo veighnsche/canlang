@@ -4,6 +4,7 @@ import { mkdir, readdir, readFile, writeFile, realpath } from 'node:fs/promises'
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 const profiles = ['values','state','stdlib','identity','ui','interfaces','work','cloudflare','testkit','workspace'];
+const NATIVE_PROFILES = ['cloudflare', 'workspace'];
 const hash = data => createHash('sha256').update(data).digest('hex');
 function gh(argv, json = false) {
   const r = spawnSync('gh', argv, { encoding: 'utf8', timeout: 120000, maxBuffer: 16 * 1024 * 1024, shell: false });
@@ -28,6 +29,26 @@ export async function validateReceipt(receipt, expected, dir) {
     }
     const isTest = c.argv.includes('test') || c.argv.includes('--test') || c.argv.includes('vitest');
     if (isTest && c.counts?.tests != null && (c.counts.tests === 0 || c.counts.tests === c.counts.skipped)) throw new Error('No executed tests');
+  }
+  const needNative = NATIVE_PROFILES.includes(expected.profile);
+  const np = receipt.native_prerequisite ?? null;
+  if (needNative) {
+    if (!np || np.required !== true || np.ok !== true) throw new Error('Missing or failed native prerequisite');
+    for (const key of ['lock_sha256', 'toolchain_sha256', 'bin_sha256']) {
+      if (!/^[a-f0-9]{64}$/.test(np[key] ?? '')) throw new Error('Bad native prerequisite hash');
+    }
+    if (typeof np.bin !== 'string' || !path.isAbsolute(np.bin)) throw new Error('Bad native prerequisite binary path');
+    const has = (...needles) => receipt.commands.some(c => c.status === 'success' && needles.every(n => c.argv.includes(n)));
+    if (!has('rustup', 'toolchain', 'install', '1.99.0')) throw new Error('Native prerequisite toolchain install missing');
+    if (!has('rustc', '+1.99.0', '--version')) throw new Error('Native prerequisite rustc version missing');
+    if (!has('cargo', '+1.99.0', '--version')) throw new Error('Native prerequisite cargo version missing');
+    if (!has('cargo', '+1.99.0', 'build', '--locked', '--bin', 'can-preparation')) throw new Error('Native prerequisite locked build missing');
+    for (const c of receipt.commands) {
+      const isTest = c.argv.includes('test') || c.argv.includes('--test') || c.argv.includes('vitest');
+      if (isTest && c.env?.CAN_PREPARATION_BIN !== np.bin) throw new Error('Test missing advertised native binary env');
+    }
+  } else if (np && np.required !== false) {
+    throw new Error('Unexpected native prerequisite');
   }
   return true;
 }
