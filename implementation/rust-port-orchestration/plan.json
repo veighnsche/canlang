@@ -119,5 +119,9 @@
   "selected_scope_checkpoint": "implementation/rust-port-orchestration/preflight-20261007/SCOPE-CHECKPOINT.md",
   "current_ready_blocked_queue": "implementation/rust-port-orchestration/preflight-20261007/scope-queue.json",
   "planning_step1_deliverable_complete": true,
-  "contract_freeze_step2": "pending"
+  "contract_freeze_step2": "completed_planning_only",
+  "planning_step2_deliverable_complete": true,
+  "separate_contract_packets": "implementation/rust-port-orchestration/contracts-20261007/packets.json",
+  "finite_future_file_leases": "implementation/rust-port-orchestration/contracts-20261007/ownership.json",
+  "first_packet_queue_step3": "pending"
 }

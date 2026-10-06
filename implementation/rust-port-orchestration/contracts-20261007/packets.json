@@ -1,0 +1,131 @@
+{
+  "schema_version": 1,
+  "step": 2,
+  "phase": "planning",
+  "planning_deliverable_complete": true,
+  "execution_authorized": false,
+  "supervisor": "PAUSED",
+  "common_assembly_owner": "R1",
+  "work_global_delivery_owner": "R3",
+  "canonical_task_count_changed": false,
+  "original_DAG_changed": false,
+  "human_preparation_hold_released": false,
+  "packets": [
+    {
+      "id": "n01.values-number-text.v1",
+      "contract_path": "numeric-values.md",
+      "owner": "R1",
+      "planning_status": "released_independently",
+      "execution_authorized": false,
+      "actual_library_target_acceptance": false,
+      "original_references": [
+        "ports:A03.1"
+      ],
+      "finite_future_lease": "lease:N02-values-number",
+      "blocking_other_contract_packets": [],
+      "runtime_gates": [
+        "owner acknowledgement",
+        "independent review",
+        "immutable JS expected-data generation",
+        "native/Wasm qualifications",
+        "full public envelope/transport/registry original gates"
+      ]
+    },
+    {
+      "id": "n01.work-number-text.v1",
+      "contract_path": "numeric-work.md",
+      "owner": "R3",
+      "planning_status": "released_independently",
+      "execution_authorized": false,
+      "actual_library_target_acceptance": false,
+      "original_references": [
+        "ports:W04.1",
+        "ports:W04.3"
+      ],
+      "finite_future_lease": "lease:N03-work-number",
+      "blocking_other_contract_packets": [],
+      "runtime_gates": [
+        "owner acknowledgement",
+        "independent review",
+        "immutable JS/donor observations",
+        "W03.1 acceptance at original leaf scope",
+        "actual root registration and W04.4 inputs",
+        "native/Wasm/installed qualifiers"
+      ]
+    },
+    {
+      "id": "n01.rust-str-escape.v1",
+      "contract_path": "strings-rust.md",
+      "owner": "R1",
+      "planning_status": "released_independently",
+      "execution_authorized": false,
+      "actual_library_target_acceptance": false,
+      "original_references": [
+        "ports:A04.5"
+      ],
+      "finite_future_lease": "lease:N04-rust-string",
+      "blocking_other_contract_packets": [],
+      "runtime_gates": [
+        "owner acknowledgement",
+        "independent review",
+        "immutable JS expected-data generation",
+        "native/Wasm qualifications",
+        "full A04.5 A04.1/A04.3 original inputs",
+        "named lossless UTF16/64-unit cut residual"
+      ]
+    },
+    {
+      "id": "d01.import-policy.v1",
+      "contract_path": "imports.md",
+      "owner": "R3",
+      "planning_status": "released_independently",
+      "execution_authorized": false,
+      "actual_library_target_acceptance": false,
+      "original_references": [
+        "ports:C04.asset",
+        "ports:C04.graph"
+      ],
+      "finite_future_lease": "lease:D02-import-leaf",
+      "blocking_other_contract_packets": [],
+      "runtime_gates": [
+        "human implementation release and exact writer ACK",
+        "cold synchronous installed Node/Bun entry",
+        "actual lexer records/error/group/decoded-span/edit controls",
+        "host-tool/runtime dependency closure; installed Worker/browser claims at actual selected scope"
+      ]
+    },
+    {
+      "id": "d01.raw-source-map.v1",
+      "contract_path": "sourcemaps-raw.md",
+      "owner": "R3",
+      "planning_status": "released_independently",
+      "execution_authorized": false,
+      "actual_library_target_acceptance": false,
+      "original_references": [
+        "ports:C04.asset",
+        "ports:C04.graph",
+        "challenge:T08"
+      ],
+      "finite_future_lease": "lease:D03-raw-map-leaf",
+      "blocking_other_contract_packets": [],
+      "library_substitution_status": "blocked",
+      "runtime_gates": [
+        "codec sorts unsorted segments",
+        "codec signed-zero and bit31/long VLQ differences",
+        "codec malformed admission/errors/empty map shape",
+        "trace duplicate selection differs",
+        "trace raw identity/sourceRoot/default normalization",
+        "mutable cache behavior"
+      ],
+      "D04_handshake": "New input profile + raw identity composition + real derived staged-map fallback consumption; no invoke lease or original artifact mutation"
+    }
+  ],
+  "ownership": "ownership.json",
+  "source_checkpoint": "source-checkpoint.json",
+  "decision_record": "decision-record.md",
+  "independent_review": "independent-review.md",
+  "oracle": "oracles/manifest.json",
+  "model_dispatches": "model-dispatches.json",
+  "next_step": 3,
+  "first_implementation_queue_published": false
+}

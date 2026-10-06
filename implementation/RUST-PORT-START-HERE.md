@@ -6,7 +6,7 @@ The numbered steps give priority and prerequisite order. A later ready task may 
 
 The [sourced model allocation](../docs/research/package-library-audit-20261006/model-allocation-20261007.md) supplies task-specific starting choices and cheaper subtask splits. These are researched judgments, not benchmarked optimums.
 
-Step 1 now has a [completed planning scope/source checkpoint](rust-port-orchestration/preflight-20261007/SCOPE-CHECKPOINT.md) and a [single ready/blocked queue](rust-port-orchestration/preflight-20261007/scope-queue.json). Step 2 contracts remain pending; implementation is still deferred.
+Step 1 now has a [completed planning scope/source checkpoint](rust-port-orchestration/preflight-20261007/SCOPE-CHECKPOINT.md) and a [single ready/blocked queue](rust-port-orchestration/preflight-20261007/scope-queue.json). Step 2 now has [separately frozen contracts and ownership](rust-port-orchestration/contracts-20261007/README.md). D03 library substitution remains blocked on its compatibility verdict; step 3’s first implementation queue remains pending. Implementation is still deferred.
 
 ## Finish planning first
 

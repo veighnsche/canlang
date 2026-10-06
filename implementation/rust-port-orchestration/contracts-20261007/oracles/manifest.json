@@ -1,0 +1,138 @@
+{
+  "stage": "JS-only planning observations; no adapter/target acceptance",
+  "recipe": "n01.oracle.v1",
+  "oracle": "Exact frozen JavaScript source; no package/native implementation invoked; observations do not assert target acceptance.",
+  "generator": {
+    "path": "/private/tmp/canlang-step2-oracles/frozen-generator.mjs",
+    "sha256": "e82c385cce4f9ae87589017df852b0e65fcfbcf29838ff3a417aee84a5a91e2d",
+    "bytes": 5065
+  },
+  "execution": {
+    "command": [
+      "/Users/vince/.vite-plus/js_runtime/node/24.21.0/bin/node",
+      "/private/tmp/canlang-step2-oracles/frozen-generator.mjs"
+    ],
+    "exitCode": 0,
+    "executable": "/Users/vince/.vite-plus/js_runtime/node/24.21.0/bin/node",
+    "node": "v24.21.0",
+    "v8": "13.6.233.17-node.53",
+    "platform": "darwin",
+    "arch": "arm64"
+  },
+  "counts": {
+    "seeded": 10000,
+    "boundaries": 213,
+    "strings": 93,
+    "rustStrInputAdmitted": 89,
+    "helperParityAdmitted": 89,
+    "actualWireParityAdmitted": 88,
+    "invalidUtf8Null": 4,
+    "splitRejected": 1,
+    "unpairedRejected": 4
+  },
+  "raw": {
+    "path": "/private/tmp/canlang-step2-oracles/frozen-oracle.json",
+    "bytes": 2958549,
+    "sha256": "276677beb0dd38d1c7cea03f935cd8508bdfe167213ff77110069630b670ff65"
+  },
+  "gzip": {
+    "path": "/private/tmp/canlang-step2-oracles/frozen-oracle.json.gz",
+    "bytes": 379657,
+    "sha256": "d4bfe45964e46da4b3970702428d4e336b46fd8391ef6fc12572748c138d2a7b",
+    "compression": "gzip level 9, mtime 0, empty filename"
+  },
+  "sentinelObservations": [
+    {
+      "id": "special:8000000000000000",
+      "inputBits": "8000000000000000",
+      "observedBits": "8000000000000000",
+      "isNegativeZero": true,
+      "classification": "finite",
+      "stringText": "0",
+      "jsonTokenText": "0",
+      "ids": [
+        "special:8000000000000000",
+        "anchor:19:bit-offset:0",
+        "anchor:49:bit-offset:-1"
+      ]
+    },
+    {
+      "id": "special:7ff0000000000000",
+      "inputBits": "7ff0000000000000",
+      "observedBits": "7ff0000000000000",
+      "isNegativeZero": false,
+      "classification": "infinity",
+      "stringText": "Infinity",
+      "jsonTokenText": "null",
+      "ids": [
+        "special:7ff0000000000000"
+      ]
+    },
+    {
+      "id": "special:fff0000000000000",
+      "inputBits": "fff0000000000000",
+      "observedBits": "fff0000000000000",
+      "isNegativeZero": false,
+      "classification": "infinity",
+      "stringText": "-Infinity",
+      "jsonTokenText": "null",
+      "ids": [
+        "special:fff0000000000000"
+      ]
+    },
+    {
+      "id": "special:7ff8000000000000",
+      "inputBits": "7ff8000000000000",
+      "observedBits": "7ff8000000000000",
+      "isNegativeZero": false,
+      "classification": "nan",
+      "stringText": "NaN",
+      "jsonTokenText": "null",
+      "ids": [
+        "special:7ff8000000000000"
+      ]
+    },
+    {
+      "id": "anchor:10:bit-offset:0",
+      "inputBits": "4415af1d78b58c40",
+      "observedBits": "4415af1d78b58c40",
+      "isNegativeZero": false,
+      "classification": "finite",
+      "stringText": "100000000000000000000",
+      "jsonTokenText": "100000000000000000000",
+      "ids": [
+        "anchor:10:bit-offset:0",
+        "anchor:40:bit-offset:0"
+      ]
+    },
+    {
+      "id": "anchor:11:bit-offset:0",
+      "inputBits": "c415af1d78b58c40",
+      "observedBits": "c415af1d78b58c40",
+      "isNegativeZero": false,
+      "classification": "finite",
+      "stringText": "-100000000000000000000",
+      "jsonTokenText": "-100000000000000000000",
+      "ids": [
+        "anchor:11:bit-offset:0",
+        "anchor:41:bit-offset:0"
+      ]
+    }
+  ],
+  "saved_artifacts": {
+    "generator": "frozen-generator.mjs",
+    "compressed_observations": "frozen-oracle.json.gz",
+    "uncompressed_observations": "obtain by gzip decoding; original private capture retained",
+    "supplemental_subset": "not committed or claimed as n01.oracle.v1"
+  },
+  "root_verification": {
+    "result": "PASS",
+    "scope": "Source/byte hashes, exact seed stream/counts/domain flags and fixed sentinels only; no product/candidate code run",
+    "domain_counts": {
+      "rustStrInputAdmitted": 89,
+      "helperParityAdmitted": 89,
+      "actualWireParityAdmitted": 88,
+      "invalidUtf8Null": 4
+    }
+  }
+}

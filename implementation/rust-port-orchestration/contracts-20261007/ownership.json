@@ -41,7 +41,9 @@
       "packages/cloudflare/src/runtime/modules.ts",
       "packages/cloudflare/src/dev/local-run.ts",
       "packages/cloudflare/test/deploy-bundle.test.ts",
-      "packages/cloudflare/test/modules.test.ts"
+      "packages/cloudflare/test/modules.test.ts",
+      "packages/cloudflare/test/sourcemap.test.ts",
+      "packages/cloudflare/test/deploy-package-assets.test.ts"
     ]
   },
   "reservations_are_future_not_active": true,
@@ -77,7 +79,25 @@
           "proposed_new": false
         },
         {
-          "path": "packages/values/semantics/tests/number_text_oracle.rs",
+          "path": "packages/values/semantics/tests/numeric_text_contract.rs",
+          "exists": false,
+          "sha256": null,
+          "proposed_new": true
+        },
+        {
+          "path": "packages/values/test/numeric-text.contract.test.ts",
+          "exists": false,
+          "sha256": null,
+          "proposed_new": true
+        },
+        {
+          "path": "packages/values/conformance/numeric-text.oracle.mjs",
+          "exists": false,
+          "sha256": null,
+          "proposed_new": true
+        },
+        {
+          "path": "packages/values/conformance/numeric-text.json",
           "exists": false,
           "sha256": null,
           "proposed_new": true
@@ -109,7 +129,25 @@
           "proposed_new": false
         },
         {
-          "path": "packages/values/semantics/tests/string_escape_oracle.rs",
+          "path": "packages/values/semantics/tests/string_escape_contract.rs",
+          "exists": false,
+          "sha256": null,
+          "proposed_new": true
+        },
+        {
+          "path": "packages/values/test/string-escape.contract.test.ts",
+          "exists": false,
+          "sha256": null,
+          "proposed_new": true
+        },
+        {
+          "path": "packages/values/conformance/string-escape.oracle.mjs",
+          "exists": false,
+          "sha256": null,
+          "proposed_new": true
+        },
+        {
+          "path": "packages/values/conformance/string-escape.json",
           "exists": false,
           "sha256": null,
           "proposed_new": true
@@ -157,13 +195,31 @@
           "proposed_new": false
         },
         {
-          "path": "packages/work-kernel/decisions/number_text.rs",
+          "path": "packages/work-kernel/decisions/numeric_text.rs",
           "exists": false,
           "sha256": null,
           "proposed_new": true
         },
         {
-          "path": "packages/work-kernel/tests/number_text_oracle.rs",
+          "path": "packages/work-kernel/conformance/numeric-text.contract.test.ts",
+          "exists": false,
+          "sha256": null,
+          "proposed_new": true
+        },
+        {
+          "path": "packages/work-kernel/conformance/numeric-text.oracle.mjs",
+          "exists": false,
+          "sha256": null,
+          "proposed_new": true
+        },
+        {
+          "path": "packages/work-kernel/conformance/fixtures/numeric-text.json",
+          "exists": false,
+          "sha256": null,
+          "proposed_new": true
+        },
+        {
+          "path": "packages/work-kernel/conformance/native-numeric-text.rs",
           "exists": false,
           "sha256": null,
           "proposed_new": true
@@ -196,7 +252,13 @@
           "proposed_new": true
         },
         {
-          "path": "packages/cloudflare/test/module-imports.test.ts",
+          "path": "packages/cloudflare/test/module-imports-contract.test.ts",
+          "exists": false,
+          "sha256": null,
+          "proposed_new": true
+        },
+        {
+          "path": "packages/cloudflare/test/fixtures/import-policy-contract.json",
           "exists": false,
           "sha256": null,
           "proposed_new": true
@@ -231,13 +293,13 @@
           "proposed_new": false
         },
         {
-          "path": "packages/cloudflare/test/sourcemap.test.ts",
-          "exists": true,
-          "sha256": "8dea333cf3bbf89c89186f69a47ba5810dfd5730da85a9d6e031b694c9c2011b",
-          "proposed_new": false
+          "path": "packages/cloudflare/test/raw-source-map-contract.test.ts",
+          "exists": false,
+          "sha256": null,
+          "proposed_new": true
         },
         {
-          "path": "packages/cloudflare/test/sourcemap-library.test.ts",
+          "path": "packages/cloudflare/test/fixtures/raw-source-map-contract.json",
           "exists": false,
           "sha256": null,
           "proposed_new": true

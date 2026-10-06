@@ -1,0 +1,42 @@
+{
+  "schema_version": 1,
+  "phase": "planning",
+  "execution_authorized": false,
+  "recorded_head": "3af63f8c57700e7961891fed6dc218f63ab23ce9",
+  "independent_compiler_commit_preserved": "e835db8",
+  "historical_step1_review_head": "9bb5bbdd9f9acf9ef92fe349719bb0bb01d9e08a",
+  "package_inventory_file_count": 684,
+  "changed_package_inventory_files": [],
+  "hashes": {
+    "implementation/remaining-work/tasks.json": "cd01ebb2276e9bbd362085070b985811543f4bcb1d7ad0d0ac0530d3092bc3f4",
+    "implementation/rust-port-lanes.json": "4936af9c418fbf8accb9932e24abb622d11563d776fb271c6dac111615439033",
+    "implementation/rust-port-orchestration/preflight-20261007/scope-queue.json": "62076535dd0c3b0afcc91eaa7ac09ed60fcd32a9c51c3fce2d9917b288432534",
+    "docs/research/package-library-audit-20261006/adoption-sequence.json": "d93dcb00638680b1b861c90ec6a445267942b8ca6f7ca479fb60bc0386ca3a9f",
+    "packages/values/Cargo.lock": "107d0d305b318c31c002b4445aa778b017cf206b453e2f4583b3b55ec9773668",
+    "packages/values/semantics/Cargo.toml": "140bcd4d064358fe1dae97f10e1a46055d31e8fb69cea431939751a9c22c708f",
+    "packages/work-kernel/Cargo.toml": "553dbdbb7d912cff34af5641017a27879ce5885f7395cdeb004a5bd9148c0374",
+    "packages/work-kernel/Cargo.lock": "4337a64e41e2ada24f61e1fbdd3621427d88832e5c978536c58cf4d2257950a9",
+    "package.json": "b857df2e35cfb40e1bb62738ed4ef59d53ce30b25b2a7f9d6f0f76df8bce02f3",
+    "bun.lock": "28eeb481d3b6ce420b1ccc6573581572b47da25a0b8eb5ff833d1143e5cc4c19",
+    "packages/cloudflare/package.json": "5a24f4fcd94013cedf1acedab37dd1a4f57cf47c1b4a15e0fcac70e719a4b07c",
+    "packages/cloudflare/src/runtime/invoke.ts": "bc08e559d905ed285bb7beff9db0d3e43c808a604face535b5305f444ffae15d",
+    "packages/cloudflare/src/runtime/modules.ts": "f42ff4589751ee275ad48905c6a073fe20b38a9ee49ef147d38e69befda63230",
+    "packages/cloudflare/src/runtime/sourcemap.ts": "1455a9344724114863b2438403e08bf0e4db3a08c4ddd68fc1ae99992419c66b",
+    "packages/cloudflare/src/deploy/bundle.ts": "c655fed4ef03d35d39fc52811abc4d41516d2bf8e52fcf4a499d17e8f9057ed1",
+    "compiler/src/codegen/sourcemap.rs": "eefeb9d2b8bebd6f6c70cf121415daa7918177f5c17b71adfc6b6990024782d3",
+    "docs/specification/DECISIONS.md": "8589f61fa278277da4484f031767ec6d4def3198ec591f7f1d795d8230c60c50"
+  },
+  "foreign_dirty_files": [
+    " M compiler/src/lsp/server.rs",
+    " M compiler/src/lsp/transport.rs",
+    " M docs/ideal-filetree-plan.md",
+    " M docs/ideal-filetree-plan/finished-product/tasks.md",
+    " M docs/specification/DECISIONS.md",
+    " M implementation/CHALLENGE-AUDIT-PLAN.md",
+    " M implementation/REMAINING-WORK.md",
+    " M implementation/RUST-PORT-LANES.md",
+    "?? compiler/tests/lsp_admission.rs",
+    "?? output/build-in-public/compiler-pass1-e835db8-20261007.png"
+  ],
+  "scope": "Exact contract source/checkpoint only; no product runtime qualification or installed acceptance; no living checkpoint advance."
+}
