@@ -16,11 +16,17 @@ normative extension prose:
   abiVectors, decisions }`. `version` is this fixture's own version
   (see Versioning); the transport/extension pair names the ABI it pins.
 - `transportCases` — 23 accept rows (f64/text/keys/kinds/order areas). Each
-  row is `{ id, area, harness: "future-arena", rule, input, expect }`:
-  `input.source` is JSON text; the runner parses it with the host
-  `JSON.parse`, checks `expect.host` (host truth: `$f64` bits, `$text`
-  units, `entries` order), then feeds the parsed value to the arena
-  and checks `expect.transport` (the tag decision).
+  row is `{ id, area, harness: "future-arena", rule, input, expect }`.
+  `input` is either `{ source }` (JSON text: the runner parses it with
+  the host `JSON.parse`, checks `expect.host`, then feeds the parsed
+  value to the arena) or `{ entries, shape? }` (pre-parsed entries for
+  order/closedness decisions, no host stage). `expect.host` carries
+  host truth (`$f64` bits, `$text` units, `entries` order) and is
+  OMITTED on rows whose decision is order/profile-level rather than
+  host-observation-level: `order/*` rows expect `consumedOrder`,
+  `firstUnknown`/`order`, or `profiles` + `transport` instead (see
+  note). Otherwise the runner checks `expect.host`, then the arena
+  decision in `expect.transport` (the tag decision).
 - `tagCases` — 8 presence/tag rows (missing vs null, defaults,
   sentinels, drops). `expect.transport` carries `$tag` nodes; rows
   with `ok: false` are transport rejections, never semantic results.
@@ -49,6 +55,15 @@ normative extension prose:
 - `{ "ok": false, "stage": "transport", "code", "check"? }` — a
   transport rejection. `ok: true` rows may carry observation extras
   (`units`, `renders`, `consumedOrder`, `profiles`).
+
+Note — the 3 `order/*` rows: `order/http-first-unknown-enumeration`
+takes `{ entries, shape }` input (first-unknown decision over
+pre-parsed entries, no host stage);
+`order/integer-key-order-consumed` takes `{ source }` but expects
+`consumedOrder` only (the arena order the profile consumes);
+`order/version-domain-split` takes `{ source }` and expects
+`profiles` + `transport` (the split verdict; host truth is the plain
+text `"007"`, pinned implicitly by the transport text node).
 
 ## Versioning
 
