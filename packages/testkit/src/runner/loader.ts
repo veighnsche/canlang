@@ -385,7 +385,8 @@ async function mapTableRow(
     observe: async (scope) => {
       const stashed = stashedRows.get(scope) ?? EMPTY_STASH;
       const observed: ReportValue[] = [];
-      const scopeArg = observeScope === undefined ? stashed.fixtures : observeScope(scope, stashed);
+      const scopeArg =
+        observeScope === undefined ? stashed.fixtures : await observeScope(scope, stashed);
       for (const [index, fn] of observations.entries()) {
         observed.push(
           (await callClosure(fn, `${where} observation ${index}`, [bindings, scopeArg])) as ReportValue,
