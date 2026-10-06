@@ -1,0 +1,529 @@
+{
+  "source": "implementation/challenge-audit-run/tasks.md",
+  "pin": "350163ad661e61b667809a5f78b608c23812a5f0",
+  "tasks": [
+    {
+      "id": "T01",
+      "title": "T01 \u2014 Create the root cause ledger",
+      "reported_state": "complete",
+      "prerequisites": "M00.",
+      "recorded_owner_files": "L1; implementation/challenge-audit-run/evidence/root-causes.md. Serialize overlapping producer-owned writes.",
+      "slices": [
+        "S10"
+      ],
+      "followup_packet": "C10",
+      "evidence_limit": "operational ledger state at inspected baseline; no newly executed qualification"
+    },
+    {
+      "id": "T02",
+      "title": "T02 \u2014 Record per file intent and capability status",
+      "reported_state": "complete",
+      "prerequisites": "T01; inventory preparation can start at M00.",
+      "recorded_owner_files": "L7; implementation/challenge-audit-run/evidence/app-intent.md. Serialize overlapping producer-owned writes.",
+      "slices": [
+        "S10"
+      ],
+      "followup_packet": "C10",
+      "evidence_limit": "operational ledger state at inspected baseline; no newly executed qualification"
+    },
+    {
+      "id": "T03",
+      "title": "T03 \u2014 Specify ordinary continuation facts",
+      "reported_state": "complete",
+      "prerequisites": "M00.",
+      "recorded_owner_files": "L1; implementation/challenge-audit-run/evidence/continuation-contract.md; DESIGN.md, GRAMMAR.md, DECISIONS.md only after exact reservation. Serialize overlapping producer-owned writes.",
+      "slices": [
+        "S10"
+      ],
+      "followup_packet": "C08",
+      "evidence_limit": "operational ledger state at inspected baseline; no newly executed qualification"
+    },
+    {
+      "id": "T04",
+      "title": "T04 \u2014 Agree the generated execution contract",
+      "reported_state": "open",
+      "prerequisites": "M00; T04a frozen before matching producers.",
+      "recorded_owner_files": "L3; packages/contracts/src/state.ts, packages/contracts/src/artifact.ts (L1 writes), packages/contracts/src/examples.ts (L7 writes), implementation/challenge-audit-run/evidence/execution-contract.md. Serialize overlapping producer-owned writes.",
+      "slices": [
+        "S03",
+        "S10"
+      ],
+      "followup_packet": "C01",
+      "evidence_limit": "operational ledger state at inspected baseline; no newly executed qualification"
+    },
+    {
+      "id": "T05",
+      "title": "T05 \u2014 Implement ordinary nullable flow",
+      "reported_state": "complete",
+      "prerequisites": "T03.",
+      "recorded_owner_files": "L1; compiler/src/analysis/types.rs, compiler/src/analysis/resolve.rs, compiler/tests/b4_check.rs. Serialize overlapping producer-owned writes.",
+      "slices": [
+        "S01"
+      ],
+      "followup_packet": "C08",
+      "evidence_limit": "operational ledger state at inspected baseline; no newly executed qualification"
+    },
+    {
+      "id": "T06",
+      "title": "T06 \u2014 Complete actor facts in policies and CRUD",
+      "reported_state": "complete",
+      "prerequisites": "T05.",
+      "recorded_owner_files": "L1; compiler/src/analysis/types.rs, compiler/src/analysis/resolve.rs, compiler/tests/b4_check.rs. Serialize overlapping producer-owned writes.",
+      "slices": [
+        "S01"
+      ],
+      "followup_packet": "C08",
+      "evidence_limit": "operational ledger state at inspected baseline; no newly executed qualification"
+    },
+    {
+      "id": "T07",
+      "title": "T07 \u2014 Propagate filtered row facts",
+      "reported_state": "complete",
+      "prerequisites": "T05.",
+      "recorded_owner_files": "L1; compiler/src/analysis/types.rs, compiler/src/analysis/resolve.rs, compiler/tests/b4_check.rs. Serialize overlapping producer-owned writes.",
+      "slices": [
+        "S01"
+      ],
+      "followup_packet": "C08",
+      "evidence_limit": "operational ledger state at inspected baseline; no newly executed qualification"
+    },
+    {
+      "id": "T08",
+      "title": "T08 \u2014 Unify readable selector resolution",
+      "reported_state": "complete",
+      "prerequisites": "M00; L3/L5 review semantic member contract.",
+      "recorded_owner_files": "L1; compiler/src/analysis/types.rs, compiler/src/analysis/resolve.rs, compiler/tests/b4_check.rs, packages/ui/src/policyPage.ts (L5 writes). Serialize overlapping producer-owned writes.",
+      "slices": [
+        "S01",
+        "S08"
+      ],
+      "followup_packet": "C08",
+      "evidence_limit": "operational ledger state at inspected baseline; no newly executed qualification"
+    },
+    {
+      "id": "T09",
+      "title": "T09 \u2014 Preserve creation metadata through the compiler",
+      "reported_state": "complete",
+      "prerequisites": "T04a for emitted contract; semantic preparation ready at M00.",
+      "recorded_owner_files": "L2 with exclusive L1 Rust writer; packages/values/src/schema.ts, packages/values/src/array.ts, packages/contracts/src/values.ts; compiler/src/analysis/effects.rs, compiler/src/codegen/ir.rs, compiler/src/codegen/js.rs, compiler/src/codegen/artifact.rs, packages/contracts/src/artifact.ts, compiler/tests/codegen.rs. Serialize overlapping producer-owned writes.",
+      "slices": [
+        "S01",
+        "S03",
+        "S04"
+      ],
+      "followup_packet": "C08",
+      "evidence_limit": "operational ledger state at inspected baseline; no newly executed qualification"
+    },
+    {
+      "id": "T10",
+      "title": "T10 \u2014 Validate contextual structural literals",
+      "reported_state": "complete",
+      "prerequisites": "M00; expected owner contracts available.",
+      "recorded_owner_files": "L2 with exclusive L1 Rust writer; compiler/src/analysis/types.rs, compiler/src/analysis/resolve.rs, compiler/tests/b4_check.rs, packages/values/src/schema.ts, packages/contracts/src/values.ts. Serialize overlapping producer-owned writes.",
+      "slices": [
+        "S01",
+        "S03",
+        "S04"
+      ],
+      "followup_packet": "C08",
+      "evidence_limit": "operational ledger state at inspected baseline; no newly executed qualification"
+    },
+    {
+      "id": "T11",
+      "title": "T11 \u2014 Contextually type exact integral decimal literals",
+      "reported_state": "complete",
+      "prerequisites": "M00; exact value contract agreed.",
+      "recorded_owner_files": "L2 with exclusive L1 Rust writer; compiler/src/analysis/types.rs, compiler/src/analysis/resolve.rs, compiler/tests/b4_check.rs, packages/values/src/decimal.ts, packages/values/src/wire.ts. Serialize overlapping producer-owned writes.",
+      "slices": [
+        "S01",
+        "S04"
+      ],
+      "followup_packet": "C08",
+      "evidence_limit": "operational ledger state at inspected baseline; no newly executed qualification"
+    },
+    {
+      "id": "T12",
+      "title": "T12 \u2014 Inventory standard and bound declarations",
+      "reported_state": "complete",
+      "prerequisites": "M00.",
+      "recorded_owner_files": "L4; implementation/challenge-audit-run/evidence/interface-inventory.md, packages/services/src/catalog.ts, packages/work/src/catalog.ts, packages/files/src/catalog.ts, packages/stdlib/src/index.ts. Serialize overlapping producer-owned writes.",
+      "slices": [
+        "S04",
+        "S06",
+        "S10"
+      ],
+      "followup_packet": "C08",
+      "evidence_limit": "operational ledger state at inspected baseline; no newly executed qualification"
+    },
+    {
+      "id": "T13",
+      "title": "T13 \u2014 Export and consume versioned interface schemas",
+      "reported_state": "complete",
+      "prerequisites": "T12.",
+      "recorded_owner_files": "L4, producer-owned schemas; L1 consumes; packages/contracts/src/services.ts, packages/contracts/src/work.ts, packages/contracts/src/files.ts, packages/services/src/catalog.ts, packages/work/src/catalog.ts, packages/files/src/catalog.ts, compiler/src/analysis/catalog.rs (L1 writes). Serialize overlapping producer-owned writes.",
+      "slices": [
+        "S01",
+        "S03",
+        "S06"
+      ],
+      "followup_packet": "C08",
+      "evidence_limit": "operational ledger state at inspected baseline; no newly executed qualification"
+    },
+    {
+      "id": "T14",
+      "title": "T14 \u2014 Type bound sends and fixture recipes",
+      "reported_state": "complete",
+      "prerequisites": "matching T13a/T13b and applicable T10.",
+      "recorded_owner_files": "L1 with L4 schema input; compiler/src/analysis/types.rs, compiler/src/analysis/resolve.rs, compiler/tests/b4_check.rs, compiler/src/analysis/catalog.rs, compiler/src/analysis/examples.rs, compiler/tests/b4_examples.rs. Serialize overlapping producer-owned writes.",
+      "slices": [
+        "S01"
+      ],
+      "followup_packet": "C08",
+      "evidence_limit": "operational ledger state at inspected baseline; no newly executed qualification"
+    },
+    {
+      "id": "T15",
+      "title": "T15 \u2014 Emit canonical model and operation descriptors",
+      "reported_state": "open",
+      "prerequisites": "T04a plus relevant T09/T10/T11 and actual pilot types; full T04 for full scope.",
+      "recorded_owner_files": "L1; compiler/src/analysis/effects.rs, compiler/src/codegen/ir.rs, compiler/src/codegen/js.rs, compiler/src/codegen/artifact.rs, packages/contracts/src/artifact.ts, compiler/tests/codegen.rs, compiler/src/analysis/examples.rs, compiler/src/codegen/bdd.rs. Serialize overlapping producer-owned writes.",
+      "slices": [
+        "S01",
+        "S03"
+      ],
+      "followup_packet": "C01",
+      "evidence_limit": "operational ledger state at inspected baseline; no newly executed qualification"
+    },
+    {
+      "id": "T16",
+      "title": "T16 \u2014 Join generated invocation to state admission",
+      "reported_state": "complete",
+      "prerequisites": "matching T15a and T04a.",
+      "recorded_owner_files": "L3 with L6/L7 integration; packages/state/src/invocation/registry.ts, packages/state/src/invocation/admission.ts, packages/state/src/invocation/invoke.ts, packages/state/src/mutation/models.ts, packages/state/src/mutation/pipeline.ts, packages/state/src/mutation/crud.ts; packages/cloudflare/src/runtime/invoke.ts, packages/cloudflare/src/runtime/stdlib.ts, packages/cloudflare/src/runtime/context.ts, packages/cloudflare/src/runtime/env-assembly.ts, packages/cloudflare/src/runtime/mcp-registry.ts, packages/cloudflare/src/worker/assembly.ts (L7 writes); packages/identity/src/authentication/context.ts (L6 writes). Serialize overlapping producer-owned writes.",
+      "slices": [
+        "S05",
+        "S07",
+        "S09"
+      ],
+      "followup_packet": "C01",
+      "evidence_limit": "operational ledger state at inspected baseline; no newly executed qualification"
+    },
+    {
+      "id": "T17",
+      "title": "T17 \u2014 Replace interim data plane operations",
+      "reported_state": "complete",
+      "prerequisites": "T16.",
+      "recorded_owner_files": "L3 with L7 assembly; packages/state/src/invocation/registry.ts, packages/state/src/invocation/admission.ts, packages/state/src/invocation/invoke.ts, packages/state/src/mutation/models.ts, packages/state/src/mutation/pipeline.ts, packages/state/src/mutation/crud.ts, packages/state/src/storage/d1.ts, packages/state/src/storage/durable-object.ts, packages/state/src/ports/transact.ts; packages/cloudflare/src/runtime/invoke.ts, packages/cloudflare/src/runtime/stdlib.ts, packages/cloudflare/src/runtime/context.ts, packages/cloudflare/src/runtime/env-assembly.ts, packages/cloudflare/src/runtime/mcp-registry.ts, packages/cloudflare/src/worker/assembly.ts (L7 writes). Serialize overlapping producer-owned writes.",
+      "slices": [
+        "S05",
+        "S09"
+      ],
+      "followup_packet": "C01",
+      "evidence_limit": "operational ledger state at inspected baseline; no newly executed qualification"
+    },
+    {
+      "id": "T18",
+      "title": "T18 \u2014 Execute defaults and server initialization correctly",
+      "reported_state": "open",
+      "prerequisites": "T09/T16/T17.",
+      "recorded_owner_files": "L2 acceptance; L3 execution; L1 emission; packages/state/src/invocation/registry.ts, packages/state/src/invocation/admission.ts, packages/state/src/invocation/invoke.ts, packages/state/src/mutation/models.ts, packages/state/src/mutation/pipeline.ts, packages/state/src/mutation/crud.ts; compiler/src/analysis/effects.rs, compiler/src/codegen/ir.rs, compiler/src/codegen/js.rs, compiler/src/codegen/artifact.rs, packages/contracts/src/artifact.ts, compiler/tests/codegen.rs (L1 writes); packages/values/src/schema.ts (L2 writes). Serialize overlapping producer-owned writes.",
+      "slices": [
+        "S01",
+        "S03",
+        "S04",
+        "S05"
+      ],
+      "followup_packet": "C08",
+      "evidence_limit": "operational ledger state at inspected baseline; no newly executed qualification"
+    },
+    {
+      "id": "T19",
+      "title": "T19 \u2014 Derive forms and MCP inputs from checked operations",
+      "reported_state": "open",
+      "prerequisites": "T19a: T15a/T16/T18 and pilot types; T19b: exact/bound/file scope.",
+      "recorded_owner_files": "L6 with L1/L2/L3/L5 input; packages/interfaces/src/http/operations.ts, packages/interfaces/src/mcp/schemas.ts, packages/interfaces/src/mcp/tools.ts, packages/contracts/src/identity.ts, packages/contracts/src/wire.ts; packages/ui/src/forms.ts (L5 writes). Serialize overlapping producer-owned writes.",
+      "slices": [
+        "S03",
+        "S08"
+      ],
+      "followup_packet": "C08",
+      "evidence_limit": "operational ledger state at inspected baseline; no newly executed qualification"
+    },
+    {
+      "id": "T20",
+      "title": "T20 \u2014 Complete presentation context and submission joins",
+      "reported_state": "open",
+      "prerequisites": "matching T19a/T19b.",
+      "recorded_owner_files": "L5 with L6/L7 integration; packages/ui/src/forms.ts, packages/ui/src/settings.ts, packages/ui/src/appearance.ts, packages/ui/src/shell.ts, packages/contracts/src/presentation.ts; packages/interfaces/src/http/presentation.ts, packages/interfaces/src/http/context.ts, packages/interfaces/src/http/formErrors.ts (L6 writes). Serialize overlapping producer-owned writes.",
+      "slices": [
+        "S03",
+        "S08"
+      ],
+      "followup_packet": "C08",
+      "evidence_limit": "operational ledger state at inspected baseline; no newly executed qualification"
+    },
+    {
+      "id": "T21",
+      "title": "T21 \u2014 Enable the compiled e2e artifact path",
+      "reported_state": "complete",
+      "prerequisites": "T16/T17.",
+      "recorded_owner_files": "L7; tests/e2e/fixtures/artifact-loader.ts, tests/e2e/fixtures/e2e-test.ts, packages/cloudflare/src/runtime/artifact.ts. Serialize overlapping producer-owned writes.",
+      "slices": [
+        "S09",
+        "S11"
+      ],
+      "followup_packet": "C08",
+      "evidence_limit": "operational ledger state at inspected baseline; no newly executed qualification"
+    },
+    {
+      "id": "T22",
+      "title": "T22 \u2014 Implement compiled fixture provisioning",
+      "reported_state": "open",
+      "prerequisites": "T22a: T15a/T16/T17, T18 for omission and relevant T36; b finalized files; c matching T13/T14.",
+      "recorded_owner_files": "L7 with producer inputs; packages/testkit/src/fixtures/seeds.ts, packages/testkit/src/fixtures/accounts.ts, packages/testkit/src/scopes/local.ts, packages/testkit/src/runner/loader.ts, tests/e2e/fixtures/seed.ts. Serialize overlapping producer-owned writes.",
+      "slices": [
+        "S11"
+      ],
+      "followup_packet": "C06",
+      "evidence_limit": "operational ledger state at inspected baseline; no newly executed qualification"
+    },
+    {
+      "id": "T23",
+      "title": "T23 \u2014 Execute compiled tables and sequences",
+      "reported_state": "open",
+      "prerequisites": "matching T22a/b/c and T04 emitted-example contract.",
+      "recorded_owner_files": "L7 with L1/L3 contributions; packages/testkit/src/runner/loader.ts, packages/testkit/src/runner/table.ts, packages/contracts/src/examples.ts, compiler/src/analysis/examples.rs, compiler/src/codegen/bdd.rs; compiler files L1-only. Serialize overlapping producer-owned writes.",
+      "slices": [
+        "S01",
+        "S03",
+        "S11"
+      ],
+      "followup_packet": "C06",
+      "evidence_limit": "operational ledger state at inspected baseline; no newly executed qualification"
+    },
+    {
+      "id": "T24",
+      "title": "T24 \u2014 Join generated effects to durable dispatch",
+      "reported_state": "complete",
+      "prerequisites": "T16/T17 and matching effect contracts; bound sends matching T13/T14.",
+      "recorded_owner_files": "L4 with L3/L7 join; packages/work/src/dispatch/index.ts, packages/work/src/intent/index.ts, packages/work/src/kernel/commands.ts, packages/work/src/recovery/index.ts; packages/state/src/effects/staging.ts, packages/state/src/ports/transact.ts (L3 writes); packages/cloudflare/src/runtime/invoke.ts, packages/cloudflare/src/runtime/stdlib.ts, packages/cloudflare/src/runtime/context.ts, packages/cloudflare/src/runtime/env-assembly.ts, packages/cloudflare/src/runtime/mcp-registry.ts, packages/cloudflare/src/worker/assembly.ts (L7 writes). Serialize overlapping producer-owned writes.",
+      "slices": [
+        "S05",
+        "S06",
+        "S09"
+      ],
+      "followup_packet": "C08",
+      "evidence_limit": "operational ledger state at inspected baseline; no newly executed qualification"
+    },
+    {
+      "id": "T25",
+      "title": "T25 \u2014 Implement authorized selected receipt access",
+      "reported_state": "open",
+      "prerequisites": "T24 and matching T14.",
+      "recorded_owner_files": "L4 with L1/L3; packages/work/src/receipt/index.ts, packages/work/src/observation/association.ts, packages/work/src/observation/observation.ts, packages/work/src/observation/ports.ts, packages/contracts/src/work.ts; compiler analysis L1, state L3. Serialize overlapping producer-owned writes.",
+      "slices": [
+        "S03",
+        "S06"
+      ],
+      "followup_packet": "C08",
+      "evidence_limit": "operational ledger state at inspected baseline; no newly executed qualification"
+    },
+    {
+      "id": "T26",
+      "title": "T26 \u2014 Implement associated observable progress",
+      "reported_state": "open",
+      "prerequisites": "matching T13 relations and T25.",
+      "recorded_owner_files": "L4 with L1/L3; packages/work/src/receipt/index.ts, packages/work/src/observation/association.ts, packages/work/src/observation/observation.ts, packages/work/src/observation/ports.ts, packages/contracts/src/work.ts, packages/work/src/event/index.ts, packages/work/src/recovery/index.ts. Serialize overlapping producer-owned writes.",
+      "slices": [
+        "S03",
+        "S06"
+      ],
+      "followup_packet": "C08",
+      "evidence_limit": "operational ledger state at inspected baseline; no newly executed qualification"
+    },
+    {
+      "id": "T27",
+      "title": "T27 \u2014 Prove generated image finalization",
+      "reported_state": "open",
+      "prerequisites": "image-relevant T26 and actual file lifecycle.",
+      "recorded_owner_files": "L4 with L3/L6; packages/services/src/media/mapping.ts, packages/services/src/media/harness.ts, packages/files/src/finalize/index.ts, packages/files/src/provenance/index.ts, packages/files/src/bridge.ts, packages/contracts/src/files.ts. Serialize overlapping producer-owned writes.",
+      "slices": [
+        "S03",
+        "S06"
+      ],
+      "followup_packet": "C08",
+      "evidence_limit": "operational ledger state at inspected baseline; no newly executed qualification"
+    },
+    {
+      "id": "T28",
+      "title": "T28 \u2014 Settle imported containment semantics",
+      "reported_state": "complete",
+      "prerequisites": "Prepare at M00; decision requires JEV protocol and full scope evidence.",
+      "recorded_owner_files": "L3 design, L1/L4/L7 contributors; implementation/challenge-audit-run/evidence/containment-decision.md, DESIGN.md, GRAMMAR.md, DECISIONS.md under one reservation. Serialize overlapping producer-owned writes.",
+      "slices": [
+        "S10"
+      ],
+      "followup_packet": "C08",
+      "evidence_limit": "operational ledger state at inspected baseline; no newly executed qualification"
+    },
+    {
+      "id": "T29",
+      "title": "T29 \u2014 Implement imported containment",
+      "reported_state": "open",
+      "prerequisites": "accepted T28.",
+      "recorded_owner_files": "L3 with L1/L7; packages/state/src/mutation/models.ts, packages/state/src/mutation/pipeline.ts, packages/state/src/query/engine.ts, packages/contracts/src/state.ts; compiler/src/analysis/types.rs, compiler/src/analysis/resolve.rs, compiler/tests/b4_check.rs (L1 writes). Serialize overlapping producer-owned writes.",
+      "slices": [
+        "S01",
+        "S03",
+        "S05"
+      ],
+      "followup_packet": "C08",
+      "evidence_limit": "operational ledger state at inspected baseline; no newly executed qualification"
+    },
+    {
+      "id": "T30",
+      "title": "T30 \u2014 Replace spelling based event mutation checks",
+      "reported_state": "complete",
+      "prerequisites": "M00; resolved provenance available.",
+      "recorded_owner_files": "L1 with L3/L4 review; compiler/src/analysis/types.rs, compiler/src/analysis/resolve.rs, compiler/tests/b4_check.rs. Serialize overlapping producer-owned writes.",
+      "slices": [
+        "S01"
+      ],
+      "followup_packet": "C08",
+      "evidence_limit": "operational ledger state at inspected baseline; no newly executed qualification"
+    },
+    {
+      "id": "T31",
+      "title": "T31 \u2014 Implement permitted secondary hook writes",
+      "reported_state": "complete",
+      "prerequisites": "T31a accepted secondary-hook decision via JEV; then T30 and canonical runtime; T28 alone insufficient.",
+      "recorded_owner_files": "L3 with L1/L4; packages/state/src/mutation/pipeline.ts, packages/state/src/mutation/crud.ts, packages/state/src/mutation/models.ts, packages/contracts/src/state.ts; compiler/src/analysis/effects.rs, compiler/src/codegen/ir.rs, compiler/src/codegen/js.rs, compiler/src/codegen/artifact.rs, packages/contracts/src/artifact.ts, compiler/tests/codegen.rs (L1 writes); implementation/challenge-audit-run/evidence/hook-decision.md. Serialize overlapping producer-owned writes.",
+      "slices": [
+        "S01",
+        "S03",
+        "S05",
+        "S10"
+      ],
+      "followup_packet": "C08",
+      "evidence_limit": "operational ledger state at inspected baseline; no newly executed qualification"
+    },
+    {
+      "id": "T32",
+      "title": "T32 \u2014 Define and implement authoritative predicate reads",
+      "reported_state": "open",
+      "prerequisites": "T32a decision at M00 with JEV; T32b T16/T17; spent effects also T24.",
+      "recorded_owner_files": "L3 with L4/L6/L7; packages/state/src/ports/read.ts, packages/state/src/query/engine.ts, packages/state/src/invocation/admission.ts; packages/identity/src/authentication/revocation.ts (L6); packages/work/src/dispatch/index.ts (L4); implementation/challenge-audit-run/evidence/read-decision.md. Serialize overlapping producer-owned writes.",
+      "slices": [
+        "S05",
+        "S06",
+        "S07",
+        "S10"
+      ],
+      "followup_packet": "C08",
+      "evidence_limit": "operational ledger state at inspected baseline; no newly executed qualification"
+    },
+    {
+      "id": "T33",
+      "title": "T33 \u2014 Decide scoped durable fanout",
+      "reported_state": "open",
+      "prerequisites": "Prepare alternatives early; final decision matching T28/T24 evidence and JEV.",
+      "recorded_owner_files": "L4 with L1/L3/L7; implementation/challenge-audit-run/evidence/fanout-decision.md, packages/contracts/src/work.ts; shared normative docs reserved. Serialize overlapping producer-owned writes.",
+      "slices": [
+        "S03",
+        "S10"
+      ],
+      "followup_packet": "C09",
+      "evidence_limit": "operational ledger state at inspected baseline; no newly executed qualification"
+    },
+    {
+      "id": "T34",
+      "title": "T34 \u2014 Implement and qualify adopted fanout",
+      "reported_state": "open",
+      "prerequisites": "adopted T33, T24, applicable T28/T29/T32.",
+      "recorded_owner_files": "L4 with L1/L3/L7; packages/work/src/dispatch/index.ts, packages/work/src/recovery/index.ts, packages/work/src/kernel/tables.ts, packages/contracts/src/work.ts; owning compiler/state/assembly writer handoffs. Serialize overlapping producer-owned writes.",
+      "slices": [
+        "S03",
+        "S06"
+      ],
+      "followup_packet": "C09",
+      "evidence_limit": "operational ledger state at inspected baseline; no newly executed qualification"
+    },
+    {
+      "id": "T35",
+      "title": "T35 \u2014 Repair smaller established compiler defects",
+      "reported_state": "open",
+      "prerequisites": "Each packet ready only with its actual producer; reserve sequentially.",
+      "recorded_owner_files": "L1 with relevant producers; compiler/src/analysis/types.rs, compiler/src/analysis/resolve.rs, compiler/tests/b4_check.rs, compiler/src/analysis/examples.rs, compiler/src/analysis/catalog.rs, compiler/src/codegen/bdd.rs, compiler/tests/b4_examples.rs, compiler/tests/b4_resolve.rs; packages/values/src/icu.ts (L2 writes). Serialize overlapping producer-owned writes.",
+      "slices": [
+        "S01",
+        "S04"
+      ],
+      "followup_packet": "C08",
+      "evidence_limit": "operational ledger state at inspected baseline; no newly executed qualification"
+    },
+    {
+      "id": "T36",
+      "title": "T36 \u2014 Adjudicate residual draft and design cases",
+      "reported_state": "open",
+      "prerequisites": "T01/T02 plus applicable repaired roots and decisions.",
+      "recorded_owner_files": "Draft owner agent under same Muse coordinator; Only specifically adjudicated draft/*.can and their matching .requirements.md/.mjs files, exact paths reserved before edit; draft is an independent git submodule. Serialize overlapping producer-owned writes.",
+      "slices": [],
+      "followup_packet": "C08",
+      "evidence_limit": "operational ledger state at inspected baseline; no newly executed qualification"
+    },
+    {
+      "id": "T37",
+      "title": "T37 \u2014 Qualify a small original CRUD or work app",
+      "reported_state": "open",
+      "prerequisites": "Actual original pilot T02 blockers, T05/T06/T08/T18/T19a/T20a/T21/T22a/T23a; bound/file gates if used.",
+      "recorded_owner_files": "L7 with relevant lanes; tests/e2e/apps/challenge-pilot.spec.ts (new), tests/e2e/fixtures/artifact-loader.ts, implementation/challenge-audit-run/evidence/pilot.md. Serialize overlapping producer-owned writes.",
+      "slices": [
+        "S11"
+      ],
+      "followup_packet": "C06",
+      "evidence_limit": "operational ledger state at inspected baseline; no newly executed qualification"
+    },
+    {
+      "id": "T38",
+      "title": "T38 \u2014 Qualify Expense and Leave or Onboard",
+      "reported_state": "open",
+      "prerequisites": "T37; each app T02 blockers and matching T29/T31/attachments/T24/T25.",
+      "recorded_owner_files": "L7 with L3/L4/L6; tests/e2e/apps/challenge-expense.spec.ts, tests/e2e/apps/challenge-leave-onboard.spec.ts (new), implementation/challenge-audit-run/evidence/expense-leave.md. Serialize overlapping producer-owned writes.",
+      "slices": [],
+      "followup_packet": "C06",
+      "evidence_limit": "operational ledger state at inspected baseline; no newly executed qualification"
+    },
+    {
+      "id": "T39",
+      "title": "T39 \u2014 Qualify receipt and external recovery workflows",
+      "reported_state": "open",
+      "prerequisites": "T37; each app matching T23/T25 and T02 blockers.",
+      "recorded_owner_files": "L7 with L3/L4; tests/e2e/apps/challenge-receipts-recovery.spec.ts (new), implementation/challenge-audit-run/evidence/receipts-recovery.md. Serialize overlapping producer-owned writes.",
+      "slices": [],
+      "followup_packet": "C06",
+      "evidence_limit": "operational ledger state at inspected baseline; no newly executed qualification"
+    },
+    {
+      "id": "T40",
+      "title": "T40 \u2014 Qualify complex bounded workflows",
+      "reported_state": "open",
+      "prerequisites": "T37; Chat matching T26/T32; Creative/Gallery T27; Shift/Volunteer adopted T34; per-app T02 blockers.",
+      "recorded_owner_files": "L7 with relevant producers; tests/e2e/apps/challenge-complex.spec.ts (new), implementation/challenge-audit-run/evidence/complex-workflows.md. Serialize overlapping producer-owned writes.",
+      "slices": [],
+      "followup_packet": "C06",
+      "evidence_limit": "operational ledger state at inspected baseline; no newly executed qualification"
+    },
+    {
+      "id": "T41",
+      "title": "T41 \u2014 Reconcile corpus and release evidence",
+      "reported_state": "open",
+      "prerequisites": "T02 and repairs plus qualifications required by actual advertised scope.",
+      "recorded_owner_files": "L7 all-lane consolidation; implementation/challenge-audit-run/evidence/corpus-release.md, implementation/DIAGNOSTICS.md, implementation/status/lane-07.md, docs/ideal-filetree-plan.md after merges; package/version/CI paths under L7 reservation. Serialize overlapping producer-owned writes.",
+      "slices": [
+        "S10"
+      ],
+      "followup_packet": "C10",
+      "evidence_limit": "operational ledger state at inspected baseline; no newly executed qualification"
+    }
+  ]
+}

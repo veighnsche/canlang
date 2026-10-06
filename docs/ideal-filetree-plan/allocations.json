@@ -1,0 +1,1319 @@
+[
+  {
+    "source": "compiler/src/analysis/catalog.rs",
+    "decision": "retain-facade-and-split",
+    "destinations": [
+      "compiler/src/analysis/catalog.rs",
+      "compiler/src/analysis/catalog/providers.rs",
+      "compiler/src/analysis/catalog/provider_tests.rs"
+    ],
+    "responsibility_record": "catalog load/parse coordinator; static provider contract transcription; ratification cases; no duplicate authoritative TS tables",
+    "gate": "C13 owner-generated schema catalog before manual mirrors retire; retained provider leaf is temporary transcribed debt",
+    "review": "current primary/challenger plus scoped reused decomposition evidence",
+    "packet": "R01"
+  },
+  {
+    "source": "compiler/src/analysis/effects.rs",
+    "decision": "split",
+    "destinations": [
+      "compiler/src/analysis/effects/mod.rs",
+      "compiler/src/analysis/effects/tables.rs",
+      "compiler/src/analysis/effects/declarations.rs",
+      "compiler/src/analysis/effects/rules.rs",
+      "compiler/src/analysis/effects/handlers.rs",
+      "compiler/src/analysis/effects/statements.rs",
+      "compiler/src/analysis/effects/descriptions.rs",
+      "compiler/src/analysis/effects/migrations.rs"
+    ],
+    "responsibility_record": "split: `compiler/src/analysis/effects/mod.rs`<br>`compiler/src/analysis/effects/tables.rs`<br>`compiler/src/analysis/effects/declarations.rs`<br>`compiler/src/analysis/effects/rules.rs`<br>`compiler/src/analysis/effects/handlers.rs`<br>`compiler/src/analysis/effects/statements.rs`<br>`compiler/src/analysis/effects/descriptions.rs`<br>`compiler/src/analysis/effects/migrations.rs`",
+    "gate": "owning correctness/compatibility gate before structural cutover",
+    "review": "current primary/challenger plus scoped reused decomposition evidence",
+    "packet": "R01"
+  },
+  {
+    "source": "compiler/src/analysis/examples.rs",
+    "decision": "split",
+    "destinations": [
+      "compiler/src/analysis/examples/mod.rs",
+      "compiler/src/analysis/examples/tables.rs",
+      "compiler/src/analysis/examples/fixtures.rs",
+      "compiler/src/analysis/examples/selectors.rs",
+      "compiler/src/analysis/examples/sequences.rs",
+      "compiler/src/analysis/examples/messages.rs"
+    ],
+    "responsibility_record": "split: `compiler/src/analysis/examples/mod.rs`<br>`compiler/src/analysis/examples/tables.rs`<br>`compiler/src/analysis/examples/fixtures.rs`<br>`compiler/src/analysis/examples/selectors.rs`<br>`compiler/src/analysis/examples/sequences.rs`<br>`compiler/src/analysis/examples/messages.rs`",
+    "gate": "owning correctness/compatibility gate before structural cutover",
+    "review": "current primary/challenger plus scoped reused decomposition evidence",
+    "packet": "R01"
+  },
+  {
+    "source": "compiler/src/analysis/mod.rs",
+    "decision": "consolidate-pure-helpers",
+    "destinations": [
+      "compiler/src/analysis/mod.rs",
+      "compiler/src/syntax/inspect.rs"
+    ],
+    "responsibility_record": "consolidate-pure-helpers: `compiler/src/analysis/mod.rs`<br>`compiler/src/syntax/inspect.rs`",
+    "gate": "owning correctness/compatibility gate before structural cutover",
+    "review": "current primary/challenger plus scoped reused decomposition evidence",
+    "packet": "R01"
+  },
+  {
+    "source": "compiler/src/analysis/resolve.rs",
+    "decision": "split",
+    "destinations": [
+      "compiler/src/analysis/resolve/mod.rs",
+      "compiler/src/analysis/resolve/tables.rs",
+      "compiler/src/analysis/resolve/modules.rs",
+      "compiler/src/analysis/resolve/declarations.rs",
+      "compiler/src/analysis/resolve/imports.rs",
+      "compiler/src/analysis/resolve/scopes.rs",
+      "compiler/src/analysis/resolve/types.rs",
+      "compiler/src/analysis/resolve/bodies.rs",
+      "compiler/src/analysis/resolve/expressions.rs",
+      "compiler/src/analysis/resolve/cycles.rs"
+    ],
+    "responsibility_record": "split: `compiler/src/analysis/resolve/mod.rs`<br>`compiler/src/analysis/resolve/tables.rs`<br>`compiler/src/analysis/resolve/modules.rs`<br>`compiler/src/analysis/resolve/declarations.rs`<br>`compiler/src/analysis/resolve/imports.rs`<br>`compiler/src/analysis/resolve/scopes.rs`<br>`compiler/src/analysis/resolve/types.rs`<br>`compiler/src/analysis/resolve/bodies.rs`<br>`compiler/src/analysis/resolve/expressions.rs`<br>`compiler/src/analysis/resolve/cycles.rs`",
+    "gate": "owning correctness/compatibility gate before structural cutover",
+    "review": "current primary/challenger plus scoped reused decomposition evidence",
+    "packet": "R01"
+  },
+  {
+    "source": "compiler/src/analysis/types.rs",
+    "decision": "split",
+    "destinations": [
+      "compiler/src/analysis/types/mod.rs",
+      "compiler/src/analysis/types/model.rs",
+      "compiler/src/analysis/types/declarations.rs",
+      "compiler/src/analysis/types/expressions.rs",
+      "compiler/src/analysis/types/members.rs",
+      "compiler/src/analysis/types/operators.rs",
+      "compiler/src/analysis/types/narrowing.rs",
+      "compiler/src/analysis/types/constructs.rs",
+      "compiler/src/analysis/types/queries.rs",
+      "compiler/src/analysis/types/calls.rs",
+      "compiler/src/analysis/types/overloads.rs",
+      "compiler/src/analysis/types/statements.rs",
+      "compiler/src/analysis/types/mutations.rs",
+      "compiler/src/analysis/types/effect_calls.rs",
+      "compiler/src/analysis/types/scenarios.rs",
+      "compiler/src/analysis/types/schemas.rs",
+      "compiler/src/analysis/types/rules.rs",
+      "compiler/src/analysis/types/context.rs",
+      "compiler/src/analysis/types/ui.rs",
+      "compiler/src/analysis/types/fixtures.rs",
+      "compiler/src/analysis/types/literals.rs"
+    ],
+    "responsibility_record": "split: `compiler/src/analysis/types/mod.rs`<br>`compiler/src/analysis/types/model.rs`<br>`compiler/src/analysis/types/declarations.rs`<br>`compiler/src/analysis/types/expressions.rs`<br>`compiler/src/analysis/types/members.rs`<br>`compiler/src/analysis/types/operators.rs`<br>`compiler/src/analysis/types/narrowing.rs`<br>`compiler/src/analysis/types/constructs.rs`<br>`compiler/src/analysis/types/queries.rs`<br>`compiler/src/analysis/types/calls.rs`<br>`compiler/src/analysis/types/overloads.rs`<br>`compiler/src/analysis/types/statements.rs`<br>`compiler/src/analysis/types/mutations.rs`<br>`compiler/src/analysis/types/effect_calls.rs`<br>`compiler/src/analysis/types/scenarios.rs`<br>`compiler/src/analysis/types/schemas.rs`<br>`compiler/src/analysis/types/rules.rs`<br>`compiler/src/analysis/types/context.rs`<br>`compiler/src/analysis/types/ui.rs`<br>`compiler/src/analysis/types/fixtures.rs`<br>`compiler/src/analysis/types/literals.rs`",
+    "gate": "owning correctness/compatibility gate before structural cutover",
+    "review": "current primary/challenger plus scoped reused decomposition evidence",
+    "packet": "R01"
+  },
+  {
+    "source": "compiler/src/cli.rs",
+    "decision": "move-or-split",
+    "destinations": [
+      "compiler/src/cli/mod.rs",
+      "compiler/src/cli/docs.rs",
+      "compiler/src/cli/format.rs",
+      "compiler/src/cli/tests.rs"
+    ],
+    "responsibility_record": "shared dispatch/analyzer/options/check/compile/policy/lint/thin commands; docs subprocess/output; atomic format/file writes; CLI tests",
+    "gate": "stabilize owning semantics and exact caller/test/export joins",
+    "review": "current primary/challenger plus scoped reused decomposition evidence",
+    "packet": "R01"
+  },
+  {
+    "source": "compiler/src/codegen/ir.rs",
+    "decision": "split",
+    "destinations": [
+      "compiler/src/codegen/ir/mod.rs",
+      "compiler/src/codegen/ir/model.rs",
+      "compiler/src/codegen/ir/build.rs",
+      "compiler/src/codegen/ir/decode_expr.rs",
+      "compiler/src/codegen/ir/decode_effects.rs",
+      "compiler/src/codegen/ir/decode_items.rs",
+      "compiler/src/codegen/ir/decode_rules.rs",
+      "compiler/src/codegen/ir/decode_pages.rs",
+      "compiler/src/codegen/ir/decode_ui.rs",
+      "compiler/src/codegen/ir/decode_fixtures.rs",
+      "compiler/src/codegen/ir/decode_examples.rs",
+      "compiler/src/codegen/ir/literals.rs",
+      "compiler/src/codegen/ir/decode_forms.rs"
+    ],
+    "responsibility_record": "split: `compiler/src/codegen/ir/mod.rs`<br>`compiler/src/codegen/ir/model.rs`<br>`compiler/src/codegen/ir/build.rs`<br>`compiler/src/codegen/ir/decode_expr.rs`<br>`compiler/src/codegen/ir/decode_effects.rs`<br>`compiler/src/codegen/ir/decode_items.rs`<br>`compiler/src/codegen/ir/decode_rules.rs`<br>`compiler/src/codegen/ir/decode_pages.rs`<br>`compiler/src/codegen/ir/decode_ui.rs`<br>`compiler/src/codegen/ir/decode_fixtures.rs`<br>`compiler/src/codegen/ir/decode_examples.rs`<br>`compiler/src/codegen/ir/literals.rs`; decode_forms owns selected/default fields and control binding; preserve other UI containers in decode_ui",
+    "gate": "owning correctness/compatibility gate before structural cutover",
+    "review": "current primary/challenger plus scoped reused decomposition evidence",
+    "packet": "R01"
+  },
+  {
+    "source": "compiler/src/codegen/js.rs",
+    "decision": "split",
+    "destinations": [
+      "compiler/src/codegen/js/mod.rs",
+      "compiler/src/codegen/js/writer.rs",
+      "compiler/src/codegen/js/expressions.rs",
+      "compiler/src/codegen/js/scalars.rs",
+      "compiler/src/codegen/js/schema.rs",
+      "compiler/src/codegen/js/effects.rs",
+      "compiler/src/codegen/js/pages.rs",
+      "compiler/src/codegen/js/definition.rs",
+      "compiler/src/codegen/js/registry.rs",
+      "compiler/src/codegen/js/packages.rs",
+      "compiler/src/codegen/js/descriptors.rs"
+    ],
+    "responsibility_record": "split: `compiler/src/codegen/js/mod.rs`<br>`compiler/src/codegen/js/writer.rs`<br>`compiler/src/codegen/js/expressions.rs`<br>`compiler/src/codegen/js/scalars.rs`<br>`compiler/src/codegen/js/schema.rs`<br>`compiler/src/codegen/js/effects.rs`<br>`compiler/src/codegen/js/pages.rs`<br>`compiler/src/codegen/js/definition.rs`<br>`compiler/src/codegen/js/registry.rs`<br>`compiler/src/codegen/js/packages.rs`; descriptors owns canonical model/operation/delivery JSON; definition retains authored metadata, registry retains functions",
+    "gate": "owning correctness/compatibility gate before structural cutover",
+    "review": "current primary/challenger plus scoped reused decomposition evidence",
+    "packet": "R01"
+  },
+  {
+    "source": "compiler/src/docs.rs",
+    "decision": "move-or-split",
+    "destinations": [
+      "compiler/src/docs/mod.rs",
+      "compiler/src/docs/model.rs",
+      "compiler/src/docs/examples.rs",
+      "compiler/src/docs/descriptions.rs",
+      "compiler/src/docs/source.rs",
+      "compiler/src/docs/json.rs"
+    ],
+    "responsibility_record": "one reference extraction coordinator; model; authored examples; static descriptions; normalized source identity; serialization",
+    "gate": "stabilize owning semantics and exact caller/test/export joins",
+    "review": "current primary/challenger plus scoped reused decomposition evidence",
+    "packet": "R01"
+  },
+  {
+    "source": "compiler/src/ide/queries.rs",
+    "decision": "consolidate-pure-helpers",
+    "destinations": [
+      "compiler/src/ide/queries.rs",
+      "compiler/src/syntax/inspect.rs"
+    ],
+    "responsibility_record": "consolidate-pure-helpers: `compiler/src/ide/queries.rs`<br>`compiler/src/syntax/inspect.rs`",
+    "gate": "owning correctness/compatibility gate before structural cutover",
+    "review": "current primary/challenger plus scoped reused decomposition evidence",
+    "packet": "R01"
+  },
+  {
+    "source": "compiler/src/lint/rules.rs",
+    "decision": "consolidate-pure-helpers",
+    "destinations": [
+      "compiler/src/lint/rules.rs",
+      "compiler/src/syntax/inspect.rs"
+    ],
+    "responsibility_record": "consolidate-pure-helpers: `compiler/src/lint/rules.rs`<br>`compiler/src/syntax/inspect.rs`",
+    "gate": "owning correctness/compatibility gate before structural cutover",
+    "review": "current primary/challenger plus scoped reused decomposition evidence",
+    "packet": "R01"
+  },
+  {
+    "source": "compiler/src/lsp/server.rs",
+    "decision": "split",
+    "destinations": [
+      "compiler/src/lsp/server/mod.rs",
+      "compiler/src/lsp/server/backend.rs",
+      "compiler/src/lsp/server/protocol.rs",
+      "compiler/src/lsp/server/session.rs",
+      "compiler/src/lsp/server/tests.rs"
+    ],
+    "responsibility_record": "split: `compiler/src/lsp/server/mod.rs`<br>`compiler/src/lsp/server/backend.rs`<br>`compiler/src/lsp/server/protocol.rs`<br>`compiler/src/lsp/server/session.rs`<br>`compiler/src/lsp/server/tests.rs`",
+    "gate": "owning correctness/compatibility gate before structural cutover",
+    "review": "current primary/challenger plus scoped reused decomposition evidence",
+    "packet": "R01"
+  },
+  {
+    "source": "compiler/src/syntax/parser.rs",
+    "decision": "split",
+    "destinations": [
+      "compiler/src/syntax/parser/mod.rs",
+      "compiler/src/syntax/parser/cursor.rs",
+      "compiler/src/syntax/parser/builder.rs",
+      "compiler/src/syntax/parser/recovery.rs",
+      "compiler/src/syntax/parser/modules.rs",
+      "compiler/src/syntax/parser/expressions.rs",
+      "compiler/src/syntax/parser/types.rs",
+      "compiler/src/syntax/parser/attributes.rs",
+      "compiler/src/syntax/parser/given.rs",
+      "compiler/src/syntax/parser/when.rs",
+      "compiler/src/syntax/parser/examples.rs",
+      "compiler/src/syntax/parser/ui.rs",
+      "compiler/src/syntax/parser/migrations.rs"
+    ],
+    "responsibility_record": "split: `compiler/src/syntax/parser/mod.rs`<br>`compiler/src/syntax/parser/cursor.rs`<br>`compiler/src/syntax/parser/builder.rs`<br>`compiler/src/syntax/parser/recovery.rs`<br>`compiler/src/syntax/parser/modules.rs`<br>`compiler/src/syntax/parser/expressions.rs`<br>`compiler/src/syntax/parser/types.rs`<br>`compiler/src/syntax/parser/attributes.rs`<br>`compiler/src/syntax/parser/given.rs`<br>`compiler/src/syntax/parser/when.rs`<br>`compiler/src/syntax/parser/examples.rs`<br>`compiler/src/syntax/parser/ui.rs`<br>`compiler/src/syntax/parser/migrations.rs`",
+    "gate": "owning correctness/compatibility gate before structural cutover",
+    "review": "current primary/challenger plus scoped reused decomposition evidence",
+    "packet": "R01"
+  },
+  {
+    "source": "compiler/tests/analysis.rs",
+    "decision": "retain target and split cases",
+    "destinations": [
+      "compiler/tests/analysis.rs",
+      "compiler/tests/analysis/catalog.rs",
+      "compiler/tests/analysis/resolve.rs",
+      "compiler/tests/analysis/types.rs",
+      "compiler/tests/analysis/corpus.rs",
+      "compiler/tests/analysis/support.rs"
+    ],
+    "responsibility_record": "retain target and split cases: `compiler/tests/analysis.rs`<br>`compiler/tests/analysis/catalog.rs`<br>`compiler/tests/analysis/resolve.rs`<br>`compiler/tests/analysis/types.rs`<br>`compiler/tests/analysis/corpus.rs`<br>`compiler/tests/analysis/support.rs`",
+    "gate": "owning correctness/compatibility gate before structural cutover",
+    "review": "current primary/challenger plus scoped reused decomposition evidence",
+    "packet": "R01"
+  },
+  {
+    "source": "compiler/tests/codegen.rs",
+    "decision": "retain target and split cases",
+    "destinations": [
+      "compiler/tests/codegen.rs",
+      "compiler/tests/codegen/support.rs",
+      "compiler/tests/codegen/goldens.rs",
+      "compiler/tests/codegen/scalars.rs",
+      "compiler/tests/codegen/items.rs",
+      "compiler/tests/codegen/pages.rs",
+      "compiler/tests/codegen/examples.rs",
+      "compiler/tests/codegen/capabilities.rs",
+      "compiler/tests/codegen/sourcemap.rs"
+    ],
+    "responsibility_record": "retain target and split cases: `compiler/tests/codegen.rs`<br>`compiler/tests/codegen/support.rs`<br>`compiler/tests/codegen/goldens.rs`<br>`compiler/tests/codegen/scalars.rs`<br>`compiler/tests/codegen/items.rs`<br>`compiler/tests/codegen/pages.rs`<br>`compiler/tests/codegen/examples.rs`<br>`compiler/tests/codegen/capabilities.rs`<br>`compiler/tests/codegen/sourcemap.rs`",
+    "gate": "owning correctness/compatibility gate before structural cutover",
+    "review": "current primary/challenger plus scoped reused decomposition evidence",
+    "packet": "R01"
+  },
+  {
+    "source": "compiler/tests/syntax.rs",
+    "decision": "retain target and split cases",
+    "destinations": [
+      "compiler/tests/syntax.rs",
+      "compiler/tests/syntax/lexer.rs",
+      "compiler/tests/syntax/layout.rs",
+      "compiler/tests/syntax/parser.rs",
+      "compiler/tests/syntax/corpus.rs"
+    ],
+    "responsibility_record": "retain target and split cases: `compiler/tests/syntax.rs`<br>`compiler/tests/syntax/lexer.rs`<br>`compiler/tests/syntax/layout.rs`<br>`compiler/tests/syntax/parser.rs`<br>`compiler/tests/syntax/corpus.rs`",
+    "gate": "owning correctness/compatibility gate before structural cutover",
+    "review": "current primary/challenger plus scoped reused decomposition evidence",
+    "packet": "R01"
+  },
+  {
+    "source": "editors/vscode/check-highlighting.cjs",
+    "decision": "split-with-existing-entry",
+    "destinations": [
+      "editors/vscode/check-highlighting.cjs",
+      "editors/vscode/test/engine.cjs",
+      "editors/vscode/test/syntax.cjs",
+      "editors/vscode/test/corpus.cjs",
+      "editors/vscode/test/palette.cjs"
+    ],
+    "responsibility_record": "split-with-existing-entry: `editors/vscode/check-highlighting.cjs`<br>`editors/vscode/test/engine.cjs`<br>`editors/vscode/test/syntax.cjs`<br>`editors/vscode/test/corpus.cjs`<br>`editors/vscode/test/palette.cjs`",
+    "gate": "owning correctness/compatibility gate before structural cutover",
+    "review": "current primary/challenger plus scoped reused decomposition evidence",
+    "packet": "R01"
+  },
+  {
+    "source": "editors/vscode/src/client.ts",
+    "decision": "split-with-existing-entry",
+    "destinations": [
+      "editors/vscode/src/client.ts",
+      "editors/vscode/src/protocol.ts",
+      "editors/vscode/src/diagnostics.ts"
+    ],
+    "responsibility_record": "split-with-existing-entry: `editors/vscode/src/client.ts`<br>`editors/vscode/src/protocol.ts`<br>`editors/vscode/src/diagnostics.ts`",
+    "gate": "owning correctness/compatibility gate before structural cutover",
+    "review": "current primary/challenger plus scoped reused decomposition evidence",
+    "packet": "R01"
+  },
+  {
+    "source": "editors/vscode/src/extension.ts",
+    "decision": "retain-facade-and-split",
+    "destinations": [
+      "editors/vscode/src/extension.ts",
+      "editors/vscode/src/providers.ts"
+    ],
+    "responsibility_record": "one extension lifecycle/activation/restart owner; shared-client VS Code hover/completion/location/rename/token/action conversions",
+    "gate": "C12 serialized lifecycle and explicit custom-client compile/package inputs",
+    "review": "compiler primary/platform challenger",
+    "packet": "R01"
+  },
+  {
+    "source": "packages/cloudflare/src/deploy/bundle.ts",
+    "decision": "retain-facade-and-split",
+    "destinations": [
+      "packages/cloudflare/src/deploy/bundle.ts",
+      "packages/cloudflare/src/deploy/bundle/modules.ts",
+      "packages/cloudflare/src/deploy/bundle/vendors.ts",
+      "packages/cloudflare/src/deploy/bundle/scan.ts"
+    ],
+    "responsibility_record": "portable bundle coordinator; artifact paths/specifier rewrite; vendor discovery/MCP bundling; lexical loadability/link validation",
+    "gate": "C03/C05/C06; normalized/reserved keys before emit",
+    "review": "current primary/challenger plus scoped reused decomposition evidence",
+    "packet": "R06"
+  },
+  {
+    "source": "packages/cloudflare/src/runtime/artifact.ts",
+    "decision": "move",
+    "destinations": [
+      "packages/cloudflare/src/build/artifact.ts"
+    ],
+    "responsibility_record": "move: `packages/cloudflare/src/build/artifact.ts`",
+    "gate": "owning correctness/compatibility gate before structural cutover",
+    "review": "current primary/challenger plus scoped reused decomposition evidence",
+    "packet": "R06"
+  },
+  {
+    "source": "packages/cloudflare/src/runtime/context.ts",
+    "decision": "retain-facade-and-split",
+    "destinations": [
+      "packages/cloudflare/src/runtime/context.ts"
+    ],
+    "responsibility_record": "retain real generated-handler host adapter; canonical state context owns admission",
+    "gate": "C02 context union before further extraction",
+    "review": "current primary/challenger plus scoped reused decomposition evidence",
+    "packet": "R06"
+  },
+  {
+    "source": "packages/cloudflare/src/runtime/invoke.ts",
+    "decision": "retain-facade-and-split",
+    "destinations": [
+      "packages/cloudflare/src/runtime/invoke.ts",
+      "packages/cloudflare/src/runtime/callable.ts",
+      "packages/cloudflare/src/runtime/state-producers.ts",
+      "packages/cloudflare/src/runtime/canonical/policy.ts",
+      "packages/cloudflare/src/runtime/canonical/descriptors.ts",
+      "packages/cloudflare/src/runtime/canonical/overlay.ts",
+      "packages/cloudflare/src/runtime/canonical/scenario.ts",
+      "packages/cloudflare/src/runtime/canonical/mutation.ts",
+      "packages/cloudflare/src/runtime/canonical/read.ts",
+      "packages/cloudflare/src/runtime/dispatch/rows.ts",
+      "packages/cloudflare/src/runtime/dispatch/stage.ts",
+      "packages/cloudflare/src/runtime/dispatch/drive.ts",
+      "packages/cloudflare/src/runtime/dispatch/recovery.ts",
+      "packages/cloudflare/src/runtime/dispatch/producer.ts"
+    ],
+    "responsibility_record": "compatibility facade; callable linking/errors; one dynamic state producer loader; metadata policy transcription; descriptor cache; query/unique/write overlay; one scenario collector; mutation/read adapter entries; canonical row/stage/drive/recovery/fence command composition",
+    "gate": "C01/C02/C08; one collector/cache/driver, no duplicate state engine",
+    "review": "current primary/challenger plus scoped reused decomposition evidence",
+    "packet": "R06"
+  },
+  {
+    "source": "packages/cloudflare/src/runtime/modules.ts",
+    "decision": "move",
+    "destinations": [
+      "packages/cloudflare/src/build/modules.ts"
+    ],
+    "responsibility_record": "move: `packages/cloudflare/src/build/modules.ts`",
+    "gate": "owning correctness/compatibility gate before structural cutover",
+    "review": "current primary/challenger plus scoped reused decomposition evidence",
+    "packet": "R06"
+  },
+  {
+    "source": "packages/cloudflare/src/runtime/stdlib.ts",
+    "decision": "retain-facade-and-split",
+    "destinations": [
+      "packages/cloudflare/src/runtime/stdlib.ts"
+    ],
+    "responsibility_record": "retain thin emitted-code bindings; state owns writes/read authority; standard facade owns public import",
+    "gate": "C01/C02/C08 generated binding/default contracts",
+    "review": "current primary/challenger plus scoped reused decomposition evidence",
+    "packet": "R06"
+  },
+  {
+    "source": "packages/cloudflare/src/worker/assembly.ts",
+    "decision": "retain-facade-and-split",
+    "destinations": [
+      "packages/cloudflare/src/worker/assembly.ts",
+      "packages/cloudflare/src/worker/registry.ts",
+      "packages/cloudflare/src/worker/invoker.ts",
+      "packages/cloudflare/src/worker/dispatch.ts"
+    ],
+    "responsibility_record": "assembly coordinator; artifact/page registry validation; canonical envelope bridge; injected dispatch command composition; do not collide with generated worker/artifact.js",
+    "gate": "C01/C02/C03; retired demo DDL has no successor",
+    "review": "current primary/challenger plus scoped reused decomposition evidence",
+    "packet": "R06"
+  },
+  {
+    "source": "packages/cloudflare/test/assembly.test.ts",
+    "decision": "retain-target-and-split-cases",
+    "destinations": [
+      "packages/cloudflare/test/assembly.test.ts",
+      "packages/cloudflare/test/file-journey.test.ts",
+      "packages/cloudflare/test/fixtures/assembly.ts"
+    ],
+    "gate": "C08 canonical upload/finalize join before distinct file describe/helper move; preserve other page/invoker/refusal cases",
+    "responsibility_record": "assembly cases retained; distinct finalized-file integration cases and their shared setup",
+    "packet": "R06"
+  },
+  {
+    "source": "packages/contracts/src/presentation.ts",
+    "decision": "split-with-existing-entry",
+    "destinations": [
+      "packages/contracts/src/presentation.ts",
+      "packages/contracts/src/presentation/context.ts",
+      "packages/contracts/src/presentation/page.ts",
+      "packages/contracts/src/presentation/messages.ts",
+      "packages/contracts/src/presentation/navigation.ts",
+      "packages/contracts/src/presentation/shell.ts",
+      "packages/contracts/src/presentation/components.ts",
+      "packages/contracts/src/presentation/collections.ts",
+      "packages/contracts/src/presentation/forms.ts",
+      "packages/contracts/src/presentation/controls.ts",
+      "packages/contracts/src/presentation/htmx.ts",
+      "packages/contracts/src/presentation/leaves.ts",
+      "packages/contracts/src/presentation/groups.ts",
+      "packages/contracts/src/presentation/overlays.ts",
+      "packages/contracts/src/presentation/media.ts",
+      "packages/contracts/src/presentation/panels.ts",
+      "packages/contracts/src/presentation/settings.ts",
+      "packages/contracts/src/presentation/review.ts",
+      "packages/contracts/src/presentation/catalog.ts"
+    ],
+    "responsibility_record": "split-with-existing-entry: `packages/contracts/src/presentation.ts`<br>`packages/contracts/src/presentation/context.ts`<br>`packages/contracts/src/presentation/page.ts`<br>`packages/contracts/src/presentation/messages.ts`<br>`packages/contracts/src/presentation/navigation.ts`<br>`packages/contracts/src/presentation/shell.ts`<br>`packages/contracts/src/presentation/components.ts`<br>`packages/contracts/src/presentation/collections.ts`<br>`packages/contracts/src/presentation/forms.ts`<br>`packages/contracts/src/presentation/controls.ts`<br>`packages/contracts/src/presentation/htmx.ts`<br>`packages/contracts/src/presentation/leaves.ts`<br>`packages/contracts/src/presentation/groups.ts`<br>`packages/contracts/src/presentation/overlays.ts`<br>`packages/contracts/src/presentation/media.ts`<br>`packages/contracts/src/presentation/panels.ts`<br>`packages/contracts/src/presentation/settings.ts`<br>`packages/contracts/src/presentation/review.ts`<br>`packages/contracts/src/presentation/catalog.ts`",
+    "gate": "owning correctness/compatibility gate before structural cutover",
+    "review": "current primary/challenger plus scoped reused decomposition evidence",
+    "packet": "R02"
+  },
+  {
+    "source": "packages/contracts/src/state.ts",
+    "decision": "split-with-existing-entry",
+    "destinations": [
+      "packages/contracts/src/state.ts",
+      "packages/contracts/src/state/identity.ts",
+      "packages/contracts/src/state/invocation.ts",
+      "packages/contracts/src/state/query.ts",
+      "packages/contracts/src/state/mutation.ts",
+      "packages/contracts/src/state/commit.ts",
+      "packages/contracts/src/state/storage.ts",
+      "packages/contracts/src/state/migration.ts",
+      "packages/contracts/src/state/execution.ts"
+    ],
+    "responsibility_record": "split-with-existing-entry: `packages/contracts/src/state.ts`<br>`packages/contracts/src/state/identity.ts`<br>`packages/contracts/src/state/invocation.ts`<br>`packages/contracts/src/state/query.ts`<br>`packages/contracts/src/state/mutation.ts`<br>`packages/contracts/src/state/commit.ts`<br>`packages/contracts/src/state/storage.ts`<br>`packages/contracts/src/state/migration.ts`; state/execution.ts owns pinned execution version and operation/model/input/default/provider/observation/recipe descriptors (current687-920); invocation/commit families retain their existing duties",
+    "gate": "owning correctness/compatibility gate before structural cutover",
+    "review": "current primary/challenger plus scoped reused decomposition evidence",
+    "packet": "R02"
+  },
+  {
+    "source": "packages/files/src/ports.ts",
+    "decision": "split-with-existing-entry",
+    "destinations": [
+      "packages/files/src/ports.ts",
+      "packages/files/src/testing.ts",
+      "packages/files/src/storage/key.ts"
+    ],
+    "responsibility_record": "split-with-existing-entry: `packages/files/src/ports.ts`<br>`packages/files/src/testing.ts`<br>`packages/files/src/storage/key.ts`",
+    "gate": "owning correctness/compatibility gate before structural cutover",
+    "review": "current primary/challenger plus scoped reused decomposition evidence",
+    "packet": "R04"
+  },
+  {
+    "source": "packages/files/src/upload/fs-blob-store.ts",
+    "decision": "move",
+    "destinations": [
+      "packages/files/src/storage/fs.ts"
+    ],
+    "responsibility_record": "move: `packages/files/src/storage/fs.ts`",
+    "gate": "owning correctness/compatibility gate before structural cutover",
+    "review": "current primary/challenger plus scoped reused decomposition evidence",
+    "packet": "R04"
+  },
+  {
+    "source": "packages/files/src/upload/index.ts",
+    "decision": "split-with-existing-entry",
+    "destinations": [
+      "packages/files/src/upload/index.ts",
+      "packages/files/src/upload/intent.ts",
+      "packages/files/src/upload/content.ts",
+      "packages/files/src/upload/validation.ts",
+      "packages/files/src/upload/shared.ts"
+    ],
+    "responsibility_record": "split-with-existing-entry: `packages/files/src/upload/index.ts`<br>`packages/files/src/upload/intent.ts`<br>`packages/files/src/upload/content.ts`<br>`packages/files/src/upload/validation.ts`<br>`packages/files/src/upload/shared.ts`",
+    "gate": "owning correctness/compatibility gate before structural cutover",
+    "review": "current primary/challenger plus scoped reused decomposition evidence",
+    "packet": "R04"
+  },
+  {
+    "source": "packages/identity/src/storage/d1.ts",
+    "decision": "retain-facade-and-split",
+    "destinations": [
+      "packages/identity/src/storage/d1.ts",
+      "packages/identity/src/storage/d1/schema.ts",
+      "packages/identity/src/storage/d1/rows.ts",
+      "packages/identity/src/storage/d1/store.ts"
+    ],
+    "responsibility_record": "D1 facade; schema; row codecs; prepared store operations, preserving one identity authority",
+    "gate": "C04 atomic consume and cleanup semantics",
+    "review": "current primary/challenger plus scoped reused decomposition evidence",
+    "packet": "R05"
+  },
+  {
+    "source": "packages/identity/src/testing.ts",
+    "decision": "split-with-existing-entry",
+    "destinations": [
+      "packages/identity/src/testing.ts",
+      "packages/identity/src/testing/helpers.ts"
+    ],
+    "responsibility_record": "split-with-existing-entry: `packages/identity/src/testing.ts`<br>`packages/identity/src/testing/helpers.ts`",
+    "gate": "owning correctness/compatibility gate before structural cutover",
+    "review": "current primary/challenger plus scoped reused decomposition evidence",
+    "packet": "R05"
+  },
+  {
+    "source": "packages/interfaces/src/docs/reference.ts",
+    "decision": "retain-facade-and-split",
+    "destinations": [
+      "packages/interfaces/src/docs/reference.ts",
+      "packages/interfaces/src/docs/anchors.ts",
+      "packages/interfaces/src/docs/markdown.ts"
+    ],
+    "responsibility_record": "one render coordinator; stable unique anchors; escaped Markdown serialization; locale resolver stays in values",
+    "gate": "stabilize owning semantics and exact caller/test/export joins",
+    "review": "current primary/challenger plus scoped reused decomposition evidence",
+    "packet": "R05"
+  },
+  {
+    "source": "packages/interfaces/src/http/pages.ts",
+    "decision": "split-with-existing-entry",
+    "destinations": [
+      "packages/interfaces/src/http/pages.ts",
+      "packages/interfaces/src/http/presentation.ts",
+      "packages/interfaces/test/http-presentation.test.ts"
+    ],
+    "responsibility_record": "split-with-existing-entry: `packages/interfaces/src/http/pages.ts`<br>`packages/interfaces/src/http/presentation.ts`; new owning test: `packages/interfaces/test/http-presentation.test.ts`. Constructor/test currently exist only in the observed uncommitted overlay; preserve the full/partial dispatcher callers.",
+    "gate": "owning correctness/compatibility gate before structural cutover",
+    "review": "current primary/challenger plus scoped reused decomposition evidence",
+    "packet": "R05"
+  },
+  {
+    "source": "packages/interfaces/src/testing.ts",
+    "decision": "split-with-existing-entry",
+    "destinations": [
+      "packages/interfaces/src/testing.ts",
+      "packages/interfaces/src/testing/identity.ts",
+      "packages/interfaces/src/testing/http.ts",
+      "packages/interfaces/src/testing/mcp.ts",
+      "packages/interfaces/src/testing/uploads.ts",
+      "packages/interfaces/src/testing/ingress.ts",
+      "packages/interfaces/src/testing/oauth.ts"
+    ],
+    "responsibility_record": "split-with-existing-entry: `packages/interfaces/src/testing.ts`<br>`packages/interfaces/src/testing/identity.ts`<br>`packages/interfaces/src/testing/http.ts`<br>`packages/interfaces/src/testing/mcp.ts`<br>`packages/interfaces/src/testing/uploads.ts`<br>`packages/interfaces/src/testing/ingress.ts`<br>`packages/interfaces/src/testing/oauth.ts`",
+    "gate": "owning correctness/compatibility gate before structural cutover",
+    "review": "current primary/challenger plus scoped reused decomposition evidence",
+    "packet": "R05"
+  },
+  {
+    "source": "packages/services/src/http/client.ts",
+    "decision": "split-with-existing-entry",
+    "destinations": [
+      "packages/services/src/http/client.ts",
+      "packages/services/src/http/request.ts",
+      "packages/services/src/http/redirects.ts",
+      "packages/services/src/http/body.ts",
+      "packages/services/src/http/stream.ts"
+    ],
+    "responsibility_record": "split-with-existing-entry: `packages/services/src/http/client.ts`<br>`packages/services/src/http/request.ts`<br>`packages/services/src/http/redirects.ts`<br>`packages/services/src/http/body.ts`<br>`packages/services/src/http/stream.ts`",
+    "gate": "owning correctness/compatibility gate before structural cutover",
+    "review": "current primary/challenger plus scoped reused decomposition evidence",
+    "packet": "R04"
+  },
+  {
+    "source": "packages/services/src/judgments/harness.ts",
+    "decision": "move",
+    "destinations": [
+      "packages/services/src/testing/harness/judgments.ts"
+    ],
+    "responsibility_record": "move: `packages/services/src/testing/harness/judgments.ts`",
+    "gate": "owning correctness/compatibility gate before structural cutover",
+    "review": "current primary/challenger plus scoped reused decomposition evidence",
+    "packet": "R04"
+  },
+  {
+    "source": "packages/services/src/judgments/systemone.ts",
+    "decision": "split-with-existing-entry",
+    "destinations": [
+      "packages/services/src/judgments/systemone.ts",
+      "packages/services/src/judgments/systemone/adapter.ts",
+      "packages/services/src/judgments/systemone/request.ts",
+      "packages/services/src/judgments/systemone/response.ts"
+    ],
+    "responsibility_record": "split-with-existing-entry: `packages/services/src/judgments/systemone.ts`<br>`packages/services/src/judgments/systemone/adapter.ts`<br>`packages/services/src/judgments/systemone/request.ts`<br>`packages/services/src/judgments/systemone/response.ts`",
+    "gate": "owning correctness/compatibility gate before structural cutover",
+    "review": "current primary/challenger plus scoped reused decomposition evidence",
+    "packet": "R04"
+  },
+  {
+    "source": "packages/services/src/mail/adapter.ts",
+    "decision": "split-with-existing-entry",
+    "destinations": [
+      "packages/services/src/mail/adapter.ts",
+      "packages/services/src/mail/request.ts",
+      "packages/services/src/mail/response.ts",
+      "packages/services/src/completion.ts"
+    ],
+    "responsibility_record": "split-with-existing-entry: `packages/services/src/mail/adapter.ts`<br>`packages/services/src/mail/request.ts`<br>`packages/services/src/mail/response.ts`<br>`packages/services/src/completion.ts`",
+    "gate": "owning correctness/compatibility gate before structural cutover",
+    "review": "current primary/challenger plus scoped reused decomposition evidence",
+    "packet": "R04"
+  },
+  {
+    "source": "packages/services/src/mail/redact.ts",
+    "decision": "move",
+    "destinations": [
+      "packages/services/src/errors.ts"
+    ],
+    "responsibility_record": "move: `packages/services/src/errors.ts`",
+    "gate": "owning correctness/compatibility gate before structural cutover",
+    "review": "current primary/challenger plus scoped reused decomposition evidence",
+    "packet": "R04"
+  },
+  {
+    "source": "packages/services/src/media/comfyui.ts",
+    "decision": "split-with-existing-entry",
+    "destinations": [
+      "packages/services/src/media/comfyui.ts",
+      "packages/services/src/media/comfyui/adapter.ts",
+      "packages/services/src/media/comfyui/response.ts",
+      "packages/services/src/media/comfyui/download.ts"
+    ],
+    "responsibility_record": "split-with-existing-entry: `packages/services/src/media/comfyui.ts`<br>`packages/services/src/media/comfyui/adapter.ts`<br>`packages/services/src/media/comfyui/response.ts`<br>`packages/services/src/media/comfyui/download.ts`",
+    "gate": "owning correctness/compatibility gate before structural cutover",
+    "review": "current primary/challenger plus scoped reused decomposition evidence",
+    "packet": "R04"
+  },
+  {
+    "source": "packages/services/src/media/harness.ts",
+    "decision": "move",
+    "destinations": [
+      "packages/services/src/testing/harness/media.ts"
+    ],
+    "responsibility_record": "move: `packages/services/src/testing/harness/media.ts`",
+    "gate": "owning correctness/compatibility gate before structural cutover",
+    "review": "current primary/challenger plus scoped reused decomposition evidence",
+    "packet": "R04"
+  },
+  {
+    "source": "packages/services/src/models/harness.ts",
+    "decision": "move",
+    "destinations": [
+      "packages/services/src/testing/harness/models.ts"
+    ],
+    "responsibility_record": "move: `packages/services/src/testing/harness/models.ts`",
+    "gate": "owning correctness/compatibility gate before structural cutover",
+    "review": "current primary/challenger plus scoped reused decomposition evidence",
+    "packet": "R04"
+  },
+  {
+    "source": "packages/services/src/models/ollama.ts",
+    "decision": "split-with-existing-entry",
+    "destinations": [
+      "packages/services/src/models/ollama.ts",
+      "packages/services/src/models/ollama/adapter.ts",
+      "packages/services/src/models/ollama/request.ts",
+      "packages/services/src/models/ollama/response.ts",
+      "packages/services/src/models/ollama/run.ts"
+    ],
+    "responsibility_record": "split-with-existing-entry: `packages/services/src/models/ollama.ts`<br>`packages/services/src/models/ollama/adapter.ts`<br>`packages/services/src/models/ollama/request.ts`<br>`packages/services/src/models/ollama/response.ts`<br>`packages/services/src/models/ollama/run.ts`",
+    "gate": "owning correctness/compatibility gate before structural cutover",
+    "review": "current primary/challenger plus scoped reused decomposition evidence",
+    "packet": "R04"
+  },
+  {
+    "source": "packages/services/src/ports.ts",
+    "decision": "split-with-existing-entry",
+    "destinations": [
+      "packages/services/src/ports.ts",
+      "packages/services/src/runtime.ts",
+      "packages/services/src/testing/helpers.ts",
+      "packages/services/src/testing/harness/mail.ts"
+    ],
+    "responsibility_record": "split-with-existing-entry: `packages/services/src/ports.ts`<br>`packages/services/src/runtime.ts`<br>`packages/services/src/testing/helpers.ts`<br>`packages/services/src/testing/harness/mail.ts`",
+    "gate": "owning correctness/compatibility gate before structural cutover",
+    "review": "current primary/challenger plus scoped reused decomposition evidence",
+    "packet": "R04"
+  },
+  {
+    "source": "packages/services/src/scenarios.ts",
+    "decision": "split-with-existing-entry",
+    "destinations": [
+      "packages/services/src/scenarios.ts",
+      "packages/services/src/testing/scenarios/schema.ts",
+      "packages/services/src/testing/scenarios/mail.ts",
+      "packages/services/src/testing/scenarios/models.ts",
+      "packages/services/src/testing/scenarios/judgments.ts",
+      "packages/services/src/testing/scenarios/media.ts",
+      "packages/services/src/testing/scenarios/index.ts"
+    ],
+    "responsibility_record": "split-with-existing-entry: `packages/services/src/scenarios.ts`<br>`packages/services/src/testing/scenarios/schema.ts`<br>`packages/services/src/testing/scenarios/mail.ts`<br>`packages/services/src/testing/scenarios/models.ts`<br>`packages/services/src/testing/scenarios/judgments.ts`<br>`packages/services/src/testing/scenarios/media.ts`<br>`packages/services/src/testing/scenarios/index.ts`",
+    "gate": "owning correctness/compatibility gate before structural cutover",
+    "review": "current primary/challenger plus scoped reused decomposition evidence",
+    "packet": "R04"
+  },
+  {
+    "source": "packages/state/src/invocation/admission.ts",
+    "decision": "retain-facade-and-split",
+    "destinations": [
+      "packages/state/src/invocation/admission.ts",
+      "packages/state/src/invocation/inputs.ts",
+      "packages/state/src/invocation/fence.ts"
+    ],
+    "responsibility_record": "admission orchestration; shared input validation; scope/enrollment/revalidation",
+    "gate": "C01/C02/C08 authorization/default/fence semantics",
+    "review": "current primary/challenger plus scoped reused decomposition evidence",
+    "packet": "R03"
+  },
+  {
+    "source": "packages/state/src/invocation/descriptor-join.test.ts",
+    "decision": "move",
+    "destinations": [
+      "packages/state/test/invocation/descriptor-join.test.ts"
+    ],
+    "review": "canonical_test_runner_discovery",
+    "gate": "C05 canonical runner discovery; actual owning semantics and relative import cutover",
+    "responsibility_record": "owning canonical producer test discovery; preserve every case and fixture, adjust source-relative imports",
+    "packet": "R03"
+  },
+  {
+    "source": "packages/state/src/invocation/invoke-read.test.ts",
+    "decision": "move",
+    "destinations": [
+      "packages/state/test/invocation/invoke-read.test.ts"
+    ],
+    "review": "canonical_test_runner_discovery",
+    "gate": "C05 canonical runner discovery; actual owning semantics and relative import cutover",
+    "responsibility_record": "owning canonical producer test discovery; preserve every case and fixture, adjust source-relative imports",
+    "packet": "R03"
+  },
+  {
+    "source": "packages/state/src/invocation/invoke.ts",
+    "decision": "retain-facade-and-split",
+    "destinations": [
+      "packages/state/src/invocation/invoke.ts",
+      "packages/state/src/invocation/invoke-read.ts"
+    ],
+    "responsibility_record": "one retry/receipt engine; read execution entry",
+    "gate": "stabilize owning semantics and exact caller/test/export joins",
+    "review": "current primary/challenger plus scoped reused decomposition evidence",
+    "packet": "R03"
+  },
+  {
+    "source": "packages/state/src/invocation/registry.ts",
+    "decision": "retain-facade-and-split",
+    "destinations": [
+      "packages/state/src/invocation/registry.ts",
+      "packages/state/src/invocation/descriptors.ts",
+      "packages/state/src/invocation/artifact-descriptors.ts"
+    ],
+    "responsibility_record": "registry facade; canonical whole-set intake; versioned wire fold",
+    "gate": "stabilize owning semantics and exact caller/test/export joins",
+    "review": "current primary/challenger plus scoped reused decomposition evidence",
+    "packet": "R03"
+  },
+  {
+    "source": "packages/state/src/invocation/t32b-fence.test.ts",
+    "decision": "move",
+    "destinations": [
+      "packages/state/test/invocation/t32b-fence.test.ts"
+    ],
+    "review": "canonical_test_runner_discovery",
+    "gate": "C05 canonical runner discovery; actual owning semantics and relative import cutover",
+    "responsibility_record": "owning canonical producer test discovery; preserve every case and fixture, adjust source-relative imports",
+    "packet": "R03"
+  },
+  {
+    "source": "packages/state/src/invocation/t32b-wire.test.ts",
+    "decision": "move",
+    "destinations": [
+      "packages/state/test/invocation/t32b-wire.test.ts"
+    ],
+    "review": "canonical_test_runner_discovery",
+    "gate": "C05 canonical runner discovery; actual owning semantics and relative import cutover",
+    "responsibility_record": "owning canonical producer test discovery; preserve every case and fixture, adjust source-relative imports",
+    "packet": "R03"
+  },
+  {
+    "source": "packages/state/src/migration/activate.ts",
+    "decision": "split-with-existing-entry",
+    "destinations": [
+      "packages/state/src/migration/activate.ts",
+      "packages/state/src/migration/evidence.ts",
+      "packages/state/src/migration/publish.ts",
+      "packages/state/src/migration/disposition.ts",
+      "packages/state/src/migration/flip.ts"
+    ],
+    "responsibility_record": "split-with-existing-entry: `packages/state/src/migration/activate.ts`<br>`packages/state/src/migration/evidence.ts`<br>`packages/state/src/migration/publish.ts`<br>`packages/state/src/migration/disposition.ts`<br>`packages/state/src/migration/flip.ts`",
+    "gate": "owning correctness/compatibility gate before structural cutover",
+    "review": "current primary/challenger plus scoped reused decomposition evidence",
+    "packet": "R03"
+  },
+  {
+    "source": "packages/state/src/migration/transition.ts",
+    "decision": "split-with-existing-entry",
+    "destinations": [
+      "packages/state/src/migration/transition.ts",
+      "packages/state/src/migration/directives.ts",
+      "packages/state/src/migration/model-plan.ts",
+      "packages/state/src/migration/owner-plan.ts"
+    ],
+    "responsibility_record": "split-with-existing-entry: `packages/state/src/migration/transition.ts`<br>`packages/state/src/migration/directives.ts`<br>`packages/state/src/migration/model-plan.ts`<br>`packages/state/src/migration/owner-plan.ts`",
+    "gate": "owning correctness/compatibility gate before structural cutover",
+    "review": "current primary/challenger plus scoped reused decomposition evidence",
+    "packet": "R03"
+  },
+  {
+    "source": "packages/state/src/migration/validate.ts",
+    "decision": "split-with-existing-entry",
+    "destinations": [
+      "packages/state/src/migration/validate.ts",
+      "packages/state/src/migration/validation/index.ts",
+      "packages/state/src/migration/validation/rows.ts",
+      "packages/state/src/migration/validation/locks.ts",
+      "packages/state/src/migration/validation/uniques.ts",
+      "packages/state/src/migration/validation/references.ts",
+      "packages/state/src/migration/validation/drops.ts"
+    ],
+    "responsibility_record": "split-with-existing-entry: `packages/state/src/migration/validate.ts`<br>`packages/state/src/migration/validation/index.ts`<br>`packages/state/src/migration/validation/rows.ts`<br>`packages/state/src/migration/validation/locks.ts`<br>`packages/state/src/migration/validation/uniques.ts`<br>`packages/state/src/migration/validation/references.ts`<br>`packages/state/src/migration/validation/drops.ts`",
+    "gate": "owning correctness/compatibility gate before structural cutover",
+    "review": "current primary/challenger plus scoped reused decomposition evidence",
+    "packet": "R03"
+  },
+  {
+    "source": "packages/state/src/mutation/generated-crud.test.ts",
+    "decision": "move",
+    "destinations": [
+      "packages/state/test/mutation/generated-crud.test.ts"
+    ],
+    "review": "canonical_test_runner_discovery",
+    "gate": "C05 canonical runner discovery; actual owning semantics and relative import cutover",
+    "responsibility_record": "owning canonical producer test discovery; preserve every case and fixture, adjust source-relative imports",
+    "packet": "R03"
+  },
+  {
+    "source": "packages/state/src/mutation/pipeline.ts",
+    "decision": "split-with-existing-entry",
+    "destinations": [
+      "packages/state/src/mutation/pipeline.ts",
+      "packages/state/src/mutation/provisional.ts",
+      "packages/state/src/mutation/candidate.ts",
+      "packages/state/src/mutation/constraints.ts",
+      "packages/state/src/mutation/history.ts",
+      "packages/state/src/mutation/hooks.ts"
+    ],
+    "responsibility_record": "split-with-existing-entry: `packages/state/src/mutation/pipeline.ts`<br>`packages/state/src/mutation/provisional.ts`<br>`packages/state/src/mutation/candidate.ts`<br>`packages/state/src/mutation/constraints.ts`<br>`packages/state/src/mutation/history.ts`; hooks owns flat staged/transitive engine, preserve one queue and provisional state",
+    "gate": "owning correctness/compatibility gate before structural cutover",
+    "review": "current primary/challenger plus scoped reused decomposition evidence",
+    "packet": "R03"
+  },
+  {
+    "source": "packages/state/src/mutation/t32b-wire-durable.test.ts",
+    "decision": "move",
+    "destinations": [
+      "packages/state/test/mutation/t32b-wire-durable.test.ts"
+    ],
+    "review": "canonical_test_runner_discovery",
+    "gate": "C05 canonical runner discovery; actual owning semantics and relative import cutover",
+    "responsibility_record": "owning canonical producer test discovery; preserve every case and fixture, adjust source-relative imports",
+    "packet": "R03"
+  },
+  {
+    "source": "packages/state/src/mutation/t32b-wire-transitive.test.ts",
+    "decision": "move",
+    "destinations": [
+      "packages/state/test/mutation/t32b-wire-transitive.test.ts"
+    ],
+    "review": "canonical_test_runner_discovery",
+    "gate": "C05 canonical runner discovery; actual owning semantics and relative import cutover",
+    "responsibility_record": "owning canonical producer test discovery; preserve every case and fixture, adjust source-relative imports",
+    "packet": "R03"
+  },
+  {
+    "source": "packages/state/src/policy/grants.ts",
+    "decision": "split-with-existing-entry",
+    "destinations": [
+      "packages/state/src/policy/grants.ts",
+      "packages/state/src/policy/predicate.ts",
+      "packages/state/src/policy/path.ts"
+    ],
+    "responsibility_record": "split-with-existing-entry: `packages/state/src/policy/grants.ts`<br>`packages/state/src/policy/predicate.ts`<br>`packages/state/src/policy/path.ts`",
+    "gate": "owning correctness/compatibility gate before structural cutover",
+    "review": "current primary/challenger plus scoped reused decomposition evidence",
+    "packet": "R03"
+  },
+  {
+    "source": "packages/state/src/ports/data-plane.test.ts",
+    "decision": "move",
+    "destinations": [
+      "packages/state/test/ports/data-plane.test.ts"
+    ],
+    "review": "canonical_test_runner_discovery",
+    "gate": "C05 canonical runner discovery; actual owning semantics and relative import cutover",
+    "responsibility_record": "owning canonical producer test discovery; preserve every case and fixture, adjust source-relative imports",
+    "packet": "R03"
+  },
+  {
+    "source": "packages/state/src/ports/t32b-read.test.ts",
+    "decision": "move",
+    "destinations": [
+      "packages/state/test/ports/t32b-read.test.ts"
+    ],
+    "review": "canonical_test_runner_discovery",
+    "gate": "C05 canonical runner discovery; actual owning semantics and relative import cutover",
+    "responsibility_record": "owning canonical producer test discovery; preserve every case and fixture, adjust source-relative imports",
+    "packet": "R03"
+  },
+  {
+    "source": "packages/state/src/query/engine.ts",
+    "decision": "split-with-existing-entry",
+    "destinations": [
+      "packages/state/src/query/engine.ts",
+      "packages/state/src/query/projection.ts",
+      "packages/state/src/query/order.ts",
+      "packages/state/src/query/aggregates.ts"
+    ],
+    "responsibility_record": "split-with-existing-entry: `packages/state/src/query/engine.ts`<br>`packages/state/src/query/projection.ts`<br>`packages/state/src/query/order.ts`<br>`packages/state/src/query/aggregates.ts`",
+    "gate": "owning correctness/compatibility gate before structural cutover",
+    "review": "current primary/challenger plus scoped reused decomposition evidence",
+    "packet": "R03"
+  },
+  {
+    "source": "packages/state/src/query/t32b-fence.test.ts",
+    "decision": "move",
+    "destinations": [
+      "packages/state/test/query/t32b-fence.test.ts"
+    ],
+    "review": "canonical_test_runner_discovery",
+    "gate": "C05 canonical runner discovery; actual owning semantics and relative import cutover",
+    "responsibility_record": "owning canonical producer test discovery; preserve every case and fixture, adjust source-relative imports",
+    "packet": "R03"
+  },
+  {
+    "source": "packages/state/src/storage/d1.ts",
+    "decision": "split-with-existing-entry",
+    "destinations": [
+      "packages/state/src/storage/d1.ts",
+      "packages/state/src/storage/sql/query.ts",
+      "packages/state/src/storage/sql/row-codecs.ts",
+      "packages/state/src/storage/sql/commit-plan.ts",
+      "packages/state/src/storage/sql/migration-plan.ts",
+      "packages/state/src/storage/schema.ts"
+    ],
+    "responsibility_record": "split-with-existing-entry: `packages/state/src/storage/d1.ts`<br>`packages/state/src/storage/sql/query.ts`<br>`packages/state/src/storage/sql/row-codecs.ts`<br>`packages/state/src/storage/sql/commit-plan.ts`<br>`packages/state/src/storage/sql/migration-plan.ts`<br>`packages/state/src/storage/schema.ts`",
+    "gate": "owning correctness/compatibility gate before structural cutover",
+    "review": "current primary/challenger plus scoped reused decomposition evidence",
+    "packet": "R03"
+  },
+  {
+    "source": "packages/state/src/storage/data-plane-durable.test.ts",
+    "decision": "move",
+    "destinations": [
+      "packages/state/test/storage/data-plane-durable.test.ts"
+    ],
+    "review": "canonical_test_runner_discovery",
+    "gate": "C05 canonical runner discovery; actual owning semantics and relative import cutover",
+    "responsibility_record": "owning canonical producer test discovery; preserve every case and fixture, adjust source-relative imports",
+    "packet": "R03"
+  },
+  {
+    "source": "packages/state/src/storage/durable-object.ts",
+    "decision": "split-with-existing-entry",
+    "destinations": [
+      "packages/state/src/storage/durable-object.ts",
+      "packages/state/src/storage/sql/query.ts",
+      "packages/state/src/storage/sql/row-codecs.ts",
+      "packages/state/src/storage/sql/commit-plan.ts",
+      "packages/state/src/storage/sql/migration-plan.ts",
+      "packages/state/src/storage/schema.ts"
+    ],
+    "responsibility_record": "split-with-existing-entry: `packages/state/src/storage/durable-object.ts`<br>`packages/state/src/storage/sql/query.ts`<br>`packages/state/src/storage/sql/row-codecs.ts`<br>`packages/state/src/storage/sql/commit-plan.ts`<br>`packages/state/src/storage/sql/migration-plan.ts`<br>`packages/state/src/storage/schema.ts`",
+    "gate": "owning correctness/compatibility gate before structural cutover",
+    "review": "current primary/challenger plus scoped reused decomposition evidence",
+    "packet": "R03"
+  },
+  {
+    "source": "packages/state/src/storage/memory.ts",
+    "decision": "move",
+    "destinations": [
+      "packages/state/src/testing/memory-storage.ts",
+      "packages/state/src/testing/memory-query.ts",
+      "packages/state/src/testing/memory-probe.ts"
+    ],
+    "responsibility_record": "move: `packages/state/src/testing/memory-storage.ts`<br>`packages/state/src/testing/memory-query.ts`<br>`packages/state/src/testing/memory-probe.ts`",
+    "gate": "owning correctness/compatibility gate before structural cutover",
+    "review": "current primary/challenger plus scoped reused decomposition evidence",
+    "packet": "R03"
+  },
+  {
+    "source": "packages/testkit/src/fixtures/playback-worker.ts",
+    "decision": "move",
+    "destinations": [
+      "packages/testkit/src/playback/worker.ts"
+    ],
+    "responsibility_record": "move: `packages/testkit/src/playback/worker.ts`",
+    "gate": "owning correctness/compatibility gate before structural cutover",
+    "review": "current primary/challenger plus scoped reused decomposition evidence",
+    "packet": "R06"
+  },
+  {
+    "source": "packages/testkit/src/fixtures/playback.ts",
+    "decision": "split-with-existing-entry",
+    "destinations": [
+      "packages/testkit/src/fixtures/playback.ts",
+      "packages/testkit/src/playback/handler.ts",
+      "packages/testkit/src/playback/body.ts",
+      "packages/testkit/src/playback/mail.ts",
+      "packages/testkit/src/playback/models.ts",
+      "packages/testkit/src/playback/judgments.ts",
+      "packages/testkit/src/playback/media.ts",
+      "packages/services/src/testing/scenarios/schema.ts"
+    ],
+    "responsibility_record": "split-with-existing-entry: `packages/testkit/src/fixtures/playback.ts`<br>`packages/testkit/src/playback/handler.ts`<br>`packages/testkit/src/playback/body.ts`<br>`packages/testkit/src/playback/mail.ts`<br>`packages/testkit/src/playback/models.ts`<br>`packages/testkit/src/playback/judgments.ts`<br>`packages/testkit/src/playback/media.ts`<br>`packages/services/src/testing/scenarios/schema.ts`",
+    "gate": "owning correctness/compatibility gate before structural cutover",
+    "review": "current primary/challenger plus scoped reused decomposition evidence",
+    "packet": "R06"
+  },
+  {
+    "source": "packages/ui/src/collections.ts",
+    "decision": "split-with-existing-entry",
+    "destinations": [
+      "packages/ui/src/collections.ts",
+      "packages/ui/src/collections/rows.ts",
+      "packages/ui/src/collections/controls.ts",
+      "packages/ui/src/collections/board.ts",
+      "packages/ui/src/collections/csv-import.ts",
+      "packages/ui/src/collections/internal.ts"
+    ],
+    "responsibility_record": "split-with-existing-entry: `packages/ui/src/collections.ts`<br>`packages/ui/src/collections/rows.ts`<br>`packages/ui/src/collections/controls.ts`<br>`packages/ui/src/collections/board.ts`<br>`packages/ui/src/collections/csv-import.ts`<br>`packages/ui/src/collections/internal.ts`",
+    "gate": "owning correctness/compatibility gate before structural cutover",
+    "review": "current primary/challenger plus scoped reused decomposition evidence",
+    "packet": "R05"
+  },
+  {
+    "source": "packages/ui/src/controls.ts",
+    "decision": "split-with-existing-entry",
+    "destinations": [
+      "packages/ui/src/controls.ts",
+      "packages/ui/src/controls/scalar.ts",
+      "packages/ui/src/controls/choice.ts",
+      "packages/ui/src/controls/numeric.ts",
+      "packages/ui/src/controls/file.ts",
+      "packages/ui/src/controls/calendar.ts",
+      "packages/ui/src/controls/unit.ts"
+    ],
+    "responsibility_record": "split-with-existing-entry: `packages/ui/src/controls.ts`<br>`packages/ui/src/controls/scalar.ts`<br>`packages/ui/src/controls/choice.ts`<br>`packages/ui/src/controls/numeric.ts`<br>`packages/ui/src/controls/file.ts`<br>`packages/ui/src/controls/calendar.ts`<br>`packages/ui/src/controls/unit.ts`",
+    "gate": "owning correctness/compatibility gate before structural cutover",
+    "review": "current primary/challenger plus scoped reused decomposition evidence",
+    "packet": "R05"
+  },
+  {
+    "source": "packages/ui/src/forms.ts",
+    "decision": "split-with-existing-entry",
+    "destinations": [
+      "packages/ui/src/forms.ts",
+      "packages/ui/src/forms/field-binding.ts",
+      "packages/ui/src/forms/field-value.ts",
+      "packages/ui/src/forms/form.ts",
+      "packages/ui/src/forms/actions.ts",
+      "packages/ui/src/forms/outcomes.ts"
+    ],
+    "responsibility_record": "split-with-existing-entry: `packages/ui/src/forms.ts`<br>`packages/ui/src/forms/field-binding.ts`<br>`packages/ui/src/forms/field-value.ts`<br>`packages/ui/src/forms/form.ts`<br>`packages/ui/src/forms/actions.ts`<br>`packages/ui/src/forms/outcomes.ts`",
+    "gate": "owning correctness/compatibility gate before structural cutover",
+    "review": "current primary/challenger plus scoped reused decomposition evidence",
+    "packet": "R05"
+  },
+  {
+    "source": "packages/ui/src/messages.ts",
+    "decision": "split-with-existing-entry",
+    "destinations": [
+      "packages/ui/src/messages.ts",
+      "packages/ui/src/format.ts",
+      "packages/values/src/icu/render.ts",
+      "packages/values/src/locale.ts"
+    ],
+    "responsibility_record": "split-with-existing-entry: `packages/ui/src/messages.ts`<br>`packages/ui/src/format.ts`<br>`packages/values/src/icu/render.ts`<br>`packages/values/src/locale.ts`",
+    "gate": "equal UI/values profile, locale fallback/error/exactness contract agreed; producer differential checks before shared implementation cutover; existing package JEV does not choose semantics",
+    "review": "current primary/challenger plus scoped reused decomposition evidence",
+    "packet": "R05"
+  },
+  {
+    "source": "packages/ui/src/navigation.ts",
+    "decision": "split-with-existing-entry",
+    "destinations": [
+      "packages/ui/src/navigation.ts",
+      "packages/ui/src/navigation/discovery.ts",
+      "packages/ui/src/navigation/controls.ts"
+    ],
+    "responsibility_record": "split-with-existing-entry: `packages/ui/src/navigation.ts`<br>`packages/ui/src/navigation/discovery.ts`<br>`packages/ui/src/navigation/controls.ts`",
+    "gate": "owning correctness/compatibility gate before structural cutover",
+    "review": "current primary/challenger plus scoped reused decomposition evidence",
+    "packet": "R05"
+  },
+  {
+    "source": "packages/ui/src/policyPage.ts",
+    "decision": "retain-facade-and-split",
+    "destinations": [
+      "packages/ui/src/policyPage.ts",
+      "packages/ui/src/selectors/readable.ts"
+    ],
+    "responsibility_record": "retain permission inspector rendering; separate presently test-only selector schema seam without claiming runtime enforcement",
+    "gate": "stabilize owning semantics and exact caller/test/export joins",
+    "review": "current primary/challenger plus scoped reused decomposition evidence",
+    "packet": "R05"
+  },
+  {
+    "source": "packages/values/src/icu.ts",
+    "decision": "split-with-existing-entry",
+    "destinations": [
+      "packages/values/src/icu.ts",
+      "packages/values/src/icu/descriptor.ts",
+      "packages/values/src/icu/parser.ts",
+      "packages/values/src/icu/validation.ts",
+      "packages/values/src/icu/render.ts",
+      "packages/values/src/icu/number.ts"
+    ],
+    "responsibility_record": "split-with-existing-entry: `packages/values/src/icu.ts`<br>`packages/values/src/icu/descriptor.ts`<br>`packages/values/src/icu/parser.ts`<br>`packages/values/src/icu/validation.ts`<br>`packages/values/src/icu/render.ts`<br>`packages/values/src/icu/number.ts`",
+    "gate": "owning correctness/compatibility gate before structural cutover",
+    "review": "current primary/challenger plus scoped reused decomposition evidence",
+    "packet": "R02"
+  },
+  {
+    "source": "packages/values/src/schema.ts",
+    "decision": "split-with-existing-entry",
+    "destinations": [
+      "packages/values/src/schema.ts",
+      "packages/values/src/schema/descriptor.ts",
+      "packages/values/src/schema/normalize.ts",
+      "packages/values/src/schema/validate.ts",
+      "packages/values/src/schema/bounds.ts",
+      "packages/values/src/schema/omission.ts"
+    ],
+    "responsibility_record": "split-with-existing-entry: `packages/values/src/schema.ts`<br>`packages/values/src/schema/descriptor.ts`<br>`packages/values/src/schema/normalize.ts`<br>`packages/values/src/schema/validate.ts`<br>`packages/values/src/schema/bounds.ts`<br>`packages/values/src/schema/omission.ts`",
+    "gate": "owning correctness/compatibility gate before structural cutover",
+    "review": "current primary/challenger plus scoped reused decomposition evidence",
+    "packet": "R02"
+  },
+  {
+    "source": "packages/values/src/temporal.ts",
+    "decision": "split-with-existing-entry",
+    "destinations": [
+      "packages/values/src/temporal.ts",
+      "packages/values/src/temporal/calendar.ts",
+      "packages/values/src/temporal/duration.ts",
+      "packages/values/src/temporal/instant.ts"
+    ],
+    "responsibility_record": "split-with-existing-entry: `packages/values/src/temporal.ts`<br>`packages/values/src/temporal/calendar.ts`<br>`packages/values/src/temporal/duration.ts`<br>`packages/values/src/temporal/instant.ts`",
+    "gate": "owning correctness/compatibility gate before structural cutover",
+    "review": "current primary/challenger plus scoped reused decomposition evidence",
+    "packet": "R02"
+  },
+  {
+    "source": "packages/values/src/wire.ts",
+    "decision": "split-with-existing-entry",
+    "destinations": [
+      "packages/values/src/wire.ts",
+      "packages/values/src/wire/decode.ts",
+      "packages/values/src/wire/encode.ts",
+      "packages/values/src/wire/errors.ts"
+    ],
+    "responsibility_record": "split-with-existing-entry: `packages/values/src/wire.ts`<br>`packages/values/src/wire/decode.ts`<br>`packages/values/src/wire/encode.ts`<br>`packages/values/src/wire/errors.ts`",
+    "gate": "owning correctness/compatibility gate before structural cutover",
+    "review": "current primary/challenger plus scoped reused decomposition evidence",
+    "packet": "R02"
+  },
+  {
+    "source": "packages/work/src/dispatch/t32b-fence.test.ts",
+    "decision": "move",
+    "destinations": [
+      "packages/work/test/dispatch/t32b-fence.test.ts"
+    ],
+    "review": "canonical_test_runner_discovery",
+    "gate": "C05 canonical runner discovery; actual owning semantics and relative import cutover",
+    "responsibility_record": "owning canonical producer test discovery; preserve every case and fixture, adjust source-relative imports",
+    "packet": "R04"
+  },
+  {
+    "source": "packages/work/src/kernel/commands.ts",
+    "decision": "split-with-existing-entry",
+    "destinations": [
+      "packages/work/src/kernel/commands.ts",
+      "packages/work/src/kernel/commands/dispatch.ts",
+      "packages/work/src/kernel/commands/occurrence.ts",
+      "packages/work/src/kernel/commands/schedule.ts",
+      "packages/work/src/kernel/commands/every.ts",
+      "packages/work/src/kernel/commands/arguments.ts",
+      "packages/work/src/kernel/commands/staging.ts",
+      "packages/work/src/kernel/commands/recovery.ts"
+    ],
+    "responsibility_record": "split-with-existing-entry: `packages/work/src/kernel/commands.ts`<br>`packages/work/src/kernel/commands/dispatch.ts`<br>`packages/work/src/kernel/commands/occurrence.ts`<br>`packages/work/src/kernel/commands/schedule.ts`<br>`packages/work/src/kernel/commands/every.ts`<br>`packages/work/src/kernel/commands/arguments.ts`; new staging/recovery commands; assembler retains all 11 identities",
+    "gate": "owning correctness/compatibility gate before structural cutover",
+    "review": "current primary/challenger plus scoped reused decomposition evidence",
+    "packet": "R04"
+  },
+  {
+    "source": "packages/work/src/kernel/tables.ts",
+    "decision": "split-with-existing-entry",
+    "destinations": [
+      "packages/work/src/kernel/tables.ts",
+      "packages/work/src/kernel/tables/dispatch.ts",
+      "packages/work/src/kernel/tables/occurrence.ts",
+      "packages/work/src/kernel/tables/schedule.ts",
+      "packages/work/src/kernel/tables/every.ts",
+      "packages/work/src/kernel/tables/supersession.ts",
+      "packages/work/src/kernel/tables/row.ts"
+    ],
+    "responsibility_record": "split-with-existing-entry: `packages/work/src/kernel/tables.ts`<br>`packages/work/src/kernel/tables/dispatch.ts`<br>`packages/work/src/kernel/tables/occurrence.ts`<br>`packages/work/src/kernel/tables/schedule.ts`<br>`packages/work/src/kernel/tables/every.ts`<br>`packages/work/src/kernel/tables/supersession.ts`<br>`packages/work/src/kernel/tables/row.ts`",
+    "gate": "owning correctness/compatibility gate before structural cutover",
+    "review": "current primary/challenger plus scoped reused decomposition evidence",
+    "packet": "R04"
+  },
+  {
+    "source": "packages/work/src/observation/ports.ts",
+    "decision": "split-with-existing-entry",
+    "destinations": [
+      "packages/work/src/observation/ports.ts",
+      "packages/work/src/observation/testing.ts"
+    ],
+    "responsibility_record": "split-with-existing-entry: `packages/work/src/observation/ports.ts`<br>`packages/work/src/observation/testing.ts`",
+    "gate": "owning correctness/compatibility gate before structural cutover",
+    "review": "current primary/challenger plus scoped reused decomposition evidence",
+    "packet": "R04"
+  },
+  {
+    "source": "packages/work/src/observation/t25a-progress.test.ts",
+    "decision": "move",
+    "destinations": [
+      "packages/work/test/observation/t25a-progress.test.ts"
+    ],
+    "gate": "C05 runner discovery and T25/T26 exact source-to-execution joins",
+    "responsibility_record": "late T25 isolated mechanism test; preserve status/rejection fixtures without claiming full generated workflow",
+    "packet": "R04"
+  },
+  {
+    "source": "packages/work/src/observation/t25a-selected.test.ts",
+    "decision": "move",
+    "destinations": [
+      "packages/work/test/observation/t25a-selected.test.ts"
+    ],
+    "gate": "C05 runner discovery and T25/T26 exact source-to-execution joins",
+    "responsibility_record": "late T25 isolated mechanism test; preserve status/rejection fixtures without claiming full generated workflow",
+    "packet": "R04"
+  },
+  {
+    "source": "packages/work/src/ports.ts",
+    "decision": "split-with-existing-entry",
+    "destinations": [
+      "packages/work/src/ports.ts",
+      "packages/work/src/testing.ts"
+    ],
+    "responsibility_record": "split-with-existing-entry: `packages/work/src/ports.ts`<br>`packages/work/src/testing.ts`",
+    "gate": "owning correctness/compatibility gate before structural cutover",
+    "review": "current primary/challenger plus scoped reused decomposition evidence",
+    "packet": "R04"
+  },
+  {
+    "source": "packages/work/src/receipt/t25a-consistency.test.ts",
+    "decision": "move",
+    "destinations": [
+      "packages/work/test/receipt/t25a-consistency.test.ts"
+    ],
+    "gate": "C05 runner discovery and T25/T26 exact source-to-execution joins",
+    "responsibility_record": "late T25 isolated mechanism test; preserve status/rejection fixtures without claiming full generated workflow",
+    "packet": "R04"
+  }
+]

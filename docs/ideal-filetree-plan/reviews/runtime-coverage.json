@@ -1,0 +1,2051 @@
+{
+  "schema_version": 1,
+  "review": "runtime.md",
+  "repository": "/Users/vince/Projects/canlang",
+  "baseline": "8249342707d3280e88e39e8c911b7e457828f31f",
+  "pinned_head": "350163ad661e61b667809a5f78b608c23812a5f0",
+  "primary_slices": [
+    "S05",
+    "S06"
+  ],
+  "shared_slice": "S09",
+  "committed_delta_count": 56,
+  "committed_delta_package_counts": {
+    "state": 39,
+    "work": 10,
+    "services": 2,
+    "files": 5
+  },
+  "inspected": [
+    {
+      "path": "packages/files/README.md",
+      "inspection": "full_current_body",
+      "working_sha256": "4a96b0347b80291fbbd97bf0b4fbf6e0252301641263c8d24a7505475dcead50",
+      "lines": 96
+    },
+    {
+      "path": "packages/files/package.json",
+      "inspection": "full_current_body",
+      "working_sha256": "3b6b481429318b383a2964d0f794cc4b819f4454aad822c36cca51b99f9909ba",
+      "lines": 16
+    },
+    {
+      "path": "packages/files/src/bridge.ts",
+      "inspection": "committed_delta_with_scoped_unchanged_evidence",
+      "working_sha256": "6b228ad78582c0f6577ef8905eda5c9a85025e85bfa60142e917ceea1882b782",
+      "lines": 240
+    },
+    {
+      "path": "packages/files/src/catalog.ts",
+      "inspection": "committed_delta_with_scoped_unchanged_evidence",
+      "working_sha256": "7452b6a4474ebc0f10175bdbfcdb4b5cdb4f53ed6c4ccb3a7309ea627ba1296d",
+      "lines": 45
+    },
+    {
+      "path": "packages/files/src/finalize/index.ts",
+      "inspection": "committed_delta_with_scoped_unchanged_evidence",
+      "working_sha256": "068622f54ead17430cde33d2f59833c58e0ca8a9d818c807ae1e47e2e6651307",
+      "lines": 371
+    },
+    {
+      "path": "packages/services/README.md",
+      "inspection": "full_current_body",
+      "working_sha256": "f565c6f3d45cc1e1d1307ac968bc5f9b759ea60eace0b78321d84b4c236ed28c",
+      "lines": 72
+    },
+    {
+      "path": "packages/services/package.json",
+      "inspection": "full_current_body",
+      "working_sha256": "6b52aa8f58cf5e2ce3fd96287fb2388347a7ab84b415d8fd1b7f0f3f2828bc68",
+      "lines": 16
+    },
+    {
+      "path": "packages/state/package.json",
+      "inspection": "full_current_body",
+      "working_sha256": "8738dda6fb9e255d8f5f09ba4ede346587d741434816b12ab8e85b582df7778c",
+      "lines": 27
+    },
+    {
+      "path": "packages/state/src/effects/staging.ts",
+      "inspection": "committed_delta_with_scoped_unchanged_evidence",
+      "working_sha256": "baa570fdc5986461ce626babfb0a4b5577b5b00865f2963bbef77f213f713874",
+      "lines": 303
+    },
+    {
+      "path": "packages/state/src/invocation/admission.ts",
+      "inspection": "full_current_body",
+      "working_sha256": "b7fff9cb0668b2db43df142fd9b2eb2aedc30d1ac819a283e43c8ba2908af8f5",
+      "lines": 629
+    },
+    {
+      "path": "packages/state/src/invocation/descriptor-join.test.ts",
+      "inspection": "whole_text_structural_decode",
+      "working_sha256": "c9cbf0c65080afb80d504c4691c7c885996e7539b4d153499c5366a5e46f4adf",
+      "lines": 832,
+      "structural_test_names": [
+        "loads a T15a-shaped slice: registry ops, folded models, derived refs",
+        "derives engine-local refs from singular ref tags; skips array-of-ref",
+        "treats absent operations/models as empty, never as an error",
+        "rejects artifact_version mismatch precisely, never silently",
+        "rejects contractVersion mismatch on intake-direct loads",
+        "rejects unknown operation kinds for the whole set",
+        "rejects unknown input kinds for the whole set",
+        "rejects unknown default kinds",
+        "rejects dangling ref models and undescribed create models",
+        "rejects unexecutable update/delete shapes and composite uniques",
+        "rejects duplicates and bad enum intake on direct set loads",
+        "maps engine-local by/when policy per operation",
+        "admits a positive generated create to commit",
+        "denies unauthorized callers without persisting a receipt",
+        "ignores forged identity contents: the live membership store wins both ways",
+        "rejects malformed identity, stale identity, and trusted-without-source",
+        "conflicts on stale versions and validates archived targets",
+        "unique violations conflict at commit without receipts and change nothing",
+        "persists execute-time rejections and replays both outcomes exactly",
+        "routes generated reads away from invoke; scenarios admit through the seam"
+      ],
+      "imports": [
+        "node:test",
+        "node:assert/strict",
+        "../../../contracts/src/state.js",
+        "../mutation/models.js",
+        "../mutation/crud.js",
+        "./invoke.js",
+        "../storage/memory.js",
+        "../../../contracts/src/state.js"
+      ],
+      "assertion_count": 106
+    },
+    {
+      "path": "packages/state/src/invocation/invoke-read.test.ts",
+      "inspection": "whole_text_structural_decode",
+      "working_sha256": "ccfa108b43bdfaecbf6c84c3f2e9e627dd20316a73e28c487f18f90b59c28d65",
+      "lines": 515,
+      "structural_test_names": [
+        "serves committed rows grant-projected at the fence revision",
+        "matches unbound and bound serving byte-for-byte",
+        "serves empty records on a policy miss (fail closed, no invented error)",
+        "excludes archived rows from viewer reads",
+        "denies unauthorized callers without touching state",
+        "rejects unknown operations, mutations, and interim defs precisely",
+        "refuses reads that name no model",
+        "validates closed shape, then refuses reads WITH inputs instead of mis-serving",
+        "ignores forged identity contents: the live membership store wins both ways",
+        "serves trusted reads on verified-source authority with public grants",
+        "repeats byte-identically with the revision frozen and no receipts"
+      ],
+      "imports": [
+        "node:test",
+        "node:assert/strict",
+        "../../../contracts/src/wire.js",
+        "../../../contracts/src/state.js",
+        "../mutation/models.js",
+        "../mutation/crud.js",
+        "./invoke.js",
+        "../ports/transact.js",
+        "../storage/memory.js",
+        "../policy/grants.js"
+      ],
+      "assertion_count": 48
+    },
+    {
+      "path": "packages/state/src/invocation/invoke.ts",
+      "inspection": "full_current_body",
+      "working_sha256": "785ff42d20245795f9dca6075f7d3f5976685eaa9130cd8bb0a597d2b360df29",
+      "lines": 494
+    },
+    {
+      "path": "packages/state/src/invocation/registry.ts",
+      "inspection": "full_current_body",
+      "working_sha256": "7573d3e384d71a709a98be70cae0e6451a24ab316139c905428c075809e538d0",
+      "lines": 1057
+    },
+    {
+      "path": "packages/state/src/invocation/t32b-fence.test.ts",
+      "inspection": "whole_text_structural_decode",
+      "working_sha256": "e4fd7f876a3d6eaa88099210cff930e9a674f478e16e0abc6a6d05d5f2d2f0fd",
+      "lines": 467,
+      "structural_test_names": [
+        "enrolls membership + record reads at one owner checkpoint",
+        "enrolls imported-parent linkage in the SAME scope (adopted T28-A)",
+        "replays carry an (unenrolled) checkpoint snapshot",
+        "passes on a quiet store and the live reader agrees",
+        "fails with conflict when a read dependency changed (stale revision)",
+        "voids with forbidden when membership is revoked mid-flight (narrower L291)",
+        "voids with forbidden when permission flips but membership stays (live reader wins)",
+        "voids with forbidden naming the guard that flipped",
+        "trusted calls skip permission revalidation but keep the revision assertion",
+        "refuses eventual readings as authorization evidence",
+        "requireAuthorizingRead passes plain readings and refuses eventual ones",
+        "dedupes repeated enrollments and freezes snapshots",
+        "enrollImportedParentRead enrolls in the caller scope (T28-A)",
+        "transitive scopes open fresh with zero inherited dependencies"
+      ],
+      "imports": [
+        "node:test",
+        "node:assert/strict",
+        "./context.js",
+        "../../../contracts/src/state.js",
+        "../storage/memory.js",
+        "../storage/port.js",
+        "../policy/roles.js"
+      ],
+      "assertion_count": 47
+    },
+    {
+      "path": "packages/state/src/invocation/t32b-wire.test.ts",
+      "inspection": "whole_text_structural_decode",
+      "working_sha256": "df0f1a35ddb6d1d8a472c231e219477f615c40ad6ecf09ac98c4a8943dfdf286",
+      "lines": 566,
+      "structural_test_names": [
+        "commits through the wired fence when quiet (revision + live by pass)",
+        "retries an intervening change, then commits (revision fence wired)",
+        "voids with forbidden on mid-flight revocation; nothing commits",
+        "voids with forbidden naming the flipped guard; nothing commits",
+        "refuses executor-offered eventual readings through the wired path",
+        "trusted kind skips permission revalidation but keeps the revision assertion",
+        "public serves team-scoped callers with zero membership rows",
+        "authenticated serves team-scoped actors with zero membership rows",
+        "members still voids when the membership never existed team-side (admit denies first)",
+        "a rejection raced with revocation still records; original error preserved; no domain writes",
+        "a rejection raced with an intervening change retries, then records",
+        "CRUD create + update commit through the wired fence (no executor guards)",
+        "a when-carrying update raced with an intervening change conflicts (no silent commit)"
+      ],
+      "imports": [
+        "node:test",
+        "node:assert/strict",
+        "./invoke.js",
+        "./admission.js",
+        "../storage/memory.js",
+        "../errors.js",
+        "../../../contracts/src/state.js",
+        "../mutation/index.js",
+        "../../test/invocation/fixtures.js",
+        "../../test/mutation/fixtures.js"
+      ],
+      "assertion_count": 57
+    },
+    {
+      "path": "packages/state/src/migration/activate.ts",
+      "inspection": "committed_delta_with_scoped_unchanged_evidence",
+      "working_sha256": "967addf463fba8015854808f8a18133a964d5936071ee9919b310ac80d26a240",
+      "lines": 828
+    },
+    {
+      "path": "packages/state/src/migration/index.ts",
+      "inspection": "committed_delta_with_scoped_unchanged_evidence",
+      "working_sha256": "4674330f525972910aa41e819e8f553a1869d1a199e89eeeacbb21f599506b98",
+      "lines": 355
+    },
+    {
+      "path": "packages/state/src/migration/recover.ts",
+      "inspection": "full_current_body",
+      "working_sha256": "e4d1ea6dfb35ef4c90c58513e4411e85d440165c660a0a7b7f122a8861662250",
+      "lines": 293
+    },
+    {
+      "path": "packages/state/src/migration/retain.ts",
+      "inspection": "full_current_body",
+      "working_sha256": "6a016c56f39dd36cc44b43dc634975be8d1768e0aa934d105078dd4700df6da8",
+      "lines": 175
+    },
+    {
+      "path": "packages/state/src/mutation/crud.ts",
+      "inspection": "full_current_body",
+      "working_sha256": "372036a5f58a9515f340388d18aefcddf6086741626e794256ac913e6afb3533",
+      "lines": 534
+    },
+    {
+      "path": "packages/state/src/mutation/generated-crud.test.ts",
+      "inspection": "whole_text_structural_decode",
+      "working_sha256": "c450914817e750299e903da6642a68be9f60f2b19c2035075dc5fefc710dc464",
+      "lines": 623,
+      "structural_test_names": [
+        "creates flat rows with id=operationId, defaults, and omit-to-empty arrays",
+        "rejects missing required, unknown members, and required arrays",
+        "validates ref fields: missing, stale, and archived targets fail",
+        "preserves server-only enforcement at the model layer",
+        "updates partially (omission unchanged), versions fence, archives delete",
+        "honors deleteMode none/remove and the disposal scan",
+        "enforces engine-local when preconditions with rejected receipts",
+        "reads observe committed state through the viewer query port"
+      ],
+      "imports": [
+        "node:test",
+        "node:assert/strict",
+        "../../../contracts/src/state.js",
+        "./models.js",
+        "./crud.js",
+        "../invocation/invoke.js",
+        "./pipeline.js",
+        "../invocation/context.js",
+        "../storage/memory.js",
+        "../policy/grants.js",
+        "../query/engine.js"
+      ],
+      "assertion_count": 49
+    },
+    {
+      "path": "packages/state/src/mutation/models.ts",
+      "inspection": "full_current_body",
+      "working_sha256": "34163567f0aefdfb993d0773ee832b705c14d748082d4b73cf0525a123c855cd",
+      "lines": 689
+    },
+    {
+      "path": "packages/state/src/mutation/pipeline.ts",
+      "inspection": "committed_delta_with_scoped_unchanged_evidence",
+      "working_sha256": "0df13e66d243841d00d69fc6aff2f11b89d3e44f49282baf50497c83962e713b",
+      "lines": 1284
+    },
+    {
+      "path": "packages/state/src/mutation/t32b-wire-durable.test.ts",
+      "inspection": "whole_text_structural_decode",
+      "working_sha256": "317266bd6a0d06daf2187872ce647119577c4beeb93d3c522825a732b809f8bb",
+      "lines": 472,
+      "structural_test_names": [
+        "retries an intervening change through a second handle, then commits",
+        "voids a mid-flight revocation with nothing persisted on either handle",
+        "hook transitive re-read opens fresh with zero inherited deps"
+      ],
+      "imports": [
+        "node:test",
+        "node:assert/strict",
+        "node:url",
+        "miniflare",
+        "@cloudflare/workers-types",
+        "../../../contracts/src/wire.js",
+        "./pipeline.js",
+        "../invocation/invoke.js",
+        "../invocation/registry.js",
+        "../ports/transact.js",
+        "../storage/d1.js"
+      ],
+      "assertion_count": 21
+    },
+    {
+      "path": "packages/state/src/mutation/t32b-wire-transitive.test.ts",
+      "inspection": "whole_text_structural_decode_with_focused_body_reads",
+      "working_sha256": "15560d3df3f3f6c930422ceaa028365c3e970071b9538dc67bfa9a1778a3f537",
+      "lines": 306,
+      "structural_test_names": [
+        "hook bodies open fresh scopes at the current revision with zero inherited deps",
+        "transitive load re-reads committed state and enrolls, bypassing provisional",
+        "transitive load cannot see the uncommitted trigger row (create)",
+        "absent trigger falls back to null revision and team ?? app owner",
+        "derives fresh-checkpoint + triggerRevision + live authority through real execution"
+      ],
+      "imports": [
+        "node:test",
+        "node:assert/strict",
+        "./pipeline.js",
+        "./models.js",
+        "../invocation/admission.js",
+        "../invocation/context.js",
+        "../storage/memory.js",
+        "../../test/mutation/fixtures.js"
+      ],
+      "assertion_count": 35
+    },
+    {
+      "path": "packages/state/src/ports/data-plane.test.ts",
+      "inspection": "whole_text_structural_decode",
+      "working_sha256": "0f91320e05fa1c4b4ecf1da55d0994544bf68b8e4e8f9d9734677041188d1c99",
+      "lines": 756,
+      "structural_test_names": [
+        "creates, reads, updates, deletes, and replays through the bound ports",
+        "honors remove deleteMode end to end with hard-row disappearance",
+        "rolls execute-time rejections back to domain/history/outbox with a receipt only",
+        "rolls commit-time unique conflicts back with no receipt and no revision move",
+        "keeps no-change updates stable and convergent",
+        "never double-applies duplicate delivery: replay, concurrent exactly-once, reuse conflict",
+        "conflicts stale revisions without touching the stored row",
+        "mutates nothing on admission rejections: forbidden, validation, not_found, conflict",
+        "replays committed and rejected outcomes identically with frozen history",
+        "keeps the interim engine serving through the same bound port (retained, not retired)",
+        "validates interim inputs through the canonical validator with identical outcomes",
+        "shares the one validator between generated writes and generated reads"
+      ],
+      "imports": [
+        "node:test",
+        "node:assert/strict",
+        "../invocation/admission.js",
+        "../mutation/crud.js",
+        "./transact.js",
+        "../storage/memory.js",
+        "../policy/grants.js"
+      ],
+      "assertion_count": 86
+    },
+    {
+      "path": "packages/state/src/ports/read.ts",
+      "inspection": "full_current_body",
+      "working_sha256": "28b684622807a9e64f4049c31cb2a6f57da27af409159e218b4a9d6b76217e48",
+      "lines": 111
+    },
+    {
+      "path": "packages/state/src/ports/t32b-read.test.ts",
+      "inspection": "whole_text_structural_decode",
+      "working_sha256": "b035722746ef0a04ff59a69c44e99574ac187595990ef1fc3510e70179f9e813",
+      "lines": 79,
+      "structural_test_names": [
+        "threads the enrollment scope through fenced reads",
+        "serves eventual reads marked, unenrolled, and unusable for authorization",
+        "refuses a fence on the eventual path"
+      ],
+      "imports": [
+        "node:test",
+        "node:assert/strict",
+        "../invocation/admission.js",
+        "./read.js",
+        "../policy/grants.js",
+        "../storage/memory.js"
+      ],
+      "assertion_count": 10
+    },
+    {
+      "path": "packages/state/src/ports/transact.ts",
+      "inspection": "full_current_body",
+      "working_sha256": "e40f808c75d60221870590d338d719ac6967eb9adae3512901bc66da23952692",
+      "lines": 274
+    },
+    {
+      "path": "packages/state/src/query/engine.ts",
+      "inspection": "committed_delta_with_scoped_unchanged_evidence",
+      "working_sha256": "b308d161b6c1187055337aaffababeccc6bceed7466c3261cccb066c5432e9ca",
+      "lines": 934
+    },
+    {
+      "path": "packages/state/src/query/t32b-fence.test.ts",
+      "inspection": "whole_text_structural_decode",
+      "working_sha256": "9af8a032b3313b6e6a0392046eb31e8bf5ccf062f3dac3dbb0833523c7ba81bd",
+      "lines": 188,
+      "structural_test_names": [
+        "viewer query joins the checkpoint and enrolls membership + model reads",
+        "owner query enrolls the model read without a membership check",
+        "conflicts when the checkpoint moved before the read",
+        "fenced aggregates enroll like fenced record reads",
+        "unfenced queries still report the fence revision (database-wide assertion covers them)",
+        "serves the same authorized pipeline with no enrollment",
+        "eventual reads refuse fence enrollment (display-only, never authorizing)",
+        "the eventual wrapper can never feed authorization"
+      ],
+      "imports": [
+        "node:test",
+        "node:assert/strict",
+        "./engine.js",
+        "../policy/grants.js",
+        "../storage/memory.js"
+      ],
+      "assertion_count": 23
+    },
+    {
+      "path": "packages/state/src/storage/d1.ts",
+      "inspection": "committed_delta_with_scoped_unchanged_evidence",
+      "working_sha256": "769e32a4f692356fd7af56cc680410da49d751f31e8c45c2741b0f0c8a3f1c9c",
+      "lines": 1399
+    },
+    {
+      "path": "packages/state/src/storage/data-plane-durable.test.ts",
+      "inspection": "whole_text_structural_decode_with_focused_body_reads",
+      "working_sha256": "112ff0e023c1931aca248a16a4b8992156b25ad120cdfdaa3eaacd8a36b7c17f",
+      "lines": 514,
+      "structural_test_names": [
+        "migrates end to end on the real substrate with cross-handle read-back",
+        "admits exactly one winner under concurrent duplicate delivery",
+        "rolls commit-time unique conflicts back with nothing persisted",
+        "persists rejected-only bookkeeping for execute-time rejections"
+      ],
+      "imports": [
+        "node:test",
+        "node:assert/strict",
+        "node:url",
+        "miniflare",
+        "@cloudflare/workers-types",
+        "../mutation/models.js",
+        "../mutation/crud.js",
+        "./d1.js",
+        "./port.js",
+        "../ports/transact.js",
+        "../policy/grants.js"
+      ],
+      "assertion_count": 31
+    },
+    {
+      "path": "packages/state/src/storage/durable-object.ts",
+      "inspection": "committed_delta_with_scoped_unchanged_evidence",
+      "working_sha256": "010ed565086159d7f972619dab9531008ea85f81d4a4f106fcf6cb19df63a040",
+      "lines": 1493
+    },
+    {
+      "path": "packages/state/src/storage/memory.ts",
+      "inspection": "committed_delta_with_scoped_unchanged_evidence",
+      "working_sha256": "5ebf730b55fa53a5cd7a7f6e73e60983a8a8fbd8367368da29f48423b28e0e54",
+      "lines": 1051
+    },
+    {
+      "path": "packages/state/src/storage/port.ts",
+      "inspection": "committed_delta_with_scoped_unchanged_evidence",
+      "working_sha256": "938c3614a8ae36b99ea4538e936fc66eb3f8cf081280b2a57ba0939235bd776c",
+      "lines": 78
+    },
+    {
+      "path": "packages/state/src/storage/schema.ts",
+      "inspection": "committed_delta_with_scoped_unchanged_evidence",
+      "working_sha256": "153a40955bb0ba966ced70e6692e40e06a5e704aead5b07043190630e24725d4",
+      "lines": 78
+    },
+    {
+      "path": "packages/state/test/migration/adapters.test.ts",
+      "inspection": "whole_text_structural_decode",
+      "working_sha256": "ce361a89abfbc205402c8540bdd66982c0d964fb84f3e68089a1363bb72d9f43",
+      "lines": 388,
+      "structural_test_names": [
+        "retained in-flight intent survives the flip and dispatches after",
+        "failure records, retry resumes, and abort discards",
+        "unpinned undispatched still blocks without a retained set"
+      ],
+      "imports": [
+        "node:test",
+        "node:assert/strict",
+        "node:url",
+        "miniflare",
+        "@cloudflare/workers-types",
+        "../../src/storage/memory.js",
+        "../../src/storage/d1.js"
+      ],
+      "assertion_count": 21
+    },
+    {
+      "path": "packages/state/test/migration/recover.test.ts",
+      "inspection": "whole_text_structural_decode",
+      "working_sha256": "bf1cce4c17c0bb904e9a09bc3031344a100c7c44bd766ea39213f85df0ecc343",
+      "lines": 294,
+      "structural_test_names": [
+        "records failed on staging failure and resume retries to staged",
+        "leaves StateError validation unrecorded for cursor retry",
+        "retry without a failure record fails loud",
+        "records failures durably through the storage intake",
+        "pre-flip abort leaves zero staged rows and the prior snapshot active",
+        "aborts a staging-leg failure and keeps the failure as audit",
+        "refuses abort once the flip committed (no destructive rollback)",
+        "refuses abort mid-publish (forward-only)"
+      ],
+      "imports": [
+        "node:test",
+        "node:assert/strict",
+        "../../../contracts/src/state.js"
+      ],
+      "assertion_count": 40
+    },
+    {
+      "path": "packages/state/test/migration/retain.test.ts",
+      "inspection": "whole_text_structural_decode",
+      "working_sha256": "55ccc1c065b7d5939e4686b0234753a3b8c8b9eb8e99d03546906b99dd7b74b6",
+      "lines": 350,
+      "structural_test_names": [
+        "in-flight intent survives the flip and dispatches post-migration",
+        "unpinned undispatched still blocks without a retained set",
+        "retained set exempts unpinned undispatched and resume carries it",
+        "mixed invalidate + retained: pinned skips, retained stays pending",
+        "accepted and uncertain work still block carry-over",
+        "attestation mismatch against the stored contract blocks",
+        "retained evidence that vanishes still blocks the gate",
+        "missing stored contract falls back to attestation loudly"
+      ],
+      "imports": [
+        "node:test",
+        "node:assert/strict",
+        "../../src/migration/retain.js"
+      ],
+      "assertion_count": 27
+    },
+    {
+      "path": "packages/state/test/mutation/staged-durable.test.ts",
+      "inspection": "whole_text_structural_decode",
+      "working_sha256": "78a7fc9c48b42ae0541ceee0a49c23bb85b44beef647f9e6c3b45b946195e91a",
+      "lines": 609,
+      "structural_test_names": [
+        "commits trigger + staged set + timers in one revision",
+        "rolls the whole staged set back when a staged invariant fails",
+        "voids the staged batch on a concurrent staged-target change (fence + version)",
+        "replays the staged set by operation identity with cross-handle read-back"
+      ],
+      "imports": [
+        "node:test",
+        "node:assert/strict",
+        "node:url",
+        "miniflare",
+        "@cloudflare/workers-types",
+        "../../../contracts/src/wire.js",
+        "../../src/errors.js",
+        "../../src/mutation/pipeline.js",
+        "../../src/invocation/invoke.js",
+        "../../src/invocation/registry.js",
+        "../../src/ports/transact.js",
+        "../../src/storage/d1.js",
+        "../../src/storage/port.js"
+      ],
+      "assertion_count": 35
+    },
+    {
+      "path": "packages/state/test/mutation/staged.test.ts",
+      "inspection": "whole_text_structural_decode",
+      "working_sha256": "47b8d94b865089a92612ec49f8dd8a931b997f45b05cefe7924faf39899d5b6e",
+      "lines": 925,
+      "structural_test_names": [
+        "update hook stages parented children atomically (pending v+1 once, children v1)",
+        "create hook stages a child parented to the pending create (v1 throughout)",
+        "a failing staged invariant voids the trigger (atomic rollback)",
+        "a failing staged lock voids the trigger (atomic rollback)",
+        "a staged unique conflict voids the trigger (atomic rollback)",
+        "an intervening commit to a staged target invalidates the batch (fence, then version)",
+        "a concurrent change to the pending record conflicts, never silent",
+        "hooks evaluate once in written order; staged writes commit in staging order",
+        "staged writes observe earlier staged rows (ordered provisional reads)",
+        "staged writes never re-invoke CRUD hooks (flat, no cascade)",
+        "staged creates resolve defaults on the shared per-write path",
+        "staged writes into the triggering CRUD path fail (same-model bar)",
+        "staged deletes fail (pending-source deletion is a forbidden shape)",
+        "delete hooks cannot stage writes or timers",
+        "before/input snapshots are immutable to hooks",
+        "malformed staged shapes fail closed with hook attribution",
+        "unknown staged models are programmer bugs, like unknown caller models",
+        "the staged set replays by operation identity with the same result",
+        "hook-staged schedule/cancel ops commit with the trigger",
+        "hook-side server-owned adjustment stays accepted (R27-open, zero change)"
+      ],
+      "imports": [
+        "node:test",
+        "node:assert/strict",
+        "../../../contracts/src/state.js",
+        "../../src/errors.js",
+        "../../src/errors.js",
+        "../../src/mutation/pipeline.js",
+        "../../src/storage/port.js"
+      ],
+      "assertion_count": 95
+    },
+    {
+      "path": "packages/state/test/ports/t24a-dispatch-join-durable.test.ts",
+      "inspection": "whole_text_structural_decode",
+      "working_sha256": "bef2bfbd78c305e39fe5d98a5d81b14eed1bf86b2adad4c3fdb62251e4d62ce6",
+      "lines": 525,
+      "structural_test_names": [
+        "commits trigger + history + outbox + dispatch rows in one revision",
+        "voids the join on a concurrent trigger change (fence)",
+        "grants exactly one winner under concurrent claim delivery",
+        "resumes an interrupted claim through release plus reclaim"
+      ],
+      "imports": [
+        "node:test",
+        "node:assert/strict",
+        "node:url",
+        "miniflare",
+        "@cloudflare/workers-types",
+        "../../src/storage/d1.js",
+        "../../src/storage/port.js",
+        "../invocation/fixtures.js"
+      ],
+      "assertion_count": 28
+    },
+    {
+      "path": "packages/state/test/ports/t24a-dispatch-join.test.ts",
+      "inspection": "whole_text_structural_decode",
+      "working_sha256": "442afbd13d85a14bed0d317ff232f977921ec85e5633fddb92bd5a34030bd5a0",
+      "lines": 412,
+      "structural_test_names": [
+        "validates like staging and derives origins plus guard refs",
+        "rejects cross-operation intents and duplicates exactly like staging",
+        "passes empty batches trivially (ordinary triggers stage no dispatch work)",
+        "passes joined batches, skip-only rows and ordinary batches",
+        "fails closed on missing halves, mismatched ids and duplicates",
+        "commits domain plus history plus outbox plus dispatch rows in one revision",
+        "asserts linkage before the store: broken joins never reach the fence",
+        "rolls the whole join back when the trigger write fails (MEMORY-ONLY)",
+        "stages the join through the invoke path with the triggering batch"
+      ],
+      "imports": [
+        "node:test",
+        "node:assert/strict",
+        "../../src/errors.js",
+        "../../src/invocation/invoke.js"
+      ],
+      "assertion_count": 34
+    },
+    {
+      "path": "packages/state/test/storage/do.test.ts",
+      "inspection": "whole_text_structural_decode",
+      "working_sha256": "d2fbaceb02fbf831fcced5232f5d410ee10c2bdc0672bbaf291093806eccfcb2",
+      "lines": 276,
+      "structural_test_names": [
+        "DO ATOMICITY: a mid-commit PK violation leaves no partial state"
+      ],
+      "imports": [
+        "node:test",
+        "node:assert/strict",
+        "node:url",
+        "miniflare"
+      ],
+      "assertion_count": 8
+    },
+    {
+      "path": "packages/work/README.md",
+      "inspection": "full_current_body",
+      "working_sha256": "fc315d7d9ac77d12d50eeb8162e5ed477d77eb6617ab88a055ed2f70693d59e5",
+      "lines": 122
+    },
+    {
+      "path": "packages/work/package.json",
+      "inspection": "full_current_body",
+      "working_sha256": "0a1c6e05419645ba565e76dd3ee6a3bd68a6b576319d33e04c592584f030e05a",
+      "lines": 16
+    },
+    {
+      "path": "packages/work/src/dispatch/index.ts",
+      "inspection": "full_current_body",
+      "working_sha256": "5f5b60dd18efabbe317af78ec33e78c6ec41313d2de7ac06af343ae0d8af20c7",
+      "lines": 195
+    },
+    {
+      "path": "packages/work/src/dispatch/t32b-fence.test.ts",
+      "inspection": "whole_text_structural_decode",
+      "working_sha256": "37492bd7dd7267f3a6d6c683ebc8ab3699678736a33b7863f32663e44d2a1928",
+      "lines": 132,
+      "structural_test_names": [
+        "claims when the transitive scope is fresh and authority revalidates",
+        "refuses a transitive dispatch that inherited the trigger checkpoint",
+        "denies the effect when authority revoked between trigger and handler",
+        "evaluates the guard over the claim-time snapshot, never a carried one",
+        "attempts without a fence keep the exact pre-T32b behavior"
+      ],
+      "imports": [
+        "node:test",
+        "node:assert/strict",
+        "../../../contracts/src/work.js",
+        "../intent/index.ts",
+        "../intent/index.ts",
+        "./index.ts",
+        "./index.ts"
+      ],
+      "assertion_count": 10
+    },
+    {
+      "path": "packages/work/src/intent/index.ts",
+      "inspection": "committed_delta_with_scoped_unchanged_evidence",
+      "working_sha256": "a19031f4ec0a2a7ba78341d1d0ab00050e56cd1d5d39fcde6e145224b53dfff8",
+      "lines": 392
+    },
+    {
+      "path": "packages/work/src/kernel/commands.ts",
+      "inspection": "committed_delta_with_scoped_unchanged_evidence",
+      "working_sha256": "b78ba7004c147887ea15e9ab872fca52c0367e9c4d16399f22b2fdaabbacef8d",
+      "lines": 1340
+    },
+    {
+      "path": "packages/work/src/ports.ts",
+      "inspection": "committed_delta_with_scoped_unchanged_evidence",
+      "working_sha256": "0b7f8987e18db348417579ce5de96f472e66028804f7fbb58825586fdaa61184",
+      "lines": 322
+    },
+    {
+      "path": "packages/work/src/recovery/index.ts",
+      "inspection": "committed_delta_with_scoped_unchanged_evidence",
+      "working_sha256": "f9260a28173b7bda5522f9c61168c1cec703fe830ec48bee3b0c9e88c2c6000c",
+      "lines": 529
+    },
+    {
+      "path": "packages/work/test/kernel-commands.test.ts",
+      "inspection": "whole_text_structural_decode",
+      "working_sha256": "603110d04da8bc184a07b851ed378dd9a302ccefc4cb04f2cf352db36c41e112",
+      "lines": 1345,
+      "structural_test_names": [
+        "exports 9 uniquely named dot-namespaced commands",
+        "claims pending rows with a fenced conditional update",
+        "refuses superseded, guard-pinned, held and settled rows without writes",
+        "defers pending rows with a future availability",
+        "reports settled before guard-false on terminal rows",
+        "throws loudly on missing rows and bad args",
+        "records terminal attempts with attempts+1, cleared claim and ack",
+        "acks terminally settled intents and records skips without attempts",
+        "requires a retry class on failed outcomes and stores it",
+        "rejects rival claims, unclaimed rows and malformed outcomes",
+        "returns ready uncertain/failed rows to pending with cleared outcome",
+        "refuses terminal failures and evidence-less uncertain rows",
+        "holds deferred rows and dead-letters exhausted ones",
+        "refuses non-retryable rows and validates the budget",
+        "releases stale claims and keeps fresh or absent ones",
+        "marks pending origin intents, skipping others and existing marks",
+        "inserts receipts once and replays duplicates",
+        "rejects bad statuses",
+        "inserts with the L3 replace op when the key is fresh",
+        "replaces pending predecessors with lineage and intent marks",
+        "follows replaces linkage past lexicographic order",
+        "converges racing twin heads on the next put",
+        "leaves non-pending predecessors to complete and rejects bad payloads",
+        "cancels pending entries with marks and the L3 cancel op",
+        "cancels the linked head past lexicographic order",
+        "cancels every live head on a raced key",
+        "no-ops on missing and terminal keys",
+        "embeds scope percent-encoded with ownerPackage second",
+        "holds 128 exactly and fails closed at 129 in put and cancel",
+        "initializes, advances and holds slots",
+        "tracks slots independently per app and handler",
+        "rejects root scopes exactly like admission"
+      ],
+      "imports": [
+        "node:test",
+        "node:assert/strict",
+        "../src/kernel/tables.ts",
+        "../src/schedule/every.ts"
+      ],
+      "assertion_count": 125
+    },
+    {
+      "path": "packages/work/test/t24a-staging-join.test.ts",
+      "inspection": "whole_text_structural_decode",
+      "working_sha256": "260bd8148bbacc393cbf4a94c965516e1d99e71ec3553d5c60c0dbdcd4de3375",
+      "lines": 941,
+      "structural_test_names": [
+        "stages unconditional and guard-true effects with their origins",
+        "records guard-false effects as skips, never silent",
+        "fails the whole batch closed on duplicates, bad requests and evaluator throws",
+        "carries fanout lineage through staged and skipped with no fanout rule",
+        "maps persisted state plus pinned verdict onto staged/claimed/done/failed/skipped",
+        "matches the winning claim id for idempotent replay, refuses others",
+        "retries transient failures within budget, dead-letters past it",
+        "finalizes terminal failures and rejects settled items",
+        "matches recordOutcome exactly on shared failure inputs",
+        "sorts every actionable row into exactly one list, id-sorted",
+        "applies the exact stale boundary and validates inputs",
+        "stages dispatch rows plus outbox intents in one staging with pinned verdicts",
+        "fails closed on empty, duplicate and incoherent batches",
+        "replays matching rows without writes and refuses mismatched origins",
+        "releases stale claims in id order, observes uncertain, touches nothing else",
+        "pages bounded batches with an exact resume cursor and never truncates silently",
+        "commits dispatch rows plus outbox intents in one fence revision",
+        "voids the whole join when the run key mismatches (trigger rollback)",
+        "grants exactly one winner under concurrent delivery (MEMORY-ONLY)",
+        "resumes an interrupted claim through recover plus reclaim (MEMORY-ONLY)",
+        "pins the L3 join literal against the L4 dispatch table"
+      ],
+      "imports": [
+        "node:test",
+        "node:assert/strict",
+        "../../state/dist/state/src/ports/system.js",
+        "../../state/dist/state/src/storage/memory.js",
+        "../../state/dist/state/src/ports/transact.js",
+        "../src/kernel/tables.ts",
+        "../src/intent/index.ts",
+        "../src/dispatch/index.ts",
+        "../src/dispatch/index.ts",
+        "../src/recovery/index.ts",
+        "../src/receipt/index.ts",
+        "../src/receipt/index.ts"
+      ],
+      "assertion_count": 127
+    },
+    {
+      "path": "packages/cloudflare/src/runtime/invoke.ts",
+      "inspection": "full_current_body_by_internal_responsibility",
+      "working_sha256": "d316423a4f79f97652974d5e0ee4e8124c3bea2051540f6bd28dc5b2400c95a5",
+      "lines": 4240
+    },
+    {
+      "path": "packages/cloudflare/src/runtime/context.ts",
+      "inspection": "full_current_body_by_internal_responsibility",
+      "working_sha256": "9f628244197b61fc376319c9a4fe5aed82fbd04a62b283c96e564f6877a614d8",
+      "lines": 137
+    },
+    {
+      "path": "packages/cloudflare/src/runtime/stdlib.ts",
+      "inspection": "full_current_body_by_internal_responsibility",
+      "working_sha256": "ced1c72a0244f7691471dd2aae3a88a3ae6198f67837af4008549df8bbc1662e",
+      "lines": 299
+    },
+    {
+      "path": "packages/cloudflare/src/runtime/executors.ts",
+      "inspection": "full_current_body_by_internal_responsibility",
+      "working_sha256": "76d481665ae5c9ada116e797d91b8848fcaa4c2171a5126970f9b83fcf6d33c1",
+      "lines": 295
+    },
+    {
+      "path": "packages/cloudflare/src/runtime/t16b-canonical.test.ts",
+      "inspection": "whole_text_structural_decode_with_focused_body_reads",
+      "working_sha256": "28b4c13d3b68ab6c537659906288e9cefd7cfdca0fe271780be7514951b4f265",
+      "lines": 1210,
+      "structural_test_names": [
+        "routes canonical iff BOTH descriptor keys are present",
+        "maps the established subset; refuses the rest LOUD naming T04b",
+        "reads manifest entries defensively; malformed shapes fail loud",
+        "delegates reads and refuses commits LOUD with the staged rule",
+        "loads the real contracts pins (all v1) and asserts them exactly",
+        "fulfills pin-mapped requires exactly; unknown ids and drift reject",
+        "creates through the pipeline with record id = operation id",
+        "replays identical envelopes instead of duplicating",
+        "updates with version fencing and deletes through the pipeline",
+        "runs the handler once with admitted inputs; replays without re-running",
+        "serves public callers on ungated scenarios with zero memberships",
+        "unknown operations reject validation and mutate nothing",
+        "closed-shape violations reject validation and mutate nothing",
+        "unauthorized callers fail forbidden and mutate nothing",
+        "live store wins: removal after resolve denies the held identity",
+        "forged credentials fail at resolution before anything invokes",
+        "serves reads and still rejects envelope mismatches with precise validation",
+        "receipts the guard trip as a rejection; domain state never mutates",
+        "refuses gated/when manifests at preload and at the invoker",
+        "refuses CRUD operations whose callable module is missing",
+        "generated artifacts never take the direct path (direct-only store fails LOUD)",
+        "generated artifacts without memberships refuse instead of admitting blind",
+        "descriptor-less artifacts refuse on both envelopes (interim path retired)",
+        "serves generated artifacts with realistic requires (builtins 2 + state 1)",
+        "rejects unknown requires capabilities at compat",
+        "rejects unmet requires versions at the serving-contracts gate",
+        "refuses incompatible descriptors at preload, before serving"
+      ],
+      "imports": [
+        "node:test",
+        "node:assert/strict",
+        "node:fs",
+        "node:os",
+        "node:path",
+        "node:crypto",
+        "node:url",
+        "@canlang/identity",
+        "@canlang/identity/testing",
+        "../../../state/dist/state/src/storage/memory.js",
+        "../worker/assembly.js",
+        "../worker/assembly.js"
+      ],
+      "assertion_count": 152
+    },
+    {
+      "path": "packages/cloudflare/src/runtime/t24b-dispatch-durable.test.ts",
+      "inspection": "whole_text_structural_decode_with_focused_body_reads",
+      "working_sha256": "f4ec3524b9f279bf9f7dd574431013674655b42121db594ad8b8217c5807609b",
+      "lines": 748,
+      "structural_test_names": [
+        "commits stage -> claim -> record in exact fence steps with cross-handle read-back",
+        "voids the join when the run key mismatches (nothing durable)",
+        "grants exactly one winner under concurrent claims",
+        "resumes an interrupted claim through sweep release plus reclaim",
+        "reconciles decisive evidence atomically (update + ack, one revision)",
+        "voids an execution batch on an intervening change (stale fence)",
+        "dead-letters exhausted failures with cross-handle read-back",
+        "skips on claim-time guard-false with cross-handle read-back"
+      ],
+      "imports": [
+        "node:test",
+        "node:assert/strict",
+        "node:url",
+        "miniflare",
+        "@cloudflare/workers-types",
+        "../../../state/dist/state/src/storage/d1.js",
+        "../../../state/dist/state/src/storage/port.js",
+        "../worker/assembly.js"
+      ],
+      "assertion_count": 52
+    },
+    {
+      "path": "packages/cloudflare/src/runtime/t17b-cloudflare-flip.test.ts",
+      "inspection": "whole_text_structural_decode",
+      "working_sha256": "8c26b3ea1f3e9d48d2572084c0920629f9a44486bbdaf86b4e28f774c19a5194",
+      "lines": 1514,
+      "structural_test_names": [
+        "transcribes absent/empty read content to public grants; rules mark ruled; malformed throws",
+        "reads model manifest entries defensively; malformed shapes fail loud",
+        "nets create+remove to a bare release and keeps remove+recreate whole",
+        "folds multi-touch sequences to the committable net shape",
+        "merges staged rows over the store and refuses filtered fetches + commits",
+        "every data-plane call without a canonical scope throws naming the retirement",
+        "stages create+set through the pipeline; reads see staged rows; receipt + history carry the scenario identity",
+        "honors archive vs remove delete modes and excludes staged archives from reads",
+        "rejects re-archiving with the engine message; staged writes roll back to a receipt-only revision",
+        "refuses delete=none models with the engine message and persists nothing",
+        "refuses where/order/limit/archived-include/authority-owner with validation texts",
+        "attributes propagated engine failures to their true codes on the receipt",
+        "refuses ruled-model reads at the router and in handlers while CRUD + rule-less reads serve",
+        "trips a direct commit mid-handler and rolls the staged writes back atomically",
+        "rolls a mid-handler throw back to a receipt-only revision",
+        "replays duplicate scenario delivery without re-running or duplicating",
+        "converges concurrent scenarios on one row through the fence (no lost update)",
+        "commits empty patches cleanly with identical data and an advanced version",
+        "lands no ghost claim for create+remove pairs; a later reuse of the key commits",
+        "conflicts competing live claims at commit with no receipt and no revision move",
+        "records resolved defaults under <callIndex>:<model>.<field>",
+        "links existing parents and refuses ghosts with the engine message",
+        "conflicts a stale submitted version without touching the stored row",
+        "serves rule-less models to outsiders and anonymous callers with full rows",
+        "rejects unknown read inputs closed-shape and refuses reads without live membership",
+        "refuses reads WITH descriptor inputs (no T04a filter vocabulary)",
+        "refuses malformed model entries at preload",
+        "refuses contradictory read policy across modules",
+        "skips modules without a canApp registry when establishing read policy"
+      ],
+      "imports": [
+        "node:test",
+        "node:assert/strict",
+        "node:fs",
+        "node:path",
+        "node:url",
+        "node:crypto",
+        "@canlang/identity",
+        "@canlang/identity/testing",
+        "../../../state/dist/state/src/storage/memory.js",
+        "../worker/assembly.js",
+        "../worker/assembly.js",
+        "./context.js",
+        "./stdlib.js"
+      ],
+      "assertion_count": 184
+    },
+    {
+      "path": "packages/cloudflare/src/runtime/t17b-durable.test.ts",
+      "inspection": "whole_text_structural_decode",
+      "working_sha256": "5c37d01a784b963e64299ab0731e5eac690f370dd74854d712c4ab81251a34da",
+      "lines": 367,
+      "structural_test_names": [
+        "persists staged writes, receipt, and history with cross-handle read-back",
+        "replays duplicate scenario delivery exactly once on D1",
+        "refuses ruled-model reads on the durable path without touching revisions"
+      ],
+      "imports": [
+        "node:test",
+        "node:assert/strict",
+        "node:fs",
+        "node:path",
+        "node:url",
+        "node:crypto",
+        "miniflare",
+        "@cloudflare/workers-types",
+        "@canlang/identity",
+        "@canlang/identity/testing",
+        "../../../state/dist/state/src/storage/d1.js",
+        "../worker/assembly.js",
+        "../worker/assembly.js"
+      ],
+      "assertion_count": 23
+    },
+    {
+      "path": "packages/cloudflare/src/runtime/t24b-dispatch-execution.test.ts",
+      "inspection": "whole_text_structural_decode",
+      "working_sha256": "2feb089859e79aaacd0b3570b90be70926bb5a9808c59558bc4766a5af77a069",
+      "lines": 1288,
+      "structural_test_names": [
+        "composes [...l3, ...work, ...stage] in order with real producers",
+        "fails loud on duplicate and empty command names",
+        "pins the dispatch model literal four ways (no drift by restatement)",
+        "cross-checks the row reader and state query against the real work producers",
+        "refuses unknown commands and runs live L3 commands",
+        "commits dispatch rows plus outbox intents in one fence revision",
+        "voids the whole join when the run key mismatches (trigger rollback)",
+        "replays already-staged intents without duplicate rows",
+        "carries fanout lineage through staging without interpreting it",
+        "commits through the asserting join port (broken joins reject)",
+        "records delivered attempts with attempts+1 and an acked intent",
+        "records transient failures unacked and terminal failures acked",
+        "records uncertain for ambiguous outcomes, throws, and incoherent answers",
+        "re-evaluates guards at claim time against the current snapshot",
+        "holds the claim (no terminal skip) when the evaluator throws",
+        "refuses superseded, held, settled, and guard-pinned rows without provider calls",
+        "grants exactly one winner under concurrent drives (fence voids the loser)",
+        "requeues retryable failures and dead-letters exhausted ones",
+        "never re-drives terminal, unclassified, skipped, or settled rows",
+        "reconciles decisive evidence atomically and awaits the rest",
+        "releases stale claims for re-drive and leaves fresh claims held",
+        "resumes truncated claimed scans across sweeps (recover cursor)",
+        "skips requeue and reconcile when evidence moves under the plan",
+        "reports deferred requeues and truncated scans without forcing",
+        "fails closed on malformed evidence and planner skew"
+      ],
+      "imports": [
+        "node:test",
+        "node:assert/strict",
+        "../../../state/dist/state/src/storage/memory.js",
+        "../../../state/dist/state/src/ports/transact.js",
+        "./executors.js",
+        "../worker/assembly.js"
+      ],
+      "assertion_count": 176
+    }
+  ],
+  "dirty_overlays": [
+    {
+      "path": "packages/cloudflare/src/runtime/invoke.ts",
+      "inspection": "dirty_overlay_diff",
+      "working_sha256": "d316423a4f79f97652974d5e0ee4e8124c3bea2051540f6bd28dc5b2400c95a5",
+      "pinned_sha256": "7438e2418ee2902a3efa1fc7fa85496efb4749403eeab3c2ca184fa52a623b0e",
+      "checkpoint_included": false
+    },
+    {
+      "path": "packages/state/src/mutation/index.ts",
+      "inspection": "dirty_overlay_diff",
+      "working_sha256": "9fdfad0ea2817933cbaac186ab3731bae31708cb149c701a147c3c78400d90be",
+      "pinned_sha256": "703c5da3224811d405079f166fba98c2138bfbe03973950cdbb52b61a075ce4d",
+      "checkpoint_included": false
+    }
+  ],
+  "governing_sources": [
+    {
+      "path": "AGENTS.md",
+      "working_sha256": "2dba019011bda7810242fe8f8d82961781c0d05efb8792cc9eea70ac8d8047ba"
+    },
+    {
+      "path": "DESIGN.md",
+      "working_sha256": "d1d2f54645c653c8562f5caa54856bb4d6db6aeac90907cd56e140b9f6c435a5"
+    },
+    {
+      "path": "REQUIREMENTS.md",
+      "working_sha256": "52d7dd395cee7ef8dd8bb095340c0e6e31df06268e37a1479dc373a10ef1c1cd"
+    },
+    {
+      "path": "implementation/CONTRACTS.md",
+      "working_sha256": "7750365ff46288777a53f3bc7e387187d1a1f9d9b4ca8d9e70d915e17614d27c"
+    },
+    {
+      "path": "docs/ideal-filetree-plan.md",
+      "working_sha256": "0874c4d55a94256f8d0097434a588fb2bfcb7c125e43372bfed69b6d7cdc1c81"
+    }
+  ],
+  "reused": [
+    {
+      "path": "packages/cloudflare/src/runtime/artifact.ts",
+      "scope": "unchanged duties and prior responsibility allocation only; changed bodies independently inspected where present",
+      "baseline": "8249342707d3280e88e39e8c911b7e457828f31f",
+      "working_sha256": "543244d0242b329441f35f66c716e0ecdd6a309e883846330bf5b25dbbae1057"
+    },
+    {
+      "path": "packages/cloudflare/src/runtime/modules.ts",
+      "scope": "unchanged duties and prior responsibility allocation only; changed bodies independently inspected where present",
+      "baseline": "8249342707d3280e88e39e8c911b7e457828f31f",
+      "working_sha256": "51957159f4a74146a2f69bce516105296fc56376889ff771b48f11e5a8df36a0"
+    },
+    {
+      "path": "packages/files/src/ports.ts",
+      "scope": "unchanged duties and prior responsibility allocation only; changed bodies independently inspected where present",
+      "baseline": "8249342707d3280e88e39e8c911b7e457828f31f",
+      "working_sha256": "a137201a75b4df2409a9d3391a5852c1a6ca96192ae10bce6fd0f1d8f0ee69f1"
+    },
+    {
+      "path": "packages/files/src/upload/fs-blob-store.ts",
+      "scope": "unchanged duties and prior responsibility allocation only; changed bodies independently inspected where present",
+      "baseline": "8249342707d3280e88e39e8c911b7e457828f31f",
+      "working_sha256": "44e18d6eef9ac71d35e766a63c7cdcc19d57adf4f7722802f73c0387bfb21d59"
+    },
+    {
+      "path": "packages/files/src/upload/index.ts",
+      "scope": "unchanged duties and prior responsibility allocation only; changed bodies independently inspected where present",
+      "baseline": "8249342707d3280e88e39e8c911b7e457828f31f",
+      "working_sha256": "65d07700899e1a0346596cd10ff01194f831c5b56ec8ee1dbb39d8189438fdf6"
+    },
+    {
+      "path": "packages/services/src/http/client.ts",
+      "scope": "unchanged duties and prior responsibility allocation only; changed bodies independently inspected where present",
+      "baseline": "8249342707d3280e88e39e8c911b7e457828f31f",
+      "working_sha256": "240c2731b2a88ef18ba69a117c5e83cd7a5eba36bd2e65cd6c6cd3901719402f"
+    },
+    {
+      "path": "packages/services/src/judgments/harness.ts",
+      "scope": "unchanged duties and prior responsibility allocation only; changed bodies independently inspected where present",
+      "baseline": "8249342707d3280e88e39e8c911b7e457828f31f",
+      "working_sha256": "3ffbed629601d02f6f39519ed75b2da07c76de8b8ec661b82faac68ebf6088e4"
+    },
+    {
+      "path": "packages/services/src/judgments/systemone.ts",
+      "scope": "unchanged duties and prior responsibility allocation only; changed bodies independently inspected where present",
+      "baseline": "8249342707d3280e88e39e8c911b7e457828f31f",
+      "working_sha256": "b006fed138592e808d0d88ab2f423288d5fa0d552ccdda7bcb22997b8a80e53b"
+    },
+    {
+      "path": "packages/services/src/mail/adapter.ts",
+      "scope": "unchanged duties and prior responsibility allocation only; changed bodies independently inspected where present",
+      "baseline": "8249342707d3280e88e39e8c911b7e457828f31f",
+      "working_sha256": "78c977e2be0c5aedbf3245167ec628a5ccdd065d0ff46fc894b95ae9417087e0"
+    },
+    {
+      "path": "packages/services/src/mail/redact.ts",
+      "scope": "unchanged duties and prior responsibility allocation only; changed bodies independently inspected where present",
+      "baseline": "8249342707d3280e88e39e8c911b7e457828f31f",
+      "working_sha256": "a486b1747f5e8ca8b93943f04f17fd8fdb2b2943db5f8b3d0c4adfc847b7f342"
+    },
+    {
+      "path": "packages/services/src/media/comfyui.ts",
+      "scope": "unchanged duties and prior responsibility allocation only; changed bodies independently inspected where present",
+      "baseline": "8249342707d3280e88e39e8c911b7e457828f31f",
+      "working_sha256": "d35508e4dd957b246ce9161c9c12ff78a332de93bed5084f09f0ab7131b3392c"
+    },
+    {
+      "path": "packages/services/src/media/harness.ts",
+      "scope": "unchanged duties and prior responsibility allocation only; changed bodies independently inspected where present",
+      "baseline": "8249342707d3280e88e39e8c911b7e457828f31f",
+      "working_sha256": "51bd4abae84239b00d9492f24416521d9a4d567a192eaba070a56daa698aa233"
+    },
+    {
+      "path": "packages/services/src/models/harness.ts",
+      "scope": "unchanged duties and prior responsibility allocation only; changed bodies independently inspected where present",
+      "baseline": "8249342707d3280e88e39e8c911b7e457828f31f",
+      "working_sha256": "bf0163984ddd83578f223d58b19f1838938910a0be926d2644df5c7870e287bf"
+    },
+    {
+      "path": "packages/services/src/models/ollama.ts",
+      "scope": "unchanged duties and prior responsibility allocation only; changed bodies independently inspected where present",
+      "baseline": "8249342707d3280e88e39e8c911b7e457828f31f",
+      "working_sha256": "40050322c7cabaa6909e96b57e78663ee0c216c54f18be27c11e8ea1702c8367"
+    },
+    {
+      "path": "packages/services/src/ports.ts",
+      "scope": "unchanged duties and prior responsibility allocation only; changed bodies independently inspected where present",
+      "baseline": "8249342707d3280e88e39e8c911b7e457828f31f",
+      "working_sha256": "785246b21813fa884de8e699c50eb93cb4a4f7c12c5f7cb8b3a6918d2240c97b"
+    },
+    {
+      "path": "packages/services/src/scenarios.ts",
+      "scope": "unchanged duties and prior responsibility allocation only; changed bodies independently inspected where present",
+      "baseline": "8249342707d3280e88e39e8c911b7e457828f31f",
+      "working_sha256": "478031102a3e7a9a1f72f68ad176a63370ba73b15f2c622b1d29a90697e506be"
+    },
+    {
+      "path": "packages/state/src/migration/activate.ts",
+      "scope": "unchanged duties and prior responsibility allocation only; changed bodies independently inspected where present",
+      "baseline": "8249342707d3280e88e39e8c911b7e457828f31f",
+      "working_sha256": "967addf463fba8015854808f8a18133a964d5936071ee9919b310ac80d26a240"
+    },
+    {
+      "path": "packages/state/src/migration/transition.ts",
+      "scope": "unchanged duties and prior responsibility allocation only; changed bodies independently inspected where present",
+      "baseline": "8249342707d3280e88e39e8c911b7e457828f31f",
+      "working_sha256": "c30a09c371940481aa510e71e3e37e3b3b68acd530664ac3c720b7abf84133e3"
+    },
+    {
+      "path": "packages/state/src/migration/validate.ts",
+      "scope": "unchanged duties and prior responsibility allocation only; changed bodies independently inspected where present",
+      "baseline": "8249342707d3280e88e39e8c911b7e457828f31f",
+      "working_sha256": "543ebf8d925e0ba1a65c0dd2508ed0853c4621decd57a53339658363c9c8cbc2"
+    },
+    {
+      "path": "packages/state/src/policy/grants.ts",
+      "scope": "unchanged duties and prior responsibility allocation only; changed bodies independently inspected where present",
+      "baseline": "8249342707d3280e88e39e8c911b7e457828f31f",
+      "working_sha256": "042947880c0df946f85406075fb14d9b6cc593dde5806c9c67a36b4a60644793"
+    },
+    {
+      "path": "packages/state/src/policy/roles.ts",
+      "scope": "unchanged duties and prior responsibility allocation only; changed bodies independently inspected where present",
+      "baseline": "8249342707d3280e88e39e8c911b7e457828f31f",
+      "working_sha256": "202728e6e763eba0865c13178906069eca36d0845566b395163c40d31c484a3e"
+    },
+    {
+      "path": "packages/state/src/query/engine.ts",
+      "scope": "unchanged duties and prior responsibility allocation only; changed bodies independently inspected where present",
+      "baseline": "8249342707d3280e88e39e8c911b7e457828f31f",
+      "working_sha256": "b308d161b6c1187055337aaffababeccc6bceed7466c3261cccb066c5432e9ca"
+    },
+    {
+      "path": "packages/state/src/storage/d1.ts",
+      "scope": "unchanged duties and prior responsibility allocation only; changed bodies independently inspected where present",
+      "baseline": "8249342707d3280e88e39e8c911b7e457828f31f",
+      "working_sha256": "769e32a4f692356fd7af56cc680410da49d751f31e8c45c2741b0f0c8a3f1c9c"
+    },
+    {
+      "path": "packages/state/src/storage/durable-object.ts",
+      "scope": "unchanged duties and prior responsibility allocation only; changed bodies independently inspected where present",
+      "baseline": "8249342707d3280e88e39e8c911b7e457828f31f",
+      "working_sha256": "010ed565086159d7f972619dab9531008ea85f81d4a4f106fcf6cb19df63a040"
+    },
+    {
+      "path": "packages/state/src/storage/memory.ts",
+      "scope": "unchanged duties and prior responsibility allocation only; changed bodies independently inspected where present",
+      "baseline": "8249342707d3280e88e39e8c911b7e457828f31f",
+      "working_sha256": "5ebf730b55fa53a5cd7a7f6e73e60983a8a8fbd8367368da29f48423b28e0e54"
+    },
+    {
+      "path": "packages/work/src/kernel/tables.ts",
+      "scope": "unchanged duties and prior responsibility allocation only; changed bodies independently inspected where present",
+      "baseline": "8249342707d3280e88e39e8c911b7e457828f31f",
+      "working_sha256": "214171f9e345fd824241b1ac2cfaf3d338b8bd7b09d58c7de1969db717bca12d"
+    },
+    {
+      "path": "packages/work/src/observation/ports.ts",
+      "scope": "unchanged duties and prior responsibility allocation only; changed bodies independently inspected where present",
+      "baseline": "8249342707d3280e88e39e8c911b7e457828f31f",
+      "working_sha256": "f139df952bc72b77ec14eab6050291ab3a138e1eba6c071e95ba3323ee35056e"
+    },
+    {
+      "path": "packages/work/src/ports.ts",
+      "scope": "unchanged duties and prior responsibility allocation only; changed bodies independently inspected where present",
+      "baseline": "8249342707d3280e88e39e8c911b7e457828f31f",
+      "working_sha256": "0b7f8987e18db348417579ce5de96f472e66028804f7fbb58825586fdaa61184"
+    }
+  ],
+  "shared_inspection": [
+    {
+      "path": "packages/cloudflare/src/runtime/env-assembly.ts",
+      "primary": "platform_review",
+      "runtime_scope": "composition imports and canonical context join",
+      "working_sha256": "40dff84e04743988b289b9e754fdb8e54f1d66b836c1dbbce0a61949fb4d83ad"
+    }
+  ],
+  "independent_challenges": [
+    {
+      "finding": "R01",
+      "challenger": "compiler_review",
+      "result": "confirmed_actual_emitted_policy_missing_at_canApp_intake"
+    },
+    {
+      "finding": "R02",
+      "challenger": "compiler_review",
+      "result": "confirmed_generated_c_now_absent_and_helper_not_frozen"
+    },
+    {
+      "finding": "R03",
+      "challenger": "compiler_review",
+      "result": "confirmed_state_false_rejection_of_valid_membership_free_branches_with_generated_path_scope_limit"
+    },
+    {
+      "finding": "R04",
+      "challenger": "compiler_review",
+      "result": "confirmed_equal_revision_is_not_scope_identity; current_drive_claim_order_narrows_exposure"
+    },
+    {
+      "finding": "R07",
+      "challenger": "runtime_review_to_root",
+      "result": "retain_fanout_gate_missing_production_bound_and_low_confidence_disagreement"
+    },
+    {
+      "finding": "platform_identity",
+      "challenger": "runtime_review",
+      "result": "confirmed_presession_browser_binding_atomic_winner_owner_count_roles_oauth_recovery"
+    },
+    {
+      "finding": "platform_activation_bundle",
+      "challenger": "runtime_review",
+      "result": "confirmed_grants_gate_order_and_duplicate_reserved_noncanonical_staging_paths"
+    }
+  ],
+  "revised_allocations": [
+    {
+      "source": "packages/cloudflare/src/runtime/artifact.ts",
+      "decision": "move",
+      "destinations": [
+        "packages/cloudflare/src/build/artifact.ts"
+      ],
+      "review": "retain_scoped_prior_allocation"
+    },
+    {
+      "source": "packages/cloudflare/src/runtime/context.ts",
+      "decision": "retain-retirement-gated",
+      "destinations": [
+        "packages/cloudflare/src/runtime/context.ts"
+      ],
+      "review": "supersede_wholesale_interim_replacement"
+    },
+    {
+      "source": "packages/cloudflare/src/runtime/invoke.ts",
+      "decision": "split-with-existing-facade",
+      "destinations": [
+        "packages/cloudflare/src/runtime/invoke.ts",
+        "packages/cloudflare/src/runtime/callable.ts",
+        "packages/cloudflare/src/runtime/state-producers.ts",
+        "packages/cloudflare/src/runtime/canonical/policy.ts",
+        "packages/cloudflare/src/runtime/canonical/descriptors.ts",
+        "packages/cloudflare/src/runtime/canonical/overlay.ts",
+        "packages/cloudflare/src/runtime/canonical/scenario.ts",
+        "packages/cloudflare/src/runtime/canonical/mutation.ts",
+        "packages/cloudflare/src/runtime/canonical/read.ts",
+        "packages/cloudflare/src/runtime/dispatch/producer.ts",
+        "packages/cloudflare/src/runtime/dispatch/rows.ts",
+        "packages/cloudflare/src/runtime/dispatch/stage.ts",
+        "packages/cloudflare/src/runtime/dispatch/drive.ts",
+        "packages/cloudflare/src/runtime/dispatch/recovery.ts"
+      ],
+      "review": "supersede_wholesale_interim_replacement"
+    },
+    {
+      "source": "packages/cloudflare/src/runtime/modules.ts",
+      "decision": "move",
+      "destinations": [
+        "packages/cloudflare/src/build/modules.ts"
+      ],
+      "review": "retain_scoped_prior_allocation"
+    },
+    {
+      "source": "packages/cloudflare/src/runtime/stdlib.ts",
+      "decision": "retain-retirement-gated",
+      "destinations": [
+        "packages/cloudflare/src/runtime/stdlib.ts"
+      ],
+      "review": "supersede_wholesale_interim_replacement"
+    },
+    {
+      "source": "packages/files/src/ports.ts",
+      "decision": "split-with-existing-entry",
+      "destinations": [
+        "packages/files/src/ports.ts",
+        "packages/files/src/testing.ts",
+        "packages/files/src/storage/key.ts"
+      ],
+      "review": "retain_scoped_prior_allocation"
+    },
+    {
+      "source": "packages/files/src/upload/fs-blob-store.ts",
+      "decision": "move",
+      "destinations": [
+        "packages/files/src/storage/fs.ts"
+      ],
+      "review": "retain_scoped_prior_allocation"
+    },
+    {
+      "source": "packages/files/src/upload/index.ts",
+      "decision": "split-with-existing-entry",
+      "destinations": [
+        "packages/files/src/upload/index.ts",
+        "packages/files/src/upload/intent.ts",
+        "packages/files/src/upload/content.ts",
+        "packages/files/src/upload/validation.ts",
+        "packages/files/src/upload/shared.ts"
+      ],
+      "review": "retain_scoped_prior_allocation"
+    },
+    {
+      "source": "packages/services/src/http/client.ts",
+      "decision": "split-with-existing-entry",
+      "destinations": [
+        "packages/services/src/http/client.ts",
+        "packages/services/src/http/request.ts",
+        "packages/services/src/http/redirects.ts",
+        "packages/services/src/http/body.ts",
+        "packages/services/src/http/stream.ts"
+      ],
+      "review": "retain_scoped_prior_allocation"
+    },
+    {
+      "source": "packages/services/src/judgments/harness.ts",
+      "decision": "move",
+      "destinations": [
+        "packages/services/src/testing/harness/judgments.ts"
+      ],
+      "review": "retain_scoped_prior_allocation"
+    },
+    {
+      "source": "packages/services/src/judgments/systemone.ts",
+      "decision": "split-with-existing-entry",
+      "destinations": [
+        "packages/services/src/judgments/systemone.ts",
+        "packages/services/src/judgments/systemone/adapter.ts",
+        "packages/services/src/judgments/systemone/request.ts",
+        "packages/services/src/judgments/systemone/response.ts"
+      ],
+      "review": "retain_scoped_prior_allocation"
+    },
+    {
+      "source": "packages/services/src/mail/adapter.ts",
+      "decision": "split-with-existing-entry",
+      "destinations": [
+        "packages/services/src/mail/adapter.ts",
+        "packages/services/src/mail/request.ts",
+        "packages/services/src/mail/response.ts",
+        "packages/services/src/completion.ts"
+      ],
+      "review": "retain_scoped_prior_allocation"
+    },
+    {
+      "source": "packages/services/src/mail/redact.ts",
+      "decision": "move",
+      "destinations": [
+        "packages/services/src/errors.ts"
+      ],
+      "review": "retain_scoped_prior_allocation"
+    },
+    {
+      "source": "packages/services/src/media/comfyui.ts",
+      "decision": "split-with-existing-entry",
+      "destinations": [
+        "packages/services/src/media/comfyui.ts",
+        "packages/services/src/media/comfyui/adapter.ts",
+        "packages/services/src/media/comfyui/response.ts",
+        "packages/services/src/media/comfyui/download.ts"
+      ],
+      "review": "retain_scoped_prior_allocation"
+    },
+    {
+      "source": "packages/services/src/media/harness.ts",
+      "decision": "move",
+      "destinations": [
+        "packages/services/src/testing/harness/media.ts"
+      ],
+      "review": "retain_scoped_prior_allocation"
+    },
+    {
+      "source": "packages/services/src/models/harness.ts",
+      "decision": "move",
+      "destinations": [
+        "packages/services/src/testing/harness/models.ts"
+      ],
+      "review": "retain_scoped_prior_allocation"
+    },
+    {
+      "source": "packages/services/src/models/ollama.ts",
+      "decision": "split-with-existing-entry",
+      "destinations": [
+        "packages/services/src/models/ollama.ts",
+        "packages/services/src/models/ollama/adapter.ts",
+        "packages/services/src/models/ollama/request.ts",
+        "packages/services/src/models/ollama/response.ts",
+        "packages/services/src/models/ollama/run.ts"
+      ],
+      "review": "retain_scoped_prior_allocation"
+    },
+    {
+      "source": "packages/services/src/ports.ts",
+      "decision": "split-with-existing-entry",
+      "destinations": [
+        "packages/services/src/ports.ts",
+        "packages/services/src/runtime.ts",
+        "packages/services/src/testing/helpers.ts",
+        "packages/services/src/testing/harness/mail.ts"
+      ],
+      "review": "retain_scoped_prior_allocation"
+    },
+    {
+      "source": "packages/services/src/scenarios.ts",
+      "decision": "split-with-existing-entry",
+      "destinations": [
+        "packages/services/src/scenarios.ts",
+        "packages/services/src/testing/scenarios/schema.ts",
+        "packages/services/src/testing/scenarios/mail.ts",
+        "packages/services/src/testing/scenarios/models.ts",
+        "packages/services/src/testing/scenarios/judgments.ts",
+        "packages/services/src/testing/scenarios/media.ts",
+        "packages/services/src/testing/scenarios/index.ts"
+      ],
+      "review": "retain_scoped_prior_allocation"
+    },
+    {
+      "source": "packages/state/src/migration/activate.ts",
+      "decision": "split-with-existing-entry",
+      "destinations": [
+        "packages/state/src/migration/activate.ts",
+        "packages/state/src/migration/evidence.ts",
+        "packages/state/src/migration/publish.ts",
+        "packages/state/src/migration/disposition.ts",
+        "packages/state/src/migration/flip.ts"
+      ],
+      "review": "retain_scoped_prior_allocation"
+    },
+    {
+      "source": "packages/state/src/migration/transition.ts",
+      "decision": "split-with-existing-entry",
+      "destinations": [
+        "packages/state/src/migration/transition.ts",
+        "packages/state/src/migration/directives.ts",
+        "packages/state/src/migration/model-plan.ts",
+        "packages/state/src/migration/owner-plan.ts"
+      ],
+      "review": "retain_scoped_prior_allocation"
+    },
+    {
+      "source": "packages/state/src/migration/validate.ts",
+      "decision": "split-with-existing-entry",
+      "destinations": [
+        "packages/state/src/migration/validate.ts",
+        "packages/state/src/migration/validation/index.ts",
+        "packages/state/src/migration/validation/rows.ts",
+        "packages/state/src/migration/validation/locks.ts",
+        "packages/state/src/migration/validation/uniques.ts",
+        "packages/state/src/migration/validation/references.ts",
+        "packages/state/src/migration/validation/drops.ts"
+      ],
+      "review": "retain_scoped_prior_allocation"
+    },
+    {
+      "source": "packages/state/src/mutation/pipeline.ts",
+      "decision": "split-with-existing-entry",
+      "destinations": [
+        "packages/state/src/mutation/pipeline.ts",
+        "packages/state/src/mutation/provisional.ts",
+        "packages/state/src/mutation/candidate.ts",
+        "packages/state/src/mutation/constraints.ts",
+        "packages/state/src/mutation/history.ts",
+        "packages/state/src/mutation/hooks.ts"
+      ],
+      "review": "extend_for_new_transitive_hooks"
+    },
+    {
+      "source": "packages/state/src/policy/grants.ts",
+      "decision": "split-with-existing-entry",
+      "destinations": [
+        "packages/state/src/policy/grants.ts",
+        "packages/state/src/policy/predicate.ts",
+        "packages/state/src/policy/path.ts"
+      ],
+      "review": "retain_scoped_prior_allocation"
+    },
+    {
+      "source": "packages/state/src/query/engine.ts",
+      "decision": "split-with-existing-entry",
+      "destinations": [
+        "packages/state/src/query/engine.ts",
+        "packages/state/src/query/projection.ts",
+        "packages/state/src/query/order.ts",
+        "packages/state/src/query/aggregates.ts"
+      ],
+      "review": "retain_scoped_prior_allocation"
+    },
+    {
+      "source": "packages/state/src/storage/d1.ts",
+      "decision": "split-with-existing-entry",
+      "destinations": [
+        "packages/state/src/storage/d1.ts",
+        "packages/state/src/storage/sql/query.ts",
+        "packages/state/src/storage/sql/row-codecs.ts",
+        "packages/state/src/storage/sql/commit-plan.ts",
+        "packages/state/src/storage/sql/migration-plan.ts",
+        "packages/state/src/storage/schema.ts"
+      ],
+      "review": "retain_scoped_prior_allocation"
+    },
+    {
+      "source": "packages/state/src/storage/durable-object.ts",
+      "decision": "split-with-existing-entry",
+      "destinations": [
+        "packages/state/src/storage/durable-object.ts",
+        "packages/state/src/storage/sql/query.ts",
+        "packages/state/src/storage/sql/row-codecs.ts",
+        "packages/state/src/storage/sql/commit-plan.ts",
+        "packages/state/src/storage/sql/migration-plan.ts",
+        "packages/state/src/storage/schema.ts"
+      ],
+      "review": "retain_scoped_prior_allocation"
+    },
+    {
+      "source": "packages/state/src/storage/memory.ts",
+      "decision": "move",
+      "destinations": [
+        "packages/state/src/testing/memory-storage.ts",
+        "packages/state/src/testing/memory-query.ts",
+        "packages/state/src/testing/memory-probe.ts"
+      ],
+      "review": "retain_scoped_prior_allocation"
+    },
+    {
+      "source": "packages/work/src/kernel/commands.ts",
+      "decision": "split-with-existing-entry",
+      "destinations": [
+        "packages/work/src/kernel/commands.ts",
+        "packages/work/src/kernel/commands/dispatch.ts",
+        "packages/work/src/kernel/commands/occurrence.ts",
+        "packages/work/src/kernel/commands/schedule.ts",
+        "packages/work/src/kernel/commands/every.ts",
+        "packages/work/src/kernel/commands/arguments.ts",
+        "packages/work/src/kernel/commands/staging.ts",
+        "packages/work/src/kernel/commands/recovery.ts"
+      ],
+      "review": "extend_for_new_staging_recovery_commands"
+    },
+    {
+      "source": "packages/work/src/kernel/tables.ts",
+      "decision": "split-with-existing-entry",
+      "destinations": [
+        "packages/work/src/kernel/tables.ts",
+        "packages/work/src/kernel/tables/dispatch.ts",
+        "packages/work/src/kernel/tables/occurrence.ts",
+        "packages/work/src/kernel/tables/schedule.ts",
+        "packages/work/src/kernel/tables/every.ts",
+        "packages/work/src/kernel/tables/supersession.ts",
+        "packages/work/src/kernel/tables/row.ts"
+      ],
+      "review": "retain_scoped_prior_allocation"
+    },
+    {
+      "source": "packages/work/src/observation/ports.ts",
+      "decision": "split-with-existing-entry",
+      "destinations": [
+        "packages/work/src/observation/ports.ts",
+        "packages/work/src/observation/testing.ts"
+      ],
+      "review": "retain_scoped_prior_allocation"
+    },
+    {
+      "source": "packages/work/src/ports.ts",
+      "decision": "split-with-existing-entry",
+      "destinations": [
+        "packages/work/src/ports.ts",
+        "packages/work/src/testing.ts"
+      ],
+      "review": "retain_scoped_prior_allocation"
+    },
+    {
+      "source": "packages/state/src/invocation/registry.ts",
+      "decision": "split-with-existing-facade",
+      "destinations": [
+        "packages/state/src/invocation/registry.ts",
+        "packages/state/src/invocation/descriptors.ts",
+        "packages/state/src/invocation/artifact-descriptors.ts"
+      ],
+      "review": "new_internal_duty_allocation"
+    },
+    {
+      "source": "packages/state/src/invocation/admission.ts",
+      "decision": "split-with-existing-facade",
+      "destinations": [
+        "packages/state/src/invocation/admission.ts",
+        "packages/state/src/invocation/inputs.ts",
+        "packages/state/src/invocation/fence.ts"
+      ],
+      "review": "new_internal_duty_allocation"
+    },
+    {
+      "source": "packages/state/src/invocation/invoke.ts",
+      "decision": "split-with-existing-facade",
+      "destinations": [
+        "packages/state/src/invocation/invoke.ts",
+        "packages/state/src/invocation/invoke-read.ts"
+      ],
+      "review": "new_internal_duty_allocation"
+    },
+    {
+      "source": "packages/cloudflare/src/runtime/executors.ts",
+      "decision": "retain-retirement-gated",
+      "destinations": [
+        "packages/cloudflare/src/runtime/executors.ts"
+      ],
+      "review": "real_caller_and_row_parity_gate"
+    }
+  ],
+  "test_allocations": [
+    {
+      "source": "packages/state/src/invocation/descriptor-join.test.ts",
+      "decision": "move",
+      "destinations": [
+        "packages/state/test/invocation/descriptor-join.test.ts"
+      ],
+      "review": "canonical_test_runner_discovery"
+    },
+    {
+      "source": "packages/state/src/invocation/invoke-read.test.ts",
+      "decision": "move",
+      "destinations": [
+        "packages/state/test/invocation/invoke-read.test.ts"
+      ],
+      "review": "canonical_test_runner_discovery"
+    },
+    {
+      "source": "packages/state/src/invocation/t32b-fence.test.ts",
+      "decision": "move",
+      "destinations": [
+        "packages/state/test/invocation/t32b-fence.test.ts"
+      ],
+      "review": "canonical_test_runner_discovery"
+    },
+    {
+      "source": "packages/state/src/invocation/t32b-wire.test.ts",
+      "decision": "move",
+      "destinations": [
+        "packages/state/test/invocation/t32b-wire.test.ts"
+      ],
+      "review": "canonical_test_runner_discovery"
+    },
+    {
+      "source": "packages/state/src/mutation/generated-crud.test.ts",
+      "decision": "move",
+      "destinations": [
+        "packages/state/test/mutation/generated-crud.test.ts"
+      ],
+      "review": "canonical_test_runner_discovery"
+    },
+    {
+      "source": "packages/state/src/mutation/t32b-wire-durable.test.ts",
+      "decision": "move",
+      "destinations": [
+        "packages/state/test/mutation/t32b-wire-durable.test.ts"
+      ],
+      "review": "canonical_test_runner_discovery"
+    },
+    {
+      "source": "packages/state/src/mutation/t32b-wire-transitive.test.ts",
+      "decision": "move",
+      "destinations": [
+        "packages/state/test/mutation/t32b-wire-transitive.test.ts"
+      ],
+      "review": "canonical_test_runner_discovery"
+    },
+    {
+      "source": "packages/state/src/ports/data-plane.test.ts",
+      "decision": "move",
+      "destinations": [
+        "packages/state/test/ports/data-plane.test.ts"
+      ],
+      "review": "canonical_test_runner_discovery"
+    },
+    {
+      "source": "packages/state/src/ports/t32b-read.test.ts",
+      "decision": "move",
+      "destinations": [
+        "packages/state/test/ports/t32b-read.test.ts"
+      ],
+      "review": "canonical_test_runner_discovery"
+    },
+    {
+      "source": "packages/state/src/query/t32b-fence.test.ts",
+      "decision": "move",
+      "destinations": [
+        "packages/state/test/query/t32b-fence.test.ts"
+      ],
+      "review": "canonical_test_runner_discovery"
+    },
+    {
+      "source": "packages/state/src/storage/data-plane-durable.test.ts",
+      "decision": "move",
+      "destinations": [
+        "packages/state/test/storage/data-plane-durable.test.ts"
+      ],
+      "review": "canonical_test_runner_discovery"
+    },
+    {
+      "source": "packages/work/src/dispatch/t32b-fence.test.ts",
+      "decision": "move",
+      "destinations": [
+        "packages/work/test/dispatch/t32b-fence.test.ts"
+      ],
+      "review": "canonical_test_runner_discovery"
+    }
+  ],
+  "retained_new_leaves": [
+    "packages/state/src/migration/recover.ts",
+    "packages/state/src/migration/retain.ts"
+  ],
+  "gates": [
+    {
+      "id": "R04",
+      "status": "defect independently confirmed; exact scope producer API unresolved",
+      "dependent_packets": [
+        "R-P04",
+        "R-P06 scope extraction",
+        "R-P07 transitive driver closure"
+      ]
+    },
+    {
+      "id": "T33/T34",
+      "status": "fanout requirement/decision gate",
+      "dependent_packets": [
+        "fanout emission",
+        "fanout durable lineage/cancellation/recovery"
+      ]
+    }
+  ],
+  "gaps": [
+    "Test source coverage is whole-text structural decoding with focused raw fixture/assertion reads, not independent line-by-line review of every new test body.",
+    "No tests, builds, staging, installed journeys or external mutations executed in this audit.",
+    "Earlier reported producer execution evidence is retained only at its original run/substrate scope, not advanced to pinned HEAD.",
+    "Installed compiled authority, frozen now retry, provider ambiguity and maintenance interruption require the named implementation verification.",
+    "Skill references/procedure.md, references/records.md, references/scheduling.md and scripts/check_artifacts.py do not exist in installed skill directory."
+  ],
+  "performed_checks": {
+    "source_read": true,
+    "structural_decode": true,
+    "hash_catalog": true,
+    "tests_executed": false,
+    "build_executed": false,
+    "checker_executed": false,
+    "source_mutation": false,
+    "git_mutation": false,
+    "json_parse": true,
+    "review_markdown_local_links": "all_valid_read_only_Path_resolution; not_missing_skill_checker"
+  },
+  "pin_drift_reconciliation": {
+    "from_pin": "350163ad661e61b667809a5f78b608c23812a5f0",
+    "to_pin": "9830ba93951ded193b13bcbfb9eaea04e6252d24",
+    "global_checkpoint_advanced": false,
+    "follows_future_head": false,
+    "inspected": [
+      {
+        "path": "packages/work/src/observation/association.ts",
+        "pinned_sha256": "6d698b57864341b570cec9abd6c5c2497f036dd95c851034f6dac40d7ba3157a",
+        "lines": 321,
+        "inspection": "production_delta_read_from_fixed_git_objects"
+      },
+      {
+        "path": "packages/work/src/observation/observation.ts",
+        "pinned_sha256": "f4393f7e9cab01d31eb04a650bd130d4d0c50c0c4b5b67a88a0fb1974762dfce",
+        "lines": 384,
+        "inspection": "production_delta_read_from_fixed_git_objects"
+      },
+      {
+        "path": "packages/work/src/observation/ports.ts",
+        "pinned_sha256": "f139df952bc72b77ec14eab6050291ab3a138e1eba6c071e95ba3323ee35056e",
+        "lines": 153,
+        "inspection": "production_delta_read_from_fixed_git_objects"
+      },
+      {
+        "path": "packages/work/src/observation/t25a-progress.test.ts",
+        "pinned_sha256": "d82294695f54aee8dc6041378fbcacb5c56905b46ca2c37fc57788f39635ec1e",
+        "lines": 426,
+        "inspection": "whole_text_structural_decode_with_focused_fixture_reads",
+        "structural_test_names": [
+          "advances both records to the progress revision with its payload",
+          "replays equal revisions idempotently",
+          "ignores extra envelope fields beyond the progress keys",
+          "normalizes missing payload keys to null",
+          "refuses older revisions without touching either record",
+          "refuses superseded-attempt progress: old attempts keep their own receipts",
+          "refuses foreign sources",
+          "refuses malformed progress without throwing",
+          "refuses inconsistent envelopes without throwing",
+          "checks correlation before consistency",
+          "matches the correlation verdict of matchAssociatedCompletion",
+          "rejects misshapen associations and receipts",
+          "rejects foreign receipts and revision skew",
+          "never mutates its inputs",
+          "replaces the association without letting stale progress overwrite it"
+        ],
+        "imports": [
+          "node:test",
+          "node:assert/strict",
+          "./association.ts",
+          "./observation.ts",
+          "./observation.ts"
+        ]
+      },
+      {
+        "path": "packages/work/src/observation/t25a-selected.test.ts",
+        "pinned_sha256": "f11881259b78ad570b93cf1b6ef23827b6576a440cf00ef76fd1334e7380f613",
+        "lines": 640,
+        "inspection": "whole_text_structural_decode_with_focused_fixture_reads",
+        "structural_test_names": [
+          "resolves the live record object and the plain field name",
+          "rejects non-object locators",
+          "rejects a text id as the record: there is no string-ID lookup",
+          "rejects null, missing and non-object records",
+          "rejects smuggled locator keys instead of ignoring them",
+          "rejects empty, missing, non-string and traversal fields",
+          "authorizes a fully granted selection",
+          "denies the whole read when any selected leaf is denied",
+          "consults the port exactly once per unique leaf, including id/status",
+          "rejects empty, unknown and non-array selections",
+          "projects precisely the unique selected keys",
+          "projects an empty object for an empty selection",
+          "rejects unknown and non-array selections",
+          "enrolls status/result/error and skips id-only reads",
+          "rejects unknown and non-array selections",
+          "observes exactly the granted status leaf with its fence revision",
+          "projects a granted subset even under a full grant",
+          "denies a wider selection under a status-only grant",
+          "denies id reads under a status-only grant",
+          "reads id-only without a fence enrollment",
+          "returns null-association for a granted unassociated read",
+          "denies an unassociated read instead of returning null",
+          "keeps the granted result key present-but-null when withheld",
+          "returns snapshots: later store changes never rewrite a projection",
+          "never accepts a projection back as a locator",
+          "rejects null disagreement and foreign or skewed rows",
+          "rejects malformed locators, selections and clocks",
+          "pins the enrolled revision to the stored and echoed revisions",
+          "pins delivery ids to the dispatch outbox id shape",
+          "pins the enrolled revision to the fence checkpoint slot"
+        ],
+        "imports": [
+          "node:test",
+          "node:assert/strict",
+          "../dispatch/index.ts",
+          "./association.ts",
+          "./observation.ts"
+        ]
+      },
+      {
+        "path": "packages/work/src/receipt/index.ts",
+        "pinned_sha256": "4c40374880b6cfb8a7d405ff00ef869e1f4672ae567faac06be1c19b70f925bf",
+        "lines": 381,
+        "inspection": "production_delta_read_from_fixed_git_objects"
+      },
+      {
+        "path": "packages/work/src/receipt/t25a-consistency.test.ts",
+        "pinned_sha256": "f0863fe68e4c916c3fda5287d7e59e61367b6ae593010e7197a7b0c24811c467",
+        "lines": 146,
+        "inspection": "whole_text_structural_decode_with_focused_fixture_reads",
+        "structural_test_names": [
+          "accepts succeeded with a result and a null error",
+          "accepts succeeded with a genuinely-null result",
+          "accepts failed with a null result and a closed error",
+          "accepts unknown with a null result and a diagnostic error or null",
+          "accepts skipped with nulls",
+          "refuses succeeded carrying an error",
+          "refuses failed carrying a result or missing its error",
+          "refuses unknown carrying a result",
+          "refuses skipped carrying a result or an error",
+          "refuses pending: a receipt is never progress",
+          "refuses unknown statuses without throwing",
+          "refuses malformed errors without throwing",
+          "reads missing payload keys as null",
+          "accepts the closed string-pair error shape only",
+          "refuses failed errors carrying extras",
+          "refuses unknown diagnostic errors carrying extras",
+          "admits only the exact {code, message} pair, so retained observations never carry extras"
+        ],
+        "imports": [
+          "node:test",
+          "node:assert/strict",
+          "./index.ts"
+        ]
+      }
+    ],
+    "test_allocations": [
+      {
+        "source": "packages/work/src/observation/t25a-progress.test.ts",
+        "decision": "move",
+        "destinations": [
+          "packages/work/test/observation/t25a-progress.test.ts"
+        ],
+        "review": "canonical_work_runner_discovery"
+      },
+      {
+        "source": "packages/work/src/observation/t25a-selected.test.ts",
+        "decision": "move",
+        "destinations": [
+          "packages/work/test/observation/t25a-selected.test.ts"
+        ],
+        "review": "canonical_work_runner_discovery"
+      },
+      {
+        "source": "packages/work/src/receipt/t25a-consistency.test.ts",
+        "decision": "move",
+        "destinations": [
+          "packages/work/test/receipt/t25a-consistency.test.ts"
+        ],
+        "review": "canonical_work_runner_discovery"
+      }
+    ],
+    "retained_defining_files": [
+      "packages/work/src/observation/association.ts",
+      "packages/work/src/observation/observation.ts",
+      "packages/work/src/observation/ports.ts",
+      "packages/work/src/receipt/index.ts"
+    ],
+    "workflow_status": "T25 pure selected locator/authorization/projection/progress/consistency helpers delivered at source; L1/L3 storage/authority/fence joins pending",
+    "production_caller_search": "fixed Git object search found helpers only in definitions and tests",
+    "independent_challenge": "compiler reviewer requested; pending reply",
+    "new_obligations": [
+      "T18 producer contract then admitted record/field binding, actual actor grants, association persistence and selected read fence enrollment",
+      "Establish adapter equal-revision identical-content guarantee or reject conflicting replay",
+      "T26 terminal semantics remain separate",
+      "Move three new colocated tests into canonical runner discovery"
+    ],
+    "overlay_caveat": {
+      "path": "implementation/challenge-audit-run/t33-resolution.md",
+      "working_sha256": "b4a310ce2e3d9eccbc2d6a8c98381d531897ff0ce76feaed84a3d84490d59d05",
+      "tracked_status": "untracked at root bounded overlay capture",
+      "inspection": "full_requested_resolution_body",
+      "supersedes": "historical R07 missing-companion-context premise; no production population cap evidence required to preserve complete finite cohort contract",
+      "direction": "durable per-child with authoritative membership/identity/atomic checkpoint/recovery proof plan",
+      "gate": "G01 corrected inputs and ratified owner handoff/incorporation plus actual producers/proofs",
+      "evidence_limit": "corrected triple results reported by resolution/root; handoff/incorporation and actual fanout producers not certified; no fanout substrate at reviewed pins"
+    },
+    "performed_checks": {
+      "source_delta_read": true,
+      "test_structural_decode": true,
+      "tests_executed": false,
+      "build_executed": false,
+      "source_mutation": false,
+      "git_mutation": false
+    }
+  }
+}
