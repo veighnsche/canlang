@@ -46,5 +46,15 @@ jobs:
       - name: Install workspace
         working-directory: .
         run: bun install --frozen-lockfile
+      - name: Build consumed contracts
+        working-directory: .
+        run: bun run build --filter=@canlang/contracts
+      - name: Build work and files producers
+        working-directory: .
+        run: |
+          case '${{ matrix.package }}' in
+            work) bun run build --filter=@canlang/state ;;
+            files) bun run build --filter=@canlang/services ;;
+          esac
       - run: bun run typecheck
       - run: bun run test

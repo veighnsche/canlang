@@ -1,7 +1,6 @@
 # Lane 07 integration gate: whole-repo health across lanes.
 # Lane workflows (*lane-0N.yml*) stay with their owners; this file runs the
-# shared workspace checks plus the stdlib-only language tools. It grows with
-# the B1 join (compiled-app execution over local workerd).
+# complete workspace test graph plus the stdlib-only language tools.
 name: integration
 
 on:
@@ -17,24 +16,46 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: "22"
+          node-version: "24"
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version: "1.4.2"
+      - uses: dtolnay/rust-toolchain@89b12181fb390509a0842a86cc55eeb8eb928c1d
+        with:
+          toolchain: "1.99.0"
       - name: Install from lock
         run: bun install --frozen-lockfile
-      - name: Build lane-07 packages
+      - name: Build workspace packages
         run: bun run build
-      - name: Typecheck lane-07 sources and assembly
+      - name: Check declared package boundaries
+        run: bun run check:boundaries
+      - name: Test package boundary guard
+        run: bun run test:boundaries
+      - name: Test CI gates and receipt verification
+        run: bun run test:ci
+      - name: Typecheck workspace assembly
         run: bun run typecheck
-      - name: Test lane-07 suites (incl. local workerd smoke)
-        run: bun run test
+      - name: Build native preparation test prerequisite
+        # Private debug binary for existing tests; never packed into releases.
+        env:
+          CARGO_TARGET_DIR: ${{ runner.temp }}/can-integration-preparation
+        run: cargo +1.99.0 build --locked --bin can-preparation --manifest-path packages/cloudflare/preparation/Cargo.toml
+      - name: Generate catalog for emission fixture
+        run: bun run catalog
+      - name: Test all package and integration suites
+        env:
+          CAN_PREPARATION_BIN: ${{ runner.temp }}/can-integration-preparation/debug/can-preparation
+        run: bun run test:all
+      - name: Verify installed package declarations
+        run: bun run verify:installed-types --skip-build
+      - name: Verify installed Worker and assets
+        run: bun run verify:installed-worker --skip-build
       - name: Verify deterministic library build (B5 reproducibility)
         run: |
-          set -u
+          set -euo pipefail
           hash_dist() {
             local files
-            files=$(find packages/contracts/dist packages/cloudflare/dist packages/testkit/dist \
+            files=$(find packages/*/dist \
               -type f \( -name '*.js' -o -name '*.d.ts' -o -name '*.map' \) | sort)
             if [ -z "$files" ]; then
               echo "determinism gate: no dist files found" >&2
@@ -42,12 +63,15 @@ jobs:
             fi
             echo "$files" | xargs sha256sum | sha256sum
           }
+          bun run build:uncached
           hash_dist | tee /tmp/build-first.sha
-          rm -rf packages/contracts/dist packages/cloudflare/dist packages/testkit/dist \
+          rm -rf packages/*/dist \
             packages/*/*.tsbuildinfo
-          bun run build
+          bun run build:uncached
           hash_dist | tee /tmp/build-second.sha
           cmp /tmp/build-first.sha /tmp/build-second.sha
+      - name: Verify Turbo graph and cache restoration in isolation
+        run: bun run verify:turbo-cache
 
   tools:
     runs-on: ubuntu-latest
