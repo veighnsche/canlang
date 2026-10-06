@@ -1092,6 +1092,131 @@ describe("T32b fenced dispatch drives (real kernel verdicts)", () => {
     assert.equal(data.attempts, 0);
   });
 
+  it("buckets an unavailable target to the terminal transport member (target + echo, no call/record)", async () => {
+    // D3 transport half: the kernel's exact-keys verdict
+    // `{status,outboxId,target}` maps to the `unavailable` outcome
+    // member. Port stub, not the real kernel: this checkout's work
+    // kernel predates D's availability verdict (9c7b67c), so the
+    // stub returns the D-pinned exact shape verbatim; the
+    // real-kernel join (availability injection plumbing through the
+    // fence input) is a follow-up.
+    const { store } = createTestMemoryStorage();
+    const stack = await workerStack(store);
+    const seed = await seedIdentity();
+    const attemptDispatch = (() => ({
+      status: "unavailable",
+      outboxId: "obx_d1",
+      target: "Mail.send",
+    })) as unknown as FenceAttemptDispatchFn;
+    await stageIntents(stack, [stageInput({ intentId: "obx_d1" })]);
+    const intent = await pendingIntent(stack, "obx_d1");
+    const revisionBefore = await store.readRevision();
+    let providerCalls = 0;
+    const outcome = await driveDispatchIntent({
+      ...driveDefaults(stack, intent),
+      callProvider: (async () => {
+        providerCalls += 1;
+        return deliveredOutcome();
+      }) as DispatchProviderCaller,
+      fence: {
+        owner: seed.teamId,
+        revalidateAuthority: liveAuthority(seed),
+        attemptDispatch,
+      },
+    });
+    assert.equal(outcome.status, "unavailable");
+    if (outcome.status !== "unavailable") throw new Error("unreachable");
+    assert.equal(outcome.target, "Mail.send");
+    assert.equal(providerCalls, 0);
+    assert.deepEqual(outcome.fence, {
+      checkpoint: { revision: revisionBefore + 1, owner: seed.teamId },
+      triggerRevision: null,
+    });
+    const data = readDispatchExecutionRow(await dispatchRow(stack, "obx_d1"));
+    assert.equal(data.state, "claimed");
+    assert.equal(data.claimId, outcome.claimId);
+    assert.equal(data.attempts, 0);
+    assert.deepEqual(await pendingIds(stack), ["obx_d1"]);
+    assert.equal(await store.readRevision(), revisionBefore + 1);
+  });
+
+  it("buckets unavailable BEFORE the guard (guard never evaluates, no skip ceremony)", async () => {
+    const { store } = createTestMemoryStorage();
+    const stack = await workerStack(store);
+    const seed = await seedIdentity();
+    const attemptDispatch = (() => ({
+      status: "unavailable",
+      outboxId: "obx_d2",
+      target: "Mail.send",
+    })) as unknown as FenceAttemptDispatchFn;
+    await stageIntents(stack, [
+      stageInput({ intentId: "obx_d2", guard: "eligible()", guardVerdict: true }),
+    ]);
+    const intent = await pendingIntent(stack, "obx_d2");
+    let guardEvals = 0;
+    let providerCalls = 0;
+    const outcome = await driveDispatchIntent({
+      ...driveDefaults(stack, intent),
+      evaluateGuard: () => {
+        guardEvals += 1;
+        return false;
+      },
+      readStateSnapshot: () => ({ eligible: false }),
+      callProvider: (async () => {
+        providerCalls += 1;
+        return deliveredOutcome();
+      }) as DispatchProviderCaller,
+      fence: {
+        owner: seed.teamId,
+        revalidateAuthority: liveAuthority(seed),
+        attemptDispatch,
+      },
+    });
+    // Unavailable precedes the guard: bucketed, NOT skipped — and
+    // the guard NEVER evaluated (a skip would ack + pin false).
+    assert.equal(outcome.status, "unavailable");
+    assert.equal(guardEvals, 0);
+    assert.equal(providerCalls, 0);
+    assert.deepEqual(await pendingIds(stack), ["obx_d2"]);
+    const data = readDispatchExecutionRow(await dispatchRow(stack, "obx_d2"));
+    assert.equal(data.guardVerdict, true);
+    assert.equal(data.attempts, 0);
+  });
+
+  it("refuses unavailable verdicts naming another intent or missing the target (skew tripwires)", async () => {
+    const { store } = createTestMemoryStorage();
+    const stack = await workerStack(store);
+    const seed = await seedIdentity();
+    await stageIntents(stack, [
+      stageInput({ intentId: "obx_d3a" }),
+      stageInput({ intentId: "obx_d3b" }),
+      stageInput({ intentId: "obx_d3c" }),
+    ]);
+    for (const [name, intentId, verdict, pattern] of [
+      ["wrong-intent", "obx_d3a", { status: "unavailable", outboxId: "obx_other", target: "Mail.send" }, /names another intent/],
+      ["missing-target", "obx_d3b", { status: "unavailable", outboxId: "obx_d3b" }, /lost its outboxId\/target/],
+      ["empty-target", "obx_d3c", { status: "unavailable", outboxId: "obx_d3c", target: "" }, /lost its outboxId\/target/],
+    ] as const) {
+      // Fresh intent per case: the skew throw lands AFTER the claim
+      // wins, so a reused intent would drive held, not skewed.
+      const intent = await pendingIntent(stack, intentId);
+      const attemptDispatch = (() => verdict) as unknown as FenceAttemptDispatchFn;
+      await assert.rejects(
+        () =>
+          driveDispatchIntent({
+            ...driveDefaults(stack, intent),
+            fence: {
+              owner: seed.teamId,
+              revalidateAuthority: liveAuthority(seed),
+              attemptDispatch,
+            },
+          }),
+        pattern,
+        name,
+      );
+    }
+  });
+
   it("ignores authority without a fence (exact pre-T32b behavior)", async () => {
     const { store } = createTestMemoryStorage();
     const stack = await workerStack(store);
@@ -1749,6 +1874,132 @@ describe("T32c C2 self-cancel netting verdict (B1, production shape)", () => {
       ["create", "update", "archive"],
     );
     assert.deepEqual(mod.calls, ["updateRemove"]);
+  });
+});
+
+/* ------------------------------------------------------------------ */
+/* R01: validate-before-retry pins (committed repro collateral).       */
+/*                                                                     */
+/* The C3 strip retry drops delivery-kind op inputs after the          */
+/* loader's delivery-kind rejection — but the loader's kind gate       */
+/* precedes its envelope checks, so without pre-retry validation a     */
+/* malformed additive envelope on a delivery input would be             */
+/* silently dropped and the set would load. These pins hold the        */
+/* repaired boundary through the public                                */
+/* `loadCanonicalDescriptors(asm, artifact)`: (a) valid delivery       */
+/* still loads via the retry, (b) ordinary unknown kinds still        */
+/* reject without retry, (d) the same malformation on a carried        */
+/* input rejects (control), (c)/(c2) malformed delivery envelopes      */
+/* reject with the loader's own class + vocabulary.                    */
+/* ------------------------------------------------------------------ */
+
+/** Verbatim T15b-pinned delivery descriptor (artifact-operations RETRY shape). */
+function r01DeliveryField(): Record<string, unknown> {
+  return {
+    name: "attempt",
+    field: {
+      kind: "delivery",
+      capability: "std.EmailV1",
+      operation: "send",
+      version: 1,
+      result: { name: "EmailAccepted", fields: [{ name: "reference", type: "text" }] },
+    },
+    required: false,
+  };
+}
+
+function r01WithScenarioField(
+  artifact: CompileArtifact,
+  field: Record<string, unknown>,
+): CompileArtifact {
+  const clone = JSON.parse(JSON.stringify(artifact)) as {
+    operations: Array<Record<string, unknown>>;
+  };
+  const op = clone.operations.find((entry) => entry["name"] === "acme.Probe.selfCancel");
+  assert.ok(op !== undefined, "c2 artifact carries acme.Probe.selfCancel");
+  const inputs = op["inputs"] as Record<string, unknown>;
+  (inputs["fields"] as Array<unknown>).push(field);
+  return clone as unknown as CompileArtifact;
+}
+
+async function r01LoadRejection(
+  asm: AssembledModules,
+  artifact: CompileArtifact,
+): Promise<{ name: string; reason: unknown; message: string }> {
+  try {
+    await loadCanonicalDescriptors(asm, artifact);
+  } catch (error) {
+    assert.ok(error instanceof Error, "loader rejects with an Error");
+    const holder = error as unknown as { name?: unknown; reason?: unknown };
+    assert.equal(typeof holder.name, "string");
+    return { name: holder.name as string, reason: holder.reason, message: error.message };
+  }
+  assert.fail("load must reject");
+}
+
+describe("R01 validate-before-retry (dropped delivery envelopes prove pre-strip)", () => {
+  it("(a) valid delivery input loads via the strip retry", async () => {
+    const { asm, artifact } = await c2Setup();
+    const loaded = await loadCanonicalDescriptors(asm, r01WithScenarioField(artifact, r01DeliveryField()));
+    assert.ok(loaded.registry.has("acme.Probe.selfCancel"), "scenario op loads stripped");
+    assert.ok(loaded.deliveryFields.has("Shop.Team"), "model schema intact");
+  });
+
+  it("(b) ordinary unknown input kind rejects without retry", async () => {
+    const { asm, artifact } = await c2Setup();
+    const rejection = await r01LoadRejection(
+      asm,
+      r01WithScenarioField(artifact, { name: "x", field: { kind: "bogus" }, required: true }),
+    );
+    assert.equal(rejection.name, "IncompatibleArtifactError");
+    assert.equal(rejection.reason, "unknown_input_kind");
+    assert.match(rejection.message, /Unknown input kind "bogus"/);
+  });
+
+  it("(d) control: malformed array marker on a carried input rejects", async () => {
+    const { asm, artifact } = await c2Setup();
+    const rejection = await r01LoadRejection(
+      asm,
+      r01WithScenarioField(artifact, {
+        name: "s",
+        field: { kind: "string" },
+        required: true,
+        array: { required: "invalid" },
+      }),
+    );
+    assert.equal(rejection.name, "IncompatibleArtifactError");
+    assert.equal(rejection.reason, "malformed_descriptor");
+    assert.match(rejection.message, /array markers carry a boolean required/);
+  });
+
+  it("(c) delivery input with a malformed array marker rejects (no laundering)", async () => {
+    const { asm, artifact } = await c2Setup();
+    const field = r01DeliveryField();
+    field["array"] = { required: "invalid" };
+    const rejection = await r01LoadRejection(asm, r01WithScenarioField(artifact, field));
+    assert.equal(rejection.name, "IncompatibleArtifactError");
+    assert.equal(rejection.reason, "malformed_descriptor");
+    assert.match(rejection.message, /array markers carry a boolean required/);
+  });
+
+  it("(c2) delivery input with a non-boolean required rejects (no laundering)", async () => {
+    const { asm, artifact } = await c2Setup();
+    const field = r01DeliveryField();
+    field["required"] = "yes";
+    const rejection = await r01LoadRejection(asm, r01WithScenarioField(artifact, field));
+    assert.equal(rejection.name, "IncompatibleArtifactError");
+    assert.equal(rejection.reason, "malformed_descriptor");
+    assert.match(rejection.message, /required must be a boolean/);
+  });
+
+  it("(c3) delivery input with an unknown default kind rejects in loader vocabulary", async () => {
+    const { asm, artifact } = await c2Setup();
+    const field = r01DeliveryField();
+    field["default"] = { kind: "bogus" };
+    const rejection = await r01LoadRejection(asm, r01WithScenarioField(artifact, field));
+    assert.equal(rejection.name, "IncompatibleArtifactError");
+    assert.equal(rejection.reason, "unknown_default_kind");
+    assert.match(rejection.message, /Unknown default kind "bogus"/);
   });
 });
 
