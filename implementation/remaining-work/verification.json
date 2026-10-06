@@ -1,0 +1,287 @@
+{
+  "schema_version": 1,
+  "verified_at": "2026-10-06T18:58:55.627974+02:00",
+  "base_commit": "7fd8c6bf4717feeffc70b46819377b74b353e117",
+  "source_verification_pin": "fdb059c634c32c83760f35dd9175f49d9821762d",
+  "mode": "Planning reconciliation only. No new product tests/builds, implementation, goals, sessions, timers or task dispatch.",
+  "result": "pass",
+  "checks": {
+    "exact_333_unique_identities": true,
+    "exact_canonical_and_auxiliary_identity_sets": true,
+    "exact_ten_original_auxiliary_identities": true,
+    "all_declared_dependency_identities_exist": true,
+    "complete_rows_have_no_new_remaining_actions": true,
+    "required_open_rows_have_concrete_remaining_actions": true,
+    "all_original_acceptance_clauses_available": true,
+    "no_new_dispatch_or_assignments": true,
+    "preparation_port_human_hold_retained": true,
+    "canonical_dispositions_dependencies_actions_contracts_acceptance_preserved": true,
+    "exact_port_230_with_220_required": true,
+    "all_current_evidence_and_source_paths_exist": true,
+    "source_hashes_match_observed_inputs": true,
+    "generated_markdown_links_resolve": true,
+    "doc05_current_actions_and_acceptance_do_not_claim_active_run": true,
+    "original_implementation_and_complete_checkpoint_unadvanced": true,
+    "expected_counts": true,
+    "all_output_text_has_no_trailing_whitespace": true,
+    "main_head_unchanged": true,
+    "independent_review_has_no_open_findings": true,
+    "independent_review_pins_match_final_outputs": true
+  },
+  "counts": {
+    "all_source_identities": 333,
+    "canonical_DAG_records": 323,
+    "original_auxiliary_gate_handoff_records": 10,
+    "statuses": {
+      "complete": 83,
+      "needs_verification": 23,
+      "held": 22,
+      "not_started": 99,
+      "partial": 101,
+      "deferred": 5
+    },
+    "required_total": 319,
+    "required_remaining": 236,
+    "required_complete": 83,
+    "accepted_conditional_remaining": 9,
+    "deferred_records": 5,
+    "per_namespace": {
+      "challenge": {
+        "total": 51,
+        "statuses": {
+          "complete": 19,
+          "needs_verification": 6,
+          "partial": 23,
+          "not_started": 3
+        }
+      },
+      "description": {
+        "total": 8,
+        "statuses": {
+          "complete": 7,
+          "partial": 1
+        }
+      },
+      "ports": {
+        "total": 230,
+        "statuses": {
+          "complete": 54,
+          "needs_verification": 14,
+          "held": 22,
+          "not_started": 86,
+          "partial": 50,
+          "deferred": 4
+        }
+      },
+      "finished-product": {
+        "total": 37,
+        "statuses": {
+          "partial": 27,
+          "needs_verification": 3,
+          "not_started": 7
+        }
+      },
+      "documentation": {
+        "total": 7,
+        "statuses": {
+          "complete": 3,
+          "not_started": 3,
+          "deferred": 1
+        }
+      }
+    },
+    "port_manifest": {
+      "total": 230,
+      "required": 220,
+      "conditional_or_deferred": 10
+    }
+  },
+  "independent_review": {
+    "reviewer": "independent remaining_product reviewer",
+    "scope": "Clean-room challenge of assembled remaining-work deliverable against original identities/contracts/current source. No full new audit or implementation.",
+    "result": "pass_no_material_findings_remaining",
+    "reviewed_hashes": {
+      "implementation/REMAINING-WORK.md": "444970e958d4ea3e2ba55e1334859a6f58fa68a37a7b910349172f64a47f48b9",
+      "implementation/remaining-work/product.md": "884ea768c8fbd16a3be163adcdf448716aa62ea8c4f25718b1c6d194aaac3af1",
+      "implementation/remaining-work/challenge.md": "298375215059f2682240bd427bc0e0c19eba6f814ba12d4a8f6a286206939b97",
+      "implementation/remaining-work/rust-ports.md": "506a31700e5ea2deb7234abf7c0c98e022db55f27f36bbb7ebfef462aecea0ea",
+      "implementation/remaining-work/tasks.json": "cd01ebb2276e9bbd362085070b985811543f4bcb1d7ad0d0ac0530d3092bc3f4",
+      "implementation/remaining-work/traceability.json": "7536b89f3ad21abbcc5b216f39f34cf031501b0f1bef37a3d91245cc4b75e8d5"
+    },
+    "checks": {
+      "exact_total_identities": true,
+      "unique_namespaced_source_ids": true,
+      "canonical_323_exact_coverage": true,
+      "original_auxiliary_exact": true,
+      "no_missing_dependency_ids": true,
+      "canonical_dispositions_preserved": true,
+      "port_required_and_conditional_deferred": "230 total,220 REQUIRED,6 ACCEPTED-CONDITIONAL,4 DEFERRED; plus DOC03–05 conditional/DOC06 deferred.",
+      "open_required_rows_have_concrete_actions": true,
+      "completed_rows_not_reassigned": true,
+      "no_execution_authorized": true,
+      "FP37_no_complete": true,
+      "description_accepted_work_credit": "D01–D07 remain complete at scoped historical evidence; D07 includes independent six-defect/locale repair evidence, D08 original documentation credit retained with supplemental closure distinct.",
+      "alias_deduplication": "remaining27,requirement114,historical24 and301 retirement clauses preserved outside333 task count; no count inflation found.",
+      "completed_port_challenge": "Now54 complete ports; W03.1 moved to needs_verification after independent evidence challenge. Other prior narrowly scoped completion credit retained.",
+      "new_source_counterevidence": "Owned-token mutable graph observation explicitly says no production exposure asserted. Current T25/T26 Q2/Q3 source is credited; bundled populated observer acceptance remains separate. Preparation integrity observation remains under incomplete publication adapter, not a deployed exploit claim.",
+      "no_product_execution": "Only read-only filesystem source/record/JSON/link inspections, plus tmp review writes. No build/test/Git/services/source/backlog edits.",
+      "verified_current_counts": {
+        "all_source_identities": 333,
+        "canonical_DAG_records": 323,
+        "original_auxiliary_gate_handoff_records": 10,
+        "statuses": {
+          "complete": 83,
+          "needs_verification": 23,
+          "held": 22,
+          "not_started": 99,
+          "partial": 101,
+          "deferred": 5
+        },
+        "required_total": 319,
+        "required_remaining": 236,
+        "required_complete": 83,
+        "accepted_conditional_remaining": 9,
+        "deferred_records": 5,
+        "per_namespace": {
+          "challenge": {
+            "total": 51,
+            "statuses": {
+              "complete": 19,
+              "needs_verification": 6,
+              "partial": 23,
+              "not_started": 3
+            }
+          },
+          "description": {
+            "total": 8,
+            "statuses": {
+              "complete": 7,
+              "partial": 1
+            }
+          },
+          "ports": {
+            "total": 230,
+            "statuses": {
+              "complete": 54,
+              "needs_verification": 14,
+              "held": 22,
+              "not_started": 86,
+              "partial": 50,
+              "deferred": 4
+            }
+          },
+          "finished-product": {
+            "total": 37,
+            "statuses": {
+              "partial": 27,
+              "needs_verification": 3,
+              "not_started": 7
+            }
+          },
+          "documentation": {
+            "total": 7,
+            "statuses": {
+              "complete": 3,
+              "not_started": 3,
+              "deferred": 1
+            }
+          }
+        },
+        "port_manifest": {
+          "total": 230,
+          "required": 220,
+          "conditional_or_deferred": 10
+        }
+      },
+      "canonical_full_contract_preservation": "All canonical manifest contract strings equal generated source_contract, including all41 challenge/eight description parents.",
+      "original_explicit_acceptance_preservation": "All explicit canonical port/product/documentation source acceptance arrays preserved verbatim in original_acceptance; challenge/description/auxiliary original acceptance and owner scopes now populated (59/59 rows).",
+      "current_evidence_and_markdown_paths": "All existing-evidence paths and generated Markdown links resolve; no phantom conformance files remain.",
+      "status_and_action_integrity": "333 unique source identities,323canonical+10aux,84->83complete,235->236required remaining;9conditional,5deferred; every open required row has actions and completed rows have none; all original dispositions/dependencies preserved.",
+      "final_schema_identity_disposition_contract_action_dependency_path_recheck": "pass",
+      "original_prerequisite_qualifications": "Original challenge/description/auxiliary prerequisite qualifications retained separately from canonical graph dependencies; no current start authorization follows.",
+      "stopped_state_DOC05_current_actions": "pass; original historical statement preserved only as provenance",
+      "final_review_scope": "Read-only current source and record inspections only; no tests/build/Git/service/source changes or checkpoint advance by reviewer.",
+      "final_delivery_pin_refresh": {
+        "result": "pass",
+        "unchanged_semantic_deliverables": [
+          "implementation/remaining-work/product.md",
+          "implementation/remaining-work/challenge.md",
+          "implementation/remaining-work/rust-ports.md",
+          "implementation/remaining-work/traceability.json"
+        ],
+        "index_delta": "Independently proven exact addition of the one verification-link paragraph against prior reviewed hash.",
+        "tasks_delta": "Only generated_at changed according to the author; exact byte-level timestamp-only delta cannot be independently proven because the prior timestamp/content snapshot was not retained. Current canonical identity/contract/acceptance/action/disposition/dependency/count/evidence/no-dispatch invariants independently rechecked and pass.",
+        "verification_record": "19 root planning checks true, counts match current ledger; root will embed refreshed exact reviewer hashes.",
+        "scope": "Final six deliverable pins refreshed; verification.json read, excluded from reviewed_hashes to avoid recursive embedded-hash self-reference."
+      }
+    },
+    "findings": [
+      {
+        "id": "REVIEW-W03-EVIDENCE",
+        "priority": "P2",
+        "state": "resolved",
+        "source_path": "implementation/remaining-work/tasks.json",
+        "tasks": [
+          "ports:W03.1",
+          "ports:W03.2"
+        ],
+        "title": "Work ABI/lifetime evidence cites absent conformance files",
+        "fact": "packages/work-kernel/conformance/facts.test.ts and host-values.test.ts do not exist in current source. rg files lists only rows/retry/every/lifecycle/receipt/recovery/linkage conformance files. W03.1 is marked complete and claims isolated conformance, but searches find validateVersions/validateCount/validatePayloadRef only in source exports, binding code, and the written handoff, not tests. W03.2 partial cites the nonexistent test as historical acceptance and renders a broken link.",
+        "counterevidence": "facts.ts, handoffs/abi.md, bindings/host-values.ts and refs.json do exist. W03.1 is a freeze-types/contract task, so its narrow implementation/contract credit need not be removed if the owner can substantiate that scope. No absence of downstream runtime proof alone is treated as a reason to erase the type handoff.",
+        "remaining_action": "Remove phantom evidence references; identify any actual historical test/owner acceptance proof, or narrow the W03.1 reason to source/type/handoff scope with conformance explicitly unverified. If its promised complete acceptance still depends on conformance/owner approval that cannot be evidenced, mark needs_verification. W03.2 remains partial with actual bindings/refs evidence and explicit missing proof.",
+        "verification": "Regenerated ledger W03.1 is needs_verification, credits fact type/constants/handoff and explicitly says rejection-before-callback conformance unproved; W03.2 source/lifetime scaffold credited with execution proof unproved. Both nonexistent test evidence paths removed."
+      },
+      {
+        "id": "REVIEW-RECEIPT-LINKS",
+        "priority": "P2",
+        "state": "resolved",
+        "source_path": "implementation/remaining-work/challenge.md",
+        "tasks": [
+          "challenge:T25",
+          "challenge:T26"
+        ],
+        "title": "Combined multi-path evidence produces unusable source links",
+        "fact": "Both rows put packages/cloudflare/src/runtime/invoke.ts / packages/cloudflare/src/deploy/bundle.ts / implementation/D3B-OBSERVER-SEAM-CONTRACT.md into one evidence.path. Generated Markdown prepends ../../ to the entire string and points at no file. All three individual paths exist.",
+        "counterevidence": "The accompanying scope correctly credits Q2/Q3, preserves checkout/injected/fail-closed Q4 limits, and retains missing production observer/no-injection qualification. The broken path is not evidence that these source observations are false.",
+        "remaining_action": "Split each multi-path entry into individual evidence records and regenerate three valid links for each task, preserving the exact shared scope text.",
+        "verification": "T25/T26 now have individual existing source-path records; all generated Markdown links and current evidence paths resolve."
+      },
+      {
+        "id": "REVIEW-DOC05-STATE",
+        "priority": "P2",
+        "state": "resolved",
+        "source_path": "implementation/remaining-work/product.md",
+        "tasks": [
+          "documentation:DOC05"
+        ],
+        "title": "Historical active-run statement conflicted with current stopped state",
+        "fact": "Close when acceptance was corrected, but product.md:466 remaining-action bullet still copies Current implementation is active despite historical stopped headers as current text. The machine row remaining_actions retains that same stale sentence. original_acceptance correctly preserves it as historical source.",
+        "remaining_action": "None; preserve corrected current wording and verbatim original provenance.",
+        "verification": "Final regeneration replaces stale sentence in current acceptance and remaining_actions. Raw original_acceptance remains verbatim as historical provenance; current source_state_annotation states it is superseded."
+      }
+    ],
+    "missing_current_evidence_paths": [],
+    "limits": [
+      "Historical execution not rerun; existing command records credited only at their stated scope.",
+      "Read-only source presence and contract/type inspection do not independently prove tests executed or installed runtime adoption.",
+      "No unique accepted obligation omission or duplicate count was found; remaining questions are evidence/reference quality and stale historical status wording."
+    ],
+    "open_findings_count": 0
+  },
+  "output_sha256": {
+    "implementation/REMAINING-WORK.md": "444970e958d4ea3e2ba55e1334859a6f58fa68a37a7b910349172f64a47f48b9",
+    "implementation/remaining-work/tasks.json": "cd01ebb2276e9bbd362085070b985811543f4bcb1d7ad0d0ac0530d3092bc3f4",
+    "implementation/remaining-work/traceability.json": "7536b89f3ad21abbcc5b216f39f34cf031501b0f1bef37a3d91245cc4b75e8d5",
+    "implementation/remaining-work/challenge.md": "298375215059f2682240bd427bc0e0c19eba6f814ba12d4a8f6a286206939b97",
+    "implementation/remaining-work/rust-ports.md": "506a31700e5ea2deb7234abf7c0c98e022db55f27f36bbb7ebfef462aecea0ea",
+    "implementation/remaining-work/product.md": "884ea768c8fbd16a3be163adcdf448716aa62ea8c4f25718b1c6d194aaac3af1"
+  },
+  "limitations": [
+    "Completion is credited only at the original declared task/slice scope.",
+    "Historical execution evidence retains its revision, consumer and host limits.",
+    "Source-only observations do not establish an executed production exposure.",
+    "This list retains parent and acceptance identities; the remaining record count is not an independent coding-job count.",
+    "All Muse workers remain stopped, root heartbeat PAUSED, and the preparation-port human HOLD retained.",
+    "The complete source-review checkpoint and original execution checklists are unchanged."
+  ]
+}
