@@ -5,14 +5,17 @@
   "checkpoint_advanced": false,
   "initial_main": "2b22cb4ecf637cce4bf90a17238cce12de045ba4",
   "current_merge": {
-    "branch": "codex/remaining-lane-e-interfaces",
-    "tip": "124549269653fa1d96404181e1916d6aa99e0576",
-    "before": "f834f18b0fe2e3d0cf3a80cdc80bbf1b195fc149",
-    "scope": "browser assets producer; route mounting and product joins remain incomplete",
+    "branch": "codex/remaining-lane-f-ui",
+    "tip": "6c02fcedff8f7b3cd0a94cc5806ff3b56c621dca",
+    "before": "9ee67afcb7e4c0538dc11bcb53dcb075c0023ea6",
+    "scope": "browser client and polling; full binder/installed workflow acceptance remains incomplete",
     "merge_output": "Automatic merge went well; stopped before committing as requested\n",
     "source_delta": [
-      "A\tpackages/interfaces/src/http/assets.ts",
-      "A\tpackages/interfaces/test/browser-assets.test.ts"
+      "M\tpackages/ui/package.json",
+      "A\tpackages/ui/scripts/build-browser.mjs",
+      "A\tpackages/ui/src/browser/bootstrap.ts",
+      "A\tpackages/ui/src/browser/polling.ts",
+      "A\tpackages/ui/src/browser/style.css"
     ]
   },
   "previous_merges": [
@@ -41,6 +44,18 @@
         "A\tdocs/research/package-subsystem-ports-20261006/implementation-plans/input-validation.audit.md"
       ],
       "result": "f834f18b0fe2e3d0cf3a80cdc80bbf1b195fc149"
+    },
+    {
+      "branch": "codex/remaining-lane-e-interfaces",
+      "tip": "124549269653fa1d96404181e1916d6aa99e0576",
+      "before": "f834f18b0fe2e3d0cf3a80cdc80bbf1b195fc149",
+      "scope": "browser assets producer; route mounting and product joins remain incomplete",
+      "merge_output": "Automatic merge went well; stopped before committing as requested\n",
+      "source_delta": [
+        "A\tpackages/interfaces/src/http/assets.ts",
+        "A\tpackages/interfaces/test/browser-assets.test.ts"
+      ],
+      "result": "9ee67afcb7e4c0538dc11bcb53dcb075c0023ea6"
     }
   ],
   "accumulated_structural_delta_since_complete_checkpoint": [
@@ -1121,9 +1136,13 @@
     "A\tpackages/testkit/test/emitted-scope.test.ts",
     "A\tpackages/testkit/test/fixtures.test.ts",
     "M\tpackages/ui/package.json",
+    "A\tpackages/ui/scripts/build-browser.mjs",
+    "A\tpackages/ui/src/browser/bootstrap.ts",
     "A\tpackages/ui/src/browser/export.ts",
     "A\tpackages/ui/src/browser/instrumentation.ts",
+    "A\tpackages/ui/src/browser/polling.ts",
     "A\tpackages/ui/src/browser/print.ts",
+    "A\tpackages/ui/src/browser/style.css",
     "M\tpackages/ui/src/catalog.ts",
     "A\tpackages/ui/src/client.ts",
     "A\tpackages/ui/src/csv/confirm.ts",
