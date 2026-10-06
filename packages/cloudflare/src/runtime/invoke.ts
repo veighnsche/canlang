@@ -2963,6 +2963,12 @@ export const RECEIPT_READ_OPERATION = "Receipt.read";
 
 const STATE_RECEIPT_JOIN_SPECIFIER = "../../../state/dist/state/src/receipt/join.js";
 const STATE_RECEIPT_WORK_LOADER_SPECIFIER = "../../../state/dist/state/src/receipt/work-loader.js";
+/**
+ * Q2: B's worker-safe observer module (SEAM CONTRACT — absent until
+ * the B-half lands; F's Q3 rewrite maps it to
+ * `vendor/state/receipt/observer.js`).
+ */
+const STATE_RECEIPT_OBSERVER_SPECIFIER = "../../../state/dist/state/src/receipt/observer.js";
 
 /**
  * D3b: 1:1 served selected-receipt outcome (E wire-half contract).
@@ -3001,9 +3007,21 @@ export interface SelectedReceiptFence {
   }): void;
 }
 
+/**
+ * Q2: injected production observer (per-call binding, mirroring the
+ * `invokeReadCanonical` pattern). When present, serving uses it
+ * directly and touches NEITHER the observer module NOR the
+ * work-loader leg — the production leg without B's module landed.
+ */
+export interface SelectedReceiptObserverBinding {
+  readonly observeSelectedReceipt: (input: unknown) => unknown;
+}
+
 export interface SelectedReceiptReadOpts {
   readonly asm: AssembledModules;
   readonly artifact: CompileArtifact;
+  /** Q2: injected observer wins over module resolution (production leg). */
+  readonly observer?: SelectedReceiptObserverBinding;
   /** Must be `Receipt.read` (routing assert — skew tripwire otherwise). */
   readonly operation: string;
   readonly inputs: Record<string, unknown>;
@@ -3037,6 +3055,18 @@ interface StateReceiptWorkLoaderProducer {
   loadWorkReceiptFns(): Promise<{
     readonly observeSelectedReceipt: (input: unknown) => unknown;
   }>;
+}
+
+/**
+ * Q2 SEAM CONTRACT (B-half input — see
+ * `implementation/D3B-OBSERVER-SEAM-CONTRACT.md`): structural view of
+ * B's worker-safe observer module
+ * (`packages/state/src/receipt/observer.ts`, zero node imports).
+ * Same observer shape as the work-loader leg, new module + loader
+ * name so production never touches the TEST-ONLY bridge.
+ */
+export interface StateReceiptObserverProducer {
+  loadSelectedReceiptObserver(): Promise<SelectedReceiptObserverBinding>;
 }
 
 const RECEIPT_READ_INPUT_KEYS: ReadonlyArray<string> = ["recordId", "field", "selected"];
@@ -3247,7 +3277,49 @@ export function mapReceiptJoinOutcome(outcome: unknown): SelectedReceiptServed {
  * ONLY the string id — the join re-loads the CURRENT row) -> 1:1
  * outcome mapping. Reads commit nothing and receipt nothing. Caller
  * errors are `StateError`; skew is loud plain `Error`.
+ *
+ * Q2 observer resolution (ordered, loud at the end): an injected
+ * `opts.observer` wins outright (production leg / assembly binding);
+ * else B's worker-safe observer module when present (production leg
+ * once B lands + F vendors/rewrites); else the TEST-ONLY work-loader
+ * leg (checkout/dev until then). When NEITHER module resolves — the
+ * worker before the B+F halves — the work-loader leg throws its
+ * existing loud t16b error: refusal, never a silent fallback.
  */
+async function resolveReceiptObserver(
+  injected: SelectedReceiptReadOpts["observer"],
+): Promise<(input: unknown) => unknown> {
+  if (injected !== undefined) return injected.observeSelectedReceipt;
+  try {
+    const observerMod = await loadProducerModule(
+      STATE_RECEIPT_OBSERVER_SPECIFIER,
+      "state receipt observer producer",
+    );
+    const loadSelectedReceiptObserver = requireProducerFn(
+      observerMod,
+      "loadSelectedReceiptObserver",
+      "state receipt observer producer",
+    ) as unknown as StateReceiptObserverProducer["loadSelectedReceiptObserver"];
+    const { observeSelectedReceipt } = await loadSelectedReceiptObserver();
+    if (typeof observeSelectedReceipt !== "function") {
+      throw new Error(`t16b: state receipt observer producer served no observeSelectedReceipt function`);
+    }
+    return observeSelectedReceipt as (input: unknown) => unknown;
+  } catch {
+    const loaderMod = await loadProducerModule(
+      STATE_RECEIPT_WORK_LOADER_SPECIFIER,
+      "state receipt work-loader producer",
+    );
+    const loadWorkReceiptFns = requireProducerFn(
+      loaderMod,
+      "loadWorkReceiptFns",
+      "state receipt work-loader producer",
+    ) as unknown as StateReceiptWorkLoaderProducer["loadWorkReceiptFns"];
+    const { observeSelectedReceipt } = await loadWorkReceiptFns();
+    return observeSelectedReceipt;
+  }
+}
+
 export async function invokeSelectedReceiptRead(
   opts: SelectedReceiptReadOpts,
 ): Promise<SelectedReceiptServed> {
@@ -3318,16 +3390,7 @@ export async function invokeSelectedReceiptRead(
     "observeSelectedReceiptJoin",
     "state receipt join producer",
   ) as unknown as StateReceiptJoinProducer["observeSelectedReceiptJoin"];
-  const loaderMod = await loadProducerModule(
-    STATE_RECEIPT_WORK_LOADER_SPECIFIER,
-    "state receipt work-loader producer",
-  );
-  const loadWorkReceiptFns = requireProducerFn(
-    loaderMod,
-    "loadWorkReceiptFns",
-    "state receipt work-loader producer",
-  ) as unknown as StateReceiptWorkLoaderProducer["loadWorkReceiptFns"];
-  const { observeSelectedReceipt } = await loadWorkReceiptFns();
+  const observeSelectedReceipt = await resolveReceiptObserver(opts.observer);
   const outcome = await observeSelectedReceiptJoin({
     locator: { record: { id: recordId }, field },
     selected,
