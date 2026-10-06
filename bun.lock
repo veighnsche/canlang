@@ -142,6 +142,16 @@
         "typescript": "^5.9.0",
       },
     },
+    "packages/work-kernel": {
+      "name": "@canlang/work-kernel",
+      "version": "0.1.0",
+      "dependencies": {
+        "@canlang/contracts": "0.1.0",
+      },
+      "devDependencies": {
+        "typescript": "5.9.3",
+      },
+    },
   },
   "packages": {
     "@canlang/cloudflare": ["@canlang/cloudflare@workspace:packages/cloudflare"],
@@ -167,6 +177,8 @@
     "@canlang/values": ["@canlang/values@workspace:packages/values"],
 
     "@canlang/work": ["@canlang/work@workspace:packages/work"],
+
+    "@canlang/work-kernel": ["@canlang/work-kernel@workspace:packages/work-kernel"],
 
     "@cloudflare/workerd-darwin-64": ["@cloudflare/workerd-darwin-64@1.20260730.1", "", { "os": "darwin", "cpu": "x64" }, "sha512-+MBHmPaiTe2KajryW0T24rZvWFxb41hD3d8anNzQqHzft6vSEb18+sp0znSwxgij7ApPhSM1+vhkNg4f3YMguA=="],
 
