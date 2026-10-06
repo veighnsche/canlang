@@ -117,6 +117,12 @@ export function readRecipeSuite(fixtures: unknown): RecipeSuite {
     if (kind === null || provision === null) {
       throw new FixtureSetupError(name, "recipe has no provisioner (one of value/user/file/values)");
     }
+    if (kind === "delivery") {
+      const operation: unknown = raw["delivery"];
+      if (typeof operation !== "string" || operation.length === 0) {
+        throw new FixtureSetupError(name, "delivery recipe must declare its operation identity");
+      }
+    }
     const model: unknown = raw["model"];
     const delivery: unknown = raw["delivery"];
     const label =
@@ -223,6 +229,38 @@ export function resolveFixtureOrder(
 }
 
 /**
+ * Validates one evaluated recipe value against its kind contract (T22b/c
+ * slice): models and files provision fields records, deliveries provision
+ * `{request, ...}`, users provision `{roles}`. Structural only —
+ * finalized-file materialization (D2/T20b) and delivery nominal
+ * membership (L1/L4 allowlist) are recorded gaps, not silent passes.
+ */
+function validateProvisionedValue(name: string, kind: FixtureRecipeKind, value: unknown): void {
+  if (kind === "user") {
+    readUserRoles(name, value);
+    return;
+  }
+  if (!isRecord(value)) {
+    const what = kind === "delivery" ? "{request, ...}" : "a fields record";
+    throw new FixtureSetupError(name, `${kind} fixture must provision ${what}`);
+  }
+  if (kind === "delivery" && !("request" in value)) {
+    throw new FixtureSetupError(name, "delivery fixture must provision {request, ...}");
+  }
+}
+
+function readUserRoles(name: string, value: unknown): string[] {
+  if (!isRecord(value)) {
+    throw new FixtureSetupError(name, "user fixture must provision {roles: string[]}");
+  }
+  const roles: unknown = value["roles"];
+  if (!Array.isArray(roles) || roles.some((role) => typeof role !== "string")) {
+    throw new FixtureSetupError(name, "user fixture must provision {roles: string[]}");
+  }
+  return roles as string[];
+}
+
+/**
  * Evaluate `order` (dependencies first), threading provisioned values through.
  * `seeded` values (load-time user fixtures) are reused, never re-evaluated.
  * Any provisioner throw becomes a fixture-identified `FixtureSetupError`.
@@ -243,13 +281,16 @@ export async function provisionFixtureValues(
     if (recipe === undefined) {
       throw new FixtureSetupError(name, "fixture recipe went missing during provisioning");
     }
+    let value: unknown;
     try {
-      provisioned.set(name, await recipe.provision(caller, provisioned));
+      value = await recipe.provision(caller, provisioned);
     } catch (thrown) {
       throw new FixtureSetupError(name, `fixture provisioning failed: ${detailOf(thrown)}`, {
         cause: thrown,
       });
     }
+    validateProvisionedValue(name, recipe.kind, value);
+    provisioned.set(name, value);
   }
   return provisioned;
 }
@@ -286,14 +327,8 @@ export async function extractSuiteUsers(
         cause: thrown,
       });
     }
-    if (!isRecord(value)) {
-      throw new FixtureSetupError(name, "user fixture must provision {roles: string[]}");
-    }
-    const roles: unknown = value["roles"];
-    if (!Array.isArray(roles) || roles.some((role) => typeof role !== "string")) {
-      throw new FixtureSetupError(name, "user fixture must provision {roles: string[]}");
-    }
-    users.push({ name, roles: roles as string[] });
+    const roles = readUserRoles(name, value);
+    users.push({ name, roles });
     values.set(name, value);
   }
   return { users, values };
