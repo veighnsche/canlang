@@ -299,8 +299,8 @@ function checkWriteVersions(storage: DurableObjectStorage, batch: CommitBatch): 
       continue;
     }
     const rows = storage.sql
-      .exec<{ version: number }>(
-        'SELECT version FROM records WHERE model = ? AND id = ?',
+      .exec<{ version: number; updated: number; updated_by: string }>(
+        'SELECT version, updated, updated_by FROM records WHERE model = ? AND id = ?',
         write.model as string,
         write.id as string,
       )
@@ -318,6 +318,13 @@ function checkWriteVersions(storage: DurableObjectStorage, batch: CommitBatch): 
       throw new StorageConstraintError(
         'version',
         `version mismatch for ${where}: expected ${expected}, stored ${row.version as number}`,
+        {
+          model: write.model as string,
+          id: write.id as string,
+          version: row.version as number,
+          updated: row.updated as number,
+          updatedBy: row.updated_by as string,
+        },
       );
     }
   }
