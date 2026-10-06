@@ -1,0 +1,1 @@
+{"record": "integration-20261006-ci-native", "generation": "canlang-fresh-20261006T052409Z", "integrates": ["ci native prerequisite patch (5 .github files)"], "coverage": ".github/ci/{ts-gate,verify-receipt}(.mjs,.test.mjs) + README", "main_verify": {"harness": "12/12 green"}, "coordinator_decisions": ["Rerun C 4a672fb cloudflare gate on updated recipe"]}
