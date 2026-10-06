@@ -75,8 +75,14 @@ const DURABLE_MODULE = `import { create, set, records } from "../stdlib.js";
 export function canApp() {
   return {
     policy: {
-      operations: { "acme.Todo.create": { by: ["members"] } },
-      models: { "acme.Sealed": { read: ["Sealed.read.1"] } }
+      operations: {
+        "acme.Todo.create": { by: ["members"] },
+        "acme.Shop.place": { by: ["members"] }
+      },
+      models: {
+        "acme.Todo": { read: ["Todo.read.1"], public: ["Todo.read.1"] },
+        "acme.Sealed": { read: ["Sealed.read.1"] }
+      }
     },
     Todo: {
       create: async () => { throw new Error("t17b-proof: CRUD handler must never run"); }

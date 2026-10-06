@@ -112,8 +112,15 @@ export function canApp() {
   return {
     calls,
     policy: {
-      operations: { "acme.Todo.create": { by: ["members"] } },
-      models: {}
+      operations: {
+        "acme.Todo.create": { by: ["members"] },
+        "acme.Shop.place": { by: ["members"] },
+        "acme.Shop.hooked": { by: ["members"] },
+        "acme.Shop.boomThrow": { by: ["members"] }
+      },
+      models: {
+        "acme.Todo": { read: ["Todo.read.1"], public: ["Todo.read.1"] }
+      }
     },
     Todo: { create: throwing },
     Shop: {
