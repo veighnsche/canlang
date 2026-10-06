@@ -31,6 +31,13 @@
  *   mirroring `tests/e2e/fixtures/artifact-loader.ts` `buildMcpBundle`
  *   INCLUDING its marker check. Bundling (not vendoring) is required
  *   because transitive MCP SDK deps (ajv, content-type) ship CJS only.
+ * - `worker/http-operations.js` (C3): the real `handleOperationRequest`
+ *   POST chain, `bun build --target=browser --format=esm` from a pure
+ *   re-export entry (MCP-identical shape, so no entry-path comment
+ *   leaks the tmpdir and the bundle stays deterministic). The main's
+ *   join contract curries it (`(deps) => (req, op) => ...` — arity
+ *   adaptation in stable main source, no bundle logic). Same flags,
+ *   marker check, and loud errors as the MCP bundle.
  * - `runtime/<pinned>.js`: the workerd-safe dist runtime files the worker
  *   graph loads (`context`, `invoke` + `sourcemap`, `mcp-registry` for
  *   assembly; `env-assembly`, `grant-route` for main). Pinned by name —
@@ -45,8 +52,9 @@
  *   repo-relative specifier baked into @canlang/ui dist (same bytes,
  *   second key). Producer imports inside staged vendor trees
  *   (`@canlang/values` in stdlib today) and pinned-runtime files
- *   (`@canlang/identity`, the state-D1 checkout path) are rewritten to
- *   module-relative `vendor/` keys; `assertLinksResolve` then refuses
+ *   (`@canlang/identity`, `@canlang/contracts`, the state-D1 checkout
+ *   path) are rewritten to module-relative `vendor/` keys;
+ *   `assertLinksResolve` then refuses
  *   any dangling or bare import. Acknowledged gap: dynamic imports
  *   through variables (the rewritten `*_SPECIFIER` consts) are
  *   statically invisible to the check — they are covered behaviorally
@@ -77,15 +85,25 @@ import { createHash } from "node:crypto";
 import { mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { basename, dirname, join, posix, relative, sep } from "node:path";
-import type { ActivationVerdict, ArtifactModule, CompileArtifact } from "@canlang/contracts";
+import type {
+  ActivationVerdict,
+  ArtifactModule,
+  CompileArtifact,
+  DerivedOperationInputs,
+} from "@canlang/contracts";
+import { catalogFromArtifactOperations } from "@canlang/interfaces";
 import { STDLIB_SPECIFIER, UI_SPECIFIER, type AssembledModules } from "../runtime/modules.js";
 
 /** Main module key: the deployed worker entry within the module map. */
 export const DEPLOY_MAIN_MODULE = "worker/main.js";
 /** MCP handler key: the sibling `./mcp-handler.js` bundle convention. */
 export const MCP_HANDLER_MODULE = "worker/mcp-handler.js";
+/** HTTP operations key: the sibling `./http-operations.js` bundle convention (C3). */
+export const HTTP_OPERATIONS_MODULE = "worker/http-operations.js";
 /** Staged-deployment key: the sibling `./artifact.js` join contract. */
 export const ARTIFACT_MODULE = "worker/artifact.js";
+/** Derived-inputs key: the sibling `./derived-inputs.js` E1 join contract (C1 bake). */
+export const DERIVED_INPUTS_MODULE = "worker/derived-inputs.js";
 /** Assembly key: the base every portable module URL resolves against. */
 const ASSEMBLY_MODULE_KEY = "worker/assembly.js";
 /**
@@ -119,6 +137,16 @@ const INTERFACES_MCP_SERVER_DIST = posix.join(
   "mcp",
   "server.js",
 );
+/** Real-producer dist the HTTP operations bundle is byte-built from (never stubbed). */
+const INTERFACES_HTTP_OPERATIONS_DIST = posix.join(
+  "packages",
+  "interfaces",
+  "dist",
+  "interfaces",
+  "src",
+  "http",
+  "operations.js",
+);
 const MCP_REGISTRY_DIST = posix.join("packages", "cloudflare", "dist", "runtime", "mcp-registry.js");
 
 /**
@@ -130,6 +158,17 @@ export const MCP_BUNDLE_MARKERS: readonly string[] = [
   "createMcpHandler",
   "createArtifactRegistry",
   "createArtifactCatalog",
+  "IdentityError",
+];
+
+/**
+ * C3 marker set for the HTTP operations bundle: the real op chain and
+ * the bundle's own `IdentityError` copy (the op handler catches
+ * `IdentityError` from request identity resolution, so the same
+ * no-mixing invariant as MCP applies).
+ */
+export const HTTP_BUNDLE_MARKERS: readonly string[] = [
+  "handleOperationRequest",
   "IdentityError",
 ];
 
@@ -162,10 +201,21 @@ const VENDOR_TREES: readonly VendorTree[] = [
   },
 ];
 
+/**
+ * Staged keys never vendored: TEST-ONLY bridges with node-only imports
+ * (see the walk exclusion). Exact keys, no blast radius.
+ */
+const TEST_ONLY_VENDOR_KEYS: ReadonlySet<string> = new Set([
+  "vendor/state/fanout/work-loader.js",
+  "vendor/state/receipt/work-loader.js",
+]);
+
 /** Vendor entry keys (mirroring each package's `main`). */
 const UI_VENDOR_ENTRY = "vendor/ui/index.js";
 const STDLIB_VENDOR_ENTRY = "vendor/stdlib/index.js";
 const IDENTITY_VENDOR_ENTRY = "vendor/identity/index.js";
+/** Mirrors `@canlang/contracts` package `main` (`./dist/index.js`). */
+const CONTRACTS_VENDOR_ENTRY = "vendor/contracts/index.js";
 const STATE_D1_VENDOR_ENTRY = "vendor/state/storage/d1.js";
 const VALUES_VENDOR_ENTRY = "vendor/values/index.js";
 
@@ -197,6 +247,8 @@ export interface DeployBundle {
   sha256: string;
   /** Byte size of the MCP handler bundle (proof of a real bundle). */
   mcpBundleBytes: number;
+  /** Byte size of the HTTP operations bundle (proof of a real bundle). */
+  httpOperationsBytes: number;
 }
 
 export interface WrittenDeployBundle {
@@ -326,6 +378,16 @@ function readVendorTree(repoRoot: string, tree: VendorTree): Record<string, stri
       // runs them from dist) but must never vendor — workerd has no
       // node:test resolution. The deploy-bundle/cli suites pin this.
       if (entry.endsWith(".test.js")) continue;
+      // C4: TEST-ONLY bridges emit beside sources under non-test names
+      // (state's `work-loader.js` file-URL juggling for the T25/F5 join
+      // proofs: node:url/node:path, zero non-test importers — comments
+      // only). They are test code the suffix rule cannot see; never
+      // vendor them, same rule as above. If lane B relocates these
+      // helpers under `test/`, the entries below become no-ops (prune
+      // then); a newly added node-only helper fails the link check
+      // loud, as before.
+      const vendorKey = `${tree.prefix}/${relative(base, full).split(sep).join("/")}`;
+      if (TEST_ONLY_VENDOR_KEYS.has(vendorKey)) continue;
       const key = `${tree.prefix}/${relative(base, full).split(sep).join("/")}`;
       modules[key] = rewriteVendorImports(readFileSync(full, "utf8"), key);
     }
@@ -413,12 +475,15 @@ function rewriteArtifactImports(js: string, modulePath: string): string {
 const IDENTITY_SOURCE_SPECIFIER = "@canlang/identity";
 const STATE_D1_SOURCE_SPECIFIER = "../../../state/dist/state/src/storage/d1.js";
 const VALUES_SOURCE_SPECIFIER = "@canlang/values";
+/** Contracts version constants (`loadContractVersions` in pinned `invoke.js`). */
+const CONTRACTS_SOURCE_SPECIFIER = "@canlang/contracts";
 
 /** Rewrite pinned-runtime producer imports to module-relative `vendor/` keys. */
 function rewriteRuntimeImports(js: string, moduleKey: string): string {
   const mapped = (spec: string): string => {
     if (spec === IDENTITY_SOURCE_SPECIFIER) return relativeSpecifier(moduleKey, IDENTITY_VENDOR_ENTRY);
     if (spec === STATE_D1_SOURCE_SPECIFIER) return relativeSpecifier(moduleKey, STATE_D1_VENDOR_ENTRY);
+    if (spec === CONTRACTS_SOURCE_SPECIFIER) return relativeSpecifier(moduleKey, CONTRACTS_VENDOR_ENTRY);
     return spec;
   };
   const swap = (_full: string, pre: string, spec: string, post: string): string =>
@@ -434,6 +499,7 @@ function rewriteRuntimeImports(js: string, moduleKey: string): string {
   for (const [source, entry] of [
     [IDENTITY_SOURCE_SPECIFIER, IDENTITY_VENDOR_ENTRY],
     [STATE_D1_SOURCE_SPECIFIER, STATE_D1_VENDOR_ENTRY],
+    [CONTRACTS_SOURCE_SPECIFIER, CONTRACTS_VENDOR_ENTRY],
   ] as const) {
     out = out.split(source).join(relativeSpecifier(moduleKey, entry));
   }
@@ -503,6 +569,31 @@ function stageArtifactModules(artifact: CompileArtifact): Record<string, string>
 }
 
 /**
+ * Build the `derived-inputs.js` module (C1): the REAL interfaces
+ * derivation (`catalogFromArtifactOperations`) for the staged
+ * artifact's operations, baked to data at deploy time. The worker
+ * serves it verbatim through the catalog's E1 `derivedFor` channel
+ * — no parallel derivation rule exists anywhere. Malformed
+ * operations or version skew throw here (the derivation's own
+ * loud errors); the bake covers every staged operation exactly.
+ */
+function buildDerivedInputsModule(artifact: CompileArtifact): string {
+  const catalog = catalogFromArtifactOperations(artifact);
+  const baked: Record<string, DerivedOperationInputs> = {};
+  for (const op of artifact.operations ?? []) {
+    const derived = catalog.derivedFor(op.name);
+    if (derived === null) {
+      throw new Error(
+        `deploy bundle: derived bake produced no inputs for operation ${JSON.stringify(op.name)} ` +
+          `(derivation skew)`,
+      );
+    }
+    baked[op.name] = derived;
+  }
+  return `export const derivedInputs = ${JSON.stringify(baked)};\n`;
+}
+
+/**
  * Build the `mcp-handler.js` module: the real MCP handler chain bundled
  * self-contained for workerd. Mirrors the e2e loader's `buildMcpBundle`
  * (same flags, same marker check, same loud errors) with a generated entry
@@ -563,6 +654,67 @@ function buildMcpBundle(repoRoot: string): string {
     if (!contents.includes(marker)) {
       throw new Error(
         `deploy bundle: MCP bundle build dropped ${marker}; refusing a skewed bundle ` +
+          `(rebuild the producer dists and retry)`,
+      );
+    }
+  }
+  return contents;
+}
+
+/**
+ * Build the `http-operations.js` module (C3): the real HTTP op-POST
+ * chain bundled self-contained for workerd. Mirrors `buildMcpBundle`
+ * (same flags, same marker check, same loud errors) with a pure
+ * re-export entry: any entry-local code makes bun emit an
+ * entry-path comment that leaks the random tmpdir and breaks bundle
+ * determinism, so the main's join-contract currying lives in stable
+ * main source instead (see `defaultLoadHttpOperationsFactory`).
+ */
+function buildHttpOperationsBundle(repoRoot: string): string {
+  const operationsDist = assertFileBuilt(
+    repoRoot,
+    INTERFACES_HTTP_OPERATIONS_DIST,
+    "bun run --filter @canlang/interfaces build",
+  );
+  const workDir = mkdtempSync(join(tmpdir(), "can-deploy-http-"));
+  const entryFile = join(workDir, "http-bundle-entry.js");
+  const outFile = join(workDir, "http-bundle.mjs");
+  const toPosixAbsolute = (path: string): string => path.split(sep).join(posix.sep);
+  writeFileSync(
+    entryFile,
+    `export { handleOperationRequest } from ${JSON.stringify(toPosixAbsolute(operationsDist))};\n`,
+    "utf8",
+  );
+  try {
+    execFileSync(
+      "bun",
+      ["build", entryFile, "--format=esm", "--target=browser", `--outfile=${outFile}`],
+      { stdio: "pipe" },
+    );
+  } catch (err) {
+    rmSync(workDir, { force: true, recursive: true });
+    const detail = err instanceof Error ? err.message : String(err);
+    if (detail.includes("ENOENT")) {
+      throw new Error(
+        "deploy bundle: `bun` is not on PATH, needed to bundle the HTTP operations chain; " +
+          "install bun (https://bun.sh) or deploy via `bun run`",
+      );
+    }
+    throw new Error(
+      `deploy bundle: HTTP bundle build failed (\`bun build\` on the generated entry); ` +
+        `the interfaces dist must be built. Underlying error: ${detail}`,
+    );
+  }
+  let contents: string;
+  try {
+    contents = readFileSync(outFile, "utf8");
+  } finally {
+    rmSync(workDir, { force: true, recursive: true });
+  }
+  for (const marker of HTTP_BUNDLE_MARKERS) {
+    if (!contents.includes(marker)) {
+      throw new Error(
+        `deploy bundle: HTTP bundle build dropped ${marker}; refusing a skewed bundle ` +
           `(rebuild the producer dists and retry)`,
       );
     }
@@ -845,11 +997,13 @@ export function buildDeployBundle(
     Object.assign(modules, readVendorTree(options.repoRoot, tree));
   }
   modules[MCP_HANDLER_MODULE] = buildMcpBundle(options.repoRoot);
+  modules[HTTP_OPERATIONS_MODULE] = buildHttpOperationsBundle(options.repoRoot);
   modules[ARTIFACT_MODULE] = renderStagedDeployment(
     artifact,
     portableAssembledModules(artifact.modules.map((mod) => mod.path)),
     options.verdict,
   );
+  modules[DERIVED_INPUTS_MODULE] = buildDerivedInputsModule(artifact);
   assertWorkerdLoadable(modules);
   assertLinksResolve(modules);
   const sorted: Record<string, string> = {};
@@ -862,6 +1016,7 @@ export function buildDeployBundle(
     moduleCount: Object.keys(sorted).length,
     sha256: bundleSha256(DEPLOY_MAIN_MODULE, sorted),
     mcpBundleBytes: (sorted[MCP_HANDLER_MODULE] as string).length,
+    httpOperationsBytes: (sorted[HTTP_OPERATIONS_MODULE] as string).length,
   };
 }
 
@@ -886,6 +1041,7 @@ export function writeDeployBundle(bundle: DeployBundle, outDir: string): Written
     sha256: bundle.sha256,
     moduleCount: bundle.moduleCount,
     mcpBundleBytes: bundle.mcpBundleBytes,
+    httpOperationsBytes: bundle.httpOperationsBytes,
     modules: Object.keys(bundle.modules)
       .sort()
       .map((key) => ({ key, bytes: (bundle.modules[key] as string).length })),

@@ -21,7 +21,7 @@
  * builtins, no I/O. Pure functions over the artifact JSON.
  */
 
-import type { CompileArtifact, ResolvedIdentity } from "@canlang/contracts";
+import type { CompileArtifact, DerivedOperationInputs, ResolvedIdentity } from "@canlang/contracts";
 
 /* ------------------------------------------------------------------ */
 /* Verbatim mirrors of `packages/interfaces/src/ports.ts`.             */
@@ -90,9 +90,16 @@ export interface OperationInputShape {
   readonly required: readonly string[];
 }
 
-/** Mirror of `SchemaCatalog` (`ports.ts:32`). */
+/**
+ * Mirror of `SchemaCatalog` (`ports.ts:32`), including the E1
+ * binding-visibility channel (`derivedFor?`): dispatch invokes the
+ * pure bound checker (`checkBoundArguments`) against these inputs
+ * after the framing checks; an absent channel keeps framing-only
+ * behavior (legacy/test doubles).
+ */
 export interface SchemaCatalog {
   shapeFor(operation: string): OperationInputShape | null;
+  derivedFor?(operation: string): DerivedOperationInputs | null;
 }
 
 /** Mirror of `McpPermissions` (`ports.ts:205`). */
@@ -208,6 +215,25 @@ function checkField(raw: unknown, where: string): McpSchemaField {
   }
 }
 
+/**
+ * T19b receipt bindings (`ArtifactDeliveryDescriptor`, T04b-ratified)
+ * have no `McpSchemaField` slot — delivery inputs are
+ * MCP-unsuppliable — so framing excludes them exactly like
+ * `checkedToMcpInputSchema` ("framing is exactly the submittable
+ * allowlist"). Only well-formed entries skip: anything else falls
+ * through to `checkInput` and fails loud with the usual errors
+ * (name/required first, mirroring derivation ordering). The
+ * descriptor grammar itself is derivation-owned (validated at
+ * deploy-bake); the worker never re-derives it.
+ */
+function isFramingExcludedDelivery(entry: unknown): boolean {
+  if (!isRecord(entry)) return false;
+  if (typeof entry["name"] !== "string" || entry["name"].length === 0) return false;
+  if (typeof entry["required"] !== "boolean") return false;
+  if (!isRecord(entry["field"])) return false;
+  return entry["field"]["kind"] === "delivery";
+}
+
 function checkInput(raw: unknown, where: string): McpNamedField {
   if (!isRecord(raw)) fail(where, "must be an object");
   const name = raw["name"];
@@ -258,6 +284,7 @@ function checkOperation(raw: unknown, index: number): OperationDescriptor {
   const seen = new Set<string>();
   const fields: McpNamedField[] = [];
   for (const [fieldIndex, entry] of fieldsRaw.entries()) {
+    if (isFramingExcludedDelivery(entry)) continue;
     const checked = checkInput(entry, `${where}.inputs.fields[${fieldIndex}]`);
     if (seen.has(checked.name)) {
       fail(where, `repeats input ${JSON.stringify(checked.name)}`);
@@ -317,14 +344,99 @@ export function createArtifactRegistry(artifact: CompileArtifact): OperationRegi
 }
 
 /**
+ * Deploy-baked derived inputs by operation, as staged by the P-B
+ * deploy join (`worker/derived-inputs.js`): each value is the REAL
+ * interfaces derivation (`catalogFromArtifactOperations`) for the
+ * staged artifact, computed at bundle time. The worker serves the
+ * data verbatim after a structural shape check — it never
+ * re-derives (no parallel engine; the bundle-time derivation is
+ * the single rule).
+ */
+export type BakedDerivedInputs = Readonly<Record<string, DerivedOperationInputs>>;
+
+const BAKED_DERIVED_OP_KINDS: ReadonlySet<string> = new Set([
+  "read",
+  "create",
+  "update",
+  "delete",
+  "scenario",
+]);
+
+/**
+ * Structural shape check on deploy-baked derived inputs (transport
+ * skew only — key-set match, version match, entry shapes). The
+ * derivation rule itself ran at bundle time; this gate never
+ * re-implements it.
+ */
+function checkBakedDerivedInputs(
+  raw: unknown,
+  artifact: CompileArtifact,
+  shapeNames: ReadonlySet<string>,
+): Map<string, DerivedOperationInputs> {
+  if (!isRecord(raw)) fail("derived-inputs", "must be an object keyed by operation");
+  const checked = new Map<string, DerivedOperationInputs>();
+  for (const [operation, entry] of Object.entries(raw)) {
+    const where = `derived-inputs[${JSON.stringify(operation)}]`;
+    if (!isRecord(entry)) fail(where, "must be an object");
+    if (entry["operation"] !== operation) {
+      fail(where, `operation ${JSON.stringify(entry["operation"])} does not match its key`);
+    }
+    if (typeof entry["kind"] !== "string" || !BAKED_DERIVED_OP_KINDS.has(entry["kind"])) {
+      fail(where, `kind must be one of read|create|update|delete|scenario (got ${JSON.stringify(entry["kind"])})`);
+    }
+    if (entry["artifactVersion"] !== artifact.artifact_version) {
+      fail(
+        where,
+        `artifactVersion ${JSON.stringify(entry["artifactVersion"])} does not match the staged artifact ` +
+          `${JSON.stringify(artifact.artifact_version)} (stale derivation)`,
+      );
+    }
+    if (!shapeNames.has(operation)) {
+      fail(where, "names no operation in the staged artifact (bake skew)");
+    }
+    const inputs: unknown = entry["inputs"];
+    if (!Array.isArray(inputs)) fail(`${where}.inputs`, "must be an array");
+    for (const [index, input] of inputs.entries()) {
+      const inputWhere = `${where}.inputs[${index}]`;
+      if (!isRecord(input)) fail(inputWhere, "must be an object");
+      if (typeof input["name"] !== "string" || input["name"] === "") {
+        fail(`${inputWhere}.name`, "must be a non-empty string");
+      }
+      if (typeof input["kind"] !== "string" || input["kind"] === "") {
+        fail(`${inputWhere}.kind`, "must be a non-empty string");
+      }
+      if (typeof input["required"] !== "boolean") {
+        fail(`${inputWhere}.required`, "must be a boolean");
+      }
+    }
+    checked.set(operation, entry as unknown as DerivedOperationInputs);
+  }
+  for (const name of shapeNames) {
+    if (!checked.has(name)) {
+      fail(`derived-inputs[${JSON.stringify(name)}]`, "missing derivation for a staged operation (bake skew)");
+    }
+  }
+  return checked;
+}
+
+/**
  * Build the production `SchemaCatalog` from the SAME artifact
  * operations, keeping the registry/catalog views consistent (the MCP
  * server requires it: discovery renders from descriptors while the
  * closed-inputs check reads the catalog). `allowed`/`required` derive
- * from the typed fields in order; `operation_id` framing is stripped
+ * from the typed fields in order, minus T19b receipt bindings
+ * (framing is exactly the submittable allowlist, per
+ * `deriveOperationShape`); `operation_id` framing is stripped
  * before the check, so it never appears here.
+ *
+ * `baked` carries the deploy-baked E1 channel (`BakedDerivedInputs`
+ * via `AssemblyDeps.mcp.derivedInputs`): when present the catalog
+ * also serves `derivedFor`, so production MCP dispatch runs the
+ * same bound checker as HTTP (equal authority); when absent the
+ * catalog is framing-only (E1 legacy behavior, byte-identical
+ * shape to before).
  */
-export function createArtifactCatalog(artifact: CompileArtifact): SchemaCatalog {
+export function createArtifactCatalog(artifact: CompileArtifact, baked?: BakedDerivedInputs): SchemaCatalog {
   const shapes = new Map<string, OperationInputShape>();
   for (const descriptor of readArtifactOperations(artifact)) {
     const allowed: string[] = [];
@@ -338,8 +450,12 @@ export function createArtifactCatalog(artifact: CompileArtifact): SchemaCatalog 
       { allowed: Object.freeze(allowed), required: Object.freeze(required) },
     );
   }
+  const shapeFor = (operation: string): OperationInputShape | null => shapes.get(operation) ?? null;
+  if (baked === undefined) return { shapeFor };
+  const derived = checkBakedDerivedInputs(baked, artifact, new Set(shapes.keys()));
   return {
-    shapeFor: (operation: string): OperationInputShape | null => shapes.get(operation) ?? null,
+    shapeFor,
+    derivedFor: (operation: string): DerivedOperationInputs | null => derived.get(operation) ?? null,
   };
 }
 

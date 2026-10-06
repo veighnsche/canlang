@@ -1,0 +1,13 @@
+{
+ "schema_version": 1,
+ "observed_utc": "2026-10-06T05:20:19Z",
+ "change": "cherry-pick -x 0bfc72fae2788571c42315381ce7235d218b4890 (lane E) as ae65a76997ff8b1e60c1ff14bf64b2bb4f855ed7 on main",
+ "changed_paths": 1,
+ "paths": [
+  "packages/interfaces/test/e2-dispatch-agreement.test.ts"
+ ],
+ "coverage_delta": "1 new interfaces-owned test file (+511/-0); no src changes, moves, or duty transfers",
+ "complete_checkpoint_retained": "8249342707d3280e88e39e8c911b7e457828f31f",
+ "area_decisions_unchanged": true,
+ "verification": "canonical interfaces rebuild + 403/403 (G-INT-02 released); lane 403/403 (G-E2A-03 released)"
+}

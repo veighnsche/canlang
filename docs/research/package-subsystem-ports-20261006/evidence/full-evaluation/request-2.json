@@ -1,0 +1,80 @@
+{
+  "state": "The decision concerns four bounded package subsystems, not the Rust compiler: exact values arithmetic, values wire/schema checks, work scheduling/retry/recovery rules, and cloudflare artifact/provenance/compatibility/deploy-plan calculations. Inspection at 011fced78cbb3762ce838066295468bdd23e5b8a on October6 establishes the facts below. We seek unchanged public synchronous TS behavior with package-owned adapters and feature-based directories. No port prototype, Wasm runtime check, workload profile or measured speed benefit has been made. Native Rust is available but the Wasm target is absent. Existing module collection/storage is JS-text-only and Miniflare initialization calls all modules ESModule; binary-aware assets, byte hashes, packaging and initialized synchronous glue are common work. Native Node addons/binaries require platform release coverage and cannot themselves execute in Workers.\nValues arithmetic has clear int/decimal/money/duration/UTC/numeric-aggregate/equality algorithms. Decimal admits coefficients below10^38 and scales0..18, preserving zeros; its alignment, half-even timing, overflow categories and final-only sum checks are part of behavior, as is minimum-int remainder by negative1. Public helper arguments are not all bounded: huge raw BigInts can cancel and succeed. Use arbitrary BigInt scratch/compatibility or prove a bounded256-bit fast path alongside that route; i128 fits admitted carriers, rust_decimal96-bit does not. num-bigint can match the raw domain. Current TS exact BigInt is mature, so copying it to Wasm does not ensure faster scalar calls; native reuse and batch arithmetic are possible gains. The values build and284 selected existing oracle/conformance/tests pass.\nValues validation owns codecs, schema normalization and contract/operation validation, insertion/omission/default/bounds/ref/secret/error rules. It already stores AST fields while printing/reparsing leaves and union arms; package-private AST dispatch and schema-owned prepared plans are a cheaper TS alternative. API inputs typed unknown can observe double getter reads, proxies, array holes, undefined vs null vs absence, lone UTF16 surrogates and output object freezing/shared identity. Confirmed probes accept opaque Date as empty object, retain opaque own __proto__ keys, reject opaque numeric values and throw RangeError on cycles. Resource caps are a separate unresolved contract. A registered interpreter over inert ordinary data is easier but insufficient to describe complete parity. Generic Serde or JSON Schema requires Can custom traversal; host URL/Intl rules need host calls. Searches show no direct package state consumer of these exported validators, and state admission implements its own generated checks, so a port alone does not speed all admission.\nWork's port boundary is decision calculations: recurrence slots/coalescing/IDs, classification and retry delay, stale claims and recovery/fanout/progress decision lists. Durable reads, scans, membership/permissions and fenced action commits stay with existing owners. Callbacks/side-effect sequencing still matters: validate and exhaust before randomness, access evidence only for uncertain rows in input order, then sort; mutations reread decisive evidence and fence against races. Retain finite fractional times, JS string sort and formatted hash inputs. Command stages duplicate portions of recurrence/retry logic; direct stale checks and an injected recovery planner are real consumers.69 chosen decision tests and the work typecheck pass. Snapshot batching is feasible and may aid cross-runtime policy reuse, but DB/provider costs and tiny branches weaken an unmeasured speed case.\nCloudflare's chosen pure/local scope checks parsed artifact shape/crossrefs and compiled identity, ordered runtime compatibility/version results and binding-derived deploy plans. The compiler only produces its input. Leave file access, installed probes, runtime dispatch, full platform CLI, bundling and publishing in TS. JS JSON.parse errors, UTF16 source strings, additive unknown fields, first failure order and list/binding order need parity. Schedules pass through because the backend mapping is open. Existing CLI calls provide integration demand, yet Node crypto already executes hashing natively and small one-shot subprocess checks may lose to startup. Native reuse could justify a library/persistent tool; Wasm is another adapter with overhead.73 targeted artifact/deployment tests pass. Cloudflare's full typecheck reports4 baseline errors in invoke/fanout-test files outside the selected pure checks. These facts establish TS baseline only; neither performance nor a Rust implementation has been verified.",
+  "questions": {
+    "arithmetic": {
+      "type": "score",
+      "instructions": "How tractable is moving exact values arithmetic to Rust while retaining all described exported behavior and shipping adapters under the stated package scope? Assess completion difficulty, not benefit or predicted performance. Rubric index0 means1/10; index9 means10/10.",
+      "criteria": [
+        "1: cannot meet scope and compatibility together",
+        "2: success requires excluded changes or material semantic loss",
+        "3: completing the required behavior lacks major foundations",
+        "4: unclear semantics or broad dependencies make migration difficult",
+        "5: plausible, with multiple serious boundary questions still open",
+        "6: achievable after extensive adapter design and parity verification",
+        "7: practical, though compatibility and shipping require sizeable work",
+        "8: a bounded tractable migration with specific integration tasks",
+        "9: strong implementation evidence and little remaining boundary difficulty",
+        "10: working complete equivalent port already verified in its targets"
+      ]
+    },
+    "validation": {
+      "type": "score",
+      "instructions": "How tractable is moving complete values wire/schema API to Rust while retaining all described exported behavior and shipping adapters under the stated package scope? Assess completion difficulty, not benefit or predicted performance. Rubric index0 means1/10; index9 means10/10.",
+      "criteria": [
+        "1: cannot meet scope and compatibility together",
+        "2: success requires excluded changes or material semantic loss",
+        "3: completing the required behavior lacks major foundations",
+        "4: unclear semantics or broad dependencies make migration difficult",
+        "5: plausible, with multiple serious boundary questions still open",
+        "6: achievable after extensive adapter design and parity verification",
+        "7: practical, though compatibility and shipping require sizeable work",
+        "8: a bounded tractable migration with specific integration tasks",
+        "9: strong implementation evidence and little remaining boundary difficulty",
+        "10: working complete equivalent port already verified in its targets"
+      ]
+    },
+    "work": {
+      "type": "score",
+      "instructions": "How tractable is moving bounded work decisions to Rust while retaining all described exported behavior and shipping adapters under the stated package scope? Assess completion difficulty, not benefit or predicted performance. Rubric index0 means1/10; index9 means10/10.",
+      "criteria": [
+        "1: cannot meet scope and compatibility together",
+        "2: success requires excluded changes or material semantic loss",
+        "3: completing the required behavior lacks major foundations",
+        "4: unclear semantics or broad dependencies make migration difficult",
+        "5: plausible, with multiple serious boundary questions still open",
+        "6: achievable after extensive adapter design and parity verification",
+        "7: practical, though compatibility and shipping require sizeable work",
+        "8: a bounded tractable migration with specific integration tasks",
+        "9: strong implementation evidence and little remaining boundary difficulty",
+        "10: working complete equivalent port already verified in its targets"
+      ]
+    },
+    "artifacts": {
+      "type": "score",
+      "instructions": "How tractable is moving bounded cloudflare artifact/compatibility/planning to Rust while retaining all described exported behavior and shipping adapters under the stated package scope? Assess completion difficulty, not benefit or predicted performance. Rubric index0 means1/10; index9 means10/10.",
+      "criteria": [
+        "1: cannot meet scope and compatibility together",
+        "2: success requires excluded changes or material semantic loss",
+        "3: completing the required behavior lacks major foundations",
+        "4: unclear semantics or broad dependencies make migration difficult",
+        "5: plausible, with multiple serious boundary questions still open",
+        "6: achievable after extensive adapter design and parity verification",
+        "7: practical, though compatibility and shipping require sizeable work",
+        "8: a bounded tractable migration with specific integration tasks",
+        "9: strong implementation evidence and little remaining boundary difficulty",
+        "10: working complete equivalent port already verified in its targets"
+      ]
+    },
+    "first_investment": {
+      "type": "choice",
+      "instructions": "Select the best first follow-up investigation for these package candidates under equal parity, adoption and maintenance goals. Base the decision on evidence and possible reuse as well as cost; neither rewriting nor retaining TS is presumed optimal. No production implementation is authorized by this question.",
+      "criteria": {
+        "arithmetic_spike": "Run a parity/complete-call prototype of arithmetic using native and Wasm, both scalar and batches; only adopt if evidence warrants. Clear algorithms favor a useful experiment, binary release machinery is extra.",
+        "validation_spike": "Explore a Can plan core and JS-compatible adapter, with optimized prepared TS as comparator. May consolidate native validation, but full unknown-input/evaluation semantics are expensive and direct state use is absent.",
+        "work_spike": "Try batch work decisions behind injected recovery policy, leaving durable acts fenced in TS. Tight scope supports reuse, while callback ordering and command-policy duplicates remain integration costs.",
+        "artifact_spike": "Try an artifact/check/plan native core attached to current package CLI. Metadata is easy to port and reusable, yet per-platform or process delivery could cost more than the checks.",
+        "ts_baseline_first": "Establish workload and prepared-AST TS baselines before any backend port. Low deployment/maintenance cost and addresses a concrete repeated parse; delays potential native sharing and Wasm exploration."
+      }
+    }
+  }
+}

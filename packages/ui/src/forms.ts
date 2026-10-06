@@ -31,7 +31,12 @@ import type {
   PresentationContext,
 } from "../../contracts/src/presentation.js";
 import type { FieldError, MutationRef } from "../../contracts/src/presentation.js";
-import type { ClosedInputs, DerivedOperationInputs, DerivedWritableInput } from "../../contracts/src/wire.js";
+import type {
+  ClosedInputs,
+  DerivedDeliveryBinding,
+  DerivedOperationInputs,
+  DerivedWritableInput,
+} from "../../contracts/src/wire.js";
 import { escapeAttr, escapeHtml, safeHref } from "./escape.js";
 // C4b explicit-control dispatch + label/validator fragment reuse. This is a
 // forms<->controls import cycle, safe under ESM: both modules touch the
@@ -56,6 +61,7 @@ import {
 import {
   canonicalDefaultTag,
   canonicalPreferredTags,
+  formatMoneyExact,
   formatScalar,
   isEnumTypeId,
   message,
@@ -79,6 +85,10 @@ const CHROME = {
   }),
   unmatchedLead: message("There were problems with your submission.", {
     nl: "Er waren problemen met uw inzending.",
+  }),
+  attachedLead: message("Attached file", { nl: "Bijgevoegd bestand" }),
+  deliveryLead: message("Engine-resolved receipt", {
+    nl: "Door de engine bepaalde ontvangst",
   }),
   conflictField: message("Field", { nl: "Veld" }),
   conflictCurrent: message("Current value", { nl: "Huidige waarde" }),
@@ -320,6 +330,12 @@ interface WidgetResult {
   readonly html: string;
   /** Value a readonly hidden duplicate carries (same string the widget shows). */
   readonly submitValue: string;
+  /**
+   * True when the widget already emits its own named hidden (the T20b file
+   * slot): renderField skips the readonly duplicate so the name is
+   * emitted exactly once.
+   */
+  readonly suppressDuplicate?: boolean;
 }
 
 /** Draft-preserving string value: verbatim when present, null when absent. */
@@ -437,6 +453,44 @@ function datetimeFieldValue(field: FormFieldDef, timeZone: string): string {
   }
 }
 
+function fileFieldValue(field: FormFieldDef): string | null {
+  const value = field.value;
+  if (value === undefined || value === null) {
+    return null;
+  }
+  if (typeof value !== "string") {
+    throw new TypeError(`field "${field.path}": type ${field.type} needs an opaque file id string`);
+  }
+  return value;
+}
+
+/**
+ * T20b file slot: an unnamed picker plus a hidden carrying the opaque
+ * finalized id. The picker stays unnamed so raw picker text (a fake path,
+ * never authority) cannot enter the submitted flat map; the UI client
+ * uploads picked bytes through the S7 intent flow and fills the hidden
+ * before projecting. A draft id re-renders as an attached line + the same
+ * hidden, so resubmitting without re-picking keeps it; attach authority
+ * is rechecked server-side per the T19b file rule.
+ */
+function fileWidget(
+  field: FormFieldDef,
+  attrs: WidgetAttrs,
+  context: PresentationContext,
+): WidgetResult {
+  const attached = fileFieldValue(field) ?? "";
+  const picker =
+    `<input type="file" data-can-file="${escapeAttr(field.path)}" id="${attrs.idAttr}" ` +
+    `class="file-input"${attrs.common}>`;
+  const slot = `<input type="hidden" name="${attrs.nameAttr}" value="${escapeAttr(attached)}">`;
+  const line =
+    attached === ""
+      ? ""
+      : `<p><span>${escapeHtml(resolveCaption(CHROME.attachedLead, context))}</span> ` +
+        `<code>${escapeHtml(attached)}</code></p>`;
+  return { html: picker + slot + line, submitValue: attached, suppressDuplicate: true };
+}
+
 function textWidget(field: FormFieldDef, attrs: WidgetAttrs): WidgetResult {
   const value = stringFieldValue(field) ?? "";
   if (field.multiline === true) {
@@ -544,7 +598,10 @@ function renderWidget(
     throw new TypeError(`field "${field.path}": type must be a string`);
   }
   if (type === "file" || type.startsWith("file.")) {
-    throw new Error(`field "${field.path}": file inputs need S7 upload intents (type "${type}")`);
+    return fileWidget(field, attrs, context);
+  }
+  if (type === "delivery") {
+    return deliveryWidget(field, attrs, context);
   }
   if (TEXT_TYPES.has(type)) {
     return textWidget(field, attrs);
@@ -682,7 +739,10 @@ async function renderField(field: FormFieldDef, ctx: FieldRenderContext): Promis
           mode: ctx.mode,
           ...(ctx.errors === undefined ? {} : { errors: ctx.errors }),
         });
-  const duplicate = field.readonly === true ? hidden(name, widget.submitValue) : "";
+  const duplicate =
+    field.readonly === true && widget.suppressDuplicate !== true
+      ? hidden(name, widget.submitValue)
+      : "";
   return `<fieldset>${labelHtml}${widget.html}${errorHtml}${duplicate}</fieldset>`;
 }
 
@@ -707,11 +767,15 @@ function assertUniqueFieldPaths(fields: readonly FormFieldDef[]): void {
 
 /**
  * Multipart join (C4b): a file_input explicit control switches the form to
- * multipart/form-data; L6 parses multipart bodies (today's urlencoded
- * default otherwise). Without file fields no enctype attribute is emitted.
- * Bare file-typed fields are rejected by renderWidget (S7 upload intents)
- * during field rendering, which always runs before the open tag is built,
- * so only the explicit-control branch can ever fire here.
+ * multipart/form-data; the urlencoded default applies otherwise. Without
+ * file fields no enctype attribute is emitted.
+ *
+ * T20b correction: the operation dispatcher accepts JSON and urlencoded
+ * bodies only (multipart op POSTs are rejected `validation`, pinned E-side)
+ * — file bytes never ride the op POST. Production submits go through the UI
+ * client, which uploads picked bytes via the S7 intent flow and submits the
+ * finalized opaque id as JSON. The enctype emission is retained for native
+ * file-capable hosts (S4 byte-pins), not as a dispatcher transport claim.
  */
 function needsMultipart(fields: readonly FormFieldDef[] | undefined): boolean {
   if (fields === undefined) {
@@ -765,6 +829,35 @@ function unmatchedAlert(errors: readonly FieldError[], context: PresentationCont
   return `<div role="alert" class="alert alert-error"><p>${lead}</p><ul>${items}</ul></div>`;
 }
 
+/** True for exact-keys `{minor, currency}` money objects (the L2 wire shape). */
+function isMoneyObject(value: unknown): value is { readonly minor: string; readonly currency: string } {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) {
+    return false;
+  }
+  const keys = Object.keys(value).sort();
+  if (keys.length !== 2 || keys[0] !== "currency" || keys[1] !== "minor") {
+    return false;
+  }
+  const record = value as Record<string, unknown>;
+  return typeof record["minor"] === "string" && typeof record["currency"] === "string";
+}
+
+/** True for `{id}`/`{id, version}` ref objects (the ReadRef/MutationRef shapes). */
+function isRefObject(value: unknown): value is { readonly id: string; readonly version?: string } {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) {
+    return false;
+  }
+  const record = value as Record<string, unknown>;
+  if (typeof record["id"] !== "string") {
+    return false;
+  }
+  const version = record["version"];
+  if (version !== undefined && typeof version !== "string") {
+    return false;
+  }
+  return Object.keys(record).every((key) => key === "id" || key === "version");
+}
+
 /** Current value cell: typed formatScalar, falling back to raw escaped text. */
 function formatCurrentValue(
   type: string | undefined,
@@ -772,6 +865,29 @@ function formatCurrentValue(
   context: PresentationContext,
   timeZone: string,
 ): string {
+  if (isMoneyObject(value)) {
+    try {
+      const scale = context.currencyScales?.[value.currency];
+      if (scale === undefined) {
+        throw new Error("money current needs a currency scale");
+      }
+      return escapeHtml(
+        formatMoneyExact({
+          minor: BigInt(value.minor),
+          currency: value.currency,
+          scale,
+          locale: pageLocale(context),
+        }),
+      );
+    } catch {
+      return escapeHtml(rawText(value));
+    }
+  }
+  if (isRefObject(value)) {
+    return escapeHtml(
+      value.version === undefined ? value.id : `${value.id} (v${value.version})`,
+    );
+  }
   if (type !== undefined) {
     try {
       const scales = context.currencyScales;
@@ -1121,14 +1237,116 @@ function generatedLabel(
 }
 
 /**
- * Map one T19a derived operation to its form fields: one field per
- * derived input in emission order (the update `record` binds as hidden
- * id/version and is excluded), widgets per the pinned kind table, enum
- * options from the derived values verbatim, literal defaults prefilled
- * verbatim, and a `__version` text companion after each versioned
- * non-record ref. Unknown kinds, ref inputs without a boolean versioned
- * flag, enums without values, and prefill keys matching no generated
- * path all throw precisely — never a guessed widget or a dropped value.
+ * One money input's literal currency prefill: the `currency` member of a
+ * `{minor, currency}` wire literal, verbatim. Anything else (no default,
+ * `parent`, a non-object literal) prefills nothing — the minor widget's
+ * own prefill judges malformed money literals loudly at render.
+ */
+function currencyPrefill(input: DerivedWritableInput): unknown {
+  const fallback = input.default;
+  if (fallback === undefined || fallback.kind !== "literal") {
+    return undefined;
+  }
+  const prefill = fallback.value;
+  if (typeof prefill === "object" && prefill !== null && !Array.isArray(prefill)) {
+    return (prefill as Record<string, unknown>)["currency"];
+  }
+  return undefined;
+}
+
+/** T20b explicit-null companion convention: `<name>__null` carries the clear. */
+export const GENERATED_NULL_SUFFIX = "__null";
+
+/** T20b money companion convention: `<name>__currency` carries the currency. */
+export const GENERATED_MONEY_CURRENCY_SUFFIX = "__currency";
+
+/** T20b datetime companion convention: `<name>__fold` carries earlier/later. */
+export const GENERATED_DATETIME_FOLD_SUFFIX = "__fold";
+
+/**
+ * Fold choices for ambiguous wall times. The empty lead keeps the select
+ * choice-free until the user picks — an ambiguous value requires explicit
+ * selection (DESIGN §9), never a defaulted guess.
+ */
+const FOLD_OPTIONS: ReadonlyArray<{ readonly value: string; readonly label: MessageValue }> = [
+  { value: "", label: "—" },
+  { value: "earlier", label: "earlier" },
+  { value: "later", label: "later" },
+];
+
+/**
+ * Validate one T19b engine-resolved delivery binding and return it. Every
+ * member of the wire `DerivedDeliveryBinding` shape is fenced: capability,
+ * operation, integer version, recipe, result name and verbatim {name, type}
+ * leaves. Anything else is not a real derivation and throws naming the
+ * input — the notice below renders binding members verbatim, never guessed.
+ */
+function checkedDeliveryBinding(
+  derived: DerivedOperationInputs,
+  input: DerivedWritableInput,
+): DerivedDeliveryBinding {
+  const fail = (detail: string): Error =>
+    new Error(
+      `generated form for ${JSON.stringify(derived.operation)}: ` +
+        `delivery input ${JSON.stringify(input.name)} ${detail}.`,
+    );
+  const binding = input.delivery;
+  if (binding === null || typeof binding !== "object" || Array.isArray(binding)) {
+    throw fail("needs its engine-resolved delivery binding");
+  }
+  const record = binding as unknown as Record<string, unknown>;
+  if (
+    typeof record["capability"] !== "string" ||
+    record["capability"] === "" ||
+    typeof record["operation"] !== "string" ||
+    record["operation"] === ""
+  ) {
+    throw fail("needs a binding with string capability and operation");
+  }
+  if (typeof record["version"] !== "number" || !Number.isInteger(record["version"])) {
+    throw fail("needs a binding with an integer version");
+  }
+  if (typeof record["recipe"] !== "string" || record["recipe"] === "") {
+    throw fail("needs a binding with a string recipe");
+  }
+  const result = record["result"];
+  if (result === null || typeof result !== "object" || Array.isArray(result)) {
+    throw fail("needs a binding with a result object");
+  }
+  const resultRecord = result as Record<string, unknown>;
+  if (typeof resultRecord["name"] !== "string" || resultRecord["name"] === "") {
+    throw fail("needs a binding with a string result name");
+  }
+  const leaves = resultRecord["leaves"];
+  if (!Array.isArray(leaves)) {
+    throw fail("needs a binding with a leaves array");
+  }
+  for (const leaf of leaves) {
+    if (leaf === null || typeof leaf !== "object" || Array.isArray(leaf)) {
+      throw fail("needs leaves shaped {name, type}");
+    }
+    const leafRecord = leaf as Record<string, unknown>;
+    if (typeof leafRecord["name"] !== "string" || typeof leafRecord["type"] !== "string") {
+      throw fail("needs leaves shaped {name, type}");
+    }
+  }
+  return binding;
+}
+
+/**
+ * Map one T19 derived operation to its form fields: one field per derived
+ * input in emission order (the update `record` binds as hidden id/version
+ * and is excluded; `delivery` inputs render a display-only notice field
+ * with no submittable member), widgets per the pinned kind table, enum
+ * options from the
+ * derived values verbatim, literal defaults prefilled verbatim, a
+ * `__version` text companion after each versioned non-record ref, a
+ * `__currency` text companion after each money input, a `__fold` select
+ * after each datetime input, and a `__null` checkbox after each nullable
+ * non-delivery input. Unknown kinds, ref inputs without a boolean
+ * versioned flag, enums without values, delivery inputs without their
+ * binding, and prefill keys matching no generated path all throw precisely
+ * — never a guessed widget or a dropped value.
  */
 export function generatedFields(
   derived: DerivedOperationInputs,
@@ -1141,8 +1359,23 @@ export function generatedFields(
     if (isBoundRecord(input, mode)) {
       continue;
     }
+    if (input.kind === "delivery") {
+      // Engine-resolved receipt declarations render as a display-only
+      // notice field (no companions, no submittable member): the closed
+      // envelope carries no delivery member (T19b wire rule). The notice
+      // stays a field so error re-renders keep it through the binding.
+      const binding = checkedDeliveryBinding(derived, input);
+      fields.push({
+        path: input.name,
+        label: generatedLabel(input.name, overrides.labels),
+        type: "delivery",
+        required: false,
+        value: binding,
+      });
+      continue;
+    }
     // String-indexed on purpose: kinds outside the pinned pilot table
-    // (T19b depth, or JS-only inventions) read undefined and throw below.
+    // (or JS-only inventions) read undefined and throw below.
     const table = GENERATED_FORM_TYPE_FOR_KIND as Record<string, string | undefined>;
     const type: unknown = table[input.kind];
     if (typeof type !== "string") {
@@ -1187,6 +1420,39 @@ export function generatedFields(
         required: input.required,
       });
     }
+    if (input.kind === "money") {
+      const companion = `${input.name}${GENERATED_MONEY_CURRENCY_SUFFIX}`;
+      const prefill = currencyPrefill(input);
+      fields.push({
+        path: companion,
+        label: generatedLabel(companion, overrides.labels),
+        type: "text",
+        required: false,
+        ...(prefill === undefined ? {} : { value: prefill }),
+      });
+    }
+    if (input.kind === "datetime") {
+      // The fold select stays statically optional: the projection
+      // requires an explicit earlier/later choice only when the
+      // submitted wall time is actually ambiguous in the form zone.
+      const companion = `${input.name}${GENERATED_DATETIME_FOLD_SUFFIX}`;
+      fields.push({
+        path: companion,
+        label: generatedLabel(companion, overrides.labels),
+        type: "enum",
+        required: false,
+        options: FOLD_OPTIONS,
+      });
+    }
+    if (input.nullable === true) {
+      const companion = `${input.name}${GENERATED_NULL_SUFFIX}`;
+      fields.push({
+        path: companion,
+        label: generatedLabel(companion, overrides.labels),
+        type: "bool",
+        required: false,
+      });
+    }
   }
   const values = overrides.values ?? {};
   const paths = new Set(fields.map((field) => field.path));
@@ -1206,6 +1472,89 @@ export function generatedFields(
       ? { ...field, value: values[field.path] }
       : field,
   );
+}
+
+/**
+ * Validate one carried delivery binding value: the same wire
+ * `DerivedDeliveryBinding` shape `checkedDeliveryBinding` fences on the
+ * derivation, reported against the rendered field so error re-renders can
+ * drop a tampered value through the established resilient path.
+ */
+function checkedDeliveryValue(fieldPath: string, value: unknown): DerivedDeliveryBinding {
+  const fail = (detail: string): Error => new Error(`field "${fieldPath}": ${detail}.`);
+  if (value === null || typeof value !== "object" || Array.isArray(value)) {
+    throw fail("delivery notice needs its engine-resolved binding value");
+  }
+  const record = value as Record<string, unknown>;
+  if (
+    typeof record["capability"] !== "string" ||
+    record["capability"] === "" ||
+    typeof record["operation"] !== "string" ||
+    record["operation"] === ""
+  ) {
+    throw fail("delivery notice needs string capability and operation");
+  }
+  if (typeof record["version"] !== "number" || !Number.isInteger(record["version"])) {
+    throw fail("delivery notice needs an integer version");
+  }
+  const result = record["result"];
+  if (result === null || typeof result !== "object" || Array.isArray(result)) {
+    throw fail("delivery notice needs a result object");
+  }
+  const resultRecord = result as Record<string, unknown>;
+  if (typeof resultRecord["name"] !== "string" || resultRecord["name"] === "") {
+    throw fail("delivery notice needs a string result name");
+  }
+  const leaves = resultRecord["leaves"];
+  if (!Array.isArray(leaves)) {
+    throw fail("delivery notice needs a leaves array");
+  }
+  for (const leaf of leaves) {
+    if (leaf === null || typeof leaf !== "object" || Array.isArray(leaf)) {
+      throw fail("delivery notice needs leaves shaped {name, type}");
+    }
+    const leafRecord = leaf as Record<string, unknown>;
+    if (typeof leafRecord["name"] !== "string" || typeof leafRecord["type"] !== "string") {
+      throw fail("delivery notice needs leaves shaped {name, type}");
+    }
+  }
+  return value as DerivedDeliveryBinding;
+}
+
+/**
+ * Display-only receipt declaration for one `delivery` field: the validated
+ * binding (capability operation, fenced version, declared result nominal
+ * with its verbatim leaves) rendered as information inside the field's
+ * fieldset, with no named inputs anywhere — the caller submits nothing
+ * for these members. Receipts resolve engine-side at dispatch; the
+ * post-dispatch outcome banner (not this notice) reports their status.
+ * The binding travels as the field value (set by generatedFields, never
+ * overwritten by drafts — the envelope carries no delivery member).
+ */
+function deliveryWidget(
+  field: FormFieldDef,
+  attrs: WidgetAttrs,
+  context: PresentationContext,
+): WidgetResult {
+  const binding = checkedDeliveryValue(field.path, field.value);
+  const lead = escapeHtml(resolveCaption(CHROME.deliveryLead, context));
+  const target = `${binding.capability}.${binding.operation}`;
+  const rows = binding.result.leaves
+    .map(
+      (leaf) =>
+        `<tr><td>${escapeHtml(leaf.name)}</td><td><code>${escapeHtml(leaf.type)}</code></td></tr>`,
+    )
+    .join("");
+  return {
+    html:
+      `<section class="can-delivery" data-delivery="${escapeAttr(field.path)}" ` +
+      `aria-label="${escapeAttr(`${resolveCaption(CHROME.deliveryLead, context)}: ${target}`)}">` +
+      `<p>${lead}: <code>${escapeHtml(target)}</code> ` +
+      `<span>v${escapeHtml(String(binding.version))}</span></p>` +
+      `<p>${escapeHtml(binding.result.name)}</p>` +
+      `<table class="table"><tbody>${rows}</tbody></table></section>`,
+    submitValue: "",
+  };
 }
 
 /**
@@ -1251,6 +1600,145 @@ function projectionFailure(derived: DerivedOperationInputs, message: string): Er
   return new Error(`generated submit for ${JSON.stringify(derived.operation)}: ${message}`);
 }
 
+/** Native datetime-local shape: minute precision, no seconds, no offset. */
+const WALL_DATETIME_RE = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/;
+
+/** Zone offset in milliseconds at one instant (positive east of UTC). */
+function zoneOffsetMs(timeZone: string, epochMs: number): number {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hourCycle: "h23",
+  }).formatToParts(new Date(epochMs));
+  const get = (type: string): number => {
+    const found = parts.find((part) => part.type === type);
+    if (found === undefined) {
+      throw new Error(`wallToInstant: missing ${type} part`);
+    }
+    const value = Number(found.value);
+    if (!Number.isInteger(value)) {
+      throw new Error(`wallToInstant: non-numeric ${type} part`);
+    }
+    return value;
+  };
+  return (
+    Date.UTC(get("year"), get("month") - 1, get("day"), get("hour"), get("minute"), get("second")) -
+    epochMs
+  );
+}
+
+/** Render one instant as a minute-precision wall time in the zone. */
+function formatWallMs(timeZone: string, epochMs: number): string {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+  }).formatToParts(new Date(epochMs));
+  const get = (type: string): string => {
+    const found = parts.find((part) => part.type === type);
+    if (found === undefined) {
+      throw new Error(`wallToInstant: missing ${type} part`);
+    }
+    return found.value;
+  };
+  return `${get("year")}-${get("month")}-${get("day")}T${get("hour")}:${get("minute")}`;
+}
+
+/**
+ * Resolve a submitted wall datetime to its canonical RFC3339 UTC instant
+ * (always with millis, the values-wire pinned form) in the form's IANA
+ * zone. Nonexistent local times (spring-forward gaps) throw a correctable
+ * failure; ambiguous times (fall-back overlaps) require an explicit
+ * `earlier`/`later` fold and throw until one arrives — never a guessed
+ * occurrence. Unambiguous values ignore the fold; malformed walls, zones
+ * and folds all throw precisely.
+ */
+export function wallToInstant(
+  wall: string,
+  timeZone: string,
+  fold: string | undefined,
+): string {
+  if (typeof wall !== "string" || !WALL_DATETIME_RE.test(wall)) {
+    throw new Error(`invalid wall datetime ${JSON.stringify(wall)}: expected "YYYY-MM-DDTHH:mm"`);
+  }
+  if (!isValidDate(wall.slice(0, 10)) || Number(wall.slice(11, 13)) > 23 || Number(wall.slice(14, 16)) > 59) {
+    throw new Error(`invalid wall datetime ${JSON.stringify(wall)}: no such civil date/time`);
+  }
+  if (typeof timeZone !== "string" || timeZone === "") {
+    throw new Error(`invalid time zone ${JSON.stringify(timeZone)}: expected a nonempty IANA zone`);
+  }
+  if (fold !== undefined && fold !== "" && fold !== "earlier" && fold !== "later") {
+    throw new Error(`invalid fold ${JSON.stringify(fold)}: expected "earlier" or "later"`);
+  }
+  const candidate = Date.UTC(
+    Number(wall.slice(0, 4)),
+    Number(wall.slice(5, 7)) - 1,
+    Number(wall.slice(8, 10)),
+    Number(wall.slice(11, 13)),
+    Number(wall.slice(14, 16)),
+  );
+  try {
+    // Distinct offsets around the wall moment: each yields at most one
+    // instant spelling this wall back. The ±25h/±12h probes span every
+    // standard/DST transition window (gaps and overlaps alike).
+    const offsets = new Set<number>();
+    for (const probe of [
+      candidate - 25 * 3600000,
+      candidate - 12 * 3600000,
+      candidate,
+      candidate + 12 * 3600000,
+      candidate + 25 * 3600000,
+    ]) {
+      offsets.add(zoneOffsetMs(timeZone, probe));
+    }
+    const matches: number[] = [];
+    for (const offset of offsets) {
+      const instant = candidate - offset;
+      if (formatWallMs(timeZone, instant) === wall && !matches.includes(instant)) {
+        matches.push(instant);
+      }
+    }
+    const single = matches.length === 1 ? matches[0] : undefined;
+    if (single !== undefined) {
+      return new Date(single).toISOString();
+    }
+    if (matches.length === 0) {
+      throw new Error(
+        `nonexistent local time ${JSON.stringify(wall)} in ${JSON.stringify(timeZone)}`,
+      );
+    }
+    if (fold !== "earlier" && fold !== "later") {
+      throw new Error(
+        `ambiguous local time ${JSON.stringify(wall)} in ${JSON.stringify(timeZone)}: ` +
+          `choose "earlier" or "later"`,
+      );
+    }
+    const ordered = [...matches].sort((a, b) => a - b);
+    const low = ordered[0];
+    const high = ordered[ordered.length - 1];
+    if (low === undefined || high === undefined) {
+      throw new Error("wallToInstant: ambiguous time lost its candidates");
+    }
+    return new Date(fold === "earlier" ? low : high).toISOString();
+  } catch (error) {
+    // Only Intl rejects zones (RangeError); every other throw above is
+    // already precise and passes through untouched.
+    if (error instanceof RangeError) {
+      throw new Error(`invalid time zone ${JSON.stringify(timeZone)}`);
+    }
+    throw error;
+  }
+}
+
 /**
  * Project one array member: absent/empty optional arrays omit (omission
  * defers to the engine); anything present must parse as a JSON array,
@@ -1290,21 +1778,58 @@ function projectArrayValue(
 }
 
 /**
+ * Resolve the projection timezone: the form's `timezone` member when
+ * present, else UTC — unless a datetime input carries a value, which
+ * needs the real zone to resolve and fails loudly without it.
+ */
+function resolveProjectionZone(
+  derived: DerivedOperationInputs,
+  mode: FormMode,
+  form: Record<string, string>,
+  root: (name: string) => string,
+): string {
+  const zone = form["timezone"];
+  if (zone !== undefined && (typeof zone !== "string" || zone === "")) {
+    throw projectionFailure(derived, "the form timezone must be a nonempty string");
+  }
+  if (typeof zone === "string") {
+    return zone;
+  }
+  for (const input of derived.inputs) {
+    if (isBoundRecord(input, mode) || input.kind !== "datetime") {
+      continue;
+    }
+    const raw = form[root(input.name)];
+    if (raw !== undefined && raw !== "") {
+      throw projectionFailure(
+        derived,
+        `datetime input ${JSON.stringify(input.name)} needs the form timezone to resolve to an instant`,
+      );
+    }
+  }
+  return "UTC";
+}
+
+/**
  * Client-side submission projection: flat submitted form values (one
  * entry per rendered field name, as a form parser yields them) back to
  * the closed envelope inputs for one derived operation. Reads exactly
  * the names the generated form renders — `inputs[name]` under
  * create/scenario, `inputs[changes][name]` under update, the record
- * hiddens, and `__version` companions — and ignores every other member
- * (transport fields, submit buttons, tampered extras never enter the
- * envelope). Absent members omit so the dispatcher judges presence;
- * empty optional scalars omit so omission defers to the engine; bools
- * coerce (`"true"`/`"false"`, absent reads unchecked-false); refs
- * compose `{id}`/`{id, version}`. Present-but-unprojectable values
- * (malformed array JSON, non-bool text) throw precisely, as do
- * `datetime` values (wall-to-instant conversion is T20b) and `file`
- * values (S7 upload intents) — the projection never guesses a typed
- * value. Business validity always stays with the dispatcher/engine.
+ * hiddens, and the `__version`/`__currency`/`__fold`/`__null`
+ * companions — and ignores every other member (transport fields,
+ * submit buttons, tampered extras never enter the envelope). Absent
+ * members omit so the dispatcher judges presence; empty optional
+ * scalars omit so omission defers to the engine; bools coerce
+ * (`"true"`/`"false"`, absent reads unchecked-false); refs compose
+ * `{id}`/`{id, version}`; money composes `{minor, currency}`;
+ * datetimes resolve wall-to-instant in the form zone; files travel as
+ * their opaque id; an explicit `__null` on a nullable input projects
+ * JSON null. `delivery` inputs never emit a member, even under
+ * tampering. Present-but-unprojectable values (malformed array JSON,
+ * non-bool text, gap/ambiguous datetimes, mistyped folds) throw
+ * precisely — the projection never guesses a typed value. Business
+ * validity always stays with the dispatcher/engine.
  */
 export function projectGeneratedInputs(
   derived: DerivedOperationInputs,
@@ -1314,6 +1839,7 @@ export function projectGeneratedInputs(
   assertGeneratedMode(derived, mode);
   const root = (name: string): string =>
     mode === "update" ? `inputs[changes][${name}]` : `inputs[${name}]`;
+  const timeZone = resolveProjectionZone(derived, mode, form, root);
   const out: Record<string, unknown> = {};
   for (const input of derived.inputs) {
     if (isBoundRecord(input, mode)) {
@@ -1326,6 +1852,20 @@ export function projectGeneratedInputs(
         ...(id === undefined ? {} : { id }),
         ...(version === undefined ? {} : { version }),
       };
+      continue;
+    }
+    if (input.kind === "delivery") {
+      // Engine-resolved: never submitted, even when the flat map
+      // carries a tampered member for it.
+      continue;
+    }
+    if (
+      input.nullable === true &&
+      form[root(`${input.name}${GENERATED_NULL_SUFFIX}`)] === "true"
+    ) {
+      // Explicit null wins over the value widget. A `__null` mark on a
+      // non-nullable input is ignored above (never enters the envelope).
+      out[input.name] = null;
       continue;
     }
     if (input.kind === "ref") {
@@ -1368,30 +1908,49 @@ export function projectGeneratedInputs(
       continue;
     }
     if (input.kind === "datetime") {
-      if (raw === undefined || raw === "") {
-        if (!input.required) {
-          continue;
-        }
+      if (raw === undefined) {
+        continue;
+      }
+      if (raw === "") {
+        // Cleared travels verbatim for the engine to judge, like every
+        // other cleared scalar.
+        out[input.name] = "";
+        continue;
+      }
+      try {
+        out[input.name] = wallToInstant(
+          raw,
+          timeZone,
+          form[root(`${input.name}${GENERATED_DATETIME_FOLD_SUFFIX}`)],
+        );
+      } catch (error) {
         throw projectionFailure(
           derived,
-          `datetime input ${JSON.stringify(input.name)} needs wall-to-instant projection (T20b).`,
+          `datetime input ${JSON.stringify(input.name)}: ${error instanceof Error ? error.message : String(error)}`,
         );
       }
-      throw projectionFailure(
-        derived,
-        `datetime input ${JSON.stringify(input.name)} needs wall-to-instant projection (T20b).`,
-      );
+      continue;
     }
     if (input.kind === "file") {
-      if (raw === undefined || raw === "") {
-        if (!input.required) {
-          continue;
-        }
+      // The opaque finalized id, filled by the client after the S7
+      // intent flow. Cleared travels verbatim; the bound checker
+      // rejects it correctably.
+      if (raw === undefined) {
+        continue;
       }
-      throw projectionFailure(
-        derived,
-        `file input ${JSON.stringify(input.name)} needs S7 upload intents.`,
-      );
+      out[input.name] = raw;
+      continue;
+    }
+    if (input.kind === "money") {
+      const currency = form[root(`${input.name}${GENERATED_MONEY_CURRENCY_SUFFIX}`)];
+      if (raw === undefined && currency === undefined) {
+        continue;
+      }
+      // Verbatim minor + caller-supplied currency: the exact-keys
+      // `{minor, currency}` wire shape. ISO membership is judged at
+      // the L2 values boundary, never invented here.
+      out[input.name] = { minor: raw ?? "", currency: currency ?? "" };
+      continue;
     }
     if (raw === undefined || raw === "") {
       if (!input.required) {
@@ -1402,6 +1961,91 @@ export function projectGeneratedInputs(
       }
     }
     out[input.name] = raw;
+  }
+  return out;
+}
+
+/** Plain-object check for draft subtrees (envelope members, `changes`). */
+function isDraftRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+/**
+ * Flatten one failed envelope's business inputs back onto the generated
+ * field paths (the ref-draft carry): refs split into id + `__version`
+ * companion, money splits into minor + `__currency` companion, arrays
+ * re-encode as JSON text, and explicit nulls mark their `__null`
+ * companion. Scalars (string/integer/decimal/enum/datetime/file/boolean)
+ * pass through verbatim — the widgets judge wrong-typed drafts and the
+ * error re-render drops them through the established resilient path.
+ * Update mode reads `changes.*` (the bound `record` stays envelope-side,
+ * owned by the re-render's record extraction); `delivery` inputs and
+ * unknown members flatten to nothing. Unflattenable structures omit
+ * rather than guess. The interfaces error re-render calls this helper
+ * for generated bindings so both sides agree on every draft shape.
+ */
+export function generatedDraftValues(
+  derived: DerivedOperationInputs,
+  mode: FormMode,
+  inputs: ClosedInputs,
+): Record<string, unknown> {
+  assertGeneratedMode(derived, mode);
+  const changes = inputs["changes"];
+  const source: ClosedInputs =
+    mode === "update" && isDraftRecord(changes) ? changes : inputs;
+  const out: Record<string, unknown> = {};
+  for (const input of derived.inputs) {
+    if (isBoundRecord(input, mode) || input.kind === "delivery") {
+      continue;
+    }
+    if (!Object.hasOwn(source, input.name)) {
+      continue;
+    }
+    const member = source[input.name];
+    if (member === undefined) {
+      continue;
+    }
+    if (member === null) {
+      if (input.nullable === true) {
+        out[`${input.name}${GENERATED_NULL_SUFFIX}`] = true;
+      }
+      continue;
+    }
+    if (input.kind === "ref") {
+      if (!isDraftRecord(member) || typeof member["id"] !== "string") {
+        continue;
+      }
+      out[input.name] = member["id"];
+      if (input.versioned === true && typeof member["version"] === "string") {
+        out[`${input.name}${GENERATED_REF_VERSION_SUFFIX}`] = member["version"];
+      }
+      continue;
+    }
+    if (input.kind === "money") {
+      if (!isDraftRecord(member)) {
+        continue;
+      }
+      if (typeof member["minor"] === "string") {
+        out[input.name] = member["minor"];
+      }
+      if (typeof member["currency"] === "string") {
+        out[`${input.name}${GENERATED_MONEY_CURRENCY_SUFFIX}`] = member["currency"];
+      }
+      continue;
+    }
+    if (input.array !== undefined && Array.isArray(member)) {
+      let json: string | undefined;
+      try {
+        json = JSON.stringify(member) ?? undefined;
+      } catch {
+        json = undefined;
+      }
+      if (json !== undefined) {
+        out[input.name] = json;
+      }
+      continue;
+    }
+    out[input.name] = member;
   }
   return out;
 }

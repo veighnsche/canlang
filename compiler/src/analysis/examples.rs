@@ -1479,7 +1479,8 @@ impl<'a> Checker<'a> {
     }
 
     /// Required writable inputs of a generated create: required model
-    /// fields plus `parent` for contained models.
+    /// fields plus `parent` for contained models. Derived fields are
+    /// computed, never required (mirrors `field_is_required`).
     fn required_create_fields(&self, model: SymbolId) -> Vec<String> {
         let mut required = Vec::new();
         if let SymbolKind::Model { owner, .. } = &self.tables.symbols[model.0 as usize].kind
@@ -1493,6 +1494,12 @@ impl<'a> Checker<'a> {
             .map(|node| field_optionals(self.db, node))
             .unwrap_or_default();
         for field in model_field_ids(self.tables, model) {
+            if matches!(
+                self.tables.symbols[field.0 as usize].kind,
+                SymbolKind::DeriveField { .. }
+            ) {
+                continue;
+            }
             let name = self.tables.symbols[field.0 as usize].name.clone();
             if optional.contains(&name) {
                 continue;
