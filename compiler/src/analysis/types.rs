@@ -2922,14 +2922,9 @@ impl<'a> Typer<'a> {
     /// Literal schedule keys are unique within their module (DESIGN
     /// §8: a dynamic key is unique within app/owner/package).
     fn check_schedule_key_unique(&mut self, cx: &Ctx<'_, '_>, key: &SyntaxNode) {
-        let Some((SyntaxKind::String, slice)) = literal_leaf(key, cx.text) else {
+        let Some(value) = string_literal_value(key) else {
             return;
         };
-        let value = slice
-            .strip_prefix('"')
-            .and_then(|s| s.strip_suffix('"'))
-            .and_then(unescape_json)
-            .unwrap_or_default();
         let slot = (cx.module, value.clone());
         if let Some(first) = self.schedule_keys.get(&slot) {
             let mut diagnostic = Diagnostic::error(
@@ -4208,7 +4203,7 @@ impl<'a> Typer<'a> {
     ) {
         match node.kind {
             SyntaxKind::Literal => {
-                if string_literal_value(node, cx.text).is_none() {
+                if !invalid_string_literal(node) && string_literal_value(node).is_none() {
                     self.diags.push(Diagnostic::error(
                         "E3016",
                         format!("{what} must be text, a message or a label table"),
@@ -4293,7 +4288,9 @@ impl<'a> Typer<'a> {
                     match value.map(|n| n.kind) {
                         Some(SyntaxKind::Literal) => {
                             let literal = value.expect("matched literal");
-                            if string_literal_value(literal, cx.text).is_none() {
+                            if !invalid_string_literal(literal)
+                                && string_literal_value(literal).is_none()
+                            {
                                 self.diags.push(Diagnostic::error(
                                     "E3016",
                                     "description must be text or a static message reference"
@@ -4332,7 +4329,9 @@ impl<'a> Typer<'a> {
                         .into_iter()
                         .find(|n| n.kind == SyntaxKind::Literal);
                     match literal {
-                        Some(found) if string_literal_value(found, cx.text).is_some() => {}
+                        Some(found)
+                            if invalid_string_literal(found)
+                                || string_literal_value(found).is_some() => {}
                         _ => {
                             self.diags.push(Diagnostic::error(
                                 "E3016",
@@ -4367,8 +4366,9 @@ impl<'a> Typer<'a> {
         let Some(base) = base else {
             return;
         };
-        let base_text = string_literal_value(base, cx.text).unwrap_or_default();
-        let base_slots = message_slots(&base_text);
+        let base_slots = string_literal_value(base)
+            .map(|text| message_slots(&text))
+            .unwrap_or_default();
         for slot in &base_slots {
             if !params.is_empty() && !params.iter().any(|p| p == slot) {
                 self.diags.push(Diagnostic::error(
@@ -4397,9 +4397,15 @@ impl<'a> Typer<'a> {
             // (the parser leaves quoted keys as bare `String` leaves,
             // not `Literal` nodes).
             let tag = if key_node.kind == SyntaxKind::Literal {
-                string_literal_value(key_node, cx.text).unwrap_or_default()
+                let Some(tag) = string_literal_value(key_node) else {
+                    continue;
+                };
+                tag
             } else if key_node.kind == SyntaxKind::String {
-                string_leaf_value(key_node, cx.text).unwrap_or_default()
+                let Some(tag) = string_leaf_value(key_node) else {
+                    continue;
+                };
+                tag
             } else {
                 name_text(key_node, cx.text).unwrap_or("").to_string()
             };
@@ -4429,7 +4435,7 @@ impl<'a> Typer<'a> {
             }
             // Variant values are strings or explicit null (absence).
             if let Some(value) = value_node {
-                if let Some(text) = string_literal_value(value, cx.text) {
+                if let Some(text) = string_literal_value(value) {
                     // Variants may use a subset of the signature; every
                     // placeholder must still name a parameter.
                     for slot in message_slots(&text) {
@@ -4443,7 +4449,7 @@ impl<'a> Typer<'a> {
                             ));
                         }
                     }
-                } else if !is_null_literal(value, cx.text) {
+                } else if !invalid_string_literal(value) && !is_null_literal(value, cx.text) {
                     self.diags.push(Diagnostic::error(
                         "E3016",
                         format!("{what} variant '{tag}' must be text or null"),
@@ -4566,7 +4572,7 @@ impl<'a> Typer<'a> {
     /// Check a `require ... message=` value: literal text or a message
     /// value (`E3014`).
     fn check_text_or_message(&mut self, cx: &Ctx<'_, '_>, node: &SyntaxNode, what: &str) {
-        if string_literal_value(node, cx.text).is_some() {
+        if invalid_string_literal(node) || string_literal_value(node).is_some() {
             return;
         }
         if node.kind == SyntaxKind::MessageValue {
@@ -4906,7 +4912,7 @@ impl<'a> Typer<'a> {
                     continue;
                 };
                 if let Some(source) = attribute_value(child, "source", &text)
-                    && let Some(tag) = string_literal_value(source, &text)
+                    && let Some(tag) = string_literal_value(source)
                 {
                     self.module_source.insert(module, tag);
                 }
@@ -5668,7 +5674,7 @@ impl<'a> Typer<'a> {
                     }
                     "locale" => {
                         if let Some(default) = attribute_value(decl, "default", text)
-                            && let Some(tag) = string_literal_value(default, text)
+                            && let Some(tag) = string_literal_value(default)
                             && let Some(problem) = valid_locale(&tag)
                         {
                             self.diags.push(Diagnostic::error(
@@ -5716,7 +5722,7 @@ impl<'a> Typer<'a> {
         let narrow = NarrowEnv::default();
         let cx = Self::body_cx(module, file, text, &narrow);
         if let Some(source) = attribute_value(node, "source", text)
-            && let Some(tag) = string_literal_value(source, text)
+            && let Some(tag) = string_literal_value(source)
             && let Some(problem) = valid_locale(&tag)
         {
             self.diags.push(Diagnostic::error(
@@ -6394,14 +6400,14 @@ impl<'a> Typer<'a> {
     /// Static page text: a string literal, a context-free message
     /// value or a path to a zero-parameter message (`E3013`).
     fn check_page_static_text(&mut self, cx: &Ctx<'_, '_>, node: &SyntaxNode, what: &str) {
-        if string_literal_value(node, cx.text).is_some() {
+        if invalid_string_literal(node) || string_literal_value(node).is_some() {
             return;
         }
         if node.kind == SyntaxKind::MessageValue {
             let template = kids(node)
                 .iter()
                 .find(|n| n.kind == SyntaxKind::Literal)
-                .and_then(|lit| string_literal_value(lit, cx.text))
+                .and_then(|lit| string_literal_value(lit))
                 .unwrap_or_default();
             self.check_message_value(cx, node, what, &[]);
             if !message_slots(&template).is_empty() {
@@ -7205,7 +7211,10 @@ impl<'a> Typer<'a> {
                         self.entry_value(cx, key_node, value, None);
                         continue;
                     };
-                    match string_literal_value(literal, cx.text) {
+                    if invalid_string_literal(literal) {
+                        continue;
+                    }
+                    match string_literal_value(literal) {
                         Some(mime)
                             if matches!(
                                 mime.as_str(),
@@ -7675,6 +7684,14 @@ impl<'a> Typer<'a> {
         result: Option<(&SyntaxNode, Option<&SyntaxNode>)>,
         error: Option<(&SyntaxNode, Option<&SyntaxNode>)>,
     ) {
+        if status.is_some_and(|(_, value)| value.is_some_and(invalid_string_literal)) {
+            // The lexer owns the invalid status diagnostic, but payloads
+            // still need their independent name/type checks.
+            for (key_node, value) in [result, error].into_iter().flatten() {
+                self.entry_value(cx, key_node, value, None);
+            }
+            return;
+        }
         // The status names a known outcome (absent means pending).
         let outcome = match status {
             None => "pending".to_string(),
@@ -7685,7 +7702,7 @@ impl<'a> Typer<'a> {
                             .iter()
                             .find_map(|n| name_text(n, cx.text))
                             .map(str::to_string),
-                        SyntaxKind::Literal => string_literal_value(v, cx.text),
+                        SyntaxKind::Literal => string_literal_value(v),
                         _ => None,
                     })
                     .unwrap_or_default();
@@ -7765,25 +7782,34 @@ impl<'a> Typer<'a> {
     // --- Phase 2: scenarios and operations (P3) ---
 }
 
-/// Decoded value of a string `Literal` node (`None` when not one).
-fn string_literal_value(node: &SyntaxNode, text: &str) -> Option<String> {
-    let (kind, slice) = literal_leaf(node, text)?;
-    if kind != SyntaxKind::String {
+/// Lexer-owned decoded value of a string `Literal` node.
+/// Invalid strings have no payload; an empty valid string has `Some("")`.
+fn string_literal_value(node: &SyntaxNode) -> Option<String> {
+    if node.kind != SyntaxKind::Literal {
         return None;
     }
-    let body = slice.strip_prefix('"').and_then(|s| s.strip_suffix('"'))?;
-    unescape_json(body)
+    kids(node).into_iter().find_map(string_leaf_value)
 }
 
-/// Value of a bare `String` token leaf (message locale keys are
-/// leaves, not `Literal` nodes).
-fn string_leaf_value(node: &SyntaxNode, text: &str) -> Option<String> {
+/// Lexer-owned value of a bare `String` token leaf (quoted message
+/// locale keys are leaves, not `Literal` nodes).
+fn string_leaf_value(node: &SyntaxNode) -> Option<String> {
     if node.kind != SyntaxKind::String {
         return None;
     }
-    let slice = text.get(node.span.start as usize..node.span.end as usize)?;
-    let body = slice.strip_prefix('"').and_then(|s| s.strip_suffix('"'))?;
-    unescape_json(body)
+    node.token()?.string_value.clone()
+}
+
+/// Recovery stays local to the invalid token: the lexer already emitted
+/// its source diagnostic. Do not suppress valid sibling declarations.
+fn invalid_string_literal(node: &SyntaxNode) -> bool {
+    node.kind == SyntaxKind::Literal
+        && kids(node).into_iter().any(|leaf| {
+            leaf.kind == SyntaxKind::String
+                && leaf
+                    .token()
+                    .is_some_and(|token| token.string_value.is_none())
+        })
 }
 
 /// Whether a `Literal` node is the `null` literal.
@@ -8409,58 +8435,6 @@ fn literal_leaf<'a>(node: &SyntaxNode, text: &'a str) -> Option<(SyntaxKind, &'a
             _ => None,
         }
     })
-}
-
-/// Decode a JSON string literal body (the lexer validated escapes, so
-/// `None` only fires defensively on truncated `\u` tails).
-fn unescape_json(body: &str) -> Option<String> {
-    let mut out = String::with_capacity(body.len());
-    let mut chars = body.chars();
-    while let Some(c) = chars.next() {
-        if c != '\\' {
-            out.push(c);
-            continue;
-        }
-        match chars.next()? {
-            '"' => out.push('"'),
-            '\\' => out.push('\\'),
-            '/' => out.push('/'),
-            'b' => out.push('\u{8}'),
-            'f' => out.push('\u{c}'),
-            'n' => out.push('\n'),
-            'r' => out.push('\r'),
-            't' => out.push('\t'),
-            'u' => {
-                let hi = hex4(&mut chars)?;
-                if (0xD800..0xDC00).contains(&hi) {
-                    if chars.next()? != '\\' || chars.next()? != 'u' {
-                        return None;
-                    }
-                    let lo = hex4(&mut chars)?;
-                    if !(0xDC00..0xE000).contains(&lo) {
-                        return None;
-                    }
-                    let scalar = 0x10000 + ((hi - 0xD800) << 10) + (lo - 0xDC00);
-                    out.push(char::from_u32(scalar)?);
-                } else if (0xDC00..0xE000).contains(&hi) {
-                    return None;
-                } else {
-                    out.push(char::from_u32(hi)?);
-                }
-            }
-            _ => return None,
-        }
-    }
-    Some(out)
-}
-
-/// Four hex digits as `u32`.
-fn hex4(chars: &mut std::str::Chars<'_>) -> Option<u32> {
-    let mut value = 0u32;
-    for _ in 0..4 {
-        value = value * 16 + chars.next()?.to_digit(16)?;
-    }
-    Some(value)
 }
 
 /// Module of an `App`/`Package` node (mirrors the resolver: first
@@ -9958,8 +9932,9 @@ impl<'a> Typer<'a> {
                 ResolvedType::Scalar(Scalar::Bytes)
             }
             SyntaxKind::String => {
-                let body = slice.strip_prefix('"').and_then(|s| s.strip_suffix('"'));
-                let value = body.and_then(unescape_json).unwrap_or_default();
+                let Some(value) = string_literal_value(node) else {
+                    return ResolvedType::Error;
+                };
                 if let Some(expected) = expect {
                     let unwrapped = match expected {
                         ResolvedType::Nullable(inner) => inner.as_ref(),
@@ -13706,14 +13681,9 @@ impl<'a> Typer<'a> {
         let Some(arg) = bound_arg(overload, args, "time") else {
             return;
         };
-        let Some((SyntaxKind::String, slice)) = literal_leaf(arg.value, cx.text) else {
+        let Some(value) = string_literal_value(arg.value) else {
             return;
         };
-        let value = slice
-            .strip_prefix('"')
-            .and_then(|s| s.strip_suffix('"'))
-            .and_then(unescape_json)
-            .unwrap_or_default();
         if let Some(problem) = valid_wall_time(&value) {
             self.diags.push(Diagnostic::error(
                 "E3001",
@@ -13742,13 +13712,8 @@ impl<'a> Typer<'a> {
         let ResolvedType::Object(fields) = &typed[1] else {
             return;
         };
-        let template = match literal_leaf(args[0].value, cx.text) {
-            Some((SyntaxKind::String, slice)) => slice
-                .strip_prefix('"')
-                .and_then(|s| s.strip_suffix('"'))
-                .and_then(unescape_json)
-                .unwrap_or_default(),
-            _ => return,
+        let Some(template) = string_literal_value(args[0].value) else {
+            return;
         };
         match scan_format_template(&template) {
             Err(problem) => {
@@ -13778,13 +13743,8 @@ impl<'a> Typer<'a> {
         if !cx.strict || args.len() != 1 {
             return;
         }
-        let value = match literal_leaf(args[0].value, cx.text) {
-            Some((SyntaxKind::String, slice)) => slice
-                .strip_prefix('"')
-                .and_then(|s| s.strip_suffix('"'))
-                .and_then(unescape_json)
-                .unwrap_or_default(),
-            _ => return,
+        let Some(value) = string_literal_value(args[0].value) else {
+            return;
         };
         let problem = match which {
             "date" => valid_date(&value).err(),
@@ -14355,13 +14315,7 @@ impl<'a> Typer<'a> {
         trial: &mut Trial,
     ) -> bool {
         let leaf = arg.value;
-        let text = match literal_leaf(leaf, cx.text) {
-            Some((SyntaxKind::String, slice)) => slice
-                .strip_prefix('"')
-                .and_then(|s| s.strip_suffix('"'))
-                .and_then(unescape_json),
-            _ => None,
-        };
+        let text = string_literal_value(leaf);
         let Some(text) = text else {
             return false;
         };

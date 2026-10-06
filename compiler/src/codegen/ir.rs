@@ -2586,40 +2586,6 @@ fn literal_string(db: &SourceDb, node: &SyntaxNode) -> Option<String> {
     literal_string_opt(db, node).flatten()
 }
 
-#[cfg(test)]
-mod string_payload_tests {
-    use super::*;
-    use crate::syntax::lexer::{Token, TokenKind};
-
-    /// Synthetic CST recovery boundary: raw source must never substitute
-    /// for an absent lexer payload, even when its spelling looks valid.
-    #[test]
-    fn c01_literal_string_distinguishes_empty_null_and_missing_payload() {
-        let mut db = SourceDb::new();
-        let file = db.add("payload.can".to_string(), "\"\" null".to_string());
-        let literal = |kind, span, string_value| {
-            SyntaxNode::enclosing(
-                SyntaxKind::Literal,
-                vec![SyntaxNode::token_leaf(Token {
-                    kind,
-                    span,
-                    string_value,
-                })],
-            )
-        };
-        let empty = literal(
-            TokenKind::String,
-            Span::new(file, 0, 2),
-            Some(String::new()),
-        );
-        let missing = literal(TokenKind::String, Span::new(file, 0, 2), None);
-        let null = literal(TokenKind::Name, Span::new(file, 3, 7), None);
-        assert_eq!(literal_string_opt(&db, &empty), Some(Some(String::new())));
-        assert_eq!(literal_string_opt(&db, &missing), None);
-        assert_eq!(literal_string_opt(&db, &null), Some(None));
-    }
-}
-
 impl<'a> Cx<'a> {
     /// Decode an object/construct value: entries in source order
     /// (shorthand entries read the in-scope binding of the key).
@@ -4761,7 +4727,11 @@ impl<'a> Cx<'a> {
                     let Some(key) = unique.where_predicate.as_ref() else {
                         continue;
                     };
-                    let span = Span::new(unique.node.file, unique.node.start, unique.node.end);
+                    let span = Span::new(
+                        unique.node.file,
+                        unique.node.start,
+                        unique.node.end,
+                    );
                     invariants.push(IrRuleFn {
                         id: format!("{}.unique.{}", symbol.name, index + 1),
                         pred: self.decode_anchored(
@@ -6054,7 +6024,10 @@ impl<'a> Cx<'a> {
                 }
             }
         }
-        if !children.iter().any(|c| ui_slot_name(c) == Some("content")) {
+        if !children
+            .iter()
+            .any(|c| ui_slot_name(c) == Some("content"))
+        {
             self.diags.push(Diagnostic::error(
                 "E6008",
                 "cannot lower chat_bubble: chat_bubble needs a content slot".to_string(),
@@ -7178,13 +7151,7 @@ impl<'a> Cx<'a> {
         let canonical = self.canonical(op);
         let model_canonical = self.canonical(model);
         let name = self.local_name(model);
-        let text = |value: String| {
-            TypedExpr::new(
-                IrExpr::Text(value),
-                ResolvedType::Scalar(Scalar::Text),
-                node.span,
-            )
-        };
+        let text = |value: String| TypedExpr::new(IrExpr::Text(value), ResolvedType::Scalar(Scalar::Text), node.span);
         props.push(("operation".to_string(), text(canonical.clone())));
         props.push((
             "record".to_string(),
@@ -7216,7 +7183,10 @@ impl<'a> Cx<'a> {
             )),
             None => props.push(("itemLabel".to_string(), text(name.clone()))),
         }
-        props.push(("confirm".to_string(), text(format!("Archive this {name}?"))));
+        props.push((
+            "confirm".to_string(),
+            text(format!("Archive this {name}?")),
+        ));
         props.push((
             "idPrefix".to_string(),
             text(format!("delete-{}", model_canonical.replace('.', "-"))),
@@ -8406,7 +8376,7 @@ impl<'a> Cx<'a> {
                 let id = match target {
                     IrCallTarget::Builtin { id, .. } => id.as_str(),
                     IrCallTarget::CapabilityOp(_) | IrCallTarget::DeriveFn(_) => {
-                        return ResolvedType::Unknown;
+                        return ResolvedType::Unknown
                     }
                 };
                 match id {
@@ -8839,4 +8809,38 @@ fn tabs_selector(db: &SourceDb, module_name: &str, target: &SyntaxNode) -> Optio
     }
     let field = parts.iter().rev().find_map(|n| name_text(db, n))?;
     Some(format!("{module_name}.{field}"))
+}
+
+#[cfg(test)]
+mod string_payload_tests {
+    use super::*;
+    use crate::syntax::lexer::{Token, TokenKind};
+
+    /// Synthetic CST recovery boundary: raw source must never substitute
+    /// for an absent lexer payload, even when its spelling looks valid.
+    #[test]
+    fn c01_literal_string_distinguishes_empty_null_and_missing_payload() {
+        let mut db = SourceDb::new();
+        let file = db.add("payload.can".to_string(), "\"\" null".to_string());
+        let literal = |kind, span, string_value| {
+            SyntaxNode::enclosing(
+                SyntaxKind::Literal,
+                vec![SyntaxNode::token_leaf(Token {
+                    kind,
+                    span,
+                    string_value,
+                })],
+            )
+        };
+        let empty = literal(
+            TokenKind::String,
+            Span::new(file, 0, 2),
+            Some(String::new()),
+        );
+        let missing = literal(TokenKind::String, Span::new(file, 0, 2), None);
+        let null = literal(TokenKind::Name, Span::new(file, 3, 7), None);
+        assert_eq!(literal_string_opt(&db, &empty), Some(Some(String::new())));
+        assert_eq!(literal_string_opt(&db, &missing), None);
+        assert_eq!(literal_string_opt(&db, &null), Some(None));
+    }
 }

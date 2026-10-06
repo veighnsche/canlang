@@ -1588,3 +1588,37 @@ fn catalog_items_shape() {
         &["E1200"],
     );
 }
+
+/// C01 recovery witness: invalid source strings keep lexer diagnostics
+/// at authored byte positions and never acquire a decoded CST payload.
+#[test]
+fn c01_invalid_string_payloads_keep_source_diagnostics() {
+    for (raw, invalid_byte) in [
+        (r#""\q""#, 2),
+        (r#""\uD83D""#, 2),
+        (r#""\uDE00""#, 2),
+        (r#""\u12""#, 2),
+        ("\"a\tb\"", 2),
+        ("\"a\u{8}b\"", 2),
+    ] {
+        let prefix = "app T\nGiven\n M { value:text=";
+        let src = format!("{prefix}{raw} }}\nWhen\nThen\n");
+        let (tree, diags) = assert_codes(&src, &["E1006"]);
+        assert_eq!(
+            diags[0].primary.start,
+            (prefix.len() + invalid_byte) as u32,
+            "{raw:?}"
+        );
+        assert_eq!(
+            diags[0].primary.end,
+            (prefix.len() + invalid_byte + 1) as u32,
+            "{raw:?}"
+        );
+        let strings: Vec<_> = tree
+            .descendants()
+            .filter(|n| n.kind == SyntaxKind::String)
+            .collect();
+        assert_eq!(strings.len(), 1, "{raw:?}");
+        assert_eq!(strings[0].token().unwrap().string_value, None, "{raw:?}");
+    }
+}
