@@ -1,5 +1,0 @@
-app Models
-Given
- package in app {title:text}
-When
-Then

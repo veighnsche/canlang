@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "scope": "Repository-wide Markdown audit with five root relocations and the selected 52-to-25 topic consolidation applied locally; further prior-plan/setup/execution pruning remains scoped future work.",
+  "scope": "Repository-wide Markdown audit with five root relocations and the selected 52-to-25 topic consolidation applied locally; further prior-plan/setup/execution pruning remains scoped future work. Completed editor audit working copies retired under DOC07 with pinned Git recovery; other captured evidence remains under deferred DOC06.",
   "source_observation": {
     "head": "ef35e95c289208e994a781c572bd483a20f5eeb5",
     "draft_head": "40656da211a410cb6fb363a9c2afc3010fcb8b29",
@@ -26,7 +26,10 @@
     "topic_successor_files_created": 24,
     "topic_records_after_consolidation": 25,
     "executed_topic_file_reduction": 27,
-    "planned_topic_file_reduction_at_observation": 27
+    "planned_topic_file_reduction_at_observation": 27,
+    "editor_archive_files_retired": 187,
+    "editor_archive_markdown_retired": 23,
+    "editor_archive_working_bytes_removed": 42687533
   },
   "root_fixed": [
     "README.md",
@@ -536,6 +539,392 @@
       "source_sha256": {
         "design/jev/time-completion-20261004/analysis.md": "a8c727797e7e8a75bc66f9a761f22d25755292beea08375e3fc51e510f619513",
         "design/jev/time-completion-20261004/wording-check.md": "74b6a0dd9e5d89ee108e87734f75371cd3a8f009c28b3a8b34d1c6cd07421a2f"
+      },
+      "execution_status": "applied locally"
+    },
+    {
+      "sources": [
+        "editors/vscode/audit-astra/REPORT.md",
+        "editors/vscode/audit-astra/build-inventory.py",
+        "editors/vscode/audit-astra/changed-during-audit.json",
+        "editors/vscode/audit-astra/changed-rule-current-path.txt",
+        "editors/vscode/audit-astra/changed-rule-recheck-20261004T020201Z/RECHECK.md",
+        "editors/vscode/audit-astra/changed-rule-recheck-20261004T020201Z/inline-require-probe.cjs",
+        "editors/vscode/audit-astra/changed-rule-recheck-20261004T020201Z/inline-require-theme-evidence.json",
+        "editors/vscode/audit-astra/changed-rule-recheck-20261004T020201Z/inline-require-theme-result.md",
+        "editors/vscode/audit-astra/changed-rule-recheck-20261004T020201Z/manifest.json",
+        "editors/vscode/audit-astra/changed-rule-recheck-20261004T020201Z/probe-results.json",
+        "editors/vscode/audit-astra/changed-rule-recheck-20261004T020201Z/probes.json",
+        "editors/vscode/audit-astra/changed-rule-recheck-20261004T020201Z/results.txt",
+        "editors/vscode/audit-astra/changed-rule-recheck-20261004T020201Z/snapshot/GRAMMAR.md",
+        "editors/vscode/audit-astra/changed-rule-recheck-20261004T020201Z/snapshot/editors/vscode/package.json",
+        "editors/vscode/audit-astra/changed-rule-recheck-20261004T020201Z/snapshot/editors/vscode/syntaxes/can.tmLanguage.json",
+        "editors/vscode/audit-astra/changed-rule-recheck-20261004T020201Z/sources/inline-do-require.can",
+        "editors/vscode/audit-astra/changed-rule-recheck-20261004T020201Z/sources/multiline-parenthesized-form.can",
+        "editors/vscode/audit-astra/changed-rule-recheck-20261004T020201Z/sources/owned-model-app.can",
+        "editors/vscode/audit-astra/changed-rule-recheck-20261004T020201Z/sources/owned-model-capability.can",
+        "editors/vscode/audit-astra/changed-rule-recheck-20261004T020201Z/sources/owned-model-contract.can",
+        "editors/vscode/audit-astra/changed-rule-recheck-20261004T020201Z/sources/owned-model-event.can",
+        "editors/vscode/audit-astra/changed-rule-recheck-20261004T020201Z/sources/owned-model-package.can",
+        "editors/vscode/audit-astra/changed-rule-recheck-20261004T020201Z/sources/owned-model-role.can",
+        "editors/vscode/audit-astra/changed-rule-recheck-20261004T020201Z/sources/qualified-migration-targets.can",
+        "editors/vscode/audit-astra/changed-rule-recheck-20261004T020201Z/tokenize.cjs",
+        "editors/vscode/audit-astra/corpus-tokens.json",
+        "editors/vscode/audit-astra/description-probe.cjs",
+        "editors/vscode/audit-astra/description-results.json",
+        "editors/vscode/audit-astra/description-results.txt",
+        "editors/vscode/audit-astra/execution-presentation-latest-results.json",
+        "editors/vscode/audit-astra/execution-presentation-probe-results.json",
+        "editors/vscode/audit-astra/execution-presentation-probes.json",
+        "editors/vscode/audit-astra/execution-presentation-tokenize.cjs",
+        "editors/vscode/audit-astra/final-changed-files/DECISIONS.md",
+        "editors/vscode/audit-astra/final-changed-files/DESIGN.md",
+        "editors/vscode/audit-astra/final-changed-files/draft/CanField.can",
+        "editors/vscode/audit-astra/final-changed-files/draft/CanMaintain.can",
+        "editors/vscode/audit-astra/final-changed-files/draft/CanMember.can",
+        "editors/vscode/audit-astra/final-changed-files/draft/CanRent.can",
+        "editors/vscode/audit-astra/final-changed-files/draft/shared/Locations.can",
+        "editors/vscode/audit-astra/final-changed-files/editors/vscode/README.md",
+        "editors/vscode/audit-astra/final-changed-files/editors/vscode/check-highlighting.cjs",
+        "editors/vscode/audit-astra/final-changed-files/editors/vscode/package.json",
+        "editors/vscode/audit-astra/final-changed-files/editors/vscode/syntaxes/can.tmLanguage.json",
+        "editors/vscode/audit-astra/final-file-drift.json",
+        "editors/vscode/audit-astra/final-palette-swap-settings.json",
+        "editors/vscode/audit-astra/followup-013-theme-evidence.json",
+        "editors/vscode/audit-astra/followup-013-theme-probe.cjs",
+        "editors/vscode/audit-astra/followup-013-theme.md",
+        "editors/vscode/audit-astra/followup-013/manifest.json",
+        "editors/vscode/audit-astra/followup-013/package.json",
+        "editors/vscode/audit-astra/followup-013/syntaxes/can.tmLanguage.json",
+        "editors/vscode/audit-astra/inventory-execution-presentation.md",
+        "editors/vscode/audit-astra/inventory-foundation.md",
+        "editors/vscode/audit-astra/latest-corpus-tokens.json",
+        "editors/vscode/audit-astra/latest-extension/package.json",
+        "editors/vscode/audit-astra/latest-extension/syntaxes/can.tmLanguage.json",
+        "editors/vscode/audit-astra/latest-probe-results.json",
+        "editors/vscode/audit-astra/latest-probe-results.txt",
+        "editors/vscode/audit-astra/probe-results.json",
+        "editors/vscode/audit-astra/probe-results.txt",
+        "editors/vscode/audit-astra/probe-tokenization.cjs",
+        "editors/vscode/audit-astra/probes.json",
+        "editors/vscode/audit-astra/production-coverage.csv",
+        "editors/vscode/audit-astra/recheck-20261004T014855Z/RECHECK.md",
+        "editors/vscode/audit-astra/recheck-20261004T014855Z/execution-probes.json",
+        "editors/vscode/audit-astra/recheck-20261004T014855Z/execution-recheck.md",
+        "editors/vscode/audit-astra/recheck-20261004T014855Z/execution-results.json",
+        "editors/vscode/audit-astra/recheck-20261004T014855Z/execution-results.txt",
+        "editors/vscode/audit-astra/recheck-20261004T014855Z/execution-sources/valid-backend-context.can",
+        "editors/vscode/audit-astra/recheck-20261004T014855Z/execution-sources/valid-contextual-models.can",
+        "editors/vscode/audit-astra/recheck-20261004T014855Z/execution-sources/valid-crud-examples.can",
+        "editors/vscode/audit-astra/recheck-20261004T014855Z/execution-sources/valid-inline-structural-guards.can",
+        "editors/vscode/audit-astra/recheck-20261004T014855Z/execution-sources/valid-joined-query.can",
+        "editors/vscode/audit-astra/recheck-20261004T014855Z/execution-sources/valid-operation-slots.can",
+        "editors/vscode/audit-astra/recheck-20261004T014855Z/execution-sources/valid-operator-operand-boundaries.can",
+        "editors/vscode/audit-astra/recheck-20261004T014855Z/execution-sources/valid-owned-contextual-models.can",
+        "editors/vscode/audit-astra/recheck-20261004T014855Z/execution-sources/valid-qualified-operation-parentheses.can",
+        "editors/vscode/audit-astra/recheck-20261004T014855Z/execution-sources/valid-query-contextual-names.can",
+        "editors/vscode/audit-astra/recheck-20261004T014855Z/execution-sources/valid-scenario-examples-contextual.can",
+        "editors/vscode/audit-astra/recheck-20261004T014855Z/execution-sources/valid-ui-query-and-guards.can",
+        "editors/vscode/audit-astra/recheck-20261004T014855Z/execution-tokenize.cjs",
+        "editors/vscode/audit-astra/recheck-20261004T014855Z/foundation-can-probes/F4-inline-contextual-type-atoms.can",
+        "editors/vscode/audit-astra/recheck-20261004T014855Z/foundation-can-probes/F4-multiline-contextual-type-atoms.can",
+        "editors/vscode/audit-astra/recheck-20261004T014855Z/foundation-can-probes/F4-multiline-signature-types.can",
+        "editors/vscode/audit-astra/recheck-20261004T014855Z/foundation-can-probes/F6-selector-literal-prefix-names.can",
+        "editors/vscode/audit-astra/recheck-20261004T014855Z/foundation-can-probes/F6-spaced-signed-and-qualified-selectors.can",
+        "editors/vscode/audit-astra/recheck-20261004T014855Z/foundation-can-probes/F7-multiline-values-shorthand.can",
+        "editors/vscode/audit-astra/recheck-20261004T014855Z/foundation-can-probes/F7-route-type-subroles.can",
+        "editors/vscode/audit-astra/recheck-20261004T014855Z/foundation-can-probes/F7-whitespace-array-suffixes.can",
+        "editors/vscode/audit-astra/recheck-20261004T014855Z/foundation-can-probes/F8-model-field-handler-shapes.can",
+        "editors/vscode/audit-astra/recheck-20261004T014855Z/foundation-can-probes/F8-original-maintenance.can",
+        "editors/vscode/audit-astra/recheck-20261004T014855Z/foundation-can-probes/F8-qualified-target-paths.can",
+        "editors/vscode/audit-astra/recheck-20261004T014855Z/foundation-probes.json",
+        "editors/vscode/audit-astra/recheck-20261004T014855Z/foundation-recheck.md",
+        "editors/vscode/audit-astra/recheck-20261004T014855Z/foundation-results.json",
+        "editors/vscode/audit-astra/recheck-20261004T014855Z/foundation-results.txt",
+        "editors/vscode/audit-astra/recheck-20261004T014855Z/foundation-tokenize.cjs",
+        "editors/vscode/audit-astra/recheck-20261004T014855Z/inline-require-evidence.json",
+        "editors/vscode/audit-astra/recheck-20261004T014855Z/manifest.json",
+        "editors/vscode/audit-astra/recheck-20261004T014855Z/original-probe-results.txt",
+        "editors/vscode/audit-astra/recheck-20261004T014855Z/original-probes.json",
+        "editors/vscode/audit-astra/recheck-20261004T014855Z/owned-model-minimal-probes.json",
+        "editors/vscode/audit-astra/recheck-20261004T014855Z/owned-model-minimal-results.json",
+        "editors/vscode/audit-astra/recheck-20261004T014855Z/owned-model-minimal-results.txt",
+        "editors/vscode/audit-astra/recheck-20261004T014855Z/owned-model-minimal-sources/app.can",
+        "editors/vscode/audit-astra/recheck-20261004T014855Z/owned-model-minimal-sources/capability.can",
+        "editors/vscode/audit-astra/recheck-20261004T014855Z/owned-model-minimal-sources/contract.can",
+        "editors/vscode/audit-astra/recheck-20261004T014855Z/owned-model-minimal-sources/event.can",
+        "editors/vscode/audit-astra/recheck-20261004T014855Z/owned-model-minimal-sources/package.can",
+        "editors/vscode/audit-astra/recheck-20261004T014855Z/owned-model-minimal-sources/role.can",
+        "editors/vscode/audit-astra/recheck-20261004T014855Z/owned-model-minimal.cjs",
+        "editors/vscode/audit-astra/recheck-20261004T014855Z/probe-results.json",
+        "editors/vscode/audit-astra/recheck-20261004T014855Z/replay-original.cjs",
+        "editors/vscode/audit-astra/recheck-20261004T014855Z/root-focused-probes.json",
+        "editors/vscode/audit-astra/recheck-20261004T014855Z/root-focused-results.json",
+        "editors/vscode/audit-astra/recheck-20261004T014855Z/root-focused-results.txt",
+        "editors/vscode/audit-astra/recheck-20261004T014855Z/root-focused.cjs",
+        "editors/vscode/audit-astra/recheck-20261004T014855Z/snapshot/AGENTS.md",
+        "editors/vscode/audit-astra/recheck-20261004T014855Z/snapshot/GRAMMAR.md",
+        "editors/vscode/audit-astra/recheck-20261004T014855Z/snapshot/editors/vscode/package.json",
+        "editors/vscode/audit-astra/recheck-20261004T014855Z/snapshot/editors/vscode/syntaxes/can.tmLanguage.json",
+        "editors/vscode/audit-astra/recheck-20261004T014855Z/source-drift.json",
+        "editors/vscode/audit-astra/recheck-20261004T014855Z/theme-evidence.json",
+        "editors/vscode/audit-astra/recheck-20261004T014855Z/theme-probe.cjs",
+        "editors/vscode/audit-astra/recheck-20261004T014855Z/theme-report.md",
+        "editors/vscode/audit-astra/recheck-current-path.txt",
+        "editors/vscode/audit-astra/snapshot-manifest.json",
+        "editors/vscode/audit-astra/snapshot/AGENTS.md",
+        "editors/vscode/audit-astra/snapshot/DECISIONS.md",
+        "editors/vscode/audit-astra/snapshot/DESIGN.md",
+        "editors/vscode/audit-astra/snapshot/GRAMMAR.md",
+        "editors/vscode/audit-astra/snapshot/draft/CanAffiliate.can",
+        "editors/vscode/audit-astra/snapshot/draft/CanApprove.can",
+        "editors/vscode/audit-astra/snapshot/draft/CanBoard.can",
+        "editors/vscode/audit-astra/snapshot/draft/CanBook.can",
+        "editors/vscode/audit-astra/snapshot/draft/CanCRM.can",
+        "editors/vscode/audit-astra/snapshot/draft/CanCatch.can",
+        "editors/vscode/audit-astra/snapshot/draft/CanCheck.can",
+        "editors/vscode/audit-astra/snapshot/draft/CanContract.can",
+        "editors/vscode/audit-astra/snapshot/draft/CanCustomer.can",
+        "editors/vscode/audit-astra/snapshot/draft/CanDesk.can",
+        "editors/vscode/audit-astra/snapshot/draft/CanDo.can",
+        "editors/vscode/audit-astra/snapshot/draft/CanEvent.can",
+        "editors/vscode/audit-astra/snapshot/draft/CanExpense.can",
+        "editors/vscode/audit-astra/snapshot/draft/CanFeedback.can",
+        "editors/vscode/audit-astra/snapshot/draft/CanField.can",
+        "editors/vscode/audit-astra/snapshot/draft/CanGrant.can",
+        "editors/vscode/audit-astra/snapshot/draft/CanHire.can",
+        "editors/vscode/audit-astra/snapshot/draft/CanInvoice.can",
+        "editors/vscode/audit-astra/snapshot/draft/CanLearn.can",
+        "editors/vscode/audit-astra/snapshot/draft/CanLeave.can",
+        "editors/vscode/audit-astra/snapshot/draft/CanLoyalty.can",
+        "editors/vscode/audit-astra/snapshot/draft/CanMail.can",
+        "editors/vscode/audit-astra/snapshot/draft/CanMaintain.can",
+        "editors/vscode/audit-astra/snapshot/draft/CanMember.can",
+        "editors/vscode/audit-astra/snapshot/draft/CanOnboard.can",
+        "editors/vscode/audit-astra/snapshot/draft/CanPropose.can",
+        "editors/vscode/audit-astra/snapshot/draft/CanPurchase.can",
+        "editors/vscode/audit-astra/snapshot/draft/CanReception.can",
+        "editors/vscode/audit-astra/snapshot/draft/CanRefer.can",
+        "editors/vscode/audit-astra/snapshot/draft/CanRent.can",
+        "editors/vscode/audit-astra/snapshot/draft/CanReport.can",
+        "editors/vscode/audit-astra/snapshot/draft/CanShift.can",
+        "editors/vscode/audit-astra/snapshot/draft/CanStats.can",
+        "editors/vscode/audit-astra/snapshot/draft/CanStock.can",
+        "editors/vscode/audit-astra/snapshot/draft/CanSuccess.can",
+        "editors/vscode/audit-astra/snapshot/draft/CanTable.can",
+        "editors/vscode/audit-astra/snapshot/draft/CanTime.can",
+        "editors/vscode/audit-astra/snapshot/draft/CanTrade.can",
+        "editors/vscode/audit-astra/snapshot/draft/CanVolunteer.can",
+        "editors/vscode/audit-astra/snapshot/draft/shared/Employees.can",
+        "editors/vscode/audit-astra/snapshot/draft/shared/Locations.can",
+        "editors/vscode/audit-astra/snapshot/draft/shared/Suppliers.can",
+        "editors/vscode/audit-astra/snapshot/editors/vscode/GRAMMAR-AUDIT.md",
+        "editors/vscode/audit-astra/snapshot/editors/vscode/README.md",
+        "editors/vscode/audit-astra/snapshot/editors/vscode/check-highlighting.cjs",
+        "editors/vscode/audit-astra/snapshot/editors/vscode/package.json",
+        "editors/vscode/audit-astra/snapshot/editors/vscode/syntaxes/can.tmLanguage.json",
+        "editors/vscode/audit-astra/snapshot/examples/ExpenseFlow.can",
+        "editors/vscode/audit-astra/snapshot/examples/TeamTasks.can",
+        "editors/vscode/audit-astra/theme-installation-evidence-005813.json",
+        "editors/vscode/audit-astra/theme-installation-evidence-010004.json",
+        "editors/vscode/audit-astra/theme-installation-evidence-010146.json",
+        "editors/vscode/audit-astra/theme-installation-evidence.json",
+        "editors/vscode/audit-astra/theme-installation.md",
+        "editors/vscode/audit-astra/theme-probe.cjs"
+      ],
+      "target": "docs/ideal-filetree-plan/finished-product/documentation-review.json",
+      "decision": "retire completed audit working copies; retain exact Git provenance and recovery ledger",
+      "reason": "Completed 0.1.1–0.1.5 highlighting audit; final recheck closed its lexical survivors, current tests own the regressions, and no current executable workflow reads this archive. Relocation would keep the same fragmentation.",
+      "task": "DOC07",
+      "gate": "No live build/test/install consumer; active highlighting regressions retained unchanged; exact 187-path Git archive extraction and SHA-256 proof passed; repair mutable navigation before retirement. Broader captured-evidence deduplication remains deferred.",
+      "source_sha256": {
+        "editors/vscode/audit-astra/REPORT.md": "7fa414bbfebc7c89189a0e5216ede0788da6b248d6f428b528b9ce2ae4e1bbec",
+        "editors/vscode/audit-astra/build-inventory.py": "b39947029f3afde0ce53fda6bd5a93089be864ae8eff89ee49849f80244f8b0b",
+        "editors/vscode/audit-astra/changed-during-audit.json": "1a25cd25d1eb297580d9a4934875dd115a45d5bbc180ef92b9c49da3268db44f",
+        "editors/vscode/audit-astra/changed-rule-current-path.txt": "ddd4bd6f13a2816545211463a03176ecc19f36b9e5fb5179e33f72b3240d602e",
+        "editors/vscode/audit-astra/changed-rule-recheck-20261004T020201Z/RECHECK.md": "e918e5ca0555cdeb545a9a83e364b94d89d4ca83f3c554b79554e04280405d4f",
+        "editors/vscode/audit-astra/changed-rule-recheck-20261004T020201Z/inline-require-probe.cjs": "3d9eec382793301111ab127d9469e35c5876a23b512addeb0a2c127cedbf8b29",
+        "editors/vscode/audit-astra/changed-rule-recheck-20261004T020201Z/inline-require-theme-evidence.json": "4d526d03a1d6e274e97d4bf2c6ac135d31b5facfcc492af1c07c15016843fdf7",
+        "editors/vscode/audit-astra/changed-rule-recheck-20261004T020201Z/inline-require-theme-result.md": "cd3ec878221f6ffb79163eed4183e091a4262da9b3d24e8d44aa114da22b9523",
+        "editors/vscode/audit-astra/changed-rule-recheck-20261004T020201Z/manifest.json": "f93533e93c948942507f3aef54f4401cc55c6b3dc9943b7a1772ee656bcfb247",
+        "editors/vscode/audit-astra/changed-rule-recheck-20261004T020201Z/probe-results.json": "28f19a1a5f57b6cf92d895a74fd7862ac428399a81246155cf4400f839a04722",
+        "editors/vscode/audit-astra/changed-rule-recheck-20261004T020201Z/probes.json": "31521455d52674aba8bf58757398ecc7a8fe006ebbc8eb9fa958aa533a44fb9f",
+        "editors/vscode/audit-astra/changed-rule-recheck-20261004T020201Z/results.txt": "abe3f26dbdf236759c5aeccfaeadb49303108fe03df4764cc0970c4a1d790bdc",
+        "editors/vscode/audit-astra/changed-rule-recheck-20261004T020201Z/snapshot/GRAMMAR.md": "bd21a290fb4fa0b753cfe6e655b7aca4e65763dd5b42b7c36c7e83b825b24014",
+        "editors/vscode/audit-astra/changed-rule-recheck-20261004T020201Z/snapshot/editors/vscode/package.json": "4f8070598f759489d880ceec73e506c8bd82bb870dc5dd6a290886cfbc7c0cd6",
+        "editors/vscode/audit-astra/changed-rule-recheck-20261004T020201Z/snapshot/editors/vscode/syntaxes/can.tmLanguage.json": "5b81968086d429b8b5156badc7efd712b0016f37aaaf576cd4489beed0214ea3",
+        "editors/vscode/audit-astra/changed-rule-recheck-20261004T020201Z/sources/inline-do-require.can": "21a61c4a64a6e11a0dd61885fa7c98f02c92b11b122d56f5a1178120623e2f57",
+        "editors/vscode/audit-astra/changed-rule-recheck-20261004T020201Z/sources/multiline-parenthesized-form.can": "edd94e5a591152f80173c46f3204b8899f158948d2a8150159887d170f06d125",
+        "editors/vscode/audit-astra/changed-rule-recheck-20261004T020201Z/sources/owned-model-app.can": "f3adf34c3804486bc5112fbedf9861c1f81c241bce2064ccc60083bff3d430f7",
+        "editors/vscode/audit-astra/changed-rule-recheck-20261004T020201Z/sources/owned-model-capability.can": "5c7256473c64eb8684a0e20791b69ac9317bd774e863a729af66592b9f42131e",
+        "editors/vscode/audit-astra/changed-rule-recheck-20261004T020201Z/sources/owned-model-contract.can": "ca6031c982b5418504406b18425a501f20f02e14f38437a706d90629ddd73726",
+        "editors/vscode/audit-astra/changed-rule-recheck-20261004T020201Z/sources/owned-model-event.can": "caee77dd2e3ddb20317d5442cbf127361ef2f62a1f51b31d25e794e3803afc44",
+        "editors/vscode/audit-astra/changed-rule-recheck-20261004T020201Z/sources/owned-model-package.can": "b00f268abd74a3d1c7020befa12bfa9c722bfea4b8e9974a4d949d13536a59b3",
+        "editors/vscode/audit-astra/changed-rule-recheck-20261004T020201Z/sources/owned-model-role.can": "41b30c8b8623809e101eee85b9aa2cfd4ed885a04df84988657be779cdac118b",
+        "editors/vscode/audit-astra/changed-rule-recheck-20261004T020201Z/sources/qualified-migration-targets.can": "6a42772bb11c49c1ddb42a5eac01f24a8683245b2f7a4cb1f801bbf14beff8be",
+        "editors/vscode/audit-astra/changed-rule-recheck-20261004T020201Z/tokenize.cjs": "209950e38ab722992edf46aebf417e8a7439ac4834d322f7a6cfcb5bef46eb9c",
+        "editors/vscode/audit-astra/corpus-tokens.json": "24551522208ec2f8cd880e2a20e1ecbc38a67ff365af651180f7573db065381e",
+        "editors/vscode/audit-astra/description-probe.cjs": "56225efabf1c7119563b8b515c503a123d7347ff54a718679e6d283e9d2bdf6b",
+        "editors/vscode/audit-astra/description-results.json": "2f0c0d748c1193b5f26f50faf05b1d3a122ce710365fe9d5f65c525430260819",
+        "editors/vscode/audit-astra/description-results.txt": "f692a4078e5549623330813fd2c16ff80c561aa67f27b3b61f0422ed4184ce63",
+        "editors/vscode/audit-astra/execution-presentation-latest-results.json": "326922b4563807e25d12bf0f23b755cd77884cb7d7745153f88ec821576ab7a6",
+        "editors/vscode/audit-astra/execution-presentation-probe-results.json": "36ca3969f469c9ccc31d348ab3e4e15fba8ba239fd42e2c22032e6888e24c0c6",
+        "editors/vscode/audit-astra/execution-presentation-probes.json": "52da155c47693a6adf6c2bc1f040422c3969db870cb50c1855967dd55c9ba56c",
+        "editors/vscode/audit-astra/execution-presentation-tokenize.cjs": "e933e46c35c7177b982addb78ff73ef17de4bf6c4eaf1c7a91ad2ead0d1dcab1",
+        "editors/vscode/audit-astra/final-changed-files/DECISIONS.md": "cb178d30a2d3a4ed244da11ec7ed71bea797151e0be5efec1a48c80737324815",
+        "editors/vscode/audit-astra/final-changed-files/DESIGN.md": "fea86cd9fed26b5a3d5953a6e5497bbef3bdb27000eaa27e66d9c8622afd3c15",
+        "editors/vscode/audit-astra/final-changed-files/draft/CanField.can": "bb5283dcf232fac70d2e380630d4c0cf53315332a5829c9b8ba91cc6bc0545fc",
+        "editors/vscode/audit-astra/final-changed-files/draft/CanMaintain.can": "39a7f3f8f9c392770cfc3cd61d4a488fcc980d82e2703072956435aa5f09d8c9",
+        "editors/vscode/audit-astra/final-changed-files/draft/CanMember.can": "a4b0c7322f100311b113eed95a8a50c48ea958ff3a0bbd710bbeb350c4e75471",
+        "editors/vscode/audit-astra/final-changed-files/draft/CanRent.can": "6f42834c12d28d9a5f7f2ed6c59310c3643fee4ee8f6accd6b733ffbbed8694c",
+        "editors/vscode/audit-astra/final-changed-files/draft/shared/Locations.can": "46e6a468954bb64db534b2b6b64be168ea6263bad384e5107496cf08f17b8e5c",
+        "editors/vscode/audit-astra/final-changed-files/editors/vscode/README.md": "1d702c04cfbd16269f870a9cafcaeaa72e0ceccde3ab23085086a7c24f94ec44",
+        "editors/vscode/audit-astra/final-changed-files/editors/vscode/check-highlighting.cjs": "91d8791757d6248be70a182fce6d17fc6e57287e63ff989c610c8a29dfd8ea21",
+        "editors/vscode/audit-astra/final-changed-files/editors/vscode/package.json": "acad506f06676b412a7e40f5bb54dd483077068d7a5bfdbfd7cddf4b35c08fcd",
+        "editors/vscode/audit-astra/final-changed-files/editors/vscode/syntaxes/can.tmLanguage.json": "fb01f39e818d4ec8e1d8051be0d8d754acfc92cf28829f9b6f5dc23be84aaddc",
+        "editors/vscode/audit-astra/final-file-drift.json": "b75dcaa8472a33796fc85a058dfccc7efb061166f6627c633774938eae2fa2fe",
+        "editors/vscode/audit-astra/final-palette-swap-settings.json": "8e32800d080cb8e43ee1678fb0a0cb5cf55a10924e7349052471b0dc1795164a",
+        "editors/vscode/audit-astra/followup-013-theme-evidence.json": "ee0a0a6b312ff177bfc79415641fcbb877f2f358382b741059cbb551dfd91407",
+        "editors/vscode/audit-astra/followup-013-theme-probe.cjs": "b5f481c90f5ed26e86b1a750b39c5456e6e650f77699f47e30dc6d294e575fe9",
+        "editors/vscode/audit-astra/followup-013-theme.md": "8c6eeaf1b8a713e0abe7d238795a29f1246b269f46f065b7fbc681863dd17aab",
+        "editors/vscode/audit-astra/followup-013/manifest.json": "89a30dffdbbda8d043f2b2ccd1c11e9164a43c9e1edf04e23ca2874ad221927f",
+        "editors/vscode/audit-astra/followup-013/package.json": "655ea2b3a76dceac96f5aca00935f128e3b55e5cc99c3253cf3205253b9254c1",
+        "editors/vscode/audit-astra/followup-013/syntaxes/can.tmLanguage.json": "c3c3ee53094d0a81b355eff9feb1cff1d3168e0a967845e94a0af73fcfd1c782",
+        "editors/vscode/audit-astra/inventory-execution-presentation.md": "fc37b8e28a6791c0091b08d39988fbe72a540cbfe0c456fb7cf5156498bfed7b",
+        "editors/vscode/audit-astra/inventory-foundation.md": "b645546c56bbc7f5fb7f5967923d3204dfc4ad2c0801048e57eb91fc7a70eb42",
+        "editors/vscode/audit-astra/latest-corpus-tokens.json": "0151c512b51e12df7374d8a9e3516ec4266937e68c728b7230d3c8134983d6f2",
+        "editors/vscode/audit-astra/latest-extension/package.json": "acad506f06676b412a7e40f5bb54dd483077068d7a5bfdbfd7cddf4b35c08fcd",
+        "editors/vscode/audit-astra/latest-extension/syntaxes/can.tmLanguage.json": "fb01f39e818d4ec8e1d8051be0d8d754acfc92cf28829f9b6f5dc23be84aaddc",
+        "editors/vscode/audit-astra/latest-probe-results.json": "3ab560d28d6965ec10e406f55f880a7e11b89e7f7a30d711d30a0b0378225edf",
+        "editors/vscode/audit-astra/latest-probe-results.txt": "1ce6e59c4cce8f710eeeb9ad89384852c64eb2a11bb1c185f3dcd10b10b19114",
+        "editors/vscode/audit-astra/probe-results.json": "b88da2b198c2a722bb302bb803cf76d276d8294f7531b61b2c15c819d352dd12",
+        "editors/vscode/audit-astra/probe-results.txt": "9b7a2b0745e11d42b33012d2934600b21dbb0949d02cebd279eec5473f8e5c24",
+        "editors/vscode/audit-astra/probe-tokenization.cjs": "c271e873e8f9b173e722df96a3156625dacac1008066fae6d0beb3141fb0227f",
+        "editors/vscode/audit-astra/probes.json": "b44b8d0955852b8720e00f8ab07713a87e6d92b634e1a6b26ee03f8a8bad0d16",
+        "editors/vscode/audit-astra/production-coverage.csv": "4ed39b8819a5a003ba2ba7551030f4fed0f9c1175bf44efb45cc20d6ea364e61",
+        "editors/vscode/audit-astra/recheck-20261004T014855Z/RECHECK.md": "94ff87f0cdd27bc39811ee2bd67f217512b5cc4b3450bbcf8a40235d910d383d",
+        "editors/vscode/audit-astra/recheck-20261004T014855Z/execution-probes.json": "90e7440a68b6a6d67ff0082b3b04ac93964b9fad701d876fb57942c0ad6e0b5f",
+        "editors/vscode/audit-astra/recheck-20261004T014855Z/execution-recheck.md": "2cbc90b8458ef2a5170078451d793811e98a5726ab8dde2c62b6906b122b1e7b",
+        "editors/vscode/audit-astra/recheck-20261004T014855Z/execution-results.json": "46cf4ad68cac76a6bc9b84d5e0fea01582f262309ff9e327c1a7493f62d73683",
+        "editors/vscode/audit-astra/recheck-20261004T014855Z/execution-results.txt": "9a658da98b9c246f23d5a2c7e8e97d7380c676a4f9d88e1e2543f5c528586e87",
+        "editors/vscode/audit-astra/recheck-20261004T014855Z/execution-sources/valid-backend-context.can": "33d886ba4f9b7e43a6dc8e2c853dc578502fa121087f418b4f3623d9683c31ef",
+        "editors/vscode/audit-astra/recheck-20261004T014855Z/execution-sources/valid-contextual-models.can": "a0712b5931476aabbe01944f1d88f7a08e014aabc6a7e8d18011f4a175c07ae7",
+        "editors/vscode/audit-astra/recheck-20261004T014855Z/execution-sources/valid-crud-examples.can": "6e52f3e15de97cb780f95484aab6f3ea49d78e23bda241bd2c1b39de0952d61b",
+        "editors/vscode/audit-astra/recheck-20261004T014855Z/execution-sources/valid-inline-structural-guards.can": "782050e92f6e419a4c2e28765930c2602b0e1d66bd4dc05ec1ecd8d6ba522c8d",
+        "editors/vscode/audit-astra/recheck-20261004T014855Z/execution-sources/valid-joined-query.can": "f1091f05fbd8f4173e3bb60bb90f03a22247855ac7f62344199e31d9a691e02b",
+        "editors/vscode/audit-astra/recheck-20261004T014855Z/execution-sources/valid-operation-slots.can": "8a2a201ef9c44a4a601d7c6167464e5281fb32ff9eb8a10458ba55ec1879236e",
+        "editors/vscode/audit-astra/recheck-20261004T014855Z/execution-sources/valid-operator-operand-boundaries.can": "b69304dc258eb7038b02a432234bf896b2981cc93a5635a03fc52e4d3020618b",
+        "editors/vscode/audit-astra/recheck-20261004T014855Z/execution-sources/valid-owned-contextual-models.can": "82c06cda3251a1fa13975dcf1f8f31889e95183ff49ec7739100cf4b2394d663",
+        "editors/vscode/audit-astra/recheck-20261004T014855Z/execution-sources/valid-qualified-operation-parentheses.can": "89670a4dba1f8feda209fde1e415fe6888502f94b07344322b9e3e5a366880c8",
+        "editors/vscode/audit-astra/recheck-20261004T014855Z/execution-sources/valid-query-contextual-names.can": "306d5288085d3e907fb7c52a5b8f7f62f83244539354626a946f8399bcadf304",
+        "editors/vscode/audit-astra/recheck-20261004T014855Z/execution-sources/valid-scenario-examples-contextual.can": "cbd3f5c78cb6d404e37e77c2937dd30476f82a15cb1ec9904148ca1d7863670c",
+        "editors/vscode/audit-astra/recheck-20261004T014855Z/execution-sources/valid-ui-query-and-guards.can": "ed8ca33829ce63d61ce6704861440df9f310aec375f0dd7abedd8eed5094752c",
+        "editors/vscode/audit-astra/recheck-20261004T014855Z/execution-tokenize.cjs": "b450729c51f6033c1aed9a4698e4b8b472eb167c1a3304313aacef56c8856371",
+        "editors/vscode/audit-astra/recheck-20261004T014855Z/foundation-can-probes/F4-inline-contextual-type-atoms.can": "0d04eeaad1e62bdc7cdcb4238f517eb81d60860298afae897d971e8b6a3d37c1",
+        "editors/vscode/audit-astra/recheck-20261004T014855Z/foundation-can-probes/F4-multiline-contextual-type-atoms.can": "41a232752c3ccacdc646c7d9f0b73e4f18324d98832fb4351c1afee5ae3d59d9",
+        "editors/vscode/audit-astra/recheck-20261004T014855Z/foundation-can-probes/F4-multiline-signature-types.can": "11a304a7e4a1ef928996ccfc5daba3b2fd1993404bbd00439d6fda45a85b1429",
+        "editors/vscode/audit-astra/recheck-20261004T014855Z/foundation-can-probes/F6-selector-literal-prefix-names.can": "6cdb23729eb8492dc11cdf08e6c14864b675a036d31b57601cd82d456d058d24",
+        "editors/vscode/audit-astra/recheck-20261004T014855Z/foundation-can-probes/F6-spaced-signed-and-qualified-selectors.can": "878d82add255d818a4a2883958f698dade107cf57b9be6e97b2beeba9ce6aa92",
+        "editors/vscode/audit-astra/recheck-20261004T014855Z/foundation-can-probes/F7-multiline-values-shorthand.can": "b2157232c39c5fb099e4b8e1488b579c437ea0ebde540da3ff7dcd78236aa88f",
+        "editors/vscode/audit-astra/recheck-20261004T014855Z/foundation-can-probes/F7-route-type-subroles.can": "c4b5fb82944745b3c041f31cdf6e00c3f85feb83a8f0253eb0a09eb3bd1b06c7",
+        "editors/vscode/audit-astra/recheck-20261004T014855Z/foundation-can-probes/F7-whitespace-array-suffixes.can": "fd86c01030882d8a7ce8ff10a837aabcedb6e640aa5e5a934ed1cafa32d3b818",
+        "editors/vscode/audit-astra/recheck-20261004T014855Z/foundation-can-probes/F8-model-field-handler-shapes.can": "412f8ea012aa7f817cd10ad4d833677bb2939695a834260fd64be2a4f2be0767",
+        "editors/vscode/audit-astra/recheck-20261004T014855Z/foundation-can-probes/F8-original-maintenance.can": "8270212620dee53c5523152a9c925969d218d3ed62a1bb98487c2350cd5a7450",
+        "editors/vscode/audit-astra/recheck-20261004T014855Z/foundation-can-probes/F8-qualified-target-paths.can": "7211d7ee7750834b2c2fd6b46e5d9a7c43757671b23a24e4babc91e98dbf83b4",
+        "editors/vscode/audit-astra/recheck-20261004T014855Z/foundation-probes.json": "ea0cbbcfbc90cb22672d9fc45483782fa5f1ea2cdbe96e3decaf4a4a22af626a",
+        "editors/vscode/audit-astra/recheck-20261004T014855Z/foundation-recheck.md": "1d2e55ada5d9669595f6fab9c2013ff2572bee90a3f21e2f3493c8aabf4e9060",
+        "editors/vscode/audit-astra/recheck-20261004T014855Z/foundation-results.json": "1c87b073f92abf99ea04e4a4908df42c9bfe7be65f40a96dc8955cc7b3a0aaf7",
+        "editors/vscode/audit-astra/recheck-20261004T014855Z/foundation-results.txt": "e8adbfc958b79f54636cf459d6f0a66432872d42c010df427db284ac294ea181",
+        "editors/vscode/audit-astra/recheck-20261004T014855Z/foundation-tokenize.cjs": "8d4c5dd81bf4282ddf6bc751153369da122e80a1ee2b1e317c47989a9da9dc1d",
+        "editors/vscode/audit-astra/recheck-20261004T014855Z/inline-require-evidence.json": "f2164bbd13cf4c059b0841485b411db48c3136875487a82745bdb1e3c5872ece",
+        "editors/vscode/audit-astra/recheck-20261004T014855Z/manifest.json": "4f8521ee1d94a48d5dc2b29fe657e8b3411ac467374b0338d78b58752e8e1233",
+        "editors/vscode/audit-astra/recheck-20261004T014855Z/original-probe-results.txt": "c9d60adce6365bcce30ec4e72cbdf6928864fc6805f4bb3af4a9ab7353a953dd",
+        "editors/vscode/audit-astra/recheck-20261004T014855Z/original-probes.json": "b44b8d0955852b8720e00f8ab07713a87e6d92b634e1a6b26ee03f8a8bad0d16",
+        "editors/vscode/audit-astra/recheck-20261004T014855Z/owned-model-minimal-probes.json": "f5f436b35bbe42de2c166eea77250e4d438c04dcd494e9253ca95f027cc10790",
+        "editors/vscode/audit-astra/recheck-20261004T014855Z/owned-model-minimal-results.json": "1d79d234d71ceb15f42b4363d7e41119e82681f3fbe9df116bf748df97e93315",
+        "editors/vscode/audit-astra/recheck-20261004T014855Z/owned-model-minimal-results.txt": "33eba6b7170025af1b284ce240f228e1169209b9a31e57f5d230707244c646b8",
+        "editors/vscode/audit-astra/recheck-20261004T014855Z/owned-model-minimal-sources/app.can": "f3adf34c3804486bc5112fbedf9861c1f81c241bce2064ccc60083bff3d430f7",
+        "editors/vscode/audit-astra/recheck-20261004T014855Z/owned-model-minimal-sources/capability.can": "5c7256473c64eb8684a0e20791b69ac9317bd774e863a729af66592b9f42131e",
+        "editors/vscode/audit-astra/recheck-20261004T014855Z/owned-model-minimal-sources/contract.can": "ca6031c982b5418504406b18425a501f20f02e14f38437a706d90629ddd73726",
+        "editors/vscode/audit-astra/recheck-20261004T014855Z/owned-model-minimal-sources/event.can": "caee77dd2e3ddb20317d5442cbf127361ef2f62a1f51b31d25e794e3803afc44",
+        "editors/vscode/audit-astra/recheck-20261004T014855Z/owned-model-minimal-sources/package.can": "b00f268abd74a3d1c7020befa12bfa9c722bfea4b8e9974a4d949d13536a59b3",
+        "editors/vscode/audit-astra/recheck-20261004T014855Z/owned-model-minimal-sources/role.can": "41b30c8b8623809e101eee85b9aa2cfd4ed885a04df84988657be779cdac118b",
+        "editors/vscode/audit-astra/recheck-20261004T014855Z/owned-model-minimal.cjs": "e26ae2de442d64d954e36d271c95a8de975d1d8def196c583fbf4759168894f5",
+        "editors/vscode/audit-astra/recheck-20261004T014855Z/probe-results.json": "b2a92fbd54e103f203afa8653b7a72541e9cb632c7351a60fe83b4a58084d8b1",
+        "editors/vscode/audit-astra/recheck-20261004T014855Z/replay-original.cjs": "577b435d68935c6cfc05ccb1c28abd0aab92c6cf500b1996656a71463fbab0f8",
+        "editors/vscode/audit-astra/recheck-20261004T014855Z/root-focused-probes.json": "070e30420570700f5d019d5eec93ce734b802c50f3c39d46d158de15e5b8fd90",
+        "editors/vscode/audit-astra/recheck-20261004T014855Z/root-focused-results.json": "aa77e5c3eee108c2c2d45633a29a0bb426f4547f051465bad76ac7de4025ee92",
+        "editors/vscode/audit-astra/recheck-20261004T014855Z/root-focused-results.txt": "a5535b411b483ae10fe807008e0c41101c69fdd8577a94a0dc4215a453880106",
+        "editors/vscode/audit-astra/recheck-20261004T014855Z/root-focused.cjs": "b7abf801e59cefa7df67ce668151fd2fb6a4edbc634a56390b90c0496f99f3d2",
+        "editors/vscode/audit-astra/recheck-20261004T014855Z/snapshot/AGENTS.md": "503025c141ee4b80f92c1ed04fb0e71b98e50c2f4aab6144c3747bc181f01882",
+        "editors/vscode/audit-astra/recheck-20261004T014855Z/snapshot/GRAMMAR.md": "bd21a290fb4fa0b753cfe6e655b7aca4e65763dd5b42b7c36c7e83b825b24014",
+        "editors/vscode/audit-astra/recheck-20261004T014855Z/snapshot/editors/vscode/package.json": "4f8070598f759489d880ceec73e506c8bd82bb870dc5dd6a290886cfbc7c0cd6",
+        "editors/vscode/audit-astra/recheck-20261004T014855Z/snapshot/editors/vscode/syntaxes/can.tmLanguage.json": "5c0e667200b5bc73fffa21553e96207518694c583d3e0eb07d4642b06975b40d",
+        "editors/vscode/audit-astra/recheck-20261004T014855Z/source-drift.json": "2e462de2c6bbed3ec6a3811be93d822ad228e9b084a3a9d0dcf1426142d92bb2",
+        "editors/vscode/audit-astra/recheck-20261004T014855Z/theme-evidence.json": "eb8ae6b6c6ee524e5dc911a1e4a87df0ab17ae95e97480d0d729e64a828d1df7",
+        "editors/vscode/audit-astra/recheck-20261004T014855Z/theme-probe.cjs": "7b3a4c7179faf127eafd7aea60f87652636a8857f189e53c1576899bb336ebce",
+        "editors/vscode/audit-astra/recheck-20261004T014855Z/theme-report.md": "8def00855100d746ad94aa32ea869fb1d00072671f9a1e631823dacc6297db03",
+        "editors/vscode/audit-astra/recheck-current-path.txt": "901840af0d0a079094d72c7d396a541992eb44b4a2058d832a01f3baea905b61",
+        "editors/vscode/audit-astra/snapshot-manifest.json": "8cddb0320dc28afe7be79edcfa9b5b6cc778242f4bbf058dafeac0c2dbee314f",
+        "editors/vscode/audit-astra/snapshot/AGENTS.md": "503025c141ee4b80f92c1ed04fb0e71b98e50c2f4aab6144c3747bc181f01882",
+        "editors/vscode/audit-astra/snapshot/DECISIONS.md": "4747af39bca7ecbbf66ce715bcfb9af0b6969923b6886601123da018e53e9256",
+        "editors/vscode/audit-astra/snapshot/DESIGN.md": "dd72a1d5869d74cdb7e419cd3cb885dfad4b3a00281d33f43a6ca093f3c21d14",
+        "editors/vscode/audit-astra/snapshot/GRAMMAR.md": "bd21a290fb4fa0b753cfe6e655b7aca4e65763dd5b42b7c36c7e83b825b24014",
+        "editors/vscode/audit-astra/snapshot/draft/CanAffiliate.can": "b6c375fd79200a44837fc9bf776a1b939706ef91dfb5ef327877dabcc5fb5590",
+        "editors/vscode/audit-astra/snapshot/draft/CanApprove.can": "1e2f2ceb3957a9a894045a6215d901ee741afa2032421ae459134b42dc6445d3",
+        "editors/vscode/audit-astra/snapshot/draft/CanBoard.can": "3790b76748b5dc995364f7e1198fcfa8e3ade61f2c9162c6b1342fcbe4ba2ddb",
+        "editors/vscode/audit-astra/snapshot/draft/CanBook.can": "8369cec4a66befd5e126566bdadc5530d618f03ebf7b99f48667adb9318cf1bf",
+        "editors/vscode/audit-astra/snapshot/draft/CanCRM.can": "0aaa3cd6c98aa697b5d0e9809f396318b8a07b1e89208083e8a7ec6fdf828edf",
+        "editors/vscode/audit-astra/snapshot/draft/CanCatch.can": "338031d507aee12dbd733758ef3b7c26251f0fcf0f43244730a65701bb7907de",
+        "editors/vscode/audit-astra/snapshot/draft/CanCheck.can": "de740a9657141916bd703235f075a5ff46ff1333a81a20650a6a32475515cb64",
+        "editors/vscode/audit-astra/snapshot/draft/CanContract.can": "5bb6305244dc5ea1e8cf8feba5e6038bec22aded7960649e55aa80bbb835194c",
+        "editors/vscode/audit-astra/snapshot/draft/CanCustomer.can": "cc43d7fdb8830b86e1eb9fa1ed5d1abc3d9f587e3c6d90b3979762a191ac2cbd",
+        "editors/vscode/audit-astra/snapshot/draft/CanDesk.can": "090a99368a64af1ca4c6edfa5e9dd90e13ba410bf91900ad452eb587deac83b3",
+        "editors/vscode/audit-astra/snapshot/draft/CanDo.can": "82c1b6d6d2ea4b12837c547c70b950ef54eaa4ca5567e9973d6b9ea46793d0f8",
+        "editors/vscode/audit-astra/snapshot/draft/CanEvent.can": "43b3977161d83f04008c320bb820aa187b4015d5fc0a38c8dc0d56fcffa71e94",
+        "editors/vscode/audit-astra/snapshot/draft/CanExpense.can": "48bd151a66dde1b199d744197d6a5eb46381e44823dab4e2bfcdcb20aedb77b7",
+        "editors/vscode/audit-astra/snapshot/draft/CanFeedback.can": "0beb0822f7fde9a127b8d3df6eb028b3c7ab3d4399cd866aa572b073633195cf",
+        "editors/vscode/audit-astra/snapshot/draft/CanField.can": "c0debd714cb68d1d457411ddfb840ed764aa4cfbe3f83b87b4fdc13bbd87e6a7",
+        "editors/vscode/audit-astra/snapshot/draft/CanGrant.can": "f36f52b94bf40c8e50af2e5ded9a11b1d3a494b4b098ee67432ad9f87da48c77",
+        "editors/vscode/audit-astra/snapshot/draft/CanHire.can": "74430c5a5d52c8c965c185f9549f908a3b6b41513d09890ac6f041e5ae0b4cf7",
+        "editors/vscode/audit-astra/snapshot/draft/CanInvoice.can": "5b9976d4da32604f7a617083e5b5bbdcd117bb42fffc5bdbb4847574c4060164",
+        "editors/vscode/audit-astra/snapshot/draft/CanLearn.can": "d1089d00bb5e2a5fe06d9d2d3b67a2e35ecbe7e9b800bcb0e4f727b17c33c26f",
+        "editors/vscode/audit-astra/snapshot/draft/CanLeave.can": "9f1664556344264971494e66016482b3bfc9a81ce83278bf861ca4058c80cf63",
+        "editors/vscode/audit-astra/snapshot/draft/CanLoyalty.can": "8b58af4fe568f6f2a0082f0bf7c048c1ee5f321b6ee6eb8ac126da05fc8ca53a",
+        "editors/vscode/audit-astra/snapshot/draft/CanMail.can": "dcbe21fc32ebfa05f215cf45e8c8bc58178431a75979dfb93ba7ad436fa61338",
+        "editors/vscode/audit-astra/snapshot/draft/CanMaintain.can": "ecd110cb361fceed0a4f39817bf22208ce32250727e5663c195255bab6aa0bc2",
+        "editors/vscode/audit-astra/snapshot/draft/CanMember.can": "a9df113a4cef5f1c3e3352eaf501bfc6d4f65ff8c4b7e0ebf7c044e4284a7ab3",
+        "editors/vscode/audit-astra/snapshot/draft/CanOnboard.can": "d58bcc437101e7c3c42cbdff17167aba07a8b4d53c43d95f0250f6a6d9f066f1",
+        "editors/vscode/audit-astra/snapshot/draft/CanPropose.can": "dd4395dc55f6a0b9350c5e6ac1633a7fb1909e71cdc41a8b0037451a74a049ed",
+        "editors/vscode/audit-astra/snapshot/draft/CanPurchase.can": "b3cca7d9b7ae41b3df2ea8254ddd6f41ad4c8c394ac336a4b184cebdae5f2635",
+        "editors/vscode/audit-astra/snapshot/draft/CanReception.can": "a489ebd059a4f18f22474cbe8704933a929cdfef7b5b0c704e9ca44052e56045",
+        "editors/vscode/audit-astra/snapshot/draft/CanRefer.can": "06a3317d1c0b71ea691495b6236fb4f1b54204dadea8e2dcac0b94866f5a4a50",
+        "editors/vscode/audit-astra/snapshot/draft/CanRent.can": "924f2a20224cd42776123891ac5da8e804e812a4dd7c56f310729bc300355ab8",
+        "editors/vscode/audit-astra/snapshot/draft/CanReport.can": "ff8ebad78daf63478acaf2fc6be38ac489454e4d2cea6d1456a03368f5d44b8a",
+        "editors/vscode/audit-astra/snapshot/draft/CanShift.can": "fbb792dcfd0dc2ee419b0eaaa86a42bbb23b7acf2530315068cd02ae455a849e",
+        "editors/vscode/audit-astra/snapshot/draft/CanStats.can": "13a5f2cb04e57b648f10dc46784c6c6dc7dbca20e826051b131800f142e46f5f",
+        "editors/vscode/audit-astra/snapshot/draft/CanStock.can": "ab23f2e7e1e771437d17a413410510cba7c3045b32f6c5dbbcacfe13d0c0b161",
+        "editors/vscode/audit-astra/snapshot/draft/CanSuccess.can": "055bfc34cc00c7b287877f5fa7305ccfd3910097e3e4095418fd82c5a05c5adc",
+        "editors/vscode/audit-astra/snapshot/draft/CanTable.can": "7d168fce5c5ab30f089470a19659b2616e831b65124f3423bf6fcf1815f4bf68",
+        "editors/vscode/audit-astra/snapshot/draft/CanTime.can": "58745289c85b00b2229dcb95c45ebe98093b73eb8559d0bb9df96c9469c6d959",
+        "editors/vscode/audit-astra/snapshot/draft/CanTrade.can": "5481f1a6adf80b784228cb6d6f11f63ea9df09a8953bedc043bd19e158d22f8f",
+        "editors/vscode/audit-astra/snapshot/draft/CanVolunteer.can": "ce924b589ffb07a9432d709bc5fc6548aea90b19d7a0fbe6d4269014aa25f50c",
+        "editors/vscode/audit-astra/snapshot/draft/shared/Employees.can": "860cd8bc7d024db0eebc864c476d124332c9650fdbccb034fd04aa981ec2ad0b",
+        "editors/vscode/audit-astra/snapshot/draft/shared/Locations.can": "a60c13d9929d9a5e7a61f6c52719588bad063eddd86dd16aaf739d42c5c7ea15",
+        "editors/vscode/audit-astra/snapshot/draft/shared/Suppliers.can": "b154c5a159e83b8e62232dfd71bf4ec52db2cfc6872418cd13eaa8367da118f1",
+        "editors/vscode/audit-astra/snapshot/editors/vscode/GRAMMAR-AUDIT.md": "b73ce8ee1b1a9685193f298d2fbb1c199856f2b0a7ce5622df7a44e005db264e",
+        "editors/vscode/audit-astra/snapshot/editors/vscode/README.md": "d5f8cd5cb64fdf2176e349459e869df6ffa73672e7966fd23f6e4b033750bc7b",
+        "editors/vscode/audit-astra/snapshot/editors/vscode/check-highlighting.cjs": "0c94d19083d3cc07a47e1faabaf75f860703478066619f3cef595619080bc1e4",
+        "editors/vscode/audit-astra/snapshot/editors/vscode/package.json": "e65902d6e79437fa1cec5dd699db77bc029f9cecf999557de92cbca867e5161c",
+        "editors/vscode/audit-astra/snapshot/editors/vscode/syntaxes/can.tmLanguage.json": "94611f8212994a898722205b5478d62ea534334d8cf0511c1a4ecc6cbcc25207",
+        "editors/vscode/audit-astra/snapshot/examples/ExpenseFlow.can": "952eb3e2062b57e3e0e0ebcda97ec507caacbeabd5e48063814872b71807df6a",
+        "editors/vscode/audit-astra/snapshot/examples/TeamTasks.can": "89f28215fe6a825083581dedccd0268433581c4000a03e1971dfa2dccccc92fa",
+        "editors/vscode/audit-astra/theme-installation-evidence-005813.json": "d100bb01761d1a992f883b87afbfdc985938b3dbaf6a0f5f4f23aad1f735a066",
+        "editors/vscode/audit-astra/theme-installation-evidence-010004.json": "e2c164b842f0428fc2f1bdc98060ad0e360ed2a7a23c8ee0d178d124e7296f07",
+        "editors/vscode/audit-astra/theme-installation-evidence-010146.json": "b9829b0a6bb87565e8eeb86fb6557ff62faa534ecb638af303e7e12efc676dd9",
+        "editors/vscode/audit-astra/theme-installation-evidence.json": "0b119f5e95fc7e09ae959e5f2742c18dd61fb684acf9b17e1b4cdda5e86bbdfc",
+        "editors/vscode/audit-astra/theme-installation.md": "7cdc44e66973a7518412aab07c691e75b8280ae45344a2ed22810b0b02bda47b",
+        "editors/vscode/audit-astra/theme-probe.cjs": "2270bbda45f8f9cc839aa85387793910f569464bbe338d02a193bcf5b05ab365"
       },
       "execution_status": "applied locally"
     }
@@ -1212,6 +1601,225 @@
         "repository-documentation-owner"
       ],
       "gate": "Exact released file ownership and live reference migration; active coordinator files remain current until handoff."
+    },
+    {
+      "namespace": "documentation",
+      "id": "DOC07",
+      "title": "Retire the completed editor highlighting audit from the working tree with exact Git recovery",
+      "depends_on": [],
+      "writes": [
+        "editors/vscode/audit-astra/REPORT.md",
+        "editors/vscode/audit-astra/build-inventory.py",
+        "editors/vscode/audit-astra/changed-during-audit.json",
+        "editors/vscode/audit-astra/changed-rule-current-path.txt",
+        "editors/vscode/audit-astra/changed-rule-recheck-20261004T020201Z/RECHECK.md",
+        "editors/vscode/audit-astra/changed-rule-recheck-20261004T020201Z/inline-require-probe.cjs",
+        "editors/vscode/audit-astra/changed-rule-recheck-20261004T020201Z/inline-require-theme-evidence.json",
+        "editors/vscode/audit-astra/changed-rule-recheck-20261004T020201Z/inline-require-theme-result.md",
+        "editors/vscode/audit-astra/changed-rule-recheck-20261004T020201Z/manifest.json",
+        "editors/vscode/audit-astra/changed-rule-recheck-20261004T020201Z/probe-results.json",
+        "editors/vscode/audit-astra/changed-rule-recheck-20261004T020201Z/probes.json",
+        "editors/vscode/audit-astra/changed-rule-recheck-20261004T020201Z/results.txt",
+        "editors/vscode/audit-astra/changed-rule-recheck-20261004T020201Z/snapshot/GRAMMAR.md",
+        "editors/vscode/audit-astra/changed-rule-recheck-20261004T020201Z/snapshot/editors/vscode/package.json",
+        "editors/vscode/audit-astra/changed-rule-recheck-20261004T020201Z/snapshot/editors/vscode/syntaxes/can.tmLanguage.json",
+        "editors/vscode/audit-astra/changed-rule-recheck-20261004T020201Z/sources/inline-do-require.can",
+        "editors/vscode/audit-astra/changed-rule-recheck-20261004T020201Z/sources/multiline-parenthesized-form.can",
+        "editors/vscode/audit-astra/changed-rule-recheck-20261004T020201Z/sources/owned-model-app.can",
+        "editors/vscode/audit-astra/changed-rule-recheck-20261004T020201Z/sources/owned-model-capability.can",
+        "editors/vscode/audit-astra/changed-rule-recheck-20261004T020201Z/sources/owned-model-contract.can",
+        "editors/vscode/audit-astra/changed-rule-recheck-20261004T020201Z/sources/owned-model-event.can",
+        "editors/vscode/audit-astra/changed-rule-recheck-20261004T020201Z/sources/owned-model-package.can",
+        "editors/vscode/audit-astra/changed-rule-recheck-20261004T020201Z/sources/owned-model-role.can",
+        "editors/vscode/audit-astra/changed-rule-recheck-20261004T020201Z/sources/qualified-migration-targets.can",
+        "editors/vscode/audit-astra/changed-rule-recheck-20261004T020201Z/tokenize.cjs",
+        "editors/vscode/audit-astra/corpus-tokens.json",
+        "editors/vscode/audit-astra/description-probe.cjs",
+        "editors/vscode/audit-astra/description-results.json",
+        "editors/vscode/audit-astra/description-results.txt",
+        "editors/vscode/audit-astra/execution-presentation-latest-results.json",
+        "editors/vscode/audit-astra/execution-presentation-probe-results.json",
+        "editors/vscode/audit-astra/execution-presentation-probes.json",
+        "editors/vscode/audit-astra/execution-presentation-tokenize.cjs",
+        "editors/vscode/audit-astra/final-changed-files/DECISIONS.md",
+        "editors/vscode/audit-astra/final-changed-files/DESIGN.md",
+        "editors/vscode/audit-astra/final-changed-files/draft/CanField.can",
+        "editors/vscode/audit-astra/final-changed-files/draft/CanMaintain.can",
+        "editors/vscode/audit-astra/final-changed-files/draft/CanMember.can",
+        "editors/vscode/audit-astra/final-changed-files/draft/CanRent.can",
+        "editors/vscode/audit-astra/final-changed-files/draft/shared/Locations.can",
+        "editors/vscode/audit-astra/final-changed-files/editors/vscode/README.md",
+        "editors/vscode/audit-astra/final-changed-files/editors/vscode/check-highlighting.cjs",
+        "editors/vscode/audit-astra/final-changed-files/editors/vscode/package.json",
+        "editors/vscode/audit-astra/final-changed-files/editors/vscode/syntaxes/can.tmLanguage.json",
+        "editors/vscode/audit-astra/final-file-drift.json",
+        "editors/vscode/audit-astra/final-palette-swap-settings.json",
+        "editors/vscode/audit-astra/followup-013-theme-evidence.json",
+        "editors/vscode/audit-astra/followup-013-theme-probe.cjs",
+        "editors/vscode/audit-astra/followup-013-theme.md",
+        "editors/vscode/audit-astra/followup-013/manifest.json",
+        "editors/vscode/audit-astra/followup-013/package.json",
+        "editors/vscode/audit-astra/followup-013/syntaxes/can.tmLanguage.json",
+        "editors/vscode/audit-astra/inventory-execution-presentation.md",
+        "editors/vscode/audit-astra/inventory-foundation.md",
+        "editors/vscode/audit-astra/latest-corpus-tokens.json",
+        "editors/vscode/audit-astra/latest-extension/package.json",
+        "editors/vscode/audit-astra/latest-extension/syntaxes/can.tmLanguage.json",
+        "editors/vscode/audit-astra/latest-probe-results.json",
+        "editors/vscode/audit-astra/latest-probe-results.txt",
+        "editors/vscode/audit-astra/probe-results.json",
+        "editors/vscode/audit-astra/probe-results.txt",
+        "editors/vscode/audit-astra/probe-tokenization.cjs",
+        "editors/vscode/audit-astra/probes.json",
+        "editors/vscode/audit-astra/production-coverage.csv",
+        "editors/vscode/audit-astra/recheck-20261004T014855Z/RECHECK.md",
+        "editors/vscode/audit-astra/recheck-20261004T014855Z/execution-probes.json",
+        "editors/vscode/audit-astra/recheck-20261004T014855Z/execution-recheck.md",
+        "editors/vscode/audit-astra/recheck-20261004T014855Z/execution-results.json",
+        "editors/vscode/audit-astra/recheck-20261004T014855Z/execution-results.txt",
+        "editors/vscode/audit-astra/recheck-20261004T014855Z/execution-sources/valid-backend-context.can",
+        "editors/vscode/audit-astra/recheck-20261004T014855Z/execution-sources/valid-contextual-models.can",
+        "editors/vscode/audit-astra/recheck-20261004T014855Z/execution-sources/valid-crud-examples.can",
+        "editors/vscode/audit-astra/recheck-20261004T014855Z/execution-sources/valid-inline-structural-guards.can",
+        "editors/vscode/audit-astra/recheck-20261004T014855Z/execution-sources/valid-joined-query.can",
+        "editors/vscode/audit-astra/recheck-20261004T014855Z/execution-sources/valid-operation-slots.can",
+        "editors/vscode/audit-astra/recheck-20261004T014855Z/execution-sources/valid-operator-operand-boundaries.can",
+        "editors/vscode/audit-astra/recheck-20261004T014855Z/execution-sources/valid-owned-contextual-models.can",
+        "editors/vscode/audit-astra/recheck-20261004T014855Z/execution-sources/valid-qualified-operation-parentheses.can",
+        "editors/vscode/audit-astra/recheck-20261004T014855Z/execution-sources/valid-query-contextual-names.can",
+        "editors/vscode/audit-astra/recheck-20261004T014855Z/execution-sources/valid-scenario-examples-contextual.can",
+        "editors/vscode/audit-astra/recheck-20261004T014855Z/execution-sources/valid-ui-query-and-guards.can",
+        "editors/vscode/audit-astra/recheck-20261004T014855Z/execution-tokenize.cjs",
+        "editors/vscode/audit-astra/recheck-20261004T014855Z/foundation-can-probes/F4-inline-contextual-type-atoms.can",
+        "editors/vscode/audit-astra/recheck-20261004T014855Z/foundation-can-probes/F4-multiline-contextual-type-atoms.can",
+        "editors/vscode/audit-astra/recheck-20261004T014855Z/foundation-can-probes/F4-multiline-signature-types.can",
+        "editors/vscode/audit-astra/recheck-20261004T014855Z/foundation-can-probes/F6-selector-literal-prefix-names.can",
+        "editors/vscode/audit-astra/recheck-20261004T014855Z/foundation-can-probes/F6-spaced-signed-and-qualified-selectors.can",
+        "editors/vscode/audit-astra/recheck-20261004T014855Z/foundation-can-probes/F7-multiline-values-shorthand.can",
+        "editors/vscode/audit-astra/recheck-20261004T014855Z/foundation-can-probes/F7-route-type-subroles.can",
+        "editors/vscode/audit-astra/recheck-20261004T014855Z/foundation-can-probes/F7-whitespace-array-suffixes.can",
+        "editors/vscode/audit-astra/recheck-20261004T014855Z/foundation-can-probes/F8-model-field-handler-shapes.can",
+        "editors/vscode/audit-astra/recheck-20261004T014855Z/foundation-can-probes/F8-original-maintenance.can",
+        "editors/vscode/audit-astra/recheck-20261004T014855Z/foundation-can-probes/F8-qualified-target-paths.can",
+        "editors/vscode/audit-astra/recheck-20261004T014855Z/foundation-probes.json",
+        "editors/vscode/audit-astra/recheck-20261004T014855Z/foundation-recheck.md",
+        "editors/vscode/audit-astra/recheck-20261004T014855Z/foundation-results.json",
+        "editors/vscode/audit-astra/recheck-20261004T014855Z/foundation-results.txt",
+        "editors/vscode/audit-astra/recheck-20261004T014855Z/foundation-tokenize.cjs",
+        "editors/vscode/audit-astra/recheck-20261004T014855Z/inline-require-evidence.json",
+        "editors/vscode/audit-astra/recheck-20261004T014855Z/manifest.json",
+        "editors/vscode/audit-astra/recheck-20261004T014855Z/original-probe-results.txt",
+        "editors/vscode/audit-astra/recheck-20261004T014855Z/original-probes.json",
+        "editors/vscode/audit-astra/recheck-20261004T014855Z/owned-model-minimal-probes.json",
+        "editors/vscode/audit-astra/recheck-20261004T014855Z/owned-model-minimal-results.json",
+        "editors/vscode/audit-astra/recheck-20261004T014855Z/owned-model-minimal-results.txt",
+        "editors/vscode/audit-astra/recheck-20261004T014855Z/owned-model-minimal-sources/app.can",
+        "editors/vscode/audit-astra/recheck-20261004T014855Z/owned-model-minimal-sources/capability.can",
+        "editors/vscode/audit-astra/recheck-20261004T014855Z/owned-model-minimal-sources/contract.can",
+        "editors/vscode/audit-astra/recheck-20261004T014855Z/owned-model-minimal-sources/event.can",
+        "editors/vscode/audit-astra/recheck-20261004T014855Z/owned-model-minimal-sources/package.can",
+        "editors/vscode/audit-astra/recheck-20261004T014855Z/owned-model-minimal-sources/role.can",
+        "editors/vscode/audit-astra/recheck-20261004T014855Z/owned-model-minimal.cjs",
+        "editors/vscode/audit-astra/recheck-20261004T014855Z/probe-results.json",
+        "editors/vscode/audit-astra/recheck-20261004T014855Z/replay-original.cjs",
+        "editors/vscode/audit-astra/recheck-20261004T014855Z/root-focused-probes.json",
+        "editors/vscode/audit-astra/recheck-20261004T014855Z/root-focused-results.json",
+        "editors/vscode/audit-astra/recheck-20261004T014855Z/root-focused-results.txt",
+        "editors/vscode/audit-astra/recheck-20261004T014855Z/root-focused.cjs",
+        "editors/vscode/audit-astra/recheck-20261004T014855Z/snapshot/AGENTS.md",
+        "editors/vscode/audit-astra/recheck-20261004T014855Z/snapshot/GRAMMAR.md",
+        "editors/vscode/audit-astra/recheck-20261004T014855Z/snapshot/editors/vscode/package.json",
+        "editors/vscode/audit-astra/recheck-20261004T014855Z/snapshot/editors/vscode/syntaxes/can.tmLanguage.json",
+        "editors/vscode/audit-astra/recheck-20261004T014855Z/source-drift.json",
+        "editors/vscode/audit-astra/recheck-20261004T014855Z/theme-evidence.json",
+        "editors/vscode/audit-astra/recheck-20261004T014855Z/theme-probe.cjs",
+        "editors/vscode/audit-astra/recheck-20261004T014855Z/theme-report.md",
+        "editors/vscode/audit-astra/recheck-current-path.txt",
+        "editors/vscode/audit-astra/snapshot-manifest.json",
+        "editors/vscode/audit-astra/snapshot/AGENTS.md",
+        "editors/vscode/audit-astra/snapshot/DECISIONS.md",
+        "editors/vscode/audit-astra/snapshot/DESIGN.md",
+        "editors/vscode/audit-astra/snapshot/GRAMMAR.md",
+        "editors/vscode/audit-astra/snapshot/draft/CanAffiliate.can",
+        "editors/vscode/audit-astra/snapshot/draft/CanApprove.can",
+        "editors/vscode/audit-astra/snapshot/draft/CanBoard.can",
+        "editors/vscode/audit-astra/snapshot/draft/CanBook.can",
+        "editors/vscode/audit-astra/snapshot/draft/CanCRM.can",
+        "editors/vscode/audit-astra/snapshot/draft/CanCatch.can",
+        "editors/vscode/audit-astra/snapshot/draft/CanCheck.can",
+        "editors/vscode/audit-astra/snapshot/draft/CanContract.can",
+        "editors/vscode/audit-astra/snapshot/draft/CanCustomer.can",
+        "editors/vscode/audit-astra/snapshot/draft/CanDesk.can",
+        "editors/vscode/audit-astra/snapshot/draft/CanDo.can",
+        "editors/vscode/audit-astra/snapshot/draft/CanEvent.can",
+        "editors/vscode/audit-astra/snapshot/draft/CanExpense.can",
+        "editors/vscode/audit-astra/snapshot/draft/CanFeedback.can",
+        "editors/vscode/audit-astra/snapshot/draft/CanField.can",
+        "editors/vscode/audit-astra/snapshot/draft/CanGrant.can",
+        "editors/vscode/audit-astra/snapshot/draft/CanHire.can",
+        "editors/vscode/audit-astra/snapshot/draft/CanInvoice.can",
+        "editors/vscode/audit-astra/snapshot/draft/CanLearn.can",
+        "editors/vscode/audit-astra/snapshot/draft/CanLeave.can",
+        "editors/vscode/audit-astra/snapshot/draft/CanLoyalty.can",
+        "editors/vscode/audit-astra/snapshot/draft/CanMail.can",
+        "editors/vscode/audit-astra/snapshot/draft/CanMaintain.can",
+        "editors/vscode/audit-astra/snapshot/draft/CanMember.can",
+        "editors/vscode/audit-astra/snapshot/draft/CanOnboard.can",
+        "editors/vscode/audit-astra/snapshot/draft/CanPropose.can",
+        "editors/vscode/audit-astra/snapshot/draft/CanPurchase.can",
+        "editors/vscode/audit-astra/snapshot/draft/CanReception.can",
+        "editors/vscode/audit-astra/snapshot/draft/CanRefer.can",
+        "editors/vscode/audit-astra/snapshot/draft/CanRent.can",
+        "editors/vscode/audit-astra/snapshot/draft/CanReport.can",
+        "editors/vscode/audit-astra/snapshot/draft/CanShift.can",
+        "editors/vscode/audit-astra/snapshot/draft/CanStats.can",
+        "editors/vscode/audit-astra/snapshot/draft/CanStock.can",
+        "editors/vscode/audit-astra/snapshot/draft/CanSuccess.can",
+        "editors/vscode/audit-astra/snapshot/draft/CanTable.can",
+        "editors/vscode/audit-astra/snapshot/draft/CanTime.can",
+        "editors/vscode/audit-astra/snapshot/draft/CanTrade.can",
+        "editors/vscode/audit-astra/snapshot/draft/CanVolunteer.can",
+        "editors/vscode/audit-astra/snapshot/draft/shared/Employees.can",
+        "editors/vscode/audit-astra/snapshot/draft/shared/Locations.can",
+        "editors/vscode/audit-astra/snapshot/draft/shared/Suppliers.can",
+        "editors/vscode/audit-astra/snapshot/editors/vscode/GRAMMAR-AUDIT.md",
+        "editors/vscode/audit-astra/snapshot/editors/vscode/README.md",
+        "editors/vscode/audit-astra/snapshot/editors/vscode/check-highlighting.cjs",
+        "editors/vscode/audit-astra/snapshot/editors/vscode/package.json",
+        "editors/vscode/audit-astra/snapshot/editors/vscode/syntaxes/can.tmLanguage.json",
+        "editors/vscode/audit-astra/snapshot/examples/ExpenseFlow.can",
+        "editors/vscode/audit-astra/snapshot/examples/TeamTasks.can",
+        "editors/vscode/audit-astra/theme-installation-evidence-005813.json",
+        "editors/vscode/audit-astra/theme-installation-evidence-010004.json",
+        "editors/vscode/audit-astra/theme-installation-evidence-010146.json",
+        "editors/vscode/audit-astra/theme-installation-evidence.json",
+        "editors/vscode/audit-astra/theme-installation.md",
+        "editors/vscode/audit-astra/theme-probe.cjs",
+        "docs/ideal-filetree-plan/finished-product/documentation-review.json",
+        "docs/ideal-filetree-plan/finished-product/documentation-inventory.json",
+        "docs/ideal-filetree-plan/finished-product/check.py",
+        "docs/ideal-filetree-plan/finished-product/converge.py",
+        "editors/vscode/AUDIT-RESOLUTION.md",
+        "editors/vscode/GRAMMAR-AUDIT.md",
+        "editors/vscode/README.md",
+        "editors/vscode/.vscodeignore",
+        "implementation/status/frontend-catalog-migration.md",
+        "docs/specification/DECISIONS.md"
+      ],
+      "acceptance": [
+        "No live build/test/install consumer; active highlighting regressions retained unchanged; exact 187-path Git archive extraction and SHA-256 proof passed; repair mutable navigation before retirement. Broader captured-evidence deduplication remains deferred.",
+        "Preserve original protected Markdown hashes and all audit path/size/hash identities in Git; restore full original layout via git archive; retain historical evidence scope and current regression check bytes. No claim of rerunning old editor installations or semantic language validation."
+      ],
+      "capabilities": [
+        "F01",
+        "F12"
+      ],
+      "disposition": "REQUIRED",
+      "execution_status": "APPLIED locally; exact Git recovery and independent no-consumer review passed",
+      "writer_resources": [
+        "repository-documentation-owner"
+      ],
+      "gate": "No live build/test/install consumer; active highlighting regressions retained unchanged; exact 187-path Git archive extraction and SHA-256 proof passed; repair mutable navigation before retirement. Broader captured-evidence deduplication remains deferred."
     }
   ],
   "review_evidence": {
@@ -1852,7 +2460,8 @@
       "independent_protected_byte_proof": {
         "capture_and_final_report_paths": 271,
         "changed": 0,
-        "raw_jev_json_changed": false
+        "raw_jev_json_changed": false,
+        "scope": "Historical pre-retirement working-file proof retained. DOC07 separately relocates 23 protected editor Markdown files into exact pinned Git recovery; their original protection hashes remain enforced."
       },
       "regeneration": "apply_documentation_review idempotent across selected tree, tasks, duties, findings, owners, workflows and entry; full source convergence not rerun",
       "topic_consolidation": "52 complete source blocks matched originals under explicit heading/navigation normalization; all three batches independently cross-reviewed;169 JSON records byte-identical; planning/link/integrity checks passed with unchanged checkpoint",
@@ -1871,7 +2480,8 @@
           "docs/research/package-subsystem-ports-20261006/evidence/input-validation/prepared-plan-handoff.md"
         ]
       },
-      "local_commit_scope": "Draft staged bytes match original HEAD under118 documented URL replacements; parent stages only the explicit documentation path set, leaving implementation writers unstaged."
+      "local_commit_scope": "Draft staged bytes match original HEAD under118 documented URL replacements; parent stages only the explicit documentation path set, leaving implementation writers unstaged.",
+      "editor_archive_retirement": "Exact187-file recovery,23 protected Markdown pins and current regression checksum passed;208-path cutover scope independently reviewed;50 changed-document local links pass; overlay idempotent; planning errors=[]; checkpoint unchanged."
     },
     "topic_consolidation": {
       "live_reference_updates": [
@@ -2602,6 +3212,969 @@
       },
       "pushed": false,
       "complete_checkpoint_advanced": false
+    },
+    "completed_editor_audit": {
+      "root": "editors/vscode/audit-astra",
+      "revision": "e5fa27c3cbe6c00e4ec76ea61005a3f1d3e65faa",
+      "observed_at_utc": "2026-10-06T13:34:16.536275+00:00",
+      "files": [
+        {
+          "path": "editors/vscode/audit-astra/REPORT.md",
+          "bytes": 26028,
+          "sha256": "7fa414bbfebc7c89189a0e5216ede0788da6b248d6f428b528b9ce2ae4e1bbec"
+        },
+        {
+          "path": "editors/vscode/audit-astra/build-inventory.py",
+          "bytes": 4686,
+          "sha256": "b39947029f3afde0ce53fda6bd5a93089be864ae8eff89ee49849f80244f8b0b"
+        },
+        {
+          "path": "editors/vscode/audit-astra/changed-during-audit.json",
+          "bytes": 1879,
+          "sha256": "1a25cd25d1eb297580d9a4934875dd115a45d5bbc180ef92b9c49da3268db44f"
+        },
+        {
+          "path": "editors/vscode/audit-astra/changed-rule-current-path.txt",
+          "bytes": 95,
+          "sha256": "ddd4bd6f13a2816545211463a03176ecc19f36b9e5fb5179e33f72b3240d602e"
+        },
+        {
+          "path": "editors/vscode/audit-astra/changed-rule-recheck-20261004T020201Z/RECHECK.md",
+          "bytes": 2872,
+          "sha256": "e918e5ca0555cdeb545a9a83e364b94d89d4ca83f3c554b79554e04280405d4f"
+        },
+        {
+          "path": "editors/vscode/audit-astra/changed-rule-recheck-20261004T020201Z/inline-require-probe.cjs",
+          "bytes": 4760,
+          "sha256": "3d9eec382793301111ab127d9469e35c5876a23b512addeb0a2c127cedbf8b29"
+        },
+        {
+          "path": "editors/vscode/audit-astra/changed-rule-recheck-20261004T020201Z/inline-require-theme-evidence.json",
+          "bytes": 42741,
+          "sha256": "4d526d03a1d6e274e97d4bf2c6ac135d31b5facfcc492af1c07c15016843fdf7"
+        },
+        {
+          "path": "editors/vscode/audit-astra/changed-rule-recheck-20261004T020201Z/inline-require-theme-result.md",
+          "bytes": 1270,
+          "sha256": "cd3ec878221f6ffb79163eed4183e091a4262da9b3d24e8d44aa114da22b9523"
+        },
+        {
+          "path": "editors/vscode/audit-astra/changed-rule-recheck-20261004T020201Z/manifest.json",
+          "bytes": 403,
+          "sha256": "f93533e93c948942507f3aef54f4401cc55c6b3dc9943b7a1772ee656bcfb247"
+        },
+        {
+          "path": "editors/vscode/audit-astra/changed-rule-recheck-20261004T020201Z/probe-results.json",
+          "bytes": 71363,
+          "sha256": "28f19a1a5f57b6cf92d895a74fd7862ac428399a81246155cf4400f839a04722"
+        },
+        {
+          "path": "editors/vscode/audit-astra/changed-rule-recheck-20261004T020201Z/probes.json",
+          "bytes": 1336,
+          "sha256": "31521455d52674aba8bf58757398ecc7a8fe006ebbc8eb9fa958aa533a44fb9f"
+        },
+        {
+          "path": "editors/vscode/audit-astra/changed-rule-recheck-20261004T020201Z/results.txt",
+          "bytes": 7146,
+          "sha256": "abe3f26dbdf236759c5aeccfaeadb49303108fe03df4764cc0970c4a1d790bdc"
+        },
+        {
+          "path": "editors/vscode/audit-astra/changed-rule-recheck-20261004T020201Z/snapshot/GRAMMAR.md",
+          "bytes": 53948,
+          "sha256": "bd21a290fb4fa0b753cfe6e655b7aca4e65763dd5b42b7c36c7e83b825b24014"
+        },
+        {
+          "path": "editors/vscode/audit-astra/changed-rule-recheck-20261004T020201Z/snapshot/editors/vscode/package.json",
+          "bytes": 855,
+          "sha256": "4f8070598f759489d880ceec73e506c8bd82bb870dc5dd6a290886cfbc7c0cd6"
+        },
+        {
+          "path": "editors/vscode/audit-astra/changed-rule-recheck-20261004T020201Z/snapshot/editors/vscode/syntaxes/can.tmLanguage.json",
+          "bytes": 138493,
+          "sha256": "5b81968086d429b8b5156badc7efd712b0016f37aaaf576cd4489beed0214ea3"
+        },
+        {
+          "path": "editors/vscode/audit-astra/changed-rule-recheck-20261004T020201Z/sources/inline-do-require.can",
+          "bytes": 128,
+          "sha256": "21a61c4a64a6e11a0dd61885fa7c98f02c92b11b122d56f5a1178120623e2f57"
+        },
+        {
+          "path": "editors/vscode/audit-astra/changed-rule-recheck-20261004T020201Z/sources/multiline-parenthesized-form.can",
+          "bytes": 175,
+          "sha256": "edd94e5a591152f80173c46f3204b8899f158948d2a8150159887d170f06d125"
+        },
+        {
+          "path": "editors/vscode/audit-astra/changed-rule-recheck-20261004T020201Z/sources/owned-model-app.can",
+          "bytes": 52,
+          "sha256": "f3adf34c3804486bc5112fbedf9861c1f81c241bce2064ccc60083bff3d430f7"
+        },
+        {
+          "path": "editors/vscode/audit-astra/changed-rule-recheck-20261004T020201Z/sources/owned-model-capability.can",
+          "bytes": 59,
+          "sha256": "5c7256473c64eb8684a0e20791b69ac9317bd774e863a729af66592b9f42131e"
+        },
+        {
+          "path": "editors/vscode/audit-astra/changed-rule-recheck-20261004T020201Z/sources/owned-model-contract.can",
+          "bytes": 57,
+          "sha256": "ca6031c982b5418504406b18425a501f20f02e14f38437a706d90629ddd73726"
+        },
+        {
+          "path": "editors/vscode/audit-astra/changed-rule-recheck-20261004T020201Z/sources/owned-model-event.can",
+          "bytes": 54,
+          "sha256": "caee77dd2e3ddb20317d5442cbf127361ef2f62a1f51b31d25e794e3803afc44"
+        },
+        {
+          "path": "editors/vscode/audit-astra/changed-rule-recheck-20261004T020201Z/sources/owned-model-package.can",
+          "bytes": 56,
+          "sha256": "b00f268abd74a3d1c7020befa12bfa9c722bfea4b8e9974a4d949d13536a59b3"
+        },
+        {
+          "path": "editors/vscode/audit-astra/changed-rule-recheck-20261004T020201Z/sources/owned-model-role.can",
+          "bytes": 53,
+          "sha256": "41b30c8b8623809e101eee85b9aa2cfd4ed885a04df84988657be779cdac118b"
+        },
+        {
+          "path": "editors/vscode/audit-astra/changed-rule-recheck-20261004T020201Z/sources/qualified-migration-targets.can",
+          "bytes": 101,
+          "sha256": "6a42772bb11c49c1ddb42a5eac01f24a8683245b2f7a4cb1f801bbf14beff8be"
+        },
+        {
+          "path": "editors/vscode/audit-astra/changed-rule-recheck-20261004T020201Z/tokenize.cjs",
+          "bytes": 1712,
+          "sha256": "209950e38ab722992edf46aebf417e8a7439ac4834d322f7a6cfcb5bef46eb9c"
+        },
+        {
+          "path": "editors/vscode/audit-astra/corpus-tokens.json",
+          "bytes": 16847032,
+          "sha256": "24551522208ec2f8cd880e2a20e1ecbc38a67ff365af651180f7573db065381e"
+        },
+        {
+          "path": "editors/vscode/audit-astra/description-probe.cjs",
+          "bytes": 3455,
+          "sha256": "56225efabf1c7119563b8b515c503a123d7347ff54a718679e6d283e9d2bdf6b"
+        },
+        {
+          "path": "editors/vscode/audit-astra/description-results.json",
+          "bytes": 102599,
+          "sha256": "2f0c0d748c1193b5f26f50faf05b1d3a122ce710365fe9d5f65c525430260819"
+        },
+        {
+          "path": "editors/vscode/audit-astra/description-results.txt",
+          "bytes": 13999,
+          "sha256": "f692a4078e5549623330813fd2c16ff80c561aa67f27b3b61f0422ed4184ce63"
+        },
+        {
+          "path": "editors/vscode/audit-astra/execution-presentation-latest-results.json",
+          "bytes": 87981,
+          "sha256": "326922b4563807e25d12bf0f23b755cd77884cb7d7745153f88ec821576ab7a6"
+        },
+        {
+          "path": "editors/vscode/audit-astra/execution-presentation-probe-results.json",
+          "bytes": 87882,
+          "sha256": "36ca3969f469c9ccc31d348ab3e4e15fba8ba239fd42e2c22032e6888e24c0c6"
+        },
+        {
+          "path": "editors/vscode/audit-astra/execution-presentation-probes.json",
+          "bytes": 1840,
+          "sha256": "52da155c47693a6adf6c2bc1f040422c3969db870cb50c1855967dd55c9ba56c"
+        },
+        {
+          "path": "editors/vscode/audit-astra/execution-presentation-tokenize.cjs",
+          "bytes": 2352,
+          "sha256": "e933e46c35c7177b982addb78ff73ef17de4bf6c4eaf1c7a91ad2ead0d1dcab1"
+        },
+        {
+          "path": "editors/vscode/audit-astra/final-changed-files/DECISIONS.md",
+          "bytes": 73380,
+          "sha256": "cb178d30a2d3a4ed244da11ec7ed71bea797151e0be5efec1a48c80737324815"
+        },
+        {
+          "path": "editors/vscode/audit-astra/final-changed-files/DESIGN.md",
+          "bytes": 186362,
+          "sha256": "fea86cd9fed26b5a3d5953a6e5497bbef3bdb27000eaa27e66d9c8622afd3c15"
+        },
+        {
+          "path": "editors/vscode/audit-astra/final-changed-files/draft/CanField.can",
+          "bytes": 22070,
+          "sha256": "bb5283dcf232fac70d2e380630d4c0cf53315332a5829c9b8ba91cc6bc0545fc"
+        },
+        {
+          "path": "editors/vscode/audit-astra/final-changed-files/draft/CanMaintain.can",
+          "bytes": 25718,
+          "sha256": "39a7f3f8f9c392770cfc3cd61d4a488fcc980d82e2703072956435aa5f09d8c9"
+        },
+        {
+          "path": "editors/vscode/audit-astra/final-changed-files/draft/CanMember.can",
+          "bytes": 58489,
+          "sha256": "a4b0c7322f100311b113eed95a8a50c48ea958ff3a0bbd710bbeb350c4e75471"
+        },
+        {
+          "path": "editors/vscode/audit-astra/final-changed-files/draft/CanRent.can",
+          "bytes": 121283,
+          "sha256": "6f42834c12d28d9a5f7f2ed6c59310c3643fee4ee8f6accd6b733ffbbed8694c"
+        },
+        {
+          "path": "editors/vscode/audit-astra/final-changed-files/draft/shared/Locations.can",
+          "bytes": 3912,
+          "sha256": "46e6a468954bb64db534b2b6b64be168ea6263bad384e5107496cf08f17b8e5c"
+        },
+        {
+          "path": "editors/vscode/audit-astra/final-changed-files/editors/vscode/README.md",
+          "bytes": 2950,
+          "sha256": "1d702c04cfbd16269f870a9cafcaeaa72e0ceccde3ab23085086a7c24f94ec44"
+        },
+        {
+          "path": "editors/vscode/audit-astra/final-changed-files/editors/vscode/check-highlighting.cjs",
+          "bytes": 14541,
+          "sha256": "91d8791757d6248be70a182fce6d17fc6e57287e63ff989c610c8a29dfd8ea21"
+        },
+        {
+          "path": "editors/vscode/audit-astra/final-changed-files/editors/vscode/package.json",
+          "bytes": 855,
+          "sha256": "acad506f06676b412a7e40f5bb54dd483077068d7a5bfdbfd7cddf4b35c08fcd"
+        },
+        {
+          "path": "editors/vscode/audit-astra/final-changed-files/editors/vscode/syntaxes/can.tmLanguage.json",
+          "bytes": 33066,
+          "sha256": "fb01f39e818d4ec8e1d8051be0d8d754acfc92cf28829f9b6f5dc23be84aaddc"
+        },
+        {
+          "path": "editors/vscode/audit-astra/final-file-drift.json",
+          "bytes": 2540,
+          "sha256": "b75dcaa8472a33796fc85a058dfccc7efb061166f6627c633774938eae2fa2fe"
+        },
+        {
+          "path": "editors/vscode/audit-astra/final-palette-swap-settings.json",
+          "bytes": 5906,
+          "sha256": "8e32800d080cb8e43ee1678fb0a0cb5cf55a10924e7349052471b0dc1795164a"
+        },
+        {
+          "path": "editors/vscode/audit-astra/followup-013-theme-evidence.json",
+          "bytes": 80241,
+          "sha256": "ee0a0a6b312ff177bfc79415641fcbb877f2f358382b741059cbb551dfd91407"
+        },
+        {
+          "path": "editors/vscode/audit-astra/followup-013-theme-probe.cjs",
+          "bytes": 6885,
+          "sha256": "b5f481c90f5ed26e86b1a750b39c5456e6e650f77699f47e30dc6d294e575fe9"
+        },
+        {
+          "path": "editors/vscode/audit-astra/followup-013-theme.md",
+          "bytes": 2493,
+          "sha256": "8c6eeaf1b8a713e0abe7d238795a29f1246b269f46f065b7fbc681863dd17aab"
+        },
+        {
+          "path": "editors/vscode/audit-astra/followup-013/manifest.json",
+          "bytes": 340,
+          "sha256": "89a30dffdbbda8d043f2b2ccd1c11e9164a43c9e1edf04e23ca2874ad221927f"
+        },
+        {
+          "path": "editors/vscode/audit-astra/followup-013/package.json",
+          "bytes": 855,
+          "sha256": "655ea2b3a76dceac96f5aca00935f128e3b55e5cc99c3253cf3205253b9254c1"
+        },
+        {
+          "path": "editors/vscode/audit-astra/followup-013/syntaxes/can.tmLanguage.json",
+          "bytes": 33840,
+          "sha256": "c3c3ee53094d0a81b355eff9feb1cff1d3168e0a967845e94a0af73fcfd1c782"
+        },
+        {
+          "path": "editors/vscode/audit-astra/inventory-execution-presentation.md",
+          "bytes": 33495,
+          "sha256": "fc37b8e28a6791c0091b08d39988fbe72a540cbfe0c456fb7cf5156498bfed7b"
+        },
+        {
+          "path": "editors/vscode/audit-astra/inventory-foundation.md",
+          "bytes": 24669,
+          "sha256": "b645546c56bbc7f5fb7f5967923d3204dfc4ad2c0801048e57eb91fc7a70eb42"
+        },
+        {
+          "path": "editors/vscode/audit-astra/latest-corpus-tokens.json",
+          "bytes": 16864093,
+          "sha256": "0151c512b51e12df7374d8a9e3516ec4266937e68c728b7230d3c8134983d6f2"
+        },
+        {
+          "path": "editors/vscode/audit-astra/latest-extension/package.json",
+          "bytes": 855,
+          "sha256": "acad506f06676b412a7e40f5bb54dd483077068d7a5bfdbfd7cddf4b35c08fcd"
+        },
+        {
+          "path": "editors/vscode/audit-astra/latest-extension/syntaxes/can.tmLanguage.json",
+          "bytes": 33066,
+          "sha256": "fb01f39e818d4ec8e1d8051be0d8d754acfc92cf28829f9b6f5dc23be84aaddc"
+        },
+        {
+          "path": "editors/vscode/audit-astra/latest-probe-results.json",
+          "bytes": 501088,
+          "sha256": "3ab560d28d6965ec10e406f55f880a7e11b89e7f7a30d711d30a0b0378225edf"
+        },
+        {
+          "path": "editors/vscode/audit-astra/latest-probe-results.txt",
+          "bytes": 63246,
+          "sha256": "1ce6e59c4cce8f710eeeb9ad89384852c64eb2a11bb1c185f3dcd10b10b19114"
+        },
+        {
+          "path": "editors/vscode/audit-astra/probe-results.json",
+          "bytes": 500346,
+          "sha256": "b88da2b198c2a722bb302bb803cf76d276d8294f7531b61b2c15c819d352dd12"
+        },
+        {
+          "path": "editors/vscode/audit-astra/probe-results.txt",
+          "bytes": 63448,
+          "sha256": "9b7a2b0745e11d42b33012d2934600b21dbb0949d02cebd279eec5473f8e5c24"
+        },
+        {
+          "path": "editors/vscode/audit-astra/probe-tokenization.cjs",
+          "bytes": 2339,
+          "sha256": "c271e873e8f9b173e722df96a3156625dacac1008066fae6d0beb3141fb0227f"
+        },
+        {
+          "path": "editors/vscode/audit-astra/probes.json",
+          "bytes": 9197,
+          "sha256": "b44b8d0955852b8720e00f8ab07713a87e6d92b634e1a6b26ee03f8a8bad0d16"
+        },
+        {
+          "path": "editors/vscode/audit-astra/production-coverage.csv",
+          "bytes": 59198,
+          "sha256": "4ed39b8819a5a003ba2ba7551030f4fed0f9c1175bf44efb45cc20d6ea364e61"
+        },
+        {
+          "path": "editors/vscode/audit-astra/recheck-20261004T014855Z/RECHECK.md",
+          "bytes": 15496,
+          "sha256": "94ff87f0cdd27bc39811ee2bd67f217512b5cc4b3450bbcf8a40235d910d383d"
+        },
+        {
+          "path": "editors/vscode/audit-astra/recheck-20261004T014855Z/execution-probes.json",
+          "bytes": 7853,
+          "sha256": "90e7440a68b6a6d67ff0082b3b04ac93964b9fad701d876fb57942c0ad6e0b5f"
+        },
+        {
+          "path": "editors/vscode/audit-astra/recheck-20261004T014855Z/execution-recheck.md",
+          "bytes": 10276,
+          "sha256": "2cbc90b8458ef2a5170078451d793811e98a5726ab8dde2c62b6906b122b1e7b"
+        },
+        {
+          "path": "editors/vscode/audit-astra/recheck-20261004T014855Z/execution-results.json",
+          "bytes": 573049,
+          "sha256": "46cf4ad68cac76a6bc9b84d5e0fea01582f262309ff9e327c1a7493f62d73683"
+        },
+        {
+          "path": "editors/vscode/audit-astra/recheck-20261004T014855Z/execution-results.txt",
+          "bytes": 56135,
+          "sha256": "9a658da98b9c246f23d5a2c7e8e97d7380c676a4f9d88e1e2543f5c528586e87"
+        },
+        {
+          "path": "editors/vscode/audit-astra/recheck-20261004T014855Z/execution-sources/valid-backend-context.can",
+          "bytes": 1056,
+          "sha256": "33d886ba4f9b7e43a6dc8e2c853dc578502fa121087f418b4f3623d9683c31ef"
+        },
+        {
+          "path": "editors/vscode/audit-astra/recheck-20261004T014855Z/execution-sources/valid-contextual-models.can",
+          "bytes": 231,
+          "sha256": "a0712b5931476aabbe01944f1d88f7a08e014aabc6a7e8d18011f4a175c07ae7"
+        },
+        {
+          "path": "editors/vscode/audit-astra/recheck-20261004T014855Z/execution-sources/valid-crud-examples.can",
+          "bytes": 392,
+          "sha256": "6e52f3e15de97cb780f95484aab6f3ea49d78e23bda241bd2c1b39de0952d61b"
+        },
+        {
+          "path": "editors/vscode/audit-astra/recheck-20261004T014855Z/execution-sources/valid-inline-structural-guards.can",
+          "bytes": 479,
+          "sha256": "782050e92f6e419a4c2e28765930c2602b0e1d66bd4dc05ec1ecd8d6ba522c8d"
+        },
+        {
+          "path": "editors/vscode/audit-astra/recheck-20261004T014855Z/execution-sources/valid-joined-query.can",
+          "bytes": 396,
+          "sha256": "f1091f05fbd8f4173e3bb60bb90f03a22247855ac7f62344199e31d9a691e02b"
+        },
+        {
+          "path": "editors/vscode/audit-astra/recheck-20261004T014855Z/execution-sources/valid-operation-slots.can",
+          "bytes": 928,
+          "sha256": "8a2a201ef9c44a4a601d7c6167464e5281fb32ff9eb8a10458ba55ec1879236e"
+        },
+        {
+          "path": "editors/vscode/audit-astra/recheck-20261004T014855Z/execution-sources/valid-operator-operand-boundaries.can",
+          "bytes": 339,
+          "sha256": "b69304dc258eb7038b02a432234bf896b2981cc93a5635a03fc52e4d3020618b"
+        },
+        {
+          "path": "editors/vscode/audit-astra/recheck-20261004T014855Z/execution-sources/valid-owned-contextual-models.can",
+          "bytes": 300,
+          "sha256": "82c06cda3251a1fa13975dcf1f8f31889e95183ff49ec7739100cf4b2394d663"
+        },
+        {
+          "path": "editors/vscode/audit-astra/recheck-20261004T014855Z/execution-sources/valid-qualified-operation-parentheses.can",
+          "bytes": 455,
+          "sha256": "89670a4dba1f8feda209fde1e415fe6888502f94b07344322b9e3e5a366880c8"
+        },
+        {
+          "path": "editors/vscode/audit-astra/recheck-20261004T014855Z/execution-sources/valid-query-contextual-names.can",
+          "bytes": 686,
+          "sha256": "306d5288085d3e907fb7c52a5b8f7f62f83244539354626a946f8399bcadf304"
+        },
+        {
+          "path": "editors/vscode/audit-astra/recheck-20261004T014855Z/execution-sources/valid-scenario-examples-contextual.can",
+          "bytes": 275,
+          "sha256": "cbd3f5c78cb6d404e37e77c2937dd30476f82a15cb1ec9904148ca1d7863670c"
+        },
+        {
+          "path": "editors/vscode/audit-astra/recheck-20261004T014855Z/execution-sources/valid-ui-query-and-guards.can",
+          "bytes": 711,
+          "sha256": "ed8ca33829ce63d61ce6704861440df9f310aec375f0dd7abedd8eed5094752c"
+        },
+        {
+          "path": "editors/vscode/audit-astra/recheck-20261004T014855Z/execution-tokenize.cjs",
+          "bytes": 2320,
+          "sha256": "b450729c51f6033c1aed9a4698e4b8b472eb167c1a3304313aacef56c8856371"
+        },
+        {
+          "path": "editors/vscode/audit-astra/recheck-20261004T014855Z/foundation-can-probes/F4-inline-contextual-type-atoms.can",
+          "bytes": 251,
+          "sha256": "0d04eeaad1e62bdc7cdcb4238f517eb81d60860298afae897d971e8b6a3d37c1"
+        },
+        {
+          "path": "editors/vscode/audit-astra/recheck-20261004T014855Z/foundation-can-probes/F4-multiline-contextual-type-atoms.can",
+          "bytes": 183,
+          "sha256": "41a232752c3ccacdc646c7d9f0b73e4f18324d98832fb4351c1afee5ae3d59d9"
+        },
+        {
+          "path": "editors/vscode/audit-astra/recheck-20261004T014855Z/foundation-can-probes/F4-multiline-signature-types.can",
+          "bytes": 138,
+          "sha256": "11a304a7e4a1ef928996ccfc5daba3b2fd1993404bbd00439d6fda45a85b1429"
+        },
+        {
+          "path": "editors/vscode/audit-astra/recheck-20261004T014855Z/foundation-can-probes/F6-selector-literal-prefix-names.can",
+          "bytes": 521,
+          "sha256": "6cdb23729eb8492dc11cdf08e6c14864b675a036d31b57601cd82d456d058d24"
+        },
+        {
+          "path": "editors/vscode/audit-astra/recheck-20261004T014855Z/foundation-can-probes/F6-spaced-signed-and-qualified-selectors.can",
+          "bytes": 310,
+          "sha256": "878d82add255d818a4a2883958f698dade107cf57b9be6e97b2beeba9ce6aa92"
+        },
+        {
+          "path": "editors/vscode/audit-astra/recheck-20261004T014855Z/foundation-can-probes/F7-multiline-values-shorthand.can",
+          "bytes": 262,
+          "sha256": "b2157232c39c5fb099e4b8e1488b579c437ea0ebde540da3ff7dcd78236aa88f"
+        },
+        {
+          "path": "editors/vscode/audit-astra/recheck-20261004T014855Z/foundation-can-probes/F7-route-type-subroles.can",
+          "bytes": 327,
+          "sha256": "c4b5fb82944745b3c041f31cdf6e00c3f85feb83a8f0253eb0a09eb3bd1b06c7"
+        },
+        {
+          "path": "editors/vscode/audit-astra/recheck-20261004T014855Z/foundation-can-probes/F7-whitespace-array-suffixes.can",
+          "bytes": 265,
+          "sha256": "fd86c01030882d8a7ce8ff10a837aabcedb6e640aa5e5a934ed1cafa32d3b818"
+        },
+        {
+          "path": "editors/vscode/audit-astra/recheck-20261004T014855Z/foundation-can-probes/F8-model-field-handler-shapes.can",
+          "bytes": 233,
+          "sha256": "412f8ea012aa7f817cd10ad4d833677bb2939695a834260fd64be2a4f2be0767"
+        },
+        {
+          "path": "editors/vscode/audit-astra/recheck-20261004T014855Z/foundation-can-probes/F8-original-maintenance.can",
+          "bytes": 309,
+          "sha256": "8270212620dee53c5523152a9c925969d218d3ed62a1bb98487c2350cd5a7450"
+        },
+        {
+          "path": "editors/vscode/audit-astra/recheck-20261004T014855Z/foundation-can-probes/F8-qualified-target-paths.can",
+          "bytes": 151,
+          "sha256": "7211d7ee7750834b2c2fd6b46e5d9a7c43757671b23a24e4babc91e98dbf83b4"
+        },
+        {
+          "path": "editors/vscode/audit-astra/recheck-20261004T014855Z/foundation-probes.json",
+          "bytes": 4511,
+          "sha256": "ea0cbbcfbc90cb22672d9fc45483782fa5f1ea2cdbe96e3decaf4a4a22af626a"
+        },
+        {
+          "path": "editors/vscode/audit-astra/recheck-20261004T014855Z/foundation-recheck.md",
+          "bytes": 7487,
+          "sha256": "1d2e55ada5d9669595f6fab9c2013ff2572bee90a3f21e2f3493c8aabf4e9060"
+        },
+        {
+          "path": "editors/vscode/audit-astra/recheck-20261004T014855Z/foundation-results.json",
+          "bytes": 305801,
+          "sha256": "1c87b073f92abf99ea04e4a4908df42c9bfe7be65f40a96dc8955cc7b3a0aaf7"
+        },
+        {
+          "path": "editors/vscode/audit-astra/recheck-20261004T014855Z/foundation-results.txt",
+          "bytes": 29330,
+          "sha256": "e8adbfc958b79f54636cf459d6f0a66432872d42c010df427db284ac294ea181"
+        },
+        {
+          "path": "editors/vscode/audit-astra/recheck-20261004T014855Z/foundation-tokenize.cjs",
+          "bytes": 2366,
+          "sha256": "8d4c5dd81bf4282ddf6bc751153369da122e80a1ee2b1e317c47989a9da9dc1d"
+        },
+        {
+          "path": "editors/vscode/audit-astra/recheck-20261004T014855Z/inline-require-evidence.json",
+          "bytes": 17487,
+          "sha256": "f2164bbd13cf4c059b0841485b411db48c3136875487a82745bdb1e3c5872ece"
+        },
+        {
+          "path": "editors/vscode/audit-astra/recheck-20261004T014855Z/manifest.json",
+          "bytes": 726,
+          "sha256": "4f8521ee1d94a48d5dc2b29fe657e8b3411ac467374b0338d78b58752e8e1233"
+        },
+        {
+          "path": "editors/vscode/audit-astra/recheck-20261004T014855Z/original-probe-results.txt",
+          "bytes": 65325,
+          "sha256": "c9d60adce6365bcce30ec4e72cbdf6928864fc6805f4bb3af4a9ab7353a953dd"
+        },
+        {
+          "path": "editors/vscode/audit-astra/recheck-20261004T014855Z/original-probes.json",
+          "bytes": 9197,
+          "sha256": "b44b8d0955852b8720e00f8ab07713a87e6d92b634e1a6b26ee03f8a8bad0d16"
+        },
+        {
+          "path": "editors/vscode/audit-astra/recheck-20261004T014855Z/owned-model-minimal-probes.json",
+          "bytes": 713,
+          "sha256": "f5f436b35bbe42de2c166eea77250e4d438c04dcd494e9253ca95f027cc10790"
+        },
+        {
+          "path": "editors/vscode/audit-astra/recheck-20261004T014855Z/owned-model-minimal-results.json",
+          "bytes": 31901,
+          "sha256": "1d79d234d71ceb15f42b4363d7e41119e82681f3fbe9df116bf748df97e93315"
+        },
+        {
+          "path": "editors/vscode/audit-astra/recheck-20261004T014855Z/owned-model-minimal-results.txt",
+          "bytes": 3296,
+          "sha256": "33eba6b7170025af1b284ce240f228e1169209b9a31e57f5d230707244c646b8"
+        },
+        {
+          "path": "editors/vscode/audit-astra/recheck-20261004T014855Z/owned-model-minimal-sources/app.can",
+          "bytes": 52,
+          "sha256": "f3adf34c3804486bc5112fbedf9861c1f81c241bce2064ccc60083bff3d430f7"
+        },
+        {
+          "path": "editors/vscode/audit-astra/recheck-20261004T014855Z/owned-model-minimal-sources/capability.can",
+          "bytes": 59,
+          "sha256": "5c7256473c64eb8684a0e20791b69ac9317bd774e863a729af66592b9f42131e"
+        },
+        {
+          "path": "editors/vscode/audit-astra/recheck-20261004T014855Z/owned-model-minimal-sources/contract.can",
+          "bytes": 57,
+          "sha256": "ca6031c982b5418504406b18425a501f20f02e14f38437a706d90629ddd73726"
+        },
+        {
+          "path": "editors/vscode/audit-astra/recheck-20261004T014855Z/owned-model-minimal-sources/event.can",
+          "bytes": 54,
+          "sha256": "caee77dd2e3ddb20317d5442cbf127361ef2f62a1f51b31d25e794e3803afc44"
+        },
+        {
+          "path": "editors/vscode/audit-astra/recheck-20261004T014855Z/owned-model-minimal-sources/package.can",
+          "bytes": 56,
+          "sha256": "b00f268abd74a3d1c7020befa12bfa9c722bfea4b8e9974a4d949d13536a59b3"
+        },
+        {
+          "path": "editors/vscode/audit-astra/recheck-20261004T014855Z/owned-model-minimal-sources/role.can",
+          "bytes": 53,
+          "sha256": "41b30c8b8623809e101eee85b9aa2cfd4ed885a04df84988657be779cdac118b"
+        },
+        {
+          "path": "editors/vscode/audit-astra/recheck-20261004T014855Z/owned-model-minimal.cjs",
+          "bytes": 1746,
+          "sha256": "e26ae2de442d64d954e36d271c95a8de975d1d8def196c583fbf4759168894f5"
+        },
+        {
+          "path": "editors/vscode/audit-astra/recheck-20261004T014855Z/probe-results.json",
+          "bytes": 551674,
+          "sha256": "b2a92fbd54e103f203afa8653b7a72541e9cb632c7351a60fe83b4a58084d8b1"
+        },
+        {
+          "path": "editors/vscode/audit-astra/recheck-20261004T014855Z/replay-original.cjs",
+          "bytes": 1721,
+          "sha256": "577b435d68935c6cfc05ccb1c28abd0aab92c6cf500b1996656a71463fbab0f8"
+        },
+        {
+          "path": "editors/vscode/audit-astra/recheck-20261004T014855Z/root-focused-probes.json",
+          "bytes": 1478,
+          "sha256": "070e30420570700f5d019d5eec93ce734b802c50f3c39d46d158de15e5b8fd90"
+        },
+        {
+          "path": "editors/vscode/audit-astra/recheck-20261004T014855Z/root-focused-results.json",
+          "bytes": 125539,
+          "sha256": "aa77e5c3eee108c2c2d45633a29a0bb426f4547f051465bad76ac7de4025ee92"
+        },
+        {
+          "path": "editors/vscode/audit-astra/recheck-20261004T014855Z/root-focused-results.txt",
+          "bytes": 12289,
+          "sha256": "a5535b411b483ae10fe807008e0c41101c69fdd8577a94a0dc4215a453880106"
+        },
+        {
+          "path": "editors/vscode/audit-astra/recheck-20261004T014855Z/root-focused.cjs",
+          "bytes": 1732,
+          "sha256": "b7abf801e59cefa7df67ce668151fd2fb6a4edbc634a56390b90c0496f99f3d2"
+        },
+        {
+          "path": "editors/vscode/audit-astra/recheck-20261004T014855Z/snapshot/AGENTS.md",
+          "bytes": 6521,
+          "sha256": "503025c141ee4b80f92c1ed04fb0e71b98e50c2f4aab6144c3747bc181f01882"
+        },
+        {
+          "path": "editors/vscode/audit-astra/recheck-20261004T014855Z/snapshot/GRAMMAR.md",
+          "bytes": 53948,
+          "sha256": "bd21a290fb4fa0b753cfe6e655b7aca4e65763dd5b42b7c36c7e83b825b24014"
+        },
+        {
+          "path": "editors/vscode/audit-astra/recheck-20261004T014855Z/snapshot/editors/vscode/package.json",
+          "bytes": 855,
+          "sha256": "4f8070598f759489d880ceec73e506c8bd82bb870dc5dd6a290886cfbc7c0cd6"
+        },
+        {
+          "path": "editors/vscode/audit-astra/recheck-20261004T014855Z/snapshot/editors/vscode/syntaxes/can.tmLanguage.json",
+          "bytes": 120114,
+          "sha256": "5c0e667200b5bc73fffa21553e96207518694c583d3e0eb07d4642b06975b40d"
+        },
+        {
+          "path": "editors/vscode/audit-astra/recheck-20261004T014855Z/source-drift.json",
+          "bytes": 420,
+          "sha256": "2e462de2c6bbed3ec6a3811be93d822ad228e9b084a3a9d0dcf1426142d92bb2"
+        },
+        {
+          "path": "editors/vscode/audit-astra/recheck-20261004T014855Z/theme-evidence.json",
+          "bytes": 320325,
+          "sha256": "eb8ae6b6c6ee524e5dc911a1e4a87df0ab17ae95e97480d0d729e64a828d1df7"
+        },
+        {
+          "path": "editors/vscode/audit-astra/recheck-20261004T014855Z/theme-probe.cjs",
+          "bytes": 5374,
+          "sha256": "7b3a4c7179faf127eafd7aea60f87652636a8857f189e53c1576899bb336ebce"
+        },
+        {
+          "path": "editors/vscode/audit-astra/recheck-20261004T014855Z/theme-report.md",
+          "bytes": 5917,
+          "sha256": "8def00855100d746ad94aa32ea869fb1d00072671f9a1e631823dacc6297db03"
+        },
+        {
+          "path": "editors/vscode/audit-astra/recheck-current-path.txt",
+          "bytes": 82,
+          "sha256": "901840af0d0a079094d72c7d396a541992eb44b4a2058d832a01f3baea905b61"
+        },
+        {
+          "path": "editors/vscode/audit-astra/snapshot-manifest.json",
+          "bytes": 10432,
+          "sha256": "8cddb0320dc28afe7be79edcfa9b5b6cc778242f4bbf058dafeac0c2dbee314f"
+        },
+        {
+          "path": "editors/vscode/audit-astra/snapshot/AGENTS.md",
+          "bytes": 6521,
+          "sha256": "503025c141ee4b80f92c1ed04fb0e71b98e50c2f4aab6144c3747bc181f01882"
+        },
+        {
+          "path": "editors/vscode/audit-astra/snapshot/DECISIONS.md",
+          "bytes": 71906,
+          "sha256": "4747af39bca7ecbbf66ce715bcfb9af0b6969923b6886601123da018e53e9256"
+        },
+        {
+          "path": "editors/vscode/audit-astra/snapshot/DESIGN.md",
+          "bytes": 182474,
+          "sha256": "dd72a1d5869d74cdb7e419cd3cb885dfad4b3a00281d33f43a6ca093f3c21d14"
+        },
+        {
+          "path": "editors/vscode/audit-astra/snapshot/GRAMMAR.md",
+          "bytes": 53948,
+          "sha256": "bd21a290fb4fa0b753cfe6e655b7aca4e65763dd5b42b7c36c7e83b825b24014"
+        },
+        {
+          "path": "editors/vscode/audit-astra/snapshot/draft/CanAffiliate.can",
+          "bytes": 12535,
+          "sha256": "b6c375fd79200a44837fc9bf776a1b939706ef91dfb5ef327877dabcc5fb5590"
+        },
+        {
+          "path": "editors/vscode/audit-astra/snapshot/draft/CanApprove.can",
+          "bytes": 8386,
+          "sha256": "1e2f2ceb3957a9a894045a6215d901ee741afa2032421ae459134b42dc6445d3"
+        },
+        {
+          "path": "editors/vscode/audit-astra/snapshot/draft/CanBoard.can",
+          "bytes": 10193,
+          "sha256": "3790b76748b5dc995364f7e1198fcfa8e3ade61f2c9162c6b1342fcbe4ba2ddb"
+        },
+        {
+          "path": "editors/vscode/audit-astra/snapshot/draft/CanBook.can",
+          "bytes": 30221,
+          "sha256": "8369cec4a66befd5e126566bdadc5530d618f03ebf7b99f48667adb9318cf1bf"
+        },
+        {
+          "path": "editors/vscode/audit-astra/snapshot/draft/CanCRM.can",
+          "bytes": 19388,
+          "sha256": "0aaa3cd6c98aa697b5d0e9809f396318b8a07b1e89208083e8a7ec6fdf828edf"
+        },
+        {
+          "path": "editors/vscode/audit-astra/snapshot/draft/CanCatch.can",
+          "bytes": 9932,
+          "sha256": "338031d507aee12dbd733758ef3b7c26251f0fcf0f43244730a65701bb7907de"
+        },
+        {
+          "path": "editors/vscode/audit-astra/snapshot/draft/CanCheck.can",
+          "bytes": 6462,
+          "sha256": "de740a9657141916bd703235f075a5ff46ff1333a81a20650a6a32475515cb64"
+        },
+        {
+          "path": "editors/vscode/audit-astra/snapshot/draft/CanContract.can",
+          "bytes": 11281,
+          "sha256": "5bb6305244dc5ea1e8cf8feba5e6038bec22aded7960649e55aa80bbb835194c"
+        },
+        {
+          "path": "editors/vscode/audit-astra/snapshot/draft/CanCustomer.can",
+          "bytes": 22101,
+          "sha256": "cc43d7fdb8830b86e1eb9fa1ed5d1abc3d9f587e3c6d90b3979762a191ac2cbd"
+        },
+        {
+          "path": "editors/vscode/audit-astra/snapshot/draft/CanDesk.can",
+          "bytes": 10578,
+          "sha256": "090a99368a64af1ca4c6edfa5e9dd90e13ba410bf91900ad452eb587deac83b3"
+        },
+        {
+          "path": "editors/vscode/audit-astra/snapshot/draft/CanDo.can",
+          "bytes": 15679,
+          "sha256": "82c1b6d6d2ea4b12837c547c70b950ef54eaa4ca5567e9973d6b9ea46793d0f8"
+        },
+        {
+          "path": "editors/vscode/audit-astra/snapshot/draft/CanEvent.can",
+          "bytes": 13096,
+          "sha256": "43b3977161d83f04008c320bb820aa187b4015d5fc0a38c8dc0d56fcffa71e94"
+        },
+        {
+          "path": "editors/vscode/audit-astra/snapshot/draft/CanExpense.can",
+          "bytes": 10525,
+          "sha256": "48bd151a66dde1b199d744197d6a5eb46381e44823dab4e2bfcdcb20aedb77b7"
+        },
+        {
+          "path": "editors/vscode/audit-astra/snapshot/draft/CanFeedback.can",
+          "bytes": 7772,
+          "sha256": "0beb0822f7fde9a127b8d3df6eb028b3c7ab3d4399cd866aa572b073633195cf"
+        },
+        {
+          "path": "editors/vscode/audit-astra/snapshot/draft/CanField.can",
+          "bytes": 19352,
+          "sha256": "c0debd714cb68d1d457411ddfb840ed764aa4cfbe3f83b87b4fdc13bbd87e6a7"
+        },
+        {
+          "path": "editors/vscode/audit-astra/snapshot/draft/CanGrant.can",
+          "bytes": 9298,
+          "sha256": "f36f52b94bf40c8e50af2e5ded9a11b1d3a494b4b098ee67432ad9f87da48c77"
+        },
+        {
+          "path": "editors/vscode/audit-astra/snapshot/draft/CanHire.can",
+          "bytes": 11510,
+          "sha256": "74430c5a5d52c8c965c185f9549f908a3b6b41513d09890ac6f041e5ae0b4cf7"
+        },
+        {
+          "path": "editors/vscode/audit-astra/snapshot/draft/CanInvoice.can",
+          "bytes": 57614,
+          "sha256": "5b9976d4da32604f7a617083e5b5bbdcd117bb42fffc5bdbb4847574c4060164"
+        },
+        {
+          "path": "editors/vscode/audit-astra/snapshot/draft/CanLearn.can",
+          "bytes": 8435,
+          "sha256": "d1089d00bb5e2a5fe06d9d2d3b67a2e35ecbe7e9b800bcb0e4f727b17c33c26f"
+        },
+        {
+          "path": "editors/vscode/audit-astra/snapshot/draft/CanLeave.can",
+          "bytes": 12271,
+          "sha256": "9f1664556344264971494e66016482b3bfc9a81ce83278bf861ca4058c80cf63"
+        },
+        {
+          "path": "editors/vscode/audit-astra/snapshot/draft/CanLoyalty.can",
+          "bytes": 9595,
+          "sha256": "8b58af4fe568f6f2a0082f0bf7c048c1ee5f321b6ee6eb8ac126da05fc8ca53a"
+        },
+        {
+          "path": "editors/vscode/audit-astra/snapshot/draft/CanMail.can",
+          "bytes": 12709,
+          "sha256": "dcbe21fc32ebfa05f215cf45e8c8bc58178431a75979dfb93ba7ad436fa61338"
+        },
+        {
+          "path": "editors/vscode/audit-astra/snapshot/draft/CanMaintain.can",
+          "bytes": 17090,
+          "sha256": "ecd110cb361fceed0a4f39817bf22208ce32250727e5663c195255bab6aa0bc2"
+        },
+        {
+          "path": "editors/vscode/audit-astra/snapshot/draft/CanMember.can",
+          "bytes": 58582,
+          "sha256": "a9df113a4cef5f1c3e3352eaf501bfc6d4f65ff8c4b7e0ebf7c044e4284a7ab3"
+        },
+        {
+          "path": "editors/vscode/audit-astra/snapshot/draft/CanOnboard.can",
+          "bytes": 9573,
+          "sha256": "d58bcc437101e7c3c42cbdff17167aba07a8b4d53c43d95f0250f6a6d9f066f1"
+        },
+        {
+          "path": "editors/vscode/audit-astra/snapshot/draft/CanPropose.can",
+          "bytes": 29167,
+          "sha256": "dd4395dc55f6a0b9350c5e6ac1633a7fb1909e71cdc41a8b0037451a74a049ed"
+        },
+        {
+          "path": "editors/vscode/audit-astra/snapshot/draft/CanPurchase.can",
+          "bytes": 14904,
+          "sha256": "b3cca7d9b7ae41b3df2ea8254ddd6f41ad4c8c394ac336a4b184cebdae5f2635"
+        },
+        {
+          "path": "editors/vscode/audit-astra/snapshot/draft/CanReception.can",
+          "bytes": 17238,
+          "sha256": "a489ebd059a4f18f22474cbe8704933a929cdfef7b5b0c704e9ca44052e56045"
+        },
+        {
+          "path": "editors/vscode/audit-astra/snapshot/draft/CanRefer.can",
+          "bytes": 10112,
+          "sha256": "06a3317d1c0b71ea691495b6236fb4f1b54204dadea8e2dcac0b94866f5a4a50"
+        },
+        {
+          "path": "editors/vscode/audit-astra/snapshot/draft/CanRent.can",
+          "bytes": 110222,
+          "sha256": "924f2a20224cd42776123891ac5da8e804e812a4dd7c56f310729bc300355ab8"
+        },
+        {
+          "path": "editors/vscode/audit-astra/snapshot/draft/CanReport.can",
+          "bytes": 10247,
+          "sha256": "ff8ebad78daf63478acaf2fc6be38ac489454e4d2cea6d1456a03368f5d44b8a"
+        },
+        {
+          "path": "editors/vscode/audit-astra/snapshot/draft/CanShift.can",
+          "bytes": 22268,
+          "sha256": "fbb792dcfd0dc2ee419b0eaaa86a42bbb23b7acf2530315068cd02ae455a849e"
+        },
+        {
+          "path": "editors/vscode/audit-astra/snapshot/draft/CanStats.can",
+          "bytes": 8690,
+          "sha256": "13a5f2cb04e57b648f10dc46784c6c6dc7dbca20e826051b131800f142e46f5f"
+        },
+        {
+          "path": "editors/vscode/audit-astra/snapshot/draft/CanStock.can",
+          "bytes": 8136,
+          "sha256": "ab23f2e7e1e771437d17a413410510cba7c3045b32f6c5dbbcacfe13d0c0b161"
+        },
+        {
+          "path": "editors/vscode/audit-astra/snapshot/draft/CanSuccess.can",
+          "bytes": 11546,
+          "sha256": "055bfc34cc00c7b287877f5fa7305ccfd3910097e3e4095418fd82c5a05c5adc"
+        },
+        {
+          "path": "editors/vscode/audit-astra/snapshot/draft/CanTable.can",
+          "bytes": 7390,
+          "sha256": "7d168fce5c5ab30f089470a19659b2616e831b65124f3423bf6fcf1815f4bf68"
+        },
+        {
+          "path": "editors/vscode/audit-astra/snapshot/draft/CanTime.can",
+          "bytes": 10063,
+          "sha256": "58745289c85b00b2229dcb95c45ebe98093b73eb8559d0bb9df96c9469c6d959"
+        },
+        {
+          "path": "editors/vscode/audit-astra/snapshot/draft/CanTrade.can",
+          "bytes": 6627,
+          "sha256": "5481f1a6adf80b784228cb6d6f11f63ea9df09a8953bedc043bd19e158d22f8f"
+        },
+        {
+          "path": "editors/vscode/audit-astra/snapshot/draft/CanVolunteer.can",
+          "bytes": 21467,
+          "sha256": "ce924b589ffb07a9432d709bc5fc6548aea90b19d7a0fbe6d4269014aa25f50c"
+        },
+        {
+          "path": "editors/vscode/audit-astra/snapshot/draft/shared/Employees.can",
+          "bytes": 2641,
+          "sha256": "860cd8bc7d024db0eebc864c476d124332c9650fdbccb034fd04aa981ec2ad0b"
+        },
+        {
+          "path": "editors/vscode/audit-astra/snapshot/draft/shared/Locations.can",
+          "bytes": 3902,
+          "sha256": "a60c13d9929d9a5e7a61f6c52719588bad063eddd86dd16aaf739d42c5c7ea15"
+        },
+        {
+          "path": "editors/vscode/audit-astra/snapshot/draft/shared/Suppliers.can",
+          "bytes": 907,
+          "sha256": "b154c5a159e83b8e62232dfd71bf4ec52db2cfc6872418cd13eaa8367da118f1"
+        },
+        {
+          "path": "editors/vscode/audit-astra/snapshot/editors/vscode/GRAMMAR-AUDIT.md",
+          "bytes": 33372,
+          "sha256": "b73ce8ee1b1a9685193f298d2fbb1c199856f2b0a7ce5622df7a44e005db264e"
+        },
+        {
+          "path": "editors/vscode/audit-astra/snapshot/editors/vscode/README.md",
+          "bytes": 2007,
+          "sha256": "d5f8cd5cb64fdf2176e349459e869df6ffa73672e7966fd23f6e4b033750bc7b"
+        },
+        {
+          "path": "editors/vscode/audit-astra/snapshot/editors/vscode/check-highlighting.cjs",
+          "bytes": 11962,
+          "sha256": "0c94d19083d3cc07a47e1faabaf75f860703478066619f3cef595619080bc1e4"
+        },
+        {
+          "path": "editors/vscode/audit-astra/snapshot/editors/vscode/package.json",
+          "bytes": 855,
+          "sha256": "e65902d6e79437fa1cec5dd699db77bc029f9cecf999557de92cbca867e5161c"
+        },
+        {
+          "path": "editors/vscode/audit-astra/snapshot/editors/vscode/syntaxes/can.tmLanguage.json",
+          "bytes": 29794,
+          "sha256": "94611f8212994a898722205b5478d62ea534334d8cf0511c1a4ecc6cbcc25207"
+        },
+        {
+          "path": "editors/vscode/audit-astra/snapshot/examples/ExpenseFlow.can",
+          "bytes": 5017,
+          "sha256": "952eb3e2062b57e3e0e0ebcda97ec507caacbeabd5e48063814872b71807df6a"
+        },
+        {
+          "path": "editors/vscode/audit-astra/snapshot/examples/TeamTasks.can",
+          "bytes": 2936,
+          "sha256": "89f28215fe6a825083581dedccd0268433581c4000a03e1971dfa2dccccc92fa"
+        },
+        {
+          "path": "editors/vscode/audit-astra/theme-installation-evidence-005813.json",
+          "bytes": 708849,
+          "sha256": "d100bb01761d1a992f883b87afbfdc985938b3dbaf6a0f5f4f23aad1f735a066"
+        },
+        {
+          "path": "editors/vscode/audit-astra/theme-installation-evidence-010004.json",
+          "bytes": 708635,
+          "sha256": "e2c164b842f0428fc2f1bdc98060ad0e360ed2a7a23c8ee0d178d124e7296f07"
+        },
+        {
+          "path": "editors/vscode/audit-astra/theme-installation-evidence-010146.json",
+          "bytes": 708635,
+          "sha256": "b9829b0a6bb87565e8eeb86fb6557ff62faa534ecb638af303e7e12efc676dd9"
+        },
+        {
+          "path": "editors/vscode/audit-astra/theme-installation-evidence.json",
+          "bytes": 708635,
+          "sha256": "0b119f5e95fc7e09ae959e5f2742c18dd61fb684acf9b17e1b4cdda5e86bbdfc"
+        },
+        {
+          "path": "editors/vscode/audit-astra/theme-installation.md",
+          "bytes": 22672,
+          "sha256": "7cdc44e66973a7518412aab07c691e75b8280ae45344a2ed22810b0b02bda47b"
+        },
+        {
+          "path": "editors/vscode/audit-astra/theme-probe.cjs",
+          "bytes": 8417,
+          "sha256": "2270bbda45f8f9cc839aa85387793910f569464bbe338d02a193bcf5b05ab365"
+        }
+      ],
+      "status": "retired from working tree; retained byte-for-byte in reachable Git history",
+      "recovery_command": "git archive e5fa27c3cbe6c00e4ec76ea61005a3f1d3e65faa editors/vscode/audit-astra",
+      "recovery_verification": {
+        "method": "git archive to temporary tar; extract full original logical paths; compare all extracted sizes and SHA-256 hashes",
+        "files": 187,
+        "mismatches": 0,
+        "bytes": 42687533
+      },
+      "consumer_review": {
+        "build_test_install_consumers": [],
+        "packaging": "Previously excluded by .vscodeignore; no package scripts or GitHub workflow invoke the folder.",
+        "regression_owner": "editors/vscode/check-highlighting.cjs: F1–F8/F10 and all four final survivor fixes remain embedded.",
+        "final_historical_status": "All four final focused changed-rule groups passed at their frozen grammar hash; semantic correctness and live window rendering remained outside that audit scope."
+      },
+      "active_regression_sha256": "3f43fc96adb83ec7424fc98feb660230a7da3b84001dd6b1109dd3718eb5dcfe",
+      "limits": "Recovery proves stored bytes and original logical paths, not replay on current IDE engines, current semantic correctness, visible rendering, or Git repository storage reduction. Other captures remain unchanged.",
+      "independent_review": {
+        "verdict": "no concrete defects",
+        "scope": "Read-only in-memory Git archive reproduction for all187 files/42687533 bytes; all23 protected Markdown hash pins; exact deletion scope; no active checker/grammar/manifest/src/test diff; all187 allocation and retirement rows; commit links resolve; checker exit0 with writes suppressed.",
+        "regeneration": "Coordinator separately proved apply_documentation_review idempotent across ten selected artifacts."
+      }
     }
   }
 }
