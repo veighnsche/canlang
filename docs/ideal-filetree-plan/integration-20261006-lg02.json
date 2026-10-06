@@ -1,0 +1,24 @@
+{
+ "integration": "lg02",
+ "date": "2026-10-06",
+ "main_before": "7ea4815",
+ "commits": [
+  "09ab537 lane-g LG02: compiled table/sequence execution + rich-fixture validation"
+ ],
+ "lane_commits": [
+  "e75ff4a (5 files +1015/-73, in-boundary)"
+ ],
+ "patch_id identical": true,
+ "coverage": "packages/testkit/**: real-table row expansion (closure eval, as-cell mapping, setup-assigned expectations), sequence-step runner (hooks calls, bindings, assertion throws), ExampleHooks seam for B/C dispatch + live state, malformed artifacts fail loud, T22b/c delivery-identity + shape validation",
+ "decisions": "bdd emission sufficed as de-facto contract (no T04 blocker); tests/e2e untouched (LG03 scope)",
+ "gaps_recorded": [
+  "real dispatch invokers",
+  "live observation scope",
+  "CallOutcome result payload for bind",
+  "file finalization (D2/T20b)",
+  "delivery nominal-membership allowlist (L1/L4)",
+  "query-bearing cells (CanDo needs none)"
+ ],
+ "gate": "CANONICAL GREEN: npx vitest run packages/testkit 118/118 (9 files), 2.26s; lane gate 62/62 dist-free + zero tsc errors",
+ "lane_report": "c3645e61"
+}

@@ -1,0 +1,451 @@
+{
+  "reviewer": "target_language (independent root late-source challenge)",
+  "repository": "/Users/vince/Projects/canlang",
+  "scope": {
+    "base": "cf36983c768c32e0a63ac33c3b45a94dc75dc2d3",
+    "head": "fa5c8e3df2606a70615387beed9f4041d5516d60",
+    "paths": [
+      {
+        "change": "A",
+        "path": "compiler/B4-G-NONHOOK-CONTEXT-BINDINGS.md",
+        "sha256": "782ad76b9197cfd0f9598b5e54a13191197a5433c4f417489d2310bd781e117b",
+        "bytes": 7321,
+        "read_scope": "entire new file",
+        "working_bytes_match_pin": true
+      },
+      {
+        "change": "M",
+        "path": "packages/cloudflare/src/deploy/bundle.ts",
+        "sha256": "e4c685b1c0272e4ddaec564068016f87bd721739be3e8bb5cd4198168cc8fb68",
+        "bytes": 43261,
+        "read_scope": "all changed hunks plus defining/caller sites",
+        "working_bytes_match_pin": true
+      },
+      {
+        "change": "M",
+        "path": "packages/cloudflare/src/runtime/invoke.ts",
+        "sha256": "c1fccd86c949f40e0759e490e7bf035b67103bb34774705c3185582bec5c83a1",
+        "bytes": 281687,
+        "read_scope": "all changed hunks plus defining/caller sites",
+        "working_bytes_match_pin": true
+      },
+      {
+        "change": "M",
+        "path": "packages/cloudflare/src/runtime/t32b-cloudflare.test.ts",
+        "sha256": "77d1431b60cba97e7bc85e5f1aaad0e9abf4d1c4931dfae99a7a7b8cc8bcc9ac",
+        "bytes": 71083,
+        "read_scope": "all changed hunks plus defining/caller sites",
+        "working_bytes_match_pin": true
+      },
+      {
+        "change": "M",
+        "path": "packages/cloudflare/src/worker/assembly.ts",
+        "sha256": "489bf7f70fbb692227c9eb0482df42475b87ae2951d60abbc72d782fe2d51628",
+        "bytes": 67887,
+        "read_scope": "all changed hunks plus defining/caller sites",
+        "working_bytes_match_pin": true
+      },
+      {
+        "change": "M",
+        "path": "packages/cloudflare/src/worker/main.ts",
+        "sha256": "2335ee597c4d053960423baa07d1fb621b2b01e4f065a68881a94292f29a26ba",
+        "bytes": 25506,
+        "read_scope": "all changed hunks plus defining/caller sites",
+        "working_bytes_match_pin": true
+      },
+      {
+        "change": "M",
+        "path": "packages/cloudflare/test/deploy-bundle.test.ts",
+        "sha256": "711bf32b7487084b5a436493c3db172a5d975a2411b58ba8275e4a2518adf8d2",
+        "bytes": 28273,
+        "read_scope": "all changed hunks plus defining/caller sites",
+        "working_bytes_match_pin": true
+      },
+      {
+        "change": "M",
+        "path": "packages/cloudflare/test/deploy-cli.test.ts",
+        "sha256": "3de00b6d406f97b8e5240735464eb6ba127aec4ff4a4a9d69dcb89dbd6c12f88",
+        "bytes": 6687,
+        "read_scope": "all changed hunks plus defining/caller sites",
+        "working_bytes_match_pin": true
+      },
+      {
+        "change": "A",
+        "path": "packages/cloudflare/test/http-operations-route.test.ts",
+        "sha256": "1f9ad86fecd892db7961b1bc7131bc7bbbbd12f1871a42468bf93b68532fd40d",
+        "bytes": 35324,
+        "read_scope": "entire new file",
+        "working_bytes_match_pin": true
+      }
+    ],
+    "reviewed_artifacts": [
+      {
+        "path": "docs/ideal-filetree-plan/finished-product/late-source.md",
+        "sha256": "b861517dfbba869a4b252fcfb47a4a0297132f8dff535ab7e9c7f590d2cefaba",
+        "bytes": 4545,
+        "read_scope": "entire artifact"
+      },
+      {
+        "path": "docs/ideal-filetree-plan/finished-product/late-source.json",
+        "sha256": "97cc1aadf9991d6bb0cc51c9f270e8c3e8030aa0f14ba532a2ea0cf5ea004960",
+        "bytes": 6966,
+        "read_scope": "entire artifact"
+      }
+    ],
+    "unchanged_sources": "Only defining context/resolver/IR/registry/caller slices needed to assess changed claims; not a second whole-repository audit.",
+    "full_new_files_read": true,
+    "all_changed_hunks_read": true
+  },
+  "method": "Read-only source/diff/expectation inspection; Git read operations and hashes only.",
+  "execution": {
+    "tests": false,
+    "checker": false,
+    "build": false,
+    "install": false,
+    "provider_calls": false,
+    "deployment": false,
+    "source_edits": false,
+    "checkpoint_advanced": false
+  },
+  "findings": [
+    {
+      "id": "LCL-01",
+      "subject": "Context spelling does not prove the runtime carrier",
+      "disposition": "REQUIRED qualification correction; existing FP.CONTEXT owner gate",
+      "challenges": [
+        "LATE-CONTEXT",
+        "B4-G section 4"
+      ],
+      "observation": "B4 is correct that nonhook actor/now lower to c.actor/c.now, and team/operation lack named IR arms. Its statement that c.actor/c.now are always bound overstates what the bound c parameter establishes. The actual canonical scenario producer supplies no actor/now/team/operation properties at all.",
+      "evidence": [
+        {
+          "path": "compiler/B4-G-NONHOOK-CONTEXT-BINDINGS.md",
+          "lines": [
+            71,
+            87
+          ],
+          "fact": "Parameter-bound c is described as always-bound c.actor/c.now; nonhook triggers remain E6008."
+        },
+        {
+          "path": "compiler/src/codegen/ir.rs",
+          "lines": [
+            2410,
+            2419
+          ],
+          "fact": "actor/now become c fields (or hook fields); no team/operation arm."
+        },
+        {
+          "path": "compiler/src/codegen/ir.rs",
+          "lines": [
+            2474,
+            2479
+          ],
+          "fact": "Example-values fallback becomes a text cell; other unresolved names become IrExpr::Name. Do not generalize free-variable emission to every example cell."
+        },
+        {
+          "path": "compiler/src/analysis/resolve.rs",
+          "lines": [
+            2434,
+            2458
+          ],
+          "fact": "Scope facts are resolver bindings, not producer properties."
+        },
+        {
+          "path": "packages/cloudflare/src/runtime/context.ts",
+          "lines": [
+            79,
+            137
+          ],
+          "fact": "HandlerContext/createContext has caller, store, clock, memberships, preferences and optional canonical; canonical has operation:string/operationId:string. It does not supply actor/now/team/operation source-level objects."
+        },
+        {
+          "path": "packages/cloudflare/src/runtime/invoke.ts",
+          "lines": [
+            2446,
+            2448
+          ],
+          "fact": "Canonical scope carries operation name and admitted operationId, not OperationContext {id,source}."
+        },
+        {
+          "path": "packages/cloudflare/src/runtime/invoke.ts",
+          "lines": [
+            2541,
+            2553
+          ],
+          "fact": "Actual admitted scenario caller constructs precisely that context and invokes with it."
+        }
+      ],
+      "strongest_countercase": "The report may mean only that emitted member expressions have a lexically bound root; another runtime producer might enrich the carrier later. Root already gates all four contextual facts in remaining work. Neither interpretation establishes properties on the inspected serving caller today; this is a qualification correction, not a new carrier architecture choice.",
+      "correction": "Describe actor/now as emitted member spellings with an unqualified runtime producer; team/operation additionally need verified lowering. Require actor identity/null semantics, fixed admission now, applicable verified team, and readonly operation.id/source to join each owning scope and actual producer before support claims. A canonical operation name or caller/clock property is not equivalent proof.",
+      "targets": [
+        "compiler/src/codegen/ir.rs",
+        "compiler/src/codegen/js.rs",
+        "packages/cloudflare/src/runtime/context.ts",
+        "packages/cloudflare/src/runtime/invoke.ts"
+      ],
+      "tasks": [
+        "T04",
+        "T15",
+        "FP.CONTEXT"
+      ],
+      "acceptance": "Original required contextual sites compile and execute through the owning admitted carrier; readonly/rejected scope uses and null trusted actor remain qualified; hooks have their separate owner-released bounds. No implementation or option selection performed."
+    },
+    {
+      "id": "LCL-02",
+      "subject": "Delivery retry predicate identifies a message token, not the rejected kind",
+      "disposition": "REQUIRED precise observation and compatibility gate; no demonstrated bypass",
+      "challenges": [
+        "LATE-DELIVERY"
+      ],
+      "observation": "The retry tests Error instance, name IncompatibleArtifactError, reason unknown_input_kind and the substring double-quoted delivery anywhere in the message. It does not extract or validate the rejected-kind field. The registry includes the input and operation names in the same message, so a different unknown kind on input named delivery or operation named delivery can satisfy the predicate.",
+      "evidence": [
+        {
+          "path": "packages/cloudflare/src/runtime/invoke.ts",
+          "lines": [
+            1767,
+            1772
+          ],
+          "fact": "Message includes(\"\\\"delivery\\\"\") is the final predicate."
+        },
+        {
+          "path": "packages/state/src/invocation/registry.ts",
+          "lines": [
+            1016,
+            1028
+          ],
+          "fact": "Error message embeds kind, input name and operation name."
+        },
+        {
+          "path": "packages/cloudflare/src/runtime/invoke.ts",
+          "lines": [
+            1828,
+            1835
+          ],
+          "fact": "Initial full load and exactly one stripped retry; second failure is not caught by the same retry."
+        }
+      ],
+      "strongest_countercase": "A remaining unsupported kind still reaches the same loader on the second pass and should fail; when no delivery descriptors exist the artifact is unchanged. Thus token ambiguity alone does not prove a successful malformed artifact, admission bypass or fallback execution. The bounded retry and propagated second error are real protections.",
+      "correction": "State exact Error/name/reason/message-token criteria. Keep owner proof that this predicate and the matching descriptor exclusion apply only to the intended compatibility case, rather than claiming semantic delivery-kind provenance from error text.",
+      "targets": [
+        "packages/cloudflare/src/runtime/invoke.ts",
+        "packages/state/src/invocation/registry.ts"
+      ],
+      "tasks": [
+        "T24",
+        "T25",
+        "T26",
+        "T32"
+      ],
+      "acceptance": "Owner compatibility evidence covers unknown non-delivery kind with delivery-named input/operation, precise retirement with the matching loader, and equally strict transport/admission behavior. Source-only review does not run these witnesses."
+    },
+    {
+      "id": "LCL-03",
+      "subject": "Stripped delivery descriptors still need their own integrity proof",
+      "disposition": "REQUIRED concrete retention/cutover gate; root remaining-work scope supported",
+      "challenges": [
+        "LATE-DELIVERY"
+      ],
+      "observation": "stripDeliveryInputs removes every record entry whose nested field.kind equals delivery, with no validation of that removed entry's required/default/tag details. The first registry pass rejects unknown delivery kind before required/default validation and before subsequent duplicate inputs; the retry cannot inspect entries it no longer sees. deliveryFields is retained model schema metadata, a separate contract from removed operation inputs.",
+      "evidence": [
+        {
+          "path": "packages/cloudflare/src/runtime/invoke.ts",
+          "lines": [
+            1744,
+            1764
+          ],
+          "fact": "Filter removes nested delivery kind and shallow-copies only touched levels; caller artifact remains unchanged."
+        },
+        {
+          "path": "packages/state/src/invocation/registry.ts",
+          "lines": [
+            998,
+            1033
+          ],
+          "fact": "Duplicate input is checked in iteration; unknown kind stops before required/default checks for that entry and before later entries."
+        },
+        {
+          "path": "packages/cloudflare/src/runtime/invoke.ts",
+          "lines": [
+            1865,
+            1870
+          ],
+          "fact": "Loaded descriptors return deliveryFields model map."
+        },
+        {
+          "path": "packages/cloudflare/src/runtime/t32b-cloudflare.test.ts",
+          "lines": [
+            1755,
+            1774
+          ],
+          "fact": "New map expectation has three models, each with an empty set; it expressly excludes live observation serving."
+        },
+        {
+          "path": "packages/interfaces/src/mcp/schemas.ts",
+          "lines": [
+            722,
+            823
+          ],
+          "fact": "Existing shared checker explicitly validates delivery descriptor plus required/default/array/description channels and duplicate input names."
+        },
+        {
+          "path": "packages/interfaces/src/http/operations.ts",
+          "lines": [
+            429,
+            446
+          ],
+          "fact": "Catalog validates full slice through checkArtifactOperations before excluding delivery from transport framing."
+        }
+      ],
+      "strongest_countercase": "There is positive source evidence for the complete preflight owner: interfaces mcp/schemas.ts:722\u2013823 validates delivery descriptors, required/default/array/description channels and duplicates; http/operations.ts:429\u2013446 checks the full slice before excluding delivery. The new HTTP fixture invokes that real derivation (http-operations-route.test.ts:252\u2013268). Full first-pass registry validation retains earlier errors and model schema is not stripped. Therefore the helper does not prove a pipeline validation gap. Retain and qualify this existing single derivation path across actual installed/direct producer joins rather than add a duplicate validator.",
+      "correction": "Root\u2019s equally-strict integrity/admission gate is supported. Name the existing shared interfaces complete-descriptor validator as the preflight owner and require installed/direct joins to retain it before registry stripping; do not invent duplicate validation. Qualify empty-set deliveryFields assertions as map-shape/whole-model coverage, not positive delivery-tag, association, observation or expiry proof.",
+      "targets": [
+        "packages/cloudflare/src/runtime/invoke.ts",
+        "packages/state/src/invocation/registry.ts",
+        "packages/interfaces/src/mcp/schemas.ts",
+        "packages/interfaces/src/http/operations.ts"
+      ],
+      "tasks": [
+        "T24",
+        "T25",
+        "T26",
+        "T32"
+      ],
+      "acceptance": "Actual installed/direct producer evidence retains the existing interfaces complete-descriptor validation before stripping, covering removed delivery tag/required/default/array details and duplicate names; receipt association/current selected leaf and model-tag behavior have separate evidence. The bridge retires when matching loader tolerance is released."
+    },
+    {
+      "id": "LCL-04",
+      "subject": "Constructed executable fixtures are not compiler or installed-product evidence",
+      "disposition": "REQUIRED wording correction; broader no-execution limits confirmed",
+      "challenges": [
+        "LATE-TEST-SCOPE"
+      ],
+      "observation": "Replace real emitted labels in the t32b statement with hand-written executable fixture handlers through the canonical seam. They construct create/update/remove and expect history labels create/update/archive; no compiler production occurs in this added test. HTTP source explicitly labels its artifact NOT compiler output, injects the real interfaces dist handlers, and uses MemoryStorage/identity fixtures.",
+      "evidence": [
+        {
+          "path": "packages/cloudflare/src/runtime/t32b-cloudflare.test.ts",
+          "lines": [
+            1246,
+            1257
+          ],
+          "fact": "Fixture string supplies updateRemove handler calling stdlib data plane."
+        },
+        {
+          "path": "packages/cloudflare/src/runtime/t32b-cloudflare.test.ts",
+          "lines": [
+            1402,
+            1439
+          ],
+          "fact": "c2Setup writes/loads a constructed module/artifact and fixture storage."
+        },
+        {
+          "path": "packages/cloudflare/src/runtime/t32b-cloudflare.test.ts",
+          "lines": [
+            1722,
+            1751
+          ],
+          "fact": "Added invocation expects committed row and create/update/archive history; expectations are not run here."
+        },
+        {
+          "path": "packages/cloudflare/test/http-operations-route.test.ts",
+          "lines": [
+            1,
+            20
+          ],
+          "fact": "Header declares hand-written artifact and real handler seam, not compiler output."
+        },
+        {
+          "path": "packages/cloudflare/test/http-operations-route.test.ts",
+          "lines": [
+            173,
+            220
+          ],
+          "fact": "OPS_SOURCE/fixture artifact are handwritten; receipt handler records inputs and returns ok."
+        },
+        {
+          "path": "packages/cloudflare/test/http-operations-route.test.ts",
+          "lines": [
+            252,
+            321
+          ],
+          "fact": "Real derivation and injected real dist handlers with fixture storage and identity."
+        },
+        {
+          "path": "packages/cloudflare/test/http-operations-route.test.ts",
+          "lines": [
+            655,
+            682
+          ],
+          "fact": "Delivery-only input framing records empty inputs, not provider execution or selected receipt association."
+        },
+        {
+          "path": "packages/cloudflare/test/http-operations-route.test.ts",
+          "lines": [
+            698,
+            747
+          ],
+          "fact": "HTTP both sealed placement outcomes; MCP malformed tool-level denial, not successful resume proof."
+        },
+        {
+          "path": "packages/cloudflare/test/http-operations-route.test.ts",
+          "lines": [
+            797,
+            827
+          ],
+          "fact": "Last conflict/reference case cites earlier pins and directly exercises a positive create only."
+        },
+        {
+          "path": "packages/cloudflare/test/deploy-bundle.test.ts",
+          "lines": [
+            240,
+            255
+          ],
+          "fact": "Marker and JS string length assertions, not executed export/backend qualification or raw Wasm bytes."
+        },
+        {
+          "path": "packages/cloudflare/src/deploy/bundle.ts",
+          "lines": [
+            1016,
+            1019
+          ],
+          "fact": "bytes-named module metrics use source string.length, i.e. UTF-16 code units."
+        },
+        {
+          "path": "packages/cloudflare/test/deploy-cli.test.ts",
+          "lines": [
+            132,
+            148
+          ],
+          "fact": "Delta only enlarges test timeout from 5s to 30s; no passing result read into this audit."
+        }
+      ],
+      "strongest_countercase": "Using real derivation, interfaces dist and canonical invoker makes these meaningful integration expectations rather than mocks of each layer. The fixture directly exercises handler-to-engine execution if run. Root already distinguishes constructed artifacts, installed workerd/D1 and unexecuted expectations; only the compiler-emitted wording and positive-delivery interpretation need narrowing.",
+      "correction": "Keep source-joined route supersession and substantive fixture scope; call labels expected canonical history labels from constructed handlers. Do not infer compilation, passing results, rich delivery/provider execution, browser draft journey, successful sealed resume or original-app qualification from these bodies.",
+      "targets": [
+        "packages/cloudflare/src/runtime/t32b-cloudflare.test.ts",
+        "packages/cloudflare/test/http-operations-route.test.ts",
+        "packages/cloudflare/test/deploy-bundle.test.ts",
+        "packages/cloudflare/test/deploy-cli.test.ts"
+      ],
+      "tasks": [
+        "T21",
+        "T22",
+        "T23",
+        "FP.QUALIFY",
+        "FP.INSTALLED-RELEASE"
+      ],
+      "acceptance": "Future owner execution ties compiler-generated original workflows to actual installed producer/assets/auth/state/browser/provider/restart evidence; tests here were read only."
+    }
+  ],
+  "confirmed": [
+    "LATE-C3 source join supersedes absent-route claim only at source scope; no complete installed product claim.",
+    "Missing HTTP factory 501 and fail-closed default feature stubs remain interim.",
+    "Lazy HTTP import catches all import failures, so packaging absence must be distinguished from broken initialization; root already retains this gate.",
+    "Root correctly leaves receipt/current selected leaf runtime and installed original-app support unqualified.",
+    "No report option is adopted by this challenge; consequential carrier/hook choice remains owner/root JEV gate."
+  ],
+  "pending_decisions": [
+    "Existing FP.CONTEXT producer and hook per-scope owner gates; no new architecture selected.",
+    "Existing delivery loader compatibility retirement/integrity gate; predicate and removed-entry proof need concrete owner evidence."
+  ],
+  "prior_challenge_update": "Work owner reports apps-work ALW-05 CSV paths/coordinator authority now corrected. This task updates only the new late-challenge pair; prior app ledger not edited."
+}

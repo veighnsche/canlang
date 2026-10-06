@@ -38,7 +38,7 @@
 //! [`ModuleId`] index both tables.
 
 use crate::analysis::catalog::{Availability, Catalog, Effects, std_capability};
-use crate::analysis::effects::EffectVerb;
+use crate::analysis::effects::{EffectVerb, PolicyRule};
 use crate::analysis::migrate_check::{self, OwnerModelView};
 use crate::analysis::resolve::{
     CrudOp, FixtureTarget, ModelOwner, ModuleId, ModuleKind, SymbolId, SymbolKind,
@@ -304,6 +304,10 @@ pub struct IrGrant {
     pub rule: String,
     /// Field grants as dotted selector paths (empty omits `fields`).
     pub fields: Vec<String>,
+    /// Explicit-public provenance (B7 phase-1): true iff `read=` is
+    /// exactly the `public` spelling with no `where=`, so serve may
+    /// honor the grant without rule-fn evaluation.
+    pub public: bool,
 }
 
 /// One composite uniqueness constraint (checked but §13 has no member
@@ -3382,6 +3386,29 @@ pub fn expr_uses_async(expr: &TypedExpr) -> bool {
 /// subject predicates, boolean combinations, or an arbitrary checked
 /// boolean expression.
 impl<'a> Cx<'a> {
+    /// Explicit-public read provenance (B7 phase-1): true iff the grant
+    /// reads exactly `public` with no `where=`. Serve honors such grants
+    /// without rule-fn evaluation (rejected) or T04b-class evaluation
+    /// (deferred); predicated `read=public where=` stays fail-closed.
+    /// Pure: no diagnostics, safe to call during decode.
+    fn is_explicit_public_read(&self, policy: &PolicyRule) -> bool {
+        if policy.where_predicate.is_some() {
+            return false;
+        }
+        let Some(key) = policy.read.as_ref() else {
+            return false;
+        };
+        let Some(node) = self.node(key) else {
+            return false;
+        };
+        if node.kind != SyntaxKind::NameRef {
+            return false;
+        }
+        kids(node)
+            .iter()
+            .any(|n| name_text(self.db, n).as_deref() == Some("public"))
+    }
+
     fn decode_guard(&mut self, scope: &Scope, key: &NodeKey) -> IrGuard {
         let Some(node) = self.node(key).cloned() else {
             let span = Span::new(key.file, key.start, key.end);
@@ -4022,9 +4049,13 @@ impl<'a> Cx<'a> {
             .policies
             .iter()
             .enumerate()
-            .map(|(index, policy)| IrGrant {
-                rule: format!("{}.read.{}", symbol.name, index + 1),
-                fields: policy.fields.clone(),
+            .map(|(index, policy)| {
+                let public = self.is_explicit_public_read(policy);
+                IrGrant {
+                    rule: format!("{}.read.{}", symbol.name, index + 1),
+                    fields: policy.fields.clone(),
+                    public,
+                }
             })
             .collect();
         let invariants = data

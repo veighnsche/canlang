@@ -23,6 +23,7 @@ export const CONTRACTS_VERSION = 1;
 
 export * from "./artifact.js";
 export * from "./deployment.js";
+export * from "./deployment-assets.js";
 export * from "./diagnostic.js";
 export * from "./examples.js";
 export * from "./files.js";
