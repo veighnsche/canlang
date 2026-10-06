@@ -1820,17 +1820,22 @@ const R01_CONTRACT_DEFAULT_KINDS: ReadonlySet<string> = new Set([
  * envelope checks, so without this a malformed additive envelope on
  * a delivery input (bad `required`, bad `array` marker, misshapen
  * `default`) is silently dropped and the set loads — bypassing
- * whole-set rejection. Non-delivery entries need no pre-check: the
- * stripped retry validates them fully.
+ * whole-set rejection. Non-delivery entries need no envelope
+ * pre-check: the stripped retry validates them fully (name
+ * uniqueness is the exception — see
+ * `assertOriginalInputNameUniqueness`, which must run over the
+ * FULL original list because the strip erases collisions).
  *
- * Contract-primitive shapes only (`required` boolean, `array`
- * marker, `default` membership, non-empty name — the registry
- * gates the retry would otherwise skip past the kind gate, plus
- * the name gate for delivery entries ordered after the first):
- * failures throw the loader's OWN rejection class with its
- * message vocabulary, indistinguishable from a loader rejection.
- * Delivery-descriptor internals (capability/version fencing) stay
- * with B-loader-tolerance — dropped entries never execute.
+ * Owning envelope semantics in loader vocabulary (`required`
+ * boolean, `array` marker, FULL ordinary `default` validation
+ * mirroring the registry's `checkDefault`/`checkLoadDotPath`,
+ * non-empty name — the registry gates the retry would otherwise
+ * skip past the kind gate, plus the name gate for delivery entries
+ * ordered after the first): failures throw the loader's OWN
+ * rejection class with its message vocabulary, indistinguishable
+ * from a loader rejection. Delivery-descriptor internals
+ * (capability/version fencing) stay with B-loader-tolerance —
+ * dropped entries never execute.
  * DELETE THIS with the C3 strip.
  */
 function assertDroppedDeliveryEnvelopes(
@@ -1877,8 +1882,29 @@ function assertDroppedDeliveryEnvelopes(
               "supported: literal, parent, server, derived.",
           );
         }
-        if (kind === "parent" && typeof fallbackRecord["path"] !== "string") {
-          fail("malformed_descriptor", `Invalid parent default for ${what}: path must be a dot-path string.`);
+        // Owning default semantics (registry `checkDefault`, same
+        // order, same vocabulary): literal values must be
+        // serializable data; parent paths must be valid dot-paths
+        // (registry `checkLoadDotPath`: non-empty, no empty
+        // segments); server/derived carry no payload.
+        if (kind === "literal") {
+          try {
+            structuredClone(fallbackRecord["value"]);
+          } catch {
+            fail(
+              "malformed_descriptor",
+              `Invalid literal default for ${what}: values must be serializable data.`,
+            );
+          }
+        }
+        if (kind === "parent") {
+          if (typeof fallbackRecord["path"] !== "string") {
+            fail("malformed_descriptor", `Invalid parent default for ${what}: path must be a dot-path string.`);
+          }
+          const dotPath = fallbackRecord["path"] as string;
+          if (dotPath === "" || dotPath.split(".").some((segment) => segment === "")) {
+            fail("malformed_descriptor", `Invalid parent default for ${what} dot path: ${JSON.stringify(dotPath)}.`);
+          }
         }
       }
       const array: unknown = record["array"];
@@ -1887,6 +1913,51 @@ function assertDroppedDeliveryEnvelopes(
           fail("malformed_descriptor", `Invalid ${what}: array markers carry a boolean required.`);
         }
       }
+    }
+  }
+}
+
+/**
+ * R01-residual: name uniqueness over the FULL original per-op input
+ * list, BEFORE the C3 strip drops delivery entries. The loader
+ * checks names/duplicates before the kind gate per entry — but it
+ * fails fast at the FIRST delivery-kind entry, so collisions at or
+ * after that entry never surface on the full load, and the strip
+ * then erases the delivery side of the collision (delivery/string
+ * in delivery-first order, delivery/delivery). Entries without a
+ * usable name are skipped here: delivery ones fail the envelope
+ * name gate, retained ones fail on the stripped retry — either
+ * way before any load succeeds. Runs BEFORE the envelope
+ * validation, mirroring the loader's per-entry gate order
+ * (name/duplicate precede envelope checks). Loader's OWN rejection
+ * class + `duplicate_name` vocabulary.
+ * DELETE THIS with the C3 strip.
+ */
+function assertOriginalInputNameUniqueness(
+  producers: CanonicalStateProducers,
+  artifact: CompileArtifact,
+): void {
+  const operations = (artifact as unknown as { operations?: unknown }).operations;
+  if (!Array.isArray(operations)) return;
+  for (const op of operations) {
+    if (!isUnknownRecord(op)) continue;
+    const inputs: unknown = op["inputs"];
+    if (!isUnknownRecord(inputs)) continue;
+    const fields: unknown = inputs["fields"];
+    if (!Array.isArray(fields)) continue;
+    const seen = new Set<string>();
+    for (const entry of fields) {
+      if (!isUnknownRecord(entry)) continue;
+      const name: unknown = entry["name"];
+      if (typeof name !== "string" || name === "") continue;
+      if (seen.has(name)) {
+        throw new producers.registry.IncompatibleArtifactError(
+          "duplicate_name",
+          `Duplicate input ${JSON.stringify(name)} on operation ` +
+            `${JSON.stringify(op["name"])}.`,
+        );
+      }
+      seen.add(name);
     }
   }
 }
@@ -1907,11 +1978,14 @@ function assertDroppedDeliveryEnvelopes(
  * dispatch-layer only, so the stripped descriptors are exactly what
  * L3 executes. Any other rejection propagates verbatim.
  *
- * R01: before the stripped retry, every to-be-dropped delivery
- * entry proves its envelope (`assertDroppedDeliveryEnvelopes`) —
- * the loader's kind gate precedes its envelope checks, so the
- * retry would otherwise launder malformed additives into
- * acceptance. Whole-set rejection preserved.
+ * R01: before the stripped retry, the FULL original input list
+ * proves name uniqueness (`assertOriginalInputNameUniqueness` —
+ * the strip would erase delivery-side collisions) and every
+ * to-be-dropped delivery entry proves its envelope
+ * (`assertDroppedDeliveryEnvelopes`) — the loader's kind gate
+ * precedes its envelope checks, so the retry would otherwise
+ * launder malformed additives into acceptance. Whole-set
+ * rejection preserved.
  */
 export async function loadCanonicalDescriptors(
   asm: AssembledModules,
@@ -1956,8 +2030,11 @@ export async function loadCanonicalDescriptors(
     loaded = producers.registry.loadArtifactDescriptors(artifact, byOptions);
   } catch (err) {
     if (!isDeliveryKindRejection(err)) throw err;
-    // R01: validate-before-retry — dropped delivery entries prove
-    // their envelopes before the strip drops the evidence.
+    // R01: validate-before-retry — the FULL original input list
+    // proves name uniqueness first (the strip would erase
+    // collisions), then dropped delivery entries prove their
+    // envelopes before the strip drops the evidence.
+    assertOriginalInputNameUniqueness(producers, artifact);
     assertDroppedDeliveryEnvelopes(producers, artifact);
     loaded = producers.registry.loadArtifactDescriptors(stripDeliveryInputs(artifact), byOptions);
   }
@@ -3922,6 +3999,16 @@ export type DriveDispatchOutcome =
  * from scratch); `unavailable` (D3) buckets to the terminal
  * transport member with the echoed target (never re-driven —
  * downstream transport owns the terminal surfacing).
+ *
+ * Ordering qualifier (R01-residual review): the KERNEL checks
+ * unavailable before guard/authority evaluation — but this drive
+ * awaits the snapshot pull + live authority re-read BEFORE
+ * consulting the kernel, so throwing fence ports preempt an
+ * unavailable verdict (pinned, not silently short-circuited).
+ * True short-circuit arrives only with ACTUAL availability
+ * injection (the fence input carries no availability port yet —
+ * follow-up). Inherited/superseded/settled precedence stays
+ * kernel-side, untouched by this mapping.
  */
 async function runFenceGate(input: {
   readonly opts: DriveDispatchIntentOpts;
