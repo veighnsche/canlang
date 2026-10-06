@@ -1,0 +1,220 @@
+{
+  "request": {
+    "state": "Compare migrations of four current package-owned features with equal emphasis on complete behavior, adoption simplicity and maintenance. The evaluated tree is 011fced78cbb3762ce838066295468bdd23e5b8a, October6 2026. Limit all ports to packages/ and do not require compiler changes. Existing TS function names/signatures remain synchronous, errors and accepted inputs remain compatible, and folders use semantic responsibilities. Current evidence contains no Rust implementation, target-Wasm experiment or timings comparing backends. Rust's installed target is native only. For any shared Worker-facing Wasm port, the JS-only bundle map/vendor selection/UTF8 writer and all-ESModule local loader need explicit binary asset support, byte-exact integrity and initialization. Native bindings have platform-distribution cost and Workers cannot use native Node binaries.\nFor exact values math, the bounded internal carrier can use i64/i128 but exposed BigInt helper inputs can be unrestricted, including cancellation of1000-digit operands. Preserve raw arguments with num-bigint or an equivalent fallback; do not rely on wrapping fixed bindgen conversions. Decimal means coefficient magnitude<10^38, scale0..18 with retained trailing zeros, exact align/multiply/divide plus specific half-even/minimal-scale rules, separate construction/arithmetic errors and final-only aggregate overflow. Preserve min-int modulo-1=0, money checks/equality, duration exactness and UTC behavior. Proved256-bit scratch can cover validated inputs; ordinary rust_decimal's96-bit coefficient cannot.284 selected values tests including oracle/conformance and the build pass. Existing JS BigInt is itself exact/native engine code; a slower boundary can outweigh Rust math. Sharing semantics or batching may still be useful.\nFor wire/schema values, porting means Can's encode/decode and normalization/traversal with defaults only in create, omission in updates, nested ref version requirements, trim/bounds, secret rules, deterministic violations and frozen/shared carriers. Current normalized fields are ASTs, but leaves/union arms reparse type strings, allowing a package-only TS optimization. The complete unknown-input contract is observable JS evaluation: getters/proxies, read ordering, missing/null/undefined and array holes, UTF16 lone surrogates, own enumeration order and output identity. A probe observed2 reads of a contract getter, Date->{} for opaque JSON, preserved opaque __proto__ data, rejected opaque numbers and RangeError cycles; resource bounds are unresolved. Closed inert DTO plans are a useful smaller scope, not full API parity. JSON Schema/Serde alone do not express these rules; preserve host Intl/URL semantics. Exported validators have no direct inspected state admission caller; generated admission checks separately live in state, so porting these does not replace that path.\nFor work, move recurrence identity/slot/coalescing, retry outcome/backoff and stale/recovery/fanout/progress decision policy, while keeping DB suppliers, authorization, execution, evidence rereads and fenced commits in the host. Some retry/every policies are mirrored by command stages instead of helper calls; stale checks are directly called and the recovery runner has an injected planner seam. Preserve finite fractional JS times, UTF16 sorting/number spelling for hashes, validation/error order and callback demand: no RNG after exhaustion; evidence only on uncertain rows, in original order before sorted results. A whole snapshot batch with host callback staging offers policy reuse, whereas single branch calls may add more overhead than they remove.69 bounded tests pass and typecheck passes; actual workload benefit is unprofiled.\nFor cloudflare artifacts, port semantic JSON artifact/crossref/provenance checks, compatibility/release-version verdicts and deterministic binding-to-plan transformations. Keep compiler implementation, filesystem/probe wrappers, full CLI, runtime invocation, bundling and deployment outside. Preserve host parse diagnostics when needed, arbitrary JS/map text, tolerated additional metadata, first-error/reason/resource order and unmapped schedules. Real CLI callers exist, but native Node hashing already handles cryptographic work. An independently useful native library/tool is possible; extra processes/glue for these small checks may add cost without speed.73 relevant tests pass; package-wide typechecking currently has4 errors in unrelated invoke/fanout-test lines. These checks describe the TS starting point, not successful Rust adoption.",
+    "questions": {
+      "arithmetic": {
+        "type": "score",
+        "instructions": "Judge implementation feasibility for exact values arithmetic as an end-to-end compatible package migration, counting host boundary and release work. Do not score native-core ease alone or infer speed. The ten ordered levels correspond to human ratings1 through10 (zero-based indices0..9).",
+        "criteria": [
+          "1: required migration is incompatible with stated constraints",
+          "2: only an out-of-scope redesign or behavior reduction could work",
+          "3: important implementation prerequisites are missing",
+          "4: semantic uncertainty and coupling present large obstacles",
+          "5: technical possibility remains burdened by major open interfaces",
+          "6: credible full port, requiring heavy compatibility/proof effort",
+          "7: feasible, with material but containable interop/distribution effort",
+          "8: clear scope and known path; target and adapter checks are still needed",
+          "9: highly routine complete port with small remaining integration risk",
+          "10: full exported behavior and actual deployment parity are already proved"
+        ]
+      },
+      "validation": {
+        "type": "score",
+        "instructions": "Judge implementation feasibility for complete values wire/schema API as an end-to-end compatible package migration, counting host boundary and release work. Do not score native-core ease alone or infer speed. The ten ordered levels correspond to human ratings1 through10 (zero-based indices0..9).",
+        "criteria": [
+          "1: required migration is incompatible with stated constraints",
+          "2: only an out-of-scope redesign or behavior reduction could work",
+          "3: important implementation prerequisites are missing",
+          "4: semantic uncertainty and coupling present large obstacles",
+          "5: technical possibility remains burdened by major open interfaces",
+          "6: credible full port, requiring heavy compatibility/proof effort",
+          "7: feasible, with material but containable interop/distribution effort",
+          "8: clear scope and known path; target and adapter checks are still needed",
+          "9: highly routine complete port with small remaining integration risk",
+          "10: full exported behavior and actual deployment parity are already proved"
+        ]
+      },
+      "work": {
+        "type": "score",
+        "instructions": "Judge implementation feasibility for bounded work decisions as an end-to-end compatible package migration, counting host boundary and release work. Do not score native-core ease alone or infer speed. The ten ordered levels correspond to human ratings1 through10 (zero-based indices0..9).",
+        "criteria": [
+          "1: required migration is incompatible with stated constraints",
+          "2: only an out-of-scope redesign or behavior reduction could work",
+          "3: important implementation prerequisites are missing",
+          "4: semantic uncertainty and coupling present large obstacles",
+          "5: technical possibility remains burdened by major open interfaces",
+          "6: credible full port, requiring heavy compatibility/proof effort",
+          "7: feasible, with material but containable interop/distribution effort",
+          "8: clear scope and known path; target and adapter checks are still needed",
+          "9: highly routine complete port with small remaining integration risk",
+          "10: full exported behavior and actual deployment parity are already proved"
+        ]
+      },
+      "artifacts": {
+        "type": "score",
+        "instructions": "Judge implementation feasibility for bounded cloudflare artifact/compatibility/planning as an end-to-end compatible package migration, counting host boundary and release work. Do not score native-core ease alone or infer speed. The ten ordered levels correspond to human ratings1 through10 (zero-based indices0..9).",
+        "criteria": [
+          "1: required migration is incompatible with stated constraints",
+          "2: only an out-of-scope redesign or behavior reduction could work",
+          "3: important implementation prerequisites are missing",
+          "4: semantic uncertainty and coupling present large obstacles",
+          "5: technical possibility remains burdened by major open interfaces",
+          "6: credible full port, requiring heavy compatibility/proof effort",
+          "7: feasible, with material but containable interop/distribution effort",
+          "8: clear scope and known path; target and adapter checks are still needed",
+          "9: highly routine complete port with small remaining integration risk",
+          "10: full exported behavior and actual deployment parity are already proved"
+        ]
+      },
+      "first_investment": {
+        "type": "choice",
+        "instructions": "Where should the next bounded evaluation effort go to maximize evidence of useful compatible migration while minimizing adoption and upkeep costs? Compare all five listed approaches, treating unmeasured performance as uncertain. Recommend research ordering only, not automatic adoption.",
+        "criteria": {
+          "arithmetic_spike": "First test Rust math parity and end-to-end native/Wasm timings over individual and batched calls, keeping TS until justified. Strong semantic clarity; packaging/interop can erase gains.",
+          "validation_spike": "First investigate a structured Can validator with host-compatible values and compare cached/pre-resolved TS. Large sharing opportunity with demanding complete JS API parity and unproven consumer leverage.",
+          "work_spike": "First test a snapshot-batched decision core at the recovery injection boundary; preserve all host fences. Limited algorithms aid implementation but callbacks and mirrored rules limit benefit.",
+          "artifact_spike": "First evaluate a native artifact/compatibility/planning core connected to local callers. Straightforward structured checks may serve native consumers; binary/process overhead is an opposing cost.",
+          "ts_baseline_first": "First profile real use and remove repeated TS type parsing via prepared plans, keeping current code as backend. Easiest adoption and cheap evidence; native semantic reuse and Wasm measurement wait."
+        }
+      }
+    },
+    "model": "jev-latest"
+  },
+  "response": {
+    "model": "jev-1.13.0",
+    "answers": {
+      "first_investment": {
+        "type": "choice",
+        "choice": "ts_baseline_first",
+        "confidence": 0.59,
+        "probabilities": {
+          "arithmetic_spike": 0.02,
+          "validation_spike": 0.0,
+          "artifact_spike": 0.17,
+          "work_spike": 0.13,
+          "ts_baseline_first": 0.67
+        }
+      },
+      "arithmetic": {
+        "type": "score",
+        "score": 4.57,
+        "confidence": 0.66,
+        "legend": {
+          "0": "1: required migration is incompatible with stated constraints",
+          "1": "2: only an out-of-scope redesign or behavior reduction could work",
+          "2": "3: important implementation prerequisites are missing",
+          "3": "4: semantic uncertainty and coupling present large obstacles",
+          "4": "5: technical possibility remains burdened by major open interfaces",
+          "5": "6: credible full port, requiring heavy compatibility/proof effort",
+          "6": "7: feasible, with material but containable interop/distribution effort",
+          "7": "8: clear scope and known path; target and adapter checks are still needed",
+          "8": "9: highly routine complete port with small remaining integration risk",
+          "9": "10: full exported behavior and actual deployment parity are already proved"
+        },
+        "probabilities": {
+          "0": 0.01,
+          "1": 0.02,
+          "2": 0.08,
+          "3": 0.05,
+          "4": 0.19,
+          "5": 0.48,
+          "6": 0.14,
+          "7": 0.03,
+          "8": 0.0,
+          "9": 0.0
+        }
+      },
+      "validation": {
+        "type": "score",
+        "score": 2.68,
+        "confidence": 0.6,
+        "legend": {
+          "0": "1: required migration is incompatible with stated constraints",
+          "1": "2: only an out-of-scope redesign or behavior reduction could work",
+          "2": "3: important implementation prerequisites are missing",
+          "3": "4: semantic uncertainty and coupling present large obstacles",
+          "4": "5: technical possibility remains burdened by major open interfaces",
+          "5": "6: credible full port, requiring heavy compatibility/proof effort",
+          "6": "7: feasible, with material but containable interop/distribution effort",
+          "7": "8: clear scope and known path; target and adapter checks are still needed",
+          "8": "9: highly routine complete port with small remaining integration risk",
+          "9": "10: full exported behavior and actual deployment parity are already proved"
+        },
+        "probabilities": {
+          "0": 0.03,
+          "1": 0.18,
+          "2": 0.2,
+          "3": 0.35000000000000003,
+          "4": 0.17,
+          "5": 0.06,
+          "6": 0.01,
+          "7": 0.0,
+          "8": 0.0,
+          "9": 0.0
+        }
+      },
+      "work": {
+        "type": "score",
+        "score": 4.35,
+        "confidence": 0.62,
+        "legend": {
+          "0": "1: required migration is incompatible with stated constraints",
+          "1": "2: only an out-of-scope redesign or behavior reduction could work",
+          "2": "3: important implementation prerequisites are missing",
+          "3": "4: semantic uncertainty and coupling present large obstacles",
+          "4": "5: technical possibility remains burdened by major open interfaces",
+          "5": "6: credible full port, requiring heavy compatibility/proof effort",
+          "6": "7: feasible, with material but containable interop/distribution effort",
+          "7": "8: clear scope and known path; target and adapter checks are still needed",
+          "8": "9: highly routine complete port with small remaining integration risk",
+          "9": "10: full exported behavior and actual deployment parity are already proved"
+        },
+        "probabilities": {
+          "0": 0.0,
+          "1": 0.01,
+          "2": 0.05,
+          "3": 0.16,
+          "4": 0.33,
+          "5": 0.27,
+          "6": 0.14,
+          "7": 0.03,
+          "8": 0.0,
+          "9": 0.0
+        }
+      },
+      "artifacts": {
+        "type": "score",
+        "score": 5.08,
+        "confidence": 0.51,
+        "legend": {
+          "0": "1: required migration is incompatible with stated constraints",
+          "1": "2: only an out-of-scope redesign or behavior reduction could work",
+          "2": "3: important implementation prerequisites are missing",
+          "3": "4: semantic uncertainty and coupling present large obstacles",
+          "4": "5: technical possibility remains burdened by major open interfaces",
+          "5": "6: credible full port, requiring heavy compatibility/proof effort",
+          "6": "7: feasible, with material but containable interop/distribution effort",
+          "7": "8: clear scope and known path; target and adapter checks are still needed",
+          "8": "9: highly routine complete port with small remaining integration risk",
+          "9": "10: full exported behavior and actual deployment parity are already proved"
+        },
+        "probabilities": {
+          "0": 0.0,
+          "1": 0.01,
+          "2": 0.05,
+          "3": 0.07,
+          "4": 0.16,
+          "5": 0.28,
+          "6": 0.29,
+          "7": 0.13,
+          "8": 0.01,
+          "9": 0.0
+        }
+      }
+    },
+    "usage": {
+      "input_tokens": 2457,
+      "output_tokens": 129
+    }
+  }
+}

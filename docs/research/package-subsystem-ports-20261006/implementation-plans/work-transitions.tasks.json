@@ -1,0 +1,1095 @@
+{
+  "plan": "work-transitions",
+  "lanes": [
+    {
+      "id": "work-contracts",
+      "title": "Contracts and caller inventory",
+      "owns": [
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/work-transitions/contracts/",
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/work-transitions/ownership/"
+      ]
+    },
+    {
+      "id": "work-rows",
+      "title": "Rows and identity/set mechanisms",
+      "owns": [
+        "packages/work-kernel/src/rows.ts",
+        "packages/work-kernel/decisions/rows.rs",
+        "packages/work-kernel/conformance/rows.test.ts",
+        "packages/work-kernel/conformance/fixtures/rows/"
+      ]
+    },
+    {
+      "id": "work-policy",
+      "title": "Retry, recurrence and lifecycle policy",
+      "owns": [
+        "packages/work-kernel/src/retry.ts",
+        "packages/work-kernel/src/every.ts",
+        "packages/work-kernel/src/lifecycle.ts",
+        "packages/work-kernel/decisions/retry.rs",
+        "packages/work-kernel/decisions/every.rs",
+        "packages/work-kernel/decisions/lifecycle.rs",
+        "packages/work-kernel/conformance/retry.test.ts",
+        "packages/work-kernel/conformance/every.test.ts",
+        "packages/work-kernel/conformance/lifecycle.test.ts",
+        "packages/work-kernel/conformance/fixtures/policy/"
+      ]
+    },
+    {
+      "id": "work-receipts",
+      "title": "Receipts, recovery and linkage decisions",
+      "owns": [
+        "packages/work-kernel/src/receipt.ts",
+        "packages/work-kernel/src/recovery.ts",
+        "packages/work-kernel/src/linkage.ts",
+        "packages/work-kernel/decisions/receipt.rs",
+        "packages/work-kernel/decisions/recovery.rs",
+        "packages/work-kernel/decisions/linkage.rs",
+        "packages/work-kernel/conformance/receipt.test.ts",
+        "packages/work-kernel/conformance/recovery.test.ts",
+        "packages/work-kernel/conformance/linkage.test.ts",
+        "packages/work-kernel/conformance/fixtures/receipts/"
+      ]
+    },
+    {
+      "id": "work-host",
+      "title": "Host demand and observable trace shells",
+      "owns": [
+        "packages/work/src/dispatch/index.ts",
+        "packages/work/src/receipt/index.ts",
+        "packages/work/src/recovery/index.ts",
+        "packages/work/src/observation/association.ts",
+        "packages/work/src/observation/observation.ts",
+        "packages/work/src/observation/ports.ts",
+        "packages/work/src/schedule/every.ts",
+        "packages/work/src/kernel/commands.ts",
+        "packages/work-kernel/bindings/host-values.ts",
+        "packages/work-kernel/conformance/traces.test.ts",
+        "packages/work-kernel/conformance/fixtures/traces/"
+      ]
+    },
+    {
+      "id": "work-integrator",
+      "title": "Single package, ABI and production integration writer",
+      "owns": [
+        "packages/work-kernel/package.json",
+        "packages/work-kernel/tsconfig.json",
+        "packages/work-kernel/Cargo.toml",
+        "packages/work-kernel/Cargo.lock",
+        "packages/work-kernel/decisions/lib.rs",
+        "packages/work-kernel/bindings/wasm.rs",
+        "packages/work-kernel/bindings/loader.ts",
+        "packages/work-kernel/src/index.ts",
+        "packages/work-kernel/src/facts.ts",
+        "packages/work-kernel/src/profiles.ts",
+        "packages/work-kernel/src/prepared.ts",
+        "packages/work-kernel/src/backend.ts",
+        "packages/work-kernel/conformance/transitions.test.ts",
+        "packages/work/src/kernel/tables.ts",
+        "packages/state/src/fanout/tables.ts",
+        "packages/state/src/fanout/outcome.ts",
+        "packages/state/src/ports/transact.ts",
+        "packages/state/src/receipt/tables.ts",
+        "packages/cloudflare/src/runtime/invoke.ts",
+        "packages/cloudflare/src/runtime/work-kernel-pilot.test.ts",
+        "packages/cloudflare/src/runtime/work-kernel-pilot-durable.test.ts",
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/work-transitions/handoffs/",
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/work-transitions/durable/pilot.json",
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/work-transitions/release/rollback.json"
+      ]
+    },
+    {
+      "id": "work-evidence",
+      "title": "Baselines, conformance evidence and release decision",
+      "owns": [
+        "packages/work-kernel/conformance/persisted.test.ts",
+        "packages/work-kernel/measurement/complete-calls.ts",
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/work-transitions/baselines/",
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/work-transitions/measurements/",
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/work-transitions/final/",
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/work-transitions/durable/bytes.json",
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/work-transitions/durable/error-order.json",
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/work-transitions/release/delivery.json",
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/work-transitions/release/loader-errors.json",
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/work-transitions/release/adoption.md",
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/work-transitions/release/coverage.json"
+      ]
+    },
+    {
+      "id": "work-scheduler",
+      "title": "Optional separate scheduler project",
+      "owns": [
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/work-transitions/scheduler/",
+        "packages/work-kernel/continuations/"
+      ]
+    }
+  ],
+  "tasks": [
+    {
+      "id": "W01.1",
+      "parent": "W01",
+      "title": "Pin production/test-only caller, wait and delivery-schema coverage",
+      "lane": "work-contracts",
+      "wave": 1,
+      "depends_on": [
+        "C01.ready"
+      ],
+      "writes": [
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/work-transitions/contracts/callers.json",
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/work-transitions/contracts/profiles.md"
+      ],
+      "kind": "work",
+      "required": true,
+      "acceptance": [
+        "Inventory every source table and public shell listed above; distinguish memory fixtures from real Cloudflare F7/durable consumers and the absent named wait API.",
+        "Record loader-owned deliveryFields from registry, empty per-model membership sets, finite delivery tag version and presence-only result leaves; include b3-delivery-schema and receipt memory/durable baseline fixtures."
+      ]
+    },
+    {
+      "id": "W01.2",
+      "parent": "W01",
+      "title": "Choose the pure leaf graph and assign single writers",
+      "lane": "work-contracts",
+      "wave": 1,
+      "depends_on": [
+        "C01.ready"
+      ],
+      "writes": [
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/work-transitions/ownership/graph.md",
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/work-transitions/ownership/files.json"
+      ],
+      "kind": "work",
+      "required": true,
+      "acceptance": [
+        "Compare contracts-only work-kernel versus isolated work subpath fairly; preserve root JEV advice as advice and record source graph evidence.",
+        "Assign one work integrator for shared manifests, module entry, profiles, state transact and runtime invoke; submit root build/lock and binary delivery requests to C04 owner."
+      ]
+    },
+    {
+      "id": "W01.3",
+      "parent": "W01",
+      "title": "Capture unchanged behavior, clone and persisted-byte baseline",
+      "lane": "work-evidence",
+      "wave": 1,
+      "depends_on": [
+        "C05.ready"
+      ],
+      "writes": [
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/work-transitions/baselines/current-ts.json",
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/work-transitions/baselines/verify.log",
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/work-transitions/baselines/original-fixtures/"
+      ],
+      "kind": "work",
+      "required": true,
+      "acceptance": [
+        "Run existing command block against inspected sources, retain logs and failures; failed noEmitOnError builds cannot supply stale dist evidence.",
+        "Save original row/result identity, state clone-only versus work safety-then-clone, error/trace ordering and actual D1/DO persisted bytes in immutable evidence as an independent oracle; pure owner lanes copy/hash their golden fixture subsets later."
+      ]
+    },
+    {
+      "id": "W01.4",
+      "parent": "W01",
+      "title": "Ratify workload, budget and supported-profile ledger",
+      "lane": "work-contracts",
+      "wave": 2,
+      "depends_on": [
+        "W01.1",
+        "W01.2",
+        "W01.3",
+        "C05.ready"
+      ],
+      "writes": [
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/work-transitions/contracts/workloads.json",
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/work-transitions/contracts/budgets.json",
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/work-transitions/contracts/coverage.md"
+      ],
+      "kind": "work",
+      "required": true,
+      "acceptance": [
+        "Nominate tiny/page/501-member/error/restart/recovery workloads and numeric latency/memory/binary budgets before seeing Rust comparisons.",
+        "Identify retained unknown-object/callback/host hashing/recurrence hash paths and new operation resource limits without silently narrowing legacy inputs."
+      ]
+    },
+    {
+      "id": "W02.1",
+      "parent": "W02",
+      "title": "Create publishable package-local manifests and build roots",
+      "lane": "work-integrator",
+      "wave": 2,
+      "depends_on": [
+        "W01.2",
+        "C02.ready"
+      ],
+      "writes": [
+        "packages/work-kernel/package.json",
+        "packages/work-kernel/tsconfig.json",
+        "packages/work-kernel/Cargo.toml",
+        "packages/work-kernel/Cargo.lock",
+        "packages/work-kernel/src/index.ts",
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/work-transitions/handoffs/build-request.md"
+      ],
+      "kind": "work",
+      "required": true,
+      "acceptance": [
+        "Pin @canlang/work-kernel to release 0.1.0; define pure JS/backend exports, files/dist shipping and contracts-only type graph; no unpublished private workspace runtime dependency.",
+        "Declare build/typecheck/build:wasm scripts and conformance include/output roots plus minimal neutral TS entry/interfaces; submit root build/bun.lock and shared consumer dependency request to C04.graph without editing shared manifests or platform globals."
+      ]
+    },
+    {
+      "id": "W02.2",
+      "parent": "W02",
+      "title": "Extract ordered row, identity and set TS mechanisms",
+      "lane": "work-rows",
+      "wave": 2,
+      "depends_on": [
+        "W01.1",
+        "W01.3",
+        "W02.1"
+      ],
+      "writes": [
+        "packages/work-kernel/src/rows.ts",
+        "packages/work-kernel/conformance/rows.test.ts",
+        "packages/work-kernel/conformance/fixtures/rows/"
+      ],
+      "kind": "work",
+      "required": true,
+      "acceptance": [
+        "Preserve all eight table shapes, metadata, default presence, JSON-safety versus clone-only profiles, JS counts and UTF-16 identity/set order.",
+        "Compare both producer directions against frozen originals; do not use both wrappers calling the same helper as the sole oracle."
+      ]
+    },
+    {
+      "id": "W02.3",
+      "parent": "W02",
+      "title": "Extract retry, recurrence and lifecycle TS decisions",
+      "lane": "work-policy",
+      "wave": 2,
+      "depends_on": [
+        "W01.1",
+        "W01.3",
+        "W02.1"
+      ],
+      "writes": [
+        "packages/work-kernel/src/retry.ts",
+        "packages/work-kernel/src/every.ts",
+        "packages/work-kernel/src/lifecycle.ts",
+        "packages/work-kernel/conformance/retry.test.ts",
+        "packages/work-kernel/conformance/every.test.ts",
+        "packages/work-kernel/conformance/lifecycle.test.ts",
+        "packages/work-kernel/conformance/fixtures/policy/"
+      ],
+      "kind": "work",
+      "required": true,
+      "acceptance": [
+        "Retain finite fractional times, Number count arithmetic, horizon/stale boundaries and explicit supplied random sample; no clock/RNG/evidence side effects in pure module.",
+        "Keep hashing and exact recurrence bytes host-owned; encodeURIComponent lone-surrogate exceptions remain separate from digest UTF-8 replacement behavior."
+      ]
+    },
+    {
+      "id": "W02.4",
+      "parent": "W02",
+      "title": "Extract receipt, recovery and linkage TS decisions",
+      "lane": "work-receipts",
+      "wave": 2,
+      "depends_on": [
+        "W01.1",
+        "W01.3",
+        "W02.1"
+      ],
+      "writes": [
+        "packages/work-kernel/src/receipt.ts",
+        "packages/work-kernel/src/recovery.ts",
+        "packages/work-kernel/src/linkage.ts",
+        "packages/work-kernel/conformance/receipt.test.ts",
+        "packages/work-kernel/conformance/recovery.test.ts",
+        "packages/work-kernel/conformance/linkage.test.ts",
+        "packages/work-kernel/conformance/fixtures/receipts/"
+      ],
+      "kind": "work",
+      "required": true,
+      "acceptance": [
+        "Keep stored-pending receipt profile distinct, wrapper-specific faults, result host references, last duplicate claim wins and JS-sorted output.",
+        "Preserve dispatch/fanout/receipt assertion scope, including global checkpoint-without-outcome check, receipt-only allowed updates, guard-false row-only inserts and cursor-only plain-store path."
+      ]
+    },
+    {
+      "id": "W02.5",
+      "parent": "W02",
+      "title": "Compose package TS fa\u00e7ade and legacy row wrappers",
+      "lane": "work-integrator",
+      "wave": 3,
+      "depends_on": [
+        "W02.2",
+        "W02.3",
+        "W02.4",
+        "C04.graph"
+      ],
+      "writes": [
+        "packages/work-kernel/src/index.ts",
+        "packages/work-kernel/src/prepared.ts",
+        "packages/work-kernel/src/profiles.ts",
+        "packages/work-kernel/src/backend.ts",
+        "packages/work-kernel/conformance/transitions.test.ts",
+        "packages/work/src/kernel/tables.ts",
+        "packages/state/src/fanout/tables.ts",
+        "packages/state/src/fanout/outcome.ts",
+        "packages/state/src/receipt/tables.ts"
+      ],
+      "kind": "work",
+      "required": true,
+      "acceptance": [
+        "Single integrator assembles entries and profiles; preserve work/state/runtime classes/messages, pending pin policy, row clone/metadata and same exported synchronous shapes.",
+        "Build/typecheck leaf and consumers; installed exports resolve without full work/state/test-loader/Node-crypto runtime imports. Run proposed conformance glob and baseline suites."
+      ]
+    },
+    {
+      "id": "W03.1",
+      "parent": "W03",
+      "title": "Freeze ordered facts and policy-specific ABI types",
+      "lane": "work-integrator",
+      "wave": 2,
+      "depends_on": [
+        "W01.1",
+        "W01.2",
+        "W02.1",
+        "C03.ready"
+      ],
+      "writes": [
+        "packages/work-kernel/src/facts.ts",
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/work-transitions/handoffs/abi.md"
+      ],
+      "kind": "work",
+      "required": true,
+      "acceptance": [
+        "Define version/profile/error/UTF-16/presence/f64/conditional version transport and producer provenance, validating number ranges before fixed-width conversion.",
+        "Reject foreign/version/profile/corrupt facts before semantic callbacks; opaque payload refs are not authority capabilities."
+      ]
+    },
+    {
+      "id": "W03.2",
+      "parent": "W03",
+      "title": "Implement call-local opaque reference lifecycle",
+      "lane": "work-host",
+      "wave": 3,
+      "depends_on": [
+        "W03.1"
+      ],
+      "writes": [
+        "packages/work-kernel/bindings/host-values.ts",
+        "packages/work-kernel/conformance/fixtures/traces/refs.json"
+      ],
+      "kind": "work",
+      "required": true,
+      "acceptance": [
+        "Retain result identity or required structuredClone at the existing profile point; Rust cannot inspect untouched payloads/metadata.",
+        "Dispose on success, exception, cancel and rejected load; reject stale/cross-call indices, bound allocation and preserve clone failures."
+      ]
+    },
+    {
+      "id": "W03.3",
+      "parent": "W03",
+      "title": "Extract demand-ordered legacy host shells and trace tests",
+      "lane": "work-host",
+      "wave": 3,
+      "depends_on": [
+        "W02.5",
+        "W03.1",
+        "W03.2"
+      ],
+      "writes": [
+        "packages/work/src/dispatch/index.ts",
+        "packages/work/src/receipt/index.ts",
+        "packages/work/src/recovery/index.ts",
+        "packages/work/src/observation/association.ts",
+        "packages/work/src/observation/observation.ts",
+        "packages/work/src/observation/ports.ts",
+        "packages/work/src/schedule/every.ts",
+        "packages/work/src/kernel/commands.ts",
+        "packages/work-kernel/conformance/traces.test.ts",
+        "packages/work-kernel/conformance/fixtures/traces/"
+      ],
+      "kind": "work",
+      "required": true,
+      "acceptance": [
+        "Keep commit/inherited/supersession/pending/guard/authority/mint/clock orders distinct by shell; exhaustion/validation demand zero RNG samples, eligible backoff exactly one.",
+        "Recovery validates/processes rows in order and demands uncertain-only evidence before later rows, stopping at original exception; retain TS callback paths where extraction is uneconomical.",
+        "Full/selected grant/content/fence traces differ; preserve getter/proxy reads, sparse arrays, aliases/cycles and original thrown values, including throwing never-throws predicates."
+      ]
+    },
+    {
+      "id": "W03.4",
+      "parent": "W03",
+      "title": "Verify closed-fact provenance and prepared-vs-legacy traces",
+      "lane": "work-evidence",
+      "wave": 4,
+      "depends_on": [
+        "W03.3",
+        "W03.2",
+        "W02.5"
+      ],
+      "writes": [
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/work-transitions/baselines/prepared-ts.json",
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/work-transitions/baselines/trace-parity.json"
+      ],
+      "kind": "work",
+      "required": true,
+      "acceptance": [
+        "Use actual D1/DO parser/controlled producer ownership; annotation, freezing, arbitrary StoragePort output or inspection never certify inertness.",
+        "Prepared/unprepared outputs/errors/identity/clone and stop-on-error traces match across invalid fields/lifecycle/presence/proxies/sparse/aliased data; no load/query/invoke/commit capability enters facts."
+      ]
+    },
+    {
+      "id": "W04.1",
+      "parent": "W04",
+      "title": "Port native ordered rows and identity sets",
+      "lane": "work-rows",
+      "wave": 3,
+      "depends_on": [
+        "W02.2",
+        "W03.1",
+        "C03.ready"
+      ],
+      "writes": [
+        "packages/work-kernel/decisions/rows.rs"
+      ],
+      "kind": "work",
+      "required": true,
+      "acceptance": [
+        "Native row/identity/set vectors agree with independent TS oracle for shape, first fault, metadata/presence, count rounding and lossless UTF-16; no host I/O.",
+        "Done for this branch: implementation plus native test vectors/source review are ready for integrator registration; assembled native compile and differential execution are certified by W04.4 before W04 closes."
+      ]
+    },
+    {
+      "id": "W04.2",
+      "parent": "W04",
+      "title": "Port native retry, recurrence and lifecycle decisions",
+      "lane": "work-policy",
+      "wave": 3,
+      "depends_on": [
+        "W02.3",
+        "W03.1",
+        "C03.ready"
+      ],
+      "writes": [
+        "packages/work-kernel/decisions/retry.rs",
+        "packages/work-kernel/decisions/every.rs",
+        "packages/work-kernel/decisions/lifecycle.rs"
+      ],
+      "kind": "work",
+      "required": true,
+      "acceptance": [
+        "Native supplied-sample backoff/slot/coalescing/classification matches fractional/wide-number/error cases; clock/RNG/hash/provider/security operations stay host-owned.",
+        "Done for this branch: implementation plus native test vectors/source review are ready for integrator registration; assembled native compile and differential execution are certified by W04.4 before W04 closes."
+      ]
+    },
+    {
+      "id": "W04.3",
+      "parent": "W04",
+      "title": "Port native receipt, recovery and linkage decisions",
+      "lane": "work-receipts",
+      "wave": 3,
+      "depends_on": [
+        "W02.4",
+        "W03.1",
+        "C03.ready"
+      ],
+      "writes": [
+        "packages/work-kernel/decisions/receipt.rs",
+        "packages/work-kernel/decisions/recovery.rs",
+        "packages/work-kernel/decisions/linkage.rs"
+      ],
+      "kind": "work",
+      "required": true,
+      "acceptance": [
+        "Native ordered batch decisions/faults/ref indices and proposed conditional writes agree with separate stored-pending and wrapper profiles; no stronger converse linkage policy.",
+        "Done for this branch: implementation plus native test vectors/source review are ready for integrator registration; assembled native compile and differential execution are certified by W04.4 before W04 closes."
+      ]
+    },
+    {
+      "id": "W04.4",
+      "parent": "W04",
+      "title": "Register native modules and run shared conformance",
+      "lane": "work-integrator",
+      "wave": 4,
+      "depends_on": [
+        "W04.1",
+        "W04.2",
+        "W04.3",
+        "W03.4"
+      ],
+      "writes": [
+        "packages/work-kernel/decisions/lib.rs",
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/work-transitions/handoffs/native-conformance.json",
+        "packages/work-kernel/Cargo.toml",
+        "packages/work-kernel/Cargo.lock"
+      ],
+      "kind": "work",
+      "required": true,
+      "acceptance": [
+        "Only integrator edits lib.rs/module registrations; matching immutable vectors drive native and prepared TS outputs.",
+        "Run cargo test --locked, cargo fmt --check and cargo clippy --locked --all-targets -- -D warnings; inspect imports/features for forbidden host authority, preserve exact faults and materialization demand."
+      ]
+    },
+    {
+      "id": "W05.1",
+      "parent": "W05",
+      "title": "Build pinned package-specific Wasm adapter and bootstrap",
+      "lane": "work-integrator",
+      "wave": 5,
+      "depends_on": [
+        "W04.4",
+        "W03.2",
+        "C04.ready",
+        "C04.graph"
+      ],
+      "writes": [
+        "packages/work-kernel/bindings/wasm.rs",
+        "packages/work-kernel/bindings/loader.ts",
+        "packages/work-kernel/src/backend.ts",
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/work-transitions/handoffs/assets.json",
+        "packages/work-kernel/package.json",
+        "packages/work-kernel/Cargo.toml",
+        "packages/work-kernel/Cargo.lock"
+      ],
+      "kind": "work",
+      "required": true,
+      "acceptance": [
+        "Implement pinned build:wasm/glue toolchain against Cargo binding version; compile wasm32 target and use one synchronously callable initialized instance.",
+        "Select TS/Rust before evaluating operations; selected Rust missing/corrupt/ABI/init errors fail visibly, no lazy call bootstrap or fallback rerun."
+      ]
+    },
+    {
+      "id": "W05.2",
+      "parent": "W05",
+      "title": "Submit package-specific vendor/build/release integration request",
+      "lane": "work-integrator",
+      "wave": 5,
+      "depends_on": [
+        "W05.1"
+      ],
+      "writes": [
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/work-transitions/handoffs/delivery-request.md"
+      ],
+      "kind": "work",
+      "required": true,
+      "acceptance": [
+        "Provide exact vendor/work-kernel entry, bare-import rewriting, binary asset/integrity and required dist-root manifest facts to C04 owner; do not edit bundle.ts, local-run.ts, testkit globals, root build or root lock.",
+        "Done when exact generated asset hashes/import keys/shipping requirements and loader contract are accepted by the C04 owner; request publication is not final generated-binary delivery proof."
+      ]
+    },
+    {
+      "id": "W05.3",
+      "parent": "W05",
+      "title": "Verify actual staged workerd binary and loader failures",
+      "lane": "work-evidence",
+      "wave": 5,
+      "depends_on": [
+        "W05.4",
+        "C04.ready"
+      ],
+      "writes": [
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/work-transitions/release/delivery.json",
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/work-transitions/release/loader-errors.json"
+      ],
+      "kind": "work",
+      "required": true,
+      "acceptance": [
+        "Run package build:wasm and cargo --features wasm-bindings plus owning C04 actual module-map workerd checks; use non-UTF8 bytes, compare written hashes, missing/corrupt/wrong ABI and cold/warm bootstrap.",
+        "Prove one instance across bundled/vendor consumer paths and text-only legacy byte parity; installed package acceptance does not rely on source checkout imports."
+      ]
+    },
+    {
+      "id": "W06.1",
+      "parent": "W06",
+      "title": "Join state staging and assertions to the selected pure kernel",
+      "lane": "work-integrator",
+      "wave": 6,
+      "depends_on": [
+        "W05.3",
+        "W02.5",
+        "W03.4"
+      ],
+      "writes": [
+        "packages/state/src/fanout/tables.ts",
+        "packages/state/src/fanout/outcome.ts",
+        "packages/state/src/ports/transact.ts",
+        "packages/state/src/receipt/tables.ts"
+      ],
+      "kind": "work",
+      "required": true,
+      "acceptance": [
+        "Retain original expectedVersion and host expectedRevision timing, reader-only stages, pending-versus-running outcome rules, loader-owned delivery membership and wrapper fault order.",
+        "Linkage assertion stays before one store commit; raw admission hashing/replay/age/auth/normalization and current rejection-receipt behavior stay in owning host."
+      ]
+    },
+    {
+      "id": "W06.2",
+      "parent": "W06",
+      "title": "Join canonical Cloudflare runtime through existing producer seams",
+      "lane": "work-integrator",
+      "wave": 6,
+      "depends_on": [
+        "W06.1"
+      ],
+      "writes": [
+        "packages/cloudflare/src/runtime/invoke.ts",
+        "packages/cloudflare/src/runtime/work-kernel-pilot.test.ts"
+      ],
+      "kind": "work",
+      "required": true,
+      "acceptance": [
+        "Single integrator replaces only matching decode/outcome/staleness/decision mechanisms in real F7/recovery consumer; fresh guard/authority/evidence/reloads/claim and child-unit commits remain TS.",
+        "Exercise actual bound binary with canonical source+intent/claim/record/progress/recovery/replay flow; membership cutoff does not grant authority and no terminal child is reinvoked."
+      ]
+    },
+    {
+      "id": "W06.runtimehandoff",
+      "parent": "W06",
+      "title": "Release canonical runtime file to validation owner",
+      "lane": "work-integrator",
+      "wave": 6,
+      "depends_on": [
+        "W06.2"
+      ],
+      "writes": [
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/work-transitions/handoffs/runtime-source-map.md",
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/work-transitions/handoffs/runtime-owner.json"
+      ],
+      "kind": "gate",
+      "required": true,
+      "acceptance": [
+        "Record exact reviewed invoke.ts source hash, exports/producer seams and work consumer traces; no work lane writes runtime/invoke.ts after this handoff.",
+        "Validation canonical runtime writer depends on W06.runtimehandoff in root global DAG; state pure validation can proceed earlier. Integrator resolves queued patches serially and refreshes downstream fixtures against final runtime source."
+      ]
+    },
+    {
+      "id": "W06.3",
+      "parent": "W06",
+      "title": "Prove D1/DO race, crash and restart pilot with actual binary",
+      "lane": "work-integrator",
+      "wave": 7,
+      "depends_on": [
+        "W06.runtimehandoff",
+        "W05.3",
+        "V09.1"
+      ],
+      "writes": [
+        "packages/cloudflare/src/runtime/work-kernel-pilot-durable.test.ts",
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/work-transitions/durable/pilot.json"
+      ],
+      "kind": "work",
+      "required": true,
+      "acceptance": [
+        "Run real staged Wasm inside workerd, retain file-backed persist dirs, dispose/kill and fresh boot; Node Wasm plus RPC store proxy alone is insufficient.",
+        "Exactly one winner per existing claim/child commit unit, atomic terminal outcome/checkpoint with domain/history/replay/outbox/schedule, fresh siblings/revocation and refusal/error/caller retry behavior.",
+        "Uncertainty/not-found-to-delivered action-time evidence races and held/awaiting progress remain unresolved until real evidence; exceptions commit nothing except explicitly owned canonical rejected receipt path.",
+        "Run against final canonical runtime source after validation V09.1 completes its last runtime/invoke.ts write; this coordinated source-stability dependency is not a requirement for work pure modules or the early package foundation."
+      ]
+    },
+    {
+      "id": "W07.1",
+      "parent": "W07",
+      "title": "Verify persisted bytes, backend swaps and mixed-failure precedence",
+      "lane": "work-evidence",
+      "wave": 7,
+      "depends_on": [
+        "W06.3",
+        "W03.4",
+        "C05.ready"
+      ],
+      "writes": [
+        "packages/work-kernel/conformance/persisted.test.ts",
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/work-transitions/durable/bytes.json",
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/work-transitions/durable/error-order.json"
+      ],
+      "kind": "work",
+      "required": true,
+      "acceptance": [
+        "Three backends match records.data/metadata/receipt raw hash/default/outcome/outbox/schedule/checkpoint bytes; restart TS persistence under Rust and Rust persistence under TS.",
+        "Test malformed linkage+stale version, valid linkage+stale version+cyclic clone-only state data, then current versions+cyclic data; join\u2192revision/version\u2192serialization error precedence and zero writes match."
+      ]
+    },
+    {
+      "id": "W07.2",
+      "parent": "W07",
+      "title": "Implement reproducible complete-call measurement runner",
+      "lane": "work-evidence",
+      "wave": 4,
+      "depends_on": [
+        "W01.4",
+        "W03.4",
+        "C05.ready"
+      ],
+      "writes": [
+        "packages/work-kernel/measurement/complete-calls.ts",
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/work-transitions/measurements/environment.json"
+      ],
+      "kind": "work",
+      "required": true,
+      "acceptance": [
+        "Define --backend ts|prepared-ts|wasm with identical payloads, evidence/RNG sequences and host storage workloads; record versions/hash/inventory/repetitions and machine-readable output.",
+        "Integrate C05 local CPU harness, not Worker performance clock; later execution includes conversion/host demand/wall durable time, cold/warm/error distributions and memory/asset metrics."
+      ]
+    },
+    {
+      "id": "W07.3",
+      "parent": "W07",
+      "title": "Run final parity, resource and complete-flow measurements",
+      "lane": "work-evidence",
+      "wave": 8,
+      "depends_on": [
+        "W07.1",
+        "W07.2",
+        "W06.3",
+        "C05.ready"
+      ],
+      "writes": [
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/work-transitions/measurements/results.json",
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/work-transitions/measurements/resources.json",
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/work-transitions/final/verify.log"
+      ],
+      "kind": "work",
+      "required": true,
+      "acceptance": [
+        "Run existing suites plus W04\u2013W06/proposed conformance and measurement commands against successfully built final sources; no stale-dist passing claims.",
+        "Report cold/warm/conversion/host demand/full turn/child/recovery, variability, peak/live/linear memory, disposal and bounded batch/cache limits, raw/compressed assets and precommitted budget pass/fail; zero unexplained parity differences."
+      ]
+    },
+    {
+      "id": "W08.1",
+      "parent": "W08",
+      "title": "Make explicit native-reuse or prepared-TS benefit decision",
+      "lane": "work-evidence",
+      "wave": 9,
+      "depends_on": [
+        "W07"
+      ],
+      "writes": [
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/work-transitions/release/adoption.md",
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/work-transitions/release/coverage.json"
+      ],
+      "kind": "work",
+      "required": true,
+      "acceptance": [
+        "Use reviewed root JEV disagreement advice plus source/runtime evidence; enable Rust only for concrete reuse or material complete-call improvement over prepared TS that justifies release cost.",
+        "Record supported/retained unknown-object/callback/demand loops/host hashing/deferred scheduler coverage and ownership; retain TS is a completed evaluation outcome."
+      ]
+    },
+    {
+      "id": "W08.2",
+      "parent": "W08",
+      "title": "Rehearse release selection, disposal and rollback",
+      "lane": "work-integrator",
+      "wave": 9,
+      "depends_on": [
+        "W08.1",
+        "W05.3"
+      ],
+      "writes": [
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/work-transitions/release/rollback.json"
+      ],
+      "kind": "work",
+      "required": true,
+      "acceptance": [
+        "Begin disabled/TS default, then reproducible pinned opt-in; no source runtime edit after handoff and no semantic retry after trap/integrity/error.",
+        "Exercise backend swap on same persisted rows/receipts, clean instance reload/disposed refs, real packaged binary and release verification without deployment/activation; no schema/digest migration."
+      ]
+    },
+    {
+      "id": "W08.3",
+      "parent": "W08",
+      "title": "Close source checks and implementation completion ledger",
+      "lane": "work-evidence",
+      "wave": 9,
+      "depends_on": [
+        "W08.2",
+        "W08.1"
+      ],
+      "writes": [
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/work-transitions/final/source-checks.md",
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/work-transitions/final/completion.md"
+      ],
+      "kind": "work",
+      "required": true,
+      "acceptance": [
+        "Report refreshed source map, exact commands/results/baseline failures, real installed/durable scope and retained paths; no isolated-native or memory-only completion claim.",
+        "Each eventual merge handler reconciles living file-tree coverage/decisions against all changes since checkpoint; planning itself performs no merge/checkpoint update."
+      ]
+    },
+    {
+      "id": "W09.1",
+      "parent": "W09",
+      "title": "Specify separate request/resume scheduler contract and consultation",
+      "lane": "work-scheduler",
+      "wave": 10,
+      "depends_on": [
+        "W08"
+      ],
+      "writes": [
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/work-transitions/scheduler/contract.md"
+      ],
+      "kind": "work",
+      "required": false,
+      "acceptance": [
+        "Separately authorized project only: load/query/checkpoint/snapshot/guard/authority/invoke/final batch requests, exact demand/order, cancellation/disposal, host exceptions/refusals, versions/revisions and caller-owned retries.",
+        "Get own verified-context three-equivalent JEV review; Rust may request I/O but host owns authority and one final commit submission."
+      ]
+    },
+    {
+      "id": "W09.2",
+      "parent": "W09",
+      "title": "Prototype scheduler only against a real continuation consumer",
+      "lane": "work-scheduler",
+      "wave": 10,
+      "depends_on": [
+        "W09.1"
+      ],
+      "writes": [
+        "packages/work-kernel/continuations/",
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/work-transitions/scheduler/prototype.json"
+      ],
+      "kind": "work",
+      "required": false,
+      "acceptance": [
+        "Require a real generated fanout/wait continuation consumer, complete runtime traces/restart proof and bounded retained-state/reuse benefit beyond W08; memory-only proof is insufficient.",
+        "No-go for reordered/eager auth/callbacks, stale checkpoints, hidden commit/retry loops, broken sync API, unbounded memory or unjustified protocol cost."
+      ]
+    },
+    {
+      "id": "W09.3",
+      "parent": "W09",
+      "title": "Record separate scheduler go/no-go and rollout requirements",
+      "lane": "work-scheduler",
+      "wave": 11,
+      "depends_on": [
+        "W09.2"
+      ],
+      "writes": [
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/work-transitions/scheduler/decision.md"
+      ],
+      "kind": "work",
+      "required": false,
+      "acceptance": [
+        "Own tests/budgets/rollout decision required; do not promote data-only ABI into scheduler silently. W01\u2013W08 completion excludes this optional project."
+      ]
+    },
+    {
+      "id": "W01",
+      "parent": null,
+      "title": "Capture consumer contracts and behavioral traces \u2014 completion gate",
+      "lane": "work-contracts",
+      "wave": 2,
+      "depends_on": [
+        "W01.1",
+        "W01.2",
+        "W01.3",
+        "W01.4"
+      ],
+      "writes": [],
+      "kind": "gate",
+      "required": true,
+      "acceptance": [
+        "All child tasks completed with their exact source, commands/results and pass/retain-TS evidence.",
+        "Parent gate retains the detailed deliverable/acceptance contract below; no incomplete supported-domain migration or test-only consumer claim."
+      ]
+    },
+    {
+      "id": "W02",
+      "parent": null,
+      "title": "Consolidate matching TypeScript mechanics first \u2014 completion gate",
+      "lane": "work-integrator",
+      "wave": 3,
+      "depends_on": [
+        "W02.1",
+        "W02.foundation",
+        "W02.2",
+        "W02.3",
+        "W02.4",
+        "W02.5"
+      ],
+      "writes": [],
+      "kind": "gate",
+      "required": true,
+      "acceptance": [
+        "All child tasks completed with their exact source, commands/results and pass/retain-TS evidence.",
+        "Parent gate retains the detailed deliverable/acceptance contract below; no incomplete supported-domain migration or test-only consumer claim."
+      ]
+    },
+    {
+      "id": "W03",
+      "parent": null,
+      "title": "Prepare closed batch facts and host references \u2014 completion gate",
+      "lane": "work-evidence",
+      "wave": 4,
+      "depends_on": [
+        "W03.1",
+        "W03.2",
+        "W03.3",
+        "W03.4"
+      ],
+      "writes": [],
+      "kind": "gate",
+      "required": true,
+      "acceptance": [
+        "All child tasks completed with their exact source, commands/results and pass/retain-TS evidence.",
+        "Parent gate retains the detailed deliverable/acceptance contract below; no incomplete supported-domain migration or test-only consumer claim."
+      ]
+    },
+    {
+      "id": "W04",
+      "parent": null,
+      "title": "Implement data-only Rust kernel and native conformance \u2014 completion gate",
+      "lane": "work-integrator",
+      "wave": 4,
+      "depends_on": [
+        "W04.1",
+        "W04.2",
+        "W04.3",
+        "W04.4"
+      ],
+      "writes": [],
+      "kind": "gate",
+      "required": true,
+      "acceptance": [
+        "All child tasks completed with their exact source, commands/results and pass/retain-TS evidence.",
+        "Parent gate retains the detailed deliverable/acceptance contract below; no incomplete supported-domain migration or test-only consumer claim."
+      ]
+    },
+    {
+      "id": "W05",
+      "parent": null,
+      "title": "Deliver and initialize the actual Wasm consumer \u2014 completion gate",
+      "lane": "work-integrator",
+      "wave": 5,
+      "depends_on": [
+        "W05.1",
+        "W05.2",
+        "W05.3",
+        "W05.4"
+      ],
+      "writes": [],
+      "kind": "gate",
+      "required": true,
+      "acceptance": [
+        "All child tasks completed with their exact source, commands/results and pass/retain-TS evidence.",
+        "Parent gate retains the detailed deliverable/acceptance contract below; no incomplete supported-domain migration or test-only consumer claim."
+      ]
+    },
+    {
+      "id": "W06",
+      "parent": null,
+      "title": "Pilot state staging through actual Cloudflare durable paths \u2014 completion gate",
+      "lane": "work-integrator",
+      "wave": 7,
+      "depends_on": [
+        "W06.1",
+        "W06.2",
+        "W06.runtimehandoff",
+        "W06.3"
+      ],
+      "writes": [],
+      "kind": "gate",
+      "required": true,
+      "acceptance": [
+        "All child tasks completed with their exact source, commands/results and pass/retain-TS evidence.",
+        "Parent gate retains the detailed deliverable/acceptance contract below; no incomplete supported-domain migration or test-only consumer claim."
+      ]
+    },
+    {
+      "id": "W07",
+      "parent": null,
+      "title": "Differential, persisted-byte and resource gates \u2014 completion gate",
+      "lane": "work-evidence",
+      "wave": 8,
+      "depends_on": [
+        "W07.1",
+        "W07.2",
+        "W07.3"
+      ],
+      "writes": [],
+      "kind": "gate",
+      "required": true,
+      "acceptance": [
+        "All child tasks completed with their exact source, commands/results and pass/retain-TS evidence.",
+        "Parent gate retains the detailed deliverable/acceptance contract below; no incomplete supported-domain migration or test-only consumer claim."
+      ]
+    },
+    {
+      "id": "W08",
+      "parent": null,
+      "title": "Decide adoption, rollout and rollback \u2014 completion gate",
+      "lane": "work-evidence",
+      "wave": 9,
+      "depends_on": [
+        "W08.1",
+        "W08.2",
+        "W08.3"
+      ],
+      "writes": [],
+      "kind": "gate",
+      "required": true,
+      "acceptance": [
+        "All child tasks completed with their exact source, commands/results and pass/retain-TS evidence.",
+        "Parent gate retains the detailed deliverable/acceptance contract below; no incomplete supported-domain migration or test-only consumer claim."
+      ]
+    },
+    {
+      "id": "W09",
+      "parent": null,
+      "title": "Deferred request/resume scheduler contract, separate go/no-go \u2014 completion gate",
+      "lane": "work-scheduler",
+      "wave": 11,
+      "depends_on": [
+        "W09.1",
+        "W09.2",
+        "W09.3"
+      ],
+      "writes": [],
+      "kind": "gate",
+      "required": false,
+      "acceptance": [
+        "All child tasks completed with their exact source, commands/results and pass/retain-TS evidence.",
+        "Parent gate retains the detailed deliverable/acceptance contract below; no incomplete supported-domain migration or test-only consumer claim."
+      ]
+    },
+    {
+      "id": "W02.foundation",
+      "parent": "W02",
+      "title": "Release minimal pure package foundation to shared graph owner",
+      "lane": "work-integrator",
+      "wave": 2,
+      "depends_on": [
+        "W02.1"
+      ],
+      "writes": [
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/work-transitions/handoffs/foundation.json"
+      ],
+      "kind": "gate",
+      "required": true,
+      "acceptance": [
+        "Verify standalone minimal work-kernel entry/interfaces, local build roots, exports, 0.1.0 shipping and contracts-only DAG; semantic modules and consumer joins are not required to publish this foundation.",
+        "C04.graph depends on W02.foundation and C04.asset; foundation never waits for C04.graph. Shared graph owner alone changes root package.json/bun.lock and state/Cloudflare/stdlib/testkit consumer manifests/build order."
+      ]
+    },
+    {
+      "id": "W05.4",
+      "parent": "W05",
+      "title": "Verify fulfilled assets in outside-checkout install and release",
+      "lane": "work-integrator",
+      "wave": 5,
+      "depends_on": [
+        "W05.2",
+        "C04.work-assets"
+      ],
+      "writes": [
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/work-transitions/handoffs/installed-package.json"
+      ],
+      "kind": "work",
+      "required": true,
+      "acceptance": [
+        "Verify actual packaged installation outside checkout, 0.1.0 release:stamp and required dist/binary manifest coverage; test-loader exclusions remain intact.",
+        "C04.work-assets fulfils W05.2 after shared graph and independent smoke readiness; verify the final generated kernel/glue, exact vendor/import map, required binary hashes and packaged release outside checkout. The tiny C04.ready smoke alone cannot certify these outputs."
+      ]
+    }
+  ]
+}

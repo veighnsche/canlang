@@ -38,7 +38,7 @@ import type { FanoutChildId } from '../../../contracts/src/work.js';
 import type { ClosedInputs } from '../../../contracts/src/wire.js';
 import type { OperationRegistry } from './registry.js';
 import { isGeneratedOperationDef } from './registry.js';
-import type { ByPredicate, MembershipReader } from '../policy/roles.js';
+import type { MembershipReader } from '../policy/roles.js';
 import { evaluateBy } from '../policy/roles.js';
 import type { PolicyTable } from '../policy/grants.js';
 import {
@@ -111,39 +111,23 @@ function recordVersionsOf(writes: ReadonlyArray<DomainWrite>): Array<{
 }
 
 /**
- * T32b-wire: project the commit-time revalidation identity by `by`-necessity.
- * The mechanism's explicit revocation check (actor+team present but no live
- * active membership → `forbidden`) is valid ONLY when caller membership
- * authorizes the operation — otherwise it false-voids callers the gate never
- * required membership from (t16b pins public callers on ungated scenarios
- * with zero membership rows). `public` authorizes without any identity, so
- * both project to null (the explicit check skips; `evaluateBy(public)` is
- * identically true); `authenticated` authorizes on the actor alone, so the
- * team projects to null (the explicit check needs both non-null, while
- * `evaluateBy` still sees the actor faithfully). Every other predicate —
- * caller-gated builtins, roles, and compounds — passes the faithful
- * identity: correct for all membership-necessary gates. KNOWN EDGE
- * (mechanism-coupling remainder, reported): compound gates that can admit
- * WITHOUT caller membership (`or` with a membership-free branch taken
- * publicly, `not: 'members'`, subject-gated reads with a dead caller row)
- * still run the explicit check under the faithful identity and can
- * false-void; no suite exercises compounds through invoke. The durable fix
- * is a `by`-aware explicit check inside the mechanism, which owns both
- * `evaluateBy` and the live reader.
+ * T32b-wire: commit-time revalidation runs under the faithful identity.
+ * The mechanism's explicit revocation check is by-aware (see
+ * `byRequiresCallerMembership`): it fires only for gates whose authority
+ * flows from the caller's own membership row, so gates that can authorize
+ * without caller membership (`public`, `authenticated`, `or` with a
+ * membership-free branch, `not`, subject-gated) never false-void — and the
+ * live `evaluateBy` re-check still voids genuinely lost permission for
+ * every gate. (An earlier `by`-projection for `public`/`authenticated`
+ * was subsumed by the by-aware gate and removed.)
  */
 function fenceRevalidationIdentity(
-  by: ByPredicate,
   context: { readonly actor?: { readonly userId: string } | null; readonly team?: { readonly teamId: string } | null },
 ): { readonly actorUserId: string | null; readonly teamId: string | null } {
-  const actorUserId = context.actor?.userId ?? null;
-  const teamId = context.team?.teamId ?? null;
-  if (by === 'public') {
-    return { actorUserId: null, teamId: null };
-  }
-  if (by === 'authenticated') {
-    return { actorUserId, teamId: null };
-  }
-  return { actorUserId, teamId };
+  return {
+    actorUserId: context.actor?.userId ?? null,
+    teamId: context.team?.teamId ?? null,
+  };
 }
 
 /**
@@ -259,7 +243,7 @@ export async function invoke(input: {
             checkpoint: call.checkpoint,
             by: call.def.by,
             guards: [],
-            ...fenceRevalidationIdentity(call.def.by, context),
+            ...fenceRevalidationIdentity(context),
             kind: context.kind,
             store: input.store,
             memberships: input.memberships,
@@ -328,7 +312,7 @@ export async function invoke(input: {
           checkpoint: call.checkpoint,
           by: call.def.by,
           guards: effects.guards ?? [],
-          ...fenceRevalidationIdentity(call.def.by, context),
+          ...fenceRevalidationIdentity(context),
           kind: context.kind,
           store: input.store,
           memberships: input.memberships,

@@ -1,0 +1,950 @@
+{
+  "date": "2026-10-06",
+  "head": "3d1f8f062f9650c061f6cb87c8af9afb2c01b0e5",
+  "expected_head": "3d1f8f062f9650c061f6cb87c8af9afb2c01b0e5",
+  "head_matches": true,
+  "documents": {
+    "docs/research/package-subsystem-ports-20261006/README.md": {
+      "sha256": "3cd887344a74e314242c71cb065c3d8fa9b9f082a18676b28ca6b5f21f2bba28",
+      "words": 3910,
+      "lines": 223
+    },
+    "docs/research/package-subsystem-ports-20261006/implementation-plans/README.md": {
+      "sha256": "5b63a0a3fcb2a45afb704b90e9c8ef48675b884155d006f65f6ebe5fc7850033",
+      "words": 2346,
+      "lines": 88
+    },
+    "docs/research/package-subsystem-ports-20261006/implementation-plans/artifact-preparation.md": {
+      "sha256": "606278b1b8b13dd3ac157c923c2924ee9e7c60e1b1be37745f7171bbbefddfba",
+      "words": 2986,
+      "lines": 156
+    },
+    "docs/research/package-subsystem-ports-20261006/implementation-plans/exact-values.md": {
+      "sha256": "4406fd7d286314c83daf023c5ecb026ca37fc08891e60d7b1d7f1f63a227defa",
+      "words": 3881,
+      "lines": 181
+    },
+    "docs/research/package-subsystem-ports-20261006/implementation-plans/input-validation.md": {
+      "sha256": "b2f2b3b058d4823579ba3769d36a1698817a54fbf58f308c7211f2d18a51f06c",
+      "words": 5791,
+      "lines": 248
+    },
+    "docs/research/package-subsystem-ports-20261006/implementation-plans/work-transitions.md": {
+      "sha256": "3a2bf98e2f7ab10213b420d9ae686d87b245f105006114e6343690bd05a39138",
+      "words": 5478,
+      "lines": 236
+    }
+  },
+  "local_links": [
+    {
+      "document": "docs/research/package-subsystem-ports-20261006/README.md",
+      "target": "full-evaluation.md",
+      "exists": true
+    },
+    {
+      "document": "docs/research/package-subsystem-ports-20261006/README.md",
+      "target": "boundary-options.md",
+      "exists": true
+    },
+    {
+      "document": "docs/research/package-subsystem-ports-20261006/README.md",
+      "target": "implementation-plans/README.md",
+      "exists": true
+    },
+    {
+      "document": "docs/research/package-subsystem-ports-20261006/README.md",
+      "target": "full-evaluation.md",
+      "exists": true
+    },
+    {
+      "document": "docs/research/package-subsystem-ports-20261006/README.md",
+      "target": "../../../packages/work/src/schedule/every.ts",
+      "exists": true
+    },
+    {
+      "document": "docs/research/package-subsystem-ports-20261006/README.md",
+      "target": "../../../packages/work/src/receipt/index.ts",
+      "exists": true
+    },
+    {
+      "document": "docs/research/package-subsystem-ports-20261006/README.md",
+      "target": "../../../packages/work/src/recovery/index.ts",
+      "exists": true
+    },
+    {
+      "document": "docs/research/package-subsystem-ports-20261006/README.md",
+      "target": "../../../packages/work/test/every.test.ts",
+      "exists": true
+    },
+    {
+      "document": "docs/research/package-subsystem-ports-20261006/README.md",
+      "target": "../../../packages/work/test/receipt.test.ts",
+      "exists": true
+    },
+    {
+      "document": "docs/research/package-subsystem-ports-20261006/README.md",
+      "target": "../../../packages/work/test/recovery.test.ts",
+      "exists": true
+    },
+    {
+      "document": "docs/research/package-subsystem-ports-20261006/README.md",
+      "target": "../../../packages/work/src/recovery/t34-f4-scan.test.ts",
+      "exists": true
+    },
+    {
+      "document": "docs/research/package-subsystem-ports-20261006/README.md",
+      "target": "../../../packages/cloudflare/src/runtime/artifact.ts",
+      "exists": true
+    },
+    {
+      "document": "docs/research/package-subsystem-ports-20261006/README.md",
+      "target": "../../../packages/cloudflare/src/deploy/compat.ts",
+      "exists": true
+    },
+    {
+      "document": "docs/research/package-subsystem-ports-20261006/README.md",
+      "target": "../../../packages/cloudflare/src/deploy/plan.ts",
+      "exists": true
+    },
+    {
+      "document": "docs/research/package-subsystem-ports-20261006/README.md",
+      "target": "../../../packages/cloudflare/test/artifact.test.ts",
+      "exists": true
+    },
+    {
+      "document": "docs/research/package-subsystem-ports-20261006/README.md",
+      "target": "../../../packages/cloudflare/test/artifact-field-descriptions.test.ts",
+      "exists": true
+    },
+    {
+      "document": "docs/research/package-subsystem-ports-20261006/README.md",
+      "target": "../../../packages/cloudflare/test/compat.test.ts",
+      "exists": true
+    },
+    {
+      "document": "docs/research/package-subsystem-ports-20261006/README.md",
+      "target": "../../../packages/cloudflare/test/plan.test.ts",
+      "exists": true
+    },
+    {
+      "document": "docs/research/package-subsystem-ports-20261006/README.md",
+      "target": "../../../packages/cloudflare/test/release.test.ts",
+      "exists": true
+    },
+    {
+      "document": "docs/research/package-subsystem-ports-20261006/README.md",
+      "target": "../../../packages/values/src/int.ts",
+      "exists": true
+    },
+    {
+      "document": "docs/research/package-subsystem-ports-20261006/README.md",
+      "target": "../../../packages/values/src/decimal.ts",
+      "exists": true
+    },
+    {
+      "document": "docs/research/package-subsystem-ports-20261006/README.md",
+      "target": "../../../packages/values/src/money.ts",
+      "exists": true
+    },
+    {
+      "document": "docs/research/package-subsystem-ports-20261006/README.md",
+      "target": "../../../packages/values/src/temporal.ts",
+      "exists": true
+    },
+    {
+      "document": "docs/research/package-subsystem-ports-20261006/README.md",
+      "target": "../../../packages/values/src/array.ts",
+      "exists": true
+    },
+    {
+      "document": "docs/research/package-subsystem-ports-20261006/README.md",
+      "target": "../../../packages/values/src/equality.ts",
+      "exists": true
+    },
+    {
+      "document": "docs/research/package-subsystem-ports-20261006/README.md",
+      "target": "../../../packages/values/src/schema.ts",
+      "exists": true
+    },
+    {
+      "document": "docs/research/package-subsystem-ports-20261006/README.md",
+      "target": "../../../packages/values/src/wire.ts",
+      "exists": true
+    },
+    {
+      "document": "docs/research/package-subsystem-ports-20261006/README.md",
+      "target": "../../../packages/values/test/text.test.ts",
+      "exists": true
+    },
+    {
+      "document": "docs/research/package-subsystem-ports-20261006/README.md",
+      "target": "../../../packages/cloudflare/src/deploy/bundle.ts",
+      "exists": true
+    },
+    {
+      "document": "docs/research/package-subsystem-ports-20261006/README.md",
+      "target": "../../../packages/cloudflare/src/dev/local-run.ts",
+      "exists": true
+    },
+    {
+      "document": "docs/research/package-subsystem-ports-20261006/README.md",
+      "target": "../../../packages/values/conformance/v1/README.md",
+      "exists": true
+    },
+    {
+      "document": "docs/research/package-subsystem-ports-20261006/README.md",
+      "target": "../../../packages/values/test/decimal-oracle.test.ts",
+      "exists": true
+    },
+    {
+      "document": "docs/research/package-subsystem-ports-20261006/README.md",
+      "target": "evidence/",
+      "exists": true
+    },
+    {
+      "document": "docs/research/package-subsystem-ports-20261006/README.md",
+      "target": "evidence/arithmetic-probe.mjs",
+      "exists": true
+    },
+    {
+      "document": "docs/research/package-subsystem-ports-20261006/README.md",
+      "target": "evidence/arithmetic-probe.result.json",
+      "exists": true
+    },
+    {
+      "document": "docs/research/package-subsystem-ports-20261006/README.md",
+      "target": "full-evaluation.md",
+      "exists": true
+    },
+    {
+      "document": "docs/research/package-subsystem-ports-20261006/implementation-plans/README.md",
+      "target": "exact-values.md",
+      "exists": true
+    },
+    {
+      "document": "docs/research/package-subsystem-ports-20261006/implementation-plans/README.md",
+      "target": "input-validation.md",
+      "exists": true
+    },
+    {
+      "document": "docs/research/package-subsystem-ports-20261006/implementation-plans/README.md",
+      "target": "work-transitions.md",
+      "exists": true
+    },
+    {
+      "document": "docs/research/package-subsystem-ports-20261006/implementation-plans/README.md",
+      "target": "artifact-preparation.md",
+      "exists": true
+    },
+    {
+      "document": "docs/research/package-subsystem-ports-20261006/implementation-plans/README.md",
+      "target": "../boundary-options.md",
+      "exists": true
+    },
+    {
+      "document": "docs/research/package-subsystem-ports-20261006/implementation-plans/README.md",
+      "target": "../evidence/implementation-plans/",
+      "exists": true
+    },
+    {
+      "document": "docs/research/package-subsystem-ports-20261006/implementation-plans/README.md",
+      "target": "../evidence/implementation-plans/",
+      "exists": true
+    },
+    {
+      "document": "docs/research/package-subsystem-ports-20261006/implementation-plans/artifact-preparation.md",
+      "target": "../boundary-options.md",
+      "exists": true
+    },
+    {
+      "document": "docs/research/package-subsystem-ports-20261006/implementation-plans/artifact-preparation.md",
+      "target": "README.md",
+      "exists": true
+    },
+    {
+      "document": "docs/research/package-subsystem-ports-20261006/implementation-plans/artifact-preparation.md",
+      "target": "../../../../packages/cloudflare/src/runtime/artifact.ts",
+      "exists": true
+    },
+    {
+      "document": "docs/research/package-subsystem-ports-20261006/implementation-plans/artifact-preparation.md",
+      "target": "../../../../packages/cloudflare/src/deploy/compat.ts",
+      "exists": true
+    },
+    {
+      "document": "docs/research/package-subsystem-ports-20261006/implementation-plans/artifact-preparation.md",
+      "target": "../../../../packages/cloudflare/src/release/stamp.ts",
+      "exists": true
+    },
+    {
+      "document": "docs/research/package-subsystem-ports-20261006/implementation-plans/artifact-preparation.md",
+      "target": "../../../../packages/cloudflare/src/release/manifest.ts",
+      "exists": true
+    },
+    {
+      "document": "docs/research/package-subsystem-ports-20261006/implementation-plans/artifact-preparation.md",
+      "target": "../../../../packages/cloudflare/src/deploy/bundle.ts",
+      "exists": true
+    },
+    {
+      "document": "docs/research/package-subsystem-ports-20261006/implementation-plans/artifact-preparation.md",
+      "target": "../../../../packages/cloudflare/src/deploy/plan.ts",
+      "exists": true
+    },
+    {
+      "document": "docs/research/package-subsystem-ports-20261006/implementation-plans/artifact-preparation.md",
+      "target": "../../../../packages/cloudflare/src/deploy/render.ts",
+      "exists": true
+    },
+    {
+      "document": "docs/research/package-subsystem-ports-20261006/implementation-plans/artifact-preparation.md",
+      "target": "../../../../packages/cloudflare/src/deploy/review.ts",
+      "exists": true
+    },
+    {
+      "document": "docs/research/package-subsystem-ports-20261006/implementation-plans/artifact-preparation.md",
+      "target": "../../../../packages/cloudflare/src/cli/platform.ts",
+      "exists": true
+    },
+    {
+      "document": "docs/research/package-subsystem-ports-20261006/implementation-plans/artifact-preparation.md",
+      "target": "../../../../packages/cloudflare/src/deploy/activate.ts",
+      "exists": true
+    },
+    {
+      "document": "docs/research/package-subsystem-ports-20261006/implementation-plans/artifact-preparation.md",
+      "target": "../../../../packages/cloudflare/src/upgrade/apply.ts",
+      "exists": true
+    },
+    {
+      "document": "docs/research/package-subsystem-ports-20261006/implementation-plans/artifact-preparation.md",
+      "target": "../../../../packages/interfaces/src/http/operations.ts",
+      "exists": true
+    },
+    {
+      "document": "docs/research/package-subsystem-ports-20261006/implementation-plans/exact-values.md",
+      "target": "../boundary-options.md",
+      "exists": true
+    },
+    {
+      "document": "docs/research/package-subsystem-ports-20261006/implementation-plans/exact-values.md",
+      "target": "../full-evaluation.md",
+      "exists": true
+    },
+    {
+      "document": "docs/research/package-subsystem-ports-20261006/implementation-plans/input-validation.md",
+      "target": "../boundary-options.md",
+      "exists": true
+    },
+    {
+      "document": "docs/research/package-subsystem-ports-20261006/implementation-plans/input-validation.md",
+      "target": "../full-evaluation.md",
+      "exists": true
+    },
+    {
+      "document": "docs/research/package-subsystem-ports-20261006/implementation-plans/work-transitions.md",
+      "target": "../boundary-options.md",
+      "exists": true
+    },
+    {
+      "document": "docs/research/package-subsystem-ports-20261006/implementation-plans/work-transitions.md",
+      "target": "../full-evaluation.md",
+      "exists": true
+    },
+    {
+      "document": "docs/research/package-subsystem-ports-20261006/implementation-plans/work-transitions.md",
+      "target": "../evidence/full-evaluation/work-artifact-probe.result.json",
+      "exists": true
+    },
+    {
+      "document": "docs/research/package-subsystem-ports-20261006/implementation-plans/work-transitions.md",
+      "target": "../evidence/implementation-plans/",
+      "exists": true
+    },
+    {
+      "document": "docs/research/package-subsystem-ports-20261006/implementation-plans/work-transitions.md",
+      "target": "../evidence/implementation-plans/request-1.json",
+      "exists": true
+    },
+    {
+      "document": "docs/research/package-subsystem-ports-20261006/implementation-plans/work-transitions.md",
+      "target": "../evidence/implementation-plans/result-1.json",
+      "exists": true
+    },
+    {
+      "document": "docs/research/package-subsystem-ports-20261006/implementation-plans/work-transitions.md",
+      "target": "../evidence/implementation-plans/result-2.json",
+      "exists": true
+    },
+    {
+      "document": "docs/research/package-subsystem-ports-20261006/implementation-plans/work-transitions.md",
+      "target": "../evidence/implementation-plans/result-3.json",
+      "exists": true
+    }
+  ],
+  "source_hashes": {
+    "packages/cloudflare/src/cli/platform.ts": "5399bd577a03fc1a5c06276cdf845e40f0cc38a46aad89b704b3c0493b600d88",
+    "packages/cloudflare/src/deploy/activate.ts": "1f39bfea83761034d1f93665c4f2fc80f444d0706148670637f8b1f7eae8db2c",
+    "packages/cloudflare/src/deploy/bundle.ts": "66bb7f572f6abe03cd87c6bd5d8b7fd78ea814e0817c992d102b3df3606c3a5e",
+    "packages/cloudflare/src/deploy/compat.ts": "f78595dfc66957678a187e78b6fd3bd2ab20ec560c850637d7cb7425bbca2138",
+    "packages/cloudflare/src/deploy/installed.ts": "512b47b2785c452ff500e9331783833ed4064bd26c9ffe1dc37f0c34d3ce34b1",
+    "packages/cloudflare/src/deploy/plan.ts": "b3e90850bc619c6f1e8df843f393f639fef7c8dc0e59e3bdeae50eb2ed9ab335",
+    "packages/cloudflare/src/deploy/render.ts": "75bb7fb5eeb0cebafdf5c31079c12c63075b00d5708edaedf5a7f9c89b5bc980",
+    "packages/cloudflare/src/deploy/review.ts": "7483e3867b3eaf0f7087d5846196512e96707acd6093667227cf78f94c1cbf5a",
+    "packages/cloudflare/src/dev/local-run.ts": "d7a460471c4a88c18fdacac8263c6d96247b0f1666e4e8b40e5c714f847fe1ec",
+    "packages/cloudflare/src/release/manifest.ts": "0f1253522b0ee681173f788700835facdeb3bd2028daf2a461b75f1dc4c8a48d",
+    "packages/cloudflare/src/release/stamp.ts": "0282040393e8c163de46a0f3f7cfc1634dd05369fbad4a5603ee06cdec6c0e0e",
+    "packages/cloudflare/src/runtime/artifact.ts": "e04b6ee1dc35b427d2e70aff35410142c1a1eabcfd73dc9ace973f965a51b04d",
+    "packages/cloudflare/src/runtime/invoke.ts": "b0b0c93790bc7c13eac465762ca3e7b7e79ce00f34467945c2c70e8f05fb5237",
+    "packages/cloudflare/src/upgrade/apply.ts": "167c77f7be30b29a3cbc37125d112208472ccf504a7f70e70e45e9d3aff73cca",
+    "packages/cloudflare/src/worker/assembly.ts": "5746020ecc80458b7b2d4a84d0fec76485071944501b3431a76dd67075a33b3e",
+    "packages/cloudflare/test/artifact-field-descriptions.test.ts": "103f8e3f10e4191be3f03475f4c71751a71e5742ad1274dbf1185b6978249089",
+    "packages/cloudflare/test/artifact-operations.test.ts": "b158babfdbed3f15cf720f299f25ec38710acdf010b4dbacea1da0020bdf481b",
+    "packages/cloudflare/test/artifact.test.ts": "2560ecfb2aa888d2a4e1b337901417946f0249f523eea99646b226aa8550ce67",
+    "packages/cloudflare/test/assembly.test.ts": "c2fe472ec2a2f1b13f4a4b5c51932feaf906e52e10d24cb92b42ce6458ac7927",
+    "packages/cloudflare/test/compat.test.ts": "a31893a64c4c2d20d2c0d3d0b8dbdb27a6d9c25d64c5b660bba78717c7b25eb7",
+    "packages/cloudflare/test/deploy-apply.test.ts": "ba230cac16ed273dd3ffc7c88b883a4c82fbf7f80f4b2dec4888cabad9d2bbcd",
+    "packages/cloudflare/test/deploy-bundle.test.ts": "e69c96a0e511da986643b62503e2ef067dd6bd49f6e90bf910682ae501a57707",
+    "packages/cloudflare/test/deploy-cli.test.ts": "3740b1ed0860467a461f4df25fcc7b4cb4597641e9b22db19d081a09220ee473",
+    "packages/cloudflare/test/deploy-plan.test.ts": "ce3acad1ef5244818167d8320d45597d0ab83e8752d59f1ccc00a2e77a17bffc",
+    "packages/cloudflare/test/dev-smoke.test.ts": "e99d3fe4788d3682e071b2cc94de1925495eb750408a808918032efb4ffba117",
+    "packages/cloudflare/test/mcp-derived.test.ts": "924c3a4c50fc31529a9ee8da617b6be7cddfca67712fc20f30e97fb79c1161f0",
+    "packages/cloudflare/test/mcp-route.test.ts": "7836db69fae3598eb3cc41661fb1ced07423304441c9e0119b94e45ac93828da",
+    "packages/cloudflare/test/plan.test.ts": "8c6541546eed36e8186e92e3134f7b093c0ccbaef4b6e9aa7a86d0af857a42e1",
+    "packages/cloudflare/test/release.test.ts": "253963034fb64e3703338039d1dbdb61cf244e4b71c1f4aaf8644c2c9f137ef9",
+    "packages/cloudflare/test/review.test.ts": "1bedd4e9284a030a3ba558c4955594bb2a13f4b729326b1838587d7c800a8bfb",
+    "packages/cloudflare/test/worker-boundary.test.ts": "c0e316c91b311eeb3dd19b969e84c71f74039d8f4e6b25657574bd0f2d5a0b9a",
+    "packages/contracts/src/values.ts": "162869eb5a7e317238390ad8ab552804afe5e9e712d3beccb6781d31b4dd5c39",
+    "packages/contracts/src/work.ts": "c7d674c84f536389398b61b5b23c9c469114e88b5373edf5580136636f009207",
+    "packages/interfaces/src/envelope/refs.ts": "7eb157fc98859eb94c2532b5f604f5c9c2d235e474b9c51b3f27d1b2361284ba",
+    "packages/interfaces/src/envelope/validate.ts": "115b21e75eb724664a2a87eea0434ab792114702e72e97cf8af9e8200d32d1ec",
+    "packages/interfaces/src/http/limits.ts": "6a5b2277decf0a79ed7d05acca9fd24afd7df56082a02b8c48cdde3efd503bfc",
+    "packages/interfaces/src/http/operations.ts": "71271b8c8779933608c799fcad4980b0a2b7906053bbf04919d6a44c3ff76057",
+    "packages/interfaces/src/mcp/schemas.ts": "de20917570bcbc7f2e7060417058a61e4db2fd668cceb096a8cea33939eaba7b",
+    "packages/state/src/fanout/cohort.ts": "1bbebe580d152693524a11dac0a47bad7aabf409ccef143c9f0a2ae55f6302d4",
+    "packages/state/src/fanout/lifecycle.ts": "03da745fe9ff06c957938bb4d0a501f03f1c3fe813a6e35c19ee59a58795ca7b",
+    "packages/state/src/fanout/membership.ts": "9a4bb3eed1849e60bdd208f854c6837945736adcdfe121706545312785b2c73f",
+    "packages/state/src/fanout/outcome.ts": "bf0088d4ff97c7ecc39d0ffb48be43d203ee99b9d80860a959060be41f64939a",
+    "packages/state/src/fanout/progress.ts": "78a0b69ef8d4dc1ac1c29ee2f7eac265c59278103e0f6957e6d78dc997bda378",
+    "packages/state/src/fanout/t34-f5-admission.test.ts": "ae970f265764482a0b7ee8a6156b253d93dd570c5dc655c0b12e2db3b4e7ea94",
+    "packages/state/src/fanout/t34-f5-child-join.test.ts": "5039940675ba259be8a1591363cd0c17ae5fab1cf895d3505269af0fb0bfb9b9",
+    "packages/state/src/fanout/t34-f5-durable.test.ts": "f6b0cab130059c99677a039804637161f8651d38c48afb7f5644a6449b1c02e8",
+    "packages/state/src/fanout/t34-f5-lifecycle.test.ts": "c24dcdea5dbd5ed181d3e2676f017138e02a6d3ab0ffa267f5a6db8906773d35",
+    "packages/state/src/fanout/t34-f5-membership.test.ts": "34b9a8917ffcd67327ea12cea997a2c4c1a7713af90ea47f7945aa4db7565559",
+    "packages/state/src/fanout/t34-f5-progress.test.ts": "82017fa97f05b14b976a185568072a07f7814ba0292b22a2ef2bae3aae041240",
+    "packages/state/src/fanout/tables.ts": "cf3c6344ce4ee2335cf774e8bd7c68768520502ad2007ff9addd0c92dc6043c8",
+    "packages/state/src/fanout/test-driver.ts": "2df5d3f6db612c407e421b4816c0ea7da32553b6011fca5f6af0a6038abcab71",
+    "packages/state/src/fanout/work-loader.ts": "f9727a2e7e3d4af56ad2e16bb8c0a5fb2935dc6d73e683351f67f8d570786466",
+    "packages/state/src/invocation/admission.ts": "cf8afac7cd9cc543e25f64cdbf9b864fa734c3df7f23d9ef77fd8cdb02097fdc",
+    "packages/state/src/invocation/b2-conflict-currents.test.ts": "39fe7a304e548376b55456c227ca87bf352d99eee497b76e93339581e2e176be",
+    "packages/state/src/invocation/b2-read-proofs.test.ts": "47e1512eb4791ebb90e20b6106ddf035f5c1f7f56338c15618aabdbf20494af7",
+    "packages/state/src/invocation/b2-reads-durable.test.ts": "5b9ea092c1d53be713ac1279d955f551144903d97021cd4d77148f9f4b9bfaef",
+    "packages/state/src/invocation/context.ts": "9c3909dae9e64ff35edea4bb6dcf8cc21dc9fd026706d944d2e6074ddda04ff8",
+    "packages/state/src/invocation/descriptor-join.test.ts": "c9cbf0c65080afb80d504c4691c7c885996e7539b4d153499c5366a5e46f4adf",
+    "packages/state/src/invocation/index.ts": "450f0636c41b1ab50a519511c01363fd02d19a7867c4ba1e634d240005afbedd",
+    "packages/state/src/invocation/invoke-read.test.ts": "ccfa108b43bdfaecbf6c84c3f2e9e627dd20316a73e28c487f18f90b59c28d65",
+    "packages/state/src/invocation/invoke.ts": "941c9d1998c3f830540e7983414e4b61721df68e06b4af2dc119dd219aa3a1d7",
+    "packages/state/src/invocation/registry.ts": "648038e260dddb601171834d4277e42a823cfedc7bec55acd0b606d57a3803ad",
+    "packages/state/src/invocation/replay.ts": "e49348f4af1799070b8743ca0f12e712a6371df997eedf0ad7f5e8d75f106558",
+    "packages/state/src/invocation/t32b-fence.test.ts": "e4fd7f876a3d6eaa88099210cff930e9a674f478e16e0abc6a6d05d5f2d2f0fd",
+    "packages/state/src/invocation/t32b-wire.test.ts": "df0f1a35ddb6d1d8a472c231e219477f615c40ad6ecf09ac98c4a8943dfdf286",
+    "packages/state/src/ports/data-plane.test.ts": "0f91320e05fa1c4b4ecf1da55d0994544bf68b8e4e8f9d9734677041188d1c99",
+    "packages/state/src/ports/index.ts": "89298c48d5b2373e1cf5eb63d5c905c7f2deab65ca38ecf9d23b46e89bae087d",
+    "packages/state/src/ports/read.ts": "28b684622807a9e64f4049c31cb2a6f57da27af409159e218b4a9d6b76217e48",
+    "packages/state/src/ports/system.ts": "19408e9e613f0c9107263571a2bc2c9a767326ce34e30968d72ef7ecb8197488",
+    "packages/state/src/ports/t32b-read.test.ts": "b035722746ef0a04ff59a69c44e99574ac187595990ef1fc3510e70179f9e813",
+    "packages/state/src/ports/transact.ts": "2e39d28afc9655fce540411f446065af5b625eecd4d0fa71c4bc15021554491a",
+    "packages/stdlib/src/index.ts": "6cdeadfd7ee2ffed08b80196a3bfe5e98236b02af95f8fa2028c1214cb210cee",
+    "packages/testkit/src/scopes/local.ts": "68eacdc3c2eecdae8235f89f1b6a479ee2a3bdfb31dd8ef1f090d3102b9e44ba",
+    "packages/values/conformance/v1/README.md": "72556f351edea29e1c55b88a07ab6ca188bfd5d9aea8eaa6239ca49a1825ec01",
+    "packages/values/src/array.ts": "f7159c77490aa9707f745b486d253ff5cabff0757add8e66388edae73d2f985f",
+    "packages/values/src/catalog.ts": "a544f620c340c4448e1f39ba93fee830cc86f96090bc70cb0880695a99a4c541",
+    "packages/values/src/currency-data.ts": "a2e9aae51760cf23a76f3bd73a3caea3dfa2bc5d76b69020baf84c2f7f008c48",
+    "packages/values/src/decimal.ts": "c2ed5ebec7d1a8643ae1675202d70fac70dd3b5267557227573ec02f80e47a5a",
+    "packages/values/src/equality.ts": "5deb41a5ab9059f1697309258c472075223640ca64fcb370f85166706b0ab762",
+    "packages/values/src/errors.ts": "ba45751feecc220cbab9667ef19a4e15882be4f62751c7e34884700324aed53a",
+    "packages/values/src/icu.ts": "434c7509ace68faf25de849df74d7a37abd7522cbb43fe9481d3577f5ff2081f",
+    "packages/values/src/index.ts": "5520c249df24c310d4a640c646dc0d2bf0101bbdc09ccdd57e6ff97813f88028",
+    "packages/values/src/int.ts": "e85ea2cf5d6dc70793ed1347676b935f07c9650747eaf4a5006ea0adbf3e496d",
+    "packages/values/src/kinds.ts": "3fef5692c980d2b257b2a5183b573f6ffb9dbd8ed6b5fb1e45fabf351bf447ea",
+    "packages/values/src/locale.ts": "fa3e48d0b786eeb787353a83be37b750c274eadb092b9aa8616fcf0cf00c288e",
+    "packages/values/src/money.ts": "32341bb1944d1edd229dd1c85561c1ba1d557a1aa0c7003f5069b9ea1cac42a4",
+    "packages/values/src/schema.ts": "d535ddb1525bc5ac05fe630a6046ee4ab39ec69797d49b7e4062ee67fb020e97",
+    "packages/values/src/stdlib-pure.ts": "f2cb569faf6ff5d0e7de48466d49d1e231687a97226f624312330ee86c92fb58",
+    "packages/values/src/temporal.ts": "8f68ea231a38a1b5137e96c66abab0db8fa4a151f7eb60fa9c3ac9a3280a0abc",
+    "packages/values/src/text.ts": "7cc87ab802d09b4deb18e44a05dfc33a0d136c7d76438802f0ad3447f788e42a",
+    "packages/values/src/timezone.ts": "58490cb3e87eea5e7a81f9fb0c4ae8bfecd636fa3c951c3b6c4c3e2a1dba9f06",
+    "packages/values/src/types.ts": "58eaa879279ed42da2379a480d6a9cfc16780fc93e3986778fcb4651c4a4cd9a",
+    "packages/values/src/wire.ts": "aaf8664eabf7984bbb3fceb76324ea9ea0165219cf1c87dfb6fa5cf0ffa02392",
+    "packages/values/test/decimal-oracle.test.ts": "adc42cceb75f84ab44d0f3780f61d3c21c4e5eebd329fac621498ba7f3d7ac2d",
+    "packages/values/test/text.test.ts": "bbe174b047ad38109286ce332ad5e07f193a1205ff59d10800737d0ebccea5aa",
+    "packages/work/src/dispatch/index.ts": "8f276d853b3c594e5fa208e249159a97f8e2a45bc267a006528d3887c1a4e686",
+    "packages/work/src/dispatch/t34-f3-claim.test.ts": "f0a361846c6d105d35d83231623f4bf04a3d68b1757e744c3574fcfb55f41394",
+    "packages/work/src/dispatch/t34-f3-progress.test.ts": "160850e0ab7155e89663d828ac79ba1e27803f81ba2a58d3941368e789961407",
+    "packages/work/src/dispatch/t34-f3-record.test.ts": "db3b4a87e03aecfd750356596e49ae63c424f634728b7c3b74ac59a0358c8218",
+    "packages/work/src/kernel/commands.ts": "b78ba7004c147887ea15e9ab872fca52c0367e9c4d16399f22b2fdaabbacef8d",
+    "packages/work/src/kernel/t34-f2-durable.test.ts": "57a46b4afe7caec6921b8d0c08d64825806ddae0ab0832b51ca0c8d92645b3d4",
+    "packages/work/src/kernel/t34-f2-tables.test.ts": "e01ebf61b0ccce7a94b991e25b68576400a15655bb228b746d9931768f579aa6",
+    "packages/work/src/kernel/tables.ts": "392c8a30f73b804638312ba09685666a0eb8734c33d7d41c3a3158ae4371a57e",
+    "packages/work/src/observation/t25a-selected.test.ts": "f11881259b78ad570b93cf1b6ef23827b6576a440cf00ef76fd1334e7380f613",
+    "packages/work/src/observation/t26-progress.test.ts": "a82d45d6ef5ce51c0ce54a84b9801f7020ae6adad28e5ce8f5d7e731a9390d2e",
+    "packages/work/src/receipt/index.ts": "5085f392192a1059c9a5d3bcf679e4984b77a0ab4a5e799bcd17812e8060d6e3",
+    "packages/work/src/receipt/t25a-consistency.test.ts": "f0863fe68e4c916c3fda5287d7e59e61367b6ae593010e7197a7b0c24811c467",
+    "packages/work/src/recovery/index.ts": "c973d3b8fafd4db66ff2b6b278e3ff49c8121601b5d21665507e4ee3ff231859",
+    "packages/work/src/recovery/t26-durable.test.ts": "84d80ee2d3754ddde6a0ba11b8cd45f0d7c3dd5b0b96bd493b09fbb497a25805",
+    "packages/work/src/recovery/t26-resume.test.ts": "b02d88cb1523ea1404902310668dbd8c0aeb58bfdad64b4ab5de66d68bb17bbc",
+    "packages/work/src/recovery/t34-f4-durable.test.ts": "740025c586d726e486988c459eb70b3b8bae4ac3b6c499eb9102c5ed055cdee5",
+    "packages/work/src/recovery/t34-f4-scan.test.ts": "552d176fa1e212097e90b8a6723e664daa4067a344a842810a6b21d611d8abea",
+    "packages/work/src/schedule/every.ts": "60854aa7c190ef69f29bde0f68e1e26ae68de98c782fa82d64e4f2e822e046e9",
+    "packages/work/test/every.test.ts": "8aebe475891710ad6acee3206922969c928926452493406f3dafbe1893174bc5",
+    "packages/work/test/kernel-commands.test.ts": "603110d04da8bc184a07b851ed378dd9a302ccefc4cb04f2cf352db36c41e112",
+    "packages/work/test/kernel-tables.test.ts": "81a2a1f2f442b3d068c1d1f84206f37c4e251bb63b38fe01920c9e5387bdfffc",
+    "packages/work/test/observation-association.test.ts": "7aacdf2acd2a45309d039a0c6521e8fd46ea5c867288e98ce238246a95d3b5b7",
+    "packages/work/test/observation.test.ts": "0e8b85d9830c5cc92248b54da20d9b2b38aaa5c29e0b7a75d38ecef4b4adc03c",
+    "packages/work/test/receipt.test.ts": "c797ba0e76a954ed3ab878383a04988cfa7cbf508d764bd5a426c4cf2248f0ac",
+    "packages/work/test/recovery.test.ts": "78ff64531c8948cb5dc9f395ae185796ac7e67ec9cadee17e2b446589d99f0de",
+    "packages/state/src/receipt/b3-delivery-schema.test.ts": "a74e5a171e9c34910e81bbfec6291f0d75a329b9281a6b393f31b6d28cc38a9e",
+    "packages/state/src/receipt/grants.ts": "5e451c34948bd6e6421bb33f0e3fd221e294f82dd1820e49dad2a187081a801a",
+    "packages/state/src/receipt/t25-receipt-durable.test.ts": "3fbb7166fac16c1054d5ccbf0440b54bce632944dc0c6fcff7e84ce58cc6a002",
+    "packages/state/src/receipt/t25-receipt-join.test.ts": "b5fd5371bde02b2d3a07337ff42131b03459b8f2493a8dc9e46cbc6a741b2ef1"
+  },
+  "consultations": [
+    {
+      "request": 1,
+      "model": "jev-1.13.0",
+      "answers": {
+        "kernel_owner": {
+          "type": "choice",
+          "choice": "leaf_package",
+          "confidence": 0.99,
+          "probabilities": {
+            "mirrored_adapters": 0.0,
+            "leaf_package": 0.99,
+            "work_subpath": 0.01
+          }
+        },
+        "bootstrap": {
+          "type": "choice",
+          "choice": "explicit_bootstrap",
+          "confidence": 1.0,
+          "probabilities": {
+            "async_api": 0.0,
+            "explicit_bootstrap": 1.0,
+            "automatic_fallback": 0.0
+          }
+        },
+        "validation_adoption": {
+          "type": "choice",
+          "choice": "bounded_join_gate",
+          "confidence": 0.95,
+          "probabilities": {
+            "whole_interfaces": 0.0,
+            "bounded_join_gate": 0.97,
+            "fixture_completion": 0.03
+          }
+        },
+        "native_boundary": {
+          "type": "choice",
+          "choice": "staged_job",
+          "confidence": 1.0,
+          "probabilities": {
+            "staged_job": 1.0,
+            "eager_snapshot": 0.0,
+            "whole_cli": 0.0
+          }
+        }
+      }
+    },
+    {
+      "request": 2,
+      "model": "jev-1.13.0",
+      "answers": {
+        "kernel_owner": {
+          "type": "choice",
+          "choice": "leaf_package",
+          "confidence": 0.74,
+          "probabilities": {
+            "work_subpath": 0.17,
+            "leaf_package": 0.82,
+            "mirrored_adapters": 0.01
+          }
+        },
+        "bootstrap": {
+          "type": "choice",
+          "choice": "explicit_bootstrap",
+          "confidence": 1.0,
+          "probabilities": {
+            "explicit_bootstrap": 1.0,
+            "automatic_fallback": 0.0,
+            "async_api": 0.0
+          }
+        },
+        "validation_adoption": {
+          "type": "choice",
+          "choice": "bounded_join_gate",
+          "confidence": 1.0,
+          "probabilities": {
+            "whole_interfaces": 0.0,
+            "fixture_completion": 0.0,
+            "bounded_join_gate": 1.0
+          }
+        },
+        "native_boundary": {
+          "type": "choice",
+          "choice": "staged_job",
+          "confidence": 1.0,
+          "probabilities": {
+            "eager_snapshot": 0.0,
+            "staged_job": 1.0,
+            "whole_cli": 0.0
+          }
+        }
+      }
+    },
+    {
+      "request": 3,
+      "model": "jev-1.13.0",
+      "answers": {
+        "kernel_owner": {
+          "type": "choice",
+          "choice": "leaf_package",
+          "confidence": 0.94,
+          "probabilities": {
+            "mirrored_adapters": 0.0,
+            "work_subpath": 0.04,
+            "leaf_package": 0.96
+          }
+        },
+        "bootstrap": {
+          "type": "choice",
+          "choice": "explicit_bootstrap",
+          "confidence": 1.0,
+          "probabilities": {
+            "explicit_bootstrap": 1.0,
+            "async_api": 0.0,
+            "automatic_fallback": 0.0
+          }
+        },
+        "validation_adoption": {
+          "type": "choice",
+          "choice": "bounded_join_gate",
+          "confidence": 1.0,
+          "probabilities": {
+            "bounded_join_gate": 1.0,
+            "fixture_completion": 0.0,
+            "whole_interfaces": 0.0
+          }
+        },
+        "native_boundary": {
+          "type": "choice",
+          "choice": "staged_job",
+          "confidence": 1.0,
+          "probabilities": {
+            "staged_job": 1.0,
+            "whole_cli": 0.0,
+            "eager_snapshot": 0.0
+          }
+        }
+      }
+    }
+  ],
+  "consultation_usage": {
+    "input_tokens": 5309,
+    "output_tokens": 537
+  },
+  "git_diff_check": true,
+  "package_or_compiler_changes_in_status": [],
+  "production_source_edits": false,
+  "rust_tests_or_benchmarks_performed": false,
+  "existing_ts_baseline": {
+    "reported_by": "exact-values planning agent",
+    "raw_output_location": "subagent tool results only; no raw log file saved",
+    "build": {
+      "command": "bun run --cwd packages/values build",
+      "exit_code": 0
+    },
+    "test_command": "node --test packages/values/dist/values/test/int.test.js packages/values/dist/values/test/decimal.test.js packages/values/dist/values/test/decimal-oracle.test.js packages/values/dist/values/test/money.test.js packages/values/dist/values/test/array.test.js packages/values/dist/values/test/temporal.test.js packages/values/dist/values/test/kinds.test.js packages/values/dist/values/test/equality.test.js packages/values/dist/values/test/types.test.js packages/values/dist/values/test/wire.test.js packages/values/dist/values/test/conformance.test.js packages/values/dist/values/test/exports-conformance.test.js",
+    "selected_tests": 424,
+    "suites": 78,
+    "passed": 424,
+    "failed": 0,
+    "cancelled": 0,
+    "skipped": 0,
+    "todo": 0,
+    "observed_duration_ms": 197.980208,
+    "classification": "existing TypeScript baseline; source unchanged by concurrent state commit"
+  },
+  "issues": [],
+  "initial_consultation_checkpoint": "30e211dae891cfdca3f6322ce45c46c426138830",
+  "task_dependencies": {
+    "C01.ready": [],
+    "C02.ready": [
+      "C01.ready"
+    ],
+    "C03.ready": [
+      "C01.ready"
+    ],
+    "C04.ready": [
+      "C03.ready"
+    ],
+    "C05.ready": [
+      "C01.ready"
+    ],
+    "A01": [
+      "C01.ready"
+    ],
+    "A02": [
+      "A01",
+      "C02.ready",
+      "C05.ready"
+    ],
+    "A03": [
+      "A02",
+      "C03.ready"
+    ],
+    "A04": [
+      "A03"
+    ],
+    "A05": [
+      "A03",
+      "A04"
+    ],
+    "A06": [
+      "A04",
+      "A05",
+      "C02.ready"
+    ],
+    "A07": [
+      "A03",
+      "A04",
+      "A05",
+      "A06",
+      "C03.ready",
+      "C04.ready"
+    ],
+    "A08": [
+      "A07",
+      "C05.ready"
+    ],
+    "A09": [
+      "A08",
+      "C02.ready",
+      "C03.ready",
+      "C04.ready",
+      "C05.ready",
+      "V06",
+      "V07",
+      "V08"
+    ],
+    "A10": [
+      "A09"
+    ],
+    "A11": [
+      "A10"
+    ],
+    "P01": [
+      "C01.ready"
+    ],
+    "P02": [
+      "C02.ready",
+      "C05.ready",
+      "P01"
+    ],
+    "P03": [
+      "C03.ready",
+      "P02"
+    ],
+    "P04": [
+      "P03"
+    ],
+    "P05": [
+      "P04"
+    ],
+    "P06": [
+      "P04",
+      "P05"
+    ],
+    "P07": [
+      "C03.ready",
+      "P03",
+      "P04",
+      "P05",
+      "P06"
+    ],
+    "P08": [
+      "C05.ready",
+      "P07"
+    ],
+    "P09": [
+      "P08"
+    ],
+    "P10": [
+      "C05.ready",
+      "P08",
+      "P09"
+    ],
+    "P11": [
+      "P10"
+    ],
+    "V01": [
+      "C01.ready"
+    ],
+    "V02": [
+      "C02.ready",
+      "V01"
+    ],
+    "V03": [
+      "A03",
+      "C03.ready",
+      "V01"
+    ],
+    "V04": [
+      "A04",
+      "A05",
+      "V02",
+      "V03"
+    ],
+    "V05": [
+      "V04"
+    ],
+    "V06": [
+      "V02",
+      "V03",
+      "V04"
+    ],
+    "V07": [
+      "C05.ready",
+      "V03",
+      "V04",
+      "V05",
+      "V06"
+    ],
+    "V08": [
+      "C04.ready",
+      "V06",
+      "V07"
+    ],
+    "V09": [
+      "V06",
+      "V07",
+      "V08"
+    ],
+    "V10": [
+      "C04.ready",
+      "V06",
+      "V07"
+    ],
+    "V11": [
+      "C05.ready",
+      "V02",
+      "V07",
+      "V08",
+      "V09",
+      "V10"
+    ],
+    "V12": [
+      "V11"
+    ],
+    "W01": [
+      "C01.ready"
+    ],
+    "W02": [
+      "C02.ready",
+      "W01"
+    ],
+    "W03": [
+      "C03.ready",
+      "W02"
+    ],
+    "W04": [
+      "W03"
+    ],
+    "W05": [
+      "C04.ready",
+      "W04"
+    ],
+    "W06": [
+      "W05"
+    ],
+    "W07": [
+      "C05.ready",
+      "W06"
+    ],
+    "W08": [
+      "W07"
+    ],
+    "W09": [
+      "W01",
+      "W02",
+      "W03",
+      "W04",
+      "W05",
+      "W06",
+      "W07",
+      "W08"
+    ]
+  },
+  "topological_task_order": [
+    "C01.ready",
+    "C02.ready",
+    "C03.ready",
+    "C04.ready",
+    "C05.ready",
+    "A01",
+    "A02",
+    "A03",
+    "A04",
+    "A05",
+    "A06",
+    "A07",
+    "A08",
+    "V01",
+    "V02",
+    "V03",
+    "V04",
+    "V06",
+    "V05",
+    "V07",
+    "V08",
+    "A09",
+    "A10",
+    "A11",
+    "P01",
+    "P02",
+    "P03",
+    "P04",
+    "P05",
+    "P06",
+    "P07",
+    "P08",
+    "P09",
+    "P10",
+    "P11",
+    "V09",
+    "V10",
+    "V11",
+    "V12",
+    "W01",
+    "W02",
+    "W03",
+    "W04",
+    "W05",
+    "W06",
+    "W07",
+    "W08",
+    "W09"
+  ],
+  "required_initial_task_count": 42,
+  "deferred_scheduler_task": "W09",
+  "concurrent_source_refresh": {
+    "changed_files": [
+      "packages/state/src/invocation/registry.ts",
+      "packages/state/src/receipt/b3-delivery-schema.test.ts",
+      "packages/state/src/receipt/grants.ts",
+      "packages/state/src/receipt/t25-receipt-durable.test.ts",
+      "packages/state/src/receipt/t25-receipt-join.test.ts"
+    ],
+    "review": "Reviewed all five file changes: registry delivery tag validation and loader-built membership; grants source documentation; new schema proofs and switched receipt memory/durable worlds. Ownership remains state; new acceptance test added to work/validation plans. No boundary revision needed.",
+    "source_edit_by_planning_agent": false
+  }
+}

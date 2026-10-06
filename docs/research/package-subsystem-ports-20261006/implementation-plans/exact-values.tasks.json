@@ -1,0 +1,1052 @@
+{
+  "plan": "exact-values",
+  "lanes": [
+    {
+      "id": "core",
+      "title": "Shared core and module integrator",
+      "owns": [
+        "packages/values/Cargo.toml",
+        "packages/values/Cargo.lock",
+        "packages/values/semantics/Cargo.toml",
+        "packages/values/semantics/src/lib.rs",
+        "packages/values/semantics/examples/conformance.rs",
+        "packages/values/semantics/src/failures.rs",
+        "packages/values/semantics/src/representations/",
+        "packages/values/semantics/src/transport/",
+        "packages/values/semantics/src/numeric/mod.rs",
+        "packages/values/semantics/src/temporal/mod.rs",
+        "packages/values/semantics/src/aggregates/mod.rs",
+        "packages/values/semantics/src/codecs/",
+        "packages/values/bindings/Cargo.toml",
+        "packages/values/bindings/src/",
+        "packages/values/bindings/generated/",
+        "packages/values/scripts/emit-semantics-inputs.mjs",
+        "packages/values/scripts/build-semantics.mjs",
+        "packages/values/package.json",
+        "packages/values/tsconfig.json",
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/exact-values/core/"
+      ]
+    },
+    {
+      "id": "fixtures",
+      "title": "Observable fixtures and measurement",
+      "owns": [
+        "packages/values/conformance/ports/exact/",
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/exact-values/fixtures/"
+      ]
+    },
+    {
+      "id": "integer",
+      "title": "Raw integer algorithms",
+      "owns": [
+        "packages/values/semantics/src/numeric/integer.rs",
+        "packages/values/semantics/tests/integer_vectors.rs",
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/exact-values/integer/"
+      ]
+    },
+    {
+      "id": "rounding",
+      "title": "Independent rational rounding",
+      "owns": [
+        "packages/values/semantics/src/numeric/rounding.rs",
+        "packages/values/semantics/tests/rounding_vectors.rs",
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/exact-values/rounding/"
+      ]
+    },
+    {
+      "id": "decimal",
+      "title": "Decimal algorithms",
+      "owns": [
+        "packages/values/semantics/src/numeric/decimal.rs",
+        "packages/values/semantics/tests/decimal_vectors.rs",
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/exact-values/decimal/"
+      ]
+    },
+    {
+      "id": "money",
+      "title": "Money algorithms",
+      "owns": [
+        "packages/values/semantics/src/numeric/money.rs",
+        "packages/values/semantics/tests/money_vectors.rs",
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/exact-values/money/"
+      ]
+    },
+    {
+      "id": "temporal",
+      "title": "UTC civil, instant and duration",
+      "owns": [
+        "packages/values/semantics/src/temporal/civil.rs",
+        "packages/values/semantics/src/temporal/instant.rs",
+        "packages/values/semantics/src/temporal/duration.rs",
+        "packages/values/semantics/tests/temporal_vectors.rs",
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/exact-values/temporal/"
+      ]
+    },
+    {
+      "id": "aggregates",
+      "title": "Owned aggregates and comparison",
+      "owns": [
+        "packages/values/semantics/src/aggregates/integer.rs",
+        "packages/values/semantics/src/aggregates/decimal.rs",
+        "packages/values/semantics/src/aggregates/money.rs",
+        "packages/values/semantics/src/aggregates/numeric.rs",
+        "packages/values/semantics/tests/aggregate_vectors.rs",
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/exact-values/aggregates/"
+      ]
+    },
+    {
+      "id": "host",
+      "title": "Synchronous host adapters and public routing",
+      "owns": [
+        "packages/values/bindings/backend.ts",
+        "packages/values/bindings/bootstrap.ts",
+        "packages/values/bindings/carriers.ts",
+        "packages/values/src/int.ts",
+        "packages/values/src/decimal.ts",
+        "packages/values/src/money.ts",
+        "packages/values/src/kinds.ts",
+        "packages/values/src/temporal.ts",
+        "packages/values/src/array.ts",
+        "packages/values/src/equality.ts",
+        "packages/values/src/stdlib-pure.ts",
+        "packages/values/src/index.ts",
+        "packages/values/test/exact-bootstrap.test.ts",
+        "packages/values/test/exact-backends.test.ts",
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/exact-values/host/"
+      ]
+    },
+    {
+      "id": "consumer",
+      "title": "Real consumer and release review",
+      "owns": [
+        "packages/interfaces/test/exact-input-profile.test.ts",
+        "packages/testkit/test/exact-operation-consumer.test.ts",
+        "packages/stdlib/test/exact-helper-chain.test.ts",
+        "packages/values/test/exact-release.test.ts",
+        "packages/values/README.md",
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/exact-values/consumer/"
+      ]
+    }
+  ],
+  "tasks": [
+    {
+      "id": "A01.1",
+      "parent": "A01",
+      "title": "Freeze owner, caller and observable-contract inventory",
+      "lane": "core",
+      "wave": 1,
+      "depends_on": [
+        "C01.ready"
+      ],
+      "writes": [
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/exact-values/core/contracts.md"
+      ],
+      "kind": "work",
+      "required": true,
+      "acceptance": [
+        "All mapped sources have an owner and admitted-input/error/order contract; compiler changes are unnecessary."
+      ]
+    },
+    {
+      "id": "A01.2",
+      "parent": "A01",
+      "title": "Nominate complete-call workloads and ratify budgets",
+      "lane": "fixtures",
+      "wave": 1,
+      "depends_on": [
+        "A01.1",
+        "C05.ready"
+      ],
+      "writes": [
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/exact-values/fixtures/workload-contract.json"
+      ],
+      "kind": "work",
+      "required": true,
+      "acceptance": [
+        "A useful consumer/reuse requirement and fixed budgets exist, or a measured disabled prototype is the explicitly scoped outcome."
+      ]
+    },
+    {
+      "id": "A01",
+      "parent": null,
+      "title": "Scope and adoption contract complete",
+      "lane": "core",
+      "wave": 1,
+      "depends_on": [
+        "A01.1",
+        "A01.2"
+      ],
+      "writes": [],
+      "kind": "gate",
+      "required": true,
+      "acceptance": [
+        "Every original A01 obligation is reviewed; no broad rollout is required when the nominated benefit disappears."
+      ]
+    },
+    {
+      "id": "A02.1",
+      "parent": "A02",
+      "title": "Capture deterministic raw and observable TS vectors",
+      "lane": "fixtures",
+      "wave": 2,
+      "depends_on": [
+        "A01",
+        "C02.ready",
+        "C05.ready"
+      ],
+      "writes": [
+        "packages/values/conformance/ports/exact/cases.json"
+      ],
+      "kind": "work",
+      "required": true,
+      "acceptance": [
+        "Fixtures include outputs erased by canonical wire text; deterministic regeneration preserves published conformance/v1 unchanged."
+      ]
+    },
+    {
+      "id": "A02.2",
+      "parent": "A02",
+      "title": "Build current/prepared TS observers and differential shell",
+      "lane": "fixtures",
+      "wave": 2,
+      "depends_on": [
+        "A02.1"
+      ],
+      "writes": [
+        "packages/values/conformance/ports/exact/differential.mjs",
+        "packages/values/conformance/ports/exact/workloads.mjs",
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/exact-values/fixtures/ts-baseline.json"
+      ],
+      "kind": "work",
+      "required": true,
+      "acceptance": [
+        "Complete raw outputs and traces match the baseline; Decimal.js is secondary value evidence, not a scale/error oracle."
+      ]
+    },
+    {
+      "id": "A02",
+      "parent": null,
+      "title": "Observable numeric baseline ready",
+      "lane": "fixtures",
+      "wave": 2,
+      "depends_on": [
+        "A02.1",
+        "A02.2"
+      ],
+      "writes": [],
+      "kind": "gate",
+      "required": true,
+      "acceptance": [
+        "Current/prepared TS comparators and deterministic fixtures satisfy the original A02 acceptance."
+      ]
+    },
+    {
+      "id": "A03.1",
+      "parent": "A03",
+      "title": "Build shared representations, failures and workspace foundation",
+      "lane": "core",
+      "wave": 3,
+      "depends_on": [
+        "A02",
+        "C03.ready"
+      ],
+      "writes": [
+        "packages/values/Cargo.toml",
+        "packages/values/Cargo.lock",
+        "packages/values/semantics/Cargo.toml",
+        "packages/values/bindings/Cargo.toml",
+        "packages/values/bindings/src/lib.rs",
+        "packages/values/semantics/src/lib.rs",
+        "packages/values/semantics/src/failures.rs",
+        "packages/values/semantics/src/representations/mod.rs",
+        "packages/values/semantics/src/representations/numeric.rs",
+        "packages/values/semantics/src/transport/mod.rs",
+        "packages/values/semantics/src/transport/exact.rs",
+        "packages/values/semantics/src/numeric/mod.rs",
+        "packages/values/semantics/src/temporal/mod.rs",
+        "packages/values/semantics/src/aggregates/mod.rs",
+        "packages/values/semantics/src/codecs/mod.rs",
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/exact-values/core/foundation.md"
+      ],
+      "kind": "work",
+      "required": true,
+      "acceptance": [
+        "Foundation compiles and supplies stable representations/errors/transport with no integer or rational algorithm dependency; compiler is excluded."
+      ]
+    },
+    {
+      "id": "A03.foundation",
+      "parent": "A03",
+      "title": "Shared core foundation ready for independent algorithms and validation",
+      "lane": "core",
+      "wave": 3,
+      "depends_on": [
+        "A03.1"
+      ],
+      "writes": [],
+      "kind": "gate",
+      "required": true,
+      "acceptance": [
+        "Workspace, representations, failures, transport contract and shared module ownership are usable; validation may begin without awaiting full A03 integer/rounding work."
+      ]
+    },
+    {
+      "id": "A03.2",
+      "parent": "A03",
+      "title": "Port unrestricted integer mechanisms",
+      "lane": "integer",
+      "wave": 4,
+      "depends_on": [
+        "A03.foundation"
+      ],
+      "writes": [
+        "packages/values/semantics/src/numeric/integer.rs",
+        "packages/values/semantics/tests/integer_vectors.rs",
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/exact-values/integer/parity.json"
+      ],
+      "kind": "work",
+      "required": true,
+      "acceptance": [
+        "No i64/i128 input truncation or global digit limit; all integer outputs and failures match TS."
+      ]
+    },
+    {
+      "id": "A03.3",
+      "parent": "A03",
+      "title": "Port half-even rational and scale rounding",
+      "lane": "rounding",
+      "wave": 4,
+      "depends_on": [
+        "A03.foundation"
+      ],
+      "writes": [
+        "packages/values/semantics/src/numeric/rounding.rs",
+        "packages/values/semantics/tests/rounding_vectors.rs",
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/exact-values/rounding/parity.json"
+      ],
+      "kind": "work",
+      "required": true,
+      "acceptance": [
+        "Native rounding preserves exact scratch operands, error order and half-even results without decimal-library policy substitution."
+      ]
+    },
+    {
+      "id": "A03.4",
+      "parent": "A03",
+      "title": "Generate owner-derived currency and catalog build inputs",
+      "lane": "core",
+      "wave": 4,
+      "depends_on": [
+        "A03.foundation"
+      ],
+      "writes": [
+        "packages/values/scripts/emit-semantics-inputs.mjs",
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/exact-values/core/catalog-inputs.json"
+      ],
+      "kind": "work",
+      "required": true,
+      "acceptance": [
+        "No second independent table/catalog is maintained; validation and money share the same pinned facts."
+      ]
+    },
+    {
+      "id": "A03",
+      "parent": null,
+      "title": "Native integer and rounding foundation complete",
+      "lane": "core",
+      "wave": 4,
+      "depends_on": [
+        "A03.foundation",
+        "A03.2",
+        "A03.3",
+        "A03.4"
+      ],
+      "writes": [],
+      "kind": "gate",
+      "required": true,
+      "acceptance": [
+        "Run future cargo test --locked --manifest-path packages/values/semantics/Cargo.toml and cargo fmt --manifest-path packages/values/semantics/Cargo.toml -- --check; save pin/build/license evidence and all original A03 raw-arithmetic contracts."
+      ]
+    },
+    {
+      "id": "A04.1",
+      "parent": "A04",
+      "title": "Port decimal construction, parsing and stored parts",
+      "lane": "decimal",
+      "wave": 4,
+      "depends_on": [
+        "A03.foundation"
+      ],
+      "writes": [
+        "packages/values/semantics/src/numeric/decimal.rs",
+        "packages/values/semantics/tests/decimal_vectors.rs",
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/exact-values/decimal/construction.json"
+      ],
+      "kind": "work",
+      "required": true,
+      "acceptance": [
+        "Construction/text preserve full coefficient and stored scale; public Decimal makers remain TS authoritative carriers."
+      ]
+    },
+    {
+      "id": "A04.2",
+      "parent": "A04",
+      "title": "Port decimal math and both ratio branches",
+      "lane": "decimal",
+      "wave": 5,
+      "depends_on": [
+        "A04.1",
+        "A03.2",
+        "A03.3"
+      ],
+      "writes": [
+        "packages/values/semantics/src/numeric/decimal.rs",
+        "packages/values/semantics/tests/decimal_vectors.rs",
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/exact-values/decimal/arithmetic.json"
+      ],
+      "kind": "work",
+      "required": true,
+      "acceptance": [
+        "Every decimal source branch matches value, stored parts and failure precedence."
+      ]
+    },
+    {
+      "id": "A04.3",
+      "parent": "A04",
+      "title": "Port currency and basic money operations",
+      "lane": "money",
+      "wave": 4,
+      "depends_on": [
+        "A03.foundation",
+        "A03.2",
+        "A03.4"
+      ],
+      "writes": [
+        "packages/values/semantics/src/numeric/money.rs",
+        "packages/values/semantics/tests/money_vectors.rs",
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/exact-values/money/basic.json"
+      ],
+      "kind": "work",
+      "required": true,
+      "acceptance": [
+        "No universal constructor erases distinct maker/builtin/binary-operation domains or messages."
+      ]
+    },
+    {
+      "id": "A04.4",
+      "parent": "A04",
+      "title": "Join money factors, one-round conversion and moneyRatio",
+      "lane": "money",
+      "wave": 5,
+      "depends_on": [
+        "A04.3",
+        "A04.2",
+        "A03.3"
+      ],
+      "writes": [
+        "packages/values/semantics/src/numeric/money.rs",
+        "packages/values/semantics/tests/money_vectors.rs",
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/exact-values/money/factors.json"
+      ],
+      "kind": "work",
+      "required": true,
+      "acceptance": [
+        "Complete money semantics match native vectors without duplicated decimal/rounding authority."
+      ]
+    },
+    {
+      "id": "A04.5",
+      "parent": "A04",
+      "title": "Expose pure numeric scalar codecs for validation reuse",
+      "lane": "core",
+      "wave": 5,
+      "depends_on": [
+        "A04.1",
+        "A04.3",
+        "C03.ready"
+      ],
+      "writes": [
+        "packages/values/semantics/src/codecs/numeric.rs",
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/exact-values/core/numeric-codecs.json"
+      ],
+      "kind": "work",
+      "required": true,
+      "acceptance": [
+        "Validation can reuse proven numeric codecs without awaiting unrelated money factor math or aggregate work."
+      ]
+    },
+    {
+      "id": "A04",
+      "parent": null,
+      "title": "Decimal, money and numeric codecs complete",
+      "lane": "core",
+      "wave": 5,
+      "depends_on": [
+        "A04.1",
+        "A04.2",
+        "A04.3",
+        "A04.4",
+        "A04.5"
+      ],
+      "writes": [],
+      "kind": "gate",
+      "required": true,
+      "acceptance": [
+        "All original A04 branches, full stored parts, one-round rules and independent oracle limits are covered."
+      ]
+    },
+    {
+      "id": "A05.1",
+      "parent": "A05",
+      "title": "Port UTC civil dates and range operations",
+      "lane": "temporal",
+      "wave": 4,
+      "depends_on": [
+        "A03.foundation"
+      ],
+      "writes": [
+        "packages/values/semantics/src/temporal/civil.rs",
+        "packages/values/semantics/tests/temporal_vectors.rs",
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/exact-values/temporal/civil.json"
+      ],
+      "kind": "work",
+      "required": true,
+      "acceptance": [
+        "All civil pure algorithms and source-specific limit/error order match; Intl/timezone remains host-owned."
+      ]
+    },
+    {
+      "id": "A05.2",
+      "parent": "A05",
+      "title": "Port exact duration checks and operations",
+      "lane": "temporal",
+      "wave": 4,
+      "depends_on": [
+        "A03.foundation"
+      ],
+      "writes": [
+        "packages/values/semantics/src/temporal/duration.rs",
+        "packages/values/semantics/tests/temporal_vectors.rs",
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/exact-values/temporal/duration.json"
+      ],
+      "kind": "work",
+      "required": true,
+      "acceptance": [
+        "Duration semantics do not wait for decimal/money and do not acquire stronger uniform input checks."
+      ]
+    },
+    {
+      "id": "A05.3",
+      "parent": "A05",
+      "title": "Port instant algorithms and temporal scalar codecs",
+      "lane": "temporal",
+      "wave": 5,
+      "depends_on": [
+        "A05.1",
+        "A05.2"
+      ],
+      "writes": [
+        "packages/values/semantics/src/temporal/instant.rs",
+        "packages/values/semantics/tests/temporal_vectors.rs",
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/exact-values/temporal/instant.json"
+      ],
+      "kind": "work",
+      "required": true,
+      "acceptance": [
+        "Every temporal.ts exported pure algorithm is covered; decimal-valued divideDurationMs remains correctly covered in A04.2."
+      ]
+    },
+    {
+      "id": "A05",
+      "parent": null,
+      "title": "Temporal algorithms and scalar handoff complete",
+      "lane": "temporal",
+      "wave": 5,
+      "depends_on": [
+        "A05.1",
+        "A05.2",
+        "A05.3"
+      ],
+      "writes": [],
+      "kind": "gate",
+      "required": true,
+      "acceptance": [
+        "Native temporal vector runner matches all original A05 acceptance without an unnecessary A04 dependency."
+      ]
+    },
+    {
+      "id": "A06.1",
+      "parent": "A06",
+      "title": "Port owned integer and duration sums",
+      "lane": "aggregates",
+      "wave": 4,
+      "depends_on": [
+        "A03.2",
+        "A05.2",
+        "C02.ready"
+      ],
+      "writes": [
+        "packages/values/semantics/src/aggregates/integer.rs",
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/exact-values/aggregates/integer.json"
+      ],
+      "kind": "work",
+      "required": true,
+      "acceptance": [
+        "Sum semantics narrow once; arbitrary public array iteration remains the existing TS path."
+      ]
+    },
+    {
+      "id": "A06.2",
+      "parent": "A06",
+      "title": "Port owned decimal sums",
+      "lane": "aggregates",
+      "wave": 5,
+      "depends_on": [
+        "A04.2",
+        "C02.ready"
+      ],
+      "writes": [
+        "packages/values/semantics/src/aggregates/decimal.rs",
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/exact-values/aggregates/decimal.json"
+      ],
+      "kind": "work",
+      "required": true,
+      "acceptance": [
+        "Owned decimal sums match numeric results without claiming arbitrary public-array Wasm adoption."
+      ]
+    },
+    {
+      "id": "A06.3",
+      "parent": "A06",
+      "title": "Port owned money sums",
+      "lane": "aggregates",
+      "wave": 5,
+      "depends_on": [
+        "A04.4",
+        "C02.ready"
+      ],
+      "writes": [
+        "packages/values/semantics/src/aggregates/money.rs",
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/exact-values/aggregates/money.json"
+      ],
+      "kind": "work",
+      "required": true,
+      "acceptance": [
+        "Owned money sums preserve empty/currency/final-only rules."
+      ]
+    },
+    {
+      "id": "A06.4",
+      "parent": "A06",
+      "title": "Integrate numeric comparisons and aggregate runner",
+      "lane": "aggregates",
+      "wave": 6,
+      "depends_on": [
+        "A06.1",
+        "A06.2",
+        "A06.3",
+        "A05.3"
+      ],
+      "writes": [
+        "packages/values/semantics/src/aggregates/numeric.rs",
+        "packages/values/semantics/tests/aggregate_vectors.rs",
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/exact-values/aggregates/parity.json"
+      ],
+      "kind": "work",
+      "required": true,
+      "acceptance": [
+        "All original A06 aggregate/comparison obligations match; no arbitrary host iterable is adopted by inspection."
+      ]
+    },
+    {
+      "id": "A06",
+      "parent": null,
+      "title": "Native aggregates and comparisons complete",
+      "lane": "aggregates",
+      "wave": 6,
+      "depends_on": [
+        "A06.1",
+        "A06.2",
+        "A06.3",
+        "A06.4"
+      ],
+      "writes": [],
+      "kind": "gate",
+      "required": true,
+      "acceptance": [
+        "Native aggregate fixture vectors pass through cargo test --locked --manifest-path packages/values/semantics/Cargo.toml; A07.3 later runs node packages/values/conformance/ports/exact/differential.mjs --backend native against the fully assembled runner."
+      ]
+    },
+    {
+      "id": "A07.1",
+      "parent": "A07",
+      "title": "Prepare real binding build and initialization smoke",
+      "lane": "core",
+      "wave": 4,
+      "depends_on": [
+        "A03.foundation",
+        "C03.ready",
+        "C04.ready"
+      ],
+      "writes": [
+        "packages/values/bindings/src/lib.rs",
+        "packages/values/bindings/src/exact.rs",
+        "packages/values/bindings/generated/",
+        "packages/values/scripts/build-semantics.mjs",
+        "packages/values/package.json",
+        "packages/values/tsconfig.json",
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/exact-values/core/binding-smoke.json"
+      ],
+      "kind": "work",
+      "required": true,
+      "acceptance": [
+        "Tiny actual binding works before full algorithms; no mocked loader or native runner counts as Worker success."
+      ]
+    },
+    {
+      "id": "A07.2",
+      "parent": "A07",
+      "title": "Prepare host carriers, backend registry and bootstrap checks",
+      "lane": "host",
+      "wave": 4,
+      "depends_on": [
+        "A03.foundation",
+        "C03.ready"
+      ],
+      "writes": [
+        "packages/values/bindings/backend.ts",
+        "packages/values/bindings/bootstrap.ts",
+        "packages/values/bindings/carriers.ts",
+        "packages/values/test/exact-bootstrap.test.ts",
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/exact-values/host/bootstrap.json"
+      ],
+      "kind": "work",
+      "required": true,
+      "acceptance": [
+        "Public classes/freezing/BigInt parts and synchronous exports stay intact; failed selected Rust bootstrap is visible."
+      ]
+    },
+    {
+      "id": "A07.foundation",
+      "parent": "A07",
+      "title": "Real binding and host bootstrap scaffold ready for validation",
+      "lane": "core",
+      "wave": 4,
+      "depends_on": [
+        "A07.1",
+        "A07.2"
+      ],
+      "writes": [],
+      "kind": "gate",
+      "required": true,
+      "acceptance": [
+        "Actual tiny glue/module imports and synchronous bootstrap/carrier contract are usable in Node/Bun/local workerd; validation can integrate independently of exact algorithm completion."
+      ]
+    },
+    {
+      "id": "A07.3",
+      "parent": "A07",
+      "title": "Join full semantic entries and actual-adapter differential",
+      "lane": "core",
+      "wave": 6,
+      "depends_on": [
+        "A03",
+        "A04",
+        "A05",
+        "A06",
+        "A07.foundation",
+        "V03.5"
+      ],
+      "writes": [
+        "packages/values/semantics/src/lib.rs",
+        "packages/values/bindings/src/lib.rs",
+        "packages/values/bindings/src/exact.rs",
+        "packages/values/bindings/generated/",
+        "packages/values/semantics/examples/conformance.rs",
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/exact-values/core/binding-parity.json"
+      ],
+      "kind": "work",
+      "required": true,
+      "acceptance": [
+        "Full semantic vectors and asset/version/error checks pass through real binding and actual host delivery."
+      ]
+    },
+    {
+      "id": "A07",
+      "parent": null,
+      "title": "Actual binding and full native/Wasm parity complete",
+      "lane": "core",
+      "wave": 6,
+      "depends_on": [
+        "A07.foundation",
+        "A07.3"
+      ],
+      "writes": [],
+      "kind": "gate",
+      "required": true,
+      "acceptance": [
+        "Every original A07 bootstrap/build/carrier/delivery requirement is proved; no full-consumer adoption inferred."
+      ]
+    },
+    {
+      "id": "A08.1",
+      "parent": "A08",
+      "title": "Route proven public profiles behind unchanged fa\u00e7ades",
+      "lane": "host",
+      "wave": 7,
+      "depends_on": [
+        "A07",
+        "V02.6",
+        "C05.ready"
+      ],
+      "writes": [
+        "packages/values/src/int.ts",
+        "packages/values/src/decimal.ts",
+        "packages/values/src/money.ts",
+        "packages/values/src/kinds.ts",
+        "packages/values/src/temporal.ts",
+        "packages/values/src/array.ts",
+        "packages/values/src/equality.ts",
+        "packages/values/src/stdlib-pure.ts",
+        "packages/values/src/index.ts",
+        "packages/values/test/exact-backends.test.ts",
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/exact-values/host/public-routing.json"
+      ],
+      "kind": "work",
+      "required": true,
+      "acceptance": [
+        "One selected backend per request; all unproved unknown profiles execute TS by declared pre-evaluation routing."
+      ]
+    },
+    {
+      "id": "A08.2",
+      "parent": "A08",
+      "title": "Verify synchronous package and stdlib consumer assembly",
+      "lane": "consumer",
+      "wave": 7,
+      "depends_on": [
+        "A08.1",
+        "C04.values-assets"
+      ],
+      "writes": [
+        "packages/stdlib/test/exact-helper-chain.test.ts",
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/exact-values/consumer/stdlib.json"
+      ],
+      "kind": "work",
+      "required": true,
+      "acceptance": [
+        "All original A08 public/export/assembly checks pass, with baseline failures separately attributed."
+      ]
+    },
+    {
+      "id": "A08",
+      "parent": null,
+      "title": "Selective public routing verified",
+      "lane": "host",
+      "wave": 7,
+      "depends_on": [
+        "A08.1",
+        "A08.2"
+      ],
+      "writes": [],
+      "kind": "gate",
+      "required": true,
+      "acceptance": [
+        "Synchronous exports, legacy traces and backend-entry instrumentation meet the original A08 contract."
+      ]
+    },
+    {
+      "id": "A09.1",
+      "parent": "A09",
+      "title": "Prepare joint owned HTTP/interface pilot fixtures",
+      "lane": "consumer",
+      "wave": 4,
+      "depends_on": [
+        "A01",
+        "A02",
+        "C02.ready",
+        "C03.ready",
+        "C05.ready"
+      ],
+      "writes": [
+        "packages/interfaces/test/exact-input-profile.test.ts",
+        "packages/testkit/test/exact-operation-consumer.test.ts",
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/exact-values/consumer/pilot-contract.json"
+      ],
+      "kind": "work",
+      "required": true,
+      "acceptance": [
+        "Useful fixture preparation overlaps algorithms without claiming a whole-input port or production adoption."
+      ]
+    },
+    {
+      "id": "A09.2",
+      "parent": "A09",
+      "title": "Run whole-input pilot through actual Wasm consumer",
+      "lane": "consumer",
+      "wave": 8,
+      "depends_on": [
+        "A08",
+        "A09.1",
+        "V06",
+        "V07",
+        "V08",
+        "C02.ready",
+        "C03.ready",
+        "C04.ready",
+        "C05.ready"
+      ],
+      "writes": [
+        "packages/interfaces/test/exact-input-profile.test.ts",
+        "packages/testkit/test/exact-operation-consumer.test.ts",
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/exact-values/consumer/http-parity.json"
+      ],
+      "kind": "work",
+      "required": true,
+      "acceptance": [
+        "Exact A09 join waits for completed V06\u2013V08 evidence; forms and unproved transports retain TS with compatibility checks."
+      ]
+    },
+    {
+      "id": "A09",
+      "parent": null,
+      "title": "Whole-input pilot and secondary helper-chain evidence complete",
+      "lane": "consumer",
+      "wave": 8,
+      "depends_on": [
+        "A08",
+        "A09.1",
+        "A09.2",
+        "V06",
+        "V07",
+        "V08",
+        "C02.ready",
+        "C03.ready",
+        "C04.ready",
+        "C05.ready"
+      ],
+      "writes": [],
+      "kind": "gate",
+      "required": true,
+      "acceptance": [
+        "All original A09 complete-call and secondary .coef/.minor fixture obligations pass; no retained-handle claim or fixture-only deployed-use claim."
+      ]
+    },
+    {
+      "id": "A10.1",
+      "parent": "A10",
+      "title": "Measure complete-call performance and resources",
+      "lane": "fixtures",
+      "wave": 9,
+      "depends_on": [
+        "A09",
+        "C05.ready"
+      ],
+      "writes": [
+        "packages/values/conformance/ports/exact/workloads.mjs",
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/exact-values/fixtures/measurements.json",
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/exact-values/fixtures/adoption-report.md"
+      ],
+      "kind": "work",
+      "required": true,
+      "acceptance": [
+        "Zero unexplained differences; speed-led default meets fixed budgets or concrete native reuse justifies a compatible explicitly selected core without slower silent default."
+      ]
+    },
+    {
+      "id": "A10.2",
+      "parent": "A10",
+      "title": "Verify packaged opt-in release and rollback",
+      "lane": "consumer",
+      "wave": 9,
+      "depends_on": [
+        "A10.1",
+        "A07"
+      ],
+      "writes": [
+        "packages/values/test/exact-release.test.ts",
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/exact-values/consumer/release-integrity.json",
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/exact-values/consumer/rollback.json"
+      ],
+      "kind": "work",
+      "required": true,
+      "acceptance": [
+        "No unsupported scalar switches; rollback restores TS without .can recompile or migration and never retries failed semantic work."
+      ]
+    },
+    {
+      "id": "A10.3",
+      "parent": "A10",
+      "title": "Review deployment provenance and default-adoption decision",
+      "lane": "consumer",
+      "wave": 9,
+      "depends_on": [
+        "A10.2",
+        "V08",
+        "V10"
+      ],
+      "writes": [
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/exact-values/consumer/rollout-decision.md"
+      ],
+      "kind": "work",
+      "required": true,
+      "acceptance": [
+        "The HTTP 501 gap is never closed by arithmetic fixture evidence; unsupported routes stay TS. If neither production route is proved, default adoption is blocked and the completed feasibility outcome records that fact."
+      ]
+    },
+    {
+      "id": "A10",
+      "parent": null,
+      "title": "Measured release outcome and adoption gate recorded",
+      "lane": "consumer",
+      "wave": 9,
+      "depends_on": [
+        "A10.1",
+        "A10.2",
+        "A10.3"
+      ],
+      "writes": [],
+      "kind": "gate",
+      "required": true,
+      "acceptance": [
+        "All original A10 performance/resource/release/rollback obligations are complete; enabled defaults require V08/V10 route-specific provenance, while a justified disabled result remains explicit."
+      ]
+    },
+    {
+      "id": "A11.1",
+      "parent": "A11",
+      "title": "Reconcile completion coverage and package documentation",
+      "lane": "consumer",
+      "wave": 10,
+      "depends_on": [
+        "A10"
+      ],
+      "writes": [
+        "packages/values/README.md",
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/exact-values/consumer/completion-ledger.md",
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/exact-values/consumer/final-source-checks.md"
+      ],
+      "kind": "work",
+      "required": true,
+      "acceptance": [
+        "Every original A11 completion/documentation obligation is accounted for; bookkeeping authorizes no further implementation."
+      ]
+    },
+    {
+      "id": "A11",
+      "parent": null,
+      "title": "Selected exact-values implementation outcome complete",
+      "lane": "consumer",
+      "wave": 10,
+      "depends_on": [
+        "A11.1"
+      ],
+      "writes": [],
+      "kind": "gate",
+      "required": true,
+      "acceptance": [
+        "A01\u2013A10 required evidence exists, real binding/consumer/release/rollback are proved and adoption enabled or explicitly blocked; retirement and broader legacy migration remain separate decisions."
+      ]
+    }
+  ]
+}
