@@ -377,6 +377,8 @@ Only `README.md` and `AGENTS.md` remain at the repository root. The current requ
 
 Keep project decisions in `docs/specification/DECISIONS.md`; proposals and accepted decisions have distinct status. Prior-plan prose, shared setup guidance and superseded launch instructions have further scoped review tasks; archival moves alone are not pruning. All 493 paths are structurally accounted for, but focused semantic review does not certify every paragraph for deletion.
 
+The completed `editors/vscode/audit-astra/` working copies are retired: 187 files, including 23 Markdown files and 42,687,533 bytes. No build/test/install consumer depends on them; the active highlighting checker retains the defect regressions. The existing ledger pins all original paths, sizes and SHA-256 hashes to Git revision `e5fa27c3cbe6c00e4ec76ea61005a3f1d3e65faa`; a fresh archive extraction reproduced every byte. Existing audit navigation uses commit-pinned links and recovery instructions. This scoped retirement does not authorize pruning other captures, change historical review conclusions, or advance the checkpoint. DOC06 remains deferred for broader storage deduplication.
+
 | Task | Selected work | Execution / gate |
 | --- | --- | --- |
 | DOC01 | Move the five root project documents to their owning documentation groups | APPLIED locally; independent link/content review and planning checks passed; historical evidence and checkpoint preserved; Executed cutover verified locally; publication and full source checkpoint reconciliation remain separate. |
@@ -385,6 +387,7 @@ Keep project decisions in `docs/specification/DECISIONS.md`; proposals and accep
 | DOC04 | Centralize shared developer setup and test navigation | planning target only; no active assignment or source migration; Exact released file ownership and live reference migration; active coordinator files remain current until handoff. |
 | DOC05 | Consolidate obsolete implementation launch and steering prose after owner handoff | planning target only; no active assignment or source migration; Exact released file ownership and live reference migration; active coordinator files remain current until handoff. |
 | DOC06 | Specify evidence reconstruction before any snapshot-storage deduplication | planning target only; no active assignment or source migration; Exact released file ownership and live reference migration; active coordinator files remain current until handoff. |
+| DOC07 | Retire the completed editor highlighting audit from the working tree with exact Git recovery | APPLIED locally; exact Git recovery and independent no-consumer review passed; No live build/test/install consumer; active highlighting regressions retained unchanged; exact 187-path Git archive extraction and SHA-256 proof passed; repair mutable navigation before retirement. Broader captured-evidence deduplication remains deferred. |
 
 These documentation tasks do not impose a global barrier on product lanes. Serialize actual overlapping document writers and preserve active coordinator records until the owning handoff.
 <!-- documentation-review:end -->

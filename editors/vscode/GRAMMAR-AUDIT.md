@@ -1,6 +1,6 @@
 # Current draft grammar → highlighting audit
 
-This inventory records the earlier audit baseline; its gap descriptions and source counts are historical. The corrections and settled grammar hash for extension 0.1.5 are recorded separately in [AUDIT-RESOLUTION.md](AUDIT-RESOLUTION.md). The independent audit snapshots under `audit-astra/` remain unchanged.
+This inventory records the earlier audit baseline; its gap descriptions and source counts are historical. The corrections and settled grammar hash for extension 0.1.5 are recorded separately in [AUDIT-RESOLUTION.md](AUDIT-RESOLUTION.md). The completed independent audit is preserved in pinned Git history; [AUDIT-RESOLUTION.md](AUDIT-RESOLUTION.md#recover-the-historical-audit) records recovery and evidence limits.
 
 Audit inputs: this repository's complete `GRAMMAR.md`, DESIGN source/composition, type/value, permissions, operations/examples, context/integration, presentation/i18n, maintenance and semantic-refinement sections; all 44 `.can` files under `draft/` and `examples/`; and `syntaxes/can.tmLanguage.json`. No old sibling checkout semantics are used.
 

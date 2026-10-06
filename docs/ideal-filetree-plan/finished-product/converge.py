@@ -477,7 +477,7 @@ def apply_documentation_review():
     selected_sources=set(selections)
     tree['retirements']=[r for r in tree['retirements'] if r['predecessor'] not in selected_sources]
     tree['retirements'] += [{'predecessor':source,'successors':[r['target']],'gate':r['gate'],
-                            'retirement':'root relocation applied locally; original historical evidence preserved' if r['task']=='DOC01' else 'lossless consultation consolidation applied locally; original sections retained, superseded file retired' if r.get('execution_status')=='applied locally' else 'proposed lossless consolidation; source not deleted here'} for source,r in sorted(selections.items()) if source!=r['target']]
+                            'retirement':'completed editor audit retired from working tree; exact bytes and logical paths recover from pinned Git revision' if r['task']=='DOC07' else 'root relocation applied locally; original historical evidence preserved' if r['task']=='DOC01' else 'lossless consultation consolidation applied locally; original sections retained, superseded file retired' if r.get('execution_status')=='applied locally' else 'proposed lossless consolidation; source not deleted here'} for source,r in sorted(selections.items()) if source!=r['target']]
     tree['documentation_review']='documentation-review.json'
     catalog['tasks']=[t for t in catalog['tasks'] if t['namespace']!='documentation']+review['tasks']
     for t in catalog['tasks']:
@@ -511,6 +511,13 @@ def apply_documentation_review():
         'owner_gate':'DOC01 and DOC02 applied locally; DOC03-DOC05 require exact owner/content gates; DOC06 deferred' if review.get('execution',{}).get('topic_consolidation') else 'DOC01 applied locally; DOC02-DOC05 require exact owner/content gates; DOC06 deferred',
         'classification':'accepted documentation placement; conditional content consolidation',
         'status':'Root relocation and selected27-file consolidation applied; further pruning remains conditional/deferred' if review.get('execution',{}).get('topic_consolidation') else 'Root relocation applied; broader pruning not executed','evidence':'documentation-review.json'})
+    retired_audit=review.get('execution',{}).get('completed_editor_audit',{})
+    if retired_audit:
+        leaves['docs/ideal-filetree-plan/finished-product/documentation-review.json']['status']='existing documentation disposition and pinned Git recovery ledger'
+        finding=findings['items'][-1]
+        finding['finding']+=' Completed editor audit has no live build/test/install consumer; all 187 files recover exactly from its pinned Git revision.'
+        finding['owner_gate']+='; DOC07 editor audit retirement applied locally; other captured evidence remains under DOC06'
+        finding['status']+='; 187 editor archive files including 23 Markdown retired from working tree'
     for leaf in leaves.values():
         for key in ('sources','duties','tasks','dispositions'):leaf[key]=sorted(set(leaf[key]))
     tree['target_leaves']=sorted(leaves.values(),key=lambda r:r['path'])
@@ -528,6 +535,8 @@ def apply_documentation_review():
     if review.get('execution',{}).get('topic_consolidation'):
         common=common.replace('The selected target consolidates 52 small assessment/correction notes into 25 topic records, potentially reducing Markdown by 27 files. This consolidation remains future work.',
             'The selected consolidation is applied: 52 assessment/correction notes now form 25 topic records, reducing Markdown by 27 files. All original source blocks, corrections, uncertainty, witnesses and limitations were preserved under heading/navigation normalization and independently cross-reviewed; 169 raw JSON records remain byte-identical. Stable source anchors replace old note paths. The ledger records original hashes, section preservation hashes, live reference repairs and 51 retired predecessors; one existing README was retained and 24 new successors created.')
+    if retired_audit:
+        common+='\n\nThe completed `editors/vscode/audit-astra/` working copies are retired: 187 files, including 23 Markdown files and 42,687,533 bytes. No build/test/install consumer depends on them; the active highlighting checker retains the defect regressions. The existing ledger pins all original paths, sizes and SHA-256 hashes to Git revision `'+retired_audit['revision']+'`; a fresh archive extraction reproduced every byte. Existing audit navigation uses commit-pinned links and recovery instructions. This scoped retirement does not authorize pruning other captures, change historical review conclusions, or advance the checkpoint. DOC06 remains deferred for broader storage deduplication.'
     for name in ('ownership.md','findings.md','workflows.md','target-tree.md'):section(OUT/name,common)
     task_text=common+'\n\n| Task | Selected work | Execution / gate |\n| --- | --- | --- |\n'
     for t in review['tasks']:task_text+=f"| {t['id']} | {t['title']} | {t['execution_status']}; {t['gate']} |\n"
