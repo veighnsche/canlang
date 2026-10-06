@@ -1,0 +1,6354 @@
+{
+  "schema_version": 1,
+  "audit": "finished-product independent original-app delivery sweep",
+  "repository": "/Users/vince/Projects/canlang",
+  "scope": "17 exact original app source+companion pairs + Employees/Locations/Suppliers; full semantic reading, not header counting",
+  "mode": "planning-only",
+  "families": {
+    "F01": "authored application/language tools",
+    "F02": "exact values/input meaning",
+    "F03": "canonical data/authority",
+    "F04": "identity/team lifecycle",
+    "F05": "effects/provider work",
+    "F06": "receipts/progress/fanout",
+    "F07": "files/content lifecycle",
+    "F08": "operation interfaces",
+    "F09": "browser/preferences/CSV",
+    "F10": "descriptions/reference",
+    "F11": "artifact/install/delivery/upgrade",
+    "F12": "examples/qualification"
+  },
+  "runtime_evidence_policy": "No checker, tests, build, Git, service, install, source implementation or checklist edits. Complete source+companion reading and source-inferred findings only; historical parser/MJS correspondence disclosures are not executed app evidence. Current compiler type/receipt/action mechanisms exist; coherent missing behavior is REQUIRED, not downgraded because current checking rejects it.",
+  "apps": [
+    {
+      "app": "Onboard",
+      "classification": "REQUIRED when selected in original portfolio",
+      "canonical_owners": "employee + onboard",
+      "families": [
+        "F01",
+        "F03",
+        "F04",
+        "F07",
+        "F08",
+        "F09",
+        "F12"
+      ],
+      "sources": [
+        {
+          "path": "draft/CanOnboard.can",
+          "sha256": "d6bfe20cc4e3fa47fcb92ed9329fe931a5df8bc443a5be608c22538878441a78",
+          "bytes": 16615,
+          "lines": 240,
+          "read": "entire source/companion inspected",
+          "source_kind": "desired authored contract"
+        },
+        {
+          "path": "draft/CanOnboard.md",
+          "sha256": "85f6bf98a49150077ca720e8db1487cf63eaca145e1d23187c619730f4af2349",
+          "bytes": 13409,
+          "lines": 92,
+          "read": "entire source/companion inspected",
+          "source_kind": "desired requirements + historical validation disclosure"
+        }
+      ],
+      "authority": "HR owns Employee-linked Checklist generation and revisioned templates; active staff complete only assigned/unblocked steps or HR-authorized work. Customer membership and hire handoff do not confer employee roles.",
+      "required_workflows": [
+        "Template CRUD bumps template revision; start copies the selected active role/location template into one immutable checklist generation.",
+        "Step CRUD uses current employee/assignee authority; complete freezes actor/time; reopen requires reason and clears attribution; blockers deny completion.",
+        "work/work_detail returns current protected canonical complete actions; Employee deactivation denies new work and keeps HR recovery/history.",
+        "Readiness and HR coordination pages preserve template snapshot, changed progress denominator, protected document/history and typed defaults."
+      ],
+      "failure_retry_termination": "Atomic duplicate generation/copy/step effects; excess atomic copy work rejects rather than drops. Invalid assignee, blocker, inactive employee or stale version preserves prior checklist. No authored scheduled provider work.",
+      "required_primitives_and_missing_joins": [
+        "canonical imported type/hook/event ownership",
+        "default actor/parent evaluation",
+        "field/file grants and retention",
+        "source-derived protected actions"
+      ],
+      "source_sites": [
+        {
+          "line": 2,
+          "kind": "app",
+          "selector": "CanOnboard"
+        },
+        {
+          "line": 5,
+          "kind": "package",
+          "selector": "onboard"
+        },
+        {
+          "line": 9,
+          "kind": "contract",
+          "selector": "WorkItem"
+        },
+        {
+          "line": 10,
+          "kind": "contract",
+          "selector": "WorkBatch"
+        },
+        {
+          "line": 12,
+          "kind": "preferences",
+          "selector": ""
+        },
+        {
+          "line": 17,
+          "kind": "derive",
+          "selector": "can_complete(step"
+        },
+        {
+          "line": 18,
+          "kind": "derive",
+          "selector": "Checklist.completed_steps"
+        },
+        {
+          "line": 19,
+          "kind": "derive",
+          "selector": "Checklist.total_steps"
+        },
+        {
+          "line": 20,
+          "kind": "derive",
+          "selector": "Checklist.progress"
+        },
+        {
+          "line": 21,
+          "kind": "policy",
+          "selector": "Template"
+        },
+        {
+          "line": 22,
+          "kind": "policy",
+          "selector": "TemplateStep"
+        },
+        {
+          "line": 23,
+          "kind": "policy",
+          "selector": "Checklist"
+        },
+        {
+          "line": 24,
+          "kind": "policy",
+          "selector": "Step"
+        },
+        {
+          "line": 25,
+          "kind": "invariant",
+          "selector": "Step"
+        },
+        {
+          "line": 26,
+          "kind": "lock",
+          "selector": "Checklist"
+        },
+        {
+          "line": 35,
+          "kind": "crud",
+          "selector": "Template"
+        },
+        {
+          "line": 36,
+          "kind": "crud",
+          "selector": "TemplateStep"
+        },
+        {
+          "line": 37,
+          "kind": "crud",
+          "selector": "Step"
+        },
+        {
+          "line": 44,
+          "kind": "scenario",
+          "selector": "template_changed"
+        },
+        {
+          "line": 46,
+          "kind": "scenario",
+          "selector": "template_step_created"
+        },
+        {
+          "line": 48,
+          "kind": "scenario",
+          "selector": "template_step_changed"
+        },
+        {
+          "line": 50,
+          "kind": "scenario",
+          "selector": "template_step_removed"
+        },
+        {
+          "line": 53,
+          "kind": "scenario",
+          "selector": "start(employee"
+        },
+        {
+          "line": 114,
+          "kind": "scenario",
+          "selector": "complete(step"
+        },
+        {
+          "line": 123,
+          "kind": "scenario",
+          "selector": "reopen(step"
+        },
+        {
+          "line": 132,
+          "kind": "scenario",
+          "selector": "work(locations"
+        },
+        {
+          "line": 135,
+          "kind": "scenario",
+          "selector": "work_detail(record"
+        },
+        {
+          "line": 140,
+          "kind": "page",
+          "selector": "/people/my-readiness"
+        },
+        {
+          "line": 159,
+          "kind": "page",
+          "selector": "/people/onboarding"
+        }
+      ],
+      "evidence_state": {
+        "source_available": true,
+        "desired_mjs": "not runtime evidence; any companion target is hand-written desired witness only",
+        "historical_checks": "companion disclosures retained; none rerun",
+        "proven_runtime_errors": [],
+        "runtime_qualification": "not established by this audit; actual installed compiled owner/browser/MCP/provider/concurrency journeys required"
+      }
+    },
+    {
+      "app": "Propose",
+      "classification": "REQUIRED when selected in original portfolio",
+      "canonical_owners": "propose",
+      "families": [
+        "F01",
+        "F02",
+        "F03",
+        "F04",
+        "F05",
+        "F06",
+        "F07",
+        "F08",
+        "F09",
+        "F12"
+      ],
+      "sources": [
+        {
+          "path": "draft/CanPropose.can",
+          "sha256": "50d1d835f2bcb622864e522013cff5c942dd8378aeee3d1d698e356ce4036b35",
+          "bytes": 47364,
+          "lines": 483,
+          "read": "entire source/companion inspected",
+          "source_kind": "desired authored contract"
+        },
+        {
+          "path": "draft/CanPropose.md",
+          "sha256": "f6c7b3f8654b1b774bf4d1030ae1bb079ddedfeca372d4794369778522b6e649",
+          "bytes": 25008,
+          "lines": 132,
+          "read": "entire source/companion inspected",
+          "source_kind": "desired requirements + historical validation disclosure"
+        }
+      ],
+      "authority": "Sales owns Customer/Contact-scoped Proposal and frozen commercial Revision; verified addressed recipient decides. Rooms owns capacity, Billing owns invoice/money, Documents owns PDF.",
+      "required_workflows": [
+        "revise supersedes only undecided old links, freezes revision/line price/tax/discount/terms/intervals and emits an offer through send_offer.",
+        "decide requires current sent/unexpired addressed email, freezes latest eligible attribution; acceptance creates neither booking nor payment.",
+        "document requests frozen QuoteDocument; current delivery/source/commercial-number correlation records ready/failed/unknown without overwriting prior PDF.",
+        "hold_inventory, request_booking and typed kind/version callbacks keep hold/booking/release domains separate; definitive prebooking rejection is terminal for that revision.",
+        "deadline/recover_hold/withdraw/release retry retain one addressed hold deadline, unknown coordination and same captured identity; offer_alternative needs a fresh revision plus new decision and no existing Booking.",
+        "Offer/recipient pages show quote, acceptance, hold, booking, invoice, PDF and transport outcomes separately."
+      ],
+      "failure_retry_termination": "Late hold cannot revive expired/releasing state; accepted booking obligations survive hold expiry/release. Unknown handoff is not definitive refusal. Definitive rejection requires new accepted revision; failed release has explicit retry; no signature or automatic payment claim.",
+      "required_primitives_and_missing_joins": [
+        "frozen nested contracts/exact money",
+        "trusted causation/version joins",
+        "record-bound deadlines/recovery",
+        "generated PDF and finalized file association"
+      ],
+      "source_sites": [
+        {
+          "line": 2,
+          "kind": "app",
+          "selector": "CanPropose"
+        },
+        {
+          "line": 5,
+          "kind": "package",
+          "selector": "propose"
+        },
+        {
+          "line": 27,
+          "kind": "preferences",
+          "selector": ""
+        },
+        {
+          "line": 28,
+          "kind": "contract",
+          "selector": "QuoteLine"
+        },
+        {
+          "line": 29,
+          "kind": "contract",
+          "selector": "QuoteInterval"
+        },
+        {
+          "line": 30,
+          "kind": "derive",
+          "selector": "quote_intervals_valid(from"
+        },
+        {
+          "line": 31,
+          "kind": "contract",
+          "selector": "QuoteDocument"
+        },
+        {
+          "line": 32,
+          "kind": "contract",
+          "selector": "QuoteOffer"
+        },
+        {
+          "line": 33,
+          "kind": "contract",
+          "selector": "AcceptedOffer"
+        },
+        {
+          "line": 34,
+          "kind": "contract",
+          "selector": "QuotePdf"
+        },
+        {
+          "line": 35,
+          "kind": "capability",
+          "selector": "DocumentsV1"
+        },
+        {
+          "line": 37,
+          "kind": "event",
+          "selector": "HoldProgress"
+        },
+        {
+          "line": 38,
+          "kind": "event",
+          "selector": "HoldDeadline"
+        },
+        {
+          "line": 43,
+          "kind": "derive",
+          "selector": "Revision.snapshot"
+        },
+        {
+          "line": 44,
+          "kind": "derive",
+          "selector": "Revision.notice_state"
+        },
+        {
+          "line": 45,
+          "kind": "derive",
+          "selector": "Revision.document_delivery_state"
+        },
+        {
+          "line": 46,
+          "kind": "policy",
+          "selector": "Proposal"
+        },
+        {
+          "line": 47,
+          "kind": "policy",
+          "selector": "Revision"
+        },
+        {
+          "line": 48,
+          "kind": "policy",
+          "selector": "Revision"
+        },
+        {
+          "line": 49,
+          "kind": "policy",
+          "selector": "Item"
+        },
+        {
+          "line": 50,
+          "kind": "policy",
+          "selector": "Item"
+        },
+        {
+          "line": 51,
+          "kind": "invariant",
+          "selector": "Proposal"
+        },
+        {
+          "line": 52,
+          "kind": "invariant",
+          "selector": "Revision"
+        },
+        {
+          "line": 53,
+          "kind": "invariant",
+          "selector": "Item"
+        },
+        {
+          "line": 54,
+          "kind": "unique",
+          "selector": "Revision"
+        },
+        {
+          "line": 55,
+          "kind": "lock",
+          "selector": "Revision"
+        },
+        {
+          "line": 56,
+          "kind": "lock",
+          "selector": "Revision"
+        },
+        {
+          "line": 57,
+          "kind": "lock",
+          "selector": "Item"
+        },
+        {
+          "line": 69,
+          "kind": "crud",
+          "selector": "Proposal"
+        },
+        {
+          "line": 70,
+          "kind": "crud",
+          "selector": "Item"
+        },
+        {
+          "line": 72,
+          "kind": "scenario",
+          "selector": "revise(proposal"
+        },
+        {
+          "line": 90,
+          "kind": "scenario",
+          "selector": "send_offer(revision"
+        },
+        {
+          "line": 97,
+          "kind": "scenario",
+          "selector": "document(revision"
+        },
+        {
+          "line": 124,
+          "kind": "scenario",
+          "selector": "document_result"
+        },
+        {
+          "line": 150,
+          "kind": "scenario",
+          "selector": "decide(revision"
+        },
+        {
+          "line": 177,
+          "kind": "scenario",
+          "selector": "hold_inventory(revision"
+        },
+        {
+          "line": 188,
+          "kind": "scenario",
+          "selector": "held"
+        },
+        {
+          "line": 216,
+          "kind": "scenario",
+          "selector": "request_booking(revision"
+        },
+        {
+          "line": 235,
+          "kind": "scenario",
+          "selector": "booked"
+        },
+        {
+          "line": 265,
+          "kind": "scenario",
+          "selector": "offer_changed"
+        },
+        {
+          "line": 295,
+          "kind": "scenario",
+          "selector": "offer_alternative(revision"
+        },
+        {
+          "line": 313,
+          "kind": "scenario",
+          "selector": "revision_created"
+        },
+        {
+          "line": 317,
+          "kind": "scenario",
+          "selector": "revision_updated"
+        },
+        {
+          "line": 322,
+          "kind": "scenario",
+          "selector": "recover_hold(revision"
+        },
+        {
+          "line": 330,
+          "kind": "scenario",
+          "selector": "expire_holds"
+        },
+        {
+          "line": 358,
+          "kind": "scenario",
+          "selector": "hold_deadline"
+        },
+        {
+          "line": 372,
+          "kind": "scenario",
+          "selector": "hold_released"
+        },
+        {
+          "line": 377,
+          "kind": "scenario",
+          "selector": "retry_hold_release(revision"
+        },
+        {
+          "line": 382,
+          "kind": "page",
+          "selector": "/offers"
+        },
+        {
+          "line": 449,
+          "kind": "page",
+          "selector": "/offers/respond/"
+        }
+      ],
+      "evidence_state": {
+        "source_available": true,
+        "desired_mjs": "not runtime evidence; any companion target is hand-written desired witness only",
+        "historical_checks": "companion disclosures retained; none rerun",
+        "proven_runtime_errors": [],
+        "runtime_qualification": "not established by this audit; actual installed compiled owner/browser/MCP/provider/concurrency journeys required"
+      }
+    },
+    {
+      "app": "Purchase",
+      "classification": "REQUIRED when selected in original portfolio",
+      "canonical_owners": "supplier + purchase",
+      "families": [
+        "F01",
+        "F02",
+        "F03",
+        "F04",
+        "F05",
+        "F06",
+        "F07",
+        "F08",
+        "F09",
+        "F12"
+      ],
+      "sources": [
+        {
+          "path": "draft/CanPurchase.can",
+          "sha256": "2f4b6beef27c4329f03b7b0903b23326c47be2b775857862bf197a2e16e5be99",
+          "bytes": 46446,
+          "lines": 540,
+          "read": "entire source/companion inspected",
+          "source_kind": "desired authored contract"
+        },
+        {
+          "path": "draft/CanPurchase.md",
+          "sha256": "0496432a908cd1316fe37488a7c49a5ab86774052e6beaa95fc5e7a780cf70b0",
+          "bytes": 13897,
+          "lines": 88,
+          "read": "entire source/companion inspected",
+          "source_kind": "desired requirements + historical validation disclosure"
+        }
+      ],
+      "authority": "Requesters own draft input; distinct assigned approver reserves budget; buyer owns supplier/order/physical receipt; budget manager owns closure/adjustment/payables. Stock and external Accounting retain their own ledgers.",
+      "required_workflows": [
+        "submit freezes requester/reviewer/location/supplier/amount; decide and increase enforce nonself affordable authorization.",
+        "order snapshots supplier/contact/site; Line+Amendment retain original quantities/prices and affordable total.",
+        "receive replays identical physical source; partial accepted/rejected quantities retain receipt; return_goods freezes linked negative stock source.",
+        "close/cancel atomically replace commitments with same-currency actual spend, retain accepted goods and terminal orders; adjust appends affordable linked evidence.",
+        "intake_invoice freezes one file/source; transcribe_claims corrects draft claims; accept_invoice exact confirmed claims into Payable against closed spending; reject_invoice is terminal with reason.",
+        "export_payable requires configured accounting record binding; reconcile_stock retries one receipt/return per tick up to three per admitted cycle; investigated retry_stock/retry_return keeps facts.",
+        "Own requests and procurement queues preserve approval reasons, receipts, posting states and file evidence; complete-scope budget totals cannot be partial."
+      ],
+      "failure_retry_termination": "Concurrent approvals/receipts/allocations serialize and reject stale/currency/excess source reuse. Physical receipt pending stock is not usable stock; confirmed projection is sticky. Unknown posting uses stable source reconciliation, not a second receipt. Accounting evidence is not vendor payment.",
+      "required_primitives_and_missing_joins": [
+        "atomic budget/quantity/cost invariants",
+        "source+digest idempotent remote projection",
+        "receipt/outcome producer binding",
+        "frozen file claim attestation",
+        "recurring fairness/recovery"
+      ],
+      "source_sites": [
+        {
+          "line": 2,
+          "kind": "app",
+          "selector": "CanPurchase"
+        },
+        {
+          "line": 5,
+          "kind": "package",
+          "selector": "purchase"
+        },
+        {
+          "line": 23,
+          "kind": "preferences",
+          "selector": ""
+        },
+        {
+          "line": 24,
+          "kind": "invariant",
+          "selector": "preferences"
+        },
+        {
+          "line": 25,
+          "kind": "contract",
+          "selector": "PayableEvidence"
+        },
+        {
+          "line": 27,
+          "kind": "capability",
+          "selector": "PayableEvidenceV1"
+        },
+        {
+          "line": 41,
+          "kind": "derive",
+          "selector": "Budget.committed"
+        },
+        {
+          "line": 42,
+          "kind": "derive",
+          "selector": "Budget.spent"
+        },
+        {
+          "line": 43,
+          "kind": "derive",
+          "selector": "Budget.remaining"
+        },
+        {
+          "line": 44,
+          "kind": "derive",
+          "selector": "Request.authorized"
+        },
+        {
+          "line": 45,
+          "kind": "derive",
+          "selector": "Line.ordered"
+        },
+        {
+          "line": 46,
+          "kind": "derive",
+          "selector": "Receipt.returned"
+        },
+        {
+          "line": 47,
+          "kind": "derive",
+          "selector": "Line.accepted"
+        },
+        {
+          "line": 48,
+          "kind": "policy",
+          "selector": "Budget"
+        },
+        {
+          "line": 49,
+          "kind": "policy",
+          "selector": "Budget"
+        },
+        {
+          "line": 50,
+          "kind": "policy",
+          "selector": "Request"
+        },
+        {
+          "line": 51,
+          "kind": "policy",
+          "selector": "Request"
+        },
+        {
+          "line": 52,
+          "kind": "policy",
+          "selector": "Request"
+        },
+        {
+          "line": 53,
+          "kind": "policy",
+          "selector": "Order"
+        },
+        {
+          "line": 54,
+          "kind": "policy",
+          "selector": "Line"
+        },
+        {
+          "line": 55,
+          "kind": "policy",
+          "selector": "Receipt"
+        },
+        {
+          "line": 56,
+          "kind": "policy",
+          "selector": "Increase"
+        },
+        {
+          "line": 57,
+          "kind": "policy",
+          "selector": "Amendment"
+        },
+        {
+          "line": 58,
+          "kind": "policy",
+          "selector": "Return"
+        },
+        {
+          "line": 59,
+          "kind": "policy",
+          "selector": "Payable"
+        },
+        {
+          "line": 60,
+          "kind": "policy",
+          "selector": "InvoiceDocument"
+        },
+        {
+          "line": 61,
+          "kind": "policy",
+          "selector": "Adjustment"
+        },
+        {
+          "line": 62,
+          "kind": "invariant",
+          "selector": "Budget"
+        },
+        {
+          "line": 63,
+          "kind": "invariant",
+          "selector": "Request"
+        },
+        {
+          "line": 64,
+          "kind": "invariant",
+          "selector": "Order"
+        },
+        {
+          "line": 65,
+          "kind": "invariant",
+          "selector": "Adjustment"
+        },
+        {
+          "line": 66,
+          "kind": "invariant",
+          "selector": "Line"
+        },
+        {
+          "line": 67,
+          "kind": "invariant",
+          "selector": "Receipt"
+        },
+        {
+          "line": 68,
+          "kind": "invariant",
+          "selector": "Receipt"
+        },
+        {
+          "line": 69,
+          "kind": "invariant",
+          "selector": "Return"
+        },
+        {
+          "line": 70,
+          "kind": "invariant",
+          "selector": "Increase"
+        },
+        {
+          "line": 71,
+          "kind": "invariant",
+          "selector": "Amendment"
+        },
+        {
+          "line": 72,
+          "kind": "invariant",
+          "selector": "Payable"
+        },
+        {
+          "line": 73,
+          "kind": "invariant",
+          "selector": "Payable"
+        },
+        {
+          "line": 74,
+          "kind": "unique",
+          "selector": "Payable"
+        },
+        {
+          "line": 75,
+          "kind": "invariant",
+          "selector": "InvoiceDocument"
+        },
+        {
+          "line": 76,
+          "kind": "invariant",
+          "selector": "InvoiceDocument"
+        },
+        {
+          "line": 77,
+          "kind": "invariant",
+          "selector": "InvoiceDocument"
+        },
+        {
+          "line": 78,
+          "kind": "invariant",
+          "selector": "InvoiceDocument"
+        },
+        {
+          "line": 79,
+          "kind": "lock",
+          "selector": "Request"
+        },
+        {
+          "line": 80,
+          "kind": "lock",
+          "selector": "Request"
+        },
+        {
+          "line": 81,
+          "kind": "lock",
+          "selector": "Order"
+        },
+        {
+          "line": 82,
+          "kind": "lock",
+          "selector": "Line"
+        },
+        {
+          "line": 83,
+          "kind": "lock",
+          "selector": "Receipt"
+        },
+        {
+          "line": 84,
+          "kind": "lock",
+          "selector": "Increase"
+        },
+        {
+          "line": 85,
+          "kind": "lock",
+          "selector": "Amendment"
+        },
+        {
+          "line": 86,
+          "kind": "lock",
+          "selector": "Return"
+        },
+        {
+          "line": 87,
+          "kind": "lock",
+          "selector": "Payable"
+        },
+        {
+          "line": 88,
+          "kind": "lock",
+          "selector": "InvoiceDocument"
+        },
+        {
+          "line": 89,
+          "kind": "lock",
+          "selector": "InvoiceDocument"
+        },
+        {
+          "line": 90,
+          "kind": "lock",
+          "selector": "Adjustment"
+        },
+        {
+          "line": 103,
+          "kind": "crud",
+          "selector": "Budget"
+        },
+        {
+          "line": 104,
+          "kind": "crud",
+          "selector": "Request"
+        },
+        {
+          "line": 105,
+          "kind": "crud",
+          "selector": "Line"
+        },
+        {
+          "line": 107,
+          "kind": "scenario",
+          "selector": "submit(request"
+        },
+        {
+          "line": 111,
+          "kind": "scenario",
+          "selector": "decide(request"
+        },
+        {
+          "line": 126,
+          "kind": "scenario",
+          "selector": "order(request"
+        },
+        {
+          "line": 130,
+          "kind": "scenario",
+          "selector": "increase(request"
+        },
+        {
+          "line": 140,
+          "kind": "scenario",
+          "selector": "amend(line"
+        },
+        {
+          "line": 152,
+          "kind": "scenario",
+          "selector": "receive(line"
+        },
+        {
+          "line": 178,
+          "kind": "scenario",
+          "selector": "return_goods(receipt"
+        },
+        {
+          "line": 197,
+          "kind": "scenario",
+          "selector": "close(request"
+        },
+        {
+          "line": 204,
+          "kind": "scenario",
+          "selector": "cancel(request"
+        },
+        {
+          "line": 218,
+          "kind": "scenario",
+          "selector": "record_payable(order"
+        },
+        {
+          "line": 235,
+          "kind": "scenario",
+          "selector": "intake_invoice(order"
+        },
+        {
+          "line": 252,
+          "kind": "scenario",
+          "selector": "transcribe_claims(invoice_document"
+        },
+        {
+          "line": 267,
+          "kind": "scenario",
+          "selector": "accept_invoice(invoice_document"
+        },
+        {
+          "line": 290,
+          "kind": "scenario",
+          "selector": "reject_invoice(invoice_document"
+        },
+        {
+          "line": 303,
+          "kind": "scenario",
+          "selector": "export_payable(payable"
+        },
+        {
+          "line": 309,
+          "kind": "scenario",
+          "selector": "adjust(request"
+        },
+        {
+          "line": 313,
+          "kind": "scenario",
+          "selector": "retry_stock(receipt"
+        },
+        {
+          "line": 317,
+          "kind": "scenario",
+          "selector": "retry_return(returned"
+        },
+        {
+          "line": 321,
+          "kind": "scenario",
+          "selector": "reconcile_stock"
+        },
+        {
+          "line": 331,
+          "kind": "scenario",
+          "selector": "stock_result"
+        },
+        {
+          "line": 355,
+          "kind": "scenario",
+          "selector": "stock_changed"
+        },
+        {
+          "line": 369,
+          "kind": "scenario",
+          "selector": "payable_result"
+        },
+        {
+          "line": 381,
+          "kind": "page",
+          "selector": "/purchasing/mine"
+        },
+        {
+          "line": 399,
+          "kind": "page",
+          "selector": "/purchasing"
+        }
+      ],
+      "evidence_state": {
+        "source_available": true,
+        "desired_mjs": "not runtime evidence; any companion target is hand-written desired witness only",
+        "historical_checks": "companion disclosures retained; none rerun",
+        "proven_runtime_errors": [],
+        "runtime_qualification": "not established by this audit; actual installed compiled owner/browser/MCP/provider/concurrency journeys required"
+      }
+    },
+    {
+      "app": "Reception",
+      "classification": "REQUIRED when selected in original portfolio",
+      "canonical_owners": "reception",
+      "families": [
+        "F01",
+        "F02",
+        "F03",
+        "F04",
+        "F05",
+        "F06",
+        "F07",
+        "F08",
+        "F09",
+        "F12"
+      ],
+      "sources": [
+        {
+          "path": "draft/CanReception.can",
+          "sha256": "c647d5430d82e16e40e95dfb364f80e2d11d3b2aee37b091a3aae369d2ccdf9c",
+          "bytes": 44461,
+          "lines": 502,
+          "read": "entire source/companion inspected",
+          "source_kind": "desired authored contract"
+        },
+        {
+          "path": "draft/CanReception.md",
+          "sha256": "1f3f29884cb12714320d2eee14ab18ee47b80ac8fc065fe9dcb0f09728ffe271",
+          "bytes": 17812,
+          "lines": 97,
+          "read": "entire source/companion inspected",
+          "source_kind": "desired requirements + historical validation disclosure"
+        }
+      ],
+      "authority": "Verified current customer host invites; receptionist owns evidenced arrival/departure; access_staff owns custody and desired device rights. Member owner supplies fresh whole-interval entitlement; guest has only limited own invitation access.",
+      "required_workflows": [
+        "invite/refresh/resend freezes Visit identity/window and requests source-correlated Member evidence; current_access joins host/contact/customer/location/hours and evidence checked within one minute.",
+        "arrive rechecks guest count, fresh entitlement, configured host presence and identity evidence; depart is explicit physical evidence and does not clear Rent occupancy.",
+        "issue reserves one actual credential and freezes customer/holder/device/audit lifetime; return_key, lost and manual_revoke preserve custody separately from device outcome.",
+        "DeviceObserved converges apply/reconcile/changed using desired revision + monotone observation; retry_device keeps current intent identity and unknown/conflicting revocation visible.",
+        "CompanyAccessChanged and recheck_access advance stable one-record Visit/Issue cursors; access_review exposes safe counts without roster/device details.",
+        "VisitRefresh/CredentialCheck/VisitorReminder keyed occurrences stop at terminal/lifetime state; retention hides visitor content while frozen issue evidence remains recoverable.",
+        "Reception, credentials, own invitations and company/staff access-review pages retain roles; contextual guest invitation destination and repeated command contract need completion."
+      ],
+      "failure_retry_termination": "Unavailable entitlement blocks admission. Revocation prevents new entry immediately but never invents exit or hardware success. Arrival/return recovery remains usable after entitlement expiry. Unknown hardware requires reconciliation/manual evidence; terminal visits stop refresh. Same operation replay stays required; fresh repeated arrival/departure behavior differs from companion.",
+      "required_primitives_and_missing_joins": [
+        "cross-owner fresh evidence guards",
+        "atomic guest limit/credential custody",
+        "privacy-safe aggregates",
+        "reference-safe retention",
+        "durable cursors and keyed expiry",
+        "optional device idempotency"
+      ],
+      "source_sites": [
+        {
+          "line": 2,
+          "kind": "app",
+          "selector": "CanReception"
+        },
+        {
+          "line": 5,
+          "kind": "package",
+          "selector": "reception"
+        },
+        {
+          "line": 29,
+          "kind": "preferences",
+          "selector": ""
+        },
+        {
+          "line": 30,
+          "kind": "contract",
+          "selector": "DeviceState"
+        },
+        {
+          "line": 31,
+          "kind": "capability",
+          "selector": "DeviceV1"
+        },
+        {
+          "line": 34,
+          "kind": "event",
+          "selector": "changed"
+        },
+        {
+          "line": 39,
+          "kind": "derive",
+          "selector": "Visit.notice_state"
+        },
+        {
+          "line": 41,
+          "kind": "unique",
+          "selector": "GuestPolicy"
+        },
+        {
+          "line": 45,
+          "kind": "policy",
+          "selector": "GuestPolicy"
+        },
+        {
+          "line": 46,
+          "kind": "policy",
+          "selector": "HostPresence"
+        },
+        {
+          "line": 47,
+          "kind": "policy",
+          "selector": "HostPresence"
+        },
+        {
+          "line": 48,
+          "kind": "policy",
+          "selector": "Visit"
+        },
+        {
+          "line": 49,
+          "kind": "policy",
+          "selector": "Visit"
+        },
+        {
+          "line": 50,
+          "kind": "policy",
+          "selector": "Visit"
+        },
+        {
+          "line": 51,
+          "kind": "policy",
+          "selector": "Credential"
+        },
+        {
+          "line": 52,
+          "kind": "policy",
+          "selector": "Issue"
+        },
+        {
+          "line": 53,
+          "kind": "invariant",
+          "selector": "GuestPolicy"
+        },
+        {
+          "line": 54,
+          "kind": "invariant",
+          "selector": "HostPresence"
+        },
+        {
+          "line": 55,
+          "kind": "invariant",
+          "selector": "Visit"
+        },
+        {
+          "line": 56,
+          "kind": "invariant",
+          "selector": "Issue"
+        },
+        {
+          "line": 57,
+          "kind": "unique",
+          "selector": "Issue"
+        },
+        {
+          "line": 58,
+          "kind": "lock",
+          "selector": "Issue"
+        },
+        {
+          "line": 59,
+          "kind": "lock",
+          "selector": "Visit"
+        },
+        {
+          "line": 60,
+          "kind": "lock",
+          "selector": "HostPresence"
+        },
+        {
+          "line": 61,
+          "kind": "retain",
+          "selector": "Visit"
+        },
+        {
+          "line": 62,
+          "kind": "retain",
+          "selector": "HostPresence"
+        },
+        {
+          "line": 63,
+          "kind": "retain",
+          "selector": "Issue"
+        },
+        {
+          "line": 64,
+          "kind": "event",
+          "selector": "DeviceObserved"
+        },
+        {
+          "line": 65,
+          "kind": "event",
+          "selector": "VisitorReminder"
+        },
+        {
+          "line": 66,
+          "kind": "event",
+          "selector": "VisitRefresh"
+        },
+        {
+          "line": 67,
+          "kind": "event",
+          "selector": "CredentialCheck"
+        },
+        {
+          "line": 68,
+          "kind": "event",
+          "selector": "CustomerVisitStep"
+        },
+        {
+          "line": 69,
+          "kind": "event",
+          "selector": "CustomerCredentialStep"
+        },
+        {
+          "line": 70,
+          "kind": "contract",
+          "selector": "ReceptionAccessReview"
+        },
+        {
+          "line": 71,
+          "kind": "derive",
+          "selector": "host_eligible(customer"
+        },
+        {
+          "line": 72,
+          "kind": "derive",
+          "selector": "revoke_needed(issue"
+        },
+        {
+          "line": 73,
+          "kind": "derive",
+          "selector": "current_access(visit"
+        },
+        {
+          "line": 74,
+          "kind": "derive",
+          "selector": "guest_count(visit"
+        },
+        {
+          "line": 81,
+          "kind": "crud",
+          "selector": "GuestPolicy"
+        },
+        {
+          "line": 82,
+          "kind": "crud",
+          "selector": "Credential"
+        },
+        {
+          "line": 84,
+          "kind": "scenario",
+          "selector": "invite(customer"
+        },
+        {
+          "line": 94,
+          "kind": "scenario",
+          "selector": "eligible"
+        },
+        {
+          "line": 113,
+          "kind": "scenario",
+          "selector": "membership_changed"
+        },
+        {
+          "line": 120,
+          "kind": "scenario",
+          "selector": "access_review(customer"
+        },
+        {
+          "line": 141,
+          "kind": "scenario",
+          "selector": "recheck_access(customer"
+        },
+        {
+          "line": 153,
+          "kind": "scenario",
+          "selector": "customer_changed"
+        },
+        {
+          "line": 157,
+          "kind": "scenario",
+          "selector": "customer_visit_step"
+        },
+        {
+          "line": 175,
+          "kind": "scenario",
+          "selector": "customer_credential_step"
+        },
+        {
+          "line": 182,
+          "kind": "scenario",
+          "selector": "refresh(visit"
+        },
+        {
+          "line": 188,
+          "kind": "scenario",
+          "selector": "refresh_due"
+        },
+        {
+          "line": 207,
+          "kind": "scenario",
+          "selector": "host_arrived(customer"
+        },
+        {
+          "line": 212,
+          "kind": "scenario",
+          "selector": "host_departed(presence"
+        },
+        {
+          "line": 216,
+          "kind": "scenario",
+          "selector": "arrive(visit"
+        },
+        {
+          "line": 232,
+          "kind": "scenario",
+          "selector": "depart(visit"
+        },
+        {
+          "line": 236,
+          "kind": "scenario",
+          "selector": "cancel(visit"
+        },
+        {
+          "line": 241,
+          "kind": "scenario",
+          "selector": "refuse(visit"
+        },
+        {
+          "line": 245,
+          "kind": "scenario",
+          "selector": "issue(credential"
+        },
+        {
+          "line": 258,
+          "kind": "scenario",
+          "selector": "return_key(issue"
+        },
+        {
+          "line": 273,
+          "kind": "scenario",
+          "selector": "lost(issue"
+        },
+        {
+          "line": 284,
+          "kind": "scenario",
+          "selector": "manual_revoke(issue"
+        },
+        {
+          "line": 287,
+          "kind": "scenario",
+          "selector": "device_result"
+        },
+        {
+          "line": 291,
+          "kind": "scenario",
+          "selector": "device_applied"
+        },
+        {
+          "line": 299,
+          "kind": "scenario",
+          "selector": "device_reconciled"
+        },
+        {
+          "line": 307,
+          "kind": "scenario",
+          "selector": "device_observed"
+        },
+        {
+          "line": 318,
+          "kind": "scenario",
+          "selector": "reconcile_device(issue"
+        },
+        {
+          "line": 324,
+          "kind": "scenario",
+          "selector": "retry_device(issue"
+        },
+        {
+          "line": 335,
+          "kind": "scenario",
+          "selector": "revoke_expired"
+        },
+        {
+          "line": 354,
+          "kind": "scenario",
+          "selector": "resend(visit"
+        },
+        {
+          "line": 360,
+          "kind": "scenario",
+          "selector": "remind"
+        },
+        {
+          "line": 367,
+          "kind": "page",
+          "selector": "/reception/access-review"
+        },
+        {
+          "line": 375,
+          "kind": "page",
+          "selector": "/companies/"
+        },
+        {
+          "line": 384,
+          "kind": "page",
+          "selector": "/reception"
+        },
+        {
+          "line": 429,
+          "kind": "page",
+          "selector": "/reception/credentials"
+        },
+        {
+          "line": 481,
+          "kind": "page",
+          "selector": "/reception/mine"
+        }
+      ],
+      "evidence_state": {
+        "source_available": true,
+        "desired_mjs": "not runtime evidence; any companion target is hand-written desired witness only",
+        "historical_checks": "companion disclosures retained; none rerun",
+        "proven_runtime_errors": [],
+        "runtime_qualification": "not established by this audit; actual installed compiled owner/browser/MCP/provider/concurrency journeys required"
+      }
+    },
+    {
+      "app": "Refer",
+      "classification": "REQUIRED when selected in original portfolio",
+      "canonical_owners": "refer + sales_attribution",
+      "families": [
+        "F01",
+        "F02",
+        "F03",
+        "F04",
+        "F05",
+        "F06",
+        "F08",
+        "F09",
+        "F12"
+      ],
+      "sources": [
+        {
+          "path": "draft/CanRefer.can",
+          "sha256": "87a3fee1ba5c4c86c43fa29c9df2e8ef31926b37f43b39ed622e9625d321c196",
+          "bytes": 25527,
+          "lines": 268,
+          "read": "entire source/companion inspected",
+          "source_kind": "desired authored contract"
+        },
+        {
+          "path": "draft/CanRefer.md",
+          "sha256": "e0c252f7aca56703f81baad55088a6f2630fe58fca4105f9885cac6414fbd8cc",
+          "bytes": 12681,
+          "lines": 85,
+          "read": "entire source/companion inspected",
+          "source_kind": "desired requirements + historical validation disclosure"
+        }
+      ],
+      "authority": "Verified customer owner/booker/admin captures exactly one nonself Advocate or Partner. Trusted Invoice qualification proves paid original source and reviewed first-customer history; program manager rejects evidence; finance alone records external cash settlement.",
+      "required_workflows": [
+        "join creates own advocate with unique public code; capture freezes owner-qualified exclusive program/account/time/window under Customer.",
+        "latest_capture selects current eligible product/location/nonself origin; purchase time, not later completion, lies inside frozen window.",
+        "qualify deduplicates stable source/revision and immutable identity/amount/attribution; completion/cancellation-passed + known first customer produces one frozen credit/customer/program.",
+        "Refund/disqualification/history contradiction creates one negative reversal, including before credit or after program inactivation; reject_source records reason.",
+        "settle returns identical external payment-source/reference evidence or atomically allocates affordable credits; reversal preserves payment and exposes owed versus available.",
+        "Own rewards, qualification exception, finance and public invitation pages expose scoped statements and explicit sharing, never bank initiation."
+      ],
+      "failure_retry_termination": "Conflicting identity/same-revision observation fails; stale ignored; reversal tombstone never revives. Settlement affordability/allocation checks reject excess together (500-credit bound must reject whole work). Unknown/absent commercial history is not first-customer proof. Notifications never qualify or prove payment.",
+      "required_primitives_and_missing_joins": [
+        "atomic balance/allocation/reversal",
+        "verified committed sales mapping",
+        "historical completeness checkpoint",
+        "public locator versus ingest authority"
+      ],
+      "source_sites": [
+        {
+          "line": 2,
+          "kind": "app",
+          "selector": "CanRefer"
+        },
+        {
+          "line": 5,
+          "kind": "app",
+          "selector": "ReferralsPartners"
+        },
+        {
+          "line": 8,
+          "kind": "package",
+          "selector": "refer"
+        },
+        {
+          "line": 16,
+          "kind": "preferences",
+          "selector": ""
+        },
+        {
+          "line": 28,
+          "kind": "lock",
+          "selector": "Advocate"
+        },
+        {
+          "line": 29,
+          "kind": "lock",
+          "selector": "SourceEvidence"
+        },
+        {
+          "line": 33,
+          "kind": "derive",
+          "selector": "Advocate.earned"
+        },
+        {
+          "line": 34,
+          "kind": "derive",
+          "selector": "Advocate.paid"
+        },
+        {
+          "line": 35,
+          "kind": "derive",
+          "selector": "Advocate.owed"
+        },
+        {
+          "line": 36,
+          "kind": "derive",
+          "selector": "Advocate.available"
+        },
+        {
+          "line": 37,
+          "kind": "policy",
+          "selector": "Program"
+        },
+        {
+          "line": 38,
+          "kind": "policy",
+          "selector": "Program"
+        },
+        {
+          "line": 39,
+          "kind": "policy",
+          "selector": "Advocate"
+        },
+        {
+          "line": 40,
+          "kind": "policy",
+          "selector": "SourceEvidence"
+        },
+        {
+          "line": 41,
+          "kind": "policy",
+          "selector": "Advocate"
+        },
+        {
+          "line": 42,
+          "kind": "policy",
+          "selector": "Advocate"
+        },
+        {
+          "line": 43,
+          "kind": "policy",
+          "selector": "Credit"
+        },
+        {
+          "line": 44,
+          "kind": "policy",
+          "selector": "Credit"
+        },
+        {
+          "line": 45,
+          "kind": "policy",
+          "selector": "Settlement"
+        },
+        {
+          "line": 46,
+          "kind": "policy",
+          "selector": "Settlement"
+        },
+        {
+          "line": 47,
+          "kind": "policy",
+          "selector": "Allocation"
+        },
+        {
+          "line": 48,
+          "kind": "policy",
+          "selector": "Allocation"
+        },
+        {
+          "line": 49,
+          "kind": "invariant",
+          "selector": "Program"
+        },
+        {
+          "line": 50,
+          "kind": "invariant",
+          "selector": "Advocate"
+        },
+        {
+          "line": 51,
+          "kind": "unique",
+          "selector": "Settlement"
+        },
+        {
+          "line": 52,
+          "kind": "invariant",
+          "selector": "Allocation"
+        },
+        {
+          "line": 53,
+          "kind": "lock",
+          "selector": "Credit"
+        },
+        {
+          "line": 54,
+          "kind": "lock",
+          "selector": "Settlement"
+        },
+        {
+          "line": 55,
+          "kind": "lock",
+          "selector": "Allocation"
+        },
+        {
+          "line": 63,
+          "kind": "crud",
+          "selector": "Program"
+        },
+        {
+          "line": 65,
+          "kind": "scenario",
+          "selector": "join(program"
+        },
+        {
+          "line": 69,
+          "kind": "scenario",
+          "selector": "settle(advocate"
+        },
+        {
+          "line": 95,
+          "kind": "scenario",
+          "selector": "qualify"
+        },
+        {
+          "line": 128,
+          "kind": "event",
+          "selector": ".value.first_customer,event.value.history_known,event.value.product,event.value.attributed_at"
+        },
+        {
+          "line": 135,
+          "kind": "event",
+          "selector": ".value.milestone"
+        },
+        {
+          "line": 147,
+          "kind": "scenario",
+          "selector": "reject_source(evidence"
+        },
+        {
+          "line": 161,
+          "kind": "page",
+          "selector": "/referrals"
+        },
+        {
+          "line": 191,
+          "kind": "page",
+          "selector": "/referrals/work"
+        },
+        {
+          "line": 222,
+          "kind": "page",
+          "selector": "/referrals/share/"
+        },
+        {
+          "line": 232,
+          "kind": "package",
+          "selector": "sales_attribution"
+        },
+        {
+          "line": 239,
+          "kind": "invariant",
+          "selector": "Capture"
+        },
+        {
+          "line": 240,
+          "kind": "lock",
+          "selector": "Capture"
+        },
+        {
+          "line": 241,
+          "kind": "policy",
+          "selector": "Capture"
+        },
+        {
+          "line": 242,
+          "kind": "derive",
+          "selector": "latest_capture(customer"
+        },
+        {
+          "line": 245,
+          "kind": "scenario",
+          "selector": "capture(customer"
+        }
+      ],
+      "evidence_state": {
+        "source_available": true,
+        "desired_mjs": "not runtime evidence; any companion target is hand-written desired witness only",
+        "historical_checks": "companion disclosures retained; none rerun",
+        "proven_runtime_errors": [],
+        "runtime_qualification": "not established by this audit; actual installed compiled owner/browser/MCP/provider/concurrency journeys required"
+      }
+    },
+    {
+      "app": "Rent",
+      "classification": "REQUIRED when selected in original portfolio",
+      "canonical_owners": "rent_catalog_ui + rent_reservations + rent_fulfillment + rent_reporting",
+      "families": [
+        "F01",
+        "F02",
+        "F03",
+        "F04",
+        "F05",
+        "F06",
+        "F07",
+        "F08",
+        "F09",
+        "F11",
+        "F12"
+      ],
+      "sources": [
+        {
+          "path": "draft/CanRent.can",
+          "sha256": "38122784280f5bc9e32cd4b62e7b236eb3bf3f51121a75751cfb087b25960654",
+          "bytes": 197946,
+          "lines": 1905,
+          "read": "entire source/companion inspected",
+          "source_kind": "desired authored contract"
+        },
+        {
+          "path": "draft/CanRent.md",
+          "sha256": "2afe63cda26f371b5bb5426a8dbb6892b09a5d9123478ee5b881c41747ca62dd",
+          "bytes": 42217,
+          "lines": 160,
+          "read": "entire source/companion inspected",
+          "source_kind": "desired requirements + historical validation disclosure"
+        }
+      ],
+      "authority": "Resource/zone capacity and actual occupancy share team D1 canonical fence. Catalog/manager/reception/billing/customer grants stay separate; Invoice collects money once, Member owns allowance, Customer owns on-account approval, Reception owns guest/key handling.",
+      "required_workflows": [
+        "available/available_days use published hours, amenities, attendee limit, capacity units, buffers/windows/downtime/occupancy; hold/hold_days atomically freeze every hourly/day interval and commercial policy.",
+        "prepare/request coordinates capacity+Member reserve/consume+full monetary balance; fulfill_free and confirm_account are explicit qualified fulfillment, not fabricated payment.",
+        "money/allowance snapshots use cumulative owner revisions, source/amount correlation and permanent cancellation fences; late settlement rechecks capacity or retains refund/alternative review.",
+        "move/move_days preserve original on conflict; move_membership families stage retained predecessor/candidate, overage or credit, adopt only after fresh capacity+consumption, reconcile/abandon/retry cleanup with restoration flag.",
+        "check_in/out retains actual occupancy until explicit departure, including pooled unresolved seat quantity and departure buffer; no_show/cancel preserve custody and frozen refund policy; extend/adjust/refund are separate charges.",
+        "Rooms ingress hold/stage/confirm/move/release/downtime/restore/affected and quote hold/accept/release map exact committed outcomes; definitive quote refusal fences frozen AcceptedOffer; release-after-Booking cannot masquerade as free capacity.",
+        "block/restore/revise_capacity/resolve_conflict and assign_desk retain existing bookings, affected conflicts and one capacity count; changed events drive guarded notices/sales milestones.",
+        "resource_report reconstructs immutable policy/entity facts and baseline coverage; historic day-calendar narrowing evidence is incomplete in source.",
+        "retain_legacy/legacy_matches/link_legacy retain exact source keys/assertions/files separately from live reservation, original invoice edges and current mapping/access; rowwise CSV frozen replay+review supports 20,000 old records without entitlement inference.",
+        "Eight workspace destinations cover discovery, own bookings, arrivals, occupancy, reservations, catalog/resources, history and finance recovery; native installed consumer must qualify full compiled composition."
+      ],
+      "failure_retry_termination": "Concurrent last-seat/allowance requests serialize; failed counterpart release is once; unknown funds remain held/reconciled. Planned end/expiry never clears actual occupancy. Old/terminal callbacks cannot restore closed quote/Booking; retained commitments require explicit owning resolution. Historical unknown/prebaseline coverage stays partial. Multi-resource carts/deposits/partial money/door automation/leases are deferred outside selected version.",
+      "required_primitives_and_missing_joins": [
+        "multiinterval/pool boundary capacity",
+        "exact datetime/DST/financial snapshots",
+        "recoverable cross-owner choreography",
+        "source-correlated quote/venue/sales adapters",
+        "historic entity-fact report coverage",
+        "20k intake/files/original-edge continuity"
+      ],
+      "source_sites": [
+        {
+          "line": 2,
+          "kind": "app",
+          "selector": "CanRent"
+        },
+        {
+          "line": 5,
+          "kind": "app",
+          "selector": "Workspace"
+        },
+        {
+          "line": 8,
+          "kind": "package",
+          "selector": "rent_catalog_ui"
+        },
+        {
+          "line": 11,
+          "kind": "preferences",
+          "selector": ""
+        },
+        {
+          "line": 15,
+          "kind": "page",
+          "selector": "/workspace/catalog"
+        },
+        {
+          "line": 19,
+          "kind": "preferences",
+          "selector": ""
+        },
+        {
+          "line": 70,
+          "kind": "package",
+          "selector": "rent_reservations"
+        },
+        {
+          "line": 83,
+          "kind": "preferences",
+          "selector": ""
+        },
+        {
+          "line": 92,
+          "kind": "contract",
+          "selector": "RoomRequest"
+        },
+        {
+          "line": 93,
+          "kind": "capability",
+          "selector": "RoomsV1"
+        },
+        {
+          "line": 105,
+          "kind": "event",
+          "selector": "changed"
+        },
+        {
+          "line": 106,
+          "kind": "event",
+          "selector": "offer_changed"
+        },
+        {
+          "line": 107,
+          "kind": "contract",
+          "selector": "AffectedBooking"
+        },
+        {
+          "line": 108,
+          "kind": "contract",
+          "selector": "AffectedBookings"
+        },
+        {
+          "line": 109,
+          "kind": "event",
+          "selector": "AffectedOutcome"
+        },
+        {
+          "line": 110,
+          "kind": "contract",
+          "selector": "ReservationOfferOutcome"
+        },
+        {
+          "line": 111,
+          "kind": "capability",
+          "selector": "RoomsIngressV1"
+        },
+        {
+          "line": 112,
+          "kind": "event",
+          "selector": "move"
+        },
+        {
+          "line": 113,
+          "kind": "event",
+          "selector": "affected"
+        },
+        {
+          "line": 114,
+          "kind": "event",
+          "selector": "downtime"
+        },
+        {
+          "line": 115,
+          "kind": "event",
+          "selector": "restore"
+        },
+        {
+          "line": 116,
+          "kind": "event",
+          "selector": "hold"
+        },
+        {
+          "line": 117,
+          "kind": "event",
+          "selector": "stage"
+        },
+        {
+          "line": 118,
+          "kind": "event",
+          "selector": "confirm"
+        },
+        {
+          "line": 119,
+          "kind": "event",
+          "selector": "release"
+        },
+        {
+          "line": 120,
+          "kind": "event",
+          "selector": "hold_offer"
+        },
+        {
+          "line": 121,
+          "kind": "event",
+          "selector": "accept_offer"
+        },
+        {
+          "line": 122,
+          "kind": "event",
+          "selector": "release_offer"
+        },
+        {
+          "line": 123,
+          "kind": "event",
+          "selector": "VenueOutcome"
+        },
+        {
+          "line": 124,
+          "kind": "event",
+          "selector": "OfferOutcome"
+        },
+        {
+          "line": 127,
+          "kind": "unique",
+          "selector": "ReservationFence"
+        },
+        {
+          "line": 128,
+          "kind": "lock",
+          "selector": "ReservationFence"
+        },
+        {
+          "line": 132,
+          "kind": "event",
+          "selector": "VenueDue"
+        },
+        {
+          "line": 133,
+          "kind": "event",
+          "selector": "QuoteDue"
+        },
+        {
+          "line": 137,
+          "kind": "contract",
+          "selector": "LegacyBookingFacts"
+        },
+        {
+          "line": 140,
+          "kind": "unique",
+          "selector": "LegacyBooking"
+        },
+        {
+          "line": 141,
+          "kind": "lock",
+          "selector": "LegacyBooking"
+        },
+        {
+          "line": 142,
+          "kind": "policy",
+          "selector": "LegacyBooking"
+        },
+        {
+          "line": 143,
+          "kind": "policy",
+          "selector": "LegacyBooking"
+        },
+        {
+          "line": 144,
+          "kind": "invariant",
+          "selector": "LegacyBooking"
+        },
+        {
+          "line": 149,
+          "kind": "contract",
+          "selector": "WorkspaceAvailability"
+        },
+        {
+          "line": 150,
+          "kind": "contract",
+          "selector": "DayAvailability"
+        },
+        {
+          "line": 151,
+          "kind": "contract",
+          "selector": "BookingInterval"
+        },
+        {
+          "line": 164,
+          "kind": "derive",
+          "selector": "Notice.state"
+        },
+        {
+          "line": 168,
+          "kind": "unique",
+          "selector": "CommercialSale"
+        },
+        {
+          "line": 169,
+          "kind": "event",
+          "selector": "CommercialCheck"
+        },
+        {
+          "line": 170,
+          "kind": "event",
+          "selector": "MovementDue"
+        },
+        {
+          "line": 171,
+          "kind": "event",
+          "selector": "MovementObserved"
+        },
+        {
+          "line": 172,
+          "kind": "event",
+          "selector": "MovementCleared"
+        },
+        {
+          "line": 173,
+          "kind": "event",
+          "selector": "AllowanceObserved"
+        },
+        {
+          "line": 174,
+          "kind": "event",
+          "selector": "OccupancyDue"
+        },
+        {
+          "line": 175,
+          "kind": "event",
+          "selector": "SettlementObserved"
+        },
+        {
+          "line": 176,
+          "kind": "event",
+          "selector": "AdjustmentDue"
+        },
+        {
+          "line": 177,
+          "kind": "event",
+          "selector": "Reminder"
+        },
+        {
+          "line": 178,
+          "kind": "event",
+          "selector": "HoldDue"
+        },
+        {
+          "line": 179,
+          "kind": "event",
+          "selector": "ReservationChanged"
+        },
+        {
+          "line": 180,
+          "kind": "event",
+          "selector": "CommercialSaleChanged"
+        },
+        {
+          "line": 181,
+          "kind": "derive",
+          "selector": "commercial(booking"
+        },
+        {
+          "line": 182,
+          "kind": "derive",
+          "selector": "busy(b"
+        },
+        {
+          "line": 183,
+          "kind": "derive",
+          "selector": "covers(b"
+        },
+        {
+          "line": 184,
+          "kind": "derive",
+          "selector": "venue_busy(venue"
+        },
+        {
+          "line": 185,
+          "kind": "derive",
+          "selector": "venue_covers(venue"
+        },
+        {
+          "line": 186,
+          "kind": "derive",
+          "selector": "quote_covers(hold"
+        },
+        {
+          "line": 187,
+          "kind": "derive",
+          "selector": "quote_available(resource"
+        },
+        {
+          "line": 188,
+          "kind": "derive",
+          "selector": "free_at(resource"
+        },
+        {
+          "line": 189,
+          "kind": "derive",
+          "selector": "free(resource"
+        },
+        {
+          "line": 190,
+          "kind": "derive",
+          "selector": "may_reserve(account"
+        },
+        {
+          "line": 191,
+          "kind": "derive",
+          "selector": "may_move(booking"
+        },
+        {
+          "line": 192,
+          "kind": "derive",
+          "selector": "credit_allowed(customer"
+        },
+        {
+          "line": 193,
+          "kind": "derive",
+          "selector": "bookable(booking"
+        },
+        {
+          "line": 194,
+          "kind": "derive",
+          "selector": "credit_baseline(charge_source"
+        },
+        {
+          "line": 195,
+          "kind": "derive",
+          "selector": "financial_cover(booking"
+        },
+        {
+          "line": 196,
+          "kind": "derive",
+          "selector": "benefit_request(booking"
+        },
+        {
+          "line": 197,
+          "kind": "derive",
+          "selector": "charge_request(booking"
+        },
+        {
+          "line": 198,
+          "kind": "policy",
+          "selector": "MovementCredit"
+        },
+        {
+          "line": 199,
+          "kind": "policy",
+          "selector": "MovementCredit"
+        },
+        {
+          "line": 200,
+          "kind": "policy",
+          "selector": "Notice"
+        },
+        {
+          "line": 201,
+          "kind": "policy",
+          "selector": "Notice"
+        },
+        {
+          "line": 202,
+          "kind": "policy",
+          "selector": "Movement"
+        },
+        {
+          "line": 203,
+          "kind": "policy",
+          "selector": "Movement"
+        },
+        {
+          "line": 204,
+          "kind": "policy",
+          "selector": "Movement"
+        },
+        {
+          "line": 205,
+          "kind": "invariant",
+          "selector": "Movement"
+        },
+        {
+          "line": 206,
+          "kind": "derive",
+          "selector": "movement_busy(movement"
+        },
+        {
+          "line": 207,
+          "kind": "derive",
+          "selector": "movement_covers(movement"
+        },
+        {
+          "line": 208,
+          "kind": "derive",
+          "selector": "movement_request(movement"
+        },
+        {
+          "line": 209,
+          "kind": "derive",
+          "selector": "next_boundary(points"
+        },
+        {
+          "line": 210,
+          "kind": "derive",
+          "selector": "saved_rows(resource"
+        },
+        {
+          "line": 211,
+          "kind": "contract",
+          "selector": "ReportWindow"
+        },
+        {
+          "line": 212,
+          "kind": "contract",
+          "selector": "ReportDowntime"
+        },
+        {
+          "line": 213,
+          "kind": "contract",
+          "selector": "ReportBooking"
+        },
+        {
+          "line": 214,
+          "kind": "contract",
+          "selector": "ReportVenue"
+        },
+        {
+          "line": 215,
+          "kind": "contract",
+          "selector": "ResourceEvidence"
+        },
+        {
+          "line": 217,
+          "kind": "unique",
+          "selector": "ResourcePolicy"
+        },
+        {
+          "line": 218,
+          "kind": "policy",
+          "selector": "ResourcePolicy"
+        },
+        {
+          "line": 219,
+          "kind": "lock",
+          "selector": "ResourcePolicy"
+        },
+        {
+          "line": 224,
+          "kind": "unique",
+          "selector": "BookingEvidence"
+        },
+        {
+          "line": 225,
+          "kind": "unique",
+          "selector": "VenueEvidence"
+        },
+        {
+          "line": 226,
+          "kind": "unique",
+          "selector": "WindowEvidence"
+        },
+        {
+          "line": 227,
+          "kind": "unique",
+          "selector": "DowntimeEvidence"
+        },
+        {
+          "line": 228,
+          "kind": "lock",
+          "selector": "BookingEvidence"
+        },
+        {
+          "line": 229,
+          "kind": "lock",
+          "selector": "VenueEvidence"
+        },
+        {
+          "line": 230,
+          "kind": "lock",
+          "selector": "WindowEvidence"
+        },
+        {
+          "line": 231,
+          "kind": "lock",
+          "selector": "DowntimeEvidence"
+        },
+        {
+          "line": 232,
+          "kind": "policy",
+          "selector": "BookingEvidence"
+        },
+        {
+          "line": 233,
+          "kind": "policy",
+          "selector": "VenueEvidence"
+        },
+        {
+          "line": 234,
+          "kind": "policy",
+          "selector": "WindowEvidence"
+        },
+        {
+          "line": 235,
+          "kind": "policy",
+          "selector": "DowntimeEvidence"
+        },
+        {
+          "line": 236,
+          "kind": "invariant",
+          "selector": "BookingEvidence"
+        },
+        {
+          "line": 237,
+          "kind": "invariant",
+          "selector": "VenueEvidence"
+        },
+        {
+          "line": 238,
+          "kind": "invariant",
+          "selector": "WindowEvidence"
+        },
+        {
+          "line": 239,
+          "kind": "invariant",
+          "selector": "DowntimeEvidence"
+        },
+        {
+          "line": 240,
+          "kind": "derive",
+          "selector": "resource_evidence(resource"
+        },
+        {
+          "line": 241,
+          "kind": "derive",
+          "selector": "report_booking(booking"
+        },
+        {
+          "line": 242,
+          "kind": "derive",
+          "selector": "report_venue(venue"
+        },
+        {
+          "line": 243,
+          "kind": "derive",
+          "selector": "report_window(window"
+        },
+        {
+          "line": 244,
+          "kind": "derive",
+          "selector": "report_downtime(downtime"
+        },
+        {
+          "line": 245,
+          "kind": "derive",
+          "selector": "saved_bookings(resource"
+        },
+        {
+          "line": 246,
+          "kind": "derive",
+          "selector": "saved_venues(resource"
+        },
+        {
+          "line": 247,
+          "kind": "derive",
+          "selector": "saved_windows(resource"
+        },
+        {
+          "line": 248,
+          "kind": "derive",
+          "selector": "saved_downtime(resource"
+        },
+        {
+          "line": 249,
+          "kind": "derive",
+          "selector": "saved_service(booking"
+        },
+        {
+          "line": 250,
+          "kind": "derive",
+          "selector": "saved_saleable(policy"
+        },
+        {
+          "line": 251,
+          "kind": "policy",
+          "selector": "Resource"
+        },
+        {
+          "line": 252,
+          "kind": "policy",
+          "selector": "Resource"
+        },
+        {
+          "line": 253,
+          "kind": "policy",
+          "selector": "Resource"
+        },
+        {
+          "line": 254,
+          "kind": "policy",
+          "selector": "DayCalendar"
+        },
+        {
+          "line": 255,
+          "kind": "policy",
+          "selector": "Window"
+        },
+        {
+          "line": 256,
+          "kind": "derive",
+          "selector": "can_read_booking_details(booking"
+        },
+        {
+          "line": 257,
+          "kind": "policy",
+          "selector": "Booking"
+        },
+        {
+          "line": 258,
+          "kind": "policy",
+          "selector": "Booking"
+        },
+        {
+          "line": 259,
+          "kind": "policy",
+          "selector": "Downtime"
+        },
+        {
+          "line": 260,
+          "kind": "policy",
+          "selector": "DowntimeFence"
+        },
+        {
+          "line": 261,
+          "kind": "policy",
+          "selector": "VenueFence"
+        },
+        {
+          "line": 262,
+          "kind": "policy",
+          "selector": "VenueReservation"
+        },
+        {
+          "line": 263,
+          "kind": "policy",
+          "selector": "VenueReservation"
+        },
+        {
+          "line": 264,
+          "kind": "policy",
+          "selector": "VenueReservation"
+        },
+        {
+          "line": 265,
+          "kind": "policy",
+          "selector": "ReservationFence"
+        },
+        {
+          "line": 266,
+          "kind": "policy",
+          "selector": "QuoteHold"
+        },
+        {
+          "line": 267,
+          "kind": "invariant",
+          "selector": "VenueReservation"
+        },
+        {
+          "line": 268,
+          "kind": "invariant",
+          "selector": "QuoteHold"
+        },
+        {
+          "line": 269,
+          "kind": "policy",
+          "selector": "CapacityRevision"
+        },
+        {
+          "line": 270,
+          "kind": "policy",
+          "selector": "Conflict"
+        },
+        {
+          "line": 271,
+          "kind": "policy",
+          "selector": "Desk"
+        },
+        {
+          "line": 272,
+          "kind": "policy",
+          "selector": "Assignment"
+        },
+        {
+          "line": 273,
+          "kind": "policy",
+          "selector": "Assignment"
+        },
+        {
+          "line": 274,
+          "kind": "policy",
+          "selector": "Adjustment"
+        },
+        {
+          "line": 275,
+          "kind": "policy",
+          "selector": "Adjustment"
+        },
+        {
+          "line": 276,
+          "kind": "invariant",
+          "selector": "Assignment"
+        },
+        {
+          "line": 277,
+          "kind": "invariant",
+          "selector": "Adjustment"
+        },
+        {
+          "line": 278,
+          "kind": "invariant",
+          "selector": "Resource"
+        },
+        {
+          "line": 279,
+          "kind": "invariant",
+          "selector": "Resource"
+        },
+        {
+          "line": 280,
+          "kind": "invariant",
+          "selector": "DayCalendar"
+        },
+        {
+          "line": 281,
+          "kind": "invariant",
+          "selector": "Window"
+        },
+        {
+          "line": 282,
+          "kind": "invariant",
+          "selector": "Booking"
+        },
+        {
+          "line": 283,
+          "kind": "lock",
+          "selector": "Booking"
+        },
+        {
+          "line": 284,
+          "kind": "lock",
+          "selector": "Booking"
+        },
+        {
+          "line": 300,
+          "kind": "scenario",
+          "selector": "retain_legacy(source"
+        },
+        {
+          "line": 313,
+          "kind": "scenario",
+          "selector": "legacy_matches(source"
+        },
+        {
+          "line": 321,
+          "kind": "scenario",
+          "selector": "link_legacy(entry"
+        },
+        {
+          "line": 335,
+          "kind": "crud",
+          "selector": "Resource"
+        },
+        {
+          "line": 336,
+          "kind": "crud",
+          "selector": "DayCalendar"
+        },
+        {
+          "line": 337,
+          "kind": "crud",
+          "selector": "Window"
+        },
+        {
+          "line": 338,
+          "kind": "scenario",
+          "selector": "snapshot_Resource_create"
+        },
+        {
+          "line": 342,
+          "kind": "scenario",
+          "selector": "snapshot_Resource_update"
+        },
+        {
+          "line": 346,
+          "kind": "scenario",
+          "selector": "snapshot_Window_create"
+        },
+        {
+          "line": 351,
+          "kind": "scenario",
+          "selector": "snapshot_Window_update"
+        },
+        {
+          "line": 356,
+          "kind": "scenario",
+          "selector": "snapshot_DayCalendar_create"
+        },
+        {
+          "line": 360,
+          "kind": "scenario",
+          "selector": "snapshot_DayCalendar_update"
+        },
+        {
+          "line": 365,
+          "kind": "scenario",
+          "selector": "resource_report(resource"
+        },
+        {
+          "line": 406,
+          "kind": "scenario",
+          "selector": "available(resource"
+        },
+        {
+          "line": 419,
+          "kind": "scenario",
+          "selector": "available_days(resource"
+        },
+        {
+          "line": 427,
+          "kind": "scenario",
+          "selector": "hold(resource"
+        },
+        {
+          "line": 452,
+          "kind": "scenario",
+          "selector": "hold_days(resource"
+        },
+        {
+          "line": 477,
+          "kind": "scenario",
+          "selector": "move(booking"
+        },
+        {
+          "line": 497,
+          "kind": "scenario",
+          "selector": "move_days(booking"
+        },
+        {
+          "line": 516,
+          "kind": "scenario",
+          "selector": "move_membership(booking"
+        },
+        {
+          "line": 528,
+          "kind": "scenario",
+          "selector": "move_membership_days(booking"
+        },
+        {
+          "line": 541,
+          "kind": "scenario",
+          "selector": "movement_reserved"
+        },
+        {
+          "line": 551,
+          "kind": "scenario",
+          "selector": "movement_committed"
+        },
+        {
+          "line": 561,
+          "kind": "scenario",
+          "selector": "movement_changed"
+        },
+        {
+          "line": 565,
+          "kind": "scenario",
+          "selector": "movement_result"
+        },
+        {
+          "line": 616,
+          "kind": "scenario",
+          "selector": "movement_money"
+        },
+        {
+          "line": 629,
+          "kind": "scenario",
+          "selector": "refund_movement_credit(movement"
+        },
+        {
+          "line": 643,
+          "kind": "scenario",
+          "selector": "movement_credit_result"
+        },
+        {
+          "line": 652,
+          "kind": "scenario",
+          "selector": "movement_credit_money"
+        },
+        {
+          "line": 657,
+          "kind": "scenario",
+          "selector": "abandon_movement(movement"
+        },
+        {
+          "line": 665,
+          "kind": "scenario",
+          "selector": "movement_expire"
+        },
+        {
+          "line": 672,
+          "kind": "scenario",
+          "selector": "movement_released"
+        },
+        {
+          "line": 678,
+          "kind": "scenario",
+          "selector": "movement_cancellation"
+        },
+        {
+          "line": 684,
+          "kind": "scenario",
+          "selector": "retry_movement_cleanup(movement"
+        },
+        {
+          "line": 689,
+          "kind": "scenario",
+          "selector": "reconcile_movement(movement"
+        },
+        {
+          "line": 694,
+          "kind": "scenario",
+          "selector": "movement_reconciled"
+        },
+        {
+          "line": 700,
+          "kind": "scenario",
+          "selector": "block(resource"
+        },
+        {
+          "line": 709,
+          "kind": "scenario",
+          "selector": "restore(downtime"
+        },
+        {
+          "line": 716,
+          "kind": "scenario",
+          "selector": "prepare(booking"
+        },
+        {
+          "line": 730,
+          "kind": "scenario",
+          "selector": "arrive(booking"
+        },
+        {
+          "line": 740,
+          "kind": "scenario",
+          "selector": "overdue_occupancy"
+        },
+        {
+          "line": 748,
+          "kind": "scenario",
+          "selector": "depart(booking"
+        },
+        {
+          "line": 757,
+          "kind": "scenario",
+          "selector": "cancel_booking(booking"
+        },
+        {
+          "line": 786,
+          "kind": "scenario",
+          "selector": "venue_move"
+        },
+        {
+          "line": 796,
+          "kind": "scenario",
+          "selector": "requested_affected"
+        },
+        {
+          "line": 800,
+          "kind": "scenario",
+          "selector": "requested_downtime"
+        },
+        {
+          "line": 821,
+          "kind": "scenario",
+          "selector": "requested_restore"
+        },
+        {
+          "line": 839,
+          "kind": "scenario",
+          "selector": "venue_hold"
+        },
+        {
+          "line": 851,
+          "kind": "scenario",
+          "selector": "venue_stage"
+        },
+        {
+          "line": 864,
+          "kind": "scenario",
+          "selector": "venue_confirm"
+        },
+        {
+          "line": 874,
+          "kind": "scenario",
+          "selector": "venue_release"
+        },
+        {
+          "line": 891,
+          "kind": "event",
+          "selector": ".source"
+        },
+        {
+          "line": 893,
+          "kind": "scenario",
+          "selector": "venue_expire"
+        },
+        {
+          "line": 900,
+          "kind": "scenario",
+          "selector": "quote_hold"
+        },
+        {
+          "line": 914,
+          "kind": "scenario",
+          "selector": "quote_accept"
+        },
+        {
+          "line": 966,
+          "kind": "scenario",
+          "selector": "quote_release"
+        },
+        {
+          "line": 981,
+          "kind": "scenario",
+          "selector": "quote_changed"
+        },
+        {
+          "line": 994,
+          "kind": "scenario",
+          "selector": "quote_expire"
+        },
+        {
+          "line": 1000,
+          "kind": "scenario",
+          "selector": "revise_capacity(resource"
+        },
+        {
+          "line": 1010,
+          "kind": "scenario",
+          "selector": "assign_desk(booking"
+        },
+        {
+          "line": 1017,
+          "kind": "scenario",
+          "selector": "fulfill_free(booking"
+        },
+        {
+          "line": 1028,
+          "kind": "scenario",
+          "selector": "confirm_account(booking"
+        },
+        {
+          "line": 1054,
+          "kind": "scenario",
+          "selector": "charge_result"
+        },
+        {
+          "line": 1070,
+          "kind": "scenario",
+          "selector": "no_show(booking"
+        },
+        {
+          "line": 1078,
+          "kind": "scenario",
+          "selector": "adjust(booking"
+        },
+        {
+          "line": 1085,
+          "kind": "scenario",
+          "selector": "extend(booking"
+        },
+        {
+          "line": 1098,
+          "kind": "scenario",
+          "selector": "adjustment_money"
+        },
+        {
+          "line": 1126,
+          "kind": "scenario",
+          "selector": "extension_expire"
+        },
+        {
+          "line": 1133,
+          "kind": "scenario",
+          "selector": "refund_adjustment(adjustment"
+        },
+        {
+          "line": 1139,
+          "kind": "scenario",
+          "selector": "refund_review(booking"
+        },
+        {
+          "line": 1153,
+          "kind": "scenario",
+          "selector": "resolve_conflict(conflict"
+        },
+        {
+          "line": 1157,
+          "kind": "crud",
+          "selector": "Desk"
+        },
+        {
+          "line": 1159,
+          "kind": "scenario",
+          "selector": "commercial_changed"
+        },
+        {
+          "line": 1161,
+          "kind": "scenario",
+          "selector": "commercial_check"
+        },
+        {
+          "line": 1191,
+          "kind": "scenario",
+          "selector": "correspondence"
+        },
+        {
+          "line": 1207,
+          "kind": "scenario",
+          "selector": "remind"
+        },
+        {
+          "line": 1214,
+          "kind": "scenario",
+          "selector": "resend_notice(notice"
+        },
+        {
+          "line": 1220,
+          "kind": "scenario",
+          "selector": "allowance_result"
+        },
+        {
+          "line": 1234,
+          "kind": "scenario",
+          "selector": "reconcile_allowance(booking"
+        },
+        {
+          "line": 1240,
+          "kind": "scenario",
+          "selector": "allowance_reconciled"
+        },
+        {
+          "line": 1245,
+          "kind": "scenario",
+          "selector": "allowance_changed"
+        },
+        {
+          "line": 1250,
+          "kind": "scenario",
+          "selector": "allowance_snapshot"
+        },
+        {
+          "line": 1310,
+          "kind": "scenario",
+          "selector": "settlement_received"
+        },
+        {
+          "line": 1312,
+          "kind": "scenario",
+          "selector": "reconcile_booking(booking"
+        },
+        {
+          "line": 1317,
+          "kind": "scenario",
+          "selector": "reconciled"
+        },
+        {
+          "line": 1325,
+          "kind": "scenario",
+          "selector": "money"
+        },
+        {
+          "line": 1389,
+          "kind": "scenario",
+          "selector": "consumption"
+        },
+        {
+          "line": 1404,
+          "kind": "scenario",
+          "selector": "released"
+        },
+        {
+          "line": 1413,
+          "kind": "scenario",
+          "selector": "refund_result"
+        },
+        {
+          "line": 1418,
+          "kind": "scenario",
+          "selector": "expire"
+        },
+        {
+          "line": 1439,
+          "kind": "page",
+          "selector": "/workspace/history"
+        },
+        {
+          "line": 1475,
+          "kind": "page",
+          "selector": "/workspace/refund-review"
+        },
+        {
+          "line": 1534,
+          "kind": "page",
+          "selector": "/workspace/resources"
+        },
+        {
+          "line": 1568,
+          "kind": "page",
+          "selector": "/workspace"
+        },
+        {
+          "line": 1614,
+          "kind": "page",
+          "selector": "/workspace/reservations"
+        },
+        {
+          "line": 1704,
+          "kind": "package",
+          "selector": "rent_fulfillment"
+        },
+        {
+          "line": 1710,
+          "kind": "scenario",
+          "selector": "request(booking"
+        },
+        {
+          "line": 1715,
+          "kind": "scenario",
+          "selector": "check_in(booking"
+        },
+        {
+          "line": 1719,
+          "kind": "scenario",
+          "selector": "check_out(booking"
+        },
+        {
+          "line": 1723,
+          "kind": "scenario",
+          "selector": "cancel(booking"
+        },
+        {
+          "line": 1728,
+          "kind": "page",
+          "selector": "/workspace/my-bookings"
+        },
+        {
+          "line": 1828,
+          "kind": "page",
+          "selector": "/workspace/arrivals"
+        },
+        {
+          "line": 1881,
+          "kind": "package",
+          "selector": "rent_reporting"
+        },
+        {
+          "line": 1885,
+          "kind": "preferences",
+          "selector": ""
+        },
+        {
+          "line": 1889,
+          "kind": "page",
+          "selector": "/workspace/occupancy"
+        }
+      ],
+      "evidence_state": {
+        "source_available": true,
+        "desired_mjs": "not runtime evidence; any companion target is hand-written desired witness only",
+        "historical_checks": "companion disclosures retained; none rerun",
+        "proven_runtime_errors": [],
+        "runtime_qualification": "not established by this audit; actual installed compiled owner/browser/MCP/provider/concurrency journeys required"
+      }
+    },
+    {
+      "app": "Report",
+      "classification": "REQUIRED when selected in original portfolio",
+      "canonical_owners": "report",
+      "families": [
+        "F01",
+        "F02",
+        "F03",
+        "F04",
+        "F05",
+        "F06",
+        "F08",
+        "F09",
+        "F12"
+      ],
+      "sources": [
+        {
+          "path": "draft/CanReport.can",
+          "sha256": "1f045a477832a2ec30dd7475fb7db70f837913fb3f4c7f7459732d57a9f3a779",
+          "bytes": 15864,
+          "lines": 145,
+          "read": "entire source/companion inspected",
+          "source_kind": "desired authored contract"
+        },
+        {
+          "path": "draft/CanReport.md",
+          "sha256": "3d21a0388d5aa29cee4f471031c684d7433e053f48b648681ade5c5991a5ac26",
+          "bytes": 11048,
+          "lines": 71,
+          "read": "entire source/companion inspected",
+          "source_kind": "desired requirements + historical validation disclosure"
+        }
+      ],
+      "authority": "ReportsV1 reads canonical Rent/Invoice/Member/service source checkpoints; managers require all selected location grants and current finance for financial metrics. Run is a requester-owned frozen projection, never business ledger.",
+      "required_workflows": [
+        "Definition carries inclusion/unit/report timezone; refresh freezes time/location/currency and asks bound Reports provider; completed callback accepts only source-scoped rows/checkpoint.",
+        "measure preserves missing/unavailable versus fresh complete zero, partial/lagging/pending null values; utilization denominator zero is null, not fabricated zero.",
+        "Booked/saleable/excluded/recorded occupancy retain room-minute versus seat-minute and provisional status; cash/refunds/receivables/paid renewals/backlog use owning original/revision/reversal evidence.",
+        "Source checkpoint must cover requested range/sites/all sources and applied corrections/reversals; source drilldown/export reauthorizes and records freshness.",
+        "Report page shows definition, requested runs, frozen checkpoint/inclusion and source contributions; periodic/source-triggered refresh and stable-ID backfill remain required stated capability."
+      ],
+      "failure_retry_termination": "Source failed/unknown cannot become empty numeric result; lag/incomplete coverage remains visible. Dedupe source revisions and reversals before totals; currencies/units never blend. Stale completion cannot claim authoritative ledger. No report-definition editor or arbitrary query input.",
+      "required_primitives_and_missing_joins": [
+        "finite source/query/projection schema",
+        "checkpoint coverage inventory/correction dedupe",
+        "exact aggregate semantics",
+        "authorized drilldown/export"
+      ],
+      "source_sites": [
+        {
+          "line": 2,
+          "kind": "app",
+          "selector": "CanReport"
+        },
+        {
+          "line": 5,
+          "kind": "package",
+          "selector": "report"
+        },
+        {
+          "line": 10,
+          "kind": "preferences",
+          "selector": ""
+        },
+        {
+          "line": 23,
+          "kind": "contract",
+          "selector": "Checkpoint"
+        },
+        {
+          "line": 24,
+          "kind": "contract",
+          "selector": "Contribution"
+        },
+        {
+          "line": 25,
+          "kind": "contract",
+          "selector": "ReportBatch"
+        },
+        {
+          "line": 26,
+          "kind": "capability",
+          "selector": "ReportsV1"
+        },
+        {
+          "line": 32,
+          "kind": "contract",
+          "selector": "Measure"
+        },
+        {
+          "line": 33,
+          "kind": "policy",
+          "selector": "Definition"
+        },
+        {
+          "line": 34,
+          "kind": "policy",
+          "selector": "Run"
+        },
+        {
+          "line": 35,
+          "kind": "invariant",
+          "selector": "Run"
+        },
+        {
+          "line": 36,
+          "kind": "lock",
+          "selector": "Run"
+        },
+        {
+          "line": 43,
+          "kind": "scenario",
+          "selector": "refresh(definition"
+        },
+        {
+          "line": 48,
+          "kind": "scenario",
+          "selector": "result"
+        },
+        {
+          "line": 60,
+          "kind": "event",
+          "selector": ".result.checkpoint.state,event.result.checkpoint.complete,unavailable_run.checkpoint,unavailable_run.pending"
+        },
+        {
+          "line": 67,
+          "kind": "event",
+          "selector": ".status,event.error,unavailable_run.checkpoint,unavailable_run.pending"
+        },
+        {
+          "line": 71,
+          "kind": "scenario",
+          "selector": "measure(run"
+        },
+        {
+          "line": 119,
+          "kind": "page",
+          "selector": "/reports"
+        }
+      ],
+      "evidence_state": {
+        "source_available": true,
+        "desired_mjs": "not runtime evidence; any companion target is hand-written desired witness only",
+        "historical_checks": "companion disclosures retained; none rerun",
+        "proven_runtime_errors": [],
+        "runtime_qualification": "not established by this audit; actual installed compiled owner/browser/MCP/provider/concurrency journeys required"
+      }
+    },
+    {
+      "app": "Shift",
+      "classification": "REQUIRED when selected in original portfolio",
+      "canonical_owners": "shift",
+      "families": [
+        "F01",
+        "F02",
+        "F03",
+        "F04",
+        "F05",
+        "F06",
+        "F08",
+        "F09",
+        "F12"
+      ],
+      "sources": [
+        {
+          "path": "draft/CanShift.can",
+          "sha256": "2377c3229156d495a9d3c06bfcbc7eb527ad196001d61765445d9d52e0a40998",
+          "bytes": 43934,
+          "lines": 393,
+          "read": "entire source/companion inspected",
+          "source_kind": "desired authored contract"
+        },
+        {
+          "path": "draft/CanShift.md",
+          "sha256": "a1fa91c757bb2c5154612b5349a048c97fe94fca0ccbe7c2463364d8bf7fa40e",
+          "bytes": 16608,
+          "lines": 87,
+          "read": "entire source/companion inspected",
+          "source_kind": "desired requirements + historical validation disclosure"
+        }
+      ],
+      "authority": "Single operator Roster commits all employees across sites with canonical Employee/Location/Availability; scheduler manages duty/coverage, only proposed substitute decides own swap, Schedule adapter attests producer namespaces.",
+      "required_workflows": [
+        "assign reserves drafts with skills/role/location/availability and entered travel buffers; publish checks full coverage boundary partition or attributed override.",
+        "request_swap freezes original/version; accept checks designated current substitute, buffered fit, role/skill/dependent commitments and invalidates all competing swaps atomically; decline leaves duty.",
+        "cancel/reconcile checks dependent visits/appointments/interviews and former+new coverage window; recover_commitment retains/flags one current commitment and invalid pending swaps.",
+        "EmployeeChanged/location/member/availability hooks emit EligibilityReview; review_commitment and review_swap admit finite entire cohorts and fresh per-child state, sticky conflict/obsolete decisions.",
+        "reserve_connected/stage_connected retain immutable request/predecessor and one candidate; release_connected tombstones even before arrival; absence flags conflicting work without deleting it.",
+        "DutyNotice dispatch rechecks membership/version/eligible state; Notice observes associated receipt; scheduler planning and own published work/availability pages separate hidden drafts."
+      ],
+      "failure_retry_termination": "Two swaps produce one replacement. Invalid or uncertain employee authority blocks new work immediately. Every admitted child terminates independently; failed children yield attention and never truncate 501/1000 cohorts. Local atomic 100-swap/conflict loops still all-or-reject. Unknown provider outcome retains old/candidate allocation until explicit cleanup.",
+      "required_primitives_and_missing_joins": [
+        "operator-wide interval/coverage aggregates",
+        "imported EmployeeChanged+teams events",
+        "finite cohort fairness/recovery",
+        "retained predecessor/release fence adapter",
+        "receipt leaf grants"
+      ],
+      "source_sites": [
+        {
+          "line": 2,
+          "kind": "app",
+          "selector": "CanShift"
+        },
+        {
+          "line": 5,
+          "kind": "app",
+          "selector": "StaffScheduling"
+        },
+        {
+          "line": 8,
+          "kind": "package",
+          "selector": "shift"
+        },
+        {
+          "line": 15,
+          "kind": "preferences",
+          "selector": ""
+        },
+        {
+          "line": 33,
+          "kind": "contract",
+          "selector": "CommitmentRequest"
+        },
+        {
+          "line": 34,
+          "kind": "capability",
+          "selector": "ScheduleV1"
+        },
+        {
+          "line": 38,
+          "kind": "event",
+          "selector": "changed"
+        },
+        {
+          "line": 44,
+          "kind": "lock",
+          "selector": "Release"
+        },
+        {
+          "line": 48,
+          "kind": "event",
+          "selector": "DutyNotice"
+        },
+        {
+          "line": 49,
+          "kind": "event",
+          "selector": "EligibilityReview"
+        },
+        {
+          "line": 51,
+          "kind": "derive",
+          "selector": "Notice.state"
+        },
+        {
+          "line": 52,
+          "kind": "capability",
+          "selector": "ScheduleIngressV1"
+        },
+        {
+          "line": 53,
+          "kind": "event",
+          "selector": "reserve"
+        },
+        {
+          "line": 54,
+          "kind": "event",
+          "selector": "stage"
+        },
+        {
+          "line": 55,
+          "kind": "event",
+          "selector": "release"
+        },
+        {
+          "line": 56,
+          "kind": "event",
+          "selector": "ReservationOutcome"
+        },
+        {
+          "line": 57,
+          "kind": "policy",
+          "selector": "Roster"
+        },
+        {
+          "line": 58,
+          "kind": "policy",
+          "selector": "Availability"
+        },
+        {
+          "line": 59,
+          "kind": "policy",
+          "selector": "Availability"
+        },
+        {
+          "line": 60,
+          "kind": "policy",
+          "selector": "Commitment"
+        },
+        {
+          "line": 61,
+          "kind": "policy",
+          "selector": "Commitment"
+        },
+        {
+          "line": 62,
+          "kind": "policy",
+          "selector": "Duty"
+        },
+        {
+          "line": 63,
+          "kind": "policy",
+          "selector": "Duty"
+        },
+        {
+          "line": 64,
+          "kind": "policy",
+          "selector": "Coverage"
+        },
+        {
+          "line": 65,
+          "kind": "policy",
+          "selector": "Swap"
+        },
+        {
+          "line": 66,
+          "kind": "policy",
+          "selector": "Swap"
+        },
+        {
+          "line": 67,
+          "kind": "policy",
+          "selector": "Notice"
+        },
+        {
+          "line": 68,
+          "kind": "policy",
+          "selector": "Notice"
+        },
+        {
+          "line": 69,
+          "kind": "invariant",
+          "selector": "Roster"
+        },
+        {
+          "line": 70,
+          "kind": "invariant",
+          "selector": "Coverage"
+        },
+        {
+          "line": 71,
+          "kind": "invariant",
+          "selector": "Availability"
+        },
+        {
+          "line": 72,
+          "kind": "invariant",
+          "selector": "Commitment"
+        },
+        {
+          "line": 73,
+          "kind": "derive",
+          "selector": "Coverage.met"
+        },
+        {
+          "line": 74,
+          "kind": "derive",
+          "selector": "fits(roster"
+        },
+        {
+          "line": 75,
+          "kind": "derive",
+          "selector": "eligible(commitment"
+        },
+        {
+          "line": 76,
+          "kind": "derive",
+          "selector": "coverage_met(roster"
+        },
+        {
+          "line": 77,
+          "kind": "derive",
+          "selector": "previous_work(roster"
+        },
+        {
+          "line": 78,
+          "kind": "derive",
+          "selector": "next_work(roster"
+        },
+        {
+          "line": 79,
+          "kind": "derive",
+          "selector": "travel_entered(roster"
+        },
+        {
+          "line": 80,
+          "kind": "lock",
+          "selector": "Swap"
+        },
+        {
+          "line": 96,
+          "kind": "crud",
+          "selector": "Roster"
+        },
+        {
+          "line": 103,
+          "kind": "crud",
+          "selector": "Availability"
+        },
+        {
+          "line": 104,
+          "kind": "crud",
+          "selector": "Coverage"
+        },
+        {
+          "line": 106,
+          "kind": "scenario",
+          "selector": "assign(roster"
+        },
+        {
+          "line": 120,
+          "kind": "scenario",
+          "selector": "publish(duty"
+        },
+        {
+          "line": 137,
+          "kind": "scenario",
+          "selector": "request_swap(duty"
+        },
+        {
+          "line": 143,
+          "kind": "scenario",
+          "selector": "accept(swap"
+        },
+        {
+          "line": 161,
+          "kind": "scenario",
+          "selector": "decline(swap"
+        },
+        {
+          "line": 179,
+          "kind": "scenario",
+          "selector": "cancel(duty"
+        },
+        {
+          "line": 189,
+          "kind": "scenario",
+          "selector": "reconcile(duty"
+        },
+        {
+          "line": 212,
+          "kind": "scenario",
+          "selector": "recover_commitment(commitment"
+        },
+        {
+          "line": 226,
+          "kind": "scenario",
+          "selector": "employee_changed"
+        },
+        {
+          "line": 229,
+          "kind": "scenario",
+          "selector": "location_changed"
+        },
+        {
+          "line": 231,
+          "kind": "scenario",
+          "selector": "member_removed"
+        },
+        {
+          "line": 233,
+          "kind": "scenario",
+          "selector": "availability_changed"
+        },
+        {
+          "line": 235,
+          "kind": "scenario",
+          "selector": "availability_created"
+        },
+        {
+          "line": 237,
+          "kind": "scenario",
+          "selector": "review_commitment"
+        },
+        {
+          "line": 243,
+          "kind": "scenario",
+          "selector": "review_swap"
+        },
+        {
+          "line": 249,
+          "kind": "scenario",
+          "selector": "duty_notice"
+        },
+        {
+          "line": 253,
+          "kind": "scenario",
+          "selector": "reserve_connected"
+        },
+        {
+          "line": 279,
+          "kind": "event",
+          "selector": ".value.revision,event.value.until,test_worker.skills"
+        },
+        {
+          "line": 283,
+          "kind": "scenario",
+          "selector": "stage_connected"
+        },
+        {
+          "line": 310,
+          "kind": "scenario",
+          "selector": "release_connected"
+        },
+        {
+          "line": 326,
+          "kind": "page",
+          "selector": "/roster"
+        },
+        {
+          "line": 369,
+          "kind": "page",
+          "selector": "/roster/mine"
+        }
+      ],
+      "evidence_state": {
+        "source_available": true,
+        "desired_mjs": "not runtime evidence; any companion target is hand-written desired witness only",
+        "historical_checks": "companion disclosures retained; none rerun",
+        "proven_runtime_errors": [],
+        "runtime_qualification": "not established by this audit; actual installed compiled owner/browser/MCP/provider/concurrency journeys required"
+      }
+    },
+    {
+      "app": "Stats",
+      "classification": "REQUIRED when selected in original portfolio",
+      "canonical_owners": "stats",
+      "families": [
+        "F01",
+        "F02",
+        "F03",
+        "F04",
+        "F05",
+        "F06",
+        "F07",
+        "F08",
+        "F09",
+        "F11",
+        "F12"
+      ],
+      "sources": [
+        {
+          "path": "draft/CanStats.can",
+          "sha256": "f618315a53963ff2efeaaef16167ee3af551e783a5f7d069491922b0ccae7581",
+          "bytes": 19810,
+          "lines": 209,
+          "read": "entire source/companion inspected",
+          "source_kind": "desired authored contract"
+        },
+        {
+          "path": "draft/CanStats.md",
+          "sha256": "d38d55f1d51f0088ebe18dfba4ee9011bcaf29be64b93db25a8a0b7543039411",
+          "bytes": 14776,
+          "lines": 93,
+          "read": "entire source/companion inspected",
+          "source_kind": "desired requirements + historical validation disclosure"
+        }
+      ],
+      "authority": "Tracker public key selects pinned Site but does not prove browser truth or analyst authority. Canonical intake/quota/replay/work intent owns exact D1 accepted events; Analytics Engine is sampled dimensions only; analyst must be current Site viewer.",
+      "required_workflows": [
+        "Tracker SDK honors enable/consent before collection/storage; identifier withdrawal clears local state; site-specific visitor/session start restarts after 30m inactivity; URL query/private/contact data excluded.",
+        "intake validates finite <=64KiB event schema, UUIDv7 occurrence window, site/origin namespace, unique UTC-day quota and durable replay digest; queues bounded admitted work.",
+        "process deduplicates accepted ID and records one D1 event + telemetry work intent; WebDimensions schema alone writes nonidentifying weighted dimensions.",
+        "summary exact accepted counts/distinct available identifiers/session-start ranges/local-day exclusive end; live uses occurrence within5m and reports coverage, health unavailable after5m.",
+        "tracker_health monotone observation/revision/cumulative drops; dimensions.read uses one pinned site/range/closed field+frozen goals query, weights sum sample_interval, at most200 rows and explicit partial coverage.",
+        "dimension_result checks full originating contract/correlation/count denominators/group uniqueness; each explicit request supersedes own report; polling rereads without requery.",
+        "Retain accepted identity30d and breakdown1d; technical replay survives content expiry; page/export excludes tracker identity/config controls and separates observed goals from sales."
+      ],
+      "failure_retry_termination": "Unknown source or stale health yields unavailable, not zero. Browser tracking failure never blocks host action. Unknown/failed dimension status visible; stale response cannot overwrite current. Complete groups is not complete ingestion; weighted groups never yield distinct visitor sum. No tracker/provider/runtime browser qualification exists from source reading.",
+      "required_primitives_and_missing_joins": [
+        "finite dimension service/schema mapping",
+        "browser consent/session client",
+        "quota+digest+intent atomic intake",
+        "identity-safe retention/replay tombstones",
+        "provider weighted query checkpoint"
+      ],
+      "source_sites": [
+        {
+          "line": 2,
+          "kind": "app",
+          "selector": "CanStats"
+        },
+        {
+          "line": 8,
+          "kind": "package",
+          "selector": "stats"
+        },
+        {
+          "line": 12,
+          "kind": "preferences",
+          "selector": ""
+        },
+        {
+          "line": 19,
+          "kind": "contract",
+          "selector": "WebEvent"
+        },
+        {
+          "line": 20,
+          "kind": "contract",
+          "selector": "TrackerHealth"
+        },
+        {
+          "line": 21,
+          "kind": "contract",
+          "selector": "DimensionRow"
+        },
+        {
+          "line": 22,
+          "kind": "contract",
+          "selector": "DimensionResult"
+        },
+        {
+          "line": 23,
+          "kind": "capability",
+          "selector": "DimensionsV1"
+        },
+        {
+          "line": 26,
+          "kind": "contract",
+          "selector": "GoalCount"
+        },
+        {
+          "line": 27,
+          "kind": "capability",
+          "selector": "TrackerV1"
+        },
+        {
+          "line": 28,
+          "kind": "event",
+          "selector": "accepted"
+        },
+        {
+          "line": 29,
+          "kind": "event",
+          "selector": "health"
+        },
+        {
+          "line": 30,
+          "kind": "contract",
+          "selector": "Summary"
+        },
+        {
+          "line": 31,
+          "kind": "policy",
+          "selector": "Site"
+        },
+        {
+          "line": 32,
+          "kind": "policy",
+          "selector": "AcceptedEvent"
+        },
+        {
+          "line": 33,
+          "kind": "policy",
+          "selector": "Health"
+        },
+        {
+          "line": 34,
+          "kind": "policy",
+          "selector": "Breakdown"
+        },
+        {
+          "line": 35,
+          "kind": "invariant",
+          "selector": "Site"
+        },
+        {
+          "line": 36,
+          "kind": "unique",
+          "selector": "Health"
+        },
+        {
+          "line": 37,
+          "kind": "unique",
+          "selector": "Breakdown"
+        },
+        {
+          "line": 38,
+          "kind": "lock",
+          "selector": "Breakdown"
+        },
+        {
+          "line": 39,
+          "kind": "retain",
+          "selector": "Breakdown"
+        },
+        {
+          "line": 40,
+          "kind": "lock",
+          "selector": "AcceptedEvent"
+        },
+        {
+          "line": 41,
+          "kind": "retain",
+          "selector": "AcceptedEvent"
+        },
+        {
+          "line": 47,
+          "kind": "scenario",
+          "selector": "intake"
+        },
+        {
+          "line": 52,
+          "kind": "event",
+          "selector": ".value.visitor,event.value.session,event.value.session_started"
+        },
+        {
+          "line": 58,
+          "kind": "scenario",
+          "selector": "process"
+        },
+        {
+          "line": 81,
+          "kind": "scenario",
+          "selector": "summary(site"
+        },
+        {
+          "line": 106,
+          "kind": "scenario",
+          "selector": "tracker_health"
+        },
+        {
+          "line": 120,
+          "kind": "scenario",
+          "selector": "breakdown(site"
+        },
+        {
+          "line": 130,
+          "kind": "scenario",
+          "selector": "dimension_result"
+        },
+        {
+          "line": 148,
+          "kind": "event",
+          "selector": ".result.complete,event.result.events,event.result.site,report.current"
+        },
+        {
+          "line": 156,
+          "kind": "page",
+          "selector": "/traffic"
+        }
+      ],
+      "evidence_state": {
+        "source_available": true,
+        "desired_mjs": "not runtime evidence; any companion target is hand-written desired witness only",
+        "historical_checks": "companion disclosures retained; none rerun",
+        "proven_runtime_errors": [],
+        "runtime_qualification": "not established by this audit; actual installed compiled owner/browser/MCP/provider/concurrency journeys required"
+      }
+    },
+    {
+      "app": "Stock",
+      "classification": "REQUIRED when selected in original portfolio",
+      "canonical_owners": "stock",
+      "families": [
+        "F01",
+        "F02",
+        "F03",
+        "F04",
+        "F05",
+        "F06",
+        "F08",
+        "F09",
+        "F12"
+      ],
+      "sources": [
+        {
+          "path": "draft/CanStock.can",
+          "sha256": "378c331736d493a3bd25a729731e3c5b5358a2aab931e8286c18fd47260d49f2",
+          "bytes": 20148,
+          "lines": 268,
+          "read": "entire source/companion inspected",
+          "source_kind": "desired authored contract"
+        },
+        {
+          "path": "draft/CanStock.md",
+          "sha256": "b5ffbab59ea12fcd6fa8cb96461462dbad05460e7bfff05b8b57e029443f3168",
+          "bytes": 10193,
+          "lines": 83,
+          "read": "entire source/companion inspected",
+          "source_kind": "desired requirements + historical validation disclosure"
+        }
+      ],
+      "authority": "Stock staff/site grants own signed Movement ledger; verified Purchase ingress binds team/location/source namespace+digest. Receipts/returns accepted elsewhere do not become usable stock before this owner confirms.",
+      "required_workflows": [
+        "Item SKU+fixed unit and per-site Threshold derive available/total/low only with complete authorized dependency scope.",
+        "adjust checks nonzero reason/nonnegative balance; transfer posts paired source/destination legs in one admission; reverse only permitted nonpurchase original once.",
+        "post deduplicates exact frozen source/revision/order/SKU/unit/location/quantity/reversal; confirmed replay produces originating PostOutcome; pending schedules one addressed projection.",
+        "apply rejects unknown/inactive SKU/unit mismatch or insufficient usable/returnable original quantity, preserving failed Projection; exact existing movement replay confirms once.",
+        "retry requeues investigated failed immutable Projection; changed ProjectionOutcome informs consumers without completing unrelated delivery.",
+        "Inventory queues show pending/failed/confirmed stock and protected balances, not an automatic purchasing/replenishment service."
+      ],
+      "failure_retry_termination": "Concurrent transfer/return/adjustment cannot overspend; immutable source reuse conflicts fail. Each paired transfer commits both legs or no movement; current reverse(Movement) creates a single attributed opposite leg, including a transfer leg. Intended transfer-leg reversal authority/conservation policy remains an owner adjudication gate (A-R04). Failed pending projection never increments available. Terminal confirmed replay no new stock; scheduler must eventually expose/recover addressed failures.",
+      "required_primitives_and_missing_joins": [
+        "atomic per-site inventory/paired transfer",
+        "source namespace+digest attestation",
+        "outcome/callback causation mapping",
+        "bounded scheduler recovery"
+      ],
+      "source_sites": [
+        {
+          "line": 2,
+          "kind": "app",
+          "selector": "CanStock"
+        },
+        {
+          "line": 5,
+          "kind": "package",
+          "selector": "stock"
+        },
+        {
+          "line": 11,
+          "kind": "preferences",
+          "selector": ""
+        },
+        {
+          "line": 12,
+          "kind": "invariant",
+          "selector": "preferences"
+        },
+        {
+          "line": 19,
+          "kind": "contract",
+          "selector": "StockReceipt"
+        },
+        {
+          "line": 20,
+          "kind": "capability",
+          "selector": "StockV1"
+        },
+        {
+          "line": 22,
+          "kind": "event",
+          "selector": "changed"
+        },
+        {
+          "line": 26,
+          "kind": "capability",
+          "selector": "StockIngressV1"
+        },
+        {
+          "line": 27,
+          "kind": "event",
+          "selector": "post"
+        },
+        {
+          "line": 28,
+          "kind": "event",
+          "selector": "PostOutcome"
+        },
+        {
+          "line": 29,
+          "kind": "event",
+          "selector": "ProjectionOutcome"
+        },
+        {
+          "line": 30,
+          "kind": "event",
+          "selector": "ApplyProjection"
+        },
+        {
+          "line": 37,
+          "kind": "policy",
+          "selector": "Projection"
+        },
+        {
+          "line": 38,
+          "kind": "invariant",
+          "selector": "Projection"
+        },
+        {
+          "line": 39,
+          "kind": "lock",
+          "selector": "Projection"
+        },
+        {
+          "line": 40,
+          "kind": "lock",
+          "selector": "Projection"
+        },
+        {
+          "line": 41,
+          "kind": "derive",
+          "selector": "available(item"
+        },
+        {
+          "line": 42,
+          "kind": "derive",
+          "selector": "Threshold.available"
+        },
+        {
+          "line": 43,
+          "kind": "derive",
+          "selector": "Threshold.low"
+        },
+        {
+          "line": 44,
+          "kind": "derive",
+          "selector": "Item.low"
+        },
+        {
+          "line": 45,
+          "kind": "derive",
+          "selector": "Item.total"
+        },
+        {
+          "line": 46,
+          "kind": "policy",
+          "selector": "Item"
+        },
+        {
+          "line": 47,
+          "kind": "policy",
+          "selector": "Threshold"
+        },
+        {
+          "line": 48,
+          "kind": "policy",
+          "selector": "Movement"
+        },
+        {
+          "line": 49,
+          "kind": "unique",
+          "selector": "Threshold"
+        },
+        {
+          "line": 50,
+          "kind": "invariant",
+          "selector": "Movement"
+        },
+        {
+          "line": 51,
+          "kind": "invariant",
+          "selector": "Movement"
+        },
+        {
+          "line": 52,
+          "kind": "lock",
+          "selector": "Movement"
+        },
+        {
+          "line": 53,
+          "kind": "lock",
+          "selector": "Item"
+        },
+        {
+          "line": 61,
+          "kind": "crud",
+          "selector": "Item"
+        },
+        {
+          "line": 62,
+          "kind": "crud",
+          "selector": "Threshold"
+        },
+        {
+          "line": 64,
+          "kind": "scenario",
+          "selector": "adjust(item"
+        },
+        {
+          "line": 73,
+          "kind": "scenario",
+          "selector": "transfer(item"
+        },
+        {
+          "line": 79,
+          "kind": "scenario",
+          "selector": "reverse(movement"
+        },
+        {
+          "line": 83,
+          "kind": "scenario",
+          "selector": "post"
+        },
+        {
+          "line": 103,
+          "kind": "event",
+          "selector": ".value.quantity,event.value.unit"
+        },
+        {
+          "line": 108,
+          "kind": "scenario",
+          "selector": "apply_projection"
+        },
+        {
+          "line": 151,
+          "kind": "event",
+          "selector": ".projection.value.reversal,event.projection.value.quantity,consumed.quantity"
+        },
+        {
+          "line": 157,
+          "kind": "scenario",
+          "selector": "retry(projection"
+        },
+        {
+          "line": 163,
+          "kind": "scenario",
+          "selector": "balance(item"
+        },
+        {
+          "line": 168,
+          "kind": "page",
+          "selector": "/stock"
+        }
+      ],
+      "evidence_state": {
+        "source_available": true,
+        "desired_mjs": "not runtime evidence; any companion target is hand-written desired witness only",
+        "historical_checks": "companion disclosures retained; none rerun",
+        "proven_runtime_errors": [],
+        "runtime_qualification": "not established by this audit; actual installed compiled owner/browser/MCP/provider/concurrency journeys required"
+      }
+    },
+    {
+      "app": "Success",
+      "classification": "REQUIRED when selected in original portfolio",
+      "canonical_owners": "success",
+      "families": [
+        "F01",
+        "F02",
+        "F03",
+        "F04",
+        "F05",
+        "F06",
+        "F08",
+        "F09",
+        "F12"
+      ],
+      "sources": [
+        {
+          "path": "draft/CanSuccess.can",
+          "sha256": "f88453355369a4a098f865f1282fe969dc10ab3576cbcd60ed834e7a1618dd5f",
+          "bytes": 18215,
+          "lines": 223,
+          "read": "entire source/companion inspected",
+          "source_kind": "desired authored contract"
+        },
+        {
+          "path": "draft/CanSuccess.md",
+          "sha256": "ebcc11b39e2cf691191c294faff32ec4c2dfdab8e1bab6a554d28c084714e14d",
+          "bytes": 10054,
+          "lines": 81,
+          "read": "entire source/companion inspected",
+          "source_kind": "desired requirements + historical validation disclosure"
+        }
+      ],
+      "authority": "Account manager/current site owns private Customer account risk/milestones/follow-ups; typed agreement/membership forms invoke existing owners and never grant renewal/payment/company roles.",
+      "required_workflows": [
+        "Account/Milestone/FollowUp CRUD requires active current manager/assignee and source customer/location consistency; milestone/complete freeze actor/time and completion cancels keyed reminder.",
+        "reassign transfers every admitted unfinished follow-up, cancels/replaces future keys and keeps historical actors; account edits/review similarly refresh all relevant child revisions.",
+        "Account/Follows create/update arm only future RenewalDue/FollowUpDue; dispatch checks parent+child revision/current manager/site; overdue remains queue, not past recurrence.",
+        "review records assessed risk/reason/reviewer/date; progress denominator reflects added milestones; work/work_detail returns only current canonical completion actions.",
+        "Source renewal/term forms preserve file/cycle/payment guards and current source visibility; Notice grants identity/status only, provider acceptance not recipient reading.",
+        "Portfolio, overdue queue and source/reminder/history tabs preserve confidential notes and failed delivery."
+      ],
+      "failure_retry_termination": "Inactive/archived/reassigned records cannot dispatch stale notices. Current draft atomic100 unfinished children rejects excess, never partial reassignment. Finite full-product progress must meet every-child rule if larger work adopted. Follow-up completion never extends paid term; safe historical authority survives departed manager.",
+      "required_primitives_and_missing_joins": [
+        "revision-bound parent/child schedules",
+        "finite cohort or atomic full-child transfer",
+        "typed source-renewal invocation",
+        "receipt leaf projection/privacy"
+      ],
+      "source_sites": [
+        {
+          "line": 2,
+          "kind": "app",
+          "selector": "CanSuccess"
+        },
+        {
+          "line": 5,
+          "kind": "package",
+          "selector": "success"
+        },
+        {
+          "line": 14,
+          "kind": "contract",
+          "selector": "WorkItem"
+        },
+        {
+          "line": 15,
+          "kind": "contract",
+          "selector": "WorkBatch"
+        },
+        {
+          "line": 16,
+          "kind": "preferences",
+          "selector": ""
+        },
+        {
+          "line": 27,
+          "kind": "derive",
+          "selector": "Notice.state"
+        },
+        {
+          "line": 28,
+          "kind": "policy",
+          "selector": "Notice"
+        },
+        {
+          "line": 29,
+          "kind": "lock",
+          "selector": "Notice"
+        },
+        {
+          "line": 30,
+          "kind": "lock",
+          "selector": "Milestone"
+        },
+        {
+          "line": 31,
+          "kind": "lock",
+          "selector": "FollowUp"
+        },
+        {
+          "line": 32,
+          "kind": "event",
+          "selector": "RenewalDue"
+        },
+        {
+          "line": 33,
+          "kind": "event",
+          "selector": "FollowUpDue"
+        },
+        {
+          "line": 34,
+          "kind": "derive",
+          "selector": "Account.progress"
+        },
+        {
+          "line": 35,
+          "kind": "policy",
+          "selector": "Account"
+        },
+        {
+          "line": 36,
+          "kind": "policy",
+          "selector": "Milestone"
+        },
+        {
+          "line": 37,
+          "kind": "policy",
+          "selector": "FollowUp"
+        },
+        {
+          "line": 38,
+          "kind": "invariant",
+          "selector": "Account"
+        },
+        {
+          "line": 39,
+          "kind": "invariant",
+          "selector": "Account"
+        },
+        {
+          "line": 40,
+          "kind": "derive",
+          "selector": "Account.completed"
+        },
+        {
+          "line": 41,
+          "kind": "derive",
+          "selector": "Account.total"
+        },
+        {
+          "line": 45,
+          "kind": "crud",
+          "selector": "Account"
+        },
+        {
+          "line": 46,
+          "kind": "crud",
+          "selector": "Milestone"
+        },
+        {
+          "line": 47,
+          "kind": "crud",
+          "selector": "FollowUp"
+        },
+        {
+          "line": 49,
+          "kind": "scenario",
+          "selector": "milestone(milestone"
+        },
+        {
+          "line": 53,
+          "kind": "scenario",
+          "selector": "complete(followup"
+        },
+        {
+          "line": 64,
+          "kind": "scenario",
+          "selector": "reassign(account"
+        },
+        {
+          "line": 78,
+          "kind": "scenario",
+          "selector": "arm"
+        },
+        {
+          "line": 82,
+          "kind": "scenario",
+          "selector": "reschedule"
+        },
+        {
+          "line": 87,
+          "kind": "scenario",
+          "selector": "account_created"
+        },
+        {
+          "line": 93,
+          "kind": "scenario",
+          "selector": "account_changed"
+        },
+        {
+          "line": 104,
+          "kind": "scenario",
+          "selector": "remind"
+        },
+        {
+          "line": 112,
+          "kind": "scenario",
+          "selector": "renewal_due"
+        },
+        {
+          "line": 121,
+          "kind": "scenario",
+          "selector": "review(account"
+        },
+        {
+          "line": 140,
+          "kind": "scenario",
+          "selector": "work(locations"
+        },
+        {
+          "line": 143,
+          "kind": "scenario",
+          "selector": "work_detail(record"
+        },
+        {
+          "line": 148,
+          "kind": "page",
+          "selector": "/customer-success"
+        }
+      ],
+      "evidence_state": {
+        "source_available": true,
+        "desired_mjs": "not runtime evidence; any companion target is hand-written desired witness only",
+        "historical_checks": "companion disclosures retained; none rerun",
+        "proven_runtime_errors": [],
+        "runtime_qualification": "not established by this audit; actual installed compiled owner/browser/MCP/provider/concurrency journeys required"
+      }
+    },
+    {
+      "app": "Sync",
+      "classification": "REQUIRED when selected in original portfolio",
+      "canonical_owners": "sync",
+      "families": [
+        "F01",
+        "F03",
+        "F04",
+        "F05",
+        "F06",
+        "F08",
+        "F09",
+        "F12"
+      ],
+      "sources": [
+        {
+          "path": "draft/CanSync.can",
+          "sha256": "250407a5684f9d8cbf9a87bcc12dcc56a238672cfeb68e5715a0923e7df87fc2",
+          "bytes": 17774,
+          "lines": 218,
+          "read": "entire source/companion inspected",
+          "source_kind": "desired authored contract"
+        },
+        {
+          "path": "draft/CanSync.md",
+          "sha256": "ba71c95a5daef4dcc80efdee6bb38f8127dadf00295f5ab4d8b34733635de0a7",
+          "bytes": 10581,
+          "lines": 61,
+          "read": "entire source/companion inspected",
+          "source_kind": "desired requirements + historical validation disclosure"
+        }
+      ],
+      "authority": "Operator-owned linked remote Account has pinned tenant/fields; AccountsV1 read + conditional replace uses opaque revision. Different current reviewer approves original submitter proposal; browser polling reads stored evidence.",
+      "required_workflows": [
+        "Link.created and RefreshDue select one enabled owner/epoch, immediate read then one keyed successor; pause cancels/epochs, resume fresh reads under current original owner.",
+        "propose one immutable baseline+desired complete value from latest observed remote; approve dispatches expected revision after current independent-review authority.",
+        "ReadAttempt selection identity not arrival controls current snapshot; WriteAttempt freezes baseline/value/request; outcome applied/conflict/missing/rejected stays distinct.",
+        "rebase original reviewer only definitive conflict with nonoverlapping remote delta, preserves unrelated fields, max2 rebases/3writes; overlap/no-op reject.",
+        "acknowledge unknown observed equality does not prove causation; close only draft/definitively settled state, never pending/unknown ambiguity.",
+        "Page displays prior attempt evidence and diff; poll5s does not issue provider writes or reads."
+      ],
+      "failure_retry_termination": "Unknown write never auto retries; equality cannot claim write success or unlock uncertainty. Paused/revoked owner stops recurrence/undispatched work but cannot retract provider acceptance. Stale/old replies keep history, not current. Atomic provider If-Match required, no read+unconditional PATCH fallback. No general ETL/delete/bulk/offline scope.",
+      "required_primitives_and_missing_joins": [
+        "pinned finite external read/CAS adapter",
+        "whole-contract opaque revisions",
+        "bounded reviewed rebase",
+        "keyed epoch lifecycle/recovery"
+      ],
+      "source_sites": [
+        {
+          "line": 2,
+          "kind": "app",
+          "selector": "CanSync"
+        },
+        {
+          "line": 4,
+          "kind": "package",
+          "selector": "sync"
+        },
+        {
+          "line": 9,
+          "kind": "contract",
+          "selector": "Values"
+        },
+        {
+          "line": 10,
+          "kind": "contract",
+          "selector": "Snapshot"
+        },
+        {
+          "line": 11,
+          "kind": "contract",
+          "selector": "Observation"
+        },
+        {
+          "line": 12,
+          "kind": "contract",
+          "selector": "WriteResult"
+        },
+        {
+          "line": 13,
+          "kind": "capability",
+          "selector": "AccountsV1"
+        },
+        {
+          "line": 20,
+          "kind": "event",
+          "selector": "RefreshDue"
+        },
+        {
+          "line": 21,
+          "kind": "policy",
+          "selector": "Link"
+        },
+        {
+          "line": 22,
+          "kind": "policy",
+          "selector": "ReadAttempt"
+        },
+        {
+          "line": 23,
+          "kind": "policy",
+          "selector": "Proposal"
+        },
+        {
+          "line": 24,
+          "kind": "policy",
+          "selector": "WriteAttempt"
+        },
+        {
+          "line": 25,
+          "kind": "invariant",
+          "selector": "Link"
+        },
+        {
+          "line": 26,
+          "kind": "invariant",
+          "selector": "ReadAttempt"
+        },
+        {
+          "line": 27,
+          "kind": "invariant",
+          "selector": "Proposal"
+        },
+        {
+          "line": 28,
+          "kind": "invariant",
+          "selector": "WriteAttempt"
+        },
+        {
+          "line": 29,
+          "kind": "lock",
+          "selector": "Link"
+        },
+        {
+          "line": 30,
+          "kind": "lock",
+          "selector": "ReadAttempt"
+        },
+        {
+          "line": 31,
+          "kind": "lock",
+          "selector": "ReadAttempt"
+        },
+        {
+          "line": 32,
+          "kind": "lock",
+          "selector": "Proposal"
+        },
+        {
+          "line": 33,
+          "kind": "lock",
+          "selector": "Proposal"
+        },
+        {
+          "line": 34,
+          "kind": "lock",
+          "selector": "WriteAttempt"
+        },
+        {
+          "line": 35,
+          "kind": "derive",
+          "selector": "editable(proposal"
+        },
+        {
+          "line": 36,
+          "kind": "derive",
+          "selector": "settled(attempt"
+        },
+        {
+          "line": 37,
+          "kind": "derive",
+          "selector": "safe_rebase(proposal"
+        },
+        {
+          "line": 38,
+          "kind": "derive",
+          "selector": "rebased(proposal"
+        },
+        {
+          "line": 39,
+          "kind": "derive",
+          "selector": "Proposal.outcome"
+        },
+        {
+          "line": 40,
+          "kind": "preferences",
+          "selector": ""
+        },
+        {
+          "line": 55,
+          "kind": "crud",
+          "selector": "Link"
+        },
+        {
+          "line": 57,
+          "kind": "scenario",
+          "selector": "linked"
+        },
+        {
+          "line": 63,
+          "kind": "scenario",
+          "selector": "refresh(link"
+        },
+        {
+          "line": 70,
+          "kind": "scenario",
+          "selector": "due"
+        },
+        {
+          "line": 79,
+          "kind": "scenario",
+          "selector": "observed"
+        },
+        {
+          "line": 87,
+          "kind": "scenario",
+          "selector": "propose(link"
+        },
+        {
+          "line": 100,
+          "kind": "scenario",
+          "selector": "approve(proposal"
+        },
+        {
+          "line": 115,
+          "kind": "scenario",
+          "selector": "rebase(proposal"
+        },
+        {
+          "line": 133,
+          "kind": "scenario",
+          "selector": "acknowledge(proposal"
+        },
+        {
+          "line": 145,
+          "kind": "scenario",
+          "selector": "close(proposal"
+        },
+        {
+          "line": 156,
+          "kind": "scenario",
+          "selector": "pause(link"
+        },
+        {
+          "line": 166,
+          "kind": "scenario",
+          "selector": "resume(link"
+        },
+        {
+          "line": 173,
+          "kind": "page",
+          "selector": "/sync"
+        }
+      ],
+      "evidence_state": {
+        "source_available": true,
+        "desired_mjs": "not runtime evidence; any companion target is hand-written desired witness only",
+        "historical_checks": "companion disclosures retained; none rerun",
+        "proven_runtime_errors": [],
+        "runtime_qualification": "not established by this audit; actual installed compiled owner/browser/MCP/provider/concurrency journeys required"
+      }
+    },
+    {
+      "app": "Table",
+      "classification": "REQUIRED when selected in original portfolio",
+      "canonical_owners": "cafe",
+      "families": [
+        "F01",
+        "F02",
+        "F03",
+        "F04",
+        "F08",
+        "F09",
+        "F12"
+      ],
+      "sources": [
+        {
+          "path": "draft/CanTable.can",
+          "sha256": "4291e10b8cdb6162de0df6fd4bc7a78b9c35fe6c00c0402b7361e1e99795c0ef",
+          "bytes": 17213,
+          "lines": 219,
+          "read": "entire source/companion inspected",
+          "source_kind": "desired authored contract"
+        },
+        {
+          "path": "draft/CanTable.md",
+          "sha256": "b68d43edb39c47fd8db731f29d7ae8f6239234049c766fb8838f828d9ae8cb4f",
+          "bytes": 8486,
+          "lines": 67,
+          "read": "entire source/companion inspected",
+          "source_kind": "desired requirements + historical validation disclosure"
+        }
+      ],
+      "authority": "This app is physical cafe seating, not a general user-defined table editor. Current host/can_work(Location) owns same team D1 conflicts, canonical Table and Booking; no DO replica of employee grants.",
+      "required_workflows": [
+        "Cafe/physical Table authoring preserves reserved/actually occupied seat bounds; Booking CRUD only waiting/reserved guest details, not state edits.",
+        "reserve checks active same Cafe Table/capacity/half-open interval overlap and reason when moving confirmed reservation.",
+        "seat uses eligible suitable table, confirmed assignment when reserved and actual physical absence; retains reserved planned interval and distinct estimated_until.",
+        "clear requires exact current seated Booking and evidence/version; cancel/no_show only waiting/reserved reason; cancellation cannot clear actual seated guest.",
+        "Availability/upcoming-conflict/overdue projections distinguish planned reservations and uncleared occupancy; estimate expiry does not release table.",
+        "Host cafe page has discovery/queue/reservation/current occupancy drawers, typed controls, private history and no anonymous kiosk."
+      ],
+      "failure_retry_termination": "Concurrent last-table/reservation admission serializes. Wrong/stale clear rejects; physically seated/overdue remains busy until explicit clear. Deactivation/seat reduction cannot strand booking. No scheduled business actions; no food/POS/kitchen scope. When optional Cafe is selected its full workflow is required.",
+      "required_primitives_and_missing_joins": [
+        "atomic planned+physical interval capacity",
+        "finite closed generated row/field/form schema",
+        "expected-version same-record clearing",
+        "protected private read projection"
+      ],
+      "source_sites": [
+        {
+          "line": 2,
+          "kind": "app",
+          "selector": "CanTable"
+        },
+        {
+          "line": 5,
+          "kind": "package",
+          "selector": "cafe"
+        },
+        {
+          "line": 9,
+          "kind": "preferences",
+          "selector": ""
+        },
+        {
+          "line": 18,
+          "kind": "policy",
+          "selector": "Cafe"
+        },
+        {
+          "line": 19,
+          "kind": "policy",
+          "selector": "Table"
+        },
+        {
+          "line": 20,
+          "kind": "policy",
+          "selector": "Booking"
+        },
+        {
+          "line": 21,
+          "kind": "invariant",
+          "selector": "Table"
+        },
+        {
+          "line": 22,
+          "kind": "invariant",
+          "selector": "Booking"
+        },
+        {
+          "line": 23,
+          "kind": "invariant",
+          "selector": "Booking"
+        },
+        {
+          "line": 24,
+          "kind": "invariant",
+          "selector": "Booking"
+        },
+        {
+          "line": 25,
+          "kind": "invariant",
+          "selector": "Booking"
+        },
+        {
+          "line": 26,
+          "kind": "invariant",
+          "selector": "Booking"
+        },
+        {
+          "line": 27,
+          "kind": "invariant",
+          "selector": "Booking"
+        },
+        {
+          "line": 28,
+          "kind": "invariant",
+          "selector": "Booking"
+        },
+        {
+          "line": 29,
+          "kind": "derive",
+          "selector": "available(table"
+        },
+        {
+          "line": 30,
+          "kind": "derive",
+          "selector": "Booking.overdue"
+        },
+        {
+          "line": 31,
+          "kind": "derive",
+          "selector": "Booking.conflict"
+        },
+        {
+          "line": 39,
+          "kind": "crud",
+          "selector": "Cafe"
+        },
+        {
+          "line": 40,
+          "kind": "crud",
+          "selector": "Table"
+        },
+        {
+          "line": 58,
+          "kind": "crud",
+          "selector": "Booking"
+        },
+        {
+          "line": 69,
+          "kind": "scenario",
+          "selector": "reserve(booking"
+        },
+        {
+          "line": 88,
+          "kind": "scenario",
+          "selector": "seat(booking"
+        },
+        {
+          "line": 103,
+          "kind": "scenario",
+          "selector": "clear(booking"
+        },
+        {
+          "line": 118,
+          "kind": "scenario",
+          "selector": "cancel(booking"
+        },
+        {
+          "line": 136,
+          "kind": "page",
+          "selector": "/cafe"
+        }
+      ],
+      "evidence_state": {
+        "source_available": true,
+        "desired_mjs": "not runtime evidence; any companion target is hand-written desired witness only",
+        "historical_checks": "companion disclosures retained; none rerun",
+        "proven_runtime_errors": [],
+        "runtime_qualification": "not established by this audit; actual installed compiled owner/browser/MCP/provider/concurrency journeys required"
+      }
+    },
+    {
+      "app": "Time",
+      "classification": "REQUIRED when selected in original portfolio",
+      "canonical_owners": "time",
+      "families": [
+        "F01",
+        "F02",
+        "F03",
+        "F04",
+        "F05",
+        "F06",
+        "F08",
+        "F09",
+        "F12"
+      ],
+      "sources": [
+        {
+          "path": "draft/CanTime.can",
+          "sha256": "3ebf5b368b249faf59b7760bb877f13ad51d9b3faa77510ff1e2bccd33efdf52",
+          "bytes": 30186,
+          "lines": 338,
+          "read": "entire source/companion inspected",
+          "source_kind": "desired authored contract"
+        },
+        {
+          "path": "draft/CanTime.md",
+          "sha256": "7a8ed0f81551a6310391cdb5d16f01e121686b82f6465188a90282ec49eb7417",
+          "bytes": 15687,
+          "lines": 97,
+          "read": "entire source/companion inspected",
+          "source_kind": "desired requirements + historical validation disclosure"
+        }
+      ],
+      "authority": "Employee owns draft timer/manual work; project manager owns rate/review/correction, current site grants and separate Invoice owner source cancellation/refund. Stop retained own draft needs team membership, not new-work employee eligibility.",
+      "required_workflows": [
+        "start returns identical current timer or creates one server-start frozen rate/service; stop fixes end once, overnight duration exact.",
+        "manual/revise records entered origin/reason and same overlap helper; manager exception recorded; frozen rate/service identity retained.",
+        "submit selects every whole finished draft in period and rejects running/boundary work; decide/withdraw freezes entire review or returns drafts with reviewer/reason.",
+        "correct preserves frozen original superseded evidence, creates attributed same-rate replacement requiring new review; exported predecessor cancellation installs permanent fence.",
+        "retry_cancel/refund/reconcile and cumulative matched revision+amount settlement keep correction blocked until original source financially neutral, no collection/refund pending.",
+        "bill sends approved frozen source once only after correction ready; exported state is no invoice issue/payment claim; own/review/project pages separate currency totals and source receipts."
+      ],
+      "failure_retry_termination": "Unique timer+owner fence serializes two devices. Review500 bound rejects excess wholly. Unknown cancellation/refund cannot unlock replacement; successful delivery alone not returned funds. Repeat stop preserves prior end; removal denies new start but keeps authorized closure. No scheduled time business action.",
+      "required_primitives_and_missing_joins": [
+        "atomic one-timer/overlap/whole-review admission",
+        "exact duration/money and frozen rates",
+        "financial source fence/cumulative proof",
+        "cross-owner canonical service references"
+      ],
+      "source_sites": [
+        {
+          "line": 2,
+          "kind": "app",
+          "selector": "CanTime"
+        },
+        {
+          "line": 5,
+          "kind": "package",
+          "selector": "time"
+        },
+        {
+          "line": 12,
+          "kind": "preferences",
+          "selector": ""
+        },
+        {
+          "line": 22,
+          "kind": "derive",
+          "selector": "Entry.duration"
+        },
+        {
+          "line": 23,
+          "kind": "derive",
+          "selector": "Entry.amount"
+        },
+        {
+          "line": 24,
+          "kind": "derive",
+          "selector": "Correction.ready"
+        },
+        {
+          "line": 25,
+          "kind": "derive",
+          "selector": "overlaps_work(employee"
+        },
+        {
+          "line": 26,
+          "kind": "policy",
+          "selector": "Project"
+        },
+        {
+          "line": 27,
+          "kind": "policy",
+          "selector": "Entry"
+        },
+        {
+          "line": 28,
+          "kind": "policy",
+          "selector": "Entry"
+        },
+        {
+          "line": 29,
+          "kind": "policy",
+          "selector": "PeriodReview"
+        },
+        {
+          "line": 30,
+          "kind": "policy",
+          "selector": "PeriodReview"
+        },
+        {
+          "line": 31,
+          "kind": "policy",
+          "selector": "Correction"
+        },
+        {
+          "line": 32,
+          "kind": "policy",
+          "selector": "Correction"
+        },
+        {
+          "line": 33,
+          "kind": "invariant",
+          "selector": "Project"
+        },
+        {
+          "line": 34,
+          "kind": "invariant",
+          "selector": "Entry"
+        },
+        {
+          "line": 35,
+          "kind": "invariant",
+          "selector": "PeriodReview"
+        },
+        {
+          "line": 36,
+          "kind": "unique",
+          "selector": "Entry"
+        },
+        {
+          "line": 37,
+          "kind": "unique",
+          "selector": "Correction"
+        },
+        {
+          "line": 38,
+          "kind": "lock",
+          "selector": "Entry"
+        },
+        {
+          "line": 39,
+          "kind": "lock",
+          "selector": "PeriodReview"
+        },
+        {
+          "line": 40,
+          "kind": "lock",
+          "selector": "Correction"
+        },
+        {
+          "line": 51,
+          "kind": "crud",
+          "selector": "Project"
+        },
+        {
+          "line": 53,
+          "kind": "scenario",
+          "selector": "start(employee"
+        },
+        {
+          "line": 66,
+          "kind": "scenario",
+          "selector": "stop(entry"
+        },
+        {
+          "line": 80,
+          "kind": "scenario",
+          "selector": "manual(employee"
+        },
+        {
+          "line": 96,
+          "kind": "scenario",
+          "selector": "revise(entry"
+        },
+        {
+          "line": 105,
+          "kind": "scenario",
+          "selector": "submit(employee"
+        },
+        {
+          "line": 120,
+          "kind": "scenario",
+          "selector": "decide(review"
+        },
+        {
+          "line": 138,
+          "kind": "scenario",
+          "selector": "withdraw(review"
+        },
+        {
+          "line": 145,
+          "kind": "scenario",
+          "selector": "correct(entry"
+        },
+        {
+          "line": 195,
+          "kind": "scenario",
+          "selector": "bill(entry"
+        },
+        {
+          "line": 207,
+          "kind": "scenario",
+          "selector": "retry_cancel(correction"
+        },
+        {
+          "line": 213,
+          "kind": "scenario",
+          "selector": "reconcile(correction"
+        },
+        {
+          "line": 219,
+          "kind": "scenario",
+          "selector": "refund(correction"
+        },
+        {
+          "line": 224,
+          "kind": "scenario",
+          "selector": "cancelled"
+        },
+        {
+          "line": 232,
+          "kind": "scenario",
+          "selector": "refunded"
+        },
+        {
+          "line": 238,
+          "kind": "scenario",
+          "selector": "reconciled"
+        },
+        {
+          "line": 244,
+          "kind": "scenario",
+          "selector": "settled"
+        },
+        {
+          "line": 252,
+          "kind": "page",
+          "selector": "/time/mine"
+        },
+        {
+          "line": 296,
+          "kind": "page",
+          "selector": "/time/review"
+        }
+      ],
+      "evidence_state": {
+        "source_available": true,
+        "desired_mjs": "not runtime evidence; any companion target is hand-written desired witness only",
+        "historical_checks": "companion disclosures retained; none rerun",
+        "proven_runtime_errors": [],
+        "runtime_qualification": "not established by this audit; actual installed compiled owner/browser/MCP/provider/concurrency journeys required"
+      }
+    },
+    {
+      "app": "Trade",
+      "classification": "REQUIRED when selected in original portfolio",
+      "canonical_owners": "trade",
+      "families": [
+        "F01",
+        "F03",
+        "F04",
+        "F08",
+        "F09",
+        "F12"
+      ],
+      "sources": [
+        {
+          "path": "draft/CanTrade.can",
+          "sha256": "b58402d59a30f902492b425a27270dfca4872a8e24f6814e914e1a09d80ec3e2",
+          "bytes": 12031,
+          "lines": 161,
+          "read": "entire source/companion inspected",
+          "source_kind": "desired authored contract"
+        },
+        {
+          "path": "draft/CanTrade.md",
+          "sha256": "f52dc029febfe35b9981a6d3cd39570c865b8fbb42fd7047a353a4f70d65b567",
+          "bytes": 11722,
+          "lines": 91,
+          "read": "entire source/companion inspected",
+          "source_kind": "desired requirements + historical validation disclosure"
+        }
+      ],
+      "authority": "Eligible verified customer member owns chosen publication contact and listings; owner controls single Audience public policy, moderator owns abuse decisions. Staff invitation is not customer membership.",
+      "required_workflows": [
+        "Post CRUD cannot change authorship; wanted/offered listing frozen author, positive optional money, allowed audience/contact deliberate.",
+        "Member/public discovery checks current author membership and site paid term; disabling public policy hides existing public posts; own private history remains.",
+        "status lets expired author close but reopening/edit/delete requires current verified eligibility and permitted audience.",
+        "Report creation current visible other-author listing, one report/author/listing, ten/day including archived; post20/day also retains archival count.",
+        "moderate only unresolved report+reason sets removed without author impersonation; dismiss locks report text/author and keeps decision.",
+        "Marketplace/own/report pages preserve escaped content, contact privacy, moderator-only history and direct API guards."
+      ],
+      "failure_retry_termination": "Removed or expired listings cannot leak through saved URLs/search/filter. Source guard quotas use canonical all-or-reject count. No payment/checkout/provider/scheduled work; participant transactions arranged directly. Optional marketplace selection requires privacy/moderation outcomes.",
+      "required_primitives_and_missing_joins": [
+        "current membership audience reads",
+        "aggregate abuse quota fence",
+        "field-minimized public/owner projection",
+        "closed scope/query schema"
+      ],
+      "source_sites": [
+        {
+          "line": 2,
+          "kind": "app",
+          "selector": "CanTrade"
+        },
+        {
+          "line": 5,
+          "kind": "package",
+          "selector": "trade"
+        },
+        {
+          "line": 10,
+          "kind": "preferences",
+          "selector": ""
+        },
+        {
+          "line": 17,
+          "kind": "derive",
+          "selector": "eligible(account"
+        },
+        {
+          "line": 18,
+          "kind": "derive",
+          "selector": "Report.resolved"
+        },
+        {
+          "line": 19,
+          "kind": "policy",
+          "selector": "Audience"
+        },
+        {
+          "line": 20,
+          "kind": "invariant",
+          "selector": "Audience"
+        },
+        {
+          "line": 21,
+          "kind": "invariant",
+          "selector": "Post"
+        },
+        {
+          "line": 22,
+          "kind": "unique",
+          "selector": "Report"
+        },
+        {
+          "line": 23,
+          "kind": "lock",
+          "selector": "Audience"
+        },
+        {
+          "line": 24,
+          "kind": "policy",
+          "selector": "Post"
+        },
+        {
+          "line": 25,
+          "kind": "policy",
+          "selector": "Post"
+        },
+        {
+          "line": 26,
+          "kind": "policy",
+          "selector": "Post"
+        },
+        {
+          "line": 27,
+          "kind": "policy",
+          "selector": "Post"
+        },
+        {
+          "line": 28,
+          "kind": "policy",
+          "selector": "Report"
+        },
+        {
+          "line": 29,
+          "kind": "policy",
+          "selector": "Report"
+        },
+        {
+          "line": 30,
+          "kind": "lock",
+          "selector": "Post"
+        },
+        {
+          "line": 31,
+          "kind": "lock",
+          "selector": "Report"
+        },
+        {
+          "line": 35,
+          "kind": "crud",
+          "selector": "Audience"
+        },
+        {
+          "line": 36,
+          "kind": "crud",
+          "selector": "Post"
+        },
+        {
+          "line": 43,
+          "kind": "crud",
+          "selector": "Report"
+        },
+        {
+          "line": 45,
+          "kind": "scenario",
+          "selector": "status(post"
+        },
+        {
+          "line": 60,
+          "kind": "scenario",
+          "selector": "moderate(post"
+        },
+        {
+          "line": 71,
+          "kind": "scenario",
+          "selector": "dismiss(report"
+        },
+        {
+          "line": 82,
+          "kind": "page",
+          "selector": "/marketplace"
+        },
+        {
+          "line": 129,
+          "kind": "page",
+          "selector": "/marketplace/reports"
+        }
+      ],
+      "evidence_state": {
+        "source_available": true,
+        "desired_mjs": "not runtime evidence; any companion target is hand-written desired witness only",
+        "historical_checks": "companion disclosures retained; none rerun",
+        "proven_runtime_errors": [],
+        "runtime_qualification": "not established by this audit; actual installed compiled owner/browser/MCP/provider/concurrency journeys required"
+      }
+    },
+    {
+      "app": "Volunteer",
+      "classification": "REQUIRED when selected in original portfolio",
+      "canonical_owners": "volunteer",
+      "families": [
+        "F01",
+        "F02",
+        "F03",
+        "F04",
+        "F05",
+        "F06",
+        "F08",
+        "F09",
+        "F12"
+      ],
+      "sources": [
+        {
+          "path": "draft/CanVolunteer.can",
+          "sha256": "7ad2d4d3e862473da3841c5e2718340caa5e8b79467798848ee09023c3280b06",
+          "bytes": 25126,
+          "lines": 280,
+          "read": "entire source/companion inspected",
+          "source_kind": "desired authored contract"
+        },
+        {
+          "path": "draft/CanVolunteer.md",
+          "sha256": "c552bc8a49bd4b12bf66a7e54f4b10098fea114e2ca903ecbc2c63ad80ae3225",
+          "bytes": 13054,
+          "lines": 77,
+          "read": "entire source/companion inspected",
+          "source_kind": "desired requirements + historical validation disclosure"
+        }
+      ],
+      "authority": "Community customer accounts reserve their own signup place/tasks; organizer current work scope coordinates activity/attendance. Rent alone owns rentable venue entitlement; organizer role is not staff coverage.",
+      "required_workflows": [
+        "publish requires active future confirmed/paid/free/on_account+allowance fulfilled optional actual venue; signup reserves last place and organization-wide nonoverlap once.",
+        "confirm, withdraw/reactivate/reconfirm retain one Signup identity/history; Task.complete only own current confirmed venue-eligible assignment; attendance only after interval ends.",
+        "link_venue reuses owner booking-detail predicate; material reschedule checks all conflicts/venue, retains places and asks every affected volunteer consent.",
+        "ReservationChanged invalidates unavailable venues and future confirmation/reminders; no second room calendar.",
+        "cancel sets immediate parent truth, emits captured reason; cancel_signup every admitted child stores terminal cancelled and guarded notice eventually; capacity/tasks deny immediately.",
+        "Opportunity.updated refresh_reminders finite cohort cancels/rearms every relevant key using fresh parent/signup; UI separates desired signup/attendance and notice receipt, no public roster."
+      ],
+      "failure_retry_termination": "Two last-place requests serialize; withdrawal releases once. Parent cancellation remains final even if child fails, with remaining/failed child progress exposed. Admitted499/500/501/1000 are complete cohorts. Material reschedule/venue invalidation local500/100 loops retain whole-or-reject bounds. No invented provider cancellation/read proof.",
+      "required_primitives_and_missing_joins": [
+        "atomic capacity/community overlap",
+        "finite cohort fairness/current child states",
+        "imported Booking predicate/event authority",
+        "guarded notices/keyed parent revisions"
+      ],
+      "source_sites": [
+        {
+          "line": 2,
+          "kind": "app",
+          "selector": "CanVolunteer"
+        },
+        {
+          "line": 5,
+          "kind": "package",
+          "selector": "volunteer"
+        },
+        {
+          "line": 11,
+          "kind": "contract",
+          "selector": "Availability"
+        },
+        {
+          "line": 12,
+          "kind": "contract",
+          "selector": "WorkItem"
+        },
+        {
+          "line": 13,
+          "kind": "contract",
+          "selector": "WorkBatch"
+        },
+        {
+          "line": 14,
+          "kind": "preferences",
+          "selector": ""
+        },
+        {
+          "line": 22,
+          "kind": "event",
+          "selector": "Reminder"
+        },
+        {
+          "line": 23,
+          "kind": "event",
+          "selector": "OpportunityCancelled"
+        },
+        {
+          "line": 24,
+          "kind": "derive",
+          "selector": "venue_covers(venue"
+        },
+        {
+          "line": 25,
+          "kind": "derive",
+          "selector": "Opportunity.venue_confirmed"
+        },
+        {
+          "line": 26,
+          "kind": "derive",
+          "selector": "Opportunity.remaining"
+        },
+        {
+          "line": 27,
+          "kind": "derive",
+          "selector": "Signup.reserves_place"
+        },
+        {
+          "line": 28,
+          "kind": "derive",
+          "selector": "Signup.cancelled"
+        },
+        {
+          "line": 29,
+          "kind": "policy",
+          "selector": "Community"
+        },
+        {
+          "line": 30,
+          "kind": "policy",
+          "selector": "Opportunity"
+        },
+        {
+          "line": 31,
+          "kind": "policy",
+          "selector": "Opportunity"
+        },
+        {
+          "line": 32,
+          "kind": "policy",
+          "selector": "Signup"
+        },
+        {
+          "line": 33,
+          "kind": "policy",
+          "selector": "Signup"
+        },
+        {
+          "line": 34,
+          "kind": "policy",
+          "selector": "Task"
+        },
+        {
+          "line": 35,
+          "kind": "policy",
+          "selector": "Task"
+        },
+        {
+          "line": 36,
+          "kind": "invariant",
+          "selector": "Opportunity"
+        },
+        {
+          "line": 37,
+          "kind": "unique",
+          "selector": "Signup"
+        },
+        {
+          "line": 42,
+          "kind": "crud",
+          "selector": "Community"
+        },
+        {
+          "line": 43,
+          "kind": "crud",
+          "selector": "Opportunity"
+        },
+        {
+          "line": 44,
+          "kind": "crud",
+          "selector": "Task"
+        },
+        {
+          "line": 45,
+          "kind": "scenario",
+          "selector": "venue_on_create"
+        },
+        {
+          "line": 47,
+          "kind": "scenario",
+          "selector": "refresh_reminders"
+        },
+        {
+          "line": 54,
+          "kind": "scenario",
+          "selector": "publish(opportunity"
+        },
+        {
+          "line": 59,
+          "kind": "scenario",
+          "selector": "signup(opportunity"
+        },
+        {
+          "line": 64,
+          "kind": "scenario",
+          "selector": "confirm(signup"
+        },
+        {
+          "line": 71,
+          "kind": "scenario",
+          "selector": "withdraw(signup"
+        },
+        {
+          "line": 82,
+          "kind": "scenario",
+          "selector": "complete(task"
+        },
+        {
+          "line": 86,
+          "kind": "scenario",
+          "selector": "attendance(signup"
+        },
+        {
+          "line": 99,
+          "kind": "scenario",
+          "selector": "availability(opportunity"
+        },
+        {
+          "line": 103,
+          "kind": "scenario",
+          "selector": "reactivate(signup"
+        },
+        {
+          "line": 113,
+          "kind": "scenario",
+          "selector": "reconfirm(signup"
+        },
+        {
+          "line": 123,
+          "kind": "scenario",
+          "selector": "link_venue(opportunity"
+        },
+        {
+          "line": 136,
+          "kind": "scenario",
+          "selector": "reschedule(opportunity"
+        },
+        {
+          "line": 158,
+          "kind": "scenario",
+          "selector": "venue_changed"
+        },
+        {
+          "line": 173,
+          "kind": "scenario",
+          "selector": "cancel(opportunity"
+        },
+        {
+          "line": 178,
+          "kind": "scenario",
+          "selector": "cancel_signup"
+        },
+        {
+          "line": 186,
+          "kind": "scenario",
+          "selector": "remind"
+        },
+        {
+          "line": 194,
+          "kind": "event",
+          "selector": ".signup.state,event.revision"
+        },
+        {
+          "line": 199,
+          "kind": "scenario",
+          "selector": "work(locations"
+        },
+        {
+          "line": 202,
+          "kind": "scenario",
+          "selector": "work_detail(record"
+        },
+        {
+          "line": 207,
+          "kind": "page",
+          "selector": "/volunteering"
+        },
+        {
+          "line": 236,
+          "kind": "page",
+          "selector": "/volunteering/work"
+        }
+      ],
+      "evidence_state": {
+        "source_available": true,
+        "desired_mjs": "not runtime evidence; any companion target is hand-written desired witness only",
+        "historical_checks": "companion disclosures retained; none rerun",
+        "proven_runtime_errors": [],
+        "runtime_qualification": "not established by this audit; actual installed compiled owner/browser/MCP/provider/concurrency journeys required"
+      }
+    },
+    {
+      "app": "Workbench",
+      "classification": "REQUIRED when selected in original portfolio",
+      "canonical_owners": "workbench coordinator + canonical todo Task.update/complete + employee context",
+      "families": [
+        "F01",
+        "F02",
+        "F03",
+        "F04",
+        "F05",
+        "F06",
+        "F08",
+        "F09",
+        "F12"
+      ],
+      "sources": [
+        {
+          "path": "draft/CanWorkbench.can",
+          "sha256": "c25965b58d7347a4fbdcc645494cac4056117ca6096e15a64ff656ef204288ba",
+          "bytes": 15516,
+          "lines": 199,
+          "read": "entire source/companion inspected",
+          "source_kind": "desired authored contract"
+        },
+        {
+          "path": "draft/CanWorkbench.md",
+          "sha256": "be389d1a2b8fb0735869b809956a94d3a7c7e3dc4c7e9725e69ee2e2e3cf5fad",
+          "bytes": 7628,
+          "lines": 31,
+          "read": "entire source/companion inspected",
+          "source_kind": "desired requirements + historical validation disclosure"
+        }
+      ],
+      "authority": "Initiating current employee owns private one-hour Run selecting one workplace/purpose/goal and 1–10 readable tasks. Planner returns data-only complete invocation, not delegated execution. Task owners retain all grants/version/lock/invariant rules.",
+      "required_workflows": [
+        "context reads only selected current visible same-workplace unarchived Task facts with versions, bounded title/description and worker; start locks selected scope and deadline.",
+        "next rereads fresh context, permits at most8 requests including failed/skipped/unknown, at most32768 input tokens/2000 output tokens, and only after prior proposal settled; full oversized context fails, never silently truncates.",
+        "planned callback stores only current eligible open proposal after validating owner-derived finite invocation schema, supplied reference/record/version provenance and complete normalized arguments; answer with no invocation creates no effect.",
+        "approve shows complete immutable currently readable Task.update/complete arguments, rechecks entire frozen context+workplace versions/current employment/session/step, invokes real owner once, and commits effect + approval evidence atomically; post-call workplace require rolls back an unauthorized workflow move.",
+        "reject performs no action; next refreshes facts; stop blocks future dispatch/approval and stale callbacks while preserving prior committed work; unknown request followed only by explicit fresh attempt with distinct receipt.",
+        "Private persisted page polls2s current status without repeating planning/approval; safe owner status+stop survive context loss, full proposal/context reads require current scope; browser and MCP cannot bypass unavailable preview."
+      ],
+      "failure_retry_termination": "Eight requests/one hour/current active work bound admission; old results after stop/expiry/replacement/revocation cannot become actionable. Stale/failed approval preserves original arguments for reject+fresh request, never silent rebase. Duplicate new approval fails, same-operation receipt replay retains canonical semantics. Stop is no compensation/provider cancellation/refund.",
+      "required_primitives_and_missing_joins": [
+        "full owner-derived invocation schema/reference provenance",
+        "complete currently readable protected preview",
+        "same-fence context+owner mutation+approval evidence",
+        "bounded model input/output token accounting",
+        "current-scope read projection and late callback denial"
+      ],
+      "source_sites": [
+        {
+          "line": 2,
+          "kind": "app",
+          "selector": "CanWorkbench"
+        },
+        {
+          "line": 5,
+          "kind": "package",
+          "selector": "workbench"
+        },
+        {
+          "line": 12,
+          "kind": "contract",
+          "selector": "Scope"
+        },
+        {
+          "line": 13,
+          "kind": "contract",
+          "selector": "Fact"
+        },
+        {
+          "line": 14,
+          "kind": "contract",
+          "selector": "Input"
+        },
+        {
+          "line": 15,
+          "kind": "contract",
+          "selector": "Proposal"
+        },
+        {
+          "line": 16,
+          "kind": "capability",
+          "selector": "WorkbenchPlannerV1"
+        },
+        {
+          "line": 20,
+          "kind": "unique",
+          "selector": "Step"
+        },
+        {
+          "line": 21,
+          "kind": "lock",
+          "selector": "Run"
+        },
+        {
+          "line": 22,
+          "kind": "lock",
+          "selector": "Step"
+        },
+        {
+          "line": 23,
+          "kind": "lock",
+          "selector": "Step"
+        },
+        {
+          "line": 24,
+          "kind": "lock",
+          "selector": "Step"
+        },
+        {
+          "line": 25,
+          "kind": "invariant",
+          "selector": "Run"
+        },
+        {
+          "line": 26,
+          "kind": "invariant",
+          "selector": "Step"
+        },
+        {
+          "line": 27,
+          "kind": "derive",
+          "selector": "eligible(person"
+        },
+        {
+          "line": 28,
+          "kind": "derive",
+          "selector": "Run.current"
+        },
+        {
+          "line": 29,
+          "kind": "derive",
+          "selector": "Step.delivery_state"
+        },
+        {
+          "line": 30,
+          "kind": "policy",
+          "selector": "Run"
+        },
+        {
+          "line": 31,
+          "kind": "policy",
+          "selector": "Run"
+        },
+        {
+          "line": 32,
+          "kind": "policy",
+          "selector": "Step"
+        },
+        {
+          "line": 33,
+          "kind": "policy",
+          "selector": "Step"
+        },
+        {
+          "line": 44,
+          "kind": "scenario",
+          "selector": "context(location"
+        },
+        {
+          "line": 51,
+          "kind": "scenario",
+          "selector": "start(purpose"
+        },
+        {
+          "line": 63,
+          "kind": "scenario",
+          "selector": "next(run"
+        },
+        {
+          "line": 90,
+          "kind": "scenario",
+          "selector": "planned"
+        },
+        {
+          "line": 107,
+          "kind": "scenario",
+          "selector": "approve(step"
+        },
+        {
+          "line": 145,
+          "kind": "scenario",
+          "selector": "reject(step"
+        },
+        {
+          "line": 149,
+          "kind": "scenario",
+          "selector": "stop(run"
+        },
+        {
+          "line": 170,
+          "kind": "page",
+          "selector": "/workbench"
+        }
+      ],
+      "evidence_state": {
+        "source_available": true,
+        "desired_mjs": "not runtime evidence; hand-written desired witness only",
+        "historical_checks": "companion disclosures retained; none rerun",
+        "proven_runtime_errors": [],
+        "runtime_qualification": "not established by this audit; real model proposal/compiled owner/browser/MCP/current admission and rollback journeys required"
+      }
+    }
+  ],
+  "shared": [
+    {
+      "source": "draft/shared/Employees.can",
+      "sha256": "64b941f4e3db0afe499903642585e362482d6aa39f679b3b1e688dc912d3b7f4",
+      "lines": 26,
+      "read": "entire source inspected",
+      "companion": "none specified for shared source",
+      "classification": "REQUIRED canonical shared declaration",
+      "families": [
+        "F01",
+        "F03",
+        "F04",
+        "F06"
+      ],
+      "duty": "Single canonical Employee.user unique; staff requires active Employee + team membership; can_work adds current home/site/operator-wide scope. HR-owned deactivate preserves history and EmployeeChanged carries exact changed work fields. Imported canonical HR data never grants customer company authority."
+    },
+    {
+      "source": "draft/shared/Locations.can",
+      "sha256": "6cafeb02349c80c8ff19a278bc9072258fe8b8f402409629fed534854e106c7a",
+      "lines": 65,
+      "read": "entire source inspected",
+      "companion": "none specified for shared source",
+      "classification": "REQUIRED canonical shared declaration",
+      "families": [
+        "F01",
+        "F02",
+        "F03",
+        "F04"
+      ],
+      "duty": "Single rent_catalog Location authority with immutable LocationPolicy on catalog/calendar writes; structured WeeklyHours/ClosedDate/DateHours, overnight offset and explicit DST fold, public presentation versus catalog can_work mutation. Employee type import cycle is declaration resolution work, not a permission-copy workaround."
+    },
+    {
+      "source": "draft/shared/Suppliers.can",
+      "sha256": "828931c2fed61c24b269e5653c871f8576d7f798722da58635141645aaaa7878",
+      "lines": 13,
+      "read": "entire source inspected",
+      "companion": "none specified for shared source",
+      "classification": "REQUIRED canonical shared declaration",
+      "families": [
+        "F01",
+        "F03",
+        "F04",
+        "F08"
+      ],
+      "duty": "Single Supplier directory exported with buyer/budget_manager roles, current site grants and active limited member picker fields. Supplier CRUD is buyer-only scoped over every listed location; no delete or second facilities/payable supplier table."
+    }
+  ],
+  "target_duties": [
+    {
+      "id": "APP-D01",
+      "classification": "REQUIRED",
+      "duty": "Atomic business ledgers and complete dependency reads",
+      "families": [
+        "F02",
+        "F03"
+      ],
+      "retained_defining_paths": [
+        "packages/state/src/invocation/admission.ts",
+        "packages/state/src/invocation/invoke.ts",
+        "packages/state/src/query/engine.ts"
+      ],
+      "new_proposed_leaves": [],
+      "apps": [
+        "Purchase",
+        "Refer",
+        "Stock",
+        "Rent",
+        "Shift",
+        "Table",
+        "Time",
+        "Volunteer"
+      ],
+      "gate": "Retain canonical fence/query owners; execute conflicting budget/quantity/balance/pool/overlap admissions with one winner or honest whole rejection. No balance-specific JS side engine."
+    },
+    {
+      "id": "APP-D02",
+      "classification": "REQUIRED",
+      "duty": "Finite source-derived external query/report joins",
+      "families": [
+        "F01",
+        "F03",
+        "F05"
+      ],
+      "retained_defining_paths": [
+        "packages/state/src/query/engine.ts",
+        "packages/services/src/catalog.ts"
+      ],
+      "new_proposed_leaves": [
+        "packages/services/src/analytics/dimensions.ts",
+        "packages/services/src/analytics/mapping.ts",
+        "packages/services/src/reports/sources.ts",
+        "packages/services/src/reports/checkpoints.ts"
+      ],
+      "apps": [
+        "Report",
+        "Stats",
+        "Rent"
+      ],
+      "gate": "Compile owned nominal/schema + delegated read audience; pinned site dataset/field schema, weighted counts and frozen goals; coverage inventories/ranges/sites/corrections/reversals and exact unit/currency separation. Canonical source reads retain authority; provider reports never write source ledgers."
+    },
+    {
+      "id": "APP-D03",
+      "classification": "REQUIRED",
+      "duty": "First-party tracker lifecycle and intake",
+      "families": [
+        "F03",
+        "F04",
+        "F05",
+        "F07",
+        "F09"
+      ],
+      "retained_defining_paths": [
+        "packages/work/src/intent/index.ts",
+        "packages/state/src/invocation/invoke.ts"
+      ],
+      "new_proposed_leaves": [
+        "packages/services/src/analytics/tracker.ts",
+        "packages/ui/src/tracker/client.ts",
+        "packages/ui/src/tracker/consent.ts",
+        "packages/ui/src/tracker/session.ts"
+      ],
+      "apps": [
+        "Stats"
+      ],
+      "gate": "Consume configured source-owned event schema and canonical intake callback; consent/reset/session/local queue/normalization; replay/quota/durable intent one fence; public key not report authority; content expiry retains digest identity; actual host SDK/queue/Analytics consumer proof."
+    },
+    {
+      "id": "APP-D04",
+      "classification": "REQUIRED",
+      "duty": "Complete approved invocation and protected actions",
+      "families": [
+        "F01",
+        "F03",
+        "F05",
+        "F08",
+        "F09"
+      ],
+      "retained_defining_paths": [
+        "compiler/src/analysis/types.rs",
+        "packages/contracts/src/values.ts",
+        "packages/state/src/invocation/admission.ts",
+        "packages/interfaces/src/mcp/schemas.ts"
+      ],
+      "new_proposed_leaves": [
+        "packages/services/src/models/invocations.ts",
+        "packages/interfaces/src/projection/invocations.ts"
+      ],
+      "apps": [
+        "Workbench",
+        "Onboard",
+        "Success",
+        "Volunteer"
+      ],
+      "gate": "Finite invocation owner schemas and normalized full args/version/reference provenance; proposed model tool handler validates request reference allowlist; complete currently readable preview + owner current admission; task effect and approval evidence atomic; post-call workflow require rolls back. No alternate execute API/string dispatch."
+    },
+    {
+      "id": "APP-D05",
+      "classification": "REQUIRED",
+      "duty": "Historical day-resource report coverage",
+      "families": [
+        "F01",
+        "F03",
+        "F05"
+      ],
+      "retained_defining_paths": [
+        "draft/CanRent.can",
+        "draft/shared/Locations.can"
+      ],
+      "new_proposed_leaves": [],
+      "apps": [
+        "Rent",
+        "Report"
+      ],
+      "gate": "Source repair proposal: extend owning Rent historical evidence with DayCalendar facts/tombstones + governing price-unit/inclusion evidence; reconstruct day-resource narrowing at selected policy sequence. Current source only captures four scalar policy fields; do not backfill missing earlier evidence or claim complete denominator."
+    },
+    {
+      "id": "APP-D06",
+      "classification": "REQUIRED",
+      "duty": "Finite every-child and addressed recovery",
+      "families": [
+        "F03",
+        "F05",
+        "F06"
+      ],
+      "retained_defining_paths": [
+        "packages/state/src/fanout/cohort.ts",
+        "packages/state/src/fanout/lifecycle.ts",
+        "packages/state/src/fanout/progress.ts",
+        "packages/work/src/recovery/index.ts",
+        "packages/work/src/schedule/every.ts"
+      ],
+      "new_proposed_leaves": [],
+      "apps": [
+        "Shift",
+        "Volunteer",
+        "Reception",
+        "Success",
+        "Purchase",
+        "Propose",
+        "Sync"
+      ],
+      "gate": "Entire finite admitted identity cohort, fresh child admission, each terminal outcome, cursor exhaustion and attention on failures; no N-row truncation or fixed worker count. Preserve honest local all-or-reject bounds and record-addressed retry/epochs/deadlines."
+    },
+    {
+      "id": "APP-D07",
+      "classification": "REQUIRED",
+      "duty": "Explicit owner deployment causation and installed proof",
+      "families": [
+        "F01",
+        "F05",
+        "F06",
+        "F11",
+        "F12"
+      ],
+      "retained_defining_paths": [
+        "packages/services/src/ports.ts",
+        "packages/work/src/dispatch/index.ts"
+      ],
+      "new_proposed_leaves": [
+        "tests/e2e/journeys/apps-delivery-installed.spec.ts",
+        "tests/e2e/journeys/apps-analytics-installed.spec.ts"
+      ],
+      "apps": [
+        "Onboard",
+        "Propose",
+        "Purchase",
+        "Reception",
+        "Refer",
+        "Rent",
+        "Report",
+        "Shift",
+        "Stats",
+        "Stock",
+        "Success",
+        "Sync",
+        "Table",
+        "Time",
+        "Trade",
+        "Volunteer",
+        "Workbench"
+      ],
+      "gate": "Source-bound imported ownership/capability signatures + team/namespace/action/delivery causation envelopes; legitimate committed producer outcomes and domain revisions, rollback-to-failed/unknown policy, no guessed source routing. Installed selected app compiler/catalog/runtime/browser/MCP/provider journeys with real state/recovery and preserved negative cases. Original existing tests/e2e owner retained; no packages/e2e package is invented."
+    },
+    {
+      "id": "APP-D08",
+      "classification": "REQUIRED",
+      "duty": "Trusted maintenance state candidate admission",
+      "families": [
+        "F03",
+        "F08",
+        "F11"
+      ],
+      "retained_defining_paths": [
+        "packages/contracts/src/state.ts",
+        "packages/state/src/invocation/admission.ts",
+        "packages/state/src/mutation/pipeline.ts"
+      ],
+      "new_proposed_leaves": [
+        "packages/state/src/maintenance/admission.ts"
+      ],
+      "apps": [
+        "Check",
+        "Catch",
+        "Stats"
+      ],
+      "gate": "Trusted channel config freezes source/team/finite model schema/operation/replay identity; owner expected-version admission and all staged hooks/invariants/history/secret initialization/outbox one fence, without enabling user configuration CRUD. Cloudflare maintenance/records.ts owns transport/composition; no copied commit engine."
+    },
+    {
+      "id": "APP-D09",
+      "classification": "REQUIRED when configured alert source selected",
+      "duty": "Configured safe HTTPS alert delivery",
+      "families": [
+        "F05",
+        "F06",
+        "F08",
+        "F11"
+      ],
+      "retained_defining_paths": [
+        "packages/services/src/catalog.ts",
+        "packages/services/src/http/client.ts",
+        "packages/interfaces/src/ingress/mapping.ts"
+      ],
+      "new_proposed_leaves": [
+        "packages/services/src/alerts/adapter.ts",
+        "packages/services/src/alerts/egress.ts"
+      ],
+      "apps": [
+        "Check",
+        "Catch"
+      ],
+      "gate": "Derive Alert/AlertAccepted schema from bound owner; bounded publicHTTPS/redirect/target behavior, actual accepted reference, safe diagnostics/stable attempt and verified cause. Pending/unknown never proves recipient reading/business success. Installed qualified binding gate before catalog availability claim."
+    }
+  ],
+  "material_findings": [
+    {
+      "id": "A-R01",
+      "classification": "source-inferred desired-contract gap; not executed runtime error",
+      "source": "draft/CanReception.can",
+      "sites": [
+        {
+          "selector": "scenario arrive",
+          "line": 216
+        },
+        {
+          "selector": "scenario depart",
+          "line": 232
+        }
+      ],
+      "fact": "Companion demands repeated arrival/departure prior result. Source fresh-call guards require expected/arrived and after success are arrived/departed. Canonical same-operation receipt replay can satisfy same identity but fresh repeat-command policy requires adjudication/implementation.",
+      "required_resolution": "Preserve authoritative once-only evidence, clarify desired fresh-repeat result and expose actual behavior without claiming repeat errors are runtime-proven."
+    },
+    {
+      "id": "A-R02",
+      "classification": "source-inferred historical evidence omission; not executed metric error",
+      "source": "draft/CanRent.can",
+      "selectors": [
+        "contract ResourceEvidence",
+        "scenario snapshot_DayCalendar_create",
+        "scenario snapshot_DayCalendar_update",
+        "derive saved_saleable",
+        "scenario available_days",
+        "scenario resource_report"
+      ],
+      "fact": "DayCalendar changes capture ResourcePolicy(active,capacity,pooled,timezone), no retained DayCalendar facts or price_unit; saved_saleable ignores DayCalendar although available_days/hold_days require every published nonclosed day.",
+      "required_resolution": "Add source-owned retained day-calendar/inclusion evidence and qualification of historical denominator; earlier absent facts remain partial."
+    },
+    {
+      "id": "A-R03",
+      "classification": "required presentation/route completion",
+      "source": "draft/CanReception.md",
+      "fact": "Requirements include contextual verified guest invitation. Source has only staff review/reception/credential and authenticated /reception/mine routes; limited own Visit grant is not a verified contextual destination.",
+      "required_resolution": "Complete owner-selected route/descriptor/current guest access journey, never invent a public bearer-door endpoint."
+    },
+    {
+      "id": "A-R04",
+      "classification": "source-inferred unresolved reversal policy; not executed runtime error",
+      "source": "draft/CanStock.can",
+      "sites": [
+        {
+          "selector": "scenario transfer",
+          "line": 73
+        },
+        {
+          "selector": "scenario reverse",
+          "line": 79
+        }
+      ],
+      "fact": "transfer requires both site grants and creates source/destination legs together. reverse accepts any nonpurchase Movement, including a transfer leg, checks only that leg location, and creates one opposite Movement. The draft does not prove a paired reversal or both-site reversal authority.",
+      "required_resolution": "Owner adjudicates either legitimate site-local attributed count correction with explicit conservation/reporting meaning, or deny/paired reversal with corresponding two-site authorization. Preserve ledger history and nonnegative balances; do not select a policy automatically."
+    }
+  ],
+  "mechanism_evidence": [
+    {
+      "path": "packages/state/src/invocation/admission.ts",
+      "sha256": "9e608e50d665b7024adae94beeb17f81dea4a550a73f797336ea614c04d4b986",
+      "status": "source-present inspected defining mechanism; not complete app qualification"
+    },
+    {
+      "path": "packages/state/src/query/engine.ts",
+      "sha256": "b308d161b6c1187055337aaffababeccc6bceed7466c3261cccb066c5432e9ca",
+      "status": "source-present inspected defining mechanism; not complete app qualification"
+    },
+    {
+      "path": "packages/work/src/ports.ts",
+      "sha256": "0b7f8987e18db348417579ce5de96f472e66028804f7fbb58825586fdaa61184",
+      "status": "source-present inspected defining mechanism; not complete app qualification"
+    },
+    {
+      "path": "packages/work/src/catalog.ts",
+      "sha256": "d3dd8f7ce8b66d728cf50d60246f3981330ff0246f171c6b47781bb9c3ba6bfb",
+      "status": "source-present inspected defining mechanism; not complete app qualification"
+    },
+    {
+      "path": "packages/work/src/schedule/every.ts",
+      "sha256": "60854aa7c190ef69f29bde0f68e1e26ae68de98c782fa82d64e4f2e822e046e9",
+      "status": "source-present inspected defining mechanism; not complete app qualification"
+    },
+    {
+      "path": "packages/interfaces/src/mcp/schemas.ts",
+      "sha256": "de20917570bcbc7f2e7060417058a61e4db2fd668cceb096a8cea33939eaba7b",
+      "status": "source-present inspected defining mechanism; not complete app qualification"
+    },
+    {
+      "path": "compiler/src/analysis/types.rs",
+      "sha256": "b16715743c91b47e571caf04d90837b75dde1029d8488021ae4caa799de1d838",
+      "status": "source-present inspected defining mechanism; not complete app qualification"
+    },
+    {
+      "path": "packages/contracts/src/values.ts",
+      "sha256": "162869eb5a7e317238390ad8ab552804afe5e9e712d3beccb6781d31b4dd5c39",
+      "status": "source-present inspected defining mechanism; not complete app qualification"
+    }
+  ],
+  "scope_boundaries": {
+    "REQUIRED": "Full original workflows when selected; pooled workspace/allowances in fuller operator profile, finite query/report/protected invocation/atomic ledger/imported ownership are included.",
+    "ACCEPTED-CONDITIONAL": "Optional Cafe/Trade/Volunteer composition and optional device or configured scoped provider selection; once selected their stated failure/recovery/privacy contracts are required.",
+    "DEFERRED": "Rent bundled carts/deposits/partial money/long-term leases/unattended door automation; Table food/POS/kitchen; Trade participant checkout; Refer automatic bank payout; general Sync ETL; unrestricted AI/external tool discovery.",
+    "DECLINED": "Treating draft source or tiny MJS smoke as qualified app; replacing canonical authority with UI cache/balance/role copies; interpreting loop/cohort capacity or source restriction as permission to weaken intended whole workflow."
+  },
+  "pin": {
+    "earlier_primary_delivery_source_pin": "cf36983c768c32e0a63ac33c3b45a94dc75dc2d3",
+    "app_intent_pin": "individually SHA256-pinned inspected bytes; no Git read performed in this subtask",
+    "late_parent_delta": "Parent reports fa5c8e3 C3 bundle/route + delivery field loader; root owns separately scoped delta, not retroactive original-source qualification"
+  },
+  "crosscutting_families": {
+    "F10": "Every selected app requires owner-source descriptions/reference against installed accepted semantics.",
+    "F11": "Every selected app requires resolved dependency/catalog/provider/assets and installed production chain; included in APP-D07.",
+    "F12": "Each original success/negative/retry/termination journey requires actual compiled production consumers, not ad hoc payload fixture."
+  },
+  "independent_challenge": {
+    "subject": "finished-product/reviews/apps-language.json + apps-language.md",
+    "scope": "App-specific proposed duties/owner boundaries, independently reread relevant CanCheck/CanCatch/CanDo source and companion requirements + current defining ingress/catalog/registry/pipeline excerpts; not an additional entire-cohort sweep.",
+    "reviewed_subject_sha256": "4b7c6e185d8371ef105f79c52b69068fd5ee15bdf207ba4f5eaa257c5f89ed12",
+    "source_evidence": [
+      {
+        "path": "draft/CanCatch.can",
+        "sha256": "2b1ba7bb44e5e0da8cc87580851b84f3e81c5f566b97762e545e00e0b78a1467"
+      },
+      {
+        "path": "draft/CanCatch.md",
+        "sha256": "5c9768aa96335e65b3a62821d20c452a18a1ef82599625514cbc8577a68e0bd7"
+      },
+      {
+        "path": "draft/CanCheck.can",
+        "sha256": "6551ecf90dbadecff18e888d6ffb23dc9e20bb32d5dff50eced0b387bb29a663"
+      },
+      {
+        "path": "draft/CanCheck.md",
+        "sha256": "fe34c276d8e61d7c60928fb2399161c1b3a03e8a2bb9f06091bbc21cd42f0a90"
+      },
+      {
+        "path": "draft/CanDo.can",
+        "sha256": "15761cc422c6d11827a6f13aa3cc3318a8bb393ef2110169f1a02ff046e4ec35"
+      },
+      {
+        "path": "packages/contracts/src/state.ts",
+        "sha256": "dd9263d8cae2eda4d046678c3d564217c54e0ae77d9b8d2e9b40c213ed588236"
+      },
+      {
+        "path": "packages/interfaces/src/ingress/mapping.ts",
+        "sha256": "21a293aaafdeac21b1994293f9b77f2daaa31d0cb7a57eed880ab220a84ac738"
+      },
+      {
+        "path": "packages/interfaces/src/ingress/routes.ts",
+        "sha256": "29a6b69cecf111282b96eedf2feb41baf6073dbb3aabb98d3cd19d17cb4c61bc"
+      },
+      {
+        "path": "packages/services/src/catalog.ts",
+        "sha256": "40b36de7ad8c84f1105e2bb274bdfad6ccebaf455c98a8ef7e542813e6a1af30"
+      },
+      {
+        "path": "packages/state/src/invocation/registry.ts",
+        "sha256": "648038e260dddb601171834d4277e42a823cfedc7bec55acd0b606d57a3803ad"
+      }
+    ],
+    "findings": [
+      {
+        "id": "AD-CH01",
+        "disposition": "material completion required",
+        "reviewed_duty": "AL-MAINTENANCE",
+        "facts": [
+          {
+            "path": "draft/CanCheck.can",
+            "line": 94,
+            "fact": "Explicit trusted maintenance hook comment; Check.create/update arm/rearm deadlines despite no product configuration CRUD."
+          },
+          {
+            "path": "draft/CanCheck.md",
+            "line": 43,
+            "fact": "Maintenance reuses owning model schema and expected-version owner fence/hooks/history/receipt/outbox; no user CRUD/API is asserted."
+          },
+          {
+            "path": "packages/state/src/invocation/registry.ts",
+            "line": 86,
+            "fact": "GeneratedOperationDef represents ordinary canonical operation descriptor+by/when, not a declared trusted maintenance candidate contract."
+          },
+          {
+            "path": "packages/contracts/src/state.ts",
+            "line": 47,
+            "fact": "AdmissionKind has trusted/system; this scalar does not itself attest source/team/schema or create a model configuration permission."
+          }
+        ],
+        "finding": "Cloudflare maintenance/records.ts may own transport/runtime composition, but the exact proposed list lacks a state-owned maintenance candidate admission seam and typed trusted source/context/replay contract. Reusing ordinary user operation descriptor cannot imply provisioning authority when no product CRUD exists.",
+        "resolution": "Allocate state/src/maintenance/admission.ts and typed contract extension in contracts/src/state.ts; reuse mutation pipeline/fence/hooks/constraints/receipt/outbox. Configured finite model/schema/source/team allowlist and expected version; no product/MCP discovery. This completes already accepted maintenance requirements, not a new storage authority."
+      },
+      {
+        "id": "AD-CH02",
+        "disposition": "agreement plus exact acknowledgement gate",
+        "reviewed_duty": "AL-SECRET-PING + AL-INSTRUMENTATION",
+        "facts": [
+          {
+            "path": "packages/interfaces/src/ingress/routes.ts",
+            "line": 93,
+            "fact": "matchIngressRoute admits POST only /ingress namespace, JSON object and generic accepted bool response200."
+          },
+          {
+            "path": "draft/CanCheck.md",
+            "line": 41,
+            "fact": "Heartbeat GET or POST /ping/token acknowledges durable acceptance, secret authorizes check-in only."
+          },
+          {
+            "path": "draft/CanCatch.md",
+            "line": 73,
+            "fact": "Errors/key UTF8 bytes bounded before parse and accepts normalized closed representation."
+          },
+          {
+            "path": "draft/CanCatch.md",
+            "line": 81,
+            "fact": "HTTP202 certifies durable intent, not issue process/notice success."
+          }
+        ],
+        "finding": "Specialized routes are justified; generic signed JSON POST mapping alone cannot qualify secret GET nor error intake202/quota transaction. Same nominal size cap does not certify same admitted schema, credential or ack.",
+        "resolution": "Keep proposed interfaces health/ping.ts and instrumentation/intake.ts; installed ACK occurs after actual canonical commit, parsing/normalization and source credential selection do not manufacture project/read authority; source outcome remains distinct from processing/provider progress."
+      },
+      {
+        "id": "AD-CH03",
+        "disposition": "material missing exact adapter",
+        "reviewed_duty": "AL-SECRET-PING + AL-SOURCE-MAPPING",
+        "facts": [
+          {
+            "path": "draft/CanCheck.md",
+            "line": 70,
+            "fact": "Configured public HTTPS alert adapter requires bounded egress validation; no adapter/runtime executed."
+          },
+          {
+            "path": "draft/CanCatch.can",
+            "line": 15,
+            "fact": "catch.Alert has source/destination/message; AlertsV1.notify returns actual AlertAccepted reference."
+          },
+          {
+            "path": "packages/services/src/catalog.ts",
+            "line": 25,
+            "fact": "Catalog inspected lists Email, Chat, SystemOne, Images only, no AlertsV1."
+          }
+        ],
+        "finding": "Specialized unsatisfied Safe AlertsV1 HTTPS transport is stated in app ledger but not allocated an exact defining leaf. Generic services source-mappings/catalog cannot itself perform qualified bounded transport/redirect/target validation and decode the actual accepted response.",
+        "resolution": "Add services/src/alerts/adapter.ts + services/src/alerts/egress.ts for reusable configured finite adapter contract/publicHTTPS bounds, actual normalized AlertAccepted response, idempotent/retry/correlation and safe diagnostics. No named vendor, signing contract or destination-reader proof invented."
+      },
+      {
+        "id": "AD-CH04",
+        "disposition": "agreement plus required freshness meaning",
+        "reviewed_duty": "AL-INSTRUMENTATION / AL-PENDING-HEALTH-UNIT",
+        "facts": [
+          {
+            "path": "draft/CanCatch.md",
+            "line": 83,
+            "fact": "Technical health counters cumulative across restarts; absent/stale evidence is not zero-error proof."
+          },
+          {
+            "path": "draft/CanCatch.can",
+            "line": 195,
+            "fact": "Daily quota progress renders cumulative accepted; only count(Health)==0 gates missing-health text."
+          }
+        ],
+        "finding": "Agree cumulative-versus-daily mismatch needs owner semantic correction. Displaying observed timestamp alone does not deliver an explicit stale/unavailable status promised by requirements; no current source freshness policy was located in inspected health declarations.",
+        "resolution": "Keep current counters intact; owner supplies sourced freshness/coverage meaning and daily quota denominator/evidence where displayed, or captions the correct cumulative data. Do not silently borrow Stats five-minute cutoff or call stale evidence a zero."
+      },
+      {
+        "id": "AD-CH05",
+        "disposition": "agreement with version/cause boundary reinforced",
+        "reviewed_duty": "AL-SOURCE-MAPPING + AL-INSTRUMENTATION",
+        "facts": [
+          {
+            "path": "draft/CanDo.can",
+            "line": 114,
+            "fact": "report_error on instrumentation.error sends bound std.ErrorsV1 event; source does not nominate Catch project."
+          },
+          {
+            "path": "draft/CanCatch.md",
+            "line": 73,
+            "fact": "ErrorsV1 event.id/occurred_at maps same minimized collector; compiler need not know CanCatch."
+          },
+          {
+            "path": "draft/CanCatch.md",
+            "line": 77,
+            "fact": "Grouping version pins redaction/frame parsing and already queued work retains admitted version."
+          },
+          {
+            "path": "packages/interfaces/src/ingress/mapping.ts",
+            "line": 34,
+            "fact": "actor null and team/owner/namespace originate from binding; verified causation remains envelope."
+          }
+        ],
+        "finding": "Agree generic compiler + explicit services source mappings + Cloudflare actual binding composition. Preserve producer operation/delivery IDs distinct from event/source and domain observation revisions; browser intake credentials cannot impersonate trusted technical health. Reconfiguration/deletion races and old grouping work must be qualified on real original flows.",
+        "resolution": "Use existing owner signature/codegen/contract derivation and verifier-produced causation. Services normalizes one collector; work/state own durable intake/replay/admission, UI only captures/minimizes. No duplicate collector, human mutation or payload-appointed project."
+      }
+    ],
+    "runtime_claim": "No checker/tests/providers/runtime executed; findings are pinned source facts and target requirements.",
+    "secondary_review": {
+      "reviewer": "target_work + root",
+      "scope": "Stock transfer versus reverse(Movement)",
+      "result": "Accepted material precision correction; paired transfer and single-leg reverse now distinct; A-R04 owner policy gate added.",
+      "source": "draft/CanStock.can:73-81",
+      "runtime_claim": "source inference only; no execution"
+    }
+  }
+}

@@ -7,6 +7,11 @@ export interface LocalRowScopeOptions {
   compatibilityDate: string;
   mainModule: string;
   modules: Readonly<Record<string, string>>;
+  /**
+   * C04.asset: binary module name -> raw bytes, threaded to
+   * `startLocalDev` (`CompiledWasm` staging). Absent by default.
+   */
+  binaryModules?: Readonly<Record<string, Uint8Array>>;
   /** D1 binding the snapshotter reads. */
   d1Binding: string;
 }
@@ -72,6 +77,7 @@ export async function createLocalRowScope(
     compatibilityDate: options.compatibilityDate,
     mainModule: options.mainModule,
     modules: options.modules,
+    ...(options.binaryModules !== undefined ? { binaryModules: options.binaryModules } : {}),
     d1Databases: [{ binding: options.d1Binding, id: d1Id }],
   });
   return {

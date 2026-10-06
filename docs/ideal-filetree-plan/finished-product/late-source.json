@@ -1,0 +1,198 @@
+{
+  "initial_semantic_pin": "cf36983c768c32e0a63ac33c3b45a94dc75dc2d3",
+  "catalog_pin": "5edc3bac2a341fbda0bb432649e90ba70d3c05db",
+  "review": "root source/diff/test-expectation inspection; no runtime execution",
+  "paths": [
+    {
+      "change": "A",
+      "path": "compiler/B4-G-NONHOOK-CONTEXT-BINDINGS.md",
+      "sha256": "782ad76b9197cfd0f9598b5e54a13191197a5433c4f417489d2310bd781e117b",
+      "bytes": 7321
+    },
+    {
+      "change": "M",
+      "path": "packages/cloudflare/src/deploy/bundle.ts",
+      "sha256": "e4c685b1c0272e4ddaec564068016f87bd721739be3e8bb5cd4198168cc8fb68",
+      "bytes": 43261
+    },
+    {
+      "change": "M",
+      "path": "packages/cloudflare/src/runtime/invoke.ts",
+      "sha256": "c1fccd86c949f40e0759e490e7bf035b67103bb34774705c3185582bec5c83a1",
+      "bytes": 281687
+    },
+    {
+      "change": "M",
+      "path": "packages/cloudflare/src/runtime/t32b-cloudflare.test.ts",
+      "sha256": "77d1431b60cba97e7bc85e5f1aaad0e9abf4d1c4931dfae99a7a7b8cc8bcc9ac",
+      "bytes": 71083
+    },
+    {
+      "change": "M",
+      "path": "packages/cloudflare/src/worker/assembly.ts",
+      "sha256": "489bf7f70fbb692227c9eb0482df42475b87ae2951d60abbc72d782fe2d51628",
+      "bytes": 67887
+    },
+    {
+      "change": "M",
+      "path": "packages/cloudflare/src/worker/main.ts",
+      "sha256": "2335ee597c4d053960423baa07d1fb621b2b01e4f065a68881a94292f29a26ba",
+      "bytes": 25506
+    },
+    {
+      "change": "M",
+      "path": "packages/cloudflare/test/deploy-bundle.test.ts",
+      "sha256": "711bf32b7487084b5a436493c3db172a5d975a2411b58ba8275e4a2518adf8d2",
+      "bytes": 28273
+    },
+    {
+      "change": "M",
+      "path": "packages/cloudflare/test/deploy-cli.test.ts",
+      "sha256": "3de00b6d406f97b8e5240735464eb6ba127aec4ff4a4a9d69dcb89dbd6c12f88",
+      "bytes": 6687
+    },
+    {
+      "change": "A",
+      "path": "packages/cloudflare/test/http-operations-route.test.ts",
+      "sha256": "1f9ad86fecd892db7961b1bc7131bc7bbbbd12f1871a42468bf93b68532fd40d",
+      "bytes": 35324
+    },
+    {
+      "change": "A",
+      "path": "packages/work/test/b3-mirror-conformance.test.ts",
+      "sha256": "4955b48ec09b37d0b1adfd07fdd59d6f0a871846a425298c54bcbc0db235e744",
+      "bytes": 30642,
+      "review": "reviews/late-work-tests.json; distinct test-only delta after nine-path challenge"
+    },
+    {
+      "change": "M",
+      "path": "packages/work/src/dispatch/index.ts",
+      "sha256": "e2634a6c1faa7f751af4f7530c8cb7a31ee8acb0942f0674838c4d32b16a6ede",
+      "bytes": 32540,
+      "review": "root full changed source/tests; independent reviews/late-dispatch.json"
+    },
+    {
+      "change": "A",
+      "path": "packages/work/test/dispatch-unavailable.test.ts",
+      "sha256": "1961740c4b2b057970dbc9397f3d0710649592cc8891c39b797ec630a68f58f8",
+      "bytes": 9904,
+      "review": "root full changed source/tests; independent reviews/late-dispatch.json"
+    },
+    {
+      "change": "A",
+      "path": "packages/work/test/live-serve-addressing.test.ts",
+      "sha256": "bc3df4df4129ca2c014ea4b9e4c6e3fa5b59587cfd2c6108111c81ef3e99c1b7",
+      "bytes": 7604,
+      "review": "root full changed source/tests; independent reviews/late-dispatch.json"
+    }
+  ],
+  "records": [
+    {
+      "id": "LATE-C3",
+      "observation": "HTTP op handler bundle, lazy default factory and assembly route now exist. Both HTTP/MCP consume common derived inputs/catalog/canonical invoker. Missing factory remains explicit interim501; auth/pages/limiter/upload/ingress default stubs still fail closed.",
+      "supersedes": "cf baseline blanket default HTTP operation route absence, only at source join scope",
+      "remaining": "Actual compiled installed producer/asset/auth/state/pages/upload closure, safe catalog/import error handling and browser/denied/restart journeys remain T19/T20/T21/FP.BROWSER/FP.INSTALLED-RELEASE gates. Factory import catches any import error; distinguish unavailable packaging from broken initialization before support qualification.",
+      "targets": [
+        "packages/cloudflare/src/worker/assembly.ts",
+        "packages/cloudflare/src/worker/main.ts",
+        "packages/cloudflare/src/deploy/bundle.ts"
+      ],
+      "tasks": [
+        "T19",
+        "T20",
+        "T21",
+        "FP.BROWSER",
+        "FP.INSTALLED-RELEASE"
+      ]
+    },
+    {
+      "id": "LATE-DELIVERY",
+      "observation": "LoadedCanonicalDescriptors carries registry deliveryFields. Descriptor load retries once on IncompatibleArtifactError/unknown_input_kind and an error message containing quoted delivery, after stripping delivery input descriptors. Other predicates propagate; caller artifact is shallow-copied, not changed.",
+      "inference": "Temporary compatibility bridge, not receipt-runtime proof. Independent challenge: the message token can refer to input/operation named delivery rather than the rejected kind; the bounded second validation is the strongest countercase because remaining invalid kind still rejects. No admission bypass or exploit execution is claimed.",
+      "remaining": "Verify schema integrity and admission remains equally strict; actually compiled receipt/delivery-only operations; no fallback execution; remove bridge after owner loader tolerance/current matching producer. Existing interfaces/mcp/schemas.ts:722\u2013823 validates delivery tags/required/default/array/description/duplicates; http/operations.ts:429\u2013446 preflights whole descriptors before excluding delivery from framing. Retain that single owner and prove every installed/direct caller uses the full validated lineage, including misleading message-name cases; no duplicate validator.",
+      "targets": [
+        "packages/cloudflare/src/runtime/invoke.ts"
+      ],
+      "tasks": [
+        "T24",
+        "T25",
+        "T26",
+        "T32"
+      ]
+    },
+    {
+      "id": "LATE-TEST-SCOPE",
+      "observation": "New HTTP suite uses real interfaces handler dist and canonical seam with constructed Shop artifact/MemoryStorage and identity fixtures. Read positive create/echo/replay, session/CSRF, malformed/multipart/mismatch, receipt-only, sealed placement and JSON-pointer/HTML denial bodies. Rich per-kind pins indexed. Last conflict/ref test primarily cites earlier suite and exercises create; it does not independently execute all cited cases. t32b adds constructed OPS_SOURCE fixture handlers for create/update/archive netting and whole-set deliveryFields schema assertions. Deploy test asserts bundle markers/length; CLI timeout rises 5s to30s.",
+      "remaining": "These are source-inspected expectations, not executed evidence. Constructed artifact fixture cannot stand for all original compiled apps, installed workerd or actual D1. Character-length module count metric not universal raw Wasm-byte proof.",
+      "tasks": [
+        "T21",
+        "T22",
+        "T23",
+        "FP.QUALIFY",
+        "FP.INSTALLED-RELEASE"
+      ]
+    },
+    {
+      "id": "LATE-CONTEXT",
+      "observation": "New compiler B4-G report separates nonhook context availability: actor/now lower to c, team/operation lack IR lowering and can fall through as free variables. Hook wrappers have narrower carrier/bounds, requiring owner contract. Report options recommend explicit carrier or interim honest E6008; report itself changes no lowering. Independent source challenge confirms runtime HandlerContext/createContext and invoke builder provide caller/clock/store/memberships/preferences/canonical, without actor/now/team/operation. Compiler c.actor/c.now spellings therefore do not prove live values, either.",
+      "inference": "Required actor/now as well as operation.id and team-dependent workflow joins remain blocked unless the real source-derived verified runtime carriers are implemented. Nonhook c parameter evidence cannot establish property values or ambient hook context.",
+      "remaining": "Adopt owner-released per-scope verified actor/team/now/operation lowering and runtime carrier; compile and execute original required sites, preserve rejected context uses and readonly operation facts. No report option is silently implementation-approved.",
+      "targets": [
+        "compiler/src/codegen/ir.rs",
+        "compiler/src/codegen/js.rs",
+        "packages/cloudflare/src/runtime/context.ts",
+        "packages/cloudflare/src/runtime/invoke.ts"
+      ],
+      "tasks": [
+        "T04",
+        "T15",
+        "FP.CONTEXT"
+      ]
+    },
+    {
+      "id": "LATE-WORK-TEST",
+      "observation": "902-line work/state mirror conformance addition source read completely by work reviewer; root independently reread all review claims plus directional type pins, progress without persistence and selected-read comparison bodies. Real state closures/rows + actual work kernels provide narrow T25 boundary expectations.",
+      "inference": "Shared observer/grant/retention implementation on both comparison branches limits independent semantic oracle; static assignments are directional, fenceRevision data is not fence enrollment; no owner runtime defect or passing result inferred.",
+      "remaining": "T26 terminal/current relation and actual stored progress, current role/source/file grant, durable enrolled fences/storage/restart, sensitive disposal, typed provider/result/error, installed generated/browser/MCP/dispatch/fanout/recovery remain required. Built dist bytes pinned separately; source equivalence and fresh build proof not executed.",
+      "targets": [
+        "packages/work/test/b3-mirror-conformance.test.ts"
+      ],
+      "tasks": [
+        "T25",
+        "T26",
+        "T27",
+        "W06",
+        "W07",
+        "W08",
+        "FP.LIFETIME",
+        "FP.QUALIFY",
+        "C05.complete"
+      ],
+      "evidence": "reviews/late-work-tests.json",
+      "source_pin": "1f5c1b55f68450f1f904a994d5c0a67057a77ca1"
+    },
+    {
+      "id": "LATE-DISPATCH",
+      "source_pin": "5edc3bac2a341fbda0bb432649e90ba70d3c05db",
+      "observation": "Optional availability callback now checks item.source after commit/inherited-scope/supersession/pending and before guard/authority/claim, returning explicit unavailable shape. Absent port preserves prior behavior. Two new tests exercise pure injected addressing/availability/ordering, not actual live-serving wire or enrolled fence. Root read complete changes/tests.",
+      "inference": "Returned status and comments do not by themselves persist terminal receipt/work state, runtime transport mapping, same-operation replay or qualified provider availability. Callback order/outcome ABI is new baseline scope for W port equivalence. Need verify actual runtime target source construction and every consumer switch.",
+      "remaining": "FP.DISPATCH-AVAILABILITY actual binding and approved durable/terminal mapping; T25/T26 real selected-read live row/current grant/enrolled fence and no inferred envelope publication; current/TS/Rust profile/callback/domain parity refresh. Missing required corpus/provider is still a blocker, not accepted scope removal. Independent 15-source-pin review confirms Cloudflare mirror omits availability/rejects new verdict; actual drive claim/snapshot/authority timing differs from synchronous kernel callbacks. source\u2194target is consistently carried, but real capability/resource alias resolution and terminal receipt/no-redrive mapping remain unqualified. Builtin stdlib send/delivery remain unsupported; carrier map does not prove that consumer.",
+      "tasks": [
+        "T24",
+        "T25",
+        "T26",
+        "W01",
+        "W04",
+        "W06",
+        "W07",
+        "FP.DISPATCH-AVAILABILITY"
+      ],
+      "evidence": "reviews/late-dispatch.json"
+    }
+  ],
+  "checkpoint_advanced": false,
+  "independent_challenge": "reviews/late-challenge-language.json",
+  "test_only_followup_pin": "1f5c1b55f68450f1f904a994d5c0a67057a77ca1",
+  "test_only_followup_review": "reviews/late-work-tests.json",
+  "performed_test_scope": "Audit runs no product tests; commit-owner reported test results remain at their named commit/scope"
+}

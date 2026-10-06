@@ -24,7 +24,7 @@
  */
 import { diffReportValues } from "../assertions/equal.js";
 import type { CallerSelection } from "../fixtures/accounts.js";
-import { FixtureSetupError, type RecipeSuite } from "../fixtures/recipes.js";
+import { FixtureSetupError, scopeFacade, type RecipeSuite } from "../fixtures/recipes.js";
 import type { CallOutcome, RowScope } from "./table.js";
 import type { ReportValue } from "@canlang/contracts";
 
@@ -48,6 +48,13 @@ export type InvokeCall = (call: StepCall) => Promise<CallOutcome>;
 export interface StashedRow {
   readonly fixtures: ReadonlyMap<string, unknown>;
   readonly inputs: unknown;
+  /**
+   * Table inputs BEFORE row-cell application (same roots the evaluated
+   * `inputs` closure returned, so live provisioners can match applied
+   * roots back to provisioned fixtures by identity). Null for sequences
+   * and legacy rows, which apply no cells.
+   */
+  readonly baselineInputs: unknown;
   /** Evaluated row cells in selector order (`as`-cell included). */
   readonly cells: readonly unknown[];
   /** Evaluated expected values, or null when an exact error is expected. */
@@ -250,28 +257,31 @@ export async function runSequenceSteps(
   ctx: SequenceContext,
 ): Promise<CallOutcome> {
   const bound = new Map<string, unknown>();
+  // Genuine closures read fixtures as scope properties (`s.task`); the
+  // facade keeps the provisioned Map readable both ways.
+  const scopeArg = scopeFacade(ctx.provisioned);
   for (const [stepIndex, step] of steps.entries()) {
     const what = `example at index ${ctx.exampleIndex} step ${stepIndex}`;
     if (step.kind === "binding") {
-      bound.set(step.name, await callClosure(step.value, `${what} let ${step.name}`, [ctx.callerBindings, ctx.provisioned, bound]));
+      bound.set(step.name, await callClosure(step.value, `${what} let ${step.name}`, [ctx.callerBindings, scopeArg, bound]));
       continue;
     }
     if (step.kind === "assertion") {
       const observed = await callClosure(step.observations, `${what} observations`, [
         ctx.callerBindings,
-        ctx.provisioned,
+        scopeArg,
         bound,
       ]);
       const expected = await callClosure(step.expected, `${what} expected`, [
         ctx.callerBindings,
-        ctx.provisioned,
+        scopeArg,
         bound,
       ]);
       judgeAssertion(observed, expected, ctx.exampleIndex, stepIndex);
       continue;
     }
-    const by = await callClosure(step.by, `${what} by`, [ctx.callerBindings, ctx.provisioned, bound]);
-    const inputs = await callClosure(step.inputs, `${what} inputs`, [ctx.callerBindings, ctx.provisioned, bound]);
+    const by = await callClosure(step.by, `${what} by`, [ctx.callerBindings, scopeArg, bound]);
+    const inputs = await callClosure(step.inputs, `${what} inputs`, [ctx.callerBindings, scopeArg, bound]);
     const outcome = await ctx.invoke({ operation: step.operation, inputs, by, scope: ctx.scope });
     if (!outcome.ok && "unsupported" in outcome) {
       return outcome;

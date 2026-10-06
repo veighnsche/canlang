@@ -1,0 +1,17 @@
+{
+ "schema_version": 1,
+ "observed_utc": "2026-10-06T06:16:00Z",
+ "change": "draft pointer 2d67312->40656da (lane G 40656da, committed as c87bebf) + cherry-pick 22fd3ce77baf2155f05275bb387a11fbc57310f4 (lane G) as 4594011 on main",
+ "changed_paths": 5,
+ "paths": [
+  "draft (submodule pointer)",
+  "packages/testkit/src/fixtures/recipes.ts",
+  "packages/testkit/src/index.ts",
+  "packages/testkit/src/runner/loader.ts",
+  "packages/testkit/test/fixtures.test.ts"
+ ],
+ "coverage_delta": "T36 reservation corrections (+53/-52, 5 .can, exact-sites) + LG01 testkit recipes/loader (+742/-19); single-writer reservation fulfilled, no duty transfers",
+ "complete_checkpoint_retained": "8249342707d3280e88e39e8c911b7e457828f31f",
+ "area_decisions_unchanged": true,
+ "verification": "coordinator diff-reviewed all 5 .can files + testkit structure; lane vitest 52/52 + tsc zero testkit errors + differential smoke (E2017 5->0, E5004 2->0, E5008 2->0, no new codes); R21 held"
+}

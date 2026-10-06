@@ -1,0 +1,16 @@
+{
+ "integration": "b3",
+ "date": "2026-10-06",
+ "main_before": "30e211d",
+ "commits": [
+  "3d1f8f0 Lane B B3: loader-built delivery schema from kind:delivery tags"
+ ],
+ "lane_commits": [
+  "4575dc5177557e0312d0a010fdfbd0dd0af69c8d (5 files +291/-17, state-only)"
+ ],
+ "patch_id identical": true,
+ "coverage": "state: loader deliveryFields channel from kind:delivery field tags replaces interim hand-built DeliveryFieldSchema; join interface/auth/disclosure unchanged; InterimModelPolicy untouched (T04b/I00); new b3-delivery-schema.test.ts (5)",
+ "decisions": "B3(1) consumed L1 emission (proven case 2a, t15b_ 8/8); D3 prereq half-met (B3 done, C3 pending)",
+ "gate": "CANONICAL GREEN: state build 0, 889/889 (884+5); values 751/751; lane: t25 26/26+4/4, b3 5/5, catalog 59/15",
+ "lane_report": "f0811085 (tree clean)"
+}

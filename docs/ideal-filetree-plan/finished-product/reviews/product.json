@@ -1,0 +1,229 @@
+{
+  "schema_version": 1,
+  "review": "product",
+  "duties": [
+    {
+      "id": "P-IDENTITY",
+      "capability": "F04",
+      "requirement": "Origin-bound proof, atomic one-use credential/recovery/team-role commands and current revocation",
+      "disposition": "REQUIRED",
+      "source_paths": [
+        "packages/identity/src/sessions/presession.ts",
+        "packages/identity/src/teams/roles.ts",
+        "packages/identity/src/accounts/recovery.ts",
+        "packages/identity/src/ports.ts",
+        "packages/identity/src/storage/d1.ts"
+      ],
+      "target_paths": [
+        "packages/identity/src/system/presession.ts",
+        "packages/identity/src/system/recovery.ts",
+        "packages/identity/src/system/membership.ts",
+        "packages/identity/src/system/roles.ts",
+        "packages/identity/src/system/oauth.ts",
+        "packages/identity/src/storage/commands.ts",
+        "packages/state/src/ports/identity.ts"
+      ],
+      "task_ids": [
+        "T04",
+        "T16",
+        "T19",
+        "T32"
+      ],
+      "cutover_gate": "Typed outcome/context/replay/fence participant contract before command implementation; prove actual authoritative batch winners and rollback; no raw SQL feature bypass",
+      "availability": "source-inspected mechanisms and gaps; new leaves proposed, no execution claim",
+      "independent_challenge": "delivery review PROD-D1..D7 incorporated; exact new contracts still design-gated"
+    },
+    {
+      "id": "P-INTERFACE",
+      "capability": "F08",
+      "requirement": "Equal-authority HTTP/MCP canonical inputs, visibility, actual default routes and safe projected results",
+      "disposition": "REQUIRED",
+      "source_paths": [
+        "packages/interfaces/src/http/operations.ts",
+        "packages/interfaces/src/mcp/server.ts",
+        "packages/interfaces/src/mcp/schemas.ts",
+        "packages/cloudflare/src/runtime/mcp-registry.ts"
+      ],
+      "target_paths": [],
+      "task_ids": [
+        "T19",
+        "T20",
+        "T16"
+      ],
+      "cutover_gate": "Released owner schemas/registry/current auth and real default route, independent browser/MCP positive and denied calls",
+      "availability": "source-inspected mechanisms and gaps; new leaves proposed, no execution claim",
+      "independent_challenge": "delivery review PROD-D1..D7 incorporated; exact new contracts still design-gated"
+    },
+    {
+      "id": "P-BROWSER",
+      "capability": "F09",
+      "requirement": "Full catalog/shell/typed client, accessibility/focus/navigation and installed static assets",
+      "disposition": "REQUIRED",
+      "source_paths": [
+        "packages/ui/src/client.ts",
+        "packages/ui/src/forms.ts",
+        "packages/ui/src/shell.ts",
+        "packages/ui/src/catalog.ts",
+        "packages/interfaces/src/http/pages.ts"
+      ],
+      "target_paths": [
+        "packages/ui/src/browser/bootstrap.ts",
+        "packages/ui/src/browser/forms.ts",
+        "packages/ui/src/browser/drawers.ts",
+        "packages/ui/src/browser/navigation.ts",
+        "packages/ui/src/browser/settings.ts",
+        "packages/ui/src/browser/polling.ts",
+        "packages/ui/scripts/build-browser.mjs",
+        "packages/ui/src/browser/style.css",
+        "packages/interfaces/src/http/assets.ts"
+      ],
+      "task_ids": [
+        "T08",
+        "T19",
+        "T20",
+        "T37"
+      ],
+      "cutover_gate": "Pinned component and browser asset build joins plus installed DOM/focus/context/unsaved-state/obsolete-response proof; retain one page admission owner",
+      "availability": "source-inspected mechanisms and gaps; new leaves proposed, no execution claim",
+      "independent_challenge": "delivery review PROD-D1..D7 incorporated; exact new contracts still design-gated"
+    },
+    {
+      "id": "P-PREFERENCES",
+      "capability": "F09",
+      "requirement": "Self/app/canonical owner/team settings with defaults/reset/version/ref validation and actual consumer",
+      "disposition": "REQUIRED",
+      "source_paths": [
+        "packages/ui/src/settings.ts",
+        "compiler/src/codegen/js.rs"
+      ],
+      "target_paths": [
+        "packages/state/src/preferences/schema.ts",
+        "packages/state/src/preferences/commands.ts",
+        "packages/state/src/preferences/reads.ts",
+        "packages/interfaces/src/http/preferences.ts"
+      ],
+      "task_ids": [
+        "T20",
+        "T15"
+      ],
+      "cutover_gate": "Checked preference descriptors/current context and authoritative writes; no business permission/effect from preferences",
+      "availability": "source-inspected mechanisms and gaps; new leaves proposed, no execution claim",
+      "independent_challenge": "delivery review PROD-D1..D7 incorporated; exact new contracts still design-gated"
+    },
+    {
+      "id": "P-CSV",
+      "capability": "F09",
+      "requirement": "Schema preview, server pure review per confirmed row, renewed consent, independent replay-safe outcomes",
+      "disposition": "REQUIRED",
+      "source_paths": [
+        "DESIGN.md",
+        "packages/ui/src/collections.ts",
+        "packages/contracts/src/presentation.ts"
+      ],
+      "target_paths": [
+        "packages/ui/src/csv/parse.ts",
+        "packages/ui/src/csv/preview.ts",
+        "packages/ui/src/csv/confirm.ts",
+        "packages/interfaces/src/http/csv.ts"
+      ],
+      "task_ids": [
+        "T19",
+        "T20"
+      ],
+      "cutover_gate": "Owning schema + authorized pure preflight/review + per-row frozen identity and canonical commits; invalid/duplicate/cancel/partial failure proofs",
+      "availability": "source-inspected mechanisms and gaps; new leaves proposed, no execution claim",
+      "independent_challenge": "delivery review PROD-D1..D7 incorporated; exact new contracts still design-gated"
+    },
+    {
+      "id": "P-EXPORT",
+      "capability": "F08",
+      "requirement": "Authorized CSV export/Print with completeness/limits/formula handling and durable large outputs",
+      "disposition": "REQUIRED",
+      "source_paths": [
+        "DESIGN.md",
+        "packages/interfaces/src/http/pages.ts"
+      ],
+      "target_paths": [
+        "packages/interfaces/src/http/export.ts",
+        "packages/interfaces/src/http/print.ts",
+        "packages/ui/src/browser/export.ts",
+        "packages/ui/src/browser/print.ts",
+        "packages/work/src/exports/jobs.ts",
+        "packages/work/src/exports/download.ts"
+      ],
+      "task_ids": [
+        "T20",
+        "T24",
+        "T32"
+      ],
+      "cutover_gate": "Current row/field/file grants + checkpoint pagination/bounds + retained status and expiring authorized download; Print only authorized declared content",
+      "availability": "source-inspected mechanisms and gaps; new leaves proposed, no execution claim",
+      "independent_challenge": "delivery review PROD-D1..D7 incorporated; exact new contracts still design-gated"
+    },
+    {
+      "id": "P-REVIEW",
+      "capability": "F09",
+      "requirement": "Source-derived staff permissions/actions/exceptions/assumptions and unresolved intent",
+      "disposition": "REQUIRED",
+      "source_paths": [
+        "REQUIREMENTS.md",
+        "packages/ui/src/review.ts",
+        "packages/ui/src/policyPage.ts",
+        "compiler/src/codegen/ir.rs"
+      ],
+      "target_paths": [
+        "compiler/src/review.rs",
+        "packages/contracts/src/review.ts",
+        "packages/interfaces/src/projection/review.ts"
+      ],
+      "task_ids": [
+        "T04",
+        "T15",
+        "T20",
+        "T41"
+      ],
+      "cutover_gate": "Same source revision/owner facts and examples; current disclosure; no second authored policy or implied human approval",
+      "availability": "source-inspected mechanisms and gaps; new leaves proposed, no execution claim",
+      "independent_challenge": "delivery review PROD-D1..D7 incorporated; exact new contracts still design-gated"
+    },
+    {
+      "id": "P-QUALIFICATION",
+      "capability": "F12",
+      "requirement": "Original source compilation, actual fixture/calls, independent expectations and browser/MCP/persistence/recovery journeys",
+      "disposition": "REQUIRED",
+      "source_paths": [
+        "implementation/CHALLENGE-AUDIT-PLAN.md",
+        "implementation/REMAINING-IMPLEMENTATION-LANES.md"
+      ],
+      "target_paths": [
+        "packages/testkit/test/original-workflow-qualification.test.ts",
+        "tests/e2e/journeys/original-corpus.spec.ts"
+      ],
+      "task_ids": [
+        "T01",
+        "T02",
+        "T21",
+        "T22",
+        "T23",
+        "T36",
+        "T37",
+        "T38",
+        "T39",
+        "T40",
+        "T41"
+      ],
+      "cutover_gate": "Original source and accepted rules; setup errors separate; real D1/DO and controlling provider distinctions; per-app requirements no unrelated blanket gate",
+      "availability": "source-inspected mechanisms and gaps; new leaves proposed, no execution claim",
+      "independent_challenge": "delivery review PROD-D1..D7 incorporated; exact new contracts still design-gated"
+    }
+  ],
+  "findings": [
+    "P-IDENTITY-ATOMIC",
+    "P-BROWSER-INSTALL",
+    "P-CSV-SERVER",
+    "P-POLL-LIFECYCLE",
+    "P-EXPORT-PRINT",
+    "P-PREFERENCE-CONSUMER"
+  ],
+  "evidence_record": "product.md and delivery.json independent_product_challenge"
+}
