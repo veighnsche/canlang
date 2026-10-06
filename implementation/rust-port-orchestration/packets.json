@@ -10,15 +10,13 @@
   "packets": [
     {
       "id": "R1-FIRST",
-      "muse_lane": "R1",
       "proposed_queue": "exact-values and common values assembly",
       "planning_only": true,
       "activation_base": null,
-      "native_identity": null,
       "worktree": null,
       "work_units": [
         {
-          "local_owner": "coordinator",
+          "local_owner": "assembly_source_owner",
           "tasks": [
             {
               "task_id": "ports:A01.1",
@@ -85,7 +83,8 @@
               ]
             }
           ],
-          "git_mutator": true
+          "git_mutator": false,
+          "git_operations_route": "Codex only; worker returns exact released paths and evidence"
         },
         {
           "local_owner": "child_decimal",
@@ -113,7 +112,8 @@
               ]
             }
           ],
-          "git_mutator": false
+          "git_mutator": false,
+          "git_operations_route": "Codex only; worker returns exact released paths and evidence"
         },
         {
           "local_owner": "child_money",
@@ -143,7 +143,8 @@
               ]
             }
           ],
-          "git_mutator": false
+          "git_mutator": false,
+          "git_operations_route": "Codex only; worker returns exact released paths and evidence"
         }
       ],
       "next_candidates": [
@@ -152,19 +153,19 @@
         "ports:A07.3"
       ],
       "held_scope": [],
-      "note": "Root must qualify original dependencies, freeze exact finite files and refresh source status before activation. Next candidates are conditional queues, not currently authorized dispatch."
+      "note": "Root must qualify original dependencies, freeze exact finite files and refresh source status before activation. Next candidates are conditional queues, not currently authorized dispatch.",
+      "queue_id": "R1",
+      "collaboration_agent": null
     },
     {
       "id": "R2-FIRST",
-      "muse_lane": "R2",
       "proposed_queue": "owned input validation",
       "planning_only": true,
       "activation_base": null,
-      "native_identity": null,
       "worktree": null,
       "work_units": [
         {
-          "local_owner": "coordinator",
+          "local_owner": "assembly_source_owner",
           "tasks": [
             {
               "task_id": "ports:V01.4",
@@ -188,7 +189,8 @@
               ]
             }
           ],
-          "git_mutator": true
+          "git_mutator": false,
+          "git_operations_route": "Codex only; worker returns exact released paths and evidence"
         },
         {
           "local_owner": "child_contracts",
@@ -238,7 +240,8 @@
               ]
             }
           ],
-          "git_mutator": false
+          "git_mutator": false,
+          "git_operations_route": "Codex only; worker returns exact released paths and evidence"
         },
         {
           "local_owner": "child_hooks",
@@ -270,7 +273,8 @@
               ]
             }
           ],
-          "git_mutator": false
+          "git_mutator": false,
+          "git_operations_route": "Codex only; worker returns exact released paths and evidence"
         }
       ],
       "next_candidates": [
@@ -279,19 +283,19 @@
         "ports:V11.1"
       ],
       "held_scope": [],
-      "note": "Root must qualify original dependencies, freeze exact finite files and refresh source status before activation. Next candidates are conditional queues, not currently authorized dispatch."
+      "note": "Root must qualify original dependencies, freeze exact finite files and refresh source status before activation. Next candidates are conditional queues, not currently authorized dispatch.",
+      "queue_id": "R2",
+      "collaboration_agent": null
     },
     {
       "id": "R3-FIRST",
-      "muse_lane": "R3",
       "proposed_queue": "work transitions and sole global delivery source writer",
       "planning_only": true,
       "activation_base": null,
-      "native_identity": null,
       "worktree": null,
       "work_units": [
         {
-          "local_owner": "coordinator",
+          "local_owner": "assembly_source_owner",
           "tasks": [
             {
               "task_id": "ports:C04.ready",
@@ -340,7 +344,8 @@
               ]
             }
           ],
-          "git_mutator": true
+          "git_mutator": false,
+          "git_operations_route": "Codex only; worker returns exact released paths and evidence"
         },
         {
           "local_owner": "child_facts",
@@ -372,7 +377,8 @@
               "activation_witness_requirement": "Name actual fact-consumer entry and test/evidence files for foreign provenance, version/profile mismatch and corrupt facts; demonstrate zero callbacks before refusal. Expand the finite allowlist only through the actual owner. Declarations alone do not close this task."
             }
           ],
-          "git_mutator": false
+          "git_mutator": false,
+          "git_operations_route": "Codex only; worker returns exact released paths and evidence"
         },
         {
           "local_owner": "child_baseline",
@@ -401,7 +407,8 @@
               ]
             }
           ],
-          "git_mutator": false
+          "git_mutator": false,
+          "git_operations_route": "Codex only; worker returns exact released paths and evidence"
         }
       ],
       "next_candidates": [
@@ -414,15 +421,15 @@
       "held_scope": [
         "C04.native-release"
       ],
-      "note": "Root must qualify original dependencies, freeze exact finite files and refresh source status before activation. Next candidates are conditional queues, not currently authorized dispatch."
+      "note": "Root must qualify original dependencies, freeze exact finite files and refresh source status before activation. Next candidates are conditional queues, not currently authorized dispatch.",
+      "queue_id": "R3",
+      "collaboration_agent": null
     },
     {
       "id": "R4-FIRST",
-      "muse_lane": "R4",
       "proposed_queue": "borrowed exact-values/validation prerequisites while preparation remains held",
       "planning_only": true,
       "activation_base": null,
-      "native_identity": null,
       "worktree": null,
       "work_units": [
         {
@@ -452,7 +459,8 @@
               ]
             }
           ],
-          "git_mutator": false
+          "git_mutator": false,
+          "git_operations_route": "Codex only; worker returns exact released paths and evidence"
         },
         {
           "local_owner": "child_state_contract",
@@ -479,7 +487,8 @@
               ]
             }
           ],
-          "git_mutator": false
+          "git_mutator": false,
+          "git_operations_route": "Codex only; worker returns exact released paths and evidence"
         }
       ],
       "next_candidates": [
@@ -491,7 +500,9 @@
         "artifact-preparation implementation and qualification",
         "C04.native-release"
       ],
-      "note": "Root must qualify original dependencies, freeze exact finite files and refresh source status before activation. Next candidates are conditional queues, not currently authorized dispatch."
+      "note": "Root must qualify original dependencies, freeze exact finite files and refresh source status before activation. Next candidates are conditional queues, not currently authorized dispatch.",
+      "queue_id": "R4",
+      "collaboration_agent": null
     }
   ],
   "codex_parent_review_candidates": [
@@ -545,5 +556,8 @@
     }
   ],
   "scheduler_rule": "Consult the complete original ledger DAG, not only packet next_candidates. Credited completed identities including A06/V03.5 are reused; requalify only affected changed inputs with a recorded reason.",
-  "assignment_authority": "Codex selects finite packets and ordered alternatives for economical Codex collaboration subagents; exact-file leases and original prerequisites remain. No local recurring scheduling."
+  "assignment_authority": "Codex selects finite packets and ordered alternatives for economical Codex collaboration subagents; exact-file leases and original prerequisites remain. No local recurring scheduling.",
+  "ordered_start_checklist": "implementation/RUST-PORT-START-HERE.md",
+  "runtime_topology": "Finite Codex subagents scheduled across logical queues within actual capacity; local-owner labels are source responsibilities, not permanent coordinators.",
+  "shared_checkout_git_mutator": "Codex only"
 }

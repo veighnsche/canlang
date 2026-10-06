@@ -95,5 +95,6 @@
     "uncertain_cross_file": "gpt-6.1-sol/high with recorded justification",
     "source": "/Users/vince/.codex/skills/model-selection/SKILL.md",
     "global_high_or_max_default": false
-  }
+  },
+  "ordered_start_checklist": "implementation/RUST-PORT-START-HERE.md"
 }
