@@ -1,0 +1,30 @@
+{
+ "status": "drafts-delivered",
+ "base": "d93fc4b",
+ "drafts": [
+  {
+   "file": "compiler/A2B-NAMED-ARGS-CONVENTION.md",
+   "for": "C",
+   "proposal": "named->positional in signature order; local_instant needs no stdlib change",
+   "questions": 3
+  },
+  {
+   "file": "compiler/A2B-COMPOSITE-UNIQUE-CONVENTION.md",
+   "for": "B",
+   "proposal": "sparse uniques:[{fields,where?}] model member + registry rule; enforcement stays B runtime",
+   "questions": 4,
+   "also_notes": "T15a uniqueKeys currently drops where= (B call on structure)"
+  },
+  {
+   "file": "compiler/A2B-UI-NODE-FACTORY-CONVENTION.md",
+   "for": "F",
+   "proposal": "compiler allowlist+profiles for radio/select/fieldset/fab/chat_bubble/delete; require=admit/gate desugar (no factory)",
+   "questions": 5,
+   "also_notes": [
+    "unknown factories subsume subtrees: radio + nested select are latent diags, land together",
+    "draft uses remove() for delete but catalog says deleteRecord: F to confirm"
+   ]
+  }
+ ],
+ "note": "Pinned routing snapshot for B/C/F review dispatch (source: status/lane-a.json facts.a2b)."
+}
