@@ -1,0 +1,8 @@
+   Compiling canlang-compiler v0.1.0 (/source/compiler)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 17.04s
+     Running tests/analysis.rs (/scratch/target/debug/deps/analysis-a2db9f86302ee7f4)
+
+running 1 test
+test c03_url_owner_admission_and_source_anchors ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 32 filtered out; finished in 0.09s

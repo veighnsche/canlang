@@ -1,0 +1,467 @@
+{
+  "compiler_sha256": "e8b013c04ce94b44231b08e6ee9c957f199a5fbb31a98ae31dd2b9093903f36f",
+  "catalog_sha256": "cd984f375e0d6cbcc2bc6aca5ad5ea5b1b3d3ba9cd17b15ab94e4b15e74ced62",
+  "vectors": 29,
+  "qualified": 16,
+  "results": [
+    {
+      "id": "url_basic",
+      "expected": true,
+      "actual": true,
+      "exit": 0,
+      "qualified": true,
+      "diagnostics": [],
+      "stderr": "",
+      "stdout_without_envelope": null
+    },
+    {
+      "id": "url_unicode_panic",
+      "expected": false,
+      "actual": false,
+      "exit": 2,
+      "qualified": false,
+      "diagnostics": [],
+      "stderr": "error[E7005]: internal error at src/analysis/types.rs:15440: end byte index 7 is not a char boundary; it is inside '💥' (bytes 4..8 of string) (see `can explain E7005`)\n",
+      "stdout_without_envelope": ""
+    },
+    {
+      "id": "url_bracketed_bad",
+      "expected": false,
+      "actual": true,
+      "exit": 0,
+      "qualified": false,
+      "diagnostics": [],
+      "stderr": "",
+      "stdout_without_envelope": null
+    },
+    {
+      "id": "url_port_high",
+      "expected": false,
+      "actual": true,
+      "exit": 0,
+      "qualified": false,
+      "diagnostics": [],
+      "stderr": "",
+      "stdout_without_envelope": null
+    },
+    {
+      "id": "url_userinfo",
+      "expected": true,
+      "actual": false,
+      "exit": 10,
+      "qualified": false,
+      "diagnostics": [
+        {
+          "code": "E3001",
+          "severity": "error",
+          "message": "`https://user:pass@example.com` is not a valid url: userinfo is not allowed",
+          "primary": {
+            "file": 0,
+            "start": 26,
+            "end": 57
+          },
+          "related": [],
+          "tags": []
+        }
+      ],
+      "stderr": "",
+      "stdout_without_envelope": null
+    },
+    {
+      "id": "url_case",
+      "expected": true,
+      "actual": true,
+      "exit": 0,
+      "qualified": true,
+      "diagnostics": [],
+      "stderr": "",
+      "stdout_without_envelope": null
+    },
+    {
+      "id": "url_unicode_host",
+      "expected": true,
+      "actual": true,
+      "exit": 0,
+      "qualified": true,
+      "diagnostics": [],
+      "stderr": "",
+      "stdout_without_envelope": null
+    },
+    {
+      "id": "url_backslash",
+      "expected": true,
+      "actual": true,
+      "exit": 0,
+      "qualified": true,
+      "diagnostics": [],
+      "stderr": "",
+      "stdout_without_envelope": null
+    },
+    {
+      "id": "url_trimmed",
+      "expected": true,
+      "actual": false,
+      "exit": 10,
+      "qualified": false,
+      "diagnostics": [
+        {
+          "code": "E3001",
+          "severity": "error",
+          "message": "` https://example.com/a ` is not a valid url: whitespace is not allowed",
+          "primary": {
+            "file": 0,
+            "start": 26,
+            "end": 51
+          },
+          "related": [],
+          "tags": []
+        }
+      ],
+      "stderr": "",
+      "stdout_without_envelope": null
+    },
+    {
+      "id": "url_space_path",
+      "expected": true,
+      "actual": false,
+      "exit": 10,
+      "qualified": false,
+      "diagnostics": [
+        {
+          "code": "E3001",
+          "severity": "error",
+          "message": "`https://example.com/a b` is not a valid url: whitespace is not allowed",
+          "primary": {
+            "file": 0,
+            "start": 26,
+            "end": 51
+          },
+          "related": [],
+          "tags": []
+        }
+      ],
+      "stderr": "",
+      "stdout_without_envelope": null
+    },
+    {
+      "id": "url_relative",
+      "expected": false,
+      "actual": false,
+      "exit": 10,
+      "qualified": true,
+      "diagnostics": [
+        {
+          "code": "E3001",
+          "severity": "error",
+          "message": "`/a` is not a valid url: want an http:// or https:// URL",
+          "primary": {
+            "file": 0,
+            "start": 26,
+            "end": 30
+          },
+          "related": [],
+          "tags": []
+        }
+      ],
+      "stderr": "",
+      "stdout_without_envelope": null
+    },
+    {
+      "id": "url_non_http",
+      "expected": false,
+      "actual": false,
+      "exit": 10,
+      "qualified": true,
+      "diagnostics": [
+        {
+          "code": "E3001",
+          "severity": "error",
+          "message": "`ftp://example.com/a` is not a valid url: want an http:// or https:// URL",
+          "primary": {
+            "file": 0,
+            "start": 26,
+            "end": 47
+          },
+          "related": [],
+          "tags": []
+        }
+      ],
+      "stderr": "",
+      "stdout_without_envelope": null
+    },
+    {
+      "id": "url_ipv6",
+      "expected": true,
+      "actual": true,
+      "exit": 0,
+      "qualified": true,
+      "diagnostics": [],
+      "stderr": "",
+      "stdout_without_envelope": null
+    },
+    {
+      "id": "url_port_empty",
+      "expected": true,
+      "actual": false,
+      "exit": 10,
+      "qualified": false,
+      "diagnostics": [
+        {
+          "code": "E3001",
+          "severity": "error",
+          "message": "`https://example.com:/a` is not a valid url: invalid port",
+          "primary": {
+            "file": 0,
+            "start": 26,
+            "end": 50
+          },
+          "related": [],
+          "tags": []
+        }
+      ],
+      "stderr": "",
+      "stdout_without_envelope": null
+    },
+    {
+      "id": "bracket_unclosed",
+      "expected": false,
+      "actual": false,
+      "exit": 10,
+      "qualified": true,
+      "diagnostics": [
+        {
+          "code": "E3001",
+          "severity": "error",
+          "message": "`https://[::1` is not a valid url: unclosed IPv6 literal",
+          "primary": {
+            "file": 0,
+            "start": 26,
+            "end": 40
+          },
+          "related": [],
+          "tags": []
+        }
+      ],
+      "stderr": "",
+      "stdout_without_envelope": null
+    },
+    {
+      "id": "bracket_suffix",
+      "expected": false,
+      "actual": false,
+      "exit": 10,
+      "qualified": true,
+      "diagnostics": [
+        {
+          "code": "E3001",
+          "severity": "error",
+          "message": "`https://[::1]junk` is not a valid url: invalid IPv6 host",
+          "primary": {
+            "file": 0,
+            "start": 26,
+            "end": 45
+          },
+          "related": [],
+          "tags": []
+        }
+      ],
+      "stderr": "",
+      "stdout_without_envelope": null
+    },
+    {
+      "id": "port_65535",
+      "expected": true,
+      "actual": true,
+      "exit": 0,
+      "qualified": true,
+      "diagnostics": [],
+      "stderr": "",
+      "stdout_without_envelope": null
+    },
+    {
+      "id": "port_65536",
+      "expected": false,
+      "actual": true,
+      "exit": 0,
+      "qualified": false,
+      "diagnostics": [],
+      "stderr": "",
+      "stdout_without_envelope": null
+    },
+    {
+      "id": "port_nondigit",
+      "expected": false,
+      "actual": false,
+      "exit": 10,
+      "qualified": true,
+      "diagnostics": [
+        {
+          "code": "E3001",
+          "severity": "error",
+          "message": "`https://example.com:abc` is not a valid url: invalid port",
+          "primary": {
+            "file": 0,
+            "start": 26,
+            "end": 51
+          },
+          "related": [],
+          "tags": []
+        }
+      ],
+      "stderr": "",
+      "stdout_without_envelope": null
+    },
+    {
+      "id": "host_missing",
+      "expected": false,
+      "actual": false,
+      "exit": 10,
+      "qualified": true,
+      "diagnostics": [
+        {
+          "code": "E3001",
+          "severity": "error",
+          "message": "`https://` is not a valid url: want an http:// or https:// URL",
+          "primary": {
+            "file": 0,
+            "start": 26,
+            "end": 36
+          },
+          "related": [],
+          "tags": []
+        }
+      ],
+      "stderr": "",
+      "stdout_without_envelope": null
+    },
+    {
+      "id": "proto_relative",
+      "expected": false,
+      "actual": false,
+      "exit": 10,
+      "qualified": true,
+      "diagnostics": [
+        {
+          "code": "E3001",
+          "severity": "error",
+          "message": "`//example.com/a` is not a valid url: want an http:// or https:// URL",
+          "primary": {
+            "file": 0,
+            "start": 26,
+            "end": 43
+          },
+          "related": [],
+          "tags": []
+        }
+      ],
+      "stderr": "",
+      "stdout_without_envelope": null
+    },
+    {
+      "id": "http_no_slashes",
+      "expected": true,
+      "actual": false,
+      "exit": 10,
+      "qualified": false,
+      "diagnostics": [
+        {
+          "code": "E3001",
+          "severity": "error",
+          "message": "`http:example.com/a` is not a valid url: want an http:// or https:// URL",
+          "primary": {
+            "file": 0,
+            "start": 26,
+            "end": 46
+          },
+          "related": [],
+          "tags": []
+        }
+      ],
+      "stderr": "",
+      "stdout_without_envelope": null
+    },
+    {
+      "id": "ascii_tab",
+      "expected": true,
+      "actual": false,
+      "exit": 10,
+      "qualified": false,
+      "diagnostics": [
+        {
+          "code": "E3001",
+          "severity": "error",
+          "message": "`ht\ttp://example.com/a` is not a valid url: whitespace is not allowed",
+          "primary": {
+            "file": 0,
+            "start": 26,
+            "end": 50
+          },
+          "related": [],
+          "tags": []
+        }
+      ],
+      "stderr": "",
+      "stdout_without_envelope": null
+    },
+    {
+      "id": "unicode_idna",
+      "expected": true,
+      "actual": true,
+      "exit": 0,
+      "qualified": true,
+      "diagnostics": [],
+      "stderr": "",
+      "stdout_without_envelope": null
+    },
+    {
+      "id": "unicode_joiner",
+      "expected": false,
+      "actual": true,
+      "exit": 0,
+      "qualified": false,
+      "diagnostics": [],
+      "stderr": "",
+      "stdout_without_envelope": null
+    },
+    {
+      "id": "unicode_space",
+      "expected": false,
+      "actual": true,
+      "exit": 0,
+      "qualified": false,
+      "diagnostics": [],
+      "stderr": "",
+      "stdout_without_envelope": null
+    },
+    {
+      "id": "ipv4_legacy",
+      "expected": true,
+      "actual": true,
+      "exit": 0,
+      "qualified": true,
+      "diagnostics": [],
+      "stderr": "",
+      "stdout_without_envelope": null
+    },
+    {
+      "id": "host_bad_percent",
+      "expected": false,
+      "actual": true,
+      "exit": 0,
+      "qualified": false,
+      "diagnostics": [],
+      "stderr": "",
+      "stdout_without_envelope": null
+    },
+    {
+      "id": "path_bad_percent",
+      "expected": true,
+      "actual": true,
+      "exit": 0,
+      "qualified": true,
+      "diagnostics": [],
+      "stderr": "",
+      "stdout_without_envelope": null
+    }
+  ]
+}

@@ -1,0 +1,1106 @@
+Diff in /private/tmp/canlang-pass3-release-baseline/compiler/src/analysis/catalog.rs:1351:
+             ("amount", "money"),
+             ("status", "enum(pending,unknown,succeeded,failed)"),
+             ("checkout_url", "url?"),
+-            ("failure", "enum(transient,action_required,permanent,cancelled)?"),
++            (
++                "failure",
++                "enum(transient,action_required,permanent,cancelled)?",
++            ),
+         ],
+     }],
+ };
+Diff in /private/tmp/canlang-pass3-release-baseline/compiler/src/analysis/catalog.rs:2033:
+         assert_eq!(STD_TEXT_GENERATION_V1_VERSION, 1);
+         assert_eq!(STD_IMAGES_V1_VERSION, 1);
+         assert_eq!(STD_MAILBOX_V1_VERSION, 1);
+-        assert_eq!(STD_TEXT_GENERATION_V1.version, STD_TEXT_GENERATION_V1_VERSION);
++        assert_eq!(
++            STD_TEXT_GENERATION_V1.version,
++            STD_TEXT_GENERATION_V1_VERSION
++        );
+         assert_eq!(STD_IMAGES_V1.version, STD_IMAGES_V1_VERSION);
+         assert_eq!(STD_MAILBOX_V1.version, STD_MAILBOX_V1_VERSION);
+         // The T13b producer slice adds no contract-version bump.
+Diff in /private/tmp/canlang-pass3-release-baseline/compiler/src/analysis/catalog.rs:2059:
+         let cap = std_capability("TextGenerationV1").expect("TextGenerationV1 schema");
+         let ops: Vec<&str> = cap.operations.iter().map(|op| op.name).collect();
+         assert_eq!(ops, vec!["generate", "cancel", "reconcile"]);
+-        let generate =
+-            std_operation("std.TextGenerationV1", "generate").expect("generate schema");
++        let generate = std_operation("std.TextGenerationV1", "generate").expect("generate schema");
+         assert_eq!(generate.inputs, &[("value", "TextRequest")]);
+         assert_eq!(generate.result, "TextRun");
+         for op in ["cancel", "reconcile"] {
+Diff in /private/tmp/canlang-pass3-release-baseline/compiler/src/analysis/catalog.rs:2152:
+                 .target
+                 .rsplit_once('.')
+                 .expect("qualified target");
+-            assert!(std_operation(cap, op).is_some(), "target {}", observable.target);
+             assert!(
++                std_operation(cap, op).is_some(),
++                "target {}",
++                observable.target
++            );
++            assert!(
+                 delivery_observable(observable.target).is_some(),
+                 "target {}",
+                 observable.target
+Diff in /private/tmp/canlang-pass3-release-baseline/compiler/src/analysis/catalog.rs:2321:
+                 .target
+                 .rsplit_once('.')
+                 .expect("qualified target");
+-            assert!(std_operation(cap, op).is_some(), "target {}", observable.target);
++            assert!(
++                std_operation(cap, op).is_some(),
++                "target {}",
++                observable.target
++            );
+         }
+     }
+
+Diff in /private/tmp/canlang-pass3-release-baseline/compiler/src/analysis/catalog.rs:2417:
+     fn t13a_common_leaves_are_exact() {
+         // `DeliveryResult` (services.ts:26; `DeliveryStatus` services.ts:32).
+         assert_eq!(
+-            nominal_schema("DeliveryResult").expect("DeliveryResult schema").fields,
++            nominal_schema("DeliveryResult")
++                .expect("DeliveryResult schema")
++                .fields,
+             &[
+                 ("id", "text"),
+                 ("status", "enum(pending,succeeded,failed,unknown,skipped)"),
+Diff in /private/tmp/canlang-pass3-release-baseline/compiler/src/analysis/catalog.rs:2425:
+         );
+         // `DeliveryError` (services.ts:44).
+         assert_eq!(
+-            nominal_schema("DeliveryError").expect("DeliveryError schema").fields,
++            nominal_schema("DeliveryError")
++                .expect("DeliveryError schema")
++                .fields,
+             &[("code", "text"), ("message", "text")]
+         );
+         // `OperationOutcome` (services.ts:189).
+Diff in /private/tmp/canlang-pass3-release-baseline/compiler/src/analysis/catalog.rs:2432:
+         assert_eq!(
+-            nominal_schema("OperationOutcome").expect("OperationOutcome schema").fields,
++            nominal_schema("OperationOutcome")
++                .expect("OperationOutcome schema")
++                .fields,
+             &[
+                 ("source", "text"),
+                 ("revision", "int"),
+Diff in /private/tmp/canlang-pass3-release-baseline/compiler/src/analysis/catalog.rs:2476:
+     fn t13a_acceptance_leaves_are_exact() {
+         // `EmailAccepted` (services.ts:184).
+         assert_eq!(
+-            nominal_schema("EmailAccepted").expect("EmailAccepted schema").fields,
++            nominal_schema("EmailAccepted")
++                .expect("EmailAccepted schema")
++                .fields,
+             &[("reference", "text")]
+         );
+         // `ErrorAccepted` (services.ts:262).
+Diff in /private/tmp/canlang-pass3-release-baseline/compiler/src/analysis/catalog.rs:2483:
+         assert_eq!(
+-            nominal_schema("ErrorAccepted").expect("ErrorAccepted schema").fields,
++            nominal_schema("ErrorAccepted")
++                .expect("ErrorAccepted schema")
++                .fields,
+             &[("reference", "text")]
+         );
+     }
+Diff in /private/tmp/canlang-pass3-release-baseline/compiler/src/analysis/catalog.rs:2490:
+     fn t13b_text_leaves_are_exact() {
+         // `TextMessage` (services.ts:754; `TextMessageRole` services.ts:747).
+         assert_eq!(
+-            nominal_schema("TextMessage").expect("TextMessage schema").fields,
++            nominal_schema("TextMessage")
++                .expect("TextMessage schema")
++                .fields,
+             &[
+                 ("role", "enum(system,user,assistant)"),
+                 ("content", "text"),
+Diff in /private/tmp/canlang-pass3-release-baseline/compiler/src/analysis/catalog.rs:2499:
+         );
+         // `TextRequest` (services.ts:768).
+         assert_eq!(
+-            nominal_schema("TextRequest").expect("TextRequest schema").fields,
++            nominal_schema("TextRequest")
++                .expect("TextRequest schema")
++                .fields,
+             &[
+                 ("source", "text"),
+                 ("revision", "int"),
+Diff in /private/tmp/canlang-pass3-release-baseline/compiler/src/analysis/catalog.rs:2533:
+     fn t13b_workflow_and_image_leaves_are_exact() {
+         // `WorkflowInput` (services.ts:821).
+         assert_eq!(
+-            nominal_schema("WorkflowInput").expect("WorkflowInput schema").fields,
++            nominal_schema("WorkflowInput")
++                .expect("WorkflowInput schema")
++                .fields,
+             &[("node", "text"), ("key", "text")]
+         );
+         // `WorkflowDefinition` (services.ts:831).
+Diff in /private/tmp/canlang-pass3-release-baseline/compiler/src/analysis/catalog.rs:2540:
+         assert_eq!(
+-            nominal_schema("WorkflowDefinition").expect("WorkflowDefinition schema").fields,
++            nominal_schema("WorkflowDefinition")
++                .expect("WorkflowDefinition schema")
++                .fields,
+             &[
+                 ("graph", "file"),
+                 ("prompt", "WorkflowInput"),
+Diff in /private/tmp/canlang-pass3-release-baseline/compiler/src/analysis/catalog.rs:2549:
+         );
+         // `WorkflowInspection` (services.ts:857).
+         assert_eq!(
+-            nominal_schema("WorkflowInspection").expect("WorkflowInspection schema").fields,
++            nominal_schema("WorkflowInspection")
++                .expect("WorkflowInspection schema")
++                .fields,
+             &[("fields", "WorkflowField[]")]
+         );
+         // `WorkflowValidation` (services.ts:867).
+Diff in /private/tmp/canlang-pass3-release-baseline/compiler/src/analysis/catalog.rs:2556:
+         assert_eq!(
+-            nominal_schema("WorkflowValidation").expect("WorkflowValidation schema").fields,
++            nominal_schema("WorkflowValidation")
++                .expect("WorkflowValidation schema")
++                .fields,
+             &[("valid", "bool"), ("digest", "text?"), ("detail", "text?"),]
+         );
+         // `ImageRequest` (services.ts:881).
+Diff in /private/tmp/canlang-pass3-release-baseline/compiler/src/analysis/catalog.rs:2561:
+         assert_eq!(
+-            nominal_schema("ImageRequest").expect("ImageRequest schema").fields,
++            nominal_schema("ImageRequest")
++                .expect("ImageRequest schema")
++                .fields,
+             &[
+                 ("source", "text"),
+                 ("revision", "int"),
+Diff in /private/tmp/canlang-pass3-release-baseline/compiler/src/analysis/catalog.rs:2591:
+         );
+         // Source `GeneratedImage` = TS `ImageFileOutput` (services.ts:902).
+         assert_eq!(
+-            nominal_schema("GeneratedImage").expect("GeneratedImage schema").fields,
++            nominal_schema("GeneratedImage")
++                .expect("GeneratedImage schema")
++                .fields,
+             &[("position", "int"), ("image", "file")]
+         );
+     }
+Diff in /private/tmp/canlang-pass3-release-baseline/compiler/src/analysis/catalog.rs:2600:
+     fn t13b_mailbox_judgment_knowledge_leaves_are_exact() {
+         // `IncomingEmail` (services.ts:938).
+         assert_eq!(
+-            nominal_schema("IncomingEmail").expect("IncomingEmail schema").fields,
++            nominal_schema("IncomingEmail")
++                .expect("IncomingEmail schema")
++                .fields,
+             &[
+                 ("mailbox", "text"),
+                 ("source", "text"),
+Diff in /private/tmp/canlang-pass3-release-baseline/compiler/src/analysis/catalog.rs:2618:
+         );
+         // `MailReply` (services.ts:961).
+         assert_eq!(
+-            nominal_schema("MailReply").expect("MailReply schema").fields,
++            nominal_schema("MailReply")
++                .expect("MailReply schema")
++                .fields,
+             &[
+                 ("source", "text"),
+                 ("mailbox", "text"),
+Diff in /private/tmp/canlang-pass3-release-baseline/compiler/src/analysis/catalog.rs:2632:
+         // `MailReplyOutcome` (services.ts:987; `MailReplyState`
+         // services.ts:978).
+         assert_eq!(
+-            nominal_schema("MailReplyOutcome").expect("MailReplyOutcome schema").fields,
++            nominal_schema("MailReplyOutcome")
++                .expect("MailReplyOutcome schema")
++                .fields,
+             &[
+                 ("source", "text"),
+                 ("state", "enum(accepted,not_sent,unknown)"),
+Diff in /private/tmp/canlang-pass3-release-baseline/compiler/src/analysis/catalog.rs:2642:
+         );
+         // `JudgmentSpec` (services.ts:1005).
+         assert_eq!(
+-            nominal_schema("JudgmentSpec").expect("JudgmentSpec schema").fields,
++            nominal_schema("JudgmentSpec")
++                .expect("JudgmentSpec schema")
++                .fields,
+             &[("revision", "int")]
+         );
+         // `KnowledgeRequest` (services.ts:1017).
+Diff in /private/tmp/canlang-pass3-release-baseline/compiler/src/analysis/catalog.rs:2649:
+         assert_eq!(
+-            nominal_schema("KnowledgeRequest").expect("KnowledgeRequest schema").fields,
++            nominal_schema("KnowledgeRequest")
++                .expect("KnowledgeRequest schema")
++                .fields,
+             &[
+                 ("source", "text"),
+                 ("revision", "int"),
+Diff in /private/tmp/canlang-pass3-release-baseline/compiler/src/analysis/catalog.rs:2661:
+         );
+         // `IndexState` (services.ts:1039).
+         assert_eq!(
+-            nominal_schema("IndexState").expect("IndexState schema").fields,
++            nominal_schema("IndexState")
++                .expect("IndexState schema")
++                .fields,
+             &[
+                 ("state", "text"),
+                 ("checked", "DatetimeValue?"),
+Diff in /private/tmp/canlang-pass3-release-baseline/compiler/src/analysis/resolve.rs:1968:
+                     } else {
+                         diags.push(Diagnostic::error(
+                             "E2004",
+-                            format!(
+-                                "import member '{}' is not declared in 'std'",
+-                                member.name
+-                            ),
++                            format!("import member '{}' is not declared in 'std'", member.name),
+                             member.span,
+                         ));
+                     }
+Diff in /private/tmp/canlang-pass3-release-baseline/compiler/src/analysis/resolve.rs:3609:
+                         && let Some(ScopedName::External { provider, name }) =
+                             self.lookup_prod(module, segments[0])
+                     {
+-                        self.tables.node_external_op.insert(
+-                            NodeKey::of(child),
+-                            format!("{provider}.{name}"),
+-                        );
++                        self.tables
++                            .node_external_op
++                            .insert(NodeKey::of(child), format!("{provider}.{name}"));
+                         continue;
+                     }
+                     if let Some(op) = self.resolve_op_path(module, &segments, child, text, diags) {
+Diff in /private/tmp/canlang-pass3-release-baseline/compiler/src/analysis/types.rs:1629:
+             // External members have no local schemas, so `call`
+             // checks cover the local targets only (the provider
+             // package is absent by definition).
+-            ResolvedType::Action {
+-                targets, bound, ..
+-            } => {
++            ResolvedType::Action { targets, bound, .. } => {
+                 self.call_action(cx, node, target, &targets, bound.as_deref(), object);
+             }
+             ResolvedType::Invocation { targets } => {
+Diff in /private/tmp/canlang-pass3-release-baseline/compiler/src/analysis/types.rs:3442:
+             return None;
+         }
+         let head = self.prod_or_imported(module, segments[0])?;
+-        let SymbolKind::Capability { ops, .. } = &self.tables.symbols[head.0 as usize].kind
+-        else {
++        let SymbolKind::Capability { ops, .. } = &self.tables.symbols[head.0 as usize].kind else {
+             return None;
+         };
+         let op = ops
+Diff in /private/tmp/canlang-pass3-release-baseline/compiler/src/codegen/ir.rs:4727:
+                     let Some(key) = unique.where_predicate.as_ref() else {
+                         continue;
+                     };
+-                    let span = Span::new(
+-                        unique.node.file,
+-                        unique.node.start,
+-                        unique.node.end,
+-                    );
++                    let span = Span::new(unique.node.file, unique.node.start, unique.node.end);
+                     invariants.push(IrRuleFn {
+                         id: format!("{}.unique.{}", symbol.name, index + 1),
+                         pred: self.decode_anchored(
+Diff in /private/tmp/canlang-pass3-release-baseline/compiler/src/codegen/ir.rs:6024:
+                 }
+             }
+         }
+-        if !children
+-            .iter()
+-            .any(|c| ui_slot_name(c) == Some("content"))
+-        {
++        if !children.iter().any(|c| ui_slot_name(c) == Some("content")) {
+             self.diags.push(Diagnostic::error(
+                 "E6008",
+                 "cannot lower chat_bubble: chat_bubble needs a content slot".to_string(),
+Diff in /private/tmp/canlang-pass3-release-baseline/compiler/src/codegen/ir.rs:7151:
+         let canonical = self.canonical(op);
+         let model_canonical = self.canonical(model);
+         let name = self.local_name(model);
+-        let text = |value: String| TypedExpr::new(IrExpr::Text(value), ResolvedType::Scalar(Scalar::Text), node.span);
++        let text = |value: String| {
++            TypedExpr::new(
++                IrExpr::Text(value),
++                ResolvedType::Scalar(Scalar::Text),
++                node.span,
++            )
++        };
+         props.push(("operation".to_string(), text(canonical.clone())));
+         props.push((
+             "record".to_string(),
+Diff in /private/tmp/canlang-pass3-release-baseline/compiler/src/codegen/ir.rs:7183:
+             )),
+             None => props.push(("itemLabel".to_string(), text(name.clone()))),
+         }
++        props.push(("confirm".to_string(), text(format!("Archive this {name}?"))));
+         props.push((
+-            "confirm".to_string(),
+-            text(format!("Archive this {name}?")),
+-        ));
+-        props.push((
+             "idPrefix".to_string(),
+             text(format!("delete-{}", model_canonical.replace('.', "-"))),
+         ));
+Diff in /private/tmp/canlang-pass3-release-baseline/compiler/src/codegen/ir.rs:8376:
+                 let id = match target {
+                     IrCallTarget::Builtin { id, .. } => id.as_str(),
+                     IrCallTarget::CapabilityOp(_) | IrCallTarget::DeriveFn(_) => {
+-                        return ResolvedType::Unknown
++                        return ResolvedType::Unknown;
+                     }
+                 };
+                 match id {
+Diff in /private/tmp/canlang-pass3-release-baseline/compiler/src/codegen/js.rs:407:
+     match default {
+         None => None,
+         Some(IrDefault::Literal(value)) => literal_json(value).map(JsFieldDefault::Literal),
+-        Some(IrDefault::Computed { expr, .. }) => parent_path(expr).map(|path| JsFieldDefault::Parent {
+-            path,
+-        }),
++        Some(IrDefault::Computed { expr, .. }) => {
++            parent_path(expr).map(|path| JsFieldDefault::Parent { path })
++        }
+     }
+ }
+
+Diff in /private/tmp/canlang-pass3-release-baseline/compiler/src/codegen/js.rs:633:
+ #[derive(Debug, Clone)]
+ pub enum JsModelFieldType {
+     /// Stored-record reference: canonical target model.
+-    Ref { model: String },
++    Ref {
++        model: String,
++    },
+     String,
+     Integer,
+     Decimal,
+Diff in /private/tmp/canlang-pass3-release-baseline/compiler/src/codegen/js.rs:642:
+     Boolean,
+     File,
+     /// Anonymous enum: case spellings in declaration order.
+-    Enum { values: Vec<String> },
++    Enum {
++        values: Vec<String>,
++    },
+     /// T15b provider delivery: a T14c typed `std` receipt (shared
+     /// [`JsDeliveryDescriptor`] shape with [`JsMcpField::Delivery`]).
+     Delivery(JsDeliveryDescriptor),
+Diff in /private/tmp/canlang-pass3-release-baseline/compiler/src/codegen/js.rs:655:
+     Json,
+     Bytes,
+     /// Honest fallback: `type_id` is the source type id.
+-    Other { type_id: String },
++    Other {
++        type_id: String,
++    },
+ }
+
+ impl JsModelFieldType {
+Diff in /private/tmp/canlang-pass3-release-baseline/compiler/src/codegen/js.rs:688:
+             JsModelFieldType::Json => "{\"kind\":\"json\"}".to_string(),
+             JsModelFieldType::Bytes => "{\"kind\":\"bytes\"}".to_string(),
+             JsModelFieldType::Delivery(descriptor) => descriptor.to_json(),
+-            JsModelFieldType::Other { type_id } => format!(
+-                "{{\"kind\":\"other\",\"type\":{}}}",
+-                js_string(type_id)
+-            ),
++            JsModelFieldType::Other { type_id } => {
++                format!("{{\"kind\":\"other\",\"type\":{}}}", js_string(type_id))
++            }
+         }
+     }
+ }
+Diff in /private/tmp/canlang-pass3-release-baseline/compiler/src/codegen/js.rs:2738:
+                 // (`await` on a plain array is harmless).
+                 let awaited = match &domain.expr {
+                     IrExpr::Query(query)
+-                        if matches!(
+-                            query.domain,
+-                            crate::codegen::ir::IrQueryDomain::Model(_)
+-                        ) =>
++                        if matches!(query.domain, crate::codegen::ir::IrQueryDomain::Model(_)) =>
+                     {
+                         domain_text.clone()
+                     }
+Diff in /private/tmp/canlang-pass3-release-baseline/compiler/src/codegen/js.rs:3089:
+                     if let Some(main) = kids.next() {
+                         props.push(format!("main:[{}]", self.lower_ui_ctx(main, ctx)));
+                     }
+-                    let rest: Vec<String> =
+-                        kids.map(|c| self.lower_ui_ctx(c, ctx)).collect();
++                    let rest: Vec<String> = kids.map(|c| self.lower_ui_ctx(c, ctx)).collect();
+                     props.push(format!("actions:[{}]", rest.join(",")));
+                 } else if node.factory == "chatBubble" {
+                     // Slot children group by slot name in
+Diff in /private/tmp/canlang-pass3-release-baseline/compiler/src/codegen/js.rs:3108:
+                         // Slots dissolve: F takes the grouped
+                         // children, not `slot()` wrappers.
+                         let mut group: Vec<String> = Vec::new();
+-                        for child in node.children.iter().filter(|c| {
+-                            crate::codegen::ir::ui_slot_name(c) == Some(name)
+-                        }) {
++                        for child in node
++                            .children
++                            .iter()
++                            .filter(|c| crate::codegen::ir::ui_slot_name(c) == Some(name))
++                        {
+                             for grand in &child.children {
+                                 group.push(self.lower_ui_ctx(grand, ctx));
+                             }
+Diff in /private/tmp/canlang-pass3-release-baseline/compiler/src/codegen/js.rs:4523:
+                             Some((field, is_array)) => inputs.push(JsOperationField {
+                                 name: param.name.clone(),
+                                 field,
+-                                required: default.is_none()
+-                                    && !nullable
+-                                    && !is_array,
++                                required: default.is_none() && !nullable && !is_array,
+                                 nullable,
+                                 array_required: is_array.then_some(false),
+                                 default: js_field_default(default.as_ref(), None),
+Diff in /private/tmp/canlang-pass3-release-baseline/compiler/src/codegen/js.rs:4766:
+     /// taking local deliveries omit, fail-closed) alongside the
+     /// model-tag twin [`Emitter::model_field_tag`]. T04b ratifies the
+     /// delivery shape.
+-    fn mcp_field_for_type(
+-        &self,
+-        ty: &IrType,
+-        require_version: bool,
+-    ) -> Option<(JsMcpField, bool)> {
++    fn mcp_field_for_type(&self, ty: &IrType, require_version: bool) -> Option<(JsMcpField, bool)> {
+         let resolved = match ty {
+             IrType::Known(resolved) => resolved,
+             IrType::Unknown => return None,
+Diff in /private/tmp/canlang-pass3-release-baseline/compiler/src/codegen/js.rs:4859:
+     pub fn collect_models(&self) -> Vec<JsModel> {
+         let mut models = Vec::new();
+         for item in &self.ir.items {
+-            let IrItemKind::Model {
+-                fields, owner, ..
+-            } = &item.kind
+-            else {
++            let IrItemKind::Model { fields, owner, .. } = &item.kind else {
+                 continue;
+             };
+             // Stored fields in listed order plus this model's derived
+Diff in /private/tmp/canlang-pass3-release-baseline/compiler/src/codegen/js.rs:4930:
+     /// operation's declared mode (`archive` default, `remove`), or
+     /// `none` when the model has no enabled delete operation (disabled
+     /// or no `crud` declaration at all).
+-    fn model_delete_mode(
+-        &self,
+-        model: crate::analysis::resolve::SymbolId,
+-    ) -> String {
++    fn model_delete_mode(&self, model: crate::analysis::resolve::SymbolId) -> String {
+         for row in &self.ir.items {
+             if let IrItemKind::CrudOp {
+                 model: target,
+Diff in /private/tmp/canlang-pass3-release-baseline/compiler/src/codegen/js.rs:4967:
+                 description: None,
+             };
+         }
+-        let (
+-            ty,
+-            required_array,
+-            default,
+-            server,
+-            description,
+-        ) = match &field_item.kind {
++        let (ty, required_array, default, server, description) = match &field_item.kind {
+             IrItemKind::Field {
+                 ty,
+                 required_array,
+Diff in /private/tmp/canlang-pass3-release-baseline/compiler/src/codegen/js.rs:5674:
+                     // (`emit_derive_fns`); the registry holds a
+                     // shorthand reference so the `[name]` member path
+                     // still resolves to the named function.
+-                    out.push(
+-                        item.span,
+-                        Some(item.canonical.clone()),
+-                        &format!("{name},"),
+-                    );
++                    out.push(item.span, Some(item.canonical.clone()), &format!("{name},"));
+                 }
+                 IrItemKind::DeriveField { .. } => {}
+                 _ => {}
+Diff in /private/tmp/canlang-pass3-release-baseline/compiler/src/syntax/parser.rs:2064:
+     /// zero-parameter message path. Dynamic values, call arguments and
+     /// record-query tails are rejected here; whether a path names a
+     /// static message is a semantic check.
+-    fn parse_description_value(
+-        &mut self,
+-        cursor: &mut Cursor<'a>,
+-    ) -> Result<SyntaxNode, Fail> {
++    fn parse_description_value(&mut self, cursor: &mut Cursor<'a>) -> Result<SyntaxNode, Fail> {
+         let mut kids = Vec::new();
+         let word = cursor.expect_name_is("desc")?;
+         self.builder.leaf(&mut kids, &word);
+Diff in /private/tmp/canlang-pass3-release-baseline/compiler/src/syntax/parser.rs:2111:
+                 path
+             }
+             _ => {
+-                return cursor
+-                    .err("E1214", "desc= requires a string literal or static message path");
++                return cursor.err(
++                    "E1214",
++                    "desc= requires a string literal or static message path",
++                );
+             }
+         };
+         self.builder.push_inner(&mut kids, value);
+Diff in /private/tmp/canlang-pass3-release-baseline/compiler/tests/b3_i5.rs:134:
+     );
+     // The manifest is shared, not forked: appDefinition carries it too.
+     assert!(
+-        js.contains("export const appDefinition=") && js.matches("public:[\"Spot.read.1\"]").count() == 2,
++        js.contains("export const appDefinition=")
++            && js.matches("public:[\"Spot.read.1\"]").count() == 2,
+         "one builder, two carriers:\n{js}"
+     );
+ }
+Diff in /private/tmp/canlang-pass3-release-baseline/compiler/tests/b4_check.rs:809:
+     let catalog = fixture();
+     let src = "app T\nGiven\n M { title:text, tags:text[] }\n policy M read=members\nWhen\n scenario s(t:text) by=members\n  do\n   create M {title=t} as m\nThen\n";
+     let diags = check(src, Some(&catalog));
+-    assert!(diags.is_empty(), "ordinary array create omission: {diags:?}");
++    assert!(
++        diags.is_empty(),
++        "ordinary array create omission: {diags:?}"
++    );
+ }
+
+ /// (T09) Required arrays still require input in `create`: omitting
+Diff in /private/tmp/canlang-pass3-release-baseline/compiler/tests/b4_check.rs:2674:
+     let diags = check(src, Some(&catalog));
+     assert_eq!(codes(&diags), vec!["E3010"], "{diags:?}");
+     assert!(
+-        diags[0].message.contains("missing required input 'revision'"),
++        diags[0]
++            .message
++            .contains("missing required input 'revision'"),
+         "{}",
+         diags[0].message
+     );
+Diff in /private/tmp/canlang-pass3-release-baseline/compiler/tests/b4_check.rs:2689:
+     let diags = check(src, Some(&catalog));
+     assert_eq!(codes(&diags), vec!["E3001"], "{diags:?}");
+     assert!(
+-        diags[0].message.contains("'graph': expected file, found text"),
++        diags[0]
++            .message
++            .contains("'graph': expected file, found text"),
+         "{}",
+         diags[0].message
+     );
+Diff in /private/tmp/canlang-pass3-release-baseline/compiler/tests/b4_check.rs:2703:
+     let diags = check(src, Some(&catalog));
+     assert_eq!(codes(&diags), vec!["E3001"], "{diags:?}");
+     assert!(
+-        diags[0].message.contains("'revision': expected int, found text"),
++        diags[0]
++            .message
++            .contains("'revision': expected int, found text"),
+         "{}",
+         diags[0].message
+     );
+Diff in /private/tmp/canlang-pass3-release-baseline/compiler/tests/b4_check.rs:2847:
+     let diags = check(src, Some(&catalog));
+     assert_eq!(codes(&diags), vec!["E3019"], "{diags:?}");
+     assert!(
+-        diags[0].message.contains("cannot verify send to 'Handbook.answer'"),
++        diags[0]
++            .message
++            .contains("cannot verify send to 'Handbook.answer'"),
+         "{}",
+         diags[0].message
+     );
+Diff in /private/tmp/canlang-pass3-release-baseline/compiler/tests/b4_examples.rs:800:
+ #[test]
+ fn t02_derive_state_read_builtin_rejected() {
+     let Some(catalog) = real_catalog() else {
+-        eprintln!("SKIP t02_derive_state_read_builtin_rejected: no packages/values/dist/catalog.json");
++        eprintln!(
++            "SKIP t02_derive_state_read_builtin_rejected: no packages/values/dist/catalog.json"
++        );
+         return;
+     };
+     const SRC: &str = "app Probe\nGiven\n derive staff(person:user):bool = active_member(person,team)\nWhen\nThen\n";
+Diff in /private/tmp/canlang-pass3-release-baseline/compiler/tests/b4_parse.rs:413:
+     let src = "app Shop\nGiven\n Gadget {\n  # Display title.\n  title:text desc=\"x\"\n }\n policy Gadget read=members\nWhen\n crud Gadget by=members fields=title\nThen\n page / title=\"Shop\"\n  breadcrumbs\n";
+     let (tree, diags) = syntax::parse_source(file(), src);
+     assert_eq!(codes(&diags), vec!["E1202"], "diags: {diags:?}");
+-    assert!(diags[0].message.contains("duplicate"), "{}", diags[0].message);
++    assert!(
++        diags[0].message.contains("duplicate"),
++        "{}",
++        diags[0].message
++    );
+     let (start, _) = span_of(src, "desc=", 1);
+     assert_eq!(diags[0].primary.start, start);
+     assert_eq!(diags[0].primary.end, start + "desc".len() as u32);
+Diff in /private/tmp/canlang-pass3-release-baseline/compiler/tests/b4_parse.rs:428:
+     let src = "app Shop\nGiven\n Gadget {\n  # Display title.\n  title:text @{desc=\"x\"}\n }\n policy Gadget read=members\nWhen\n crud Gadget by=members fields=title\nThen\n page / title=\"Shop\"\n  breadcrumbs\n";
+     let (tree, diags) = syntax::parse_source(file(), src);
+     assert_eq!(codes(&diags), vec!["E1202"], "diags: {diags:?}");
+-    assert!(diags[0].message.contains("duplicate"), "{}", diags[0].message);
++    assert!(
++        diags[0].message.contains("duplicate"),
++        "{}",
++        diags[0].message
++    );
+     let (start, _) = span_of(src, "@{", 1);
+     assert_eq!(diags[0].primary.start, start);
+     assert_eq!(diags[0].primary.end, start + 1);
+Diff in /private/tmp/canlang-pass3-release-baseline/compiler/tests/b4_parse.rs:443:
+     let src = desc_field_src("title:text desc=\"x\" @{desc=\"y\"}");
+     let (tree, diags) = syntax::parse_source(file(), &src);
+     assert_eq!(codes(&diags), vec!["E1202"], "diags: {diags:?}");
+-    assert!(diags[0].message.contains("duplicate"), "{}", diags[0].message);
++    assert!(
++        diags[0].message.contains("duplicate"),
++        "{}",
++        diags[0].message
++    );
+     let (start, _) = span_of(&src, "@{", 1);
+     assert_eq!(diags[0].primary.start, start);
+     assert_eq!(diags[0].primary.end, start + 1);
+Diff in /private/tmp/canlang-pass3-release-baseline/compiler/tests/codegen.rs:3933:
+     );
+     assert_eq!(js::literal_json(&neg).as_deref(), Some("\"-3\""));
+     // Decimal scale survives verbatim (T11 exactness, never a Number).
+-    let dec = typed(
+-        IrExpr::Decimal("1.50".to_string()),
+-        decimal_ty.clone(),
+-    );
++    let dec = typed(IrExpr::Decimal("1.50".to_string()), decimal_ty.clone());
+     assert_eq!(js::literal_json(&dec).as_deref(), Some("\"1.50\""));
+     let neg_dec = typed(
+         IrExpr::Unary {
+Diff in /private/tmp/canlang-pass3-release-baseline/compiler/tests/codegen.rs:3949:
+         decimal_ty.clone(),
+     );
+     assert_eq!(js::literal_json(&neg_dec).as_deref(), Some("\"-0.5\""));
++    assert_eq!(js::literal_json(&text_lit("a")).as_deref(), Some("\"a\""));
+     assert_eq!(
+-        js::literal_json(&text_lit("a")).as_deref(),
+-        Some("\"a\"")
+-    );
+-    assert_eq!(
+         js::literal_json(&typed(IrExpr::Bool(true), bool_ty.clone())).as_deref(),
+         Some("true")
+     );
+Diff in /private/tmp/canlang-pass3-release-baseline/compiler/tests/codegen.rs:3975:
+     let duration = typed(IrExpr::DurationMs(30_000), duration_ty.clone());
+     assert_eq!(js::literal_json(&duration).as_deref(), Some("\"30000\""));
+     let date = typed(IrExpr::Date("2026-10-01".to_string()), date_ty.clone());
+-    assert_eq!(
+-        js::literal_json(&date).as_deref(),
+-        Some("\"2026-10-01\"")
+-    );
++    assert_eq!(js::literal_json(&date).as_deref(), Some("\"2026-10-01\""));
+     let datetime = typed(
+         IrExpr::Datetime("2026-10-01T00:00:00.000Z".to_string()),
+         datetime_ty.clone(),
+Diff in /private/tmp/canlang-pass3-release-baseline/compiler/tests/codegen.rs:3996:
+             nonempty: true,
+         },
+     );
+-    assert_eq!(
+-        js::literal_json(&array).as_deref(),
+-        Some("[\"1\",\"b\"]")
+-    );
++    assert_eq!(js::literal_json(&array).as_deref(), Some("[\"1\",\"b\"]"));
+     let object = typed(
+         IrExpr::Object(vec![
+             ("a".to_string(), int_lit(1)),
+Diff in /private/tmp/canlang-pass3-release-baseline/compiler/tests/codegen.rs:4088:
+ #[test]
+ fn t15a_parent_path_extraction() {
+     let text_ty = ResolvedType::Scalar(Scalar::Text);
+-    let parent = || {
+-        typed(
+-            IrExpr::Name("parent".to_string()),
+-            ResolvedType::Unknown,
+-        )
+-    };
++    let parent = || typed(IrExpr::Name("parent".to_string()), ResolvedType::Unknown);
+     let member = |base: TypedExpr, field: &str| {
+         typed(
+             IrExpr::Member {
+Diff in /private/tmp/canlang-pass3-release-baseline/compiler/tests/codegen.rs:4113:
+     );
+     assert_eq!(js::parent_path(&parent()), None);
+     assert_eq!(
+-        js::parent_path(&typed(
+-            IrExpr::Name("c".to_string()),
+-            ResolvedType::Unknown
+-        )),
++        js::parent_path(&typed(IrExpr::Name("c".to_string()), ResolvedType::Unknown)),
+         None
+     );
+     let actor = typed(
+Diff in /private/tmp/canlang-pass3-release-baseline/compiler/tests/codegen.rs:4123:
+         IrExpr::Member {
+-            base: Box::new(typed(
+-                IrExpr::Name("c".to_string()),
+-                ResolvedType::Unknown,
+-            )),
++            base: Box::new(typed(IrExpr::Name("c".to_string()), ResolvedType::Unknown)),
+             field: "actor".to_string(),
+         },
+         text_ty.clone(),
+Diff in /private/tmp/canlang-pass3-release-baseline/compiler/tests/codegen.rs:4139:
+ fn t15a_field_default_mapping() {
+     let text_ty = ResolvedType::Scalar(Scalar::Text);
+     assert!(js::js_field_default(None, None).is_none());
+-    let literal = js::js_field_default(
+-        Some(&IrDefault::Literal(int_lit(7))),
+-        None,
+-    )
+-    .expect("literal maps");
++    let literal =
++        js::js_field_default(Some(&IrDefault::Literal(int_lit(7))), None).expect("literal maps");
+     assert_eq!(literal.to_json(), "{\"kind\":\"literal\",\"value\":\"7\"}");
+     let parent_expr = typed(
+         IrExpr::Member {
+Diff in /private/tmp/canlang-pass3-release-baseline/compiler/tests/codegen.rs:4164:
+     )
+     .expect("parent path maps");
+     assert_eq!(parent.to_json(), "{\"kind\":\"parent\",\"path\":\"owner\"}");
+-    let computed = typed(
+-        IrExpr::Name("something".to_string()),
+-        text_ty.clone(),
+-    );
++    let computed = typed(IrExpr::Name("something".to_string()), text_ty.clone());
+     assert!(
+         js::js_field_default(
+             Some(&IrDefault::Computed {
+Diff in /private/tmp/canlang-pass3-release-baseline/compiler/tests/codegen.rs:4183:
+     assert_eq!(server.to_json(), "{\"kind\":\"server\",\"init\":\"actor\"}");
+     // Server wins over any default (spellings are mutually exclusive in
+     // grammar; the descriptor stays total either way).
+-    let both = js::js_field_default(
+-        Some(&IrDefault::Literal(int_lit(1))),
+-        Some(&IrServer::Now),
+-    )
+-    .expect("server wins");
++    let both = js::js_field_default(Some(&IrDefault::Literal(int_lit(1))), Some(&IrServer::Now))
++        .expect("server wins");
+     assert_eq!(both.to_json(), "{\"kind\":\"server\",\"init\":\"now\"}");
+ }
+
+Diff in /private/tmp/canlang-pass3-release-baseline/compiler/tests/codegen.rs:4359:
+         ),
+         (
+             "f_delivery",
+-            IrType::Known(ResolvedType::Delivery {
+-                op: SymbolId(3),
+-            }),
++            IrType::Known(ResolvedType::Delivery { op: SymbolId(3) }),
+         ),
+         (
+             "f_action",
+Diff in /private/tmp/canlang-pass3-release-baseline/compiler/tests/codegen.rs:4455:
+     assert_eq!(arr.array_required, Some(false));
+     assert!(!arr.required, "ordinary array omits to empty");
+     let arrenum = t15a_field(model, "f_arrenum");
+-    assert!(matches!(
+-        arrenum.field,
+-        js::JsModelFieldType::Enum { .. }
+-    ));
++    assert!(matches!(arrenum.field, js::JsModelFieldType::Enum { .. }));
+     assert_eq!(arrenum.array_required, Some(false));
+     let arrref = t15a_field(model, "f_arrref");
+     assert!(matches!(arrref.field, js::JsModelFieldType::Ref { .. }));
+Diff in /private/tmp/canlang-pass3-release-baseline/compiler/tests/codegen.rs:4465:
+     assert_eq!(arrref.array_required, Some(false));
+     // Nullability unwraps for the tag and clears required.
+     let nullable = t15a_field(model, "f_nullable");
+-    assert!(matches!(
+-        nullable.field,
+-        js::JsModelFieldType::Integer
+-    ));
++    assert!(matches!(nullable.field, js::JsModelFieldType::Integer));
+     assert!(nullable.nullable && !nullable.required);
+     let nularr = t15a_field(model, "f_nularr");
+     assert!(matches!(nularr.field, js::JsModelFieldType::String));
+Diff in /private/tmp/canlang-pass3-release-baseline/compiler/tests/codegen.rs:4479:
+     assert_eq!(elnull.array_required, Some(false));
+     // Nested arrays keep the marker with an honest element tag.
+     let nested = t15a_field(model, "f_nested");
+-    assert!(matches!(
+-        nested.field,
+-        js::JsModelFieldType::Other { .. }
+-    ));
++    assert!(matches!(nested.field, js::JsModelFieldType::Other { .. }));
+     assert_eq!(nested.array_required, Some(false));
+     // Exotic shapes stay honest `other` (T15b refines deliveries).
+     match tag("f_delivery") {
+Diff in /private/tmp/canlang-pass3-release-baseline/compiler/tests/codegen.rs:4531:
+     let model = t15a_model(&artifact, "Shop.Gadget");
+     assert_eq!(model.delete_mode, "archive");
+     assert_eq!(model.unique_keys, vec!["code".to_string()]);
+-    assert!(model.parent.is_none() && !model.scope_app, "team scope default");
++    assert!(
++        model.parent.is_none() && !model.scope_app,
++        "team scope default"
++    );
+     let title = t15a_field(model, "title");
+     assert!(title.required && !title.server_only && !title.nullable);
+     assert!(title.array_required.is_none() && title.default.is_none());
+Diff in /private/tmp/canlang-pass3-release-baseline/compiler/tests/codegen.rs:4596:
+     let json = artifact::to_json(&artifact);
+     assert!(json.contains("\"models\":[{"), "models key: {json}");
+     assert!(json.contains("\"deleteMode\":\"archive\""), "mode: {json}");
+-    assert!(
+-        json.contains("\"uniqueKeys\":[\"code\"]"),
+-        "keys: {json}"
+-    );
++    assert!(json.contains("\"uniqueKeys\":[\"code\"]"), "keys: {json}");
+ }
+
+ /// (T15a) Operation inputs end to end: array parameters map (ordinary,
+Diff in /private/tmp/canlang-pass3-release-baseline/compiler/tests/codegen.rs:4660:
+     ));
+     for input in update.inputs.iter().filter(|i| i.name != "record") {
+         assert!(!input.required, "partial change: {}", input.name);
+-        assert!(input.default.is_none(), "no defaults on update: {}", input.name);
++        assert!(
++            input.default.is_none(),
++            "no defaults on update: {}",
++            input.name
++        );
+     }
+     let update_ids = d03_input(update, "ids");
+     assert_eq!(update_ids.array_required, Some(true));
+Diff in /private/tmp/canlang-pass3-release-baseline/compiler/tests/codegen.rs:4729:
+     let create_buddy = d03_input(create, "buddy");
+     assert!(!create_buddy.required);
+     assert_eq!(
+-        create_buddy.default.as_ref().map(|d| d.to_json()).as_deref(),
++        create_buddy
++            .default
++            .as_ref()
++            .map(|d| d.to_json())
++            .as_deref(),
+         Some("{\"kind\":\"parent\",\"path\":\"owner\"}")
+     );
+     // Derived fields: present in the model, absent from inputs.
+Diff in /private/tmp/canlang-pass3-release-baseline/compiler/tests/codegen.rs:4749:
+     assert_eq!(t15a_model(&artifact, "Shop.Doc").delete_mode, "remove");
+     assert_eq!(t15a_model(&artifact, "Shop.Archive").delete_mode, "none");
+     assert!(
+-        artifact.operations.iter().any(|op| op.name == "Shop.Doc.delete"),
++        artifact
++            .operations
++            .iter()
++            .any(|op| op.name == "Shop.Doc.delete"),
+         "remove keeps delete: {:?}",
+-        artifact.operations.iter().map(|op| &op.name).collect::<Vec<_>>()
++        artifact
++            .operations
++            .iter()
++            .map(|op| &op.name)
++            .collect::<Vec<_>>()
+     );
+     assert!(
+         artifact
+Diff in /private/tmp/canlang-pass3-release-baseline/compiler/tests/codegen.rs:4759:
+             .iter()
+             .all(|op| op.name != "Shop.Archive.delete"),
+         "none disables delete: {:?}",
+-        artifact.operations.iter().map(|op| &op.name).collect::<Vec<_>>()
++        artifact
++            .operations
++            .iter()
++            .map(|op| &op.name)
++            .collect::<Vec<_>>()
+     );
+     assert!(
+         artifact
+Diff in /private/tmp/canlang-pass3-release-baseline/compiler/tests/codegen.rs:4887:
+         "no analysis gaps: {diags:?}"
+     );
+     let names: Vec<_> = artifact.operations.iter().map(|op| &op.name).collect();
+-    assert!(!names.iter().any(|n| n.as_str() == "Shop.slow"), "exotic omitted: {names:?}");
+-    assert!(names.iter().any(|n| n.as_str() == "Shop.fast"), "sibling kept: {names:?}");
+     assert!(
++        !names.iter().any(|n| n.as_str() == "Shop.slow"),
++        "exotic omitted: {names:?}"
++    );
++    assert!(
++        names.iter().any(|n| n.as_str() == "Shop.fast"),
++        "sibling kept: {names:?}"
++    );
++    assert!(
+         names.iter().any(|n| n.as_str() == "Shop.Gadget.create"),
+         "duration-free crud kept: {names:?}"
+     );
+Diff in /private/tmp/canlang-pass3-release-baseline/compiler/tests/codegen.rs:4919:
+         .iter()
+         .map(|op| op.name.as_str())
+         .collect();
+-    assert!(names.contains(&"Shop.Gadget.create"), "create kept: {names:?}");
+-    assert!(!names.contains(&"Shop.Gadget.update"), "update omits: {names:?}");
+-    assert!(names.contains(&"Shop.Gadget.delete"), "delete kept: {names:?}");
++    assert!(
++        names.contains(&"Shop.Gadget.create"),
++        "create kept: {names:?}"
++    );
++    assert!(
++        !names.contains(&"Shop.Gadget.update"),
++        "update omits: {names:?}"
++    );
++    assert!(
++        names.contains(&"Shop.Gadget.delete"),
++        "delete kept: {names:?}"
++    );
+ }
+
+ /// (T15a) The emitted envelope uses only closed descriptor kinds: every
+Diff in /private/tmp/canlang-pass3-release-baseline/compiler/tests/codegen.rs:4941:
+     let json = artifact::to_json(&artifact);
+     let parsed = canlang_compiler::json::parse(&json).expect("envelope parses");
+     let closed_inputs = [
+-        "ref",
+-        "string",
+-        "integer",
+-        "decimal",
+-        "money",
+-        "datetime",
+-        "boolean",
+-        "file",
+-        "enum",
++        "ref", "string", "integer", "decimal", "money", "datetime", "boolean", "file", "enum",
+     ];
+     let closed_model_kinds = [
+-        "ref",
+-        "string",
+-        "integer",
+-        "decimal",
+-        "money",
+-        "datetime",
+-        "boolean",
+-        "file",
+-        "enum",
+-        "date",
+-        "duration",
+-        "secret",
+-        "user",
+-        "member",
+-        "json",
+-        "bytes",
+-        "other",
++        "ref", "string", "integer", "decimal", "money", "datetime", "boolean", "file", "enum",
++        "date", "duration", "secret", "user", "member", "json", "bytes", "other",
+     ];
+-    let operations = parsed.get("operations").and_then(|v| v.as_arr()).expect("operations");
++    let operations = parsed
++        .get("operations")
++        .and_then(|v| v.as_arr())
++        .expect("operations");
+     assert!(!operations.is_empty(), "operations present");
+     for op in operations {
+         let kind = op.get("kind").and_then(|v| v.as_str()).expect("op kind");
+Diff in /private/tmp/canlang-pass3-release-baseline/compiler/tests/codegen.rs:4999:
+             );
+         }
+     }
+-    let models = parsed.get("models").and_then(|v| v.as_arr()).expect("models");
++    let models = parsed
++        .get("models")
++        .and_then(|v| v.as_arr())
++        .expect("models");
+     assert_eq!(models.len(), 3, "every model emits");
+     for model in models {
+-        let mode = model.get("deleteMode").and_then(|v| v.as_str()).expect("mode");
+-        assert!(["archive", "remove", "none"].contains(&mode), "mode closed: {mode}");
+-        let fields = model.get("fields").and_then(|v| v.as_arr()).expect("fields");
++        let mode = model
++            .get("deleteMode")
++            .and_then(|v| v.as_str())
++            .expect("mode");
++        assert!(
++            ["archive", "remove", "none"].contains(&mode),
++            "mode closed: {mode}"
++        );
++        let fields = model
++            .get("fields")
++            .and_then(|v| v.as_arr())
++            .expect("fields");
+         assert!(!fields.is_empty(), "model has fields");
+         for field in fields {
+             let field_kind = field
+Diff in /private/tmp/canlang-pass3-release-baseline/compiler/tests/codegen.rs:5019:
+         }
+     }
+     // No unknown-kind leakage anywhere in the envelope.
+-    for marker in ["\"kind\":\"unknown\"", "\"kind\":\"delivery\"", "\"kind\":\"action\""] {
++    for marker in [
++        "\"kind\":\"unknown\"",
++        "\"kind\":\"delivery\"",
++        "\"kind\":\"action\"",
++    ] {
+         assert!(!json.contains(marker), "no {marker} in envelope");
+     }
+ }
+Diff in /private/tmp/canlang-pass3-release-baseline/compiler/tests/codegen.rs:7465:
+         js.contains("check(hasRole(c,\"members\"),\"forbidden\")"),
+         "page require gates admission:\n{js}"
+     );
+-    assert!(
+-        !js.contains("require({"),
+-        "require never renders:\n{js}"
+-    );
++    assert!(!js.contains("require({"), "require never renders:\n{js}");
+ }
+
+Diff in /private/tmp/canlang-pass3-release-baseline/compiler/tests/exe.rs:210:
+ }
+
+ fn docs_tmpdir(tag: &str) -> PathBuf {
+-    let dir =
+-        std::env::temp_dir().join(format!("can-docs-exe-{tag}-{}", std::process::id()));
++    let dir = std::env::temp_dir().join(format!("can-docs-exe-{tag}-{}", std::process::id()));
+     std::fs::create_dir_all(&dir).expect("tmpdir");
+     dir
+ }
+Diff in /private/tmp/canlang-pass3-release-baseline/compiler/tests/exe.rs:273:
+         stdout_text(&output),
+         stderr_text(&output)
+     );
+-    assert!(!out.exists(), "--out must not be written on analysis failure");
++    assert!(
++        !out.exists(),
++        "--out must not be written on analysis failure"
++    );
+     assert!(
+         !stdout_text(&output).is_empty(),
+         "exit 10 still reports diagnostics on stdout"
+Diff in /private/tmp/canlang-pass3-release-baseline/compiler/tests/mcp_p1.rs:367:
+     // is present with zero diagnostics (asserted above). Parameters never
+     // carry the field-only `!`, so parameter arrays are always ordinary.
+     let restock = op_by_name(ops, "Shop.restock");
+-    assert_eq!(
+-        restock.get("kind").and_then(Json::as_str),
+-        Some("scenario")
+-    );
++    assert_eq!(restock.get("kind").and_then(Json::as_str), Some("scenario"));
+     assert_eq!(
+         restock.get("description").and_then(Json::as_str),
+         Some("Restock many gadgets at once."),

@@ -1,0 +1,451 @@
+{
+  "compiler_sha256": "afd09c20b00cfa8c8a393b6cc3793790756f2005b16eea04216628b828a85aee",
+  "catalog_sha256": "cd984f375e0d6cbcc2bc6aca5ad5ea5b1b3d3ba9cd17b15ab94e4b15e74ced62",
+  "vectors": 29,
+  "qualified": 29,
+  "results": [
+    {
+      "id": "url_basic",
+      "expected": true,
+      "actual": true,
+      "exit": 0,
+      "qualified": true,
+      "diagnostics": [],
+      "stderr": ""
+    },
+    {
+      "id": "url_unicode_panic",
+      "expected": false,
+      "actual": false,
+      "exit": 10,
+      "qualified": true,
+      "diagnostics": [
+        {
+          "code": "E3001",
+          "severity": "error",
+          "message": "`💥💥💥` is not a valid url: invalid URL: relative URL without a base",
+          "primary": {
+            "file": 0,
+            "start": 26,
+            "end": 40
+          },
+          "related": [],
+          "tags": []
+        }
+      ],
+      "stderr": ""
+    },
+    {
+      "id": "url_bracketed_bad",
+      "expected": false,
+      "actual": false,
+      "exit": 10,
+      "qualified": true,
+      "diagnostics": [
+        {
+          "code": "E3001",
+          "severity": "error",
+          "message": "`https://[garbage]` is not a valid url: invalid URL: invalid IPv6 address",
+          "primary": {
+            "file": 0,
+            "start": 26,
+            "end": 45
+          },
+          "related": [],
+          "tags": []
+        }
+      ],
+      "stderr": ""
+    },
+    {
+      "id": "url_port_high",
+      "expected": false,
+      "actual": false,
+      "exit": 10,
+      "qualified": true,
+      "diagnostics": [
+        {
+          "code": "E3001",
+          "severity": "error",
+          "message": "`https://host:999999` is not a valid url: invalid URL: invalid port number",
+          "primary": {
+            "file": 0,
+            "start": 26,
+            "end": 47
+          },
+          "related": [],
+          "tags": []
+        }
+      ],
+      "stderr": ""
+    },
+    {
+      "id": "url_userinfo",
+      "expected": true,
+      "actual": true,
+      "exit": 0,
+      "qualified": true,
+      "diagnostics": [],
+      "stderr": ""
+    },
+    {
+      "id": "url_case",
+      "expected": true,
+      "actual": true,
+      "exit": 0,
+      "qualified": true,
+      "diagnostics": [],
+      "stderr": ""
+    },
+    {
+      "id": "url_unicode_host",
+      "expected": true,
+      "actual": true,
+      "exit": 0,
+      "qualified": true,
+      "diagnostics": [],
+      "stderr": ""
+    },
+    {
+      "id": "url_backslash",
+      "expected": true,
+      "actual": true,
+      "exit": 0,
+      "qualified": true,
+      "diagnostics": [],
+      "stderr": ""
+    },
+    {
+      "id": "url_trimmed",
+      "expected": true,
+      "actual": true,
+      "exit": 0,
+      "qualified": true,
+      "diagnostics": [],
+      "stderr": ""
+    },
+    {
+      "id": "url_space_path",
+      "expected": true,
+      "actual": true,
+      "exit": 0,
+      "qualified": true,
+      "diagnostics": [],
+      "stderr": ""
+    },
+    {
+      "id": "url_relative",
+      "expected": false,
+      "actual": false,
+      "exit": 10,
+      "qualified": true,
+      "diagnostics": [
+        {
+          "code": "E3001",
+          "severity": "error",
+          "message": "`/a` is not a valid url: invalid URL: relative URL without a base",
+          "primary": {
+            "file": 0,
+            "start": 26,
+            "end": 30
+          },
+          "related": [],
+          "tags": []
+        }
+      ],
+      "stderr": ""
+    },
+    {
+      "id": "url_non_http",
+      "expected": false,
+      "actual": false,
+      "exit": 10,
+      "qualified": true,
+      "diagnostics": [
+        {
+          "code": "E3001",
+          "severity": "error",
+          "message": "`ftp://example.com/a` is not a valid url: want an http(s) URL",
+          "primary": {
+            "file": 0,
+            "start": 26,
+            "end": 47
+          },
+          "related": [],
+          "tags": []
+        }
+      ],
+      "stderr": ""
+    },
+    {
+      "id": "url_ipv6",
+      "expected": true,
+      "actual": true,
+      "exit": 0,
+      "qualified": true,
+      "diagnostics": [],
+      "stderr": ""
+    },
+    {
+      "id": "url_port_empty",
+      "expected": true,
+      "actual": true,
+      "exit": 0,
+      "qualified": true,
+      "diagnostics": [],
+      "stderr": ""
+    },
+    {
+      "id": "bracket_unclosed",
+      "expected": false,
+      "actual": false,
+      "exit": 10,
+      "qualified": true,
+      "diagnostics": [
+        {
+          "code": "E3001",
+          "severity": "error",
+          "message": "`https://[::1` is not a valid url: invalid URL: invalid IPv6 address",
+          "primary": {
+            "file": 0,
+            "start": 26,
+            "end": 40
+          },
+          "related": [],
+          "tags": []
+        }
+      ],
+      "stderr": ""
+    },
+    {
+      "id": "bracket_suffix",
+      "expected": false,
+      "actual": false,
+      "exit": 10,
+      "qualified": true,
+      "diagnostics": [
+        {
+          "code": "E3001",
+          "severity": "error",
+          "message": "`https://[::1]junk` is not a valid url: invalid URL: invalid IPv6 address",
+          "primary": {
+            "file": 0,
+            "start": 26,
+            "end": 45
+          },
+          "related": [],
+          "tags": []
+        }
+      ],
+      "stderr": ""
+    },
+    {
+      "id": "port_65535",
+      "expected": true,
+      "actual": true,
+      "exit": 0,
+      "qualified": true,
+      "diagnostics": [],
+      "stderr": ""
+    },
+    {
+      "id": "port_65536",
+      "expected": false,
+      "actual": false,
+      "exit": 10,
+      "qualified": true,
+      "diagnostics": [
+        {
+          "code": "E3001",
+          "severity": "error",
+          "message": "`https://example.com:65536` is not a valid url: invalid URL: invalid port number",
+          "primary": {
+            "file": 0,
+            "start": 26,
+            "end": 53
+          },
+          "related": [],
+          "tags": []
+        }
+      ],
+      "stderr": ""
+    },
+    {
+      "id": "port_nondigit",
+      "expected": false,
+      "actual": false,
+      "exit": 10,
+      "qualified": true,
+      "diagnostics": [
+        {
+          "code": "E3001",
+          "severity": "error",
+          "message": "`https://example.com:abc` is not a valid url: invalid URL: invalid port number",
+          "primary": {
+            "file": 0,
+            "start": 26,
+            "end": 51
+          },
+          "related": [],
+          "tags": []
+        }
+      ],
+      "stderr": ""
+    },
+    {
+      "id": "host_missing",
+      "expected": false,
+      "actual": false,
+      "exit": 10,
+      "qualified": true,
+      "diagnostics": [
+        {
+          "code": "E3001",
+          "severity": "error",
+          "message": "`https://` is not a valid url: invalid URL: empty host",
+          "primary": {
+            "file": 0,
+            "start": 26,
+            "end": 36
+          },
+          "related": [],
+          "tags": []
+        }
+      ],
+      "stderr": ""
+    },
+    {
+      "id": "proto_relative",
+      "expected": false,
+      "actual": false,
+      "exit": 10,
+      "qualified": true,
+      "diagnostics": [
+        {
+          "code": "E3001",
+          "severity": "error",
+          "message": "`//example.com/a` is not a valid url: invalid URL: relative URL without a base",
+          "primary": {
+            "file": 0,
+            "start": 26,
+            "end": 43
+          },
+          "related": [],
+          "tags": []
+        }
+      ],
+      "stderr": ""
+    },
+    {
+      "id": "http_no_slashes",
+      "expected": true,
+      "actual": true,
+      "exit": 0,
+      "qualified": true,
+      "diagnostics": [],
+      "stderr": ""
+    },
+    {
+      "id": "ascii_tab",
+      "expected": true,
+      "actual": true,
+      "exit": 0,
+      "qualified": true,
+      "diagnostics": [],
+      "stderr": ""
+    },
+    {
+      "id": "unicode_idna",
+      "expected": true,
+      "actual": true,
+      "exit": 0,
+      "qualified": true,
+      "diagnostics": [],
+      "stderr": ""
+    },
+    {
+      "id": "unicode_joiner",
+      "expected": false,
+      "actual": false,
+      "exit": 10,
+      "qualified": true,
+      "diagnostics": [
+        {
+          "code": "E3001",
+          "severity": "error",
+          "message": "`https://a‍b.example/a` is not a valid url: invalid URL: invalid international domain name",
+          "primary": {
+            "file": 0,
+            "start": 26,
+            "end": 51
+          },
+          "related": [],
+          "tags": []
+        }
+      ],
+      "stderr": ""
+    },
+    {
+      "id": "unicode_space",
+      "expected": false,
+      "actual": false,
+      "exit": 10,
+      "qualified": true,
+      "diagnostics": [
+        {
+          "code": "E3001",
+          "severity": "error",
+          "message": "`https://a b.example/a` is not a valid url: invalid URL: invalid international domain name",
+          "primary": {
+            "file": 0,
+            "start": 26,
+            "end": 50
+          },
+          "related": [],
+          "tags": []
+        }
+      ],
+      "stderr": ""
+    },
+    {
+      "id": "ipv4_legacy",
+      "expected": true,
+      "actual": true,
+      "exit": 0,
+      "qualified": true,
+      "diagnostics": [],
+      "stderr": ""
+    },
+    {
+      "id": "host_bad_percent",
+      "expected": false,
+      "actual": false,
+      "exit": 10,
+      "qualified": true,
+      "diagnostics": [
+        {
+          "code": "E3001",
+          "severity": "error",
+          "message": "`https://%zz.example/a` is not a valid url: invalid URL: invalid international domain name",
+          "primary": {
+            "file": 0,
+            "start": 26,
+            "end": 49
+          },
+          "related": [],
+          "tags": []
+        }
+      ],
+      "stderr": ""
+    },
+    {
+      "id": "path_bad_percent",
+      "expected": true,
+      "actual": true,
+      "exit": 0,
+      "qualified": true,
+      "diagnostics": [],
+      "stderr": ""
+    }
+  ]
+}

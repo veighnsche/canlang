@@ -1,0 +1,6 @@
+[package]
+name="canlang-pass3-locale-candidate"
+version="0.0.0"
+edition="2024"
+[dependencies]
+icu_locale_core={version="=2.3.0",default-features=false,features=["alloc"]}

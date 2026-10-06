@@ -1,0 +1,78 @@
+{
+  "host": {
+    "system": "Darwin",
+    "machine": "arm64",
+    "rustc": "rustc 1.99.0 (b940084d7 2026-09-28)",
+    "cargo": "cargo 1.99.0 (5f94df478 2026-08-27)"
+  },
+  "rust_target": "aarch64-apple-darwin",
+  "compiler_rust_version": "1.99",
+  "url": {
+    "version": "2.5.8",
+    "default_features": false,
+    "features": [
+      "std"
+    ],
+    "registry_locked_packages": 37,
+    "maximum_declared_transitive_rust_version": "1.88",
+    "msrv_1_88_executed": false,
+    "features_evidence": "url/compiler-features.txt",
+    "published_manifest_evidence": "url/dependency-profile.json",
+    "resolved_lock": "../../../../compiler/Cargo.lock"
+  },
+  "release": {
+    "profile": {
+      "strip": true,
+      "opt-level": "z",
+      "lto": true,
+      "codegen-units": 1
+    },
+    "baseline_revision": "74f7271",
+    "implementation_commit": "f3612ea",
+    "baseline_bytes": 1918256,
+    "current_bytes": 2100432,
+    "increase_bytes": 182176,
+    "increase_percent": 9.5,
+    "baseline_sha256": "e8b013c04ce94b44231b08e6ee9c957f199a5fbb31a98ae31dd2b9093903f36f",
+    "current_sha256": "afd09c20b00cfa8c8a393b6cc3793790756f2005b16eea04216628b828a85aee",
+    "comparison_limit": "separate source snapshots/build metadata; executable bytes, not peak memory/startup/latency",
+    "current_cli_qualified": 29,
+    "baseline_cli_qualified": 16,
+    "version": "can 0.1.0 (commit f3612ea; language 1.0; schema 1)"
+  },
+  "linux": {
+    "status": "qualified local target",
+    "target": "x86_64-unknown-linux-gnu",
+    "runtime": "local Docker Linux amd64 under emulation on ARM64 engine",
+    "network": "none",
+    "image_manifest_digest": "sha256:24e632c09342c20abf8312cf4f61430a911c01ed3a5e4c02b87292b1c39c5273",
+    "amd64_image_id": "sha256:458b145eb2406e832adc9c9536d487c5d264401a4ce63adbeced3fe91292616c",
+    "source_manifest": "linux-source-manifest.json",
+    "release_binary_bytes": 2877648,
+    "release_binary_sha256": "b8716b217872ca6b01e3803cc38a32deceaf50d028773c7fb6412735ac5f7444",
+    "release_cli_qualified": 29,
+    "lib_tests": 97,
+    "analysis_vectors": 29,
+    "analysis_routes": 2,
+    "evidence": "linux/results.json",
+    "remote_upload": "auto-review rejected; no upload occurred; safer local qualification completed, approval no longer needed",
+    "limits": [
+      "Not a native x86_64 hardware performance measurement",
+      "Actual Node/package production seam executed on macOS only",
+      "Installed artifact/release bundle not qualified"
+    ],
+    "baseline_comparison": {
+      "baseline_revision": "74f7271",
+      "baseline_binary_bytes": 2689400,
+      "baseline_binary_sha256": "413eba9521d777844cfc55b991d02d8328305e54324dae576faf1237b5e2c5fc",
+      "current_binary_bytes": 2877648,
+      "increase_bytes": 188248,
+      "increase_percent": 7.0,
+      "source_manifest": "../linux-baseline-source-manifest.json",
+      "same_image_and_release_profile": true,
+      "limit": "binary bytes only; no native hardware/startup/memory/installed artifact comparison"
+    },
+    "distribution": "Debian GNU/Linux 13.7 (trixie)"
+  },
+  "unicode_limit": "finite URL vectors; future Unicode data and all WHATWG inputs are not proven equivalent"
+}

@@ -1,0 +1,8 @@
+   Compiling canlang-compiler v0.1.0 (/Users/vince/Projects/canlang/compiler)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 6.39s
+     Running tests/analysis.rs (/private/tmp/canlang-compiler-pass3/debug/deps/analysis-ff576224f06d648d)
+
+running 1 test
+test c03_url_owner_admission_and_source_anchors ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 32 filtered out; finished in 0.03s

@@ -1,0 +1,453 @@
+{
+  "target": "x86_64-unknown-linux-gnu",
+  "rust": "1.99.0",
+  "runtime": "local Docker Linux amd64 under emulation on ARM64 engine",
+  "network": "none",
+  "source_mount": "isolated read-only copy",
+  "source_manifest": "../linux-source-manifest.json",
+  "public_crate_archives": 37,
+  "registry_lock_checksums_verified": true,
+  "image_manifest_digest": "sha256:24e632c09342c20abf8312cf4f61430a911c01ed3a5e4c02b87292b1c39c5273",
+  "amd64_image_id": "sha256:458b145eb2406e832adc9c9536d487c5d264401a4ce63adbeced3fe91292616c",
+  "binary_bytes": 2877648,
+  "binary_sha256": "b8716b217872ca6b01e3803cc38a32deceaf50d028773c7fb6412735ac5f7444",
+  "catalog_sha256": "cd984f375e0d6cbcc2bc6aca5ad5ea5b1b3d3ba9cd17b15ab94e4b15e74ced62",
+  "lib_tests": 97,
+  "analysis_vectors": 29,
+  "analysis_routes": 2,
+  "release_cli_qualified": 29,
+  "results": [
+    {
+      "id": "url_basic",
+      "expected": true,
+      "exit": 0,
+      "qualified": true,
+      "diagnostics": [],
+      "stderr": ""
+    },
+    {
+      "id": "url_unicode_panic",
+      "expected": false,
+      "exit": 10,
+      "qualified": true,
+      "diagnostics": [
+        {
+          "code": "E3001",
+          "severity": "error",
+          "message": "`💥💥💥` is not a valid url: invalid URL: relative URL without a base",
+          "primary": {
+            "file": 0,
+            "start": 26,
+            "end": 40
+          },
+          "related": [],
+          "tags": []
+        }
+      ],
+      "stderr": ""
+    },
+    {
+      "id": "url_bracketed_bad",
+      "expected": false,
+      "exit": 10,
+      "qualified": true,
+      "diagnostics": [
+        {
+          "code": "E3001",
+          "severity": "error",
+          "message": "`https://[garbage]` is not a valid url: invalid URL: invalid IPv6 address",
+          "primary": {
+            "file": 0,
+            "start": 26,
+            "end": 45
+          },
+          "related": [],
+          "tags": []
+        }
+      ],
+      "stderr": ""
+    },
+    {
+      "id": "url_port_high",
+      "expected": false,
+      "exit": 10,
+      "qualified": true,
+      "diagnostics": [
+        {
+          "code": "E3001",
+          "severity": "error",
+          "message": "`https://host:999999` is not a valid url: invalid URL: invalid port number",
+          "primary": {
+            "file": 0,
+            "start": 26,
+            "end": 47
+          },
+          "related": [],
+          "tags": []
+        }
+      ],
+      "stderr": ""
+    },
+    {
+      "id": "url_userinfo",
+      "expected": true,
+      "exit": 0,
+      "qualified": true,
+      "diagnostics": [],
+      "stderr": ""
+    },
+    {
+      "id": "url_case",
+      "expected": true,
+      "exit": 0,
+      "qualified": true,
+      "diagnostics": [],
+      "stderr": ""
+    },
+    {
+      "id": "url_unicode_host",
+      "expected": true,
+      "exit": 0,
+      "qualified": true,
+      "diagnostics": [],
+      "stderr": ""
+    },
+    {
+      "id": "url_backslash",
+      "expected": true,
+      "exit": 0,
+      "qualified": true,
+      "diagnostics": [],
+      "stderr": ""
+    },
+    {
+      "id": "url_trimmed",
+      "expected": true,
+      "exit": 0,
+      "qualified": true,
+      "diagnostics": [],
+      "stderr": ""
+    },
+    {
+      "id": "url_space_path",
+      "expected": true,
+      "exit": 0,
+      "qualified": true,
+      "diagnostics": [],
+      "stderr": ""
+    },
+    {
+      "id": "url_relative",
+      "expected": false,
+      "exit": 10,
+      "qualified": true,
+      "diagnostics": [
+        {
+          "code": "E3001",
+          "severity": "error",
+          "message": "`/a` is not a valid url: invalid URL: relative URL without a base",
+          "primary": {
+            "file": 0,
+            "start": 26,
+            "end": 30
+          },
+          "related": [],
+          "tags": []
+        }
+      ],
+      "stderr": ""
+    },
+    {
+      "id": "url_non_http",
+      "expected": false,
+      "exit": 10,
+      "qualified": true,
+      "diagnostics": [
+        {
+          "code": "E3001",
+          "severity": "error",
+          "message": "`ftp://example.com/a` is not a valid url: want an http(s) URL",
+          "primary": {
+            "file": 0,
+            "start": 26,
+            "end": 47
+          },
+          "related": [],
+          "tags": []
+        }
+      ],
+      "stderr": ""
+    },
+    {
+      "id": "url_ipv6",
+      "expected": true,
+      "exit": 0,
+      "qualified": true,
+      "diagnostics": [],
+      "stderr": ""
+    },
+    {
+      "id": "url_port_empty",
+      "expected": true,
+      "exit": 0,
+      "qualified": true,
+      "diagnostics": [],
+      "stderr": ""
+    },
+    {
+      "id": "bracket_unclosed",
+      "expected": false,
+      "exit": 10,
+      "qualified": true,
+      "diagnostics": [
+        {
+          "code": "E3001",
+          "severity": "error",
+          "message": "`https://[::1` is not a valid url: invalid URL: invalid IPv6 address",
+          "primary": {
+            "file": 0,
+            "start": 26,
+            "end": 40
+          },
+          "related": [],
+          "tags": []
+        }
+      ],
+      "stderr": ""
+    },
+    {
+      "id": "bracket_suffix",
+      "expected": false,
+      "exit": 10,
+      "qualified": true,
+      "diagnostics": [
+        {
+          "code": "E3001",
+          "severity": "error",
+          "message": "`https://[::1]junk` is not a valid url: invalid URL: invalid IPv6 address",
+          "primary": {
+            "file": 0,
+            "start": 26,
+            "end": 45
+          },
+          "related": [],
+          "tags": []
+        }
+      ],
+      "stderr": ""
+    },
+    {
+      "id": "port_65535",
+      "expected": true,
+      "exit": 0,
+      "qualified": true,
+      "diagnostics": [],
+      "stderr": ""
+    },
+    {
+      "id": "port_65536",
+      "expected": false,
+      "exit": 10,
+      "qualified": true,
+      "diagnostics": [
+        {
+          "code": "E3001",
+          "severity": "error",
+          "message": "`https://example.com:65536` is not a valid url: invalid URL: invalid port number",
+          "primary": {
+            "file": 0,
+            "start": 26,
+            "end": 53
+          },
+          "related": [],
+          "tags": []
+        }
+      ],
+      "stderr": ""
+    },
+    {
+      "id": "port_nondigit",
+      "expected": false,
+      "exit": 10,
+      "qualified": true,
+      "diagnostics": [
+        {
+          "code": "E3001",
+          "severity": "error",
+          "message": "`https://example.com:abc` is not a valid url: invalid URL: invalid port number",
+          "primary": {
+            "file": 0,
+            "start": 26,
+            "end": 51
+          },
+          "related": [],
+          "tags": []
+        }
+      ],
+      "stderr": ""
+    },
+    {
+      "id": "host_missing",
+      "expected": false,
+      "exit": 10,
+      "qualified": true,
+      "diagnostics": [
+        {
+          "code": "E3001",
+          "severity": "error",
+          "message": "`https://` is not a valid url: invalid URL: empty host",
+          "primary": {
+            "file": 0,
+            "start": 26,
+            "end": 36
+          },
+          "related": [],
+          "tags": []
+        }
+      ],
+      "stderr": ""
+    },
+    {
+      "id": "proto_relative",
+      "expected": false,
+      "exit": 10,
+      "qualified": true,
+      "diagnostics": [
+        {
+          "code": "E3001",
+          "severity": "error",
+          "message": "`//example.com/a` is not a valid url: invalid URL: relative URL without a base",
+          "primary": {
+            "file": 0,
+            "start": 26,
+            "end": 43
+          },
+          "related": [],
+          "tags": []
+        }
+      ],
+      "stderr": ""
+    },
+    {
+      "id": "http_no_slashes",
+      "expected": true,
+      "exit": 0,
+      "qualified": true,
+      "diagnostics": [],
+      "stderr": ""
+    },
+    {
+      "id": "ascii_tab",
+      "expected": true,
+      "exit": 0,
+      "qualified": true,
+      "diagnostics": [],
+      "stderr": ""
+    },
+    {
+      "id": "unicode_idna",
+      "expected": true,
+      "exit": 0,
+      "qualified": true,
+      "diagnostics": [],
+      "stderr": ""
+    },
+    {
+      "id": "unicode_joiner",
+      "expected": false,
+      "exit": 10,
+      "qualified": true,
+      "diagnostics": [
+        {
+          "code": "E3001",
+          "severity": "error",
+          "message": "`https://a‍b.example/a` is not a valid url: invalid URL: invalid international domain name",
+          "primary": {
+            "file": 0,
+            "start": 26,
+            "end": 51
+          },
+          "related": [],
+          "tags": []
+        }
+      ],
+      "stderr": ""
+    },
+    {
+      "id": "unicode_space",
+      "expected": false,
+      "exit": 10,
+      "qualified": true,
+      "diagnostics": [
+        {
+          "code": "E3001",
+          "severity": "error",
+          "message": "`https://a b.example/a` is not a valid url: invalid URL: invalid international domain name",
+          "primary": {
+            "file": 0,
+            "start": 26,
+            "end": 50
+          },
+          "related": [],
+          "tags": []
+        }
+      ],
+      "stderr": ""
+    },
+    {
+      "id": "ipv4_legacy",
+      "expected": true,
+      "exit": 0,
+      "qualified": true,
+      "diagnostics": [],
+      "stderr": ""
+    },
+    {
+      "id": "host_bad_percent",
+      "expected": false,
+      "exit": 10,
+      "qualified": true,
+      "diagnostics": [
+        {
+          "code": "E3001",
+          "severity": "error",
+          "message": "`https://%zz.example/a` is not a valid url: invalid URL: invalid international domain name",
+          "primary": {
+            "file": 0,
+            "start": 26,
+            "end": 49
+          },
+          "related": [],
+          "tags": []
+        }
+      ],
+      "stderr": ""
+    },
+    {
+      "id": "path_bad_percent",
+      "expected": true,
+      "exit": 0,
+      "qualified": true,
+      "diagnostics": [],
+      "stderr": ""
+    }
+  ],
+  "limits": [
+    "Not a native x86_64 hardware performance measurement",
+    "Actual Node/package production seam executed on macOS only",
+    "Installed artifact/release bundle not qualified"
+  ],
+  "initial_failure": "Initial lib run lacked unchanged examples/ExpenseFlow.can in isolated copy; 96passed/1missingfixture. Added exact pinned fixture and reran 97/97; no product change. Final release rerun reuses the isolated target.",
+  "baseline_comparison": {
+    "baseline_revision": "74f7271",
+    "baseline_binary_bytes": 2689400,
+    "baseline_binary_sha256": "413eba9521d777844cfc55b991d02d8328305e54324dae576faf1237b5e2c5fc",
+    "current_binary_bytes": 2877648,
+    "increase_bytes": 188248,
+    "increase_percent": 7.0,
+    "source_manifest": "../linux-baseline-source-manifest.json",
+    "same_image_and_release_profile": true,
+    "limit": "binary bytes only; no native hardware/startup/memory/installed artifact comparison"
+  },
+  "distribution": "Debian GNU/Linux 13.7 (trixie)"
+}

@@ -1,0 +1,195 @@
+canlang-pass3-url-candidate v0.0.0 (/private/tmp/canlang-pass3-url-candidate)
+└── url feature "std"
+    ├── url v2.5.8
+    │   ├── form_urlencoded feature "alloc"
+    │   │   ├── form_urlencoded v1.2.2
+    │   │   │   └── percent-encoding v2.3.2
+    │   │   └── percent-encoding feature "alloc"
+    │   │       └── percent-encoding v2.3.2
+    │   ├── percent-encoding feature "alloc" (*)
+    │   ├── idna feature "alloc"
+    │   │   └── idna v1.1.0
+    │   │       ├── idna_adapter feature "default"
+    │   │       │   └── idna_adapter v1.2.2
+    │   │       │       ├── icu_normalizer v2.3.0
+    │   │       │       │   ├── icu_collections v2.3.0
+    │   │       │       │   │   ├── displaydoc v0.2.7 (proc-macro)
+    │   │       │       │   │   │   ├── proc-macro2 feature "default"
+    │   │       │       │   │   │   │   ├── proc-macro2 v1.0.107
+    │   │       │       │   │   │   │   │   └── unicode-ident feature "default"
+    │   │       │       │   │   │   │   │       └── unicode-ident v1.0.26
+    │   │       │       │   │   │   │   └── proc-macro2 feature "proc-macro"
+    │   │       │       │   │   │   │       └── proc-macro2 v1.0.107 (*)
+    │   │       │       │   │   │   ├── quote feature "default"
+    │   │       │       │   │   │   │   ├── quote v1.0.47
+    │   │       │       │   │   │   │   │   └── proc-macro2 v1.0.107 (*)
+    │   │       │       │   │   │   │   └── quote feature "proc-macro"
+    │   │       │       │   │   │   │       ├── quote v1.0.47 (*)
+    │   │       │       │   │   │   │       └── proc-macro2 feature "proc-macro" (*)
+    │   │       │       │   │   │   └── syn feature "default"
+    │   │       │       │   │   │       ├── syn v3.0.6
+    │   │       │       │   │   │       │   ├── proc-macro2 v1.0.107 (*)
+    │   │       │       │   │   │       │   ├── quote v1.0.47 (*)
+    │   │       │       │   │   │       │   └── unicode-ident feature "default" (*)
+    │   │       │       │   │   │       ├── syn feature "clone-impls"
+    │   │       │       │   │   │       │   └── syn v3.0.6 (*)
+    │   │       │       │   │   │       ├── syn feature "derive"
+    │   │       │       │   │   │       │   └── syn v3.0.6 (*)
+    │   │       │       │   │   │       ├── syn feature "parsing"
+    │   │       │       │   │   │       │   └── syn v3.0.6 (*)
+    │   │       │       │   │   │       ├── syn feature "printing"
+    │   │       │       │   │   │       │   └── syn v3.0.6 (*)
+    │   │       │       │   │   │       └── syn feature "proc-macro"
+    │   │       │       │   │   │           ├── syn v3.0.6 (*)
+    │   │       │       │   │   │           ├── proc-macro2 feature "proc-macro" (*)
+    │   │       │       │   │   │           └── quote feature "proc-macro" (*)
+    │   │       │       │   │   ├── utf8_iter v1.0.4
+    │   │       │       │   │   ├── potential_utf feature "zerovec"
+    │   │       │       │   │   │   └── potential_utf v0.1.6
+    │   │       │       │   │   │       └── zerovec v0.11.8
+    │   │       │       │   │   │           ├── yoke v0.8.3
+    │   │       │       │   │   │           │   ├── stable_deref_trait v1.2.1
+    │   │       │       │   │   │           │   ├── yoke-derive v0.8.2 (proc-macro)
+    │   │       │       │   │   │           │   │   ├── proc-macro2 feature "default" (*)
+    │   │       │       │   │   │           │   │   ├── quote feature "default" (*)
+    │   │       │       │   │   │           │   │   ├── syn feature "default"
+    │   │       │       │   │   │           │   │   │   ├── syn v2.0.119
+    │   │       │       │   │   │           │   │   │   │   ├── proc-macro2 v1.0.107 (*)
+    │   │       │       │   │   │           │   │   │   │   ├── quote v1.0.47 (*)
+    │   │       │       │   │   │           │   │   │   │   └── unicode-ident feature "default" (*)
+    │   │       │       │   │   │           │   │   │   ├── syn feature "clone-impls"
+    │   │       │       │   │   │           │   │   │   │   └── syn v2.0.119 (*)
+    │   │       │       │   │   │           │   │   │   ├── syn feature "derive"
+    │   │       │       │   │   │           │   │   │   │   └── syn v2.0.119 (*)
+    │   │       │       │   │   │           │   │   │   ├── syn feature "parsing"
+    │   │       │       │   │   │           │   │   │   │   └── syn v2.0.119 (*)
+    │   │       │       │   │   │           │   │   │   ├── syn feature "printing"
+    │   │       │       │   │   │           │   │   │   │   └── syn v2.0.119 (*)
+    │   │       │       │   │   │           │   │   │   └── syn feature "proc-macro"
+    │   │       │       │   │   │           │   │   │       ├── syn v2.0.119 (*)
+    │   │       │       │   │   │           │   │   │       ├── proc-macro2 feature "proc-macro" (*)
+    │   │       │       │   │   │           │   │   │       └── quote feature "proc-macro" (*)
+    │   │       │       │   │   │           │   │   ├── syn feature "fold"
+    │   │       │       │   │   │           │   │   │   └── syn v2.0.119 (*)
+    │   │       │       │   │   │           │   │   └── synstructure feature "default"
+    │   │       │       │   │   │           │   │       ├── synstructure v0.13.2
+    │   │       │       │   │   │           │   │       │   ├── proc-macro2 v1.0.107 (*)
+    │   │       │       │   │   │           │   │       │   ├── quote v1.0.47 (*)
+    │   │       │       │   │   │           │   │       │   ├── syn feature "clone-impls" (*)
+    │   │       │       │   │   │           │   │       │   ├── syn feature "derive" (*)
+    │   │       │       │   │   │           │   │       │   ├── syn feature "extra-traits"
+    │   │       │       │   │   │           │   │       │   │   └── syn v2.0.119 (*)
+    │   │       │       │   │   │           │   │       │   ├── syn feature "parsing" (*)
+    │   │       │       │   │   │           │   │       │   ├── syn feature "printing" (*)
+    │   │       │       │   │   │           │   │       │   └── syn feature "visit"
+    │   │       │       │   │   │           │   │       │       └── syn v2.0.119 (*)
+    │   │       │       │   │   │           │   │       └── synstructure feature "proc-macro"
+    │   │       │       │   │   │           │   │           ├── synstructure v0.13.2 (*)
+    │   │       │       │   │   │           │   │           ├── proc-macro2 feature "proc-macro" (*)
+    │   │       │       │   │   │           │   │           ├── quote feature "proc-macro" (*)
+    │   │       │       │   │   │           │   │           └── syn feature "proc-macro" (*)
+    │   │       │       │   │   │           │   └── zerofrom v0.1.8
+    │   │       │       │   │   │           │       └── zerofrom-derive v0.1.8 (proc-macro)
+    │   │       │       │   │   │           │           ├── proc-macro2 feature "default" (*)
+    │   │       │       │   │   │           │           ├── quote feature "default" (*)
+    │   │       │       │   │   │           │           ├── syn feature "default" (*)
+    │   │       │       │   │   │           │           ├── syn feature "fold"
+    │   │       │       │   │   │           │           │   └── syn v3.0.6 (*)
+    │   │       │       │   │   │           │           ├── syn feature "visit"
+    │   │       │       │   │   │           │           │   └── syn v3.0.6 (*)
+    │   │       │       │   │   │           │           └── synstructure feature "default"
+    │   │       │       │   │   │           │               ├── synstructure v0.14.0
+    │   │       │       │   │   │           │               │   ├── proc-macro2 v1.0.107 (*)
+    │   │       │       │   │   │           │               │   ├── quote v1.0.47 (*)
+    │   │       │       │   │   │           │               │   ├── syn feature "clone-impls" (*)
+    │   │       │       │   │   │           │               │   ├── syn feature "derive" (*)
+    │   │       │       │   │   │           │               │   ├── syn feature "extra-traits"
+    │   │       │       │   │   │           │               │   │   └── syn v3.0.6 (*)
+    │   │       │       │   │   │           │               │   ├── syn feature "parsing" (*)
+    │   │       │       │   │   │           │               │   ├── syn feature "printing" (*)
+    │   │       │       │   │   │           │               │   └── syn feature "visit" (*)
+    │   │       │       │   │   │           │               └── synstructure feature "proc-macro"
+    │   │       │       │   │   │           │                   ├── synstructure v0.14.0 (*)
+    │   │       │       │   │   │           │                   ├── proc-macro2 feature "proc-macro" (*)
+    │   │       │       │   │   │           │                   ├── quote feature "proc-macro" (*)
+    │   │       │       │   │   │           │                   └── syn feature "proc-macro" (*)
+    │   │       │       │   │   │           ├── zerofrom v0.1.8 (*)
+    │   │       │       │   │   │           └── zerovec-derive v0.11.6 (proc-macro)
+    │   │       │       │   │   │               ├── proc-macro2 feature "default" (*)
+    │   │       │       │   │   │               ├── quote feature "default" (*)
+    │   │       │       │   │   │               ├── syn feature "default" (*)
+    │   │       │       │   │   │               └── syn feature "extra-traits" (*)
+    │   │       │       │   │   ├── zerovec feature "derive"
+    │   │       │       │   │   │   └── zerovec v0.11.8 (*)
+    │   │       │       │   │   ├── zerovec feature "yoke"
+    │   │       │       │   │   │   └── zerovec v0.11.8 (*)
+    │   │       │       │   │   ├── yoke feature "derive"
+    │   │       │       │   │   │   ├── yoke v0.8.3 (*)
+    │   │       │       │   │   │   ├── yoke feature "zerofrom"
+    │   │       │       │   │   │   │   └── yoke v0.8.3 (*)
+    │   │       │       │   │   │   └── zerofrom feature "derive"
+    │   │       │       │   │   │       └── zerofrom v0.1.8 (*)
+    │   │       │       │   │   └── zerofrom feature "derive" (*)
+    │   │       │       │   ├── icu_normalizer_data v2.3.0
+    │   │       │       │   ├── icu_provider v2.3.1
+    │   │       │       │   │   ├── displaydoc v0.2.7 (proc-macro) (*)
+    │   │       │       │   │   ├── icu_locale_core v2.3.0
+    │   │       │       │   │   │   ├── displaydoc v0.2.7 (proc-macro) (*)
+    │   │       │       │   │   │   ├── litemap v0.8.3
+    │   │       │       │   │   │   ├── tinystr v0.8.4
+    │   │       │       │   │   │   │   ├── displaydoc v0.2.7 (proc-macro) (*)
+    │   │       │       │   │   │   │   └── zerovec v0.11.8 (*)
+    │   │       │       │   │   │   ├── writeable v0.6.4
+    │   │       │       │   │   │   └── zerovec v0.11.8 (*)
+    │   │       │       │   │   ├── writeable v0.6.4
+    │   │       │       │   │   ├── zerotrie v0.2.5
+    │   │       │       │   │   │   ├── displaydoc v0.2.7 (proc-macro) (*)
+    │   │       │       │   │   │   ├── zerofrom v0.1.8 (*)
+    │   │       │       │   │   │   └── yoke feature "derive" (*)
+    │   │       │       │   │   ├── zerovec feature "derive" (*)
+    │   │       │       │   │   ├── yoke feature "derive" (*)
+    │   │       │       │   │   └── zerofrom feature "derive" (*)
+    │   │       │       │   ├── smallvec v1.16.2
+    │   │       │       │   └── zerovec v0.11.8 (*)
+    │   │       │       └── icu_properties v2.3.0
+    │   │       │           ├── displaydoc v0.2.7 (proc-macro) (*)
+    │   │       │           ├── icu_collections v2.3.0 (*)
+    │   │       │           ├── icu_properties_data v2.3.0
+    │   │       │           ├── icu_provider v2.3.1 (*)
+    │   │       │           ├── zerovec feature "derive" (*)
+    │   │       │           ├── zerovec feature "yoke" (*)
+    │   │       │           ├── icu_locale_core feature "zerovec"
+    │   │       │           │   ├── icu_locale_core v2.3.0 (*)
+    │   │       │           │   └── tinystr feature "zerovec"
+    │   │       │           │       └── tinystr v0.8.4 (*)
+    │   │       │           ├── zerotrie feature "yoke"
+    │   │       │           │   └── zerotrie v0.2.5 (*)
+    │   │       │           └── zerotrie feature "zerofrom"
+    │   │       │               └── zerotrie v0.2.5 (*)
+    │   │       ├── utf8_iter feature "default"
+    │   │       │   └── utf8_iter v1.0.4
+    │   │       ├── smallvec feature "const_generics"
+    │   │       │   └── smallvec v1.16.2
+    │   │       └── smallvec feature "default"
+    │   │           └── smallvec v1.16.2
+    │   └── idna feature "compiled_data"
+    │       ├── idna v1.1.0 (*)
+    │       └── idna_adapter feature "compiled_data"
+    │           ├── idna_adapter v1.2.2 (*)
+    │           ├── icu_normalizer feature "compiled_data"
+    │           │   ├── icu_normalizer v2.3.0 (*)
+    │           │   └── icu_provider feature "baked"
+    │           │       └── icu_provider v2.3.1 (*)
+    │           └── icu_properties feature "compiled_data"
+    │               ├── icu_properties v2.3.0 (*)
+    │               └── icu_provider feature "baked" (*)
+    ├── form_urlencoded feature "std"
+    │   ├── form_urlencoded v1.2.2 (*)
+    │   ├── form_urlencoded feature "alloc" (*)
+    │   └── percent-encoding feature "std"
+    │       ├── percent-encoding v2.3.2
+    │       └── percent-encoding feature "alloc" (*)
+    ├── percent-encoding feature "std" (*)
+    └── idna feature "std"
+        ├── idna v1.1.0 (*)
+        └── idna feature "alloc" (*)
