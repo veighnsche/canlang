@@ -1,0 +1,991 @@
+{
+  "schema_version": 1,
+  "phase": "planning",
+  "execution_authorized": false,
+  "captured_at_utc": "2026-10-06T23:09:27.505777+00:00",
+  "reviewed_head": "74f7271f7d3d49c929c769a5175de20e4525acef",
+  "step2_contract_commit": "653cb2a",
+  "supersedes_provisional_packet_base": "309644a6881909d8dba32560bc6711f67e00a7ab",
+  "canonical_ledger_sha256": "cd01ebb2276e9bbd362085070b985811543f4bcb1d7ad0d0ac0530d3092bc3f4",
+  "source_pin_rule": "This is a planning snapshot, not immutable runtime acceptance. Before activation refresh HEAD and every consumed source/hash; changed compiler seams require affected producer-consumer requalification, not revocation of unchanged package credit.",
+  "input_sha256": {
+    "AGENTS.md": {
+      "exists": true,
+      "kind": "file",
+      "sha256": "f30ab82d2e8803997b9eb6a5bba36c98defd1fce526711a0ae222fb6c4201f4e"
+    },
+    "bun.lock": {
+      "exists": true,
+      "kind": "file",
+      "sha256": "28eeb481d3b6ce420b1ccc6573581572b47da25a0b8eb5ff833d1143e5cc4c19"
+    },
+    "docs/ideal-filetree-plan.md": {
+      "exists": true,
+      "kind": "file",
+      "sha256": "3609caae5d95d48468f0e08f4fd6765d7a4e9035b9fc43f6d866dbef0fd343f8"
+    },
+    "docs/research/package-library-audit-20261006/adoption-sequence.json": {
+      "exists": true,
+      "kind": "file",
+      "sha256": "d93dcb00638680b1b861c90ec6a445267942b8ca6f7ca479fb60bc0386ca3a9f"
+    },
+    "docs/research/package-library-audit-20261006/adoption-sequence.md": {
+      "exists": true,
+      "kind": "file",
+      "sha256": "477c890b6d20d9400211b5763b4329650bef5244cfa13234033369f6ddbf0f00"
+    },
+    "docs/research/package-library-audit-20261006/model-allocation-20261007.json": {
+      "exists": true,
+      "kind": "file",
+      "sha256": "b4a6f780f3f70f136c1fce3984e04bad0637cee50a44b1bd3d813e3adcb2e05b"
+    },
+    "docs/research/package-library-audit-20261006/reviews/adapters.md": {
+      "exists": true,
+      "kind": "file",
+      "sha256": "29583ddbe7465b43d246b9bb138b1d58366c0df26b632e751d3d4840e4abd62f"
+    },
+    "docs/research/package-library-audit-20261006/reviews/delivery-sequence-input.md": {
+      "exists": true,
+      "kind": "file",
+      "sha256": "092086ef60eb7b55f68f846e9f7ad71b3a755d3708e5a80e327ab48cce933d5c"
+    },
+    "docs/research/package-library-audit-20261006/reviews/native-delivery.md": {
+      "exists": true,
+      "kind": "file",
+      "sha256": "6d18b2138ebbe8a873936455dbae3e21966ca55bbff5c2ad454773ceaefc12bf"
+    },
+    "docs/research/package-library-audit-20261006/reviews/values-adapter-sequence-input.md": {
+      "exists": true,
+      "kind": "file",
+      "sha256": "41c2d2d7361931ba68cc77ab9ef3cffd5df9dd030a6d849db6abaf35facc6f84"
+    },
+    "docs/research/package-library-audit-20261006/reviews/values.md": {
+      "exists": true,
+      "kind": "file",
+      "sha256": "9c0aae362bb3292e15419b45537bdd91ad677cd515fc14c245d8b16d385b62ac"
+    },
+    "docs/research/package-library-audit-20261006/source-inventory.json": {
+      "exists": true,
+      "kind": "file",
+      "sha256": "bd40adc762824af72af60ddd6bfc476664f4c0d264f86260347148787eaf4295"
+    },
+    "docs/research/package-subsystem-ports-20261006/evidence/implementation/exact-values/core/contracts.md": {
+      "exists": true,
+      "kind": "file",
+      "sha256": "912fd7c146d0fec3d1693f7c59d950962108cf9058b65a6cc5faccafcf8f921b"
+    },
+    "docs/research/package-subsystem-ports-20261006/evidence/implementation/exact-values/decimal/construction.json": {
+      "exists": false,
+      "kind": "absent",
+      "sha256": null
+    },
+    "docs/research/package-subsystem-ports-20261006/evidence/implementation/exact-values/host/bootstrap.json": {
+      "exists": false,
+      "kind": "absent",
+      "sha256": null
+    },
+    "docs/research/package-subsystem-ports-20261006/evidence/implementation/exact-values/money/basic.json": {
+      "exists": false,
+      "kind": "absent",
+      "sha256": null
+    },
+    "docs/research/package-subsystem-ports-20261006/evidence/implementation/exact-values/temporal/instant.json": {
+      "exists": false,
+      "kind": "absent",
+      "sha256": null
+    },
+    "docs/research/package-subsystem-ports-20261006/evidence/implementation/shared/C04.ready.json": {
+      "exists": false,
+      "kind": "absent",
+      "sha256": null
+    },
+    "docs/research/package-subsystem-ports-20261006/evidence/implementation/work-transitions/baselines/current-ts.json": {
+      "exists": true,
+      "kind": "file",
+      "sha256": "f94af258c617d6d083b395123ae692c0f5ff4020079427cae273ca834d0eb3ff"
+    },
+    "docs/research/package-subsystem-ports-20261006/evidence/implementation/work-transitions/baselines/original-fixtures/": {
+      "exists": true,
+      "kind": "directory",
+      "sha256": null
+    },
+    "docs/research/package-subsystem-ports-20261006/evidence/implementation/work-transitions/baselines/verify.log": {
+      "exists": true,
+      "kind": "file",
+      "sha256": "93869f2f8fd08fdbf604667fd374296a043288b4baa9dea4122f9897e14c32a1"
+    },
+    "docs/research/package-subsystem-ports-20261006/evidence/implementation/work-transitions/handoffs/abi.md": {
+      "exists": true,
+      "kind": "file",
+      "sha256": "ce55ef8323f516e4278f6157483d2a738e2bd998f0a28df22edceb1432382684"
+    },
+    "docs/research/package-subsystem-ports-20261006/evidence/input-validation/caller-inventory.json": {
+      "exists": true,
+      "kind": "file",
+      "sha256": "ea7833171cacd6add6fee4b063e4d60cd48a77e40c5cb2dd9089ca93c69ece63"
+    },
+    "docs/research/package-subsystem-ports-20261006/evidence/input-validation/contracts.md": {
+      "exists": true,
+      "kind": "file",
+      "sha256": "da715398103028cdbdbdcec8de5ed0a8bf6d55f5e84f842ade5d459eb31be67d"
+    },
+    "docs/research/package-subsystem-ports-20261006/evidence/input-validation/current-ts.json": {
+      "exists": true,
+      "kind": "file",
+      "sha256": "5b1c8b941bd86510a24a55b1f3d73e61f4438061162caea3122af286582e484e"
+    },
+    "docs/research/package-subsystem-ports-20261006/evidence/input-validation/forms-provenance.md": {
+      "exists": false,
+      "kind": "absent",
+      "sha256": null
+    },
+    "docs/research/package-subsystem-ports-20261006/evidence/input-validation/http-adoption-gate.md": {
+      "exists": true,
+      "kind": "file",
+      "sha256": "6ee52249dcce9104ed1a9aeadc9e05b2452ba2bd6f98aa48e00faade2781117b"
+    },
+    "docs/research/package-subsystem-ports-20261006/evidence/input-validation/mcp-provenance.md": {
+      "exists": false,
+      "kind": "absent",
+      "sha256": null
+    },
+    "docs/research/package-subsystem-ports-20261006/evidence/input-validation/plan-contract.md": {
+      "exists": true,
+      "kind": "file",
+      "sha256": "5de45338d7e15d2694922fadf3d3eb21ec9c7916803c1c91d38044787f4060e5"
+    },
+    "docs/research/package-subsystem-ports-20261006/evidence/input-validation/prepared-hook-review.md": {
+      "exists": false,
+      "kind": "absent",
+      "sha256": null
+    },
+    "docs/research/package-subsystem-ports-20261006/evidence/input-validation/prepared-plan-handoff.md": {
+      "exists": true,
+      "kind": "file",
+      "sha256": "0aae241624cfd1baf886f3e6ae6cc492b2341d43a5271997c895b6a93c58fb65"
+    },
+    "docs/research/package-subsystem-ports-20261006/evidence/input-validation/state-contract.md": {
+      "exists": true,
+      "kind": "file",
+      "sha256": "4f0a9d5981eb2b68fef406e062baa2c337a3bb78baeafc2c890fb7f07f3aa5ba"
+    },
+    "docs/research/package-subsystem-ports-20261006/evidence/input-validation/v01-review.md": {
+      "exists": true,
+      "kind": "file",
+      "sha256": "480f1df588f46c715b756d81a7920916b56a01fe6f135cd4a8d3852b571f0ab2"
+    },
+    "docs/research/package-subsystem-ports-20261006/implementation-plans/exact-values.tasks.json": {
+      "exists": true,
+      "kind": "file",
+      "sha256": "bf940aa4222d9fae2185bdda6ca0a642e8574f36348070003f14566a0cd917bd"
+    },
+    "docs/research/package-subsystem-ports-20261006/implementation-plans/work-transitions.tasks.json": {
+      "exists": true,
+      "kind": "file",
+      "sha256": "f73f82460d08600a54a9a5a2f480aa59e72e6d9eab8b82bc46d5ddf824a501c5"
+    },
+    "docs/specification/DECISIONS.md": {
+      "exists": true,
+      "kind": "file",
+      "sha256": "309909bdd8458c4197eb12c2f5cf3dde4e39c6bb3918d25a9d3904c765472792"
+    },
+    "implementation/CHALLENGE-AUDIT-PLAN.md": {
+      "exists": true,
+      "kind": "file",
+      "sha256": "2c36b1f8afce9793088f4adabdce001afdb0d54ef4d966b7295bc8a7ee2dabcb"
+    },
+    "implementation/RUST-PORT-EXECUTION-PLAN.md": {
+      "exists": true,
+      "kind": "file",
+      "sha256": "3c5a90d7ea36a1647d2dc04fd46087f2e5076e7fda0df0e8710d67582a1dfacd"
+    },
+    "implementation/remaining-work/tasks.json": {
+      "exists": true,
+      "kind": "file",
+      "sha256": "cd01ebb2276e9bbd362085070b985811543f4bcb1d7ad0d0ac0530d3092bc3f4"
+    },
+    "implementation/rust-port-lanes.json": {
+      "exists": true,
+      "kind": "file",
+      "sha256": "4936af9c418fbf8accb9932e24abb622d11563d776fb271c6dac111615439033"
+    },
+    "implementation/rust-port-orchestration/contracts-20261007/README.md": {
+      "exists": true,
+      "kind": "file",
+      "sha256": "5964fd7a3df44874e395179560673398e0974236bcd76c1218ab41e8e0bfc93a"
+    },
+    "implementation/rust-port-orchestration/contracts-20261007/decision-record.md": {
+      "exists": true,
+      "kind": "file",
+      "sha256": "74475befb528cde40e61a6f480db5bdb4ab69f56e398b204c94e7ee41e3405f5"
+    },
+    "implementation/rust-port-orchestration/contracts-20261007/delivery-contracts.json": {
+      "exists": true,
+      "kind": "file",
+      "sha256": "e2f9e744ca092f6f5215772eb791caaeb8b20959651bddcde0ba258eaf20dc91"
+    },
+    "implementation/rust-port-orchestration/contracts-20261007/imports.md": {
+      "exists": true,
+      "kind": "file",
+      "sha256": "0efa1447405e9a30b407c663a84adf0ead57b69742077cce415ee5a64cc0de51"
+    },
+    "implementation/rust-port-orchestration/contracts-20261007/independent-review.md": {
+      "exists": true,
+      "kind": "file",
+      "sha256": "663bee1c65168ae90690439bea134a34df2028d35393050eb721ffb5badfcef1"
+    },
+    "implementation/rust-port-orchestration/contracts-20261007/jev/request-1.json": {
+      "exists": true,
+      "kind": "file",
+      "sha256": "dd64be0818be8c1a518a294db18cb92edfb7af4c75c394bf5a7294060f224235"
+    },
+    "implementation/rust-port-orchestration/contracts-20261007/jev/request-2.json": {
+      "exists": true,
+      "kind": "file",
+      "sha256": "7dbd5697643c72946428f1beed5fc785484954542f141d4ca850fb97bd167000"
+    },
+    "implementation/rust-port-orchestration/contracts-20261007/jev/request-3.json": {
+      "exists": true,
+      "kind": "file",
+      "sha256": "18e643348e5e7a0a4737148d33075ebf638b277dedd418bf958512e24771c4c0"
+    },
+    "implementation/rust-port-orchestration/contracts-20261007/jev/response-1.json": {
+      "exists": true,
+      "kind": "file",
+      "sha256": "4bb3078804029853e01e444002f7ae705893379ce6b333229a8e9f887bc35d1f"
+    },
+    "implementation/rust-port-orchestration/contracts-20261007/jev/response-2.json": {
+      "exists": true,
+      "kind": "file",
+      "sha256": "33e0a6c77454fb8b49a89bac4e590e5db63956d2e55d4a0abf304360b05d75bc"
+    },
+    "implementation/rust-port-orchestration/contracts-20261007/jev/response-3.json": {
+      "exists": true,
+      "kind": "file",
+      "sha256": "83cf9808d95226583cf9ed8205cc3fd55e2df90e9c2ccfb19d721f3830bf184e"
+    },
+    "implementation/rust-port-orchestration/contracts-20261007/model-dispatches.json": {
+      "exists": true,
+      "kind": "file",
+      "sha256": "28ace508c117e79f6b6aae7ef1a7087e9e4985783032d8532ee7d604b85cf674"
+    },
+    "implementation/rust-port-orchestration/contracts-20261007/numeric-common.md": {
+      "exists": true,
+      "kind": "file",
+      "sha256": "f7880accd442d74139a473244e9c87503129d325b8b89869842be05a22f9d404"
+    },
+    "implementation/rust-port-orchestration/contracts-20261007/numeric-contracts.json": {
+      "exists": true,
+      "kind": "file",
+      "sha256": "5d6a65f45fae1e8f967031b96e1e3b06042c0e5b3eb0a3861e7224325ed69337"
+    },
+    "implementation/rust-port-orchestration/contracts-20261007/numeric-values.md": {
+      "exists": true,
+      "kind": "file",
+      "sha256": "cd0f1a9eadf78e3ba147294bd7b3ab51c38883afa4d51d6b4f1aa71e384e775b"
+    },
+    "implementation/rust-port-orchestration/contracts-20261007/numeric-work.md": {
+      "exists": true,
+      "kind": "file",
+      "sha256": "279efd7abe5d56e9826beca0792890747d57998516b56bdbb5688cf4f750fc2a"
+    },
+    "implementation/rust-port-orchestration/contracts-20261007/oracles/frozen-generator.mjs": {
+      "exists": true,
+      "kind": "file",
+      "sha256": "e82c385cce4f9ae87589017df852b0e65fcfbcf29838ff3a417aee84a5a91e2d"
+    },
+    "implementation/rust-port-orchestration/contracts-20261007/oracles/frozen-oracle.json.gz": {
+      "exists": true,
+      "kind": "file",
+      "sha256": "d4bfe45964e46da4b3970702428d4e336b46fd8391ef6fc12572748c138d2a7b"
+    },
+    "implementation/rust-port-orchestration/contracts-20261007/oracles/manifest.json": {
+      "exists": true,
+      "kind": "file",
+      "sha256": "6766a330b4ed03cc3a28dbebc24b70662527a814b70abdb6dcd7058f2563bdfe"
+    },
+    "implementation/rust-port-orchestration/contracts-20261007/ownership.json": {
+      "exists": true,
+      "kind": "file",
+      "sha256": "728cbd42913d7eef29c3686d282f796f101076224860a88afd9f71fb184200df"
+    },
+    "implementation/rust-port-orchestration/contracts-20261007/packets.json": {
+      "exists": true,
+      "kind": "file",
+      "sha256": "bee5b952faf2fa136cc3a3f1268db1544f5e222ca05d5de3534dc15ddd730308"
+    },
+    "implementation/rust-port-orchestration/contracts-20261007/source-checkpoint.json": {
+      "exists": true,
+      "kind": "file",
+      "sha256": "30ab4609b8792cb60ab9663a1cff15f463e7f30954cc53d8a3daac7e7498dfed"
+    },
+    "implementation/rust-port-orchestration/contracts-20261007/sourcemaps-raw.md": {
+      "exists": true,
+      "kind": "file",
+      "sha256": "5665fd668c57d6968811a0314360660e9df1c5b7c23fa241f3af75b8caac1aad"
+    },
+    "implementation/rust-port-orchestration/contracts-20261007/strings-rust.md": {
+      "exists": true,
+      "kind": "file",
+      "sha256": "3c5d6f3bcedfdb4477cae48c15f1bcac62e8b579ae18f88414fe0840a0dadf8a"
+    },
+    "implementation/rust-port-orchestration/contracts-20261007/verification.json": {
+      "exists": true,
+      "kind": "file",
+      "sha256": "b784b00a510d831e2747a8256c9fa5ba07095c5c233df532f42c2400bc278e60"
+    },
+    "implementation/rust-port-orchestration/preflight-20261007/SCOPE-CHECKPOINT.md": {
+      "exists": true,
+      "kind": "file",
+      "sha256": "9716722c23f6ff9846cadcdf4bc871fb4e3f41e34ab37f5338fd821104631b75"
+    },
+    "implementation/rust-port-orchestration/preflight-20261007/reviews/independent-scope-review.md": {
+      "exists": true,
+      "kind": "file",
+      "sha256": "cb723d1a0ac6a77b114365d556d1334e3e2aafd0b61ea29e6002ef5a41255b5b"
+    },
+    "implementation/rust-port-orchestration/preflight-20261007/reviews/inventory.json": {
+      "exists": true,
+      "kind": "file",
+      "sha256": "30aa7fff96253367a46bec1142cd42330404607ee5c6cb6e25f62d6e37a10f5f"
+    },
+    "implementation/rust-port-orchestration/preflight-20261007/reviews/values-validation.md": {
+      "exists": true,
+      "kind": "file",
+      "sha256": "23a849f7dbb40820498fc381a9c1146b594d50772f606c4640ccf6f8f30ebfbf"
+    },
+    "implementation/rust-port-orchestration/preflight-20261007/reviews/work-delivery.md": {
+      "exists": true,
+      "kind": "file",
+      "sha256": "c1df585931a39808bb3bfa67a4d049d0f77e1fb90957bfc00d94e8f20c2eb7b3"
+    },
+    "implementation/rust-port-orchestration/preflight-20261007/scope-queue.json": {
+      "exists": true,
+      "kind": "file",
+      "sha256": "62076535dd0c3b0afcc91eaa7ac09ed60fcd32a9c51c3fce2d9917b288432534"
+    },
+    "implementation/rust-port-orchestration/preflight-20261007/source-checkpoint.json": {
+      "exists": true,
+      "kind": "file",
+      "sha256": "2f53bc97bda0adab587f85eb8ca6468837f793ef41d2ca3d9d8a451ccb951ed5"
+    },
+    "implementation/rust-port-orchestration/preflight-20261007/verification.json": {
+      "exists": true,
+      "kind": "file",
+      "sha256": "bfe2dc917724ef8796d596886713f40723aaa22262c38628520f24703179cf71"
+    },
+    "package.json": {
+      "exists": true,
+      "kind": "file",
+      "sha256": "b857df2e35cfb40e1bb62738ed4ef59d53ce30b25b2a7f9d6f0f76df8bce02f3"
+    },
+    "packages/cloudflare/package.json": {
+      "exists": true,
+      "kind": "file",
+      "sha256": "5a24f4fcd94013cedf1acedab37dd1a4f57cf47c1b4a15e0fcac70e719a4b07c"
+    },
+    "packages/cloudflare/src/deploy/bundle.ts": {
+      "exists": true,
+      "kind": "file",
+      "sha256": "c655fed4ef03d35d39fc52811abc4d41516d2bf8e52fcf4a499d17e8f9057ed1"
+    },
+    "packages/cloudflare/src/deploy/module-imports.ts": {
+      "exists": false,
+      "kind": "absent",
+      "sha256": null
+    },
+    "packages/cloudflare/src/dev/local-run.ts": {
+      "exists": true,
+      "kind": "file",
+      "sha256": "78e2c5fca805c79003684360de328d793805693620facccb8ff7c8864687433a"
+    },
+    "packages/cloudflare/src/preparation/build-adapter.ts": {
+      "exists": true,
+      "kind": "file",
+      "sha256": "ddbd1eb6abc50c1dfa1ccc59cfdd8f3e54cc5d296356004c794f2556f1053383"
+    },
+    "packages/cloudflare/src/runtime/artifact.ts": {
+      "exists": true,
+      "kind": "file",
+      "sha256": "e04b6ee1dc35b427d2e70aff35410142c1a1eabcfd73dc9ace973f965a51b04d"
+    },
+    "packages/cloudflare/src/runtime/env-assembly.ts": {
+      "exists": true,
+      "kind": "file",
+      "sha256": "d39b218d24926884b627a30dadb5a1bf46db87cfbc1e6834b6f01ee136b95c25"
+    },
+    "packages/cloudflare/src/runtime/grant-route.ts": {
+      "exists": true,
+      "kind": "file",
+      "sha256": "523a5446fba7d0080a4572905a72c900ac91ba7c33ffa4508eac5f0e0479293d"
+    },
+    "packages/cloudflare/src/runtime/invoke.ts": {
+      "exists": true,
+      "kind": "file",
+      "sha256": "bc08e559d905ed285bb7beff9db0d3e43c808a604face535b5305f444ffae15d"
+    },
+    "packages/cloudflare/src/runtime/modules.ts": {
+      "exists": true,
+      "kind": "file",
+      "sha256": "f42ff4589751ee275ad48905c6a073fe20b38a9ee49ef147d38e69befda63230"
+    },
+    "packages/cloudflare/src/runtime/sourcemap.ts": {
+      "exists": true,
+      "kind": "file",
+      "sha256": "1455a9344724114863b2438403e08bf0e4db3a08c4ddd68fc1ae99992419c66b"
+    },
+    "packages/cloudflare/src/worker/assembly.ts": {
+      "exists": true,
+      "kind": "file",
+      "sha256": "489bf7f70fbb692227c9eb0482df42475b87ae2951d60abbc72d782fe2d51628"
+    },
+    "packages/cloudflare/src/worker/main.ts": {
+      "exists": true,
+      "kind": "file",
+      "sha256": "2335ee597c4d053960423baa07d1fb621b2b01e4f065a68881a94292f29a26ba"
+    },
+    "packages/cloudflare/test/deploy-bundle.test.ts": {
+      "exists": true,
+      "kind": "file",
+      "sha256": "2febb90a3639d63cc3bfc96d0d89f2df78035cdda389669367db373040fa5752"
+    },
+    "packages/cloudflare/test/deploy-package-assets.test.ts": {
+      "exists": true,
+      "kind": "file",
+      "sha256": "41b9ea6dc9ce4598b76be010f5cfb3a5d4a9e59022e5c60c08609de9768a0110"
+    },
+    "packages/cloudflare/test/fixtures/import-policy-contract.json": {
+      "exists": false,
+      "kind": "absent",
+      "sha256": null
+    },
+    "packages/cloudflare/test/fixtures/raw-source-map-contract.json": {
+      "exists": false,
+      "kind": "absent",
+      "sha256": null
+    },
+    "packages/cloudflare/test/module-imports-contract.test.ts": {
+      "exists": false,
+      "kind": "absent",
+      "sha256": null
+    },
+    "packages/cloudflare/test/modules.test.ts": {
+      "exists": true,
+      "kind": "file",
+      "sha256": "2c9f319c5ffec8d490bd199d372724dd240886dffc95358328c30fe942c47ba3"
+    },
+    "packages/cloudflare/test/raw-source-map-contract.test.ts": {
+      "exists": false,
+      "kind": "absent",
+      "sha256": null
+    },
+    "packages/cloudflare/test/sourcemap.test.ts": {
+      "exists": true,
+      "kind": "file",
+      "sha256": "8dea333cf3bbf89c89186f69a47ba5810dfd5730da85a9d6e031b694c9c2011b"
+    },
+    "packages/cloudflare/tsconfig.json": {
+      "exists": true,
+      "kind": "file",
+      "sha256": "8288e51cec217797ce3fcb51b33f70f55c705b4eefbc4d530fa28c4706ed781b"
+    },
+    "packages/contracts/src/artifact.ts": {
+      "exists": true,
+      "kind": "file",
+      "sha256": "3031c619c79fc6d688667d4a1af07ae7d07863b52c2408c6b96587cc43ccf173"
+    },
+    "packages/state/package.json": {
+      "exists": true,
+      "kind": "file",
+      "sha256": "cb41b927046a074cad9e267fd4eba6f630a0aad7157d333b0efe3dca9e37aa52"
+    },
+    "packages/state/src/fanout/tables.ts": {
+      "exists": true,
+      "kind": "file",
+      "sha256": "f97acf5b3d38c7ace87f0cc38c1712e533d856fb4c4affb733efb7588ea1f0ae"
+    },
+    "packages/state/src/ports/transact.ts": {
+      "exists": true,
+      "kind": "file",
+      "sha256": "20ebcc4792bc145d60d16210d19dfec45bb6a1d0961b86973d3bea6b6a01a902"
+    },
+    "packages/state/src/receipt/tables.ts": {
+      "exists": true,
+      "kind": "file",
+      "sha256": "d9d6ec727d3ee80bc7b2036c934ad75df6a58afabeb6fa9e428b21705136230d"
+    },
+    "packages/stdlib/package.json": {
+      "exists": true,
+      "kind": "file",
+      "sha256": "1f5dda9a1bc0390590943772e7665e357e1337e705bb15c825c40eb2fcf5883b"
+    },
+    "packages/testkit/package.json": {
+      "exists": true,
+      "kind": "file",
+      "sha256": "d4836564d2f24cb9181944e53f1c37596af4ca88c61bd117252ffa0b368b2ced"
+    },
+    "packages/values/Cargo.lock": {
+      "exists": true,
+      "kind": "file",
+      "sha256": "107d0d305b318c31c002b4445aa778b017cf206b453e2f4583b3b55ec9773668"
+    },
+    "packages/values/Cargo.toml": {
+      "exists": true,
+      "kind": "file",
+      "sha256": "083c91d33d9cf5c36b0c61e0e8f86b80bf1208bcf3202d681a77a52939e6efee"
+    },
+    "packages/values/bindings/Cargo.toml": {
+      "exists": true,
+      "kind": "file",
+      "sha256": "1da63f3a022cc9f7b1ff4d4255a49f7da8ddac5b8d6196b608be262bdd224450"
+    },
+    "packages/values/bindings/backend.ts": {
+      "exists": true,
+      "kind": "file",
+      "sha256": "4863a9b9f30c4551a6220a44caaa03094a643f51f71088de5ef613b7a34508fa"
+    },
+    "packages/values/bindings/bootstrap.ts": {
+      "exists": true,
+      "kind": "file",
+      "sha256": "2758815f0eaca231326b764f7841bb6295b0703d9e804ec28980570c61910ae6"
+    },
+    "packages/values/bindings/carriers.ts": {
+      "exists": true,
+      "kind": "file",
+      "sha256": "657f643c92fefe1d4303f609748860ed7c496544093fb57e5ea9fd7063fca3d0"
+    },
+    "packages/values/bindings/generated/BUILD.json": {
+      "exists": true,
+      "kind": "file",
+      "sha256": "528bd710b2cd8fedaf95486baf94f03635b92efa0567e0e05e9c1e39558d75eb"
+    },
+    "packages/values/bindings/src/lib.rs": {
+      "exists": true,
+      "kind": "file",
+      "sha256": "3b1f7fefefd13438a04afa5b288600c590fba65e14dc8961f2fcff999e830ca6"
+    },
+    "packages/values/conformance/numeric-text.json": {
+      "exists": false,
+      "kind": "absent",
+      "sha256": null
+    },
+    "packages/values/conformance/numeric-text.oracle.mjs": {
+      "exists": false,
+      "kind": "absent",
+      "sha256": null
+    },
+    "packages/values/conformance/string-escape.json": {
+      "exists": false,
+      "kind": "absent",
+      "sha256": null
+    },
+    "packages/values/conformance/string-escape.oracle.mjs": {
+      "exists": false,
+      "kind": "absent",
+      "sha256": null
+    },
+    "packages/values/package.json": {
+      "exists": true,
+      "kind": "file",
+      "sha256": "e542125300e2ee229f96bd37cc66af50c8982e588c26c9ba6cf363640688618f"
+    },
+    "packages/values/scripts/build-semantics.mjs": {
+      "exists": true,
+      "kind": "file",
+      "sha256": "d458ab84db7ef0c97945bd361d4ad961d52e947af546fd2c1bbb84644f5a9a71"
+    },
+    "packages/values/semantics/Cargo.toml": {
+      "exists": true,
+      "kind": "file",
+      "sha256": "140bcd4d064358fe1dae97f10e1a46055d31e8fb69cea431939751a9c22c708f"
+    },
+    "packages/values/semantics/src/codecs/numeric.rs": {
+      "exists": true,
+      "kind": "file",
+      "sha256": "4c12632d10e1d6b4f749c82f37c5910b7ae998cb1195fd1b571d69479784bd03"
+    },
+    "packages/values/semantics/src/failures.rs": {
+      "exists": true,
+      "kind": "file",
+      "sha256": "28dca38a0670f354a25e5a9ab6e531c216f161c929413adc9c7276cddb51fc07"
+    },
+    "packages/values/semantics/src/input.rs": {
+      "exists": true,
+      "kind": "file",
+      "sha256": "120a0a4aa36f2944b5cc14e70e690ad38d981fa072dad841795a89fec9903b1b"
+    },
+    "packages/values/semantics/src/lib.rs": {
+      "exists": true,
+      "kind": "file",
+      "sha256": "63a800b7809ddc932331343e17cae24ad2eb18ea5f4a2a44d70e81bceb6275de"
+    },
+    "packages/values/semantics/src/numeric/decimal.rs": {
+      "exists": true,
+      "kind": "file",
+      "sha256": "53040e3de46f5e17d8c5025928bdb3ef2047e88d6fd488821686dcfbd026ade6"
+    },
+    "packages/values/semantics/src/numeric/money.rs": {
+      "exists": true,
+      "kind": "file",
+      "sha256": "5ab02d498fcc7031c079f5af884cbe2e5d3c2e7810127f012d928bb8c0516dad"
+    },
+    "packages/values/semantics/src/representations/numeric.rs": {
+      "exists": true,
+      "kind": "file",
+      "sha256": "d4dad000e5c2ea7c1dcc15fbae0d41cb0b7681b048e8a4c3d9459ab1479eb04e"
+    },
+    "packages/values/semantics/src/temporal/instant.rs": {
+      "exists": true,
+      "kind": "file",
+      "sha256": "96125d312a877c10d1547dcf9731b4481ffc9b70f0d9733a1c10e946b890f61c"
+    },
+    "packages/values/semantics/src/transport/exact.rs": {
+      "exists": true,
+      "kind": "file",
+      "sha256": "7c2f5600bf4c72b5ccfef82500113e28f1fc3131a0f818dff8e205b802142817"
+    },
+    "packages/values/semantics/tests/decimal_vectors.rs": {
+      "exists": true,
+      "kind": "file",
+      "sha256": "384ff870c5393d9fd14c3840d41f217095e055193130f44e812dfe1f70c811c3"
+    },
+    "packages/values/semantics/tests/money_vectors.rs": {
+      "exists": true,
+      "kind": "file",
+      "sha256": "ef22cb2e71bc221d81b54d058efa06d95598dc722ac3cf82701486b298af65c2"
+    },
+    "packages/values/semantics/tests/numeric_text_contract.rs": {
+      "exists": false,
+      "kind": "absent",
+      "sha256": null
+    },
+    "packages/values/semantics/tests/string_escape_contract.rs": {
+      "exists": false,
+      "kind": "absent",
+      "sha256": null
+    },
+    "packages/values/semantics/tests/temporal_vectors.rs": {
+      "exists": true,
+      "kind": "file",
+      "sha256": "9f0d1b7898ce3ba74fa884519d9c32d31dcb22ae812751d16c191e514b588f02"
+    },
+    "packages/values/src/decimal.ts": {
+      "exists": true,
+      "kind": "file",
+      "sha256": "e4056e2849f928106b36f534ee72f3416fed9550c19da914dc9e02d4c14f592e"
+    },
+    "packages/values/src/errors.ts": {
+      "exists": true,
+      "kind": "file",
+      "sha256": "a9a518f181e92d3b69be7ef8bb36d7e1001e276849a5ff9e976eef81fee569e8"
+    },
+    "packages/values/src/index.ts": {
+      "exists": true,
+      "kind": "file",
+      "sha256": "d92ac7192a8739ddbfaf32ccc64e0aeba7fb30726e7bf40d7e81eb9a239d61c4"
+    },
+    "packages/values/src/kinds.ts": {
+      "exists": true,
+      "kind": "file",
+      "sha256": "35cf9ba2ccadb5157d66423530af9c9eca9def2d74df3b43dd0d318d5427b0e7"
+    },
+    "packages/values/src/prepared/codec.ts": {
+      "exists": true,
+      "kind": "file",
+      "sha256": "ffe679d4db03ea3944c7af94a1eb88cb3398207dc319d41ce5413f39786e04a0"
+    },
+    "packages/values/src/prepared/plan.ts": {
+      "exists": true,
+      "kind": "file",
+      "sha256": "31cc0a8a09774f5a6754372700b41269cd3df73de4171574053fbab661faa0d4"
+    },
+    "packages/values/src/prepared/validation.ts": {
+      "exists": true,
+      "kind": "file",
+      "sha256": "34d0723b0491b54908fecf7494f1e5bd16bf78b470473ab2d1108f322c3e3e76"
+    },
+    "packages/values/src/schema.ts": {
+      "exists": true,
+      "kind": "file",
+      "sha256": "8216016fd7467e3ac6b23b79a06a3d55d9aff2f4bfba3a1d0ecc77c2760f5772"
+    },
+    "packages/values/src/wire.ts": {
+      "exists": true,
+      "kind": "file",
+      "sha256": "73832128fd4b2db93d08770836271323d61bed02647ca83fd21bdd9496054f03"
+    },
+    "packages/values/test/exact-bootstrap.test.ts": {
+      "exists": true,
+      "kind": "file",
+      "sha256": "1d66735d556b45ce5c38ba037ec71c3e71e9f28dfcbaf72e2f5e5b5f82b8d432"
+    },
+    "packages/values/test/numeric-text.contract.test.ts": {
+      "exists": false,
+      "kind": "absent",
+      "sha256": null
+    },
+    "packages/values/test/prepared-hook.test.ts": {
+      "exists": false,
+      "kind": "absent",
+      "sha256": null
+    },
+    "packages/values/test/string-escape.contract.test.ts": {
+      "exists": false,
+      "kind": "absent",
+      "sha256": null
+    },
+    "packages/work-kernel/Cargo.lock": {
+      "exists": true,
+      "kind": "file",
+      "sha256": "4337a64e41e2ada24f61e1fbdd3621427d88832e5c978536c58cf4d2257950a9"
+    },
+    "packages/work-kernel/Cargo.toml": {
+      "exists": true,
+      "kind": "file",
+      "sha256": "553dbdbb7d912cff34af5641017a27879ce5885f7395cdeb004a5bd9148c0374"
+    },
+    "packages/work-kernel/bindings/host-values.ts": {
+      "exists": true,
+      "kind": "file",
+      "sha256": "56da5ad1ed8ee87bbb8c8c7d59b27b274db48aeadedd9a71de9f738b3d30b3e0"
+    },
+    "packages/work-kernel/conformance/fixtures/numeric-text.json": {
+      "exists": false,
+      "kind": "absent",
+      "sha256": null
+    },
+    "packages/work-kernel/conformance/fixtures/receipts/linkage.json": {
+      "exists": true,
+      "kind": "file",
+      "sha256": "f5d2c38ef5ba3d72796343d42874de1587fdb08cace9d0d16330d31d9259dccd"
+    },
+    "packages/work-kernel/conformance/fixtures/receipts/receipt.json": {
+      "exists": true,
+      "kind": "file",
+      "sha256": "b18cf4101947da95942a212223d9517ab3629543b6c73642457cc07e6eb44751"
+    },
+    "packages/work-kernel/conformance/fixtures/receipts/recovery.json": {
+      "exists": true,
+      "kind": "file",
+      "sha256": "b5b64fda283461e245230a668c31afb42021e0ff99b37ace58efa1e0cc897d8c"
+    },
+    "packages/work-kernel/conformance/fixtures/rows/fanout_intent.json": {
+      "exists": true,
+      "kind": "file",
+      "sha256": "bbf074dd2aa4bb14cb769e43a19f0bb2226f5160f0bce7952bcbb9699ce9c175"
+    },
+    "packages/work-kernel/conformance/linkage.test.ts": {
+      "exists": true,
+      "kind": "file",
+      "sha256": "afa1a902d9d19d1ef23dcdb0b97b2a6f49b7edc4d39e4e7cb96e1ffe6d23ede6"
+    },
+    "packages/work-kernel/conformance/native-numeric-text.rs": {
+      "exists": false,
+      "kind": "absent",
+      "sha256": null
+    },
+    "packages/work-kernel/conformance/numeric-text.contract.test.ts": {
+      "exists": false,
+      "kind": "absent",
+      "sha256": null
+    },
+    "packages/work-kernel/conformance/numeric-text.oracle.mjs": {
+      "exists": false,
+      "kind": "absent",
+      "sha256": null
+    },
+    "packages/work-kernel/conformance/receipt.test.ts": {
+      "exists": true,
+      "kind": "file",
+      "sha256": "94a16fb8ae8bd92baf7a5fe2f47b0f66ac3bb0f1749f6f810001592e1e87c408"
+    },
+    "packages/work-kernel/conformance/recovery.test.ts": {
+      "exists": true,
+      "kind": "file",
+      "sha256": "d8feedab3089ed89128739610fc6c5762f731293bea9fabf47b92979f69bb168"
+    },
+    "packages/work-kernel/conformance/rows.test.ts": {
+      "exists": true,
+      "kind": "file",
+      "sha256": "46d2eab38d12a615da2e532fbb83c879f86f588cd6ec362a9711105597410ce8"
+    },
+    "packages/work-kernel/decisions/lifecycle.rs": {
+      "exists": true,
+      "kind": "file",
+      "sha256": "70af017dd928e49f0528a6a2a88df913c6ff3f3c8dcb47294b2781953c9f1342"
+    },
+    "packages/work-kernel/decisions/linkage.rs": {
+      "exists": true,
+      "kind": "file",
+      "sha256": "05b7ab44df96de03dc9ba7764e6a3a6376bd53542463149ad14410a9565921aa"
+    },
+    "packages/work-kernel/decisions/numeric_text.rs": {
+      "exists": false,
+      "kind": "absent",
+      "sha256": null
+    },
+    "packages/work-kernel/decisions/receipt.rs": {
+      "exists": true,
+      "kind": "file",
+      "sha256": "3682195a6265fa68381ea2c14a3e78b7831026b2f4dc420f6655a9ad940963d9"
+    },
+    "packages/work-kernel/decisions/recovery.rs": {
+      "exists": true,
+      "kind": "file",
+      "sha256": "818a8c8ce2a4792981d295bf9a5016dd602a1f30733127aa275d0f7e2342b65f"
+    },
+    "packages/work-kernel/decisions/rows.rs": {
+      "exists": true,
+      "kind": "file",
+      "sha256": "e33134e2c819a150209f933a2020f519f473516da3867fca67735b10bddd18ce"
+    },
+    "packages/work-kernel/package.json": {
+      "exists": true,
+      "kind": "file",
+      "sha256": "5b2b5267aaa3f92ae8284fa8c8464bd7831023e4f2ce190623886210fcd84a07"
+    },
+    "packages/work-kernel/rust/lib.rs": {
+      "exists": true,
+      "kind": "file",
+      "sha256": "33177d2d67ebc8138a11937f00231436cbabc14d1ea6a9b7449cac10f36c2e98"
+    },
+    "packages/work-kernel/src/facts.ts": {
+      "exists": true,
+      "kind": "file",
+      "sha256": "d10518896028ef5243d066fab4938fcb3657b0b85a90feea680a9dfdaeb6c61a"
+    },
+    "packages/work-kernel/src/linkage.ts": {
+      "exists": true,
+      "kind": "file",
+      "sha256": "ecc6c6cee42a14e7b012ef47875553d51207902d2498b0adef935a8555a047d4"
+    },
+    "packages/work-kernel/src/receipt.ts": {
+      "exists": true,
+      "kind": "file",
+      "sha256": "3442bd7a14dab43caa296e03c3575e777856d5003f8365a1cd1c9fe0eb027a4f"
+    },
+    "packages/work-kernel/src/recovery.ts": {
+      "exists": true,
+      "kind": "file",
+      "sha256": "c65cda6a6898cbfff2f0df57f2e1a67c312da6f4123b4c364a482b5f417d0cf6"
+    },
+    "packages/work-kernel/src/rows.ts": {
+      "exists": true,
+      "kind": "file",
+      "sha256": "5267d759fcb0f17cae6cd9ea864783cc16e793fe0ac6658f4e0d1dbf6d0e0c4d"
+    },
+    "packages/work-kernel/tsconfig.json": {
+      "exists": true,
+      "kind": "file",
+      "sha256": "be538f73951bafb9b1a89fa55702abfbceab4adb06e2c5e8f869207d57e22bab"
+    },
+    "packages/work/src/kernel/tables.ts": {
+      "exists": true,
+      "kind": "file",
+      "sha256": "10bde1f6281574b277fa6b795157c72c40471a12e46c32490b4774e1aea220e7"
+    },
+    "packages/work/src/receipt/index.ts": {
+      "exists": true,
+      "kind": "file",
+      "sha256": "9d51ff1a4bf0bd4ec2368aa0e2d094c72b3a1ef85c939526e0110bd05f058816"
+    },
+    "packages/work/src/recovery/index.ts": {
+      "exists": true,
+      "kind": "file",
+      "sha256": "870fed2d65118b4b77ce42df4bf0ef655d93ab9a062eff25761bb4df07e3e67f"
+    },
+    "turbo.json": {
+      "exists": true,
+      "kind": "file",
+      "sha256": "2f908d0dfa6b20fb38ae182a66eeaf564da6007d4404299032dbf3fe5df2d2b4"
+    },
+    "vitest.config.ts": {
+      "exists": true,
+      "kind": "file",
+      "sha256": "bfdf5433f8bb47549d2c13cdc56655a7333232447a790c151ac67d9fe5f28ed6"
+    },
+    "docs/research/package-subsystem-ports-20261006/evidence/implementation/exact-values/core/n01-values-number-text.json": {
+      "exists": false,
+      "kind": "absent",
+      "sha256": null
+    },
+    "docs/research/package-subsystem-ports-20261006/implementation-plans/input-validation.md": {
+      "exists": true,
+      "kind": "file",
+      "sha256": "5ec351c6dd69dbb06fb8a933789ceb1309957b8f5b9d38dbda8c87f87f650363"
+    },
+    "docs/research/package-subsystem-ports-20261006/implementation-plans/input-validation.tasks.json": {
+      "exists": true,
+      "kind": "file",
+      "sha256": "03d024eb78dd16a9cfa96ebccfdb03eb3a61b03b18192e337921c178570d695b"
+    },
+    "packages/state/src/invocation/admission.ts": {
+      "exists": true,
+      "kind": "file",
+      "sha256": "c83e7b06b932e7e16402f0c815121a917f7b63daa90e4000fd822d16b1fc1ba6"
+    },
+    "packages/state/src/invocation/invoke.ts": {
+      "exists": true,
+      "kind": "file",
+      "sha256": "37f76500d8b0ed9959cf0110c70b0750263b9c0134fc19194229db1924ca4670"
+    },
+    "packages/state/src/invocation/registry.ts": {
+      "exists": true,
+      "kind": "file",
+      "sha256": "38f59e468f47bf4e065ce23865ba57c72cdf4d9bce145cbd11a3eac084ca79c0"
+    },
+    "packages/interfaces/src/http/operations.ts": {
+      "exists": true,
+      "kind": "file",
+      "sha256": "44f9bc9a95e16867b058c079cb82fbe915274bb166c27fe210906f7dec6ab37a"
+    },
+    "packages/interfaces/src/mcp/server.ts": {
+      "exists": true,
+      "kind": "file",
+      "sha256": "20d68f0cc3a0984f2094dffe971895d789d57ce05c07032e3696dc9fcaf7c8c6"
+    },
+    "docs/research/package-subsystem-ports-20261006/evidence/implementation/work-transitions/handoffs/n01-work-number-text.json": {
+      "exists": false,
+      "kind": "absent",
+      "sha256": null
+    },
+    "docs/research/package-subsystem-ports-20261006/evidence/implementation/exact-values/core/n01-rust-str-escape.json": {
+      "exists": false,
+      "kind": "absent",
+      "sha256": null
+    },
+    "docs/research/package-library-audit-20261006/evidence/D02-import-leaf.json": {
+      "exists": false,
+      "kind": "absent",
+      "sha256": null
+    },
+    "packages/values/src/temporal.ts": {
+      "exists": true,
+      "kind": "file",
+      "sha256": "53619b5bc448c4c32b2980643c8eccf36bf43bc34d8a26e70fd39adc2e83d35e"
+    },
+    "docs/research/package-subsystem-ports-20261006/evidence/implementation/exact-values/host/bootstrap-20261006.json": {
+      "exists": true,
+      "kind": "file",
+      "sha256": "7df24791fd0aa97af2ba018a99f6818798b18c4409c79559198a0b03a1372bbd"
+    },
+    "docs/research/package-subsystem-ports-20261006/evidence/input-validation/abi-binding-smoke.json": {
+      "exists": true,
+      "kind": "file",
+      "sha256": "f51b5a8bdd993b99ad5e6034e0ae2548cd2b345d595bc2c1dcccbfdfce542a5b"
+    }
+  },
+  "foreign_status_snapshot": [
+    " M docs/ideal-filetree-plan.md",
+    " M docs/ideal-filetree-plan/finished-product/tasks.md",
+    " M docs/specification/DECISIONS.md",
+    " M implementation/CHALLENGE-AUDIT-PLAN.md",
+    " M implementation/REMAINING-WORK.md",
+    " M implementation/RUST-PORT-LANES.md",
+    "?? implementation/rust-port-orchestration/first-packets-20261007/",
+    "?? output/build-in-public/compiler-pass1-e835db8-20261007.png"
+  ],
+  "git_index_snapshot": [],
+  "living_checkpoint_advanced": false,
+  "products_built_tested_or_installed": false
+}
