@@ -153,25 +153,7 @@ pub fn actual_wire(wire: &Value) -> String {
 /// (short forms for backspace/formfeed/newline/return/tab, lowercase
 /// `\u00xx` otherwise); everything else raw.
 pub fn json_stringify(text: &str) -> String {
-    let mut out = String::with_capacity(text.len() + 2);
-    out.push('"');
-    for ch in text.chars() {
-        match ch {
-            '"' => out.push_str("\\\""),
-            '\\' => out.push_str("\\\\"),
-            '\u{08}' => out.push_str("\\b"),
-            '\u{0c}' => out.push_str("\\f"),
-            '\n' => out.push_str("\\n"),
-            '\r' => out.push_str("\\r"),
-            '\t' => out.push_str("\\t"),
-            c if (c as u32) < 0x20 => {
-                out.push_str(&format!("\\u{:04x}", c as u32));
-            }
-            c => out.push(c),
-        }
-    }
-    out.push('"');
-    out
+    serde_json::to_string(text).expect("concrete str serialization into memory cannot fail")
 }
 
 /// Truncates to 64 UTF-16 code units plus `...`, like
@@ -731,6 +713,54 @@ pub fn encode_value_scalar(name: ScalarName, value: &Value) -> Result<WireValue,
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    // Narrow private helper witnesses, not arbitrary-path public scalar API parity.
+    #[test]
+    fn frozen_private_path_and_internal_moneyparts_witnesses() {
+        let fixture: serde_json::Value =
+            serde_json::from_str(include_str!("../../../conformance/string-escape.json")).unwrap();
+        let mut count = 0;
+        for row in fixture["strings"].as_array().unwrap() {
+            if row["rustStrAdmitted"] != true {
+                continue;
+            }
+            let units = |key: &str| -> Vec<u16> {
+                row[key]
+                    .as_array()
+                    .unwrap()
+                    .iter()
+                    .map(|v| v.as_u64().unwrap() as u16)
+                    .collect()
+            };
+            let text = String::from_utf16(&units("inputUnits")).unwrap();
+            let quoted = String::from_utf16(&units("quotedUnits")).unwrap();
+            let path = vec![PathSeg::Key(text.clone()), PathSeg::Index(3)];
+            let expected_path = format!("$[{quoted}][3]");
+            assert_eq!(format_path(&path), expected_path, "{}", row["id"]);
+            let error = encode_error("expected a money value".to_string(), &path);
+            assert_eq!(error.code.as_str(), "invalid-construction");
+            assert_eq!(
+                error.message,
+                format!("expected a money value at {expected_path}")
+            );
+            // Value::Money bypasses the public record currency-shape guard. This
+            // checks the internal escaping seam only, never public encodeValue parity.
+            if currency_table_scale(&text).is_none() {
+                let raw = Value::Money(MoneyParts {
+                    minor: BigInt::from(1),
+                    currency: text,
+                });
+                let failure = encode_money_value(&raw, &path).unwrap_err();
+                assert_eq!(failure.code.as_str(), "invalid-construction");
+                assert_eq!(
+                    failure.message,
+                    format!("unknown currency {quoted} at {expected_path}[\"currency\"]")
+                );
+            }
+            count += 1;
+        }
+        assert_eq!(count, 89);
+    }
 
     #[test]
     fn js_number_format_spot_checks() {
