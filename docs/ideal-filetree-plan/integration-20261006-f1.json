@@ -1,0 +1,15 @@
+{
+ "integration": "f1",
+ "date": "2026-10-06",
+ "main_before": "f9dd238",
+ "commits": [
+  "626611f feat(ui): T20b rich generated presentation + submit client (F1)"
+ ],
+ "lane_commits": [
+  "c0f0fd1c75abbe2dde957ae3417e75d61ef40567 (atop a055ce1)"
+ ],
+ "coverage": "packages/ui/** only: 9 files +3253/-66 (forms.ts depth, client.ts new, index exports, t20b depth+client suites, T20a re-pins, catalog allowlist, can-delivery hook)",
+ "decisions": "R5 helper generatedDraftValues exported for E; companion spellings __version (contracts pin) + __null/__currency/__fold (UI-local consts); delivery renders notice, emits no member",
+ "gate": "PENDING: canonical ui gate (build+test) queued \u2014 TS slot reserved for F probe then C BUILD-05; lane gate 869/869 exit 0 inside deadline",
+ "lane_report": "0eda5902: build exit 0, ui 869/869, tree clean at c0f0fd1"
+}

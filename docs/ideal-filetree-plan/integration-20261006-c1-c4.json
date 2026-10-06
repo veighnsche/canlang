@@ -1,0 +1,16 @@
+{
+ "integration": "c1-c4",
+ "date": "2026-10-06",
+ "main_before": "96cf12f",
+ "commits": [
+  "30e211d lane-c: C1 F7 cohort consumer + MCP derivedFor mirror; C4 boot-500 repairs"
+ ],
+ "lane_commits": [
+  "c16692ebbb55153b113fbb470069be0632310eb3 (13 files +1234/-37, cloudflare-only)"
+ ],
+ "patch_id identical": true,
+ "coverage": "C1: emitted-cohorts consumer + full MCP derivedFor mirror + T15b delivery-kind support. C4: DB-boot 500s repaired via t16b contracts vendor seam (+pin) + vendor TEST_ONLY skips; probe bodies on record (worker-assembly-failed single root; /mcp/grants 401 already correct).",
+ "decisions": "staged runtime/invoke.js const-held dynamic import root cause; latent unmapped state-producer consts = follow-up; conflict mirror queued (bb1ca7a sync on take) -> C2",
+ "gate": "CANONICAL GREEN: cloudflare build 0, vitest 316/316, nodetest 203/203; ROOT BUILD GREEN (cloudflare tsc was the only red). Lane gates identical.",
+ "lane_report": "d62054b8 (tree clean; all grants released)"
+}
