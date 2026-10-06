@@ -1,0 +1,23 @@
+{
+  "verified_at": "2026-10-06T21:13:17.175438+00:00",
+  "source_base": "309644a6881909d8dba32560bc6711f67e00a7ab",
+  "current_head": "309644a6881909d8dba32560bc6711f67e00a7ab",
+  "inventory_files": 684,
+  "source_candidates": 341,
+  "all_inventoried_package_hashes_unchanged": true,
+  "changed_package_paths": [],
+  "findings": 25,
+  "dispositions": {
+    "recommend": 10,
+    "evaluate": 10,
+    "retain": 5
+  },
+  "finding_sites_existing_task_ids_and_local_links_valid": true,
+  "errors": [],
+  "product_builds_or_tests_executed": false,
+  "runtime_equivalence_verified": false,
+  "canonical_task_statuses_changed_by_audit": false,
+  "checkpoint_advanced_by_audit": false,
+  "independent_planning_review": "reviews/consolidated-review.md",
+  "independent_review_result": "No remaining blocking report issue identified; scope/qualified-parser wording repaired by root. No runtime acceptance."
+}

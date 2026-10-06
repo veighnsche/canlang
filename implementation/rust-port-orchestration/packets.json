@@ -1,0 +1,549 @@
+{
+  "schema_version": 1,
+  "phase": "planning",
+  "execution_authorized": false,
+  "planning_base": "309644a6881909d8dba32560bc6711f67e00a7ab",
+  "source_ledger": "implementation/remaining-work/tasks.json",
+  "source_ledger_sha256": "cd01ebb2276e9bbd362085070b985811543f4bcb1d7ad0d0ac0530d3092bc3f4",
+  "source_ledger_base": "7fd8c6bf4717feeffc70b46819377b74b353e117",
+  "all_source_identity_allocation": "implementation/rust-port-lanes.json",
+  "packets": [
+    {
+      "id": "R1-FIRST",
+      "muse_lane": "R1",
+      "proposed_queue": "exact-values and common values assembly",
+      "planning_only": true,
+      "activation_base": null,
+      "native_identity": null,
+      "worktree": null,
+      "work_units": [
+        {
+          "local_owner": "coordinator",
+          "tasks": [
+            {
+              "task_id": "ports:A01.1",
+              "title": "Freeze owner, caller and observable-contract inventory",
+              "source_status_snapshot": "partial",
+              "disposition": "REQUIRED",
+              "source_depends_on": [
+                "ports:C01.ready"
+              ],
+              "candidate_owned_paths": [
+                "docs/research/package-subsystem-ports-20261006/evidence/implementation/exact-values/core/contracts.md"
+              ],
+              "assembly_requests": {},
+              "acceptance_reference": "implementation/remaining-work/tasks.json#ports:A01.1",
+              "dependency_qualification_required": true,
+              "finite_file_allowlist_at_activation_required": true,
+              "execution_authorized": false,
+              "original_acceptance": [
+                "All mapped sources have an owner and admitted-input/error/order contract; compiler changes are unnecessary."
+              ]
+            },
+            {
+              "task_id": "ports:A07.2",
+              "title": "Prepare host carriers, backend registry and bootstrap checks",
+              "source_status_snapshot": "needs_verification",
+              "disposition": "REQUIRED",
+              "source_depends_on": [
+                "ports:A03.foundation",
+                "ports:C03.ready"
+              ],
+              "candidate_owned_paths": [
+                "packages/values/bindings/backend.ts",
+                "packages/values/bindings/bootstrap.ts",
+                "packages/values/bindings/carriers.ts",
+                "packages/values/test/exact-bootstrap.test.ts",
+                "docs/research/package-subsystem-ports-20261006/evidence/implementation/exact-values/host/bootstrap.json"
+              ],
+              "assembly_requests": {},
+              "acceptance_reference": "implementation/remaining-work/tasks.json#ports:A07.2",
+              "dependency_qualification_required": true,
+              "finite_file_allowlist_at_activation_required": true,
+              "execution_authorized": false,
+              "original_acceptance": [
+                "Public classes/freezing/BigInt parts and synchronous exports stay intact; failed selected Rust bootstrap is visible."
+              ]
+            },
+            {
+              "task_id": "ports:A07.foundation",
+              "title": "Real binding and host bootstrap scaffold ready for validation",
+              "source_status_snapshot": "partial",
+              "disposition": "REQUIRED",
+              "source_depends_on": [
+                "ports:A07.1",
+                "ports:A07.2"
+              ],
+              "candidate_owned_paths": [],
+              "assembly_requests": {},
+              "acceptance_reference": "implementation/remaining-work/tasks.json#ports:A07.foundation",
+              "dependency_qualification_required": true,
+              "finite_file_allowlist_at_activation_required": true,
+              "execution_authorized": false,
+              "original_acceptance": [
+                "Actual tiny glue/module imports and synchronous bootstrap/carrier contract are usable in Node/Bun/local workerd; validation can integrate independently of exact algorithm completion."
+              ]
+            }
+          ],
+          "git_mutator": true
+        },
+        {
+          "local_owner": "child_decimal",
+          "tasks": [
+            {
+              "task_id": "ports:A04.1",
+              "title": "Port decimal construction, parsing and stored parts",
+              "source_status_snapshot": "partial",
+              "disposition": "REQUIRED",
+              "source_depends_on": [
+                "ports:A03.foundation"
+              ],
+              "candidate_owned_paths": [
+                "packages/values/semantics/src/numeric/decimal.rs",
+                "packages/values/semantics/tests/decimal_vectors.rs",
+                "docs/research/package-subsystem-ports-20261006/evidence/implementation/exact-values/decimal/construction.json"
+              ],
+              "assembly_requests": {},
+              "acceptance_reference": "implementation/remaining-work/tasks.json#ports:A04.1",
+              "dependency_qualification_required": true,
+              "finite_file_allowlist_at_activation_required": true,
+              "execution_authorized": false,
+              "original_acceptance": [
+                "Construction/text preserve full coefficient and stored scale; public Decimal makers remain TS authoritative carriers."
+              ]
+            }
+          ],
+          "git_mutator": false
+        },
+        {
+          "local_owner": "child_money",
+          "tasks": [
+            {
+              "task_id": "ports:A04.3",
+              "title": "Port currency and basic money operations",
+              "source_status_snapshot": "partial",
+              "disposition": "REQUIRED",
+              "source_depends_on": [
+                "ports:A03.foundation",
+                "ports:A03.2",
+                "ports:A03.4"
+              ],
+              "candidate_owned_paths": [
+                "packages/values/semantics/src/numeric/money.rs",
+                "packages/values/semantics/tests/money_vectors.rs",
+                "docs/research/package-subsystem-ports-20261006/evidence/implementation/exact-values/money/basic.json"
+              ],
+              "assembly_requests": {},
+              "acceptance_reference": "implementation/remaining-work/tasks.json#ports:A04.3",
+              "dependency_qualification_required": true,
+              "finite_file_allowlist_at_activation_required": true,
+              "execution_authorized": false,
+              "original_acceptance": [
+                "No universal constructor erases distinct maker/builtin/binary-operation domains or messages."
+              ]
+            }
+          ],
+          "git_mutator": false
+        }
+      ],
+      "next_candidates": [
+        "ports:A04.2",
+        "ports:A04.5",
+        "ports:A07.3"
+      ],
+      "held_scope": [],
+      "note": "Root must qualify original dependencies, freeze exact finite files and refresh source status before activation. Next candidates are conditional queues, not currently authorized dispatch."
+    },
+    {
+      "id": "R2-FIRST",
+      "muse_lane": "R2",
+      "proposed_queue": "owned input validation",
+      "planning_only": true,
+      "activation_base": null,
+      "native_identity": null,
+      "worktree": null,
+      "work_units": [
+        {
+          "local_owner": "coordinator",
+          "tasks": [
+            {
+              "task_id": "ports:V01.4",
+              "title": "Agree owner-plan and shared-file handoffs",
+              "source_status_snapshot": "partial",
+              "disposition": "REQUIRED",
+              "source_depends_on": [
+                "ports:C01.ready"
+              ],
+              "candidate_owned_paths": [
+                "docs/research/package-subsystem-ports-20261006/evidence/input-validation/plan-contract.md"
+              ],
+              "assembly_requests": {},
+              "acceptance_reference": "implementation/remaining-work/tasks.json#ports:V01.4",
+              "dependency_qualification_required": true,
+              "finite_file_allowlist_at_activation_required": true,
+              "execution_authorized": false,
+              "original_acceptance": [
+                "No second currency, Decimal, wire authority, catalog or compiler work; immutable data copies and private owner tokens establish provenance, never freeze/shape alone.",
+                "Each lane has exclusive module files and exact-values publishes A03.foundation before arithmetic completion."
+              ]
+            }
+          ],
+          "git_mutator": true
+        },
+        {
+          "local_owner": "child_contracts",
+          "tasks": [
+            {
+              "task_id": "ports:V01.1",
+              "title": "Freeze caller contracts and workload registry",
+              "source_status_snapshot": "partial",
+              "disposition": "REQUIRED",
+              "source_depends_on": [
+                "ports:C01.ready"
+              ],
+              "candidate_owned_paths": [
+                "docs/research/package-subsystem-ports-20261006/evidence/input-validation/contracts.md",
+                "docs/research/package-subsystem-ports-20261006/evidence/input-validation/caller-inventory.json",
+                "docs/research/package-subsystem-ports-20261006/evidence/input-validation/current-ts.json"
+              ],
+              "assembly_requests": {},
+              "acceptance_reference": "implementation/remaining-work/tasks.json#ports:V01.1",
+              "dependency_qualification_required": true,
+              "finite_file_allowlist_at_activation_required": true,
+              "execution_authorized": false,
+              "original_acceptance": [
+                "Owners review each admitted domain, error/order/identity obligation and consumer; public arbitrary-unknown and hand-built schemas remain fully legacy TS.",
+                "contracts.md and caller-inventory.json distinguish deployed MCP, HTTP 501, forms and handle mode; no full-port claim."
+              ]
+            },
+            {
+              "task_id": "ports:V01.2",
+              "title": "Assess bounded HTTP adoption join",
+              "source_status_snapshot": "partial",
+              "disposition": "REQUIRED",
+              "source_depends_on": [
+                "ports:C01.ready"
+              ],
+              "candidate_owned_paths": [
+                "docs/research/package-subsystem-ports-20261006/evidence/input-validation/http-adoption-gate.md"
+              ],
+              "assembly_requests": {},
+              "acceptance_reference": "implementation/remaining-work/tasks.json#ports:V01.2",
+              "dependency_qualification_required": true,
+              "finite_file_allowlist_at_activation_required": true,
+              "execution_authorized": false,
+              "original_acceptance": [
+                "C01 source-owner contract names exact existing-handler join and owning files, or states absence without inventing a new HTTP feature.",
+                "Package/workerd fixture proof and default deployed adoption are separately testable gates; blocked join retains default 501."
+              ]
+            }
+          ],
+          "git_mutator": false
+        },
+        {
+          "local_owner": "child_hooks",
+          "tasks": [
+            {
+              "task_id": "ports:V02.6",
+              "title": "Wire private prepared hooks without public API drift",
+              "source_status_snapshot": "not_started",
+              "disposition": "REQUIRED",
+              "source_depends_on": [
+                "ports:V02.1",
+                "ports:V02.2"
+              ],
+              "candidate_owned_paths": [
+                "packages/values/src/schema.ts",
+                "packages/values/src/wire.ts",
+                "docs/research/package-subsystem-ports-20261006/evidence/input-validation/prepared-hook-review.md"
+              ],
+              "assembly_requests": {
+                "packages/values/src/index.ts": "R1"
+              },
+              "acceptance_reference": "implementation/remaining-work/tasks.json#ports:V02.6",
+              "dependency_qualification_required": true,
+              "finite_file_allowlist_at_activation_required": true,
+              "execution_authorized": false,
+              "original_acceptance": [
+                "A1/B2 current/facade legacy traces match; unknown/default/schema accessors observe the old evaluation order.",
+                "Private prepared calls reach extracted modules while unknown callers remain TS; no semantic exception retry."
+              ]
+            }
+          ],
+          "git_mutator": false
+        }
+      ],
+      "next_candidates": [
+        "ports:V03.1",
+        "ports:V03.4",
+        "ports:V11.1"
+      ],
+      "held_scope": [],
+      "note": "Root must qualify original dependencies, freeze exact finite files and refresh source status before activation. Next candidates are conditional queues, not currently authorized dispatch."
+    },
+    {
+      "id": "R3-FIRST",
+      "muse_lane": "R3",
+      "proposed_queue": "work transitions and sole global delivery source writer",
+      "planning_only": true,
+      "activation_base": null,
+      "native_identity": null,
+      "worktree": null,
+      "work_units": [
+        {
+          "local_owner": "coordinator",
+          "tasks": [
+            {
+              "task_id": "ports:C04.ready",
+              "title": "Tiny actual loader and typed asset proof ready",
+              "source_status_snapshot": "needs_verification",
+              "disposition": "REQUIRED",
+              "source_depends_on": [
+                "ports:C04.2"
+              ],
+              "candidate_owned_paths": [
+                "docs/research/package-subsystem-ports-20261006/evidence/implementation/shared/C04.ready.json"
+              ],
+              "assembly_requests": {},
+              "acceptance_reference": "implementation/remaining-work/tasks.json#ports:C04.ready",
+              "dependency_qualification_required": true,
+              "finite_file_allowlist_at_activation_required": true,
+              "execution_authorized": false,
+              "original_acceptance": [
+                "Runtime plans may verify their own generated bindings next. This gate does not certify actual values/work assets, final vendor maps or installed consumers. Native JS-only preparation is independent of this Wasm proof."
+              ]
+            },
+            {
+              "task_id": "ports:C04.graph",
+              "title": "Land root and consumer dependency/build graph",
+              "source_status_snapshot": "partial",
+              "disposition": "REQUIRED",
+              "source_depends_on": [
+                "ports:W02.foundation",
+                "ports:C04.asset"
+              ],
+              "candidate_owned_paths": [
+                "package.json",
+                "bun.lock",
+                "packages/cloudflare/package.json",
+                "packages/state/package.json",
+                "packages/stdlib/package.json",
+                "packages/testkit/package.json"
+              ],
+              "assembly_requests": {},
+              "acceptance_reference": "implementation/remaining-work/tasks.json#ports:C04.graph",
+              "dependency_qualification_required": true,
+              "finite_file_allowlist_at_activation_required": true,
+              "execution_authorized": false,
+              "original_acceptance": [
+                "Root/consumer build and lockfile graph is executable, no state\u2192full-work cycle, and no compiler Cargo workspace is introduced. This gate does not certify final work assets."
+              ]
+            }
+          ],
+          "git_mutator": true
+        },
+        {
+          "local_owner": "child_facts",
+          "tasks": [
+            {
+              "task_id": "ports:W03.1",
+              "title": "Freeze ordered facts and policy-specific ABI types",
+              "source_status_snapshot": "needs_verification",
+              "disposition": "REQUIRED",
+              "source_depends_on": [
+                "ports:W01.1",
+                "ports:W01.2",
+                "ports:W02.1",
+                "ports:C03.ready"
+              ],
+              "candidate_owned_paths": [
+                "packages/work-kernel/src/facts.ts",
+                "docs/research/package-subsystem-ports-20261006/evidence/implementation/work-transitions/handoffs/abi.md"
+              ],
+              "assembly_requests": {},
+              "acceptance_reference": "implementation/remaining-work/tasks.json#ports:W03.1",
+              "dependency_qualification_required": true,
+              "finite_file_allowlist_at_activation_required": true,
+              "execution_authorized": false,
+              "original_acceptance": [
+                "Define version/profile/error/UTF-16/presence/f64/conditional version transport and producer provenance, validating number ranges before fixed-width conversion.",
+                "Reject foreign/version/profile/corrupt facts before semantic callbacks; opaque payload refs are not authority capabilities."
+              ],
+              "activation_witness_requirement": "Name actual fact-consumer entry and test/evidence files for foreign provenance, version/profile mismatch and corrupt facts; demonstrate zero callbacks before refusal. Expand the finite allowlist only through the actual owner. Declarations alone do not close this task."
+            }
+          ],
+          "git_mutator": false
+        },
+        {
+          "local_owner": "child_baseline",
+          "tasks": [
+            {
+              "task_id": "ports:W01.3",
+              "title": "Capture unchanged behavior, clone and persisted-byte baseline",
+              "source_status_snapshot": "partial",
+              "disposition": "REQUIRED",
+              "source_depends_on": [
+                "ports:C05.ready"
+              ],
+              "candidate_owned_paths": [
+                "docs/research/package-subsystem-ports-20261006/evidence/implementation/work-transitions/baselines/current-ts.json",
+                "docs/research/package-subsystem-ports-20261006/evidence/implementation/work-transitions/baselines/verify.log",
+                "docs/research/package-subsystem-ports-20261006/evidence/implementation/work-transitions/baselines/original-fixtures/"
+              ],
+              "assembly_requests": {},
+              "acceptance_reference": "implementation/remaining-work/tasks.json#ports:W01.3",
+              "dependency_qualification_required": true,
+              "finite_file_allowlist_at_activation_required": true,
+              "execution_authorized": false,
+              "original_acceptance": [
+                "Run existing command block against inspected sources, retain logs and failures; failed noEmitOnError builds cannot supply stale dist evidence.",
+                "Save original row/result identity, state clone-only versus work safety-then-clone, error/trace ordering and actual D1/DO persisted bytes in immutable evidence as an independent oracle; pure owner lanes copy/hash their golden fixture subsets later."
+              ]
+            }
+          ],
+          "git_mutator": false
+        }
+      ],
+      "next_candidates": [
+        "ports:W03.2",
+        "ports:W04.1",
+        "ports:W04.2",
+        "ports:W04.3",
+        "ports:W02.5"
+      ],
+      "held_scope": [
+        "C04.native-release"
+      ],
+      "note": "Root must qualify original dependencies, freeze exact finite files and refresh source status before activation. Next candidates are conditional queues, not currently authorized dispatch."
+    },
+    {
+      "id": "R4-FIRST",
+      "muse_lane": "R4",
+      "proposed_queue": "borrowed exact-values/validation prerequisites while preparation remains held",
+      "planning_only": true,
+      "activation_base": null,
+      "native_identity": null,
+      "worktree": null,
+      "work_units": [
+        {
+          "local_owner": "child_temporal",
+          "tasks": [
+            {
+              "task_id": "ports:A05.3",
+              "title": "Port instant algorithms and temporal scalar codecs",
+              "source_status_snapshot": "partial",
+              "disposition": "REQUIRED",
+              "source_depends_on": [
+                "ports:A05.1",
+                "ports:A05.2"
+              ],
+              "candidate_owned_paths": [
+                "packages/values/semantics/src/temporal/instant.rs",
+                "packages/values/semantics/tests/temporal_vectors.rs",
+                "docs/research/package-subsystem-ports-20261006/evidence/implementation/exact-values/temporal/instant.json"
+              ],
+              "assembly_requests": {},
+              "acceptance_reference": "implementation/remaining-work/tasks.json#ports:A05.3",
+              "dependency_qualification_required": true,
+              "finite_file_allowlist_at_activation_required": true,
+              "execution_authorized": false,
+              "original_acceptance": [
+                "Every temporal.ts exported pure algorithm is covered; decimal-valued divideDurationMs remains correctly covered in A04.2."
+              ]
+            }
+          ],
+          "git_mutator": false
+        },
+        {
+          "local_owner": "child_state_contract",
+          "tasks": [
+            {
+              "task_id": "ports:V01.3",
+              "title": "Freeze state sequencing and bridge contract",
+              "source_status_snapshot": "partial",
+              "disposition": "REQUIRED",
+              "source_depends_on": [
+                "ports:C01.ready"
+              ],
+              "candidate_owned_paths": [
+                "docs/research/package-subsystem-ports-20261006/evidence/input-validation/state-contract.md"
+              ],
+              "assembly_requests": {},
+              "acceptance_reference": "implementation/remaining-work/tasks.json#ports:V01.3",
+              "dependency_qualification_required": true,
+              "finite_file_allowlist_at_activation_required": true,
+              "execution_authorized": false,
+              "original_acceptance": [
+                "Contract preserves readRevision \u2192 hash(raw) \u2192 readReceipt \u2192 replay OR age \u2192 membership/by \u2192 normalize/ref-extract \u2192 ordered loads and read auth-first.",
+                "Protected graph never crosses arbitrary OperationInvoker callbacks; unproven/generated-handler/internal calls retain legacy TS."
+              ]
+            }
+          ],
+          "git_mutator": false
+        }
+      ],
+      "next_candidates": [
+        "ports:V03.3",
+        "ports:V10.1",
+        "ports:V10.2"
+      ],
+      "held_scope": [
+        "artifact-preparation implementation and qualification",
+        "C04.native-release"
+      ],
+      "note": "Root must qualify original dependencies, freeze exact finite files and refresh source status before activation. Next candidates are conditional queues, not currently authorized dispatch."
+    }
+  ],
+  "codex_parent_review_candidates": [
+    {
+      "task_id": "ports:V01",
+      "source_depends_on": [
+        "ports:V01.1",
+        "ports:V01.2",
+        "ports:V01.3",
+        "ports:V01.4"
+      ],
+      "source_status_snapshot": "partial",
+      "acceptance_reference": "implementation/remaining-work/tasks.json#ports:V01",
+      "dispatch_only_after_complete_original_dependencies": true
+    },
+    {
+      "task_id": "ports:A03",
+      "source_depends_on": [
+        "ports:A03.foundation",
+        "ports:A03.2",
+        "ports:A03.3",
+        "ports:A03.4"
+      ],
+      "source_status_snapshot": "partial",
+      "acceptance_reference": "implementation/remaining-work/tasks.json#ports:A03",
+      "dispatch_only_after_complete_original_dependencies": true
+    },
+    {
+      "task_id": "ports:A04",
+      "source_depends_on": [
+        "ports:A04.1",
+        "ports:A04.2",
+        "ports:A04.3",
+        "ports:A04.4",
+        "ports:A04.5"
+      ],
+      "source_status_snapshot": "partial",
+      "acceptance_reference": "implementation/remaining-work/tasks.json#ports:A04",
+      "dispatch_only_after_complete_original_dependencies": true
+    },
+    {
+      "task_id": "ports:A05",
+      "source_depends_on": [
+        "ports:A05.1",
+        "ports:A05.2",
+        "ports:A05.3"
+      ],
+      "source_status_snapshot": "partial",
+      "acceptance_reference": "implementation/remaining-work/tasks.json#ports:A05",
+      "dispatch_only_after_complete_original_dependencies": true
+    }
+  ],
+  "scheduler_rule": "Consult the complete original ledger DAG, not only packet next_candidates. Credited completed identities including A06/V03.5 are reused; requalify only affected changed inputs with a recorded reason.",
+  "assignment_authority": "Codex selects finite packets and ordered alternatives for economical Codex collaboration subagents; exact-file leases and original prerequisites remain. No local recurring scheduling."
+}

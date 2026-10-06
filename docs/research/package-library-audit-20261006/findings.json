@@ -1,0 +1,571 @@
+{
+  "schema_version": 1,
+  "audit_date": "2026-10-06",
+  "phase": "planning",
+  "implementation_authorized_by_this_record": false,
+  "source_base": "309644a6881909d8dba32560bc6711f67e00a7ab",
+  "repository_root": "/Users/vince/Projects/canlang",
+  "inventory": "source-inventory.json",
+  "finding_ids_are_canonical_tasks": false,
+  "canonical_statuses_changed": false,
+  "upstream_evidence_policy": "Primary maintainer docs/source opened on audit date; main/latest candidates need selected locked-version and installed-target qualification. No runtime equivalence or supply-chain audit claimed.",
+  "holds": [
+    "human-held preparation/native-release",
+    "implementation deferred"
+  ],
+  "findings": [
+    {
+      "id": "LIB-01",
+      "status": "proposed",
+      "disposition": "recommend",
+      "responsibility": "ECMAScript float diagnostic text",
+      "candidate": "ryu-js",
+      "sites": [
+        "packages/values/semantics/src/representations/numeric.rs:319"
+      ],
+      "primary_sources": [
+        "https://docs.rs/ryu-js/latest/ryu_js/"
+      ],
+      "compatibility_and_acceptance": "Preserve complete error bytes, String-number nonfinite policy and negative-zero transport; verify seeded JS bit-pattern parity, native/Wasm closure.",
+      "related_existing_task_ids": [
+        "ports:A03.1"
+      ],
+      "task_mapping_basis": "exact planned_writes source-path match identifies related existing scope only; all proposed adoption needs a finite owned packet and original gates",
+      "needs_finite_scope_mapping_before_dispatch": true,
+      "runtime_equivalence_verified": false
+    },
+    {
+      "id": "LIB-02",
+      "status": "proposed",
+      "disposition": "recommend",
+      "responsibility": "Work Rust number text",
+      "candidate": "ryu-js",
+      "sites": [
+        "packages/work-kernel/decisions/rows.rs:231",
+        "packages/work-kernel/decisions/receipt.rs:209",
+        "packages/work-kernel/decisions/linkage.rs:210",
+        "packages/work-kernel/decisions/recovery.rs:1253"
+      ],
+      "primary_sources": [
+        "https://docs.rs/ryu-js/latest/ryu_js/",
+        "https://doc.rust-lang.org/reference/expressions/operator-expr.html#numeric-cast"
+      ],
+      "compatibility_and_acceptance": "Static i64-saturation counterexample at 1e20; current Rust decisions not Cargo members. Verify JSON nonfinite policy separately from String and before actual assembly.",
+      "related_existing_task_ids": [
+        "ports:W04.1",
+        "ports:W04.3"
+      ],
+      "task_mapping_basis": "exact planned_writes source-path match identifies related existing scope only; all proposed adoption needs a finite owned packet and original gates",
+      "needs_finite_scope_mapping_before_dispatch": true,
+      "runtime_equivalence_verified": false
+    },
+    {
+      "id": "LIB-03",
+      "status": "proposed",
+      "disposition": "recommend",
+      "responsibility": "Valid UTF-8 Rust string escaping",
+      "candidate": "existing serde_json::to_string",
+      "sites": [
+        "packages/values/semantics/src/codecs/numeric.rs:155"
+      ],
+      "primary_sources": [
+        "https://docs.rs/serde_json/latest/serde_json/fn.to_string.html"
+      ],
+      "compatibility_and_acceptance": "No new dependency. Preserve escape bytes and separate truncation. Rust str cannot represent lone UTF-16 surrogates; do not generalize to lossless input serialization.",
+      "related_existing_task_ids": [
+        "ports:A04.5"
+      ],
+      "task_mapping_basis": "exact planned_writes source-path match identifies related existing scope only; all proposed adoption needs a finite owned packet and original gates",
+      "needs_finite_scope_mapping_before_dispatch": true,
+      "runtime_equivalence_verified": false
+    },
+    {
+      "id": "LIB-04",
+      "status": "proposed",
+      "disposition": "recommend",
+      "responsibility": "JS import lexing and rewrite",
+      "candidate": "es-module-lexer + MagicString",
+      "sites": [
+        "packages/cloudflare/src/deploy/bundle.ts:373",
+        "packages/cloudflare/src/runtime/modules.ts:69",
+        "packages/cloudflare/preparation/src/modules.rs:341"
+      ],
+      "primary_sources": [
+        "https://github.com/guybedford/es-module-lexer",
+        "https://github.com/Rich-Harris/magic-string"
+      ],
+      "compatibility_and_acceptance": "Keep allowed paths/specifiers, identity/error order and decoded UTF-16 offsets. Compose edit maps. No second Rust JS parser by default; preparation HOLD.",
+      "related_existing_task_ids": [
+        "ports:C04.asset",
+        "ports:C04.preparation-join",
+        "ports:C04.validation-join",
+        "ports:C04.values-assets",
+        "ports:C04.work-assets",
+        "ports:P05.1"
+      ],
+      "task_mapping_basis": "exact planned_writes source-path match identifies related existing scope only; all proposed adoption needs a finite owned packet and original gates",
+      "needs_finite_scope_mapping_before_dispatch": true,
+      "runtime_equivalence_verified": false
+    },
+    {
+      "id": "LIB-05",
+      "status": "proposed",
+      "disposition": "recommend",
+      "responsibility": "Source-map codec, lookup and composition",
+      "candidate": "@jridgewell/sourcemap-codec + trace-mapping + remapping",
+      "sites": [
+        "packages/cloudflare/src/runtime/sourcemap.ts:52",
+        "packages/cloudflare/src/runtime/modules.ts:180"
+      ],
+      "primary_sources": [
+        "https://github.com/jridgewell/sourcemap-codec",
+        "https://raw.githubusercontent.com/jridgewell/sourcemaps/main/packages/trace-mapping/README.md",
+        "https://raw.githubusercontent.com/jridgewell/sourcemaps/main/packages/remapping/README.md"
+      ],
+      "compatibility_and_acceptance": "Keep strict malformed-input validation, exact GLB bias/line-column behavior, privacy and deployed closure. Library VLQ alone does not enforce current strict guards. Rewritten source needs composed original map.",
+      "related_existing_task_ids": [],
+      "task_mapping_basis": "exact planned_writes source-path match identifies related existing scope only; all proposed adoption needs a finite owned packet and original gates",
+      "needs_finite_scope_mapping_before_dispatch": true,
+      "runtime_equivalence_verified": false
+    },
+    {
+      "id": "LIB-06",
+      "status": "proposed",
+      "disposition": "recommend",
+      "responsibility": "Duplicated CSV parsing and export quoting",
+      "candidate": "csv-parse; evaluate csv-stringify",
+      "sites": [
+        "packages/interfaces/src/http/csv.ts:166",
+        "packages/ui/src/csv/parse.ts:118",
+        "packages/interfaces/src/http/export.ts:165"
+      ],
+      "primary_sources": [
+        "https://csv.js.org/parse/distributions/browser_esm/",
+        "https://csv.js.org/parse/options/relax_column_count/",
+        "https://csv.js.org/stringify/options/escape_formulas/"
+      ],
+      "compatibility_and_acceptance": "Pin blank/trailing rows, lone CR, quote errors, header/column/row limits and browser bundle. Consent/replay bytes and formula neutralization remain Can-owned.",
+      "related_existing_task_ids": [
+        "finished-product:FP.AW-REPLAY-IMPORT",
+        "finished-product:FP.CSV",
+        "finished-product:FP.EXPORT"
+      ],
+      "task_mapping_basis": "exact planned_writes source-path match identifies related existing scope only; all proposed adoption needs a finite owned packet and original gates",
+      "needs_finite_scope_mapping_before_dispatch": true,
+      "runtime_equivalence_verified": false
+    },
+    {
+      "id": "LIB-07",
+      "status": "proposed",
+      "disposition": "recommend",
+      "responsibility": "Identity base64url and hex codecs",
+      "candidate": "@scure/base",
+      "sites": [
+        "packages/identity/src/sessions/tokens.ts:16",
+        "packages/identity/src/sessions/tokens.ts:57"
+      ],
+      "primary_sources": [
+        "https://github.com/paulmillr/scure-base"
+      ],
+      "compatibility_and_acceptance": "Static 0g hex accepted as zero; no internal production caller of hex comparison found. Preserve valid stored salts/tokens; stricter unused padding-bit rejection is an explicit policy choice.",
+      "related_existing_task_ids": [],
+      "task_mapping_basis": "exact planned_writes source-path match identifies related existing scope only; all proposed adoption needs a finite owned packet and original gates",
+      "needs_finite_scope_mapping_before_dispatch": true,
+      "runtime_equivalence_verified": false
+    },
+    {
+      "id": "LIB-08",
+      "status": "proposed",
+      "disposition": "recommend",
+      "responsibility": "Secret equality JS XOR loops",
+      "candidate": "qualified host timingSafeEqual adapter",
+      "sites": [
+        "packages/identity/src/sessions/tokens.ts:87",
+        "packages/identity/src/sessions/tokens.ts:99"
+      ],
+      "primary_sources": [
+        "https://nodejs.org/api/crypto.html#cryptotimingsafeequala-b",
+        "https://developers.cloudflare.com/workers/examples/protect-against-timing-attacks/"
+      ],
+      "compatibility_and_acceptance": "A JS loop is not a JIT timing guarantee. Precheck equal buffer length; qualify sync API and portable entry/host closure. Surrounding code remains outside primitive guarantee.",
+      "related_existing_task_ids": [],
+      "task_mapping_basis": "exact planned_writes source-path match identifies related existing scope only; all proposed adoption needs a finite owned packet and original gates",
+      "needs_finite_scope_mapping_before_dispatch": true,
+      "runtime_equivalence_verified": false
+    },
+    {
+      "id": "LIB-09",
+      "status": "proposed",
+      "disposition": "recommend",
+      "responsibility": "Cookie header grammar and attribute serialization",
+      "candidate": "jshttp/cookie",
+      "sites": [
+        "packages/identity/src/sessions/cookies.ts:20",
+        "packages/identity/src/sessions/cookies.ts:42",
+        "packages/identity/src/sessions/cookies.ts:54"
+      ],
+      "primary_sources": [
+        "https://github.com/jshttp/cookie"
+      ],
+      "compatibility_and_acceptance": "Validate Domain; current HTTP caller omits Domain, so no proven live injection. Preserve malformed/empty first duplicate, percent decode, quotes/whitespace, attributes and clear-cookie bytes under a pinned API.",
+      "related_existing_task_ids": [],
+      "task_mapping_basis": "exact planned_writes source-path match identifies related existing scope only; all proposed adoption needs a finite owned packet and original gates",
+      "needs_finite_scope_mapping_before_dispatch": true,
+      "runtime_equivalence_verified": false
+    },
+    {
+      "id": "LIB-10",
+      "status": "proposed",
+      "disposition": "recommend",
+      "responsibility": "Cancellation signal fan-in",
+      "candidate": "platform AbortSignal.any",
+      "sites": [
+        "packages/services/src/http/client.ts:182"
+      ],
+      "primary_sources": [
+        "https://nodejs.org/api/globals.html#static-method-abortsignalanysignals"
+      ],
+      "compatibility_and_acceptance": "Qualify actual Node/Worker hosts and winning reason/races. Keep full body deadlines, explicit timer release, origin-per-hop, quotas and error mapping; redirect-body unbounded read merits separate acceptance review.",
+      "related_existing_task_ids": [],
+      "task_mapping_basis": "exact planned_writes source-path match identifies related existing scope only; all proposed adoption needs a finite owned packet and original gates",
+      "needs_finite_scope_mapping_before_dispatch": true,
+      "runtime_equivalence_verified": false
+    },
+    {
+      "id": "LIB-11",
+      "status": "proposed",
+      "disposition": "evaluate",
+      "responsibility": "CJS/loadability lexical checks",
+      "candidate": "Acorn + scope walker if needed",
+      "sites": [
+        "packages/cloudflare/src/deploy/bundle.ts:724",
+        "packages/cloudflare/preparation/src/modules.rs:565"
+      ],
+      "primary_sources": [
+        "https://github.com/acornjs/acorn/blob/master/acorn/README.md"
+      ],
+      "compatibility_and_acceptance": "Import lexer does not validate JS or identify free bindings/scopes. Keep helper provenance; measure need before adding second parser stack; preparation HOLD.",
+      "related_existing_task_ids": [
+        "ports:C04.asset",
+        "ports:C04.preparation-join",
+        "ports:C04.validation-join",
+        "ports:C04.values-assets",
+        "ports:C04.work-assets",
+        "ports:P05.1"
+      ],
+      "task_mapping_basis": "exact planned_writes source-path match identifies related existing scope only; all proposed adoption needs a finite owned packet and original gates",
+      "needs_finite_scope_mapping_before_dispatch": true,
+      "runtime_equivalence_verified": false
+    },
+    {
+      "id": "LIB-12",
+      "status": "proposed",
+      "disposition": "evaluate",
+      "responsibility": "Rust encodeURIComponent mechanics",
+      "candidate": "percent-encoding",
+      "sites": [
+        "packages/work-kernel/decisions/rows.rs:323",
+        "packages/work-kernel/decisions/receipt.rs:303",
+        "packages/work-kernel/decisions/linkage.rs:299"
+      ],
+      "primary_sources": [
+        "https://docs.rs/percent-encoding/latest/percent_encoding/"
+      ],
+      "compatibility_and_acceptance": "Exact ECMAScript ASCII allowed set, strict UTF-16 surrogate rejection, percent hex casing, no plus substitution, existing identity bytes; current decision code unwired.",
+      "related_existing_task_ids": [
+        "ports:W04.1",
+        "ports:W04.3"
+      ],
+      "task_mapping_basis": "exact planned_writes source-path match identifies related existing scope only; all proposed adoption needs a finite owned packet and original gates",
+      "needs_finite_scope_mapping_before_dispatch": true,
+      "runtime_equivalence_verified": false
+    },
+    {
+      "id": "LIB-13",
+      "status": "proposed",
+      "disposition": "evaluate",
+      "responsibility": "Civil calendar and timezone inversion",
+      "candidate": "Temporal / @js-temporal/polyfill / jiff",
+      "sites": [
+        "packages/values/src/timezone.ts:203",
+        "packages/values/src/temporal.ts:85",
+        "packages/values/semantics/src/temporal/civil.rs:20"
+      ],
+      "primary_sources": [
+        "https://tc39.es/proposal-temporal/docs/timezone.html",
+        "https://github.com/js-temporal/temporal-polyfill",
+        "https://docs.rs/jiff/latest/jiff/"
+      ],
+      "compatibility_and_acceptance": "Preserve strict grammar/year range, fold/gap distinction, exact errors/order, anchor month clamp, interval bounds and one actual tzdb pin; benchmark delivered size before adoption.",
+      "related_existing_task_ids": [
+        "ports:A05.1",
+        "ports:A08.1"
+      ],
+      "task_mapping_basis": "exact planned_writes source-path match identifies related existing scope only; all proposed adoption needs a finite owned packet and original gates",
+      "needs_finite_scope_mapping_before_dispatch": true,
+      "runtime_equivalence_verified": false
+    },
+    {
+      "id": "LIB-14",
+      "status": "proposed",
+      "disposition": "evaluate",
+      "responsibility": "Bounded decimal scale/rounding mechanics",
+      "candidate": "BigDecimal for a narrow slice; retain num-bigint",
+      "sites": [
+        "packages/values/src/decimal.ts:140",
+        "packages/values/semantics/src/numeric/rounding.rs:23",
+        "packages/values/semantics/src/numeric/decimal.rs:56"
+      ],
+      "primary_sources": [
+        "https://docs.rs/bigdecimal/latest/bigdecimal/",
+        "https://docs.rs/rust_decimal/latest/rust_decimal/",
+        "https://mikemcl.github.io/decimal.js/"
+      ],
+      "compatibility_and_acceptance": "rust_decimal coefficient too narrow for38 digits/scratch; decimal.js significant precision38 changes outcomes/stored scale. Keep final-only narrowing, exact bound/error and direct half-even division.",
+      "related_existing_task_ids": [
+        "ports:A03.3",
+        "ports:A04.1",
+        "ports:A04.2",
+        "ports:A08.1"
+      ],
+      "task_mapping_basis": "exact planned_writes source-path match identifies related existing scope only; all proposed adoption needs a finite owned packet and original gates",
+      "needs_finite_scope_mapping_before_dispatch": true,
+      "runtime_equivalence_verified": false
+    },
+    {
+      "id": "LIB-15",
+      "status": "proposed",
+      "disposition": "evaluate",
+      "responsibility": "ICU parser/interpreter mechanics",
+      "candidate": "FormatJS parser only if extensions remain simpler",
+      "sites": [
+        "packages/values/src/icu.ts:267",
+        "packages/values/src/icu.ts:642",
+        "packages/values/src/icu.ts:822"
+      ],
+      "primary_sources": [
+        "https://formatjs.github.io/docs/icu-messageformat-parser/",
+        "https://raw.githubusercontent.com/formatjs/formatjs/main/packages/icu-messageformat-parser/parser.ts"
+      ],
+      "compatibility_and_acceptance": "Upstream safe-integer exact selectors incompatible with Can fractional/large selectors. Depth, apostrophes, tags, duplicate normalization, typed interpreter and errors are gates; avoid maintained fork recreating parser.",
+      "related_existing_task_ids": [],
+      "task_mapping_basis": "exact planned_writes source-path match identifies related existing scope only; all proposed adoption needs a finite owned packet and original gates",
+      "needs_finite_scope_mapping_before_dispatch": true,
+      "runtime_equivalence_verified": false
+    },
+    {
+      "id": "LIB-16",
+      "status": "proposed",
+      "disposition": "evaluate",
+      "responsibility": "Exact number locale digit/grouping output",
+      "candidate": "existing Intl exact string route",
+      "sites": [
+        "packages/values/src/icu.ts:1047"
+      ],
+      "primary_sources": [
+        "https://tc39.es/ecma402/#sec-intl-numberformat-prototype-formattoparts",
+        "https://tc39.es/ecma402/#sec-tointlmathematicalvalue"
+      ],
+      "compatibility_and_acceptance": "Host exact string support, retained scale zeros, locale symbols/digits/bidi/minimum grouping and complete typed outputs; does not replace PluralRules semantics.",
+      "related_existing_task_ids": [],
+      "task_mapping_basis": "exact planned_writes source-path match identifies related existing scope only; all proposed adoption needs a finite owned packet and original gates",
+      "needs_finite_scope_mapping_before_dispatch": true,
+      "runtime_equivalence_verified": false
+    },
+    {
+      "id": "LIB-17",
+      "status": "proposed",
+      "disposition": "evaluate",
+      "responsibility": "Stable JSON digest duplication",
+      "candidate": "shared admitted serializer; canonicalize not a drop-in",
+      "sites": [
+        "packages/state/src/invocation/replay.ts:20",
+        "packages/interfaces/src/http/csv.ts:237",
+        "packages/interfaces/src/http/export.ts:120",
+        "packages/services/src/media/mapping.ts:53"
+      ],
+      "primary_sources": [
+        "https://github.com/erdtman/canonicalize/blob/master/lib/canonicalize.js"
+      ],
+      "compatibility_and_acceptance": "Raw replay hash precedes validation and controls persisted identity. Unsafe enumerable members, holes, symbol keys, lone surrogates, toJSON and boxed values differ; preserve byte contract or explicit versioned migration.",
+      "related_existing_task_ids": [
+        "finished-product:FP.AW-REPLAY-IMPORT",
+        "finished-product:FP.CSV",
+        "finished-product:FP.EXPORT"
+      ],
+      "task_mapping_basis": "exact planned_writes source-path match identifies related existing scope only; all proposed adoption needs a finite owned packet and original gates",
+      "needs_finite_scope_mapping_before_dispatch": true,
+      "runtime_equivalence_verified": false
+    },
+    {
+      "id": "LIB-18",
+      "status": "proposed",
+      "disposition": "evaluate",
+      "responsibility": "TOML emission / CLI option grammar",
+      "candidate": "toml_edit / Node util.parseArgs",
+      "sites": [
+        "packages/cloudflare/preparation/src/render.rs:68",
+        "packages/cloudflare/src/deploy/render.ts:23",
+        "packages/cloudflare/src/cli/platform.ts:118"
+      ],
+      "primary_sources": [
+        "https://docs.rs/toml_edit/latest/toml_edit/",
+        "https://nodejs.org/download/release/v22.16.0/docs/api/util.html#utilparseargsconfig"
+      ],
+      "compatibility_and_acceptance": "Pin output key/order/escaping/review hashes, flags/duplicate/help precedence/errors and actual owner. Preparation HOLD; low priority relative to source-contract joins.",
+      "related_existing_task_ids": [
+        "ports:P02.2",
+        "ports:P06.2",
+        "ports:P08.1"
+      ],
+      "task_mapping_basis": "exact planned_writes source-path match identifies related existing scope only; all proposed adoption needs a finite owned packet and original gates",
+      "needs_finite_scope_mapping_before_dispatch": true,
+      "runtime_equivalence_verified": false
+    },
+    {
+      "id": "LIB-19",
+      "status": "proposed",
+      "disposition": "evaluate",
+      "responsibility": "File signature catalog",
+      "candidate": "file-type when catalog grows",
+      "sites": [
+        "packages/files/src/upload/index.ts:92"
+      ],
+      "primary_sources": [
+        "https://github.com/sindresorhus/file-type"
+      ],
+      "compatibility_and_acceptance": "Binary best-effort detection is not structural validation or strict plain-text recognition. Keep byte/provenance/allowlist/quota semantics and qualify async/ESM/Worker closure.",
+      "related_existing_task_ids": [],
+      "task_mapping_basis": "exact planned_writes source-path match identifies related existing scope only; all proposed adoption needs a finite owned packet and original gates",
+      "needs_finite_scope_mapping_before_dispatch": true,
+      "runtime_equivalence_verified": false
+    },
+    {
+      "id": "LIB-20",
+      "status": "proposed",
+      "disposition": "evaluate",
+      "responsibility": "Model NDJSON protocol SDK",
+      "candidate": "official ollama-js if strict privacy/verdict adapter is simpler",
+      "sites": [
+        "packages/services/src/models/ollama.ts:490",
+        "packages/services/src/models/ollama.ts:564"
+      ],
+      "primary_sources": [
+        "https://github.com/ollama/ollama-js",
+        "https://raw.githubusercontent.com/ollama/ollama-js/main/src/utils.ts"
+      ],
+      "compatibility_and_acceptance": "Inspected upstream warns raw invalid lines and continues; Can fails closed. Per-stream abort, chunk limits, full deadline, first terminal, freezing/error redaction and incomplete EOF must survive without duplicate parser.",
+      "related_existing_task_ids": [],
+      "task_mapping_basis": "exact planned_writes source-path match identifies related existing scope only; all proposed adoption needs a finite owned packet and original gates",
+      "needs_finite_scope_mapping_before_dispatch": true,
+      "runtime_equivalence_verified": false
+    },
+    {
+      "id": "LIB-21",
+      "status": "reviewed-retain",
+      "disposition": "retain",
+      "responsibility": "Numeric core, schema, exact values and owner authority",
+      "candidate": "existing BigInt/num-bigint and Can semantic adapters",
+      "sites": [
+        "packages/values/src/schema.ts:618",
+        "packages/values/src/prepared/plan.ts:400",
+        "packages/values/semantics/src/plans.rs:298"
+      ],
+      "primary_sources": [
+        "https://ajv.js.org/guide/modifying-data.html"
+      ],
+      "compatibility_and_acceptance": "Generic schema defaults/coercion/order do not reproduce Can traces/carriers/errors/provenance; no second validation engine.",
+      "related_existing_task_ids": [
+        "ports:V02.1",
+        "ports:V02.6",
+        "ports:V03.4",
+        "ports:V07.5"
+      ],
+      "task_mapping_basis": "exact planned_writes source-path match identifies related existing scope only; all proposed adoption needs a finite owned packet and original gates",
+      "needs_finite_scope_mapping_before_dispatch": false,
+      "runtime_equivalence_verified": false
+    },
+    {
+      "id": "LIB-22",
+      "status": "reviewed-retain",
+      "disposition": "retain",
+      "responsibility": "Lossless JS transport and bounded process framing",
+      "candidate": "existing serde parser + tagged transport + standard process primitives",
+      "sites": [
+        "packages/cloudflare/preparation/src/input.rs:25",
+        "packages/cloudflare/preparation/src/render.rs:103"
+      ],
+      "primary_sources": [
+        "https://docs.rs/serde_json/latest/serde_json/"
+      ],
+      "compatibility_and_acceptance": "Keep UTF-16, number bits/text, JS key order and own __proto__. Neither serde Value nor JSONRPC/msgpack replaces authority/lifetime/budget semantics; no unneeded async runtime.",
+      "related_existing_task_ids": [
+        "ports:P03.2",
+        "ports:P06.2"
+      ],
+      "task_mapping_basis": "exact planned_writes source-path match identifies related existing scope only; all proposed adoption needs a finite owned packet and original gates",
+      "needs_finite_scope_mapping_before_dispatch": false,
+      "runtime_equivalence_verified": false
+    },
+    {
+      "id": "LIB-23",
+      "status": "reviewed-retain",
+      "disposition": "retain",
+      "responsibility": "State/work storage, claims, receipts and revocation",
+      "candidate": "Can decisions over native storage/transactions",
+      "sites": [
+        "packages/state/src/invocation/admission.ts:321",
+        "packages/work-kernel/rust/lib.rs:1"
+      ],
+      "primary_sources": [],
+      "compatibility_and_acceptance": "Keep evaluation order, transaction fences, finite fanout, receipt expiry/notification and call-local identity; generic ORM/workflow framework not outcome-equivalent.",
+      "related_existing_task_ids": [
+        "finished-product:FP.AW-ONBOARD-HANDOFF",
+        "ports:V09.2"
+      ],
+      "task_mapping_basis": "exact planned_writes source-path match identifies related existing scope only; all proposed adoption needs a finite owned packet and original gates",
+      "needs_finite_scope_mapping_before_dispatch": false,
+      "runtime_equivalence_verified": false
+    },
+    {
+      "id": "LIB-24",
+      "status": "reviewed-retain",
+      "disposition": "retain",
+      "responsibility": "Protocol/build/crypto/filesystem mechanics already delegated",
+      "candidate": "official MCP SDK, Bun/esbuild, WebCrypto/sha2, fs/path/URL",
+      "sites": [
+        "packages/interfaces/src/mcp/server.ts:26",
+        "packages/files/src/upload/fs-blob-store.ts:13"
+      ],
+      "primary_sources": [
+        "https://ts.sdk.modelcontextprotocol.io/"
+      ],
+      "compatibility_and_acceptance": "Keep Can authority, imports/bundle/publication policy, rooted minted file keys, exact digest and safe errors; SDK migration/host qualification separate from library reuse.",
+      "related_existing_task_ids": [
+        "ports:V10.4"
+      ],
+      "task_mapping_basis": "exact planned_writes source-path match identifies related existing scope only; all proposed adoption needs a finite owned packet and original gates",
+      "needs_finite_scope_mapping_before_dispatch": false,
+      "runtime_equivalence_verified": false
+    },
+    {
+      "id": "LIB-25",
+      "status": "reviewed-retain",
+      "disposition": "retain",
+      "responsibility": "Small policy adapters, projections and assertions",
+      "candidate": "native tools + small owning code",
+      "sites": [
+        "packages/ui/src/escape.ts:22",
+        "packages/interfaces/src/projection/project.ts:60",
+        "packages/testkit/src/assertions/equal.ts:13",
+        "packages/state/src/internal/json.ts:16"
+      ],
+      "primary_sources": [],
+      "compatibility_and_acceptance": "Five-character escaping, exotic reference/depth policy and all-path Object.is mismatches need not gain a dependency; structuredClone already used where contract matches.",
+      "related_existing_task_ids": [],
+      "task_mapping_basis": "exact planned_writes source-path match identifies related existing scope only; all proposed adoption needs a finite owned packet and original gates",
+      "needs_finite_scope_mapping_before_dispatch": false,
+      "runtime_equivalence_verified": false
+    }
+  ]
+}
