@@ -176,7 +176,8 @@ fn b1_teamtasks_artifact() {
     let (artifact, emit_diags) = emit(&program, &sources);
 
     // Exact emission profile: bridged (E6006=0), pinned (E6007=0),
-    // 3 loud unlowered-UI positions (E6008). Nothing else may appear.
+    // 2 loud unlowered-UI positions (E6008). Nothing else may appear.
+    // (A2b closed the `delete` gap: bare delete lowers to deleteRecord.)
     for d in &emit_diags {
         if d.code != "E6006" && d.code != "E6007" && d.code != "E6008" {
             failures.push(format!("unexpected codegen code {}: {}", d.code, d.message));
@@ -199,10 +200,10 @@ fn b1_teamtasks_artifact() {
             "expected zero E6007 with the real catalog, got {e6007}"
         ));
     }
-    if e6008 != 3 {
-        failures.push(format!("expected E6008=3 pinned UI gaps, got {e6008}"));
+    if e6008 != 2 {
+        failures.push(format!("expected E6008=2 pinned UI gaps, got {e6008}"));
     }
-    for word in ["tooltip", "delete", "collapse"] {
+    for word in ["tooltip", "collapse"] {
         if !emit_diags
             .iter()
             .any(|d| d.code == "E6008" && d.message.contains(word))
