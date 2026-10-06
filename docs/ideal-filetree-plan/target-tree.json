@@ -24235,6 +24235,490 @@
       ],
       "gate": "retained T34 prep evidence; exact membership/child checkpoint producer proof before dependent qualification",
       "review": "late planning record source/structural inspection"
+    },
+    {
+      "source": "implementation/REMAINING-IMPLEMENTATION-LANES.md",
+      "slice": "S10",
+      "packet": "R07",
+      "disposition": "retain",
+      "targets": [
+        "implementation/REMAINING-IMPLEMENTATION-LANES.md"
+      ],
+      "gate": "Retain authored context and dated evidence; no source move or runtime acceptance inferred",
+      "review": "Merged committed source registration and scoped read-only responsibility review; no product execution or semantic acceptance"
+    },
+    {
+      "source": "implementation/challenge-audit-run/recovery-checkpoint.md",
+      "slice": "S10",
+      "packet": "R07",
+      "disposition": "retain",
+      "targets": [
+        "implementation/challenge-audit-run/recovery-checkpoint.md"
+      ],
+      "gate": "Retain authored context and dated evidence; no source move or runtime acceptance inferred",
+      "review": "Merged committed source registration and scoped read-only responsibility review; no product execution or semantic acceptance"
+    },
+    {
+      "source": "packages/cloudflare/src/runtime/t34-f7-fanout-durable.test.ts",
+      "slice": "S09",
+      "packet": "R06",
+      "disposition": "move",
+      "targets": [
+        "packages/cloudflare/test/runtime/t34-f7-fanout-durable.test.ts"
+      ],
+      "gate": "C05/R08 discovery and relative-import cutover; owning C08/C09 proof before any move",
+      "review": "Merged committed source registration and scoped read-only responsibility review; no product execution or semantic acceptance"
+    },
+    {
+      "source": "packages/cloudflare/src/runtime/t34-f7-fanout.test.ts",
+      "slice": "S09",
+      "packet": "R06",
+      "disposition": "move",
+      "targets": [
+        "packages/cloudflare/test/runtime/t34-f7-fanout.test.ts"
+      ],
+      "gate": "C05/R08 discovery and relative-import cutover; owning C08/C09 proof before any move",
+      "review": "Merged committed source registration and scoped read-only responsibility review; no product execution or semantic acceptance"
+    },
+    {
+      "source": "packages/contracts/test/fanout-records.test.ts",
+      "slice": "S03",
+      "packet": "R02",
+      "disposition": "retain",
+      "targets": [
+        "packages/contracts/test/fanout-records.test.ts"
+      ],
+      "gate": "Owning producer/consumer and C08/C09/R01 qualification remain open; provenance is retained",
+      "review": "Merged committed source registration and scoped read-only responsibility review; no product execution or semantic acceptance"
+    },
+    {
+      "source": "packages/contracts/test/t19a-derived-inputs.test.ts",
+      "slice": "S03",
+      "packet": "R02",
+      "disposition": "retain",
+      "targets": [
+        "packages/contracts/test/t19a-derived-inputs.test.ts"
+      ],
+      "gate": "Owning producer/consumer and C08/C09/R01 qualification remain open; provenance is retained",
+      "review": "Merged committed source registration and scoped read-only responsibility review; no product execution or semantic acceptance"
+    },
+    {
+      "source": "packages/contracts/test/t19b-depth.test.ts",
+      "slice": "S03",
+      "packet": "R02",
+      "disposition": "retain",
+      "targets": [
+        "packages/contracts/test/t19b-depth.test.ts"
+      ],
+      "gate": "Owning producer/consumer and C08/C09/R01 qualification remain open; provenance is retained",
+      "review": "Merged committed source registration and scoped read-only responsibility review; no product execution or semantic acceptance"
+    },
+    {
+      "source": "packages/contracts/test/t20a-presentation.test.ts",
+      "slice": "S03",
+      "packet": "R02",
+      "disposition": "retain",
+      "targets": [
+        "packages/contracts/test/t20a-presentation.test.ts"
+      ],
+      "gate": "Owning producer/consumer and C08/C09/R01 qualification remain open; provenance is retained",
+      "review": "Merged committed source registration and scoped read-only responsibility review; no product execution or semantic acceptance"
+    },
+    {
+      "source": "packages/contracts/test/t26-progress-relations.test.ts",
+      "slice": "S03",
+      "packet": "R02",
+      "disposition": "retain",
+      "targets": [
+        "packages/contracts/test/t26-progress-relations.test.ts"
+      ],
+      "gate": "Owning producer/consumer and C08/C09/R01 qualification remain open; provenance is retained",
+      "review": "Merged committed source registration and scoped read-only responsibility review; no product execution or semantic acceptance"
+    },
+    {
+      "source": "packages/interfaces/test/t19a-derivation.test.ts",
+      "slice": "S08",
+      "packet": "R05",
+      "disposition": "retain",
+      "targets": [
+        "packages/interfaces/test/t19a-derivation.test.ts"
+      ],
+      "gate": "Owning producer/consumer and C08/C09/R01 qualification remain open; provenance is retained",
+      "review": "Merged committed source registration and scoped read-only responsibility review; no product execution or semantic acceptance"
+    },
+    {
+      "source": "packages/interfaces/test/t19b-depth.test.ts",
+      "slice": "S08",
+      "packet": "R05",
+      "disposition": "retain",
+      "targets": [
+        "packages/interfaces/test/t19b-depth.test.ts"
+      ],
+      "gate": "Owning producer/consumer and C08/C09/R01 qualification remain open; provenance is retained",
+      "review": "Merged committed source registration and scoped read-only responsibility review; no product execution or semantic acceptance"
+    },
+    {
+      "source": "packages/interfaces/test/t20a-presentation.test.ts",
+      "slice": "S08",
+      "packet": "R05",
+      "disposition": "retain",
+      "targets": [
+        "packages/interfaces/test/t20a-presentation.test.ts"
+      ],
+      "gate": "Owning producer/consumer and C08/C09/R01 qualification remain open; provenance is retained",
+      "review": "Merged committed source registration and scoped read-only responsibility review; no product execution or semantic acceptance"
+    },
+    {
+      "source": "packages/state/src/fanout/cohort.ts",
+      "slice": "S05",
+      "packet": "R03",
+      "disposition": "retain",
+      "targets": [
+        "packages/state/src/fanout/cohort.ts"
+      ],
+      "gate": "Owning producer/consumer and C08/C09/R01 qualification remain open; provenance is retained",
+      "review": "Merged committed source registration and scoped read-only responsibility review; no product execution or semantic acceptance"
+    },
+    {
+      "source": "packages/state/src/fanout/lifecycle.ts",
+      "slice": "S05",
+      "packet": "R03",
+      "disposition": "retain",
+      "targets": [
+        "packages/state/src/fanout/lifecycle.ts"
+      ],
+      "gate": "Owning producer/consumer and C08/C09/R01 qualification remain open; provenance is retained",
+      "review": "Merged committed source registration and scoped read-only responsibility review; no product execution or semantic acceptance"
+    },
+    {
+      "source": "packages/state/src/fanout/membership.ts",
+      "slice": "S05",
+      "packet": "R03",
+      "disposition": "retain",
+      "targets": [
+        "packages/state/src/fanout/membership.ts"
+      ],
+      "gate": "Owning producer/consumer and C08/C09/R01 qualification remain open; provenance is retained",
+      "review": "Merged committed source registration and scoped read-only responsibility review; no product execution or semantic acceptance"
+    },
+    {
+      "source": "packages/state/src/fanout/outcome.ts",
+      "slice": "S05",
+      "packet": "R03",
+      "disposition": "retain",
+      "targets": [
+        "packages/state/src/fanout/outcome.ts"
+      ],
+      "gate": "Owning producer/consumer and C08/C09/R01 qualification remain open; provenance is retained",
+      "review": "Merged committed source registration and scoped read-only responsibility review; no product execution or semantic acceptance"
+    },
+    {
+      "source": "packages/state/src/fanout/progress.ts",
+      "slice": "S05",
+      "packet": "R03",
+      "disposition": "retain",
+      "targets": [
+        "packages/state/src/fanout/progress.ts"
+      ],
+      "gate": "Owning producer/consumer and C08/C09/R01 qualification remain open; provenance is retained",
+      "review": "Merged committed source registration and scoped read-only responsibility review; no product execution or semantic acceptance"
+    },
+    {
+      "source": "packages/state/src/fanout/t34-f5-admission.test.ts",
+      "slice": "S05",
+      "packet": "R03",
+      "disposition": "move",
+      "targets": [
+        "packages/state/test/fanout/t34-f5-admission.test.ts"
+      ],
+      "gate": "C05/R08 discovery and relative-import cutover; owning C08/C09 proof before any move",
+      "review": "Merged committed source registration and scoped read-only responsibility review; no product execution or semantic acceptance"
+    },
+    {
+      "source": "packages/state/src/fanout/t34-f5-child-join.test.ts",
+      "slice": "S05",
+      "packet": "R03",
+      "disposition": "move",
+      "targets": [
+        "packages/state/test/fanout/t34-f5-child-join.test.ts"
+      ],
+      "gate": "C05/R08 discovery and relative-import cutover; owning C08/C09 proof before any move",
+      "review": "Merged committed source registration and scoped read-only responsibility review; no product execution or semantic acceptance"
+    },
+    {
+      "source": "packages/state/src/fanout/t34-f5-durable.test.ts",
+      "slice": "S05",
+      "packet": "R03",
+      "disposition": "move",
+      "targets": [
+        "packages/state/test/fanout/t34-f5-durable.test.ts"
+      ],
+      "gate": "C05/R08 discovery and relative-import cutover; owning C08/C09 proof before any move",
+      "review": "Merged committed source registration and scoped read-only responsibility review; no product execution or semantic acceptance"
+    },
+    {
+      "source": "packages/state/src/fanout/t34-f5-lifecycle.test.ts",
+      "slice": "S05",
+      "packet": "R03",
+      "disposition": "move",
+      "targets": [
+        "packages/state/test/fanout/t34-f5-lifecycle.test.ts"
+      ],
+      "gate": "C05/R08 discovery and relative-import cutover; owning C08/C09 proof before any move",
+      "review": "Merged committed source registration and scoped read-only responsibility review; no product execution or semantic acceptance"
+    },
+    {
+      "source": "packages/state/src/fanout/t34-f5-membership.test.ts",
+      "slice": "S05",
+      "packet": "R03",
+      "disposition": "move",
+      "targets": [
+        "packages/state/test/fanout/t34-f5-membership.test.ts"
+      ],
+      "gate": "C05/R08 discovery and relative-import cutover; owning C08/C09 proof before any move",
+      "review": "Merged committed source registration and scoped read-only responsibility review; no product execution or semantic acceptance"
+    },
+    {
+      "source": "packages/state/src/fanout/t34-f5-progress.test.ts",
+      "slice": "S05",
+      "packet": "R03",
+      "disposition": "move",
+      "targets": [
+        "packages/state/test/fanout/t34-f5-progress.test.ts"
+      ],
+      "gate": "C05/R08 discovery and relative-import cutover; owning C08/C09 proof before any move",
+      "review": "Merged committed source registration and scoped read-only responsibility review; no product execution or semantic acceptance"
+    },
+    {
+      "source": "packages/state/src/fanout/tables.ts",
+      "slice": "S05",
+      "packet": "R03",
+      "disposition": "retain",
+      "targets": [
+        "packages/state/src/fanout/tables.ts"
+      ],
+      "gate": "Owning producer/consumer and C08/C09/R01 qualification remain open; provenance is retained",
+      "review": "Merged committed source registration and scoped read-only responsibility review; no product execution or semantic acceptance"
+    },
+    {
+      "source": "packages/state/src/fanout/test-driver.ts",
+      "slice": "S05",
+      "packet": "R03",
+      "disposition": "move",
+      "targets": [
+        "packages/state/test/fanout/test-driver.ts"
+      ],
+      "gate": "C05/R08 discovery and relative-import cutover; owning C08/C09 proof before any move",
+      "review": "Merged committed source registration and scoped read-only responsibility review; no product execution or semantic acceptance"
+    },
+    {
+      "source": "packages/state/src/fanout/work-loader.ts",
+      "slice": "S05",
+      "packet": "R03",
+      "disposition": "move",
+      "targets": [
+        "packages/state/test/fanout/work-loader.ts"
+      ],
+      "gate": "C05/R08 discovery and relative-import cutover; owning C08/C09 proof before any move",
+      "review": "Merged committed source registration and scoped read-only responsibility review; no product execution or semantic acceptance"
+    },
+    {
+      "source": "packages/state/src/mutation/t18-defaults-durable.test.ts",
+      "slice": "S05",
+      "packet": "R03",
+      "disposition": "move",
+      "targets": [
+        "packages/state/test/mutation/t18-defaults-durable.test.ts"
+      ],
+      "gate": "C05/R08 discovery and relative-import cutover; owning C08/C09 proof before any move",
+      "review": "Merged committed source registration and scoped read-only responsibility review; no product execution or semantic acceptance"
+    },
+    {
+      "source": "packages/state/src/receipt/grants.ts",
+      "slice": "S05",
+      "packet": "R03",
+      "disposition": "retain",
+      "targets": [
+        "packages/state/src/receipt/grants.ts"
+      ],
+      "gate": "Owning producer/consumer and C08/C09/R01 qualification remain open; provenance is retained",
+      "review": "Merged committed source registration and scoped read-only responsibility review; no product execution or semantic acceptance"
+    },
+    {
+      "source": "packages/state/src/receipt/join.ts",
+      "slice": "S05",
+      "packet": "R03",
+      "disposition": "retain",
+      "targets": [
+        "packages/state/src/receipt/join.ts"
+      ],
+      "gate": "Owning producer/consumer and C08/C09/R01 qualification remain open; provenance is retained",
+      "review": "Merged committed source registration and scoped read-only responsibility review; no product execution or semantic acceptance"
+    },
+    {
+      "source": "packages/state/src/receipt/t25-receipt-durable.test.ts",
+      "slice": "S05",
+      "packet": "R03",
+      "disposition": "move",
+      "targets": [
+        "packages/state/test/receipt/t25-receipt-durable.test.ts"
+      ],
+      "gate": "C05/R08 discovery and relative-import cutover; owning C08/C09 proof before any move",
+      "review": "Merged committed source registration and scoped read-only responsibility review; no product execution or semantic acceptance"
+    },
+    {
+      "source": "packages/state/src/receipt/t25-receipt-join.test.ts",
+      "slice": "S05",
+      "packet": "R03",
+      "disposition": "move",
+      "targets": [
+        "packages/state/test/receipt/t25-receipt-join.test.ts"
+      ],
+      "gate": "C05/R08 discovery and relative-import cutover; owning C08/C09 proof before any move",
+      "review": "Merged committed source registration and scoped read-only responsibility review; no product execution or semantic acceptance"
+    },
+    {
+      "source": "packages/state/src/receipt/tables.ts",
+      "slice": "S05",
+      "packet": "R03",
+      "disposition": "retain",
+      "targets": [
+        "packages/state/src/receipt/tables.ts"
+      ],
+      "gate": "Owning producer/consumer and C08/C09/R01 qualification remain open; provenance is retained",
+      "review": "Merged committed source registration and scoped read-only responsibility review; no product execution or semantic acceptance"
+    },
+    {
+      "source": "packages/state/src/receipt/work-loader.ts",
+      "slice": "S05",
+      "packet": "R03",
+      "disposition": "move",
+      "targets": [
+        "packages/state/test/receipt/work-loader.ts"
+      ],
+      "gate": "C05/R08 discovery and relative-import cutover; owning C08/C09 proof before any move",
+      "review": "Merged committed source registration and scoped read-only responsibility review; no product execution or semantic acceptance"
+    },
+    {
+      "source": "packages/ui/test/t20a-generated-forms.test.ts",
+      "slice": "S08",
+      "packet": "R05",
+      "disposition": "retain",
+      "targets": [
+        "packages/ui/test/t20a-generated-forms.test.ts"
+      ],
+      "gate": "Owning producer/consumer and C08/C09/R01 qualification remain open; provenance is retained",
+      "review": "Merged committed source registration and scoped read-only responsibility review; no product execution or semantic acceptance"
+    },
+    {
+      "source": "packages/work/src/dispatch/t34-f3-claim.test.ts",
+      "slice": "S06",
+      "packet": "R04",
+      "disposition": "move",
+      "targets": [
+        "packages/work/test/dispatch/t34-f3-claim.test.ts"
+      ],
+      "gate": "C05/R08 discovery and relative-import cutover; owning C08/C09 proof before any move",
+      "review": "Merged committed source registration and scoped read-only responsibility review; no product execution or semantic acceptance"
+    },
+    {
+      "source": "packages/work/src/dispatch/t34-f3-progress.test.ts",
+      "slice": "S06",
+      "packet": "R04",
+      "disposition": "move",
+      "targets": [
+        "packages/work/test/dispatch/t34-f3-progress.test.ts"
+      ],
+      "gate": "C05/R08 discovery and relative-import cutover; owning C08/C09 proof before any move",
+      "review": "Merged committed source registration and scoped read-only responsibility review; no product execution or semantic acceptance"
+    },
+    {
+      "source": "packages/work/src/dispatch/t34-f3-record.test.ts",
+      "slice": "S06",
+      "packet": "R04",
+      "disposition": "move",
+      "targets": [
+        "packages/work/test/dispatch/t34-f3-record.test.ts"
+      ],
+      "gate": "C05/R08 discovery and relative-import cutover; owning C08/C09 proof before any move",
+      "review": "Merged committed source registration and scoped read-only responsibility review; no product execution or semantic acceptance"
+    },
+    {
+      "source": "packages/work/src/kernel/t34-f2-durable.test.ts",
+      "slice": "S06",
+      "packet": "R04",
+      "disposition": "move",
+      "targets": [
+        "packages/work/test/kernel/t34-f2-durable.test.ts"
+      ],
+      "gate": "C05/R08 discovery and relative-import cutover; owning C08/C09 proof before any move",
+      "review": "Merged committed source registration and scoped read-only responsibility review; no product execution or semantic acceptance"
+    },
+    {
+      "source": "packages/work/src/kernel/t34-f2-tables.test.ts",
+      "slice": "S06",
+      "packet": "R04",
+      "disposition": "move",
+      "targets": [
+        "packages/work/test/kernel/t34-f2-tables.test.ts"
+      ],
+      "gate": "C05/R08 discovery and relative-import cutover; owning C08/C09 proof before any move",
+      "review": "Merged committed source registration and scoped read-only responsibility review; no product execution or semantic acceptance"
+    },
+    {
+      "source": "packages/work/src/observation/t26-progress.test.ts",
+      "slice": "S06",
+      "packet": "R04",
+      "disposition": "move",
+      "targets": [
+        "packages/work/test/observation/t26-progress.test.ts"
+      ],
+      "gate": "C05/R08 discovery and relative-import cutover; owning C08/C09 proof before any move",
+      "review": "Merged committed source registration and scoped read-only responsibility review; no product execution or semantic acceptance"
+    },
+    {
+      "source": "packages/work/src/recovery/t26-durable.test.ts",
+      "slice": "S06",
+      "packet": "R04",
+      "disposition": "move",
+      "targets": [
+        "packages/work/test/recovery/t26-durable.test.ts"
+      ],
+      "gate": "C05/R08 discovery and relative-import cutover; owning C08/C09 proof before any move",
+      "review": "Merged committed source registration and scoped read-only responsibility review; no product execution or semantic acceptance"
+    },
+    {
+      "source": "packages/work/src/recovery/t26-resume.test.ts",
+      "slice": "S06",
+      "packet": "R04",
+      "disposition": "move",
+      "targets": [
+        "packages/work/test/recovery/t26-resume.test.ts"
+      ],
+      "gate": "C05/R08 discovery and relative-import cutover; owning C08/C09 proof before any move",
+      "review": "Merged committed source registration and scoped read-only responsibility review; no product execution or semantic acceptance"
+    },
+    {
+      "source": "packages/work/src/recovery/t34-f4-durable.test.ts",
+      "slice": "S06",
+      "packet": "R04",
+      "disposition": "move",
+      "targets": [
+        "packages/work/test/recovery/t34-f4-durable.test.ts"
+      ],
+      "gate": "C05/R08 discovery and relative-import cutover; owning C08/C09 proof before any move",
+      "review": "Merged committed source registration and scoped read-only responsibility review; no product execution or semantic acceptance"
+    },
+    {
+      "source": "packages/work/src/recovery/t34-f4-scan.test.ts",
+      "slice": "S06",
+      "packet": "R04",
+      "disposition": "move",
+      "targets": [
+        "packages/work/test/recovery/t34-f4-scan.test.ts"
+      ],
+      "gate": "C05/R08 discovery and relative-import cutover; owning C08/C09 proof before any move",
+      "review": "Merged committed source registration and scoped read-only responsibility review; no product execution or semantic acceptance"
     }
   ],
   "target_leaves": [
@@ -51434,6 +51918,490 @@
       ],
       "status": "current",
       "writer_packet": "R08"
+    },
+    {
+      "path": "implementation/REMAINING-IMPLEMENTATION-LANES.md",
+      "sources": [
+        "implementation/REMAINING-IMPLEMENTATION-LANES.md"
+      ],
+      "packets": [
+        "R07"
+      ],
+      "status": "current",
+      "writer_packet": "R07"
+    },
+    {
+      "path": "implementation/challenge-audit-run/recovery-checkpoint.md",
+      "sources": [
+        "implementation/challenge-audit-run/recovery-checkpoint.md"
+      ],
+      "packets": [
+        "R07"
+      ],
+      "status": "current",
+      "writer_packet": "R07"
+    },
+    {
+      "path": "packages/cloudflare/test/runtime/t34-f7-fanout-durable.test.ts",
+      "sources": [
+        "packages/cloudflare/src/runtime/t34-f7-fanout-durable.test.ts"
+      ],
+      "packets": [
+        "R06"
+      ],
+      "status": "proposed",
+      "writer_packet": "R06"
+    },
+    {
+      "path": "packages/cloudflare/test/runtime/t34-f7-fanout.test.ts",
+      "sources": [
+        "packages/cloudflare/src/runtime/t34-f7-fanout.test.ts"
+      ],
+      "packets": [
+        "R06"
+      ],
+      "status": "proposed",
+      "writer_packet": "R06"
+    },
+    {
+      "path": "packages/contracts/test/fanout-records.test.ts",
+      "sources": [
+        "packages/contracts/test/fanout-records.test.ts"
+      ],
+      "packets": [
+        "R02"
+      ],
+      "status": "current",
+      "writer_packet": "R02"
+    },
+    {
+      "path": "packages/contracts/test/t19a-derived-inputs.test.ts",
+      "sources": [
+        "packages/contracts/test/t19a-derived-inputs.test.ts"
+      ],
+      "packets": [
+        "R02"
+      ],
+      "status": "current",
+      "writer_packet": "R02"
+    },
+    {
+      "path": "packages/contracts/test/t19b-depth.test.ts",
+      "sources": [
+        "packages/contracts/test/t19b-depth.test.ts"
+      ],
+      "packets": [
+        "R02"
+      ],
+      "status": "current",
+      "writer_packet": "R02"
+    },
+    {
+      "path": "packages/contracts/test/t20a-presentation.test.ts",
+      "sources": [
+        "packages/contracts/test/t20a-presentation.test.ts"
+      ],
+      "packets": [
+        "R02"
+      ],
+      "status": "current",
+      "writer_packet": "R02"
+    },
+    {
+      "path": "packages/contracts/test/t26-progress-relations.test.ts",
+      "sources": [
+        "packages/contracts/test/t26-progress-relations.test.ts"
+      ],
+      "packets": [
+        "R02"
+      ],
+      "status": "current",
+      "writer_packet": "R02"
+    },
+    {
+      "path": "packages/interfaces/test/t19a-derivation.test.ts",
+      "sources": [
+        "packages/interfaces/test/t19a-derivation.test.ts"
+      ],
+      "packets": [
+        "R05"
+      ],
+      "status": "current",
+      "writer_packet": "R05"
+    },
+    {
+      "path": "packages/interfaces/test/t19b-depth.test.ts",
+      "sources": [
+        "packages/interfaces/test/t19b-depth.test.ts"
+      ],
+      "packets": [
+        "R05"
+      ],
+      "status": "current",
+      "writer_packet": "R05"
+    },
+    {
+      "path": "packages/interfaces/test/t20a-presentation.test.ts",
+      "sources": [
+        "packages/interfaces/test/t20a-presentation.test.ts"
+      ],
+      "packets": [
+        "R05"
+      ],
+      "status": "current",
+      "writer_packet": "R05"
+    },
+    {
+      "path": "packages/state/src/fanout/cohort.ts",
+      "sources": [
+        "packages/state/src/fanout/cohort.ts"
+      ],
+      "packets": [
+        "R03"
+      ],
+      "status": "current",
+      "writer_packet": "R03"
+    },
+    {
+      "path": "packages/state/src/fanout/lifecycle.ts",
+      "sources": [
+        "packages/state/src/fanout/lifecycle.ts"
+      ],
+      "packets": [
+        "R03"
+      ],
+      "status": "current",
+      "writer_packet": "R03"
+    },
+    {
+      "path": "packages/state/src/fanout/membership.ts",
+      "sources": [
+        "packages/state/src/fanout/membership.ts"
+      ],
+      "packets": [
+        "R03"
+      ],
+      "status": "current",
+      "writer_packet": "R03"
+    },
+    {
+      "path": "packages/state/src/fanout/outcome.ts",
+      "sources": [
+        "packages/state/src/fanout/outcome.ts"
+      ],
+      "packets": [
+        "R03"
+      ],
+      "status": "current",
+      "writer_packet": "R03"
+    },
+    {
+      "path": "packages/state/src/fanout/progress.ts",
+      "sources": [
+        "packages/state/src/fanout/progress.ts"
+      ],
+      "packets": [
+        "R03"
+      ],
+      "status": "current",
+      "writer_packet": "R03"
+    },
+    {
+      "path": "packages/state/src/fanout/tables.ts",
+      "sources": [
+        "packages/state/src/fanout/tables.ts"
+      ],
+      "packets": [
+        "R03"
+      ],
+      "status": "current",
+      "writer_packet": "R03"
+    },
+    {
+      "path": "packages/state/src/receipt/grants.ts",
+      "sources": [
+        "packages/state/src/receipt/grants.ts"
+      ],
+      "packets": [
+        "R03"
+      ],
+      "status": "current",
+      "writer_packet": "R03"
+    },
+    {
+      "path": "packages/state/src/receipt/join.ts",
+      "sources": [
+        "packages/state/src/receipt/join.ts"
+      ],
+      "packets": [
+        "R03"
+      ],
+      "status": "current",
+      "writer_packet": "R03"
+    },
+    {
+      "path": "packages/state/src/receipt/tables.ts",
+      "sources": [
+        "packages/state/src/receipt/tables.ts"
+      ],
+      "packets": [
+        "R03"
+      ],
+      "status": "current",
+      "writer_packet": "R03"
+    },
+    {
+      "path": "packages/state/test/fanout/t34-f5-admission.test.ts",
+      "sources": [
+        "packages/state/src/fanout/t34-f5-admission.test.ts"
+      ],
+      "packets": [
+        "R03"
+      ],
+      "status": "proposed",
+      "writer_packet": "R03"
+    },
+    {
+      "path": "packages/state/test/fanout/t34-f5-child-join.test.ts",
+      "sources": [
+        "packages/state/src/fanout/t34-f5-child-join.test.ts"
+      ],
+      "packets": [
+        "R03"
+      ],
+      "status": "proposed",
+      "writer_packet": "R03"
+    },
+    {
+      "path": "packages/state/test/fanout/t34-f5-durable.test.ts",
+      "sources": [
+        "packages/state/src/fanout/t34-f5-durable.test.ts"
+      ],
+      "packets": [
+        "R03"
+      ],
+      "status": "proposed",
+      "writer_packet": "R03"
+    },
+    {
+      "path": "packages/state/test/fanout/t34-f5-lifecycle.test.ts",
+      "sources": [
+        "packages/state/src/fanout/t34-f5-lifecycle.test.ts"
+      ],
+      "packets": [
+        "R03"
+      ],
+      "status": "proposed",
+      "writer_packet": "R03"
+    },
+    {
+      "path": "packages/state/test/fanout/t34-f5-membership.test.ts",
+      "sources": [
+        "packages/state/src/fanout/t34-f5-membership.test.ts"
+      ],
+      "packets": [
+        "R03"
+      ],
+      "status": "proposed",
+      "writer_packet": "R03"
+    },
+    {
+      "path": "packages/state/test/fanout/t34-f5-progress.test.ts",
+      "sources": [
+        "packages/state/src/fanout/t34-f5-progress.test.ts"
+      ],
+      "packets": [
+        "R03"
+      ],
+      "status": "proposed",
+      "writer_packet": "R03"
+    },
+    {
+      "path": "packages/state/test/fanout/test-driver.ts",
+      "sources": [
+        "packages/state/src/fanout/test-driver.ts"
+      ],
+      "packets": [
+        "R03"
+      ],
+      "status": "proposed",
+      "writer_packet": "R03"
+    },
+    {
+      "path": "packages/state/test/fanout/work-loader.ts",
+      "sources": [
+        "packages/state/src/fanout/work-loader.ts"
+      ],
+      "packets": [
+        "R03"
+      ],
+      "status": "proposed",
+      "writer_packet": "R03"
+    },
+    {
+      "path": "packages/state/test/mutation/t18-defaults-durable.test.ts",
+      "sources": [
+        "packages/state/src/mutation/t18-defaults-durable.test.ts"
+      ],
+      "packets": [
+        "R03"
+      ],
+      "status": "proposed",
+      "writer_packet": "R03"
+    },
+    {
+      "path": "packages/state/test/receipt/t25-receipt-durable.test.ts",
+      "sources": [
+        "packages/state/src/receipt/t25-receipt-durable.test.ts"
+      ],
+      "packets": [
+        "R03"
+      ],
+      "status": "proposed",
+      "writer_packet": "R03"
+    },
+    {
+      "path": "packages/state/test/receipt/t25-receipt-join.test.ts",
+      "sources": [
+        "packages/state/src/receipt/t25-receipt-join.test.ts"
+      ],
+      "packets": [
+        "R03"
+      ],
+      "status": "proposed",
+      "writer_packet": "R03"
+    },
+    {
+      "path": "packages/state/test/receipt/work-loader.ts",
+      "sources": [
+        "packages/state/src/receipt/work-loader.ts"
+      ],
+      "packets": [
+        "R03"
+      ],
+      "status": "proposed",
+      "writer_packet": "R03"
+    },
+    {
+      "path": "packages/ui/test/t20a-generated-forms.test.ts",
+      "sources": [
+        "packages/ui/test/t20a-generated-forms.test.ts"
+      ],
+      "packets": [
+        "R05"
+      ],
+      "status": "current",
+      "writer_packet": "R05"
+    },
+    {
+      "path": "packages/work/test/dispatch/t34-f3-claim.test.ts",
+      "sources": [
+        "packages/work/src/dispatch/t34-f3-claim.test.ts"
+      ],
+      "packets": [
+        "R04"
+      ],
+      "status": "proposed",
+      "writer_packet": "R04"
+    },
+    {
+      "path": "packages/work/test/dispatch/t34-f3-progress.test.ts",
+      "sources": [
+        "packages/work/src/dispatch/t34-f3-progress.test.ts"
+      ],
+      "packets": [
+        "R04"
+      ],
+      "status": "proposed",
+      "writer_packet": "R04"
+    },
+    {
+      "path": "packages/work/test/dispatch/t34-f3-record.test.ts",
+      "sources": [
+        "packages/work/src/dispatch/t34-f3-record.test.ts"
+      ],
+      "packets": [
+        "R04"
+      ],
+      "status": "proposed",
+      "writer_packet": "R04"
+    },
+    {
+      "path": "packages/work/test/kernel/t34-f2-durable.test.ts",
+      "sources": [
+        "packages/work/src/kernel/t34-f2-durable.test.ts"
+      ],
+      "packets": [
+        "R04"
+      ],
+      "status": "proposed",
+      "writer_packet": "R04"
+    },
+    {
+      "path": "packages/work/test/kernel/t34-f2-tables.test.ts",
+      "sources": [
+        "packages/work/src/kernel/t34-f2-tables.test.ts"
+      ],
+      "packets": [
+        "R04"
+      ],
+      "status": "proposed",
+      "writer_packet": "R04"
+    },
+    {
+      "path": "packages/work/test/observation/t26-progress.test.ts",
+      "sources": [
+        "packages/work/src/observation/t26-progress.test.ts"
+      ],
+      "packets": [
+        "R04"
+      ],
+      "status": "proposed",
+      "writer_packet": "R04"
+    },
+    {
+      "path": "packages/work/test/recovery/t26-durable.test.ts",
+      "sources": [
+        "packages/work/src/recovery/t26-durable.test.ts"
+      ],
+      "packets": [
+        "R04"
+      ],
+      "status": "proposed",
+      "writer_packet": "R04"
+    },
+    {
+      "path": "packages/work/test/recovery/t26-resume.test.ts",
+      "sources": [
+        "packages/work/src/recovery/t26-resume.test.ts"
+      ],
+      "packets": [
+        "R04"
+      ],
+      "status": "proposed",
+      "writer_packet": "R04"
+    },
+    {
+      "path": "packages/work/test/recovery/t34-f4-durable.test.ts",
+      "sources": [
+        "packages/work/src/recovery/t34-f4-durable.test.ts"
+      ],
+      "packets": [
+        "R04"
+      ],
+      "status": "proposed",
+      "writer_packet": "R04"
+    },
+    {
+      "path": "packages/work/test/recovery/t34-f4-scan.test.ts",
+      "sources": [
+        "packages/work/src/recovery/t34-f4-scan.test.ts"
+      ],
+      "packets": [
+        "R04"
+      ],
+      "status": "proposed",
+      "writer_packet": "R04"
     }
   ],
   "draft_gitlink": "draft",
@@ -51609,6 +52577,7 @@
     "docs/ideal-filetree-plan/findings.md",
     "docs/ideal-filetree-plan/inventory.json",
     "docs/ideal-filetree-plan/lanes.md",
+    "docs/ideal-filetree-plan/main-merge-20261006.json",
     "docs/ideal-filetree-plan/ownership.md",
     "docs/ideal-filetree-plan/prior-review.md",
     "docs/ideal-filetree-plan/reviews/compiler-coverage.json",
@@ -51623,5 +52592,13 @@
     "docs/ideal-filetree-plan/tasks.md",
     "docs/ideal-filetree-plan/verification.json"
   ],
-  "final_structural_capture_pin": "b82c0de8650b41a55bee35d8a98a8e707285eaf9"
+  "final_structural_capture_pin": "1126544868df1762f96d1936c3139a420d6afbf5",
+  "pre_merge_structural_capture_pin": "b82c0de8650b41a55bee35d8a98a8e707285eaf9",
+  "merge_reconciliation": {
+    "record": "docs/ideal-filetree-plan/main-merge-20261006.json",
+    "source_tip": "1126544868df1762f96d1936c3139a420d6afbf5",
+    "checkpoint_advanced": false,
+    "all_changed_paths_accounted": 487,
+    "new_inputs_registered": 44
+  }
 }

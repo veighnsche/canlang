@@ -1,12 +1,12 @@
 # Dependency-ordered implementation packets
 
-This document launches no work. Existing T01–T41 and D01–D08 checklists remain owned by their active coordinator. The packets below organize findings and the complete selected tree; they supplement those tasks without editing their status or creating a second implementation run. [backlog.json](backlog.json) captures the 41 parent tasks at the audit pin and maps them to slices/packets; reported completion is not fresh qualification.
+This document launches no work. Existing T01–T41 and D01–D08 checklists preserve the stopped coordinator's historical work; implementation remains user-stopped. The packets below organize findings and the complete selected tree without editing those task statuses or expanding the finite remaining implementation scope. [backlog.json](backlog.json) captures the 41 parent tasks at the audit pin and maps them to slices/packets; reported completion is not fresh qualification.
 
 ## Correctness and delivery before decomposition
 
 | Packet | Scope / exclusive writer allocation | Prerequisites and acceptance |
 | --- | --- | --- |
-| G01 | Fanout contract incorporation/handoff; `implementation/challenge-audit-run/t33-resolution.md`, corrected `design/jev/t33-context-correction-20261006/`, existing fanout evidence and owning normative/contract files under reservation | Preserve historical mixed advice and its context omission. Corrected companion/source evidence requires complete finite cohorts, per-child isolation/progress; untracked resolution supplies durable A direction and proof plan. Verify ratified owner incorporation and exact authoritative membership/identity/checkpoint/recovery contracts before emission/schema dispatch. No invented semantic count cap or population estimate to preserve the stated outcome; T34 remains implementation work. |
+| G01 | Committed adopted fanout contract and producer/consumer qualification; `implementation/challenge-audit-run/t33-resolution.md`, corrected `design/jev/t33-context-correction-20261006/`, existing fanout evidence and owning normative/contract files | Preserve historical mixed advice and its context omission. The corrected direction and proof plan are committed; F1–F5 mechanism source exists. Qualify exact authoritative membership/identity/checkpoint/recovery and generated-serving joins; F6/F7/T26 remain unfinished checkpoints. No invented semantic count cap or population estimate to preserve the stated complete finite-cohort outcome; T34 remains open. |
 | C01 | Policy contract and fail-closed canonical execution; contracts `artifact.ts`/`state.ts`; compiler `codegen/{js,artifact}.rs`; Cloudflare `runtime/invoke.ts`; state `invocation/admission.ts`; corresponding owning tests | Obtain active writer release; agree metadata/read-rule/operation/default-deny interpretation first. One writer per exact file, producer contract then consumer. Compiled role-restricted CRUD/read tests prove anonymous/foreign-team/unmatched/default-deny/field-filter cases, malformed/missing policy refusal and explicit public success on real D1/DO. Reopen matching T04/T16/T17 qualification as needed. |
 | C02 | Generated context and selected app facts; contracts `artifact.ts`/`presentation.ts`; compiler `codegen/{ir,js,artifact}.rs`; Cloudflare `runtime/{context,invoke}.ts`, `worker/assembly.ts`; focused source-bound tests | C01 contract seam settled; exact shared-file reservation. Carry authored selected app/package identity/default locale and frozen actor/time/clock from canonical admission. Rename/reorder source operands without changing receipt identity; compiled actor/now tests, fence retries and replay prove one frozen instant and no request override. |
 | C03 | Outer staged activation gate; Cloudflare `worker/main.ts`, `runtime/{grant-route,env-assembly}.ts`; owning `test/worker-main.test.ts`, `test/mcp-grant-route.test.ts` | Identity/transport contract agreed; C01 before qualification. All routes including grants refuse absent/inactive/incompatible stages before state/grant writes. Authorized active-stage grant/MCP positive and inactive/missing negatives use real assembly, not substituted gate callbacks. |
@@ -41,3 +41,26 @@ Where a proposed exact filename is absent, inspect current defining owners befor
 | R08 | Final build/export/test/install graph after all structural moves | C05 plus completed affected R01–R07; producer checks → root checks → compiled joins → local Worker/browser/MCP journeys → staged upgrade → external clean install/artifact qualification. Complete desired APIs and final file sizes are unverified until this packet runs. |
 
 Every allocation has one packet and source slice. An open decision gates only dependent work. A blocked R packet can still prepare independent fixtures/review evidence without editing shared implementation.
+
+## Main merge reconciliation, 2026-10-06
+
+All 118 branch commits were fast-forwarded onto `main` through `1126544`, preserving
+their hashes and the exact source tree. The [merge record](main-merge-20261006.json)
+accounts for all 487 changed paths since the complete checkpoint and registers
+44 newer source inputs with exact defining owners/targets. Current structural
+coverage is updated; primary audit evidence remains pinned to its historical source.
+The complete checkpoint stays at `8249342`: deep joined-path review and product
+qualification remain unfinished. This bookkeeping is not implementation acceptance.
+
+F1–F5 fanout mechanisms, T25 receipt persistence/fences, T18 engine initialization,
+T19 derivation and T20 form factories now exist in committed source. F6/F7/T26 are
+explicitly unfinished checkpoints. Historical blanket absence claims are superseded
+at that mechanism scope; generated serving, production receipt/default/form joins,
+C05 discovery/import cutover, C08/C09 and original R01 remain open. New test drivers
+and colocated witnesses have testing successors gated on actual caller/discovery
+cutover. Existing retirement decisions remain unchanged.
+
+The old implementation run is user-stopped, its heartbeat paused, and only the main
+checkout remains. No Muse instances, timers, worktrees or implementation are launched
+by this merge. The separate [remaining implementation plan](../../implementation/REMAINING-IMPLEMENTATION-LANES.md)
+defines that finite authorized backlog; this file-tree plan does not expand it.
