@@ -1,0 +1,61 @@
+{
+ "status": "rev2-committed-pending",
+ "base": "d93fc4b",
+ "drafts": [
+  {
+   "file": "compiler/A2B-NAMED-ARGS-CONVENTION.md",
+   "for": "C",
+   "proposal": "named->positional in signature order; local_instant needs no stdlib change",
+   "questions": 3
+  },
+  {
+   "file": "compiler/A2B-COMPOSITE-UNIQUE-CONVENTION.md",
+   "for": "B",
+   "proposal": "sparse uniques:[{fields,where?}] model member + registry rule; enforcement stays B runtime",
+   "questions": 4,
+   "also_notes": "T15a uniqueKeys currently drops where= (B call on structure)"
+  },
+  {
+   "file": "compiler/A2B-UI-NODE-FACTORY-CONVENTION.md",
+   "for": "F",
+   "proposal": "compiler allowlist+profiles for radio/select/fieldset/fab/chat_bubble/delete; require=admit/gate desugar (no factory)",
+   "questions": 5,
+   "also_notes": [
+    "unknown factories subsume subtrees: radio + nested select are latent diags, land together",
+    "draft uses remove() for delete but catalog says deleteRecord: F to confirm"
+   ]
+  }
+ ],
+ "note": "Rev2 applies all B/C/F verdicts vs 9c1d35c. Docs-only; implementation grants follow rev2.",
+ "rev1": "9c1d35c",
+ "rev2_base": "9c1d35c",
+ "verdicts": {
+  "named-args": {
+   "from": "C",
+   "result": "all 3 confirmed (positional stdlib, fold spelling, no 2nd exception)",
+   "flag": "message/ICU different decoder \u2014 A CONFIRMED (IrMessage/lower_message), scoped out of rule"
+  },
+  "composite-unique": {
+   "from": "B",
+   "result": "uniques member + registry rule + B-runtime enforcement + scope-inherit CONFIRMED",
+   "corrections": [
+    "locks-mirror wrong (flat string ids js.rs:3742,4219) \u2014 cite invariants:[ids] precedent",
+    "registry conditions: namespaced ids + purity",
+    "enforcement: fence/commit path, server-side rule resolution, SCOPE FLAG new B work",
+    "T15a: SHED composites from uniqueKeys + artifact.ts:316 migration; C re-verifies T16",
+    "evidence caveat: raw-diags cited from scratch, not A tree"
+   ]
+  },
+  "ui-node-factory": {
+   "from": "F",
+   "result": "agreed incl require-desugar + subsumption",
+   "corrections": [
+    "delete JS name MUST be deleteRecord (no remove export)",
+    "fab NO children \u2014 emit main+actions (FabProps)",
+    "DeleteProps required list; compiler supplies action+operation+operationId, picks mode; bare-delete->archive",
+    "chat_bubble slots + fieldset caption confirmed",
+    "appearance: absent admits nothing; radio/select tone+size, chat_bubble tone only, fab/fieldset nothing"
+   ]
+  }
+ }
+}
