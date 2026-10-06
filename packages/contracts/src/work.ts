@@ -597,3 +597,43 @@ export interface FanoutCohortDiagnosis {
   /** Safe human-readable message. */
   message: string;
 }
+
+/* -- T26 associated observable progress (L4 progress slice). -- */
+
+/**
+ * Terminal receipt states: a retained outcome in one of these states is
+ * never rewritten by later progress, cancellation or re-drive (T26
+ * terminal immutability). `pending` has no outcome yet; `unknown` stays
+ * uncertain until reconciling progress arrives.
+ */
+export type TerminalReceiptStatus = 'succeeded' | 'failed' | 'skipped';
+
+/**
+ * T26 progress relations: every T13 delivery-observable target, T13a
+ * common plus T13b rich, in declaration order. Derived by reference
+ * (never recopied target strings), so the universe cannot drift from
+ * its matching T13 declarations. Each relation qualifies independently;
+ * no cross-relation inference.
+ */
+export const T26_PROGRESS_RELATIONS: readonly DeliveryObservableDecl[] = [
+  ...T13A_DELIVERY_OBSERVABLES,
+  ...T13B_DELIVERY_OBSERVABLES,
+];
+
+/**
+ * Terminal-transition notification for one relation. Data-minimized:
+ * names the relation, the attempt and its retained terminal outcome,
+ * never the granted result/error payload (those stay behind leaf
+ * authorization). Emitted exactly once per non-terminal to terminal
+ * transition; duplicate replays emit nothing.
+ */
+export interface ProgressTerminalNotification {
+  /** Matching T13 delivery-observable target, e.g. `std.EmailV1.send`. */
+  relation: string;
+  /** Current attempt's delivery id. */
+  deliveryId: string;
+  /** Owner checkpoint revision of the terminal transition. */
+  revision: number;
+  /** Retained terminal outcome. */
+  status: TerminalReceiptStatus;
+}

@@ -17,6 +17,7 @@
  *   handler-contract vocabulary (L3 trusts that attestation).
  */
 import type {
+  AssociatedReceipt,
   DispatchClaim,
   FanoutFailedReason,
   FanoutId,
@@ -24,6 +25,8 @@ import type {
   OutboxId,
   OutboxItem,
   PendingWorkInventory,
+  ReceiptAssociation,
+  ReceiptStatus,
   RetryClass,
   RetryPolicy,
   ScheduledOccurrence,
@@ -36,6 +39,8 @@ import type {
 } from '../kernel/tables.ts';
 import { DEFAULT_RETRY_POLICY, classifyFailure } from '../receipt/index.ts';
 import type { FailureCause, ReconcileEvidence } from '../receipt/index.ts';
+import { isTerminalReceiptStatus } from '../receipt/index.ts';
+import { assertKnownProgressRelation } from '../observation/association.ts';
 
 export interface InventoryInput {
   outboxItems: readonly OutboxItem[];
@@ -886,4 +891,108 @@ export function planFanoutRecoveryScan(input: FanoutRecoveryScanInput): FanoutRe
     checkpointGaps,
     finishEnumeration: input.checkpoint.cursor !== null && admit.length === 0 && checkpointGaps.length === 0,
   };
+}
+
+/* -- T26 related-progress resume: restart re-drives only unfinished rows. -- */
+
+/**
+ * One retained association pair entering the resume scan. The caller
+ * assembles views from durable rows (T24 `RecoverableRow` precedent);
+ * the scan decides purely from them and writes nothing.
+ */
+export interface RelatedProgressRowView {
+  /** Trusted relation binding persisted with the pair. */
+  readonly relation: string;
+  readonly association: ReceiptAssociation;
+  readonly receipt: AssociatedReceipt;
+}
+
+export interface RelatedProgressResumeInput {
+  /** Relation under resume; every row must carry it (no cross-relation scan). */
+  readonly relation: string;
+  readonly rows: ReadonlyArray<RelatedProgressRowView>;
+}
+
+/**
+ * Resume plan for one relation: unfinished attempts to re-drive from
+ * durable truth, terminal attempts to leave untouched. Execution is
+ * the owning driver's: `resume` rows re-enter progress correlation,
+ * `settled` rows are read-only retained outcomes. Both lists are
+ * delivery-id sorted for stable evidence.
+ */
+export interface RelatedProgressResumePlan {
+  readonly relation: string;
+  /** `pending`/`unknown` attempts: re-drive from durable truth. */
+  readonly resume: string[];
+  /** Terminal attempts: retained, never re-driven. */
+  readonly settled: string[];
+}
+
+const KNOWN_RESUME_STATUSES: ReadonlySet<string> = new Set([
+  'pending',
+  'succeeded',
+  'failed',
+  'unknown',
+  'skipped',
+]);
+
+/**
+ * Plan one relation's resume from retained rows. Decision table:
+ *
+ * - `pending`/`unknown` → `resume` (no outcome yet, or uncertain until
+ *   reconciled);
+ * - `succeeded`/`failed`/`skipped` → `settled` (terminal immutability:
+ *   never re-driven, even when the driver restarts mid-sequence).
+ *
+ * One relation per call: rows carrying any other relation throw (F3
+ * one-fanout precedent), so two relations can never resume through
+ * one scan. Corrupt rows (unknown relation, unknown status, foreign
+ * receipt, revision skew) throw loudly instead of planning around
+ * them. The scan writes nothing; the driver commits resumed progress
+ * through the fenced apply path.
+ */
+export function planRelatedProgressResume(
+  input: RelatedProgressResumeInput,
+): RelatedProgressResumePlan {
+  const caller = 'planRelatedProgressResume';
+  const bound = assertKnownProgressRelation(input.relation, caller);
+  const resume: string[] = [];
+  const settled: string[] = [];
+  for (const row of input.rows) {
+    assertKnownProgressRelation(row.relation, caller);
+    if (row.relation !== bound) {
+      throw new Error(
+        `${caller}: row for ${JSON.stringify(row.association.deliveryId)} carries relation ` +
+          `${JSON.stringify(row.relation)}, expected ${JSON.stringify(bound)}.`,
+      );
+    }
+    if (!KNOWN_RESUME_STATUSES.has(row.receipt.status)) {
+      throw new Error(
+        `${caller}: row for ${JSON.stringify(row.association.deliveryId)} has unknown status ` +
+          `${JSON.stringify(row.receipt.status)}.`,
+      );
+    }
+    if (row.association.deliveryId !== row.receipt.deliveryId) {
+      throw new Error(
+        `${caller}: receipt ${JSON.stringify(row.receipt.deliveryId)} does not belong to ` +
+          `association ${JSON.stringify(row.association.deliveryId)}.`,
+      );
+    }
+    if (row.association.revision !== row.receipt.revision) {
+      throw new Error(
+        `${caller}: association revision ${row.association.revision} disagrees with receipt ` +
+          `revision ${row.receipt.revision}.`,
+      );
+    }
+    const status: ReceiptStatus = row.receipt.status;
+    if (isTerminalReceiptStatus(status)) {
+      settled.push(row.association.deliveryId);
+    } else {
+      resume.push(row.association.deliveryId);
+    }
+  }
+  const byId = (a: string, b: string): number => (a < b ? -1 : a > b ? 1 : 0);
+  resume.sort(byId);
+  settled.sort(byId);
+  return { relation: bound, resume, settled };
 }
