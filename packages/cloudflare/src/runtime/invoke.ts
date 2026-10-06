@@ -23,15 +23,44 @@
  *
  * `ctx` is the real `./context.js` shape, passed through untouched as
  * the first handler argument; this module never inspects it.
+ *
+ * T24b (the section at the end, additive): worker dispatch execution —
+ * the composed system registry (`[...l3Commands, ...WORK_SYSTEM_COMMANDS,
+ * ...WORK_DISPATCH_STAGE_COMMANDS]`, composed worker-side by
+ * `assembly.ts`) running over the dispatch-join port. Single-attempt
+ * drives (claim -> claim-time guard re-eval -> provider call ->
+ * record-attempt), run-key-honoring staging, and the recovery sweeper
+ * (recover -> planRecoveryScan -> requeue/reconcile/release) live here.
+ * State producers load dynamically (below); work producers (command
+ * arrays, planner, classifier) arrive injected because `@canlang/work`
+ * has no dist build. Provider calls, guard evaluation, evidence, and
+ * snapshots are caller-supplied ports — BOUND provider sends are
+ * explicitly OUT (T24a remainder): this wiring calls through the
+ * injected ports only and never binds a send target itself.
  */
 import type {
+  ClaimId,
   CompileArtifact,
+  DispatchClaim,
   InvocationContext,
   Membership,
+  ModelName,
   MutationResult,
   OccurrenceId,
-  ProjectedRecord,
+  OutboxId,
+  OutboxIntent,
+  OutboxItem,
+  OutboxItemState,
+  QuerySpec,
+  RecordId,
+  RecordVersion,
   ResolvedIdentity,
+  RetryClass,
+  RetryPolicy,
+  Revision,
+  CommitBatch,
+  CommitResult,
+  ProjectedRecord,
   StoragePort,
   StoredRow,
 } from "@canlang/contracts";
@@ -2362,4 +2391,1374 @@ export async function invokeReadCanonical(opts: CanonicalReadOpts): Promise<Cano
     throw new Error(`t17b: invokeRead served no records array (invoke/dist skew?)`);
   }
   return served;
+}
+
+/* ------------------------------------------------------------------ */
+/* T24b dispatch execution (worker claim/recovery wiring).              */
+/*                                                                      */
+/* T24a built the engine side (work kernel commands, intent lifecycle,  */
+/* state staging, the dispatch-join port); this section wires           */
+/* EXECUTION at the worker: the composed system registry running over   */
+/* the join port. Single-attempt drives run claim -> claim-time guard   */
+/* re-eval -> provider call -> record-attempt; staging honors the       */
+/* run-key contract by construction; the recovery sweeper runs          */
+/* recover -> planRecoveryScan -> requeue/reconcile/release.            */
+/*                                                                      */
+/* LOADING: state producers (`createSystemRegistry`, the three L3       */
+/* commands, `createDispatchJoinPort`) load dynamically from state      */
+/* dist (same P-B seam as the canonical producers above). Work          */
+/* producers (command arrays, `planRecoveryScan`, `classifyFailure`)    */
+/* arrive INJECTED — `@canlang/work` has no dist build, so there is     */
+/* nothing to import; the deploy join supplies the real producers       */
+/* exactly as tests supply them from work sources. Provider calls,      */
+/* guard evaluation, reconcile evidence, and state snapshots are        */
+/* caller-supplied ports. BOUND provider sends are explicitly OUT       */
+/* (T24a remainder): this wiring calls through the injected             */
+/* `callProvider` port only and never binds a send target itself        */
+/* (the stdlib `send`/`emit` stubs stay stubs; B8 Handbook sends stay   */
+/* E3019-refused compiler-side).                                        */
+/*                                                                      */
+/* FENCING (unchanged from T24a): every registry run commits            */
+/* single-shot through the join-wrapped store (linkage-asserted, fence  */
+/* conflicts surface as retryable `busy`, NO retry — callers decide);   */
+/* reconcile batches commit update + outbox-ack atomically through      */
+/* `commitJoin`. The claim fence itself is untouched: concurrent        */
+/* claimants still serialize and exactly one wins. Cross-store          */
+/* atomicity is NOT claimed (single-owner scope only — stated, never    */
+/* inferred). T34 fanout lineage rides carried-only through staging     */
+/* inputs and is never interpreted here.                                */
+/* ------------------------------------------------------------------ */
+
+/** T24b: state system-registry module (L3 commands + registry factory). */
+const STATE_SYSTEM_SPECIFIER = "../../../state/dist/state/src/ports/system.js";
+
+/**
+ * T24b: one composable system command as it flows through the worker
+ * seam. Structural: only `name` is read here (assembly order + unique
+ * checks); the real def (with its `stage`) rides opaquely into
+ * `createSystemRegistry`, which validates it at runtime.
+ */
+export interface DispatchWorkerCommand {
+  readonly name: string;
+}
+
+/** T24b: structural view of the L3 command registry (`SystemRegistry`). */
+export interface DispatchSystemRegistry {
+  run(
+    name: string,
+    args: unknown,
+    ctx: DispatchSystemRunContext,
+    deps: { readonly store: StoragePort },
+  ): Promise<DispatchSystemRunResult>;
+}
+
+/** T24b: structural view of `SystemRunContext` (operator-run identity). */
+export interface DispatchSystemRunContext {
+  readonly actor: string;
+  readonly now: number;
+  readonly operation: string;
+  readonly operationId: string;
+}
+
+/** T24b: structural view of `SystemRunResult` (fence revision + result). */
+export interface DispatchSystemRunResult {
+  readonly revision: Revision;
+  readonly result: unknown;
+}
+
+/** T24b: structural view of the dispatch-join port (`DispatchJoinPort`). */
+export interface DispatchJoinPort {
+  commitJoin(batch: CommitBatch): Promise<CommitResult>;
+}
+
+/** T24b: structural view of the state system module (T24a join surface). */
+interface StateSystemProducer {
+  createSystemRegistry(commands: ReadonlyArray<unknown>): DispatchSystemRegistry;
+  outboxAckCommand: unknown;
+  scheduleCancelCommand: unknown;
+  scheduleReplaceCommand: unknown;
+}
+
+/** T24b: structural view of the state join-port factory. */
+interface StateJoinProducer {
+  createDispatchJoinPort(input: { readonly store: StoragePort }): DispatchJoinPort;
+}
+
+/** T24b: loaded dispatch-system producers (fail loud, never partial). */
+export interface DispatchSystemProducers {
+  readonly createSystemRegistry: (
+    commands: ReadonlyArray<unknown>,
+  ) => DispatchSystemRegistry;
+  /** L3 segment in registry order: ack, schedule cancel, schedule replace. */
+  readonly l3Commands: ReadonlyArray<DispatchWorkerCommand>;
+  readonly createDispatchJoinPort: (input: {
+    readonly store: StoragePort;
+  }) => DispatchJoinPort;
+}
+
+function asWorkerCommand(value: unknown, binding: string): DispatchWorkerCommand {
+  if (!isUnknownRecord(value) || typeof value["name"] !== "string" || value["name"] === "") {
+    throw new Error(
+      `t24b: state system producer binding ${JSON.stringify(binding)} is not a named command (stale dist?)`,
+    );
+  }
+  return value as unknown as DispatchWorkerCommand;
+}
+
+/**
+ * T24b: load the state dispatch-system producers (registry factory, the
+ * three L3 commands, join-port factory). Dynamic dist imports through
+ * the P-B seam, shape-checked fail-loud like the canonical producers.
+ */
+export async function loadDispatchSystemProducers(): Promise<DispatchSystemProducers> {
+  const systemMod = await loadProducerModule(STATE_SYSTEM_SPECIFIER, "state system producer");
+  const joinMod = await loadProducerModule(STATE_TRANSACT_SPECIFIER, "state dispatch-join producer");
+  const createSystemRegistry = requireProducerFn(
+    systemMod,
+    "createSystemRegistry",
+    "state system producer",
+  );
+  const createDispatchJoinPort = requireProducerFn(
+    joinMod,
+    "createDispatchJoinPort",
+    "state dispatch-join producer",
+  );
+  return {
+    createSystemRegistry:
+      createSystemRegistry as StateSystemProducer["createSystemRegistry"],
+    l3Commands: [
+      asWorkerCommand(systemMod["outboxAckCommand"], "outboxAckCommand"),
+      asWorkerCommand(systemMod["scheduleCancelCommand"], "scheduleCancelCommand"),
+      asWorkerCommand(systemMod["scheduleReplaceCommand"], "scheduleReplaceCommand"),
+    ],
+    createDispatchJoinPort:
+      createDispatchJoinPort as StateJoinProducer["createDispatchJoinPort"],
+  };
+}
+
+/**
+ * T24b: build the worker dispatch registry over an ALREADY-composed
+ * command array. Composition stays single-homed in `assembly.ts`
+ * (`assembleDispatchCommands`); this factory only loads the L3
+ * `createSystemRegistry` producer and constructs. Callers run every
+ * command over a dispatch-join-wrapped store (below).
+ */
+export async function createWorkerDispatchRegistry(
+  composed: ReadonlyArray<DispatchWorkerCommand>,
+): Promise<DispatchSystemRegistry> {
+  const producers = await loadDispatchSystemProducers();
+  return producers.createSystemRegistry(composed);
+}
+
+/** T24b: bind the dispatch-join port over one store (single-shot fenced commits). */
+export async function createWorkerDispatchJoinPort(
+  store: StoragePort,
+): Promise<DispatchJoinPort> {
+  const producers = await loadDispatchSystemProducers();
+  return producers.createDispatchJoinPort({ store });
+}
+
+/**
+ * T24b: route every fenced commit through the dispatch-join port
+ * (linkage-asserted, single-shot; fence conflicts surface as retryable
+ * `busy`). All non-commit port methods delegate untouched. Registry
+ * runs over this store execute claim/record/requeue/recover/stage with
+ * the join assertion on every batch — updates-only batches pass
+ * trivially, so lifecycle commands are unaffected while staging joins
+ * stay atomic. Delegation list mirrors the commit guard; tsc enforces
+ * the return type.
+ */
+export function withDispatchJoinPort(store: StoragePort, port: DispatchJoinPort): StoragePort {
+  return {
+    readRevision: () => store.readRevision(),
+    load: (model, id) => store.load(model, id),
+    query: (spec) => store.query(spec),
+    commit: (batch) => port.commitJoin(batch),
+    readReceipt: (identity) => store.readReceipt(identity),
+    outboxPending: () => store.outboxPending(),
+    scheduleGet: (key) => store.scheduleGet(key),
+    schedulesDue: (now, limit) => store.schedulesDue(now, limit),
+    historyFor: (model, recordId) => store.historyFor(model, recordId),
+    readInstalledSnapshot: (owner) => store.readInstalledSnapshot(owner),
+    readMigrationProgress: (migrationId) => store.readMigrationProgress(migrationId),
+    readStagedRows: (migrationId, cursor, limit) => store.readStagedRows(migrationId, cursor, limit),
+    stageMigrationRows: (input) => store.stageMigrationRows(input),
+    publishMigrationChunk: (input) => store.publishMigrationChunk(input),
+    flipInstalledSnapshot: (input) => store.flipInstalledSnapshot(input),
+    readMigrationOutcomes: (migrationId) => store.readMigrationOutcomes(migrationId),
+    recordMigrationFailure: (input) => store.recordMigrationFailure(input),
+    discardStagedRows: (input) => store.discardStagedRows(input),
+    readMigrationFailure: (migrationId) => store.readMigrationFailure(migrationId),
+  };
+}
+
+/**
+ * T24b structural mirror of the lane-04 dispatch table model
+ * (`@canlang/work` `WORK_DISPATCH_MODEL`, `runtime/executors.ts`
+ * `WORK_DISPATCH_MODEL`, state `DISPATCH_JOIN_MODEL`). Drift is pinned
+ * by the execution tests (all four literals asserted equal), not by a
+ * shared import.
+ */
+const T24B_WORK_DISPATCH_MODEL = "work.dispatch" as ModelName;
+
+/**
+ * T24b structural mirror of the lane-04 dispatch row
+ * (`DispatchRowData` in `work/src/kernel/tables.ts`). The sweeper reads
+ * rows through `readDispatchExecutionRow` (below), which enforces the
+ * same accept sets — drift fails loud at read, and the execution
+ * tests cross-check this reader against the real `readDispatchRow`.
+ */
+export interface DispatchExecutionRowData {
+  readonly intentId: string;
+  readonly operationId: string;
+  readonly source: string;
+  readonly occurrenceIndex: number;
+  readonly originOccurrence: string | null;
+  readonly state: OutboxItemState;
+  readonly attempts: number;
+  readonly claimId: string | null;
+  readonly claimedAtMs: number | null;
+  readonly guardVerdict: boolean | null;
+  readonly deliveryId: string | null;
+  readonly errorCode: string | null;
+  readonly errorMessage: string | null;
+  readonly availableAtMs: number | null;
+  readonly firstAttemptAtMs: number | null;
+  readonly retryClass: RetryClass | null;
+}
+
+const T24B_DISPATCH_STATES: ReadonlySet<string> = new Set([
+  "pending",
+  "claimed",
+  "delivered",
+  "failed",
+  "uncertain",
+  "dead",
+]);
+
+function dispatchRowString(
+  data: Record<string, unknown>,
+  field: string,
+): string {
+  const value: unknown = data[field];
+  if (typeof value !== "string" || value === "") {
+    throw new Error(`t24b: work.dispatch.${field} must be a non-empty string.`);
+  }
+  return value;
+}
+
+function dispatchRowNullableString(
+  data: Record<string, unknown>,
+  field: string,
+): string | null {
+  const value: unknown = data[field];
+  if (value === null) return null;
+  if (typeof value !== "string") {
+    throw new Error(`t24b: work.dispatch.${field} must be a string or null.`);
+  }
+  return value;
+}
+
+function dispatchRowCount(data: Record<string, unknown>, field: string): number {
+  const value: unknown = data[field];
+  if (typeof value !== "number" || !Number.isInteger(value) || value < 0) {
+    throw new Error(`t24b: work.dispatch.${field} must be an integer >= 0.`);
+  }
+  return value;
+}
+
+function dispatchRowNullableInstant(
+  data: Record<string, unknown>,
+  field: string,
+): number | null {
+  const value: unknown = data[field];
+  if (value === null) return null;
+  if (typeof value !== "number" || !Number.isFinite(value) || value < 0) {
+    throw new Error(`t24b: work.dispatch.${field} must be finite epoch ms >= 0 or null.`);
+  }
+  return value;
+}
+
+/**
+ * T24b: fail-closed structural read of one dispatch row (mirrors
+ * `readDispatchRow` accept sets: six lifecycle states, nullable
+ * claim/guard/error/deferral/classification fields). Unknown states,
+ * malformed fields, and non-object data throw — the sweeper never
+ * decides on a row it cannot parse.
+ */
+export function readDispatchExecutionRow(row: StoredRow): DispatchExecutionRowData {
+  const data: unknown = row.data;
+  if (!isUnknownRecord(data)) {
+    throw new Error("t24b: work.dispatch data must be an object.");
+  }
+  const state = dispatchRowString(data, "state");
+  if (!T24B_DISPATCH_STATES.has(state)) {
+    throw new Error(`t24b: work.dispatch.state is unknown: ${JSON.stringify(state)}.`);
+  }
+  const guardVerdict: unknown = data["guardVerdict"];
+  if (guardVerdict !== null && typeof guardVerdict !== "boolean") {
+    throw new Error("t24b: work.dispatch.guardVerdict must be boolean or null.");
+  }
+  const retryClass: unknown = data["retryClass"];
+  if (retryClass !== null && retryClass !== "transient" && retryClass !== "terminal") {
+    throw new Error("t24b: work.dispatch.retryClass must be transient, terminal or null.");
+  }
+  return {
+    intentId: dispatchRowString(data, "intentId"),
+    operationId: dispatchRowString(data, "operationId"),
+    source: dispatchRowString(data, "source"),
+    occurrenceIndex: dispatchRowCount(data, "occurrenceIndex"),
+    originOccurrence: dispatchRowNullableString(data, "originOccurrence"),
+    state: state as OutboxItemState,
+    attempts: dispatchRowCount(data, "attempts"),
+    claimId: dispatchRowNullableString(data, "claimId"),
+    claimedAtMs: dispatchRowNullableInstant(data, "claimedAtMs"),
+    guardVerdict,
+    deliveryId: dispatchRowNullableString(data, "deliveryId"),
+    errorCode: dispatchRowNullableString(data, "errorCode"),
+    errorMessage: dispatchRowNullableString(data, "errorMessage"),
+    availableAtMs: dispatchRowNullableInstant(data, "availableAtMs"),
+    firstAttemptAtMs: dispatchRowNullableInstant(data, "firstAttemptAtMs"),
+    retryClass,
+  };
+}
+
+/**
+ * T24b: dispatch rows in one lifecycle state. Structural mirror of
+ * `dispatchByStateQuery` (`work/src/kernel/tables.ts`): flat `state`
+ * equality, `owner` authority (the store ignores authority; commands
+ * pass `owner` for the privileged path). The sweeper re-filters every
+ * result exactly — predicates only narrow scans.
+ */
+export function dispatchExecutionByStateQuery(state: OutboxItemState): QuerySpec {
+  return {
+    model: T24B_WORK_DISPATCH_MODEL,
+    where: { op: "eq", field: "state", value: state },
+    authority: "owner",
+  };
+}
+
+/**
+ * T24b mirror of the work `FailureCause` vocabulary
+ * (`work/src/receipt/index.ts`): the injected provider's closed
+ * failure shapes. Adapters supply already-closed codes/messages; the
+ * driver never invents error details.
+ */
+export type DispatchFailureCause =
+  | { readonly kind: "handler-require-false"; readonly require: string }
+  | { readonly kind: "permanent"; readonly code: string; readonly message: string }
+  | { readonly kind: "transient"; readonly code: string; readonly message: string };
+
+/**
+ * T24b mirror of the work `ProviderOutcome`
+ * (`work/src/receipt/index.ts`): definitive-or-ambiguous outcome of
+ * one provider-call attempt.
+ */
+export type DispatchProviderOutcome =
+  | { readonly kind: "delivered"; readonly result: unknown }
+  | { readonly kind: "failed"; readonly cause: DispatchFailureCause }
+  | { readonly kind: "uncertain" };
+
+/**
+ * T24b mirror of the work `ReconcileEvidence`
+ * (`work/src/receipt/index.ts`): proof of what the provider did for an
+ * uncertain row. `not-found` proves the provider never saw the attempt.
+ */
+export type DispatchReconcileEvidence =
+  | { readonly kind: "delivered"; readonly result: unknown }
+  | { readonly kind: "failed"; readonly code: string; readonly message: string }
+  | { readonly kind: "not-found" };
+
+/**
+ * T24b mirror of the work `GuardEvaluator`
+ * (`work/src/dispatch/index.ts`): injected pure guard evaluator —
+ * predicate reference plus frozen inputs plus a CURRENT owner-state
+ * snapshot produce a boolean verdict. Total, deterministic,
+ * side-effect free; unresolvable predicates throw or return false.
+ */
+export type DispatchGuardEvaluator = (
+  predicate: string,
+  frozenInputs: unknown,
+  stateSnapshot: unknown,
+) => boolean;
+
+/**
+ * T24b: injected provider-call port. The driver calls exactly one
+ * provider attempt per won claim. BOUND sends are OUT (T24a
+ * remainder): this port is supplied by the caller (deploy join or
+ * test double) — the driver never resolves a send target itself.
+ */
+export type DispatchProviderCaller = (
+  intent: OutboxIntent,
+  claim: DispatchClaim,
+) => Promise<DispatchProviderOutcome>;
+
+/**
+ * T24b: injected reconcile-evidence reader (provider-evidence
+ * plumbing). Returns decisive evidence for an uncertain row, or null
+ * when unknown — unknown stays unknown and the row is untouched.
+ */
+export type DispatchEvidenceReader = (
+  intentId: string,
+) => DispatchReconcileEvidence | null;
+
+/**
+ * T24b: injected current-state snapshot reader for claim-time guard
+ * re-evaluation. The driver pulls the snapshot AFTER winning the
+ * claim, so re-eval observes current owner state — never the
+ * stage-time snapshot (which is recorded history).
+ */
+export type DispatchSnapshotReader = (intent: OutboxIntent) => unknown;
+
+/**
+ * T24b: injected failure classifier (the real work `classifyFailure`).
+ * Transient retries the same occurrence; anything else is terminal.
+ */
+export type DispatchFailureClassifier = (cause: DispatchFailureCause) => RetryClass;
+
+/**
+ * T24b mirror of the work `RecoverableRow`
+ * (`work/src/recovery/index.ts`): one row entering the recovery scan.
+ * The sweeper assembles views from stored dispatch rows; `request` is
+ * always `{}` — the planner reads id/state/attempts only, and the
+ * frozen provider inputs live on the L3 intent, not the dispatch row.
+ */
+export interface DispatchRecoverableRow {
+  readonly item: OutboxItem;
+  readonly guardVerdict: boolean | null;
+  readonly firstAttemptAtMs: number | null;
+  readonly retryClass: RetryClass | null;
+}
+
+/**
+ * T24b mirror of the work `RecoveryPlan`
+ * (`work/src/recovery/index.ts`): every actionable row in exactly one
+ * list; rows needing no action appear in none.
+ */
+export interface DispatchRecoveryPlan {
+  readonly resume: ReadonlyArray<string>;
+  readonly retry: ReadonlyArray<string>;
+  readonly reconcile: ReadonlyArray<string>;
+  readonly awaiting: ReadonlyArray<string>;
+  readonly skipped: ReadonlyArray<string>;
+  readonly terminal: ReadonlyArray<string>;
+  readonly dead: ReadonlyArray<string>;
+}
+
+/**
+ * T24b: injected recovery planner (the real work
+ * `planRecoveryScan`). The sweeper executes its decision table; the
+ * planner itself stays engine-owned and is never reimplemented here.
+ */
+export type DispatchRecoveryPlanner = (input: {
+  readonly rows: ReadonlyArray<DispatchRecoverableRow>;
+  readonly claims: ReadonlyArray<DispatchClaim>;
+  readonly evidence: (id: string) => DispatchReconcileEvidence | null;
+  readonly nowMs: number;
+  readonly maxClaimAgeMs: number;
+  readonly policy: RetryPolicy;
+}) => DispatchRecoveryPlan;
+
+function checkClosedText(value: unknown, what: string): string {
+  if (typeof value !== "string" || value === "") {
+    throw new Error(`t24b: ${what} must be a non-empty string.`);
+  }
+  return value;
+}
+
+/**
+ * T24b: fail-closed read of one injected provider outcome. Malformed
+ * outcomes (unknown kinds, incoherent causes, empty closed codes)
+ * throw INSIDE the driver's provider boundary and record `uncertain`
+ * — an adapter that answers incoherently may still have acted, so
+ * unknown stays unknown instead of retrying blind.
+ */
+function checkProviderOutcome(value: unknown): DispatchProviderOutcome {
+  if (!isUnknownRecord(value)) {
+    throw new Error("t24b: provider outcome must be an object.");
+  }
+  const kind: unknown = value["kind"];
+  if (kind === "delivered") {
+    return { kind: "delivered", result: value["result"] };
+  }
+  if (kind === "uncertain") {
+    return { kind: "uncertain" };
+  }
+  if (kind !== "failed") {
+    throw new Error(
+      `t24b: provider outcome kind must be delivered, failed or uncertain (got ${JSON.stringify(kind)}).`,
+    );
+  }
+  const cause: unknown = value["cause"];
+  if (!isUnknownRecord(cause)) {
+    throw new Error("t24b: failed provider outcomes need a cause object.");
+  }
+  const causeKind: unknown = cause["kind"];
+  if (causeKind === "handler-require-false") {
+    return {
+      kind: "failed",
+      cause: {
+        kind: "handler-require-false",
+        require: checkClosedText(cause["require"], "failure cause require"),
+      },
+    };
+  }
+  if (causeKind === "permanent" || causeKind === "transient") {
+    return {
+      kind: "failed",
+      cause: {
+        kind: causeKind,
+        code: checkClosedText(cause["code"], "failure cause code"),
+        message: checkClosedText(cause["message"], "failure cause message"),
+      },
+    };
+  }
+  throw new Error(
+    `t24b: failure cause kind must be handler-require-false, permanent or transient (got ${JSON.stringify(causeKind)}).`,
+  );
+}
+
+/**
+ * T24b: fail-closed read of one reconcile-evidence answer. Decisive
+ * shapes pass through; null stays null (unknown); anything else
+ * throws — evidence that cannot be parsed cannot reconcile.
+ */
+function checkEvidenceAnswer(value: unknown, intentId: string): DispatchReconcileEvidence | null {
+  if (value === null) return null;
+  const where = `t24b: reconcile evidence for ${JSON.stringify(intentId)}`;
+  if (!isUnknownRecord(value)) {
+    throw new Error(`${where} must be an object or null.`);
+  }
+  const kind: unknown = value["kind"];
+  if (kind === "delivered") {
+    return { kind: "delivered", result: value["result"] };
+  }
+  if (kind === "not-found") {
+    return { kind: "not-found" };
+  }
+  if (kind !== "failed") {
+    throw new Error(`${where} has an unknown kind ${JSON.stringify(kind)}.`);
+  }
+  const code: unknown = value["code"];
+  const message: unknown = value["message"];
+  if (typeof code !== "string" || code === "" || typeof message !== "string" || message === "") {
+    throw new Error(`${where} failed evidence needs a non-empty code and message.`);
+  }
+  return { kind: "failed", code, message };
+}
+
+/**
+ * T24b: closed error for one classified failure cause. Mirrors the
+ * engine `closedErrorForCause` (`work/src/receipt/index.ts`,
+ * private there): a false authored `require` maps to the fixed
+ * `require-false` pair; adapter causes carry their closed codes.
+ */
+function closedDispatchErrorForCause(cause: DispatchFailureCause): {
+  readonly code: string;
+  readonly message: string;
+} {
+  if (cause.kind === "handler-require-false") {
+    return { code: "require-false", message: "handler requirement rejected the occurrence" };
+  }
+  return { code: cause.code, message: cause.message };
+}
+
+/* -- T24b command-result checks (fail-closed on engine/dist skew). -- */
+
+interface DispatchClaimCheck {
+  readonly claimed: boolean;
+  readonly reason: string | null;
+  readonly claimId: string | null;
+}
+
+function checkClaimResult(value: unknown): DispatchClaimCheck {
+  if (!isUnknownRecord(value)) {
+    throw new Error("t24b: claim result must be an object (command/dist skew?).");
+  }
+  const claimed: unknown = value["claimed"];
+  if (typeof claimed !== "boolean") {
+    throw new Error("t24b: claim result needs a boolean claimed (command/dist skew?).");
+  }
+  if (!claimed) {
+    const reason: unknown = value["reason"];
+    if (typeof reason !== "string" || reason === "") {
+      throw new Error("t24b: refused claims need a non-empty reason (command/dist skew?).");
+    }
+    return { claimed: false, reason, claimId: null };
+  }
+  const claimId: unknown = value["claimId"];
+  if (typeof claimId !== "string" || claimId === "") {
+    throw new Error("t24b: won claims need a non-empty claimId (command/dist skew?).");
+  }
+  return { claimed: true, reason: null, claimId };
+}
+
+interface DispatchRecordCheck {
+  readonly state: string;
+  readonly attempts: number;
+}
+
+function checkRecordResult(value: unknown): DispatchRecordCheck {
+  if (!isUnknownRecord(value)) {
+    throw new Error("t24b: record result must be an object (command/dist skew?).");
+  }
+  if (value["recorded"] !== true) {
+    throw new Error("t24b: record result needs recorded true (command/dist skew?).");
+  }
+  const state: unknown = value["state"];
+  if (typeof state !== "string" || state === "") {
+    throw new Error("t24b: record result needs a non-empty state (command/dist skew?).");
+  }
+  const attempts: unknown = value["attempts"];
+  if (typeof attempts !== "number" || !Number.isInteger(attempts) || attempts < 0) {
+    throw new Error("t24b: record result needs attempts as an integer >= 0 (command/dist skew?).");
+  }
+  return { state, attempts };
+}
+
+interface DispatchRequeueCheck {
+  readonly requeued: boolean;
+  readonly dead: boolean;
+  readonly reason: string | null;
+}
+
+function checkRequeueResult(value: unknown): DispatchRequeueCheck {
+  if (!isUnknownRecord(value)) {
+    throw new Error("t24b: requeue result must be an object (command/dist skew?).");
+  }
+  const requeued: unknown = value["requeued"];
+  const dead: unknown = value["dead"];
+  if (typeof requeued !== "boolean" || typeof dead !== "boolean") {
+    throw new Error("t24b: requeue result needs boolean requeued/dead (command/dist skew?).");
+  }
+  const reason: unknown = value["reason"];
+  if (reason !== undefined && (typeof reason !== "string" || reason === "")) {
+    throw new Error("t24b: requeue reason must be a non-empty string (command/dist skew?).");
+  }
+  return { requeued, dead, reason: reason ?? null };
+}
+
+interface DispatchRecoverCheck {
+  readonly released: ReadonlyArray<string>;
+  readonly resumeAfter: string | null;
+  readonly done: boolean;
+  readonly uncertain: ReadonlyArray<string>;
+  readonly uncertainTruncated: boolean;
+}
+
+function checkStringList(value: unknown, what: string): ReadonlyArray<string> {
+  if (!Array.isArray(value) || !value.every((entry) => typeof entry === "string")) {
+    throw new Error(`t24b: ${what} must be an array of strings (command/dist skew?).`);
+  }
+  return [...value];
+}
+
+function checkRecoverResult(value: unknown): DispatchRecoverCheck {
+  if (!isUnknownRecord(value)) {
+    throw new Error("t24b: recover result must be an object (command/dist skew?).");
+  }
+  const resumeAfter: unknown = value["resumeAfter"];
+  if (resumeAfter !== null && (typeof resumeAfter !== "string" || resumeAfter === "")) {
+    throw new Error("t24b: recover resumeAfter must be a non-empty string or null (command/dist skew?).");
+  }
+  const done: unknown = value["done"];
+  if (typeof done !== "boolean") {
+    throw new Error("t24b: recover result needs a boolean done (command/dist skew?).");
+  }
+  const uncertainTruncated: unknown = value["uncertainTruncated"];
+  if (typeof uncertainTruncated !== "boolean") {
+    throw new Error("t24b: recover result needs a boolean uncertainTruncated (command/dist skew?).");
+  }
+  return {
+    released: checkStringList(value["released"], "recover released"),
+    resumeAfter,
+    done,
+    uncertain: checkStringList(value["uncertain"], "recover uncertain"),
+    uncertainTruncated,
+  };
+}
+
+function checkReleaseResult(value: unknown): { readonly released: boolean } {
+  if (!isUnknownRecord(value)) {
+    throw new Error("t24b: release result must be an object (command/dist skew?).");
+  }
+  const released: unknown = value["released"];
+  if (typeof released !== "boolean") {
+    throw new Error("t24b: release result needs a boolean released (command/dist skew?).");
+  }
+  return { released };
+}
+
+/* -- T24b run-key-honoring staging. -- */
+
+/**
+ * T24b: T33-carried fanout lineage on one staging input. Carried-only
+ * (never interpreted — the T34 fanout rule is not adopted): echoed to
+ * the stage command untouched, which validates its shape.
+ */
+export interface DispatchStageFanout {
+  readonly cohortId: string;
+  readonly parentOccurrence: string;
+  readonly childIndex: number;
+  readonly checkpointId: string | null;
+}
+
+/** T24b: one intent entering run-key-honoring staging. */
+export interface DispatchStageIntentInput {
+  readonly intentId: string;
+  readonly operation: string;
+  readonly originOperationId: string;
+  readonly source: string;
+  readonly occurrenceIndex: number;
+  readonly request: Record<string, unknown>;
+  readonly originOccurrence: string | null;
+  readonly guard: string | null;
+  readonly guardVerdict: boolean | null;
+  readonly fanout?: DispatchStageFanout | null;
+}
+
+/** T24b: run-key-honoring staging options. */
+export interface StageDispatchBatchOpts {
+  readonly registry: DispatchSystemRegistry;
+  /** Join-wrapped store: the join commits linkage-asserted. */
+  readonly store: StoragePort;
+  readonly actor: string;
+  readonly now: number;
+  readonly operation: string;
+  /**
+   * THE run key: passed as BOTH the run operationId AND stage
+   * args.operationId — the run-key contract by construction (a
+   * mismatch is unrepresentable here; the registry rejects direct
+   * mismatched runs fail-closed, pinned by the execution tests).
+   */
+  readonly runKey: string;
+  readonly intents: ReadonlyArray<DispatchStageIntentInput>;
+}
+
+/** T24b: run-key-honoring staging outcome. */
+export interface StageDispatchBatchResult {
+  readonly revision: Revision;
+  readonly staged: ReadonlyArray<unknown>;
+  readonly skipped: ReadonlyArray<unknown>;
+  readonly replayed: ReadonlyArray<string>;
+}
+
+/**
+ * T24b: stage one dispatch batch through `work.dispatch.stage` with
+ * the run-key contract honored by construction (one key in both
+ * places). One fenced revision carries each intent's dispatch row plus
+ * its L3 outbox intent; guard-false intents stage a pinned skip row
+ * with no outbox half. A trigger rollback voids the whole join.
+ */
+export async function stageDispatchBatch(
+  opts: StageDispatchBatchOpts,
+): Promise<StageDispatchBatchResult> {
+  if (typeof opts.runKey !== "string" || opts.runKey === "") {
+    throw new Error("t24b: staging needs a non-empty run key.");
+  }
+  const run = await opts.registry.run(
+    "work.dispatch.stage",
+    {
+      operationId: opts.runKey,
+      intents: opts.intents.map((intent) => ({
+        intentId: intent.intentId,
+        operation: intent.operation,
+        originOperationId: intent.originOperationId,
+        source: intent.source,
+        occurrenceIndex: intent.occurrenceIndex,
+        request: intent.request,
+        originOccurrence: intent.originOccurrence,
+        guard: intent.guard,
+        guardVerdict: intent.guardVerdict,
+        ...(intent.fanout === undefined || intent.fanout === null
+          ? {}
+          : { fanout: intent.fanout }),
+      })),
+    },
+    { actor: opts.actor, now: opts.now, operation: opts.operation, operationId: opts.runKey },
+    { store: opts.store },
+  );
+  if (!isUnknownRecord(run.result)) {
+    throw new Error("t24b: stage result must be an object (command/dist skew?).");
+  }
+  const staged: unknown = run.result["staged"];
+  const skipped: unknown = run.result["skipped"];
+  if (!Array.isArray(staged) || !Array.isArray(skipped)) {
+    throw new Error("t24b: stage result needs staged/skipped arrays (command/dist skew?).");
+  }
+  return {
+    revision: run.revision,
+    staged: [...staged],
+    skipped: [...skipped],
+    replayed: checkStringList(run.result["replayed"], "stage replayed"),
+  };
+}
+
+/* -- T24b single-attempt drive (claim -> guard -> provider -> record). -- */
+
+/** T24b: single-attempt drive options. */
+export interface DriveDispatchIntentOpts {
+  readonly registry: DispatchSystemRegistry;
+  /** Join-wrapped store: claim/record batches commit linkage-asserted. */
+  readonly store: StoragePort;
+  /** L3 intent under drive (carries `dispatchGuard` + frozen `arguments`). */
+  readonly intent: OutboxIntent;
+  readonly actor: string;
+  readonly operation: string;
+  readonly nowMs: () => number;
+  /** Injected claim-id mint (`ClaimIdPort`); must be non-empty. */
+  readonly nextClaimId: () => string;
+  readonly maxClaimAgeMs: number;
+  /** Run operationId for the claim run (non-empty; the registry re-validates). */
+  readonly claimOperationId: string;
+  /** Run operationId for the record run. */
+  readonly recordOperationId: string;
+  /** Injected claim-time guard evaluator (re-eval, not the stage pin). */
+  readonly evaluateGuard: DispatchGuardEvaluator;
+  /** Injected current-state snapshot reader (pulled after the claim wins). */
+  readonly readStateSnapshot: DispatchSnapshotReader;
+  /** Injected provider-call port (BOUND sends are OUT — caller supplies). */
+  readonly callProvider: DispatchProviderCaller;
+  /** Injected failure classifier (the real work `classifyFailure`). */
+  readonly classifyFailure: DispatchFailureClassifier;
+}
+
+/** T24b: single-attempt drive outcome. */
+export type DriveDispatchOutcome =
+  /** No claim won (superseded, guard-false, deferred, held, settled): no provider call, no record. */
+  | { readonly status: "not-claimed"; readonly intentId: string; readonly reason: string }
+  /** Claim-time guard re-eval was false: skip recorded (attempts untouched), L3 intent acked. */
+  | {
+      readonly status: "skipped";
+      readonly intentId: string;
+      readonly claimId: string;
+      readonly guard: string;
+    }
+  /** One provider attempt recorded (attempts + 1). */
+  | {
+      readonly status: "recorded";
+      readonly intentId: string;
+      readonly claimId: string;
+      readonly state: string;
+      readonly attempts: number;
+      readonly retryClass: RetryClass | null;
+      readonly providerOutcome: DispatchProviderOutcome;
+      /** Provider-throw message, present only when the call threw (recorded `uncertain`). */
+      readonly providerThrew?: string;
+    };
+
+/**
+ * T24b: drive ONE dispatch attempt for one L3 intent: fenced claim,
+ * claim-time guard re-evaluation against a CURRENT snapshot, exactly
+ * one provider call, and one fenced record-attempt. Single-shot
+ * throughout: fence conflicts (`busy`) and evaluator throws propagate
+ * (NO retry — callers decide; the held claim ages out through the
+ * stale-claim path). A throwing or incoherent provider records
+ * `uncertain` (it may have acted — unknown stays unknown instead of
+ * retrying blind). Delivered and terminal outcomes ack the L3 intent;
+ * transient and uncertain outcomes leave it for the sweeper. The row's
+ * stage-time guard pin is recorded history: only the claim-time
+ * re-eval verdict gates this attempt.
+ */
+export async function driveDispatchIntent(
+  opts: DriveDispatchIntentOpts,
+): Promise<DriveDispatchOutcome> {
+  const intentId = opts.intent.intentId;
+  if (typeof intentId !== "string" || intentId === "") {
+    throw new Error("t24b: drive needs an intent with a non-empty intentId.");
+  }
+  const now = opts.nowMs();
+  if (!Number.isFinite(now) || now < 0) {
+    throw new Error("t24b: drive needs a finite nowMs >= 0.");
+  }
+  const claimId = opts.nextClaimId();
+  if (typeof claimId !== "string" || claimId === "") {
+    throw new Error("t24b: drive needs a non-empty claim id mint.");
+  }
+  if (!Number.isFinite(opts.maxClaimAgeMs) || opts.maxClaimAgeMs < 0) {
+    throw new Error("t24b: drive needs a finite maxClaimAgeMs >= 0.");
+  }
+  const runBase = { actor: opts.actor, now, operation: opts.operation };
+  const claimed = await opts.registry.run(
+    "work.dispatch.claim",
+    { intentId, claimId, claimedAtMs: now, maxClaimAgeMs: opts.maxClaimAgeMs },
+    { ...runBase, operationId: opts.claimOperationId },
+    { store: opts.store },
+  );
+  const claim = checkClaimResult(claimed.result);
+  if (!claim.claimed || claim.claimId === null) {
+    return { status: "not-claimed", intentId, reason: claim.reason ?? "unknown" };
+  }
+  const heldClaimId = claim.claimId;
+  // Claim-time guard re-evaluation: the CURRENT snapshot (pulled after
+  // the win) through the injected evaluator. Only an explicit `true`
+  // dispatches (mirroring `attemptDispatch` + `planDispatchStaging`);
+  // anything else records a skip WITHOUT consuming an attempt.
+  // Evaluator throws propagate with the claim held (stale release
+  // owns the retry) — a throwing evaluator must never terminally
+  // skip, and the pin it would overwrite is recorded history.
+  const guard: string | null = opts.intent.dispatchGuard ?? null;
+  if (guard !== null) {
+    const snapshot = await opts.readStateSnapshot(opts.intent);
+    const verdict = opts.evaluateGuard(guard, opts.intent.arguments, snapshot);
+    if (verdict !== true) {
+      const skipped = await opts.registry.run(
+        "work.dispatch.record-attempt",
+        {
+          intentId,
+          claimId: heldClaimId,
+          outcome: { state: "pending", guardVerdict: false },
+          ack: true,
+        },
+        { ...runBase, operationId: opts.recordOperationId },
+        { store: opts.store },
+      );
+      checkRecordResult(skipped.result);
+      return { status: "skipped", intentId, claimId: heldClaimId, guard };
+    }
+  }
+  const held: DispatchClaim = {
+    outboxId: intentId as OutboxId,
+    claimId: heldClaimId as ClaimId,
+    claimedAt: now,
+  };
+  let providerOutcome: DispatchProviderOutcome;
+  let providerThrew: string | null = null;
+  try {
+    providerOutcome = checkProviderOutcome(await opts.callProvider(opts.intent, held));
+  } catch (error) {
+    providerThrew = error instanceof Error ? error.message : String(error);
+    providerOutcome = { kind: "uncertain" };
+  }
+  let outcome: Record<string, unknown>;
+  let ack: boolean;
+  let retryClass: RetryClass | null = null;
+  if (providerOutcome.kind === "delivered") {
+    // The provider result surfaces ONLY in this drive outcome: the
+    // dispatch row carries no result column, and `deliveryId` is the
+    // store-minted delivery association (see `toReceiptObservation`),
+    // never the provider payload — so it stays null here.
+    outcome = { state: "delivered" };
+    ack = true;
+  } else if (providerOutcome.kind === "uncertain") {
+    outcome = { state: "uncertain" };
+    ack = false;
+  } else {
+    retryClass = opts.classifyFailure(providerOutcome.cause);
+    if (retryClass !== "transient" && retryClass !== "terminal") {
+      throw new Error("t24b: failure classifier must return transient or terminal.");
+    }
+    const closed = closedDispatchErrorForCause(providerOutcome.cause);
+    outcome = {
+      state: "failed",
+      retryClass,
+      errorCode: closed.code,
+      errorMessage: closed.message,
+    };
+    ack = retryClass !== "transient";
+  }
+  const recorded = await opts.registry.run(
+    "work.dispatch.record-attempt",
+    { intentId, claimId: heldClaimId, outcome, ack },
+    { ...runBase, operationId: opts.recordOperationId },
+    { store: opts.store },
+  );
+  const record = checkRecordResult(recorded.result);
+  return {
+    status: "recorded",
+    intentId,
+    claimId: heldClaimId,
+    state: record.state,
+    attempts: record.attempts,
+    retryClass,
+    providerOutcome,
+    ...(providerThrew === null ? {} : { providerThrew }),
+  };
+}
+
+/* -- T24b recovery sweeper (recover -> plan -> requeue/reconcile/release). -- */
+
+/** T24b: recovery sweep options. */
+export interface RecoverySweepOpts {
+  readonly registry: DispatchSystemRegistry;
+  /** Join-wrapped store: registry runs commit linkage-asserted. */
+  readonly store: StoragePort;
+  /** Join port for reconcile batches (fenced update + ack, atomically). */
+  readonly joinPort: DispatchJoinPort;
+  readonly actor: string;
+  readonly operation: string;
+  /** Sweep instant, read ONCE: recover, scans, and the plan share it. */
+  readonly nowMs: () => number;
+  readonly maxClaimAgeMs: number;
+  /** Retry budget for requeue acts (attempt cap + horizon, both enforced). */
+  readonly policy: RetryPolicy;
+  /** Bound per scan (recover batch + each state scan); integer >= 1. */
+  readonly limit: number;
+  /** Recover cursor: resume a truncated claimed scan where it stopped. */
+  readonly resumeAfter?: string | null;
+  /** Run operationId per step (recover once; requeue/release per intent). */
+  readonly operationIdForStep: (
+    step: "recover" | "requeue" | "release",
+    intentId?: string,
+  ) => string;
+  /** Injected recovery planner (the real work `planRecoveryScan`). */
+  readonly planRecoveryScan: DispatchRecoveryPlanner;
+  /** Injected reconcile-evidence reader (provider-evidence plumbing). */
+  readonly readEvidence: DispatchEvidenceReader;
+}
+
+/** T24b: one requeue act outcome (retry and dead lists alike). */
+export interface RecoverySweepRequeueAct {
+  readonly intentId: string;
+  readonly requeued: boolean;
+  readonly dead: boolean;
+  readonly reason?: string;
+}
+
+/** T24b: one planner-resume release act outcome. */
+export interface RecoverySweepReleaseAct {
+  readonly intentId: string;
+  readonly released: boolean;
+}
+
+/** T24b: one reconciled uncertain row. */
+export interface RecoverySweepReconcileAct {
+  readonly intentId: string;
+  readonly state: string;
+}
+
+/** T24b: one reconcile skip (evidence or row moved under the plan). */
+export interface RecoverySweepSkip {
+  readonly intentId: string;
+  readonly reason: string;
+}
+
+/** T24b: recovery sweep summary (every observed row accounted for). */
+export interface RecoverySweepResult {
+  /** Stale claims released by the fenced batch recover. */
+  readonly released: ReadonlyArray<string>;
+  /** Planner-resume extras released per intent (empty when recover covered them). */
+  readonly resumed: ReadonlyArray<RecoverySweepReleaseAct>;
+  /** Retry-list requeue outcomes (failed-transient + uncertain not-found). */
+  readonly retried: ReadonlyArray<RecoverySweepRequeueAct>;
+  /** Dead-list requeue outcomes (dead-letter when exhausted). */
+  readonly deadLettered: ReadonlyArray<RecoverySweepRequeueAct>;
+  /** Uncertain rows reconciled with decisive evidence (update + ack, atomic). */
+  readonly reconciled: ReadonlyArray<RecoverySweepReconcileAct>;
+  /** Reconcile-list rows skipped (evidence/row moved; retried next sweep). */
+  readonly reconcileSkipped: ReadonlyArray<RecoverySweepSkip>;
+  /** Uncertain rows without evidence: untouched until evidence arrives. */
+  readonly awaiting: ReadonlyArray<string>;
+  /** Guard-false pinned rows: never dispatched, listed never silent. */
+  readonly skipped: ReadonlyArray<string>;
+  /** Failed-terminal (or unclassified) rows: final, never retried. */
+  readonly terminal: ReadonlyArray<string>;
+  /** Recover cursor for the claimed scan (`done: false` means resume). */
+  readonly resumeAfter: string | null;
+  readonly done: boolean;
+  /** Uncertain ids observed by recover (read-only; the planner decides). */
+  readonly uncertain: ReadonlyArray<string>;
+  readonly uncertainTruncated: boolean;
+  /** Per-state scan truncation (bounded sweeps never silently truncate). */
+  readonly truncated: {
+    readonly failed: boolean;
+    readonly uncertain: boolean;
+    readonly pending: boolean;
+    readonly claimed: boolean;
+  };
+}
+
+function checkRecoveryPlan(value: unknown): DispatchRecoveryPlan {
+  if (!isUnknownRecord(value)) {
+    throw new Error("t24b: recovery plan must be an object (planner skew?).");
+  }
+  return {
+    resume: checkStringList(value["resume"], "recovery plan resume"),
+    retry: checkStringList(value["retry"], "recovery plan retry"),
+    reconcile: checkStringList(value["reconcile"], "recovery plan reconcile"),
+    awaiting: checkStringList(value["awaiting"], "recovery plan awaiting"),
+    skipped: checkStringList(value["skipped"], "recovery plan skipped"),
+    terminal: checkStringList(value["terminal"], "recovery plan terminal"),
+    dead: checkStringList(value["dead"], "recovery plan dead"),
+  };
+}
+
+async function scanDispatchState(
+  store: StoragePort,
+  state: OutboxItemState,
+  limit: number,
+): Promise<{ readonly rows: DispatchExecutionRowData[]; readonly truncated: boolean }> {
+  const found = await store.query(dispatchExecutionByStateQuery(state));
+  const rows: DispatchExecutionRowData[] = [];
+  const seen = new Set<string>();
+  for (const row of found) {
+    const data = readDispatchExecutionRow(row);
+    // Exact re-filter: state match, first sighting (adapters may echo).
+    if (data.state !== state) continue;
+    if (seen.has(data.intentId)) continue;
+    seen.add(data.intentId);
+    rows.push(data);
+  }
+  rows.sort((a, b) => (a.intentId < b.intentId ? -1 : a.intentId > b.intentId ? 1 : 0));
+  return { rows: rows.slice(0, limit), truncated: rows.length > limit };
+}
+
+async function commitReconcile(input: {
+  readonly store: StoragePort;
+  readonly joinPort: DispatchJoinPort;
+  readonly actor: string;
+  readonly now: number;
+  readonly intentId: string;
+  readonly evidence: DispatchReconcileEvidence;
+}): Promise<{ readonly reconciled: true; readonly state: string } | { readonly reconciled: false; readonly reason: string }> {
+  const row = await input.store.load(T24B_WORK_DISPATCH_MODEL, input.intentId as RecordId);
+  if (row === null) {
+    return { reconciled: false, reason: "row-missing" };
+  }
+  const data = readDispatchExecutionRow(row);
+  if (data.state !== "uncertain") {
+    return { reconciled: false, reason: "state-changed" };
+  }
+  if (input.evidence.kind !== "delivered" && input.evidence.kind !== "failed") {
+    return { reconciled: false, reason: "evidence-changed" };
+  }
+  const nextData =
+    input.evidence.kind === "delivered"
+      ? { ...data, state: "delivered" as OutboxItemState }
+      : {
+          ...data,
+          state: "failed" as OutboxItemState,
+          errorCode: input.evidence.code,
+          errorMessage: input.evidence.message,
+        };
+  // Attempts UNCHANGED (reconcile parity with `reconcileUncertain` —
+  // reconcile resolves ambiguity, it is not an attempt); failed
+  // evidence carries no classification, so `retryClass` stays null
+  // (unclassified failed rows are terminal per the requeue rule).
+  const batch: CommitBatch = {
+    expectedRevision: await input.store.readRevision(),
+    writes: [
+      {
+        kind: "update",
+        model: T24B_WORK_DISPATCH_MODEL,
+        id: row.id,
+        expectedVersion: row.version,
+        row: {
+          ...row,
+          version: ((row.version as number) + 1) as RecordVersion,
+          updated: input.now,
+          updatedBy: input.actor,
+          data: { ...nextData },
+        },
+      },
+    ],
+    history: [],
+    receipt: null,
+    outbox: [],
+    schedules: [],
+    uniqueClaims: [],
+    uniqueReleases: [],
+    outboxAck: [input.intentId],
+  };
+  await input.joinPort.commitJoin(batch);
+  return { reconciled: true, state: input.evidence.kind };
+}
+
+/**
+ * T24b: run one bounded recovery sweep: fenced batch recover of stale
+ * claims, bounded state scans into planner views, one
+ * `planRecoveryScan` through the injected engine planner, then fenced
+ * acts per plan list — per-intent release for planner-resume extras,
+ * requeue for retry (uncertain rows re-attest `notFound` at act time)
+ * and dead (dead-letters when exhausted), and fenced update + ack for
+ * reconcile with decisive evidence. Awaiting/skipped/terminal rows
+ * are reported and NEVER re-driven. Single-shot throughout: fence
+ * conflicts propagate (NO retry — every act is repeatable, so callers
+ * re-sweep); races between plan and act report as skips/refusals,
+ * never forced commits. Deferrals (`availableAtMs`) are honored by
+ * requeue when staged; the driver stages none, so sweep cadence is
+ * the caller's pacing.
+ */
+export async function runRecoverySweep(opts: RecoverySweepOpts): Promise<RecoverySweepResult> {
+  const now = opts.nowMs();
+  if (!Number.isFinite(now) || now < 0) {
+    throw new Error("t24b: sweep needs a finite nowMs >= 0.");
+  }
+  if (!Number.isFinite(opts.maxClaimAgeMs) || opts.maxClaimAgeMs < 0) {
+    throw new Error("t24b: sweep needs a finite maxClaimAgeMs >= 0.");
+  }
+  if (!Number.isInteger(opts.limit) || opts.limit < 1) {
+    throw new Error("t24b: sweep needs a limit as an integer >= 1.");
+  }
+  if (!Number.isInteger(opts.policy.maxAttempts) || opts.policy.maxAttempts < 1) {
+    throw new Error("t24b: sweep needs policy.maxAttempts as an integer >= 1.");
+  }
+  if (!Number.isFinite(opts.policy.horizonMs) || opts.policy.horizonMs <= 0) {
+    throw new Error("t24b: sweep needs policy.horizonMs finite and > 0.");
+  }
+  const resumeAfter = opts.resumeAfter ?? null;
+  if (resumeAfter !== null && (typeof resumeAfter !== "string" || resumeAfter === "")) {
+    throw new Error("t24b: sweep resumeAfter must be a non-empty string or null.");
+  }
+  const runBase = { actor: opts.actor, now, operation: opts.operation };
+  const recovered = await opts.registry.run(
+    "work.dispatch.recover",
+    {
+      maxClaimAgeMs: opts.maxClaimAgeMs,
+      limit: opts.limit,
+      ...(resumeAfter === null ? {} : { resumeAfter }),
+    },
+    { ...runBase, operationId: opts.operationIdForStep("recover") },
+    { store: opts.store },
+  );
+  const recover = checkRecoverResult(recovered.result);
+  const failed = await scanDispatchState(opts.store, "failed", opts.limit);
+  const uncertain = await scanDispatchState(opts.store, "uncertain", opts.limit);
+  const pending = await scanDispatchState(opts.store, "pending", opts.limit);
+  const claimed = await scanDispatchState(opts.store, "claimed", opts.limit);
+  const views: DispatchRecoverableRow[] = [];
+  const claims: DispatchClaim[] = [];
+  const byId = new Map<string, DispatchExecutionRowData>();
+  for (const scanned of [failed, uncertain, pending, claimed]) {
+    for (const row of scanned.rows) {
+      if (byId.has(row.intentId)) continue;
+      byId.set(row.intentId, row);
+      views.push({
+        item: {
+          id: row.intentId as OutboxId,
+          operationId: row.operationId,
+          source: row.source,
+          occurrenceIndex: row.occurrenceIndex,
+          // The planner reads id/state/attempts only; the frozen
+          // provider inputs live on the L3 intent, not the row.
+          request: {},
+          originOccurrence: row.originOccurrence,
+          attempts: row.attempts,
+          state: row.state,
+        },
+        guardVerdict: row.guardVerdict,
+        firstAttemptAtMs: row.firstAttemptAtMs,
+        retryClass: row.retryClass,
+      });
+      if (row.state === "claimed" && row.claimId !== null && row.claimedAtMs !== null) {
+        claims.push({
+          outboxId: row.intentId as OutboxId,
+          claimId: row.claimId as ClaimId,
+          claimedAt: row.claimedAtMs,
+        });
+      }
+    }
+  }
+  const evidence = (id: string): DispatchReconcileEvidence | null =>
+    checkEvidenceAnswer(opts.readEvidence(id), id);
+  const plan = checkRecoveryPlan(
+    opts.planRecoveryScan({
+      rows: views,
+      claims,
+      evidence,
+      nowMs: now,
+      maxClaimAgeMs: opts.maxClaimAgeMs,
+      policy: opts.policy,
+    }),
+  );
+  const resumed: RecoverySweepReleaseAct[] = [];
+  for (const intentId of plan.resume) {
+    const released = await opts.registry.run(
+      "work.dispatch.release",
+      { intentId, maxClaimAgeMs: opts.maxClaimAgeMs },
+      { ...runBase, operationId: opts.operationIdForStep("release", intentId) },
+      { store: opts.store },
+    );
+    resumed.push({ intentId, released: checkReleaseResult(released.result).released });
+  }
+  const requeueOne = async (
+    intentId: string,
+    notFound: boolean,
+  ): Promise<RecoverySweepRequeueAct> => {
+    const acted = await opts.registry.run(
+      "work.dispatch.requeue",
+      {
+        intentId,
+        maxAttempts: opts.policy.maxAttempts,
+        horizonMs: opts.policy.horizonMs,
+        ...(notFound ? { notFound: true } : {}),
+      },
+      { ...runBase, operationId: opts.operationIdForStep("requeue", intentId) },
+      { store: opts.store },
+    );
+    const outcome = checkRequeueResult(acted.result);
+    return {
+      intentId,
+      requeued: outcome.requeued,
+      dead: outcome.dead,
+      ...(outcome.reason === null ? {} : { reason: outcome.reason }),
+    };
+  };
+  const retried: RecoverySweepRequeueAct[] = [];
+  for (const intentId of plan.retry) {
+    const view = byId.get(intentId);
+    if (view !== undefined && view.state === "uncertain") {
+      // Uncertain rows re-attest at act time: only a CURRENT
+      // not-found attestation requeues (evidence may have moved
+      // between plan and act — never force on stale evidence).
+      const current = evidence(intentId);
+      if (current === null || current.kind !== "not-found") {
+        retried.push({ intentId, requeued: false, dead: false, reason: "evidence-changed" });
+        continue;
+      }
+      retried.push(await requeueOne(intentId, true));
+    } else {
+      retried.push(await requeueOne(intentId, false));
+    }
+  }
+  const deadLettered: RecoverySweepRequeueAct[] = [];
+  for (const intentId of plan.dead) {
+    deadLettered.push(await requeueOne(intentId, false));
+  }
+  const reconciled: RecoverySweepReconcileAct[] = [];
+  const reconcileSkipped: RecoverySweepSkip[] = [];
+  for (const intentId of plan.reconcile) {
+    const current = evidence(intentId);
+    if (current === null || current.kind === "not-found") {
+      reconcileSkipped.push({
+        intentId,
+        reason: current === null ? "awaiting-evidence" : "evidence-changed",
+      });
+      continue;
+    }
+    const outcome = await commitReconcile({
+      store: opts.store,
+      joinPort: opts.joinPort,
+      actor: opts.actor,
+      now,
+      intentId,
+      evidence: current,
+    });
+    if (outcome.reconciled) {
+      reconciled.push({ intentId, state: outcome.state });
+    } else {
+      reconcileSkipped.push({ intentId, reason: outcome.reason });
+    }
+  }
+  return {
+    released: recover.released,
+    resumed,
+    retried,
+    deadLettered,
+    reconciled,
+    reconcileSkipped,
+    awaiting: plan.awaiting,
+    skipped: plan.skipped,
+    terminal: plan.terminal,
+    resumeAfter: recover.resumeAfter,
+    done: recover.done,
+    uncertain: recover.uncertain,
+    uncertainTruncated: recover.uncertainTruncated,
+    truncated: {
+      failed: failed.truncated,
+      uncertain: uncertain.truncated,
+      pending: pending.truncated,
+      claimed: claimed.truncated,
+    },
+  };
 }

@@ -51,6 +51,20 @@
  * T17b release report for the refuse-vs-synthesize decision); and
  * `INTERIM_DDL` is retired (the engine stores every model in its
  * generic `records` table — per-model demo DDL is dead).
+ *
+ * T24b dispatch composition (this file): the worker assembly seam for
+ * system commands. `assembleDispatchCommands` composes the ONE serving
+ * registry shape `[...l3Commands, ...WORK_SYSTEM_COMMANDS,
+ * ...WORK_DISPATCH_STAGE_COMMANDS]` from injected segments — L3 ships
+ * in state dist (the runtime loads it dynamically), while the work
+ * segments are injected by the caller because `@canlang/work` has no
+ * dist build (the deploy join supplies the real arrays exactly as
+ * tests supply them from work sources). The seam enforces order +
+ * unique names only; engine array sizes stay engine-owned (pinned by
+ * the kernel-commands registry-shape test, not here). Execution
+ * (claim -> provider -> record, sweeps, claim-time guard re-eval)
+ * lives in `runtime/invoke.ts` and runs through the composed registry
+ * over the dispatch-join port.
  */
 
 import type {
@@ -1175,6 +1189,75 @@ function buildInterimFetch(
       headers: { "content-type": "text/html;charset=utf-8" },
     });
   };
+}
+
+/* ------------------------------------------------------------------ */
+/* T24b dispatch system-command composition (worker assembly seam).     */
+/*                                                                      */
+/* The composition exists ONLY here: every other mention                */
+/* (`[...l3Commands, ...WORK_SYSTEM_COMMANDS,                           */
+/* ...WORK_DISPATCH_STAGE_COMMANDS]`) is a doc shape citing this seam.  */
+/* Segments arrive injected (see the file header): the worker boundary  */
+/* forbids even a type import from `@canlang/state`/`@canlang/work`,    */
+/* so the seam is generic over the command type and reads `name` only.  */
+/* Order is load-bearing (L3 first, then lane-04 lifecycle, then the    */
+/* staging join) and names must be unique — the registry rejects        */
+/* duplicates, so the seam fails loud here instead of shipping a        */
+/* registry that cannot construct. Engine array sizes stay              */
+/* engine-owned and are pinned work-side, never here.                   */
+/* ------------------------------------------------------------------ */
+
+/** T24b: the composable surface of one system command (structural). */
+export interface DispatchComposedCommand {
+  readonly name: string;
+}
+
+/** T24b: the three injected composition segments, in registry order. */
+export interface DispatchCommandSegments<
+  TCommand extends DispatchComposedCommand = DispatchComposedCommand,
+> {
+  /** L3 commands (`outbox.ack`, `schedule.*` — state dist). */
+  readonly l3Commands: ReadonlyArray<TCommand>;
+  /** Lane-04 lifecycle commands (`WORK_SYSTEM_COMMANDS` — injected). */
+  readonly workCommands: ReadonlyArray<TCommand>;
+  /** Staging-join commands (`WORK_DISPATCH_STAGE_COMMANDS` — injected). */
+  readonly stageCommands: ReadonlyArray<TCommand>;
+}
+
+/**
+ * T24b: compose the ONE serving registry shape
+ * `[...l3Commands, ...workCommands, ...stageCommands]`. Pure and total
+ * over well-formed segments: empty names and duplicate names fail loud
+ * (a registry built from either could never construct). Returns a
+ * frozen array; callers feed it to `createSystemRegistry` with a
+ * dispatch-join-wrapped store (see `runtime/invoke.ts`).
+ */
+export function assembleDispatchCommands<
+  TCommand extends DispatchComposedCommand = DispatchComposedCommand,
+>(
+  segments: DispatchCommandSegments<TCommand>,
+): ReadonlyArray<TCommand> {
+  const composed = [
+    ...segments.l3Commands,
+    ...segments.workCommands,
+    ...segments.stageCommands,
+  ];
+  const seen = new Set<string>();
+  for (const command of composed) {
+    const name: unknown = command.name;
+    if (typeof name !== "string" || name.length === 0) {
+      throw new Error(
+        "t24b: cannot assemble dispatch commands (a segment carries an empty command name)",
+      );
+    }
+    if (seen.has(name)) {
+      throw new Error(
+        `t24b: cannot assemble dispatch commands (duplicate command ${JSON.stringify(name)})`,
+      );
+    }
+    seen.add(name);
+  }
+  return Object.freeze(composed);
 }
 
 /* ------------------------------------------------------------------ */

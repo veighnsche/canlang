@@ -32,6 +32,7 @@ import {
 } from '../src/kernel/tables.ts';
 import { KernelTableError } from '../src/kernel/tables.ts';
 import {
+  WORK_DISPATCH_STAGE_COMMANDS,
   WORK_SYSTEM_COMMANDS,
   workDispatchClaimCommand,
   workDispatchRecordAttemptCommand,
@@ -111,6 +112,18 @@ describe('kernel commands: registry shape', () => {
     const names = WORK_SYSTEM_COMMANDS.map((command) => command.name);
     assert.equal(new Set(names).size, 9);
     for (const name of names) {
+      assert.match(name, /^work\.[a-z-]+\.[a-z-]+$/);
+    }
+    // T24b attribution: the worker assembly composes the staging join
+    // alongside (`[...l3Commands, ...WORK_SYSTEM_COMMANDS,
+    // ...WORK_DISPATCH_STAGE_COMMANDS]` — the composition helper lives
+    // worker-side in `assembly.ts`), so the composed work-side shape is
+    // 11 uniquely named commands. `WORK_SYSTEM_COMMANDS` itself stays 9.
+    const composed = [...WORK_SYSTEM_COMMANDS, ...WORK_DISPATCH_STAGE_COMMANDS];
+    assert.equal(composed.length, 11);
+    const composedNames = composed.map((command) => command.name);
+    assert.equal(new Set(composedNames).size, 11);
+    for (const name of composedNames) {
       assert.match(name, /^work\.[a-z-]+\.[a-z-]+$/);
     }
   });
