@@ -12,7 +12,13 @@ import {
   readRecipeSuite,
   resolveFixtureOrder,
 } from "../src/fixtures/recipes.js";
-import { fixtureValuesOf, loadExampleSuite, type FixtureBindings } from "../src/runner/loader.js";
+import {
+  fixtureValuesOf,
+  loadExampleSuite,
+  stashedRowOf,
+  type FixtureBindings,
+} from "../src/runner/loader.js";
+import type { ExampleHooks, StepCall } from "../src/runner/steps.js";
 import { runTable, type RowScope, type TableRowSpec } from "../src/runner/table.js";
 
 let dir: string;
@@ -166,9 +172,14 @@ describe("loadExampleSuite", () => {
        export function exampleFixtures(bindings) {
          return {
            fixtures: { reviewer, author, claim },
-           examples: [
-             { operation: "Expense.create", dependencies: [claim], rows: [{ dependencies: [author] }] },
-           ],
+           examples: [{
+             operation: "Expense.create",
+             dependencies: [claim],
+             inputs: async (c, s) => ({}),
+             selectors: [],
+             observations: [],
+             rows: [{ dependencies: [author], values: async (c, s) => [], expected: async (c, s) => [] }],
+           }],
          };
        }`,
     );
@@ -242,15 +253,16 @@ describe("loadExampleSuite", () => {
 describe("provisionFixtureValues", () => {
   it("threads values through and wraps shell throws with fixture identity", async () => {
     const suite = readRecipeSuite({
-      a: { dependencies: [], value: async () => 1 },
+      a: { dependencies: [], value: async () => ({ n: 1 }) },
       b: {
         dependencies: ["a"],
-        value: async (_c: unknown, provisioned: ReadonlyMap<string, unknown>) =>
-          (provisioned.get("a") as number) + 1,
+        value: async (_c: unknown, provisioned: ReadonlyMap<string, unknown>) => ({
+          n: (provisioned.get("a") as { n: number }).n + 1,
+        }),
       },
     });
     const values = await provisionFixtureValues(["a", "b"], suite, null);
-    expect(values.get("b")).toBe(2);
+    expect(values.get("b")).toEqual({ n: 2 });
     const shell = readRecipeSuite({
       x: {
         model: "Todo",
@@ -327,5 +339,307 @@ describe("setup failure versus business rejection (T22a acceptance)", () => {
     }
     expect(first.outcome).toBe("passed");
     expect(first.rejection).toEqual({ error: "rule_failed", sideEffectsAbsent: true });
+  });
+});
+
+function ids(): FixtureBindings {
+  return { self: "s1", other: "o1", imported: {} };
+}
+
+const TABLE_MODULE = `const author = { dependencies: [], value: async (c, s) => ({ name: "a" }) };
+export function exampleFixtures(bindings) {
+  return {
+    fixtures: { author },
+    examples: [{
+      operation: "Todo.create",
+      dependencies: [],
+      inputs: async (c, s) => ({ title: "t" }),
+      selectors: ["as", "author.name"],
+      observations: [async (c, s) => s.get("author")],
+      rows: [
+        { dependencies: ["author"], values: async (c, s) => ["members", "a"], expected: async (c, s) => [{ name: "a" }] },
+        { dependencies: [], values: async (c, s) => [c.self, "a"], error: "rule_failed" },
+      ],
+    }],
+  };
+}`;
+
+describe("table row expansion", () => {
+  it("expands rows with mapped callers and setup-assigned expectations", async () => {
+    const suite = await loadExampleSuite(await writeModule("table.mjs", TABLE_MODULE), ids());
+    expect(suite.rows.map((row) => row.rowIndex)).toEqual([0, 1]);
+    expect(suite.rows.map((row) => row.caller)).toEqual([
+      { kind: "membership", roles: ["members"] },
+      { kind: "self" },
+    ]);
+    expect(suite.rows[0]?.seed).toEqual(["author"]);
+    expect(suite.rows[1]?.seed).toEqual([]);
+    const first = suite.rows[0];
+    const second = suite.rows[1];
+    if (first === undefined || second === undefined) {
+      throw new Error("expected two rows");
+    }
+    const scope = new MemoryScope();
+    await first.setup(scope, memoryAccounts());
+    expect(first.expected).toEqual({ values: [{ name: "a" }], observations: [] });
+    expect(stashedRowOf(scope)?.inputs).toEqual({ title: "t" });
+    expect(stashedRowOf(scope)?.cells).toEqual(["members", "a"]);
+    await second.setup(new MemoryScope(), memoryAccounts());
+    expect(second.expected).toEqual({ error: "rule_failed" });
+  });
+
+  it("executes rows through hooks and judges observations", async () => {
+    const calls: StepCall[] = [];
+    const hooks: ExampleHooks = {
+      invokeCall: async (call) => {
+        calls.push(call);
+        return call.by === "members" ? { ok: true } : { ok: false, error: "rule_failed" };
+      },
+    };
+    const suite = await loadExampleSuite(await writeModule("run.mjs", TABLE_MODULE), ids(), hooks);
+    const report = await runTable<RowScope>({
+      operation: "Todo.create",
+      rows: suite.rows,
+      userFixtures: suite.userFixtures,
+      createScope: async () => new MemoryScope(),
+    });
+    expect(report.rows.map((row) => row.outcome)).toEqual(["passed", "passed"]);
+    expect(report.rows[1]?.rejection).toEqual({ error: "rule_failed", sideEffectsAbsent: true });
+    expect(calls.map((call) => [call.operation, call.by])).toEqual([
+      ["Todo.create", "members"],
+      ["Todo.create", "s1"],
+    ]);
+    expect(calls[0]?.inputs).toEqual({ title: "t" });
+  });
+
+  it("fails deliberately broken expectations with mismatches", async () => {
+    const broken = TABLE_MODULE.replace('[{ name: "a" }] }', '[{ name: "WRONG" }] }');
+    const suite = await loadExampleSuite(await writeModule("broken-table.mjs", broken), ids(), {
+      invokeCall: async () => ({ ok: true }),
+    });
+    const report = await runTable<RowScope>({
+      operation: "Todo.create",
+      rows: suite.rows.slice(0, 1),
+      createScope: async () => new MemoryScope(),
+    });
+    expect(report.rows[0]?.outcome).toBe("failed");
+    expect(report.rows[0]?.mismatches?.length).toBeGreaterThan(0);
+  });
+
+  it("maps live user-recipe as-cells to fixture callers and runs them", async () => {
+    const url = await writeModule(
+      "fixture-caller.mjs",
+      `const reviewer = { dependencies: [], user: async (c, s) => ({ roles: ["reviewer"] }) };
+       export function exampleFixtures(bindings) {
+         return {
+           fixtures: { reviewer },
+           examples: [{
+             operation: "Todo.create",
+             dependencies: [],
+             inputs: async (c, s) => ({}),
+             selectors: ["as"],
+             observations: [async (c, s) => s.get("reviewer").roles],
+             rows: [{ dependencies: ["reviewer"], values: async (c, s) => [reviewer], expected: async (c, s) => [["reviewer"]] }],
+           }],
+         };
+       }`,
+    );
+    const suite = await loadExampleSuite(url, ids(), { invokeCall: async () => ({ ok: true }) });
+    expect(suite.rows[0]?.caller).toEqual({ kind: "fixture", fixture: "reviewer" });
+    const report = await runTable<RowScope>({
+      operation: "Todo.create",
+      rows: suite.rows,
+      userFixtures: suite.userFixtures,
+      createScope: async () => new MemoryScope(),
+    });
+    expect(report.rows[0]?.outcome).toBe("passed");
+  });
+
+  it("refuses malformed tables loud", async () => {
+    const cases: Array<readonly [string, string, RegExp]> = [
+      ["both", `[{ dependencies: [], values: async () => [], expected: async () => [], error: "x" }]`, /both or neither/],
+      ["neither", `[{ dependencies: [], values: async () => [] }]`, /both or neither/],
+      ["values", `[{ dependencies: [], values: [], error: "x" }]`, /values that are not a function/],
+      ["rows", `"nope"`, /rows that are not an array/],
+    ];
+    for (const [name, rows, pattern] of cases) {
+      const url = await writeModule(
+        `bad-${name}.mjs`,
+        `export function exampleFixtures(bindings) {
+           return { fixtures: {}, examples: [{ operation: "op", dependencies: [], inputs: async () => ({}), selectors: [], observations: [], rows: ${rows} }] };
+         }`,
+      );
+      await expect(loadExampleSuite(url, ids())).rejects.toThrow(pattern);
+    }
+    const noOp = await writeModule(
+      "bad-noop.mjs",
+      `export function exampleFixtures(bindings) {
+         return { fixtures: {}, examples: [{ dependencies: [], inputs: async () => ({}), selectors: [], observations: [], rows: [{ dependencies: [], values: async () => [], error: "x" }] }] };
+       }`,
+    );
+    await expect(loadExampleSuite(noOp, ids())).rejects.toThrow(/no operation identity/);
+    const badCaller = await writeModule(
+      "bad-caller.mjs",
+      `export function exampleFixtures(bindings) {
+         return { fixtures: {}, examples: [{ operation: "op", dependencies: [], inputs: async () => ({}), selectors: ["as"], observations: [], rows: [{ dependencies: [], values: async () => [42], error: "x" }] }] };
+       }`,
+    );
+    await expect(loadExampleSuite(badCaller, ids())).rejects.toThrow(/as-cell value is not a caller/);
+    const foreignCaller = await writeModule(
+      "bad-foreign.mjs",
+      `export function exampleFixtures(bindings) {
+         return { fixtures: {}, examples: [{ operation: "op", dependencies: [], inputs: async () => ({}), selectors: ["as"], observations: [], rows: [{ dependencies: [], values: async () => [{}], error: "x" }] }] };
+       }`,
+    );
+    await expect(loadExampleSuite(foreignCaller, ids())).rejects.toThrow(/as-cell names no caller/);
+  });
+});
+
+const SEQUENCE_MODULE = `const doc = { dependencies: [], value: async (c, s) => ({ title: "d" }) };
+export function exampleFixtures(bindings) {
+  const seq = (steps) => ({ operation: "Doc.flow", dependencies: ["doc"], sequence: steps });
+  return {
+    fixtures: { doc },
+    examples: [
+      seq([
+        { operation: "Good.create", by: async (c, s, b) => "members", inputs: async (c, s, b) => ({ title: "d" }), bind: "created" },
+        { let: "flag", value: async (c, s, b) => true },
+        { observations: async (c, s, b) => [b.get("flag"), b.get("created").ok], expected: async (c, s, b) => [true, true] },
+      ]),
+      seq([{ operation: "Bad.delete", by: async (c, s, b) => "members", inputs: async (c, s, b) => ({}), error: "forbidden" }]),
+      seq([{ operation: "Bad.delete", by: async (c, s, b) => "members", inputs: async (c, s, b) => ({}), error: "forbidden", bind: undefined }]),
+    ],
+  };
+}`;
+
+describe("sequence execution", () => {
+  it("runs calls, bindings, and assertions with prior commits", async () => {
+    const calls: StepCall[] = [];
+    const suite = await loadExampleSuite(await writeModule("seq.mjs", SEQUENCE_MODULE), ids(), {
+      invokeCall: async (call) => {
+        calls.push(call);
+        return call.operation === "Bad.delete" ? { ok: false, error: "forbidden" } : { ok: true };
+      },
+    });
+    expect(suite.rows).toHaveLength(3);
+    const report = await runTable<RowScope>({
+      operation: "Doc.flow",
+      rows: suite.rows,
+      createScope: async () => new MemoryScope(),
+    });
+    // Call/bind/assert passes; both error-steps match.
+    expect(report.rows.map((row) => row.outcome)).toEqual(["passed", "passed", "passed"]);
+    expect(calls.map((call) => [call.operation, call.by])).toEqual([
+      ["Good.create", "members"],
+      ["Bad.delete", "members"],
+      ["Bad.delete", "members"],
+    ]);
+    expect(calls[0]?.inputs).toEqual({ title: "d" });
+  });
+
+  it("fails assertion mismatches, wrong errors, and unexpected rejections", async () => {
+    const url = await writeModule(
+      "seq-fail.mjs",
+      `export function exampleFixtures(bindings) {
+         const seq = (steps) => ({ operation: "op", dependencies: [], sequence: steps });
+         return {
+           fixtures: {},
+           examples: [
+             seq([{ observations: async () => [1], expected: async () => [2] }]),
+             seq([{ operation: "Bad.delete", by: async () => "m", inputs: async () => ({}), error: "forbidden" }]),
+             seq([{ operation: "Bad.ok", by: async () => "m", inputs: async () => ({}), error: "forbidden" }]),
+             seq([{ operation: "Bad.delete", by: async () => "m", inputs: async () => ({}) }]),
+             seq([{ operation: "Missing.op", by: async () => "m", inputs: async () => ({}) }]),
+           ],
+         };
+       }`,
+    );
+    const suite = await loadExampleSuite(url, ids(), {
+      invokeCall: async (call) => {
+        if (call.operation === "Missing.op") {
+          return { ok: false, unsupported: true, detail: "no such capability" };
+        }
+        if (call.operation === "Bad.ok") {
+          return { ok: true };
+        }
+        return { ok: false, error: "other" };
+      },
+    });
+    const report = await runTable<RowScope>({
+      operation: "op",
+      rows: suite.rows,
+      createScope: async () => new MemoryScope(),
+    });
+    expect(report.rows.map((row) => row.outcome)).toEqual([
+      "failed",
+      "failed",
+      "failed",
+      "failed",
+      "unsupported",
+    ]);
+    expect(report.rows[0]?.detail).toMatch(/sequence assertion failed/);
+    expect(report.rows[1]?.detail).toMatch(/expected error\(forbidden\) but got error\(other\)/);
+    expect(report.rows[2]?.detail).toMatch(/expected error\(forbidden\) but the call succeeded/);
+    expect(report.rows[3]?.detail).toMatch(/unexpected rejection error\(other\)/);
+  });
+
+  it("refuses malformed sequences loud", async () => {
+    const badStep = await writeModule(
+      "bad-step.mjs",
+      `export function exampleFixtures(bindings) {
+         return { fixtures: {}, examples: [{ operation: "op", dependencies: [], sequence: [{ nope: 1 }] }] };
+       }`,
+    );
+    await expect(loadExampleSuite(badStep, ids())).rejects.toThrow(/neither a call, binding, nor assertion/);
+    const both = await writeModule(
+      "bad-both.mjs",
+      `export function exampleFixtures(bindings) {
+         return { fixtures: {}, examples: [{ operation: "op", dependencies: [], sequence: [], rows: [] }] };
+       }`,
+    );
+    await expect(loadExampleSuite(both, ids())).rejects.toThrow(/both sequence and rows/);
+    const notArray = await writeModule(
+      "bad-seqshape.mjs",
+      `export function exampleFixtures(bindings) {
+         return { fixtures: {}, examples: [{ operation: "op", dependencies: [], sequence: {} }] };
+       }`,
+    );
+    await expect(loadExampleSuite(notArray, ids())).rejects.toThrow(/sequence that is not an array/);
+  });
+});
+
+describe("file/delivery recipe validation", () => {
+  it("provisions well-formed file and delivery fixtures", async () => {
+    const suite = readRecipeSuite({
+      receipt: { dependencies: [], file: async () => ({ slot: "a", shape: "pdf" }) },
+      notice: {
+        dependencies: [],
+        delivery: "std.EmailV1.send",
+        values: async () => ({ request: { to: "a" }, status: "queued" }),
+      },
+    });
+    const values = await provisionFixtureValues(["receipt", "notice"], suite, null);
+    expect(values.get("receipt")).toEqual({ slot: "a", shape: "pdf" });
+    expect(values.get("notice")).toEqual({ request: { to: "a" }, status: "queued" });
+  });
+
+  it("rejects malformed file, delivery, and model values", async () => {
+    const scalar = readRecipeSuite({ f: { dependencies: [], file: async () => "nope" } });
+    await expect(provisionFixtureValues(["f"], scalar, null)).rejects.toThrow(
+      /"f": file fixture must provision a fields record/,
+    );
+    const noRequest = readRecipeSuite({
+      d: { dependencies: [], delivery: "op", values: async () => ({ status: "x" }) },
+    });
+    await expect(provisionFixtureValues(["d"], noRequest, null)).rejects.toThrow(
+      /"d": delivery fixture must provision \{request/,
+    );
+    expect(() => readRecipeSuite({ d: { dependencies: [], values: async () => ({}) } })).toThrow(
+      /"d": delivery recipe must declare its operation identity/,
+    );
+    const scalarModel = readRecipeSuite({ m: { dependencies: [], value: async () => 7 } });
+    await expect(provisionFixtureValues(["m"], scalarModel, null)).rejects.toThrow(
+      /"m": model fixture must provision a fields record/,
+    );
   });
 });
