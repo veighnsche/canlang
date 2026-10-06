@@ -1,0 +1,16 @@
+{
+ "integration": "c2",
+ "date": "2026-10-06",
+ "main_before": "bb479c2",
+ "commits": [
+  "afd2eed lane-c: C2 production T18/read joins + B1/B5 verdict alignment + T32c pins"
+ ],
+ "lane_commits": [
+  "8dcbf04 (5 files +665/-14, cloudflare-only)"
+ ],
+ "patch_id identical": true,
+ "coverage": "C2: 5 B-threading sites (serverInits/nullableFields, gateArchivedTargets, ConflictServerOnly+mirror, containment) + T32c production-shape pins + T17b realignment (D2 gate message, D3 declared-root refusal + linkage transplant, D4 Sub fixture) + stdlib mkParent",
+ "decisions": "D1: self-cancel THROW-verdict removed; model-call netting pin stands (T32c: single-mutation selfCancel commits archived stub + [create,archive] trail) \u2014 accepted at MODEL level; scenario multi-call level referred to B (owner) for pin-or-retract. Durable miniflare failure ENVIRONMENTAL in C worktree (workerd never starts, zero logic runs).",
+ "gate": "CANONICAL GREEN replicated exactly: root vitest 57 files 517/517; C exact 8-file node 187/187/0-cancelled; C1-shape: build 0, vitest 316/316, nodetest 209/209. Lane gates identical.",
+ "lane_report": "b917e02b + reconciliation 23704630"
+}

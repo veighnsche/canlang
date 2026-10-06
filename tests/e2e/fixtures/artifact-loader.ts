@@ -38,10 +38,10 @@
  */
 import { execFileSync, spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
-import { mkdtempSync, readdirSync, readFileSync, rmSync, statSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync, statSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { fileURLToPath, pathToFileURL } from "node:url";
-import { join, relative, sep } from "node:path";
+import { join, relative } from "node:path";
 import type { LocalD1 } from "@canlang/cloudflare";
 import type { CompileArtifact, StoragePort } from "@canlang/contracts";
 import {
@@ -66,6 +66,7 @@ import {
   buildTeamTasksWorkerSource,
   teamTasksArtifact,
 } from "./handbuilt/teamtasks.js";
+import { readVendorTree } from "./vendor-trees.js";
 
 export const ARTIFACT_VERSION_SUPPORTED = 1;
 
@@ -78,7 +79,7 @@ export const E2E_COMPATIBILITY_DATE = "2026-07-15";
 
 export type ArtifactSpec =
   | { readonly kind: "handbuilt"; readonly app: "teamtasks" }
-  | { readonly kind: "compiled"; readonly source: string };
+  | { readonly kind: "compiled"; readonly source: string; readonly extraSources?: readonly string[] };
 
 export type CompiledArtifactSpec = Extract<ArtifactSpec, { kind: "compiled" }>;
 
@@ -158,33 +159,6 @@ function assertSourceWitness(root: string, relativePath: string, wantSha256: str
         `update the fixture, never the pin alone`,
     );
   }
-}
-
-function readVendorTree(root: string, distSubdir: string, prefix: string, buildCommand: string): Record<string, string> {
-  const base = join(root, distSubdir);
-  try {
-    if (!statSync(base).isDirectory()) throw new Error("not a directory");
-  } catch {
-    throw new Error(`e2e loader: ${distSubdir} not built; run \`${buildCommand}\` first`);
-  }
-  const modules: Record<string, string> = {};
-  const walk = (dir: string): void => {
-    for (const entry of readdirSync(dir)) {
-      const full = join(dir, entry);
-      if (statSync(full).isDirectory()) {
-        walk(full);
-        continue;
-      }
-      if (!entry.endsWith(".js")) continue;
-      const key = `${prefix}/${relative(base, full).split(sep).join("/")}`;
-      modules[key] = readFileSync(full, "utf8");
-    }
-  };
-  walk(base);
-  if (Object.keys(modules).length === 0) {
-    throw new Error(`e2e loader: no .js modules found under ${distSubdir}; run \`${buildCommand}\``);
-  }
-  return modules;
 }
 
 function assertFileBuilt(root: string, distRelative: string, buildCommand: string): void {
@@ -320,12 +294,26 @@ export const COMPILED_CAN_BINARY = "compiler/target/debug/can";
 export const COMPILED_CAN_BUILD_COMMAND = "cargo build --bin can --manifest-path compiler/Cargo.toml";
 const CLOUDFLARE_DIST_BUILD_COMMAND = "bun run --filter @canlang/cloudflare build";
 
+export interface CompiledSourceRef {
+  /** Repo-relative `.can` path exactly as handed to the toolchain. */
+  readonly path: string;
+  /** SHA-256 of the exact bytes handed to the toolchain. */
+  readonly sha256: string;
+}
+
 export interface CompiledAssembly {
   readonly artifact: CompileArtifact;
   /** Repo-relative `.can` path exactly as handed to the toolchain. */
   readonly sourcePath: string;
   /** SHA-256 of the exact bytes handed to the toolchain. */
   readonly sourceSha256: string;
+  /**
+   * Provider sources compiled alongside the pilot (T37 minimal closure,
+   * e.g. shared Employees/Locations): hashed evidence that every input
+   * was the committed bytes. Empty for single-source assemblies. The
+   * pilot stays first, so `sources[0]` identity still binds the pilot.
+   */
+  readonly extraSources: readonly CompiledSourceRef[];
   /** Toolchain stamps the artifact was verified against. */
   readonly toolVersion: string;
   readonly languageVersion: string;
@@ -391,17 +379,31 @@ function summarizeDiagnostics(stdout: string): string {
 function compileSource(
   root: string,
   source: string,
-): { stdout: string; sourceSha256: string; toolVersion: string; languageVersion: string; line: string } {
-  let bytes: Buffer;
-  try {
-    bytes = readFileSync(join(root, source));
-  } catch {
-    throw new Error(`e2e loader: compiled source not readable: ${source}`);
-  }
-  const sourceSha256 = createHash("sha256").update(bytes).digest("hex");
+  extraSources: readonly string[],
+): {
+  stdout: string;
+  sourceSha256: string;
+  extras: CompiledSourceRef[];
+  toolVersion: string;
+  languageVersion: string;
+  line: string;
+} {
+  const hashSource = (path: string): string => {
+    let bytes: Buffer;
+    try {
+      bytes = readFileSync(join(root, path));
+    } catch {
+      throw new Error(`e2e loader: compiled source not readable: ${path}`);
+    }
+    return createHash("sha256").update(bytes).digest("hex");
+  };
+  const sourceSha256 = hashSource(source);
+  const extras = extraSources.map((path) => ({ path, sha256: hashSource(path) }));
   const { toolVersion, languageVersion, line } = toolchainVersions(root);
   const bin = canBinary(root);
-  const result = spawnSync(bin, ["compile", "--format=json", source], {
+  // Pilot first: `can compile FILE...` binds artifact sources in argv
+  // order, so `sources[0]` identity keeps binding the pilot.
+  const result = spawnSync(bin, ["compile", "--format=json", source, ...extraSources], {
     cwd: root,
     encoding: "utf8",
   });
@@ -410,11 +412,12 @@ function compileSource(
   if (result.status !== 0) {
     const diagnostics = summarizeDiagnostics(stdout);
     throw new Error(
-      `e2e loader: \`can compile\` failed for ${source} (exit ${String(result.status)}): ` +
+      `e2e loader: \`can compile\` failed for ${[source, ...extraSources].join(", ")} ` +
+        `(exit ${String(result.status)}): ` +
         (diagnostics !== "" ? diagnostics : stderr.trim().split("\n")[0] ?? "no output"),
     );
   }
-  return { stdout, sourceSha256, toolVersion, languageVersion, line };
+  return { stdout, sourceSha256, extras, toolVersion, languageVersion, line };
 }
 
 async function distBuildInvoker(): Promise<typeof BuildInvokerFn> {
@@ -440,7 +443,12 @@ async function distBuildInvoker(): Promise<typeof BuildInvokerFn> {
 export async function loadCompiledArtifact(spec: CompiledArtifactSpec): Promise<CompiledAssembly> {
   const root = repoRoot();
   const source = spec.source;
-  const { stdout, sourceSha256, toolVersion, languageVersion, line } = compileSource(root, source);
+  const extraSources = spec.extraSources ?? [];
+  const { stdout, sourceSha256, extras, toolVersion, languageVersion, line } = compileSource(
+    root,
+    source,
+    extraSources,
+  );
   let artifact: CompileArtifact;
   try {
     artifact = parseArtifactText(stdout, `compiled:${source}`).artifact;
@@ -476,6 +484,7 @@ export async function loadCompiledArtifact(spec: CompiledArtifactSpec): Promise<
     artifact,
     sourcePath: source,
     sourceSha256,
+    extraSources: extras,
     toolVersion,
     languageVersion,
     toolchain: line,

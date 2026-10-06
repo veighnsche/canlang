@@ -76,15 +76,32 @@ export interface MutationWritesInput {
    * back to team ?? app, mirroring admission.
    */
   readonly trigger?: { readonly revision: Revision; readonly owner: string };
+  /**
+   * B1: gate update/remove writes against archived targets with the
+   * EXACT admission rule (`validation` / `Archived records cannot be
+   * used here.`). The CRUD executors get this gate from admission
+   * (admission loads every ref and rejects archived targets before
+   * execution); scenario-staged writes bypass per-write admission, so
+   * the scenario seam passes `true` for CRUD/scenario parity. Absent
+   * reads as false: privileged direct callers (migrations/backfill)
+   * may legitimately touch archived rows.
+   */
+  readonly gateArchivedTargets?: boolean;
 }
 
 /**
  * Pipeline output: fenced-commit inputs plus receipt defaults.
  *
- * INTERIM: `resolvedDefaults` is flat per batch, so multi-write batches with
- * same-named defaulted fields across models collide (last wins in the
- * receipt). Unreachable via single-write crudExecute; scenarios will key
- * defaults per write.
+ * B1: `resolvedDefaults` is flat per batch. Same-named defaulted fields
+ * across writes in one batch are REJECTED LOUD (`validation`, before
+ * anything commits) instead of last-wins: a flat receipt cannot
+ * attribute two resolutions of one name, so colliding batches never
+ * persist silently. Single-write callers (both CRUD executors, the
+ * scenario seam's one-write calls, fanout children) cannot collide;
+ * the seam keys its per-call maps itself (`<callIndex>:<model>.<field>`).
+ * If a live caller ever needs two resolutions of one name in one batch,
+ * per-write receipt keying is a contract item (T04b/I00), not a silent
+ * pipeline change.
  */
 export interface MutationWritesResult {
   readonly writes: DomainWrite[];
@@ -265,14 +282,15 @@ function refValuesEqual(oldValue: unknown, newValue: unknown): boolean {
  * record history under the triggering operation's identity. Any staged
  * failure voids the whole batch before commit (atomic rollback).
  *
- * INTERIM LIMITATION: same-batch self-canceling writes (create+remove one
- * id) emit both a claim and a release for one key, but stores apply releases
- * first — direct multi-write callers must not emit both. Unreachable via
- * crudExecute (single write per call); scenarios will stage net uniques.
- * (Same-batch double-touch of one row — e.g. a staged update to a staged
- * create — likewise fails at commit: adapters pre-check every
- * expectedVersion against stored state, so chained provisional versions
- * conflict. Staged writes inherit exactly the caller multi-write rule.)
+ * B1: same-batch self-canceling writes (create+remove, update+remove one
+ * id) net their uniques in the pipeline: a hard remove drops every claim
+ * the batch staged for its record and releases the first-touch
+ * (committed) keys, so no claim dangles on a removed row and no
+ * committed claim strands. (Same-batch double-touch of one row — e.g. a
+ * staged update to a staged create — still fails at commit: adapters
+ * pre-check every expectedVersion against stored state, so chained
+ * provisional versions conflict. Staged writes inherit exactly the
+ * caller multi-write rule.)
  */
 export async function runMutationWrites(input: MutationWritesInput): Promise<MutationWritesResult> {
   const { table, writes, context, store } = input;
@@ -292,6 +310,23 @@ export async function runMutationWrites(input: MutationWritesInput): Promise<Mut
   const resolvedDefaults: Record<string, unknown> = {};
   const outSchedules: ScheduleOp[] = [];
   const touchedDefs: InterimModelDef[] = [];
+  /**
+   * B1: first-touch before-rows per record (committed state at batch
+   * start, or null for batch-created rows). Hard removes release unique
+   * keys from the FIRST touch — not the provisional before — so
+   * multi-touch batches (update+remove, create+remove) free exactly the
+   * committed keys and never claim-then-dangle.
+   */
+  const firstBefore = new Map<string, StoredRow | null>();
+  /**
+   * B1: resolved-default attribution per batch (field name to the tag
+   * of the write that first resolved it). A second write resolving the
+   * same name rejects LOUD — flat receipts cannot attribute two
+   * resolutions of one name.
+   */
+  const defaultWriters = new Map<string, string>();
+  /** B1: monotonic per-write tag counter (queue indices shift on splice). */
+  let processedWrites = 0;
 
   /** Provisional-aware load: staged rows win, removals mask, else the store. */
   const getRow = async (model: ModelName, id: RecordId): Promise<StoredRow | null> => {
@@ -819,6 +854,41 @@ export async function runMutationWrites(input: MutationWritesInput): Promise<Mut
     });
   };
 
+  /**
+   * B1: record one resolved default under the flat batch receipt map,
+   * rejecting LOUD when another write already resolved the same name.
+   * `tag` identifies the resolving write (op + model + id + sequence).
+   * Same-write double recording is impossible (the create path visits
+   * each field once), so any second tag is a genuine cross-write
+   * collision — last-wins would persist silently without this throw.
+   */
+  const recordDefault = (field: string, value: unknown, tag: string): void => {
+    const first = defaultWriters.get(field);
+    if (first !== undefined && first !== tag) {
+      throw new StateError(
+        'validation',
+        `Resolved-default collision in one mutation batch: field ${JSON.stringify(field)} ` +
+          `defaulted by both ${first} and ${tag}; receipts record resolved defaults once ` +
+          'per batch, so split the batch or rename the field.',
+      );
+    }
+    defaultWriters.set(field, tag);
+    safeSet(resolvedDefaults, field, value);
+  };
+
+  /**
+   * B1: scenario-parity archived-target gate. Code and message are EXACTLY
+   * admission's (`validation` / `Archived records cannot be used here.`):
+   * the CRUD executors inherit this verdict from admission, and gated
+   * pipeline callers (the scenario seam) must agree with it verdict for
+   * verdict. Runs before hooks — admission gates before execution too.
+   */
+  const checkGatedArchivedTarget = (before: StoredRow, gateOn: boolean): void => {
+    if (gateOn && before.archivedAt !== null) {
+      throw new StateError('validation', 'Archived records cannot be used here.');
+    }
+  };
+
   // T31 (Rule A): the work queue starts as the caller writes; each
   // trigger write's staged secondaries splice in immediately after it, in
   // staging order, so staged writes observe the trigger's provisional row
@@ -865,6 +935,18 @@ export async function runMutationWrites(input: MutationWritesInput): Promise<Mut
     // Admission pre-loads update/remove targets, but the pipeline re-loads
     // via the provisional map for uniformity (batch-earlier writes visible).
     const before = await getRow(write.model, id);
+    // B1: first-touch before-row (committed state at batch start; null for
+    // batch-created rows). Captured once per record: later touches see
+    // provisional state, but unique-netting needs the committed keys.
+    const rowKey = keyOf(write.model, id);
+    if (!firstBefore.has(rowKey)) {
+      firstBefore.set(rowKey, before);
+    }
+    // B1: collision-guard tag for this write (monotonic sequence — queue
+    // indices shift when staged writes splice in).
+    processedWrites += 1;
+    const writeTag =
+      `${write.op} ${write.model as string} ${id as string} (batch write #${processedWrites})`;
 
     // T18/R27 ADOPTED RULE (one rule over creation defaults, server
     // initialization, updates, and hooks): server-owned fields resolve
@@ -888,6 +970,35 @@ export async function runMutationWrites(input: MutationWritesInput): Promise<Mut
           write.parent.id === ''
         ) {
           throw new StateError('validation', 'Invalid parent reference.');
+        }
+      }
+      // B5 declared ownership (adopted T28-A): a declared child REQUIRES
+      // its declared parent model; a declared root rejects any supplied
+      // parent. Undeclared (legacy interim) defs skip this entirely —
+      // exact prior behavior. Local and plain-imported parents enforce
+      // identically (flat linkage); every caller path (CRUD, scenario
+      // staging, hook-staged writes) shares this block, so they agree.
+      const declared = def.containment;
+      if (declared !== undefined) {
+        if (declared.parent !== undefined) {
+          if (write.parent === undefined) {
+            throw new StateError(
+              'validation',
+              `Missing required parent for model ${JSON.stringify(write.model as string)}.`,
+            );
+          }
+          if ((write.parent.model as string) !== (declared.parent as string)) {
+            throw new StateError(
+              'validation',
+              `Invalid parent for model ${JSON.stringify(write.model as string)}: ` +
+                `expected parent model ${JSON.stringify(declared.parent as string)}.`,
+            );
+          }
+        } else if (write.parent !== undefined) {
+          throw new StateError(
+            'validation',
+            `Parent linkage is not allowed for model ${JSON.stringify(write.model as string)}.`,
+          );
         }
       }
       const candidate: Record<string, unknown> = {};
@@ -932,10 +1043,10 @@ export async function runMutationWrites(input: MutationWritesInput): Promise<Mut
               continue;
             }
             safeSet(candidate, field, structuredClone(resolved));
-            safeSet(resolvedDefaults, field, structuredClone(resolved));
+            recordDefault(field, structuredClone(resolved), writeTag);
           } else {
             safeSet(candidate, field, structuredClone(fallback));
-            safeSet(resolvedDefaults, field, structuredClone(fallback));
+            recordDefault(field, structuredClone(fallback), writeTag);
           }
           continue;
         }
@@ -950,7 +1061,7 @@ export async function runMutationWrites(input: MutationWritesInput): Promise<Mut
         // (hand-built defs, fixtures) skips with prior behavior intact.
         if (fieldDef.nullable === true) {
           safeSet(candidate, field, null);
-          safeSet(resolvedDefaults, field, null);
+          recordDefault(field, null, writeTag);
           continue;
         }
         // T16a: the T09 array marker decides. Ordinary arrays omit to `[]`
@@ -958,7 +1069,7 @@ export async function runMutationWrites(input: MutationWritesInput): Promise<Mut
         // (handled above) always win over omit-to-empty.
         if (marker !== undefined) {
           safeSet(candidate, field, []);
-          safeSet(resolvedDefaults, field, []);
+          recordDefault(field, [], writeTag);
           continue;
         }
         // T18: closed-set server init, the last prep step before hooks.
@@ -968,7 +1079,7 @@ export async function runMutationWrites(input: MutationWritesInput): Promise<Mut
         if (init !== undefined) {
           const resolved = evalServerInit(init, now, actor);
           safeSet(candidate, field, resolved);
-          safeSet(resolvedDefaults, field, resolved);
+          recordDefault(field, resolved, writeTag);
         }
       }
       checkRequired(candidate, def);
@@ -1034,10 +1145,12 @@ export async function runMutationWrites(input: MutationWritesInput): Promise<Mut
       if (before === null) {
         throw new StateError('not_found', 'Record not found.');
       }
-      // Archived rows stay updatable here BY DESIGN: canonical admission
-      // gates archived targets for every invoke-path write (CRUD now,
-      // scenarios later), while direct pipeline callers (privileged: future
-      // migrations/backfill) may legitimately touch archived rows.
+      // B1: archived rows stay updatable here BY DESIGN unless the caller
+      // opts into the admission-parity gate: canonical admission gates
+      // archived targets for every invoke-path write (CRUD via admission,
+      // scenarios via `gateArchivedTargets`), while privileged direct
+      // callers (migrations/backfill) may legitimately touch archived rows.
+      checkGatedArchivedTarget(before, input.gateArchivedTargets === true);
       if (write.parent !== undefined) {
         throw new StateError('validation', 'Parent linkage is immutable.');
       }
@@ -1125,6 +1238,11 @@ export async function runMutationWrites(input: MutationWritesInput): Promise<Mut
     if (before === null) {
       throw new StateError('not_found', 'Record not found.');
     }
+    // B1: gated callers agree with admission verdict-for-verdict: an
+    // archived target reports `Archived records cannot be used here.`
+    // (admission's verdict, which the CRUD path inherits) rather than
+    // the archive-mode `already archived` verdict below.
+    checkGatedArchivedTarget(before, input.gateArchivedTargets === true);
     if (write.parent !== undefined) {
       throw new StateError('validation', 'Parent linkage is immutable.');
     }
@@ -1228,12 +1346,34 @@ export async function runMutationWrites(input: MutationWritesInput): Promise<Mut
       drainSink();
     } else {
       await checkDisposal(write.model, id);
-      for (const key of def.uniqueKeys) {
-        const canonical = canonicalUnique(before.data[key], key, def);
-        if (canonical === null) {
-          continue;
+      // B1: net uniques against the batch. The removed row's final keys
+      // are nothing, so every claim this batch staged for it is dropped
+      // (single-touch removes staged none — this only bites multi-touch
+      // batches, where a surviving claim would dangle on a removed row).
+      // Releases free the FIRST-touch (committed) keys: a batch-earlier
+      // touch may have moved the provisional keys, and freeing those
+      // would strand the committed claim. Batch-created rows (first
+      // touch null) release nothing — their keys never committed.
+      for (let claimIndex = outClaims.length - 1; claimIndex >= 0; claimIndex -= 1) {
+        const staged = outClaims[claimIndex];
+        if (
+          staged !== undefined &&
+          (staged.model as string) === (write.model as string) &&
+          (staged.recordId as string) === (id as string)
+        ) {
+          outClaims.splice(claimIndex, 1);
         }
-        outReleases.push({ model: write.model, keyName: key, keyValue: canonical });
+      }
+      const committedBefore = firstBefore.get(rowKey) ?? null;
+      const releaseSource = committedBefore === null ? null : committedBefore.data;
+      if (releaseSource !== null) {
+        for (const key of def.uniqueKeys) {
+          const canonical = canonicalUnique(releaseSource[key], key, def);
+          if (canonical === null) {
+            continue;
+          }
+          outReleases.push({ model: write.model, keyName: key, keyValue: canonical });
+        }
       }
       provisional.set(keyOf(write.model, id), { status: 'removed' });
       outWrites.push({ kind: 'remove', model: write.model, id, expectedVersion: before.version });

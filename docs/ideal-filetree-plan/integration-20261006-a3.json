@@ -1,0 +1,16 @@
+{
+ "integration": "a3",
+ "date": "2026-10-06",
+ "main_before": "2c9da87",
+ "commits": [
+  "011fced Lane A A3: boundary proof tests for titles + order keys"
+ ],
+ "lane_commits": [
+  "b1d979c (b4_check.rs +54, test-only)"
+ ],
+ "patch_id identical": true,
+ "coverage": "compiler/tests/b4_check.rs: 5 a3_ proofs (page-title E1204/E3001 boundary, order-key ordered/unordered-E3006/nullable-datetime-clean)",
+ "decisions": "A3 survey verdict: all 3 T35 packets READY survey-only, no checker edits (P1 titles incl E3001 arm parser-shadowed by E1204; P2 request bindings 4/4 arms cited; P3 query/datetime ordering, datetime IS ordered); Shift/Volunteer = test-code-only appendix",
+ "gate": "CANONICAL GREEN: b4_check a3_ 5/5 + check request_selectors 1/1 on main; lane gate identical",
+ "lane_report": "4d42a2c1; A ACK 1b4035a0 (patch-id verified both sides)"
+}

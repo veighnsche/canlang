@@ -5,7 +5,9 @@
  * envelope validators need. The production binding reads the owning L1
  * operation registry (join J3); tests use a stub map. Full JSON-schema
  * validation of business inputs stays with the canonical invocation (L3);
- * this layer checks framing only (closed members, required presence).
+ * this layer checks framing (closed members, required presence) plus
+ * bound-argument binding against the derived inputs when the catalog
+ * carries them (`derivedFor`, E1).
  */
 export interface InterfacesClock {
   nowMs(): number;
@@ -31,6 +33,15 @@ export interface OperationInputShape {
 
 export interface SchemaCatalog {
   shapeFor(operation: string): OperationInputShape | null;
+  /**
+   * E1 binding-visibility channel: the derived writable inputs for one
+   * operation (submittable writables plus engine-resolved delivery
+   * bindings), or null when the binding serves framing shapes only.
+   * Dispatch invokes the pure bound checker (`checkBoundArguments`)
+   * against these inputs after the framing checks; an absent channel
+   * keeps framing-only behavior (legacy/test doubles).
+   */
+  derivedFor?(operation: string): DerivedOperationInputs | null;
 }
 
 /* ------------------------------------------------------------------ */
@@ -46,6 +57,7 @@ export interface SchemaCatalog {
 import type {
   BusinessError,
   ContentCheck,
+  DerivedOperationInputs,
   FinalizedFile,
   FinalizeResult,
   MessageValue,
