@@ -5,10 +5,10 @@
   "checkpoint_advanced": false,
   "initial_main": "2b22cb4ecf637cce4bf90a17238cce12de045ba4",
   "current_merge": {
-    "branch": "codex/remaining-lane-g-journeys",
-    "tip": "bc6a9d99c5cfd0e4f8336e953bc30a16a16df991",
-    "before": "9d9c8e3f89da01d339a75280ee446b82d7dacc3c",
-    "scope": "history reconciliation; retain current draft descendant instead of stale predecessor",
+    "branch": "origin/codex/remaining-lane-f-ui",
+    "tip": "6026049dff23dff84555d55993b9e04333bbdd03",
+    "before": "36e26044e3656be26d6a6542a4f5f3e096940ff2",
+    "scope": "remote instrumentation history reconciliation; code already cherry-picked and current browser implementation retained",
     "merge_output": "Automatic merge went well; stopped before committing as requested\n",
     "source_delta": []
   },
@@ -195,6 +195,15 @@
       "merge_output": "Auto-merging .github/ci/README.md\nAuto-merging .github/ci/ts-gate.mjs\nAuto-merging .github/ci/ts-gate.test.mjs\nAuto-merging .github/ci/verify-receipt.mjs\nAuto-merging .github/ci/verify-receipt.test.mjs\nAutomatic merge went well; stopped before committing as requested\n",
       "source_delta": [],
       "result": "9d9c8e3f89da01d339a75280ee446b82d7dacc3c"
+    },
+    {
+      "branch": "codex/remaining-lane-g-journeys",
+      "tip": "bc6a9d99c5cfd0e4f8336e953bc30a16a16df991",
+      "before": "9d9c8e3f89da01d339a75280ee446b82d7dacc3c",
+      "scope": "history reconciliation; retain current draft descendant instead of stale predecessor",
+      "merge_output": "Automatic merge went well; stopped before committing as requested\n",
+      "source_delta": [],
+      "result": "36e26044e3656be26d6a6542a4f5f3e096940ff2"
     }
   ],
   "accumulated_structural_delta_since_complete_checkpoint": [
