@@ -7,7 +7,7 @@ import {
   deriveRecurringOccurrenceId,
   everyScopeKey,
   RootRecurrenceNotSupportedError,
-} from '../src/schedule/every.ts';
+} from '../src/schedule/every.js';
 
 const PERIOD_MS = 5 * 60 * 1000; // every(5m)
 const SLOT_START_MS = 1_791_120_000_000; // a 5-minute boundary

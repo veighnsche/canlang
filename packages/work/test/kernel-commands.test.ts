@@ -11,12 +11,12 @@ import type {
   QuerySpec,
   RecordId,
   StoredRow,
-} from '../../contracts/src/state.js';
+} from '@canlang/contracts';
 import type {
   SystemCommandContext,
   SystemCommandDef,
   SystemStaging,
-} from '../../state/src/ports/system.ts';
+} from '@canlang/state';
 import {
   WORK_DISPATCH_MODEL,
   WORK_EVERY_SLOT_MODEL,
@@ -29,8 +29,8 @@ import {
   newScheduleRow,
   newSupersessionRow,
   readDispatchRow,
-} from '../src/kernel/tables.ts';
-import { KernelTableError } from '../src/kernel/tables.ts';
+} from '../src/kernel/tables.js';
+import { KernelTableError } from '../src/kernel/tables.js';
 import {
   WORK_DISPATCH_STAGE_COMMANDS,
   WORK_SYSTEM_COMMANDS,
@@ -43,8 +43,8 @@ import {
   workOccurrencePutReceiptCommand,
   workScheduleCancelCommand,
   workSchedulePutCommand,
-} from '../src/kernel/commands.ts';
-import { RootRecurrenceNotSupportedError } from '../src/schedule/every.ts';
+} from '../src/kernel/commands.js';
+import { RootRecurrenceNotSupportedError } from '../src/schedule/every.js';
 
 const NOW = 1_758_000_000_000;
 const ACTOR = 'dispatcher-test';

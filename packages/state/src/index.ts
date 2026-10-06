@@ -16,7 +16,7 @@ export {
   type QueryRecordsInput,
   type ViewerRecordsInput,
 } from './query/index.js';
-export { STATE_CONTRACT_VERSION } from '../../contracts/src/state.js';
+export { STATE_CONTRACT_VERSION } from '@canlang/contracts';
 export type {
   StateErrorCode,
   RecordId,
@@ -54,7 +54,7 @@ export type {
   ProjectedRecord,
   AuthorizedRecordsResult,
   AuthorityRowsResult,
-} from '../../contracts/src/state.js';
+} from '@canlang/contracts';
 export {
   buildModelTable,
   isParentPathDefault,

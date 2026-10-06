@@ -7,14 +7,9 @@
  * injected T25a `observeSelectedReceipt`, and enrolls `fenceRevision`
  * in the owner read fence.
  *
- * Injection, not import: the compiled state suite cannot runtime-import
- * lane-4 sources (the T24a precedent), and this package's tsconfig
- * cannot even type-import them, so the T25a entry arrives as the
- * `observeSelected` port, typed by the structural mirrors below
- * (identical shapes, so the real function accepts these inputs at
- * runtime). Production call-site wiring binds the real entry; the join
- * tests load it dynamically (see `work-loader.ts`) and prove every
- * behavior below against the REAL mechanism on the REAL store.
+ * The owning work producer is injected through the structural observation
+ * port. State stays independent of work; cross-producer join proofs live in
+ * work's test suite and supply its real compiled observation mechanism.
  *
  * Evaluation order: locator resolution (throws) → selected-shape
  * validation (throws) → declared-delivery-field check (throws) →
@@ -31,14 +26,14 @@ import type {
   ReceiptProperty,
   ReceiptStatus,
   SelectedReceiptProjection,
-} from '../../../contracts/src/work.js';
+} from '@canlang/contracts';
 import type {
   ModelName,
   RecordId,
   Revision,
   StoragePort,
   StoredRow,
-} from '../../../contracts/src/state.js';
+} from '@canlang/contracts';
 import type { FenceScope } from '../invocation/admission.js';
 import { StateError } from '../errors.js';
 import type { MembershipReader } from '../policy/roles.js';

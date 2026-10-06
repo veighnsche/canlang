@@ -11,31 +11,26 @@
  *   MutationRef wrapping).
  *
  * Nothing here executes without dists: dist modules load through
- * variable-path dynamic imports (keeps the e2e tsc gate clean
- * pre-build; fails loud naming the build at live runs when absent).
+ * their exported package APIs and fail loud naming the build when absent.
  */
-import { join } from "node:path";
 import type { OperationId, StoragePort } from "@canlang/contracts";
-import type { OperationInvoker } from "../../../packages/cloudflare/src/worker/assembly.js";
-import type { ResolvedIdentity } from "../../../packages/contracts/src/identity.js";
-import type { CompileArtifact } from "../../../packages/contracts/src/artifact.js";
-import type { AssembledModules } from "../../../packages/cloudflare/src/runtime/modules.js";
+import type { OperationInvoker } from "@canlang/cloudflare/worker/assembly";
+import type { ResolvedIdentity } from "@canlang/contracts";
+import type { CompileArtifact } from "@canlang/contracts";
+import type { AssembledModules } from "@canlang/cloudflare/runtime/modules";
 import {
   createExampleHooks,
   type DispatchFn,
   type LiveReadFn,
-} from "../../../packages/testkit/src/runner/dispatch.js";
-import type { ExampleHooks } from "../../../packages/testkit/src/runner/steps.js";
+} from "@canlang/testkit/runner/dispatch";
+import type { ExampleHooks } from "@canlang/testkit/runner/steps";
 import { freshOperationId } from "./compiled-seed.js";
 
-async function loadDistModule<T>(repoRoot: string, distRelative: string, buildCommand: string): Promise<T> {
-  // Variable path: tsc yields `any` (no TS2307 pre-build); live runs fail
-  // loud with the exact build when the dist is absent.
-  const path = join(repoRoot, distRelative);
+async function loadDistModule<T>(specifier: string, buildCommand: string): Promise<T> {
   try {
-    return (await import(path)) as T;
+    return (await import(specifier)) as T;
   } catch (thrown) {
-    throw new Error(`example-hooks: ${distRelative} not built; run \`${buildCommand}\` first`, {
+    throw new Error(`example-hooks: ${specifier} not built; run \`${buildCommand}\` first`, {
       cause: thrown,
     });
   }
@@ -75,8 +70,7 @@ type BuildInvokerFn = (
  */
 export async function createLiveExampleHooks(inputs: LiveHookInputs): Promise<ExampleHooks> {
   const mod = await loadDistModule<{ buildInvoker: BuildInvokerFn }>(
-    inputs.repoRoot,
-    "packages/cloudflare/dist/worker/assembly.js",
+    "@canlang/cloudflare/worker/assembly",
     "bun run --filter @canlang/cloudflare build",
   );
   const invoker = mod.buildInvoker(inputs.artifact, inputs.asm, inputs.store);

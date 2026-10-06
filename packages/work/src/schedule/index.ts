@@ -28,14 +28,14 @@ import type {
   OutboxItem,
   ScheduledOccurrence,
   WorkScope,
-} from '../../../contracts/src/work.js';
+} from '@canlang/contracts';
 import type {
   OccurrenceIdPort,
   OutboxStorePort,
   ScheduleStorePort,
   SupersessionPort,
-} from '../ports.ts';
-import { freezeRequest } from '../intent/index.ts';
+} from '../ports.js';
+import { freezeRequest } from '../intent/index.js';
 
 export interface ScheduleDeps {
   schedules: ScheduleStorePort;

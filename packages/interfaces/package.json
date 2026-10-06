@@ -5,25 +5,53 @@
   "private": true,
   "type": "module",
   "description": "CanLang HTTP/MCP/upload interfaces (lane 06). B0: contract conformance only; implementation lands in S3+.",
-  "main": "./dist/interfaces/src/index.js",
-  "types": "./dist/interfaces/src/index.d.ts",
+  "main": "./dist/src/index.js",
+  "types": "./dist/src/index.d.ts",
   "exports": {
     ".": {
-      "types": "./dist/interfaces/src/index.d.ts",
-      "default": "./dist/interfaces/src/index.js"
+      "types": "./dist/src/index.d.ts",
+      "default": "./dist/src/index.js"
+    },
+    "./distribution": {
+      "types": "./dist/src/distribution.d.ts",
+      "default": "./dist/src/distribution.js"
+    },
+    "./testing": {
+      "types": "./dist/src/testing.d.ts",
+      "default": "./dist/src/testing.js"
+    },
+    "./http/form-errors": {
+      "types": "./dist/src/http/formErrors.d.ts",
+      "default": "./dist/src/http/formErrors.js"
+    },
+    "./uploads/kernel": {
+      "types": "./dist/src/uploads/kernel.d.ts",
+      "default": "./dist/src/uploads/kernel.js"
+    },
+    "./mcp/server": {
+      "types": "./dist/src/mcp/server.d.ts",
+      "default": "./dist/src/mcp/server.js"
+    },
+    "./http/operations": {
+      "types": "./dist/src/http/operations.d.ts",
+      "default": "./dist/src/http/operations.js"
     }
   },
   "scripts": {
-    "build": "tsc -p tsconfig.json && cp -r test/fixtures dist/interfaces/test/fixtures",
-    "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test": "bun run build && node --test \"dist/interfaces/test/**/*.test.js\"",
-    "clean": "rm -rf dist/"
+    "build": "node ../../scripts/build-package.mjs",
+    "typecheck": "node ../../scripts/run-tasks.mjs typecheck:check --filter=@canlang/interfaces",
+    "test": "node ../../scripts/run-tasks.mjs test:unit --filter=@canlang/interfaces",
+    "clean": "rm -rf dist/",
+    "build:emit": "tsc -p tsconfig.json && mkdir -p dist/test/fixtures && cp -r test/fixtures/. dist/test/fixtures/",
+    "typecheck:check": "tsc -p tsconfig.json --noEmit",
+    "test:unit": "node --test \"dist/test/**/*.test.js\"",
+    "build:prepare": "node ../../scripts/build-package.mjs --prepare"
   },
   "dependencies": {
-    "@canlang/contracts": "0.1.0",
-    "@canlang/identity": "0.1.0",
-    "@canlang/ui": "0.1.0",
-    "@canlang/values": "0.1.0",
+    "@canlang/contracts": "workspace:*",
+    "@canlang/identity": "workspace:*",
+    "@canlang/ui": "workspace:*",
+    "@canlang/values": "workspace:*",
     "@modelcontextprotocol/sdk": "1.32.0"
   },
   "devDependencies": {
@@ -32,5 +60,8 @@
   },
   "engines": {
     "node": ">=22"
-  }
+  },
+  "files": [
+    "dist"
+  ]
 }

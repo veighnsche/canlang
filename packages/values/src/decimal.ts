@@ -32,7 +32,7 @@
  * decimals), ambiguous overloads, and precision/range violations
  * (out-of-range, never silent rounding) stay rejected.
  */
-import type { DecimalValue, MoneyValue } from "../../contracts/src/values.js";
+import type { DecimalValue, MoneyValue } from "@canlang/contracts/values";
 import { ValueError } from "./errors.js";
 import { int64 } from "./int.js";
 

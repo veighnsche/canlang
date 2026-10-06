@@ -4,7 +4,7 @@ import {
   CSRF_FIELD,
   GENERATED_FORM_TYPE_FOR_KIND,
   GENERATED_REF_VERSION_SUFFIX,
-} from "../../contracts/src/presentation.js";
+} from "@canlang/contracts";
 import type {
   FormFieldDef,
   MessageValue,
@@ -12,8 +12,8 @@ import type {
   PageDescriptor,
   PresentationContext,
   ShellData,
-} from "../../contracts/src/presentation.js";
-import type { DerivedOperationInputs } from "../../contracts/src/wire.js";
+} from "@canlang/contracts";
+import type { DerivedOperationInputs } from "@canlang/contracts";
 import { UI_CATALOG } from "../src/catalog.js";
 import {
   formFragmentWrap,

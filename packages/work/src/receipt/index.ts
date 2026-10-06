@@ -22,8 +22,8 @@ import type {
   ReceiptStatus,
   RetryClass,
   RetryPolicy,
-} from '../../../contracts/src/work.js';
-import type { RandomPort } from '../ports.ts';
+} from '@canlang/contracts';
+import type { RandomPort } from '../ports.js';
 
 /** DESIGN section 7 defaults: at most 8 attempts within 24 hours. */
 export const DEFAULT_RETRY_POLICY: RetryPolicy = Object.freeze({
@@ -393,4 +393,22 @@ export function toReceiptObservation(
     result: recorded.result,
     error: recorded.error,
   };
+}
+
+/** Work-owned receipt producer functions used by runtime assembly and interop proofs. */
+import { observeSelectedReceipt } from '../observation/observation.js';
+import { applyReceiptProgress, type ReceiptProgressOutcome } from '../observation/association.js';
+
+export type WorkProgressOutcome = ReceiptProgressOutcome;
+export type ApplyReceiptProgressFn = typeof applyReceiptProgress;
+export type IsConsistentCompletionFn = typeof isConsistentCompletion;
+export interface WorkReceiptFns {
+  readonly observeSelectedReceipt: typeof observeSelectedReceipt;
+  readonly applyReceiptProgress: ApplyReceiptProgressFn;
+  readonly isConsistentCompletion: IsConsistentCompletionFn;
+}
+
+/** Resolve the real owning producer, without filesystem or source-tree loading. */
+export async function loadWorkReceiptFns(): Promise<WorkReceiptFns> {
+  return { observeSelectedReceipt, applyReceiptProgress, isConsistentCompletion };
 }

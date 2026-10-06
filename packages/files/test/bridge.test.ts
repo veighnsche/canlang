@@ -4,14 +4,14 @@
  */
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { TestOnlyFixedPrincipal } from '../src/ports.ts';
+import { TestOnlyFixedPrincipal } from '../src/ports.js';
 import {
   appendUploadContent,
   completeUploadContent,
   createUploadIntent,
   sha256Hex,
-} from '../src/upload/index.ts';
-import { finalizeUpload } from '../src/finalize/index.ts';
+} from '../src/upload/index.js';
+import { finalizeUpload } from '../src/finalize/index.js';
 import {
   FILE_TRANSFER_META_KEY,
   advertiseFileTransfer,
@@ -20,7 +20,7 @@ import {
   handleFinalize,
   intentsUrlFor,
   routeHost,
-} from '../src/bridge.ts';
+} from '../src/bridge.js';
 import {
   BINDING,
   OTHER_TEAM,
@@ -28,7 +28,7 @@ import {
   RECEIVER,
   makeHarness,
   uploadRequest,
-} from './helpers.ts';
+} from './helpers.js';
 
 describe('bridge v1', () => {
   it('rejects unauthenticated intent creation before any intent exists', () => {

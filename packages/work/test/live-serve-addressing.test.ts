@@ -31,14 +31,14 @@ import type {
   AssociatedReceipt,
   ReceiptAssociation,
   ReceiptProperty,
-} from '../../contracts/src/work.js';
-import { resolveAssociationLocator } from '../src/observation/association.ts';
+} from '@canlang/contracts';
+import { resolveAssociationLocator } from '../src/observation/association.js';
 import {
   authorizeSelectedLeaves,
   observeSelectedReceipt,
-} from '../src/observation/observation.ts';
-import type { StoredReceipt } from '../src/observation/observation.ts';
-import { TestOnlyAllowAllGrants, TestOnlyAvailabilityMap } from '../src/observation/ports.ts';
+} from '../src/observation/observation.js';
+import type { StoredReceipt } from '../src/observation/observation.js';
+import { TestOnlyAllowAllGrants, TestOnlyAvailabilityMap } from '../src/observation/ports.js';
 
 const NOW = 1_791_120_000_000;
 

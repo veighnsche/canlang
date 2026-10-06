@@ -13,7 +13,7 @@
  */
 import { describe, expect, it } from "vitest";
 import type { CompileArtifact, ResolvedIdentity } from "@canlang/contracts";
-import type { McpPermissions as RealMcpPermissions } from "../../interfaces/dist/interfaces/src/ports.js";
+import type { McpPermissions as RealMcpPermissions } from "@canlang/interfaces";
 import { createMemberMcpPermissions } from "../src/runtime/mcp-permissions.js";
 
 const READ_OP = "acme.Todo.read";

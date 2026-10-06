@@ -19,9 +19,9 @@ import type {
   ArtifactModelField,
   ArtifactOperation,
   ArtifactOperationInput,
-} from '../../../contracts/src/artifact.js';
-import type { ReadEnvelope } from '../../../contracts/src/wire.js';
-import type { StoragePort, StoredRow } from '../../../contracts/src/state.js';
+} from '@canlang/contracts';
+import type { ReadEnvelope } from '@canlang/contracts';
+import type { StoragePort, StoredRow } from '@canlang/contracts';
 import {
   loadArtifactDescriptors,
   type ArtifactDescriptorSlice,

@@ -19,7 +19,7 @@
  * so parent-scoped queries match positively.
  */
 
-import type { Revision } from '../../../contracts/src/state.js';
+import type { Revision } from '@canlang/contracts';
 
 /** The fence table holds exactly one row, always with id 1. */
 export const FENCE_ROW_ID = 1;

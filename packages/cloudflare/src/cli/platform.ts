@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { createLocalRowScope } from "../dev/row-scope.js";
 /**
  * `can-platform`: lane-07 delegation target for L1's thin
  * `can run|test|build|deploy` entries (IR-03).
@@ -353,36 +354,11 @@ async function runTest(artifactPath: string): Promise<void> {
   if (entry === undefined) {
     fail("test", "invalid-artifact", `artifact ${artifactPath} has no modules`);
   }
-  // Non-literal specifier on purpose: a literal `import("@canlang/testkit")`
-  // would pull the testkit's .d.ts (which re-exports this package's own
-  // dist types) into this program's inputs and break `tsc -b` (TS5055).
-  // The structural seam below is the whole contract this CLI needs.
-  const testkitSpecifier: string = "@canlang/testkit";
-  let testkit: {
-    createLocalRowScope: (
-      d1Id: string,
-      options: {
-        workerName: string;
-        compatibilityDate: string;
-        mainModule: string;
-        modules: Readonly<Record<string, string>>;
-        d1Binding: string;
-      },
-    ) => Promise<{ snapshot: () => Promise<unknown>; dispose: () => Promise<void> }>;
-  };
-  try {
-    testkit = (await import(testkitSpecifier)) as typeof testkit;
-  } catch {
-    fail("test", "missing-producer", "no testkit harness: @canlang/testkit is not importable", {
-      producer: "lane-07",
-      contract: "@canlang/testkit dist (run the testkit build first)",
-    });
-  }
   const modules: Record<string, string> = {};
   for (const [name, url] of Object.entries(asm.moduleUrls)) {
     modules[name] = readFileSync(new URL(url), "utf8");
   }
-  const scope = await testkit.createLocalRowScope(randomUUID(), {
+  const scope = await createLocalRowScope(randomUUID(), {
     workerName: defaults.workerName,
     compatibilityDate: defaults.compatibilityDate,
     mainModule: entry.path,
@@ -407,7 +383,7 @@ async function runTest(artifactPath: string): Promise<void> {
     testModules: artifact.tests.length,
     executed: 0,
     note:
-      "harness boot verified via @canlang/testkit local scope; row execution needs the " +
+      "harness boot verified via the platform local scope; row execution needs the " +
       "lane-01 ArtifactTestModule loader (contract: can compile emission + " +
       "ArtifactTestModule loader (§13 exampleFixtures))",
   });

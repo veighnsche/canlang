@@ -5,7 +5,7 @@ import { LANE05_CATALOG_VERSION, UI_CATALOG } from "../src/catalog.js";
 import type {
   ComponentHeaderExpr,
   ComponentProfile,
-} from "../../contracts/src/presentation.js";
+} from "@canlang/contracts";
 
 describe("component catalog", () => {
   it("has a versioned envelope with unique lane-05 component entries", () => {
@@ -375,6 +375,7 @@ describe("component catalog", () => {
       pageDirection: "writing-direction helper, not a component",
       pageLocale: "locale helper, not a component",
       renderLogin: "canonical login surface, not a selectable word",
+      policyPage: "policy-page renderer, not a selectable word",
       // components.ts: internal text/heading fragments (card/title/text/content/state are cataloged).
       renderTextValue: "text-value fragment, not a component",
       rowHeading: "row-heading fragment, not a component",

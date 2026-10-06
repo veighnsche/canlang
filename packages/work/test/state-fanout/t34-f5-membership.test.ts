@@ -21,10 +21,10 @@ import type {
   RecordId,
   StoragePort,
   StoredRow,
-} from '../../../contracts/src/state.js';
-import type { FanoutCohortKind } from '../../../contracts/src/work.js';
-import { createMemoryStorage } from '../storage/memory.js';
-import { StateError } from '../errors.js';
+} from '@canlang/contracts';
+import type { FanoutCohortKind } from '@canlang/contracts';
+import { createMemoryStorage } from '@canlang/state/storage/memory';
+import { StateError } from '@canlang/state/errors';
 import {
   FIXED_NOW,
   asId,
@@ -33,7 +33,7 @@ import {
   makeBatch,
   makeRow,
   seedMember,
-} from '../../test/invocation/fixtures.js';
+} from '@canlang/state/testing/invocation/fixtures';
 import {
   FANOUT_CHECKPOINT_MODEL,
   FANOUT_CHILD_MODEL,
@@ -47,9 +47,9 @@ import {
   readFanoutCheckpointRow,
   readFanoutChildRow,
   readFanoutIntentRow,
-} from './tables.js';
-import { freezeFanoutMembership } from './membership.js';
-import type { FanoutFreezeBounds } from './membership.js';
+} from '@canlang/state/fanout/tables';
+import { freezeFanoutMembership } from '@canlang/state/fanout/membership';
+import type { FanoutFreezeBounds } from '@canlang/state/fanout/membership';
 import { loadWorkFanoutFns, type WorkFanoutFns } from './work-loader.js';
 
 const MODEL = 'Acme.Commitment';

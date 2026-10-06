@@ -202,8 +202,7 @@ export type {
   SwapDocumentLike,
 } from "./client.js";
 export { LANE05_CATALOG_VERSION, UI_CATALOG } from "./catalog.js";
-// Temporary B0 wiring: re-exported contract types until lane 7 assembles
-// @canlang/contracts; see README.
+// Presentation props remain available through the canonical UI factories.
 export type {
   AccordionItem,
   AccordionProps,
@@ -374,13 +373,13 @@ export type {
   ThemeOption,
   ThemeTokens as ContractThemeTokens,
   TitleProps,
-} from "../../contracts/src/presentation.js";
+} from "@canlang/contracts";
 export {
   CSRF_FIELD,
   DEFAULT_THEME,
   PRESENTATION_CONTRACT_VERSION,
   TEAM_FIELD,
-} from "../../contracts/src/presentation.js";
+} from "@canlang/contracts";
 export {
   CSV_CSRF_HEADER,
   CSV_UI_MAX_ROWS,
@@ -428,3 +427,5 @@ export type {
   SubmitCsvCommitInput,
   SubmitCsvCommitResult,
 } from "./csv/confirm.js";
+
+export { policyPage } from "./policyPage.js";

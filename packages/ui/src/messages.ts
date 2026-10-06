@@ -26,7 +26,7 @@ import {
   type MessageVariantMap,
   type ResolvedMessage,
   type ThemeTokens,
-} from "../../contracts/src/presentation.js";
+} from "@canlang/contracts";
 
 export { DEFAULT_THEME, PRESENTATION_CONTRACT_VERSION };
 export type { Bcp47Tag, MessageParams, ResolvedMessage, ThemeTokens };

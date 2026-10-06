@@ -5,21 +5,21 @@
  */
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { EmailV1Adapter } from '../src/mail/adapter.ts';
+import { EmailV1Adapter } from '../src/mail/adapter.js';
 import {
   redactUntrusted,
   specificOrGeneric,
-} from '../src/mail/redact.ts';
+} from '../src/mail/redact.js';
 import {
   fixedAttachmentSizes,
   fixedClock,
   startControlledMailServer,
-} from '../src/ports.ts';
+} from '../src/ports.js';
 import type {
   ControlledMailServer,
   ControlledScenario,
-} from '../src/ports.ts';
-import type { EmailSendInput } from '../../contracts/src/services.js';
+} from '../src/ports.js';
+import type { EmailSendInput } from '@canlang/contracts';
 
 const FAKE_TOKEN = 'sk-fake-TEST-TOKEN-00000';
 const FAKE_JWT =

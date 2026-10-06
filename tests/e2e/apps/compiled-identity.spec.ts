@@ -6,7 +6,7 @@
  * the `compiled/` vs `fixture/handbuilt/` labels stay distinguishable.
  */
 import { expect } from "@playwright/test";
-import { assertCompiledIdentity } from "../../../packages/cloudflare/src/runtime/artifact.js";
+import { assertCompiledIdentity } from "@canlang/cloudflare/runtime/artifact";
 import { compiledTest as test } from "../fixtures/e2e-test.js";
 import { COMPILED_LABEL_PREFIX } from "../fixtures/artifact-loader.js";
 import { teamTasksArtifact } from "../fixtures/handbuilt/teamtasks.js";

@@ -1,6 +1,6 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import type { MoneyValue } from "../../contracts/src/values.js";
+import type { MoneyValue } from "@canlang/contracts/values";
 import {
   all,
   any,

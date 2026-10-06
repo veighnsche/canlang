@@ -8,8 +8,8 @@ import { UI_CATALOG } from "../src/catalog.js";
 import { appearanceClasses } from "../src/appearance.js";
 
 const here = dirname(fileURLToPath(import.meta.url));
-// Compiled tests run from dist/ui/test; sources sit beside dist.
-const packageRoot = join(here, "..", "..", "..");
+// Compiled tests run from dist/test; sources sit beside dist.
+const packageRoot = join(here, "..", "..");
 // Resolve through node_modules instead of assuming a hoisted root layout
 // (bun nests workspace deps under packages/ui/node_modules).
 const pkgRequire = createRequire(import.meta.url);

@@ -49,8 +49,8 @@ import type {
 } from "@canlang/contracts";
 import { resolveIdentity, sha256HexText } from "@canlang/identity";
 import { createFrozenClock, createMemoryIdentityStore } from "@canlang/identity/testing";
-import { createTestMemoryStorage } from "../../../state/dist/state/src/storage/memory.js";
-import { T18_SHOP_ARTIFACT_JSON } from "../../../state/dist/state/src/mutation/t18-shop.artifact.js";
+import { createTestMemoryStorage } from "@canlang/state/storage/memory";
+import { T18_SHOP_ARTIFACT_JSON } from "@canlang/state/mutation/t18-shop.artifact";
 import { buildInvoker } from "../worker/assembly.js";
 import type { AssembledModules } from "../worker/assembly.js";
 import { assembleDispatchCommands } from "../worker/assembly.js";
@@ -713,7 +713,7 @@ interface WorkProducers {
 }
 
 function workSpecifier(path: string): string {
-  return ["..", "..", "..", "work", "src", path].join("/");
+  return "@canlang/work/" + path.replace(/\.ts$/, "").replace(/\/index$/, "");
 }
 
 let cachedWork: WorkProducers | null = null;

@@ -14,7 +14,7 @@ import type {
   StoragePort,
   StoredRow,
   WorkInventoryItem,
-} from '../../../contracts/src/state.js';
+} from '@canlang/contracts';
 import {
   activate,
   checkActivationInventory,

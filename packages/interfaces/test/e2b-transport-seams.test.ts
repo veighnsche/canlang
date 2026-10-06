@@ -20,8 +20,8 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { randomBytes } from 'node:crypto';
 import { deriveCsrfToken } from '@canlang/identity';
-import { ARTIFACT_VERSION } from '../../contracts/src/artifact.js';
-import type { ArtifactOperation } from '../../contracts/src/artifact.js';
+import { ARTIFACT_VERSION } from '@canlang/contracts';
+import type { ArtifactOperation } from '@canlang/contracts';
 import type { ClosedInputs, ConflictCurrent, MutationEnvelope, ResolvedIdentity } from '@canlang/contracts';
 import type { MutationOutcome } from '../src/ports.js';
 import { buildBusinessError } from '../src/errors/envelope.js';
@@ -45,7 +45,7 @@ import {
   createTestMcpDeps,
   testRequest,
 } from '../src/testing.js';
-import { generatedFields } from '../../ui/src/forms.js';
+import { generatedFields } from '@canlang/ui';
 
 /* Verbatim t19a emission: Shop.Gadget.create. */
 const GADGET_CREATE: ArtifactOperation = {

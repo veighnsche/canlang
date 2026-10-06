@@ -39,14 +39,14 @@ function artifact(modules: ArtifactModule[]): CompileArtifact {
 }
 
 /** Stub producer dists: `<root>/ui/dist/ui/src/index.js` + a stdlib module. */
-function stubProducers(): { distRoot: string; stdlibUrl: string; uiEntry: string } {
+function stubProducers(): { distRoot: string; stdlibUrl: string; uiEntry: string; uiUrl: string } {
   const distRoot = mkdtempSync(join(tmpdir(), "b1-dist-"));
   const uiEntry = join(distRoot, "ui", "dist", "ui", "src", "index.js");
   mkdirSync(join(distRoot, "ui", "dist", "ui", "src"), { recursive: true });
   writeFileSync(uiEntry, `export const uiMarker = "ui-stub";\n`);
   const stdlibPath = join(distRoot, "stdlib.mjs");
   writeFileSync(stdlibPath, `export const stdlibMarker = "stdlib-stub";\n`);
-  return { distRoot, stdlibUrl: pathToFileURL(stdlibPath).href, uiEntry };
+  return { distRoot, stdlibUrl: pathToFileURL(stdlibPath).href, uiEntry, uiUrl: pathToFileURL(uiEntry).href };
 }
 
 const ENTRY_JS = `import { stdlibMarker } from "@canlang/stdlib";
@@ -61,11 +61,11 @@ export const helper = "helper:" + stdlibMarker;
 
 describe("assembleModules", () => {
   it("writes modules, rewrites producer imports, entry imports cleanly", async () => {
-    const { distRoot, stdlibUrl, uiEntry } = stubProducers();
+    const { distRoot, stdlibUrl, uiEntry, uiUrl } = stubProducers();
     const workDir = mkdtempSync(join(tmpdir(), "b1-work-"));
     const loaded = { artifact: artifact([module("main.js", ENTRY_JS), module("lib/helper.js", HELPER_JS)]), sourcePath: "/tmp/fixture.artifact.json" };
 
-    const assembled = await assembleModules(loaded, { distRoot, workDir, stdlibUrl });
+    const assembled = await assembleModules(loaded, { distRoot, uiUrl, workDir, stdlibUrl });
 
     expect(assembled.dir).toBe(workDir);
     expect(Object.keys(assembled.moduleUrls).sort()).toEqual(["lib/helper.js", "main.js"]);
@@ -89,28 +89,28 @@ describe("assembleModules", () => {
     const loaded = { artifact: artifact([module("main.js", `export const x = 1;\n`)]), sourcePath: "s" };
 
     await expect(
-      assembleModules(loaded, { distRoot: emptyRoot, workDir, stdlibUrl: "file:///stub.mjs" }),
+      assembleModules(loaded, { uiUrl: pathToFileURL(join(emptyRoot, "missing.js")).href, workDir, stdlibUrl: "file:///stub.mjs" }),
     ).rejects.toThrow(/@canlang\/ui dist entry missing at .*bun run --filter @canlang\/ui build/);
   });
 
   it("throws naming module and specifier for non-producer bare imports", async () => {
-    const { distRoot, stdlibUrl } = stubProducers();
+    const { distRoot, stdlibUrl, uiUrl } = stubProducers();
     const workDir = mkdtempSync(join(tmpdir(), "b1-work-"));
     const bad = module("main.js", `import { x } from "left-pad";\nexport const y = x;\n`);
     const loaded = { artifact: artifact([bad]), sourcePath: "s" };
 
-    await expect(assembleModules(loaded, { distRoot, workDir, stdlibUrl })).rejects.toThrow(
+    await expect(assembleModules(loaded, { distRoot, uiUrl, workDir, stdlibUrl })).rejects.toThrow(
       /"main\.js".*"left-pad"/,
     );
   });
 
   it("throws for relative imports resolving to no artifact module", async () => {
-    const { distRoot, stdlibUrl } = stubProducers();
+    const { distRoot, stdlibUrl, uiUrl } = stubProducers();
     const workDir = mkdtempSync(join(tmpdir(), "b1-work-"));
     const bad = module("main.js", `import { x } from "./missing.js";\nexport const y = x;\n`);
     const loaded = { artifact: artifact([bad]), sourcePath: "s" };
 
-    await expect(assembleModules(loaded, { distRoot, workDir, stdlibUrl })).rejects.toThrow(
+    await expect(assembleModules(loaded, { distRoot, uiUrl, workDir, stdlibUrl })).rejects.toThrow(
       /"main\.js".*"\.\/missing\.js"/,
     );
   });

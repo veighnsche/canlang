@@ -34,11 +34,11 @@ import type {
   Revision,
   StoragePort,
   StoredRow,
-} from '../../../contracts/src/state.js';
+} from '@canlang/contracts';
 import type {
   FanoutCohortDiagnosis,
   FanoutId,
-} from '../../../contracts/src/work.js';
+} from '@canlang/contracts';
 import { StateError } from '../errors.js';
 import { FenceConflictError, StorageConstraintError } from '../storage/port.js';
 import { stageFanoutMembership } from '../effects/staging.js';

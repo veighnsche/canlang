@@ -1,4 +1,4 @@
-import type { DateValue } from "../../contracts/src/values.js";
+import type { DateValue } from "@canlang/contracts/values";
 import { ValueError } from "./errors.js";
 import { isDateValue } from "./kinds.js";
 

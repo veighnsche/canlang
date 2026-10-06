@@ -1,5 +1,5 @@
-import type { StateErrorCode } from '../../contracts/src/state.js';
-import type { BusinessError, ConflictCurrent, FieldError } from '../../contracts/src/wire.js';
+import type { StateErrorCode } from '@canlang/contracts';
+import type { BusinessError, ConflictCurrent, FieldError } from '@canlang/contracts';
 import { FenceConflictError, StorageConstraintError } from './storage/port.js';
 
 /**

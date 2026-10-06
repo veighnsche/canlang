@@ -13,28 +13,28 @@ import type {
   OutboxId,
   ReceiptAssociation,
   ReceiptProperty,
-} from '../../../contracts/src/work.js';
-import type { DispatchFence } from '../dispatch/index.ts';
+} from '@canlang/contracts';
+import type { DispatchFence } from '../dispatch/index.js';
 import {
   TestOnlyAllowAllGrants,
   TestOnlyAvailabilityMap,
   TestOnlyDenyAllGrants,
   TestOnlyGrantSet,
-} from './ports.ts';
+} from './ports.js';
 import type {
   ContentPolicyPort,
   SelectedGrantContext,
   SelectedGrantPort,
-} from './ports.ts';
-import { resolveAssociationLocator } from './association.ts';
+} from './ports.js';
+import { resolveAssociationLocator } from './association.js';
 import {
   authorizeSelectedLeaves,
   observeReceipt,
   observeSelectedReceipt,
   projectSelectedLeaves,
   selectedRequiresFence,
-} from './observation.ts';
-import type { StoredReceipt } from './observation.ts';
+} from './observation.js';
+import type { StoredReceipt } from './observation.js';
 
 const NOW = 1_791_120_000_000;
 

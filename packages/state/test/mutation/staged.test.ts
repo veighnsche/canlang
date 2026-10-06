@@ -17,7 +17,7 @@
  */
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import type { StoredRow } from '../../../contracts/src/state.js';
+import type { StoredRow } from '@canlang/contracts';
 import { StateError } from '../../src/errors.js';
 import { storageToStateError } from '../../src/errors.js';
 import { runMutationWrites } from '../../src/mutation/pipeline.js';

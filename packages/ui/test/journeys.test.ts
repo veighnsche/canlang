@@ -19,7 +19,7 @@ import type {
   RenderFn,
   RowQueryRunner,
   ShellData,
-} from "../../contracts/src/presentation.js";
+} from "@canlang/contracts";
 import * as ui from "../src/index.js";
 import { UI_CATALOG } from "../src/catalog.js";
 import { table } from "../src/collections.js";

@@ -12,6 +12,7 @@ __pycache__/
 
 # Node workspace output (lane 07)
 node_modules/
+.turbo/
 # Stray tsc emits next to sources (no package emits outside dist/;
 # PR22 pollution guard — test/ keeps one tracked .js worker, untouched)
 packages/*/src/**/*.js
@@ -33,3 +34,4 @@ playwright/.cache/
 
 # B5 release verification artifact (regenerate: bun run release)
 dist-manifest.json
+/output/release-artifacts/

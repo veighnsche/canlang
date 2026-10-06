@@ -18,7 +18,7 @@ import type {
   StoragePort,
   StoredRow,
   WorkInventoryItem,
-} from '../../../contracts/src/state.js';
+} from '@canlang/contracts';
 import type { ClockPort } from '../../src/invocation/context.js';
 import type { InterimLock, InterimModelDef, ModelTable } from '../../src/mutation/index.js';
 import { buildModelTable } from '../../src/mutation/index.js';

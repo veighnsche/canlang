@@ -27,7 +27,7 @@ import type {
 // boundary-clean.
 import { deriveCsrfToken, resolveIdentity, sha256HexText } from "@canlang/identity";
 import { createFrozenClock, createMemoryIdentityStore } from "@canlang/identity/testing";
-import { createTestMemoryStorage } from "../../state/dist/state/src/storage/memory.js";
+import { createTestMemoryStorage } from "@canlang/state/storage/memory";
 import {
   assembleWorker,
   buildInvoker,
@@ -42,10 +42,10 @@ import {
 import {
   createFileJourneyKernel,
   type FileJourneyBindings,
-} from "../../interfaces/dist/interfaces/src/uploads/kernel.js";
-import { receiverFromIdentity } from "../../interfaces/dist/interfaces/src/uploads/principals.js";
-import { handleUploadRequest } from "../../interfaces/dist/interfaces/src/uploads/routes.js";
-import { createTestUploadDeps, testRequest } from "../../interfaces/dist/interfaces/src/testing.js";
+} from "@canlang/interfaces/uploads/kernel";
+import { receiverFromIdentity } from "@canlang/interfaces";
+import { handleUploadRequest } from "@canlang/interfaces";
+import { createTestUploadDeps, testRequest } from "@canlang/interfaces/testing";
 import {
   TestOnlyCounterFileIds,
   TestOnlyCounterIntentIds,
@@ -53,7 +53,7 @@ import {
   TestOnlyMemoryBlobStore,
   TestOnlyMemoryFinalizedStore,
   TestOnlyMemoryIntentStore,
-} from "../../files/src/ports.ts";
+} from "@canlang/files/ports";
 import {
   appendUploadContent,
   completeUploadContent,
@@ -61,7 +61,7 @@ import {
   DEFAULT_FILE_POLICY,
   sha256Hex,
   type UploadDeps,
-} from "../../files/src/upload/index.ts";
+} from "@canlang/files/upload";
 import {
   authorizeAttach,
   finalizeUpload,
@@ -69,7 +69,7 @@ import {
   readFinalizedFile,
   recordAttachment,
   type FinalizeDeps,
-} from "../../files/src/finalize/index.ts";
+} from "@canlang/files/finalize";
 
 const FIXED_NOW = 1767225600000;
 

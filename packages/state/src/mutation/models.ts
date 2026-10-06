@@ -18,7 +18,7 @@ import type {
   RecordParent,
   Revision,
   StoredRow,
-} from '../../../contracts/src/state.js';
+} from '@canlang/contracts';
 import type { FenceScope } from '../invocation/admission.js';
 import { validatePredicateShape } from '../policy/grants.js';
 

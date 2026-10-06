@@ -7,16 +7,16 @@
  */
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import type { OutboxItem } from '../../../contracts/src/work.js';
+import type { OutboxItem } from '@canlang/contracts';
 import {
   TestOnlyCounterClaimIds,
   TestOnlyManualClock,
   TestOnlyMemorySupersession,
-} from '../ports.ts';
-import type { AnyOutboxIntent } from '../intent/index.ts';
-import { commitOutboxIntent, stageOutboxIntent } from '../intent/index.ts';
-import type { DispatchDeps, GuardEvaluator } from './index.ts';
-import { attemptDispatch } from './index.ts';
+} from '../ports.js';
+import type { AnyOutboxIntent } from '../intent/index.js';
+import { commitOutboxIntent, stageOutboxIntent } from '../intent/index.js';
+import type { DispatchDeps, GuardEvaluator } from './index.js';
+import { attemptDispatch } from './index.js';
 
 const OPERATION = '0193f2c0-0000-7000-8000-000000000002';
 

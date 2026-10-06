@@ -42,7 +42,7 @@ import {
   b2StoredRow,
   readB2Constraint,
   readB2FenceConflict,
-} from "../../packages/testkit/src/fixtures/b2-storage.js";
+} from "@canlang/testkit/fixtures/b2-storage";
 
 /** Exact absent-producer detail every producer-dependent row carries. */
 const ABSENT_SENTENCE =
@@ -68,7 +68,7 @@ const AT = 1_758_000_000_000;
 // check; the non-literal specifier keeps tsc blind (lane02 precedent).
 // ---------------------------------------------------------------------------
 
-const D1_SPECIFIER = "../../packages/state/src/storage/d1.ts";
+const D1_SPECIFIER = "@canlang/state/storage/d1";
 
 interface StoredRowView {
   readonly id: string;

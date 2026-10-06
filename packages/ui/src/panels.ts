@@ -44,8 +44,8 @@ import type {
   PresentationContext,
   TabsBinding,
   TabsProps,
-} from "../../contracts/src/presentation.js";
-import { CSRF_FIELD } from "../../contracts/src/presentation.js";
+} from "@canlang/contracts";
+import { CSRF_FIELD } from "@canlang/contracts";
 import { appearanceClasses, type AppearanceOpts } from "./appearance.js";
 import { escapeAttr, escapeHtml, safeHref } from "./escape.js";
 import { collapse } from "./groups.js";

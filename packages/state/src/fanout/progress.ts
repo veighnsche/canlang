@@ -11,12 +11,12 @@
  * read as non-terminal (resume), never as silently complete.
  */
 
-import type { FanoutProgress } from '../../../contracts/src/work.js';
+import type { FanoutProgress } from '@canlang/contracts';
 import type {
   ModelName,
   RecordId,
   StoragePort,
-} from '../../../contracts/src/state.js';
+} from '@canlang/contracts';
 import { StateError } from '../errors.js';
 import {
   FANOUT_CHILD_MODEL,

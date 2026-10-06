@@ -23,7 +23,7 @@ import { fileURLToPath } from "node:url";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const pkg = join(here, "..", "..", "..");
-const dist = join(pkg, "dist", "values", "src");
+const dist = join(pkg, "dist", "src");
 
 const intOps = await import(join(dist, "int.js"));
 const decimalOps = await import(join(dist, "decimal.js"));

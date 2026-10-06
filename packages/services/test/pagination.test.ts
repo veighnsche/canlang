@@ -10,11 +10,11 @@ import {
   ProviderPageError,
   assertProviderPage,
   fetchPage,
-} from '../src/http/pagination.ts';
+} from '../src/http/pagination.js';
 import type {
   PageRequest,
   ProviderLimits,
-} from '../../contracts/src/services.js';
+} from '@canlang/contracts';
 
 const LIMITS: ProviderLimits = { maxPageSize: 50, maxTransportBytes: null };
 

@@ -18,7 +18,7 @@ import type {
   OutboxIntent,
   StoragePort,
   WorkInventoryItem,
-} from '../../../contracts/src/state.js';
+} from '@canlang/contracts';
 import {
   abortMigration,
   activate,
@@ -138,7 +138,7 @@ async function resetD1Local(): Promise<void> {
 /* Durable Object (workerd + generic method proxy). */
 
 const workerPath = fileURLToPath(
-  new URL('../../../../test/storage/do-test-worker.js', import.meta.url),
+  new URL('../../../test/storage/do-test-worker.js', import.meta.url),
 );
 
 let doMf: Miniflare | undefined;

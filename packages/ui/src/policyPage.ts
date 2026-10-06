@@ -22,7 +22,7 @@ import type {
   MessageValue,
   PresentationContext,
   ReviewPolicyView,
-} from "../../contracts/src/presentation.js";
+} from "@canlang/contracts";
 import { escapeAttr, escapeHtml } from "./escape.js";
 import { resolveCaption } from "./messages.js";
 import { review } from "./review.js";

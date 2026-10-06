@@ -32,24 +32,24 @@ import type {
   ModelMessage,
   ModelRunSnapshot,
   ModelRunState,
-} from '../../../contracts/src/services.js';
+} from '@canlang/contracts';
 import {
   assertValidHttpConfig,
   httpRequest,
   httpStreamText,
-} from '../http/client.ts';
-import type { HttpClientConfig } from '../http/client.ts';
+} from '../http/client.js';
+import type { HttpClientConfig } from '../http/client.js';
 import {
   HttpBodyLimitError,
   HttpRedirectError,
   HttpStatusError,
   HttpTooManyRedirectsError,
   HttpTransportError,
-} from '../http/errors.ts';
-import { assertValidCompletion } from '../mail/adapter.ts';
-import { deliveryError, specificOrGeneric } from '../mail/redact.ts';
-import { systemClock } from '../ports.ts';
-import type { Clock, ModelChatPort, ModelRunHandle } from '../ports.ts';
+} from '../http/errors.js';
+import { assertValidCompletion } from '../mail/adapter.js';
+import { deliveryError, specificOrGeneric } from '../mail/redact.js';
+import { systemClock } from '../ports.js';
+import type { Clock, ModelChatPort, ModelRunHandle } from '../ports.js';
 
 export interface OllamaChatConfig {
   /** Fixed provider endpoint origin. */

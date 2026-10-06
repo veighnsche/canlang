@@ -1,28 +1,11 @@
-/**
- * TEST-ONLY bridge: loads the REAL lane-4 F2/F3/F4 fanout functions for
- * the F5 join proofs. The compiled state suite cannot statically import
- * lane-4 sources (the T24a precedent: no `@canlang/work` runtime import
- * from `@canlang/state`), so this loader resolves them here via a
- * computed file URL — the same out-of-dist reach the durable suites use
- * for the DO test worker — and hands the live functions to the tests.
- * Every interop proof below therefore runs the REAL F2 readers,
- * constructors, and paging, the REAL F3 claim/record/progress, and the
- * REAL F4 recovery scan against state-staged rows; no reimplementation.
- *
- * The loader asserts each export's shape and fails loudly otherwise, so
- * a work-side rename breaks the suite instead of silently running a
- * fallback. There is no fallback and no mirror here.
- */
-import { pathToFileURL } from 'node:url';
-import path from 'node:path';
-import { fileURLToPath } from 'node:url';
+/** Test-only work/state conformance bridge over built owning work modules. */
 import type {
   ModelName,
   QuerySpec,
   RecordId,
   RecordVersion,
   StoredRow,
-} from '../../../contracts/src/state.js';
+} from '@canlang/contracts';
 import type {
   FanoutChildId,
   FanoutChildOutcome,
@@ -33,7 +16,7 @@ import type {
   FanoutSkippedReason,
   OccurrenceId,
   RetryPolicy,
-} from '../../../contracts/src/work.js';
+} from '@canlang/contracts';
 
 /** Structural mirror of F2 `FanoutIntentRowData`. */
 export interface WorkFanoutIntentData {
@@ -250,22 +233,11 @@ function requireString(value: unknown, name: string): string {
   return value;
 }
 
-/**
- * Load the real F2/F3/F4 fanout functions from the work sources.
- * `import.meta.url` is the COMPILED loader
- * (`dist/state/src/fanout/`), so the work tree sits five levels up plus
- * `work/src/...`; Node strips the `.ts` sources natively, and the
- * fanout modules import nothing but sibling `.ts` modules plus
- * type-only contracts.
- */
+/** Load the real F2/F3/F4 functions from this package's emitted modules. */
 export async function loadWorkFanoutFns(): Promise<WorkFanoutFns> {
-  const here = path.dirname(fileURLToPath(import.meta.url));
-  const tablesPath = path.resolve(here, '../../../../../work/src/kernel/tables.ts');
-  const dispatchPath = path.resolve(here, '../../../../../work/src/dispatch/index.ts');
-  const recoveryPath = path.resolve(here, '../../../../../work/src/recovery/index.ts');
-  const tables = (await import(pathToFileURL(tablesPath).href)) as Record<string, unknown>;
-  const dispatch = (await import(pathToFileURL(dispatchPath).href)) as Record<string, unknown>;
-  const recovery = (await import(pathToFileURL(recoveryPath).href)) as Record<string, unknown>;
+  const tables = await import('../../src/kernel/tables.js');
+  const dispatch = await import('../../src/dispatch/index.js');
+  const recovery = await import('../../src/recovery/index.js');
   return {
     WORK_FANOUT_INTENT_MODEL: requireString(
       tables['WORK_FANOUT_INTENT_MODEL'],

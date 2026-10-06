@@ -7,7 +7,7 @@
  */
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { isConsistentCompletion, toReceiptObservation } from './index.ts';
+import { isConsistentCompletion, toReceiptObservation } from './index.js';
 
 const ERROR = { code: 'rejected', message: 'nope' };
 

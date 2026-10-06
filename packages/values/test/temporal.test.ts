@@ -1,6 +1,6 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import type { DatetimeValue, DateValue } from "../../contracts/src/values.js";
+import type { DatetimeValue, DateValue } from "@canlang/contracts/values";
 import {
   DATETIME_MAX_MS,
   DATETIME_MIN_MS,

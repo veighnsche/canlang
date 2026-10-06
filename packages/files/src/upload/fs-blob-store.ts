@@ -19,7 +19,7 @@ import {
   writeFileSync,
 } from 'node:fs';
 import { isAbsolute, join } from 'node:path';
-import { assertSafeBlobKey, type BlobStorePort } from '../ports.ts';
+import { assertSafeBlobKey, type BlobStorePort } from '../ports.js';
 
 function isMissing(error: unknown): boolean {
   return (

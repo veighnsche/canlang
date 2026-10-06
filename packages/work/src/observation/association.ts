@@ -31,8 +31,8 @@ import type {
   ReceiptError,
   ReceiptStatus,
   TerminalReceiptStatus,
-} from '../../../contracts/src/work.js';
-import { isConsistentCompletion, isTerminalReceiptStatus } from '../receipt/index.ts';
+} from '@canlang/contracts';
+import { isConsistentCompletion, isTerminalReceiptStatus } from '../receipt/index.js';
 
 /**
  * Minimal completion envelope shape needed for association matching. The

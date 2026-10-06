@@ -1,6 +1,6 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import type { CanValue, Violation } from "../../contracts/src/values.js";
+import type { CanValue, Violation } from "@canlang/contracts/values";
 import { Decimal } from "../src/decimal.js";
 import { SchemaError, ValueError } from "../src/errors.js";
 import { INT64_MAX, INT64_MIN } from "../src/int.js";

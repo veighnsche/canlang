@@ -46,7 +46,7 @@ import type {
   StagedRow,
   StagedRowCursor,
   StoredRow,
-} from '../../../contracts/src/state.js';
+} from '@canlang/contracts';
 import { FenceConflictError, StorageConstraintError, checkRecoveryInput } from './port.js';
 import type { StoragePort } from './port.js';
 import {

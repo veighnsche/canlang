@@ -6,7 +6,7 @@
 import { writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { CATALOG } from "../dist/values/src/catalog.js";
+import { CATALOG } from "../dist/src/catalog.js";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const outPath = join(here, "..", "dist", "catalog.json");
@@ -47,7 +47,7 @@ for (const entry of CATALOG.entries) {
 // Export conformance (PR5): every implemented entry must resolve to a
 // function export of the built dist index. Planned/external entries are
 // never required.
-const runtime = await import("../dist/values/src/index.js");
+const runtime = await import("../dist/src/index.js");
 for (const entry of CATALOG.entries) {
   if (entry.availability !== "implemented") continue;
   if (typeof runtime[entry.js] !== "function") {

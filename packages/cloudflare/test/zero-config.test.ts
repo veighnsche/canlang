@@ -91,7 +91,7 @@ describe("zero-config local defaults (B5-J3)", () => {
 
   it("missing dist: loud error naming the build command", async () => {
     const distRoot = mkdtempSync(join(tmpdir(), "can-zero-dist-"));
-    await expect(assertDistReady(distRoot)).rejects.toThrow(UI_BUILD_COMMAND);
+    await expect(assertDistReady(undefined, new URL("file://" + join(distRoot, "missing.js")).href)).rejects.toThrow(UI_BUILD_COMMAND);
   });
 
   it("present dist entry: check passes", async () => {
@@ -99,6 +99,6 @@ describe("zero-config local defaults (B5-J3)", () => {
     const entry = join(distRoot, UI_DIST_ENTRY_RELATIVE);
     mkdirSync(join(entry, ".."), { recursive: true });
     writeFileSync(entry, "export {};\n");
-    await expect(assertDistReady(distRoot)).resolves.toBeUndefined();
+    await expect(assertDistReady(undefined, new URL("file://" + entry).href)).resolves.toBeUndefined();
   });
 });

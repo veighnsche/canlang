@@ -62,7 +62,7 @@ import type {
   UniqueClaim,
   UniqueRelease,
   WorkInventoryItem,
-} from '../../../contracts/src/state.js';
+} from '@canlang/contracts';
 import type { ClockPort } from '../invocation/context.js';
 import type { ModelTable } from '../mutation/models.js';
 import { StateError, storageToStateError } from '../errors.js';

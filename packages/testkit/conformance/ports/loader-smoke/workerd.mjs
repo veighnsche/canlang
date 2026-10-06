@@ -29,8 +29,8 @@ import { tmpdir } from 'node:os';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createHash } from 'node:crypto';
-import { attachBinaries, writeDeployBundleMixed } from '../../../../cloudflare/dist/deploy/bundle.js';
-import { startLocalDev } from '../../../../cloudflare/dist/dev/local-run.js';
+import { attachBinaries, writeDeployBundleMixed } from '@canlang/cloudflare/deploy/bundle';
+import { startLocalDev } from '@canlang/cloudflare/dev/local-run';
 import { createLocalRowScope } from '../../../../testkit/dist/scopes/local.js';
 
 const HERE = dirname(fileURLToPath(import.meta.url));

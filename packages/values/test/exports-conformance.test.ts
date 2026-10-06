@@ -15,7 +15,7 @@ import * as index from "../src/index.js";
  */
 describe("exports conformance", () => {
   it("emitted catalog.json deep-equals the authored CATALOG", (t) => {
-    const emission = new URL("../../catalog.json", import.meta.url);
+    const emission = new URL("../catalog.json", import.meta.url);
     if (!existsSync(emission)) {
       t.skip("dist/catalog.json absent; run `bun run catalog` to exercise the emission fixture");
       return;

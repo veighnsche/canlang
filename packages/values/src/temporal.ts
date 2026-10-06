@@ -27,7 +27,7 @@
  * timezone.ts; that module imports the shared civil helpers below.
  */
 
-import type { DateValue, DatetimeValue } from "../../contracts/src/values.js";
+import type { DateValue, DatetimeValue } from "@canlang/contracts/values";
 import { ValueError } from "./errors.js";
 import { isDatetime, isDateValue, makeDate, makeDatetime } from "./kinds.js";
 

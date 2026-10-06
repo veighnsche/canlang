@@ -29,4 +29,4 @@ export type {
   ProjectedRecord,
   AuthorizedRecordsResult,
   AuthorityRowsResult,
-} from '../../../contracts/src/state.js';
+} from '@canlang/contracts';

@@ -26,7 +26,7 @@ import type {
   ModelChatInput,
   ModelChatReply,
   ModelRunSnapshot,
-} from '../../contracts/src/services.js';
+} from '@canlang/contracts';
 import { randomUUID } from 'node:crypto';
 import http from 'node:http';
 import type { Socket } from 'node:net';

@@ -1,7 +1,7 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { CSRF_FIELD } from "../../contracts/src/presentation.js";
-import type { DerivedOperationInputs } from "../../contracts/src/wire.js";
+import { CSRF_FIELD } from "@canlang/contracts";
+import type { DerivedOperationInputs } from "@canlang/contracts";
 import {
   applyDocumentRerender,
   applyFormRerender,
@@ -15,7 +15,7 @@ import type {
   SubmitFetchInit,
 } from "../src/client.js";
 import { generatedForm } from "../src/forms.js";
-import type { PresentationContext } from "../../contracts/src/presentation.js";
+import type { PresentationContext } from "@canlang/contracts";
 import { loadHtml } from "./harness.js";
 
 // T20b submit-client tests: flat-map collection, the S7 upload flow, the

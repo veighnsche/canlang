@@ -1,20 +1,20 @@
 /** S3: keyed schedules — put/replace/cancel with per-occurrence supersession. */
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import type { OccurrenceId, OutboxItem, WorkScope } from '../../contracts/src/work.js';
+import type { OccurrenceId, OutboxItem, WorkScope } from '@canlang/contracts';
 import {
   TestOnlyCounterOccurrenceIds,
   TestOnlyMemoryOutboxStore,
   TestOnlyMemoryScheduleStore,
   TestOnlyMemorySupersession,
-} from '../src/ports.ts';
-import type { NewScheduledOccurrence, ScheduleDeps } from '../src/schedule/index.ts';
+} from '../src/ports.js';
+import type { NewScheduledOccurrence, ScheduleDeps } from '../src/schedule/index.js';
 import {
   cancelSchedule,
   collectUndispatchedIntents,
   putSchedule,
   replaceSchedule,
-} from '../src/schedule/index.ts';
+} from '../src/schedule/index.js';
 
 const scope: WorkScope = { app: 'CanApprove', ownerPackage: 'Approval', owner: 'team_1' };
 

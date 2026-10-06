@@ -1,8 +1,8 @@
 /** S3: receipts — outcomes, retry classes, backoff, reconcile, dead letters. */
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import type { OutboxItem } from '../../contracts/src/work.js';
-import { TestOnlyScriptedRandom } from '../src/ports.ts';
+import type { OutboxItem } from '@canlang/contracts';
+import { TestOnlyScriptedRandom } from '../src/ports.js';
 import {
   BACKOFF_BASE_DELAY_MS,
   classifyFailure,
@@ -12,7 +12,7 @@ import {
   reconcileUncertain,
   recordOutcome,
   toReceiptObservation,
-} from '../src/receipt/index.ts';
+} from '../src/receipt/index.js';
 
 const FIRST_ATTEMPT = 1_791_120_000_000;
 

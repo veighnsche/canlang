@@ -1,10 +1,9 @@
 {
   "compilerOptions": {
     "target": "ES2022",
-    // Workspace-name producer imports resolve via the root install
-    // (lane-03.yml runs root `bun install` + builds @canlang/values first).
-    "module": "ESNext",
-    "moduleResolution": "Bundler",
+    // Producer imports resolve through their declared, built package exports.
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
     "lib": ["ES2022"],
     "strict": true,
     "exactOptionalPropertyTypes": true,

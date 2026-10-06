@@ -46,7 +46,7 @@ import type {
 } from "@canlang/contracts";
 import { resolveIdentity, sha256HexText } from "@canlang/identity";
 import { createFrozenClock, createMemoryIdentityStore } from "@canlang/identity/testing";
-import { createTestMemoryStorage } from "../../../state/dist/state/src/storage/memory.js";
+import { createTestMemoryStorage } from "@canlang/state/storage/memory";
 import { assembleWorker, buildInvoker } from "../worker/assembly.js";
 import type { AssembledModules, AssemblyDeps } from "../worker/assembly.js";
 import {

@@ -1,7 +1,7 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import type { PresentationContext } from "../../contracts/src/presentation.js";
-import { CSRF_FIELD } from "../../contracts/src/presentation.js";
+import type { PresentationContext } from "@canlang/contracts";
+import { CSRF_FIELD } from "@canlang/contracts";
 import type { SubmitFetchResponse } from "../src/client.js";
 import { message } from "../src/messages.js";
 import {

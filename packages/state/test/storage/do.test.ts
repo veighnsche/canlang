@@ -21,7 +21,7 @@ import type {
   RecordId,
   Revision,
   StoragePort,
-} from '../../../contracts/src/state.js';
+} from '@canlang/contracts';
 import {
   FenceConflictError,
   StorageConstraintError,
@@ -45,7 +45,7 @@ import {
  * worker in turn imports the built adapter from dist (see do-test-worker.js).
  */
 const workerPath = fileURLToPath(
-  new URL('../../../../test/storage/do-test-worker.js', import.meta.url),
+  new URL('../../../test/storage/do-test-worker.js', import.meta.url),
 );
 
 let mf: Miniflare | undefined;

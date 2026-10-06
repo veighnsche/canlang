@@ -45,9 +45,9 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { randomBytes } from 'node:crypto';
 import { deriveCsrfToken } from '@canlang/identity';
-import { ARTIFACT_VERSION } from '../../contracts/src/artifact.js';
-import type { ArtifactOperation } from '../../contracts/src/artifact.js';
-import type { DerivedOperationInputs, DerivedWritableInput } from '../../contracts/src/wire.js';
+import { ARTIFACT_VERSION } from '@canlang/contracts';
+import type { ArtifactOperation } from '@canlang/contracts';
+import type { DerivedOperationInputs, DerivedWritableInput } from '@canlang/contracts';
 import { checkExpectedVersion } from '../src/envelope/versions.js';
 import {
   catalogFromArtifactOperations,

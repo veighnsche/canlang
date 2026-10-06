@@ -16,7 +16,7 @@
 import { existsSync, readdirSync, statSync } from "node:fs";
 import { basename, join } from "node:path";
 import { loadArtifactFile } from "../runtime/artifact.js";
-import { UI_BUILD_COMMAND, UI_DIST_ENTRY_RELATIVE } from "../runtime/modules.js";
+import { uiModuleUrl } from "../runtime/modules.js";
 
 /**
  * Pinned wrangler `compatibility_date` for zero-config local runs.
@@ -107,20 +107,9 @@ export function resolveLocalDefaults(options: ResolveLocalDefaultsOptions = {}):
 
 /**
  * On-demand dist check: the UI entry the assembler rewrites
- * `@canlang/ui` imports to must exist under `distRoot` (the repo
- * `packages/` dir). Throws loud naming the exact build command.
+ * `@canlang/ui` imports to must resolve through the installed package export.
+ * Throws loud naming the exact build command.
  */
-export async function assertDistReady(distRoot: string): Promise<void> {
-  const entry = join(distRoot, UI_DIST_ENTRY_RELATIVE);
-  let isFile = false;
-  try {
-    isFile = existsSync(entry) && statSync(entry).isFile();
-  } catch {
-    isFile = false;
-  }
-  if (!isFile) {
-    throw new Error(
-      `zero-config: UI dist entry missing at ${entry}; run \`${UI_BUILD_COMMAND}\` first`,
-    );
-  }
+export async function assertDistReady(_distRoot?: string, uiUrl?: string): Promise<void> {
+  await uiModuleUrl(uiUrl);
 }

@@ -30,17 +30,17 @@ import type {
   RetryClass,
   RetryPolicy,
   ScheduledOccurrence,
-} from '../../../contracts/src/work.js';
-import type { WorkInventoryItem } from '../../../contracts/src/state.js';
+} from '@canlang/contracts';
+import type { WorkInventoryItem } from '@canlang/contracts';
 import type {
   FanoutCheckpointRowData,
   FanoutChildRowData,
   FanoutIntentRowData,
-} from '../kernel/tables.ts';
-import { DEFAULT_RETRY_POLICY, classifyFailure } from '../receipt/index.ts';
-import type { FailureCause, ReconcileEvidence } from '../receipt/index.ts';
-import { isTerminalReceiptStatus } from '../receipt/index.ts';
-import { assertKnownProgressRelation } from '../observation/association.ts';
+} from '../kernel/tables.js';
+import { DEFAULT_RETRY_POLICY, classifyFailure } from '../receipt/index.js';
+import type { FailureCause, ReconcileEvidence } from '../receipt/index.js';
+import { isTerminalReceiptStatus } from '../receipt/index.js';
+import { assertKnownProgressRelation } from '../observation/association.js';
 
 export interface InventoryInput {
   outboxItems: readonly OutboxItem[];

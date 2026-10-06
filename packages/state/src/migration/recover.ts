@@ -30,7 +30,7 @@ import type {
   MigrationProgress,
   Revision,
   StoragePort,
-} from '../../../contracts/src/state.js';
+} from '@canlang/contracts';
 import { StateError } from '../errors.js';
 
 /**

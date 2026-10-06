@@ -33,28 +33,28 @@ import type {
   ImageRun,
   ImageRunState,
   WorkflowNodeMapping,
-} from '../../../contracts/src/services.js';
+} from '@canlang/contracts';
 import {
   assertValidHttpConfig,
   httpRequest,
   httpRequestBinary,
-} from '../http/client.ts';
-import type { HttpClientConfig } from '../http/client.ts';
+} from '../http/client.js';
+import type { HttpClientConfig } from '../http/client.js';
 import {
   HttpBodyLimitError,
   HttpRedirectError,
   HttpStatusError,
   HttpTooManyRedirectsError,
   HttpTransportError,
-} from '../http/errors.ts';
-import { assertValidCompletion } from '../mail/adapter.ts';
-import { deliveryError, specificOrGeneric } from '../mail/redact.ts';
-import { uniqueIds } from '../ports.ts';
-import type { DeliveryIds, MediaPort } from '../ports.ts';
+} from '../http/errors.js';
+import { assertValidCompletion } from '../mail/adapter.js';
+import { deliveryError, specificOrGeneric } from '../mail/redact.js';
+import { uniqueIds } from '../ports.js';
+import type { DeliveryIds, MediaPort } from '../ports.js';
 import {
   MappingValidationError,
   substituteAndValidate,
-} from './mapping.ts';
+} from './mapping.js';
 
 export interface ComfyUINativeConfig {
   /** Fixed provider endpoint origin. */

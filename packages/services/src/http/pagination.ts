@@ -8,7 +8,7 @@ import type {
   PageRequest,
   ProviderLimits,
   ProviderPage,
-} from '../../../contracts/src/services.js';
+} from '@canlang/contracts';
 
 export type PageRequestIssue = 'invalid' | 'over-limit' | 'unsupported';
 

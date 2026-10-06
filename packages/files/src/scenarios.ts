@@ -18,7 +18,7 @@
  * PNG 8-byte magic, JPEG `FF D8 FF` magic, plain text, 4 garbage
  * bytes, truncated 4-byte PNG.
  */
-import type { ScenarioTable } from '../../services/src/scenarios.ts';
+import type { ScenarioTable } from '@canlang/services/scenarios';
 
 /** Files authors no scenario tables; the list is pinned empty. */
 export const FILES_SCENARIO_TABLES: readonly ScenarioTable[] = [];

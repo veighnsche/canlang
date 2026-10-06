@@ -27,7 +27,7 @@ import type {
   MigrationOutcome,
   OutboxIntent,
   WorkInventoryItem,
-} from '../../../contracts/src/state.js';
+} from '@canlang/contracts';
 import { StateError } from '../errors.js';
 import type { ValidatedMigrationPlan } from './transition.js';
 

@@ -11,7 +11,7 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { evaluateBy, hasRole } from '../../src/policy/roles.js';
 import type { ByPredicate, MembershipReader } from '../../src/policy/roles.js';
-import type { Membership } from '../../../contracts/src/identity.js';
+import type { Membership } from '@canlang/contracts';
 import {
   captureFailure,
   createMemoryIdentityStore,

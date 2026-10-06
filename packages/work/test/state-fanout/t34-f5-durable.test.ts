@@ -36,13 +36,13 @@ import type {
   Revision,
   StoragePort,
   StoredRow,
-} from '../../../contracts/src/state.js';
-import type { ResolvedIdentity } from '../../../contracts/src/identity.js';
-import type { RetryPolicy } from '../../../contracts/src/work.js';
-import { createD1Storage, ensureSchema } from '../storage/d1.js';
-import { FenceConflictError, StorageConstraintError } from '../storage/port.js';
-import type { OperationRegistry } from '../invocation/registry.js';
-import type { MembershipReader } from '../policy/roles.js';
+} from '@canlang/contracts';
+import type { ResolvedIdentity } from '@canlang/contracts';
+import type { RetryPolicy } from '@canlang/contracts';
+import { createD1Storage, ensureSchema } from '@canlang/state/storage/d1';
+import { FenceConflictError, StorageConstraintError } from '@canlang/state/storage/port';
+import type { OperationRegistry } from '@canlang/state/invocation/registry';
+import type { MembershipReader } from '@canlang/state/policy/roles';
 import {
   FANOUT_CHECKPOINT_MODEL,
   FANOUT_CHILD_MODEL,
@@ -52,11 +52,11 @@ import {
   readFanoutCheckpointRow,
   readFanoutChildRow,
   withFanoutRowData,
-} from './tables.js';
-import { freezeFanoutMembership } from './membership.js';
-import { classifyFanoutChildLifecycle } from './lifecycle.js';
-import { readFanoutProgress } from './progress.js';
-import { driveFanoutChild, observeFanoutUnit } from './test-driver.js';
+} from '@canlang/state/fanout/tables';
+import { freezeFanoutMembership } from '@canlang/state/fanout/membership';
+import { classifyFanoutChildLifecycle } from '@canlang/state/fanout/lifecycle';
+import { readFanoutProgress } from '@canlang/state/fanout/progress';
+import { driveFanoutChild, observeFanoutUnit } from '@canlang/state/testing/fanout/test-driver';
 import { loadWorkFanoutFns, type WorkFanoutFns } from './work-loader.js';
 import {
   FIXED_NOW,
@@ -71,7 +71,7 @@ import {
   seedMember,
   uuidv7,
   type TestMembershipStore,
-} from '../../test/invocation/fixtures.js';
+} from '@canlang/state/testing/invocation/fixtures';
 
 const MODEL = 'Acme.Commitment';
 const HANDLER = 'Shift.review_commitment';
@@ -94,7 +94,7 @@ const fns: WorkFanoutFns = await loadWorkFanoutFns();
  * import.meta-derived absolute, so the anchor moves nothing but the
  * workerd mount.
  */
-const stateDirPath = fileURLToPath(new URL('../../../../', import.meta.url));
+const stateDirPath = fileURLToPath(new URL('../../', import.meta.resolve('@canlang/state/distribution')));
 const entryCwd = process.cwd();
 process.chdir(stateDirPath);
 
@@ -104,7 +104,7 @@ after(() => {
 
 /** State-owned DO proxy worker, reused read-only (never edited here). */
 const doWorkerPath = fileURLToPath(
-  new URL('../../../../test/storage/do-test-worker.js', import.meta.url),
+  new URL(import.meta.resolve('@canlang/state/testing/storage/do-test-worker')),
 );
 
 /* -- Restartable substrate: boot -> kill (dispose) -> reboot (same dir). -- */

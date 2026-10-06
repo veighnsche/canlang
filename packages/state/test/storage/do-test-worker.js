@@ -15,7 +15,7 @@
  * - POST /reset -> clears every table and the fence row (test-only).
  * - POST /exec  { sql, params? } -> { ok, rows } for probe SELECTs.
  */
-import { createDOStorage, ensureSchema } from '../../dist/state/src/storage/durable-object.js';
+import { createDOStorage, ensureSchema } from '../../dist/src/storage/durable-object.js';
 
 const TABLES = [
   'records',

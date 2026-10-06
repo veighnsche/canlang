@@ -17,7 +17,7 @@ import type {
   RetryPolicy,
   ScheduledOccurrence,
   WorkScope,
-} from '../../contracts/src/work.js';
+} from '@canlang/contracts';
 
 const scope: WorkScope = {
   app: 'CanApprove',

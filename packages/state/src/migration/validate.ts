@@ -52,7 +52,7 @@ import type {
   StagedRowCursor,
   StoragePort,
   StoredRow,
-} from '../../../contracts/src/state.js';
+} from '@canlang/contracts';
 import type { InterimLock, InterimModelDef, ModelTable } from '../mutation/models.js';
 import { collectPredicateFields, evalPredicateForRow } from '../policy/grants.js';
 import { StateError, storageToStateError } from '../errors.js';

@@ -19,7 +19,7 @@ import type {
   StaleMarkerProps,
   StatusSwap,
   SwapStrategy,
-} from "../../contracts/src/presentation.js";
+} from "@canlang/contracts";
 import { escapeAttr, escapeHtml, safeHref } from "./escape.js";
 import { resolveCaption } from "./messages.js";
 

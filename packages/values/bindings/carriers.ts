@@ -9,7 +9,7 @@ import type {
   DateValue,
   DecimalValue,
   MoneyValue,
-} from "../../contracts/src/values.js";
+} from "@canlang/contracts/values";
 import { Decimal, isDecimal } from "../src/decimal.js";
 import { ValueError } from "../src/errors.js";
 import {

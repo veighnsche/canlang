@@ -32,8 +32,8 @@
  * record-attempt), run-key-honoring staging, and the recovery sweeper
  * (recover -> planRecoveryScan -> requeue/reconcile/release) live here.
  * State producers load dynamically (below); work producers (command
- * arrays, planner, classifier) arrive injected because `@canlang/work`
- * has no dist build. Provider calls, guard evaluation, evidence, and
+ * arrays, planner, classifier) arrive through the injected assembly
+ * seam using work's declared APIs. Provider calls, guard evaluation, evidence, and
  * snapshots are caller-supplied ports — BOUND provider sends are
  * explicitly OUT (T24a remainder): this wiring calls through the
  * injected ports only and never binds a send target itself.
@@ -537,8 +537,8 @@ export async function invokeCallableInOccurrence(
 
 /**
  * Mirror of `ByPredicate` (`packages/state/src/policy/roles.ts:23`).
- * `@canlang/state` is not a dependency of this package, so the shape is
- * restated; the loader validates every value at runtime, so drift fails
+ * This structural view is restated at the dynamic assembly boundary;
+ * the loader validates every value at runtime, so drift fails
  * loud at load instead of mis-authorizing.
  */
 export type CanonicalByPredicate =
@@ -909,23 +909,21 @@ export function mapReadRulesToPolicy(
 /* ------------------------------------------------------------------ */
 
 /**
- * State dist producers. Relative dist paths (not bare specifiers):
- * `@canlang/state` has no package link, so only the relative checkout
- * path resolves — in vitest from `src/`, in node from `dist/` (same
- * `../../../` shape), and in the worker via the P-B bundler seam
+ * State producers resolve through declared installed package exports.
+ * The Worker bundler rewrites these to owning vendor modules
  * (`env-assembly.ts` precedent).
  */
-const STATE_REGISTRY_SPECIFIER = "../../../state/dist/state/src/invocation/registry.js";
-const STATE_INVOKE_SPECIFIER = "../../../state/dist/state/src/invocation/invoke.js";
-const STATE_CRUD_SPECIFIER = "../../../state/dist/state/src/mutation/crud.js";
-const STATE_MODELS_SPECIFIER = "../../../state/dist/state/src/mutation/models.js";
-const STATE_ERRORS_SPECIFIER = "../../../state/dist/state/src/errors.js";
+const STATE_REGISTRY_SPECIFIER = "@canlang/state/invocation/registry";
+const STATE_INVOKE_SPECIFIER = "@canlang/state/invocation/invoke";
+const STATE_CRUD_SPECIFIER = "@canlang/state/mutation/crud";
+const STATE_MODELS_SPECIFIER = "@canlang/state/mutation/models";
+const STATE_ERRORS_SPECIFIER = "@canlang/state/errors";
 /** T17b: bound read port (`createReadInvoker`, the assembly read entry). */
-const STATE_TRANSACT_SPECIFIER = "../../../state/dist/state/src/ports/transact.js";
+const STATE_TRANSACT_SPECIFIER = "@canlang/state/ports/transact";
 /** T17b: policy-table builder (`buildPolicyTable`, validates transcriptions). */
-const STATE_GRANTS_SPECIFIER = "../../../state/dist/state/src/policy/grants.js";
+const STATE_GRANTS_SPECIFIER = "@canlang/state/policy/grants";
 /** T17b: mutation pipeline (`runMutationWrites`, stages scenario writes). */
-const STATE_PIPELINE_SPECIFIER = "../../../state/dist/state/src/mutation/pipeline.js";
+const STATE_PIPELINE_SPECIFIER = "@canlang/state/mutation/pipeline";
 
 /** Contracts values (a declared dependency — bare specifier, bundler-inlined). */
 const CONTRACTS_SPECIFIER = "@canlang/contracts";
@@ -2952,7 +2950,7 @@ export async function invokeMutationCanonical(
 /* from the load-time B3 delivery schema (C1 — never envelope text),    */
 /* recordId resolves through the authorized pre-load (existence-hiding */
 /* not_found), and the REAL T25 join runs with the REAL work observer  */
-/* from the state work-loader. Outcomes serve 1:1 (observed /           */
+/* from the work receipt API. Outcomes serve 1:1 (observed /             */
 /* denied-as-data / discriminator-carrying null-association); caller    */
 /* errors are `StateError` (assembly maps through `toBusinessError`),   */
 /* skew is loud plain `Error`.                                          */
@@ -2961,14 +2959,14 @@ export async function invokeMutationCanonical(
 /** D3b serving operation (G1-locked joint name). */
 export const RECEIPT_READ_OPERATION = "Receipt.read";
 
-const STATE_RECEIPT_JOIN_SPECIFIER = "../../../state/dist/state/src/receipt/join.js";
-const STATE_RECEIPT_WORK_LOADER_SPECIFIER = "../../../state/dist/state/src/receipt/work-loader.js";
+const STATE_RECEIPT_JOIN_SPECIFIER = "@canlang/state/receipt/join";
+const WORK_RECEIPT_SPECIFIER = "@canlang/work/receipt";
 /**
  * Q2: B's worker-safe observer module (SEAM CONTRACT — absent until
  * the B-half lands; F's Q3 rewrite maps it to
  * `vendor/state/receipt/observer.js`).
  */
-const STATE_RECEIPT_OBSERVER_SPECIFIER = "../../../state/dist/state/src/receipt/observer.js";
+const STATE_RECEIPT_OBSERVER_SPECIFIER = "@canlang/state/receipt";
 
 /**
  * D3b: 1:1 served selected-receipt outcome (E wire-half contract).
@@ -3011,7 +3009,7 @@ export interface SelectedReceiptFence {
  * Q2: injected production observer (per-call binding, mirroring the
  * `invokeReadCanonical` pattern). When present, serving uses it
  * directly and touches NEITHER the observer module NOR the
- * work-loader leg — the production leg without B's module landed.
+ * work receipt-loader leg — the production leg without B's module landed.
  */
 export interface SelectedReceiptObserverBinding {
   readonly observeSelectedReceipt: (input: unknown) => unknown;
@@ -3050,7 +3048,7 @@ interface StateReceiptJoinProducer {
   }): Promise<unknown>;
 }
 
-/** D3b: structural view of the state receipt work-loader module. */
+/** D3b: structural view of the declared work receipt-loader API. */
 interface StateReceiptWorkLoaderProducer {
   loadWorkReceiptFns(): Promise<{
     readonly observeSelectedReceipt: (input: unknown) => unknown;
@@ -3265,7 +3263,7 @@ export function mapReceiptJoinOutcome(outcome: unknown): SelectedReceiptServed {
 
 /**
  * D3b: serve one `Receipt.read` through the REAL T25 join with the
- * REAL work observer (loaded per call via the state work-loader —
+ * REAL work observer (loaded per call via the work receipt API —
  * bound per call, never cached, the `invokeReadCanonical` pattern).
  *
  * Evaluation order (B C4 + the join's own order): routed read-def
@@ -3282,10 +3280,10 @@ export function mapReceiptJoinOutcome(outcome: unknown): SelectedReceiptServed {
  * `opts.observer` wins outright (production leg / assembly binding);
  * else B's worker-safe observer module once it lands + F
  * vendors/rewrites it; else — absent-module ONLY — the TEST-ONLY
- * work-loader leg (checkout/dev until then). A present-but-broken
+ * work receipt-loader API (installed Node tooling until then). A present-but-broken
  * observer (eval throw, missing export, loader/shape failure) is
  * loud, never masked by the fallback (D1). When NEITHER module
- * resolves — the worker before the B+F halves — the work-loader
+ * resolves — the worker before the B+F halves — the work receipt-loader
  * leg throws its existing loud t16b error: refusal, never silent.
  */
 /**
@@ -3313,30 +3311,29 @@ async function resolveReceiptObserver(
   injected: SelectedReceiptReadOpts["observer"],
 ): Promise<(input: unknown) => unknown> {
   if (injected !== undefined) return injected.observeSelectedReceipt;
-  // Presence probe: absent-module ONLY falls back to the work-loader
+  // Presence probe: absent-module ONLY falls back to the work receipt-loader
   // leg. A present-but-broken observer (eval throw, missing export,
   // loader/shape failure) stays loud below — broken B is never
   // masked by the fallback.
+  const receiptMod = await loadProducerModule(STATE_RECEIPT_OBSERVER_SPECIFIER, "state receipt producer");
+  const loadReceiptObserver = requireProducerFn(receiptMod, "loadReceiptObserver", "state receipt producer");
+  let observerMod: Record<string, unknown>;
   try {
-    await import(STATE_RECEIPT_OBSERVER_SPECIFIER);
+    observerMod = await loadReceiptObserver() as Record<string, unknown>;
   } catch (error) {
     if (!isObserverModuleAbsent(error)) throw error;
     const loaderMod = await loadProducerModule(
-      STATE_RECEIPT_WORK_LOADER_SPECIFIER,
-      "state receipt work-loader producer",
+      WORK_RECEIPT_SPECIFIER,
+      "work receipt producer",
     );
     const loadWorkReceiptFns = requireProducerFn(
       loaderMod,
       "loadWorkReceiptFns",
-      "state receipt work-loader producer",
+      "work receipt producer",
     ) as unknown as StateReceiptWorkLoaderProducer["loadWorkReceiptFns"];
     const { observeSelectedReceipt } = await loadWorkReceiptFns();
     return observeSelectedReceipt;
   }
-  const observerMod = await loadProducerModule(
-    STATE_RECEIPT_OBSERVER_SPECIFIER,
-    "state receipt observer producer",
-  );
   const loadSelectedReceiptObserver = requireProducerFn(
     observerMod,
     "loadSelectedReceiptObserver",
@@ -3522,9 +3519,9 @@ export async function invokeReadCanonical(
 /* commands, `createDispatchJoinPort`) load dynamically from state      */
 /* dist (same P-B seam as the canonical producers above). Work          */
 /* producers (command arrays, `planRecoveryScan`, `classifyFailure`)    */
-/* arrive INJECTED — `@canlang/work` has no dist build, so there is     */
-/* nothing to import; the deploy join supplies the real producers       */
-/* exactly as tests supply them from work sources. Provider calls,      */
+/* arrive through the injected assembly seam; the deploy join supplies */
+/* the real producers through work's declared APIs, as tests do.       */
+/* Provider calls,                                                     */
 /* guard evaluation, reconcile evidence, and state snapshots are        */
 /* caller-supplied ports. BOUND provider sends are explicitly OUT       */
 /* (T24a remainder): this wiring calls through the injected             */
@@ -3544,10 +3541,10 @@ export async function invokeReadCanonical(
 /* ------------------------------------------------------------------ */
 
 /** T24b: state system-registry module (L3 commands + registry factory). */
-const STATE_SYSTEM_SPECIFIER = "../../../state/dist/state/src/ports/system.js";
+const STATE_SYSTEM_SPECIFIER = "@canlang/state/ports/system";
 
 /** T32b: state admission module (`openTransitiveScope` for dispatch fences). */
-const STATE_ADMISSION_SPECIFIER = "../../../state/dist/state/src/invocation/admission.js";
+const STATE_ADMISSION_SPECIFIER = "@canlang/state/invocation/admission";
 
 /**
  * T24b: one composable system command as it flows through the worker
@@ -5316,15 +5313,15 @@ export async function runRecoverySweep(opts: RecoverySweepOpts): Promise<Recover
 /* ------------------------------------------------------------------ */
 
 /** T34-F7: state-dist fanout module specifiers (the P-B seam). */
-const STATE_FANOUT_TABLES_SPECIFIER = "../../../state/dist/state/src/fanout/tables.js";
-const STATE_FANOUT_COHORT_SPECIFIER = "../../../state/dist/state/src/fanout/cohort.js";
-const STATE_FANOUT_MEMBERSHIP_SPECIFIER = "../../../state/dist/state/src/fanout/membership.js";
-const STATE_FANOUT_OUTCOME_SPECIFIER = "../../../state/dist/state/src/fanout/outcome.js";
-const STATE_FANOUT_LIFECYCLE_SPECIFIER = "../../../state/dist/state/src/fanout/lifecycle.js";
-const STATE_FANOUT_PROGRESS_SPECIFIER = "../../../state/dist/state/src/fanout/progress.js";
-const STATE_FANOUT_STAGING_SPECIFIER = "../../../state/dist/state/src/effects/staging.js";
+const STATE_FANOUT_TABLES_SPECIFIER = "@canlang/state/fanout/tables";
+const STATE_FANOUT_COHORT_SPECIFIER = "@canlang/state/fanout/cohort";
+const STATE_FANOUT_MEMBERSHIP_SPECIFIER = "@canlang/state/fanout/membership";
+const STATE_FANOUT_OUTCOME_SPECIFIER = "@canlang/state/fanout/outcome";
+const STATE_FANOUT_LIFECYCLE_SPECIFIER = "@canlang/state/fanout/lifecycle";
+const STATE_FANOUT_PROGRESS_SPECIFIER = "@canlang/state/fanout/progress";
+const STATE_FANOUT_STAGING_SPECIFIER = "@canlang/state/effects/staging";
 /** T34-F7: storage error classes (`FenceConflictError`, `StorageConstraintError`). */
-const STATE_STORAGE_PORT_SPECIFIER = "../../../state/dist/state/src/storage/port.js";
+const STATE_STORAGE_PORT_SPECIFIER = "@canlang/state/storage/port";
 
 /**
  * T34-F7 structural mirror of the F2/F5 fanout model names

@@ -93,7 +93,7 @@ import type {
   MoneyValue,
   Violation,
   ViolationCode,
-} from "../../contracts/src/values.js";
+} from "@canlang/contracts/values";
 import { emptyArray } from "./array.js";
 import { compareDecimal, isDecimal } from "./decimal.js";
 import { SchemaError, ValueError } from "./errors.js";

@@ -45,7 +45,7 @@ import type {
   ReceiptAssociation,
   ReceiptProperty,
   ReceiptStatus,
-} from '../../contracts/src/work.js';
+} from '@canlang/contracts';
 import type {
   CommitBatch,
   DomainWrite,
@@ -54,38 +54,38 @@ import type {
   RecordVersion,
   StoragePort,
   StoredRow,
-} from '../../contracts/src/state.js';
+} from '@canlang/contracts';
 import {
   applyReceiptProgress,
   resolveAssociationLocator,
-} from '../src/observation/association.ts';
-import type { ReceiptProgressOutcome } from '../src/observation/association.ts';
+} from '../src/observation/association.js';
+import type { ReceiptProgressOutcome } from '../src/observation/association.js';
 import {
   observeReceipt,
   observeSelectedReceipt,
-} from '../src/observation/observation.ts';
+} from '../src/observation/observation.js';
 import type {
   SelectedReceiptInput,
   SelectedReceiptOutcome,
   StoredReceipt,
-} from '../src/observation/observation.ts';
-import { isConsistentCompletion } from '../src/receipt/index.ts';
-import { resolveJoinLocator } from '../../state/dist/state/src/receipt/join.js';
-import { observeSelectedReceiptJoin } from '../../state/dist/state/src/receipt/join.js';
+} from '../src/observation/observation.js';
+import { isConsistentCompletion } from '../src/receipt/index.js';
+import { resolveJoinLocator } from '@canlang/state/receipt/join';
+import { observeSelectedReceiptJoin } from '@canlang/state/receipt/join';
 import type {
   JoinObserverInput,
   JoinObserverOutcome,
   JoinStoredReceipt,
   SelectedReceiptObserver,
-} from '../../state/dist/state/src/receipt/join.js';
+} from '@canlang/state/receipt/join';
 import {
   assertDeliveryField,
   createDeliverySchema,
   createRetentionContentPolicy,
   createSelectedGrants,
   resolveLeafGrantPaths,
-} from '../../state/dist/state/src/receipt/grants.js';
-import type { DeliveryFieldSchema } from '../../state/dist/state/src/receipt/grants.js';
+} from '@canlang/state/receipt/grants';
+import type { DeliveryFieldSchema } from '@canlang/state/receipt/grants';
 import {
   RECEIPT_ASSOCIATION_MODEL,
   RECEIPT_MODEL,
@@ -97,20 +97,20 @@ import {
   readReceiptRow,
   withAssociationRowData,
   withReceiptRowData,
-} from '../../state/dist/state/src/receipt/tables.js';
+} from '@canlang/state/receipt/tables';
 import type {
   AssociationRowData,
   ReceiptRowData,
-} from '../../state/dist/state/src/receipt/tables.js';
+} from '@canlang/state/receipt/tables';
 import type {
   ApplyReceiptProgressFn,
   IsConsistentCompletionFn,
   WorkProgressOutcome,
-} from '../../state/dist/state/src/receipt/work-loader.js';
-import { createTestMemoryStorage } from '../../state/dist/state/src/storage/memory.js';
-import { buildPolicyTable } from '../../state/dist/state/src/policy/grants.js';
-import type { MembershipReader } from '../../state/dist/state/src/policy/roles.js';
-import { StateError } from '../../state/dist/state/src/errors.js';
+} from '../src/receipt/index.js';
+import { createTestMemoryStorage } from '@canlang/state/storage/memory';
+import { buildPolicyTable } from '@canlang/state/policy/grants';
+import type { MembershipReader } from '@canlang/state/policy/roles';
+import { StateError } from '@canlang/state/errors';
 
 const ITEM = 'Acme.Item';
 const ITEM_MODEL = ITEM as ModelName;

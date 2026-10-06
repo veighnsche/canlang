@@ -32,9 +32,9 @@ import type {
   StoragePort,
   StoredRow,
 } from "@canlang/contracts";
-import { createMemoryStorage } from "../../../state/dist/state/src/storage/memory.js";
-import { FenceConflictError } from "../../../state/dist/state/src/storage/port.js";
-import type { OperationRegistry } from "../../../state/dist/state/src/invocation/registry.js";
+import { createMemoryStorage } from "@canlang/state/storage/memory";
+import { FenceConflictError } from "@canlang/state/storage/port";
+import type { OperationRegistry } from "@canlang/state/invocation/registry";
 import {
   FIXED_NOW,
   asId,
@@ -47,9 +47,9 @@ import {
   makeRow,
   seedMember,
   uuidv7,
-} from "../../../state/dist/state/test/invocation/fixtures.js";
-import type { TestMembershipStore } from "../../../state/dist/state/test/invocation/fixtures.js";
-import { StateError } from "../../../state/dist/state/src/errors.js";
+} from "@canlang/state/testing/invocation/fixtures";
+import type { TestMembershipStore } from "@canlang/state/testing/invocation/fixtures";
+import { StateError } from "@canlang/state/errors";
 import { assembleFanoutServingSurface } from "../worker/assembly.js";
 import {
   T34F7_FANOUT_CHILD_MODEL,
@@ -90,7 +90,7 @@ const producers: FanoutStateProducers = await loadFanoutStateProducers();
 /* -- Real work sources (non-literal dynamic import, tsc-blind). -- */
 
 function workSpecifier(path: string): string {
-  return ["..", "..", "..", "work", "src", path].join("/");
+  return "@canlang/work/" + path.replace(/\.ts$/, "").replace(/\/index$/, "");
 }
 
 function requireWorkFn(mod: Record<string, unknown>, name: string): (...args: never[]) => unknown {

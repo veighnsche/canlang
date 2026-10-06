@@ -19,9 +19,9 @@ import type {
   RecordId,
   StoragePort,
   StoredRow,
-} from '../../../contracts/src/state.js';
-import type { ResolvedIdentity } from '../../../contracts/src/identity.js';
-import type { FanoutChildId, RetryPolicy } from '../../../contracts/src/work.js';
+} from '@canlang/contracts';
+import type { ResolvedIdentity } from '@canlang/contracts';
+import type { FanoutChildId, RetryPolicy } from '@canlang/contracts';
 import { createMemoryStorage } from '../storage/memory.js';
 import { StateError } from '../errors.js';
 import { assertFanoutChildJoin } from '../ports/transact.js';
@@ -35,7 +35,7 @@ import {
   readFanoutChildRow,
 } from './tables.js';
 import { freezeFanoutMembership } from './membership.js';
-import { driveFanoutChild } from './test-driver.js';
+import { driveFanoutChild } from '../../test/fanout/test-driver.js';
 import {
   FIXED_NOW,
   asId,

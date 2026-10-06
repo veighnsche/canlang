@@ -22,9 +22,9 @@ import {
   type OutboxItem,
   type StoragePort,
 } from "@canlang/contracts";
-import { buildWorkInventory } from "../../work/src/recovery/index.ts";
-import { checkActivationInventory } from "../../state/src/migration/activate.ts";
-import type { ValidatedMigrationPlan } from "../../state/src/migration/transition.ts";
+import { buildWorkInventory } from "@canlang/work/recovery";
+import { checkActivationInventory } from "@canlang/state/migration/activate";
+import type { ValidatedMigrationPlan } from "@canlang/state/migration/transition";
 import { activate, type ActivationGates, type ActivationPlan } from "../src/deploy/activate.js";
 import { KNOWN_CAPABILITIES, probeInstalledRuntime } from "../src/deploy/installed.js";
 import type { InstalledRuntime } from "../src/deploy/compat.js";

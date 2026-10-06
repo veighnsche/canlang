@@ -23,19 +23,19 @@ import type {
   DeliveryError,
   EmailAccepted,
   EmailSendInput,
-} from '../../../contracts/src/services.js';
-import { assertValidHttpConfig, httpRequest } from '../http/client.ts';
-import type { HttpClientConfig } from '../http/client.ts';
+} from '@canlang/contracts';
+import { assertValidHttpConfig, httpRequest } from '../http/client.js';
+import type { HttpClientConfig } from '../http/client.js';
 import {
   HttpBodyLimitError,
   HttpRedirectError,
   HttpStatusError,
   HttpTooManyRedirectsError,
   HttpTransportError,
-} from '../http/errors.ts';
-import { deliveryError, specificOrGeneric } from './redact.ts';
-import { fixedAttachmentSizes, systemClock } from '../ports.ts';
-import type { AttachmentSizes, Clock, MailSender } from '../ports.ts';
+} from '../http/errors.js';
+import { deliveryError, specificOrGeneric } from './redact.js';
+import { fixedAttachmentSizes, systemClock } from '../ports.js';
+import type { AttachmentSizes, Clock, MailSender } from '../ports.js';
 
 export type AttachmentRef = EmailSendInput['attachments'][number];
 

@@ -7,7 +7,7 @@
  * Reuses the mutation invoke wiring and query policy builders read-only;
  * nothing here invents engine APIs.
  */
-import type { Team } from '../../../contracts/src/identity.js';
+import type { Team } from '@canlang/contracts';
 import type {
   ModelName,
   OperationName,
@@ -16,8 +16,8 @@ import type {
   ScheduleOp,
   StoragePort,
   StoredRow,
-} from '../../../contracts/src/state.js';
-import type { MutationResult } from '../../../contracts/src/wire.js';
+} from '@canlang/contracts';
+import type { MutationResult } from '@canlang/contracts';
 import { invoke } from '../../src/invocation/invoke.js';
 import type { ExecuteHandler } from '../../src/invocation/invoke.js';
 import { receiptIdentityFor } from '../../src/invocation/admission.js';

@@ -23,7 +23,7 @@ import type {
   RecordId,
   RecordVersion,
   StoredRow,
-} from '../../../contracts/src/state.js';
+} from '@canlang/contracts';
 import { StateError } from '../../src/errors.js';
 import {
   describeIntentOrigin,

@@ -40,7 +40,7 @@ import type {
   StoredRow,
   UniqueClaim,
   UniqueRelease,
-} from '../../../contracts/src/state.js';
+} from '@canlang/contracts';
 // Single adjustment point for worker A's actual error/class locations.
 import { FenceConflictError, StorageConstraintError } from '../../src/storage/port.js';
 

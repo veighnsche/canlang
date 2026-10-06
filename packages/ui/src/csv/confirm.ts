@@ -24,7 +24,7 @@
  * `{operation, csv, consent, rows}` as JSON with the CSRF header.
  */
 
-import type { PresentationContext } from "../../../contracts/src/presentation.js";
+import type { PresentationContext } from "@canlang/contracts";
 import type { SubmitFetch, SubmitFetchResponse } from "../client.js";
 import {
   csvFormulaProtect,

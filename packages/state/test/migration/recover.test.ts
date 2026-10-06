@@ -8,7 +8,7 @@
  */
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import type { ModelName, StoragePort, StoredRow } from '../../../contracts/src/state.js';
+import type { ModelName, StoragePort, StoredRow } from '@canlang/contracts';
 import {
   activate,
   publishStagedAndDrops,

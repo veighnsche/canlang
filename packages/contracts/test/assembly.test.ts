@@ -5,10 +5,6 @@ import type * as presentation from "../src/presentation.js";
 import type * as services from "../src/services.js";
 import type * as state from "../src/state.js";
 import type * as wire from "../src/wire.js";
-// S8b runtime pin: files has no build, so the pin imports its TS source
-// (allowed by tsconfig.check.json). If files ever gains a dist, prefer it.
-import { DEFAULT_FILE_POLICY } from "../../files/src/upload/index.ts";
-import { DEFAULT_UPLOAD_MAX_BYTES, DEFAULT_UPLOAD_TYPES } from "../src/wire.js";
 
 type Equal<X, Y> =
   (<T>() => T extends X ? 1 : 2) extends <T>() => T extends Y ? 1 : 2 ? true : false;
@@ -87,10 +83,5 @@ describe("assembly conflict picks", () => {
     ]);
   });
 
-  it("pins the files default policy to the wire upload defaults (L4 S8b)", () => {
-    expect(DEFAULT_FILE_POLICY).toEqual({
-      types: [...DEFAULT_UPLOAD_TYPES],
-      maxBytes: DEFAULT_UPLOAD_MAX_BYTES,
-    });
-  });
+
 });

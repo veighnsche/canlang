@@ -12,8 +12,8 @@ import type {
   ArtifactModelField,
   ArtifactOperation,
   ArtifactOperationInput,
-} from '../../../contracts/src/artifact.js';
-import type { ModelName, QueryPredicate, StoragePort, StoredRow } from '../../../contracts/src/state.js';
+} from '@canlang/contracts';
+import type { ModelName, QueryPredicate, StoragePort, StoredRow } from '@canlang/contracts';
 import {
   loadArtifactDescriptors,
   type ArtifactDescriptorSlice,

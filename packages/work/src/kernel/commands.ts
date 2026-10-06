@@ -33,11 +33,11 @@ import type {
   RecordId,
   ScheduleOp,
   StoredRow,
-} from '../../../contracts/src/state.js';
+} from '@canlang/contracts';
 import type {
   SystemCommandContext,
   SystemCommandDef,
-} from '../../../state/src/ports/system.ts';
+} from '@canlang/state';
 import type {
   ClaimId,
   OccurrenceId,
@@ -45,7 +45,7 @@ import type {
   OutboxItemState,
   RetryClass,
   WorkScope,
-} from '../../../contracts/src/work.js';
+} from '@canlang/contracts';
 import {
   KernelTableError,
   WORK_DISPATCH_MODEL,
@@ -67,19 +67,19 @@ import {
   readScheduleRow,
   scheduleByKeyQuery,
   withRowData,
-} from './tables.ts';
-import type { FanoutLineage } from '../intent/index.ts';
+} from './tables.js';
+import type { FanoutLineage } from '../intent/index.js';
 import type {
   DispatchRowData,
   EverySlotRowData,
   ScheduleRowData,
-} from './tables.ts';
-import { isClaimStale } from '../recovery/index.ts';
+} from './tables.js';
+import { isClaimStale } from '../recovery/index.js';
 import {
   RootRecurrenceNotSupportedError,
   everyScopeKey,
-} from '../schedule/every.ts';
-import type { RecurringScope } from '../../../contracts/src/work.js';
+} from '../schedule/every.js';
+import type { RecurringScope } from '@canlang/contracts';
 
 type StageContext = Pick<SystemCommandContext, 'actor' | 'now' | 'load' | 'query'>;
 

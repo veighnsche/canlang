@@ -30,8 +30,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { deriveCsrfToken, revokeSessionByToken } from '@canlang/identity';
-import { COLLECTION_MAX_LIMIT, PAGE_MAX_RECORDS } from '../../contracts/src/wire.js';
-import type { ListQueryResult } from '../../contracts/src/presentation.js';
+import { COLLECTION_MAX_LIMIT, PAGE_MAX_RECORDS } from '@canlang/contracts';
+import type { ListQueryResult } from '@canlang/contracts';
 import { handleExportRequest } from '../src/http/export.js';
 import type { ExportOutcome } from '../src/http/export.js';
 import { handlePrintRequest } from '../src/http/print.js';

@@ -97,9 +97,9 @@ export const COMPILED_JOURNEY_SOURCE = "tests/e2e/fixtures/compiled-shop.can";
 
 const STATE_DIST_BUILD_COMMAND = "bun run build";
 
-async function stateD1(): Promise<typeof import("../../../packages/state/dist/state/src/storage/d1.js")> {
+async function stateD1(): Promise<typeof import("@canlang/state/storage/d1")> {
   try {
-    return await import("../../../packages/state/dist/state/src/storage/d1.js");
+    return await import("@canlang/state/storage/d1");
   } catch {
     throw new Error(
       `e2e fixtures: packages/state/dist is not built; run \`${STATE_DIST_BUILD_COMMAND}\` first`,

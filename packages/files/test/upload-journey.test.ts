@@ -7,22 +7,22 @@ import assert from 'node:assert/strict';
 import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { createFsBlobStore } from '../src/upload/fs-blob-store.ts';
+import { createFsBlobStore } from '../src/upload/fs-blob-store.js';
 import {
   appendUploadContent,
   completeUploadContent,
   sha256Hex,
   stagingKeyForIntent,
-} from '../src/upload/index.ts';
+} from '../src/upload/index.js';
 import {
   blobKeyForFile,
   finalizeUpload,
   readFinalizedBytes,
   recordAttachment,
   storedState,
-} from '../src/finalize/index.ts';
-import { describeForReceipt } from '../src/retention/index.ts';
-import { handleCreateIntent } from '../src/bridge.ts';
+} from '../src/finalize/index.js';
+import { describeForReceipt } from '../src/retention/index.js';
+import { handleCreateIntent } from '../src/bridge.js';
 import {
   BINDING,
   ORIGIN_URL,
@@ -30,7 +30,7 @@ import {
   RECEIVER,
   makeHarness,
   uploadRequest,
-} from './helpers.ts';
+} from './helpers.js';
 
 const scopeDir = mkdtempSync(join(tmpdir(), 'canlang-files-journey-'));
 after(() => {

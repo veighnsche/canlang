@@ -44,7 +44,7 @@
  *   nullability.
  */
 
-import type { ArrayOmission, CanValue, MoneyValue } from "../../contracts/src/values.js";
+import type { ArrayOmission, CanValue, MoneyValue } from "@canlang/contracts/values";
 import { compareDecimal, DECIMAL_MAX_SIGNIFICANT_DIGITS, Decimal, isDecimal } from "./decimal.js";
 import { equalValue } from "./equality.js";
 import { ValueError } from "./errors.js";

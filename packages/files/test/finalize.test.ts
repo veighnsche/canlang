@@ -9,13 +9,13 @@ import {
   completeUploadContent,
   sha256Hex,
   stagingKeyForIntent,
-} from '../src/upload/index.ts';
+} from '../src/upload/index.js';
 import {
   finalizeUpload,
   ingestVerifiedEventBytes,
   readFinalizedBytes,
-} from '../src/finalize/index.ts';
-import { handleCreateIntent } from '../src/bridge.ts';
+} from '../src/finalize/index.js';
+import { handleCreateIntent } from '../src/bridge.js';
 import {
   BINDING,
   INTENT_TTL_MS,
@@ -24,7 +24,7 @@ import {
   TEXT_BYTES,
   makeHarness,
   uploadRequest,
-} from './helpers.ts';
+} from './helpers.js';
 
 function completedIntent(h: ReturnType<typeof makeHarness>): {
   intentId: string;

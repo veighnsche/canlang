@@ -5,27 +5,37 @@
   "private": true,
   "type": "module",
   "description": "CanLang account/session/team identity (lane 06).",
-  "main": "./dist/identity/src/index.js",
-  "types": "./dist/identity/src/index.d.ts",
+  "main": "./dist/src/index.js",
+  "types": "./dist/src/index.d.ts",
   "exports": {
     ".": {
-      "types": "./dist/identity/src/index.d.ts",
-      "default": "./dist/identity/src/index.js"
+      "types": "./dist/src/index.d.ts",
+      "default": "./dist/src/index.js"
     },
     "./testing": {
-      "types": "./dist/identity/src/testing.d.ts",
-      "default": "./dist/identity/src/testing.js"
+      "types": "./dist/src/testing.d.ts",
+      "default": "./dist/src/testing.js"
+    },
+    "./distribution": {
+      "types": "./dist/src/distribution.d.ts",
+      "default": "./dist/src/distribution.js"
     }
   },
-  "files": ["dist"],
+  "files": [
+    "dist"
+  ],
   "scripts": {
-    "build": "tsc -p tsconfig.json && cp -r test/fixtures dist/identity/test/fixtures",
-    "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test": "bun run build && node --test \"dist/identity/test/**/*.test.js\"",
-    "clean": "rm -rf dist/"
+    "build": "node ../../scripts/build-package.mjs",
+    "typecheck": "node ../../scripts/run-tasks.mjs typecheck:check --filter=@canlang/identity",
+    "test": "node ../../scripts/run-tasks.mjs test:unit --filter=@canlang/identity",
+    "clean": "rm -rf dist/",
+    "build:emit": "tsc -p tsconfig.json && mkdir -p dist/test/fixtures && cp -r test/fixtures/. dist/test/fixtures/",
+    "typecheck:check": "tsc -p tsconfig.json --noEmit",
+    "test:unit": "node --test \"dist/test/**/*.test.js\"",
+    "build:prepare": "node ../../scripts/build-package.mjs --prepare"
   },
   "dependencies": {
-    "@canlang/contracts": "0.1.0"
+    "@canlang/contracts": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "26.6.4",

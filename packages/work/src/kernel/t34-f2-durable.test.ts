@@ -32,12 +32,12 @@ import type {
   Revision,
   StoragePort,
   StoredRow,
-} from '../../../contracts/src/state.js';
-import { createD1Storage, ensureSchema } from '../../../state/dist/state/src/storage/d1.js';
+} from '@canlang/contracts';
+import { createD1Storage, ensureSchema } from '@canlang/state/storage/d1';
 import {
   FenceConflictError,
   StorageConstraintError,
-} from '../../../state/dist/state/src/storage/port.js';
+} from '@canlang/state/storage/port';
 import {
   WORK_FANOUT_CHECKPOINT_MODEL,
   WORK_FANOUT_CHILD_MODEL,
@@ -54,16 +54,16 @@ import {
   readFanoutChildRow,
   readFanoutIntentRow,
   withRowData,
-} from './tables.ts';
+} from './tables.js';
 
 const META = { nowMs: 1_758_000_000_000, actor: 't34-f2-durable' };
 const OCC = 'occ_durable_1';
 const HANDLER_COMMITMENT = 'Shift.review_commitment';
 const HANDLER_SWAP = 'Shift.review_swap';
 
-/* -- miniflare loads through the state-owned harness anchor. -- */
+/* -- miniflare is declared by the owning work test package. -- */
 
-const stateRequire = createRequire(import.meta.resolve('../../../state/package.json'));
+const stateRequire = createRequire(import.meta.url);
 
 interface MiniflareHandle {
   getD1Database(name: string): Promise<unknown>;
@@ -112,7 +112,7 @@ async function resetD1(): Promise<void> {
 
 /** State-owned DO proxy worker, reused read-only (never edited here). */
 const doWorkerPath = fileURLToPath(
-  new URL('../../../state/test/storage/do-test-worker.js', import.meta.url),
+  new URL(import.meta.resolve('@canlang/state/testing/storage/do-test-worker')),
 );
 
 /**
@@ -128,7 +128,7 @@ const doWorkerPath = fileURLToPath(
  * fatals with "can't use .. to break out of starting directory"
  * whenever the suite is invoked from `@canlang/work`.
  */
-const stateDirPath = fileURLToPath(new URL('../../../state/', import.meta.url));
+const stateDirPath = fileURLToPath(new URL('../../', import.meta.resolve('@canlang/state/distribution')));
 const entryCwd = process.cwd();
 
 let doMf: MiniflareHandle | undefined;

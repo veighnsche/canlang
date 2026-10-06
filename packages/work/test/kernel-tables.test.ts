@@ -5,7 +5,7 @@
  */
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import type { StoredRow } from '../../contracts/src/state.js';
+import type { StoredRow } from '@canlang/contracts';
 import {
   KernelTableError,
   WORK_DISPATCH_MODEL,
@@ -29,7 +29,7 @@ import {
   scheduleByKeyQuery,
   scheduleRowScope,
   withRowData,
-} from '../src/kernel/tables.ts';
+} from '../src/kernel/tables.js';
 
 const META = { nowMs: 1_758_000_000_000, actor: 'test' };
 

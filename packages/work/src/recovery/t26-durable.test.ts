@@ -40,7 +40,7 @@ import type {
   AssociatedReceipt,
   ProgressTerminalNotification,
   ReceiptAssociation,
-} from '../../../contracts/src/work.js';
+} from '@canlang/contracts';
 import type {
   CommitBatch,
   DomainWrite,
@@ -49,20 +49,20 @@ import type {
   RecordVersion,
   StoragePort,
   StoredRow,
-} from '../../../contracts/src/state.js';
-import { createD1Storage, ensureSchema } from '../../../state/dist/state/src/storage/d1.js';
-import { StorageConstraintError } from '../../../state/dist/state/src/storage/port.js';
+} from '@canlang/contracts';
+import { createD1Storage, ensureSchema } from '@canlang/state/storage/d1';
+import { StorageConstraintError } from '@canlang/state/storage/port';
 import {
   applyRelatedProgress,
   cancelRelatedProgress,
   isKnownProgressRelation,
-} from '../observation/association.ts';
-import type { RelatedReceiptProgress } from '../observation/association.ts';
-import { observeRelatedProgress } from '../observation/observation.ts';
-import type { StoredReceipt } from '../observation/observation.ts';
-import { TestOnlyAllowAllGrants, TestOnlyAvailabilityMap } from '../observation/ports.ts';
-import { planRelatedProgressResume } from './index.ts';
-import type { RelatedProgressRowView } from './index.ts';
+} from '../observation/association.js';
+import type { RelatedReceiptProgress } from '../observation/association.js';
+import { observeRelatedProgress } from '../observation/observation.js';
+import type { StoredReceipt } from '../observation/observation.js';
+import { TestOnlyAllowAllGrants, TestOnlyAvailabilityMap } from '../observation/ports.js';
+import { planRelatedProgressResume } from './index.js';
+import type { RelatedProgressRowView } from './index.js';
 
 const ACTOR = 't26-durable';
 const T0 = 1_758_000_000_000;
@@ -73,9 +73,9 @@ const SOURCE = 'Testprogress.send';
 const RELATION_A = 'std.EmailV1.send';
 const RELATION_B = 'std.TextGenerationV1.generate';
 
-/* -- miniflare loads through the state-owned harness anchor. -- */
+/* -- miniflare is declared by the owning work test package. -- */
 
-const stateRequire = createRequire(import.meta.resolve('../../../state/package.json'));
+const stateRequire = createRequire(import.meta.url);
 
 interface MiniflareHandle {
   getD1Database(name: string): Promise<unknown>;
@@ -94,7 +94,7 @@ type D1Handle = Parameters<typeof createD1Storage>[0];
 
 /** State-owned DO proxy worker, reused read-only (never edited here). */
 const doWorkerPath = fileURLToPath(
-  new URL('../../../state/test/storage/do-test-worker.js', import.meta.url),
+  new URL(import.meta.resolve('@canlang/state/testing/storage/do-test-worker')),
 );
 
 /**
@@ -106,7 +106,7 @@ const doWorkerPath = fileURLToPath(
  * path here is import.meta-derived absolute, so the anchor moves
  * nothing but the workerd mount.
  */
-const stateDirPath = fileURLToPath(new URL('../../../state/', import.meta.url));
+const stateDirPath = fileURLToPath(new URL('../../', import.meta.resolve('@canlang/state/distribution')));
 const entryCwd = process.cwd();
 
 before(() => {

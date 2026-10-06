@@ -1,6 +1,6 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import type { PresentationContext } from "../../contracts/src/presentation.js";
+import type { PresentationContext } from "@canlang/contracts";
 import {
   isReadableSelector,
   policyDumpSections,

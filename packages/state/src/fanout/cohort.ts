@@ -14,7 +14,7 @@ import type {
   FanoutCohortDiagnosis,
   FanoutCohortDiagnosisKind,
   FanoutCohortKind,
-} from '../../../contracts/src/work.js';
+} from '@canlang/contracts';
 import { StateError } from '../errors.js';
 
 /**

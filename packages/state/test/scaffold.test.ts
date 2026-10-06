@@ -1,7 +1,7 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { stateCatalog, StateError, isStateError, ruleFailed } from '../src/index.js';
-import { STATE_CONTRACT_VERSION } from '../../contracts/src/state.js';
+import { STATE_CONTRACT_VERSION } from '@canlang/contracts';
 
 describe('scaffold', () => {
   it('catalog tracks the owned contract version', () => {

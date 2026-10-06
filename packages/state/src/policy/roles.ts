@@ -8,7 +8,7 @@
  * never coerced to false.
  */
 
-import type { Membership } from '../../../contracts/src/identity.js';
+import type { Membership } from '@canlang/contracts';
 
 /**
  * Structural subset of the L6 IdentityStore consumed by admission. The L6

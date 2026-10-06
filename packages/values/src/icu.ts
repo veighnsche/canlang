@@ -2,7 +2,7 @@ import type {
   DatetimeValue,
   DateValue,
   MoneyValue,
-} from "../../contracts/src/values.js";
+} from "@canlang/contracts/values";
 import { isDecimal, type Decimal } from "./decimal.js";
 import { ValueError } from "./errors.js";
 import { int64 } from "./int.js";

@@ -19,14 +19,14 @@ import assert from 'node:assert/strict';
 import { fileURLToPath } from 'node:url';
 import { Miniflare } from 'miniflare';
 import type { D1Database } from '@cloudflare/workers-types';
-import type { CompileArtifact } from '../../../contracts/src/artifact.js';
+import type { CompileArtifact } from '@canlang/contracts';
 import type {
   ModelName,
   RecordId,
   StoragePort,
   StoredRow,
-} from '../../../contracts/src/state.js';
-import type { MutationResult } from '../../../contracts/src/wire.js';
+} from '@canlang/contracts';
+import type { MutationResult } from '@canlang/contracts';
 import {
   loadArtifactDescriptors,
   type ArtifactDescriptorSlice,
@@ -88,7 +88,7 @@ async function resetD1(): Promise<void> {
 }
 
 const doWorkerPath = fileURLToPath(
-  new URL('../../../../test/storage/do-test-worker.js', import.meta.url),
+  new URL('../../../test/storage/do-test-worker.js', import.meta.url),
 );
 
 let doMf: Miniflare | undefined;

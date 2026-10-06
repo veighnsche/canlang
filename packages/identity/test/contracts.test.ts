@@ -4,8 +4,7 @@
  * invariants. Runtime assertions here check fixture content only; admission
  * behavior lands with the S2 implementation.
  *
- * NOTE: relative contract import is temporary until L7 join J1 assembles
- * @canlang/contracts; then this becomes a workspace package import.
+ * Shapes are imported through the declared @canlang/contracts package API.
  */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -15,14 +14,14 @@ import { dirname, join } from 'node:path';
 import {
   IDENTITY_CONTRACT_VERSION,
   SYSTEM_TEAM_TOOL_NAMES,
-} from '../../contracts/src/identity.js';
+} from '@canlang/contracts';
 import type {
   AuthenticatedActor,
   Membership,
   Session,
   Team,
   TeamInvitation,
-} from '../../contracts/src/identity.js';
+} from '@canlang/contracts';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const fixture = (name: string): unknown =>

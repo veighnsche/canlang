@@ -7,17 +7,15 @@
  * path needs. P-A's worker entry dynamic-imports `buildProductionDeps`
  * and feeds the result into `assembleWorker`.
  *
- * PRODUCER LOADING (worker boundary): this package declares neither
- * `@canlang/state` nor `@canlang/identity` as a runtime dependency, so
- * every cross-package producer loads via DYNAMIC import through
- * non-literal specifiers (tsc-blind, `tests/integration/b2-d1-fence`
- * precedent). Static shape validation fails loud naming the missing
- * producer — never a silent half-constructed deps object.
+ * PRODUCER LOADING (worker boundary): state and identity are declared
+ * runtime dependencies, loaded through their installed package exports.
+ * Dynamic loading preserves the assembly boundary; shape validation
+ * fails loud naming a missing or incompatible producer.
  *
  * DEPLOY-JOIN SEAM (P-B, loud): the state-D1 and identity specifiers
- * below resolve inside the checkout; the deploy bundler must
- * inline/scope those modules into the worker bundle (the same
- * treatment M2 gives the MCP bundle). If a specifier stops resolving,
+ * below resolve through owning packages; the deploy bundler stages
+ * those installed modules into the Worker bundle (the same treatment
+ * M2 gives the MCP bundle). If a specifier stops resolving,
  * construction throws naming the exact seam.
  *
  * DDL OWNERSHIP (T17b: interim DDL RETIRED): the hand-written demo
@@ -28,9 +26,8 @@
  * them. When the D1 owner lands a real migrate step, that step owns
  * schema outright; there is no interim DDL left to supersede.
  *
- * Types mirror `packages/identity/src/ports.ts` VERBATIM (same rule as
- * `runtime/mcp-registry.ts`): `@canlang/identity` is not a runtime
- * dependency, so the `IdentityStore` shape is restated here and proven
+ * The structural IdentityStore view mirrors the owning identity API
+ * (same rule as `runtime/mcp-registry.ts`) and is proven
  * mutually assignable with the real interface by static assertions in
  * `test/mcpd-env-assembly.test.ts` (both directions compile, or the
  * file fails the root check).
@@ -211,13 +208,10 @@ export interface IdentityStore {
 /* ------------------------------------------------------------------ */
 
 /**
- * State D1 producer. Relative dist path (not a bare specifier):
- * `@canlang/state` has no package link or exports map in this
- * workspace, so only the relative checkout path resolves — in vitest
- * from `src/`, in node from `dist/` (same `../../../` shape), and in
- * the worker via the P-B bundler seam (see header).
+ * State D1 producer, resolved through its declared installed export
+ * and rewritten to the owning vendor module in the Worker bundle.
  */
-const STATE_D1_SPECIFIER = "../../../state/dist/state/src/storage/d1.js";
+const STATE_D1_SPECIFIER = "@canlang/state/storage/d1";
 
 /** Identity package root (resolves via the workspace link + exports map). */
 const IDENTITY_SPECIFIER = "@canlang/identity";

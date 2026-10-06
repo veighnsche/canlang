@@ -6,9 +6,9 @@
  * construct these directly from SQL failures.
  */
 
-import type { MigrationFailureLeg, Revision } from '../../../contracts/src/state.js';
+import type { MigrationFailureLeg, Revision } from '@canlang/contracts';
 
-export type { StoragePort } from '../../../contracts/src/state.js';
+export type { StoragePort } from '@canlang/contracts';
 
 /**
  * Raised when a commit batch loses the revision fence: another writer landed

@@ -13,7 +13,7 @@
  */
 import { describe, expect, it } from "vitest";
 import type { CompileArtifact, DerivedOperationInputs } from "@canlang/contracts";
-import { catalogFromArtifactOperations } from "../../interfaces/dist/interfaces/src/http/operations.js";
+import { catalogFromArtifactOperations } from "@canlang/interfaces/http/operations";
 import {
   createArtifactCatalog,
   type BakedDerivedInputs,

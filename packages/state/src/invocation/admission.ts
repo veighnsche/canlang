@@ -23,12 +23,12 @@ import type {
   Revision,
   StoragePort,
   StoredRow,
-} from '../../../contracts/src/state.js';
+} from '@canlang/contracts';
 import type {
   ClosedInputs,
   ConflictCurrent,
   FieldError,
-} from '../../../contracts/src/wire.js';
+} from '@canlang/contracts';
 import type { GeneratedOperationDef, InterimOperationDef } from './registry.js';
 import { isGeneratedOperationDef } from './registry.js';
 import type { ByPredicate, MembershipReader } from '../policy/roles.js';

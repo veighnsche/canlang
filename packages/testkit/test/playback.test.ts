@@ -17,19 +17,19 @@ import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import { Miniflare } from "miniflare";
 import { build as bundleWorker } from "esbuild";
-import { EmailV1Adapter } from "../../services/src/mail/adapter.ts";
+import { EmailV1Adapter } from "@canlang/services/mail/adapter";
 import {
   fixedAttachmentSizes,
   fixedClock,
   startControlledMailServer,
-} from "../../services/src/ports.ts";
-import { OllamaChatAdapter } from "../../services/src/models/ollama.ts";
-import { startControlledOllamaServer } from "../../services/src/models/harness.ts";
-import { SystemOneAdapter } from "../../services/src/judgments/systemone.ts";
-import { startControlledSystemOneServer } from "../../services/src/judgments/harness.ts";
-import { ComfyUINativeAdapter } from "../../services/src/media/comfyui.ts";
-import { digestGraph } from "../../services/src/media/mapping.ts";
-import { startControlledComfyServer } from "../../services/src/media/harness.ts";
+} from "@canlang/services/ports";
+import { OllamaChatAdapter } from "@canlang/services/models/ollama";
+import { startControlledOllamaServer } from "@canlang/services/models/harness";
+import { SystemOneAdapter } from "@canlang/services/judgments/systemone";
+import { startControlledSystemOneServer } from "@canlang/services/judgments/harness";
+import { ComfyUINativeAdapter } from "@canlang/services/media/comfyui";
+import { digestGraph } from "@canlang/services/media/mapping";
+import { startControlledComfyServer } from "@canlang/services/media/harness";
 import {
   SCENARIO_TABLES,
   checkJudgmentsScript,
@@ -38,8 +38,8 @@ import {
   decodeMediaScript,
   findScenarioTable,
   parseScenarioTable,
-} from "../../services/src/scenarios.ts";
-import type { ScenarioTable } from "../../services/src/scenarios.ts";
+} from "@canlang/services/scenarios";
+import type { ScenarioTable } from "@canlang/services/scenarios";
 import type {
   ApiGraph,
   EmailSendInput,
@@ -47,7 +47,7 @@ import type {
   JudgmentBatchInput,
   ModelChatInput,
   WorkflowNodeMapping,
-} from "../../contracts/src/services.js";
+} from "@canlang/contracts";
 import {
   PlaybackScriptError,
   createPlaybackHandler,

@@ -13,7 +13,7 @@ import type {
   EventProvenance,
   FinalizedFile,
   RequestProvenance,
-} from '../../../contracts/src/files.js';
+} from '@canlang/contracts';
 
 /**
  * Resolved receiving identity: the app/team/owner/principal tuple the

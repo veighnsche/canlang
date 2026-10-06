@@ -24,7 +24,7 @@
 import type {
   CanValue,
   FieldDefaultOrigin,
-} from "../../../contracts/src/values.js";
+} from "@canlang/contracts/values";
 import type {
   NormalizedField,
   NormalizedSchema,

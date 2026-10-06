@@ -3,8 +3,8 @@
  * the thin `@canlang/stdlib` facade instead; that assembly re-exports producer
  * surfaces and must never be imported back here.
  */
-export type * from "../../contracts/src/values.js";
-export { VALUES_CONTRACT_VERSION } from "../../contracts/src/values.js";
+export type * from "@canlang/contracts/values";
+export { VALUES_CONTRACT_VERSION } from "@canlang/contracts/values";
 export * from "./array.js";
 export * from "./catalog.js";
 export * from "./currency-data.js";

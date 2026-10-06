@@ -7,21 +7,21 @@
  */
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { EmailV1Adapter } from '../src/mail/adapter.ts';
-import { OllamaChatAdapter } from '../src/models/ollama.ts';
-import { SystemOneAdapter } from '../src/judgments/systemone.ts';
+import { EmailV1Adapter } from '../src/mail/adapter.js';
+import { OllamaChatAdapter } from '../src/models/ollama.js';
+import { SystemOneAdapter } from '../src/judgments/systemone.js';
 import {
   ComfyUINativeAdapter,
-} from '../src/media/comfyui.ts';
-import { digestGraph } from '../src/media/mapping.ts';
+} from '../src/media/comfyui.js';
+import { digestGraph } from '../src/media/mapping.js';
 import {
   fixedAttachmentSizes,
   fixedClock,
   startControlledMailServer,
-} from '../src/ports.ts';
-import { startControlledOllamaServer } from '../src/models/harness.ts';
-import { startControlledSystemOneServer } from '../src/judgments/harness.ts';
-import { startControlledComfyServer } from '../src/media/harness.ts';
+} from '../src/ports.js';
+import { startControlledOllamaServer } from '../src/models/harness.js';
+import { startControlledSystemOneServer } from '../src/judgments/harness.js';
+import { startControlledComfyServer } from '../src/media/harness.js';
 import {
   JUDGMENTS_SCENARIO_TABLES,
   MAIL_SCENARIO_TABLES,
@@ -36,7 +36,7 @@ import {
   encodeMediaBytes,
   findScenarioTable,
   parseScenarioTable,
-} from '../src/scenarios.ts';
+} from '../src/scenarios.js';
 import type {
   EmailSendInput,
   ImageGenerateInput,
@@ -44,7 +44,7 @@ import type {
   ModelChatInput,
   WorkflowNodeMapping,
   ApiGraph,
-} from '../../contracts/src/services.js';
+} from '@canlang/contracts';
 
 const CLOCK_NOW = 1_758_000_000_000;
 

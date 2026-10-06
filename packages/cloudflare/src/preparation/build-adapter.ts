@@ -24,6 +24,7 @@
 import { execFileSync } from "node:child_process";
 import { mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
+import { resolveProducerFile } from "../deploy/producer-files.js";
 import { join, posix, sep } from "node:path";
 import {
   HTTP_BUNDLE_MARKERS,
@@ -51,51 +52,17 @@ export const CURRENT_HOST_PHASES: HostBuildPhases = {
 };
 
 /** Real-producer dist the MCP bundle is byte-built from (never stubbed). */
-const INTERFACES_MCP_SERVER_DIST = posix.join(
-  "packages",
-  "interfaces",
-  "dist",
-  "interfaces",
-  "src",
-  "mcp",
-  "server.js",
-);
+const INTERFACES_MCP_SERVER_DIST = "@canlang/interfaces/mcp/server";
 /** Real-producer dist the HTTP operations bundle is byte-built from (never stubbed). */
-const INTERFACES_HTTP_OPERATIONS_DIST = posix.join(
-  "packages",
-  "interfaces",
-  "dist",
-  "interfaces",
-  "src",
-  "http",
-  "operations.js",
-);
-const MCP_REGISTRY_DIST = posix.join(
-  "packages",
-  "cloudflare",
-  "dist",
-  "runtime",
-  "mcp-registry.js",
-);
+const INTERFACES_HTTP_OPERATIONS_DIST = "@canlang/interfaces/http/operations";
+const MCP_REGISTRY_DIST = "@canlang/cloudflare/runtime/mcp-registry";
 
-function assertFileBuilt(repoRoot: string, distRelative: string, buildCommand: string): string {
-  const full = join(repoRoot, distRelative);
-  try {
-    if (!statSync(full).isFile()) throw new Error("not a file");
-  } catch {
-    throw new Error(`deploy bundle: ${distRelative} not built; run \`${buildCommand}\` first`);
-  }
-  return full;
-}
-
-function buildMcpBundle(repoRoot: string): string {
-  const serverDist = assertFileBuilt(
-    repoRoot,
+function buildMcpBundle(): string {
+  const serverDist = resolveProducerFile(
     INTERFACES_MCP_SERVER_DIST,
     "bun run --filter @canlang/interfaces build",
   );
-  const registryDist = assertFileBuilt(
-    repoRoot,
+  const registryDist = resolveProducerFile(
     MCP_REGISTRY_DIST,
     "bun run --filter @canlang/cloudflare build",
   );
@@ -150,9 +117,8 @@ function buildMcpBundle(repoRoot: string): string {
   return contents;
 }
 
-function buildHttpOperationsBundle(repoRoot: string): string {
-  const operationsDist = assertFileBuilt(
-    repoRoot,
+function buildHttpOperationsBundle(): string {
+  const operationsDist = resolveProducerFile(
     INTERFACES_HTTP_OPERATIONS_DIST,
     "bun run --filter @canlang/interfaces build",
   );
@@ -209,13 +175,13 @@ function buildHttpOperationsBundle(repoRoot: string): string {
  * staged, before artifact.js render. Never runs on the legacy
  * worker-missing path (the worker probe throws first).
  */
-export function runMcpBunPhase(repoRoot: string): {
+export function runMcpBunPhase(_repoRoot?: string): {
   mcpHandlerJs: string;
   httpOperationsJs: string;
 } {
   return {
-    mcpHandlerJs: buildMcpBundle(repoRoot),
-    httpOperationsJs: buildHttpOperationsBundle(repoRoot),
+    mcpHandlerJs: buildMcpBundle(),
+    httpOperationsJs: buildHttpOperationsBundle(),
   };
 }
 

@@ -12,7 +12,7 @@ import type {
   Revision,
   StoragePort,
   StoredRow,
-} from '../../../contracts/src/state.js';
+} from '@canlang/contracts';
 import {
   activate,
   resumeMigration,

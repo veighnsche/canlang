@@ -6,11 +6,72 @@
   "type": "module",
   "description": "Lane 04: file upload intake, finalization, provenance, retention and host bridge (internal; public surface assembles in @canlang/stdlib).",
   "scripts": {
-    "typecheck": "tsc --noEmit",
-    "test": "node --test 'test/**/*.test.ts'"
+    "typecheck": "node ../../scripts/run-tasks.mjs typecheck:check --filter=@canlang/files",
+    "test": "node ../../scripts/run-tasks.mjs test:unit --filter=@canlang/files",
+    "build": "node ../../scripts/build-package.mjs",
+    "clean": "rm -rf dist/",
+    "build:emit": "tsc -p tsconfig.json",
+    "typecheck:check": "tsc -p tsconfig.json --noEmit",
+    "test:unit": "node --test \"dist/test/**/*.test.js\"",
+    "build:prepare": "node ../../scripts/build-package.mjs --prepare"
   },
   "devDependencies": {
     "@types/node": "^24.0.0",
     "typescript": "^5.9.0"
+  },
+  "main": "./dist/src/index.js",
+  "types": "./dist/src/index.d.ts",
+  "files": [
+    "dist/"
+  ],
+  "dependencies": {
+    "@canlang/contracts": "workspace:*",
+    "@canlang/services": "workspace:*"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/src/index.d.ts",
+      "default": "./dist/src/index.js"
+    },
+    "./bridge": {
+      "types": "./dist/src/bridge.d.ts",
+      "default": "./dist/src/bridge.js"
+    },
+    "./catalog": {
+      "types": "./dist/src/catalog.d.ts",
+      "default": "./dist/src/catalog.js"
+    },
+    "./ports": {
+      "types": "./dist/src/ports.d.ts",
+      "default": "./dist/src/ports.js"
+    },
+    "./scenarios": {
+      "types": "./dist/src/scenarios.d.ts",
+      "default": "./dist/src/scenarios.js"
+    },
+    "./upload/fs-blob-store": {
+      "types": "./dist/src/upload/fs-blob-store.d.ts",
+      "default": "./dist/src/upload/fs-blob-store.js"
+    },
+    "./finalize": {
+      "types": "./dist/src/finalize/index.d.ts",
+      "default": "./dist/src/finalize/index.js"
+    },
+    "./provenance": {
+      "types": "./dist/src/provenance/index.d.ts",
+      "default": "./dist/src/provenance/index.js"
+    },
+    "./retention": {
+      "types": "./dist/src/retention/index.d.ts",
+      "default": "./dist/src/retention/index.js"
+    },
+    "./upload": {
+      "types": "./dist/src/upload/index.d.ts",
+      "default": "./dist/src/upload/index.js"
+    },
+    "./distribution": {
+      "types": "./dist/src/distribution.d.ts",
+      "default": "./dist/src/distribution.js"
+    }
   }
 }

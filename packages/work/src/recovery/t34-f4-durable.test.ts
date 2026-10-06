@@ -42,14 +42,14 @@ import type {
   RecordVersion,
   StoragePort,
   StoredRow,
-} from '../../../contracts/src/state.js';
+} from '@canlang/contracts';
 import type {
   FanoutFailedReason,
   FanoutSkippedReason,
   RetryPolicy,
-} from '../../../contracts/src/work.js';
-import { createD1Storage, ensureSchema } from '../../../state/dist/state/src/storage/d1.js';
-import { StorageConstraintError } from '../../../state/dist/state/src/storage/port.js';
+} from '@canlang/contracts';
+import { createD1Storage, ensureSchema } from '@canlang/state/storage/d1';
+import { StorageConstraintError } from '@canlang/state/storage/port';
 import {
   WORK_FANOUT_CHECKPOINT_MODEL,
   WORK_FANOUT_CHILD_MODEL,
@@ -66,9 +66,9 @@ import {
   readFanoutChildRow,
   readFanoutIntentRow,
   withRowData,
-} from '../kernel/tables.ts';
-import { planFanoutRecoveryScan } from './index.ts';
-import type { FanoutChildLifecycle, FanoutRecoverableRow } from './index.ts';
+} from '../kernel/tables.js';
+import { planFanoutRecoveryScan } from './index.js';
+import type { FanoutChildLifecycle, FanoutRecoverableRow } from './index.js';
 
 const ACTOR = 't34-f4-durable';
 const META = { nowMs: 1_758_000_000_000, actor: ACTOR };
@@ -77,9 +77,9 @@ const MAX_AGE = 1000;
 const POLICY: RetryPolicy = { maxAttempts: 3, horizonMs: 60_000 };
 const HANDLER = 'Shift.review_commitment';
 
-/* -- miniflare loads through the state-owned harness anchor. -- */
+/* -- miniflare is declared by the owning work test package. -- */
 
-const stateRequire = createRequire(import.meta.resolve('../../../state/package.json'));
+const stateRequire = createRequire(import.meta.url);
 
 interface MiniflareHandle {
   getD1Database(name: string): Promise<unknown>;
@@ -98,7 +98,7 @@ type D1Handle = Parameters<typeof createD1Storage>[0];
 
 /** State-owned DO proxy worker, reused read-only (never edited here). */
 const doWorkerPath = fileURLToPath(
-  new URL('../../../state/test/storage/do-test-worker.js', import.meta.url),
+  new URL(import.meta.resolve('@canlang/state/testing/storage/do-test-worker')),
 );
 
 /**
@@ -110,7 +110,7 @@ const doWorkerPath = fileURLToPath(
  * path here is import.meta-derived absolute, so the anchor moves
  * nothing but the workerd mount.
  */
-const stateDirPath = fileURLToPath(new URL('../../../state/', import.meta.url));
+const stateDirPath = fileURLToPath(new URL('../../', import.meta.resolve('@canlang/state/distribution')));
 const entryCwd = process.cwd();
 
 before(() => {

@@ -48,14 +48,14 @@ import type {
 } from "@canlang/contracts";
 import { resolveIdentity, sha256HexText } from "@canlang/identity";
 import { createFrozenClock, createMemoryIdentityStore } from "@canlang/identity/testing";
-import { createD1Storage, ensureSchema } from "../../../state/dist/state/src/storage/d1.js";
+import { createD1Storage, ensureSchema } from "@canlang/state/storage/d1";
 import {
   RECEIPT_ASSOCIATION_MODEL,
   RECEIPT_MODEL,
   newAssociationRow,
   newReceiptRow,
-} from "../../../state/dist/state/src/receipt/tables.js";
-import { loadWorkReceiptFns } from "../../../state/dist/state/src/receipt/work-loader.js";
+} from "@canlang/state/receipt/tables";
+import { loadWorkReceiptFns } from "@canlang/work/receipt";
 import type { AssembledModules } from "../worker/assembly.js";
 import { buildDeployBundle } from "../deploy/bundle.js";
 import { startLocalDev } from "../dev/local-run.js";
@@ -372,7 +372,8 @@ describe("Q4 path B: staged bundle fail-closed pre-B", () => {
     const invoke = bundle.modules["runtime/invoke.js"] as string | undefined;
     assert.ok(typeof invoke === "string", "staged runtime/invoke.js must exist");
     // Real Q2 const (not F's Q3 overlay): rewritten to the vendor key.
-    assert.ok(invoke.includes("../vendor/state/receipt/observer.js"));
+    assert.ok(invoke.includes("../vendor/state/receipt/index.js"));
+    assert.ok(bundle.modules["vendor/state/receipt/index.js"]);
     assert.ok(!invoke.includes("../../../state/dist/state/src/receipt/observer.js"));
     assert.equal(bundle.modules["vendor/state/receipt/observer.js"], undefined);
   });

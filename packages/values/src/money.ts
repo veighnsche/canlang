@@ -1,4 +1,4 @@
-import type { MoneyValue } from "../../contracts/src/values.js";
+import type { MoneyValue } from "@canlang/contracts/values";
 import { CURRENCY_MINOR_UNITS } from "./currency-data.js";
 import type { Decimal } from "./decimal.js";
 import { divideDecimal, isDecimal, roundRationalHalfEven } from "./decimal.js";

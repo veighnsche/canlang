@@ -46,8 +46,8 @@ import type {
   IdentityD1Database,
   IdentityStore as RealIdentityStore,
 } from "@canlang/identity";
-import { createMcpHandler } from "../../interfaces/dist/interfaces/src/mcp/server.js";
-import type { McpDeps as RealMcpDeps } from "../../interfaces/dist/interfaces/src/ports.js";
+import { createMcpHandler } from "@canlang/interfaces/mcp/server";
+import type { McpDeps as RealMcpDeps } from "@canlang/interfaces";
 import { startLocalDev, type LocalDev } from "../src/dev/local-run.js";
 import {
   assembleWorker,

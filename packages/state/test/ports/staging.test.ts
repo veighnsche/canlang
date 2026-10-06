@@ -5,7 +5,7 @@
  */
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import type { OutboxIntent, ScheduleOp } from '../../../contracts/src/state.js';
+import type { OutboxIntent, ScheduleOp } from '@canlang/contracts';
 import {
   STAGING_MAX_ID_LENGTH,
   outboxIntentId,

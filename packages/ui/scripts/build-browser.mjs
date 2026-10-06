@@ -4,7 +4,7 @@
  *
  * Reads (pinned, verified): daisyUI `daisyui.css`, `ui/themes.css`,
  * `ui/src/browser/style.css`, and the tsc-compiled browser client
- * (`dist/ui/src/browser/*.js`). Writes `dist/browser/`:
+ * (`dist/src/browser/*.js`). Writes `dist/browser/`:
  *
  * - `bootstrap.js`, `polling.js` — installed client modules, copied
  *   verbatim; the page loads `bootstrap.js` as a module.
@@ -42,7 +42,7 @@ import { fileURLToPath } from "node:url";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const packageRoot = join(here, "..");
-const distUi = join(packageRoot, "dist", "ui", "src");
+const distUi = join(packageRoot, "dist", "src");
 const distBrowserSrc = join(distUi, "browser");
 const outDir = join(packageRoot, "dist", "browser");
 

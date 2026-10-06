@@ -41,7 +41,7 @@ const SEAM =
   "L3 createDOStorage needs a live DurableObjectStorage, obtainable only inside a DO worker — " +
   "cf. the producer-internal packages/state/test/storage/do.test.ts, which drives its own Miniflare DO";
 
-const DO_SPECIFIER = "../../packages/state/src/storage/durable-object.ts";
+const DO_SPECIFIER = "@canlang/state/storage/durable-object";
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);

@@ -1,19 +1,11 @@
 {
-  // Lane-07-owned check config. Mirrors the root check's src mappings for
-  // L7-owned packages (typecheck without requiring their dist); ui/identity
-  // resolve to built dist (their owners' builds; the e2e CI job builds them).
-  // This config is NOT in root tsconfig.check.json and NOT in vitest include:
-  // Playwright specs run under `test:e2e`, never under `bun run test`.
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
     "composite": false,
-    "noEmit": true,
-    "baseUrl": "../..",
-    "paths": {
-      "@canlang/contracts": ["./packages/contracts/src/index.ts"],
-      "@canlang/cloudflare": ["./packages/cloudflare/src/index.ts"],
-      "@canlang/testkit": ["./packages/testkit/src/index.ts"]
-    }
+    "noEmit": true
   },
-  "include": [".", "../../playwright.config.ts"]
+  "include": [
+    ".",
+    "../../playwright.config.ts"
+  ]
 }

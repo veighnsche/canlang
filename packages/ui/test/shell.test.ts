@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import {
   CSRF_FIELD,
   TEAM_FIELD,
-} from "../../contracts/src/presentation.js";
+} from "@canlang/contracts";
 import type {
   AdmissionOutcome,
   LoginProps,
@@ -12,7 +12,7 @@ import type {
   PageDescriptor,
   PresentationContext,
   ShellData,
-} from "../../contracts/src/presentation.js";
+} from "@canlang/contracts";
 import type { Element } from "happy-dom";
 import { message } from "../src/messages.js";
 import { buildNavigation, selectDiscoveryCandidates } from "../src/navigation.js";

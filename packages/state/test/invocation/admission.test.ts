@@ -13,7 +13,7 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { admit, receiptIdentityFor } from '../../src/invocation/admission.js';
 import { buildContext } from '../../src/invocation/context.js';
-import type { InvocationContext } from '../../../contracts/src/state.js';
+import type { InvocationContext } from '@canlang/contracts';
 import { createMemoryStorage } from '../../src/storage/memory.js';
 import {
   FIXED_NOW,

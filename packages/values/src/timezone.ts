@@ -21,7 +21,7 @@
  * (fold accepted but immaterial); two = fold (earlier|later selects).
  */
 
-import type { DatetimeValue, DateValue } from "../../contracts/src/values.js";
+import type { DatetimeValue, DateValue } from "@canlang/contracts/values";
 import { ValueError } from "./errors.js";
 import { isDatetime, isDateValue, makeDate, makeDatetime } from "./kinds.js";
 import { assertDatetimeInRange, dateToEpochDays } from "./temporal.js";

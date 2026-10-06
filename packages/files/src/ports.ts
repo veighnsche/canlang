@@ -32,8 +32,8 @@ import type {
   StoredObjectState,
   UploadIntentId,
   UploadRetryId,
-} from '../../contracts/src/files.js';
-import type { ReceivingContext } from './provenance/index.ts';
+} from '@canlang/contracts';
+import type { ReceivingContext } from './provenance/index.js';
 
 /**
  * Upload-intent lifecycle state (implementation-internal). Intent-phase

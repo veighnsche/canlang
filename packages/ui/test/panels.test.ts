@@ -4,7 +4,7 @@ import type {
   AppearanceSize,
   HistoryEntry,
   PresentationContext,
-} from "../../contracts/src/presentation.js";
+} from "@canlang/contracts";
 import { message } from "../src/messages.js";
 import { copy, history, tabs } from "../src/panels.js";
 import { loadHtml } from "./harness.js";

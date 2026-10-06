@@ -1,4 +1,4 @@
-import type { CatalogEntry, CatalogEnvelope, CatalogFeature } from "../../contracts/src/values.js";
+import type { CatalogEntry, CatalogEnvelope, CatalogFeature } from "@canlang/contracts/values";
 
 export const LANE02_CATALOG_VERSION = "0.1.0-lane02-draft";
 

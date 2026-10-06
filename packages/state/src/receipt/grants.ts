@@ -31,8 +31,8 @@
  * real T25a function accepts these closures at runtime. A work-side
  * conformance pin is future work.
  */
-import type { ReceiptProperty } from '../../../contracts/src/work.js';
-import type { ModelName, StoredRow } from '../../../contracts/src/state.js';
+import type { ReceiptProperty } from '@canlang/contracts';
+import type { ModelName, StoredRow } from '@canlang/contracts';
 import { StateError } from '../errors.js';
 import {
   matchGrants,

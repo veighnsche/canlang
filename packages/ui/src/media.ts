@@ -33,7 +33,7 @@ import type {
   ProgressProps,
   RadialProgressProps,
   TextRotateProps,
-} from "../../contracts/src/presentation.js";
+} from "@canlang/contracts";
 import { appearanceClasses, type AppearanceOpts } from "./appearance.js";
 import { escapeAttr, escapeHtml, safeHref } from "./escape.js";
 import { message, resolveCaption } from "./messages.js";

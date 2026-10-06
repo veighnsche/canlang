@@ -40,23 +40,27 @@ import { execFileSync, spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { mkdtempSync, readFileSync, rmSync, statSync } from "node:fs";
 import { tmpdir } from "node:os";
+import { createRequire } from "node:module";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { join, relative } from "node:path";
 import type { LocalD1 } from "@canlang/cloudflare";
+import { distribution as contractsDistribution } from "@canlang/contracts/distribution";
+import { distribution as uiDistribution } from "@canlang/ui/distribution";
+import { distribution as identityDistribution } from "@canlang/identity/distribution";
 import type { CompileArtifact, StoragePort } from "@canlang/contracts";
 import {
   assertCompiledIdentity,
   parseArtifactText,
-} from "../../../packages/cloudflare/src/runtime/artifact.js";
+} from "@canlang/cloudflare/runtime/artifact";
 import {
   assembleModules,
   type AssembledModules,
-} from "../../../packages/cloudflare/src/runtime/modules.js";
+} from "@canlang/cloudflare/runtime/modules";
 import type {
   buildInvoker as BuildInvokerFn,
   CanonicalInvokerOpts,
   OperationInvoker,
-} from "../../../packages/cloudflare/dist/worker/assembly.js";
+} from "@canlang/cloudflare/worker/assembly";
 import {
   TEAMTASKS_D1_BINDING,
   TEAMTASKS_OPERATIONS,
@@ -161,11 +165,17 @@ function assertSourceWitness(root: string, relativePath: string, wantSha256: str
   }
 }
 
-function assertFileBuilt(root: string, distRelative: string, buildCommand: string): void {
+const producerRequire = createRequire(import.meta.url);
+
+function resolveBuiltModule(specifier: string, buildCommand: string): string {
   try {
-    if (!statSync(join(root, distRelative)).isFile()) throw new Error("not a file");
+    const moduleUrl = typeof import.meta.resolve === "function"
+      ? import.meta.resolve(specifier)
+      : pathToFileURL(producerRequire.resolve(specifier)).href;
+    if (!statSync(new URL(moduleUrl)).isFile()) throw new Error("not a file");
+    return moduleUrl;
   } catch {
-    throw new Error(`e2e loader: ${distRelative} not built; run \`${buildCommand}\` first`);
+    throw new Error(`e2e loader: ${specifier} not built; run \`${buildCommand}\` first`);
   }
 }
 
@@ -177,16 +187,8 @@ function assertFileBuilt(root: string, distRelative: string, buildCommand: strin
  * dists on every assembly.
  */
 function buildMcpBundle(root: string): string {
-  assertFileBuilt(
-    root,
-    "packages/interfaces/dist/interfaces/src/mcp/server.js",
-    "bun run --filter @canlang/interfaces build",
-  );
-  assertFileBuilt(
-    root,
-    "packages/cloudflare/dist/runtime/mcp-registry.js",
-    "bun run --filter @canlang/cloudflare build",
-  );
+  resolveBuiltModule("@canlang/interfaces/mcp/server", "bun run --filter @canlang/interfaces build");
+  resolveBuiltModule("@canlang/cloudflare/runtime/mcp-registry", "bun run --filter @canlang/cloudflare build");
   const entry = join(root, "tests/e2e/fixtures/handbuilt/mcp-bundle-entry.js");
   const outFile = join(tmpdir(), `can-e2e-mcp-bundle-${process.pid}.mjs`);
   try {
@@ -242,20 +244,10 @@ function loadHandbuiltTeamTasks(root: string): WorkerAssembly {
   // JSON carries (one source of truth: TEAMTASKS_OPERATIONS).
   modules["vendor/mcp/fixture-ops.js"] =
     `export const FIXTURE_OPERATIONS = ${JSON.stringify(TEAMTASKS_OPERATIONS)};\n`;
-  // The `contracts/src` mirror (same contents, second key) satisfies the
-  // repo-relative `../../contracts/src/presentation.js` specifier baked into
-  // @canlang/ui dist. No specifier is rewritten: both aliases serve the
-  // identical built bytes.
   for (const tree of [
-    readVendorTree(root, "packages/contracts/dist", "vendor/contracts", "bun run build"),
-    readVendorTree(root, "packages/contracts/dist", "contracts/src", "bun run build"),
-    readVendorTree(root, "packages/ui/dist/ui/src", "vendor/ui", "bun run --filter @canlang/ui build"),
-    readVendorTree(
-      root,
-      "packages/identity/dist/identity/src",
-      "vendor/identity",
-      "bun run --filter @canlang/identity build",
-    ),
+    readVendorTree(contractsDistribution.modules, "vendor/contracts", "bun run --filter @canlang/contracts build"),
+    readVendorTree(uiDistribution.modules, "vendor/ui", "bun run --filter @canlang/ui build"),
+    readVendorTree(identityDistribution.modules, "vendor/identity", "bun run --filter @canlang/identity build"),
   ]) {
     for (const [name, contents] of Object.entries(tree)) modules[name] = contents;
   }
@@ -422,11 +414,11 @@ function compileSource(
 
 async function distBuildInvoker(): Promise<typeof BuildInvokerFn> {
   try {
-    const mod = await import("../../../packages/cloudflare/dist/worker/assembly.js");
+    const mod = await import("@canlang/cloudflare/worker/assembly");
     return mod.buildInvoker as typeof BuildInvokerFn;
   } catch {
     throw new Error(
-      `e2e loader: packages/cloudflare/dist/worker/assembly.js not built; ` +
+      `e2e loader: @canlang/cloudflare/worker/assembly not built; ` +
         `run \`${CLOUDFLARE_DIST_BUILD_COMMAND}\` first`,
     );
   }
@@ -466,18 +458,13 @@ export async function loadCompiledArtifact(spec: CompiledArtifactSpec): Promise<
     toolVersion,
     languageVersion,
   });
-  assertFileBuilt(
-    root,
-    "packages/cloudflare/dist/runtime/stdlib.js",
-    CLOUDFLARE_DIST_BUILD_COMMAND,
-  );
+  const stdlibUrl = resolveBuiltModule("@canlang/cloudflare/runtime/stdlib", CLOUDFLARE_DIST_BUILD_COMMAND);
   const workDir = mkdtempSync(join(tmpdir(), "can-e2e-compiled-"));
   const asm = await assembleModules(
     { artifact, sourcePath: `compiled:${source}` },
     {
-      distRoot: join(root, "packages"),
       workDir,
-      stdlibUrl: pathToFileURL(join(root, "packages/cloudflare/dist/runtime/stdlib.js")).href,
+      stdlibUrl,
     },
   );
   return {

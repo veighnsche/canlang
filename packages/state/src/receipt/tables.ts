@@ -27,7 +27,7 @@ import type {
   ReceiptAssociation,
   ReceiptError,
   ReceiptStatus,
-} from '../../../contracts/src/work.js';
+} from '@canlang/contracts';
 import type {
   CommitBatch,
   CommitResult,
@@ -37,7 +37,7 @@ import type {
   Revision,
   StoragePort,
   StoredRow,
-} from '../../../contracts/src/state.js';
+} from '@canlang/contracts';
 import { StateError, storageToStateError } from '../errors.js';
 
 /** Fail-closed table errors; stored corruption surfaces loudly, never guessed. */

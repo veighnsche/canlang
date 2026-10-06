@@ -22,8 +22,8 @@ import {
   selectTeam,
   verifyEmail,
 } from '@canlang/identity';
-import { ARTIFACT_VERSION } from '../../contracts/src/artifact.js';
-import type { ArtifactOperation } from '../../contracts/src/artifact.js';
+import { ARTIFACT_VERSION } from '@canlang/contracts';
+import type { ArtifactOperation } from '@canlang/contracts';
 import { catalogFromArtifactOperations, handleOperationRequest } from '../src/http/operations.js';
 import { handleAuthRequest } from '../src/http/auth.js';
 import { mintOperationId } from '../src/http/context.js';

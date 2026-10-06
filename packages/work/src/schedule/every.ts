@@ -14,7 +14,7 @@
  * record-bound `schedule`.
  */
 import { createHash } from 'node:crypto';
-import type { OccurrenceId, RecurringOccurrence, RecurringScope } from '../../../contracts/src/work.js';
+import type { OccurrenceId, RecurringOccurrence, RecurringScope } from '@canlang/contracts';
 
 /** Typed rejection for non-team/app recurring scopes (notably root). */
 export class RootRecurrenceNotSupportedError extends Error {

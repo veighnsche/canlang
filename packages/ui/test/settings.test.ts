@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import type {
   PresentationContext,
   SettingsBaseControls,
-} from "../../contracts/src/presentation.js";
+} from "@canlang/contracts";
 import { message } from "../src/messages.js";
 import { renderSettingsPanel } from "../src/settings.js";
 import { loadHtml } from "./harness.js";
