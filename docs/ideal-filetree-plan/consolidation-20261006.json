@@ -5,13 +5,14 @@
   "checkpoint_advanced": false,
   "initial_main": "2b22cb4ecf637cce4bf90a17238cce12de045ba4",
   "current_merge": {
-    "branch": "audit/input-validation-review",
-    "tip": "e5d5758d6ee8b557ddbef8c878046f57431684ba",
-    "before": "3f47f4fd318e3f3ad28fab8eccbf427d7f060864",
-    "scope": "retained historical input-validation audit at its original scope",
+    "branch": "codex/remaining-lane-e-interfaces",
+    "tip": "124549269653fa1d96404181e1916d6aa99e0576",
+    "before": "f834f18b0fe2e3d0cf3a80cdc80bbf1b195fc149",
+    "scope": "browser assets producer; route mounting and product joins remain incomplete",
     "merge_output": "Automatic merge went well; stopped before committing as requested\n",
     "source_delta": [
-      "A\tdocs/research/package-subsystem-ports-20261006/implementation-plans/input-validation.audit.md"
+      "A\tpackages/interfaces/src/http/assets.ts",
+      "A\tpackages/interfaces/test/browser-assets.test.ts"
     ]
   },
   "previous_merges": [
@@ -29,6 +30,17 @@
         "A\tcompiler/A5-T08-PARITY-PROPOSAL.md"
       ],
       "result": "3f47f4fd318e3f3ad28fab8eccbf427d7f060864"
+    },
+    {
+      "branch": "audit/input-validation-review",
+      "tip": "e5d5758d6ee8b557ddbef8c878046f57431684ba",
+      "before": "3f47f4fd318e3f3ad28fab8eccbf427d7f060864",
+      "scope": "retained historical input-validation audit at its original scope",
+      "merge_output": "Automatic merge went well; stopped before committing as requested\n",
+      "source_delta": [
+        "A\tdocs/research/package-subsystem-ports-20261006/implementation-plans/input-validation.audit.md"
+      ],
+      "result": "f834f18b0fe2e3d0cf3a80cdc80bbf1b195fc149"
     }
   ],
   "accumulated_structural_delta_since_complete_checkpoint": [
@@ -466,7 +478,7 @@
     "A\tdocs/research/package-subsystem-ports-20261006/implementation-plans/shared.tasks.json",
     "A\tdocs/research/package-subsystem-ports-20261006/implementation-plans/work-transitions.md",
     "A\tdocs/research/package-subsystem-ports-20261006/implementation-plans/work-transitions.tasks.json",
-    "R082\tDECISIONS.md\tdocs/specification/DECISIONS.md",
+    "R081\tDECISIONS.md\tdocs/specification/DECISIONS.md",
     "R095\tDESIGN.md\tdocs/specification/DESIGN.md",
     "R095\tGRAMMAR.md\tdocs/specification/GRAMMAR.md",
     "R098\tREQUIREMENTS.md\tdocs/specification/REQUIREMENTS.md",
@@ -961,6 +973,7 @@
     "A\tpackages/interfaces/src/docs/reference.ts",
     "A\tpackages/interfaces/src/envelope/prepared.ts",
     "M\tpackages/interfaces/src/errors/envelope.ts",
+    "A\tpackages/interfaces/src/http/assets.ts",
     "M\tpackages/interfaces/src/http/auth.ts",
     "M\tpackages/interfaces/src/http/context.ts",
     "A\tpackages/interfaces/src/http/csv.ts",
@@ -980,6 +993,7 @@
     "M\tpackages/interfaces/src/ports.ts",
     "A\tpackages/interfaces/src/uploads/kernel.ts",
     "A\tpackages/interfaces/test/b4-spend-race.test.ts",
+    "A\tpackages/interfaces/test/browser-assets.test.ts",
     "A\tpackages/interfaces/test/csv-join.test.ts",
     "A\tpackages/interfaces/test/csv-review.test.ts",
     "A\tpackages/interfaces/test/csv-route.test.ts",
