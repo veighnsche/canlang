@@ -88,6 +88,27 @@ function firstField(artifact: Record<string, unknown>): Record<string, unknown> 
   return (inputs.fields as Record<string, unknown>[])[0] as Record<string, unknown>;
 }
 
+/** Verbatim T15b-pinned delivery descriptor (`t19b-depth.test.ts` RETRY attempt). */
+function deliveryDescriptor(): Record<string, unknown> {
+  return {
+    kind: "delivery",
+    capability: "std.EmailV1",
+    operation: "send",
+    version: 1,
+    result: { name: "EmailAccepted", fields: [{ name: "reference", type: "text" }] },
+  };
+}
+
+function withDelivery(tamper: (descriptor: Record<string, unknown>) => void): string {
+  return mutate((a) => {
+    const inputs = firstOperation(a).inputs as Record<string, unknown>;
+    const fields = inputs.fields as Record<string, unknown>[];
+    const descriptor = deliveryDescriptor();
+    tamper(descriptor);
+    fields.push({ name: "attempt", field: descriptor, required: false });
+  });
+}
+
 describe("loadArtifactFile operations[]", () => {
   it("loads old artifacts without operations (additive)", () => {
     const file = mutate((a) => void delete a.operations);
@@ -105,6 +126,16 @@ describe("loadArtifactFile operations[]", () => {
       description: "Approve a widget.",
     });
     expect(loaded.artifact.operations?.[0]?.inputs.fields).toHaveLength(3);
+  });
+
+  it("loads T15b delivery fields (carried through for framing + derived channel)", () => {
+    const file = withDelivery(() => {});
+    const loaded = loadArtifactFile(file);
+    expect(loaded.artifact.operations?.[0]?.inputs.fields).toHaveLength(4);
+    expect(loaded.artifact.operations?.[0]?.inputs.fields[3]).toMatchObject({
+      name: "attempt",
+      field: { kind: "delivery", capability: "std.EmailV1" },
+    });
   });
 
   it.each([
@@ -217,6 +248,23 @@ describe("loadArtifactFile operations[]", () => {
         fields.push({ ...(fields[1] as Record<string, unknown>) });
       }),
       /operations\[0\] repeats input "note"/,
+    ],
+    [
+      "delivery missing capability",
+      withDelivery((d) => void delete d.capability),
+      /operations\[0\]\.inputs\.fields\[3\]\.field\.capability must be a non-empty string/,
+    ],
+    [
+      "delivery version not a number",
+      withDelivery((d) => void (d.version = "1")),
+      /operations\[0\]\.inputs\.fields\[3\]\.field\.version must be a number/,
+    ],
+    [
+      "delivery result leaves malformed",
+      withDelivery((d) => {
+        (d.result as Record<string, unknown>).fields = [{ name: "reference" }];
+      }),
+      /operations\[0\]\.inputs\.fields\[3\]\.field\.result\.fields must be an array of \{name, type\} leaves/,
     ],
   ])("rejects %s", (_label, file, pattern) => {
     expect(() => loadArtifactFile(file)).toThrow(pattern);
