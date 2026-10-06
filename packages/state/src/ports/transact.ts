@@ -25,6 +25,14 @@ import type {
   ReadEnvelope,
 } from '../../../contracts/src/wire.js';
 import { StateError, storageToStateError } from '../errors.js';
+import {
+  FANOUT_CHECKPOINT_MODEL,
+  FANOUT_CHILD_MODEL,
+  FANOUT_INTENT_MODEL,
+  readFanoutCheckpointRow,
+  readFanoutChildRow,
+  readFanoutIntentRow,
+} from '../fanout/tables.js';
 import { invoke, invokeRead, type ExecuteHandler } from '../invocation/invoke.js';
 import type { OperationRegistry } from '../invocation/registry.js';
 import type { ClockPort } from '../invocation/context.js';
@@ -264,6 +272,188 @@ export function createDispatchJoinPort(input: { readonly store: StoragePort }): 
   return {
     commitJoin: async (batch) => {
       assertDispatchJoin(batch);
+      try {
+        return await input.store.commit(batch);
+      } catch (error) {
+        throw storageToStateError(error);
+      }
+    },
+  };
+}
+
+/* -- T34-F5 fanout child-join port (ADDITIVE; existing ports untouched). -- */
+
+/**
+ * One terminal child outcome update participating in the join: the
+ * staged row's fanout scope plus its terminal record identity.
+ */
+export interface FanoutChildJoinOutcome {
+  readonly fanoutId: string;
+  readonly recordId: string;
+}
+
+/**
+ * Assert the fanout child-unit linkage for one commit batch BEFORE it
+ * touches the store (fail closed, `StateError` validation). The child
+ * unit — child domain/history/replay/outbox/schedule effects plus the
+ * terminal outcome plus the checkpoint advance — commits in ONE owner
+ * transaction; this assertion pins the fanout halves together:
+ *
+ * - Row-identity linkage: every fanout insert/update stages a row whose
+ *   id equals its derivation (intent id = cutoff+cohort, child id =
+ *   parent+handler+record, checkpoint id = fanout id), validated
+ *   through the state-owned F2 mirrors (closed states, closed causes,
+ *   memberCount agreement).
+ * - No fabricated completion: child inserts stage pending with zero
+ *   attempts and null cause; checkpoint inserts carry an EMPTY
+ *   completed set; intent rows are insert-only (the frozen set is never
+ *   redefined); fanout rows are never removed (terminal records stand).
+ * - Outcome/checkpoint co-commit: every TERMINAL child update's
+ *   recordId appears in a SAME-FANOUT checkpoint update's staged
+ *   completed set in the same batch, and every checkpoint update
+ *   co-occurs with at least one terminal child update. An outcome
+ *   without checkpoint cover, or a checkpoint advance without its
+ *   outcome, is refused — never acknowledged unfinished, never
+ *   checkpointed apart.
+ * - Non-terminal child updates (pending/running claim transitions,
+ *   attempts bumps) and intent inserts pass under the row-identity
+ *   rules only: claims are F3-driven and carry no completion.
+ * - Batches with no fanout writes pass trivially, so non-fanout callers
+ *   are unaffected.
+ *
+ * Cursor-only checkpoint maintenance (freeze final-chunk nulling,
+ * recovery finish) commits through the PLAIN store port, never here:
+ * this port is exclusively for outcome-bearing child units.
+ */
+export function assertFanoutChildJoin(batch: CommitBatch): void {
+  const childIds = new Set<string>();
+  const checkpointIds = new Set<string>();
+  const terminalOutcomes: FanoutChildJoinOutcome[] = [];
+  const checkpointCovers = new Map<string, Set<string>>();
+  for (const write of batch.writes ?? []) {
+    const model = write.model as string;
+    if (model === FANOUT_INTENT_MODEL) {
+      if (write.kind !== 'insert') {
+        throw new StateError(
+          'validation',
+          'Fanout child join: work.fanout_intent rows are insert-only (the frozen set is never redefined).',
+        );
+      }
+      readFanoutIntentRow(write.row);
+      continue;
+    }
+    if (model === FANOUT_CHILD_MODEL) {
+      if (write.kind === 'remove') {
+        throw new StateError(
+          'validation',
+          'Fanout child join: work.fanout_child rows are never removed (terminal records stand).',
+        );
+      }
+      if (write.kind === 'insert') {
+        const data = readFanoutChildRow(write.row);
+        if (data.state !== 'pending' || data.attempts !== 0) {
+          throw new StateError(
+            'validation',
+            'Fanout child join: work.fanout_child inserts stage pending with zero attempts ' +
+              '(no fabricated claims or outcomes).',
+          );
+        }
+        if (childIds.has(data.childId)) {
+          throw new StateError(
+            'validation',
+            `Fanout child join: duplicate work.fanout_child row ${JSON.stringify(data.childId)}.`,
+          );
+        }
+        childIds.add(data.childId);
+        continue;
+      }
+      const data = readFanoutChildRow(write.row);
+      if (childIds.has(data.childId)) {
+        throw new StateError(
+          'validation',
+          `Fanout child join: duplicate work.fanout_child row ${JSON.stringify(data.childId)}.`,
+        );
+      }
+      childIds.add(data.childId);
+      if (data.state === 'completed' || data.state === 'skipped' || data.state === 'failed') {
+        terminalOutcomes.push({ fanoutId: data.fanoutId, recordId: data.recordId });
+      }
+      continue;
+    }
+    if (model === FANOUT_CHECKPOINT_MODEL) {
+      if (write.kind === 'remove') {
+        throw new StateError(
+          'validation',
+          'Fanout child join: work.fanout_checkpoint rows are never removed.',
+        );
+      }
+      if (write.kind === 'insert') {
+        const data = readFanoutCheckpointRow(write.row);
+        if (data.completed.length > 0) {
+          throw new StateError(
+            'validation',
+            'Fanout child join: work.fanout_checkpoint inserts carry an empty completed set ' +
+              '(no fabricated completion).',
+          );
+        }
+        if (checkpointIds.has(data.fanoutId)) {
+          throw new StateError(
+            'validation',
+            `Fanout child join: duplicate work.fanout_checkpoint row ${JSON.stringify(data.fanoutId)}.`,
+          );
+        }
+        checkpointIds.add(data.fanoutId);
+        continue;
+      }
+      const data = readFanoutCheckpointRow(write.row);
+      if (checkpointIds.has(data.fanoutId)) {
+        throw new StateError(
+          'validation',
+          `Fanout child join: duplicate work.fanout_checkpoint row ${JSON.stringify(data.fanoutId)}.`,
+        );
+      }
+      checkpointIds.add(data.fanoutId);
+      checkpointCovers.set(data.fanoutId, new Set(data.completed));
+      continue;
+    }
+  }
+  for (const outcome of terminalOutcomes) {
+    const cover = checkpointCovers.get(outcome.fanoutId);
+    if (cover === undefined || !cover.has(outcome.recordId)) {
+      throw new StateError(
+        'validation',
+        `Fanout child join: terminal outcome for ${JSON.stringify(outcome.recordId)} ` +
+          'has no same-fanout checkpoint cover in this batch.',
+      );
+    }
+  }
+  if (checkpointCovers.size > 0 && terminalOutcomes.length === 0) {
+    throw new StateError(
+      'validation',
+      'Fanout child join: checkpoint updates carry no terminal outcome in this batch ' +
+        '(cursor-only maintenance uses the plain store port).',
+    );
+  }
+}
+
+/** Single-shot fanout child-join commit surface (no retry — callers decide). */
+export interface FanoutChildJoinPort {
+  commitJoin(batch: CommitBatch & { expectedRevision: Revision }): Promise<CommitResult>;
+}
+
+/**
+ * Create the fanout child-join port over one store: linkage-asserted,
+ * single-shot fenced commit. Storage errors map via
+ * `storageToStateError` (fence conflicts surface as retryable `busy`),
+ * mirroring `createTransactionPort`. Outcome-bearing child units commit
+ * here; freeze inserts and cursor-only maintenance use the plain port.
+ */
+export function createFanoutChildJoinPort(input: {
+  readonly store: StoragePort;
+}): FanoutChildJoinPort {
+  return {
+    commitJoin: async (batch) => {
+      assertFanoutChildJoin(batch);
       try {
         return await input.store.commit(batch);
       } catch (error) {

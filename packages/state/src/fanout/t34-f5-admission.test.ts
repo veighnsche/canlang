@@ -1,0 +1,421 @@
+/**
+ * T34-F5 child-admission proofs (memory substrate): every child admits
+ * through canonical `invoke` with FRESH authority (adopted T32 fence per
+ * child), and cohort membership grants NO authority.
+ *
+ * Proves (M5/C4): per-child fresh admission (receipt revisions advance
+ * per child — nothing carried); revocation between siblings voids only
+ * the revoked child (failed/inaccessible-record, domain untouched,
+ * terminal siblings unaffected); a frozen member without a live grant
+ * is denied; duplicate child delivery replays without re-invoking;
+ * duplicate attempt delivery replays the attempt receipt; and the
+ * child-identity shape validates before any store touch.
+ */
+import { describe, it } from 'node:test';
+import assert from 'node:assert/strict';
+import type {
+  ModelName,
+  OperationName,
+  RecordId,
+  StoragePort,
+  StoredRow,
+} from '../../../contracts/src/state.js';
+import type { ResolvedIdentity } from '../../../contracts/src/identity.js';
+import type { FanoutChildId, RetryPolicy } from '../../../contracts/src/work.js';
+import { createMemoryStorage } from '../storage/memory.js';
+import { StateError } from '../errors.js';
+import { assertFanoutChildJoin } from '../ports/transact.js';
+import type { OperationRegistry } from '../invocation/registry.js';
+import { openFanoutChildScope } from '../invocation/admission.js';
+import { invokeFanoutChild } from '../invocation/invoke.js';
+import type { MembershipReader } from '../policy/roles.js';
+import {
+  FANOUT_CHILD_MODEL,
+  fanoutChildRowId,
+  readFanoutChildRow,
+} from './tables.js';
+import { freezeFanoutMembership } from './membership.js';
+import { driveFanoutChild } from './test-driver.js';
+import {
+  FIXED_NOW,
+  asId,
+  asModel,
+  asOperation,
+  createMemoryIdentityStore,
+  makeBatch,
+  makeDef,
+  makeIdentity,
+  makeRow,
+  seedMember,
+  uuidv7,
+  type TestMembershipStore,
+} from '../../test/invocation/fixtures.js';
+
+const MODEL = 'Acme.Commitment';
+const HANDLER = 'Shift.review_commitment';
+const SOURCE = 'occ-adm-1';
+const APP = 'acme-app';
+const CHILD_OP = 'Acme.review_child';
+const ACTOR = 't34-f5-admission';
+const META = { nowMs: FIXED_NOW, actor: ACTOR };
+const POLICY: RetryPolicy = { maxAttempts: 3, horizonMs: 60_000 };
+
+interface AdmWorld {
+  readonly store: StoragePort;
+  readonly memberships: TestMembershipStore;
+  readonly registry: OperationRegistry;
+  readonly identity: ResolvedIdentity;
+  readonly owner: string;
+  readonly userId: string;
+  readonly membershipId: string;
+  readonly clock: { nowMs(): number };
+  readonly fanoutId: string;
+  readonly members: ReadonlyArray<string>;
+}
+
+async function setupAdmWorld(size: number): Promise<AdmWorld> {
+  const store = createMemoryStorage();
+  const memberships = createMemoryIdentityStore();
+  const alice = await seedMember(memberships, { isOwner: false });
+  const registry: OperationRegistry = new Map();
+  (registry as Map<string, unknown>).set(
+    CHILD_OP,
+    makeDef({
+      name: asOperation(CHILD_OP),
+      by: 'members',
+      inputs: {
+        record: { type: 'record', model: asModel(MODEL), versioned: false, required: true },
+      },
+    }),
+  );
+  const clock = { nowMs: () => FIXED_NOW };
+  const owner = alice.team.team_id as string;
+  for (let index = 0; index < size; index += 1) {
+    const id = `a-${String(index).padStart(3, '0')}`;
+    const revision = await store.readRevision();
+    await store.commit(
+      makeBatch(revision as number, {
+        writes: [
+          { kind: 'insert', model: asModel(MODEL), row: makeRow({ id, data: { label: id } }) },
+        ],
+      }),
+    );
+  }
+  const outcome = await freezeFanoutMembership({
+    store,
+    cutoff: { sourceOccurrence: SOURCE, handler: HANDLER },
+    cohort: { kind: 'model', owner, model: MODEL },
+    owner,
+    bounds: { pageLimit: 16, chunkSize: 16, maxAttempts: 5 },
+    meta: META,
+  });
+  assert.equal(outcome.ok, true);
+  if (!outcome.ok) {
+    throw new Error('freeze failed in test setup');
+  }
+  return {
+    store,
+    memberships,
+    registry,
+    identity: makeIdentity({ membership: alice.membership }),
+    owner,
+    userId: alice.user.user_id as string,
+    membershipId: alice.membership.membership_id as string,
+    clock,
+    fanoutId: outcome.frozen.fanoutId,
+    members: outcome.frozen.members,
+  };
+}
+
+function markBody(domainModel: string) {
+  return async (row: StoredRow) => {
+    const next: StoredRow = {
+      ...row,
+      version: (row.version + 1) as StoredRow['version'],
+      updated: FIXED_NOW,
+      updatedBy: ACTOR,
+      data: { ...(row.data as Record<string, unknown>), reviewed: true },
+    };
+    return {
+      writes: [
+        {
+          kind: 'update' as const,
+          model: asModel(domainModel),
+          id: row.id,
+          expectedVersion: row.version,
+          row: next,
+        },
+      ],
+      history: [
+        {
+          model: asModel(domainModel),
+          recordId: row.id,
+          version: next.version,
+          operation: asOperation(CHILD_OP),
+          operationId: 'op-body' as never,
+          actor: ACTOR,
+          at: FIXED_NOW,
+          change: 'update' as const,
+          before: row.data as Record<string, unknown>,
+          after: next.data as Record<string, unknown>,
+        },
+      ],
+      outbox: [],
+      schedules: [],
+      result: { kind: 'completed' as const },
+    };
+  };
+}
+
+async function drive(
+  world: AdmWorld,
+  recordId: string,
+  operationId: string,
+  identity?: ResolvedIdentity,
+): Promise<ReturnType<typeof driveFanoutChild>> {
+  return driveFanoutChild({
+    store: world.store,
+    memberships: world.memberships as MembershipReader,
+    registry: world.registry,
+    clock: world.clock,
+    identity: identity ?? world.identity,
+    app: APP,
+    source: 'test.fanout',
+    childOperation: CHILD_OP,
+    operationId,
+    refInput: 'record',
+    driven: {
+      child: { parentOccurrence: SOURCE, handler: HANDLER, recordId },
+      fanoutId: world.fanoutId,
+      model: MODEL,
+      recordId,
+    },
+    guard: () => true,
+    body: markBody(MODEL),
+    nowMs: FIXED_NOW,
+    firstAttemptAtMs: FIXED_NOW,
+    policy: POLICY,
+    meta: META,
+  });
+}
+
+async function childData(
+  store: StoragePort,
+  recordId: string,
+): Promise<ReturnType<typeof readFanoutChildRow>> {
+  const row = await store.load(
+    FANOUT_CHILD_MODEL as ModelName,
+    fanoutChildRowId(SOURCE, HANDLER, recordId) as RecordId,
+  );
+  assert.ok(row !== null);
+  return readFanoutChildRow(row);
+}
+
+describe('t34-f5 admission: fresh fence per child (M5)', () => {
+  it('each child admits at a fresh revision (nothing carried)', async () => {
+    const world = await setupAdmWorld(2);
+    const first = world.members[0] as string;
+    const second = world.members[1] as string;
+    const op1 = uuidv7(FIXED_NOW, 11);
+    const op2 = uuidv7(FIXED_NOW, 12);
+    assert.equal((await drive(world, first, op1)).status, 'recorded');
+    // A rival domain write lands between the siblings.
+    const rival = await world.store.load(asModel(MODEL), asId(first));
+    assert.ok(rival !== null);
+    const revision = await world.store.readRevision();
+    await world.store.commit(
+      makeBatch(revision as number, {
+        writes: [
+          {
+            kind: 'update',
+            model: asModel(MODEL),
+            id: asId(first),
+            expectedVersion: rival.version,
+            row: { ...rival, version: (rival.version + 1) as never, data: { ...rival.data } },
+          },
+        ],
+      }),
+    );
+    assert.equal((await drive(world, second, op2)).status, 'recorded');
+    // Receipt revisions prove fresh admission per child: the second
+    // child admitted strictly after the rival write.
+    const receipt1 = await world.store.readReceipt({
+      app: APP,
+      owner: world.owner,
+      principal: world.userId,
+      operation: asOperation(CHILD_OP),
+      operationId: op1 as never,
+    });
+    const receipt2 = await world.store.readReceipt({
+      app: APP,
+      owner: world.owner,
+      principal: world.userId,
+      operation: asOperation(CHILD_OP),
+      operationId: op2 as never,
+    });
+    assert.ok(receipt1 !== null && receipt2 !== null);
+    assert.ok((receipt2.committedRevision as number) > (receipt1.committedRevision as number) + 1);
+  });
+
+  it('revocation between siblings voids ONLY the revoked child', async () => {
+    const world = await setupAdmWorld(3);
+    const first = world.members[0] as string;
+    const second = world.members[1] as string;
+    const third = world.members[2] as string;
+    assert.equal((await drive(world, first, uuidv7(FIXED_NOW, 21))).status, 'recorded');
+    await world.memberships.removeMembership(world.membershipId);
+    const refused = await drive(world, second, uuidv7(FIXED_NOW, 22));
+    assert.equal(refused.status, 'recorded');
+    if (refused.status !== 'recorded') {
+      return;
+    }
+    assert.deepEqual(refused.lifecycle, { status: 'unknown', reason: 'inaccessible-record' });
+    const secondData = await childData(world.store, second);
+    assert.equal(secondData.state, 'failed');
+    assert.equal(secondData.causeReason, 'inaccessible-record');
+    assert.equal(secondData.attempts, 0);
+    // The refused child executed NOTHING: its domain row is untouched.
+    const untouched = await world.store.load(asModel(MODEL), asId(second));
+    assert.ok(untouched !== null);
+    assert.equal(untouched.version, 1);
+    assert.ok(!('reviewed' in (untouched.data as Record<string, unknown>)));
+    // The terminal sibling stands as recorded (revocation is not retroactive).
+    const firstData = await childData(world.store, first);
+    assert.equal(firstData.state, 'completed');
+    // A fresh grant re-admits the NEXT child (the fence is live, not sticky).
+    await world.memberships.createMembership({
+      team_id: world.owner as never,
+      user_id: world.userId as never,
+      is_owner: false,
+      roles: [],
+    });
+    assert.equal((await drive(world, third, uuidv7(FIXED_NOW, 23))).status, 'recorded');
+    assert.equal((await childData(world.store, third)).state, 'completed');
+  });
+
+  it('duplicate child delivery replays without re-invoking', async () => {
+    const world = await setupAdmWorld(1);
+    const only = world.members[0] as string;
+    assert.equal((await drive(world, only, uuidv7(FIXED_NOW, 31))).status, 'recorded');
+    const before = await childData(world.store, only);
+    const domainBefore = await world.store.load(asModel(MODEL), asId(only));
+    assert.ok(domainBefore !== null);
+    const replayed = await drive(world, only, uuidv7(FIXED_NOW, 32));
+    assert.equal(replayed.status, 'replayed');
+    const after = await childData(world.store, only);
+    assert.deepEqual(after, before);
+    const domainAfter = await world.store.load(asModel(MODEL), asId(only));
+    assert.ok(domainAfter !== null);
+    assert.equal(domainAfter.version, domainBefore.version);
+  });
+
+  it('duplicate attempt delivery replays the attempt receipt', async () => {
+    const world = await setupAdmWorld(1);
+    const only = world.members[0] as string;
+    const operationId = uuidv7(FIXED_NOW, 41);
+    const input = {
+      registry: world.registry,
+      store: world.store,
+      memberships: world.memberships as MembershipReader,
+      clock: world.clock,
+      childOperation: CHILD_OP,
+      child: { parentOccurrence: SOURCE, handler: HANDLER, recordId: only } satisfies FanoutChildId,
+      operationId,
+      identity: world.identity,
+      app: APP,
+      source: 'test.fanout',
+      inputs: { record: { id: only } },
+      execute: async () => ({
+        writes: [],
+        history: [],
+        outbox: [],
+        schedules: [],
+        uniqueClaims: [],
+        uniqueReleases: [],
+        resolvedDefaults: {},
+        result: { pong: true },
+      }),
+      assertJoin: assertFanoutChildJoin,
+    };
+    const first = await invokeFanoutChild(input);
+    assert.equal(first.status, 'committed');
+    const second = await invokeFanoutChild(input);
+    assert.equal(second.status, 'replayed');
+    assert.deepEqual(second.result, { pong: true });
+  });
+});
+
+describe('t34-f5 admission: membership grants NO authority (C4)', () => {
+  it('a frozen member without a live grant is denied', async () => {
+    const world = await setupAdmWorld(2);
+    const target = world.members[0] as string;
+    // Bob exists on the team object graph but holds NO membership row:
+    // the child record is a frozen member, and that buys him nothing.
+    const bobUser = await world.memberships.createUser('bob@example.test');
+    const bobIdentity = makeIdentity({
+      userId: bobUser.user_id as string,
+      teamId: world.owner,
+      membership: null,
+    });
+    const outcome = await drive(world, target, uuidv7(FIXED_NOW, 51), bobIdentity);
+    assert.equal(outcome.status, 'recorded');
+    if (outcome.status !== 'recorded') {
+      return;
+    }
+    assert.deepEqual(outcome.lifecycle, { status: 'unknown', reason: 'inaccessible-record' });
+    const data = await childData(world.store, target);
+    assert.equal(data.state, 'failed');
+    assert.equal(data.causeReason, 'inaccessible-record');
+    const untouched = await world.store.load(asModel(MODEL), asId(target));
+    assert.ok(untouched !== null);
+    assert.equal(untouched.version, 1);
+    // And the sibling still admits for the granted caller.
+    const sibling = world.members[1] as string;
+    assert.equal((await drive(world, sibling, uuidv7(FIXED_NOW, 52))).status, 'recorded');
+    assert.equal((await childData(world.store, sibling)).state, 'completed');
+  });
+
+  it('child identity validates before any store touch', async () => {
+    const world = await setupAdmWorld(1);
+    const revBefore = await world.store.readRevision();
+    await assert.rejects(
+      () =>
+        invokeFanoutChild({
+          registry: world.registry,
+          store: world.store,
+          memberships: world.memberships as MembershipReader,
+          clock: world.clock,
+          childOperation: CHILD_OP,
+          child: { parentOccurrence: SOURCE, handler: '', recordId: 'x' },
+          operationId: uuidv7(FIXED_NOW, 61),
+          identity: world.identity,
+          app: APP,
+          source: 'test.fanout',
+          inputs: { record: { id: 'x' } },
+          execute: async () => {
+            throw new Error('must not execute');
+          },
+          assertJoin: assertFanoutChildJoin,
+        }),
+      StateError,
+    );
+    assert.equal(await world.store.readRevision(), revBefore);
+  });
+
+  it('openFanoutChildScope opens a fresh empty scope per child', async () => {
+    const world = await setupAdmWorld(1);
+    const revision = await world.store.readRevision();
+    const first = await openFanoutChildScope(world.store, world.owner);
+    const second = await openFanoutChildScope(world.store, world.owner);
+    assert.equal(first.revision, revision);
+    assert.equal(first.owner, world.owner);
+    assert.deepEqual(first.dependencies, []);
+    assert.deepEqual(second.dependencies, []);
+    assert.ok(first !== second);
+    // Enrollment on one scope never leaks to the sibling.
+    first.enroll({ kind: 'record', model: asModel(MODEL), id: asId('a-000'), version: 1 as never });
+    assert.equal(first.dependencies.length, 1);
+    assert.equal(second.dependencies.length, 0);
+    await assert.rejects(() => openFanoutChildScope(world.store, ''), StateError);
+  });
+});
