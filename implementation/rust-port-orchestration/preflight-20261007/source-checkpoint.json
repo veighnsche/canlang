@@ -1,0 +1,197 @@
+{
+  "schema_version": 1,
+  "kind": "planning source snapshot, not immutable producer/runtime acceptance",
+  "extracted_head": "d855e0a6a222d89d6a3deab03141a29654a585f9",
+  "reviewed_head": "9bb5bbdd9f9acf9ef92fe349719bb0bb01d9e08a",
+  "historical_ledger_base": "7fd8c6bf4717feeffc70b46819377b74b353e117",
+  "historical_evidence_source_pin": "fdb059c634c32c83760f35dd9175f49d9821762d",
+  "package_audit_base": "309644a6881909d8dba32560bc6711f67e00a7ab",
+  "canonical_source_records": 333,
+  "ports_source_records": 230,
+  "package_files_checked": 684,
+  "package_hashes_match_audit": true,
+  "canonical_ledger_sha256": "cd01ebb2276e9bbd362085070b985811543f4bcb1d7ad0d0ac0530d3092bc3f4",
+  "input_sha256": {
+    "AGENTS.md": "f30ab82d2e8803997b9eb6a5bba36c98defd1fce526711a0ae222fb6c4201f4e",
+    "package.json": "b857df2e35cfb40e1bb62738ed4ef59d53ce30b25b2a7f9d6f0f76df8bce02f3",
+    "bun.lock": "28eeb481d3b6ce420b1ccc6573581572b47da25a0b8eb5ff833d1143e5cc4c19",
+    "turbo.json": "2f908d0dfa6b20fb38ae182a66eeaf564da6007d4404299032dbf3fe5df2d2b4",
+    "implementation/remaining-work/tasks.json": "cd01ebb2276e9bbd362085070b985811543f4bcb1d7ad0d0ac0530d3092bc3f4",
+    "implementation/rust-port-lanes.json": "4936af9c418fbf8accb9932e24abb622d11563d776fb271c6dac111615439033",
+    "implementation/RUST-PORT-EXECUTION-PLAN.md": "3c5a90d7ea36a1647d2dc04fd46087f2e5076e7fda0df0e8710d67582a1dfacd",
+    "implementation/RUST-PORT-START-HERE.md": "d864b06ad2fe1d063c428803af1b53b89ee93262fd233a34b885659faf8ae4d0",
+    "implementation/CHALLENGE-AUDIT-PLAN.md": "2c36b1f8afce9793088f4adabdce001afdb0d54ef4d966b7295bc8a7ee2dabcb",
+    "docs/specification/DECISIONS.md": "86e2d562e568af478075398cd04365307bca05b1f79ed6d382ab027b4117e27a",
+    "docs/ideal-filetree-plan.md": "3609caae5d95d48468f0e08f4fd6765d7a4e9035b9fc43f6d866dbef0fd343f8",
+    "docs/ideal-filetree-plan/finished-product/tasks.json": "78f157a8de2d5c7cbcc58338f38b90255621eb7b43287c4919ab80d50f651f0a",
+    "docs/research/package-library-audit-20261006/adoption-sequence.json": "d93dcb00638680b1b861c90ec6a445267942b8ca6f7ca479fb60bc0386ca3a9f",
+    "docs/research/package-library-audit-20261006/model-allocation-20261007.json": "b4a6f780f3f70f136c1fce3984e04bad0637cee50a44b1bd3d813e3adcb2e05b"
+  },
+  "concurrent_dirty_compiler_read_hashes": {
+    "compiler/src/codegen/ir.rs": "ae7b03dcece1710afe4215c0b240a6c9261d7ed1d214d456e35b44dcd14df028",
+    "compiler/tests/codegen.rs": "96bf6c0892042d38b897496274ca3ef76e3b2c90ac273a15b01a6acfa324aae1"
+  },
+  "foreign_status_at_inventory": [
+    "compiler/src/codegen/ir.rs",
+    "compiler/tests/codegen.rs",
+    "docs/ideal-filetree-plan.md",
+    "docs/ideal-filetree-plan/finished-product/tasks.md",
+    "docs/specification/DECISIONS.md",
+    "implementation/CHALLENGE-AUDIT-PLAN.md",
+    "implementation/REMAINING-WORK.md",
+    "implementation/RUST-PORT-LANES.md"
+  ],
+  "historical_source_hash_comparison": [
+    {
+      "path": "implementation/CHALLENGE-AUDIT-PLAN.md",
+      "expected_sha256": "4aa413a337ba90de4c7fdf89f57b6fdae69211af49e3f1c7241281b78450fba8",
+      "actual_sha256": "2c36b1f8afce9793088f4adabdce001afdb0d54ef4d966b7295bc8a7ee2dabcb",
+      "match": false
+    },
+    {
+      "path": "implementation/challenge-audit-run/tasks.md",
+      "expected_sha256": "3afa04aac997b3e9037ff5776b3aaefa7201e66da0d940964a89cda4dc385737",
+      "actual_sha256": "3afa04aac997b3e9037ff5776b3aaefa7201e66da0d940964a89cda4dc385737",
+      "match": true
+    },
+    {
+      "path": "implementation/challenge-audit-run/remaining-tasks.md",
+      "expected_sha256": "a3d754ce5cbfb2e5bfb314412a204f60de6cec7b01b0d872bf4db16673e6b58a",
+      "actual_sha256": "a3d754ce5cbfb2e5bfb314412a204f60de6cec7b01b0d872bf4db16673e6b58a",
+      "match": true
+    },
+    {
+      "path": "implementation/REMAINING-IMPLEMENTATION-LANES.md",
+      "expected_sha256": "ffa464ed1ef7181de0cbcfebf755d86f851a44700dc8ba03007500677416efcf",
+      "actual_sha256": "ffa464ed1ef7181de0cbcfebf755d86f851a44700dc8ba03007500677416efcf",
+      "match": true
+    },
+    {
+      "path": "implementation/DESCRIPTION-REFERENCE-PLAN.md",
+      "expected_sha256": "98f0cecc7b41874a453ffc2eb5011d2175fd33db85c49b8a7d76fb2950cde078",
+      "actual_sha256": "98f0cecc7b41874a453ffc2eb5011d2175fd33db85c49b8a7d76fb2950cde078",
+      "match": true
+    },
+    {
+      "path": "implementation/description-reference-run/tasks.md",
+      "expected_sha256": "e05125bbc84c2b61a64ae55aa2716988f6fed4345d5f9a2a31c7b8e2f474f366",
+      "actual_sha256": "e05125bbc84c2b61a64ae55aa2716988f6fed4345d5f9a2a31c7b8e2f474f366",
+      "match": true
+    },
+    {
+      "path": "implementation/D3B-PRODUCTION-QUAL-PLAN.md",
+      "expected_sha256": "fc43f3cf2b8e699a1b4542cab550d545be7c76d4b3253053949a18bc17605764",
+      "actual_sha256": "fc43f3cf2b8e699a1b4542cab550d545be7c76d4b3253053949a18bc17605764",
+      "match": true
+    },
+    {
+      "path": "docs/specification/DECISIONS.md",
+      "expected_sha256": "11e4f5e58f274c0df895f48b0434408f3bed21b5e12b7c3638051db28d848eaa",
+      "actual_sha256": "86e2d562e568af478075398cd04365307bca05b1f79ed6d382ab027b4117e27a",
+      "match": false
+    },
+    {
+      "path": "docs/ideal-filetree-plan.md",
+      "expected_sha256": "e8d9e0f5ff5482d82f7d85810b87a98b6e519450344a4b2fdffc9cef26a0577e",
+      "actual_sha256": "3609caae5d95d48468f0e08f4fd6765d7a4e9035b9fc43f6d866dbef0fd343f8",
+      "match": false
+    },
+    {
+      "path": "docs/ideal-filetree-plan/tasks.md",
+      "expected_sha256": "3ec66435696210441d5a04b8a24d3fc0478b5a00474a62f4b2cabba11f5d7e9d",
+      "actual_sha256": "3ec66435696210441d5a04b8a24d3fc0478b5a00474a62f4b2cabba11f5d7e9d",
+      "match": true
+    },
+    {
+      "path": "docs/ideal-filetree-plan/finished-product/tasks.json",
+      "expected_sha256": "78f157a8de2d5c7cbcc58338f38b90255621eb7b43287c4919ab80d50f651f0a",
+      "actual_sha256": "78f157a8de2d5c7cbcc58338f38b90255621eb7b43287c4919ab80d50f651f0a",
+      "match": true
+    },
+    {
+      "path": "docs/ideal-filetree-plan/finished-product/requirements.json",
+      "expected_sha256": "d8fffff5a993def7fb1df7ac862a32b9c474edb6d099d99a205d173914a3b8ea",
+      "actual_sha256": "d8fffff5a993def7fb1df7ac862a32b9c474edb6d099d99a205d173914a3b8ea",
+      "match": true
+    },
+    {
+      "path": "docs/ideal-filetree-plan/finished-product/consolidation-review.json",
+      "expected_sha256": "d999930458d2b55231c3a9f0ee1d9d2558c9b27f4cd930acab03af6f31062ea7",
+      "actual_sha256": "d999930458d2b55231c3a9f0ee1d9d2558c9b27f4cd930acab03af6f31062ea7",
+      "match": true
+    },
+    {
+      "path": "docs/research/package-subsystem-ports-20261006/implementation-plans/artifact-preparation.tasks.json",
+      "expected_sha256": "2985b1b40b12cc9754d86f7720b783ea053aac8acd34239c0962d66f43c84aef",
+      "actual_sha256": "2985b1b40b12cc9754d86f7720b783ea053aac8acd34239c0962d66f43c84aef",
+      "match": true
+    },
+    {
+      "path": "docs/research/package-subsystem-ports-20261006/implementation-plans/exact-values.tasks.json",
+      "expected_sha256": "bf940aa4222d9fae2185bdda6ca0a642e8574f36348070003f14566a0cd917bd",
+      "actual_sha256": "bf940aa4222d9fae2185bdda6ca0a642e8574f36348070003f14566a0cd917bd",
+      "match": true
+    },
+    {
+      "path": "docs/research/package-subsystem-ports-20261006/implementation-plans/execution-manifest.json",
+      "expected_sha256": "3fe03f3ff97f09fd45971c81162a5552052f15b19eb58b3ef647913e49a9a328",
+      "actual_sha256": "3fe03f3ff97f09fd45971c81162a5552052f15b19eb58b3ef647913e49a9a328",
+      "match": true
+    },
+    {
+      "path": "docs/research/package-subsystem-ports-20261006/implementation-plans/input-validation.tasks.json",
+      "expected_sha256": "03d024eb78dd16a9cfa96ebccfdb03eb3a61b03b18192e337921c178570d695b",
+      "actual_sha256": "03d024eb78dd16a9cfa96ebccfdb03eb3a61b03b18192e337921c178570d695b",
+      "match": true
+    },
+    {
+      "path": "docs/research/package-subsystem-ports-20261006/implementation-plans/shared.tasks.json",
+      "expected_sha256": "4ce369e02d466f194427cbfbaa3c232757eba1c8d791bc03921cec3545851327",
+      "actual_sha256": "4ce369e02d466f194427cbfbaa3c232757eba1c8d791bc03921cec3545851327",
+      "match": true
+    },
+    {
+      "path": "docs/research/package-subsystem-ports-20261006/implementation-plans/work-transitions.tasks.json",
+      "expected_sha256": "f73f82460d08600a54a9a5a2f480aa59e72e6d9eab8b82bc46d5ddf824a501c5",
+      "actual_sha256": "f73f82460d08600a54a9a5a2f480aa59e72e6d9eab8b82bc46d5ddf824a501c5",
+      "match": true
+    }
+  ],
+  "source_hash_delta_interpretation": "Only challenge plan, DECISIONS and living-filetree planning inputs differ among the 19 ledger pins. Current dirty append-only serving/ownership/compiler planning refinements were read; they are proposals/input requirements, not new canonical task acceptance. Port manifests, canonical tasks and all 684 package source hashes are unchanged. Revalidate dirty/shared compiler seams at later actual release.",
+  "evidence_locator_rule": "Normalize path:line locators; 323 original references all resolve, including six directories. Existence/valid line is not acceptance.",
+  "bootstrap_evidence_exception": {
+    "path": "docs/research/package-subsystem-ports-20261006/evidence/implementation/exact-values/host/bootstrap-20261006.json",
+    "sha256": "7df24791fd0aa97af2ba018a99f6818798b18c4409c79559198a0b03a1372bbd",
+    "json_parse": "Extra data at line1 column1134 char1133",
+    "effect": "Already captured by A07.2 needs_verification; do not repair bytes or fabricate a new result during scope planning."
+  },
+  "current_producer_limits": [
+    "Work Cargo root has version only; unregistered Rust decisions cannot be actual native consumer acceptance.",
+    "State receipt observer module intentionally absent; obsolete work-loader evidence cannot establish current supported installed serving.",
+    "Values structural Wasm/transport witnesses do not close full exact registry, UTF16, public routing or validation interpreter.",
+    "CSV module/routes have source and isolated tests; no actual browser advisory caller or production Cloudflare CSV mount was demonstrated."
+  ],
+  "no_product_execution": true,
+  "snapshot_refinement": "Operator-checklist hash refreshed after adding its step1 link. Other pins remain explicit as-read evidence; no product acceptance is asserted.",
+  "foreign_status_at_final_document_check": [
+    " M compiler/src/analysis/types.rs",
+    " M compiler/src/codegen/ir.rs",
+    " M compiler/tests/analysis.rs",
+    " M compiler/tests/codegen.rs",
+    " M compiler/tests/syntax.rs",
+    " M docs/ideal-filetree-plan.md",
+    " M docs/ideal-filetree-plan/finished-product/tasks.md",
+    " M docs/specification/DECISIONS.md",
+    " M implementation/CHALLENGE-AUDIT-PLAN.md",
+    " M implementation/REMAINING-WORK.md",
+    " M implementation/RUST-PORT-LANES.md",
+    " M implementation/RUST-PORT-START-HERE.md",
+    " M implementation/rust-port-orchestration/plan.json",
+    "?? compiler/tests/string_payload_runtime.rs",
+    "?? implementation/rust-port-orchestration/preflight-20261007/"
+  ],
+  "head_at_final_document_check": "9bb5bbdd9f9acf9ef92fe349719bb0bb01d9e08a",
+  "concurrent_commit_since_inventory": [
+    "9bb5bbd fix(compiler): reuse lexer string payloads in ir lowering"
+  ]
+}
