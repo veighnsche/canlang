@@ -1,7 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import path from 'node:path';
-import { runChild, successful, testCounts, NATIVE_PROFILES, NATIVE_TOOLCHAIN, nativeTargetDir, nativeBinPath, nativePrerequisiteArgv, shouldSkipGate } from './ts-gate.mjs';
+import { mkdtemp, mkdir, writeFile, rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { gatePlan, executedTests, validToolVersion } from './gate-plan.mjs';
+import { runChild, successful, testCounts, NATIVE_PROFILES, NATIVE_TOOLCHAIN, nativeTargetDir, nativeBinPath, nativePrerequisiteArgv, shouldSkipGate, buildPrerequisiteArgv, main } from './ts-gate.mjs';
 test('nonzero child remains failed even with passing-looking output', async () => {
   const result = await runChild([process.execPath, '-e', "console.log('# pass 99'); process.exit(7)"]);
   assert.equal(result.exit, 7);
@@ -62,4 +65,115 @@ test('skip matrix fails closed on unready native prerequisite for tests only', (
   assert.equal(shouldSkipGate({ ready: true, nativeReady: false, isTest: true }), true);
   assert.equal(shouldSkipGate({ ready: true, nativeReady: false, isTest: false }), false);
   assert.equal(shouldSkipGate({ ready: false, nativeReady: true, isTest: false }), true);
+});
+
+test('package gates build the selected owner before tests and retain joined workspace coverage', () => {
+  for (const profile of ['values', 'state', 'stdlib', 'identity', 'ui', 'interfaces', 'work']) {
+    assert.deepEqual(buildPrerequisiteArgv(profile), ['bun', 'run', 'build', `--filter=@canlang/${profile}`]);
+  }
+  for (const profile of ['cloudflare', 'testkit', 'workspace']) {
+    assert.deepEqual(buildPrerequisiteArgv(profile), ['bun', 'run', 'build']);
+  }
+  assert.throws(() => buildPrerequisiteArgv('--filter=other'), /Invalid gate profile/);
+});
+
+
+test('command plan labels only real tests and fixes producer/gate CWD', () => {
+  const ui = gatePlan('ui', '/repo');
+  assert.deepEqual(ui.filter(c => c.isTest).map(c => c.id), ['tests']);
+  assert.equal(ui.find(c => c.id === 'build').cwd, '/repo');
+  assert.equal(ui.find(c => c.id === 'tests').cwd, '/repo/packages/ui');
+  const workspace = gatePlan('workspace', '/repo', { runnerTemp: '/private-temp' });
+  assert.deepEqual(workspace.filter(c => c.isTest).map(c => c.id), ['boundary-tests', 'tests']);
+  assert.ok(workspace.filter(c => c.isTest).every(c => c.env.CAN_PREPARATION_BIN === nativeBinPath('/private-temp/ts-gate-native/workspace')));
+});
+
+test('tool pins and executed test counts require positive evidence', () => {
+  assert.equal(validToolVersion('node', 'v24.21.0'), true);
+  assert.equal(validToolVersion('node', 'v22.21.0'), false);
+  assert.equal(validToolVersion('bun', '1.4.2'), true);
+  assert.equal(validToolVersion('bun', '1.4.3'), false);
+  assert.equal(validToolVersion('rustc', 'rustc 1.99.0 (abcdef 2026-09-24)'), true);
+  assert.equal(validToolVersion('cargo', 'cargo 1.100.0 (different pin)'), false);
+  assert.equal(executedTests(testCounts('build complete')), false);
+  assert.equal(executedTests(testCounts(' Tests  2 skipped (2)')), false);
+  assert.equal(executedTests(testCounts(' Tests  1 passed | 1 skipped (2)')), true);
+});
+
+async function runnerFixture(profile, body) {
+  const scratch = await mkdtemp(path.join(tmpdir(), 'can-ci-runner-test-'));
+  try {
+    const cwd = path.join(scratch, 'candidate');
+    const dir = path.join(scratch, 'receipt');
+    await mkdir(path.join(cwd, 'packages', profile), { recursive: true });
+    await writeFile(path.join(cwd, 'bun.lock'), 'fixture frozen lock');
+    const sha = 'a'.repeat(40);
+    const env = { CI_GATE_PROFILE: profile, CI_EXPECTED_SHA: sha, CI_TASK_ID: 'test', CI_RECEIPT_DIR: dir, RUNNER_TEMP: path.join(scratch, 'native-temp') };
+    const calls = [];
+    const run = failure => async (argv, options) => {
+      calls.push({ argv, ...options });
+      let stdout = 'command complete\n';
+      if (argv[0] === 'git' && argv[1] === 'rev-parse') stdout = sha + '\n';
+      else if (argv[0] === 'git') stdout = '';
+      else if (argv[0] === 'node' && argv[1] === '--version') stdout = 'v24.21.0\n';
+      else if (argv[0] === 'bun' && argv[1] === '--version') stdout = '1.4.2\n';
+      else if (argv[0] === 'rustc') stdout = 'rustc 1.99.0 (abcdef 2026-09-24)\n';
+      else if (argv[0] === 'cargo' && argv.includes('--version')) stdout = 'cargo 1.99.0 (abcdef 2026-09-24)\n';
+      else if (argv.includes('test') || argv.includes('vitest') || argv.includes('--test')) stdout = 'ℹ tests 2\nℹ pass 2\nℹ fail 0\nℹ skipped 0\n';
+      const failed = failure?.(argv) ?? false;
+      return { argv, cwd: options.cwd, env: options.env, start: 'start', end: 'end', exit: failed ? 1 : 0, status: failed ? 'failed' : 'success', signal: null, timedout: false, error: null, stdout, stderr: '' };
+    };
+    await body({ env, cwd, dir, calls, run });
+  } finally { await rm(scratch, { recursive: true, force: true }); }
+}
+
+test('runner executes independent tests after a typecheck failure and preserves the whole plan', async () => {
+  await runnerFixture('ui', async ({ env, cwd, calls, run }) => {
+    const receipt = await main(env, cwd, { run: run(argv => argv.includes('typecheck')) });
+    assert.equal(receipt.status, 'failed');
+    assert.deepEqual(receipt.commands.map(c => c.id), gatePlan('ui', cwd).map(c => c.id));
+    assert.equal(receipt.commands.find(c => c.id === 'typecheck').status, 'failed');
+    assert.equal(receipt.commands.find(c => c.id === 'tests').status, 'success');
+    assert.equal(receipt.commands.at(-1).id, 'clean-tree');
+    assert.ok(calls.some(c => c.argv.includes('test')));
+  });
+});
+
+test('failed frozen install records skipped producer and dependent gates, then final tree check', async () => {
+  await runnerFixture('ui', async ({ env, cwd, calls, run }) => {
+    const receipt = await main(env, cwd, { run: run(argv => argv.includes('install')) });
+    assert.equal(receipt.status, 'failed');
+    assert.equal(receipt.commands.find(c => c.id === 'install').status, 'failed');
+    for (const id of ['build', 'typecheck', 'tests']) assert.equal(receipt.commands.find(c => c.id === id).status, 'skipped');
+    assert.equal(receipt.commands.at(-1).status, 'success');
+    assert.ok(!calls.some(c => c.argv.includes('build') || c.argv.includes('test')));
+  });
+});
+
+test('native failure records explicit prerequisites, skips tests, and still typechecks', async () => {
+  await runnerFixture('cloudflare', async ({ env, cwd, run }) => {
+    const receipt = await main(env, cwd, { run: run(argv => argv[0] === 'cargo' && argv.includes('build')) });
+    assert.equal(receipt.status, 'failed');
+    assert.equal(receipt.native_prerequisite.ok, false);
+    assert.deepEqual(receipt.commands.filter(c => c.id.startsWith('native-') || ['rustc-version', 'cargo-version'].includes(c.id)).map(c => c.id),
+      ['native-install', 'rustc-version', 'cargo-version', 'native-build']);
+    assert.equal(receipt.commands.find(c => c.id === 'typecheck').status, 'success');
+    for (const id of ['tests', 'runtime-tests']) assert.equal(receipt.commands.find(c => c.id === id).status, 'skipped');
+  });
+});
+
+test('runner fails closed on absent, zero, or all-skipped test summaries despite exit zero', async () => {
+  for (const summary of ['command complete\n', ' Tests  0 passed (0)\n', ' Tests  2 skipped (2)\n']) {
+    await runnerFixture('ui', async ({ env, cwd, run }) => {
+      const base = run();
+      const receipt = await main(env, cwd, { run: async (argv, options) => {
+        const result = await base(argv, options);
+        if (argv.includes('test')) result.stdout = summary;
+        return result;
+      } });
+      assert.equal(receipt.status, 'failed');
+      assert.equal(receipt.commands.find(c => c.id === 'tests').status, 'failed');
+      assert.equal(receipt.commands.at(-1).status, 'success');
+    });
+  }
 });

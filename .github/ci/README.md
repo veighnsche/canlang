@@ -28,7 +28,24 @@ node .github/ci/verify-receipt.mjs --repo veighnsche/canlang \
   --dir /private/tmp/<unique-empty-receipt-directory>
 ```
 
-The verifier checks GitHub's exact workflow path and attempt job conclusion, artifact identity, receipt identity, successful command exits, and downloaded log hashes. It writes `verification.json` with source/run/job/artifact IDs. The archive digest is recorded from GitHub's API; it is not independently recomputed by this verifier. Downloaded build-output hashes are evidence recorded by the runner; binaries are not uploaded by this workflow.
+The runner and verifier share the bounded command contract in `gate-plan.mjs`.
+A passing receipt must contain every selected profile command in its declared
+order, with exact argv, source/package working directory, test identity and
+explicit native environment. This includes the SHA and Node/Bun version probes,
+frozen install, owning producer build, typecheck, real tests and final tracked-tree
+diff check. Values retains its catalog command; Cloudflare retains both source
+Vitest and emitted runtime tests; workspace retains boundary checks and root
+Vitest without claiming the other package suites.
+
+The verifier checks GitHub's exact workflow path and attempt job conclusion,
+artifact identity, receipt identity, complete command coverage, successful exits
+and downloaded log hashes. It recomputes counts from those logs and requires
+positive passing execution for every declared test command; absent counts,
+zero tests, all-skipped tests and reported failures reject. Revision/version logs
+must agree with the advertised source SHA and Node24/Bun1.4.2 pins. Native
+profiles also require Rust/Cargo1.99.0 logs and the planned private target/binary
+environments. Receipts predating `plan_version: 1` and the complete command
+metadata need a fresh run using compatible trusted workflow tooling. It writes `verification.json` with source/run/job/artifact IDs. The archive digest is recorded from GitHub's API; it is not independently recomputed by this verifier. Downloaded build-output hashes are evidence recorded by the runner; binaries are not uploaded by this workflow.
 
 A matching package receipt replaces that local gate only. Coordinator acceptance still requires its named critical witnesses, relevant joined/main checks, supported-host limits, exact writer/command release and independent Codex review. No receipt automatically authorizes merge, default-backend adoption, deployment or public release.
 
@@ -44,11 +61,12 @@ Crate lockfile, toolchain file, and built executable hashes land in
 `receipt.native_prerequisite`; logs/hashes upload, never the target dir or
 binary. A failed prerequisite fails the receipt and skips dependent tests.
 Other profiles run no native prerequisite. The verifier rejects receipts that
-omit/fail it or advertise inconsistent binary/lock hashes.
+omit/fail it, carry malformed binary/lock/toolchain hashes, or advertise inconsistent target paths and child environments. The runner hashes the actual prerequisite files; the verifier does not download or independently re-hash those native files.
 
 ## Local tooling checks
 
 ```sh
+node --check .github/ci/gate-plan.mjs
 node --check .github/ci/ts-gate.mjs
 node --check .github/ci/verify-receipt.mjs
 node --test .github/ci/ts-gate.test.mjs .github/ci/verify-receipt.test.mjs

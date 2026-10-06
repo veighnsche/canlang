@@ -36,22 +36,21 @@ jobs:
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version: "1.4.2"
-      - name: Guard owned-contract imports
+      - name: Guard package API imports
         run: |
-          # Tests import unconflicted names from the @canlang/contracts
-          # assembly; only conflicted names (pending X1) keep narrow relative
-          # imports, which must stay inside lane-06-owned contract files.
-          imports=$(grep -rho "contracts/src/[a-z0-9_]*\.js" packages/identity/test packages/interfaces/test | sort -u)
-          echo "$imports"
-          echo "$imports" | grep -v -E 'contracts/src/(identity|wire)\.js' && exit 1 || exit 0
+          # Consumers use declared exports; a sibling source path bypasses the producer build.
+          if grep -RnE "(\.\./)+contracts/(src|dist)/" packages/identity/src packages/identity/test packages/interfaces/src packages/interfaces/test; then
+            exit 1
+          fi
       - name: Install workspace
         run: bun install --frozen-lockfile
       - name: Build contracts assembly
         # Owned production sources import the @canlang/contracts public
         # assembly (dist), avoiding the L7-flagged conflicted names.
-        run: bun run --filter @canlang/contracts build
-      - name: Build consumed workspaces
-        # interfaces consumes the built identity + ui entries.
-        run: bun run --filter @canlang/identity --filter @canlang/ui build
+        run: bun run build --filter=@canlang/contracts
+      - name: Build consumed values
+        run: bun run build --filter=@canlang/values
+      - name: Build consumed identity and UI
+        run: bun run build --filter=@canlang/identity --filter=@canlang/ui
       - name: Test owned packages
         run: bun run --filter @canlang/identity --filter @canlang/interfaces test
