@@ -1613,3 +1613,203 @@ fn fixture_mime_and_quoted_locale_keys() {
         diags[0].message
     );
 }
+
+/// C01: admission uses decoded source values, while diagnostics still
+/// point at the authored token rather than its decoded spelling.
+#[test]
+fn c01_decoded_strings_reach_analysis_callers() {
+    // Test-only signatures transcribed from DESIGN §3, independent of
+    // producer catalogs and available in hermetic compiler checks.
+    let (catalog, diags) = load_json_catalog(
+        r#"{
+      "language_version":"1.0", "catalog_version":"test-only-c01",
+      "entries":[
+        {"id":"date","js":"date","owner":"test","kind":"builtin","signature":"date(value:text)->date","effects":"pure","availability":"implemented"},
+        {"id":"datetime","js":"datetime","owner":"test","kind":"builtin","signature":"datetime(value:text)->datetime","effects":"pure","availability":"implemented"},
+        {"id":"local_instant","js":"localInstant","owner":"test","kind":"builtin","signature":"local_instant(date:date,time:text,zone:timezone,fold:enum(earlier,later))->datetime","effects":"pure","availability":"implemented"},
+        {"id":"format","js":"format","owner":"test","kind":"builtin","signature":"format(template:text,values:closed object of Display)->text; format(descriptor:message,locale:locale?)->text","effects":"pure","availability":"implemented"}
+      ]
+    }"#,
+    );
+    assert!(diags.is_empty(), "{diags:?}");
+    let catalog = catalog.unwrap();
+    let body = |expr: &str| {
+        format!(
+            "app T\nGiven\nWhen\n scenario s(d:date) by=members\n  do\n   let value = {expr}\nThen\n"
+        )
+    };
+    for expr in [
+        r#"date("2026\u002d10-07")"#,
+        r#"datetime("2026-10-07\u005400:00:00Z")"#,
+        r#"local_instant(d,"12\u003a30","UTC",fold=earlier)"#,
+        r#"format("\u007bname\u007d",{name="é\uD83D\uDE00\b\f"})"#,
+    ] {
+        assert_clean(&body(expr), Some(&catalog));
+    }
+    for (expr, code, token) in [
+        (
+            r#"date("2026\u002d02-30")"#,
+            "E3001",
+            r#""2026\u002d02-30""#,
+        ),
+        (
+            r#"datetime("2026-10-07\u005400:00:00")"#,
+            "E3001",
+            r#""2026-10-07\u005400:00:00""#,
+        ),
+        (
+            r#"local_instant(d,"25\u003a30","UTC",fold=earlier)"#,
+            "E3001",
+            r#""25\u003a30""#,
+        ),
+        (
+            r#"format("\u007bmissing\u007d",{name="ok"})"#,
+            "E3005",
+            r#""\u007bmissing\u007d""#,
+        ),
+        (r#"format("\u007b",{name="ok"})"#, "E3005", r#""\u007b""#),
+    ] {
+        let src = body(expr);
+        assert_findings(&src, &check(&src, Some(&catalog)), &[(code, token, 1)]);
+    }
+    // Field admission (type_literal) and argument admission
+    // (inhabit_validated) both see escaped locale letters.
+    let src = "app T\nGiven\n M { lang:locale=\"\\u0065n\" }\n policy M read=members\n message hello = \"Hi\"@{}\nWhen\n scenario s() by=members\n  do\n   let text = format(hello,locale=\"\\u006el\")\nThen\n";
+    assert_clean(src, Some(&catalog));
+    let bad = src.replace("\\u006el", "\\u005f");
+    assert_findings(
+        &bad,
+        &check(&bad, Some(&catalog)),
+        &[("E3001", r#""\u005f""#, 1)],
+    );
+    let bad = src.replace("\\u0065n", "\\u005f");
+    assert_findings(
+        &bad,
+        &check(&bad, Some(&catalog)),
+        &[("E3001", r#""\u005f""#, 1)],
+    );
+
+    // Quoted locale keys and message slots have distinct source owners.
+    let src = "app T\nGiven\n message hello(name:text) = \"\\u007bname\\u007d\"@{\"\\u0070t-BR\"=\"\\u007bname\\u007d\"}\nWhen\nThen\n";
+    assert_clean(src, Some(&catalog));
+    let bad = src.replace("\\u0070t-BR", "\\u005f");
+    assert_findings(
+        &bad,
+        &check(&bad, Some(&catalog)),
+        &[("E3016", r#""\u005f""#, 1)],
+    );
+    let bad = src.replace("\\u007bname\\u007d", "\\u007bmissing\\u007d");
+    assert_findings(
+        &bad,
+        &check(&bad, Some(&catalog)),
+        &[
+            ("E3016", r#""\u007bmissing\u007d""#, 1),
+            ("E3016", r#""\u007bmissing\u007d""#, 2),
+        ],
+    );
+
+    // Schedule uniqueness compares values, not source spellings.
+    let src = "app T\nGiven\n event Due { s:text }\nWhen\n scenario s(d:datetime) by=members\n  do\n   schedule \"k\" at=d event=Due {s=\"a\"}\n   schedule \"\\u006b\" at=d event=Due {s=\"b\"}\nThen\n";
+    let diags = check(src, Some(&catalog));
+    assert_findings(src, &diags, &[("E3001", r#""\u006b""#, 1)]);
+    assert_eq!(diags[0].message, "duplicate schedule key 'k'");
+    assert_eq!(diags[0].related.len(), 1);
+    let (start, end) = span_of(src, r#""k""#, 1);
+    assert_eq!(
+        (diags[0].related[0].span.start, diags[0].related[0].span.end),
+        (start, end)
+    );
+    assert_clean(&src.replace("\\u006b", "\\u006c"), Some(&catalog));
+}
+
+/// Missing payload recovery belongs to the failed token, not its whole
+/// declaration/module. Keep lexer spans and independent sibling errors.
+#[test]
+fn c01_invalid_strings_do_not_fabricate_values_or_hide_siblings() {
+    let catalog = fixture();
+    for raw in [
+        r#""\q""#,
+        r#""\uD83D""#,
+        r#""\uDE00""#,
+        "\"a\tb\"",
+        "\"a\u{8}b\"",
+    ] {
+        let src = format!(
+            "app T\nGiven\n M {{ value:text={raw} desc={raw} label={raw}, n:int=true }}\n policy M read=members\nWhen\n scenario s() by=members\n  do\n   let value = unknown\nThen\n"
+        );
+        let diags = check(&src, Some(&catalog));
+        let mut expected: Vec<_> = src
+            .match_indices(raw)
+            .map(|(at, _)| ("E1006", (at + 2) as u32, (at + 3) as u32))
+            .collect();
+        for (code, needle) in [("E3011", "true"), ("E2001", "unknown")] {
+            let (start, end) = span_of(&src, needle, 1);
+            expected.push((code, start, end));
+        }
+        expected.sort();
+        let mut actual: Vec<_> = diags
+            .iter()
+            .map(|d| (d.code, d.primary.start, d.primary.end))
+            .collect();
+        actual.sort();
+        assert_eq!(actual, expected, "{raw:?}: {diags:?}");
+
+        let src = format!(
+            "app T\nGiven\n message m(name:text) = {raw}@{{nl={raw},fr=\"{{missing}}\"}}\nWhen\nThen\n"
+        );
+        let diags = check(&src, Some(&catalog));
+        assert_eq!(diags.len(), 3, "{raw:?}: {diags:?}");
+        let lex: Vec<_> = diags.iter().filter(|d| d.code == "E1006").collect();
+        assert_eq!(lex.len(), 2);
+        for (d, (at, _)) in lex.iter().zip(src.match_indices(raw)) {
+            assert_eq!(
+                (d.primary.start, d.primary.end),
+                ((at + 2) as u32, (at + 3) as u32)
+            );
+        }
+        let variant = diags.iter().find(|d| d.code == "E3016").unwrap();
+        let (start, end) = span_of(&src, "\"{missing}\"", 1);
+        assert_eq!((variant.primary.start, variant.primary.end), (start, end));
+
+        // Distinct invalid keys must not collide as manufactured empty
+        // strings. They already carry source errors and cannot be emitted.
+        let src = format!(
+            "app T\nGiven\n event Due {{ s:text }}\nWhen\n scenario s(d:datetime) by=members\n  do\n   schedule {raw} at=d event=Due {{s=\"a\"}}\n   schedule {raw} at=d event=Due {{s=\"b\"}}\nThen\n"
+        );
+        let diags = check(&src, Some(&catalog));
+        assert_eq!(diags.len(), 2, "{raw:?}: {diags:?}");
+        for (d, (at, _)) in diags.iter().zip(src.match_indices(raw)) {
+            assert_eq!(d.code, "E1006");
+            assert_eq!(
+                (d.primary.start, d.primary.end),
+                ((at + 2) as u32, (at + 3) as u32)
+            );
+        }
+    }
+    let src = "app T\nGiven\n event Due { s:text }\nWhen\n scenario s(d:datetime) by=members\n  do\n   schedule \"\" at=d event=Due {s=\"a\"}\n   schedule \"\" at=d event=Due {s=\"b\"}\nThen\n";
+    assert_findings(src, &check(src, Some(&catalog)), &[("E3001", "\"\"", 2)]);
+}
+
+#[test]
+fn c01_invalid_delivery_status_keeps_payload_diagnostics() {
+    let catalog = fixture();
+    for raw in [r#""\q""#, r#""\uD83D""#, "\"a\tb\""] {
+        let src = format!(
+            "app T uses=[p]\npackage p\n use std {{EmailV1 as Mail}} from=deployment.mail\n Given\n  fixture d=Mail.send {{request={{to=\"a@b.test\",subject=\"Hi\",body=\"Text\"}},status={raw},result=unknown}}\n When\n Then\n"
+        );
+        let diags = check(&src, Some(&catalog));
+        assert_eq!(diags.len(), 2, "{raw:?}: {diags:?}");
+        let token_at = src.find(raw).unwrap();
+        let lex = diags.iter().find(|d| d.code == "E1006").unwrap();
+        assert_eq!(
+            (lex.primary.start, lex.primary.end),
+            ((token_at + 2) as u32, (token_at + 3) as u32)
+        );
+        let independent = diags.iter().find(|d| d.code == "E2001").unwrap();
+        let (start, end) = span_of(&src, "unknown", 1);
+        assert_eq!(
+            (independent.primary.start, independent.primary.end),
+            (start, end)
+        );
+    }
+}

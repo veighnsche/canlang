@@ -1,0 +1,119 @@
+{
+  "schema_version": 1,
+  "date": "2026-10-07",
+  "packets": [
+    "C01IR",
+    "C01A"
+  ],
+  "status": "complete within the released source/string contract",
+  "baseline_compiler_build_revision": "38c0370087909dc89386849fec48e6f937aa0d13",
+  "baseline_compiler_code_revision": "309644a6881909d8dba32560bc6711f67e00a7ab",
+  "early_ir_commit": "9bb5bbd",
+  "capture_head": "ea8ee371336fecbf5591055e74d697f96fa662b4",
+  "capture_scope": "working compiler bytes in input-manifest.json; final completion commit follows this receipt",
+  "host": {
+    "system": "Darwin",
+    "machine": "arm64",
+    "macos": "27.0.1",
+    "rustc": "rustc 1.99.0 (b940084d7 2026-09-28)",
+    "cargo": "cargo 1.99.0 (5f94df478 2026-08-27)",
+    "node": "v24.21.0"
+  },
+  "catalog": {
+    "path": "packages/values/dist/catalog.json",
+    "sha256": "cd984f375e0d6cbcc2bc6aca5ad5ea5b1b3d3ba9cd17b15ab94e4b15e74ced62",
+    "catalog_version": "0.1.0-lane02-draft"
+  },
+  "input_manifest_count": 665,
+  "delegation": {
+    "ir": "gpt-6.1-sol low; focused worker",
+    "analysis": "coordinator after second dispatch rejected thread limit",
+    "review": "reused inherited worker; actual model/effort not exposed",
+    "escalation": "no stronger IR worker requested; missing-payload recovery and runtime linkage reconciled by coordinator plus independent review",
+    "measured_token_cost": null
+  },
+  "checks": {
+    "full_suite": {
+      "exit": 0,
+      "passed": 915,
+      "scope": "before final delivery-status recovery guard/test and test-module relocation"
+    },
+    "final_analysis_and_b4": {
+      "exit": 0,
+      "passed_by_suite": [
+        32,
+        279
+      ],
+      "scope": "after final delivery-status correction"
+    },
+    "final_c01_ir_and_syntax": {
+      "exit": 0,
+      "passed_by_suite": [
+        1,
+        1,
+        1
+      ]
+    },
+    "clippy_all_targets": {
+      "exit": 0
+    },
+    "cargo_fmt_check": {
+      "baseline_revision": "d855e0a6a222d89d6a3deab03141a29654a585f9",
+      "baseline_exit": 1,
+      "current_exit": 1,
+      "normalized_diffs_identical": true,
+      "baseline_hunks": 88,
+      "current_hunks": 88
+    },
+    "git_diff_check": {
+      "exit": 0
+    }
+  },
+  "runtime": {
+    "executed": true,
+    "witness_count": 6,
+    "source": "production can compile CLI with actual producer catalog; no manual complete flag or fixture catalog",
+    "metadata": "unmodified metadata-only entry imported against actual @canlang/ui; defaults/source/variants plus literal artifact default checked by independent code points",
+    "testkit": "actual public loadExampleSuite, row.setup, stashedRowOf and row.observe execute emitted BDD closures",
+    "operations_executed": false,
+    "stubs_used": false,
+    "profile": "macOS arm64; Unix test is intended for Linux/macOS but Linux was not executed",
+    "qualification_output": [
+      "C01 witness 0: production CLI, runtime metadata, testkit closures passed",
+      "C01 witness 1: production CLI, runtime metadata, testkit closures passed",
+      "C01 witness 2: production CLI, runtime metadata, testkit closures passed",
+      "C01 witness 3: production CLI, runtime metadata, testkit closures passed",
+      "C01 witness 4: production CLI, runtime metadata, testkit closures passed",
+      "C01 witness 5: production CLI, runtime metadata, testkit closures passed"
+    ],
+    "initial_scope_block": "a member-gated entry failed because built @canlang/stdlib has no require export; independent metadata and BDD modules qualify the relevant string outputs"
+  },
+  "witness_transfer": {
+    "strings_json_ready_cases": 8,
+    "permanent_tests": [
+      "c01_lexer_strings_reach_literal_metadata_and_message_lowering",
+      "c01_literal_string_distinguishes_empty_null_and_missing_payload",
+      "c01_invalid_string_payloads_keep_source_diagnostics",
+      "c01_decoded_strings_reach_analysis_callers",
+      "c01_invalid_strings_do_not_fabricate_values_or_hide_siblings",
+      "c01_invalid_delivery_status_keeps_payload_diagnostics",
+      "c01_production_strings_execute_through_testkit"
+    ]
+  },
+  "remaining_gaps": [
+    "No full application operation execution or installed release/Linux host qualification.",
+    "Pre-existing IR decode_variant accepts Name locale keys only; direct quoted locale-key emission remains a separate C03L eligibility gap.",
+    "Existing effects/examples raw-body recovery fallbacks are not secondary escape parsers and are unchanged.",
+    "Repository formatting baseline has 88 unchanged hunks; full fmt check remains failing."
+  ],
+  "dependencies_added": [],
+  "grammar_changed": false,
+  "packages_changed": false,
+  "merge_performed": false,
+  "compiler_binary": {
+    "path": "/private/tmp/canlang-compiler-pass1/debug/can",
+    "sha256": "7715217208d85b689ee535b386f33dd3aa82985953775301692ffd3fa1484b94",
+    "version": "can 0.1.0 (commit 6fe6298; language 1.0; schema 1)",
+    "version_note": "Build-time HEAD metadata reflects concurrent documentation commits; the final working compiler bytes and runtime inputs are pinned separately in input-manifest.json."
+  }
+}

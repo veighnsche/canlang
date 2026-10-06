@@ -1,0 +1,352 @@
+{
+  "raw_caption": {
+    "source": "app T\nGiven\n M { title:text label=\"a\tb\" }\nWhen\nThen\n",
+    "baseline": [
+      {
+        "code": "E1006",
+        "message": "unescaped tab in string; use `\\t`",
+        "span": [
+          36,
+          37
+        ]
+      }
+    ],
+    "current": [
+      {
+        "code": "E3016",
+        "message": "label must be text, a message or a label table",
+        "span": [
+          34,
+          39
+        ]
+      },
+      {
+        "code": "E1006",
+        "message": "unescaped tab in string; use `\\t`",
+        "span": [
+          36,
+          37
+        ]
+      }
+    ],
+    "final": [
+      {
+        "code": "E1006",
+        "message": "unescaped tab in string; use `\\t`",
+        "span": [
+          36,
+          37
+        ]
+      }
+    ],
+    "source_errors_preserved": true
+  },
+  "raw_description": {
+    "source": "app T\nGiven\n M { title:text desc=\"a\tb\" }\nWhen\nThen\n",
+    "baseline": [
+      {
+        "code": "E1006",
+        "message": "unescaped tab in string; use `\\t`",
+        "span": [
+          35,
+          36
+        ]
+      }
+    ],
+    "current": [
+      {
+        "code": "E3016",
+        "message": "description must be text or a static message reference",
+        "span": [
+          33,
+          38
+        ]
+      },
+      {
+        "code": "E1006",
+        "message": "unescaped tab in string; use `\\t`",
+        "span": [
+          35,
+          36
+        ]
+      }
+    ],
+    "final": [
+      {
+        "code": "E1006",
+        "message": "unescaped tab in string; use `\\t`",
+        "span": [
+          35,
+          36
+        ]
+      }
+    ],
+    "source_errors_preserved": true
+  },
+  "raw_variant": {
+    "source": "app T\nGiven\n message m = \"Hi\"@{nl=\"a\tb\"}\nWhen\nThen\n",
+    "baseline": [
+      {
+        "code": "E1006",
+        "message": "unescaped tab in string; use `\\t`",
+        "span": [
+          36,
+          37
+        ]
+      }
+    ],
+    "current": [
+      {
+        "code": "E3016",
+        "message": "message variant 'nl' must be text or null",
+        "span": [
+          34,
+          39
+        ]
+      },
+      {
+        "code": "E1006",
+        "message": "unescaped tab in string; use `\\t`",
+        "span": [
+          36,
+          37
+        ]
+      }
+    ],
+    "final": [
+      {
+        "code": "E1006",
+        "message": "unescaped tab in string; use `\\t`",
+        "span": [
+          36,
+          37
+        ]
+      }
+    ],
+    "source_errors_preserved": true
+  },
+  "raw_schedule": {
+    "source": "app T\nGiven\n event Due { s:text }\nWhen\n scenario s(d:datetime) by=members\n  do\n   schedule \"a\tb\" at=d event=Due {s=\"a\"}\n   schedule \"c\td\" at=d event=Due {s=\"b\"}\nThen\n",
+    "baseline": [
+      {
+        "code": "E1006",
+        "message": "unescaped tab in string; use `\\t`",
+        "span": [
+          93,
+          94
+        ]
+      },
+      {
+        "code": "E1006",
+        "message": "unescaped tab in string; use `\\t`",
+        "span": [
+          134,
+          135
+        ]
+      }
+    ],
+    "current": [
+      {
+        "code": "E1006",
+        "message": "unescaped tab in string; use `\\t`",
+        "span": [
+          93,
+          94
+        ]
+      },
+      {
+        "code": "E3001",
+        "message": "duplicate schedule key ''",
+        "span": [
+          132,
+          137
+        ]
+      },
+      {
+        "code": "E1006",
+        "message": "unescaped tab in string; use `\\t`",
+        "span": [
+          134,
+          135
+        ]
+      }
+    ],
+    "final": [
+      {
+        "code": "E1006",
+        "message": "unescaped tab in string; use `\\t`",
+        "span": [
+          93,
+          94
+        ]
+      },
+      {
+        "code": "E1006",
+        "message": "unescaped tab in string; use `\\t`",
+        "span": [
+          134,
+          135
+        ]
+      }
+    ],
+    "source_errors_preserved": true
+  },
+  "invalid_caption": {
+    "source": "app T\nGiven\n M { title:text label=\"\\q\" }\nWhen\nThen\n",
+    "baseline": [
+      {
+        "code": "E3016",
+        "message": "label must be text, a message or a label table",
+        "span": [
+          34,
+          38
+        ]
+      },
+      {
+        "code": "E1006",
+        "message": "unknown string escape `\\q`",
+        "span": [
+          36,
+          37
+        ]
+      }
+    ],
+    "current": [
+      {
+        "code": "E3016",
+        "message": "label must be text, a message or a label table",
+        "span": [
+          34,
+          38
+        ]
+      },
+      {
+        "code": "E1006",
+        "message": "unknown string escape `\\q`",
+        "span": [
+          36,
+          37
+        ]
+      }
+    ],
+    "final": [
+      {
+        "code": "E1006",
+        "message": "unknown string escape `\\q`",
+        "span": [
+          36,
+          37
+        ]
+      }
+    ],
+    "source_errors_preserved": true
+  },
+  "invalid_pair": {
+    "source": "app T\nGiven\n M { title:text=\"\\uD83D\" }\nWhen\nThen\n",
+    "baseline": [
+      {
+        "code": "E1006",
+        "message": "lone surrogate in \\u escape",
+        "span": [
+          30,
+          31
+        ]
+      }
+    ],
+    "current": [
+      {
+        "code": "E1006",
+        "message": "lone surrogate in \\u escape",
+        "span": [
+          30,
+          31
+        ]
+      }
+    ],
+    "final": [
+      {
+        "code": "E1006",
+        "message": "lone surrogate in \\u escape",
+        "span": [
+          30,
+          31
+        ]
+      }
+    ],
+    "source_errors_preserved": true
+  },
+  "invalid_schedule": {
+    "source": "app T\nGiven\n event Due { s:text }\nWhen\n scenario s(d:datetime) by=members\n  do\n   schedule \"\\q\" at=d event=Due {s=\"a\"}\n   schedule \"\\uD83D\" at=d event=Due {s=\"b\"}\nThen\n",
+    "baseline": [
+      {
+        "code": "E1006",
+        "message": "unknown string escape `\\q`",
+        "span": [
+          93,
+          94
+        ]
+      },
+      {
+        "code": "E3001",
+        "message": "duplicate schedule key ''",
+        "span": [
+          131,
+          139
+        ]
+      },
+      {
+        "code": "E1006",
+        "message": "lone surrogate in \\u escape",
+        "span": [
+          133,
+          134
+        ]
+      }
+    ],
+    "current": [
+      {
+        "code": "E1006",
+        "message": "unknown string escape `\\q`",
+        "span": [
+          93,
+          94
+        ]
+      },
+      {
+        "code": "E3001",
+        "message": "duplicate schedule key ''",
+        "span": [
+          131,
+          139
+        ]
+      },
+      {
+        "code": "E1006",
+        "message": "lone surrogate in \\u escape",
+        "span": [
+          133,
+          134
+        ]
+      }
+    ],
+    "final": [
+      {
+        "code": "E1006",
+        "message": "unknown string escape `\\q`",
+        "span": [
+          93,
+          94
+        ]
+      },
+      {
+        "code": "E1006",
+        "message": "lone surrogate in \\u escape",
+        "span": [
+          133,
+          134
+        ]
+      }
+    ],
+    "source_errors_preserved": true
+  }
+}

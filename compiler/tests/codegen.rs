@@ -3778,8 +3778,6 @@ fn d03_empty_desc_stays_present() {
     );
 }
 
-// --- T15a: canonical model/operation descriptors -------------------------------
-
 /// C01 witnesses have fixed decoded strings and JS literals, independent
 /// of either the old decoder or the emitter. This traverses real source,
 /// analysis, CST reparse, IR and emission under the test-only catalog;
@@ -3866,6 +3864,7 @@ fn c01_lexer_strings_reach_literal_metadata_and_message_lowering() {
     }
 }
 
+// --- T15a: canonical model/operation descriptors -------------------------------
 // TEST-ONLY artifacts: see module docs. Descriptors never diagnose; these
 // tests pin the T04a §3 vocabulary (closed input kinds, array markers,
 // defaults, delete modes, unique keys) plus additive ownership, and the
@@ -3934,7 +3933,10 @@ fn t15a_literal_json_exactness() {
     );
     assert_eq!(js::literal_json(&neg).as_deref(), Some("\"-3\""));
     // Decimal scale survives verbatim (T11 exactness, never a Number).
-    let dec = typed(IrExpr::Decimal("1.50".to_string()), decimal_ty.clone());
+    let dec = typed(
+        IrExpr::Decimal("1.50".to_string()),
+        decimal_ty.clone(),
+    );
     assert_eq!(js::literal_json(&dec).as_deref(), Some("\"1.50\""));
     let neg_dec = typed(
         IrExpr::Unary {
@@ -3947,7 +3949,10 @@ fn t15a_literal_json_exactness() {
         decimal_ty.clone(),
     );
     assert_eq!(js::literal_json(&neg_dec).as_deref(), Some("\"-0.5\""));
-    assert_eq!(js::literal_json(&text_lit("a")).as_deref(), Some("\"a\""));
+    assert_eq!(
+        js::literal_json(&text_lit("a")).as_deref(),
+        Some("\"a\"")
+    );
     assert_eq!(
         js::literal_json(&typed(IrExpr::Bool(true), bool_ty.clone())).as_deref(),
         Some("true")
@@ -3970,7 +3975,10 @@ fn t15a_literal_json_exactness() {
     let duration = typed(IrExpr::DurationMs(30_000), duration_ty.clone());
     assert_eq!(js::literal_json(&duration).as_deref(), Some("\"30000\""));
     let date = typed(IrExpr::Date("2026-10-01".to_string()), date_ty.clone());
-    assert_eq!(js::literal_json(&date).as_deref(), Some("\"2026-10-01\""));
+    assert_eq!(
+        js::literal_json(&date).as_deref(),
+        Some("\"2026-10-01\"")
+    );
     let datetime = typed(
         IrExpr::Datetime("2026-10-01T00:00:00.000Z".to_string()),
         datetime_ty.clone(),
@@ -3988,7 +3996,10 @@ fn t15a_literal_json_exactness() {
             nonempty: true,
         },
     );
-    assert_eq!(js::literal_json(&array).as_deref(), Some("[\"1\",\"b\"]"));
+    assert_eq!(
+        js::literal_json(&array).as_deref(),
+        Some("[\"1\",\"b\"]")
+    );
     let object = typed(
         IrExpr::Object(vec![
             ("a".to_string(), int_lit(1)),
@@ -4077,7 +4088,12 @@ fn t15a_literal_json_exactness() {
 #[test]
 fn t15a_parent_path_extraction() {
     let text_ty = ResolvedType::Scalar(Scalar::Text);
-    let parent = || typed(IrExpr::Name("parent".to_string()), ResolvedType::Unknown);
+    let parent = || {
+        typed(
+            IrExpr::Name("parent".to_string()),
+            ResolvedType::Unknown,
+        )
+    };
     let member = |base: TypedExpr, field: &str| {
         typed(
             IrExpr::Member {
@@ -4097,12 +4113,18 @@ fn t15a_parent_path_extraction() {
     );
     assert_eq!(js::parent_path(&parent()), None);
     assert_eq!(
-        js::parent_path(&typed(IrExpr::Name("c".to_string()), ResolvedType::Unknown)),
+        js::parent_path(&typed(
+            IrExpr::Name("c".to_string()),
+            ResolvedType::Unknown
+        )),
         None
     );
     let actor = typed(
         IrExpr::Member {
-            base: Box::new(typed(IrExpr::Name("c".to_string()), ResolvedType::Unknown)),
+            base: Box::new(typed(
+                IrExpr::Name("c".to_string()),
+                ResolvedType::Unknown,
+            )),
             field: "actor".to_string(),
         },
         text_ty.clone(),
@@ -4117,8 +4139,11 @@ fn t15a_parent_path_extraction() {
 fn t15a_field_default_mapping() {
     let text_ty = ResolvedType::Scalar(Scalar::Text);
     assert!(js::js_field_default(None, None).is_none());
-    let literal =
-        js::js_field_default(Some(&IrDefault::Literal(int_lit(7))), None).expect("literal maps");
+    let literal = js::js_field_default(
+        Some(&IrDefault::Literal(int_lit(7))),
+        None,
+    )
+    .expect("literal maps");
     assert_eq!(literal.to_json(), "{\"kind\":\"literal\",\"value\":\"7\"}");
     let parent_expr = typed(
         IrExpr::Member {
@@ -4139,7 +4164,10 @@ fn t15a_field_default_mapping() {
     )
     .expect("parent path maps");
     assert_eq!(parent.to_json(), "{\"kind\":\"parent\",\"path\":\"owner\"}");
-    let computed = typed(IrExpr::Name("something".to_string()), text_ty.clone());
+    let computed = typed(
+        IrExpr::Name("something".to_string()),
+        text_ty.clone(),
+    );
     assert!(
         js::js_field_default(
             Some(&IrDefault::Computed {
@@ -4155,8 +4183,11 @@ fn t15a_field_default_mapping() {
     assert_eq!(server.to_json(), "{\"kind\":\"server\",\"init\":\"actor\"}");
     // Server wins over any default (spellings are mutually exclusive in
     // grammar; the descriptor stays total either way).
-    let both = js::js_field_default(Some(&IrDefault::Literal(int_lit(1))), Some(&IrServer::Now))
-        .expect("server wins");
+    let both = js::js_field_default(
+        Some(&IrDefault::Literal(int_lit(1))),
+        Some(&IrServer::Now),
+    )
+    .expect("server wins");
     assert_eq!(both.to_json(), "{\"kind\":\"server\",\"init\":\"now\"}");
 }
 
@@ -4328,7 +4359,9 @@ fn t15a_model_field_tags() {
         ),
         (
             "f_delivery",
-            IrType::Known(ResolvedType::Delivery { op: SymbolId(3) }),
+            IrType::Known(ResolvedType::Delivery {
+                op: SymbolId(3),
+            }),
         ),
         (
             "f_action",
@@ -4422,14 +4455,20 @@ fn t15a_model_field_tags() {
     assert_eq!(arr.array_required, Some(false));
     assert!(!arr.required, "ordinary array omits to empty");
     let arrenum = t15a_field(model, "f_arrenum");
-    assert!(matches!(arrenum.field, js::JsModelFieldType::Enum { .. }));
+    assert!(matches!(
+        arrenum.field,
+        js::JsModelFieldType::Enum { .. }
+    ));
     assert_eq!(arrenum.array_required, Some(false));
     let arrref = t15a_field(model, "f_arrref");
     assert!(matches!(arrref.field, js::JsModelFieldType::Ref { .. }));
     assert_eq!(arrref.array_required, Some(false));
     // Nullability unwraps for the tag and clears required.
     let nullable = t15a_field(model, "f_nullable");
-    assert!(matches!(nullable.field, js::JsModelFieldType::Integer));
+    assert!(matches!(
+        nullable.field,
+        js::JsModelFieldType::Integer
+    ));
     assert!(nullable.nullable && !nullable.required);
     let nularr = t15a_field(model, "f_nularr");
     assert!(matches!(nularr.field, js::JsModelFieldType::String));
@@ -4440,7 +4479,10 @@ fn t15a_model_field_tags() {
     assert_eq!(elnull.array_required, Some(false));
     // Nested arrays keep the marker with an honest element tag.
     let nested = t15a_field(model, "f_nested");
-    assert!(matches!(nested.field, js::JsModelFieldType::Other { .. }));
+    assert!(matches!(
+        nested.field,
+        js::JsModelFieldType::Other { .. }
+    ));
     assert_eq!(nested.array_required, Some(false));
     // Exotic shapes stay honest `other` (T15b refines deliveries).
     match tag("f_delivery") {
@@ -4489,10 +4531,7 @@ fn t15a_models_shape_end_to_end() {
     let model = t15a_model(&artifact, "Shop.Gadget");
     assert_eq!(model.delete_mode, "archive");
     assert_eq!(model.unique_keys, vec!["code".to_string()]);
-    assert!(
-        model.parent.is_none() && !model.scope_app,
-        "team scope default"
-    );
+    assert!(model.parent.is_none() && !model.scope_app, "team scope default");
     let title = t15a_field(model, "title");
     assert!(title.required && !title.server_only && !title.nullable);
     assert!(title.array_required.is_none() && title.default.is_none());
@@ -4557,7 +4596,10 @@ fn t15a_models_shape_end_to_end() {
     let json = artifact::to_json(&artifact);
     assert!(json.contains("\"models\":[{"), "models key: {json}");
     assert!(json.contains("\"deleteMode\":\"archive\""), "mode: {json}");
-    assert!(json.contains("\"uniqueKeys\":[\"code\"]"), "keys: {json}");
+    assert!(
+        json.contains("\"uniqueKeys\":[\"code\"]"),
+        "keys: {json}"
+    );
 }
 
 /// (T15a) Operation inputs end to end: array parameters map (ordinary,
@@ -4618,11 +4660,7 @@ fn t15a_operation_inputs_carry_arrays_defaults_nullable() {
     ));
     for input in update.inputs.iter().filter(|i| i.name != "record") {
         assert!(!input.required, "partial change: {}", input.name);
-        assert!(
-            input.default.is_none(),
-            "no defaults on update: {}",
-            input.name
-        );
+        assert!(input.default.is_none(), "no defaults on update: {}", input.name);
     }
     let update_ids = d03_input(update, "ids");
     assert_eq!(update_ids.array_required, Some(true));
@@ -4691,11 +4729,7 @@ fn t15a_parent_defaults_delete_modes_derived() {
     let create_buddy = d03_input(create, "buddy");
     assert!(!create_buddy.required);
     assert_eq!(
-        create_buddy
-            .default
-            .as_ref()
-            .map(|d| d.to_json())
-            .as_deref(),
+        create_buddy.default.as_ref().map(|d| d.to_json()).as_deref(),
         Some("{\"kind\":\"parent\",\"path\":\"owner\"}")
     );
     // Derived fields: present in the model, absent from inputs.
@@ -4715,16 +4749,9 @@ fn t15a_parent_defaults_delete_modes_derived() {
     assert_eq!(t15a_model(&artifact, "Shop.Doc").delete_mode, "remove");
     assert_eq!(t15a_model(&artifact, "Shop.Archive").delete_mode, "none");
     assert!(
-        artifact
-            .operations
-            .iter()
-            .any(|op| op.name == "Shop.Doc.delete"),
+        artifact.operations.iter().any(|op| op.name == "Shop.Doc.delete"),
         "remove keeps delete: {:?}",
-        artifact
-            .operations
-            .iter()
-            .map(|op| &op.name)
-            .collect::<Vec<_>>()
+        artifact.operations.iter().map(|op| &op.name).collect::<Vec<_>>()
     );
     assert!(
         artifact
@@ -4732,11 +4759,7 @@ fn t15a_parent_defaults_delete_modes_derived() {
             .iter()
             .all(|op| op.name != "Shop.Archive.delete"),
         "none disables delete: {:?}",
-        artifact
-            .operations
-            .iter()
-            .map(|op| &op.name)
-            .collect::<Vec<_>>()
+        artifact.operations.iter().map(|op| &op.name).collect::<Vec<_>>()
     );
     assert!(
         artifact
@@ -4864,14 +4887,8 @@ fn t15a_negative_exotic_omits_operation_only() {
         "no analysis gaps: {diags:?}"
     );
     let names: Vec<_> = artifact.operations.iter().map(|op| &op.name).collect();
-    assert!(
-        !names.iter().any(|n| n.as_str() == "Shop.slow"),
-        "exotic omitted: {names:?}"
-    );
-    assert!(
-        names.iter().any(|n| n.as_str() == "Shop.fast"),
-        "sibling kept: {names:?}"
-    );
+    assert!(!names.iter().any(|n| n.as_str() == "Shop.slow"), "exotic omitted: {names:?}");
+    assert!(names.iter().any(|n| n.as_str() == "Shop.fast"), "sibling kept: {names:?}");
     assert!(
         names.iter().any(|n| n.as_str() == "Shop.Gadget.create"),
         "duration-free crud kept: {names:?}"
@@ -4902,18 +4919,9 @@ fn t15a_negative_duplicate_record_name() {
         .iter()
         .map(|op| op.name.as_str())
         .collect();
-    assert!(
-        names.contains(&"Shop.Gadget.create"),
-        "create kept: {names:?}"
-    );
-    assert!(
-        !names.contains(&"Shop.Gadget.update"),
-        "update omits: {names:?}"
-    );
-    assert!(
-        names.contains(&"Shop.Gadget.delete"),
-        "delete kept: {names:?}"
-    );
+    assert!(names.contains(&"Shop.Gadget.create"), "create kept: {names:?}");
+    assert!(!names.contains(&"Shop.Gadget.update"), "update omits: {names:?}");
+    assert!(names.contains(&"Shop.Gadget.delete"), "delete kept: {names:?}");
 }
 
 /// (T15a) The emitted envelope uses only closed descriptor kinds: every
@@ -4933,16 +4941,36 @@ fn t15a_negative_kinds_closed() {
     let json = artifact::to_json(&artifact);
     let parsed = canlang_compiler::json::parse(&json).expect("envelope parses");
     let closed_inputs = [
-        "ref", "string", "integer", "decimal", "money", "datetime", "boolean", "file", "enum",
+        "ref",
+        "string",
+        "integer",
+        "decimal",
+        "money",
+        "datetime",
+        "boolean",
+        "file",
+        "enum",
     ];
     let closed_model_kinds = [
-        "ref", "string", "integer", "decimal", "money", "datetime", "boolean", "file", "enum",
-        "date", "duration", "secret", "user", "member", "json", "bytes", "other",
+        "ref",
+        "string",
+        "integer",
+        "decimal",
+        "money",
+        "datetime",
+        "boolean",
+        "file",
+        "enum",
+        "date",
+        "duration",
+        "secret",
+        "user",
+        "member",
+        "json",
+        "bytes",
+        "other",
     ];
-    let operations = parsed
-        .get("operations")
-        .and_then(|v| v.as_arr())
-        .expect("operations");
+    let operations = parsed.get("operations").and_then(|v| v.as_arr()).expect("operations");
     assert!(!operations.is_empty(), "operations present");
     for op in operations {
         let kind = op.get("kind").and_then(|v| v.as_str()).expect("op kind");
@@ -4971,24 +4999,12 @@ fn t15a_negative_kinds_closed() {
             );
         }
     }
-    let models = parsed
-        .get("models")
-        .and_then(|v| v.as_arr())
-        .expect("models");
+    let models = parsed.get("models").and_then(|v| v.as_arr()).expect("models");
     assert_eq!(models.len(), 3, "every model emits");
     for model in models {
-        let mode = model
-            .get("deleteMode")
-            .and_then(|v| v.as_str())
-            .expect("mode");
-        assert!(
-            ["archive", "remove", "none"].contains(&mode),
-            "mode closed: {mode}"
-        );
-        let fields = model
-            .get("fields")
-            .and_then(|v| v.as_arr())
-            .expect("fields");
+        let mode = model.get("deleteMode").and_then(|v| v.as_str()).expect("mode");
+        assert!(["archive", "remove", "none"].contains(&mode), "mode closed: {mode}");
+        let fields = model.get("fields").and_then(|v| v.as_arr()).expect("fields");
         assert!(!fields.is_empty(), "model has fields");
         for field in fields {
             let field_kind = field
@@ -5003,11 +5019,7 @@ fn t15a_negative_kinds_closed() {
         }
     }
     // No unknown-kind leakage anywhere in the envelope.
-    for marker in [
-        "\"kind\":\"unknown\"",
-        "\"kind\":\"delivery\"",
-        "\"kind\":\"action\"",
-    ] {
+    for marker in ["\"kind\":\"unknown\"", "\"kind\":\"delivery\"", "\"kind\":\"action\""] {
         assert!(!json.contains(marker), "no {marker} in envelope");
     }
 }
@@ -7453,5 +7465,8 @@ fn a2b_require_desugars_to_admit_and_gate() {
         js.contains("check(hasRole(c,\"members\"),\"forbidden\")"),
         "page require gates admission:\n{js}"
     );
-    assert!(!js.contains("require({"), "require never renders:\n{js}");
+    assert!(
+        !js.contains("require({"),
+        "require never renders:\n{js}"
+    );
 }
