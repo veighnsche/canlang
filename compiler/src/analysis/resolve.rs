@@ -398,6 +398,10 @@ pub struct ResolveTables {
     pub expr_scope: HashMap<NodeKey, ScopeId>,
     /// Resolved declaration/type paths.
     pub node_symbol: HashMap<NodeKey, SymbolId>,
+    /// Bound-import (external) operation targets by node: canonical
+    /// `provider.name` for positions whose target has no local symbol
+    /// (action/delivery/invocation type targets, DESIGN §2.1).
+    pub node_external_op: HashMap<NodeKey, String>,
     /// Resolved expression names.
     pub node_binding: HashMap<NodeKey, Binding>,
     /// Resolved type-position paths.
@@ -3598,6 +3602,19 @@ impl<'a> Resolver<'a> {
                         continue;
                     }
                     let segments = path_segments(child, text);
+                    // Bound-import targets have no local symbol: record
+                    // the canonical `provider.name` (aliases resolve to
+                    // the original member name, never the alias).
+                    if segments.len() == 1
+                        && let Some(ScopedName::External { provider, name }) =
+                            self.lookup_prod(module, segments[0])
+                    {
+                        self.tables.node_external_op.insert(
+                            NodeKey::of(child),
+                            format!("{provider}.{name}"),
+                        );
+                        continue;
+                    }
                     if let Some(op) = self.resolve_op_path(module, &segments, child, text, diags) {
                         self.tables.node_symbol.insert(NodeKey::of(child), op);
                     }
