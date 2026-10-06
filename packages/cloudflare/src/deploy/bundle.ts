@@ -131,7 +131,7 @@ export const WORKER_MAIN_DIST_RELATIVE = posix.join("packages", "cloudflare", "d
 export const WORKER_MAIN_MISSING = "worker-main-missing";
 
 /** Real-producer dists the MCP bundle is byte-built from (never stubbed). */
-const INTERFACES_MCP_SERVER_DIST = posix.join(
+export const INTERFACES_MCP_SERVER_DIST = posix.join(
   "packages",
   "interfaces",
   "dist",
@@ -141,7 +141,7 @@ const INTERFACES_MCP_SERVER_DIST = posix.join(
   "server.js",
 );
 /** Real-producer dist the HTTP operations bundle is byte-built from (never stubbed). */
-const INTERFACES_HTTP_OPERATIONS_DIST = posix.join(
+export const INTERFACES_HTTP_OPERATIONS_DIST = posix.join(
   "packages",
   "interfaces",
   "dist",
@@ -150,7 +150,7 @@ const INTERFACES_HTTP_OPERATIONS_DIST = posix.join(
   "http",
   "operations.js",
 );
-const MCP_REGISTRY_DIST = posix.join("packages", "cloudflare", "dist", "runtime", "mcp-registry.js");
+export const MCP_REGISTRY_DIST = posix.join("packages", "cloudflare", "dist", "runtime", "mcp-registry.js");
 
 /**
  * Marker check, mirroring the e2e loader: the bundle MUST still export the
@@ -302,7 +302,7 @@ function withCode(error: Error, code: string): Error {
   return error;
 }
 
-function assertFileBuilt(repoRoot: string, distRelative: string, buildCommand: string): string {
+export function assertFileBuilt(repoRoot: string, distRelative: string, buildCommand: string): string {
   const full = join(repoRoot, distRelative);
   try {
     if (!statSync(full).isFile()) throw new Error("not a file");
@@ -597,7 +597,7 @@ function stageArtifactModules(artifact: CompileArtifact): Record<string, string>
  * operations or version skew throw here (the derivation's own
  * loud errors); the bake covers every staged operation exactly.
  */
-function buildDerivedInputsModule(artifact: CompileArtifact): string {
+export function buildDerivedInputsModule(artifact: CompileArtifact): string {
   const catalog = catalogFromArtifactOperations(artifact);
   const baked: Record<string, DerivedOperationInputs> = {};
   for (const op of artifact.operations ?? []) {
@@ -619,7 +619,7 @@ function buildDerivedInputsModule(artifact: CompileArtifact): string {
  * (same flags, same marker check, same loud errors) with a generated entry
  * using absolute dist paths so tmp paths never leak into bundle bytes.
  */
-function buildMcpBundle(repoRoot: string): string {
+export function buildMcpBundle(repoRoot: string): string {
   const serverDist = assertFileBuilt(
     repoRoot,
     INTERFACES_MCP_SERVER_DIST,
@@ -690,7 +690,7 @@ function buildMcpBundle(repoRoot: string): string {
  * determinism, so the main's join-contract currying lives in stable
  * main source instead (see `defaultLoadHttpOperationsFactory`).
  */
-function buildHttpOperationsBundle(repoRoot: string): string {
+export function buildHttpOperationsBundle(repoRoot: string): string {
   const operationsDist = assertFileBuilt(
     repoRoot,
     INTERFACES_HTTP_OPERATIONS_DIST,
