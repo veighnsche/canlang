@@ -272,13 +272,17 @@ fn t08_nullable_money_intermediate() {
 }
 
 /// (T08) Stable `user.id` reads through a user-typed field.
+/// (T25-L1) Leaf grants never traverse references (DESIGN §4, normative
+/// since 0f01d13; T08 acceptance covers parent/metadata/money only): the
+/// `owner.id` GRANT is `E4012`. Expression reads of `owner.id` stay
+/// legal (the path resolves — `E2013` never fires beside `E4012`).
 #[test]
 fn t08_user_id_member() {
     let catalog = fixture();
     let src =
         "app T\nGiven\n M { owner:user }\n policy M read=members fields=owner.id\nWhen\nThen\n";
     let diags = check(src, Some(&catalog));
-    assert!(diags.is_empty(), "user.id leaf: {diags:?}");
+    assert_eq!(codes(&diags), vec!["E4012"], "user.id grant: {diags:?}");
 }
 
 /// (T08) `parent` is selectable in `lock fields=` (CanKnowledge:63).

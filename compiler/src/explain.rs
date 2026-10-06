@@ -97,7 +97,7 @@ pub fn entry_to_text(info: &CodeInfo) -> String {
     out
 }
 
-const CATALOG: [CodeInfo; 115] = [
+const CATALOG: [CodeInfo; 116] = [
     CodeInfo {
         code: "E1001",
         title: "bare-carriage-return",
@@ -689,6 +689,14 @@ const CATALOG: [CodeInfo; 115] = [
         explanation: "A scenario returns a `secret`-typed value. Secrets never flow to callers through results. Return a non-secret projection instead.",
         example_valid: "app Shop\nGiven\nWhen\n scenario ok(n:int) -> int by=members\n  do return n\nThen\n",
         example_invalid: "app Shop\nGiven\nWhen\n scenario leak(sek:secret) -> secret by=members\n  do return sek\nThen\n",
+    },
+    CodeInfo {
+        code: "E4012",
+        title: "leaf-grant-through-reference",
+        severity: Severity::Error,
+        explanation: "A policy `fields=` leaf grant traverses a `user`/`member` reference. Leaf grants descend only through singular embedded typed values, never references. Grant the whole field or a value leaf instead.",
+        example_valid: "app Shop\nGiven\n M { owner:user }\n policy M read=members fields=owner\nWhen\nThen\n",
+        example_invalid: "app Shop\nGiven\n M { owner:user }\n policy M read=members fields=owner.id\nWhen\nThen\n",
     },
     CodeInfo {
         code: "E4020",
