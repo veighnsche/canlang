@@ -24,6 +24,8 @@ Freeze the contracts needed by the next packet only:
 
 ## Pass 1 Remove redundant source string decoding
 
+**Completed within the released source/string contract, 2026-10-07:** see the [Pass 1 implementation and verification receipt](pass1/README.md), including runtime scope and remaining host/linkage gaps.
+
 **Delegation reminder:** Sol low for IR; Sol medium for analysis and review. Follow the [researched task allocation](model-allocation-20261007.md#pass-1) and justify escalation.
 
 **Priority and effort:** immediate correctness repair; small to medium depending on caller coverage. Requires only the relevant Pass 0 source/string contract.
