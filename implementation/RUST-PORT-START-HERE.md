@@ -2,7 +2,7 @@
 
 **Planning only. Implementation remains deferred.** This is the operator's checklist for the existing [execution plan](RUST-PORT-EXECUTION-PLAN.md) and [detailed adoption units](../docs/research/package-library-audit-20261006/adoption-sequence.md). It changes dispatch clarity, not canonical task counts or source acceptance. Native preparation/native-release remains HUMAN HOLD.
 
-The numbered steps give priority and prerequisite order. A later ready task may run alongside an earlier unfinished task on different owned files; there is no global wave-completion barrier. Four responsibility queues use the actual available worker slots, currently three subagents beside Codex. Codex is the only Git mutator in shared checkouts and main integrator.
+The numbered steps give priority and prerequisite order. A later ready task may run alongside an earlier unfinished task on different owned files; there is no global wave-completion barrier. Four responsibility queues use the actual available worker slots, currently three subagents beside Codex. Codex handles Git and main integration for its package workers. An independent compiler agent also works and commits concurrently: preserve its files/staging, coordinate shared manifests/locks/docs/interfaces, and record exact tested source when its commits advance HEAD. The [concurrent compiler rules](RUST-PORT-EXECUTION-PLAN.md#concurrent-compiler-work) apply at every step.
 
 ## Finish planning first
 
