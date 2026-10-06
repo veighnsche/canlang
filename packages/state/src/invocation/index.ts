@@ -17,6 +17,7 @@ export {
   admit,
   receiptIdentityFor,
   type AdmittedCall,
+  type ConflictServerOnly,
 } from './admission.js';
 export { stableStringify, hashInputs } from './replay.js';
 export {

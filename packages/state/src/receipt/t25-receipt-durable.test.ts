@@ -60,7 +60,11 @@ import {
   withAssociationRowData,
   withReceiptRowData,
 } from './tables.js';
-import { createDeliverySchema, type DeliveryFieldSchema } from './grants.js';
+import type { DeliveryFieldSchema } from './grants.js';
+import {
+  loadArtifactDescriptors,
+  type ArtifactDescriptorSlice,
+} from '../invocation/registry.js';
 import {
   observeSelectedReceiptJoin,
   type SelectedReceiptJoinInput,
@@ -71,6 +75,38 @@ const ITEM = 'Acme.Item';
 const ITEM_MODEL = asModel(ITEM);
 const SOURCE = 'mailroom.Mail.send';
 const ACTOR = 't25-durable';
+
+/**
+ * B3: the world's schema is loader-built from L1-shaped T15b tags (the
+ * `notification` delivery descriptor mirrors `JsDeliveryDescriptor`
+ * JSON), never hand-built — the loader is the schema's only source.
+ */
+const DELIVERY_SLICE: ArtifactDescriptorSlice = {
+  artifact_version: 1,
+  operations: [],
+  models: [
+    {
+      name: ITEM,
+      fields: [
+        { name: 'service', field: { kind: 'string' }, required: true, serverOnly: false },
+        { name: 'notice_state', field: { kind: 'string' }, required: true, serverOnly: false },
+        {
+          name: 'notification',
+          field: {
+            kind: 'delivery',
+            capability: 'std.MailV1',
+            operation: 'send',
+            version: 1,
+            result: { name: 'MailSend', fields: [] },
+          },
+          required: false,
+          serverOnly: false,
+        },
+      ],
+      deleteMode: 'none',
+    },
+  ],
+};
 
 const fns: WorkReceiptFns = await loadWorkReceiptFns();
 
@@ -235,7 +271,7 @@ async function setupDurableWorld(): Promise<DurableWorld> {
     memberships: team.memberships,
     teamId: team.team.team_id,
     alice: team.alice,
-    schema: createDeliverySchema([[ITEM, ['notification']]]),
+    schema: loadArtifactDescriptors(DELIVERY_SLICE, { by: 'members' }).deliveryFields,
     policy: policyTable(
       modelPolicy(ITEM_MODEL, {
         grants: [grant('members', ['service', 'notice_state', 'notification.status'])],

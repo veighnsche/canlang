@@ -56,7 +56,7 @@ import { logBusinessError, logInternalError } from '../errors/logging.js';
 import { checkClosedInputs, validateOperationId } from '../envelope/validate.js';
 import { parseMutationRef, parseReadRef } from '../envelope/refs.js';
 import { listToolsFor } from './discovery.js';
-import { handleModeAllowed } from './schemas.js';
+import { checkBoundArguments, handleModeAllowed } from './schemas.js';
 import { wwwAuthenticateChallenge } from '../oauth/metadata.js';
 
 /** MCP server version advertised in `serverInfo`. */
@@ -261,6 +261,15 @@ async function invokeHandleMode(
       inputs[named.name] = args[named.name];
     }
   }
+  // E1 bound-input wiring for handle mode: the sealed handle is not a
+  // derived member, so the checker binds the carried non-ref values only.
+  const derived = deps.catalog.derivedFor?.(descriptor.name) ?? null;
+  if (derived !== null) {
+    const boundError = checkBoundArguments(derived, inputs);
+    if (boundError !== null) {
+      throw new McpError(ErrorCode.InvalidParams, boundError.message);
+    }
+  }
   const envelope: MutationEnvelope = {
     operation: descriptor.name,
     operation_id: operationId,
@@ -314,10 +323,19 @@ async function invokeOrdinaryMode(
   if (closedError !== null) {
     throw new McpError(ErrorCode.InvalidParams, closedError.message);
   }
+  // E2b null parity with HTTP: the derived channel owns nullability, so an
+  // explicit null on a derived-declared ref input skips shape framing here
+  // and binds below (nullable admits, else InvalidParams) — exactly the
+  // HTTP verdict, which has no ref-shape framing step. Shape-only catalogs
+  // (no derived channel) and skewed undeclared members keep strict framing.
+  const derived = deps.catalog.derivedFor?.(descriptor.name) ?? null;
+  const nullDefersToBinding = (name: string, value: unknown): boolean =>
+    value === null && (derived?.inputs.some((input) => input.name === name) ?? false);
   for (const named of descriptor.inputs.fields) {
     if (named.field.kind !== 'ref') continue;
     if (!Object.prototype.hasOwnProperty.call(businessInputs, named.name)) continue;
     const value: unknown = businessInputs[named.name];
+    if (nullDefersToBinding(named.name, value)) continue;
     // Keyed on the descriptor's requireVersion (matching the generated
     // schema), not the tool kind: a mutation input modeled without a
     // version accepts ReadRef shape, exactly as its schema advertises.
@@ -331,6 +349,16 @@ async function invokeOrdinaryMode(
       if ('error' in parsed) {
         throw new McpError(ErrorCode.InvalidParams, parsed.error.message);
       }
+    }
+  }
+  // E1 bound-input wiring: framing first (above), then each present value
+  // binds to its derived declaration. Catalogs without the derived
+  // channel keep framing-only behavior (`derived` was fetched above for
+  // the E2b null rule and is reused here).
+  if (derived !== null) {
+    const boundError = checkBoundArguments(derived, businessInputs);
+    if (boundError !== null) {
+      throw new McpError(ErrorCode.InvalidParams, boundError.message);
     }
   }
   if (mutation) {

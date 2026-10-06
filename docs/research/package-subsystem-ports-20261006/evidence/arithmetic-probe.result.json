@@ -1,0 +1,95 @@
+{
+  "status": "passed",
+  "runtime": "Bun importing current TypeScript source directly",
+  "observations": [
+    {
+      "name": "addInt(H, -H)",
+      "actual": "0"
+    },
+    {
+      "name": "subtractInt(H, H)",
+      "actual": "0"
+    },
+    {
+      "name": "multiplyInt(H, 0n)",
+      "actual": "0"
+    },
+    {
+      "name": "modInt(H, 3n)",
+      "actual": "1"
+    },
+    {
+      "name": "compareInt(H, H + 1n)",
+      "actual": -1
+    },
+    {
+      "name": "sumInt([H, 1n, -H])",
+      "actual": "1"
+    },
+    {
+      "name": "addDecimal(H, -H)",
+      "actual": {
+        "coef": "0",
+        "scale": 0
+      }
+    },
+    {
+      "name": "multiplyDecimal(H, 0n)",
+      "actual": {
+        "coef": "0",
+        "scale": 0
+      }
+    },
+    {
+      "name": "divideDecimal(H, H)",
+      "actual": {
+        "coef": "1",
+        "scale": 0
+      }
+    },
+    {
+      "name": "divideDecimal(1n, H)",
+      "actual": {
+        "coef": "0",
+        "scale": 18
+      }
+    },
+    {
+      "name": "compareDecimal(H, H + 1n)",
+      "actual": -1
+    },
+    {
+      "name": "modInt(INT64_MIN, -1n)",
+      "actual": "0"
+    },
+    {
+      "name": "wide product with valid rounded result",
+      "actual": {
+        "coef": "1000000000000000000000000000000000000",
+        "scale": 18
+      }
+    },
+    {
+      "name": "wide scaled division",
+      "actual": {
+        "coef": "1",
+        "scale": 0
+      }
+    },
+    {
+      "name": "mixed-scale cancellation retaining zero scale",
+      "actual": {
+        "coef": "0",
+        "scale": 18
+      }
+    }
+  ],
+  "magnitudeBits": {
+    "coefficient": 127,
+    "alignedBinary": 187,
+    "product": 253,
+    "scaledDivision": 246,
+    "aggregateU64": 251
+  },
+  "scope": "15 targeted existing-TS behavior observations plus mathematical width checks; no Rust/Wasm implementation or benchmark"
+}

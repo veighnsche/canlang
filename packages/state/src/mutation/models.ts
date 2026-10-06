@@ -106,6 +106,27 @@ export interface InterimRefDef {
 }
 
 /**
+ * B5 declared ownership: the artifact's additive `parent`/`scope` members
+ * (adopted T28-A containment rule) riding the engine-local `containment`
+ * channel beside the frozen intake. `parent` set marks a contained child
+ * of that canonical model (local and plain-imported parents enforce
+ * identically — flat `{model, id}` linkage); absent `parent` marks a
+ * DECLARED root, with `scope: 'app'` for `Model in app` and absent scope
+ * for the team-scope default. Absent `containment` itself is the legacy
+ * interim posture (hand-built defs predate declared ownership): the
+ * pipeline accepts any supplied parent exactly as before.
+ *
+ * `parent` and `scope` are mutually exclusive: a contained child is
+ * parent-scoped, never team- or app-scoped. Team-vs-app carries no
+ * pipeline enforcement (rows hold no scope; operation policy is
+ * unchanged) — the table records it so joins stay self-describing.
+ */
+export interface InterimContainment {
+  readonly parent?: ModelName;
+  readonly scope?: 'app';
+}
+
+/**
  * T31 (Rule A): one hook-staged secondary write. Create/set ONLY — staged
  * deletes are barred (pending-source deletion is a forbidden shape and Rule
  * A stages no other-model delete either), and staged writes carry no `when`
@@ -253,8 +274,8 @@ export interface InterimLock {
 
 /**
  * One interim model: fields, reference paths, top-level unique-key field
- * names, delete behavior, hooks, invariants, and locks. CRUD `by`/`when`
- * live on the CRUD defs (`crud.ts`), not here.
+ * names, delete behavior, hooks, invariants, locks, and B5 declared
+ * ownership. CRUD `by`/`when` live on the CRUD defs (`crud.ts`), not here.
  */
 export interface InterimModelDef {
   readonly model: ModelName;
@@ -265,6 +286,7 @@ export interface InterimModelDef {
   readonly hooks: ReadonlyArray<InterimHook>;
   readonly invariants: ReadonlyArray<InterimInvariant>;
   readonly locks: ReadonlyArray<InterimLock>;
+  readonly containment?: InterimContainment;
 }
 
 /** Validated, frozen model table keyed by model. */
@@ -303,9 +325,12 @@ function deepFreeze<T>(value: T, seen: Set<unknown> = new Set()): T {
  * array markers, unserializable or malformed defaults, T18 unknown server
  * inits, `server`+`default` doubles, or non-boolean `nullable`, malformed
  * ref paths or empty ref models, duplicate ref paths, unknown or duplicate
- * unique-key fields, unknown delete modes, malformed hooks/invariants/locks
- * (empty names, dupes, bad ops, non-function `run`/`check`, malformed lock
- * `when` shapes), or non-serializable descriptor data.
+ * unique-key fields, unknown delete modes, malformed B5 containment
+ * (non-object, empty parent, non-app scope, parent+scope together),
+ * containment cycles over declared parents, malformed
+ * hooks/invariants/locks (empty names, dupes, bad ops, non-function
+ * `run`/`check`, malformed lock `when` shapes), or non-serializable
+ * descriptor data.
  */
 export function buildModelTable(models: ReadonlyArray<InterimModelDef>): ModelTable {
   const table = new Map<ModelName, InterimModelDef>();
@@ -447,6 +472,33 @@ export function buildModelTable(models: ReadonlyArray<InterimModelDef>): ModelTa
         `Invalid deleteMode on model ${JSON.stringify(model)}: ${JSON.stringify(def.deleteMode)}.`,
       );
     }
+    // B5 declared ownership: shape only here (unknown parent targets
+    // terminate the cycle walk below and surface write-time `validation`
+    // at the pipeline; the loader rejects dangling generated parents).
+    const rawContainment: unknown = def.containment;
+    if (rawContainment !== undefined) {
+      if (typeof rawContainment !== 'object' || rawContainment === null || Array.isArray(rawContainment)) {
+        throw new Error(
+          `Invalid containment on model ${JSON.stringify(model)}: containment must be an object.`,
+        );
+      }
+      const declared = rawContainment as { parent?: unknown; scope?: unknown };
+      if (declared.parent !== undefined && (typeof declared.parent !== 'string' || declared.parent === '')) {
+        throw new Error(
+          `Invalid containment on model ${JSON.stringify(model)}: parent must be a non-empty model name.`,
+        );
+      }
+      if (declared.scope !== undefined && declared.scope !== 'app') {
+        throw new Error(
+          `Invalid containment on model ${JSON.stringify(model)}: scope is "app" when present.`,
+        );
+      }
+      if (declared.parent !== undefined && declared.scope !== undefined) {
+        throw new Error(
+          `Invalid containment on model ${JSON.stringify(model)}: parent and scope are mutually exclusive.`,
+        );
+      }
+    }
     if (!Array.isArray(def.hooks)) {
       throw new Error(`Invalid model ${JSON.stringify(model)}: hooks must be an array.`);
     }
@@ -536,11 +588,14 @@ export function buildModelTable(models: ReadonlyArray<InterimModelDef>): ModelTa
     let refs: InterimRefDef[];
     let uniqueKeys: string[];
     let whens: QueryPredicate[];
+    let containment: InterimContainment | undefined;
     try {
       fields = structuredClone(def.fields);
       refs = structuredClone([...def.refs]);
       uniqueKeys = structuredClone([...def.uniqueKeys]);
       whens = def.locks.map((lock) => structuredClone(lock.when));
+      containment =
+        def.containment === undefined ? undefined : structuredClone({ ...def.containment });
     } catch {
       throw new Error(
         `Invalid model ${JSON.stringify(model)}: descriptors must be serializable data.`,
@@ -574,10 +629,53 @@ export function buildModelTable(models: ReadonlyArray<InterimModelDef>): ModelTa
           ),
         ),
         locks: Object.freeze(frozenLocks),
+        ...(containment !== undefined ? { containment: Object.freeze(containment) } : {}),
       }) as InterimModelDef,
     );
   }
+  checkContainmentAcyclic(table);
   return table;
+}
+
+/**
+ * B5: declared-parent graph must be acyclic (static A4 rejects cycles over
+ * the whole-app index, so generated tables never trip this; hand-built
+ * tables prove it here). Unknown parent targets terminate the walk —
+ * dangling generated parents reject at the loader, and dangling interim
+ * parents surface write-time `validation` at the pipeline. Table insertion
+ * order decides which cycle reports first; the chain always starts at the
+ * revisited model, so the message is deterministic.
+ */
+function checkContainmentAcyclic(table: Map<ModelName, InterimModelDef>): void {
+  const settled = new Set<string>();
+  for (const start of table.keys()) {
+    const startName = start as string;
+    if (settled.has(startName)) {
+      continue;
+    }
+    const path: string[] = [];
+    const inPath = new Set<string>();
+    let current: string | undefined = startName;
+    while (current !== undefined) {
+      if (inPath.has(current)) {
+        const cycle = [...path.slice(path.indexOf(current)), current];
+        throw new Error(
+          `Invalid containment on model ${JSON.stringify(current)}: ` +
+            `containment cycle ${cycle.join(' -> ')}.`,
+        );
+      }
+      if (settled.has(current)) {
+        break;
+      }
+      inPath.add(current);
+      path.push(current);
+      const next: ModelName | undefined = table.get(current as ModelName)?.containment?.parent;
+      current = next === undefined ? undefined : (next as string);
+    }
+    for (const name of path) {
+      settled.add(name);
+    }
+  }
 }
 
 /** Engine-local attachments for canonical-derived model tables (T04b owns the rest). */
@@ -605,6 +703,15 @@ export interface CanonicalModelTableOptions {
    * absent — never filled, never rejected).
    */
   readonly nullableFields?: ReadonlyMap<ModelName, ReadonlySet<string>>;
+  /**
+   * B5 declared ownership per model (the loader's `containment`
+   * channel: additive artifact `parent`/`scope` members the frozen
+   * intake cannot hold). A present entry — even empty (declared
+   * team-scope root) — arms pipeline enforcement for that model;
+   * models without an entry keep the legacy interim posture
+   * (intake-direct callers omit the channel entirely).
+   */
+  readonly containment?: ReadonlyMap<ModelName, InterimContainment>;
 }
 
 /**
@@ -622,7 +729,9 @@ export interface CanonicalModelTableOptions {
  * the same way; read-time projection is T04b). Composite unique keys
  * (comma-joined) throw plain `Error` naming T04b: silently dropping a
  * uniqueness constraint would admit duplicates, so the loader rejects such
- * sets first and this guard is unreachable via it.
+ * sets first and this guard is unreachable via it. The `containment`
+ * channel entries attach verbatim (validated + cycle-checked by
+ * `buildModelTable`, like every other def member).
  */
 export function buildModelTableFromCanonical(
   models: ReadonlyArray<CanonicalModelDescriptor>,
@@ -674,6 +783,7 @@ export function buildModelTableFromCanonical(
         );
       }
     }
+    const containment = opts.containment?.get(model.name);
     defs.push({
       model: model.name,
       fields,
@@ -683,6 +793,7 @@ export function buildModelTableFromCanonical(
       hooks: [],
       invariants: [],
       locks: [],
+      ...(containment !== undefined ? { containment: { ...containment } } : {}),
     });
   }
   return buildModelTable(defs);

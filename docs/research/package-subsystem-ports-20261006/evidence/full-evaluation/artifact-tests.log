@@ -1,0 +1,15 @@
+
+ RUN  v3.2.7 /Users/vince/Projects/canlang
+
+ ✓ packages/cloudflare/test/artifact-field-descriptions.test.ts (3 tests) 5ms
+ ✓ packages/cloudflare/test/artifact.test.ts (20 tests) 5ms
+ ✓ packages/cloudflare/test/artifact-operations.test.ts (20 tests) 5ms
+ ✓ packages/cloudflare/test/plan.test.ts (4 tests) 2ms
+ ✓ packages/cloudflare/test/compat.test.ts (7 tests) 2ms
+ ✓ packages/cloudflare/test/review.test.ts (11 tests) 5ms
+ ✓ packages/cloudflare/test/release.test.ts (8 tests) 40ms
+
+ Test Files  7 passed (7)
+      Tests  73 passed (73)
+   Start at  08:47:36
+   Duration  407ms (transform 344ms, setup 0ms, collect 805ms, tests 64ms, environment 1ms, prepare 497ms)

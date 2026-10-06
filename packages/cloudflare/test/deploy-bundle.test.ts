@@ -6,6 +6,7 @@ import type { ActivationVerdict, CompileArtifact, SourceMap } from "@canlang/con
 import {
   ARTIFACT_MODULE,
   DEPLOY_MAIN_MODULE,
+  HTTP_OPERATIONS_MODULE,
   MCP_HANDLER_MODULE,
   WORKER_MAIN_MISSING,
   assertLinksResolve,
@@ -15,6 +16,9 @@ import {
   writeDeployBundle,
 } from "../src/deploy/bundle.js";
 import { startLocalDev } from "../src/dev/local-run.js";
+// Cross-package journey import: interfaces DIST (never src), per the
+// mcp-route.test.ts precedent. Proves bake parity with the real rule.
+import { catalogFromArtifactOperations } from "../../interfaces/dist/interfaces/src/http/operations.js";
 
 const repoRoot = resolve(new URL(".", import.meta.url).pathname, "..", "..", "..");
 
@@ -89,6 +93,56 @@ function fakeWorkerDist(): string {
 }
 
 describe("deploy bundle (P-B)", () => {
+  it("never vendors TEST-ONLY bridges (node-only helpers stay out of workerd)", () => {
+    // C4: state's work-loader.js bridges (T25/F5 join proofs) emit
+    // beside sources under non-test names with node:url/node:path
+    // imports and zero non-test importers. The vendor walk must skip
+    // them exactly like *.test.js — otherwise every bundle build
+    // fails the workerd link check.
+    const bundle = buildDeployBundle(testArtifact(), {
+      repoRoot,
+      workerDistDir: fakeWorkerDist(),
+      verdict: ACTIVE_VERDICT,
+    });
+    expect(bundle.modules["vendor/state/fanout/work-loader.js"]).toBeUndefined();
+    expect(bundle.modules["vendor/state/receipt/work-loader.js"]).toBeUndefined();
+    expect(Object.keys(bundle.modules).some((key) => key.endsWith("work-loader.js"))).toBe(false);
+  });
+
+  it("stages derived-inputs.js baked by the real interfaces derivation", () => {
+    // C1: the bake runs the REAL rule at deploy time (no parallel
+    // engine); the worker serves the bytes verbatim. Parity is proved
+    // by deriving independently and comparing.
+    const withOp = testArtifact();
+    withOp.operations = [
+      {
+        name: "test.Todo.create",
+        kind: "create",
+        description: "Create a todo.",
+        inputs: {
+          fields: [{ name: "title", field: { kind: "string" }, required: true }],
+        },
+      },
+    ];
+    const bundle = buildDeployBundle(withOp, {
+      repoRoot,
+      workerDistDir: fakeWorkerDist(),
+      verdict: ACTIVE_VERDICT,
+    });
+    const staged = bundle.modules["worker/derived-inputs.js"] as string;
+    expect(staged.startsWith("export const derivedInputs = ")).toBe(true);
+    const payload = JSON.parse(staged.replace(/^export const derivedInputs = /, "").replace(/;\n$/, ""));
+    const real = catalogFromArtifactOperations(withOp);
+    expect(payload).toEqual({ "test.Todo.create": real.derivedFor("test.Todo.create") });
+
+    const bare = buildDeployBundle(testArtifact(), {
+      repoRoot,
+      workerDistDir: fakeWorkerDist(),
+      verdict: ACTIVE_VERDICT,
+    });
+    expect(bare.modules["worker/derived-inputs.js"]).toBe("export const derivedInputs = {};\n");
+  });
+
   it("stages the dist-mirroring layout: worker + runtime + artifact + vendor + handler", () => {
     const bundle = buildDeployBundle(testArtifact(), {
       repoRoot,
@@ -180,6 +234,25 @@ describe("deploy bundle (P-B)", () => {
     // Real bundle, not a stub: the SDK + interface closure is hundreds of KB.
     expect(handler.length).toBeGreaterThan(100_000);
     expect(bundle.mcpBundleBytes).toBe(handler.length);
+  });
+
+  it("HTTP bundle carries the op-chain markers incl. its own IdentityError copy", () => {
+    const bundle = buildDeployBundle(testArtifact(), {
+      repoRoot,
+      workerDistDir: fakeWorkerDist(),
+      verdict: ACTIVE_VERDICT,
+    });
+    const ops = bundle.modules[HTTP_OPERATIONS_MODULE] as string;
+    for (const marker of [
+      "handleOperationRequest",
+      "IdentityError",
+    ]) {
+      expect(ops, `HTTP bundle must contain ${marker}`).toContain(marker);
+    }
+    // Real bundle, not a stub: the op chain + identity closure is
+    // tens of KB (no MCP SDK weight).
+    expect(ops.length).toBeGreaterThan(10_000);
+    expect(bundle.httpOperationsBytes).toBe(ops.length);
   });
 
   it("stages artifact.js with the artifact, portable module URLs, and the verdict", () => {
@@ -568,6 +641,17 @@ describe("producer import rewrite + link check (P-C/P-B skew class)", () => {
       await dev.dispose();
     }
   }, 180000);
+
+  it("rewrites the contracts version-producer specifier to the vendor entry (C4 t16b)", () => {
+    // Pinned invoke.js holds its producer specifier in a const
+    // (statically invisible to the link check): the staged copy must
+    // name the vendor entry relatively, never the bare specifier —
+    // a bare `@canlang/contracts` 500s boot as worker-assembly-failed.
+    const bundle = buildDeployBundle(testArtifact(), { repoRoot, verdict: ACTIVE_VERDICT });
+    expect(bundle.modules["vendor/contracts/index.js"]).toBeDefined();
+    expect(bundle.modules["runtime/invoke.js"]).toContain("../vendor/contracts/index.js");
+    expect(bundle.modules["runtime/invoke.js"]).not.toContain("@canlang/contracts");
+  });
 });
 
 describe("assertWorkerdLoadable", () => {
