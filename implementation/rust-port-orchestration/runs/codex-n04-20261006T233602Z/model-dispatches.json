@@ -1,0 +1,42 @@
+{
+  "checked_at_utc": "2026-10-06T23:36:02.880479+00:00",
+  "skill": "/Users/vince/.codex/skills/model-selection/SKILL.md",
+  "actual_dispatcher_support": true,
+  "official_pages_opened": [
+    "https://developers.openai.com/api/docs/models/gpt-6.1-sol",
+    "https://developers.openai.com/api/docs/models/gpt-6-luna"
+  ],
+  "choice_is_task_inference_not_benchmark": true,
+  "api_cost_not_codex_subscription_measurement": true,
+  "selections": [
+    {
+      "id": "N04-mechanics",
+      "model": "gpt-6.1-sol",
+      "effort": "low",
+      "reason": "Frozen concrete-str helper; existingserde_json; source+same-module/integration Rust tests, no manifests",
+      "files": [
+        "packages/values/semantics/src/codecs/numeric.rs",
+        "packages/values/semantics/tests/string_escape_contract.rs",
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/exact-values/core/n01-rust-str-escape.json"
+      ]
+    },
+    {
+      "id": "N04-fixtures",
+      "model": "gpt-6-luna",
+      "effort": "medium",
+      "reason": "Prepared93string corpus, specified original caller extraction and TS witness mechanics",
+      "files": [
+        "packages/values/test/string-escape.contract.test.ts",
+        "packages/values/conformance/string-escape.oracle.mjs",
+        "packages/values/conformance/string-escape.json"
+      ]
+    },
+    {
+      "id": "N04-independent-review",
+      "model": "gpt-6.1-sol",
+      "effort": "medium",
+      "reason": "Isolated complete caller/error identity and residual domain review",
+      "files": []
+    }
+  ]
+}
