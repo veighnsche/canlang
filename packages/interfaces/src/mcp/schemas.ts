@@ -962,7 +962,7 @@ export function toToolInputSchemaFromArtifact(op: ArtifactOperation): Record<str
 /* ------------------------------------------------------------------ */
 /* T19b bound arguments: submitted values against declared inputs.     */
 /*                                                                     */
-/* Pure, unwired (the `checkExpectedVersion` precedent): the framing   */
+/* Pure rule, wired into dispatch at E1 (HTTP + MCP, framing first):   */
 /* checks (unknown members, missing required) stay in dispatch; this   */
 /* rule binds each PRESENT value to its declaration — ref shape by    */
 /* the `versioned` flag, enum membership, file opacity, numeric wire  */
