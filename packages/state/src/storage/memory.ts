@@ -583,6 +583,13 @@ function buildMemoryStorage(state: MemoryState): StoragePort {
             'version',
             `version mismatch for ${where}: expected ${expectedVersion}, ` +
               `stored ${current.row.version as number}`,
+            {
+              model: write.model as string,
+              id: write.id as string,
+              version: current.row.version as number,
+              updated: current.row.updated,
+              updatedBy: current.row.updatedBy,
+            },
           );
         }
       }
