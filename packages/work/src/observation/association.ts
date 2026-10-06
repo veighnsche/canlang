@@ -26,11 +26,13 @@
 
 import type {
   AssociatedReceipt,
+  ProgressTerminalNotification,
   ReceiptAssociation,
   ReceiptError,
   ReceiptStatus,
+  TerminalReceiptStatus,
 } from '../../../contracts/src/work.js';
-import { isConsistentCompletion } from '../receipt/index.ts';
+import { isConsistentCompletion, isTerminalReceiptStatus } from '../receipt/index.ts';
 
 /**
  * Minimal completion envelope shape needed for association matching. The
@@ -316,6 +318,259 @@ export function applyReceiptProgress(
       status: status as ReceiptStatus,
       result: result === undefined ? null : result,
       error: (error === undefined ? null : error) as ReceiptError | null,
+    },
+  };
+}
+
+/* -- T26 associated observable progress: one relation at a time. -- */
+
+/**
+ * T26 progress-relation targets: the runtime universe for correlation.
+ * This kernel imports contracts type-only (the source-run boundary:
+ * no runtime `contracts/src/*.js` import), so the sixteen targets are
+ * spelled here once, in T13 declaration order (T13a common, then
+ * T13b rich). The contracts universe test pins ordered equality with
+ * `T26_PROGRESS_RELATIONS`, so any drift fails a gate instead of
+ * silently forking correlation.
+ */
+export const T26_KNOWN_RELATION_TARGETS = [
+  'std.EmailV1.send',
+  'std.ErrorsV1.report',
+  'std.PaymentsV1.collect',
+  'std.PaymentsV1.refund',
+  'std.PaymentsV1.cancel',
+  'std.PaymentsV1.reconcile',
+  'std.TextGenerationV1.generate',
+  'std.TextGenerationV1.cancel',
+  'std.TextGenerationV1.reconcile',
+  'std.ImagesV1.inspect',
+  'std.ImagesV1.validate',
+  'std.ImagesV1.submit',
+  'std.ImagesV1.cancel',
+  'std.ImagesV1.reconcile',
+  'std.MailboxV1.reply',
+  'std.MailboxV1.reconcile',
+] as const;
+
+/** One known T26 progress-relation target. */
+export type T26KnownRelationTarget = (typeof T26_KNOWN_RELATION_TARGETS)[number];
+
+const KNOWN_PROGRESS_RELATIONS: ReadonlySet<string> = new Set(T26_KNOWN_RELATION_TARGETS);
+
+/**
+ * True exactly for the T26 progress-relation universe (the T13a common
+ * plus T13b rich delivery-observable targets). Never throws: progress
+ * envelopes arrive from callback paths and may claim anything.
+ */
+export function isKnownProgressRelation(target: unknown): target is string {
+  return typeof target === 'string' && KNOWN_PROGRESS_RELATIONS.has(target);
+}
+
+/**
+ * Assert a trusted relation binding: the runtime's declaration-side
+ * relation for the association under correlation. Unknown relations
+ * are a declaration/store bug and throw loudly (T25a trusted-parameter
+ * precedent); envelope-side relation claims are adversary input and
+ * refuse with fixed reasons instead, never throwing.
+ */
+export function assertKnownProgressRelation(relation: unknown, caller: string): string {
+  if (typeof relation !== 'string' || relation.length === 0) {
+    throw new TypeError(`${caller}: relation must be a non-empty T13 delivery-observable target`);
+  }
+  if (!KNOWN_PROGRESS_RELATIONS.has(relation)) {
+    throw new RangeError(`${caller}: unknown progress relation ${JSON.stringify(relation)}`);
+  }
+  return relation;
+}
+
+/**
+ * Relation-correlated receipt-progress envelope: the T25a progress keys
+ * plus the claimed T13 relation. The claim routes correlation only; the
+ * trusted relation binding arrives as a runtime parameter, never from
+ * the envelope.
+ */
+export interface RelatedReceiptProgress extends ReceiptProgress {
+  /** Claimed T13 delivery-observable target, e.g. `std.EmailV1.send`. */
+  relation: string;
+}
+
+/** Fixed refusal vocabulary for relation-correlated progress. */
+export type RelatedProgressRefusal =
+  | 'malformed-completion'
+  | 'unknown-relation'
+  | 'cross-relation'
+  | 'id-mismatch'
+  | 'source-mismatch'
+  | 'stale-revision'
+  | 'inconsistent-envelope'
+  | 'terminal-immutable';
+
+export type RelatedProgressOutcome =
+  /**
+   * Progress applied. `notification` is non-null exactly when this
+   * application newly transitions the receipt from non-terminal to
+   * terminal: duplicate replays emit nothing. `replay` is true exactly
+   * when the stored receipt was already terminal and the returned
+   * records are the retained rows verbatim — the envelope payload is
+   * ignored, so hostile same-revision re-drives cannot rewrite them.
+   */
+  | {
+      applied: true;
+      association: ReceiptAssociation;
+      receipt: AssociatedReceipt;
+      notification: ProgressTerminalNotification | null;
+      replay: boolean;
+    }
+  /** Progress refused with a fixed reason; both records are untouched. */
+  | { applied: false; reason: RelatedProgressRefusal };
+
+/**
+ * Apply one relation-correlated progress envelope to the current
+ * association pair. Pure: no fetch, no store write — the committing
+ * store persists the returned records inside its own fence (the L3
+ * join) and delivers the returned notification, if any.
+ *
+ * Check order (pinned by tests): trusted relation binding (throws) →
+ * relation routing on object envelopes (a missing claim reads as
+ * `malformed-completion`, then `unknown-relation`, then
+ * `cross-relation`) → existing correlation (shape → id → source →
+ * revision) → envelope consistency → terminal gating. All existing
+ * T25a verdicts are preserved: relation correlation and terminal
+ * gating only narrow what applies, never what each refusal means.
+ *
+ * Terminal gating: a stored terminal receipt replays equal-revision
+ * progress identically (stored rows verbatim, no notification) and
+ * refuses anything newer as `terminal-immutable`. One relation per
+ * call: the envelope claim must equal the trusted binding, so two
+ * relations can never correlate through one application.
+ */
+export function applyRelatedProgress(
+  relation: string,
+  association: ReceiptAssociation,
+  receipt: AssociatedReceipt,
+  progress: unknown,
+): RelatedProgressOutcome {
+  const caller = 'applyRelatedProgress';
+  const bound = assertKnownProgressRelation(relation, caller);
+  const envelopeIsObject = typeof progress === 'object' && progress !== null;
+  if (envelopeIsObject) {
+    const claimed: unknown = (progress as Record<string, unknown>)['relation'];
+    if (typeof claimed !== 'string' || claimed.length === 0) {
+      return { applied: false, reason: 'malformed-completion' };
+    }
+    if (!KNOWN_PROGRESS_RELATIONS.has(claimed)) {
+      return { applied: false, reason: 'unknown-relation' };
+    }
+    if (claimed !== bound) {
+      return { applied: false, reason: 'cross-relation' };
+    }
+  }
+  const inner = applyReceiptProgress(association, receipt, progress);
+  if (!inner.applied) {
+    return { applied: false, reason: inner.reason };
+  }
+  if (!isTerminalReceiptStatus(receipt.status)) {
+    const status = inner.receipt.status;
+    const notification: ProgressTerminalNotification | null = isTerminalReceiptStatus(status)
+      ? {
+          relation: bound,
+          deliveryId: inner.receipt.deliveryId,
+          revision: inner.receipt.revision,
+          status: status as TerminalReceiptStatus,
+        }
+      : null;
+    return {
+      applied: true,
+      association: inner.association,
+      receipt: inner.receipt,
+      notification,
+      replay: false,
+    };
+  }
+  if (inner.association.revision === receipt.revision) {
+    return { applied: true, association, receipt, notification: null, replay: true };
+  }
+  return { applied: false, reason: 'terminal-immutable' };
+}
+
+export interface RelatedCancelInput {
+  /** Trusted relation binding for the association under cancellation. */
+  relation: string;
+  /** Store-supplied current association. */
+  association: ReceiptAssociation;
+  /** Store-supplied current receipt row. */
+  receipt: AssociatedReceipt;
+  /** Revision of the cancellation; must advance past the current one. */
+  revision: number;
+}
+
+export type RelatedCancelOutcome =
+  /**
+   * Pending receipt voided to `skipped` with null payloads. Voiding is
+   * status-only: relation progress results (a `TextRun` carrying
+   * `cancelled`, a partial image run) arrive as ordinary terminal
+   * progress through `applyRelatedProgress`, never constructed here.
+   */
+  | {
+      cancelled: true;
+      association: ReceiptAssociation;
+      receipt: AssociatedReceipt;
+      notification: ProgressTerminalNotification;
+    }
+  /** Cancellation refused; both records are untouched. */
+  | { cancelled: false; reason: 'terminal-immutable' | 'stale-revision' };
+
+/**
+ * Void one pending receipt by cancellation. Pure: the committing store
+ * persists the returned records inside its own fence and delivers the
+ * notification. Terminal receipts are never touched: cancelling one
+ * refuses as `terminal-immutable`, and a duplicate cancellation of an
+ * already-voided receipt refuses the same way instead of re-emitting.
+ */
+export function cancelRelatedProgress(input: RelatedCancelInput): RelatedCancelOutcome {
+  const caller = 'cancelRelatedProgress';
+  const bound = assertKnownProgressRelation(input.relation, caller);
+  assertAssociation(input.association, caller);
+  assertAssociatedReceipt(input.receipt, caller);
+  if (input.association.deliveryId !== input.receipt.deliveryId) {
+    throw new Error(
+      `${caller}: receipt ${JSON.stringify(input.receipt.deliveryId)} does not belong to ` +
+        `association ${JSON.stringify(input.association.deliveryId)}`,
+    );
+  }
+  if (input.association.revision !== input.receipt.revision) {
+    throw new Error(
+      `${caller}: association revision ${input.association.revision} disagrees with receipt ` +
+        `revision ${input.receipt.revision}`,
+    );
+  }
+  if (typeof input.revision !== 'number') {
+    throw new TypeError(`${caller}: revision must be a number`);
+  }
+  if (!Number.isInteger(input.revision) || input.revision < 0) {
+    throw new RangeError(`${caller}: revision must be a non-negative integer`);
+  }
+  if (isTerminalReceiptStatus(input.receipt.status)) {
+    return { cancelled: false, reason: 'terminal-immutable' };
+  }
+  if (input.revision <= input.receipt.revision) {
+    return { cancelled: false, reason: 'stale-revision' };
+  }
+  return {
+    cancelled: true,
+    association: { ...input.association, revision: input.revision },
+    receipt: {
+      deliveryId: input.association.deliveryId,
+      revision: input.revision,
+      status: 'skipped',
+      result: null,
+      error: null,
+    },
+    notification: {
+      relation: bound,
+      deliveryId: input.association.deliveryId,
+      revision: input.revision,
+      status: 'skipped',
     },
   };
 }
