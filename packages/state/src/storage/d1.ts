@@ -289,9 +289,9 @@ async function checkWriteVersions(db: D1Database, batch: CommitBatch): Promise<v
       continue;
     }
     const row = await db
-      .prepare('SELECT version FROM records WHERE model = ? AND id = ?')
+      .prepare('SELECT version, updated, updated_by FROM records WHERE model = ? AND id = ?')
       .bind(write.model as string, write.id as string)
-      .first<{ version: number }>();
+      .first<{ version: number; updated: number; updated_by: string }>();
     const expected = write.expectedVersion as number;
     const where = `${write.model as string}/${write.id as string}`;
     if (row === null) {
@@ -304,6 +304,13 @@ async function checkWriteVersions(db: D1Database, batch: CommitBatch): Promise<v
       throw new StorageConstraintError(
         'version',
         `version mismatch for ${where}: expected ${expected}, stored ${row.version as number}`,
+        {
+          model: write.model as string,
+          id: write.id as string,
+          version: row.version as number,
+          updated: row.updated as number,
+          updatedBy: row.updated_by as string,
+        },
       );
     }
   }
