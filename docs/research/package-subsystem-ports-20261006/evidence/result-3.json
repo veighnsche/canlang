@@ -1,0 +1,55 @@
+{
+  "request": {
+    "state": "Only package-owned functionality is under consideration: migrating packages/values arithmetic and wire/schema validation to Rust, with package build/loader support. The existing Rust compiler is outside the requested port and no compiler modification is necessary for the initial route. The known decimal contract stores rather than normalizes coefficient/scale, allows38 coefficient digits and fractional scale up to18, aligns operands exactly, rounds half-even after multiplication when needed, and divides at minimal terminating scale or18 digits otherwise. Sum operations can exceed the final bound temporarily and check once at completion. Raw exported BigInt helpers are broader than int64 values: arbitrary magnitudes can produce valid final results. wasm-bindgen converts large integer arguments by wrapping if they exceed the target width. i128 can hold admitted coefficients; bnum256-bit scratch can handle admitted binary intermediate results, but unrestricted helper operands require another route. num-bigint avoids a finite scratch limit; bigdecimal could be constrained by a Can wrapper. The96-bit integer backing of rust_decimal cannot represent the full accepted range. Current conformance fixtures and independent TS arithmetic oracle checks provide parity targets, not Rust performance evidence. The validator must preserve closedness, create defaults/trim, update omission distinct from explicit null, complete nested array/union elements, recursively versioned mutation references, secret encoding rejection, typed output and ordered path/code diagnostics. Its JS inputs can contain undefined or unmatched UTF16 surrogates, needing an explicit lossless adapter; standard JSON and UTF8 text alone are inadequate. Host Intl/zone data and WHATWG URL remain delegated at first. Current descriptor normalization plus a startup plan registry can resolve familiar type IDs once; dynamic invocation strings still need an intentional checked compatibility path. The evaluated deployment is a pure native-testable Rust core with Wasm bindings and unchanged synchronous TS exports. NAPI and compiler-generated richer descriptors are possible later, independent tasks, and no speed/binary-size result is available.",
+    "questions": {
+      "arithmetic_backend": {
+        "type": "choice",
+        "instructions": "For the first parity-preserving numeric port, weigh which backend gives the best balance of correctness review, implementation complexity, dependency cost and future tuning. Do not substitute anticipated benchmark results for evidence.",
+        "criteria": {
+          "bigint_first": "Create a Can decimal/checked-integer engine over num-bigint, translating the current exact rules directly, including large compatibility operands. After native and Wasm parity, replace proven bounded hot paths if useful. Potential disadvantages are allocation overhead, dependency/binary growth and delayed fast paths.",
+          "fixed_first": "Implement the bounded domain with i128 coefficients and bnum I256 intermediates now, and cover unrestricted existing exports with an explicit arbitrary-integer compatibility branch. The benefit is a bounded representation with plausible lower allocation; disadvantages are early width proofs and dual-path testing/maintenance.",
+          "decimal_wrapper": "Adapt bigdecimal rather than implementing all decimal arithmetic directly; enforce Can limits, preserve coefficient scale and map round/overflow behavior at the wrapper. Existing algorithms are reusable, but automatic precision, scale and formatting behavior must be audited and replaced where it differs."
+        }
+      },
+      "validator_backend": {
+        "type": "choice",
+        "instructions": "Which first validation design within packages/ best preserves all listed behaviors and eliminates recurring parsing for installed schema types at a manageable implementation cost?",
+        "criteria": {
+          "can_interpreter": "Build a Rust interpreter for an ordered structured plan normalized from existing descriptors during initialization. Keep dynamic-string compatibility and JS host adapters. It requires handwritten Can rules and lossless transfers, but provides a single clear owner of construction and diagnostic sequencing.",
+          "json_schema": "Employ generic Rust JSON Schema validation supplemented with Can custom constraints and input/output/error transformations. This reuses established validation tools and enables external-schema reuse, but introduces translation layers for omissions, defaults, tagged values and ordered errors.",
+          "hybrid": "Keep the current TS schema engine, moving only scalar codecs and checks into Rust calls. This lowers initial schema-behavior disruption; its drawbacks are two semantic owners and frequent JS-to-Wasm transitions for recursive values."
+        }
+      }
+    },
+    "model": "jev-latest"
+  },
+  "response": {
+    "model": "jev-1.13.0",
+    "answers": {
+      "arithmetic_backend": {
+        "type": "choice",
+        "choice": "bigint_first",
+        "confidence": 0.3,
+        "probabilities": {
+          "bigint_first": 0.53,
+          "fixed_first": 0.41,
+          "decimal_wrapper": 0.06
+        }
+      },
+      "validator_backend": {
+        "type": "choice",
+        "choice": "can_interpreter",
+        "confidence": 0.99,
+        "probabilities": {
+          "can_interpreter": 0.99,
+          "hybrid": 0.01,
+          "json_schema": 0.0
+        }
+      }
+    },
+    "usage": {
+      "input_tokens": 1153,
+      "output_tokens": 94
+    }
+  }
+}

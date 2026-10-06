@@ -1,0 +1,41 @@
+{
+  "state": "Four package migration plans are requested from the inspected revision30e211dae891cfdca3f6322ce45c46c426138830 dated2026-10-06. The port boundaries are exact values, prepared owned-data checks, common work/state decision machinery and artifact/deploy preparation. Folder names must express features, all source-port work is within packages, and existing compiler/lowering remains untouched. Compatibility includes synchronous exported APIs and JS-visible reads/errors. Arithmetic and validation use a common values semantics/bindings owner. Start numeric scratch with broad BigInt support; current compiled JS uses actual carrier properties, so retained Rust handles only have value in a real batched multi-stage consumer.\nThere is a concrete layering issue in work: it has no emitted package or export map, remains private0.0.0, and some kernel commands depend on state definitions. Conversely state's fanout rows are intentionally restated locally and refuse work source imports. Error wrapping and JSON-safety/clone behavior differ between producers. Durable Cloudflare claims/records use state production functions plus fenced storage, not the test-only in-memory work adapter. Its vendor list excludes work. Shared decisions require a pure acyclic owner and corresponding package/dist/build/vendor/release work without merging distinct policies.\nWasm runtime adoption also has prerequisites. Package APIs are synchronous and packaging is ESM. A precompiled Worker Wasm import allows preparation before requests, with synchronous exports after initialization. All current repository module transport paths are JS-source maps, so typed binary delivery and exact glue/initialization need an actual Node/workerd proof. TS can be explicitly chosen for a whole release. Failing a Rust evaluation and rerunning it in TS is unsafe for observable inputs and can hide defects. Fetch-on-each-call and dual native addon releases are unnecessary. Export/import-time readiness has to be compatible before existing callers switch.\nOwned JSON input is available in interfaces' real operation request function, but HTTP form construction and MCP callback objects lack inspected equivalent guarantees. The deployed assembly still has a501 HTTP operation response; it serves MCP through a real injected join. A synthetic workerd route alone does not show deployment adoption. Plan a bounded existing-handler join/provenance proof and keep uncertain callers on TS. State receipt hashing/replay happens before age/auth/input normalization and must stay there. New plan execution must preserve escaped lone surrogates, __proto__ own keys, ordering, floating-point/number input cases, undefined/presence and different interface/values/state error profiles.\nA coarse native tool can retain artifact/release/module/plan state, but external stages still belong to JS. Today the CLI reads artifact and sidecars, gates compatibility and bare deployment, gets an activation verdict, executes Bun MCP build plus interfaces catalog generation, forms a plan and only then reads the prior plan and prints review. Preview never writes deployment files. Confirmation checks compiler release before writes and delegates real deployment to Wrangler. Demand-driven coarse host requests during one native job can preserve that sequence and keep buffers owned; private temporary staging is acceptable with cleanup, host publication uses exact reviewed bytes. Host parsing retains syntax diagnostics, text-only digest contracts stay unchanged, and a binary variant is explicitly versioned. Native distribution cost and comparative performance remain to be established.",
+  "questions": {
+    "kernel_owner": {
+      "type": "choice",
+      "instructions": "Choose the shared-kernel packaging arrangement that best supports real work/state/Cloudflare reuse with an acyclic dependency graph.",
+      "criteria": {
+        "leaf_package": "Work retains ownership in a new contracts-only work-kernel package; migrate matching mechanisms there and add its dist/build/vendor/release contracts. Clean dependency separation, additional package surface.",
+        "work_subpath": "Work gains a pure public-to-internal subpath with a separate emit and graph constraints; consumers use only that entry. Avoids a new package but isolates a leaf inside a broader state-dependent package.",
+        "mirrored_adapters": "Keep current duplicated code and enforce matching behavior through common tests. Least packaging change; two semantic implementations continue and migration reuse remains limited."
+      }
+    },
+    "bootstrap": {
+      "type": "choice",
+      "instructions": "Select the loading strategy that can retain existing synchronous calls and faithful errors when adopting Wasm kernels.",
+      "criteria": {
+        "explicit_bootstrap": "Verify ready initialization per host/export path and choose one backend before handling calls; Rust-mode failures remain visible and TS rollback is a release switch. Exported operations stay synchronous, with adoption delayed for unproved hosts.",
+        "automatic_fallback": "Use Rust dynamically and recover failures by executing TS. Avoids explicit host readiness for many users but may redo observable work and hide incompatibility.",
+        "async_api": "Make each migrated public helper asynchronous so loading can be awaited. Convenient module readiness but breaks the current synchronous contract and its generated consumers."
+      }
+    },
+    "validation_adoption": {
+      "type": "choice",
+      "instructions": "What validation consumer milestone honestly establishes deployment value while the assembly HTTP operation endpoint remains501?",
+      "criteria": {
+        "bounded_join_gate": "Migrate the implemented HTTP JSON handler and test its binding in workerd; prove the owning HTTP route join or an owned MCP parsing seam before enabling the deployed default, preserving TS elsewhere. Bounded scope with an explicit adoption prerequisite.",
+        "fixture_completion": "Declare the port deployed after exercising the HTTP handler in a test-only Worker, leaving its actual route and SDK provenance for later. Faster milestone but does not establish production use.",
+        "whole_interfaces": "Replace the broader HTTP/MCP transport runtime and finish route serving as part of validation. Full control of input creation, at high server/transport scope cost."
+      }
+    },
+    "native_boundary": {
+      "type": "choice",
+      "instructions": "Select the preparation architecture that offers useful native data ownership and keeps host refusal, build, review and apply semantics intact.",
+      "criteria": {
+        "staged_job": "Use a single retained native job with ordered coarse requests to host-owned stages, private temporary outputs and the existing publication/apply wrapper. Bounded crossing cost and preserved order, with session/lifetime machinery.",
+        "eager_snapshot": "Provide one native function every host fact after collecting them all up front. Simpler DTO call but collection changes when failures/actions occur and much processing stays in JS.",
+        "whole_cli": "Transfer the full local CLI, filesystem and JS producer/deploy execution into Rust. Maximum orchestration ownership but expanded external responsibility and duplicated owner behavior."
+      }
+    }
+  }
+}
