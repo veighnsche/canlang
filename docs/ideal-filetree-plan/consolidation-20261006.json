@@ -5,11 +5,11 @@
   "checkpoint_advanced": false,
   "initial_main": "2b22cb4ecf637cce4bf90a17238cce12de045ba4",
   "current_merge": {
-    "branch": "port/artifact-preparation",
-    "tip": "01af11aa693258ba811216a639085ffbec7f22d4",
-    "before": "facdf90c48340e5a479b4f601b0df6b5afa4f3e2",
-    "scope": "history reconciliation; no additional net source",
-    "merge_output": "Automatic merge went well; stopped before committing as requested\n",
+    "branch": "codex/ci-gates/bootstrap-20261006",
+    "tip": "baacbc398da34320229dc78d06d2ac0a87b6a730",
+    "before": "c4bdd3e0ef716d92e9a4471bbdd77626704a1ea6",
+    "scope": "history reconciliation; preserve current stricter receipts and pinned native prerequisites",
+    "merge_output": "Auto-merging .github/ci/README.md\nAuto-merging .github/ci/ts-gate.mjs\nAuto-merging .github/ci/ts-gate.test.mjs\nAuto-merging .github/ci/verify-receipt.mjs\nAuto-merging .github/ci/verify-receipt.test.mjs\nAutomatic merge went well; stopped before committing as requested\n",
     "source_delta": []
   },
   "previous_merges": [
@@ -177,6 +177,15 @@
       "merge_output": "Auto-merging packages/contracts/src/wire.ts\nAuto-merging packages/state/src/invocation/registry.ts\nAutomatic merge went well; stopped before committing as requested\n",
       "source_delta": [],
       "result": "facdf90c48340e5a479b4f601b0df6b5afa4f3e2"
+    },
+    {
+      "branch": "port/artifact-preparation",
+      "tip": "01af11aa693258ba811216a639085ffbec7f22d4",
+      "before": "facdf90c48340e5a479b4f601b0df6b5afa4f3e2",
+      "scope": "history reconciliation; no additional net source",
+      "merge_output": "Automatic merge went well; stopped before committing as requested\n",
+      "source_delta": [],
+      "result": "c4bdd3e0ef716d92e9a4471bbdd77626704a1ea6"
     }
   ],
   "accumulated_structural_delta_since_complete_checkpoint": [
