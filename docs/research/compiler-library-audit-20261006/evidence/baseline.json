@@ -1,0 +1,496 @@
+{
+  "date": "2026-10-06",
+  "head": "309644a6881909d8dba32560bc6711f67e00a7ab",
+  "scope": "tracked compiler paths; compiler source files inspected by focused responsibility groups",
+  "source_files": 39,
+  "source_lines": 71473,
+  "tracked_files": 81,
+  "entries": [
+    {
+      "path": "compiler/.gitignore",
+      "bytes": 9,
+      "lines": 1,
+      "sha256": "306fd52e74fca6746e12acc750f232de15e71da917756a1270d74c91f5eb7368"
+    },
+    {
+      "path": "compiler/A2B-COMPOSITE-UNIQUE-CONVENTION.md",
+      "bytes": 5278,
+      "lines": 111,
+      "sha256": "1d892b9c81dc0dc37b728df06bc88c2183618890f95ab817a84aff3ba5399160"
+    },
+    {
+      "path": "compiler/A2B-NAMED-ARGS-CONVENTION.md",
+      "bytes": 4008,
+      "lines": 93,
+      "sha256": "e50da0ccd7ec0f5b5c82c4eccd9fde61858b86190177c6f11ddac9aafa4a38c3"
+    },
+    {
+      "path": "compiler/A2B-ROUTING.json",
+      "bytes": 2477,
+      "lines": 61,
+      "sha256": "089ea13c980dd94779930c73e46cf99a37697569a297d3941a99bbc38961c2c0"
+    },
+    {
+      "path": "compiler/A2B-UI-NODE-FACTORY-CONVENTION.md",
+      "bytes": 6026,
+      "lines": 115,
+      "sha256": "f990202c5669d44519a49d4fe7bd430978dbdca4b56ad52e46fbf04e3a5baeff"
+    },
+    {
+      "path": "compiler/A5-T08-PARITY-PROPOSAL.md",
+      "bytes": 12553,
+      "lines": 226,
+      "sha256": "e3936016d8d1cc62e95691ecf6894a54e48e193e1618c9da4c34dead7de4a94e"
+    },
+    {
+      "path": "compiler/B4-G-NONHOOK-CONTEXT-BINDINGS.md",
+      "bytes": 7321,
+      "lines": 144,
+      "sha256": "782ad76b9197cfd0f9598b5e54a13191197a5433c4f417489d2310bd781e117b"
+    },
+    {
+      "path": "compiler/Cargo.lock",
+      "bytes": 160,
+      "lines": 7,
+      "sha256": "dd8cf830aabc31d8158cd402cef624ef17c6239c2dda654b838315fd56a04c7a"
+    },
+    {
+      "path": "compiler/Cargo.toml",
+      "bytes": 438,
+      "lines": 23,
+      "sha256": "9ce36d8b83765b88af6c80dcfec9e16b016d2d18b6f8ce0d7c19189c1b524356"
+    },
+    {
+      "path": "compiler/README.md",
+      "bytes": 2691,
+      "lines": 49,
+      "sha256": "32f02453f64ebb6cd1ca7fe117d5eafa9e2735e4f666c0885524bcc1f2728264"
+    },
+    {
+      "path": "compiler/build.rs",
+      "bytes": 1538,
+      "lines": 46,
+      "sha256": "e2dc104fdaf25d3d1edf5097171ee3766f5ecc21261b0d8fd0452adad715b577"
+    },
+    {
+      "path": "compiler/can-completions.bash",
+      "bytes": 2428,
+      "lines": 75,
+      "sha256": "f3af676df6f89791faf2ed3cb01909c3f1340f86a1065d8801ad27149c78b51e"
+    },
+    {
+      "path": "compiler/can-completions.fish",
+      "bytes": 3876,
+      "lines": 55,
+      "sha256": "9945da1f16f9fdac5c19da03fc9db1eeced5898252114b2250ff39327b515be2"
+    },
+    {
+      "path": "compiler/can-completions.zsh",
+      "bytes": 3014,
+      "lines": 78,
+      "sha256": "dc98a83e852c510b93310afb5f66d78080cc53fcc1a18543b90e73603063d6e2"
+    },
+    {
+      "path": "compiler/src/analysis/catalog.rs",
+      "bytes": 101281,
+      "lines": 2702,
+      "sha256": "ce23e264abc3a89b21d3d2e29be01ee8a9b04e2522ed0b2fd77310bc714901c5"
+    },
+    {
+      "path": "compiler/src/analysis/check.rs",
+      "bytes": 5151,
+      "lines": 142,
+      "sha256": "9b1461d48ef4a35f0b43c205db029f4300f9cfb833c2d8a75027ca80c42a0491"
+    },
+    {
+      "path": "compiler/src/analysis/effects.rs",
+      "bytes": 197716,
+      "lines": 5272,
+      "sha256": "1a9968ec8556dca0b09b999949798074aefdd5f363d42b79c2fcc8158113591f"
+    },
+    {
+      "path": "compiler/src/analysis/examples.rs",
+      "bytes": 119795,
+      "lines": 3306,
+      "sha256": "ead013a4b4691ef582c79eed63b5993345b919b0a5ea1579b4c9a09b6bd1b1ec"
+    },
+    {
+      "path": "compiler/src/analysis/migrate_check.rs",
+      "bytes": 24406,
+      "lines": 616,
+      "sha256": "e62b9bee64033ec0071687fe0014b60ff8f1124d00538ad4ace09af3da053ebb"
+    },
+    {
+      "path": "compiler/src/analysis/mod.rs",
+      "bytes": 8566,
+      "lines": 233,
+      "sha256": "4debfe707daf81d33d5f67e10b3a0da3d1f0bd0e465c62204ae8ace19fef99ec"
+    },
+    {
+      "path": "compiler/src/analysis/resolve.rs",
+      "bytes": 206056,
+      "lines": 5435,
+      "sha256": "c1dc6a79b65a8e9fad2a1c63e5c550315012ca4b4849c39330f9527394810e50"
+    },
+    {
+      "path": "compiler/src/analysis/types.rs",
+      "bytes": 639271,
+      "lines": 15807,
+      "sha256": "a17f555df55b8a9ffd88fe7164a28419a9b3e6fc0bef5beabeda9a205b74d1c1"
+    },
+    {
+      "path": "compiler/src/cli.rs",
+      "bytes": 83442,
+      "lines": 2078,
+      "sha256": "b45e3a78b1db32dd09f96c68d3aec3928f629c8545091f41e6064509d726dc88"
+    },
+    {
+      "path": "compiler/src/codegen/artifact.rs",
+      "bytes": 22385,
+      "lines": 638,
+      "sha256": "a6668e5409ba9cff20f7260511ca6456908c51e31d780412beedddc74a94cba4"
+    },
+    {
+      "path": "compiler/src/codegen/bdd.rs",
+      "bytes": 15330,
+      "lines": 448,
+      "sha256": "4daae9fefa7148859cac4533d6cb9ce04bab67ea3f87010e1c0fd94b181d21e5"
+    },
+    {
+      "path": "compiler/src/codegen/ir.rs",
+      "bytes": 342219,
+      "lines": 8844,
+      "sha256": "b2880eda9aa126eed4ba362cec0173d155cb12392233638ca4fd8ad5c057abeb"
+    },
+    {
+      "path": "compiler/src/codegen/js.rs",
+      "bytes": 235086,
+      "lines": 5788,
+      "sha256": "0d2ffcb6fc749b79454f70358e17fd0a26736507d0169322e97399936ee306d0"
+    },
+    {
+      "path": "compiler/src/codegen/mod.rs",
+      "bytes": 8512,
+      "lines": 223,
+      "sha256": "b8c4a5a8faa39500193afedb7053d49ad023dc74dca0c7a4e7969bf61fa658e3"
+    },
+    {
+      "path": "compiler/src/codegen/sourcemap.rs",
+      "bytes": 7995,
+      "lines": 242,
+      "sha256": "eefeb9d2b8bebd6f6c70cf121415daa7918177f5c17b71adfc6b6990024782d3"
+    },
+    {
+      "path": "compiler/src/diagnostic.rs",
+      "bytes": 12335,
+      "lines": 370,
+      "sha256": "f3fcd6af3d5b7b4668503c54e860b9854f4aab2b1fb3a50c4359a7e84bcb7691"
+    },
+    {
+      "path": "compiler/src/docs.rs",
+      "bytes": 52773,
+      "lines": 1392,
+      "sha256": "0253b7b28b306bd775e1ba683df3726fca0fc03b3f2e858d306efad6ba6c4b43"
+    },
+    {
+      "path": "compiler/src/explain.rs",
+      "bytes": 81615,
+      "lines": 1075,
+      "sha256": "5f35a5511e8d9a2cd1dd59655c446f0d24066d8f31e9dfd6376c1d6f7f0b85a6"
+    },
+    {
+      "path": "compiler/src/format.rs",
+      "bytes": 29218,
+      "lines": 714,
+      "sha256": "13897d9c121f7f4941d5ce5af65b0f23f3b56aca30460fe134613e580b900c03"
+    },
+    {
+      "path": "compiler/src/ide/fixes.rs",
+      "bytes": 6959,
+      "lines": 165,
+      "sha256": "dec86317bd2bd2bc22f66c27643d5afc70d4997abacd174058031fd35402399d"
+    },
+    {
+      "path": "compiler/src/ide/mod.rs",
+      "bytes": 519,
+      "lines": 12,
+      "sha256": "cadad2e06e0c21495f96fddaa04c3ec898e16779e4055e7092fc77a916a8a542"
+    },
+    {
+      "path": "compiler/src/ide/queries.rs",
+      "bytes": 54225,
+      "lines": 1440,
+      "sha256": "c76ea4e3748ea0928d129f02001771970c7b84467421786b4c07e01dafe5060a"
+    },
+    {
+      "path": "compiler/src/ide/tokens.rs",
+      "bytes": 17200,
+      "lines": 445,
+      "sha256": "08907dd10a6d7b44ef3e5e28ba8a55e02b0c05e98ccfd534363cd8eebc2bd96c"
+    },
+    {
+      "path": "compiler/src/json.rs",
+      "bytes": 14780,
+      "lines": 425,
+      "sha256": "5d4f2283206fff41501b00eab13221f4255e97836a810b46d4766ea23968cdc1"
+    },
+    {
+      "path": "compiler/src/lib.rs",
+      "bytes": 1126,
+      "lines": 38,
+      "sha256": "36ed081a75985d1e406f6f30c9daaa7cc492725f2b594f68a867547e246b5971"
+    },
+    {
+      "path": "compiler/src/lint/driver.rs",
+      "bytes": 17987,
+      "lines": 518,
+      "sha256": "a13aab791a40561a025fc51a7dbde052e4e14e9b784da1449e04f8d80772ba03"
+    },
+    {
+      "path": "compiler/src/lint/mod.rs",
+      "bytes": 1165,
+      "lines": 27,
+      "sha256": "fd8590276ed4362722b252398936d519e4964a70fee4cef30faa854d1cd4dc0d"
+    },
+    {
+      "path": "compiler/src/lint/rules.rs",
+      "bytes": 45349,
+      "lines": 1264,
+      "sha256": "05998b3045048f6b1b64f319422be2178ec530297bfa2e4141f0bf5eb9c5983e"
+    },
+    {
+      "path": "compiler/src/lsp/mod.rs",
+      "bytes": 244,
+      "lines": 7,
+      "sha256": "ba384f9a242e1824bcfff573d658b297d4a157207ae2a30c4c7b25826ad053b3"
+    },
+    {
+      "path": "compiler/src/lsp/server.rs",
+      "bytes": 57186,
+      "lines": 1549,
+      "sha256": "789cfcad607502368bac6c1a7d2a36ce53945fb606c91e3b6f7194f309b9fff0"
+    },
+    {
+      "path": "compiler/src/lsp/transport.rs",
+      "bytes": 11210,
+      "lines": 298,
+      "sha256": "43172ab05dde0d95fcb99b540cdb726860d69159ccdf0d1f6eae60cd41296a2c"
+    },
+    {
+      "path": "compiler/src/main.rs",
+      "bytes": 1845,
+      "lines": 43,
+      "sha256": "5e8cd0e926e46ea407ced9032706d07a3d608d1a5720f44d3f21eb0ccf688bdd"
+    },
+    {
+      "path": "compiler/src/policy.rs",
+      "bytes": 31001,
+      "lines": 811,
+      "sha256": "0af28353ed2c490656595dc0aec57962f44ef3e0b68380827fda957e5b446e8a"
+    },
+    {
+      "path": "compiler/src/source.rs",
+      "bytes": 12528,
+      "lines": 336,
+      "sha256": "a4e493db5a26e679db8e2cf7b40e48320fb55e2b81b88b01e05c77c300296be7"
+    },
+    {
+      "path": "compiler/src/syntax/cst.rs",
+      "bytes": 13466,
+      "lines": 456,
+      "sha256": "afcd094b8a9606c1cc09910c00eca4619b3394cc1a3abcdae5ab51413c0e9bb6"
+    },
+    {
+      "path": "compiler/src/syntax/layout.rs",
+      "bytes": 31617,
+      "lines": 873,
+      "sha256": "3f8cda7a4ba1f18c98af49a6c78f518c89b699e7ccc92ea72679129e6d338a87"
+    },
+    {
+      "path": "compiler/src/syntax/lexer.rs",
+      "bytes": 30491,
+      "lines": 920,
+      "sha256": "803b9408639a970af8435be66901e8d461aa03650ffad8db9e040c5195b2d9e0"
+    },
+    {
+      "path": "compiler/src/syntax/mod.rs",
+      "bytes": 4763,
+      "lines": 103,
+      "sha256": "2a1517f81512614a7761082b3b03700023f51e6444175f69c8d865dca318b04d"
+    },
+    {
+      "path": "compiler/src/syntax/parser.rs",
+      "bytes": 256856,
+      "lines": 6418,
+      "sha256": "b9eabdacca842a94ff7764de2369af6058378ec31de7b82feeecbdedb793890b"
+    },
+    {
+      "path": "compiler/tests/analysis.rs",
+      "bytes": 77858,
+      "lines": 1615,
+      "sha256": "5f6f4310a815181e61ea1f2d3ac78803c423b148043e29f7aa9f5f33ded18b3f"
+    },
+    {
+      "path": "compiler/tests/authoring.rs",
+      "bytes": 34136,
+      "lines": 911,
+      "sha256": "cf5c1874bde06f11e0b2c6e9966fb1d8502e28e9ff9f37218b9abe5e5b7adfde"
+    },
+    {
+      "path": "compiler/tests/b1_join.rs",
+      "bytes": 32986,
+      "lines": 821,
+      "sha256": "eb58b469184cdbe56d157193baa0980089179ea8d29609219661a536ef8f5dcc"
+    },
+    {
+      "path": "compiler/tests/b3_authoring_join.rs",
+      "bytes": 15741,
+      "lines": 437,
+      "sha256": "a649d8e80787a804fc62948263a9ff0e307bf27cdccd9fa039d66f7869bd8b4e"
+    },
+    {
+      "path": "compiler/tests/b3_i5.rs",
+      "bytes": 5645,
+      "lines": 165,
+      "sha256": "59cb00323cc3a935c4f1a16cd329b99164ea778025aadedd94aa74d4714d7d59"
+    },
+    {
+      "path": "compiler/tests/b3_migrate.rs",
+      "bytes": 12717,
+      "lines": 350,
+      "sha256": "6c8ed4ee07139b9cacade969218914e7a475574678a03ede7869b9c16dfb5de8"
+    },
+    {
+      "path": "compiler/tests/b3_s4.rs",
+      "bytes": 9138,
+      "lines": 253,
+      "sha256": "c92cb007fbe4cb41ecaf2bf79f6bc6e97ee117732db7cc9205190ae2a940918d"
+    },
+    {
+      "path": "compiler/tests/b4_check.rs",
+      "bytes": 174771,
+      "lines": 3631,
+      "sha256": "e8fb9f700d40bb2c00a940e258f7c117ffd1be018108d8893be5d33f16ce08aa"
+    },
+    {
+      "path": "compiler/tests/b4_examples.rs",
+      "bytes": 33990,
+      "lines": 822,
+      "sha256": "47a2eb4ed22c63d6404391678f9832943c8cadac3b5831a0677e257f7fc88924"
+    },
+    {
+      "path": "compiler/tests/b4_parse.rs",
+      "bytes": 20407,
+      "lines": 530,
+      "sha256": "958370d195bb9b1b73d7a0aa387ce7b1209efac0c4f451ba11ac3635f2c730a0"
+    },
+    {
+      "path": "compiler/tests/b4_resolve.rs",
+      "bytes": 14071,
+      "lines": 464,
+      "sha256": "35440927fe737430640de6adef022699b1e660694306331794d2a7e6dbf9491c"
+    },
+    {
+      "path": "compiler/tests/b4_setparent.rs",
+      "bytes": 5276,
+      "lines": 166,
+      "sha256": "055c88d0180a2a9a5d9c357c0a86a569aa102046801b781b3d3dafed7a3fc6c7"
+    },
+    {
+      "path": "compiler/tests/b4_witness.rs",
+      "bytes": 10809,
+      "lines": 227,
+      "sha256": "2ffa905e3b8f3902251001e19f74137a020615214debd15569c0f857cf29dc25"
+    },
+    {
+      "path": "compiler/tests/check.rs",
+      "bytes": 41101,
+      "lines": 974,
+      "sha256": "69d56d413b7696937bf670d41393afc55b5073be19cd8d96c19f47f7870cd00d"
+    },
+    {
+      "path": "compiler/tests/codegen.rs",
+      "bytes": 286071,
+      "lines": 7386,
+      "sha256": "9035f2b2882d469d906c86635eef2a7112c20a601d7611cf800e36f3a5796fd6"
+    },
+    {
+      "path": "compiler/tests/common/lsp_driver.rs",
+      "bytes": 9165,
+      "lines": 240,
+      "sha256": "719ee4dbf4e49daf281a860dc9e1df06aa073aa3509ba6059bcc95302b157491"
+    },
+    {
+      "path": "compiler/tests/data/AuthoringDemo.can",
+      "bytes": 181,
+      "lines": 10,
+      "sha256": "427840701511b8d7b49ecc4896e0ef2b0d43a9c975fe40750100f5b5dff625db"
+    },
+    {
+      "path": "compiler/tests/data/s4_fix.can",
+      "bytes": 123,
+      "lines": 9,
+      "sha256": "29fe448626e1a47546294b396da30beccdf3b897cec0881aa59106cb04155f8c"
+    },
+    {
+      "path": "compiler/tests/docs.rs",
+      "bytes": 62578,
+      "lines": 1589,
+      "sha256": "5e4ab1d6d7b04796e38013dee10561754be69d6cf631e5bcfa028003f3660c3f"
+    },
+    {
+      "path": "compiler/tests/effects.rs",
+      "bytes": 52029,
+      "lines": 1697,
+      "sha256": "017ffa89d034d034b74cf03facafc7a912f82e235d436cbfcffffb0117ad60d8"
+    },
+    {
+      "path": "compiler/tests/exe.rs",
+      "bytes": 12531,
+      "lines": 356,
+      "sha256": "7b5340c0207bc54be85f01dca5d70ce177a2201427ab6e8e01d1bcee77e9510a"
+    },
+    {
+      "path": "compiler/tests/format.rs",
+      "bytes": 19392,
+      "lines": 445,
+      "sha256": "2016709d754ac964851b64247df33863ed15ebeff6c00fa284758accd00b1f8d"
+    },
+    {
+      "path": "compiler/tests/foundation.rs",
+      "bytes": 2613,
+      "lines": 66,
+      "sha256": "1717dd69603cc837ae29d79292d22c7be34f2186dc96d888c4d86b803f11b6b6"
+    },
+    {
+      "path": "compiler/tests/ide.rs",
+      "bytes": 34627,
+      "lines": 917,
+      "sha256": "3a40406d14efa29681e18cc560e4d9d6954c9dd347063e4f7c967c940d967457"
+    },
+    {
+      "path": "compiler/tests/lint.rs",
+      "bytes": 30137,
+      "lines": 745,
+      "sha256": "0080ea861dfccdbe6d8de2a276768354370520cf152c8c36ace39b2fa5257635"
+    },
+    {
+      "path": "compiler/tests/mcp_p1.rs",
+      "bytes": 20322,
+      "lines": 517,
+      "sha256": "79a971d9f43b6db59df4bb576481bf2737614a696626b69a9051a23091cf4c39"
+    },
+    {
+      "path": "compiler/tests/mcp_p4.rs",
+      "bytes": 20678,
+      "lines": 538,
+      "sha256": "ac0de2974bfce5fe2c08a8cb64eb3eee075b85ee5ba2373b0f641616228f6821"
+    },
+    {
+      "path": "compiler/tests/syntax.rs",
+      "bytes": 61098,
+      "lines": 1590,
+      "sha256": "4787f173d4e6e7c22c2ecf4255dc5955e85079442ec26962de2c8aaf2b0299e8"
+    }
+  ]
+}

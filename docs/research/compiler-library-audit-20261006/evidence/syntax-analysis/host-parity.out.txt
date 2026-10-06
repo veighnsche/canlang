@@ -1,0 +1,9 @@
+"en-u-ca-gregory": ["en-u-ca-gregory"]
+"en-x-private": ["en-x-private"]
+"en-US-US": RangeError
+"en-US": ["en-US"]
+"💥💥💥": TypeError
+"https://[garbage]": TypeError
+"https://host:999999": TypeError
+"https://valid.example": "https:"
+"https://user:pass@example.com": "https:"

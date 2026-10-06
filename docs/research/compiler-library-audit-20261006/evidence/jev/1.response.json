@@ -1,0 +1,36 @@
+{
+  "request": {
+    "state": "Canlang compiler audit at 309644a6881909d8dba32560bc6711f67e00a7ab: 39 Rust source files, 71473 source lines; Cargo.lock lists only the compiler. Its README calls it dependency-free; this investigation found no user requirement forbidding third-party crates. The language has custom layout, recoverable lossless CST, permissions/effects/type checking and Can-to-JS lowering. Those are domain responsibilities, not proven replaceable by general crates. Commodity code includes SHA-256 rounds; a full JSON parser plus several separate string decoders/serializers; stdio LSP framing and dynamically assembled protocol objects; CLI parsing/help/completions; source-map VLQ; URI parsing; temp-file replacement; URL/locale/date validators. Public API probes reproduce valid JSON source string \\b\\f\\uD83D\\uDE00 emitted as bf plus two replacement characters, a malformed URL literal containing three emoji panicking inside a byte slice, invalid bracketed hosts and huge ports accepted, invalid UTF-8 LSP input repaired with replacement characters and answered, and fmt changing file mode 0600 to 0644. Existing 89 library tests pass, so test success does not exclude these observations. Library APIs were inspected, not integrated or benchmarked: sha2 implements SHA-256; serde_json supports typed serialization, strict string decoding and raw_value; url handles WHATWG URLs/file paths; tempfile supports same-directory persistence. lsp-types supplies protocol types. Stock lsp-server 0.10 uses i32/string IDs and its framing source lacks the existing 64MiB body cap, so it is not a drop-in fix. serde_json::Value alone does not retain duplicate object members or guarantee every original numeric spelling; current Json is ordered pairs and raw number text with depth64. Can error codes/order, request-ID fidelity, limits, exit0/10/2, lifecycle and generated behavior are obligations. No crate addition, performance measurement or whole-repository architecture audit was performed. This is advice about next maintenance work, not authorization to implement.",
+    "questions": {
+      "approach": {
+        "type": "choice",
+        "instructions": "Which maintenance approach is best supported as the next proposal by this evidence and these compatibility obligations?",
+        "criteria": {
+          "TARGETED": "Introduce narrowly scoped libraries for standardized mechanisms in small independently checked changes; preserve Can policy in adapters. Costs include transitive dependencies, binary/build/version exposure and migration work; benefits include retiring duplicate standards code and concentrating verification on compatibility.",
+          "CUSTOM": "Keep zero external dependencies and repair the observed mechanisms locally with independent conformance checks. This avoids dependency and serializer churn and preserves current APIs, while requiring continued maintenance of JSON, hashing, URI and protocol standards code.",
+          "FRAMEWORK": "Plan broader adoption of CST/parser/incremental and JS AST/LSP frameworks together. This could consolidate infrastructure and prepare future growth, while requiring large recoverability/lowering/API migration without current performance evidence or measured need."
+        }
+      }
+    },
+    "model": "jev-latest"
+  },
+  "response": {
+    "model": "jev-1.13.0",
+    "answers": {
+      "approach": {
+        "type": "choice",
+        "choice": "TARGETED",
+        "confidence": 0.83,
+        "probabilities": {
+          "FRAMEWORK": 0.0,
+          "TARGETED": 0.89,
+          "CUSTOM": 0.11
+        }
+      }
+    },
+    "usage": {
+      "input_tokens": 944,
+      "output_tokens": 48
+    }
+  }
+}

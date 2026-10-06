@@ -1,0 +1,20 @@
+{
+  "date": "2026-10-06",
+  "scope": "planning-only pass-sequence verification, refreshed for economical Codex dispatch and commit policy; no product tests rerun",
+  "head": "309644a6881909d8dba32560bc6711f67e00a7ab",
+  "baseline_head_matches": true,
+  "compiler_files_verified": 81,
+  "compiler_hash_mismatches": [],
+  "tracked_compiler_inventory_matches": true,
+  "tracked_inventory_added": [],
+  "tracked_inventory_removed": [],
+  "local_links_checked": 34,
+  "missing_local_links": [],
+  "git_diff_check_exit_code": 0,
+  "git_diff_check_output": "",
+  "operating_policy_review": {
+    "model": "gpt-6-luna",
+    "reasoning_effort": "medium",
+    "result": "no corrections; read-only scope and dispatch/commit policy review"
+  }
+}

@@ -1,0 +1,4 @@
+"en-u-ca-gregory": [("E3001", "`en-u-ca-gregory` is not a valid locale: invalid subtag 'u'")]
+"en-x-private": [("E3001", "`en-x-private` is not a valid locale: invalid subtag 'x'")]
+"en-US-US": []
+"en-US": []
