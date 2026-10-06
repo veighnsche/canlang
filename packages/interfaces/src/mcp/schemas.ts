@@ -28,7 +28,7 @@ import type {
   DerivedOperationInputs,
   DerivedWritableInput,
 } from '@canlang/contracts';
-import { INT64_MAX, INT64_MIN, ValueError, parseDecimal } from '@canlang/values';
+import { INT64_MAX, INT64_MIN, SchemaError, ValueError, decodeValue, parseDecimal } from '@canlang/values';
 import type {
   McpInputSchema,
   McpNamedField,
@@ -968,8 +968,10 @@ export function toToolInputSchemaFromArtifact(op: ArtifactOperation): Record<str
 /* the `versioned` flag, enum membership, file opacity, numeric wire  */
 /* shapes — and delivery to nothing. Binding mismatch is               */
 /* `validation`; version staleness stays L3-owned (`conflict`).        */
-/* Strings, datetimes, booleans, and array-element nulls carry no      */
-/* declared set to bind and pass through to L3 admission untouched.    */
+/* Strings, booleans, and array-element nulls carry no declared set   */
+/* to bind and pass through to L3 admission untouched. Datetimes      */
+/* decode through the canonical values-wire form (millis-pinned RFC   */
+/* 3339 UTC) because L3 admission judges presence only (E2b/F-R4).     */
 /* ------------------------------------------------------------------ */
 
 /** One binding failure: `validation` with the offending member path. */
@@ -1056,8 +1058,26 @@ function checkBoundElement(
         ? null
         : bindingError(path, `Invalid value for input ${JSON.stringify(input.name)}: ${detail}.`);
     }
+    case 'datetime': {
+      // E2b/F-R4 join: the dispatcher applies the canonical values-wire
+      // decode — L3 admission judges presence only and will not catch a
+      // non-conforming string (lane B relay). Millis-pinned RFC 3339 UTC
+      // binds; anything else mismatches. Not a parallel engine: the
+      // canonical decoder owns the verdict; only its outcome is projected.
+      try {
+        decodeValue('datetime', value);
+      } catch (err) {
+        if (!(err instanceof SchemaError)) throw err;
+        return bindingError(
+          path,
+          `Invalid value for input ${JSON.stringify(input.name)}: ` +
+            'datetime values are RFC 3339 UTC instants with millis ' +
+            `(got ${JSON.stringify(value) ?? 'undefined'}).`,
+        );
+      }
+      return null;
+    }
     case 'string':
-    case 'datetime':
     case 'boolean':
       // No declared set to bind: L3 admission owns these values.
       return null;

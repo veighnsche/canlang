@@ -323,10 +323,19 @@ async function invokeOrdinaryMode(
   if (closedError !== null) {
     throw new McpError(ErrorCode.InvalidParams, closedError.message);
   }
+  // E2b null parity with HTTP: the derived channel owns nullability, so an
+  // explicit null on a derived-declared ref input skips shape framing here
+  // and binds below (nullable admits, else InvalidParams) — exactly the
+  // HTTP verdict, which has no ref-shape framing step. Shape-only catalogs
+  // (no derived channel) and skewed undeclared members keep strict framing.
+  const derived = deps.catalog.derivedFor?.(descriptor.name) ?? null;
+  const nullDefersToBinding = (name: string, value: unknown): boolean =>
+    value === null && (derived?.inputs.some((input) => input.name === name) ?? false);
   for (const named of descriptor.inputs.fields) {
     if (named.field.kind !== 'ref') continue;
     if (!Object.prototype.hasOwnProperty.call(businessInputs, named.name)) continue;
     const value: unknown = businessInputs[named.name];
+    if (nullDefersToBinding(named.name, value)) continue;
     // Keyed on the descriptor's requireVersion (matching the generated
     // schema), not the tool kind: a mutation input modeled without a
     // version accepts ReadRef shape, exactly as its schema advertises.
@@ -344,8 +353,8 @@ async function invokeOrdinaryMode(
   }
   // E1 bound-input wiring: framing first (above), then each present value
   // binds to its derived declaration. Catalogs without the derived
-  // channel keep framing-only behavior.
-  const derived = deps.catalog.derivedFor?.(descriptor.name) ?? null;
+  // channel keep framing-only behavior (`derived` was fetched above for
+  // the E2b null rule and is reused here).
   if (derived !== null) {
     const boundError = checkBoundArguments(derived, businessInputs);
     if (boundError !== null) {
