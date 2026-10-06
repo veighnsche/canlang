@@ -1,7 +1,7 @@
 # A2b: named-arguments convention — evidence + proposal (for C stdlib review)
 
-Compiler-side draft (A2b scope, base `d93fc4b`). No checker/emitter
-edits. Implementation follows C's review + a later grant.
+Compiler-side draft (A2b scope, rev2 vs `9c1d35c`, base `d93fc4b`).
+No checker/emitter edits. Implementation follows a later grant.
 
 ## 1. Corpus evidence (all 12 sites)
 
@@ -40,14 +40,24 @@ shape is trailing-`fold=`.
 
 ## 3. Proposal: named → positional in signature order
 
-The compiler keeps one rule for every builtin call: after analysis
-binds arguments to catalog-signature parameters, the emitter passes
-values **positionally in signature order**. Names never reach the
-wire:
+The compiler keeps one rule for every **builtin catalog call**: after
+analysis binds arguments to catalog-signature parameters, the emitter
+passes values **positionally in signature order**. Names never reach
+the wire:
 
 ```js
 local_instant(day, opens, tz, fold)   // from fold=<expr> 4th
 ```
+
+Scope (rev2, per C flag — CONFIRMED): message/ICU calls are OUT of
+this rule. DESIGN:852 gives them named args (`@{nl=…}(n=…)`), and
+DESIGN:1085 lowers them to a name-preserving descriptor
+(`message(source,{…},{name:{type,value},…})`). The compiler already
+routes them through a different decoder (`IrExpr::Message` →
+`lower_message`, `js.rs:2411`; named `IrMessage.params`,
+`ir.rs:1349-1382`), never through `bind_arguments`. The
+positionalization rule applies only to builtin catalog calls lowered
+via `decode_call`.
 
 Consequences:
 
@@ -61,14 +71,19 @@ Consequences:
 - Future builtins with named params lower by the same rule at no
   per-builtin cost, as long as their JS signatures stay positional.
 
-## 4. Questions for C
+## 4. C review answers (vs `9c1d35c`, ADOPTED rev2)
 
-1. Confirm stdlib JS signatures stay positional (no options-object
-   overloads), so the compiler rule holds for all builtins.
-2. Confirm the `fold` enum wire spelling (`"earlier"`/`"later"`
-   strings, as the timezone tests show).
-3. Is there any current/future builtin whose named argument must
-   NOT be positionalized (a second `format`-style exception)?
+1. Positional stdlib: YES — stdlib JS stays positional, no
+   options-object overloads (C surveyed stdlib-pure/timezone/text/
+   locale/money/decimal; records only as single positional values
+   or inside the `format` carve-out).
+2. `fold` wire spelling: YES — `"earlier"`/`"later"` strings (Fold
+   type + timezone tests).
+3. Second exception: NONE — only `format` (locale carve-out: wraps
+   into 2nd-arg options) and `local_instant` (fold, 4th slot)
+   declare named params; corpus shows only trailing `fold=`.
+4. Flag (message/ICU): CONFIRMED different decoder — scoped out of
+   this rule (see §3).
 
 ## 5. Rejected alternative
 

@@ -1,7 +1,7 @@
 # A2b: composite-unique convention — evidence + proposal (for B contract review)
 
-Compiler-side draft (A2b scope, base `d93fc4b`). No checker/emitter
-edits. Implementation follows B's review + a later grant.
+Compiler-side draft (A2b scope, rev2 vs `9c1d35c`, base `d93fc4b`).
+No checker/emitter edits. Implementation follows a later grant.
 
 ## 1. Corpus evidence (1 site)
 
@@ -20,6 +20,11 @@ posture: stored uniqueness "remains reserved until physical
 disposal"; admission returns retryable `busy` (never silent success)
 when a retention-blocked key cannot be disposed.
 
+Evidence note (rev2, per B caveat): the raw-diags file lives in the
+generation scratch evidence dir (lane-G evidence), not in the lane-A
+repo tree — the "1 site" count is cited from there. The DESIGN
+citations above verify independently.
+
 ## 2. What the compiler already carries
 
 - Fully decoded IR: `IrUnique{fields, where_predicate, span}`
@@ -32,12 +37,12 @@ when a retention-blocked key cannot be disposed.
   but drops the `where=` predicate and the field structure. Any
   consumer reading `uniqueKeys` today sees the fixture key as an
   unconditional single-field key, which is wrong on both counts.
+  Rev2 ruling (per B): SHED composites from `uniqueKeys` (see §4).
 
 ## 3. Proposal: sparse `uniques` member + registry rule
 
 Add a sparse member on the model entry in `appDefinition.models`,
-mirroring the `locks:[{fields,when?}]` shape, with the predicate as
-a registry rule reference (same pattern as invariants):
+with the predicate as a registry rule reference:
 
 ```js
 "shop.M": {
@@ -49,24 +54,51 @@ a registry rule reference (same pattern as invariants):
 - `fields`: dotted selector paths in source order (from `IrUnique`).
 - `where`: registry id of an `async(c,row)=>bool` rule, emitted
   next to invariants; absent when no `where=` was authored.
+- Shape precedent (rev2 CORRECTION, per B): the rev1 `locks:` mirror
+  claim was wrong — emitter `locks:` is flat string ids
+  (`js.rs:3742,4219`). `uniques` is a NEW object-member shape; the
+  real registry-ref precedent is `invariants:[ids]`
+  (`js.rs:3732,4211`). Do NOT extend `uniqueKeys` to objects
+  (string-typed in `CanonicalModelDescriptor.uniqueKeys` +
+  `ArtifactModel.uniqueKeys`, consumed by T16/T17 L3 intake).
+- Registry conditions (per B): namespaced rule ids
+  (`<Model>.unique.<n>`); rule purity/signature documented (row
+  predicate, no writes).
 - Enforcement stays B's runtime contract: admission-time key check
-  before write (DESIGN:578 `busy` semantics); the compiler only
-  publishes the key + predicate.
-- `uniqueKeys` keeps its current string form for descriptor
-  consumers (no silent widening there); B decides in review whether
-  it should also gain structure.
+  vs the published key + predicate, DESIGN:578 `busy` semantics
+  (nulls excluded unless predicate includes; retained archived
+  rows participate; reservation until disposal; bounded attempt
+  then retryable `busy`). Reservation sits inside the fence/commit
+  path, not a row hook. The `where` rule MUST resolve server-side
+  in the admission runtime (T04b/I00 loader-join), never from the
+  envelope. SCOPE FLAG: this is NEW B work beyond accepted
+  B1-B5/B7 — implemented only under scoped dispatch + grant.
+- Scope (per B): NO extra scope tag. The §13 model entry already
+  publishes `parent`/`scope:"app"` (`js.rs:3715-3725`); each
+  `uniques` entry INHERITS its enclosing entry scope — document
+  this invariant, and keep scope members on every entry carrying
+  `uniques` (no scope-less model entry may carry `uniques`).
+- T15a migration (per B): `uniqueKeys` = field-level names only;
+  the comma-joined composite form is actively false and now a
+  documented contract (`artifact.ts:316`), load-bearing for T16/T17.
+  The artifact.ts:316 comment update ships in the same
+  implementation commit (contracts package, owner lane to edit);
+  C re-verifies the T16 fold for comma-splitting (none found in
+  `packages/` outside tests).
 
-## 4. Questions for B
+## 4. B review answers (vs `9c1d35c`, ADOPTED rev2)
 
-1. Confirm the member name/shape (`uniques:[{fields,where?}]`)
-   versus extending `uniqueKeys` entries to objects.
-2. Confirm the `where` predicate as a registry rule reference
-   (vs inline expression or a second member).
-3. Who enforces, and where: admission-time check in B's runtime
-   against the published key + predicate?
-4. Key scope confirmation: containing parent/team/app per
-   DESIGN:131 — any key-identity input the compiler must publish
-   beyond fields + predicate (e.g. scope tag)?
+1. Member shape: CONFIRM sparse `uniques:[{fields,where?}]` as a
+   separate member (with the §3 locks/invariants correction).
+2. `where` form: CONFIRM registry rule reference, namespaced ids +
+   documented purity (vs inline expression or a second member).
+3. Enforcement: CONFIRM admission-time check in B's runtime
+   (DESIGN:578 busy semantics, fence/commit path, server-side
+   rule resolution) — flagged as new B work under later dispatch.
+4. Scope: NO tag — inherit enclosing entry scope; invariant
+   documented (§3).
+5. T15a: SHED composites from `uniqueKeys` + `artifact.ts:316`
+   comment migration in the same commit.
 
 ## 5. Rejected alternatives
 
@@ -75,5 +107,5 @@ a registry rule reference (same pattern as invariants):
   predicate; an invariant cannot reserve a key against concurrent
   writers.
 - Silent `uniqueKeys`-only publication: rejected — it drops
-  `where=` and misleads consumers (see §2); the current leak
-  should either gain structure or shed composites, per B's call.
+  `where=` and misleads consumers (see §2); composites shed from
+  `uniqueKeys` per B's call (§4.5).
