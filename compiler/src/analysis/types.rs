@@ -15381,66 +15381,14 @@ fn valid_email(value: &str) -> Option<String> {
     }
 }
 
-/// URL shape: HTTP(S) scheme (any case), non-empty host, no userinfo,
-/// no whitespace. (Lane-02 defines no URL validator; this mirrors the
-/// `app_url` strictness for literal values.)
+/// Ordinary URL admission mirrors the values wire owner: a WHATWG URL
+/// with an HTTP(S) scheme. Keep the authored string; trusted `app_url`
+/// origins have a separate policy.
 fn valid_url(value: &str) -> Option<String> {
-    if value
-        .bytes()
-        .any(|b| b.is_ascii_whitespace() || b.is_ascii_control())
-    {
-        return Some("whitespace is not allowed".to_string());
-    }
-    let after = strip_scheme(value, "https://").or_else(|| strip_scheme(value, "http://"));
-    let Some(after) = after else {
-        return Some("want an http:// or https:// URL".to_string());
-    };
-    let end = after.find(['/', '?', '#']).unwrap_or(after.len());
-    let authority = &after[..end];
-    if authority.is_empty() {
-        return Some("missing host".to_string());
-    }
-    if authority.contains('@') {
-        return Some("userinfo is not allowed".to_string());
-    }
-    if let Some(bracketed) = authority.strip_prefix('[') {
-        // IPv6 literal with optional :port.
-        let Some(close) = bracketed.find(']') else {
-            return Some("unclosed IPv6 literal".to_string());
-        };
-        let rest = &bracketed[close + 1..];
-        if rest.is_empty() {
-            return None;
-        }
-        let Some(port) = rest.strip_prefix(':') else {
-            return Some("invalid IPv6 host".to_string());
-        };
-        if port.is_empty() || !port.bytes().all(|b| b.is_ascii_digit()) {
-            return Some("invalid port".to_string());
-        }
-        return None;
-    }
-    let host = match authority.rsplit_once(':') {
-        Some((host, port)) => {
-            if port.is_empty() || !port.bytes().all(|b| b.is_ascii_digit()) {
-                return Some("invalid port".to_string());
-            }
-            host
-        }
-        None => authority,
-    };
-    if host.is_empty() {
-        return Some("missing host".to_string());
-    }
-    None
-}
-
-/// Strip an ASCII case-insensitive scheme (`None` on mismatch).
-fn strip_scheme<'v>(value: &'v str, scheme: &str) -> Option<&'v str> {
-    if value.len() > scheme.len() && value[..scheme.len()].eq_ignore_ascii_case(scheme) {
-        Some(&value[scheme.len()..])
-    } else {
-        None
+    match url::Url::parse(value) {
+        Ok(parsed) if matches!(parsed.scheme(), "http" | "https") => None,
+        Ok(_) => Some("want an http(s) URL".to_string()),
+        Err(problem) => Some(format!("invalid URL: {problem}")),
     }
 }
 
