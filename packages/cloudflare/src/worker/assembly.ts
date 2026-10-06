@@ -80,6 +80,7 @@ import type {
   BusinessError,
   BusinessErrorCode,
   CompileArtifact,
+  ConflictCurrent,
   ContentCheck,
   FinalizeResult,
   FinalizedFile,
@@ -662,6 +663,10 @@ function isBusinessErrorLike(value: unknown): value is BusinessError {
  * mirroring the `fromUnknown` rule (`interfaces/src/errors/envelope.ts:99`:
  * unexpected failures are `rule_failed`, `retryable: false`, no leak).
  * Interim narrowing: `fields` are dropped until the envelope join.
+ * C2/B2 (Q3): a carried `conflict` current renders through (mirror of
+ * state `toBusinessError` — present only on `conflict` denials with a
+ * carried row); absent everywhere else. Never throws (an error renderer
+ * must not mask the error it renders).
  */
 function toBusinessError(error: unknown, operationId?: string): BusinessError {
   const base: { code: BusinessErrorCode; message: string } = isBusinessErrorLike(error)
@@ -671,12 +676,14 @@ function toBusinessError(error: unknown, operationId?: string): BusinessError {
       : error instanceof Error
         ? { code: "rule_failed", message: error.message }
         : { code: "rule_failed", message: INTERIM_REJECTION_MESSAGE };
+  const conflict: unknown = isRecord(error) ? error["conflict"] : undefined;
+  const carried = conflict !== undefined ? { conflict: conflict as ConflictCurrent } : {};
   if (operationId === undefined || operationId === "") {
-    return { ...base, retryable: false };
+    return { ...base, retryable: false, ...carried };
   }
   // `BusinessError.operation_id` is the wire-plain `OperationId` (an alias
   // for `string`), so no brand cast is needed here.
-  return { ...base, operation_id: operationId, retryable: false };
+  return { ...base, operation_id: operationId, retryable: false, ...carried };
 }
 
 async function loadSiblingFn<T>(specifier: string, file: string, binding: string): Promise<T> {
