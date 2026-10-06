@@ -2,13 +2,17 @@
 //!
 //! Data-only Rust port of `src/recovery.ts`, proven against the same
 //! independent TS oracle corpus (`conformance/fixtures/receipts/recovery.json`).
-//! Standalone file: compiles and tests with
-//! `rustc --edition 2021 --test decisions/recovery.rs` — no Cargo
-//! membership, no dependencies, no host I/O. The small shared prelude
+//! N03 replaces standalone rustc testing with an isolated private Cargo project
+//! containing exact copies of this file and numeric_text.rs; ryu-js =1.0.3,
+//! default features off. Run original embedded vectors and immutable witnesses.
+//! Official product dependency/root registration remains pending. The small shared prelude
 //! (UTF-16 text, passthrough data values, retry policy vocabulary,
 //! JSON string quoting) is duplicated per decisions file until W04.4
 //! assembly consolidates it. Suppliers, resolvers and evidence lookups
 //! arrive injected; scans decide purely from them and write nothing.
+
+#[path = "numeric_text.rs"]
+mod numeric_text;
 
 use std::collections::HashMap;
 
@@ -1251,10 +1255,7 @@ pub fn plan_related_progress_resume(
 
 /// JS `String(n)` number rendering for integer-valued revisions.
 fn js_num(n: f64) -> String {
-    if n.fract() == 0.0 && n.abs() < 1e21 {
-        return format!("{}", n as i64);
-    }
-    format!("{}", n)
+    numeric_text::string(n)
 } // W04.3 vectors: transcribed from conformance/fixtures/receipts/recovery.json
   // (sha256 b5b64fda283461e245230a668c31afb42021e0ff99b37ace58efa1e0cc897d8c); 65 cases. `$resolver`/`$supplierPages` tags
   // revive to stub lookups/suppliers in each test. The frozen file is the
@@ -3696,3 +3697,8 @@ mod vectors_recovery {
         );
     }
 }
+
+// N03 immutable witnesses: private Cargo route, not standalone rustc.
+#[cfg(test)]
+#[path = "../conformance/native-numeric-text.rs"]
+mod n03_numeric_tests;
