@@ -2,7 +2,7 @@
 
 Task: V01.3 (lane `V-state`, wave 1, after `C01.ready`). Produced
 2026-10-06T08:39:11Z by lane F session 01a10fab-d28b-7563-9d14-ebd2ddf4e8c9.
-Planning record only; no implementation authorized.
+Historical planning record; refreshed by finite packet B below. No product source implementation.
 
 - Head verified: `bb479c2fd9a1e0a3604f946aff0205c7bdf45e06`
 - Line anchors refer to head; the implementation must refresh them rather
@@ -89,3 +89,51 @@ Required (recorded, not assumed): state owner (sequence, replay/hash
 freeze, array-fill/copy semantics, loader channels), interfaces owner
 (invoker contract + bridge audit), cloudflare owner (canonical
 mutation/read bridges, assembly delegation).
+
+
+## Current consumed state contract — PH2/PH4, 2026-10-07
+
+Verified activation base `c6896fd2dea782d8ed6412769337b76eb899ca53`.
+`admit` still reads revision, opens the existing fence scope, hashes raw
+inputs, checks receipt and returns replay before age/membership/by and
+`validateCallInputs`; refs load in validated order. `invokeRead` still
+authorizes first. Fence-scope creation is existing TS bookkeeping, not
+new validation/session admission. Keep trusted-kind branches exact.
+
+Current `registry.ts` prepares copied `preparedInputs` on loader-produced
+frozen defs, but `isGeneratedOperationDef` only checks the structural
+`generated` tag. Neither the tag nor presence of `preparedInputs` is a
+private producer capability. The loader builds defs during a loop and
+can fail on later operations or final `inputArrays` checks; future
+private registry records must remain staged until whole-set success.
+Bind exact load/def/descriptor identities and copied array/delivery
+metadata to the state owner, never operation-name/version alone. `by` and
+`when` factory callbacks retain their current metadata calls, never
+receive protected request data or mint request provenance.
+
+Private validation admission belongs exactly at `validateCallInputs`,
+following PH1–PH4 in `prepared-hook-review.md`. It must not run before raw
+hash/replay/age/authorization. A protected root can remain private only
+along the audited canonical bridge. An arbitrary injected invoker gets
+ordinary detached data and legacy validation; any public copy loses its
+capability. No callback, public Map/readonly type, freeze, shape, or
+loader-derived tag certifies a request. If the whole route is unproved,
+abstain before evaluation at the same validation point. No retry after
+semantic evaluation, no receipt/digest/auth/fence change.
+
+Codex actual state/interfaces acceptance is pending. This borrowed V01.3
+review does not release V09 adoption, transport, or product source writes.
+
+
+Observed callback/alias qualification for PH2: `opts.by(descriptor)` and
+`opts.when(descriptor)` run before descriptor freezing and prepared-plan
+construction. These callbacks receive mutable metadata aliases. The
+`prepareDescriptorInputs` helper trusts its typed descriptor, and
+`prepareOperationInputs` only tests `generated === true`. Therefore an
+arbitrary successful public loader call or copied/frozen prepared plan is
+not a complete data-only producer proof. Admit private state metadata only
+from the audited true-owner loader context whose callback/alias route is
+verified; otherwise abstain to legacy, without new public loader rejection
+or reordered callback/accessor reads. This applies the true-owner/private
+metadata requirement of PH2 rather than granting provenance to all public
+loader successes.

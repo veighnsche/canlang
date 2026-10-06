@@ -1,91 +1,70 @@
-# V01.2 — Bounded HTTP adoption join assessment
+# V01.2 — Current bounded HTTP operation join assessment
 
-Task: V01.2 (lane `V-http`, wave 1, after `C01.ready`). Produced
-2026-10-06T08:37:40Z by lane F session 01a10fab-d28b-7563-9d14-ebd2ddf4e8c9.
-Planning record only; no implementation authorized.
+Finite packet B, 2026-10-07; activation base
+`c6896fd2dea782d8ed6412769337b76eb899ca53`. Static source contract refresh;
+no build, workerd run, deployment, native port or source edit performed.
+This supersedes the historical `bb479c2` assessment that the typed seam
+was absent. Exact source hashes are in `current-ts.json`.
 
-- Head verified: `bb479c2fd9a1e0a3604f946aff0205c7bdf45e06`
-- Companion: `contracts.md` (profiles), `caller-inventory.json` (modes).
+## Source verdict
 
-## Verdict
+The real `handleOperationRequest` exists in interfaces and is consumed by
+`assembly.ts`'s `HttpJoin.createOperationHandler` (line 380),
+`AssemblyDeps.http` (line 555), and `handleHttpOperationRequest` (1256+).
+The bridge uses the same `buildInvoker`, identity store, clock and
+artifact/derived catalog as MCP. Missing/nonfunction factory returns the
+explicit interim 501 (1261–1267). The typed operation seam is implemented.
 
-The existing handler is real and well-tested, but the deployed join seam
-for HTTP does **not** exist yet: `AssemblyDeps` (`worker/assembly.ts:415`)
-carries `files?` and `mcp?` join inputs and no `http?` input, so the
-"interfaces join" promised by the module doc ("The interfaces join replaces
-it") is currently absent as a typed seam. The bounded join below names the
-exact handler, the exact seam to add, and the owning files — it invents no
-new HTTP feature. Until it lands, the interim dispatcher and default 501s
-are the correct deployed behavior and must be retained.
+`worker/main.ts` declares the default sibling `./http-operations.js`,
+loads its `handleOperationRequest` export, and wires the factory into
+`AssemblyDeps.http` (528–555). `deploy/bundle.ts:663` builds the real
+handler bundle; the deploy bundle includes `worker/http-operations.js`.
+This is **source evidence for default operation wiring**, not evidence
+that any currently running deployment contains it or that Rust ran.
 
-## The existing handler (handler side — exists)
+The operation join covers `/api/operations/*` POST handling only. Its
+assembly contract explicitly leaves auth/pages/uploads/ingress interim.
+The old proposed whole `createHttpHandler` route-factory join exceeds
+this consumed implementation; it is not a missing obligation of this
+finite packet. `createHttpHandler` remains a real broader package handler.
 
-- `packages/interfaces/src/http/routes.ts:85` —
-  `createHttpHandler(deps: HttpDeps, sub: HttpSubHandlers)`:
-  `POST /api/operations/<op>` → injected operations handler,
-  `/auth/*` → injected auth handler, uploads/ingress/page routes per the
-  factory; anything else `not_found`; unexpected throws → generic
-  internal envelope after an incident-logged journal entry.
-- `packages/interfaces/src/http/operations.ts:168` —
-  `handleOperationRequest(deps, request, operation)`: framing checks
-  (auth, CSRF, operation-id, closed inputs) through to L3 canonical
-  invocation; non-POST/malformed names `not_found`; `action_handle`
-  carve-out rejects loudly (sealed handles are MCP-only).
-- `HttpDeps` wiring needs: identity store (`IdentityStore`, bound as
-  `HttpDeps.identity.store`), clock, and the invoker bridge — the SAME
-  `buildInvoker` bridge the MCP path uses (`assembly.ts` module doc).
-- Test cover (no new proof needed that the handler works): `e1-bound-
-  dispatch`, `e2-dispatch-agreement`, `e2b-transport-seams`,
-  `http-operations`, `integration-lifecycle`, `integration-parity`,
-  `mcp-server`, `t19a-derivation`, `t19b-depth`, `t20a-presentation`.
+## Framing and lineage contract
 
-## The seam gap (assembly side — absent)
+Actual handler order stays identity/session → body parse → route/body and
+handle-mode rejection → redisplay snapshot → operation/inputs framing →
+CSRF → operation ID → catalog shape → `_csrf` removal → closedness →
+derived binding when present → credential liveness → invoker → response.
+Unknown/missing/bound messages, own presence and order stay profile-owned;
+no default fill or values normalization is added at interfaces framing.
 
-- `packages/cloudflare/src/worker/assembly.ts:415` `AssemblyDeps` has no
-  HTTP join input. Interim dispatcher serves page GETs (anonymous
-  identity, real descriptor `admit`/`render`, exact paths only);
-  mutations/auth answer explicit interim 501s naming the join; `/files/*`
-  is a documented mirror (never fake bytes).
-- T16b canonical routing, T17b flips/retirements, T04a pins,
-  `requires[]` fulfillment, and descriptor preloads all sit in the
-  assembly path and are untouched by this assessment.
+`parseJsonBody` currently performs capped streaming, TextDecoder and host
+JSON.parse; it has no private provenance record. A future success-only
+owner producer hook can capture the exact raw root without changing
+syntax/number/cap behavior. HTTP business-input stripping uses a new
+spread object; owner-internal derivation must bind its exact root, without
+sending a protected root/token through arbitrary injected invokers.
+Forms retain JSON-or-string coercion/assignment semantics. MCP SDK args
+have no demonstrated producer provenance. Neither shares HTTP lineage by
+shape. See PH2/PH4 in `prepared-hook-review.md`.
 
-## The bounded join (no new HTTP feature)
+## Distinct proof/release gates
 
-Mirror the proven MCP P-B pattern (`deploy/bundle.ts:585-590`, which
-stages `createMcpHandler as createHandler` from interfaces server dist):
+| Claim | Current evidence | Remaining proof |
+| --- | --- | --- |
+| Real package handler | Source and existing handler/route test suites | No new execution claimed by B |
+| Typed injection seam | Current assembly source; `http-operations-route.test.ts` names injected handler | Package route fixture is separate from default deployment |
+| Default source wiring | main default sibling + deploy bundle builder | Exact produced/runtime bundle and deployment acceptance |
+| Absent-factory fallback | Explicit assembly interim 501 branch | Preserve independently from supplied factory success |
+| V08 native/package-workerd port | No new proof in this packet | Actual handler + real Wasm/adapter + workerd, including negative controls |
+| Default Rust/deployed adoption | No new proof in this packet | Consumed native/profile releases plus verified default route/runtime proof |
 
-1. **Interfaces owner** — no handler change: `createHttpHandler` +
-   sub-handlers are consumed as-is. Only requirement: keep the factory
-   signature and `HttpDeps` shape stable while the join lands.
-2. **Cloudflare owner** — `worker/assembly.ts`: add an `http?` join input
-   to `AssemblyDeps` (handler factory + `HttpDeps` wiring:
-   `identityStore` → `HttpDeps.identity.store`, clock, `buildInvoker`
-   bridge); delegate operation/auth/uploads/page routes to the real
-   factory once supplied; keep interim 501s while absent.
-3. **C04 delivery owner** — `deploy/bundle.ts` (+ `dev/local-run.ts` dev
-   wiring): stage the real factory from interfaces dist exactly as the
-   MCP join does; no new route, no new handler, no behavior invention.
-4. **Out of scope**: new endpoints, auth semantics, uploads semantics,
-   page shell, files binding, permissions (join J2), and any change to
-   T16b/T17b gating.
+Unit tests with an arbitrary injected invoker cannot establish canonical
+bridge protection, source provenance, native execution or deployed
+adoption. No missing-seam story or source-wiring-only native claim remains.
 
-## Separately testable gates
+## Owner review
 
-- **Gate 1 — package/workerd fixture proof** (V08): the actual handler +
-   actual Wasm/adapter + a workerd fixture proves the port path. Testable
-   without any deployment change; unit tests against an injected invoker
-   do not satisfy it.
-- **Gate 2 — default deployed adoption**: the bounded join above has
-   landed and default routes are served by the real factory (assembly/
-   deployment tests green). Testable only after the join.
-- **Blocked-join fallback**: if the join is unavailable, report package
-  completion (Gate 1) and blocked default deployment (Gate 2)
-  separately, and retain the default interim 501s. A 501 is the honest
-  signal, never a failure to paper over.
-
-## Owner review status
-
-Required (recorded, not assumed): interfaces owner (factory/`HttpDeps`
-stability), cloudflare owner (`AssemblyDeps.http` seam + delegation),
-C04 delivery owner (bundle staging parity with the MCP join).
+Codex state/interfaces acceptance of the consumed PH1–PH4 contract and
+this narrow handler/seam assessment is pending. C04/cloudflare delivery
+owners must review the exact future V08/default native join they consume;
+B does not fabricate those ACKs or block unrelated direct V02 inputs.

@@ -1,101 +1,80 @@
-# V01 — Caller and ownership contracts review
+# V01 — Finite consumed-contract review, 2026-10-07
 
-Gate: V01 "Caller and ownership contracts reviewed" (lane `V-evidence`,
-after V01.1–V01.4). Review produced 2026-10-06T08:43:58Z by lane F
-session 01a10fab-d28b-7563-9d14-ebd2ddf4e8c9. Review record only; gate
-release belongs to the coordinator.
+Packet `first:R2:V01-consumed-owner-contracts`; activation base
+`c6896fd2dea782d8ed6412769337b76eb899ca53`. B verified all 28 checkpoint
+entries (27 present SHA-256 files and one required absent hook-review
+file) before ACK/writes. ACK and raw evidence are private under
+`/private/tmp/canlang-rust-port-codex-first-20261006T231809Z/packets/R2-V01/`.
 
-- Head cited by all children: `bb479c2fd9a1e0a3604f946aff0205c7bdf45e06`
-- Method: full re-read of all six evidence files below; every claim
-  below was checked against at least two of them.
+This refresh replaces the old content-only conditional pass as a current
+acceptance claim. The historical documents provided planning/preparation
+content; they did not contain actual owner ACKs. Direct V02.1/V02.2 credit
+is preserved; no all-V01 barrier or canonical task-status edit is made.
 
-## Completion ledger
+## Consumed evidence and static verdict
 
-| Child | Files | Bytes | Status |
-| --- | --- | --- | --- |
-| V01.1 caller contracts + workload registry | `contracts.md` | 6969 | accepted, integrated identical |
-| V01.1 (cont.) | `caller-inventory.json` (valid JSON) | 5198 | accepted, integrated identical |
-| V01.1 (cont.) | `current-ts.json` (valid JSON) | 1827 | accepted, integrated identical |
-| V01.2 bounded HTTP adoption join | `http-adoption-gate.md` | 4797 | accepted, integrated identical |
-| V01.3 state sequencing + bridge | `state-contract.md` | 4702 | accepted, integrated identical |
-| V01.4 owner-plan + shared-file handoffs | `plan-contract.md` | 5689 | accepted, integrated identical |
-| **Total reviewed** | 6 files | **29182** | |
+| Scope | Refreshed evidence | Static finding |
+| --- | --- | --- |
+| V01.1 | contracts.md, caller-inventory.json, current-ts.json | Profile distinctions, unknown TS retainers, error/order/identity rules preserved; exact current SHA-256 sources and proposed producer gaps explicit |
+| V01.2 | http-adoption-gate.md | Typed HTTP operation seam/default source wiring exist; injected package, absent-factory 501, native/workerd and actual deployed proof distinguished |
+| Borrowed V01.3 | state-contract.md | Raw hash/replay/age/auth/normalize/load and read auth-first exact; structural generated tag never private provenance; whole-set success-only registration |
+| V01.4 | plan-contract.md | Original preparation credit retained; consumed R1/R2/C03/delivery/source releases named without inference |
+| Finite successor hook | prepared-hook-review.md | PH1 private nonrecursive core; PH2 complete success-only identity; PH3 canonical default authority; PH4 protected graph isolation/evaluation position |
 
-## Per-child verdicts
+The older hook proposal's `artifact-${ARTIFACT_VERSION}` is a format-version
+input, not universal identity. Current prepared wrappers call public TS
+entries and add candidate schema reads; redirecting public entries to them
+is unsafe. Current plan default-copy identity/Decimal coverage is incomplete.
+These gaps are proposals to resolve before the successor, not product fixes
+or native acceptance claims.
 
-- **V01.1 PASS**: five profiles carry admitted domains plus
-  error/order/identity obligations; caller inventory covers the five
-  public entries, interfaces helpers, and state admission with
-  dispositions; baseline pins three tree hashes plus frozen surfaces;
-  no-full-port-claim and public-unknown-stays-legacy are explicit in
-  all three files. Modes (deployed MCP / HTTP 501 / forms / handle)
-  are distinguished with file evidence.
-- **V01.2 PASS**: handler-real/seam-absent verdict is sourced
-  (`createHttpHandler`, `handleOperationRequest`, ten test suites;
-  `AssemblyDeps` without `http?`); bounded join names exact handler,
-  seam, and owning files with no new HTTP feature; fixture-proof vs
-  deployed-adoption gates are separately testable; 501 fallback kept.
-- **V01.3 PASS**: seven-step admit sequence matches the verified call
-  order with replay/hash/digest invariants; read auth-first verified;
-  bridge contract (dual `OperationInvoker`, `buildInvoker`) carries
-  protected-graph, injected-invoker, and no-inference rules; legacy
-  retainers are explicit scope boundaries.
-- **V01.4 PASS**: factory provenance, copied-metadata, revision,
-  default-ref, and plan-handle agreements are complete; the
-  no-second-authority rule is explicit; V-integrator shared-file
-  ownership after A03.foundation/C03 handoff is exact (file lists +
-  queueing rule); filetree reconciliation records decisions without
-  advancing any checkpoint.
+## Actual owner acceptance ledger
 
-## Mutual-consistency checks (all pass)
+Candidate `prepared-hook-review.md` SHA-256:
+`8264d4a6063d1e0b3ee3933cefe2c20bbe039abcdc7b6668f6ee91a984ccbda0`.
 
-1. Same head hash in all six files; values/interfaces byte-identical
-   to checkpoint and state authorization-only delta stated
-   identically in V01.1 and reused (never contradicted) by V01.2–V01.4.
-2. No-full-port-claim + legacy retainers agree across contracts.md,
-   caller-inventory.json flags, current-ts.json obligations, and the
-   state-contract legacy list.
-3. HTTP gap story agrees: interim dispatcher + absent seam + retained
-   501s in contracts.md modes, caller-inventory `http_501`, and the
-   adoption gate (which adds the bounded join, changing no premise).
-4. Replay/hash freeze agrees: state profile (contracts.md), baseline
-   obligations (current-ts.json), and frozen sequence (state-contract).
-5. Provenance rule agrees: freeze/shape-insufficient (plan-contract),
-   legacy-ts exclusions (contracts.md), no-inference (state-contract).
-6. No file invents a second currency/Decimal/wire/catalog authority or
-   a compiler change; V-integrator exclusivity contradicts no lane
-   ownership row.
+| Named reviewer | Exact consumed scope | Receipt |
+| --- | --- | --- |
+| Worker A / R1 values | PH1–PH3 canonical core/public surface/defaults/source ownership | Actual R1 ACK received for candidate hash above; future contract only, original helper/default order and no export additions required |
+| Codex / state-interface acceptance | PH2/PH4 producer/bridge/mutation/read sequencing and current HTTP assessment | Actual exact-hash future-contract acceptance received; audited loader callback context and end-to-end graph isolation remain mandatory |
+| C03 native transport/ABI owner | Native request/plan/version/lifetime envelope | Separate future consumer; no ACK fabricated |
+| C04/cloudflare delivery owner | Actual V08 workerd/default native/deployed join | Separate future consumer; no ACK fabricated |
 
-## V01 acceptance
+R1 accepted PH1–PH3 as future contract at the exact hash above; its raw
+receipt is `R1-review-receipt.json` in the private packet root. Exact
+source factoring/allocation and implementation/native/public adoption
+remain unapproved. Codex has accepted PH2/PH4 as a future contract with the
+explicit loader-context and protected-graph qualifications in
+`state-contract.md`; this is not successor dispatch.
+`next:R2:V02.6-hooks-conditional` still needs its exact source-owner transfer,
+finite assignment and implementation trace gates.
+Source owner transfer and C03/schema/wire receipts remain separate even
+when a reviewer accepts these semantics. Coordinator owns release.
 
-"Five profile/input domains, workloads, baseline and HTTP/source
-ownership gap agreed":
+## Advice, checks and limits
 
-- Five domains: values/v1, http-input/v1, mcp-ordinary/v1,
-  state-generated/v1, legacy-ts — defined with obligations. MET.
-- Workloads: five-item registry (HTTP whole calls, values whole
-  calls, MCP traces, state traces, negative corpus). MET.
-- Baseline: hashes + frozen surfaces + obligations. MET.
-- HTTP/source ownership gap: handler/seam verdict + bounded join +
-  caller inventory + per-file owner assignments. MET as contract
-  content.
+Three independently worded equivalent JEV `choice` consultations compared
+private-only core, public identity selection with separated core, and
+postponing all hooks. `jev-1.13.0` chose private-only all three times with
+0.96/0.97/0.97 confidence; no disagreement. Full request/response and
+uncertainty remain in private receipts. Advice is not owner acceptance.
 
-## Gate verdict: CONDITIONAL PASS
+B performed static source/order/hash inspections and JSON parsing only.
+No heavy fixture gate was needed or requested. No native build, tests,
+workerd/deployment run, CI, Git, compiler work, product-source changes,
+shared DECISIONS changes, task status or filetree checkpoint edits.
+Future parity/trace fixtures must cover recursion/extra getter and proxy
+traces, unsupported defaults/canonical identity, stale/foreign/released
+capabilities, failed whole-producer registration, protected arbitrary
+invoker exclusion, replay bypass, auth-first and ordered refs.
 
-Content is complete, mutually consistent, and meets every V01
-acceptance element above. The condition: every child records owner
-reviews as **required, not assumed** (values, validation,
-interfaces, state, cloudflare, C04, exact-values integrator, C03 —
-named per file). "Agreed" is therefore not yet fully earned. V02
-preparation may proceed on these contracts, but no V02 extraction
-leaf may start until its named owners have reviewed and approved
-the contract it consumes. Release of this gate is the coordinator's
-decision on receipt of those approvals.
+The parent owns accepted-decision bookkeeping, independent review and
+coherent explicit-path docs commit. Writer/commands release is reported
+with the final private manifest; no installed/default/native completion
+claim follows from this documentation packet.
 
-## Observation (non-blocking)
+## Codex consumed state/interfaces receipt
 
-contracts.md says workload budgets are "ratified at V01.2+"; V01.2
-assessed the join, not budgets. current-ts.json correctly places
-measurement at V03 and fixing at V07 (V-evidence backlog: V11.1
-precommitted budgets). No correction needed — future tasks should
-cite current-ts.json, not the V01.1 shorthand, for the budget plan.
+Actual receipt: `implementation/rust-port-orchestration/runs/codex-first-20261006T231809Z/state-interface-contract-review.json`. Codex independently read the current registry callback and late whole-set rejection paths, admission raw hash/replay/auth order, HTTP/MCP business-root copies, public arbitrary invoker and cloudflare source/default binding. PH2/PH4 are accepted only as the qualified future contract at the pinned hash above. Mutable callback aliases require an audited true-owner loader context; loader success alone cannot mint provenance. Actual source factoring, private graph isolation, native ABI/lifetime and installed/deployed gates remain separate.
+
+The sealed hook candidate retains its original pending-review wording so its exact hash and prior receipts remain stable. This living receipt ledger records later actual R1 and Codex reviews; it does not infer acceptance from the sealed text. Shared DECISIONS/filetree records are held by the concurrent compiler writer; no overlapping edit or checkpoint advance is made here.

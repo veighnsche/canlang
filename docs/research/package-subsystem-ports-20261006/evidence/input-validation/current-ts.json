@@ -1,1 +1,57 @@
-{"baseline_obligations":["Public signatures, error classes/codes/messages, evaluation order, and identity semantics frozen per contracts.md profiles.","Host JSON parsing retained initially (body caps, syntax/error behavior, JS number parsing); opaque json codec never a generic carrier.","Legacy wrappers (schema/wire/index.ts) keep serving unknown values, hand-built schemas, forms, and unproven SDK objects with full observable traces.","State receipt replay/hash position frozen; no normalization ahead of hashing; persisted digests unchanged.","No new-path budget may narrow previously successful inputs without an explicit contract decision + profile version."],"frozen_surfaces":{"body_caps":"JSON_BODY_MAX_BYTES = FORM_BODY_MAX_BYTES = 1048576 (limits.ts)","error_classes":"ValueError(ValueFailureCode, 10 codes) + SchemaError(violations) — classes/codes/messages frozen","operation_id":"UUIDv7, OPERATION_ID_MAX_AGE_MS = 86400000, FUTURE_TOLERANCE_MS = 300000","state_versions":"/^[1-9][0-9]{0,14}$/ strict nonzero domain (admission.ts)"},"generated_by":"lane F session 01a10fab-d28b-7563-9d14-ebd2ddf4e8c9 (V01.1)","head":"bb479c2fd9a1e0a3604f946aff0205c7bdf45e06","proposed_budgets_note":"256 plans/owner, 16 MiB plan storage/isolate, 1 MiB body (existing cap), 32 MiB request allocation, 128 frames, 1048576 nodes are hypotheses, not language limits; V03 measures, V07 fixes numbers/version/mapping.","schema_version":1,"source_hashes":{"packages/interfaces":"b3fcf03a9b5a9d1475e7621ba673ff281130627d","packages/state":"e710f94243a45d883ce2010575fe3f23ccaca935","packages/values":"a4e33155a32dd654c0133c43ce617a3521d84743"},"source_hashes_note":"git tree hashes at head; values/interfaces byte-identical to planning checkpoint 3d1f8f0 (C01.1); state differs only by the bb479c2 authorization delta","task":"V01.1"}
+{
+  "baseline_obligations": [
+    "Public signatures, error classes/codes/messages, evaluation order, and identity semantics frozen per contracts.md profiles.",
+    "Host JSON parsing retained initially (body caps, syntax/error behavior, JS number parsing); opaque json codec never a generic carrier.",
+    "Legacy wrappers (schema/wire/index.ts) keep serving unknown values, hand-built schemas, forms, and unproven SDK objects with full observable traces.",
+    "State receipt replay/hash position frozen; no normalization ahead of hashing; persisted digests unchanged.",
+    "No new-path budget may narrow previously successful inputs without an explicit contract decision + profile version.",
+    "Private PH1 admission has no candidate/schema traversal before TS assertions; no recursion through public prepared wrappers and no semantic exception retry.",
+    "Canonical schema-default/EMPTY_ARRAY/UPDATE_OMITTED identity preserved; current copied plan defaults are insufficient integration evidence.",
+    "Success-only source/descriptor/schema/artifact/load/request/backend/version/lifetime private identity is separate from format version and structural loader tags."
+  ],
+  "frozen_surfaces": {
+    "body_caps": "JSON_BODY_MAX_BYTES = FORM_BODY_MAX_BYTES = 1048576 (limits.ts)",
+    "error_classes": "ValueError(ValueFailureCode, 10 codes) + SchemaError(violations) \u2014 classes/codes/messages frozen",
+    "operation_id": "UUIDv7, OPERATION_ID_MAX_AGE_MS = 86400000, FUTURE_TOLERANCE_MS = 300000",
+    "state_versions": "/^[1-9][0-9]{0,14}$/ strict nonzero domain (admission.ts)"
+  },
+  "generated_by": "finite packet first:R2:V01-consumed-owner-contracts; source SHA-256 review 2026-10-07",
+  "proposed_budgets_note": "256 plans/owner, 16 MiB plan storage/isolate, 1 MiB body (existing cap), 32 MiB request allocation, 128 frames, 1048576 nodes are hypotheses, not language limits; V03 measures, V07 fixes numbers/version/mapping.",
+  "schema_version": 1,
+  "task": "V01.1",
+  "historical_head": "bb479c2fd9a1e0a3604f946aff0205c7bdf45e06",
+  "head": "c6896fd2dea782d8ed6412769337b76eb899ca53",
+  "historical_tree_hashes": {
+    "packages/interfaces": "b3fcf03a9b5a9d1475e7621ba673ff281130627d",
+    "packages/state": "e710f94243a45d883ce2010575fe3f23ccaca935",
+    "packages/values": "a4e33155a32dd654c0133c43ce617a3521d84743"
+  },
+  "historical_tree_hashes_note": "git tree hashes at head; values/interfaces byte-identical to planning checkpoint 3d1f8f0 (C01.1); state differs only by the bb479c2 authorization delta",
+  "current_source_sha256": {
+    "packages/values/src/schema.ts": "8216016fd7467e3ac6b23b79a06a3d55d9aff2f4bfba3a1d0ecc77c2760f5772",
+    "packages/values/src/wire.ts": "73832128fd4b2db93d08770836271323d61bed02647ca83fd21bdd9496054f03",
+    "packages/values/src/index.ts": "d92ac7192a8739ddbfaf32ccc64e0aeba7fb30726e7bf40d7e81eb9a239d61c4",
+    "packages/values/src/prepared/plan.ts": "31cc0a8a09774f5a6754372700b41269cd3df73de4171574053fbab661faa0d4",
+    "packages/values/src/prepared/validation.ts": "34d0723b0491b54908fecf7494f1e5bd16bf78b470473ab2d1108f322c3e3e76",
+    "packages/values/src/prepared/codec.ts": "ffe679d4db03ea3944c7af94a1eb88cb3398207dc319d41ce5413f39786e04a0",
+    "packages/state/src/invocation/admission.ts": "c83e7b06b932e7e16402f0c815121a917f7b63daa90e4000fd822d16b1fc1ba6",
+    "packages/state/src/invocation/invoke.ts": "37f76500d8b0ed9959cf0110c70b0750263b9c0134fc19194229db1924ca4670",
+    "packages/state/src/invocation/registry.ts": "38f59e468f47bf4e065ce23865ba57c72cdf4d9bce145cbd11a3eac084ca79c0",
+    "packages/interfaces/src/http/operations.ts": "44f9bc9a95e16867b058c079cb82fbe915274bb166c27fe210906f7dec6ab37a",
+    "packages/interfaces/src/mcp/server.ts": "20d68f0cc3a0984f2094dffe971895d789d57ce05c07032e3696dc9fcaf7c8c6",
+    "packages/cloudflare/src/worker/assembly.ts": "489bf7f70fbb692227c9eb0482df42475b87ae2951d60abbc72d782fe2d51628"
+  },
+  "additional_reviewed_source_sha256": {
+    "packages/interfaces/src/http/limits.ts": "6a5b2277decf0a79ed7d05acca9fd24afd7df56082a02b8c48cdde3efd503bfc",
+    "packages/cloudflare/src/worker/main.ts": "2335ee597c4d053960423baa07d1fb621b2b01e4f065a68881a94292f29a26ba",
+    "packages/cloudflare/src/deploy/bundle.ts": "c655fed4ef03d35d39fc52811abc4d41516d2bf8e52fcf4a499d17e8f9057ed1",
+    "packages/values/src/array.ts": "bb40eb50b65fef0d7313b8a6f39d82f8c01f659b11c5598fe79a37e217d690f4",
+    "packages/values/src/decimal.ts": "e4056e2849f928106b36f534ee72f3416fed9550c19da914dc9e02d4c14f592e",
+    "packages/state/src/invocation/prepared-inputs.ts": "3dad1154a046905899d87197fbe8f0ea77a397552348fc80d105fb81a769f6b6"
+  },
+  "verification": {
+    "input_hashes": "all 28 checkpoint entries matched (including one required absent file)",
+    "checks": "read-only source/hash/JSON inspections; three JEV choice consultations; no build/test/native/deployment command",
+    "hook_contract": "prepared-hook-review.md; R1 PH1\u2013PH3 accepted future contract at hash 8264d4a6063d1e0b3ee3933cefe2c20bbe039abcdc7b6668f6ee91a984ccbda0; Codex state/interfaces pending"
+  }
+}

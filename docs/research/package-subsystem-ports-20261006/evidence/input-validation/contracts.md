@@ -2,7 +2,7 @@
 
 Task: V01.1 (lane `V-evidence`, wave 1, after `C01.ready`). Produced
 2026-10-06T08:33:31Z by lane F session 01a10fab-d28b-7563-9d14-ebd2ddf4e8c9.
-Planning record only; no implementation authorized.
+Historical planning record; refreshed by finite packet B on 2026-10-07 below. No product implementation authorized by this record.
 
 - Planning checkpoint: `3d1f8f062f9650c061f6cb87c8af9afb2c01b0e5`
 - Inventory head: `bb479c2fd9a1e0a3604f946aff0205c7bdf45e06` (current main)
@@ -59,12 +59,12 @@ Planning record only; no implementation authorized.
 - **Deployed MCP**: real factory path — `AssemblyDeps.mcp.createHandler`
   injected by the deploy join into `worker/assembly.ts` (`POST /mcp` served
   once joined). Does NOT resolve SDK argument provenance.
-- **HTTP 501**: interim dispatcher — known operation routes return explicit
-  interim 501 naming the interfaces join (`worker/assembly.ts`); mutations/
-  auth are 501 until the bounded existing-handler join lands. V08 proves the
-  port with the actual handler + workerd fixture; default deployed adoption
-  stays gated. Completing unit tests against an injected invoker proves
-  nothing about deployment.
+- **HTTP operations**: the current `AssemblyDeps.http.createOperationHandler`
+  seam and real-handler delegation exist; `worker/main.ts` loads the default
+  sibling built by `deploy/bundle.ts`. An absent factory retains explicit
+  interim 501. Auth/pages/uploads/ingress remain outside this operation join.
+  Source wiring, injected package-handler proof, actual workerd/native proof
+  and deployed adoption are separate claims; see refreshed adoption gate.
 - **Forms**: `packages/ui` generated forms (`projectGeneratedInputs`) plus
   `parseFormBody` coercion — fully legacy TS until V10 declares a faithful
   producer. Current form assignment behavior is not silently fixed by the
@@ -96,3 +96,24 @@ owner (admission point, replay/hash freeze, array-fill/copy semantics),
 C04 delivery owner (Worker backend prerequisite). Each admitted domain,
 error/order/identity obligation, and consumer above needs its owner's
 review before its plan's V02 extraction begins.
+
+
+## Current finite consumption review — 2026-10-07
+
+Activation base `c6896fd2dea782d8ed6412769337b76eb899ca53`; all packet
+source hashes matched before evidence writes. Historical heads above are
+retained as history, not current source claims. `current-ts.json` records
+exact current SHA-256 inputs and additional reviewed source files.
+
+The current finite PH1–PH4 proposal in `prepared-hook-review.md` supersedes
+older universal `artifact-1`/public-wrapper hook assumptions: private core
+calls do not recurse through public prepared wrappers; public unknown
+entries stay legacy; only true success-only producer identity and complete
+schema/descriptor/request/owner lifetime binding admits private requests.
+The canonical schema default reference remains the identity authority.
+
+Actual R1 values PH1–PH3 future-contract ACK is recorded in `v01-review.md`
+at the exact hook hash; Codex state/interfaces acceptance remains pending. This
+updates only consumed contracts, leaves direct V02.1/V02.2 credit intact,
+and imposes no blanket V01 barrier. C03/native lifetime/transport and
+V08/C04 delivery consumers require their own exact release receipts.
