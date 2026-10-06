@@ -4096,6 +4096,17 @@ impl<'a> Emitter<'a> {
                     .collect::<Vec<_>>()
                     .join(",");
                 members.push(format!("read:[{rules}]"));
+                // B7 phase-1: explicit-public provenance, sparse like
+                // `read` (omitted when no grant is unconditionally
+                // public, so existing output is byte-identical).
+                let public = grants
+                    .iter()
+                    .filter(|grant| grant.public)
+                    .map(|grant| js_string(&grant.rule))
+                    .collect::<Vec<_>>();
+                if !public.is_empty() {
+                    members.push(format!("public:[{}]", public.join(",")));
+                }
             }
             if !invariants.is_empty() {
                 let ids = invariants
@@ -5072,6 +5083,17 @@ impl<'a> Emitter<'a> {
         self.emit_derives_map(out, entry_span);
         self.emit_hooks_map(out, entry_span);
         self.emit_handler_fns(out);
+        // B7 phase-1: the policy manifest inside `canApp()`, from the
+        // same builder as `appDefinition`, so the serve loader sees
+        // provenance without a second source. Sparse: omitted when the
+        // program has no policy content (byte-identical otherwise).
+        if let Some(policy) = self.emit_policy_member() {
+            out.push(
+                entry_span,
+                Some("canApp".to_string()),
+                &format!("{policy},"),
+            );
+        }
         out.push(entry_span, Some("canApp".to_string()), "};}");
     }
 
