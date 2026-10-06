@@ -391,3 +391,7 @@ The completed `editors/vscode/audit-astra/` working copies are retired: 187 file
 
 These documentation tasks do not impose a global barrier on product lanes. Serialize actual overlapping document writers and preserve active coordinator records until the owning handoff.
 <!-- documentation-review:end -->
+
+## Consolidated source availability — October 6, 2026
+
+The [consolidation review](consolidation-review.json) records current source availability and incomplete B/D, values and E/F gates. All original required duties, task IDs/dependencies, writer boundaries and retirement gates remain unchanged; consolidation marks no task complete and launches no workers.

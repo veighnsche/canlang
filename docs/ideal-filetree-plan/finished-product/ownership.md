@@ -27,3 +27,7 @@ Keep project decisions in `docs/specification/DECISIONS.md`; proposals and accep
 
 The completed `editors/vscode/audit-astra/` working copies are retired: 187 files, including 23 Markdown files and 42,687,533 bytes. No build/test/install consumer depends on them; the active highlighting checker retains the defect regressions. The existing ledger pins all original paths, sizes and SHA-256 hashes to Git revision `e5fa27c3cbe6c00e4ec76ea61005a3f1d3e65faa`; a fresh archive extraction reproduced every byte. Existing audit navigation uses commit-pinned links and recovery instructions. This scoped retirement does not authorize pruning other captures, change historical review conclusions, or advance the checkpoint. DOC06 remains deferred for broader storage deduplication.
 <!-- documentation-review:end -->
+
+## Consolidated source availability — October 6, 2026
+
+The [consolidation review](consolidation-review.json) allocates all new inputs to their existing owning declarations/packages. Retained B/D bodies, values generated bindings and E/F browser source preserve their original pending owner/cutover gates; no authority moves by merge ancestry.
