@@ -13,6 +13,7 @@
 
 import type {
   BusinessError,
+  DerivedOperationInputs,
   FieldError,
   MutationRef,
   SealedActionHandle,
@@ -1697,4 +1698,105 @@ export interface MockupWindowProps {
   readonly context: PresentationContext;
   readonly children: PageChildren;
   readonly caption?: MessageValue;
+}
+
+// ---------------------------------------------------------------------------
+// T20a: generated operation forms over T19a derived inputs (L5/L6 pilot).
+// Part of PRESENTATION_CONTRACT_VERSION canlang.presentation/0.15.0
+// (additive, following the T19a additive precedent — no bump).
+//
+// Presentation rule (pinned here, implemented in @canlang/ui forms.ts and
+// consumed by the @canlang/interfaces error re-render): a generated form
+// renders exactly one field per derived input, in emission order, with the
+// widget selected by GENERATED_FORM_TYPE_FOR_KIND below. The writable
+// allowlist is exactly the derived input names — the form never adds a
+// business member the derivation did not admit. `literal` defaults prefill
+// verbatim as display values; `parent` defaults prefill nothing (omission
+// defers to the engine, per the T19a wire rule); the interface never
+// invents fill values. Submission carries exactly the caller-supplied
+// values through the real operation dispatcher, and denials re-render
+// through the same fields with safe messages only.
+// ---------------------------------------------------------------------------
+
+/**
+ * T20a pinned widget selection: every committed T19a pilot input kind maps
+ * to exactly one canonical form field type. `ref` renders as a text id
+ * entry (the update `record` binds as hidden id/version instead — see
+ * GeneratedFormProps — and versioned non-record refs pair with a
+ * GENERATED_REF_VERSION_SUFFIX companion); `file` maps to the file type
+ * whose render fails closed with the established S7 upload-intents error
+ * (no pilot operation carries a file input); `enum` renders a select whose
+ * options are the derived values verbatim. The table carries exactly the
+ * nine committed pilot kinds (pinned by the T20a contract test) and is
+ * deliberately NOT keyed by the live DerivedInputKind union: richer kinds
+ * are T19b/T20b scope, and the factory fails closed on any kind missing
+ * here — never a guessed widget.
+ */
+export const GENERATED_FORM_TYPE_FOR_KIND = {
+  ref: "text",
+  string: "text",
+  integer: "int",
+  decimal: "decimal",
+  money: "money",
+  datetime: "datetime",
+  boolean: "bool",
+  file: "file",
+  enum: "enum",
+};
+
+/**
+ * T20a ref-version companion convention: a versioned non-record ref input
+ * named `owner` pairs with a text field pathed `owner__version` carrying
+ * the expected version. The submission projection composes the pair into
+ * the `{id, version}` envelope member; the companion name never enters the
+ * envelope itself, so the closed-inputs check never sees it.
+ */
+export const GENERATED_REF_VERSION_SUFFIX = "__version";
+
+/** Caller overrides for generated fields; everything defaults verbatim. */
+export interface GeneratedFormOverrides {
+  /**
+   * Label per field path (companions included). Absent labels default to
+   * the field path verbatim — never prettified, never invented wording.
+   */
+  readonly labels?: Record<string, MessageValue>;
+  /**
+   * Prefill value per field path, overriding `literal` defaults. Keys must
+   * match a generated field path exactly, else the factory throws naming
+   * the key — a typo'd prefill is never silently dropped.
+   */
+  readonly values?: Record<string, unknown>;
+}
+
+/**
+ * T20a generated operation form: the ui factory input. `mode` must agree
+ * with `derived.kind` exactly (create/update/scenario); `read`/`delete`
+ * derivations have no generated form and the factory throws naming the
+ * operation — reads are not forms and deletes render the delete card.
+ * Update mode binds `record` as hidden id/version and excludes the
+ * `record` input from the visible fields; every other derived input
+ * renders one field in emission order.
+ */
+export interface GeneratedFormProps {
+  readonly context: PresentationContext;
+  /** Dispatcher-supplied POST target; lane 05 never invents URLs. */
+  readonly action: string;
+  /** Checked T19a derivation this form is generated from. */
+  readonly derived: DerivedOperationInputs;
+  readonly mode: FormMode;
+  /** Fresh idempotency key rendered per form (replay-safe resubmits). */
+  readonly operationId: string;
+  /** Bound record for updates (hidden id/version); required in update mode. */
+  readonly record?: MutationRef;
+  /** Resolved rendering timezone (team adapter or explicit UTC fallback). */
+  readonly timeZone: string;
+  /** Field errors keyed by JSON Pointer into inputs (wire FieldError). */
+  readonly errors?: ReadonlyArray<FieldError>;
+  readonly outcome?: FormOutcome;
+  readonly submit: MessageValue;
+  readonly cancelHref?: string;
+  /** Caller-unique prefix for input ids (deterministic for swaps/tests). */
+  readonly idPrefix: string;
+  readonly labels?: Record<string, MessageValue>;
+  readonly values?: Record<string, unknown>;
 }

@@ -15,6 +15,7 @@
 import type { BusinessError, ResolvedIdentity } from '@canlang/contracts';
 import {
   IdentityError,
+  deriveCsrfToken,
   parseSessionCookie,
   resolveIdentity,
 } from '@canlang/identity';
@@ -134,4 +135,40 @@ export function jsonErrorResponse(error: BusinessError, status: number, headers?
     status,
     headers: { 'content-type': 'application/json; charset=utf-8', ...headers },
   });
+}
+
+/* ------------------------------------------------------------------ */
+/* T20a pilot form-request helpers: page-render CSRF cover and fresh   */
+/* operation identities for browser forms.                            */
+/* ------------------------------------------------------------------ */
+
+/**
+ * CSRF cover for one page render: the session-bound token when a
+ * session was presented, else `''` — an anonymous page carries no
+ * token, so any POST from it fails the CSRF check closed (and every
+ * operation POST requires a session first anyway).
+ */
+export async function csrfTokenForSession(sessionToken: string | null): Promise<string> {
+  if (sessionToken === null) return '';
+  return deriveCsrfToken(sessionToken);
+}
+
+/**
+ * Mint a fresh canonical UUIDv7 operation identity for one browser
+ * form render (wire `OperationId`: runtime-generated for browser
+ * forms, caller-generated for MCP). Lowercase hex, version nibble
+ * `7`, variant `8/9/a/b`, 48-bit unix-ms time field — exactly the
+ * framing validator's canonical shape, so minted ids always admit.
+ * Randomness is Web Crypto (`globalThis.crypto`, the identity
+ * `webRandom` precedent — available on workerd, Node, and browsers).
+ */
+export function mintOperationId(atMs: number = Date.now()): string {
+  const timeHex = Math.max(0, Math.floor(atMs)).toString(16).padStart(12, '0').slice(-12);
+  const rand = globalThis.crypto.getRandomValues(new Uint8Array(10));
+  const hex = [...rand].map((byte) => byte.toString(16).padStart(2, '0')).join('');
+  return (
+    `${timeHex.slice(0, 8)}-${timeHex.slice(8, 12)}-7${hex.slice(0, 3)}` +
+    `-${((parseInt(hex.slice(3, 4), 16) & 0x3) | 0x8).toString(16)}${hex.slice(4, 7)}` +
+    `-${hex.slice(7, 19)}`
+  );
 }
