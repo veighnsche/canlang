@@ -2,13 +2,17 @@
 //!
 //! Data-only Rust port of `src/receipt.ts`, proven against the same
 //! independent TS oracle corpus (`conformance/fixtures/receipts/receipt.json`).
-//! Standalone file: compiles and tests with
-//! `rustc --edition 2021 --test decisions/receipt.rs` — no Cargo
-//! membership, no dependencies, no host I/O. The shared prelude
+//! N03 replaces standalone rustc testing with an isolated private Cargo project
+//! containing exact copies of this file and numeric_text.rs; ryu-js =1.0.3,
+//! default features off. Run original embedded vectors and immutable witnesses.
+//! Official product dependency/root registration remains pending. The shared prelude
 //! (UTF-16 text, JS value model, JSON rendering, URI encoding,
 //! JSON-safety traversal, stored-row shape) is duplicated verbatim
 //! from the proven `rows.rs` sibling until W04.4 assembly consolidates
 //! it; only the error type and the receipt tables are new.
+
+#[path = "numeric_text.rs"]
+mod numeric_text;
 
 use std::collections::HashSet;
 use std::rc::Rc;
@@ -207,53 +211,12 @@ fn json_escape_into(units: &[u16], out: &mut String) {
 
 /// JS `String(n)` number rendering (also JSON for finite values).
 fn js_num(n: f64) -> String {
-    if n.is_nan() {
-        return "NaN".to_string();
-    }
-    if n == f64::INFINITY {
-        return "Infinity".to_string();
-    }
-    if n == f64::NEG_INFINITY {
-        return "-Infinity".to_string();
-    }
-    if n.to_bits() == 0 || n.to_bits() == 0x8000_0000_0000_0000 {
-        return "0".to_string();
-    }
-    let abs = n.abs();
-    if n.fract() == 0.0 && abs < 1e21 {
-        return format!("{}", n as i64);
-    }
-    if (1e-6..1e21).contains(&abs) {
-        return format!("{}", n);
-    }
-    // Exponential range: shortest digits from the positional rendering.
-    let plain = format!("{}", abs);
-    let dot = plain.find('.').unwrap_or(plain.len());
-    let digits: String = plain.chars().filter(|c| c.is_ascii_digit()).collect();
-    let first = digits.find(|c| c != '0').unwrap_or(digits.len());
-    let mut sig: String = digits[first..].to_string();
-    while sig.ends_with('0') && sig.len() > 1 {
-        sig.pop();
-    }
-    // Decimal exponent of the first significant digit + 1.
-    let exp = dot as i64 - first as i64 - 1;
-    let mut mantissa = String::new();
-    mantissa.push(sig.chars().next().unwrap_or('0'));
-    if sig.len() > 1 {
-        mantissa.push('.');
-        mantissa.push_str(&sig[1..]);
-    }
-    let sign = if exp < 0 { "-" } else { "+" };
-    let head = if n < 0.0 { "-" } else { "" };
-    format!("{}{}e{}{}", head, mantissa, sign, exp.abs())
+    numeric_text::string(n)
 }
 
 /// `JSON.stringify` number rendering (non-finite becomes null).
 fn js_json_num(n: f64) -> String {
-    if !n.is_finite() {
-        return "null".to_string();
-    }
-    js_num(n)
+    numeric_text::json_token(n)
 }
 
 /// V8-compatible `JSON.stringify` for the value model.
@@ -2499,3 +2462,8 @@ mod vectors_receipt {
         assert_eq!(RECEIPT_MODEL, "work.receipt");
     }
 }
+
+// N03 immutable witnesses: private Cargo route, not standalone rustc.
+#[cfg(test)]
+#[path = "../conformance/native-numeric-text.rs"]
+mod n03_numeric_tests;

@@ -1,0 +1,326 @@
+{
+  "packet": "first:R3:N03-work-number-maintenance",
+  "contract": "n01.work-number-text.v1",
+  "activation_base": "c6896fd2dea782d8ed6412769337b76eb899ca53",
+  "status": "leaf numeric maintenance verified; independent coordinator review pending",
+  "source_sha256": {
+    "packages/work-kernel/decisions/rows.rs": "42f0fcbc4cc1dd31f8ef6dd180c717529c01a87b3548c262ef3095f273943393",
+    "packages/work-kernel/decisions/receipt.rs": "71f914d0732e217b11836d52cb5ba9c913aa2b4923f0d6e6a73493418e4d885d",
+    "packages/work-kernel/decisions/linkage.rs": "ce6e9b790a8e5dffb2f4eb83237a8fc8f4a646f868ad8da98cb2cc948bae546d",
+    "packages/work-kernel/decisions/recovery.rs": "0954637f04bad18e684d449f5397922b764087c2fd1b90b91e5a1bfb389d9ec2",
+    "packages/work-kernel/decisions/numeric_text.rs": "2b8f51a8da20de130d278f6c81d080656ba450b70c807a0e94ce4289bd3b5eb6",
+    "packages/work-kernel/conformance/numeric-text.contract.test.ts": "ba1e8205ed068f24eb0c6108f84701f390f48df700d8443766b1de9f1aea9065",
+    "packages/work-kernel/conformance/numeric-text.oracle.mjs": "0f3757e763e1ab72d0a90c91a1f97d4e3f5f3b99390ae05a42d4b7345f4b2f2c",
+    "packages/work-kernel/conformance/fixtures/numeric-text.json": "7e4ee0155f23a7f21b62dc44a62c8a8e6e567e911ae515c1bcba1b8b1d028fa2",
+    "packages/work-kernel/conformance/native-numeric-text.rs": "add8194c697abfb55e3fb0671bb67471733d6b126db66ad43548d9a97606ac64"
+  },
+  "unchanged_read_only_inputs": {
+    "implementation/remaining-work/tasks.json": true,
+    "implementation/rust-port-lanes.json": true,
+    "implementation/rust-port-orchestration/contracts-20261007/ownership.json": true,
+    "implementation/rust-port-orchestration/contracts-20261007/packets.json": true,
+    "docs/research/package-library-audit-20261006/adoption-sequence.json": true,
+    "implementation/rust-port-orchestration/contracts-20261007/numeric-work.md": true,
+    "implementation/rust-port-orchestration/contracts-20261007/numeric-common.md": true,
+    "implementation/rust-port-orchestration/contracts-20261007/numeric-contracts.json": true,
+    "implementation/rust-port-orchestration/contracts-20261007/oracles/manifest.json": true,
+    "implementation/rust-port-orchestration/contracts-20261007/oracles/frozen-oracle.json.gz": true,
+    "packages/work-kernel/Cargo.toml": true,
+    "packages/work-kernel/Cargo.lock": true,
+    "packages/work-kernel/rust/lib.rs": true,
+    "packages/work-kernel/src/facts.ts": true,
+    "packages/work-kernel/src/rows.ts": true,
+    "packages/work-kernel/src/receipt.ts": true,
+    "packages/work-kernel/src/linkage.ts": true,
+    "packages/work-kernel/src/recovery.ts": true,
+    "packages/work/src/kernel/tables.ts": true,
+    "packages/state/src/fanout/tables.ts": true,
+    "packages/state/src/receipt/tables.ts": true,
+    "packages/work/src/recovery/index.ts": true,
+    "packages/work-kernel/conformance/rows.test.ts": true,
+    "packages/work-kernel/conformance/receipt.test.ts": true,
+    "packages/work-kernel/conformance/linkage.test.ts": true,
+    "packages/work-kernel/conformance/recovery.test.ts": true
+  },
+  "harness_strategy": "four private exact copied-source projects; lib.rs candidate copy, numeric_text module copy, conformance native test copy; cfg(n03_leaf) selects finite caller witnesses. No semantic wrappers. All originals remain in source and execute.",
+  "harness_receipts": [
+    {
+      "leaf": "rows",
+      "handle": "chunk1e156b",
+      "exit": 0,
+      "tests": 53,
+      "original_embedded_test_functions_executed": 14,
+      "original_assert_eq_sites": 150,
+      "new_frozen_callers": 38,
+      "primitive_bit_cases": 10213,
+      "log": "/private/tmp/canlang-rust-port-codex-first-20261006T231809Z/packets/R3-N03/harness/rows/locked-test.log",
+      "log_sha256": "9f888c720d75b57200c8b5de9d97dd3a90e85c61bd4a0a6c68b25fde845f6669",
+      "log_created_utc": "2026-10-06T23:24:17.841107+00:00",
+      "copy_equality": [
+        {
+          "source": "/Users/vince/Projects/canlang/packages/work-kernel/decisions/rows.rs",
+          "copy": "/private/tmp/canlang-rust-port-codex-first-20261006T231809Z/packets/R3-N03/harness/rows/src/lib.rs",
+          "sha256": "42f0fcbc4cc1dd31f8ef6dd180c717529c01a87b3548c262ef3095f273943393",
+          "equal": true
+        },
+        {
+          "source": "/Users/vince/Projects/canlang/packages/work-kernel/decisions/numeric_text.rs",
+          "copy": "/private/tmp/canlang-rust-port-codex-first-20261006T231809Z/packets/R3-N03/harness/rows/src/numeric_text.rs",
+          "sha256": "2b8f51a8da20de130d278f6c81d080656ba450b70c807a0e94ce4289bd3b5eb6",
+          "equal": true
+        },
+        {
+          "source": "/Users/vince/Projects/canlang/packages/work-kernel/conformance/native-numeric-text.rs",
+          "copy": "/private/tmp/canlang-rust-port-codex-first-20261006T231809Z/packets/R3-N03/harness/rows/conformance/native-numeric-text.rs",
+          "sha256": "add8194c697abfb55e3fb0671bb67471733d6b126db66ad43548d9a97606ac64",
+          "equal": true
+        }
+      ],
+      "private_lock": "/private/tmp/canlang-rust-port-codex-first-20261006T231809Z/packets/R3-N03/harness/rows/Cargo.lock",
+      "private_lock_sha256": "28ab717a50d5373f2d0de17fd850efc60d811650014c7723323308be90cbb9db",
+      "rustflags": "--cfg n03_rows",
+      "command": [
+        "cargo",
+        "test",
+        "--locked",
+        "--offline",
+        "--manifest-path",
+        "/private/tmp/canlang-rust-port-codex-first-20261006T231809Z/packets/R3-N03/harness/rows/Cargo.toml",
+        "--jobs",
+        "2"
+      ],
+      "target": "/private/tmp/canlang-rust-port-codex-first-20261006T231809Z/packets/R3-N03/harness/rows/target"
+    },
+    {
+      "leaf": "receipt",
+      "handle": "chunk21df56",
+      "exit": 0,
+      "tests": 70,
+      "original_embedded_test_functions_executed": 58,
+      "original_assert_eq_sites": 32,
+      "new_frozen_callers": 11,
+      "primitive_bit_cases": 10213,
+      "log": "/private/tmp/canlang-rust-port-codex-first-20261006T231809Z/packets/R3-N03/harness/receipt/locked-test.log",
+      "log_sha256": "27ba3ce349b9e655eacf9c0e7ab9116212e63fed091f6f6549b796fbc71c72dc",
+      "log_created_utc": "2026-10-06T23:24:23.003114+00:00",
+      "copy_equality": [
+        {
+          "source": "/Users/vince/Projects/canlang/packages/work-kernel/decisions/receipt.rs",
+          "copy": "/private/tmp/canlang-rust-port-codex-first-20261006T231809Z/packets/R3-N03/harness/receipt/src/lib.rs",
+          "sha256": "71f914d0732e217b11836d52cb5ba9c913aa2b4923f0d6e6a73493418e4d885d",
+          "equal": true
+        },
+        {
+          "source": "/Users/vince/Projects/canlang/packages/work-kernel/decisions/numeric_text.rs",
+          "copy": "/private/tmp/canlang-rust-port-codex-first-20261006T231809Z/packets/R3-N03/harness/receipt/src/numeric_text.rs",
+          "sha256": "2b8f51a8da20de130d278f6c81d080656ba450b70c807a0e94ce4289bd3b5eb6",
+          "equal": true
+        },
+        {
+          "source": "/Users/vince/Projects/canlang/packages/work-kernel/conformance/native-numeric-text.rs",
+          "copy": "/private/tmp/canlang-rust-port-codex-first-20261006T231809Z/packets/R3-N03/harness/receipt/conformance/native-numeric-text.rs",
+          "sha256": "add8194c697abfb55e3fb0671bb67471733d6b126db66ad43548d9a97606ac64",
+          "equal": true
+        }
+      ],
+      "private_lock": "/private/tmp/canlang-rust-port-codex-first-20261006T231809Z/packets/R3-N03/harness/receipt/Cargo.lock",
+      "private_lock_sha256": "2fbfc72f3553069cf0b9507308938e29b998be4d6f16ca8ce8996f9038968c21",
+      "rustflags": "--cfg n03_receipt",
+      "command": [
+        "cargo",
+        "test",
+        "--locked",
+        "--offline",
+        "--manifest-path",
+        "/private/tmp/canlang-rust-port-codex-first-20261006T231809Z/packets/R3-N03/harness/receipt/Cargo.toml",
+        "--jobs",
+        "2"
+      ],
+      "target": "/private/tmp/canlang-rust-port-codex-first-20261006T231809Z/packets/R3-N03/harness/receipt/target"
+    },
+    {
+      "leaf": "linkage",
+      "handle": "chunkbcbd8c",
+      "exit": 0,
+      "tests": 45,
+      "original_embedded_test_functions_executed": 33,
+      "original_assert_eq_sites": 38,
+      "new_frozen_callers": 11,
+      "primitive_bit_cases": 10213,
+      "log": "/private/tmp/canlang-rust-port-codex-first-20261006T231809Z/packets/R3-N03/harness/linkage/locked-test.log",
+      "log_sha256": "281cd31f6dd8893910269a66bec5065f6e9087032aee66ad815cb981a36a0fcc",
+      "log_created_utc": "2026-10-06T23:24:27.499126+00:00",
+      "copy_equality": [
+        {
+          "source": "/Users/vince/Projects/canlang/packages/work-kernel/decisions/linkage.rs",
+          "copy": "/private/tmp/canlang-rust-port-codex-first-20261006T231809Z/packets/R3-N03/harness/linkage/src/lib.rs",
+          "sha256": "ce6e9b790a8e5dffb2f4eb83237a8fc8f4a646f868ad8da98cb2cc948bae546d",
+          "equal": true
+        },
+        {
+          "source": "/Users/vince/Projects/canlang/packages/work-kernel/decisions/numeric_text.rs",
+          "copy": "/private/tmp/canlang-rust-port-codex-first-20261006T231809Z/packets/R3-N03/harness/linkage/src/numeric_text.rs",
+          "sha256": "2b8f51a8da20de130d278f6c81d080656ba450b70c807a0e94ce4289bd3b5eb6",
+          "equal": true
+        },
+        {
+          "source": "/Users/vince/Projects/canlang/packages/work-kernel/conformance/native-numeric-text.rs",
+          "copy": "/private/tmp/canlang-rust-port-codex-first-20261006T231809Z/packets/R3-N03/harness/linkage/conformance/native-numeric-text.rs",
+          "sha256": "add8194c697abfb55e3fb0671bb67471733d6b126db66ad43548d9a97606ac64",
+          "equal": true
+        }
+      ],
+      "private_lock": "/private/tmp/canlang-rust-port-codex-first-20261006T231809Z/packets/R3-N03/harness/linkage/Cargo.lock",
+      "private_lock_sha256": "d8601ebd21b3166255378c62a5ca8561ebaedfec5d756eaaf85b1dd5c9965cc0",
+      "rustflags": "--cfg n03_linkage",
+      "command": [
+        "cargo",
+        "test",
+        "--locked",
+        "--offline",
+        "--manifest-path",
+        "/private/tmp/canlang-rust-port-codex-first-20261006T231809Z/packets/R3-N03/harness/linkage/Cargo.toml",
+        "--jobs",
+        "2"
+      ],
+      "target": "/private/tmp/canlang-rust-port-codex-first-20261006T231809Z/packets/R3-N03/harness/linkage/target"
+    },
+    {
+      "leaf": "recovery",
+      "handle": "session77993",
+      "exit": 0,
+      "tests": 79,
+      "original_embedded_test_functions_executed": 66,
+      "original_assert_eq_sites": 69,
+      "new_frozen_callers": 12,
+      "primitive_bit_cases": 10213,
+      "log": "/private/tmp/canlang-rust-port-codex-first-20261006T231809Z/packets/R3-N03/harness/recovery/locked-test.log",
+      "log_sha256": "3442ab00fc61faa7b6c8c0a52223fccabbf22c77126e53c74ba3d72e4631679c",
+      "log_created_utc": "2026-10-06T23:24:31.440583+00:00",
+      "copy_equality": [
+        {
+          "source": "/Users/vince/Projects/canlang/packages/work-kernel/decisions/recovery.rs",
+          "copy": "/private/tmp/canlang-rust-port-codex-first-20261006T231809Z/packets/R3-N03/harness/recovery/src/lib.rs",
+          "sha256": "0954637f04bad18e684d449f5397922b764087c2fd1b90b91e5a1bfb389d9ec2",
+          "equal": true
+        },
+        {
+          "source": "/Users/vince/Projects/canlang/packages/work-kernel/decisions/numeric_text.rs",
+          "copy": "/private/tmp/canlang-rust-port-codex-first-20261006T231809Z/packets/R3-N03/harness/recovery/src/numeric_text.rs",
+          "sha256": "2b8f51a8da20de130d278f6c81d080656ba450b70c807a0e94ce4289bd3b5eb6",
+          "equal": true
+        },
+        {
+          "source": "/Users/vince/Projects/canlang/packages/work-kernel/conformance/native-numeric-text.rs",
+          "copy": "/private/tmp/canlang-rust-port-codex-first-20261006T231809Z/packets/R3-N03/harness/recovery/conformance/native-numeric-text.rs",
+          "sha256": "add8194c697abfb55e3fb0671bb67471733d6b126db66ad43548d9a97606ac64",
+          "equal": true
+        }
+      ],
+      "private_lock": "/private/tmp/canlang-rust-port-codex-first-20261006T231809Z/packets/R3-N03/harness/recovery/Cargo.lock",
+      "private_lock_sha256": "24b622a77a285e8296ce24f3b51d72e20cd752bf13e1fdff7711cb39b017c6fb",
+      "rustflags": "--cfg n03_recovery",
+      "command": [
+        "cargo",
+        "test",
+        "--locked",
+        "--offline",
+        "--manifest-path",
+        "/private/tmp/canlang-rust-port-codex-first-20261006T231809Z/packets/R3-N03/harness/recovery/Cargo.toml",
+        "--jobs",
+        "2"
+      ],
+      "target": "/private/tmp/canlang-rust-port-codex-first-20261006T231809Z/packets/R3-N03/harness/recovery/target"
+    }
+  ],
+  "primitive_engine": {
+    "node": "v24.21.0",
+    "v8": "13.6.233.17-node.53",
+    "platform": "darwin",
+    "arch": "arm64"
+  },
+  "donor_engine": {
+    "bun": "1.4.2",
+    "webkit": "2e2aa2290fac856d6f451ceacb58f7f5b44dd057"
+  },
+  "oracle_definition": "10,000 unique seeded xorshift64 bit patterns plus 213 fixed boundaries from hashed original planning definition; fresh builtin String/JSON observations; numbers never transported as JSON decimals",
+  "private_donor_capture": {
+    "script": "/private/tmp/canlang-rust-port-codex-first-20261006T231809Z/packets/R3-N03/capture.ts",
+    "script_sha256": "df3518bc8c0711a9eacf84146dd4ea69db521cd66c9368c3374bf447793857fa",
+    "raw": "/private/tmp/canlang-rust-port-codex-first-20261006T231809Z/packets/R3-N03/donors.json",
+    "raw_sha256": "98f4bc980de5bb1a733119990f6e77150b0737bca21f9671a52bc35912c9f748",
+    "first_freeze": "/private/tmp/canlang-rust-port-codex-first-20261006T231809Z/packets/R3-N03/donors-first-freeze.json",
+    "first_freeze_sha256": "417873feaef8e553671c5fe2ae0806e32da098ef1b187a63b96d3f76cd41ad4c",
+    "source_hashes": {
+      "packages/work/src/kernel/tables.ts": "10bde1f6281574b277fa6b795157c72c40471a12e46c32490b4774e1aea220e7",
+      "packages/state/src/fanout/tables.ts": "f97acf5b3d38c7ace87f0cc38c1712e533d856fb4c4affb733efb7588ea1f0ae",
+      "packages/state/src/receipt/tables.ts": "d9d6ec727d3ee80bc7b2036c934ad75df6a58afabeb6fa9e428b21705136230d",
+      "packages/work/src/recovery/index.ts": "870fed2d65118b4b77ce42df4bf0ef655d93ab9a062eff25761bb4df07e3e67f"
+    },
+    "sequence": "52 original donor observations frozen before first Rust execution; first freeze preserved; additional independently captured 20 diagnostic observations frozen before the final 72-case source snapshot Rust executions"
+  },
+  "ts_receipt": {
+    "handle": "session32239",
+    "command": [
+      "bun",
+      "test",
+      "packages/work-kernel/conformance/numeric-text.contract.test.ts"
+    ],
+    "exit": 0,
+    "tests": 74,
+    "log": "/private/tmp/canlang-rust-port-codex-first-20261006T231809Z/packets/R3-N03/ts-test-final.log",
+    "log_sha256": "c3098da06810ab17c7e93528591a87e0eeaf6b489253c128ce24c9377db8a0dd"
+  },
+  "negative_controls": [
+    "i64 saturation +1e20/-1e20",
+    "negative zero as -0",
+    "JSON Infinity as Infinity/NaN as NaN",
+    "missing exponent plus",
+    "wrong exponent threshold at 1e21",
+    "one-bit mutation",
+    "altered error code",
+    "mandatory field order",
+    "message punctuation"
+  ],
+  "preserved_failures": [
+    {
+      "log": "/private/tmp/canlang-rust-port-codex-first-20261006T231809Z/packets/R3-N03/harness/rows/test.log",
+      "exit": 101,
+      "cause": "sandbox DNS blocked crates index before compilation; same permitted command with network escalation succeeds in network-retry.log session37673 exit0"
+    },
+    {
+      "log": "/private/tmp/canlang-rust-port-codex-first-20261006T231809Z/packets/R3-N03/harness/recovery/test.log",
+      "exit": 101,
+      "cause": "test generator asserted unit instead of full successful resume plan; corrected native expected plan, immutable donor unchanged"
+    },
+    {
+      "log": "/private/tmp/canlang-rust-port-codex-first-20261006T231809Z/packets/R3-N03/ts-test.log",
+      "exit": 1,
+      "cause": "original full StateError owns extra retryable/fields/conflict keys absent in extracted TS; Bun NaN payload canonicalization differs from Node"
+    }
+  ],
+  "dependency": {
+    "archive_sha256": "04d056b875a9d2e6cb9a61d127afee9ac5999b9f87bcb32079d1318e505be714",
+    "expected": "04d056b875a9d2e6cb9a61d127afee9ac5999b9f87bcb32079d1318e505be714",
+    "license_choice": "BSL-1.0; LICENSE-BOOST upstream notice must accompany eventual shipped artifact; private proof only",
+    "source_files": {
+      "Cargo.toml": "f5b09622fa53809fa21277d0c3ccda5c4a37e5bc34641fc2ef749b861f5fc47d",
+      "Cargo.toml.orig": "d55539851516fe12d115e029b21358ed03c7eac2758189b3a19e1cf6e07dc3b9",
+      "LICENSE-BOOST": "c9bff75738922193e67fa726fa225535870d2aa1059f91452c411736284ad566",
+      "src/buffer/mod.rs": "5783fdd94040746e15f59ce6c66b203a6ce24de7773dce6cdfbc5a2775937ca2"
+    }
+  },
+  "dependency_tree": "/private/tmp/canlang-rust-port-codex-first-20261006T231809Z/packets/R3-N03/dependency-tree.log",
+  "residuals": [
+    "Original StateError extra own keys retryable/fields/conflict are captured and explicitly asserted as residual; extracted TS comparison covers name/message/code/details presence and mandatory key order only. Native rows/linkage errors contain name/code/message, native receipt/recovery name/message; details absent in native struct as before. This is not full public envelope equivalence.",
+    "Bun/JSC canonicalizes some NaN payload roundtrips unlike observed Node/V8. Numeric text parity and finite output bits verified; native reconstructs each raw u64 without f64 JS transport. No Bun raw NaN-bit identity claim.",
+    "Official package Cargo.toml/Cargo.lock/rust/lib.rs remain unchanged, ryu-js private dependency does not register product or close W04.4; upstream LICENSE-BOOST notice required in eventual delivery.",
+    "All original W03.1,W04.1/2/3,W03.4\u2192W04.4, Wasm and installed/product consumer gates remain open; no actual consumer, assembly, root feature or default acceptance.",
+    "Existing original unrepresentable-input omissions and engine URIError/DataCloneError text exclusions retained. Whole JSON serializer only checked at existing/new sampled witnesses, not universally proved."
+  ],
+  "release": {
+    "writer": "released to coordinator for review/commit",
+    "commands": "released; no active sessions",
+    "canonical_task_status_changes": false
+  }
+}
