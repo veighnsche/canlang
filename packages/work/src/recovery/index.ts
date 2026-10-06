@@ -18,6 +18,9 @@
  */
 import type {
   DispatchClaim,
+  FanoutFailedReason,
+  FanoutId,
+  FanoutSkippedReason,
   OutboxId,
   OutboxItem,
   PendingWorkInventory,
@@ -26,6 +29,11 @@ import type {
   ScheduledOccurrence,
 } from '../../../contracts/src/work.js';
 import type { WorkInventoryItem } from '../../../contracts/src/state.js';
+import type {
+  FanoutCheckpointRowData,
+  FanoutChildRowData,
+  FanoutIntentRowData,
+} from '../kernel/tables.ts';
 import { DEFAULT_RETRY_POLICY, classifyFailure } from '../receipt/index.ts';
 import type { FailureCause, ReconcileEvidence } from '../receipt/index.ts';
 
@@ -526,4 +534,356 @@ export function planRecoveryScan(input: RecoveryScanInput): RecoveryPlan {
   terminal.sort(compareOutboxIds);
   dead.sort(compareOutboxIds);
   return { resume, retry, reconcile, awaiting, skipped, terminal, dead };
+}
+
+/* -- T34-F4 fanout recovery + enumeration resume (L4 work-kernel slice). -- */
+
+/**
+ * Current lifecycle lookup for one admitted child, supplied read-only
+ * by the authoritative membership producer (F5 owns production; this
+ * scan only consumes). `present`/`moved` records live under current
+ * state; `deleted` is DEMONSTRABLE deletion only; `unknown` (lookup
+ * miss or authority failure) carries its closed failed reason and can
+ * never masquerade as deletion (adopted contract §C7).
+ */
+export type FanoutChildLifecycle =
+  | { readonly status: 'present' }
+  | { readonly status: 'deleted' }
+  | { readonly status: 'moved' }
+  | {
+      readonly status: 'unknown';
+      readonly reason: Extract<
+        FanoutFailedReason,
+        'missing-record' | 'inaccessible-record' | 'infra-read-failure'
+      >;
+    };
+
+/**
+ * One child row entering the fanout recovery scan. The caller assembles
+ * views from stored F2 child rows (T24 `RecoverableRow` precedent):
+ * `FanoutChildRowData` alone cannot carry the claim instant, the
+ * current guard verdict, the first-attempt anchor, or the lifecycle
+ * lookup, and F3 records no separate claim row (its claim IS the
+ * pending -> running row transition, read here read-only).
+ */
+export interface FanoutRecoverableRow {
+  /** F2 child row data (caller reads via `readFanoutChildRow`). */
+  readonly child: FanoutChildRowData;
+  /**
+   * Claim instant (UTC epoch ms): the running row's `updated` stamp
+   * written by F3's pending -> running claim. Null when unclaimed or
+   * unknown. Pending rows ignore it (T24 precedent: the pending path
+   * never consults claims); running rows with null age are uncertain.
+   */
+  readonly claimedAtMs: number | null;
+  /**
+   * Current guard re-evaluation against current state; false pins the
+   * child undispatched (skipped/non-applicable). Moved records are
+   * re-evaluated through this verdict, never auto-kept or auto-cut.
+   */
+  readonly guardVerdict: boolean | null;
+  /** First-attempt anchor for the retry horizon; null when none ran. */
+  readonly firstAttemptAtMs: number | null;
+  /** Current lifecycle lookup (read-only membership-producer view). */
+  readonly lifecycle: FanoutChildLifecycle;
+}
+
+export interface FanoutRecoveryScanInput {
+  /** Fanout under recovery; intent, checkpoint and rows must carry it. */
+  readonly fanoutId: FanoutId;
+  readonly intent: FanoutIntentRowData;
+  readonly checkpoint: FanoutCheckpointRowData;
+  /**
+   * Drained child-row views for this fanout (F2 bounded id-sorted
+   * pages). Row actions are per-row safe, but admit/phantom/gap
+   * detection needs the drained set: a windowed subset would mistake
+   * unpaged members for missing ones.
+   */
+  readonly rows: ReadonlyArray<FanoutRecoverableRow>;
+  readonly nowMs: number;
+  readonly maxClaimAgeMs: number;
+  readonly policy?: RetryPolicy;
+}
+
+/** Record terminal `skipped` with its closed reason (attempts unchanged). */
+export interface FanoutSkippedAction {
+  readonly childId: string;
+  readonly reason: FanoutSkippedReason;
+}
+
+/** Record terminal `failed` with its closed reason (attempts + 1). */
+export interface FanoutFailedAction {
+  readonly childId: string;
+  readonly reason: FanoutFailedReason;
+}
+
+/**
+ * Fanout recovery plan: every actionable row lands in exactly one
+ * action list; rows needing no action (fresh claims, dispatched
+ * pendings, terminal rows) appear in none — except running rows with
+ * an unprovable claim, which are observed read-only under `uncertain`.
+ * Execution is the owning driver's (F5/F7): `resume` releases drive
+ * through the fenced pending -> running re-claim, terminal actions
+ * commit outcome + checkpoint advance atomically (adopted §C5), and
+ * `admit` inserts flow through the membership producer. Terminal
+ * child rows NEVER appear in any action list: committed effects are
+ * never re-executed and no unfinished effect is ever acknowledged.
+ */
+export interface FanoutRecoveryPlan {
+  /** Running + stale within budget: release to pending for re-drive. */
+  readonly resume: string[];
+  /** Deleted / guard-false: record terminal skipped (attempts unchanged). */
+  readonly skipped: FanoutSkippedAction[];
+  /** Running + stale + exhausted: record terminal failed/exhausted. */
+  readonly dead: string[];
+  /** Unknown lookup/authority: record terminal failed (never deleted). */
+  readonly failed: FanoutFailedAction[];
+  /** Frozen members with no child row and no completion: admit. */
+  readonly admit: string[];
+  /** Running + fresh/unproven claim: observed read-only, never touched. */
+  readonly uncertain: string[];
+  /** Rows outside the frozen member set: attention, never driven. */
+  readonly phantoms: string[];
+  /** Completions without a terminal row: attention, never re-touched. */
+  readonly checkpointGaps: string[];
+  /**
+   * True only when the cursor is non-null yet enumeration is provably
+   * complete (nothing to admit, no gaps): the lost cursor-null is the
+   * only unfinished write. Gaps force false — a partial checkpoint
+   * must never read complete.
+   */
+  readonly finishEnumeration: boolean;
+}
+
+/** A fanout claim is stale once its age reaches the max age (boundary inclusive). */
+export function isFanoutClaimStale(
+  claimedAtMs: number,
+  nowMs: number,
+  maxClaimAgeMs: number,
+): boolean {
+  if (!Number.isFinite(claimedAtMs) || claimedAtMs < 0) {
+    throw new RangeError('isFanoutClaimStale: claimedAtMs must be finite and >= 0');
+  }
+  if (!Number.isFinite(nowMs) || nowMs < 0) {
+    throw new RangeError('isFanoutClaimStale: nowMs must be finite and >= 0');
+  }
+  if (!Number.isFinite(maxClaimAgeMs) || maxClaimAgeMs < 0) {
+    throw new RangeError('isFanoutClaimStale: maxClaimAgeMs must be finite and >= 0');
+  }
+  return claimedAtMs + maxClaimAgeMs <= nowMs;
+}
+
+/**
+ * Exhaustion on RECORDED attempts: the cap is reached, or the anchored
+ * horizon elapsed. A null first-attempt anchor checks attempts only
+ * (the horizon never started); record-time enforcement (F3) still
+ * applies its required anchor, so the scan can only under-claim
+ * exhaustion, never over-claim it.
+ */
+export function isFanoutChildExhausted(
+  attempts: number,
+  firstAttemptAtMs: number | null,
+  nowMs: number,
+  policy: RetryPolicy,
+): boolean {
+  if (!Number.isInteger(attempts) || attempts < 0) {
+    throw new RangeError('isFanoutChildExhausted: attempts must be an integer >= 0');
+  }
+  if (firstAttemptAtMs !== null && (!Number.isFinite(firstAttemptAtMs) || firstAttemptAtMs < 0)) {
+    throw new RangeError('isFanoutChildExhausted: firstAttemptAtMs must be finite and >= 0');
+  }
+  if (!Number.isFinite(nowMs) || nowMs < 0) {
+    throw new RangeError('isFanoutChildExhausted: nowMs must be finite and >= 0');
+  }
+  assertFanoutRetryPolicy(policy, 'isFanoutChildExhausted');
+  return (
+    attempts >= policy.maxAttempts ||
+    (firstAttemptAtMs !== null && nowMs - firstAttemptAtMs >= policy.horizonMs)
+  );
+}
+
+function assertFanoutRetryPolicy(policy: RetryPolicy, what: string): void {
+  if (!Number.isInteger(policy.maxAttempts) || policy.maxAttempts < 1) {
+    throw new RangeError(`${what}: policy.maxAttempts must be an integer >= 1`);
+  }
+  if (!Number.isFinite(policy.horizonMs) || policy.horizonMs <= 0) {
+    throw new RangeError(`${what}: policy.horizonMs must be finite and > 0`);
+  }
+}
+
+function compareChildIds(a: string, b: string): number {
+  return a < b ? -1 : a > b ? 1 : 0;
+}
+
+const FANOUT_RECOVERABLE_STATES: ReadonlySet<string> = new Set([
+  'pending',
+  'running',
+  'completed',
+  'skipped',
+  'failed',
+]);
+
+const FANOUT_UNKNOWN_LIFECYCLE_REASONS: ReadonlySet<string> = new Set([
+  'missing-record',
+  'inaccessible-record',
+  'infra-read-failure',
+]);
+
+/**
+ * Plan one recovery scan over a drained fanout row set. Decision table:
+ *
+ * - `running` + null/fresh claim -> `uncertain` (a live worker may
+ *   hold it; T24 read-only posture — lifecycle and guard must not
+ *   race a live claim).
+ * - `running` + stale claim -> lifecycle first: `deleted` pins
+ *   skipped/deleted, `unknown` pins failed (never deleted), then
+ *   guard-false pins skipped/non-applicable (moved records resolve
+ *   here), then exhaustion pins `dead` (failed/exhausted), else
+ *   `resume`.
+ * - `pending` + deleted/unknown/guard-false -> the same terminal
+ *   pins; other pending rows need no recovery action (normal
+ *   dispatch drives them).
+ * - `completed`/`skipped`/`failed` are terminal: never listed, never
+ *   re-executed, even when guard or lifecycle now disagree — the
+ *   recorded outcome stands.
+ * - Members with no row and no completion -> `admit`; rows outside
+ *   the frozen set -> `phantoms`; completions without a terminal
+ *   row -> `checkpointGaps`. Gaps are attention-only: the scan
+ *   neither re-executes the member nor completes the row.
+ *
+ * One fanout per call: intent, checkpoint and rows must all carry
+ * `fanoutId`, so two independent source occurrences can never share
+ * a checkpoint (adopted §C8 no-supersession default). All lists are
+ * id-sorted for stable evidence.
+ */
+export function planFanoutRecoveryScan(input: FanoutRecoveryScanInput): FanoutRecoveryPlan {
+  if (typeof input.fanoutId !== 'string' || input.fanoutId === '') {
+    throw new Error('planFanoutRecoveryScan: fanoutId must be a non-empty string.');
+  }
+  if (input.intent.fanoutId !== input.fanoutId) {
+    throw new Error('planFanoutRecoveryScan: intent carries a different fanoutId.');
+  }
+  if (input.checkpoint.fanoutId !== input.fanoutId) {
+    throw new Error('planFanoutRecoveryScan: checkpoint carries a different fanoutId.');
+  }
+  if (!Number.isFinite(input.nowMs) || input.nowMs < 0) {
+    throw new RangeError('planFanoutRecoveryScan: nowMs must be finite and >= 0');
+  }
+  if (!Number.isFinite(input.maxClaimAgeMs) || input.maxClaimAgeMs < 0) {
+    throw new RangeError('planFanoutRecoveryScan: maxClaimAgeMs must be finite and >= 0');
+  }
+  const policy = input.policy ?? DEFAULT_RETRY_POLICY;
+  assertFanoutRetryPolicy(policy, 'planFanoutRecoveryScan');
+  const resume: string[] = [];
+  const skipped: FanoutSkippedAction[] = [];
+  const dead: string[] = [];
+  const failed: FanoutFailedAction[] = [];
+  const uncertain: string[] = [];
+  const phantoms: string[] = [];
+  const memberSet = new Set<string>(input.intent.members);
+  const completedSet = new Set<string>(input.checkpoint.completed);
+  const rowRecordIds = new Set<string>();
+  const terminalRecordIds = new Set<string>();
+  for (const row of input.rows) {
+    const child = row.child;
+    if (child.fanoutId !== input.fanoutId) {
+      throw new Error('planFanoutRecoveryScan: child row carries a different fanoutId.');
+    }
+    if (!FANOUT_RECOVERABLE_STATES.has(child.state)) {
+      throw new Error(
+        `planFanoutRecoveryScan: child ${JSON.stringify(child.childId)} has unknown state ` +
+          `${JSON.stringify(child.state)}.`,
+      );
+    }
+    if (
+      row.claimedAtMs !== null &&
+      (!Number.isFinite(row.claimedAtMs) || row.claimedAtMs < 0)
+    ) {
+      throw new RangeError('planFanoutRecoveryScan: claimedAtMs must be finite and >= 0');
+    }
+    if (
+      row.firstAttemptAtMs !== null &&
+      (!Number.isFinite(row.firstAttemptAtMs) || row.firstAttemptAtMs < 0)
+    ) {
+      throw new RangeError('planFanoutRecoveryScan: firstAttemptAtMs must be finite and >= 0');
+    }
+    const lifecycle = row.lifecycle.status;
+    if (lifecycle !== 'present' && lifecycle !== 'deleted' && lifecycle !== 'moved' && lifecycle !== 'unknown') {
+      throw new Error(
+        `planFanoutRecoveryScan: child ${JSON.stringify(child.childId)} has unknown lifecycle ` +
+          `${JSON.stringify(lifecycle)}.`,
+      );
+    }
+    if (
+      row.lifecycle.status === 'unknown' &&
+      !FANOUT_UNKNOWN_LIFECYCLE_REASONS.has(row.lifecycle.reason)
+    ) {
+      throw new Error(
+        `planFanoutRecoveryScan: child ${JSON.stringify(child.childId)} has unknown lifecycle ` +
+          `reason ${JSON.stringify(row.lifecycle.reason)}.`,
+      );
+    }
+    rowRecordIds.add(child.recordId);
+    if (!memberSet.has(child.recordId)) {
+      phantoms.push(child.childId);
+    }
+    if (child.state === 'completed' || child.state === 'skipped' || child.state === 'failed') {
+      terminalRecordIds.add(child.recordId);
+      continue;
+    }
+    if (child.state === 'running') {
+      if (
+        row.claimedAtMs === null ||
+        !isFanoutClaimStale(row.claimedAtMs, input.nowMs, input.maxClaimAgeMs)
+      ) {
+        uncertain.push(child.childId);
+        continue;
+      }
+    }
+    if (row.lifecycle.status === 'deleted') {
+      skipped.push({ childId: child.childId, reason: 'deleted' });
+      continue;
+    }
+    if (row.lifecycle.status === 'unknown') {
+      failed.push({ childId: child.childId, reason: row.lifecycle.reason });
+      continue;
+    }
+    if (row.guardVerdict === false) {
+      skipped.push({ childId: child.childId, reason: 'non-applicable' });
+      continue;
+    }
+    if (child.state === 'pending') {
+      continue;
+    }
+    if (isFanoutChildExhausted(child.attempts, row.firstAttemptAtMs, input.nowMs, policy)) {
+      dead.push(child.childId);
+    } else {
+      resume.push(child.childId);
+    }
+  }
+  const admit = input.intent.members.filter(
+    (member) => !rowRecordIds.has(member) && !completedSet.has(member),
+  );
+  const checkpointGaps = input.checkpoint.completed.filter(
+    (recordId) => !terminalRecordIds.has(recordId),
+  );
+  resume.sort(compareChildIds);
+  skipped.sort((a, b) => compareChildIds(a.childId, b.childId));
+  dead.sort(compareChildIds);
+  failed.sort((a, b) => compareChildIds(a.childId, b.childId));
+  admit.sort(compareChildIds);
+  uncertain.sort(compareChildIds);
+  phantoms.sort(compareChildIds);
+  checkpointGaps.sort(compareChildIds);
+  return {
+    resume,
+    skipped,
+    dead,
+    failed,
+    admit,
+    uncertain,
+    phantoms,
+    checkpointGaps,
+    finishEnumeration: input.checkpoint.cursor !== null && admit.length === 0 && checkpointGaps.length === 0,
+  };
 }
