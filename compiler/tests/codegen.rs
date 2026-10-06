@@ -5986,6 +5986,74 @@ fn t31_hook_delete_op_registry() {
     t31_assert_parses(js, "delete-registry");
 }
 
+/// (B4-G/O2) Non-hook `operation.id` lowers through the ambient
+/// context (`c.operation.id`), never as a free variable.
+#[test]
+fn b4g_operation_id_lowers_through_c() {
+    let (catalog, path) = golden_catalog();
+    let src = "app T\nGiven\n M { t:text, source:text }\nWhen\n scenario s(note:text) by=members\n  do\n   create M {t=\"x\",source=operation.id} as m\nThen\n";
+    let (db, program, result) = t31_program(src, &catalog);
+    assert!(result.diagnostics.is_empty(), "{:?}", result.diagnostics);
+    let (artifact, diags) = emit_test_only(&program, &db, &result, Some(&catalog));
+    let _ = std::fs::remove_file(&path);
+    assert!(diags.is_empty(), "{diags:?}");
+    let js = &artifact.modules[0].js;
+    assert!(
+        js.contains("source:c.operation.id"),
+        "operation threads through c:\n{js}"
+    );
+    assert!(
+        !js.contains("source:operation.id"),
+        "no free operation:\n{js}"
+    );
+    t31_assert_parses(js, "b4g-operation");
+}
+
+/// (B4-G/O2) Non-hook `team.id` lowers through the ambient context
+/// (`c.team.id`), never as a free variable.
+#[test]
+fn b4g_team_id_lowers_through_c() {
+    let (catalog, path) = golden_catalog();
+    let src = "app T\nGiven\n M { t:text }\nWhen\n scenario s(note:text) by=members\n  do\n   create M {t=team.id} as m\nThen\n";
+    let (db, program, result) = t31_program(src, &catalog);
+    assert!(result.diagnostics.is_empty(), "{:?}", result.diagnostics);
+    let (artifact, diags) = emit_test_only(&program, &db, &result, Some(&catalog));
+    let _ = std::fs::remove_file(&path);
+    assert!(diags.is_empty(), "{diags:?}");
+    let js = &artifact.modules[0].js;
+    assert!(js.contains("{t:c.team.id"), "team threads through c:\n{js}");
+    assert!(!js.contains("{t:team.id"), "no free team:\n{js}");
+    t31_assert_parses(js, "b4g-team");
+}
+
+/// (B4-G/O2) Hooks keep the legacy lowering for team/operation
+/// (T34-Q5 owns the hook-side contract): bare roots, while actor
+/// still reads off `$hookCtx`.
+#[test]
+fn b4g_hook_team_operation_unchanged() {
+    let (catalog, path) = golden_catalog();
+    let src = "app T\nGiven\n M { t:text }\nWhen\n scenario h on=M.update\n  do\n   let a=actor\n   set event.after {t=operation.id}\n   let g=team.id\nThen\n";
+    let (db, program, result) = t31_program(src, &catalog);
+    assert!(result.diagnostics.is_empty(), "{:?}", result.diagnostics);
+    let (artifact, diags) = emit_test_only(&program, &db, &result, Some(&catalog));
+    let _ = std::fs::remove_file(&path);
+    assert!(diags.is_empty(), "{diags:?}");
+    let js = &artifact.modules[0].js;
+    assert!(
+        js.contains("$hookCtx.actor"),
+        "hook actor still contextual:\n{js}"
+    );
+    assert!(
+        js.contains("{t:operation.id}"),
+        "hook operation stays bare:\n{js}"
+    );
+    assert!(
+        js.contains("team.id") && !js.contains("c.team"),
+        "hook team stays bare:\n{js}"
+    );
+    t31_assert_parses(js, "b4g-hook");
+}
+
 /// (T31) Non-hook schedules lower (the payload decodes from the effect
 /// arguments, not the unset value slot).
 #[test]
