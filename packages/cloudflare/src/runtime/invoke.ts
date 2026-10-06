@@ -69,6 +69,7 @@ import type {
   OutboxItemState,
   QuerySpec,
   Receipt,
+  ReceiptProperty,
   RecordId,
   RecordVersion,
   ResolvedIdentity,
@@ -79,6 +80,7 @@ import type {
   CommitBatch,
   CommitResult,
   ProjectedRecord,
+  SelectedReceiptProjection,
   StoragePort,
   StoredRow,
   UniqueClaim,
@@ -1165,6 +1167,22 @@ export interface CanonicalModelPolicyInput {
  */
 interface StateGrantsProducer {
   buildPolicyTable(policies: ReadonlyArray<CanonicalModelPolicyInput>): unknown;
+  /**
+   * D3b: REAL `matchGrants` (structural subset — the engine reads
+   * `grants[].by/when` only). The receipt pre-load authZ evaluates
+   * the owner row through it, the same primitive the join's
+   * leaf-grant resolution uses.
+   */
+  matchGrants(
+    policy: { readonly grants: ReadonlyArray<{ readonly by: unknown; readonly when?: unknown }> },
+    byCtx: {
+      readonly actorUserId: string | null;
+      readonly teamId: string | null;
+      readonly membership: Membership | null;
+      readonly memberships: CanonicalMembershipReader;
+    },
+    row: StoredRow,
+  ): Promise<ReadonlyArray<unknown>>;
 }
 
 /** T17b: one pipeline write as handed to `runMutationWrites` (no `when`: stdlib carries none). */
@@ -1306,6 +1324,11 @@ async function loadCanonicalStateProducers(): Promise<CanonicalStateProducers> {
     "buildPolicyTable",
     "state grants producer",
   );
+  const matchGrants = requireProducerFn(
+    grantsMod,
+    "matchGrants",
+    "state grants producer",
+  );
   const runMutationWrites = requireProducerFn(
     pipelineMod,
     "runMutationWrites",
@@ -1330,7 +1353,10 @@ async function loadCanonicalStateProducers(): Promise<CanonicalStateProducers> {
     models: { buildModelTableFromCanonical: buildModelTableFromCanonical as StateModelsProducer["buildModelTableFromCanonical"] },
     errors: StateError as unknown as StateErrorsProducer,
     transact: { createReadInvoker: createReadInvoker as StateTransactProducer["createReadInvoker"] },
-    grants: { buildPolicyTable: buildPolicyTable as StateGrantsProducer["buildPolicyTable"] },
+    grants: {
+      buildPolicyTable: buildPolicyTable as StateGrantsProducer["buildPolicyTable"],
+      matchGrants: matchGrants as StateGrantsProducer["matchGrants"],
+    },
     pipeline: { runMutationWrites: runMutationWrites as StatePipelineProducer["runMutationWrites"] },
   };
 }
@@ -2917,6 +2943,408 @@ export async function invokeMutationCanonical(
 }
 
 /* ------------------------------------------------------------------ */
+/* D3b selected-receipt serving (Receipt.read -> T25 join).              */
+/*                                                                      */
+/* Joint contract (G1 locked): op `Receipt.read`, closed inputs         */
+/* {recordId, field, selected[]}, kind:read read-def, MCP-first route,  */
+/* revisions as JSON numbers. The serving layer bridges the text-id     */
+/* envelope to the join's row-object locator: model binds statically    */
+/* from the load-time B3 delivery schema (C1 — never envelope text),    */
+/* recordId resolves through the authorized pre-load (existence-hiding */
+/* not_found), and the REAL T25 join runs with the REAL work observer  */
+/* from the state work-loader. Outcomes serve 1:1 (observed /           */
+/* denied-as-data / discriminator-carrying null-association); caller    */
+/* errors are `StateError` (assembly maps through `toBusinessError`),   */
+/* skew is loud plain `Error`.                                          */
+/* ------------------------------------------------------------------ */
+
+/** D3b serving operation (G1-locked joint name). */
+export const RECEIPT_READ_OPERATION = "Receipt.read";
+
+const STATE_RECEIPT_JOIN_SPECIFIER = "../../../state/dist/state/src/receipt/join.js";
+const STATE_RECEIPT_WORK_LOADER_SPECIFIER = "../../../state/dist/state/src/receipt/work-loader.js";
+
+/**
+ * D3b: 1:1 served selected-receipt outcome (E wire-half contract).
+ * Revisions are JSON numbers (G4). `denied` is DATA (which leaves
+ * were withheld), never an error; `null-association` carries the
+ * discriminator so it never masquerades as denial.
+ */
+export type SelectedReceiptServed =
+  | {
+      readonly outcome: "observed";
+      readonly projection: SelectedReceiptProjection;
+      readonly fenceRevision: number | null;
+      readonly readRevision: number;
+    }
+  | {
+      readonly outcome: "denied";
+      readonly denied: ReadonlyArray<ReceiptProperty>;
+      readonly readRevision: number;
+    }
+  | { readonly outcome: "null-association"; readonly readRevision: number };
+
+/**
+ * D3b: per-call owner-fence handle (structural mirror of the engine
+ * `FenceScope` — only the revision + record enrollment the serving
+ * path touches). Standalone served reads take NO fence (B openQ_fence
+ * answered: fenceless + reported readRevision); nested callers thread
+ * theirs and the pre-load enrolls the owner row in it (B C3).
+ */
+export interface SelectedReceiptFence {
+  readonly revision: number;
+  enroll(dependency: {
+    readonly kind: "record";
+    readonly model: string;
+    readonly id: string;
+    readonly version: number;
+  }): void;
+}
+
+export interface SelectedReceiptReadOpts {
+  readonly asm: AssembledModules;
+  readonly artifact: CompileArtifact;
+  /** Must be `Receipt.read` (routing assert — skew tripwire otherwise). */
+  readonly operation: string;
+  readonly inputs: Record<string, unknown>;
+  /** Transport-verified identity (resolved from the credential per request). */
+  readonly identity: ResolvedIdentity;
+  readonly store: StoragePort;
+  readonly memberships: CanonicalMembershipReader;
+  readonly fence?: SelectedReceiptFence;
+  readonly now?: () => number;
+}
+
+/** D3b: structural view of the state receipt-join module (input/output mirrors only what serving touches). */
+interface StateReceiptJoinProducer {
+  observeSelectedReceiptJoin(input: {
+    readonly locator: { readonly record: { readonly id: string }; readonly field: string };
+    readonly selected: ReadonlyArray<string>;
+    readonly model: string;
+    readonly schema: ReadonlyMap<string, ReadonlySet<string>>;
+    readonly policy: unknown;
+    readonly caller: { readonly actorUserId: string | null; readonly teamId: string | null };
+    readonly memberships: CanonicalMembershipReader;
+    readonly store: StoragePort;
+    readonly fence?: SelectedReceiptFence;
+    readonly nowMs: number;
+    readonly observeSelected: (input: unknown) => unknown;
+  }): Promise<unknown>;
+}
+
+/** D3b: structural view of the state receipt work-loader module. */
+interface StateReceiptWorkLoaderProducer {
+  loadWorkReceiptFns(): Promise<{
+    readonly observeSelectedReceipt: (input: unknown) => unknown;
+  }>;
+}
+
+const RECEIPT_READ_INPUT_KEYS: ReadonlyArray<string> = ["recordId", "field", "selected"];
+
+const RECEIPT_LEAVES: ReadonlySet<string> = new Set(["id", "status", "result", "error"]);
+
+const RECEIPT_PROJECTION_KEYS: ReadonlySet<string> = new Set(["id", "status", "result", "error"]);
+
+/**
+ * D3b: validate the closed serving envelope (C1 + C7). Exactly
+ * {recordId, field, selected} — a `model` key rejects explicitly
+ * (bound server-side, never trusted), every other unknown key
+ * rejects as unclosed. Kernel TypeError/RangeError classes are
+ * unreachable past this point by construction (same accept/reject
+ * table, thrown as `StateError` validation here instead).
+ */
+function assertReceiptReadInputs(
+  StateError: StateErrorsProducer,
+  inputs: Record<string, unknown>,
+): { readonly recordId: string; readonly field: string; readonly selected: ReceiptProperty[] } {
+  for (const key of Object.keys(inputs)) {
+    if (key === "model") {
+      throw new StateError(
+        "validation",
+        `Receipt.read must not carry model (bound server-side from the delivery schema).`,
+      );
+    }
+    if (!RECEIPT_READ_INPUT_KEYS.includes(key)) {
+      throw new StateError(
+        "validation",
+        `Receipt.read inputs must be exactly {recordId, field, selected} (unknown key ${JSON.stringify(key)}).`,
+      );
+    }
+  }
+  const recordId: unknown = inputs["recordId"];
+  if (typeof recordId !== "string" || recordId === "") {
+    throw new StateError("validation", `Receipt.read recordId must be a non-empty string.`);
+  }
+  const field: unknown = inputs["field"];
+  if (typeof field !== "string" || field === "") {
+    throw new StateError("validation", `Receipt.read field must be a non-empty plain name.`);
+  }
+  if (field.includes(".") || field.includes("[") || field.includes("]")) {
+    throw new StateError("validation", `Receipt.read field must be a plain name, never traversal.`);
+  }
+  const selected: unknown = inputs["selected"];
+  if (!Array.isArray(selected)) {
+    throw new StateError("validation", `Receipt.read selected must be an array.`);
+  }
+  if (selected.length === 0) {
+    throw new StateError("validation", `Receipt.read selected must not be empty.`);
+  }
+  for (const property of selected) {
+    if (typeof property !== "string" || !RECEIPT_LEAVES.has(property)) {
+      throw new StateError(
+        "validation",
+        `Receipt.read selected carries unknown property ${JSON.stringify(String(property))}.`,
+      );
+    }
+  }
+  return { recordId, field, selected: [...(selected as string[])] as ReceiptProperty[] };
+}
+
+/**
+ * D3b: bind the owning model statically from the load-time B3
+ * delivery schema (C1/C2 — the serving operation's binding, never
+ * envelope text). Zero declarers is an undeclared field; multiple
+ * declarers is ambiguous — both refuse loud as caller validation
+ * (fail-closed; recordIds are model-scoped, never probed across).
+ */
+function bindReceiptModel(
+  StateError: StateErrorsProducer,
+  deliveryFields: ReadonlyMap<string, ReadonlySet<string>>,
+  field: string,
+): string {
+  const declarers: string[] = [];
+  for (const [model, fields] of deliveryFields.entries()) {
+    if (fields.has(field)) declarers.push(model);
+  }
+  if (declarers.length === 0) {
+    throw new StateError(
+      "validation",
+      `Receipt.read field ${JSON.stringify(field)} is not a declared delivery field.`,
+    );
+  }
+  if (declarers.length > 1) {
+    throw new StateError(
+      "validation",
+      `Receipt.read field ${JSON.stringify(field)} is declared by multiple models; cannot bind.`,
+    );
+  }
+  return declarers[0] as string;
+}
+
+/**
+ * D3b: route through the server-side read descriptor (C1 — the routed
+ * op descriptor anchors routing + admission). Unknown operations
+ * reject with the engine's exact text; a present-but-wrong def
+ * (non-read kind, non-public gate, row predicate) is loader skew —
+ * loud, never admitted or mis-served. The public gate admits all
+ * (engine `evaluateBy` returns true for `public`); visibility comes
+ * from leaf grants (denied-as-data), never the gate.
+ */
+function assertReceiptReadDef(
+  StateError: StateErrorsProducer,
+  registry: ReadonlyMap<string, unknown>,
+): void {
+  const def: unknown = registry.get(RECEIPT_READ_OPERATION);
+  if (def === undefined) {
+    throw new StateError("validation", `Unknown operation "${RECEIPT_READ_OPERATION}".`);
+  }
+  if (!isUnknownRecord(def) || def["generated"] !== true) {
+    throw new Error(`d3b: Receipt.read def is not a generated def (loader/artifact skew?)`);
+  }
+  const descriptor: unknown = def["descriptor"];
+  if (!isUnknownRecord(descriptor) || descriptor["kind"] !== "read") {
+    throw new Error(`d3b: Receipt.read def is not a read def (loader/artifact skew?)`);
+  }
+  if (def["by"] !== "public") {
+    throw new Error(`d3b: Receipt.read gate is not public (loader skew?)`);
+  }
+  if (def["when"] !== undefined) {
+    throw new Error(`d3b: Receipt.read def carries a row predicate (unsupported)`);
+  }
+}
+
+/**
+ * D3b: reserved-name collision guard. An app model named `Receipt`
+ * plus a `Receipt.read` read op would silently hijack model serving
+ * into receipt serving (or vice versa) — refuse loud instead. Static
+ * per artifact (deployment bug class), checked per call.
+ */
+function assertNoReceiptModelCollision(artifact: CompileArtifact): void {
+  const models: unknown = (artifact as unknown as { models?: unknown }).models;
+  if (!Array.isArray(models)) return;
+  for (const model of models) {
+    if (isUnknownRecord(model) && model["name"] === "Receipt") {
+      throw new Error(
+        `d3b: artifact declares both model "Receipt" and operation "Receipt.read" (reserved collision?)`,
+      );
+    }
+  }
+}
+
+/**
+ * D3b: map the join outcome 1:1 onto the served shape (G4: revisions
+ * are JSON numbers). Unknown discriminators, misshapen projections,
+ * and non-numeric revisions are mechanism skew — loud, never served.
+ */
+export function mapReceiptJoinOutcome(outcome: unknown): SelectedReceiptServed {
+  if (!isUnknownRecord(outcome) || typeof outcome["outcome"] !== "string") {
+    throw new Error(`d3b: join served no outcome discriminator (invoke/dist skew?)`);
+  }
+  const readRevision: unknown = outcome["readRevision"];
+  if (typeof readRevision !== "number") {
+    throw new Error(`d3b: join served a non-numeric readRevision (invoke/dist skew?)`);
+  }
+  const discriminator: string = outcome["outcome"] as string;
+  if (discriminator === "observed") {
+    const projection: unknown = outcome["projection"];
+    if (!isUnknownRecord(projection)) {
+      throw new Error(`d3b: join served a non-object projection (invoke/dist skew?)`);
+    }
+    for (const key of Object.keys(projection)) {
+      if (!RECEIPT_PROJECTION_KEYS.has(key)) {
+        throw new Error(`d3b: join served unknown projection key ${JSON.stringify(key)} (skew?)`);
+      }
+    }
+    const fenceRevision: unknown = outcome["fenceRevision"];
+    if (fenceRevision !== null && (typeof fenceRevision !== "number" || !Number.isInteger(fenceRevision) || fenceRevision < 0)) {
+      throw new Error(`d3b: join served a non-numeric fenceRevision (invoke/dist skew?)`);
+    }
+    return {
+      outcome: "observed",
+      projection: projection as unknown as SelectedReceiptProjection,
+      fenceRevision: fenceRevision as number | null,
+      readRevision,
+    };
+  }
+  if (discriminator === "denied") {
+    const denied: unknown = outcome["denied"];
+    if (
+      !Array.isArray(denied) ||
+      denied.length === 0 ||
+      !denied.every((leaf: unknown) => typeof leaf === "string" && RECEIPT_LEAVES.has(leaf))
+    ) {
+      throw new Error(`d3b: join served a malformed denied set (invoke/dist skew?)`);
+    }
+    return { outcome: "denied", denied: [...(denied as string[])] as ReceiptProperty[], readRevision };
+  }
+  if (discriminator === "null-association") {
+    return { outcome: "null-association", readRevision };
+  }
+  throw new Error(`d3b: join served unknown outcome ${JSON.stringify(discriminator)} (skew?)`);
+}
+
+/**
+ * D3b: serve one `Receipt.read` through the REAL T25 join with the
+ * REAL work observer (loaded per call via the state work-loader —
+ * bound per call, never cached, the `invokeReadCanonical` pattern).
+ *
+ * Evaluation order (B C4 + the join's own order): routed read-def
+ * (C1) -> closed envelope (C1/C7) -> field+model binding (C2) ->
+ * fence-join revision read (conflict when a nested checkpoint moved)
+ * -> owner pre-load (not_found) -> grant authZ (existence-hiding
+ * not_found — identical text, so denied-vs-missing never leaks) ->
+ * nested pre-load enrollment (B C3) -> the join (locator contributes
+ * ONLY the string id — the join re-loads the CURRENT row) -> 1:1
+ * outcome mapping. Reads commit nothing and receipt nothing. Caller
+ * errors are `StateError`; skew is loud plain `Error`.
+ */
+export async function invokeSelectedReceiptRead(
+  opts: SelectedReceiptReadOpts,
+): Promise<SelectedReceiptServed> {
+  if (opts.operation !== RECEIPT_READ_OPERATION) {
+    throw new Error(`d3b: receipt serving routed operation ${JSON.stringify(opts.operation)} (skew?)`);
+  }
+  assertCanonicalStore(opts.store, opts.operation);
+  assertCanonicalMemberships(opts.memberships, opts.operation);
+  assertNoReceiptModelCollision(opts.artifact);
+  const loaded = await loadCanonicalDescriptors(opts.asm, opts.artifact);
+  const StateError = loaded.producers.errors;
+  assertReceiptReadDef(StateError, loaded.registry);
+  const { recordId, field, selected } = assertReceiptReadInputs(StateError, opts.inputs);
+  const model = bindReceiptModel(StateError, loaded.deliveryFields, field);
+  // Fence-join revision FIRST (C4): no grant or observation runs
+  // before this read; a moved nested checkpoint conflicts here, and
+  // the join re-checks against its own read below.
+  const fenceReadRevision = await opts.store.readRevision();
+  if (opts.fence !== undefined && opts.fence.revision !== fenceReadRevision) {
+    throw new StateError(
+      "conflict",
+      `Fence checkpoint moved before this read (enrolled at revision ${opts.fence.revision}, ` +
+        `now at ${fenceReadRevision}); re-fence the operation.`,
+    );
+  }
+  const owner = await opts.store.load(model as ModelName, recordId as RecordId);
+  if (owner === null) {
+    throw new StateError("not_found", "Receipt owner record not found.");
+  }
+  // Caller facts mirror the engine admit mapping verbatim (B C6):
+  // nulls when absent, live membership resolution both ways.
+  const actorUserId = opts.identity.actor === null ? null : opts.identity.actor.user_id;
+  const teamId = opts.identity.team === null ? null : opts.identity.team.team_id;
+  const membership =
+    actorUserId !== null && teamId !== null
+      ? await opts.memberships.findMembership(teamId, actorUserId)
+      : null;
+  const policyTable = loaded.policy as ReadonlyMap<string, unknown>;
+  const modelPolicy: unknown = policyTable.get(model);
+  if (modelPolicy !== undefined) {
+    if (!isUnknownRecord(modelPolicy) || !Array.isArray(modelPolicy["grants"])) {
+      throw new Error(`d3b: owner policy entry is not a grant list (loader skew?)`);
+    }
+    const matched = await loaded.producers.grants.matchGrants(
+      modelPolicy as { readonly grants: ReadonlyArray<{ readonly by: unknown; readonly when?: unknown }> },
+      { actorUserId, teamId, membership, memberships: opts.memberships },
+      owner,
+    );
+    if (!Array.isArray(matched)) {
+      throw new Error(`d3b: matchGrants served no grant array (invoke/dist skew?)`);
+    }
+    if (matched.length === 0) {
+      // Authorized-path miss: identical text to the missing row
+      // (existence-hiding — denied-vs-missing must never leak).
+      throw new StateError("not_found", "Receipt owner record not found.");
+    }
+  } else {
+    // No policy entry grants nothing (engine precedent: deny, never
+    // error) — identical text, same hiding.
+    throw new StateError("not_found", "Receipt owner record not found.");
+  }
+  if (opts.fence !== undefined) {
+    opts.fence.enroll({ kind: "record", model, id: owner.id, version: owner.version });
+  }
+  const joinMod = await loadProducerModule(STATE_RECEIPT_JOIN_SPECIFIER, "state receipt join producer");
+  const observeSelectedReceiptJoin = requireProducerFn(
+    joinMod,
+    "observeSelectedReceiptJoin",
+    "state receipt join producer",
+  ) as unknown as StateReceiptJoinProducer["observeSelectedReceiptJoin"];
+  const loaderMod = await loadProducerModule(
+    STATE_RECEIPT_WORK_LOADER_SPECIFIER,
+    "state receipt work-loader producer",
+  );
+  const loadWorkReceiptFns = requireProducerFn(
+    loaderMod,
+    "loadWorkReceiptFns",
+    "state receipt work-loader producer",
+  ) as unknown as StateReceiptWorkLoaderProducer["loadWorkReceiptFns"];
+  const { observeSelectedReceipt } = await loadWorkReceiptFns();
+  const outcome = await observeSelectedReceiptJoin({
+    locator: { record: { id: recordId }, field },
+    selected,
+    model,
+    schema: loaded.deliveryFields,
+    policy: loaded.policy,
+    caller: { actorUserId, teamId },
+    memberships: opts.memberships,
+    store: opts.store,
+    ...(opts.fence === undefined ? {} : { fence: opts.fence }),
+    nowMs: (opts.now ?? Date.now)(),
+    observeSelected: observeSelectedReceipt,
+  });
+  return mapReceiptJoinOutcome(outcome);
+}
+
+/* ------------------------------------------------------------------ */
 /* T17b canonical read entry (assembly flip target).                    */
 /* ------------------------------------------------------------------ */
 
@@ -2929,7 +3357,10 @@ export async function invokeMutationCanonical(
  * read port (`createReadInvoker`) over the call's store + live
  * memberships and delegates routing (unknown operations,
  * mutation-envelope mismatches), admission (`def.by`), closed-shape
- * validation, and viewer projection to `invokeRead`. Reads commit
+ * validation, and viewer projection to `invokeRead`. `Receipt.read`
+ * instead routes to `invokeSelectedReceiptRead` (D3b join serving;
+ * the return widens to the 1:1 outcome — assembly consumes
+ * `ReadResult = unknown`, so no worker change). Reads commit
  * nothing and receipt nothing. Throws the canonical `StateError` on
  * business outcomes and plain `Error` on wiring bugs — the assembly
  * maps both through its established `toBusinessError` rule.
@@ -2945,9 +3376,14 @@ export interface CanonicalReadOpts {
   readonly memberships: CanonicalMembershipReader;
 }
 
-export async function invokeReadCanonical(opts: CanonicalReadOpts): Promise<CanonicalReadServed> {
+export async function invokeReadCanonical(
+  opts: CanonicalReadOpts,
+): Promise<CanonicalReadServed | SelectedReceiptServed> {
   assertCanonicalStore(opts.store, opts.operation);
   assertCanonicalMemberships(opts.memberships, opts.operation);
+  if (opts.operation === RECEIPT_READ_OPERATION) {
+    return invokeSelectedReceiptRead({ ...opts });
+  }
   const loaded = await loadCanonicalDescriptors(opts.asm, opts.artifact);
   const model = readModelForOperation(opts.operation);
   if (model !== null && loaded.ruledModels.has(model)) {
