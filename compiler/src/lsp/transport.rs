@@ -153,6 +153,22 @@ mod tests {
     use super::*;
     use std::io::{BufReader, Cursor};
 
+    struct Drip<'a> {
+        data: &'a [u8],
+        pos: usize,
+    }
+
+    impl io::Read for Drip<'_> {
+        fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
+            if self.pos >= self.data.len() || buf.is_empty() {
+                return Ok(0);
+            }
+            buf[0] = self.data[self.pos];
+            self.pos += 1;
+            Ok(1)
+        }
+    }
+
     #[test]
     fn json_round_trip_with_escapes_and_unicode() {
         let text =
@@ -201,20 +217,6 @@ mod tests {
             write_message(&mut wire, body).unwrap();
         }
         // Feed the wire one byte at a time through a buffered reader.
-        struct Drip<'a> {
-            data: &'a [u8],
-            pos: usize,
-        }
-        impl io::Read for Drip<'_> {
-            fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
-                if self.pos >= self.data.len() || buf.is_empty() {
-                    return Ok(0);
-                }
-                buf[0] = self.data[self.pos];
-                self.pos += 1;
-                Ok(1)
-            }
-        }
         let mut reader = BufReader::new(Drip {
             data: &wire,
             pos: 0,
@@ -237,6 +239,82 @@ mod tests {
             read_message(&mut reader).unwrap_err().kind(),
             io::ErrorKind::InvalidData
         );
+    }
+
+    #[test]
+    fn framing_preserves_malformed_utf8_and_the_next_frame() {
+        // All would be repairable into JSON strings by lossy conversion.
+        let invalid_sequences: &[&[u8]] = &[
+            &[0xff],                   // Invalid leading byte.
+            &[0x80],                   // Unpaired continuation byte.
+            &[0xc0, 0xaf],             // Overlong encoding.
+            &[0xe2, 0x28, 0xa1],       // Invalid continuation byte.
+            &[0xed, 0xa0, 0x80],       // Encoded surrogate.
+            &[0xf4, 0x90, 0x80, 0x80], // Scalar above U+10FFFF.
+        ];
+        for sequence in invalid_sequences {
+            let mut body = b"{\"id\":\"".to_vec();
+            let offset = body.len();
+            body.extend_from_slice(sequence);
+            body.extend_from_slice(b"\",\"method\":\"initialize\"}");
+            let next = br#"{"method":"exit"}"#;
+            let mut wire = Vec::new();
+            write_message(&mut wire, &body).unwrap();
+            write_message(&mut wire, next).unwrap();
+            let mut reader = BufReader::new(Drip {
+                data: &wire,
+                pos: 0,
+            });
+
+            let framed_body = read_message(&mut reader).unwrap().unwrap();
+            assert_eq!(framed_body, body);
+            assert_eq!(
+                std::str::from_utf8(&framed_body).unwrap_err().valid_up_to(),
+                offset
+            );
+            let framed_next = read_message(&mut reader).unwrap().unwrap();
+            assert_eq!(framed_next, next);
+            assert_eq!(read_message(&mut reader).unwrap(), None);
+        }
+    }
+
+    #[test]
+    fn incomplete_utf8_sequence_stops_at_the_body_boundary() {
+        // A following frame must not complete the first body's code point.
+        for sequence in [&[0xc2][..], &[0xe2, 0x82][..], &[0xf0, 0x9f, 0x98][..]] {
+            let mut body = b"\"".to_vec();
+            body.extend_from_slice(sequence);
+            let mut wire = Vec::new();
+            write_message(&mut wire, &body).unwrap();
+            write_message(&mut wire, br#""valid""#).unwrap();
+            let mut reader = BufReader::new(Drip {
+                data: &wire,
+                pos: 0,
+            });
+            let framed_body = read_message(&mut reader).unwrap().unwrap();
+            assert_eq!(framed_body, body);
+            let error = std::str::from_utf8(&framed_body).unwrap_err();
+            assert_eq!(error.valid_up_to(), 1);
+            assert_eq!(error.error_len(), None);
+            let next = read_message(&mut reader).unwrap().unwrap();
+            assert_eq!(next, br#""valid""#);
+        }
+    }
+
+    #[test]
+    fn framing_counts_multibyte_unicode_as_bytes() {
+        let body = r#"{"id":"éあ😀\uFFFD","method":"m"}"#.as_bytes();
+        let mut wire = Vec::new();
+        write_message(&mut wire, body).unwrap();
+        assert!(wire.starts_with(format!("Content-Length: {}\r\n\r\n", body.len()).as_bytes()));
+        let mut reader = BufReader::new(Drip {
+            data: &wire,
+            pos: 0,
+        });
+        let framed_body = read_message(&mut reader).unwrap().unwrap();
+        assert_eq!(framed_body, body);
+        let message = parse(std::str::from_utf8(&framed_body).unwrap()).unwrap();
+        assert_eq!(message.get("id").unwrap().as_str(), Some("éあ😀�"));
     }
 
     #[test]
