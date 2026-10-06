@@ -6,6 +6,7 @@ import type { ActivationVerdict, CompileArtifact, SourceMap } from "@canlang/con
 import {
   ARTIFACT_MODULE,
   DEPLOY_MAIN_MODULE,
+  HTTP_OPERATIONS_MODULE,
   MCP_HANDLER_MODULE,
   WORKER_MAIN_MISSING,
   assertLinksResolve,
@@ -233,6 +234,25 @@ describe("deploy bundle (P-B)", () => {
     // Real bundle, not a stub: the SDK + interface closure is hundreds of KB.
     expect(handler.length).toBeGreaterThan(100_000);
     expect(bundle.mcpBundleBytes).toBe(handler.length);
+  });
+
+  it("HTTP bundle carries the op-chain markers incl. its own IdentityError copy", () => {
+    const bundle = buildDeployBundle(testArtifact(), {
+      repoRoot,
+      workerDistDir: fakeWorkerDist(),
+      verdict: ACTIVE_VERDICT,
+    });
+    const ops = bundle.modules[HTTP_OPERATIONS_MODULE] as string;
+    for (const marker of [
+      "handleOperationRequest",
+      "IdentityError",
+    ]) {
+      expect(ops, `HTTP bundle must contain ${marker}`).toContain(marker);
+    }
+    // Real bundle, not a stub: the op chain + identity closure is
+    // tens of KB (no MCP SDK weight).
+    expect(ops.length).toBeGreaterThan(10_000);
+    expect(bundle.httpOperationsBytes).toBe(ops.length);
   });
 
   it("stages artifact.js with the artifact, portable module URLs, and the verdict", () => {
