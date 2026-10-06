@@ -11,6 +11,7 @@ name = "values_semantics"
 path = "src/lib.rs"
 
 [dependencies]
+ryu-js = { version = "=1.0.3", default-features = false, features = [] }
 num-bigint = "0.4"
 num-traits = "0.2"
 serde = { version = "1", features = ["derive"] }

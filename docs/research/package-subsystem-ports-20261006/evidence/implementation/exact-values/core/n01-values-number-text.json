@@ -1,0 +1,282 @@
+{
+  "schemaVersion": 1,
+  "packet": "first:R1:N02-values-number-maintenance",
+  "activationBase": "c6896fd2dea782d8ed6412769337b76eb899ca53",
+  "status": "released coherent N02 candidate: native, raw-bit Wasm and private regenerated-binding diagnostics verified; independent Codex review pending",
+  "scope": "Existing format_js_number mechanism only plus exact package-local dependency pin; no caller/public/transport production edits",
+  "privateRoot": "/private/tmp/canlang-rust-port-codex-first-20261006T231809Z/packets/R1-N02",
+  "inputAcknowledgement": "/private/tmp/canlang-rust-port-codex-first-20261006T231809Z/packets/R1-N02/ACK.json",
+  "sourceHashes": {
+    "packages/values/semantics/src/representations/numeric.rs": "c012805095152f62168db2b00fa6c7a2ebc741f526f2e68a004bcfe3d149f13c",
+    "packages/values/semantics/tests/numeric_text_contract.rs": "dba6878989028d5e0970fc62fb55ced2cf926c22bf50a956f2fb932b0c5f3459",
+    "packages/values/test/numeric-text.contract.test.ts": "da34c7c52a5b4ec9eaad4b54a878dcfada3cb0fe4ba40f5f0c46d6becc91ff4a",
+    "packages/values/conformance/numeric-text.oracle.mjs": "bd831d965063a0c57fee063f0714a223c622c3fae4f36ad321b87afd9319770d",
+    "packages/values/conformance/numeric-text.json": "29806b94e5fe70468e0c3ef05a5b6b8550be4dacc34e8b57e0f42ab8588f37c8",
+    "packages/values/semantics/Cargo.toml": "d9e3d080a35cc0c0fe5138bf235cb46f7c389469251833ec81b08b29e10583b8",
+    "packages/values/Cargo.lock": "653260b64e40898068cfed2728bb348d26284fe5af983ab3bf38d9d2aa57ebbe"
+  },
+  "oracle": {
+    "fixture": "packages/values/conformance/numeric-text.json",
+    "sha256": "29806b94e5fe70468e0c3ef05a5b6b8550be4dacc34e8b57e0f42ab8588f37c8",
+    "immutableBeforeCandidateChecks": true,
+    "committedFrozen": {
+      "path": "implementation/rust-port-orchestration/contracts-20261007/oracles/frozen-oracle.json.gz",
+      "sha256": "d4bfe45964e46da4b3970702428d4e336b46fd8391ef6fc12572748c138d2a7b"
+    },
+    "engine": {
+      "node": "v24.21.0",
+      "v8": "13.6.233.17-node.53",
+      "platform": "darwin",
+      "arch": "arm64"
+    },
+    "seed": "6a09e667f3bcc909",
+    "seededDistinct": 10000,
+    "boundaries": 213,
+    "generationOrderRecomputed": true,
+    "callerObservations": 131,
+    "donorHashes": {
+      "src/kinds.ts": "35cf9ba2ccadb5157d66423530af9c9eca9def2d74df3b43dd0d318d5427b0e7",
+      "src/decimal.ts": "e4056e2849f928106b36f534ee72f3416fed9550c19da914dc9e02d4c14f592e",
+      "src/wire.ts": "73832128fd4b2db93d08770836271323d61bed02647ca83fd21bdd9496054f03",
+      "src/errors.ts": "a9a518f181e92d3b69be7ef8bb36d7e1001e276849a5ff9e976eef81fee569e8"
+    },
+    "representation": "source input bits separate from actual JS reobserved bits; actual String and JSON bytes; complete selected field presence and ordered violations"
+  },
+  "verification": {
+    "native": {
+      "tests": 82,
+      "dedicatedTests": 3,
+      "numericCases": 10213,
+      "callerCases": 131,
+      "retainedOriginalBits": true,
+      "transport": "direct native dispatch failure payload comparison; no host SchemaError mapping inferred"
+    },
+    "donor": {
+      "tests": 2,
+      "exit": 0,
+      "log": "/private/tmp/canlang-rust-port-codex-first-20261006T231809Z/packets/R1-N02/donor-test.log",
+      "sourceTranspilation": "/private/tmp/canlang-rust-port-codex-first-20261006T231809Z/packets/R1-N02/transpile.mjs",
+      "limits": "private owning-source transpilation; not installed package/default acceptance"
+    },
+    "negativeControls": [
+      {
+        "name": "i64-positive-saturation",
+        "exit": 1,
+        "log": "negative-i64-positive-saturation.log"
+      },
+      {
+        "name": "i64-negative-saturation",
+        "exit": 1,
+        "log": "negative-i64-negative-saturation.log"
+      },
+      {
+        "name": "negative-zero-text",
+        "exit": 1,
+        "log": "negative-negative-zero-text.log"
+      },
+      {
+        "name": "json-nan-policy",
+        "exit": 1,
+        "log": "negative-json-nan-policy.log"
+      },
+      {
+        "name": "exponent-plus",
+        "exit": 1,
+        "log": "negative-exponent-plus.log"
+      },
+      {
+        "name": "notation-threshold",
+        "exit": 1,
+        "log": "negative-notation-threshold.log"
+      },
+      {
+        "name": "one-input-bit",
+        "exit": 1,
+        "log": "negative-one-input-bit.log"
+      },
+      {
+        "name": "error-code",
+        "exit": 1,
+        "log": "negative-error-code.log"
+      },
+      {
+        "name": "error-punctuation",
+        "exit": 1,
+        "log": "negative-error-punctuation.log"
+      },
+      {
+        "name": "error-field-presence",
+        "exit": 1,
+        "log": "negative-error-field-presence.log"
+      },
+      {
+        "name": "violation-order",
+        "exit": 1,
+        "log": "negative-violation-order.log"
+      },
+      {
+        "name": "violation-field-absence",
+        "exit": 1,
+        "log": "negative-violation-field-absence.log"
+      }
+    ],
+    "features": "/private/tmp/canlang-rust-port-codex-first-20261006T231809Z/packets/R1-N02/cargo-features.log",
+    "toolchain": {
+      "rustc": "1.99.0 (b940084d7 2026-09-28)",
+      "cargo": "1.99.0 (5f94df478 2026-08-27)",
+      "host": "aarch64-apple-darwin",
+      "wasmTargetInstalled": true,
+      "wasmBindgen": "0.2.129"
+    },
+    "rawBitWasm": {
+      "rawBitWasm": true,
+      "numbers": 10213,
+      "callers": 131,
+      "retainedBits": true,
+      "engine": "v24.21.0"
+    },
+    "regeneratedPrivateBindings": {
+      "actualRegeneratedBindings": true,
+      "abi": 1,
+      "callers": 131,
+      "limits": [
+        "JSON transport collapses numeric -0/canonicalizes NaN payloads",
+        "No public ExactBackend SchemaError qualification",
+        "No installed/default acceptance"
+      ]
+    },
+    "rawBitHarness": {
+      "source": "/private/tmp/canlang-rust-port-codex-first-20261006T231809Z/packets/R1-N02/wasm-harness/src/lib.rs",
+      "lockClosureMatch": "/private/tmp/canlang-rust-port-codex-first-20261006T231809Z/packets/R1-N02/wasm-harness/lock-closure-match.json",
+      "featureTree": "/private/tmp/canlang-rust-port-codex-first-20261006T231809Z/packets/R1-N02/wasm-harness/features.log",
+      "warnings": "two mutable-static reference warnings in serial test-only output buffer; no production source warning introduced"
+    },
+    "typecheck": {
+      "command": "node node_modules/typescript/bin/tsc -p packages/values/tsconfig.json --noEmit",
+      "handle": 65469,
+      "exit": 0,
+      "log": "/private/tmp/canlang-rust-port-codex-first-20261006T231809Z/packets/R1-N02/typescript-noemit.log"
+    }
+  },
+  "dependency": {
+    "registry": "https://raw.githubusercontent.com/rust-lang/crates.io-index/master/ry/u-/ryu-js",
+    "upstream_manifest": "https://raw.githubusercontent.com/boa-dev/ryu-js/v1.0.3/Cargo.toml",
+    "observed_version": "1.0.3",
+    "checksum": "04d056b875a9d2e6cb9a61d127afee9ac5999b9f87bcb32079d1318e505be714",
+    "yanked": false,
+    "license": "Apache-2.0 OR BSL-1.0",
+    "selected_license": "BSL-1.0",
+    "package_archive_reverification": "exact registry checksum matched",
+    "package_archive_sha256": "04d056b875a9d2e6cb9a61d127afee9ac5999b9f87bcb32079d1318e505be714",
+    "source_hashes": {
+      "Cargo.toml": "f5b09622fa53809fa21277d0c3ccda5c4a37e5bc34641fc2ef749b861f5fc47d",
+      "LICENSE-BOOST": "c9bff75738922193e67fa726fa225535870d2aa1059f91452c411736284ad566",
+      "LICENSE-APACHE": "62c7a1e35f56406896d7aa7ca52d0cc0d272ac022b5d2796e7d6905db8a3636a",
+      "src/buffer/mod.rs": "5783fdd94040746e15f59ce6c66b203a6ce24de7773dce6cdfbc5a2775937ca2"
+    }
+  },
+  "commands": [
+    {
+      "permit": "A-heavy-001",
+      "command": "CARGO_BUILD_JOBS=2 CARGO_TARGET_DIR=/private/tmp/canlang-rust-port-codex-first-20261006T231809Z/packets/R1-N02/target cargo test --locked --manifest-path packages/values/Cargo.toml -p values-semantics",
+      "handle": 26629,
+      "exit": 101,
+      "log": "/private/tmp/canlang-rust-port-codex-first-20261006T231809Z/packets/R1-N02/cargo-test.log",
+      "meaning": "sandbox DNS fetch failure; no semantic result"
+    },
+    {
+      "permit": "A-heavy-002",
+      "command": "same cargo test, require_escalated network",
+      "handle": 41299,
+      "exit": 101,
+      "log": "/private/tmp/canlang-rust-port-codex-first-20261006T231809Z/packets/R1-N02/cargo-test-retry.log",
+      "meaning": "dependency fetched and formatter/callers passed; test-only negative selector bug"
+    },
+    {
+      "permit": "A-heavy-003",
+      "command": "CARGO_BUILD_JOBS=2 CARGO_TARGET_DIR=/private/tmp/canlang-rust-port-codex-first-20261006T231809Z/packets/R1-N02/target cargo test --locked --offline --manifest-path packages/values/Cargo.toml -p values-semantics",
+      "handle": 1004,
+      "exit": 0,
+      "log": "/private/tmp/canlang-rust-port-codex-first-20261006T231809Z/packets/R1-N02/cargo-test-final.log",
+      "tests": 82
+    },
+    {
+      "permit": "A-heavy-004",
+      "command": "CARGO_BUILD_JOBS=2 CARGO_TARGET_DIR=/private/tmp/canlang-rust-port-codex-first-20261006T231809Z/packets/R1-N02/target cargo build --locked --offline --manifest-path packages/values/bindings/Cargo.toml --target wasm32-unknown-unknown --release",
+      "handle": 52087,
+      "exit": 0,
+      "log": "/private/tmp/canlang-rust-port-codex-first-20261006T231809Z/packets/R1-N02/bindings-wasm-build.log"
+    },
+    {
+      "permit": "A-heavy-004",
+      "command": "private raw-bit harness cargo build --locked --offline --target wasm32-unknown-unknown --release",
+      "exit": 101,
+      "log": "/private/tmp/canlang-rust-port-codex-first-20261006T231809Z/packets/R1-N02/raw-bit-wasm-build.log",
+      "meaning": "no compilation; private lock retained unrelated workspace entries; closure reduced"
+    },
+    {
+      "permit": "A-heavy-005",
+      "command": "CARGO_BUILD_JOBS=2 CARGO_TARGET_DIR=/private/tmp/canlang-rust-port-codex-first-20261006T231809Z/packets/R1-N02/target cargo build --locked --offline --manifest-path /private/tmp/canlang-rust-port-codex-first-20261006T231809Z/packets/R1-N02/wasm-harness/Cargo.toml --target wasm32-unknown-unknown --release",
+      "handle": 50518,
+      "exit": 0,
+      "log": "/private/tmp/canlang-rust-port-codex-first-20261006T231809Z/packets/R1-N02/raw-bit-wasm-build-final.log"
+    },
+    {
+      "permit": "A-heavy-006",
+      "command": "wasm-bindgen --target web --out-dir /private/tmp/canlang-rust-port-codex-first-20261006T231809Z/packets/R1-N02/staging /private/tmp/canlang-rust-port-codex-first-20261006T231809Z/packets/R1-N02/target/wasm32-unknown-unknown/release/values_bindings.wasm; sequential node /private/tmp/canlang-rust-port-codex-first-20261006T231809Z/packets/R1-N02/wasm-harness/run.mjs /private/tmp/canlang-rust-port-codex-first-20261006T231809Z/packets/R1-N02/target/wasm32-unknown-unknown/release/n02_values_bit_witness.wasm; sequential node /private/tmp/canlang-rust-port-codex-first-20261006T231809Z/packets/R1-N02/bindings-check.mjs",
+      "handle": 62309,
+      "exit": 0,
+      "logs": [
+        "/private/tmp/canlang-rust-port-codex-first-20261006T231809Z/packets/R1-N02/wasm-bindgen.log",
+        "/private/tmp/canlang-rust-port-codex-first-20261006T231809Z/packets/R1-N02/raw-bit-wasm-check.log",
+        "/private/tmp/canlang-rust-port-codex-first-20261006T231809Z/packets/R1-N02/bindings-wasm-check.log"
+      ]
+    }
+  ],
+  "remainingGates": [
+    "independent Codex review/integration",
+    "public smoke ExactBackend maps violations to ValueError; full SchemaError envelope unqualified",
+    "Decimal stored scale -0 remains A04.1; native u8 success comparison does not qualify sign preservation",
+    "lossless UTF-16 and truncation residuals excluded",
+    "A03/A04/A07 parents, default switch, TS retirement, installed Node/workerd/full port acceptance remain open"
+  ],
+  "writerRelease": true,
+  "commandRelease": true,
+  "privateArtifactSha256": {
+    "/private/tmp/canlang-rust-port-codex-first-20261006T231809Z/packets/R1-N02/cargo-test.log": "63c7903202768b3253fc1886b8bae3ef807f939cc8780bc883bd56f78cd398e7",
+    "/private/tmp/canlang-rust-port-codex-first-20261006T231809Z/packets/R1-N02/cargo-features.log": "80eefa06d965f395ba3b047c83b207688bb57b9245b2a13ea0f817d08c1e7ae3",
+    "/private/tmp/canlang-rust-port-codex-first-20261006T231809Z/packets/R1-N02/raw-bit-wasm-build-final.log": "1e015bac4f5b88066ef6f11e992c942b24071d07f2d5938eb6cdc8c1f89f05a5",
+    "/private/tmp/canlang-rust-port-codex-first-20261006T231809Z/packets/R1-N02/negative-error-punctuation.log": "9bc054ffee311a8fbd49654d8b9603aa9c437720218e93adaefb229c190f2b37",
+    "/private/tmp/canlang-rust-port-codex-first-20261006T231809Z/packets/R1-N02/negative-violation-field-absence.log": "92727e2fd3456cab97fc7f3c584eeaebb67d5f374b5ea0b7b094f77791f7b7ad",
+    "/private/tmp/canlang-rust-port-codex-first-20261006T231809Z/packets/R1-N02/negative-error-field-presence.log": "39fa7c627edc704c31aa456a3655e116358265a68c88d7b38f270861018d34c0",
+    "/private/tmp/canlang-rust-port-codex-first-20261006T231809Z/packets/R1-N02/negative-violation-order.log": "0d4fa7e7a9241cc38c831e48756c80590ec30a496448e2d1e6cbc7ff9fd434c5",
+    "/private/tmp/canlang-rust-port-codex-first-20261006T231809Z/packets/R1-N02/negative-i64-positive-saturation.log": "cdd9719cdb154930bd5e68669ac41c826a32d14bc1476748cddc8682717c0112",
+    "/private/tmp/canlang-rust-port-codex-first-20261006T231809Z/packets/R1-N02/negative-error-code.log": "58fe2b0b7979636fe3de481c80e789964451e2b0f3af86891fcd3820dcfd177e",
+    "/private/tmp/canlang-rust-port-codex-first-20261006T231809Z/packets/R1-N02/negative-one-input-bit.log": "2489fddc9263eb6126ca27a891d4b37b1e000fc34cd97f0a51d8401f45d6fbd4",
+    "/private/tmp/canlang-rust-port-codex-first-20261006T231809Z/packets/R1-N02/negative-negative-zero-text.log": "2fce1f501fd29cdf755b8abb90855451db9a54fcaaa89786c368f9f814d447a3",
+    "/private/tmp/canlang-rust-port-codex-first-20261006T231809Z/packets/R1-N02/raw-bit-wasm-build.log": "24da2edf5d1a5b56e49ab1d4a9087b46af484b28f6740dc88efd648f4b127770",
+    "/private/tmp/canlang-rust-port-codex-first-20261006T231809Z/packets/R1-N02/negative-notation-threshold.log": "34490e1d9aa57ca6de2a3e8df9f85f48b04b9679de96e145e2fb2b5664035d93",
+    "/private/tmp/canlang-rust-port-codex-first-20261006T231809Z/packets/R1-N02/negative-i64-negative-saturation.log": "d0a0341da2a4a5e6728ccabc70a90489bdc104d94629199df727b1ff618c6f02",
+    "/private/tmp/canlang-rust-port-codex-first-20261006T231809Z/packets/R1-N02/raw-bit-wasm-check.log": "b36f9a56e1ad28a11f3b84eb5899961587a614c22a253bf5e643cac1285da3c7",
+    "/private/tmp/canlang-rust-port-codex-first-20261006T231809Z/packets/R1-N02/negative-json-nan-policy.log": "16170b28130ac121a0e0db994092e7e6415910ff5833111fb4e2a8cf67746e3a",
+    "/private/tmp/canlang-rust-port-codex-first-20261006T231809Z/packets/R1-N02/cargo-test-retry.log": "21fcbfcb1269c552c51f4d978b05360a09d11fb64eb762740d430bd55be0b408",
+    "/private/tmp/canlang-rust-port-codex-first-20261006T231809Z/packets/R1-N02/wasm-bindgen.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "/private/tmp/canlang-rust-port-codex-first-20261006T231809Z/packets/R1-N02/typescript-noemit.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "/private/tmp/canlang-rust-port-codex-first-20261006T231809Z/packets/R1-N02/donor-test.log": "ddab21ed797d62bad676c654e128fe105300eeaf5a2249768283381d8ffc2353",
+    "/private/tmp/canlang-rust-port-codex-first-20261006T231809Z/packets/R1-N02/bindings-wasm-build.log": "3b8f5e76b310e8907231b4553c4169d2530f02440f218a0db31dce5b08dccb82",
+    "/private/tmp/canlang-rust-port-codex-first-20261006T231809Z/packets/R1-N02/bindings-wasm-check.log": "d74f3d380149fe798a89f2f03e68125da65577a00f7ce815bc0a76594443246a",
+    "/private/tmp/canlang-rust-port-codex-first-20261006T231809Z/packets/R1-N02/cargo-test-final.log": "19d047a0016f768f3abec1e43160c5c7140aff93621f178a7a315fc4ec832c7e",
+    "/private/tmp/canlang-rust-port-codex-first-20261006T231809Z/packets/R1-N02/negative-exponent-plus.log": "abd09d2f9a5c9575134e273c4757eff00763222c52b4df36622d5b5da37055ff",
+    "/private/tmp/canlang-rust-port-codex-first-20261006T231809Z/packets/R1-N02/staging/values_bindings_bg.wasm": "d6fc7fb4e340ebc5a6e44076cfd39ce0e3c5702644031ff690cdbbcabbe35562",
+    "/private/tmp/canlang-rust-port-codex-first-20261006T231809Z/packets/R1-N02/staging/values_bindings_bg.wasm.d.ts": "9ac2938ac3d66379be0cf16f70c1d889be8c06b0e15e634407b94e2770fc7932",
+    "/private/tmp/canlang-rust-port-codex-first-20261006T231809Z/packets/R1-N02/staging/values_bindings.js": "773c385b2ff612734180b20b50379f762a701ccb2e86e31e03e607b9c3944658",
+    "/private/tmp/canlang-rust-port-codex-first-20261006T231809Z/packets/R1-N02/staging/values_bindings.d.ts": "b4fcaa531c8b9d9c0277854fb12e4b484194c7fda8e3cc55d563b9286d4f6848",
+    "/private/tmp/canlang-rust-port-codex-first-20261006T231809Z/packets/R1-N02/wasm-harness/src/lib.rs": "25e02725a80e65b9a63e74878983f522be1412e2dd88c488d3005f5b200f852b",
+    "/private/tmp/canlang-rust-port-codex-first-20261006T231809Z/packets/R1-N02/wasm-harness/Cargo.lock": "6db67997922bc7260518e261e2e6a3875ebb8398a53b43a231475401157df813",
+    "/private/tmp/canlang-rust-port-codex-first-20261006T231809Z/packets/R1-N02/wasm-harness/run.mjs": "65ecb67e00c1682b10e4bdab7a812f96f357cd641e6d13d0cb478323e3d5a4fb",
+    "/private/tmp/canlang-rust-port-codex-first-20261006T231809Z/packets/R1-N02/target/wasm32-unknown-unknown/release/values_bindings.wasm": "a43413a66f40bfd957f2ec95b080870e46621657b38efeda446dd66f46b46fbe",
+    "/private/tmp/canlang-rust-port-codex-first-20261006T231809Z/packets/R1-N02/target/wasm32-unknown-unknown/release/n02_values_bit_witness.wasm": "94b21ee0ac8e2fc9222fcc0a5658211f7a589c7cc151490d1029dc4f88ac9635"
+  },
+  "unchangedInputsReverified": true,
+  "sourceSnapshotUnchangedAcrossFinalNativeWasmChecks": true
+}
