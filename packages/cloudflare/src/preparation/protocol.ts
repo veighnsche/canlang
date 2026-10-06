@@ -128,7 +128,7 @@ export async function driveSession(options: {
   child: ChildProcess;
   mode: string;
   onNeed: (stage: string, request: unknown) => Promise<unknown> | unknown;
-  timeoutMs?: number;
+  timeoutMs?: number | undefined;
 }): Promise<Prepared["prepared"]> {
   const { child, mode, onNeed } = options;
   const timeoutMs = options.timeoutMs ?? 30_000;
