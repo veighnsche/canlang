@@ -1,0 +1,41 @@
+{
+  "cloudflare_reeval": {
+    "build": "cd packages/cloudflare && bun run build (tsc -p tsconfig.json + chmod postbuild) => EXIT=0",
+    "head": "2071631",
+    "result": "GREEN at checkpoint 2071631 with no fixes to assign (build + typecheck exit 0; separately scoped). W01.3 baseline CMD3=2 at c07c51e is verify.log:18-272: 44x TS2307 missing-package resolution (@canlang/contracts, @canlang/interfaces) plus cascading TS7006/TS2322/TS2345; it contains no TS1484 and no OOM signal, and does NOT support attributing that command to platform TS1484, activate TS2322, or bundle OOM. verify.log preserved verbatim (sha256 93869f2f...14c32a1). Supersedes the plan's invoke.ts:5911/5947/6083 + activate.ts:486/487 list only for the 2071631 re-eval scope; baseline failures are not rewritten and no new tests are claimed by this correction.",
+    "typecheck": "cd packages/cloudflare && npx tsc --noEmit -p tsconfig.json => EXIT=0"
+  },
+  "evidence": {
+    "W01.1": [
+      "contracts/callers.json (lane F @bb479c2 + drift supplement @5edc3ba D3c availability, uncommitted)",
+      "contracts/profiles.md"
+    ],
+    "W01.2": [
+      "ownership/graph.md",
+      "ownership/files.json (lanes F @bb479c2; edges re-verified at 2071631)"
+    ],
+    "W01.3": [
+      "baselines/current-ts.json + original-fixtures/ + sha256 manifest (lane D @c07c51e; verify.log immutable)"
+    ],
+    "W01.4": [
+      "contracts/workloads.json",
+      "contracts/budgets.json",
+      "contracts/coverage.md (session 01a10fab-cc9d-7331, @2071631)"
+    ]
+  },
+  "gate": "W01",
+  "owner_reviews": {
+    "required": [
+      "work owner (retained shell/decision split)",
+      "state owner (mirror/staging/transact scope)",
+      "cloudflare owner (F7/orchestration scope)",
+      "C04 delivery owner (vendor/binary scope)",
+      "C05 harness owner (workload/budget procedure)"
+    ],
+    "status": "PENDING (recorded, not assumed); W02 extraction must not start until recorded"
+  },
+  "recorded_at": "2026-10-06",
+  "recorded_by": "session 01a10fab-cc9d-7331-a23f-ab35f8a99f2d",
+  "verdict": "W01.1-W01.4 evidence complete; W01 gate NOT closed (owner reviews pending)",
+  "cloudflare_review_correction": "CODEX-W01-CLOUDFLARE-REVIEW-FIX-20261006T1226Z applied 2026-10-06 (session 01a10fab-cc9d-7331): CMD3 attribution corrected per verify.log bytes; D3b receipt-loader edge supplemented in callers.json/profiles.md/graph.md/files.json. Verify.log untouched. Gate still NOT closed (owner reviews pending)."
+}

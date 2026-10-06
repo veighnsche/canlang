@@ -1,0 +1,102 @@
+{
+  "provenance": {
+    "frozen_at_head": "7e050080c2d8178040d4e1ade785c195a796b67f",
+    "donor": "packages/work/src/kernel/tables.ts",
+    "donor_digest": "392c8a30f73b804638312ba09685666a0eb8734c33d7d41c3a3158ae4371a57e",
+    "note": "Frozen independent originals captured from LIVE donors. rows.ts must reproduce BOTH directions. Re-freeze recipe: see rows.test.ts header."
+  },
+  "cases": [
+    {
+      "id": "new-ok",
+      "direction": "work",
+      "fn": "newSupersessionRow",
+      "input": [
+        {
+          "outboxId": "obx-3",
+          "byOccurrenceId": "occ-9",
+          "markedAtMs": 7
+        },
+        {
+          "nowMs": 1728000000000,
+          "actor": "w02.2-freeze"
+        }
+      ],
+      "expect": {
+        "ok": {
+          "id": "obx-3",
+          "version": 1,
+          "created": 1728000000000,
+          "updated": 1728000000000,
+          "createdBy": "w02.2-freeze",
+          "updatedBy": "w02.2-freeze",
+          "archivedAt": null,
+          "parent": null,
+          "data": {
+            "outboxId": "obx-3",
+            "byOccurrenceId": "occ-9",
+            "markedAtMs": 7
+          }
+        }
+      }
+    },
+    {
+      "id": "read-ok",
+      "direction": "work",
+      "fn": "readSupersessionRow",
+      "input": [
+        {
+          "id": "obx-3",
+          "version": 1,
+          "created": 1728000000000,
+          "updated": 1728000000000,
+          "createdBy": "w02.2-freeze",
+          "updatedBy": "w02.2-freeze",
+          "archivedAt": null,
+          "parent": null,
+          "data": {
+            "outboxId": "obx-3",
+            "byOccurrenceId": null,
+            "markedAtMs": 7
+          }
+        }
+      ],
+      "expect": {
+        "ok": {
+          "outboxId": "obx-3",
+          "byOccurrenceId": null,
+          "markedAtMs": 7
+        }
+      }
+    },
+    {
+      "id": "read-inf-marked",
+      "direction": "work",
+      "fn": "readSupersessionRow",
+      "input": [
+        {
+          "id": "x",
+          "version": 1,
+          "created": 1728000000000,
+          "updated": 1728000000000,
+          "createdBy": "w02.2-freeze",
+          "updatedBy": "w02.2-freeze",
+          "archivedAt": null,
+          "parent": null,
+          "data": {
+            "outboxId": "x",
+            "byOccurrenceId": null,
+            "markedAtMs": {
+              "$num": "Infinity"
+            }
+          }
+        }
+      ],
+      "expect": {
+        "throw": {
+          "name": "KernelTableError",
+          "message": "work.supersession.markedAtMs must be finite epoch ms >= 0."
+        }
+      }
+    }
+  ]
+}

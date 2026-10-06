@@ -1,0 +1,1456 @@
+{
+  "provenance": {
+    "frozen_at_head": "a9476a4fedaf1c0b472ce8c33925b4090f176836",
+    "donors": {
+      "receipt": "packages/work/src/receipt/index.ts",
+      "recovery": "packages/work/src/recovery/index.ts",
+      "stateReceipt": "packages/state/src/receipt/tables.ts",
+      "transact": "packages/state/src/ports/transact.ts"
+    },
+    "donor_digests": {
+      "receipt": "5085f392192a1059c9a5d3bcf679e4984b77a0ab4a5e799bcd17812e8060d6e3",
+      "recovery": "c973d3b8fafd4db66ff2b6b278e3ff49c8121601b5d21665507e4ee3ff231859",
+      "stateReceipt": "ef64dfe3862e3a0aa2f21e9eeca6affbe66a8a0f832efc7da9f5e6e01d8b3866",
+      "transact": "2e39d28afc9655fce540411f446065af5b625eecd4d0fa71c4bc15021554491a"
+    },
+    "note": "Frozen independent originals captured from LIVE donors. Re-freeze recipe: see test headers."
+  },
+  "cases": [
+    {
+      "id": "dead-letter-sorted",
+      "fn": "listDeadLetter",
+      "input": [
+        [
+          {
+            "id": "b",
+            "operationId": "op-1",
+            "source": "emit",
+            "occurrenceIndex": 0,
+            "request": {},
+            "originOccurrence": null,
+            "attempts": 0,
+            "state": "dead"
+          },
+          {
+            "id": "a",
+            "operationId": "op-1",
+            "source": "emit",
+            "occurrenceIndex": 0,
+            "request": {},
+            "originOccurrence": null,
+            "attempts": 0,
+            "state": "dead"
+          },
+          {
+            "id": "c",
+            "operationId": "op-1",
+            "source": "emit",
+            "occurrenceIndex": 0,
+            "request": {},
+            "originOccurrence": null,
+            "attempts": 0,
+            "state": "pending"
+          },
+          {
+            "id": "d",
+            "operationId": "op-1",
+            "source": "emit",
+            "occurrenceIndex": 0,
+            "request": {},
+            "originOccurrence": null,
+            "attempts": 0,
+            "state": "failed"
+          }
+        ]
+      ],
+      "expect": {
+        "ok": [
+          {
+            "id": "a",
+            "operationId": "op-1",
+            "source": "emit",
+            "occurrenceIndex": 0,
+            "request": {},
+            "originOccurrence": null,
+            "attempts": 0,
+            "state": "dead"
+          },
+          {
+            "id": "b",
+            "operationId": "op-1",
+            "source": "emit",
+            "occurrenceIndex": 0,
+            "request": {},
+            "originOccurrence": null,
+            "attempts": 0,
+            "state": "dead"
+          }
+        ]
+      }
+    },
+    {
+      "id": "dead-letter-empty",
+      "fn": "listDeadLetter",
+      "input": [
+        [
+          {
+            "id": "obx-1",
+            "operationId": "op-1",
+            "source": "emit",
+            "occurrenceIndex": 0,
+            "request": {},
+            "originOccurrence": null,
+            "attempts": 0,
+            "state": "pending"
+          }
+        ]
+      ],
+      "expect": {
+        "ok": []
+      }
+    },
+    {
+      "id": "consistent-succeeded",
+      "fn": "isConsistentCompletion",
+      "input": [
+        "succeeded",
+        {
+          "v": 1
+        },
+        null
+      ],
+      "expect": {
+        "ok": true
+      }
+    },
+    {
+      "id": "consistent-succeeded-err",
+      "fn": "isConsistentCompletion",
+      "input": [
+        "succeeded",
+        null,
+        {
+          "code": "E",
+          "message": "m"
+        }
+      ],
+      "expect": {
+        "ok": false
+      }
+    },
+    {
+      "id": "consistent-failed",
+      "fn": "isConsistentCompletion",
+      "input": [
+        "failed",
+        null,
+        {
+          "code": "E",
+          "message": "m"
+        }
+      ],
+      "expect": {
+        "ok": true
+      }
+    },
+    {
+      "id": "consistent-failed-result",
+      "fn": "isConsistentCompletion",
+      "input": [
+        "failed",
+        1,
+        {
+          "code": "E",
+          "message": "m"
+        }
+      ],
+      "expect": {
+        "ok": false
+      }
+    },
+    {
+      "id": "consistent-failed-extras",
+      "fn": "isConsistentCompletion",
+      "input": [
+        "failed",
+        null,
+        {
+          "code": "E",
+          "message": "m",
+          "x": 1
+        }
+      ],
+      "expect": {
+        "ok": false
+      }
+    },
+    {
+      "id": "consistent-unknown-nulls",
+      "fn": "isConsistentCompletion",
+      "input": [
+        "unknown",
+        null,
+        null
+      ],
+      "expect": {
+        "ok": true
+      }
+    },
+    {
+      "id": "consistent-unknown-diag",
+      "fn": "isConsistentCompletion",
+      "input": [
+        "unknown",
+        null,
+        {
+          "code": "E",
+          "message": "m"
+        }
+      ],
+      "expect": {
+        "ok": true
+      }
+    },
+    {
+      "id": "consistent-unknown-result",
+      "fn": "isConsistentCompletion",
+      "input": [
+        "unknown",
+        1,
+        null
+      ],
+      "expect": {
+        "ok": false
+      }
+    },
+    {
+      "id": "consistent-skipped",
+      "fn": "isConsistentCompletion",
+      "input": [
+        "skipped",
+        null,
+        null
+      ],
+      "expect": {
+        "ok": true
+      }
+    },
+    {
+      "id": "consistent-skipped-result",
+      "fn": "isConsistentCompletion",
+      "input": [
+        "skipped",
+        1,
+        null
+      ],
+      "expect": {
+        "ok": false
+      }
+    },
+    {
+      "id": "consistent-pending",
+      "fn": "isConsistentCompletion",
+      "input": [
+        "pending",
+        null,
+        null
+      ],
+      "expect": {
+        "ok": false
+      }
+    },
+    {
+      "id": "consistent-bogus",
+      "fn": "isConsistentCompletion",
+      "input": [
+        "nope",
+        null,
+        null
+      ],
+      "expect": {
+        "ok": false
+      }
+    },
+    {
+      "id": "consistent-undefined-payload",
+      "fn": "isConsistentCompletion",
+      "input": [
+        "succeeded",
+        {
+          "$undef": true
+        },
+        {
+          "$undef": true
+        }
+      ],
+      "expect": {
+        "ok": true
+      }
+    },
+    {
+      "id": "terminal-pending",
+      "fn": "isTerminalReceiptStatus",
+      "input": [
+        "pending"
+      ],
+      "expect": {
+        "ok": false
+      }
+    },
+    {
+      "id": "terminal-succeeded",
+      "fn": "isTerminalReceiptStatus",
+      "input": [
+        "succeeded"
+      ],
+      "expect": {
+        "ok": true
+      }
+    },
+    {
+      "id": "terminal-failed",
+      "fn": "isTerminalReceiptStatus",
+      "input": [
+        "failed"
+      ],
+      "expect": {
+        "ok": true
+      }
+    },
+    {
+      "id": "terminal-unknown",
+      "fn": "isTerminalReceiptStatus",
+      "input": [
+        "unknown"
+      ],
+      "expect": {
+        "ok": false
+      }
+    },
+    {
+      "id": "terminal-skipped",
+      "fn": "isTerminalReceiptStatus",
+      "input": [
+        "skipped"
+      ],
+      "expect": {
+        "ok": true
+      }
+    },
+    {
+      "id": "terminal-bogus",
+      "fn": "isTerminalReceiptStatus",
+      "input": [
+        "bogus"
+      ],
+      "expect": {
+        "ok": false
+      }
+    },
+    {
+      "id": "observation-ok",
+      "fn": "toReceiptObservation",
+      "input": [
+        "d-1",
+        3,
+        {
+          "status": "succeeded",
+          "result": {
+            "r": 1
+          },
+          "error": null
+        }
+      ],
+      "expect": {
+        "ok": {
+          "id": "d-1",
+          "revision": 3,
+          "status": "succeeded",
+          "result": {
+            "r": 1
+          },
+          "error": null
+        }
+      }
+    },
+    {
+      "id": "observation-bad-id",
+      "fn": "toReceiptObservation",
+      "input": [
+        "",
+        3,
+        {
+          "status": "succeeded",
+          "result": null,
+          "error": null
+        }
+      ],
+      "expect": {
+        "throw": {
+          "name": "RangeError",
+          "message": "toReceiptObservation: deliveryId must be a non-empty string"
+        }
+      }
+    },
+    {
+      "id": "observation-bad-rev",
+      "fn": "toReceiptObservation",
+      "input": [
+        "d-1",
+        1.5,
+        {
+          "status": "succeeded",
+          "result": null,
+          "error": null
+        }
+      ],
+      "expect": {
+        "throw": {
+          "name": "RangeError",
+          "message": "toReceiptObservation: revision must be a non-negative integer"
+        }
+      }
+    },
+    {
+      "id": "observation-neg-rev",
+      "fn": "toReceiptObservation",
+      "input": [
+        "d-1",
+        -1,
+        {
+          "status": "succeeded",
+          "result": null,
+          "error": null
+        }
+      ],
+      "expect": {
+        "throw": {
+          "name": "RangeError",
+          "message": "toReceiptObservation: revision must be a non-negative integer"
+        }
+      }
+    },
+    {
+      "id": "assoc-id",
+      "fn": "associationRowId",
+      "input": [
+        "m",
+        "r/1",
+        "f f"
+      ],
+      "expect": {
+        "ok": "receipt-assoc/v1/m/r%2F1/f%20f"
+      }
+    },
+    {
+      "id": "assoc-id-empty",
+      "fn": "associationRowId",
+      "input": [
+        "m",
+        "",
+        "f"
+      ],
+      "expect": {
+        "throw": {
+          "name": "ReceiptTableError",
+          "message": "associationRowId needs a non-empty model, recordId and field."
+        }
+      }
+    },
+    {
+      "id": "stored-pending-nulls",
+      "fn": "isStoredReceiptPayload",
+      "input": [
+        "pending",
+        null,
+        null
+      ],
+      "expect": {
+        "ok": true
+      }
+    },
+    {
+      "id": "stored-pending-result",
+      "fn": "isStoredReceiptPayload",
+      "input": [
+        "pending",
+        1,
+        null
+      ],
+      "expect": {
+        "ok": false
+      }
+    },
+    {
+      "id": "stored-pending-err",
+      "fn": "isStoredReceiptPayload",
+      "input": [
+        "pending",
+        null,
+        {
+          "code": "E",
+          "message": "m"
+        }
+      ],
+      "expect": {
+        "ok": false
+      }
+    },
+    {
+      "id": "stored-succeeded",
+      "fn": "isStoredReceiptPayload",
+      "input": [
+        "succeeded",
+        {
+          "a": 1
+        },
+        null
+      ],
+      "expect": {
+        "ok": true
+      }
+    },
+    {
+      "id": "stored-failed",
+      "fn": "isStoredReceiptPayload",
+      "input": [
+        "failed",
+        null,
+        {
+          "code": "E",
+          "message": "m"
+        }
+      ],
+      "expect": {
+        "ok": true
+      }
+    },
+    {
+      "id": "stored-unknown-diag",
+      "fn": "isStoredReceiptPayload",
+      "input": [
+        "unknown",
+        null,
+        {
+          "code": "E",
+          "message": "m"
+        }
+      ],
+      "expect": {
+        "ok": true
+      }
+    },
+    {
+      "id": "stored-skipped",
+      "fn": "isStoredReceiptPayload",
+      "input": [
+        "skipped",
+        null,
+        null
+      ],
+      "expect": {
+        "ok": true
+      }
+    },
+    {
+      "id": "stored-bogus",
+      "fn": "isStoredReceiptPayload",
+      "input": [
+        "nope",
+        null,
+        null
+      ],
+      "expect": {
+        "ok": false
+      }
+    },
+    {
+      "id": "new-assoc-row",
+      "fn": "newAssociationRow",
+      "input": [
+        {
+          "recordModel": "mod",
+          "recordId": "rec",
+          "field": "fld",
+          "deliveryId": "d-1",
+          "source": "src",
+          "revision": 2
+        },
+        {
+          "nowMs": 2000,
+          "actor": "w02.4-freeze"
+        }
+      ],
+      "expect": {
+        "ok": {
+          "id": "receipt-assoc/v1/mod/rec/fld",
+          "version": 1,
+          "created": 2000,
+          "updated": 2000,
+          "createdBy": "w02.4-freeze",
+          "updatedBy": "w02.4-freeze",
+          "archivedAt": null,
+          "parent": null,
+          "data": {
+            "recordModel": "mod",
+            "recordId": "rec",
+            "field": "fld",
+            "deliveryId": "d-1",
+            "source": "src",
+            "revision": 2
+          }
+        }
+      }
+    },
+    {
+      "id": "new-assoc-malformed",
+      "fn": "newAssociationRow",
+      "input": [
+        {
+          "recordModel": "mod",
+          "recordId": "rec",
+          "field": "",
+          "deliveryId": "d-1",
+          "source": "src",
+          "revision": 2
+        },
+        {
+          "nowMs": 2000,
+          "actor": "w02.4-freeze"
+        }
+      ],
+      "expect": {
+        "throw": {
+          "name": "ReceiptTableError",
+          "message": "associationRowId needs a non-empty model, recordId and field."
+        }
+      }
+    },
+    {
+      "id": "read-assoc-row",
+      "fn": "readAssociationRow",
+      "input": [
+        {
+          "id": "receipt-assoc/v1/mod/rec/fld",
+          "version": 1,
+          "created": 1000,
+          "updated": 1000,
+          "createdBy": "fz",
+          "updatedBy": "fz",
+          "archivedAt": null,
+          "parent": null,
+          "data": {
+            "recordModel": "mod",
+            "recordId": "rec",
+            "field": "fld",
+            "deliveryId": "d-1",
+            "source": "src",
+            "revision": 2
+          }
+        }
+      ],
+      "expect": {
+        "ok": {
+          "locator": {
+            "recordId": "rec",
+            "field": "fld"
+          },
+          "deliveryId": "d-1",
+          "source": "src",
+          "revision": 2
+        }
+      }
+    },
+    {
+      "id": "read-assoc-id-mismatch",
+      "fn": "readAssociationRow",
+      "input": [
+        {
+          "id": "wrong",
+          "version": 1,
+          "created": 1000,
+          "updated": 1000,
+          "createdBy": "fz",
+          "updatedBy": "fz",
+          "archivedAt": null,
+          "parent": null,
+          "data": {
+            "recordModel": "mod",
+            "recordId": "rec",
+            "field": "fld",
+            "deliveryId": "d-1",
+            "source": "src",
+            "revision": 2
+          }
+        }
+      ],
+      "expect": {
+        "throw": {
+          "name": "ReceiptTableError",
+          "message": "work.receipt_association row id must equal its model/record/field derivation."
+        }
+      }
+    },
+    {
+      "id": "read-assoc-bad-rev",
+      "fn": "readAssociationRow",
+      "input": [
+        {
+          "id": "receipt-assoc/v1/mod/rec/fld",
+          "version": 1,
+          "created": 1000,
+          "updated": 1000,
+          "createdBy": "fz",
+          "updatedBy": "fz",
+          "archivedAt": null,
+          "parent": null,
+          "data": {
+            "recordModel": "mod",
+            "recordId": "rec",
+            "field": "fld",
+            "deliveryId": "d-1",
+            "source": "src",
+            "revision": 2.5
+          }
+        }
+      ],
+      "expect": {
+        "throw": {
+          "name": "ReceiptTableError",
+          "message": "work.receipt_association.revision must be an integer >= 0."
+        }
+      }
+    },
+    {
+      "id": "new-receipt-pending",
+      "fn": "newReceiptRow",
+      "input": [
+        {
+          "deliveryId": "d-1",
+          "revision": 0,
+          "status": "pending",
+          "result": null,
+          "error": null,
+          "contentRef": null,
+          "resultExpiresAtMs": null
+        },
+        {
+          "nowMs": 2000,
+          "actor": "w02.4-freeze"
+        }
+      ],
+      "expect": {
+        "ok": {
+          "id": "d-1",
+          "version": 1,
+          "created": 2000,
+          "updated": 2000,
+          "createdBy": "w02.4-freeze",
+          "updatedBy": "w02.4-freeze",
+          "archivedAt": null,
+          "parent": null,
+          "data": {
+            "deliveryId": "d-1",
+            "revision": 0,
+            "status": "pending",
+            "result": null,
+            "error": null,
+            "contentRef": null,
+            "resultExpiresAtMs": null
+          }
+        }
+      }
+    },
+    {
+      "id": "new-receipt-ok",
+      "fn": "newReceiptRow",
+      "input": [
+        {
+          "deliveryId": "d-2",
+          "revision": 4,
+          "status": "succeeded",
+          "result": {
+            "v": [
+              1
+            ]
+          },
+          "error": null,
+          "contentRef": "c9",
+          "resultExpiresAtMs": 999
+        },
+        {
+          "nowMs": 2000,
+          "actor": "w02.4-freeze"
+        }
+      ],
+      "expect": {
+        "ok": {
+          "id": "d-2",
+          "version": 1,
+          "created": 2000,
+          "updated": 2000,
+          "createdBy": "w02.4-freeze",
+          "updatedBy": "w02.4-freeze",
+          "archivedAt": null,
+          "parent": null,
+          "data": {
+            "deliveryId": "d-2",
+            "revision": 4,
+            "status": "succeeded",
+            "result": {
+              "v": [
+                1
+              ]
+            },
+            "error": null,
+            "contentRef": "c9",
+            "resultExpiresAtMs": 999
+          }
+        }
+      }
+    },
+    {
+      "id": "new-receipt-inconsistent",
+      "fn": "newReceiptRow",
+      "input": [
+        {
+          "deliveryId": "d-2",
+          "revision": 4,
+          "status": "failed",
+          "result": {
+            "v": [
+              1
+            ]
+          },
+          "error": null,
+          "contentRef": "c9",
+          "resultExpiresAtMs": 999
+        },
+        {
+          "nowMs": 2000,
+          "actor": "w02.4-freeze"
+        }
+      ],
+      "expect": {
+        "throw": {
+          "name": "ReceiptTableError",
+          "message": "work.receipt payload is inconsistent for status \"failed\"."
+        }
+      }
+    },
+    {
+      "id": "new-receipt-fn-result",
+      "fn": "newReceiptRow",
+      "input": [
+        {
+          "deliveryId": "d-2",
+          "revision": 4,
+          "status": "succeeded",
+          "result": {
+            "$fn": true
+          },
+          "error": null,
+          "contentRef": "c9",
+          "resultExpiresAtMs": 999
+        },
+        {
+          "nowMs": 2000,
+          "actor": "w02.4-freeze"
+        }
+      ],
+      "expect": {
+        "throw": {
+          "name": "ReceiptTableError",
+          "message": "work.receipt data.result is not JSON-safe."
+        }
+      }
+    },
+    {
+      "id": "new-receipt-failed",
+      "fn": "newReceiptRow",
+      "input": [
+        {
+          "deliveryId": "d-3",
+          "revision": 1,
+          "status": "failed",
+          "result": null,
+          "error": {
+            "code": "E9",
+            "message": "boom"
+          },
+          "contentRef": null,
+          "resultExpiresAtMs": null
+        },
+        {
+          "nowMs": 2000,
+          "actor": "w02.4-freeze"
+        }
+      ],
+      "expect": {
+        "ok": {
+          "id": "d-3",
+          "version": 1,
+          "created": 2000,
+          "updated": 2000,
+          "createdBy": "w02.4-freeze",
+          "updatedBy": "w02.4-freeze",
+          "archivedAt": null,
+          "parent": null,
+          "data": {
+            "deliveryId": "d-3",
+            "revision": 1,
+            "status": "failed",
+            "result": null,
+            "error": {
+              "code": "E9",
+              "message": "boom"
+            },
+            "contentRef": null,
+            "resultExpiresAtMs": null
+          }
+        }
+      }
+    },
+    {
+      "id": "read-receipt-failed",
+      "fn": "readReceiptRow",
+      "input": [
+        {
+          "id": "d-3",
+          "version": 1,
+          "created": 1000,
+          "updated": 1000,
+          "createdBy": "fz",
+          "updatedBy": "fz",
+          "archivedAt": null,
+          "parent": null,
+          "data": {
+            "deliveryId": "d-3",
+            "revision": 1,
+            "status": "failed",
+            "result": null,
+            "error": {
+              "code": "E9",
+              "message": "boom"
+            },
+            "contentRef": null,
+            "resultExpiresAtMs": null
+          }
+        }
+      ],
+      "expect": {
+        "ok": {
+          "receipt": {
+            "deliveryId": "d-3",
+            "revision": 1,
+            "status": "failed",
+            "result": null,
+            "error": {
+              "code": "E9",
+              "message": "boom"
+            }
+          },
+          "contentRef": null,
+          "resultExpiresAtMs": null
+        }
+      }
+    },
+    {
+      "id": "read-receipt-row",
+      "fn": "readReceiptRow",
+      "input": [
+        {
+          "id": "d-2",
+          "version": 1,
+          "created": 1000,
+          "updated": 1000,
+          "createdBy": "fz",
+          "updatedBy": "fz",
+          "archivedAt": null,
+          "parent": null,
+          "data": {
+            "deliveryId": "d-2",
+            "revision": 4,
+            "status": "succeeded",
+            "result": {
+              "v": [
+                1
+              ]
+            },
+            "error": null,
+            "contentRef": "c9",
+            "resultExpiresAtMs": 999
+          }
+        }
+      ],
+      "expect": {
+        "ok": {
+          "receipt": {
+            "deliveryId": "d-2",
+            "revision": 4,
+            "status": "succeeded",
+            "result": {
+              "v": [
+                1
+              ]
+            },
+            "error": null
+          },
+          "contentRef": "c9",
+          "resultExpiresAtMs": 999
+        }
+      }
+    },
+    {
+      "id": "read-receipt-undefined-payload",
+      "fn": "readReceiptRow",
+      "input": [
+        {
+          "id": "d-2",
+          "version": 1,
+          "created": 1000,
+          "updated": 1000,
+          "createdBy": "fz",
+          "updatedBy": "fz",
+          "archivedAt": null,
+          "parent": null,
+          "data": {
+            "deliveryId": "d-2",
+            "revision": 4,
+            "status": "succeeded",
+            "contentRef": null,
+            "resultExpiresAtMs": null
+          }
+        }
+      ],
+      "expect": {
+        "ok": {
+          "receipt": {
+            "deliveryId": "d-2",
+            "revision": 4,
+            "status": "succeeded",
+            "result": null,
+            "error": null
+          },
+          "contentRef": null,
+          "resultExpiresAtMs": null
+        }
+      }
+    },
+    {
+      "id": "read-receipt-bad-status",
+      "fn": "readReceiptRow",
+      "input": [
+        {
+          "id": "d-2",
+          "version": 1,
+          "created": 1000,
+          "updated": 1000,
+          "createdBy": "fz",
+          "updatedBy": "fz",
+          "archivedAt": null,
+          "parent": null,
+          "data": {
+            "deliveryId": "d-2",
+            "revision": 4,
+            "status": "held",
+            "result": {
+              "v": [
+                1
+              ]
+            },
+            "error": null,
+            "contentRef": "c9",
+            "resultExpiresAtMs": 999
+          }
+        }
+      ],
+      "expect": {
+        "throw": {
+          "name": "ReceiptTableError",
+          "message": "work.receipt.status is unknown: \"held\"."
+        }
+      }
+    },
+    {
+      "id": "read-receipt-bad-contentref",
+      "fn": "readReceiptRow",
+      "input": [
+        {
+          "id": "d-2",
+          "version": 1,
+          "created": 1000,
+          "updated": 1000,
+          "createdBy": "fz",
+          "updatedBy": "fz",
+          "archivedAt": null,
+          "parent": null,
+          "data": {
+            "deliveryId": "d-2",
+            "revision": 4,
+            "status": "succeeded",
+            "result": {
+              "v": [
+                1
+              ]
+            },
+            "error": null,
+            "contentRef": "",
+            "resultExpiresAtMs": 999
+          }
+        }
+      ],
+      "expect": {
+        "throw": {
+          "name": "ReceiptTableError",
+          "message": "work.receipt.contentRef must be a non-empty string or null."
+        }
+      }
+    },
+    {
+      "id": "read-receipt-bad-expiry",
+      "fn": "readReceiptRow",
+      "input": [
+        {
+          "id": "d-2",
+          "version": 1,
+          "created": 1000,
+          "updated": 1000,
+          "createdBy": "fz",
+          "updatedBy": "fz",
+          "archivedAt": null,
+          "parent": null,
+          "data": {
+            "deliveryId": "d-2",
+            "revision": 4,
+            "status": "succeeded",
+            "result": {
+              "v": [
+                1
+              ]
+            },
+            "error": null,
+            "contentRef": "c9",
+            "resultExpiresAtMs": {
+              "$num": "NaN"
+            }
+          }
+        }
+      ],
+      "expect": {
+        "throw": {
+          "name": "ReceiptTableError",
+          "message": "work.receipt.resultExpiresAtMs must be finite epoch ms or null."
+        }
+      }
+    },
+    {
+      "id": "read-receipt-id-mismatch",
+      "fn": "readReceiptRow",
+      "input": [
+        {
+          "id": "other",
+          "version": 1,
+          "created": 1000,
+          "updated": 1000,
+          "createdBy": "fz",
+          "updatedBy": "fz",
+          "archivedAt": null,
+          "parent": null,
+          "data": {
+            "deliveryId": "d-2",
+            "revision": 4,
+            "status": "succeeded",
+            "result": {
+              "v": [
+                1
+              ]
+            },
+            "error": null,
+            "contentRef": "c9",
+            "resultExpiresAtMs": 999
+          }
+        }
+      ],
+      "expect": {
+        "throw": {
+          "name": "ReceiptTableError",
+          "message": "work.receipt row id must equal its deliveryId."
+        }
+      }
+    },
+    {
+      "id": "with-assoc-ok",
+      "fn": "withAssociationRowData",
+      "input": [
+        {
+          "id": "receipt-assoc/v1/mod/rec/fld",
+          "version": 1,
+          "created": 1000,
+          "updated": 1000,
+          "createdBy": "fz",
+          "updatedBy": "fz",
+          "archivedAt": null,
+          "parent": null,
+          "data": {
+            "recordModel": "mod",
+            "recordId": "rec",
+            "field": "fld",
+            "deliveryId": "d-1",
+            "source": "src",
+            "revision": 2
+          }
+        },
+        {
+          "recordModel": "mod",
+          "recordId": "rec",
+          "field": "fld",
+          "deliveryId": "d-1",
+          "source": "src",
+          "revision": 3
+        },
+        {
+          "nowMs": 2000,
+          "actor": "w02.4-freeze"
+        }
+      ],
+      "expect": {
+        "ok": {
+          "id": "receipt-assoc/v1/mod/rec/fld",
+          "version": 2,
+          "created": 1000,
+          "updated": 2000,
+          "createdBy": "fz",
+          "updatedBy": "w02.4-freeze",
+          "archivedAt": null,
+          "parent": null,
+          "data": {
+            "recordModel": "mod",
+            "recordId": "rec",
+            "field": "fld",
+            "deliveryId": "d-1",
+            "source": "src",
+            "revision": 3
+          }
+        }
+      }
+    },
+    {
+      "id": "with-assoc-stale",
+      "fn": "withAssociationRowData",
+      "input": [
+        {
+          "id": "receipt-assoc/v1/mod/rec/fld",
+          "version": 1,
+          "created": 1000,
+          "updated": 1000,
+          "createdBy": "fz",
+          "updatedBy": "fz",
+          "archivedAt": null,
+          "parent": null,
+          "data": {
+            "recordModel": "mod",
+            "recordId": "rec",
+            "field": "fld",
+            "deliveryId": "d-1",
+            "source": "src",
+            "revision": 2
+          }
+        },
+        {
+          "recordModel": "mod",
+          "recordId": "rec",
+          "field": "fld",
+          "deliveryId": "d-1",
+          "source": "src",
+          "revision": 1
+        },
+        {
+          "nowMs": 2000,
+          "actor": "w02.4-freeze"
+        }
+      ],
+      "expect": {
+        "throw": {
+          "name": "ReceiptTableError",
+          "message": "work.receipt_association: stale revision 1 under current 2."
+        }
+      }
+    },
+    {
+      "id": "with-assoc-same-rev",
+      "fn": "withAssociationRowData",
+      "input": [
+        {
+          "id": "receipt-assoc/v1/mod/rec/fld",
+          "version": 1,
+          "created": 1000,
+          "updated": 1000,
+          "createdBy": "fz",
+          "updatedBy": "fz",
+          "archivedAt": null,
+          "parent": null,
+          "data": {
+            "recordModel": "mod",
+            "recordId": "rec",
+            "field": "fld",
+            "deliveryId": "d-1",
+            "source": "src",
+            "revision": 2
+          }
+        },
+        {
+          "recordModel": "mod",
+          "recordId": "rec",
+          "field": "fld",
+          "deliveryId": "d-1",
+          "source": "src",
+          "revision": 2
+        },
+        {
+          "nowMs": 2000,
+          "actor": "w02.4-freeze"
+        }
+      ],
+      "expect": {
+        "ok": {
+          "id": "receipt-assoc/v1/mod/rec/fld",
+          "version": 2,
+          "created": 1000,
+          "updated": 2000,
+          "createdBy": "fz",
+          "updatedBy": "w02.4-freeze",
+          "archivedAt": null,
+          "parent": null,
+          "data": {
+            "recordModel": "mod",
+            "recordId": "rec",
+            "field": "fld",
+            "deliveryId": "d-1",
+            "source": "src",
+            "revision": 2
+          }
+        }
+      }
+    },
+    {
+      "id": "with-receipt-ok",
+      "fn": "withReceiptRowData",
+      "input": [
+        {
+          "id": "d-2",
+          "version": 1,
+          "created": 1000,
+          "updated": 1000,
+          "createdBy": "fz",
+          "updatedBy": "fz",
+          "archivedAt": null,
+          "parent": null,
+          "data": {
+            "deliveryId": "d-2",
+            "revision": 4,
+            "status": "succeeded",
+            "result": {
+              "v": [
+                1
+              ]
+            },
+            "error": null,
+            "contentRef": "c9",
+            "resultExpiresAtMs": 999
+          }
+        },
+        {
+          "deliveryId": "d-2",
+          "revision": 5,
+          "status": "succeeded",
+          "result": {
+            "$ref": "$[0].data.result"
+          },
+          "error": null,
+          "contentRef": "c9",
+          "resultExpiresAtMs": 999
+        },
+        {
+          "nowMs": 2000,
+          "actor": "w02.4-freeze"
+        }
+      ],
+      "expect": {
+        "ok": {
+          "id": "d-2",
+          "version": 2,
+          "created": 1000,
+          "updated": 2000,
+          "createdBy": "fz",
+          "updatedBy": "w02.4-freeze",
+          "archivedAt": null,
+          "parent": null,
+          "data": {
+            "deliveryId": "d-2",
+            "revision": 5,
+            "status": "succeeded",
+            "result": {
+              "v": [
+                1
+              ]
+            },
+            "error": null,
+            "contentRef": "c9",
+            "resultExpiresAtMs": 999
+          }
+        }
+      }
+    },
+    {
+      "id": "with-receipt-stale",
+      "fn": "withReceiptRowData",
+      "input": [
+        {
+          "id": "d-2",
+          "version": 1,
+          "created": 1000,
+          "updated": 1000,
+          "createdBy": "fz",
+          "updatedBy": "fz",
+          "archivedAt": null,
+          "parent": null,
+          "data": {
+            "deliveryId": "d-2",
+            "revision": 4,
+            "status": "succeeded",
+            "result": {
+              "v": [
+                1
+              ]
+            },
+            "error": null,
+            "contentRef": "c9",
+            "resultExpiresAtMs": 999
+          }
+        },
+        {
+          "deliveryId": "d-2",
+          "revision": 3,
+          "status": "succeeded",
+          "result": {
+            "$ref": "$[0].data.result"
+          },
+          "error": null,
+          "contentRef": "c9",
+          "resultExpiresAtMs": 999
+        },
+        {
+          "nowMs": 2000,
+          "actor": "w02.4-freeze"
+        }
+      ],
+      "expect": {
+        "throw": {
+          "name": "ReceiptTableError",
+          "message": "work.receipt: stale revision 3 under current 4."
+        }
+      }
+    }
+  ]
+}

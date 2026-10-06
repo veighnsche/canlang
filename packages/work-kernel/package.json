@@ -1,0 +1,34 @@
+{
+  "name": "@canlang/work-kernel",
+  "version": "0.1.0",
+  "license": "MIT",
+  "description": "CanLang work/state transition kernel: pure decision mechanisms with swappable TS/wasm backends (W02 foundation; semantic modules arrive W02.2-W02.4).",
+  "type": "module",
+  "main": "./dist/src/index.js",
+  "types": "./dist/src/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "exports": {
+    ".": {
+      "types": "./dist/src/index.d.ts",
+      "default": "./dist/src/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "build:wasm": "cargo build --manifest-path Cargo.toml --target wasm32-unknown-unknown --release",
+    "test": "bun run build && node --test 'dist/conformance/**/*.test.js'",
+    "clean": "rm -rf dist/ target/"
+  },
+  "dependencies": {
+    "@canlang/contracts": "0.1.0"
+  },
+  "devDependencies": {
+    "typescript": "5.9.3"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}

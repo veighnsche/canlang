@@ -143,7 +143,9 @@
       "acceptance": [
         "Inventory every source table and public shell listed above; distinguish memory fixtures from real Cloudflare F7/durable consumers and the absent named wait API.",
         "Record loader-owned deliveryFields from registry, empty per-model membership sets, finite delivery tag version and presence-only result leaves; include b3-delivery-schema and receipt memory/durable baseline fixtures."
-      ]
+      ],
+      "status": "evidence-complete",
+      "evidence_note": "evidence complete: callers.json (F@bb479c2 + D3c drift supplement) + profiles.md; gate reviews pending"
     },
     {
       "id": "W01.2",
@@ -163,7 +165,9 @@
       "acceptance": [
         "Compare contracts-only work-kernel versus isolated work subpath fairly; preserve root JEV advice as advice and record source graph evidence.",
         "Assign one work integrator for shared manifests, module entry, profiles, state transact and runtime invoke; submit root build/lock and binary delivery requests to C04 owner."
-      ]
+      ],
+      "status": "evidence-complete",
+      "evidence_note": "evidence complete: graph.md + files.json (F@bb479c2); edges re-verified at HEAD 2071631; gate reviews pending"
     },
     {
       "id": "W01.3",
@@ -184,7 +188,9 @@
       "acceptance": [
         "Run existing command block against inspected sources, retain logs and failures; failed noEmitOnError builds cannot supply stale dist evidence.",
         "Save original row/result identity, state clone-only versus work safety-then-clone, error/trace ordering and actual D1/DO persisted bytes in immutable evidence as an independent oracle; pure owner lanes copy/hash their golden fixture subsets later."
-      ]
+      ],
+      "status": "evidence-complete",
+      "evidence_note": "evidence complete: current-ts.json + fixtures + verify.log (D@c07c51e, immutable); gate reviews pending"
     },
     {
       "id": "W01.4",
@@ -208,7 +214,9 @@
       "acceptance": [
         "Nominate tiny/page/501-member/error/restart/recovery workloads and numeric latency/memory/binary budgets before seeing Rust comparisons.",
         "Identify retained unknown-object/callback/host hashing/recurrence hash paths and new operation resource limits without silently narrowing legacy inputs."
-      ]
+      ],
+      "status": "evidence-complete",
+      "evidence_note": "evidence complete: workloads.json + budgets.json + coverage.md (@2071631); gate reviews pending"
     },
     {
       "id": "W02.1",
@@ -233,7 +241,9 @@
       "acceptance": [
         "Pin @canlang/work-kernel to release 0.1.0; define pure JS/backend exports, files/dist shipping and contracts-only type graph; no unpublished private workspace runtime dependency.",
         "Declare build/typecheck/build:wasm scripts and conformance include/output roots plus minimal neutral TS entry/interfaces; submit root build/bun.lock and shared consumer dependency request to C04.graph without editing shared manifests or platform globals."
-      ]
+      ],
+      "status": "evidence-complete",
+      "evidence_note": "packages/work-kernel/ skeleton (manifest/tsconfig/Cargo/lock/neutral entries) + handoffs/build-request.md; typecheck/build/cargo-check/wasm-build all exit 0; no shared edits"
     },
     {
       "id": "W02.2",
@@ -256,6 +266,12 @@
       "acceptance": [
         "Preserve all eight table shapes, metadata, default presence, JSON-safety versus clone-only profiles, JS counts and UTF-16 identity/set order.",
         "Compare both producer directions against frozen originals; do not use both wrappers calling the same helper as the sole oracle."
+      ],
+      "status": "evidence-complete",
+      "evidence": [
+        "packages/work-kernel/src/rows.ts",
+        "packages/work-kernel/conformance/rows.test.ts",
+        "packages/work-kernel/conformance/fixtures/rows/"
       ]
     },
     {
@@ -283,6 +299,16 @@
       "acceptance": [
         "Retain finite fractional times, Number count arithmetic, horizon/stale boundaries and explicit supplied random sample; no clock/RNG/evidence side effects in pure module.",
         "Keep hashing and exact recurrence bytes host-owned; encodeURIComponent lone-surrogate exceptions remain separate from digest UTF-8 replacement behavior."
+      ],
+      "status": "evidence-complete",
+      "evidence": [
+        "packages/work-kernel/src/retry.ts",
+        "packages/work-kernel/src/every.ts",
+        "packages/work-kernel/src/lifecycle.ts",
+        "packages/work-kernel/conformance/retry.test.ts",
+        "packages/work-kernel/conformance/every.test.ts",
+        "packages/work-kernel/conformance/lifecycle.test.ts",
+        "packages/work-kernel/conformance/fixtures/policy/"
       ]
     },
     {
@@ -310,6 +336,16 @@
       "acceptance": [
         "Keep stored-pending receipt profile distinct, wrapper-specific faults, result host references, last duplicate claim wins and JS-sorted output.",
         "Preserve dispatch/fanout/receipt assertion scope, including global checkpoint-without-outcome check, receipt-only allowed updates, guard-false row-only inserts and cursor-only plain-store path."
+      ],
+      "status": "evidence-complete",
+      "evidence": [
+        "packages/work-kernel/src/receipt.ts",
+        "packages/work-kernel/src/recovery.ts",
+        "packages/work-kernel/src/linkage.ts",
+        "packages/work-kernel/conformance/receipt.test.ts",
+        "packages/work-kernel/conformance/recovery.test.ts",
+        "packages/work-kernel/conformance/linkage.test.ts",
+        "packages/work-kernel/conformance/fixtures/receipts/"
       ]
     },
     {
@@ -363,6 +399,11 @@
       "acceptance": [
         "Define version/profile/error/UTF-16/presence/f64/conditional version transport and producer provenance, validating number ranges before fixed-width conversion.",
         "Reject foreign/version/profile/corrupt facts before semantic callbacks; opaque payload refs are not authority capabilities."
+      ],
+      "status": "evidence-complete",
+      "evidence": [
+        "packages/work-kernel/src/facts.ts",
+        "evidence/implementation/work-transitions/handoffs/abi.md"
       ]
     },
     {
@@ -383,6 +424,11 @@
       "acceptance": [
         "Retain result identity or required structuredClone at the existing profile point; Rust cannot inspect untouched payloads/metadata.",
         "Dispose on success, exception, cancel and rejected load; reject stale/cross-call indices, bound allocation and preserve clone failures."
+      ],
+      "status": "evidence-complete",
+      "evidence": [
+        "packages/work-kernel/bindings/host-values.ts",
+        "packages/work-kernel/conformance/fixtures/traces/refs.json"
       ]
     },
     {
@@ -457,6 +503,10 @@
       "acceptance": [
         "Native row/identity/set vectors agree with independent TS oracle for shape, first fault, metadata/presence, count rounding and lossless UTF-16; no host I/O.",
         "Done for this branch: implementation plus native test vectors/source review are ready for integrator registration; assembled native compile and differential execution are certified by W04.4 before W04 closes."
+      ],
+      "status": "evidence-complete",
+      "evidence": [
+        "packages/work-kernel/decisions/rows.rs"
       ]
     },
     {
@@ -480,6 +530,12 @@
       "acceptance": [
         "Native supplied-sample backoff/slot/coalescing/classification matches fractional/wide-number/error cases; clock/RNG/hash/provider/security operations stay host-owned.",
         "Done for this branch: implementation plus native test vectors/source review are ready for integrator registration; assembled native compile and differential execution are certified by W04.4 before W04 closes."
+      ],
+      "status": "evidence-complete",
+      "evidence": [
+        "packages/work-kernel/decisions/retry.rs",
+        "packages/work-kernel/decisions/every.rs",
+        "packages/work-kernel/decisions/lifecycle.rs"
       ]
     },
     {
@@ -503,6 +559,12 @@
       "acceptance": [
         "Native ordered batch decisions/faults/ref indices and proposed conditional writes agree with separate stored-pending and wrapper profiles; no stronger converse linkage policy.",
         "Done for this branch: implementation plus native test vectors/source review are ready for integrator registration; assembled native compile and differential execution are certified by W04.4 before W04 closes."
+      ],
+      "status": "evidence-complete",
+      "evidence": [
+        "packages/work-kernel/decisions/receipt.rs",
+        "packages/work-kernel/decisions/recovery.rs",
+        "packages/work-kernel/decisions/linkage.rs"
       ]
     },
     {
@@ -1069,7 +1131,9 @@
       "acceptance": [
         "Verify standalone minimal work-kernel entry/interfaces, local build roots, exports, 0.1.0 shipping and contracts-only DAG; semantic modules and consumer joins are not required to publish this foundation.",
         "C04.graph depends on W02.foundation and C04.asset; foundation never waits for C04.graph. Shared graph owner alone changes root package.json/bun.lock and state/Cloudflare/stdlib/testkit consumer manifests/build order."
-      ]
+      ],
+      "status": "evidence-complete",
+      "evidence_note": "handoffs/foundation.json: standalone entry/exports/0.1.0/contracts-only DAG verified (all builds exit 0); no shared edits"
     },
     {
       "id": "W05.4",
