@@ -63,16 +63,22 @@ P-B rewrite in the same pass (F's Q3 scope, not this contract).
 2. observer module via `STATE_RECEIPT_OBSERVER_SPECIFIER` (absent
    until B lands)
 3. work-loader leg via `STATE_RECEIPT_WORK_LOADER_SPECIFIER`
-   (checkout/dev; throws the existing loud t16b in the worker)
+   (checkout/dev; in the worker its vendor key is pinned out, so
+   it misses too and the existing loud t16b refuses)
 
-Neither-module-resolves keeps today's exact behavior (loud t16b
-refusal from the work-loader leg). No silent fallback was added.
+Neither-module-resolves refuses loud down every branch — the
+disjunction the Q4 probe pins empirically
+(`d3b-durable-serve.test.ts`, "workerd's real observer miss
+shape refuses loud down every branch"): EITHER the observer
+miss reads loud under `isObserverModuleAbsent` (direct
+refusal) OR it reads absent and the work-loader fallback leg
+misses too (loud t16b). No silent fallback was added.
 
 ## Repair notes (A-review D1/D2, fix-forward on the pick)
 
 - D1: the fallback is absent-module ONLY
   (`isObserverModuleAbsent`: `ERR_MODULE_NOT_FOUND` naming
-  observer.js as the MISSING module). A present-but-broken
+  `receipt/observer.js` as the MISSING module). A present-but-broken
   observer — eval throw, missing export, loader/shape failure,
   nested missing dep, unknown workerd miss shape — is loud and
   never masked by the fallback. B-half implication: once your
