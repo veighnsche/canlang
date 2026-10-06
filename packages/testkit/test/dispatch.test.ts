@@ -87,6 +87,7 @@ describe("createExampleHooks", () => {
         ["plain", 1],
       ]),
       inputs: null,
+      baselineInputs: null,
       cells: [],
       expectedValues: [],
     };
