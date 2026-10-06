@@ -94,7 +94,10 @@
     "ordinary_implementation_review": "gpt-6.1-sol/medium",
     "uncertain_cross_file": "gpt-6.1-sol/high with recorded justification",
     "source": "/Users/vince/.codex/skills/model-selection/SKILL.md",
-    "global_high_or_max_default": false
+    "global_high_or_max_default": false,
+    "task_specific_allocation": "docs/research/package-library-audit-20261006/model-allocation-20261007.json",
+    "task_selection_is_inference_not_benchmark": true,
+    "known_risk_stronger_choice_without_failed_cheap_attempt": true
   },
   "ordered_start_checklist": "implementation/RUST-PORT-START-HERE.md",
   "concurrent_external_work": {
