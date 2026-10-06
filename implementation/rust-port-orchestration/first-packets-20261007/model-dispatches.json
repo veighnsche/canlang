@@ -1,0 +1,38 @@
+{
+  "schema_version": 1,
+  "phase": "planning",
+  "execution_authorized": false,
+  "selection_policy": "/Users/vince/.codex/skills/model-selection/SKILL.md",
+  "official_sources_checked": "2026-10-07",
+  "sources": [
+    "https://developers.openai.com/api/docs/models/gpt-6-luna",
+    "https://developers.openai.com/api/docs/models/gpt-6.1-sol"
+  ],
+  "supported_dispatcher_combinations_observed": [
+    "gpt-6-luna/low",
+    "gpt-6.1-sol/medium"
+  ],
+  "actual_planning_dispatches": [
+    {
+      "task": "step3_packet_records",
+      "model": "gpt-6-luna",
+      "reasoning_effort": "low",
+      "reason": "Specified original-ID/status/DAG/path extraction; technical decisions excluded."
+    },
+    {
+      "task": "step3_readiness",
+      "model": "gpt-6.1-sol",
+      "reasoning_effort": "medium",
+      "reason": "Bounded technical queue/file-boundary review against separately frozen contracts; no new whole normative contract."
+    },
+    {
+      "task": "step3_independent_queue_review",
+      "model": "gpt-6.1-sol",
+      "reasoning_effort": "medium",
+      "reason": "Finite clean-room queue consistency and gate/input/ownership review against frozen contracts; major normative decisions remain blocked and undispatched."
+    }
+  ],
+  "future_choice_rule": "Recheck the least expensive supported reliable combination for each finite dispatch, record the unresolved seam/reason, and refresh dispatcher availability. Prepared record extraction uses Luna low; seeded fixtures Luna medium; frozen leaf implementation Sol low/medium; uncertain owner/harness/consumer joins Sol high. No universal high/default MAX or measured-optimality claim.",
+  "benchmark_or_savings_claim": false,
+  "all_dispatched_work_scope": "Planning records/read-only source review only; no product implementation worker was launched."
+}

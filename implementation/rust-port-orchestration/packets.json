@@ -1,563 +1,1592 @@
 {
-  "schema_version": 1,
+  "schema_version": 2,
+  "step": 3,
+  "date": "2026-10-07",
   "phase": "planning",
+  "planning_deliverable_complete": true,
   "execution_authorized": false,
-  "planning_base": "309644a6881909d8dba32560bc6711f67e00a7ab",
-  "source_ledger": "implementation/remaining-work/tasks.json",
+  "supervisor_status": "PAUSED",
+  "preparation_native_release": "HUMAN HOLD",
+  "planning_base": "74f7271f7d3d49c929c769a5175de20e4525acef",
+  "committed_contract_checkpoint": "653cb2a",
+  "authoritative_source_ledger": "implementation/remaining-work/tasks.json",
   "source_ledger_sha256": "cd01ebb2276e9bbd362085070b985811543f4bcb1d7ad0d0ac0530d3092bc3f4",
   "source_ledger_base": "7fd8c6bf4717feeffc70b46819377b74b353e117",
-  "all_source_identity_allocation": "implementation/rust-port-lanes.json",
+  "prior_provisional_packets_superseded": true,
+  "queue_note": "These are reviewable finite future packets, not assignments or new canonical obligations. Old R1-FIRST/R2-FIRST/R3-FIRST baseline is superseded. Actual source/ledger hashes and owner ACK refresh at activation.",
+  "source_checkpoint": "first-packets-20261007/source-checkpoint.json",
+  "queue_readme": "first-packets-20261007/README.md",
+  "residual_decisions": "first-packets-20261007/residual-decisions.md",
+  "verification": "first-packets-20261007/verification.json",
+  "model_dispatches": "first-packets-20261007/model-dispatches.json",
+  "first_packet_ids": [
+    "first:R1:N02-values-number-maintenance",
+    "first:R2:V01-consumed-owner-contracts",
+    "first:R3:N03-work-number-maintenance"
+  ],
   "packets": [
     {
-      "id": "R1-FIRST",
-      "proposed_queue": "exact-values and common values assembly",
-      "planning_only": true,
+      "id": "first:R1:N02-values-number-maintenance",
+      "worker": "A",
+      "responsibility": "R1",
+      "ready_scope": "Frozen formatter maintenance delta on credited A03.1, immutable builtin oracle and actual admitted caller error witnesses; narrower than unfinished A03/A04/A07/V parents.",
+      "planning_readiness": "source-ready-narrow-leaf-after-standard-activation",
+      "contracts": [
+        "n01.values-number-text.v1"
+      ],
+      "writable_paths": [
+        "packages/values/semantics/src/representations/numeric.rs",
+        "packages/values/semantics/tests/numeric_text_contract.rs",
+        "packages/values/test/numeric-text.contract.test.ts",
+        "packages/values/conformance/numeric-text.oracle.mjs",
+        "packages/values/conformance/numeric-text.json"
+      ],
+      "assembly_handoff": {
+        "owner": "R1",
+        "exact_requests": [
+          "packages/values/semantics/Cargo.toml",
+          "packages/values/Cargo.lock"
+        ],
+        "request": "Add exactly pinned ryu-js 1.0.3 with no default/features; immutable checked lock. No Cargo root/glue/public route changes."
+      },
+      "acceptance": [
+        "Use actual JS String independent expected bytes over 10000 seeded distinct IEEE patterns plus extra boundaries. Native from_bits inputs; source bits separate from text; retained bits unchanged.",
+        "Complete invalid date, round scale, numeric currency and six wrong-scalar codec caller witnesses; original failure class/fields/order at each layer, invalid operand+scale controls. Public smoke envelope limitation explicit.",
+        "Actual package native and wasm target compilation/test evidence at named scope plus negative controls. No caller production edits."
+      ],
+      "successors": [
+        "next:R1:N04-helper",
+        "next:R1:A04.1-negative-zero",
+        "next:R1:A05.3-temporal",
+        "next:R1:A07.2-evidence"
+      ],
+      "sequence_role": "first",
+      "execution_authorized": false,
+      "active_lease": false,
+      "assigned_agent": null,
+      "operator_ack": null,
       "activation_base": null,
-      "worktree": null,
-      "work_units": [
-        {
-          "local_owner": "assembly_source_owner",
-          "tasks": [
-            {
-              "task_id": "ports:A01.1",
-              "title": "Freeze owner, caller and observable-contract inventory",
-              "source_status_snapshot": "partial",
-              "disposition": "REQUIRED",
-              "source_depends_on": [
-                "ports:C01.ready"
-              ],
-              "candidate_owned_paths": [
-                "docs/research/package-subsystem-ports-20261006/evidence/implementation/exact-values/core/contracts.md"
-              ],
-              "assembly_requests": {},
-              "acceptance_reference": "implementation/remaining-work/tasks.json#ports:A01.1",
-              "dependency_qualification_required": true,
-              "finite_file_allowlist_at_activation_required": true,
-              "execution_authorized": false,
-              "original_acceptance": [
-                "All mapped sources have an owner and admitted-input/error/order contract; compiler changes are unnecessary."
-              ]
-            },
-            {
-              "task_id": "ports:A07.2",
-              "title": "Prepare host carriers, backend registry and bootstrap checks",
-              "source_status_snapshot": "needs_verification",
-              "disposition": "REQUIRED",
-              "source_depends_on": [
-                "ports:A03.foundation",
-                "ports:C03.ready"
-              ],
-              "candidate_owned_paths": [
-                "packages/values/bindings/backend.ts",
-                "packages/values/bindings/bootstrap.ts",
-                "packages/values/bindings/carriers.ts",
-                "packages/values/test/exact-bootstrap.test.ts",
-                "docs/research/package-subsystem-ports-20261006/evidence/implementation/exact-values/host/bootstrap.json"
-              ],
-              "assembly_requests": {},
-              "acceptance_reference": "implementation/remaining-work/tasks.json#ports:A07.2",
-              "dependency_qualification_required": true,
-              "finite_file_allowlist_at_activation_required": true,
-              "execution_authorized": false,
-              "original_acceptance": [
-                "Public classes/freezing/BigInt parts and synchronous exports stay intact; failed selected Rust bootstrap is visible."
-              ]
-            },
-            {
-              "task_id": "ports:A07.foundation",
-              "title": "Real binding and host bootstrap scaffold ready for validation",
-              "source_status_snapshot": "partial",
-              "disposition": "REQUIRED",
-              "source_depends_on": [
-                "ports:A07.1",
-                "ports:A07.2"
-              ],
-              "candidate_owned_paths": [],
-              "assembly_requests": {},
-              "acceptance_reference": "implementation/remaining-work/tasks.json#ports:A07.foundation",
-              "dependency_qualification_required": true,
-              "finite_file_allowlist_at_activation_required": true,
-              "execution_authorized": false,
-              "original_acceptance": [
-                "Actual tiny glue/module imports and synchronous bootstrap/carrier contract are usable in Node/Bun/local workerd; validation can integrate independently of exact algorithm completion."
-              ]
-            }
-          ],
-          "git_mutator": false,
-          "git_operations_route": "Codex only; worker returns exact released paths and evidence"
-        },
-        {
-          "local_owner": "child_decimal",
-          "tasks": [
-            {
-              "task_id": "ports:A04.1",
-              "title": "Port decimal construction, parsing and stored parts",
-              "source_status_snapshot": "partial",
-              "disposition": "REQUIRED",
-              "source_depends_on": [
-                "ports:A03.foundation"
-              ],
-              "candidate_owned_paths": [
-                "packages/values/semantics/src/numeric/decimal.rs",
-                "packages/values/semantics/tests/decimal_vectors.rs",
-                "docs/research/package-subsystem-ports-20261006/evidence/implementation/exact-values/decimal/construction.json"
-              ],
-              "assembly_requests": {},
-              "acceptance_reference": "implementation/remaining-work/tasks.json#ports:A04.1",
-              "dependency_qualification_required": true,
-              "finite_file_allowlist_at_activation_required": true,
-              "execution_authorized": false,
-              "original_acceptance": [
-                "Construction/text preserve full coefficient and stored scale; public Decimal makers remain TS authoritative carriers."
-              ]
-            }
-          ],
-          "git_mutator": false,
-          "git_operations_route": "Codex only; worker returns exact released paths and evidence"
-        },
-        {
-          "local_owner": "child_money",
-          "tasks": [
-            {
-              "task_id": "ports:A04.3",
-              "title": "Port currency and basic money operations",
-              "source_status_snapshot": "partial",
-              "disposition": "REQUIRED",
-              "source_depends_on": [
-                "ports:A03.foundation",
-                "ports:A03.2",
-                "ports:A03.4"
-              ],
-              "candidate_owned_paths": [
-                "packages/values/semantics/src/numeric/money.rs",
-                "packages/values/semantics/tests/money_vectors.rs",
-                "docs/research/package-subsystem-ports-20261006/evidence/implementation/exact-values/money/basic.json"
-              ],
-              "assembly_requests": {},
-              "acceptance_reference": "implementation/remaining-work/tasks.json#ports:A04.3",
-              "dependency_qualification_required": true,
-              "finite_file_allowlist_at_activation_required": true,
-              "execution_authorized": false,
-              "original_acceptance": [
-                "No universal constructor erases distinct maker/builtin/binary-operation domains or messages."
-              ]
-            }
-          ],
-          "git_mutator": false,
-          "git_operations_route": "Codex only; worker returns exact released paths and evidence"
-        }
+      "planning_base": "74f7271f7d3d49c929c769a5175de20e4525acef",
+      "adds_canonical_obligation": false,
+      "lease_reference": "lease:N02-values-number",
+      "contract_inputs": [
+        "implementation/rust-port-orchestration/contracts-20261007/numeric-values.md"
       ],
-      "next_candidates": [
-        "ports:A04.2",
-        "ports:A04.5",
-        "ports:A07.3"
+      "source_inputs": [
+        "implementation/remaining-work/tasks.json",
+        "implementation/rust-port-lanes.json",
+        "implementation/rust-port-orchestration/contracts-20261007/ownership.json",
+        "implementation/rust-port-orchestration/contracts-20261007/packets.json",
+        "docs/research/package-library-audit-20261006/adoption-sequence.json",
+        "implementation/rust-port-orchestration/contracts-20261007/numeric-values.md",
+        "implementation/rust-port-orchestration/contracts-20261007/numeric-common.md",
+        "implementation/rust-port-orchestration/contracts-20261007/numeric-contracts.json",
+        "implementation/rust-port-orchestration/contracts-20261007/oracles/manifest.json",
+        "implementation/rust-port-orchestration/contracts-20261007/oracles/frozen-oracle.json.gz",
+        "packages/values/semantics/src/representations/numeric.rs",
+        "packages/values/semantics/src/numeric/decimal.rs",
+        "packages/values/semantics/src/numeric/money.rs",
+        "packages/values/semantics/src/codecs/numeric.rs",
+        "packages/values/src/kinds.ts",
+        "packages/values/src/decimal.ts",
+        "packages/values/src/wire.ts",
+        "packages/values/bindings/backend.ts",
+        "packages/values/bindings/carriers.ts",
+        "packages/values/semantics/Cargo.toml",
+        "packages/values/Cargo.lock",
+        "packages/values/semantics/tests/numeric_text_contract.rs",
+        "packages/values/test/numeric-text.contract.test.ts",
+        "packages/values/conformance/numeric-text.oracle.mjs",
+        "packages/values/conformance/numeric-text.json"
       ],
-      "held_scope": [],
-      "note": "Root must qualify original dependencies, freeze exact finite files and refresh source status before activation. Next candidates are conditional queues, not currently authorized dispatch.",
-      "queue_id": "R1",
-      "collaboration_agent": null
+      "hash_index": "first-packets-20261007/source-checkpoint.json#input_sha256",
+      "private_output_root_template": "/private/tmp/canlang-rust-port-{{RUN_ID}}/packets/R1-N02",
+      "outputs_created": false,
+      "model_selection": {
+        "model": "gpt-6.1-sol",
+        "reasoning_effort": "medium",
+        "reason": "Frozen single helper adapter with cross-caller error verification; Luna insufficient for exact bit/error/order judgment; no unfrozen full ABI assembly."
+      },
+      "prepared_fixture_subpacket_model": {
+        "model": "gpt-6-luna",
+        "reasoning_effort": "medium",
+        "reason": "Defined fixture capture mechanics only after actual owner contract; immutable expected bytes are distinct from native acceptance."
+      },
+      "independent_review_model": {
+        "model": "gpt-6.1-sol",
+        "reasoning_effort": "medium",
+        "reason": "Finite critical-invariant review; R2 retains high for its unresolved private provenance/core-call seam."
+      },
+      "evidence_writes": [
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/exact-values/core/n01-values-number-text.json"
+      ],
+      "assembly_handoff_is_not_leaf_write_permission": true,
+      "completion_rule": "Return exact source hashes, candidate files, independent oracle, command handles/logs/exits and negative controls; release writer/commands to Codex. Codex reviews then commits explicit owned paths. No parent/default/installed claim from this leaf.",
+      "canonical_task_ids": [
+        "ports:A03.1"
+      ],
+      "canonical_snapshot_index": "preserved_original_records"
     },
     {
-      "id": "R2-FIRST",
-      "proposed_queue": "owned input validation",
-      "planning_only": true,
-      "activation_base": null,
-      "worktree": null,
-      "work_units": [
-        {
-          "local_owner": "assembly_source_owner",
-          "tasks": [
-            {
-              "task_id": "ports:V01.4",
-              "title": "Agree owner-plan and shared-file handoffs",
-              "source_status_snapshot": "partial",
-              "disposition": "REQUIRED",
-              "source_depends_on": [
-                "ports:C01.ready"
-              ],
-              "candidate_owned_paths": [
-                "docs/research/package-subsystem-ports-20261006/evidence/input-validation/plan-contract.md"
-              ],
-              "assembly_requests": {},
-              "acceptance_reference": "implementation/remaining-work/tasks.json#ports:V01.4",
-              "dependency_qualification_required": true,
-              "finite_file_allowlist_at_activation_required": true,
-              "execution_authorized": false,
-              "original_acceptance": [
-                "No second currency, Decimal, wire authority, catalog or compiler work; immutable data copies and private owner tokens establish provenance, never freeze/shape alone.",
-                "Each lane has exclusive module files and exact-values publishes A03.foundation before arithmetic completion."
-              ]
-            }
-          ],
-          "git_mutator": false,
-          "git_operations_route": "Codex only; worker returns exact released paths and evidence"
-        },
-        {
-          "local_owner": "child_contracts",
-          "tasks": [
-            {
-              "task_id": "ports:V01.1",
-              "title": "Freeze caller contracts and workload registry",
-              "source_status_snapshot": "partial",
-              "disposition": "REQUIRED",
-              "source_depends_on": [
-                "ports:C01.ready"
-              ],
-              "candidate_owned_paths": [
-                "docs/research/package-subsystem-ports-20261006/evidence/input-validation/contracts.md",
-                "docs/research/package-subsystem-ports-20261006/evidence/input-validation/caller-inventory.json",
-                "docs/research/package-subsystem-ports-20261006/evidence/input-validation/current-ts.json"
-              ],
-              "assembly_requests": {},
-              "acceptance_reference": "implementation/remaining-work/tasks.json#ports:V01.1",
-              "dependency_qualification_required": true,
-              "finite_file_allowlist_at_activation_required": true,
-              "execution_authorized": false,
-              "original_acceptance": [
-                "Owners review each admitted domain, error/order/identity obligation and consumer; public arbitrary-unknown and hand-built schemas remain fully legacy TS.",
-                "contracts.md and caller-inventory.json distinguish deployed MCP, HTTP 501, forms and handle mode; no full-port claim."
-              ]
-            },
-            {
-              "task_id": "ports:V01.2",
-              "title": "Assess bounded HTTP adoption join",
-              "source_status_snapshot": "partial",
-              "disposition": "REQUIRED",
-              "source_depends_on": [
-                "ports:C01.ready"
-              ],
-              "candidate_owned_paths": [
-                "docs/research/package-subsystem-ports-20261006/evidence/input-validation/http-adoption-gate.md"
-              ],
-              "assembly_requests": {},
-              "acceptance_reference": "implementation/remaining-work/tasks.json#ports:V01.2",
-              "dependency_qualification_required": true,
-              "finite_file_allowlist_at_activation_required": true,
-              "execution_authorized": false,
-              "original_acceptance": [
-                "C01 source-owner contract names exact existing-handler join and owning files, or states absence without inventing a new HTTP feature.",
-                "Package/workerd fixture proof and default deployed adoption are separately testable gates; blocked join retains default 501."
-              ]
-            }
-          ],
-          "git_mutator": false,
-          "git_operations_route": "Codex only; worker returns exact released paths and evidence"
-        },
-        {
-          "local_owner": "child_hooks",
-          "tasks": [
-            {
-              "task_id": "ports:V02.6",
-              "title": "Wire private prepared hooks without public API drift",
-              "source_status_snapshot": "not_started",
-              "disposition": "REQUIRED",
-              "source_depends_on": [
-                "ports:V02.1",
-                "ports:V02.2"
-              ],
-              "candidate_owned_paths": [
-                "packages/values/src/schema.ts",
-                "packages/values/src/wire.ts",
-                "docs/research/package-subsystem-ports-20261006/evidence/input-validation/prepared-hook-review.md"
-              ],
-              "assembly_requests": {
-                "packages/values/src/index.ts": "R1"
-              },
-              "acceptance_reference": "implementation/remaining-work/tasks.json#ports:V02.6",
-              "dependency_qualification_required": true,
-              "finite_file_allowlist_at_activation_required": true,
-              "execution_authorized": false,
-              "original_acceptance": [
-                "A1/B2 current/facade legacy traces match; unknown/default/schema accessors observe the old evaluation order.",
-                "Private prepared calls reach extracted modules while unknown callers remain TS; no semantic exception retry."
-              ]
-            }
-          ],
-          "git_mutator": false,
-          "git_operations_route": "Codex only; worker returns exact released paths and evidence"
-        }
-      ],
-      "next_candidates": [
-        "ports:V03.1",
-        "ports:V03.4",
-        "ports:V11.1"
-      ],
-      "held_scope": [],
-      "note": "Root must qualify original dependencies, freeze exact finite files and refresh source status before activation. Next candidates are conditional queues, not currently authorized dispatch.",
-      "queue_id": "R2",
-      "collaboration_agent": null
-    },
-    {
-      "id": "R3-FIRST",
-      "proposed_queue": "work transitions and sole global delivery source writer",
-      "planning_only": true,
-      "activation_base": null,
-      "worktree": null,
-      "work_units": [
-        {
-          "local_owner": "assembly_source_owner",
-          "tasks": [
-            {
-              "task_id": "ports:C04.ready",
-              "title": "Tiny actual loader and typed asset proof ready",
-              "source_status_snapshot": "needs_verification",
-              "disposition": "REQUIRED",
-              "source_depends_on": [
-                "ports:C04.2"
-              ],
-              "candidate_owned_paths": [
-                "docs/research/package-subsystem-ports-20261006/evidence/implementation/shared/C04.ready.json"
-              ],
-              "assembly_requests": {},
-              "acceptance_reference": "implementation/remaining-work/tasks.json#ports:C04.ready",
-              "dependency_qualification_required": true,
-              "finite_file_allowlist_at_activation_required": true,
-              "execution_authorized": false,
-              "original_acceptance": [
-                "Runtime plans may verify their own generated bindings next. This gate does not certify actual values/work assets, final vendor maps or installed consumers. Native JS-only preparation is independent of this Wasm proof."
-              ]
-            },
-            {
-              "task_id": "ports:C04.graph",
-              "title": "Land root and consumer dependency/build graph",
-              "source_status_snapshot": "partial",
-              "disposition": "REQUIRED",
-              "source_depends_on": [
-                "ports:W02.foundation",
-                "ports:C04.asset"
-              ],
-              "candidate_owned_paths": [
-                "package.json",
-                "bun.lock",
-                "packages/cloudflare/package.json",
-                "packages/state/package.json",
-                "packages/stdlib/package.json",
-                "packages/testkit/package.json"
-              ],
-              "assembly_requests": {},
-              "acceptance_reference": "implementation/remaining-work/tasks.json#ports:C04.graph",
-              "dependency_qualification_required": true,
-              "finite_file_allowlist_at_activation_required": true,
-              "execution_authorized": false,
-              "original_acceptance": [
-                "Root/consumer build and lockfile graph is executable, no state\u2192full-work cycle, and no compiler Cargo workspace is introduced. This gate does not certify final work assets."
-              ]
-            }
-          ],
-          "git_mutator": false,
-          "git_operations_route": "Codex only; worker returns exact released paths and evidence"
-        },
-        {
-          "local_owner": "child_facts",
-          "tasks": [
-            {
-              "task_id": "ports:W03.1",
-              "title": "Freeze ordered facts and policy-specific ABI types",
-              "source_status_snapshot": "needs_verification",
-              "disposition": "REQUIRED",
-              "source_depends_on": [
-                "ports:W01.1",
-                "ports:W01.2",
-                "ports:W02.1",
-                "ports:C03.ready"
-              ],
-              "candidate_owned_paths": [
-                "packages/work-kernel/src/facts.ts",
-                "docs/research/package-subsystem-ports-20261006/evidence/implementation/work-transitions/handoffs/abi.md"
-              ],
-              "assembly_requests": {},
-              "acceptance_reference": "implementation/remaining-work/tasks.json#ports:W03.1",
-              "dependency_qualification_required": true,
-              "finite_file_allowlist_at_activation_required": true,
-              "execution_authorized": false,
-              "original_acceptance": [
-                "Define version/profile/error/UTF-16/presence/f64/conditional version transport and producer provenance, validating number ranges before fixed-width conversion.",
-                "Reject foreign/version/profile/corrupt facts before semantic callbacks; opaque payload refs are not authority capabilities."
-              ],
-              "activation_witness_requirement": "Name actual fact-consumer entry and test/evidence files for foreign provenance, version/profile mismatch and corrupt facts; demonstrate zero callbacks before refusal. Expand the finite allowlist only through the actual owner. Declarations alone do not close this task."
-            }
-          ],
-          "git_mutator": false,
-          "git_operations_route": "Codex only; worker returns exact released paths and evidence"
-        },
-        {
-          "local_owner": "child_baseline",
-          "tasks": [
-            {
-              "task_id": "ports:W01.3",
-              "title": "Capture unchanged behavior, clone and persisted-byte baseline",
-              "source_status_snapshot": "partial",
-              "disposition": "REQUIRED",
-              "source_depends_on": [
-                "ports:C05.ready"
-              ],
-              "candidate_owned_paths": [
-                "docs/research/package-subsystem-ports-20261006/evidence/implementation/work-transitions/baselines/current-ts.json",
-                "docs/research/package-subsystem-ports-20261006/evidence/implementation/work-transitions/baselines/verify.log",
-                "docs/research/package-subsystem-ports-20261006/evidence/implementation/work-transitions/baselines/original-fixtures/"
-              ],
-              "assembly_requests": {},
-              "acceptance_reference": "implementation/remaining-work/tasks.json#ports:W01.3",
-              "dependency_qualification_required": true,
-              "finite_file_allowlist_at_activation_required": true,
-              "execution_authorized": false,
-              "original_acceptance": [
-                "Run existing command block against inspected sources, retain logs and failures; failed noEmitOnError builds cannot supply stale dist evidence.",
-                "Save original row/result identity, state clone-only versus work safety-then-clone, error/trace ordering and actual D1/DO persisted bytes in immutable evidence as an independent oracle; pure owner lanes copy/hash their golden fixture subsets later."
-              ]
-            }
-          ],
-          "git_mutator": false,
-          "git_operations_route": "Codex only; worker returns exact released paths and evidence"
-        }
-      ],
-      "next_candidates": [
-        "ports:W03.2",
-        "ports:W04.1",
-        "ports:W04.2",
-        "ports:W04.3",
-        "ports:W02.5"
-      ],
-      "held_scope": [
-        "C04.native-release"
-      ],
-      "note": "Root must qualify original dependencies, freeze exact finite files and refresh source status before activation. Next candidates are conditional queues, not currently authorized dispatch.",
-      "queue_id": "R3",
-      "collaboration_agent": null
-    },
-    {
-      "id": "R4-FIRST",
-      "proposed_queue": "borrowed exact-values/validation prerequisites while preparation remains held",
-      "planning_only": true,
-      "activation_base": null,
-      "worktree": null,
-      "work_units": [
-        {
-          "local_owner": "child_temporal",
-          "tasks": [
-            {
-              "task_id": "ports:A05.3",
-              "title": "Port instant algorithms and temporal scalar codecs",
-              "source_status_snapshot": "partial",
-              "disposition": "REQUIRED",
-              "source_depends_on": [
-                "ports:A05.1",
-                "ports:A05.2"
-              ],
-              "candidate_owned_paths": [
-                "packages/values/semantics/src/temporal/instant.rs",
-                "packages/values/semantics/tests/temporal_vectors.rs",
-                "docs/research/package-subsystem-ports-20261006/evidence/implementation/exact-values/temporal/instant.json"
-              ],
-              "assembly_requests": {},
-              "acceptance_reference": "implementation/remaining-work/tasks.json#ports:A05.3",
-              "dependency_qualification_required": true,
-              "finite_file_allowlist_at_activation_required": true,
-              "execution_authorized": false,
-              "original_acceptance": [
-                "Every temporal.ts exported pure algorithm is covered; decimal-valued divideDurationMs remains correctly covered in A04.2."
-              ]
-            }
-          ],
-          "git_mutator": false,
-          "git_operations_route": "Codex only; worker returns exact released paths and evidence"
-        },
-        {
-          "local_owner": "child_state_contract",
-          "tasks": [
-            {
-              "task_id": "ports:V01.3",
-              "title": "Freeze state sequencing and bridge contract",
-              "source_status_snapshot": "partial",
-              "disposition": "REQUIRED",
-              "source_depends_on": [
-                "ports:C01.ready"
-              ],
-              "candidate_owned_paths": [
-                "docs/research/package-subsystem-ports-20261006/evidence/input-validation/state-contract.md"
-              ],
-              "assembly_requests": {},
-              "acceptance_reference": "implementation/remaining-work/tasks.json#ports:V01.3",
-              "dependency_qualification_required": true,
-              "finite_file_allowlist_at_activation_required": true,
-              "execution_authorized": false,
-              "original_acceptance": [
-                "Contract preserves readRevision \u2192 hash(raw) \u2192 readReceipt \u2192 replay OR age \u2192 membership/by \u2192 normalize/ref-extract \u2192 ordered loads and read auth-first.",
-                "Protected graph never crosses arbitrary OperationInvoker callbacks; unproven/generated-handler/internal calls retain legacy TS."
-              ]
-            }
-          ],
-          "git_mutator": false,
-          "git_operations_route": "Codex only; worker returns exact released paths and evidence"
-        }
-      ],
-      "next_candidates": [
-        "ports:V03.3",
-        "ports:V10.1",
-        "ports:V10.2"
-      ],
-      "held_scope": [
-        "artifact-preparation implementation and qualification",
-        "C04.native-release"
-      ],
-      "note": "Root must qualify original dependencies, freeze exact finite files and refresh source status before activation. Next candidates are conditional queues, not currently authorized dispatch.",
-      "queue_id": "R4",
-      "collaboration_agent": null
-    }
-  ],
-  "codex_parent_review_candidates": [
-    {
-      "task_id": "ports:V01",
-      "source_depends_on": [
+      "id": "first:R2:V01-consumed-owner-contracts",
+      "worker": "B",
+      "responsibility": "R2 (borrowed V01.3 state contract included)",
+      "ready_scope": "V01.1–V01.4 current caller/state/plan contracts and named approvals, plus finite hook semantics specification; no product source writes.",
+      "planning_readiness": "contract-ready-original-direct-inputs-credited",
+      "contracts": [],
+      "original_ids": [
         "ports:V01.1",
         "ports:V01.2",
         "ports:V01.3",
         "ports:V01.4"
       ],
-      "source_status_snapshot": "partial",
-      "acceptance_reference": "implementation/remaining-work/tasks.json#ports:V01",
-      "dispatch_only_after_complete_original_dependencies": true
+      "writable_paths": [
+        "docs/research/package-subsystem-ports-20261006/evidence/input-validation/contracts.md",
+        "docs/research/package-subsystem-ports-20261006/evidence/input-validation/caller-inventory.json",
+        "docs/research/package-subsystem-ports-20261006/evidence/input-validation/current-ts.json",
+        "docs/research/package-subsystem-ports-20261006/evidence/input-validation/http-adoption-gate.md",
+        "docs/research/package-subsystem-ports-20261006/evidence/input-validation/state-contract.md",
+        "docs/research/package-subsystem-ports-20261006/evidence/input-validation/plan-contract.md",
+        "docs/research/package-subsystem-ports-20261006/evidence/input-validation/v01-review.md",
+        "docs/research/package-subsystem-ports-20261006/evidence/input-validation/prepared-hook-review.md"
+      ],
+      "assembly_handoff": {
+        "owner": "R1",
+        "exact_requests": [
+          "packages/values/src/index.ts"
+        ],
+        "request": "Hook spec and later schema/wire release precede any exact public export join. R2 cannot write index.ts or common Rust profiles/bindings."
+      },
+      "acceptance": [
+        "Record required named owner reviews at actually consumed scope, not content-only conditional pass. Current HTTP injected handler seam distinct from absent-factory 501 and Rust adoption.",
+        "Preserve readRevision→hash(raw)→readReceipt→replay OR age→membership/by→normalization/ref extraction→ordered loads, read auth first; protected graph never crosses arbitrary OperationInvoker.",
+        "Specify success-only genuine factory/producer registration and complete source/version/schema/default/lifetime identity; the observed artifact-${ARTIFACT_VERSION} handoff is an input to review, not a universal provenance rule. Copied owner metadata/private tokens, no shape/freeze certification.",
+        "Resolve private entry admission/core call boundary avoiding recursion through public validation/codec functions, unchanged public exports/signatures, pre-evaluation abstention, default/schema accessor order and no semantic exception retry."
+      ],
+      "successors": [
+        "next:R2:V02.6-hooks-conditional"
+      ],
+      "sequence_role": "first",
+      "execution_authorized": false,
+      "active_lease": false,
+      "assigned_agent": null,
+      "operator_ack": null,
+      "activation_base": null,
+      "planning_base": "74f7271f7d3d49c929c769a5175de20e4525acef",
+      "adds_canonical_obligation": false,
+      "lease_reference": null,
+      "contract_inputs": [],
+      "source_inputs": [
+        "implementation/remaining-work/tasks.json",
+        "implementation/rust-port-lanes.json",
+        "implementation/rust-port-orchestration/contracts-20261007/ownership.json",
+        "implementation/rust-port-orchestration/contracts-20261007/packets.json",
+        "docs/research/package-library-audit-20261006/adoption-sequence.json",
+        "docs/research/package-subsystem-ports-20261006/implementation-plans/input-validation.md",
+        "docs/research/package-subsystem-ports-20261006/implementation-plans/input-validation.tasks.json",
+        "packages/values/src/schema.ts",
+        "packages/values/src/wire.ts",
+        "packages/values/src/index.ts",
+        "packages/values/src/prepared/plan.ts",
+        "packages/values/src/prepared/validation.ts",
+        "packages/values/src/prepared/codec.ts",
+        "packages/state/src/invocation/admission.ts",
+        "packages/state/src/invocation/invoke.ts",
+        "packages/state/src/invocation/registry.ts",
+        "packages/interfaces/src/http/operations.ts",
+        "packages/interfaces/src/mcp/server.ts",
+        "packages/cloudflare/src/worker/assembly.ts",
+        "docs/research/package-subsystem-ports-20261006/evidence/input-validation/v01-review.md",
+        "docs/research/package-subsystem-ports-20261006/evidence/input-validation/prepared-plan-handoff.md",
+        "docs/research/package-subsystem-ports-20261006/evidence/input-validation/contracts.md",
+        "docs/research/package-subsystem-ports-20261006/evidence/input-validation/caller-inventory.json",
+        "docs/research/package-subsystem-ports-20261006/evidence/input-validation/current-ts.json",
+        "docs/research/package-subsystem-ports-20261006/evidence/input-validation/http-adoption-gate.md",
+        "docs/research/package-subsystem-ports-20261006/evidence/input-validation/state-contract.md",
+        "docs/research/package-subsystem-ports-20261006/evidence/input-validation/plan-contract.md",
+        "docs/research/package-subsystem-ports-20261006/evidence/input-validation/prepared-hook-review.md"
+      ],
+      "hash_index": "first-packets-20261007/source-checkpoint.json#input_sha256",
+      "private_output_root_template": "/private/tmp/canlang-rust-port-{{RUN_ID}}/packets/R2-V01",
+      "outputs_created": false,
+      "model_selection": {
+        "model": "gpt-6.1-sol",
+        "reasoning_effort": "high",
+        "reason": "First packet includes unfrozen private hook/provenance/callback/evaluation seam across owners; high is justified. Pure approved contract receipt indexing can split to Luna low."
+      },
+      "prepared_fixture_subpacket_model": {
+        "model": "gpt-6-luna",
+        "reasoning_effort": "medium",
+        "reason": "Defined fixture capture mechanics only after actual owner contract; immutable expected bytes are distinct from native acceptance."
+      },
+      "independent_review_model": {
+        "model": "gpt-6.1-sol",
+        "reasoning_effort": "high",
+        "reason": "Finite critical-invariant review; R2 retains high for its unresolved private provenance/core-call seam."
+      },
+      "evidence_writes": [],
+      "assembly_handoff_is_not_leaf_write_permission": true,
+      "completion_rule": "Return exact source hashes, candidate files, independent oracle, command handles/logs/exits and negative controls; release writer/commands to Codex. Codex reviews then commits explicit owned paths. No parent/default/installed claim from this leaf.",
+      "canonical_task_ids": [
+        "ports:V01.1",
+        "ports:V01.2",
+        "ports:V01.3",
+        "ports:V01.4"
+      ],
+      "canonical_snapshot_index": "preserved_original_records"
     },
     {
-      "task_id": "ports:A03",
-      "source_depends_on": [
+      "id": "first:R3:N03-work-number-maintenance",
+      "worker": "C",
+      "responsibility": "R3",
+      "ready_scope": "Immutable String and JSON-number donor witnesses, package-local formatter maintenance only; explicitly not W04.1/W04.3 branch acceptance or W04.4 root registration.",
+      "planning_readiness": "source-ready-narrow-leaf-after-standard-activation-and-private-harness-spec-ACK",
+      "contracts": [
+        "n01.work-number-text.v1"
+      ],
+      "writable_paths": [
+        "packages/work-kernel/decisions/rows.rs",
+        "packages/work-kernel/decisions/receipt.rs",
+        "packages/work-kernel/decisions/linkage.rs",
+        "packages/work-kernel/decisions/recovery.rs",
+        "packages/work-kernel/decisions/numeric_text.rs",
+        "packages/work-kernel/conformance/numeric-text.contract.test.ts",
+        "packages/work-kernel/conformance/numeric-text.oracle.mjs",
+        "packages/work-kernel/conformance/fixtures/numeric-text.json",
+        "packages/work-kernel/conformance/native-numeric-text.rs"
+      ],
+      "assembly_handoff": {
+        "owner": "R3",
+        "exact_requests": [
+          "packages/work-kernel/Cargo.toml",
+          "packages/work-kernel/Cargo.lock"
+        ],
+        "request": "Official dependency/lock join reserved for a later finite R3 handoff; this leaf uses only copied-source private Cargo test harnesses. Actual product rust/lib.rs/decisions/lib.rs registration remains W04.4 blocked."
+      },
+      "acceptance": [
+        "Independent actual original work/state donors saved before candidate execution; String and JSON tokens separate, NaN/Infinity JSON null. Full error name/code/details presence and prior-fault order.",
+        "One package-local number helper, no values dependency, no i64 saturation/Number.isSafeInteger change, no whole-Value serde conversion or UTF16/reference/enumeration changes.",
+        "Prove helper and each touched leaf through the specified copied-source private Cargo projects with source hash identity, all original affected vectors, immutable new witnesses and negative controls. Explicitly replace affected standalone rustc route at this narrow leaf-test scope. Product target/installed claim withheld.",
+        "W03.1 acceptance remains required for full original W04 branch acceptance; no root registration from formatter maintenance."
+      ],
+      "successors": [
+        "next:R3:W03.1-real-consumer",
+        "next:borrowed:D02-import-leaf"
+      ],
+      "private_harness_spec": {
+        "strategy": "One isolated private Cargo project per touched leaf rows/receipt/linkage/recovery. Copy exact candidate leaf and numeric_text.rs into each, pin ryu-js =1.0.3 default-features=false features=[], private Cargo.lock and target. Run all original affected leaf vectors plus new immutable numeric/caller witnesses.",
+        "private_paths": [
+          "/private/tmp/canlang-rust-port-{{RUN_ID}}/packets/R3-N03/harness/rows/{Cargo.toml,Cargo.lock,src/lib.rs,src/numeric_text.rs,target}",
+          "/private/tmp/canlang-rust-port-{{RUN_ID}}/packets/R3-N03/harness/receipt/{Cargo.toml,Cargo.lock,src/lib.rs,src/numeric_text.rs,target}",
+          "/private/tmp/canlang-rust-port-{{RUN_ID}}/packets/R3-N03/harness/linkage/{Cargo.toml,Cargo.lock,src/lib.rs,src/numeric_text.rs,target}",
+          "/private/tmp/canlang-rust-port-{{RUN_ID}}/packets/R3-N03/harness/recovery/{Cargo.toml,Cargo.lock,src/lib.rs,src/numeric_text.rs,target}"
+        ],
+        "proof": "Record SHA256 of each original candidate leaf/helper and private copy; demand equality before command, unmodified source or explicitly documented harness-only wrapper. Witnesses/oracles immutable and independently sourced. Actual nonempty original vector execution counts required. Preserve all unaffected standalone routes; explicitly replace affected four test routes at leaf proof scope.",
+        "scope": "Private compiled source-leaf proof only; no product Cargo build/feature/root/ABI/installed claim. Official dependency/build recipe reconciliation must occur before eventual original assembly acceptance.",
+        "expected_wrapper_scope": "Only module/test plumbing and copied-source registration. Semantic edits live in named candidate leaves; expected data never generated by candidate. Any incompatible harness seam returns to Codex before widening scope.",
+        "actual_product_root_registration_granted": false
+      },
+      "sequence_role": "first",
+      "execution_authorized": false,
+      "active_lease": false,
+      "assigned_agent": null,
+      "operator_ack": null,
+      "activation_base": null,
+      "planning_base": "74f7271f7d3d49c929c769a5175de20e4525acef",
+      "adds_canonical_obligation": false,
+      "lease_reference": "lease:N03-work-number",
+      "contract_inputs": [
+        "implementation/rust-port-orchestration/contracts-20261007/numeric-work.md"
+      ],
+      "source_inputs": [
+        "implementation/remaining-work/tasks.json",
+        "implementation/rust-port-lanes.json",
+        "implementation/rust-port-orchestration/contracts-20261007/ownership.json",
+        "implementation/rust-port-orchestration/contracts-20261007/packets.json",
+        "docs/research/package-library-audit-20261006/adoption-sequence.json",
+        "implementation/rust-port-orchestration/contracts-20261007/numeric-work.md",
+        "implementation/rust-port-orchestration/contracts-20261007/numeric-common.md",
+        "implementation/rust-port-orchestration/contracts-20261007/numeric-contracts.json",
+        "implementation/rust-port-orchestration/contracts-20261007/oracles/manifest.json",
+        "implementation/rust-port-orchestration/contracts-20261007/oracles/frozen-oracle.json.gz",
+        "packages/work-kernel/Cargo.toml",
+        "packages/work-kernel/Cargo.lock",
+        "packages/work-kernel/rust/lib.rs",
+        "packages/work-kernel/src/facts.ts",
+        "packages/work-kernel/src/rows.ts",
+        "packages/work-kernel/src/receipt.ts",
+        "packages/work-kernel/src/linkage.ts",
+        "packages/work-kernel/src/recovery.ts",
+        "packages/work/src/kernel/tables.ts",
+        "packages/state/src/fanout/tables.ts",
+        "packages/state/src/receipt/tables.ts",
+        "packages/work/src/recovery/index.ts",
+        "packages/work-kernel/conformance/rows.test.ts",
+        "packages/work-kernel/conformance/receipt.test.ts",
+        "packages/work-kernel/conformance/linkage.test.ts",
+        "packages/work-kernel/conformance/recovery.test.ts",
+        "packages/work-kernel/decisions/rows.rs",
+        "packages/work-kernel/decisions/receipt.rs",
+        "packages/work-kernel/decisions/linkage.rs",
+        "packages/work-kernel/decisions/recovery.rs",
+        "packages/work-kernel/decisions/numeric_text.rs",
+        "packages/work-kernel/conformance/numeric-text.contract.test.ts",
+        "packages/work-kernel/conformance/numeric-text.oracle.mjs",
+        "packages/work-kernel/conformance/fixtures/numeric-text.json",
+        "packages/work-kernel/conformance/native-numeric-text.rs"
+      ],
+      "hash_index": "first-packets-20261007/source-checkpoint.json#input_sha256",
+      "private_output_root_template": "/private/tmp/canlang-rust-port-{{RUN_ID}}/packets/R3-N03",
+      "outputs_created": false,
+      "model_selection": {
+        "model": "gpt-6.1-sol",
+        "reasoning_effort": "medium",
+        "reason": "Frozen isolated String/JSON adapter and donor witnesses; full harness reconciliation or W03 callback ABI seam is separately Sol high."
+      },
+      "prepared_fixture_subpacket_model": {
+        "model": "gpt-6-luna",
+        "reasoning_effort": "medium",
+        "reason": "Defined fixture capture mechanics only after actual owner contract; immutable expected bytes are distinct from native acceptance."
+      },
+      "independent_review_model": {
+        "model": "gpt-6.1-sol",
+        "reasoning_effort": "high",
+        "reason": "Four existing standalone routes plus copied-source Cargo proof must remain distinct from actual assembly; inspect source equality, wrappers, donor parity and original gates."
+      },
+      "evidence_writes": [
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/work-transitions/handoffs/n01-work-number-text.json"
+      ],
+      "assembly_handoff_is_not_leaf_write_permission": true,
+      "completion_rule": "Return exact source hashes, candidate files, independent oracle, command handles/logs/exits and negative controls; release writer/commands to Codex. Codex reviews then commits explicit owned paths. No parent/default/installed claim from this leaf.",
+      "harness_uncertainty_escalation": {
+        "model": "gpt-6.1-sol",
+        "reasoning_effort": "high",
+        "reason": "Use only if frozen copy/module route cannot support unchanged original vectors or new dependency needs actual shared root; preserve leaf edits and request exact finite handoff."
+      },
+      "canonical_task_ids": [
+        "ports:W04.1",
+        "ports:W04.3"
+      ],
+      "canonical_snapshot_index": "preserved_original_records",
+      "product_assembly_or_target_acceptance_claim_permitted": false
+    },
+    {
+      "id": "next:R1:N04-helper",
+      "readiness": "narrow-helper-ready-independent-profile; full A04.5 blocked A04.1/A04.3",
+      "owner": "R1",
+      "writable_paths": [
+        "packages/values/semantics/src/codecs/numeric.rs",
+        "packages/values/semantics/tests/string_escape_contract.rs",
+        "packages/values/test/string-escape.contract.test.ts",
+        "packages/values/conformance/string-escape.oracle.mjs",
+        "packages/values/conformance/string-escape.json"
+      ],
+      "contract": "n01.rust-str-escape.v1",
+      "limits": "Only Rust-valid-str untruncated escaping. Tag 64-unit split actual_wire mismatch, preserve lone surrogate exclusion and TS routes. Do not close A04.5 or redesign lossless transport.",
+      "sequence_role": "successor_candidate",
+      "execution_authorized": false,
+      "active_lease": false,
+      "assigned_agent": null,
+      "activation_base": null,
+      "planning_base": "74f7271f7d3d49c929c769a5175de20e4525acef",
+      "adds_canonical_obligation": false,
+      "contract_inputs": [
+        "implementation/rust-port-orchestration/contracts-20261007/strings-rust.md"
+      ],
+      "lease_reference": "lease:N04-rust-string",
+      "hash_index": "first-packets-20261007/source-checkpoint.json#input_sha256",
+      "source_inputs": [
+        "implementation/remaining-work/tasks.json",
+        "implementation/rust-port-lanes.json",
+        "implementation/rust-port-orchestration/contracts-20261007/ownership.json",
+        "implementation/rust-port-orchestration/contracts-20261007/packets.json",
+        "docs/research/package-library-audit-20261006/adoption-sequence.json",
+        "implementation/rust-port-orchestration/contracts-20261007/strings-rust.md",
+        "packages/values/semantics/src/codecs/numeric.rs",
+        "packages/values/semantics/tests/string_escape_contract.rs",
+        "packages/values/test/string-escape.contract.test.ts",
+        "packages/values/conformance/string-escape.oracle.mjs",
+        "packages/values/conformance/string-escape.json",
+        "implementation/rust-port-orchestration/contracts-20261007/numeric-values.md",
+        "implementation/rust-port-orchestration/contracts-20261007/numeric-common.md",
+        "implementation/rust-port-orchestration/contracts-20261007/numeric-contracts.json",
+        "implementation/rust-port-orchestration/contracts-20261007/oracles/manifest.json",
+        "implementation/rust-port-orchestration/contracts-20261007/oracles/frozen-oracle.json.gz",
+        "packages/values/semantics/src/representations/numeric.rs",
+        "packages/values/semantics/src/numeric/decimal.rs",
+        "packages/values/semantics/src/numeric/money.rs",
+        "packages/values/semantics/src/codecs/numeric.rs",
+        "packages/values/src/kinds.ts",
+        "packages/values/src/decimal.ts",
+        "packages/values/src/wire.ts",
+        "packages/values/bindings/backend.ts",
+        "packages/values/bindings/carriers.ts",
+        "packages/values/semantics/Cargo.toml",
+        "packages/values/Cargo.lock",
+        "implementation/rust-port-orchestration/contracts-20261007/strings-rust.md"
+      ],
+      "private_output_root_template": "/private/tmp/canlang-rust-port-{{RUN_ID}}/packets/next-R1-N04-helper",
+      "outputs_created": false,
+      "model_selection": {
+        "model": "gpt-6.1-sol",
+        "reasoning_effort": "low",
+        "reason": "Specified existing serde_json concrete-str helper mechanics; separate full caller/error review Sol medium; seeded fixtures Luna medium."
+      },
+      "independent_review_model": {
+        "model": "gpt-6.1-sol",
+        "reasoning_effort": "medium",
+        "reason": "Review actual finite critical semantics and preserved original acceptance before Codex commit."
+      },
+      "evidence_writes": [
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/exact-values/core/n01-rust-str-escape.json"
+      ],
+      "acceptance": [
+        "Actual JS immutable 93-string observations; 89 Rust-str helper-admitted cases plus complete admitted caller error/path/violation order, absent versus null fields.",
+        "Untruncated helper parity for the valid-string surrogate-cut input; tag its actual_wire truncation mismatch separately; four unpaired inputs retain TS route.",
+        "Only Rust-valid-str untruncated escaping. Tag 64-unit split actual_wire mismatch, preserve lone surrogate exclusion and TS routes. Do not close A04.5 or redesign lossless transport."
+      ],
+      "dispatch_status": "candidate_requires_finite_activation_review",
+      "packet_dependencies": [],
+      "canonical_task_ids": [
+        "ports:A04.5"
+      ],
+      "canonical_snapshot_index": "preserved_original_records"
+    },
+    {
+      "id": "next:R2:V02.6-hooks-conditional",
+      "readiness": "original direct inputs V02.1/V02.2 credited; source dispatch blocked consumed hook contract and named owner approvals",
+      "owner": "R2",
+      "writable_paths": [
+        "packages/values/src/schema.ts",
+        "packages/values/src/wire.ts",
+        "packages/values/test/prepared-hook.test.ts",
+        "docs/research/package-subsystem-ports-20261006/evidence/input-validation/prepared-hook-review.md"
+      ],
+      "acceptance": [
+        "A1/B2 current/facade legacy traces match; unknown/default/schema accessors observe the old evaluation order.",
+        "Private prepared calls reach extracted modules while unknown callers remain TS; no semantic exception retry."
+      ],
+      "serial_handoff": "schema.ts/wire.ts exact release to R1 for index.ts; no public exports drift. Genuine normalizeSchema tests, failed normalize no provenance, forged/frozen/manual marking negative controls.",
+      "not_required": "No invented all-V01-parent completion barrier: require the named consumed contracts/reviews, retain original direct DAG.",
+      "sequence_role": "successor_candidate",
+      "execution_authorized": false,
+      "active_lease": false,
+      "assigned_agent": null,
+      "activation_base": null,
+      "planning_base": "74f7271f7d3d49c929c769a5175de20e4525acef",
+      "adds_canonical_obligation": false,
+      "contract_inputs": [],
+      "lease_reference": "lease:V02.6-prepared-hooks",
+      "hash_index": "first-packets-20261007/source-checkpoint.json#input_sha256",
+      "source_inputs": [
+        "implementation/remaining-work/tasks.json",
+        "implementation/rust-port-lanes.json",
+        "implementation/rust-port-orchestration/contracts-20261007/ownership.json",
+        "implementation/rust-port-orchestration/contracts-20261007/packets.json",
+        "docs/research/package-library-audit-20261006/adoption-sequence.json",
+        "packages/values/src/schema.ts",
+        "packages/values/src/wire.ts",
+        "packages/values/test/prepared-hook.test.ts",
+        "docs/research/package-subsystem-ports-20261006/evidence/input-validation/prepared-hook-review.md",
+        "docs/research/package-subsystem-ports-20261006/implementation-plans/input-validation.md",
+        "docs/research/package-subsystem-ports-20261006/implementation-plans/input-validation.tasks.json",
+        "packages/values/src/schema.ts",
+        "packages/values/src/wire.ts",
+        "packages/values/src/index.ts",
+        "packages/values/src/prepared/plan.ts",
+        "packages/values/src/prepared/validation.ts",
+        "packages/values/src/prepared/codec.ts",
+        "packages/state/src/invocation/admission.ts",
+        "packages/state/src/invocation/invoke.ts",
+        "packages/state/src/invocation/registry.ts",
+        "packages/interfaces/src/http/operations.ts",
+        "packages/interfaces/src/mcp/server.ts",
+        "packages/cloudflare/src/worker/assembly.ts",
+        "docs/research/package-subsystem-ports-20261006/evidence/input-validation/v01-review.md",
+        "docs/research/package-subsystem-ports-20261006/evidence/input-validation/prepared-plan-handoff.md"
+      ],
+      "private_output_root_template": "/private/tmp/canlang-rust-port-{{RUN_ID}}/packets/next-R2-V02.6-hooks-conditional",
+      "outputs_created": false,
+      "model_selection": {
+        "model": "gpt-6.1-sol",
+        "reasoning_effort": "high",
+        "reason": "Real factory provenance and pre-evaluation/private core join; no retry/cycle; A1/B2 accessor traces require cross-entry judgment."
+      },
+      "independent_review_model": {
+        "model": "gpt-6.1-sol",
+        "reasoning_effort": "high",
+        "reason": "Review actual finite critical semantics and preserved original acceptance before Codex commit."
+      },
+      "evidence_writes": [],
+      "dispatch_status": "candidate_requires_finite_activation_review",
+      "packet_dependencies": [
+        "first:R2:V01-consumed-owner-contracts#consumed-hook-spec-and-owner-review"
+      ],
+      "source_blockers": [
+        "Released genuine factory/private core-call contract and named consumed owner approvals; original V02.1/V02.2 credited, not an all-V01 barrier."
+      ],
+      "canonical_task_ids": [
+        "ports:V02.6"
+      ],
+      "canonical_snapshot_index": "preserved_original_records"
+    },
+    {
+      "id": "next:R3:W03.1-real-consumer",
+      "readiness": "original prerequisites credited; finite actual consumer boundary still to be named before source dispatch",
+      "owner": "R3",
+      "writable_paths": [
+        "packages/work-kernel/src/facts.ts",
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/work-transitions/handoffs/abi.md"
+      ],
+      "residual": "Name exact existing fact consumer entry and source/test files before activation; do not invent helper-only acceptance. Zero semantic callback controls; W03.4 retains actual D1/DO producer proof.",
+      "sequence_role": "successor_candidate",
+      "execution_authorized": false,
+      "active_lease": false,
+      "assigned_agent": null,
+      "activation_base": null,
+      "planning_base": "74f7271f7d3d49c929c769a5175de20e4525acef",
+      "adds_canonical_obligation": false,
+      "contract_inputs": [],
+      "lease_reference": null,
+      "hash_index": "first-packets-20261007/source-checkpoint.json#input_sha256",
+      "source_inputs": [
+        "implementation/remaining-work/tasks.json",
+        "implementation/rust-port-lanes.json",
+        "implementation/rust-port-orchestration/contracts-20261007/ownership.json",
+        "implementation/rust-port-orchestration/contracts-20261007/packets.json",
+        "docs/research/package-library-audit-20261006/adoption-sequence.json",
+        "packages/work-kernel/src/facts.ts",
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/work-transitions/handoffs/abi.md",
+        "implementation/rust-port-orchestration/contracts-20261007/numeric-work.md",
+        "implementation/rust-port-orchestration/contracts-20261007/numeric-common.md",
+        "implementation/rust-port-orchestration/contracts-20261007/numeric-contracts.json",
+        "implementation/rust-port-orchestration/contracts-20261007/oracles/manifest.json",
+        "implementation/rust-port-orchestration/contracts-20261007/oracles/frozen-oracle.json.gz",
+        "packages/work-kernel/Cargo.toml",
+        "packages/work-kernel/Cargo.lock",
+        "packages/work-kernel/rust/lib.rs",
+        "packages/work-kernel/src/facts.ts",
+        "packages/work-kernel/src/rows.ts",
+        "packages/work-kernel/src/receipt.ts",
+        "packages/work-kernel/src/linkage.ts",
+        "packages/work-kernel/src/recovery.ts",
+        "packages/work/src/kernel/tables.ts",
+        "packages/state/src/fanout/tables.ts",
+        "packages/state/src/receipt/tables.ts",
+        "packages/work/src/recovery/index.ts",
+        "packages/work-kernel/conformance/rows.test.ts",
+        "packages/work-kernel/conformance/receipt.test.ts",
+        "packages/work-kernel/conformance/linkage.test.ts",
+        "packages/work-kernel/conformance/recovery.test.ts"
+      ],
+      "private_output_root_template": "/private/tmp/canlang-rust-port-{{RUN_ID}}/packets/next-R3-W03.1-real-consumer",
+      "outputs_created": false,
+      "model_selection": {
+        "model": "gpt-6.1-sol",
+        "reasoning_effort": "high",
+        "reason": "Real facts provenance/version/profile/range pre-callback gate beyond unused helper checks."
+      },
+      "independent_review_model": {
+        "model": "gpt-6.1-sol",
+        "reasoning_effort": "high",
+        "reason": "Review actual finite critical semantics and preserved original acceptance before Codex commit."
+      },
+      "evidence_writes": [],
+      "acceptance": [
+        "Define version/profile/error/UTF-16/presence/f64/conditional version transport and producer provenance, validating number ranges before fixed-width conversion.",
+        "Reject foreign/version/profile/corrupt facts before semantic callbacks; opaque payload refs are not authority capabilities."
+      ],
+      "dispatch_status": "candidate_requires_finite_activation_review",
+      "source_blockers": [
+        "Name existing real fact-consuming entry, finite producer/callback/test paths and owner transfer; current facts.ts/abi.md alone cannot certify production rejection."
+      ],
+      "canonical_task_ids": [
+        "ports:W03.1"
+      ],
+      "canonical_snapshot_index": "preserved_original_records"
+    },
+    {
+      "id": "next:borrowed:D02-import-leaf",
+      "readiness": "frozen pure adapter source-ready after standard activation and exact host dependency/handoff; original C04.graph remains partial",
+      "owner": "R3 accountable; free worker B or C may borrow exact leaf",
+      "writable_paths": [
+        "packages/cloudflare/src/deploy/module-imports.ts",
+        "packages/cloudflare/test/module-imports-contract.test.ts",
+        "packages/cloudflare/test/fixtures/import-policy-contract.json"
+      ],
+      "assembly_requests": [
+        "packages/cloudflare/package.json",
+        "bun.lock",
+        "packages/cloudflare/src/deploy/bundle.ts",
+        "packages/cloudflare/src/runtime/modules.ts",
+        "packages/cloudflare/test/deploy-bundle.test.ts",
+        "packages/cloudflare/test/modules.test.ts"
+      ],
+      "contract": "d01.import-policy.v1",
+      "limits": "No modules.ts/bundle.ts/manifest/lock/invoke write lease in borrowed leaf. Preserve group/error/first-fault order and new-only approved decoded_compat errors; cold synchronous target proof remains required.",
+      "sequence_role": "successor_candidate",
+      "execution_authorized": false,
+      "active_lease": false,
+      "assigned_agent": null,
+      "activation_base": null,
+      "planning_base": "74f7271f7d3d49c929c769a5175de20e4525acef",
+      "adds_canonical_obligation": false,
+      "contract_inputs": [
+        "implementation/rust-port-orchestration/contracts-20261007/imports.md"
+      ],
+      "lease_reference": "lease:D02-import-leaf",
+      "hash_index": "first-packets-20261007/source-checkpoint.json#input_sha256",
+      "source_inputs": [
+        "implementation/remaining-work/tasks.json",
+        "implementation/rust-port-lanes.json",
+        "implementation/rust-port-orchestration/contracts-20261007/ownership.json",
+        "implementation/rust-port-orchestration/contracts-20261007/packets.json",
+        "docs/research/package-library-audit-20261006/adoption-sequence.json",
+        "implementation/rust-port-orchestration/contracts-20261007/imports.md",
+        "packages/cloudflare/src/deploy/module-imports.ts",
+        "packages/cloudflare/test/module-imports-contract.test.ts",
+        "packages/cloudflare/test/fixtures/import-policy-contract.json",
+        "implementation/rust-port-orchestration/contracts-20261007/delivery-contracts.json",
+        "packages/cloudflare/src/deploy/bundle.ts",
+        "packages/cloudflare/src/runtime/modules.ts",
+        "packages/cloudflare/package.json",
+        "bun.lock"
+      ],
+      "private_output_root_template": "/private/tmp/canlang-rust-port-{{RUN_ID}}/packets/next-borrowed-D02-import-leaf",
+      "outputs_created": false,
+      "model_selection": {
+        "model": "gpt-6.1-sol",
+        "reasoning_effort": "medium",
+        "reason": "Frozen pure lexer/edit policy with actual lexical decoded identity, sync and UTF16 spans; full installed/global integration separate Sol high."
+      },
+      "independent_review_model": {
+        "model": "gpt-6.1-sol",
+        "reasoning_effort": "medium",
+        "reason": "Review actual finite critical semantics and preserved original acceptance before Codex commit."
+      },
+      "evidence_writes": [
+        "docs/research/package-library-audit-20261006/evidence/D02-import-leaf.json"
+      ],
+      "acceptance": [
+        "41 frozen import controls: decoded literal identity, original UTF-16 spans, from/reexport→dynamic→side-effect first fault, false import removal, lexical malformed/computed/phase fault bytes, sync first cold call.",
+        "Borrowed leaf never writes bundle/modules/manifests/locks/invoke; actual installed Node/Bun/workerd consumer closure remains a separate R3 join.",
+        "No modules.ts/bundle.ts/manifest/lock/invoke write lease in borrowed leaf. Preserve group/error/first-fault order and new-only approved decoded_compat errors; cold synchronous target proof remains required."
+      ],
+      "dispatch_status": "candidate_requires_finite_activation_review",
+      "source_blockers": [
+        "R3 exact dependency/lock setup and borrowed leaf owner ACK; bun.lock requires concurrent compiler-writer handoff before edits."
+      ],
+      "packet_dependencies": [],
+      "canonical_task_ids": [
+        "ports:C04.asset",
+        "ports:C04.graph"
+      ],
+      "canonical_snapshot_index": "preserved_original_records"
+    },
+    {
+      "id": "next:R1:A04.1-negative-zero",
+      "readiness": "original direct input credited",
+      "owner": "R1",
+      "writable_paths": [
+        "packages/values/semantics/src/numeric/decimal.rs",
+        "packages/values/semantics/tests/decimal_vectors.rs",
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/exact-values/decimal/construction.json"
+      ],
+      "limits": "Stored scale -0 remains distinct from formatter zero collapse and carrier -0 transport; serialize any decimal.rs/vectors writes.",
+      "sequence_role": "successor_candidate",
+      "execution_authorized": false,
+      "active_lease": false,
+      "assigned_agent": null,
+      "activation_base": null,
+      "planning_base": "74f7271f7d3d49c929c769a5175de20e4525acef",
+      "adds_canonical_obligation": false,
+      "contract_inputs": [],
+      "lease_reference": null,
+      "hash_index": "first-packets-20261007/source-checkpoint.json#input_sha256",
+      "source_inputs": [
+        "implementation/remaining-work/tasks.json",
+        "implementation/rust-port-lanes.json",
+        "implementation/rust-port-orchestration/contracts-20261007/ownership.json",
+        "implementation/rust-port-orchestration/contracts-20261007/packets.json",
+        "docs/research/package-library-audit-20261006/adoption-sequence.json",
+        "packages/values/semantics/src/numeric/decimal.rs",
+        "packages/values/semantics/tests/decimal_vectors.rs",
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/exact-values/decimal/construction.json"
+      ],
+      "private_output_root_template": "/private/tmp/canlang-rust-port-{{RUN_ID}}/packets/next-R1-A04.1-negative-zero",
+      "outputs_created": false,
+      "model_selection": {
+        "model": "gpt-6.1-sol",
+        "reasoning_effort": "high",
+        "reason": "Bounded original residual at the stated files; do not widen to complete parent acceptance without explicit required inputs."
+      },
+      "independent_review_model": {
+        "model": "gpt-6.1-sol",
+        "reasoning_effort": "high",
+        "reason": "Review actual finite critical semantics and preserved original acceptance before Codex commit."
+      },
+      "evidence_writes": [],
+      "acceptance": [
+        "Construction/text preserve full coefficient and stored scale; public Decimal makers remain TS authoritative carriers.",
+        "Stored scale -0 remains distinct from formatter zero collapse and carrier -0 transport; serialize any decimal.rs/vectors writes."
+      ],
+      "dispatch_status": "candidate_requires_finite_activation_review",
+      "source_blockers": [
+        "Select and release exact native representation or pre-evaluation retained-TS policy for stored scale -0; current integer scale cannot preserve it. No new routing decision from formatter maintenance."
+      ],
+      "bounded_unblocker": "Sol high compares admitted stored-part carrier alternatives against actual JS; preserve numeric.rs lease and serialize decimal.rs/vector edits.",
+      "canonical_task_ids": [
+        "ports:A04.1"
+      ],
+      "canonical_snapshot_index": "preserved_original_records"
+    },
+    {
+      "id": "next:R1:A05.3-temporal",
+      "readiness": "original A05.1/A05.2 credited",
+      "owner": "R1",
+      "writable_paths": [
+        "packages/values/semantics/src/temporal/instant.rs",
+        "packages/values/semantics/tests/temporal_vectors.rs",
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/exact-values/temporal/instant.json"
+      ],
+      "limits": "Finite export/error/text/UTF16 residual; divideDurationMs A04.2 remains separate.",
+      "sequence_role": "successor_candidate",
+      "execution_authorized": false,
+      "active_lease": false,
+      "assigned_agent": null,
+      "activation_base": null,
+      "planning_base": "74f7271f7d3d49c929c769a5175de20e4525acef",
+      "adds_canonical_obligation": false,
+      "contract_inputs": [],
+      "lease_reference": "lease:A05.3-temporal-residual",
+      "hash_index": "first-packets-20261007/source-checkpoint.json#input_sha256",
+      "source_inputs": [
+        "implementation/remaining-work/tasks.json",
+        "implementation/rust-port-lanes.json",
+        "implementation/rust-port-orchestration/contracts-20261007/ownership.json",
+        "implementation/rust-port-orchestration/contracts-20261007/packets.json",
+        "docs/research/package-library-audit-20261006/adoption-sequence.json",
+        "packages/values/semantics/src/temporal/instant.rs",
+        "packages/values/semantics/tests/temporal_vectors.rs",
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/exact-values/temporal/instant.json",
+        "packages/values/src/temporal.ts",
+        "implementation/rust-port-orchestration/contracts-20261007/numeric-values.md"
+      ],
+      "private_output_root_template": "/private/tmp/canlang-rust-port-{{RUN_ID}}/packets/next-R1-A05.3-temporal",
+      "outputs_created": false,
+      "model_selection": {
+        "model": "gpt-6.1-sol",
+        "reasoning_effort": "medium",
+        "reason": "Bounded original residual at the stated files; do not widen to complete parent acceptance without explicit required inputs."
+      },
+      "independent_review_model": {
+        "model": "gpt-6.1-sol",
+        "reasoning_effort": "medium",
+        "reason": "Review actual finite critical semantics and preserved original acceptance before Codex commit."
+      },
+      "evidence_writes": [],
+      "acceptance": [
+        "Every temporal.ts exported pure algorithm is covered; decimal-valued divideDurationMs remains correctly covered in A04.2.",
+        "Finite export/error/text/UTF16 residual; divideDurationMs A04.2 remains separate."
+      ],
+      "dispatch_status": "candidate_requires_finite_activation_review",
+      "source_blockers": [
+        "Refresh export/error/text coverage matrix; listed instant.rs residual is not the whole temporal export set. Name any additional source before activation."
+      ],
+      "canonical_task_ids": [
+        "ports:A05.3"
+      ],
+      "canonical_snapshot_index": "preserved_original_records"
+    },
+    {
+      "id": "next:R1:A07.2-evidence",
+      "readiness": "original direct inputs credited; genuine evidence repair/qualification required",
+      "owner": "R1",
+      "writable_paths": [
+        "packages/values/bindings/backend.ts",
+        "packages/values/bindings/bootstrap.ts",
+        "packages/values/bindings/carriers.ts",
+        "packages/values/test/exact-bootstrap.test.ts",
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/exact-values/host/bootstrap.json"
+      ],
+      "limits": "Historical bootstrap-20261006.json malformed ends }}}; Node/Bun12/12 and deferred workerd cannot close wider scaffold. Keep structural abi-binding-smoke proof at its actual scope.",
+      "sequence_role": "successor_candidate",
+      "execution_authorized": false,
+      "active_lease": false,
+      "assigned_agent": null,
+      "activation_base": null,
+      "planning_base": "74f7271f7d3d49c929c769a5175de20e4525acef",
+      "adds_canonical_obligation": false,
+      "contract_inputs": [],
+      "lease_reference": "lease:A07.2-bootstrap-evidence",
+      "hash_index": "first-packets-20261007/source-checkpoint.json#input_sha256",
+      "source_inputs": [
+        "implementation/remaining-work/tasks.json",
+        "implementation/rust-port-lanes.json",
+        "implementation/rust-port-orchestration/contracts-20261007/ownership.json",
+        "implementation/rust-port-orchestration/contracts-20261007/packets.json",
+        "docs/research/package-library-audit-20261006/adoption-sequence.json",
+        "packages/values/bindings/backend.ts",
+        "packages/values/bindings/bootstrap.ts",
+        "packages/values/bindings/carriers.ts",
+        "packages/values/test/exact-bootstrap.test.ts",
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/exact-values/host/bootstrap.json",
+        "implementation/rust-port-orchestration/contracts-20261007/numeric-values.md",
+        "implementation/rust-port-orchestration/contracts-20261007/numeric-common.md",
+        "implementation/rust-port-orchestration/contracts-20261007/numeric-contracts.json",
+        "implementation/rust-port-orchestration/contracts-20261007/oracles/manifest.json",
+        "implementation/rust-port-orchestration/contracts-20261007/oracles/frozen-oracle.json.gz",
+        "packages/values/semantics/src/representations/numeric.rs",
+        "packages/values/semantics/src/numeric/decimal.rs",
+        "packages/values/semantics/src/numeric/money.rs",
+        "packages/values/semantics/src/codecs/numeric.rs",
+        "packages/values/src/kinds.ts",
+        "packages/values/src/decimal.ts",
+        "packages/values/src/wire.ts",
+        "packages/values/semantics/Cargo.toml",
+        "packages/values/Cargo.lock",
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/exact-values/host/bootstrap-20261006.json",
+        "docs/research/package-subsystem-ports-20261006/evidence/input-validation/abi-binding-smoke.json"
+      ],
+      "private_output_root_template": "/private/tmp/canlang-rust-port-{{RUN_ID}}/packets/next-R1-A07.2-evidence",
+      "outputs_created": false,
+      "model_selection": {
+        "model": "gpt-6.1-sol",
+        "reasoning_effort": "medium",
+        "reason": "Bounded original residual at the stated files; do not widen to complete parent acceptance without explicit required inputs."
+      },
+      "independent_review_model": {
+        "model": "gpt-6.1-sol",
+        "reasoning_effort": "medium",
+        "reason": "Review actual finite critical semantics and preserved original acceptance before Codex commit."
+      },
+      "evidence_writes": [],
+      "acceptance": [
+        "Public classes/freezing/BigInt parts and synchronous exports stay intact; failed selected Rust bootstrap is visible.",
+        "Historical bootstrap-20261006.json malformed ends }}}; Node/Bun12/12 and deferred workerd cannot close wider scaffold. Keep structural abi-binding-smoke proof at its actual scope."
+      ],
+      "dispatch_status": "candidate_requires_finite_activation_review",
+      "source_blockers": [
+        "Pin and identify actual historical raw transcript provenance before repairing historical claims; if unavailable, preserve the malformed historical record and run a separately named fresh source-current qualification with raw logs after human release. Never reconstruct historical success counts.",
+        "Named native/Wasm/glue/Node/Bun/workerd checks qualify only their actual consumed source/host scope; structural smoke alone cannot close bootstrap registry or installed consumers."
+      ],
+      "canonical_task_ids": [
+        "ports:A07.2"
+      ],
+      "canonical_snapshot_index": "preserved_original_records",
+      "evidence_provenance_rule": "Historical evidence files are source inputs, not verified fresh acceptance. No raw historical transcript location was verified in this bounded planning pass."
+    }
+  ],
+  "direct_dependency_ready_original_records": [
+    {
+      "id": "ports:A01.1",
+      "readiness": "dependency_ready_candidate",
+      "candidate_paths": [
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/exact-values/core/contracts.md"
+      ],
+      "owner": "R1",
+      "contracted_owner": null,
+      "queue_record_reference": "implementation/remaining-work/tasks.json#ports:A01.1",
+      "dispatch_authorized": false,
+      "meaning": "All direct canonical dependencies credited; technical contract, finite lease and human activation still required.",
+      "canonical_snapshot_index": "preserved_original_records",
+      "related_inactive_lease_references": [],
+      "lease_rule": "Crosswalk references only; actual finite paths and technical activation gates govern every proposed source lease."
+    },
+    {
+      "id": "ports:A03",
+      "readiness": "dependency_ready_candidate",
+      "candidate_paths": [],
+      "owner": "R1",
+      "contracted_owner": null,
+      "queue_record_reference": "implementation/remaining-work/tasks.json#ports:A03",
+      "dispatch_authorized": false,
+      "meaning": "All direct canonical dependencies credited; technical contract, finite lease and human activation still required.",
+      "canonical_snapshot_index": "preserved_original_records",
+      "related_inactive_lease_references": [
+        "lease:N02-values-number"
+      ],
+      "lease_rule": "Crosswalk references only; actual finite paths and technical activation gates govern every proposed source lease."
+    },
+    {
+      "id": "ports:A04.1",
+      "readiness": "dependency_ready_candidate",
+      "candidate_paths": [
+        "packages/values/semantics/src/numeric/decimal.rs",
+        "packages/values/semantics/tests/decimal_vectors.rs",
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/exact-values/decimal/construction.json"
+      ],
+      "owner": "R1",
+      "contracted_owner": null,
+      "queue_record_reference": "implementation/remaining-work/tasks.json#ports:A04.1",
+      "dispatch_authorized": false,
+      "meaning": "All direct canonical dependencies credited; technical contract, finite lease and human activation still required.",
+      "canonical_snapshot_index": "preserved_original_records",
+      "related_inactive_lease_references": [
+        "lease:N02-values-number"
+      ],
+      "lease_rule": "Crosswalk references only; actual finite paths and technical activation gates govern every proposed source lease."
+    },
+    {
+      "id": "ports:A04.3",
+      "readiness": "dependency_ready_candidate",
+      "candidate_paths": [
+        "packages/values/semantics/src/numeric/money.rs",
+        "packages/values/semantics/tests/money_vectors.rs",
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/exact-values/money/basic.json"
+      ],
+      "owner": "R1",
+      "contracted_owner": null,
+      "queue_record_reference": "implementation/remaining-work/tasks.json#ports:A04.3",
+      "dispatch_authorized": false,
+      "meaning": "All direct canonical dependencies credited; technical contract, finite lease and human activation still required.",
+      "canonical_snapshot_index": "preserved_original_records",
+      "related_inactive_lease_references": [
+        "lease:N02-values-number"
+      ],
+      "lease_rule": "Crosswalk references only; actual finite paths and technical activation gates govern every proposed source lease."
+    },
+    {
+      "id": "ports:A05.3",
+      "readiness": "dependency_ready_candidate",
+      "candidate_paths": [
+        "packages/values/semantics/src/temporal/instant.rs",
+        "packages/values/semantics/tests/temporal_vectors.rs",
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/exact-values/temporal/instant.json"
+      ],
+      "owner": "R1",
+      "contracted_owner": null,
+      "queue_record_reference": "implementation/remaining-work/tasks.json#ports:A05.3",
+      "dispatch_authorized": false,
+      "meaning": "All direct canonical dependencies credited; technical contract, finite lease and human activation still required.",
+      "canonical_snapshot_index": "preserved_original_records",
+      "related_inactive_lease_references": [
+        "lease:A05.3-temporal-residual"
+      ],
+      "lease_rule": "Crosswalk references only; actual finite paths and technical activation gates govern every proposed source lease."
+    },
+    {
+      "id": "ports:A07.2",
+      "readiness": "dependency_ready_candidate",
+      "candidate_paths": [
+        "packages/values/bindings/backend.ts",
+        "packages/values/bindings/bootstrap.ts",
+        "packages/values/bindings/carriers.ts",
+        "packages/values/test/exact-bootstrap.test.ts",
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/exact-values/host/bootstrap.json"
+      ],
+      "owner": "R1",
+      "contracted_owner": null,
+      "queue_record_reference": "implementation/remaining-work/tasks.json#ports:A07.2",
+      "dispatch_authorized": false,
+      "meaning": "All direct canonical dependencies credited; technical contract, finite lease and human activation still required.",
+      "canonical_snapshot_index": "preserved_original_records",
+      "related_inactive_lease_references": [
+        "lease:A07.2-bootstrap-evidence"
+      ],
+      "lease_rule": "Crosswalk references only; actual finite paths and technical activation gates govern every proposed source lease."
+    },
+    {
+      "id": "ports:V01.1",
+      "readiness": "dependency_ready_candidate",
+      "candidate_paths": [
+        "docs/research/package-subsystem-ports-20261006/evidence/input-validation/contracts.md",
+        "docs/research/package-subsystem-ports-20261006/evidence/input-validation/caller-inventory.json",
+        "docs/research/package-subsystem-ports-20261006/evidence/input-validation/current-ts.json"
+      ],
+      "owner": "R2",
+      "contracted_owner": null,
+      "queue_record_reference": "implementation/remaining-work/tasks.json#ports:V01.1",
+      "dispatch_authorized": false,
+      "meaning": "All direct canonical dependencies credited; technical contract, finite lease and human activation still required.",
+      "canonical_snapshot_index": "preserved_original_records",
+      "related_inactive_lease_references": [],
+      "lease_rule": "Crosswalk references only; actual finite paths and technical activation gates govern every proposed source lease."
+    },
+    {
+      "id": "ports:V01.2",
+      "readiness": "dependency_ready_candidate",
+      "candidate_paths": [
+        "docs/research/package-subsystem-ports-20261006/evidence/input-validation/http-adoption-gate.md"
+      ],
+      "owner": "R2",
+      "contracted_owner": null,
+      "queue_record_reference": "implementation/remaining-work/tasks.json#ports:V01.2",
+      "dispatch_authorized": false,
+      "meaning": "All direct canonical dependencies credited; technical contract, finite lease and human activation still required.",
+      "canonical_snapshot_index": "preserved_original_records",
+      "related_inactive_lease_references": [],
+      "lease_rule": "Crosswalk references only; actual finite paths and technical activation gates govern every proposed source lease."
+    },
+    {
+      "id": "ports:V01.3",
+      "readiness": "dependency_ready_candidate",
+      "candidate_paths": [
+        "docs/research/package-subsystem-ports-20261006/evidence/input-validation/state-contract.md"
+      ],
+      "owner": "R2",
+      "contracted_owner": null,
+      "queue_record_reference": "implementation/remaining-work/tasks.json#ports:V01.3",
+      "dispatch_authorized": false,
+      "meaning": "All direct canonical dependencies credited; technical contract, finite lease and human activation still required.",
+      "canonical_snapshot_index": "preserved_original_records",
+      "related_inactive_lease_references": [
+        "lease:V01.3-state-contract"
+      ],
+      "lease_rule": "Crosswalk references only; actual finite paths and technical activation gates govern every proposed source lease."
+    },
+    {
+      "id": "ports:V01.4",
+      "readiness": "dependency_ready_candidate",
+      "candidate_paths": [
+        "docs/research/package-subsystem-ports-20261006/evidence/input-validation/plan-contract.md"
+      ],
+      "owner": "R2",
+      "contracted_owner": null,
+      "queue_record_reference": "implementation/remaining-work/tasks.json#ports:V01.4",
+      "dispatch_authorized": false,
+      "meaning": "All direct canonical dependencies credited; technical contract, finite lease and human activation still required.",
+      "canonical_snapshot_index": "preserved_original_records",
+      "related_inactive_lease_references": [],
+      "lease_rule": "Crosswalk references only; actual finite paths and technical activation gates govern every proposed source lease."
+    },
+    {
+      "id": "ports:V10.1",
+      "readiness": "dependency_ready_candidate",
+      "candidate_paths": [
+        "docs/research/package-subsystem-ports-20261006/evidence/input-validation/mcp-provenance.md"
+      ],
+      "owner": "R2",
+      "contracted_owner": null,
+      "queue_record_reference": "implementation/remaining-work/tasks.json#ports:V10.1",
+      "dispatch_authorized": false,
+      "meaning": "All direct canonical dependencies credited; technical contract, finite lease and human activation still required.",
+      "canonical_snapshot_index": "preserved_original_records",
+      "related_inactive_lease_references": [],
+      "lease_rule": "Crosswalk references only; actual finite paths and technical activation gates govern every proposed source lease."
+    },
+    {
+      "id": "ports:V10.2",
+      "readiness": "dependency_ready_candidate",
+      "candidate_paths": [
+        "docs/research/package-subsystem-ports-20261006/evidence/input-validation/forms-provenance.md"
+      ],
+      "owner": "R2",
+      "contracted_owner": null,
+      "queue_record_reference": "implementation/remaining-work/tasks.json#ports:V10.2",
+      "dispatch_authorized": false,
+      "meaning": "All direct canonical dependencies credited; technical contract, finite lease and human activation still required.",
+      "canonical_snapshot_index": "preserved_original_records",
+      "related_inactive_lease_references": [],
+      "lease_rule": "Crosswalk references only; actual finite paths and technical activation gates govern every proposed source lease."
+    },
+    {
+      "id": "ports:V02.6",
+      "readiness": "dependency_ready_candidate",
+      "candidate_paths": [
+        "packages/values/src/schema.ts",
+        "packages/values/src/wire.ts",
+        "packages/values/src/index.ts",
+        "docs/research/package-subsystem-ports-20261006/evidence/input-validation/prepared-hook-review.md"
+      ],
+      "owner": "R2",
+      "contracted_owner": null,
+      "queue_record_reference": "implementation/remaining-work/tasks.json#ports:V02.6",
+      "dispatch_authorized": false,
+      "meaning": "All direct canonical dependencies credited; technical contract, finite lease and human activation still required.",
+      "canonical_snapshot_index": "preserved_original_records",
+      "related_inactive_lease_references": [
+        "lease:V02.6-prepared-hooks"
+      ],
+      "lease_rule": "Crosswalk references only; actual finite paths and technical activation gates govern every proposed source lease."
+    },
+    {
+      "id": "ports:C04.ready",
+      "readiness": "dependency_ready_candidate",
+      "candidate_paths": [
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/shared/C04.ready.json"
+      ],
+      "owner": "R3",
+      "contracted_owner": null,
+      "queue_record_reference": "implementation/remaining-work/tasks.json#ports:C04.ready",
+      "dispatch_authorized": false,
+      "meaning": "All direct canonical dependencies credited; technical contract, finite lease and human activation still required.",
+      "canonical_snapshot_index": "preserved_original_records",
+      "related_inactive_lease_references": [],
+      "lease_rule": "Crosswalk references only; actual finite paths and technical activation gates govern every proposed source lease."
+    },
+    {
+      "id": "ports:C04.graph",
+      "readiness": "dependency_ready_candidate",
+      "candidate_paths": [
+        "package.json",
+        "bun.lock",
+        "packages/cloudflare/package.json",
+        "packages/state/package.json",
+        "packages/stdlib/package.json",
+        "packages/testkit/package.json"
+      ],
+      "owner": "R3",
+      "contracted_owner": "R3",
+      "queue_record_reference": "implementation/remaining-work/tasks.json#ports:C04.graph",
+      "dispatch_authorized": false,
+      "meaning": "All direct canonical dependencies credited; technical contract, finite lease and human activation still required.",
+      "canonical_snapshot_index": "preserved_original_records",
+      "related_inactive_lease_references": [
+        "lease:D02-import-leaf"
+      ],
+      "lease_rule": "Crosswalk references only; actual finite paths and technical activation gates govern every proposed source lease."
+    },
+    {
+      "id": "ports:W01.3",
+      "readiness": "dependency_ready_candidate",
+      "candidate_paths": [
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/work-transitions/baselines/current-ts.json",
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/work-transitions/baselines/verify.log",
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/work-transitions/baselines/original-fixtures/"
+      ],
+      "owner": "R3",
+      "contracted_owner": null,
+      "queue_record_reference": "implementation/remaining-work/tasks.json#ports:W01.3",
+      "dispatch_authorized": false,
+      "meaning": "All direct canonical dependencies credited; technical contract, finite lease and human activation still required.",
+      "canonical_snapshot_index": "preserved_original_records",
+      "related_inactive_lease_references": [],
+      "lease_rule": "Crosswalk references only; actual finite paths and technical activation gates govern every proposed source lease."
+    },
+    {
+      "id": "ports:W03.1",
+      "readiness": "dependency_ready_candidate",
+      "candidate_paths": [
+        "packages/work-kernel/src/facts.ts",
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/work-transitions/handoffs/abi.md"
+      ],
+      "owner": "R3",
+      "contracted_owner": null,
+      "queue_record_reference": "implementation/remaining-work/tasks.json#ports:W03.1",
+      "dispatch_authorized": false,
+      "meaning": "All direct canonical dependencies credited; technical contract, finite lease and human activation still required.",
+      "canonical_snapshot_index": "preserved_original_records",
+      "related_inactive_lease_references": [],
+      "lease_rule": "Crosswalk references only; actual finite paths and technical activation gates govern every proposed source lease."
+    }
+  ],
+  "all_record_readiness_queue": "preflight-20261007/scope-queue.json",
+  "all_record_readiness_queue_sha256": "62076535dd0c3b0afcc91eaa7ac09ed60fcd32a9c51c3fce2d9917b288432534",
+  "counts": {
+    "canonical_source_records_preserved": 333,
+    "selected_port_source_identities": 230,
+    "required_port_total": 220,
+    "required_port_credited_complete": 54,
+    "required_port_open": 166,
+    "required_port_readiness": {
+      "held": 31,
+      "dependency_ready_candidate": 17,
+      "blocked_prerequisites": 118
+    },
+    "conditional_ports": 6,
+    "deferred_ports": 4,
+    "library_refinement_units_not_added_tasks": 27,
+    "finite_adapter_packet_records_not_added_tasks": 12,
+    "consumer_input_reference_records": 22,
+    "other_original_records_excluded_from_dispatch": 81
+  },
+  "canonical_task_counts_and_DAG_changed": false,
+  "actual_product_acceptance_changed": false,
+  "active_file_leases": 0,
+  "launch_state": {
+    "product_workers_launched": 0,
+    "runtime_created": false,
+    "goals_created": 0,
+    "native_timers_created": 0,
+    "output_roots_created": false,
+    "worktrees_created": false
+  },
+  "capacity": {
+    "logical_queues": 4,
+    "dispatcher_total_slots": 4,
+    "max_active_subagents_beside_root": 3,
+    "refresh_at_activation": true,
+    "R4": "Borrowed only on released dependency-ready disjoint work; native preparation held.",
+    "no_all_four_startup_barrier": true
+  },
+  "standard_activation_gates": [
+    "Human implementation release",
+    "Current relevant source/input hashes and exact compiler interface handoff if consumed",
+    "Named writer ACK; finite actual source/test/output paths",
+    "Private mutable target/output roots and command grant",
+    "Original prerequisites at claimed scope; independent review before root Git/integration",
+    "No current row or elapsed time authorizes product dispatch; record actual human release.",
+    "Root names actual finite agent/checkpoint/write lease/check recipe/private root/receipt deadline, without shared checkout switch/reset/rebase or another writer overlap.",
+    "Command capacity applies to actual heavy commands only: initially two across root and workers; no slot held during editing.",
+    "Git remains Codex-owned for package workers; preserve compiler writer files/index/commits.",
+    "Material new semantic decisions use balanced repository evidence and three independently worded JEV advice calls before acceptance."
+  ],
+  "resource_and_delivery_rule": "Private target/dist/staging/fixture outputs only. No CI/push/publication authority. No Muse, tmux or local recurring jobs. Same 15-minute supervisor remains paused until explicit human release.",
+  "commit_rule": "Codex reviews each exact released coherent finite slice and commits explicit paths early; candidate proof scope stays distinct from parent acceptance. Preserve foreign staged work. Actual merge handler reconciles living filetree since checkpoint before advancing it.",
+  "unresolved_decisions": [
+    {
+      "id": "V02.6-private-hook-contract",
+      "decision_required": "Named consumed owner approval and explicit genuine factory/private prepared routing/core-call contract before source dispatch. Existing wrappers call public validateValue/decodeValue/encodeValue; feeding public hooks back to wrappers recurses and can add user-visible reads. Existing handoff specifies provenance only.",
+      "severity": "material semantic seam; source blocked pending contract, no invented solution",
+      "eligible_work_now": "V01 current contract/spec review, fixtures and owner review preparation; not any V02.6 source patch."
+    },
+    {
+      "id": "N03-harness",
+      "decision_required": "Root-proposed separate copied-source private Cargo strategy is technically sound at narrow leaf-proof scope. Freeze exact copy/hash/wrapper details and writer ACK at activation; official Cargo registration still deferred.",
+      "severity": "bounded harness specification to acknowledge, not a major semantic seam"
+    },
+    {
+      "id": "W03.1-consumer",
+      "decision_required": "Exact real fact-consuming callback entry/files and producer authority/version profile/range gate; unchanged opaque refs not authority.",
+      "severity": "actual acceptance seam; not complete because helpers exist"
+    },
+    {
+      "id": "D03-E01",
+      "decision_required": "Observe candidate compatibility and simplification versus retain-now under raw oracle; no second handwritten VLQ engine or silent strict profile.",
+      "severity": "D03 substitution blocked; independently released D02/N leaves continue"
+    }
+  ],
+  "limits": [
+    "A04.1 stored -0 is unsolved by text helper",
+    "A05.3 temporal residual remains original prerequisite",
+    "A07.2 malformed evidence not promoted",
+    "V02.6 genuine provenance absent in public factories; tests manually recording it do not qualify",
+    "W03.1 real callback proof absent; helper-only zero-callback test cannot count as actual consumer",
+    "W04.4 requires W04.1/W04.2/W04.3/W03.4; actual root currently VERSION-only",
+    "No all-library/wave/whole-parent barrier for independently released narrow leaves",
+    "No full A04.5 acceptance through serde escaping; lossless UTF16/cut retains explicit residual",
+    "Preparation/native-release HUMAN HOLD unchanged"
+  ],
+  "stop_after_planning": true,
+  "preserved_original_records": {
+    "ports:A01.1": {
+      "status": "partial",
+      "disposition": "REQUIRED",
+      "depends_on": [
+        "ports:C01.ready"
+      ],
+      "acceptance": [
+        "All mapped sources have an owner and admitted-input/error/order contract; compiler changes are unnecessary."
+      ],
+      "canonical_reference": "implementation/remaining-work/tasks.json#ports:A01.1"
+    },
+    "ports:A03": {
+      "status": "partial",
+      "disposition": "REQUIRED",
+      "depends_on": [
         "ports:A03.foundation",
         "ports:A03.2",
         "ports:A03.3",
         "ports:A03.4"
       ],
-      "source_status_snapshot": "partial",
-      "acceptance_reference": "implementation/remaining-work/tasks.json#ports:A03",
-      "dispatch_only_after_complete_original_dependencies": true
+      "acceptance": [
+        "Run future cargo test --locked --manifest-path packages/values/semantics/Cargo.toml and cargo fmt --manifest-path packages/values/semantics/Cargo.toml -- --check; save pin/build/license evidence and all original A03 raw-arithmetic contracts."
+      ],
+      "canonical_reference": "implementation/remaining-work/tasks.json#ports:A03"
     },
-    {
-      "task_id": "ports:A04",
-      "source_depends_on": [
+    "ports:A03.1": {
+      "status": "complete",
+      "disposition": "REQUIRED",
+      "depends_on": [
+        "ports:A02",
+        "ports:C03.ready"
+      ],
+      "acceptance": [
+        "Foundation compiles and supplies stable representations/errors/transport with no integer or rational algorithm dependency; compiler is excluded."
+      ],
+      "canonical_reference": "implementation/remaining-work/tasks.json#ports:A03.1"
+    },
+    "ports:A04.1": {
+      "status": "partial",
+      "disposition": "REQUIRED",
+      "depends_on": [
+        "ports:A03.foundation"
+      ],
+      "acceptance": [
+        "Construction/text preserve full coefficient and stored scale; public Decimal makers remain TS authoritative carriers."
+      ],
+      "canonical_reference": "implementation/remaining-work/tasks.json#ports:A04.1"
+    },
+    "ports:A04.3": {
+      "status": "partial",
+      "disposition": "REQUIRED",
+      "depends_on": [
+        "ports:A03.foundation",
+        "ports:A03.2",
+        "ports:A03.4"
+      ],
+      "acceptance": [
+        "No universal constructor erases distinct maker/builtin/binary-operation domains or messages."
+      ],
+      "canonical_reference": "implementation/remaining-work/tasks.json#ports:A04.3"
+    },
+    "ports:A04.5": {
+      "status": "partial",
+      "disposition": "REQUIRED",
+      "depends_on": [
         "ports:A04.1",
-        "ports:A04.2",
         "ports:A04.3",
-        "ports:A04.4",
-        "ports:A04.5"
+        "ports:C03.ready"
       ],
-      "source_status_snapshot": "partial",
-      "acceptance_reference": "implementation/remaining-work/tasks.json#ports:A04",
-      "dispatch_only_after_complete_original_dependencies": true
+      "acceptance": [
+        "Validation can reuse proven numeric codecs without awaiting unrelated money factor math or aggregate work."
+      ],
+      "canonical_reference": "implementation/remaining-work/tasks.json#ports:A04.5"
     },
-    {
-      "task_id": "ports:A05",
-      "source_depends_on": [
+    "ports:A05.3": {
+      "status": "partial",
+      "disposition": "REQUIRED",
+      "depends_on": [
         "ports:A05.1",
-        "ports:A05.2",
-        "ports:A05.3"
+        "ports:A05.2"
       ],
-      "source_status_snapshot": "partial",
-      "acceptance_reference": "implementation/remaining-work/tasks.json#ports:A05",
-      "dispatch_only_after_complete_original_dependencies": true
+      "acceptance": [
+        "Every temporal.ts exported pure algorithm is covered; decimal-valued divideDurationMs remains correctly covered in A04.2."
+      ],
+      "canonical_reference": "implementation/remaining-work/tasks.json#ports:A05.3"
+    },
+    "ports:A07.2": {
+      "status": "needs_verification",
+      "disposition": "REQUIRED",
+      "depends_on": [
+        "ports:A03.foundation",
+        "ports:C03.ready"
+      ],
+      "acceptance": [
+        "Public classes/freezing/BigInt parts and synchronous exports stay intact; failed selected Rust bootstrap is visible."
+      ],
+      "canonical_reference": "implementation/remaining-work/tasks.json#ports:A07.2"
+    },
+    "ports:C04.asset": {
+      "status": "complete",
+      "disposition": "REQUIRED",
+      "depends_on": [
+        "ports:C03.ready"
+      ],
+      "acceptance": [
+        "Binary lengths/hashes are exact; CompiledWasm is verified against the installed API; text-only hash/order/serialization fixtures pass."
+      ],
+      "canonical_reference": "implementation/remaining-work/tasks.json#ports:C04.asset"
+    },
+    "ports:C04.graph": {
+      "status": "partial",
+      "disposition": "REQUIRED",
+      "depends_on": [
+        "ports:W02.foundation",
+        "ports:C04.asset"
+      ],
+      "acceptance": [
+        "Root/consumer build and lockfile graph is executable, no state→full-work cycle, and no compiler Cargo workspace is introduced. This gate does not certify final work assets."
+      ],
+      "canonical_reference": "implementation/remaining-work/tasks.json#ports:C04.graph"
+    },
+    "ports:C04.ready": {
+      "status": "needs_verification",
+      "disposition": "REQUIRED",
+      "depends_on": [
+        "ports:C04.2"
+      ],
+      "acceptance": [
+        "Runtime plans may verify their own generated bindings next. This gate does not certify actual values/work assets, final vendor maps or installed consumers. Native JS-only preparation is independent of this Wasm proof."
+      ],
+      "canonical_reference": "implementation/remaining-work/tasks.json#ports:C04.ready"
+    },
+    "ports:V01.1": {
+      "status": "partial",
+      "disposition": "REQUIRED",
+      "depends_on": [
+        "ports:C01.ready"
+      ],
+      "acceptance": [
+        "Owners review each admitted domain, error/order/identity obligation and consumer; public arbitrary-unknown and hand-built schemas remain fully legacy TS.",
+        "contracts.md and caller-inventory.json distinguish deployed MCP, HTTP 501, forms and handle mode; no full-port claim."
+      ],
+      "canonical_reference": "implementation/remaining-work/tasks.json#ports:V01.1"
+    },
+    "ports:V01.2": {
+      "status": "partial",
+      "disposition": "REQUIRED",
+      "depends_on": [
+        "ports:C01.ready"
+      ],
+      "acceptance": [
+        "C01 source-owner contract names exact existing-handler join and owning files, or states absence without inventing a new HTTP feature.",
+        "Package/workerd fixture proof and default deployed adoption are separately testable gates; blocked join retains default 501."
+      ],
+      "canonical_reference": "implementation/remaining-work/tasks.json#ports:V01.2"
+    },
+    "ports:V01.3": {
+      "status": "partial",
+      "disposition": "REQUIRED",
+      "depends_on": [
+        "ports:C01.ready"
+      ],
+      "acceptance": [
+        "Contract preserves readRevision → hash(raw) → readReceipt → replay OR age → membership/by → normalize/ref-extract → ordered loads and read auth-first.",
+        "Protected graph never crosses arbitrary OperationInvoker callbacks; unproven/generated-handler/internal calls retain legacy TS."
+      ],
+      "canonical_reference": "implementation/remaining-work/tasks.json#ports:V01.3"
+    },
+    "ports:V01.4": {
+      "status": "partial",
+      "disposition": "REQUIRED",
+      "depends_on": [
+        "ports:C01.ready"
+      ],
+      "acceptance": [
+        "No second currency, Decimal, wire authority, catalog or compiler work; immutable data copies and private owner tokens establish provenance, never freeze/shape alone.",
+        "Each lane has exclusive module files and exact-values publishes A03.foundation before arithmetic completion."
+      ],
+      "canonical_reference": "implementation/remaining-work/tasks.json#ports:V01.4"
+    },
+    "ports:V02.6": {
+      "status": "not_started",
+      "disposition": "REQUIRED",
+      "depends_on": [
+        "ports:V02.1",
+        "ports:V02.2"
+      ],
+      "acceptance": [
+        "A1/B2 current/facade legacy traces match; unknown/default/schema accessors observe the old evaluation order.",
+        "Private prepared calls reach extracted modules while unknown callers remain TS; no semantic exception retry."
+      ],
+      "canonical_reference": "implementation/remaining-work/tasks.json#ports:V02.6"
+    },
+    "ports:V10.1": {
+      "status": "not_started",
+      "disposition": "REQUIRED",
+      "depends_on": [
+        "ports:C01.ready"
+      ],
+      "acceptance": [
+        "Decision includes source/version and evidence that a protected graph can stay inaccessible until conversion; types, freeze or SDK object inspection do not certify it.",
+        "Deferred MCP is explicitly unported and does not block HTTP preparation or deployment package proof."
+      ],
+      "canonical_reference": "implementation/remaining-work/tasks.json#ports:V10.1"
+    },
+    "ports:V10.2": {
+      "status": "not_started",
+      "disposition": "REQUIRED",
+      "depends_on": [
+        "ports:C01.ready"
+      ],
+      "acceptance": [
+        "No JSON lineage is inferred for form objects; coercion, duplicate and current __proto__ semantics are explicit.",
+        "Decision permits independent HTTP JSON progress and states that deferred forms are not ported."
+      ],
+      "canonical_reference": "implementation/remaining-work/tasks.json#ports:V10.2"
+    },
+    "ports:W01.3": {
+      "status": "partial",
+      "disposition": "REQUIRED",
+      "depends_on": [
+        "ports:C05.ready"
+      ],
+      "acceptance": [
+        "Run existing command block against inspected sources, retain logs and failures; failed noEmitOnError builds cannot supply stale dist evidence.",
+        "Save original row/result identity, state clone-only versus work safety-then-clone, error/trace ordering and actual D1/DO persisted bytes in immutable evidence as an independent oracle; pure owner lanes copy/hash their golden fixture subsets later."
+      ],
+      "canonical_reference": "implementation/remaining-work/tasks.json#ports:W01.3"
+    },
+    "ports:W03.1": {
+      "status": "needs_verification",
+      "disposition": "REQUIRED",
+      "depends_on": [
+        "ports:W01.1",
+        "ports:W01.2",
+        "ports:W02.1",
+        "ports:C03.ready"
+      ],
+      "acceptance": [
+        "Define version/profile/error/UTF-16/presence/f64/conditional version transport and producer provenance, validating number ranges before fixed-width conversion.",
+        "Reject foreign/version/profile/corrupt facts before semantic callbacks; opaque payload refs are not authority capabilities."
+      ],
+      "canonical_reference": "implementation/remaining-work/tasks.json#ports:W03.1"
+    },
+    "ports:W03.2": {
+      "status": "partial",
+      "disposition": "REQUIRED",
+      "depends_on": [
+        "ports:W03.1"
+      ],
+      "acceptance": [
+        "Retain result identity or required structuredClone at the existing profile point; Rust cannot inspect untouched payloads/metadata.",
+        "Dispose on success, exception, cancel and rejected load; reject stale/cross-call indices, bound allocation and preserve clone failures."
+      ],
+      "canonical_reference": "implementation/remaining-work/tasks.json#ports:W03.2"
+    },
+    "ports:W03.4": {
+      "status": "not_started",
+      "disposition": "REQUIRED",
+      "depends_on": [
+        "ports:W03.3",
+        "ports:W03.2",
+        "ports:W02.5"
+      ],
+      "acceptance": [
+        "Use actual D1/DO parser/controlled producer ownership; annotation, freezing, arbitrary StoragePort output or inspection never certify inertness.",
+        "Prepared/unprepared outputs/errors/identity/clone and stop-on-error traces match across invalid fields/lifecycle/presence/proxies/sparse/aliased data; no load/query/invoke/commit capability enters facts."
+      ],
+      "canonical_reference": "implementation/remaining-work/tasks.json#ports:W03.4"
+    },
+    "ports:W04.1": {
+      "status": "needs_verification",
+      "disposition": "REQUIRED",
+      "depends_on": [
+        "ports:W02.2",
+        "ports:W03.1",
+        "ports:C03.ready"
+      ],
+      "acceptance": [
+        "Native row/identity/set vectors agree with independent TS oracle for shape, first fault, metadata/presence, count rounding and lossless UTF-16; no host I/O.",
+        "Done for this branch: implementation plus native test vectors/source review are ready for integrator registration; assembled native compile and differential execution are certified by W04.4 before W04 closes."
+      ],
+      "canonical_reference": "implementation/remaining-work/tasks.json#ports:W04.1"
+    },
+    "ports:W04.2": {
+      "status": "needs_verification",
+      "disposition": "REQUIRED",
+      "depends_on": [
+        "ports:W02.3",
+        "ports:W03.1",
+        "ports:C03.ready"
+      ],
+      "acceptance": [
+        "Native supplied-sample backoff/slot/coalescing/classification matches fractional/wide-number/error cases; clock/RNG/hash/provider/security operations stay host-owned.",
+        "Done for this branch: implementation plus native test vectors/source review are ready for integrator registration; assembled native compile and differential execution are certified by W04.4 before W04 closes."
+      ],
+      "canonical_reference": "implementation/remaining-work/tasks.json#ports:W04.2"
+    },
+    "ports:W04.3": {
+      "status": "needs_verification",
+      "disposition": "REQUIRED",
+      "depends_on": [
+        "ports:W02.4",
+        "ports:W03.1",
+        "ports:C03.ready"
+      ],
+      "acceptance": [
+        "Native ordered batch decisions/faults/ref indices and proposed conditional writes agree with separate stored-pending and wrapper profiles; no stronger converse linkage policy.",
+        "Done for this branch: implementation plus native test vectors/source review are ready for integrator registration; assembled native compile and differential execution are certified by W04.4 before W04 closes."
+      ],
+      "canonical_reference": "implementation/remaining-work/tasks.json#ports:W04.3"
+    },
+    "ports:W04.4": {
+      "status": "not_started",
+      "disposition": "REQUIRED",
+      "depends_on": [
+        "ports:W04.1",
+        "ports:W04.2",
+        "ports:W04.3",
+        "ports:W03.4"
+      ],
+      "acceptance": [
+        "Only integrator edits lib.rs/module registrations; matching immutable vectors drive native and prepared TS outputs.",
+        "Run cargo test --locked, cargo fmt --check and cargo clippy --locked --all-targets -- -D warnings; inspect imports/features for forbidden host authority, preserve exact faults and materialization demand."
+      ],
+      "canonical_reference": "implementation/remaining-work/tasks.json#ports:W04.4"
     }
-  ],
-  "scheduler_rule": "Consult the complete original ledger DAG, not only packet next_candidates. Credited completed identities including A06/V03.5 are reused; requalify only affected changed inputs with a recorded reason.",
-  "assignment_authority": "Codex selects finite packets and ordered alternatives for economical Codex collaboration subagents; exact-file leases and original prerequisites remain. No local recurring scheduling.",
-  "ordered_start_checklist": "implementation/RUST-PORT-START-HERE.md",
-  "runtime_topology": "Finite Codex subagents scheduled across logical queues within actual capacity; local-owner labels are source responsibilities, not permanent coordinators.",
-  "shared_checkout_git_mutator": "Codex only for package subagents; independent compiler agent retains its own Git authority"
+  },
+  "economical_dispatch_rule": "Recheck the least expensive supported reliable model/effort for every finite packet and record its reason at actual dispatch. Current packet selections are task inferences, not measured optimum or savings."
 }
