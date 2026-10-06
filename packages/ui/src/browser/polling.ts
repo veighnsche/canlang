@@ -15,6 +15,11 @@
  * in `bootstrap.ts` and by fakes in tests. No htmx dependency: swap
  * delivery is the caller's `onResponse` (htmx swap, morph, or manual
  * patch); bootstrap re-arms regions after swaps.
+ *
+ * Ticks run on strict cadence, independent of fetch latency: each
+ * tick aborts the previous request (when still in flight) and
+ * supersedes its sequence, so a slow or hung fetch self-heals on
+ * the next tick and its late response is always dropped.
  */
 import type { SubmitFetch, SubmitFetchResponse } from "../client.js";
 
@@ -133,6 +138,14 @@ export class PollRegion {
     }, delayMs);
   }
 
+  private reschedule(delayMs: number): void {
+    if (this.timer !== null) {
+      this.options.timers.clearTimeout(this.timer);
+      this.timer = null;
+    }
+    this.schedule(delayMs);
+  }
+
   private abortInflight(): void {
     if (this.inflight !== null) {
       this.inflight.abort();
@@ -160,6 +173,9 @@ export class PollRegion {
       this.stop("context-changed");
       return;
     }
+    // Strict cadence: the next tick is already scheduled before the
+    // fetch starts, so a slow fetch never slows the loop.
+    this.schedule(this.options.intervalSeconds * 1000);
     // One in flight: abort the previous request, then supersede its
     // sequence so even an unabortable late response is dropped.
     this.abortInflight();
@@ -177,13 +193,12 @@ export class PollRegion {
       this.inflight = null;
       // Aborts are supersession, not failure: stay silent, keep cadence.
       if (controller.signal.aborted) {
-        this.schedule(this.options.intervalSeconds * 1000);
         return;
       }
       this.failures += 1;
       const messageText = error instanceof Error ? error.message : String(error);
       this.options.onError?.(`Poll request failed: ${messageText}`);
-      this.schedule(this.nextDelayMs());
+      this.reschedule(this.nextDelayMs());
       return;
     }
     if (this.stopped || mine !== this.sequence) {
@@ -214,7 +229,7 @@ export class PollRegion {
       this.failures += 1;
       const messageText = error instanceof Error ? error.message : String(error);
       this.options.onError?.(`Poll response unreadable: ${messageText}`);
-      this.schedule(this.nextDelayMs());
+      this.reschedule(this.nextDelayMs());
       return;
     }
     if (this.stopped || mine !== this.sequence) {
@@ -222,7 +237,6 @@ export class PollRegion {
     }
     this.failures = 0;
     this.options.onResponse(body, response.status);
-    this.schedule(this.options.intervalSeconds * 1000);
   }
 
   private nextDelayMs(): number {
