@@ -53,6 +53,10 @@ import type {
 import { validateByPredicate, type ByPredicate } from '../policy/roles.js';
 import { validatePredicateShape } from '../policy/grants.js';
 import type { InterimContainment, InterimRefDef } from '../mutation/models.js';
+import {
+  createDeliverySchema,
+  type DeliveryFieldSchema,
+} from '../receipt/grants.js';
 
 /**
  * INTERIM input descriptor. Scalar bounds arrive with S5/L2; S3 validates
@@ -194,10 +198,11 @@ export type ServerInitKind = 'actor' | 'now' | 'random_secret';
  * are skipped — ref paths treat arrays as opaque leaves, so deriving them
  * would reject valid creates; T04b formalizes), per-operation input
  * array markers, T18 per-field server initializers, T18
- * known-nullable field names (both keyed by model, then field), and B5
+ * known-nullable field names (both keyed by model, then field), B5
  * declared ownership per model (additive `parent`/`scope` members the
  * frozen intake cannot hold; one entry per model, empty for declared
- * team-scope roots).
+ * team-scope roots), and B3 declared delivery fields per model (T15b
+ * `delivery` field tags; the receipt join's schema source).
  */
 export interface ConvertedArtifactDescriptors {
   readonly set: ExecutionDescriptorSet;
@@ -208,6 +213,7 @@ export interface ConvertedArtifactDescriptors {
   readonly serverInits: ReadonlyMap<ModelName, ReadonlyMap<string, ServerInitKind>>;
   readonly nullableFields: ReadonlyMap<ModelName, ReadonlySet<string>>;
   readonly containment: ReadonlyMap<ModelName, InterimContainment>;
+  readonly deliveryFields: DeliveryFieldSchema;
 }
 
 /** Fully loaded artifact: registry + models + engine-local model attachments. */
@@ -216,6 +222,7 @@ export interface LoadedArtifactDescriptors extends LoadedDescriptorSet {
   readonly serverInits: ReadonlyMap<ModelName, ReadonlyMap<string, ServerInitKind>>;
   readonly nullableFields: ReadonlyMap<ModelName, ReadonlySet<string>>;
   readonly containment: ReadonlyMap<ModelName, InterimContainment>;
+  readonly deliveryFields: DeliveryFieldSchema;
 }
 
 const KNOWN_OPERATION_KINDS: ReadonlySet<string> = new Set([
@@ -724,9 +731,9 @@ export function loadExecutionDescriptorSet(
  * absent `operations`/`models` read as "no descriptors", never as an error;
  * model `fields` arrays fold into records by name and additive members drop
  * (except the engine-local channels — T18 server inits and known-nullable
- * names plus B5 declared ownership — which ride beside the intake like
- * refs). Unknown operation/input/default kinds — or any
- * malformed/dangling member — reject the WHOLE conversion.
+ * names, B5 declared ownership, B3 delivery-field membership — which ride
+ * beside the intake like refs). Unknown operation/input/default kinds —
+ * or any malformed/dangling member — reject the WHOLE conversion.
  */
 export function artifactToDescriptorSet(
   artifact: ArtifactDescriptorSlice,
@@ -765,6 +772,7 @@ export function artifactToDescriptorSet(
   const serverInits = new Map<ModelName, Map<string, ServerInitKind>>();
   const nullableFields = new Map<ModelName, Set<string>>();
   const containment = new Map<ModelName, InterimContainment>();
+  const deliveryEntries: Array<readonly [string, ReadonlyArray<string>]> = [];
   const models: CanonicalModelDescriptor[] = [];
   for (const model of rawModels as ArtifactModel[]) {
     if (!Array.isArray(model.fields)) {
@@ -778,6 +786,7 @@ export function artifactToDescriptorSet(
     const modelRefs: InterimRefDef[] = [];
     const modelInits = new Map<string, ServerInitKind>();
     const modelNullable = new Set<string>();
+    const modelDelivery: string[] = [];
     for (const field of model.fields) {
       if (typeof field.name !== 'string' || field.name === '') {
         fail(
@@ -878,6 +887,38 @@ export function artifactToDescriptorSet(
         }
         modelRefs.push({ field: field.name, model: target as ModelName });
       }
+      // B3 declared delivery fields (T15b provider tags): the receipt
+      // join's schema channel. Envelope-validated (capability /
+      // operation / version / result shape); result leaves have no
+      // state-side consumer — generated callers resolve selected leaves
+      // statically — so leaves stay presence-only. Array markers don't
+      // affect membership: the field IS a delivery field either way.
+      if (isRecord(tag) && tag['kind'] === 'delivery') {
+        const capability: unknown = tag['capability'];
+        const operation: unknown = tag['operation'];
+        const version: unknown = tag['version'];
+        if (
+          typeof capability !== 'string' ||
+          capability === '' ||
+          typeof operation !== 'string' ||
+          operation === '' ||
+          typeof version !== 'number' ||
+          !Number.isFinite(version)
+        ) {
+          fail(
+            'malformed_descriptor',
+            `Invalid ${what}: delivery descriptors carry a non-empty capability, operation, and finite version.`,
+          );
+        }
+        const result: unknown = tag['result'];
+        if (!isRecord(result) || typeof result['name'] !== 'string' || !Array.isArray(result['fields'])) {
+          fail(
+            'malformed_descriptor',
+            `Invalid ${what}: delivery descriptors carry a result with a name and leaf fields.`,
+          );
+        }
+        modelDelivery.push(field.name);
+      }
     }
     if (typeof model.deleteMode !== 'string' || !KNOWN_DELETE_MODES.has(model.deleteMode)) {
       fail(
@@ -894,6 +935,7 @@ export function artifactToDescriptorSet(
     refs.set(model.name as ModelName, modelRefs);
     serverInits.set(model.name as ModelName, modelInits);
     nullableFields.set(model.name as ModelName, modelNullable);
+    deliveryEntries.push([model.name, modelDelivery]);
     // B5 declared ownership (adopted T28-A): `parent` marks a contained
     // child of that canonical model; `scope: 'app'` marks an app root;
     // neither marks a team-scope root (the default — the empty entry
@@ -1066,7 +1108,12 @@ export function artifactToDescriptorSet(
     operations,
     models,
   };
-  return { set, refs, inputArrays, serverInits, nullableFields, containment };
+  // B3: one entry per model (empty for models without deliveries, so
+  // downstream joins report unknown-field — never unknown-model — for
+  // them). `createDeliverySchema` is the shared builder: its
+  // validation doubles as this conversion's whole-set guard.
+  const deliveryFields = createDeliverySchema(deliveryEntries);
+  return { set, refs, inputArrays, serverInits, nullableFields, containment, deliveryFields };
 }
 
 /**
@@ -1100,6 +1147,9 @@ export function loadArtifactDescriptors(
   const containment: Map<ModelName, InterimContainment> = new Map(
     [...converted.containment].map(([model, declared]) => [model, { ...declared }]),
   );
+  const deliveryFields: Map<ModelName, ReadonlySet<string>> = new Map(
+    [...converted.deliveryFields].map(([model, fields]) => [model, new Set(fields)]),
+  );
   return {
     registry: loaded.registry,
     models: loaded.models,
@@ -1107,5 +1157,6 @@ export function loadArtifactDescriptors(
     serverInits,
     nullableFields,
     containment,
+    deliveryFields,
   };
 }
