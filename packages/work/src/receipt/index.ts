@@ -305,6 +305,56 @@ export interface RecordedReceiptFields {
   error: ReceiptError | null;
 }
 
+/* -- T25a completion-envelope consistency (DESIGN section 8.0). -- */
+
+/**
+ * A completion envelope is consistent when its status and payload agree:
+ * `succeeded` carries the declared result with a null error; `failed`
+ * carries a null result with a non-null closed error; `unknown` carries a
+ * null result with a diagnostic error or null; `skipped` carries nulls.
+ * `pending` is a receipt, never a completion. Missing (`undefined`) payload
+ * keys read as null (transport serialization drops them); anything else
+ * must match exactly. Result SHAPE against the declared operation type is
+ * the checker's job (L1), not this kernel's: a null result on `succeeded`
+ * follows its declared nullable/no-result type rather than inventing a
+ * value. The error shape checked here is the closed `{code,message}`
+ * string pair only; redaction stays with the admitting adapter.
+ *
+ * Never throws: completions arrive from callback paths and may be
+ * arbitrarily shaped, so every check is a predicate.
+ */
+export function isConsistentCompletion(status: unknown, result: unknown, error: unknown): boolean {
+  const payload = result === undefined ? null : result;
+  const failure = error === undefined ? null : error;
+  if (status === 'succeeded') {
+    return failure === null;
+  }
+  if (status === 'failed') {
+    return payload === null && isClosedErrorShape(failure);
+  }
+  if (status === 'unknown') {
+    return payload === null && (failure === null || isClosedErrorShape(failure));
+  }
+  if (status === 'skipped') {
+    return payload === null && failure === null;
+  }
+  return false;
+}
+
+function isClosedErrorShape(error: unknown): boolean {
+  if (typeof error !== 'object' || error === null) {
+    return false;
+  }
+  const candidate = error as Record<string, unknown>;
+  // Closed DeliveryError: exactly {code, message}, no details/retryable/
+  // provider-response extras. Two string-typed code/message keys imply the
+  // key set is exactly the pair. Never throws: predicate over adversary input.
+  if (Object.keys(candidate).length !== 2) {
+    return false;
+  }
+  return typeof candidate['code'] === 'string' && typeof candidate['message'] === 'string';
+}
+
 /**
  * Assemble an authorized receipt observation from recorded fields. The
  * delivery association id and owner-checkpoint revision come from the
