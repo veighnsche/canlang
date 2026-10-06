@@ -1,0 +1,24 @@
+{
+  "model": "work.every_slot",
+  "constructor_input": {
+    "constructor": "newEverySlotRow",
+    "input": {
+      "scopeKey": "team:team1",
+      "app": "app1",
+      "handler": "h1",
+      "scope": "team",
+      "owner": "team1",
+      "slot": 500
+    },
+    "meta": {
+      "nowMs": 1750000000000,
+      "actor": "w01.3-baseline"
+    }
+  },
+  "row_id": "every/v1/app1/h1/team/team1",
+  "d1_data_bytes": "{\"scopeKey\":\"team:team1\",\"app\":\"app1\",\"handler\":\"h1\",\"scope\":\"team\",\"owner\":\"team1\",\"slot\":500}",
+  "do_data_bytes": "{\"scopeKey\":\"team:team1\",\"app\":\"app1\",\"handler\":\"h1\",\"scope\":\"team\",\"owner\":\"team1\",\"slot\":500}",
+  "d1_equals_do": true,
+  "byte_length_utf8": 95,
+  "sha256": "a961b6d852b89f6bfb055928bf1b9b3c3e9c47c8d1e6e03d74903a8d82296c58"
+}

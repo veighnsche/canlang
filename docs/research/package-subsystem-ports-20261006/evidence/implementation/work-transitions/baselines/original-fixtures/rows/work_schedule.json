@@ -1,0 +1,30 @@
+{
+  "model": "work.schedule",
+  "constructor_input": {
+    "constructor": "newScheduleRow",
+    "input": {
+      "occurrenceId": "occ_baseline_1",
+      "key": "report",
+      "scopeApp": "app1",
+      "scopeOwner": "team1",
+      "scopeOwnerPackage": "pkg1",
+      "at": 1750000000000,
+      "event": "evt",
+      "payload": {
+        "a": 1
+      },
+      "replaces": null,
+      "state": "pending"
+    },
+    "meta": {
+      "nowMs": 1750000000000,
+      "actor": "w01.3-baseline"
+    }
+  },
+  "row_id": "occ_baseline_1",
+  "d1_data_bytes": "{\"occurrenceId\":\"occ_baseline_1\",\"key\":\"report\",\"scopeApp\":\"app1\",\"scopeOwner\":\"team1\",\"scopeOwnerPackage\":\"pkg1\",\"at\":1750000000000,\"event\":\"evt\",\"payload\":{\"a\":1},\"replaces\":null,\"state\":\"pending\"}",
+  "do_data_bytes": "{\"occurrenceId\":\"occ_baseline_1\",\"key\":\"report\",\"scopeApp\":\"app1\",\"scopeOwner\":\"team1\",\"scopeOwnerPackage\":\"pkg1\",\"at\":1750000000000,\"event\":\"evt\",\"payload\":{\"a\":1},\"replaces\":null,\"state\":\"pending\"}",
+  "d1_equals_do": true,
+  "byte_length_utf8": 199,
+  "sha256": "2daa39b22ad03ecf434f3ad702da99cbba91382c37eff5548f5646148dca0b07"
+}
