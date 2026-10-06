@@ -1,0 +1,8 @@
+$ bun run build:joins && tsc -b packages/contracts && bun run --filter @canlang/work-kernel build && bun run --filter @canlang/identity build && bun run --filter @canlang/ui build && bun run --filter @canlang/interfaces build && tsc -b packages/state packages/stdlib packages/testkit packages/cloudflare && chmod +x packages/cloudflare/dist/cli/platform.js
+$ bun run --filter @canlang/values build
+@canlang/values build: Exited with code 0
+@canlang/work-kernel build: Exited with code 0
+@canlang/identity build: Exited with code 0
+@canlang/ui build: build-browser: installed bootstrap.js, polling.js, can-style.css + manifest.json (daisyui 5.7.47, catalog 0.1.0-lane05-draft, binders guarded-form,once-action,poll-region)
+@canlang/ui build: Exited with code 0
+@canlang/interfaces build: Exited with code 0

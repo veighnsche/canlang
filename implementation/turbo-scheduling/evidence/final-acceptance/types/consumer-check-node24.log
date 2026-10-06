@@ -1,0 +1,19 @@
+node:internal/modules/run_main:107
+    triggerUncaughtException(
+    ^
+
+AssertionError [ERR_ASSERTION]: installed declarations produced diagnostics; inspect baseline-diagnostics.json
+
+797 !== 0
+
+    at consumerCheck (file:///private/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/canlang-installed-types-5a3B3V/consumer/verify.mjs:83:10)
+    at async file:///private/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/canlang-installed-types-5a3B3V/consumer/verify.mjs:88:39 {
+  generatedMessage: false,
+  code: 'ERR_ASSERTION',
+  actual: 797,
+  expected: 0,
+  operator: 'strictEqual',
+  diff: 'simple'
+}
+
+Node.js v24.21.0

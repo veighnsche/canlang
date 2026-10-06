@@ -1,0 +1,13 @@
+{
+  "argv": [
+    "/private/tmp/canlang-turbo-probe-20261006.89738Q/tooling/node_modules/.bin/turbo",
+    "boundaries",
+    "--no-color",
+    "--no-update-notifier",
+    "--skip-infer"
+  ],
+  "cwd": "/private/tmp/canlang-turbo-probe-20261006.89738Q/boundaries/dynamic-constant-undeclared",
+  "exit_code": 0,
+  "stdout": "Checking packages...\nChecked 5 files in 2 packages, no issues found\n",
+  "stderr": "\u2022 turbo 2.11.7\n"
+}

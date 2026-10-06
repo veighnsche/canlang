@@ -1,0 +1,6 @@
+[workspace]
+members=["crates/core","crates/app","packages/dual"]
+resolver="2"
+
+[workspace.metadata]
+name="probe-native-workspace"

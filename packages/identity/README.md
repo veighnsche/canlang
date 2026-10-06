@@ -64,15 +64,20 @@ Key exports from `@canlang/identity` (via `src/index.ts`): `ports.ts`
 
 ## Scripts
 
-| Script      | Command                                                        |
-| ----------- | -------------------------------------------------------------- |
-| `build`     | `tsc -p tsconfig.json && cp -r test/fixtures dist/identity/test/fixtures` |
-| `typecheck` | `tsc -p tsconfig.json --noEmit`                                |
-| `test`      | `bun run build && node --test "dist/identity/test/**/*.test.js"` |
-| `clean`     | `rm -rf dist/`                                                 |
+From the repository root, after `bun install --frozen-lockfile`:
 
-Run from the repo root, e.g. `bun run --filter @canlang/identity build`.
-Requires Node `>=22`.
+```sh
+bun run build --filter=@canlang/identity
+bun run --filter @canlang/identity typecheck
+bun run --filter @canlang/identity test
+```
+
+The filtered root build schedules this package and its declared producer
+dependencies. It emits only each owner’s outputs, cleaning them before execution
+or cache restoration. Package `typecheck` and `test` use the same graph, then
+run the owning TypeScript check or compiled `node:test` suite uncached.
+Internal `build:emit`, `typecheck:check`, and `test:unit` tasks are execution
+steps; use the public commands above to prepare dependencies.
 
 ## Source layout
 
@@ -98,3 +103,10 @@ binding is the lane-04 mail adapter.
 ## License
 
 No `LICENSE` file in the repo; all rights reserved by default.
+
+## Distribution API
+
+`@canlang/identity/distribution` exposes the producer-owned compiled module
+directory URL for portable Worker staging. Tests remain outside that module
+inventory. Compilation stays within each owning package; public commands also
+prepare declared dependencies.

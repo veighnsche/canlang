@@ -1,0 +1,40 @@
+✔ nonzero child remains failed even with passing-looking output (27.211625ms)
+✔ timed out process is failed (102.7305ms)
+✔ skips and empty execution cannot produce success (0.105292ms)
+✔ node test count formats and absent counts (0.68725ms)
+✔ Vitest ANSI summaries expose all-skipped and mixed test counts (0.156792ms)
+✔ native prerequisite required only for cloudflare and workspace (0.055083ms)
+✔ native prerequisite argv is fixed, locked, and checkout-absolute (0.11575ms)
+✔ native target and binary paths are private per profile (0.074958ms)
+✔ env overrides reach the child process only (22.268667ms)
+✔ skip matrix fails closed on unready native prerequisite for tests only (0.136583ms)
+✔ package gates build the selected owner before tests and retain joined workspace coverage (0.190708ms)
+✔ command plan labels only real tests and fixes producer/gate CWD (0.166208ms)
+✔ tool pins and executed test counts require positive evidence (0.114666ms)
+✔ runner executes independent tests after a typecheck failure and preserves the whole plan (5.41625ms)
+✔ failed frozen install records skipped producer and dependent gates, then final tree check (2.465625ms)
+✔ native failure records explicit prerequisites, skips tests, and still typechecks (3.886583ms)
+✔ runner fails closed on absent, zero, or all-skipped test summaries despite exit zero (8.51925ms)
+✔ values: complete receipt passes; every omitted command and reordered gates reject (11.082541ms)
+✔ state: complete receipt passes; every omitted command and reordered gates reject (4.785417ms)
+✔ stdlib: complete receipt passes; every omitted command and reordered gates reject (4.28625ms)
+✔ identity: complete receipt passes; every omitted command and reordered gates reject (4.066ms)
+✔ ui: complete receipt passes; every omitted command and reordered gates reject (4.565375ms)
+✔ interfaces: complete receipt passes; every omitted command and reordered gates reject (4.570167ms)
+✔ work: complete receipt passes; every omitted command and reordered gates reject (3.988208ms)
+✔ cloudflare: complete receipt passes; every omitted command and reordered gates reject (7.698041ms)
+✔ testkit: complete receipt passes; every omitted command and reordered gates reject (4.010208ms)
+✔ workspace: complete receipt passes; every omitted command and reordered gates reject (7.491458ms)
+✔ failure, skip, identity, argv, CWD, test identity and malformed lock fail closed (5.100958ms)
+✔ test counts are recomputed from authenticated logs and require passing execution (11.473833ms)
+✔ version and source proofs are checked against logs, not receipt labels (7.870417ms)
+✔ checksums, unsafe names, reused logs, and escaping symlinks reject (2.321042ms)
+✔ native profiles require exact private target, binary environment, hashes and pinned version logs (32.108167ms)
+ℹ tests 32
+ℹ suites 0
+ℹ pass 32
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 209.923833

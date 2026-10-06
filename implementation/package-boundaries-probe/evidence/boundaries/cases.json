@@ -1,0 +1,148 @@
+{
+  "cases": [
+    {
+      "name": "allowed-root",
+      "dependency": true,
+      "file": "src/index.ts",
+      "source": "import { value } from '@probe/b'; console.log(value);"
+    },
+    {
+      "name": "undeclared-root",
+      "dependency": false,
+      "file": "src/index.ts",
+      "source": "import { value } from '@probe/b'; console.log(value);"
+    },
+    {
+      "name": "sibling-source-declared",
+      "dependency": true,
+      "file": "src/index.ts",
+      "source": "import { value } from '../../b/src/index.ts'; console.log(value);"
+    },
+    {
+      "name": "sibling-source-undeclared",
+      "dependency": false,
+      "file": "src/index.ts",
+      "source": "import { value } from '../../b/src/index.ts'; console.log(value);"
+    },
+    {
+      "name": "sibling-dist-declared",
+      "dependency": true,
+      "file": "src/index.ts",
+      "source": "import { value } from '../../b/dist/index.js'; console.log(value);"
+    },
+    {
+      "name": "unexported-subpath",
+      "dependency": true,
+      "file": "src/index.ts",
+      "source": "import { secret } from '@probe/b/private'; console.log(secret);"
+    },
+    {
+      "name": "alias-source-declared",
+      "dependency": true,
+      "file": "src/index.ts",
+      "source": "import { value } from '@alias/b'; console.log(value);"
+    },
+    {
+      "name": "alias-source-undeclared",
+      "dependency": false,
+      "file": "src/index.ts",
+      "source": "import { value } from '@alias/b'; console.log(value);"
+    },
+    {
+      "name": "type-only-import-undeclared",
+      "dependency": false,
+      "file": "src/index.ts",
+      "source": "import type { Shape } from '@probe/b'; export type T = Shape;"
+    },
+    {
+      "name": "type-only-export-undeclared",
+      "dependency": false,
+      "file": "src/index.ts",
+      "source": "export type { Shape } from '@probe/b';"
+    },
+    {
+      "name": "type-query-undeclared",
+      "dependency": false,
+      "file": "src/index.ts",
+      "source": "export type T = import('@probe/b').Shape;"
+    },
+    {
+      "name": "reexport-undeclared",
+      "dependency": false,
+      "file": "src/index.ts",
+      "source": "export { value } from '@probe/b';"
+    },
+    {
+      "name": "reexport-sibling",
+      "dependency": true,
+      "file": "src/index.ts",
+      "source": "export { value } from '../../b/src/index.ts';"
+    },
+    {
+      "name": "dynamic-literal-undeclared",
+      "dependency": false,
+      "file": "src/index.ts",
+      "source": "export const load = () => import('@probe/b');"
+    },
+    {
+      "name": "dynamic-constant-undeclared",
+      "dependency": false,
+      "file": "src/index.ts",
+      "source": "const producer = '@probe/b'; export const load = () => import(producer);"
+    },
+    {
+      "name": "dynamic-concat-sibling",
+      "dependency": false,
+      "file": "src/index.ts",
+      "source": "const producer = '../../b/' + 'src/index.ts'; export const load = () => import(producer);"
+    },
+    {
+      "name": "dynamic-computed-sibling",
+      "dependency": false,
+      "file": "src/index.ts",
+      "source": "export const load = (name: string) => import(`../../b/src/${name}.ts`);"
+    },
+    {
+      "name": "fs-read-sibling",
+      "dependency": false,
+      "file": "src/index.ts",
+      "source": "import { readFileSync } from 'node:fs'; export const read = () => readFileSync(new URL('../../b/src/index.ts', import.meta.url), 'utf8');"
+    },
+    {
+      "name": "url-sibling",
+      "dependency": false,
+      "file": "src/index.ts",
+      "source": "export const producer = new URL('../../b/dist/index.js', import.meta.url);"
+    },
+    {
+      "name": "fs-read-local-control",
+      "dependency": false,
+      "file": "src/index.ts",
+      "source": "import { readFileSync } from 'node:fs'; export const read = () => readFileSync(new URL('./fixture.txt', import.meta.url), 'utf8');"
+    },
+    {
+      "name": "test-undeclared",
+      "dependency": false,
+      "file": "test/boundary.test.ts",
+      "source": "import { value } from '@probe/b'; console.log(value);"
+    },
+    {
+      "name": "test-sibling",
+      "dependency": true,
+      "file": "test/boundary.test.ts",
+      "source": "import { value } from '../../b/src/index.ts'; console.log(value);"
+    },
+    {
+      "name": "root-tool-undeclared",
+      "dependency": false,
+      "file": "ROOT:scripts/tool.ts",
+      "source": "import { value } from '@probe/b'; console.log(value);"
+    },
+    {
+      "name": "root-tool-sibling",
+      "dependency": false,
+      "file": "ROOT:scripts/tool.ts",
+      "source": "import { value } from '../packages/b/src/index.ts'; console.log(value);"
+    }
+  ]
+}

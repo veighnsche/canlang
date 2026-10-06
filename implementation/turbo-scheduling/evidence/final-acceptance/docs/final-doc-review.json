@@ -1,0 +1,24 @@
+{
+  "status": "passed",
+  "scope": "Final root-authored report, appended decision/living-plan entries and historical report topnotes; read/link/count/pin review only",
+  "localLinksChecked": 22,
+  "finalExecutableSourcePinsMatched": 48,
+  "claims": {
+    "tests": 5541,
+    "cacheFiles": 2242,
+    "cacheBytes": 18165975,
+    "snapshotInputs": 1181,
+    "tarballs": 13,
+    "visibleMiniflareDiagnostics": 797
+  },
+  "concreteMismatches": [],
+  "historicalSeparation": "Initial scheduling report explicitly routes current acceptance to final report; earlier pins/counts remain historical.",
+  "limits": "No hosted/browser/native-regeneration/VSIX/alternate-host qualification; preparation HOLD, no merge/publication and unchanged checkpoint retained.",
+  "reviewedDocumentHashes": {
+    "implementation/turbo-scheduling/evidence/final-acceptance/README.md": "c27146572a6762ccdb0ecdac08c138e15924a03e67794fe3e2de6dfd7b95afa1",
+    "docs/specification/DECISIONS.md": "22214acfea773f8be76a65b6d1d8e232b22105347fcc191370d1da7cb655b235",
+    "docs/ideal-filetree-plan.md": "b77ad21f610a617ae79a073c95a3b1b1eb39fc6abc8d9d7c9435363268ac64b4",
+    "implementation/PACKAGE-BOUNDARIES-AND-TURBO.md": "fb6e13fb738a6eedada4b6c18f065c54eadbacf63374ff8dc45d1278c49c7da4",
+    "implementation/turbo-scheduling/README.md": "12b11580295ebca38e6787129a3684dae66b2899d292e52e1bc37859c0189ade"
+  }
+}

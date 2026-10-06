@@ -1,0 +1,10 @@
+{
+  "bun_version": "1.4.2",
+  "turbo_version": "2.11.7",
+  "telemetry_disabled": true,
+  "registry_fixture_dependencies": false,
+  "hashes": {
+    "/private/tmp/canlang-turbo-probe-20261006.89738Q/tooling/node_modules/turbo/bin/turbo": "dd000efaa64f567f0986a84d363bbe7cf95a831010f6f6dbfd21770c89a8523d",
+    "/private/tmp/canlang-turbo-probe-20261006.89738Q/tooling/node_modules/@turbo/darwin-arm64/bin/turbo": "b10e28233aabac29e5e8f6c95f438b3407fc1cd5706305b0e215aa17602aa9ce"
+  }
+}

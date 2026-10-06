@@ -1,0 +1,15 @@
+{
+  "argv": [
+    "/private/tmp/canlang-turbo-probe-20261006.89738Q/tooling/node_modules/.bin/turbo",
+    "--skip-infer",
+    "--no-update-notifier",
+    "run",
+    "build",
+    "--dry-run=json"
+  ],
+  "cwd": "/private/tmp/canlang-turbo-probe-20261006.89738Q/native/python-named-control",
+  "exit": 0,
+  "stdout": "{\n  \"id\": \"3KKd8HlQfB1WDrr44jG4I9wp9T5\",\n  \"version\": \"1\",\n  \"turboVersion\": \"2.11.7\",\n  \"monorepo\": true,\n  \"globalCacheInputs\": {\n    \"rootKey\": \"I can\u2019t see ya, but I know you\u2019re here\",\n    \"files\": {},\n    \"hashOfExternalDependencies\": \"459c029558afe716\",\n    \"hashOfInternalDependencies\": \"\",\n    \"environmentVariables\": {\n      \"specified\": {\n        \"env\": [],\n        \"passThroughEnv\": null\n      },\n      \"configured\": [],\n      \"inferred\": [],\n      \"passthrough\": null\n    },\n    \"engines\": null\n  },\n  \"packages\": [\n    \"probe-python-app\",\n    \"probe-python-core\",\n    \"probe-python-workspace\"\n  ],\n  \"envMode\": \"strict\",\n  \"frameworkInference\": true,\n  \"tasks\": [],\n  \"user\": \"\",\n  \"scm\": {\n    \"type\": \"git\",\n    \"sha\": null,\n    \"branch\": null\n  }\n}\n\n",
+  "stderr": " WARNING  Unable to resolve uv.lock; using conservative Python task hashing. Run `uv lock` and commit uv.lock to restore dependency-aware caching: `uv workspace metadata --frozen` failed: error: unrecognized subcommand 'workspace'\n\nUsage: uv [OPTIONS] <COMMAND>\n\nFor more information, try '--help'.\n WARNING  uv task caching is disabled because Turborepo could not identify uv and its Python interpreter: uv python find exited with exit status: 2: error: unexpected argument '--resolve-links' found\n\n  tip: a similar argument exists: '--version'\n\nUsage: uv python find --version [REQUEST]\n\nFor more information, try '--help'.\n",
+  "seconds": 4.832
+}

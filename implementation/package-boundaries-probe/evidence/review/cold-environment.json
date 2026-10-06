@@ -1,0 +1,12 @@
+{
+  "environment_overrides": {
+    "TURBO_TELEMETRY_DISABLED": "1",
+    "DO_NOT_TRACK": "1",
+    "CARGO_NET_OFFLINE": "true",
+    "PATH_prefix": "/private/tmp/canlang-review-cold-w1_65l61/wrappers"
+  },
+  "fixture_source": "../native/fixtures/named-control",
+  "fresh_scratch": "/private/tmp/canlang-review-cold-w1_65l61",
+  "cargo_wrapper_positive_control": "probe-app fails with wrapper stderr and calls; @probe/js succeeds before any cargo calls",
+  "fixture_cache_copied": false
+}

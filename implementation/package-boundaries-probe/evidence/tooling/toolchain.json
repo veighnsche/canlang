@@ -1,0 +1,44 @@
+{
+  "turbo_version": "2.11.7",
+  "comparison_version": "2.11.0",
+  "install": "exact dependency; bun install --ignore-scripts; scratch cache",
+  "binary_path": "/private/tmp/canlang-turbo-probe-20261006.89738Q/tooling/node_modules/@turbo/darwin-arm64/bin/turbo",
+  "binary_sha256": "b10e28233aabac29e5e8f6c95f438b3407fc1cd5706305b0e215aa17602aa9ce",
+  "host": "macOS-27.0.1-arm64-arm-64bit-Mach-O",
+  "versions": {
+    "bun": {
+      "path": "/Users/vince/.bun/bin/bun",
+      "version": "1.4.2",
+      "exit_code": 0
+    },
+    "node": {
+      "path": "/Users/vince/.vite-plus/bin/node",
+      "version": "v24.21.0",
+      "exit_code": 0
+    },
+    "cargo": {
+      "path": "/Users/vince/.cargo/bin/cargo",
+      "version": "cargo 1.99.0 (5f94df478 2026-08-27)",
+      "exit_code": 0
+    },
+    "rustc": {
+      "path": "/Users/vince/.cargo/bin/rustc",
+      "version": "rustc 1.99.0 (b940084d7 2026-09-28)",
+      "exit_code": 0
+    },
+    "uv": {
+      "path": "/Users/vince/.local/bin/uv",
+      "version": "uv 0.5.9 (0652800cb 2024-12-13)",
+      "exit_code": 0
+    },
+    "go": {
+      "path": "/opt/homebrew/bin/go",
+      "version": "go version go1.27.1 darwin/arm64",
+      "exit_code": 0
+    }
+  },
+  "repository_head": "7fd8c6bf4717feeffc70b46819377b74b353e117",
+  "schema_sha256": "15a9df572c584a6fa07f21736e755151694892618b8c936790864299a012cfa4",
+  "package_manifest_sha256": "a695fa210ebe78dabf3fa00f79dade064063434b817c317a710856cc3742354d",
+  "bun_lock_sha256": "860997e97b299d30db02304c8c16e52df9b8bc9451daf2f0f8a741e46ff636cf"
+}

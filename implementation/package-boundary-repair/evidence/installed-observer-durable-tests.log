@@ -1,0 +1,16 @@
+▶ Q4 path A: served Receipt.read over real miniflare D1
+  ✔ serves the observed projection with rows read back across D1 handles (164.528125ms)
+✔ Q4 path A: served Receipt.read over real miniflare D1 (424.943084ms)
+▶ Q4 path B: staged bundle fail-closed pre-B
+  ✔ stages the rewritten observer specifier with the vendor key absent (B not landed) (369.99ms)
+  ✔ boots the real bundle in workerd with a DB binding (gate passes, no crash) (420.993584ms)
+  ✔ workerd's real observer miss shape refuses loud down every branch (332.228583ms)
+✔ Q4 path B: staged bundle fail-closed pre-B (1123.537209ms)
+ℹ tests 4
+ℹ suites 2
+ℹ pass 4
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1550.971916

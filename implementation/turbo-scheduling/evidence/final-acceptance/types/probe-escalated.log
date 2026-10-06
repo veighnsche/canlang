@@ -1,0 +1,65 @@
+Installed declaration scratch (preserved on success or failure): /private/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/canlang-installed-types-5a3B3V
+bun install v1.4.2 (744846f84)
+Resolving dependencies
+Resolved, downloaded and extracted [117]
+Saved lockfile
+
++ @cloudflare/workers-types@5.20261004.1
++ @types/node@24.19.1
++ typescript@5.9.3
++ @canlang/cloudflare@/private/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/canlang-installed-types-5a3B3V/tarballs/cloudflare.tgz
++ @canlang/contracts@/private/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/canlang-installed-types-5a3B3V/tarballs/contracts.tgz
++ @canlang/files@/private/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/canlang-installed-types-5a3B3V/tarballs/files.tgz
++ @canlang/identity@/private/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/canlang-installed-types-5a3B3V/tarballs/identity.tgz
++ @canlang/interfaces@/private/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/canlang-installed-types-5a3B3V/tarballs/interfaces.tgz
++ @canlang/services@/private/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/canlang-installed-types-5a3B3V/tarballs/services.tgz
++ @canlang/state@/private/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/canlang-installed-types-5a3B3V/tarballs/state.tgz
++ @canlang/stdlib@/private/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/canlang-installed-types-5a3B3V/tarballs/stdlib.tgz
++ @canlang/testkit@/private/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/canlang-installed-types-5a3B3V/tarballs/testkit.tgz
++ @canlang/ui@/private/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/canlang-installed-types-5a3B3V/tarballs/ui.tgz
++ @canlang/values@/private/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/canlang-installed-types-5a3B3V/tarballs/values.tgz
++ @canlang/work@/private/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/canlang-installed-types-5a3B3V/tarballs/work.tgz
++ @canlang/work-kernel@/private/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/canlang-installed-types-5a3B3V/tarballs/work-kernel.tgz
+
+135 packages installed [649.00ms]
+node:internal/modules/run_main:107
+    triggerUncaughtException(
+    ^
+
+AssertionError [ERR_ASSERTION]: installed declarations produced diagnostics; inspect baseline-diagnostics.json
+
+797 !== 0
+
+    at consumerCheck (file:///private/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/canlang-installed-types-5a3B3V/consumer/verify.mjs:67:10)
+    at async file:///private/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/canlang-installed-types-5a3B3V/consumer/verify.mjs:87:39 {
+  generatedMessage: false,
+  code: 'ERR_ASSERTION',
+  actual: 797,
+  expected: 0,
+  operator: 'strictEqual',
+  diff: 'simple'
+}
+
+Node.js v24.21.0
+node:internal/errors:986
+  const err = new Error(message);
+              ^
+
+Error: Command failed: /Users/vince/.vite-plus/js_runtime/node/24.21.0/bin/node --permission --allow-fs-read=/private/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/canlang-installed-types-5a3B3V --allow-fs-write=/private/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/canlang-installed-types-5a3B3V /private/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/canlang-installed-types-5a3B3V/consumer/verify.mjs --consumer /Users/vince/Projects/canlang
+    at genericNodeError (node:internal/errors:986:15)
+    at wrappedFn (node:internal/errors:540:14)
+    at checkExecSyncError (node:child_process:942:11)
+    at execFileSync (node:child_process:978:15)
+    at file:///Users/vince/Projects/canlang/scripts/verify-installed-types.mjs:109:3
+    at ModuleJob.run (node:internal/modules/esm/module_job:561:25)
+    at async node:internal/modules/esm/loader:647:26
+    at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:101:5) {
+  status: 1,
+  signal: null,
+  output: [ null, null, null ],
+  pid: 58226,
+  stdout: null,
+  stderr: null
+}
+
+Node.js v24.21.0

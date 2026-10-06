@@ -1,0 +1,15 @@
+▶ Q2 observer seam (injected production leg + work-loader fallback)
+  ✔ serves the exact observed projection through an injected observer (18.138625ms)
+  ✔ serves deep-equal output through the work-loader fallback when nothing is injected (3.358459ms)
+  ✔ D1: absent-module ONLY falls back — broken-B shapes stay loud (0.107833ms)
+  ✔ D2: the canonical read path carries an injected observer to Receipt.read serving (0.987916ms)
+  ✔ pre-join refusals short-circuit before any injected observer runs (1.161708ms)
+✔ Q2 observer seam (injected production leg + work-loader fallback) (24.615708ms)
+ℹ tests 5
+ℹ suites 1
+ℹ pass 5
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 26.293084

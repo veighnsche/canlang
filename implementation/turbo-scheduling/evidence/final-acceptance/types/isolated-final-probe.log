@@ -1,0 +1,25 @@
+Installed declaration scratch (preserved on success or failure): /private/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/canlang-installed-types-y6kPeF
+bun install v1.4.2 (744846f84)
+Resolving dependencies
+Resolved, downloaded and extracted [117]
+Saved lockfile
+
++ @cloudflare/workers-types@5.20261004.1
++ @types/node@24.19.1
++ typescript@5.9.3
++ @canlang/cloudflare@/private/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/canlang-installed-types-y6kPeF/tarballs/cloudflare.tgz
++ @canlang/contracts@/private/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/canlang-installed-types-y6kPeF/tarballs/contracts.tgz
++ @canlang/files@/private/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/canlang-installed-types-y6kPeF/tarballs/files.tgz
++ @canlang/identity@/private/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/canlang-installed-types-y6kPeF/tarballs/identity.tgz
++ @canlang/interfaces@/private/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/canlang-installed-types-y6kPeF/tarballs/interfaces.tgz
++ @canlang/services@/private/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/canlang-installed-types-y6kPeF/tarballs/services.tgz
++ @canlang/state@/private/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/canlang-installed-types-y6kPeF/tarballs/state.tgz
++ @canlang/stdlib@/private/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/canlang-installed-types-y6kPeF/tarballs/stdlib.tgz
++ @canlang/testkit@/private/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/canlang-installed-types-y6kPeF/tarballs/testkit.tgz
++ @canlang/ui@/private/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/canlang-installed-types-y6kPeF/tarballs/ui.tgz
++ @canlang/values@/private/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/canlang-installed-types-y6kPeF/tarballs/values.tgz
++ @canlang/work@/private/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/canlang-installed-types-y6kPeF/tarballs/work.tgz
++ @canlang/work-kernel@/private/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/canlang-installed-types-y6kPeF/tarballs/work-kernel.tgz
+
+135 packages installed [550.00ms]
+Installed declaration verification passed: 150 typed exports, 13 owners; 797 third-party diagnostics retained; evidence /private/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/canlang-installed-types-y6kPeF/consumer/evidence.json

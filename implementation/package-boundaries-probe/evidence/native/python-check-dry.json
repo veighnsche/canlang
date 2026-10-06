@@ -1,0 +1,15 @@
+{
+  "argv": [
+    "/private/tmp/canlang-turbo-probe-20261006.89738Q/tooling/node_modules/.bin/turbo",
+    "--skip-infer",
+    "--no-update-notifier",
+    "run",
+    "check",
+    "--dry-run=json"
+  ],
+  "cwd": "/private/tmp/canlang-turbo-probe-20261006.89738Q/native/python-control",
+  "exit": 1,
+  "stdout": "",
+  "stderr": "  x The uv workspace has no name.\n  | \n  | Turborepo needs a name for the workspace's tasks (`<name>#check`),\n  | filters (`--filter=<name>`), and configuration. Add one to the root\n  | pyproject.toml:\n  | \n  |     [tool.turbo]\n  |     name = \"my-workspace\"\n\n",
+  "seconds": 5.0
+}

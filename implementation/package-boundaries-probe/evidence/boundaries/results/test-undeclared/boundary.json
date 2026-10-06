@@ -1,0 +1,13 @@
+{
+  "argv": [
+    "/private/tmp/canlang-turbo-probe-20261006.89738Q/tooling/node_modules/.bin/turbo",
+    "boundaries",
+    "--no-color",
+    "--no-update-notifier",
+    "--skip-infer"
+  ],
+  "cwd": "/private/tmp/canlang-turbo-probe-20261006.89738Q/boundaries/test-undeclared",
+  "exit_code": 1,
+  "stdout": "Checking packages...\nChecked 5 files in 2 packages, 1 issue found\n",
+  "stderr": "\u2022 turbo 2.11.7\n  x cannot import package `@probe/b` because it is not a dependency\n   ,-[/private/tmp/canlang-turbo-probe-20261006.89738Q/boundaries/test-undeclared/packages/a/test/boundary.test.ts:1:23]\n 1 | import { value } from '@probe/b'; console.log(value);\n   :                       ^^^^^|^^^^\n   :                            `-- package imported here\n   `----\n\n"
+}

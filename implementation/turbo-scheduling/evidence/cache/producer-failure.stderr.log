@@ -1,0 +1,4 @@
+ WARNING  the `daemon` configuration option is deprecated and will be removed in version 3.0. The daemon is no longer used for `turbo run`.
+@canlang/contracts#build:  WARNING  command finished with error, but continuing...
+@canlang/contracts#build:  ERROR  command (/private/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/canlang-turbo-cache-sNsBEN/workspace/packages/contracts) /Users/vince/.bun/bin/bun run build exited (1)
+ ERROR  run failed: command  exited (1)

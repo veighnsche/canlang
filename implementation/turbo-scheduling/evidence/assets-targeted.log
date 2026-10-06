@@ -1,0 +1,11 @@
+
+ RUN  v3.2.7 /Users/vince/Projects/canlang
+
+ ✓ packages/cloudflare/test/package-assets.test.ts (14 tests) 1502ms
+   ✓ installed package asset discovery > reads real installed producer bytes through exported locations  1479ms
+
+ Test Files  1 passed (1)
+      Tests  14 passed (14)
+   Start at  21:23:30
+   Duration  1.68s (transform 24ms, setup 0ms, collect 25ms, tests 1.50s, environment 0ms, prepare 40ms)
+

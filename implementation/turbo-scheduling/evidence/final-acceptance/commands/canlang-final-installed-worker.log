@@ -1,0 +1,112 @@
+$ node scripts/verify-installed-worker.mjs --skip-build
+bun install v1.4.2 (744846f84)
+Resolving dependencies
+Resolved, downloaded and extracted [9]
+Saved lockfile
+
++ @canlang/cloudflare@/private/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/canlang-installed-worker-MlacZH/tarballs/cloudflare.tgz
+
+127 packages installed [208.00ms]
+(node:84615) [PERM0002] SecurityWarning: The flag --allow-child-process must be used with extreme caution. It could invalidate the permission model.
+(Use `node --trace-warnings ...` to show where the warning was created)
+{
+  "node": "v24.21.0",
+  "checkoutRead": "ERR_ACCESS_DENIED",
+  "bunPermissionLimit": "Bun and workerd subprocesses do not inherit Node filesystem permissions; resolved producer entries and emitted runtime bytes are checked.",
+  "directDependencies": [
+    "@canlang/cloudflare"
+  ],
+  "linker": "isolated",
+  "installConfiguration": "[install]\nlinker = \"isolated\"\n",
+  "directPackageBindings": [
+    "cloudflare"
+  ],
+  "ownerEntryRealpath": "/private/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/canlang-installed-worker-MlacZH/consumer/node_modules/.bun/@canlang+cloudflare@+private+var+folders+5x+bpszcvmj1tddmjp35y21dt680000gn+T+canlan+33ac8e1c755664c2+2b91fc17bf64bdfd/node_modules/@canlang/cloudflare/dist/deploy/bundle.js",
+  "ownerResolutions": {
+    "@canlang/cloudflare/worker": "/private/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/canlang-installed-worker-MlacZH/consumer/node_modules/.bun/@canlang+cloudflare@+private+var+folders+5x+bpszcvmj1tddmjp35y21dt680000gn+T+canlan+33ac8e1c755664c2+2b91fc17bf64bdfd/node_modules/@canlang/cloudflare/dist/worker/entry.js",
+    "@canlang/cloudflare/worker/main": "/private/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/canlang-installed-worker-MlacZH/consumer/node_modules/.bun/@canlang+cloudflare@+private+var+folders+5x+bpszcvmj1tddmjp35y21dt680000gn+T+canlan+33ac8e1c755664c2+2b91fc17bf64bdfd/node_modules/@canlang/cloudflare/dist/worker/main.js",
+    "@canlang/cloudflare/runtime/mcp-registry": "/private/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/canlang-installed-worker-MlacZH/consumer/node_modules/.bun/@canlang+cloudflare@+private+var+folders+5x+bpszcvmj1tddmjp35y21dt680000gn+T+canlan+33ac8e1c755664c2+2b91fc17bf64bdfd/node_modules/@canlang/cloudflare/dist/runtime/mcp-registry.js",
+    "@canlang/interfaces/mcp/server": "/private/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/canlang-installed-worker-MlacZH/consumer/node_modules/.bun/@canlang+interfaces@+private+var+folders+5x+bpszcvmj1tddmjp35y21dt680000gn+T+canlan+30af400a053f8954+2b91fc17bf64bdfd/node_modules/@canlang/interfaces/dist/src/mcp/server.js",
+    "@canlang/interfaces/http/operations": "/private/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/canlang-installed-worker-MlacZH/consumer/node_modules/.bun/@canlang+interfaces@+private+var+folders+5x+bpszcvmj1tddmjp35y21dt680000gn+T+canlan+30af400a053f8954+2b91fc17bf64bdfd/node_modules/@canlang/interfaces/dist/src/http/operations.js",
+    "@canlang/contracts/distribution": "/private/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/canlang-installed-worker-MlacZH/consumer/node_modules/.bun/@canlang+contracts@+private+var+folders+5x+bpszcvmj1tddmjp35y21dt680000gn+T+canlan+b7e941e59d25168d/node_modules/@canlang/contracts/dist/distribution.js",
+    "@canlang/ui/distribution": "/private/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/canlang-installed-worker-MlacZH/consumer/node_modules/.bun/@canlang+ui@+private+var+folders+5x+bpszcvmj1tddmjp35y21dt680000gn+T+canlan+fc10f156bf9a1685/node_modules/@canlang/ui/dist/src/distribution.js",
+    "@canlang/identity/distribution": "/private/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/canlang-installed-worker-MlacZH/consumer/node_modules/.bun/@canlang+identity@+private+var+folders+5x+bpszcvmj1tddmjp35y21dt680000gn+T+canlan+6240acbe7be19ce6/node_modules/@canlang/identity/dist/src/distribution.js",
+    "@canlang/stdlib/distribution": "/private/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/canlang-installed-worker-MlacZH/consumer/node_modules/.bun/@canlang+stdlib@+private+var+folders+5x+bpszcvmj1tddmjp35y21dt680000gn+T+canlan+97cca8fb5d064cb6/node_modules/@canlang/stdlib/dist/src/distribution.js",
+    "@canlang/state/distribution": "/private/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/canlang-installed-worker-MlacZH/consumer/node_modules/.bun/@canlang+state@+private+var+folders+5x+bpszcvmj1tddmjp35y21dt680000gn+T+canlan+151ee387efe5b77b/node_modules/@canlang/state/dist/src/distribution.js",
+    "@canlang/values/distribution": "/private/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/canlang-installed-worker-MlacZH/consumer/node_modules/.bun/@canlang+values@+private+var+folders+5x+bpszcvmj1tddmjp35y21dt680000gn+T+canlan+43e042769c2da594/node_modules/@canlang/values/dist/src/distribution.js",
+    "@canlang/values/bindings/generated/values_semantics_bg.wasm": "/private/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/canlang-installed-worker-MlacZH/consumer/node_modules/.bun/@canlang+values@+private+var+folders+5x+bpszcvmj1tddmjp35y21dt680000gn+T+canlan+43e042769c2da594/node_modules/@canlang/values/dist/bindings/generated/values_semantics_bg.wasm",
+    "@canlang/values/bindings/backend": "/private/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/canlang-installed-worker-MlacZH/consumer/node_modules/.bun/@canlang+values@+private+var+folders+5x+bpszcvmj1tddmjp35y21dt680000gn+T+canlan+43e042769c2da594/node_modules/@canlang/values/dist/bindings/backend.js",
+    "@canlang/state/receipt": "/private/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/canlang-installed-worker-MlacZH/consumer/node_modules/.bun/@canlang+state@+private+var+folders+5x+bpszcvmj1tddmjp35y21dt680000gn+T+canlan+151ee387efe5b77b/node_modules/@canlang/state/dist/src/receipt/index.js"
+  },
+  "installedLocations": [
+    "node_modules/.bun/@canlang+cloudflare@+private+var+folders+5x+bpszcvmj1tddmjp35y21dt680000gn+T+canlan+33ac8e1c755664c2+2b91fc17bf64bdfd/node_modules/@canlang/cloudflare/dist/deploy/bundle.js",
+    "node_modules/.bun/@canlang+cloudflare@+private+var+folders+5x+bpszcvmj1tddmjp35y21dt680000gn+T+canlan+33ac8e1c755664c2+2b91fc17bf64bdfd/node_modules/@canlang/cloudflare/dist/worker/entry.js",
+    "node_modules/.bun/@canlang+cloudflare@+private+var+folders+5x+bpszcvmj1tddmjp35y21dt680000gn+T+canlan+33ac8e1c755664c2+2b91fc17bf64bdfd/node_modules/@canlang/cloudflare/dist/worker/main.js",
+    "node_modules/.bun/@canlang+cloudflare@+private+var+folders+5x+bpszcvmj1tddmjp35y21dt680000gn+T+canlan+33ac8e1c755664c2+2b91fc17bf64bdfd/node_modules/@canlang/cloudflare/dist/runtime/mcp-registry.js",
+    "node_modules/.bun/@canlang+interfaces@+private+var+folders+5x+bpszcvmj1tddmjp35y21dt680000gn+T+canlan+30af400a053f8954+2b91fc17bf64bdfd/node_modules/@canlang/interfaces/dist/src/mcp/server.js",
+    "node_modules/.bun/@canlang+interfaces@+private+var+folders+5x+bpszcvmj1tddmjp35y21dt680000gn+T+canlan+30af400a053f8954+2b91fc17bf64bdfd/node_modules/@canlang/interfaces/dist/src/http/operations.js",
+    "node_modules/.bun/@canlang+contracts@+private+var+folders+5x+bpszcvmj1tddmjp35y21dt680000gn+T+canlan+b7e941e59d25168d/node_modules/@canlang/contracts/dist/distribution.js",
+    "node_modules/.bun/@canlang+contracts@+private+var+folders+5x+bpszcvmj1tddmjp35y21dt680000gn+T+canlan+b7e941e59d25168d/node_modules/@canlang/contracts/dist",
+    "node_modules/.bun/@canlang+ui@+private+var+folders+5x+bpszcvmj1tddmjp35y21dt680000gn+T+canlan+fc10f156bf9a1685/node_modules/@canlang/ui/dist/src/distribution.js",
+    "node_modules/.bun/@canlang+ui@+private+var+folders+5x+bpszcvmj1tddmjp35y21dt680000gn+T+canlan+fc10f156bf9a1685/node_modules/@canlang/ui/dist/src",
+    "node_modules/.bun/@canlang+identity@+private+var+folders+5x+bpszcvmj1tddmjp35y21dt680000gn+T+canlan+6240acbe7be19ce6/node_modules/@canlang/identity/dist/src/distribution.js",
+    "node_modules/.bun/@canlang+identity@+private+var+folders+5x+bpszcvmj1tddmjp35y21dt680000gn+T+canlan+6240acbe7be19ce6/node_modules/@canlang/identity/dist/src",
+    "node_modules/.bun/@canlang+stdlib@+private+var+folders+5x+bpszcvmj1tddmjp35y21dt680000gn+T+canlan+97cca8fb5d064cb6/node_modules/@canlang/stdlib/dist/src/distribution.js",
+    "node_modules/.bun/@canlang+stdlib@+private+var+folders+5x+bpszcvmj1tddmjp35y21dt680000gn+T+canlan+97cca8fb5d064cb6/node_modules/@canlang/stdlib/dist/src",
+    "node_modules/.bun/@canlang+state@+private+var+folders+5x+bpszcvmj1tddmjp35y21dt680000gn+T+canlan+151ee387efe5b77b/node_modules/@canlang/state/dist/src/distribution.js",
+    "node_modules/.bun/@canlang+state@+private+var+folders+5x+bpszcvmj1tddmjp35y21dt680000gn+T+canlan+151ee387efe5b77b/node_modules/@canlang/state/dist/src",
+    "node_modules/.bun/@canlang+values@+private+var+folders+5x+bpszcvmj1tddmjp35y21dt680000gn+T+canlan+43e042769c2da594/node_modules/@canlang/values/dist/src/distribution.js",
+    "node_modules/.bun/@canlang+values@+private+var+folders+5x+bpszcvmj1tddmjp35y21dt680000gn+T+canlan+43e042769c2da594/node_modules/@canlang/values/dist/src",
+    "node_modules/.bun/@canlang+values@+private+var+folders+5x+bpszcvmj1tddmjp35y21dt680000gn+T+canlan+43e042769c2da594/node_modules/@canlang/values/dist/bindings",
+    "node_modules/.bun/@canlang+ui@+private+var+folders+5x+bpszcvmj1tddmjp35y21dt680000gn+T+canlan+fc10f156bf9a1685/node_modules/@canlang/ui/dist/browser",
+    "node_modules/.bun/@canlang+cloudflare@+private+var+folders+5x+bpszcvmj1tddmjp35y21dt680000gn+T+canlan+33ac8e1c755664c2+2b91fc17bf64bdfd/node_modules/@canlang/cloudflare/dist/deploy/bundle.js",
+    "node_modules/.bun/@canlang+cloudflare@+private+var+folders+5x+bpszcvmj1tddmjp35y21dt680000gn+T+canlan+33ac8e1c755664c2+2b91fc17bf64bdfd/node_modules/@canlang/cloudflare/dist/deploy/producer-files.js",
+    "node_modules/.bun/@canlang+values@+private+var+folders+5x+bpszcvmj1tddmjp35y21dt680000gn+T+canlan+43e042769c2da594/node_modules/@canlang/values/dist/bindings/generated/values_semantics_bg.wasm",
+    "node_modules/.bun/@canlang+values@+private+var+folders+5x+bpszcvmj1tddmjp35y21dt680000gn+T+canlan+43e042769c2da594/node_modules/@canlang/values/dist/bindings/generated/values_semantics_bg.wasm",
+    "node_modules/.bun/@canlang+values@+private+var+folders+5x+bpszcvmj1tddmjp35y21dt680000gn+T+canlan+43e042769c2da594/node_modules/@canlang/values/dist/bindings/backend.js",
+    "node_modules/.bun/@canlang+state@+private+var+folders+5x+bpszcvmj1tddmjp35y21dt680000gn+T+canlan+151ee387efe5b77b/node_modules/@canlang/state/dist/src/receipt/index.js",
+    "node_modules/.bun/@canlang+cloudflare@+private+var+folders+5x+bpszcvmj1tddmjp35y21dt680000gn+T+canlan+33ac8e1c755664c2+2b91fc17bf64bdfd/node_modules/@canlang/cloudflare/dist/dev/local-run.js"
+  ],
+  "esmCondition": "import.js",
+  "workerModules": 159,
+  "productionWorker": {
+    "initializeStatus": 401,
+    "body": "{\"error\":{\"code\":\"forbidden\",\"message\":\"Authentication required.\"}}"
+  },
+  "wasm": {
+    "key": "vendor/values-bindings/generated/values_semantics_bg.wasm",
+    "bytes": 622216,
+    "sha256": "b0d44d9a4af37d23eacbde9c9841ef0c75822bd97e9e151c11af4a5cb4561b2f",
+    "compiledModule": "ABI accepted; add-int(1,2)=3",
+    "workerd": {
+      "compiled": true,
+      "abi": 1,
+      "sum": "3"
+    }
+  },
+  "browser": {
+    "browser/bootstrap.js": {
+      "bytes": 10300,
+      "sha256": "e26a1833631bd3b94ca2d690c74fe654c9a1a071b188d402f3b0d8c96ae59cd0",
+      "contentType": "application/javascript"
+    },
+    "browser/can-style.css": {
+      "bytes": 1155983,
+      "sha256": "5cdb8bf94708637e24d344062333cb68b4efbf06b284a5f16200c54eecf46333",
+      "contentType": "text/css"
+    },
+    "browser/polling.js": {
+      "bytes": 6057,
+      "sha256": "f47f6a1087745b50d20bf723fee0a23599a6fbe2f13a52d7557ee7d24ef066d7",
+      "contentType": "application/javascript"
+    }
+  },
+  "negativeCases": [
+    "missing values_semantics_bg.wasm",
+    "corrupt values_semantics_bg.wasm",
+    "missing can-style.css",
+    "corrupt can-style.css"
+  ],
+  "observer": "exact missing producer remains fail-closed"
+}
+Installed Worker verification passed. Evidence: /private/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/canlang-installed-worker-MlacZH/consumer/evidence.json

@@ -1,0 +1,37 @@
+{
+  "name": "@canlang/contracts",
+  "version": "0.1.0",
+  "license": "MIT",
+  "description": "CanLang shared type-only boundaries. Manifest/export assembly: lane 07; each src module owned by its PLAN producer.",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./distribution": {
+      "types": "./dist/distribution.d.ts",
+      "default": "./dist/distribution.js"
+    },
+    "./values": {
+      "types": "./dist/values.d.ts",
+      "default": "./dist/values.js"
+    }
+  },
+  "scripts": {
+    "build": "node ../../scripts/build-package.mjs",
+    "typecheck": "node ../../scripts/run-tasks.mjs typecheck:check --filter=@canlang/contracts",
+    "build:emit": "tsc -p tsconfig.json",
+    "typecheck:check": "tsc --noEmit -p tsconfig.json",
+    "build:prepare": "node ../../scripts/build-package.mjs --prepare"
+  },
+  "devDependencies": {
+    "@types/node": "24.19.1",
+    "vitest": "^3.2.4"
+  }
+}

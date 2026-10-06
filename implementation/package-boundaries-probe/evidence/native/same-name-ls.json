@@ -1,0 +1,14 @@
+{
+  "argv": [
+    "/private/tmp/canlang-turbo-probe-20261006.89738Q/tooling/node_modules/.bin/turbo",
+    "--skip-infer",
+    "--no-update-notifier",
+    "ls",
+    "--output=json"
+  ],
+  "cwd": "/private/tmp/canlang-turbo-probe-20261006.89738Q/native/same-name-control",
+  "exit": 1,
+  "stdout": "",
+  "stderr": "\u2022 turbo 2.11.7\n  x Failed to add workspace \"probe-dual\" from \"packages/dual/Cargo.toml\",\n  | it already exists at \"packages/dual/package.json\". Rename one package or\n  | module so every Turborepo package identity is unique.\n\n",
+  "seconds": 6.114
+}

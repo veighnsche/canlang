@@ -1,0 +1,38 @@
+{
+  "request": {
+    "state": "Assess a design-stage choice about how to deliver package isolation and mixed-language builds for Can. Desired outcomes apply equally to all candidates: owning declarations define dependencies, authoring/configuration stays simple, workflows reproduce completely, and operational maintenance remains economical.\nObserved starting point: Bun is already pinned to 1.4.2 at the root, packages/* contains 13 TS package manifests, and build order lives in a root shell chain. That chain builds values -> contracts -> work-kernel -> identity -> ui -> interfaces, runs tsc for state/stdlib/testkit/cloudflare, and applies CLI execute permissions. A production-source AST audit of static literal import/export edges reports 165 relative cross-package references in 115 files outside tests, including 163 references into contracts source; it is not a complete inventory of test/dynamic dependencies. Consumer manifests for services/files/state/ui/values/work omit some used dependency edges. Broad roots and imports admit other packages' sources; literal values/state ../../contracts/src include entries resolve incorrectly to absent root paths. Dynamic cloudflare state/dist access lacks the declared state edge, and a runtime identity consumer is listed only under devDependencies. State has a computed TS-source work-loader fallback for dev checkouts that cloudflare invoke can reach; work has a type-only reference to state commands. Simply declaring both directions makes a cycle, potentially calling for contract extraction or an injected boundary rather than assuming a production backend switch.\nNative components are separately manifested: compiler/Cargo.toml is a standalone native CLI; packages/values/Cargo.toml privately groups semantics and bindings; work-kernel has a Cargo.toml; cloudflare/preparation owns a process CLI Cargo.toml; a loader-smoke Rust test is also present. The Python tooling uses the standard library without a pyproject or uv workspace. There is presently no discovered Go implementation, go.mod or go.work; Go belongs to intended future scope. Existing values WASM bindings are optional and work-kernel offers build:wasm. Keep those defaults.\nDocumentation verified at 2026-10-06 supplies relevant but limited evidence: https://turborepo.dev/blog/2-11, published 2026-09-18, announces experimental native Cargo/uv/go.work workspace and task-graph integration, subject to change. https://turborepo.dev/docs/reference/boundaries describes experimental checks of undeclared dependencies and imports outside packages. https://bun.sh/docs/pm/workspaces supports internal workspace:* dependencies. This establishes availability rather than proof of this tree's mixed/nested Cargo handling, toolchain-sensitive caching, restoring native/WASM outputs, or exhaustive test/dynamic validation.\nThe invariant repair for all three plans is identical: declare every TS consuming edge with workspace:* and use only exported public package entrypoints. Do not read adjacent src/dist or evade ownership with TS aliases. Cover tests and dynamic loaders in enforcement. Represent native dependencies in their Cargo, Go or Python manifests, without introducing unnecessary npm package identities. Task wrappers, if selected, expose commands rather than replacing those declarations.\nPlan A starts with this isolation repair and retains Bun plus manually ordered commands. Advantages: smaller initial migration surface and less additional configuration. Costs: retaining manual task ordering and delaying a shared scheduler/cache.\nPlan B combines isolation repair with Turbo's package.json-based orchestration and narrowly chosen adapters for native/tool commands. Advantages: common task dependency scheduling and caching with the established JS task model. Costs: authoring cross-language task dependencies and maintaining adapter/environment/output hashing. It does not require wrapping each native package as npm.\nPlan C combines the repair with Turbo native discovery, first demonstrating correct mixed and nested workspace discovery, toolchain inputs and artifact handling before replacement of the current commands. Advantages: closer use of native dependency ownership and fewer duplicate command/edge declarations where supported. Costs: experimental API compatibility and additional validation of exact layouts and outputs. Existing builds remain available if the demonstration fails.\nThere are no supplied timing/cache measurements or native-discovery validation results. Do not treat any orchestration addition as inherently enforcing the public import boundary. An unresolved outcome is legitimate if the stage recommendation needs missing evidence.",
+    "questions": {
+      "delivery_sequence": {
+        "type": "choice",
+        "instructions": "Select the delivery plan most justified for the initial stage by the shared explicit-ownership, simplicity and repeatability objectives and this observed repository state.",
+        "criteria": {
+          "A": "Deliver package isolation first, keeping Bun and explicit build order for now; compare the lighter migration with ongoing order maintenance.",
+          "B": "Deliver package isolation with Turbo using JS task metadata and limited native/tool adapters; compare scheduling/caching with adapter and hash configuration effort.",
+          "C": "Deliver package isolation with experimentally native Turbo only after repository-specific graph/toolchain/artifact validation; compare native manifest reuse with integration uncertainty.",
+          "unresolved": "No plan can yet be preferred on the supplied evidence; further focused validation is needed."
+        }
+      }
+    },
+    "model": "jev-latest"
+  },
+  "response": {
+    "model": "jev-1.13.0",
+    "answers": {
+      "delivery_sequence": {
+        "type": "choice",
+        "choice": "A",
+        "confidence": 0.79,
+        "probabilities": {
+          "unresolved": 0.05,
+          "A": 0.85,
+          "B": 0.08,
+          "C": 0.02
+        }
+      }
+    },
+    "usage": {
+      "input_tokens": 1345,
+      "output_tokens": 49
+    }
+  }
+}

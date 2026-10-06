@@ -1,0 +1,7 @@
+{
+  "name": "probe-dual",
+  "version": "0.0.0",
+  "scripts": {
+    "build": "node -e \"console.log('JS dual build')\""
+  }
+}

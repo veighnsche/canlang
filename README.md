@@ -74,17 +74,29 @@ For an existing checkout, run `git submodule update --init --recursive` after pu
 
 ## Build and explore
 
-The workspace uses **Bun 1.4.2**, **Node.js 22+**, and **Rust 1.99+**. From the repository root:
+The workspace uses **Bun 1.4.2**, **Turbo 2.11.7**, **Node.js 22+** (Node 24 for the verified runtime test profile), and **Rust 1.99+**. From the repository root:
 
 ```sh
 bun install --frozen-lockfile
 bun run build
 bun run typecheck
-cargo build --manifest-path compiler/Cargo.toml --locked
+bun run check:boundaries
+bun run build:compiler
 ./compiler/target/debug/can --help
 ```
 
-Use `bun run test` for workspace tests and `cargo test --manifest-path compiler/Cargo.toml --locked` for compiler tests. See [developer setup](docs/dev-setup.md), [compiler commands](compiler/README.md), and [installation](docs/install.md) for details. `can check`, `compile`, `lint`, `fmt`, `policy`, and `lsp` provide compiler and authoring services; platform commands delegate to `can-platform`.
+Turbo schedules the 13 package producers through their declared dependencies. Builds use a local cache with verified host, Node and Bun identities; cleanup before restoration removes obsolete outputs. `bun run build --filter=@canlang/values` builds one owner's dependency closure, and `bun run build:uncached` executes producers with cache reads and writes disabled. [The scheduling and cache report](implementation/turbo-scheduling/README.md) records the proof and its limits.
+
+Use `bun run test` for the root integration suites, `bun run test:all` for those suites plus owning package and Cloudflare runtime tests, and `bun run test:compiler` for compiler tests. Test suites run uncached; `test:all` schedules them sequentially. Native builds and release verification also run uncached through explicit adapters. See [developer setup](docs/dev-setup.md), [compiler commands](compiler/README.md), and [installation](docs/install.md) for details. `can check`, `compile`, `lint`, `fmt`, `policy`, and `lsp` provide compiler and authoring services; platform commands delegate to `can-platform`.
+
+`bun run release` validates the prepared package outputs. `bun run release:pack`
+also writes all 13 workspace tarballs, including private dependencies, to
+`output/release-artifacts/`, with hashes and internal runtime dependency closure
+in its manifest. Packing preserves private flags and does not publish packages
+or qualify native hosts. `bun run verify:installed-types` checks the installed
+Can declarations and consumer fixture from tarballs; its scoped strict check
+passes while retaining 797 Miniflare SDK declaration errors. See
+[developer setup](docs/dev-setup.md) for the exact limits.
 
 The [VS Code-compatible extension](editors/vscode/README.md) provides highlighting and compiler-backed diagnostics, navigation, and completion. The separate Python parser remains a syntax prototype with known corpus drift; it does not establish type, permission, compilation, or runtime correctness. See [language tools](tools/README.md) for its scope.
 

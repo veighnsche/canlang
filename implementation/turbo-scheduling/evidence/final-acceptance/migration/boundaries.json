@@ -1,0 +1,3290 @@
+{
+  "packages": 13,
+  "files": 678,
+  "errors": [],
+  "unresolved": [
+    {
+      "kind": "filesystem",
+      "file": ".github/ci/ts-gate.mjs",
+      "line": 79,
+      "expression": "mkdir(dir, { recursive: true })"
+    },
+    {
+      "kind": "filesystem",
+      "file": ".github/ci/ts-gate.mjs",
+      "line": 90,
+      "expression": "writeFile(path.join(dir, name), result[stream])"
+    },
+    {
+      "kind": "filesystem",
+      "file": ".github/ci/ts-gate.mjs",
+      "line": 106,
+      "expression": "readFile(path.join(cwd, 'bun.lock'))"
+    },
+    {
+      "kind": "filesystem",
+      "file": ".github/ci/ts-gate.mjs",
+      "line": 114,
+      "expression": "readdir(path.join(cwd, 'packages'), { withFileTypes: true })"
+    },
+    {
+      "kind": "filesystem",
+      "file": ".github/ci/ts-gate.mjs",
+      "line": 117,
+      "expression": "rm(path.join(pkg, 'dist'), { recursive: true, force: true })"
+    },
+    {
+      "kind": "filesystem",
+      "file": ".github/ci/ts-gate.mjs",
+      "line": 118,
+      "expression": "readdir(pkg)"
+    },
+    {
+      "kind": "filesystem",
+      "file": ".github/ci/ts-gate.mjs",
+      "line": 118,
+      "expression": "rm(path.join(pkg, file), { force: true })"
+    },
+    {
+      "kind": "filesystem",
+      "file": ".github/ci/ts-gate.mjs",
+      "line": 139,
+      "expression": "readFile(f)"
+    },
+    {
+      "kind": "filesystem",
+      "file": ".github/ci/ts-gate.mjs",
+      "line": 167,
+      "expression": "readdir(dirPath, { withFileTypes: true })"
+    },
+    {
+      "kind": "filesystem",
+      "file": ".github/ci/ts-gate.mjs",
+      "line": 170,
+      "expression": "readFile(full)"
+    },
+    {
+      "kind": "filesystem",
+      "file": ".github/ci/ts-gate.mjs",
+      "line": 173,
+      "expression": "readdir(path.join(cwd, 'packages'), { withFileTypes: true })"
+    },
+    {
+      "kind": "filesystem",
+      "file": ".github/ci/ts-gate.mjs",
+      "line": 181,
+      "expression": "writeFile(path.join(dir, 'receipt.json'), JSON.stringify(receipt, null, 2) + '\\n')"
+    },
+    {
+      "kind": "filesystem",
+      "file": ".github/ci/verify-receipt.mjs",
+      "line": 28,
+      "expression": "readFile(full)"
+    },
+    {
+      "kind": "filesystem",
+      "file": ".github/ci/verify-receipt.mjs",
+      "line": 62,
+      "expression": "mkdir(o.dir, { recursive: true })"
+    },
+    {
+      "kind": "filesystem",
+      "file": ".github/ci/verify-receipt.mjs",
+      "line": 63,
+      "expression": "readdir(o.dir)"
+    },
+    {
+      "kind": "filesystem",
+      "file": ".github/ci/verify-receipt.mjs",
+      "line": 75,
+      "expression": "readFile(path.join(o.dir, 'receipt.json'), 'utf8')"
+    },
+    {
+      "kind": "filesystem",
+      "file": ".github/ci/verify-receipt.mjs",
+      "line": 77,
+      "expression": "readFile(path.join(o.dir, 'receipt.json'))"
+    },
+    {
+      "kind": "filesystem",
+      "file": ".github/ci/verify-receipt.mjs",
+      "line": 78,
+      "expression": "writeFile(path.join(o.dir, 'verification.json'), JSON.stringify(verification, null, 2) + '\\n')"
+    },
+    {
+      "kind": "filesystem",
+      "file": ".github/ci/verify-receipt.test.mjs",
+      "line": 11,
+      "expression": "writeFile(path.join(dir, 'stdout.log'), 'ok')"
+    },
+    {
+      "kind": "filesystem",
+      "file": ".github/ci/verify-receipt.test.mjs",
+      "line": 12,
+      "expression": "writeFile(path.join(dir, 'stderr.log'), '')"
+    },
+    {
+      "kind": "filesystem",
+      "file": ".github/ci/verify-receipt.test.mjs",
+      "line": 26,
+      "expression": "writeFile(path.join(dir, 'stdout.log'), 'changed')"
+    },
+    {
+      "kind": "filesystem",
+      "file": ".github/ci/verify-receipt.test.mjs",
+      "line": 28,
+      "expression": "rm(dir, { recursive: true, force: true })"
+    },
+    {
+      "kind": "filesystem",
+      "file": ".github/ci/verify-receipt.test.mjs",
+      "line": 36,
+      "expression": "writeFile(path.join(dir, `${n}-stdout.log`), 'ok')"
+    },
+    {
+      "kind": "filesystem",
+      "file": ".github/ci/verify-receipt.test.mjs",
+      "line": 37,
+      "expression": "writeFile(path.join(dir, `${n}-stderr.log`), '')"
+    },
+    {
+      "kind": "filesystem",
+      "file": ".github/ci/verify-receipt.test.mjs",
+      "line": 62,
+      "expression": "rm(dir, { recursive: true, force: true })"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/cloudflare/conformance/preparation/differential.mjs",
+      "line": 54,
+      "expression": "writeFileSync(out, JSON.stringify(results, null, 2) + \"\\n\")"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/cloudflare/conformance/preparation/differential.mjs",
+      "line": 64,
+      "expression": "readFileSync(aPath, \"utf8\")"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/cloudflare/conformance/preparation/differential.mjs",
+      "line": 65,
+      "expression": "readFileSync(bPath, \"utf8\")"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/cloudflare/conformance/preparation/workloads.mjs",
+      "line": 81,
+      "expression": "writeFileSync(join(dir, name), text)"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/cloudflare/conformance/preparation/workloads.mjs",
+      "line": 258,
+      "expression": "existsSync(join(dir, f))"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/cloudflare/conformance/preparation/workloads.mjs",
+      "line": 290,
+      "expression": "existsSync(join(dir, f))"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/cloudflare/conformance/preparation/workloads.mjs",
+      "line": 297,
+      "expression": "existsSync(join(dir, f))"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/cloudflare/scripts/build-preparation.mjs",
+      "line": 50,
+      "expression": "readFileSync(path)"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/cloudflare/scripts/build-preparation.mjs",
+      "line": 70,
+      "expression": "existsSync(built)"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/cloudflare/scripts/build-preparation.mjs",
+      "line": 72,
+      "expression": "mkdirSync(stageDir, { recursive: true })"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/cloudflare/scripts/build-preparation.mjs",
+      "line": 74,
+      "expression": "copyFileSync(built, staged)"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/cloudflare/scripts/build-preparation.mjs",
+      "line": 80,
+      "expression": "readFileSync(staged)"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/cloudflare/scripts/build-preparation.mjs",
+      "line": 86,
+      "expression": "writeFileSync(join(stageDir, \"manifest.json\"), JSON.stringify(sidecar, null, 2) + \"\\n\")"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/cloudflare/scripts/package-preparation.mjs",
+      "line": 35,
+      "expression": "readdirSync(join(dir, base), { withFileTypes: true })"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/cloudflare/scripts/package-preparation.mjs",
+      "line": 45,
+      "expression": "existsSync(d)"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/cloudflare/scripts/package-preparation.mjs",
+      "line": 50,
+      "expression": "readFileSync(join(root, rel), \"utf8\")"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/cloudflare/scripts/package-preparation.mjs",
+      "line": 102,
+      "expression": "existsSync(sidecarPath)"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/cloudflare/scripts/package-preparation.mjs",
+      "line": 105,
+      "expression": "readFileSync(sidecarPath, \"utf8\")"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/cloudflare/scripts/package-preparation.mjs",
+      "line": 107,
+      "expression": "existsSync(binary)"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/cloudflare/scripts/package-preparation.mjs",
+      "line": 107,
+      "expression": "statSync(binary)"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/cloudflare/scripts/package-preparation.mjs",
+      "line": 112,
+      "expression": "writeFileSync(join(stageDir, \"licenses.json\"), JSON.stringify(licenses, null, 2) + \"\\n\")"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/cloudflare/scripts/package-preparation.mjs",
+      "line": 126,
+      "expression": "writeFileSync(join(stageDir, \"release.json\"), JSON.stringify(releaseMeta, null, 2) + \"\\n\")"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/cloudflare/src/cli/platform.ts",
+      "line": 202,
+      "expression": "access(path, constants.R_OK)"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/cloudflare/src/cli/platform.ts",
+      "line": 359,
+      "expression": "readFileSync(new URL(url), \"utf8\")"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/cloudflare/src/deploy/bundle.ts",
+      "line": 281,
+      "expression": "statSync(mainFile)"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/cloudflare/src/deploy/bundle.ts",
+      "line": 296,
+      "expression": "readdirSync(workerDistDir)"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/cloudflare/src/deploy/bundle.ts",
+      "line": 299,
+      "expression": "statSync(full)"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/cloudflare/src/deploy/bundle.ts",
+      "line": 300,
+      "expression": "readFileSync(full, \"utf8\")"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/cloudflare/src/deploy/bundle.ts",
+      "line": 316,
+      "expression": "statSync(full)"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/cloudflare/src/deploy/bundle.ts",
+      "line": 324,
+      "expression": "readFileSync(full, \"utf8\")"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/cloudflare/src/deploy/bundle.ts",
+      "line": 333,
+      "expression": "statSync(base)"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/cloudflare/src/deploy/bundle.ts",
+      "line": 339,
+      "expression": "readdirSync(dir)"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/cloudflare/src/deploy/bundle.ts",
+      "line": 341,
+      "expression": "statSync(full)"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/cloudflare/src/deploy/bundle.ts",
+      "line": 361,
+      "expression": "readFileSync(full, \"utf8\")"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/cloudflare/src/deploy/bundle.ts",
+      "line": 608,
+      "expression": "writeFileSync(\n    entryFile,\n    `export { createMcpHandler, createMcpHandler as createHandler } from ${JSON.stringify(toPosixAbsolute(serverDist))};\\n` +\n      `export { createAr"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/cloudflare/src/deploy/bundle.ts",
+      "line": 621,
+      "expression": "rmSync(workDir, { force: true, recursive: true })"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/cloudflare/src/deploy/bundle.ts",
+      "line": 637,
+      "expression": "readFileSync(outFile, \"utf8\")"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/cloudflare/src/deploy/bundle.ts",
+      "line": 639,
+      "expression": "rmSync(workDir, { force: true, recursive: true })"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/cloudflare/src/deploy/bundle.ts",
+      "line": 670,
+      "expression": "writeFileSync(\n    entryFile,\n    `export { handleOperationRequest } from ${JSON.stringify(toPosixAbsolute(operationsDist))};\\n`,\n    \"utf8\",\n  )"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/cloudflare/src/deploy/bundle.ts",
+      "line": 682,
+      "expression": "rmSync(workDir, { force: true, recursive: true })"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/cloudflare/src/deploy/bundle.ts",
+      "line": 697,
+      "expression": "readFileSync(outFile, \"utf8\")"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/cloudflare/src/deploy/bundle.ts",
+      "line": 699,
+      "expression": "rmSync(workDir, { force: true, recursive: true })"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/cloudflare/src/deploy/bundle.ts",
+      "line": 1026,
+      "expression": "mkdirSync(dir, { recursive: true })"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/cloudflare/src/deploy/bundle.ts",
+      "line": 1031,
+      "expression": "mkdirSync(dirname(full), { recursive: true })"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/cloudflare/src/deploy/bundle.ts",
+      "line": 1032,
+      "expression": "writeFileSync(full, bundle.modules[key] as string, \"utf8\")"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/cloudflare/src/deploy/bundle.ts",
+      "line": 1046,
+      "expression": "writeFileSync(manifestFile, `${JSON.stringify(manifest, null, 2)}\\n`, \"utf8\")"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/cloudflare/src/deploy/bundle.ts",
+      "line": 1250,
+      "expression": "mkdirSync(dirname(full), { recursive: true })"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/cloudflare/src/deploy/bundle.ts",
+      "line": 1251,
+      "expression": "writeFileSync(full, bytes)"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/cloudflare/src/deploy/bundle.ts",
+      "line": 1264,
+      "expression": "writeFileSync(manifestFile, `${JSON.stringify(manifest, null, 2)}\\n`, \"utf8\")"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/cloudflare/src/deploy/bundle.ts",
+      "line": 1388,
+      "expression": "lstatSync(path)"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/cloudflare/src/deploy/bundle.ts",
+      "line": 1447,
+      "expression": "mkdirSync(dirname(full), { recursive: true })"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/cloudflare/src/deploy/bundle.ts",
+      "line": 1448,
+      "expression": "writeFileSync(full, (resources[key] as PackageResource).bytes)"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/cloudflare/src/deploy/bundle.ts",
+      "line": 1451,
+      "expression": "writeFileSync(manifestFile, `${JSON.stringify({\n    version: 1, resourcesSha256: bundle.resourcesSha256, resources: entries,\n  }, null, 2)}\\n`, \"utf8\")"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/cloudflare/src/deploy/package-assets.ts",
+      "line": 45,
+      "expression": "statSync(root)"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/cloudflare/src/deploy/package-assets.ts",
+      "line": 69,
+      "expression": "statSync(actual)"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/cloudflare/src/deploy/package-assets.ts",
+      "line": 70,
+      "expression": "readFileSync(actual)"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/cloudflare/src/deploy/package-assets.ts",
+      "line": 123,
+      "expression": "readdirSync(actual)"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/cloudflare/src/deploy/package-assets.ts",
+      "line": 126,
+      "expression": "statSync(target)"
+    },
+    {
+      "kind": "module",
+      "file": "packages/cloudflare/src/deploy/producer-files.ts",
+      "line": 13,
+      "expression": "import.meta.resolve(specifier)"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/cloudflare/src/deploy/producer-files.ts",
+      "line": 15,
+      "expression": "statSync(file)"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/cloudflare/src/deploy/review.ts",
+      "line": 117,
+      "expression": "readFileSync(path, \"utf8\")"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/cloudflare/src/dev/zero-config.ts",
+      "line": 67,
+      "expression": "readdirSync(dist)"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/cloudflare/src/preparation/build-adapter.ts",
+      "line": 76,
+      "expression": "writeFileSync(\n    entryFile,\n    `export { createMcpHandler, createMcpHandler as createHandler } from ${JSON.stringify(toPosixAbsolute(serverDist))};\\n` +\n      `export { createAr"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/cloudflare/src/preparation/build-adapter.ts",
+      "line": 89,
+      "expression": "rmSync(workDir, { force: true, recursive: true })"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/cloudflare/src/preparation/build-adapter.ts",
+      "line": 105,
+      "expression": "readFileSync(outFile, \"utf8\")"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/cloudflare/src/preparation/build-adapter.ts",
+      "line": 107,
+      "expression": "rmSync(workDir, { force: true, recursive: true })"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/cloudflare/src/preparation/build-adapter.ts",
+      "line": 129,
+      "expression": "writeFileSync(\n    entryFile,\n    `export { handleOperationRequest } from ${JSON.stringify(toPosixAbsolute(operationsDist))};\\n`,\n    \"utf8\",\n  )"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/cloudflare/src/preparation/build-adapter.ts",
+      "line": 141,
+      "expression": "rmSync(workDir, { force: true, recursive: true })"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/cloudflare/src/preparation/build-adapter.ts",
+      "line": 156,
+      "expression": "readFileSync(outFile, \"utf8\")"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/cloudflare/src/preparation/build-adapter.ts",
+      "line": 158,
+      "expression": "rmSync(workDir, { force: true, recursive: true })"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/cloudflare/src/preparation/executable-manifest.ts",
+      "line": 75,
+      "expression": "readFile(join(dir, \"manifest.json\"), \"utf8\")"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/cloudflare/src/preparation/executable-manifest.ts",
+      "line": 107,
+      "expression": "stat(binary)"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/cloudflare/src/preparation/executable-manifest.ts",
+      "line": 109,
+      "expression": "access(binary, constants.X_OK)"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/cloudflare/src/preparation/executable-manifest.ts",
+      "line": 113,
+      "expression": "readFile(binary)"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/cloudflare/src/preparation/executable.ts",
+      "line": 65,
+      "expression": "stat(path)"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/cloudflare/src/preparation/executable.ts",
+      "line": 67,
+      "expression": "access(path, constants.X_OK)"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/cloudflare/src/preparation/host.ts",
+      "line": 107,
+      "expression": "readFileSync(path, \"utf8\")"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/cloudflare/src/preparation/host.ts",
+      "line": 432,
+      "expression": "writeFileSync(planPath, rendered.json, \"utf8\")"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/cloudflare/src/preparation/host.ts",
+      "line": 433,
+      "expression": "writeFileSync(tomlPath, rendered.toml, \"utf8\")"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/cloudflare/src/preparation/publication.ts",
+      "line": 134,
+      "expression": "statSync(root)"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/cloudflare/src/preparation/publication.ts",
+      "line": 169,
+      "expression": "lstatSync(current)"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/cloudflare/src/preparation/publication.ts",
+      "line": 184,
+      "expression": "mkdirSync(dirname(absolutePath), { recursive: true })"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/cloudflare/src/preparation/publication.ts",
+      "line": 185,
+      "expression": "writeFileSync(absolutePath, bytes)"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/cloudflare/src/preparation/publication.ts",
+      "line": 292,
+      "expression": "mkdirSync(destDir, { recursive: true })"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/cloudflare/src/preparation/publication.ts",
+      "line": 318,
+      "expression": "existsSync(this.root)"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/cloudflare/src/preparation/publication.ts",
+      "line": 319,
+      "expression": "rmSync(this.root, { force: true, recursive: true })"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/cloudflare/src/preparation/publication.ts",
+      "line": 327,
+      "expression": "readFileSync(absolutePath)"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/cloudflare/src/release/manifest.ts",
+      "line": 46,
+      "expression": "readdirSync(distAbs, { withFileTypes: true })"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/cloudflare/src/release/manifest.ts",
+      "line": 55,
+      "expression": "readFileSync(abs)"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/cloudflare/src/release/manifest.ts",
+      "line": 75,
+      "expression": "existsSync(abs)"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/cloudflare/src/release/manifest.ts",
+      "line": 75,
+      "expression": "statSync(abs)"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/cloudflare/src/release/manifest.ts",
+      "line": 89,
+      "expression": "writeFileSync(path, `${JSON.stringify(manifest, null, 2)}\\n`, \"utf8\")"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/cloudflare/src/release/manifest.ts",
+      "line": 96,
+      "expression": "readFileSync(path, \"utf8\")"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/cloudflare/src/release/manifest.ts",
+      "line": 142,
+      "expression": "readdirSync(join(repoRoot, \"packages\"), { withFileTypes: true })"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/cloudflare/src/release/manifest.ts",
+      "line": 145,
+      "expression": "existsSync(join(repoRoot, rel))"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/cloudflare/src/release/stamp.ts",
+      "line": 57,
+      "expression": "readFileSync(path, \"utf8\")"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/cloudflare/src/release/stamp.ts",
+      "line": 67,
+      "expression": "readFileSync(join(repoRoot, \"compiler\", \"Cargo.toml\"), \"utf8\")"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/cloudflare/src/release/stamp.ts",
+      "line": 73,
+      "expression": "readdirSync(join(repoRoot, \"packages\"), { withFileTypes: true })"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/cloudflare/src/runtime/artifact.ts",
+      "line": 147,
+      "expression": "readFileSync(path, \"utf8\")"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/cloudflare/src/runtime/d3b-durable-serve.test.ts",
+      "line": 138,
+      "expression": "writeFileSync(opsPath, OPS_MODULE)"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/cloudflare/src/runtime/d3b-durable-serve.test.ts",
+      "line": 275,
+      "expression": "rmSync(dir, { recursive: true, force: true })"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/cloudflare/src/runtime/d3b-join-assembly.test.ts",
+      "line": 121,
+      "expression": "rmSync(dir, { recursive: true, force: true })"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/cloudflare/src/runtime/d3b-join-assembly.test.ts",
+      "line": 133,
+      "expression": "writeFileSync(path, source)"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/cloudflare/src/runtime/d3b-observer-seam.test.ts",
+      "line": 57,
+      "expression": "rmSync(dir, { recursive: true, force: true })"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/cloudflare/src/runtime/d3b-observer-seam.test.ts",
+      "line": 177,
+      "expression": "writeFileSync(opsPath, OPS_MODULE)"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/cloudflare/src/runtime/d3b-selected-receipt.test.ts",
+      "line": 56,
+      "expression": "rmSync(dir, { recursive: true, force: true })"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/cloudflare/src/runtime/d3b-selected-receipt.test.ts",
+      "line": 68,
+      "expression": "writeFileSync(path, source)"
+    },
+    {
+      "kind": "module",
+      "file": "packages/cloudflare/src/runtime/invoke.ts",
+      "line": 324,
+      "expression": "import(moduleUrl)"
+    },
+    {
+      "kind": "module",
+      "file": "packages/cloudflare/src/runtime/invoke.ts",
+      "line": 1262,
+      "expression": "import(specifier)"
+    },
+    {
+      "kind": "module",
+      "file": "packages/cloudflare/src/runtime/invoke.ts",
+      "line": 1659,
+      "expression": "import(url)"
+    },
+    {
+      "kind": "module",
+      "file": "packages/cloudflare/src/runtime/invoke.ts",
+      "line": 1722,
+      "expression": "import(url)"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/cloudflare/src/runtime/modules.ts",
+      "line": 141,
+      "expression": "stat(entry)"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/cloudflare/src/runtime/modules.ts",
+      "line": 169,
+      "expression": "mkdir(dir, { recursive: true })"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/cloudflare/src/runtime/modules.ts",
+      "line": 174,
+      "expression": "mkdir(dirname(outPath), { recursive: true })"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/cloudflare/src/runtime/modules.ts",
+      "line": 181,
+      "expression": "writeFile(outPath, stagedJs, \"utf8\")"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/cloudflare/src/runtime/modules.ts",
+      "line": 183,
+      "expression": "writeFile(mapPath, JSON.stringify(mod.map), \"utf8\")"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/cloudflare/src/runtime/t16b-canonical.test.ts",
+      "line": 71,
+      "expression": "rmSync(dir, { recursive: true, force: true })"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/cloudflare/src/runtime/t16b-canonical.test.ts",
+      "line": 83,
+      "expression": "writeFileSync(path, source)"
+    },
+    {
+      "kind": "module",
+      "file": "packages/cloudflare/src/runtime/t16b-canonical.test.ts",
+      "line": 735,
+      "expression": "import(url)"
+    },
+    {
+      "kind": "module",
+      "file": "packages/cloudflare/src/runtime/t16b-canonical.test.ts",
+      "line": 791,
+      "expression": "import(url)"
+    },
+    {
+      "kind": "module",
+      "file": "packages/cloudflare/src/runtime/t16b-canonical.test.ts",
+      "line": 1073,
+      "expression": "import(url)"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/cloudflare/src/runtime/t17b-cloudflare-flip.test.ts",
+      "line": 66,
+      "expression": "rmSync(dir, { recursive: true, force: true })"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/cloudflare/src/runtime/t17b-cloudflare-flip.test.ts",
+      "line": 79,
+      "expression": "writeFileSync(path, source)"
+    },
+    {
+      "kind": "module",
+      "file": "packages/cloudflare/src/runtime/t17b-cloudflare-flip.test.ts",
+      "line": 942,
+      "expression": "import(url)"
+    },
+    {
+      "kind": "module",
+      "file": "packages/cloudflare/src/runtime/t17b-cloudflare-flip.test.ts",
+      "line": 1225,
+      "expression": "import(url)"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/cloudflare/src/runtime/t17b-durable.test.ts",
+      "line": 51,
+      "expression": "rmSync(dir, { recursive: true, force: true })"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/cloudflare/src/runtime/t17b-durable.test.ts",
+      "line": 64,
+      "expression": "writeFileSync(path, source)"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/cloudflare/src/runtime/t32b-cloudflare-durable.test.ts",
+      "line": 84,
+      "expression": "rmSync(dir, { recursive: true, force: true })"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/cloudflare/src/runtime/t32b-cloudflare-durable.test.ts",
+      "line": 97,
+      "expression": "writeFileSync(path, source)"
+    },
+    {
+      "kind": "module",
+      "file": "packages/cloudflare/src/runtime/t32b-cloudflare-durable.test.ts",
+      "line": 559,
+      "expression": "import(url)"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/cloudflare/src/runtime/t32b-cloudflare.test.ts",
+      "line": 120,
+      "expression": "rmSync(dir, { recursive: true, force: true })"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/cloudflare/src/runtime/t32b-cloudflare.test.ts",
+      "line": 133,
+      "expression": "writeFileSync(path, source)"
+    },
+    {
+      "kind": "module",
+      "file": "packages/cloudflare/src/runtime/t32b-cloudflare.test.ts",
+      "line": 371,
+      "expression": "import(url)"
+    },
+    {
+      "kind": "module",
+      "file": "packages/cloudflare/src/runtime/t32b-cloudflare.test.ts",
+      "line": 1671,
+      "expression": "import(url)"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/cloudflare/src/runtime/t34-f7-fanout-durable.test.ts",
+      "line": 814,
+      "expression": "rm(dir, { recursive: true, force: true })"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/cloudflare/src/runtime/t34-f7-fanout-durable.test.ts",
+      "line": 868,
+      "expression": "rm(dir, { recursive: true, force: true })"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/cloudflare/src/runtime/t34-f7-fanout-durable.test.ts",
+      "line": 922,
+      "expression": "rm(dir, { recursive: true, force: true })"
+    },
+    {
+      "kind": "module",
+      "file": "packages/cloudflare/src/worker/assembly.ts",
+      "line": 687,
+      "expression": "import(url)"
+    },
+    {
+      "kind": "module",
+      "file": "packages/cloudflare/src/worker/assembly.ts",
+      "line": 819,
+      "expression": "import(specifier)"
+    },
+    {
+      "kind": "module",
+      "file": "packages/cloudflare/src/worker/main.ts",
+      "line": 257,
+      "expression": "import(specifier)"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/cloudflare/test/artifact-field-descriptions.test.ts",
+      "line": 61,
+      "expression": "writeFileSync(file, contents)"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/cloudflare/test/artifact-operations.test.ts",
+      "line": 72,
+      "expression": "writeFileSync(file, contents)"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/cloudflare/test/artifact.test.ts",
+      "line": 51,
+      "expression": "writeFileSync(file, contents)"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/cloudflare/test/assembly.test.ts",
+      "line": 79,
+      "expression": "rmSync(dir, { recursive: true, force: true })"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/cloudflare/test/assembly.test.ts",
+      "line": 93,
+      "expression": "writeFileSync(path, source)"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/cloudflare/test/cli.test.ts",
+      "line": 39,
+      "expression": "writeFileSync(path, JSON.stringify({ note: \"opaque to the CLI\" }))"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/cloudflare/test/deploy-bundle.test.ts",
+      "line": 78,
+      "expression": "writeFileSync(\n    join(dir, \"main.js\"),\n    [\n      `import { createMcpHandler } from \"./mcp-handler.js\";`,\n      `import { helper } from \"./helper.js\";`,\n      `export default {`"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/cloudflare/test/deploy-bundle.test.ts",
+      "line": 91,
+      "expression": "writeFileSync(join(dir, \"helper.js\"), `export function helper() { return \"from-helper\"; }\\n`)"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/cloudflare/test/deploy-bundle.test.ts",
+      "line": 110,
+      "expression": "statSync(full)"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/cloudflare/test/deploy-bundle.test.ts",
+      "line": 111,
+      "expression": "readFileSync(full, \"utf8\")"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/cloudflare/test/deploy-bundle.test.ts",
+      "line": 115,
+      "expression": "writeFileSync(join(dir, entry), text)"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/cloudflare/test/deploy-bundle.test.ts",
+      "line": 410,
+      "expression": "readFileSync(written.mainFile, \"utf8\")"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/cloudflare/test/deploy-bundle.test.ts",
+      "line": 411,
+      "expression": "readFileSync(join(outDir, MCP_HANDLER_MODULE), \"utf8\")"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/cloudflare/test/deploy-bundle.test.ts",
+      "line": 414,
+      "expression": "readFileSync(join(outDir, ARTIFACT_MODULE), \"utf8\")"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/cloudflare/test/deploy-bundle.test.ts",
+      "line": 419,
+      "expression": "readFileSync(file, \"utf8\")"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/cloudflare/test/deploy-bundle.test.ts",
+      "line": 420,
+      "expression": "readFileSync(file, \"utf8\")"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/cloudflare/test/deploy-cli.test.ts",
+      "line": 63,
+      "expression": "writeFileSync(artifact, JSON.stringify(validArtifact()))"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/cloudflare/test/deploy-cli.test.ts",
+      "line": 64,
+      "expression": "writeFileSync(\n    join(dir, \"teamtasks.descriptor.json\"),\n    JSON.stringify({\n      identity: {\n        appName: \"TeamTasks\",\n        sourceRevision: \"14fa6a0\",\n        languageV"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/cloudflare/test/deploy-cli.test.ts",
+      "line": 81,
+      "expression": "writeFileSync(\n    join(dir, \"teamtasks.prod.environment.json\"),\n    JSON.stringify({\n      environment: \"prod\",\n      resources: [\n        {\n          requirement: { binding: \"DB\""
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/cloudflare/test/deploy-cli.test.ts",
+      "line": 95,
+      "expression": "writeFileSync(\n    join(dir, \"teamtasks.target.json\"),\n    JSON.stringify({\n      contractsVersion: 1,\n      runtimeVersion: \"0.1.0\",\n      knownLanguageVersions: [\"1.0.0\"],\n      "
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/cloudflare/test/deploy-cli.test.ts",
+      "line": 118,
+      "expression": "existsSync(join(dir, \"teamtasks.deploy-plan.json\"))"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/cloudflare/test/deploy-cli.test.ts",
+      "line": 119,
+      "expression": "existsSync(join(dir, \"teamtasks.wrangler.toml\"))"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/cloudflare/test/deploy-cli.test.ts",
+      "line": 137,
+      "expression": "existsSync(join(dir, \"teamtasks.deploy-plan.json\"))"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/cloudflare/test/deploy-cli.test.ts",
+      "line": 139,
+      "expression": "existsSync(toml)"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/cloudflare/test/deploy-cli.test.ts",
+      "line": 154,
+      "expression": "writeFileSync(bad, JSON.stringify(env))"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/cloudflare/test/deploy-package-assets.test.ts",
+      "line": 60,
+      "expression": "rmSync(directory, { recursive: true, force: true })"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/cloudflare/test/deploy-package-assets.test.ts",
+      "line": 94,
+      "expression": "readFileSync(join(firstDir, wasmKey))"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/cloudflare/test/deploy-package-assets.test.ts",
+      "line": 95,
+      "expression": "readFileSync(join(firstDir, \"bundle.resources.json\"), \"utf8\")"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/cloudflare/test/deploy-package-assets.test.ts",
+      "line": 110,
+      "expression": "readFileSync(file)"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/cloudflare/test/deploy-package-assets.test.ts",
+      "line": 110,
+      "expression": "readFileSync(join(secondDir, key))"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/cloudflare/test/deploy-package-assets.test.ts",
+      "line": 113,
+      "expression": "readFileSync(join(firstDir, key))"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/cloudflare/test/deploy-package-assets.test.ts",
+      "line": 150,
+      "expression": "existsSync(output)"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/cloudflare/test/deploy-package-assets.test.ts",
+      "line": 168,
+      "expression": "existsSync(output)"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/cloudflare/test/deploy-package-assets.test.ts",
+      "line": 178,
+      "expression": "writeFileSync(target, marker)"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/cloudflare/test/deploy-package-assets.test.ts",
+      "line": 182,
+      "expression": "mkdirSync(output)"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/cloudflare/test/deploy-package-assets.test.ts",
+      "line": 185,
+      "expression": "mkdirSync(join(output, \"browser\"))"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/cloudflare/test/deploy-package-assets.test.ts",
+      "line": 190,
+      "expression": "mkdirSync(join(output, \"vendor\", \"values-bindings\"), { recursive: true })"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/cloudflare/test/deploy-package-assets.test.ts",
+      "line": 194,
+      "expression": "readdirSync(output)"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/cloudflare/test/deploy-package-assets.test.ts",
+      "line": 196,
+      "expression": "existsSync(join(output, key))"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/cloudflare/test/deploy-package-assets.test.ts",
+      "line": 198,
+      "expression": "readFileSync(target)"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/cloudflare/test/deploy-package-assets.test.ts",
+      "line": 199,
+      "expression": "readdirSync(external)"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/cloudflare/test/deploy-package-assets.test.ts",
+      "line": 200,
+      "expression": "readdirSync(output)"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/cloudflare/test/deploy-package-assets.test.ts",
+      "line": 201,
+      "expression": "existsSync(join(output, \"worker\", \"main.js\"))"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/cloudflare/test/deploy-package-assets.test.ts",
+      "line": 203,
+      "expression": "existsSync(join(output, key))"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/cloudflare/test/deploy-package-assets.test.ts",
+      "line": 212,
+      "expression": "writeFileSync(join(output, \"browser\"), \"existing caller file\")"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/cloudflare/test/deploy-package-assets.test.ts",
+      "line": 214,
+      "expression": "mkdirSync(join(output, \"worker\", \"main.js\"), { recursive: true })"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/cloudflare/test/deploy-package-assets.test.ts",
+      "line": 216,
+      "expression": "readdirSync(output)"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/cloudflare/test/deploy-package-assets.test.ts",
+      "line": 218,
+      "expression": "readdirSync(output)"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/cloudflare/test/deploy-package-assets.test.ts",
+      "line": 220,
+      "expression": "existsSync(join(output, manifest))"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/cloudflare/test/deploy-package-assets.test.ts",
+      "line": 223,
+      "expression": "readFileSync(join(output, \"browser\"), \"utf8\")"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/cloudflare/test/deploy-package-assets.test.ts",
+      "line": 224,
+      "expression": "existsSync(join(output, \"worker\", \"main.js\"))"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/cloudflare/test/deploy-package-assets.test.ts",
+      "line": 226,
+      "expression": "readdirSync(join(output, \"worker\", \"main.js\"))"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/cloudflare/test/deploy-package-assets.test.ts",
+      "line": 238,
+      "expression": "writeFileSync(target, marker)"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/cloudflare/test/deploy-package-assets.test.ts",
+      "line": 242,
+      "expression": "mkdirSync(child)"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/cloudflare/test/deploy-package-assets.test.ts",
+      "line": 244,
+      "expression": "readdirSync(external)"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/cloudflare/test/deploy-package-assets.test.ts",
+      "line": 246,
+      "expression": "readFileSync(target)"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/cloudflare/test/deploy-package-assets.test.ts",
+      "line": 247,
+      "expression": "readdirSync(external)"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/cloudflare/test/deploy-package-assets.test.ts",
+      "line": 248,
+      "expression": "existsSync(child)"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/cloudflare/test/deploy-package-assets.test.ts",
+      "line": 249,
+      "expression": "readdirSync(child)"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/cloudflare/test/deploy-package-assets.test.ts",
+      "line": 250,
+      "expression": "existsSync(join(output, \"worker\", \"main.js\"))"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/cloudflare/test/deploy-package-assets.test.ts",
+      "line": 252,
+      "expression": "existsSync(join(output, manifest))"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/cloudflare/test/http-operations-route.test.ts",
+      "line": 234,
+      "expression": "rmSync(dir, { recursive: true, force: true })"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/cloudflare/test/http-operations-route.test.ts",
+      "line": 247,
+      "expression": "writeFileSync(path, source)"
+    },
+    {
+      "kind": "module",
+      "file": "packages/cloudflare/test/http-operations-route.test.ts",
+      "line": 333,
+      "expression": "import(moduleUrl)"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/cloudflare/test/mcp-route.test.ts",
+      "line": 119,
+      "expression": "rmSync(dir, { recursive: true, force: true })"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/cloudflare/test/mcp-route.test.ts",
+      "line": 131,
+      "expression": "writeFileSync(path, source)"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/cloudflare/test/mcpd-env-assembly.test.ts",
+      "line": 95,
+      "expression": "rmSync(dir, { recursive: true, force: true })"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/cloudflare/test/mcpd-env-assembly.test.ts",
+      "line": 186,
+      "expression": "writeFileSync(file, OPS_SOURCE)"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/cloudflare/test/mixed-output-controls.test.ts",
+      "line": 37,
+      "expression": "readFileSync(join(outDir, \"kernel.wasm\"))"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/cloudflare/test/mixed-output-controls.test.ts",
+      "line": 38,
+      "expression": "readFileSync(join(outDir, \"worker/main.js\"), \"utf8\")"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/cloudflare/test/mixed-output-controls.test.ts",
+      "line": 39,
+      "expression": "readFileSync(join(outDir, \"bundle.json\"), \"utf8\")"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/cloudflare/test/mixed-output-controls.test.ts",
+      "line": 41,
+      "expression": "readFileSync(join(outDir, \"bundle.mixed.json\"), \"utf8\")"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/cloudflare/test/mixed-output-controls.test.ts",
+      "line": 67,
+      "expression": "readFileSync(join(mixedDir, \"worker/main.js\"), \"utf8\")"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/cloudflare/test/mixed-output-controls.test.ts",
+      "line": 67,
+      "expression": "readFileSync(join(v1Dir, \"worker/main.js\"), \"utf8\")"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/cloudflare/test/mixed-output-controls.test.ts",
+      "line": 68,
+      "expression": "readFileSync(join(mixedDir, \"bundle.json\"), \"utf8\")"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/cloudflare/test/mixed-output-controls.test.ts",
+      "line": 68,
+      "expression": "readFileSync(join(v1Dir, \"bundle.json\"), \"utf8\")"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/cloudflare/test/mixed-output-controls.test.ts",
+      "line": 72,
+      "expression": "readFileSync(join(mixedDir, \"bundle.mixed.json\"), \"utf8\")"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/cloudflare/test/mixed-output-rejection.test.ts",
+      "line": 47,
+      "expression": "existsSync(outDir)"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/cloudflare/test/mixed-output-rejection.test.ts",
+      "line": 54,
+      "expression": "existsSync(outDir)"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/cloudflare/test/mixed-output-rejection.test.ts",
+      "line": 61,
+      "expression": "existsSync(outDir)"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/cloudflare/test/mixed-output-rejection.test.ts",
+      "line": 107,
+      "expression": "existsSync(outDir)"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/cloudflare/test/modules.test.ts",
+      "line": 45,
+      "expression": "mkdirSync(join(distRoot, \"ui\", \"dist\", \"ui\", \"src\"), { recursive: true })"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/cloudflare/test/modules.test.ts",
+      "line": 46,
+      "expression": "writeFileSync(uiEntry, `export const uiMarker = \"ui-stub\";\\n`)"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/cloudflare/test/modules.test.ts",
+      "line": 48,
+      "expression": "writeFileSync(stdlibPath, `export const stdlibMarker = \"stdlib-stub\";\\n`)"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/cloudflare/test/modules.test.ts",
+      "line": 74,
+      "expression": "readFileSync(join(workDir, \"main.js\"), \"utf8\")"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/cloudflare/test/modules.test.ts",
+      "line": 80,
+      "expression": "readFileSync(join(workDir, \"lib\", \"helper.js\"), \"utf8\")"
+    },
+    {
+      "kind": "module",
+      "file": "packages/cloudflare/test/modules.test.ts",
+      "line": 82,
+      "expression": "import(assembled.entryUrl)"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/cloudflare/test/package-assets.test.ts",
+      "line": 17,
+      "expression": "rmSync(path, { recursive: true, force: true })"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/cloudflare/test/package-assets.test.ts",
+      "line": 40,
+      "expression": "mkdirSync(directory, { recursive: true })"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/cloudflare/test/package-assets.test.ts",
+      "line": 41,
+      "expression": "writeFileSync(join(directory, name), contents)"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/cloudflare/test/package-assets.test.ts",
+      "line": 55,
+      "expression": "writeFileSync(join(root, \"generated\", \"BUILD.json\"), JSON.stringify(inventory))"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/cloudflare/test/package-assets.test.ts",
+      "line": 75,
+      "expression": "writeFileSync(join(root, \"manifest.json\"), JSON.stringify(inventory))"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/cloudflare/test/package-assets.test.ts",
+      "line": 93,
+      "expression": "readFileSync(join(root, \"bootstrap.js\"), \"utf8\")"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/cloudflare/test/package-assets.test.ts",
+      "line": 105,
+      "expression": "readFileSync(join(root, key.slice(\"browser/\".length)))"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/cloudflare/test/package-assets.test.ts",
+      "line": 114,
+      "expression": "writeFileSync(join(root, \"generated\", name), \"corrupt\")"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/cloudflare/test/package-assets.test.ts",
+      "line": 121,
+      "expression": "rmSync(join(root, \"generated\", \"values_semantics_bg.wasm\"))"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/cloudflare/test/package-assets.test.ts",
+      "line": 129,
+      "expression": "writeFileSync(join(root, \"manifest.json\"), JSON.stringify(inventory))"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/cloudflare/test/package-assets.test.ts",
+      "line": 136,
+      "expression": "writeFileSync(join(root, \"generated\", \"BUILD.json\"), JSON.stringify(inventory))"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/cloudflare/test/package-assets.test.ts",
+      "line": 140,
+      "expression": "writeFileSync(join(root, \"generated\", \"BUILD.json\"), JSON.stringify(inventory))"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/cloudflare/test/package-assets.test.ts",
+      "line": 146,
+      "expression": "writeFileSync(join(root, \"can-style.css\"), \"corrupt\")"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/cloudflare/test/package-assets.test.ts",
+      "line": 148,
+      "expression": "rmSync(join(root, \"bootstrap.js\"))"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/cloudflare/test/package-assets.test.ts",
+      "line": 150,
+      "expression": "writeFileSync(join(root, \"manifest.json\"), \"{\")"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/cloudflare/test/package-assets.test.ts",
+      "line": 157,
+      "expression": "writeFileSync(external, readFileSync(join(root, \"bootstrap.js\")))"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/cloudflare/test/package-assets.test.ts",
+      "line": 157,
+      "expression": "readFileSync(join(root, \"bootstrap.js\"))"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/cloudflare/test/package-assets.test.ts",
+      "line": 158,
+      "expression": "rmSync(join(root, \"bootstrap.js\"))"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/cloudflare/test/package-assets.test.ts",
+      "line": 166,
+      "expression": "writeFileSync(external, \"export const host = true;\")"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/cloudflare/test/package-assets.test.ts",
+      "line": 174,
+      "expression": "readFileSync(new URL(\"generated/values_semantics_bg.wasm\", valuesDistribution.bindings))"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/cloudflare/test/package-assets.test.ts",
+      "line": 176,
+      "expression": "readFileSync(new URL(\"bootstrap.js\", valuesDistribution.bindings), \"utf8\")"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/cloudflare/test/package-assets.test.ts",
+      "line": 178,
+      "expression": "readFileSync(new URL(\"can-style.css\", uiDistribution.browser))"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/cloudflare/test/preparation-protocol.test.ts",
+      "line": 108,
+      "expression": "writeFileSync(fake, script)"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/cloudflare/test/preparation-protocol.test.ts",
+      "line": 176,
+      "expression": "writeFileSync(\n      join(dir, \"main.js\"),\n      `import { createMcpHandler } from \"./mcp-handler.js\";\\n` +\n        `export default { async fetch() { return Response.json({ mcp: ty"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/cloudflare/test/preparation-publication.test.ts",
+      "line": 64,
+      "expression": "writeFileSync(file, \"x\")"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/cloudflare/test/preparation-publication.test.ts",
+      "line": 75,
+      "expression": "rmSync(link, { force: true })"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/cloudflare/test/preparation-publication.test.ts",
+      "line": 88,
+      "expression": "existsSync(join(outside, \"x.js\"))"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/cloudflare/test/preparation-publication.test.ts",
+      "line": 94,
+      "expression": "writeFileSync(target, \"real\")"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/cloudflare/test/preparation-publication.test.ts",
+      "line": 105,
+      "expression": "writeFileSync(file, \"x\")"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/cloudflare/test/preparation-publication.test.ts",
+      "line": 126,
+      "expression": "readFileSync(records[0]?.absolutePath as string, \"utf8\")"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/cloudflare/test/preparation-publication.test.ts",
+      "line": 150,
+      "expression": "writeFileSync(staged[0]?.absolutePath as string, \"tampered\\n\")"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/cloudflare/test/preparation-publication.test.ts",
+      "line": 155,
+      "expression": "readFileSync(staged[0]?.absolutePath as string)"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/cloudflare/test/preparation-publication.test.ts",
+      "line": 167,
+      "expression": "existsSync(join(dest, \"a.js\"))"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/cloudflare/test/preparation-publication.test.ts",
+      "line": 180,
+      "expression": "readFileSync(join(dest, \"b.js\"), \"utf8\")"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/cloudflare/test/preparation-publication.test.ts",
+      "line": 181,
+      "expression": "readFileSync(join(dest, \"a.js\"), \"utf8\")"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/cloudflare/test/preparation-publication.test.ts",
+      "line": 199,
+      "expression": "mkdirSync(dirname(absolutePath), { recursive: true })"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/cloudflare/test/preparation-publication.test.ts",
+      "line": 200,
+      "expression": "writeFileSync(absolutePath, bytes)"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/cloudflare/test/preparation-publication.test.ts",
+      "line": 209,
+      "expression": "readFileSync(join(dest, \"one.js\"), \"utf8\")"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/cloudflare/test/preparation-publication.test.ts",
+      "line": 210,
+      "expression": "existsSync(join(dest, \"two.js\"))"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/cloudflare/test/preparation-publication.test.ts",
+      "line": 211,
+      "expression": "existsSync(join(dest, \"three.js\"))"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/cloudflare/test/preparation-publication.test.ts",
+      "line": 235,
+      "expression": "existsSync(root)"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/cloudflare/test/preparation-publication.test.ts",
+      "line": 237,
+      "expression": "existsSync(root)"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/cloudflare/test/preparation-publication.test.ts",
+      "line": 249,
+      "expression": "existsSync(root)"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/cloudflare/test/preparation-publication.test.ts",
+      "line": 256,
+      "expression": "existsSync(root)"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/cloudflare/test/preparation-publication.test.ts",
+      "line": 264,
+      "expression": "existsSync(callerRoot)"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/cloudflare/test/preparation-publication.test.ts",
+      "line": 265,
+      "expression": "lstatSync(join(callerRoot, \"k.js\"))"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/cloudflare/test/release.test.ts",
+      "line": 82,
+      "expression": "mkdirSync(dist, { recursive: true })"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/cloudflare/test/release.test.ts",
+      "line": 83,
+      "expression": "writeFileSync(join(dist, \"index.js\"), \"export const x = 1;\\n\")"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/cloudflare/test/release.test.ts",
+      "line": 84,
+      "expression": "writeFileSync(join(dist, \"index.d.ts\"), \"export declare const x = 1;\\n\")"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/cloudflare/test/release.test.ts",
+      "line": 86,
+      "expression": "writeFileSync(join(dist, \"demo.tsbuildinfo\"), JSON.stringify({ time: Date.now() }))"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/cloudflare/test/release.test.ts",
+      "line": 103,
+      "expression": "writeFileSync(\n      join(root, \"packages\", \"demo\", \"dist\", \"demo.tsbuildinfo\"),\n      JSON.stringify({ time: Date.now() + 1000 }),\n    )"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/cloudflare/test/release.test.ts",
+      "line": 116,
+      "expression": "writeFileSync(join(root, \"packages\", \"demo\", \"dist\", \"index.js\"), \"export const x = 2;\\n\")"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/cloudflare/test/release.test.ts",
+      "line": 124,
+      "expression": "rmSync(join(root, \"packages\", \"demo\", \"dist\", \"index.d.ts\"))"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/cloudflare/test/review.test.ts",
+      "line": 133,
+      "expression": "writeFileSync(bad, \"{ not json\")"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/cloudflare/test/runtime-stdlib.test.ts",
+      "line": 131,
+      "expression": "rmSync(dir, { recursive: true, force: true })"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/cloudflare/test/runtime-stdlib.test.ts",
+      "line": 143,
+      "expression": "writeFileSync(path, source)"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/cloudflare/test/sourcemap.test.ts",
+      "line": 52,
+      "expression": "mkdirSync(join(distRoot, \"ui\", \"dist\", \"ui\", \"src\"), { recursive: true })"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/cloudflare/test/sourcemap.test.ts",
+      "line": 53,
+      "expression": "writeFileSync(uiEntry, `export const uiMarker = \"ui-stub\";\\n`)"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/cloudflare/test/sourcemap.test.ts",
+      "line": 55,
+      "expression": "writeFileSync(stdlibPath, `export const stdlibMarker = \"stdlib-stub\";\\n`)"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/cloudflare/test/sourcemap.test.ts",
+      "line": 139,
+      "expression": "readFileSync(join(workDir, \"main.js.map\"), \"utf8\")"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/cloudflare/test/sourcemap.test.ts",
+      "line": 142,
+      "expression": "readFileSync(join(workDir, \"main.js\"), \"utf8\")"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/cloudflare/test/sourcemap.test.ts",
+      "line": 244,
+      "expression": "rmSync(join(workDir, \"main.js.map\"))"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/cloudflare/test/sourcemap.test.ts",
+      "line": 246,
+      "expression": "writeFileSync(\n      stagedPath,\n      readFileSync(stagedPath, \"utf8\").replace(/\\/\\/# sourceMappingURL=.*\\n?/, \"\"),\n    )"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/cloudflare/test/sourcemap.test.ts",
+      "line": 248,
+      "expression": "readFileSync(stagedPath, \"utf8\")"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/cloudflare/test/worker-boundary.test.ts",
+      "line": 8,
+      "expression": "existsSync(url)"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/cloudflare/test/worker-boundary.test.ts",
+      "line": 12,
+      "expression": "readdirSync(url, { withFileTypes: true })"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/cloudflare/test/worker-boundary.test.ts",
+      "line": 23,
+      "expression": "readFileSync(new URL(relativePath, packageRoot), \"utf8\")"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/cloudflare/test/worker-main.test.ts",
+      "line": 50,
+      "expression": "rmSync(dir, { recursive: true, force: true })"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/cloudflare/test/worker-main.test.ts",
+      "line": 62,
+      "expression": "writeFileSync(path, source)"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/cloudflare/test/zero-config.test.ts",
+      "line": 38,
+      "expression": "mkdirSync(dist, { recursive: true })"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/cloudflare/test/zero-config.test.ts",
+      "line": 40,
+      "expression": "writeFileSync(join(dist, name), JSON.stringify(validArtifact()))"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/cloudflare/test/zero-config.test.ts",
+      "line": 80,
+      "expression": "writeFileSync(other, JSON.stringify(validArtifact()))"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/cloudflare/test/zero-config.test.ts",
+      "line": 100,
+      "expression": "mkdirSync(join(entry, \"..\"), { recursive: true })"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/cloudflare/test/zero-config.test.ts",
+      "line": 101,
+      "expression": "writeFileSync(entry, \"export {};\\n\")"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/files/src/upload/fs-blob-store.ts",
+      "line": 45,
+      "expression": "writeFileSync(this.pathFor(key), new Uint8Array(bytes))"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/files/src/upload/fs-blob-store.ts",
+      "line": 54,
+      "expression": "readFileSync(this.pathFor(key))"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/files/src/upload/fs-blob-store.ts",
+      "line": 64,
+      "expression": "rmSync(this.pathFor(key), { force: true })"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/files/src/upload/fs-blob-store.ts",
+      "line": 69,
+      "expression": "statSync(this.pathFor(key))"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/files/src/upload/fs-blob-store.ts",
+      "line": 88,
+      "expression": "mkdirSync(rootDir, { recursive: true })"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/files/test/foreign.test.ts",
+      "line": 37,
+      "expression": "rmSync(scopeDir, { recursive: true, force: true })"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/files/test/provider-output.test.ts",
+      "line": 687,
+      "expression": "rmSync(e2eDir, { recursive: true, force: true })"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/files/test/provider-output.test.ts",
+      "line": 758,
+      "expression": "readFileSync(join(dir, blobKeyForFile(refs[0] as string)))"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/files/test/upload-journey.test.ts",
+      "line": 37,
+      "expression": "rmSync(scopeDir, { recursive: true, force: true })"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/files/test/upload-journey.test.ts",
+      "line": 88,
+      "expression": "readFileSync(join(scopeDir, blobKeyForFile(finalized.file.id)))"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/identity/test/contracts.test.ts",
+      "line": 28,
+      "expression": "readFileSync(join(here, 'fixtures', name), 'utf8')"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/interfaces/test/wire.test.ts",
+      "line": 43,
+      "expression": "readFileSync(join(here, 'fixtures', name), 'utf8')"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/state/src/invocation/b2-reads-durable.test.ts",
+      "line": 350,
+      "expression": "rm(dir, { recursive: true, force: true })"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/testkit/conformance/ports/loader-smoke/host.mjs",
+      "line": 35,
+      "expression": "existsSync(wasmPath)"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/testkit/conformance/ports/loader-smoke/host.mjs",
+      "line": 38,
+      "expression": "readFileSync(wasmPath)"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/testkit/conformance/ports/loader-smoke/host.mjs",
+      "line": 100,
+      "expression": "readFileSync(wasmPath)"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/testkit/conformance/ports/loader-smoke/workerd.mjs",
+      "line": 104,
+      "expression": "readFileSync(join(dir, WASM_NAME))"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/testkit/conformance/ports/loader-smoke/workerd.mjs",
+      "line": 105,
+      "expression": "readFileSync(join(dir, 'bundle.mixed.json'), 'utf8')"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/testkit/conformance/ports/loader-smoke/workerd.mjs",
+      "line": 111,
+      "expression": "rmSync(dir, { recursive: true, force: true })"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/testkit/conformance/ports/loader-smoke/workerd.mjs",
+      "line": 130,
+      "expression": "readFileSync(wasmPath)"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/testkit/conformance/ports/observations.mjs",
+      "line": 375,
+      "expression": "readFileSync(expectedPath, \"utf8\")"
+    },
+    {
+      "kind": "module",
+      "file": "packages/testkit/src/runner/loader.ts",
+      "line": 238,
+      "expression": "import(moduleUrl)"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/testkit/test/emitted-scope.test.ts",
+      "line": 26,
+      "expression": "rm(dir, { recursive: true, force: true })"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/testkit/test/emitted-scope.test.ts",
+      "line": 31,
+      "expression": "writeFile(file, source)"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/testkit/test/fixtures.test.ts",
+      "line": 31,
+      "expression": "rm(dir, { recursive: true, force: true })"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/testkit/test/fixtures.test.ts",
+      "line": 36,
+      "expression": "writeFile(file, source)"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/testkit/test/loader.test.ts",
+      "line": 17,
+      "expression": "rm(dir, { recursive: true, force: true })"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/testkit/test/loader.test.ts",
+      "line": 23,
+      "expression": "writeFile(file, source)"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/ui/scripts/build-browser.mjs",
+      "line": 72,
+      "expression": "readFileSync(join(daisyRoot, \"package.json\"), \"utf8\")"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/ui/scripts/build-browser.mjs",
+      "line": 77,
+      "expression": "existsSync(daisyCssPath)"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/ui/scripts/build-browser.mjs",
+      "line": 83,
+      "expression": "existsSync(join(distBrowserSrc, module))"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/ui/scripts/build-browser.mjs",
+      "line": 91,
+      "expression": "readFileSync(join(distBrowserSrc, module), \"utf8\")"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/ui/scripts/build-browser.mjs",
+      "line": 124,
+      "expression": "readFileSync(join(packageRoot, \"src\", \"browser\", file), \"utf8\")"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/ui/scripts/build-browser.mjs",
+      "line": 134,
+      "expression": "readFileSync(daisyCssPath, \"utf8\")"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/ui/scripts/build-browser.mjs",
+      "line": 146,
+      "expression": "readFileSync(join(distBrowserSrc, module))"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/ui/scripts/build-browser.mjs",
+      "line": 147,
+      "expression": "writeFileSync(join(outDir, module), bytes)"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/ui/test/appearance.test.ts",
+      "line": 143,
+      "expression": "readFileSync(join(daisyRoot, file), \"utf8\")"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/ui/test/appearance.test.ts",
+      "line": 155,
+      "expression": "readFileSync(join(daisyRoot, \"package.json\"), \"utf8\")"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/ui/test/appearance.test.ts",
+      "line": 178,
+      "expression": "readFileSync(join(daisyRoot, file), \"utf8\")"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/ui/test/themes.test.ts",
+      "line": 17,
+      "expression": "readFileSync(join(daisyRoot, \"daisyui.css\"), \"utf8\")"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/ui/test/themes.test.ts",
+      "line": 86,
+      "expression": "readFileSync(join(srcDir, file), \"utf8\")"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/ui/test/themes.test.ts",
+      "line": 134,
+      "expression": "readFileSync(join(daisyRoot, \"theme\", `${base}.css`), \"utf8\")"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/ui/test/themes.test.ts",
+      "line": 152,
+      "expression": "readFileSync(join(daisyRoot, \"theme\", \"light.css\"), \"utf8\")"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/ui/test/themes.test.ts",
+      "line": 172,
+      "expression": "readFileSync(join(daisyRoot, \"theme\", `${base}.css`), \"utf8\")"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/ui/test/themes.test.ts",
+      "line": 209,
+      "expression": "readFileSync(join(daisyRoot, \"package.json\"), \"utf8\")"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/values/scripts/build-semantics.mjs",
+      "line": 38,
+      "expression": "readFileSync(path)"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/values/scripts/build-semantics.mjs",
+      "line": 66,
+      "expression": "readFileSync(join(generated, f))"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/values/scripts/build-semantics.mjs",
+      "line": 89,
+      "expression": "writeFileSync(join(mirror, f), readFileSync(join(generated, f)))"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/values/scripts/build-semantics.mjs",
+      "line": 89,
+      "expression": "readFileSync(join(generated, f))"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/values/scripts/stage-semantics.mjs",
+      "line": 26,
+      "expression": "readFileSync(join(source, name))"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/values/scripts/stage-semantics.mjs",
+      "line": 36,
+      "expression": "writeFileSync(join(destination, name), bytes)"
+    },
+    {
+      "kind": "url",
+      "file": "packages/values/test/conformance.test.ts",
+      "line": 77,
+      "expression": "new URL(relative, import.meta.url)"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/values/test/conformance.test.ts",
+      "line": 78,
+      "expression": "existsSync(url)"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/values/test/conformance.test.ts",
+      "line": 79,
+      "expression": "readFileSync(url, \"utf8\")"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/work-kernel/conformance/every.test.ts",
+      "line": 25,
+      "expression": "existsSync(p)"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/work-kernel/conformance/every.test.ts",
+      "line": 83,
+      "expression": "readFileSync(FIX, 'utf8')"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/work-kernel/conformance/lifecycle.test.ts",
+      "line": 19,
+      "expression": "existsSync(p)"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/work-kernel/conformance/lifecycle.test.ts",
+      "line": 71,
+      "expression": "readFileSync(FIX, 'utf8')"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/work-kernel/conformance/linkage.test.ts",
+      "line": 19,
+      "expression": "existsSync(p)"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/work-kernel/conformance/linkage.test.ts",
+      "line": 49,
+      "expression": "readFileSync(FIX, 'utf8')"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/work-kernel/conformance/receipt.test.ts",
+      "line": 19,
+      "expression": "existsSync(p)"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/work-kernel/conformance/receipt.test.ts",
+      "line": 101,
+      "expression": "readFileSync(FIX, 'utf8')"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/work-kernel/conformance/recovery.test.ts",
+      "line": 21,
+      "expression": "existsSync(p)"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/work-kernel/conformance/recovery.test.ts",
+      "line": 92,
+      "expression": "readFileSync(FIX, 'utf8')"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/work-kernel/conformance/retry.test.ts",
+      "line": 22,
+      "expression": "existsSync(p)"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/work-kernel/conformance/retry.test.ts",
+      "line": 78,
+      "expression": "readFileSync(FIX, 'utf8')"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/work-kernel/conformance/rows.test.ts",
+      "line": 54,
+      "expression": "existsSync(p)"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/work-kernel/conformance/rows.test.ts",
+      "line": 220,
+      "expression": "readdirSync(FIXDIR)"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/work-kernel/conformance/rows.test.ts",
+      "line": 226,
+      "expression": "readFileSync(join(FIXDIR, file), 'utf8')"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/work/src/recovery/t26-durable.test.ts",
+      "line": 231,
+      "expression": "rm(dir, { recursive: true, force: true })"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/work/src/recovery/t34-f4-durable.test.ts",
+      "line": 235,
+      "expression": "rm(dir, { recursive: true, force: true })"
+    },
+    {
+      "kind": "filesystem",
+      "file": "packages/work/test/state-fanout/t34-f5-durable.test.ts",
+      "line": 234,
+      "expression": "rm(dir, { recursive: true, force: true })"
+    },
+    {
+      "kind": "filesystem",
+      "file": "scripts/build-package.mjs",
+      "line": 9,
+      "expression": "readFileSync(join(directory, \"package.json\"), \"utf8\")"
+    },
+    {
+      "kind": "filesystem",
+      "file": "scripts/build-package.mjs",
+      "line": 27,
+      "expression": "readdirSync(current)"
+    },
+    {
+      "kind": "filesystem",
+      "file": "scripts/build-package.mjs",
+      "line": 31,
+      "expression": "lstatSync(full)"
+    },
+    {
+      "kind": "filesystem",
+      "file": "scripts/build-package.mjs",
+      "line": 33,
+      "expression": "readdirSync(full)"
+    },
+    {
+      "kind": "filesystem",
+      "file": "scripts/build-package.mjs",
+      "line": 33,
+      "expression": "rmSync(full, { recursive: true })"
+    },
+    {
+      "kind": "filesystem",
+      "file": "scripts/build-package.mjs",
+      "line": 34,
+      "expression": "rmSync(full)"
+    },
+    {
+      "kind": "filesystem",
+      "file": "scripts/build-package.mjs",
+      "line": 37,
+      "expression": "existsSync(dist)"
+    },
+    {
+      "kind": "filesystem",
+      "file": "scripts/build-package.mjs",
+      "line": 38,
+      "expression": "lstatSync(dist)"
+    },
+    {
+      "kind": "filesystem",
+      "file": "scripts/build-package.mjs",
+      "line": 41,
+      "expression": "readdirSync(directory)"
+    },
+    {
+      "kind": "filesystem",
+      "file": "scripts/build-package.mjs",
+      "line": 42,
+      "expression": "rmSync(join(directory, entry))"
+    },
+    {
+      "kind": "filesystem",
+      "file": "scripts/check-package-boundaries.mjs",
+      "line": 33,
+      "expression": "existsSync(directory)"
+    },
+    {
+      "kind": "filesystem",
+      "file": "scripts/check-package-boundaries.mjs",
+      "line": 34,
+      "expression": "readdirSync(directory, { withFileTypes: true })"
+    },
+    {
+      "kind": "filesystem",
+      "file": "scripts/check-package-boundaries.mjs",
+      "line": 46,
+      "expression": "readdirSync(dir, { withFileTypes: true })"
+    },
+    {
+      "kind": "filesystem",
+      "file": "scripts/check-package-boundaries.mjs",
+      "line": 47,
+      "expression": "existsSync(path.join(dir, 'package.json'))"
+    },
+    {
+      "kind": "filesystem",
+      "file": "scripts/check-package-boundaries.mjs",
+      "line": 85,
+      "expression": "readFileSync(path.join(directory, 'package.json'), 'utf8')"
+    },
+    {
+      "kind": "filesystem",
+      "file": "scripts/check-package-boundaries.mjs",
+      "line": 121,
+      "expression": "existsSync(file)"
+    },
+    {
+      "kind": "filesystem",
+      "file": "scripts/check-package-boundaries.mjs",
+      "line": 139,
+      "expression": "readdirSync(root, { withFileTypes: true })"
+    },
+    {
+      "kind": "filesystem",
+      "file": "scripts/check-package-boundaries.mjs",
+      "line": 150,
+      "expression": "existsSync(candidate)"
+    },
+    {
+      "kind": "filesystem",
+      "file": "scripts/check-package-boundaries.mjs",
+      "line": 199,
+      "expression": "existsSync(path.resolve(producer.directory, target))"
+    },
+    {
+      "kind": "filesystem",
+      "file": "scripts/check-package-boundaries.test.mjs",
+      "line": 10,
+      "expression": "rmSync(root, { recursive: true, force: true })"
+    },
+    {
+      "kind": "filesystem",
+      "file": "scripts/check-package-boundaries.test.mjs",
+      "line": 11,
+      "expression": "mkdirSync(path.dirname(full), { recursive: true })"
+    },
+    {
+      "kind": "filesystem",
+      "file": "scripts/check-package-boundaries.test.mjs",
+      "line": 11,
+      "expression": "writeFileSync(full, typeof content === 'string' ? content : `${JSON.stringify(content)}\\n`)"
+    },
+    {
+      "kind": "filesystem",
+      "file": "scripts/check-package-boundaries.test.mjs",
+      "line": 26,
+      "expression": "mkdirSync(scope, { recursive: true })"
+    },
+    {
+      "kind": "filesystem",
+      "file": "scripts/check-package-boundaries.test.mjs",
+      "line": 63,
+      "expression": "rmSync(path.join(f.root, 'packages/b/dist/index.js'))"
+    },
+    {
+      "kind": "filesystem",
+      "file": "scripts/check-package-boundaries.test.mjs",
+      "line": 66,
+      "expression": "rmSync(path.join(f.root, 'node_modules/@canlang/b'))"
+    },
+    {
+      "kind": "filesystem",
+      "file": "scripts/verify-installed-worker.mjs",
+      "line": 25,
+      "expression": "readFileSync(join(checkout, 'package.json'))"
+    },
+    {
+      "kind": "filesystem",
+      "file": "scripts/verify-installed-worker.mjs",
+      "line": 26,
+      "expression": "readFileSync(join(consumer, 'package.json'), 'utf8')"
+    },
+    {
+      "kind": "filesystem",
+      "file": "scripts/verify-installed-worker.mjs",
+      "line": 28,
+      "expression": "existsSync(join(consumer, 'node_modules/@canlang/testkit'))"
+    },
+    {
+      "kind": "module",
+      "file": "scripts/verify-installed-worker.mjs",
+      "line": 38,
+      "expression": "import.meta.resolve(specifier)"
+    },
+    {
+      "kind": "module",
+      "file": "scripts/verify-installed-worker.mjs",
+      "line": 43,
+      "expression": "import.meta.resolve(specifier)"
+    },
+    {
+      "kind": "module",
+      "file": "scripts/verify-installed-worker.mjs",
+      "line": 44,
+      "expression": "import(specifier)"
+    },
+    {
+      "kind": "filesystem",
+      "file": "scripts/verify-installed-worker.mjs",
+      "line": 53,
+      "expression": "mkdirSync(fixture, { recursive: true })"
+    },
+    {
+      "kind": "filesystem",
+      "file": "scripts/verify-installed-worker.mjs",
+      "line": 54,
+      "expression": "writeFileSync(join(fixture, 'package.json'), JSON.stringify({ name: 'conditional-worker-producer', type: 'module', exports: { '.': { import: './import.js', require: './require.js' "
+    },
+    {
+      "kind": "filesystem",
+      "file": "scripts/verify-installed-worker.mjs",
+      "line": 55,
+      "expression": "writeFileSync(join(fixture, `${name}.js`), `export const condition = ${JSON.stringify(name)};\\n`)"
+    },
+    {
+      "kind": "filesystem",
+      "file": "scripts/verify-installed-worker.mjs",
+      "line": 86,
+      "expression": "readFileSync(installedWasm)"
+    },
+    {
+      "kind": "filesystem",
+      "file": "scripts/verify-installed-worker.mjs",
+      "line": 92,
+      "expression": "readFileSync(new URL(key.slice('browser/'.length), distributions.ui.browser))"
+    },
+    {
+      "kind": "filesystem",
+      "file": "scripts/verify-installed-worker.mjs",
+      "line": 96,
+      "expression": "readFileSync(join(output, key), 'utf8')"
+    },
+    {
+      "kind": "filesystem",
+      "file": "scripts/verify-installed-worker.mjs",
+      "line": 97,
+      "expression": "readFileSync(join(output, wasmKey))"
+    },
+    {
+      "kind": "filesystem",
+      "file": "scripts/verify-installed-worker.mjs",
+      "line": 98,
+      "expression": "readFileSync(join(output, key))"
+    },
+    {
+      "kind": "module",
+      "file": "scripts/verify-installed-worker.mjs",
+      "line": 99,
+      "expression": "import(pathToFileURL(join(output, glueKey)))"
+    },
+    {
+      "kind": "filesystem",
+      "file": "scripts/verify-installed-worker.mjs",
+      "line": 100,
+      "expression": "readFileSync(join(output, wasmKey))"
+    },
+    {
+      "kind": "filesystem",
+      "file": "scripts/verify-installed-worker.mjs",
+      "line": 160,
+      "expression": "readFileSync(file)"
+    },
+    {
+      "kind": "filesystem",
+      "file": "scripts/verify-installed-worker.mjs",
+      "line": 162,
+      "expression": "rmSync(file)"
+    },
+    {
+      "kind": "filesystem",
+      "file": "scripts/verify-installed-worker.mjs",
+      "line": 168,
+      "expression": "writeFileSync(file, corrupt)"
+    },
+    {
+      "kind": "filesystem",
+      "file": "scripts/verify-installed-worker.mjs",
+      "line": 172,
+      "expression": "writeFileSync(file, saved)"
+    },
+    {
+      "kind": "filesystem",
+      "file": "scripts/verify-installed-worker.mjs",
+      "line": 176,
+      "expression": "writeFileSync(join(consumer, 'evidence.json'), JSON.stringify(evidence, null, 2) + '\\n')"
+    },
+    {
+      "kind": "filesystem",
+      "file": "scripts/verify-installed-worker.mjs",
+      "line": 189,
+      "expression": "mkdirSync(consumer)"
+    },
+    {
+      "kind": "filesystem",
+      "file": "scripts/verify-installed-worker.mjs",
+      "line": 189,
+      "expression": "mkdirSync(tarballs)"
+    },
+    {
+      "kind": "filesystem",
+      "file": "scripts/verify-installed-worker.mjs",
+      "line": 190,
+      "expression": "readdirSync(join(checkout, 'packages'), { withFileTypes: true })"
+    },
+    {
+      "kind": "filesystem",
+      "file": "scripts/verify-installed-worker.mjs",
+      "line": 192,
+      "expression": "readFileSync(join(directory, 'package.json'), 'utf8')"
+    },
+    {
+      "kind": "filesystem",
+      "file": "scripts/verify-installed-worker.mjs",
+      "line": 210,
+      "expression": "writeFileSync(join(consumer, 'package.json'), JSON.stringify({ name: 'canlang-installed-worker-regression', private: true, type: 'module', dependencies: { '@canlang/cloudflare': ov"
+    },
+    {
+      "kind": "filesystem",
+      "file": "scripts/verify-turbo-cache.mjs",
+      "line": 20,
+      "expression": "mkdirSync(directory)"
+    },
+    {
+      "kind": "filesystem",
+      "file": "scripts/verify-turbo-cache.mjs",
+      "line": 28,
+      "expression": "writeFileSync(join(evidence, name), JSON.stringify(value, null, 2) + '\\n')"
+    },
+    {
+      "kind": "filesystem",
+      "file": "scripts/verify-turbo-cache.mjs",
+      "line": 32,
+      "expression": "existsSync(parent)"
+    },
+    {
+      "kind": "filesystem",
+      "file": "scripts/verify-turbo-cache.mjs",
+      "line": 45,
+      "expression": "statSync(actual)"
+    },
+    {
+      "kind": "filesystem",
+      "file": "scripts/verify-turbo-cache.mjs",
+      "line": 48,
+      "expression": "mkdirSync(destination, { recursive: true })"
+    },
+    {
+      "kind": "filesystem",
+      "file": "scripts/verify-turbo-cache.mjs",
+      "line": 49,
+      "expression": "readdirSync(actual, { withFileTypes: true })"
+    },
+    {
+      "kind": "filesystem",
+      "file": "scripts/verify-turbo-cache.mjs",
+      "line": 54,
+      "expression": "copyFileSync(actual, destination)"
+    },
+    {
+      "kind": "filesystem",
+      "file": "scripts/verify-turbo-cache.mjs",
+      "line": 56,
+      "expression": "readFileSync(actual)"
+    },
+    {
+      "kind": "filesystem",
+      "file": "scripts/verify-turbo-cache.mjs",
+      "line": 66,
+      "expression": "writeFileSync(join(evidence, `${label}.stdout.log`), result.stdout ?? '')"
+    },
+    {
+      "kind": "filesystem",
+      "file": "scripts/verify-turbo-cache.mjs",
+      "line": 67,
+      "expression": "writeFileSync(join(evidence, `${label}.stderr.log`), result.stderr ?? '')"
+    },
+    {
+      "kind": "filesystem",
+      "file": "scripts/verify-turbo-cache.mjs",
+      "line": 76,
+      "expression": "readdirSync(directory, { withFileTypes: true })"
+    },
+    {
+      "kind": "filesystem",
+      "file": "scripts/verify-turbo-cache.mjs",
+      "line": 87,
+      "expression": "lstatSync(file)"
+    },
+    {
+      "kind": "filesystem",
+      "file": "scripts/verify-turbo-cache.mjs",
+      "line": 89,
+      "expression": "readdirSync(file)"
+    },
+    {
+      "kind": "filesystem",
+      "file": "scripts/verify-turbo-cache.mjs",
+      "line": 92,
+      "expression": "readFileSync(file)"
+    },
+    {
+      "kind": "filesystem",
+      "file": "scripts/verify-turbo-cache.mjs",
+      "line": 97,
+      "expression": "existsSync(dist)"
+    },
+    {
+      "kind": "filesystem",
+      "file": "scripts/verify-turbo-cache.mjs",
+      "line": 98,
+      "expression": "readdirSync(owner.directory)"
+    },
+    {
+      "kind": "filesystem",
+      "file": "scripts/verify-turbo-cache.mjs",
+      "line": 119,
+      "expression": "rmSync(guarded(join(owner.directory, 'dist')), { recursive: true, force: true })"
+    },
+    {
+      "kind": "filesystem",
+      "file": "scripts/verify-turbo-cache.mjs",
+      "line": 120,
+      "expression": "readdirSync(owner.directory)"
+    },
+    {
+      "kind": "filesystem",
+      "file": "scripts/verify-turbo-cache.mjs",
+      "line": 120,
+      "expression": "rmSync(guarded(join(owner.directory, item)))"
+    },
+    {
+      "kind": "filesystem",
+      "file": "scripts/verify-turbo-cache.mjs",
+      "line": 130,
+      "expression": "existsSync(runsDirectory)"
+    },
+    {
+      "kind": "filesystem",
+      "file": "scripts/verify-turbo-cache.mjs",
+      "line": 130,
+      "expression": "readdirSync(runsDirectory)"
+    },
+    {
+      "kind": "filesystem",
+      "file": "scripts/verify-turbo-cache.mjs",
+      "line": 134,
+      "expression": "readdirSync(runsDirectory)"
+    },
+    {
+      "kind": "filesystem",
+      "file": "scripts/verify-turbo-cache.mjs",
+      "line": 136,
+      "expression": "readFileSync(join(runsDirectory, created[0]), 'utf8')"
+    },
+    {
+      "kind": "filesystem",
+      "file": "scripts/verify-turbo-cache.mjs",
+      "line": 190,
+      "expression": "readFileSync(file)"
+    },
+    {
+      "kind": "filesystem",
+      "file": "scripts/verify-turbo-cache.mjs",
+      "line": 192,
+      "expression": "writeFileSync(file, mutate(original))"
+    },
+    {
+      "kind": "filesystem",
+      "file": "scripts/verify-turbo-cache.mjs",
+      "line": 196,
+      "expression": "writeFileSync(file, original)"
+    },
+    {
+      "kind": "filesystem",
+      "file": "scripts/verify-turbo-cache.mjs",
+      "line": 202,
+      "expression": "readdirSync(join(workspace, 'packages'))"
+    },
+    {
+      "kind": "filesystem",
+      "file": "scripts/verify-turbo-cache.mjs",
+      "line": 202,
+      "expression": "existsSync(join(workspace, 'packages', name, 'package.json'))"
+    },
+    {
+      "kind": "filesystem",
+      "file": "scripts/verify-turbo-cache.mjs",
+      "line": 204,
+      "expression": "readFileSync(join(directory, 'package.json'), 'utf8')"
+    },
+    {
+      "kind": "filesystem",
+      "file": "scripts/verify-turbo-cache.mjs",
+      "line": 208,
+      "expression": "readFileSync(join(workspace, 'package.json'), 'utf8')"
+    },
+    {
+      "kind": "filesystem",
+      "file": "scripts/verify-turbo-cache.mjs",
+      "line": 212,
+      "expression": "readFileSync(join(workspace, 'bun.lock'))"
+    },
+    {
+      "kind": "filesystem",
+      "file": "scripts/verify-turbo-cache.mjs",
+      "line": 214,
+      "expression": "readFileSync(join(workspace, 'bun.lock'))"
+    },
+    {
+      "kind": "module",
+      "file": "scripts/verify-turbo-cache.mjs",
+      "line": 219,
+      "expression": "import(pathToFileURL(join(workspace, 'scripts', 'run-tasks.mjs')))"
+    },
+    {
+      "kind": "filesystem",
+      "file": "scripts/verify-turbo-cache.mjs",
+      "line": 237,
+      "expression": "statSync(executable)"
+    },
+    {
+      "kind": "filesystem",
+      "file": "scripts/verify-turbo-cache.mjs",
+      "line": 253,
+      "expression": "rmSync(executable)"
+    },
+    {
+      "kind": "filesystem",
+      "file": "scripts/verify-turbo-cache.mjs",
+      "line": 257,
+      "expression": "readFileSync(contracts)"
+    },
+    {
+      "kind": "filesystem",
+      "file": "scripts/verify-turbo-cache.mjs",
+      "line": 258,
+      "expression": "writeFileSync(contracts, Buffer.concat([contractBytes, Buffer.from('\\nexport const turboCacheProof = \"upstream-api-change\" as const;\\n')]))"
+    },
+    {
+      "kind": "filesystem",
+      "file": "scripts/verify-turbo-cache.mjs",
+      "line": 269,
+      "expression": "writeFileSync(contracts, contractBytes)"
+    },
+    {
+      "kind": "filesystem",
+      "file": "scripts/verify-turbo-cache.mjs",
+      "line": 281,
+      "expression": "mkdirSync(dirname(destination), { recursive: true })"
+    },
+    {
+      "kind": "filesystem",
+      "file": "scripts/verify-turbo-cache.mjs",
+      "line": 282,
+      "expression": "writeFileSync(destination, `separately owned cache proof: ${file}\\n`)"
+    },
+    {
+      "kind": "filesystem",
+      "file": "scripts/verify-turbo-cache.mjs",
+      "line": 286,
+      "expression": "readFileSync(join(workspace, file), 'utf8')"
+    },
+    {
+      "kind": "filesystem",
+      "file": "scripts/verify-turbo-cache.mjs",
+      "line": 290,
+      "expression": "existsSync(join(workspace, file))"
+    },
+    {
+      "kind": "filesystem",
+      "file": "scripts/verify-turbo-cache.mjs",
+      "line": 294,
+      "expression": "readFileSync(leafFile)"
+    },
+    {
+      "kind": "filesystem",
+      "file": "scripts/verify-turbo-cache.mjs",
+      "line": 296,
+      "expression": "existsSync(deletionFixture)"
+    },
+    {
+      "kind": "filesystem",
+      "file": "scripts/verify-turbo-cache.mjs",
+      "line": 298,
+      "expression": "writeFileSync(leafFile, Buffer.concat([leafBytes, Buffer.from('\\nexport const turboLeafProof = true;\\n')]))"
+    },
+    {
+      "kind": "filesystem",
+      "file": "scripts/verify-turbo-cache.mjs",
+      "line": 305,
+      "expression": "writeFileSync(deletionFixture, 'export const removalProof = \"must disappear after source deletion\";\\n')"
+    },
+    {
+      "kind": "filesystem",
+      "file": "scripts/verify-turbo-cache.mjs",
+      "line": 313,
+      "expression": "existsSync(file)"
+    },
+    {
+      "kind": "filesystem",
+      "file": "scripts/verify-turbo-cache.mjs",
+      "line": 314,
+      "expression": "writeFileSync(leafFile, leafBytes)"
+    },
+    {
+      "kind": "filesystem",
+      "file": "scripts/verify-turbo-cache.mjs",
+      "line": 315,
+      "expression": "rmSync(deletionFixture)"
+    },
+    {
+      "kind": "filesystem",
+      "file": "scripts/verify-turbo-cache.mjs",
+      "line": 318,
+      "expression": "existsSync(file)"
+    },
+    {
+      "kind": "filesystem",
+      "file": "scripts/verify-turbo-cache.mjs",
+      "line": 320,
+      "expression": "writeFileSync(leafFile, Buffer.concat([leafBytes, Buffer.from('\\nexport const turboLeafProof = true;\\n')]))"
+    },
+    {
+      "kind": "filesystem",
+      "file": "scripts/verify-turbo-cache.mjs",
+      "line": 321,
+      "expression": "writeFileSync(deletionFixture, 'export const removalProof = \"must disappear after source deletion\";\\n')"
+    },
+    {
+      "kind": "filesystem",
+      "file": "scripts/verify-turbo-cache.mjs",
+      "line": 323,
+      "expression": "existsSync(file)"
+    },
+    {
+      "kind": "filesystem",
+      "file": "scripts/verify-turbo-cache.mjs",
+      "line": 324,
+      "expression": "rmSync(deletionFixture)"
+    },
+    {
+      "kind": "filesystem",
+      "file": "scripts/verify-turbo-cache.mjs",
+      "line": 325,
+      "expression": "writeFileSync(leafFile, Buffer.concat([leafBytes, Buffer.from('\\nexport const turboLeafProof = \"source-deleted\" as const;\\n')]))"
+    },
+    {
+      "kind": "filesystem",
+      "file": "scripts/verify-turbo-cache.mjs",
+      "line": 327,
+      "expression": "existsSync(file)"
+    },
+    {
+      "kind": "filesystem",
+      "file": "scripts/verify-turbo-cache.mjs",
+      "line": 329,
+      "expression": "writeFileSync(leafFile, leafBytes)"
+    },
+    {
+      "kind": "filesystem",
+      "file": "scripts/verify-turbo-cache.mjs",
+      "line": 329,
+      "expression": "rmSync(deletionFixture, { force: true })"
+    },
+    {
+      "kind": "filesystem",
+      "file": "scripts/verify-turbo-cache.mjs",
+      "line": 338,
+      "expression": "readFileSync(join(workspace, 'turbo.json'), 'utf8')"
+    },
+    {
+      "kind": "filesystem",
+      "file": "scripts/verify-turbo-cache.mjs",
+      "line": 354,
+      "expression": "writeFileSync(contracts, Buffer.concat([contractBytes, Buffer.from('\\nexport const turboBrokenProducer: never = 1;\\n')]))"
+    },
+    {
+      "kind": "filesystem",
+      "file": "scripts/verify-turbo-cache.mjs",
+      "line": 364,
+      "expression": "writeFileSync(contracts, contractBytes)"
+    },
+    {
+      "kind": "filesystem",
+      "file": "tests/e2e/apps/challenge-pilot-patched.spec.ts",
+      "line": 147,
+      "expression": "readFileSync(`${root}${pin.pristine}`, \"utf8\")"
+    },
+    {
+      "kind": "filesystem",
+      "file": "tests/e2e/apps/challenge-pilot-patched.spec.ts",
+      "line": 151,
+      "expression": "readFileSync(`${root}${pin.patched}`, \"utf8\")"
+    },
+    {
+      "kind": "filesystem",
+      "file": "tests/e2e/fixtures/artifact-loader.ts",
+      "line": 157,
+      "expression": "readFileSync(join(root, relativePath))"
+    },
+    {
+      "kind": "module",
+      "file": "tests/e2e/fixtures/artifact-loader.ts",
+      "line": 173,
+      "expression": "import.meta.resolve(specifier)"
+    },
+    {
+      "kind": "filesystem",
+      "file": "tests/e2e/fixtures/artifact-loader.ts",
+      "line": 175,
+      "expression": "statSync(new URL(moduleUrl))"
+    },
+    {
+      "kind": "filesystem",
+      "file": "tests/e2e/fixtures/artifact-loader.ts",
+      "line": 216,
+      "expression": "readFileSync(outFile, \"utf8\")"
+    },
+    {
+      "kind": "filesystem",
+      "file": "tests/e2e/fixtures/artifact-loader.ts",
+      "line": 218,
+      "expression": "rmSync(outFile, { force: true })"
+    },
+    {
+      "kind": "filesystem",
+      "file": "tests/e2e/fixtures/artifact-loader.ts",
+      "line": 324,
+      "expression": "statSync(bin)"
+    },
+    {
+      "kind": "filesystem",
+      "file": "tests/e2e/fixtures/artifact-loader.ts",
+      "line": 386,
+      "expression": "readFileSync(join(root, path))"
+    },
+    {
+      "kind": "filesystem",
+      "file": "tests/e2e/fixtures/artifact-loader.ts",
+      "line": 486,
+      "expression": "rmSync(compiled.workDir, { recursive: true, force: true })"
+    },
+    {
+      "kind": "module",
+      "file": "tests/e2e/fixtures/example-hooks.ts",
+      "line": 31,
+      "expression": "import(specifier)"
+    },
+    {
+      "kind": "filesystem",
+      "file": "tests/e2e/fixtures/pilot-examples.spec.ts",
+      "line": 179,
+      "expression": "writeFile(file, SUITE_MODULE)"
+    },
+    {
+      "kind": "filesystem",
+      "file": "tests/e2e/fixtures/pilot-seed.ts",
+      "line": 252,
+      "expression": "mkdirSync(dirname(outPath), { recursive: true })"
+    },
+    {
+      "kind": "filesystem",
+      "file": "tests/e2e/fixtures/pilot-seed.ts",
+      "line": 253,
+      "expression": "writeFileSync(outPath, suite.module.js, \"utf8\")"
+    },
+    {
+      "kind": "filesystem",
+      "file": "tests/e2e/fixtures/vendor-trees.ts",
+      "line": 24,
+      "expression": "statSync(base)"
+    },
+    {
+      "kind": "filesystem",
+      "file": "tests/e2e/fixtures/vendor-trees.ts",
+      "line": 31,
+      "expression": "readdirSync(dir)"
+    },
+    {
+      "kind": "filesystem",
+      "file": "tests/e2e/fixtures/vendor-trees.ts",
+      "line": 33,
+      "expression": "statSync(full)"
+    },
+    {
+      "kind": "filesystem",
+      "file": "tests/e2e/fixtures/vendor-trees.ts",
+      "line": 44,
+      "expression": "readFileSync(full, \"utf8\")"
+    },
+    {
+      "kind": "filesystem",
+      "file": "tests/e2e/fixtures/vendor-walk.spec.ts",
+      "line": 17,
+      "expression": "mkdir(join(root, \"dist\", \"fanout\"), { recursive: true })"
+    },
+    {
+      "kind": "filesystem",
+      "file": "tests/e2e/fixtures/vendor-walk.spec.ts",
+      "line": 18,
+      "expression": "mkdir(join(root, \"dist\", \"receipt\"), { recursive: true })"
+    },
+    {
+      "kind": "filesystem",
+      "file": "tests/e2e/fixtures/vendor-walk.spec.ts",
+      "line": 19,
+      "expression": "writeFile(join(root, \"dist\", \"keep.js\"), \"export const keep = 1;\\n\")"
+    },
+    {
+      "kind": "filesystem",
+      "file": "tests/e2e/fixtures/vendor-walk.spec.ts",
+      "line": 20,
+      "expression": "writeFile(join(root, \"dist\", \"fanout\", \"work-loader.js\"), \"import 'node:url';\\n\")"
+    },
+    {
+      "kind": "filesystem",
+      "file": "tests/e2e/fixtures/vendor-walk.spec.ts",
+      "line": 21,
+      "expression": "writeFile(join(root, \"dist\", \"receipt\", \"work-loader.js\"), \"import 'node:path';\\n\")"
+    },
+    {
+      "kind": "filesystem",
+      "file": "tests/e2e/fixtures/vendor-walk.spec.ts",
+      "line": 22,
+      "expression": "writeFile(join(root, \"dist\", \"note.txt\"), \"ignored\\n\")"
+    },
+    {
+      "kind": "filesystem",
+      "file": "tests/e2e/fixtures/vendor-walk.spec.ts",
+      "line": 36,
+      "expression": "rm(root, { recursive: true, force: true })"
+    },
+    {
+      "kind": "filesystem",
+      "file": "tests/e2e/fixtures/vendor-walk.spec.ts",
+      "line": 49,
+      "expression": "rm(root, { recursive: true, force: true })"
+    },
+    {
+      "kind": "filesystem",
+      "file": "tests/e2e/fixtures/vendor-walk.spec.ts",
+      "line": 70,
+      "expression": "rm(root, { recursive: true, force: true })"
+    },
+    {
+      "kind": "filesystem",
+      "file": "tests/e2e/fixtures/vendor-walk.spec.ts",
+      "line": 77,
+      "expression": "writeFile(join(root, \"dist\", \"contract.js\"), [\n      'export { CSRF_FIELD } from \"@canlang/contracts\";',\n      'import \"@canlang/contracts\";',\n      'const contracts = import(\"@can"
+    },
+    {
+      "kind": "filesystem",
+      "file": "tests/e2e/fixtures/vendor-walk.spec.ts",
+      "line": 82,
+      "expression": "writeFile(join(root, \"dist\", \"distribution.js\"), 'export const directory = new URL(\"./\", import.meta.url);')"
+    },
+    {
+      "kind": "filesystem",
+      "file": "tests/e2e/fixtures/vendor-walk.spec.ts",
+      "line": 83,
+      "expression": "writeFile(join(root, \"dist\", \"contract.test.js\"), 'import \"node:test\";')"
+    },
+    {
+      "kind": "filesystem",
+      "file": "tests/e2e/fixtures/vendor-walk.spec.ts",
+      "line": 84,
+      "expression": "writeFile(join(root, \"dist\", \"receipt\", \"contract.js\"), 'export { CSRF_FIELD } from \"@canlang/contracts\";')"
+    },
+    {
+      "kind": "filesystem",
+      "file": "tests/e2e/fixtures/vendor-walk.spec.ts",
+      "line": 95,
+      "expression": "rm(root, { recursive: true, force: true })"
+    },
+    {
+      "kind": "filesystem",
+      "file": "tests/integration/lane02-values.test.ts",
+      "line": 133,
+      "expression": "readFileSync(url, \"utf8\")"
+    },
+    {
+      "kind": "filesystem",
+      "file": "tests/integration/readiness.test.ts",
+      "line": 50,
+      "expression": "existsSync(path(`packages/contracts/src/${module}.ts`))"
+    },
+    {
+      "kind": "filesystem",
+      "file": "tests/integration/readiness.test.ts",
+      "line": 71,
+      "expression": "existsSync(path(`packages/${name}/package.json`))"
+    }
+  ],
+  "checkoutInputs": [
+    {
+      "consumer": "packages/cloudflare/src/release/stamp.ts",
+      "target": "compiler/Cargo.toml",
+      "reason": "Release lockstep reads the owning compiler version."
+    },
+    {
+      "consumer": "tests/e2e/fixtures/artifact-loader.ts",
+      "target": "caller-supplied .can fixtures",
+      "reason": "The compiled mode hands explicit fixture paths to the compiler; shell/native execution is outside this AST guard."
+    }
+  ],
+  "registered": []
+}

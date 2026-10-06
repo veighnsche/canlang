@@ -3,8 +3,8 @@
 Provider-owned capability adapters with verified ingress and completion
 envelopes: mail, models (Ollama chat), judgments (SystemOne), and media
 (ComfyUI native). Internal package; the public surface assembles in
-`@canlang/stdlib`. There is no barrel `index.ts`: import from the module
-paths under `src/` (as `test/*.test.ts` does).
+`@canlang/stdlib`. The root entry and explicit package subpaths load emitted
+modules; consumers do not import package source paths.
 
 Ownership per `implementation/PLAN.md`: lane 4 (provider adapters,
 durable events/schedules/deliveries, file lifecycle, observable runs).
@@ -12,14 +12,14 @@ durable events/schedules/deliveries, file lifecycle, observable runs).
 Install (workspace, from the repo root):
 
 ```sh
-bun install
+bun install --frozen-lockfile
 ```
 
 Usage:
 
 ```ts
-import { EmailV1Adapter } from '@canlang/services/src/mail/adapter.ts';
-import { fixedClock } from '@canlang/services/src/ports.ts';
+import { EmailV1Adapter } from '@canlang/services/mail/adapter';
+import { fixedClock } from '@canlang/services/ports';
 
 const mail = new EmailV1Adapter({
   baseUrl: 'https://mail.example.test',
@@ -42,15 +42,22 @@ scenario tables `SCENARIO_TABLES`, `parseScenarioTable`,
 `startControlledMailServer`, `startControlledOllamaServer`,
 `startControlledSystemOneServer`, `startControlledComfyServer`.
 
-Scripts (the only scripts in `package.json`; no `build` script):
+## Scripts
 
-| Script | Command | Purpose |
-| --- | --- | --- |
-| `typecheck` | `tsc --noEmit` | Typecheck the package |
-| `test` | `node --test 'test/**/*.test.ts'` | Run the `node:test` suite |
+From the repository root, after `bun install --frozen-lockfile`:
 
-Run from the repo root, e.g.
-`bun run --filter @canlang/services test`.
+```sh
+bun run build --filter=@canlang/services
+bun run --filter @canlang/services typecheck
+bun run --filter @canlang/services test
+```
+
+The filtered root build schedules this package and its declared producer
+dependencies. It emits only each owner’s outputs, cleaning them before execution
+or cache restoration. Package `typecheck` and `test` use the same graph, then
+run the owning TypeScript check or compiled `node:test` suite uncached.
+Internal `build:emit`, `typecheck:check`, and `test:unit` tasks are execution
+steps; use the public commands above to prepare dependencies.
 
 Source layout:
 

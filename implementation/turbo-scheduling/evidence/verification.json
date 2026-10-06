@@ -1,0 +1,241 @@
+{
+  "profile": {
+    "host": "darwin-arm64",
+    "node": "v24.21.0",
+    "bun": "1.4.2",
+    "turbo": "2.11.7",
+    "typescript": "5.9.3",
+    "vitest": "3.2.7",
+    "cargo": "1.99.0",
+    "rustc": "1.99.0"
+  },
+  "cache": {
+    "result": "passed",
+    "phases": 17,
+    "probes": 15,
+    "outputs": 2242,
+    "bytes": 18166656,
+    "source": "cache/report.json"
+  },
+  "commands": [
+    {
+      "command": "bun run typecheck",
+      "exitCode": 0,
+      "packageChecks": 13,
+      "rootChecks": 1,
+      "successfulTasks": 40,
+      "cacheHits": 13,
+      "log": "typecheck.log"
+    },
+    {
+      "command": "bun run typecheck:e2e",
+      "exitCode": 0,
+      "successfulTasks": 27,
+      "cacheHits": 13,
+      "log": "typecheck-e2e.log"
+    },
+    {
+      "command": "bun run test",
+      "exitCode": 0,
+      "testsPassed": 636,
+      "files": 64,
+      "log": "root-tests-isolated.log"
+    },
+    {
+      "command": "bun run test:all",
+      "exitCode": 0,
+      "successfulTasks": 38,
+      "cacheHits": 13,
+      "rootTestsPassed": 636,
+      "owningNodeCommands": [
+        {
+          "command": "@canlang/work-kernel:test:unit",
+          "tests": 371,
+          "pass": 371,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0
+        },
+        {
+          "command": "@canlang/identity:test:unit",
+          "tests": 68,
+          "pass": 68,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0
+        },
+        {
+          "command": "@canlang/services:test:unit",
+          "tests": 146,
+          "pass": 146,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0
+        },
+        {
+          "command": "@canlang/state:test:unit",
+          "tests": 821,
+          "pass": 821,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0
+        },
+        {
+          "command": "@canlang/values:test:unit",
+          "tests": 873,
+          "pass": 872,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 1
+        },
+        {
+          "command": "@canlang/ui:test:unit",
+          "tests": 935,
+          "pass": 935,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0
+        },
+        {
+          "command": "@canlang/files:test:unit",
+          "tests": 83,
+          "pass": 83,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0
+        },
+        {
+          "command": "@canlang/work:test:unit",
+          "tests": 835,
+          "pass": 835,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0
+        },
+        {
+          "command": "@canlang/stdlib:test:unit",
+          "tests": 4,
+          "pass": 4,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0
+        },
+        {
+          "command": "@canlang/interfaces:test:unit",
+          "tests": 504,
+          "pass": 504,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0
+        },
+        {
+          "command": "@canlang/cloudflare:test:runtime",
+          "tests": 265,
+          "pass": 265,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0
+        }
+      ],
+      "passed": 5540,
+      "skipped": 1,
+      "log": "tests-all.log"
+    },
+    {
+      "command": "bun run catalog --summarize",
+      "exitCode": 0,
+      "successfulTasks": 5,
+      "cacheHits": 2,
+      "catalogEntries": 59,
+      "log": "catalog.log"
+    },
+    {
+      "command": "bun run test:packages --filter=@canlang/values --summarize",
+      "exitCode": 0,
+      "passed": 873,
+      "skipped": 0,
+      "previousCatalogSkipExercised": true,
+      "log": "values-catalog-tests.log"
+    },
+    {
+      "command": "bun run release --summarize",
+      "exitCode": 0,
+      "successfulTasks": 29,
+      "cacheHits": 13,
+      "uncachedValidation": [
+        "release:stamp",
+        "release:manifest",
+        "release:verify"
+      ],
+      "log": "release.log"
+    },
+    {
+      "command": "node scripts/verify-installed-worker.mjs --skip-build",
+      "exitCode": 0,
+      "log": "installed-worker.log",
+      "result": "installed-worker.json"
+    },
+    {
+      "command": "bun run test:compiler",
+      "exitCode": 0,
+      "testsPassed": 909,
+      "ignored": 0,
+      "cacheHits": 0,
+      "buildCommit": "7fd8c6b",
+      "log": "native-compiler.log"
+    },
+    {
+      "command": "bun run test:tools",
+      "exitCode": 0,
+      "testsPassed": 3,
+      "cacheHits": 0,
+      "log": "python-jev.log"
+    },
+    {
+      "command": "bun run check:boundaries",
+      "exitCode": 0,
+      "owners": 13,
+      "files": 678,
+      "violations": 0,
+      "runtimeContextExpressions": 545,
+      "log": "boundaries.log"
+    },
+    {
+      "command": "bun run test:boundaries",
+      "exitCode": 0,
+      "testsPassed": 12,
+      "log": "boundary-fixtures.log"
+    },
+    {
+      "command": "node node_modules/turbo/bin/turbo boundaries",
+      "exitCode": 0,
+      "owners": 13,
+      "files": 634,
+      "violations": 0,
+      "log": "turbo-boundaries.log"
+    }
+  ],
+  "ci": {
+    "workflowsParsed": 12,
+    "gateReceiptTestsPassed": 13,
+    "skipped": 0,
+    "source": "ci/summary.json"
+  },
+  "failedAttempts": {
+    "logs": [
+      "tests-cwd-attempt.log",
+      "tests-concurrent-attempt.log",
+      "tests-serial-under-load-attempt.log"
+    ],
+    "resolved": "Work/Cloudflare command CWD corrected; aggregate suites scheduled sequentially; root asset comparison timed out with competing build jobs and passed without them. Assertions/test sets/timeout thresholds unchanged."
+  },
+  "unexecuted": [
+    "full Playwright/browser journeys",
+    "editor CommonJS/VSIX qualification",
+    "values/work-kernel Rust/WASM regeneration and loader-smoke profiles",
+    "alternate-host native releases and Git-commit-change binary witness",
+    "hosted CI/TS receipt execution",
+    "remote caching"
+  ],
+  "held": "Preparation native release/adoption remains held; no merge/publication; living-plan checkpoint unchanged"
+}

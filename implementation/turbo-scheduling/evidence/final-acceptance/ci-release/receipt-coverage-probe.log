@@ -1,0 +1,12 @@
+{
+  "acceptedIncompleteReceipt": true,
+  "omitted": [
+    "git revision",
+    "node/bun versions",
+    "frozen install",
+    "producer build",
+    "typecheck",
+    "package test",
+    "git diff"
+  ]
+}

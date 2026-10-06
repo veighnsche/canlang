@@ -1,0 +1,424 @@
+$ node scripts/run-tasks.mjs test:root
+
+   • turbo 2.11.7
+   • Packages in scope: //, @canlang/cloudflare, @canlang/contracts, @canlang/files, @canlang/identity, @canlang/interfaces, @canlang/services, @canlang/state, @canlang/stdlib, @canlang/testkit, @canlang/ui, @canlang/values, @canlang/work, @canlang/work-kernel
+   • Running test:root in 14 packages
+   • Remote caching disabled
+
+@canlang/contracts:build:prepare: cache bypass, force executing 5ffdada2d6d451ee
+@canlang/state:build:prepare: cache bypass, force executing f76918e8bc841856
+@canlang/stdlib:build:prepare: cache bypass, force executing cc734becc8a5c0a4
+@canlang/interfaces:build:prepare: cache bypass, force executing b61224e8f7340fe5
+@canlang/contracts:build:prepare: $ node ../../scripts/build-package.mjs --prepare
+@canlang/state:build:prepare: $ node ../../scripts/build-package.mjs --prepare
+@canlang/stdlib:build:prepare: $ node ../../scripts/build-package.mjs --prepare
+@canlang/interfaces:build:prepare: $ node ../../scripts/build-package.mjs --prepare
+@canlang/values:build:prepare: cache bypass, force executing 259a5b9ed9d8df14
+@canlang/work:build:prepare: cache bypass, force executing 8884d0496d847ecd
+@canlang/values:build:prepare: $ node ../../scripts/build-package.mjs --prepare
+@canlang/work:build:prepare: $ node ../../scripts/build-package.mjs --prepare
+@canlang/identity:build:prepare: cache bypass, force executing b19c709b710badba
+@canlang/services:build:prepare: cache bypass, force executing df6fdc9cb24abcf4
+@canlang/services:build:prepare: $ node ../../scripts/build-package.mjs --prepare
+@canlang/identity:build:prepare: $ node ../../scripts/build-package.mjs --prepare
+@canlang/ui:build:prepare: cache bypass, force executing 95cbc753853cf0f0
+@canlang/testkit:build:prepare: cache bypass, force executing bc66a7b9d83e664a
+@canlang/testkit:build:prepare: $ node ../../scripts/build-package.mjs --prepare
+@canlang/ui:build:prepare: $ node ../../scripts/build-package.mjs --prepare
+@canlang/work-kernel:build:prepare: cache bypass, force executing f78e5a0cca3d4b50
+@canlang/files:build:prepare: cache bypass, force executing 962d854d85532b79
+@canlang/work-kernel:build:prepare: $ node ../../scripts/build-package.mjs --prepare
+@canlang/files:build:prepare: $ node ../../scripts/build-package.mjs --prepare
+@canlang/cloudflare:build:prepare: cache bypass, force executing c79047ff7d3f848d
+@canlang/cloudflare:build:prepare: $ node ../../scripts/build-package.mjs --prepare
+@canlang/contracts:build: cache hit, replaying logs bd19d31341c7fe45
+@canlang/contracts:build: $ node ../../scripts/build-package.mjs
+@canlang/contracts:build: $ tsc -p tsconfig.json
+@canlang/work-kernel:build: cache hit, replaying logs 4b88d71d103e731c
+@canlang/work-kernel:build: $ node ../../scripts/build-package.mjs
+@canlang/work-kernel:build: $ tsc -p tsconfig.json
+@canlang/identity:build: cache hit, replaying logs 95515cbe34321202
+@canlang/identity:build: $ node ../../scripts/build-package.mjs
+@canlang/identity:build: $ tsc -p tsconfig.json && mkdir -p dist/test/fixtures && cp -r test/fixtures/. dist/test/fixtures/
+@canlang/values:build: cache hit, replaying logs aa984135649556d0
+@canlang/values:build: $ node ../../scripts/build-package.mjs
+@canlang/values:build: $ tsc -p tsconfig.json && node scripts/stage-semantics.mjs
+@canlang/ui:build: cache hit, replaying logs d48114a984d20415
+@canlang/ui:build: $ node ../../scripts/build-package.mjs
+@canlang/ui:build: $ tsc -p tsconfig.json && node scripts/build-browser.mjs
+@canlang/ui:build: build-browser: installed bootstrap.js, polling.js, can-style.css + manifest.json (daisyui 5.7.47, catalog 0.1.0-lane05-draft, binders guarded-form,once-action,poll-region)
+@canlang/stdlib:build: cache hit, replaying logs 43d6e0811b86f730
+@canlang/stdlib:build: $ node ../../scripts/build-package.mjs
+@canlang/stdlib:build: $ tsc -p tsconfig.json
+@canlang/services:build: cache hit, replaying logs 3d6fad5ae53c5438
+@canlang/services:build: $ node ../../scripts/build-package.mjs
+@canlang/services:build: $ tsc -p tsconfig.json
+@canlang/files:build: cache hit, replaying logs 8ac019b8ecda0597
+@canlang/files:build: $ node ../../scripts/build-package.mjs
+@canlang/files:build: $ tsc -p tsconfig.json
+@canlang/interfaces:build: cache hit, replaying logs 8e6524c0c6310e39
+@canlang/interfaces:build: $ node ../../scripts/build-package.mjs
+@canlang/interfaces:build: $ tsc -p tsconfig.json && mkdir -p dist/test/fixtures && cp -r test/fixtures/. dist/test/fixtures/
+@canlang/state:build: cache hit, replaying logs 9490a527f2387cb2
+@canlang/state:build: $ node ../../scripts/build-package.mjs
+@canlang/state:build: $ tsc -p tsconfig.json
+@canlang/work:build: cache hit, replaying logs 9beed47d245b78a2
+@canlang/work:build: $ node ../../scripts/build-package.mjs
+@canlang/work:build: $ tsc -p tsconfig.json
+@canlang/cloudflare:build: cache hit, replaying logs b47f6c06b10e73a7
+@canlang/cloudflare:build: $ node ../../scripts/build-package.mjs
+@canlang/cloudflare:build: $ tsc -p tsconfig.json && chmod +x dist/cli/platform.js
+@canlang/testkit:build: cache hit, replaying logs 617f8237c65037db
+@canlang/testkit:build: $ node ../../scripts/build-package.mjs
+@canlang/testkit:build: $ tsc -p tsconfig.json
+//:test:root: cache bypass, force executing 948ac07dc0d83fbb
+//:test:root: $ vitest run
+//:test:root: 
+//:test:root:  RUN  v3.2.7 /Users/vince/Projects/canlang
+//:test:root: 
+//:test:root:  ✓ packages/cloudflare/test/activate-cli.test.ts (4 tests) 1490ms
+//:test:root:    ✓ can-platform activate (TeamTasks demo) > fails closed on the bad bundle (requires values.decimal, target lacks it)  404ms
+//:test:root:    ✓ can-platform activate (TeamTasks demo) > runs gates 1-3 on the good bundle, names the gate-4 producer join  300ms
+//:test:root:    ✓ can-platform activate (TeamTasks demo) > requires --env for activate  376ms
+//:test:root:    ✓ can-platform activate (TeamTasks demo) > reports a missing bundle file loudly, not a producer error  408ms
+//:test:root: stdout | packages/cloudflare/test/http-operations-route.test.ts > worker POST /api/operations/* (C3 op-route join) > answers unknown/malformed operations and methods as not_found (E owns the shape)
+//:test:root: [http] info not_found: Unknown operation. {
+//:test:root:   route: 'operation',
+//:test:root:   operation: 'Nope.nope',
+//:test:root:   code: 'not_found',
+//:test:root:   retryable: false
+//:test:root: }
+//:test:root: 
+//:test:root: stdout | packages/cloudflare/test/http-operations-route.test.ts > worker POST /api/operations/* (C3 op-route join) > answers unknown/malformed operations and methods as not_found (E owns the shape)
+//:test:root: [http] info not_found: Unknown operation. {
+//:test:root:   route: 'operation',
+//:test:root:   operation: '%%%',
+//:test:root:   code: 'not_found',
+//:test:root:   retryable: false
+//:test:root: }
+//:test:root: 
+//:test:root: stdout | packages/cloudflare/test/http-operations-route.test.ts > worker POST /api/operations/* (C3 op-route join) > answers unknown/malformed operations and methods as not_found (E owns the shape)
+//:test:root: [http] info not_found: Unknown operation. {
+//:test:root:   route: 'operation',
+//:test:root:   operation: 'Shop.Gadget.create',
+//:test:root:   code: 'not_found',
+//:test:root:   retryable: false
+//:test:root: }
+//:test:root: 
+//:test:root: stdout | packages/cloudflare/test/http-operations-route.test.ts > worker POST /api/operations/* (C3 op-route join) > gates session + CSRF before dispatch (E verdicts, C deps)
+//:test:root: [http] info forbidden: Authentication required. {
+//:test:root:   route: 'operation',
+//:test:root:   operation: 'Shop.Gadget.create',
+//:test:root:   code: 'forbidden',
+//:test:root:   retryable: false
+//:test:root: }
+//:test:root: 
+//:test:root: stdout | packages/cloudflare/test/http-operations-route.test.ts > worker POST /api/operations/* (C3 op-route join) > gates session + CSRF before dispatch (E verdicts, C deps)
+//:test:root: [http] info forbidden: Invalid or missing CSRF token. {
+//:test:root:   route: 'operation',
+//:test:root:   operation: 'Shop.Gadget.create',
+//:test:root:   code: 'forbidden',
+//:test:root:   retryable: false
+//:test:root: }
+//:test:root: 
+//:test:root: stdout | packages/cloudflare/test/http-operations-route.test.ts > worker POST /api/operations/* (C3 op-route join) > rejects multipart bodies as validation (F1 A5: files ride JSON envelope ids)
+//:test:root: [http] info validation: Unsupported content type. {
+//:test:root:   route: 'operation',
+//:test:root:   operation: 'Shop.Gadget.create',
+//:test:root:   code: 'validation',
+//:test:root:   retryable: false
+//:test:root: }
+//:test:root: 
+//:test:root: stdout | packages/cloudflare/test/http-operations-route.test.ts > browser/MCP bound-rule agreement (C3 T19) > framing rejects unknown members identically (incl. a smuggled delivery field, F1 A1)
+//:test:root: [http] info validation: Unknown input 'nope'. {
+//:test:root:   route: 'operation',
+//:test:root:   operation: 'Shop.Gadget.create',
+//:test:root:   code: 'validation',
+//:test:root:   retryable: false
+//:test:root: }
+//:test:root: 
+//:test:root: stdout | packages/cloudflare/test/http-operations-route.test.ts > browser/MCP bound-rule agreement (C3 T19) > framing rejects unknown members identically (incl. a smuggled delivery field, F1 A1)
+//:test:root: [http] info validation: Unknown input 'attempt'. {
+//:test:root:   route: 'operation',
+//:test:root:   operation: 'Acme.Probe.echo',
+//:test:root:   code: 'validation',
+//:test:root:   retryable: false
+//:test:root: }
+//:test:root: 
+//:test:root: stdout | packages/cloudflare/test/http-operations-route.test.ts > browser/MCP bound-rule agreement (C3 T19) > framing rejects missing required identically
+//:test:root: [http] info validation: Missing required input 'title'. {
+//:test:root:   route: 'operation',
+//:test:root:   operation: 'Shop.Gadget.create',
+//:test:root:   code: 'validation',
+//:test:root:   retryable: false
+//:test:root: }
+//:test:root: 
+//:test:root: stdout | packages/cloudflare/test/http-operations-route.test.ts > browser/MCP bound-rule agreement (C3 T19) > binding mismatches agree per kind (E1 MISMATCHES through real dispatch)
+//:test:root: [http] info validation: Invalid value for input "state": expected one of "draft", "submitted" (got "DRAFT"). {
+//:test:root:   route: 'operation',
+//:test:root:   operation: 'Shop.Gadget.create',
+//:test:root:   code: 'validation',
+//:test:root:   retryable: false
+//:test:root: }
+//:test:root: 
+//:test:root: stdout | packages/cloudflare/test/http-operations-route.test.ts > browser/MCP bound-rule agreement (C3 T19) > binding mismatches agree per kind (E1 MISMATCHES through real dispatch)
+//:test:root: [http] info validation: Invalid value for input "stock": integer values are canonical digit strings (got 5). {
+//:test:root:   route: 'operation',
+//:test:root:   operation: 'Shop.Gadget.create',
+//:test:root:   code: 'validation',
+//:test:root:   retryable: false
+//:test:root: }
+//:test:root: 
+//:test:root: stdout | packages/cloudflare/test/http-operations-route.test.ts > browser/MCP bound-rule agreement (C3 T19) > binding mismatches agree per kind (E1 MISMATCHES through real dispatch)
+//:test:root: [http] info validation: Invalid value for input "price": decimal values are canonical decimal strings, never JSON numbers (got 1.5). {
+//:test:root:   route: 'operation',
+//:test:root:   operation: 'Shop.Gadget.create',
+//:test:root:   code: 'validation',
+//:test:root:   retryable: false
+//:test:root: }
+//:test:root: 
+//:test:root: stdout | packages/cloudflare/test/http-operations-route.test.ts > browser/MCP bound-rule agreement (C3 T19) > binding mismatches agree per kind (E1 MISMATCHES through real dispatch)
+//:test:root: [http] info validation: Invalid value for input "title": null is not accepted. {
+//:test:root:   route: 'operation',
+//:test:root:   operation: 'Shop.Gadget.create',
+//:test:root:   code: 'validation',
+//:test:root:   retryable: false
+//:test:root: }
+//:test:root: 
+//:test:root: stdout | packages/cloudflare/test/http-operations-route.test.ts > browser/MCP bound-rule agreement (C3 T19) > binding mismatches agree per kind (E1 MISMATCHES through real dispatch)
+//:test:root: [http] info validation: Invalid value for input "ids": array inputs take arrays (got "a"). {
+//:test:root:   route: 'operation',
+//:test:root:   operation: 'Shop.Gadget.create',
+//:test:root:   code: 'validation',
+//:test:root:   retryable: false
+//:test:root: }
+//:test:root: 
+//:test:root: stdout | packages/cloudflare/test/http-operations-route.test.ts > browser/MCP bound-rule agreement (C3 T19) > binding mismatches agree per kind (E1 MISMATCHES through real dispatch)
+//:test:root: [http] info validation: Invalid value for input "owner": ref ids are non-empty strings. {
+//:test:root:   route: 'operation',
+//:test:root:   operation: 'Shop.Gadget.create',
+//:test:root:   code: 'validation',
+//:test:root:   retryable: false
+//:test:root: }
+//:test:root: 
+//:test:root: stdout | packages/cloudflare/test/mcp-route.test.ts > worker POST /mcp > deny-closed by default: empty list, forbidden calls, no oracle
+//:test:root: [mcp] info forbidden: You do not have permission to perform this action. {
+//:test:root:   route: 'mcp',
+//:test:root:   tool: 'acme.Todo.read',
+//:test:root:   code: 'forbidden',
+//:test:root:   retryable: false
+//:test:root: }
+//:test:root: 
+//:test:root: stdout | packages/cloudflare/test/http-operations-route.test.ts > browser/MCP bound-rule agreement (C3 T19) > binding mismatches agree per kind (E1 MISMATCHES through real dispatch)
+//:test:root: [http] info validation: Invalid value for input "owner": versioned refs carry a canonical digit-string version (got undefined). {
+//:test:root:   route: 'operation',
+//:test:root:   operation: 'Shop.Gadget.create',
+//:test:root:   code: 'validation',
+//:test:root:   retryable: false
+//:test:root: }
+//:test:root: 
+//:test:root: stdout | packages/cloudflare/test/http-operations-route.test.ts > browser/MCP bound-rule agreement (C3 T19) > binding mismatches agree per kind (E1 MISMATCHES through real dispatch)
+//:test:root: [http] info validation: Invalid value for input "fee": money values carry exactly minor and currency (got ["minor"]). {
+//:test:root:   route: 'operation',
+//:test:root:   operation: 'Shop.Gadget.create',
+//:test:root:   code: 'validation',
+//:test:root:   retryable: false
+//:test:root: }
+//:test:root: 
+//:test:root: stdout | packages/cloudflare/test/http-operations-route.test.ts > browser/MCP bound-rule agreement (C3 T19) > binding mismatches agree per kind (E1 MISMATCHES through real dispatch)
+//:test:root: [http] info validation: Invalid value for input "when": datetime values are RFC 3339 UTC instants with millis (got "2026-01-01 10:00"). {
+//:test:root:   route: 'operation',
+//:test:root:   operation: 'Shop.Gadget.create',
+//:test:root:   code: 'validation',
+//:test:root:   retryable: false
+//:test:root: }
+//:test:root: 
+//:test:root: stdout | packages/cloudflare/test/http-operations-route.test.ts > browser/MCP bound-rule agreement (C3 T19) > binding mismatches agree per kind (E1 MISMATCHES through real dispatch)
+//:test:root: [http] info validation: Invalid value for input "doc": file values are opaque finalized file id strings (got ""). {
+//:test:root:   route: 'operation',
+//:test:root:   operation: 'Shop.Gadget.create',
+//:test:root:   code: 'validation',
+//:test:root:   retryable: false
+//:test:root: }
+//:test:root: 
+//:test:root: stdout | packages/cloudflare/test/http-operations-route.test.ts > browser/MCP bound-rule agreement (C3 T19) > body.operation mismatch denies identically (F1 A8: op pins from the URL)
+//:test:root: [http] info validation: Body operation does not match the route. {
+//:test:root:   route: 'operation',
+//:test:root:   operation: 'Shop.Gadget.create',
+//:test:root:   code: 'validation',
+//:test:root:   retryable: false
+//:test:root: }
+//:test:root: 
+//:test:root:  ✓ packages/cloudflare/test/deploy-package-assets.test.ts (25 tests) 2751ms
+//:test:root:    ✓ deploying installed package assets > preserves the legacy JS map and digest when no assets are selected  1382ms
+//:test:root:  ✓ packages/cloudflare/test/mcp-route.test.ts (15 tests) 2914ms
+//:test:root:    ✓ worker POST /mcp > answers initialize with the can-mcp server info  334ms
+//:test:root:    ✓ worker POST /mcp > bound-checks MCP calls when derived inputs are joined (C1 mirror)  371ms
+//:test:root: stdout | packages/cloudflare/test/http-operations-route.test.ts > browser/MCP bound-rule agreement (C3 T19) > sealed action_handle placement is transport-exclusive (F1 A8)
+//:test:root: [http] info validation: Unknown input 'action_handle'. {
+//:test:root:   route: 'operation',
+//:test:root:   operation: 'Shop.Gadget.create',
+//:test:root:   code: 'validation',
+//:test:root:   retryable: false
+//:test:root: }
+//:test:root: 
+//:test:root: stdout | packages/cloudflare/test/http-operations-route.test.ts > browser/MCP bound-rule agreement (C3 T19) > sealed action_handle placement is transport-exclusive (F1 A8)
+//:test:root: [http] info validation: Unknown top-level member 'action_handle': sealed-handle submission is MCP-only (tools/call); HTTP operation POSTs carry ordinary inputs. {
+//:test:root:   route: 'operation',
+//:test:root:   operation: 'Shop.Gadget.create',
+//:test:root:   code: 'validation',
+//:test:root:   retryable: false
+//:test:root: }
+//:test:root: 
+//:test:root: stdout | packages/cloudflare/test/http-operations-route.test.ts > browser/MCP bound-rule agreement (C3 T19) > sealed action_handle placement is transport-exclusive (F1 A8)
+//:test:root: [mcp] info validation: Invalid operation inputs. {
+//:test:root:   route: 'mcp',
+//:test:root:   tool: 'Shop.Gadget.create',
+//:test:root:   code: 'validation',
+//:test:root:   operation_id: '01a112ae-289a-7c2c-8386-18fcab187249',
+//:test:root:   retryable: false
+//:test:root: }
+//:test:root: 
+//:test:root: stdout | packages/cloudflare/test/http-operations-route.test.ts > F1 denial passthrough (C3 serving confirmations) > binding denials carry JSON-pointer fields[] intact (F1 B7)
+//:test:root: [http] info validation: Invalid value for input "state": expected one of "draft", "submitted" (got "DRAFT"). {
+//:test:root:   route: 'operation',
+//:test:root:   operation: 'Shop.Gadget.create',
+//:test:root:   code: 'validation',
+//:test:root:   retryable: false
+//:test:root: }
+//:test:root: 
+//:test:root:  ✓ packages/testkit/test/playback.test.ts (54 tests) 1924ms
+//:test:root: stdout | packages/cloudflare/test/http-operations-route.test.ts > F1 denial passthrough (C3 serving confirmations) > fragment re-render passes HTML through with status + idPrefix intact (F1 B6)
+//:test:root: [http] info validation: Invalid value for input "state": expected one of "draft", "submitted" (got "DRAFT"). {
+//:test:root:   route: 'operation',
+//:test:root:   operation: 'Shop.Gadget.create',
+//:test:root:   code: 'validation',
+//:test:root:   retryable: false
+//:test:root: }
+//:test:root: 
+//:test:root:  ✓ packages/cloudflare/test/http-operations-route.test.ts (17 tests) 3519ms
+//:test:root:    ✓ worker POST /api/operations/* (C3 op-route join) > keeps the explicit interim 501 without the factory  593ms
+//:test:root:  ✓ packages/cloudflare/test/mcpd-env-assembly.test.ts (6 tests) 3940ms
+//:test:root:    ✓ buildProductionDeps > builds a working store + identity store over real D1, schemas ensured  855ms
+//:test:root:    ✓ production grant through the assembled worker > lists a NON-EMPTY toolset and completes a tools/call for a member grant  1026ms
+//:test:root:    ✓ production grant through the assembled worker > 401s unknown and revoked grants with the safe error shape  664ms
+//:test:root:    ✓ production grant through the assembled worker > ends grant admission when the membership is removed  760ms
+//:test:root:    ✓ refused verdict with production McpDeps > serves 500 activation-refused on /mcp, naming the FIRST reason  630ms
+//:test:root:  ✓ packages/cloudflare/test/assembly.test.ts (21 tests) 543ms
+//:test:root:  ✓ packages/cloudflare/test/preparation-protocol.test.ts (15 tests) 4172ms
+//:test:root:    ✓ preparation launcher: failure mapping > a hanging binary times out and is killed  3008ms
+//:test:root:    ✓ preparation build adapter: two real host phases (P05.2) > adapter phases byte-match the bundle-embedded modules  1064ms
+//:test:root:  ✓ packages/testkit/test/isolation.test.ts (1 test) 449ms
+//:test:root:    ✓ row isolation over real workerd + D1 > keeps row 0 writes invisible to row 1  448ms
+//:test:root:  ✓ tests/integration/b2-delivery.test.ts (1 test) 841ms
+//:test:root:    ✓ b2 delivery journey > observes failed/unknown delivery + retry + reconcile over playback  840ms
+//:test:root:  ✓ tests/integration/b2-d1-fence.test.ts (1 test) 1614ms
+//:test:root:    ✓ b2 D1 rollback and fence conflict > observes fence/rollback over real D1  1612ms
+//:test:root:  ✓ packages/cloudflare/test/runtime-stdlib.test.ts (19 tests) 400ms
+//:test:root:  ✓ packages/cloudflare/test/worker-main.test.ts (14 tests) 162ms
+//:test:root:  ✓ packages/cloudflare/test/dev-smoke.test.ts (2 tests) 364ms
+//:test:root:    ✓ local dev smoke > serves HTTP and round-trips D1 through the Worker binding  315ms
+//:test:root:  ✓ packages/cloudflare/test/worker-boundary.test.ts (3 tests) 108ms
+//:test:root:  ✓ packages/cloudflare/test/sourcemap.test.ts (14 tests) 147ms
+//:test:root:  ✓ packages/cloudflare/test/activation-refusal.test.ts (4 tests) 50ms
+//:test:root:  ✓ packages/testkit/test/emitted-scope.test.ts (3 tests) 37ms
+//:test:root: stdout | tests/integration/readiness.test.ts > integration readiness > prints producer package presence (informational)
+//:test:root: producer presence: [{"package":"@canlang/contracts","present":true},{"package":"@canlang/cloudflare","present":true},{"package":"@canlang/testkit","present":true},{"package":"@canlang/state","present":true},{"package":"@canlang/values","present":true},{"package":"@canlang/identity","present":true},{"package":"@canlang/interfaces","present":true},{"package":"@canlang/work","present":true},{"package":"@canlang/services","present":true},{"package":"@canlang/files","present":true},{"package":"@canlang/ui","present":true}]
+//:test:root: 
+//:test:root:  ✓ tests/integration/readiness.test.ts (3 tests) 112ms
+//:test:root:  ✓ packages/testkit/test/fixtures.test.ts (22 tests) 199ms
+//:test:root:  ✓ packages/cloudflare/test/preparation-publication.test.ts (36 tests) 33ms
+//:test:root:  ✓ tests/integration/b2-do-local.test.ts (1 test) 41ms
+//:test:root:  ✓ packages/testkit/test/loader.test.ts (5 tests) 107ms
+//:test:root:  ✓ packages/cloudflare/test/mcp-grant-route.test.ts (5 tests) 84ms
+//:test:root:  ✓ tests/integration/lane02-values.test.ts (1 test) 64ms
+//:test:root:  ✓ packages/cloudflare/test/cli.test.ts (16 tests) 6998ms
+//:test:root:    ✓ can-platform CLI (L1 IR-03 delegation target) > --version prints the identity envelope  403ms
+//:test:root:    ✓ can-platform CLI (L1 IR-03 delegation target) > --help still emits exactly one envelope (exit 0)  306ms
+//:test:root:    ✓ can-platform CLI (L1 IR-03 delegation target) > -h and -V match their long aliases  807ms
+//:test:root:    ✓ can-platform CLI (L1 IR-03 delegation target) > --env is accepted and run validates the artifact  358ms
+//:test:root:    ✓ can-platform CLI (L1 IR-03 delegation target) > duplicate flags are a usage failure  766ms
+//:test:root:    ✓ can-platform CLI (L1 IR-03 delegation target) > --help after a subcommand answers help (L1 verbatim passthrough)  369ms
+//:test:root:    ✓ can-platform CLI (L1 IR-03 delegation target) > -h after a subcommand answers help (L1 verbatim passthrough)  360ms
+//:test:root:    ✓ can-platform CLI (L1 IR-03 delegation target) > trailing flag without a value is a usage failure  354ms
+//:test:root:    ✓ can-platform CLI (L1 IR-03 delegation target) > no command is a usage failure  346ms
+//:test:root:    ✓ can-platform CLI (L1 IR-03 delegation target) > unknown command is a usage failure  445ms
+//:test:root:    ✓ can-platform CLI (L1 IR-03 delegation target) > missing --artifact is a usage failure  359ms
+//:test:root:    ✓ can-platform CLI (L1 IR-03 delegation target) > unreadable artifact reports missing-artifact, not a producer error  375ms
+//:test:root:    ✓ can-platform CLI (L1 IR-03 delegation target) > run with a present-but-invalid artifact reports invalid-artifact  408ms
+//:test:root:    ✓ can-platform CLI (L1 IR-03 delegation target) > test with a present artifact reports the exact missing producer  534ms
+//:test:root:    ✓ can-platform CLI (L1 IR-03 delegation target) > build with a present artifact reports the exact missing producer  393ms
+//:test:root:    ✓ can-platform CLI (L1 IR-03 delegation target) > deploy with a present artifact reports the exact missing producer  410ms
+//:test:root:  ✓ packages/cloudflare/test/activate.test.ts (16 tests) 8ms
+//:test:root:  ✓ packages/cloudflare/test/runtime-executors.test.ts (18 tests) 31ms
+//:test:root:  ✓ packages/cloudflare/test/package-assets.test.ts (14 tests) 3283ms
+//:test:root:    ✓ installed package asset discovery > reads real installed producer bytes through exported locations  3250ms
+//:test:root:  ✓ tests/integration/b2-revocation.test.ts (1 test) 46ms
+//:test:root:  ✓ packages/cloudflare/test/invoke.test.ts (11 tests) 30ms
+//:test:root:  ✓ packages/cloudflare/test/modules.test.ts (4 tests) 49ms
+//:test:root:  ✓ packages/testkit/test/dispatch.test.ts (4 tests) 6ms
+//:test:root:  ✓ packages/cloudflare/test/mixed-output-rejection.test.ts (12 tests) 9ms
+//:test:root:  ✓ packages/cloudflare/test/mcp-permissions.test.ts (7 tests) 7ms
+//:test:root:  ✓ packages/cloudflare/test/release.test.ts (8 tests) 13ms
+//:test:root:  ✓ packages/contracts/test/t19a-derived-inputs.test.ts (9 tests) 6ms
+//:test:root:  ✓ packages/cloudflare/test/artifact-field-descriptions.test.ts (3 tests) 10ms
+//:test:root:  ✓ packages/cloudflare/test/artifact-operations.test.ts (24 tests) 8ms
+//:test:root:  ✓ packages/cloudflare/test/artifact.test.ts (20 tests) 7ms
+//:test:root:  ✓ packages/cloudflare/test/deploy-apply.test.ts (7 tests) 5ms
+//:test:root:  ✓ packages/cloudflare/test/deploy-cli.test.ts (6 tests) 7641ms
+//:test:root:    ✓ can-platform deploy/test/build local paths (B5-J3) > deploy --preview prints a human-diffable plan and writes nothing  999ms
+//:test:root:    ✓ can-platform deploy/test/build local paths (B5-J3) > bare deploy blocks: confirm gate requires --preview or --yes  428ms
+//:test:root:    ✓ can-platform deploy/test/build local paths (B5-J3) > deploy --yes writes plan files; second preview shows no changes  4673ms
+//:test:root:    ✓ can-platform deploy/test/build local paths (B5-J3) > deploy refuses an incompatible bundle (compat gate first)  449ms
+//:test:root:    ✓ can-platform deploy/test/build local paths (B5-J3) > build validates the artifact and reports the release  409ms
+//:test:root:    ✓ can-platform deploy/test/build local paths (B5-J3) > test boots the local harness via testkit (zero executed: no lane-1 loader)  680ms
+//:test:root:  ✓ packages/testkit/test/seeds.test.ts (21 tests) 5ms
+//:test:root:  ✓ packages/testkit/test/table.test.ts (6 tests) 6ms
+//:test:root:  ✓ packages/cloudflare/test/mcp-derived.test.ts (4 tests) 3ms
+//:test:root:  ✓ packages/cloudflare/test/zero-config.test.ts (8 tests) 11ms
+//:test:root:  ✓ packages/cloudflare/test/review.test.ts (11 tests) 5ms
+//:test:root:  ✓ packages/contracts/test/t19b-depth.test.ts (13 tests) 8ms
+//:test:root:  ✓ packages/cloudflare/test/mixed-output-controls.test.ts (3 tests) 11ms
+//:test:root:  ✓ packages/contracts/test/provider-ratification.test.ts (6 tests) 4ms
+//:test:root:  ✓ packages/contracts/test/fanout-records.test.ts (18 tests) 8ms
+//:test:root:  ✓ packages/cloudflare/test/installed.test.ts (5 tests) 4ms
+//:test:root:  ✓ packages/cloudflare/test/plan.test.ts (4 tests) 5ms
+//:test:root:  ✓ packages/testkit/test/report.test.ts (1 test) 5ms
+//:test:root:  ✓ packages/cloudflare/test/runtime-context.test.ts (2 tests) 2ms
+//:test:root:  ✓ packages/cloudflare/test/deploy-plan.test.ts (4 tests) 4ms
+//:test:root:  ✓ packages/contracts/test/t20a-presentation.test.ts (5 tests) 2ms
+//:test:root:  ✓ packages/contracts/test/deployment.test.ts (6 tests) 4ms
+//:test:root:  ✓ packages/contracts/test/examples.test.ts (4 tests) 3ms
+//:test:root:  ✓ packages/contracts/test/assembly.test.ts (1 test) 1ms
+//:test:root:  ✓ packages/testkit/test/accounts.test.ts (4 tests) 4ms
+//:test:root:  ✓ packages/cloudflare/test/compat.test.ts (7 tests) 4ms
+//:test:root:  ✓ packages/testkit/test/equal.test.ts (4 tests) 3ms
+//:test:root:  ✓ packages/cloudflare/test/deploy-bundle.test.ts (27 tests) 10424ms
+//:test:root:    ✓ deploy bundle (P-B) > never vendors TEST-ONLY bridges (node-only helpers stay out of workerd)  629ms
+//:test:root:    ✓ deploy bundle (P-B) > stages derived-inputs.js baked by the real interfaces derivation  1238ms
+//:test:root:    ✓ deploy bundle (P-B) > stages the dist-mirroring layout: worker + runtime + artifact + vendor + handler  594ms
+//:test:root:    ✓ deploy bundle (P-B) > emits no node file-URLs and no CJS: the whole map is workerd-loadable ESM  630ms
+//:test:root:    ✓ deploy bundle (P-B) > rewrites producer imports to module-relative vendor specifiers  649ms
+//:test:root:    ✓ deploy bundle (P-B) > MCP bundle carries the handler markers incl. createHandler + its own IdentityError copy  675ms
+//:test:root:    ✓ deploy bundle (P-B) > HTTP bundle carries the op-chain markers incl. its own IdentityError copy  635ms
+//:test:root:    ✓ deploy bundle (P-B) > stages artifact.js with the artifact, portable module URLs, and the verdict  570ms
+//:test:root:    ✓ deploy bundle (P-B) > is deterministic: same inputs yield identical bytes and sha  1124ms
+//:test:root:    ✓ deploy bundle (P-B) > writeDeployBundle writes deterministic files; main path is the deploy main  582ms
+//:test:root:    ✓ deploy bundle (P-B) > boots in workerd: staged main + real MCP bundle serve over dispatch  415ms
+//:test:root:    ✓ deploy bundle (P-B) > boots the REAL P-A entry from the bundle: binding gate answers missing-binding  384ms
+//:test:root:    ✓ producer import rewrite + link check (P-C/P-B skew class) > stages the state tree and rewrites pinned-runtime producer imports to vendor keys  320ms
+//:test:root:    ✓ producer import rewrite + link check (P-C/P-B skew class) > boots the bundle with a DB: active verdict serves /mcp auth seam (401), inactive refuses honestly  822ms
+//:test:root:    ✓ producer import rewrite + link check (P-C/P-B skew class) > staged main discovers operations for a granted member (member permissions adopted)  519ms
+//:test:root:    ✓ producer import rewrite + link check (P-C/P-B skew class) > rewrites the contracts version-producer specifier to the vendor entry (C4 t16b)  317ms
+//:test:root:    ✓ producer import rewrite + link check (P-C/P-B skew class) > rewrites the D3b receipt join + observer producers to vendor entries (D3b Q3)  314ms
+//:test:root: 
+//:test:root:  Test Files  64 passed (64)
+//:test:root:       Tests  636 passed (636)
+//:test:root:    Start at  21:26:01
+//:test:root:    Duration  11.77s (transform 2.88s, setup 0ms, collect 12.15s, tests 54.75s, environment 7ms, prepare 2.92s)
+//:test:root: 
+
+ Tasks:    27 successful, 27 total
+Cached:    13 cached, 27 total
+  Time:    12.515s 
+

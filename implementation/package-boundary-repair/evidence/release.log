@@ -1,0 +1,6 @@
+$ node ./packages/cloudflare/dist/release/stamp.js
+release lockstep: 0.1.0 ok
+$ node ./packages/cloudflare/dist/release/manifest.js
+dist-manifest.json: wrote /Users/vince/Projects/canlang/dist-manifest.json
+$ node ./packages/cloudflare/dist/release/manifest.js --verify
+dist-manifest.json: verify ok

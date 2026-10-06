@@ -1,0 +1,21 @@
+$ node --test scripts/check-package-boundaries.test.mjs
+✔ allows declared exported edges in imports, reexports, type queries, constants, and asset resolution (26.202958ms)
+✔ rejects undeclared local edges regardless of type-only or dynamic syntax (7.774875ms)
+✔ rejects unexported subpaths and nonexistent runtime targets even when declarations exist (9.503375ms)
+✔ rejects sibling source/output shortcuts and root-tool shortcuts (5.633042ms)
+✔ rejects literal module paths escaping the entire checkout (4.816291ms)
+✔ resolves TS aliases and prevents aliases from replacing exported builds with source (6.391375ms)
+✔ folds constants, templates, and single-return helpers without ignoring lexical scope (6.075042ms)
+✔ checks package entries computed by simple suffix-edit helpers (4.972625ms)
+✔ checks statically known module arguments passed to local lazy-loader wrappers (5.218ms)
+✔ checks static filesystem/URL sibling reads and allows exported assets (6.51575ms)
+✔ checks all local manifest dependency sections and reports dev/runtime cycles (4.350334ms)
+✔ scans root tests, scripts, CI, and package conformance while ignoring emitted fixtures (6.982334ms)
+ℹ tests 12
+ℹ suites 0
+ℹ pass 12
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 228.359333

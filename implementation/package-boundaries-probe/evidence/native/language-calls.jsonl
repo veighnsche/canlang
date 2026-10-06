@@ -1,0 +1,56 @@
+{"tool": "go", "argv": ["work", "edit", "-json"]}
+{"tool": "go", "argv": ["mod", "edit", "-json", "/private/tmp/canlang-turbo-probe-20261006.89738Q/native/go-control/go/core/go.mod"]}
+{"tool": "go", "argv": ["list", "-find", "-json", "./..."]}
+{"tool": "go", "argv": ["mod", "edit", "-json", "/private/tmp/canlang-turbo-probe-20261006.89738Q/native/go-control/go/app/go.mod"]}
+{"tool": "go", "argv": ["list", "-find", "-json", "./..."]}
+{"tool": "go", "argv": ["list", "-mod=readonly", "-m", "-json", "all"]}
+{"tool": "go", "argv": ["work", "edit", "-json"]}
+{"tool": "go", "argv": ["mod", "edit", "-json", "/private/tmp/canlang-turbo-probe-20261006.89738Q/native/go-control/go/core/go.mod"]}
+{"tool": "go", "argv": ["list", "-find", "-json", "./..."]}
+{"tool": "go", "argv": ["mod", "edit", "-json", "/private/tmp/canlang-turbo-probe-20261006.89738Q/native/go-control/go/app/go.mod"]}
+{"tool": "go", "argv": ["list", "-find", "-json", "./..."]}
+{"tool": "go", "argv": ["list", "-mod=readonly", "-m", "-json", "all"]}
+{"tool": "go", "argv": ["work", "edit", "-json"]}
+{"tool": "go", "argv": ["mod", "edit", "-json", "/private/tmp/canlang-turbo-probe-20261006.89738Q/native/go-control/go/core/go.mod"]}
+{"tool": "go", "argv": ["list", "-find", "-json", "./..."]}
+{"tool": "go", "argv": ["mod", "edit", "-json", "/private/tmp/canlang-turbo-probe-20261006.89738Q/native/go-control/go/app/go.mod"]}
+{"tool": "go", "argv": ["list", "-find", "-json", "./..."]}
+{"tool": "go", "argv": ["list", "-mod=readonly", "-m", "-json", "all"]}
+{"tool": "go", "argv": ["version"]}
+{"tool": "uv", "argv": ["--version"]}
+{"tool": "go", "argv": ["work", "edit", "-json"]}
+{"tool": "go", "argv": ["mod", "edit", "-json", "/private/tmp/canlang-turbo-probe-20261006.89738Q/native/go-local-replace-control/go/core/go.mod"]}
+{"tool": "go", "argv": ["list", "-find", "-json", "./..."]}
+{"tool": "go", "argv": ["mod", "edit", "-json", "/private/tmp/canlang-turbo-probe-20261006.89738Q/native/go-local-replace-control/go/app/go.mod"]}
+{"tool": "go", "argv": ["list", "-find", "-json", "./..."]}
+{"tool": "go", "argv": ["list", "-mod=readonly", "-m", "-json", "all"]}
+{"tool": "go", "argv": ["mod", "graph"]}
+{"tool": "go", "argv": ["env", "-json", "AR", "CC", "CGO_CFLAGS", "CGO_CPPFLAGS", "CGO_CXXFLAGS", "CGO_ENABLED", "CGO_FFLAGS", "CGO_LDFLAGS", "CXX", "GCCGO", "GO111MODULE", "GO386", "GOAMD64", "GOARCH", "GOARM", "GOARM64", "GOCACHE", "GOCACHEPROG", "GODEBUG", "GOEXPERIMENT", "GOFIPS140", "GOFLAGS", "GOMIPS", "GOMIPS64", "GOMODCACHE", "GOOS", "GOPPC64", "GORISCV64", "GOTOOLCHAIN", "GOWASM", "GOWORK", "PKG_CONFIG"]}
+{"tool": "go", "argv": ["version"]}
+{"tool": "go", "argv": ["work", "edit", "-json"]}
+{"tool": "go", "argv": ["mod", "edit", "-json", "/private/tmp/canlang-turbo-probe-20261006.89738Q/native/go-local-replace-control/go/core/go.mod"]}
+{"tool": "go", "argv": ["list", "-find", "-json", "./..."]}
+{"tool": "go", "argv": ["mod", "edit", "-json", "/private/tmp/canlang-turbo-probe-20261006.89738Q/native/go-local-replace-control/go/app/go.mod"]}
+{"tool": "go", "argv": ["list", "-find", "-json", "./..."]}
+{"tool": "go", "argv": ["list", "-mod=readonly", "-m", "-json", "all"]}
+{"tool": "go", "argv": ["mod", "graph"]}
+{"tool": "go", "argv": ["env", "-json", "AR", "CC", "CGO_CFLAGS", "CGO_CPPFLAGS", "CGO_CXXFLAGS", "CGO_ENABLED", "CGO_FFLAGS", "CGO_LDFLAGS", "CXX", "GCCGO", "GO111MODULE", "GO386", "GOAMD64", "GOARCH", "GOARM", "GOARM64", "GOCACHE", "GOCACHEPROG", "GODEBUG", "GOEXPERIMENT", "GOFIPS140", "GOFLAGS", "GOMIPS", "GOMIPS64", "GOMODCACHE", "GOOS", "GOPPC64", "GORISCV64", "GOTOOLCHAIN", "GOWASM", "GOWORK", "PKG_CONFIG"]}
+{"tool": "go", "argv": ["version"]}
+{"tool": "go", "argv": ["work", "edit", "-json"]}
+{"tool": "go", "argv": ["mod", "edit", "-json", "/private/tmp/canlang-turbo-probe-20261006.89738Q/native/go-local-replace-control/go/core/go.mod"]}
+{"tool": "go", "argv": ["list", "-find", "-json", "./..."]}
+{"tool": "go", "argv": ["mod", "edit", "-json", "/private/tmp/canlang-turbo-probe-20261006.89738Q/native/go-local-replace-control/go/app/go.mod"]}
+{"tool": "go", "argv": ["list", "-find", "-json", "./..."]}
+{"tool": "go", "argv": ["list", "-mod=readonly", "-m", "-json", "all"]}
+{"tool": "go", "argv": ["mod", "graph"]}
+{"tool": "go", "argv": ["env", "-json", "AR", "CC", "CGO_CFLAGS", "CGO_CPPFLAGS", "CGO_CXXFLAGS", "CGO_ENABLED", "CGO_FFLAGS", "CGO_LDFLAGS", "CXX", "GCCGO", "GO111MODULE", "GO386", "GOAMD64", "GOARCH", "GOARM", "GOARM64", "GOCACHE", "GOCACHEPROG", "GODEBUG", "GOEXPERIMENT", "GOFIPS140", "GOFLAGS", "GOMIPS", "GOMIPS64", "GOMODCACHE", "GOOS", "GOPPC64", "GORISCV64", "GOTOOLCHAIN", "GOWASM", "GOWORK", "PKG_CONFIG"]}
+{"tool": "go", "argv": ["version"]}
+{"tool": "uv", "argv": ["workspace", "metadata", "--frozen", "--offline", "--preview-features", "workspace-metadata"]}
+{"tool": "uv", "argv": ["--version"]}
+{"tool": "uv", "argv": ["python", "find", "--resolve-links", "--no-python-downloads"]}
+{"tool": "uv", "argv": ["workspace", "metadata", "--frozen", "--offline", "--preview-features", "workspace-metadata"]}
+{"tool": "uv", "argv": ["--version"]}
+{"tool": "uv", "argv": ["python", "find", "--resolve-links", "--no-python-downloads"]}
+{"tool": "uv", "argv": ["workspace", "metadata", "--frozen", "--offline", "--preview-features", "workspace-metadata"]}
+{"tool": "uv", "argv": ["--version"]}
+{"tool": "uv", "argv": ["python", "find", "--resolve-links", "--no-python-downloads"]}

@@ -1,0 +1,11 @@
+{
+  "argv": [
+    "/Users/vince/.bun/bin/bun",
+    "run",
+    "packages/a/src/index.ts"
+  ],
+  "exit_code": 1,
+  "stdout": "",
+  "stderr": "error: Cannot find module '@probe/b/private' from '/private/tmp/canlang-turbo-probe-20261006.89738Q/boundaries/unexported-subpath/packages/a/src/index.ts'\n\nBun v1.4.2 (macOS arm64)\n",
+  "cwd": "/private/tmp/canlang-turbo-probe-20261006.89738Q/boundaries/unexported-subpath"
+}

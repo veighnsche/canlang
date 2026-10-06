@@ -1,0 +1,1325 @@
+{
+  ".github/workflows/b1-join.yml": {
+    "name": "b1-join",
+    "true": {
+      "pull_request": {
+        "paths": [
+          "compiler/**",
+          "packages/values/**",
+          "packages/contracts/src/artifact.ts",
+          "examples/TeamTasks.can",
+          ".github/workflows/b1-join.yml"
+        ]
+      },
+      "push": {
+        "branches": [
+          "main"
+        ],
+        "paths": [
+          "compiler/**",
+          "packages/values/**",
+          "packages/contracts/src/artifact.ts",
+          "examples/TeamTasks.can",
+          ".github/workflows/b1-join.yml"
+        ]
+      }
+    },
+    "jobs": {
+      "build-catalog": {
+        "runs-on": "ubuntu-latest",
+        "steps": [
+          {
+            "uses": "actions/checkout@v4"
+          },
+          {
+            "uses": "actions/setup-node@v4",
+            "with": {
+              "node-version": "24"
+            }
+          },
+          {
+            "uses": "oven-sh/setup-bun@v2",
+            "with": {
+              "bun-version": "1.4.2"
+            }
+          },
+          {
+            "name": "Install from lock",
+            "run": "bun install --frozen-lockfile"
+          },
+          {
+            "name": "Build values dist and emit catalog",
+            "run": "bun run catalog"
+          },
+          {
+            "name": "Print catalog version and entry count",
+            "run": "node -e \"const c = require('./packages/values/dist/catalog.json'); console.log('catalog', c.catalog_version + ':', c.entries.length, 'entries,', c.features.length, 'features');\""
+          },
+          {
+            "name": "Upload catalog",
+            "uses": "actions/upload-artifact@v4",
+            "with": {
+              "name": "values-catalog",
+              "path": "packages/values/dist/catalog.json"
+            }
+          }
+        ]
+      },
+      "b1-gate": {
+        "runs-on": "ubuntu-latest",
+        "needs": "build-catalog",
+        "steps": [
+          {
+            "uses": "actions/checkout@v4"
+          },
+          {
+            "uses": "dtolnay/rust-toolchain@89b12181fb390509a0842a86cc55eeb8eb928c1d",
+            "with": {
+              "toolchain": "1.99.0"
+            }
+          },
+          {
+            "uses": "actions/setup-node@v4",
+            "with": {
+              "node-version": "24"
+            }
+          },
+          {
+            "uses": "oven-sh/setup-bun@v2",
+            "with": {
+              "bun-version": "1.4.2"
+            }
+          },
+          {
+            "name": "Download catalog into dist",
+            "uses": "actions/download-artifact@v4",
+            "with": {
+              "name": "values-catalog",
+              "path": "packages/values/dist/"
+            }
+          },
+          {
+            "name": "B1 join test (must PASS STRICT, not skip)",
+            "run": "set -o pipefail\ncargo test --locked --test b1_join -- --nocapture 2>&1 | tee /tmp/b1_join.log\ngrep -q \"2 passed\" /tmp/b1_join.log || { echo \"FAIL: b1_join did not pass both joins\"; exit 1; }\ngrep -q \"SKIP b1_teamtasks_artifact\\|SKIP b2_expenseflow_artifact\" /tmp/b1_join.log && { echo \"FAIL: b1_join SKIPPED (catalog missing?) — strict proof required\"; exit 1; }\necho \"proves: b1_join passed STRICT against the real catalog (both joins, zero SKIP)\"\n",
+            "working-directory": "compiler"
+          },
+          {
+            "name": "Build can",
+            "run": "cargo build --locked",
+            "working-directory": "compiler"
+          },
+          {
+            "name": "Honest-gap pin (exit 10, 3xE6008, zero other codes)",
+            "run": "set +e\n./target/debug/can compile ../examples/TeamTasks.can --catalog ../packages/values/dist/catalog.json > /tmp/team_tasks.log 2>&1\ncode=$?\ncat /tmp/team_tasks.log\n[ \"$code\" -eq 10 ] || { echo \"FAIL: expected exit 10, got $code\"; exit 1; }\ne6008=$(grep -c \"E6008\" /tmp/team_tasks.log)\n[ \"$e6008\" -eq 3 ] || { echo \"FAIL: expected exactly 3 E6008 lines, got $e6008\"; exit 1; }\nother=$(grep -oE \"E[0-9]{4}\" /tmp/team_tasks.log | grep -v \"E6008\" | wc -l)\n[ \"$other\" -eq 0 ] || { echo \"FAIL: $other non-E6008 error codes present\"; exit 1; }\necho \"proves: TeamTasks.can exits 10 with exactly 3 E6008 (tooltip/delete/collapse) and zero other codes\"\n",
+            "working-directory": "compiler"
+          }
+        ]
+      }
+    }
+  },
+  ".github/workflows/b2-join.yml": {
+    "name": "b2-join",
+    "true": {
+      "pull_request": {
+        "paths": [
+          "tests/integration/b2-*.ts",
+          "packages/testkit/src/fixtures/b2-*.ts",
+          "packages/testkit/src/fixtures/playback*.ts",
+          "packages/services/src/scenarios.ts",
+          "packages/services/src/mail/**",
+          "packages/services/src/http/**",
+          "packages/state/src/storage/**",
+          "packages/identity/src/**",
+          "packages/contracts/src/examples.ts",
+          "packages/contracts/src/services.ts",
+          "packages/contracts/src/state.ts",
+          "packages/contracts/src/identity.ts",
+          "packages/cloudflare/src/dev/**",
+          "vitest.config.ts",
+          ".github/workflows/b2-join.yml"
+        ]
+      },
+      "push": {
+        "branches": [
+          "main"
+        ],
+        "paths": [
+          "tests/integration/b2-*.ts",
+          "packages/testkit/src/fixtures/b2-*.ts",
+          "packages/testkit/src/fixtures/playback*.ts",
+          "packages/services/src/scenarios.ts",
+          "packages/services/src/mail/**",
+          "packages/services/src/http/**",
+          "packages/state/src/storage/**",
+          "packages/identity/src/**",
+          "packages/contracts/src/examples.ts",
+          "packages/contracts/src/services.ts",
+          "packages/contracts/src/state.ts",
+          "packages/contracts/src/identity.ts",
+          "packages/cloudflare/src/dev/**",
+          "vitest.config.ts",
+          ".github/workflows/b2-join.yml"
+        ]
+      }
+    },
+    "jobs": {
+      "build": {
+        "runs-on": "ubuntu-latest",
+        "steps": [
+          {
+            "uses": "actions/checkout@v4"
+          },
+          {
+            "uses": "actions/setup-node@v4",
+            "with": {
+              "node-version": "24"
+            }
+          },
+          {
+            "uses": "oven-sh/setup-bun@v2",
+            "with": {
+              "bun-version": "1.4.2"
+            }
+          },
+          {
+            "name": "Install from lock",
+            "run": "bun install --frozen-lockfile"
+          },
+          {
+            "name": "Build lane-07 dists",
+            "run": "bun run build"
+          },
+          {
+            "name": "Build values join producers",
+            "run": "bun run build:joins"
+          },
+          {
+            "name": "Print dist versions",
+            "run": "node -e \"for (const p of ['contracts','cloudflare','testkit']) { const m = require('./packages/' + p + '/package.json'); console.log('@canlang/' + p, m.version); }\""
+          },
+          {
+            "name": "Pack dists",
+            "run": "tar -czf /tmp/b2-dists.tgz packages/*/dist"
+          },
+          {
+            "name": "Upload dists",
+            "uses": "actions/upload-artifact@v4",
+            "with": {
+              "name": "b2-dists",
+              "path": "/tmp/b2-dists.tgz"
+            }
+          }
+        ]
+      },
+      "b2-gate": {
+        "runs-on": "ubuntu-latest",
+        "needs": "build",
+        "steps": [
+          {
+            "uses": "actions/checkout@v4"
+          },
+          {
+            "uses": "actions/setup-node@v4",
+            "with": {
+              "node-version": "24"
+            }
+          },
+          {
+            "uses": "oven-sh/setup-bun@v2",
+            "with": {
+              "bun-version": "1.4.2"
+            }
+          },
+          {
+            "name": "Install from lock",
+            "run": "bun install --frozen-lockfile"
+          },
+          {
+            "name": "Download and unpack dists",
+            "uses": "actions/download-artifact@v4",
+            "with": {
+              "name": "b2-dists",
+              "path": "/tmp/b2-dists"
+            }
+          },
+          {
+            "name": "Unpack dists",
+            "run": "tar -xzf /tmp/b2-dists/b2-dists.tgz"
+          },
+          {
+            "name": "Typecheck lane-07 sources and assembly",
+            "run": "bun run typecheck"
+          },
+          {
+            "name": "B2 journey specs (must PASS, not skip)",
+            "run": "set -o pipefail\nbunx vitest run tests/integration/b2-delivery.test.ts tests/integration/b2-d1-fence.test.ts tests/integration/b2-do-local.test.ts tests/integration/b2-revocation.test.ts 2>&1 | tee /tmp/b2_join.log\ngrep -q \"Test Files.*4 passed\" /tmp/b2_join.log || { echo \"FAIL: B2 specs did not pass (skipped or failed)\"; exit 1; }\ngrep -q \"Tests.*4 passed\" /tmp/b2_join.log || { echo \"FAIL: B2 spec count drifted (expected 4 tests passing)\"; exit 1; }\necho \"proves: 4 B2 journey specs passed against the real producers (not skipped)\"\n"
+          }
+        ]
+      }
+    }
+  },
+  ".github/workflows/e2e.yml": {
+    "name": "e2e",
+    "true": {
+      "pull_request": {
+        "paths": [
+          "tests/e2e/**",
+          "playwright.config.ts",
+          "package.json",
+          "bun.lock",
+          "bunfig.toml",
+          "turbo.json",
+          "scripts/**",
+          "tsconfig*.json",
+          "compiler/**",
+          ".github/workflows/e2e.yml",
+          "packages/**",
+          "examples/**"
+        ]
+      },
+      "push": {
+        "branches": [
+          "main"
+        ],
+        "paths": [
+          "tests/e2e/**",
+          "playwright.config.ts",
+          "package.json",
+          "bun.lock",
+          "bunfig.toml",
+          "turbo.json",
+          "scripts/**",
+          "tsconfig*.json",
+          "compiler/**",
+          ".github/workflows/e2e.yml",
+          "packages/**",
+          "examples/**"
+        ]
+      },
+      "workflow_dispatch": null
+    },
+    "jobs": {
+      "playwright": {
+        "runs-on": "ubuntu-latest",
+        "steps": [
+          {
+            "uses": "actions/checkout@v4"
+          },
+          {
+            "uses": "actions/setup-node@v4",
+            "with": {
+              "node-version": "24"
+            }
+          },
+          {
+            "uses": "oven-sh/setup-bun@v2",
+            "with": {
+              "bun-version": "1.4.2"
+            }
+          },
+          {
+            "uses": "dtolnay/rust-toolchain@89b12181fb390509a0842a86cc55eeb8eb928c1d",
+            "with": {
+              "toolchain": "1.99.0"
+            }
+          },
+          {
+            "name": "Install from lock",
+            "run": "bun install --frozen-lockfile"
+          },
+          {
+            "name": "Cache Playwright browsers",
+            "uses": "actions/cache@v4",
+            "with": {
+              "path": "~/.cache/ms-playwright",
+              "key": "playwright-${{ runner.os }}-${{ hashFiles('bun.lock') }}"
+            }
+          },
+          {
+            "name": "Install chromium",
+            "run": "bunx playwright install --with-deps chromium"
+          },
+          {
+            "name": "Build lane-07 dists",
+            "run": "bun run build"
+          },
+          {
+            "name": "Build compiler for compiled fixtures",
+            "run": "bun run build:compiler"
+          },
+          {
+            "name": "Typecheck e2e harness",
+            "run": "bun run typecheck:e2e"
+          },
+          {
+            "name": "Run e2e (or report pending)",
+            "run": "set -u\nif [ ! -f playwright.config.ts ]; then\n  echo \"e2e pending: playwright.config.ts not yet authored.\"\n  exit 0\nfi\nif [ -z \"$(find tests/e2e -name '*.spec.ts' -print -quit 2>/dev/null)\" ]; then\n  echo \"e2e pending: no tests/e2e specs yet.\"\n  exit 0\nfi\nbun run test:e2e\n"
+          }
+        ]
+      }
+    }
+  },
+  ".github/workflows/integration.yml": {
+    "name": "integration",
+    "true": {
+      "pull_request": null,
+      "push": {
+        "branches": [
+          "main"
+        ]
+      },
+      "workflow_dispatch": null
+    },
+    "jobs": {
+      "workspace": {
+        "runs-on": "ubuntu-latest",
+        "steps": [
+          {
+            "uses": "actions/checkout@v4"
+          },
+          {
+            "uses": "actions/setup-node@v4",
+            "with": {
+              "node-version": "24"
+            }
+          },
+          {
+            "uses": "oven-sh/setup-bun@v2",
+            "with": {
+              "bun-version": "1.4.2"
+            }
+          },
+          {
+            "uses": "dtolnay/rust-toolchain@89b12181fb390509a0842a86cc55eeb8eb928c1d",
+            "with": {
+              "toolchain": "1.99.0"
+            }
+          },
+          {
+            "name": "Install from lock",
+            "run": "bun install --frozen-lockfile"
+          },
+          {
+            "name": "Build workspace packages",
+            "run": "bun run build"
+          },
+          {
+            "name": "Check declared package boundaries",
+            "run": "bun run check:boundaries"
+          },
+          {
+            "name": "Test package boundary guard",
+            "run": "bun run test:boundaries"
+          },
+          {
+            "name": "Test CI gates and receipt verification",
+            "run": "bun run test:ci"
+          },
+          {
+            "name": "Typecheck workspace assembly",
+            "run": "bun run typecheck"
+          },
+          {
+            "name": "Build native preparation test prerequisite",
+            "env": {
+              "CARGO_TARGET_DIR": "${{ runner.temp }}/can-integration-preparation"
+            },
+            "run": "cargo +1.99.0 build --locked --bin can-preparation --manifest-path packages/cloudflare/preparation/Cargo.toml"
+          },
+          {
+            "name": "Generate catalog for emission fixture",
+            "run": "bun run catalog"
+          },
+          {
+            "name": "Test all package and integration suites",
+            "env": {
+              "CAN_PREPARATION_BIN": "${{ runner.temp }}/can-integration-preparation/debug/can-preparation"
+            },
+            "run": "bun run test:all"
+          },
+          {
+            "name": "Verify installed package declarations",
+            "run": "bun run verify:installed-types --skip-build"
+          },
+          {
+            "name": "Verify installed Worker and assets",
+            "run": "bun run verify:installed-worker --skip-build"
+          },
+          {
+            "name": "Verify deterministic library build (B5 reproducibility)",
+            "run": "set -euo pipefail\nhash_dist() {\n  local files\n  files=$(find packages/*/dist \\\n    -type f \\( -name '*.js' -o -name '*.d.ts' -o -name '*.map' \\) | sort)\n  if [ -z \"$files\" ]; then\n    echo \"determinism gate: no dist files found\" >&2\n    return 1\n  fi\n  echo \"$files\" | xargs sha256sum | sha256sum\n}\nbun run build:uncached\nhash_dist | tee /tmp/build-first.sha\nrm -rf packages/*/dist \\\n  packages/*/*.tsbuildinfo\nbun run build:uncached\nhash_dist | tee /tmp/build-second.sha\ncmp /tmp/build-first.sha /tmp/build-second.sha\n"
+          },
+          {
+            "name": "Verify Turbo graph and cache restoration in isolation",
+            "run": "bun run verify:turbo-cache"
+          }
+        ]
+      },
+      "tools": {
+        "runs-on": "ubuntu-latest",
+        "steps": [
+          {
+            "uses": "actions/checkout@v4",
+            "with": {
+              "submodules": "recursive"
+            }
+          },
+          {
+            "name": "Run JEV caller tests (mocked, no credentials)",
+            "run": "python3 -m unittest discover -s tools -p \"test_jev.py\""
+          },
+          {
+            "name": "Run parser boundary tests (excluding stale corpus test)",
+            "run": "python3 -c \"\nimport sys, unittest\nsys.path.insert(0, 'tools')\nimport test_can_parser\nloader = unittest.TestLoader()\nsuite = unittest.TestSuite()\nfor name in loader.getTestCaseNames(test_can_parser.CanParserTests):\n    if 'corpus' not in name:\n        suite.addTest(test_can_parser.CanParserTests(name))\nresult = unittest.TextTestRunner(verbosity=1).run(suite)\nsys.exit(0 if result.wasSuccessful() else 1)\n\"\n"
+          },
+          {
+            "name": "Parse the .can corpus (informational; known prototype drift)",
+            "continue-on-error": true,
+            "run": "python3 tools/can_parser.py draft examples"
+          }
+        ]
+      }
+    }
+  },
+  ".github/workflows/lane-01.yml": {
+    "name": "lane-01 language and toolchain",
+    "true": {
+      "push": {
+        "branches": [
+          "muse/lane-01-language/**"
+        ],
+        "paths": [
+          "compiler/**",
+          "draft",
+          ".gitmodules",
+          "editors/vscode/**",
+          "packages/contracts/src/artifact.ts",
+          "packages/contracts/src/diagnostic.ts",
+          ".github/workflows/lane-01.yml"
+        ]
+      },
+      "pull_request": {
+        "paths": [
+          "compiler/**",
+          "draft",
+          ".gitmodules",
+          "editors/vscode/**",
+          "packages/contracts/src/artifact.ts",
+          "packages/contracts/src/diagnostic.ts",
+          ".github/workflows/lane-01.yml"
+        ]
+      }
+    },
+    "jobs": {
+      "rust": {
+        "runs-on": "ubuntu-latest",
+        "steps": [
+          {
+            "uses": "actions/checkout@v4",
+            "with": {
+              "submodules": "recursive"
+            }
+          },
+          {
+            "uses": "dtolnay/rust-toolchain@89b12181fb390509a0842a86cc55eeb8eb928c1d",
+            "with": {
+              "toolchain": "1.99.0",
+              "components": "rustfmt, clippy"
+            }
+          },
+          {
+            "name": "Format check",
+            "run": "cargo fmt --check",
+            "working-directory": "compiler"
+          },
+          {
+            "name": "Clippy (warnings denied)",
+            "run": "cargo clippy --locked --all-targets -- -D warnings",
+            "working-directory": "compiler"
+          },
+          {
+            "name": "Build",
+            "run": "cargo build --locked",
+            "working-directory": "compiler"
+          },
+          {
+            "name": "Test",
+            "run": "cargo test --locked",
+            "working-directory": "compiler"
+          }
+        ]
+      },
+      "contracts": {
+        "runs-on": "ubuntu-latest",
+        "steps": [
+          {
+            "uses": "actions/checkout@v4"
+          },
+          {
+            "uses": "actions/setup-node@v4",
+            "with": {
+              "node-version": "24"
+            }
+          },
+          {
+            "uses": "oven-sh/setup-bun@v2",
+            "with": {
+              "bun-version": "1.4.2"
+            }
+          },
+          {
+            "name": "Typecheck owned contract boundaries",
+            "run": "bunx -p typescript@5.9.3 tsc --noEmit --strict --skipLibCheck packages/contracts/src/artifact.ts packages/contracts/src/diagnostic.ts"
+          }
+        ]
+      },
+      "editor": {
+        "runs-on": "ubuntu-latest",
+        "steps": [
+          {
+            "uses": "actions/checkout@v4"
+          },
+          {
+            "uses": "actions/setup-node@v4",
+            "with": {
+              "node-version": "24"
+            }
+          },
+          {
+            "uses": "oven-sh/setup-bun@v2",
+            "with": {
+              "bun-version": "1.4.2"
+            }
+          },
+          {
+            "name": "Validate extension manifests and grammar JSON",
+            "run": "node -e \"for (const f of ['editors/vscode/package.json','editors/vscode/syntaxes/can.tmLanguage.json']) { JSON.parse(require('fs').readFileSync(f,'utf8')); console.log('ok', f); }\"\n"
+          },
+          {
+            "name": "Typecheck LSP client (no emit)",
+            "run": "mkdir -p /tmp/empty-typeroot\nbunx -p typescript@5.9.3 tsc --noEmit --strict --target es2022 --lib es2022 --typeRoots /tmp/empty-typeroot editors/vscode/src/extension.ts editors/vscode/src/client.ts\n"
+          },
+          {
+            "uses": "dtolnay/rust-toolchain@89b12181fb390509a0842a86cc55eeb8eb928c1d",
+            "with": {
+              "toolchain": "1.99.0"
+            }
+          },
+          {
+            "name": "Build can (debug, for LSP round-trip)",
+            "run": "cargo build --locked",
+            "working-directory": "compiler"
+          },
+          {
+            "name": "LSP capability round-trip (real binary)",
+            "run": "node test/lsp-capabilities.cjs",
+            "working-directory": "editors/vscode",
+            "env": {
+              "CAN_BIN": "${{ github.workspace }}/compiler/target/debug/can"
+            }
+          }
+        ]
+      }
+    }
+  },
+  ".github/workflows/lane-02.yml": {
+    "name": "lane-02 values",
+    "true": {
+      "push": {
+        "branches": [
+          "muse/lane-02-values/**"
+        ],
+        "paths": [
+          "packages/values/**",
+          "packages/contracts/src/values.ts",
+          ".github/workflows/lane-02.yml"
+        ]
+      },
+      "pull_request": {
+        "paths": [
+          "packages/values/**",
+          "packages/contracts/src/values.ts",
+          ".github/workflows/lane-02.yml"
+        ]
+      },
+      "workflow_dispatch": null
+    },
+    "jobs": {
+      "values": {
+        "runs-on": "ubuntu-latest",
+        "steps": [
+          {
+            "uses": "actions/checkout@v4"
+          },
+          {
+            "uses": "actions/setup-node@v4",
+            "with": {
+              "node-version": "24"
+            }
+          },
+          {
+            "uses": "oven-sh/setup-bun@v2",
+            "with": {
+              "bun-version": "1.4.2"
+            }
+          },
+          {
+            "name": "Install workspace",
+            "run": "bun install --frozen-lockfile"
+          },
+          {
+            "name": "Build consumed contracts",
+            "run": "bun run build --filter=@canlang/contracts"
+          },
+          {
+            "name": "Typecheck",
+            "working-directory": "packages/values",
+            "run": "bun run typecheck"
+          },
+          {
+            "name": "Build and test",
+            "working-directory": "packages/values",
+            "run": "bun run test"
+          },
+          {
+            "name": "Emit catalog",
+            "working-directory": "packages/values",
+            "run": "bun run catalog"
+          }
+        ]
+      }
+    }
+  },
+  ".github/workflows/lane-03.yml": {
+    "name": "lane-03 state",
+    "true": {
+      "push": {
+        "branches": [
+          "muse/lane-03-state/**"
+        ],
+        "paths": [
+          "packages/state/**",
+          "packages/stdlib/**",
+          "packages/contracts/src/state.ts",
+          ".github/workflows/lane-03.yml"
+        ]
+      },
+      "pull_request": {
+        "paths": [
+          "packages/state/**",
+          "packages/stdlib/**",
+          "packages/contracts/src/state.ts",
+          ".github/workflows/lane-03.yml"
+        ]
+      }
+    },
+    "jobs": {
+      "state": {
+        "runs-on": "ubuntu-latest",
+        "steps": [
+          {
+            "uses": "actions/checkout@v4"
+          },
+          {
+            "uses": "actions/setup-node@v4",
+            "with": {
+              "node-version": "24"
+            }
+          },
+          {
+            "uses": "oven-sh/setup-bun@v2",
+            "with": {
+              "bun-version": "1.4.2"
+            }
+          },
+          {
+            "name": "Install workspace",
+            "run": "bun install --frozen-lockfile"
+          },
+          {
+            "name": "Build consumed contracts",
+            "run": "bun run build --filter=@canlang/contracts"
+          },
+          {
+            "name": "Typecheck",
+            "working-directory": "packages/state",
+            "run": "bun run typecheck"
+          },
+          {
+            "name": "Build and test",
+            "working-directory": "packages/state",
+            "run": "bun run test"
+          }
+        ]
+      },
+      "stdlib": {
+        "runs-on": "ubuntu-latest",
+        "steps": [
+          {
+            "uses": "actions/checkout@v4"
+          },
+          {
+            "uses": "actions/setup-node@v4",
+            "with": {
+              "node-version": "24"
+            }
+          },
+          {
+            "uses": "oven-sh/setup-bun@v2",
+            "with": {
+              "bun-version": "1.4.2"
+            }
+          },
+          {
+            "name": "Install workspace",
+            "run": "bun install --frozen-lockfile"
+          },
+          {
+            "name": "Build consumed contracts",
+            "run": "bun run build --filter=@canlang/contracts"
+          },
+          {
+            "name": "Build @canlang/values",
+            "run": "bun run build --filter=@canlang/values"
+          },
+          {
+            "name": "Typecheck stdlib",
+            "run": "bun run --filter @canlang/stdlib typecheck"
+          },
+          {
+            "name": "Build and test stdlib",
+            "run": "bun run --filter @canlang/stdlib test"
+          }
+        ]
+      }
+    }
+  },
+  ".github/workflows/lane-04.yml": {
+    "name": "lane-04",
+    "true": {
+      "push": {
+        "branches": [
+          "muse/lane-04-work-services-files/**"
+        ],
+        "paths": [
+          "packages/work/**",
+          "packages/services/**",
+          "packages/files/**",
+          "packages/contracts/src/work.ts",
+          "packages/contracts/src/services.ts",
+          "packages/contracts/src/files.ts",
+          ".github/workflows/lane-04.yml"
+        ]
+      },
+      "pull_request": {
+        "paths": [
+          "packages/work/**",
+          "packages/services/**",
+          "packages/files/**",
+          "packages/contracts/src/work.ts",
+          "packages/contracts/src/services.ts",
+          "packages/contracts/src/files.ts",
+          ".github/workflows/lane-04.yml"
+        ]
+      }
+    },
+    "jobs": {
+      "package": {
+        "runs-on": "ubuntu-latest",
+        "strategy": {
+          "fail-fast": false,
+          "matrix": {
+            "package": [
+              "work",
+              "services",
+              "files"
+            ]
+          }
+        },
+        "defaults": {
+          "run": {
+            "working-directory": "packages/${{ matrix.package }}"
+          }
+        },
+        "steps": [
+          {
+            "uses": "actions/checkout@v4"
+          },
+          {
+            "uses": "actions/setup-node@v4",
+            "with": {
+              "node-version": 24
+            }
+          },
+          {
+            "uses": "oven-sh/setup-bun@v2",
+            "with": {
+              "bun-version": "1.4.2"
+            }
+          },
+          {
+            "name": "Install workspace",
+            "working-directory": ".",
+            "run": "bun install --frozen-lockfile"
+          },
+          {
+            "name": "Build consumed contracts",
+            "working-directory": ".",
+            "run": "bun run build --filter=@canlang/contracts"
+          },
+          {
+            "name": "Build work and files producers",
+            "working-directory": ".",
+            "run": "case '${{ matrix.package }}' in\n  work) bun run build --filter=@canlang/state ;;\n  files) bun run build --filter=@canlang/services ;;\nesac\n"
+          },
+          {
+            "run": "bun run typecheck"
+          },
+          {
+            "run": "bun run test"
+          }
+        ]
+      }
+    }
+  },
+  ".github/workflows/lane-05.yml": {
+    "name": "lane-05",
+    "permissions": {
+      "contents": "read"
+    },
+    "true": {
+      "push": {
+        "branches": [
+          "muse/lane-05-ui/**"
+        ],
+        "paths": [
+          "packages/ui/**",
+          "packages/contracts/src/presentation.ts",
+          ".github/workflows/lane-05.yml"
+        ]
+      },
+      "pull_request": {
+        "paths": [
+          "packages/ui/**",
+          "packages/contracts/src/presentation.ts",
+          ".github/workflows/lane-05.yml"
+        ]
+      }
+    },
+    "jobs": {
+      "check": {
+        "runs-on": "ubuntu-latest",
+        "timeout-minutes": 10,
+        "steps": [
+          {
+            "uses": "actions/checkout@v4"
+          },
+          {
+            "uses": "actions/setup-node@v4",
+            "with": {
+              "node-version": 24
+            }
+          },
+          {
+            "uses": "oven-sh/setup-bun@v2",
+            "with": {
+              "bun-version": "1.4.2"
+            }
+          },
+          {
+            "name": "Guard package API imports",
+            "run": "# Consumers use declared exports; a sibling source path bypasses the producer build.\nif grep -RnE \"(\\.\\./)+contracts/(src|dist)/\" packages/ui/src packages/ui/test; then\n  exit 1\nfi\n"
+          },
+          {
+            "name": "Install workspace",
+            "run": "bun install --frozen-lockfile"
+          },
+          {
+            "name": "Build consumed contracts",
+            "run": "bun run build --filter=@canlang/contracts"
+          },
+          {
+            "name": "Test owned package",
+            "run": "bun run --filter @canlang/ui test"
+          }
+        ]
+      }
+    }
+  },
+  ".github/workflows/lane-06.yml": {
+    "name": "lane-06",
+    "permissions": {
+      "contents": "read"
+    },
+    "true": {
+      "push": {
+        "branches": [
+          "muse/lane-06-identity-interfaces/**"
+        ],
+        "paths": [
+          "packages/identity/**",
+          "packages/interfaces/**",
+          "packages/contracts/src/identity.ts",
+          "packages/contracts/src/wire.ts",
+          ".github/workflows/lane-06.yml"
+        ]
+      },
+      "pull_request": {
+        "paths": [
+          "packages/identity/**",
+          "packages/interfaces/**",
+          "packages/contracts/src/identity.ts",
+          "packages/contracts/src/wire.ts",
+          ".github/workflows/lane-06.yml"
+        ]
+      }
+    },
+    "jobs": {
+      "contracts-conformance": {
+        "runs-on": "ubuntu-latest",
+        "timeout-minutes": 10,
+        "steps": [
+          {
+            "uses": "actions/checkout@v4"
+          },
+          {
+            "uses": "actions/setup-node@v4",
+            "with": {
+              "node-version": 24
+            }
+          },
+          {
+            "uses": "oven-sh/setup-bun@v2",
+            "with": {
+              "bun-version": "1.4.2"
+            }
+          },
+          {
+            "name": "Guard package API imports",
+            "run": "# Consumers use declared exports; a sibling source path bypasses the producer build.\nif grep -RnE \"(\\.\\./)+contracts/(src|dist)/\" packages/identity/src packages/identity/test packages/interfaces/src packages/interfaces/test; then\n  exit 1\nfi\n"
+          },
+          {
+            "name": "Install workspace",
+            "run": "bun install --frozen-lockfile"
+          },
+          {
+            "name": "Build contracts assembly",
+            "run": "bun run build --filter=@canlang/contracts"
+          },
+          {
+            "name": "Build consumed values",
+            "run": "bun run build --filter=@canlang/values"
+          },
+          {
+            "name": "Build consumed identity and UI",
+            "run": "bun run build --filter=@canlang/identity --filter=@canlang/ui"
+          },
+          {
+            "name": "Test owned packages",
+            "run": "bun run --filter @canlang/identity --filter @canlang/interfaces test"
+          }
+        ]
+      }
+    }
+  },
+  ".github/workflows/release.yml": {
+    "name": "release",
+    "true": {
+      "push": {
+        "tags": [
+          "v*"
+        ]
+      },
+      "workflow_dispatch": null
+    },
+    "jobs": {
+      "rust-binary": {
+        "strategy": {
+          "matrix": {
+            "include": [
+              {
+                "runner": "ubuntu-latest",
+                "name": "can-linux-x86_64"
+              },
+              {
+                "runner": "macos-latest",
+                "name": "can-macos-aarch64"
+              }
+            ]
+          }
+        },
+        "runs-on": "${{ matrix.runner }}",
+        "steps": [
+          {
+            "uses": "actions/checkout@v4"
+          },
+          {
+            "uses": "dtolnay/rust-toolchain@89b12181fb390509a0842a86cc55eeb8eb928c1d",
+            "with": {
+              "toolchain": "1.99.0"
+            }
+          },
+          {
+            "name": "Build can (release, locked)",
+            "run": "cargo build --release --locked",
+            "working-directory": "compiler"
+          },
+          {
+            "name": "Size report",
+            "run": "ls -l target/release/can\nprintf 'bytes=%s\\n' \"$(wc -c < target/release/can | tr -d ' ')\"\n",
+            "working-directory": "compiler"
+          },
+          {
+            "name": "Checksums (sha256)",
+            "run": "cd compiler/target/release\nshasum -a 256 can > \"SHA256SUMS-${{ matrix.name }}.txt\"\ncat \"SHA256SUMS-${{ matrix.name }}.txt\"\nshasum -a 256 -c \"SHA256SUMS-${{ matrix.name }}.txt\"\n"
+          },
+          {
+            "uses": "actions/upload-artifact@v4",
+            "with": {
+              "name": "${{ matrix.name }}",
+              "path": "compiler/target/release/can\ncompiler/target/release/SHA256SUMS-${{ matrix.name }}.txt\n"
+            }
+          }
+        ]
+      },
+      "node-libraries": {
+        "runs-on": "ubuntu-latest",
+        "steps": [
+          {
+            "uses": "actions/checkout@v4"
+          },
+          {
+            "uses": "actions/setup-node@v4",
+            "with": {
+              "node-version": "24"
+            }
+          },
+          {
+            "uses": "oven-sh/setup-bun@v2",
+            "with": {
+              "bun-version": "1.4.2"
+            }
+          },
+          {
+            "name": "Install from lock",
+            "run": "bun install --frozen-lockfile"
+          },
+          {
+            "name": "Build, verify and pack complete workspace artifacts",
+            "run": "bun run release:pack"
+          },
+          {
+            "uses": "actions/upload-artifact@v4",
+            "with": {
+              "name": "node-libraries",
+              "path": "output/release-artifacts/*"
+            }
+          }
+        ]
+      },
+      "editor-bundle": {
+        "runs-on": "ubuntu-latest",
+        "steps": [
+          {
+            "uses": "actions/checkout@v4"
+          },
+          {
+            "uses": "actions/setup-node@v4",
+            "with": {
+              "node-version": "24"
+            }
+          },
+          {
+            "uses": "oven-sh/setup-bun@v2",
+            "with": {
+              "bun-version": "1.4.2"
+            }
+          },
+          {
+            "name": "Compile the LSP client (L1 slice 2a sources)",
+            "run": "mkdir -p /tmp/empty-typeroot\ncd editors/vscode\nbunx -p typescript@5.9.3 tsc --strict --target es2022 --module commonjs --lib es2022 --typeRoots /tmp/empty-typeroot --outDir out --rootDir src src/extension.ts src/client.ts\n"
+          },
+          {
+            "name": "Archive the VSCode/Cursor extension payload",
+            "run": "mkdir -p release-artifacts\ncd editors/vscode\nzip -r ../../release-artifacts/canlang-vscode.zip package.json README.md token-colors.json syntaxes out src\n"
+          },
+          {
+            "name": "Package VS Code extension (vsix)",
+            "run": "cd editors/vscode\nnpx -y @vscode/vsce package --out ../../release-artifacts/canlang-vscode.vsix\n"
+          },
+          {
+            "uses": "actions/upload-artifact@v4",
+            "with": {
+              "name": "editor-bundle",
+              "path": "release-artifacts/canlang-vscode.zip\nrelease-artifacts/canlang-vscode.vsix\n"
+            }
+          }
+        ]
+      }
+    }
+  },
+  ".github/workflows/ts-gates.yml": {
+    "name": "ts-gates",
+    "run-name": "TS gates · ${{ inputs.task_id || github.ref_name }} · ${{ inputs.gate || 'values' }}",
+    "true": {
+      "push": {
+        "branches": [
+          "codex/ci-gates/**"
+        ]
+      },
+      "workflow_dispatch": {
+        "inputs": {
+          "source_sha": {
+            "description": "Exact committed source SHA to test (empty tests the workflow commit)",
+            "type": "string",
+            "required": false
+          },
+          "task_id": {
+            "description": "Coordinator task or grant ID for the receipt",
+            "type": "string",
+            "required": true
+          },
+          "gate": {
+            "description": "Package gate; all runs independent jobs",
+            "type": "choice",
+            "required": true,
+            "default": "values",
+            "options": [
+              "values",
+              "state",
+              "stdlib",
+              "identity",
+              "ui",
+              "interfaces",
+              "work",
+              "cloudflare",
+              "testkit",
+              "workspace",
+              "all"
+            ]
+          }
+        }
+      }
+    },
+    "permissions": {
+      "contents": "read"
+    },
+    "concurrency": {
+      "group": "ts-gates-${{ github.ref }}-${{ inputs.source_sha || github.sha }}-${{ inputs.gate || 'values' }}",
+      "cancel-in-progress": false
+    },
+    "jobs": {
+      "request": {
+        "runs-on": "ubuntu-24.04",
+        "timeout-minutes": 5,
+        "outputs": {
+          "matrix": "${{ steps.request.outputs.matrix }}",
+          "source_sha": "${{ steps.request.outputs.source_sha }}",
+          "task_id": "${{ steps.request.outputs.task_id }}"
+        },
+        "steps": [
+          {
+            "id": "request",
+            "name": "Validate finite gate request",
+            "env": {
+              "REQUEST_SHA": "${{ inputs.source_sha || github.sha }}",
+              "REQUEST_GATE": "${{ inputs.gate || 'values' }}",
+              "REQUEST_TASK": "${{ inputs.task_id || github.ref_name }}"
+            },
+            "run": "python3 - <<'PYREQ'\nimport json, os, re\nprofiles = ['values', 'state', 'stdlib', 'identity', 'ui', 'interfaces', 'work', 'cloudflare', 'testkit', 'workspace']\nsha, gate, task = (os.environ[k] for k in ['REQUEST_SHA', 'REQUEST_GATE', 'REQUEST_TASK'])\nif not re.fullmatch(r'[0-9a-f]{40}', sha): raise SystemExit('source_sha must be a full lowercase commit SHA')\nif gate != 'all' and gate not in profiles: raise SystemExit('unknown gate')\nif not re.fullmatch(r'[A-Za-z0-9][A-Za-z0-9._:/-]{0,159}', task): raise SystemExit('invalid task ID')\nselected = profiles if gate == 'all' else [gate]\nwith open(os.environ['GITHUB_OUTPUT'], 'a') as f:\n    f.write('matrix=' + json.dumps({'profile': selected}) + '\\n')\n    f.write('source_sha=' + sha + '\\n')\n    f.write('task_id=' + task + '\\n')\nPYREQ\n"
+          }
+        ]
+      },
+      "gate": {
+        "name": "TS / ${{ matrix.profile }}",
+        "needs": "request",
+        "runs-on": "ubuntu-24.04",
+        "timeout-minutes": 45,
+        "strategy": {
+          "fail-fast": false,
+          "max-parallel": 7,
+          "matrix": "${{ fromJSON(needs.request.outputs.matrix) }}"
+        },
+        "steps": [
+          {
+            "id": "tooling",
+            "name": "Checkout pinned gate tooling",
+            "uses": "actions/checkout@11d5960a326750d5838078e36cf38b85af677262",
+            "with": {
+              "ref": "${{ github.workflow_sha }}",
+              "path": "gate-tools",
+              "persist-credentials": false,
+              "submodules": false
+            }
+          },
+          {
+            "id": "source",
+            "name": "Checkout exact source snapshot",
+            "uses": "actions/checkout@11d5960a326750d5838078e36cf38b85af677262",
+            "with": {
+              "ref": "${{ needs.request.outputs.source_sha }}",
+              "path": "candidate",
+              "persist-credentials": false,
+              "submodules": false
+            }
+          },
+          {
+            "id": "node",
+            "uses": "actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020",
+            "with": {
+              "node-version": "24"
+            }
+          },
+          {
+            "id": "bun",
+            "uses": "oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6",
+            "with": {
+              "bun-version": "1.4.2"
+            }
+          },
+          {
+            "id": "gate",
+            "name": "Run gate and write command receipts",
+            "working-directory": "candidate",
+            "env": {
+              "CI_GATE_PROFILE": "${{ matrix.profile }}",
+              "CI_EXPECTED_SHA": "${{ needs.request.outputs.source_sha }}",
+              "CI_TASK_ID": "${{ needs.request.outputs.task_id }}",
+              "CI_RECEIPT_DIR": "${{ runner.temp }}/ts-gate-receipt",
+              "GITHUB_WORKFLOW_SHA": "${{ github.workflow_sha }}"
+            },
+            "run": "node \"$GITHUB_WORKSPACE/gate-tools/.github/ci/ts-gate.mjs\""
+          },
+          {
+            "name": "Preserve setup failure and summarize receipt",
+            "if": "always()",
+            "env": {
+              "RECEIPT_DIR": "${{ runner.temp }}/ts-gate-receipt",
+              "SOURCE_SHA": "${{ needs.request.outputs.source_sha }}",
+              "PROFILE": "${{ matrix.profile }}",
+              "TASK_ID": "${{ needs.request.outputs.task_id }}",
+              "WORKFLOW_SHA": "${{ github.workflow_sha }}",
+              "TOOLING_OUTCOME": "${{ steps.tooling.outcome }}",
+              "SOURCE_OUTCOME": "${{ steps.source.outcome }}",
+              "NODE_OUTCOME": "${{ steps.node.outcome }}",
+              "BUN_OUTCOME": "${{ steps.bun.outcome }}",
+              "GATE_OUTCOME": "${{ steps.gate.outcome }}"
+            },
+            "run": "python3 - <<'PYRECEIPT'\nimport json, os\nfrom pathlib import Path\nd = Path(os.environ['RECEIPT_DIR']); d.mkdir(parents=True, exist_ok=True)\np = d / 'receipt.json'\nurl = f\"{os.environ['GITHUB_SERVER_URL']}/{os.environ['GITHUB_REPOSITORY']}/actions/runs/{os.environ['GITHUB_RUN_ID']}\"\nreceipt = json.loads(p.read_text()) if p.exists() else {\n    'version': 1, 'status': 'infrastructure-failure', 'error': 'Gate did not write a receipt',\n    'expected_sha': os.environ['SOURCE_SHA'], 'source_sha': None,\n    'workflow_sha': os.environ['WORKFLOW_SHA'], 'profile': os.environ['PROFILE'],\n    'task_id': os.environ['TASK_ID'], 'run_id': os.environ['GITHUB_RUN_ID'],\n    'attempt': os.environ['GITHUB_RUN_ATTEMPT'], 'run_url': url, 'commands': []}\nreceipt['workflow_steps'] = {k.lower().removesuffix('_outcome'): os.environ[k] for k in\n    ['TOOLING_OUTCOME', 'SOURCE_OUTCOME', 'NODE_OUTCOME', 'BUN_OUTCOME', 'GATE_OUTCOME']}\nif any(v != 'success' for v in receipt['workflow_steps'].values()): receipt['status'] = 'failed'\np.write_text(json.dumps(receipt, indent=2) + '\\n')\nwith open(os.environ['GITHUB_STEP_SUMMARY'], 'a') as f:\n    f.write(f\"### {receipt['profile']} — {receipt['status']}\\n\\n\")\n    f.write(f\"Task: `{receipt['task_id']}`\\n\\nSource: `{receipt['source_sha']}`\\n\\n[Run]({url})\\n\\n\")\n    f.write('| Command | Exit | Status |\\n|---|---:|---|\\n')\n    for c in receipt['commands']:\n        cmd = ' '.join(c['argv']).replace('|', r'\\|')\n        f.write(f\"| `{cmd}` | {c.get('exit')} | {c['status']} |\\n\")\nPYRECEIPT\n"
+          },
+          {
+            "name": "Upload immutable receipt and raw logs",
+            "if": "always()",
+            "uses": "actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02",
+            "with": {
+              "name": "ts-gate-${{ github.run_id }}-${{ github.run_attempt }}-${{ matrix.profile }}",
+              "path": "${{ runner.temp }}/ts-gate-receipt/",
+              "if-no-files-found": "error",
+              "retention-days": 14
+            }
+          }
+        ]
+      }
+    }
+  }
+}

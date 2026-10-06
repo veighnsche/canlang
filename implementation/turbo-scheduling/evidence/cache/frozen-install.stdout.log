@@ -1,0 +1,9 @@
+bun install v1.4.2 (744846f84)
+
++ @playwright/test@1.63.0
++ @types/node@24.19.1
++ turbo@2.11.7
++ typescript@5.9.3
++ vitest@3.2.7
+
+185 packages installed [4.90s]

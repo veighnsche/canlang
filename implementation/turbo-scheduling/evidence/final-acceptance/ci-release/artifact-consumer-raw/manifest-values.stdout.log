@@ -1,0 +1,78 @@
+{
+  "name": "@canlang/values",
+  "version": "0.1.0",
+  "license": "MIT",
+  "description": "CanLang exact values, schemas, codecs and pure builtins (internal package, lane 02)",
+  "type": "module",
+  "main": "./dist/src/index.js",
+  "types": "./dist/src/index.d.ts",
+  "files": [
+    "dist/",
+    "conformance/v1/values.json"
+  ],
+  "scripts": {
+    "build": "node ../../scripts/build-package.mjs",
+    "typecheck": "node ../../scripts/run-tasks.mjs typecheck:check --filter=@canlang/values",
+    "test": "node ../../scripts/run-tasks.mjs test:unit --filter=@canlang/values",
+    "catalog": "node ../../scripts/run-tasks.mjs catalog:emit --filter=@canlang/values",
+    "build:semantics": "node scripts/build-semantics.mjs",
+    "clean": "rm -rf dist/",
+    "build:emit": "tsc -p tsconfig.json && node scripts/stage-semantics.mjs",
+    "typecheck:check": "tsc -p tsconfig.json --noEmit",
+    "test:unit": "node --test \"dist/test/**/*.test.js\"",
+    "catalog:emit": "node scripts/emit-catalog.mjs",
+    "build:prepare": "node ../../scripts/build-package.mjs --prepare"
+  },
+  "devDependencies": {
+    "@types/node": "26.6.4",
+    "decimal.js": "10.6.0",
+    "typescript": "5.9.3"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "dependencies": {
+    "@canlang/contracts": "0.1.0"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/src/index.d.ts",
+      "default": "./dist/src/index.js"
+    },
+    "./distribution": {
+      "types": "./dist/src/distribution.d.ts",
+      "default": "./dist/src/distribution.js"
+    },
+    "./bindings/backend": {
+      "types": "./dist/bindings/backend.d.ts",
+      "default": "./dist/bindings/backend.js"
+    },
+    "./bindings/bootstrap": {
+      "types": "./dist/bindings/bootstrap.d.ts",
+      "default": "./dist/bindings/bootstrap.js"
+    },
+    "./bindings/carriers": {
+      "types": "./dist/bindings/carriers.d.ts",
+      "default": "./dist/bindings/carriers.js"
+    },
+    "./bindings/owned-input": {
+      "types": "./dist/bindings/owned-input.d.ts",
+      "default": "./dist/bindings/owned-input.js"
+    },
+    "./bindings/plans": {
+      "types": "./dist/bindings/plans.d.ts",
+      "default": "./dist/bindings/plans.js"
+    },
+    "./bindings/validation": {
+      "types": "./dist/bindings/validation.d.ts",
+      "default": "./dist/bindings/validation.js"
+    },
+    "./bindings/generated/values_semantics.js": {
+      "types": "./dist/bindings/generated/values_semantics.d.ts",
+      "default": "./dist/bindings/generated/values_semantics.js"
+    },
+    "./bindings/generated/values_semantics_bg.wasm": "./dist/bindings/generated/values_semantics_bg.wasm",
+    "./bindings/generated/BUILD.json": "./dist/bindings/generated/BUILD.json",
+    "./conformance/v1/values.json": "./conformance/v1/values.json"
+  }
+}

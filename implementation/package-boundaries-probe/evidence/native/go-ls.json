@@ -1,0 +1,14 @@
+{
+  "argv": [
+    "/private/tmp/canlang-turbo-probe-20261006.89738Q/tooling/node_modules/.bin/turbo",
+    "--skip-infer",
+    "--no-update-notifier",
+    "ls",
+    "--output=json"
+  ],
+  "cwd": "/private/tmp/canlang-turbo-probe-20261006.89738Q/native/go-control",
+  "exit": 1,
+  "stdout": "",
+  "stderr": "\u2022 turbo 2.11.7\n  x `go list -mod=readonly -m -json all` failed: go: example.test/probe/\n  | core@v0.0.0: module lookup disabled by GOPROXY=off. Run `go mod tidy` in\n  | each workspace member, then `go work sync`, and commit go.sum/go.work.sum.\n\n",
+  "seconds": 6.779
+}

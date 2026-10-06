@@ -1,0 +1,11 @@
+{
+  "argv": [
+    "/private/tmp/canlang-turbo-probe-20261006.89738Q/tooling/node_modules/.bin/turbo",
+    "--version"
+  ],
+  "cwd": "/private/tmp/canlang-turbo-probe-20261006.89738Q/native",
+  "exit": 0,
+  "stdout": "2.11.7\n",
+  "stderr": "",
+  "seconds": 4.383
+}

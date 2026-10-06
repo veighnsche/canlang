@@ -1,0 +1,98 @@
+{
+  "name": "@canlang/cloudflare",
+  "version": "0.1.0",
+  "license": "MIT",
+  "description": "CanLang Cloudflare delivery: local dev, deploy plans, compatibility checks, upgrade orchestration (lane 07). Node-side tooling only; Worker entry is a separate export.",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "bin": {
+    "can-platform": "./dist/cli/platform.js"
+  },
+  "files": [
+    "dist"
+  ],
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./worker": {
+      "types": "./dist/worker/entry.d.ts",
+      "default": "./dist/worker/entry.js"
+    },
+    "./runtime/artifact": {
+      "types": "./dist/runtime/artifact.d.ts",
+      "default": "./dist/runtime/artifact.js"
+    },
+    "./deploy/compat": {
+      "types": "./dist/deploy/compat.d.ts",
+      "default": "./dist/deploy/compat.js"
+    },
+    "./worker/assembly": {
+      "types": "./dist/worker/assembly.d.ts",
+      "default": "./dist/worker/assembly.js"
+    },
+    "./runtime/modules": {
+      "types": "./dist/runtime/modules.d.ts",
+      "default": "./dist/runtime/modules.js"
+    },
+    "./runtime/mcp-registry": {
+      "types": "./dist/runtime/mcp-registry.d.ts",
+      "default": "./dist/runtime/mcp-registry.js"
+    },
+    "./deploy/bundle": {
+      "types": "./dist/deploy/bundle.d.ts",
+      "default": "./dist/deploy/bundle.js"
+    },
+    "./dev/local-run": {
+      "types": "./dist/dev/local-run.d.ts",
+      "default": "./dist/dev/local-run.js"
+    },
+    "./runtime/stdlib": {
+      "types": "./dist/runtime/stdlib.d.ts",
+      "default": "./dist/runtime/stdlib.js"
+    },
+    "./dev/row-scope": {
+      "types": "./dist/dev/row-scope.d.ts",
+      "default": "./dist/dev/row-scope.js"
+    },
+    "./worker/main": {
+      "types": "./dist/worker/main.d.ts",
+      "default": "./dist/worker/main.js"
+    },
+    "./deploy/package-assets": {
+      "types": "./dist/deploy/package-assets.d.ts",
+      "default": "./dist/deploy/package-assets.js"
+    },
+    "./deploy/producer-files": {
+      "types": "./dist/deploy/producer-files.d.ts",
+      "default": "./dist/deploy/producer-files.js"
+    }
+  },
+  "scripts": {
+    "build": "node ../../scripts/build-package.mjs",
+    "typecheck": "node ../../scripts/run-tasks.mjs typecheck:check --filter=@canlang/cloudflare",
+    "build:emit": "tsc -p tsconfig.json && chmod +x dist/cli/platform.js",
+    "typecheck:check": "tsc --noEmit -p tsconfig.json",
+    "test:runtime": "cd ../.. && node --test \"packages/cloudflare/dist/**/*.test.js\"",
+    "build:prepare": "node ../../scripts/build-package.mjs --prepare"
+  },
+  "dependencies": {
+    "@canlang/contracts": "0.1.0",
+    "@canlang/interfaces": "0.1.0",
+    "miniflare": "4.20260730.0",
+    "@canlang/identity": "0.1.0",
+    "@canlang/state": "0.1.0",
+    "@canlang/work": "0.0.0",
+    "@canlang/ui": "0.1.0",
+    "@canlang/stdlib": "0.1.0",
+    "@canlang/values": "0.1.0"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^5.20261004.1",
+    "@types/node": "24.19.1",
+    "@canlang/files": "0.0.0",
+    "vitest": "^3.2.4"
+  }
+}

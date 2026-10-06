@@ -1,0 +1,12 @@
+Installed-consumer verification passed on explicit Node24.21.0.
+13 unchanged local tarballs installed with production dependencies and scripts disabled.
+Scratch-only overrides were required for unpublished @canlang transitive versions (initial404 log retained).
+All13 API roots imported from installed files;1110 source-map source entries remained inside their owning package.
+No packed-output symlinks or checkout path references found.
+Real deploy bundle built twice with scratch projectRoot:152 modules; deterministic SHA256 6c97a889d78c3e2242e2f4f1a6d4ac9789185c6cc9ca843507abf0964c17053f.
+MCP677377bytes; HTTP245894bytes; vendor contracts/ui/state/values; link/workerd scanners passed.
+Installed values WASM622216bytes matched every BUILD.json digest; bootstrap ABI and add-int1+2=3 passed; corpus export resolved.
+Installed selected-receipt seam5tests and D1/workerd deployed refusal4tests passed.
+Installed can-platform test boot passed with0executedrows; a resolver hook forbidding testkit imports also passed.
+Logs:pack-log.json,install.log,install-overrides.log,verify.log,cli-test.log,cli-test-independent.log,installed-observer-tests.log,installed-observer-durable-tests.log.
+Detailed evidence:consumer/evidence.json; reproducible probe:consumer/verify.mjs.

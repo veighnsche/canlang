@@ -1,0 +1,46 @@
+Listing tests:
+  [chromium] › apps/challenge-pilot-patched.spec.ts:141:3 › challenge pilot (patched fixtures) › patched fixtures differ from pristine only at the 3 adjudicated sites
+  [chromium] › apps/challenge-pilot-patched.spec.ts:166:5 › challenge pilot (patched fixtures) › carries the source-bound pilot identity and generated surface
+  [chromium] › apps/challenge-pilot-patched.spec.ts:166:5 › challenge pilot (patched fixtures) › two actors share tasks with persistence across handles
+  [chromium] › apps/challenge-pilot-patched.spec.ts:166:5 › challenge pilot (patched fixtures) › denied reads answer forbidden, never rows
+  [chromium] › apps/challenge-pilot-patched.spec.ts:166:5 › challenge pilot (patched fixtures) › stale updates conflict without touching the stored row
+  [chromium] › apps/challenge-pilot-patched.spec.ts:166:5 › challenge pilot (patched fixtures) › duplicate deliveries replay without re-executing
+  [chromium] › apps/challenge-pilot-patched.spec.ts:166:5 › challenge pilot (patched fixtures) › complete and reopen run the authored scenarios
+  [chromium] › apps/challenge-pilot-patched.spec.ts:166:5 › challenge pilot (patched fixtures) › genuine examples execute green against the live pilot
+  [chromium] › apps/challenge-pilot.spec.ts:59:5 › challenge pilot › carries the source-bound pilot identity and generated surface
+  [chromium] › apps/challenge-pilot.spec.ts:59:5 › challenge pilot › two actors share tasks with persistence across handles
+  [chromium] › apps/challenge-pilot.spec.ts:59:5 › challenge pilot › denied reads answer forbidden, never rows
+  [chromium] › apps/challenge-pilot.spec.ts:59:5 › challenge pilot › stale updates conflict without touching the stored row
+  [chromium] › apps/challenge-pilot.spec.ts:59:5 › challenge pilot › duplicate deliveries replay without re-executing
+  [chromium] › apps/challenge-pilot.spec.ts:59:5 › challenge pilot › complete and reopen run the authored scenarios
+  [chromium] › apps/challenge-pilot.spec.ts:59:5 › challenge pilot › genuine examples execute green against the live pilot
+  [chromium] › apps/compiled-identity.spec.ts:15:3 › compiled identity › handbuilt fixture never passes the compiled-identity assertion
+  [chromium] › apps/compiled-identity.spec.ts:29:3 › compiled identity › tampered bytes fail the content-hash binding
+  [chromium] › apps/compiled-identity.spec.ts:40:3 › compiled identity › wrong path and wrong toolchain stamps fail their bindings
+  [chromium] › apps/compiled-identity.spec.ts:59:3 › compiled identity › labels stay distinguishable
+  [chromium] › apps/compiled-journey.spec.ts:59:3 › compiled journey › carries the source-bound compiled identity
+  [chromium] › apps/compiled-journey.spec.ts:76:3 › compiled journey › create→read→update→delete with receipt/history verification
+  [chromium] › apps/scaffold.spec.ts:27:3 › scaffold smoke › anonymous visitor sees the login screen
+  [chromium] › apps/scaffold.spec.ts:34:3 › scaffold smoke › member sees the seeded witness task
+  [chromium] › apps/scaffold.spec.ts:48:3 › scaffold smoke › member creates a task through the form
+  [chromium] › apps/teamtasks-mcp.spec.ts:92:3 › teamtasks MCP leg › mcp route requires grant auth (401, never 404)
+  [chromium] › apps/teamtasks-mcp.spec.ts:103:3 › teamtasks MCP leg › tools/list contains the .can operation with its closed schema
+  [chromium] › apps/teamtasks-mcp.spec.ts:147:3 › teamtasks MCP leg › tools/call round-trips through the same worker as HTTP (parity row)
+  [chromium] › apps/teamtasks-mcp.spec.ts:198:3 › teamtasks MCP leg › denied read is isError with the safe projection
+  [chromium] › apps/teamtasks.spec.ts:46:3 › teamtasks journeys › rejects a wrong password at login
+  [chromium] › apps/teamtasks.spec.ts:55:3 › teamtasks journeys › signs in through the form and sees tasks
+  [chromium] › apps/teamtasks.spec.ts:67:3 › teamtasks journeys › seeded witness task exists in D1
+  [chromium] › apps/teamtasks.spec.ts:77:3 › teamtasks journeys › persists a created task in D1
+  [chromium] › apps/teamtasks.spec.ts:96:3 › teamtasks journeys › rejects task creation without a CSRF token
+  [chromium] › apps/teamtasks.spec.ts:118:3 › teamtasks journeys › collaborators see each other's tasks
+  [chromium] › apps/teamtasks.spec.ts:146:3 › teamtasks journeys › unknown session shows the expired-session login
+  [chromium] › apps/teamtasks.spec.ts:155:3 › teamtasks journeys › rejects anonymous task creation
+  [chromium] › fixtures/cando-seed.spec.ts:15:1 › default plan validates with T37-covering actors and inputs
+  [chromium] › fixtures/cando-seed.spec.ts:22:1 › seeding invokes operations in order with threaded parents
+  [chromium] › fixtures/cando-seed.spec.ts:56:1 › malformed plans and id-less records fail loud
+  [chromium] › fixtures/pilot-examples.spec.ts:176:1 › provisions fixtures live with baseline matching and establishment
+  [chromium] › fixtures/vendor-walk.spec.ts:26:1 › stages .js recursively with prefixed keys
+  [chromium] › fixtures/vendor-walk.spec.ts:40:1 › skips exact test-only bridge keys
+  [chromium] › fixtures/vendor-walk.spec.ts:53:1 › fails loud on unmatched skips, empty trees, and missing dists
+  [chromium] › fixtures/vendor-walk.spec.ts:74:1 › stages declared contract imports without metadata or colocated tests
+Total: 44 tests in 10 files

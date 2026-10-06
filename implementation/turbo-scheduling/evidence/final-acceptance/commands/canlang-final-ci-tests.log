@@ -1,0 +1,54 @@
+$ node scripts/run-tasks.mjs test:ci:run
+
+   • turbo 2.11.7
+   • Packages in scope: //, @canlang/cloudflare, @canlang/contracts, @canlang/files, @canlang/identity, @canlang/interfaces, @canlang/services, @canlang/state, @canlang/stdlib, @canlang/testkit, @canlang/ui, @canlang/values, @canlang/work, @canlang/work-kernel
+   • Running test:ci:run in 14 packages
+   • Remote caching disabled
+
+//:test:ci:run: cache bypass, force executing dbacc353c53c0d32
+//:test:ci:run: $ node --test .github/ci/*.test.mjs
+//:test:ci:run: ✔ nonzero child remains failed even with passing-looking output (30.937292ms)
+//:test:ci:run: ✔ timed out process is failed (103.249083ms)
+//:test:ci:run: ✔ skips and empty execution cannot produce success (0.14725ms)
+//:test:ci:run: ✔ node test count formats and absent counts (0.883292ms)
+//:test:ci:run: ✔ Vitest ANSI summaries expose all-skipped and mixed test counts (0.196583ms)
+//:test:ci:run: ✔ native prerequisite required only for cloudflare and workspace (0.0615ms)
+//:test:ci:run: ✔ native prerequisite argv is fixed, locked, and checkout-absolute (0.11875ms)
+//:test:ci:run: ✔ native target and binary paths are private per profile (0.072375ms)
+//:test:ci:run: ✔ env overrides reach the child process only (24.196916ms)
+//:test:ci:run: ✔ skip matrix fails closed on unready native prerequisite for tests only (0.158334ms)
+//:test:ci:run: ✔ package gates build the selected owner before tests and retain joined workspace coverage (0.220042ms)
+//:test:ci:run: ✔ command plan labels only real tests and fixes producer/gate CWD (0.220542ms)
+//:test:ci:run: ✔ tool pins and executed test counts require positive evidence (0.145625ms)
+//:test:ci:run: ✔ runner executes independent tests after a typecheck failure and preserves the whole plan (5.535167ms)
+//:test:ci:run: ✔ failed frozen install records skipped producer and dependent gates, then final tree check (2.686375ms)
+//:test:ci:run: ✔ native failure records explicit prerequisites, skips tests, and still typechecks (4.265709ms)
+//:test:ci:run: ✔ runner fails closed on absent, zero, or all-skipped test summaries despite exit zero (9.7365ms)
+//:test:ci:run: ✔ values: complete receipt passes; every omitted command and reordered gates reject (10.858166ms)
+//:test:ci:run: ✔ state: complete receipt passes; every omitted command and reordered gates reject (5.01175ms)
+//:test:ci:run: ✔ stdlib: complete receipt passes; every omitted command and reordered gates reject (4.430666ms)
+//:test:ci:run: ✔ identity: complete receipt passes; every omitted command and reordered gates reject (4.109625ms)
+//:test:ci:run: ✔ ui: complete receipt passes; every omitted command and reordered gates reject (5.310541ms)
+//:test:ci:run: ✔ interfaces: complete receipt passes; every omitted command and reordered gates reject (5.219ms)
+//:test:ci:run: ✔ work: complete receipt passes; every omitted command and reordered gates reject (11.669041ms)
+//:test:ci:run: ✔ cloudflare: complete receipt passes; every omitted command and reordered gates reject (14.167416ms)
+//:test:ci:run: ✔ testkit: complete receipt passes; every omitted command and reordered gates reject (4.555792ms)
+//:test:ci:run: ✔ workspace: complete receipt passes; every omitted command and reordered gates reject (42.143917ms)
+//:test:ci:run: ✔ failure, skip, identity, argv, CWD, test identity and malformed lock fail closed (9.704459ms)
+//:test:ci:run: ✔ test counts are recomputed from authenticated logs and require passing execution (23.288042ms)
+//:test:ci:run: ✔ version and source proofs are checked against logs, not receipt labels (8.72375ms)
+//:test:ci:run: ✔ checksums, unsafe names, reused logs, and escaping symlinks reject (2.761458ms)
+//:test:ci:run: ✔ native profiles require exact private target, binary environment, hashes and pinned version logs (37.793458ms)
+//:test:ci:run: ℹ tests 32
+//:test:ci:run: ℹ suites 0
+//:test:ci:run: ℹ pass 32
+//:test:ci:run: ℹ fail 0
+//:test:ci:run: ℹ cancelled 0
+//:test:ci:run: ℹ skipped 0
+//:test:ci:run: ℹ todo 0
+//:test:ci:run: ℹ duration_ms 232.968
+
+ Tasks:    1 successful, 1 total
+Cached:    0 cached, 1 total
+  Time:    325ms 
+

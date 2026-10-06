@@ -1,0 +1,10 @@
+{
+  "argv": [
+    "/private/tmp/canlang-turbo-probe-20261006.89738Q/native/language-wrappers/uv",
+    "--version"
+  ],
+  "cwd": "/private/tmp/canlang-turbo-probe-20261006.89738Q/native",
+  "exit": 0,
+  "stdout": "uv 0.5.9 (0652800cb 2024-12-13)\n",
+  "stderr": ""
+}

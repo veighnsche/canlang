@@ -1,0 +1,20 @@
+✔ allows declared exported edges in imports, reexports, type queries, constants, and asset resolution (26.069333ms)
+✔ rejects undeclared local edges regardless of type-only or dynamic syntax (7.083333ms)
+✔ rejects unexported subpaths and nonexistent runtime targets even when declarations exist (8.855583ms)
+✔ rejects sibling source/output shortcuts and root-tool shortcuts (5.363125ms)
+✔ rejects literal module paths escaping the entire checkout (4.504125ms)
+✔ resolves TS aliases and prevents aliases from replacing exported builds with source (5.700459ms)
+✔ folds constants, templates, and single-return helpers without ignoring lexical scope (5.882625ms)
+✔ checks package entries computed by simple suffix-edit helpers (5.406959ms)
+✔ checks statically known module arguments passed to local lazy-loader wrappers (5.223583ms)
+✔ checks static filesystem/URL sibling reads and allows exported assets (6.642375ms)
+✔ checks all local manifest dependency sections and reports dev/runtime cycles (4.395875ms)
+✔ scans root tests, scripts, CI, and package conformance while ignoring emitted fixtures (6.803583ms)
+ℹ tests 12
+ℹ suites 0
+ℹ pass 12
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 226.209875

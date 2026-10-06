@@ -1,0 +1,26 @@
+$ node scripts/run-tasks.mjs catalog:emit --filter=@canlang/values --summarize
+
+   • turbo 2.11.7
+   • Packages in scope: @canlang/values
+   • Running catalog:emit in 1 package
+   • Remote caching disabled
+
+@canlang/contracts:build:prepare: cache bypass, force executing 5ffdada2d6d451ee
+@canlang/values:build:prepare: cache bypass, force executing 259a5b9ed9d8df14
+@canlang/contracts:build:prepare: $ node ../../scripts/build-package.mjs --prepare
+@canlang/values:build:prepare: $ node ../../scripts/build-package.mjs --prepare
+@canlang/contracts:build: cache hit, replaying logs bd19d31341c7fe45
+@canlang/contracts:build: $ node ../../scripts/build-package.mjs
+@canlang/contracts:build: $ tsc -p tsconfig.json
+@canlang/values:build: cache hit, replaying logs aa984135649556d0
+@canlang/values:build: $ node ../../scripts/build-package.mjs
+@canlang/values:build: $ tsc -p tsconfig.json && node scripts/stage-semantics.mjs
+@canlang/values:catalog:emit: cache bypass, force executing 0f1515b8849c1104
+@canlang/values:catalog:emit: $ node scripts/emit-catalog.mjs
+@canlang/values:catalog:emit: catalog 0.1.0-lane02-draft: 59 entries, 15 features -> dist/catalog.json
+
+  Tasks:    5 successful, 5 total
+ Cached:    2 cached, 5 total
+   Time:    170ms 
+Summary:    /Users/vince/Projects/canlang/.turbo/runs/3KKnLLIUNbLVY0THgY43ki5etJs.json
+

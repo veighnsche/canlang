@@ -1,0 +1,14 @@
+{
+  "futureFlags": {
+    "experimentalCargoWorkspaces": true
+  },
+  "tasks": {
+    "build": {
+      "dependsOn": [
+        "^build"
+      ]
+    },
+    "check": {},
+    "test": {}
+  }
+}

@@ -25,17 +25,24 @@ docs/e2e.md                 # this file
 
 ## Running
 
+Use the tool pins in [developer setup](dev-setup.md). From the repository root:
+
 ```sh
-bun run build                  # contracts/cloudflare/testkit dists
-bun run --filter @canlang/ui build
-bun run --filter @canlang/identity build
+bun install --frozen-lockfile
+bun run build:compiler
 bunx playwright install --with-deps chromium
+bun run typecheck:e2e
 bun run test:e2e
 ```
 
-Producer dists must be built (contracts/cloudflare via root `bun run build`;
-ui/identity via their workspace builds) — the loader bundles real dist code
-into the worker and fails loud naming the exact build when one is missing.
+The public e2e typecheck and test commands schedule the declared TypeScript
+producer graph automatically, including UI and identity. Compiled fixtures
+also require `compiler/target/debug/can`; `build:compiler` explicitly builds
+that native prerequisite through the uncached Cargo adapter. Browser installation
+and compiler compilation are separate from the cached TypeScript producers.
+The loader bundles real producer outputs and fails when an output or compiler
+is missing. A passing fixture or compiled suite proves only its asserted
+journeys; it does not qualify all applications or native preparation hosts.
 
 ## Honesty rules (binding)
 

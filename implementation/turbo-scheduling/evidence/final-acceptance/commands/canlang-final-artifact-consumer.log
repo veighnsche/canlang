@@ -1,0 +1,17 @@
+release artifact consumer: bun-version
+release artifact consumer: manifest-cloudflare
+release artifact consumer: manifest-contracts
+release artifact consumer: manifest-files
+release artifact consumer: manifest-identity
+release artifact consumer: manifest-interfaces
+release artifact consumer: manifest-services
+release artifact consumer: manifest-state
+release artifact consumer: manifest-stdlib
+release artifact consumer: manifest-testkit
+release artifact consumer: manifest-ui
+release artifact consumer: manifest-values
+release artifact consumer: manifest-work
+release artifact consumer: manifest-work-kernel
+release artifact consumer: isolated-install
+release artifact consumer: installed-worker
+Exact release artifact consumer success. Preserved scratch/logs: /private/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/canlang-release-artifact-consumer-OzAVKW

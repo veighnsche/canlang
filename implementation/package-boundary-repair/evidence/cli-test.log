@@ -1,0 +1,2 @@
+test harness: worker cli-test booted, 0 test module(s), 0 rows executed
+{"ok":true,"command":"test","workerName":"cli-test","modules":1,"testModules":0,"executed":0,"note":"harness boot verified via the platform local scope; row execution needs the lane-01 ArtifactTestModule loader (contract: can compile emission + ArtifactTestModule loader (§13 exampleFixtures))"}

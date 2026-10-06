@@ -1,0 +1,21 @@
+✔ nonzero child remains failed even with passing-looking output (31.337792ms)
+✔ timed out process is failed (103.325042ms)
+✔ skips and empty execution cannot produce success (0.176708ms)
+✔ node test count formats and absent counts (1.849958ms)
+✔ Vitest ANSI summaries expose all-skipped and mixed test counts (0.211625ms)
+✔ native prerequisite required only for cloudflare and workspace (0.071584ms)
+✔ native prerequisite argv is fixed, locked, and checkout-absolute (0.150208ms)
+✔ native target and binary paths are private per profile (0.107084ms)
+✔ env overrides reach the child process only (29.184584ms)
+✔ skip matrix fails closed on unready native prerequisite for tests only (0.151167ms)
+✔ package gates build the selected owner before tests and retain joined workspace coverage (0.227792ms)
+✔ independent verifier rejects failure, skip, mismatch and changed log (6.295375ms)
+✔ verifier enforces native prerequisite on cloudflare, forbids surprise on ui (9.842958ms)
+ℹ tests 13
+ℹ suites 0
+ℹ pass 13
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 214.880125

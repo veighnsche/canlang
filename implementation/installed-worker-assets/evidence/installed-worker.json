@@ -1,0 +1,74 @@
+{
+  "node": "v24.21.0",
+  "checkoutRead": "ERR_ACCESS_DENIED",
+  "bunPermissionLimit": "Bun and workerd subprocesses do not inherit Node filesystem permissions; resolved producer entries and emitted runtime bytes are checked.",
+  "directDependencies": [
+    "@canlang/cloudflare"
+  ],
+  "installedLocations": [
+    "node_modules/@canlang/cloudflare/dist/worker/entry.js",
+    "node_modules/@canlang/cloudflare/dist/worker/main.js",
+    "node_modules/@canlang/cloudflare/dist/runtime/mcp-registry.js",
+    "node_modules/@canlang/interfaces/dist/src/mcp/server.js",
+    "node_modules/@canlang/interfaces/dist/src/http/operations.js",
+    "node_modules/@canlang/contracts/dist/distribution.js",
+    "node_modules/@canlang/contracts/dist",
+    "node_modules/@canlang/ui/dist/src/distribution.js",
+    "node_modules/@canlang/ui/dist/src",
+    "node_modules/@canlang/identity/dist/src/distribution.js",
+    "node_modules/@canlang/identity/dist/src",
+    "node_modules/@canlang/stdlib/dist/src/distribution.js",
+    "node_modules/@canlang/stdlib/dist/src",
+    "node_modules/@canlang/state/dist/src/distribution.js",
+    "node_modules/@canlang/state/dist/src",
+    "node_modules/@canlang/values/dist/src/distribution.js",
+    "node_modules/@canlang/values/dist/src",
+    "node_modules/@canlang/values/dist/bindings",
+    "node_modules/@canlang/ui/dist/browser",
+    "node_modules/@canlang/cloudflare/dist/deploy/bundle.js",
+    "node_modules/@canlang/cloudflare/dist/deploy/producer-files.js",
+    "node_modules/@canlang/values/dist/bindings/generated/values_semantics_bg.wasm",
+    "node_modules/@canlang/cloudflare/dist/dev/local-run.js"
+  ],
+  "esmCondition": "import.js",
+  "workerModules": 159,
+  "productionWorker": {
+    "initializeStatus": 401,
+    "body": "{\"error\":{\"code\":\"forbidden\",\"message\":\"Authentication required.\"}}"
+  },
+  "wasm": {
+    "key": "vendor/values-bindings/generated/values_semantics_bg.wasm",
+    "bytes": 622216,
+    "sha256": "b0d44d9a4af37d23eacbde9c9841ef0c75822bd97e9e151c11af4a5cb4561b2f",
+    "compiledModule": "ABI accepted; add-int(1,2)=3",
+    "workerd": {
+      "compiled": true,
+      "abi": 1,
+      "sum": "3"
+    }
+  },
+  "browser": {
+    "browser/bootstrap.js": {
+      "bytes": 10300,
+      "sha256": "e26a1833631bd3b94ca2d690c74fe654c9a1a071b188d402f3b0d8c96ae59cd0",
+      "contentType": "application/javascript"
+    },
+    "browser/can-style.css": {
+      "bytes": 1155983,
+      "sha256": "5cdb8bf94708637e24d344062333cb68b4efbf06b284a5f16200c54eecf46333",
+      "contentType": "text/css"
+    },
+    "browser/polling.js": {
+      "bytes": 6057,
+      "sha256": "f47f6a1087745b50d20bf723fee0a23599a6fbe2f13a52d7557ee7d24ef066d7",
+      "contentType": "application/javascript"
+    }
+  },
+  "negativeCases": [
+    "missing values_semantics_bg.wasm",
+    "corrupt values_semantics_bg.wasm",
+    "missing can-style.css",
+    "corrupt can-style.css"
+  ],
+  "observer": "exact missing producer remains fail-closed"
+}

@@ -1,0 +1,15 @@
+{
+  "argv": [
+    "/private/tmp/canlang-turbo-probe-20261006.89738Q/tooling/node_modules/.bin/turbo",
+    "run",
+    "check",
+    "--filter=canlang-compiler",
+    "--dry-run=json",
+    "--no-update-notifier"
+  ],
+  "cwd": "/private/tmp/canlang-turbo-probe-20261006.89738Q/native/actual",
+  "exit": 1,
+  "stdout": "",
+  "stderr": " WARNING  No locally installed `turbo` found in your repository. Using globally installed version (2.11.7). Using a specified version in your repository will result in more predictable behavior.\n  x No package found with name 'canlang-compiler' in workspace\n\n",
+  "seconds": 4.515
+}

@@ -1,0 +1,78 @@
+
+   • turbo 2.11.7
+   • Packages in scope: @canlang/cloudflare, @canlang/contracts, @canlang/files, @canlang/identity, @canlang/interfaces, @canlang/services, @canlang/state, @canlang/stdlib, @canlang/testkit, @canlang/ui, @canlang/values, @canlang/work, @canlang/work-kernel
+   • Running build in 13 packages
+   • Remote caching disabled
+
+@canlang/work:build:prepare: cache bypass, force executing 9410dc5610a8bef7
+@canlang/values:build:prepare: cache bypass, force executing 0d26f269b5245065
+@canlang/files:build:prepare: cache bypass, force executing d57465bb4856d2ee
+@canlang/ui:build:prepare: cache bypass, force executing b02873338f608e66
+@canlang/work:build:prepare: $ node ../../scripts/build-package.mjs --prepare
+@canlang/files:build:prepare: $ node ../../scripts/build-package.mjs --prepare
+@canlang/ui:build:prepare: $ node ../../scripts/build-package.mjs --prepare
+@canlang/values:build:prepare: $ node ../../scripts/build-package.mjs --prepare
+@canlang/cloudflare:build:prepare: cache bypass, force executing 7573d9186a7c145b
+@canlang/stdlib:build:prepare: cache bypass, force executing 71d804fbf5d3eb48
+@canlang/state:build:prepare: cache bypass, force executing 211bd3d5d8cf4218
+@canlang/services:build:prepare: cache bypass, force executing 7ab3f478293a92c0
+@canlang/cloudflare:build:prepare: $ node ../../scripts/build-package.mjs --prepare
+@canlang/stdlib:build:prepare: $ node ../../scripts/build-package.mjs --prepare
+@canlang/state:build:prepare: $ node ../../scripts/build-package.mjs --prepare
+@canlang/services:build:prepare: $ node ../../scripts/build-package.mjs --prepare
+@canlang/testkit:build:prepare: cache bypass, force executing d1e37374df916622
+@canlang/work-kernel:build:prepare: cache bypass, force executing bd686202ac579711
+@canlang/contracts:build:prepare: cache bypass, force executing 8a7c729564f66427
+@canlang/identity:build:prepare: cache bypass, force executing f8d26bd1c74a3eac
+@canlang/testkit:build:prepare: $ node ../../scripts/build-package.mjs --prepare
+@canlang/work-kernel:build:prepare: $ node ../../scripts/build-package.mjs --prepare
+@canlang/contracts:build:prepare: $ node ../../scripts/build-package.mjs --prepare
+@canlang/identity:build:prepare: $ node ../../scripts/build-package.mjs --prepare
+@canlang/interfaces:build:prepare: cache bypass, force executing 75f1549c6f0dc05b
+@canlang/contracts:build: cache miss, executing 4c9f834fba32b154
+@canlang/interfaces:build:prepare: $ node ../../scripts/build-package.mjs --prepare
+@canlang/contracts:build: $ node ../../scripts/build-package.mjs
+@canlang/contracts:build: $ tsc -p tsconfig.json
+@canlang/state:build: cache miss, executing b3d08c8ec12b4c66
+@canlang/work-kernel:build: cache miss, executing fd2013be1388b0e6
+@canlang/identity:build: cache miss, executing c76b83a33f621345
+@canlang/services:build: cache miss, executing d627580d53ca3818
+@canlang/state:build: $ node ../../scripts/build-package.mjs
+@canlang/identity:build: $ node ../../scripts/build-package.mjs
+@canlang/services:build: $ node ../../scripts/build-package.mjs
+@canlang/work-kernel:build: $ node ../../scripts/build-package.mjs
+@canlang/state:build: $ tsc -p tsconfig.json
+@canlang/work-kernel:build: $ tsc -p tsconfig.json
+@canlang/services:build: $ tsc -p tsconfig.json
+@canlang/identity:build: $ tsc -p tsconfig.json && mkdir -p dist/test/fixtures && cp -r test/fixtures/. dist/test/fixtures/
+@canlang/values:build: cache miss, executing f32b22659e51f204
+@canlang/values:build: $ node ../../scripts/build-package.mjs
+@canlang/ui:build: cache miss, executing c598f01bec5d02c8
+@canlang/values:build: $ tsc -p tsconfig.json && node scripts/stage-semantics.mjs
+@canlang/ui:build: $ node ../../scripts/build-package.mjs
+@canlang/files:build: cache miss, executing e7cdf222f61edd8c
+@canlang/ui:build: $ tsc -p tsconfig.json && node scripts/build-browser.mjs
+@canlang/files:build: $ node ../../scripts/build-package.mjs
+@canlang/files:build: $ tsc -p tsconfig.json
+@canlang/stdlib:build: cache miss, executing 99501662d19b464d
+@canlang/stdlib:build: $ node ../../scripts/build-package.mjs
+@canlang/stdlib:build: $ tsc -p tsconfig.json
+@canlang/work:build: cache miss, executing 6248c92a37fe5287
+@canlang/work:build: $ node ../../scripts/build-package.mjs
+@canlang/work:build: $ tsc -p tsconfig.json
+@canlang/ui:build: build-browser: installed bootstrap.js, polling.js, can-style.css + manifest.json (daisyui 5.7.47, catalog 0.1.0-lane05-draft, binders guarded-form,once-action,poll-region)
+@canlang/interfaces:build: cache miss, executing 566475257670fa65
+@canlang/interfaces:build: $ node ../../scripts/build-package.mjs
+@canlang/interfaces:build: $ tsc -p tsconfig.json && mkdir -p dist/test/fixtures && cp -r test/fixtures/. dist/test/fixtures/
+@canlang/cloudflare:build: cache miss, executing 3bfb8e165ecfb776
+@canlang/cloudflare:build: $ node ../../scripts/build-package.mjs
+@canlang/cloudflare:build: $ tsc -p tsconfig.json && chmod +x dist/cli/platform.js
+@canlang/testkit:build: cache miss, executing 1a01e0cdb7f8dc86
+@canlang/testkit:build: $ node ../../scripts/build-package.mjs
+@canlang/testkit:build: $ tsc -p tsconfig.json
+
+  Tasks:    26 successful, 26 total
+ Cached:    0 cached, 26 total
+   Time:    8.517s 
+Summary:    /private/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/canlang-turbo-cache-hRtqbq/workspace/.turbo/runs/3KKqhOmaKE6LuaiycCvpAGE3G80.json
+

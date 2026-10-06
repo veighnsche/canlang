@@ -1,0 +1,106 @@
+$ node scripts/run-tasks.mjs typecheck:check typecheck:root
+
+   • turbo 2.11.7
+   • Packages in scope: //, @canlang/cloudflare, @canlang/contracts, @canlang/files, @canlang/identity, @canlang/interfaces, @canlang/services, @canlang/state, @canlang/stdlib, @canlang/testkit, @canlang/ui, @canlang/values, @canlang/work, @canlang/work-kernel
+   • Running typecheck:check, typecheck:root in 14 packages
+   • Remote caching disabled
+
+@canlang/testkit:build:prepare: cache bypass, force executing 2691302eb00c7c6a
+@canlang/ui:build:prepare: cache bypass, force executing 10f7623508f3c433
+@canlang/state:build:prepare: cache bypass, force executing bb68668e1dd84886
+@canlang/contracts:build:prepare: cache bypass, force executing e7f21e9264a82717
+@canlang/testkit:build:prepare: $ node ../../scripts/build-package.mjs --prepare
+@canlang/state:build:prepare: $ node ../../scripts/build-package.mjs --prepare
+@canlang/ui:build:prepare: $ node ../../scripts/build-package.mjs --prepare
+@canlang/contracts:build:prepare: $ node ../../scripts/build-package.mjs --prepare
+@canlang/values:build:prepare: cache bypass, force executing 1c08c60c6e623227
+@canlang/interfaces:build:prepare: cache bypass, force executing f4d03ca1888d50b1
+@canlang/interfaces:build:prepare: $ node ../../scripts/build-package.mjs --prepare
+@canlang/values:build:prepare: $ node ../../scripts/build-package.mjs --prepare
+@canlang/cloudflare:build:prepare: cache bypass, force executing de6e1b213fe9776f
+@canlang/cloudflare:build:prepare: $ node ../../scripts/build-package.mjs --prepare
+@canlang/services:build:prepare: cache bypass, force executing e00b779d7878d0d0
+@canlang/services:build:prepare: $ node ../../scripts/build-package.mjs --prepare
+@canlang/stdlib:build:prepare: cache bypass, force executing a4a17d1c7ef177de
+@canlang/stdlib:build:prepare: $ node ../../scripts/build-package.mjs --prepare
+@canlang/files:build:prepare: cache bypass, force executing 49f995efb2f9a43d
+@canlang/files:build:prepare: $ node ../../scripts/build-package.mjs --prepare
+@canlang/identity:build:prepare: cache bypass, force executing f956654f0cdc1b9a
+@canlang/identity:build:prepare: $ node ../../scripts/build-package.mjs --prepare
+@canlang/work:build:prepare: cache bypass, force executing 9069186bb63ec358
+@canlang/work:build:prepare: $ node ../../scripts/build-package.mjs --prepare
+@canlang/work-kernel:build:prepare: cache bypass, force executing fb7346e67e5a63fc
+@canlang/work-kernel:build:prepare: $ node ../../scripts/build-package.mjs --prepare
+@canlang/contracts:build: cache hit, replaying logs 2f898ece05896aec
+@canlang/contracts:build: $ node ../../scripts/build-package.mjs
+@canlang/contracts:build: $ tsc -p tsconfig.json
+@canlang/contracts:typecheck:check: cache bypass, force executing cb7529a35ce95562
+@canlang/contracts:typecheck:check: $ tsc --noEmit -p tsconfig.json
+@canlang/values:build: cache hit, replaying logs 54f629b7cf4dbdc7
+@canlang/values:build: $ node ../../scripts/build-package.mjs
+@canlang/values:build: $ tsc -p tsconfig.json && node scripts/stage-semantics.mjs
+@canlang/ui:build: cache hit, replaying logs 7ba7679125676396
+@canlang/identity:build: cache hit, replaying logs a9ce0b82626eba65
+@canlang/identity:build: $ node ../../scripts/build-package.mjs
+@canlang/identity:build: $ tsc -p tsconfig.json && mkdir -p dist/test/fixtures && cp -r test/fixtures/. dist/test/fixtures/
+@canlang/ui:build: $ node ../../scripts/build-package.mjs
+@canlang/ui:build: $ tsc -p tsconfig.json && node scripts/build-browser.mjs
+@canlang/ui:build: build-browser: installed bootstrap.js, polling.js, can-style.css + manifest.json (daisyui 5.7.47, catalog 0.1.0-lane05-draft, binders guarded-form,once-action,poll-region)
+@canlang/work-kernel:build: cache hit, replaying logs daca078c89bddc32
+@canlang/work-kernel:build: $ node ../../scripts/build-package.mjs
+@canlang/work-kernel:build: $ tsc -p tsconfig.json
+@canlang/values:typecheck:check: cache bypass, force executing 7e7730a2b006c4a6
+@canlang/services:build: cache hit, replaying logs c278817f933ddd15
+@canlang/services:build: $ node ../../scripts/build-package.mjs
+@canlang/services:build: $ tsc -p tsconfig.json
+@canlang/values:typecheck:check: $ tsc -p tsconfig.json --noEmit
+@canlang/stdlib:build: cache hit, replaying logs 84b07664df19d710
+@canlang/stdlib:build: $ node ../../scripts/build-package.mjs
+@canlang/stdlib:build: $ tsc -p tsconfig.json
+@canlang/ui:typecheck:check: cache bypass, force executing db5fb932c9301682
+@canlang/ui:typecheck:check: $ tsc -p tsconfig.json --noEmit
+@canlang/state:build: cache hit, replaying logs 47f19057d2be038a
+@canlang/state:build: $ node ../../scripts/build-package.mjs
+@canlang/state:build: $ tsc -p tsconfig.json
+@canlang/identity:typecheck:check: cache bypass, force executing d21e4ce44bf240b2
+@canlang/identity:typecheck:check: $ tsc -p tsconfig.json --noEmit
+@canlang/interfaces:build: cache hit, replaying logs 9c2bb2472cde50cd
+@canlang/interfaces:build: $ node ../../scripts/build-package.mjs
+@canlang/interfaces:build: $ tsc -p tsconfig.json && mkdir -p dist/test/fixtures && cp -r test/fixtures/. dist/test/fixtures/
+@canlang/work-kernel:typecheck:check: cache bypass, force executing ef43c6cef0f9d30b
+@canlang/work-kernel:typecheck:check: $ tsc --noEmit -p tsconfig.json
+@canlang/services:typecheck:check: cache bypass, force executing e6dac9c748e287c3
+@canlang/services:typecheck:check: $ tsc -p tsconfig.json --noEmit
+@canlang/files:build: cache hit, replaying logs 5d6dcdcf7e4afacc
+@canlang/files:build: $ node ../../scripts/build-package.mjs
+@canlang/files:build: $ tsc -p tsconfig.json
+@canlang/stdlib:typecheck:check: cache bypass, force executing 4cf3c05e850a6a15
+@canlang/stdlib:typecheck:check: $ tsc -p tsconfig.json --noEmit
+@canlang/work:build: cache hit, replaying logs b549a1c8b460d949
+@canlang/work:build: $ node ../../scripts/build-package.mjs
+@canlang/work:build: $ tsc -p tsconfig.json
+@canlang/state:typecheck:check: cache bypass, force executing dfe9ef5d8c5e0359
+@canlang/state:typecheck:check: $ tsc -p tsconfig.json --noEmit
+@canlang/interfaces:typecheck:check: cache bypass, force executing 295e90ba2c26a96d
+@canlang/interfaces:typecheck:check: $ tsc -p tsconfig.json --noEmit
+@canlang/files:typecheck:check: cache bypass, force executing db4cd43227c31ebf
+@canlang/files:typecheck:check: $ tsc -p tsconfig.json --noEmit
+@canlang/work:typecheck:check: cache bypass, force executing 8d37a23c7b393631
+@canlang/work:typecheck:check: $ tsc -p tsconfig.json --noEmit
+@canlang/cloudflare:build: cache hit, replaying logs 7e704cc110e9324d
+@canlang/cloudflare:build: $ node ../../scripts/build-package.mjs
+@canlang/cloudflare:build: $ tsc -p tsconfig.json && chmod +x dist/cli/platform.js
+@canlang/cloudflare:typecheck:check: cache bypass, force executing 01ee629fdda86b87
+@canlang/cloudflare:typecheck:check: $ tsc --noEmit -p tsconfig.json
+@canlang/testkit:build: cache hit, replaying logs 759a061f5617d793
+@canlang/testkit:build: $ node ../../scripts/build-package.mjs
+@canlang/testkit:build: $ tsc -p tsconfig.json
+@canlang/testkit:typecheck:check: cache bypass, force executing da389c5001a5971e
+@canlang/testkit:typecheck:check: $ tsc --noEmit -p tsconfig.json
+//:typecheck:root: cache bypass, force executing f4cefd537030071b
+//:typecheck:root: $ tsc -p tsconfig.check.json
+
+ Tasks:    40 successful, 40 total
+Cached:    13 cached, 40 total
+  Time:    7.077s 
+

@@ -1,0 +1,15 @@
+{
+  "argv": [
+    "/private/tmp/canlang-turbo-probe-20261006.89738Q/tooling/node_modules/.bin/turbo",
+    "run",
+    "build",
+    "--filter=probe-dual",
+    "--dry-run=json",
+    "--no-update-notifier"
+  ],
+  "cwd": "/private/tmp/canlang-turbo-probe-20261006.89738Q/native/root-control",
+  "exit": 1,
+  "stdout": "",
+  "stderr": " WARNING  No locally installed `turbo` found in your repository. Using globally installed version (2.11.7). Using a specified version in your repository will result in more predictable behavior.\n  x The Cargo workspace has no name.\n  | \n  | Turborepo needs a name for the workspace's tasks (`<name>#test`), filters\n  | (`--filter=<name>`), and configuration. Add one to the root Cargo.toml:\n  | \n  |     [workspace.metadata]\n  |     name = \"my-workspace\"\n\n",
+  "seconds": 6.208
+}

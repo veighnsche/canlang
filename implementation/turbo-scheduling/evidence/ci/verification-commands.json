@@ -1,0 +1,27 @@
+[
+  {
+    "argv": [
+      "ruby",
+      "-rpsych",
+      "-rjson",
+      "-e",
+      "files=Dir[\".github/workflows/*.yml\"].sort; files.each { |file| Psych.parse_file(file) }; puts JSON.generate({ruby:RUBY_VERSION,psych:Psych::VERSION,parsed:files})"
+    ],
+    "cwd": "/Users/vince/Projects/canlang",
+    "exit": 0,
+    "stdout": "{\"ruby\":\"4.0.7\",\"psych\":\"5.3.1\",\"parsed\":[\".github/workflows/b1-join.yml\",\".github/workflows/b2-join.yml\",\".github/workflows/e2e.yml\",\".github/workflows/integration.yml\",\".github/workflows/lane-01.yml\",\".github/workflows/lane-02.yml\",\".github/workflows/lane-03.yml\",\".github/workflows/lane-04.yml\",\".github/workflows/lane-05.yml\",\".github/workflows/lane-06.yml\",\".github/workflows/release.yml\",\".github/workflows/ts-gates.yml\"]}\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "node",
+      "--test",
+      ".github/ci/ts-gate.test.mjs",
+      ".github/ci/verify-receipt.test.mjs"
+    ],
+    "cwd": "/Users/vince/Projects/canlang",
+    "exit": 0,
+    "stdout": "\u2714 nonzero child remains failed even with passing-looking output (67.684ms)\n\u2714 timed out process is failed (106.579792ms)\n\u2714 skips and empty execution cannot produce success (0.332792ms)\n\u2714 node test count formats and absent counts (1.559167ms)\n\u2714 Vitest ANSI summaries expose all-skipped and mixed test counts (0.410458ms)\n\u2714 native prerequisite required only for cloudflare and workspace (0.148208ms)\n\u2714 native prerequisite argv is fixed, locked, and checkout-absolute (0.266209ms)\n\u2714 native target and binary paths are private per profile (0.178959ms)\n\u2714 env overrides reach the child process only (41.865083ms)\n\u2714 skip matrix fails closed on unready native prerequisite for tests only (0.224208ms)\n\u2714 package gates build the selected owner before tests and retain joined workspace coverage (0.268083ms)\n\u2714 independent verifier rejects failure, skip, mismatch and changed log (11.087708ms)\n\u2714 verifier enforces native prerequisite on cloudflare, forbids surprise on ui (34.238125ms)\n\u2139 tests 13\n\u2139 suites 0\n\u2139 pass 13\n\u2139 fail 0\n\u2139 cancelled 0\n\u2139 skipped 0\n\u2139 todo 0\n\u2139 duration_ms 312.483\n",
+    "stderr": ""
+  }
+]

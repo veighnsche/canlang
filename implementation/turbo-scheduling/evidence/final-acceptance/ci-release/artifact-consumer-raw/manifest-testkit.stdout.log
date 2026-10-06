@@ -1,0 +1,64 @@
+{
+  "name": "@canlang/testkit",
+  "version": "0.1.0",
+  "license": "MIT",
+  "description": "CanLang inline-BDD runner: executes compiled example artifacts through production admission with per-row isolation (lane 07).",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./runner/dispatch": {
+      "types": "./dist/runner/dispatch.d.ts",
+      "default": "./dist/runner/dispatch.js"
+    },
+    "./runner/steps": {
+      "types": "./dist/runner/steps.d.ts",
+      "default": "./dist/runner/steps.js"
+    },
+    "./fixtures/b2-storage": {
+      "types": "./dist/fixtures/b2-storage.d.ts",
+      "default": "./dist/fixtures/b2-storage.js"
+    },
+    "./fixtures/playback": {
+      "types": "./dist/fixtures/playback.d.ts",
+      "default": "./dist/fixtures/playback.js"
+    },
+    "./fixtures/b2-delivery": {
+      "types": "./dist/fixtures/b2-delivery.d.ts",
+      "default": "./dist/fixtures/b2-delivery.js"
+    },
+    "./fixtures/b2-revocation": {
+      "types": "./dist/fixtures/b2-revocation.d.ts",
+      "default": "./dist/fixtures/b2-revocation.js"
+    }
+  },
+  "scripts": {
+    "build": "node ../../scripts/build-package.mjs",
+    "typecheck": "node ../../scripts/run-tasks.mjs typecheck:check --filter=@canlang/testkit",
+    "build:emit": "tsc -p tsconfig.json",
+    "typecheck:check": "tsc --noEmit -p tsconfig.json",
+    "build:prepare": "node ../../scripts/build-package.mjs --prepare"
+  },
+  "dependencies": {
+    "@canlang/cloudflare": "0.1.0",
+    "@canlang/contracts": "0.1.0"
+  },
+  "devDependencies": {
+    "@types/node": "24.19.1",
+    "esbuild": "0.28.2",
+    "miniflare": "4.20260730.0",
+    "@canlang/values": "0.1.0",
+    "@canlang/work": "0.0.0",
+    "@canlang/services": "0.0.0",
+    "@canlang/identity": "0.1.0",
+    "@canlang/state": "0.1.0",
+    "vitest": "^3.2.4"
+  }
+}

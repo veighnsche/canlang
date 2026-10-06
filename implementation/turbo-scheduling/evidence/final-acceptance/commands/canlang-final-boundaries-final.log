@@ -1,0 +1,2 @@
+$ node scripts/check-package-boundaries.mjs
+Package boundaries: 13 packages, 681 JS/TS files, 0 violations, 576 runtime/context expressions (--audit).

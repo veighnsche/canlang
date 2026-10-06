@@ -1,0 +1,145 @@
+{
+  "head": "7fd8c6bf4717feeffc70b46819377b74b353e117",
+  "files": {
+    "package.json": {
+      "sha256": "b06e3d2505117e396a5f764eea34c32a83ac7ecd64894c37ce0ff87b7aed0a4d",
+      "mode": "0o644"
+    },
+    "bun.lock": {
+      "sha256": "28eeb481d3b6ce420b1ccc6573581572b47da25a0b8eb5ff833d1143e5cc4c19",
+      "mode": "0o644"
+    },
+    "turbo.json": {
+      "sha256": "cc16a9643415a299b431170a8a602e4136639dc2cd8c513cf3159fd4b3ee0995",
+      "mode": "0o644"
+    },
+    "tsconfig.base.json": {
+      "sha256": "56d05912029f16842996d66df2e6fc4279950a243874a794d9ff2e13e220ded8",
+      "mode": "0o644"
+    },
+    "scripts/run-tasks.mjs": {
+      "sha256": "3e055c26a0130829843f52cf5ddbf6b45e32bbc7a8a4d0124d8db2a8b107cc37",
+      "mode": "0o644"
+    },
+    "scripts/build-package.mjs": {
+      "sha256": "fbf81db868a96e416981c439371f85285ed3832dfb4e13fa2256c9243f2a6330",
+      "mode": "0o644"
+    },
+    "scripts/verify-turbo-cache.mjs": {
+      "sha256": "5408f8de97336bb9ae476e53378b2d7c25ad5243690f0907e0d5952cec0f3a06",
+      "mode": "0o644"
+    },
+    "packages/cloudflare/package.json": {
+      "sha256": "5a24f4fcd94013cedf1acedab37dd1a4f57cf47c1b4a15e0fcac70e719a4b07c",
+      "mode": "0o644"
+    },
+    "packages/contracts/package.json": {
+      "sha256": "77d6b51fade16c2c304664ec5ee55c820121314e7b6ab8cdca6266ce21c78bf3",
+      "mode": "0o644"
+    },
+    "packages/files/package.json": {
+      "sha256": "fb7e88d7cef8bf0ccaee3990901b99751dad6575f2ab78ed13867b535a58ca7c",
+      "mode": "0o644"
+    },
+    "packages/identity/package.json": {
+      "sha256": "dfd0cc78fbfbf250c7a63c3558ecbbe66fe9aeb371cb537b0153cf04b9b4f3b3",
+      "mode": "0o644"
+    },
+    "packages/interfaces/package.json": {
+      "sha256": "8f3639d8cbbe1e5d0e4af4c1d92352fbdb66f56994c3863d54274f4258c47cad",
+      "mode": "0o644"
+    },
+    "packages/services/package.json": {
+      "sha256": "160607d0145fa9f3b39568a64c17bbbcbdded562ee75d231d8e3046df9dcab7e",
+      "mode": "0o644"
+    },
+    "packages/state/package.json": {
+      "sha256": "cb41b927046a074cad9e267fd4eba6f630a0aad7157d333b0efe3dca9e37aa52",
+      "mode": "0o644"
+    },
+    "packages/stdlib/package.json": {
+      "sha256": "1f5dda9a1bc0390590943772e7665e357e1337e705bb15c825c40eb2fcf5883b",
+      "mode": "0o644"
+    },
+    "packages/testkit/package.json": {
+      "sha256": "d4836564d2f24cb9181944e53f1c37596af4ca88c61bd117252ffa0b368b2ced",
+      "mode": "0o644"
+    },
+    "packages/ui/package.json": {
+      "sha256": "14dd85da8bea318201aad0490034ab147f1282dc174dfac94be0506a9c5a1425",
+      "mode": "0o644"
+    },
+    "packages/values/package.json": {
+      "sha256": "e542125300e2ee229f96bd37cc66af50c8982e588c26c9ba6cf363640688618f",
+      "mode": "0o644"
+    },
+    "packages/work/package.json": {
+      "sha256": "c4ca397414147a1e544db045d2fb883aa2aa85d56c8ded8b17a188c1cf6ac906",
+      "mode": "0o644"
+    },
+    "packages/work-kernel/package.json": {
+      "sha256": "74b650a5c4c38592905cea0e011e35cbdf9311f78689c887b3b74b79ce11f762",
+      "mode": "0o644"
+    },
+    ".github/workflows/b1-join.yml": {
+      "sha256": "bd157010009cc055e7d2199a6bf527ca82f24c0111f437f8b45ddda97e0142d1",
+      "mode": "0o644"
+    },
+    ".github/workflows/b2-join.yml": {
+      "sha256": "bf551957e7007514cf1b039a780931c4c0752a60f6b19b596493a393aff3977b",
+      "mode": "0o644"
+    },
+    ".github/workflows/e2e.yml": {
+      "sha256": "6b6eed853a36408da8f7b7e797e59bdc9c3dd340c52712465523f574bc9d6903",
+      "mode": "0o644"
+    },
+    ".github/workflows/integration.yml": {
+      "sha256": "4f2d7539f34684a8077a05b1cbbc4411b9258f546fc293aa59314aa5b0972ce2",
+      "mode": "0o644"
+    },
+    ".github/workflows/lane-01.yml": {
+      "sha256": "e226037be3962061324fb93c9b2d78b84eaf24eb33b7e8daa27e64dfaf4ad239",
+      "mode": "0o644"
+    },
+    ".github/workflows/lane-02.yml": {
+      "sha256": "a734a973b4ec3edcad71dfea3394cb2c6ad9b11dbb54eb016dce80e767047181",
+      "mode": "0o644"
+    },
+    ".github/workflows/lane-03.yml": {
+      "sha256": "7f241e03ae38463d62e4cfb047054ed71fc9c67c0bb7a4fd7b6e68077664dfb0",
+      "mode": "0o644"
+    },
+    ".github/workflows/lane-04.yml": {
+      "sha256": "3ec81e57f21339e64308cbf678486a9621d8e0633d3e617788c2f7f09b2fbd30",
+      "mode": "0o644"
+    },
+    ".github/workflows/lane-05.yml": {
+      "sha256": "31cf62897f0bd3596502adf36d8ac546f752081ffd3d6475450a8d2108b1e5d9",
+      "mode": "0o644"
+    },
+    ".github/workflows/lane-06.yml": {
+      "sha256": "a419f97d5fa7a35dcd39c3bd5ad077d1e12cd22df47fd0db2b41814b9cdf7c8c",
+      "mode": "0o644"
+    },
+    ".github/workflows/release.yml": {
+      "sha256": "c5bfc92a96e5c1f52b2a2ebab43e2d58f32f2174f6bb0e7f5b80cd2b0075491d",
+      "mode": "0o644"
+    },
+    ".github/workflows/ts-gates.yml": {
+      "sha256": "1f7cd95ffb6c6f4425d75f1ae76f6fd26d8c40a8512c139d33e562c3b453b167",
+      "mode": "0o644"
+    },
+    ".github/ci/ts-gate.mjs": {
+      "sha256": "095e37a0ff73add4450bdf23845df9fe1f478cd3dcf9803ffbf5893a28a618b4",
+      "mode": "0o644"
+    },
+    ".github/ci/ts-gate.test.mjs": {
+      "sha256": "851937874096b5cd0737e4617cba2391f8f91f8e0e6cae99af9db02bf84588e1",
+      "mode": "0o644"
+    },
+    ".gitignore": {
+      "sha256": "49eee95900d627832c496dd550b6f3254c5df3db47434679d1c383411414f08d",
+      "mode": "0o644"
+    }
+  }
+}

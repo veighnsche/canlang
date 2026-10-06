@@ -1,0 +1,40 @@
+{
+  "name": "canlang-installed-types-consumer",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@canlang/cloudflare": "file:/private/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/canlang-installed-types-vfy47w/tarballs/cloudflare.tgz",
+    "@canlang/contracts": "file:/private/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/canlang-installed-types-vfy47w/tarballs/contracts.tgz",
+    "@canlang/files": "file:/private/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/canlang-installed-types-vfy47w/tarballs/files.tgz",
+    "@canlang/identity": "file:/private/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/canlang-installed-types-vfy47w/tarballs/identity.tgz",
+    "@canlang/interfaces": "file:/private/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/canlang-installed-types-vfy47w/tarballs/interfaces.tgz",
+    "@canlang/services": "file:/private/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/canlang-installed-types-vfy47w/tarballs/services.tgz",
+    "@canlang/state": "file:/private/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/canlang-installed-types-vfy47w/tarballs/state.tgz",
+    "@canlang/stdlib": "file:/private/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/canlang-installed-types-vfy47w/tarballs/stdlib.tgz",
+    "@canlang/testkit": "file:/private/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/canlang-installed-types-vfy47w/tarballs/testkit.tgz",
+    "@canlang/ui": "file:/private/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/canlang-installed-types-vfy47w/tarballs/ui.tgz",
+    "@canlang/values": "file:/private/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/canlang-installed-types-vfy47w/tarballs/values.tgz",
+    "@canlang/work": "file:/private/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/canlang-installed-types-vfy47w/tarballs/work.tgz",
+    "@canlang/work-kernel": "file:/private/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/canlang-installed-types-vfy47w/tarballs/work-kernel.tgz"
+  },
+  "overrides": {
+    "@canlang/cloudflare": "file:/private/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/canlang-installed-types-vfy47w/tarballs/cloudflare.tgz",
+    "@canlang/contracts": "file:/private/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/canlang-installed-types-vfy47w/tarballs/contracts.tgz",
+    "@canlang/files": "file:/private/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/canlang-installed-types-vfy47w/tarballs/files.tgz",
+    "@canlang/identity": "file:/private/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/canlang-installed-types-vfy47w/tarballs/identity.tgz",
+    "@canlang/interfaces": "file:/private/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/canlang-installed-types-vfy47w/tarballs/interfaces.tgz",
+    "@canlang/services": "file:/private/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/canlang-installed-types-vfy47w/tarballs/services.tgz",
+    "@canlang/state": "file:/private/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/canlang-installed-types-vfy47w/tarballs/state.tgz",
+    "@canlang/stdlib": "file:/private/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/canlang-installed-types-vfy47w/tarballs/stdlib.tgz",
+    "@canlang/testkit": "file:/private/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/canlang-installed-types-vfy47w/tarballs/testkit.tgz",
+    "@canlang/ui": "file:/private/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/canlang-installed-types-vfy47w/tarballs/ui.tgz",
+    "@canlang/values": "file:/private/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/canlang-installed-types-vfy47w/tarballs/values.tgz",
+    "@canlang/work": "file:/private/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/canlang-installed-types-vfy47w/tarballs/work.tgz",
+    "@canlang/work-kernel": "file:/private/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/canlang-installed-types-vfy47w/tarballs/work-kernel.tgz"
+  },
+  "devDependencies": {
+    "typescript": "5.9.3",
+    "@types/node": "24.19.1",
+    "@cloudflare/workers-types": "5.20261004.1"
+  }
+}

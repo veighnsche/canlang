@@ -1,0 +1,22 @@
+{
+  "lockfileVersion": 2,
+  "configVersion": 1,
+  "workspaces": {
+    "": {
+      "name": "boundary-probe",
+    },
+    "packages/a": {
+      "name": "@probe/a",
+      "version": "1.0.0",
+    },
+    "packages/b": {
+      "name": "@probe/b",
+      "version": "1.0.0",
+    },
+  },
+  "packages": {
+    "@probe/a": ["@probe/a@workspace:packages/a"],
+
+    "@probe/b": ["@probe/b@workspace:packages/b"],
+  }
+}
