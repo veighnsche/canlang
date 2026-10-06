@@ -431,10 +431,10 @@
     {
       "id": "BOUND-DOCUMENTATION",
       "boundary": "documentation authority, navigation and evidence",
-      "finding": "Only README and AGENTS remain at root; four specification owners and the completed evaluation plan relocated. Selected 52-to-25 topic consolidation preserves corrections and uncertainty; captured duplicate bytes are retained until reconstruction proof.",
-      "owner_gate": "DOC01 and DOC02 applied locally; DOC03-DOC05 require exact owner/content gates; DOC06 deferred",
+      "finding": "Only README and AGENTS remain at root; four specification owners and the completed evaluation plan relocated. Selected 52-to-25 topic consolidation preserves corrections and uncertainty; captured duplicate bytes are retained until reconstruction proof. Completed editor audit has no live build/test/install consumer; all 187 files recover exactly from its pinned Git revision.",
+      "owner_gate": "DOC01 and DOC02 applied locally; DOC03-DOC05 require exact owner/content gates; DOC06 deferred; DOC07 editor audit retirement applied locally; other captured evidence remains under DOC06",
       "classification": "accepted documentation placement; conditional content consolidation",
-      "status": "Root relocation and selected27-file consolidation applied; further pruning remains conditional/deferred",
+      "status": "Root relocation and selected27-file consolidation applied; further pruning remains conditional/deferred; 187 editor archive files including 23 Markdown retired from working tree",
       "evidence": "documentation-review.json"
     }
   ],

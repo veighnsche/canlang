@@ -17,6 +17,13 @@ def main():
     catalog=json.loads((HERE/'tasks.json').read_text())
     requirements=json.loads((HERE/'requirements.json').read_text())
     documentation=json.loads((HERE/'documentation-review.json').read_text()) if (HERE/'documentation-review.json').exists() else {}
+    retired_audit=documentation.get('execution',{}).get('completed_editor_audit',{})
+    archived_sources={r['path']:r for r in retired_audit.get('files',[])}
+    archive_bytes={}
+    def archived_bytes(path):
+        if path not in archive_bytes:
+            archive_bytes[path]=subprocess.check_output(['git','show',retired_audit['revision']+':'+path],cwd=ROOT)
+        return archive_bytes[path]
     relocations={r['source']:r['target'] for r in documentation.get('root_locations',[]) if r.get('execution_status')=='applied locally'}
     topic_consolidation=documentation.get('execution',{}).get('topic_consolidation',{})
     source_locations={**relocations,**{r['source']:r['target'] for r in topic_consolidation.get('sources',[])}}
@@ -102,7 +109,22 @@ def main():
         root_markdown=sorted(p.name for p in ROOT.glob('*.md'))
         if relocations and root_markdown!=['AGENTS.md','README.md']:errors.append({'unexpected_root_markdown':root_markdown})
         for p,sha in documentation.get('execution',{}).get('protected_markdown_hashes',{}).items():
-            if not (ROOT/p).is_file() or hashlib.sha256((ROOT/p).read_bytes()).hexdigest()!=sha:errors.append({'protected_document_changed':p})
+            if p in archived_sources:
+                try:
+                    if hashlib.sha256(archived_bytes(p)).hexdigest()!=sha:errors.append({'protected_archive_document_changed':p})
+                except subprocess.CalledProcessError:errors.append({'protected_archive_document_unavailable':p})
+            elif not (ROOT/p).is_file() or hashlib.sha256((ROOT/p).read_bytes()).hexdigest()!=sha:errors.append({'protected_document_changed':p})
+        if retired_audit:
+            if (ROOT/retired_audit['root']).exists():errors.append('retired editor audit remains in working tree')
+            try:
+                paths=subprocess.check_output(['git','ls-tree','-r','--name-only',retired_audit['revision'],'--',retired_audit['root']],cwd=ROOT,text=True).splitlines()
+                if set(paths)!=set(archived_sources):errors.append('editor archive recovery inventory differs from pinned Git tree')
+                for p,r in archived_sources.items():
+                    b=archived_bytes(p)
+                    if len(b)!=r['bytes'] or hashlib.sha256(b).hexdigest()!=r['sha256']:errors.append({'editor_archive_bytes_changed':p})
+                    a=next((a for a in allocations if a['source']==p),None)
+                    if not a or a['targets']!=['docs/ideal-filetree-plan/finished-product/documentation-review.json']:errors.append({'editor_archive_allocation_missing':p})
+            except subprocess.CalledProcessError:errors.append('editor archive Git revision unavailable')
         for source,target in relocations.items():
             a=next((a for a in allocations if a['source']==source),None)
             if not a or a['targets']!=[target] or not (ROOT/target).is_file() or (ROOT/source).exists():errors.append({'documentation_cutover_incomplete':source,'target':target})
@@ -173,7 +195,10 @@ def main():
        'navigation_only_review_source_drift':sorted(set(navigation_only_pins)),
        'documentation_root_cutover':len(relocations),'documentation_topic_consolidation_executed':bool(topic_consolidation),
        'documentation_topic_source_blocks':len(topic_consolidation.get('sources',[])),
-       'documentation_markdown_reduction':topic_consolidation.get('net_markdown_reduction',0)},
+       'documentation_editor_archive_files':len(archived_sources),
+       'documentation_editor_archive_markdown':sum(p.endswith('.md') for p in archived_sources),
+       'documentation_editor_archive_recovery_verified':bool(retired_audit) and not any('archive' in str(e) for e in errors),
+       'documentation_markdown_reduction':topic_consolidation.get('net_markdown_reduction',0)+sum(p.endswith('.md') for p in archived_sources)},
        'completion_dimensions':{'source_coverage':'Path/catalog accountability complete at source pin; every parent/added/nested path and accumulated checkpoint delta catalogued and mixed internals indexed. Semantic reads scope-pinned in primary/app reviews; exhaustive test-body/control-path review remains FP.SOURCE-CLOSURE, so complete checkpoint does not advance.',
          'workflow_tracing':'Requirements-first lifecycle/authority/failure/termination records across 12 capabilities and full original app intent sweep; installed/executed workflow proofs remain implementation gates.',
          'independent_challenge':'Four primary views with independent challengers; material corpus/CSV/poll/export/identity/upgrade corrections joined; per-app challenge/reconciliation stated at actual scope.',
