@@ -4,7 +4,11 @@ This is the current planning entry point for `/Users/vince/Projects/canlang`. Th
 
 Current maintenance: the branch history is now on `main`; the implementation is
 user-stopped. The [main-merge reconciliation](ideal-filetree-plan/main-merge-20261006.json)
-updates path accountability and current decisions through `1126544`. The original
+updates path accountability and current decisions through `1126544`, plus
+[E1 integration](ideal-filetree-plan/integration-20261006-e1.json) (`2d59697`,
+5 interfaces-owned paths, no structural change) and
+[E2a integration](ideal-filetree-plan/integration-20261006-e2a.json) (`ae65a76`,
+1 test-only path, no structural change). The original
 audit paragraphs below retain their historical capture scope; they do not establish
 current product acceptance or imply active writers.
 
