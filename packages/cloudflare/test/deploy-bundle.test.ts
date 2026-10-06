@@ -95,10 +95,11 @@ function fakeWorkerDist(): string {
 /**
  * Fake runtime dist for the D3b Q3 seam: the REAL pinned files (their
  * exact closure is what the proof must cover) plus a staged `invoke.js`
- * overlay carrying C's Q2 observer const — C's seam is uncommitted and
- * B's module unlanded, so the suite stages the const spelling from the
- * frozen contract instead of depending on sibling packets. Prune the
- * overlay once C's seam is accepted (the real const takes over).
+ * overlay carrying the Q2 observer const spelling from the frozen
+ * contract — C's seam is committed but B's observer module is still
+ * unlanded, so the suite keeps staging the const spelling instead of
+ * depending on the sibling packet. Prune the overlay once B's module
+ * lands.
  */
 function fakeRuntimeDistWithObserverSeam(): string {
   const real = resolve(repoRoot, "packages", "cloudflare", "dist", "runtime");
@@ -679,7 +680,7 @@ describe("producer import rewrite + link check (P-C/P-B skew class)", () => {
 
   it("rewrites the D3b receipt join + observer producers to vendor entries (D3b Q3)", () => {
     // Join const is real (pinned invoke.js); observer const is the staged
-    // Q2 spelling (C uncommitted, B unlanded — see the helper). Both must
+    // Q2 spelling (C committed, B unlanded — see the helper). Both must
     // stage as module-relative vendor keys, never checkout paths.
     const bundle = buildDeployBundle(testArtifact(), {
       repoRoot,

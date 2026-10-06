@@ -12,6 +12,10 @@ import {
   resolvePlanDefault,
   type PlanOwner,
 } from "../src/prepared/plan.js";
+// V03.4 native-handle carve-out (lane G): this import block is the only
+// edit above the appended describes; every F-owned block below is
+// untouched.
+import { NativePlanError, NativePlanRegistry } from "../bindings/plans.js";
 
 function field(type: string, extra?: Record<string, unknown>): Record<string, unknown> {
   return { type, ...(extra ?? {}) };
@@ -340,5 +344,136 @@ describe("plan handles", () => {
     releaseValidationPlan(first.own, first.id);
     releaseValidationPlan(first.own, "plan:nope");
     assertPlanError(() => getValidationPlan(first.own, first.id), "unknown-plan");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// V03.4 native plan handles (lane-G carve-out; F-owned blocks above untouched).
+// ---------------------------------------------------------------------------
+
+function assertNativeError(fn: () => unknown, code: string): void {
+  try {
+    fn();
+  } catch (err) {
+    assert.ok(err instanceof NativePlanError, `expected NativePlanError, got ${String(err)}`);
+    assert.equal(err.code, code);
+    return;
+  }
+  assert.fail(`expected NativePlanError(${code}), but nothing was thrown`);
+}
+
+describe("native plan handles adopt live plans", () => {
+  it("adopts with liveness proved through plan.ts; get returns the identical plan", () => {
+    const { own, id, plan } = registeredPlan(shopDescriptor());
+    const registry = new NativePlanRegistry(8);
+    const handle = registry.adopt(own, id);
+    assert.ok(Object.isFrozen(handle));
+    assert.equal(handle.id, id);
+    assert.equal(handle.generation, 0);
+    assert.equal(registry.get(handle) === plan, true);
+    assert.equal(registry.liveCount, 1);
+    // Idempotent re-adopt returns the same handle.
+    assert.equal(registry.adopt(own, id) === handle, true);
+    assert.equal(registry.liveCount, 1);
+  });
+
+  it("unknown and released ids fail adoption with the original PlanError", () => {
+    const { own, id } = registeredPlan(shopDescriptor());
+    const registry = new NativePlanRegistry(8);
+    assertPlanError(() => registry.adopt(own, "plan:nope"), "unknown-plan");
+    assertPlanError(() => registry.adopt(owner(), id), "unknown-plan");
+    releaseValidationPlan(own, id);
+    assertPlanError(() => registry.adopt(own, id), "unknown-plan");
+    assert.equal(registry.liveCount, 0);
+  });
+
+  it("foreign owners fail adoption before any handle exists", () => {
+    const { id } = registeredPlan(shopDescriptor());
+    const registry = new NativePlanRegistry(8);
+    assertPlanError(() => registry.adopt({ scope: {} }, id), "foreign-owner");
+    assert.equal(registry.liveCount, 0);
+  });
+
+  it("handles never alias across owners sharing an id string", () => {
+    const first = registeredPlan(shopDescriptor());
+    const second = registeredPlan(shopDescriptor());
+    assert.equal(first.id, second.id);
+    const registry = new NativePlanRegistry(8);
+    const a = registry.adopt(first.own, first.id);
+    const b = registry.adopt(second.own, second.id);
+    assert.equal(a === b, false);
+    assert.equal(registry.get(a) === first.plan, true);
+    assert.equal(registry.get(b) === second.plan, true);
+    assert.equal(registry.liveCount, 2);
+  });
+});
+
+describe("native handle failures fail closed", () => {
+  it("forged handles and proxies are foreign; cross-registry handles too", () => {
+    const { own, id } = registeredPlan(shopDescriptor());
+    const registry = new NativePlanRegistry(8);
+    const handle = registry.adopt(own, id);
+    assertNativeError(() => registry.get({}), "foreign-handle");
+    assertNativeError(() => registry.get({ id, generation: 0 }), "foreign-handle");
+    assertNativeError(() => registry.get(new Proxy(handle, {})), "foreign-handle");
+    const other = new NativePlanRegistry(8);
+    assertNativeError(() => other.get(handle), "foreign-handle");
+    // The genuine handle still resolves: forgeries never poison it.
+    assert.equal(registry.get(handle).id, id);
+  });
+
+  it("disposed handles fail; release is total and idempotent", () => {
+    const { own, id } = registeredPlan(shopDescriptor());
+    const registry = new NativePlanRegistry(8);
+    const handle = registry.adopt(own, id);
+    registry.release(handle);
+    registry.release(handle);
+    registry.release({});
+    registry.release("plan:nope");
+    assertNativeError(() => registry.get(handle), "disposed-handle");
+    assert.equal(registry.liveCount, 0);
+    // Re-adopting after release mints a fresh live handle.
+    const again = registry.adopt(own, id);
+    assert.equal(again === handle, false);
+    assert.equal(registry.get(again).id, id);
+  });
+
+  it("registration is bounded; the bound admits nothing when non-positive", () => {
+    const first = registeredPlan(shopDescriptor());
+    const second = registeredPlan(shopDescriptor());
+    const registry = new NativePlanRegistry(1);
+    registry.adopt(first.own, first.id);
+    assertNativeError(() => registry.adopt(second.own, second.id), "registry-full");
+    const closed = new NativePlanRegistry(0);
+    assertNativeError(() => closed.adopt(first.own, first.id), "registry-full");
+  });
+});
+
+describe("native generation retirement never evicts plans", () => {
+  it("older handles go stale; re-adopt mints current handles", () => {
+    const { own, id, plan } = registeredPlan(shopDescriptor());
+    const registry = new NativePlanRegistry(8);
+    const handle = registry.adopt(own, id);
+    assert.equal(registry.retireGeneration(), 1);
+    assert.equal(registry.activeGeneration, 1);
+    assert.equal(registry.liveCount, 0);
+    assertNativeError(() => registry.get(handle), "stale-generation");
+    // plan.ts plans are untouched by native retirement.
+    assert.equal(getValidationPlan(own, id) === plan, true);
+    const current = registry.adopt(own, id);
+    assert.equal(current.generation, 1);
+    assert.equal(registry.get(current) === plan, true);
+    assertNativeError(() => registry.get(handle), "stale-generation");
+  });
+
+  it("retirement is scoped per registry", () => {
+    const { own, id } = registeredPlan(shopDescriptor());
+    const first = new NativePlanRegistry(8);
+    const second = new NativePlanRegistry(8);
+    const a = first.adopt(own, id);
+    const b = second.adopt(own, id);
+    first.retireGeneration();
+    assertNativeError(() => first.get(a), "stale-generation");
+    assert.equal(second.get(b).id, id);
   });
 });
