@@ -422,25 +422,34 @@ test('unknown operation, version mismatch, and malformed descriptors reject', ()
     rejectionReason(() => checkArtifactOperation({ ...GADGET_READ, kind: 'team' })),
     'unknown_operation_kind',
   );
-  // Bound provider receipts are T19b: precise reject, never silent.
-  assert.equal(
-    rejectionReason(() =>
-      checkArtifactOperation(
-        withExtraInput(REVIEW, {
-          name: 'receipt',
-          field: {
-            kind: 'delivery',
-            capability: 'std.EmailV1',
-            operation: 'send',
-            version: 1,
-            result: { name: 'EmailAccepted', fields: [{ name: 'reference', type: 'text' }] },
-          },
-          required: false,
-        }),
-      ),
-    ),
-    'unknown_input_kind',
-  );
+  // (T19b) Bound provider receipts now derive their validated T13/T14
+  // binding (engine-resolved, never submitted) — the T19a precise
+  // reject is superseded by mandate; depth pins live in
+  // t19b-depth.test.ts.
+  {
+    const derived = deriveOperationInputs(
+      withExtraInput(REVIEW, {
+        name: 'receipt',
+        field: {
+          kind: 'delivery',
+          capability: 'std.EmailV1',
+          operation: 'send',
+          version: 1,
+          result: { name: 'EmailAccepted', fields: [{ name: 'reference', type: 'text' }] },
+        },
+        required: false,
+      }),
+    );
+    const binding = derived.inputs.find((input) => input.name === 'receipt');
+    assert.ok(binding !== undefined, 'delivery input derives');
+    assert.deepEqual(binding?.delivery, {
+      capability: 'std.EmailV1',
+      operation: 'send',
+      version: 1,
+      result: { name: 'EmailAccepted', leaves: [{ name: 'reference', type: 'text' }] },
+      recipe: 'delivery:std.EmailV1.send',
+    });
+  }
   assert.equal(
     rejectionReason(() => checkArtifactOperation(withExtraInput(REVIEW, { name: 'x', field: { kind: 'union' }, required: false }))),
     'unknown_input_kind',

@@ -352,8 +352,12 @@ export const CSV_IMPORT_MAX_ROWS = 1000;
 
 /**
  * T19a closed pilot input-kind vocabulary. Mirrors the non-`delivery`
- * members of L1 `ArtifactOperationField` exactly; `delivery` (bound
- * provider receipts) is T19b and derivation rejects it precisely.
+ * members of L1 `ArtifactOperationField` exactly.
+ *
+ * T19b adds `delivery` (bound provider receipts): the derived entry
+ * carries the validated T13/T14 binding (capability + operation
+ * identity, fenced version, declared result leaves) as an
+ * engine-resolved declaration — never a submitted value.
  */
 export type DerivedInputKind =
   | 'ref'
@@ -364,7 +368,8 @@ export type DerivedInputKind =
   | 'datetime'
   | 'boolean'
   | 'file'
-  | 'enum';
+  | 'enum'
+  | 'delivery';
 
 /**
  * T19a interface-visible default: the `literal`/`parent` subset of the
@@ -386,6 +391,11 @@ export type DerivedInputDefault =
  * present exactly for `enum`, in declaration order; `array` marks array
  * inputs (element kind in `kind`; ordinary omits to empty, required
  * rejects omission); `nullable` marks explicit-null acceptance.
+ *
+ * T19b: `delivery` is present exactly for `delivery` (the validated
+ * provider-receipt binding, engine-resolved — never submitted);
+ * `file` is present exactly for `file` (the interface-claimable
+ * provenance/finalization boundary; everything else stays runtime-owned).
  */
 export interface DerivedWritableInput {
   readonly name: string;
@@ -397,6 +407,8 @@ export interface DerivedWritableInput {
   readonly model?: string;
   readonly versioned?: boolean;
   readonly enumValues?: readonly string[];
+  readonly delivery?: DerivedDeliveryBinding;
+  readonly file?: DerivedFileClaim;
   readonly description?: string;
 }
 
@@ -409,10 +421,205 @@ export interface DerivedWritableInput {
  * versioned refs carry `MutationRef` versions whose staleness yields
  * `conflict`. `artifactVersion` is the artifact contract version the
  * derivation was validated against (always `ARTIFACT_VERSION`).
+ *
+ * T19b: `delivery` entries are declared bindings, not submittable
+ * members — the closed envelope member set is the non-`delivery`
+ * names. A submitted `delivery` member fails `validation` exactly
+ * like an unknown member: receipts resolve engine-side and no
+ * contract admits a caller-supplied receipt value.
  */
 export interface DerivedOperationInputs {
   readonly operation: FqOperationName;
   readonly kind: 'read' | 'create' | 'update' | 'delete' | 'scenario';
   readonly artifactVersion: number;
   readonly inputs: readonly DerivedWritableInput[];
+}
+
+/* ------------------------------------------------------------------ */
+/* T19b interface depth: delivery bindings, exact decimals, file       */
+/* claims, bound arguments. Types and pinned rules only; the L6       */
+/* derivation builders live in @canlang/interfaces (`mcp/schemas.ts`  */
+/* shared core, `http/operations.ts` projection). Part of             */
+/* WIRE_CONTRACT_VERSION 1 (additive).                                 */
+/*                                                                     */
+/* Delivery rule (pinned here, implemented there): a `delivery`        */
+/* operation input derives to its validated provider-receipt binding   */
+/* — capability + operation target identity against the T13            */
+/* capability contracts, the frozen capability version fenced exact   */
+/* (T04a §7, never negotiated), and the declared result nominal with  */
+/* its T13c leaves — carried as an engine-resolved declaration. The   */
+/* interface validates the descriptor fully and submits nothing for   */
+/* it: no contract admits a caller-supplied receipt value (a          */
+/* `SelectedReceiptProjection` cannot be submitted, a locator         */
+/* carries store-minted identity — `work.ts`), so `delivery` names    */
+/* stay out of the submittable allowlist on both transports. Unknown  */
+/* capabilities, undeclared operations, version mismatch, undeclared  */
+/* result nominals, and undeclared leaves reject the whole            */
+/* descriptor precisely; bound-local deliveries have no T13 identity  */
+/* and never take this shape.                                          */
+/*                                                                     */
+/* Decimal rule: derivation carries decimals as canonical decimal     */
+/* strings end to end, never binary Numbers. `literal` defaults on    */
+/* `integer`/`decimal`/`money` inputs validate at derivation:         */
+/* integers are canonical digit strings in int64 range (the L2 wire   */
+/* shape; the checker fences wider spellings with E3001); decimals    */
+/* parse exact with at most 38 significant digits and 18 fractional   */
+/* digits, spelling preserved (T11 — including R16 integral spellings */
+/* with no int64 narrowing); money is exactly `{minor, currency}`    */
+/* with a canonical int64 minor string. JSON numbers, malformed text, */
+/* and out-of-range spellings reject precisely — the T11              */
+/* range/ambiguity negatives stay rejected at the interface instead   */
+/* of failing later at admission.                                      */
+/*                                                                     */
+/* File rule: the interface may claim exactly the file input slot,    */
+/* the `can-file` schema format, and the submitted-value shape (one   */
+/* opaque finalized file id string). Everything else stays            */
+/* runtime-owned: intent minting, byte intake, content validation,    */
+/* finalization, provenance binding (`FileProvenance`), lifecycle     */
+/* (`StoredObjectState`), and attach authority (a finalized upload   */
+/* owned by the current app/team/principal, or a readable existing   */
+/* attachment, under rechecked destination limits — DESIGN section   */
+/* 8, `files.ts`). The interface never validates content, never      */
+/* mints provenance, and never reads past the opaque string.          */
+/*                                                                     */
+/* Bound-argument rule: a submitted value binds to its declared input */
+/* before admission. Refs bind to ReadRef/MutationRef shape by the    */
+/* `versioned` flag with canonical digit-string versions; enums bind  */
+/* to declared-case membership; files bind to the opaque-string       */
+/* shape; numerics bind to their canonical wire shapes; delivery      */
+/* binds to nothing — any submitted value rejects. Binding mismatch   */
+/* is `validation`; version staleness against the current admitted    */
+/* version stays L3-owned (`conflict`). Strings, datetimes, booleans, */
+/* and array-element nullability carry no declared set to bind and    */
+/* pass through to L3 admission untouched.                             */
+/* ------------------------------------------------------------------ */
+
+/**
+ * T19b one declared provider-result leaf: the verbatim T13c spelling
+ * (`name` + declared `type` text such as `text?`, `file[]`,
+ * `enum(a,b)`, nominal refs) — carried, never re-interpreted
+ * (T04b-p Decision 2: no structured tag vocabulary is grounded).
+ */
+export interface DerivedDeliveryLeaf {
+  readonly name: string;
+  readonly type: string;
+}
+
+/**
+ * T19b declared provider result: the source nominal spelling (e.g.
+ * `ImageRun`, never a TS wire alias) with its declared leaves.
+ */
+export interface DerivedDeliveryResult {
+  readonly name: string;
+  readonly leaves: readonly DerivedDeliveryLeaf[];
+}
+
+/**
+ * T19b validated provider-receipt binding for one `delivery` input:
+ * the T13 send-target identity (`capability` + `operation`), the
+ * frozen capability contract version it fenced against, the declared
+ * result, and the `delivery:<target>` recipe key (`DeliveryRecipeKey`
+ * format, `state.ts`). Engine-resolved: documents what receipt the
+ * engine supplies; the caller submits no value for it.
+ */
+export interface DerivedDeliveryBinding {
+  readonly capability: string;
+  readonly operation: string;
+  readonly version: number;
+  readonly result: DerivedDeliveryResult;
+  readonly recipe: string;
+}
+
+/**
+ * T19b interface-claimable file boundary for one `file` input: the
+ * submitted value is exactly one opaque finalized file id string
+ * (`OpaqueFileId`), rendered with the `can-file` schema format. All
+ * provenance, finalization, content, lifecycle, and authority facts
+ * stay runtime-owned (see the file rule above).
+ */
+export interface DerivedFileClaim {
+  readonly valueShape: 'opaque-file-id';
+  readonly format: typeof CAN_FILE_SCHEMA_FORMAT;
+}
+
+/** Freeze one leaf list (table construction only). */
+function freezeDeliveryLeaves(leaves: DerivedDeliveryLeaf[]): readonly DerivedDeliveryLeaf[] {
+  for (const leaf of leaves) Object.freeze(leaf);
+  return Object.freeze(leaves);
+}
+
+/**
+ * T19b declared provider-result leaves per result nominal: verbatim
+ * transcription of the T13c `nominal_schema` leaf sets
+ * (`compiler/src/analysis/catalog.rs` `T13A/B_NOMINAL_LEAVES`) for
+ * exactly the eight result nominals the sixteen T13 send targets
+ * declare — the only nominals a `delivery_descriptor` can render.
+ * Producer order; frozen. Per-entry cites name the frozen
+ * `services.ts` producer interface (mirroring the catalog cites).
+ * Convergence: this table must stay char-identical to the catalog
+ * rows; drift fails derivation against real emission.
+ */
+export const DELIVERY_RESULT_LEAVES: Readonly<Record<string, readonly DerivedDeliveryLeaf[]>> =
+  Object.freeze({
+    // `EmailAccepted` (services.ts:184).
+    EmailAccepted: freezeDeliveryLeaves([{ name: 'reference', type: 'text' }]),
+    // `ErrorAccepted` (services.ts:262).
+    ErrorAccepted: freezeDeliveryLeaves([{ name: 'reference', type: 'text' }]),
+    // `PaymentState` (services.ts:209).
+    PaymentState: freezeDeliveryLeaves([
+      { name: 'reference', type: 'text' },
+      { name: 'revision', type: 'int' },
+      { name: 'provider_reference', type: 'text?' },
+      { name: 'amount', type: 'money' },
+      { name: 'status', type: 'enum(pending,unknown,succeeded,failed)' },
+      { name: 'checkout_url', type: 'url?' },
+      { name: 'failure', type: 'enum(transient,action_required,permanent,cancelled)?' },
+    ]),
+    // `TextRun` (services.ts:806).
+    TextRun: freezeDeliveryLeaves([
+      { name: 'source', type: 'text' },
+      { name: 'revision', type: 'int' },
+      { name: 'sequence', type: 'int' },
+      { name: 'state', type: 'enum(queued,running,succeeded,failed,unknown,cancelled)' },
+      { name: 'content', type: 'text' },
+      { name: 'used_tokens', type: 'int?' },
+      { name: 'detail', type: 'text?' },
+    ]),
+    // `WorkflowInspection` (services.ts:857).
+    WorkflowInspection: freezeDeliveryLeaves([{ name: 'fields', type: 'WorkflowField[]' }]),
+    // `WorkflowValidation` (services.ts:867).
+    WorkflowValidation: freezeDeliveryLeaves([
+      { name: 'valid', type: 'bool' },
+      { name: 'digest', type: 'text?' },
+      { name: 'detail', type: 'text?' },
+    ]),
+    // Source `ImageRun` transcribes TS `ImageRunProgress`
+    // (services.ts:919); `GeneratedImage` transcribes
+    // `ImageFileOutput` (services.ts:902).
+    ImageRun: freezeDeliveryLeaves([
+      { name: 'source', type: 'text' },
+      { name: 'revision', type: 'int' },
+      { name: 'sequence', type: 'int' },
+      { name: 'state', type: 'enum(queued,running,succeeded,failed,unknown,cancelled)' },
+      { name: 'outputs', type: 'GeneratedImage[]' },
+      { name: 'charged_jobs', type: 'int?' },
+      { name: 'detail', type: 'text?' },
+    ]),
+    // `MailReplyOutcome` (services.ts:987).
+    MailReplyOutcome: freezeDeliveryLeaves([
+      { name: 'source', type: 'text' },
+      { name: 'state', type: 'enum(accepted,not_sent,unknown)' },
+      { name: 'reference', type: 'text?' },
+      { name: 'detail', type: 'text?' },
+    ]),
+  });
+
+/**
+ * T19b declared leaves for one result nominal, or null when the
+ * nominal declares nothing (unknown nominal — the derivation rejects
+ * it as an undeclared result instead of deriving an empty set).
+ */
+export function deliveryResultLeaves(nominal: string): readonly DerivedDeliveryLeaf[] | null {
+  if (!Object.hasOwn(DELIVERY_RESULT_LEAVES, nominal)) return null;
+  return DELIVERY_RESULT_LEAVES[nominal] ?? null;
 }
