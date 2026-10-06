@@ -33,3 +33,13 @@ Fanout, corpus, containment, hooks and reads have accepted scoped contracts. The
 | DECLINED | Duplicated authority, automatic semantic fallback, silent caps/narrowing, false cross-store atomicity, alternate per-app setup. See reasons in reviews. |
 
 The draft conflict buckets a–e remain orthogonal: proven source error, correct missing implementation, too-strict rule, unadopted proposal, deliberate negative. Preserve intent, opposing case, uncertainty, exact site and evidence that changes a verdict. D-series reference first delivery remains localized internal Markdown with source-language IDE/MCP; no new translation quota, public hosting or description consultation.
+
+<!-- documentation-review:start -->
+## Markdown placement and consolidation
+
+Only `README.md` and `AGENTS.md` remain at the repository root. The current requirements, design, grammar, and decision log are in `docs/specification/`; the completed evaluation plan is `design/evaluation/PLAN.md`. These five moves and live reference repairs are applied locally, including the separate draft working tree; publication and complete checkpoint advancement remain separate.
+
+[Documentation inventory](documentation-inventory.json) records 490 tracked and three added Markdown paths at its observation. [Review and migration ledger](documentation-review.json) retains every disposition, original hash, exact successor, task and preservation gate. The selected consolidation is applied: 52 assessment/correction notes now form 25 topic records, reducing Markdown by 27 files. All original source blocks, corrections, uncertainty, witnesses and limitations were preserved under heading/navigation normalization and independently cross-reviewed; 169 raw JSON records remain byte-identical. Stable source anchors replace old note paths. The ledger records original hashes, section preservation hashes, live reference repairs and 51 retired predecessors; one existing README was retained and 24 new successors created. Moving the five root files alone does not reduce total file count. Frozen captures, final report bytes and raw consultation JSON retain their provenance.
+
+Keep project decisions in `docs/specification/DECISIONS.md`; proposals and accepted decisions have distinct status. Prior-plan prose, shared setup guidance and superseded launch instructions have further scoped review tasks; archival moves alone are not pruning. All 493 paths are structurally accounted for, but focused semantic review does not certify every paragraph for deletion.
+<!-- documentation-review:end -->

@@ -106,6 +106,14 @@
       "V12.2",
       "FP.FULL"
     ],
+    "docs/ideal-filetree-plan/finished-product/findings.md": [
+      "FP.SOURCE-CLOSURE",
+      "DOC03"
+    ],
+    "docs/install.md": [
+      "FP.INSTALLED-RELEASE",
+      "DOC04"
+    ],
     "docs/research/package-subsystem-ports-20261006/evidence/input-validation/http-adoption-gate.md": [
       "V01.2",
       "V08.3"
@@ -117,6 +125,34 @@
     "docs/research/package-subsystem-ports-20261006/evidence/input-validation/rollout-decision.md": [
       "V11.4",
       "V12.3"
+    ],
+    "docs/specification/DECISIONS.md": [
+      "DOC01",
+      "DOC02"
+    ],
+    "docs/specification/DESIGN.md": [
+      "DOC01",
+      "DOC02"
+    ],
+    "draft/CanFeedback.md": [
+      "DOC01",
+      "DOC02"
+    ],
+    "draft/CanLoyalty.md": [
+      "DOC01",
+      "DOC02"
+    ],
+    "draft/CanRent.md": [
+      "DOC01",
+      "DOC02"
+    ],
+    "draft/CanTime.md": [
+      "DOC01",
+      "DOC02"
+    ],
+    "packages/cloudflare/README.md": [
+      "P11.1",
+      "DOC04"
     ],
     "packages/cloudflare/conformance/preparation/differential.mjs": [
       "P02.3",
@@ -420,6 +456,10 @@
     "packages/values/Cargo.toml": [
       "A03.1",
       "V11.2"
+    ],
+    "packages/values/README.md": [
+      "A11.1",
+      "DOC04"
     ],
     "packages/values/bindings/Cargo.toml": [
       "A03.1",
@@ -12298,6 +12338,456 @@
         "testkit-owner",
         "ui-owner"
       ]
+    },
+    {
+      "namespace": "documentation",
+      "id": "DOC01",
+      "title": "Move the five root project documents to their owning documentation groups",
+      "depends_on": [],
+      "writes": [
+        "REQUIREMENTS.md",
+        "DESIGN.md",
+        "GRAMMAR.md",
+        "DECISIONS.md",
+        "EVALUATION.md",
+        "docs/specification/REQUIREMENTS.md",
+        "docs/specification/DESIGN.md",
+        "docs/specification/GRAMMAR.md",
+        "docs/specification/DECISIONS.md",
+        "design/evaluation/PLAN.md",
+        "README.md",
+        "docs/ideal-filetree-plan/finished-product/capture.py",
+        "AGENTS.md",
+        "docs/ideal-filetree-plan/finished-product/check.py",
+        "draft/ADMIN_SURFACES.md",
+        "draft/CanAffiliate.md",
+        "draft/CanApprove.md",
+        "draft/CanBoard.md",
+        "draft/CanBook.md",
+        "draft/CanCRM.md",
+        "draft/CanCatch.md",
+        "draft/CanCheck.md",
+        "draft/CanContract.md",
+        "draft/CanCustomer.md",
+        "draft/CanDesk.md",
+        "draft/CanDo.md",
+        "draft/CanEvent.md",
+        "draft/CanExpense.md",
+        "draft/CanFeedback.md",
+        "draft/CanField.md",
+        "draft/CanGrant.md",
+        "draft/CanHire.md",
+        "draft/CanInvoice.md",
+        "draft/CanLearn.md",
+        "draft/CanLeave.md",
+        "draft/CanLoyalty.md",
+        "draft/CanMail.md",
+        "draft/CanMaintain.md",
+        "draft/CanMember.md",
+        "draft/CanOnboard.md",
+        "draft/CanPropose.md",
+        "draft/CanPurchase.md",
+        "draft/CanReception.md",
+        "draft/CanRefer.md",
+        "draft/CanRent.md",
+        "draft/CanReport.md",
+        "draft/CanShift.md",
+        "draft/CanStats.md",
+        "draft/CanStock.md",
+        "draft/CanSuccess.md",
+        "draft/CanTable.md",
+        "draft/CanTime.md",
+        "draft/CanTrade.md",
+        "draft/CanVolunteer.md",
+        "draft/MIGRATION.md",
+        "draft/PORTFOLIO.md",
+        "draft/README.md",
+        "draft/WORKSPACE_OPERATOR.md"
+      ],
+      "acceptance": [
+        "One coordinated move with owning document writers released; preserve basenames/anchors and authority roles, repair incoming and outgoing live links and capture.py inputs, update branch-based canlang-drafts links through its separate owner and pin, preserve frozen snapshots/commit-pinned evidence and record old paths; check all actual live consumers before retiring old paths. Five files moved under explicit user authorization; broad pruning remains future work."
+      ],
+      "capabilities": [
+        "F01",
+        "F12"
+      ],
+      "disposition": "REQUIRED",
+      "execution_status": "APPLIED locally; independent link/content review and planning checks passed; historical evidence and checkpoint preserved",
+      "writer_resources": [
+        "repository-documentation-owner"
+      ],
+      "gate": "Executed cutover verified locally; publication and full source checkpoint reconciliation remain separate.",
+      "target_writes": [
+        "AGENTS.md",
+        "README.md",
+        "design/evaluation/PLAN.md",
+        "docs/ideal-filetree-plan/finished-product/capture.py",
+        "docs/ideal-filetree-plan/finished-product/check.py",
+        "docs/specification/DECISIONS.md",
+        "docs/specification/DESIGN.md",
+        "docs/specification/GRAMMAR.md",
+        "docs/specification/REQUIREMENTS.md",
+        "draft/ADMIN_SURFACES.md",
+        "draft/CanAffiliate.md",
+        "draft/CanApprove.md",
+        "draft/CanBoard.md",
+        "draft/CanBook.md",
+        "draft/CanCRM.md",
+        "draft/CanCatch.md",
+        "draft/CanCheck.md",
+        "draft/CanContract.md",
+        "draft/CanCustomer.md",
+        "draft/CanDesk.md",
+        "draft/CanDo.md",
+        "draft/CanEvent.md",
+        "draft/CanExpense.md",
+        "draft/CanFeedback.md",
+        "draft/CanField.md",
+        "draft/CanGrant.md",
+        "draft/CanHire.md",
+        "draft/CanInvoice.md",
+        "draft/CanLearn.md",
+        "draft/CanLeave.md",
+        "draft/CanLoyalty.md",
+        "draft/CanMail.md",
+        "draft/CanMaintain.md",
+        "draft/CanMember.md",
+        "draft/CanOnboard.md",
+        "draft/CanPropose.md",
+        "draft/CanPurchase.md",
+        "draft/CanReception.md",
+        "draft/CanRefer.md",
+        "draft/CanRent.md",
+        "draft/CanReport.md",
+        "draft/CanShift.md",
+        "draft/CanStats.md",
+        "draft/CanStock.md",
+        "draft/CanSuccess.md",
+        "draft/CanTable.md",
+        "draft/CanTime.md",
+        "draft/CanTrade.md",
+        "draft/CanVolunteer.md",
+        "draft/MIGRATION.md",
+        "draft/PORTFOLIO.md",
+        "draft/README.md",
+        "draft/WORKSPACE_OPERATOR.md"
+      ]
+    },
+    {
+      "namespace": "documentation",
+      "id": "DOC02",
+      "title": "Consolidate 52 consultation prose leaves into 25 complete topic records",
+      "depends_on": [],
+      "writes": [
+        "design/jev/README.md",
+        "design/jev/cafe-completion-20261004/README.md",
+        "design/jev/cafe-completion-20261004/analysis.md",
+        "design/jev/cafe-completion-20261004/equivalence.md",
+        "design/jev/catch-intake-20261004/README.md",
+        "design/jev/catch-intake-20261004/assessment.md",
+        "design/jev/catch-intake-20261004/wording-check.md",
+        "design/jev/check-completion-20261004/README.md",
+        "design/jev/check-completion-20261004/decision.md",
+        "design/jev/check-completion-20261004/wording-check.md",
+        "design/jev/complex-enrich-20261004/README.md",
+        "design/jev/complex-enrich-20261004/assessment.md",
+        "design/jev/complex-enrich-20261004/wording.md",
+        "design/jev/complex-inbox-20261004/README.md",
+        "design/jev/complex-inbox-20261004/authoring-comparison.md",
+        "design/jev/complex-inbox-20261004/verification.md",
+        "design/jev/complex-sync-20261004/README.md",
+        "design/jev/complex-sync-20261004/assessment.md",
+        "design/jev/complex-sync-20261004/wording.md",
+        "design/jev/crm-connections-reschedule-20261004/README.md",
+        "design/jev/crm-connections-reschedule-20261004/verification.md",
+        "design/jev/daisyui-catalog-20261004/README.md",
+        "design/jev/daisyui-catalog-20261004/assessment.md",
+        "design/jev/daisyui-catalog-20261004/wording-check.md",
+        "design/jev/delivery-recipe-overrides-20261004/README.md",
+        "design/jev/delivery-recipe-overrides-20261004/verification.md",
+        "design/jev/delivery-recipe-overrides-20261004/wording-check.md",
+        "design/jev/desk-handoff-20261004/README.md",
+        "design/jev/desk-handoff-20261004/review.md",
+        "design/jev/desk-handoff-20261004/wording-check.md",
+        "design/jev/feedback-completion-20261004/README.md",
+        "design/jev/feedback-completion-20261004/analysis.md",
+        "design/jev/feedback-completion-20261004/equivalence.md",
+        "design/jev/hire-onboard-20261004/README.md",
+        "design/jev/hire-onboard-20261004/assessment.md",
+        "design/jev/hire-onboard-20261004/wording-check.md",
+        "design/jev/hire-retention-20261004/README.md",
+        "design/jev/hire-retention-20261004/assessment.md",
+        "design/jev/hire-retention-20261004/corrected-wording-check.md",
+        "design/jev/hire-retention-20261004/correction.md",
+        "design/jev/hire-retention-20261004/wording-check.md",
+        "design/jev/loyalty-eligibility-20261004/README.md",
+        "design/jev/loyalty-eligibility-20261004/assessment.md",
+        "design/jev/loyalty-eligibility-20261004/wording-check.md",
+        "design/jev/maintain-inspection-progress/README.md",
+        "design/jev/maintain-inspection-progress/decision.md",
+        "design/jev/maintain-inspection-progress/verification.md",
+        "design/jev/maintain-recovery-20261004/README.md",
+        "design/jev/maintain-recovery-20261004/review.md",
+        "design/jev/maintain-recovery-20261004/wording-check.md",
+        "design/jev/mcp-file-handoff-20261004/README.md",
+        "design/jev/mcp-file-handoff-20261004/assessment.md",
+        "design/jev/mcp-file-handoff-20261004/wording-check.md",
+        "design/jev/member-consumed-stage-20261004/README.md",
+        "design/jev/member-consumed-stage-20261004/assessment.md",
+        "design/jev/member-consumed-stage-20261004/wording-check.md",
+        "design/jev/member-owner-20261004/README.md",
+        "design/jev/member-owner-20261004/assessment.md",
+        "design/jev/member-owner-20261004/wording-check.md",
+        "design/jev/muse-feedback-20261004/README.md",
+        "design/jev/muse-feedback-20261004/assessment.md",
+        "design/jev/muse-feedback-20261004/bounded-review.md",
+        "design/jev/record-input-admission-20261004/README.md",
+        "design/jev/record-input-admission-20261004/assessment.md",
+        "design/jev/record-input-admission-20261004/wording-check.md",
+        "design/jev/rent-sales-producer-20261004/README.md",
+        "design/jev/rent-sales-producer-20261004/assessment.md",
+        "design/jev/rent-sales-producer-20261004/wording-check.md",
+        "design/jev/rent-sales-version-boundary-20261004/README.md",
+        "design/jev/rent-sales-version-boundary-20261004/assessment.md",
+        "design/jev/rent-sales-version-boundary-20261004/wording-check.md",
+        "design/jev/stats-breakdown-20261004/README.md",
+        "design/jev/stats-breakdown-20261004/assessment.md",
+        "design/jev/stats-breakdown-20261004/wording-check.md",
+        "design/jev/time-completion-20261004/README.md",
+        "design/jev/time-completion-20261004/analysis.md",
+        "design/jev/time-completion-20261004/wording-check.md",
+        "docs/specification/DECISIONS.md",
+        "docs/specification/DESIGN.md",
+        "draft/CanLoyalty.md",
+        "draft/CanInbox.md",
+        "draft/CanRent.md",
+        "draft/CanFeedback.md",
+        "draft/CanTime.md",
+        "design/complex-apps/inbox.md",
+        "design/UI-COMPONENTS.md",
+        "design/delivery-recipe-overrides-20261004.md",
+        "design/muse-migration-20261004/feedback-design.md"
+      ],
+      "acceptance": [
+        "All25 topics satisfy complete source-block preservation, source-anchor/reference migration and raw-evidence integrity; initial invalid-premise Hire advice and corrected history remain distinct. No semantic or runtime proof inferred from consolidation."
+      ],
+      "capabilities": [
+        "F01",
+        "F12"
+      ],
+      "disposition": "REQUIRED",
+      "execution_status": "APPLIED locally;52 source blocks preserved in25 topic records, net27 fewer Markdown files; independent review passed",
+      "writer_resources": [
+        "repository-documentation-owner"
+      ],
+      "gate": "Executed topic cutover verified locally; publication and broader prior-plan/setup/execution pruning remain separate.",
+      "target_writes": [
+        "design/UI-COMPONENTS.md",
+        "design/complex-apps/inbox.md",
+        "design/delivery-recipe-overrides-20261004.md",
+        "design/jev/README.md",
+        "design/jev/cafe-completion-20261004/README.md",
+        "design/jev/catch-intake-20261004/README.md",
+        "design/jev/check-completion-20261004/README.md",
+        "design/jev/complex-enrich-20261004/README.md",
+        "design/jev/complex-inbox-20261004/README.md",
+        "design/jev/complex-sync-20261004/README.md",
+        "design/jev/crm-connections-reschedule-20261004/README.md",
+        "design/jev/daisyui-catalog-20261004/README.md",
+        "design/jev/delivery-recipe-overrides-20261004/README.md",
+        "design/jev/desk-handoff-20261004/README.md",
+        "design/jev/feedback-completion-20261004/README.md",
+        "design/jev/hire-onboard-20261004/README.md",
+        "design/jev/hire-retention-20261004/README.md",
+        "design/jev/loyalty-eligibility-20261004/README.md",
+        "design/jev/maintain-inspection-progress/README.md",
+        "design/jev/maintain-recovery-20261004/README.md",
+        "design/jev/mcp-file-handoff-20261004/README.md",
+        "design/jev/member-consumed-stage-20261004/README.md",
+        "design/jev/member-owner-20261004/README.md",
+        "design/jev/muse-feedback-20261004/README.md",
+        "design/jev/record-input-admission-20261004/README.md",
+        "design/jev/rent-sales-producer-20261004/README.md",
+        "design/jev/rent-sales-version-boundary-20261004/README.md",
+        "design/jev/stats-breakdown-20261004/README.md",
+        "design/jev/time-completion-20261004/README.md",
+        "design/muse-migration-20261004/feedback-design.md",
+        "docs/specification/DECISIONS.md",
+        "docs/specification/DESIGN.md",
+        "draft/CanFeedback.md",
+        "draft/CanInbox.md",
+        "draft/CanLoyalty.md",
+        "draft/CanRent.md",
+        "draft/CanTime.md"
+      ]
+    },
+    {
+      "namespace": "documentation",
+      "id": "DOC03",
+      "title": "Close and consolidate superseded living-plan prose",
+      "depends_on": [],
+      "writes": [
+        "docs/ideal-filetree-plan/baseline.md",
+        "docs/ideal-filetree-plan/findings.md",
+        "docs/ideal-filetree-plan/ownership.md",
+        "docs/ideal-filetree-plan/tasks.md",
+        "docs/ideal-filetree-plan/desired-tree.md",
+        "docs/ideal-filetree-plan/slices.md",
+        "docs/ideal-filetree-plan/lanes.md",
+        "docs/ideal-filetree-plan/consultations.md",
+        "docs/ideal-filetree-plan/prior-review.md",
+        "docs/ideal-filetree-plan/finished-product/findings.md"
+      ],
+      "acceptance": [
+        "Compare unique prior baseline, source-review, decisions and scheduling duties against the selected finished plan; one current navigation authority, merge compatible prior scheduling sections and retire duplicate prose only after a named successor and all references are reconciled. Moving records alone is not file-count reduction."
+      ],
+      "capabilities": [
+        "F01",
+        "F12"
+      ],
+      "disposition": "ACCEPTED-CONDITIONAL",
+      "execution_status": "planning target only; no active assignment or source migration",
+      "writer_resources": [
+        "repository-documentation-owner"
+      ],
+      "gate": "Exact released file ownership and live reference migration; active coordinator files remain current until handoff.",
+      "target_writes": [
+        "docs/ideal-filetree-plan/baseline.md",
+        "docs/ideal-filetree-plan/consultations.md",
+        "docs/ideal-filetree-plan/desired-tree.md",
+        "docs/ideal-filetree-plan/findings.md",
+        "docs/ideal-filetree-plan/finished-product/findings.md",
+        "docs/ideal-filetree-plan/lanes.md",
+        "docs/ideal-filetree-plan/ownership.md",
+        "docs/ideal-filetree-plan/prior-review.md",
+        "docs/ideal-filetree-plan/slices.md",
+        "docs/ideal-filetree-plan/tasks.md"
+      ]
+    },
+    {
+      "namespace": "documentation",
+      "id": "DOC04",
+      "title": "Centralize shared developer setup and test navigation",
+      "depends_on": [],
+      "writes": [
+        "docs/dev-setup.md",
+        "docs/install.md",
+        "docs/e2e.md",
+        "docs/authoring-demo.md",
+        "compiler/README.md",
+        "tests/integration/README.md",
+        "packages/cloudflare/README.md",
+        "packages/contracts/README.md",
+        "packages/files/README.md",
+        "packages/identity/README.md",
+        "packages/interfaces/README.md",
+        "packages/services/README.md",
+        "packages/state/README.md",
+        "packages/stdlib/README.md",
+        "packages/testkit/README.md",
+        "packages/ui/README.md",
+        "packages/values/README.md",
+        "packages/work/README.md"
+      ],
+      "acceptance": [
+        "One shared install/build/test-navigation owner; retain package APIs, architecture/failure boundaries and browser-specific limitations. Compare authoring-demo versus compiler README before choosing merge or retention; update stale claims from owning current evidence, never infer whole-app qualification."
+      ],
+      "capabilities": [
+        "F01",
+        "F12"
+      ],
+      "disposition": "ACCEPTED-CONDITIONAL",
+      "execution_status": "planning target only; no active assignment or source migration",
+      "writer_resources": [
+        "repository-documentation-owner"
+      ],
+      "gate": "Exact released file ownership and live reference migration; active coordinator files remain current until handoff.",
+      "target_writes": [
+        "compiler/README.md",
+        "docs/authoring-demo.md",
+        "docs/dev-setup.md",
+        "docs/e2e.md",
+        "docs/install.md",
+        "packages/cloudflare/README.md",
+        "packages/contracts/README.md",
+        "packages/files/README.md",
+        "packages/identity/README.md",
+        "packages/interfaces/README.md",
+        "packages/services/README.md",
+        "packages/state/README.md",
+        "packages/stdlib/README.md",
+        "packages/testkit/README.md",
+        "packages/ui/README.md",
+        "packages/values/README.md",
+        "packages/work/README.md",
+        "tests/integration/README.md"
+      ]
+    },
+    {
+      "namespace": "documentation",
+      "id": "DOC05",
+      "title": "Consolidate obsolete implementation launch and steering prose after owner handoff",
+      "depends_on": [],
+      "writes": [
+        "implementation/PLAN.md",
+        "implementation/WORKFLOW.md",
+        "implementation/UI-CATALOG-ADOPTION.md",
+        "implementation/DESIGN-DELTA-20261004.md",
+        "implementation/D3B-PRODUCTION-QUAL-PLAN.md",
+        "implementation/prompts/05-ui.md",
+        "implementation/prompts/05-ui-steering.md",
+        "implementation/briefs/05-ui.md",
+        "implementation/prompts/08-frontend-catalog-migration.md",
+        "implementation/prompts/08-frontend-catalog-steering.md",
+        "implementation/briefs/08-frontend-catalog-migration.md"
+      ],
+      "acceptance": [
+        "Current remaining checklist, active contracts, source reservations and unreleased obligations stay live. Transfer unique scope/corrections to the owning brief or accepted task; remove obsolete launch pointers only after no live/paste caller needs them. Current implementation is active despite historical stopped headers."
+      ],
+      "capabilities": [
+        "F01",
+        "F12"
+      ],
+      "disposition": "ACCEPTED-CONDITIONAL",
+      "execution_status": "planning target only; no active assignment or source migration",
+      "writer_resources": [
+        "repository-documentation-owner"
+      ],
+      "gate": "Exact released file ownership and live reference migration; active coordinator files remain current until handoff.",
+      "target_writes": [
+        "implementation/D3B-PRODUCTION-QUAL-PLAN.md",
+        "implementation/DESIGN-DELTA-20261004.md",
+        "implementation/PLAN.md",
+        "implementation/UI-CATALOG-ADOPTION.md",
+        "implementation/WORKFLOW.md",
+        "implementation/briefs/05-ui.md",
+        "implementation/briefs/08-frontend-catalog-migration.md",
+        "implementation/prompts/05-ui-steering.md",
+        "implementation/prompts/05-ui.md",
+        "implementation/prompts/08-frontend-catalog-migration.md",
+        "implementation/prompts/08-frontend-catalog-steering.md"
+      ]
+    },
+    {
+      "namespace": "documentation",
+      "id": "DOC06",
+      "title": "Specify evidence reconstruction before any snapshot-storage deduplication",
+      "depends_on": [],
+      "writes": [],
+      "acceptance": [
+        "Optional later storage proposal only: logical paths, exact bytes, recorded measurements and hashes must reconstruct, with all historical runners/manifest consumers proved. Four exact duplicate sets do not authorize deleting captured files."
+      ],
+      "capabilities": [
+        "F01",
+        "F12"
+      ],
+      "disposition": "DEFERRED",
+      "execution_status": "planning target only; no active assignment or source migration",
+      "writer_resources": [
+        "repository-documentation-owner"
+      ],
+      "gate": "Exact released file ownership and live reference migration; active coordinator files remain current until handoff.",
+      "target_writes": []
     }
   ],
   "remaining_packet_crosswalk": [
@@ -12494,6 +12984,12 @@
   "topological_order_all_conditional_edges": [
     "C01.1",
     "D01",
+    "DOC01",
+    "DOC02",
+    "DOC03",
+    "DOC04",
+    "DOC05",
+    "DOC06",
     "T01",
     "T03",
     "T04",

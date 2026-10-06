@@ -427,6 +427,15 @@
       "owner_gate": "FP.DISPATCH-AVAILABILITY, W01/W04/W06/W07 and T24/T25/T26",
       "evidence": "reviews/late-dispatch.json",
       "status": "OPEN actual consumer/terminal/order gate"
+    },
+    {
+      "id": "BOUND-DOCUMENTATION",
+      "boundary": "documentation authority, navigation and evidence",
+      "finding": "Only README and AGENTS remain at root; four specification owners and the completed evaluation plan relocated. Selected 52-to-25 topic consolidation preserves corrections and uncertainty; captured duplicate bytes are retained until reconstruction proof.",
+      "owner_gate": "DOC01 and DOC02 applied locally; DOC03-DOC05 require exact owner/content gates; DOC06 deferred",
+      "classification": "accepted documentation placement; conditional content consolidation",
+      "status": "Root relocation and selected27-file consolidation applied; further pruning remains conditional/deferred",
+      "evidence": "documentation-review.json"
     }
   ],
   "late_source": "late-source.json",

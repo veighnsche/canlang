@@ -2,7 +2,7 @@
 
 ## Initial syntax parser
 
-`can_parser.py` uses Python's standard library and the [exact grammar](../GRAMMAR.md). It produces syntax trees with physical start locations, rejects unsupported syntax, and requires no build manifest.
+`can_parser.py` uses Python's standard library and the [exact grammar](../docs/specification/GRAMMAR.md). It produces syntax trees with physical start locations, rejects unsupported syntax, and requires no build manifest.
 
 ```sh
 python3 tools/can_parser.py draft examples
