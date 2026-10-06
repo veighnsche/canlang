@@ -1,9 +1,0 @@
-# Focused highlighting probe.
-app Probe
-Given
- Thing {not:text,true:bool,false:int,null:text}
-When
-Then
- page / title="T"
-  table Thing columns=not,true,false,null order=- not, - true,-false,-null,-pkg.trim
-  table Thing columns=not order={by=preferences.view,default=[-not,-true],cases={open=[-false,-null]}}
