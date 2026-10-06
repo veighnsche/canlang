@@ -219,6 +219,8 @@ async function setupDurableWorld(store: StoragePort): Promise<B1DurableWorld> {
     refs: loaded.refs,
     serverInits: loaded.serverInits,
     nullableFields: loaded.nullableFields,
+    // B5: durable agreements hold under declared ownership too.
+    containment: loaded.containment,
   });
   return { store, memberships, alice, loaded, table };
 }

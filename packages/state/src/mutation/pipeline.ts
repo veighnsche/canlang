@@ -972,6 +972,35 @@ export async function runMutationWrites(input: MutationWritesInput): Promise<Mut
           throw new StateError('validation', 'Invalid parent reference.');
         }
       }
+      // B5 declared ownership (adopted T28-A): a declared child REQUIRES
+      // its declared parent model; a declared root rejects any supplied
+      // parent. Undeclared (legacy interim) defs skip this entirely —
+      // exact prior behavior. Local and plain-imported parents enforce
+      // identically (flat linkage); every caller path (CRUD, scenario
+      // staging, hook-staged writes) shares this block, so they agree.
+      const declared = def.containment;
+      if (declared !== undefined) {
+        if (declared.parent !== undefined) {
+          if (write.parent === undefined) {
+            throw new StateError(
+              'validation',
+              `Missing required parent for model ${JSON.stringify(write.model as string)}.`,
+            );
+          }
+          if ((write.parent.model as string) !== (declared.parent as string)) {
+            throw new StateError(
+              'validation',
+              `Invalid parent for model ${JSON.stringify(write.model as string)}: ` +
+                `expected parent model ${JSON.stringify(declared.parent as string)}.`,
+            );
+          }
+        } else if (write.parent !== undefined) {
+          throw new StateError(
+            'validation',
+            `Parent linkage is not allowed for model ${JSON.stringify(write.model as string)}.`,
+          );
+        }
+      }
       const candidate: Record<string, unknown> = {};
       applyCallerData(candidate, asDataObject(write.data, 'Create data'), def);
       // Supplied parents must exist and be unarchived; resolved once here and
