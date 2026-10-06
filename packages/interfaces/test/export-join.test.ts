@@ -23,8 +23,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { deriveCsrfToken, revokeSessionByToken } from '@canlang/identity';
-import { COLLECTION_MAX_LIMIT } from '../../contracts/src/wire.js';
-import type { ListQueryResult } from '../../contracts/src/presentation.js';
+import { COLLECTION_MAX_LIMIT } from '@canlang/contracts';
+import type { ListQueryResult } from '@canlang/contracts';
 import type { SubmitFetch, SubmitFetchInit } from '@canlang/ui';
 import { handleOperationRequest } from '../src/http/operations.js';
 import { handleAuthRequest } from '../src/http/auth.js';
@@ -40,9 +40,9 @@ import {
   downloadInlineCsv,
   renderExportPanel,
   submitExportRequest,
-} from '../../ui/src/browser/export.js';
-import type { DownloadSink } from '../../ui/src/browser/export.js';
-import { fetchPrintView, renderPrintFrame, renderPrintLink } from '../../ui/src/browser/print.js';
+} from '@canlang/ui/browser/export';
+import type { DownloadSink } from '@canlang/ui/browser/export';
+import { fetchPrintView, renderPrintFrame, renderPrintLink } from '@canlang/ui/browser/print';
 
 const OPERATION = 'Billing.Invoice.list';
 

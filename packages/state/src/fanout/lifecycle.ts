@@ -24,8 +24,8 @@ import type {
   ModelName,
   RecordId,
   StoragePort,
-} from '../../../contracts/src/state.js';
-import type { FanoutFailedReason } from '../../../contracts/src/work.js';
+} from '@canlang/contracts';
+import type { FanoutFailedReason } from '@canlang/contracts';
 import { StateError } from '../errors.js';
 
 /**

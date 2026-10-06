@@ -23,7 +23,7 @@ import type {
   RecordId,
   StoragePort,
   StoredRow,
-} from '../../../contracts/src/state.js';
+} from '@canlang/contracts';
 import { buildModelTable, type ModelTable } from './models.js';
 import { runMutationWrites, type MutationWritesResult } from './pipeline.js';
 import { buildContext } from '../invocation/context.js';
@@ -74,7 +74,7 @@ async function resetD1(): Promise<void> {
 }
 
 const doWorkerPath = fileURLToPath(
-  new URL('../../../../test/storage/do-test-worker.js', import.meta.url),
+  new URL('../../../test/storage/do-test-worker.js', import.meta.url),
 );
 
 let doMf: Miniflare | undefined;

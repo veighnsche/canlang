@@ -34,7 +34,7 @@ import type {
   StagedRowCursor,
   StoragePort,
   StoredRow,
-} from '../../../contracts/src/state.js';
+} from '@canlang/contracts';
 import type { ModelTable } from '../mutation/models.js';
 import { StateError, storageToStateError } from '../errors.js';
 import {

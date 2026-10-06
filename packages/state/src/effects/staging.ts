@@ -22,7 +22,7 @@ import type {
   OperationName,
   OutboxIntent,
   ScheduleOp,
-} from '../../../contracts/src/state.js';
+} from '@canlang/contracts';
 import { StateError } from '../errors.js';
 import { checkJsonSafe, jsonClone } from '../internal/json.js';
 

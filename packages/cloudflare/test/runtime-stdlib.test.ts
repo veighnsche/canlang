@@ -20,7 +20,7 @@ import type {
 } from "@canlang/contracts";
 import { resolveIdentity, sha256HexText } from "@canlang/identity";
 import { createFrozenClock, createMemoryIdentityStore } from "@canlang/identity/testing";
-import { createTestMemoryStorage } from "../../state/dist/state/src/storage/memory.js";
+import { createTestMemoryStorage } from "@canlang/state/storage/memory";
 import { createContext, type HandlerContext } from "../src/runtime/context.js";
 import {
   cancel,

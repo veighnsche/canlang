@@ -1,4 +1,4 @@
-import type { Violation } from "../../contracts/src/values.js";
+import type { Violation } from "@canlang/contracts/values";
 
 /** Evaluation-failure codes for checked values. These are never business codes. */
 export type ValueFailureCode =

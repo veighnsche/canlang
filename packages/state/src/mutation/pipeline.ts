@@ -26,7 +26,7 @@ import type {
   StoredRow,
   UniqueClaim,
   UniqueRelease,
-} from '../../../contracts/src/state.js';
+} from '@canlang/contracts';
 import type { StoragePort } from '../storage/port.js';
 import { StateError } from '../errors.js';
 import { openTransitiveScope, type FenceScope } from '../invocation/admission.js';

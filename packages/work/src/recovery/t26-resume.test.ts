@@ -10,9 +10,9 @@ import type {
   AssociatedReceipt,
   ReceiptAssociation,
   ReceiptStatus,
-} from '../../../contracts/src/work.js';
-import { planRelatedProgressResume } from './index.ts';
-import type { RelatedProgressRowView } from './index.ts';
+} from '@canlang/contracts';
+import { planRelatedProgressResume } from './index.js';
+import type { RelatedProgressRowView } from './index.js';
 
 const RELATION = 'std.ImagesV1.submit';
 const OTHER = 'std.EmailV1.send';

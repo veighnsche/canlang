@@ -24,7 +24,7 @@
 import type {
   ComponentCatalog,
   ComponentCatalogEntry,
-} from "../../contracts/src/presentation.js";
+} from "@canlang/contracts";
 
 export const LANE05_CATALOG_VERSION = "0.1.0-lane05-draft";
 

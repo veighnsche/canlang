@@ -24,30 +24,30 @@ import type {
   RecordId,
   Revision,
   StoragePort,
-} from '../../../contracts/src/state.js';
-import { StateError } from '../errors.js';
+} from '@canlang/contracts';
+import { StateError } from '@canlang/state/errors';
 import {
   openFenceScope,
   revalidateCommitForFence,
-} from '../invocation/admission.js';
+} from '@canlang/state/invocation/admission';
 import {
   FIXED_NOW,
   asId,
   asModel,
   makeBatch,
   makeRow,
-} from '../../test/invocation/fixtures.js';
+} from '@canlang/state/testing/invocation/fixtures';
 import {
   grant,
   modelPolicy,
   policyTable,
   seedStandardTeam,
-} from '../../test/query/fixtures.js';
-import type { TestMembershipStore } from '../../test/query/fixtures.js';
-import type { SeededMember } from '../../test/invocation/fixtures.js';
-import type { PolicyTable } from '../policy/grants.js';
-import { createD1Storage, ensureSchema } from '../storage/d1.js';
-import { FenceConflictError, StorageConstraintError } from '../storage/port.js';
+} from '@canlang/state/testing/query/fixtures';
+import type { TestMembershipStore } from '@canlang/state/testing/query/fixtures';
+import type { SeededMember } from '@canlang/state/testing/invocation/fixtures';
+import type { PolicyTable } from '@canlang/state/policy/grants';
+import { createD1Storage, ensureSchema } from '@canlang/state/storage/d1';
+import { FenceConflictError, StorageConstraintError } from '@canlang/state/storage/port';
 import {
   RECEIPT_ASSOCIATION_MODEL,
   RECEIPT_MODEL,
@@ -59,16 +59,16 @@ import {
   readReceiptRow,
   withAssociationRowData,
   withReceiptRowData,
-} from './tables.js';
-import type { DeliveryFieldSchema } from './grants.js';
+} from '@canlang/state/receipt/tables';
+import type { DeliveryFieldSchema } from '@canlang/state/receipt/grants';
 import {
   loadArtifactDescriptors,
   type ArtifactDescriptorSlice,
-} from '../invocation/registry.js';
+} from '@canlang/state/invocation/registry';
 import {
   observeSelectedReceiptJoin,
   type SelectedReceiptJoinInput,
-} from './join.js';
+} from '@canlang/state/receipt/join';
 import { loadWorkReceiptFns, type WorkReceiptFns } from './work-loader.js';
 
 const ITEM = 'Acme.Item';
@@ -139,7 +139,7 @@ async function resetD1(): Promise<void> {
 // Same depth as the test/ports suites: dist/state/src/receipt/ is four
 // levels below the package root, so this reaches the source worker.
 const doWorkerPath = fileURLToPath(
-  new URL('../../../../test/storage/do-test-worker.js', import.meta.url),
+  new URL(import.meta.resolve('@canlang/state/testing/storage/do-test-worker')),
 );
 
 let doMf: Miniflare | undefined;

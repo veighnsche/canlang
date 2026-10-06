@@ -39,7 +39,7 @@ import {
   type FixtureBindings,
 } from "@canlang/testkit";
 import { runTable, type CallOutcome, type RowScope } from "@canlang/testkit";
-import type { OperationInvoker } from "../../../packages/cloudflare/src/worker/assembly.js";
+import type { OperationInvoker } from "@canlang/cloudflare/worker/assembly";
 
 export interface PilotExampleDeps {
   readonly artifact: CompileArtifact;

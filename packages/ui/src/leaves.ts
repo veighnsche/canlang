@@ -44,7 +44,7 @@ import type {
   PresentationContext,
   StatusProps,
   TextValue,
-} from "../../contracts/src/presentation.js";
+} from "@canlang/contracts";
 import { appearanceClasses, type AppearanceOpts } from "./appearance.js";
 import { renderTextValue } from "./components.js";
 import { escapeAttr, escapeHtml, safeHref } from "./escape.js";

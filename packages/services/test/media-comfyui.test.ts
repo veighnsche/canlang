@@ -11,21 +11,21 @@ import {
   MappingValidationError,
   digestGraph,
   substituteAndValidate,
-} from '../src/media/mapping.ts';
+} from '../src/media/mapping.js';
 import {
   ComfyUINativeAdapter,
   readHistoryRun,
-} from '../src/media/comfyui.ts';
-import { startControlledComfyServer } from '../src/media/harness.ts';
+} from '../src/media/comfyui.js';
+import { startControlledComfyServer } from '../src/media/harness.js';
 import type {
   ControlledComfyScenario,
   ControlledComfyServer,
-} from '../src/media/harness.ts';
+} from '../src/media/harness.js';
 import type {
   ApiGraph,
   ImageGenerateInput,
   WorkflowNodeMapping,
-} from '../../contracts/src/services.js';
+} from '@canlang/contracts';
 
 const GRAPH: ApiGraph = {
   '3': {

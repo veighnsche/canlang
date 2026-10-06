@@ -10,7 +10,7 @@ import type {
   PresentationContext,
   RowQueryRunner,
   RowView,
-} from "../../contracts/src/presentation.js";
+} from "@canlang/contracts";
 import {
   board,
   collectionExportLink,

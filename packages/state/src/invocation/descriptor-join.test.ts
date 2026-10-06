@@ -13,8 +13,8 @@ import type {
   ArtifactModelField,
   ArtifactOperation,
   ArtifactOperationInput,
-} from '../../../contracts/src/artifact.js';
-import type { ExecutionDescriptorSet } from '../../../contracts/src/state.js';
+} from '@canlang/contracts';
+import type { ExecutionDescriptorSet } from '@canlang/contracts';
 import {
   IncompatibleArtifactError,
   artifactToDescriptorSet,
@@ -28,7 +28,7 @@ import { buildModelTableFromCanonical } from '../mutation/models.js';
 import { generatedCrudExecute } from '../mutation/crud.js';
 import { invoke, type ExecuteHandler, type ExecutionEffects } from './invoke.js';
 import { createTestMemoryStorage } from '../storage/memory.js';
-import type { StoragePort } from '../../../contracts/src/state.js';
+import type { StoragePort } from '@canlang/contracts';
 import {
   FIXED_NOW,
   asModel,

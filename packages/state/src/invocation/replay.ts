@@ -5,7 +5,7 @@
  * closed instead of collapsing distinct inputs onto one hash.
  */
 
-import type { ClosedInputs } from '../../../contracts/src/wire.js';
+import type { ClosedInputs } from '@canlang/contracts';
 import { StateError } from '../errors.js';
 
 function failClosed(what: string): never {

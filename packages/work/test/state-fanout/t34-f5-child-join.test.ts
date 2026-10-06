@@ -26,29 +26,29 @@ import type {
   ScheduleOp,
   StoragePort,
   StoredRow,
-} from '../../../contracts/src/state.js';
-import type { ResolvedIdentity } from '../../../contracts/src/identity.js';
+} from '@canlang/contracts';
+import type { ResolvedIdentity } from '@canlang/contracts';
 import type {
   FanoutChildId,
   FanoutFailedReason,
   RetryPolicy,
-} from '../../../contracts/src/work.js';
-import { createMemoryStorage } from '../storage/memory.js';
-import { StateError } from '../errors.js';
+} from '@canlang/contracts';
+import { createMemoryStorage } from '@canlang/state/storage/memory';
+import { StateError } from '@canlang/state/errors';
 import {
   stageFanoutChildOutcome,
   stageFanoutMembership,
-} from '../effects/staging.js';
+} from '@canlang/state/effects/staging';
 import {
   assertFanoutChildJoin,
   createFanoutChildJoinPort,
-} from '../ports/transact.js';
-import type { OperationRegistry } from '../invocation/registry.js';
-import { buildContext } from '../invocation/context.js';
-import { runMutationWrites } from '../mutation/pipeline.js';
-import { runFanoutChildWrites } from '../mutation/pipeline.js';
-import { buildModelTable } from '../mutation/models.js';
-import type { MembershipReader } from '../policy/roles.js';
+} from '@canlang/state/ports/transact';
+import type { OperationRegistry } from '@canlang/state/invocation/registry';
+import { buildContext } from '@canlang/state/invocation/context';
+import { runMutationWrites } from '@canlang/state/mutation/pipeline';
+import { runFanoutChildWrites } from '@canlang/state/mutation/pipeline';
+import { buildModelTable } from '@canlang/state/mutation/models';
+import type { MembershipReader } from '@canlang/state/policy/roles';
 import {
   FANOUT_CHECKPOINT_MODEL,
   FANOUT_CHILD_MODEL,
@@ -61,15 +61,15 @@ import {
   readFanoutCheckpointRow,
   readFanoutChildRow,
   withFanoutRowData,
-} from './tables.js';
-import { freezeFanoutMembership } from './membership.js';
+} from '@canlang/state/fanout/tables';
+import { freezeFanoutMembership } from '@canlang/state/fanout/membership';
 import {
   FANOUT_T32_REFUSAL_REASON,
   stageFanoutCheckpointAdvanceWrite,
   stageFanoutChildOutcomeWrite,
   type FanoutChildAttemptResult,
-} from './outcome.js';
-import { driveFanoutChild, observeFanoutUnit } from './test-driver.js';
+} from '@canlang/state/fanout/outcome';
+import { driveFanoutChild, observeFanoutUnit } from '@canlang/state/testing/fanout/test-driver';
 import { loadWorkFanoutFns, type WorkFanoutFns } from './work-loader.js';
 import {
   FIXED_NOW,
@@ -83,12 +83,12 @@ import {
   makeRow,
   seedMember,
   uuidv7,
-} from '../../test/invocation/fixtures.js';
+} from '@canlang/state/testing/invocation/fixtures';
 import {
   field,
   hook,
   modelDef,
-} from '../../test/mutation/fixtures.js';
+} from '@canlang/state/testing/mutation/fixtures';
 
 const MODEL = 'Acme.Commitment';
 const HANDLER = 'Shift.review_commitment';

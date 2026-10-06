@@ -5,21 +5,21 @@ import type {
   ReceiptError,
   ReceiptProperty,
   ReceiptStatus,
-} from '../../contracts/src/work.js';
+} from '@canlang/contracts';
 import {
   TestOnlyAllowAllGrants,
   TestOnlyAvailabilityMap,
   TestOnlyDenyAllGrants,
   TestOnlyGrantSet,
   TestOnlyScriptedAvailability,
-} from '../src/observation/ports.ts';
+} from '../src/observation/ports.js';
 import type {
   ContentPolicyPort,
   GrantPort,
   ObservationGrantContext,
-} from '../src/observation/ports.ts';
-import { observeReceipt } from '../src/observation/observation.ts';
-import type { StoredReceipt } from '../src/observation/observation.ts';
+} from '../src/observation/ports.js';
+import { observeReceipt } from '../src/observation/observation.js';
+import type { StoredReceipt } from '../src/observation/observation.js';
 
 const NOW = 1_791_120_000_000;
 const ALL: readonly ReceiptProperty[] = ['id', 'status', 'result', 'error'];

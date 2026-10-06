@@ -10,16 +10,16 @@
  */
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import type { FanoutChildId, RetryPolicy } from '../../../contracts/src/work.js';
-import type { StoredRow } from '../../../contracts/src/state.js';
-import { TestOnlyManualClock } from '../ports.ts';
+import type { FanoutChildId, RetryPolicy } from '@canlang/contracts';
+import type { StoredRow } from '@canlang/contracts';
+import { TestOnlyManualClock } from '../ports.js';
 import {
   fanoutChildRowId,
   fanoutIntentRowId,
   newFanoutChildRow,
   readFanoutChildRow,
-} from '../kernel/tables.ts';
-import { TestOnlyMemoryFanoutChildStore } from './index.ts';
+} from '../kernel/tables.js';
+import { TestOnlyMemoryFanoutChildStore } from './index.js';
 
 const META = { nowMs: 1_758_000_000_000, actor: 't34-f3-test' };
 const OCC = 'occ_f3_record';

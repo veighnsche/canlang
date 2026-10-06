@@ -22,7 +22,7 @@ import type {
   ReadAuthority,
   Revision,
   StoredRow,
-} from '../../../contracts/src/state.js';
+} from '@canlang/contracts';
 import type { StoragePort } from '../storage/port.js';
 import { StateError } from '../errors.js';
 import type { FenceScope } from '../invocation/admission.js';

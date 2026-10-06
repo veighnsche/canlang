@@ -45,14 +45,14 @@ import {
   createTestApp,
   createTestMcpDeps,
   testRequest,
-} from "../../../interfaces/dist/interfaces/src/testing.js";
-import { createTestMemoryStorage } from "../../../state/dist/state/src/storage/memory.js";
+} from "@canlang/interfaces/testing";
+import { createTestMemoryStorage } from "@canlang/state/storage/memory";
 import {
   RECEIPT_ASSOCIATION_MODEL,
   RECEIPT_MODEL,
   newAssociationRow,
   newReceiptRow,
-} from "../../../state/dist/state/src/receipt/tables.js";
+} from "@canlang/state/receipt/tables";
 import { buildInvoker } from "../worker/assembly.js";
 import type { ReadOutcome } from "../worker/assembly.js";
 import { RECEIPT_READ_OPERATION, invokeSelectedReceiptRead } from "./invoke.js";

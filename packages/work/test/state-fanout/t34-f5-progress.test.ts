@@ -17,11 +17,11 @@ import type {
   RecordId,
   StoragePort,
   StoredRow,
-} from '../../../contracts/src/state.js';
-import type { RetryPolicy } from '../../../contracts/src/work.js';
-import { createMemoryStorage } from '../storage/memory.js';
-import { StateError } from '../errors.js';
-import { createFanoutChildJoinPort } from '../ports/transact.js';
+} from '@canlang/contracts';
+import type { RetryPolicy } from '@canlang/contracts';
+import { createMemoryStorage } from '@canlang/state/storage/memory';
+import { StateError } from '@canlang/state/errors';
+import { createFanoutChildJoinPort } from '@canlang/state/ports/transact';
 import {
   FANOUT_CHECKPOINT_MODEL,
   FANOUT_CHILD_MODEL,
@@ -30,13 +30,13 @@ import {
   readFanoutCheckpointRow,
   readFanoutChildRow,
   withFanoutRowData,
-} from './tables.js';
-import { freezeFanoutMembership } from './membership.js';
+} from '@canlang/state/fanout/tables';
+import { freezeFanoutMembership } from '@canlang/state/fanout/membership';
 import {
   stageFanoutCheckpointAdvanceWrite,
   stageFanoutChildOutcomeWrite,
-} from './outcome.js';
-import { readFanoutProgress } from './progress.js';
+} from '@canlang/state/fanout/outcome';
+import { readFanoutProgress } from '@canlang/state/fanout/progress';
 import { loadWorkFanoutFns, type WorkFanoutFns } from './work-loader.js';
 import {
   FIXED_NOW,
@@ -46,7 +46,7 @@ import {
   makeBatch,
   makeRow,
   seedMember,
-} from '../../test/invocation/fixtures.js';
+} from '@canlang/state/testing/invocation/fixtures';
 
 const MODEL = 'Acme.Commitment';
 const HANDLER = 'Shift.review_commitment';

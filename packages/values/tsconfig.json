@@ -1,12 +1,8 @@
 {
   "compilerOptions": {
     "target": "ES2022",
-    // Interim, mirroring lane 03 S1: ESNext/Bundler until the contracts
-    // package import replaces relative source imports; NodeNext would emit
-    // CJS for files outside this package. Relative imports keep explicit
-    // .js suffixes throughout.
-    "module": "ESNext",
-    "moduleResolution": "Bundler",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
     "lib": ["ES2022"],
     "strict": true,
     "exactOptionalPropertyTypes": true,
@@ -18,11 +14,12 @@
     "declaration": true,
     "declarationMap": true,
     "sourceMap": true,
+    "rootDir": ".",
     "outDir": "dist",
     "noEmitOnError": true,
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
     "types": ["node"]
   },
-  "include": ["src/**/*.ts", "test/**/*.ts", "bindings/**/*.ts", "../../contracts/src/values.ts"]
+  "include": ["src/**/*.ts", "test/**/*.ts", "bindings/**/*.ts"]
 }

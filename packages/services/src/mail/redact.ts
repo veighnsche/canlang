@@ -7,7 +7,7 @@
  * used only when it survives redaction untouched; otherwise a generic
  * classification/explanation is used.
  */
-import type { DeliveryError } from '../../../contracts/src/services.js';
+import type { DeliveryError } from '@canlang/contracts';
 
 /** Build the closed error payload: exactly `code` and `message`. */
 export function deliveryError(code: string, message: string): DeliveryError {

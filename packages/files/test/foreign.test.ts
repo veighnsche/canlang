@@ -7,21 +7,21 @@ import assert from 'node:assert/strict';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { assertSafeBlobKey } from '../src/ports.ts';
+import { assertSafeBlobKey } from '../src/ports.js';
 import {
   appendUploadContent,
   completeUploadContent,
   sha256Hex,
-} from '../src/upload/index.ts';
-import { createFsBlobStore } from '../src/upload/fs-blob-store.ts';
+} from '../src/upload/index.js';
+import { createFsBlobStore } from '../src/upload/fs-blob-store.js';
 import {
   authorizeAttach,
   finalizeUpload,
   readFinalizedBytes,
   recordAttachment,
-} from '../src/finalize/index.ts';
-import { describeForReceipt } from '../src/retention/index.ts';
-import { handleCreateIntent } from '../src/bridge.ts';
+} from '../src/finalize/index.js';
+import { describeForReceipt } from '../src/retention/index.js';
+import { handleCreateIntent } from '../src/bridge.js';
 import {
   BINDING,
   OTHER_PRINCIPAL,
@@ -30,7 +30,7 @@ import {
   RECEIVER,
   makeHarness,
   uploadRequest,
-} from './helpers.ts';
+} from './helpers.js';
 
 const scopeDir = mkdtempSync(join(tmpdir(), 'canlang-files-foreign-'));
 after(() => {

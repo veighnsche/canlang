@@ -13,15 +13,15 @@
  */
 import { randomBytes } from "node:crypto";
 import type { ResolvedIdentity } from "@canlang/contracts";
-import type { createMemoryIdentityStore as MemoryStoreFn } from "../../../packages/identity/dist/identity/src/testing.js";
+import type { createMemoryIdentityStore as MemoryStoreFn } from "@canlang/identity/testing";
 
 const IDENTITY_DIST_BUILD_COMMAND = "bun run --filter @canlang/identity build";
 
 type MemoryStore = ReturnType<typeof MemoryStoreFn>;
 
-async function identityDist(): Promise<typeof import("../../../packages/identity/dist/identity/src/index.js")> {
+async function identityDist(): Promise<typeof import("@canlang/identity")> {
   try {
-    return await import("../../../packages/identity/dist/identity/src/index.js");
+    return await import("@canlang/identity");
   } catch {
     throw new Error(
       `e2e seed: packages/identity/dist is not built; run \`${IDENTITY_DIST_BUILD_COMMAND}\` first`,
@@ -29,9 +29,9 @@ async function identityDist(): Promise<typeof import("../../../packages/identity
   }
 }
 
-async function identityTesting(): Promise<typeof import("../../../packages/identity/dist/identity/src/testing.js")> {
+async function identityTesting(): Promise<typeof import("@canlang/identity/testing")> {
   try {
-    return await import("../../../packages/identity/dist/identity/src/testing.js");
+    return await import("@canlang/identity/testing");
   } catch {
     throw new Error(
       `e2e seed: packages/identity/dist is not built; run \`${IDENTITY_DIST_BUILD_COMMAND}\` first`,

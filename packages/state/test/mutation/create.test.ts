@@ -6,7 +6,7 @@
  */
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import type { QueryPredicate } from '../../../contracts/src/state.js';
+import type { QueryPredicate } from '@canlang/contracts';
 import { CRUD_MAX_ID_LENGTH, crudDefs } from '../../src/mutation/index.js';
 import type { ByPredicate } from '../../src/policy/roles.js';
 import {

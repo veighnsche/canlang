@@ -20,21 +20,75 @@
     "./worker": {
       "types": "./dist/worker/entry.d.ts",
       "default": "./dist/worker/entry.js"
+    },
+    "./runtime/artifact": {
+      "types": "./dist/runtime/artifact.d.ts",
+      "default": "./dist/runtime/artifact.js"
+    },
+    "./deploy/compat": {
+      "types": "./dist/deploy/compat.d.ts",
+      "default": "./dist/deploy/compat.js"
+    },
+    "./worker/assembly": {
+      "types": "./dist/worker/assembly.d.ts",
+      "default": "./dist/worker/assembly.js"
+    },
+    "./runtime/modules": {
+      "types": "./dist/runtime/modules.d.ts",
+      "default": "./dist/runtime/modules.js"
+    },
+    "./runtime/mcp-registry": {
+      "types": "./dist/runtime/mcp-registry.d.ts",
+      "default": "./dist/runtime/mcp-registry.js"
+    },
+    "./deploy/bundle": {
+      "types": "./dist/deploy/bundle.d.ts",
+      "default": "./dist/deploy/bundle.js"
+    },
+    "./dev/local-run": {
+      "types": "./dist/dev/local-run.d.ts",
+      "default": "./dist/dev/local-run.js"
+    },
+    "./runtime/stdlib": {
+      "types": "./dist/runtime/stdlib.d.ts",
+      "default": "./dist/runtime/stdlib.js"
+    },
+    "./dev/row-scope": {
+      "types": "./dist/dev/row-scope.d.ts",
+      "default": "./dist/dev/row-scope.js"
+    },
+    "./worker/main": {
+      "types": "./dist/worker/main.d.ts",
+      "default": "./dist/worker/main.js"
+    },
+    "./deploy/producer-files": {
+      "types": "./dist/deploy/producer-files.d.ts",
+      "default": "./dist/deploy/producer-files.js"
     }
   },
   "scripts": {
-    "build": "tsc -p tsconfig.json",
-    "postbuild": "chmod +x dist/cli/platform.js",
-    "typecheck": "tsc --noEmit -p tsconfig.json"
+    "build": "node ../../scripts/build-package.mjs",
+    "typecheck": "node ../../scripts/run-tasks.mjs typecheck:check --filter=@canlang/cloudflare",
+    "build:emit": "tsc -p tsconfig.json && chmod +x dist/cli/platform.js",
+    "typecheck:check": "tsc --noEmit -p tsconfig.json",
+    "test:runtime": "cd ../.. && node --test \"packages/cloudflare/dist/**/*.test.js\"",
+    "build:prepare": "node ../../scripts/build-package.mjs --prepare"
   },
   "dependencies": {
-    "@canlang/contracts": "0.1.0",
-    "@canlang/interfaces": "0.1.0",
-    "miniflare": "4.20260730.0"
+    "@canlang/contracts": "workspace:*",
+    "@canlang/interfaces": "workspace:*",
+    "miniflare": "4.20260730.0",
+    "@canlang/identity": "workspace:*",
+    "@canlang/state": "workspace:*",
+    "@canlang/work": "workspace:*",
+    "@canlang/ui": "workspace:*",
+    "@canlang/stdlib": "workspace:*",
+    "@canlang/values": "workspace:*"
   },
   "devDependencies": {
-    "@canlang/identity": "0.1.0",
     "@cloudflare/workers-types": "^5.20261004.1",
-    "@types/node": "24.19.1"
+    "@types/node": "24.19.1",
+    "@canlang/files": "workspace:*",
+    "vitest": "^3.2.4"
   }
 }

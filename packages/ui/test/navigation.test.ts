@@ -8,7 +8,7 @@ import type {
   NavigationGroup,
   PageDescriptor,
   PresentationContext,
-} from "../../contracts/src/presentation.js";
+} from "@canlang/contracts";
 import {
   breadcrumbs,
   buildNavigation,

@@ -18,12 +18,12 @@ import type {
   ModelName,
   RecordId,
   StoredRow,
-} from '../../../contracts/src/state.js';
+} from '@canlang/contracts';
 import type {
   FanoutFailedReason,
   FanoutSkippedReason,
   RetryPolicy,
-} from '../../../contracts/src/work.js';
+} from '@canlang/contracts';
 import { StateError } from '../errors.js';
 import { stageFanoutChildOutcome } from '../effects/staging.js';
 import {

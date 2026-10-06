@@ -8,7 +8,7 @@ import type {
   MessageDescriptor,
   PageDescriptor,
   RenderFn,
-} from "../../../contracts/src/presentation.js";
+} from "@canlang/contracts";
 import { message } from "../../src/messages.js";
 
 export const TEAMTASKS_MESSAGES = {

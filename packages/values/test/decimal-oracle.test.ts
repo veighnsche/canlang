@@ -1,6 +1,6 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import OracleDecimal from "decimal.js";
+import { Decimal as OracleDecimal } from "decimal.js";
 import {
   Decimal,
   absDecimal,

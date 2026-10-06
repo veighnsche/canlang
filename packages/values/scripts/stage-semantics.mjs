@@ -7,7 +7,7 @@ import { fileURLToPath } from "node:url";
 
 const pkg = join(dirname(fileURLToPath(import.meta.url)), "..");
 const source = join(pkg, "bindings", "generated");
-const destination = join(pkg, "dist", "values", "bindings", "generated");
+const destination = join(pkg, "dist", "bindings", "generated");
 const inventoryBytes = readFileSync(join(source, "BUILD.json"));
 const inventory = JSON.parse(inventoryBytes.toString("utf8"));
 const names = [

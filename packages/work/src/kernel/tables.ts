@@ -38,7 +38,7 @@ import type {
   RecordId,
   RecordVersion,
   StoredRow,
-} from '../../../contracts/src/state.js';
+} from '@canlang/contracts';
 import type {
   ClaimId,
   FanoutChildId,
@@ -54,7 +54,7 @@ import type {
   RetryClass,
   ScheduledOccurrenceState,
   WorkScope,
-} from '../../../contracts/src/work.js';
+} from '@canlang/contracts';
 
 /** Fail-closed table errors; stages throw these as plain Errors. */
 export class KernelTableError extends Error {

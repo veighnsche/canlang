@@ -5,7 +5,7 @@ import type {
   FormFieldDef,
   FormMode,
   PresentationContext,
-} from "../../contracts/src/presentation.js";
+} from "@canlang/contracts";
 import { loadHtml } from "./harness.js";
 import { message } from "../src/messages.js";
 import {

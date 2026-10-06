@@ -22,21 +22,21 @@ import type {
   FilePolicy,
   UploadIntentGrant,
   UploadIntentId,
-} from '../../../contracts/src/files.js';
-import type { UploadIntentRequest } from '../../../contracts/src/wire.js';
+} from '@canlang/contracts';
+import type { UploadIntentRequest } from '@canlang/contracts';
 import type {
   BlobStorePort,
   ClockPort,
   IntentIdPort,
   IntentStorePort,
   UploadIntentRecord,
-} from '../ports.ts';
+} from '../ports.js';
 import {
   bindRequestProvenance,
   requestProvenanceMatches,
   type ReceivingContext,
   type RequestProvenanceBinding,
-} from '../provenance/index.ts';
+} from '../provenance/index.js';
 
 /**
  * Language-version-pinned baseline policy (DESIGN section 8). Values

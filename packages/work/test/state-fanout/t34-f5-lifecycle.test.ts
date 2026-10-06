@@ -19,25 +19,25 @@ import type {
   RecordId,
   StoragePort,
   StoredRow,
-} from '../../../contracts/src/state.js';
-import type { RetryPolicy } from '../../../contracts/src/work.js';
-import { createMemoryStorage } from '../storage/memory.js';
-import { StateError } from '../errors.js';
-import type { OperationRegistry } from '../invocation/registry.js';
-import type { MembershipReader } from '../policy/roles.js';
+} from '@canlang/contracts';
+import type { RetryPolicy } from '@canlang/contracts';
+import { createMemoryStorage } from '@canlang/state/storage/memory';
+import { StateError } from '@canlang/state/errors';
+import type { OperationRegistry } from '@canlang/state/invocation/registry';
+import type { MembershipReader } from '@canlang/state/policy/roles';
 import {
   FANOUT_CHECKPOINT_MODEL,
   FANOUT_CHILD_MODEL,
   FANOUT_INTENT_MODEL,
   fanoutChildRowId,
   readFanoutChildRow,
-} from './tables.js';
-import { freezeFanoutMembership } from './membership.js';
+} from '@canlang/state/fanout/tables';
+import { freezeFanoutMembership } from '@canlang/state/fanout/membership';
 import {
   classifyFanoutChildLifecycle,
   refusedFanoutLifecycle,
-} from './lifecycle.js';
-import { driveFanoutChild } from './test-driver.js';
+} from '@canlang/state/fanout/lifecycle';
+import { driveFanoutChild } from '@canlang/state/testing/fanout/test-driver';
 import { loadWorkFanoutFns, type WorkFanoutFns } from './work-loader.js';
 import {
   FIXED_NOW,
@@ -51,7 +51,7 @@ import {
   makeRow,
   seedMember,
   uuidv7,
-} from '../../test/invocation/fixtures.js';
+} from '@canlang/state/testing/invocation/fixtures';
 
 const MODEL = 'Acme.Signup';
 const PARENT_MODEL = 'Acme.Opportunity';

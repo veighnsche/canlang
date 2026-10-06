@@ -27,9 +27,9 @@ import type {
   GuardVerdict,
   OutboxId,
   OutboxItemState,
-} from '../../../contracts/src/work.js';
-import type { ClaimIdPort, ClockPort, SupersessionPort } from '../ports.ts';
-import type { AnyOutboxIntent } from '../intent/index.ts';
+} from '@canlang/contracts';
+import type { ClaimIdPort, ClockPort, SupersessionPort } from '../ports.js';
+import type { AnyOutboxIntent } from '../intent/index.js';
 
 /* -- T34-F3 additive imports: F1 fanout vocabulary + F2 row shapes. -- */
 import type {
@@ -40,14 +40,14 @@ import type {
   FanoutProgress,
   FanoutSkippedReason,
   RetryPolicy,
-} from '../../../contracts/src/work.js';
-import type { StoredRow } from '../../../contracts/src/state.js';
-import type { FanoutChildRowData } from '../kernel/tables.ts';
+} from '@canlang/contracts';
+import type { StoredRow } from '@canlang/contracts';
+import type { FanoutChildRowData } from '../kernel/tables.js';
 import {
   fanoutChildRowId,
   readFanoutChildRow,
   withRowData,
-} from '../kernel/tables.ts';
+} from '../kernel/tables.js';
 
 /**
  * Injected pure guard evaluator: predicate reference plus frozen retained

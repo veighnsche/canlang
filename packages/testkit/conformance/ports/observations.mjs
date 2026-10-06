@@ -20,17 +20,17 @@
 import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { pathToFileURL } from "node:url";
-import { addInt, subtractInt, multiplyInt, modInt, compareInt, INT64_MIN, INT64_MAX } from "../../../../packages/values/src/int.ts";
-import { Decimal, addDecimal, multiplyDecimal, divideDecimal, compareDecimal } from "../../../../packages/values/src/decimal.ts";
-import { money, addMoney, subtractMoney, multiplyMoney, divideMoney, moneyRatio, isKnownCurrency } from "../../../../packages/values/src/money.ts";
-import { date, datetime, add_days, add_months, dateToEpochDays, epochDaysToDate, assertDatetimeInRange } from "../../../../packages/values/src/temporal.ts";
-import { sumInt, sumDecimal } from "../../../../packages/values/src/array.ts";
-import { normalizeSchema, validateValue } from "../../../../packages/values/src/schema.ts";
-import { decodeValue, encodeValue } from "../../../../packages/values/src/wire.ts";
-import { computeBackoff, classifyFailure, listDeadLetter, reconcileUncertain, DEFAULT_RETRY_POLICY } from "../../../../packages/work/src/receipt/index.ts";
-import { everyScopeKey, computeEverySlot, deriveRecurringOccurrenceId } from "../../../../packages/work/src/schedule/every.ts";
-import { parseArtifactText } from "../../../../packages/cloudflare/src/runtime/artifact.ts";
-import { checkCompilerVersionMatch } from "../../../../packages/cloudflare/src/deploy/compat.ts";
+import { addInt, subtractInt, multiplyInt, modInt, compareInt, INT64_MIN, INT64_MAX } from "@canlang/values";
+import { Decimal, addDecimal, multiplyDecimal, divideDecimal, compareDecimal } from "@canlang/values";
+import { money, addMoney, subtractMoney, multiplyMoney, divideMoney, moneyRatio, isKnownCurrency } from "@canlang/values";
+import { date, datetime, add_days, add_months, dateToEpochDays, epochDaysToDate, assertDatetimeInRange } from "@canlang/values";
+import { sumInt, sumDecimal } from "@canlang/values";
+import { normalizeSchema, validateValue } from "@canlang/values";
+import { decodeValue, encodeValue } from "@canlang/values";
+import { computeBackoff, classifyFailure, listDeadLetter, reconcileUncertain, DEFAULT_RETRY_POLICY } from "@canlang/work/receipt";
+import { everyScopeKey, computeEverySlot, deriveRecurringOccurrenceId } from "@canlang/work/schedule/every";
+import { parseArtifactText } from "@canlang/cloudflare/runtime/artifact";
+import { checkCompilerVersionMatch } from "@canlang/cloudflare/deploy/compat";
 
 /* ---------- canonical serialization (bigint-safe, key-ordered) ---------- */
 

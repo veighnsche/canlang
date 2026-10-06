@@ -22,7 +22,7 @@ import type {
   TextProps,
   TextValue,
   TitleProps,
-} from "../../contracts/src/presentation.js";
+} from "@canlang/contracts";
 import { escapeHtml, isolate } from "./escape.js";
 import {
   canonicalDefaultTag,

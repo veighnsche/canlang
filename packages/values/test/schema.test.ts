@@ -1,6 +1,6 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import type { CanValue, ContractValue, Violation } from "../../contracts/src/values.js";
+import type { CanValue, ContractValue, Violation } from "@canlang/contracts/values";
 import { Decimal } from "../src/decimal.js";
 import { SchemaError, ValueError } from "../src/errors.js";
 import { makeMoney, makeRecordRef, makeUnionValue } from "../src/kinds.js";

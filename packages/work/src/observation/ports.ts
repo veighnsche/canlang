@@ -10,7 +10,7 @@
  * tests. They encode no real authorization or retention rule and must never
  * ship in production code.
  */
-import type { ReceiptProperty } from '../../../contracts/src/work.js';
+import type { ReceiptProperty } from '@canlang/contracts';
 
 /** Scoping context for one leaf-grant decision. */
 export interface ObservationGrantContext {
@@ -131,7 +131,7 @@ export class TestOnlyScriptedAvailability implements ContentPolicyPort {
     void nowMs;
     const value = this.values[Math.min(this.index, this.values.length - 1)];
     this.index += 1;
-    return value;
+    return value ?? false;
   }
 }
 

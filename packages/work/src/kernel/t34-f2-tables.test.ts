@@ -25,9 +25,9 @@ import type {
   Revision,
   StoragePort,
   StoredRow,
-} from '../../../contracts/src/state.js';
-import { createTestMemoryStorage } from '../../../state/dist/state/src/storage/memory.js';
-import { StorageConstraintError } from '../../../state/dist/state/src/storage/port.js';
+} from '@canlang/contracts';
+import { createTestMemoryStorage } from '@canlang/state/storage/memory';
+import { StorageConstraintError } from '@canlang/state/storage/port';
 import {
   KernelTableError,
   WORK_FANOUT_CHECKPOINT_MODEL,
@@ -47,7 +47,7 @@ import {
   readFanoutChildRow,
   readFanoutIntentRow,
   withRowData,
-} from './tables.ts';
+} from './tables.js';
 
 const META = { nowMs: 1_758_000_000_000, actor: 't34-f2-test' };
 const OCC = 'occ_source_1';

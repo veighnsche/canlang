@@ -6,11 +6,94 @@
   "type": "module",
   "description": "Lane 04: durable events, schedules, outbox dispatch, receipts and recovery (internal; public surface assembles in @canlang/stdlib).",
   "scripts": {
-    "typecheck": "tsc --noEmit",
-    "test": "node --test 'test/**/*.test.ts'"
+    "typecheck": "node ../../scripts/run-tasks.mjs typecheck:check --filter=@canlang/work",
+    "test": "node ../../scripts/run-tasks.mjs test:unit --filter=@canlang/work",
+    "build": "node ../../scripts/build-package.mjs",
+    "clean": "rm -rf dist/",
+    "build:emit": "tsc -p tsconfig.json",
+    "typecheck:check": "tsc -p tsconfig.json --noEmit",
+    "test:unit": "cd ../.. && node --test \"packages/work/dist/test/**/*.test.js\" \"packages/work/dist/src/**/*.test.js\"",
+    "build:prepare": "node ../../scripts/build-package.mjs --prepare"
   },
   "devDependencies": {
     "@types/node": "^24.0.0",
-    "typescript": "^5.9.0"
+    "typescript": "^5.9.0",
+    "miniflare": "4.20260730.0",
+    "@cloudflare/workers-types": "5.20261004.1"
+  },
+  "main": "./dist/src/index.js",
+  "types": "./dist/src/index.d.ts",
+  "files": [
+    "dist/"
+  ],
+  "dependencies": {
+    "@canlang/contracts": "workspace:*",
+    "@canlang/state": "workspace:*"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/src/index.d.ts",
+      "default": "./dist/src/index.js"
+    },
+    "./catalog": {
+      "types": "./dist/src/catalog.d.ts",
+      "default": "./dist/src/catalog.js"
+    },
+    "./kernel/commands": {
+      "types": "./dist/src/kernel/commands.d.ts",
+      "default": "./dist/src/kernel/commands.js"
+    },
+    "./kernel/tables": {
+      "types": "./dist/src/kernel/tables.d.ts",
+      "default": "./dist/src/kernel/tables.js"
+    },
+    "./observation/association": {
+      "types": "./dist/src/observation/association.d.ts",
+      "default": "./dist/src/observation/association.js"
+    },
+    "./observation/observation": {
+      "types": "./dist/src/observation/observation.d.ts",
+      "default": "./dist/src/observation/observation.js"
+    },
+    "./observation/ports": {
+      "types": "./dist/src/observation/ports.d.ts",
+      "default": "./dist/src/observation/ports.js"
+    },
+    "./ports": {
+      "types": "./dist/src/ports.d.ts",
+      "default": "./dist/src/ports.js"
+    },
+    "./schedule/every": {
+      "types": "./dist/src/schedule/every.d.ts",
+      "default": "./dist/src/schedule/every.js"
+    },
+    "./dispatch": {
+      "types": "./dist/src/dispatch/index.d.ts",
+      "default": "./dist/src/dispatch/index.js"
+    },
+    "./event": {
+      "types": "./dist/src/event/index.d.ts",
+      "default": "./dist/src/event/index.js"
+    },
+    "./intent": {
+      "types": "./dist/src/intent/index.d.ts",
+      "default": "./dist/src/intent/index.js"
+    },
+    "./receipt": {
+      "types": "./dist/src/receipt/index.d.ts",
+      "default": "./dist/src/receipt/index.js"
+    },
+    "./recovery": {
+      "types": "./dist/src/recovery/index.d.ts",
+      "default": "./dist/src/recovery/index.js"
+    },
+    "./schedule": {
+      "types": "./dist/src/schedule/index.d.ts",
+      "default": "./dist/src/schedule/index.js"
+    },
+    "./distribution": {
+      "types": "./dist/src/distribution.d.ts",
+      "default": "./dist/src/distribution.js"
+    }
   }
 }

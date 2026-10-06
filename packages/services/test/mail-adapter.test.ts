@@ -13,21 +13,21 @@ import {
   MailTransportLimitError,
   assertValidCompletion,
   skippedCompletion,
-} from '../src/mail/adapter.ts';
+} from '../src/mail/adapter.js';
 import {
   fixedAttachmentSizes,
   fixedClock,
   startControlledMailServer,
-} from '../src/ports.ts';
+} from '../src/ports.js';
 import type {
   ControlledMailServer,
   ControlledScenario,
-} from '../src/ports.ts';
+} from '../src/ports.js';
 import type {
   CapabilityCompletion,
   EmailAccepted,
   EmailSendInput,
-} from '../../contracts/src/services.js';
+} from '@canlang/contracts';
 
 const CLOCK_NOW = 1_758_000_000_000;
 

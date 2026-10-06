@@ -24,12 +24,12 @@ import { mkdtemp, rm } from 'node:fs/promises';
 import { join } from 'node:path';
 import { Miniflare } from 'miniflare';
 import type { D1Database } from '@cloudflare/workers-types';
-import type { CompileArtifact } from '../../../contracts/src/artifact.js';
+import type { CompileArtifact } from '@canlang/contracts';
 import type {
   ModelName,
   RecordId,
   StoragePort,
-} from '../../../contracts/src/state.js';
+} from '@canlang/contracts';
 import {
   loadArtifactDescriptors,
   type ArtifactDescriptorSlice,
@@ -70,7 +70,7 @@ let d1mf: Miniflare | undefined;
 let d1db: D1Database;
 
 const doWorkerPath = fileURLToPath(
-  new URL('../../../../test/storage/do-test-worker.js', import.meta.url),
+  new URL('../../../test/storage/do-test-worker.js', import.meta.url),
 );
 
 let doMf: Miniflare | undefined;

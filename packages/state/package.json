@@ -4,16 +4,21 @@
   "license": "MIT",
   "description": "CanLang authoritative state engine: canonical invocation, queries, mutations, fenced storage (internal package, lane 03)",
   "type": "module",
-  "main": "./dist/state/src/index.js",
-  "types": "./dist/state/src/index.d.ts",
+  "main": "./dist/src/index.js",
+  "types": "./dist/src/index.d.ts",
   "files": [
-    "dist/"
+    "dist/",
+    "test/storage/do-test-worker.js"
   ],
   "scripts": {
-    "build": "tsc -p tsconfig.json",
-    "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test": "bun run build && node --test \"dist/state/test/**/*.test.js\"",
-    "clean": "rm -rf dist/"
+    "build": "node ../../scripts/build-package.mjs",
+    "typecheck": "node ../../scripts/run-tasks.mjs typecheck:check --filter=@canlang/state",
+    "test": "node ../../scripts/run-tasks.mjs test:unit --filter=@canlang/state",
+    "clean": "rm -rf dist/",
+    "build:emit": "tsc -p tsconfig.json",
+    "typecheck:check": "tsc -p tsconfig.json --noEmit",
+    "test:unit": "node --test \"dist/test/**/*.test.js\" \"dist/src/**/*.test.js\"",
+    "build:prepare": "node ../../scripts/build-package.mjs --prepare"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "5.20261004.1",
@@ -23,5 +28,231 @@
   },
   "engines": {
     "node": ">=22"
+  },
+  "dependencies": {
+    "@canlang/contracts": "workspace:*"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/src/index.d.ts",
+      "default": "./dist/src/index.js"
+    },
+    "./catalog": {
+      "types": "./dist/src/catalog.d.ts",
+      "default": "./dist/src/catalog.js"
+    },
+    "./effects/staging": {
+      "types": "./dist/src/effects/staging.d.ts",
+      "default": "./dist/src/effects/staging.js"
+    },
+    "./errors": {
+      "types": "./dist/src/errors.d.ts",
+      "default": "./dist/src/errors.js"
+    },
+    "./fanout/cohort": {
+      "types": "./dist/src/fanout/cohort.d.ts",
+      "default": "./dist/src/fanout/cohort.js"
+    },
+    "./fanout/lifecycle": {
+      "types": "./dist/src/fanout/lifecycle.d.ts",
+      "default": "./dist/src/fanout/lifecycle.js"
+    },
+    "./fanout/membership": {
+      "types": "./dist/src/fanout/membership.d.ts",
+      "default": "./dist/src/fanout/membership.js"
+    },
+    "./fanout/outcome": {
+      "types": "./dist/src/fanout/outcome.d.ts",
+      "default": "./dist/src/fanout/outcome.js"
+    },
+    "./fanout/progress": {
+      "types": "./dist/src/fanout/progress.d.ts",
+      "default": "./dist/src/fanout/progress.js"
+    },
+    "./fanout/tables": {
+      "types": "./dist/src/fanout/tables.d.ts",
+      "default": "./dist/src/fanout/tables.js"
+    },
+    "./internal/json": {
+      "types": "./dist/src/internal/json.d.ts",
+      "default": "./dist/src/internal/json.js"
+    },
+    "./invocation/admission": {
+      "types": "./dist/src/invocation/admission.d.ts",
+      "default": "./dist/src/invocation/admission.js"
+    },
+    "./invocation/context": {
+      "types": "./dist/src/invocation/context.d.ts",
+      "default": "./dist/src/invocation/context.js"
+    },
+    "./invocation/invoke": {
+      "types": "./dist/src/invocation/invoke.d.ts",
+      "default": "./dist/src/invocation/invoke.js"
+    },
+    "./invocation/prepared-inputs": {
+      "types": "./dist/src/invocation/prepared-inputs.d.ts",
+      "default": "./dist/src/invocation/prepared-inputs.js"
+    },
+    "./invocation/registry": {
+      "types": "./dist/src/invocation/registry.d.ts",
+      "default": "./dist/src/invocation/registry.js"
+    },
+    "./invocation/replay": {
+      "types": "./dist/src/invocation/replay.d.ts",
+      "default": "./dist/src/invocation/replay.js"
+    },
+    "./migration/activate": {
+      "types": "./dist/src/migration/activate.d.ts",
+      "default": "./dist/src/migration/activate.js"
+    },
+    "./migration/mapper": {
+      "types": "./dist/src/migration/mapper.d.ts",
+      "default": "./dist/src/migration/mapper.js"
+    },
+    "./migration/recover": {
+      "types": "./dist/src/migration/recover.d.ts",
+      "default": "./dist/src/migration/recover.js"
+    },
+    "./migration/retain": {
+      "types": "./dist/src/migration/retain.d.ts",
+      "default": "./dist/src/migration/retain.js"
+    },
+    "./migration/stage": {
+      "types": "./dist/src/migration/stage.d.ts",
+      "default": "./dist/src/migration/stage.js"
+    },
+    "./migration/transition": {
+      "types": "./dist/src/migration/transition.d.ts",
+      "default": "./dist/src/migration/transition.js"
+    },
+    "./migration/validate": {
+      "types": "./dist/src/migration/validate.d.ts",
+      "default": "./dist/src/migration/validate.js"
+    },
+    "./mutation/crud": {
+      "types": "./dist/src/mutation/crud.d.ts",
+      "default": "./dist/src/mutation/crud.js"
+    },
+    "./mutation/models": {
+      "types": "./dist/src/mutation/models.d.ts",
+      "default": "./dist/src/mutation/models.js"
+    },
+    "./mutation/pipeline": {
+      "types": "./dist/src/mutation/pipeline.d.ts",
+      "default": "./dist/src/mutation/pipeline.js"
+    },
+    "./mutation/t18-shop.artifact": {
+      "types": "./dist/src/mutation/t18-shop.artifact.d.ts",
+      "default": "./dist/src/mutation/t18-shop.artifact.js"
+    },
+    "./policy/grants": {
+      "types": "./dist/src/policy/grants.d.ts",
+      "default": "./dist/src/policy/grants.js"
+    },
+    "./policy/roles": {
+      "types": "./dist/src/policy/roles.d.ts",
+      "default": "./dist/src/policy/roles.js"
+    },
+    "./ports/read": {
+      "types": "./dist/src/ports/read.d.ts",
+      "default": "./dist/src/ports/read.js"
+    },
+    "./ports/system": {
+      "types": "./dist/src/ports/system.d.ts",
+      "default": "./dist/src/ports/system.js"
+    },
+    "./ports/transact": {
+      "types": "./dist/src/ports/transact.d.ts",
+      "default": "./dist/src/ports/transact.js"
+    },
+    "./query/engine": {
+      "types": "./dist/src/query/engine.d.ts",
+      "default": "./dist/src/query/engine.js"
+    },
+    "./receipt/grants": {
+      "types": "./dist/src/receipt/grants.d.ts",
+      "default": "./dist/src/receipt/grants.js"
+    },
+    "./receipt/join": {
+      "types": "./dist/src/receipt/join.d.ts",
+      "default": "./dist/src/receipt/join.js"
+    },
+    "./receipt/tables": {
+      "types": "./dist/src/receipt/tables.d.ts",
+      "default": "./dist/src/receipt/tables.js"
+    },
+    "./storage/d1": {
+      "types": "./dist/src/storage/d1.d.ts",
+      "default": "./dist/src/storage/d1.js"
+    },
+    "./storage/durable-object": {
+      "types": "./dist/src/storage/durable-object.d.ts",
+      "default": "./dist/src/storage/durable-object.js"
+    },
+    "./storage/memory": {
+      "types": "./dist/src/storage/memory.d.ts",
+      "default": "./dist/src/storage/memory.js"
+    },
+    "./storage/port": {
+      "types": "./dist/src/storage/port.d.ts",
+      "default": "./dist/src/storage/port.js"
+    },
+    "./storage/schema": {
+      "types": "./dist/src/storage/schema.d.ts",
+      "default": "./dist/src/storage/schema.js"
+    },
+    "./invocation": {
+      "types": "./dist/src/invocation/index.d.ts",
+      "default": "./dist/src/invocation/index.js"
+    },
+    "./migration": {
+      "types": "./dist/src/migration/index.d.ts",
+      "default": "./dist/src/migration/index.js"
+    },
+    "./mutation": {
+      "types": "./dist/src/mutation/index.d.ts",
+      "default": "./dist/src/mutation/index.js"
+    },
+    "./ports": {
+      "types": "./dist/src/ports/index.d.ts",
+      "default": "./dist/src/ports/index.js"
+    },
+    "./query": {
+      "types": "./dist/src/query/index.d.ts",
+      "default": "./dist/src/query/index.js"
+    },
+    "./storage": {
+      "types": "./dist/src/storage/index.d.ts",
+      "default": "./dist/src/storage/index.js"
+    },
+    "./distribution": {
+      "types": "./dist/src/distribution.d.ts",
+      "default": "./dist/src/distribution.js"
+    },
+    "./receipt": {
+      "types": "./dist/src/receipt/index.d.ts",
+      "default": "./dist/src/receipt/index.js"
+    },
+    "./receipt/observer-loader": {
+      "types": "./dist/src/receipt/observer-loader.d.ts",
+      "default": "./dist/src/receipt/observer-loader.js"
+    },
+    "./testing/fanout/test-driver": {
+      "types": "./dist/test/fanout/test-driver.d.ts",
+      "default": "./dist/test/fanout/test-driver.js"
+    },
+    "./testing/invocation/fixtures": {
+      "types": "./dist/test/invocation/fixtures.d.ts",
+      "default": "./dist/test/invocation/fixtures.js"
+    },
+    "./testing/query/fixtures": {
+      "types": "./dist/test/query/fixtures.d.ts",
+      "default": "./dist/test/query/fixtures.js"
+    },
+    "./testing/mutation/fixtures": {
+      "types": "./dist/test/mutation/fixtures.d.ts",
+      "default": "./dist/test/mutation/fixtures.js"
+    },
+    "./testing/storage/do-test-worker": "./test/storage/do-test-worker.js"
   }
 }

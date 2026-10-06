@@ -30,7 +30,7 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { existsSync, readFileSync } from "node:fs";
-import type { CanValue, Violation } from "../../contracts/src/values.js";
+import type { CanValue, Violation } from "@canlang/contracts/values";
 import type { MessageParam } from "../src/icu.js";
 import { CATALOG } from "../src/catalog.js";
 import * as barrel from "../src/index.js";
@@ -70,9 +70,9 @@ function needBoolean(value: unknown, what: string): boolean {
 }
 
 function loadFixtures(): JsonObject {
-  // Compiled tests run from `dist/values/test/` (JSON stays in the source
+  // Compiled tests run from `dist/test/` (JSON stays in the source
   // tree); the second candidate covers source-tree runners.
-  const candidates = ["../../../conformance/v1/values.json", "../conformance/v1/values.json"];
+  const candidates = ["../../conformance/v1/values.json", "../conformance/v1/values.json"];
   for (const relative of candidates) {
     const url = new URL(relative, import.meta.url);
     if (existsSync(url)) {

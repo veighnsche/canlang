@@ -5,7 +5,7 @@ import type {
   AppearanceTone,
   MessageValue,
   PresentationContext,
-} from "../../contracts/src/presentation.js";
+} from "@canlang/contracts";
 import { message } from "../src/messages.js";
 import {
   alert,

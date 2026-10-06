@@ -6,11 +6,95 @@
   "type": "module",
   "description": "Lane 04: provider-owned capability adapters, verified ingress and completion envelopes (internal; public surface assembles in @canlang/stdlib).",
   "scripts": {
-    "typecheck": "tsc --noEmit",
-    "test": "node --test 'test/**/*.test.ts'"
+    "typecheck": "node ../../scripts/run-tasks.mjs typecheck:check --filter=@canlang/services",
+    "test": "node ../../scripts/run-tasks.mjs test:unit --filter=@canlang/services",
+    "build": "node ../../scripts/build-package.mjs",
+    "clean": "rm -rf dist/",
+    "build:emit": "tsc -p tsconfig.json",
+    "typecheck:check": "tsc -p tsconfig.json --noEmit",
+    "test:unit": "node --test \"dist/test/**/*.test.js\"",
+    "build:prepare": "node ../../scripts/build-package.mjs --prepare"
   },
   "devDependencies": {
     "@types/node": "^24.0.0",
     "typescript": "^5.9.0"
+  },
+  "main": "./dist/src/index.js",
+  "types": "./dist/src/index.d.ts",
+  "files": [
+    "dist/"
+  ],
+  "dependencies": {
+    "@canlang/contracts": "workspace:*"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/src/index.d.ts",
+      "default": "./dist/src/index.js"
+    },
+    "./catalog": {
+      "types": "./dist/src/catalog.d.ts",
+      "default": "./dist/src/catalog.js"
+    },
+    "./http/client": {
+      "types": "./dist/src/http/client.d.ts",
+      "default": "./dist/src/http/client.js"
+    },
+    "./http/errors": {
+      "types": "./dist/src/http/errors.d.ts",
+      "default": "./dist/src/http/errors.js"
+    },
+    "./http/pagination": {
+      "types": "./dist/src/http/pagination.d.ts",
+      "default": "./dist/src/http/pagination.js"
+    },
+    "./judgments/harness": {
+      "types": "./dist/src/judgments/harness.d.ts",
+      "default": "./dist/src/judgments/harness.js"
+    },
+    "./judgments/systemone": {
+      "types": "./dist/src/judgments/systemone.d.ts",
+      "default": "./dist/src/judgments/systemone.js"
+    },
+    "./mail/adapter": {
+      "types": "./dist/src/mail/adapter.d.ts",
+      "default": "./dist/src/mail/adapter.js"
+    },
+    "./mail/redact": {
+      "types": "./dist/src/mail/redact.d.ts",
+      "default": "./dist/src/mail/redact.js"
+    },
+    "./media/comfyui": {
+      "types": "./dist/src/media/comfyui.d.ts",
+      "default": "./dist/src/media/comfyui.js"
+    },
+    "./media/harness": {
+      "types": "./dist/src/media/harness.d.ts",
+      "default": "./dist/src/media/harness.js"
+    },
+    "./media/mapping": {
+      "types": "./dist/src/media/mapping.d.ts",
+      "default": "./dist/src/media/mapping.js"
+    },
+    "./models/harness": {
+      "types": "./dist/src/models/harness.d.ts",
+      "default": "./dist/src/models/harness.js"
+    },
+    "./models/ollama": {
+      "types": "./dist/src/models/ollama.d.ts",
+      "default": "./dist/src/models/ollama.js"
+    },
+    "./ports": {
+      "types": "./dist/src/ports.d.ts",
+      "default": "./dist/src/ports.js"
+    },
+    "./scenarios": {
+      "types": "./dist/src/scenarios.d.ts",
+      "default": "./dist/src/scenarios.js"
+    },
+    "./distribution": {
+      "types": "./dist/src/distribution.d.ts",
+      "default": "./dist/src/distribution.js"
+    }
   }
 }

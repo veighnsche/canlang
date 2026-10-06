@@ -48,7 +48,7 @@ import type {
   OutboxItem,
   ScheduledOccurrence,
   WorkScope,
-} from '../../contracts/src/work.js';
+} from '@canlang/contracts';
 
 /** Minimal wall-clock seam. The kernel never reads time implicitly. */
 export interface ClockPort {

@@ -18,7 +18,7 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import type { RecordId, StoragePort } from "@canlang/contracts";
-import { createMemoryStorage } from "../../../state/dist/state/src/storage/memory.js";
+import { createMemoryStorage } from "@canlang/state/storage/memory";
 import {
   FIXED_NOW,
   asId,
@@ -27,7 +27,7 @@ import {
   makeBatch,
   makeRow,
   seedMember,
-} from "../../../state/dist/state/test/invocation/fixtures.js";
+} from "@canlang/state/testing/invocation/fixtures";
 import {
   T34F7_FANOUT_CHILD_MODEL,
   T34F7_FANOUT_INTENT_MODEL,

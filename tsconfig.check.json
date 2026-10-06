@@ -1,35 +1,21 @@
 {
-  // Lane-07-owned sources only (plus the full contracts assembly, which this
-  // lane builds). Producer packages join the root check when their owners
-  // route the integration request with an extends-compatible tsconfig.
   "extends": "./tsconfig.base.json",
   "compilerOptions": {
     "composite": false,
-    "noEmit": true,
-    // L4 S8b runtime pin imports files TS source, which uses .ts
-    // extensions; allowed here (check-only) without touching emits.
-    "allowImportingTsExtensions": true,
-    "baseUrl": ".",
-    "paths": {
-      "@canlang/contracts": ["./packages/contracts/src/index.ts"],
-      "@canlang/cloudflare": ["./packages/cloudflare/src/index.ts"],
-      "@canlang/testkit": ["./packages/testkit/src/index.ts"]
-    }
+    "noEmit": true
   },
   "include": [
     "packages/contracts/src",
     "packages/contracts/test",
-    "packages/cloudflare",
-    "packages/testkit",
+    "packages/cloudflare/src",
+    "packages/cloudflare/test",
+    "packages/testkit/src",
+    "packages/testkit/test",
     "tests/integration",
     "vitest.config.ts"
   ],
-  // INTERIM (PR22, remove when L4 hardens — request filed via
-  // orchestrator + lane-07 status): playback.test.ts imports services
-  // harnesses/adapters as TS source (S8b precedent), which pulls
-  // services/src into the program and surfaces 4 pre-existing
-  // strictness gaps in L4-owned files (http/client.ts:245,518;
-  // ports.ts:393,399). The suite still RUNS in CI (vitest does not
-  // typecheck); only tsc coverage of this one file waits on L4.
-  "exclude": ["packages/testkit/test/playback.test.ts"]
+  "exclude": [
+    "**/dist",
+    "**/node_modules"
+  ]
 }

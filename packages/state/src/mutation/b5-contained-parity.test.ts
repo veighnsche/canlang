@@ -36,12 +36,12 @@
  */
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import type { CompileArtifact } from '../../../contracts/src/artifact.js';
+import type { CompileArtifact } from '@canlang/contracts';
 import type {
   RecordId,
   StoragePort,
   StoredRow,
-} from '../../../contracts/src/state.js';
+} from '@canlang/contracts';
 import {
   IncompatibleArtifactError,
   artifactToDescriptorSet,

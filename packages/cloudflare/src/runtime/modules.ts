@@ -4,10 +4,8 @@
  *
  * Rewrites:
  * - `@canlang/stdlib` -> peer-provided `opts.stdlibUrl` (verbatim).
- * - `@canlang/ui` -> file URL of the built UI dist entry under `distRoot`
- *   (`<distRoot>/ui/dist/ui/src/index.js`, mirroring that package's
- *   `main`). A missing dist fails loud naming the build command, mirroring
- *   `tests/e2e/fixtures/artifact-loader.ts` readVendorTree — never stubbed.
+ * - `@canlang/ui` -> the installed package's exported entry (or the explicit
+ *   `uiUrl` host/test injection). Missing builds fail with the producer command.
  * - Relative specifiers are left intact; modules are written to `workDir`
  *   preserving artifact-relative paths, so they resolve on disk naturally.
  *
@@ -23,6 +21,7 @@
 import { mkdir, stat, writeFile } from "node:fs/promises";
 import { dirname, join, posix, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
+import { resolveProducerFile } from "../deploy/producer-files.js";
 import type { ArtifactModule, CompileArtifact } from "@canlang/contracts";
 
 /**
@@ -51,8 +50,10 @@ export interface AssembledModules {
 }
 
 export interface AssembleModulesOptions {
-  /** Directory containing per-producer trees (`<distRoot>/ui/dist/...`). */
-  distRoot: string;
+  /** Legacy project input; producer resolution uses package exports. */
+  distRoot?: string;
+  /** Explicit UI artifact for test/host injection; defaults to the installed package. */
+  uiUrl?: string;
   /** Directory to stage rewritten modules under (created if missing). */
   workDir: string;
   /** Peer-provided runnable module URL for `@canlang/stdlib`. */
@@ -63,7 +64,7 @@ export const STDLIB_SPECIFIER = "@canlang/stdlib";
 export const UI_SPECIFIER = "@canlang/ui";
 export const UI_BUILD_COMMAND = "bun run --filter @canlang/ui build";
 /** UI dist entry relative to `distRoot`, mirroring that package's `main`. */
-export const UI_DIST_ENTRY_RELATIVE = join("ui", "dist", "ui", "src", "index.js");
+export const UI_DIST_ENTRY_RELATIVE = join("ui", "dist", "src", "index.js");
 
 const FROM_SPECIFIER_RE = /(\bfrom\s*['"])([^'"]+)(['"])/g;
 const DYNAMIC_IMPORT_RE = /(\bimport\s*\(\s*['"])([^'"]+)(['"]\s*\))/g;
@@ -134,8 +135,8 @@ function assertSafeRelativePath(path: string): void {
   }
 }
 
-async function uiModuleUrl(distRoot: string): Promise<string> {
-  const entry = join(distRoot, UI_DIST_ENTRY_RELATIVE);
+export async function uiModuleUrl(uiUrl?: string): Promise<string> {
+  const entry = new URL(uiUrl ?? pathToFileURL(resolveProducerFile(UI_SPECIFIER, UI_BUILD_COMMAND)).href);
   try {
     if (!(await stat(entry)).isFile()) throw new Error("not a file");
   } catch {
@@ -144,7 +145,7 @@ async function uiModuleUrl(distRoot: string): Promise<string> {
         `run \`${UI_BUILD_COMMAND}\` first`,
     );
   }
-  return pathToFileURL(entry).href;
+  return entry.href;
 }
 
 export async function assembleModules(
@@ -160,7 +161,7 @@ export async function assembleModules(
   }
   const entry = modules[0]!;
   // Fail loud before writing anything: no partial workDir on bad input.
-  const uiUrl = await uiModuleUrl(opts.distRoot);
+  const uiUrl = await uiModuleUrl(opts.uiUrl);
   validateImports(modules);
   for (const mod of modules) assertSafeRelativePath(mod.path);
 

@@ -37,21 +37,21 @@ import type {
   StoragePort,
 } from "@canlang/contracts";
 import { resolveIdentity } from "@canlang/identity";
-import { createTestMemoryStorage } from "../../state/dist/state/src/storage/memory.js";
+import { createTestMemoryStorage } from "@canlang/state/storage/memory";
 // Cross-package journey imports: interfaces DIST (never src), per the
 // assembly.test.ts precedent. Root `build` builds interfaces dist first.
-import { createMcpHandler } from "../../interfaces/dist/interfaces/src/mcp/server.js";
-import { catalogFromArtifactOperations } from "../../interfaces/dist/interfaces/src/http/operations.js";
+import { createMcpHandler } from "@canlang/interfaces/mcp/server";
+import { catalogFromArtifactOperations } from "@canlang/interfaces/http/operations";
 import {
   createGrantFixture,
   createIdentityFixture,
-} from "../../interfaces/dist/interfaces/src/testing.js";
+} from "@canlang/interfaces/testing";
 import type {
   McpDeps as RealMcpDeps,
   McpPermissions as RealMcpPermissions,
   OperationRegistry as RealOperationRegistry,
   SchemaCatalog as RealSchemaCatalog,
-} from "../../interfaces/dist/interfaces/src/ports.js";
+} from "@canlang/interfaces";
 import {
   assembleWorker,
   buildInvoker,

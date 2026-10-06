@@ -23,7 +23,7 @@ import type {
   StoragePort,
   StoredRow,
 } from "@canlang/contracts";
-import type { OperationInvoker } from "../../../packages/cloudflare/src/worker/assembly.js";
+import type { OperationInvoker } from "@canlang/cloudflare/worker/assembly";
 import { PilotExamples } from "./pilot-examples.js";
 
 const SUITE_MODULE = `const test_worker = { model: "employee.Employee", dependencies: [], value: async (c, s) => ({ role: "operator" }) };

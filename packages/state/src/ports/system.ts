@@ -28,7 +28,7 @@ import type {
   StoragePort,
   UniqueClaim,
   UniqueRelease,
-} from '../../../contracts/src/state.js';
+} from '@canlang/contracts';
 import { StateError, storageToStateError } from '../errors.js';
 import { jsonClone } from '../internal/json.js';
 import {

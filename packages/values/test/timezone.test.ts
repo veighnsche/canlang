@@ -1,6 +1,6 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import type { DatetimeValue, DateValue } from "../../contracts/src/values.js";
+import type { DatetimeValue, DateValue } from "@canlang/contracts/values";
 import type { Fold } from "../src/timezone.js";
 import { assertTimezone, isTimezone, local_date, local_instant } from "../src/timezone.js";
 import { date, datetime, durationBetween } from "../src/temporal.js";

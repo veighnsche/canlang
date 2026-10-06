@@ -36,7 +36,7 @@ import type {
   TableCaseResult,
   TableRowResult,
 } from "@canlang/contracts";
-import { createPlaybackHandler, type PlaybackHandler } from "../../packages/testkit/src/fixtures/playback.js";
+import { createPlaybackHandler, type PlaybackHandler } from "@canlang/testkit/fixtures/playback";
 import {
   B2_MAIL_JOURNEY,
   assertB2CompletionRedacted,
@@ -45,7 +45,7 @@ import {
   playbackSeedHost,
   readB2Completion,
   type B2MailJourneyRow,
-} from "../../packages/testkit/src/fixtures/b2-delivery.js";
+} from "@canlang/testkit/fixtures/b2-delivery";
 
 /** Exact absent-producer detail every producer-dependent row carries. */
 const ABSENT_SENTENCE =
@@ -71,8 +71,8 @@ const SEND_TIMEOUT_MS = 5000;
 // check; the non-literal specifier keeps tsc blind (lane02 precedent).
 // ---------------------------------------------------------------------------
 
-const SCENARIOS_SPECIFIER = "../../packages/services/src/scenarios.ts";
-const ADAPTER_SPECIFIER = "../../packages/services/src/mail/adapter.ts";
+const SCENARIOS_SPECIFIER = "@canlang/services/scenarios";
+const ADAPTER_SPECIFIER = "@canlang/services/mail/adapter";
 
 interface ScenarioTableView {
   readonly provider: string;

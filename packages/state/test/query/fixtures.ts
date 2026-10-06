@@ -7,8 +7,8 @@
  * and land with the test files once that API exists; nothing here invents
  * engine APIs. Builders only: no assertions, no miniflare.
  */
-import type { Team } from '../../../contracts/src/identity.js';
-import type { MoneyValue, SecretValue } from '../../../contracts/src/values.js';
+import type { Team } from '@canlang/contracts';
+import type { MoneyValue, SecretValue } from '@canlang/contracts';
 import type {
   AggregateSpec,
   ModelName,
@@ -16,7 +16,7 @@ import type {
   QueryPredicate,
   StoragePort,
   StoredRow,
-} from '../../../contracts/src/state.js';
+} from '@canlang/contracts';
 import {
   buildPolicyTable,
   type ByContext,

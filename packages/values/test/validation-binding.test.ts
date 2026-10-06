@@ -18,10 +18,10 @@ import {
 import { structural_abi_version, validation_call } from "../bindings/generated/values_semantics.js";
 
 const here = dirname(fileURLToPath(import.meta.url));
-// dist/values/test/ -> packages/values/bindings/generated/
+// Compiled hosts read the staged, digest-checked binding beside dist/test/.
 const wasmBytes = () =>
   new Uint8Array(
-    readFileSync(join(here, "..", "..", "..", "bindings", "generated", "values_semantics_bg.wasm")),
+    readFileSync(join(here, "..", "bindings", "generated", "values_semantics_bg.wasm")),
   );
 
 function backend(): ValidationBackend {

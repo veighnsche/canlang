@@ -4,8 +4,7 @@
  * Runtime assertions here check fixture content only; dispatch behavior
  * lands with the S3+ implementations.
  *
- * NOTE: relative contract import is temporary until L7 join J1 assembles
- * @canlang/contracts; then this becomes a workspace package import.
+ * Shapes are imported through the declared @canlang/contracts package API.
  */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -26,7 +25,7 @@ import {
   PAGE_MAX_RECORDS,
   PAGE_MAX_RESPONSE_BYTES,
   WIRE_CONTRACT_VERSION,
-} from '../../contracts/src/wire.js';
+} from '@canlang/contracts';
 import type {
   ActionHandleInvocation,
   BusinessError,
@@ -37,7 +36,7 @@ import type {
   UploadFinalizeResponse,
   UploadIntentRequest,
   UploadIntentResponse,
-} from '../../contracts/src/wire.js';
+} from '@canlang/contracts';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const fixture = (name: string): unknown =>

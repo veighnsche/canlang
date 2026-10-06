@@ -12,17 +12,17 @@ import {
   OllamaChatAdapter,
   classifyStreamLine,
   readFinalChatReply,
-} from '../src/models/ollama.ts';
-import { startControlledOllamaServer } from '../src/models/harness.ts';
+} from '../src/models/ollama.js';
+import { startControlledOllamaServer } from '../src/models/harness.js';
 import type {
   ControlledOllamaScenario,
   ControlledOllamaServer,
-} from '../src/models/harness.ts';
-import { fixedClock } from '../src/ports.ts';
+} from '../src/models/harness.js';
+import { fixedClock } from '../src/ports.js';
 import type {
   ModelChatInput,
   ModelRunSnapshot,
-} from '../../contracts/src/services.js';
+} from '@canlang/contracts';
 
 const CLOCK_NOW = 1_758_000_000_000;
 const MODEL = 'llama-test';

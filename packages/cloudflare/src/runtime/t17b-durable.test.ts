@@ -37,7 +37,7 @@ import type {
 } from "@canlang/contracts";
 import { resolveIdentity, sha256HexText } from "@canlang/identity";
 import { createFrozenClock, createMemoryIdentityStore } from "@canlang/identity/testing";
-import { createD1Storage, ensureSchema } from "../../../state/dist/state/src/storage/d1.js";
+import { createD1Storage, ensureSchema } from "@canlang/state/storage/d1";
 import { buildInvoker } from "../worker/assembly.js";
 import type { AssembledModules } from "../worker/assembly.js";
 

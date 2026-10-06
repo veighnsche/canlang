@@ -36,20 +36,20 @@ import type {
   NoulAnswer,
   ScoreAnswer,
   ScoreLevel,
-} from '../../../contracts/src/services.js';
-import { assertValidHttpConfig, httpRequest } from '../http/client.ts';
-import type { HttpClientConfig } from '../http/client.ts';
+} from '@canlang/contracts';
+import { assertValidHttpConfig, httpRequest } from '../http/client.js';
+import type { HttpClientConfig } from '../http/client.js';
 import {
   HttpBodyLimitError,
   HttpRedirectError,
   HttpStatusError,
   HttpTooManyRedirectsError,
   HttpTransportError,
-} from '../http/errors.ts';
-import { assertValidCompletion } from '../mail/adapter.ts';
-import { deliveryError } from '../mail/redact.ts';
-import { systemClock } from '../ports.ts';
-import type { Clock, JudgmentPort } from '../ports.ts';
+} from '../http/errors.js';
+import { assertValidCompletion } from '../mail/adapter.js';
+import { deliveryError } from '../mail/redact.js';
+import { systemClock } from '../ports.js';
+import type { Clock, JudgmentPort } from '../ports.js';
 
 export interface SystemOneConfig {
   /** Fixed provider endpoint origin. */

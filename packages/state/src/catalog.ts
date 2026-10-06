@@ -1,4 +1,4 @@
-import { STATE_CONTRACT_VERSION } from '../../contracts/src/state.js';
+import { STATE_CONTRACT_VERSION } from '@canlang/contracts';
 
 /** Internal engine version; released artifacts record this alongside output. */
 export const STATE_ENGINE_VERSION = '0.1.0';

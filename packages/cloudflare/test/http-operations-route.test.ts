@@ -38,22 +38,22 @@ import type {
 } from "@canlang/contracts";
 import type {
   StoragePort,
-} from "../../state/dist/state/src/index.js";
-import { createTestMemoryStorage } from "../../state/dist/state/src/storage/memory.js";
+} from "@canlang/state";
+import { createTestMemoryStorage } from "@canlang/state/storage/memory";
 import { deriveCsrfToken, sha256HexText } from "@canlang/identity";
 import {
   catalogFromArtifactOperations,
   handleOperationRequest,
-} from "../../interfaces/dist/interfaces/src/http/operations.js";
-import type { HttpDeps as RealHttpDeps } from "../../interfaces/dist/interfaces/src/ports.js";
-import type { McpDeps as RealMcpDeps } from "../../interfaces/dist/interfaces/src/ports.js";
-import { createMcpHandler } from "../../interfaces/dist/interfaces/src/mcp/server.js";
+} from "@canlang/interfaces/http/operations";
+import type { HttpDeps as RealHttpDeps } from "@canlang/interfaces";
+import type { McpDeps as RealMcpDeps } from "@canlang/interfaces";
+import { createMcpHandler } from "@canlang/interfaces/mcp/server";
 import {
   bindingFromDerived,
   clearFormBindings,
   registerFormBinding,
-} from "../../interfaces/dist/interfaces/src/http/formErrors.js";
-import { createGrantFixture, createIdentityFixture } from "../../interfaces/dist/interfaces/src/testing.js";
+} from "@canlang/interfaces/http/form-errors";
+import { createGrantFixture, createIdentityFixture } from "@canlang/interfaces/testing";
 import type {
   AssembledModules,
   AssemblyDeps,

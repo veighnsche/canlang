@@ -7,7 +7,7 @@ import type {
   AppearanceVariant,
   PresentationContext,
   TextValue,
-} from "../../contracts/src/presentation.js";
+} from "@canlang/contracts";
 import { message } from "../src/messages.js";
 import {
   badge,

@@ -16,8 +16,8 @@ import type {
   OperationName,
   Principal,
   TeamScope,
-} from '../../../contracts/src/state.js';
-import type { ResolvedIdentity } from '../../../contracts/src/identity.js';
+} from '@canlang/contracts';
+import type { ResolvedIdentity } from '@canlang/contracts';
 import { StateError } from '../errors.js';
 
 /** Operation identities older than 24h are rejected (DESIGN §7). */

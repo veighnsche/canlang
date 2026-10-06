@@ -9,7 +9,7 @@
 import { addDecimal, negateDecimal, type Decimal } from "../src/decimal.js";
 import { ValueError, type ValueFailureCode } from "../src/errors.js";
 import { addInt, negateInt } from "../src/int.js";
-import type { DateValue, MoneyValue } from "../../contracts/src/values.js";
+import type { DateValue, MoneyValue } from "@canlang/contracts/values";
 import { addMoney } from "../src/money.js";
 import { dateToEpochDays } from "../src/temporal.js";
 import { reconstruct, tag, type Tagged } from "./carriers.js";

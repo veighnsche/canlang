@@ -1,7 +1,7 @@
 /** S6: delivery-association matching for completion handlers. */
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { matchAssociatedCompletion } from '../src/observation/association.ts';
+import { matchAssociatedCompletion } from '../src/observation/association.js';
 
 describe('association: matching current completions', () => {
   it('matches the current id, source and minimum revision', () => {

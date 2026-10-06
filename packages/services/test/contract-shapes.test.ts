@@ -26,7 +26,7 @@ import type {
   ProviderLimits,
   ProviderPage,
   VerifiedIngressEnvelope,
-} from '../../contracts/src/services.js';
+} from '@canlang/contracts';
 
 describe('services contracts', () => {
   it('keeps delivery receipts and errors closed', () => {

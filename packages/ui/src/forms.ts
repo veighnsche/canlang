@@ -15,7 +15,7 @@ import {
   CSRF_FIELD,
   GENERATED_FORM_TYPE_FOR_KIND,
   GENERATED_REF_VERSION_SUFFIX,
-} from "../../contracts/src/presentation.js";
+} from "@canlang/contracts";
 import type {
   ActionProps,
   ActionsProps,
@@ -29,14 +29,14 @@ import type {
   GeneratedFormProps,
   MessageValue,
   PresentationContext,
-} from "../../contracts/src/presentation.js";
-import type { FieldError, MutationRef } from "../../contracts/src/presentation.js";
+} from "@canlang/contracts";
+import type { FieldError, MutationRef } from "@canlang/contracts";
 import type {
   ClosedInputs,
   DerivedDeliveryBinding,
   DerivedOperationInputs,
   DerivedWritableInput,
-} from "../../contracts/src/wire.js";
+} from "@canlang/contracts";
 import { escapeAttr, escapeHtml, safeHref } from "./escape.js";
 // C4b explicit-control dispatch + label/validator fragment reuse. This is a
 // forms<->controls import cycle, safe under ESM: both modules touch the

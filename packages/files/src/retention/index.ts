@@ -13,15 +13,15 @@
 import type {
   FinalizedFileRef,
   UploadIntentId,
-} from '../../../contracts/src/files.js';
+} from '@canlang/contracts';
 import type {
   BlobStorePort,
   ClockPort,
   FinalizedStorePort,
   IntentStorePort,
-} from '../ports.ts';
-import { blobKeyForFile } from '../finalize/index.ts';
-import { stagingKeyForIntent } from '../upload/index.ts';
+} from '../ports.js';
+import { blobKeyForFile } from '../finalize/index.js';
+import { stagingKeyForIntent } from '../upload/index.js';
 
 export interface RetentionDeps {
   readonly clock: ClockPort;

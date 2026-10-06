@@ -41,8 +41,8 @@ import type {
   TextareaProps,
   ToggleProps,
   ValidatorProps,
-} from "../../contracts/src/presentation.js";
-import type { FieldError } from "../../contracts/src/presentation.js";
+} from "@canlang/contracts";
+import type { FieldError } from "@canlang/contracts";
 import { appearanceClasses, type AppearanceOpts } from "./appearance.js";
 import { renderState } from "./components.js";
 import { escapeAttr, escapeHtml, safeHref } from "./escape.js";

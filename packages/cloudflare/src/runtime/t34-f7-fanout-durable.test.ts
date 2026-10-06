@@ -33,12 +33,12 @@ import type {
   StoragePort,
   StoredRow,
 } from "@canlang/contracts";
-import { createD1Storage, ensureSchema } from "../../../state/dist/state/src/storage/d1.js";
+import { createD1Storage, ensureSchema } from "@canlang/state/storage/d1";
 import {
   FenceConflictError,
   StorageConstraintError,
-} from "../../../state/dist/state/src/storage/port.js";
-import type { OperationRegistry } from "../../../state/dist/state/src/invocation/registry.js";
+} from "@canlang/state/storage/port";
+import type { OperationRegistry } from "@canlang/state/invocation/registry";
 import {
   FIXED_NOW,
   asId,
@@ -51,8 +51,8 @@ import {
   makeRow,
   seedMember,
   uuidv7,
-} from "../../../state/dist/state/test/invocation/fixtures.js";
-import type { TestMembershipStore } from "../../../state/dist/state/test/invocation/fixtures.js";
+} from "@canlang/state/testing/invocation/fixtures";
+import type { TestMembershipStore } from "@canlang/state/testing/invocation/fixtures";
 import {
   T34F7_FANOUT_CHECKPOINT_MODEL,
   T34F7_FANOUT_CHILD_MODEL,
@@ -92,7 +92,7 @@ const producers: FanoutStateProducers = await loadFanoutStateProducers();
  * import.meta-derived absolute, so the anchor moves nothing but the
  * workerd mount.
  */
-const stateDirPath = fileURLToPath(new URL("../../../state/", import.meta.url));
+const stateDirPath = fileURLToPath(new URL("../../", import.meta.resolve("@canlang/state/distribution")));
 const entryCwd = process.cwd();
 process.chdir(stateDirPath);
 
@@ -129,7 +129,7 @@ async function resetD1(): Promise<void> {
 }
 
 const doWorkerPath = fileURLToPath(
-  new URL("../../../state/test/storage/do-test-worker.js", import.meta.url),
+  new URL(import.meta.resolve("@canlang/state/testing/storage/do-test-worker")),
 );
 
 let doMf: Miniflare | undefined;

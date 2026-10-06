@@ -11,7 +11,7 @@ import type {
   RecordRef,
   UnionValue,
   UserRef,
-} from "../../contracts/src/values.js";
+} from "@canlang/contracts/values";
 import { CURRENCY_MINOR_UNITS } from "./currency-data.js";
 import { ValueError } from "./errors.js";
 

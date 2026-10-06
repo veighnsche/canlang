@@ -1,13 +1,13 @@
 /** S3: occurrence admission — idempotent execution, committed-change handling. */
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import type { CommittedChangeEvent } from '../../contracts/src/work.js';
+import type { CommittedChangeEvent } from '@canlang/contracts';
 import {
   TestOnlyManualClock,
   TestOnlyMemoryOccurrenceStore,
-} from '../src/ports.ts';
-import type { EventDeps } from '../src/event/index.ts';
-import { admitCommittedChange, admitOccurrence } from '../src/event/index.ts';
+} from '../src/ports.js';
+import type { EventDeps } from '../src/event/index.js';
+import { admitCommittedChange, admitOccurrence } from '../src/event/index.js';
 
 function setup(): EventDeps {
   return {

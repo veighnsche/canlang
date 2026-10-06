@@ -9,14 +9,14 @@ import assert from 'node:assert/strict';
 import {
   JudgmentValidationError,
   SystemOneAdapter,
-} from '../src/judgments/systemone.ts';
-import { startControlledSystemOneServer } from '../src/judgments/harness.ts';
+} from '../src/judgments/systemone.js';
+import { startControlledSystemOneServer } from '../src/judgments/harness.js';
 import type {
   ControlledSystemOneScenario,
   ControlledSystemOneServer,
-} from '../src/judgments/harness.ts';
-import { fixedClock } from '../src/ports.ts';
-import type { JudgmentBatchInput } from '../../contracts/src/services.js';
+} from '../src/judgments/harness.js';
+import { fixedClock } from '../src/ports.js';
+import type { JudgmentBatchInput } from '@canlang/contracts';
 
 const CLOCK_NOW = 1_758_000_000_000;
 const MODEL = 'jev-latest';

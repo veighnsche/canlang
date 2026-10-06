@@ -32,40 +32,40 @@ import type {
   ScheduleOp,
   StoragePort,
   StoredRow,
-} from '../../../contracts/src/state.js';
-import type { ResolvedIdentity } from '../../../contracts/src/identity.js';
+} from '@canlang/contracts';
+import type { ResolvedIdentity } from '@canlang/contracts';
 import type {
   FanoutChildId,
   FanoutFailedReason,
   FanoutId,
   FanoutSkippedReason,
   RetryPolicy,
-} from '../../../contracts/src/work.js';
-import type { OperationRegistry } from '../invocation/registry.js';
-import type { ClockPort } from '../invocation/context.js';
-import { invokeFanoutChild, type ExecuteHandler } from '../invocation/invoke.js';
-import type { MembershipReader } from '../policy/roles.js';
-import { StateError } from '../errors.js';
-import { FenceConflictError, StorageConstraintError } from '../storage/port.js';
-import { assertFanoutChildJoin, createFanoutChildJoinPort } from '../ports/transact.js';
+} from '@canlang/contracts';
+import type { OperationRegistry } from '../../src/invocation/registry.js';
+import type { ClockPort } from '../../src/invocation/context.js';
+import { invokeFanoutChild, type ExecuteHandler } from '../../src/invocation/invoke.js';
+import type { MembershipReader } from '../../src/policy/roles.js';
+import { StateError } from '../../src/errors.js';
+import { FenceConflictError, StorageConstraintError } from '../../src/storage/port.js';
+import { assertFanoutChildJoin, createFanoutChildJoinPort } from '../../src/ports/transact.js';
 import {
   fanoutChildRowId,
   readFanoutCheckpointRow,
   readFanoutChildRow,
   withFanoutRowData,
-} from './tables.js';
-import type { FanoutRowMeta } from './tables.js';
+} from '../../src/fanout/tables.js';
+import type { FanoutRowMeta } from '../../src/fanout/tables.js';
 import {
   classifyFanoutChildLifecycle,
   refusedFanoutLifecycle,
   type FanoutChildLifecycle,
-} from './lifecycle.js';
+} from '../../src/fanout/lifecycle.js';
 import {
   FANOUT_T32_REFUSAL_REASON,
   stageFanoutCheckpointAdvanceWrite,
   stageFanoutChildOutcomeWrite,
   type FanoutChildAttemptResult,
-} from './outcome.js';
+} from '../../src/fanout/outcome.js';
 
 /** One driven child: stable identity plus its cohort record. */
 export interface DrivenChild {

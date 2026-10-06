@@ -13,8 +13,8 @@ import type {
   OccurrenceId,
   OutboxId,
   OutboxItem,
-} from '../../../contracts/src/work.js';
-import type { GuardEvaluator } from '../dispatch/index.ts';
+} from '@canlang/contracts';
+import type { GuardEvaluator } from '../dispatch/index.js';
 
 /**
  * Stable outbox identity derived from the originating operation id, the

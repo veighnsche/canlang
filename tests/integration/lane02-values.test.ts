@@ -1,3 +1,4 @@
+import { createRequire } from "node:module";
 /**
  * Lane-02 values join contribution (L7 directory; this ONE file is the
  * lane-02 case body per the join contract in `tests/integration/README.md`).
@@ -128,7 +129,7 @@ function asInputCase(value: unknown, index: number): InputCase {
 }
 
 function loadFixtures(): JoinFixtures {
-  const url = new URL("../../packages/values/conformance/v1/values.json", import.meta.url);
+  const url = createRequire(import.meta.url).resolve("@canlang/values/conformance/v1/values.json");
   const raw = JSON.parse(readFileSync(url, "utf8")) as unknown;
   if (!isRecord(raw)) {
     throw new Error("values.json must be an object");

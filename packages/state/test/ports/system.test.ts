@@ -6,7 +6,7 @@
  */
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import type { OutboxIntent } from '../../../contracts/src/state.js';
+import type { OutboxIntent } from '@canlang/contracts';
 import {
   createSystemRegistry,
   defineSystemCommand,

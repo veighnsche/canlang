@@ -28,8 +28,8 @@ import type {
   StoragePort,
   StoredRow,
 } from "@canlang/contracts";
-import { createTestMemoryStorage } from "../../../state/dist/state/src/storage/memory.js";
-import { DISPATCH_JOIN_MODEL } from "../../../state/dist/state/src/ports/transact.js";
+import { createTestMemoryStorage } from "@canlang/state/storage/memory";
+import { DISPATCH_JOIN_MODEL } from "@canlang/state/ports/transact";
 import { WORK_DISPATCH_MODEL as EXECUTORS_DISPATCH_MODEL } from "./executors.js";
 import { assembleDispatchCommands } from "../worker/assembly.js";
 import {
@@ -77,7 +77,7 @@ interface WorkProducers {
 }
 
 function workSpecifier(path: string): string {
-  return ["..", "..", "..", "work", "src", path].join("/");
+  return "@canlang/work/" + path.replace(/\.ts$/, "").replace(/\/index$/, "");
 }
 
 let cachedWork: WorkProducers | null = null;

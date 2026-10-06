@@ -28,7 +28,7 @@ import type {
   MigrationDirective,
   MigrationTransition,
   ModelName,
-} from '../../../contracts/src/state.js';
+} from '@canlang/contracts';
 import {
   buildModelTable,
   type InterimModelDef,

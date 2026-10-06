@@ -44,12 +44,12 @@ import {
   type ModelName,
   type OperationName,
   type QueryPredicate,
-} from '../../../contracts/src/state.js';
+} from '@canlang/contracts';
 import type {
   ArtifactModel,
   ArtifactOperation,
   CompileArtifact,
-} from '../../../contracts/src/artifact.js';
+} from '@canlang/contracts';
 import { validateByPredicate, type ByPredicate } from '../policy/roles.js';
 import { validatePredicateShape } from '../policy/grants.js';
 import type { InterimContainment, InterimRefDef } from '../mutation/models.js';

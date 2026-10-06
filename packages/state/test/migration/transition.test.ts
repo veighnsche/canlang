@@ -9,7 +9,7 @@ import type {
   InstalledSnapshot,
   MigrationDirective,
   ModelName,
-} from '../../../contracts/src/state.js';
+} from '@canlang/contracts';
 import { buildModelTable, type ModelTable } from '../../src/mutation/index.js';
 import { freshInstallSnapshot, validateTransition } from '../../src/migration/index.js';
 import { StateError } from '../../src/errors.js';

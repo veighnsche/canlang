@@ -19,7 +19,7 @@ import {
   HttpStatusError,
   HttpTooManyRedirectsError,
   HttpTransportError,
-} from './errors.ts';
+} from './errors.js';
 
 /** Maximum same-origin redirect hops per request. */
 const MAX_REDIRECT_HOPS = 5;

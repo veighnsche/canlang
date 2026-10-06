@@ -24,7 +24,7 @@
  * invocations beyond the two delegated legacy runs. Cycle-safe via
  * visited sets (termination, not a V07 budget).
  */
-import type { CanValue } from "../../../contracts/src/values.js";
+import type { CanValue } from "@canlang/contracts/values";
 import type { NormalizedSchema, UpdateContract, ValidationMode } from "../schema.js";
 import { validateValue } from "../schema.js";
 import { decodeValue, encodeValue } from "../wire.js";

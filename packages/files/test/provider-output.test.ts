@@ -16,21 +16,21 @@ import type {
   ApiGraph,
   GeneratedImage,
   WorkflowNodeMapping,
-} from '../../contracts/src/services.js';
+} from '@canlang/contracts';
 import {
   ComfyUINativeAdapter,
   type HistoryImageDescriptor,
-} from '../../services/src/media/comfyui.ts';
-import { startControlledComfyServer } from '../../services/src/media/harness.ts';
-import type { ControlledComfyServer } from '../../services/src/media/harness.ts';
-import { digestGraph } from '../../services/src/media/mapping.ts';
+} from '@canlang/services/media/comfyui';
+import { startControlledComfyServer } from '@canlang/services/media/harness';
+import type { ControlledComfyServer } from '@canlang/services/media/harness';
+import { digestGraph } from '@canlang/services/media/mapping';
 import {
   appendUploadContent,
   completeUploadContent,
   createUploadIntent,
   sha256Hex,
   stagingKeyForIntent,
-} from '../src/upload/index.ts';
+} from '../src/upload/index.js';
 import {
   authorizeAttach,
   blobKeyForFile,
@@ -41,10 +41,10 @@ import {
   recordAttachment,
   storedState,
   type ProviderOutputInput,
-} from '../src/finalize/index.ts';
-import { createFsBlobStore } from '../src/upload/fs-blob-store.ts';
-import { describeForReceipt, runRetention } from '../src/retention/index.ts';
-import type { RequestProvenanceBinding } from '../src/provenance/index.ts';
+} from '../src/finalize/index.js';
+import { createFsBlobStore } from '../src/upload/fs-blob-store.js';
+import { describeForReceipt, runRetention } from '../src/retention/index.js';
+import type { RequestProvenanceBinding } from '../src/provenance/index.js';
 import {
   GARBAGE_BYTES,
   JPEG_BYTES,
@@ -56,7 +56,7 @@ import {
   T0,
   makeHarness,
   type FileHarness,
-} from './helpers.ts';
+} from './helpers.js';
 
 const PROVIDER_BINDING: RequestProvenanceBinding = {
   adapter: 'deployment.comfyui',

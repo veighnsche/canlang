@@ -18,8 +18,8 @@
  */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { ARTIFACT_VERSION } from '../../contracts/src/artifact.js';
-import type { ArtifactOperation } from '../../contracts/src/artifact.js';
+import { ARTIFACT_VERSION } from '@canlang/contracts';
+import type { ArtifactOperation } from '@canlang/contracts';
 import type { ReadEnvelope, ResolvedIdentity } from '@canlang/contracts';
 import type { ReadOutcome } from '../src/ports.js';
 import { buildBusinessError } from '../src/errors/envelope.js';

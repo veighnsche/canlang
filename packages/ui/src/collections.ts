@@ -26,8 +26,8 @@ import type {
   PresentationContext,
   RowView,
   TableProps,
-} from "../../contracts/src/presentation.js";
-import { CSRF_FIELD } from "../../contracts/src/presentation.js";
+} from "@canlang/contracts";
+import { CSRF_FIELD } from "@canlang/contracts";
 import { appearanceClasses, type AppearanceOpts } from "./appearance.js";
 import { renderState, rowHeading } from "./components.js";
 import {
