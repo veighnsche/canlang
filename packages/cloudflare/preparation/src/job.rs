@@ -5,8 +5,10 @@
 //! handshake frame receives a typed `unimplemented` failure and the
 //! session stays open, proving the retained loop without semantics.
 
+use crate::failures::semantic;
+use crate::failures::transport;
 use crate::protocol::{
-    read_frame, write_json, Failure, Handshake, HandshakeAccept, FrameError, PROTOCOL_NAME,
+    read_frame, write_json, Failure, FrameError, Handshake, HandshakeAccept, PROTOCOL_NAME,
     PROTOCOL_VERSION, TAG_JSON,
 };
 use std::io::{Read, Write};
@@ -45,7 +47,7 @@ fn serve(reader: &mut impl Read, writer: &mut impl Write) -> Result<(), i32> {
     };
     if hello.protocol != PROTOCOL_NAME || hello.version != PROTOCOL_VERSION {
         let failure = Failure::new(
-            "version-mismatch",
+            transport::VERSION_MISMATCH,
             format!(
                 "want {} v{}, got {} v{}",
                 PROTOCOL_NAME, PROTOCOL_VERSION, hello.protocol, hello.version
@@ -74,7 +76,7 @@ fn serve(reader: &mut impl Read, writer: &mut impl Write) -> Result<(), i32> {
                 // Scaffold: no job semantics yet (P04+). Typed failure
                 // keeps the session open for further frames.
                 let failure = Failure::new(
-                    "unimplemented",
+                    semantic::UNIMPLEMENTED,
                     "job execution lands in P04+; scaffold serves framing only".to_string(),
                 );
                 if write_json(writer, &failure).is_err() {
