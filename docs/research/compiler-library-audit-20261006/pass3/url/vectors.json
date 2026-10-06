@@ -1,0 +1,147 @@
+[
+  {
+    "id": "url_basic",
+    "value": "https://example.com/path",
+    "expected": true
+  },
+  {
+    "id": "url_unicode_panic",
+    "value": "💥💥💥",
+    "expected": false
+  },
+  {
+    "id": "url_bracketed_bad",
+    "value": "https://[garbage]",
+    "expected": false
+  },
+  {
+    "id": "url_port_high",
+    "value": "https://host:999999",
+    "expected": false
+  },
+  {
+    "id": "url_userinfo",
+    "value": "https://user:pass@example.com",
+    "expected": true
+  },
+  {
+    "id": "url_case",
+    "value": "HTTPS://EXAMPLE.COM/a",
+    "expected": true
+  },
+  {
+    "id": "url_unicode_host",
+    "value": "https://é.example/a",
+    "expected": true
+  },
+  {
+    "id": "url_backslash",
+    "value": "https://example.com\\a",
+    "expected": true
+  },
+  {
+    "id": "url_trimmed",
+    "value": " https://example.com/a ",
+    "expected": true
+  },
+  {
+    "id": "url_space_path",
+    "value": "https://example.com/a b",
+    "expected": true
+  },
+  {
+    "id": "url_relative",
+    "value": "/a",
+    "expected": false
+  },
+  {
+    "id": "url_non_http",
+    "value": "ftp://example.com/a",
+    "expected": false
+  },
+  {
+    "id": "url_ipv6",
+    "value": "https://[::1]:443/a",
+    "expected": true
+  },
+  {
+    "id": "url_port_empty",
+    "value": "https://example.com:/a",
+    "expected": true
+  },
+  {
+    "id": "bracket_unclosed",
+    "value": "https://[::1",
+    "expected": false
+  },
+  {
+    "id": "bracket_suffix",
+    "value": "https://[::1]junk",
+    "expected": false
+  },
+  {
+    "id": "port_65535",
+    "value": "https://example.com:65535",
+    "expected": true
+  },
+  {
+    "id": "port_65536",
+    "value": "https://example.com:65536",
+    "expected": false
+  },
+  {
+    "id": "port_nondigit",
+    "value": "https://example.com:abc",
+    "expected": false
+  },
+  {
+    "id": "host_missing",
+    "value": "https://",
+    "expected": false
+  },
+  {
+    "id": "proto_relative",
+    "value": "//example.com/a",
+    "expected": false
+  },
+  {
+    "id": "http_no_slashes",
+    "value": "http:example.com/a",
+    "expected": true
+  },
+  {
+    "id": "ascii_tab",
+    "value": "ht\ttp://example.com/a",
+    "expected": true
+  },
+  {
+    "id": "unicode_idna",
+    "value": "https://faß.de/a",
+    "expected": true
+  },
+  {
+    "id": "unicode_joiner",
+    "value": "https://a‍b.example/a",
+    "expected": false
+  },
+  {
+    "id": "unicode_space",
+    "value": "https://a b.example/a",
+    "expected": false
+  },
+  {
+    "id": "ipv4_legacy",
+    "value": "http://0x7f.1/a",
+    "expected": true
+  },
+  {
+    "id": "host_bad_percent",
+    "value": "https://%zz.example/a",
+    "expected": false
+  },
+  {
+    "id": "path_bad_percent",
+    "value": "https://example.com/%zz",
+    "expected": true
+  }
+]
