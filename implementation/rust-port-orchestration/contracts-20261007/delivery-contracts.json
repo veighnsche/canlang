@@ -1,0 +1,2147 @@
+{
+  "schema_version": 1,
+  "date": "2026-10-07",
+  "phase": "step2_D01_planning",
+  "implementation_authorized": false,
+  "runtime_tests_builds_installs_run": false,
+  "written_repo_files": [],
+  "provided_checkpoint_head": "9bb5bbdd9f9acf9ef92fe349719bb0bb01d9e08a",
+  "source_hashes": [
+    {
+      "path": "/Users/vince/Projects/canlang/AGENTS.md",
+      "sha256": "f30ab82d2e8803997b9eb6a5bba36c98defd1fce526711a0ae222fb6c4201f4e"
+    },
+    {
+      "path": "/Users/vince/Projects/canlang/implementation/rust-port-orchestration/preflight-20261007/SCOPE-CHECKPOINT.md",
+      "sha256": "9716722c23f6ff9846cadcdf4bc871fb4e3f41e34ab37f5338fd821104631b75"
+    },
+    {
+      "path": "/Users/vince/Projects/canlang/implementation/rust-port-orchestration/preflight-20261007/scope-queue.json",
+      "sha256": "62076535dd0c3b0afcc91eaa7ac09ed60fcd32a9c51c3fce2d9917b288432534"
+    },
+    {
+      "path": "/Users/vince/Projects/canlang/docs/research/package-library-audit-20261006/adoption-sequence.md",
+      "sha256": "477c890b6d20d9400211b5763b4329650bef5244cfa13234033369f6ddbf0f00"
+    },
+    {
+      "path": "/Users/vince/Projects/canlang/docs/research/package-library-audit-20261006/reviews/delivery-sequence-input.md",
+      "sha256": "092086ef60eb7b55f68f846e9f7ad71b3a755d3708e5a80e327ab48cce933d5c"
+    },
+    {
+      "path": "/Users/vince/Projects/canlang/docs/research/package-library-audit-20261006/reviews/adapters.md",
+      "sha256": "29583ddbe7465b43d246b9bb138b1d58366c0df26b632e751d3d4840e4abd62f"
+    },
+    {
+      "path": "/Users/vince/Projects/canlang/docs/research/package-library-audit-20261006/reviews/native-delivery.md",
+      "sha256": "6d18b2138ebbe8a873936455dbae3e21966ca55bbff5c2ad454773ceaefc12bf"
+    },
+    {
+      "path": "/Users/vince/Projects/canlang/packages/cloudflare/src/runtime/modules.ts",
+      "sha256": "f42ff4589751ee275ad48905c6a073fe20b38a9ee49ef147d38e69befda63230"
+    },
+    {
+      "path": "/Users/vince/Projects/canlang/packages/cloudflare/src/runtime/sourcemap.ts",
+      "sha256": "1455a9344724114863b2438403e08bf0e4db3a08c4ddd68fc1ae99992419c66b"
+    },
+    {
+      "path": "/Users/vince/Projects/canlang/packages/cloudflare/src/deploy/bundle.ts",
+      "sha256": "c655fed4ef03d35d39fc52811abc4d41516d2bf8e52fcf4a499d17e8f9057ed1"
+    },
+    {
+      "path": "/Users/vince/Projects/canlang/packages/cloudflare/src/runtime/invoke.ts",
+      "sha256": "bc08e559d905ed285bb7beff9db0d3e43c808a604face535b5305f444ffae15d"
+    },
+    {
+      "path": "/Users/vince/Projects/canlang/packages/cloudflare/src/dev/local-run.ts",
+      "sha256": "78e2c5fca805c79003684360de328d793805693620facccb8ff7c8864687433a"
+    },
+    {
+      "path": "/Users/vince/Projects/canlang/packages/cloudflare/src/preparation/build-adapter.ts",
+      "sha256": "ddbd1eb6abc50c1dfa1ccc59cfdd8f3e54cc5d296356004c794f2556f1053383"
+    },
+    {
+      "path": "/Users/vince/Projects/canlang/packages/cloudflare/src/runtime/artifact.ts",
+      "sha256": "e04b6ee1dc35b427d2e70aff35410142c1a1eabcfd73dc9ace973f965a51b04d"
+    },
+    {
+      "path": "/Users/vince/Projects/canlang/packages/cloudflare/src/runtime/env-assembly.ts",
+      "sha256": "d39b218d24926884b627a30dadb5a1bf46db87cfbc1e6834b6f01ee136b95c25"
+    },
+    {
+      "path": "/Users/vince/Projects/canlang/packages/cloudflare/src/runtime/grant-route.ts",
+      "sha256": "523a5446fba7d0080a4572905a72c900ac91ba7c33ffa4508eac5f0e0479293d"
+    },
+    {
+      "path": "/Users/vince/Projects/canlang/packages/cloudflare/src/worker/main.ts",
+      "sha256": "2335ee597c4d053960423baa07d1fb621b2b01e4f065a68881a94292f29a26ba"
+    },
+    {
+      "path": "/Users/vince/Projects/canlang/packages/cloudflare/src/worker/assembly.ts",
+      "sha256": "489bf7f70fbb692227c9eb0482df42475b87ae2951d60abbc72d782fe2d51628"
+    },
+    {
+      "path": "/Users/vince/Projects/canlang/packages/contracts/src/artifact.ts",
+      "sha256": "3031c619c79fc6d688667d4a1af07ae7d07863b52c2408c6b96587cc43ccf173"
+    },
+    {
+      "path": "/Users/vince/Projects/canlang/packages/cloudflare/test/modules.test.ts",
+      "sha256": "2c9f319c5ffec8d490bd199d372724dd240886dffc95358328c30fe942c47ba3"
+    },
+    {
+      "path": "/Users/vince/Projects/canlang/packages/cloudflare/test/sourcemap.test.ts",
+      "sha256": "8dea333cf3bbf89c89186f69a47ba5810dfd5730da85a9d6e031b694c9c2011b"
+    },
+    {
+      "path": "/Users/vince/Projects/canlang/packages/cloudflare/test/deploy-bundle.test.ts",
+      "sha256": "2febb90a3639d63cc3bfc96d0d89f2df78035cdda389669367db373040fa5752"
+    },
+    {
+      "path": "/Users/vince/Projects/canlang/packages/cloudflare/test/deploy-package-assets.test.ts",
+      "sha256": "41b9ea6dc9ce4598b76be010f5cfb3a5d4a9e59022e5c60c08609de9768a0110"
+    },
+    {
+      "path": "/Users/vince/Projects/canlang/packages/cloudflare/package.json",
+      "sha256": "5a24f4fcd94013cedf1acedab37dd1a4f57cf47c1b4a15e0fcac70e719a4b07c"
+    },
+    {
+      "path": "/Users/vince/Projects/canlang/packages/cloudflare/tsconfig.json",
+      "sha256": "8288e51cec217797ce3fcb51b33f70f55c705b4eefbc4d530fa28c4706ed781b"
+    },
+    {
+      "path": "/Users/vince/Projects/canlang/vitest.config.ts",
+      "sha256": "bfdf5433f8bb47549d2c13cdc56655a7333232447a790c151ac67d9fe5f28ed6"
+    }
+  ],
+  "library_pins": [
+    {
+      "name": "@jridgewell/gen-mapping",
+      "version": "0.3.13",
+      "registry_url": "https://registry.npmjs.org/@jridgewell/gen-mapping/0.3.13",
+      "registry_saved": "/private/tmp/canlang-step2-delivery-support/@jridgewell_gen-mapping.registry.json",
+      "registry_sha256": "8d6579337ef8a2b88374cd0c4f59c7108f59c3a092d001a9a01b6ea953f33711",
+      "tarball_url": "https://registry.npmjs.org/@jridgewell/gen-mapping/-/gen-mapping-0.3.13.tgz",
+      "dist_integrity": "sha512-2kkt/7niJ6MgEPxF0bYdQ6etZaA+fQvDcLKckhy1yIQOzaoKjBBjSj63/aLVjYE3qhRt5dvM+uUyfCg6UKCBbA==",
+      "dist_shasum": "6342a19f44347518c93e43b1ac69deb3c4656a1f",
+      "tarball_sha256": "bc16f658c1f6d63e0c8738ab881d03f49f1955d8f853cdcb8f7d315cf62f0082",
+      "license": "MIT",
+      "engines": null,
+      "exports": {
+        ".": [
+          {
+            "import": {
+              "types": "./types/gen-mapping.d.mts",
+              "default": "./dist/gen-mapping.mjs"
+            },
+            "default": {
+              "types": "./types/gen-mapping.d.cts",
+              "default": "./dist/gen-mapping.umd.js"
+            }
+          },
+          "./dist/gen-mapping.umd.js"
+        ],
+        "./package.json": "./package.json"
+      },
+      "dependency_ranges": {
+        "@jridgewell/trace-mapping": "^0.3.24",
+        "@jridgewell/sourcemap-codec": "^1.5.0"
+      },
+      "git_head": "095a5825c482003597a30aa380b50159219f3618",
+      "selected_release_files": [
+        {
+          "path": "LICENSE",
+          "sha256": "769d154fbde32a915af110b1123650bc79f4cbe675acc66e005265bf069c6c6c"
+        },
+        {
+          "path": "package.json",
+          "sha256": "6264fca78382a9782f8e8d5e653e7bf43dc8aa6d469f3322a82e531093896a01"
+        },
+        {
+          "path": "README.md",
+          "sha256": "9cbfc0d691ff46b615214d836ec6be24393d324f14baba23b12f27dc399f436b"
+        },
+        {
+          "path": "dist/gen-mapping.mjs",
+          "sha256": "06678ac1de98e6697f68acc5f34c1967a88acff9995e4adefc6cb3bf563465c9"
+        }
+      ],
+      "all_release_hashes": "/private/tmp/canlang-step2-delivery-support/@jridgewell_gen-mapping/file-hashes.json",
+      "qualification": "published source/metadata inspected, never installed/executed"
+    },
+    {
+      "name": "@jridgewell/remapping",
+      "version": "2.3.5",
+      "registry_url": "https://registry.npmjs.org/@jridgewell/remapping/2.3.5",
+      "registry_saved": "/private/tmp/canlang-step2-delivery-support/@jridgewell_remapping.registry.json",
+      "registry_sha256": "51e582cec6f9fc2cf5d89e1091d9833d8a0f8aaeca9b42c87e75515bacdfee6d",
+      "tarball_url": "https://registry.npmjs.org/@jridgewell/remapping/-/remapping-2.3.5.tgz",
+      "dist_integrity": "sha512-LI9u/+laYG4Ds1TDKSJW2YPrIlcVYOwi2fUC6xB43lueCjgxV4lffOCZCtYFiH6TNOX+tQKXx97T4IKHbhyHEQ==",
+      "dist_shasum": "375c476d1972947851ba1e15ae8f123047445aa1",
+      "tarball_sha256": "70b16782a39ad16672e47c33473559a25bff9640214df91cb9dd153005d71a02",
+      "license": "MIT",
+      "engines": null,
+      "exports": {
+        ".": [
+          {
+            "import": {
+              "types": "./types/remapping.d.mts",
+              "default": "./dist/remapping.mjs"
+            },
+            "default": {
+              "types": "./types/remapping.d.cts",
+              "default": "./dist/remapping.umd.js"
+            }
+          },
+          "./dist/remapping.umd.js"
+        ],
+        "./package.json": "./package.json"
+      },
+      "dependency_ranges": {
+        "@jridgewell/gen-mapping": "^0.3.5",
+        "@jridgewell/trace-mapping": "^0.3.24"
+      },
+      "git_head": "095a5825c482003597a30aa380b50159219f3618",
+      "selected_release_files": [
+        {
+          "path": "LICENSE",
+          "sha256": "769d154fbde32a915af110b1123650bc79f4cbe675acc66e005265bf069c6c6c"
+        },
+        {
+          "path": "package.json",
+          "sha256": "cc535fb0665977104146fb8fe6c81ff63d2c9ae7f7b783d86e7f7db064cde57a"
+        },
+        {
+          "path": "README.md",
+          "sha256": "48d450ec7cf8c712f2706cb99e96cd5171e02e20a0f90f4403f77bc71747977a"
+        },
+        {
+          "path": "dist/remapping.mjs",
+          "sha256": "08c209a6505d549e7541faa04baa225fd2c78c235ec9b8a3522e49a04350b257"
+        },
+        {
+          "path": "src/build-source-map-tree.ts",
+          "sha256": "1497c772de19a781e9a75990552f61e512ff595d430f9d4aa2bf813f70a02ab6"
+        }
+      ],
+      "all_release_hashes": "/private/tmp/canlang-step2-delivery-support/@jridgewell_remapping/file-hashes.json",
+      "qualification": "published source/metadata inspected, never installed/executed"
+    },
+    {
+      "name": "@jridgewell/resolve-uri",
+      "version": "3.1.2",
+      "registry_url": "https://registry.npmjs.org/@jridgewell/resolve-uri/3.1.2",
+      "registry_saved": "/private/tmp/canlang-step2-delivery-support/@jridgewell_resolve-uri.registry.json",
+      "registry_sha256": "4179096ded7325b5e30ff15c1c97bea61e46c6ea8ebc7809f3fd380d70cc477a",
+      "tarball_url": "https://registry.npmjs.org/@jridgewell/resolve-uri/-/resolve-uri-3.1.2.tgz",
+      "dist_integrity": "sha512-bRISgCIjP20/tbWSPWMEi54QVPRZExkuD9lJL+UIxUKtwVJA8wW1Trb1jMs1RFXo1CBTNZ/5hpC9QvmKWdopKw==",
+      "dist_shasum": "7a0ee601f60f99a20c7c7c5ff0c80388c1189bd6",
+      "tarball_sha256": "db52f9f62558baab13353dd39e3200750fc33e6a129a575b46226f493776e230",
+      "license": "MIT",
+      "engines": {
+        "node": ">=6.0.0"
+      },
+      "exports": {
+        ".": [
+          {
+            "types": "./dist/types/resolve-uri.d.ts",
+            "import": "./dist/resolve-uri.mjs",
+            "browser": "./dist/resolve-uri.umd.js",
+            "require": "./dist/resolve-uri.umd.js"
+          },
+          "./dist/resolve-uri.umd.js"
+        ],
+        "./package.json": "./package.json"
+      },
+      "dependency_ranges": {},
+      "git_head": "caa7a299d6c688570773c81732f77d3c7035ded6",
+      "selected_release_files": [
+        {
+          "path": "LICENSE",
+          "sha256": "b8778b155bfde5a28b023a558753c0fa058a52bb9de35c343c250be1bbcdedab"
+        },
+        {
+          "path": "package.json",
+          "sha256": "0793e722ffe08f3b4f1862c4dc96d920a62d6811a3648b4feb02f06c63227e8b"
+        },
+        {
+          "path": "README.md",
+          "sha256": "17439eff29e4d28023e6b50554c81e3f565d304eeb7bb19f56041ded2a0f0d21"
+        },
+        {
+          "path": "dist/resolve-uri.mjs",
+          "sha256": "92bc7d86f012f0a1a38447512014d2decabeec0663bcebf49b95ca6081722b90"
+        }
+      ],
+      "all_release_hashes": "/private/tmp/canlang-step2-delivery-support/@jridgewell_resolve-uri/file-hashes.json",
+      "qualification": "published source/metadata inspected, never installed/executed"
+    },
+    {
+      "name": "@jridgewell/sourcemap-codec",
+      "version": "1.6.0",
+      "registry_url": "https://registry.npmjs.org/@jridgewell/sourcemap-codec/1.6.0",
+      "registry_saved": "/private/tmp/canlang-step2-delivery-support/@jridgewell_sourcemap-codec.registry.json",
+      "registry_sha256": "c64e07350f24b5dcbce77e6538e8369e7694f15033719d186bb4d951180a2f95",
+      "tarball_url": "https://registry.npmjs.org/@jridgewell/sourcemap-codec/-/sourcemap-codec-1.6.0.tgz",
+      "dist_integrity": "sha512-T7jf+5zgsZHwNJ4lvQ7/aezbyk0nNX+zJVWpmHA7VYsEx7a7qr5Rg5IbtJFqkgze5Y2sruq1RUY8Q837Od7iFw==",
+      "dist_shasum": "f4c663e862f06dc98ca4d453862c46902789a18d",
+      "tarball_sha256": "f30a35f6af8c347d01b8ff2f8662272f7d986cf21b916704d86c249a90b97e25",
+      "license": "MIT",
+      "engines": null,
+      "exports": {
+        ".": [
+          {
+            "import": {
+              "types": "./types/sourcemap-codec.d.mts",
+              "default": "./dist/sourcemap-codec.mjs"
+            },
+            "default": {
+              "types": "./types/sourcemap-codec.d.cts",
+              "default": "./dist/sourcemap-codec.umd.js"
+            }
+          },
+          "./dist/sourcemap-codec.umd.js"
+        ],
+        "./package.json": "./package.json"
+      },
+      "dependency_ranges": {},
+      "git_head": "94c82a925ca79d5eb193ce45d7f0824a4d91e77d",
+      "selected_release_files": [
+        {
+          "path": "LICENSE",
+          "sha256": "769d154fbde32a915af110b1123650bc79f4cbe675acc66e005265bf069c6c6c"
+        },
+        {
+          "path": "package.json",
+          "sha256": "ac7afd57294dbee1f891ca797e19e405340f2cd6031808e6d3845fec60a5b43f"
+        },
+        {
+          "path": "README.md",
+          "sha256": "50e5282b46bafe5e2c87a0f224a86876067694f0434c5b27c0ea2d5bbceba5d7"
+        },
+        {
+          "path": "dist/sourcemap-codec.mjs",
+          "sha256": "2768e18f3bf937a0111c98872ff3e8ec8f5165d103a082b91f5127351beab7d0"
+        },
+        {
+          "path": "src/sourcemap-codec.ts",
+          "sha256": "91d136138bf0d2a4c4d9ca811cc10af74eead3165b75edb5eaa9ddf5337e5fc9"
+        },
+        {
+          "path": "src/vlq.ts",
+          "sha256": "6aff12a00b5a44ada57df49bddc90f90fead9dc230463b49784904373bd11ecd"
+        }
+      ],
+      "all_release_hashes": "/private/tmp/canlang-step2-delivery-support/@jridgewell_sourcemap-codec/file-hashes.json",
+      "qualification": "published source/metadata inspected, never installed/executed"
+    },
+    {
+      "name": "@jridgewell/trace-mapping",
+      "version": "0.3.31",
+      "registry_url": "https://registry.npmjs.org/@jridgewell/trace-mapping/0.3.31",
+      "registry_saved": "/private/tmp/canlang-step2-delivery-support/@jridgewell_trace-mapping.registry.json",
+      "registry_sha256": "0a92d9d204cf3f795c26cda50ad692e6cc537beb508989209d58996fbfd3d358",
+      "tarball_url": "https://registry.npmjs.org/@jridgewell/trace-mapping/-/trace-mapping-0.3.31.tgz",
+      "dist_integrity": "sha512-zzNR+SdQSDJzc8joaeP8QQoCQr8NuYx2dIIytl1QeBEZHJ9uW6hebsrYgbz8hJwUQao3TWCMtmfV8Nu1twOLAw==",
+      "dist_shasum": "db15d6781c931f3a251a3dac39501c98a6082fd0",
+      "tarball_sha256": "c64c71a119630d5abe8246889edf334b2ca9ddad094e20d623332956b1453ccf",
+      "license": "MIT",
+      "engines": null,
+      "exports": {
+        ".": [
+          {
+            "import": {
+              "types": "./types/trace-mapping.d.mts",
+              "default": "./dist/trace-mapping.mjs"
+            },
+            "default": {
+              "types": "./types/trace-mapping.d.cts",
+              "default": "./dist/trace-mapping.umd.js"
+            }
+          },
+          "./dist/trace-mapping.umd.js"
+        ],
+        "./package.json": "./package.json"
+      },
+      "dependency_ranges": {
+        "@jridgewell/resolve-uri": "^3.1.0",
+        "@jridgewell/sourcemap-codec": "^1.4.14"
+      },
+      "git_head": "74fc8e11d30641b82e3ca3532cd89477671afeab",
+      "selected_release_files": [
+        {
+          "path": "LICENSE",
+          "sha256": "769d154fbde32a915af110b1123650bc79f4cbe675acc66e005265bf069c6c6c"
+        },
+        {
+          "path": "package.json",
+          "sha256": "7f5eacc669d36013f9b792ab15721a97d48b26b093100122aa6c8691ebe656be"
+        },
+        {
+          "path": "README.md",
+          "sha256": "bc4a19f3e6ac9a3faeefa0687570a6d32ea925365a0705523c064b721c47c799"
+        },
+        {
+          "path": "dist/trace-mapping.mjs",
+          "sha256": "ddcf6097a82c7b16c267f6fb592578205c31e09adf54d3978b6250cca18ed86f"
+        },
+        {
+          "path": "src/resolve.ts",
+          "sha256": "c7e1c5732de10ed3801666733cc8130fa72e55a91a8d74d8ed7dabc114aba57f"
+        },
+        {
+          "path": "src/sort.ts",
+          "sha256": "afc9d966ec471f1be9f6e6843d009b30ce0a37853cbc31ec9834c8d273286403"
+        },
+        {
+          "path": "src/trace-mapping.ts",
+          "sha256": "f37d9db53896dd9adb199cb75b79ab33c8c588b5a25793b714e20dad2f77187b"
+        }
+      ],
+      "all_release_hashes": "/private/tmp/canlang-step2-delivery-support/@jridgewell_trace-mapping/file-hashes.json",
+      "qualification": "published source/metadata inspected, never installed/executed"
+    },
+    {
+      "name": "es-module-lexer",
+      "version": "3.0.3",
+      "registry_url": "https://registry.npmjs.org/es-module-lexer/3.0.3",
+      "registry_saved": "/private/tmp/canlang-step2-delivery-support/es-module-lexer.registry.json",
+      "registry_sha256": "2d4ea34521bc54a18b00be8b9f4d9915b8d423b68593649ead971fe26f4fa653",
+      "tarball_url": "https://registry.npmjs.org/es-module-lexer/-/es-module-lexer-3.0.3.tgz",
+      "dist_integrity": "sha512-yWGe1O/j+almnV4hOYrmZo8u58JdnmXEMneRQAYkWtqSiT86yoMIEKF4rpqEDj52tbYl3xceBD3DQIBwcsC9Pw==",
+      "dist_shasum": "3c4b64e116d69fe523e332134ef088962d78f288",
+      "tarball_sha256": "09146f5722a78925928126548d53538c9293783707e80d581a00298919237d4c",
+      "license": "MIT",
+      "engines": null,
+      "exports": {
+        ".": {
+          "types": "./types/lexer.d.ts",
+          "import": "./dist/lexer.js",
+          "module": "./dist/lexer.js",
+          "require": "./dist/lexer.cjs"
+        },
+        "./js": {
+          "types": "./types/lexer.d.ts",
+          "default": "./dist/lexer.asm.js"
+        },
+        "./minimal": {
+          "types": "./types/lexer.minimal.d.ts",
+          "import": "./dist/lexer.minimal.js",
+          "module": "./dist/lexer.minimal.js",
+          "require": "./dist/lexer.minimal.cjs"
+        },
+        "./minimal/js": {
+          "types": "./types/lexer.minimal.d.ts",
+          "default": "./dist/lexer.minimal.asm.js"
+        }
+      },
+      "dependency_ranges": {},
+      "git_head": "ced104c6395afaff72ad8f74fa53901185004e30",
+      "selected_release_files": [
+        {
+          "path": "LICENSE",
+          "sha256": "8a4b6c44eebfb026d23719a348145a661a555568dbfdc11618ff2d0dd9306b00"
+        },
+        {
+          "path": "dist/lexer.minimal.asm.js",
+          "sha256": "95f6b0530ab27cb146e89bc33acfa45f606c66ee589d16469b414942fc1b4864"
+        },
+        {
+          "path": "package.json",
+          "sha256": "340add1d00a99e80e016b079b61e89957a5b1e02fe83545df0a78c5563537392"
+        },
+        {
+          "path": "README.md",
+          "sha256": "e49a08534a18bd4fe84faf7dc74705fb652905757cf834cafb3509d0d86d8af0"
+        },
+        {
+          "path": "types/lexer.minimal.d.ts",
+          "sha256": "8c8218c37f0d81b067b8f2900e3015c660f3e5d1227a25ddb79d2ba596de7e72"
+        }
+      ],
+      "all_release_hashes": "/private/tmp/canlang-step2-delivery-support/es-module-lexer/file-hashes.json",
+      "qualification": "published source/metadata inspected, never installed/executed"
+    },
+    {
+      "name": "magic-string",
+      "version": "1.4.3",
+      "registry_url": "https://registry.npmjs.org/magic-string/1.4.3",
+      "registry_saved": "/private/tmp/canlang-step2-delivery-support/magic-string.registry.json",
+      "registry_sha256": "59b4863b2ec94aeab651c855ed5328c0b0065486bc63c6ae82cc4769938a3da7",
+      "tarball_url": "https://registry.npmjs.org/magic-string/-/magic-string-1.4.3.tgz",
+      "dist_integrity": "sha512-z12OxmaPGE0F4xlpGdjuAUckipLpQlTAuAmyGhNoD7ODpYUzvDfvtxUbjM/jwznyP178oju/KDdyi220wNJ0RQ==",
+      "dist_shasum": "a0887990507b2ffbcdbc367a8759ed97e0b1233b",
+      "tarball_sha256": "6c9d770ddb800796303481b4bdacd7c308dfe83edd0ff8fa5377438c03889d08",
+      "license": "MIT",
+      "engines": null,
+      "exports": {
+        ".": "./dist/index.mjs",
+        "./package.json": "./package.json"
+      },
+      "dependency_ranges": {
+        "@jridgewell/sourcemap-codec": "^1.6.0"
+      },
+      "git_head": null,
+      "selected_release_files": [
+        {
+          "path": "LICENSE",
+          "sha256": "1cbe51b907662f6cb1492b16c359384a595180bf0e4d101603ed525e75c4e484"
+        },
+        {
+          "path": "README.md",
+          "sha256": "2a93379f18a2ad928c839ac54572df72c25333b1835da1f8f2e676b83f616a51"
+        },
+        {
+          "path": "dist/index.mjs",
+          "sha256": "1618c31179a48defaaedc218302176ff6325e0dff155a01da9a87b96e390c0fe"
+        },
+        {
+          "path": "package.json",
+          "sha256": "e5ab5677a00cf4c8028067b38fb7cee9de17c2662a9a1030bd90c4eadbcc090b"
+        }
+      ],
+      "all_release_hashes": "/private/tmp/canlang-step2-delivery-support/magic-string/file-hashes.json",
+      "qualification": "published source/metadata inspected, never installed/executed"
+    }
+  ],
+  "canonical_original_D_records_preserved": [
+    {
+      "id": "library-sequence:D01",
+      "title": "Freeze import and diagnostic contracts independently",
+      "readiness": "ready_for_contract_planning",
+      "reason": "Scope is selected. Step2 must freeze independently releasable profiles, library versions/entries, actual caller expectations and qualification recipes before source work.",
+      "depends_on_preserved": [
+        "library-sequence:P02"
+      ],
+      "pending_local_inputs": [],
+      "original_task_references": [
+        {
+          "id": "ports:C04.asset",
+          "status_snapshot": "complete",
+          "depends_on_preserved": [
+            "ports:C03.ready"
+          ],
+          "acceptance_must_be_preserved": true
+        },
+        {
+          "id": "ports:C04.graph",
+          "status_snapshot": "partial",
+          "depends_on_preserved": [
+            "ports:W02.foundation",
+            "ports:C04.asset"
+          ],
+          "acceptance_must_be_preserved": true
+        }
+      ],
+      "proposed_owners": [
+        "R3"
+      ],
+      "model_allocation": {
+        "id": "library-sequence:D01",
+        "label": "D01",
+        "whole_unit_profile": "sol_high",
+        "independent_review_profile": "sol_high",
+        "prepared_subtask_profile": "luna_medium",
+        "rationale_and_decomposition": "Freeze sync initialization, first-fault behavior, host closure, malformed admission, mutable cache and verbatim source identities.",
+        "selection_is_task_inference": true
+      },
+      "dispatch_authorized": false,
+      "adds_canonical_obligation": false,
+      "independent_contract_releases": [
+        "import-policy",
+        "raw-map-lookup"
+      ],
+      "acceptance_summary": "separately releasable import/map contracts and short dependency requests. Preserve existing Bun/CJS guard scope unless a later justified AST task replaces it.",
+      "candidate_existing_production_paths": [],
+      "candidate_new_paths_proposal_only": [],
+      "original_source_unit_reference": "docs/research/package-library-audit-20261006/adoption-sequence.json#library-sequence:D01",
+      "parent_gate_rule": "Original references/dependencies govern full parent claims; they are not automatic all-family barriers on a separately released narrower contract/source slice."
+    },
+    {
+      "id": "library-sequence:D02",
+      "title": "Replace import scanning and produce edit maps",
+      "readiness": "blocked_contract_or_consumer_release",
+      "reason": "Needs its exact released local contract/source and every relevant original consumer gate; independent prep may be split without parent completion.",
+      "depends_on_preserved": [
+        "library-sequence:D01"
+      ],
+      "pending_local_inputs": [
+        "library-sequence:D01"
+      ],
+      "original_task_references": [
+        {
+          "id": "ports:C04.asset",
+          "status_snapshot": "complete",
+          "depends_on_preserved": [
+            "ports:C03.ready"
+          ],
+          "acceptance_must_be_preserved": true
+        },
+        {
+          "id": "ports:C04.graph",
+          "status_snapshot": "partial",
+          "depends_on_preserved": [
+            "ports:W02.foundation",
+            "ports:C04.asset"
+          ],
+          "acceptance_must_be_preserved": true
+        }
+      ],
+      "proposed_owners": [
+        "R3"
+      ],
+      "model_allocation": {
+        "id": "library-sequence:D02",
+        "label": "D02",
+        "whole_unit_profile": "sol_high",
+        "independent_review_profile": "sol_high",
+        "prepared_subtask_profile": "luna_medium",
+        "rationale_and_decomposition": "Decoded literals versus UTF-16 spans, import forms, whole-file failures and edit maps affect bundle/modules integration. A frozen pure adapter subpacket may use Sol medium.",
+        "selection_is_task_inference": true
+      },
+      "dispatch_authorized": false,
+      "adds_canonical_obligation": false,
+      "acceptance_summary": "deterministic rewritten JS plus accurate edit maps, stable sync/caller contract and error order. An import lexer is not complete JS validity, CJS or free-variable analysis; retain those separate guards.",
+      "candidate_existing_production_paths": [
+        "packages/cloudflare/src/deploy/bundle.ts",
+        "packages/cloudflare/src/runtime/modules.ts"
+      ],
+      "candidate_new_paths_proposal_only": [
+        "packages/cloudflare/src/deploy/module-imports.ts"
+      ],
+      "original_source_unit_reference": "docs/research/package-library-audit-20261006/adoption-sequence.json#library-sequence:D02",
+      "parent_gate_rule": "Original references/dependencies govern full parent claims; they are not automatic all-family barriers on a separately released narrower contract/source slice."
+    },
+    {
+      "id": "library-sequence:D03",
+      "title": "Replace source-map decoding and lookup",
+      "readiness": "blocked_contract_or_consumer_release",
+      "reason": "Needs its exact released local contract/source and every relevant original consumer gate; independent prep may be split without parent completion.",
+      "depends_on_preserved": [
+        "library-sequence:D01"
+      ],
+      "pending_local_inputs": [
+        "library-sequence:D01"
+      ],
+      "original_task_references": [],
+      "proposed_owners": [
+        "R3"
+      ],
+      "model_allocation": {
+        "id": "library-sequence:D03",
+        "label": "D03",
+        "whole_unit_profile": "sol_high",
+        "independent_review_profile": "sol_high",
+        "prepared_subtask_profile": "luna_medium",
+        "rationale_and_decomposition": "Preserve lookup bias, unmapped and malformed segments, duplicates/order, names, raw identities and mutable-map cache despite library defaults.",
+        "selection_is_task_inference": true
+      },
+      "dispatch_authorized": false,
+      "adds_canonical_obligation": false,
+      "acceptance_summary": "real invocation/map tests pass under the existing consumer interface. This is an explicit diagnostic extension; no original file crosswalk means no fabricated completed task.",
+      "candidate_existing_production_paths": [
+        "packages/cloudflare/src/runtime/sourcemap.ts"
+      ],
+      "candidate_new_paths_proposal_only": [],
+      "original_source_unit_reference": "docs/research/package-library-audit-20261006/adoption-sequence.json#library-sequence:D03",
+      "parent_gate_rule": "Original references/dependencies govern full parent claims; they are not automatic all-family barriers on a separately released narrower contract/source slice."
+    },
+    {
+      "id": "library-sequence:D04",
+      "title": "Compose maps and qualify the actual staged bundle",
+      "readiness": "blocked_contract_or_consumer_release",
+      "reason": "Needs its exact released local contract/source and every relevant original consumer gate; independent prep may be split without parent completion.",
+      "depends_on_preserved": [
+        "library-sequence:D02",
+        "library-sequence:D03"
+      ],
+      "pending_local_inputs": [
+        "library-sequence:D02",
+        "library-sequence:D03"
+      ],
+      "original_task_references": [
+        {
+          "id": "ports:C04.ready",
+          "status_snapshot": "needs_verification",
+          "depends_on_preserved": [
+            "ports:C04.2"
+          ],
+          "acceptance_must_be_preserved": true
+        },
+        {
+          "id": "ports:C04.graph",
+          "status_snapshot": "partial",
+          "depends_on_preserved": [
+            "ports:W02.foundation",
+            "ports:C04.asset"
+          ],
+          "acceptance_must_be_preserved": true
+        },
+        {
+          "id": "ports:W06.runtimehandoff",
+          "status_snapshot": "not_started",
+          "depends_on_preserved": [
+            "ports:W06.2"
+          ],
+          "acceptance_must_be_preserved": true
+        },
+        {
+          "id": "challenge:T08",
+          "status_snapshot": "needs_verification",
+          "depends_on_preserved": [],
+          "acceptance_must_be_preserved": true
+        }
+      ],
+      "proposed_owners": [
+        "R3",
+        "Codex"
+      ],
+      "model_allocation": {
+        "id": "library-sequence:D04",
+        "label": "D04",
+        "whole_unit_profile": "sol_high",
+        "independent_review_profile": "astra_medium",
+        "prepared_subtask_profile": "luna_low",
+        "rationale_and_decomposition": "Map composition and invoke fallback must preserve compiled identity across actual Node/workerd and installed diagnostics. Independent critical review is a short separate packet.",
+        "selection_is_task_inference": true
+      },
+      "dispatch_authorized": false,
+      "adds_canonical_obligation": false,
+      "acceptance_summary": "staged Node/workerd and outside-checkout installed written-artifact diagnostics agree on original positions; missing/dangling/forbidden/corrupt dependency controls fail. Preserve no-edit bytes, deterministic source names/content policy and real suite/positive-test counts. Existing archive/build/cache machinery is reused at its exact scope.",
+      "candidate_existing_production_paths": [
+        "packages/cloudflare/src/runtime/modules.ts",
+        "packages/cloudflare/src/deploy/bundle.ts",
+        "packages/cloudflare/src/dev/local-run.ts"
+      ],
+      "candidate_new_paths_proposal_only": [],
+      "original_source_unit_reference": "docs/research/package-library-audit-20261006/adoption-sequence.json#library-sequence:D04",
+      "parent_gate_rule": "Original references/dependencies govern full parent claims; they are not automatic all-family barriers on a separately released narrower contract/source slice."
+    },
+    {
+      "id": "library-sequence:D05",
+      "title": "Record the future native preparation parser seam",
+      "readiness": "held_implementation_design_record_only",
+      "reason": "Future native parser comparison only; no preparation source, helper/build, publication or HOLD advancement.",
+      "depends_on_preserved": [
+        "library-sequence:D01"
+      ],
+      "pending_local_inputs": [
+        "library-sequence:D01"
+      ],
+      "original_task_references": [
+        {
+          "id": "ports:P05.1",
+          "status_snapshot": "needs_verification",
+          "depends_on_preserved": [
+            "ports:P04.1",
+            "ports:P02.1"
+          ],
+          "acceptance_must_be_preserved": true
+        },
+        {
+          "id": "ports:P05.2",
+          "status_snapshot": "needs_verification",
+          "depends_on_preserved": [
+            "ports:P02.2",
+            "ports:P03.4",
+            "ports:P02.1"
+          ],
+          "acceptance_must_be_preserved": true
+        },
+        {
+          "id": "ports:C04.preparation-join",
+          "status_snapshot": "complete",
+          "depends_on_preserved": [
+            "ports:P05.2",
+            "ports:C04.asset"
+          ],
+          "acceptance_must_be_preserved": true
+        }
+      ],
+      "proposed_owners": [
+        "Codex",
+        "R3",
+        "R4"
+      ],
+      "model_allocation": {
+        "id": "library-sequence:D05",
+        "label": "D05",
+        "whole_unit_profile": "sol_high",
+        "independent_review_profile": "sol_high",
+        "prepared_subtask_profile": "luna_low",
+        "rationale_and_decomposition": "Design-only parser-seam comparison remains held for implementation. Astra medium only for a consequential unresolved architecture decision after evidence/JEV.",
+        "selection_is_task_inference": true
+      },
+      "dispatch_authorized": false,
+      "adds_canonical_obligation": false,
+      "acceptance_summary": "a bounded future decision/handoff record. No P source edit, helper/native build, publication, P checkbox or HOLD advancement occurs here.",
+      "candidate_existing_production_paths": [],
+      "candidate_new_paths_proposal_only": [],
+      "original_source_unit_reference": "docs/research/package-library-audit-20261006/adoption-sequence.json#library-sequence:D05",
+      "parent_gate_rule": "Original references/dependencies govern full parent claims; they are not automatic all-family barriers on a separately released narrower contract/source slice."
+    }
+  ],
+  "scope_holds": [
+    "unfinished artifact-preparation including needs_verification/partial",
+    "ports:C04.native-release",
+    "library-sequence:D05 implementation"
+  ],
+  "ownership": {
+    "root_work_global_delivery_assembly": "R3",
+    "package_native_work_root": "original designated work assembly owner",
+    "invoke": "separately acknowledged W06.runtimehandoff -> V09.1 lease; read-only D02/D03",
+    "state_validation": "original producer/consumer handoffs unchanged"
+  },
+  "decision_evidence": {
+    "root_direction": "decoded_compat imports, retain_contract_candidate_gate maps",
+    "jev_responses": [
+      "jev/response-1.json",
+      "jev/response-2.json",
+      "jev/response-3.json"
+    ],
+    "advice_not_acceptance": true,
+    "opposing_context": "JEV finite-map context omitted trusted runtime/worker/vendor computed imports. Source-based narrowing preserves those as dynamic_unchecked; advice does not authorize blanket rejection.",
+    "shared_decisions_doc": "foreign writer preserved; root-owned decision record and pending exact shared handoff"
+  },
+  "imports": {
+    "contract_status": "planning_released_direction",
+    "new_error_bytes_status": "root-planning-acknowledged; no target or adoption acceptance",
+    "implementation_status": "unreleased",
+    "sync_entry": "es-module-lexer/minimal/js@3.0.3; parse only; no awaited init",
+    "dependency_closure": [
+      "es-module-lexer@3.0.3",
+      "magic-string@1.4.3",
+      "@jridgewell/sourcemap-codec@1.6.0"
+    ],
+    "first_fault_groups": [
+      "from/reexport by original UTF16 offset",
+      "dynamic by original UTF16 offset",
+      "side-effect by original UTF16 offset"
+    ],
+    "computed_policy": {
+      "artifact": "explicit planned refusal",
+      "owned_producer_runtime_vendor_worker": "dynamic_unchecked, original host gates and constant rewrite unchanged; never link-certified"
+    },
+    "fixtures": [
+      {
+        "id": "static-default",
+        "module_key": "main.js",
+        "js": "import x from \"@canlang/stdlib\";\n",
+        "planned_classification": "accepted producer literal",
+        "static_specification_not_executed": true,
+        "expected": {
+          "deploy_js": "import x from \"./vendor/stdlib/index.js\";\n"
+        }
+      },
+      {
+        "id": "static-named",
+        "module_key": "main.js",
+        "js": "import { x } from \"@canlang/stdlib\";\n",
+        "planned_classification": "accepted producer literal",
+        "static_specification_not_executed": true,
+        "expected": {
+          "deploy_js": "import { x } from \"./vendor/stdlib/index.js\";\n"
+        }
+      },
+      {
+        "id": "static-namespace",
+        "module_key": "main.js",
+        "js": "import * as x from '@canlang/stdlib';\n",
+        "planned_classification": "accepted producer literal",
+        "static_specification_not_executed": true,
+        "expected": {
+          "deploy_js": "import * as x from './vendor/stdlib/index.js';\n"
+        }
+      },
+      {
+        "id": "side-effect",
+        "module_key": "main.js",
+        "js": "import \"@canlang/stdlib\";\n",
+        "planned_classification": "accepted producer literal",
+        "static_specification_not_executed": true,
+        "expected": {
+          "deploy_js": "import \"./vendor/stdlib/index.js\";\n"
+        }
+      },
+      {
+        "id": "reexport-named",
+        "module_key": "main.js",
+        "js": "export { x } from \"@canlang/stdlib\";\n",
+        "planned_classification": "accepted producer literal",
+        "static_specification_not_executed": true,
+        "expected": {
+          "deploy_js": "export { x } from \"./vendor/stdlib/index.js\";\n"
+        }
+      },
+      {
+        "id": "reexport-star",
+        "module_key": "main.js",
+        "js": "export * from \"@canlang/stdlib\";\n",
+        "planned_classification": "accepted producer literal",
+        "static_specification_not_executed": true,
+        "expected": {
+          "deploy_js": "export * from \"./vendor/stdlib/index.js\";\n"
+        }
+      },
+      {
+        "id": "reexport-namespace",
+        "module_key": "main.js",
+        "js": "export * as x from \"@canlang/stdlib\";\n",
+        "planned_classification": "accepted producer literal",
+        "static_specification_not_executed": true,
+        "expected": {
+          "deploy_js": "export * as x from \"./vendor/stdlib/index.js\";\n"
+        }
+      },
+      {
+        "id": "dynamic-literal",
+        "module_key": "main.js",
+        "js": "import(\"@canlang/stdlib\");\n",
+        "planned_classification": "accepted producer literal",
+        "static_specification_not_executed": true,
+        "expected": {
+          "deploy_js": "import(\"./vendor/stdlib/index.js\");\n"
+        }
+      },
+      {
+        "id": "group-first-fault",
+        "module_key": "main.js",
+        "js": "import \"side-bad\"; import(\"dynamic-bad\"); import x from \"from-bad\";",
+        "planned_classification": "from before dynamic before side",
+        "static_specification_not_executed": true,
+        "expected": {
+          "deploy_error": "deploy bundle: module \"main.js\" has unresolvable import \"from-bad\" (only @canlang/stdlib, @canlang/ui, and relative imports are supported)"
+        }
+      },
+      {
+        "id": "escaped-producer",
+        "module_key": "main.js",
+        "js": "import x from \"@canlang/\\u0073tdlib\";",
+        "planned_classification": "planned decoded admission correction",
+        "static_specification_not_executed": true,
+        "expected": {
+          "decoded_specifier": "@canlang/stdlib",
+          "deploy_js": "import x from \"./vendor/stdlib/index.js\";"
+        }
+      },
+      {
+        "id": "comment-separated",
+        "module_key": "main.js",
+        "js": "import/*a*/x/*b*/from/*c*/\"@canlang/stdlib\";",
+        "planned_classification": "new actual lexical import; preserve trivia",
+        "static_specification_not_executed": true
+      },
+      {
+        "id": "attributes",
+        "module_key": "main.js",
+        "js": "import x from \"./asset.wasm\" with {type:\"webassembly\"};",
+        "planned_classification": "literal edge; preserve attribute; link binary only at mixed profile",
+        "static_specification_not_executed": true
+      },
+      {
+        "id": "dynamic-options",
+        "module_key": "main.js",
+        "js": "import(\"./data.json\", {with:{type:\"json\"}});",
+        "planned_classification": "new literal dynamic options; preserve options",
+        "static_specification_not_executed": true
+      },
+      {
+        "id": "empty-literal",
+        "module_key": "main.js",
+        "js": "import \"\";",
+        "planned_classification": "new unresolvable literal",
+        "static_specification_not_executed": true,
+        "expected": {
+          "deploy_error": "deploy bundle: module \"main.js\" has unresolvable import \"\" (only @canlang/stdlib, @canlang/ui, and relative imports are supported)"
+        }
+      },
+      {
+        "id": "nonbmp-same-line",
+        "module_key": "main.js",
+        "js": "const marker=\"\ud83d\ude00\"; import x from \"@canlang/stdlib\"; throw new Error(\"boom\");\n",
+        "planned_classification": "original UTF16 edits, same-line D04 column control",
+        "static_specification_not_executed": true,
+        "expected_literal_content_span_utf16": [
+          34,
+          49
+        ],
+        "original_throw_offset_utf16": 52
+      },
+      {
+        "id": "regex-false-match",
+        "module_key": "main.js",
+        "js": "const r = /from \"bad\"/;",
+        "planned_classification": "zero import edges; intentional corrected false match",
+        "static_specification_not_executed": true
+      },
+      {
+        "id": "string-false-match",
+        "module_key": "main.js",
+        "js": "const s = 'import \"bad\"';",
+        "planned_classification": "zero import edges; intentional corrected false match",
+        "static_specification_not_executed": true
+      },
+      {
+        "id": "comment-false-match",
+        "module_key": "main.js",
+        "js": "// import \"bad\";\nexport const x = 1;",
+        "planned_classification": "zero import edges; intentional corrected false match",
+        "static_specification_not_executed": true
+      },
+      {
+        "id": "nested-template",
+        "module_key": "main.js",
+        "js": "const t = `outer ${`inner ${import(\"@canlang/stdlib\")}`}`;",
+        "planned_classification": "literal dynamic nested expression recognized; template prose untouched",
+        "static_specification_not_executed": true
+      },
+      {
+        "id": "computed-refusal",
+        "module_key": "main.js",
+        "js": "import(name);",
+        "planned_classification": "artifact refusal at original UTF16 offset0",
+        "static_specification_not_executed": true,
+        "expected": {
+          "deploy_error": "deploy bundle: module \"main.js\" has nonliteral dynamic import at offset 0 (only literal dynamic imports are supported)"
+        }
+      },
+      {
+        "id": "glob-refusal",
+        "module_key": "main.js",
+        "js": "import(`./x/${name}.js`);",
+        "planned_classification": "artifact computed refusal; n undefined never glob admission",
+        "static_specification_not_executed": true
+      },
+      {
+        "id": "fixed-template",
+        "module_key": "main.js",
+        "js": "import(`./x.js`);",
+        "planned_classification": "new fixed literal admission only when lexer provides fixed n",
+        "static_specification_not_executed": true
+      },
+      {
+        "id": "meta",
+        "module_key": "main.js",
+        "js": "const x = import.meta.url;",
+        "planned_classification": "no module edge, no rewrite",
+        "static_specification_not_executed": true
+      },
+      {
+        "id": "source-phase",
+        "module_key": "main.js",
+        "js": "import source x from \"./x.wasm\";",
+        "planned_classification": "planned unsupported-phase refusal",
+        "static_specification_not_executed": true,
+        "expected": {
+          "deploy_error": "deploy bundle: module \"main.js\" has unsupported import kind \"source-static\" at offset 0 (only evaluation-phase imports are supported)"
+        }
+      },
+      {
+        "id": "syntax-first",
+        "module_key": "main.js",
+        "js": "import x from \"bad\"; import(\"\\uZZZZ\");",
+        "planned_classification": "lexer idx fault before same-module policy; actual offset must be qualified",
+        "static_specification_not_executed": true,
+        "source_derived_expected_idx": 31,
+        "source_derived_expected_error": "deploy bundle: module \"main.js\" has invalid import syntax at offset 31"
+      },
+      {
+        "id": "trusted-dynamic-seam",
+        "module_key": "main.js",
+        "js": "const IDENTITY_SPECIFIER=\"@canlang/identity\"; const m=await import(IDENTITY_SPECIFIER);",
+        "planned_classification": "pinned runtime dynamic_unchecked; existing constant rewrite; not artifact profile",
+        "static_specification_not_executed": true
+      },
+      {
+        "id": "relative-known",
+        "module_key": "lib/main.js",
+        "js": "import x from \"./helper.js\";\n",
+        "profile": "artifact",
+        "static_specification_not_executed": true,
+        "known_artifact_paths": [
+          "lib/main.js",
+          "lib/helper.js"
+        ],
+        "expected_js_unchanged": true
+      },
+      {
+        "id": "relative-missing",
+        "module_key": "lib/main.js",
+        "js": "import x from \"../outside.js\";\n",
+        "profile": "artifact",
+        "static_specification_not_executed": true,
+        "known_artifact_paths": [
+          "lib/main.js"
+        ],
+        "expected_error": "deploy bundle: module \"lib/main.js\" imports \"../outside.js\" (resolves to \"outside.js\"): no such artifact module"
+      },
+      {
+        "id": "file-url-forbidden",
+        "module_key": "main.js",
+        "js": "import x from \"file:///tmp/x.js\";\n",
+        "profile": "artifact",
+        "static_specification_not_executed": true,
+        "expected_error": "deploy bundle: module \"main.js\" has unresolvable import \"file:///tmp/x.js\" (only @canlang/stdlib, @canlang/ui, and relative imports are supported)"
+      },
+      {
+        "id": "nested-producer-relative",
+        "module_key": "pages/deep/main.js",
+        "js": "import x from \"@canlang/stdlib\";\n",
+        "profile": "artifact",
+        "static_specification_not_executed": true,
+        "expected_deploy_js": "import x from \"../../vendor/stdlib/index.js\";\n"
+      },
+      {
+        "id": "injected-quote-safe",
+        "module_key": "main.js",
+        "js": "import x from \"@canlang/stdlib\";\n",
+        "profile": "Node-assembly",
+        "static_specification_not_executed": true,
+        "stdlib_url": "file:///tmp/a\"b.js",
+        "expected_js": "import x from \"file:///tmp/a\\\"b.js\";\n",
+        "planned_behavior_change": "safe escaping instead of verbatim invalid replacement"
+      },
+      {
+        "id": "runtime-identity",
+        "module_key": "runtime/env-assembly.js",
+        "js": "import x from \"@canlang/identity\";\n",
+        "profile": "trusted-runtime",
+        "static_specification_not_executed": true,
+        "expected_deploy_js": "import x from \"../vendor/identity/index.js\";\n"
+      },
+      {
+        "id": "runtime-receipt",
+        "module_key": "runtime/invoke.js",
+        "js": "const S=\"@canlang/state/receipt\"; import(S);\n",
+        "profile": "trusted-runtime",
+        "static_specification_not_executed": true,
+        "expected_deploy_js": "const S=\"../vendor/state/receipt/index.js\"; import(S);\n",
+        "dynamic_status": "unchecked; existing literal rewrite remains"
+      },
+      {
+        "id": "runtime-state-subpath",
+        "module_key": "runtime/invoke.js",
+        "js": "const S=\"@canlang/state/foo\"; import(S);\n",
+        "profile": "trusted-runtime",
+        "static_specification_not_executed": true,
+        "expected_deploy_js": "const S=\"../vendor/state/foo.js\"; import(S);\n",
+        "dynamic_status": "unchecked; existing literal rewrite remains"
+      },
+      {
+        "id": "vendor-values",
+        "module_key": "vendor/stdlib/index.js",
+        "js": "import x from \"@canlang/values\";\n",
+        "profile": "trusted-vendor",
+        "static_specification_not_executed": true,
+        "expected_deploy_js": "import x from \"../values/index.js\";\n"
+      },
+      {
+        "id": "values-bindings-relative",
+        "module_key": "vendor/values-bindings/entry.js",
+        "js": "import x from \"../src/foo.js\";\n",
+        "profile": "trusted-vendor",
+        "static_specification_not_executed": true,
+        "expected_deploy_js": "import x from \"../values/foo.js\";\n"
+      },
+      {
+        "id": "binary-link-target",
+        "module_key": "main.js",
+        "js": "import wasm from \"./x.wasm\";\n",
+        "profile": "mixed-link",
+        "static_specification_not_executed": true,
+        "known_text_paths": [
+          "main.js"
+        ],
+        "binary_keys": [
+          "x.wasm"
+        ],
+        "expected_link_success": true
+      },
+      {
+        "id": "legacy-loadability-group",
+        "module_key": "main.js",
+        "js": "exports.x=1; module.exports=1; require(\"x\");",
+        "profile": "legacy-loadability",
+        "static_specification_not_executed": true,
+        "expected_error": "deploy bundle: module \"main.js\" is not workerd-loadable: bare require( call at offset 31 (+2 more)",
+        "expected_issue_order": [
+          "require",
+          "module.exports",
+          "free exports at exports.x"
+        ]
+      },
+      {
+        "id": "legacy-wrapper-and-guard",
+        "module_key": "main.js",
+        "js": "var r=__commonJS(function(exports,module){module.exports={}; exports.x=1;}); export function require(c){return c;}",
+        "profile": "legacy-loadability",
+        "static_specification_not_executed": true,
+        "expected_loadable": true
+      },
+      {
+        "id": "legacy-duplicate-last",
+        "module_key": "main.js",
+        "js": "import x from \"@canlang/ui\";\n",
+        "profile": "artifact-layering",
+        "static_specification_not_executed": true,
+        "modules": [
+          {
+            "path": "main.js",
+            "js": "export const v=1;\n"
+          },
+          {
+            "path": "main.js",
+            "js": "export const v=2;\n"
+          }
+        ],
+        "expected_staged_js": "export const v=2;\n",
+        "first_entry_path": "main.js"
+      },
+      {
+        "id": "cross-module-order",
+        "module_key": "main.js",
+        "js": "import x from \"bad\";\n",
+        "profile": "artifact",
+        "static_specification_not_executed": true,
+        "modules": [
+          {
+            "path": "a.js",
+            "js": "import x from \"bad\";\n"
+          },
+          {
+            "path": "b.js",
+            "js": "import(\"\\uZZZZ\");"
+          }
+        ],
+        "expected_error": "deploy bundle: module \"a.js\" has unresolvable import \"bad\" (only @canlang/stdlib, @canlang/ui, and relative imports are supported)"
+      }
+    ],
+    "files": [
+      "packages/cloudflare/src/deploy/module-imports.ts",
+      "packages/cloudflare/test/module-imports-contract.test.ts",
+      "packages/cloudflare/test/fixtures/import-policy-contract.json"
+    ],
+    "evidence_files": [
+      "implementation/rust-port-orchestration/step2-evidence/import-policy/oracle.json",
+      "implementation/rust-port-orchestration/step2-evidence/import-policy/candidate.json",
+      "implementation/rust-port-orchestration/step2-evidence/import-policy/comparison.json",
+      "implementation/rust-port-orchestration/step2-evidence/import-policy/host-closure.json"
+    ],
+    "first_fault_exact_fixture_note": "Source-derived static expected messages/offsets are target controls; no library/product execution was used to validate them."
+  },
+  "raw_maps": {
+    "contract_status": "planning_released_exact_current_external_oracle",
+    "substitution_status": "BLOCKED_precise_candidate_incompatibilities",
+    "new_semantic_guards_selected": false,
+    "retained_second_full_decoder_selected": false,
+    "cache_policy": "none in current release; prospective cache requires mutation/returned-copy/evaluation-order qualification",
+    "candidate_alternatives": [
+      "thin codec + existing raw Can lookup only if truly small compatibility gate",
+      "trace compatible profile only if smaller and fully qualified",
+      "retain now or explicit new profile decision"
+    ],
+    "blockers": [
+      "codec sorts unsorted segments",
+      "codec signed-zero and bit31/long VLQ differences",
+      "codec malformed admission/errors/empty map shape",
+      "trace duplicate selection differs",
+      "trace raw identity/sourceRoot/default normalization",
+      "mutable cache behavior"
+    ],
+    "fixtures": [
+      {
+        "id": "empty",
+        "map": {
+          "version": 3,
+          "file": "main.js",
+          "sources": [
+            "plain.can",
+            "second.can"
+          ],
+          "sourcesContent": [
+            "app Plain\n",
+            null
+          ],
+          "names": [],
+          "mappings": ""
+        },
+        "static_expected_not_executed": true,
+        "queries": [
+          [
+            1,
+            0,
+            null
+          ]
+        ],
+        "decode_expected": []
+      },
+      {
+        "id": "empty-lines",
+        "map": {
+          "version": 3,
+          "file": "main.js",
+          "sources": [
+            "plain.can",
+            "second.can"
+          ],
+          "sourcesContent": [
+            "app Plain\n",
+            null
+          ],
+          "names": [],
+          "mappings": ";;"
+        },
+        "static_expected_not_executed": true,
+        "queries": [
+          [
+            1,
+            0,
+            null
+          ],
+          [
+            3,
+            0,
+            null
+          ]
+        ],
+        "decode_expected": [
+          [],
+          [],
+          []
+        ]
+      },
+      {
+        "id": "real",
+        "map": {
+          "version": 3,
+          "file": "main.js",
+          "sources": [
+            "plain.can",
+            "second.can"
+          ],
+          "sourcesContent": [
+            "app Plain\n",
+            null
+          ],
+          "names": [],
+          "mappings": "AAAA;AACA;AACA"
+        },
+        "static_expected_not_executed": true,
+        "queries": [
+          [
+            1,
+            0,
+            {
+              "source": "plain.can",
+              "line": 1,
+              "column": 1
+            }
+          ],
+          [
+            3,
+            9,
+            {
+              "source": "plain.can",
+              "line": 3,
+              "column": 1
+            }
+          ]
+        ]
+      },
+      {
+        "id": "glb",
+        "map": {
+          "version": 3,
+          "file": "main.js",
+          "sources": [
+            "plain.can",
+            "second.can"
+          ],
+          "sourcesContent": [
+            "app Plain\n",
+            null
+          ],
+          "names": [],
+          "mappings": "AAAA,UACA"
+        },
+        "static_expected_not_executed": true,
+        "queries": [
+          [
+            1,
+            9,
+            {
+              "source": "plain.can",
+              "line": 1,
+              "column": 1
+            }
+          ],
+          [
+            1,
+            10,
+            {
+              "source": "plain.can",
+              "line": 2,
+              "column": 1
+            }
+          ]
+        ]
+      },
+      {
+        "id": "unmapped-stop",
+        "map": {
+          "version": 3,
+          "file": "main.js",
+          "sources": [
+            "plain.can",
+            "second.can"
+          ],
+          "sourcesContent": [
+            "app Plain\n",
+            null
+          ],
+          "names": [],
+          "mappings": "AAAA,K,KACA"
+        },
+        "static_expected_not_executed": true,
+        "queries": [
+          [
+            1,
+            4,
+            {
+              "source": "plain.can",
+              "line": 1,
+              "column": 1
+            }
+          ],
+          [
+            1,
+            5,
+            null
+          ],
+          [
+            1,
+            9,
+            null
+          ],
+          [
+            1,
+            10,
+            {
+              "source": "plain.can",
+              "line": 2,
+              "column": 1
+            }
+          ]
+        ]
+      },
+      {
+        "id": "last-duplicate",
+        "map": {
+          "version": 3,
+          "file": "main.js",
+          "sources": [
+            "plain.can",
+            "second.can"
+          ],
+          "sourcesContent": [
+            "app Plain\n",
+            null
+          ],
+          "names": [],
+          "mappings": "AAAA,AACA"
+        },
+        "static_expected_not_executed": true,
+        "queries": [
+          [
+            1,
+            0,
+            {
+              "source": "plain.can",
+              "line": 2,
+              "column": 1
+            }
+          ]
+        ]
+      },
+      {
+        "id": "unsorted-stop",
+        "map": {
+          "version": 3,
+          "file": "main.js",
+          "sources": [
+            "plain.can",
+            "second.can"
+          ],
+          "sourcesContent": [
+            "app Plain\n",
+            null
+          ],
+          "names": [],
+          "mappings": "AAAA,UACA,LCDA"
+        },
+        "static_expected_not_executed": true,
+        "queries": [
+          [
+            1,
+            6,
+            {
+              "source": "plain.can",
+              "line": 1,
+              "column": 1
+            }
+          ]
+        ],
+        "decode_expected": [
+          [
+            {
+              "genCol": 0,
+              "src": 0,
+              "srcLine": 0,
+              "srcCol": 0
+            },
+            {
+              "genCol": 10,
+              "src": 0,
+              "srcLine": 1,
+              "srcCol": 0
+            },
+            {
+              "genCol": 5,
+              "src": 1,
+              "srcLine": 0,
+              "srcCol": 0
+            }
+          ]
+        ]
+      },
+      {
+        "id": "signed-zero",
+        "map": {
+          "version": 3,
+          "file": "main.js",
+          "sources": [
+            "plain.can",
+            "second.can"
+          ],
+          "sourcesContent": [
+            "app Plain\n",
+            null
+          ],
+          "names": [],
+          "mappings": "BAAA"
+        },
+        "static_expected_not_executed": true,
+        "queries": [
+          [
+            1,
+            0,
+            {
+              "source": "plain.can",
+              "line": 1,
+              "column": 1
+            }
+          ]
+        ],
+        "decode_expected": [
+          [
+            {
+              "genCol": 0,
+              "src": 0,
+              "srcLine": 0,
+              "srcCol": 0
+            }
+          ]
+        ],
+        "candidate_codec_genCol": -2147483648
+      },
+      {
+        "id": "bit31",
+        "map": {
+          "version": 3,
+          "file": "main.js",
+          "sources": [
+            "plain.can",
+            "second.can"
+          ],
+          "sourcesContent": [
+            "app Plain\n",
+            null
+          ],
+          "names": [],
+          "mappings": "ggggggCAAA"
+        },
+        "static_expected_not_executed": true,
+        "queries": [
+          [
+            1,
+            0,
+            {
+              "source": "plain.can",
+              "line": 1,
+              "column": 1
+            }
+          ]
+        ],
+        "decode_expected": [
+          [
+            {
+              "genCol": -1073741824,
+              "src": 0,
+              "srcLine": 0,
+              "srcCol": 0
+            }
+          ]
+        ],
+        "candidate_codec_genCol": 1073741824
+      },
+      {
+        "id": "modulo32-long-vlq",
+        "map": {
+          "version": 3,
+          "file": "main.js",
+          "sources": [
+            "plain.can",
+            "second.can"
+          ],
+          "sourcesContent": [
+            "app Plain\n",
+            null
+          ],
+          "names": [],
+          "mappings": "gggggggB"
+        },
+        "static_expected_not_executed": true,
+        "queries": [
+          [
+            1,
+            0,
+            null
+          ]
+        ],
+        "decode_expected": [
+          [
+            {
+              "genCol": 4
+            }
+          ]
+        ]
+      },
+      {
+        "id": "negative-source-index",
+        "map": {
+          "version": 3,
+          "file": "main.js",
+          "sources": [
+            "plain.can",
+            "second.can"
+          ],
+          "sourcesContent": [
+            "app Plain\n",
+            null
+          ],
+          "names": [],
+          "mappings": "ADAA"
+        },
+        "static_expected_not_executed": true,
+        "queries": [
+          [
+            1,
+            0,
+            null
+          ]
+        ]
+      },
+      {
+        "id": "negative-source-line",
+        "map": {
+          "version": 3,
+          "file": "main.js",
+          "sources": [
+            "plain.can",
+            "second.can"
+          ],
+          "sourcesContent": [
+            "app Plain\n",
+            null
+          ],
+          "names": [],
+          "mappings": "AADA"
+        },
+        "static_expected_not_executed": true,
+        "queries": [
+          [
+            1,
+            0,
+            {
+              "source": "plain.can",
+              "line": 0,
+              "column": 1
+            }
+          ]
+        ]
+      },
+      {
+        "id": "negative-source-column",
+        "map": {
+          "version": 3,
+          "file": "main.js",
+          "sources": [
+            "plain.can",
+            "second.can"
+          ],
+          "sourcesContent": [
+            "app Plain\n",
+            null
+          ],
+          "names": [],
+          "mappings": "AAAD"
+        },
+        "static_expected_not_executed": true,
+        "queries": [
+          [
+            1,
+            0,
+            {
+              "source": "plain.can",
+              "line": 1,
+              "column": 0
+            }
+          ]
+        ]
+      },
+      {
+        "id": "optional-invalid-name",
+        "map": {
+          "version": 3,
+          "file": "main.js",
+          "sources": [
+            "plain.can",
+            "second.can"
+          ],
+          "sourcesContent": [
+            "app Plain\n",
+            null
+          ],
+          "names": [],
+          "mappings": "AAAAE"
+        },
+        "static_expected_not_executed": true,
+        "queries": [
+          [
+            1,
+            0,
+            {
+              "source": "plain.can",
+              "line": 1,
+              "column": 1
+            }
+          ]
+        ],
+        "assert_name_property_absent": true
+      },
+      {
+        "id": "raw-source-root",
+        "map": {
+          "version": 3,
+          "file": "main.js",
+          "sources": [
+            "../raw/./x.can?x#y"
+          ],
+          "sourcesContent": [
+            "app Plain\n",
+            null
+          ],
+          "names": [
+            ""
+          ],
+          "mappings": "AAAAA",
+          "sourceRoot": "https://host/a/../base/"
+        },
+        "static_expected_not_executed": true,
+        "queries": [
+          [
+            1,
+            0,
+            {
+              "source": "../raw/./x.can?x#y",
+              "line": 1,
+              "column": 1,
+              "name": ""
+            }
+          ]
+        ]
+      },
+      {
+        "id": "bad-char",
+        "map": {
+          "version": 3,
+          "file": "main.js",
+          "sources": [
+            "plain.can",
+            "second.can"
+          ],
+          "sourcesContent": [
+            "app Plain\n",
+            null
+          ],
+          "names": [],
+          "mappings": "!"
+        },
+        "static_expected_not_executed": true,
+        "error_message": "sourcemap: bad VLQ character \"!\""
+      },
+      {
+        "id": "empty-segment",
+        "map": {
+          "version": 3,
+          "file": "main.js",
+          "sources": [
+            "plain.can",
+            "second.can"
+          ],
+          "sourcesContent": [
+            "app Plain\n",
+            null
+          ],
+          "names": [],
+          "mappings": ","
+        },
+        "static_expected_not_executed": true,
+        "error_message": "sourcemap: empty segment"
+      },
+      {
+        "id": "truncated",
+        "map": {
+          "version": 3,
+          "file": "main.js",
+          "sources": [
+            "plain.can",
+            "second.can"
+          ],
+          "sourcesContent": [
+            "app Plain\n",
+            null
+          ],
+          "names": [],
+          "mappings": "g"
+        },
+        "static_expected_not_executed": true,
+        "error_message": "sourcemap: truncated VLQ value"
+      },
+      {
+        "id": "field2",
+        "map": {
+          "version": 3,
+          "file": "main.js",
+          "sources": [
+            "plain.can",
+            "second.can"
+          ],
+          "sourcesContent": [
+            "app Plain\n",
+            null
+          ],
+          "names": [],
+          "mappings": "AA"
+        },
+        "static_expected_not_executed": true,
+        "error_message": "sourcemap: bad segment field count 2"
+      },
+      {
+        "id": "field3",
+        "map": {
+          "version": 3,
+          "file": "main.js",
+          "sources": [
+            "plain.can",
+            "second.can"
+          ],
+          "sourcesContent": [
+            "app Plain\n",
+            null
+          ],
+          "names": [],
+          "mappings": "AAA"
+        },
+        "static_expected_not_executed": true,
+        "error_message": "sourcemap: bad segment field count 3"
+      },
+      {
+        "id": "field6",
+        "map": {
+          "version": 3,
+          "file": "main.js",
+          "sources": [
+            "plain.can",
+            "second.can"
+          ],
+          "sourcesContent": [
+            "app Plain\n",
+            null
+          ],
+          "names": [],
+          "mappings": "AAAAAA"
+        },
+        "static_expected_not_executed": true,
+        "error_message": "sourcemap: bad segment field count 6"
+      },
+      {
+        "id": "char-before-count",
+        "map": {
+          "version": 3,
+          "file": "main.js",
+          "sources": [
+            "plain.can",
+            "second.can"
+          ],
+          "sourcesContent": [
+            "app Plain\n",
+            null
+          ],
+          "names": [],
+          "mappings": "AA!"
+        },
+        "static_expected_not_executed": true,
+        "error_message": "sourcemap: bad VLQ character \"!\""
+      },
+      {
+        "id": "whole-map-decode-before-lookup",
+        "map": {
+          "version": 3,
+          "file": "main.js",
+          "sources": [
+            "plain.can",
+            "second.can"
+          ],
+          "sourcesContent": [
+            "app Plain\n",
+            null
+          ],
+          "names": [],
+          "mappings": "AAAA;!"
+        },
+        "static_expected_not_executed": true,
+        "error_message": "sourcemap: bad VLQ character \"!\""
+      },
+      {
+        "id": "sources-not-array",
+        "map": {
+          "version": 3,
+          "file": "main.js",
+          "sources": {},
+          "sourcesContent": [],
+          "names": [],
+          "mappings": "AAAA"
+        },
+        "queries": [
+          [
+            1,
+            0,
+            null
+          ]
+        ],
+        "static_expected_not_executed": true
+      },
+      {
+        "id": "source-not-string",
+        "map": {
+          "version": 3,
+          "file": "main.js",
+          "sources": [
+            17
+          ],
+          "sourcesContent": [],
+          "names": [],
+          "mappings": "AAAA"
+        },
+        "queries": [
+          [
+            1,
+            0,
+            null
+          ]
+        ],
+        "static_expected_not_executed": true
+      },
+      {
+        "id": "names-not-array",
+        "map": {
+          "version": 3,
+          "file": "main.js",
+          "sources": [
+            "plain.can"
+          ],
+          "sourcesContent": [],
+          "names": {},
+          "mappings": "AAAAA"
+        },
+        "queries": [
+          [
+            1,
+            0,
+            {
+              "source": "plain.can",
+              "line": 1,
+              "column": 1
+            }
+          ]
+        ],
+        "static_expected_not_executed": true
+      },
+      {
+        "id": "raw-unicode",
+        "map": {
+          "version": 3,
+          "file": "main.js",
+          "sources": [
+            "raw/\ud83d\ude00/\ud800.can"
+          ],
+          "sourcesContent": [],
+          "names": [
+            "\udc00"
+          ],
+          "mappings": "AAAAA"
+        },
+        "queries": [
+          [
+            1,
+            0,
+            {
+              "source": "raw/\ud83d\ude00/\ud800.can",
+              "line": 1,
+              "column": 1,
+              "name": "\udc00"
+            }
+          ]
+        ],
+        "static_expected_not_executed": true
+      },
+      {
+        "id": "duplicate-raw-identities",
+        "map": {
+          "version": 3,
+          "file": "main.js",
+          "sources": [
+            "same.can",
+            "same.can"
+          ],
+          "sourcesContent": [
+            "one",
+            "two"
+          ],
+          "names": [],
+          "mappings": "ACAA"
+        },
+        "queries": [
+          [
+            1,
+            0,
+            {
+              "source": "same.can",
+              "line": 1,
+              "column": 1
+            }
+          ]
+        ],
+        "static_expected_not_executed": true
+      }
+    ],
+    "mutation_fixture_sequence": [
+      "mappings ! -> AAAA; lookup immediately reflects",
+      "sources[0] raw identity changes; lookup reflects",
+      "names absent/empty/invalid -> valid; own property presence reflects",
+      "replace arrays/mappings and query again",
+      "mutate exported decoded result; later decode/lookup remains fresh"
+    ],
+    "files": [
+      "packages/cloudflare/src/runtime/sourcemap.ts",
+      "packages/cloudflare/test/raw-source-map-contract.test.ts",
+      "packages/cloudflare/test/fixtures/raw-source-map-contract.json"
+    ],
+    "evidence_files": [
+      "implementation/rust-port-orchestration/step2-evidence/raw-source-map/oracle.json",
+      "implementation/rust-port-orchestration/step2-evidence/raw-source-map/candidate.json",
+      "implementation/rust-port-orchestration/step2-evidence/raw-source-map/comparison.json",
+      "implementation/rust-port-orchestration/step2-evidence/raw-source-map/host-closure.json"
+    ]
+  },
+  "D04": {
+    "status": "input_profile_and_consumer_handshake_gate_not_implemented",
+    "depends_on_preserved": [
+      "library-sequence:D02",
+      "library-sequence:D03"
+    ],
+    "composer_candidate_closure": [
+      "@jridgewell/remapping@2.3.5",
+      "@jridgewell/gen-mapping@0.3.13",
+      "@jridgewell/trace-mapping@0.3.31",
+      "@jridgewell/resolve-uri@3.1.2",
+      "@jridgewell/sourcemap-codec@1.6.0"
+    ],
+    "traps": [
+      "MagicString basename/relative sources",
+      "remapping TraceMap resolved identity and dedup",
+      "rangeMappings must not enable new interpolation",
+      "malformed/unsorted/overflow original input profile",
+      "invoke reads original artifact module.map not external composed file",
+      "no source-content disclosure/compiled identity mutation"
+    ],
+    "serial_R3_files": [
+      "packages/cloudflare/src/runtime/modules.ts",
+      "packages/cloudflare/src/deploy/bundle.ts",
+      "packages/cloudflare/src/dev/local-run.ts",
+      "packages/cloudflare/test/modules.test.ts",
+      "packages/cloudflare/test/deploy-bundle.test.ts",
+      "packages/cloudflare/test/sourcemap.test.ts",
+      "packages/cloudflare/test/deploy-package-assets.test.ts",
+      "packages/cloudflare/test/map-composition-contract.test.ts"
+    ],
+    "evidence_files": [
+      "implementation/rust-port-orchestration/step2-evidence/map-composition/cases.json",
+      "implementation/rust-port-orchestration/step2-evidence/map-composition/installed.json",
+      "implementation/rust-port-orchestration/step2-evidence/map-composition/worker.json",
+      "implementation/rust-port-orchestration/step2-evidence/map-composition/review.json"
+    ]
+  },
+  "qualification_recipes": {
+    "executed": false,
+    "runner": "root Vitest selected test/*.test.ts suites; package test:runtime emitted node:test is different and cannot substitute",
+    "future_focused_argv": [
+      "bun",
+      "run",
+      "test:root",
+      "packages/cloudflare/test/modules.test.ts",
+      "packages/cloudflare/test/deploy-bundle.test.ts",
+      "packages/cloudflare/test/deploy-package-assets.test.ts",
+      "packages/cloudflare/test/sourcemap.test.ts"
+    ],
+    "native_hosts": "fresh Node >=22 and root packageManager Bun1.4.2 outside-checkout installed public ESM; cold sync API, exact emitted bytes/complete errors/integrities; no native preparation helper",
+    "browser": "serve written ESM closure over isolated HTTP; no workspace/node_modules; strict CSP; real browser positive counts, missing/corrupt/forbidden/dangling controls; host lexer/editor/composer absent",
+    "worker": "actual sorted written installed module map and binaries/resources with Miniflare4.20260730.0/workerd; real DB boot/HTTP/MCP/diagnostics, optional observer behavior retained; no bare/file/node escape; complete errors",
+    "D04": "real original Can map, same-line throwing expression after length-changing edits, multiple stages, raw duplicate identities; Node runtime-remap and map-disabled Can fallback and actual workerd agree",
+    "native_preparation": "held; no Rust CLI/native executable test/build/inventory credit"
+  },
+  "document_paths": [
+    "/private/tmp/canlang-step2-imports.md",
+    "/private/tmp/canlang-step2-sourcemaps-raw.md",
+    "/private/tmp/canlang-step2-delivery-contracts.md"
+  ],
+  "document_hashes": [
+    {
+      "path": "/private/tmp/canlang-step2-imports.md",
+      "sha256": "ff96aea9ce70c43651acac36b1f1d44caba9bd2de1d05a45d13d87a640a48263"
+    },
+    {
+      "path": "/private/tmp/canlang-step2-sourcemaps-raw.md",
+      "sha256": "f01b77759a2c096dcf1a07608d28bac581d0b84abb1ae1a1be8c96145da3278c"
+    },
+    {
+      "path": "/private/tmp/canlang-step2-delivery-contracts.md",
+      "sha256": "b7158439f2252407bf5f24a25be742a8ea74354558ec95990d7e62c9e9300078"
+    }
+  ],
+  "source_report_sha256": "793359a121c78d15c058b5af98d47b963fc2ed2ed2c80799559bdc158273c9ca",
+  "decision_record": "decision-record.md",
+  "saved_contract_paths": {
+    "imports": "imports.md",
+    "raw_maps": "sourcemaps-raw.md"
+  }
+}

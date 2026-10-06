@@ -1,0 +1,737 @@
+{
+  "schema_version": 1,
+  "date": "2026-10-07",
+  "id": "library-sequence:N01",
+  "phase": "planning",
+  "source_review_head": "ea8ee371336fecbf5591055e74d697f96fa662b4",
+  "step1_review_head": "9bb5bbdd9f9acf9ef92fe349719bb0bb01d9e08a",
+  "execution_authorized": false,
+  "fresh_runtime_acceptance": false,
+  "repo_edits": false,
+  "policy_ambiguities_blocking_contract": [],
+  "source_sha256": {
+    "AGENTS.md": "f30ab82d2e8803997b9eb6a5bba36c98defd1fce526711a0ae222fb6c4201f4e",
+    "implementation/rust-port-orchestration/preflight-20261007/SCOPE-CHECKPOINT.md": "9716722c23f6ff9846cadcdf4bc871fb4e3f41e34ab37f5338fd821104631b75",
+    "implementation/rust-port-orchestration/preflight-20261007/scope-queue.json": "62076535dd0c3b0afcc91eaa7ac09ed60fcd32a9c51c3fce2d9917b288432534",
+    "implementation/rust-port-orchestration/preflight-20261007/source-checkpoint.json": "2f53bc97bda0adab587f85eb8ca6468837f793ef41d2ca3d9d8a451ccb951ed5",
+    "implementation/remaining-work/tasks.json": "cd01ebb2276e9bbd362085070b985811543f4bcb1d7ad0d0ac0530d3092bc3f4",
+    "docs/research/package-library-audit-20261006/adoption-sequence.md": "477c890b6d20d9400211b5763b4329650bef5244cfa13234033369f6ddbf0f00",
+    "docs/research/package-library-audit-20261006/adoption-sequence.json": "d93dcb00638680b1b861c90ec6a445267942b8ca6f7ca479fb60bc0386ca3a9f",
+    "docs/research/package-library-audit-20261006/reviews/values-adapter-sequence-input.md": "41c2d2d7361931ba68cc77ab9ef3cffd5df9dd030a6d849db6abaf35facc6f84",
+    "docs/research/package-library-audit-20261006/reviews/values.md": "9c0aae362bb3292e15419b45537bdd91ad677cd515fc14c245d8b16d385b62ac",
+    "docs/research/package-subsystem-ports-20261006/implementation-plans/exact-values.tasks.json": "bf940aa4222d9fae2185bdda6ca0a642e8574f36348070003f14566a0cd917bd",
+    "docs/research/package-subsystem-ports-20261006/implementation-plans/work-transitions.tasks.json": "f73f82460d08600a54a9a5a2f480aa59e72e6d9eab8b82bc46d5ddf824a501c5",
+    "packages/values/Cargo.toml": "083c91d33d9cf5c36b0c61e0e8f86b80bf1208bcf3202d681a77a52939e6efee",
+    "packages/values/Cargo.lock": "107d0d305b318c31c002b4445aa778b017cf206b453e2f4583b3b55ec9773668",
+    "packages/values/semantics/Cargo.toml": "140bcd4d064358fe1dae97f10e1a46055d31e8fb69cea431939751a9c22c708f",
+    "packages/values/bindings/Cargo.toml": "1da63f3a022cc9f7b1ff4d4255a49f7da8ddac5b8d6196b608be262bdd224450",
+    "packages/values/package.json": "e542125300e2ee229f96bd37cc66af50c8982e588c26c9ba6cf363640688618f",
+    "packages/values/semantics/src/representations/numeric.rs": "d4dad000e5c2ea7c1dcc15fbae0d41cb0b7681b048e8a4c3d9459ab1479eb04e",
+    "packages/values/semantics/src/codecs/numeric.rs": "4c12632d10e1d6b4f749c82f37c5910b7ae998cb1195fd1b571d69479784bd03",
+    "packages/values/semantics/src/numeric/decimal.rs": "53040e3de46f5e17d8c5025928bdb3ef2047e88d6fd488821686dcfbd026ade6",
+    "packages/values/semantics/src/numeric/money.rs": "5ab02d498fcc7031c079f5af884cbe2e5d3c2e7810127f012d928bb8c0516dad",
+    "packages/values/semantics/src/failures.rs": "28dca38a0670f354a25e5a9ab6e531c216f161c929413adc9c7276cddb51fc07",
+    "packages/values/semantics/src/transport/exact.rs": "7c2f5600bf4c72b5ccfef82500113e28f1fc3131a0f818dff8e205b802142817",
+    "packages/values/semantics/src/input.rs": "120a0a4aa36f2944b5cc14e70e690ad38d981fa072dad841795a89fec9903b1b",
+    "packages/values/semantics/src/lib.rs": "63a800b7809ddc932331343e17cae24ad2eb18ea5f4a2a44d70e81bceb6275de",
+    "packages/values/bindings/src/lib.rs": "3b1f7fefefd13438a04afa5b288600c590fba65e14dc8961f2fcff999e830ca6",
+    "packages/values/bindings/carriers.ts": "657f643c92fefe1d4303f609748860ed7c496544093fb57e5ea9fd7063fca3d0",
+    "packages/values/bindings/backend.ts": "4863a9b9f30c4551a6220a44caaa03094a643f51f71088de5ef613b7a34508fa",
+    "packages/values/src/wire.ts": "73832128fd4b2db93d08770836271323d61bed02647ca83fd21bdd9496054f03",
+    "packages/values/src/kinds.ts": "35cf9ba2ccadb5157d66423530af9c9eca9def2d74df3b43dd0d318d5427b0e7",
+    "packages/values/src/decimal.ts": "e4056e2849f928106b36f534ee72f3416fed9550c19da914dc9e02d4c14f592e",
+    "packages/values/src/errors.ts": "a9a518f181e92d3b69be7ef8bb36d7e1001e276849a5ff9e976eef81fee569e8",
+    "packages/values/scripts/build-semantics.mjs": "d458ab84db7ef0c97945bd361d4ad961d52e947af546fd2c1bbb84644f5a9a71",
+    "packages/values/bindings/generated/BUILD.json": "528bd710b2cd8fedaf95486baf94f03635b92efa0567e0e05e9c1e39558d75eb",
+    "packages/work-kernel/Cargo.toml": "553dbdbb7d912cff34af5641017a27879ce5885f7395cdeb004a5bd9148c0374",
+    "packages/work-kernel/Cargo.lock": "4337a64e41e2ada24f61e1fbdd3621427d88832e5c978536c58cf4d2257950a9",
+    "packages/work-kernel/package.json": "5b2b5267aaa3f92ae8284fa8c8464bd7831023e4f2ce190623886210fcd84a07",
+    "packages/work-kernel/rust/lib.rs": "33177d2d67ebc8138a11937f00231436cbabc14d1ea6a9b7449cac10f36c2e98",
+    "packages/work-kernel/tsconfig.json": "be538f73951bafb9b1a89fa55702abfbceab4adb06e2c5e8f869207d57e22bab",
+    "packages/work-kernel/src/facts.ts": "d10518896028ef5243d066fab4938fcb3657b0b85a90feea680a9dfdaeb6c61a",
+    "packages/work-kernel/bindings/host-values.ts": "56da5ad1ed8ee87bbb8c8c7d59b27b274db48aeadedd9a71de9f738b3d30b3e0",
+    "packages/work-kernel/src/rows.ts": "5267d759fcb0f17cae6cd9ea864783cc16e793fe0ac6658f4e0d1dbf6d0e0c4d",
+    "packages/work-kernel/src/receipt.ts": "3442bd7a14dab43caa296e03c3575e777856d5003f8365a1cd1c9fe0eb027a4f",
+    "packages/work-kernel/src/linkage.ts": "ecc6c6cee42a14e7b012ef47875553d51207902d2498b0adef935a8555a047d4",
+    "packages/work-kernel/src/recovery.ts": "c65cda6a6898cbfff2f0df57f2e1a67c312da6f4123b4c364a482b5f417d0cf6",
+    "packages/work-kernel/decisions/rows.rs": "e33134e2c819a150209f933a2020f519f473516da3867fca67735b10bddd18ce",
+    "packages/work-kernel/decisions/receipt.rs": "3682195a6265fa68381ea2c14a3e78b7831026b2f4dc420f6655a9ad940963d9",
+    "packages/work-kernel/decisions/linkage.rs": "05b7ab44df96de03dc9ba7764e6a3a6376bd53542463149ad14410a9565921aa",
+    "packages/work-kernel/decisions/recovery.rs": "818a8c8ce2a4792981d295bf9a5016dd602a1f30733127aa275d0f7e2342b65f",
+    "packages/work/src/kernel/tables.ts": "10bde1f6281574b277fa6b795157c72c40471a12e46c32490b4774e1aea220e7",
+    "packages/state/src/fanout/tables.ts": "f97acf5b3d38c7ace87f0cc38c1712e533d856fb4c4affb733efb7588ea1f0ae",
+    "packages/state/src/receipt/tables.ts": "d9d6ec727d3ee80bc7b2036c934ad75df6a58afabeb6fa9e428b21705136230d",
+    "packages/work/src/recovery/index.ts": "870fed2d65118b4b77ce42df4bf0ef655d93ab9a062eff25761bb4df07e3e67f",
+    "packages/work/src/receipt/index.ts": "9d51ff1a4bf0bd4ec2368aa0e2d094c72b3a1ef85c939526e0110bd05f058816",
+    "packages/state/src/ports/transact.ts": "20ebcc4792bc145d60d16210d19dfec45bb6a1d0961b86973d3bea6b6a01a902",
+    "packages/work-kernel/conformance/rows.test.ts": "46d2eab38d12a615da2e532fbb83c879f86f588cd6ec362a9711105597410ce8",
+    "packages/work-kernel/conformance/linkage.test.ts": "afa1a902d9d19d1ef23dcdb0b97b2a6f49b7edc4d39e4e7cb96e1ffe6d23ede6",
+    "packages/work-kernel/conformance/fixtures/rows/fanout_intent.json": "bbf074dd2aa4bb14cb769e43a19f0bb2226f5160f0bce7952bcbb9699ce9c175",
+    "packages/work-kernel/conformance/fixtures/receipts/receipt.json": "b18cf4101947da95942a212223d9517ab3629543b6c73642457cc07e6eb44751",
+    "packages/work-kernel/conformance/fixtures/receipts/recovery.json": "b5b64fda283461e245230a668c31afb42021e0ff99b37ace58efa1e0cc897d8c",
+    "packages/work-kernel/conformance/fixtures/receipts/linkage.json": "f5d2c38ef5ba3d72796343d42874de1587fdb08cace9d0d16330d31d9259dccd"
+  },
+  "oracle": {
+    "recipe_version": "n01.oracle.v1",
+    "generator_source_sha256": "e82c385cce4f9ae87589017df852b0e65fcfbcf29838ff3a417aee84a5a91e2d",
+    "future_script_path": "/private/tmp/canlang-n01-planning-oracle.mjs",
+    "future_output_path": "/private/tmp/canlang-n01-planning-oracle.json",
+    "future_command": "node /private/tmp/canlang-n01-planning-oracle.mjs > /private/tmp/canlang-n01-planning-oracle.json",
+    "seed": "6a09e667f3bcc909",
+    "seeded_distinct_count": 10000,
+    "algorithm": "unsigned64 xorshift left13/right7/left17; mask after each xor; retain unique generation order",
+    "expected_source": "actual JS String, JSON.stringify and Object.is builtins, separate from candidate",
+    "source_bits_rule": "hex16 original DataView pattern distinct from host re-observed bits; native f64::from_bits; no decimal parse for inputs",
+    "full_call_expected_source": "actual hashed TS originals, frozen before candidate runs; work live-donor capture outside leaf package",
+    "negative_controls": [
+      "i64 saturation",
+      "negative-zero text",
+      "JSON nonfinite text",
+      "exponent sign/threshold",
+      "one-bit carrier change",
+      "envelope code/punctuation/order",
+      "slash/hex/U2028 escapes",
+      "truncate-before-escape"
+    ],
+    "planning_builtin_capture_executed": true,
+    "generator_source_reference": "oracles/frozen-generator.mjs",
+    "planning_builtin_capture_reference": "oracles/manifest.json",
+    "planning_capture_scope": "Exact frozen JS-only primitive oracle, no donor/product/native/Wasm or target acceptance.",
+    "captured_counts": {
+      "seeded": 10000,
+      "boundaries": 213,
+      "strings": 93,
+      "rustStrInputAdmitted": 89,
+      "helperParityAdmitted": 89,
+      "actualWireParityAdmitted": 88,
+      "invalidUtf8Null": 4,
+      "splitRejected": 1,
+      "unpairedRejected": 4
+    },
+    "captured_primitive_data_reference": "oracles/manifest.json"
+  },
+  "dependency_requests": [
+    {
+      "id": "dep.n01.values.ryu-js",
+      "writer": "R1",
+      "manifest": "packages/values/semantics/Cargo.toml",
+      "lock": "packages/values/Cargo.lock",
+      "crate": "ryu-js",
+      "version_requirement": "=1.0.3",
+      "default_features": false,
+      "features": [],
+      "checksum": "04d056b875a9d2e6cb9a61d127afee9ac5999b9f87bcb32079d1318e505be714",
+      "license": "Apache-2.0 OR BSL-1.0",
+      "license_selected": "BSL-1.0",
+      "entry": "ryu_js::Buffer::new().format_finite(f64), explicit zero/nonfinite wrapper",
+      "msrv": "1.71",
+      "normal_dependencies_enabled": [],
+      "optional_features_excluded": [
+        "small",
+        "no-panic"
+      ],
+      "status": "proposed_pin_not_qualified"
+    },
+    {
+      "id": "dep.n01.work.ryu-js",
+      "writer": "R3",
+      "manifest": "packages/work-kernel/Cargo.toml",
+      "lock": "packages/work-kernel/Cargo.lock",
+      "same_crate_pin_as": "dep.n01.values.ryu-js",
+      "independent_request": true,
+      "status": "proposed_pin_not_qualified"
+    },
+    {
+      "id": "dep.n01.values.serde-json-existing",
+      "writer": "R1",
+      "no_manifest_or_lock_change": true,
+      "crate": "serde_json",
+      "locked_version": "1.0.151",
+      "declared_requirement": "1",
+      "checksum": "c841b55ecdae098c80dcae9cf767f6f8a0c2cdb3416bbef72181df4d0fe73f14",
+      "license": "MIT OR Apache-2.0",
+      "intended_features": [
+        "default",
+        "std"
+      ],
+      "feature_closure_executed": false,
+      "entry": "serde_json::to_string::<str>(text)",
+      "locked_dependencies": [
+        "itoa",
+        "memchr",
+        "serde",
+        "serde_core",
+        "zmij"
+      ]
+    }
+  ],
+  "primary_sources": [
+    "https://raw.githubusercontent.com/rust-lang/crates.io-index/master/ry/u-/ryu-js",
+    "https://raw.githubusercontent.com/boa-dev/ryu-js/v1.0.3/Cargo.toml",
+    "https://raw.githubusercontent.com/boa-dev/ryu-js/v1.0.3/src/buffer/mod.rs",
+    "https://raw.githubusercontent.com/boa-dev/ryu-js/v1.0.3/src/lib.rs",
+    "https://raw.githubusercontent.com/serde-rs/json/v1.0.151/Cargo.toml",
+    "https://raw.githubusercontent.com/serde-rs/json/v1.0.151/src/ser.rs",
+    "https://docs.rs/serde_json/1.0.151/serde_json/fn.to_string.html",
+    "https://tc39.es/ecma262/multipage/abstract-operations.html#sec-numeric-types-number-tostring",
+    "https://tc39.es/ecma262/multipage/structured-data.html#sec-serializejsonproperty"
+  ],
+  "contracts": [
+    {
+      "id": "n01.values-number-text.v1",
+      "owner": "R1",
+      "independent_of_other_N01_profiles": true,
+      "planning_readiness": "planning_contract_released_after_independent_review",
+      "execution_release": "not_authorized",
+      "fresh_acceptance": false,
+      "original_references": [
+        "ports:A03.1"
+      ],
+      "original_prerequisites_preserved": true,
+      "finite_existing_production_paths": [
+        "packages/values/semantics/src/representations/numeric.rs"
+      ],
+      "finite_new_paths_proposals": [
+        "packages/values/semantics/tests/numeric_text_contract.rs",
+        "packages/values/test/numeric-text.contract.test.ts",
+        "packages/values/conformance/numeric-text.oracle.mjs",
+        "packages/values/conformance/numeric-text.json"
+      ],
+      "packet_path": "numeric-values.md",
+      "packet_sha256": "cd0f1a9eadf78e3ba147294bd7b3ab51c38883afa4d51d6b4f1aa71e384e775b",
+      "execution_acceptance_blockers": [
+        "owner acknowledgement",
+        "independent review",
+        "immutable JS expected-data generation",
+        "native/Wasm qualifications",
+        "full public envelope/transport/registry original gates"
+      ],
+      "domain_exclusions": [
+        "stored decimal scale negative-zero preservation",
+        "smoke JSON carrier raw-bit loss",
+        "host-object/coercion/symbol money paths",
+        "public smoke envelope/registry gap"
+      ]
+    },
+    {
+      "id": "n01.work-number-text.v1",
+      "owner": "R3",
+      "independent_of_other_N01_profiles": true,
+      "planning_readiness": "planning_contract_released_after_independent_review",
+      "execution_release": "not_authorized",
+      "fresh_acceptance": false,
+      "original_references": [
+        "ports:W04.1",
+        "ports:W04.3"
+      ],
+      "original_prerequisites_preserved": true,
+      "finite_existing_production_paths": [
+        "packages/work-kernel/decisions/rows.rs",
+        "packages/work-kernel/decisions/receipt.rs",
+        "packages/work-kernel/decisions/linkage.rs",
+        "packages/work-kernel/decisions/recovery.rs"
+      ],
+      "finite_new_paths_proposals": [
+        "packages/work-kernel/decisions/numeric_text.rs",
+        "packages/work-kernel/conformance/numeric-text.contract.test.ts",
+        "packages/work-kernel/conformance/numeric-text.oracle.mjs",
+        "packages/work-kernel/conformance/fixtures/numeric-text.json",
+        "packages/work-kernel/conformance/native-numeric-text.rs"
+      ],
+      "packet_path": "numeric-work.md",
+      "packet_sha256": "279efd7abe5d56e9826beca0792890747d57998516b56bdbb5688cf4f750fc2a",
+      "execution_acceptance_blockers": [
+        "owner acknowledgement",
+        "independent review",
+        "immutable JS/donor observations",
+        "W03.1 acceptance at original leaf scope",
+        "actual root registration and W04.4 inputs",
+        "native/Wasm/installed qualifiers"
+      ],
+      "domain_exclusions": [
+        "whole JSON serializer parity outside numeric tokens",
+        "fixed-width count normalization forbidden",
+        "original engine-specific URI/DataClone message exclusions",
+        "actual work Cargo root remains VERSION-only"
+      ]
+    },
+    {
+      "id": "n01.rust-str-escape.v1",
+      "owner": "R1",
+      "independent_of_other_N01_profiles": true,
+      "planning_readiness": "planning_contract_released_after_independent_review",
+      "execution_release": "not_authorized",
+      "fresh_acceptance": false,
+      "original_references": [
+        "ports:A04.5"
+      ],
+      "original_prerequisites_preserved": true,
+      "finite_existing_production_paths": [
+        "packages/values/semantics/src/codecs/numeric.rs"
+      ],
+      "finite_new_paths_proposals": [
+        "packages/values/semantics/tests/string_escape_contract.rs",
+        "packages/values/test/string-escape.contract.test.ts",
+        "packages/values/conformance/string-escape.oracle.mjs",
+        "packages/values/conformance/string-escape.json"
+      ],
+      "packet_path": "strings-rust.md",
+      "packet_sha256": "3c5d6f3bcedfdb4477cae48c15f1bcac62e8b579ae18f88414fe0840a0dadf8a",
+      "execution_acceptance_blockers": [
+        "owner acknowledgement",
+        "independent review",
+        "immutable JS expected-data generation",
+        "native/Wasm qualifications",
+        "full A04.5 A04.1/A04.3 original inputs",
+        "named lossless UTF16/64-unit cut residual"
+      ],
+      "domain_exclusions": [
+        "unpaired/reversed JS UTF16",
+        "actual_wire 64-unit surrogate-split",
+        "arbitrary public nested paths without original validation gates"
+      ]
+    }
+  ],
+  "holds_unchanged": [
+    "all unfinished preparation",
+    "ports:C04.native-release",
+    "library-sequence:D05 preparation implementation"
+  ],
+  "writer_rules": [
+    "R1 single values arithmetic/validation core and common assembly",
+    "R3 work/global assembly",
+    "No compiler edits, root manifest/lock or concurrent common-writer overlap",
+    "Only frozen future finite paths after explicit release; no active lease granted by this document"
+  ],
+  "combined_markdown": {
+    "path": "numeric-common.md",
+    "sha256": "f7880accd442d74139a473244e9c87503129d325b8b89869842be05a22f9d404",
+    "note": "Common definitions are stored once; three independent profile Markdown files are separate."
+  },
+  "original_records_preserved": [
+    {
+      "id": "ports:A03.1",
+      "original_status": "complete",
+      "owner": "R1",
+      "depends_on": [
+        "ports:A02",
+        "ports:C03.ready"
+      ],
+      "missing_inputs": [
+        {
+          "id": "ports:A02",
+          "status": "partial",
+          "owner": "R1",
+          "release_required": "Exact original acceptance at the scope consumed, not file presence or percentage."
+        }
+      ],
+      "reason": "Integrated shared values workspace exports representation/failure/transport modules and validation ownership modules; consolidated 79 native tests pass. No duplicate arithmetic/validation core."
+    },
+    {
+      "id": "ports:A04.1",
+      "original_status": "partial",
+      "owner": "R1",
+      "depends_on": [
+        "ports:A03.foundation"
+      ],
+      "missing_inputs": [],
+      "reason": "Direct original inputs are credited. Remaining contract, exact files/owner, evidence and implementation-release checks still apply."
+    },
+    {
+      "id": "ports:A04.3",
+      "original_status": "partial",
+      "owner": "R1",
+      "depends_on": [
+        "ports:A03.foundation",
+        "ports:A03.2",
+        "ports:A03.4"
+      ],
+      "missing_inputs": [],
+      "reason": "Direct original inputs are credited. Remaining contract, exact files/owner, evidence and implementation-release checks still apply."
+    },
+    {
+      "id": "ports:A04.5",
+      "original_status": "partial",
+      "owner": "R1",
+      "depends_on": [
+        "ports:A04.1",
+        "ports:A04.3",
+        "ports:C03.ready"
+      ],
+      "missing_inputs": [
+        {
+          "id": "ports:A04.1",
+          "status": "partial",
+          "owner": "R1",
+          "release_required": "Exact original acceptance at the scope consumed, not file presence or percentage."
+        },
+        {
+          "id": "ports:A04.3",
+          "status": "partial",
+          "owner": "R1",
+          "release_required": "Exact original acceptance at the scope consumed, not file presence or percentage."
+        }
+      ],
+      "reason": "Required original inputs are not yet complete at the consumer scope: ports:A04.1 [partial], ports:A04.3 [partial]."
+    },
+    {
+      "id": "ports:A07.foundation",
+      "original_status": "partial",
+      "owner": "R1",
+      "depends_on": [
+        "ports:A07.1",
+        "ports:A07.2"
+      ],
+      "missing_inputs": [
+        {
+          "id": "ports:A07.2",
+          "status": "needs_verification",
+          "owner": "R1",
+          "release_required": "Exact original acceptance at the scope consumed, not file presence or percentage."
+        }
+      ],
+      "reason": "Required original inputs are not yet complete at the consumer scope: ports:A07.2 [needs_verification]."
+    },
+    {
+      "id": "ports:A07.3",
+      "original_status": "partial",
+      "owner": "R1",
+      "depends_on": [
+        "ports:A03",
+        "ports:A04",
+        "ports:A05",
+        "ports:A06",
+        "ports:A07.foundation",
+        "ports:V03.5"
+      ],
+      "missing_inputs": [
+        {
+          "id": "ports:A03",
+          "status": "partial",
+          "owner": "R1",
+          "release_required": "Exact original acceptance at the scope consumed, not file presence or percentage."
+        },
+        {
+          "id": "ports:A04",
+          "status": "partial",
+          "owner": "R1",
+          "release_required": "Exact original acceptance at the scope consumed, not file presence or percentage."
+        },
+        {
+          "id": "ports:A05",
+          "status": "partial",
+          "owner": "R1",
+          "release_required": "Exact original acceptance at the scope consumed, not file presence or percentage."
+        },
+        {
+          "id": "ports:A07.foundation",
+          "status": "partial",
+          "owner": "R1",
+          "release_required": "Exact original acceptance at the scope consumed, not file presence or percentage."
+        }
+      ],
+      "reason": "Required original inputs are not yet complete at the consumer scope: ports:A03 [partial], ports:A04 [partial], ports:A05 [partial], ports:A07.foundation [partial]."
+    },
+    {
+      "id": "ports:W03.1",
+      "original_status": "needs_verification",
+      "owner": "R3",
+      "depends_on": [
+        "ports:W01.1",
+        "ports:W01.2",
+        "ports:W02.1",
+        "ports:C03.ready"
+      ],
+      "missing_inputs": [],
+      "reason": "Direct original inputs are credited. Remaining contract, exact files/owner, evidence and implementation-release checks still apply."
+    },
+    {
+      "id": "ports:W03.4",
+      "original_status": "not_started",
+      "owner": "R3",
+      "depends_on": [
+        "ports:W03.3",
+        "ports:W03.2",
+        "ports:W02.5"
+      ],
+      "missing_inputs": [
+        {
+          "id": "ports:W03.3",
+          "status": "not_started",
+          "owner": "R3",
+          "release_required": "Exact original acceptance at the scope consumed, not file presence or percentage."
+        },
+        {
+          "id": "ports:W03.2",
+          "status": "partial",
+          "owner": "R3",
+          "release_required": "Exact original acceptance at the scope consumed, not file presence or percentage."
+        },
+        {
+          "id": "ports:W02.5",
+          "status": "not_started",
+          "owner": "R3",
+          "release_required": "Exact original acceptance at the scope consumed, not file presence or percentage."
+        }
+      ],
+      "reason": "Required original inputs are not yet complete at the consumer scope: ports:W03.3 [not_started], ports:W03.2 [partial], ports:W02.5 [not_started]."
+    },
+    {
+      "id": "ports:W04.1",
+      "original_status": "needs_verification",
+      "owner": "R3",
+      "depends_on": [
+        "ports:W02.2",
+        "ports:W03.1",
+        "ports:C03.ready"
+      ],
+      "missing_inputs": [
+        {
+          "id": "ports:W03.1",
+          "status": "needs_verification",
+          "owner": "R3",
+          "release_required": "Exact original acceptance at the scope consumed, not file presence or percentage."
+        }
+      ],
+      "reason": "Required original inputs are not yet complete at the consumer scope: ports:W03.1 [needs_verification]."
+    },
+    {
+      "id": "ports:W04.2",
+      "original_status": "needs_verification",
+      "owner": "R3",
+      "depends_on": [
+        "ports:W02.3",
+        "ports:W03.1",
+        "ports:C03.ready"
+      ],
+      "missing_inputs": [
+        {
+          "id": "ports:W03.1",
+          "status": "needs_verification",
+          "owner": "R3",
+          "release_required": "Exact original acceptance at the scope consumed, not file presence or percentage."
+        }
+      ],
+      "reason": "Required original inputs are not yet complete at the consumer scope: ports:W03.1 [needs_verification]."
+    },
+    {
+      "id": "ports:W04.3",
+      "original_status": "needs_verification",
+      "owner": "R3",
+      "depends_on": [
+        "ports:W02.4",
+        "ports:W03.1",
+        "ports:C03.ready"
+      ],
+      "missing_inputs": [
+        {
+          "id": "ports:W03.1",
+          "status": "needs_verification",
+          "owner": "R3",
+          "release_required": "Exact original acceptance at the scope consumed, not file presence or percentage."
+        }
+      ],
+      "reason": "Required original inputs are not yet complete at the consumer scope: ports:W03.1 [needs_verification]."
+    },
+    {
+      "id": "ports:W04.4",
+      "original_status": "not_started",
+      "owner": "R3",
+      "depends_on": [
+        "ports:W04.1",
+        "ports:W04.2",
+        "ports:W04.3",
+        "ports:W03.4"
+      ],
+      "missing_inputs": [
+        {
+          "id": "ports:W04.1",
+          "status": "needs_verification",
+          "owner": "R3",
+          "release_required": "Exact original acceptance at the scope consumed, not file presence or percentage."
+        },
+        {
+          "id": "ports:W04.2",
+          "status": "needs_verification",
+          "owner": "R3",
+          "release_required": "Exact original acceptance at the scope consumed, not file presence or percentage."
+        },
+        {
+          "id": "ports:W04.3",
+          "status": "needs_verification",
+          "owner": "R3",
+          "release_required": "Exact original acceptance at the scope consumed, not file presence or percentage."
+        },
+        {
+          "id": "ports:W03.4",
+          "status": "not_started",
+          "owner": "R3",
+          "release_required": "Exact original acceptance at the scope consumed, not file presence or percentage."
+        }
+      ],
+      "reason": "Required original inputs are not yet complete at the consumer scope: ports:W04.1 [needs_verification], ports:W04.2 [needs_verification], ports:W04.3 [needs_verification], ports:W03.4 [not_started]."
+    },
+    {
+      "id": "ports:W05.1",
+      "original_status": "not_started",
+      "owner": "R3",
+      "depends_on": [
+        "ports:W04.4",
+        "ports:W03.2",
+        "ports:C04.ready",
+        "ports:C04.graph"
+      ],
+      "missing_inputs": [
+        {
+          "id": "ports:W04.4",
+          "status": "not_started",
+          "owner": "R3",
+          "release_required": "Exact original acceptance at the scope consumed, not file presence or percentage."
+        },
+        {
+          "id": "ports:W03.2",
+          "status": "partial",
+          "owner": "R3",
+          "release_required": "Exact original acceptance at the scope consumed, not file presence or percentage."
+        },
+        {
+          "id": "ports:C04.ready",
+          "status": "needs_verification",
+          "owner": "R3",
+          "release_required": "Exact original acceptance at the scope consumed, not file presence or percentage."
+        },
+        {
+          "id": "ports:C04.graph",
+          "status": "partial",
+          "owner": "R3",
+          "release_required": "Exact original acceptance at the scope consumed, not file presence or percentage."
+        }
+      ],
+      "reason": "Required original inputs are not yet complete at the consumer scope: ports:W04.4 [not_started], ports:W03.2 [partial], ports:C04.ready [needs_verification], ports:C04.graph [partial]."
+    },
+    {
+      "id": "ports:W05.2",
+      "original_status": "not_started",
+      "owner": "R3",
+      "depends_on": [
+        "ports:W05.1"
+      ],
+      "missing_inputs": [
+        {
+          "id": "ports:W05.1",
+          "status": "not_started",
+          "owner": "R3",
+          "release_required": "Exact original acceptance at the scope consumed, not file presence or percentage."
+        }
+      ],
+      "reason": "Required original inputs are not yet complete at the consumer scope: ports:W05.1 [not_started]."
+    },
+    {
+      "id": "ports:C04.work-assets",
+      "original_status": "not_started",
+      "owner": "R3",
+      "depends_on": [
+        "ports:W05.2",
+        "ports:C04.graph",
+        "ports:C04.ready"
+      ],
+      "missing_inputs": [
+        {
+          "id": "ports:W05.2",
+          "status": "not_started",
+          "owner": "R3",
+          "release_required": "Exact original acceptance at the scope consumed, not file presence or percentage."
+        },
+        {
+          "id": "ports:C04.graph",
+          "status": "partial",
+          "owner": "R3",
+          "release_required": "Exact original acceptance at the scope consumed, not file presence or percentage."
+        },
+        {
+          "id": "ports:C04.ready",
+          "status": "needs_verification",
+          "owner": "R3",
+          "release_required": "Exact original acceptance at the scope consumed, not file presence or percentage."
+        }
+      ],
+      "reason": "Required original inputs are not yet complete at the consumer scope: ports:W05.2 [not_started], ports:C04.graph [partial], ports:C04.ready [needs_verification]."
+    },
+    {
+      "id": "ports:W05.4",
+      "original_status": "not_started",
+      "owner": "R3",
+      "depends_on": [
+        "ports:W05.2",
+        "ports:C04.work-assets"
+      ],
+      "missing_inputs": [
+        {
+          "id": "ports:W05.2",
+          "status": "not_started",
+          "owner": "R3",
+          "release_required": "Exact original acceptance at the scope consumed, not file presence or percentage."
+        },
+        {
+          "id": "ports:C04.work-assets",
+          "status": "not_started",
+          "owner": "R3",
+          "release_required": "Exact original acceptance at the scope consumed, not file presence or percentage."
+        }
+      ],
+      "reason": "Required original inputs are not yet complete at the consumer scope: ports:W05.2 [not_started], ports:C04.work-assets [not_started]."
+    },
+    {
+      "id": "ports:W05.3",
+      "original_status": "not_started",
+      "owner": "R3",
+      "depends_on": [
+        "ports:W05.4",
+        "ports:C04.ready"
+      ],
+      "missing_inputs": [
+        {
+          "id": "ports:W05.4",
+          "status": "not_started",
+          "owner": "R3",
+          "release_required": "Exact original acceptance at the scope consumed, not file presence or percentage."
+        },
+        {
+          "id": "ports:C04.ready",
+          "status": "needs_verification",
+          "owner": "R3",
+          "release_required": "Exact original acceptance at the scope consumed, not file presence or percentage."
+        }
+      ],
+      "reason": "Required original inputs are not yet complete at the consumer scope: ports:W05.4 [not_started], ports:C04.ready [needs_verification]."
+    }
+  ],
+  "error_envelope_templates": " (source expectations; not executed captures)\n\n`${...}` below is template substitution by the original JS caller, not precomputed fixture data. Full caller freeze must capture actual source, not implement these templates as the sole oracle. Omitted properties stay omitted; Rust Option=None is not permission to serialize null.\n\n- Values `round(value, scale)` integral out-of-range: TS throw `{name:\"ValueError\", kind:\"value\", code:\"out-of-range\", message:\"round scale out of range 0..18: ${String(scale)}\"}`; native Failure has only code/message; exact_call response `{ok:false,code:\"out-of-range\",message:...}`. Noninteger scale wins first with invalid-construction/`round scale must be an integer`.\n- Values `makeDate(year,month,day)` all integer but invalid combination: ValueError/invalid-construction/`invalid civil date: ${String(year)}-${String(month)}-${String(day)}`. Any noninteger part wins first with `date ${label} must be an integer`, scanning year,month,day in order.\n- Values `makeMoney(1n,numericCurrency)`: ValueError/invalid-construction/`invalid currency code shape: ${String(numericCurrency)}`; preserve the primitive-only profile and maker argument order.\n- Values `decodeValue(\"int\",n)` for a number: SchemaError/kind schema/message `schema validation failed with 1 violation(s)`/violations `[ {path:[],code:\"type\",message:\"int has the wrong wire type\",expected:\"canonical int64 decimal string\",actual:\"number ${String(n)}\"} ]`. Native codec Err carries that ordered violation only; exact_call returns `{ok:false,violations:[...]}`. All properties shown are present. Public smoke backend currently has its different scaffold mapping; do not bless that as public codec parity.\n- Values money shape with missing minor: `{path:[\"minor\"],code:\"required\",message:'money {minor, currency} is missing \"minor\"',expected:\"money {minor, currency}\"}`; `actual` is absent. Missing currency follows minor. Unknown key k: `{path:[k],code:\"unknown-field\",message:\"money {minor, currency} has no field ${JSON.stringify(k)}\",expected:\"money {minor, currency}\",actual:actualWire(wire[k])}`. Shape required/extra observations precede field decode checks in their original order.\n- Values money currency string malformed: path `[\"currency\"]`, code format, message `money.currency is malformed`, expected `ISO 4217 currency code`, actual JSON.stringify(currency) then UTF-16 truncation. Full public SchemaError message uses the actual total violation count.\n- Values `encodeValue(\"money\", {kind:\"money\",minor:1n,currency:\"AAA\"})`, when AAA is absent from the pinned table: ValueError/invalid-construction/message `unknown currency \"AAA\" at $[\"currency\"]`. Native Failure and transport layer map as above. Public unknown-currency encode guard only admits three uppercase letters; arbitrary escaped currency text is an internal raw-MoneyParts probe, not equivalent public input. Currency-shape-invalid records must keep `expected a money value at $` before unknown-currency formatting.\n- Work/state rows count mismatch: `{name:\"KernelTableError\",message:\"work.fanout_intent.memberCount ${String(memberCount)} mismatches members length ${members.length}.\"}` for work; state adds name StateError, code validation, details null. Native RowsError has name/code Option/message, no details field; required host mapping is a separate join.\n- Work/state cohort diagnostic: work message `fanout cohort must be model or anchored-collection, got ${JSON.stringify(value)}.`; state starts `Fanout`. Choose number/nonfinite value here to reach JSON numeric-token formatting while retaining shape-check precedence.\n- Receipt stale revision: `{name:\"ReceiptTableError\",message:\"${what}: stale revision ${String(revision)} under current ${String(current)}.\"}`, code absent. Unknown status: same name/message `work.receipt.status is unknown: ${JSON.stringify(value)}.`. Native ReceiptFailure contains name/message.\n- Linkage receipt skew: `{name:\"StateError\",code:\"validation\",details:null,message:\"Receipt join: receipt revision ${String(receiptRevision)} disagrees with association revision ${String(associationRevision)} for ${JSON.stringify(deliveryId)}.\"}`. Native LinkageError has name/code/message only. Earlier malformed row/duplicate/no-receipt faults retain precedence.\n- Recovery resume skew: `{name:\"Error\",message:\"planRelatedProgressResume: association revision ${String(associationRevision)} disagrees with receipt revision ${String(receiptRevision)}.\"}`, code absent; native RecoveryError contains name/message. Earlier unknown relation/status/foreign receipt stays first.\n\nThese templates are supported by the exact local caller hashes in JSON, not fresh observations. They do not mandate JSON object key serialization order of transport structs: preserve existing transport key order and compare its exact layer separately; ordered violation arrays/paths and owned record ordering are semantic obligations.\n\n",
+  "qualification": {
+    "executed": false,
+    "actual_native_host_observed": "arm64 macOS; rustc target triple not inspected; capture rustc -vV at execution",
+    "wasm_target": "wasm32-unknown-unknown",
+    "raw_bits_wasm_harnesses_proposed": [
+      "/private/tmp/canlang-n01-values-wasm/Cargo.toml",
+      "/private/tmp/canlang-n01-values-wasm/Cargo.lock",
+      "/private/tmp/canlang-n01-values-wasm/src/lib.rs",
+      "/private/tmp/canlang-n01-values-wasm/run.mjs",
+      "/private/tmp/canlang-n01-work-wasm/Cargo.toml",
+      "/private/tmp/canlang-n01-work-wasm/Cargo.lock",
+      "/private/tmp/canlang-n01-work-wasm/src/lib.rs",
+      "/private/tmp/canlang-n01-work-wasm/run.mjs"
+    ],
+    "native_work_harness_proposed": [
+      "/private/tmp/canlang-n01-work-native/Cargo.toml",
+      "/private/tmp/canlang-n01-work-native/Cargo.lock",
+      "/private/tmp/canlang-n01-work-native/src/main.rs"
+    ],
+    "test_only_harness_rule": "compile actual values path dependency / exact work decision source; production closure/checksums/features match; hi/lo u32\u2192u64\u2192f64::from_bits; actual Wasm execution all corpus; no production ABI",
+    "actual_package_rule": "values-semantics tests plus values-bindings release wasm, actual regenerated glue/error operations; work actual Cargo root registration and corpus execution, no VERSION-only credit",
+    "installed_rule": "exact source/glue/wasm/ABI/inventory hashes and actual packaged Node/workerd execution require their original A/V/W/C04 gates; no native HOLD release"
+  },
+  "source_report_sha256": "999402f0350fd5cad455946b43b3d30b9d70b6b2354fa6d924f6d77e19a3ec0e",
+  "author_product_fixtures_executed": false,
+  "planning_primitive_oracle_executed": true,
+  "root_independent_review_reference": "independent-review.md"
+}

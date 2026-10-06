@@ -1,0 +1,50 @@
+{
+  "schema_version": 1,
+  "date": "2026-10-07",
+  "policy": "least expensive supported reliable choice for each finite task; no inherited worker effort or benchmarked best-model claim",
+  "official_sources_opened": [
+    "https://developers.openai.com/api/docs/models/gpt-6.1-sol",
+    "https://developers.openai.com/api/docs/models/gpt-6-luna"
+  ],
+  "selection_skill": "/Users/vince/.codex/skills/model-selection/SKILL.md",
+  "task_allocation_reference": "docs/research/package-library-audit-20261006/model-allocation-20261007.json",
+  "dispatches": [
+    {
+      "task": "contract_numeric_strings",
+      "model": "gpt-6.1-sol",
+      "reasoning_effort": "high",
+      "reason": "User-selected full N01 cross-file independent oracle, carrier bits, byte envelopes and Rust-str/UTF16 compatibility tradeoffs; extraction alone insufficient."
+    },
+    {
+      "task": "contract_import_maps",
+      "model": "gpt-6.1-sol",
+      "reasoning_effort": "high",
+      "reason": "User-selected full D01 cross-file synchronous API, import/error order and raw map compatibility; concrete library default mismatches require source judgment."
+    },
+    {
+      "task": "contract_ownership_extract",
+      "model": "gpt-6-luna",
+      "reasoning_effort": "low",
+      "reason": "Specified 30 canonical IDs/dependencies/path existence and overlaps; no policy selection."
+    },
+    {
+      "task": "contract_oracle_capture",
+      "model": "gpt-6-luna",
+      "reasoning_effort": "medium",
+      "reason": "Frozen seed/IEEEbit/string corpus recipe; deterministic data capture and multistep compression/hash validation after contract defined, no native adapter tests."
+    },
+    {
+      "task": "contract_independent_review",
+      "model": "gpt-6.1-sol",
+      "reasoning_effort": "high",
+      "reason": "Independent full N01/D01 source/envelope/oracle/ownership review at declared cross-file compatibility risk; separate clean-room evidence check, not inherited implementation setting."
+    }
+  ],
+  "root_owns": [
+    "review/acceptance",
+    "Git/commits",
+    "file-lease activation"
+  ],
+  "execution_authorized": false,
+  "prepared_capture_correction": "Same finite Luna/medium packet recaptured exact frozen source after corpus mismatch; root confirmed hashes and domain counts."
+}
