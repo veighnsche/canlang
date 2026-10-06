@@ -1,5 +1,0 @@
-# Equivalence and wording check
-
-All three requests retain the same 68-component/version evidence, existing source constructs, implementation stage, required full coverage, canonical schema/operation/read/navigation/preference/cursor boundaries, absence of raw app UI code, permission to revise the old inventory, and known Calendar/OTP/theme/pagination behavior gaps. The same seven evaluation concerns and draft migration tradeoff apply. Options consistently compare direct contextual names, a typed generic header, and semantic selections with a residual header; each carries both benefits and costs.
-
-Manual semantic comparison was completed before dispatch. Context, constraints, evaluation, question and all three alternative descriptions were independently rewritten. Automated comparisons confirm differing complete requests and all explanatory fields, identical source identifiers/exact grammar evidence, and matching alternative identities. Neither incoming results nor a presumed preferred option was supplied as evidence.

@@ -1,0 +1,19 @@
+# Record-input admission consultation
+
+<a id="source-assessment"></a>
+
+## assessment.md
+
+### Record-input admission review
+
+Three complete fresh requests/answers are retained. Calls 1/2 favored independent operation authority with probabilities .83/.77 (confidence .65/.54). Call 3 selected a blanket read prerequisite with .51 versus .49 (confidence .03). This is substantive wording sensitivity, not unanimous agreement or a threshold to approve anything.
+
+Investigation: the current DESIGN §4 already separates read policy from operation writes and allows owner-authority decision data; the Board source explicitly declares its per-record owner guard. A universal read requirement would silently strengthen that contract and could require extra read grants for intentionally guarded writes. Conversely, accepting opaque IDs without guards would be unsafe. The clarification keeps declared by/guard authorization, type/owner/team/lifetime/version checks, read-filtered UI lookups and return projections, and separate file authority. Same-owner references do not grant writes. The Board nonowner attempt fails its actual generic owner guard; missing/expired/foreign-owner targets use not_found. No hidden state is interpolated into failures.
+
+The final choice follows the existing written permission boundary and explicit source guards, not classifier voting. The .51/.49 response flags a real security tradeoff: authors must not omit per-record guards merely because UI pickers hide records. This review does not prove policy correctness or execute mutations. Initial sandbox calls could not reach TypeSafe and returned no result; the identical saved requests were then sent under existing standing network authorization, with all successful answers preserved.
+
+<a id="source-wording-check"></a>
+
+## wording-check.md
+
+Three fresh contexts, questions and both option descriptions were rewritten. Canonical code and identifiers are intentionally identical. Manual semantic check: each preserves separate reads/writes, bounded decision authority, output filtering, tenant/storage/lifetime/version checks, safe errors, hidden UI lookups, exact same-team Board example, blind-write benefit and guessed-reference risk for A, visibility defense and additional-grant/exception cost for B. No proposal is asserted proven or authorized by classifier agreement.
