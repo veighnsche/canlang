@@ -827,3 +827,8 @@ Accepted integration choice: retained historical input-validation audit at its o
 ### 2026-10-06 — Consolidate codex/remaining-lane-e-interfaces into main
 
 Accepted integration choice: browser assets producer; route mounting and product joins remain incomplete. Preserve all commit ancestry through a merge, retain newer main on historical overlapping patches, and keep authored/source intent and unfinished gates visible. Structural changes since checkpoint are recorded in `docs/ideal-filetree-plan/consolidation-20261006.json`; the complete checkpoint is unchanged because source closure is incomplete. This is repository consolidation, not programme acceptance or worker resumption.
+
+
+### 2026-10-06 — Consolidate codex/remaining-lane-f-ui into main
+
+Accepted integration choice: browser client and polling; full binder/installed workflow acceptance remains incomplete. Preserve all commit ancestry through a merge, retain newer main on historical overlapping patches, and keep authored/source intent and unfinished gates visible. Structural changes since checkpoint are recorded in `docs/ideal-filetree-plan/consolidation-20261006.json`; the complete checkpoint is unchanged because source closure is incomplete. This is repository consolidation, not programme acceptance or worker resumption.
