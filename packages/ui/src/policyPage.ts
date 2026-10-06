@@ -456,6 +456,16 @@ function resolveFieldPath(
   for (const [index, segment] of rest.entries()) {
     const last = index === rest.length - 1;
     if (current.opaque === true) {
+      // Known delivery-observation leaves stay terminal on opaque
+      // deliveries too (A5-N1: mirrors A's E2013 pin on the Opaque
+      // "external delivery target" arm — descent past id/status/
+      // error/result fails even when the schema is unavailable).
+      if (current.kind === "delivery" && DELIVERY_LEAVES.includes(segment) && !last) {
+        return unreadable(
+          selector,
+          `selector ${JSON.stringify(selector)} descends past terminal delivery leaf '${segment}'`,
+        );
+      }
       return readable(selector, "deferred");
     }
     if (current.kind === "contract") {
