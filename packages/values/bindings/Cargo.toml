@@ -1,0 +1,14 @@
+[package]
+name = "values-bindings"
+version = "0.1.0"
+edition = "2021"
+publish = false
+description = "Private wasm-bindgen adapter for @canlang/values exact semantics (no public API)"
+license = "MIT OR Apache-2.0"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+values-semantics = { path = "../semantics" }
+wasm-bindgen = "0.2"
