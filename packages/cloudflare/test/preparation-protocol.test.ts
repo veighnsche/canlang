@@ -1,8 +1,15 @@
 /** P03.4: native launcher behind selection, live subprocess coverage. */
 import { chmodSync, mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { join, resolve } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import type { CompileArtifact } from "@canlang/contracts";
+import { WORKER_MAIN_MISSING } from "../src/deploy/bundle.js";
+import {
+  buildBundleWithHostPhases,
+  runCatalogPhase,
+  runMcpBunPhase,
+} from "../src/preparation/build-adapter.js";
 import {
   PREPARATION_BIN_ENV,
   devBinaryPath,
@@ -132,5 +139,98 @@ describe("preparation launcher: failure mapping", () => {
 
   it("dev binary path stays under the package root", () => {
     expect(devBinaryPath(packageRootDir()).startsWith(packageRootDir())).toBe(true);
+  });
+});
+
+describe("preparation build adapter: two real host phases (P05.2)", () => {
+  const repoRoot = resolve(packageRootDir(), "..", "..");
+
+  function testArtifact(): CompileArtifact {
+    return {
+      artifact_version: 1,
+      language_version: "1.0.0",
+      tool_version: "0.1.0",
+      sources: [{ path: "app.can", sha256: "0".repeat(64) }],
+      modules: [
+        {
+          path: "app/main.js",
+          js: `import { util } from "./util.js";\nexport const descriptor = { util };\n`,
+          map: { version: 3, file: "app.can", sources: [], sourcesContent: [], names: [], mappings: "" },
+        },
+        {
+          path: "app/util.js",
+          js: `export function util() { return "util"; }\n`,
+          map: { version: 3, file: "app.can", sources: [], sourcesContent: [], names: [], mappings: "" },
+        },
+      ],
+      callables: [],
+      operations: [],
+      pages: [{ owner: "test", path: "/main", module: "app/main.js", export: "descriptor" }],
+      requires: [],
+      tests: [],
+    };
+  }
+
+  function fakeWorkerDist(): string {
+    const dir = mkdtempSync(join(tmpdir(), "can-prep-adapter-"));
+    writeFileSync(
+      join(dir, "main.js"),
+      `import { createMcpHandler } from "./mcp-handler.js";\n` +
+        `export default { async fetch() { return Response.json({ mcp: typeof createMcpHandler }); } };\n`,
+    );
+    return dir;
+  }
+
+  it("adapter phases byte-match the bundle-embedded modules", () => {
+    const artifact = testArtifact();
+    const bundle = buildBundleWithHostPhases(artifact, {
+      repoRoot,
+      workerDistDir: fakeWorkerDist(),
+      verdict: { active: true },
+    });
+    const bun = runMcpBunPhase(repoRoot);
+    expect(bun.mcpHandlerJs).toBe(bundle.modules["worker/mcp-handler.js"]);
+    expect(bun.httpOperationsJs).toBe(bundle.modules["worker/http-operations.js"]);
+    expect(runCatalogPhase(artifact)).toBe(bundle.modules["worker/derived-inputs.js"]);
+    expect(bundle.mcpBundleBytes).toBe(bun.mcpHandlerJs.length);
+    expect(bundle.httpOperationsBytes).toBe(bun.httpOperationsJs.length);
+  }, 120_000);
+
+  it("catalog phase bakes empty operations deterministically", () => {
+    expect(runCatalogPhase(testArtifact())).toBe("export const derivedInputs = {};\n");
+  });
+
+  it("legacy worker-missing path invokes neither phase", () => {
+    const empty = mkdtempSync(join(tmpdir(), "can-prep-no-worker-"));
+    const priorPath = process.env["PATH"];
+    // Bun absent: any phase attempt would fail ENOENT-loud instead.
+    process.env["PATH"] = "/nonexistent-p05_2";
+    try {
+      let code: unknown = null;
+      try {
+        buildBundleWithHostPhases(testArtifact(), {
+          repoRoot,
+          workerDistDir: empty,
+          verdict: { active: true },
+        });
+      } catch (error) {
+        code = (error as { code?: unknown }).code;
+      }
+      expect(code).toBe(WORKER_MAIN_MISSING);
+    } finally {
+      if (priorPath === undefined) delete process.env["PATH"];
+      else process.env["PATH"] = priorPath;
+    }
+  });
+
+  it("bun phase fails loud without bun (real spawn path, no stub)", () => {
+    const priorPath = process.env["PATH"];
+    process.env["PATH"] = "/nonexistent-p05_2";
+    try {
+      expect(() => runMcpBunPhase(repoRoot)).toThrow(/`bun` is not on PATH/);
+    } finally {
+      if (priorPath === undefined) delete process.env["PATH"];
+      else process.env["PATH"] = priorPath;
+    }
   });
 });
