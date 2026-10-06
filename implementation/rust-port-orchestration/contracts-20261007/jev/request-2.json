@@ -1,0 +1,49 @@
+{
+  "state": {
+    "phase": "Planning only; no implementation authorized. Advisory choice, not acceptance.",
+    "human_outcomes": [
+      "Replace handwritten mechanics with qualified libraries where simpler",
+      "Preserve Can byte/error/source-identity contracts and portable finite module resolution",
+      "Keep each contract independently releasable; no global all-library barrier"
+    ],
+    "verified_source": {
+      "packages/cloudflare/src/runtime/sourcemap.ts": "1455a9344724114863b2438403e08bf0e4db3a08c4ddd68fc1ae99992419c66b",
+      "packages/cloudflare/src/deploy/bundle.ts": "c655fed4ef03d35d39fc52811abc4d41516d2bf8e52fcf4a499d17e8f9057ed1",
+      "packages/cloudflare/src/runtime/modules.ts": "f42ff4589751ee275ad48905c6a073fe20b38a9ee49ef147d38e69befda63230"
+    },
+    "source_facts": [
+      "Existing collectSpecifiers iterates from/reexport group, literal dynamic import() group, side-effect group; order within group is source scan, not global lexical order. Relative imports use posix normalize+join and exact known-set. Allowed producers @canlang/stdlib and @canlang/ui. Raw regex captures escaped literal source text and may match comments/nonimports. buildDeployBundle public API is synchronous; es-module-lexer3.0.3 minimal/js is a synchronous asm candidate with no Wasm init. Lexer recognizes more actual imports and provides decoded specifier plus original UTF16 spans. Current CJS/Bun loadability checks are separate and stay unchanged.",
+      "Raw source-map lookup decodes every call and returns map.sources[src] verbatim, ignores sourceRoot, omits invalid optional name, stops on unmapped1field, and selects last equal generated column before first overshoot. It does not sort. Existing VLQ uses JS32bit shift; signed-zero VLQ B yields -0; no explicit overflow/negative/sort guards. sourcemap-codec1.6.0 sorts unsorted lines and maps B to -2147483648; trace-mapping0.3.31 GLB selects first duplicate and resolves sourceRoot/path. Thus straightforward substitution changes observed behavior.",
+      "Current malformed character/truncation/field-count errors are public sourcemap-prefixed bytes; library docs do not qualify actual target semantics. No new decoder should be casually hand-rolled just to force a library win. Native preparation remains HUMAN HOLD."
+    ],
+    "constraints": [
+      "No compiler source/artifact identity mutation",
+      "Node-side lexer/edit/composition tooling separate from Worker lookup shipped closure",
+      "Broader semantic correction requires explicit decision and positive/negative oracle witnesses; existing compatibility gates remain open."
+    ],
+    "uncertainty": [
+      "More-recognized import forms may affect real bundled vendor code and need target-host qualification",
+      "No product build/library install/behavior benchmark has run in this planning step."
+    ]
+  },
+  "questions": {
+    "import_policy": {
+      "type": "choice",
+      "instructions": "Given actual regex grouping and synchronous portable-map APIs, what is the most defensible parser-adoption contract? Compare decoded lexical correction, raw-compatible admission and explicit split profiles using the same criteria.",
+      "criteria": {
+        "decoded_compat": "Select lexical imports and decoded JS literal identity for resolution, preserving original group ordering/error envelopes for old real-import forms. Explicitly record corrections (remove false matches, newly recognized forms, escaped literal semantics); deterministic refusal of computed imports at finite-map admission and syntax parse fault before module policy. Require real fixture/caller/delivered-host qualification before adoption.",
+        "raw_compat": "Use lexical records but preserve raw-spelling resolution/rejection for previously recognized imports; reject newly recognized/escaped/computed forms outside current generated-source contract. Minimize immediate behavior changes but can reject valid code or retain source-profile complexity.",
+        "split_profiles": "Keep current regex semantics as explicit legacy profile and add opt-in lexer decoded policy with separate routing/qualification. Preserves old behavior while adding supported correctness, but keeps duplicate mechanisms and permanent profile maintenance."
+      }
+    },
+    "raw_map_policy": {
+      "type": "choice",
+      "instructions": "What should the planned source-map adoption do when the pinned libraries sort/resolve/select/decode differently from the existing raw oracle? Compare the three options under identical preservation and maintenance goals.",
+      "criteria": {
+        "retain_contract_candidate_gate": "Freeze exact current raw behavior as oracle; pin codec/trace candidates but hold D03 replacement until a bounded qualification proves a small adapter preserves required domain or an explicit narrower-profile/semantic change is justified. Keep current decoder now, do not claim library adoption or force large duplicate decoder. Import/N releases remain independent.",
+        "canonical_profile": "Adopt codec/trace for canonical sorted bounded maps, explicitly route noncanonical maps to retained current decoder before lookup; preserve public behavior with disjoint qualified profiles, but maintain two mechanisms and a trustworthy admission classifier.",
+        "correct_now": "Change to canonical library decoding/lookup with strict noncanonical refusal, explicit new error/rejection contract. Simpler implementation but changes accepted raw-map behavior and may silently alter diagnostics unless all consumers migrate."
+      }
+    }
+  }
+}

@@ -1,0 +1,717 @@
+{
+  "schema_version": 1,
+  "phase": "planning",
+  "execution_authorized": false,
+  "active_file_leases": 0,
+  "root_package_git_owner": "Codex; external compiler writer retains independent authority",
+  "common_assembly": {
+    "R1-values-common-assembly": [
+      "packages/values/Cargo.toml",
+      "packages/values/Cargo.lock",
+      "packages/values/semantics/Cargo.toml",
+      "packages/values/bindings/Cargo.toml",
+      "packages/values/semantics/src/lib.rs",
+      "packages/values/semantics/src/representations/mod.rs",
+      "packages/values/semantics/src/codecs/mod.rs",
+      "packages/values/semantics/src/profiles.rs",
+      "packages/values/bindings/src/lib.rs",
+      "packages/values/bindings/src/exact.rs",
+      "packages/values/bindings/src/validation.rs",
+      "packages/values/bindings/validation.ts",
+      "packages/values/src/index.ts"
+    ],
+    "R3-work-assembly": [
+      "packages/work-kernel/Cargo.toml",
+      "packages/work-kernel/Cargo.lock",
+      "packages/work-kernel/rust/lib.rs",
+      "packages/work-kernel/decisions/lib.rs"
+    ],
+    "R3-global-delivery": [
+      "package.json",
+      "bun.lock",
+      "scripts/run-tasks.mjs",
+      "scripts/build-package.mjs",
+      "packages/cloudflare/package.json",
+      "packages/values/package.json",
+      "packages/work-kernel/package.json",
+      "packages/state/package.json",
+      "packages/stdlib/package.json",
+      "packages/testkit/package.json",
+      "packages/cloudflare/src/deploy/bundle.ts",
+      "packages/cloudflare/src/runtime/modules.ts",
+      "packages/cloudflare/src/dev/local-run.ts",
+      "packages/cloudflare/test/deploy-bundle.test.ts",
+      "packages/cloudflare/test/modules.test.ts"
+    ]
+  },
+  "reservations_are_future_not_active": true,
+  "reserved_file_transfer_rule": "One accountable R1/R3 source owner; any child leaf/shared-site edit gets exact-file temporary transfer and returns release/hash before owner joins. Reservations never authorize competing writes.",
+  "external_compiler_writer_handoff_required": [
+    "package.json",
+    "bun.lock",
+    "shared build declarations",
+    "docs/specification/DECISIONS.md",
+    "compiler API/ABI or compiled artifact interfaces"
+  ],
+  "source_hashes_at_packet_activation_required": true,
+  "leases": [
+    {
+      "id": "lease:N02-values-number",
+      "accountable_owner": "R1",
+      "status": "frozen_future_allowlist",
+      "active": false,
+      "execution_authorized": false,
+      "contracts_required": [
+        "library-sequence:N01#values"
+      ],
+      "original_tasks": [
+        "ports:A03",
+        "ports:A04.1",
+        "ports:A04.3"
+      ],
+      "files": [
+        {
+          "path": "packages/values/semantics/src/representations/numeric.rs",
+          "exists": true,
+          "sha256": "d4dad000e5c2ea7c1dcc15fbae0d41cb0b7681b048e8a4c3d9459ab1479eb04e",
+          "proposed_new": false
+        },
+        {
+          "path": "packages/values/semantics/tests/number_text_oracle.rs",
+          "exists": false,
+          "sha256": null,
+          "proposed_new": true
+        }
+      ],
+      "assembly_requests": [
+        "packages/values/semantics/Cargo.toml",
+        "packages/values/Cargo.lock"
+      ],
+      "activation_gate": "Refresh source and original prerequisites, actual human implementation release, named operator ACK, exact independent output/check paths and affected owner release. No source edits authorized here."
+    },
+    {
+      "id": "lease:N04-rust-string",
+      "accountable_owner": "R1",
+      "status": "frozen_future_allowlist",
+      "active": false,
+      "execution_authorized": false,
+      "contracts_required": [
+        "library-sequence:N01#strings"
+      ],
+      "original_tasks": [
+        "ports:A04.5"
+      ],
+      "files": [
+        {
+          "path": "packages/values/semantics/src/codecs/numeric.rs",
+          "exists": true,
+          "sha256": "4c12632d10e1d6b4f749c82f37c5910b7ae998cb1195fd1b571d69479784bd03",
+          "proposed_new": false
+        },
+        {
+          "path": "packages/values/semantics/tests/string_escape_oracle.rs",
+          "exists": false,
+          "sha256": null,
+          "proposed_new": true
+        }
+      ],
+      "assembly_requests": [],
+      "activation_gate": "Refresh source and original prerequisites, actual human implementation release, named operator ACK, exact independent output/check paths and affected owner release. No source edits authorized here."
+    },
+    {
+      "id": "lease:N03-work-number",
+      "accountable_owner": "R3",
+      "status": "frozen_future_allowlist",
+      "active": false,
+      "execution_authorized": false,
+      "contracts_required": [
+        "library-sequence:N01#work"
+      ],
+      "original_tasks": [
+        "ports:W04.1",
+        "ports:W04.3"
+      ],
+      "files": [
+        {
+          "path": "packages/work-kernel/decisions/rows.rs",
+          "exists": true,
+          "sha256": "e33134e2c819a150209f933a2020f519f473516da3867fca67735b10bddd18ce",
+          "proposed_new": false
+        },
+        {
+          "path": "packages/work-kernel/decisions/receipt.rs",
+          "exists": true,
+          "sha256": "3682195a6265fa68381ea2c14a3e78b7831026b2f4dc420f6655a9ad940963d9",
+          "proposed_new": false
+        },
+        {
+          "path": "packages/work-kernel/decisions/linkage.rs",
+          "exists": true,
+          "sha256": "05b7ab44df96de03dc9ba7764e6a3a6376bd53542463149ad14410a9565921aa",
+          "proposed_new": false
+        },
+        {
+          "path": "packages/work-kernel/decisions/recovery.rs",
+          "exists": true,
+          "sha256": "818a8c8ce2a4792981d295bf9a5016dd602a1f30733127aa275d0f7e2342b65f",
+          "proposed_new": false
+        },
+        {
+          "path": "packages/work-kernel/decisions/number_text.rs",
+          "exists": false,
+          "sha256": null,
+          "proposed_new": true
+        },
+        {
+          "path": "packages/work-kernel/tests/number_text_oracle.rs",
+          "exists": false,
+          "sha256": null,
+          "proposed_new": true
+        }
+      ],
+      "assembly_requests": [
+        "packages/work-kernel/Cargo.toml",
+        "packages/work-kernel/Cargo.lock",
+        "packages/work-kernel/rust/lib.rs"
+      ],
+      "activation_gate": "Refresh source and original prerequisites, actual human implementation release, named operator ACK, exact independent output/check paths and affected owner release. No source edits authorized here."
+    },
+    {
+      "id": "lease:D02-import-leaf",
+      "accountable_owner": "R3",
+      "status": "frozen_future_allowlist",
+      "active": false,
+      "execution_authorized": false,
+      "contracts_required": [
+        "library-sequence:D01#imports"
+      ],
+      "original_tasks": [
+        "ports:C04.graph"
+      ],
+      "files": [
+        {
+          "path": "packages/cloudflare/src/deploy/module-imports.ts",
+          "exists": false,
+          "sha256": null,
+          "proposed_new": true
+        },
+        {
+          "path": "packages/cloudflare/test/module-imports.test.ts",
+          "exists": false,
+          "sha256": null,
+          "proposed_new": true
+        }
+      ],
+      "assembly_requests": [
+        "packages/cloudflare/package.json",
+        "bun.lock",
+        "packages/cloudflare/src/deploy/bundle.ts",
+        "packages/cloudflare/src/runtime/modules.ts",
+        "packages/cloudflare/test/deploy-bundle.test.ts",
+        "packages/cloudflare/test/modules.test.ts"
+      ],
+      "activation_gate": "Refresh source and original prerequisites, actual human implementation release, named operator ACK, exact independent output/check paths and affected owner release. No source edits authorized here."
+    },
+    {
+      "id": "lease:D03-raw-map-leaf",
+      "accountable_owner": "R3",
+      "status": "frozen_future_allowlist",
+      "active": false,
+      "execution_authorized": false,
+      "contracts_required": [
+        "library-sequence:D01#maps",
+        "D03-candidate-compatibility-verdict"
+      ],
+      "original_tasks": [],
+      "files": [
+        {
+          "path": "packages/cloudflare/src/runtime/sourcemap.ts",
+          "exists": true,
+          "sha256": "1455a9344724114863b2438403e08bf0e4db3a08c4ddd68fc1ae99992419c66b",
+          "proposed_new": false
+        },
+        {
+          "path": "packages/cloudflare/test/sourcemap.test.ts",
+          "exists": true,
+          "sha256": "8dea333cf3bbf89c89186f69a47ba5810dfd5730da85a9d6e031b694c9c2011b",
+          "proposed_new": false
+        },
+        {
+          "path": "packages/cloudflare/test/sourcemap-library.test.ts",
+          "exists": false,
+          "sha256": null,
+          "proposed_new": true
+        }
+      ],
+      "assembly_requests": [
+        "packages/cloudflare/package.json",
+        "bun.lock",
+        "packages/cloudflare/src/deploy/bundle.ts"
+      ],
+      "activation_gate": "Refresh source and original prerequisites, actual human implementation release, named operator ACK, exact independent output/check paths and affected owner release. No source edits authorized here."
+    },
+    {
+      "id": "lease:V02.6-prepared-hooks",
+      "accountable_owner": "R2",
+      "status": "frozen_future_allowlist",
+      "active": false,
+      "execution_authorized": false,
+      "contracts_required": [],
+      "original_tasks": [
+        "ports:V02.6"
+      ],
+      "files": [
+        {
+          "path": "packages/values/src/schema.ts",
+          "exists": true,
+          "sha256": "8216016fd7467e3ac6b23b79a06a3d55d9aff2f4bfba3a1d0ecc77c2760f5772",
+          "proposed_new": false
+        },
+        {
+          "path": "packages/values/src/wire.ts",
+          "exists": true,
+          "sha256": "73832128fd4b2db93d08770836271323d61bed02647ca83fd21bdd9496054f03",
+          "proposed_new": false
+        },
+        {
+          "path": "packages/values/test/prepared-hook.test.ts",
+          "exists": false,
+          "sha256": null,
+          "proposed_new": true
+        },
+        {
+          "path": "docs/research/package-subsystem-ports-20261006/evidence/input-validation/prepared-hook-review.md",
+          "exists": false,
+          "sha256": null,
+          "proposed_new": true
+        }
+      ],
+      "assembly_requests": [
+        "packages/values/src/index.ts"
+      ],
+      "activation_gate": "Refresh source and original prerequisites, actual human implementation release, named operator ACK, exact independent output/check paths and affected owner release. No source edits authorized here."
+    },
+    {
+      "id": "lease:A05.3-temporal-residual",
+      "accountable_owner": "R1",
+      "status": "frozen_future_allowlist",
+      "active": false,
+      "execution_authorized": false,
+      "contracts_required": [],
+      "original_tasks": [
+        "ports:A05.3"
+      ],
+      "files": [
+        {
+          "path": "packages/values/semantics/src/temporal/instant.rs",
+          "exists": true,
+          "sha256": "96125d312a877c10d1547dcf9731b4481ffc9b70f0d9733a1c10e946b890f61c",
+          "proposed_new": false
+        },
+        {
+          "path": "packages/values/semantics/tests/temporal_vectors.rs",
+          "exists": true,
+          "sha256": "9f0d1b7898ce3ba74fa884519d9c32d31dcb22ae812751d16c191e514b588f02",
+          "proposed_new": false
+        },
+        {
+          "path": "docs/research/package-subsystem-ports-20261006/evidence/implementation/exact-values/temporal/instant.json",
+          "exists": false,
+          "sha256": null,
+          "proposed_new": true
+        }
+      ],
+      "assembly_requests": [],
+      "activation_gate": "Refresh source and original prerequisites, actual human implementation release, named operator ACK, exact independent output/check paths and affected owner release. No source edits authorized here."
+    },
+    {
+      "id": "lease:V01.3-state-contract",
+      "accountable_owner": "R2",
+      "status": "frozen_future_allowlist",
+      "active": false,
+      "execution_authorized": false,
+      "contracts_required": [],
+      "original_tasks": [
+        "ports:V01.3"
+      ],
+      "files": [
+        {
+          "path": "docs/research/package-subsystem-ports-20261006/evidence/input-validation/state-contract.md",
+          "exists": true,
+          "sha256": "4f0a9d5981eb2b68fef406e062baa2c337a3bb78baeafc2c890fb7f07f3aa5ba",
+          "proposed_new": false
+        }
+      ],
+      "assembly_requests": [],
+      "activation_gate": "Refresh source and original prerequisites, actual human implementation release, named operator ACK, exact independent output/check paths and affected owner release. No source edits authorized here."
+    },
+    {
+      "id": "lease:A07.2-bootstrap-evidence",
+      "accountable_owner": "R1",
+      "status": "frozen_future_allowlist",
+      "active": false,
+      "execution_authorized": false,
+      "contracts_required": [],
+      "original_tasks": [
+        "ports:A07.2"
+      ],
+      "files": [
+        {
+          "path": "packages/values/bindings/backend.ts",
+          "exists": true,
+          "sha256": "4863a9b9f30c4551a6220a44caaa03094a643f51f71088de5ef613b7a34508fa",
+          "proposed_new": false
+        },
+        {
+          "path": "packages/values/bindings/bootstrap.ts",
+          "exists": true,
+          "sha256": "2758815f0eaca231326b764f7841bb6295b0703d9e804ec28980570c61910ae6",
+          "proposed_new": false
+        },
+        {
+          "path": "packages/values/bindings/carriers.ts",
+          "exists": true,
+          "sha256": "657f643c92fefe1d4303f609748860ed7c496544093fb57e5ea9fd7063fca3d0",
+          "proposed_new": false
+        },
+        {
+          "path": "packages/values/test/exact-bootstrap.test.ts",
+          "exists": true,
+          "sha256": "1d66735d556b45ce5c38ba037ec71c3e71e9f28dfcbaf72e2f5e5b5f82b8d432",
+          "proposed_new": false
+        },
+        {
+          "path": "docs/research/package-subsystem-ports-20261006/evidence/implementation/exact-values/host/bootstrap.json",
+          "exists": false,
+          "sha256": null,
+          "proposed_new": true
+        }
+      ],
+      "assembly_requests": [],
+      "activation_gate": "Refresh source and original prerequisites, actual human implementation release, named operator ACK, exact independent output/check paths and affected owner release. No source edits authorized here."
+    }
+  ],
+  "preserved_original_prerequisites": [
+    {
+      "id": "ports:A01.1",
+      "status": "partial",
+      "depends_on": [
+        "ports:C01.ready"
+      ]
+    },
+    {
+      "id": "ports:A03",
+      "status": "partial",
+      "depends_on": [
+        "ports:A03.foundation",
+        "ports:A03.2",
+        "ports:A03.3",
+        "ports:A03.4"
+      ]
+    },
+    {
+      "id": "ports:A04.1",
+      "status": "partial",
+      "depends_on": [
+        "ports:A03.foundation"
+      ]
+    },
+    {
+      "id": "ports:A04.2",
+      "status": "partial",
+      "depends_on": [
+        "ports:A04.1",
+        "ports:A03.2",
+        "ports:A03.3"
+      ]
+    },
+    {
+      "id": "ports:A04.3",
+      "status": "partial",
+      "depends_on": [
+        "ports:A03.foundation",
+        "ports:A03.2",
+        "ports:A03.4"
+      ]
+    },
+    {
+      "id": "ports:A04.5",
+      "status": "partial",
+      "depends_on": [
+        "ports:A04.1",
+        "ports:A04.3",
+        "ports:C03.ready"
+      ]
+    },
+    {
+      "id": "ports:A05.3",
+      "status": "partial",
+      "depends_on": [
+        "ports:A05.1",
+        "ports:A05.2"
+      ]
+    },
+    {
+      "id": "ports:A07.2",
+      "status": "needs_verification",
+      "depends_on": [
+        "ports:A03.foundation",
+        "ports:C03.ready"
+      ]
+    },
+    {
+      "id": "ports:A07.3",
+      "status": "partial",
+      "depends_on": [
+        "ports:A03",
+        "ports:A04",
+        "ports:A05",
+        "ports:A06",
+        "ports:A07.foundation",
+        "ports:V03.5"
+      ]
+    },
+    {
+      "id": "ports:V01.2",
+      "status": "partial",
+      "depends_on": [
+        "ports:C01.ready"
+      ]
+    },
+    {
+      "id": "ports:V01.3",
+      "status": "partial",
+      "depends_on": [
+        "ports:C01.ready"
+      ]
+    },
+    {
+      "id": "ports:V02.6",
+      "status": "not_started",
+      "depends_on": [
+        "ports:V02.1",
+        "ports:V02.2"
+      ]
+    },
+    {
+      "id": "ports:V03.5",
+      "status": "complete",
+      "depends_on": [
+        "ports:V03.2",
+        "ports:V03.4",
+        "ports:C04.ready",
+        "ports:A07.foundation"
+      ]
+    },
+    {
+      "id": "ports:V06.8",
+      "status": "not_started",
+      "depends_on": [
+        "ports:V06.1",
+        "ports:V03.5",
+        "ports:A07"
+      ]
+    },
+    {
+      "id": "ports:V09.1",
+      "status": "not_started",
+      "depends_on": [
+        "ports:V01.3",
+        "ports:V03.3",
+        "ports:V02.4",
+        "ports:W06.runtimehandoff"
+      ]
+    },
+    {
+      "id": "ports:W03.1",
+      "status": "needs_verification",
+      "depends_on": [
+        "ports:W01.1",
+        "ports:W01.2",
+        "ports:W02.1",
+        "ports:C03.ready"
+      ]
+    },
+    {
+      "id": "ports:W04.1",
+      "status": "needs_verification",
+      "depends_on": [
+        "ports:W02.2",
+        "ports:W03.1",
+        "ports:C03.ready"
+      ]
+    },
+    {
+      "id": "ports:W04.2",
+      "status": "needs_verification",
+      "depends_on": [
+        "ports:W02.3",
+        "ports:W03.1",
+        "ports:C03.ready"
+      ]
+    },
+    {
+      "id": "ports:W04.3",
+      "status": "needs_verification",
+      "depends_on": [
+        "ports:W02.4",
+        "ports:W03.1",
+        "ports:C03.ready"
+      ]
+    },
+    {
+      "id": "ports:W04.4",
+      "status": "not_started",
+      "depends_on": [
+        "ports:W04.1",
+        "ports:W04.2",
+        "ports:W04.3",
+        "ports:W03.4"
+      ]
+    },
+    {
+      "id": "ports:W05.1",
+      "status": "not_started",
+      "depends_on": [
+        "ports:W04.4",
+        "ports:W03.2",
+        "ports:C04.ready",
+        "ports:C04.graph"
+      ]
+    },
+    {
+      "id": "ports:W05.2",
+      "status": "not_started",
+      "depends_on": [
+        "ports:W05.1"
+      ]
+    },
+    {
+      "id": "ports:W05.3",
+      "status": "not_started",
+      "depends_on": [
+        "ports:W05.4",
+        "ports:C04.ready"
+      ]
+    },
+    {
+      "id": "ports:W05.4",
+      "status": "not_started",
+      "depends_on": [
+        "ports:W05.2",
+        "ports:C04.work-assets"
+      ]
+    },
+    {
+      "id": "ports:W06.2",
+      "status": "not_started",
+      "depends_on": [
+        "ports:W06.1"
+      ]
+    },
+    {
+      "id": "ports:W06.runtimehandoff",
+      "status": "not_started",
+      "depends_on": [
+        "ports:W06.2"
+      ]
+    },
+    {
+      "id": "ports:W06.3",
+      "status": "not_started",
+      "depends_on": [
+        "ports:W06.runtimehandoff",
+        "ports:W05.3",
+        "ports:V09.1"
+      ]
+    },
+    {
+      "id": "ports:C04.ready",
+      "status": "needs_verification",
+      "depends_on": [
+        "ports:C04.2"
+      ]
+    },
+    {
+      "id": "ports:C04.graph",
+      "status": "partial",
+      "depends_on": [
+        "ports:W02.foundation",
+        "ports:C04.asset"
+      ]
+    },
+    {
+      "id": "ports:C04.work-assets",
+      "status": "not_started",
+      "depends_on": [
+        "ports:W05.2",
+        "ports:C04.graph",
+        "ports:C04.ready"
+      ]
+    }
+  ],
+  "serial_handoffs": [
+    {
+      "file": "packages/values/src/index.ts",
+      "sequence": [
+        "R2 V02.6 schema/wire release",
+        "R1 public-export assembly"
+      ],
+      "rule": "R2 cannot edit index.ts concurrently or declare A08.1 unblocked merely from private manual provenance marking."
+    },
+    {
+      "files": [
+        "packages/values/semantics/src/lib.rs",
+        "packages/values/bindings/src/lib.rs",
+        "packages/values/semantics/src/profiles.rs",
+        "packages/values/bindings/src/validation.rs",
+        "packages/values/bindings/validation.ts"
+      ],
+      "owner": "R1",
+      "rule": "R2 requests finite validation profile/export joins; R1 returns actual registered producer hashes. Narrow V03.5 structural credit remains unchanged."
+    },
+    {
+      "files": [
+        "packages/values/semantics/src/numeric/decimal.rs",
+        "packages/values/semantics/tests/decimal_vectors.rs"
+      ],
+      "owner": "R1",
+      "rule": "A04.1/A04.2 edits serialize on exact files; -0 stored-scale and admitted host domains remain separate from formatter."
+    },
+    {
+      "file": "packages/cloudflare/src/runtime/invoke.ts",
+      "sequence": [
+        "ports:W06.2",
+        "ports:W06.runtimehandoff",
+        "ports:V09.1",
+        "ports:W06.3"
+      ],
+      "rule": "No D02/D03 lease. D04 request, if necessary, needs exact current owner release and cannot bypass original work\u2192validation\u2192work consumer handoff."
+    }
+  ],
+  "generated_assets": {
+    "actual_current_names": [
+      "packages/values/bindings/generated/BUILD.json",
+      "packages/values/bindings/generated/values_semantics.d.ts",
+      "packages/values/bindings/generated/values_semantics.js",
+      "packages/values/bindings/generated/values_semantics_bg.wasm",
+      "packages/values/bindings/generated/values_semantics_bg.wasm.d.ts"
+    ],
+    "rule": "No generated directory/glob lease. Activation names exact outputs and private roots; R1 binding request plus R3 delivered asset handoff preserve original A07/W05 chains."
+  },
+  "holds": [
+    "all unfinished artifact-preparation implementation",
+    "ports:C04.native-release",
+    "library-sequence:D05 implementation"
+  ],
+  "unrelated_scope_not_leased": [
+    "compiler/ source",
+    "identity/CSV/services implementation until their separate profiles and finite packets release",
+    "full FP.FULL/all-app backlog"
+  ],
+  "models": {
+    "semantic_contracts": "gpt-6.1-sol/high (cross-file exact oracles and meaningful compatibility tradeoffs)",
+    "mechanical_extraction": "gpt-6-luna/low (specified canonical ID/dependency/path crosswalk)",
+    "seeded_oracle_preparation": "gpt-6-luna/medium only after defined oracle; data capture is not Rust/target acceptance"
+  }
+}
