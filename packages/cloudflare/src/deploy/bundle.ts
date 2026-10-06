@@ -88,9 +88,12 @@ import { basename, dirname, join, posix, relative, sep } from "node:path";
 import type {
   ActivationVerdict,
   ArtifactModule,
+  AssetInventory,
   CompileArtifact,
+  DeploymentAsset,
   DerivedOperationInputs,
 } from "@canlang/contracts";
+import { ASSET_DIGEST_V2 } from "@canlang/contracts";
 import { catalogFromArtifactOperations } from "@canlang/interfaces";
 import { STDLIB_SPECIFIER, UI_SPECIFIER, type AssembledModules } from "../runtime/modules.js";
 
@@ -1051,4 +1054,221 @@ export function writeDeployBundle(bundle: DeployBundle, outDir: string): Written
   files.push(manifestFile);
   files.sort();
   return { dir, mainFile: join(dir, bundle.mainModule), files };
+}
+
+/* ------------------------------------------------------------------ */
+/* C04.asset: typed text/binary inventory + versioned mixed digests.     */
+/* The v1 text-only path above is untouched: same inputs still yield    */
+/* identical modules, sha256, manifest bytes, and file layout. Binary  */
+/* assets travel alongside (never through) the text rewriting/linking  */
+/* stages, which stay text-only.                                        */
+/* ------------------------------------------------------------------ */
+
+/** A text-only bundle plus staged binary modules and their v2 digest. */
+export interface MixedDeployBundle extends DeployBundle {
+  /** Binary module key -> raw bytes (never empty-keyed, never colliding with text keys). */
+  binaries: Record<string, Uint8Array>;
+  /** `ASSET_DIGEST_V2` over the full typed inventory (text + binary). */
+  mixedSha256: string;
+}
+
+/**
+ * Build the typed inventory for one bundle: text modules become text
+ * assets, binaries become binary assets. A key present in both maps is
+ * a loud error (no silent shadowing in either direction), as is an
+ * empty key (unwritable by definition) or the reserved `__proto__` key
+ * (unrepresentable on a plain object map without silent loss).
+ */
+export function inventorizeAssets(
+  modules: Record<string, string>,
+  binaries: Record<string, Uint8Array> = {},
+): AssetInventory {
+  // Null-prototype map: the collision check below must be exact (inherited
+  // names such as "toString" are legitimate keys, not collisions), and no
+  // entry may vanish through the inherited `__proto__` setter.
+  const inventory: Record<string, DeploymentAsset> = Object.create(null);
+  for (const [key, text] of Object.entries(modules)) {
+    if (key === "") {
+      throw new Error("deploy bundle: text module key must not be empty");
+    }
+    if (key === "__proto__") {
+      throw new Error('deploy bundle: text module key must not be "__proto__"');
+    }
+    inventory[key] = { kind: "text", text };
+  }
+  for (const [key, bytes] of Object.entries(binaries)) {
+    if (key === "") {
+      throw new Error("deploy bundle: binary module key must not be empty");
+    }
+    if (key === "__proto__") {
+      throw new Error('deploy bundle: binary module key must not be "__proto__"');
+    }
+    if (inventory[key] !== undefined) {
+      throw new Error(`deploy bundle: binary key ${JSON.stringify(key)} collides with a text module`);
+    }
+    inventory[key] = { kind: "binary", bytes };
+  }
+  return inventory;
+}
+
+/**
+ * Writer-generated manifest paths, reserved across the whole mixed
+ * inventory. No text or binary module may normalize to one of these:
+ * the writer owns them and would otherwise silently overwrite module
+ * bytes (or module bytes would overwrite the manifest).
+ */
+const RESERVED_MIXED_OUTPUTS: ReadonlySet<string> = new Set(["bundle.json", "bundle.mixed.json"]);
+
+/**
+ * Pre-write output-layout validation for mixed bundles. Runs BEFORE
+ * any output write: containment for every key, normalized-alias
+ * rejection across text+binary maps (`worker/./main.js` aliases
+ * `worker/main.js`), and reserved-manifest reservation. Loud errors
+ * only; the v1 text-only writer is untouched by this check.
+ */
+function assertMixedOutputLayout(
+  modules: Record<string, string>,
+  binaries: Record<string, Uint8Array>,
+): void {
+  const seen = new Map<string, string>();
+  const consider = (key: string, what: string): void => {
+    assertSafeRelativePath(key, what);
+    const normalized = posix.normalize(key);
+    if (RESERVED_MIXED_OUTPUTS.has(normalized)) {
+      throw new Error(
+        `deploy bundle: ${what} ${JSON.stringify(key)} reserves writer manifest path ${JSON.stringify(normalized)}`,
+      );
+    }
+    const prior = seen.get(normalized);
+    if (prior !== undefined) {
+      throw new Error(
+        `deploy bundle: ${what} ${JSON.stringify(key)} aliases ${JSON.stringify(prior)} after normalization`,
+      );
+    }
+    seen.set(normalized, key);
+  };
+  for (const key of Object.keys(modules)) consider(key, "to write text module");
+  for (const key of Object.keys(binaries)) consider(key, "to write binary module");
+}
+
+/** Byte-copy every binary map entry: the snapshot owns its bytes. */
+function snapshotBinaries(binaries: Record<string, Uint8Array>): Record<string, Uint8Array> {
+  // Null-prototype accumulator: an own `__proto__` entry must never vanish
+  // through the inherited setter (plain `{}` + assignment would silently
+  // drop it before inventory/digest/write). `__proto__` keys refuse loudly
+  // below instead, matching the inventory contract.
+  const snapshot: Record<string, Uint8Array> = Object.create(null);
+  for (const [key, bytes] of Object.entries(binaries)) {
+    if (key === "__proto__") {
+      throw new Error('deploy bundle: binary module key must not be "__proto__"');
+    }
+    snapshot[key] = new Uint8Array(bytes);
+  }
+  return snapshot;
+}
+
+/** sha256 of raw bytes, hex. Binary lengths/hashes are exact: no text normalization. */
+export function sha256Bytes(bytes: Uint8Array): string {
+  return createHash("sha256").update(bytes).digest("hex");
+}
+
+/**
+ * `ASSET_DIGEST_V2`: sha256 over length-prefixed mixed frames in
+ * key-sorted order: u32be(keyUtf8) + key + u8(kind: 1=text, 2=binary)
+ * + u64be(byteLength) + rawBytes. Deterministic for the same inventory.
+ */
+export function bundleMixedSha256(mainModule: string, inventory: AssetInventory): string {
+  const hash = createHash("sha256");
+  const encoder = new TextEncoder();
+  const mainBytes = encoder.encode(mainModule);
+  const mainLen = Buffer.alloc(4);
+  mainLen.writeUInt32BE(mainBytes.length, 0);
+  hash.update(mainLen);
+  hash.update(mainBytes);
+  for (const key of Object.keys(inventory).sort()) {
+    const asset = inventory[key] as DeploymentAsset;
+    const keyBytes = encoder.encode(key);
+    const keyLen = Buffer.alloc(4);
+    keyLen.writeUInt32BE(keyBytes.length, 0);
+    hash.update(keyLen);
+    hash.update(keyBytes);
+    const raw = asset.kind === "binary" ? asset.bytes : encoder.encode(asset.text);
+    hash.update(Buffer.from([asset.kind === "binary" ? 2 : 1]));
+    const len = Buffer.alloc(8);
+    len.writeBigUInt64BE(BigInt(raw.length), 0);
+    hash.update(len);
+    hash.update(raw);
+  }
+  return hash.digest("hex");
+}
+
+/**
+ * Attach binary modules to a built text-only bundle. The text bundle
+ * (modules, sha256, counts) passes through untouched; the text map is
+ * copied and every binary is byte-copied, so later caller mutation of
+ * the input maps or buffers cannot change the returned bundle. The v2
+ * digest covers exactly the attached snapshot.
+ */
+export function attachBinaries(
+  bundle: DeployBundle,
+  binaries: Record<string, Uint8Array>,
+): MixedDeployBundle {
+  const modules = { ...bundle.modules };
+  const snapshot = snapshotBinaries(binaries);
+  const inventory = inventorizeAssets(modules, snapshot);
+  return {
+    ...bundle,
+    modules,
+    binaries: snapshot,
+    mixedSha256: bundleMixedSha256(bundle.mainModule, inventory),
+  };
+}
+
+/**
+ * Write a mixed bundle: text modules exactly as `writeDeployBundle`
+ * (same paths, bytes, v1 manifest shape for the text half), binaries as
+ * raw bytes, plus a versioned `bundle.mixed.json` manifest carrying the
+ * digest version, both digests, and per-entry kind/bytes/sha256.
+ *
+ * Coherence (corrective): the writer snapshots the binaries, validates
+ * the output layout (containment, normalized aliases, reserved
+ * manifests) BEFORE any output write, then recomputes the v2 digest
+ * over the exact output snapshot and rejects when it differs from the
+ * bundle's cached aggregate. Caller or buffer mutation after attach
+ * therefore fails loudly instead of shipping a lying manifest.
+ */
+export function writeDeployBundleMixed(bundle: MixedDeployBundle, outDir: string): WrittenDeployBundle {
+  const modules = { ...bundle.modules };
+  const binaries = snapshotBinaries(bundle.binaries);
+  assertMixedOutputLayout(modules, binaries);
+  const recomputed = bundleMixedSha256(bundle.mainModule, inventorizeAssets(modules, binaries));
+  if (recomputed !== bundle.mixedSha256) {
+    throw new Error(
+      "deploy bundle: mixed digest mismatch — the bundle changed after attach; refusing to write",
+    );
+  }
+  const written = writeDeployBundle({ ...bundle, modules }, outDir);
+  const dir = written.dir;
+  const binaryEntries: Array<{ key: string; kind: "binary"; bytes: number; sha256: string }> = [];
+  for (const key of Object.keys(binaries).sort()) {
+    assertSafeRelativePath(key, "to write binary module");
+    const bytes = binaries[key] as Uint8Array;
+    const full = join(dir, key);
+    mkdirSync(dirname(full), { recursive: true });
+    writeFileSync(full, bytes);
+    binaryEntries.push({ key, kind: "binary", bytes: bytes.length, sha256: sha256Bytes(bytes) });
+  }
+  const manifest = {
+    digestVersion: ASSET_DIGEST_V2,
+    mainModule: bundle.mainModule,
+    sha256: bundle.sha256,
+    mixedSha256: bundle.mixedSha256,
+    moduleCount: bundle.moduleCount,
+    binaryCount: binaryEntries.length,
+    binaries: binaryEntries,
+  };
+  const manifestFile = join(dir, "bundle.mixed.json");
+  writeFileSync(manifestFile, `${JSON.stringify(manifest, null, 2)}\n`, "utf8");
+  const files = [...written.files, ...binaryEntries.map((entry) => join(dir, entry.key)), manifestFile].sort();
+  return { dir, mainFile: written.mainFile, files };
 }

@@ -14,9 +14,8 @@
  * variable-path dynamic imports (keeps the e2e tsc gate clean
  * pre-build; fails loud naming the build at live runs when absent).
  */
-import { randomUUID } from "node:crypto";
 import { join } from "node:path";
-import type { StoragePort } from "@canlang/contracts";
+import type { OperationId, StoragePort } from "@canlang/contracts";
 import type { OperationInvoker } from "../../../packages/cloudflare/src/worker/assembly.js";
 import type { ResolvedIdentity } from "../../../packages/contracts/src/identity.js";
 import type { CompileArtifact } from "../../../packages/contracts/src/artifact.js";
@@ -27,6 +26,7 @@ import {
   type LiveReadFn,
 } from "../../../packages/testkit/src/runner/dispatch.js";
 import type { ExampleHooks } from "../../../packages/testkit/src/runner/steps.js";
+import { freshOperationId } from "./compiled-seed.js";
 
 async function loadDistModule<T>(repoRoot: string, distRelative: string, buildCommand: string): Promise<T> {
   // Variable path: tsc yields `any` (no TS2307 pre-build); live runs fail
@@ -85,8 +85,9 @@ export async function createLiveExampleHooks(inputs: LiveHookInputs): Promise<Ex
     const outcome = await invoker.invokeMutation(
       {
         operation: inputs.qualifyOperation(request.operation),
-        // Uniqueness per invocation; v7 if production requires it there.
-        operation_id: randomUUID(),
+        // UUIDv7 (time-prefixed): the engine rejects v4 with
+        // `validation` (probe-proven); uniqueness per invocation.
+        operation_id: freshOperationId(Date.now()) as OperationId,
         inputs: inputs.wrapRecordRefs(request.operation, request.inputs),
       },
       identity,
