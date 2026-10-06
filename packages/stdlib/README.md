@@ -15,11 +15,10 @@ owning producers implement them, then request assembly.
 Workspace package; no separate install. From the repo root:
 
 ```sh
-bun install
+bun install --frozen-lockfile
 ```
 
-`@canlang/values` must be built first (see `tsconfig.json` comment).
-Depends on `@canlang/values` (`package.json`).
+The build graph prepares the declared `@canlang/values` dependency automatically.
 
 ## Usage
 
@@ -78,17 +77,20 @@ Export groups (all re-exported verbatim from `@canlang/values`):
 
 ## Scripts
 
-Only scripts present in `package.json`:
+From the repository root, after `bun install --frozen-lockfile`:
 
-| Script      | Command                                        |
-| ----------- | ---------------------------------------------- |
-| `build`     | `tsc -p tsconfig.json`                         |
-| `typecheck` | `tsc -p tsconfig.json --noEmit`                |
-| `test`      | `bun run build && node --test "dist/test/**/*.test.js"` |
-| `clean`     | `rm -rf dist/`                                 |
+```sh
+bun run build --filter=@canlang/stdlib
+bun run --filter @canlang/stdlib typecheck
+bun run --filter @canlang/stdlib test
+```
 
-Run from this directory, e.g. `bun run build`, or via the root
-workspace filter: `bun run --filter @canlang/stdlib build`.
+The filtered root build schedules this package and its declared producer
+dependencies. It emits only each owner’s outputs, cleaning them before execution
+or cache restoration. Package `typecheck` and `test` use the same graph, then
+run the owning TypeScript check or compiled `node:test` suite uncached.
+Internal `build:emit`, `typecheck:check`, and `test:unit` tasks are execution
+steps; use the public commands above to prepare dependencies.
 
 ## Source layout
 
@@ -105,3 +107,5 @@ Per `implementation/PLAN.md`: lane 03 owns this package (L3 thin
 `@canlang/stdlib` export assembly, `src/index.ts` + `package.json`).
 Each lane owns its package manifests. No dependency may import back
 through the public façade.
+
+The `./distribution` export locates the built module tree after installation.

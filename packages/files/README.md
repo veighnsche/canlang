@@ -8,14 +8,14 @@ assembles in `@canlang/stdlib`.
 
 Ownership per `implementation/PLAN.md`: lane 04
 (`prompts/04-work-services-files.md`) owns the file lifecycle. There is
-no barrel `src/index.ts`; import the module you need directly.
+a root entry and explicit exported subpaths; import the capability you need.
 
 ## Install
 
 Private bun workspace member. From the repo root:
 
 ```sh
-bun install
+bun install --frozen-lockfile
 ```
 
 ## Usage
@@ -23,7 +23,7 @@ bun install
 Host routing with the bridge (dependency-light example):
 
 ```ts
-import { createBridgeOrigin, routeHost } from './src/bridge.ts';
+import { createBridgeOrigin, routeHost } from '@canlang/files/bridge';
 
 const origin = createBridgeOrigin('https://app.example');
 if (origin === null) throw new Error('bad origin');
@@ -59,19 +59,20 @@ Key exports by module:
 
 ## Scripts
 
-Only the scripts in `package.json`:
-
-| Script      | Command                          |
-| ----------- | -------------------------------- |
-| `typecheck` | `tsc --noEmit`                   |
-| `test`      | `node --test 'test/**/*.test.ts'` |
-
-Run from the repo root:
+From the repository root, after `bun install --frozen-lockfile`:
 
 ```sh
+bun run build --filter=@canlang/files
 bun run --filter @canlang/files typecheck
 bun run --filter @canlang/files test
 ```
+
+The filtered root build schedules this package and its declared producer
+dependencies. It emits only each owner’s outputs, cleaning them before execution
+or cache restoration. Package `typecheck` and `test` use the same graph, then
+run the owning TypeScript check or compiled `node:test` suite uncached.
+Internal `build:emit`, `typecheck:check`, and `test:unit` tasks are execution
+steps; use the public commands above to prepare dependencies.
 
 ## Source layout
 

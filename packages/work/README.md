@@ -14,27 +14,27 @@ Ownership per `implementation/PLAN.md`: lane 04
 ## Install
 
 Workspace package; no registry install. It resolves inside the monorepo
-(worktree root `/tmp/canlang-main-readmes`):
+(from the repository root):
 
 ```sh
-npm install
+bun install --frozen-lockfile
 ```
 
-There is no barrel `src/index.ts`; import each module by its file path,
-for example `@canlang/work/src/intent/index.ts`.
+The root entry and explicit package subpaths load emitted modules.
+For example, import `@canlang/work/intent`.
 
 ## Usage
 
 Stage an intent, commit it with the fence-produced marker, then dispatch:
 
 ```ts
-import { attemptDispatch } from '@canlang/work/src/dispatch/index.ts';
-import { commitOutboxIntent, stageOutboxIntent } from '@canlang/work/src/intent/index.ts';
+import { attemptDispatch } from '@canlang/work/dispatch';
+import { commitOutboxIntent, stageOutboxIntent } from '@canlang/work/intent';
 import {
   TestOnlyCounterClaimIds,
   TestOnlyManualClock,
   TestOnlyMemorySupersession,
-} from '@canlang/work/src/ports.ts';
+} from '@canlang/work/ports';
 
 const staged = stageOutboxIntent({
   operationId: 'op_1',
@@ -87,20 +87,26 @@ Key exports per module:
 
 ## Scripts
 
-Only these scripts exist in `package.json` (run from `packages/work/`):
+From the repository root, after `bun install --frozen-lockfile`:
 
-| Script      | Command                        |
-| ----------- | ------------------------------ |
-| `typecheck` | `tsc --noEmit`                 |
-| `test`      | `node --test 'test/**/*.test.ts'` |
+```sh
+bun run build --filter=@canlang/work
+bun run --filter @canlang/work typecheck
+bun run --filter @canlang/work test
+```
 
-There is no `build` script; `tsconfig.json` sets `noEmit: true`.
+The filtered root build schedules this package and its declared producer
+dependencies. It emits only each owner’s outputs, cleaning them before execution
+or cache restoration. Package `typecheck` and `test` use the same graph, then
+run the owning TypeScript check or compiled `node:test` suite uncached. Cross-producer state/work integration proofs run from work’s test suite.
+Internal `build:emit`, `typecheck:check`, and `test:unit` tasks are execution
+steps; use the public commands above to prepare dependencies.
 
 ## Source layout
 
 ```text
 packages/work/
-  package.json          # name @canlang/work, private, typecheck/test only
+  package.json          # name @canlang/work, private, build/typecheck/test
   tsconfig.json         # strict, NodeNext, noEmit
   src/
     catalog.ts          # versioned WorkCatalogEntry list

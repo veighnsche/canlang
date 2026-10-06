@@ -8,5 +8,8 @@ Ownership per `implementation/PLAN.md`: lane 07 assembles this manifest and
 lane; only `deployment.ts` and `examples.ts` exist until producers land
 theirs. Consumers must not guess imports or duplicate these definitions.
 
-Build: `bun run --filter @canlang/contracts build` emits deterministic `dist/`
+Build: `bun run build --filter=@canlang/contracts` emits deterministic `dist/`
 (JS + declarations + source maps) from `src/`.
+
+The `./distribution` export locates the built module tree after installation.
+The `./values` export preserves the exact value-contract module surface.
