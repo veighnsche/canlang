@@ -68,7 +68,7 @@ import type {
   SelectedGrantContext,
   SelectedGrantPort,
 } from './ports.ts';
-import { resolveAssociationLocator } from './association.ts';
+import { assertKnownProgressRelation, resolveAssociationLocator } from './association.ts';
 
 /**
  * Stored receipt as loaded by the owning record read: the retained
@@ -381,4 +381,51 @@ export function observeSelectedReceipt(input: SelectedReceiptInput): SelectedRec
     projection: projectSelectedLeaves(observed, leaves),
     fenceRevision: selectedRequiresFence(leaves) ? association.revision : null,
   };
+}
+
+/* -- T26 correlated progress reads: every observation names its relation. -- */
+
+export interface RelatedProgressReadInput extends SelectedReceiptInput {
+  /** Trusted relation binding for the association under observation. */
+  relation: string;
+}
+
+export type RelatedProgressReadOutcome =
+  /** Authorized observation; late reads after terminal see retained truth. */
+  | {
+      outcome: 'observed';
+      relation: string;
+      projection: SelectedReceiptProjection;
+      fenceRevision: number | null;
+    }
+  /** Authorized null association: no receipt, no fence enrollment. */
+  | { outcome: 'null-association'; relation: string }
+  /** At least one selected leaf denied; reveals nothing else. */
+  | { outcome: 'denied'; relation: string; denied: readonly ReceiptProperty[] };
+
+/**
+ * Observe one relation's selected receipt progress through its
+ * record/field locator. The trusted relation binding is validated
+ * (unknown relations throw as a declaration bug) and echoed on every
+ * outcome, so each observation correlates to exactly one matching T13
+ * declaration; all authorization, projection and fence mechanics are
+ * the existing selected-receipt read, unchanged.
+ */
+export function observeRelatedProgress(
+  input: RelatedProgressReadInput,
+): RelatedProgressReadOutcome {
+  const bound = assertKnownProgressRelation(input.relation, 'observeRelatedProgress');
+  const outcome = observeSelectedReceipt(input);
+  if (outcome.outcome === 'observed') {
+    return {
+      outcome: 'observed',
+      relation: bound,
+      projection: outcome.projection,
+      fenceRevision: outcome.fenceRevision,
+    };
+  }
+  if (outcome.outcome === 'null-association') {
+    return { outcome: 'null-association', relation: bound };
+  }
+  return { outcome: 'denied', relation: bound, denied: outcome.denied };
 }

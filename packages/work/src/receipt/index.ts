@@ -355,6 +355,21 @@ function isClosedErrorShape(error: unknown): boolean {
   return typeof candidate['code'] === 'string' && typeof candidate['message'] === 'string';
 }
 
+/* -- T26 terminal receipt states: retained outcomes never rewrite. -- */
+
+/**
+ * True exactly for the terminal receipt states (`succeeded`, `failed`,
+ * `skipped`). A receipt in a terminal state keeps its retained outcome
+ * under every later progress envelope, cancellation and re-drive; only
+ * `pending` (no outcome yet) and `unknown` (uncertain until reconciled)
+ * still advance. Total over the `ReceiptStatus` vocabulary: unknown
+ * strings are a shape-drift bug at the call site, never a silent
+ * non-terminal verdict — callers validate stored rows first.
+ */
+export function isTerminalReceiptStatus(status: ReceiptStatus): boolean {
+  return status === 'succeeded' || status === 'failed' || status === 'skipped';
+}
+
 /**
  * Assemble an authorized receipt observation from recorded fields. The
  * delivery association id and owner-checkpoint revision come from the
