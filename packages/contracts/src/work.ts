@@ -324,3 +324,69 @@ export const T13B_DELIVERY_OBSERVABLES: readonly DeliveryObservableDecl[] = [
   { target: 'std.MailboxV1.reply', version: 1, leaves: ['id', 'status', 'result', 'error'] },
   { target: 'std.MailboxV1.reconcile', version: 1, leaves: ['id', 'status', 'result', 'error'] },
 ];
+
+/* -- T25a selected-receipt mechanism contract (L4 mechanism slice). -- */
+
+/**
+ * Static locator key for one stored delivery association: the owning record
+ * plus one declared delivery field. The runtime resolves the live record
+ * internally (the desired `delivery(c, {record, field}, [...])` helper);
+ * the stored key carries the committing store's record identity, never a
+ * caller-supplied lookup string. `field` is a plain declared
+ * delivery-field name: traversal (`a.b`) is rejected, never resolved.
+ * Stored ID correlation uses this same locator; current-send and
+ * provisioned-fixture immutable IDs keep their originating authority.
+ */
+export interface SelectedReceiptLocator {
+  /** Owning-record identity minted by the committing store. */
+  recordId: string;
+  /** One declared delivery field on that record. */
+  field: string;
+}
+
+/**
+ * Stored current-attempt association for one locator. Replacement (an
+ * ordinary versioned domain write) selects a new delivery id without
+ * cancelling or erasing the old attempt; the superseded attempt keeps its
+ * own retained receipt row and can never overwrite this record again.
+ */
+export interface ReceiptAssociation {
+  locator: SelectedReceiptLocator;
+  /** Current attempt's delivery id; completions carry it as `delivery_id`. */
+  deliveryId: string;
+  /** Canonical source identity (declaration/binding of the send). */
+  source: string;
+  /** Owner checkpoint revision of the latest applied receipt progress. */
+  revision: number;
+}
+
+/**
+ * Retained receipt row for one delivery attempt. Status/result/error follow
+ * the DESIGN section 8.0 completion-consistency rules; only progress naming
+ * this row's delivery id at a monotone revision may update it.
+ */
+export interface AssociatedReceipt {
+  deliveryId: string;
+  /** Owner checkpoint revision of the latest applied progress. */
+  revision: number;
+  status: ReceiptStatus;
+  /** Declared typed result, or null when failed/unknown/skipped/withheld. */
+  result: unknown;
+  /** Safe closed error, or null when not failed. */
+  error: ReceiptError | null;
+}
+
+/**
+ * Immutable selected receipt projection: contains EXACTLY the selected
+ * leaves, nothing more. Not a handle: it carries no locator, cannot be
+ * assigned, submitted or used for receipt lookup, and cannot become an
+ * observation locator. Unselected leaves are absent keys, never null
+ * placeholders; a granted selected result/error withheld by
+ * content/lifetime checks reads null under its present key.
+ */
+export interface SelectedReceiptProjection {
+  id?: string;
+  status?: ReceiptStatus;
+  result?: unknown;
+  error?: ReceiptError | null;
+}
