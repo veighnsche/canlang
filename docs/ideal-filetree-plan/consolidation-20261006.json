@@ -5,10 +5,10 @@
   "checkpoint_advanced": false,
   "initial_main": "2b22cb4ecf637cce4bf90a17238cce12de045ba4",
   "current_merge": {
-    "branch": "codex/remaining-lane-c-runtime",
-    "tip": "6236b47e2a344c9ad72c2d74bfeb8b8d46c57d06",
-    "before": "f46b8878014da0b66fd08476094f0446f9017329",
-    "scope": "history reconciliation; dirty C build graph separately integrated",
+    "branch": "codex/remaining-lane-d-work-providers",
+    "tip": "0f1cea80dbd39c8443fbe261a25fa4af4ffdffc1",
+    "before": "6f2fbf16910b2dadc4a0765cddfc1e8017166feb",
+    "scope": "history reconciliation; unfinished canonical preparation separately checkpointed; human hold retained",
     "merge_output": "Automatic merge went well; stopped before committing as requested\n",
     "source_delta": []
   },
@@ -150,6 +150,15 @@
         "M\tpackages/values/tsconfig.json"
       ],
       "result": "f46b8878014da0b66fd08476094f0446f9017329"
+    },
+    {
+      "branch": "codex/remaining-lane-c-runtime",
+      "tip": "6236b47e2a344c9ad72c2d74bfeb8b8d46c57d06",
+      "before": "f46b8878014da0b66fd08476094f0446f9017329",
+      "scope": "history reconciliation; dirty C build graph separately integrated",
+      "merge_output": "Automatic merge went well; stopped before committing as requested\n",
+      "source_delta": [],
+      "result": "6f2fbf16910b2dadc4a0765cddfc1e8017166feb"
     }
   ],
   "accumulated_structural_delta_since_complete_checkpoint": [
@@ -596,7 +605,7 @@
     "A\tdocs/research/package-subsystem-ports-20261006/implementation-plans/shared.tasks.json",
     "A\tdocs/research/package-subsystem-ports-20261006/implementation-plans/work-transitions.md",
     "A\tdocs/research/package-subsystem-ports-20261006/implementation-plans/work-transitions.tasks.json",
-    "R080\tDECISIONS.md\tdocs/specification/DECISIONS.md",
+    "R079\tDECISIONS.md\tdocs/specification/DECISIONS.md",
     "R095\tDESIGN.md\tdocs/specification/DESIGN.md",
     "R095\tGRAMMAR.md\tdocs/specification/GRAMMAR.md",
     "R098\tREQUIREMENTS.md\tdocs/specification/REQUIREMENTS.md",
