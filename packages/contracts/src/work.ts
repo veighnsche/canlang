@@ -390,3 +390,210 @@ export interface SelectedReceiptProjection {
   result?: unknown;
   error?: ReceiptError | null;
 }
+
+/* -- T34-F1 fanout contract records (L4, first implementation slice). -- */
+
+/**
+ * T34-F1 closed record vocabulary for the adopted T33-A durable
+ * per-child fanout contract (both cohort spellings). Type-only boundary:
+ * fanout intent, checkpoint, child identity, child outcome/progress and
+ * cohort-admission diagnosis shapes only. No quota or capacity field
+ * (resolution forbids), no authoring syntax, no skipping/suppression
+ * rule (no successor-supersession rule is adopted), no execution
+ * engine, no storage access, no clock. Durable rows ride F2; dispatch
+ * claim/record rides F3; recovery resume rides F4.
+ */
+
+/** Opaque fanout intent identity minted by the runtime at trigger commit. */
+export type FanoutId = string;
+
+/**
+ * Explicit source-occurrence/handler admission cutoff (C1). Membership
+ * is frozen under this cutoff; late inserts are excluded from the
+ * occurrence.
+ */
+export interface FanoutCutoff {
+  sourceOccurrence: OccurrenceId;
+  /** Canonical handler contract identity admitting this cohort. */
+  handler: string;
+}
+
+/**
+ * Adopted cohort spellings: whole-model enumeration or one parent's
+ * contained reverse collection. No other spelling is admitted here;
+ * anything else stays diagnosed (`FanoutCohortDiagnosis`).
+ */
+export type FanoutCohortKind = 'model' | 'anchored-collection';
+
+/**
+ * Committed fanout intent (C1/C2): frozen cohort membership set plus
+ * cutoff marker plus source occurrence. Committed atomically with the
+ * source's own domain truth; child progress is separate and never
+ * redefines source success.
+ */
+export interface FanoutIntent {
+  id: FanoutId;
+  cutoff: FanoutCutoff;
+  cohort: FanoutCohortKind;
+  /**
+   * Frozen canonical record identities admitted at the cutoff. The
+   * complete set for this occurrence; never truncated, never extended
+   * by late inserts.
+   */
+  members: readonly string[];
+}
+
+/**
+ * Stable child occurrence identity (C3): parent/source occurrence plus
+ * canonical handler identity plus canonical record identity. The
+ * handler component prevents Commitment/Swap or other handlers on one
+ * source event from colliding. Duplicate delivery replays the existing
+ * parent/child outcomes under this identity and mints nothing new.
+ */
+export interface FanoutChildId {
+  parentOccurrence: OccurrenceId;
+  /** Canonical handler contract identity. */
+  handler: string;
+  /** Canonical record identity within the frozen cohort. */
+  recordId: string;
+}
+
+/**
+ * Durable fanout checkpoint (M2/C5): completed-child set plus
+ * enumeration cursor. Advancement commits in the same owner
+ * transaction as each child's effects; a crash replays at most the
+ * un-checkpointed child.
+ */
+export interface FanoutCheckpoint {
+  fanoutId: FanoutId;
+  /**
+   * Canonical record ids with a recorded terminal child outcome,
+   * scoped by `fanoutId` (parent occurrence + handler join via the
+   * intent's cutoff). Never re-executed after recovery.
+   */
+  completed: readonly string[];
+  /**
+   * Opaque enumeration cursor; null only when enumeration is fully
+   * admitted. A non-null cursor means resume, never silent truncation.
+   */
+  cursor: string | null;
+}
+
+/** Per-child lifecycle states (C6). */
+export type FanoutChildState =
+  | 'pending'
+  | 'running'
+  | 'completed'
+  | 'skipped'
+  | 'failed';
+
+/** Terminal per-child states: every admitted identity ends in one. */
+export type FanoutChildTerminalState = 'completed' | 'skipped' | 'failed';
+
+/**
+ * Closed skipped-outcome attribution (C7). A demonstrably deleted child
+ * records `deleted`; a moved record re-evaluated against current
+ * parent/body conditions records `non-applicable` when the body does
+ * not apply. Unknown lookup or authority failure is never deletion
+ * (see `FanoutFailedReason`); no successor-suppression reason exists.
+ */
+export type FanoutSkippedReason = 'deleted' | 'non-applicable';
+
+/**
+ * Closed failed-outcome attribution (C6/M6). Business rejection and
+ * terminal failure are isolated from siblings; `exhausted` marks a
+ * spent bounded-retry budget under the same child identity.
+ * Missing/inaccessible records and infrastructure read failures stay
+ * three distinct reasons; no silent successful skip.
+ */
+export type FanoutFailedReason =
+  | 'business-rejection'
+  | 'terminal'
+  | 'exhausted'
+  | 'missing-record'
+  | 'inaccessible-record'
+  | 'infra-read-failure';
+
+/** Terminal attribution for a completed child: no further reason. */
+export interface FanoutCompletedCause {
+  kind: 'completed';
+}
+
+/** Terminal attribution for a skipped child (C7). */
+export interface FanoutSkippedCause {
+  kind: 'skipped';
+  reason: FanoutSkippedReason;
+}
+
+/** Terminal attribution for a failed child (C6/M6). */
+export interface FanoutFailedCause {
+  kind: 'failed';
+  reason: FanoutFailedReason;
+}
+
+/**
+ * Closed per-child terminal attribution. `kind` always matches the
+ * outcome `state`.
+ */
+export type FanoutChildCause =
+  | FanoutCompletedCause
+  | FanoutSkippedCause
+  | FanoutFailedCause;
+
+/**
+ * Per-child terminal outcome record (C6/C7/M6): terminal state plus
+ * retry/exhaustion attribution. Retries reuse the same `child`
+ * identity; one child's outcome never rewrites a sibling's.
+ */
+export interface FanoutChildOutcome {
+  child: FanoutChildId;
+  state: FanoutChildTerminalState;
+  /** Committed child attempts so far (M6). */
+  attempts: number;
+  cause: FanoutChildCause;
+}
+
+/**
+ * Fanout progress projection (C6): retained per-state counts plus the
+ * aggregate attention input. Fully terminal with failures means
+ * attention, not successful completion. Data-minimized counts (C7):
+ * operator progress carries no child rows.
+ */
+export interface FanoutProgress {
+  fanoutId: FanoutId;
+  pending: number;
+  running: number;
+  completed: number;
+  skipped: number;
+  failed: number;
+  /** True only when every admitted identity has a terminal outcome. */
+  terminal: boolean;
+  /** True only when terminal with one or more failures. */
+  attention: boolean;
+}
+
+/**
+ * Closed cohort-admission diagnosis kinds (C9/M10): the cohort form is
+ * outside the adopted contract, spans an owner boundary the child
+ * transaction cannot cross, or the authoritative membership producer
+ * is unavailable (a capability/admission failure, never partial
+ * success).
+ */
+export type FanoutCohortDiagnosisKind =
+  | 'unsupported-cohort'
+  | 'cross-owner-cohort'
+  | 'membership-unavailable';
+
+/**
+ * Cohort admission diagnosis (C9/M10). Invalid/cross-owner/
+ * unimplemented cohort forms stay diagnosed until complete
+ * producer/checker/runtime joins exist. Closed kinds; no silent skip,
+ * no fabricated grant, no membership data.
+ */
+export interface FanoutCohortDiagnosis {
+  kind: FanoutCohortDiagnosisKind;
+  /** Stable diagnostic code for this kind. */
+  code: string;
+  /** Safe human-readable message. */
+  message: string;
+}
