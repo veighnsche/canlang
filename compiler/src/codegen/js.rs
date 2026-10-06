@@ -3419,6 +3419,12 @@ impl<'a> Emitter<'a> {
         members.push(self.emit_models_member());
         members.push(self.emit_preferences_member());
         members.push(self.emit_operations_member());
+        // T34-F6: fanout cohort descriptors alongside operations. The
+        // member is omitted when empty, so sources without a checked
+        // `each=` cohort emit byte-identical output.
+        if let Some(cohorts) = self.emit_cohorts_member() {
+            members.push(cohorts);
+        }
         // B3-I5: form descriptors + policy manifest alongside grants. Both
         // members are omitted when empty, so sources without page forms or
         // policy content emit byte-identical output.
@@ -3969,6 +3975,49 @@ impl<'a> Emitter<'a> {
             }
         }
         format!("operations:{{{}}}", operations.join(","))
+    }
+
+    /// Emit the `cohorts` member (T34-F6): one static fanout cohort
+    /// descriptor per scenario with a checked `each=` cohort, keyed by
+    /// canonical handler identity in source order. `kind`/`model` mirror
+    /// F1 `FanoutCohortKind` plus the canonical model; anchored cohorts
+    /// add the event-rooted `parent` path; `bind` is the `as` child
+    /// binding (`null` when the header omits it). The F7 runtime join
+    /// resolves owner + parent id at trigger time into an F5
+    /// `FanoutCohortSpec`. `None` when no checked cohort exists, so
+    /// sources without fanout emit byte-identical output.
+    fn emit_cohorts_member(&self) -> Option<String> {
+        let mut cohorts = Vec::new();
+        for item in &self.ir.items {
+            let IrItemKind::Scenario {
+                cohort: Some(cohort),
+                ..
+            } = &item.kind
+            else {
+                continue;
+            };
+            let model = &self.ir.items[cohort.model.0 as usize];
+            let mut members = vec![
+                format!("kind:{}", js_string(cohort.kind.as_str())),
+                format!("model:{}", js_string(&model.canonical)),
+            ];
+            if let Some(parent) = &cohort.parent {
+                members.push(format!("parent:{}", js_string(parent)));
+            }
+            match &cohort.bind {
+                Some(bind) => members.push(format!("bind:{}", js_string(bind))),
+                None => members.push("bind:null".to_string()),
+            }
+            cohorts.push(format!(
+                "{}:{{{}}}",
+                js_string(&item.canonical),
+                members.join(",")
+            ));
+        }
+        if cohorts.is_empty() {
+            return None;
+        }
+        Some(format!("cohorts:{{{}}}", cohorts.join(",")))
     }
 
     /// Emit the `forms` member: one descriptor per page `form` node in

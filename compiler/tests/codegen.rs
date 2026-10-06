@@ -6966,3 +6966,113 @@ fn t18_r27_server_owned_checker() {
         "E3001 on the ordinary path: {start} in {src:?}"
     );
 }
+
+// --- T34-F6 each= cohort emission -------------------------------------------
+//
+// Both adopted spellings emit static cohort descriptors into the
+// entry module's `appDefinition.cohorts` member (F1 `FanoutCohortKind`
+// vocabulary; see `ArtifactCohortDescriptor` in artifact.ts), which
+// the F7 runtime join reads to freeze membership. Descriptors emit
+// only for checked cohorts (invalid cohorts stay fail-closed with no
+// member); the member is omitted entirely without fanout, so sources
+// without `each=` emit byte-identical output (all pre-existing goldens
+// also guard this).
+//
+// Standing context (not F6's): handler triggers still keep their
+// `E6008` (no §13 trigger lowering exists yet), pinned below as the
+// only emit diagnostics. TEST-ONLY artifacts: see module docs.
+
+/// T34-F6 fixture: one bare-model and one parent-anchored cohort.
+const F6_EMIT_BOTH: &str = "app Shop\nGiven\n Todo { title:text }\n Community { name:text }\n Opportunity in Community { title:text }\n Signup in Opportunity { email:text }\n event Ping {}\n event Cancelled { opportunity:Opportunity, reason:text }\nWhen\n scenario sweep on=Ping each=Todo as todo\n  do\n   let x=1\n scenario cancel_each on=Cancelled each=event.opportunity.Signup as signup\n  do\n   let x=1\nThen\n";
+
+/// Extract the exact `cohorts:{...}` member (brace-balanced) from `js`.
+fn f6_cohorts_member(js: &str) -> String {
+    let start = js.find("cohorts:{").expect("cohorts member");
+    let mut depth = 0;
+    for (i, ch) in js[start..].char_indices() {
+        match ch {
+            '{' => depth += 1,
+            '}' => {
+                depth -= 1;
+                if depth == 0 {
+                    return js[start..start + i + 1].to_string();
+                }
+            }
+            _ => {}
+        }
+    }
+    panic!("unbalanced cohorts member in:\n{js}");
+}
+
+#[test]
+fn f6_both_spellings_emit_cohort_descriptors() {
+    let (_program, artifact, diags) = d03_emit(F6_EMIT_BOTH);
+    // Standing trigger lowering only: each handler trigger keeps its
+    // E6008; the cohort descriptors still emit beside it.
+    let codes: Vec<&str> = diags.iter().map(|d| d.code).collect();
+    assert_eq!(codes, vec!["E6008", "E6008"], "emit diags: {diags:?}");
+    let js = &artifact.modules[0].js;
+    assert_eq!(js.matches("cohorts:{").count(), 1, "one member:\n{js}");
+    assert_eq!(
+        f6_cohorts_member(js),
+        "cohorts:{\"Shop.sweep\":{kind:\"model\",model:\"Shop.Todo\",bind:\"todo\"},\"Shop.cancel_each\":{kind:\"anchored-collection\",model:\"Shop.Signup\",parent:\"event.opportunity\",bind:\"signup\"}}",
+        "byte-exact cohorts member:\n{js}"
+    );
+    // The member rides the appDefinition line the runtime reads.
+    let appdef = js
+        .lines()
+        .find(|line| line.starts_with("export const appDefinition="))
+        .expect("appDefinition line");
+    assert!(
+        appdef.contains("cohorts:{\"Shop.sweep\""),
+        "cohorts on appDefinition:\n{appdef}"
+    );
+}
+
+#[test]
+fn f6_no_cohort_emits_no_member() {
+    let src = "app Shop\nGiven\n Todo { title:text }\nWhen\n scenario sweep() by=members\n  do\n   let x=1\nThen\n";
+    let (_program, artifact, diags) = d03_emit(src);
+    assert!(diags.is_empty(), "clean lower: {diags:?}");
+    let js = &artifact.modules[0].js;
+    assert!(
+        !js.contains("cohorts:"),
+        "no cohorts member without fanout:\n{js}"
+    );
+}
+
+#[test]
+fn f6_missing_bind_emits_null() {
+    let src = "app Shop\nGiven\n Todo { title:text }\n event Ping {}\nWhen\n scenario sweep on=Ping each=Todo\n  do\n   let x=1\nThen\n";
+    let (_program, artifact, diags) = d03_emit(src);
+    let codes: Vec<&str> = diags.iter().map(|d| d.code).collect();
+    assert_eq!(codes, vec!["E6008"], "emit diags: {diags:?}");
+    let js = &artifact.modules[0].js;
+    assert_eq!(
+        f6_cohorts_member(js),
+        "cohorts:{\"Shop.sweep\":{kind:\"model\",model:\"Shop.Todo\",bind:null}}",
+        "bind:null pin:\n{js}"
+    );
+}
+
+#[test]
+fn f6_invalid_cohort_emits_no_descriptor() {
+    // Fail-closed: an invalid cohort (E4055 at check time) emits no
+    // descriptor even though test-only emission proceeds.
+    let src = "app Shop\nGiven\n Todo { title:text }\n event Ping {}\nWhen\n scenario sweep on=Ping each=Nosuch as todo\n  do\n   let x=1\nThen\n";
+    let (program, artifact, diags) = d03_emit(src);
+    let codes: Vec<&str> = diags.iter().map(|d| d.code).collect();
+    assert_eq!(codes, vec!["E6008"], "emit diags: {diags:?}");
+    let js = &artifact.modules[0].js;
+    assert!(
+        !js.contains("cohorts:"),
+        "invalid cohorts emit no member:\n{js}"
+    );
+    let sweep = program
+        .effects
+        .scenarios
+        .values()
+        .find(|s| program.symbols[s.scenario.0 as usize].name == "sweep")
+        .expect("sweep row");
+    assert!(sweep.cohort.is_none(), "no checked cohort row");
+}

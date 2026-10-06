@@ -1194,3 +1194,501 @@ fn t25_l1_unknown_leaves_stay_e2013_only() {
         &[("E2013", "profile.bogus", 1), ("E2013", "owner.bogus", 1)],
     );
 }
+
+// --- T34-F6 each= cohort check (E4055) --------------------------------------
+//
+// F6 proves M9/M10 on the compiler side: both adopted cohort spellings
+// check (bare model + parent-anchored collection) with the real
+// Shift/Volunteer bodies accepted without trimming, while unknown,
+// cross-owner and unsupported cohort forms fail with precise E4055
+// diagnostics and ordinary bounded loops keep their existing rules.
+//
+// Standing context (not F6's): the parser still marks every each= with
+// E1203 (narrowing it to out-of-contract forms belongs to the parser
+// owner), and binding the `as` name in body scope belongs to the
+// resolve join, so bodies referencing the child binding carry
+// pre-existing E2001/E2013/E3001 cascades. F6's contract: zero E4055
+// on valid forms (no NEW findings on valid bodies), exact E4055 on
+// invalid forms, and cohort descriptors only for checked cohorts.
+
+/// E4055 findings as sorted (message, start, end).
+fn e4055(diags: &[Diagnostic]) -> Vec<(&str, u32, u32)> {
+    let mut out: Vec<(&str, u32, u32)> = diags
+        .iter()
+        .filter(|d| d.code == "E4055")
+        .map(|d| (d.message.as_str(), d.primary.start, d.primary.end))
+        .collect();
+    out.sort();
+    out
+}
+
+/// Read a workspace draft by file name (read-only: this suite never
+/// writes the draft submodule).
+fn draft(name: &str) -> String {
+    let path = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../draft")
+        .join(name);
+    std::fs::read_to_string(&path).unwrap_or_else(|e| panic!("read {}: {e}", path.display()))
+}
+
+const F6_BARE: &str = r#"# Bare-model cohort fixture.
+app Shop
+Given
+ Todo { title:text }
+ event Ping {}
+When
+ scenario sweep on=Ping each=Todo as todo
+  do
+   let x=1
+Then
+"#;
+
+#[test]
+fn f6_bare_model_checks_with_only_the_standing_e1203() {
+    use effects::CohortKind;
+    let catalog = fixture();
+    let (tables, effects, diags) = run(F6_BARE, Some(&catalog));
+    assert_eq!(codes(&diags), vec!["E1203"], "all diagnostics: {diags:?}");
+    let sweep = tables.by_canonical["Shop.sweep"];
+    let body = effects.scenarios.get(&sweep).expect("sweep body");
+    let cohort = body.cohort.as_ref().expect("checked cohort");
+    assert_eq!(cohort.kind, CohortKind::Model);
+    assert_eq!(cohort.model, tables.by_canonical["Shop.Todo"]);
+    assert_eq!(cohort.bind.as_deref(), Some("todo"));
+    assert!(cohort.parent_path.is_empty());
+}
+
+const F6_ANCHORED: &str = r#"# Parent-anchored cohort fixture.
+app Shop
+Given
+ Community { name:text }
+ Opportunity in Community { title:text }
+ Signup in Opportunity { email:text }
+ event Cancelled { opportunity:Opportunity, reason:text }
+When
+ scenario cancel_each on=Cancelled each=event.opportunity.Signup as signup
+  do
+   let x=1
+Then
+"#;
+
+#[test]
+fn f6_anchored_collection_checks_with_only_the_standing_e1203() {
+    use effects::CohortKind;
+    let catalog = fixture();
+    let (tables, effects, diags) = run(F6_ANCHORED, Some(&catalog));
+    assert_eq!(codes(&diags), vec!["E1203"], "all diagnostics: {diags:?}");
+    let cancel = tables.by_canonical["Shop.cancel_each"];
+    let body = effects.scenarios.get(&cancel).expect("cancel_each body");
+    let cohort = body.cohort.as_ref().expect("checked cohort");
+    assert_eq!(cohort.kind, CohortKind::AnchoredCollection);
+    assert_eq!(cohort.model, tables.by_canonical["Shop.Signup"]);
+    assert_eq!(cohort.bind.as_deref(), Some("signup"));
+    assert_eq!(cohort.parent_path, vec!["event", "opportunity"]);
+}
+
+const F6_COMMITTED_BARE: &str = r#"# Committed-trigger bare-model cohort (refresh_reminders shape).
+app Shop
+Given
+ Community { name:text }
+ Opportunity in Community { title:text }
+ Signup in Opportunity { email:text }
+When
+ scenario refresh on=Opportunity.updated each=Signup as signup
+  do
+   let x=1
+Then
+"#;
+
+#[test]
+fn f6_committed_trigger_bare_model_checks() {
+    use effects::CohortKind;
+    let catalog = fixture();
+    let (tables, effects, diags) = run(F6_COMMITTED_BARE, Some(&catalog));
+    assert_eq!(codes(&diags), vec!["E1203"], "all diagnostics: {diags:?}");
+    let refresh = tables.by_canonical["Shop.refresh"];
+    let body = effects.scenarios.get(&refresh).expect("refresh body");
+    let cohort = body.cohort.as_ref().expect("checked cohort");
+    assert_eq!(cohort.kind, CohortKind::Model);
+    assert_eq!(cohort.model, tables.by_canonical["Shop.Signup"]);
+    assert_eq!(cohort.bind.as_deref(), Some("signup"));
+}
+
+const F6_NO_BIND: &str = r#"# each= without `as` stays accepted (bind: null downstream).
+app Shop
+Given
+ Todo { title:text }
+ event Ping {}
+When
+ scenario sweep on=Ping each=Todo
+  do
+   let x=1
+Then
+"#;
+
+#[test]
+fn f6_missing_as_binding_accepted() {
+    let catalog = fixture();
+    let (tables, effects, diags) = run(F6_NO_BIND, Some(&catalog));
+    assert_eq!(codes(&diags), vec!["E1203"], "all diagnostics: {diags:?}");
+    let sweep = tables.by_canonical["Shop.sweep"];
+    let body = effects.scenarios.get(&sweep).expect("sweep body");
+    let cohort = body.cohort.as_ref().expect("checked cohort");
+    assert_eq!(cohort.bind, None);
+}
+
+const F6_UNKNOWN_MODEL: &str = r#"# Unknown cohort model.
+app Shop
+Given
+ Todo { title:text }
+ event Ping {}
+When
+ scenario sweep on=Ping each=Nosuch as todo
+  do
+   let x=1
+Then
+"#;
+
+#[test]
+fn f6_unknown_model_diagnosed() {
+    let catalog = fixture();
+    let (tables, effects, diags) = run(F6_UNKNOWN_MODEL, Some(&catalog));
+    let (start, end) = span_of(F6_UNKNOWN_MODEL, "Nosuch", 1);
+    assert_eq!(
+        e4055(&diags),
+        vec![("unknown model `Nosuch` in each= cohort", start, end)],
+        "all diagnostics: {diags:?}"
+    );
+    let sweep = tables.by_canonical["Shop.sweep"];
+    let body = effects.scenarios.get(&sweep).expect("sweep body");
+    assert!(body.cohort.is_none(), "invalid cohorts emit no descriptor");
+}
+
+const F6_UNKNOWN_HOP: &str = r#"# Unknown parent hop in an anchored cohort.
+app Shop
+Given
+ Community { name:text }
+ Opportunity in Community { title:text }
+ Signup in Opportunity { email:text }
+ event Cancelled { opportunity:Opportunity, reason:text }
+When
+ scenario cancel_each on=Cancelled each=event.bogus.Signup as signup
+  do
+   let x=1
+Then
+"#;
+
+#[test]
+fn f6_unknown_collection_hop_diagnosed() {
+    let catalog = fixture();
+    let (tables, effects, diags) = run(F6_UNKNOWN_HOP, Some(&catalog));
+    let (start, end) = span_of(F6_UNKNOWN_HOP, "event.bogus.Signup", 1);
+    assert_eq!(
+        e4055(&diags),
+        vec![(
+            "unknown collection `bogus` on 'Cancelled' in each= cohort",
+            start,
+            end
+        )],
+        "all diagnostics: {diags:?}"
+    );
+    let cancel = tables.by_canonical["Shop.cancel_each"];
+    let body = effects.scenarios.get(&cancel).expect("cancel_each body");
+    assert!(body.cohort.is_none(), "invalid cohorts emit no descriptor");
+}
+
+const F6_UNCONTAINED: &str = r#"# Anchored child not contained in the resolved parent.
+app Shop
+Given
+ Community { name:text }
+ Opportunity in Community { title:text }
+ event Cancelled { opportunity:Opportunity, reason:text }
+When
+ scenario cancel_each on=Cancelled each=event.opportunity.Community as community
+  do
+   let x=1
+Then
+"#;
+
+#[test]
+fn f6_uncontained_child_diagnosed() {
+    let catalog = fixture();
+    let (tables, effects, diags) = run(F6_UNCONTAINED, Some(&catalog));
+    let (start, end) = span_of(F6_UNCONTAINED, "event.opportunity.Community", 1);
+    assert_eq!(
+        e4055(&diags),
+        vec![(
+            "unknown collection `Community` on 'Opportunity': anchored each= cohorts enumerate a contained child collection",
+            start,
+            end
+        )],
+        "all diagnostics: {diags:?}"
+    );
+    let cancel = tables.by_canonical["Shop.cancel_each"];
+    let body = effects.scenarios.get(&cancel).expect("cancel_each body");
+    assert!(body.cohort.is_none(), "invalid cohorts emit no descriptor");
+}
+
+const F6_CROSS_OWNER: &str = r#"# Cross-package (cross-owner) cohort fixture.
+app Shop
+Given
+ export Todo { title:text }
+When
+Then
+package Other
+ use Shop {Todo}
+ Given
+  event Ping {}
+ When
+  scenario sweep on=Ping each=Todo as todo
+   do
+    let x=1
+ Then
+"#;
+
+#[test]
+fn f6_cross_owner_cohort_diagnosed() {
+    let catalog = fixture();
+    let (tables, effects, diags) = run(F6_CROSS_OWNER, Some(&catalog));
+    let (start, end) = span_of(F6_CROSS_OWNER, "each=Todo", 1);
+    // The finding spans the cohort path (`Todo` after `each=`).
+    let (path_start, path_end) = (start + 5, end);
+    assert_eq!(
+        e4055(&diags),
+        vec![(
+            "cross-owner each= cohort 'Shop.Todo': cohorts enumerate same-package models (cross-package mutation uses call)",
+            path_start,
+            path_end
+        )],
+        "all diagnostics: {diags:?}"
+    );
+    let sweep = tables.by_canonical["Other.sweep"];
+    let body = effects.scenarios.get(&sweep).expect("sweep body");
+    assert!(body.cohort.is_none(), "invalid cohorts emit no descriptor");
+}
+
+const F6_UNSUPPORTED: &str = r#"# Unsupported cohort forms, one scenario each.
+app Shop
+Given
+ Todo { title:text }
+ event Ping {}
+When
+ scenario rooted_elsewhere on=Ping each=Todo.title as t
+  do
+   let x=1
+ scenario bare_event on=Ping each=event as e
+  do
+   let x=1
+ scenario no_trigger(n:Todo) by=members each=Todo as t
+  do
+   let x=1
+ scenario not_a_model on=Ping each=Ping as p
+  do
+   let x=1
+Then
+"#;
+
+#[test]
+fn f6_unsupported_forms_diagnosed() {
+    let catalog = fixture();
+    let (tables, effects, diags) = run(F6_UNSUPPORTED, Some(&catalog));
+    let mut messages: Vec<&str> = e4055(&diags).iter().map(|(m, _, _)| *m).collect();
+    messages.sort();
+    assert_eq!(
+        messages,
+        vec![
+            "each= needs an on= trigger: fanout cohorts freeze under a source-occurrence/handler cutoff",
+            "each=event is not a cohort: use a bare model (each=Signup) or an event-anchored collection (each=event.opportunity.Signup)",
+            "unsupported each= cohort `Todo.title`: multi-segment cohorts root at event (each=event.opportunity.Signup)",
+            "unsupported each= cohort `Ping`: cohorts enumerate models",
+        ],
+        "all diagnostics: {diags:?}"
+    );
+    for name in [
+        "Shop.rooted_elsewhere",
+        "Shop.bare_event",
+        "Shop.no_trigger",
+        "Shop.not_a_model",
+    ] {
+        let body = effects
+            .scenarios
+            .get(&tables.by_canonical[name])
+            .expect(name);
+        assert!(body.cohort.is_none(), "{name} emits no descriptor");
+    }
+}
+
+const F6_ANCHORED_MISUSE: &str = r#"# Anchored misuse: committed trigger, nullable hop, scalar parent.
+app Shop
+Given
+ Community { name:text }
+ Opportunity in Community { title:text }
+ Signup in Opportunity { email:text }
+ event Maybe { opportunity:Opportunity?, reason:text }
+When
+ scenario committed_anchor on=Opportunity.updated each=event.opportunity.Signup as signup
+  do
+   let x=1
+ scenario nullable_hop on=Maybe each=event.opportunity.Signup as signup
+  do
+   let x=1
+ scenario scalar_parent on=Maybe each=event.reason.Signup as signup
+  do
+   let x=1
+Then
+"#;
+
+#[test]
+fn f6_anchored_misuse_diagnosed() {
+    let catalog = fixture();
+    let (tables, effects, diags) = run(F6_ANCHORED_MISUSE, Some(&catalog));
+    let mut messages: Vec<&str> = e4055(&diags).iter().map(|(m, _, _)| *m).collect();
+    messages.sort();
+    assert_eq!(
+        messages,
+        vec![
+            "unsupported each= cohort: anchored collections need on=DeclaredEvent carrying the parent record",
+            "unsupported each= cohort: parent `event.opportunity` is nullable, anchored cohorts need one pinned parent record",
+            "unsupported each= cohort: parent `event.reason` is not a record",
+        ],
+        "all diagnostics: {diags:?}"
+    );
+    for name in [
+        "Shop.committed_anchor",
+        "Shop.nullable_hop",
+        "Shop.scalar_parent",
+    ] {
+        let body = effects
+            .scenarios
+            .get(&tables.by_canonical[name])
+            .expect(name);
+        assert!(body.cohort.is_none(), "{name} emits no descriptor");
+    }
+}
+
+const F6_UNKNOWN_TRIGGER: &str = r#"# each= with an undecoded trigger stands down (fix-and-reveal).
+app Shop
+Given
+ Todo { title:text }
+When
+ scenario sweep on=Nosuch each=Todo as todo
+  do
+   let x=1
+Then
+"#;
+
+#[test]
+fn f6_undecoded_trigger_stands_down() {
+    let catalog = fixture();
+    let (_, _, diags) = run(F6_UNKNOWN_TRIGGER, Some(&catalog));
+    assert!(
+        e4055(&diags).is_empty(),
+        "undecoded on= is an earlier finding; F6 stays silent: {diags:?}"
+    );
+    assert!(
+        diags.iter().any(|d| d.code != "E4055"),
+        "the trigger itself still fails: {diags:?}"
+    );
+}
+
+const F6_BOUNDED_LOOP: &str = r#"# Ordinary bounded loops keep their existing rules beside each=.
+app Shop
+Given
+ Todo { title:text }
+ event Ping {}
+When
+ scenario sweep on=Ping each=Todo as todo
+  do
+   for item in Todo limit=100
+    let x=1
+ scenario bad_limit on=Ping
+  do
+   for item in Todo limit=0
+    let x=1
+Then
+"#;
+
+#[test]
+fn f6_bounded_loop_rules_retained() {
+    let catalog = fixture();
+    let (_, _, diags) = run(F6_BOUNDED_LOOP, Some(&catalog));
+    // The fanout scenario carries only the standing parser marker; the
+    // bad limit still fails under the existing types rule (E3001).
+    assert_eq!(
+        codes(&diags),
+        vec!["E1203", "E3001"],
+        "all diagnostics: {diags:?}"
+    );
+    assert!(
+        diags
+            .iter()
+            .any(|d| d.code == "E3001" && d.message.contains("for limit must be positive")),
+        "bad limit finding: {diags:?}"
+    );
+}
+
+#[test]
+fn f6_draft_bodies_accepted_without_trimming() {
+    // M9: the four real each= sites (read-only draft reads) carry valid
+    // cohorts and draw zero E4055 — valid bodies stay clean of new
+    // findings. Pre-existing cascades (E1203 + the resolve join's
+    // unbound-binding E2001/E2013/E3001s) are untouched; exact corpus
+    // totals stay pinned by the read-only draft_outcome_table test.
+    use effects::CohortKind;
+    let catalog = fixture();
+    for (file, scenarios) in [
+        (
+            "CanShift.can",
+            vec![
+                (
+                    "shift.review_commitment",
+                    CohortKind::Model,
+                    "shift.Commitment",
+                    "commitment",
+                ),
+                ("shift.review_swap", CohortKind::Model, "shift.Swap", "swap"),
+            ],
+        ),
+        (
+            "CanVolunteer.can",
+            vec![
+                (
+                    "volunteer.refresh_reminders",
+                    CohortKind::Model,
+                    "volunteer.Signup",
+                    "signup",
+                ),
+                (
+                    "volunteer.cancel_signup",
+                    CohortKind::AnchoredCollection,
+                    "volunteer.Signup",
+                    "signup",
+                ),
+            ],
+        ),
+    ] {
+        let src = draft(file);
+        let (tables, effects, diags) = run(&src, Some(&catalog));
+        assert!(
+            e4055(&diags).is_empty(),
+            "{file} must draw zero E4055, got {:?}",
+            e4055(&diags)
+        );
+        for (scenario, kind, model, bind) in scenarios {
+            let id = tables.by_canonical[scenario];
+            let body = effects.scenarios.get(&id).expect(scenario);
+            let cohort = body.cohort.as_ref().expect(scenario);
+            assert_eq!(cohort.kind, kind, "{scenario} kind");
+            assert_eq!(cohort.model, tables.by_canonical[model], "{scenario} model");
+            assert_eq!(cohort.bind.as_deref(), Some(bind), "{scenario} bind");
+        }
+        let cancel = tables.by_canonical["volunteer.cancel_signup"];
+        if effects.scenarios.contains_key(&cancel) {
+            let cohort = effects.scenarios[&cancel]
+                .cohort
+                .as_ref()
+                .expect("cancel cohort");
+            assert_eq!(cohort.parent_path, vec!["event", "opportunity"]);
+        }
+    }
+}

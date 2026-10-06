@@ -196,6 +196,10 @@ pub enum IrItemKind {
         /// Pre-commit hook trigger, when `on=Model.create/update/delete`
         /// (T31 Rule A); other handler triggers keep the `E6008`.
         hook: Option<IrHook>,
+        /// Checked `each=` fanout cohort (T34-F6): `Some` exactly when
+        /// analysis accepted the cohort; absent/invalid cohorts carry no
+        /// descriptor (fail-closed, never silently admitted).
+        cohort: Option<IrCohort>,
         result: Option<ResolvedType>,
         /// Whether `read=true` was declared (G1).
         read: bool,
@@ -1193,6 +1197,45 @@ pub struct IrHook {
     pub op: CrudOp,
 }
 
+/// Checked `each=` fanout cohort (T34-F6): the static descriptor the
+/// F7 runtime join reads to freeze membership (F1 `FanoutCohortKind`
+/// vocabulary; the runtime resolves owner + parent id at trigger time
+/// into an F5 `FanoutCohortSpec`).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct IrCohort {
+    /// Cohort spelling: whole-model enumeration or one parent's
+    /// contained reverse collection.
+    pub kind: IrCohortKind,
+    /// Enumerated model (bare spelling) or child model (anchored spelling).
+    pub model: SymbolId,
+    /// `as` child binding, when the header declares one.
+    pub bind: Option<String>,
+    /// Anchored spelling only: the event-rooted dotted parent path
+    /// (`event.opportunity` for `each=event.opportunity.Signup`).
+    pub parent: Option<String>,
+    /// `each=` value span.
+    pub span: Span,
+}
+
+/// Adopted `each=` cohort spellings (T34-F6).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum IrCohortKind {
+    /// Bare-model enumeration (`each=Signup`).
+    Model,
+    /// Parent-anchored reverse collection (`each=event.opportunity.Signup`).
+    AnchoredCollection,
+}
+
+impl IrCohortKind {
+    /// Descriptor `kind` spelling (matches F1 `FanoutCohortKind`).
+    pub fn as_str(self) -> &'static str {
+        match self {
+            IrCohortKind::Model => "model",
+            IrCohortKind::AnchoredCollection => "anchored-collection",
+        }
+    }
+}
+
 /// Checked effect/handler statements in source order.
 #[derive(Debug, Clone)]
 pub enum IrStmt {
@@ -1774,12 +1817,13 @@ impl<'a> Cx<'a> {
                     result_node.is_some(),
                     &mut self.diags,
                 );
-                let (read, by, label, description, expose_excluded, guards, effects, hook) =
+                let (read, by, label, description, expose_excluded, guards, effects, hook, cohort) =
                     self.decode_scenario(symbol);
                 IrItemKind::Scenario {
                     params: params.clone(),
                     trusted: *trusted,
                     hook,
+                    cohort,
                     result,
                     read,
                     by,
@@ -4077,6 +4121,7 @@ impl<'a> Cx<'a> {
         Vec<IrStmt>,
         Vec<IrStmt>,
         Option<IrHook>,
+        Option<IrCohort>,
     ) {
         let empty = (
             false,
@@ -4086,6 +4131,7 @@ impl<'a> Cx<'a> {
             false,
             Vec::new(),
             Vec::new(),
+            None,
             None,
         );
         let data = self.program.effects.scenarios.get(&symbol.id).cloned();
@@ -4153,6 +4199,24 @@ impl<'a> Cx<'a> {
             .iter()
             .map(|effect| self.decode_effect(&scope, effect, &what))
             .collect();
+        // T34-F6: the checked `each=` cohort decodes verbatim (analysis
+        // owns the contract; the IR never re-derives it).
+        let cohort = data.cohort.as_ref().map(|cohort| IrCohort {
+            kind: match cohort.kind {
+                crate::analysis::effects::CohortKind::Model => IrCohortKind::Model,
+                crate::analysis::effects::CohortKind::AnchoredCollection => {
+                    IrCohortKind::AnchoredCollection
+                }
+            },
+            model: cohort.model,
+            bind: cohort.bind.clone(),
+            parent: if cohort.parent_path.is_empty() {
+                None
+            } else {
+                Some(cohort.parent_path.join("."))
+            },
+            span: Span::new(cohort.node.file, cohort.node.start, cohort.node.end),
+        });
         (
             data.read,
             by,
@@ -4162,6 +4226,7 @@ impl<'a> Cx<'a> {
             guards,
             effects,
             hook,
+            cohort,
         )
     }
 
