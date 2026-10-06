@@ -44,6 +44,7 @@
  * store. Additive only: no T24b/T32b path above is modified.
  */
 import type {
+  ArtifactCohortDescriptor,
   ClaimId,
   CompileArtifact,
   DispatchClaim,
@@ -871,6 +872,20 @@ interface StateRegistryProducer {
     readonly registry: ReadonlyMap<string, unknown>;
     readonly models: ReadonlyArray<unknown>;
     readonly refs: ReadonlyMap<string, ReadonlyArray<{ readonly field: string; readonly model: string }>>;
+    /**
+     * C2 production joins (B1/B2/B5): engine-local channels the frozen
+     * intake cannot hold, passed through to the table builder beside
+     * `refs` (never inspected here). T18 `serverInits` (model, then
+     * field, then init kind), T18 `nullableFields` (model, then
+     * known-nullable field names), B5 `containment` (model, then the
+     * declared-ownership member). B3 `deliveryFields` (model, then
+     * delivery-tagged field names) rides alongside for the T25
+     * receipt join (consumed downstream, never by the table builder).
+     */
+    readonly serverInits: ReadonlyMap<string, ReadonlyMap<string, unknown>>;
+    readonly nullableFields: ReadonlyMap<string, ReadonlySet<string>>;
+    readonly containment: ReadonlyMap<string, unknown>;
+    readonly deliveryFields: ReadonlyMap<string, ReadonlySet<string>>;
   };
 }
 
@@ -980,6 +995,13 @@ interface StateInvokeProducer {
     readonly memberships: CanonicalMembershipReader;
     readonly clock: { nowMs(): number };
     readonly execute: (call: CanonicalSeamCall) => Promise<CanonicalExecutionEffects>;
+    /**
+     * C2/B2 (Q3): serverOnly exclusions for denial currents (mirror of
+     * `ConflictServerOnly`). The holder builds it from the loaded
+     * models; absent reads as unknown and stale-ref denials carry
+     * metadata-only currents.
+     */
+    readonly conflictServerOnly?: ReadonlyMap<string, ReadonlySet<string>>;
   }): Promise<MutationResult>;
   /** T17b: canonical generated-read entry (scenario `records()` calls it per read). */
   invokeRead(input: {
@@ -1009,6 +1031,15 @@ interface StateModelsProducer {
     models: ReadonlyArray<unknown>,
     opts: {
       readonly refs: ReadonlyMap<string, ReadonlyArray<{ readonly field: string; readonly model: string }>>;
+      /**
+       * C2 production joins (mirror of `CanonicalModelTableOptions`):
+       * the loader's engine-local channels, forwarded verbatim. Every
+       * member is optional at the producer (omission keeps the legacy
+       * posture); the seam always forwards all four.
+       */
+      readonly serverInits?: ReadonlyMap<string, ReadonlyMap<string, unknown>>;
+      readonly nullableFields?: ReadonlyMap<string, ReadonlySet<string>>;
+      readonly containment?: ReadonlyMap<string, unknown>;
     },
   ): unknown;
 }
@@ -1106,6 +1137,15 @@ interface StatePipelineProducer {
      * enrolled dependencies never cross (the point carries none).
      */
     readonly trigger?: { readonly revision: Revision; readonly owner: string };
+    /**
+     * C2/B1: gate update/remove writes against archived targets with
+     * the EXACT admission rule (`validation` / `Archived records
+     * cannot be used here.`). CRUD inherits the gate from admission;
+     * scenario-staged writes bypass per-write admission, so the seam
+     * passes `true` for CRUD/scenario parity. Absent reads as false
+     * (privileged direct callers may touch archived rows).
+     */
+    readonly gateArchivedTargets?: boolean;
   }): Promise<CanonicalPipelineResult>;
 }
 
@@ -1531,7 +1571,11 @@ export interface LoadedCanonicalDescriptors {
   readonly table: unknown;
   readonly policy: unknown;
   readonly ruledModels: ReadonlySet<string>;
+  /** C3/B3: loader-built delivery-field schema, carried for the T25 receipt join (D3 consumes). */
+  readonly deliveryFields: ReadonlyMap<string, ReadonlySet<string>>;
   readonly producers: CanonicalStateProducers;
+  /** C2/B2 (Q3): holder-built serverOnly exclusions, passed to every invoke. */
+  readonly conflictServerOnly: ReadonlyMap<string, ReadonlySet<string>>;
 }
 
 /**
@@ -1646,6 +1690,89 @@ function canonicalModelName(model: unknown, index: number): string {
 }
 
 /**
+ * C2/B2 (Q3): holder-built serverOnly exclusions for denial currents
+ * (mirror of `ConflictServerOnly`: model, then serverOnly field
+ * names). Models without serverOnly fields carry an EMPTY set (values
+ * flow); the map is built once at load and passed to every invoke, so
+ * stale-ref denials carry full currents instead of metadata-only.
+ * Loud on skew (the loader guarantees boolean flags — anything else
+ * is loader/artifact skew, and guessing here would leak or over-redact).
+ */
+function buildConflictServerOnly(
+  models: ReadonlyArray<unknown>,
+): ReadonlyMap<string, ReadonlySet<string>> {
+  const map = new Map<string, ReadonlySet<string>>();
+  for (const [index, model] of models.entries()) {
+    const name = canonicalModelName(model, index);
+    if (!isUnknownRecord(model)) {
+      throw new Error(`c2: loaded model ${JSON.stringify(name)} is not an object (loader/artifact skew?)`);
+    }
+    const fields: unknown = model["fields"];
+    if (!isUnknownRecord(fields)) {
+      throw new Error(
+        `c2: loaded model ${JSON.stringify(name)} carries no fields map (loader/artifact skew?)`,
+      );
+    }
+    const names = new Set<string>();
+    for (const [field, def] of Object.entries(fields)) {
+      if (!isUnknownRecord(def) || typeof def["serverOnly"] !== "boolean") {
+        throw new Error(
+          `c2: field ${JSON.stringify(field)} on model ${JSON.stringify(name)} ` +
+            `carries no boolean serverOnly flag (loader/artifact skew?)`,
+        );
+      }
+      if (def["serverOnly"] === true) {
+        names.add(field);
+      }
+    }
+    map.set(name, names);
+  }
+  return map;
+}
+
+/**
+ * C3: strip `delivery`-kind op inputs for the L3 descriptor load.
+ * Delivery bindings are dispatch-layer only (E framing excludes them
+ * and both transports' bound checkers reject submitted ones — the C3
+ * agreement pins prove it), so L3 can never observe a delivery value
+ * and its descriptors must not name the kind the L3 loader rejects.
+ * Shallow-copies only the touched levels; never mutates the caller
+ * artifact. DELETE THIS when the state loader accepts delivery op
+ * inputs (B-loader-tolerance): the retry below then never triggers,
+ * and this helper becomes dead code to remove with its pins.
+ */
+function stripDeliveryInputs(artifact: CompileArtifact): CompileArtifact {
+  const operations = (artifact as unknown as { operations?: unknown }).operations;
+  if (!Array.isArray(operations)) return artifact;
+  let stripped = false;
+  const mapped = operations.map((op) => {
+    if (!isUnknownRecord(op)) return op;
+    const inputs: unknown = op["inputs"];
+    if (!isUnknownRecord(inputs)) return op;
+    const fields: unknown = inputs["fields"];
+    if (!Array.isArray(fields)) return op;
+    const kept = fields.filter((entry) => {
+      if (!isUnknownRecord(entry)) return true;
+      const field: unknown = entry["field"];
+      return !isUnknownRecord(field) || field["kind"] !== "delivery";
+    });
+    if (kept.length === fields.length) return op;
+    stripped = true;
+    return { ...op, inputs: { ...inputs, fields: kept } };
+  });
+  if (!stripped) return artifact;
+  return { ...artifact, operations: mapped } as CompileArtifact;
+}
+
+/** C3: true only for the L3 loader's delivery-kind whole-set rejection. */
+function isDeliveryKindRejection(err: unknown): boolean {
+  if (!(err instanceof Error)) return false;
+  if ((err as { name?: unknown }).name !== "IncompatibleArtifactError") return false;
+  if ((err as { reason?: unknown }).reason !== "unknown_input_kind") return false;
+  return err.message.includes('"delivery"');
+}
+
+/**
  * Load a generated artifact's canonical set: transcribe every CRUD
  * admission gate from its emitted policy manifest, verify every
  * scenario operation links an `operation` callable, load descriptors
@@ -1654,6 +1781,12 @@ function canonicalModelName(model: unknown, index: number): string {
  * build the model table. Reads need no callable (T17b: `invokeRead`
  * serves them through the transcribed `policy` below). Throws precise
  * errors; never a partial set.
+ *
+ * C3: the L3 load runs against the full artifact first; ONLY on the
+ * loader's delivery-kind rejection it retries once with delivery op
+ * inputs stripped (see `stripDeliveryInputs`) — delivery is
+ * dispatch-layer only, so the stripped descriptors are exactly what
+ * L3 executes. Any other rejection propagates verbatim.
  */
 export async function loadCanonicalDescriptors(
   asm: AssembledModules,
@@ -1673,8 +1806,8 @@ export async function loadCanonicalDescriptors(
       resolvePreloadCallable(artifact, op);
     }
   }
-  const loaded = producers.registry.loadArtifactDescriptors(artifact, {
-    by: (op) => {
+  const byOptions = {
+    by: (op: { kind: string; name: string }) => {
       if (op.kind === "create" || op.kind === "update" || op.kind === "delete") {
         const predicate = crudBy.get(op.name);
         if (predicate === undefined) {
@@ -1692,8 +1825,20 @@ export async function loadCanonicalDescriptors(
       // PolicyTable, and `invokeRead` serves them).
       return "public";
     },
+  };
+  let loaded: ReturnType<typeof producers.registry.loadArtifactDescriptors>;
+  try {
+    loaded = producers.registry.loadArtifactDescriptors(artifact, byOptions);
+  } catch (err) {
+    if (!isDeliveryKindRejection(err)) throw err;
+    loaded = producers.registry.loadArtifactDescriptors(stripDeliveryInputs(artifact), byOptions);
+  }
+  const table = producers.models.buildModelTableFromCanonical(loaded.models, {
+    refs: loaded.refs,
+    serverInits: loaded.serverInits,
+    nullableFields: loaded.nullableFields,
+    containment: loaded.containment,
   });
-  const table = producers.models.buildModelTableFromCanonical(loaded.models, { refs: loaded.refs });
   // T17b: transcribe the read policy over the LOADED models (validated
   // names + declared fields — never the raw artifact). Ruled models are
   // omitted from the table (fail-closed even under a missed check) and
@@ -1721,6 +1866,8 @@ export async function loadCanonicalDescriptors(
     policy,
     ruledModels,
     producers,
+    conflictServerOnly: buildConflictServerOnly(loaded.models),
+    deliveryFields: loaded.deliveryFields,
   };
   canonicalCache.set(artifact, canonical);
   return canonical;
@@ -2323,6 +2470,9 @@ async function runScenarioSeam(
           ],
           context: call.context,
           store: overlay,
+          // C2/B1: admission-parity archive gate (CRUD inherits it from
+          // admission; scenario writes bypass per-write admission).
+          gateArchivedTargets: true,
           // T32b: the triggering checkpoint point — hook bodies name it
           // back as their `triggerRevision` when they open fresh
           // transitive scopes. Absent on checkpoint-less calls.
@@ -2466,6 +2616,9 @@ export async function invokeMutationCanonical(
     store: opts.store,
     memberships: opts.memberships,
     clock: { nowMs: opts.now },
+    // C2/B2 (Q3): holder-built exclusions — stale-ref denials carry
+    // full currents (minus serverOnly) instead of metadata-only.
+    conflictServerOnly: loaded.conflictServerOnly,
     execute: async (call: CanonicalSeamCall): Promise<CanonicalExecutionEffects> => {
       // T32b: BOTH paths inherit both-site commit revalidation through
       // state invoke: the runtime `call` is the full admitted call
@@ -5188,6 +5341,181 @@ export async function stageFanoutTriggerJoin(
   }
 }
 
+/* -- T34-F7/C1 emitted-cohort consumer (generated-serving join). -- */
+
+/**
+ * T34-F7/C1: emitted `appDefinition.cohorts` member shape (F6
+ * `ArtifactCohortDescriptor`, keyed by canonical handler identity).
+ * Test fixtures annotate with this so the honest emission shape is
+ * a compile-time constraint, not a comment.
+ */
+export type EmittedAppDefinitionCohorts = Readonly<Record<string, ArtifactCohortDescriptor>>;
+
+/**
+ * T34-F7/C1: emitted `appDefinition.models` containment view. Only
+ * `parent` is read (the `ChildOf` edge renders `parent:` — the
+ * compiler, not this join, owns that edge); richer members pass
+ * through untouched.
+ */
+export type EmittedAppDefinitionModels = Readonly<
+  Record<string, { readonly parent?: string } | undefined>
+>;
+
+/**
+ * T34-F7/C1: resolve one emitted `appDefinition.cohorts[handler]`
+ * descriptor plus its trigger context into the runtime
+ * `FanoutCohortSpec` the trigger join stages. This is the actual
+ * Cloudflare consumer of the F6 emission: the compiler descriptor
+ * never carries owner, identity sets, quotas, or cursors (all
+ * runtime-owned), so the operating owner arrives from the trigger
+ * context, and anchored cohorts resolve their parent id from the
+ * trigger event plus their parent model from the emitted
+ * containment edge.
+ *
+ * Fail-loud throughout (an honest compiler emits checked cohorts
+ * only — E4055 stays fail-closed with no descriptor): a trigger
+ * for a handler with no descriptor, a malformed descriptor, a
+ * non-event-rooted parent path, an unresolvable parent id, or a
+ * child with no contained parent all throw naming the handler.
+ * Well-formed specs still flow through the trigger join's own
+ * admission diagnoses (unsupported model, unknown anchor).
+ *
+ * The header `as` binding (`bind`) is shape-checked and otherwise
+ * ignored here: child-variable binding rides the scheduler body
+ * port when the compiled handler body runs, not the cohort spec.
+ */
+export interface ResolveEmittedFanoutCohortInput {
+  /** Entry module's emitted `appDefinition.cohorts` member (untrusted: validated). */
+  readonly cohorts: unknown;
+  /** Canonical handler identity admitting this cohort (=== cutoff.handler at the join). */
+  readonly handler: string;
+  /** Operating owner attested for the resolved spec. */
+  readonly owner: string;
+  /** Trigger event record the anchored parent path resolves against (`event` root). */
+  readonly event: unknown;
+  /** Entry module's emitted `appDefinition.models` member (anchored parent-model only). */
+  readonly models: unknown;
+}
+
+function readEmittedCohortRecord(value: unknown, what: string, handler: string): Record<string, unknown> {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) {
+    throw new Error(`t34-f7: emitted fanout ${what} for handler ${JSON.stringify(handler)} must be an object.`);
+  }
+  return value as Record<string, unknown>;
+}
+
+function readEmittedCohortString(value: unknown, what: string, handler: string): string {
+  if (typeof value !== "string" || value === "") {
+    throw new Error(
+      `t34-f7: emitted fanout ${what} for handler ${JSON.stringify(handler)} must be a non-empty string.`,
+    );
+  }
+  return value;
+}
+
+export function resolveEmittedFanoutCohort(input: ResolveEmittedFanoutCohortInput): FanoutCohortSpec {
+  if (typeof input.handler !== "string" || input.handler === "") {
+    throw new Error("t34-f7: emitted fanout cohort resolution needs a non-empty handler identity.");
+  }
+  if (typeof input.owner !== "string" || input.owner === "") {
+    throw new Error("t34-f7: emitted fanout cohort resolution needs a non-empty operating owner.");
+  }
+  const cohorts = readEmittedCohortRecord(input.cohorts, "appDefinition.cohorts", input.handler);
+  const raw = cohorts[input.handler];
+  if (raw === undefined) {
+    throw new Error(
+      `t34-f7: handler ${JSON.stringify(input.handler)} names no emitted fanout cohort ` +
+        `(${Object.keys(cohorts).length} emitted cohorts; triggers fire for fanout handlers only).`,
+    );
+  }
+  const descriptor = readEmittedCohortRecord(raw, "cohort descriptor", input.handler);
+  const kind: unknown = descriptor["kind"];
+  if (kind !== "model" && kind !== "anchored-collection") {
+    throw new Error(
+      `t34-f7: emitted fanout cohort for handler ${JSON.stringify(input.handler)} has kind ` +
+        `${JSON.stringify(kind)} (want "model" or "anchored-collection").`,
+    );
+  }
+  const model = readEmittedCohortString(descriptor["model"], "cohort model", input.handler);
+  const bind: unknown = descriptor["bind"];
+  if (typeof bind !== "string" && bind !== null) {
+    throw new Error(
+      `t34-f7: emitted fanout cohort for handler ${JSON.stringify(input.handler)} has a non-string ` +
+        `non-null "as" binding.`,
+    );
+  }
+  if (kind === "model") {
+    return { kind: "model", owner: input.owner, model };
+  }
+  // Anchored: parent id from the trigger event, parent model from
+  // the emitted containment edge. Both are required: freezing over
+  // a mis-specified collection would bless the wrong sweep.
+  const parentPath = readEmittedCohortString(descriptor["parent"], "cohort parent path", input.handler);
+  const segments = parentPath.split(".");
+  if (segments[0] !== "event" || segments.length < 2 || segments.some((segment) => segment === "")) {
+    throw new Error(
+      `t34-f7: emitted fanout cohort for handler ${JSON.stringify(input.handler)} has a non-event-rooted ` +
+        `parent path ${JSON.stringify(parentPath)} (want "event.<field>[.<field>]").`,
+    );
+  }
+  const models = readEmittedCohortRecord(input.models, "appDefinition.models", input.handler);
+  const child = readEmittedCohortRecord(models[model], `model ${JSON.stringify(model)}`, input.handler);
+  const parentModel = readEmittedCohortString(
+    child["parent"],
+    `contained parent of model ${JSON.stringify(model)}`,
+    input.handler,
+  );
+  let current: unknown = input.event;
+  for (const segment of segments.slice(1)) {
+    current = readEmittedCohortRecord(current, `event segment ${JSON.stringify(segment)}`, input.handler)[segment];
+  }
+  if (typeof current !== "string" || current === "") {
+    throw new Error(
+      `t34-f7: emitted fanout cohort for handler ${JSON.stringify(input.handler)} resolves parent path ` +
+        `${JSON.stringify(parentPath)} to a non-string id.`,
+    );
+  }
+  return { kind: "anchored-collection", owner: input.owner, model, parent: { model: parentModel, id: current } };
+}
+
+/**
+ * T34-F7/C1: stage one emitted cohort's trigger join: look the
+ * `cutoff.handler` descriptor up in the entry module's emitted
+ * `appDefinition.cohorts`, resolve it against the trigger context,
+ * and stage through the real `stageFanoutTriggerJoin`. The cutoff
+ * handler is the single lookup key (no second handler field, no
+ * skew); resolution throws fail-loud before ANY store write, and
+ * admission diagnoses flow through unchanged.
+ *
+ * This entry is the serving join the worker's fanout driver calls;
+ * it is intentionally NOT a seventh assembly segment (the six
+ * segments are the composed mechanism entries; the driver supplies
+ * the entry module + trigger event per fire).
+ */
+export interface StageEmittedFanoutTriggerJoinOpts extends Omit<StageFanoutTriggerJoinOpts, "cohort"> {
+  /** Entry module's emitted `appDefinition.cohorts` member (untrusted: validated). */
+  readonly cohorts: unknown;
+  /** Entry module's emitted `appDefinition.models` member (anchored parent-model only). */
+  readonly models: unknown;
+  /** Trigger event record the anchored parent path resolves against. */
+  readonly event: unknown;
+}
+
+export async function stageEmittedFanoutTriggerJoin(
+  opts: StageEmittedFanoutTriggerJoinOpts,
+): Promise<StageFanoutTriggerJoinOutcome> {
+  const cohort = resolveEmittedFanoutCohort({
+    cohorts: opts.cohorts,
+    handler: opts.cutoff.handler,
+    owner: opts.owner,
+    event: opts.event,
+    models: opts.models,
+  });
+  // The emission keys (cohorts/models/event) ride the spread and are
+  // ignored downstream; every staged field arrives explicitly.
+  return stageFanoutTriggerJoin({ ...opts, cohort });
+}
+
 /* -- T34-F7 durable fenced claim/record (F3 TEST-ONLY replacement). -- */
 
 /**
@@ -5768,14 +6096,31 @@ export interface FanoutSchedulerBodyEffects {
 }
 
 /**
+ * T34-F7: attempt identity handed to the child body for effect
+ * attribution.
+ */
+export interface FanoutSchedulerBodyAttempt {
+  /**
+   * The attempt's invoking operation id (=== ctx.operationId at the
+   * unit commit): body-staged outbox intents and history entries
+   * MUST carry this id — state staging forbids cross-operation
+   * attribution.
+   */
+  readonly operationId: string;
+}
+
+/**
  * T34-F7: injected child-body port (the deployed handler stages the
  * child's domain effects and returns the attempt result; a
  * `StateError` throw with code `rule_failed` is the business
  * rejection). Called only for claimed children — pins never invoke.
+ * The attempt carries the invoking operation id so staged effects
+ * attribute to this attempt (C1: bodies cannot guess it).
  */
 export type FanoutSchedulerBodyPort = (
   child: FanoutChildId,
   domainRow: StoredRow,
+  attempt: FanoutSchedulerBodyAttempt,
 ) => FanoutSchedulerBodyEffects | Promise<FanoutSchedulerBodyEffects>;
 
 /** T34-F7: canonical-invoke inputs for executed children (all pass-through). */
@@ -5905,10 +6250,10 @@ async function driveFanoutTurnChild(input: {
   if (data.state === "running") {
     return { childId: data.childId, recordId: data.recordId, status: "held", detail: "running-held" };
   }
+  // F1 `FanoutChildCause` is closed (completed | skipped+reason |
+  // failed+reason): past the completed check the reason always exists.
   const pinDetail = (outcome: FanoutChildOutcome): string =>
-    outcome.cause.kind === "completed"
-      ? "completed"
-      : `${outcome.state}/${outcome.cause.kind === "skipped" || outcome.cause.kind === "failed" ? outcome.cause.reason : outcome.cause.kind}`;
+    outcome.cause.kind === "completed" ? "completed" : `${outcome.state}/${outcome.cause.reason}`;
   const tryPin = async (
     row: StoredRow,
     result:
@@ -6017,7 +6362,7 @@ async function driveFanoutTurnChild(input: {
     readonly result: unknown;
   }> => {
     void call;
-    const effects = await input.body(child, domainRow as StoredRow);
+    const effects = await input.body(child, domainRow as StoredRow, { operationId });
     checkFanoutAttemptResult(effects.result);
     // Fresh fanout rows per execution (invoke retries re-execute, so
     // versions re-read — never carried across attempts).

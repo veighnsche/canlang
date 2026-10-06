@@ -1,0 +1,80 @@
+{
+  "state": "Evaluate four possible Rust ports of current Can packages at source checkpoint 011fced78cbb3762ce838066295468bdd23e5b8a (2026-10-06). Only existing functionality inside packages/ is in scope; compiler code and compiler changes are excluded. Preserve synchronous TS exports, error identities/order and existing accepted inputs. Directory names describe responsibilities. No Rust prototype or performance benchmark exists. All target-runtime speed claims are hypotheses. Rust is installed locally, but only its native target is installed. A shared Wasm core for Workers/Node requires typed binary modules, byte hashing and synchronous initialization: current bundle.ts collects JS strings, writes UTF8 and local-run.ts labels every module ESModule. Native-only Node additions need per-platform distribution and do not cover Workers.\nArithmetic (values): int, coefficient/scale decimal, money, UTC/duration operations, numeric sums/equality. Decimal carrier <10^38 and scale0..18; retain authored zeros, exact alignment, half-even at prescribed fractional limits, distinct construction/overflow errors, final-only aggregate narrowing, min-int remainder by-1=0. Some exported helpers accept arbitrary BigInt operands, including 10^1000 cancellation, so bounded bindgen arguments alone break parity. num-bigint matches raw/scratch semantics; i128 carriers plus a proved signed256 bounded fast path are alternatives. rust_decimal96-bit coefficients are too small. Existing oracle/conformance suites: bounded values build and 284 tests pass. JavaScript BigInt already supplies exact arithmetic; scalar crossing/conversion may dominate. Benefit is reusable semantic authority and possible batched speed, unmeasured.\nValidation (values): wire encode/decode, normalized contract/operation/schema traversal, create defaults, update omission sentinels, nested ref versions, trim/bounds, secrets and ordered collected errors. NormalizedField already has type AST, yet leaves and union arms reparse strings; TS AST entrypoints/pre-resolved schema plans can remove that without a port or compiler edit. Full unknown input includes undefined/null/missing, array holes, UTF16 surrogate text, enumerable own keys, getters/proxies with observable access ordering and shared frozen defaults/empty arrays. Probe shows known getter reads twice, opaque Date becomes {}, numeric opaque JSON fails, own __proto__ data survives opaque decode, cycle throws RangeError; resource limits remain unspecified. serde/JSON Schema do not implement Can semantics; host-backed reads or retained TS traversal may be needed. Ordinary inert DTO registered-plan interpreter is simpler but is a narrower contract. No direct state admission consumer of these exported validators was found; state has separate generated-input checks. Host Intl/WHATWG URL stay adapters initially.\nWork decisions (work): every-slot/coalescing/hash IDs, retry classification/backoff, stale-claim and recovery/fanout/progress plans. Keep DB suppliers, execution/authorization and authoritative fenced mutations in TS. Preserve fractional finite timestamps, JS UTF16 ordering/number-to-string hashing, validation order, exhaustion before random callback, evidence callbacks for uncertain rows only in input order before sort, and act-time evidence rereads/fences. Some work command stages mirror retry/every logic rather than call helpers; isClaimStale is called directly and recovery driver consumes an injected planner. Core tests69 pass and work typecheck passes. A closed batched snapshot with staged host callbacks is plausible; small pure branches may not justify boundary overhead. Reuse/determinism benefit is credible, speed unmeasured.\nArtifacts (cloudflare): parseArtifactText semantic checks and assertCompiledIdentity, checkCompatibility/compiler-version match, buildDeployPlan. Keep filesystem/probes, Worker invocation, whole CLI, bundle assembly and deployment side effects outside scope. Preserve JSON.parse malformed diagnostics with host parsing if needed, arbitrary JS/source-map text, additive unknown metadata, first-error sequence, compatibility-reason order and binding selection/order. Node already hashes in native crypto. Schedules currently pass through unmapped and must remain so. Existing direct CLI callers make a native library or persistent/batched executable useful if another native tool needs reuse; repeated subprocesses or new Wasm wrappers may exceed tiny checks. Selected artifact/compatibility/plan/review/release tests73 pass. Cloudflare full typecheck has4 errors outside selected calculation files (invoke.ts and fanout runtime tests); do not blame or silently fix them in a port. Native metadata implementation is simple; JS compatibility and packaging still cost. No source implementation changed.",
+  "questions": {
+    "arithmetic": {
+      "type": "score",
+      "instructions": "Rate engineering feasibility of a complete behavior-preserving package port of exact values arithmetic, including existing TS API adapters and real delivery integration. Ignore expected speedup and product payoff. Levels are ordered low to high; level index0 denotes rating1 and index9 denotes rating10. Use state evidence, not assumed Rust advantages.",
+      "criteria": [
+        "1: not feasible within the package-only parity constraints",
+        "2: would need forbidden external redesign or loss of core behavior",
+        "3: major missing mechanisms make a complete port doubtful",
+        "4: pervasive coupling or uncertain semantics dominate",
+        "5: possible but several large unresolved interoperability problems",
+        "6: feasible with substantial compatibility machinery and proof work",
+        "7: viable with significant but bounded adapter and release work",
+        "8: well-scoped and implementable; meaningful integration gates remain",
+        "9: straightforward behavior-preserving port with minor bounded integration",
+        "10: complete parity and target integration already demonstrated"
+      ]
+    },
+    "validation": {
+      "type": "score",
+      "instructions": "Rate engineering feasibility of a complete behavior-preserving package port of complete values wire/schema API, including existing TS API adapters and real delivery integration. Ignore expected speedup and product payoff. Levels are ordered low to high; level index0 denotes rating1 and index9 denotes rating10. Use state evidence, not assumed Rust advantages.",
+      "criteria": [
+        "1: not feasible within the package-only parity constraints",
+        "2: would need forbidden external redesign or loss of core behavior",
+        "3: major missing mechanisms make a complete port doubtful",
+        "4: pervasive coupling or uncertain semantics dominate",
+        "5: possible but several large unresolved interoperability problems",
+        "6: feasible with substantial compatibility machinery and proof work",
+        "7: viable with significant but bounded adapter and release work",
+        "8: well-scoped and implementable; meaningful integration gates remain",
+        "9: straightforward behavior-preserving port with minor bounded integration",
+        "10: complete parity and target integration already demonstrated"
+      ]
+    },
+    "work": {
+      "type": "score",
+      "instructions": "Rate engineering feasibility of a complete behavior-preserving package port of bounded work decisions, including existing TS API adapters and real delivery integration. Ignore expected speedup and product payoff. Levels are ordered low to high; level index0 denotes rating1 and index9 denotes rating10. Use state evidence, not assumed Rust advantages.",
+      "criteria": [
+        "1: not feasible within the package-only parity constraints",
+        "2: would need forbidden external redesign or loss of core behavior",
+        "3: major missing mechanisms make a complete port doubtful",
+        "4: pervasive coupling or uncertain semantics dominate",
+        "5: possible but several large unresolved interoperability problems",
+        "6: feasible with substantial compatibility machinery and proof work",
+        "7: viable with significant but bounded adapter and release work",
+        "8: well-scoped and implementable; meaningful integration gates remain",
+        "9: straightforward behavior-preserving port with minor bounded integration",
+        "10: complete parity and target integration already demonstrated"
+      ]
+    },
+    "artifacts": {
+      "type": "score",
+      "instructions": "Rate engineering feasibility of a complete behavior-preserving package port of bounded cloudflare artifact/compatibility/planning, including existing TS API adapters and real delivery integration. Ignore expected speedup and product payoff. Levels are ordered low to high; level index0 denotes rating1 and index9 denotes rating10. Use state evidence, not assumed Rust advantages.",
+      "criteria": [
+        "1: not feasible within the package-only parity constraints",
+        "2: would need forbidden external redesign or loss of core behavior",
+        "3: major missing mechanisms make a complete port doubtful",
+        "4: pervasive coupling or uncertain semantics dominate",
+        "5: possible but several large unresolved interoperability problems",
+        "6: feasible with substantial compatibility machinery and proof work",
+        "7: viable with significant but bounded adapter and release work",
+        "8: well-scoped and implementable; meaningful integration gates remain",
+        "9: straightforward behavior-preserving port with minor bounded integration",
+        "10: complete parity and target integration already demonstrated"
+      ]
+    },
+    "first_investment": {
+      "type": "choice",
+      "instructions": "Which next evaluation investment best serves complete workflows, adoption simplicity, maintenance and demonstrated value across these four candidates? Choose one first step, compare all alternatives fairly, and do not assume a port is obligatory or faster. This is advice for a research plan, not authorization to implement.",
+      "criteria": {
+        "arithmetic_spike": "Prototype native and batched/scalar Wasm arithmetic against unchanged TS; retain TS unless full-call measurements or concrete reuse justify adoption. Low semantic ambiguity, new binary-delivery cost.",
+        "validation_spike": "Prototype an ordered validation-plan interpreter plus a lossless host boundary, compare prepared TS traversal first. Broad potential native semantic reuse, substantial unknown-input compatibility and no proven hot caller.",
+        "work_spike": "Prototype batched snapshot work policies through existing planner seam, retaining all fenced actions. Small core and policy reuse benefit, but callbacks and mirrored production logic add adoption work.",
+        "artifact_spike": "Prototype package-local native artifact/compatibility/plan tooling through existing CLI callers. Simple metadata logic and native reuse option, but packaging/process startup may exceed tiny checks.",
+        "ts_baseline_first": "First measure representative callers and optimize known repeated TS type parsing/preparation; keep all implementations TS while collecting bottleneck/reuse evidence. Cheapest integration, postpones native reuse and does not test Wasm cost."
+      }
+    }
+  }
+}
