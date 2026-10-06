@@ -1,0 +1,65 @@
+# Own published workspace locations and their structured opening calendar. @{nl="Beheer gepubliceerde werkpleklocaties en hun gestructureerde openingskalender."}
+package rent_catalog label="Workspace locations"@{nl="Werkpleklocaties"}
+ use employee {can_work}
+ Given
+  export role catalog_owner label="Catalog owner"@{nl="Catalogusbeheerder"}
+  export Location { name:text trim min=1, address:text, timezone:timezone, currency:currency, hours:text label="Opening hours summary"@{nl="Samenvatting openingsuren"}, arrival:text label="Arrival instructions"@{nl="Aankomstinstructies"}, active:bool=true } label="Location"@{nl="Locatie"}
+  export WeeklyHours in Location { weekday:int min=1 max=7, opens:text="09:00", closes:text="18:00", close_after:int=0 min=0 max=1 label="Closing day offset"@{nl="Dagverschuiving sluiting"}, fold:enum(earlier,later)=earlier label={text="Repeated local time"@{nl="Herhaalde lokale tijd"},values={earlier="Earlier occurrence"@{nl="Eerdere tijd"},later="Later occurrence"@{nl="Latere tijd"}}} } label="Weekly opening interval"@{nl="Wekelijks openingstijdvak"}
+  export ClosedDate in Location { day:date unique, reason:text } label="Closed date"@{nl="Gesloten datum"}
+  export DateHours in Location { day:date unique, opens:text="09:00", closes:text="18:00", close_after:int=0 min=0 max=1, closed:bool=false, fold:enum(earlier,later)=earlier label={text="Repeated local time"@{nl="Herhaalde lokale tijd"},values={earlier="Earlier occurrence"@{nl="Eerdere tijd"},later="Later occurrence"@{nl="Latere tijd"}}} } label="Dated opening exception"@{nl="Gedateerde openingsuitzondering"}
+  export contract OpeningWeek { weekday:int,opens:text,closes:text,close_after:int,fold:WeeklyHours.fold }
+  export contract OpeningDate { day:date,opens:text,closes:text,close_after:int,closed:bool,fold:DateHours.fold }
+  export LocationPolicy in Location { effective:datetime server=now,sequence:int,active:bool,timezone:timezone,weekly:OpeningWeek[],closed:date[],dated:OpeningDate[] }
+  policy LocationPolicy read=public
+  lock LocationPolicy fields=effective,sequence,active,timezone,weekly,closed,dated
+  export derive policy_open(policy:LocationPolicy,from:datetime,until:datetime):bool = policy.active and from<until and all(dates(local_date(from,policy.timezone),add_days(local_date(until-1ms,policy.timezone),1),1000) as day,not (day in policy.closed) and not any(policy.dated as hours,hours.day==day and hours.closed)) and any(dates(add_days(local_date(from,policy.timezone),-1),add_days(local_date(until,policy.timezone),1),1000) as day,any(policy.dated as hours,hours.day==day and not hours.closed and local_instant(day,hours.opens,policy.timezone,fold=hours.fold)<=from and until<=local_instant(add_days(day,hours.close_after),hours.closes,policy.timezone,fold=hours.fold)) or (not any(policy.dated as hours,hours.day==day) and any(policy.weekly as hours,hours.weekday==weekday(day) and local_instant(day,hours.opens,policy.timezone,fold=hours.fold)<=from and until<=local_instant(add_days(day,hours.close_after),hours.closes,policy.timezone,fold=hours.fold))))
+  policy Location read=public fields=name,address,timezone,currency,hours,arrival,active
+  policy WeeklyHours read=public
+  policy ClosedDate read=public
+  policy DateHours read=public
+  invariant WeeklyHours: local_instant(date("2000-01-01"),row.opens,row.parent.timezone,fold=row.fold)<local_instant(add_days(date("2000-01-01"),row.close_after),row.closes,row.parent.timezone,fold=row.fold)
+  invariant DateHours: row.closed or local_instant(row.day,row.opens,row.parent.timezone,fold=row.fold)<local_instant(add_days(row.day,row.close_after),row.closes,row.parent.timezone,fold=row.fold)
+  derive dated_open(location:Location,day:date,from:datetime,until:datetime):bool = any(location.DateHours as hours,hours.day==day and not hours.closed and local_instant(day,hours.opens,location.timezone,fold=hours.fold)<=from and until<=local_instant(add_days(day,hours.close_after),hours.closes,location.timezone,fold=hours.fold)) or (not any(location.DateHours as hours,hours.day==day) and any(location.WeeklyHours as hours,hours.weekday==weekday(day) and local_instant(day,hours.opens,location.timezone,fold=hours.fold)<=from and until<=local_instant(add_days(day,hours.close_after),hours.closes,location.timezone,fold=hours.fold)))
+  export derive is_open(location:Location,from:datetime,until:datetime):bool = location.active and from<until and all(dates(local_date(from,location.timezone),add_days(local_date(until-1ms,location.timezone),1),1000) as day,not any(location.ClosedDate as holiday,holiday.day==day) and not any(location.DateHours as hours,hours.day==day and hours.closed)) and any(dates(add_days(local_date(from,location.timezone),-1),add_days(local_date(until,location.timezone),1),1000) as day,dated_open(location,day,from,until))
+  export fixture recorded_site=LocationPolicy {parent=test_site,effective=now-2d,sequence=1,active=true,timezone="Europe/Brussels",weekly=[OpeningWeek {weekday=weekday(local_date(now,"Europe/Brussels")),opens="09:00",closes="18:00",close_after=0,fold=earlier}],closed=[],dated=[]}
+  export fixture test_site=Location {name="Main",address="1 Example Road",timezone="Europe/Brussels",currency="EUR",hours="09:00–18:00",arrival="Report to reception"}
+  export fixture open_site=WeeklyHours {parent=test_site,weekday=4,opens="09:00",closes="18:00"}
+  export fixture sunday_site=WeeklyHours {parent=test_site,weekday=7,opens="09:00",closes="18:00"}
+ When
+  crud Location by=catalog_owner fields=name,address,hours,arrival,active create_fields=name,address,timezone,currency,hours,arrival when=can_work(actor,row) delete=none
+  crud WeeklyHours by=catalog_owner fields=weekday,opens,closes,close_after,fold when=can_work(actor,row.parent) delete=none
+  crud ClosedDate by=catalog_owner fields=day,reason when=can_work(actor,row.parent) delete=none
+  crud DateHours by=catalog_owner fields=day,opens,closes,close_after,closed,fold when=can_work(actor,row.parent) delete=none
+  scenario snapshot_Location_create on=Location.create
+   do
+    let location=event.after
+    create LocationPolicy {parent=location,sequence=count(location.LocationPolicy)+1,active=location.active,timezone=location.timezone,weekly=location.WeeklyHours as hours select OpeningWeek {weekday=hours.weekday,opens=hours.opens,closes=hours.closes,close_after=hours.close_after,fold=hours.fold},closed=location.ClosedDate as day select day.day,dated=location.DateHours as hours select OpeningDate {day=hours.day,opens=hours.opens,closes=hours.closes,close_after=hours.close_after,closed=hours.closed,fold=hours.fold}} as snapshot
+  scenario snapshot_Location_update on=Location.update
+   do
+    let location=event.after
+    create LocationPolicy {parent=location,sequence=count(location.LocationPolicy)+1,active=location.active,timezone=location.timezone,weekly=location.WeeklyHours as hours select OpeningWeek {weekday=hours.weekday,opens=hours.opens,closes=hours.closes,close_after=hours.close_after,fold=hours.fold},closed=location.ClosedDate as day select day.day,dated=location.DateHours as hours select OpeningDate {day=hours.day,opens=hours.opens,closes=hours.closes,close_after=hours.close_after,closed=hours.closed,fold=hours.fold}} as snapshot
+  scenario snapshot_WeeklyHours_create on=WeeklyHours.create
+   do
+    let location=event.after.parent
+    create LocationPolicy {parent=location,sequence=count(location.LocationPolicy)+1,active=location.active,timezone=location.timezone,weekly=location.WeeklyHours as hours select OpeningWeek {weekday=hours.weekday,opens=hours.opens,closes=hours.closes,close_after=hours.close_after,fold=hours.fold},closed=location.ClosedDate as day select day.day,dated=location.DateHours as hours select OpeningDate {day=hours.day,opens=hours.opens,closes=hours.closes,close_after=hours.close_after,closed=hours.closed,fold=hours.fold}} as snapshot
+  scenario snapshot_WeeklyHours_update on=WeeklyHours.update
+   do
+    let location=event.after.parent
+    create LocationPolicy {parent=location,sequence=count(location.LocationPolicy)+1,active=location.active,timezone=location.timezone,weekly=location.WeeklyHours as hours select OpeningWeek {weekday=hours.weekday,opens=hours.opens,closes=hours.closes,close_after=hours.close_after,fold=hours.fold},closed=location.ClosedDate as day select day.day,dated=location.DateHours as hours select OpeningDate {day=hours.day,opens=hours.opens,closes=hours.closes,close_after=hours.close_after,closed=hours.closed,fold=hours.fold}} as snapshot
+  scenario snapshot_ClosedDate_create on=ClosedDate.create
+   do
+    let location=event.after.parent
+    create LocationPolicy {parent=location,sequence=count(location.LocationPolicy)+1,active=location.active,timezone=location.timezone,weekly=location.WeeklyHours as hours select OpeningWeek {weekday=hours.weekday,opens=hours.opens,closes=hours.closes,close_after=hours.close_after,fold=hours.fold},closed=location.ClosedDate as day select day.day,dated=location.DateHours as hours select OpeningDate {day=hours.day,opens=hours.opens,closes=hours.closes,close_after=hours.close_after,closed=hours.closed,fold=hours.fold}} as snapshot
+  scenario snapshot_ClosedDate_update on=ClosedDate.update
+   do
+    let location=event.after.parent
+    create LocationPolicy {parent=location,sequence=count(location.LocationPolicy)+1,active=location.active,timezone=location.timezone,weekly=location.WeeklyHours as hours select OpeningWeek {weekday=hours.weekday,opens=hours.opens,closes=hours.closes,close_after=hours.close_after,fold=hours.fold},closed=location.ClosedDate as day select day.day,dated=location.DateHours as hours select OpeningDate {day=hours.day,opens=hours.opens,closes=hours.closes,close_after=hours.close_after,closed=hours.closed,fold=hours.fold}} as snapshot
+  scenario snapshot_DateHours_create on=DateHours.create
+   do
+    let location=event.after.parent
+    create LocationPolicy {parent=location,sequence=count(location.LocationPolicy)+1,active=location.active,timezone=location.timezone,weekly=location.WeeklyHours as hours select OpeningWeek {weekday=hours.weekday,opens=hours.opens,closes=hours.closes,close_after=hours.close_after,fold=hours.fold},closed=location.ClosedDate as day select day.day,dated=location.DateHours as hours select OpeningDate {day=hours.day,opens=hours.opens,closes=hours.closes,close_after=hours.close_after,closed=hours.closed,fold=hours.fold}} as snapshot
+  scenario snapshot_DateHours_update on=DateHours.update
+   do
+    let location=event.after.parent
+    create LocationPolicy {parent=location,sequence=count(location.LocationPolicy)+1,active=location.active,timezone=location.timezone,weekly=location.WeeklyHours as hours select OpeningWeek {weekday=hours.weekday,opens=hours.opens,closes=hours.closes,close_after=hours.close_after,fold=hours.fold},closed=location.ClosedDate as day select day.day,dated=location.DateHours as hours select OpeningDate {day=hours.day,opens=hours.opens,closes=hours.closes,close_after=hours.close_after,closed=hours.closed,fold=hours.fold}} as snapshot
+ Then
