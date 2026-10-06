@@ -63,8 +63,12 @@ export interface ClosedObjectSchema {
   readonly additionalProperties: false;
 }
 
-/** Mutation kinds carry `operation_id` and admit the handle-mode alternative. */
-function isMutationKind(kind: McpOperationKind): boolean {
+/**
+ * Mutation kinds carry `operation_id` and admit the handle-mode alternative.
+ * Exported for the V02.5 prepared ordinary-MCP plan so dispatch and plan
+ * share one rule instead of triplicating it.
+ */
+export function isMutationKind(kind: McpOperationKind): boolean {
   switch (kind) {
     case 'create':
     case 'update':
