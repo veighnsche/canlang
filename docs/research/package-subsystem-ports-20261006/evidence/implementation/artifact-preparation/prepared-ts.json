@@ -1,0 +1,106 @@
+{
+  "task": "P02.3",
+  "head": "3abb06d",
+  "head_full": "3abb06ddf3dcfb2facb7e6445e1e4431c1cd20a4",
+  "generated_by": "port/artifact-preparation P02.3",
+  "depends_on": [
+    "P02.2 extraction (3abb06d)",
+    "P01.2 baseline.json (byte-count cross-check)"
+  ],
+  "harness": [
+    "packages/cloudflare/conformance/preparation/workloads.mjs",
+    "packages/cloudflare/conformance/preparation/differential.mjs"
+  ],
+  "reproduce": [
+    "node packages/cloudflare/conformance/preparation/differential.mjs --run --cli packages/cloudflare/dist/cli/platform.js --backend prepared-ts --out prepared.json",
+    "node packages/cloudflare/conformance/preparation/differential.mjs --compare current.json prepared.json"
+  ],
+  "result": {
+    "backend": "prepared-ts",
+    "workloads": 9,
+    "allOk": true,
+    "runAt": "2026-10-06T11:55:56.016Z",
+    "host": {
+      "platform": "darwin",
+      "arch": "arm64",
+      "node": "v24.21.0"
+    }
+  },
+  "byte_table": {
+    "build-ok": [
+      {
+        "exit": 0,
+        "stdoutBytes": 86,
+        "stderrBytes": 55
+      }
+    ],
+    "deploy-bare": [
+      {
+        "exit": 2,
+        "stdoutBytes": 168,
+        "stderrBytes": 0
+      }
+    ],
+    "deploy-preview": [
+      {
+        "exit": 0,
+        "stdoutBytes": 1015,
+        "stderrBytes": 723
+      }
+    ],
+    "deploy-preview-yes-identical": [
+      {
+        "exit": 0,
+        "stdoutBytes": 1015,
+        "stderrBytes": 723
+      },
+      {
+        "exit": 0,
+        "stdoutBytes": 1015,
+        "stderrBytes": 723
+      }
+    ],
+    "deploy-incompatible": [
+      {
+        "exit": 2,
+        "stdoutBytes": 129,
+        "stderrBytes": 0
+      }
+    ],
+    "deploy-missing-env": [
+      {
+        "exit": 2,
+        "stdoutBytes": 83,
+        "stderrBytes": 128
+      }
+    ],
+    "deploy-invalid-artifact": [
+      {
+        "exit": 2,
+        "stdoutBytes": 187,
+        "stderrBytes": 0
+      }
+    ],
+    "build-invalid-artifact": [
+      {
+        "exit": 2,
+        "stdoutBytes": 187,
+        "stderrBytes": 0
+      }
+    ],
+    "deploy-confirmed-mismatch-refuses": [
+      {
+        "exit": 2,
+        "stdoutBytes": 193,
+        "stderrBytes": 0
+      }
+    ]
+  },
+  "current_vs_prepared": "IDENTICAL (9 workloads: exits, scrubbed stdout/stderr, byte counts, envelopes, write behavior); current binary rebuilt from 62e00c2 sources, prepared from 3abb06d; differential exit 0",
+  "p012_crosscheck": "prepared stdout byte counts match P01.2 direct-probe bytes exactly (build 86, bare 168, preview 1015, preview-yes identical); fixtures independently written from deploy-cli.test.ts builders",
+  "notes": [
+    "effectful inputs: confirmed-success never runs (would spawn live wrangler); confirmed-mismatch refusal covers the pre-publication path",
+    "durations recorded per run, excluded from comparison",
+    "missing-worker CLI path covered by deploy-bundle unit suite, not the differential (no CLI flag for workerDistDir)"
+  ]
+}
