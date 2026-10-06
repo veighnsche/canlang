@@ -65,6 +65,21 @@ P-B rewrite in the same pass (F's Q3 scope, not this contract).
 Neither-module-resolves keeps today's exact behavior (loud t16b
 refusal from the work-loader leg). No silent fallback was added.
 
+## Repair notes (A-review D1/D2, fix-forward on the pick)
+
+- D1: the fallback is absent-module ONLY
+  (`isObserverModuleAbsent`: `ERR_MODULE_NOT_FOUND` naming
+  observer.js as the MISSING module). A present-but-broken
+  observer — eval throw, missing export, loader/shape failure,
+  nested missing dep, unknown workerd miss shape — is loud and
+  never masked by the fallback. B-half implication: once your
+  module exists, every defect in it surfaces loudly; there is no
+  quiet revert to the work-loader leg.
+- D2: the injection leg is reachable from production reads, not
+  future — `CanonicalReadOpts.observer?` spreads through
+  `invokeReadCanonical` into `invokeSelectedReceiptRead`, so the
+  assembly can bind the production observer per call today.
+
 ## Ownership
 
 - C: seam + resolution + injection + this contract (this half).
