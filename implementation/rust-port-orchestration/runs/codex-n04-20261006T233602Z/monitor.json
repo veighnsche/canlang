@@ -1,0 +1,81 @@
+{
+  "schema_version": 1,
+  "run_id": "codex-n04-20261006T233602Z",
+  "phase": "running_N04",
+  "execution_authorized": true,
+  "source_base": "dffde556b84d618f62fd0bd3e8e7e0c98e2ce5fd",
+  "packet": "packet-N04.json",
+  "preparation_hold": true,
+  "roles": [
+    {
+      "worker": "mechanics",
+      "agent": "/root/worker_n04_mechanics",
+      "packet_id": "N04-mechanics",
+      "model": "gpt-6.1-sol",
+      "effort": "low",
+      "reason": "Frozen concrete-str helper; existingserde_json; source+same-module/integration Rust tests, no manifests",
+      "owned_files": [
+        "packages/values/semantics/src/codecs/numeric.rs",
+        "packages/values/semantics/tests/string_escape_contract.rs",
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/exact-values/core/n01-rust-str-escape.json"
+      ],
+      "ack_path": "/private/tmp/canlang-rust-port-codex-n04-20261006T233602Z/mechanics-ACK.json",
+      "ack_sha256": "81db3c08f71635c5dc4e0b8fe290a569a390d4160e36698e206b4ca8bbbef1d8",
+      "ack_observed": true,
+      "status": "working",
+      "writer_released": false
+    },
+    {
+      "worker": "fixtures",
+      "agent": "/root/worker_n04_fixtures",
+      "packet_id": "N04-fixtures",
+      "model": "gpt-6-luna",
+      "effort": "medium",
+      "reason": "Prepared93string corpus, specified original caller extraction and TS witness mechanics",
+      "owned_files": [
+        "packages/values/test/string-escape.contract.test.ts",
+        "packages/values/conformance/string-escape.oracle.mjs",
+        "packages/values/conformance/string-escape.json"
+      ],
+      "ack_path": "/private/tmp/canlang-rust-port-codex-n04-20261006T233602Z/fixtures-ACK.json",
+      "ack_sha256": "4bb4fa563072d332f36b67539fb119e029cbf77142fe9a05f3bd608a4e2278f5",
+      "ack_observed": true,
+      "status": "working",
+      "writer_released": false
+    }
+  ],
+  "command_capacity": {
+    "max_concurrent_heavy": 2,
+    "slots": [],
+    "editing_holds_slot": false
+  },
+  "command_permits": [
+    {
+      "id": "N04-native-001",
+      "worker": "mechanics",
+      "state": "granted_awaiting_start",
+      "scope": "locked/offline values-semantics native package,privatetarget/jobs2"
+    },
+    {
+      "id": "N04-wasm-build-001",
+      "worker": "mechanics",
+      "state": "granted_after_native_release",
+      "scope": "sequential actual bindingswasm build,privatetarget/jobs2"
+    }
+  ],
+  "accepted_prior_releases": {
+    "N02": "a34aa16",
+    "N03_source_only": "bcaa5db"
+  },
+  "canonical_parent_statuses_changed": false,
+  "supervisor_status": "ACTIVE",
+  "foreign_compiler_and_shared_docs_preserved": true,
+  "updated_at_utc": "2026-10-06T23:37:40.101554+00:00",
+  "expected_interleaving": {
+    "fixture_ack_numeric_rs_drift": "Root admitted declared mechanic helper change; owningTS/frozen donor inputs remain original and exact."
+  },
+  "material_progress": {
+    "mechanics": "Actual concrete-str helper delta; unchanged truncation; offline dependency/checksum/license proof",
+    "fixtures": "Original corpus/TS inputs ACKed; actual source donor capture preparing"
+  }
+}
