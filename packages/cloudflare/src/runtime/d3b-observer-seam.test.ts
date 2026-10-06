@@ -45,7 +45,9 @@ import { loadWorkReceiptFns } from "../../../state/dist/state/src/receipt/work-l
 import type { AssembledModules } from "../worker/assembly.js";
 import {
   RECEIPT_READ_OPERATION,
+  invokeReadCanonical,
   invokeSelectedReceiptRead,
+  isObserverModuleAbsent,
 } from "./invoke.js";
 import type { SelectedReceiptObserverBinding } from "./invoke.js";
 
@@ -297,7 +299,7 @@ describe("Q2 observer seam (injected production leg + work-loader fallback)", ()
     assert.deepEqual(first["selected"], ["status", "result"]);
   });
 
-  it("serves byte-identical output through the work-loader fallback when nothing is injected", async () => {
+  it("serves deep-equal output through the work-loader fallback when nothing is injected", async () => {
     const injected = await seamSetup();
     await seedWorld(injected.store, injected.seed.now);
     const injectedCalls: unknown[] = [];
@@ -325,6 +327,48 @@ describe("Q2 observer seam (injected production leg + work-loader fallback)", ()
       now: () => fallback.seed.now,
     });
     assert.deepEqual(viaFallback, viaInjection);
+  });
+
+  it("D1: absent-module ONLY falls back — broken-B shapes stay loud", () => {
+    const absent = new Error(
+      "Cannot find module '/repo/packages/state/dist/state/src/receipt/observer.js' imported from '/repo/packages/cloudflare/dist/runtime/invoke.js'",
+    ) as Error & { code: string };
+    absent.code = "ERR_MODULE_NOT_FOUND";
+    assert.equal(isObserverModuleAbsent(absent), true);
+    // Nested missing dep inside a PRESENT observer.js: observer.js is
+    // the importer, not the missing module — broken, never absent.
+    const nested = new Error(
+      "Cannot find module '/repo/packages/state/dist/state/src/receipt/helpers.js' imported from '/repo/packages/state/dist/state/src/receipt/observer.js'",
+    ) as Error & { code: string };
+    nested.code = "ERR_MODULE_NOT_FOUND";
+    assert.equal(isObserverModuleAbsent(nested), false);
+    // Wrong code, unshaped, and primitive errors: all loud.
+    assert.equal(isObserverModuleAbsent(new Error("boom")), false);
+    assert.equal(isObserverModuleAbsent({ code: "ERR_MODULE_NOT_FOUND" }), false);
+    assert.equal(isObserverModuleAbsent(null), false);
+    assert.equal(isObserverModuleAbsent("ERR_MODULE_NOT_FOUND"), false);
+  });
+
+  it("D2: the canonical read path carries an injected observer to Receipt.read serving", async () => {
+    const s = await seamSetup();
+    await seedWorld(s.store, s.seed.now);
+    const calls: unknown[] = [];
+    const served = await invokeReadCanonical({
+      asm: s.asm,
+      artifact: s.artifact,
+      operation: RECEIPT_READ_OPERATION,
+      inputs: { ...READ_INPUTS },
+      identity: await identityFor(s.seed, s.seed.memberToken),
+      store: s.store,
+      memberships: s.seed.store,
+      observer: await recordingBinding(calls),
+    });
+    assert.equal((served as { outcome: string }).outcome, "observed");
+    assert.deepEqual((served as { projection: unknown }).projection, {
+      status: "succeeded",
+      result: { ok: 1 },
+    });
+    assert.ok(calls.length >= 1, "canonical path must reach the injected observer");
   });
 
   it("pre-join refusals short-circuit before any injected observer runs", async () => {

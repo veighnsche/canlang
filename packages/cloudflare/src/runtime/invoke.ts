@@ -3280,32 +3280,45 @@ export function mapReceiptJoinOutcome(outcome: unknown): SelectedReceiptServed {
  *
  * Q2 observer resolution (ordered, loud at the end): an injected
  * `opts.observer` wins outright (production leg / assembly binding);
- * else B's worker-safe observer module when present (production leg
- * once B lands + F vendors/rewrites); else the TEST-ONLY work-loader
- * leg (checkout/dev until then). When NEITHER module resolves — the
- * worker before the B+F halves — the work-loader leg throws its
- * existing loud t16b error: refusal, never a silent fallback.
+ * else B's worker-safe observer module once it lands + F
+ * vendors/rewrites it; else — absent-module ONLY — the TEST-ONLY
+ * work-loader leg (checkout/dev until then). A present-but-broken
+ * observer (eval throw, missing export, loader/shape failure) is
+ * loud, never masked by the fallback (D1). When NEITHER module
+ * resolves — the worker before the B+F halves — the work-loader
+ * leg throws its existing loud t16b error: refusal, never silent.
  */
+/**
+ * Q2-D1: true ONLY when an observer-module import failed because the
+ * module itself is absent (B-half not landed / not vendored). Node
+ * reports the missing specifier in `Cannot find module '<missing>'`;
+ * the match anchors on the MISSING module being observer.js — a
+ * nested missing dep inside a present observer.js names the nested
+ * path (observer.js appears only as the importer) and reads as
+ * broken-B, never absent. Unknown shapes (workerd misses) read as
+ * broken: fail-closed loud, never a masking fallback.
+ */
+export function isObserverModuleAbsent(error: unknown): boolean {
+  if (typeof error !== "object" || error === null) return false;
+  const record = error as Record<string, unknown>;
+  if (record["code"] !== "ERR_MODULE_NOT_FOUND") return false;
+  const message = record["message"];
+  if (typeof message !== "string") return false;
+  return /^Cannot find module '[^']*observer\.js'/.test(message);
+}
+
 async function resolveReceiptObserver(
   injected: SelectedReceiptReadOpts["observer"],
 ): Promise<(input: unknown) => unknown> {
   if (injected !== undefined) return injected.observeSelectedReceipt;
+  // Presence probe: absent-module ONLY falls back to the work-loader
+  // leg. A present-but-broken observer (eval throw, missing export,
+  // loader/shape failure) stays loud below — broken B is never
+  // masked by the fallback.
   try {
-    const observerMod = await loadProducerModule(
-      STATE_RECEIPT_OBSERVER_SPECIFIER,
-      "state receipt observer producer",
-    );
-    const loadSelectedReceiptObserver = requireProducerFn(
-      observerMod,
-      "loadSelectedReceiptObserver",
-      "state receipt observer producer",
-    ) as unknown as StateReceiptObserverProducer["loadSelectedReceiptObserver"];
-    const { observeSelectedReceipt } = await loadSelectedReceiptObserver();
-    if (typeof observeSelectedReceipt !== "function") {
-      throw new Error(`t16b: state receipt observer producer served no observeSelectedReceipt function`);
-    }
-    return observeSelectedReceipt as (input: unknown) => unknown;
-  } catch {
+    await import(STATE_RECEIPT_OBSERVER_SPECIFIER);
+  } catch (error) {
+    if (!isObserverModuleAbsent(error)) throw error;
     const loaderMod = await loadProducerModule(
       STATE_RECEIPT_WORK_LOADER_SPECIFIER,
       "state receipt work-loader producer",
@@ -3318,6 +3331,20 @@ async function resolveReceiptObserver(
     const { observeSelectedReceipt } = await loadWorkReceiptFns();
     return observeSelectedReceipt;
   }
+  const observerMod = await loadProducerModule(
+    STATE_RECEIPT_OBSERVER_SPECIFIER,
+    "state receipt observer producer",
+  );
+  const loadSelectedReceiptObserver = requireProducerFn(
+    observerMod,
+    "loadSelectedReceiptObserver",
+    "state receipt observer producer",
+  ) as unknown as StateReceiptObserverProducer["loadSelectedReceiptObserver"];
+  const { observeSelectedReceipt } = await loadSelectedReceiptObserver();
+  if (typeof observeSelectedReceipt !== "function") {
+    throw new Error(`t16b: state receipt observer producer served no observeSelectedReceipt function`);
+  }
+  return observeSelectedReceipt as (input: unknown) => unknown;
 }
 
 export async function invokeSelectedReceiptRead(
@@ -3437,6 +3464,12 @@ export interface CanonicalReadOpts {
   readonly identity: ResolvedIdentity;
   readonly store: StoragePort;
   readonly memberships: CanonicalMembershipReader;
+  /**
+   * Q2-D2: production observer binding for `Receipt.read` (spread
+   * through to `invokeSelectedReceiptRead` — the injection leg is
+   * reachable from the canonical read path, not future).
+   */
+  readonly observer?: SelectedReceiptObserverBinding;
 }
 
 export async function invokeReadCanonical(
