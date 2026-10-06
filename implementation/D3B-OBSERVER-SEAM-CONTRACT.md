@@ -33,9 +33,12 @@ B-half module and F's Q3 rewrite entry must satisfy.
 - **Acceptance:** the Q2 seam tests drive the production leg through
   injection today; once B lands, a B-owned test MUST drive
   `invokeSelectedReceiptRead` with NO injection against B's module
-  (work-loader leg bypassed — e.g. by asserting identical output to
-  the injected run) plus a worker import smoke (module resolves from
-  the vendor map after F's rewrite).
+  AND prove the call went through B's module positively — e.g. B's
+  observer records its invocations, or returns a marker the test
+  asserts. Identical-output-to-the-injected-run alone does NOT
+  prove bypass (post-D1 the output could still come from the
+  work-loader leg). Plus a worker import smoke (module resolves
+  from the vendor map after F's rewrite).
 
 ## F-half (Q3): rewrite entry
 
