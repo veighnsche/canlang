@@ -1,12 +1,14 @@
 /**
- * S4 top-level HTTP dispatch: operations, auth, and pages.
+ * S4 top-level HTTP dispatch: operations, auth, CSV, and pages.
  *
  * Lane-06 canonical endpoints: POST `/api/operations/<op>` invokes one
  * canonical operation (agent F), `/auth/*` serves the browser auth routes
- * (agent F), and every other GET/HEAD path renders a source page (agent E).
+ * (agent F), `/api/csv/*` serves the FP.CSV review/commit slice (agent E's
+ * `http/csv.js`, wired by FP.CSV-DISPATCH), and every other GET/HEAD path
+ * renders a source page (agent E).
  * The F-owned sub-handlers arrive by injection so E and F stay disjoint:
- * this module never imports `./operations.js`, `./auth.js`, or
- * `./limits.js`, not even as types.
+ * this module never imports `./operations.js`, `./auth.js`,
+ * `./limits.js`, or `./csv.js`, not even as types.
  *
  * Unknown paths and wrong-method requests answer `not_found` ("Not found.",
  * authored mapping for 405/unknown): method existence is not an oracle.
@@ -35,6 +37,8 @@ export const INGRESS_PREFIX = '/ingress/';
 /** OAuth endpoints (S7): register/authorize/token + well-known. */
 export const OAUTH_PREFIX = '/oauth/';
 export const WELL_KNOWN_PREFIX = '/.well-known/';
+/** FP.CSV review/commit prefix: POST only, served by the injected csv handler. */
+export const CSV_PREFIX = '/api/csv/';
 
 /**
  * F-owned sub-handlers, injected so this module never imports the F-owned
@@ -51,6 +55,14 @@ export interface HttpSubHandlers {
   readonly ingress: (req: Request) => Promise<Response>;
   /** Serve `/oauth/*` + OAuth well-known metadata (the handler decides). */
   readonly oauth: (req: Request) => Promise<Response>;
+  /**
+   * Serve one `/api/csv/*` review/commit route (the handler decides
+   * methods and subpaths). Optional so assemblies that have not taken
+   * the FP.CSV delivery join keep compiling: an unmounted CSV prefix
+   * answers `not_found`, never a bypass. The delivery join injects
+   * `(req) => handleCsvRequest(deps, req)`.
+   */
+  readonly csv?: (req: Request) => Promise<Response>;
 }
 
 /** Authored unknown/method response: `not_found`, never a 405 oracle. */
@@ -78,9 +90,11 @@ function decodeOperation(remainder: string): string | null {
 /**
  * Build the request handler. Dispatch: POST `/api/operations/<op>` to the
  * injected operations handler (empty/undecodable op is 404), `/auth/*` to
- * the injected auth handler, else GET/HEAD to the page renderer. Any other
- * method+path answers `not_found`; unexpected throws answer the generic
- * internal envelope after an incident-logged journal entry.
+ * the injected auth handler, `/files/*`, `/ingress/*`, `/oauth/*` (+ OAuth
+ * well-known) to their injected handlers, `/api/csv/*` to the injected csv
+ * handler (`not_found` when unmounted), else GET/HEAD to the page renderer.
+ * Any other method+path answers `not_found`; unexpected throws answer the
+ * generic internal envelope after an incident-logged journal entry.
  */
 export function createHttpHandler(
   deps: HttpDeps,
@@ -107,6 +121,10 @@ export function createHttpHandler(
       }
       if (pathname.startsWith(OAUTH_PREFIX) || pathname.startsWith(WELL_KNOWN_PREFIX)) {
         return await sub.oauth(request);
+      }
+      if (pathname.startsWith(CSV_PREFIX)) {
+        if (sub.csv === undefined) return notFoundResponse();
+        return await sub.csv(request);
       }
       if (method !== 'GET' && method !== 'HEAD') return notFoundResponse();
       return await handlePageRequest(deps, request);
