@@ -887,6 +887,17 @@ interface StateRegistryProducer {
     readonly containment: ReadonlyMap<string, unknown>;
     readonly deliveryFields: ReadonlyMap<string, ReadonlySet<string>>;
   };
+  /**
+   * R01: the loader's own whole-set rejection class, for the
+   * pre-retry dropped-entry validation (the retry must throw
+   * errors indistinguishable from what the loader would have
+   * thrown had the kind been known — same class, reason, and
+   * message vocabulary). Retires with the C3 strip.
+   */
+  readonly IncompatibleArtifactError: new (
+    reason: string,
+    message: string,
+  ) => Error;
 }
 
 /**
@@ -1233,8 +1244,17 @@ async function loadCanonicalStateProducers(): Promise<CanonicalStateProducers> {
     "runMutationWrites",
     "state pipeline producer",
   );
+  const IncompatibleArtifactError = requireProducerFn(
+    registryMod,
+    "IncompatibleArtifactError",
+    "state registry producer",
+  );
   return {
-    registry: { loadArtifactDescriptors: loadArtifactDescriptors as StateRegistryProducer["loadArtifactDescriptors"] },
+    registry: {
+      loadArtifactDescriptors: loadArtifactDescriptors as StateRegistryProducer["loadArtifactDescriptors"],
+      IncompatibleArtifactError:
+        IncompatibleArtifactError as unknown as StateRegistryProducer["IncompatibleArtifactError"],
+    },
     invoke: {
       invoke: invoke as StateInvokeProducer["invoke"],
       invokeRead: invokeRead as StateInvokeProducer["invokeRead"],
@@ -1741,6 +1761,18 @@ function buildConflictServerOnly(
  * inputs (B-loader-tolerance): the retry below then never triggers,
  * and this helper becomes dead code to remove with its pins.
  */
+/**
+ * R01: the ONE delivery-entry predicate shared by the C3 strip and
+ * the pre-retry validation — an entry the strip drops is exactly
+ * an entry the validation checks (no drift between dropped and
+ * checked sets).
+ */
+function isDeliveryInputEntry(entry: unknown): boolean {
+  if (!isUnknownRecord(entry)) return false;
+  const field: unknown = entry["field"];
+  return isUnknownRecord(field) && field["kind"] === "delivery";
+}
+
 function stripDeliveryInputs(artifact: CompileArtifact): CompileArtifact {
   const operations = (artifact as unknown as { operations?: unknown }).operations;
   if (!Array.isArray(operations)) return artifact;
@@ -1751,11 +1783,7 @@ function stripDeliveryInputs(artifact: CompileArtifact): CompileArtifact {
     if (!isUnknownRecord(inputs)) return op;
     const fields: unknown = inputs["fields"];
     if (!Array.isArray(fields)) return op;
-    const kept = fields.filter((entry) => {
-      if (!isUnknownRecord(entry)) return true;
-      const field: unknown = entry["field"];
-      return !isUnknownRecord(field) || field["kind"] !== "delivery";
-    });
+    const kept = fields.filter((entry) => !isDeliveryInputEntry(entry));
     if (kept.length === fields.length) return op;
     stripped = true;
     return { ...op, inputs: { ...inputs, fields: kept } };
@@ -1773,6 +1801,97 @@ function isDeliveryKindRejection(err: unknown): boolean {
 }
 
 /**
+ * R01: contract-level default kinds (`contracts/state.ts`
+ * `CanonicalFieldDef.default`). Inline literals with a cite, not a
+ * second vocabulary: the state loader owns default semantics
+ * (serializability, dot-paths); this checks membership only.
+ * DELETE THIS with the C3 strip (B-loader-tolerance).
+ */
+const R01_CONTRACT_DEFAULT_KINDS: ReadonlySet<string> = new Set([
+  "literal",
+  "parent",
+  "server",
+  "derived",
+]);
+
+/**
+ * R01: validate every delivery entry the C3 strip is about to drop,
+ * BEFORE the stripped retry. The loader's kind gate precedes its
+ * envelope checks, so without this a malformed additive envelope on
+ * a delivery input (bad `required`, bad `array` marker, misshapen
+ * `default`) is silently dropped and the set loads — bypassing
+ * whole-set rejection. Non-delivery entries need no pre-check: the
+ * stripped retry validates them fully.
+ *
+ * Contract-primitive shapes only (`required` boolean, `array`
+ * marker, `default` membership, non-empty name — the registry
+ * gates the retry would otherwise skip past the kind gate, plus
+ * the name gate for delivery entries ordered after the first):
+ * failures throw the loader's OWN rejection class with its
+ * message vocabulary, indistinguishable from a loader rejection.
+ * Delivery-descriptor internals (capability/version fencing) stay
+ * with B-loader-tolerance — dropped entries never execute.
+ * DELETE THIS with the C3 strip.
+ */
+function assertDroppedDeliveryEnvelopes(
+  producers: CanonicalStateProducers,
+  artifact: CompileArtifact,
+): void {
+  const fail = (reason: string, message: string): never => {
+    throw new producers.registry.IncompatibleArtifactError(reason, message);
+  };
+  const operations = (artifact as unknown as { operations?: unknown }).operations;
+  if (!Array.isArray(operations)) return;
+  for (const op of operations) {
+    if (!isUnknownRecord(op)) continue;
+    const inputs: unknown = op["inputs"];
+    if (!isUnknownRecord(inputs)) continue;
+    const fields: unknown = inputs["fields"];
+    if (!Array.isArray(fields)) continue;
+    const opName: unknown = op["name"];
+    for (const entry of fields) {
+      if (!isDeliveryInputEntry(entry)) continue;
+      const record = entry as Record<string, unknown>;
+      const name: unknown = record["name"];
+      if (typeof name !== "string" || name === "") {
+        fail(
+          "malformed_descriptor",
+          `Invalid artifact operation ${JSON.stringify(opName)}: inputs need non-empty names.`,
+        );
+      }
+      const what = `input ${JSON.stringify(name)} on operation ${JSON.stringify(opName)}`;
+      if (typeof record["required"] !== "boolean") {
+        fail("malformed_descriptor", `Invalid ${what}: required must be a boolean.`);
+      }
+      const fallback: unknown = record["default"];
+      if (fallback !== undefined) {
+        if (!isUnknownRecord(fallback) || typeof fallback["kind"] !== "string") {
+          fail("malformed_descriptor", `Invalid default for ${what}: a default object needs a kind.`);
+        }
+        const fallbackRecord = fallback as Record<string, unknown>;
+        const kind = fallbackRecord["kind"] as string;
+        if (!R01_CONTRACT_DEFAULT_KINDS.has(kind)) {
+          fail(
+            "unknown_default_kind",
+            `Unknown default kind ${JSON.stringify(kind)} for ${what}; ` +
+              "supported: literal, parent, server, derived.",
+          );
+        }
+        if (kind === "parent" && typeof fallbackRecord["path"] !== "string") {
+          fail("malformed_descriptor", `Invalid parent default for ${what}: path must be a dot-path string.`);
+        }
+      }
+      const array: unknown = record["array"];
+      if (array !== undefined) {
+        if (!isUnknownRecord(array) || typeof array["required"] !== "boolean") {
+          fail("malformed_descriptor", `Invalid ${what}: array markers carry a boolean required.`);
+        }
+      }
+    }
+  }
+}
+
+/**
  * Load a generated artifact's canonical set: transcribe every CRUD
  * admission gate from its emitted policy manifest, verify every
  * scenario operation links an `operation` callable, load descriptors
@@ -1787,6 +1906,12 @@ function isDeliveryKindRejection(err: unknown): boolean {
  * inputs stripped (see `stripDeliveryInputs`) — delivery is
  * dispatch-layer only, so the stripped descriptors are exactly what
  * L3 executes. Any other rejection propagates verbatim.
+ *
+ * R01: before the stripped retry, every to-be-dropped delivery
+ * entry proves its envelope (`assertDroppedDeliveryEnvelopes`) —
+ * the loader's kind gate precedes its envelope checks, so the
+ * retry would otherwise launder malformed additives into
+ * acceptance. Whole-set rejection preserved.
  */
 export async function loadCanonicalDescriptors(
   asm: AssembledModules,
@@ -1831,6 +1956,9 @@ export async function loadCanonicalDescriptors(
     loaded = producers.registry.loadArtifactDescriptors(artifact, byOptions);
   } catch (err) {
     if (!isDeliveryKindRejection(err)) throw err;
+    // R01: validate-before-retry — dropped delivery entries prove
+    // their envelopes before the strip drops the evidence.
+    assertDroppedDeliveryEnvelopes(producers, artifact);
     loaded = producers.registry.loadArtifactDescriptors(stripDeliveryInputs(artifact), byOptions);
   }
   const table = producers.models.buildModelTableFromCanonical(loaded.models, {
@@ -3018,17 +3146,22 @@ type FenceAttemptVerdict =
   | { readonly status: "claimed"; readonly claim: { readonly outboxId: string; readonly claimId: string; readonly claimedAt: number } }
   | { readonly status: "skipped" }
   | { readonly status: "refused-inherited-scope" }
-  | { readonly status: "refused-revoked" };
+  | { readonly status: "refused-revoked" }
+  | { readonly status: "unavailable"; readonly outboxId: string; readonly target: string };
 
 /**
  * T32b: fail-closed read of the injected kernel's verdict. `claimed`
  * carries the held claim back (shape-checked; the drive asserts it
  * equals the held claim); `skipped` runs the existing skip ceremony;
- * the two refused statuses return. Every other status is unreachable
- * by construction — the drive attests a committed pending intent
- * (the claim run just proved pending + non-superseded) — so anything
- * else (superseded/refused-state/refused-uncommitted/unknown) is a
- * loud wiring error, never a silent drive.
+ * the two refused statuses return; `unavailable` (D3: the send's
+ * deployment target is unavailable — kernel exact-keys shape
+ * `{status,outboxId,target}`) carries its target for the transport
+ * half (the drive asserts the outbox identity, mirroring
+ * `claimed`). Every other status is unreachable by construction —
+ * the drive attests a committed pending intent (the claim run just
+ * proved pending + non-superseded) — so anything else
+ * (superseded/refused-state/refused-uncommitted/unknown) is a loud
+ * wiring error, never a silent drive.
  */
 function checkFenceAttemptVerdict(value: unknown): FenceAttemptVerdict {
   if (!isUnknownRecord(value) || typeof value["status"] !== "string") {
@@ -3038,6 +3171,14 @@ function checkFenceAttemptVerdict(value: unknown): FenceAttemptVerdict {
   if (status === "skipped") return { status };
   if (status === "refused-inherited-scope") return { status };
   if (status === "refused-revoked") return { status };
+  if (status === "unavailable") {
+    const outboxId: unknown = value["outboxId"];
+    const target: unknown = value["target"];
+    if (typeof outboxId !== "string" || outboxId === "" || typeof target !== "string" || target === "") {
+      throw new Error(`t32b: fence kernel unavailable verdict lost its outboxId/target (producer skew?)`);
+    }
+    return { status, outboxId, target };
+  }
   if (status === "claimed") {
     const claim: unknown = value["claim"];
     if (!isUnknownRecord(claim)) {
@@ -3747,6 +3888,25 @@ export type DriveDispatchOutcome =
       readonly intentId: string;
       readonly claimId: string;
       readonly fence: DriveDispatchFenceEcho;
+    }
+  /**
+   * D3 transport half (D-routed): the send's deployment target is
+   * unavailable (unbound provider, scoped-out capability) — the
+   * kernel refused BEFORE guard evaluation and the drive maps the
+   * verdict here with the echoed target. Terminal and explicit per
+   * the kernel contract (never re-driven like refused-*, never
+   * retried — repeating the identical send fails identically until
+   * the deployment changes); downstream transport owns the terminal
+   * surfacing (D proposes `rule_failed` naming the target,
+   * `retryable: false`). Same no-call/no-record posture as the
+   * refused members; the echo carries the checkpoint fenced under.
+   */
+  | {
+      readonly status: "unavailable";
+      readonly intentId: string;
+      readonly claimId: string;
+      readonly target: string;
+      readonly fence: DriveDispatchFenceEcho;
     };
 
 /**
@@ -3759,7 +3919,9 @@ export type DriveDispatchOutcome =
  * proceeds to the provider); `skipped` runs the shared skip ceremony;
  * refused verdicts return with the fence echo (no provider call, no
  * record, no ack — the held claim ages out and the sweeper re-drives
- * from scratch).
+ * from scratch); `unavailable` (D3) buckets to the terminal
+ * transport member with the echoed target (never re-driven —
+ * downstream transport owns the terminal surfacing).
  */
 async function runFenceGate(input: {
   readonly opts: DriveDispatchIntentOpts;
@@ -3868,6 +4030,12 @@ async function runFenceGate(input: {
     }
     return recordSkip(guard);
   }
+  if (verdict.status === "unavailable") {
+    if (verdict.outboxId !== intentId) {
+      throw new Error(`t32b: fence kernel unavailable verdict names another intent (producer skew?)`);
+    }
+    return { status: verdict.status, intentId, claimId: heldClaimId, target: verdict.target, fence: echo };
+  }
   return { status: verdict.status, intentId, claimId: heldClaimId, fence: echo };
 }
 
@@ -3952,8 +4120,10 @@ export async function driveDispatchIntent(
     // T32b: the fenced gate — the guard re-eval moves INSIDE the real
     // kernel call (same evaluator, same snapshot, same single
     // evaluation), so refused-inherited-scope precedes the guard and
-    // refused-revoked follows it per the committed ordering. Claimed
-    // falls through to the provider below; anything else returns.
+    // refused-revoked follows it per the committed ordering (D3:
+    // unavailable precedes the guard too — the kernel never
+    // evaluates guards for unavailable targets). Claimed falls
+    // through to the provider below; anything else returns.
     const fenced = await runFenceGate({
       opts,
       fence: opts.fence,
