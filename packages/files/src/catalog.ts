@@ -30,6 +30,7 @@ export const filesCatalog: FilesCatalog = {
     { name: 'upload.validation', version: 1 },
     { name: 'finalize.idempotent', version: 1 },
     { name: 'finalize.event-ingest', version: 1 },
+    { name: 'finalize.provider-output', version: 1 },
     { name: 'finalize.provenance-read', version: 1 },
     { name: 'provenance.request-binding', version: 1 },
     { name: 'provenance.immutable', version: 1 },
