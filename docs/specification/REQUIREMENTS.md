@@ -20,7 +20,7 @@ Applications whose core value requires a specialized foundation beyond this mode
 
 Bounded provider-backed workflows—LLM conversations, reviewed generation, judgments, authorized company-document answers, external synchronization and approved tool use—belong in scope when their company behavior remains records, permissions, rules and reviewable operations. Complex drafts must expose missing reusable primitives, not make each app reproduce protocol handling, progress correlation, model-output schemas or retrieval permissions. The accepted `judgment`, associated observable progress, complete `invocation` values and model-bound `corpus` contracts in DESIGN are concrete witnesses. Shared providers/libraries do specialized execution; app source owns purpose, authorization, budgets, approval and the meaning of results. This does not expand Can into arbitrary code execution or unrestricted autonomous agents.
 
-Presentation serves that scope. Provide the entire pinned daisyUI component set through the [approved 68-component vocabulary](design/UI-COMPONENTS.md), with typed bindings, shared themes and one standard shell. The former small subset was a design mistake and must not restrict app authors or agents. Arbitrary HTML, CSS, JavaScript, and specialized visual editors are outside v1.
+Presentation serves that scope. Provide the entire pinned daisyUI component set through the [approved 68-component vocabulary](../../design/UI-COMPONENTS.md), with typed bindings, shared themes and one standard shell. The former small subset was a design mistake and must not restrict app authors or agents. Arbitrary HTML, CSS, JavaScript, and specialized visual editors are outside v1.
 
 ## AI-native and token-efficient
 
@@ -104,7 +104,7 @@ Default small AI-generated apps to one file. As an app grows, organize it into f
 
 daisyUI is the built-in presentation foundation. AI selects and configures its components through first-class canlang primitives; shared markup, styling, and interaction behavior belong in the implementation. No app-level library selection, component imports, repeated namespaces, CSS classes, or per-page `htmx` marker are required. HTMX remains the default interaction mechanism.
 
-Use [daisyUI components](https://daisyui.com/components/) for generated HTML markup and styling. The shared presentation build provides [daisyUI and Tailwind CSS](https://daisyui.com/docs/install/); apps do not declare these dependencies. canlang supplies data binding and behavior. The [complete approved catalog](design/UI-COMPONENTS.md) defines all 68 contextual component words, profiles, field placement, exclusive button bindings and slots. Compiler checking, discovery and rendering must cover that same catalog; the following core semantic mappings are useful compositions, not an exhaustive allowlist:
+Use [daisyUI components](https://daisyui.com/components/) for generated HTML markup and styling. The shared presentation build provides [daisyUI and Tailwind CSS](https://daisyui.com/docs/install/); apps do not declare these dependencies. canlang supplies data binding and behavior. The [complete approved catalog](../../design/UI-COMPONENTS.md) defines all 68 contextual component words, profiles, field placement, exclusive button bindings and slots. Compiler checking, discovery and rendering must cover that same catalog; the following core semantic mappings are useful compositions, not an exhaustive allowlist:
 
 | canlang declaration | daisyUI presentation |
 | --- | --- |
@@ -211,7 +211,7 @@ Descriptions use `#` globally; `##` is a code comment. Scenario parameters are t
 
 A mutation is atomic at one inferred storage owner. D1 is the default, using the proposed revision-fenced commit strategy; a model may select a Durable Object authority inherited by its children. Cross-owner work uses persisted events and pending state. Versions, replay receipts, outbox delivery, and scheduling bookkeeping belong to the runtime, without repeated app declarations. The D1 strategy still needs implementation and performance validation.
 
-The generated UI and MCP share one operation registry and the same permissions, validation, version checks, and business rules. The entire pinned component catalog, field/result scopes, routes, forms, wire schemas, and source restrictions are defined in DESIGN.md and design/UI-COMPONENTS.md. [Reference examples](examples) illustrate these choices; existing drafts remain uncompiled and unexecuted and have not yet been migrated to the newly approved full component vocabulary.
+The generated UI and MCP share one operation registry and the same permissions, validation, version checks, and business rules. The entire pinned component catalog, field/result scopes, routes, forms, wire schemas, and source restrictions are defined in DESIGN.md and design/UI-COMPONENTS.md. [Reference examples](../../examples) illustrate these choices; existing drafts remain uncompiled and unexecuted and have not yet been migrated to the newly approved full component vocabulary.
 
 ## Draft semantics and target boundary
 
