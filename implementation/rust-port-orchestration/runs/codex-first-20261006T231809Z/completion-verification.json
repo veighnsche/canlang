@@ -1,0 +1,176 @@
+{
+  "schema_version": 1,
+  "recorded_at_utc": "2026-10-06T23:33:28.706258+00:00",
+  "run_id": "codex-first-20261006T231809Z",
+  "activation_base": "c6896fd2dea782d8ed6412769337b76eb899ca53",
+  "source_head_at_completion": "a35fcae114b722823435a0f2ed19ab0345d3f0bf",
+  "verdict": "PASS_THREE_FINITE_PACKETS",
+  "integration": {
+    "A": {
+      "commit": "a34aa16fcf85e1241145bd6d92d9ca175420f20d",
+      "files": [
+        {
+          "path": "docs/research/package-subsystem-ports-20261006/evidence/implementation/exact-values/core/n01-values-number-text.json",
+          "sha256": "197f7ca80b4abb479b0c50d9d5b48437cd908986e055d65bb3039e96cf0e726a"
+        },
+        {
+          "path": "packages/values/Cargo.lock",
+          "sha256": "653260b64e40898068cfed2728bb348d26284fe5af983ab3bf38d9d2aa57ebbe"
+        },
+        {
+          "path": "packages/values/conformance/numeric-text.json",
+          "sha256": "29806b94e5fe70468e0c3ef05a5b6b8550be4dacc34e8b57e0f42ab8588f37c8"
+        },
+        {
+          "path": "packages/values/conformance/numeric-text.oracle.mjs",
+          "sha256": "bd831d965063a0c57fee063f0714a223c622c3fae4f36ad321b87afd9319770d"
+        },
+        {
+          "path": "packages/values/semantics/Cargo.toml",
+          "sha256": "d9e3d080a35cc0c0fe5138bf235cb46f7c389469251833ec81b08b29e10583b8"
+        },
+        {
+          "path": "packages/values/semantics/src/representations/numeric.rs",
+          "sha256": "c012805095152f62168db2b00fa6c7a2ebc741f526f2e68a004bcfe3d149f13c"
+        },
+        {
+          "path": "packages/values/semantics/tests/numeric_text_contract.rs",
+          "sha256": "dba6878989028d5e0970fc62fb55ced2cf926c22bf50a956f2fb932b0c5f3459"
+        },
+        {
+          "path": "packages/values/test/numeric-text.contract.test.ts",
+          "sha256": "da34c7c52a5b4ec9eaad4b54a878dcfada3cb0fe4ba40f5f0c46d6becc91ff4a"
+        }
+      ]
+    },
+    "B": {
+      "commit": "a35fcae114b722823435a0f2ed19ab0345d3f0bf",
+      "files": [
+        {
+          "path": "docs/research/package-subsystem-ports-20261006/evidence/input-validation/caller-inventory.json",
+          "sha256": "b58b0dd05522a3252ad6683992198c19d0aeda93ee0598f5ecfbb80a6d740902"
+        },
+        {
+          "path": "docs/research/package-subsystem-ports-20261006/evidence/input-validation/contracts.md",
+          "sha256": "dbc80a564e4679cf3c0604e1e5f6898411098c1697f447198228295c8f49ac20"
+        },
+        {
+          "path": "docs/research/package-subsystem-ports-20261006/evidence/input-validation/current-ts.json",
+          "sha256": "e65a9ecbc5f6b8943b845bce238b274df473aeacf6e5cca4c984c7273426a765"
+        },
+        {
+          "path": "docs/research/package-subsystem-ports-20261006/evidence/input-validation/http-adoption-gate.md",
+          "sha256": "4591a1a5a8d12ac67621ee83bc1b8d2f199aa6dd7194ad28131f886e94a4b387"
+        },
+        {
+          "path": "docs/research/package-subsystem-ports-20261006/evidence/input-validation/plan-contract.md",
+          "sha256": "52e2cfb8c5509a8d18e732c3d9135e730445656c23b038ff29215bc090081b6b"
+        },
+        {
+          "path": "docs/research/package-subsystem-ports-20261006/evidence/input-validation/prepared-hook-review.md",
+          "sha256": "8264d4a6063d1e0b3ee3933cefe2c20bbe039abcdc7b6668f6ee91a984ccbda0"
+        },
+        {
+          "path": "docs/research/package-subsystem-ports-20261006/evidence/input-validation/state-contract.md",
+          "sha256": "c829647c2c4afe6e9a13bbacc005b7781953ea92968b7c21d79f4bbbf42cfef2"
+        },
+        {
+          "path": "docs/research/package-subsystem-ports-20261006/evidence/input-validation/v01-review.md",
+          "sha256": "82c0970b2c9a15add89875c0379aecdf2ff0e69de0f3357231c34f8a9a30b15d"
+        }
+      ]
+    },
+    "C": {
+      "commit": "bcaa5db13e8c903b388dd0f419c9e65866065981",
+      "files": [
+        {
+          "path": "docs/research/package-subsystem-ports-20261006/evidence/implementation/work-transitions/handoffs/n01-work-number-text.json",
+          "sha256": "e2302902d6721ed05d8e76ef8a26e7cae8e3e443bad49ea9e7ae49daf9ed6bfb"
+        },
+        {
+          "path": "packages/work-kernel/conformance/fixtures/numeric-text.json",
+          "sha256": "7e4ee0155f23a7f21b62dc44a62c8a8e6e567e911ae515c1bcba1b8b1d028fa2"
+        },
+        {
+          "path": "packages/work-kernel/conformance/native-numeric-text.rs",
+          "sha256": "add8194c697abfb55e3fb0671bb67471733d6b126db66ad43548d9a97606ac64"
+        },
+        {
+          "path": "packages/work-kernel/conformance/numeric-text.contract.test.ts",
+          "sha256": "ba1e8205ed068f24eb0c6108f84701f390f48df700d8443766b1de9f1aea9065"
+        },
+        {
+          "path": "packages/work-kernel/conformance/numeric-text.oracle.mjs",
+          "sha256": "0f3757e763e1ab72d0a90c91a1f97d4e3f5f3b99390ae05a42d4b7345f4b2f2c"
+        },
+        {
+          "path": "packages/work-kernel/decisions/linkage.rs",
+          "sha256": "ce6e9b790a8e5dffb2f4eb83237a8fc8f4a646f868ad8da98cb2cc948bae546d"
+        },
+        {
+          "path": "packages/work-kernel/decisions/numeric_text.rs",
+          "sha256": "2b8f51a8da20de130d278f6c81d080656ba450b70c807a0e94ce4289bd3b5eb6"
+        },
+        {
+          "path": "packages/work-kernel/decisions/receipt.rs",
+          "sha256": "71f914d0732e217b11836d52cb5ba9c913aa2b4923f0d6e6a73493418e4d885d"
+        },
+        {
+          "path": "packages/work-kernel/decisions/recovery.rs",
+          "sha256": "0954637f04bad18e684d449f5397922b764087c2fd1b90b91e5a1bfb389d9ec2"
+        },
+        {
+          "path": "packages/work-kernel/decisions/rows.rs",
+          "sha256": "42f0fcbc4cc1dd31f8ef6dd180c717529c01a87b3548c262ef3095f273943393"
+        }
+      ]
+    }
+  },
+  "input_recheck": {
+    "A": {
+      "unchanged_nonwritable_inputs": 18,
+      "drift": []
+    },
+    "B": {
+      "unchanged_nonwritable_inputs": 20,
+      "drift": []
+    },
+    "C": {
+      "unchanged_nonwritable_inputs": 26,
+      "drift": []
+    }
+  },
+  "independent_reviews": [
+    "independent-review-A.json",
+    "independent-review-B.json",
+    "independent-review-C.json"
+  ],
+  "source_bytes_equal_reviewed_commit_blobs": true,
+  "builds_repeated_after_unchanged_source": false,
+  "canonical_parent_statuses_changed": false,
+  "actual_merges_or_rebases": false,
+  "publication_performed": false,
+  "active_writers": 0,
+  "active_commands": 0,
+  "supervisor": "PAUSED between finite releases;15minute cadence preserved",
+  "preparation_native_release": "HUMAN HOLD",
+  "remaining": [
+    "A: public SchemaError map, stored scale-0,UTF16/truncation, original parent/installed/default claims",
+    "C: full StateError envelope/hostNaN residuals, official work manifest/lock/root registration,W04.4, installed/Wasm",
+    "B: exact private-core module leases/factoring, protected callback/result alias/graph trace gates,C03 lifetime/ABI,V09 bridge,V08/C04 deployment",
+    "Successor packets require their own finite dispatch; no broader task completion from these releases"
+  ],
+  "pending_bookkeeping": {
+    "owner": "Codex",
+    "shared_files": [
+      "docs/specification/DECISIONS.md",
+      "docs/ideal-filetree-plan.md"
+    ],
+    "reason": "Concurrent compiler writer retains dirty shared documents; scoped decisions recorded here and no overlapping write or actual merge occurred."
+  },
+  "retained_private_evidence": {
+    "owner": "Codex",
+    "root": "/private/tmp/canlang-rust-port-codex-first-20261006T231809Z",
+    "cleanup_state": "deferred; logs, artifacts and source hashes retained for acceptance evidence; no foreign/shared cache cleanup"
+  }
+}

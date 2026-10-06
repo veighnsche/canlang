@@ -35,7 +35,7 @@
   ],
   "sequence_role": "first",
   "execution_authorized": true,
-  "active_lease": true,
+  "active_lease": false,
   "assigned_agent": "/root/worker_a_n02",
   "operator_ack": {
     "path": "/private/tmp/canlang-rust-port-codex-first-20261006T231809Z/packets/R1-N02/ACK.json",
@@ -105,7 +105,7 @@
   "canonical_snapshot_index": "preserved_original_records",
   "private_output_root": "/private/tmp/canlang-rust-port-codex-first-20261006T231809Z/packets/R1-N02",
   "human_release_reference": "Human step4 in this chat, 2026-10-07: Start three finite Codex packets.",
-  "runtime_status": "working",
+  "runtime_status": "completed_narrow_scope",
   "allowed_checks": "Read-only source/hash inspections and named packet checks with private mutable output; request heavy-command permit from Codex before each actual heavy check. No publication/CI/push.",
   "source_input_sha256": {
     "implementation/remaining-work/tasks.json": {
@@ -213,5 +213,8 @@
     "packages/values/semantics/Cargo.toml",
     "packages/values/Cargo.lock"
   ],
-  "assembly_transfer": "R1 package-local semantics/Cargo.toml and values/Cargo.lock explicitly transferred to worker A for exact pinned dependency addition only."
+  "assembly_transfer": "R1 package-local semantics/Cargo.toml and values/Cargo.lock explicitly transferred to worker A for exact pinned dependency addition only.",
+  "writer_released": true,
+  "command_released": true,
+  "integrated_commit": "a34aa16fcf85e1241145bd6d92d9ca175420f20d"
 }
