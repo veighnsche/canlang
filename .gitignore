@@ -7,6 +7,9 @@ __pycache__/
 /compiler/target/
 /output/editor/*.vsix
 
+# Package-local Cargo/native/Wasm build output
+/packages/**/target/
+
 # Node workspace output (lane 07)
 node_modules/
 # Stray tsc emits next to sources (no package emits outside dist/;

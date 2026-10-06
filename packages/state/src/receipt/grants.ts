@@ -71,17 +71,20 @@ export interface JoinContentPolicyPort {
 
 /**
  * Declared delivery fields per model: the record's canonical schema
- * reduced to delivery-field membership. Interim hand-built source (the
- * `InterimModelPolicy` precedent) until L1 compiles schema descriptors;
- * generated callers resolve model + field statically against the
- * canonical schema and pass them here.
+ * reduced to delivery-field membership. B3 loader-built from L1-emitted
+ * T15b `delivery` field tags (`registry.deliveryFields`); generated
+ * callers resolve model + field statically against the canonical schema
+ * and pass them here.
  */
 export type DeliveryFieldSchema = ReadonlyMap<ModelName, ReadonlySet<string>>;
 
 /**
  * Build a delivery-field schema. Plain `Error` programmer bugs (the
  * `buildPolicyTable` precedent): empty models, duplicate models, empty
- * field names, or traversal-shaped field names.
+ * field names, or traversal-shaped field names. Shared builder: the
+ * artifact loader is the production caller (its whole-set guard runs
+ * through this validation); direct calls survive only for focused
+ * unit tests of the builder itself.
  */
 export function createDeliverySchema(
   entries: ReadonlyArray<readonly [string, ReadonlyArray<string>]>,
