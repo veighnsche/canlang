@@ -361,6 +361,39 @@ export interface ArtifactOperation {
 }
 
 /**
+ * T34-F6 adopted fanout cohort spellings (mirrors F1
+ * `FanoutCohortKind` in `work.ts`): whole-model enumeration or one
+ * parent's contained reverse collection. No other spelling is
+ * admitted; anything else stays diagnosed (`E4055`), never silently
+ * emitted.
+ */
+export type ArtifactCohortKind = 'model' | 'anchored-collection';
+
+/**
+ * T34-F6 one static fanout cohort descriptor, as emitted by the
+ * compiler into the entry module's `appDefinition.cohorts` member
+ * (keyed by canonical handler identity, omitted when the program
+ * declares no checked `each=` cohort).
+ *
+ * `model` is the canonical enumerated/child model identity; `bind` is
+ * the header `as` child binding (`null` when the header omits it);
+ * anchored cohorts add the event-rooted dotted `parent` path (e.g.
+ * `event.opportunity`). The F7 runtime join resolves the operating
+ * owner plus the parent id at trigger time into an F5
+ * `FanoutCohortSpec`; the compiler descriptor never carries owner,
+ * identity sets, quotas, or cursors (all runtime-owned).
+ */
+export interface ArtifactCohortDescriptor {
+  kind: ArtifactCohortKind;
+  /** Canonical enumerated/child model identity, e.g. `volunteer.Signup`. */
+  model: string;
+  /** Header `as` child binding, `null` when the header omits it. */
+  bind: string | null;
+  /** Anchored cohorts only: event-rooted dotted parent path. */
+  parent?: string;
+}
+
+/**
  * Separately emitted test artifact for inline behavior examples.
  * Production modules never import from test artifacts; the test runner
  * provisions fixtures and invokes compiled operations through production
