@@ -1,0 +1,1199 @@
+{
+  "schema_version": 1,
+  "namespace": "library-sequence",
+  "phase": "planning",
+  "execution_authorized": false,
+  "source_base": "309644a6881909d8dba32560bc6711f67e00a7ab",
+  "source_ledger": "implementation/remaining-work/tasks.json",
+  "source_ledger_sha256": "cd01ebb2276e9bbd362085070b985811543f4bcb1d7ad0d0ac0530d3092bc3f4",
+  "inventory_reference": "source-inventory.json",
+  "unit_count": 27,
+  "units_are_additional_canonical_task_count": false,
+  "canonical_statuses_changed": false,
+  "checkpoint_advanced": false,
+  "topology_changed": true,
+  "native_preparation_and_native_release_held": true,
+  "readiness_policy": "Local edges locate prerequisite scoped releases; each consumer needs only its named contract/source release and all relevant original gate prerequisites. No all-family wave barrier. This JSON is a proposed task map, not an installed dispatcher.",
+  "ownership_policy": "R1 values common assembly; R3 work/global delivery; R2 retains validation critical work. Explicit identity/UI/interfaces/services owners can be lent released R4 capacity under finite scope. Disjoint source/fixture work continues while exact shared files and mutable outputs serialize.",
+  "review_policy": "R01/R02 are repeatable per-slice events, independent of unrelated families. Preserve exact hashes and original evidence scope. R03 closes only the selected qualified scope.",
+  "units": [
+    {
+      "id": "library-sequence:P01",
+      "label": "P01",
+      "title": "Refresh source, callers and remaining evidence",
+      "kind": "preflight",
+      "phase": "planning",
+      "performed": false,
+      "execution_authorized": false,
+      "proposed_owners": [
+        "Codex"
+      ],
+      "depends_on": [],
+      "original_task_references": [],
+      "audit_finding_ids": [],
+      "candidate_existing_production_paths": [],
+      "candidate_new_paths_proposal_only": [],
+      "finite_test_and_evidence_paths_at_release_required": true,
+      "defining_assembly_and_global_dependency_changes_require_sole_owner": true,
+      "task_details_reference": "adoption-sequence.md#p01--refresh-source-callers-and-remaining-evidence",
+      "acceptance_summary": "a current compatibility matrix, existing evidence reuse argument and visible residual gates. No product check or library adoption is claimed from inventory alone."
+    },
+    {
+      "id": "library-sequence:P02",
+      "label": "P02",
+      "title": "Amend scope, task crosswalk and exact owners",
+      "kind": "planning-amendment",
+      "phase": "planning",
+      "performed": false,
+      "execution_authorized": false,
+      "proposed_owners": [
+        "Codex"
+      ],
+      "depends_on": [
+        "library-sequence:P01"
+      ],
+      "original_task_references": [],
+      "audit_finding_ids": [],
+      "candidate_existing_production_paths": [],
+      "candidate_new_paths_proposal_only": [],
+      "finite_test_and_evidence_paths_at_release_required": true,
+      "defining_assembly_and_global_dependency_changes_require_sole_owner": true,
+      "task_details_reference": "adoption-sequence.md#p02--amend-scope-task-crosswalk-and-exact-owners",
+      "acceptance_summary": "updated current task/packet crosswalk with one writer per file, one common values core and one global delivery owner. The current sequence proposes this amendment; it does not itself change canonical statuses/counts, active leases or worker assignments."
+    },
+    {
+      "id": "library-sequence:N01",
+      "label": "N01",
+      "title": "Freeze numeric text contracts and independent oracles",
+      "kind": "contract",
+      "phase": "planning",
+      "performed": false,
+      "execution_authorized": false,
+      "proposed_owners": [
+        "R1",
+        "R3",
+        "R2"
+      ],
+      "depends_on": [
+        "library-sequence:P02"
+      ],
+      "original_task_references": [],
+      "audit_finding_ids": [
+        "LIB-01",
+        "LIB-02",
+        "LIB-03"
+      ],
+      "candidate_existing_production_paths": [],
+      "candidate_new_paths_proposal_only": [],
+      "finite_test_and_evidence_paths_at_release_required": true,
+      "defining_assembly_and_global_dependency_changes_require_sole_owner": true,
+      "task_details_reference": "adoption-sequence.md#n01--freeze-numeric-text-contracts-and-independent-oracles",
+      "acceptance_summary": "independent expected bytes and explicit failure controls, a selected dependency request, and native/Wasm qualification recipe. A library's documentation is not a target-build result.",
+      "independently_releasable_contracts": [
+        "values-format-contract",
+        "work-format-contract",
+        "rust-str-contract"
+      ]
+    },
+    {
+      "id": "library-sequence:N02",
+      "label": "N02",
+      "title": "Replace values number-formatting mechanics",
+      "kind": "corrective-adoption",
+      "phase": "planning",
+      "performed": false,
+      "execution_authorized": false,
+      "proposed_owners": [
+        "R1"
+      ],
+      "depends_on": [
+        "library-sequence:N01"
+      ],
+      "original_task_references": [
+        {
+          "id": "ports:A03.1",
+          "status_snapshot": "complete",
+          "depends_on_preserved": [
+            "ports:A02",
+            "ports:C03.ready"
+          ],
+          "acceptance_must_be_preserved": true
+        }
+      ],
+      "audit_finding_ids": [
+        "LIB-01"
+      ],
+      "candidate_existing_production_paths": [
+        "packages/values/semantics/src/representations/numeric.rs"
+      ],
+      "candidate_new_paths_proposal_only": [],
+      "finite_test_and_evidence_paths_at_release_required": true,
+      "defining_assembly_and_global_dependency_changes_require_sole_owner": true,
+      "task_details_reference": "adoption-sequence.md#n02--replace-values-number-formatting-mechanics",
+      "acceptance_summary": "admitted diagnostic bytes agree with actual JS, including seeded/boundary cases and complete callers. Number carrier bits/order/authority are unchanged. Release for independent review immediately; neither N03 nor work assembly is a prerequisite.",
+      "required_local_release": "library-sequence:N01#values-format-contract",
+      "no_unrelated_contract_completion_barrier": true
+    },
+    {
+      "id": "library-sequence:N03",
+      "label": "N03",
+      "title": "Repair work number-formatting mechanics before assembly",
+      "kind": "corrective-requalification",
+      "phase": "planning",
+      "performed": false,
+      "execution_authorized": false,
+      "proposed_owners": [
+        "R3"
+      ],
+      "depends_on": [
+        "library-sequence:N01"
+      ],
+      "original_task_references": [
+        {
+          "id": "ports:W04.1",
+          "status_snapshot": "needs_verification",
+          "depends_on_preserved": [
+            "ports:W02.2",
+            "ports:W03.1",
+            "ports:C03.ready"
+          ],
+          "acceptance_must_be_preserved": true
+        },
+        {
+          "id": "ports:W04.3",
+          "status_snapshot": "needs_verification",
+          "depends_on_preserved": [
+            "ports:W02.4",
+            "ports:W03.1",
+            "ports:C03.ready"
+          ],
+          "acceptance_must_be_preserved": true
+        }
+      ],
+      "audit_finding_ids": [
+        "LIB-02"
+      ],
+      "candidate_existing_production_paths": [
+        "packages/work-kernel/decisions/rows.rs",
+        "packages/work-kernel/decisions/receipt.rs",
+        "packages/work-kernel/decisions/linkage.rs",
+        "packages/work-kernel/decisions/recovery.rs"
+      ],
+      "candidate_new_paths_proposal_only": [],
+      "finite_test_and_evidence_paths_at_release_required": true,
+      "defining_assembly_and_global_dependency_changes_require_sole_owner": true,
+      "task_details_reference": "adoption-sequence.md#n03--repair-work-number-formatting-mechanics-before-assembly",
+      "acceptance_summary": "all admitted diagnostic/identity bytes agree with actual JS; `1e20` cannot saturate into i64 text; JSON nonfinite→null remains distinct; number carrier bits/order/authority are unchanged. A native source-ready release is only that narrower claim; it does not close W04.4. N02/N04/N05 are not prerequisites.",
+      "required_local_release": "library-sequence:N01#work-format-contract",
+      "no_unrelated_contract_completion_barrier": true
+    },
+    {
+      "id": "library-sequence:N04",
+      "label": "N04",
+      "title": "Use existing serde_json for Rust-str escaping",
+      "kind": "adoption-with-residual-gate",
+      "phase": "planning",
+      "performed": false,
+      "execution_authorized": false,
+      "proposed_owners": [
+        "R1"
+      ],
+      "depends_on": [
+        "library-sequence:N01"
+      ],
+      "original_task_references": [
+        {
+          "id": "ports:A04.5",
+          "status_snapshot": "partial",
+          "depends_on_preserved": [
+            "ports:A04.1",
+            "ports:A04.3",
+            "ports:C03.ready"
+          ],
+          "acceptance_must_be_preserved": true
+        }
+      ],
+      "audit_finding_ids": [
+        "LIB-03"
+      ],
+      "candidate_existing_production_paths": [
+        "packages/values/semantics/src/codecs/numeric.rs"
+      ],
+      "candidate_new_paths_proposal_only": [],
+      "finite_test_and_evidence_paths_at_release_required": true,
+      "defining_assembly_and_global_dependency_changes_require_sole_owner": true,
+      "task_details_reference": "adoption-sequence.md#n04--use-existing-serde_json-for-rust-str-escaping",
+      "acceptance_summary": "exact bytes for the frozen admitted domain, with no new user-visible serialization failure. The existing 64-UTF-16-unit surrogate-split/truncation discrepancy remains a named A04.5 residual unless separately fixed or handled by preselected retained TS domains. Escaping acceptance cannot close the whole scalar-codec task.",
+      "required_local_release": "library-sequence:N01#rust-str-contract",
+      "no_unrelated_contract_completion_barrier": true
+    },
+    {
+      "id": "library-sequence:N05",
+      "label": "N05",
+      "title": "Qualify affected values and validation consumers",
+      "kind": "qualification",
+      "phase": "planning",
+      "performed": false,
+      "execution_authorized": false,
+      "proposed_owners": [
+        "R1",
+        "R2",
+        "R3",
+        "Codex"
+      ],
+      "depends_on": [
+        "library-sequence:N02",
+        "library-sequence:N04"
+      ],
+      "original_task_references": [
+        {
+          "id": "ports:A04.5",
+          "status_snapshot": "partial",
+          "depends_on_preserved": [
+            "ports:A04.1",
+            "ports:A04.3",
+            "ports:C03.ready"
+          ],
+          "acceptance_must_be_preserved": true
+        },
+        {
+          "id": "ports:A07.foundation",
+          "status_snapshot": "partial",
+          "depends_on_preserved": [
+            "ports:A07.1",
+            "ports:A07.2"
+          ],
+          "acceptance_must_be_preserved": true
+        },
+        {
+          "id": "ports:A07.3",
+          "status_snapshot": "partial",
+          "depends_on_preserved": [
+            "ports:A03",
+            "ports:A04",
+            "ports:A05",
+            "ports:A06",
+            "ports:A07.foundation",
+            "ports:V03.5"
+          ],
+          "acceptance_must_be_preserved": true
+        }
+      ],
+      "audit_finding_ids": [
+        "LIB-01",
+        "LIB-03"
+      ],
+      "candidate_existing_production_paths": [],
+      "candidate_new_paths_proposal_only": [],
+      "finite_test_and_evidence_paths_at_release_required": true,
+      "defining_assembly_and_global_dependency_changes_require_sole_owner": true,
+      "task_details_reference": "adoption-sequence.md#n05--qualify-affected-values-and-validation-consumers",
+      "acceptance_summary": "exact values/validation consumer evidence at its claimed scope. No work-assembly dependency, automatic native default, TS retirement or whole-port acceptance."
+    },
+    {
+      "id": "library-sequence:N06",
+      "label": "N06",
+      "title": "Assemble and qualify actual work decisions and consumers",
+      "kind": "qualification",
+      "phase": "planning",
+      "performed": false,
+      "execution_authorized": false,
+      "proposed_owners": [
+        "R3",
+        "Codex"
+      ],
+      "depends_on": [
+        "library-sequence:N03"
+      ],
+      "original_task_references": [
+        {
+          "id": "ports:W04.4",
+          "status_snapshot": "not_started",
+          "depends_on_preserved": [
+            "ports:W04.1",
+            "ports:W04.2",
+            "ports:W04.3",
+            "ports:W03.4"
+          ],
+          "acceptance_must_be_preserved": true
+        },
+        {
+          "id": "ports:W05.1",
+          "status_snapshot": "not_started",
+          "depends_on_preserved": [
+            "ports:W04.4",
+            "ports:W03.2",
+            "ports:C04.ready",
+            "ports:C04.graph"
+          ],
+          "acceptance_must_be_preserved": true
+        },
+        {
+          "id": "ports:W05.2",
+          "status_snapshot": "not_started",
+          "depends_on_preserved": [
+            "ports:W05.1"
+          ],
+          "acceptance_must_be_preserved": true
+        },
+        {
+          "id": "ports:C04.work-assets",
+          "status_snapshot": "not_started",
+          "depends_on_preserved": [
+            "ports:W05.2",
+            "ports:C04.graph",
+            "ports:C04.ready"
+          ],
+          "acceptance_must_be_preserved": true
+        },
+        {
+          "id": "ports:W05.4",
+          "status_snapshot": "not_started",
+          "depends_on_preserved": [
+            "ports:W05.2",
+            "ports:C04.work-assets"
+          ],
+          "acceptance_must_be_preserved": true
+        },
+        {
+          "id": "ports:W05.3",
+          "status_snapshot": "not_started",
+          "depends_on_preserved": [
+            "ports:W05.4",
+            "ports:C04.ready"
+          ],
+          "acceptance_must_be_preserved": true
+        }
+      ],
+      "audit_finding_ids": [
+        "LIB-02"
+      ],
+      "candidate_existing_production_paths": [],
+      "candidate_new_paths_proposal_only": [],
+      "finite_test_and_evidence_paths_at_release_required": true,
+      "defining_assembly_and_global_dependency_changes_require_sole_owner": true,
+      "task_details_reference": "adoption-sequence.md#n06--assemble-and-qualify-actual-work-decisions-and-consumers",
+      "acceptance_summary": "actual work-native/consumer evidence at its claimed scope, without a dependency on values-library completion. No default switch, silent fallback, full-port acceptance or preparation release."
+    },
+    {
+      "id": "library-sequence:D01",
+      "label": "D01",
+      "title": "Freeze import and diagnostic contracts independently",
+      "kind": "contract",
+      "phase": "planning",
+      "performed": false,
+      "execution_authorized": false,
+      "proposed_owners": [
+        "R3"
+      ],
+      "depends_on": [
+        "library-sequence:P02"
+      ],
+      "original_task_references": [
+        {
+          "id": "ports:C04.asset",
+          "status_snapshot": "complete",
+          "depends_on_preserved": [
+            "ports:C03.ready"
+          ],
+          "acceptance_must_be_preserved": true
+        },
+        {
+          "id": "ports:C04.graph",
+          "status_snapshot": "partial",
+          "depends_on_preserved": [
+            "ports:W02.foundation",
+            "ports:C04.asset"
+          ],
+          "acceptance_must_be_preserved": true
+        }
+      ],
+      "audit_finding_ids": [
+        "LIB-04",
+        "LIB-05"
+      ],
+      "candidate_existing_production_paths": [],
+      "candidate_new_paths_proposal_only": [],
+      "finite_test_and_evidence_paths_at_release_required": true,
+      "defining_assembly_and_global_dependency_changes_require_sole_owner": true,
+      "task_details_reference": "adoption-sequence.md#d01--freeze-import-and-diagnostic-contracts-independently",
+      "acceptance_summary": "separately releasable import/map contracts and short dependency requests. Preserve existing Bun/CJS guard scope unless a later justified AST task replaces it.",
+      "independently_releasable_contracts": [
+        "import-contract",
+        "map-contract"
+      ],
+      "raw_source_identity_witnesses": [
+        "sourceRoot present",
+        "relative source path",
+        "absolute source path",
+        "URL-like source identity",
+        "source-table entry returned verbatim unless explicit compatibility policy changes"
+      ]
+    },
+    {
+      "id": "library-sequence:D02",
+      "label": "D02",
+      "title": "Replace import scanning and produce edit maps",
+      "kind": "delivery-extension",
+      "phase": "planning",
+      "performed": false,
+      "execution_authorized": false,
+      "proposed_owners": [
+        "R3"
+      ],
+      "depends_on": [
+        "library-sequence:D01"
+      ],
+      "original_task_references": [
+        {
+          "id": "ports:C04.asset",
+          "status_snapshot": "complete",
+          "depends_on_preserved": [
+            "ports:C03.ready"
+          ],
+          "acceptance_must_be_preserved": true
+        },
+        {
+          "id": "ports:C04.graph",
+          "status_snapshot": "partial",
+          "depends_on_preserved": [
+            "ports:W02.foundation",
+            "ports:C04.asset"
+          ],
+          "acceptance_must_be_preserved": true
+        }
+      ],
+      "audit_finding_ids": [
+        "LIB-04"
+      ],
+      "candidate_existing_production_paths": [
+        "packages/cloudflare/src/deploy/bundle.ts",
+        "packages/cloudflare/src/runtime/modules.ts"
+      ],
+      "candidate_new_paths_proposal_only": [
+        "packages/cloudflare/src/deploy/module-imports.ts"
+      ],
+      "finite_test_and_evidence_paths_at_release_required": true,
+      "defining_assembly_and_global_dependency_changes_require_sole_owner": true,
+      "task_details_reference": "adoption-sequence.md#d02--replace-import-scanning-and-produce-edit-maps",
+      "acceptance_summary": "deterministic rewritten JS plus accurate edit maps, stable sync/caller contract and error order. An import lexer is not complete JS validity, CJS or free-variable analysis; retain those separate guards.",
+      "required_local_release": "library-sequence:D01#import-contract",
+      "no_unrelated_contract_completion_barrier": true
+    },
+    {
+      "id": "library-sequence:D03",
+      "label": "D03",
+      "title": "Replace source-map decoding and lookup",
+      "kind": "diagnostic-extension",
+      "phase": "planning",
+      "performed": false,
+      "execution_authorized": false,
+      "proposed_owners": [
+        "R3"
+      ],
+      "depends_on": [
+        "library-sequence:D01"
+      ],
+      "original_task_references": [],
+      "audit_finding_ids": [
+        "LIB-05"
+      ],
+      "candidate_existing_production_paths": [
+        "packages/cloudflare/src/runtime/sourcemap.ts"
+      ],
+      "candidate_new_paths_proposal_only": [],
+      "finite_test_and_evidence_paths_at_release_required": true,
+      "defining_assembly_and_global_dependency_changes_require_sole_owner": true,
+      "task_details_reference": "adoption-sequence.md#d03--replace-source-map-decoding-and-lookup",
+      "acceptance_summary": "real invocation/map tests pass under the existing consumer interface. This is an explicit diagnostic extension; no original file crosswalk means no fabricated completed task.",
+      "required_local_release": "library-sequence:D01#map-contract",
+      "no_unrelated_contract_completion_barrier": true,
+      "explicit_finite_scope_in_future_human_release_required": true,
+      "raw_source_identity_witnesses": [
+        "sourceRoot present",
+        "relative source path",
+        "absolute source path",
+        "URL-like source identity",
+        "source-table entry returned verbatim unless explicit compatibility policy changes"
+      ]
+    },
+    {
+      "id": "library-sequence:D04",
+      "label": "D04",
+      "title": "Compose maps and qualify the actual staged bundle",
+      "kind": "composition-and-installed-qualification",
+      "phase": "planning",
+      "performed": false,
+      "execution_authorized": false,
+      "proposed_owners": [
+        "R3",
+        "Codex"
+      ],
+      "depends_on": [
+        "library-sequence:D02",
+        "library-sequence:D03"
+      ],
+      "original_task_references": [
+        {
+          "id": "ports:C04.ready",
+          "status_snapshot": "needs_verification",
+          "depends_on_preserved": [
+            "ports:C04.2"
+          ],
+          "acceptance_must_be_preserved": true
+        },
+        {
+          "id": "ports:C04.graph",
+          "status_snapshot": "partial",
+          "depends_on_preserved": [
+            "ports:W02.foundation",
+            "ports:C04.asset"
+          ],
+          "acceptance_must_be_preserved": true
+        },
+        {
+          "id": "ports:W06.runtimehandoff",
+          "status_snapshot": "not_started",
+          "depends_on_preserved": [
+            "ports:W06.2"
+          ],
+          "acceptance_must_be_preserved": true
+        },
+        {
+          "id": "challenge:T08",
+          "status_snapshot": "needs_verification",
+          "depends_on_preserved": [],
+          "acceptance_must_be_preserved": true
+        }
+      ],
+      "audit_finding_ids": [
+        "LIB-04",
+        "LIB-05"
+      ],
+      "candidate_existing_production_paths": [
+        "packages/cloudflare/src/runtime/modules.ts",
+        "packages/cloudflare/src/deploy/bundle.ts",
+        "packages/cloudflare/src/dev/local-run.ts"
+      ],
+      "candidate_new_paths_proposal_only": [],
+      "finite_test_and_evidence_paths_at_release_required": true,
+      "defining_assembly_and_global_dependency_changes_require_sole_owner": true,
+      "task_details_reference": "adoption-sequence.md#d04--compose-maps-and-qualify-the-actual-staged-bundle",
+      "acceptance_summary": "staged Node/workerd and outside-checkout installed written-artifact diagnostics agree on original positions; missing/dangling/forbidden/corrupt dependency controls fail. Preserve no-edit bytes, deterministic source names/content policy and real suite/positive-test counts. Existing archive/build/cache machinery is reused at its exact scope.",
+      "explicit_finite_scope_in_future_human_release_required": true,
+      "invoke_ts_write_requires_original_runtime_handoff": true
+    },
+    {
+      "id": "library-sequence:D05",
+      "label": "D05",
+      "title": "Record the future native preparation parser seam",
+      "kind": "held-native-decision",
+      "phase": "planning",
+      "performed": false,
+      "execution_authorized": false,
+      "proposed_owners": [
+        "Codex",
+        "R3",
+        "R4"
+      ],
+      "depends_on": [
+        "library-sequence:D01"
+      ],
+      "original_task_references": [
+        {
+          "id": "ports:P05.1",
+          "status_snapshot": "needs_verification",
+          "depends_on_preserved": [
+            "ports:P04.1",
+            "ports:P02.1"
+          ],
+          "acceptance_must_be_preserved": true
+        },
+        {
+          "id": "ports:P05.2",
+          "status_snapshot": "needs_verification",
+          "depends_on_preserved": [
+            "ports:P02.2",
+            "ports:P03.4",
+            "ports:P02.1"
+          ],
+          "acceptance_must_be_preserved": true
+        },
+        {
+          "id": "ports:C04.preparation-join",
+          "status_snapshot": "complete",
+          "depends_on_preserved": [
+            "ports:P05.2",
+            "ports:C04.asset"
+          ],
+          "acceptance_must_be_preserved": true
+        }
+      ],
+      "audit_finding_ids": [
+        "LIB-04",
+        "LIB-11",
+        "LIB-18"
+      ],
+      "candidate_existing_production_paths": [],
+      "candidate_new_paths_proposal_only": [],
+      "finite_test_and_evidence_paths_at_release_required": true,
+      "defining_assembly_and_global_dependency_changes_require_sole_owner": true,
+      "task_details_reference": "adoption-sequence.md#d05--record-the-future-native-preparation-parser-seam",
+      "acceptance_summary": "a bounded future decision/handoff record. No P source edit, helper/native build, publication, P checkbox or HOLD advancement occurs here.",
+      "native_preparation_implementation_held": true,
+      "planning_record_only": true
+    },
+    {
+      "id": "library-sequence:I01",
+      "label": "I01",
+      "title": "Freeze identity encoding, cookie and host profiles",
+      "kind": "contract",
+      "phase": "planning",
+      "performed": false,
+      "execution_authorized": false,
+      "proposed_owners": [
+        "explicit-identity-owner",
+        "Codex"
+      ],
+      "depends_on": [
+        "library-sequence:P02"
+      ],
+      "original_task_references": [],
+      "audit_finding_ids": [
+        "LIB-07",
+        "LIB-08",
+        "LIB-09"
+      ],
+      "candidate_existing_production_paths": [],
+      "candidate_new_paths_proposal_only": [],
+      "finite_test_and_evidence_paths_at_release_required": true,
+      "defining_assembly_and_global_dependency_changes_require_sole_owner": true,
+      "task_details_reference": "adoption-sequence.md#i01--freeze-identity-encoding-cookie-and-host-profiles",
+      "acceptance_summary": "agreed compatibility policy, actual host recipe and finite files. Difficult persisted-compatibility/host ownership choices receive evidence-based JEV advice before acceptance.",
+      "explicit_finite_scope_in_future_human_release_required": true,
+      "independently_releasable_contracts": [
+        "identity-encoding-profile",
+        "identity-comparison-host-profile",
+        "cookie-profile"
+      ]
+    },
+    {
+      "id": "library-sequence:I02",
+      "label": "I02",
+      "title": "Replace byte codecs and reject malformed hex",
+      "kind": "identity-extension",
+      "phase": "planning",
+      "performed": false,
+      "execution_authorized": false,
+      "proposed_owners": [
+        "explicit-identity-owner"
+      ],
+      "depends_on": [
+        "library-sequence:I01"
+      ],
+      "original_task_references": [],
+      "audit_finding_ids": [
+        "LIB-07"
+      ],
+      "candidate_existing_production_paths": [
+        "packages/identity/src/sessions/tokens.ts"
+      ],
+      "candidate_new_paths_proposal_only": [],
+      "finite_test_and_evidence_paths_at_release_required": true,
+      "defining_assembly_and_global_dependency_changes_require_sole_owner": true,
+      "task_details_reference": "adoption-sequence.md#i02--replace-byte-codecs-and-reject-malformed-hex",
+      "acceptance_summary": "valid issued/stored bytes and token hashes remain identical; password verification, CSRF/PKCE and malformed-input controls agree with the chosen contract. No auth algorithm/authority change or normalization of presented bearer text.",
+      "explicit_finite_scope_in_future_human_release_required": true,
+      "required_local_release": "library-sequence:I01#identity-encoding-profile",
+      "no_unrelated_contract_completion_barrier": true
+    },
+    {
+      "id": "library-sequence:I03",
+      "label": "I03",
+      "title": "Use supported host secret-comparison primitives",
+      "kind": "host-comparison-extension",
+      "phase": "planning",
+      "performed": false,
+      "execution_authorized": false,
+      "proposed_owners": [
+        "explicit-identity-owner",
+        "R3"
+      ],
+      "depends_on": [
+        "library-sequence:I01",
+        "library-sequence:I02"
+      ],
+      "original_task_references": [],
+      "audit_finding_ids": [
+        "LIB-08"
+      ],
+      "candidate_existing_production_paths": [
+        "packages/identity/src/sessions/tokens.ts",
+        "packages/identity/src/accounts/passwords.ts"
+      ],
+      "candidate_new_paths_proposal_only": [],
+      "finite_test_and_evidence_paths_at_release_required": true,
+      "defining_assembly_and_global_dependency_changes_require_sole_owner": true,
+      "task_details_reference": "adoption-sequence.md#i03--use-supported-host-secret-comparison-primitives",
+      "acceptance_summary": "actual host/installed entry proof and winning behavior for equal/mismatched lengths; surrounding decoding/error code remains outside the timing guarantee. This serializes with I02 on tokens.ts; cookie work can proceed independently.",
+      "explicit_finite_scope_in_future_human_release_required": true,
+      "required_local_release": "library-sequence:I01#identity-comparison-host-profile",
+      "no_unrelated_contract_completion_barrier": true
+    },
+    {
+      "id": "library-sequence:I04",
+      "label": "I04",
+      "title": "Replace cookie grammar under the existing session helpers",
+      "kind": "cookie-extension",
+      "phase": "planning",
+      "performed": false,
+      "execution_authorized": false,
+      "proposed_owners": [
+        "explicit-identity-owner"
+      ],
+      "depends_on": [
+        "library-sequence:I01"
+      ],
+      "original_task_references": [],
+      "audit_finding_ids": [
+        "LIB-09"
+      ],
+      "candidate_existing_production_paths": [
+        "packages/identity/src/sessions/cookies.ts"
+      ],
+      "candidate_new_paths_proposal_only": [],
+      "finite_test_and_evidence_paths_at_release_required": true,
+      "defining_assembly_and_global_dependency_changes_require_sole_owner": true,
+      "task_details_reference": "adoption-sequence.md#i04--replace-cookie-grammar-under-the-existing-session-helpers",
+      "acceptance_summary": "exact login/logout/session behavior, duplicate/percent/whitespace/Domain negatives and installed closure. Do not claim an observed live injection from the unused optional-Domain source finding.",
+      "explicit_finite_scope_in_future_human_release_required": true,
+      "required_local_release": "library-sequence:I01#cookie-profile",
+      "no_unrelated_contract_completion_barrier": true
+    },
+    {
+      "id": "library-sequence:C01",
+      "label": "C01",
+      "title": "Freeze CSV behavior and agree one shared grammar owner",
+      "kind": "contract-and-owner-decision",
+      "phase": "planning",
+      "performed": false,
+      "execution_authorized": false,
+      "proposed_owners": [
+        "explicit-ui-csv-owner",
+        "explicit-interfaces-csv-owner",
+        "Codex"
+      ],
+      "depends_on": [
+        "library-sequence:P02"
+      ],
+      "original_task_references": [
+        {
+          "id": "finished-product:FP.CSV",
+          "status_snapshot": "partial",
+          "depends_on_preserved": [
+            "challenge:T19",
+            "challenge:T20",
+            "challenge:T32"
+          ],
+          "acceptance_must_be_preserved": true
+        },
+        {
+          "id": "finished-product:FP.AW-REPLAY-IMPORT",
+          "status_snapshot": "partial",
+          "depends_on_preserved": [
+            "finished-product:FP.CSV",
+            "finished-product:FP.FILES-DURABLE"
+          ],
+          "acceptance_must_be_preserved": true
+        }
+      ],
+      "audit_finding_ids": [
+        "LIB-06"
+      ],
+      "candidate_existing_production_paths": [],
+      "candidate_new_paths_proposal_only": [],
+      "finite_test_and_evidence_paths_at_release_required": true,
+      "defining_assembly_and_global_dependency_changes_require_sole_owner": true,
+      "task_details_reference": "adoption-sequence.md#c01--freeze-csv-behavior-and-agree-one-shared-grammar-owner",
+      "acceptance_summary": "admitted/negative corpus, explicit resolution of grammar differences, shared owner and bounded package/export/host request. No client verdict becomes trusted authority.",
+      "explicit_finite_scope_in_future_human_release_required": true
+    },
+    {
+      "id": "library-sequence:C02",
+      "label": "C02",
+      "title": "Implement the shared library grammar and advisory wrapper",
+      "kind": "csv-mechanics-extension",
+      "phase": "planning",
+      "performed": false,
+      "execution_authorized": false,
+      "proposed_owners": [
+        "explicit-ui-csv-owner",
+        "R3"
+      ],
+      "depends_on": [
+        "library-sequence:C01"
+      ],
+      "original_task_references": [
+        {
+          "id": "finished-product:FP.CSV",
+          "status_snapshot": "partial",
+          "depends_on_preserved": [
+            "challenge:T19",
+            "challenge:T20",
+            "challenge:T32"
+          ],
+          "acceptance_must_be_preserved": true
+        }
+      ],
+      "audit_finding_ids": [
+        "LIB-06"
+      ],
+      "candidate_existing_production_paths": [
+        "packages/ui/src/csv/parse.ts"
+      ],
+      "candidate_new_paths_proposal_only": [
+        "packages/ui/src/csv/grammar.ts"
+      ],
+      "finite_test_and_evidence_paths_at_release_required": true,
+      "defining_assembly_and_global_dependency_changes_require_sole_owner": true,
+      "task_details_reference": "adoption-sequence.md#c02--implement-the-shared-library-grammar-and-advisory-wrapper",
+      "acceptance_summary": "frozen corpus passes, exported package boundary resolves outside checkout and exact source/hash is released. Browser ESM availability alone does not establish delivery or initialization of an actual client asset.",
+      "explicit_finite_scope_in_future_human_release_required": true
+    },
+    {
+      "id": "library-sequence:C03",
+      "label": "C03",
+      "title": "Adopt the grammar in authoritative review/commit consumers",
+      "kind": "csv-authoritative-consumer-qualification",
+      "phase": "planning",
+      "performed": false,
+      "execution_authorized": false,
+      "proposed_owners": [
+        "explicit-interfaces-csv-owner",
+        "R3",
+        "Codex"
+      ],
+      "depends_on": [
+        "library-sequence:C02"
+      ],
+      "original_task_references": [
+        {
+          "id": "finished-product:FP.CSV",
+          "status_snapshot": "partial",
+          "depends_on_preserved": [
+            "challenge:T19",
+            "challenge:T20",
+            "challenge:T32"
+          ],
+          "acceptance_must_be_preserved": true
+        },
+        {
+          "id": "finished-product:FP.AW-REPLAY-IMPORT",
+          "status_snapshot": "partial",
+          "depends_on_preserved": [
+            "finished-product:FP.CSV",
+            "finished-product:FP.FILES-DURABLE"
+          ],
+          "acceptance_must_be_preserved": true
+        }
+      ],
+      "audit_finding_ids": [
+        "LIB-06"
+      ],
+      "candidate_existing_production_paths": [
+        "packages/interfaces/src/http/csv.ts"
+      ],
+      "candidate_new_paths_proposal_only": [],
+      "finite_test_and_evidence_paths_at_release_required": true,
+      "defining_assembly_and_global_dependency_changes_require_sole_owner": true,
+      "task_details_reference": "adoption-sequence.md#c03--adopt-the-grammar-in-authoritative-reviewcommit-consumers",
+      "acceptance_summary": "actual review→commit, deny/stale/duplicate/replay and resource/error-order tests pass with exact digest/response bytes. Qualify Node/workerd installed closure and browser delivery only for an identified actual client. No stable-hash library change is folded into this packet.",
+      "explicit_finite_scope_in_future_human_release_required": true
+    },
+    {
+      "id": "library-sequence:C04",
+      "label": "C04",
+      "title": "Evaluate CSV export quoting separately",
+      "kind": "conditional-evaluation",
+      "phase": "planning",
+      "performed": false,
+      "execution_authorized": false,
+      "proposed_owners": [
+        "explicit-interfaces-export-owner"
+      ],
+      "depends_on": [
+        "library-sequence:C01"
+      ],
+      "original_task_references": [
+        {
+          "id": "finished-product:FP.EXPORT",
+          "status_snapshot": "partial",
+          "depends_on_preserved": [
+            "challenge:T20",
+            "challenge:T24",
+            "challenge:T32"
+          ],
+          "acceptance_must_be_preserved": true
+        }
+      ],
+      "audit_finding_ids": [
+        "LIB-06"
+      ],
+      "candidate_existing_production_paths": [],
+      "candidate_new_paths_proposal_only": [],
+      "finite_test_and_evidence_paths_at_release_required": true,
+      "defining_assembly_and_global_dependency_changes_require_sole_owner": true,
+      "task_details_reference": "adoption-sequence.md#c04--evaluate-csv-export-quoting-separately",
+      "acceptance_summary": "recorded adopt/retain decision with bytes and complexity argument. If adopted, its own finite source/consumer checks are required. Neither adoption nor retention blocks C02/C03 or port progress.",
+      "explicit_finite_scope_in_future_human_release_required": true,
+      "source_adoption_not_selected_by_this_unit": true
+    },
+    {
+      "id": "library-sequence:H01",
+      "label": "H01",
+      "title": "Replace cancellation signal fan-in",
+      "kind": "service-extension",
+      "phase": "planning",
+      "performed": false,
+      "execution_authorized": false,
+      "proposed_owners": [
+        "explicit-services-owner"
+      ],
+      "depends_on": [
+        "library-sequence:P02"
+      ],
+      "original_task_references": [],
+      "audit_finding_ids": [
+        "LIB-10"
+      ],
+      "candidate_existing_production_paths": [
+        "packages/services/src/http/client.ts"
+      ],
+      "candidate_new_paths_proposal_only": [],
+      "finite_test_and_evidence_paths_at_release_required": true,
+      "defining_assembly_and_global_dependency_changes_require_sole_owner": true,
+      "task_details_reference": "adoption-sequence.md#h01--replace-cancellation-signal-fan-in",
+      "acceptance_summary": "actual HTTP/binary/stream callers retain their contract without lingering listeners/timers or a new retry layer. R4 can prepare these fixtures while another task holds a heavy command; only one writer touches client.ts.",
+      "explicit_finite_scope_in_future_human_release_required": true
+    },
+    {
+      "id": "library-sequence:H02",
+      "label": "H02",
+      "title": "Reconcile redirect-body quota as adjacent corrective scope",
+      "kind": "conditional-corrective-scope",
+      "phase": "planning",
+      "performed": false,
+      "execution_authorized": false,
+      "proposed_owners": [
+        "explicit-services-owner"
+      ],
+      "depends_on": [
+        "library-sequence:H01"
+      ],
+      "original_task_references": [],
+      "audit_finding_ids": [
+        "LIB-10"
+      ],
+      "candidate_existing_production_paths": [],
+      "candidate_new_paths_proposal_only": [],
+      "finite_test_and_evidence_paths_at_release_required": true,
+      "defining_assembly_and_global_dependency_changes_require_sole_owner": true,
+      "task_details_reference": "adoption-sequence.md#h02--reconcile-redirect-body-quota-as-adjacent-corrective-scope",
+      "acceptance_summary": "explicit retain/correct verdict and, if required, positive/negative HTTP consumer evidence. This is not automatic expansion into a new HTTP framework.",
+      "explicit_finite_scope_in_future_human_release_required": true,
+      "source_adoption_not_selected_by_this_unit": true
+    },
+    {
+      "id": "library-sequence:E01",
+      "label": "E01",
+      "title": "Dispose of uncertain library candidates without blocking ready work",
+      "kind": "bounded-disposition",
+      "phase": "planning",
+      "performed": false,
+      "execution_authorized": false,
+      "proposed_owners": [
+        "Codex",
+        "affected-source-owner"
+      ],
+      "depends_on": [
+        "library-sequence:P02"
+      ],
+      "original_task_references": [],
+      "audit_finding_ids": [
+        "LIB-11",
+        "LIB-12",
+        "LIB-13",
+        "LIB-14",
+        "LIB-15",
+        "LIB-16",
+        "LIB-17",
+        "LIB-18",
+        "LIB-19",
+        "LIB-20"
+      ],
+      "candidate_existing_production_paths": [],
+      "candidate_new_paths_proposal_only": [],
+      "finite_test_and_evidence_paths_at_release_required": true,
+      "defining_assembly_and_global_dependency_changes_require_sole_owner": true,
+      "task_details_reference": "adoption-sequence.md#e01--dispose-of-uncertain-library-candidates-without-blocking-ready-work",
+      "acceptance_summary": "visible reason, uncertainty, owner and unblock condition. Stop a candidate that needs a maintained fork, a second grammar/authority engine, silent normalization/fallback or an unresolved identity migration. A consequential semantic/ownership choice follows verified-context triple JEV advice and independent challenge. Preparation choices stay held.",
+      "source_adoption_not_selected_by_this_unit": true
+    },
+    {
+      "id": "library-sequence:R01",
+      "label": "R01",
+      "title": "Independently review each released slice",
+      "kind": "repeatable-independent-review",
+      "phase": "planning",
+      "performed": false,
+      "execution_authorized": false,
+      "proposed_owners": [
+        "Codex"
+      ],
+      "depends_on": [],
+      "original_task_references": [],
+      "audit_finding_ids": [],
+      "candidate_existing_production_paths": [],
+      "candidate_new_paths_proposal_only": [],
+      "finite_test_and_evidence_paths_at_release_required": true,
+      "defining_assembly_and_global_dependency_changes_require_sole_owner": true,
+      "task_details_reference": "adoption-sequence.md#r01--independently-review-each-released-slice",
+      "acceptance_summary": "accepted exact slice or a bounded repair request. Its lane continues different released work during review.",
+      "repeat_per_released_slice": true,
+      "all_family_barrier": false,
+      "event_only": true,
+      "requires_matching_slice_evidence_and_releases": true
+    },
+    {
+      "id": "library-sequence:R02",
+      "label": "R02",
+      "title": "Integrate accepted slices and retire replaced mechanics",
+      "kind": "repeatable-integration",
+      "phase": "planning",
+      "performed": false,
+      "execution_authorized": false,
+      "proposed_owners": [
+        "Codex"
+      ],
+      "depends_on": [
+        "library-sequence:R01"
+      ],
+      "original_task_references": [],
+      "audit_finding_ids": [],
+      "candidate_existing_production_paths": [],
+      "candidate_new_paths_proposal_only": [],
+      "finite_test_and_evidence_paths_at_release_required": true,
+      "defining_assembly_and_global_dependency_changes_require_sole_owner": true,
+      "task_details_reference": "adoption-sequence.md#r02--integrate-accepted-slices-and-retire-replaced-mechanics",
+      "acceptance_summary": "integrated source/coverage and true task status at the accepted scope. No implementation merge or checkpoint advancement is performed by this planning document.",
+      "repeat_per_released_slice": true,
+      "all_family_barrier": false,
+      "event_only": true,
+      "requires_matching_slice_evidence_and_releases": true
+    },
+    {
+      "id": "library-sequence:R03",
+      "label": "R03",
+      "title": "Qualify the joined selected scope and resume original port progression",
+      "kind": "selected-scope-join",
+      "phase": "planning",
+      "performed": false,
+      "execution_authorized": false,
+      "proposed_owners": [
+        "Codex",
+        "affected-producers-and-consumers"
+      ],
+      "depends_on": [],
+      "original_task_references": [
+        {
+          "id": "challenge:T08",
+          "status_snapshot": "needs_verification",
+          "depends_on_preserved": [],
+          "acceptance_must_be_preserved": true
+        },
+        {
+          "id": "challenge:T26",
+          "status_snapshot": "partial",
+          "depends_on_preserved": [
+            "challenge:T25"
+          ],
+          "acceptance_must_be_preserved": true
+        },
+        {
+          "id": "challenge:T37",
+          "status_snapshot": "partial",
+          "depends_on_preserved": [
+            "challenge:T02",
+            "challenge:T05",
+            "challenge:T06",
+            "challenge:T08",
+            "challenge:T18",
+            "challenge:T19",
+            "challenge:T20",
+            "challenge:T21",
+            "challenge:T22",
+            "challenge:T23"
+          ],
+          "acceptance_must_be_preserved": true
+        },
+        {
+          "id": "challenge:T41",
+          "status_snapshot": "partial",
+          "depends_on_preserved": [
+            "challenge:T02",
+            "challenge:T37",
+            "challenge:T38",
+            "challenge:T39",
+            "challenge:T40"
+          ],
+          "acceptance_must_be_preserved": true
+        },
+        {
+          "id": "finished-product:FP.FULL",
+          "status_snapshot": "partial",
+          "depends_on_preserved": [
+            "challenge:T41",
+            "description:D08",
+            "ports:A11",
+            "ports:V12",
+            "ports:W08",
+            "ports:P11",
+            "ports:C04.complete",
+            "ports:C05.complete",
+            "finished-product:FP.QUALIFY",
+            "finished-product:FP.INSTALLED-RELEASE",
+            "finished-product:FP.DOC-REQUIREDNESS",
+            "finished-product:FP.SOURCE-CLOSURE"
+          ],
+          "acceptance_must_be_preserved": true
+        }
+      ],
+      "audit_finding_ids": [],
+      "candidate_existing_production_paths": [],
+      "candidate_new_paths_proposal_only": [],
+      "finite_test_and_evidence_paths_at_release_required": true,
+      "defining_assembly_and_global_dependency_changes_require_sole_owner": true,
+      "task_details_reference": "adoption-sequence.md#r03--qualify-the-joined-selected-scope-and-resume-original-port-progression",
+      "acceptance_summary": "only the selected qualified scope closes; the remaining Rust/challenge/product DAG continues with accepted new inputs. Do not declare the combined programme finished while original/held/review duties remain.",
+      "trigger": "all selected affected slices accepted/integrated plus original matching join prerequisites; unrelated evaluations/held preparation do not block selected-scope review",
+      "event_only": true,
+      "requires_matching_slice_evidence_and_releases": true
+    }
+  ],
+  "independent_document_review_reference": "reviews/adoption-sequence-review.md",
+  "root_review_resolutions": [
+    "D01/D03 sourceRoot and path/URL identity witnesses made explicit following nonblocking independent review advice.",
+    "I01 encoding/host/cookie profiles release independently; I03 still requires I02 exact same-file release."
+  ],
+  "execution_policy_refinement": {
+    "human_date": "2026-10-07",
+    "executor": "economical Codex collaboration subagents",
+    "logical_queues": 4,
+    "current_active_worker_capacity_beside_root": 3,
+    "early_frequent_local_commits": true,
+    "shared_checkout_git_mutator": "Codex only",
+    "execution_authorized": false,
+    "reference": "../../../implementation/RUST-PORT-EXECUTION-PLAN.md"
+  },
+  "topology_change_is_planning_only": true
+}

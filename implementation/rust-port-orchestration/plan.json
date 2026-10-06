@@ -1,0 +1,99 @@
+{
+  "schema_version": 1,
+  "phase": "planning",
+  "execution_authorized": false,
+  "global_orchestrator": "Codex",
+  "independent_reviewer": "Codex",
+  "main_integrator": "Codex",
+  "muse_global_coordinator": null,
+  "worktrees": {
+    "created": false,
+    "isolated_by_default": false,
+    "future_setup_requires_authorization": true,
+    "main_mutator": "Codex",
+    "shared_checkout_git_mutator": "Codex only",
+    "exact_file_leases_required": true
+  },
+  "cadence": {
+    "root_minutes": 15,
+    "root_automation_status": "PAUSED",
+    "scheduled_controller": "Codex only",
+    "local_recurring_jobs_allowed": false,
+    "active_turn_completion_route": "collaboration messages and completion; no timer wait for ready work",
+    "cross_heartbeat_subagent_continuation": "verify supported actual handles at activation; do not infer from files"
+  },
+  "resource_budget": {
+    "verified_host_logical_cpus": 10,
+    "verified_host_ram_bytes": 17179869184,
+    "initial_local_heavy_commands_total": 2,
+    "initial_workers_per_heavy_command": 2,
+    "includes_codex_acceptance_commands": true,
+    "automatic_command_permit_mechanism": "proposed; must be verified before use",
+    "private_mutable_outputs": true,
+    "ci_publication_authorized": false,
+    "existing_ci_ts_profiles_only": true
+  },
+  "authority": {
+    "root_owns": [
+      "central checklist",
+      "global exact-file leases",
+      "cross-lane handoffs",
+      "independent review",
+      "main integration",
+      "living file-tree coverage and decisions",
+      "monitor and cleanup roster",
+      "all recurring supervision",
+      "cross-packet priority and reassignment"
+    ],
+    "root_release_after_human_ready": true,
+    "peer_handshake_mesh": false,
+    "values_common_assembly_writer": "R1",
+    "global_delivery_source_writer": "R3",
+    "human_preparation_hold": true,
+    "subagent_owns": [
+      "finite assigned source/fixtures",
+      "private outputs and live command handles",
+      "exact checks and handoff evidence"
+    ]
+  },
+  "original_scope_overlay": "implementation/rust-port-lanes.json",
+  "packets": "implementation/rust-port-orchestration/packets.json",
+  "current_run": "implementation/rust-port-orchestration/current-run.json",
+  "startup_gates": [
+    "human implementation release",
+    "actual source/ledger readiness and available dispatcher capacity",
+    "finite exact-file task/inputs/checkouts/private outputs",
+    "actual subagent receipt and work evidence; no all-four startup barrier"
+  ],
+  "acceptance_gates": [
+    "finite released commit and reconciled writer/command release",
+    "exact-source checks with real logs/results/negative witnesses",
+    "Codex independent critical-invariant review",
+    "joined checks at changed integration source",
+    "living-plan reconciliation since checkpoint",
+    "truthful conditional/deferred/held remainder",
+    "exact writer/command/resource release before cleanup; Codex supervisor retired when no follow-up remains"
+  ],
+  "partial_start_policy": "Schedule ready finite packets across four logical queues within actual active capacity; do not invent four simultaneous worker slots.",
+  "executor": "Codex collaboration subagents",
+  "logical_queue_count": 4,
+  "current_dispatcher_slots_including_root": 4,
+  "current_max_active_subagents_beside_root": 3,
+  "capacity_must_be_refreshed_at_activation": true,
+  "tmux_required": false,
+  "muse_processes_required": false,
+  "local_recurring_jobs_allowed": false,
+  "execution_plan": "implementation/RUST-PORT-EXECUTION-PLAN.md",
+  "local_commits_authorized": true,
+  "early_frequent_commits": true,
+  "superseded_muse_proposal": "implementation/rust-port-orchestration/legacy/MUSE-EXECUTION-PROPOSAL.md",
+  "model_policy": {
+    "bookkeeping": "gpt-6-luna/low",
+    "familiar_bounded_mechanics": "gpt-6-luna/medium",
+    "narrow_technical_change": "gpt-6.1-sol/low",
+    "ordinary_implementation_review": "gpt-6.1-sol/medium",
+    "uncertain_cross_file": "gpt-6.1-sol/high with recorded justification",
+    "source": "/Users/vince/.codex/skills/model-selection/SKILL.md",
+    "global_high_or_max_default": false
+  }
+}

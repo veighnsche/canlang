@@ -1,0 +1,7 @@
+SUPERSEDED 2026-10-07: historical Muse template, not active dispatch authority. Use RUST-PORT-EXECUTION-PLAN.md Codex subagent packets instead.
+
+ORIGIN: Codex, the human-authorized global orchestrator. Scoped GO {{GO_DIRECTIVE_ID}} for {{RUN_ID}} / {{LANE_ID}} / {{NATIVE_UUID}} only.
+
+Codex has verified your exact setup receipt {{SETUP_ACK}}, goal {{GOAL_ID}}, native capabilities {{CAPABILITY_EVIDENCE}} and acknowledgment that you will create no local recurring schedule. Human readiness release is {{HUMAN_RELEASE_REFERENCE}}. Your existing activation contract {{ACTIVATION_DIRECTIVE_ID}} remains authoritative; this releases only its qualified finite packet and ordered alternatives {{PACKET_PATH_AND_HASHES}} at {{BASE_SHA}} in {{WORKTREE}} under {{RESOURCE_ENVELOPE}}. No other lane's receipt, shared input, scope or preparation HOLD is implicitly released.
+
+ACK this exact GO, then dispatch actual dependency-ready owned work through your native tools. Return child/task/file assignments and real start evidence by {{START_DEADLINE}} to {{REPORT_ROUTE}}. Continue useful disjoint assigned work while other lanes start or Codex reviews. Preserve Codex independent acceptance, sole scheduling and main integration, exact shared-file/output/Git ownership, active command handles and all actual approval restrictions. Goals, accepted input or summaries alone do not prove your dispatch/start. Report a concrete blocker rather than waiting for another global handshake or creating a local wake schedule.

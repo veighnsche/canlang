@@ -1,0 +1,26 @@
+{
+  "planning_only": true,
+  "units": 27,
+  "canonical_remaining_records": 333,
+  "canonical_task_count_modified": false,
+  "original_references_valid_and_statuses_unchanged": true,
+  "acyclic_local_edges": true,
+  "same_MD_and_JSON_units": true,
+  "scoped_contract_releases_checked": true,
+  "task_detail_anchors_checked": true,
+  "all_inventoried_package_hashes_unchanged": true,
+  "package_paths_checked": 684,
+  "independent_review": "reviews/adoption-sequence-review.md",
+  "root_nonblocking_clarifications": [
+    "D01/D03 sourceRoot and path/URL identity witnesses made explicit following nonblocking independent review advice.",
+    "I01 encoding/host/cookie profiles release independently; I03 still requires I02 exact same-file release."
+  ],
+  "document_sha256": {
+    "adoption-sequence.md": "477c890b6d20d9400211b5763b4329650bef5244cfa13234033369f6ddbf0f00",
+    "adoption-sequence.json": "d93dcb00638680b1b861c90ec6a445267942b8ca6f7ca479fb60bc0386ca3a9f"
+  },
+  "errors": [],
+  "checks_are_document_data_checks_not_product_acceptance": true,
+  "economical_codex_policy_refinement_checked": true,
+  "execution_policy_review": "reviews/economical-plan-check.md"
+}
