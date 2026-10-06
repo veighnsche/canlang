@@ -885,6 +885,26 @@ fn draft_outcome_table() {
     // exempt). Whole-corpus (all-52) differential 2061 -> 2062
     // (+1): the same Discover:252 E4052 is the only E4-family
     // diagnostic corpus-wide (E2 1134, E3 906, E5 17, E1 4).
+    // T36 re-pin 2026-10-06 (draft corrections at 40656da, checker
+    // untouched): 5 files net-decrease, 47 unchanged, zero
+    // net-increase; table total -13 (5040 -> 5027). Every delta is
+    // draft-explained, verified by old-vs-new `can check`
+    // differentials under the real catalog (this same harness):
+    // CanEvent 311 -> 309 (-E5004 x2, vestigial `as` caller columns
+    // dropped from the two trusted-handler tables :258/:262);
+    // CanGrant 50 -> 48 (-E2017 x1 fixture cycle 'submitted' -E3015
+    // x1 `state` consequence; R20 rename to `submitted_app`);
+    // CanMail 149 -> 147 (-E2017 x1 cycle 'parcel' -E3015 x1 `kind`
+    // consequence; R20 rename to `parcel_item`); CanReport 45 -> 42
+    // (-E2017 x1 cycle 'unavailable' -E3015 x1 `state` consequence
+    // -E5008 x2 server-owned `parent` overrides, the T35/R24-pinned
+    // :110/:113 pair; R20 rename to `unavailable_run` + R24
+    // `service_run` fixture; +E2001 x1 new `test_site` site in the
+    // pre-existing single-file cross-file-provider class, 1 -> 2);
+    // CanShift 191 -> 187 (-E2017 x2 cycles 'assignment'+'duty'
+    // -E3015 x2 `kind` consequences; R20 rename to
+    // `reception_duty`). Removed E2017 x5 + E5004 x2 + E5008 x2 +
+    // E3015 x5 = 14, added E2001 x1, net -13. Zero checker-dropped.
     let table: &[(&str, usize)] = &[
         ("draft/CanAffiliate.can", 48),
         ("draft/CanApprove.can", 47),
@@ -902,12 +922,12 @@ fn draft_outcome_table() {
         ("draft/CanDiscover.can", 86),
         ("draft/CanDo.can", 45),
         ("draft/CanEnrich.can", 19),
-        ("draft/CanEvent.can", 311),
+        ("draft/CanEvent.can", 309),
         ("draft/CanExpense.can", 95),
         ("draft/CanFeedback.can", 13),
         ("draft/CanField.can", 115),
         ("draft/CanGallery.can", 23),
-        ("draft/CanGrant.can", 50),
+        ("draft/CanGrant.can", 48),
         ("draft/CanHire.can", 126),
         ("draft/CanInbox.can", 100),
         ("draft/CanInvoice.can", 379),
@@ -915,7 +935,7 @@ fn draft_outcome_table() {
         ("draft/CanLearn.can", 50),
         ("draft/CanLeave.can", 79),
         ("draft/CanLoyalty.can", 71),
-        ("draft/CanMail.can", 149),
+        ("draft/CanMail.can", 147),
         ("draft/CanMaintain.can", 123),
         ("draft/CanMember.can", 338),
         ("draft/CanOnboard.can", 55),
@@ -924,8 +944,8 @@ fn draft_outcome_table() {
         ("draft/CanReception.can", 190),
         ("draft/CanRefer.can", 79),
         ("draft/CanRent.can", 634),
-        ("draft/CanReport.can", 45),
-        ("draft/CanShift.can", 191),
+        ("draft/CanReport.can", 42),
+        ("draft/CanShift.can", 187),
         ("draft/CanStats.can", 35),
         ("draft/CanStock.can", 60),
         ("draft/CanSuccess.can", 50),

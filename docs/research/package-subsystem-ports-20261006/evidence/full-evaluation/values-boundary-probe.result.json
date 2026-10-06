@@ -1,0 +1,16 @@
+{
+  "arbitraryBigintCancellation": true,
+  "knownContractGetterReads": 2,
+  "loneSurrogateAndProtoKey": true,
+  "dateObjectDecodedAsEmptyOpaqueObject": true,
+  "opaqueNumberRejected": [
+    {
+      "path": [
+        "n"
+      ],
+      "code": "type"
+    }
+  ],
+  "sharedDefaultAndEmptyIdentity": true,
+  "cycleError": "RangeError"
+}
