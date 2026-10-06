@@ -130,7 +130,7 @@ describe("artifact catalog derived channel (C1 mirror)", () => {
     );
     // Stale derivation version.
     const stale = structuredClone(good);
-    stale["acme.Todo.create"]!.artifactVersion = 999;
+    (stale["acme.Todo.create"] as unknown as Record<string, unknown>)["artifactVersion"] = 999;
     expect(() => createArtifactCatalog(artifact, stale)).toThrow(/stale derivation/);
     // Malformed entry shapes.
     expect(() => createArtifactCatalog(artifact, null as unknown as BakedDerivedInputs)).toThrow(
