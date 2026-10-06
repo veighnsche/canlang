@@ -8,6 +8,7 @@ export {
   type InterimFieldDef,
   type InterimHook,
   type InterimHookContext,
+  type InterimHookTransitive,
   type InterimHookOp,
   type InterimInvariant,
   type InterimInvariantView,
