@@ -53,6 +53,10 @@
 //! - `E4054` delete-hook staging: a `create`/`set`/`schedule`/`cancel`
 //!   inside a delete hook (T31 Rule A: delete hooks reject by throwing,
 //!   never stage).
+//! - `E4055` invalid cohort: an `each=` fanout cohort outside the adopted
+//!   T33-A contract — unknown model/collection, cross-package (cross-owner)
+//!   cohort, `each=` without `on=`, or any other unsupported cohort shape
+//!   (T34-F6; §C9/M10 keep such forms diagnosed, never silently admitted).
 //!
 //! Each staging ban reports once per statement and stands down when an
 //! earlier finding already covers the statement (fix-and-reveal); the
@@ -185,6 +189,38 @@ pub struct ScenarioData {
     pub guards: Vec<Effect>,
     /// `do` body statements in written order.
     pub effects: Vec<Effect>,
+    /// Checked `each=` fanout cohort (T34-F6): `Some` exactly when the
+    /// scenario declares an `each=` cohort inside the adopted contract
+    /// (bare model or parent-anchored collection); `None` when `each=`
+    /// is absent or fails the check (an `E4055` is reported then and
+    /// codegen emits no descriptor — fail-closed, never silently admitted).
+    pub cohort: Option<CohortData>,
+}
+
+/// Checked `each=` fanout cohort: the codegen emission input (T34-F6).
+#[derive(Debug, Clone)]
+pub struct CohortData {
+    /// Cohort spelling: whole-model enumeration or one parent's
+    /// contained reverse collection (mirrors F1 `FanoutCohortKind`).
+    pub kind: CohortKind,
+    /// Enumerated model (bare spelling) or child model (anchored spelling).
+    pub model: SymbolId,
+    /// `as` child binding, when the header declares one.
+    pub bind: Option<String>,
+    /// Anchored spelling only: the event-rooted parent path segments
+    /// (`["event", "opportunity"]` for `each=event.opportunity.Signup`).
+    pub parent_path: Vec<String>,
+    /// `each=` value node.
+    pub node: NodeKey,
+}
+
+/// Adopted `each=` cohort spellings (T34-F6; F1 `FanoutCohortKind`).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum CohortKind {
+    /// Bare-model enumeration (`each=Signup`).
+    Model,
+    /// Parent-anchored reverse collection (`each=event.opportunity.Signup`).
+    AnchoredCollection,
 }
 
 /// Trusted `on=` source of a handler scenario (DESIGN §6).
@@ -2311,6 +2347,7 @@ impl<'a> Cx<'a> {
         if let (Some(HandlerSource::Every { .. }), Some(on_value)) = (&on, on_value) {
             self.every_handlers.push((id, tight_span(text, on_value)));
         }
+        let cohort = self.check_each(module, text, node, on.as_ref());
         let prev_hook = self.current_hook;
         let prev_scenario = self.current_scenario.replace(id);
         if let Some(HandlerSource::Hook { model, op }) = &on {
@@ -2354,10 +2391,306 @@ impl<'a> Cx<'a> {
                 result: result_annotation(text, node).map(NodeKey::of),
                 guards,
                 effects,
+                cohort,
             },
         );
         self.current_hook = prev_hook;
         self.current_scenario = prev_scenario;
+    }
+
+    /// T34-F6 `each=` cohort check (`E4055`): validate the fanout cohort
+    /// against the adopted contract and return its descriptor.
+    ///
+    /// Accepted: bare-model (`each=Signup`) and parent-anchored reverse
+    /// collection (`each=event.opportunity.Signup`) spellings over
+    /// same-package models, on a scenario with a decoded `on=` trigger.
+    /// Anything else reports one precise `E4055` and yields `None`
+    /// (fail-closed: codegen emits no descriptor, never silently admits).
+    /// Positions an earlier pass already diagnosed (undecoded `on=`,
+    /// poisoned or untyped hops) stay silent (fix-and-reveal).
+    ///
+    /// Scope notes: the enumerated/child model must be same-package (the
+    /// `E4001` ownership rule: children write their records, and other
+    /// packages mutate only through `call`); the anchored parent path may
+    /// traverse imported payload shapes (reads, not writes). App/team
+    /// scope mixing is NOT rejected here — no adopted rule pins it as
+    /// cross-owner, so an unservable mix stays the membership producer's
+    /// `membership-unavailable` diagnosis (F5), never a checker invention.
+    fn check_each(
+        &mut self,
+        module: ModuleId,
+        text: &str,
+        node: &SyntaxNode,
+        on: Option<&HandlerSource>,
+    ) -> Option<CohortData> {
+        let value = attribute_value(node, "each", text)?;
+        if value.kind != SyntaxKind::Path {
+            return None;
+        }
+        let span = tight_span(text, value);
+        let segments = path_segments(value, text);
+        let bind = each_binding(node, text);
+        // `each=` needs a trigger: the frozen cohort hangs off an explicit
+        // source-occurrence/handler cutoff (§C1). An undecoded `on=` is an
+        // earlier pass's finding; stay silent (fix-and-reveal).
+        let Some(on) = on else {
+            self.diags.push(Diagnostic::error(
+                "E4055",
+                "each= needs an on= trigger: fanout cohorts freeze under a source-occurrence/handler cutoff"
+                    .to_string(),
+                span,
+            ));
+            return None;
+        };
+        if matches!(on, HandlerSource::Unknown { .. }) {
+            return None;
+        }
+        if segments.len() == 1 {
+            if segments[0] == "event" {
+                self.diags.push(Diagnostic::error(
+                    "E4055",
+                    "each=event is not a cohort: use a bare model (each=Signup) or an event-anchored collection (each=event.opportunity.Signup)"
+                        .to_string(),
+                    span,
+                ));
+                return None;
+            }
+            let model = self.cohort_model(module, text, value, segments[0])?;
+            return Some(CohortData {
+                kind: CohortKind::Model,
+                model,
+                bind,
+                parent_path: Vec::new(),
+                node: NodeKey::of(value),
+            });
+        }
+        if segments.first() != Some(&"event") {
+            self.diags.push(Diagnostic::error(
+                "E4055",
+                format!(
+                    "unsupported each= cohort `{}`: multi-segment cohorts root at event (each=event.opportunity.Signup)",
+                    segments.join("."),
+                ),
+                span,
+            ));
+            return None;
+        }
+        // Parent-anchored reverse collection: `event.<path>.<Child>`. The
+        // parent path resolves through the trigger event payload to one
+        // pinned parent record; the child model must be contained in it.
+        let HandlerSource::Event(event) = on else {
+            self.diags.push(Diagnostic::error(
+                "E4055",
+                "unsupported each= cohort: anchored collections need on=DeclaredEvent carrying the parent record"
+                    .to_string(),
+                span,
+            ));
+            return None;
+        };
+        let last = segments[segments.len() - 1];
+        let model = self.cohort_model(module, text, value, last)?;
+        let mut current = ResolvedType::Record {
+            symbol: *event,
+            stored: false,
+        };
+        for hop in &segments[1..segments.len() - 1] {
+            current = self.cohort_hop(module, text, value, &current, hop)?;
+        }
+        let parent = match &current {
+            ResolvedType::Record { symbol, .. } => *symbol,
+            ResolvedType::Nullable(_) => {
+                self.diags.push(Diagnostic::error(
+                    "E4055",
+                    format!(
+                        "unsupported each= cohort: parent `{}` is nullable, anchored cohorts need one pinned parent record",
+                        segments[..segments.len() - 1].join("."),
+                    ),
+                    span,
+                ));
+                return None;
+            }
+            ResolvedType::Array { .. } => {
+                self.diags.push(Diagnostic::error(
+                    "E4055",
+                    format!(
+                        "unsupported each= cohort: parent `{}` is a collection, anchored cohorts enumerate one parent's contained collection",
+                        segments[..segments.len() - 1].join("."),
+                    ),
+                    span,
+                ));
+                return None;
+            }
+            // Poisoned, opaque, unknown or null parents stand down (an
+            // earlier finding owns them); any other concrete shape is
+            // unsupported — never silently admitted.
+            _ => {
+                if matches!(
+                    current,
+                    ResolvedType::Opaque(_)
+                        | ResolvedType::Unknown
+                        | ResolvedType::Error
+                        | ResolvedType::Null
+                ) {
+                    return None;
+                }
+                self.diags.push(Diagnostic::error(
+                    "E4055",
+                    format!(
+                        "unsupported each= cohort: parent `{}` is not a record",
+                        segments[..segments.len() - 1].join("."),
+                    ),
+                    span,
+                ));
+                return None;
+            }
+        };
+        match &self.tables.symbols[model.0 as usize].kind {
+            SymbolKind::Model {
+                owner: ModelOwner::ChildOf(expected),
+                ..
+            } if *expected == parent => {}
+            _ => {
+                self.diags.push(Diagnostic::error(
+                    "E4055",
+                    format!(
+                        "unknown collection `{last}` on '{}': anchored each= cohorts enumerate a contained child collection",
+                        self.show(module, parent),
+                    ),
+                    span,
+                ));
+                return None;
+            }
+        }
+        Some(CohortData {
+            kind: CohortKind::AnchoredCollection,
+            model,
+            bind,
+            parent_path: segments[..segments.len() - 1]
+                .iter()
+                .map(ToString::to_string)
+                .collect(),
+            node: NodeKey::of(value),
+        })
+    }
+
+    /// Resolve one cohort model name: a declared same-package model.
+    /// Unknown names, non-models and cross-package (cross-owner) models
+    /// each report their precise `E4055`; `None` yields nothing further.
+    fn cohort_model(
+        &mut self,
+        module: ModuleId,
+        text: &str,
+        value: &SyntaxNode,
+        name: &str,
+    ) -> Option<SymbolId> {
+        let span = tight_span(text, value);
+        let Some(id) = self.prod_or_imported(module, name) else {
+            self.diags.push(Diagnostic::error(
+                "E4055",
+                format!("unknown model `{name}` in each= cohort"),
+                span,
+            ));
+            return None;
+        };
+        if !matches!(
+            self.tables.symbols[id.0 as usize].kind,
+            SymbolKind::Model { .. }
+        ) {
+            self.diags.push(Diagnostic::error(
+                "E4055",
+                format!(
+                    "unsupported each= cohort `{}`: cohorts enumerate models",
+                    self.show(module, id),
+                ),
+                span,
+            ));
+            return None;
+        }
+        if self.tables.symbols[id.0 as usize].module != module {
+            self.diags.push(Diagnostic::error(
+                "E4055",
+                format!(
+                    "cross-owner each= cohort '{}': cohorts enumerate same-package models (cross-package mutation uses call)",
+                    self.show(module, id),
+                ),
+                span,
+            ));
+            return None;
+        }
+        Some(id)
+    }
+
+    /// One anchored-cohort parent hop: `current` must be a singular
+    /// record carrying field `hop`. Nullable/array hops and hops through
+    /// non-records are unsupported (`E4055`); poisoned, opaque, unknown
+    /// or untyped positions stand down silently (an earlier finding owns
+    /// them); unknown fields are `E4055`.
+    fn cohort_hop(
+        &mut self,
+        module: ModuleId,
+        text: &str,
+        value: &SyntaxNode,
+        current: &ResolvedType,
+        hop: &str,
+    ) -> Option<ResolvedType> {
+        let span = tight_span(text, value);
+        match current {
+            ResolvedType::Nullable(_) => {
+                self.diags.push(Diagnostic::error(
+                    "E4055",
+                    format!(
+                        "unsupported each= cohort: `{hop}` is nullable, anchored cohorts need one pinned parent record",
+                    ),
+                    span,
+                ));
+                None
+            }
+            ResolvedType::Array { .. } => {
+                self.diags.push(Diagnostic::error(
+                    "E4055",
+                    "unsupported each= cohort: the parent path cannot traverse a collection"
+                        .to_string(),
+                    span,
+                ));
+                None
+            }
+            ResolvedType::Record { symbol, .. } => {
+                let Some(field) = self.record_field_named(*symbol, hop) else {
+                    self.diags.push(Diagnostic::error(
+                        "E4055",
+                        format!(
+                            "unknown collection `{hop}` on '{}' in each= cohort",
+                            self.show(module, *symbol),
+                        ),
+                        span,
+                    ));
+                    return None;
+                };
+                match self.types.symbol_types.get(&field).cloned() {
+                    None => None,
+                    Some(ty) if ty.is_error() => None,
+                    Some(ty) => Some(ty),
+                }
+            }
+            _ => {
+                if matches!(
+                    current,
+                    ResolvedType::Opaque(_)
+                        | ResolvedType::Unknown
+                        | ResolvedType::Error
+                        | ResolvedType::Null
+                ) {
+                    None
+                } else {
+                    self.diags.push(Diagnostic::error(
+                        "E4055",
+                        format!("unsupported each= cohort: `{hop}` is not a record member",),
+                        span,
+                    ));
+                    None
+                }
+            }
+        }
     }
 
     /// Whether `model` has a `crud` declaration disabling `op`. Models
@@ -3773,6 +4106,22 @@ fn attribute_value<'a>(node: &'a SyntaxNode, key: &str, text: &str) -> Option<&'
                 None
             }
         })
+}
+
+/// `as` child binding beside an `each=` attribute (T34-F6): the parser
+/// keeps the standard three-child `Attribute` and puts the `as` binding
+/// beside it as direct `Scenario` children, mirroring `send`/`create`
+/// aliases. Body `as` uses sit inside `DoBlock`/`Require` subtrees, so
+/// only direct `Name` children are scanned.
+fn each_binding(node: &SyntaxNode, text: &str) -> Option<String> {
+    for pair in significant_children(node).windows(2) {
+        if is_name(pair[0], text, "as")
+            && let Some(name) = name_text(pair[1], text)
+        {
+            return Some(name.to_string());
+        }
+    }
+    None
 }
 
 /// Declaration head name: first `Name` child that is not a head word.
