@@ -694,7 +694,7 @@ const CATALOG: [CodeInfo; 116] = [
         code: "E4012",
         title: "leaf-grant-through-reference",
         severity: Severity::Error,
-        explanation: "A policy `fields=` leaf grant traverses a `user`/`member` reference. Leaf grants descend only through singular embedded typed values, never references. Grant the whole field or a value leaf instead.",
+        explanation: "A policy `fields=` leaf grant, or a UI table `columns=`/`search=`/`filter=` selector, traverses a `user`/`member` reference. Leaf grants descend only through singular embedded typed values, never references. Grant the whole field or a value leaf instead.",
         example_valid: "app Shop\nGiven\n M { owner:user }\n policy M read=members fields=owner\nWhen\nThen\n",
         example_invalid: "app Shop\nGiven\n M { owner:user }\n policy M read=members fields=owner.id\nWhen\nThen\n",
     },

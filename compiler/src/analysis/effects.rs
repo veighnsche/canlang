@@ -23,9 +23,10 @@
 //! - `E4011` secret return: a `return` value of `secret` type; secrets are
 //!   server-only and never client-readable (DESIGN §2, §5).
 //! - `E4012` leaf grant through reference: a policy `fields=` selector
-//!   traverses a `user`/`member` reference; leaf grants descend only
-//!   through singular embedded typed values, never references
-//!   (DESIGN §4, T25-L1).
+//!   or UI table `columns=`/`search=`/`filter=` selector traverses a
+//!   `user`/`member` reference; leaf grants descend only through
+//!   singular embedded typed values, never references
+//!   (DESIGN §4, T25-L1; UI contexts A5/S4).
 //! - `E4020` redundant actor subject: `Role(actor)`; the bare role is the
 //!   canonical literal-actor spelling (DESIGN §4).
 //! - `E4030` unreachable after return: a statement following an
@@ -2049,7 +2050,7 @@ impl<'a> Cx<'a> {
     }
 
     /// E4012: a policy `fields=` leaf grant traversing a `user`/`member`
-    /// reference.
+    /// reference (UI table selector lists share the core check, A5/S4).
     ///
     /// Leaf-grant interiors must be singular embedded typed values
     /// (contract/event record descent with nullable unwrap, expression
@@ -2064,7 +2065,22 @@ impl<'a> Cx<'a> {
     /// the types pass accepts it, so one bad path reports exactly one
     /// diagnostic.
     fn check_leaf_grant_reference(&mut self, text: &str, model: SymbolId, node: &SyntaxNode) {
-        let Some(selectors) = attribute_value(node, "fields", text) else {
+        self.check_leaf_grant_reference_in(text, model, node, "fields", "policy grants leaf");
+    }
+
+    /// E4012 core over one selector list: report every `attr=` selector
+    /// traversing a `user`/`member` reference. `head` names the list in
+    /// the message, keeping policy and UI table contexts distinct
+    /// (A5/S4).
+    fn check_leaf_grant_reference_in(
+        &mut self,
+        text: &str,
+        model: SymbolId,
+        node: &SyntaxNode,
+        attr: &str,
+        head: &str,
+    ) {
+        let Some(selectors) = attribute_value(node, attr, text) else {
             return;
         };
         if selectors.kind != SyntaxKind::Selectors {
@@ -2079,7 +2095,7 @@ impl<'a> Cx<'a> {
                 self.diags.push(Diagnostic::error(
                     "E4012",
                     format!(
-                        "policy grants leaf '{}' through a {} reference; leaf grants never traverse references",
+                        "{head} '{}' through a {} reference; leaf grants never traverse references",
                         segments.join("."),
                         noun,
                     ),
@@ -3650,6 +3666,75 @@ impl<'a> Cx<'a> {
         };
         if let Some(data) = self.out.modules.get_mut(&module) {
             data.pages.push(page);
+        }
+        // A5/S4: E4012 also visits UI table selector lists.
+        if self.checks_on {
+            self.walk_ui_leaf_grants(text, node);
+        }
+    }
+
+    /// Recurse a page subtree for `Collection` widgets, running the
+    /// E4012 reference check over their `columns=`/`search=`/`filter=`
+    /// lists against the domain model (A5/S4 parity with policy
+    /// `fields=`). Skips `Examples` subtrees like every other walk.
+    fn walk_ui_leaf_grants(&mut self, text: &str, node: &SyntaxNode) {
+        for child in significant_children(node) {
+            if child.kind == SyntaxKind::Examples {
+                continue;
+            }
+            if child.kind == SyntaxKind::Collection {
+                self.check_collection_leaf_grants(text, child);
+            }
+            self.walk_ui_leaf_grants(text, child);
+        }
+    }
+
+    /// E4012 over one collection widget's selector lists, mirroring
+    /// the types pass `columns=`/`search=`/`filter=` loop. The domain
+    /// model mirrors `walk_ui_page` + `model_of_type`: the first
+    /// expression child's recorded type, unwrapping arrays to the
+    /// model record. Unresolvable domains stay silent (the types
+    /// pass owns those diagnostics).
+    fn check_collection_leaf_grants(&mut self, text: &str, node: &SyntaxNode) {
+        let domain = significant_children(node)
+            .iter()
+            .find(|n| is_expression(n.kind))
+            .copied();
+        let Some(domain) = domain else {
+            return;
+        };
+        let Some(model) = self.collection_domain_model(domain) else {
+            return;
+        };
+        let head_word = significant_children(node)
+            .iter()
+            .find_map(|n| name_text(n, text))
+            .unwrap_or("table");
+        for attr in ["columns", "search", "filter"] {
+            if attribute_value(node, attr, text).is_some() {
+                let head = format!("{head_word} `{attr}=` lists leaf");
+                self.check_leaf_grant_reference_in(text, model, node, attr, &head);
+            }
+        }
+    }
+
+    /// Domain model of a collection widget from the types pass node
+    /// types, mirroring `model_of_type`.
+    fn collection_domain_model(&self, domain: &SyntaxNode) -> Option<SymbolId> {
+        self.model_of_record(self.types.node_types.get(&NodeKey::of(domain))?)
+    }
+
+    /// Model behind a domain type: the model record itself,
+    /// unwrapping arrays (query domains) to the element.
+    fn model_of_record(&self, ty: &ResolvedType) -> Option<SymbolId> {
+        match ty {
+            ResolvedType::Record { symbol, .. } => matches!(
+                self.tables.symbols[symbol.0 as usize].kind,
+                SymbolKind::Model { .. }
+            )
+            .then_some(*symbol),
+            ResolvedType::Array { element, .. } => self.model_of_record(element),
+            _ => None,
         }
     }
 
