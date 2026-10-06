@@ -1,0 +1,4484 @@
+[
+  {
+    "id": "int64.zero",
+    "op": "int64",
+    "args": [
+      {
+        "t": "bigint",
+        "v": "0"
+      }
+    ]
+  },
+  {
+    "id": "int64.min",
+    "op": "int64",
+    "args": [
+      {
+        "t": "bigint",
+        "v": "-9223372036854775808"
+      }
+    ]
+  },
+  {
+    "id": "int64.max",
+    "op": "int64",
+    "args": [
+      {
+        "t": "bigint",
+        "v": "9223372036854775807"
+      }
+    ]
+  },
+  {
+    "id": "int64.max-plus-1",
+    "op": "int64",
+    "args": [
+      {
+        "t": "bigint",
+        "v": "9223372036854775808"
+      }
+    ]
+  },
+  {
+    "id": "int64.min-minus-1",
+    "op": "int64",
+    "args": [
+      {
+        "t": "bigint",
+        "v": "-9223372036854775809"
+      }
+    ]
+  },
+  {
+    "id": "int64.num",
+    "op": "int64",
+    "args": [
+      {
+        "t": "num",
+        "v": 5
+      }
+    ]
+  },
+  {
+    "id": "int64.str",
+    "op": "int64",
+    "args": [
+      {
+        "t": "str",
+        "v": "5"
+      }
+    ]
+  },
+  {
+    "id": "add-int.basic",
+    "op": "add-int",
+    "args": [
+      {
+        "t": "bigint",
+        "v": "2"
+      },
+      {
+        "t": "bigint",
+        "v": "3"
+      }
+    ]
+  },
+  {
+    "id": "add-int.wide-cancel",
+    "op": "add-int",
+    "args": [
+      {
+        "t": "bigint",
+        "v": "1000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
+      },
+      {
+        "t": "bigint",
+        "v": "-999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999"
+      }
+    ]
+  },
+  {
+    "id": "add-int.overflow",
+    "op": "add-int",
+    "args": [
+      {
+        "t": "bigint",
+        "v": "9223372036854775807"
+      },
+      {
+        "t": "bigint",
+        "v": "1"
+      }
+    ]
+  },
+  {
+    "id": "add-int.first-bad",
+    "op": "add-int",
+    "args": [
+      {
+        "t": "num",
+        "v": 1
+      },
+      {
+        "t": "bigint",
+        "v": "2"
+      }
+    ]
+  },
+  {
+    "id": "add-int.second-bad",
+    "op": "add-int",
+    "args": [
+      {
+        "t": "bigint",
+        "v": "1"
+      },
+      {
+        "t": "bool",
+        "v": true
+      }
+    ]
+  },
+  {
+    "id": "subtract-int.underflow",
+    "op": "subtract-int",
+    "args": [
+      {
+        "t": "bigint",
+        "v": "-9223372036854775808"
+      },
+      {
+        "t": "bigint",
+        "v": "1"
+      }
+    ]
+  },
+  {
+    "id": "multiply-int.square-overflow",
+    "op": "multiply-int",
+    "args": [
+      {
+        "t": "bigint",
+        "v": "3037000500"
+      },
+      {
+        "t": "bigint",
+        "v": "3037000500"
+      }
+    ]
+  },
+  {
+    "id": "multiply-int.min-by-minus-1",
+    "op": "multiply-int",
+    "args": [
+      {
+        "t": "bigint",
+        "v": "-9223372036854775808"
+      },
+      {
+        "t": "bigint",
+        "v": "-1"
+      }
+    ]
+  },
+  {
+    "id": "multiply-int.zero-by-wide",
+    "op": "multiply-int",
+    "args": [
+      {
+        "t": "bigint",
+        "v": "0"
+      },
+      {
+        "t": "bigint",
+        "v": "100000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
+      }
+    ]
+  },
+  {
+    "id": "mod-int.pos",
+    "op": "mod-int",
+    "args": [
+      {
+        "t": "bigint",
+        "v": "7"
+      },
+      {
+        "t": "bigint",
+        "v": "3"
+      }
+    ]
+  },
+  {
+    "id": "mod-int.neg-dividend",
+    "op": "mod-int",
+    "args": [
+      {
+        "t": "bigint",
+        "v": "-7"
+      },
+      {
+        "t": "bigint",
+        "v": "3"
+      }
+    ]
+  },
+  {
+    "id": "mod-int.neg-divisor",
+    "op": "mod-int",
+    "args": [
+      {
+        "t": "bigint",
+        "v": "7"
+      },
+      {
+        "t": "bigint",
+        "v": "-3"
+      }
+    ]
+  },
+  {
+    "id": "mod-int.zero-divisor",
+    "op": "mod-int",
+    "args": [
+      {
+        "t": "bigint",
+        "v": "7"
+      },
+      {
+        "t": "bigint",
+        "v": "0"
+      }
+    ]
+  },
+  {
+    "id": "mod-int.min-by-minus-1",
+    "op": "mod-int",
+    "args": [
+      {
+        "t": "bigint",
+        "v": "-9223372036854775808"
+      },
+      {
+        "t": "bigint",
+        "v": "-1"
+      }
+    ]
+  },
+  {
+    "id": "negate-int.min",
+    "op": "negate-int",
+    "args": [
+      {
+        "t": "bigint",
+        "v": "-9223372036854775808"
+      }
+    ]
+  },
+  {
+    "id": "abs-int.neg",
+    "op": "abs-int",
+    "args": [
+      {
+        "t": "bigint",
+        "v": "-5"
+      }
+    ]
+  },
+  {
+    "id": "abs-int.min",
+    "op": "abs-int",
+    "args": [
+      {
+        "t": "bigint",
+        "v": "-9223372036854775808"
+      }
+    ]
+  },
+  {
+    "id": "abs-int.pos-num",
+    "op": "abs-int",
+    "args": [
+      {
+        "t": "num",
+        "v": 5
+      }
+    ]
+  },
+  {
+    "id": "abs-int.neg-num",
+    "op": "abs-int",
+    "args": [
+      {
+        "t": "num",
+        "v": -5
+      }
+    ]
+  },
+  {
+    "id": "abs-int.nan",
+    "op": "abs-int",
+    "args": [
+      {
+        "t": "num",
+        "v": "NaN"
+      }
+    ]
+  },
+  {
+    "id": "compare-int.wide",
+    "op": "compare-int",
+    "args": [
+      {
+        "t": "bigint",
+        "v": "1000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
+      },
+      {
+        "t": "bigint",
+        "v": "1000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001"
+      }
+    ]
+  },
+  {
+    "id": "round-rational.tie-even-down",
+    "op": "round-rational",
+    "args": [
+      {
+        "t": "bigint",
+        "v": "1"
+      },
+      {
+        "t": "bigint",
+        "v": "2"
+      }
+    ]
+  },
+  {
+    "id": "round-rational.tie-even-up",
+    "op": "round-rational",
+    "args": [
+      {
+        "t": "bigint",
+        "v": "3"
+      },
+      {
+        "t": "bigint",
+        "v": "2"
+      }
+    ]
+  },
+  {
+    "id": "round-rational.neg-den",
+    "op": "round-rational",
+    "args": [
+      {
+        "t": "bigint",
+        "v": "3"
+      },
+      {
+        "t": "bigint",
+        "v": "-2"
+      }
+    ]
+  },
+  {
+    "id": "round-rational.zero-den",
+    "op": "round-rational",
+    "args": [
+      {
+        "t": "bigint",
+        "v": "1"
+      },
+      {
+        "t": "bigint",
+        "v": "0"
+      }
+    ]
+  },
+  {
+    "id": "round-rational.bad-type",
+    "op": "round-rational",
+    "args": [
+      {
+        "t": "bigint",
+        "v": "1"
+      },
+      {
+        "t": "str",
+        "v": "2"
+      }
+    ]
+  },
+  {
+    "id": "add-decimal.align",
+    "op": "add-decimal",
+    "args": [
+      {
+        "t": "decimal",
+        "coef": "1",
+        "scale": 0
+      },
+      {
+        "t": "decimal",
+        "coef": "5",
+        "scale": 1
+      }
+    ]
+  },
+  {
+    "id": "add-decimal.int-promo",
+    "op": "add-decimal",
+    "args": [
+      {
+        "t": "bigint",
+        "v": "2"
+      },
+      {
+        "t": "decimal",
+        "coef": "25",
+        "scale": 2
+      }
+    ]
+  },
+  {
+    "id": "add-decimal.wide-raw-cancel",
+    "op": "add-decimal",
+    "args": [
+      {
+        "t": "bigint",
+        "v": "100000000000000000000000000000000000000000000000000"
+      },
+      {
+        "t": "bigint",
+        "v": "-99999999999999999999999999999999999999999999999999"
+      }
+    ]
+  },
+  {
+    "id": "add-decimal.overflow",
+    "op": "add-decimal",
+    "args": [
+      {
+        "t": "decimal",
+        "coef": "99999999999999999999999999999999999999",
+        "scale": 0
+      },
+      {
+        "t": "bigint",
+        "v": "1"
+      }
+    ]
+  },
+  {
+    "id": "add-decimal.bad-shape",
+    "op": "add-decimal",
+    "args": [
+      {
+        "t": "record",
+        "entries": [
+          [
+            "kind",
+            {
+              "t": "str",
+              "v": "decimal"
+            }
+          ],
+          [
+            "coef",
+            {
+              "t": "num",
+              "v": 5
+            }
+          ],
+          [
+            "scale",
+            {
+              "t": "num",
+              "v": 0
+            }
+          ]
+        ]
+      },
+      {
+        "t": "bigint",
+        "v": "1"
+      }
+    ]
+  },
+  {
+    "id": "add-decimal.extra-key",
+    "op": "add-decimal",
+    "args": [
+      {
+        "t": "record",
+        "entries": [
+          [
+            "kind",
+            {
+              "t": "str",
+              "v": "decimal"
+            }
+          ],
+          [
+            "coef",
+            {
+              "t": "bigint",
+              "v": "5"
+            }
+          ],
+          [
+            "scale",
+            {
+              "t": "num",
+              "v": 0
+            }
+          ],
+          [
+            "note",
+            {
+              "t": "str",
+              "v": "x"
+            }
+          ]
+        ]
+      },
+      {
+        "t": "bigint",
+        "v": "1"
+      }
+    ]
+  },
+  {
+    "id": "subtract-decimal.basic",
+    "op": "subtract-decimal",
+    "args": [
+      {
+        "t": "decimal",
+        "coef": "100",
+        "scale": 2
+      },
+      {
+        "t": "bigint",
+        "v": "1"
+      }
+    ]
+  },
+  {
+    "id": "multiply-decimal.exact",
+    "op": "multiply-decimal",
+    "args": [
+      {
+        "t": "decimal",
+        "coef": "1",
+        "scale": 1
+      },
+      {
+        "t": "decimal",
+        "coef": "1",
+        "scale": 1
+      }
+    ]
+  },
+  {
+    "id": "multiply-decimal.scale-round",
+    "op": "multiply-decimal",
+    "args": [
+      {
+        "t": "decimal",
+        "coef": "10000000000000000000",
+        "scale": 10
+      },
+      {
+        "t": "decimal",
+        "coef": "10000000000000000000",
+        "scale": 10
+      }
+    ]
+  },
+  {
+    "id": "multiply-decimal.overflow",
+    "op": "multiply-decimal",
+    "args": [
+      {
+        "t": "decimal",
+        "coef": "99999999999999999999",
+        "scale": 0
+      },
+      {
+        "t": "decimal",
+        "coef": "99999999999999999999",
+        "scale": 0
+      }
+    ]
+  },
+  {
+    "id": "divide-decimal.half",
+    "op": "divide-decimal",
+    "args": [
+      {
+        "t": "bigint",
+        "v": "1"
+      },
+      {
+        "t": "bigint",
+        "v": "2"
+      }
+    ]
+  },
+  {
+    "id": "divide-decimal.third",
+    "op": "divide-decimal",
+    "args": [
+      {
+        "t": "bigint",
+        "v": "1"
+      },
+      {
+        "t": "bigint",
+        "v": "3"
+      }
+    ]
+  },
+  {
+    "id": "divide-decimal.two-thirds",
+    "op": "divide-decimal",
+    "args": [
+      {
+        "t": "bigint",
+        "v": "2"
+      },
+      {
+        "t": "bigint",
+        "v": "3"
+      }
+    ]
+  },
+  {
+    "id": "divide-decimal.neg",
+    "op": "divide-decimal",
+    "args": [
+      {
+        "t": "bigint",
+        "v": "-1"
+      },
+      {
+        "t": "bigint",
+        "v": "8"
+      }
+    ]
+  },
+  {
+    "id": "divide-decimal.scaled",
+    "op": "divide-decimal",
+    "args": [
+      {
+        "t": "decimal",
+        "coef": "1",
+        "scale": 2
+      },
+      {
+        "t": "decimal",
+        "coef": "4",
+        "scale": 2
+      }
+    ]
+  },
+  {
+    "id": "divide-decimal.zero",
+    "op": "divide-decimal",
+    "args": [
+      {
+        "t": "bigint",
+        "v": "1"
+      },
+      {
+        "t": "bigint",
+        "v": "0"
+      }
+    ]
+  },
+  {
+    "id": "divide-decimal.money-weak",
+    "op": "divide-decimal",
+    "args": [
+      {
+        "t": "money",
+        "minor": "1",
+        "currency": "ZZZ"
+      },
+      {
+        "t": "money",
+        "minor": "2",
+        "currency": "ZZZ"
+      }
+    ]
+  },
+  {
+    "id": "divide-decimal.money-mismatch",
+    "op": "divide-decimal",
+    "args": [
+      {
+        "t": "money",
+        "minor": "1",
+        "currency": "USD"
+      },
+      {
+        "t": "money",
+        "minor": "2",
+        "currency": "EUR"
+      }
+    ]
+  },
+  {
+    "id": "divide-decimal.money-mix",
+    "op": "divide-decimal",
+    "args": [
+      {
+        "t": "money",
+        "minor": "1",
+        "currency": "USD"
+      },
+      {
+        "t": "bigint",
+        "v": "2"
+      }
+    ]
+  },
+  {
+    "id": "divide-decimal.money-dec-mix",
+    "op": "divide-decimal",
+    "args": [
+      {
+        "t": "money",
+        "minor": "1",
+        "currency": "USD"
+      },
+      {
+        "t": "decimal",
+        "coef": "2",
+        "scale": 0
+      }
+    ]
+  },
+  {
+    "id": "divide-decimal.malformed-money",
+    "op": "divide-decimal",
+    "args": [
+      {
+        "t": "record",
+        "entries": [
+          [
+            "kind",
+            {
+              "t": "str",
+              "v": "money"
+            }
+          ],
+          [
+            "minor",
+            {
+              "t": "bigint",
+              "v": "1"
+            }
+          ]
+        ]
+      },
+      {
+        "t": "bigint",
+        "v": "2"
+      }
+    ]
+  },
+  {
+    "id": "overlaps.wide-ms",
+    "op": "overlaps",
+    "args": [
+      {
+        "t": "datetime",
+        "ms": "0"
+      },
+      {
+        "t": "datetime",
+        "ms": "10000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
+      },
+      {
+        "t": "datetime",
+        "ms": "5"
+      },
+      {
+        "t": "datetime",
+        "ms": "15"
+      }
+    ]
+  },
+  {
+    "id": "parse-decimal.dash",
+    "op": "parse-decimal",
+    "args": [
+      {
+        "t": "str",
+        "v": "-"
+      }
+    ]
+  },
+  {
+    "id": "parse-decimal.trailing-dash",
+    "op": "parse-decimal",
+    "args": [
+      {
+        "t": "str",
+        "v": "5-"
+      }
+    ]
+  },
+  {
+    "id": "divide-decimal.money-zero",
+    "op": "divide-decimal",
+    "args": [
+      {
+        "t": "money",
+        "minor": "1",
+        "currency": "USD"
+      },
+      {
+        "t": "money",
+        "minor": "0",
+        "currency": "USD"
+      }
+    ]
+  },
+  {
+    "id": "divide-duration-ms.half",
+    "op": "divide-duration-ms",
+    "args": [
+      {
+        "t": "bigint",
+        "v": "1"
+      },
+      {
+        "t": "bigint",
+        "v": "2"
+      }
+    ]
+  },
+  {
+    "id": "divide-duration-ms.input-overflow",
+    "op": "divide-duration-ms",
+    "args": [
+      {
+        "t": "bigint",
+        "v": "9223372036854775808"
+      },
+      {
+        "t": "bigint",
+        "v": "1"
+      }
+    ]
+  },
+  {
+    "id": "divide-duration-ms.bad-type",
+    "op": "divide-duration-ms",
+    "args": [
+      {
+        "t": "decimal",
+        "coef": "1",
+        "scale": 0
+      },
+      {
+        "t": "bigint",
+        "v": "2"
+      }
+    ]
+  },
+  {
+    "id": "negate-decimal.basic",
+    "op": "negate-decimal",
+    "args": [
+      {
+        "t": "decimal",
+        "coef": "5",
+        "scale": 3
+      }
+    ]
+  },
+  {
+    "id": "negate-decimal.bad",
+    "op": "negate-decimal",
+    "args": [
+      {
+        "t": "bigint",
+        "v": "5"
+      }
+    ]
+  },
+  {
+    "id": "abs-decimal.neg",
+    "op": "abs-decimal",
+    "args": [
+      {
+        "t": "decimal",
+        "coef": "-5",
+        "scale": 3
+      }
+    ]
+  },
+  {
+    "id": "abs-decimal.bad",
+    "op": "abs-decimal",
+    "args": [
+      {
+        "t": "str",
+        "v": "5"
+      }
+    ]
+  },
+  {
+    "id": "round-decimal.tie-down",
+    "op": "round-decimal",
+    "args": [
+      {
+        "t": "decimal",
+        "coef": "25",
+        "scale": 1
+      },
+      {
+        "t": "num",
+        "v": 0
+      }
+    ]
+  },
+  {
+    "id": "round-decimal.tie-up",
+    "op": "round-decimal",
+    "args": [
+      {
+        "t": "decimal",
+        "coef": "35",
+        "scale": 1
+      },
+      {
+        "t": "num",
+        "v": 0
+      }
+    ]
+  },
+  {
+    "id": "round-decimal.up-exact",
+    "op": "round-decimal",
+    "args": [
+      {
+        "t": "decimal",
+        "coef": "1",
+        "scale": 0
+      },
+      {
+        "t": "num",
+        "v": 18
+      }
+    ]
+  },
+  {
+    "id": "round-decimal.up-overflow",
+    "op": "round-decimal",
+    "args": [
+      {
+        "t": "decimal",
+        "coef": "99999999999999999999999999999999999999",
+        "scale": 0
+      },
+      {
+        "t": "num",
+        "v": 1
+      }
+    ]
+  },
+  {
+    "id": "round-decimal.scale-range",
+    "op": "round-decimal",
+    "args": [
+      {
+        "t": "bigint",
+        "v": "1"
+      },
+      {
+        "t": "num",
+        "v": 19
+      }
+    ]
+  },
+  {
+    "id": "round-decimal.scale-frac",
+    "op": "round-decimal",
+    "args": [
+      {
+        "t": "bigint",
+        "v": "1"
+      },
+      {
+        "t": "num",
+        "v": 1.5
+      }
+    ]
+  },
+  {
+    "id": "round-decimal.scale-nan",
+    "op": "round-decimal",
+    "args": [
+      {
+        "t": "bigint",
+        "v": "1"
+      },
+      {
+        "t": "num",
+        "v": "NaN"
+      }
+    ]
+  },
+  {
+    "id": "round-decimal.scale-neg-zero",
+    "op": "round-decimal",
+    "args": [
+      {
+        "t": "decimal",
+        "coef": "15",
+        "scale": 1
+      },
+      {
+        "t": "num",
+        "v": 0
+      }
+    ]
+  },
+  {
+    "id": "compare-decimal.cross-scale",
+    "op": "compare-decimal",
+    "args": [
+      {
+        "t": "decimal",
+        "coef": "10",
+        "scale": 1
+      },
+      {
+        "t": "decimal",
+        "coef": "100",
+        "scale": 2
+      }
+    ]
+  },
+  {
+    "id": "equal-decimal.cross-scale",
+    "op": "equal-decimal",
+    "args": [
+      {
+        "t": "decimal",
+        "coef": "10",
+        "scale": 1
+      },
+      {
+        "t": "decimal",
+        "coef": "100",
+        "scale": 2
+      }
+    ]
+  },
+  {
+    "id": "parse-decimal.frac",
+    "op": "parse-decimal",
+    "args": [
+      {
+        "t": "str",
+        "v": "1.50"
+      }
+    ]
+  },
+  {
+    "id": "parse-decimal.neg-zero",
+    "op": "parse-decimal",
+    "args": [
+      {
+        "t": "str",
+        "v": "-0"
+      }
+    ]
+  },
+  {
+    "id": "parse-decimal.leading",
+    "op": "parse-decimal",
+    "args": [
+      {
+        "t": "str",
+        "v": "007"
+      }
+    ]
+  },
+  {
+    "id": "parse-decimal.exponent",
+    "op": "parse-decimal",
+    "args": [
+      {
+        "t": "str",
+        "v": "1e3"
+      }
+    ]
+  },
+  {
+    "id": "parse-decimal.plus",
+    "op": "parse-decimal",
+    "args": [
+      {
+        "t": "str",
+        "v": "+1"
+      }
+    ]
+  },
+  {
+    "id": "parse-decimal.trail-point",
+    "op": "parse-decimal",
+    "args": [
+      {
+        "t": "str",
+        "v": "1."
+      }
+    ]
+  },
+  {
+    "id": "parse-decimal.lead-point",
+    "op": "parse-decimal",
+    "args": [
+      {
+        "t": "str",
+        "v": ".5"
+      }
+    ]
+  },
+  {
+    "id": "parse-decimal.frac-range",
+    "op": "parse-decimal",
+    "args": [
+      {
+        "t": "str",
+        "v": "1.0000000000000000001"
+      }
+    ]
+  },
+  {
+    "id": "parse-decimal.digit-range",
+    "op": "parse-decimal",
+    "args": [
+      {
+        "t": "str",
+        "v": "999999999999999999999999999999999999999"
+      }
+    ]
+  },
+  {
+    "id": "parse-decimal.non-string",
+    "op": "parse-decimal",
+    "args": [
+      {
+        "t": "bigint",
+        "v": "1"
+      }
+    ]
+  },
+  {
+    "id": "decimal-from-integer.basic",
+    "op": "decimal-from-integer",
+    "args": [
+      {
+        "t": "bigint",
+        "v": "123"
+      }
+    ]
+  },
+  {
+    "id": "decimal-from-integer.range",
+    "op": "decimal-from-integer",
+    "args": [
+      {
+        "t": "bigint",
+        "v": "999999999999999999999999999999999999999"
+      }
+    ]
+  },
+  {
+    "id": "decimal-to-string.zero-scale",
+    "op": "decimal-to-string",
+    "args": [
+      {
+        "t": "decimal",
+        "coef": "0",
+        "scale": 18
+      }
+    ]
+  },
+  {
+    "id": "decimal-to-string.strip",
+    "op": "decimal-to-string",
+    "args": [
+      {
+        "t": "decimal",
+        "coef": "150",
+        "scale": 2
+      }
+    ]
+  },
+  {
+    "id": "decimal-to-string.integral",
+    "op": "decimal-to-string",
+    "args": [
+      {
+        "t": "decimal",
+        "coef": "100",
+        "scale": 2
+      }
+    ]
+  },
+  {
+    "id": "decimal-to-string.sub-one",
+    "op": "decimal-to-string",
+    "args": [
+      {
+        "t": "decimal",
+        "coef": "-5",
+        "scale": 3
+      }
+    ]
+  },
+  {
+    "id": "decimal-to-string.bad",
+    "op": "decimal-to-string",
+    "args": [
+      {
+        "t": "bigint",
+        "v": "5"
+      }
+    ]
+  },
+  {
+    "id": "currency-scale.usd",
+    "op": "currency-scale",
+    "args": [
+      {
+        "t": "str",
+        "v": "USD"
+      }
+    ]
+  },
+  {
+    "id": "currency-scale.jpy",
+    "op": "currency-scale",
+    "args": [
+      {
+        "t": "str",
+        "v": "JPY"
+      }
+    ]
+  },
+  {
+    "id": "currency-scale.bhd",
+    "op": "currency-scale",
+    "args": [
+      {
+        "t": "str",
+        "v": "BHD"
+      }
+    ]
+  },
+  {
+    "id": "currency-scale.clf",
+    "op": "currency-scale",
+    "args": [
+      {
+        "t": "str",
+        "v": "CLF"
+      }
+    ]
+  },
+  {
+    "id": "currency-scale.excluded",
+    "op": "currency-scale",
+    "args": [
+      {
+        "t": "str",
+        "v": "XXX"
+      }
+    ]
+  },
+  {
+    "id": "currency-scale.non-string",
+    "op": "currency-scale",
+    "args": [
+      {
+        "t": "num",
+        "v": 5
+      }
+    ]
+  },
+  {
+    "id": "is-known-currency.eur",
+    "op": "is-known-currency",
+    "args": [
+      {
+        "t": "str",
+        "v": "EUR"
+      }
+    ]
+  },
+  {
+    "id": "is-known-currency.zzz",
+    "op": "is-known-currency",
+    "args": [
+      {
+        "t": "str",
+        "v": "ZZZ"
+      }
+    ]
+  },
+  {
+    "id": "is-known-currency.num",
+    "op": "is-known-currency",
+    "args": [
+      {
+        "t": "num",
+        "v": 5
+      }
+    ]
+  },
+  {
+    "id": "money.int-scale",
+    "op": "money",
+    "args": [
+      {
+        "t": "bigint",
+        "v": "1"
+      },
+      {
+        "t": "str",
+        "v": "USD"
+      }
+    ]
+  },
+  {
+    "id": "money.tie-down",
+    "op": "money",
+    "args": [
+      {
+        "t": "decimal",
+        "coef": "1005",
+        "scale": 3
+      },
+      {
+        "t": "str",
+        "v": "USD"
+      }
+    ]
+  },
+  {
+    "id": "money.tie-up",
+    "op": "money",
+    "args": [
+      {
+        "t": "decimal",
+        "coef": "1015",
+        "scale": 3
+      },
+      {
+        "t": "str",
+        "v": "USD"
+      }
+    ]
+  },
+  {
+    "id": "money.exact-up",
+    "op": "money",
+    "args": [
+      {
+        "t": "decimal",
+        "coef": "1",
+        "scale": 0
+      },
+      {
+        "t": "str",
+        "v": "JPY"
+      }
+    ]
+  },
+  {
+    "id": "money.bad-value",
+    "op": "money",
+    "args": [
+      {
+        "t": "str",
+        "v": "1"
+      },
+      {
+        "t": "str",
+        "v": "USD"
+      }
+    ]
+  },
+  {
+    "id": "money.bad-currency",
+    "op": "money",
+    "args": [
+      {
+        "t": "bigint",
+        "v": "1"
+      },
+      {
+        "t": "str",
+        "v": "XXX"
+      }
+    ]
+  },
+  {
+    "id": "make-money.wide",
+    "op": "make-money",
+    "args": [
+      {
+        "t": "bigint",
+        "v": "10000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
+      },
+      {
+        "t": "str",
+        "v": "USD"
+      }
+    ]
+  },
+  {
+    "id": "make-money.shape",
+    "op": "make-money",
+    "args": [
+      {
+        "t": "bigint",
+        "v": "1"
+      },
+      {
+        "t": "str",
+        "v": "eur"
+      }
+    ]
+  },
+  {
+    "id": "make-money.unknown",
+    "op": "make-money",
+    "args": [
+      {
+        "t": "bigint",
+        "v": "1"
+      },
+      {
+        "t": "str",
+        "v": "ZZZ"
+      }
+    ]
+  },
+  {
+    "id": "make-money.num-currency",
+    "op": "make-money",
+    "args": [
+      {
+        "t": "bigint",
+        "v": "1"
+      },
+      {
+        "t": "num",
+        "v": 5
+      }
+    ]
+  },
+  {
+    "id": "make-money.null-currency",
+    "op": "make-money",
+    "args": [
+      {
+        "t": "bigint",
+        "v": "1"
+      },
+      {
+        "t": "null"
+      }
+    ]
+  },
+  {
+    "id": "add-money.basic",
+    "op": "add-money",
+    "args": [
+      {
+        "t": "money",
+        "minor": "100",
+        "currency": "USD"
+      },
+      {
+        "t": "money",
+        "minor": "50",
+        "currency": "USD"
+      }
+    ]
+  },
+  {
+    "id": "add-money.mismatch",
+    "op": "add-money",
+    "args": [
+      {
+        "t": "money",
+        "minor": "100",
+        "currency": "USD"
+      },
+      {
+        "t": "money",
+        "minor": "50",
+        "currency": "EUR"
+      }
+    ]
+  },
+  {
+    "id": "add-money.bad-shape",
+    "op": "add-money",
+    "args": [
+      {
+        "t": "money",
+        "minor": "100",
+        "currency": "usd"
+      },
+      {
+        "t": "money",
+        "minor": "50",
+        "currency": "USD"
+      }
+    ]
+  },
+  {
+    "id": "subtract-money.basic",
+    "op": "subtract-money",
+    "args": [
+      {
+        "t": "money",
+        "minor": "100",
+        "currency": "USD"
+      },
+      {
+        "t": "money",
+        "minor": "150",
+        "currency": "USD"
+      }
+    ]
+  },
+  {
+    "id": "subtract-money.mismatch",
+    "op": "subtract-money",
+    "args": [
+      {
+        "t": "money",
+        "minor": "100",
+        "currency": "USD"
+      },
+      {
+        "t": "money",
+        "minor": "50",
+        "currency": "EUR"
+      }
+    ]
+  },
+  {
+    "id": "abs-money.neg",
+    "op": "abs-money",
+    "args": [
+      {
+        "t": "money",
+        "minor": "-5",
+        "currency": "USD"
+      }
+    ]
+  },
+  {
+    "id": "abs-money.min",
+    "op": "abs-money",
+    "args": [
+      {
+        "t": "money",
+        "minor": "-9223372036854775808",
+        "currency": "USD"
+      }
+    ]
+  },
+  {
+    "id": "multiply-money.dec-factor",
+    "op": "multiply-money",
+    "args": [
+      {
+        "t": "money",
+        "minor": "100",
+        "currency": "USD"
+      },
+      {
+        "t": "decimal",
+        "coef": "15",
+        "scale": 1
+      }
+    ]
+  },
+  {
+    "id": "multiply-money.bad-factor",
+    "op": "multiply-money",
+    "args": [
+      {
+        "t": "money",
+        "minor": "100",
+        "currency": "USD"
+      },
+      {
+        "t": "str",
+        "v": "x"
+      }
+    ]
+  },
+  {
+    "id": "divide-money.int",
+    "op": "divide-money",
+    "args": [
+      {
+        "t": "money",
+        "minor": "100",
+        "currency": "USD"
+      },
+      {
+        "t": "bigint",
+        "v": "3"
+      }
+    ]
+  },
+  {
+    "id": "divide-money.zero",
+    "op": "divide-money",
+    "args": [
+      {
+        "t": "money",
+        "minor": "100",
+        "currency": "USD"
+      },
+      {
+        "t": "bigint",
+        "v": "0"
+      }
+    ]
+  },
+  {
+    "id": "divide-money.dec-zero",
+    "op": "divide-money",
+    "args": [
+      {
+        "t": "money",
+        "minor": "100",
+        "currency": "USD"
+      },
+      {
+        "t": "decimal",
+        "coef": "0",
+        "scale": 2
+      }
+    ]
+  },
+  {
+    "id": "money-ratio.basic",
+    "op": "money-ratio",
+    "args": [
+      {
+        "t": "money",
+        "minor": "1",
+        "currency": "USD"
+      },
+      {
+        "t": "money",
+        "minor": "8",
+        "currency": "USD"
+      }
+    ]
+  },
+  {
+    "id": "money-ratio.guarded",
+    "op": "money-ratio",
+    "args": [
+      {
+        "t": "record",
+        "entries": [
+          [
+            "kind",
+            {
+              "t": "str",
+              "v": "money"
+            }
+          ],
+          [
+            "minor",
+            {
+              "t": "bigint",
+              "v": "1"
+            }
+          ],
+          [
+            "currency",
+            {
+              "t": "str",
+              "v": "usd"
+            }
+          ]
+        ]
+      },
+      {
+        "t": "money",
+        "minor": "2",
+        "currency": "USD"
+      }
+    ]
+  },
+  {
+    "id": "money-ratio.mismatch",
+    "op": "money-ratio",
+    "args": [
+      {
+        "t": "money",
+        "minor": "1",
+        "currency": "USD"
+      },
+      {
+        "t": "money",
+        "minor": "2",
+        "currency": "EUR"
+      }
+    ]
+  },
+  {
+    "id": "compare-money.mismatch",
+    "op": "compare-money",
+    "args": [
+      {
+        "t": "money",
+        "minor": "1",
+        "currency": "USD"
+      },
+      {
+        "t": "money",
+        "minor": "1",
+        "currency": "EUR"
+      }
+    ]
+  },
+  {
+    "id": "equal-money.mismatch",
+    "op": "equal-money",
+    "args": [
+      {
+        "t": "money",
+        "minor": "1",
+        "currency": "USD"
+      },
+      {
+        "t": "money",
+        "minor": "1",
+        "currency": "EUR"
+      }
+    ]
+  },
+  {
+    "id": "negate-money.min",
+    "op": "negate-money",
+    "args": [
+      {
+        "t": "money",
+        "minor": "-9223372036854775808",
+        "currency": "USD"
+      }
+    ]
+  },
+  {
+    "id": "date-to-epoch-days.epoch",
+    "op": "date-to-epoch-days",
+    "args": [
+      {
+        "t": "date",
+        "year": 1970,
+        "month": 1,
+        "day": 1
+      }
+    ]
+  },
+  {
+    "id": "date-to-epoch-days.leap",
+    "op": "date-to-epoch-days",
+    "args": [
+      {
+        "t": "date",
+        "year": 2024,
+        "month": 2,
+        "day": 29
+      }
+    ]
+  },
+  {
+    "id": "date-to-epoch-days.bad",
+    "op": "date-to-epoch-days",
+    "args": [
+      {
+        "t": "str",
+        "v": "x"
+      }
+    ]
+  },
+  {
+    "id": "epoch-days-to-date.zero",
+    "op": "epoch-days-to-date",
+    "args": [
+      {
+        "t": "num",
+        "v": 0
+      }
+    ]
+  },
+  {
+    "id": "epoch-days-to-date.frac",
+    "op": "epoch-days-to-date",
+    "args": [
+      {
+        "t": "num",
+        "v": 1.5
+      }
+    ]
+  },
+  {
+    "id": "epoch-days-to-date.range",
+    "op": "epoch-days-to-date",
+    "args": [
+      {
+        "t": "num",
+        "v": 2932897
+      }
+    ]
+  },
+  {
+    "id": "parse-date.leap",
+    "op": "parse-date",
+    "args": [
+      {
+        "t": "str",
+        "v": "2024-02-29"
+      }
+    ]
+  },
+  {
+    "id": "parse-date.non-leap",
+    "op": "parse-date",
+    "args": [
+      {
+        "t": "str",
+        "v": "2023-02-29"
+      }
+    ]
+  },
+  {
+    "id": "parse-date.year-zero",
+    "op": "parse-date",
+    "args": [
+      {
+        "t": "str",
+        "v": "0000-01-01"
+      }
+    ]
+  },
+  {
+    "id": "parse-date.bad-shape",
+    "op": "parse-date",
+    "args": [
+      {
+        "t": "str",
+        "v": "24-01-01"
+      }
+    ]
+  },
+  {
+    "id": "parse-datetime.epoch",
+    "op": "parse-datetime",
+    "args": [
+      {
+        "t": "str",
+        "v": "1970-01-01T00:00:00.000Z"
+      }
+    ]
+  },
+  {
+    "id": "parse-datetime.lower",
+    "op": "parse-datetime",
+    "args": [
+      {
+        "t": "str",
+        "v": "1970-01-01t01:00:00z"
+      }
+    ]
+  },
+  {
+    "id": "parse-datetime.offset",
+    "op": "parse-datetime",
+    "args": [
+      {
+        "t": "str",
+        "v": "1970-01-01T01:00:00+01:00"
+      }
+    ]
+  },
+  {
+    "id": "parse-datetime.neg-offset",
+    "op": "parse-datetime",
+    "args": [
+      {
+        "t": "str",
+        "v": "1970-01-01T00:00:00-05:30"
+      }
+    ]
+  },
+  {
+    "id": "parse-datetime.sub-ms-zero",
+    "op": "parse-datetime",
+    "args": [
+      {
+        "t": "str",
+        "v": "1970-01-01T00:00:00.000000Z"
+      }
+    ]
+  },
+  {
+    "id": "parse-datetime.sub-ms-nonzero",
+    "op": "parse-datetime",
+    "args": [
+      {
+        "t": "str",
+        "v": "1970-01-01T00:00:00.000001Z"
+      }
+    ]
+  },
+  {
+    "id": "parse-datetime.leap-second",
+    "op": "parse-datetime",
+    "args": [
+      {
+        "t": "str",
+        "v": "2016-12-31T23:59:60Z"
+      }
+    ]
+  },
+  {
+    "id": "parse-datetime.bad-offset",
+    "op": "parse-datetime",
+    "args": [
+      {
+        "t": "str",
+        "v": "1970-01-01T00:00:00+24:00"
+      }
+    ]
+  },
+  {
+    "id": "parse-datetime.no-offset",
+    "op": "parse-datetime",
+    "args": [
+      {
+        "t": "str",
+        "v": "1970-01-01T00:00:00"
+      }
+    ]
+  },
+  {
+    "id": "parse-datetime.year-zero",
+    "op": "parse-datetime",
+    "args": [
+      {
+        "t": "str",
+        "v": "0000-01-01T00:00:00Z"
+      }
+    ]
+  },
+  {
+    "id": "parse-datetime.bad-cal",
+    "op": "parse-datetime",
+    "args": [
+      {
+        "t": "str",
+        "v": "2024-02-30T00:00:00Z"
+      }
+    ]
+  },
+  {
+    "id": "make-date.leap",
+    "op": "make-date",
+    "args": [
+      {
+        "t": "num",
+        "v": 2024
+      },
+      {
+        "t": "num",
+        "v": 2
+      },
+      {
+        "t": "num",
+        "v": 29
+      }
+    ]
+  },
+  {
+    "id": "make-date.non-int",
+    "op": "make-date",
+    "args": [
+      {
+        "t": "num",
+        "v": 2024.5
+      },
+      {
+        "t": "num",
+        "v": 1
+      },
+      {
+        "t": "num",
+        "v": 1
+      }
+    ]
+  },
+  {
+    "id": "make-date.invalid",
+    "op": "make-date",
+    "args": [
+      {
+        "t": "num",
+        "v": 2023
+      },
+      {
+        "t": "num",
+        "v": 2
+      },
+      {
+        "t": "num",
+        "v": 29
+      }
+    ]
+  },
+  {
+    "id": "make-date.big-year",
+    "op": "make-date",
+    "args": [
+      {
+        "t": "num",
+        "v": 1e+21
+      },
+      {
+        "t": "num",
+        "v": 1
+      },
+      {
+        "t": "num",
+        "v": 1
+      }
+    ]
+  },
+  {
+    "id": "make-date.neg-zero-year",
+    "op": "make-date",
+    "args": [
+      {
+        "t": "num",
+        "v": 0
+      },
+      {
+        "t": "num",
+        "v": 1
+      },
+      {
+        "t": "num",
+        "v": 1
+      }
+    ]
+  },
+  {
+    "id": "weekday.floor",
+    "op": "weekday",
+    "args": [
+      {
+        "t": "date",
+        "year": 1,
+        "month": 1,
+        "day": 1
+      }
+    ]
+  },
+  {
+    "id": "add-months.floor",
+    "op": "add-months",
+    "args": [
+      {
+        "t": "date",
+        "year": 1,
+        "month": 12,
+        "day": 15
+      },
+      {
+        "t": "bigint",
+        "v": "-11"
+      }
+    ]
+  },
+  {
+    "id": "round-decimal.big-scale",
+    "op": "round-decimal",
+    "args": [
+      {
+        "t": "bigint",
+        "v": "1"
+      },
+      {
+        "t": "num",
+        "v": 1e+21
+      }
+    ]
+  },
+  {
+    "id": "epoch-days.huge",
+    "op": "epoch-days-to-date",
+    "args": [
+      {
+        "t": "num",
+        "v": 1e+21
+      }
+    ]
+  },
+  {
+    "id": "epoch-days.past-precheck",
+    "op": "epoch-days-to-date",
+    "args": [
+      {
+        "t": "num",
+        "v": 4000001
+      }
+    ]
+  },
+  {
+    "id": "decode-int.pi-wire",
+    "op": "decode-value",
+    "args": [
+      {
+        "t": "str",
+        "v": "int"
+      },
+      {
+        "t": "num",
+        "v": 3.14159
+      }
+    ]
+  },
+  {
+    "id": "decode-int.third-wire",
+    "op": "decode-value",
+    "args": [
+      {
+        "t": "str",
+        "v": "int"
+      },
+      {
+        "t": "num",
+        "v": 0.30000000000000004
+      }
+    ]
+  },
+  {
+    "id": "decode-int.neg-tiny",
+    "op": "decode-value",
+    "args": [
+      {
+        "t": "str",
+        "v": "int"
+      },
+      {
+        "t": "num",
+        "v": -2.5e-07
+      }
+    ]
+  },
+  {
+    "id": "make-datetime.zero",
+    "op": "make-datetime",
+    "args": [
+      {
+        "t": "bigint",
+        "v": "0"
+      }
+    ]
+  },
+  {
+    "id": "make-datetime.range",
+    "op": "make-datetime",
+    "args": [
+      {
+        "t": "bigint",
+        "v": "253402300800000"
+      }
+    ]
+  },
+  {
+    "id": "make-datetime.bad-type",
+    "op": "make-datetime",
+    "args": [
+      {
+        "t": "num",
+        "v": 0
+      }
+    ]
+  },
+  {
+    "id": "add-days.basic",
+    "op": "add-days",
+    "args": [
+      {
+        "t": "date",
+        "year": 2024,
+        "month": 1,
+        "day": 31
+      },
+      {
+        "t": "bigint",
+        "v": "1"
+      }
+    ]
+  },
+  {
+    "id": "add-days.range",
+    "op": "add-days",
+    "args": [
+      {
+        "t": "date",
+        "year": 9999,
+        "month": 12,
+        "day": 31
+      },
+      {
+        "t": "bigint",
+        "v": "1"
+      }
+    ]
+  },
+  {
+    "id": "add-days.wide",
+    "op": "add-days",
+    "args": [
+      {
+        "t": "date",
+        "year": 2024,
+        "month": 1,
+        "day": 1
+      },
+      {
+        "t": "bigint",
+        "v": "100000000000000000000000000"
+      }
+    ]
+  },
+  {
+    "id": "add-months.clamp",
+    "op": "add-months",
+    "args": [
+      {
+        "t": "date",
+        "year": 2024,
+        "month": 1,
+        "day": 31
+      },
+      {
+        "t": "bigint",
+        "v": "1"
+      }
+    ]
+  },
+  {
+    "id": "add-months.anchor",
+    "op": "add-months",
+    "args": [
+      {
+        "t": "date",
+        "year": 2024,
+        "month": 1,
+        "day": 31
+      },
+      {
+        "t": "bigint",
+        "v": "2"
+      }
+    ]
+  },
+  {
+    "id": "add-months.neg",
+    "op": "add-months",
+    "args": [
+      {
+        "t": "date",
+        "year": 2024,
+        "month": 3,
+        "day": 31
+      },
+      {
+        "t": "bigint",
+        "v": "-1"
+      }
+    ]
+  },
+  {
+    "id": "add-months.range",
+    "op": "add-months",
+    "args": [
+      {
+        "t": "date",
+        "year": 9999,
+        "month": 12,
+        "day": 1
+      },
+      {
+        "t": "bigint",
+        "v": "1"
+      }
+    ]
+  },
+  {
+    "id": "date-year.basic",
+    "op": "date-year",
+    "args": [
+      {
+        "t": "date",
+        "year": 2024,
+        "month": 6,
+        "day": 1
+      }
+    ]
+  },
+  {
+    "id": "weekday.epoch",
+    "op": "weekday",
+    "args": [
+      {
+        "t": "date",
+        "year": 1970,
+        "month": 1,
+        "day": 1
+      }
+    ]
+  },
+  {
+    "id": "weekday.leap",
+    "op": "weekday",
+    "args": [
+      {
+        "t": "date",
+        "year": 2024,
+        "month": 2,
+        "day": 29
+      }
+    ]
+  },
+  {
+    "id": "dates.empty-no-limit",
+    "op": "dates",
+    "args": [
+      {
+        "t": "date",
+        "year": 2024,
+        "month": 1,
+        "day": 1
+      },
+      {
+        "t": "date",
+        "year": 2024,
+        "month": 1,
+        "day": 1
+      },
+      {
+        "t": "bigint",
+        "v": "0"
+      }
+    ]
+  },
+  {
+    "id": "dates.empty-bad-limit-type",
+    "op": "dates",
+    "args": [
+      {
+        "t": "date",
+        "year": 2024,
+        "month": 1,
+        "day": 1
+      },
+      {
+        "t": "date",
+        "year": 2024,
+        "month": 1,
+        "day": 1
+      },
+      {
+        "t": "str",
+        "v": "x"
+      }
+    ]
+  },
+  {
+    "id": "dates.reversed-skips-limit-value",
+    "op": "dates",
+    "args": [
+      {
+        "t": "date",
+        "year": 2024,
+        "month": 1,
+        "day": 2
+      },
+      {
+        "t": "date",
+        "year": 2024,
+        "month": 1,
+        "day": 1
+      },
+      {
+        "t": "bigint",
+        "v": "0"
+      }
+    ]
+  },
+  {
+    "id": "dates.reversed",
+    "op": "dates",
+    "args": [
+      {
+        "t": "date",
+        "year": 2024,
+        "month": 1,
+        "day": 2
+      },
+      {
+        "t": "date",
+        "year": 2024,
+        "month": 1,
+        "day": 1
+      },
+      {
+        "t": "bigint",
+        "v": "10"
+      }
+    ]
+  },
+  {
+    "id": "dates.bad-limit",
+    "op": "dates",
+    "args": [
+      {
+        "t": "date",
+        "year": 2024,
+        "month": 1,
+        "day": 1
+      },
+      {
+        "t": "date",
+        "year": 2024,
+        "month": 1,
+        "day": 3
+      },
+      {
+        "t": "bigint",
+        "v": "0"
+      }
+    ]
+  },
+  {
+    "id": "dates.exceeded",
+    "op": "dates",
+    "args": [
+      {
+        "t": "date",
+        "year": 2024,
+        "month": 1,
+        "day": 1
+      },
+      {
+        "t": "date",
+        "year": 2024,
+        "month": 1,
+        "day": 4
+      },
+      {
+        "t": "bigint",
+        "v": "2"
+      }
+    ]
+  },
+  {
+    "id": "dates.basic",
+    "op": "dates",
+    "args": [
+      {
+        "t": "date",
+        "year": 2024,
+        "month": 1,
+        "day": 1
+      },
+      {
+        "t": "date",
+        "year": 2024,
+        "month": 1,
+        "day": 3
+      },
+      {
+        "t": "bigint",
+        "v": "2"
+      }
+    ]
+  },
+  {
+    "id": "overlaps.dates-hit",
+    "op": "overlaps",
+    "args": [
+      {
+        "t": "date",
+        "year": 2024,
+        "month": 1,
+        "day": 1
+      },
+      {
+        "t": "date",
+        "year": 2024,
+        "month": 1,
+        "day": 5
+      },
+      {
+        "t": "date",
+        "year": 2024,
+        "month": 1,
+        "day": 3
+      },
+      {
+        "t": "date",
+        "year": 2024,
+        "month": 1,
+        "day": 7
+      }
+    ]
+  },
+  {
+    "id": "overlaps.dates-touch",
+    "op": "overlaps",
+    "args": [
+      {
+        "t": "date",
+        "year": 2024,
+        "month": 1,
+        "day": 1
+      },
+      {
+        "t": "date",
+        "year": 2024,
+        "month": 1,
+        "day": 3
+      },
+      {
+        "t": "date",
+        "year": 2024,
+        "month": 1,
+        "day": 3
+      },
+      {
+        "t": "date",
+        "year": 2024,
+        "month": 1,
+        "day": 7
+      }
+    ]
+  },
+  {
+    "id": "overlaps.dates-empty",
+    "op": "overlaps",
+    "args": [
+      {
+        "t": "date",
+        "year": 2024,
+        "month": 1,
+        "day": 1
+      },
+      {
+        "t": "date",
+        "year": 2024,
+        "month": 1,
+        "day": 1
+      },
+      {
+        "t": "date",
+        "year": 2024,
+        "month": 1,
+        "day": 3
+      },
+      {
+        "t": "date",
+        "year": 2024,
+        "month": 1,
+        "day": 7
+      }
+    ]
+  },
+  {
+    "id": "overlaps.datetimes-hit",
+    "op": "overlaps",
+    "args": [
+      {
+        "t": "datetime",
+        "ms": "0"
+      },
+      {
+        "t": "datetime",
+        "ms": "10"
+      },
+      {
+        "t": "datetime",
+        "ms": "5"
+      },
+      {
+        "t": "datetime",
+        "ms": "15"
+      }
+    ]
+  },
+  {
+    "id": "overlaps.mixed",
+    "op": "overlaps",
+    "args": [
+      {
+        "t": "date",
+        "year": 2024,
+        "month": 1,
+        "day": 1
+      },
+      {
+        "t": "date",
+        "year": 2024,
+        "month": 1,
+        "day": 5
+      },
+      {
+        "t": "date",
+        "year": 2024,
+        "month": 1,
+        "day": 3
+      },
+      {
+        "t": "datetime",
+        "ms": "0"
+      }
+    ]
+  },
+  {
+    "id": "add-duration.durs",
+    "op": "add-duration",
+    "args": [
+      {
+        "t": "bigint",
+        "v": "1"
+      },
+      {
+        "t": "bigint",
+        "v": "2"
+      }
+    ]
+  },
+  {
+    "id": "add-duration.overflow",
+    "op": "add-duration",
+    "args": [
+      {
+        "t": "bigint",
+        "v": "9223372036854775807"
+      },
+      {
+        "t": "bigint",
+        "v": "1"
+      }
+    ]
+  },
+  {
+    "id": "add-duration.dur-dt",
+    "op": "add-duration",
+    "args": [
+      {
+        "t": "bigint",
+        "v": "1000"
+      },
+      {
+        "t": "datetime",
+        "ms": "0"
+      }
+    ]
+  },
+  {
+    "id": "add-duration.dt-dur",
+    "op": "add-duration",
+    "args": [
+      {
+        "t": "datetime",
+        "ms": "0"
+      },
+      {
+        "t": "bigint",
+        "v": "1000"
+      }
+    ]
+  },
+  {
+    "id": "add-duration.range",
+    "op": "add-duration",
+    "args": [
+      {
+        "t": "bigint",
+        "v": "1"
+      },
+      {
+        "t": "datetime",
+        "ms": "253402300799999"
+      }
+    ]
+  },
+  {
+    "id": "add-duration.dt-dt",
+    "op": "add-duration",
+    "args": [
+      {
+        "t": "datetime",
+        "ms": "0"
+      },
+      {
+        "t": "datetime",
+        "ms": "0"
+      }
+    ]
+  },
+  {
+    "id": "subtract-duration.dt-dur",
+    "op": "subtract-duration",
+    "args": [
+      {
+        "t": "datetime",
+        "ms": "1000"
+      },
+      {
+        "t": "bigint",
+        "v": "1000"
+      }
+    ]
+  },
+  {
+    "id": "multiply-duration.basic",
+    "op": "multiply-duration",
+    "args": [
+      {
+        "t": "bigint",
+        "v": "3"
+      },
+      {
+        "t": "bigint",
+        "v": "4"
+      }
+    ]
+  },
+  {
+    "id": "multiply-duration.first-msg",
+    "op": "multiply-duration",
+    "args": [
+      {
+        "t": "num",
+        "v": 1
+      },
+      {
+        "t": "bigint",
+        "v": "1"
+      }
+    ]
+  },
+  {
+    "id": "multiply-duration.second-msg",
+    "op": "multiply-duration",
+    "args": [
+      {
+        "t": "bigint",
+        "v": "1"
+      },
+      {
+        "t": "num",
+        "v": 1
+      }
+    ]
+  },
+  {
+    "id": "divide-duration-by-int.inexact",
+    "op": "divide-duration-by-int",
+    "args": [
+      {
+        "t": "bigint",
+        "v": "7"
+      },
+      {
+        "t": "bigint",
+        "v": "2"
+      }
+    ]
+  },
+  {
+    "id": "divide-duration-by-int.zero",
+    "op": "divide-duration-by-int",
+    "args": [
+      {
+        "t": "bigint",
+        "v": "7"
+      },
+      {
+        "t": "bigint",
+        "v": "0"
+      }
+    ]
+  },
+  {
+    "id": "remainder-duration.sign",
+    "op": "remainder-duration",
+    "args": [
+      {
+        "t": "bigint",
+        "v": "-7"
+      },
+      {
+        "t": "bigint",
+        "v": "3"
+      }
+    ]
+  },
+  {
+    "id": "compare-duration.basic",
+    "op": "compare-duration",
+    "args": [
+      {
+        "t": "bigint",
+        "v": "1"
+      },
+      {
+        "t": "bigint",
+        "v": "2"
+      }
+    ]
+  },
+  {
+    "id": "compare-duration.bad",
+    "op": "compare-duration",
+    "args": [
+      {
+        "t": "bigint",
+        "v": "1"
+      },
+      {
+        "t": "num",
+        "v": 2
+      }
+    ]
+  },
+  {
+    "id": "abs-duration.neg",
+    "op": "abs-duration",
+    "args": [
+      {
+        "t": "bigint",
+        "v": "-5"
+      }
+    ]
+  },
+  {
+    "id": "abs-duration.min",
+    "op": "abs-duration",
+    "args": [
+      {
+        "t": "bigint",
+        "v": "-9223372036854775808"
+      }
+    ]
+  },
+  {
+    "id": "negate-duration.min",
+    "op": "negate-duration",
+    "args": [
+      {
+        "t": "bigint",
+        "v": "-9223372036854775808"
+      }
+    ]
+  },
+  {
+    "id": "duration-between.basic",
+    "op": "duration-between",
+    "args": [
+      {
+        "t": "datetime",
+        "ms": "10"
+      },
+      {
+        "t": "datetime",
+        "ms": "4"
+      }
+    ]
+  },
+  {
+    "id": "compare-instant.basic",
+    "op": "compare-instant",
+    "args": [
+      {
+        "t": "datetime",
+        "ms": "1"
+      },
+      {
+        "t": "datetime",
+        "ms": "2"
+      }
+    ]
+  },
+  {
+    "id": "compare-date.basic",
+    "op": "compare-date",
+    "args": [
+      {
+        "t": "date",
+        "year": 2023,
+        "month": 12,
+        "day": 31
+      },
+      {
+        "t": "date",
+        "year": 2024,
+        "month": 1,
+        "day": 1
+      }
+    ]
+  },
+  {
+    "id": "sum-int.empty",
+    "op": "sum-int",
+    "args": [
+      {
+        "t": "array",
+        "items": []
+      }
+    ]
+  },
+  {
+    "id": "sum-int.cancel",
+    "op": "sum-int",
+    "args": [
+      {
+        "t": "array",
+        "items": [
+          {
+            "t": "bigint",
+            "v": "9223372036854775807"
+          },
+          {
+            "t": "bigint",
+            "v": "1"
+          },
+          {
+            "t": "bigint",
+            "v": "-1"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "sum-int.overflow",
+    "op": "sum-int",
+    "args": [
+      {
+        "t": "array",
+        "items": [
+          {
+            "t": "bigint",
+            "v": "9223372036854775807"
+          },
+          {
+            "t": "bigint",
+            "v": "1"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "sum-int.bad-elem",
+    "op": "sum-int",
+    "args": [
+      {
+        "t": "array",
+        "items": [
+          {
+            "t": "bigint",
+            "v": "1"
+          },
+          {
+            "t": "num",
+            "v": 2
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "sum-int.non-array",
+    "op": "sum-int",
+    "args": [
+      {
+        "t": "null"
+      }
+    ]
+  },
+  {
+    "id": "sum-decimal.non-array",
+    "op": "sum-decimal",
+    "args": [
+      {
+        "t": "str",
+        "v": "x"
+      }
+    ]
+  },
+  {
+    "id": "sum-duration.non-array",
+    "op": "sum-duration",
+    "args": [
+      {
+        "t": "bigint",
+        "v": "1"
+      }
+    ]
+  },
+  {
+    "id": "sum-money.non-array",
+    "op": "sum-money",
+    "args": [
+      {
+        "t": "record",
+        "entries": []
+      }
+    ]
+  },
+  {
+    "id": "sum-money.explicit-num",
+    "op": "sum-money",
+    "args": [
+      {
+        "t": "array",
+        "items": []
+      },
+      {
+        "t": "num",
+        "v": 5
+      }
+    ]
+  },
+  {
+    "id": "sum-decimal.empty",
+    "op": "sum-decimal",
+    "args": [
+      {
+        "t": "array",
+        "items": []
+      }
+    ]
+  },
+  {
+    "id": "sum-decimal.align",
+    "op": "sum-decimal",
+    "args": [
+      {
+        "t": "array",
+        "items": [
+          {
+            "t": "decimal",
+            "coef": "1",
+            "scale": 0
+          },
+          {
+            "t": "decimal",
+            "coef": "5",
+            "scale": 1
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "sum-decimal.domain-first",
+    "op": "sum-decimal",
+    "args": [
+      {
+        "t": "array",
+        "items": [
+          {
+            "t": "decimal",
+            "coef": "1",
+            "scale": 0
+          },
+          {
+            "t": "bigint",
+            "v": "2"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "sum-decimal.overflow",
+    "op": "sum-decimal",
+    "args": [
+      {
+        "t": "array",
+        "items": [
+          {
+            "t": "decimal",
+            "coef": "99999999999999999999999999999999999999",
+            "scale": 0
+          },
+          {
+            "t": "decimal",
+            "coef": "1",
+            "scale": 0
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "sum-duration.basic",
+    "op": "sum-duration",
+    "args": [
+      {
+        "t": "array",
+        "items": [
+          {
+            "t": "bigint",
+            "v": "1"
+          },
+          {
+            "t": "bigint",
+            "v": "2"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "sum-money.explicit-empty",
+    "op": "sum-money",
+    "args": [
+      {
+        "t": "array",
+        "items": []
+      },
+      {
+        "t": "str",
+        "v": "USD"
+      }
+    ]
+  },
+  {
+    "id": "sum-money.explicit-unknown",
+    "op": "sum-money",
+    "args": [
+      {
+        "t": "array",
+        "items": []
+      },
+      {
+        "t": "str",
+        "v": "XXX"
+      }
+    ]
+  },
+  {
+    "id": "sum-money.explicit-mismatch",
+    "op": "sum-money",
+    "args": [
+      {
+        "t": "array",
+        "items": [
+          {
+            "t": "money",
+            "minor": "100",
+            "currency": "USD"
+          },
+          {
+            "t": "money",
+            "minor": "1",
+            "currency": "EUR"
+          }
+        ]
+      },
+      {
+        "t": "str",
+        "v": "USD"
+      }
+    ]
+  },
+  {
+    "id": "sum-money.inferred-empty",
+    "op": "sum-money",
+    "args": [
+      {
+        "t": "array",
+        "items": []
+      }
+    ]
+  },
+  {
+    "id": "sum-money.inferred",
+    "op": "sum-money",
+    "args": [
+      {
+        "t": "array",
+        "items": [
+          {
+            "t": "money",
+            "minor": "100",
+            "currency": "JPY"
+          },
+          {
+            "t": "money",
+            "minor": "50",
+            "currency": "JPY"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "sum-money.inferred-mismatch",
+    "op": "sum-money",
+    "args": [
+      {
+        "t": "array",
+        "items": [
+          {
+            "t": "money",
+            "minor": "100",
+            "currency": "USD"
+          },
+          {
+            "t": "money",
+            "minor": "1",
+            "currency": "EUR"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "sum-money.inferred-unknown",
+    "op": "sum-money",
+    "args": [
+      {
+        "t": "array",
+        "items": [
+          {
+            "t": "money",
+            "minor": "100",
+            "currency": "ZZZ"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "sum-money.cancel",
+    "op": "sum-money",
+    "args": [
+      {
+        "t": "array",
+        "items": [
+          {
+            "t": "money",
+            "minor": "9223372036854775807",
+            "currency": "USD"
+          },
+          {
+            "t": "money",
+            "minor": "1",
+            "currency": "USD"
+          },
+          {
+            "t": "money",
+            "minor": "-1",
+            "currency": "USD"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "decode-int.basic",
+    "op": "decode-value",
+    "args": [
+      {
+        "t": "str",
+        "v": "int"
+      },
+      {
+        "t": "str",
+        "v": "42"
+      }
+    ]
+  },
+  {
+    "id": "decode-int.zeros",
+    "op": "decode-value",
+    "args": [
+      {
+        "t": "str",
+        "v": "int"
+      },
+      {
+        "t": "str",
+        "v": "007"
+      }
+    ]
+  },
+  {
+    "id": "decode-int.neg-zero",
+    "op": "decode-value",
+    "args": [
+      {
+        "t": "str",
+        "v": "int"
+      },
+      {
+        "t": "str",
+        "v": "-0"
+      }
+    ]
+  },
+  {
+    "id": "decode-int.max",
+    "op": "decode-value",
+    "args": [
+      {
+        "t": "str",
+        "v": "int"
+      },
+      {
+        "t": "str",
+        "v": "9223372036854775807"
+      }
+    ]
+  },
+  {
+    "id": "decode-int.bound",
+    "op": "decode-value",
+    "args": [
+      {
+        "t": "str",
+        "v": "int"
+      },
+      {
+        "t": "str",
+        "v": "9223372036854775808"
+      }
+    ]
+  },
+  {
+    "id": "decode-int.num",
+    "op": "decode-value",
+    "args": [
+      {
+        "t": "str",
+        "v": "int"
+      },
+      {
+        "t": "num",
+        "v": 5
+      }
+    ]
+  },
+  {
+    "id": "decode-int.float",
+    "op": "decode-value",
+    "args": [
+      {
+        "t": "str",
+        "v": "int"
+      },
+      {
+        "t": "num",
+        "v": 1.5
+      }
+    ]
+  },
+  {
+    "id": "decode-int.big",
+    "op": "decode-value",
+    "args": [
+      {
+        "t": "str",
+        "v": "int"
+      },
+      {
+        "t": "num",
+        "v": 1e+21
+      }
+    ]
+  },
+  {
+    "id": "decode-int.tiny",
+    "op": "decode-value",
+    "args": [
+      {
+        "t": "str",
+        "v": "int"
+      },
+      {
+        "t": "num",
+        "v": 1.5e-07
+      }
+    ]
+  },
+  {
+    "id": "decode-int.bigint-wire",
+    "op": "decode-value",
+    "args": [
+      {
+        "t": "str",
+        "v": "int"
+      },
+      {
+        "t": "bigint",
+        "v": "5"
+      }
+    ]
+  },
+  {
+    "id": "decode-int.null",
+    "op": "decode-value",
+    "args": [
+      {
+        "t": "str",
+        "v": "int"
+      },
+      {
+        "t": "null"
+      }
+    ]
+  },
+  {
+    "id": "decode-int.undef",
+    "op": "decode-value",
+    "args": [
+      {
+        "t": "str",
+        "v": "int"
+      },
+      {
+        "t": "undef"
+      }
+    ]
+  },
+  {
+    "id": "decode-int.text",
+    "op": "decode-value",
+    "args": [
+      {
+        "t": "str",
+        "v": "int"
+      },
+      {
+        "t": "str",
+        "v": "x"
+      }
+    ]
+  },
+  {
+    "id": "decode-int.array",
+    "op": "decode-value",
+    "args": [
+      {
+        "t": "str",
+        "v": "int"
+      },
+      {
+        "t": "array",
+        "items": [
+          {
+            "t": "num",
+            "v": 1
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "decode-int.record",
+    "op": "decode-value",
+    "args": [
+      {
+        "t": "str",
+        "v": "int"
+      },
+      {
+        "t": "decimal",
+        "coef": "1",
+        "scale": 0
+      }
+    ]
+  },
+  {
+    "id": "decode-decimal.basic",
+    "op": "decode-value",
+    "args": [
+      {
+        "t": "str",
+        "v": "decimal"
+      },
+      {
+        "t": "str",
+        "v": "1.50"
+      }
+    ]
+  },
+  {
+    "id": "decode-decimal.integral",
+    "op": "decode-value",
+    "args": [
+      {
+        "t": "str",
+        "v": "decimal"
+      },
+      {
+        "t": "str",
+        "v": "123"
+      }
+    ]
+  },
+  {
+    "id": "decode-decimal.num",
+    "op": "decode-value",
+    "args": [
+      {
+        "t": "str",
+        "v": "decimal"
+      },
+      {
+        "t": "num",
+        "v": 1
+      }
+    ]
+  },
+  {
+    "id": "decode-decimal.exponent",
+    "op": "decode-value",
+    "args": [
+      {
+        "t": "str",
+        "v": "decimal"
+      },
+      {
+        "t": "str",
+        "v": "1e3"
+      }
+    ]
+  },
+  {
+    "id": "decode-decimal.bound",
+    "op": "decode-value",
+    "args": [
+      {
+        "t": "str",
+        "v": "decimal"
+      },
+      {
+        "t": "str",
+        "v": "999999999999999999999999999999999999999"
+      }
+    ]
+  },
+  {
+    "id": "decode-money.basic",
+    "op": "decode-value",
+    "args": [
+      {
+        "t": "str",
+        "v": "money"
+      },
+      {
+        "t": "record",
+        "entries": [
+          [
+            "minor",
+            {
+              "t": "str",
+              "v": "100"
+            }
+          ],
+          [
+            "currency",
+            {
+              "t": "str",
+              "v": "USD"
+            }
+          ]
+        ]
+      }
+    ]
+  },
+  {
+    "id": "decode-money.missing",
+    "op": "decode-value",
+    "args": [
+      {
+        "t": "str",
+        "v": "money"
+      },
+      {
+        "t": "record",
+        "entries": [
+          [
+            "minor",
+            {
+              "t": "str",
+              "v": "5"
+            }
+          ]
+        ]
+      }
+    ]
+  },
+  {
+    "id": "decode-money.undef-key",
+    "op": "decode-value",
+    "args": [
+      {
+        "t": "str",
+        "v": "money"
+      },
+      {
+        "t": "record",
+        "entries": [
+          [
+            "minor",
+            {
+              "t": "str",
+              "v": "5"
+            }
+          ],
+          [
+            "currency",
+            {
+              "t": "undef"
+            }
+          ]
+        ]
+      }
+    ]
+  },
+  {
+    "id": "decode-money.multi",
+    "op": "decode-value",
+    "args": [
+      {
+        "t": "str",
+        "v": "money"
+      },
+      {
+        "t": "record",
+        "entries": [
+          [
+            "minor",
+            {
+              "t": "str",
+              "v": "x"
+            }
+          ],
+          [
+            "currency",
+            {
+              "t": "str",
+              "v": "ZZZ"
+            }
+          ],
+          [
+            "extra",
+            {
+              "t": "num",
+              "v": 1
+            }
+          ]
+        ]
+      }
+    ]
+  },
+  {
+    "id": "decode-money.minor-type",
+    "op": "decode-value",
+    "args": [
+      {
+        "t": "str",
+        "v": "money"
+      },
+      {
+        "t": "record",
+        "entries": [
+          [
+            "minor",
+            {
+              "t": "num",
+              "v": 5
+            }
+          ],
+          [
+            "currency",
+            {
+              "t": "str",
+              "v": "USD"
+            }
+          ]
+        ]
+      }
+    ]
+  },
+  {
+    "id": "decode-money.currency-type",
+    "op": "decode-value",
+    "args": [
+      {
+        "t": "str",
+        "v": "money"
+      },
+      {
+        "t": "record",
+        "entries": [
+          [
+            "minor",
+            {
+              "t": "str",
+              "v": "5"
+            }
+          ],
+          [
+            "currency",
+            {
+              "t": "num",
+              "v": 5
+            }
+          ]
+        ]
+      }
+    ]
+  },
+  {
+    "id": "decode-money.non-object",
+    "op": "decode-value",
+    "args": [
+      {
+        "t": "str",
+        "v": "money"
+      },
+      {
+        "t": "str",
+        "v": "x"
+      }
+    ]
+  },
+  {
+    "id": "decode-date.basic",
+    "op": "decode-value",
+    "args": [
+      {
+        "t": "str",
+        "v": "date"
+      },
+      {
+        "t": "str",
+        "v": "2024-02-29"
+      }
+    ]
+  },
+  {
+    "id": "decode-date.shape",
+    "op": "decode-value",
+    "args": [
+      {
+        "t": "str",
+        "v": "date"
+      },
+      {
+        "t": "str",
+        "v": "24-01-01"
+      }
+    ]
+  },
+  {
+    "id": "decode-date.unreal",
+    "op": "decode-value",
+    "args": [
+      {
+        "t": "str",
+        "v": "date"
+      },
+      {
+        "t": "str",
+        "v": "2023-02-29"
+      }
+    ]
+  },
+  {
+    "id": "decode-datetime.basic",
+    "op": "decode-value",
+    "args": [
+      {
+        "t": "str",
+        "v": "datetime"
+      },
+      {
+        "t": "str",
+        "v": "1970-01-01T00:00:00.000Z"
+      }
+    ]
+  },
+  {
+    "id": "decode-datetime.lower",
+    "op": "decode-value",
+    "args": [
+      {
+        "t": "str",
+        "v": "datetime"
+      },
+      {
+        "t": "str",
+        "v": "1970-01-01t00:00:00z"
+      }
+    ]
+  },
+  {
+    "id": "decode-datetime.no-millis",
+    "op": "decode-value",
+    "args": [
+      {
+        "t": "str",
+        "v": "datetime"
+      },
+      {
+        "t": "str",
+        "v": "1970-01-01T00:00:00Z"
+      }
+    ]
+  },
+  {
+    "id": "decode-datetime.offset",
+    "op": "decode-value",
+    "args": [
+      {
+        "t": "str",
+        "v": "datetime"
+      },
+      {
+        "t": "str",
+        "v": "1970-01-01T01:00:00+01:00"
+      }
+    ]
+  },
+  {
+    "id": "decode-datetime.bad-time",
+    "op": "decode-value",
+    "args": [
+      {
+        "t": "str",
+        "v": "datetime"
+      },
+      {
+        "t": "str",
+        "v": "2016-12-31T23:59:60.000Z"
+      }
+    ]
+  },
+  {
+    "id": "decode-datetime.bad-cal",
+    "op": "decode-value",
+    "args": [
+      {
+        "t": "str",
+        "v": "datetime"
+      },
+      {
+        "t": "str",
+        "v": "2023-02-29T00:00:00.000Z"
+      }
+    ]
+  },
+  {
+    "id": "decode-duration.basic",
+    "op": "decode-value",
+    "args": [
+      {
+        "t": "str",
+        "v": "duration"
+      },
+      {
+        "t": "str",
+        "v": "1500"
+      }
+    ]
+  },
+  {
+    "id": "decode-duration.frac",
+    "op": "decode-value",
+    "args": [
+      {
+        "t": "str",
+        "v": "duration"
+      },
+      {
+        "t": "str",
+        "v": "1500.5"
+      }
+    ]
+  },
+  {
+    "id": "encode-int.basic",
+    "op": "encode-value",
+    "args": [
+      {
+        "t": "str",
+        "v": "int"
+      },
+      {
+        "t": "bigint",
+        "v": "42"
+      }
+    ]
+  },
+  {
+    "id": "encode-int.bad-type",
+    "op": "encode-value",
+    "args": [
+      {
+        "t": "str",
+        "v": "int"
+      },
+      {
+        "t": "str",
+        "v": "5"
+      }
+    ]
+  },
+  {
+    "id": "encode-int.range",
+    "op": "encode-value",
+    "args": [
+      {
+        "t": "str",
+        "v": "int"
+      },
+      {
+        "t": "bigint",
+        "v": "9223372036854775808"
+      }
+    ]
+  },
+  {
+    "id": "encode-decimal.basic",
+    "op": "encode-value",
+    "args": [
+      {
+        "t": "str",
+        "v": "decimal"
+      },
+      {
+        "t": "decimal",
+        "coef": "150",
+        "scale": 2
+      }
+    ]
+  },
+  {
+    "id": "encode-decimal.zero",
+    "op": "encode-value",
+    "args": [
+      {
+        "t": "str",
+        "v": "decimal"
+      },
+      {
+        "t": "decimal",
+        "coef": "0",
+        "scale": 18
+      }
+    ]
+  },
+  {
+    "id": "encode-decimal.bad",
+    "op": "encode-value",
+    "args": [
+      {
+        "t": "str",
+        "v": "decimal"
+      },
+      {
+        "t": "bigint",
+        "v": "5"
+      }
+    ]
+  },
+  {
+    "id": "encode-money.basic",
+    "op": "encode-value",
+    "args": [
+      {
+        "t": "str",
+        "v": "money"
+      },
+      {
+        "t": "money",
+        "minor": "100",
+        "currency": "USD"
+      }
+    ]
+  },
+  {
+    "id": "encode-money.unknown",
+    "op": "encode-value",
+    "args": [
+      {
+        "t": "str",
+        "v": "money"
+      },
+      {
+        "t": "money",
+        "minor": "5",
+        "currency": "ZZZ"
+      }
+    ]
+  },
+  {
+    "id": "encode-money.minor-range",
+    "op": "encode-value",
+    "args": [
+      {
+        "t": "str",
+        "v": "money"
+      },
+      {
+        "t": "money",
+        "minor": "9223372036854775808",
+        "currency": "USD"
+      }
+    ]
+  },
+  {
+    "id": "encode-date.basic",
+    "op": "encode-value",
+    "args": [
+      {
+        "t": "str",
+        "v": "date"
+      },
+      {
+        "t": "date",
+        "year": 2024,
+        "month": 2,
+        "day": 9
+      }
+    ]
+  },
+  {
+    "id": "encode-date.bad",
+    "op": "encode-value",
+    "args": [
+      {
+        "t": "str",
+        "v": "date"
+      },
+      {
+        "t": "str",
+        "v": "x"
+      }
+    ]
+  },
+  {
+    "id": "encode-datetime.basic",
+    "op": "encode-value",
+    "args": [
+      {
+        "t": "str",
+        "v": "datetime"
+      },
+      {
+        "t": "datetime",
+        "ms": "0"
+      }
+    ]
+  },
+  {
+    "id": "encode-datetime.neg",
+    "op": "encode-value",
+    "args": [
+      {
+        "t": "str",
+        "v": "datetime"
+      },
+      {
+        "t": "datetime",
+        "ms": "-1"
+      }
+    ]
+  },
+  {
+    "id": "encode-datetime.max",
+    "op": "encode-value",
+    "args": [
+      {
+        "t": "str",
+        "v": "datetime"
+      },
+      {
+        "t": "datetime",
+        "ms": "253402300799999"
+      }
+    ]
+  },
+  {
+    "id": "encode-datetime.range",
+    "op": "encode-value",
+    "args": [
+      {
+        "t": "str",
+        "v": "datetime"
+      },
+      {
+        "t": "datetime",
+        "ms": "253402300800000"
+      }
+    ]
+  },
+  {
+    "id": "encode-duration.basic",
+    "op": "encode-value",
+    "args": [
+      {
+        "t": "str",
+        "v": "duration"
+      },
+      {
+        "t": "bigint",
+        "v": "-1500"
+      }
+    ]
+  },
+  {
+    "id": "is-decimal.ok",
+    "op": "is-decimal",
+    "args": [
+      {
+        "t": "decimal",
+        "coef": "1",
+        "scale": 0
+      }
+    ]
+  },
+  {
+    "id": "is-decimal.bad-coef",
+    "op": "is-decimal",
+    "args": [
+      {
+        "t": "record",
+        "entries": [
+          [
+            "kind",
+            {
+              "t": "str",
+              "v": "decimal"
+            }
+          ],
+          [
+            "coef",
+            {
+              "t": "num",
+              "v": 5
+            }
+          ],
+          [
+            "scale",
+            {
+              "t": "num",
+              "v": 0
+            }
+          ]
+        ]
+      }
+    ]
+  },
+  {
+    "id": "is-decimal.bad-scale",
+    "op": "is-decimal",
+    "args": [
+      {
+        "t": "decimal",
+        "coef": "5",
+        "scale": 19
+      }
+    ]
+  },
+  {
+    "id": "is-decimal.neg-zero-scale",
+    "op": "is-decimal",
+    "args": [
+      {
+        "t": "decimal",
+        "coef": "5",
+        "scale": 0
+      }
+    ]
+  },
+  {
+    "id": "add-decimal.neg-zero-scale",
+    "op": "add-decimal",
+    "args": [
+      {
+        "t": "decimal",
+        "coef": "5",
+        "scale": 0
+      },
+      {
+        "t": "bigint",
+        "v": "1"
+      }
+    ]
+  },
+  {
+    "id": "is-decimal.plain",
+    "op": "is-decimal",
+    "args": [
+      {
+        "t": "bigint",
+        "v": "5"
+      }
+    ]
+  },
+  {
+    "id": "is-money.ok",
+    "op": "is-money",
+    "args": [
+      {
+        "t": "money",
+        "minor": "1",
+        "currency": "USD"
+      }
+    ]
+  },
+  {
+    "id": "is-money.shape-only",
+    "op": "is-money",
+    "args": [
+      {
+        "t": "money",
+        "minor": "1",
+        "currency": "ZZZ"
+      }
+    ]
+  },
+  {
+    "id": "is-money.bad-shape",
+    "op": "is-money",
+    "args": [
+      {
+        "t": "money",
+        "minor": "1",
+        "currency": "usd"
+      }
+    ]
+  },
+  {
+    "id": "is-date.ok",
+    "op": "is-date",
+    "args": [
+      {
+        "t": "date",
+        "year": 2024,
+        "month": 2,
+        "day": 29
+      }
+    ]
+  },
+  {
+    "id": "is-date.unreal",
+    "op": "is-date",
+    "args": [
+      {
+        "t": "date",
+        "year": 2023,
+        "month": 2,
+        "day": 29
+      }
+    ]
+  },
+  {
+    "id": "is-datetime.ok",
+    "op": "is-datetime",
+    "args": [
+      {
+        "t": "datetime",
+        "ms": "0"
+      }
+    ]
+  },
+  {
+    "id": "is-datetime.wide",
+    "op": "is-datetime",
+    "args": [
+      {
+        "t": "datetime",
+        "ms": "100000000000000000000000000000000000000000000000000"
+      }
+    ]
+  },
+  {
+    "id": "is-datetime.bad-ms",
+    "op": "is-datetime",
+    "args": [
+      {
+        "t": "record",
+        "entries": [
+          [
+            "kind",
+            {
+              "t": "str",
+              "v": "datetime"
+            }
+          ],
+          [
+            "ms",
+            {
+              "t": "num",
+              "v": 5
+            }
+          ]
+        ]
+      }
+    ]
+  },
+  {
+    "id": "is-currency-shape.usd",
+    "op": "is-currency-shape",
+    "args": [
+      {
+        "t": "str",
+        "v": "USD"
+      }
+    ]
+  },
+  {
+    "id": "is-currency-shape.lower",
+    "op": "is-currency-shape",
+    "args": [
+      {
+        "t": "str",
+        "v": "usd"
+      }
+    ]
+  },
+  {
+    "id": "is-currency-shape.num",
+    "op": "is-currency-shape",
+    "args": [
+      {
+        "t": "num",
+        "v": 5
+      }
+    ]
+  },
+  {
+    "id": "money.div-dec",
+    "op": "divide-money",
+    "args": [
+      {
+        "t": "money",
+        "minor": "100",
+        "currency": "USD"
+      },
+      {
+        "t": "decimal",
+        "coef": "4",
+        "scale": 1
+      }
+    ]
+  },
+  {
+    "id": "money.mul-tie-even",
+    "op": "multiply-money",
+    "args": [
+      {
+        "t": "money",
+        "minor": "1",
+        "currency": "USD"
+      },
+      {
+        "t": "decimal",
+        "coef": "5",
+        "scale": 1
+      }
+    ]
+  },
+  {
+    "id": "money.mul-half-up",
+    "op": "multiply-money",
+    "args": [
+      {
+        "t": "money",
+        "minor": "3",
+        "currency": "USD"
+      },
+      {
+        "t": "decimal",
+        "coef": "5",
+        "scale": 1
+      }
+    ]
+  },
+  {
+    "id": "datetime.min-text",
+    "op": "parse-datetime",
+    "args": [
+      {
+        "t": "str",
+        "v": "0001-01-01T00:00:00Z"
+      }
+    ]
+  },
+  {
+    "id": "datetime.max-text",
+    "op": "parse-datetime",
+    "args": [
+      {
+        "t": "str",
+        "v": "9999-12-31T23:59:59.999Z"
+      }
+    ]
+  },
+  {
+    "id": "money.dec-exact",
+    "op": "money",
+    "args": [
+      {
+        "t": "decimal",
+        "coef": "1005",
+        "scale": 2
+      },
+      {
+        "t": "str",
+        "v": "USD"
+      }
+    ]
+  }
+]
