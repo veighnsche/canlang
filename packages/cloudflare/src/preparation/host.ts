@@ -34,6 +34,13 @@ import {
   type DeployBundle,
 } from "../deploy/bundle.js";
 import { buildBundleWithHostPhases } from "./build-adapter.js";
+import {
+  launchPreparation,
+  NativeLaunchError,
+  resolvePreparationBinary,
+  type BinaryResolution,
+} from "./executable.js";
+import { driveSession, encodeJsonFrame, FrameDecoder, ProtocolError } from "./protocol.js";
 import { manualApplyCommand, runWranglerDeploy } from "../upgrade/apply.js";
 import {
   PINNED_COMPATIBILITY_DATE,
@@ -481,4 +488,164 @@ export function formatVerdictLine(verdict: ActivationVerdict): string {
 /** Last `max` chars of `text` (wrangler output tail for the envelope). */
 export function tailText(text: string, max: number): string {
   return text.length > max ? text.slice(text.length - max) : text;
+}
+
+// ---------------------------------------------------------------------------
+// Native route (P03.4): backend selection, launch, drive, failure mapping.
+// The CLI keeps the TS route until P07; these entries run the scaffold
+// binary per mode for protocol/host coverage and readiness mapping.
+// ---------------------------------------------------------------------------
+
+export type BackendRequest = "ts" | "native" | "auto";
+
+export interface BackendSelection {
+  backend: "ts" | "native";
+  resolution: BinaryResolution | null;
+}
+
+/**
+ * Select before evaluation. `native` requires a launchable binary;
+ * `auto` takes native when one resolves, else TS. No fallback runs
+ * after a started native job fails — selection is the only switch.
+ */
+export async function selectBackend(request: BackendRequest): Promise<BackendSelection> {
+  if (request === "ts") return { backend: "ts", resolution: null };
+  try {
+    const resolution = await resolvePreparationBinary();
+    return { backend: "native", resolution };
+  } catch (error) {
+    if (request === "native") {
+      throw new NativeLaunchError(
+        "native-unavailable",
+        error instanceof Error ? error.message : String(error),
+      );
+    }
+    return { backend: "ts", resolution: null };
+  }
+}
+
+/**
+ * Map a native failure to a CLI failure code. Transport failures
+ * keep their core code under `native-`; spawn/lifecycle failures
+ * name the stage. Never throws: always `fail()`s the CLI.
+ */
+export function failNative(command: string, code: string, detail: string): never {
+  fail(command, `native-${code}`, detail);
+}
+
+export interface NativeJobResult {
+  prepared: { scaffold: boolean; mode: string; stages: string[]; resumes: unknown[] };
+  binaryPath: string;
+  source: BinaryResolution["source"];
+}
+
+/**
+ * Run one native job (scaffold: fixed probe sequence) and return the
+ * terminal `Prepared`. Non-probe stages throw `native-unimplemented`
+ * until P04+ lands real execution. Every subprocess failure maps to
+ * a CLI failure via `failNative` — tampered/garbage binaries fail
+ * loudly, never silently.
+ */
+export async function runNativeJob(
+  command: string,
+  mode: string,
+  onNeed?: (stage: string, request: unknown) => Promise<unknown> | unknown,
+  options?: { timeoutMs?: number },
+): Promise<NativeJobResult> {
+  let resolution: BinaryResolution;
+  try {
+    resolution = await resolvePreparationBinary();
+  } catch (error) {
+    failNative(
+      command,
+      "unavailable",
+      error instanceof Error ? error.message : String(error),
+    );
+  }
+  const { child, kill } = launchPreparation(resolution.path);
+  let stderr = "";
+  child.stderr?.on("data", (chunk: Uint8Array) => {
+    stderr += new TextDecoder().decode(chunk);
+  });
+  const exitCode = new Promise<number | null>((resolve) => {
+    child.on("close", resolve);
+    child.on("error", () => resolve(null));
+  });
+  try {
+    const prepared = await driveSession({
+      child,
+      mode,
+      timeoutMs: options?.timeoutMs,
+      onNeed: async (stage, request) => {
+        if (onNeed !== undefined) return onNeed(stage, request);
+        // Scaffold default: answer probes; real stages refuse loudly.
+        if (stage === "mcp_bun_probe" || stage === "catalog_probe") return { probe: "answered" };
+        throw new ProtocolError("unimplemented", `no native handler for stage ${stage} yet`);
+      },
+    });
+    return { prepared, binaryPath: resolution.path, source: resolution.source };
+  } catch (error) {
+    kill();
+    if (error instanceof ProtocolError) {
+      failNative(command, error.code, error.message);
+    }
+    const tail = stderr.length > 0 ? ` (stderr: ${tailText(stderr, 500)})` : "";
+    const detail = error instanceof Error ? error.message : String(error);
+    failNative(command, "crash", `${detail}${tail}`);
+  } finally {
+    // Drain process lifetime; the Failed frame (when present) already
+    // decided the verdict — a nonzero exit alone adds no new verdict.
+    await exitCode;
+  }
+}
+
+/**
+ * Readiness probe: handshake + abort against a fresh process.
+ * Returns true only on the exact `aborted` + exit-0 sequence.
+ * Used by packaging verify (P09.1) and the protocol tests — not
+ * per-job (selection resolves; the job handshake is the check).
+ */
+export async function probeReadiness(binaryPath: string): Promise<boolean> {
+  const { child, kill } = launchPreparation(binaryPath);
+  try {
+    if (child.stdin === null || child.stdout === null) return false;
+    const stdin = child.stdin;
+    const stdout = child.stdout;
+    const decoder = new FrameDecoder();
+    const frames: Array<{ tag: number; payload: Uint8Array }> = [];
+    const done = new Promise<boolean>((resolve) => {
+      const timer = setTimeout(() => resolve(false), 10_000);
+      const finish = (ok: boolean): void => {
+        clearTimeout(timer);
+        resolve(ok);
+      };
+      stdout.on("data", (chunk: Uint8Array) => {
+        try {
+          frames.push(...decoder.push(chunk));
+        } catch {
+          finish(false);
+          return;
+        }
+        if (frames.length === 1) {
+          // Accept received; abort before Begin.
+          stdin.write(encodeJsonFrame({ abort: {} }));
+        } else if (frames.length >= 2) {
+          const text = new TextDecoder().decode(frames[1]?.payload ?? new Uint8Array());
+          finish(text.includes('"aborted"'));
+        }
+      });
+      stdout.on("end", () => finish(false));
+      child.on("error", () => finish(false));
+    });
+    stdin.write(encodeJsonFrame({ protocol: "can-preparation", version: 1 }));
+    const ok = await done;
+    if (!ok) return false;
+    const code = await new Promise<number | null>((resolve) => {
+      child.on("close", resolve);
+      child.on("error", () => resolve(null));
+    });
+    return code === 0;
+  } finally {
+    kill();
+  }
 }
