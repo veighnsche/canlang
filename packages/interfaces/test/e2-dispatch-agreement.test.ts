@@ -11,10 +11,10 @@
  * - `LEDGER_CREATE`/`LEDGER_UPDATE` are the t19b fixtures verbatim
  *   (real `can 0.1.0` emission over the Ledger sources).
  * - `GADGET_CREATE` is the t19a fixture verbatim (Shop emission).
- * File values reach re-render as drafts only: form projection of file
- * inputs is F's T20b seam (ui throws `need S7 upload intents`).
- * File-field rendering is likewise F-held: E pins the graceful JSON
- * fallback and exercises all other rich widgets with ui's real fields.
+ * File values reach re-render as opaque-id drafts in S7 file slots
+ * (F1 join: the file widget renders a picker + hidden slot + attached
+ * line; file bytes never ride the op POST — the S7 intent flow carries
+ * them and the projection submits the finalized id verbatim).
  */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -279,9 +279,9 @@ test('E2a rich drafts render; ill-typed drafts degrade per-field', async () => {
     derived,
     mode: 'create',
     action: '/api/operations/Ledger.Gadget.create',
-    // Only the unimplemented file widget is out (F T20b seam); every
-    // other field below is ui's real generated widget for rich kinds.
-    fields: generatedFields(derived, 'create').filter((field) => field.path !== 'doc'),
+    // Full generated fields, file slot included (F1 join): every field
+    // below is ui's real generated widget for rich kinds.
+    fields: generatedFields(derived, 'create'),
     submit: 'Save',
     idPrefix: 'e2a-rich',
     timeZone: 'UTC',
@@ -307,8 +307,8 @@ test('E2a rich drafts render; ill-typed drafts degrade per-field', async () => {
       fragment: true,
     });
   // Well-formed rich drafts render with the banner; nothing throws. The
-  // money object draft exceeds the minor-only widget and drops per-field
-  // by design; the render still explains.
+  // money object draft flattens to its minor units plus the `__currency`
+  // companion (R5) and both redisplay; the render still explains.
   const ok = await render({
     title: 'w',
     stock: '3',
@@ -320,6 +320,8 @@ test('E2a rich drafts render; ill-typed drafts degrade per-field', async () => {
   assert.equal(ok.status, 400);
   assert.ok(ok.html.includes('Check the highlighted fields.'));
   assert.ok(ok.html.includes('inputs[price]'), 'rich field present');
+  assert.ok(ok.html.includes('value="100"'), 'money minor redisplays');
+  assert.ok(ok.html.includes('value="EUR"'), 'money currency redisplays');
   assert.ok(!ok.html.includes('    at '), 'no stack frames leak');
   // Ill-typed rich drafts degrade per-field; the render still explains.
   const degraded = await render({ title: 'w', price: 1.5, fee: 'nope', stock: 5 });
@@ -328,8 +330,9 @@ test('E2a rich drafts render; ill-typed drafts degrade per-field', async () => {
   assert.ok(!degraded.html.includes('    at '), 'no stack frames leak');
 });
 
-test('E2a file-field forms fall back to JSON (F T20b seam held)', async () => {
-  // Direct render rejects naming the unimplemented ui widget…
+test('E2a file-field forms re-render with S7 file slots (F1 join)', async () => {
+  // F1 delivered the file widget: the direct render carries the opaque
+  // file-id draft into the slot's attached line — no render throw.
   const { t, deps, csrf } = await dispatchSetup();
   const derived = deriveOperationInputs(LEDGER_CREATE);
   const full = bindingFromDerived({
@@ -350,19 +353,20 @@ test('E2a file-field forms fall back to JSON (F T20b seam held)', async () => {
     principal: await testPrincipal(t.identity.store, t.identity.cookie),
     query: async () => ({ rows: [], columns: [] }),
   });
-  await assert.rejects(
-    () =>
-      renderFormError({
-        error: buildBusinessError('validation', 'Missing required input.'),
-        draftInputs: { title: 'w' },
-        operationId: 'op-file',
-        binding: full,
-        context,
-        fragment: true,
-      }),
-    /need S7 upload intents/,
-  );
-  // …and dispatch degrades to the JSON denial: never HTML, never a 500.
+  const rendered = await renderFormError({
+    error: buildBusinessError('validation', 'Missing required input.'),
+    draftInputs: { title: 'w', doc: 'file-1' },
+    operationId: 'op-file',
+    binding: full,
+    context,
+    fragment: true,
+  });
+  assert.equal(rendered.status, 400);
+  assert.ok(rendered.html.includes('data-can-file="doc"'), 'picker slot renders');
+  assert.ok(rendered.html.includes('Attached file'), 'attached line renders');
+  assert.ok(rendered.html.includes('file-1'), 'file-id draft redisplays');
+  // …and dispatch re-renders the missing-doc denial as HTML: never bare
+  // JSON, never a 500.
   clearFormBindings();
   registerGenerated(LEDGER_CREATE, 'create', 'e2a-file');
   const res = await handleOperationRequest(
@@ -379,20 +383,20 @@ test('E2a file-field forms fall back to JSON (F T20b seam held)', async () => {
     'Ledger.Gadget.create',
   );
   assert.equal(res.status, 400);
-  assert.ok((res.headers.get('content-type') ?? '').includes('application/json'));
-  const body = (await res.json()) as { code: string; message: string };
-  assert.equal(body.code, 'validation');
-  assert.ok(body.message.includes('doc'), body.message);
+  const html = await res.text();
+  assert.ok(html.startsWith('<div id="e2a-file-form">'));
+  assert.ok(html.includes('data-can-file="doc"'), 'empty slot re-renders');
+  assert.ok(html.includes('doc'), 'denial names the missing input');
+  assert.ok(!html.includes('    at '), 'no stack frames leak');
   assert.equal(t.invoker.mutations.length, 0);
 });
 
 test('E2a update error path: stale rich submit re-renders 409 with record and changes', async () => {
   clearFormBindings();
   const { store, t, deps, csrf } = await dispatchSetup();
-  // `doc` excluded: the ui file widget is F's T20b seam (throws `need S7
-  // upload intents`); dropping only that field exercises E's update path
-  // with ui's real remaining widgets. File-field fallback pinned below.
-  registerGenerated(LEDGER_UPDATE, 'update', 'e2a-update', ['doc']);
+  // Full generated fields, file slot included (F1 join): E's update path
+  // renders with ui's real widgets throughout.
+  registerGenerated(LEDGER_UPDATE, 'update', 'e2a-update');
   store.rows.set('g1', { id: 'g1', version: '1', fields: { title: 'seeded' } });
   const res = await handleOperationRequest(
     deps,
