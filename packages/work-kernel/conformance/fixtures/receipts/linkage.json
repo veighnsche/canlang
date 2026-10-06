@@ -1,0 +1,1318 @@
+{
+  "provenance": {
+    "frozen_at_head": "a9476a4fedaf1c0b472ce8c33925b4090f176836",
+    "donors": {
+      "receipt": "packages/work/src/receipt/index.ts",
+      "recovery": "packages/work/src/recovery/index.ts",
+      "stateReceipt": "packages/state/src/receipt/tables.ts",
+      "transact": "packages/state/src/ports/transact.ts"
+    },
+    "donor_digests": {
+      "receipt": "5085f392192a1059c9a5d3bcf679e4984b77a0ab4a5e799bcd17812e8060d6e3",
+      "recovery": "c973d3b8fafd4db66ff2b6b278e3ff49c8121601b5d21665507e4ee3ff231859",
+      "stateReceipt": "ef64dfe3862e3a0aa2f21e9eeca6affbe66a8a0f832efc7da9f5e6e01d8b3866",
+      "transact": "2e39d28afc9655fce540411f446065af5b625eecd4d0fa71c4bc15021554491a"
+    },
+    "note": "Frozen independent originals captured from LIVE donors. Re-freeze recipe: see test headers."
+  },
+  "cases": [
+    {
+      "id": "dispatch-valid",
+      "fn": "assertDispatchJoin",
+      "input": [
+        {
+          "outbox": [
+            {
+              "intentId": "i1"
+            }
+          ],
+          "writes": [
+            {
+              "kind": "insert",
+              "model": "work.dispatch",
+              "row": {
+                "id": "i1",
+                "version": 1,
+                "created": 1000,
+                "updated": 1000,
+                "createdBy": "fz",
+                "updatedBy": "fz",
+                "archivedAt": null,
+                "parent": null,
+                "data": {
+                  "intentId": "i1",
+                  "guardVerdict": null
+                }
+              }
+            }
+          ]
+        }
+      ],
+      "expect": {
+        "ok": {
+          "$undef": true
+        }
+      }
+    },
+    {
+      "id": "dispatch-duplicate-intent",
+      "fn": "assertDispatchJoin",
+      "input": [
+        {
+          "outbox": [
+            {
+              "intentId": "i1"
+            },
+            {
+              "intentId": "i1"
+            }
+          ],
+          "writes": []
+        }
+      ],
+      "expect": {
+        "throw": {
+          "name": "StateError",
+          "code": "validation",
+          "message": "Dispatch join: duplicate outbox intent id \"i1\"."
+        }
+      }
+    },
+    {
+      "id": "dispatch-id-mismatch",
+      "fn": "assertDispatchJoin",
+      "input": [
+        {
+          "outbox": [
+            {
+              "intentId": "i1"
+            }
+          ],
+          "writes": [
+            {
+              "kind": "insert",
+              "model": "work.dispatch",
+              "row": {
+                "id": "other",
+                "version": 1,
+                "created": 1000,
+                "updated": 1000,
+                "createdBy": "fz",
+                "updatedBy": "fz",
+                "archivedAt": null,
+                "parent": null,
+                "data": {
+                  "intentId": "i1",
+                  "guardVerdict": null
+                }
+              }
+            }
+          ]
+        }
+      ],
+      "expect": {
+        "throw": {
+          "name": "StateError",
+          "code": "validation",
+          "message": "Dispatch join: work.dispatch row id \"other\" must equal its data.intentId \"i1\"."
+        }
+      }
+    },
+    {
+      "id": "dispatch-duplicate-row",
+      "fn": "assertDispatchJoin",
+      "input": [
+        {
+          "outbox": [
+            {
+              "intentId": "i1"
+            }
+          ],
+          "writes": [
+            {
+              "kind": "insert",
+              "model": "work.dispatch",
+              "row": {
+                "id": "i1",
+                "version": 1,
+                "created": 1000,
+                "updated": 1000,
+                "createdBy": "fz",
+                "updatedBy": "fz",
+                "archivedAt": null,
+                "parent": null,
+                "data": {
+                  "intentId": "i1",
+                  "guardVerdict": null
+                }
+              }
+            },
+            {
+              "kind": "insert",
+              "model": "work.dispatch",
+              "row": {
+                "id": "i1",
+                "version": 1,
+                "created": 1000,
+                "updated": 1000,
+                "createdBy": "fz",
+                "updatedBy": "fz",
+                "archivedAt": null,
+                "parent": null,
+                "data": {
+                  "intentId": "i1",
+                  "guardVerdict": null
+                }
+              }
+            }
+          ]
+        }
+      ],
+      "expect": {
+        "throw": {
+          "name": "StateError",
+          "code": "validation",
+          "message": "Dispatch join: duplicate work.dispatch row for \"i1\"."
+        }
+      }
+    },
+    {
+      "id": "dispatch-intent-without-row",
+      "fn": "assertDispatchJoin",
+      "input": [
+        {
+          "outbox": [
+            {
+              "intentId": "i1"
+            }
+          ],
+          "writes": []
+        }
+      ],
+      "expect": {
+        "throw": {
+          "name": "StateError",
+          "code": "validation",
+          "message": "Dispatch join: outbox intent \"i1\" has no work.dispatch row in this batch."
+        }
+      }
+    },
+    {
+      "id": "dispatch-row-without-intent",
+      "fn": "assertDispatchJoin",
+      "input": [
+        {
+          "outbox": [],
+          "writes": [
+            {
+              "kind": "insert",
+              "model": "work.dispatch",
+              "row": {
+                "id": "i9",
+                "version": 1,
+                "created": 1000,
+                "updated": 1000,
+                "createdBy": "fz",
+                "updatedBy": "fz",
+                "archivedAt": null,
+                "parent": null,
+                "data": {
+                  "intentId": "i9",
+                  "guardVerdict": null
+                }
+              }
+            }
+          ]
+        }
+      ],
+      "expect": {
+        "throw": {
+          "name": "StateError",
+          "code": "validation",
+          "message": "Dispatch join: work.dispatch row \"i9\" has no outbox intent in this batch (only guard-false skips stage row-only)."
+        }
+      }
+    },
+    {
+      "id": "dispatch-guard-false-row-only",
+      "fn": "assertDispatchJoin",
+      "input": [
+        {
+          "outbox": [],
+          "writes": [
+            {
+              "kind": "insert",
+              "model": "work.dispatch",
+              "row": {
+                "id": "sk",
+                "version": 1,
+                "created": 1000,
+                "updated": 1000,
+                "createdBy": "fz",
+                "updatedBy": "fz",
+                "archivedAt": null,
+                "parent": null,
+                "data": {
+                  "intentId": "sk",
+                  "guardVerdict": false
+                }
+              }
+            }
+          ]
+        }
+      ],
+      "expect": {
+        "ok": {
+          "$undef": true
+        }
+      }
+    },
+    {
+      "id": "dispatch-updates-pass",
+      "fn": "assertDispatchJoin",
+      "input": [
+        {
+          "outbox": [],
+          "writes": [
+            {
+              "kind": "update",
+              "model": "work.dispatch",
+              "id": "i1",
+              "row": {
+                "id": "i1",
+                "version": 1,
+                "created": 1000,
+                "updated": 1000,
+                "createdBy": "fz",
+                "updatedBy": "fz",
+                "archivedAt": null,
+                "parent": null,
+                "data": {
+                  "intentId": "i1",
+                  "guardVerdict": null
+                }
+              }
+            }
+          ]
+        }
+      ],
+      "expect": {
+        "ok": {
+          "$undef": true
+        }
+      }
+    },
+    {
+      "id": "dispatch-empty",
+      "fn": "assertDispatchJoin",
+      "input": [
+        {
+          "outbox": [],
+          "writes": []
+        }
+      ],
+      "expect": {
+        "ok": {
+          "$undef": true
+        }
+      }
+    },
+    {
+      "id": "dispatch-other-model",
+      "fn": "assertDispatchJoin",
+      "input": [
+        {
+          "outbox": [],
+          "writes": [
+            {
+              "kind": "insert",
+              "model": "work.other",
+              "row": {
+                "id": "x",
+                "version": 1,
+                "created": 1000,
+                "updated": 1000,
+                "createdBy": "fz",
+                "updatedBy": "fz",
+                "archivedAt": null,
+                "parent": null,
+                "data": {}
+              }
+            }
+          ]
+        }
+      ],
+      "expect": {
+        "ok": {
+          "$undef": true
+        }
+      }
+    },
+    {
+      "id": "dispatch-bad-intent-id",
+      "fn": "assertDispatchJoin",
+      "input": [
+        {
+          "outbox": [],
+          "writes": [
+            {
+              "kind": "insert",
+              "model": "work.dispatch",
+              "row": {
+                "id": "x",
+                "version": 1,
+                "created": 1000,
+                "updated": 1000,
+                "createdBy": "fz",
+                "updatedBy": "fz",
+                "archivedAt": null,
+                "parent": null,
+                "data": {
+                  "intentId": "",
+                  "guardVerdict": null
+                }
+              }
+            }
+          ]
+        }
+      ],
+      "expect": {
+        "throw": {
+          "name": "StateError",
+          "code": "validation",
+          "message": "Dispatch join: work.dispatch inserts must carry a non-empty data.intentId."
+        }
+      }
+    },
+    {
+      "id": "fanout-valid-unit",
+      "fn": "assertFanoutChildJoin",
+      "input": [
+        {
+          "writes": [
+            {
+              "kind": "update",
+              "model": "work.fanout_child",
+              "id": "fanout-child/v1/o/h/r1",
+              "row": {
+                "id": "fanout-child/v1/o/h/r1",
+                "version": 1,
+                "created": 1000,
+                "updated": 1000,
+                "createdBy": "fz",
+                "updatedBy": "fz",
+                "archivedAt": null,
+                "parent": null,
+                "data": {
+                  "fanoutId": "fanout/v1/o/h/model",
+                  "parentOccurrence": "o",
+                  "handler": "h",
+                  "recordId": "r1",
+                  "childId": "fanout-child/v1/o/h/r1",
+                  "state": "completed",
+                  "attempts": 1,
+                  "causeKind": "completed",
+                  "causeReason": null
+                }
+              }
+            },
+            {
+              "kind": "update",
+              "model": "work.fanout_checkpoint",
+              "id": "fanout/v1/o/h/model",
+              "row": {
+                "id": "fanout/v1/o/h/model",
+                "version": 1,
+                "created": 1000,
+                "updated": 1000,
+                "createdBy": "fz",
+                "updatedBy": "fz",
+                "archivedAt": null,
+                "parent": null,
+                "data": {
+                  "fanoutId": "fanout/v1/o/h/model",
+                  "completed": [
+                    "r1"
+                  ],
+                  "cursor": null
+                }
+              }
+            }
+          ]
+        }
+      ],
+      "expect": {
+        "ok": {
+          "$undef": true
+        }
+      }
+    },
+    {
+      "id": "fanout-intent-update",
+      "fn": "assertFanoutChildJoin",
+      "input": [
+        {
+          "writes": [
+            {
+              "kind": "update",
+              "model": "work.fanout_intent",
+              "id": "fanout/v1/o/h/model",
+              "row": {
+                "id": "fanout/v1/o/h/model",
+                "version": 1,
+                "created": 1000,
+                "updated": 1000,
+                "createdBy": "fz",
+                "updatedBy": "fz",
+                "archivedAt": null,
+                "parent": null,
+                "data": {
+                  "fanoutId": "fanout/v1/o/h/model",
+                  "sourceOccurrence": "o",
+                  "handler": "h",
+                  "cohort": "model",
+                  "members": [
+                    "r1"
+                  ],
+                  "memberCount": 1
+                }
+              }
+            }
+          ]
+        }
+      ],
+      "expect": {
+        "throw": {
+          "name": "StateError",
+          "code": "validation",
+          "message": "Fanout child join: work.fanout_intent rows are insert-only (the frozen set is never redefined)."
+        }
+      }
+    },
+    {
+      "id": "fanout-child-remove",
+      "fn": "assertFanoutChildJoin",
+      "input": [
+        {
+          "writes": [
+            {
+              "kind": "remove",
+              "model": "work.fanout_child",
+              "id": "fanout-child/v1/o/h/r1",
+              "row": {
+                "id": "fanout-child/v1/o/h/r1",
+                "version": 1,
+                "created": 1000,
+                "updated": 1000,
+                "createdBy": "fz",
+                "updatedBy": "fz",
+                "archivedAt": null,
+                "parent": null,
+                "data": {
+                  "fanoutId": "fanout/v1/o/h/model",
+                  "parentOccurrence": "o",
+                  "handler": "h",
+                  "recordId": "r1",
+                  "childId": "fanout-child/v1/o/h/r1",
+                  "state": "completed",
+                  "attempts": 1,
+                  "causeKind": "completed",
+                  "causeReason": null
+                }
+              }
+            }
+          ]
+        }
+      ],
+      "expect": {
+        "throw": {
+          "name": "StateError",
+          "code": "validation",
+          "message": "Fanout child join: work.fanout_child rows are never removed (terminal records stand)."
+        }
+      }
+    },
+    {
+      "id": "fanout-child-insert-live",
+      "fn": "assertFanoutChildJoin",
+      "input": [
+        {
+          "writes": [
+            {
+              "kind": "insert",
+              "model": "work.fanout_child",
+              "row": {
+                "id": "fanout-child/v1/o/h/r1",
+                "version": 1,
+                "created": 1000,
+                "updated": 1000,
+                "createdBy": "fz",
+                "updatedBy": "fz",
+                "archivedAt": null,
+                "parent": null,
+                "data": {
+                  "fanoutId": "fanout/v1/o/h/model",
+                  "parentOccurrence": "o",
+                  "handler": "h",
+                  "recordId": "r1",
+                  "childId": "fanout-child/v1/o/h/r1",
+                  "state": "completed",
+                  "attempts": 1,
+                  "causeKind": "completed",
+                  "causeReason": null
+                }
+              }
+            }
+          ]
+        }
+      ],
+      "expect": {
+        "throw": {
+          "name": "StateError",
+          "code": "validation",
+          "message": "Fanout child join: work.fanout_child inserts stage pending with zero attempts (no fabricated claims or outcomes)."
+        }
+      }
+    },
+    {
+      "id": "fanout-child-insert-dup",
+      "fn": "assertFanoutChildJoin",
+      "input": [
+        {
+          "writes": [
+            {
+              "kind": "insert",
+              "model": "work.fanout_child",
+              "row": {
+                "id": "fanout-child/v1/o/h/r1",
+                "version": 1,
+                "created": 1000,
+                "updated": 1000,
+                "createdBy": "fz",
+                "updatedBy": "fz",
+                "archivedAt": null,
+                "parent": null,
+                "data": {
+                  "fanoutId": "fanout/v1/o/h/model",
+                  "parentOccurrence": "o",
+                  "handler": "h",
+                  "recordId": "r1",
+                  "childId": "fanout-child/v1/o/h/r1",
+                  "state": "pending",
+                  "attempts": 0,
+                  "causeKind": null,
+                  "causeReason": null
+                }
+              }
+            },
+            {
+              "kind": "insert",
+              "model": "work.fanout_child",
+              "row": {
+                "id": "fanout-child/v1/o/h/r1",
+                "version": 1,
+                "created": 1000,
+                "updated": 1000,
+                "createdBy": "fz",
+                "updatedBy": "fz",
+                "archivedAt": null,
+                "parent": null,
+                "data": {
+                  "fanoutId": "fanout/v1/o/h/model",
+                  "parentOccurrence": "o",
+                  "handler": "h",
+                  "recordId": "r1",
+                  "childId": "fanout-child/v1/o/h/r1",
+                  "state": "pending",
+                  "attempts": 0,
+                  "causeKind": null,
+                  "causeReason": null
+                }
+              }
+            }
+          ]
+        }
+      ],
+      "expect": {
+        "throw": {
+          "name": "StateError",
+          "code": "validation",
+          "message": "Fanout child join: duplicate work.fanout_child row \"fanout-child/v1/o/h/r1\"."
+        }
+      }
+    },
+    {
+      "id": "fanout-checkpoint-insert-full",
+      "fn": "assertFanoutChildJoin",
+      "input": [
+        {
+          "writes": [
+            {
+              "kind": "insert",
+              "model": "work.fanout_checkpoint",
+              "row": {
+                "id": "fanout/v1/o/h/model",
+                "version": 1,
+                "created": 1000,
+                "updated": 1000,
+                "createdBy": "fz",
+                "updatedBy": "fz",
+                "archivedAt": null,
+                "parent": null,
+                "data": {
+                  "fanoutId": "fanout/v1/o/h/model",
+                  "completed": [
+                    "r1"
+                  ],
+                  "cursor": null
+                }
+              }
+            }
+          ]
+        }
+      ],
+      "expect": {
+        "throw": {
+          "name": "StateError",
+          "code": "validation",
+          "message": "Fanout child join: work.fanout_checkpoint inserts carry an empty completed set (no fabricated completion)."
+        }
+      }
+    },
+    {
+      "id": "fanout-checkpoint-dup",
+      "fn": "assertFanoutChildJoin",
+      "input": [
+        {
+          "writes": [
+            {
+              "kind": "update",
+              "model": "work.fanout_checkpoint",
+              "id": "fanout/v1/o/h/model",
+              "row": {
+                "id": "fanout/v1/o/h/model",
+                "version": 1,
+                "created": 1000,
+                "updated": 1000,
+                "createdBy": "fz",
+                "updatedBy": "fz",
+                "archivedAt": null,
+                "parent": null,
+                "data": {
+                  "fanoutId": "fanout/v1/o/h/model",
+                  "completed": [
+                    "r1"
+                  ],
+                  "cursor": null
+                }
+              }
+            },
+            {
+              "kind": "update",
+              "model": "work.fanout_checkpoint",
+              "id": "fanout/v1/o/h/model",
+              "row": {
+                "id": "fanout/v1/o/h/model",
+                "version": 1,
+                "created": 1000,
+                "updated": 1000,
+                "createdBy": "fz",
+                "updatedBy": "fz",
+                "archivedAt": null,
+                "parent": null,
+                "data": {
+                  "fanoutId": "fanout/v1/o/h/model",
+                  "completed": [
+                    "r1"
+                  ],
+                  "cursor": null
+                }
+              }
+            }
+          ]
+        }
+      ],
+      "expect": {
+        "throw": {
+          "name": "StateError",
+          "code": "validation",
+          "message": "Fanout child join: duplicate work.fanout_checkpoint row \"fanout/v1/o/h/model\"."
+        }
+      }
+    },
+    {
+      "id": "fanout-outcome-without-cover",
+      "fn": "assertFanoutChildJoin",
+      "input": [
+        {
+          "writes": [
+            {
+              "kind": "update",
+              "model": "work.fanout_child",
+              "id": "fanout-child/v1/o/h/r1",
+              "row": {
+                "id": "fanout-child/v1/o/h/r1",
+                "version": 1,
+                "created": 1000,
+                "updated": 1000,
+                "createdBy": "fz",
+                "updatedBy": "fz",
+                "archivedAt": null,
+                "parent": null,
+                "data": {
+                  "fanoutId": "fanout/v1/o/h/model",
+                  "parentOccurrence": "o",
+                  "handler": "h",
+                  "recordId": "r1",
+                  "childId": "fanout-child/v1/o/h/r1",
+                  "state": "completed",
+                  "attempts": 1,
+                  "causeKind": "completed",
+                  "causeReason": null
+                }
+              }
+            }
+          ]
+        }
+      ],
+      "expect": {
+        "throw": {
+          "name": "StateError",
+          "code": "validation",
+          "message": "Fanout child join: terminal outcome for \"r1\" has no same-fanout checkpoint cover in this batch."
+        }
+      }
+    },
+    {
+      "id": "fanout-cover-without-outcome",
+      "fn": "assertFanoutChildJoin",
+      "input": [
+        {
+          "writes": [
+            {
+              "kind": "update",
+              "model": "work.fanout_checkpoint",
+              "id": "fanout/v1/o/h/model",
+              "row": {
+                "id": "fanout/v1/o/h/model",
+                "version": 1,
+                "created": 1000,
+                "updated": 1000,
+                "createdBy": "fz",
+                "updatedBy": "fz",
+                "archivedAt": null,
+                "parent": null,
+                "data": {
+                  "fanoutId": "fanout/v1/o/h/model",
+                  "completed": [
+                    "r1"
+                  ],
+                  "cursor": null
+                }
+              }
+            }
+          ]
+        }
+      ],
+      "expect": {
+        "throw": {
+          "name": "StateError",
+          "code": "validation",
+          "message": "Fanout child join: checkpoint updates carry no terminal outcome in this batch (cursor-only maintenance uses the plain store port)."
+        }
+      }
+    },
+    {
+      "id": "fanout-nonterminal-passes",
+      "fn": "assertFanoutChildJoin",
+      "input": [
+        {
+          "writes": [
+            {
+              "kind": "update",
+              "model": "work.fanout_child",
+              "id": "fanout-child/v1/o/h/r1",
+              "row": {
+                "id": "fanout-child/v1/o/h/r1",
+                "version": 1,
+                "created": 1000,
+                "updated": 1000,
+                "createdBy": "fz",
+                "updatedBy": "fz",
+                "archivedAt": null,
+                "parent": null,
+                "data": {
+                  "fanoutId": "fanout/v1/o/h/model",
+                  "parentOccurrence": "o",
+                  "handler": "h",
+                  "recordId": "r1",
+                  "childId": "fanout-child/v1/o/h/r1",
+                  "state": "running",
+                  "attempts": 0,
+                  "causeKind": null,
+                  "causeReason": null
+                }
+              }
+            }
+          ]
+        }
+      ],
+      "expect": {
+        "ok": {
+          "$undef": true
+        }
+      }
+    },
+    {
+      "id": "fanout-empty",
+      "fn": "assertFanoutChildJoin",
+      "input": [
+        {
+          "writes": []
+        }
+      ],
+      "expect": {
+        "ok": {
+          "$undef": true
+        }
+      }
+    },
+    {
+      "id": "fanout-intent-insert-ok",
+      "fn": "assertFanoutChildJoin",
+      "input": [
+        {
+          "writes": [
+            {
+              "kind": "insert",
+              "model": "work.fanout_intent",
+              "row": {
+                "id": "fanout/v1/o/h/model",
+                "version": 1,
+                "created": 1000,
+                "updated": 1000,
+                "createdBy": "fz",
+                "updatedBy": "fz",
+                "archivedAt": null,
+                "parent": null,
+                "data": {
+                  "fanoutId": "fanout/v1/o/h/model",
+                  "sourceOccurrence": "o",
+                  "handler": "h",
+                  "cohort": "model",
+                  "members": [
+                    "a",
+                    "b"
+                  ],
+                  "memberCount": 2
+                }
+              }
+            }
+          ]
+        }
+      ],
+      "expect": {
+        "ok": {
+          "$undef": true
+        }
+      }
+    },
+    {
+      "id": "receipt-valid-pair",
+      "fn": "assertReceiptJoin",
+      "input": [
+        {
+          "writes": [
+            {
+              "kind": "insert",
+              "model": "work.receipt_association",
+              "row": {
+                "id": "receipt-assoc/v1/m/r/f",
+                "version": 1,
+                "created": 1000,
+                "updated": 1000,
+                "createdBy": "fz",
+                "updatedBy": "fz",
+                "archivedAt": null,
+                "parent": null,
+                "data": {
+                  "recordModel": "m",
+                  "recordId": "r",
+                  "field": "f",
+                  "deliveryId": "d-1",
+                  "source": "s",
+                  "revision": 2
+                }
+              }
+            },
+            {
+              "kind": "insert",
+              "model": "work.receipt",
+              "row": {
+                "id": "d-1",
+                "version": 1,
+                "created": 1000,
+                "updated": 1000,
+                "createdBy": "fz",
+                "updatedBy": "fz",
+                "archivedAt": null,
+                "parent": null,
+                "data": {
+                  "deliveryId": "d-1",
+                  "revision": 2,
+                  "status": "pending",
+                  "result": null,
+                  "error": null,
+                  "contentRef": null,
+                  "resultExpiresAtMs": null
+                }
+              }
+            }
+          ]
+        }
+      ],
+      "expect": {
+        "ok": {
+          "$undef": true
+        }
+      }
+    },
+    {
+      "id": "receipt-only-allowed",
+      "fn": "assertReceiptJoin",
+      "input": [
+        {
+          "writes": [
+            {
+              "kind": "insert",
+              "model": "work.receipt",
+              "row": {
+                "id": "d-9",
+                "version": 1,
+                "created": 1000,
+                "updated": 1000,
+                "createdBy": "fz",
+                "updatedBy": "fz",
+                "archivedAt": null,
+                "parent": null,
+                "data": {
+                  "deliveryId": "d-9",
+                  "revision": 0,
+                  "status": "pending",
+                  "result": null,
+                  "error": null,
+                  "contentRef": null,
+                  "resultExpiresAtMs": null
+                }
+              }
+            }
+          ]
+        }
+      ],
+      "expect": {
+        "ok": {
+          "$undef": true
+        }
+      }
+    },
+    {
+      "id": "receipt-assoc-without-receipt",
+      "fn": "assertReceiptJoin",
+      "input": [
+        {
+          "writes": [
+            {
+              "kind": "insert",
+              "model": "work.receipt_association",
+              "row": {
+                "id": "receipt-assoc/v1/m/r/f",
+                "version": 1,
+                "created": 1000,
+                "updated": 1000,
+                "createdBy": "fz",
+                "updatedBy": "fz",
+                "archivedAt": null,
+                "parent": null,
+                "data": {
+                  "recordModel": "m",
+                  "recordId": "r",
+                  "field": "f",
+                  "deliveryId": "d-1",
+                  "source": "s",
+                  "revision": 2
+                }
+              }
+            }
+          ]
+        }
+      ],
+      "expect": {
+        "throw": {
+          "name": "StateError",
+          "code": "validation",
+          "message": "Receipt join: association for \"d-1\" has no receipt row in this batch."
+        }
+      }
+    },
+    {
+      "id": "receipt-revision-skew",
+      "fn": "assertReceiptJoin",
+      "input": [
+        {
+          "writes": [
+            {
+              "kind": "insert",
+              "model": "work.receipt_association",
+              "row": {
+                "id": "receipt-assoc/v1/m/r/f",
+                "version": 1,
+                "created": 1000,
+                "updated": 1000,
+                "createdBy": "fz",
+                "updatedBy": "fz",
+                "archivedAt": null,
+                "parent": null,
+                "data": {
+                  "recordModel": "m",
+                  "recordId": "r",
+                  "field": "f",
+                  "deliveryId": "d-1",
+                  "source": "s",
+                  "revision": 2
+                }
+              }
+            },
+            {
+              "kind": "insert",
+              "model": "work.receipt",
+              "row": {
+                "id": "d-1",
+                "version": 1,
+                "created": 1000,
+                "updated": 1000,
+                "createdBy": "fz",
+                "updatedBy": "fz",
+                "archivedAt": null,
+                "parent": null,
+                "data": {
+                  "deliveryId": "d-1",
+                  "revision": 3,
+                  "status": "pending",
+                  "result": null,
+                  "error": null,
+                  "contentRef": null,
+                  "resultExpiresAtMs": null
+                }
+              }
+            }
+          ]
+        }
+      ],
+      "expect": {
+        "throw": {
+          "name": "StateError",
+          "code": "validation",
+          "message": "Receipt join: receipt revision 3 disagrees with association revision 2 for \"d-1\"."
+        }
+      }
+    },
+    {
+      "id": "receipt-duplicate-write",
+      "fn": "assertReceiptJoin",
+      "input": [
+        {
+          "writes": [
+            {
+              "kind": "insert",
+              "model": "work.receipt",
+              "row": {
+                "id": "d-1",
+                "version": 1,
+                "created": 1000,
+                "updated": 1000,
+                "createdBy": "fz",
+                "updatedBy": "fz",
+                "archivedAt": null,
+                "parent": null,
+                "data": {
+                  "deliveryId": "d-1",
+                  "revision": 0,
+                  "status": "pending",
+                  "result": null,
+                  "error": null,
+                  "contentRef": null,
+                  "resultExpiresAtMs": null
+                }
+              }
+            },
+            {
+              "kind": "insert",
+              "model": "work.receipt",
+              "row": {
+                "id": "d-1",
+                "version": 1,
+                "created": 1000,
+                "updated": 1000,
+                "createdBy": "fz",
+                "updatedBy": "fz",
+                "archivedAt": null,
+                "parent": null,
+                "data": {
+                  "deliveryId": "d-1",
+                  "revision": 0,
+                  "status": "pending",
+                  "result": null,
+                  "error": null,
+                  "contentRef": null,
+                  "resultExpiresAtMs": null
+                }
+              }
+            }
+          ]
+        }
+      ],
+      "expect": {
+        "throw": {
+          "name": "StateError",
+          "code": "validation",
+          "message": "Receipt join: duplicate work.receipt write for \"d-1\"."
+        }
+      }
+    },
+    {
+      "id": "receipt-update-id-mismatch",
+      "fn": "assertReceiptJoin",
+      "input": [
+        {
+          "writes": [
+            {
+              "kind": "update",
+              "model": "work.receipt",
+              "id": "nope",
+              "row": {
+                "id": "d-1",
+                "version": 1,
+                "created": 1000,
+                "updated": 1000,
+                "createdBy": "fz",
+                "updatedBy": "fz",
+                "archivedAt": null,
+                "parent": null,
+                "data": {
+                  "deliveryId": "d-1",
+                  "revision": 0,
+                  "status": "pending",
+                  "result": null,
+                  "error": null,
+                  "contentRef": null,
+                  "resultExpiresAtMs": null
+                }
+              }
+            }
+          ]
+        }
+      ],
+      "expect": {
+        "throw": {
+          "name": "StateError",
+          "code": "validation",
+          "message": "Receipt join: work.receipt update id \"nope\" must equal its row id \"d-1\"."
+        }
+      }
+    },
+    {
+      "id": "receipt-corrupt-row",
+      "fn": "assertReceiptJoin",
+      "input": [
+        {
+          "writes": [
+            {
+              "kind": "update",
+              "model": "work.receipt",
+              "id": "d-1",
+              "row": {
+                "id": "d-1",
+                "version": 1,
+                "created": 1000,
+                "updated": 1000,
+                "createdBy": "fz",
+                "updatedBy": "fz",
+                "archivedAt": null,
+                "parent": null,
+                "data": {
+                  "deliveryId": "d-1",
+                  "revision": -2,
+                  "status": "pending",
+                  "result": null,
+                  "error": null,
+                  "contentRef": null,
+                  "resultExpiresAtMs": null
+                }
+              }
+            }
+          ]
+        }
+      ],
+      "expect": {
+        "throw": {
+          "name": "StateError",
+          "code": "validation",
+          "message": "Receipt join: work.receipt.revision must be an integer >= 0."
+        }
+      }
+    },
+    {
+      "id": "receipt-remove-ignored",
+      "fn": "assertReceiptJoin",
+      "input": [
+        {
+          "writes": [
+            {
+              "kind": "remove",
+              "model": "work.receipt",
+              "id": "d-1",
+              "row": {
+                "id": "d-1",
+                "version": 1,
+                "created": 1000,
+                "updated": 1000,
+                "createdBy": "fz",
+                "updatedBy": "fz",
+                "archivedAt": null,
+                "parent": null,
+                "data": {
+                  "deliveryId": "d-1",
+                  "revision": 0,
+                  "status": "pending",
+                  "result": null,
+                  "error": null,
+                  "contentRef": null,
+                  "resultExpiresAtMs": null
+                }
+              }
+            }
+          ]
+        }
+      ],
+      "expect": {
+        "ok": {
+          "$undef": true
+        }
+      }
+    },
+    {
+      "id": "receipt-empty",
+      "fn": "assertReceiptJoin",
+      "input": [
+        {
+          "writes": []
+        }
+      ],
+      "expect": {
+        "ok": {
+          "$undef": true
+        }
+      }
+    }
+  ]
+}

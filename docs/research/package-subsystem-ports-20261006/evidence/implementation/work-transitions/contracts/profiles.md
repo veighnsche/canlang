@@ -41,14 +41,16 @@ enrollment, and the `createSystemRegistry` reader-only seam
 
 ## Profile 3 — Memory fixtures and test-only bridges (never production)
 
-`TestOnlyMemoryFanoutChildStore`, `TestOnly*Grants` ports, and the two
-state work-loaders are fixtures/bridges consumed by F3 memory tests,
+`TestOnlyMemoryFanoutChildStore`, `TestOnly*Grants` ports, and the
+fanout work-loader are fixtures/bridges consumed by F3 memory tests,
 F5 join tests, and the non-durable halves of F7 suites. The
-memory-store winner proof is synchronous single-process
-serialization: not durability, not multi-handle fencing, not restart.
-No production claim may cite these paths; Cloudflare bundling
-excludes `vendor/state/fanout/work-loader.js` and
-`receipt/work-loader.js`.
+receipt work-loader is additionally consumed by the invoke.ts D3b
+Node/memory serving edge (see DRIFT-SUPPLEMENT D3b below) — do not
+describe ALL receipt-loader consumers as test-only. The memory-store
+winner proof is synchronous single-process serialization: not
+durability, not multi-handle fencing, not restart. No production
+claim may cite these paths; Cloudflare bundling excludes
+`vendor/state/fanout/work-loader.js` and `receipt/work-loader.js`.
 
 ## Profile 4 — Absent named wait (explicit non-coverage)
 
@@ -88,3 +90,26 @@ split), state owner (mirrors/staging/transact/registry), cloudflare
 owner (F7 orchestration/producer seam), C04 delivery owner (vendor/
 bundle/manifest). Each profile and cross-profile rule above needs
 its owner's review before W02 extraction begins.
+
+## DRIFT-SUPPLEMENT D3b (2026-10-06, session 01a10fab-cc9d-7331, head `ef35e95`)
+
+`packages/cloudflare/src/runtime/invoke.ts:3321-3330` loads
+`STATE_RECEIPT_WORK_LOADER_SPECIFIER`
+(`../../../state/dist/state/src/receipt/work-loader.js`, `:2965`)
+through `loadProducerModule` + `requireProducerFn(loadWorkReceiptFns)`
+(`:1259`), the canonical producer-read helper shared with the
+registry/invoke/crud/models state producers. This is a genuine
+Node/memory serving edge: receipt-loader consumers are not all
+test-only. The fanout loader stays test-only (no invoke.ts
+consumer). Packaged/deployed observer loading stays UNQUALIFIED:
+`deploy/bundle.ts:212-213` still excludes both vendor work-loaders
+as TEST-ONLY bridges with node-only imports, and no deployed
+assembled/driver consumer is evidenced — Node is not relabeled as
+deployed. Retained: `invoke.ts:4508-4516` availability is a
+deferred host injection/mapping seam; kernel
+unavailable-before-guard does not establish equal host
+orchestration; F7 Miniflare D1/workerd DO test consumers are
+tests, not deployed-consumer evidence. Source identity:
+c07c51e→ef35e95 invoke.ts +439/−3, assembly.ts unchanged,
+2071631→ef35e95 neither file changed. Full record:
+`callers.json` `drift_supplement_d3b`.

@@ -1,0 +1,380 @@
+{
+  "provenance": {
+    "frozen_at_head": "7e050080c2d8178040d4e1ade785c195a796b67f",
+    "donor": "packages/work/src/kernel/tables.ts",
+    "donor_digest": "392c8a30f73b804638312ba09685666a0eb8734c33d7d41c3a3158ae4371a57e",
+    "note": "Frozen independent originals captured from LIVE donors. rows.ts must reproduce BOTH directions. Re-freeze recipe: see rows.test.ts header."
+  },
+  "cases": [
+    {
+      "id": "new-ok",
+      "direction": "work",
+      "fn": "newOccurrenceRow",
+      "input": [
+        {
+          "occurrenceId": "occ-1",
+          "status": "failed",
+          "result": {
+            "v": [
+              1,
+              "a"
+            ]
+          },
+          "code": "E1",
+          "message": "boom",
+          "recordedAtMs": 42
+        },
+        {
+          "nowMs": 1728000000000,
+          "actor": "w02.2-freeze"
+        }
+      ],
+      "expect": {
+        "ok": {
+          "id": "occ-1",
+          "version": 1,
+          "created": 1728000000000,
+          "updated": 1728000000000,
+          "createdBy": "w02.2-freeze",
+          "updatedBy": "w02.2-freeze",
+          "archivedAt": null,
+          "parent": null,
+          "data": {
+            "occurrenceId": "occ-1",
+            "status": "failed",
+            "result": {
+              "v": [
+                1,
+                "a"
+              ]
+            },
+            "code": "E1",
+            "message": "boom",
+            "recordedAtMs": 42
+          }
+        }
+      }
+    },
+    {
+      "id": "read-result-default-null",
+      "direction": "work",
+      "fn": "readOccurrenceRow",
+      "input": [
+        {
+          "id": "occ-1",
+          "version": 1,
+          "created": 1728000000000,
+          "updated": 1728000000000,
+          "createdBy": "w02.2-freeze",
+          "updatedBy": "w02.2-freeze",
+          "archivedAt": null,
+          "parent": null,
+          "data": {
+            "occurrenceId": "occ-1",
+            "status": "completed",
+            "code": null,
+            "message": null,
+            "recordedAtMs": 42
+          }
+        }
+      ],
+      "expect": {
+        "ok": {
+          "occurrenceId": "occ-1",
+          "status": "completed",
+          "result": null,
+          "code": null,
+          "message": null,
+          "recordedAtMs": 42
+        }
+      }
+    },
+    {
+      "id": "read-bad-status",
+      "direction": "work",
+      "fn": "readOccurrenceRow",
+      "input": [
+        {
+          "id": "x",
+          "version": 1,
+          "created": 1728000000000,
+          "updated": 1728000000000,
+          "createdBy": "w02.2-freeze",
+          "updatedBy": "w02.2-freeze",
+          "archivedAt": null,
+          "parent": null,
+          "data": {
+            "occurrenceId": "x",
+            "status": "running",
+            "result": null,
+            "code": null,
+            "message": null,
+            "recordedAtMs": 1
+          }
+        }
+      ],
+      "expect": {
+        "throw": {
+          "name": "KernelTableError",
+          "message": "work.occurrence.status must be completed or failed, got \"running\"."
+        }
+      }
+    },
+    {
+      "id": "read-status-number",
+      "direction": "work",
+      "fn": "readOccurrenceRow",
+      "input": [
+        {
+          "id": "x",
+          "version": 1,
+          "created": 1728000000000,
+          "updated": 1728000000000,
+          "createdBy": "w02.2-freeze",
+          "updatedBy": "w02.2-freeze",
+          "archivedAt": null,
+          "parent": null,
+          "data": {
+            "occurrenceId": "x",
+            "status": 5,
+            "result": null,
+            "code": null,
+            "message": null,
+            "recordedAtMs": 1
+          }
+        }
+      ],
+      "expect": {
+        "throw": {
+          "name": "KernelTableError",
+          "message": "work.occurrence.status must be completed or failed, got 5."
+        }
+      }
+    },
+    {
+      "id": "read-status-big",
+      "direction": "work",
+      "fn": "readOccurrenceRow",
+      "input": [
+        {
+          "id": "x",
+          "version": 1,
+          "created": 1728000000000,
+          "updated": 1728000000000,
+          "createdBy": "w02.2-freeze",
+          "updatedBy": "w02.2-freeze",
+          "archivedAt": null,
+          "parent": null,
+          "data": {
+            "occurrenceId": "x",
+            "status": 1e+21,
+            "result": null,
+            "code": null,
+            "message": null,
+            "recordedAtMs": 1
+          }
+        }
+      ],
+      "expect": {
+        "throw": {
+          "name": "KernelTableError",
+          "message": "work.occurrence.status must be completed or failed, got 1e+21."
+        }
+      }
+    },
+    {
+      "id": "read-status-nan",
+      "direction": "work",
+      "fn": "readOccurrenceRow",
+      "input": [
+        {
+          "id": "x",
+          "version": 1,
+          "created": 1728000000000,
+          "updated": 1728000000000,
+          "createdBy": "w02.2-freeze",
+          "updatedBy": "w02.2-freeze",
+          "archivedAt": null,
+          "parent": null,
+          "data": {
+            "occurrenceId": "x",
+            "status": {
+              "$num": "NaN"
+            },
+            "result": null,
+            "code": null,
+            "message": null,
+            "recordedAtMs": 1
+          }
+        }
+      ],
+      "expect": {
+        "throw": {
+          "name": "KernelTableError",
+          "message": "work.occurrence.status must be completed or failed, got null."
+        }
+      }
+    },
+    {
+      "id": "read-status-true",
+      "direction": "work",
+      "fn": "readOccurrenceRow",
+      "input": [
+        {
+          "id": "x",
+          "version": 1,
+          "created": 1728000000000,
+          "updated": 1728000000000,
+          "createdBy": "w02.2-freeze",
+          "updatedBy": "w02.2-freeze",
+          "archivedAt": null,
+          "parent": null,
+          "data": {
+            "occurrenceId": "x",
+            "status": true,
+            "result": null,
+            "code": null,
+            "message": null,
+            "recordedAtMs": 1
+          }
+        }
+      ],
+      "expect": {
+        "throw": {
+          "name": "KernelTableError",
+          "message": "work.occurrence.status must be completed or failed, got true."
+        }
+      }
+    },
+    {
+      "id": "read-status-nested",
+      "direction": "work",
+      "fn": "readOccurrenceRow",
+      "input": [
+        {
+          "id": "x",
+          "version": 1,
+          "created": 1728000000000,
+          "updated": 1728000000000,
+          "createdBy": "w02.2-freeze",
+          "updatedBy": "w02.2-freeze",
+          "archivedAt": null,
+          "parent": null,
+          "data": {
+            "occurrenceId": "x",
+            "status": {
+              "a": [
+                1,
+                "x"
+              ]
+            },
+            "result": null,
+            "code": null,
+            "message": null,
+            "recordedAtMs": 1
+          }
+        }
+      ],
+      "expect": {
+        "throw": {
+          "name": "KernelTableError",
+          "message": "work.occurrence.status must be completed or failed, got {\"a\":[1,\"x\"]}."
+        }
+      }
+    },
+    {
+      "id": "read-nan-recorded",
+      "direction": "work",
+      "fn": "readOccurrenceRow",
+      "input": [
+        {
+          "id": "x",
+          "version": 1,
+          "created": 1728000000000,
+          "updated": 1728000000000,
+          "createdBy": "w02.2-freeze",
+          "updatedBy": "w02.2-freeze",
+          "archivedAt": null,
+          "parent": null,
+          "data": {
+            "occurrenceId": "x",
+            "status": "completed",
+            "result": null,
+            "code": null,
+            "message": null,
+            "recordedAtMs": {
+              "$num": "NaN"
+            }
+          }
+        }
+      ],
+      "expect": {
+        "throw": {
+          "name": "KernelTableError",
+          "message": "work.occurrence.recordedAtMs must be finite epoch ms >= 0."
+        }
+      }
+    },
+    {
+      "id": "new-cyclic-result",
+      "direction": "work",
+      "fn": "newOccurrenceRow",
+      "input": [
+        {
+          "occurrenceId": "o",
+          "status": "completed",
+          "result": {
+            "self": {
+              "$ref": "$[0].result"
+            }
+          },
+          "code": null,
+          "message": null,
+          "recordedAtMs": 5
+        },
+        {
+          "nowMs": 1728000000000,
+          "actor": "w02.2-freeze"
+        }
+      ],
+      "expect": {
+        "throw": {
+          "name": "KernelTableError",
+          "message": "work.occurrence data.result.self is cyclic."
+        }
+      }
+    },
+    {
+      "id": "new-shared-ref-dag",
+      "direction": "work",
+      "fn": "newOccurrenceRow",
+      "input": [
+        {
+          "occurrenceId": "o",
+          "status": "completed",
+          "result": {
+            "a": {
+              "v": 1
+            },
+            "b": {
+              "$ref": "$[0].result.a"
+            }
+          },
+          "code": null,
+          "message": null,
+          "recordedAtMs": 5
+        },
+        {
+          "nowMs": 1728000000000,
+          "actor": "w02.2-freeze"
+        }
+      ],
+      "expect": {
+        "throw": {
+          "name": "KernelTableError",
+          "message": "work.occurrence data.result.b is cyclic."
+        }
+      }
+    }
+  ]
+}

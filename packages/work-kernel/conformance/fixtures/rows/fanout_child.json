@@ -1,0 +1,1389 @@
+{
+  "provenance": {
+    "frozen_at_head": "7e050080c2d8178040d4e1ade785c195a796b67f",
+    "donor": "packages/work/src/kernel/tables.ts",
+    "donor_digest": "392c8a30f73b804638312ba09685666a0eb8734c33d7d41c3a3158ae4371a57e",
+    "note": "Frozen independent originals captured from LIVE donors. rows.ts must reproduce BOTH directions. Re-freeze recipe: see rows.test.ts header."
+  },
+  "cases": [
+    {
+      "id": "new-defaults",
+      "direction": "work",
+      "fn": "newFanoutChildRow",
+      "input": [
+        {
+          "fanoutId": "f1",
+          "parentOccurrence": "occ-8",
+          "handler": "h",
+          "recordId": "rec-1"
+        },
+        {
+          "nowMs": 1728000000000,
+          "actor": "w02.2-freeze"
+        }
+      ],
+      "expect": {
+        "ok": {
+          "id": "fanout-child/v1/occ-8/h/rec-1",
+          "version": 1,
+          "created": 1728000000000,
+          "updated": 1728000000000,
+          "createdBy": "w02.2-freeze",
+          "updatedBy": "w02.2-freeze",
+          "archivedAt": null,
+          "parent": null,
+          "data": {
+            "fanoutId": "f1",
+            "parentOccurrence": "occ-8",
+            "handler": "h",
+            "recordId": "rec-1",
+            "childId": "fanout-child/v1/occ-8/h/rec-1",
+            "state": "pending",
+            "attempts": 0,
+            "causeKind": null,
+            "causeReason": null
+          }
+        }
+      }
+    },
+    {
+      "id": "new-completed",
+      "direction": "work",
+      "fn": "newFanoutChildRow",
+      "input": [
+        {
+          "fanoutId": "f1",
+          "parentOccurrence": "occ-8",
+          "handler": "h",
+          "recordId": "rec-1",
+          "state": "completed",
+          "causeKind": "completed"
+        },
+        {
+          "nowMs": 1728000000000,
+          "actor": "w02.2-freeze"
+        }
+      ],
+      "expect": {
+        "ok": {
+          "id": "fanout-child/v1/occ-8/h/rec-1",
+          "version": 1,
+          "created": 1728000000000,
+          "updated": 1728000000000,
+          "createdBy": "w02.2-freeze",
+          "updatedBy": "w02.2-freeze",
+          "archivedAt": null,
+          "parent": null,
+          "data": {
+            "fanoutId": "f1",
+            "parentOccurrence": "occ-8",
+            "handler": "h",
+            "recordId": "rec-1",
+            "childId": "fanout-child/v1/occ-8/h/rec-1",
+            "state": "completed",
+            "attempts": 0,
+            "causeKind": "completed",
+            "causeReason": null
+          }
+        }
+      }
+    },
+    {
+      "id": "new-skipped",
+      "direction": "work",
+      "fn": "newFanoutChildRow",
+      "input": [
+        {
+          "fanoutId": "f1",
+          "parentOccurrence": "occ-8",
+          "handler": "h",
+          "recordId": "rec-1",
+          "state": "skipped",
+          "causeKind": "skipped",
+          "causeReason": "deleted"
+        },
+        {
+          "nowMs": 1728000000000,
+          "actor": "w02.2-freeze"
+        }
+      ],
+      "expect": {
+        "ok": {
+          "id": "fanout-child/v1/occ-8/h/rec-1",
+          "version": 1,
+          "created": 1728000000000,
+          "updated": 1728000000000,
+          "createdBy": "w02.2-freeze",
+          "updatedBy": "w02.2-freeze",
+          "archivedAt": null,
+          "parent": null,
+          "data": {
+            "fanoutId": "f1",
+            "parentOccurrence": "occ-8",
+            "handler": "h",
+            "recordId": "rec-1",
+            "childId": "fanout-child/v1/occ-8/h/rec-1",
+            "state": "skipped",
+            "attempts": 0,
+            "causeKind": "skipped",
+            "causeReason": "deleted"
+          }
+        }
+      }
+    },
+    {
+      "id": "new-failed",
+      "direction": "work",
+      "fn": "newFanoutChildRow",
+      "input": [
+        {
+          "fanoutId": "f1",
+          "parentOccurrence": "occ-8",
+          "handler": "h",
+          "recordId": "rec-1",
+          "state": "failed",
+          "causeKind": "failed",
+          "causeReason": "terminal",
+          "attempts": 4
+        },
+        {
+          "nowMs": 1728000000000,
+          "actor": "w02.2-freeze"
+        }
+      ],
+      "expect": {
+        "ok": {
+          "id": "fanout-child/v1/occ-8/h/rec-1",
+          "version": 1,
+          "created": 1728000000000,
+          "updated": 1728000000000,
+          "createdBy": "w02.2-freeze",
+          "updatedBy": "w02.2-freeze",
+          "archivedAt": null,
+          "parent": null,
+          "data": {
+            "fanoutId": "f1",
+            "parentOccurrence": "occ-8",
+            "handler": "h",
+            "recordId": "rec-1",
+            "childId": "fanout-child/v1/occ-8/h/rec-1",
+            "state": "failed",
+            "attempts": 4,
+            "causeKind": "failed",
+            "causeReason": "terminal"
+          }
+        }
+      }
+    },
+    {
+      "id": "new-pending-with-cause",
+      "direction": "work",
+      "fn": "newFanoutChildRow",
+      "input": [
+        {
+          "fanoutId": "f1",
+          "parentOccurrence": "occ-8",
+          "handler": "h",
+          "recordId": "rec-1",
+          "causeKind": "completed"
+        },
+        {
+          "nowMs": 1728000000000,
+          "actor": "w02.2-freeze"
+        }
+      ],
+      "expect": {
+        "throw": {
+          "name": "KernelTableError",
+          "message": "work.fanout_child cause must be null until terminal, got \"completed\"."
+        }
+      }
+    },
+    {
+      "id": "new-completed-with-reason",
+      "direction": "work",
+      "fn": "newFanoutChildRow",
+      "input": [
+        {
+          "fanoutId": "f1",
+          "parentOccurrence": "occ-8",
+          "handler": "h",
+          "recordId": "rec-1",
+          "state": "completed",
+          "causeKind": "completed",
+          "causeReason": "x"
+        },
+        {
+          "nowMs": 1728000000000,
+          "actor": "w02.2-freeze"
+        }
+      ],
+      "expect": {
+        "throw": {
+          "name": "KernelTableError",
+          "message": "work.fanout_child completed cause must be kind completed with no reason."
+        }
+      }
+    },
+    {
+      "id": "new-skipped-bad-reason",
+      "direction": "work",
+      "fn": "newFanoutChildRow",
+      "input": [
+        {
+          "fanoutId": "f1",
+          "parentOccurrence": "occ-8",
+          "handler": "h",
+          "recordId": "rec-1",
+          "state": "skipped",
+          "causeKind": "skipped",
+          "causeReason": "whatever"
+        },
+        {
+          "nowMs": 1728000000000,
+          "actor": "w02.2-freeze"
+        }
+      ],
+      "expect": {
+        "throw": {
+          "name": "KernelTableError",
+          "message": "work.fanout_child skipped cause needs a closed reason, got \"whatever\"."
+        }
+      }
+    },
+    {
+      "id": "new-fractional-attempts",
+      "direction": "work",
+      "fn": "newFanoutChildRow",
+      "input": [
+        {
+          "fanoutId": "f1",
+          "parentOccurrence": "occ-8",
+          "handler": "h",
+          "recordId": "rec-1",
+          "attempts": 0.5
+        },
+        {
+          "nowMs": 1728000000000,
+          "actor": "w02.2-freeze"
+        }
+      ],
+      "expect": {
+        "throw": {
+          "name": "KernelTableError",
+          "message": "work.fanout_child.attempts must be an integer >= 0."
+        }
+      }
+    },
+    {
+      "id": "new-unknown-state",
+      "direction": "work",
+      "fn": "newFanoutChildRow",
+      "input": [
+        {
+          "fanoutId": "f1",
+          "parentOccurrence": "occ-8",
+          "handler": "h",
+          "recordId": "rec-1",
+          "state": "held"
+        },
+        {
+          "nowMs": 1728000000000,
+          "actor": "w02.2-freeze"
+        }
+      ],
+      "expect": {
+        "throw": {
+          "name": "KernelTableError",
+          "message": "work.fanout_child.state is unknown: \"held\"."
+        }
+      }
+    },
+    {
+      "id": "id-derivation",
+      "direction": "work",
+      "fn": "fanoutChildRowId",
+      "input": [
+        "occ-8",
+        "h/a",
+        "r 1"
+      ],
+      "expect": {
+        "ok": "fanout-child/v1/occ-8/h%2Fa/r%201"
+      }
+    },
+    {
+      "id": "read-ok",
+      "direction": "work",
+      "fn": "readFanoutChildRow",
+      "input": [
+        {
+          "id": "fanout-child/v1/occ-8/h/rec-1",
+          "version": 1,
+          "created": 1728000000000,
+          "updated": 1728000000000,
+          "createdBy": "w02.2-freeze",
+          "updatedBy": "w02.2-freeze",
+          "archivedAt": null,
+          "parent": null,
+          "data": {
+            "fanoutId": "f1",
+            "parentOccurrence": "occ-8",
+            "handler": "h",
+            "recordId": "rec-1",
+            "childId": "fanout-child/v1/occ-8/h/rec-1",
+            "state": "failed",
+            "attempts": 2,
+            "causeKind": "failed",
+            "causeReason": "exhausted"
+          }
+        }
+      ],
+      "expect": {
+        "ok": {
+          "fanoutId": "f1",
+          "parentOccurrence": "occ-8",
+          "handler": "h",
+          "recordId": "rec-1",
+          "childId": "fanout-child/v1/occ-8/h/rec-1",
+          "state": "failed",
+          "attempts": 2,
+          "causeKind": "failed",
+          "causeReason": "exhausted"
+        }
+      }
+    },
+    {
+      "id": "read-derivation-mismatch",
+      "direction": "work",
+      "fn": "readFanoutChildRow",
+      "input": [
+        {
+          "id": "fanout-child/v1/occ-8/h/rec-1",
+          "version": 1,
+          "created": 1728000000000,
+          "updated": 1728000000000,
+          "createdBy": "w02.2-freeze",
+          "updatedBy": "w02.2-freeze",
+          "archivedAt": null,
+          "parent": null,
+          "data": {
+            "fanoutId": "f1",
+            "parentOccurrence": "occ-8",
+            "handler": "h",
+            "recordId": "rec-1",
+            "childId": "fanout-child/v1/other/h/rec-1",
+            "state": "pending",
+            "attempts": 0,
+            "causeKind": null,
+            "causeReason": null
+          }
+        }
+      ],
+      "expect": {
+        "throw": {
+          "name": "KernelTableError",
+          "message": "work.fanout_child.childId is not the parent+handler+record derivation."
+        }
+      }
+    },
+    {
+      "id": "read-rowid-mismatch",
+      "direction": "work",
+      "fn": "readFanoutChildRow",
+      "input": [
+        {
+          "id": "nope",
+          "version": 1,
+          "created": 1728000000000,
+          "updated": 1728000000000,
+          "createdBy": "w02.2-freeze",
+          "updatedBy": "w02.2-freeze",
+          "archivedAt": null,
+          "parent": null,
+          "data": {
+            "fanoutId": "f1",
+            "parentOccurrence": "occ-8",
+            "handler": "h",
+            "recordId": "rec-1",
+            "childId": "fanout-child/v1/occ-8/h/rec-1",
+            "state": "pending",
+            "attempts": 0,
+            "causeKind": null,
+            "causeReason": null
+          }
+        }
+      ],
+      "expect": {
+        "throw": {
+          "name": "KernelTableError",
+          "message": "work.fanout_child row id must equal its childId."
+        }
+      }
+    },
+    {
+      "id": "page-query-first",
+      "direction": "work",
+      "fn": "fanoutChildPageQuery",
+      "input": [
+        "f1",
+        {
+          "cursor": null,
+          "limit": 50
+        }
+      ],
+      "expect": {
+        "ok": {
+          "model": "work.fanout_child",
+          "where": {
+            "op": "eq",
+            "field": "fanoutId",
+            "value": "f1"
+          },
+          "order": [
+            {
+              "field": "id",
+              "direction": "asc"
+            }
+          ],
+          "limit": 50,
+          "authority": "owner"
+        }
+      }
+    },
+    {
+      "id": "page-query-resume",
+      "direction": "work",
+      "fn": "fanoutChildPageQuery",
+      "input": [
+        "f1",
+        {
+          "cursor": "fanout-child/v1/x",
+          "limit": 1
+        }
+      ],
+      "expect": {
+        "ok": {
+          "model": "work.fanout_child",
+          "where": {
+            "op": "and",
+            "args": [
+              {
+                "op": "eq",
+                "field": "fanoutId",
+                "value": "f1"
+              },
+              {
+                "op": "gt",
+                "field": "id",
+                "value": "fanout-child/v1/x"
+              }
+            ]
+          },
+          "order": [
+            {
+              "field": "id",
+              "direction": "asc"
+            }
+          ],
+          "limit": 1,
+          "authority": "owner"
+        }
+      }
+    },
+    {
+      "id": "page-query-limit0",
+      "direction": "work",
+      "fn": "fanoutChildPageQuery",
+      "input": [
+        "f1",
+        {
+          "cursor": null,
+          "limit": 0
+        }
+      ],
+      "expect": {
+        "throw": {
+          "name": "KernelTableError",
+          "message": "fanout page limit must be an integer >= 1."
+        }
+      }
+    },
+    {
+      "id": "page-query-empty-cursor",
+      "direction": "work",
+      "fn": "fanoutChildPageQuery",
+      "input": [
+        "f1",
+        {
+          "cursor": "",
+          "limit": 5
+        }
+      ],
+      "expect": {
+        "throw": {
+          "name": "KernelTableError",
+          "message": "fanout page cursor must be non-empty or null."
+        }
+      }
+    },
+    {
+      "id": "page-short",
+      "direction": "work",
+      "fn": "fanoutChildPageResult",
+      "input": [
+        [
+          {
+            "id": "a",
+            "version": 1,
+            "created": 1728000000000,
+            "updated": 1728000000000,
+            "createdBy": "w02.2-freeze",
+            "updatedBy": "w02.2-freeze",
+            "archivedAt": null,
+            "parent": null,
+            "data": {}
+          }
+        ],
+        5
+      ],
+      "expect": {
+        "ok": {
+          "rows": [
+            {
+              "id": "a",
+              "version": 1,
+              "created": 1728000000000,
+              "updated": 1728000000000,
+              "createdBy": "w02.2-freeze",
+              "updatedBy": "w02.2-freeze",
+              "archivedAt": null,
+              "parent": null,
+              "data": {}
+            }
+          ],
+          "done": true,
+          "cursor": null
+        }
+      }
+    },
+    {
+      "id": "page-full",
+      "direction": "work",
+      "fn": "fanoutChildPageResult",
+      "input": [
+        [
+          {
+            "id": "a",
+            "version": 1,
+            "created": 1728000000000,
+            "updated": 1728000000000,
+            "createdBy": "w02.2-freeze",
+            "updatedBy": "w02.2-freeze",
+            "archivedAt": null,
+            "parent": null,
+            "data": {}
+          },
+          {
+            "id": "b",
+            "version": 1,
+            "created": 1728000000000,
+            "updated": 1728000000000,
+            "createdBy": "w02.2-freeze",
+            "updatedBy": "w02.2-freeze",
+            "archivedAt": null,
+            "parent": null,
+            "data": {}
+          }
+        ],
+        2
+      ],
+      "expect": {
+        "ok": {
+          "rows": [
+            {
+              "id": "a",
+              "version": 1,
+              "created": 1728000000000,
+              "updated": 1728000000000,
+              "createdBy": "w02.2-freeze",
+              "updatedBy": "w02.2-freeze",
+              "archivedAt": null,
+              "parent": null,
+              "data": {}
+            },
+            {
+              "id": "b",
+              "version": 1,
+              "created": 1728000000000,
+              "updated": 1728000000000,
+              "createdBy": "w02.2-freeze",
+              "updatedBy": "w02.2-freeze",
+              "archivedAt": null,
+              "parent": null,
+              "data": {}
+            }
+          ],
+          "done": false,
+          "cursor": "b"
+        }
+      }
+    },
+    {
+      "id": "page-over",
+      "direction": "work",
+      "fn": "fanoutChildPageResult",
+      "input": [
+        [
+          {
+            "id": "a",
+            "version": 1,
+            "created": 1728000000000,
+            "updated": 1728000000000,
+            "createdBy": "w02.2-freeze",
+            "updatedBy": "w02.2-freeze",
+            "archivedAt": null,
+            "parent": null,
+            "data": {}
+          },
+          {
+            "id": "b",
+            "version": 1,
+            "created": 1728000000000,
+            "updated": 1728000000000,
+            "createdBy": "w02.2-freeze",
+            "updatedBy": "w02.2-freeze",
+            "archivedAt": null,
+            "parent": null,
+            "data": {}
+          },
+          {
+            "id": "c",
+            "version": 1,
+            "created": 1728000000000,
+            "updated": 1728000000000,
+            "createdBy": "w02.2-freeze",
+            "updatedBy": "w02.2-freeze",
+            "archivedAt": null,
+            "parent": null,
+            "data": {}
+          }
+        ],
+        2
+      ],
+      "expect": {
+        "throw": {
+          "name": "KernelTableError",
+          "message": "fanout page returned 3 rows past limit 2."
+        }
+      }
+    },
+    {
+      "id": "new-defaults",
+      "direction": "state",
+      "fn": "newFanoutChildRow",
+      "input": [
+        {
+          "fanoutId": "f1",
+          "parentOccurrence": "occ-8",
+          "handler": "h",
+          "recordId": "rec-1"
+        },
+        {
+          "nowMs": 1728000000000,
+          "actor": "w02.2-freeze"
+        }
+      ],
+      "expect": {
+        "ok": {
+          "id": "fanout-child/v1/occ-8/h/rec-1",
+          "version": 1,
+          "created": 1728000000000,
+          "updated": 1728000000000,
+          "createdBy": "w02.2-freeze",
+          "updatedBy": "w02.2-freeze",
+          "archivedAt": null,
+          "parent": null,
+          "data": {
+            "fanoutId": "f1",
+            "parentOccurrence": "occ-8",
+            "handler": "h",
+            "recordId": "rec-1",
+            "childId": "fanout-child/v1/occ-8/h/rec-1",
+            "state": "pending",
+            "attempts": 0,
+            "causeKind": null,
+            "causeReason": null
+          }
+        }
+      }
+    },
+    {
+      "id": "new-completed",
+      "direction": "state",
+      "fn": "newFanoutChildRow",
+      "input": [
+        {
+          "fanoutId": "f1",
+          "parentOccurrence": "occ-8",
+          "handler": "h",
+          "recordId": "rec-1",
+          "state": "completed",
+          "causeKind": "completed"
+        },
+        {
+          "nowMs": 1728000000000,
+          "actor": "w02.2-freeze"
+        }
+      ],
+      "expect": {
+        "ok": {
+          "id": "fanout-child/v1/occ-8/h/rec-1",
+          "version": 1,
+          "created": 1728000000000,
+          "updated": 1728000000000,
+          "createdBy": "w02.2-freeze",
+          "updatedBy": "w02.2-freeze",
+          "archivedAt": null,
+          "parent": null,
+          "data": {
+            "fanoutId": "f1",
+            "parentOccurrence": "occ-8",
+            "handler": "h",
+            "recordId": "rec-1",
+            "childId": "fanout-child/v1/occ-8/h/rec-1",
+            "state": "completed",
+            "attempts": 0,
+            "causeKind": "completed",
+            "causeReason": null
+          }
+        }
+      }
+    },
+    {
+      "id": "new-skipped",
+      "direction": "state",
+      "fn": "newFanoutChildRow",
+      "input": [
+        {
+          "fanoutId": "f1",
+          "parentOccurrence": "occ-8",
+          "handler": "h",
+          "recordId": "rec-1",
+          "state": "skipped",
+          "causeKind": "skipped",
+          "causeReason": "deleted"
+        },
+        {
+          "nowMs": 1728000000000,
+          "actor": "w02.2-freeze"
+        }
+      ],
+      "expect": {
+        "ok": {
+          "id": "fanout-child/v1/occ-8/h/rec-1",
+          "version": 1,
+          "created": 1728000000000,
+          "updated": 1728000000000,
+          "createdBy": "w02.2-freeze",
+          "updatedBy": "w02.2-freeze",
+          "archivedAt": null,
+          "parent": null,
+          "data": {
+            "fanoutId": "f1",
+            "parentOccurrence": "occ-8",
+            "handler": "h",
+            "recordId": "rec-1",
+            "childId": "fanout-child/v1/occ-8/h/rec-1",
+            "state": "skipped",
+            "attempts": 0,
+            "causeKind": "skipped",
+            "causeReason": "deleted"
+          }
+        }
+      }
+    },
+    {
+      "id": "new-failed",
+      "direction": "state",
+      "fn": "newFanoutChildRow",
+      "input": [
+        {
+          "fanoutId": "f1",
+          "parentOccurrence": "occ-8",
+          "handler": "h",
+          "recordId": "rec-1",
+          "state": "failed",
+          "causeKind": "failed",
+          "causeReason": "terminal",
+          "attempts": 4
+        },
+        {
+          "nowMs": 1728000000000,
+          "actor": "w02.2-freeze"
+        }
+      ],
+      "expect": {
+        "ok": {
+          "id": "fanout-child/v1/occ-8/h/rec-1",
+          "version": 1,
+          "created": 1728000000000,
+          "updated": 1728000000000,
+          "createdBy": "w02.2-freeze",
+          "updatedBy": "w02.2-freeze",
+          "archivedAt": null,
+          "parent": null,
+          "data": {
+            "fanoutId": "f1",
+            "parentOccurrence": "occ-8",
+            "handler": "h",
+            "recordId": "rec-1",
+            "childId": "fanout-child/v1/occ-8/h/rec-1",
+            "state": "failed",
+            "attempts": 4,
+            "causeKind": "failed",
+            "causeReason": "terminal"
+          }
+        }
+      }
+    },
+    {
+      "id": "new-pending-with-cause",
+      "direction": "state",
+      "fn": "newFanoutChildRow",
+      "input": [
+        {
+          "fanoutId": "f1",
+          "parentOccurrence": "occ-8",
+          "handler": "h",
+          "recordId": "rec-1",
+          "causeKind": "completed"
+        },
+        {
+          "nowMs": 1728000000000,
+          "actor": "w02.2-freeze"
+        }
+      ],
+      "expect": {
+        "throw": {
+          "name": "StateError",
+          "code": "validation",
+          "message": "work.fanout_child cause must be null until terminal, got \"completed\"."
+        }
+      }
+    },
+    {
+      "id": "new-completed-with-reason",
+      "direction": "state",
+      "fn": "newFanoutChildRow",
+      "input": [
+        {
+          "fanoutId": "f1",
+          "parentOccurrence": "occ-8",
+          "handler": "h",
+          "recordId": "rec-1",
+          "state": "completed",
+          "causeKind": "completed",
+          "causeReason": "x"
+        },
+        {
+          "nowMs": 1728000000000,
+          "actor": "w02.2-freeze"
+        }
+      ],
+      "expect": {
+        "throw": {
+          "name": "StateError",
+          "code": "validation",
+          "message": "work.fanout_child completed cause must be kind completed with no reason."
+        }
+      }
+    },
+    {
+      "id": "new-skipped-bad-reason",
+      "direction": "state",
+      "fn": "newFanoutChildRow",
+      "input": [
+        {
+          "fanoutId": "f1",
+          "parentOccurrence": "occ-8",
+          "handler": "h",
+          "recordId": "rec-1",
+          "state": "skipped",
+          "causeKind": "skipped",
+          "causeReason": "whatever"
+        },
+        {
+          "nowMs": 1728000000000,
+          "actor": "w02.2-freeze"
+        }
+      ],
+      "expect": {
+        "throw": {
+          "name": "StateError",
+          "code": "validation",
+          "message": "work.fanout_child skipped cause needs a closed reason, got \"whatever\"."
+        }
+      }
+    },
+    {
+      "id": "new-fractional-attempts",
+      "direction": "state",
+      "fn": "newFanoutChildRow",
+      "input": [
+        {
+          "fanoutId": "f1",
+          "parentOccurrence": "occ-8",
+          "handler": "h",
+          "recordId": "rec-1",
+          "attempts": 0.5
+        },
+        {
+          "nowMs": 1728000000000,
+          "actor": "w02.2-freeze"
+        }
+      ],
+      "expect": {
+        "throw": {
+          "name": "StateError",
+          "code": "validation",
+          "message": "work.fanout_child.attempts must be an integer >= 0."
+        }
+      }
+    },
+    {
+      "id": "new-unknown-state",
+      "direction": "state",
+      "fn": "newFanoutChildRow",
+      "input": [
+        {
+          "fanoutId": "f1",
+          "parentOccurrence": "occ-8",
+          "handler": "h",
+          "recordId": "rec-1",
+          "state": "held"
+        },
+        {
+          "nowMs": 1728000000000,
+          "actor": "w02.2-freeze"
+        }
+      ],
+      "expect": {
+        "throw": {
+          "name": "StateError",
+          "code": "validation",
+          "message": "work.fanout_child.state is unknown: \"held\"."
+        }
+      }
+    },
+    {
+      "id": "id-derivation",
+      "direction": "state",
+      "fn": "fanoutChildRowId",
+      "input": [
+        "occ-8",
+        "h/a",
+        "r 1"
+      ],
+      "expect": {
+        "ok": "fanout-child/v1/occ-8/h%2Fa/r%201"
+      }
+    },
+    {
+      "id": "read-ok",
+      "direction": "state",
+      "fn": "readFanoutChildRow",
+      "input": [
+        {
+          "id": "fanout-child/v1/occ-8/h/rec-1",
+          "version": 1,
+          "created": 1728000000000,
+          "updated": 1728000000000,
+          "createdBy": "w02.2-freeze",
+          "updatedBy": "w02.2-freeze",
+          "archivedAt": null,
+          "parent": null,
+          "data": {
+            "fanoutId": "f1",
+            "parentOccurrence": "occ-8",
+            "handler": "h",
+            "recordId": "rec-1",
+            "childId": "fanout-child/v1/occ-8/h/rec-1",
+            "state": "failed",
+            "attempts": 2,
+            "causeKind": "failed",
+            "causeReason": "exhausted"
+          }
+        }
+      ],
+      "expect": {
+        "ok": {
+          "fanoutId": "f1",
+          "parentOccurrence": "occ-8",
+          "handler": "h",
+          "recordId": "rec-1",
+          "childId": "fanout-child/v1/occ-8/h/rec-1",
+          "state": "failed",
+          "attempts": 2,
+          "causeKind": "failed",
+          "causeReason": "exhausted"
+        }
+      }
+    },
+    {
+      "id": "read-derivation-mismatch",
+      "direction": "state",
+      "fn": "readFanoutChildRow",
+      "input": [
+        {
+          "id": "fanout-child/v1/occ-8/h/rec-1",
+          "version": 1,
+          "created": 1728000000000,
+          "updated": 1728000000000,
+          "createdBy": "w02.2-freeze",
+          "updatedBy": "w02.2-freeze",
+          "archivedAt": null,
+          "parent": null,
+          "data": {
+            "fanoutId": "f1",
+            "parentOccurrence": "occ-8",
+            "handler": "h",
+            "recordId": "rec-1",
+            "childId": "fanout-child/v1/other/h/rec-1",
+            "state": "pending",
+            "attempts": 0,
+            "causeKind": null,
+            "causeReason": null
+          }
+        }
+      ],
+      "expect": {
+        "throw": {
+          "name": "StateError",
+          "code": "validation",
+          "message": "work.fanout_child.childId is not the parent+handler+record derivation."
+        }
+      }
+    },
+    {
+      "id": "read-rowid-mismatch",
+      "direction": "state",
+      "fn": "readFanoutChildRow",
+      "input": [
+        {
+          "id": "nope",
+          "version": 1,
+          "created": 1728000000000,
+          "updated": 1728000000000,
+          "createdBy": "w02.2-freeze",
+          "updatedBy": "w02.2-freeze",
+          "archivedAt": null,
+          "parent": null,
+          "data": {
+            "fanoutId": "f1",
+            "parentOccurrence": "occ-8",
+            "handler": "h",
+            "recordId": "rec-1",
+            "childId": "fanout-child/v1/occ-8/h/rec-1",
+            "state": "pending",
+            "attempts": 0,
+            "causeKind": null,
+            "causeReason": null
+          }
+        }
+      ],
+      "expect": {
+        "throw": {
+          "name": "StateError",
+          "code": "validation",
+          "message": "work.fanout_child row id must equal its childId."
+        }
+      }
+    },
+    {
+      "id": "page-query-first",
+      "direction": "state",
+      "fn": "fanoutChildPageQuery",
+      "input": [
+        "f1",
+        {
+          "cursor": null,
+          "limit": 50
+        }
+      ],
+      "expect": {
+        "ok": {
+          "model": "work.fanout_child",
+          "where": {
+            "op": "eq",
+            "field": "fanoutId",
+            "value": "f1"
+          },
+          "order": [
+            {
+              "field": "id",
+              "direction": "asc"
+            }
+          ],
+          "limit": 50,
+          "authority": "owner"
+        }
+      }
+    },
+    {
+      "id": "page-query-resume",
+      "direction": "state",
+      "fn": "fanoutChildPageQuery",
+      "input": [
+        "f1",
+        {
+          "cursor": "fanout-child/v1/x",
+          "limit": 1
+        }
+      ],
+      "expect": {
+        "ok": {
+          "model": "work.fanout_child",
+          "where": {
+            "op": "and",
+            "args": [
+              {
+                "op": "eq",
+                "field": "fanoutId",
+                "value": "f1"
+              },
+              {
+                "op": "gt",
+                "field": "id",
+                "value": "fanout-child/v1/x"
+              }
+            ]
+          },
+          "order": [
+            {
+              "field": "id",
+              "direction": "asc"
+            }
+          ],
+          "limit": 1,
+          "authority": "owner"
+        }
+      }
+    },
+    {
+      "id": "page-query-limit0",
+      "direction": "state",
+      "fn": "fanoutChildPageQuery",
+      "input": [
+        "f1",
+        {
+          "cursor": null,
+          "limit": 0
+        }
+      ],
+      "expect": {
+        "throw": {
+          "name": "StateError",
+          "code": "validation",
+          "message": "Fanout page limit must be an integer >= 1."
+        }
+      }
+    },
+    {
+      "id": "page-query-empty-cursor",
+      "direction": "state",
+      "fn": "fanoutChildPageQuery",
+      "input": [
+        "f1",
+        {
+          "cursor": "",
+          "limit": 5
+        }
+      ],
+      "expect": {
+        "throw": {
+          "name": "StateError",
+          "code": "validation",
+          "message": "Fanout page cursor must be non-empty or null."
+        }
+      }
+    },
+    {
+      "id": "page-short",
+      "direction": "state",
+      "fn": "fanoutChildPageResult",
+      "input": [
+        [
+          {
+            "id": "a",
+            "version": 1,
+            "created": 1728000000000,
+            "updated": 1728000000000,
+            "createdBy": "w02.2-freeze",
+            "updatedBy": "w02.2-freeze",
+            "archivedAt": null,
+            "parent": null,
+            "data": {}
+          }
+        ],
+        5
+      ],
+      "expect": {
+        "ok": {
+          "rows": [
+            {
+              "id": "a",
+              "version": 1,
+              "created": 1728000000000,
+              "updated": 1728000000000,
+              "createdBy": "w02.2-freeze",
+              "updatedBy": "w02.2-freeze",
+              "archivedAt": null,
+              "parent": null,
+              "data": {}
+            }
+          ],
+          "done": true,
+          "cursor": null
+        }
+      }
+    },
+    {
+      "id": "page-full",
+      "direction": "state",
+      "fn": "fanoutChildPageResult",
+      "input": [
+        [
+          {
+            "id": "a",
+            "version": 1,
+            "created": 1728000000000,
+            "updated": 1728000000000,
+            "createdBy": "w02.2-freeze",
+            "updatedBy": "w02.2-freeze",
+            "archivedAt": null,
+            "parent": null,
+            "data": {}
+          },
+          {
+            "id": "b",
+            "version": 1,
+            "created": 1728000000000,
+            "updated": 1728000000000,
+            "createdBy": "w02.2-freeze",
+            "updatedBy": "w02.2-freeze",
+            "archivedAt": null,
+            "parent": null,
+            "data": {}
+          }
+        ],
+        2
+      ],
+      "expect": {
+        "ok": {
+          "rows": [
+            {
+              "id": "a",
+              "version": 1,
+              "created": 1728000000000,
+              "updated": 1728000000000,
+              "createdBy": "w02.2-freeze",
+              "updatedBy": "w02.2-freeze",
+              "archivedAt": null,
+              "parent": null,
+              "data": {}
+            },
+            {
+              "id": "b",
+              "version": 1,
+              "created": 1728000000000,
+              "updated": 1728000000000,
+              "createdBy": "w02.2-freeze",
+              "updatedBy": "w02.2-freeze",
+              "archivedAt": null,
+              "parent": null,
+              "data": {}
+            }
+          ],
+          "done": false,
+          "cursor": "b"
+        }
+      }
+    },
+    {
+      "id": "page-over",
+      "direction": "state",
+      "fn": "fanoutChildPageResult",
+      "input": [
+        [
+          {
+            "id": "a",
+            "version": 1,
+            "created": 1728000000000,
+            "updated": 1728000000000,
+            "createdBy": "w02.2-freeze",
+            "updatedBy": "w02.2-freeze",
+            "archivedAt": null,
+            "parent": null,
+            "data": {}
+          },
+          {
+            "id": "b",
+            "version": 1,
+            "created": 1728000000000,
+            "updated": 1728000000000,
+            "createdBy": "w02.2-freeze",
+            "updatedBy": "w02.2-freeze",
+            "archivedAt": null,
+            "parent": null,
+            "data": {}
+          },
+          {
+            "id": "c",
+            "version": 1,
+            "created": 1728000000000,
+            "updated": 1728000000000,
+            "createdBy": "w02.2-freeze",
+            "updatedBy": "w02.2-freeze",
+            "archivedAt": null,
+            "parent": null,
+            "data": {}
+          }
+        ],
+        2
+      ],
+      "expect": {
+        "throw": {
+          "name": "StateError",
+          "code": "validation",
+          "message": "Fanout page returned 3 rows past limit 2."
+        }
+      }
+    },
+    {
+      "id": "child-id-of",
+      "direction": "work",
+      "fn": "fanoutChildIdOf",
+      "input": [
+        {
+          "fanoutId": "f",
+          "parentOccurrence": "p",
+          "handler": "h",
+          "recordId": "r",
+          "childId": "c",
+          "state": "pending",
+          "attempts": 0,
+          "causeKind": null,
+          "causeReason": null
+        }
+      ],
+      "expect": {
+        "ok": {
+          "parentOccurrence": "p",
+          "handler": "h",
+          "recordId": "r"
+        }
+      }
+    }
+  ]
+}

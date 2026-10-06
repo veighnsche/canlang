@@ -171,19 +171,19 @@ All implementation commands run from repository root unless stated. Preserve log
 
 #### Parallel lane: Contracts and caller inventory
 
-- [ ] **W01.1 — Pin production/test-only caller, wait and delivery-schema coverage**
+- [x] **W01.1 — Pin production/test-only caller, wait and delivery-schema coverage**
   - Start after: `C01.ready`. Parent: `W01`.
   - Files: `docs/research/package-subsystem-ports-20261006/evidence/implementation/work-transitions/contracts/callers.json`, `docs/research/package-subsystem-ports-20261006/evidence/implementation/work-transitions/contracts/profiles.md`.
   - Action/done: Inventory every source table and public shell listed above; distinguish memory fixtures from real Cloudflare F7/durable consumers and the absent named wait API.
   - Action/done: Record loader-owned deliveryFields from registry, empty per-model membership sets, finite delivery tag version and presence-only result leaves; include b3-delivery-schema and receipt memory/durable baseline fixtures.
-- [ ] **W01.2 — Choose the pure leaf graph and assign single writers**
+- [x] **W01.2 — Choose the pure leaf graph and assign single writers**
   - Start after: `C01.ready`. Parent: `W01`.
   - Files: `docs/research/package-subsystem-ports-20261006/evidence/implementation/work-transitions/ownership/graph.md`, `docs/research/package-subsystem-ports-20261006/evidence/implementation/work-transitions/ownership/files.json`.
   - Action/done: Compare contracts-only work-kernel versus isolated work subpath fairly; preserve root JEV advice as advice and record source graph evidence.
   - Action/done: Assign one work integrator for shared manifests, module entry, profiles, state transact and runtime invoke; submit root build/lock and binary delivery requests to C04 owner.
 #### Parallel lane: Baselines, conformance evidence and release decision
 
-- [ ] **W01.3 — Capture unchanged behavior, clone and persisted-byte baseline**
+- [x] **W01.3 — Capture unchanged behavior, clone and persisted-byte baseline**
   - Start after: `C05.ready`. Parent: `W01`.
   - Files: `docs/research/package-subsystem-ports-20261006/evidence/implementation/work-transitions/baselines/current-ts.json`, `docs/research/package-subsystem-ports-20261006/evidence/implementation/work-transitions/baselines/verify.log`, `docs/research/package-subsystem-ports-20261006/evidence/implementation/work-transitions/baselines/original-fixtures/`.
   - Action/done: Run existing command block against inspected sources, retain logs and failures; failed noEmitOnError builds cannot supply stale dist evidence.
@@ -193,7 +193,7 @@ All implementation commands run from repository root unless stated. Preserve log
 
 #### Parallel lane: Contracts and caller inventory
 
-- [ ] **W01.4 — Ratify workload, budget and supported-profile ledger**
+- [x] **W01.4 — Ratify workload, budget and supported-profile ledger**
   - Start after: `W01.1`, `W01.2`, `W01.3`, `C05.ready`. Parent: `W01`.
   - Files: `docs/research/package-subsystem-ports-20261006/evidence/implementation/work-transitions/contracts/workloads.json`, `docs/research/package-subsystem-ports-20261006/evidence/implementation/work-transitions/contracts/budgets.json`, `docs/research/package-subsystem-ports-20261006/evidence/implementation/work-transitions/contracts/coverage.md`.
   - Action/done: Nominate tiny/page/501-member/error/restart/recovery workloads and numeric latency/memory/binary budgets before seeing Rust comparisons.
@@ -207,7 +207,7 @@ All implementation commands run from repository root unless stated. Preserve log
   - Preserved gate contract: Acceptance: identify each production caller and each test-only seam; current/proposed profiles and deviations are explicit; no permission or evaluation-order behavior omitted. Run work tests and typechecks below, state/Cloudflare baseline builds and selected runtime tests, preserving failures. Existing full-evaluation evidence reports Cloudflare typecheck errors at `invoke.ts:5911`, `t34-f7-fanout-durable.test.ts:660`, `t34-f7-fanout.test.ts:1879,1897`; re-evaluate at the current checkpoint and assign fixes before treating build-dependent gates as passing. Do not claim a usable dist from a failed `noEmitOnError` build.
 #### Parallel lane: Rows and identity/set mechanisms
 
-- [ ] **W02.2 — Extract ordered row, identity and set TS mechanisms**
+- [x] **W02.2 — Extract ordered row, identity and set TS mechanisms**
   - Start after: `W01.1`, `W01.3`, `W02.1`. Parent: `W02`.
   - Files: `packages/work-kernel/src/rows.ts`, `packages/work-kernel/conformance/rows.test.ts`, `packages/work-kernel/conformance/fixtures/rows/`.
   - Action/done: Preserve all eight table shapes, metadata, default presence, JSON-safety versus clone-only profiles, JS counts and UTF-16 identity/set order.
@@ -215,7 +215,7 @@ All implementation commands run from repository root unless stated. Preserve log
 
 #### Parallel lane: Retry, recurrence and lifecycle policy
 
-- [ ] **W02.3 — Extract retry, recurrence and lifecycle TS decisions**
+- [x] **W02.3 — Extract retry, recurrence and lifecycle TS decisions**
   - Start after: `W01.1`, `W01.3`, `W02.1`. Parent: `W02`.
   - Files: `packages/work-kernel/src/retry.ts`, `packages/work-kernel/src/every.ts`, `packages/work-kernel/src/lifecycle.ts`, `packages/work-kernel/conformance/retry.test.ts`, `packages/work-kernel/conformance/every.test.ts`, `packages/work-kernel/conformance/lifecycle.test.ts`, `packages/work-kernel/conformance/fixtures/policy/`.
   - Action/done: Retain finite fractional times, Number count arithmetic, horizon/stale boundaries and explicit supplied random sample; no clock/RNG/evidence side effects in pure module.
@@ -223,7 +223,7 @@ All implementation commands run from repository root unless stated. Preserve log
 
 #### Parallel lane: Receipts, recovery and linkage decisions
 
-- [ ] **W02.4 — Extract receipt, recovery and linkage TS decisions**
+- [x] **W02.4 — Extract receipt, recovery and linkage TS decisions**
   - Start after: `W01.1`, `W01.3`, `W02.1`. Parent: `W02`.
   - Files: `packages/work-kernel/src/receipt.ts`, `packages/work-kernel/src/recovery.ts`, `packages/work-kernel/src/linkage.ts`, `packages/work-kernel/conformance/receipt.test.ts`, `packages/work-kernel/conformance/recovery.test.ts`, `packages/work-kernel/conformance/linkage.test.ts`, `packages/work-kernel/conformance/fixtures/receipts/`.
   - Action/done: Keep stored-pending receipt profile distinct, wrapper-specific faults, result host references, last duplicate claim wins and JS-sorted output.
@@ -231,13 +231,13 @@ All implementation commands run from repository root unless stated. Preserve log
 
 #### Parallel lane: Single package, ABI and production integration writer
 
-- [ ] **W02.1 — Create publishable package-local manifests and build roots**
+- [x] **W02.1 — Create publishable package-local manifests and build roots**
   - Start after: `W01.2`, `C02.ready`. Parent: `W02`.
   - Files: `packages/work-kernel/package.json`, `packages/work-kernel/tsconfig.json`, `packages/work-kernel/Cargo.toml`, `packages/work-kernel/Cargo.lock`, `packages/work-kernel/src/index.ts`, `docs/research/package-subsystem-ports-20261006/evidence/implementation/work-transitions/handoffs/build-request.md`.
   - Action/done: Pin @canlang/work-kernel to release 0.1.0; define pure JS/backend exports, files/dist shipping and contracts-only type graph; no unpublished private workspace runtime dependency.
   - Action/done: Declare build/typecheck/build:wasm scripts and conformance include/output roots plus minimal neutral TS entry/interfaces; submit root build/bun.lock and shared consumer dependency request to C04.graph without editing shared manifests or platform globals.
 
-- [ ] **W03.1 — Freeze ordered facts and policy-specific ABI types**
+- [x] **W03.1 — Freeze ordered facts and policy-specific ABI types**
   - Start after: `W01.1`, `W01.2`, `W02.1`, `C03.ready`. Parent: `W03`.
   - Files: `packages/work-kernel/src/facts.ts`, `docs/research/package-subsystem-ports-20261006/evidence/implementation/work-transitions/handoffs/abi.md`.
   - Action/done: Define version/profile/error/UTF-16/presence/f64/conditional version transport and producer provenance, validating number ranges before fixed-width conversion.
@@ -245,7 +245,7 @@ All implementation commands run from repository root unless stated. Preserve log
 
 #### Parallel lane: Single package, ABI and production integration writer — foundation handoff
 
-- [ ] **W02.foundation — Release minimal pure package foundation to shared graph owner**
+- [x] **W02.foundation — Release minimal pure package foundation to shared graph owner**
   - Start after: `W02.1`. Parent: `W02`.
   - Files: `docs/research/package-subsystem-ports-20261006/evidence/implementation/work-transitions/handoffs/foundation.json`.
   - Action/done: Verify standalone minimal work-kernel entry/interfaces, local build roots, exports, 0.1.0 shipping and contracts-only DAG; semantic modules and consumer joins are not required to publish this foundation.
@@ -255,7 +255,7 @@ All implementation commands run from repository root unless stated. Preserve log
 
 #### Parallel lane: Rows and identity/set mechanisms
 
-- [ ] **W04.1 — Port native ordered rows and identity sets**
+- [x] **W04.1 — Port native ordered rows and identity sets**
   - Start after: `W02.2`, `W03.1`, `C03.ready`. Parent: `W04`.
   - Files: `packages/work-kernel/decisions/rows.rs`.
   - Action/done: Native row/identity/set vectors agree with independent TS oracle for shape, first fault, metadata/presence, count rounding and lossless UTF-16; no host I/O.
@@ -263,7 +263,7 @@ All implementation commands run from repository root unless stated. Preserve log
 
 #### Parallel lane: Retry, recurrence and lifecycle policy
 
-- [ ] **W04.2 — Port native retry, recurrence and lifecycle decisions**
+- [x] **W04.2 — Port native retry, recurrence and lifecycle decisions**
   - Start after: `W02.3`, `W03.1`, `C03.ready`. Parent: `W04`.
   - Files: `packages/work-kernel/decisions/retry.rs`, `packages/work-kernel/decisions/every.rs`, `packages/work-kernel/decisions/lifecycle.rs`.
   - Action/done: Native supplied-sample backoff/slot/coalescing/classification matches fractional/wide-number/error cases; clock/RNG/hash/provider/security operations stay host-owned.
@@ -271,7 +271,7 @@ All implementation commands run from repository root unless stated. Preserve log
 
 #### Parallel lane: Receipts, recovery and linkage decisions
 
-- [ ] **W04.3 — Port native receipt, recovery and linkage decisions**
+- [x] **W04.3 — Port native receipt, recovery and linkage decisions**
   - Start after: `W02.4`, `W03.1`, `C03.ready`. Parent: `W04`.
   - Files: `packages/work-kernel/decisions/receipt.rs`, `packages/work-kernel/decisions/recovery.rs`, `packages/work-kernel/decisions/linkage.rs`.
   - Action/done: Native ordered batch decisions/faults/ref indices and proposed conditional writes agree with separate stored-pending and wrapper profiles; no stronger converse linkage policy.
@@ -279,7 +279,7 @@ All implementation commands run from repository root unless stated. Preserve log
 
 #### Parallel lane: Host demand and observable trace shells
 
-- [ ] **W03.2 — Implement call-local opaque reference lifecycle**
+- [x] **W03.2 — Implement call-local opaque reference lifecycle**
   - Start after: `W03.1`. Parent: `W03`.
   - Files: `packages/work-kernel/bindings/host-values.ts`, `packages/work-kernel/conformance/fixtures/traces/refs.json`.
   - Action/done: Retain result identity or required structuredClone at the existing profile point; Rust cannot inspect untouched payloads/metadata.

@@ -1,0 +1,482 @@
+{
+  "provenance": {
+    "frozen_at_head": "7e050080c2d8178040d4e1ade785c195a796b67f",
+    "donor": "packages/work/src/kernel/tables.ts",
+    "donor_digest": "392c8a30f73b804638312ba09685666a0eb8734c33d7d41c3a3158ae4371a57e",
+    "note": "Frozen independent originals captured from LIVE donors. rows.ts must reproduce BOTH directions. Re-freeze recipe: see rows.test.ts header."
+  },
+  "cases": [
+    {
+      "id": "new-defaults",
+      "direction": "work",
+      "fn": "newFanoutCheckpointRow",
+      "input": [
+        {
+          "fanoutId": "fanout/v1/o/h/model"
+        },
+        {
+          "nowMs": 1728000000000,
+          "actor": "w02.2-freeze"
+        }
+      ],
+      "expect": {
+        "ok": {
+          "id": "fanout/v1/o/h/model",
+          "version": 1,
+          "created": 1728000000000,
+          "updated": 1728000000000,
+          "createdBy": "w02.2-freeze",
+          "updatedBy": "w02.2-freeze",
+          "archivedAt": null,
+          "parent": null,
+          "data": {
+            "fanoutId": "fanout/v1/o/h/model",
+            "completed": [],
+            "cursor": null
+          }
+        }
+      }
+    },
+    {
+      "id": "new-explicit",
+      "direction": "work",
+      "fn": "newFanoutCheckpointRow",
+      "input": [
+        {
+          "fanoutId": "f1",
+          "completed": [
+            "c2",
+            "c1"
+          ],
+          "cursor": "cur-9"
+        },
+        {
+          "nowMs": 1728000000000,
+          "actor": "w02.2-freeze"
+        }
+      ],
+      "expect": {
+        "ok": {
+          "id": "f1",
+          "version": 1,
+          "created": 1728000000000,
+          "updated": 1728000000000,
+          "createdBy": "w02.2-freeze",
+          "updatedBy": "w02.2-freeze",
+          "archivedAt": null,
+          "parent": null,
+          "data": {
+            "fanoutId": "f1",
+            "completed": [
+              "c1",
+              "c2"
+            ],
+            "cursor": "cur-9"
+          }
+        }
+      }
+    },
+    {
+      "id": "new-empty-cursor",
+      "direction": "work",
+      "fn": "newFanoutCheckpointRow",
+      "input": [
+        {
+          "fanoutId": "f1",
+          "cursor": ""
+        },
+        {
+          "nowMs": 1728000000000,
+          "actor": "w02.2-freeze"
+        }
+      ],
+      "expect": {
+        "throw": {
+          "name": "KernelTableError",
+          "message": "work.fanout_checkpoint.cursor must be non-empty or null."
+        }
+      }
+    },
+    {
+      "id": "next-union-idempotent",
+      "direction": "work",
+      "fn": "nextFanoutCheckpointData",
+      "input": [
+        {
+          "fanoutId": "f1",
+          "completed": [
+            "a",
+            "c"
+          ],
+          "cursor": null
+        },
+        [
+          "b",
+          "a"
+        ],
+        "cur-2"
+      ],
+      "expect": {
+        "ok": {
+          "fanoutId": "f1",
+          "completed": [
+            "a",
+            "b",
+            "c"
+          ],
+          "cursor": "cur-2"
+        }
+      }
+    },
+    {
+      "id": "next-bad-entry",
+      "direction": "work",
+      "fn": "nextFanoutCheckpointData",
+      "input": [
+        {
+          "fanoutId": "f1",
+          "completed": [],
+          "cursor": null
+        },
+        [
+          "ok",
+          7
+        ],
+        null
+      ],
+      "expect": {
+        "throw": {
+          "name": "KernelTableError",
+          "message": "work.fanout_checkpoint.completed entries must be non-empty strings."
+        }
+      }
+    },
+    {
+      "id": "read-ok",
+      "direction": "work",
+      "fn": "readFanoutCheckpointRow",
+      "input": [
+        {
+          "id": "f1",
+          "version": 1,
+          "created": 1728000000000,
+          "updated": 1728000000000,
+          "createdBy": "w02.2-freeze",
+          "updatedBy": "w02.2-freeze",
+          "archivedAt": null,
+          "parent": null,
+          "data": {
+            "fanoutId": "f1",
+            "completed": [
+              "x"
+            ],
+            "cursor": null
+          }
+        }
+      ],
+      "expect": {
+        "ok": {
+          "fanoutId": "f1",
+          "completed": [
+            "x"
+          ],
+          "cursor": null
+        }
+      }
+    },
+    {
+      "id": "read-empty-cursor",
+      "direction": "work",
+      "fn": "readFanoutCheckpointRow",
+      "input": [
+        {
+          "id": "f1",
+          "version": 1,
+          "created": 1728000000000,
+          "updated": 1728000000000,
+          "createdBy": "w02.2-freeze",
+          "updatedBy": "w02.2-freeze",
+          "archivedAt": null,
+          "parent": null,
+          "data": {
+            "fanoutId": "f1",
+            "completed": [],
+            "cursor": ""
+          }
+        }
+      ],
+      "expect": {
+        "throw": {
+          "name": "KernelTableError",
+          "message": "work.fanout_checkpoint.cursor must be non-empty or null."
+        }
+      }
+    },
+    {
+      "id": "read-rowid-mismatch",
+      "direction": "work",
+      "fn": "readFanoutCheckpointRow",
+      "input": [
+        {
+          "id": "other",
+          "version": 1,
+          "created": 1728000000000,
+          "updated": 1728000000000,
+          "createdBy": "w02.2-freeze",
+          "updatedBy": "w02.2-freeze",
+          "archivedAt": null,
+          "parent": null,
+          "data": {
+            "fanoutId": "f1",
+            "completed": [],
+            "cursor": null
+          }
+        }
+      ],
+      "expect": {
+        "throw": {
+          "name": "KernelTableError",
+          "message": "work.fanout_checkpoint row id must equal its fanoutId."
+        }
+      }
+    },
+    {
+      "id": "new-defaults",
+      "direction": "state",
+      "fn": "newFanoutCheckpointRow",
+      "input": [
+        {
+          "fanoutId": "fanout/v1/o/h/model"
+        },
+        {
+          "nowMs": 1728000000000,
+          "actor": "w02.2-freeze"
+        }
+      ],
+      "expect": {
+        "ok": {
+          "id": "fanout/v1/o/h/model",
+          "version": 1,
+          "created": 1728000000000,
+          "updated": 1728000000000,
+          "createdBy": "w02.2-freeze",
+          "updatedBy": "w02.2-freeze",
+          "archivedAt": null,
+          "parent": null,
+          "data": {
+            "fanoutId": "fanout/v1/o/h/model",
+            "completed": [],
+            "cursor": null
+          }
+        }
+      }
+    },
+    {
+      "id": "new-explicit",
+      "direction": "state",
+      "fn": "newFanoutCheckpointRow",
+      "input": [
+        {
+          "fanoutId": "f1",
+          "completed": [
+            "c2",
+            "c1"
+          ],
+          "cursor": "cur-9"
+        },
+        {
+          "nowMs": 1728000000000,
+          "actor": "w02.2-freeze"
+        }
+      ],
+      "expect": {
+        "ok": {
+          "id": "f1",
+          "version": 1,
+          "created": 1728000000000,
+          "updated": 1728000000000,
+          "createdBy": "w02.2-freeze",
+          "updatedBy": "w02.2-freeze",
+          "archivedAt": null,
+          "parent": null,
+          "data": {
+            "fanoutId": "f1",
+            "completed": [
+              "c1",
+              "c2"
+            ],
+            "cursor": "cur-9"
+          }
+        }
+      }
+    },
+    {
+      "id": "new-empty-cursor",
+      "direction": "state",
+      "fn": "newFanoutCheckpointRow",
+      "input": [
+        {
+          "fanoutId": "f1",
+          "cursor": ""
+        },
+        {
+          "nowMs": 1728000000000,
+          "actor": "w02.2-freeze"
+        }
+      ],
+      "expect": {
+        "throw": {
+          "name": "StateError",
+          "code": "validation",
+          "message": "work.fanout_checkpoint.cursor must be non-empty or null."
+        }
+      }
+    },
+    {
+      "id": "next-union-idempotent",
+      "direction": "state",
+      "fn": "nextFanoutCheckpointData",
+      "input": [
+        {
+          "fanoutId": "f1",
+          "completed": [
+            "a",
+            "c"
+          ],
+          "cursor": null
+        },
+        [
+          "b",
+          "a"
+        ],
+        "cur-2"
+      ],
+      "expect": {
+        "ok": {
+          "fanoutId": "f1",
+          "completed": [
+            "a",
+            "b",
+            "c"
+          ],
+          "cursor": "cur-2"
+        }
+      }
+    },
+    {
+      "id": "next-bad-entry",
+      "direction": "state",
+      "fn": "nextFanoutCheckpointData",
+      "input": [
+        {
+          "fanoutId": "f1",
+          "completed": [],
+          "cursor": null
+        },
+        [
+          "ok",
+          7
+        ],
+        null
+      ],
+      "expect": {
+        "throw": {
+          "name": "StateError",
+          "code": "validation",
+          "message": "work.fanout_checkpoint.completed entries must be non-empty strings."
+        }
+      }
+    },
+    {
+      "id": "read-ok",
+      "direction": "state",
+      "fn": "readFanoutCheckpointRow",
+      "input": [
+        {
+          "id": "f1",
+          "version": 1,
+          "created": 1728000000000,
+          "updated": 1728000000000,
+          "createdBy": "w02.2-freeze",
+          "updatedBy": "w02.2-freeze",
+          "archivedAt": null,
+          "parent": null,
+          "data": {
+            "fanoutId": "f1",
+            "completed": [
+              "x"
+            ],
+            "cursor": null
+          }
+        }
+      ],
+      "expect": {
+        "ok": {
+          "fanoutId": "f1",
+          "completed": [
+            "x"
+          ],
+          "cursor": null
+        }
+      }
+    },
+    {
+      "id": "read-empty-cursor",
+      "direction": "state",
+      "fn": "readFanoutCheckpointRow",
+      "input": [
+        {
+          "id": "f1",
+          "version": 1,
+          "created": 1728000000000,
+          "updated": 1728000000000,
+          "createdBy": "w02.2-freeze",
+          "updatedBy": "w02.2-freeze",
+          "archivedAt": null,
+          "parent": null,
+          "data": {
+            "fanoutId": "f1",
+            "completed": [],
+            "cursor": ""
+          }
+        }
+      ],
+      "expect": {
+        "throw": {
+          "name": "StateError",
+          "code": "validation",
+          "message": "work.fanout_checkpoint.cursor must be non-empty or null."
+        }
+      }
+    },
+    {
+      "id": "read-rowid-mismatch",
+      "direction": "state",
+      "fn": "readFanoutCheckpointRow",
+      "input": [
+        {
+          "id": "other",
+          "version": 1,
+          "created": 1728000000000,
+          "updated": 1728000000000,
+          "createdBy": "w02.2-freeze",
+          "updatedBy": "w02.2-freeze",
+          "archivedAt": null,
+          "parent": null,
+          "data": {
+            "fanoutId": "f1",
+            "completed": [],
+            "cursor": null
+          }
+        }
+      ],
+      "expect": {
+        "throw": {
+          "name": "StateError",
+          "code": "validation",
+          "message": "work.fanout_checkpoint row id must equal its fanoutId."
+        }
+      }
+    }
+  ]
+}

@@ -1,0 +1,788 @@
+{
+  "provenance": {
+    "frozen_at_head": "07d9d022b8c289cf330735957e0e9b64c605ca08",
+    "donors": {
+      "receipt": "packages/work/src/receipt/index.ts",
+      "every": "packages/work/src/schedule/every.ts"
+    },
+    "donor_digests": {
+      "receipt": "5085f392192a1059c9a5d3bcf679e4984b77a0ab4a5e799bcd17812e8060d6e3",
+      "every": "60854aa7c190ef69f29bde0f68e1e26ae68de98c782fa82d64e4f2e822e046e9"
+    },
+    "note": "Frozen independent originals captured from LIVE donors. No direction axis: policy donors are work-only; occurrenceId in every/admitted is host-derived (see every.test.ts). Re-freeze recipe: see test headers."
+  },
+  "cases": [
+    {
+      "id": "record-delivered",
+      "fn": "recordOutcome",
+      "input": [
+        {
+          "item": {
+            "id": "obx-1",
+            "operationId": "op-1",
+            "source": "emit",
+            "occurrenceIndex": 0,
+            "request": {},
+            "originOccurrence": null,
+            "attempts": 0,
+            "state": "pending"
+          },
+          "outcome": {
+            "kind": "delivered",
+            "result": {
+              "v": [
+                1,
+                "a"
+              ]
+            }
+          },
+          "nowMs": 50,
+          "firstAttemptAtMs": 10
+        }
+      ],
+      "expect": {
+        "ok": {
+          "item": {
+            "id": "obx-1",
+            "operationId": "op-1",
+            "source": "emit",
+            "occurrenceIndex": 0,
+            "request": {},
+            "originOccurrence": null,
+            "attempts": 1,
+            "state": "delivered"
+          },
+          "status": "succeeded",
+          "result": {
+            "v": [
+              1,
+              "a"
+            ]
+          },
+          "error": null,
+          "retryClass": null,
+          "retryable": false
+        }
+      }
+    },
+    {
+      "id": "record-delivered-claimed",
+      "fn": "recordOutcome",
+      "input": [
+        {
+          "item": {
+            "id": "obx-1",
+            "operationId": "op-1",
+            "source": "emit",
+            "occurrenceIndex": 0,
+            "request": {},
+            "originOccurrence": null,
+            "attempts": 2,
+            "state": "claimed"
+          },
+          "outcome": {
+            "kind": "delivered",
+            "result": null
+          },
+          "nowMs": 60,
+          "firstAttemptAtMs": 10
+        }
+      ],
+      "expect": {
+        "ok": {
+          "item": {
+            "id": "obx-1",
+            "operationId": "op-1",
+            "source": "emit",
+            "occurrenceIndex": 0,
+            "request": {},
+            "originOccurrence": null,
+            "attempts": 3,
+            "state": "delivered"
+          },
+          "status": "succeeded",
+          "result": null,
+          "error": null,
+          "retryClass": null,
+          "retryable": false
+        }
+      }
+    },
+    {
+      "id": "record-uncertain",
+      "fn": "recordOutcome",
+      "input": [
+        {
+          "item": {
+            "id": "obx-1",
+            "operationId": "op-1",
+            "source": "emit",
+            "occurrenceIndex": 0,
+            "request": {},
+            "originOccurrence": null,
+            "attempts": 0,
+            "state": "pending"
+          },
+          "outcome": {
+            "kind": "uncertain"
+          },
+          "nowMs": 50,
+          "firstAttemptAtMs": 10
+        }
+      ],
+      "expect": {
+        "ok": {
+          "item": {
+            "id": "obx-1",
+            "operationId": "op-1",
+            "source": "emit",
+            "occurrenceIndex": 0,
+            "request": {},
+            "originOccurrence": null,
+            "attempts": 1,
+            "state": "uncertain"
+          },
+          "status": "unknown",
+          "result": null,
+          "error": null,
+          "retryClass": null,
+          "retryable": false
+        }
+      }
+    },
+    {
+      "id": "record-transient-retryable",
+      "fn": "recordOutcome",
+      "input": [
+        {
+          "item": {
+            "id": "obx-1",
+            "operationId": "op-1",
+            "source": "emit",
+            "occurrenceIndex": 0,
+            "request": {},
+            "originOccurrence": null,
+            "attempts": 3,
+            "state": "pending"
+          },
+          "outcome": {
+            "kind": "failed",
+            "cause": {
+              "kind": "transient",
+              "code": "EIO",
+              "message": "io"
+            }
+          },
+          "nowMs": 5000,
+          "firstAttemptAtMs": 10
+        }
+      ],
+      "expect": {
+        "ok": {
+          "item": {
+            "id": "obx-1",
+            "operationId": "op-1",
+            "source": "emit",
+            "occurrenceIndex": 0,
+            "request": {},
+            "originOccurrence": null,
+            "attempts": 4,
+            "state": "pending"
+          },
+          "status": "pending",
+          "result": null,
+          "error": null,
+          "retryClass": "transient",
+          "retryable": true
+        }
+      }
+    },
+    {
+      "id": "record-transient-exhausted-attempts",
+      "fn": "recordOutcome",
+      "input": [
+        {
+          "item": {
+            "id": "obx-1",
+            "operationId": "op-1",
+            "source": "emit",
+            "occurrenceIndex": 0,
+            "request": {},
+            "originOccurrence": null,
+            "attempts": 7,
+            "state": "pending"
+          },
+          "outcome": {
+            "kind": "failed",
+            "cause": {
+              "kind": "transient",
+              "code": "E",
+              "message": "m"
+            }
+          },
+          "nowMs": 5000,
+          "firstAttemptAtMs": 10
+        }
+      ],
+      "expect": {
+        "ok": {
+          "item": {
+            "id": "obx-1",
+            "operationId": "op-1",
+            "source": "emit",
+            "occurrenceIndex": 0,
+            "request": {},
+            "originOccurrence": null,
+            "attempts": 8,
+            "state": "dead"
+          },
+          "status": "failed",
+          "result": null,
+          "error": {
+            "code": "retry-exhausted",
+            "message": "retry attempt budget exhausted"
+          },
+          "retryClass": "transient",
+          "retryable": false
+        }
+      }
+    },
+    {
+      "id": "record-transient-horizon",
+      "fn": "recordOutcome",
+      "input": [
+        {
+          "item": {
+            "id": "obx-1",
+            "operationId": "op-1",
+            "source": "emit",
+            "occurrenceIndex": 0,
+            "request": {},
+            "originOccurrence": null,
+            "attempts": 1,
+            "state": "pending"
+          },
+          "outcome": {
+            "kind": "failed",
+            "cause": {
+              "kind": "transient",
+              "code": "E",
+              "message": "m"
+            }
+          },
+          "nowMs": 86400010,
+          "firstAttemptAtMs": 10
+        }
+      ],
+      "expect": {
+        "ok": {
+          "item": {
+            "id": "obx-1",
+            "operationId": "op-1",
+            "source": "emit",
+            "occurrenceIndex": 0,
+            "request": {},
+            "originOccurrence": null,
+            "attempts": 2,
+            "state": "dead"
+          },
+          "status": "failed",
+          "result": null,
+          "error": {
+            "code": "retry-horizon-exceeded",
+            "message": "retry horizon exceeded"
+          },
+          "retryClass": "transient",
+          "retryable": false
+        }
+      }
+    },
+    {
+      "id": "record-transient-both-exhausted",
+      "fn": "recordOutcome",
+      "input": [
+        {
+          "item": {
+            "id": "obx-1",
+            "operationId": "op-1",
+            "source": "emit",
+            "occurrenceIndex": 0,
+            "request": {},
+            "originOccurrence": null,
+            "attempts": 7,
+            "state": "pending"
+          },
+          "outcome": {
+            "kind": "failed",
+            "cause": {
+              "kind": "transient",
+              "code": "E",
+              "message": "m"
+            }
+          },
+          "nowMs": 86400010,
+          "firstAttemptAtMs": 10
+        }
+      ],
+      "expect": {
+        "ok": {
+          "item": {
+            "id": "obx-1",
+            "operationId": "op-1",
+            "source": "emit",
+            "occurrenceIndex": 0,
+            "request": {},
+            "originOccurrence": null,
+            "attempts": 8,
+            "state": "dead"
+          },
+          "status": "failed",
+          "result": null,
+          "error": {
+            "code": "retry-exhausted",
+            "message": "retry attempt budget exhausted"
+          },
+          "retryClass": "transient",
+          "retryable": false
+        }
+      }
+    },
+    {
+      "id": "record-permanent",
+      "fn": "recordOutcome",
+      "input": [
+        {
+          "item": {
+            "id": "obx-1",
+            "operationId": "op-1",
+            "source": "emit",
+            "occurrenceIndex": 0,
+            "request": {},
+            "originOccurrence": null,
+            "attempts": 0,
+            "state": "pending"
+          },
+          "outcome": {
+            "kind": "failed",
+            "cause": {
+              "kind": "permanent",
+              "code": "EPERM",
+              "message": "no"
+            }
+          },
+          "nowMs": 50,
+          "firstAttemptAtMs": 10
+        }
+      ],
+      "expect": {
+        "ok": {
+          "item": {
+            "id": "obx-1",
+            "operationId": "op-1",
+            "source": "emit",
+            "occurrenceIndex": 0,
+            "request": {},
+            "originOccurrence": null,
+            "attempts": 1,
+            "state": "failed"
+          },
+          "status": "failed",
+          "result": null,
+          "error": {
+            "code": "EPERM",
+            "message": "no"
+          },
+          "retryClass": "terminal",
+          "retryable": false
+        }
+      }
+    },
+    {
+      "id": "record-require-false",
+      "fn": "recordOutcome",
+      "input": [
+        {
+          "item": {
+            "id": "obx-1",
+            "operationId": "op-1",
+            "source": "emit",
+            "occurrenceIndex": 0,
+            "request": {},
+            "originOccurrence": null,
+            "attempts": 0,
+            "state": "pending"
+          },
+          "outcome": {
+            "kind": "failed",
+            "cause": {
+              "kind": "handler-require-false",
+              "require": "r1"
+            }
+          },
+          "nowMs": 50,
+          "firstAttemptAtMs": 10
+        }
+      ],
+      "expect": {
+        "ok": {
+          "item": {
+            "id": "obx-1",
+            "operationId": "op-1",
+            "source": "emit",
+            "occurrenceIndex": 0,
+            "request": {},
+            "originOccurrence": null,
+            "attempts": 1,
+            "state": "failed"
+          },
+          "status": "failed",
+          "result": null,
+          "error": {
+            "code": "require-false",
+            "message": "handler requirement rejected the occurrence"
+          },
+          "retryClass": "terminal",
+          "retryable": false
+        }
+      }
+    },
+    {
+      "id": "record-bad-state",
+      "fn": "recordOutcome",
+      "input": [
+        {
+          "item": {
+            "id": "obx-1",
+            "operationId": "op-1",
+            "source": "emit",
+            "occurrenceIndex": 0,
+            "request": {},
+            "originOccurrence": null,
+            "attempts": 0,
+            "state": "delivered"
+          },
+          "outcome": {
+            "kind": "delivered",
+            "result": 1
+          },
+          "nowMs": 50,
+          "firstAttemptAtMs": 10
+        }
+      ],
+      "expect": {
+        "throw": {
+          "name": "Error",
+          "message": "recordOutcome: item obx-1 is delivered; outcomes apply to pending/claimed items only"
+        }
+      }
+    },
+    {
+      "id": "record-bad-now",
+      "fn": "recordOutcome",
+      "input": [
+        {
+          "item": {
+            "id": "obx-1",
+            "operationId": "op-1",
+            "source": "emit",
+            "occurrenceIndex": 0,
+            "request": {},
+            "originOccurrence": null,
+            "attempts": 0,
+            "state": "pending"
+          },
+          "outcome": {
+            "kind": "uncertain"
+          },
+          "nowMs": {
+            "$num": "NaN"
+          },
+          "firstAttemptAtMs": 10
+        }
+      ],
+      "expect": {
+        "throw": {
+          "name": "RangeError",
+          "message": "recordOutcome: nowMs must be finite and >= 0"
+        }
+      }
+    },
+    {
+      "id": "record-bad-first",
+      "fn": "recordOutcome",
+      "input": [
+        {
+          "item": {
+            "id": "obx-1",
+            "operationId": "op-1",
+            "source": "emit",
+            "occurrenceIndex": 0,
+            "request": {},
+            "originOccurrence": null,
+            "attempts": 0,
+            "state": "pending"
+          },
+          "outcome": {
+            "kind": "uncertain"
+          },
+          "nowMs": 50,
+          "firstAttemptAtMs": -1
+        }
+      ],
+      "expect": {
+        "throw": {
+          "name": "RangeError",
+          "message": "recordOutcome: firstAttemptAtMs must be finite and >= 0"
+        }
+      }
+    },
+    {
+      "id": "record-custom-policy",
+      "fn": "recordOutcome",
+      "input": [
+        {
+          "item": {
+            "id": "obx-1",
+            "operationId": "op-1",
+            "source": "emit",
+            "occurrenceIndex": 0,
+            "request": {},
+            "originOccurrence": null,
+            "attempts": 1,
+            "state": "pending"
+          },
+          "outcome": {
+            "kind": "failed",
+            "cause": {
+              "kind": "transient",
+              "code": "E",
+              "message": "m"
+            }
+          },
+          "nowMs": 500,
+          "firstAttemptAtMs": 10,
+          "policy": {
+            "maxAttempts": 2,
+            "horizonMs": 1000
+          }
+        }
+      ],
+      "expect": {
+        "ok": {
+          "item": {
+            "id": "obx-1",
+            "operationId": "op-1",
+            "source": "emit",
+            "occurrenceIndex": 0,
+            "request": {},
+            "originOccurrence": null,
+            "attempts": 2,
+            "state": "dead"
+          },
+          "status": "failed",
+          "result": null,
+          "error": {
+            "code": "retry-exhausted",
+            "message": "retry attempt budget exhausted"
+          },
+          "retryClass": "transient",
+          "retryable": false
+        }
+      }
+    },
+    {
+      "id": "reconcile-non-uncertain",
+      "fn": "reconcileUncertain",
+      "input": [
+        {
+          "id": "obx-1",
+          "operationId": "op-1",
+          "source": "emit",
+          "occurrenceIndex": 0,
+          "request": {},
+          "originOccurrence": null,
+          "attempts": 0,
+          "state": "dead"
+        },
+        {
+          "kind": "delivered",
+          "result": 1
+        }
+      ],
+      "expect": {
+        "ok": {
+          "item": {
+            "id": "obx-1",
+            "operationId": "op-1",
+            "source": "emit",
+            "occurrenceIndex": 0,
+            "request": {},
+            "originOccurrence": null,
+            "attempts": 0,
+            "state": "dead"
+          },
+          "changed": false,
+          "status": null,
+          "result": null,
+          "error": null
+        }
+      }
+    },
+    {
+      "id": "reconcile-null-evidence",
+      "fn": "reconcileUncertain",
+      "input": [
+        {
+          "id": "obx-1",
+          "operationId": "op-1",
+          "source": "emit",
+          "occurrenceIndex": 0,
+          "request": {},
+          "originOccurrence": null,
+          "attempts": 0,
+          "state": "uncertain"
+        },
+        null
+      ],
+      "expect": {
+        "ok": {
+          "item": {
+            "id": "obx-1",
+            "operationId": "op-1",
+            "source": "emit",
+            "occurrenceIndex": 0,
+            "request": {},
+            "originOccurrence": null,
+            "attempts": 0,
+            "state": "uncertain"
+          },
+          "changed": false,
+          "status": null,
+          "result": null,
+          "error": null
+        }
+      }
+    },
+    {
+      "id": "reconcile-delivered",
+      "fn": "reconcileUncertain",
+      "input": [
+        {
+          "id": "obx-1",
+          "operationId": "op-1",
+          "source": "emit",
+          "occurrenceIndex": 0,
+          "request": {},
+          "originOccurrence": null,
+          "attempts": 2,
+          "state": "uncertain"
+        },
+        {
+          "kind": "delivered",
+          "result": {
+            "ok": true
+          }
+        }
+      ],
+      "expect": {
+        "ok": {
+          "item": {
+            "id": "obx-1",
+            "operationId": "op-1",
+            "source": "emit",
+            "occurrenceIndex": 0,
+            "request": {},
+            "originOccurrence": null,
+            "attempts": 2,
+            "state": "delivered"
+          },
+          "changed": true,
+          "status": "succeeded",
+          "result": {
+            "ok": true
+          },
+          "error": null
+        }
+      }
+    },
+    {
+      "id": "reconcile-failed",
+      "fn": "reconcileUncertain",
+      "input": [
+        {
+          "id": "obx-1",
+          "operationId": "op-1",
+          "source": "emit",
+          "occurrenceIndex": 0,
+          "request": {},
+          "originOccurrence": null,
+          "attempts": 0,
+          "state": "uncertain"
+        },
+        {
+          "kind": "failed",
+          "code": "E9",
+          "message": "bad"
+        }
+      ],
+      "expect": {
+        "ok": {
+          "item": {
+            "id": "obx-1",
+            "operationId": "op-1",
+            "source": "emit",
+            "occurrenceIndex": 0,
+            "request": {},
+            "originOccurrence": null,
+            "attempts": 0,
+            "state": "failed"
+          },
+          "changed": true,
+          "status": "failed",
+          "result": null,
+          "error": {
+            "code": "E9",
+            "message": "bad"
+          }
+        }
+      }
+    },
+    {
+      "id": "reconcile-not-found",
+      "fn": "reconcileUncertain",
+      "input": [
+        {
+          "id": "obx-1",
+          "operationId": "op-1",
+          "source": "emit",
+          "occurrenceIndex": 0,
+          "request": {},
+          "originOccurrence": null,
+          "attempts": 2,
+          "state": "uncertain"
+        },
+        {
+          "kind": "not-found"
+        }
+      ],
+      "expect": {
+        "ok": {
+          "item": {
+            "id": "obx-1",
+            "operationId": "op-1",
+            "source": "emit",
+            "occurrenceIndex": 0,
+            "request": {},
+            "originOccurrence": null,
+            "attempts": 2,
+            "state": "pending"
+          },
+          "changed": true,
+          "status": "pending",
+          "result": null,
+          "error": null
+        }
+      }
+    }
+  ]
+}
