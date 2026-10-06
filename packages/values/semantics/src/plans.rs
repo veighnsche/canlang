@@ -85,6 +85,10 @@ pub enum Meta {
     Bigint(BigInt),
     Array(Vec<Meta>),
     Object(Vec<(String, Meta)>),
+    /// Explicit-undefined fill (N4). D3 excludes `own-undefined`
+    /// from JSON-derived positions only; registered defaults are
+    /// registry-minted (D4), so an explicit undefined default is
+    /// storable and distinct from having no default at all.
     Undefined,
 }
 
@@ -678,6 +682,9 @@ impl Plans {
 
     /// Resolves one default through the shared registry. Forged or
     /// unknown references fail; live ones return the stored value.
+    /// Generation-blind by intent (N3): defaults are plan-content
+    /// identity keyed by sequence and path, so a held reference
+    /// survives retirement — retirement scopes handles, not content.
     pub fn resolve_default(
         &self,
         owner: &OwnerToken,
@@ -711,14 +718,19 @@ impl Plans {
 
     /// Retires the current generation and starts the next. Older
     /// handles fail with `inactive-generation`; stored plans are NOT
-    /// evicted (release stays the only removal).
+    /// evicted (release stays the only removal), so retired but
+    /// unreleased plans still occupy the registration bound (N2: the
+    /// TS half reclaims its live set on retire instead — recorded
+    /// divergence, same release-frees rule in both halves).
     pub fn retire_generation(&mut self, owner: &OwnerToken) -> Result<u64, PlanError> {
         let state = self.state_mut(owner)?;
         state.generation += 1;
         Ok(state.generation)
     }
 
-    /// Live plan count (retired plans still occupy slots until release).
+    /// Live plan count (retired plans still occupy slots until
+    /// release — N2: unlike the TS half's live set, which reclaims
+    /// on retire).
     pub fn live_count(&self, owner: &OwnerToken) -> Result<usize, PlanError> {
         Ok(self
             .state(owner)?
@@ -957,6 +969,70 @@ mod tests {
         assert_eq!(
             plans.resolve_default(&owner, &forged).unwrap_err().code,
             PlanCode::UnknownDefault
+        );
+        // N3: a held default reference survives retirement with the
+        // same stable identity (the plan handle itself goes stale,
+        // but content resolution is generation-blind).
+        plans.retire_generation(&owner).unwrap();
+        assert_eq!(
+            plans.get(&owner, &id).unwrap_err().code,
+            PlanCode::InactiveGeneration
+        );
+        let after = plans.resolve_default(&owner, &reference).unwrap() as *const Meta;
+        assert_eq!(first, after);
+    }
+
+    #[test]
+    fn retired_plans_occupy_the_bound_until_release() {
+        // N2 record: retirement never frees bound here (the TS half
+        // reclaims its live set on retire); only release removes.
+        let mut plans = Plans::default();
+        let owner = plans.create_owner(scope(), 1).unwrap();
+        let first = plans
+            .register(&owner, "v", &schema(), Some(&provenance()))
+            .unwrap();
+        plans.retire_generation(&owner).unwrap();
+        assert_eq!(plans.live_count(&owner).unwrap(), 1);
+        assert_eq!(
+            plans
+                .register(&owner, "v", &schema(), Some(&provenance()))
+                .unwrap_err()
+                .code,
+            PlanCode::RegistryFull
+        );
+        plans.release(&owner, &first);
+        assert_eq!(plans.live_count(&owner).unwrap(), 0);
+        plans
+            .register(&owner, "v", &schema(), Some(&provenance()))
+            .unwrap();
+    }
+
+    #[test]
+    fn undefined_is_a_storable_explicit_default() {
+        // N4: explicit-undefined fills register and resolve; only the
+        // absence of has_default means "no default".
+        let mut plans = Plans::default();
+        let owner = plans.create_owner(scope(), 8).unwrap();
+        let mut maybe = field("maybe");
+        maybe.has_default = true;
+        maybe.default = Some(Meta::Undefined);
+        let input = SchemaInput::Normalized {
+            contracts: vec![ContractInput {
+                name: "C".to_string(),
+                fields: vec![maybe, field("plain")],
+            }],
+            enums: vec![],
+            operations: vec![],
+        };
+        let id = plans
+            .register(&owner, "v", &input, Some(&provenance()))
+            .unwrap();
+        let plan = plans.get(&owner, &id).unwrap();
+        assert!(plan.contracts[0].fields[1].default_ref.is_none());
+        let reference = plan.contracts[0].fields[0].default_ref.clone().unwrap();
+        assert_eq!(
+            plans.resolve_default(&owner, &reference).unwrap(),
+            &Meta::Undefined
         );
     }
 

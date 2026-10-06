@@ -131,7 +131,7 @@ fn length_gates_reject_at_the_transport_stage() {
         json!({"frame": {"t": "array", "items": [{"t": "bool", "v": true}]}, "budgets": tight}),
     );
     assert_eq!(response["stage"], "transport");
-    assert_eq!(response["code"], "length/nodes");
+    assert_eq!(response["code"], "length/oversized");
     assert_eq!(response["check"], "nodes");
 }
 
