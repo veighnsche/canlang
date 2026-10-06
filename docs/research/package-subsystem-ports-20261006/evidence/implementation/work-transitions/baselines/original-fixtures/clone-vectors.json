@@ -1,0 +1,52 @@
+{
+  "work_freezeRequest_record": {
+    "outcome": "returned",
+    "frozen": true,
+    "json": "{\"b\":2,\"nested\":{\"c\":[1]}}"
+  },
+  "work_freezeRequest_array": {
+    "outcome": "threw",
+    "errorName": "TypeError",
+    "errorMessage": "freezeRequest: request must be a plain JSON record"
+  },
+  "work_freezeRequest_primitive": {
+    "outcome": "threw",
+    "errorName": "TypeError",
+    "errorMessage": "freezeRequest: request must be a plain JSON record"
+  },
+  "work_freezeRequest_function": {
+    "outcome": "threw",
+    "errorName": "DataCloneError",
+    "errorMessage": "() => 1 could not be cloned."
+  },
+  "work_freezeRequest_nested_function": {
+    "outcome": "threw",
+    "errorName": "DataCloneError",
+    "errorMessage": "() => 1 could not be cloned."
+  },
+  "state_jsonClone_record": {
+    "outcome": "returned",
+    "frozen": false,
+    "json": "{\"equal\":true}"
+  },
+  "state_jsonClone_function": {
+    "outcome": "threw",
+    "errorName": "StateError",
+    "errorMessage": "probe must be JSON data."
+  },
+  "state_checkJsonSafe_record": {
+    "outcome": "returned",
+    "frozen": null,
+    "json": "\"probed-ok\""
+  },
+  "state_checkJsonSafe_bigint": {
+    "outcome": "threw",
+    "errorName": "StateError",
+    "errorMessage": "probe holds non-JSON values."
+  },
+  "state_checkJsonSafe_circular": {
+    "outcome": "threw",
+    "errorName": "StateError",
+    "errorMessage": "probe holds non-JSON values."
+  }
+}
