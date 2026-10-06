@@ -1,0 +1,17 @@
+{
+  "fractionalClockAccepted": true,
+  "randomCallsAfterValidationAndExhaustionChecks": 1,
+  "evidenceAccessOrder": [
+    "z",
+    "a"
+  ],
+  "outputOrder": [
+    "a",
+    "z"
+  ],
+  "duplicateClaimsLastWins": true,
+  "deliveredResultIdentity": true,
+  "idForSurrogateAndExponentSlot": "evr_21e0c0d73b71ee766db1265075e14b2b1480d363919d69c5f20774a1d5d61adb",
+  "artifactSurrogatesAndAdditionalMetadata": true,
+  "artifactFirstErrorAndHostJsonDiagnostic": true
+}
