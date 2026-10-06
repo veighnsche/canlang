@@ -61,7 +61,7 @@ export interface ExampleHooks {
    * the row's static provisioned values; a live state facade plugs in
    * here (B/C slice).
    */
-  readonly observeScope?: (scope: RowScope, stashed: StashedRow) => unknown;
+  readonly observeScope?: (scope: RowScope, stashed: StashedRow) => unknown | Promise<unknown>;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
