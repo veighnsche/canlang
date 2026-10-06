@@ -905,8 +905,21 @@ fn draft_outcome_table() {
     // -E3015 x2 `kind` consequences; R20 rename to
     // `reception_duty`). Removed E2017 x5 + E5004 x2 + E5008 x2 +
     // E3015 x5 = 14, added E2001 x1, net -13. Zero checker-dropped.
+    // T02 re-pin 2026-10-06 (B1 checker fix: the types pass now
+    // types `on=Cap.op.completed` handler payloads with the DESIGN
+    // §8 delivery envelope instead of `{opaque}`, so completion
+    // bodies resolve `event.status`/`event.result` members): 11
+    // files net-decrease, 41 unchanged, zero net-increase; table
+    // total -66 (5027 -> 4961). Every delta is B1-explained
+    // (E2001/E3001/E3010 inside completion handlers resolving):
+    // CanAffiliate 48 -> 40, CanDiscover 86 -> 69, CanDo 45 -> 38
+    // (pilot-closure floor 10 -> 3 under the real catalog:
+    // CanDo:44 E3001 + Employees:8,:9 E3010), CanInvoice 379 ->
+    // 371, CanPropose 135 -> 131, CanPurchase 148 -> 146,
+    // CanReception 190 -> 186, CanReport 42 -> 34, CanStats 35 ->
+    // 31, CanSync 19 -> 17, CanWorkbench 84 -> 82.
     let table: &[(&str, usize)] = &[
-        ("draft/CanAffiliate.can", 48),
+        ("draft/CanAffiliate.can", 40),
         ("draft/CanApprove.can", 47),
         ("draft/CanBoard.can", 3),
         ("draft/CanBook.can", 161),
@@ -919,8 +932,8 @@ fn draft_outcome_table() {
         ("draft/CanCustomer.can", 59),
         ("draft/CanDecide.can", 27),
         ("draft/CanDesk.can", 85),
-        ("draft/CanDiscover.can", 86),
-        ("draft/CanDo.can", 45),
+        ("draft/CanDiscover.can", 69),
+        ("draft/CanDo.can", 38),
         ("draft/CanEnrich.can", 19),
         ("draft/CanEvent.can", 309),
         ("draft/CanExpense.can", 95),
@@ -930,7 +943,7 @@ fn draft_outcome_table() {
         ("draft/CanGrant.can", 48),
         ("draft/CanHire.can", 126),
         ("draft/CanInbox.can", 100),
-        ("draft/CanInvoice.can", 379),
+        ("draft/CanInvoice.can", 371),
         ("draft/CanKnowledge.can", 50),
         ("draft/CanLearn.can", 50),
         ("draft/CanLeave.can", 79),
@@ -939,22 +952,22 @@ fn draft_outcome_table() {
         ("draft/CanMaintain.can", 123),
         ("draft/CanMember.can", 338),
         ("draft/CanOnboard.can", 55),
-        ("draft/CanPropose.can", 135),
-        ("draft/CanPurchase.can", 148),
-        ("draft/CanReception.can", 190),
+        ("draft/CanPropose.can", 131),
+        ("draft/CanPurchase.can", 146),
+        ("draft/CanReception.can", 186),
         ("draft/CanRefer.can", 79),
         ("draft/CanRent.can", 634),
-        ("draft/CanReport.can", 42),
+        ("draft/CanReport.can", 34),
         ("draft/CanShift.can", 187),
-        ("draft/CanStats.can", 35),
+        ("draft/CanStats.can", 31),
         ("draft/CanStock.can", 60),
         ("draft/CanSuccess.can", 50),
-        ("draft/CanSync.can", 19),
+        ("draft/CanSync.can", 17),
         ("draft/CanTable.can", 31),
         ("draft/CanTime.can", 126),
         ("draft/CanTrade.can", 18),
         ("draft/CanVolunteer.can", 76),
-        ("draft/CanWorkbench.can", 84),
+        ("draft/CanWorkbench.can", 82),
         ("draft/shared/Employees.can", 8),
         ("draft/shared/Locations.can", 5),
         ("draft/shared/Suppliers.can", 6),
