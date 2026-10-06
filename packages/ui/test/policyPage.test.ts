@@ -270,6 +270,21 @@ describe("readable selectors (A5 T08 parity)", () => {
     }
   });
 
+  it("S3/N1: opaque delivery known leaves stay terminal (mirrors A E2013 pin)", () => {
+    for (const leaf of ["id", "status", "error", "result"]) {
+      const terminal = resolveReadableSelector(PARITY_MODEL, `shipment.${leaf}`);
+      assert.equal(terminal.ok, true, leaf);
+      assert.ok(terminal.ok && terminal.leaf === "deferred", leaf);
+      const past = resolveReadableSelector(PARITY_MODEL, `shipment.${leaf}.x`);
+      assert.equal(past.ok, false, leaf);
+      assert.deepEqual(
+        past.ok === false ? past.reason : null,
+        `selector "shipment.${leaf}.x" descends past terminal delivery leaf '${leaf}'`,
+        leaf,
+      );
+    }
+  });
+
   it("S3: declared delivery fields still reject progress and unknown members", () => {
     const progress = resolveReadableSelector(PARITY_MODEL, "request.progress.state");
     assert.equal(progress.ok, false);
@@ -294,7 +309,7 @@ describe("readable selectors (A5 T08 parity)", () => {
     assert.equal(isReadableSelector(opaque, "created"), true);
   });
 
-  it("S4 pin: reference interiors stay rejected in projections and predicates", () => {
+  it("S4 pin: reference interiors stay rejected in projections and predicates (A a5_s4_ui_columns_reference_interior_e4012)", () => {
     for (const context of ["projection", "predicate"] as const) {
       const declared = resolveReadableSelector(PARITY_MODEL, "owner.id", context);
       assert.equal(declared.ok, false, context);
@@ -307,7 +322,7 @@ describe("readable selectors (A5 T08 parity)", () => {
     }
   });
 
-  it("S4 pin: reserved-root reference interiors stay rejected (created_by.id)", () => {
+  it("S4 pin: reserved-root reference interiors stay rejected, created_by.id (A a5_s4_ui_filter_reserved_reference_e4012)", () => {
     for (const context of ["projection", "predicate"] as const) {
       const reserved = resolveReadableSelector(PARITY_MODEL, "created_by.id", context);
       assert.equal(reserved.ok, false, context);
