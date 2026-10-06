@@ -12,6 +12,7 @@
 import type {
   AdmissionKind,
   AuthorizedRecordsResult,
+  CommitBatch,
   DomainWrite,
   HistoryEntry,
   ModelName,
@@ -33,6 +34,8 @@ import type {
   ReadEnvelope,
 } from '../../../contracts/src/wire.js';
 import type { ResolvedIdentity } from '../../../contracts/src/identity.js';
+import type { FanoutChildId } from '../../../contracts/src/work.js';
+import type { ClosedInputs } from '../../../contracts/src/wire.js';
 import type { OperationRegistry } from './registry.js';
 import { isGeneratedOperationDef } from './registry.js';
 import type { ByPredicate, MembershipReader } from '../policy/roles.js';
@@ -50,6 +53,7 @@ import { queryRecords } from '../query/index.js';
 import { buildContext, type ClockPort } from './context.js';
 import { StateError, storageToStateError } from '../errors.js';
 import { stageEffectsStaging } from '../effects/staging.js';
+import { checkFanoutChildId } from '../fanout/cohort.js';
 import { FenceConflictError, StorageConstraintError } from '../storage/port.js';
 
 /** Fenced-commit attempts per invocation, per DESIGN §7. */
@@ -490,5 +494,100 @@ export async function invokeRead(input: InvokeReadInput): Promise<AuthorizedReco
     memberships: input.memberships,
     store: input.store,
     archived: 'exclude',
+  });
+}
+
+/* -- T34-F5 fanout child admission (ADDITIVE; `invoke`/`invokeRead` untouched). -- */
+
+/** One fanout child invocation through canonical admission. */
+export interface FanoutChildInvokeInput {
+  readonly registry: OperationRegistry;
+  readonly store: StoragePort;
+  readonly memberships: MembershipReader;
+  readonly clock: ClockPort;
+  /** Scenario child operation (its registry def carries the real `by` gate). */
+  readonly childOperation: string;
+  /** Stable child identity (parent occurrence + handler + record). */
+  readonly child: FanoutChildId;
+  /**
+   * FRESH uuidv7 attempt identity, caller-minted per attempt.
+   * Attempt-scoped only: stable child idempotency rides the F2 child
+   * row (claim replays terminal children without invoking), because
+   * operation identities must be fresh uuidv7 by construction.
+   */
+  readonly operationId: string;
+  /**
+   * The source's VERIFIED identity, forwarded verbatim. Forged contents
+   * are ignored — the live membership reader wins both ways — so
+   * cohort membership grants no authority: the def's `by` plus live
+   * membership decide, per child, at admission AND at commit time.
+   */
+  readonly identity: ResolvedIdentity;
+  /** Selected deployment app; part of the receipt identity. */
+  readonly app: string;
+  readonly source: string;
+  /** Child body inputs (including the child record ref). */
+  readonly inputs: ClosedInputs;
+  readonly kind?: AdmissionKind;
+  readonly trustedSource?: string;
+  /** Child body: evaluates filters/guards and stages child effects. */
+  readonly execute: ExecuteHandler;
+  /**
+   * Injected child-unit linkage assertion (the child-join port's
+   * `assertFanoutChildJoin`), run over the commit batch before it
+   * touches the store. Injected — not imported — so this module keeps
+   * its one-way edge into the ports layer (ports/transact imports
+   * invocation/invoke; the reverse edge would cycle).
+   */
+  readonly assertJoin: (batch: CommitBatch) => void;
+}
+
+/**
+ * Admit one fanout child through the CANONICAL `invoke` path with fresh
+ * authority (adopted T32 fence per child):
+ *
+ * - Fresh admission per child: every call reads a new revision, opens a
+ *   new fence scope, re-reads live membership, and revalidates at commit
+ *   time. No checkpoint, grant, or version is ever carried from the
+ *   source occurrence or a sibling — carrying is structurally
+ *   unrepresentable (this helper calls `invoke`, which always admits
+ *   fresh).
+ * - Membership grants NO authority (§C4): there is no grant input here
+ *   at all. A frozen member without a live grant is denied `forbidden`
+ *   exactly like any unauthorized caller; revocation between siblings
+ *   voids only the revoked child.
+ * - Atomic child unit (§C5): the body's staged fanout writes (terminal
+ *   outcome + checkpoint advance) commit in the same owner transaction
+ *   as the child's domain/history/replay/outbox/schedule effects, with
+ *   the injected linkage assertion wrapped around the commit.
+ * - Duplicate attempt delivery replays the attempt receipt; duplicate
+ *   CHILD delivery replays at the F3 claim (terminal child rows never
+ *   re-invoke) — the driver checks the child row before calling here.
+ */
+export async function invokeFanoutChild(input: FanoutChildInvokeInput): Promise<MutationResult> {
+  checkFanoutChildId(input.child);
+  const store: StoragePort = {
+    ...input.store,
+    commit: async (batch) => {
+      input.assertJoin(batch);
+      return input.store.commit(batch);
+    },
+  };
+  return invoke({
+    registry: input.registry,
+    store,
+    memberships: input.memberships,
+    clock: input.clock,
+    envelope: {
+      operation: input.childOperation,
+      operation_id: input.operationId,
+      inputs: input.inputs,
+    },
+    identity: input.identity,
+    app: input.app,
+    source: input.source,
+    ...(input.kind !== undefined ? { kind: input.kind } : {}),
+    ...(input.trustedSource !== undefined ? { trustedSource: input.trustedSource } : {}),
+    execute: input.execute,
   });
 }

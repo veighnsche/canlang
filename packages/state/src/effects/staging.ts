@@ -283,6 +283,104 @@ export function stageDispatchJoin(
 }
 
 /**
+ * T34-F5: validate one frozen fanout identity set — an array of
+ * non-empty canonical record ids with no duplicates — and return it in
+ * sorted canonical order. Duplicates fail closed (a frozen set with a
+ * duplicate is store disagreement, never silently deduped at commit).
+ */
+export function stageFanoutMembership(members: ReadonlyArray<string>, what: string): string[] {
+  if (!Array.isArray(members)) {
+    throw new StateError('validation', `${what} must be an array of canonical record ids.`);
+  }
+  const seen = new Set<string>();
+  for (const entry of members) {
+    if (typeof entry !== 'string' || entry === '') {
+      throw new StateError('validation', `${what} entries must be non-empty strings.`);
+    }
+    if (seen.has(entry)) {
+      throw new StateError(
+        'validation',
+        `${what} contains a duplicate identity: ${JSON.stringify(entry)}.`,
+      );
+    }
+    seen.add(entry);
+  }
+  return [...seen].sort();
+}
+
+/** T34-F5: closed terminal child-outcome fields for one child record. */
+export interface StagedFanoutChildOutcome {
+  readonly state: 'completed' | 'skipped' | 'failed';
+  readonly causeKind: 'completed' | 'skipped' | 'failed';
+  readonly causeReason: string | null;
+  readonly attempts: number;
+}
+
+/**
+ * T34-F5: validate one terminal child-outcome staging — closed
+ * state/cause pairing (completed carries no reason; skipped carries
+ * deleted/non-applicable; failed carries a closed failed reason) plus
+ * an attempts count. Non-terminal states and open causes fail closed;
+ * unknown extra keys are dropped by the caller, never passed through.
+ */
+export function stageFanoutChildOutcome(input: {
+  readonly state: string;
+  readonly causeKind: string | null;
+  readonly causeReason: string | null;
+  readonly attempts: number;
+}): StagedFanoutChildOutcome {
+  if (typeof input !== 'object' || input === null || Array.isArray(input)) {
+    throw new StateError('validation', 'Fanout child outcome must be an object.');
+  }
+  const attempts = input.attempts;
+  if (!Number.isInteger(attempts) || attempts < 0) {
+    throw new StateError('validation', 'Fanout child attempts must be an integer >= 0.');
+  }
+  if (input.state === 'completed') {
+    if (input.causeKind !== 'completed' || input.causeReason !== null) {
+      throw new StateError(
+        'validation',
+        'Fanout completed outcome must carry kind completed with no reason.',
+      );
+    }
+    return { state: 'completed', causeKind: 'completed', causeReason: null, attempts };
+  }
+  if (input.state === 'skipped') {
+    if (
+      input.causeKind !== 'skipped' ||
+      (input.causeReason !== 'deleted' && input.causeReason !== 'non-applicable')
+    ) {
+      throw new StateError(
+        'validation',
+        `Fanout skipped outcome needs a closed reason, got ${JSON.stringify(input.causeReason)}.`,
+      );
+    }
+    return { state: 'skipped', causeKind: 'skipped', causeReason: input.causeReason, attempts };
+  }
+  if (input.state === 'failed') {
+    if (
+      input.causeKind !== 'failed' ||
+      (input.causeReason !== 'business-rejection' &&
+        input.causeReason !== 'terminal' &&
+        input.causeReason !== 'exhausted' &&
+        input.causeReason !== 'missing-record' &&
+        input.causeReason !== 'inaccessible-record' &&
+        input.causeReason !== 'infra-read-failure')
+    ) {
+      throw new StateError(
+        'validation',
+        `Fanout failed outcome needs a closed reason, got ${JSON.stringify(input.causeReason)}.`,
+      );
+    }
+    return { state: 'failed', causeKind: 'failed', causeReason: input.causeReason, attempts };
+  }
+  throw new StateError(
+    'validation',
+    `Fanout child outcome state must be terminal, got ${JSON.stringify(input.state)}.`,
+  );
+}
+
+/**
  * Validate ExecutionEffects-shaped staging (`{ outbox, schedules }`).
  * `crudExecute`'s empty arrays pass trivially.
  */

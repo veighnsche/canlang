@@ -627,3 +627,26 @@ export async function revalidateCommitForFence(input: CommitRevalidationInput): 
     }
   }
 }
+
+/* -- T34-F5 fanout child fence scope (ADDITIVE; existing fence untouched). -- */
+
+/**
+ * Open one fanout child's fence scope: a FRESH transitive scope at the
+ * child's own checkpoint, never inheriting the source occurrence's or a
+ * sibling's checkpoint. Fanout children are transitive effects — each
+ * re-reads CURRENT authority state (membership, record refs, parent
+ * linkage) at its own checkpoint, so revocation between siblings voids
+ * only the revoked child. Drivers that stage pre-checks outside
+ * `invoke` (claim guards, lifecycle reads) enroll them here; children
+ * admitted through `invokeFanoutChild` get an equivalent fresh scope
+ * from `admit` itself.
+ */
+export async function openFanoutChildScope(
+  store: Pick<StoragePort, 'readRevision'>,
+  owner: string,
+): Promise<FenceScope> {
+  if (typeof owner !== 'string' || owner === '') {
+    throw new StateError('validation', 'Fanout child scope needs a non-empty owner.');
+  }
+  return openTransitiveScope(store, owner);
+}
