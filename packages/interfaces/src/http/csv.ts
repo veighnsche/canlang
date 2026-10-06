@@ -155,8 +155,10 @@ export interface CsvDataRow {
 /**
  * Parse CSV text (pure): comma-separated, CRLF/LF newlines, double-quote
  * quoting with `""` escapes (quotes may span lines); a lone CR is a
- * literal character. Truly empty lines are skipped; every other line
- * yields a data row, including field-count mismatches (flagged
+ * literal character. Blank lines are preserved as single-empty-field
+ * records (flagged `malformed` against multi-column headers — only the
+ * virtual record after a trailing newline is dropped); every other
+ * line yields a data row, including field-count mismatches (flagged
  * `malformed`, preserved for row-level verdicts). An unterminated
  * quoted field throws `CsvParseError` (nothing is Salvageable); past
  * `CSV_MAX_ROWS` data rows throws `CsvTooManyRowsError`.

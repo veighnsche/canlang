@@ -211,6 +211,9 @@ const VENDOR_TREES: readonly VendorTree[] = [
 const TEST_ONLY_VENDOR_KEYS: ReadonlySet<string> = new Set([
   "vendor/state/fanout/work-loader.js",
   "vendor/state/receipt/work-loader.js",
+  // D3b Q3: the receipt join + worker-safe observer producers are
+  // production-vendored — intentionally ABSENT here (present in the
+  // vendor walk, resolved by the rewrite map above).
 ]);
 
 /** Vendor entry keys (mirroring each package's `main`). */
@@ -220,6 +223,9 @@ const IDENTITY_VENDOR_ENTRY = "vendor/identity/index.js";
 /** Mirrors `@canlang/contracts` package `main` (`./dist/index.js`). */
 const CONTRACTS_VENDOR_ENTRY = "vendor/contracts/index.js";
 const STATE_D1_VENDOR_ENTRY = "vendor/state/storage/d1.js";
+/** D3b receipt producers (C's Q2 contract vendor keys). */
+const STATE_RECEIPT_JOIN_VENDOR_ENTRY = "vendor/state/receipt/join.js";
+const STATE_RECEIPT_OBSERVER_VENDOR_ENTRY = "vendor/state/receipt/observer.js";
 const VALUES_VENDOR_ENTRY = "vendor/values/index.js";
 
 export interface BuildDeployBundleOptions {
@@ -477,6 +483,9 @@ function rewriteArtifactImports(js: string, modulePath: string): string {
  */
 const IDENTITY_SOURCE_SPECIFIER = "@canlang/identity";
 const STATE_D1_SOURCE_SPECIFIER = "../../../state/dist/state/src/storage/d1.js";
+/** D3b receipt producers (C's Q2 seam consts in pinned `invoke.js`). */
+const STATE_RECEIPT_JOIN_SOURCE_SPECIFIER = "../../../state/dist/state/src/receipt/join.js";
+const STATE_RECEIPT_OBSERVER_SOURCE_SPECIFIER = "../../../state/dist/state/src/receipt/observer.js";
 const VALUES_SOURCE_SPECIFIER = "@canlang/values";
 /** Contracts version constants (`loadContractVersions` in pinned `invoke.js`). */
 const CONTRACTS_SOURCE_SPECIFIER = "@canlang/contracts";
@@ -486,6 +495,12 @@ function rewriteRuntimeImports(js: string, moduleKey: string): string {
   const mapped = (spec: string): string => {
     if (spec === IDENTITY_SOURCE_SPECIFIER) return relativeSpecifier(moduleKey, IDENTITY_VENDOR_ENTRY);
     if (spec === STATE_D1_SOURCE_SPECIFIER) return relativeSpecifier(moduleKey, STATE_D1_VENDOR_ENTRY);
+    if (spec === STATE_RECEIPT_JOIN_SOURCE_SPECIFIER) {
+      return relativeSpecifier(moduleKey, STATE_RECEIPT_JOIN_VENDOR_ENTRY);
+    }
+    if (spec === STATE_RECEIPT_OBSERVER_SOURCE_SPECIFIER) {
+      return relativeSpecifier(moduleKey, STATE_RECEIPT_OBSERVER_VENDOR_ENTRY);
+    }
     if (spec === CONTRACTS_SOURCE_SPECIFIER) return relativeSpecifier(moduleKey, CONTRACTS_VENDOR_ENTRY);
     return spec;
   };
@@ -502,6 +517,8 @@ function rewriteRuntimeImports(js: string, moduleKey: string): string {
   for (const [source, entry] of [
     [IDENTITY_SOURCE_SPECIFIER, IDENTITY_VENDOR_ENTRY],
     [STATE_D1_SOURCE_SPECIFIER, STATE_D1_VENDOR_ENTRY],
+    [STATE_RECEIPT_JOIN_SOURCE_SPECIFIER, STATE_RECEIPT_JOIN_VENDOR_ENTRY],
+    [STATE_RECEIPT_OBSERVER_SOURCE_SPECIFIER, STATE_RECEIPT_OBSERVER_VENDOR_ENTRY],
     [CONTRACTS_SOURCE_SPECIFIER, CONTRACTS_VENDOR_ENTRY],
   ] as const) {
     out = out.split(source).join(relativeSpecifier(moduleKey, entry));
