@@ -4,6 +4,8 @@
 //! length-delimited frame protocol on stdin/stdout (see `protocol.rs`).
 //! Stdout is protocol-only; diagnostics go to stderr.
 
+mod failures;
+mod input;
 mod job;
 mod protocol;
 
