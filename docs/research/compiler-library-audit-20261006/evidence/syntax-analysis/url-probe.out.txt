@@ -1,0 +1,9 @@
+
+thread 'main' (18238571) panicked at compiler/src/analysis/types.rs:15486:43:
+end byte index 7 is not a char boundary; it is inside '💥' (bytes 4..8 of string)
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+"💥💥💥": PANIC
+"https://[garbage]": []
+"https://host:999999": []
+"https://valid.example": []
+"https://user:pass@example.com": [("E3001", "`https://user:pass@example.com` is not a valid url: userinfo is not allowed")]

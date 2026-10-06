@@ -1,0 +1,8 @@
+lexer codepoints: [8, 12, 128512]
+analysis diagnostics: []
+emission diagnostics: []
+JS: export const probePageDescriptor={owner:"probe",path:"/",title:message("Probe"),admit:async(c,routeBindings={})=>{return {};},render:probePage};
+JS: export async function probePage(c,bindings){return renderPage(c,probePageDescriptor,()=>[text({context:c,values:["probe"]})]);}
+JS: return {
+JS: return "bf��";
+source-map observation: text=é😀x, span start=6 UTF8 bytes, emitted originalColumn=Some(6), UTF16 column before x=3

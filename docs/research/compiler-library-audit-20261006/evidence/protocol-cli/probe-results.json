@@ -1,0 +1,31 @@
+{
+  "head": "309644a6881909d8dba32560bc6711f67e00a7ab",
+  "probes": {
+    "wrong_rpc_bool_id": {
+      "request_hex": "7b226a736f6e727063223a22312e30222c226964223a747275652c226d6574686f64223a22696e697469616c697a65222c22706172616d73223a7b7d7d",
+      "exit": 0,
+      "stdout": "Content-Length: 616\r\n\r\n{\"jsonrpc\":\"2.0\",\"id\":true,\"result\":{\"capabilities\":{\"positionEncoding\":\"utf-16\",\"textDocumentSync\":1,\"hoverProvider\":true,\"completionProvider\":{},\"definitionProvider\":true,\"referencesProvider\":true,\"renameProvider\":true,\"semanticTokensProvider\":{\"legend\":{\"tokenTypes\":[\"namespace\",\"type\",\"class\",\"interface\",\"enum\",\"struct\",\"parameter\",\"variable\",\"property\",\"enumMember\",\"event\",\"function\",\"method\",\"keyword\",\"comment\",\"string\",\"number\",\"operator\"],\"tokenModifiers\":[\"declaration\",\"documentation\",\"defaultLibrary\",\"readonly\"]},\"full\":true},\"codeActionProvider\":true},\"serverInfo\":{\"name\":\"can\",\"version\":\"0.1.0\"}}}",
+      "stderr": ""
+    },
+    "null_id": {
+      "request_hex": "7b226a736f6e727063223a22322e30222c226964223a6e756c6c2c226d6574686f64223a22696e697469616c697a65222c22706172616d73223a7b7d7d",
+      "exit": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    "invalid_utf8": {
+      "request_hex": "7b226a736f6e727063223a22322e30222c226964223a22ff222c226d6574686f64223a22696e697469616c697a65222c22706172616d73223a7b7d7d",
+      "exit": 0,
+      "stdout": "Content-Length: 617\r\n\r\n{\"jsonrpc\":\"2.0\",\"id\":\"\ufffd\",\"result\":{\"capabilities\":{\"positionEncoding\":\"utf-16\",\"textDocumentSync\":1,\"hoverProvider\":true,\"completionProvider\":{},\"definitionProvider\":true,\"referencesProvider\":true,\"renameProvider\":true,\"semanticTokensProvider\":{\"legend\":{\"tokenTypes\":[\"namespace\",\"type\",\"class\",\"interface\",\"enum\",\"struct\",\"parameter\",\"variable\",\"property\",\"enumMember\",\"event\",\"function\",\"method\",\"keyword\",\"comment\",\"string\",\"number\",\"operator\"],\"tokenModifiers\":[\"declaration\",\"documentation\",\"defaultLibrary\",\"readonly\"]},\"full\":true},\"codeActionProvider\":true},\"serverInfo\":{\"name\":\"can\",\"version\":\"0.1.0\"}}}",
+      "stderr": ""
+    }
+  },
+  "fmt_mode": {
+    "before": "0o600",
+    "after": "0o644",
+    "exit": 0,
+    "stdout": "",
+    "stderr": "",
+    "formatted_text": "app A\nGiven\nWhen\nThen\n"
+  }
+}

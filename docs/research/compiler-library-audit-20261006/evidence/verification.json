@@ -1,0 +1,56 @@
+{
+  "baseline": "309644a6881909d8dba32560bc6711f67e00a7ab",
+  "checks": [
+    {
+      "command": "cargo test --locked --manifest-path compiler/Cargo.toml --lib",
+      "passed": 89,
+      "failed": 0,
+      "scope": "library unit baseline",
+      "runner": "root"
+    },
+    {
+      "targets": [
+        "foundation",
+        "authoring",
+        "exe"
+      ],
+      "passed": 45,
+      "failed": 0,
+      "scope": "integration targets reported by protocol/CLI reviewer",
+      "runner": "protocol_cli_audit"
+    },
+    {
+      "filter": "lsp::",
+      "passed": 17,
+      "failed": 0,
+      "scope": "overlaps library baseline; do not add to total",
+      "runner": "protocol_cli_audit"
+    }
+  ],
+  "probes": [
+    "protocol-cli/probe.py",
+    "codegen/string-and-columns-probe.rs",
+    "syntax-analysis/url-probe.rs",
+    "syntax-analysis/locale-probe.rs",
+    "syntax-analysis/host-parity.mjs"
+  ],
+  "limits": [
+    "No production-source or manifest edits",
+    "No dependency installation or integration",
+    "No release-size, build-time or speed comparison",
+    "No full suite or installed generated-JS journey claimed",
+    "No cross-platform metadata validation",
+    "Targeted responsibility inspection rather than every-branch proof"
+  ],
+  "artifact_checks": {
+    "all_81_compiler_hashes_match": true,
+    "local_markdown_links_resolve": true,
+    "jev_saved_requests_match_authored_requests": true,
+    "jev_usage": {
+      "input_tokens": 2775,
+      "output_tokens": 141
+    },
+    "git_diff_check": "passed",
+    "independent_final_report_review": "no material corrections"
+  }
+}

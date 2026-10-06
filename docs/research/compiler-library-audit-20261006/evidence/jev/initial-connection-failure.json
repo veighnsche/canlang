@@ -1,0 +1,8 @@
+{
+  "command": "python3 tools/jev.py docs/research/compiler-library-audit-20261006/evidence/jev/1.request.json --output docs/research/compiler-library-audit-20261006/evidence/jev/1.response.json",
+  "execution": "default sandbox",
+  "exit_code": 1,
+  "message": "jev: Jev connection failed; no retry was made",
+  "response_received": false,
+  "resolution": "Same first request subsequently succeeded through preauthorized network escalation; three successful responses saved separately."
+}
