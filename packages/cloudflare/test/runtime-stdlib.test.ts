@@ -154,13 +154,32 @@ function freshOperationId(atMs: number): string {
 const OPS_SOURCE = `import { create, set, deleteRecord, records } from ${JSON.stringify(STDLIB_URL)};
 export function canApp() {
   return {
+    // B7: every scenario declares its admission gate (absent
+    // entries deny) and Todo carries explicit-public read
+    // provenance (absent reads serve zero grants) so the stdlib
+    // behavior pins below still stage through the handlers.
+    policy: {
+      operations: {
+        "acme.Shop.mkCreate": { by: ["members"] },
+        "acme.Shop.mkParent": { by: ["members"] },
+        "acme.Shop.mkSet": { by: ["members"] },
+        "acme.Shop.setMissing": { by: ["members"] },
+        "acme.Shop.mkRemove": { by: ["members"] },
+        "acme.Shop.removeMissing": { by: ["members"] },
+        "acme.Shop.mkRecords": { by: ["members"] },
+        "acme.Shop.mkRecordsBare": { by: ["members"] },
+      },
+      models: {
+        "acme.Todo": { read: ["Todo.read.1"], public: ["Todo.read.1"] },
+      },
+    },
     Shop: {
       mkCreate: async (c, input) => {
         return create(c, "acme.Todo", { id: input.inputs.key, data: { title: input.inputs.title } });
       },
       mkParent: async (c, input) => {
         await create(c, "acme.Todo", { id: input.inputs.parent, data: { title: "parent" } });
-        return create(c, "acme.Todo", {
+        return create(c, "acme.Sub", {
           id: input.inputs.child,
           data: { title: "child" },
           parent: { model: "acme.Todo", id: input.inputs.parent },
@@ -210,6 +229,20 @@ function todoModel(): unknown {
   };
 }
 
+// B5 declared ownership: linkage needs a DECLARED child (ad-hoc
+// parents on the parentless Todo root are refused); the T17c
+// pass-through pin stages through this child.
+function subModel(): unknown {
+  return {
+    name: "acme.Sub",
+    fields: [
+      { name: "title", required: true, serverOnly: false, field: { kind: "string" } },
+    ],
+    deleteMode: "remove",
+    parent: "acme.Todo",
+  };
+}
+
 const SCENARIOS: ReadonlyArray<{ op: string; fn: string; params: ReadonlyArray<string> }> = [
   { op: "acme.Shop.mkCreate", fn: "mkCreate", params: ["key", "title"] },
   { op: "acme.Shop.mkParent", fn: "mkParent", params: ["parent", "child"] },
@@ -253,7 +286,7 @@ function shopArtifact(module: string): CompileArtifact {
         },
       })),
     ],
-    models: [todoModel()],
+    models: [todoModel(), subModel()],
   } as unknown as CompileArtifact;
 }
 
@@ -371,7 +404,7 @@ describe("create", () => {
       model: "acme.Todo",
       id: "t1",
     });
-    const stored = await s.store.load("acme.Todo" as ModelName, "t2" as RecordId);
+    const stored = await s.store.load("acme.Sub" as ModelName, "t2" as RecordId);
     expect(stored?.parent).toEqual({ model: "acme.Todo", id: "t1" });
   });
 });

@@ -1,80 +1,53 @@
 # Living ideal file-tree plan for Canlang
 
-This is the current planning entry point for `/Users/vince/Projects/canlang`. The audit stops at reviewed ownership, exact target allocations, dependency-ordered tasks and future parallel lanes. It authorizes no implementation, product test/build, install, service/database operation, Git mutation or dispatch.
+This is the current planning entry for the intended finished Canlang, derived from the owning requirements, all original app intent, challenge/reference/remaining plans and the four subsystem-port plans. The selected target goes beyond reorganizing today's implementation. The audit stops at requirements, reviewed boundaries, defining owners, exact target allocations and dependency-ordered future work; it launches no implementation or product checks.
 
-Current maintenance: the branch history is now on `main`; the implementation is
-user-stopped. The [main-merge reconciliation](ideal-filetree-plan/main-merge-20261006.json)
-updates path accountability and current decisions through `1126544`. The original
-audit paragraphs below retain their historical capture scope; they do not establish
-current product acceptance or imply active writers.
+The canonical target is [finished-product/target-tree.md](ideal-filetree-plan/finished-product/target-tree.md), with its [machine allocation](ideal-filetree-plan/finished-product/target-tree.json). The previous current-checkout tree and twelve-package/TS-only recommendation are historical inputs, superseded as the complete intended-product target. Reusable prior source reviews remain at their actual byte/scope pins. Current typed descriptions, forms, receipts, fanout and HTTP serving source supersede blanket historical absence claims only at their observed mechanism scope.
 
-| Baseline | Value |
+| Baseline | Recorded scope |
 | --- | --- |
-| Permanent initial review | `e93adebb3397ef2545efee82006d8227bc361518` |
 | Last complete reconciled checkpoint; unchanged | `8249342707d3280e88e39e8c911b7e457828f31f` |
-| This audit's primary source/catalog pin | `350163ad661e61b667809a5f78b608c23812a5f0` — 2,155 tracked parent paths |
-| Separately inspected committed drift | `9830ba93951ded193b13bcbfb9eaea04e6252d24` — T25 receipt mechanisms and tests |
-| Independent draft pin | `2d673127e03e8b8bc369a7a34858165c034df131` — 148 draft paths |
+| Historical primary review | `350163ad661e61b667809a5f78b608c23812a5f0` |
+| Initial new semantic review | `cf36983c768c32e0a63ac33c3b45a94dc75dc2d3` |
+| Refreshed structural/catalog pin | `5edc3bac2a341fbda0bb432649e90ba70d3c05db`, main; 2,344 tracked parent paths, 47 added other-owner inputs |
+| Independent clean draft pin | `40656da211a410cb6fb363a9c2afc3010fcb8b29`; 148 paths, 49 app/companion pairs and three shared declarations |
+| Accumulated delta since complete checkpoint | 605 path deltas, including deletion/move history; thirteen post-initial-review paths reconciled separately |
 | Maintenance date | 2026-10-06, Europe/Brussels |
 
-The checkpoint is deliberately retained: the shared checkout has active T18/T32 implementation overlays, new fixtures/tests and a concurrent fanout-resolution handoff. Their final responsibility/protocol review is unfinished. The primary pin's accumulated 391 committed changes are accounted for through fresh source/diff/structural review, alongside 1,764 unchanged paths with earlier evidence reused at its actual scope. Dirty/additional evidence and late source are separately enumerated; no moving-tree or installed-workflow certification is inferred.
+The separate implementation coordinator owns the existing source reservations and active checklists. Earlier stopped-run text is historical; this audit does not change product execution state. It maintains its own `finished-product/` planning records and this entry, preserving other integrators' maintenance records and shared implementation evidence. The user separately authorized the five documentation moves and live reference repairs recorded below.
 
-## Current decisions and blockers
+The selected owners keep authored identity and business policy in `.can`, the supported compiler in Rust, package-local pure exact/owned-validation cores and the work-owned contracts-only leaf in Rust, and observable JS traversal, authority/storage, browser/SDK/provider/orchestration/publication in TypeScript. Standalone native preparation is Cloudflare-owned. Actual current/prepared TS/Rust parity, whole-call economics, installed assets and supported-host proofs gate adoption; backend selection precedes evaluation and cannot replay through TS after a selected native failure. Native preparation is qualified opt-in, with bundled owning dist provisional under weak, divided publication advice. No universal host support follows.
 
-Keep the supported Rust compiler, TypeScript runtime/host libraries, `.can` application authority, still-consumed Python syntax prototype and twelve semantic package owners. Decompose real mixed duties privately; preserve one admission/mutation/dispatch authority, generated contract chain and workspace install. Original package-layout JEV advice supports this limited recommendation, without proving performance or publication optimality.
+Required joins include exact compiler/context/reference facts, canonical identity outcomes, owner expiry, real durable files, accepted corpus disclosure, complete finite fanout, browser/assets/polling, preferences, CSV server review, export/Print, trusted maintenance/ping/instrumentation, real mailbox/payment/document/source/report/tracker/model consumers, installed release and fenced staged upgrade. Missing capability remains required. Source/companion disagreements for Mail, Reception, Rent, Stock, Event, Discover, Catch and Affiliate require exact owner verdicts before dependent changes. Identity's unsettled transaction-participant mechanism and provider/host qualification stay gated. Optional W09 continuation scheduling is outside the selected finished-product scope.
 
-The audit independently found blocking producer-consumer defects: policies emitted on `appDefinition` are read from the callable-only `canApp()` registry and then broadened to public grants; generated `actor`/`now` miss the runtime carrier; forms still pass selectors instead of renderer descriptors. Activation/grant routing, transferable login proof, atomic identity commands, app identity, bundle namespaces, scope revalidation, release/CI closure, decimal lowering and editor lifecycle have explicit corrective packets. These were inspected, not fixed or executed.
+- [Requirements and capability workflows](ideal-filetree-plan/finished-product/workflows.md) and [machine duty ledger](ideal-filetree-plan/finished-product/requirements.json): 12 product capability groups, distinct authority/lifecycle duties and required/conditional/deferred/declined outcomes.
+- [All original apps and scoped qualification](ideal-filetree-plan/finished-product/apps.md): full source/companion intent, operation/site/hash evidence, shared declarations and selective independent raw-site challenges.
+- [Inputs, baselines and writer boundary](ideal-filetree-plan/finished-product/baseline.md), [inventory](ideal-filetree-plan/finished-product/inventory.json) and [oversized internals](ideal-filetree-plan/finished-product/oversized.json): exact parent/added/nested accountability, contracts and evidence limits.
+- [Shared findings and boundary queue](ideal-filetree-plan/finished-product/findings.md), [late source reconciliation](ideal-filetree-plan/finished-product/late-source.md), and its independent challenge: observations, opposing cases, source/intent gaps and released-owner gates.
+- [Defining owners and cutovers](ideal-filetree-plan/finished-product/ownership.md) and [complete selected target](ideal-filetree-plan/finished-product/target-tree.md): retained/successor leaves, retirements, conditional generated output naming and actual import/install cutovers.
+- [Dependency-ordered tasks and future lanes](ideal-filetree-plan/finished-product/tasks.md) and [DAG](ideal-filetree-plan/finished-product/tasks.json): all 230 port items (220 required, ten conditional/deferred), all 41 challenge and eight description parents, remaining packet crosswalk and 37 new required product joins. Exact shared writes are serialized; no fixed worker count or global wave barrier.
+- [Consultations and uncertainty](ideal-filetree-plan/finished-product/consultations.md): three independently worded native-host/publication requests/results, split advice and reused decisions at their accepted scope.
+- [Verification record](ideal-filetree-plan/finished-product/verification.json): actual planning checks and the four separate completion dimensions.
 
-A corrected concurrent fanout record supplied material pre-run companion intent omitted from the earlier divided consultation. Preserve complete finite cohorts, independent child failure/progress and the durable per-child direction while gating actual incorporation/handoff and authoritative membership/checkpoint/recovery producers. No new cohort cap or population estimate is required merely to preserve that stated contract. The full original app qualification remains unfinished.
-
-## Plan documents
-
-- [Inputs, baselines and upkeep](ideal-filetree-plan/baseline.md): exact checkout, overlays, authority and evidence policy.
-- [Slices and four completion dimensions](ideal-filetree-plan/slices.md): responsibility coverage, workflow tracing, independent challenge and allocation separately.
-- [Shared findings and boundary queue](ideal-filetree-plan/findings.md): concrete defects, uncertainty and packet owners.
-- [Defining owners and cutovers](ideal-filetree-plan/ownership.md): language/package fit, exact files, retirement/compatibility gates.
-- [Complete selected desired tree](ideal-filetree-plan/desired-tree.md): every retained/successor/draft leaf, including late input limits.
-- [Dependency-ordered tasks](ideal-filetree-plan/tasks.md) and [parallel lanes](ideal-filetree-plan/lanes.md): exclusive writers, producer handoffs and progressively broader future verification. Existing active checklists retain their coordinator.
-- [Consultations and uncertainty](ideal-filetree-plan/consultations.md): preserved package advice and scoped workflow decisions/correction.
-- [Compiler review](ideal-filetree-plan/reviews/compiler.md), [runtime review](ideal-filetree-plan/reviews/runtime.md), [platform review](ideal-filetree-plan/reviews/platform.md), [repository review](ideal-filetree-plan/reviews/repository.md): source/caller/duty evidence and independent challenge.
-- [Inventory](ideal-filetree-plan/inventory.json), [allocations](ideal-filetree-plan/allocations.json), [target manifest](ideal-filetree-plan/target-tree.json), [original backlog mapping](ideal-filetree-plan/backlog.json), [verification record](ideal-filetree-plan/verification.json): repeatable path/target/evidence records. [Reused review evidence](ideal-filetree-plan/prior-review.md) stays at its former revision and is superseded for changed claims.
-
-## Completion and checks
-
-| Dimension | Result |
+| Completion dimension | Result and limit |
 | --- | --- |
-| Source coverage | Whole primary-pin path accountability and delta responsibility/structural review, with identical-byte reuse; later T25 scoped review and moving overlay gaps separately visible. Large test semantics were sampled rather than exhaustively independently reread. |
-| Workflow tracing | Intended authority/state/failure/termination and real producer/consumer chains traced across slices; full implemented or installed delivery remains open through named tasks. |
-| Independent challenge | Primary/challenger coverage of consequential findings and owner/retirement/gate choices; selected cross-owner defects independently confirmed; no branch-completeness proof. |
-| Exact target allocation | Every catalogued input has retained/successor leaves and a realization packet; shared destinations have one writer; unresolved semantics gate their cutover. |
+| Source coverage | Path/catalog accountability complete at the current pin; every input has a disposition and mixed internals are indexed. Fresh source/contract/diff reads and historical byte-scoped review cover recorded duties. Exhaustive body/control-path/independent test-expectation review remains `FP.SOURCE-CLOSURE`; counts do not close it. |
+| Workflow tracing | Required authority/state/failure/retry/termination reconstructed across 12 capabilities and all 49 app pairs plus shared declarations. Compiled, installed, browser/MCP/provider/storage qualification remains named future work. |
+| Independent challenge | Four primary views and independent challengers; material cross-owner corrections incorporated. App and late-source challengers reread selected raw sites with strongest countercases. This is not exhaustive branch proof. |
+| Exact target allocation | Every catalogued input has selected retained/successor leaves, a defining owner and cutover gate; all port and required product joins mapped. Fixture/generated ABI names, unsettled identity mechanism and provisional publication/host decisions gate their dependent instructions. |
 
-Performed checks are read-only inventory/blob/status/submodule/diff/history inspection, source/data/media structural decoding, local document links, complete allocation, duplicate/case/file-directory/Rust-module collisions, and documentation whitespace. The installed skill's referenced procedure/templates/checker are missing; the local checks are separately described in the verification record. No product tests/builds, installation, stage or live provider journey ran in this audit. Earlier acceptance transcripts remain evidence only at their original revision/scope. Proposed exports/APIs, behavioral equivalence after moves, final file sizes and performance remain unverified until implementation.
+Performed checks: read-only Git/blob/status/submodule/diff inspection, source/contract/data/build internals and SHA-256 catalogs; planning JSON/Markdown links, complete input/app/port allocation, all accepted-branch dependency ordering, exclusive-writer conflict catalog, duplicate/case/file-directory/Rust module-root collisions and documentation whitespace. The installed skill's referenced procedure/templates/checker are absent; the local standard-library checker is explicitly planning-only. No product test/build, install, stage, deployment or live provider workflow ran. Prior acceptance/CI transcripts retain their original revisions and scopes. Proposed APIs/outputs, equivalence, performance and supported release remain unverified until their acceptance gates run.
 
-After **every merge**, its handler must reconcile all accumulated changes since the complete checkpoint and update inventory, duties, affected reviews, owners, tree, retirements, tasks and lanes together. Advance that checkpoint only when review is complete. The inspection pins allow unchanged evidence to be reused without relabeling it as newer proof. Bookkeeping does not require recursive self-updates and never authorizes implementation.
+After every merge, its handler reconciles all accumulated changes since the complete checkpoint and updates coverage, decisions, reviews, owners, tree, retirements, tasks and lanes together. Advance only after complete review; open product defects may remain with explicit owner tasks, and runtime qualification is a separate dimension. Bookkeeping does not recursively update itself or authorize implementation. [Historical primary records](ideal-filetree-plan/baseline.md), [main merge reconciliation](ideal-filetree-plan/main-merge-20261006.json) and other existing integration records are retained as prior evidence, never parallel current targets.
 
-Final structural capture also records `c300d467b3863fd096d81e8666152859ab36f028`, which landed T32 Cloudflare integration and two tests after the primary/T25 review. Those additions are allocated with deep review pending. The complete reconciliation checkpoint remains `8249342`; no late integration closure is inferred.
+<!-- documentation-review:start -->
+## Markdown placement and consolidation
 
-The later `b82c0de` T34 planning/handoff record incorporates the corrected durable per-child direction. Actual producer contracts, exact authoritative membership, atomic checkpoints/recovery and qualification remain implementation obligations; the original-pinned backlog remains historical.
+Only `README.md` and `AGENTS.md` remain at the repository root. The current requirements, design, grammar, and decision log are in `docs/specification/`; the completed evaluation plan is `design/evaluation/PLAN.md`. These five moves and live reference repairs are applied locally, including the separate draft working tree; publication and complete checkpoint advancement remain separate.
 
-## Main merge reconciliation, 2026-10-06
+[Documentation inventory](ideal-filetree-plan/finished-product/documentation-inventory.json) records 490 tracked and three added Markdown paths at its observation. [Review and migration ledger](ideal-filetree-plan/finished-product/documentation-review.json) retains every disposition, original hash, exact successor, task and preservation gate. The selected consolidation is applied: 52 assessment/correction notes now form 25 topic records, reducing Markdown by 27 files. All original source blocks, corrections, uncertainty, witnesses and limitations were preserved under heading/navigation normalization and independently cross-reviewed; 169 raw JSON records remain byte-identical. Stable source anchors replace old note paths. The ledger records original hashes, section preservation hashes, live reference repairs and 51 retired predecessors; one existing README was retained and 24 new successors created. Moving the five root files alone does not reduce total file count. Frozen captures, final report bytes and raw consultation JSON retain their provenance.
 
-All 118 branch commits were fast-forwarded onto `main` through `1126544`, preserving
-their hashes and the exact source tree. The [merge record](ideal-filetree-plan/main-merge-20261006.json)
-accounts for all 487 changed paths since the complete checkpoint and registers
-44 newer source inputs with exact defining owners/targets. Current structural
-coverage is updated; primary audit evidence remains pinned to its historical source.
-The complete checkpoint stays at `8249342`: deep joined-path review and product
-qualification remain unfinished. This bookkeeping is not implementation acceptance.
+Keep project decisions in `docs/specification/DECISIONS.md`; proposals and accepted decisions have distinct status. Prior-plan prose, shared setup guidance and superseded launch instructions have further scoped review tasks; archival moves alone are not pruning. All 493 paths are structurally accounted for, but focused semantic review does not certify every paragraph for deletion.
 
-F1–F5 fanout mechanisms, T25 receipt persistence/fences, T18 engine initialization,
-T19 derivation and T20 form factories now exist in committed source. F6/F7/T26 are
-explicitly unfinished checkpoints. Historical blanket absence claims are superseded
-at that mechanism scope; generated serving, production receipt/default/form joins,
-C05 discovery/import cutover, C08/C09 and original R01 remain open. New test drivers
-and colocated witnesses have testing successors gated on actual caller/discovery
-cutover. Existing retirement decisions remain unchanged.
-
-The old implementation run is user-stopped, its heartbeat paused, and only the main
-checkout remains. No Muse instances, timers, worktrees or implementation are launched
-by this merge. The separate [remaining implementation plan](../implementation/REMAINING-IMPLEMENTATION-LANES.md)
-defines that finite authorized backlog; this file-tree plan does not expand it.
+The completed `editors/vscode/audit-astra/` working copies are retired: 187 files, including 23 Markdown files and 42,687,533 bytes. No build/test/install consumer depends on them; the active highlighting checker retains the defect regressions. The existing ledger pins all original paths, sizes and SHA-256 hashes to Git revision `e5fa27c3cbe6c00e4ec76ea61005a3f1d3e65faa`; a fresh archive extraction reproduced every byte. Existing audit navigation uses commit-pinned links and recovery instructions. This scoped retirement does not authorize pruning other captures, change historical review conclusions, or advance the checkpoint. DOC06 remains deferred for broader storage deduplication.
+<!-- documentation-review:end -->

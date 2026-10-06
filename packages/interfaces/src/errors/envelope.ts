@@ -6,7 +6,7 @@
  * existence-hiding lookups surface as `not_found` (DESIGN section 10).
  */
 import { BUSINESS_ERROR_HTTP_STATUS } from '@canlang/contracts';
-import type { BusinessError, BusinessErrorCode, FieldError } from '@canlang/contracts';
+import type { BusinessError, BusinessErrorCode, ConflictCurrent, FieldError } from '@canlang/contracts';
 import { PUBLIC_ERROR_MESSAGES } from './safe.js';
 
 /** Optional envelope members for {@link buildBusinessError}. */
@@ -14,6 +14,8 @@ export interface BuildBusinessErrorOptions {
   readonly operation_id?: string;
   readonly fields?: readonly FieldError[];
   readonly retryable?: boolean;
+  /** L3-carried conflict current; meaningful only on `conflict` codes. */
+  readonly conflict?: ConflictCurrent;
 }
 
 /** Codes whose default is retryable: repeating the identical envelope may succeed. */
@@ -39,6 +41,7 @@ export function buildBusinessError(
     ...(opts?.operation_id !== undefined ? { operation_id: opts.operation_id } : {}),
     ...(opts?.fields !== undefined ? { fields: opts.fields } : {}),
     retryable,
+    ...(opts?.conflict !== undefined ? { conflict: opts.conflict } : {}),
   };
 }
 

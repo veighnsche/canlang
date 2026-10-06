@@ -656,9 +656,10 @@ fn golden_teamtasks_structure() {
     }
     // Codegen diagnostics: zero E6006 (every emission-needed position
     // is checked and bridged), zero E6007 (the golden catalog verifies
-    // every referenced builtin), and three E6008 for catalog UI
-    // factories with no §13 lowering (`tooltip`/`delete`/`collapse`;
-    // `breadcrumbs`/`input`/`textarea`/`pagination` lower now).
+    // every referenced builtin), and two E6008 for catalog UI
+    // factories with no §13 lowering (`tooltip`/`collapse`;
+    // `breadcrumbs`/`input`/`textarea`/`pagination` lower now, and
+    // A2b closed `delete`).
     for diag in &diags {
         assert!(
             diag.code == "E6006" || diag.code == "E6007" || diag.code == "E6008",
@@ -684,10 +685,10 @@ fn golden_teamtasks_structure() {
     );
     assert_eq!(
         diags.iter().filter(|d| d.code == "E6008").count(),
-        3,
+        2,
         "unsupported count"
     );
-    for (word, n) in [("tooltip", 1), ("delete", 1), ("collapse", 1)] {
+    for (word, n) in [("tooltip", 1), ("collapse", 1)] {
         assert_eq!(
             diags
                 .iter()
@@ -2475,6 +2476,8 @@ fn construct_pages_admit_render() {
         order: None,
         group: None,
         nav_none: false,
+        poll: None,
+        refresh: None,
         admit: vec![IrGuard::Role("expense.reviewer".to_string())],
         render: vec![IrUi {
             factory: "table".to_string(),
@@ -2500,6 +2503,8 @@ fn construct_pages_admit_render() {
         order: Some(2),
         group: Some("personal".to_string()),
         nav_none: true,
+        poll: None,
+        refresh: None,
         admit: vec![],
         render: vec![],
         fn_name: "minePage".to_string(),
@@ -2560,6 +2565,8 @@ fn construct_page_preferences_preamble_reads_bindings() {
         order: None,
         group: None,
         nav_none: false,
+        poll: None,
+        refresh: None,
         admit: vec![],
         render: vec![IrUi {
             factory: "text".to_string(),
@@ -2653,6 +2660,8 @@ fn construct_page_admit_returns_preference_defaults() {
         order: None,
         group: None,
         nav_none: false,
+        poll: None,
+        refresh: None,
         admit: vec![],
         render: vec![],
         fn_name: "prefsPage".to_string(),
@@ -4273,6 +4282,7 @@ fn t15a_model_field_tags() {
             IrType::Known(ResolvedType::Action {
                 targets: Vec::new(),
                 bound: None,
+                external: Vec::new(),
             }),
         ),
         (
@@ -4421,7 +4431,8 @@ fn t15a_model_field_tags() {
 /// (T15a) Model descriptors end to end: every pilot field kind emits with
 /// its T09 requiredness/omission/server distinctions, T11 exact decimal
 /// defaults (including integral 0/1 in decimal positions), field-level
-/// and composite unique keys, and the default archive delete mode.
+/// unique keys only (composites shed to `uniques`, A2b), and the
+/// default archive delete mode.
 /// TEST-ONLY artifact: see module docs.
 #[test]
 fn t15a_models_shape_end_to_end() {
@@ -4433,7 +4444,7 @@ fn t15a_models_shape_end_to_end() {
     );
     let model = t15a_model(&artifact, "Shop.Gadget");
     assert_eq!(model.delete_mode, "archive");
-    assert_eq!(model.unique_keys, vec!["code".to_string(), "title,stock".to_string()]);
+    assert_eq!(model.unique_keys, vec!["code".to_string()]);
     assert!(model.parent.is_none() && !model.scope_app, "team scope default");
     let title = t15a_field(model, "title");
     assert!(title.required && !title.server_only && !title.nullable);
@@ -4500,7 +4511,7 @@ fn t15a_models_shape_end_to_end() {
     assert!(json.contains("\"models\":[{"), "models key: {json}");
     assert!(json.contains("\"deleteMode\":\"archive\""), "mode: {json}");
     assert!(
-        json.contains("\"uniqueKeys\":[\"code\",\"title,stock\"]"),
+        json.contains("\"uniqueKeys\":[\"code\"]"),
         "keys: {json}"
     );
 }
@@ -5986,6 +5997,74 @@ fn t31_hook_delete_op_registry() {
     t31_assert_parses(js, "delete-registry");
 }
 
+/// (B4-G/O2) Non-hook `operation.id` lowers through the ambient
+/// context (`c.operation.id`), never as a free variable.
+#[test]
+fn b4g_operation_id_lowers_through_c() {
+    let (catalog, path) = golden_catalog();
+    let src = "app T\nGiven\n M { t:text, source:text }\nWhen\n scenario s(note:text) by=members\n  do\n   create M {t=\"x\",source=operation.id} as m\nThen\n";
+    let (db, program, result) = t31_program(src, &catalog);
+    assert!(result.diagnostics.is_empty(), "{:?}", result.diagnostics);
+    let (artifact, diags) = emit_test_only(&program, &db, &result, Some(&catalog));
+    let _ = std::fs::remove_file(&path);
+    assert!(diags.is_empty(), "{diags:?}");
+    let js = &artifact.modules[0].js;
+    assert!(
+        js.contains("source:c.operation.id"),
+        "operation threads through c:\n{js}"
+    );
+    assert!(
+        !js.contains("source:operation.id"),
+        "no free operation:\n{js}"
+    );
+    t31_assert_parses(js, "b4g-operation");
+}
+
+/// (B4-G/O2) Non-hook `team.id` lowers through the ambient context
+/// (`c.team.id`), never as a free variable.
+#[test]
+fn b4g_team_id_lowers_through_c() {
+    let (catalog, path) = golden_catalog();
+    let src = "app T\nGiven\n M { t:text }\nWhen\n scenario s(note:text) by=members\n  do\n   create M {t=team.id} as m\nThen\n";
+    let (db, program, result) = t31_program(src, &catalog);
+    assert!(result.diagnostics.is_empty(), "{:?}", result.diagnostics);
+    let (artifact, diags) = emit_test_only(&program, &db, &result, Some(&catalog));
+    let _ = std::fs::remove_file(&path);
+    assert!(diags.is_empty(), "{diags:?}");
+    let js = &artifact.modules[0].js;
+    assert!(js.contains("{t:c.team.id"), "team threads through c:\n{js}");
+    assert!(!js.contains("{t:team.id"), "no free team:\n{js}");
+    t31_assert_parses(js, "b4g-team");
+}
+
+/// (B4-G/O2) Hooks keep the legacy lowering for team/operation
+/// (T34-Q5 owns the hook-side contract): bare roots, while actor
+/// still reads off `$hookCtx`.
+#[test]
+fn b4g_hook_team_operation_unchanged() {
+    let (catalog, path) = golden_catalog();
+    let src = "app T\nGiven\n M { t:text }\nWhen\n scenario h on=M.update\n  do\n   let a=actor\n   set event.after {t=operation.id}\n   let g=team.id\nThen\n";
+    let (db, program, result) = t31_program(src, &catalog);
+    assert!(result.diagnostics.is_empty(), "{:?}", result.diagnostics);
+    let (artifact, diags) = emit_test_only(&program, &db, &result, Some(&catalog));
+    let _ = std::fs::remove_file(&path);
+    assert!(diags.is_empty(), "{diags:?}");
+    let js = &artifact.modules[0].js;
+    assert!(
+        js.contains("$hookCtx.actor"),
+        "hook actor still contextual:\n{js}"
+    );
+    assert!(
+        js.contains("{t:operation.id}"),
+        "hook operation stays bare:\n{js}"
+    );
+    assert!(
+        js.contains("team.id") && !js.contains("c.team"),
+        "hook team stays bare:\n{js}"
+    );
+    t31_assert_parses(js, "b4g-hook");
+}
+
 /// (T31) Non-hook schedules lower (the payload decodes from the effect
 /// arguments, not the unset value slot).
 #[test]
@@ -6761,7 +6840,7 @@ fn t18_server_init_mapping() {
         ResolvedType::Unknown,
     );
     assert_eq!(
-        js::js_server_init(&IrServer::Computed(secret_call)),
+        js::js_server_init(&IrServer::Computed(Box::new(secret_call))),
         js::JsServerInit::RandomSecret
     );
     // Arity matters: `random_secret(x)` is not the closed spelling.
@@ -6776,7 +6855,7 @@ fn t18_server_init_mapping() {
         ResolvedType::Unknown,
     );
     assert_eq!(
-        js::js_server_init(&IrServer::Computed(secret_arity)),
+        js::js_server_init(&IrServer::Computed(Box::new(secret_arity))),
         js::JsServerInit::Computed
     );
     // Non-call computed expressions (e.g. `now+1h`) are opaque too.
@@ -6792,7 +6871,7 @@ fn t18_server_init_mapping() {
         ResolvedType::Unknown,
     );
     assert_eq!(
-        js::js_server_init(&IrServer::Computed(now_plus)),
+        js::js_server_init(&IrServer::Computed(Box::new(now_plus))),
         js::JsServerInit::Computed
     );
     assert_eq!(
@@ -7075,4 +7154,233 @@ fn f6_invalid_cohort_emits_no_descriptor() {
         .find(|s| program.symbols[s.scenario.0 as usize].name == "sweep")
         .expect("sweep row");
     assert!(sweep.cohort.is_none(), "no checked cohort row");
+}
+
+// --- A2a: derived-call, for-limit, poll/refresh, action-external ---------------
+// TEST-ONLY artifacts: see module docs. No runtime-success claims.
+
+/// A2a pin helper: `check` must be fully clean (all four families are
+/// check-green in the suite-3 corpus), then emit test-only.
+fn a2a_emit(
+    src: &str,
+) -> (
+    CompileArtifact,
+    Vec<canlang_compiler::diagnostic::Diagnostic>,
+) {
+    let mut db = SourceDb::new();
+    let id = db.add("a2a.can".to_string(), src.to_string());
+    let (catalog, path) = golden_catalog();
+    let (program, result) = check_example(&db, id, Some(&catalog));
+    assert!(
+        result.diagnostics.is_empty(),
+        "check clean: {:?}",
+        result.diagnostics
+    );
+    let (artifact, diags) = emit_test_only(&program, &db, &result, Some(&catalog));
+    let _ = std::fs::remove_file(&path);
+    (artifact, diags)
+}
+
+/// Derived functions emit as module-scope named functions
+/// (`async function name(c,...params)`, CanChat/CanDiscover draft
+/// contract); call sites lower to awaited calls, including nested
+/// derive-to-derive calls and calls from policy rules (which go
+/// `async`). The `canApp()` registry holds shorthand references.
+#[test]
+fn a2a_derive_call_lowers_to_awaited_named_fn() {
+    let src = "package shop\n Given\n  M { x:int }\n  policy M read=members where=outer(9)==10\n  derive inner(v:int):int = v\n  derive outer(v:int):int = inner(v)\n When\n  scenario tick() by=members\n   require outer(1)==2\n   do let done = 1\n Then\n";
+    let (artifact, diags) = a2a_emit(src);
+    assert!(
+        diags.iter().all(|d| d.code != "E6006" && d.code != "E6008"),
+        "derive calls lower without gaps: {diags:?}"
+    );
+    let js = &artifact.modules[0].js;
+    assert!(
+        js.contains("async function inner(c,v){return v;}"),
+        "inner derive shape:\n{js}"
+    );
+    assert!(
+        js.contains("async function outer(c,v){return await inner(c,v);}"),
+        "nested derive call:\n{js}"
+    );
+    assert!(
+        js.contains("await outer(c,1n)"),
+        "require calls the derive:\n{js}"
+    );
+    assert!(
+        js.contains("async(c,row)=>") && js.contains("await outer(c,9n)"),
+        "policy rule goes async over the call:\n{js}"
+    );
+    assert!(
+        js.contains("\ninner,\n") && js.contains("\nouter,\n"),
+        "registry holds shorthand refs:\n{js}"
+    );
+    assert!(
+        !js.contains("(c,row){return"),
+        "no row-param derive methods remain:\n{js}"
+    );
+}
+
+/// `for item in domain limit=N` fails the operation past N items
+/// (DESIGN §5): fetch once, `check(length<=N,"limit")`, then loop.
+#[test]
+fn a2a_for_limit_checks_length_then_loops() {
+    let src = "package shop\n Given\n  M { x:int }\n  policy M read=members\n When\n  scenario sweep() by=members\n   do\n    for item in M limit=10\n     set item {x=1}\n Then\n";
+    let (artifact, diags) = a2a_emit(src);
+    assert!(
+        diags.iter().all(|d| d.code != "E6006" && d.code != "E6008"),
+        "bound loop lowers without gaps: {diags:?}"
+    );
+    let js = &artifact.modules[0].js;
+    assert!(
+        js.contains("const $forRows0 = await records("),
+        "loop fetches once:\n{js}"
+    );
+    assert!(
+        js.contains("check($forRows0.length<=10n,\"limit\");"),
+        "excess fails the operation:\n{js}"
+    );
+    assert!(
+        js.contains("for (const item of $forRows0) {"),
+        "loop iterates the checked fetch:\n{js}"
+    );
+}
+
+/// Page `poll=`/`refresh=` (DESIGN §9) lower to sparse descriptor
+/// members: exact-BigInt millis plus the canonical refresh mutation.
+#[test]
+fn a2a_page_poll_refresh_lower_to_descriptor() {
+    let src = "package shop\n Given\n  M { x:int }\n  policy M read=members\n When\n  scenario tick() by=members\n   do let done = 1\n Then\n  page /jobs title=\"Jobs\" poll=5s refresh=tick\n";
+    let (artifact, diags) = a2a_emit(src);
+    assert!(
+        diags.iter().all(|d| d.code != "E6006" && d.code != "E6008"),
+        "poll/refresh lower without gaps: {diags:?}"
+    );
+    let js = &artifact.modules[0].js;
+    assert!(js.contains("poll:5000n"), "poll millis member:\n{js}");
+    assert!(
+        js.contains("refresh:\"shop.tick\""),
+        "refresh canonical member:\n{js}"
+    );
+}
+
+/// `action(...)` over bound-imported operations resolves (no silent
+/// poison) and lowers to the draft contract field schema
+/// (`{type:"action",targets:[canonical...]}`); aliases record the
+/// original member name, never the alias.
+#[test]
+fn a2a_action_external_targets_lower_to_schema() {
+    let src = "package todo\n use maintain {inspect} from=deployment.maintenance\n use success {complete as done} from=deployment.accounts\n Given\n  export contract W { act:action(inspect,done)? }\n When\n Then\n";
+    let (artifact, diags) = a2a_emit(src);
+    assert!(
+        diags.iter().all(|d| d.code != "E6006" && d.code != "E6008"),
+        "external action targets lower without gaps: {diags:?}"
+    );
+    let js = &artifact.modules[0].js;
+    assert!(
+        js.contains("act:{type:\"action\",targets:[\"maintain.inspect\",\"success.complete\"],nullable:true}"),
+        "action schema with canonical targets:\n{js}"
+    );
+}
+
+/// A2b named→positional: builtin calls with named arguments lower
+/// positionally in catalog signature order (`money(minor,currency)`
+/// here; the corpus `fold=` 4th slot takes the same path), whether
+/// fully named out of order or mixed positional + named.
+#[test]
+fn a2b_named_args_lower_positionally_in_signature_order() {
+    let src = "package shop\n Given\n  M { x:int }\n  policy M read=members\n When\n  scenario tick() by=members\n   do\n    let a = money(currency=\"EUR\", minor=25)\n    let b = money(30, currency=\"USD\")\n Then\n";
+    let (artifact, diags) = a2a_emit(src);
+    assert!(
+        diags.iter().all(|d| d.code != "E6006" && d.code != "E6008"),
+        "named calls lower without gaps: {diags:?}"
+    );
+    let js = &artifact.modules[0].js;
+    assert!(
+        js.contains("money(25n,\"EUR\")"),
+        "out-of-order named args reorder:\n{js}"
+    );
+    assert!(
+        js.contains("money(30n,\"USD\")"),
+        "mixed positional+named fills in order:\n{js}"
+    );
+}
+
+/// A2b composite-unique: the model entry carries a sparse `uniques`
+/// member with fields in source order; the `where=` predicate is a
+/// `Model.unique.N` registry rule beside the invariants — referenced
+/// from `uniques`, never listed in `invariants`.
+#[test]
+fn a2b_composite_unique_emits_sparse_member_and_registry_rule() {
+    let src = "package shop\n Given\n  M { x:int, current:bool }\n  policy M read=members\n  invariant M: row.x>0\n  unique M fields=x where=row.current\n When\n Then\n";
+    let (artifact, diags) = a2a_emit(src);
+    assert!(
+        diags.iter().all(|d| d.code != "E6006" && d.code != "E6008"),
+        "uniques lower without gaps: {diags:?}"
+    );
+    let js = &artifact.modules[0].js;
+    assert!(
+        js.contains("uniques:[{fields:[\"x\"],where:\"M.unique.1\"}]"),
+        "sparse uniques member:\n{js}"
+    );
+    assert!(
+        js.contains("\"M.unique.1\":(c,row)=>"),
+        "where rule beside invariants:\n{js}"
+    );
+    assert!(
+        js.contains("invariants:[\"M.require.1\"]"),
+        "invariants list holds only the row invariant:\n{js}"
+    );
+}
+
+/// A2b UI profiles: radio/select join the field-control arm,
+/// fieldset is a captioned group, fab groups first/rest into
+/// main/actions, chat_bubble dissolves slots into slot props, and
+/// bare delete infers the full deleteRecord card.
+#[test]
+fn a2b_ui_profiles_lower_to_factories() {
+    let src = "app Probe uses=[shop]\npackage shop\n Given\n  export Item { name:text label=\"Item\"@{nl=\"Artikel\"} }\n  policy Item read=members\n When\n  crud Item by=members fields=name\n Then\n  page / title=\"Shop\"\n   card \"Go\"\n    form Item.create\n     fieldset \"Details\"\n      input name\n      radio name\n      select name\n    fab\n     button opens=dlg\n     button opens=dlg\n    modal \"Dialog\" id=dlg\n     slot content\n      text \"x\"\n    list Item\n     chat_bubble\n      slot content\n       content row.name\n      slot header\n       text row.name\n     delete\n";
+    let (artifact, diags) = a2a_emit(src);
+    assert!(
+        diags.iter().all(|d| d.code != "E6006" && d.code != "E6008"),
+        "profiles lower without gaps: {diags:?}"
+    );
+    let js = &artifact.modules[0].js;
+    assert!(
+        js.contains("fieldset({context:c,caption:message(\"Details\"),children:[input({context:c,field:\"name\"}),radio({context:c,field:\"name\"}),select({context:c,field:\"name\"})]})"),
+        "fieldset group + field controls:\n{js}"
+    );
+    assert!(
+        js.contains("fab({context:c,main:[button({context:c,opens:\"dlg\"})],actions:[button({context:c,opens:\"dlg\"})]})"),
+        "fab main+actions:\n{js}"
+    );
+    assert!(
+        js.contains("chatBubble({context:rowView,content:[content({context:rowView,value:row.name})],header:[text({context:rowView,values:[row.name]})]})"),
+        "chat slots dissolve to props:\n{js}"
+    );
+    assert!(
+        js.contains("deleteRecord({context:rowView,operation:\"shop.Item.delete\",record:row,mode:\"archive\",action:\"/api/operations/shop.Item.delete\",operationId:\"shop.Item.delete\",itemLabel:\"Item\",confirm:\"Archive this Item?\",idPrefix:\"delete-shop-Item\"})"),
+        "delete infers the full card:\n{js}"
+    );
+}
+
+/// A2b require desugar: page-level `require` gates admission (never
+/// renders); nested container `require` keeps its local gate.
+#[test]
+fn a2b_require_desugars_to_admit_and_gate() {
+    let src = "package shop\n Given\n  M { x:int }\n  policy M read=members\n When\n  scenario tick() by=members\n   do let done = 1\n Then\n  page /jobs title=\"Jobs\"\n   require members\n   card \"Go\"\n    text \"hi\"\n";
+    let (artifact, diags) = a2a_emit(src);
+    assert!(
+        diags.iter().all(|d| d.code != "E6006" && d.code != "E6008"),
+        "require lowers without gaps: {diags:?}"
+    );
+    let js = &artifact.modules[0].js;
+    assert!(
+        js.contains("check(hasRole(c,\"members\"),\"forbidden\")"),
+        "page require gates admission:\n{js}"
+    );
+    assert!(
+        !js.contains("require({"),
+        "require never renders:\n{js}"
+    );
 }

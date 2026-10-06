@@ -1,6 +1,6 @@
 # Demanding AI applications in Can — 2026-10-04
 
-Research only. These are unadopted interface and syntax sketches, not implemented capabilities or runnable apps. Read official public provider documentation and source, plus [tools/jev.py](../tools/jev.py) and [DESIGN §§7–8.1](../DESIGN.md). No live inference, JEV consultation, ComfyUI execution, private endpoint, installed-model inspection, deployment change or implementation was performed.
+Research only. These are unadopted interface and syntax sketches, not implemented capabilities or runnable apps. Read official public provider documentation and source, plus [tools/jev.py](../tools/jev.py) and [DESIGN §§7–8.1](../docs/specification/DESIGN.md). No live inference, JEV consultation, ComfyUI execution, private endpoint, installed-model inspection, deployment change or implementation was performed.
 
 ## Conclusion
 

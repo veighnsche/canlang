@@ -1,0 +1,47 @@
+# Intended finished Canlang: requirements and workflows
+
+This is the current target derived from authored company-SaaS intent and accepted contracts. It supersedes the older audit’s current-checkout allocation as a complete product target, while preserving reusable responsibility evidence. Files are chosen after requirements; package folders are not the slice definition. No product execution or implementation launch is claimed.
+
+| Capability | Required outcome | Primary / independent challenger | Accountable inputs |
+| --- | --- | --- | --- |
+| F01 Authored application and language tools | Source identity/composition, grammar, flow/effects, owner catalogs and lowering | language / work | 802 |
+| F02 Exact values and input meaning | Exact arithmetic/representations, omission/defaults, profile-specific ordered owned validation | language / work | 48 |
+| F03 Canonical data and authority | Current admission/query/projection, invariants/hooks/containment, one fenced commit and replay | work / language | 116 |
+| F04 Identity and team lifecycle | Session/grant audiences, proof/consumption, membership/roles/revocation and typed atomic outcomes | product / delivery | 38 |
+| F05 Effects and external work | Atomic intent/schedule/event staging, provider evidence/guard/budget, bounded retry/reconciliation | work / language | 69 |
+| F06 Receipts, progress and cohorts | Selected disclosure, relation correlation, complete finite fanout, durable recovery and fair termination | work / language | 30 |
+| F07 Files and content lifecycle | Real bytes/provenance/finalization, durable host recovery, attachments, expiry/erasure and corpus grounding | work / language | 24 |
+| F08 Operation interfaces | HTTP/MCP/sealed delegation, current authority, schemas/errors/projection and authorized export/Print | product / delivery | 65 |
+| F09 Browser and personal configuration | All 68 components, page admission, installed client/assets, focus/polling, preferences/CSV | product / delivery | 53 |
+| F10 Descriptions and internal reference | One checked static description, located deterministic internal Markdown, source-language IDE/MCP | language / work | 3 |
+| F11 Artifact and product delivery | Install/build/release closure, typed actual Wasm, synchronous init, native job, upgrade/rollback/measurement | delivery / product | 101 |
+| F12 Examples, qualification and evidence | Independent fixture/expectation/causal journeys, full intent dispositions and truthful supported release | product / delivery | 1189 |
+
+Every input has a primary path allocation in [target-tree.json](target-tree.json); mixed-file duties also appear in [requirements.json](requirements.json), symbol/import internals in [oversized.json](oversized.json), and the four [reviews](reviews/product.md). Source counts, workflow tracing, independent challenge and exact targets are separate dimensions. Symbol extraction is structural evidence, not a semantic proof.
+
+The end-to-end contracts are reconstructed in [language](reviews/language.md), [state/work](reviews/work.md), [identity/interfaces/browser](reviews/product.md), and [delivery](reviews/delivery.md). Read those lifecycle/authority/failure/termination records before implementing a target leaf. The full 49 app/companion pairs and three shared declarations are recorded in [app language](reviews/apps-language.md), [app work](reviews/apps-work.md), and [app delivery](reviews/apps-delivery.md), with exact operations, source hashes, authority/lifecycle/negatives and focused independent challenges. Required unavailable behavior remains required; a new filename never establishes an API. [Shared findings](findings.md) and [late source reconciliation](late-source.md) constrain all dependent instructions.
+
+Workflow families: authored composition → generated operations; create/default/update/read with current grants and replay; imported business relationships and bounded hook rollback; account/team/grant lifecycle; browser/MCP equal-authority calls; independent notifications/reminders and uncertain external outcomes; selected receipts/progress/recovery; receiving-app file finalization; complete finite Shift/Volunteer cohorts; private grounded Knowledge with all-used-context disclosure; self-only settings/CSV/current polling/export/Print; source retention/schema maintenance; deterministic descriptions/reference; installed release and rollback; compiled causal examples and original qualification.
+
+Fanout, corpus, containment, hooks and reads have accepted scoped contracts. Their runtime/consumer proof gates are not invitations to reopen the language rules. A genuinely new consequential mechanism still requires verified balanced triple JEV advice and a released owner contract. Specialized foundations stay excluded by REQUIREMENTS; app diagnostics alone never justify scoping out coherent company workflows.
+
+| Disposition | Meaning in this plan |
+| --- | --- |
+| REQUIRED | Finished supported outcome is mandatory. Missing producer or runtime blocks that outcome. |
+| ACCEPTED-CONDITIONAL | Accepted optimization/profile/default direction; exact consumer/provenance/resource/installed/adoption gate remains. |
+| DEFERRED | Explicit additional scope, such as W09 continuation scheduler or localized MCP; no mandatory workflow hidden here. |
+| DECLINED | Duplicated authority, automatic semantic fallback, silent caps/narrowing, false cross-store atomicity, alternate per-app setup. See reasons in reviews. |
+
+The draft conflict buckets a–e remain orthogonal: proven source error, correct missing implementation, too-strict rule, unadopted proposal, deliberate negative. Preserve intent, opposing case, uncertainty, exact site and evidence that changes a verdict. D-series reference first delivery remains localized internal Markdown with source-language IDE/MCP; no new translation quota, public hosting or description consultation.
+
+<!-- documentation-review:start -->
+## Markdown placement and consolidation
+
+Only `README.md` and `AGENTS.md` remain at the repository root. The current requirements, design, grammar, and decision log are in `docs/specification/`; the completed evaluation plan is `design/evaluation/PLAN.md`. These five moves and live reference repairs are applied locally, including the separate draft working tree; publication and complete checkpoint advancement remain separate.
+
+[Documentation inventory](documentation-inventory.json) records 490 tracked and three added Markdown paths at its observation. [Review and migration ledger](documentation-review.json) retains every disposition, original hash, exact successor, task and preservation gate. The selected consolidation is applied: 52 assessment/correction notes now form 25 topic records, reducing Markdown by 27 files. All original source blocks, corrections, uncertainty, witnesses and limitations were preserved under heading/navigation normalization and independently cross-reviewed; 169 raw JSON records remain byte-identical. Stable source anchors replace old note paths. The ledger records original hashes, section preservation hashes, live reference repairs and 51 retired predecessors; one existing README was retained and 24 new successors created. Moving the five root files alone does not reduce total file count. Frozen captures, final report bytes and raw consultation JSON retain their provenance.
+
+Keep project decisions in `docs/specification/DECISIONS.md`; proposals and accepted decisions have distinct status. Prior-plan prose, shared setup guidance and superseded launch instructions have further scoped review tasks; archival moves alone are not pruning. All 493 paths are structurally accounted for, but focused semantic review does not certify every paragraph for deletion.
+
+The completed `editors/vscode/audit-astra/` working copies are retired: 187 files, including 23 Markdown files and 42,687,533 bytes. No build/test/install consumer depends on them; the active highlighting checker retains the defect regressions. The existing ledger pins all original paths, sizes and SHA-256 hashes to Git revision `e5fa27c3cbe6c00e4ec76ea61005a3f1d3e65faa`; a fresh archive extraction reproduced every byte. Existing audit navigation uses commit-pinned links and recovery instructions. This scoped retirement does not authorize pruning other captures, change historical review conclusions, or advance the checkpoint. DOC06 remains deferred for broader storage deduplication.
+<!-- documentation-review:end -->
