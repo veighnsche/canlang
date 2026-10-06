@@ -61,6 +61,10 @@
       "types": "./dist/worker/main.d.ts",
       "default": "./dist/worker/main.js"
     },
+    "./deploy/package-assets": {
+      "types": "./dist/deploy/package-assets.d.ts",
+      "default": "./dist/deploy/package-assets.js"
+    },
     "./deploy/producer-files": {
       "types": "./dist/deploy/producer-files.d.ts",
       "default": "./dist/deploy/producer-files.js"

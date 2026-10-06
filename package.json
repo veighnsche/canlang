@@ -28,6 +28,7 @@
     "test:e2e": "node scripts/run-tasks.mjs test:e2e:run",
     "check:boundaries": "node scripts/check-package-boundaries.mjs",
     "test:boundaries": "node --test scripts/check-package-boundaries.test.mjs",
+    "verify:installed-worker": "node scripts/verify-installed-worker.mjs",
     "verify:installed-types": "node scripts/verify-installed-types.mjs",
     "build:uncached": "node scripts/run-tasks.mjs build --cache=",
     "typecheck:root": "tsc -p tsconfig.check.json",
