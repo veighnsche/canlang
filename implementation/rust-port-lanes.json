@@ -1,0 +1,5308 @@
+{
+  "schema_version": 1,
+  "status": "PROPOSED planning allocation; implementation deferred",
+  "base_commit": "7fd8c6bf4717feeffc70b46819377b74b353e117",
+  "source_verification_pin": "fdb059c634c32c83760f35dd9175f49d9821762d",
+  "source_ledger": "implementation/remaining-work/tasks.json",
+  "source_ledger_sha256": "cd01ebb2276e9bbd362085070b985811543f4bcb1d7ad0d0ac0530d3092bc3f4",
+  "scope": "All 230 Rust-port source identities only; original acceptance and conditional/deferred gates retained. Narrow external owner readiness is retained, not the entire challenge/product backlog.",
+  "execution_authorized": false,
+  "topology_created": false,
+  "counting_note": "Task and completion-gate counts are not estimates of coding effort. Completed records are provenance, not redispatch.",
+  "counts": {
+    "source_identities": 230,
+    "complete": 54,
+    "required_remaining": 166,
+    "conditional_remaining": 6,
+    "deferred_remaining": 4
+  },
+  "lanes": [
+    {
+      "id": "R1",
+      "title": "Exact values and shared values assembly",
+      "primary_plan": "exact-values",
+      "responsibility": "Exact arithmetic, temporal math, owned numeric aggregates, codecs, public carrier parity; one values Cargo/module/binding assembly writer.",
+      "shared_open_ids": [
+        "ports:C05.complete"
+      ],
+      "counts": {
+        "required_remaining": 32,
+        "complete": 15
+      },
+      "required_work_items": 20,
+      "required_gates": 12,
+      "task_ids": [
+        "ports:A01",
+        "ports:A01.1",
+        "ports:A01.2",
+        "ports:A02",
+        "ports:A02.1",
+        "ports:A02.2",
+        "ports:A03",
+        "ports:A03.1",
+        "ports:A03.2",
+        "ports:A03.3",
+        "ports:A03.4",
+        "ports:A03.foundation",
+        "ports:A04",
+        "ports:A04.1",
+        "ports:A04.2",
+        "ports:A04.3",
+        "ports:A04.4",
+        "ports:A04.5",
+        "ports:A05",
+        "ports:A05.1",
+        "ports:A05.2",
+        "ports:A05.3",
+        "ports:A06",
+        "ports:A06.1",
+        "ports:A06.2",
+        "ports:A06.3",
+        "ports:A06.4",
+        "ports:A07",
+        "ports:A07.1",
+        "ports:A07.2",
+        "ports:A07.3",
+        "ports:A07.foundation",
+        "ports:A08",
+        "ports:A08.1",
+        "ports:A08.2",
+        "ports:A09",
+        "ports:A09.1",
+        "ports:A09.2",
+        "ports:A10",
+        "ports:A10.1",
+        "ports:A10.2",
+        "ports:A10.3",
+        "ports:A11",
+        "ports:A11.1",
+        "ports:C05.1",
+        "ports:C05.complete",
+        "ports:C05.ready"
+      ],
+      "static_candidate_ids": [
+        "ports:A01.1",
+        "ports:A03",
+        "ports:A04.1",
+        "ports:A04.3",
+        "ports:A05.3",
+        "ports:A07.2"
+      ]
+    },
+    {
+      "id": "R2",
+      "title": "Owned input validation",
+      "primary_plan": "input-validation",
+      "responsibility": "Prepared TS baseline, provenance, ordered plans/profile interpreter, whole-input adapters, state/HTTP/MCP selected consumers; uses R1 arithmetic and shared assembly.",
+      "shared_open_ids": [
+        "ports:C02.complete",
+        "ports:C03.complete"
+      ],
+      "counts": {
+        "required_remaining": 63,
+        "complete": 12,
+        "conditional_remaining": 5
+      },
+      "required_work_items": 49,
+      "required_gates": 14,
+      "task_ids": [
+        "ports:C02.1",
+        "ports:C02.complete",
+        "ports:C02.ready",
+        "ports:C03.1",
+        "ports:C03.2",
+        "ports:C03.complete",
+        "ports:C03.ready",
+        "ports:V01",
+        "ports:V01.1",
+        "ports:V01.2",
+        "ports:V01.3",
+        "ports:V01.4",
+        "ports:V02",
+        "ports:V02.1",
+        "ports:V02.2",
+        "ports:V02.3",
+        "ports:V02.4",
+        "ports:V02.5",
+        "ports:V02.6",
+        "ports:V02.7",
+        "ports:V03",
+        "ports:V03.1",
+        "ports:V03.2",
+        "ports:V03.3",
+        "ports:V03.4",
+        "ports:V03.5",
+        "ports:V04",
+        "ports:V04.1",
+        "ports:V04.2",
+        "ports:V04.3",
+        "ports:V04.4",
+        "ports:V05",
+        "ports:V05.1",
+        "ports:V05.2",
+        "ports:V05.3",
+        "ports:V06",
+        "ports:V06.1",
+        "ports:V06.10",
+        "ports:V06.2",
+        "ports:V06.3",
+        "ports:V06.4",
+        "ports:V06.5",
+        "ports:V06.6",
+        "ports:V06.7",
+        "ports:V06.8",
+        "ports:V06.9",
+        "ports:V07",
+        "ports:V07.1",
+        "ports:V07.2",
+        "ports:V07.3",
+        "ports:V07.4",
+        "ports:V07.5",
+        "ports:V08",
+        "ports:V08.1",
+        "ports:V08.2",
+        "ports:V08.3",
+        "ports:V08.4",
+        "ports:V08.5",
+        "ports:V08.6",
+        "ports:V09",
+        "ports:V09.1",
+        "ports:V09.2",
+        "ports:V09.3",
+        "ports:V10",
+        "ports:V10.1",
+        "ports:V10.2",
+        "ports:V10.3",
+        "ports:V10.4",
+        "ports:V10.5",
+        "ports:V10.6",
+        "ports:V10.7",
+        "ports:V11",
+        "ports:V11.1",
+        "ports:V11.2",
+        "ports:V11.3",
+        "ports:V11.4",
+        "ports:V12",
+        "ports:V12.1",
+        "ports:V12.2",
+        "ports:V12.3"
+      ],
+      "static_candidate_ids": [
+        "ports:V01.1",
+        "ports:V01.2",
+        "ports:V01.3",
+        "ports:V01.4",
+        "ports:V10.1",
+        "ports:V10.2",
+        "ports:V02.6"
+      ]
+    },
+    {
+      "id": "R3",
+      "title": "Work transitions and global delivery",
+      "primary_plan": "work-transitions",
+      "responsibility": "Work/state pure decisions, rows/retry/recovery/receipts/linkage, actual runtime/durable joins, and sole global build/bundle/release writer for every lane.",
+      "shared_open_ids": [
+        "ports:C01.complete",
+        "ports:C04.ready",
+        "ports:C04.graph",
+        "ports:C04.values-assets",
+        "ports:C04.work-assets",
+        "ports:C04.native-release",
+        "ports:C04.validation-join",
+        "ports:C04.complete"
+      ],
+      "counts": {
+        "complete": 14,
+        "required_remaining": 41,
+        "deferred_remaining": 4
+      },
+      "required_work_items": 29,
+      "required_gates": 12,
+      "task_ids": [
+        "ports:C01.1",
+        "ports:C01.2",
+        "ports:C01.complete",
+        "ports:C01.ready",
+        "ports:C04.1",
+        "ports:C04.2",
+        "ports:C04.asset",
+        "ports:C04.complete",
+        "ports:C04.graph",
+        "ports:C04.native-release",
+        "ports:C04.preparation-join",
+        "ports:C04.ready",
+        "ports:C04.validation-join",
+        "ports:C04.values-assets",
+        "ports:C04.work-assets",
+        "ports:W01",
+        "ports:W01.1",
+        "ports:W01.2",
+        "ports:W01.3",
+        "ports:W01.4",
+        "ports:W02",
+        "ports:W02.1",
+        "ports:W02.2",
+        "ports:W02.3",
+        "ports:W02.4",
+        "ports:W02.5",
+        "ports:W02.foundation",
+        "ports:W03",
+        "ports:W03.1",
+        "ports:W03.2",
+        "ports:W03.3",
+        "ports:W03.4",
+        "ports:W04",
+        "ports:W04.1",
+        "ports:W04.2",
+        "ports:W04.3",
+        "ports:W04.4",
+        "ports:W05",
+        "ports:W05.1",
+        "ports:W05.2",
+        "ports:W05.3",
+        "ports:W05.4",
+        "ports:W06",
+        "ports:W06.1",
+        "ports:W06.2",
+        "ports:W06.3",
+        "ports:W06.runtimehandoff",
+        "ports:W07",
+        "ports:W07.1",
+        "ports:W07.2",
+        "ports:W07.3",
+        "ports:W08",
+        "ports:W08.1",
+        "ports:W08.2",
+        "ports:W08.3",
+        "ports:W09",
+        "ports:W09.1",
+        "ports:W09.2",
+        "ports:W09.3"
+      ],
+      "static_candidate_ids": [
+        "ports:C04.ready",
+        "ports:C04.graph",
+        "ports:W01.3",
+        "ports:W03.1"
+      ]
+    },
+    {
+      "id": "R4",
+      "title": "Retained native artifact preparation",
+      "primary_plan": "artifact-preparation",
+      "responsibility": "Complete local native preparation job, host stage adapter, exact reviewed-byte publication, executable integrity/lifecycle, real CLI and installed-host qualification. Human preparation hold remains.",
+      "shared_open_ids": [],
+      "counts": {
+        "complete": 13,
+        "required_remaining": 30,
+        "conditional_remaining": 1
+      },
+      "required_work_items": 21,
+      "required_gates": 9,
+      "task_ids": [
+        "ports:P01",
+        "ports:P01.1",
+        "ports:P01.2",
+        "ports:P02",
+        "ports:P02.1",
+        "ports:P02.2",
+        "ports:P02.3",
+        "ports:P03",
+        "ports:P03.1",
+        "ports:P03.2",
+        "ports:P03.3",
+        "ports:P03.4",
+        "ports:P03.foundation",
+        "ports:P04",
+        "ports:P04.1",
+        "ports:P04.2",
+        "ports:P04.3",
+        "ports:P04.4",
+        "ports:P05",
+        "ports:P05.1",
+        "ports:P05.2",
+        "ports:P05.3",
+        "ports:P05.4",
+        "ports:P05.5",
+        "ports:P05.6",
+        "ports:P05.mixed",
+        "ports:P06",
+        "ports:P06.1",
+        "ports:P06.2",
+        "ports:P06.3",
+        "ports:P07",
+        "ports:P07.1",
+        "ports:P07.2",
+        "ports:P08",
+        "ports:P08.1",
+        "ports:P08.2",
+        "ports:P09",
+        "ports:P09.1",
+        "ports:P09.2",
+        "ports:P10",
+        "ports:P10.1",
+        "ports:P10.2",
+        "ports:P11",
+        "ports:P11.1"
+      ],
+      "static_candidate_ids": []
+    }
+  ],
+  "shared_task_owners": {
+    "ports:C01.1": "R3",
+    "ports:C01.2": "R3",
+    "ports:C01.ready": "R3",
+    "ports:C02.1": "R2",
+    "ports:C02.ready": "R2",
+    "ports:C03.1": "R2",
+    "ports:C03.2": "R2",
+    "ports:C03.ready": "R2",
+    "ports:C04.asset": "R3",
+    "ports:C04.1": "R3",
+    "ports:C04.2": "R3",
+    "ports:C04.ready": "R3",
+    "ports:C04.graph": "R3",
+    "ports:C04.values-assets": "R3",
+    "ports:C04.work-assets": "R3",
+    "ports:C04.preparation-join": "R3",
+    "ports:C04.native-release": "R3",
+    "ports:C04.validation-join": "R3",
+    "ports:C05.1": "R1",
+    "ports:C05.ready": "R1",
+    "ports:C01.complete": "R3",
+    "ports:C02.complete": "R2",
+    "ports:C03.complete": "R2",
+    "ports:C04.complete": "R3",
+    "ports:C05.complete": "R1"
+  },
+  "cross_lane_source_collisions": [
+    {
+      "path": "packages/cloudflare/src/runtime/invoke.ts",
+      "source_tasks_by_lane": {
+        "R2": [
+          "ports:V09.1"
+        ],
+        "R3": [
+          "ports:W06.2"
+        ]
+      },
+      "resolution": {
+        "kind": "sequential_handoff",
+        "sequence": [
+          "R3: ports:W06.2",
+          "ports:W06.runtimehandoff",
+          "R2: ports:V09.1",
+          "R3: ports:W06.3 tests only"
+        ],
+        "rule": "After acknowledged runtime release R2 owns the source; R3 performs final tests without writing invoke.ts again."
+      }
+    },
+    {
+      "path": "packages/values/bindings/backend.ts",
+      "source_tasks_by_lane": {
+        "R1": [
+          "ports:A07.2"
+        ],
+        "R2": [
+          "ports:V11.2"
+        ]
+      },
+      "resolution": {
+        "kind": "assembly_request",
+        "assembly_writer": "R1"
+      }
+    },
+    {
+      "path": "packages/values/bindings/bootstrap.ts",
+      "source_tasks_by_lane": {
+        "R1": [
+          "ports:A07.2"
+        ],
+        "R2": [
+          "ports:V11.2"
+        ]
+      },
+      "resolution": {
+        "kind": "assembly_request",
+        "assembly_writer": "R1"
+      }
+    },
+    {
+      "path": "packages/values/bindings/src/lib.rs",
+      "source_tasks_by_lane": {
+        "R1": [
+          "ports:A07.3"
+        ],
+        "R2": [
+          "ports:V06.8"
+        ]
+      },
+      "resolution": {
+        "kind": "assembly_request",
+        "assembly_writer": "R1"
+      }
+    },
+    {
+      "path": "packages/values/semantics/src/lib.rs",
+      "source_tasks_by_lane": {
+        "R1": [
+          "ports:A07.3"
+        ],
+        "R2": [
+          "ports:V06.8",
+          "ports:V06.9",
+          "ports:V06.10",
+          "ports:V04.4"
+        ]
+      },
+      "resolution": {
+        "kind": "assembly_request",
+        "assembly_writer": "R1"
+      }
+    },
+    {
+      "path": "packages/values/src/index.ts",
+      "source_tasks_by_lane": {
+        "R1": [
+          "ports:A08.1"
+        ],
+        "R2": [
+          "ports:V02.6"
+        ]
+      },
+      "resolution": {
+        "kind": "assembly_request",
+        "assembly_writer": "R1"
+      }
+    }
+  ],
+  "global_delivery_writer": {
+    "lane": "R3",
+    "paths": [
+      "package.json",
+      "bun.lock",
+      "packages/cloudflare/package.json",
+      "packages/state/package.json",
+      "packages/stdlib/package.json",
+      "packages/testkit/package.json",
+      "packages/cloudflare/src/deploy/bundle.ts",
+      "packages/cloudflare/src/dev/local-run.ts",
+      "packages/cloudflare/src/release/stamp.ts",
+      "packages/cloudflare/src/release/manifest.ts",
+      "packages/testkit/src/scopes/local.ts",
+      "packages/contracts/src/deployment-assets.ts",
+      "packages/contracts/src/index.ts"
+    ],
+    "rule": "Other lanes submit exact delivery requests and consume released source/asset hashes; package-local manifests stay with their defining lane."
+  },
+  "values_assembly_writer": {
+    "lane": "R1",
+    "paths": [
+      "packages/values/bindings/backend.ts",
+      "packages/values/bindings/bootstrap.ts",
+      "packages/values/bindings/src/lib.rs",
+      "packages/values/semantics/src/lib.rs",
+      "packages/values/src/index.ts",
+      "packages/values/Cargo.toml",
+      "packages/values/Cargo.lock",
+      "packages/values/semantics/Cargo.toml",
+      "packages/values/bindings/Cargo.toml",
+      "packages/values/package.json",
+      "packages/values/tsconfig.json"
+    ],
+    "rule": "R2 owns validation semantics in dedicated modules but submits common registration/bootstrap/selector/export/build requests to R1. One shared arithmetic-validation core."
+  },
+  "acceptance_authority": "Lane gate owners assemble evidence; the originating independent reviewer/coordinator verifies claims. Gate ownership is not self-acceptance or authorization to overwrite a held scope.",
+  "runtime_order": [
+    "ports:W06.2",
+    "ports:W06.runtimehandoff",
+    "ports:V09.1",
+    "ports:W06.3"
+  ],
+  "limitations": [
+    "Every actual future task must reconcile live exact file reservations and current bases.",
+    "Static candidates are not startup authority. All runtime instances remain stopped.",
+    "R4 preparation and held ports:C04.native-release require human release. Other disjoint R3 delivery tasks are not held by preparation.",
+    "Required joins to matching producer/authority/compiler metadata remain exact readiness handoffs; no broader unrelated implementation is authorized.",
+    "Whole-call parity, installed/binary integrity, resources, adoption and rollback remain required gates; scalar Rust defaults remain conditional."
+  ],
+  "tasks": [
+    {
+      "id": "ports:P01.1",
+      "plan": "artifact-preparation",
+      "lane": "R4",
+      "source_status_snapshot": "complete",
+      "disposition": "REQUIRED",
+      "phase": "work",
+      "source_depends_on": [
+        "ports:C01.ready"
+      ],
+      "source_planned_writes": [
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/artifact-preparation/inventory.json"
+      ],
+      "acceptance_reference": "remaining-work/tasks.json#ports:P01.1",
+      "completed_history_only": true,
+      "human_hold": false,
+      "execution_authorized": false
+    },
+    {
+      "id": "ports:P01.2",
+      "plan": "artifact-preparation",
+      "lane": "R4",
+      "source_status_snapshot": "complete",
+      "disposition": "REQUIRED",
+      "phase": "work",
+      "source_depends_on": [
+        "ports:P01.1",
+        "ports:C05.ready"
+      ],
+      "source_planned_writes": [
+        "packages/cloudflare/conformance/preparation/cases.json",
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/artifact-preparation/baseline.json"
+      ],
+      "acceptance_reference": "remaining-work/tasks.json#ports:P01.2",
+      "completed_history_only": true,
+      "human_hold": false,
+      "execution_authorized": false
+    },
+    {
+      "id": "ports:P01",
+      "plan": "artifact-preparation",
+      "lane": "R4",
+      "source_status_snapshot": "complete",
+      "disposition": "REQUIRED",
+      "phase": "gate",
+      "source_depends_on": [
+        "ports:P01.1",
+        "ports:P01.2"
+      ],
+      "source_planned_writes": [
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/artifact-preparation/P01.json"
+      ],
+      "acceptance_reference": "remaining-work/tasks.json#ports:P01",
+      "completed_history_only": true,
+      "human_hold": false,
+      "execution_authorized": false
+    },
+    {
+      "id": "ports:P02.1",
+      "plan": "artifact-preparation",
+      "lane": "R4",
+      "source_status_snapshot": "complete",
+      "disposition": "REQUIRED",
+      "phase": "work",
+      "source_depends_on": [
+        "ports:P01",
+        "ports:C02.ready",
+        "ports:C03.ready",
+        "ports:C05.ready"
+      ],
+      "source_planned_writes": [
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/artifact-preparation/stage-contract.json"
+      ],
+      "acceptance_reference": "remaining-work/tasks.json#ports:P02.1",
+      "completed_history_only": true,
+      "human_hold": false,
+      "execution_authorized": false
+    },
+    {
+      "id": "ports:P02.2",
+      "plan": "artifact-preparation",
+      "lane": "R4",
+      "source_status_snapshot": "complete",
+      "disposition": "REQUIRED",
+      "phase": "work",
+      "source_depends_on": [
+        "ports:P02.1"
+      ],
+      "source_planned_writes": [
+        "packages/cloudflare/src/preparation/host.ts",
+        "packages/cloudflare/src/preparation/build-adapter.ts",
+        "packages/cloudflare/src/cli/platform.ts"
+      ],
+      "acceptance_reference": "remaining-work/tasks.json#ports:P02.2",
+      "completed_history_only": true,
+      "human_hold": false,
+      "execution_authorized": false
+    },
+    {
+      "id": "ports:P02.3",
+      "plan": "artifact-preparation",
+      "lane": "R4",
+      "source_status_snapshot": "complete",
+      "disposition": "REQUIRED",
+      "phase": "work",
+      "source_depends_on": [
+        "ports:P02.2"
+      ],
+      "source_planned_writes": [
+        "packages/cloudflare/conformance/preparation/differential.mjs",
+        "packages/cloudflare/conformance/preparation/workloads.mjs",
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/artifact-preparation/prepared-ts.json"
+      ],
+      "acceptance_reference": "remaining-work/tasks.json#ports:P02.3",
+      "completed_history_only": true,
+      "human_hold": false,
+      "execution_authorized": false
+    },
+    {
+      "id": "ports:P02",
+      "plan": "artifact-preparation",
+      "lane": "R4",
+      "source_status_snapshot": "complete",
+      "disposition": "REQUIRED",
+      "phase": "gate",
+      "source_depends_on": [
+        "ports:P02.2",
+        "ports:P02.3"
+      ],
+      "source_planned_writes": [
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/artifact-preparation/P02.json"
+      ],
+      "acceptance_reference": "remaining-work/tasks.json#ports:P02",
+      "completed_history_only": true,
+      "human_hold": false,
+      "execution_authorized": false
+    },
+    {
+      "id": "ports:P03.1",
+      "plan": "artifact-preparation",
+      "lane": "R4",
+      "source_status_snapshot": "complete",
+      "disposition": "REQUIRED",
+      "phase": "work",
+      "source_depends_on": [
+        "ports:P02.1",
+        "ports:C03.ready"
+      ],
+      "source_planned_writes": [
+        "packages/cloudflare/preparation/Cargo.toml",
+        "packages/cloudflare/preparation/Cargo.lock",
+        "packages/cloudflare/preparation/rust-toolchain.toml",
+        "packages/cloudflare/preparation/src/main.rs",
+        "packages/cloudflare/preparation/src/job.rs",
+        "packages/cloudflare/preparation/src/protocol.rs"
+      ],
+      "acceptance_reference": "remaining-work/tasks.json#ports:P03.1",
+      "completed_history_only": true,
+      "human_hold": false,
+      "execution_authorized": false
+    },
+    {
+      "id": "ports:P03.foundation",
+      "plan": "artifact-preparation",
+      "lane": "R4",
+      "source_status_snapshot": "complete",
+      "disposition": "REQUIRED",
+      "phase": "gate",
+      "source_depends_on": [
+        "ports:P03.1"
+      ],
+      "source_planned_writes": [
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/artifact-preparation/P03.foundation.json"
+      ],
+      "acceptance_reference": "remaining-work/tasks.json#ports:P03.foundation",
+      "completed_history_only": true,
+      "human_hold": false,
+      "execution_authorized": false
+    },
+    {
+      "id": "ports:P03.2",
+      "plan": "artifact-preparation",
+      "lane": "R4",
+      "source_status_snapshot": "complete",
+      "disposition": "REQUIRED",
+      "phase": "work",
+      "source_depends_on": [
+        "ports:P03.foundation"
+      ],
+      "source_planned_writes": [
+        "packages/cloudflare/preparation/src/input.rs",
+        "packages/cloudflare/preparation/src/failures.rs",
+        "packages/cloudflare/src/preparation/inputs.ts"
+      ],
+      "acceptance_reference": "remaining-work/tasks.json#ports:P03.2",
+      "completed_history_only": true,
+      "human_hold": false,
+      "execution_authorized": false
+    },
+    {
+      "id": "ports:P03.3",
+      "plan": "artifact-preparation",
+      "lane": "R4",
+      "source_status_snapshot": "complete",
+      "disposition": "REQUIRED",
+      "phase": "work",
+      "source_depends_on": [
+        "ports:P03.foundation",
+        "ports:P03.2"
+      ],
+      "source_planned_writes": [
+        "packages/cloudflare/preparation/src/protocol.rs",
+        "packages/cloudflare/preparation/src/job.rs",
+        "packages/cloudflare/src/preparation/protocol.ts",
+        "packages/cloudflare/preparation/tests/protocol.rs"
+      ],
+      "acceptance_reference": "remaining-work/tasks.json#ports:P03.3",
+      "completed_history_only": true,
+      "human_hold": false,
+      "execution_authorized": false
+    },
+    {
+      "id": "ports:P03.4",
+      "plan": "artifact-preparation",
+      "lane": "R4",
+      "source_status_snapshot": "complete",
+      "disposition": "REQUIRED",
+      "phase": "work",
+      "source_depends_on": [
+        "ports:P02.2",
+        "ports:P03.3"
+      ],
+      "source_planned_writes": [
+        "packages/cloudflare/src/preparation/executable.ts",
+        "packages/cloudflare/src/preparation/host.ts",
+        "packages/cloudflare/test/preparation-protocol.test.ts"
+      ],
+      "acceptance_reference": "remaining-work/tasks.json#ports:P03.4",
+      "completed_history_only": true,
+      "human_hold": false,
+      "execution_authorized": false
+    },
+    {
+      "id": "ports:P03",
+      "plan": "artifact-preparation",
+      "lane": "R4",
+      "source_status_snapshot": "complete",
+      "disposition": "REQUIRED",
+      "phase": "gate",
+      "source_depends_on": [
+        "ports:P02",
+        "ports:P03.2",
+        "ports:P03.3",
+        "ports:P03.4"
+      ],
+      "source_planned_writes": [
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/artifact-preparation/P03.json"
+      ],
+      "acceptance_reference": "remaining-work/tasks.json#ports:P03",
+      "completed_history_only": true,
+      "human_hold": false,
+      "execution_authorized": false
+    },
+    {
+      "id": "ports:P04.1",
+      "plan": "artifact-preparation",
+      "lane": "R4",
+      "source_status_snapshot": "needs_verification",
+      "disposition": "REQUIRED",
+      "phase": "work",
+      "source_depends_on": [
+        "ports:P03.2"
+      ],
+      "source_planned_writes": [
+        "packages/cloudflare/preparation/src/artifact.rs",
+        "packages/cloudflare/preparation/tests/artifact.rs"
+      ],
+      "acceptance_reference": "remaining-work/tasks.json#ports:P04.1",
+      "completed_history_only": false,
+      "human_hold": true,
+      "execution_authorized": false
+    },
+    {
+      "id": "ports:P04.2",
+      "plan": "artifact-preparation",
+      "lane": "R4",
+      "source_status_snapshot": "needs_verification",
+      "disposition": "REQUIRED",
+      "phase": "work",
+      "source_depends_on": [
+        "ports:P03.2"
+      ],
+      "source_planned_writes": [
+        "packages/cloudflare/preparation/src/compatibility.rs",
+        "packages/cloudflare/preparation/tests/compatibility.rs"
+      ],
+      "acceptance_reference": "remaining-work/tasks.json#ports:P04.2",
+      "completed_history_only": false,
+      "human_hold": true,
+      "execution_authorized": false
+    },
+    {
+      "id": "ports:P04.3",
+      "plan": "artifact-preparation",
+      "lane": "R4",
+      "source_status_snapshot": "needs_verification",
+      "disposition": "REQUIRED",
+      "phase": "work",
+      "source_depends_on": [
+        "ports:P03.2"
+      ],
+      "source_planned_writes": [
+        "packages/cloudflare/preparation/src/release.rs",
+        "packages/cloudflare/preparation/tests/release.rs"
+      ],
+      "acceptance_reference": "remaining-work/tasks.json#ports:P04.3",
+      "completed_history_only": false,
+      "human_hold": true,
+      "execution_authorized": false
+    },
+    {
+      "id": "ports:P04.4",
+      "plan": "artifact-preparation",
+      "lane": "R4",
+      "source_status_snapshot": "needs_verification",
+      "disposition": "REQUIRED",
+      "phase": "work",
+      "source_depends_on": [
+        "ports:P03",
+        "ports:P04.1",
+        "ports:P04.2",
+        "ports:P04.3"
+      ],
+      "source_planned_writes": [
+        "packages/cloudflare/preparation/src/job.rs",
+        "packages/cloudflare/preparation/tests/vectors.rs"
+      ],
+      "acceptance_reference": "remaining-work/tasks.json#ports:P04.4",
+      "completed_history_only": false,
+      "human_hold": true,
+      "execution_authorized": false
+    },
+    {
+      "id": "ports:P04",
+      "plan": "artifact-preparation",
+      "lane": "R4",
+      "source_status_snapshot": "held",
+      "disposition": "REQUIRED",
+      "phase": "gate",
+      "source_depends_on": [
+        "ports:P04.4"
+      ],
+      "source_planned_writes": [
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/artifact-preparation/P04.json"
+      ],
+      "acceptance_reference": "remaining-work/tasks.json#ports:P04",
+      "completed_history_only": false,
+      "human_hold": true,
+      "execution_authorized": false
+    },
+    {
+      "id": "ports:P05.1",
+      "plan": "artifact-preparation",
+      "lane": "R4",
+      "source_status_snapshot": "needs_verification",
+      "disposition": "REQUIRED",
+      "phase": "work",
+      "source_depends_on": [
+        "ports:P04.1",
+        "ports:P02.1"
+      ],
+      "source_planned_writes": [
+        "packages/cloudflare/preparation/src/modules.rs",
+        "packages/cloudflare/preparation/tests/modules.rs"
+      ],
+      "acceptance_reference": "remaining-work/tasks.json#ports:P05.1",
+      "completed_history_only": false,
+      "human_hold": true,
+      "execution_authorized": false
+    },
+    {
+      "id": "ports:P05.2",
+      "plan": "artifact-preparation",
+      "lane": "R4",
+      "source_status_snapshot": "needs_verification",
+      "disposition": "REQUIRED",
+      "phase": "work",
+      "source_depends_on": [
+        "ports:P02.2",
+        "ports:P03.4",
+        "ports:P02.1"
+      ],
+      "source_planned_writes": [
+        "packages/cloudflare/src/preparation/build-adapter.ts",
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/artifact-preparation/bundle-join-request.json"
+      ],
+      "acceptance_reference": "remaining-work/tasks.json#ports:P05.2",
+      "completed_history_only": false,
+      "human_hold": true,
+      "execution_authorized": false
+    },
+    {
+      "id": "ports:P05.3",
+      "plan": "artifact-preparation",
+      "lane": "R4",
+      "source_status_snapshot": "held",
+      "disposition": "REQUIRED",
+      "phase": "work",
+      "source_depends_on": [
+        "ports:P05.1",
+        "ports:P05.2",
+        "ports:C04.preparation-join"
+      ],
+      "source_planned_writes": [
+        "packages/cloudflare/src/preparation/build-adapter.ts"
+      ],
+      "acceptance_reference": "remaining-work/tasks.json#ports:P05.3",
+      "completed_history_only": false,
+      "human_hold": true,
+      "execution_authorized": false
+    },
+    {
+      "id": "ports:P05.4",
+      "plan": "artifact-preparation",
+      "lane": "R4",
+      "source_status_snapshot": "held",
+      "disposition": "REQUIRED",
+      "phase": "work",
+      "source_depends_on": [
+        "ports:P04.4",
+        "ports:P05.3"
+      ],
+      "source_planned_writes": [
+        "packages/cloudflare/preparation/src/job.rs"
+      ],
+      "acceptance_reference": "remaining-work/tasks.json#ports:P05.4",
+      "completed_history_only": false,
+      "human_hold": true,
+      "execution_authorized": false
+    },
+    {
+      "id": "ports:P05.5",
+      "plan": "artifact-preparation",
+      "lane": "R4",
+      "source_status_snapshot": "held",
+      "disposition": "REQUIRED",
+      "phase": "work",
+      "source_depends_on": [
+        "ports:P05.4"
+      ],
+      "source_planned_writes": [
+        "packages/cloudflare/test/preparation-native.test.ts",
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/artifact-preparation/module-parity.json"
+      ],
+      "acceptance_reference": "remaining-work/tasks.json#ports:P05.5",
+      "completed_history_only": false,
+      "human_hold": true,
+      "execution_authorized": false
+    },
+    {
+      "id": "ports:P05",
+      "plan": "artifact-preparation",
+      "lane": "R4",
+      "source_status_snapshot": "held",
+      "disposition": "REQUIRED",
+      "phase": "gate",
+      "source_depends_on": [
+        "ports:P05.5"
+      ],
+      "source_planned_writes": [
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/artifact-preparation/P05.json"
+      ],
+      "acceptance_reference": "remaining-work/tasks.json#ports:P05",
+      "completed_history_only": false,
+      "human_hold": true,
+      "execution_authorized": false
+    },
+    {
+      "id": "ports:P05.6",
+      "plan": "artifact-preparation",
+      "lane": "R4",
+      "source_status_snapshot": "not_started",
+      "disposition": "ACCEPTED-CONDITIONAL",
+      "phase": "work",
+      "source_depends_on": [
+        "ports:P05.5",
+        "ports:C04.ready",
+        "ports:C04.graph"
+      ],
+      "source_planned_writes": [
+        "packages/cloudflare/test/preparation-mixed-assets.test.ts",
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/artifact-preparation/mixed-assets.json"
+      ],
+      "acceptance_reference": "remaining-work/tasks.json#ports:P05.6",
+      "completed_history_only": false,
+      "human_hold": true,
+      "execution_authorized": false
+    },
+    {
+      "id": "ports:P05.mixed",
+      "plan": "artifact-preparation",
+      "lane": "R4",
+      "source_status_snapshot": "held",
+      "disposition": "REQUIRED",
+      "phase": "gate",
+      "source_depends_on": [
+        "ports:P05.5"
+      ],
+      "source_planned_writes": [
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/artifact-preparation/P05.mixed.json"
+      ],
+      "acceptance_reference": "remaining-work/tasks.json#ports:P05.mixed",
+      "completed_history_only": false,
+      "human_hold": true,
+      "execution_authorized": false
+    },
+    {
+      "id": "ports:P06.1",
+      "plan": "artifact-preparation",
+      "lane": "R4",
+      "source_status_snapshot": "needs_verification",
+      "disposition": "REQUIRED",
+      "phase": "work",
+      "source_depends_on": [
+        "ports:P04.1",
+        "ports:P04.2",
+        "ports:P02.1"
+      ],
+      "source_planned_writes": [
+        "packages/cloudflare/preparation/src/plan.rs",
+        "packages/cloudflare/preparation/tests/plan.rs"
+      ],
+      "acceptance_reference": "remaining-work/tasks.json#ports:P06.1",
+      "completed_history_only": false,
+      "human_hold": true,
+      "execution_authorized": false
+    },
+    {
+      "id": "ports:P06.2",
+      "plan": "artifact-preparation",
+      "lane": "R4",
+      "source_status_snapshot": "needs_verification",
+      "disposition": "REQUIRED",
+      "phase": "work",
+      "source_depends_on": [
+        "ports:P06.1",
+        "ports:P03.2"
+      ],
+      "source_planned_writes": [
+        "packages/cloudflare/preparation/src/render.rs",
+        "packages/cloudflare/preparation/src/review.rs",
+        "packages/cloudflare/preparation/tests/outputs.rs"
+      ],
+      "acceptance_reference": "remaining-work/tasks.json#ports:P06.2",
+      "completed_history_only": false,
+      "human_hold": true,
+      "execution_authorized": false
+    },
+    {
+      "id": "ports:P06.3",
+      "plan": "artifact-preparation",
+      "lane": "R4",
+      "source_status_snapshot": "held",
+      "disposition": "REQUIRED",
+      "phase": "work",
+      "source_depends_on": [
+        "ports:P05.4",
+        "ports:P06.2"
+      ],
+      "source_planned_writes": [
+        "packages/cloudflare/preparation/src/job.rs"
+      ],
+      "acceptance_reference": "remaining-work/tasks.json#ports:P06.3",
+      "completed_history_only": false,
+      "human_hold": true,
+      "execution_authorized": false
+    },
+    {
+      "id": "ports:P06",
+      "plan": "artifact-preparation",
+      "lane": "R4",
+      "source_status_snapshot": "held",
+      "disposition": "REQUIRED",
+      "phase": "gate",
+      "source_depends_on": [
+        "ports:P06.3"
+      ],
+      "source_planned_writes": [
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/artifact-preparation/P06.json"
+      ],
+      "acceptance_reference": "remaining-work/tasks.json#ports:P06",
+      "completed_history_only": false,
+      "human_hold": true,
+      "execution_authorized": false
+    },
+    {
+      "id": "ports:P07.1",
+      "plan": "artifact-preparation",
+      "lane": "R4",
+      "source_status_snapshot": "held",
+      "disposition": "REQUIRED",
+      "phase": "work",
+      "source_depends_on": [
+        "ports:P03.4",
+        "ports:P06.2",
+        "ports:C03.ready"
+      ],
+      "source_planned_writes": [
+        "packages/cloudflare/src/preparation/publication.ts",
+        "packages/cloudflare/test/preparation-publication.test.ts"
+      ],
+      "acceptance_reference": "remaining-work/tasks.json#ports:P07.1",
+      "completed_history_only": false,
+      "human_hold": true,
+      "execution_authorized": false
+    },
+    {
+      "id": "ports:P07.2",
+      "plan": "artifact-preparation",
+      "lane": "R4",
+      "source_status_snapshot": "held",
+      "disposition": "REQUIRED",
+      "phase": "work",
+      "source_depends_on": [
+        "ports:P05",
+        "ports:P06",
+        "ports:P07.1"
+      ],
+      "source_planned_writes": [
+        "packages/cloudflare/test/preparation-cli.test.ts",
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/artifact-preparation/publication.json"
+      ],
+      "acceptance_reference": "remaining-work/tasks.json#ports:P07.2",
+      "completed_history_only": false,
+      "human_hold": true,
+      "execution_authorized": false
+    },
+    {
+      "id": "ports:P07",
+      "plan": "artifact-preparation",
+      "lane": "R4",
+      "source_status_snapshot": "held",
+      "disposition": "REQUIRED",
+      "phase": "gate",
+      "source_depends_on": [
+        "ports:P03",
+        "ports:P05",
+        "ports:P06",
+        "ports:P07.1",
+        "ports:P07.2"
+      ],
+      "source_planned_writes": [
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/artifact-preparation/P07.json"
+      ],
+      "acceptance_reference": "remaining-work/tasks.json#ports:P07",
+      "completed_history_only": false,
+      "human_hold": true,
+      "execution_authorized": false
+    },
+    {
+      "id": "ports:P08.1",
+      "plan": "artifact-preparation",
+      "lane": "R4",
+      "source_status_snapshot": "held",
+      "disposition": "REQUIRED",
+      "phase": "work",
+      "source_depends_on": [
+        "ports:P07",
+        "ports:P02.2",
+        "ports:C05.ready"
+      ],
+      "source_planned_writes": [
+        "packages/cloudflare/src/cli/platform.ts",
+        "packages/cloudflare/src/preparation/host.ts"
+      ],
+      "acceptance_reference": "remaining-work/tasks.json#ports:P08.1",
+      "completed_history_only": false,
+      "human_hold": true,
+      "execution_authorized": false
+    },
+    {
+      "id": "ports:P08.2",
+      "plan": "artifact-preparation",
+      "lane": "R4",
+      "source_status_snapshot": "held",
+      "disposition": "REQUIRED",
+      "phase": "work",
+      "source_depends_on": [
+        "ports:P08.1",
+        "ports:P02.3",
+        "ports:C04.native-release"
+      ],
+      "source_planned_writes": [
+        "packages/cloudflare/conformance/preparation/differential.mjs",
+        "packages/cloudflare/test/preparation-cli.test.ts",
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/artifact-preparation/cli-parity.json"
+      ],
+      "acceptance_reference": "remaining-work/tasks.json#ports:P08.2",
+      "completed_history_only": false,
+      "human_hold": true,
+      "execution_authorized": false
+    },
+    {
+      "id": "ports:P08",
+      "plan": "artifact-preparation",
+      "lane": "R4",
+      "source_status_snapshot": "held",
+      "disposition": "REQUIRED",
+      "phase": "gate",
+      "source_depends_on": [
+        "ports:P08.2"
+      ],
+      "source_planned_writes": [
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/artifact-preparation/P08.json"
+      ],
+      "acceptance_reference": "remaining-work/tasks.json#ports:P08",
+      "completed_history_only": false,
+      "human_hold": true,
+      "execution_authorized": false
+    },
+    {
+      "id": "ports:P09.1",
+      "plan": "artifact-preparation",
+      "lane": "R4",
+      "source_status_snapshot": "partial",
+      "disposition": "REQUIRED",
+      "phase": "work",
+      "source_depends_on": [
+        "ports:P03.foundation",
+        "ports:P01.1"
+      ],
+      "source_planned_writes": [
+        "packages/cloudflare/scripts/build-preparation.mjs",
+        "packages/cloudflare/scripts/package-preparation.mjs",
+        "packages/cloudflare/src/preparation/executable-manifest.ts",
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/artifact-preparation/native-release-request.json"
+      ],
+      "acceptance_reference": "remaining-work/tasks.json#ports:P09.1",
+      "completed_history_only": false,
+      "human_hold": true,
+      "execution_authorized": false
+    },
+    {
+      "id": "ports:P09.2",
+      "plan": "artifact-preparation",
+      "lane": "R4",
+      "source_status_snapshot": "held",
+      "disposition": "REQUIRED",
+      "phase": "work",
+      "source_depends_on": [
+        "ports:P08",
+        "ports:P09.1",
+        "ports:C04.native-release"
+      ],
+      "source_planned_writes": [
+        "packages/cloudflare/test/preparation-packaged.test.ts",
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/artifact-preparation/packaged-hosts.json"
+      ],
+      "acceptance_reference": "remaining-work/tasks.json#ports:P09.2",
+      "completed_history_only": false,
+      "human_hold": true,
+      "execution_authorized": false
+    },
+    {
+      "id": "ports:P09",
+      "plan": "artifact-preparation",
+      "lane": "R4",
+      "source_status_snapshot": "held",
+      "disposition": "REQUIRED",
+      "phase": "gate",
+      "source_depends_on": [
+        "ports:P09.2"
+      ],
+      "source_planned_writes": [
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/artifact-preparation/P09.json"
+      ],
+      "acceptance_reference": "remaining-work/tasks.json#ports:P09",
+      "completed_history_only": false,
+      "human_hold": true,
+      "execution_authorized": false
+    },
+    {
+      "id": "ports:P10.1",
+      "plan": "artifact-preparation",
+      "lane": "R4",
+      "source_status_snapshot": "held",
+      "disposition": "REQUIRED",
+      "phase": "work",
+      "source_depends_on": [
+        "ports:P08",
+        "ports:P09",
+        "ports:C05.ready"
+      ],
+      "source_planned_writes": [
+        "packages/cloudflare/conformance/preparation/workloads.mjs",
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/artifact-preparation/measurement.json"
+      ],
+      "acceptance_reference": "remaining-work/tasks.json#ports:P10.1",
+      "completed_history_only": false,
+      "human_hold": true,
+      "execution_authorized": false
+    },
+    {
+      "id": "ports:P10.2",
+      "plan": "artifact-preparation",
+      "lane": "R4",
+      "source_status_snapshot": "held",
+      "disposition": "REQUIRED",
+      "phase": "work",
+      "source_depends_on": [
+        "ports:P10.1"
+      ],
+      "source_planned_writes": [
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/artifact-preparation/rollback.json"
+      ],
+      "acceptance_reference": "remaining-work/tasks.json#ports:P10.2",
+      "completed_history_only": false,
+      "human_hold": true,
+      "execution_authorized": false
+    },
+    {
+      "id": "ports:P10",
+      "plan": "artifact-preparation",
+      "lane": "R4",
+      "source_status_snapshot": "held",
+      "disposition": "REQUIRED",
+      "phase": "gate",
+      "source_depends_on": [
+        "ports:P10.1",
+        "ports:P10.2"
+      ],
+      "source_planned_writes": [
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/artifact-preparation/P10.json"
+      ],
+      "acceptance_reference": "remaining-work/tasks.json#ports:P10",
+      "completed_history_only": false,
+      "human_hold": true,
+      "execution_authorized": false
+    },
+    {
+      "id": "ports:P11.1",
+      "plan": "artifact-preparation",
+      "lane": "R4",
+      "source_status_snapshot": "held",
+      "disposition": "REQUIRED",
+      "phase": "work",
+      "source_depends_on": [
+        "ports:P10",
+        "ports:P05.mixed"
+      ],
+      "source_planned_writes": [
+        "packages/cloudflare/README.md",
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/artifact-preparation/coverage.json"
+      ],
+      "acceptance_reference": "remaining-work/tasks.json#ports:P11.1",
+      "completed_history_only": false,
+      "human_hold": true,
+      "execution_authorized": false
+    },
+    {
+      "id": "ports:P11",
+      "plan": "artifact-preparation",
+      "lane": "R4",
+      "source_status_snapshot": "held",
+      "disposition": "REQUIRED",
+      "phase": "gate",
+      "source_depends_on": [
+        "ports:P11.1"
+      ],
+      "source_planned_writes": [
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/artifact-preparation/P11.json"
+      ],
+      "acceptance_reference": "remaining-work/tasks.json#ports:P11",
+      "completed_history_only": false,
+      "human_hold": true,
+      "execution_authorized": false
+    },
+    {
+      "id": "ports:A01.1",
+      "plan": "exact-values",
+      "lane": "R1",
+      "source_status_snapshot": "partial",
+      "disposition": "REQUIRED",
+      "phase": "work",
+      "source_depends_on": [
+        "ports:C01.ready"
+      ],
+      "source_planned_writes": [
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/exact-values/core/contracts.md"
+      ],
+      "acceptance_reference": "remaining-work/tasks.json#ports:A01.1",
+      "completed_history_only": false,
+      "human_hold": false,
+      "execution_authorized": false
+    },
+    {
+      "id": "ports:A01.2",
+      "plan": "exact-values",
+      "lane": "R1",
+      "source_status_snapshot": "partial",
+      "disposition": "REQUIRED",
+      "phase": "work",
+      "source_depends_on": [
+        "ports:A01.1",
+        "ports:C05.ready"
+      ],
+      "source_planned_writes": [
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/exact-values/fixtures/workload-contract.json"
+      ],
+      "acceptance_reference": "remaining-work/tasks.json#ports:A01.2",
+      "completed_history_only": false,
+      "human_hold": false,
+      "execution_authorized": false
+    },
+    {
+      "id": "ports:A01",
+      "plan": "exact-values",
+      "lane": "R1",
+      "source_status_snapshot": "partial",
+      "disposition": "REQUIRED",
+      "phase": "gate",
+      "source_depends_on": [
+        "ports:A01.1",
+        "ports:A01.2"
+      ],
+      "source_planned_writes": [],
+      "acceptance_reference": "remaining-work/tasks.json#ports:A01",
+      "completed_history_only": false,
+      "human_hold": false,
+      "execution_authorized": false
+    },
+    {
+      "id": "ports:A02.1",
+      "plan": "exact-values",
+      "lane": "R1",
+      "source_status_snapshot": "partial",
+      "disposition": "REQUIRED",
+      "phase": "work",
+      "source_depends_on": [
+        "ports:A01",
+        "ports:C02.ready",
+        "ports:C05.ready"
+      ],
+      "source_planned_writes": [
+        "packages/values/conformance/ports/exact/cases.json"
+      ],
+      "acceptance_reference": "remaining-work/tasks.json#ports:A02.1",
+      "completed_history_only": false,
+      "human_hold": false,
+      "execution_authorized": false
+    },
+    {
+      "id": "ports:A02.2",
+      "plan": "exact-values",
+      "lane": "R1",
+      "source_status_snapshot": "partial",
+      "disposition": "REQUIRED",
+      "phase": "work",
+      "source_depends_on": [
+        "ports:A02.1"
+      ],
+      "source_planned_writes": [
+        "packages/values/conformance/ports/exact/differential.mjs",
+        "packages/values/conformance/ports/exact/workloads.mjs",
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/exact-values/fixtures/ts-baseline.json"
+      ],
+      "acceptance_reference": "remaining-work/tasks.json#ports:A02.2",
+      "completed_history_only": false,
+      "human_hold": false,
+      "execution_authorized": false
+    },
+    {
+      "id": "ports:A02",
+      "plan": "exact-values",
+      "lane": "R1",
+      "source_status_snapshot": "partial",
+      "disposition": "REQUIRED",
+      "phase": "gate",
+      "source_depends_on": [
+        "ports:A02.1",
+        "ports:A02.2"
+      ],
+      "source_planned_writes": [],
+      "acceptance_reference": "remaining-work/tasks.json#ports:A02",
+      "completed_history_only": false,
+      "human_hold": false,
+      "execution_authorized": false
+    },
+    {
+      "id": "ports:A03.1",
+      "plan": "exact-values",
+      "lane": "R1",
+      "source_status_snapshot": "complete",
+      "disposition": "REQUIRED",
+      "phase": "work",
+      "source_depends_on": [
+        "ports:A02",
+        "ports:C03.ready"
+      ],
+      "source_planned_writes": [
+        "packages/values/Cargo.toml",
+        "packages/values/Cargo.lock",
+        "packages/values/semantics/Cargo.toml",
+        "packages/values/bindings/Cargo.toml",
+        "packages/values/bindings/src/lib.rs",
+        "packages/values/semantics/src/lib.rs",
+        "packages/values/semantics/src/failures.rs",
+        "packages/values/semantics/src/representations/mod.rs",
+        "packages/values/semantics/src/representations/numeric.rs",
+        "packages/values/semantics/src/transport/mod.rs",
+        "packages/values/semantics/src/transport/exact.rs",
+        "packages/values/semantics/src/numeric/mod.rs",
+        "packages/values/semantics/src/temporal/mod.rs",
+        "packages/values/semantics/src/aggregates/mod.rs",
+        "packages/values/semantics/src/codecs/mod.rs",
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/exact-values/core/foundation.md"
+      ],
+      "acceptance_reference": "remaining-work/tasks.json#ports:A03.1",
+      "completed_history_only": true,
+      "human_hold": false,
+      "execution_authorized": false
+    },
+    {
+      "id": "ports:A03.foundation",
+      "plan": "exact-values",
+      "lane": "R1",
+      "source_status_snapshot": "complete",
+      "disposition": "REQUIRED",
+      "phase": "gate",
+      "source_depends_on": [
+        "ports:A03.1"
+      ],
+      "source_planned_writes": [],
+      "acceptance_reference": "remaining-work/tasks.json#ports:A03.foundation",
+      "completed_history_only": true,
+      "human_hold": false,
+      "execution_authorized": false
+    },
+    {
+      "id": "ports:A03.2",
+      "plan": "exact-values",
+      "lane": "R1",
+      "source_status_snapshot": "complete",
+      "disposition": "REQUIRED",
+      "phase": "work",
+      "source_depends_on": [
+        "ports:A03.foundation"
+      ],
+      "source_planned_writes": [
+        "packages/values/semantics/src/numeric/integer.rs",
+        "packages/values/semantics/tests/integer_vectors.rs",
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/exact-values/integer/parity.json"
+      ],
+      "acceptance_reference": "remaining-work/tasks.json#ports:A03.2",
+      "completed_history_only": true,
+      "human_hold": false,
+      "execution_authorized": false
+    },
+    {
+      "id": "ports:A03.3",
+      "plan": "exact-values",
+      "lane": "R1",
+      "source_status_snapshot": "complete",
+      "disposition": "REQUIRED",
+      "phase": "work",
+      "source_depends_on": [
+        "ports:A03.foundation"
+      ],
+      "source_planned_writes": [
+        "packages/values/semantics/src/numeric/rounding.rs",
+        "packages/values/semantics/tests/rounding_vectors.rs",
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/exact-values/rounding/parity.json"
+      ],
+      "acceptance_reference": "remaining-work/tasks.json#ports:A03.3",
+      "completed_history_only": true,
+      "human_hold": false,
+      "execution_authorized": false
+    },
+    {
+      "id": "ports:A03.4",
+      "plan": "exact-values",
+      "lane": "R1",
+      "source_status_snapshot": "complete",
+      "disposition": "REQUIRED",
+      "phase": "work",
+      "source_depends_on": [
+        "ports:A03.foundation"
+      ],
+      "source_planned_writes": [
+        "packages/values/scripts/emit-semantics-inputs.mjs",
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/exact-values/core/catalog-inputs.json"
+      ],
+      "acceptance_reference": "remaining-work/tasks.json#ports:A03.4",
+      "completed_history_only": true,
+      "human_hold": false,
+      "execution_authorized": false
+    },
+    {
+      "id": "ports:A03",
+      "plan": "exact-values",
+      "lane": "R1",
+      "source_status_snapshot": "partial",
+      "disposition": "REQUIRED",
+      "phase": "gate",
+      "source_depends_on": [
+        "ports:A03.foundation",
+        "ports:A03.2",
+        "ports:A03.3",
+        "ports:A03.4"
+      ],
+      "source_planned_writes": [],
+      "acceptance_reference": "remaining-work/tasks.json#ports:A03",
+      "completed_history_only": false,
+      "human_hold": false,
+      "execution_authorized": false
+    },
+    {
+      "id": "ports:A04.1",
+      "plan": "exact-values",
+      "lane": "R1",
+      "source_status_snapshot": "partial",
+      "disposition": "REQUIRED",
+      "phase": "work",
+      "source_depends_on": [
+        "ports:A03.foundation"
+      ],
+      "source_planned_writes": [
+        "packages/values/semantics/src/numeric/decimal.rs",
+        "packages/values/semantics/tests/decimal_vectors.rs",
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/exact-values/decimal/construction.json"
+      ],
+      "acceptance_reference": "remaining-work/tasks.json#ports:A04.1",
+      "completed_history_only": false,
+      "human_hold": false,
+      "execution_authorized": false
+    },
+    {
+      "id": "ports:A04.2",
+      "plan": "exact-values",
+      "lane": "R1",
+      "source_status_snapshot": "partial",
+      "disposition": "REQUIRED",
+      "phase": "work",
+      "source_depends_on": [
+        "ports:A04.1",
+        "ports:A03.2",
+        "ports:A03.3"
+      ],
+      "source_planned_writes": [
+        "packages/values/semantics/src/numeric/decimal.rs",
+        "packages/values/semantics/tests/decimal_vectors.rs",
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/exact-values/decimal/arithmetic.json"
+      ],
+      "acceptance_reference": "remaining-work/tasks.json#ports:A04.2",
+      "completed_history_only": false,
+      "human_hold": false,
+      "execution_authorized": false
+    },
+    {
+      "id": "ports:A04.3",
+      "plan": "exact-values",
+      "lane": "R1",
+      "source_status_snapshot": "partial",
+      "disposition": "REQUIRED",
+      "phase": "work",
+      "source_depends_on": [
+        "ports:A03.foundation",
+        "ports:A03.2",
+        "ports:A03.4"
+      ],
+      "source_planned_writes": [
+        "packages/values/semantics/src/numeric/money.rs",
+        "packages/values/semantics/tests/money_vectors.rs",
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/exact-values/money/basic.json"
+      ],
+      "acceptance_reference": "remaining-work/tasks.json#ports:A04.3",
+      "completed_history_only": false,
+      "human_hold": false,
+      "execution_authorized": false
+    },
+    {
+      "id": "ports:A04.4",
+      "plan": "exact-values",
+      "lane": "R1",
+      "source_status_snapshot": "partial",
+      "disposition": "REQUIRED",
+      "phase": "work",
+      "source_depends_on": [
+        "ports:A04.3",
+        "ports:A04.2",
+        "ports:A03.3"
+      ],
+      "source_planned_writes": [
+        "packages/values/semantics/src/numeric/money.rs",
+        "packages/values/semantics/tests/money_vectors.rs",
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/exact-values/money/factors.json"
+      ],
+      "acceptance_reference": "remaining-work/tasks.json#ports:A04.4",
+      "completed_history_only": false,
+      "human_hold": false,
+      "execution_authorized": false
+    },
+    {
+      "id": "ports:A04.5",
+      "plan": "exact-values",
+      "lane": "R1",
+      "source_status_snapshot": "partial",
+      "disposition": "REQUIRED",
+      "phase": "work",
+      "source_depends_on": [
+        "ports:A04.1",
+        "ports:A04.3",
+        "ports:C03.ready"
+      ],
+      "source_planned_writes": [
+        "packages/values/semantics/src/codecs/numeric.rs",
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/exact-values/core/numeric-codecs.json"
+      ],
+      "acceptance_reference": "remaining-work/tasks.json#ports:A04.5",
+      "completed_history_only": false,
+      "human_hold": false,
+      "execution_authorized": false
+    },
+    {
+      "id": "ports:A04",
+      "plan": "exact-values",
+      "lane": "R1",
+      "source_status_snapshot": "partial",
+      "disposition": "REQUIRED",
+      "phase": "gate",
+      "source_depends_on": [
+        "ports:A04.1",
+        "ports:A04.2",
+        "ports:A04.3",
+        "ports:A04.4",
+        "ports:A04.5"
+      ],
+      "source_planned_writes": [],
+      "acceptance_reference": "remaining-work/tasks.json#ports:A04",
+      "completed_history_only": false,
+      "human_hold": false,
+      "execution_authorized": false
+    },
+    {
+      "id": "ports:A05.1",
+      "plan": "exact-values",
+      "lane": "R1",
+      "source_status_snapshot": "complete",
+      "disposition": "REQUIRED",
+      "phase": "work",
+      "source_depends_on": [
+        "ports:A03.foundation"
+      ],
+      "source_planned_writes": [
+        "packages/values/semantics/src/temporal/civil.rs",
+        "packages/values/semantics/tests/temporal_vectors.rs",
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/exact-values/temporal/civil.json"
+      ],
+      "acceptance_reference": "remaining-work/tasks.json#ports:A05.1",
+      "completed_history_only": true,
+      "human_hold": false,
+      "execution_authorized": false
+    },
+    {
+      "id": "ports:A05.2",
+      "plan": "exact-values",
+      "lane": "R1",
+      "source_status_snapshot": "complete",
+      "disposition": "REQUIRED",
+      "phase": "work",
+      "source_depends_on": [
+        "ports:A03.foundation"
+      ],
+      "source_planned_writes": [
+        "packages/values/semantics/src/temporal/duration.rs",
+        "packages/values/semantics/tests/temporal_vectors.rs",
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/exact-values/temporal/duration.json"
+      ],
+      "acceptance_reference": "remaining-work/tasks.json#ports:A05.2",
+      "completed_history_only": true,
+      "human_hold": false,
+      "execution_authorized": false
+    },
+    {
+      "id": "ports:A05.3",
+      "plan": "exact-values",
+      "lane": "R1",
+      "source_status_snapshot": "partial",
+      "disposition": "REQUIRED",
+      "phase": "work",
+      "source_depends_on": [
+        "ports:A05.1",
+        "ports:A05.2"
+      ],
+      "source_planned_writes": [
+        "packages/values/semantics/src/temporal/instant.rs",
+        "packages/values/semantics/tests/temporal_vectors.rs",
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/exact-values/temporal/instant.json"
+      ],
+      "acceptance_reference": "remaining-work/tasks.json#ports:A05.3",
+      "completed_history_only": false,
+      "human_hold": false,
+      "execution_authorized": false
+    },
+    {
+      "id": "ports:A05",
+      "plan": "exact-values",
+      "lane": "R1",
+      "source_status_snapshot": "partial",
+      "disposition": "REQUIRED",
+      "phase": "gate",
+      "source_depends_on": [
+        "ports:A05.1",
+        "ports:A05.2",
+        "ports:A05.3"
+      ],
+      "source_planned_writes": [],
+      "acceptance_reference": "remaining-work/tasks.json#ports:A05",
+      "completed_history_only": false,
+      "human_hold": false,
+      "execution_authorized": false
+    },
+    {
+      "id": "ports:A06.1",
+      "plan": "exact-values",
+      "lane": "R1",
+      "source_status_snapshot": "complete",
+      "disposition": "REQUIRED",
+      "phase": "work",
+      "source_depends_on": [
+        "ports:A03.2",
+        "ports:A05.2",
+        "ports:C02.ready"
+      ],
+      "source_planned_writes": [
+        "packages/values/semantics/src/aggregates/integer.rs",
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/exact-values/aggregates/integer.json"
+      ],
+      "acceptance_reference": "remaining-work/tasks.json#ports:A06.1",
+      "completed_history_only": true,
+      "human_hold": false,
+      "execution_authorized": false
+    },
+    {
+      "id": "ports:A06.2",
+      "plan": "exact-values",
+      "lane": "R1",
+      "source_status_snapshot": "complete",
+      "disposition": "REQUIRED",
+      "phase": "work",
+      "source_depends_on": [
+        "ports:A04.2",
+        "ports:C02.ready"
+      ],
+      "source_planned_writes": [
+        "packages/values/semantics/src/aggregates/decimal.rs",
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/exact-values/aggregates/decimal.json"
+      ],
+      "acceptance_reference": "remaining-work/tasks.json#ports:A06.2",
+      "completed_history_only": true,
+      "human_hold": false,
+      "execution_authorized": false
+    },
+    {
+      "id": "ports:A06.3",
+      "plan": "exact-values",
+      "lane": "R1",
+      "source_status_snapshot": "complete",
+      "disposition": "REQUIRED",
+      "phase": "work",
+      "source_depends_on": [
+        "ports:A04.4",
+        "ports:C02.ready"
+      ],
+      "source_planned_writes": [
+        "packages/values/semantics/src/aggregates/money.rs",
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/exact-values/aggregates/money.json"
+      ],
+      "acceptance_reference": "remaining-work/tasks.json#ports:A06.3",
+      "completed_history_only": true,
+      "human_hold": false,
+      "execution_authorized": false
+    },
+    {
+      "id": "ports:A06.4",
+      "plan": "exact-values",
+      "lane": "R1",
+      "source_status_snapshot": "complete",
+      "disposition": "REQUIRED",
+      "phase": "work",
+      "source_depends_on": [
+        "ports:A06.1",
+        "ports:A06.2",
+        "ports:A06.3",
+        "ports:A05.3"
+      ],
+      "source_planned_writes": [
+        "packages/values/semantics/src/aggregates/numeric.rs",
+        "packages/values/semantics/tests/aggregate_vectors.rs",
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/exact-values/aggregates/parity.json"
+      ],
+      "acceptance_reference": "remaining-work/tasks.json#ports:A06.4",
+      "completed_history_only": true,
+      "human_hold": false,
+      "execution_authorized": false
+    },
+    {
+      "id": "ports:A06",
+      "plan": "exact-values",
+      "lane": "R1",
+      "source_status_snapshot": "complete",
+      "disposition": "REQUIRED",
+      "phase": "gate",
+      "source_depends_on": [
+        "ports:A06.1",
+        "ports:A06.2",
+        "ports:A06.3",
+        "ports:A06.4"
+      ],
+      "source_planned_writes": [],
+      "acceptance_reference": "remaining-work/tasks.json#ports:A06",
+      "completed_history_only": true,
+      "human_hold": false,
+      "execution_authorized": false
+    },
+    {
+      "id": "ports:A07.1",
+      "plan": "exact-values",
+      "lane": "R1",
+      "source_status_snapshot": "complete",
+      "disposition": "REQUIRED",
+      "phase": "work",
+      "source_depends_on": [
+        "ports:A03.foundation",
+        "ports:C03.ready",
+        "ports:C04.ready"
+      ],
+      "source_planned_writes": [
+        "packages/values/bindings/src/lib.rs",
+        "packages/values/bindings/src/exact.rs",
+        "packages/values/bindings/generated/",
+        "packages/values/scripts/build-semantics.mjs",
+        "packages/values/package.json",
+        "packages/values/tsconfig.json",
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/exact-values/core/binding-smoke.json"
+      ],
+      "acceptance_reference": "remaining-work/tasks.json#ports:A07.1",
+      "completed_history_only": true,
+      "human_hold": false,
+      "execution_authorized": false
+    },
+    {
+      "id": "ports:A07.2",
+      "plan": "exact-values",
+      "lane": "R1",
+      "source_status_snapshot": "needs_verification",
+      "disposition": "REQUIRED",
+      "phase": "work",
+      "source_depends_on": [
+        "ports:A03.foundation",
+        "ports:C03.ready"
+      ],
+      "source_planned_writes": [
+        "packages/values/bindings/backend.ts",
+        "packages/values/bindings/bootstrap.ts",
+        "packages/values/bindings/carriers.ts",
+        "packages/values/test/exact-bootstrap.test.ts",
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/exact-values/host/bootstrap.json"
+      ],
+      "acceptance_reference": "remaining-work/tasks.json#ports:A07.2",
+      "completed_history_only": false,
+      "human_hold": false,
+      "execution_authorized": false
+    },
+    {
+      "id": "ports:A07.foundation",
+      "plan": "exact-values",
+      "lane": "R1",
+      "source_status_snapshot": "partial",
+      "disposition": "REQUIRED",
+      "phase": "gate",
+      "source_depends_on": [
+        "ports:A07.1",
+        "ports:A07.2"
+      ],
+      "source_planned_writes": [],
+      "acceptance_reference": "remaining-work/tasks.json#ports:A07.foundation",
+      "completed_history_only": false,
+      "human_hold": false,
+      "execution_authorized": false
+    },
+    {
+      "id": "ports:A07.3",
+      "plan": "exact-values",
+      "lane": "R1",
+      "source_status_snapshot": "partial",
+      "disposition": "REQUIRED",
+      "phase": "work",
+      "source_depends_on": [
+        "ports:A03",
+        "ports:A04",
+        "ports:A05",
+        "ports:A06",
+        "ports:A07.foundation",
+        "ports:V03.5"
+      ],
+      "source_planned_writes": [
+        "packages/values/semantics/src/lib.rs",
+        "packages/values/bindings/src/lib.rs",
+        "packages/values/bindings/src/exact.rs",
+        "packages/values/bindings/generated/",
+        "packages/values/semantics/examples/conformance.rs",
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/exact-values/core/binding-parity.json"
+      ],
+      "acceptance_reference": "remaining-work/tasks.json#ports:A07.3",
+      "completed_history_only": false,
+      "human_hold": false,
+      "execution_authorized": false
+    },
+    {
+      "id": "ports:A07",
+      "plan": "exact-values",
+      "lane": "R1",
+      "source_status_snapshot": "partial",
+      "disposition": "REQUIRED",
+      "phase": "gate",
+      "source_depends_on": [
+        "ports:A07.foundation",
+        "ports:A07.3"
+      ],
+      "source_planned_writes": [],
+      "acceptance_reference": "remaining-work/tasks.json#ports:A07",
+      "completed_history_only": false,
+      "human_hold": false,
+      "execution_authorized": false
+    },
+    {
+      "id": "ports:A08.1",
+      "plan": "exact-values",
+      "lane": "R1",
+      "source_status_snapshot": "not_started",
+      "disposition": "REQUIRED",
+      "phase": "work",
+      "source_depends_on": [
+        "ports:A07",
+        "ports:V02.6",
+        "ports:C05.ready"
+      ],
+      "source_planned_writes": [
+        "packages/values/src/int.ts",
+        "packages/values/src/decimal.ts",
+        "packages/values/src/money.ts",
+        "packages/values/src/kinds.ts",
+        "packages/values/src/temporal.ts",
+        "packages/values/src/array.ts",
+        "packages/values/src/equality.ts",
+        "packages/values/src/stdlib-pure.ts",
+        "packages/values/src/index.ts",
+        "packages/values/test/exact-backends.test.ts",
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/exact-values/host/public-routing.json"
+      ],
+      "acceptance_reference": "remaining-work/tasks.json#ports:A08.1",
+      "completed_history_only": false,
+      "human_hold": false,
+      "execution_authorized": false
+    },
+    {
+      "id": "ports:A08.2",
+      "plan": "exact-values",
+      "lane": "R1",
+      "source_status_snapshot": "not_started",
+      "disposition": "REQUIRED",
+      "phase": "work",
+      "source_depends_on": [
+        "ports:A08.1",
+        "ports:C04.values-assets"
+      ],
+      "source_planned_writes": [
+        "packages/stdlib/test/exact-helper-chain.test.ts",
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/exact-values/consumer/stdlib.json"
+      ],
+      "acceptance_reference": "remaining-work/tasks.json#ports:A08.2",
+      "completed_history_only": false,
+      "human_hold": false,
+      "execution_authorized": false
+    },
+    {
+      "id": "ports:A08",
+      "plan": "exact-values",
+      "lane": "R1",
+      "source_status_snapshot": "not_started",
+      "disposition": "REQUIRED",
+      "phase": "gate",
+      "source_depends_on": [
+        "ports:A08.1",
+        "ports:A08.2"
+      ],
+      "source_planned_writes": [],
+      "acceptance_reference": "remaining-work/tasks.json#ports:A08",
+      "completed_history_only": false,
+      "human_hold": false,
+      "execution_authorized": false
+    },
+    {
+      "id": "ports:A09.1",
+      "plan": "exact-values",
+      "lane": "R1",
+      "source_status_snapshot": "not_started",
+      "disposition": "REQUIRED",
+      "phase": "work",
+      "source_depends_on": [
+        "ports:A01",
+        "ports:A02",
+        "ports:C02.ready",
+        "ports:C03.ready",
+        "ports:C05.ready"
+      ],
+      "source_planned_writes": [
+        "packages/interfaces/test/exact-input-profile.test.ts",
+        "packages/testkit/test/exact-operation-consumer.test.ts",
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/exact-values/consumer/pilot-contract.json"
+      ],
+      "acceptance_reference": "remaining-work/tasks.json#ports:A09.1",
+      "completed_history_only": false,
+      "human_hold": false,
+      "execution_authorized": false
+    },
+    {
+      "id": "ports:A09.2",
+      "plan": "exact-values",
+      "lane": "R1",
+      "source_status_snapshot": "not_started",
+      "disposition": "REQUIRED",
+      "phase": "work",
+      "source_depends_on": [
+        "ports:A08",
+        "ports:A09.1",
+        "ports:V06",
+        "ports:V07",
+        "ports:V08",
+        "ports:C02.ready",
+        "ports:C03.ready",
+        "ports:C04.ready",
+        "ports:C05.ready"
+      ],
+      "source_planned_writes": [
+        "packages/interfaces/test/exact-input-profile.test.ts",
+        "packages/testkit/test/exact-operation-consumer.test.ts",
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/exact-values/consumer/http-parity.json"
+      ],
+      "acceptance_reference": "remaining-work/tasks.json#ports:A09.2",
+      "completed_history_only": false,
+      "human_hold": false,
+      "execution_authorized": false
+    },
+    {
+      "id": "ports:A09",
+      "plan": "exact-values",
+      "lane": "R1",
+      "source_status_snapshot": "partial",
+      "disposition": "REQUIRED",
+      "phase": "gate",
+      "source_depends_on": [
+        "ports:A08",
+        "ports:A09.1",
+        "ports:A09.2",
+        "ports:V06",
+        "ports:V07",
+        "ports:V08",
+        "ports:C02.ready",
+        "ports:C03.ready",
+        "ports:C04.ready",
+        "ports:C05.ready"
+      ],
+      "source_planned_writes": [],
+      "acceptance_reference": "remaining-work/tasks.json#ports:A09",
+      "completed_history_only": false,
+      "human_hold": false,
+      "execution_authorized": false
+    },
+    {
+      "id": "ports:A10.1",
+      "plan": "exact-values",
+      "lane": "R1",
+      "source_status_snapshot": "not_started",
+      "disposition": "REQUIRED",
+      "phase": "work",
+      "source_depends_on": [
+        "ports:A09",
+        "ports:C05.ready"
+      ],
+      "source_planned_writes": [
+        "packages/values/conformance/ports/exact/workloads.mjs",
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/exact-values/fixtures/measurements.json",
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/exact-values/fixtures/adoption-report.md"
+      ],
+      "acceptance_reference": "remaining-work/tasks.json#ports:A10.1",
+      "completed_history_only": false,
+      "human_hold": false,
+      "execution_authorized": false
+    },
+    {
+      "id": "ports:A10.2",
+      "plan": "exact-values",
+      "lane": "R1",
+      "source_status_snapshot": "not_started",
+      "disposition": "REQUIRED",
+      "phase": "work",
+      "source_depends_on": [
+        "ports:A10.1",
+        "ports:A07"
+      ],
+      "source_planned_writes": [
+        "packages/values/test/exact-release.test.ts",
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/exact-values/consumer/release-integrity.json",
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/exact-values/consumer/rollback.json"
+      ],
+      "acceptance_reference": "remaining-work/tasks.json#ports:A10.2",
+      "completed_history_only": false,
+      "human_hold": false,
+      "execution_authorized": false
+    },
+    {
+      "id": "ports:A10.3",
+      "plan": "exact-values",
+      "lane": "R1",
+      "source_status_snapshot": "not_started",
+      "disposition": "REQUIRED",
+      "phase": "work",
+      "source_depends_on": [
+        "ports:A10.2",
+        "ports:V08",
+        "ports:V10"
+      ],
+      "source_planned_writes": [
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/exact-values/consumer/rollout-decision.md"
+      ],
+      "acceptance_reference": "remaining-work/tasks.json#ports:A10.3",
+      "completed_history_only": false,
+      "human_hold": false,
+      "execution_authorized": false
+    },
+    {
+      "id": "ports:A10",
+      "plan": "exact-values",
+      "lane": "R1",
+      "source_status_snapshot": "not_started",
+      "disposition": "REQUIRED",
+      "phase": "gate",
+      "source_depends_on": [
+        "ports:A10.1",
+        "ports:A10.2",
+        "ports:A10.3"
+      ],
+      "source_planned_writes": [],
+      "acceptance_reference": "remaining-work/tasks.json#ports:A10",
+      "completed_history_only": false,
+      "human_hold": false,
+      "execution_authorized": false
+    },
+    {
+      "id": "ports:A11.1",
+      "plan": "exact-values",
+      "lane": "R1",
+      "source_status_snapshot": "not_started",
+      "disposition": "REQUIRED",
+      "phase": "work",
+      "source_depends_on": [
+        "ports:A10"
+      ],
+      "source_planned_writes": [
+        "packages/values/README.md",
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/exact-values/consumer/completion-ledger.md",
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/exact-values/consumer/final-source-checks.md"
+      ],
+      "acceptance_reference": "remaining-work/tasks.json#ports:A11.1",
+      "completed_history_only": false,
+      "human_hold": false,
+      "execution_authorized": false
+    },
+    {
+      "id": "ports:A11",
+      "plan": "exact-values",
+      "lane": "R1",
+      "source_status_snapshot": "not_started",
+      "disposition": "REQUIRED",
+      "phase": "gate",
+      "source_depends_on": [
+        "ports:A11.1"
+      ],
+      "source_planned_writes": [],
+      "acceptance_reference": "remaining-work/tasks.json#ports:A11",
+      "completed_history_only": false,
+      "human_hold": false,
+      "execution_authorized": false
+    },
+    {
+      "id": "ports:V01.1",
+      "plan": "input-validation",
+      "lane": "R2",
+      "source_status_snapshot": "partial",
+      "disposition": "REQUIRED",
+      "phase": "work",
+      "source_depends_on": [
+        "ports:C01.ready"
+      ],
+      "source_planned_writes": [
+        "docs/research/package-subsystem-ports-20261006/evidence/input-validation/contracts.md",
+        "docs/research/package-subsystem-ports-20261006/evidence/input-validation/caller-inventory.json",
+        "docs/research/package-subsystem-ports-20261006/evidence/input-validation/current-ts.json"
+      ],
+      "acceptance_reference": "remaining-work/tasks.json#ports:V01.1",
+      "completed_history_only": false,
+      "human_hold": false,
+      "execution_authorized": false
+    },
+    {
+      "id": "ports:V01.2",
+      "plan": "input-validation",
+      "lane": "R2",
+      "source_status_snapshot": "partial",
+      "disposition": "REQUIRED",
+      "phase": "work",
+      "source_depends_on": [
+        "ports:C01.ready"
+      ],
+      "source_planned_writes": [
+        "docs/research/package-subsystem-ports-20261006/evidence/input-validation/http-adoption-gate.md"
+      ],
+      "acceptance_reference": "remaining-work/tasks.json#ports:V01.2",
+      "completed_history_only": false,
+      "human_hold": false,
+      "execution_authorized": false
+    },
+    {
+      "id": "ports:V01.3",
+      "plan": "input-validation",
+      "lane": "R2",
+      "source_status_snapshot": "partial",
+      "disposition": "REQUIRED",
+      "phase": "work",
+      "source_depends_on": [
+        "ports:C01.ready"
+      ],
+      "source_planned_writes": [
+        "docs/research/package-subsystem-ports-20261006/evidence/input-validation/state-contract.md"
+      ],
+      "acceptance_reference": "remaining-work/tasks.json#ports:V01.3",
+      "completed_history_only": false,
+      "human_hold": false,
+      "execution_authorized": false
+    },
+    {
+      "id": "ports:V01.4",
+      "plan": "input-validation",
+      "lane": "R2",
+      "source_status_snapshot": "partial",
+      "disposition": "REQUIRED",
+      "phase": "work",
+      "source_depends_on": [
+        "ports:C01.ready"
+      ],
+      "source_planned_writes": [
+        "docs/research/package-subsystem-ports-20261006/evidence/input-validation/plan-contract.md"
+      ],
+      "acceptance_reference": "remaining-work/tasks.json#ports:V01.4",
+      "completed_history_only": false,
+      "human_hold": false,
+      "execution_authorized": false
+    },
+    {
+      "id": "ports:V10.1",
+      "plan": "input-validation",
+      "lane": "R2",
+      "source_status_snapshot": "not_started",
+      "disposition": "REQUIRED",
+      "phase": "work",
+      "source_depends_on": [
+        "ports:C01.ready"
+      ],
+      "source_planned_writes": [
+        "docs/research/package-subsystem-ports-20261006/evidence/input-validation/mcp-provenance.md"
+      ],
+      "acceptance_reference": "remaining-work/tasks.json#ports:V10.1",
+      "completed_history_only": false,
+      "human_hold": false,
+      "execution_authorized": false
+    },
+    {
+      "id": "ports:V10.2",
+      "plan": "input-validation",
+      "lane": "R2",
+      "source_status_snapshot": "not_started",
+      "disposition": "REQUIRED",
+      "phase": "work",
+      "source_depends_on": [
+        "ports:C01.ready"
+      ],
+      "source_planned_writes": [
+        "docs/research/package-subsystem-ports-20261006/evidence/input-validation/forms-provenance.md"
+      ],
+      "acceptance_reference": "remaining-work/tasks.json#ports:V10.2",
+      "completed_history_only": false,
+      "human_hold": false,
+      "execution_authorized": false
+    },
+    {
+      "id": "ports:V02.1",
+      "plan": "input-validation",
+      "lane": "R2",
+      "source_status_snapshot": "complete",
+      "disposition": "REQUIRED",
+      "phase": "work",
+      "source_depends_on": [
+        "ports:V01",
+        "ports:C02.ready"
+      ],
+      "source_planned_writes": [
+        "packages/values/src/prepared/plan.ts",
+        "packages/values/test/prepared-validation.test.ts",
+        "docs/research/package-subsystem-ports-20261006/evidence/input-validation/prepared-plan-handoff.md"
+      ],
+      "acceptance_reference": "remaining-work/tasks.json#ports:V02.1",
+      "completed_history_only": true,
+      "human_hold": false,
+      "execution_authorized": false
+    },
+    {
+      "id": "ports:V02.2",
+      "plan": "input-validation",
+      "lane": "R2",
+      "source_status_snapshot": "complete",
+      "disposition": "REQUIRED",
+      "phase": "work",
+      "source_depends_on": [
+        "ports:V02.1",
+        "ports:C02.ready"
+      ],
+      "source_planned_writes": [
+        "packages/values/src/prepared/codec.ts",
+        "packages/values/src/prepared/validation.ts",
+        "packages/values/test/legacy-validation-traces.test.ts",
+        "docs/research/package-subsystem-ports-20261006/evidence/input-validation/prepared-values.json"
+      ],
+      "acceptance_reference": "remaining-work/tasks.json#ports:V02.2",
+      "completed_history_only": true,
+      "human_hold": false,
+      "execution_authorized": false
+    },
+    {
+      "id": "ports:V02.3",
+      "plan": "input-validation",
+      "lane": "R2",
+      "source_status_snapshot": "complete",
+      "disposition": "REQUIRED",
+      "phase": "work",
+      "source_depends_on": [
+        "ports:V01",
+        "ports:C02.ready"
+      ],
+      "source_planned_writes": [
+        "packages/interfaces/src/envelope/prepared.ts",
+        "packages/interfaces/test/owned-http.test.ts",
+        "docs/research/package-subsystem-ports-20261006/evidence/input-validation/prepared-http.json"
+      ],
+      "acceptance_reference": "remaining-work/tasks.json#ports:V02.3",
+      "completed_history_only": true,
+      "human_hold": false,
+      "execution_authorized": false
+    },
+    {
+      "id": "ports:V02.4",
+      "plan": "input-validation",
+      "lane": "R2",
+      "source_status_snapshot": "complete",
+      "disposition": "REQUIRED",
+      "phase": "work",
+      "source_depends_on": [
+        "ports:V01",
+        "ports:C02.ready"
+      ],
+      "source_planned_writes": [
+        "packages/state/src/invocation/prepared-inputs.ts",
+        "packages/state/src/invocation/registry.ts",
+        "packages/state/test/invocation/owned-admission.test.ts",
+        "docs/research/package-subsystem-ports-20261006/evidence/input-validation/prepared-state.json"
+      ],
+      "acceptance_reference": "remaining-work/tasks.json#ports:V02.4",
+      "completed_history_only": true,
+      "human_hold": false,
+      "execution_authorized": false
+    },
+    {
+      "id": "ports:V02.5",
+      "plan": "input-validation",
+      "lane": "R2",
+      "source_status_snapshot": "complete",
+      "disposition": "REQUIRED",
+      "phase": "work",
+      "source_depends_on": [
+        "ports:V01",
+        "ports:C02.ready",
+        "ports:V02.3"
+      ],
+      "source_planned_writes": [
+        "packages/interfaces/src/mcp/prepared.ts",
+        "packages/interfaces/src/mcp/schemas.ts",
+        "packages/interfaces/test/owned-mcp.test.ts",
+        "docs/research/package-subsystem-ports-20261006/evidence/input-validation/prepared-mcp.json"
+      ],
+      "acceptance_reference": "remaining-work/tasks.json#ports:V02.5",
+      "completed_history_only": true,
+      "human_hold": false,
+      "execution_authorized": false
+    },
+    {
+      "id": "ports:V02.6",
+      "plan": "input-validation",
+      "lane": "R2",
+      "source_status_snapshot": "not_started",
+      "disposition": "REQUIRED",
+      "phase": "work",
+      "source_depends_on": [
+        "ports:V02.1",
+        "ports:V02.2"
+      ],
+      "source_planned_writes": [
+        "packages/values/src/schema.ts",
+        "packages/values/src/wire.ts",
+        "packages/values/src/index.ts",
+        "docs/research/package-subsystem-ports-20261006/evidence/input-validation/prepared-hook-review.md"
+      ],
+      "acceptance_reference": "remaining-work/tasks.json#ports:V02.6",
+      "completed_history_only": false,
+      "human_hold": false,
+      "execution_authorized": false
+    },
+    {
+      "id": "ports:V03.1",
+      "plan": "input-validation",
+      "lane": "R2",
+      "source_status_snapshot": "partial",
+      "disposition": "REQUIRED",
+      "phase": "work",
+      "source_depends_on": [
+        "ports:V01",
+        "ports:C03.ready",
+        "ports:A03.foundation"
+      ],
+      "source_planned_writes": [
+        "docs/research/package-subsystem-ports-20261006/evidence/input-validation/abi-vectors.json",
+        "docs/research/package-subsystem-ports-20261006/evidence/input-validation/abi-decisions.md",
+        "packages/values/conformance/owned-input/v1/cases.json",
+        "packages/values/conformance/owned-input/v1/README.md"
+      ],
+      "acceptance_reference": "remaining-work/tasks.json#ports:V03.1",
+      "completed_history_only": false,
+      "human_hold": false,
+      "execution_authorized": false
+    },
+    {
+      "id": "ports:V03.2",
+      "plan": "input-validation",
+      "lane": "R2",
+      "source_status_snapshot": "complete",
+      "disposition": "REQUIRED",
+      "phase": "work",
+      "source_depends_on": [
+        "ports:V03.1"
+      ],
+      "source_planned_writes": [
+        "packages/values/semantics/src/input.rs",
+        "packages/values/semantics/tests/input_validation/input.rs"
+      ],
+      "acceptance_reference": "remaining-work/tasks.json#ports:V03.2",
+      "completed_history_only": true,
+      "human_hold": false,
+      "execution_authorized": false
+    },
+    {
+      "id": "ports:V03.3",
+      "plan": "input-validation",
+      "lane": "R2",
+      "source_status_snapshot": "partial",
+      "disposition": "REQUIRED",
+      "phase": "work",
+      "source_depends_on": [
+        "ports:V01",
+        "ports:C03.ready",
+        "ports:A03.foundation"
+      ],
+      "source_planned_writes": [
+        "packages/values/bindings/owned-input.ts",
+        "packages/interfaces/src/http/limits.ts",
+        "packages/values/test/owned-input.test.ts"
+      ],
+      "acceptance_reference": "remaining-work/tasks.json#ports:V03.3",
+      "completed_history_only": false,
+      "human_hold": false,
+      "execution_authorized": false
+    },
+    {
+      "id": "ports:V03.4",
+      "plan": "input-validation",
+      "lane": "R2",
+      "source_status_snapshot": "partial",
+      "disposition": "REQUIRED",
+      "phase": "work",
+      "source_depends_on": [
+        "ports:V02.1",
+        "ports:V03.1"
+      ],
+      "source_planned_writes": [
+        "packages/values/semantics/src/plans.rs",
+        "packages/values/bindings/plans.ts",
+        "packages/values/test/prepared-validation.test.ts"
+      ],
+      "acceptance_reference": "remaining-work/tasks.json#ports:V03.4",
+      "completed_history_only": false,
+      "human_hold": false,
+      "execution_authorized": false
+    },
+    {
+      "id": "ports:V02.7",
+      "plan": "input-validation",
+      "lane": "R2",
+      "source_status_snapshot": "partial",
+      "disposition": "REQUIRED",
+      "phase": "work",
+      "source_depends_on": [
+        "ports:V02.1",
+        "ports:V02.2",
+        "ports:V02.3",
+        "ports:V02.4",
+        "ports:V02.5",
+        "ports:V02.6"
+      ],
+      "source_planned_writes": [
+        "docs/research/package-subsystem-ports-20261006/evidence/input-validation/prepared-ts.json"
+      ],
+      "acceptance_reference": "remaining-work/tasks.json#ports:V02.7",
+      "completed_history_only": false,
+      "human_hold": false,
+      "execution_authorized": false
+    },
+    {
+      "id": "ports:V04.1",
+      "plan": "input-validation",
+      "lane": "R2",
+      "source_status_snapshot": "not_started",
+      "disposition": "REQUIRED",
+      "phase": "work",
+      "source_depends_on": [
+        "ports:V02.2",
+        "ports:V03.2",
+        "ports:V03.4",
+        "ports:A04.5",
+        "ports:A05.3",
+        "ports:A04.2"
+      ],
+      "source_planned_writes": [
+        "packages/values/semantics/src/validation.rs",
+        "packages/values/semantics/src/profiles/values.rs",
+        "packages/values/semantics/tests/input_validation/values.rs"
+      ],
+      "acceptance_reference": "remaining-work/tasks.json#ports:V04.1",
+      "completed_history_only": false,
+      "human_hold": false,
+      "execution_authorized": false
+    },
+    {
+      "id": "ports:V04.2",
+      "plan": "input-validation",
+      "lane": "R2",
+      "source_status_snapshot": "not_started",
+      "disposition": "REQUIRED",
+      "phase": "work",
+      "source_depends_on": [
+        "ports:V04.1"
+      ],
+      "source_planned_writes": [
+        "packages/values/semantics/src/codecs/owned.rs",
+        "packages/values/bindings/materialize.ts",
+        "packages/values/semantics/tests/input_validation/values.rs"
+      ],
+      "acceptance_reference": "remaining-work/tasks.json#ports:V04.2",
+      "completed_history_only": false,
+      "human_hold": false,
+      "execution_authorized": false
+    },
+    {
+      "id": "ports:V06.1",
+      "plan": "input-validation",
+      "lane": "R2",
+      "source_status_snapshot": "not_started",
+      "disposition": "REQUIRED",
+      "phase": "work",
+      "source_depends_on": [
+        "ports:V02.3",
+        "ports:V03.2",
+        "ports:V03.4",
+        "ports:A04.5",
+        "ports:A05.3"
+      ],
+      "source_planned_writes": [
+        "packages/values/semantics/src/profiles/http.rs",
+        "packages/values/semantics/tests/input_validation/http.rs",
+        "packages/interfaces/test/owned-http.test.ts"
+      ],
+      "acceptance_reference": "remaining-work/tasks.json#ports:V06.1",
+      "completed_history_only": false,
+      "human_hold": false,
+      "execution_authorized": false
+    },
+    {
+      "id": "ports:V06.2",
+      "plan": "input-validation",
+      "lane": "R2",
+      "source_status_snapshot": "not_started",
+      "disposition": "REQUIRED",
+      "phase": "work",
+      "source_depends_on": [
+        "ports:V02.4",
+        "ports:V03.2",
+        "ports:V03.4"
+      ],
+      "source_planned_writes": [
+        "packages/values/semantics/src/profiles/state.rs",
+        "packages/values/semantics/tests/input_validation/state.rs",
+        "packages/state/test/invocation/owned-admission.test.ts"
+      ],
+      "acceptance_reference": "remaining-work/tasks.json#ports:V06.2",
+      "completed_history_only": false,
+      "human_hold": false,
+      "execution_authorized": false
+    },
+    {
+      "id": "ports:V06.3",
+      "plan": "input-validation",
+      "lane": "R2",
+      "source_status_snapshot": "not_started",
+      "disposition": "REQUIRED",
+      "phase": "work",
+      "source_depends_on": [
+        "ports:V02.5",
+        "ports:V03.2",
+        "ports:V03.4",
+        "ports:A04.5",
+        "ports:A05.3"
+      ],
+      "source_planned_writes": [
+        "packages/values/semantics/src/profiles/mcp.rs",
+        "packages/values/semantics/tests/input_validation/mcp.rs",
+        "packages/interfaces/test/owned-mcp.test.ts"
+      ],
+      "acceptance_reference": "remaining-work/tasks.json#ports:V06.3",
+      "completed_history_only": false,
+      "human_hold": false,
+      "execution_authorized": false
+    },
+    {
+      "id": "ports:V03.5",
+      "plan": "input-validation",
+      "lane": "R2",
+      "source_status_snapshot": "complete",
+      "disposition": "REQUIRED",
+      "phase": "work",
+      "source_depends_on": [
+        "ports:V03.2",
+        "ports:V03.4",
+        "ports:C04.ready",
+        "ports:A07.foundation"
+      ],
+      "source_planned_writes": [
+        "packages/values/semantics/src/lib.rs",
+        "packages/values/semantics/src/profiles.rs",
+        "packages/values/semantics/src/codecs/mod.rs",
+        "packages/values/bindings/src/lib.rs",
+        "packages/values/bindings/src/validation.rs",
+        "packages/values/bindings/validation.ts",
+        "packages/values/semantics/tests/input_validation.rs",
+        "packages/values/test/validation-binding.test.ts",
+        "docs/research/package-subsystem-ports-20261006/evidence/input-validation/abi-binding-smoke.json"
+      ],
+      "acceptance_reference": "remaining-work/tasks.json#ports:V03.5",
+      "completed_history_only": true,
+      "human_hold": false,
+      "execution_authorized": false
+    },
+    {
+      "id": "ports:V06.8",
+      "plan": "input-validation",
+      "lane": "R2",
+      "source_status_snapshot": "not_started",
+      "disposition": "REQUIRED",
+      "phase": "work",
+      "source_depends_on": [
+        "ports:V06.1",
+        "ports:V03.5",
+        "ports:A07"
+      ],
+      "source_planned_writes": [
+        "packages/values/semantics/src/lib.rs",
+        "packages/values/semantics/src/profiles.rs",
+        "packages/values/bindings/src/lib.rs",
+        "packages/values/bindings/src/validation.rs",
+        "packages/values/bindings/validation.ts",
+        "packages/values/semantics/tests/input_validation.rs"
+      ],
+      "acceptance_reference": "remaining-work/tasks.json#ports:V06.8",
+      "completed_history_only": false,
+      "human_hold": false,
+      "execution_authorized": false
+    },
+    {
+      "id": "ports:V06.9",
+      "plan": "input-validation",
+      "lane": "R2",
+      "source_status_snapshot": "not_started",
+      "disposition": "REQUIRED",
+      "phase": "work",
+      "source_depends_on": [
+        "ports:V06.2",
+        "ports:V06.8"
+      ],
+      "source_planned_writes": [
+        "packages/values/semantics/src/lib.rs",
+        "packages/values/semantics/src/profiles.rs",
+        "packages/values/bindings/src/validation.rs",
+        "packages/values/bindings/validation.ts",
+        "packages/values/semantics/tests/input_validation.rs"
+      ],
+      "acceptance_reference": "remaining-work/tasks.json#ports:V06.9",
+      "completed_history_only": false,
+      "human_hold": false,
+      "execution_authorized": false
+    },
+    {
+      "id": "ports:V06.10",
+      "plan": "input-validation",
+      "lane": "R2",
+      "source_status_snapshot": "not_started",
+      "disposition": "REQUIRED",
+      "phase": "work",
+      "source_depends_on": [
+        "ports:V06.3",
+        "ports:V06.9"
+      ],
+      "source_planned_writes": [
+        "packages/values/semantics/src/lib.rs",
+        "packages/values/semantics/src/profiles.rs",
+        "packages/values/bindings/src/validation.rs",
+        "packages/values/bindings/validation.ts",
+        "packages/values/semantics/tests/input_validation.rs"
+      ],
+      "acceptance_reference": "remaining-work/tasks.json#ports:V06.10",
+      "completed_history_only": false,
+      "human_hold": false,
+      "execution_authorized": false
+    },
+    {
+      "id": "ports:V04.4",
+      "plan": "input-validation",
+      "lane": "R2",
+      "source_status_snapshot": "not_started",
+      "disposition": "REQUIRED",
+      "phase": "work",
+      "source_depends_on": [
+        "ports:V04.2",
+        "ports:V06.10"
+      ],
+      "source_planned_writes": [
+        "packages/values/semantics/src/lib.rs",
+        "packages/values/semantics/src/profiles.rs",
+        "packages/values/semantics/src/codecs/mod.rs",
+        "packages/values/bindings/src/validation.rs",
+        "packages/values/bindings/validation.ts",
+        "packages/values/semantics/tests/input_validation.rs"
+      ],
+      "acceptance_reference": "remaining-work/tasks.json#ports:V04.4",
+      "completed_history_only": false,
+      "human_hold": false,
+      "execution_authorized": false
+    },
+    {
+      "id": "ports:V05.1",
+      "plan": "input-validation",
+      "lane": "R2",
+      "source_status_snapshot": "not_started",
+      "disposition": "REQUIRED",
+      "phase": "work",
+      "source_depends_on": [
+        "ports:V04.2",
+        "ports:V04.4"
+      ],
+      "source_planned_writes": [
+        "packages/values/bindings/predicates.ts",
+        "packages/values/semantics/src/codecs/owned.rs",
+        "packages/values/semantics/tests/input_validation/values.rs",
+        "docs/research/package-subsystem-ports-20261006/evidence/input-validation/host-predicates.json"
+      ],
+      "acceptance_reference": "remaining-work/tasks.json#ports:V05.1",
+      "completed_history_only": false,
+      "human_hold": false,
+      "execution_authorized": false
+    },
+    {
+      "id": "ports:V05.2",
+      "plan": "input-validation",
+      "lane": "R2",
+      "source_status_snapshot": "not_started",
+      "disposition": "REQUIRED",
+      "phase": "work",
+      "source_depends_on": [
+        "ports:V05.1"
+      ],
+      "source_planned_writes": [
+        "packages/values/semantics/src/codecs/owned.rs",
+        "packages/values/bindings/materialize.ts",
+        "packages/values/semantics/tests/input_validation/values.rs"
+      ],
+      "acceptance_reference": "remaining-work/tasks.json#ports:V05.2",
+      "completed_history_only": false,
+      "human_hold": false,
+      "execution_authorized": false
+    },
+    {
+      "id": "ports:V05.3",
+      "plan": "input-validation",
+      "lane": "R2",
+      "source_status_snapshot": "not_started",
+      "disposition": "REQUIRED",
+      "phase": "work",
+      "source_depends_on": [
+        "ports:V05.2",
+        "ports:V04.4"
+      ],
+      "source_planned_writes": [
+        "packages/values/bindings/src/validation.rs",
+        "packages/values/bindings/validation.ts",
+        "packages/values/test/validation-binding.test.ts"
+      ],
+      "acceptance_reference": "remaining-work/tasks.json#ports:V05.3",
+      "completed_history_only": false,
+      "human_hold": false,
+      "execution_authorized": false
+    },
+    {
+      "id": "ports:V04.3",
+      "plan": "input-validation",
+      "lane": "R2",
+      "source_status_snapshot": "not_started",
+      "disposition": "REQUIRED",
+      "phase": "work",
+      "source_depends_on": [
+        "ports:V04.2",
+        "ports:V04.4"
+      ],
+      "source_planned_writes": [
+        "docs/research/package-subsystem-ports-20261006/evidence/input-validation/values-differential.json",
+        "packages/values/conformance/owned-input/v1/cases.json"
+      ],
+      "acceptance_reference": "remaining-work/tasks.json#ports:V04.3",
+      "completed_history_only": false,
+      "human_hold": false,
+      "execution_authorized": false
+    },
+    {
+      "id": "ports:V06.4",
+      "plan": "input-validation",
+      "lane": "R2",
+      "source_status_snapshot": "not_started",
+      "disposition": "REQUIRED",
+      "phase": "work",
+      "source_depends_on": [
+        "ports:V06.1",
+        "ports:V06.8"
+      ],
+      "source_planned_writes": [
+        "packages/interfaces/test/owned-http.test.ts",
+        "docs/research/package-subsystem-ports-20261006/evidence/input-validation/http-profile-differential.json"
+      ],
+      "acceptance_reference": "remaining-work/tasks.json#ports:V06.4",
+      "completed_history_only": false,
+      "human_hold": false,
+      "execution_authorized": false
+    },
+    {
+      "id": "ports:V06.5",
+      "plan": "input-validation",
+      "lane": "R2",
+      "source_status_snapshot": "not_started",
+      "disposition": "REQUIRED",
+      "phase": "work",
+      "source_depends_on": [
+        "ports:V06.2",
+        "ports:V06.9"
+      ],
+      "source_planned_writes": [
+        "packages/state/test/invocation/owned-admission.test.ts",
+        "docs/research/package-subsystem-ports-20261006/evidence/input-validation/state-profile-differential.json"
+      ],
+      "acceptance_reference": "remaining-work/tasks.json#ports:V06.5",
+      "completed_history_only": false,
+      "human_hold": false,
+      "execution_authorized": false
+    },
+    {
+      "id": "ports:V06.6",
+      "plan": "input-validation",
+      "lane": "R2",
+      "source_status_snapshot": "not_started",
+      "disposition": "REQUIRED",
+      "phase": "work",
+      "source_depends_on": [
+        "ports:V06.3",
+        "ports:V06.10"
+      ],
+      "source_planned_writes": [
+        "packages/interfaces/test/owned-mcp.test.ts",
+        "docs/research/package-subsystem-ports-20261006/evidence/input-validation/mcp-profile-differential.json"
+      ],
+      "acceptance_reference": "remaining-work/tasks.json#ports:V06.6",
+      "completed_history_only": false,
+      "human_hold": false,
+      "execution_authorized": false
+    },
+    {
+      "id": "ports:V07.1",
+      "plan": "input-validation",
+      "lane": "R2",
+      "source_status_snapshot": "partial",
+      "disposition": "REQUIRED",
+      "phase": "work",
+      "source_depends_on": [
+        "ports:V03.2",
+        "ports:V03.3",
+        "ports:V03.4",
+        "ports:V03.5",
+        "ports:C05.ready"
+      ],
+      "source_planned_writes": [
+        "packages/values/semantics/src/input.rs",
+        "packages/values/bindings/owned-input.ts",
+        "packages/values/test/validation-lifecycle.test.ts",
+        "docs/research/package-subsystem-ports-20261006/evidence/input-validation/resource-policy.md"
+      ],
+      "acceptance_reference": "remaining-work/tasks.json#ports:V07.1",
+      "completed_history_only": false,
+      "human_hold": false,
+      "execution_authorized": false
+    },
+    {
+      "id": "ports:V07.5",
+      "plan": "input-validation",
+      "lane": "R2",
+      "source_status_snapshot": "partial",
+      "disposition": "REQUIRED",
+      "phase": "work",
+      "source_depends_on": [
+        "ports:V07.1",
+        "ports:V03.4"
+      ],
+      "source_planned_writes": [
+        "packages/values/semantics/src/plans.rs",
+        "packages/values/bindings/plans.ts",
+        "packages/values/src/prepared/plan.ts",
+        "packages/values/test/prepared-validation.test.ts"
+      ],
+      "acceptance_reference": "remaining-work/tasks.json#ports:V07.5",
+      "completed_history_only": false,
+      "human_hold": false,
+      "execution_authorized": false
+    },
+    {
+      "id": "ports:V07.2",
+      "plan": "input-validation",
+      "lane": "R2",
+      "source_status_snapshot": "not_started",
+      "disposition": "REQUIRED",
+      "phase": "work",
+      "source_depends_on": [
+        "ports:V07.1",
+        "ports:V07.5",
+        "ports:V06.4"
+      ],
+      "source_planned_writes": [
+        "docs/research/package-subsystem-ports-20261006/evidence/input-validation/http-resources.json",
+        "packages/values/conformance/owned-input/v1/resources.mjs"
+      ],
+      "acceptance_reference": "remaining-work/tasks.json#ports:V07.2",
+      "completed_history_only": false,
+      "human_hold": false,
+      "execution_authorized": false
+    },
+    {
+      "id": "ports:V07.3",
+      "plan": "input-validation",
+      "lane": "R2",
+      "source_status_snapshot": "not_started",
+      "disposition": "REQUIRED",
+      "phase": "work",
+      "source_depends_on": [
+        "ports:V07.1",
+        "ports:V05.2"
+      ],
+      "source_planned_writes": [
+        "packages/values/src/prepared/validation.ts",
+        "packages/values/src/prepared/codec.ts"
+      ],
+      "acceptance_reference": "remaining-work/tasks.json#ports:V07.3",
+      "completed_history_only": false,
+      "human_hold": false,
+      "execution_authorized": false
+    },
+    {
+      "id": "ports:V07.4",
+      "plan": "input-validation",
+      "lane": "R2",
+      "source_status_snapshot": "not_started",
+      "disposition": "REQUIRED",
+      "phase": "work",
+      "source_depends_on": [
+        "ports:V07.2",
+        "ports:V07.3",
+        "ports:V06.5",
+        "ports:V06.6",
+        "ports:V05.3"
+      ],
+      "source_planned_writes": [
+        "docs/research/package-subsystem-ports-20261006/evidence/input-validation/resources.json",
+        "packages/values/conformance/owned-input/v1/resources.mjs"
+      ],
+      "acceptance_reference": "remaining-work/tasks.json#ports:V07.4",
+      "completed_history_only": false,
+      "human_hold": false,
+      "execution_authorized": false
+    },
+    {
+      "id": "ports:V09.1",
+      "plan": "input-validation",
+      "lane": "R2",
+      "source_status_snapshot": "not_started",
+      "disposition": "REQUIRED",
+      "phase": "work",
+      "source_depends_on": [
+        "ports:V01.3",
+        "ports:V03.3",
+        "ports:V02.4",
+        "ports:W06.runtimehandoff"
+      ],
+      "source_planned_writes": [
+        "packages/cloudflare/src/runtime/invoke.ts",
+        "packages/state/src/invocation/prepared-inputs.ts",
+        "docs/research/package-subsystem-ports-20261006/evidence/input-validation/bridge-handoff.md"
+      ],
+      "acceptance_reference": "remaining-work/tasks.json#ports:V09.1",
+      "completed_history_only": false,
+      "human_hold": false,
+      "execution_authorized": false
+    },
+    {
+      "id": "ports:V08.1",
+      "plan": "input-validation",
+      "lane": "R2",
+      "source_status_snapshot": "not_started",
+      "disposition": "REQUIRED",
+      "phase": "work",
+      "source_depends_on": [
+        "ports:V06.4",
+        "ports:V07.2",
+        "ports:V03.3",
+        "ports:V09.1",
+        "ports:C04.ready",
+        "ports:A07"
+      ],
+      "source_planned_writes": [
+        "packages/interfaces/src/http/operations.ts",
+        "packages/interfaces/test/owned-http.test.ts"
+      ],
+      "acceptance_reference": "remaining-work/tasks.json#ports:V08.1",
+      "completed_history_only": false,
+      "human_hold": false,
+      "execution_authorized": false
+    },
+    {
+      "id": "ports:V08.2",
+      "plan": "input-validation",
+      "lane": "R2",
+      "source_status_snapshot": "not_started",
+      "disposition": "REQUIRED",
+      "phase": "work",
+      "source_depends_on": [
+        "ports:V08.1",
+        "ports:V09.1",
+        "ports:C04.values-assets"
+      ],
+      "source_planned_writes": [
+        "packages/cloudflare/test/owned-http-route.test.ts",
+        "docs/research/package-subsystem-ports-20261006/evidence/input-validation/http-consumer.json"
+      ],
+      "acceptance_reference": "remaining-work/tasks.json#ports:V08.2",
+      "completed_history_only": false,
+      "human_hold": false,
+      "execution_authorized": false
+    },
+    {
+      "id": "ports:V08.3",
+      "plan": "input-validation",
+      "lane": "R2",
+      "source_status_snapshot": "not_started",
+      "disposition": "REQUIRED",
+      "phase": "work",
+      "source_depends_on": [
+        "ports:V01.2",
+        "ports:V08.2"
+      ],
+      "source_planned_writes": [
+        "docs/research/package-subsystem-ports-20261006/evidence/input-validation/http-adoption-gate.md"
+      ],
+      "acceptance_reference": "remaining-work/tasks.json#ports:V08.3",
+      "completed_history_only": false,
+      "human_hold": false,
+      "execution_authorized": false
+    },
+    {
+      "id": "ports:V08.4",
+      "plan": "input-validation",
+      "lane": "R2",
+      "source_status_snapshot": "partial",
+      "disposition": "ACCEPTED-CONDITIONAL",
+      "phase": "work",
+      "source_depends_on": [
+        "ports:V08.3",
+        "ports:V09.1"
+      ],
+      "source_planned_writes": [
+        "packages/cloudflare/src/worker/assembly.ts",
+        "packages/cloudflare/test/owned-http-route.test.ts"
+      ],
+      "acceptance_reference": "remaining-work/tasks.json#ports:V08.4",
+      "completed_history_only": false,
+      "human_hold": false,
+      "execution_authorized": false
+    },
+    {
+      "id": "ports:V08.5",
+      "plan": "input-validation",
+      "lane": "R2",
+      "source_status_snapshot": "not_started",
+      "disposition": "ACCEPTED-CONDITIONAL",
+      "phase": "work",
+      "source_depends_on": [
+        "ports:V08.4",
+        "ports:C04.validation-join",
+        "ports:A07"
+      ],
+      "source_planned_writes": [
+        "packages/cloudflare/test/owned-input-delivery.test.ts",
+        "docs/research/package-subsystem-ports-20261006/evidence/input-validation/http-default-deployment.json"
+      ],
+      "acceptance_reference": "remaining-work/tasks.json#ports:V08.5",
+      "completed_history_only": false,
+      "human_hold": false,
+      "execution_authorized": false
+    },
+    {
+      "id": "ports:V08.6",
+      "plan": "input-validation",
+      "lane": "R2",
+      "source_status_snapshot": "not_started",
+      "disposition": "REQUIRED",
+      "phase": "work",
+      "source_depends_on": [
+        "ports:V08.2",
+        "ports:V08.3"
+      ],
+      "source_planned_writes": [
+        "docs/research/package-subsystem-ports-20261006/evidence/input-validation/http-completion.md"
+      ],
+      "acceptance_reference": "remaining-work/tasks.json#ports:V08.6",
+      "completed_history_only": false,
+      "human_hold": false,
+      "execution_authorized": false
+    },
+    {
+      "id": "ports:V09.2",
+      "plan": "input-validation",
+      "lane": "R2",
+      "source_status_snapshot": "not_started",
+      "disposition": "REQUIRED",
+      "phase": "work",
+      "source_depends_on": [
+        "ports:V06.5",
+        "ports:V07.2",
+        "ports:V09.1",
+        "ports:A07"
+      ],
+      "source_planned_writes": [
+        "packages/state/src/invocation/admission.ts",
+        "packages/state/src/invocation/invoke.ts",
+        "packages/state/src/invocation/prepared-inputs.ts"
+      ],
+      "acceptance_reference": "remaining-work/tasks.json#ports:V09.2",
+      "completed_history_only": false,
+      "human_hold": false,
+      "execution_authorized": false
+    },
+    {
+      "id": "ports:V09.3",
+      "plan": "input-validation",
+      "lane": "R2",
+      "source_status_snapshot": "not_started",
+      "disposition": "REQUIRED",
+      "phase": "work",
+      "source_depends_on": [
+        "ports:V09.2",
+        "ports:V08.2",
+        "ports:V07.4"
+      ],
+      "source_planned_writes": [
+        "packages/state/test/invocation/owned-admission.test.ts",
+        "docs/research/package-subsystem-ports-20261006/evidence/input-validation/state-replay-traces.json",
+        "docs/research/package-subsystem-ports-20261006/evidence/input-validation/state-copy-cost.json"
+      ],
+      "acceptance_reference": "remaining-work/tasks.json#ports:V09.3",
+      "completed_history_only": false,
+      "human_hold": false,
+      "execution_authorized": false
+    },
+    {
+      "id": "ports:V10.3",
+      "plan": "input-validation",
+      "lane": "R2",
+      "source_status_snapshot": "not_started",
+      "disposition": "REQUIRED",
+      "phase": "work",
+      "source_depends_on": [
+        "ports:V10.1",
+        "ports:V06.6",
+        "ports:V07.4",
+        "ports:C04.ready",
+        "ports:A07"
+      ],
+      "source_planned_writes": [
+        "docs/research/package-subsystem-ports-20261006/evidence/input-validation/mcp-provenance.md"
+      ],
+      "acceptance_reference": "remaining-work/tasks.json#ports:V10.3",
+      "completed_history_only": false,
+      "human_hold": false,
+      "execution_authorized": false
+    },
+    {
+      "id": "ports:V10.4",
+      "plan": "input-validation",
+      "lane": "R2",
+      "source_status_snapshot": "not_started",
+      "disposition": "ACCEPTED-CONDITIONAL",
+      "phase": "work",
+      "source_depends_on": [
+        "ports:V10.3",
+        "ports:V08.2"
+      ],
+      "source_planned_writes": [
+        "packages/interfaces/src/mcp/server.ts",
+        "packages/interfaces/src/mcp/schemas.ts",
+        "packages/interfaces/test/owned-mcp.test.ts",
+        "docs/research/package-subsystem-ports-20261006/evidence/input-validation/mcp-consumer.json"
+      ],
+      "acceptance_reference": "remaining-work/tasks.json#ports:V10.4",
+      "completed_history_only": false,
+      "human_hold": false,
+      "execution_authorized": false
+    },
+    {
+      "id": "ports:V10.5",
+      "plan": "input-validation",
+      "lane": "R2",
+      "source_status_snapshot": "not_started",
+      "disposition": "ACCEPTED-CONDITIONAL",
+      "phase": "work",
+      "source_depends_on": [
+        "ports:V10.2",
+        "ports:V07.2",
+        "ports:V08.2"
+      ],
+      "source_planned_writes": [
+        "packages/interfaces/src/http/forms-owned.ts",
+        "packages/interfaces/test/owned-forms.test.ts",
+        "docs/research/package-subsystem-ports-20261006/evidence/input-validation/forms-consumer.json"
+      ],
+      "acceptance_reference": "remaining-work/tasks.json#ports:V10.5",
+      "completed_history_only": false,
+      "human_hold": false,
+      "execution_authorized": false
+    },
+    {
+      "id": "ports:V10.6",
+      "plan": "input-validation",
+      "lane": "R2",
+      "source_status_snapshot": "not_started",
+      "disposition": "ACCEPTED-CONDITIONAL",
+      "phase": "work",
+      "source_depends_on": [
+        "ports:V10.5",
+        "ports:V08.1"
+      ],
+      "source_planned_writes": [
+        "packages/interfaces/src/http/operations.ts",
+        "packages/interfaces/test/owned-http.test.ts"
+      ],
+      "acceptance_reference": "remaining-work/tasks.json#ports:V10.6",
+      "completed_history_only": false,
+      "human_hold": false,
+      "execution_authorized": false
+    },
+    {
+      "id": "ports:V10.7",
+      "plan": "input-validation",
+      "lane": "R2",
+      "source_status_snapshot": "not_started",
+      "disposition": "REQUIRED",
+      "phase": "work",
+      "source_depends_on": [
+        "ports:V10.3",
+        "ports:V10.2"
+      ],
+      "source_planned_writes": [
+        "docs/research/package-subsystem-ports-20261006/evidence/input-validation/optional-coverage.md"
+      ],
+      "acceptance_reference": "remaining-work/tasks.json#ports:V10.7",
+      "completed_history_only": false,
+      "human_hold": false,
+      "execution_authorized": false
+    },
+    {
+      "id": "ports:V06.7",
+      "plan": "input-validation",
+      "lane": "R2",
+      "source_status_snapshot": "not_started",
+      "disposition": "REQUIRED",
+      "phase": "work",
+      "source_depends_on": [
+        "ports:V06.4",
+        "ports:V06.5",
+        "ports:V06.6"
+      ],
+      "source_planned_writes": [
+        "docs/research/package-subsystem-ports-20261006/evidence/input-validation/profile-differential.json"
+      ],
+      "acceptance_reference": "remaining-work/tasks.json#ports:V06.7",
+      "completed_history_only": false,
+      "human_hold": false,
+      "execution_authorized": false
+    },
+    {
+      "id": "ports:V11.1",
+      "plan": "input-validation",
+      "lane": "R2",
+      "source_status_snapshot": "not_started",
+      "disposition": "REQUIRED",
+      "phase": "work",
+      "source_depends_on": [
+        "ports:V01",
+        "ports:C05.ready"
+      ],
+      "source_planned_writes": [
+        "docs/research/package-subsystem-ports-20261006/evidence/input-validation/measurement-contract.md"
+      ],
+      "acceptance_reference": "remaining-work/tasks.json#ports:V11.1",
+      "completed_history_only": false,
+      "human_hold": false,
+      "execution_authorized": false
+    },
+    {
+      "id": "ports:V11.2",
+      "plan": "input-validation",
+      "lane": "R2",
+      "source_status_snapshot": "not_started",
+      "disposition": "REQUIRED",
+      "phase": "work",
+      "source_depends_on": [
+        "ports:V02",
+        "ports:V07",
+        "ports:V08",
+        "ports:V09",
+        "ports:V10",
+        "ports:C04.ready",
+        "ports:C04.values-assets",
+        "ports:A07"
+      ],
+      "source_planned_writes": [
+        "packages/values/bindings/backend.ts",
+        "packages/values/bindings/bootstrap.ts",
+        "packages/values/bindings/validation.ts",
+        "packages/values/tsconfig.json",
+        "packages/values/package.json",
+        "packages/values/Cargo.toml",
+        "packages/values/Cargo.lock",
+        "packages/values/semantics/Cargo.toml",
+        "packages/values/bindings/Cargo.toml",
+        "docs/research/package-subsystem-ports-20261006/evidence/input-validation/selection-rollback.json"
+      ],
+      "acceptance_reference": "remaining-work/tasks.json#ports:V11.2",
+      "completed_history_only": false,
+      "human_hold": false,
+      "execution_authorized": false
+    },
+    {
+      "id": "ports:V11.3",
+      "plan": "input-validation",
+      "lane": "R2",
+      "source_status_snapshot": "not_started",
+      "disposition": "REQUIRED",
+      "phase": "work",
+      "source_depends_on": [
+        "ports:V11.1",
+        "ports:V11.2",
+        "ports:V05",
+        "ports:V06",
+        "ports:V07",
+        "ports:V08",
+        "ports:V09",
+        "ports:V10",
+        "ports:C05.ready"
+      ],
+      "source_planned_writes": [
+        "docs/research/package-subsystem-ports-20261006/evidence/input-validation/measurements.json"
+      ],
+      "acceptance_reference": "remaining-work/tasks.json#ports:V11.3",
+      "completed_history_only": false,
+      "human_hold": false,
+      "execution_authorized": false
+    },
+    {
+      "id": "ports:V11.4",
+      "plan": "input-validation",
+      "lane": "R2",
+      "source_status_snapshot": "not_started",
+      "disposition": "REQUIRED",
+      "phase": "work",
+      "source_depends_on": [
+        "ports:V11.3"
+      ],
+      "source_planned_writes": [
+        "docs/research/package-subsystem-ports-20261006/evidence/input-validation/rollout-decision.md"
+      ],
+      "acceptance_reference": "remaining-work/tasks.json#ports:V11.4",
+      "completed_history_only": false,
+      "human_hold": false,
+      "execution_authorized": false
+    },
+    {
+      "id": "ports:V12.1",
+      "plan": "input-validation",
+      "lane": "R2",
+      "source_status_snapshot": "not_started",
+      "disposition": "REQUIRED",
+      "phase": "work",
+      "source_depends_on": [
+        "ports:V11"
+      ],
+      "source_planned_writes": [
+        "docs/research/package-subsystem-ports-20261006/evidence/input-validation/final-source-checks.md",
+        "docs/research/package-subsystem-ports-20261006/evidence/input-validation/verify.log"
+      ],
+      "acceptance_reference": "remaining-work/tasks.json#ports:V12.1",
+      "completed_history_only": false,
+      "human_hold": false,
+      "execution_authorized": false
+    },
+    {
+      "id": "ports:V12.2",
+      "plan": "input-validation",
+      "lane": "R2",
+      "source_status_snapshot": "partial",
+      "disposition": "REQUIRED",
+      "phase": "work",
+      "source_depends_on": [
+        "ports:V12.1"
+      ],
+      "source_planned_writes": [
+        "docs/ideal-filetree-plan.md",
+        "docs/research/package-subsystem-ports-20261006/evidence/input-validation/filetree-review.md"
+      ],
+      "acceptance_reference": "remaining-work/tasks.json#ports:V12.2",
+      "completed_history_only": false,
+      "human_hold": false,
+      "execution_authorized": false
+    },
+    {
+      "id": "ports:V12.3",
+      "plan": "input-validation",
+      "lane": "R2",
+      "source_status_snapshot": "not_started",
+      "disposition": "REQUIRED",
+      "phase": "work",
+      "source_depends_on": [
+        "ports:V12.1",
+        "ports:V12.2"
+      ],
+      "source_planned_writes": [
+        "docs/research/package-subsystem-ports-20261006/evidence/input-validation/rollout-decision.md",
+        "docs/research/package-subsystem-ports-20261006/evidence/input-validation/completion-ledger.md"
+      ],
+      "acceptance_reference": "remaining-work/tasks.json#ports:V12.3",
+      "completed_history_only": false,
+      "human_hold": false,
+      "execution_authorized": false
+    },
+    {
+      "id": "ports:V01",
+      "plan": "input-validation",
+      "lane": "R2",
+      "source_status_snapshot": "partial",
+      "disposition": "REQUIRED",
+      "phase": "gate",
+      "source_depends_on": [
+        "ports:V01.1",
+        "ports:V01.2",
+        "ports:V01.3",
+        "ports:V01.4"
+      ],
+      "source_planned_writes": [],
+      "acceptance_reference": "remaining-work/tasks.json#ports:V01",
+      "completed_history_only": false,
+      "human_hold": false,
+      "execution_authorized": false
+    },
+    {
+      "id": "ports:V02",
+      "plan": "input-validation",
+      "lane": "R2",
+      "source_status_snapshot": "partial",
+      "disposition": "REQUIRED",
+      "phase": "gate",
+      "source_depends_on": [
+        "ports:V02.1",
+        "ports:V02.2",
+        "ports:V02.3",
+        "ports:V02.4",
+        "ports:V02.5",
+        "ports:V02.6",
+        "ports:V02.7"
+      ],
+      "source_planned_writes": [],
+      "acceptance_reference": "remaining-work/tasks.json#ports:V02",
+      "completed_history_only": false,
+      "human_hold": false,
+      "execution_authorized": false
+    },
+    {
+      "id": "ports:V03",
+      "plan": "input-validation",
+      "lane": "R2",
+      "source_status_snapshot": "partial",
+      "disposition": "REQUIRED",
+      "phase": "gate",
+      "source_depends_on": [
+        "ports:V03.1",
+        "ports:V03.2",
+        "ports:V03.3",
+        "ports:V03.4",
+        "ports:V03.5"
+      ],
+      "source_planned_writes": [],
+      "acceptance_reference": "remaining-work/tasks.json#ports:V03",
+      "completed_history_only": false,
+      "human_hold": false,
+      "execution_authorized": false
+    },
+    {
+      "id": "ports:V04",
+      "plan": "input-validation",
+      "lane": "R2",
+      "source_status_snapshot": "not_started",
+      "disposition": "REQUIRED",
+      "phase": "gate",
+      "source_depends_on": [
+        "ports:V04.1",
+        "ports:V04.2",
+        "ports:V04.3",
+        "ports:V04.4"
+      ],
+      "source_planned_writes": [],
+      "acceptance_reference": "remaining-work/tasks.json#ports:V04",
+      "completed_history_only": false,
+      "human_hold": false,
+      "execution_authorized": false
+    },
+    {
+      "id": "ports:V05",
+      "plan": "input-validation",
+      "lane": "R2",
+      "source_status_snapshot": "not_started",
+      "disposition": "REQUIRED",
+      "phase": "gate",
+      "source_depends_on": [
+        "ports:V05.1",
+        "ports:V05.2",
+        "ports:V05.3"
+      ],
+      "source_planned_writes": [],
+      "acceptance_reference": "remaining-work/tasks.json#ports:V05",
+      "completed_history_only": false,
+      "human_hold": false,
+      "execution_authorized": false
+    },
+    {
+      "id": "ports:V06",
+      "plan": "input-validation",
+      "lane": "R2",
+      "source_status_snapshot": "not_started",
+      "disposition": "REQUIRED",
+      "phase": "gate",
+      "source_depends_on": [
+        "ports:V06.1",
+        "ports:V06.2",
+        "ports:V06.3",
+        "ports:V06.4",
+        "ports:V06.5",
+        "ports:V06.6",
+        "ports:V06.7",
+        "ports:V06.8",
+        "ports:V06.9",
+        "ports:V06.10"
+      ],
+      "source_planned_writes": [],
+      "acceptance_reference": "remaining-work/tasks.json#ports:V06",
+      "completed_history_only": false,
+      "human_hold": false,
+      "execution_authorized": false
+    },
+    {
+      "id": "ports:V07",
+      "plan": "input-validation",
+      "lane": "R2",
+      "source_status_snapshot": "not_started",
+      "disposition": "REQUIRED",
+      "phase": "gate",
+      "source_depends_on": [
+        "ports:V07.1",
+        "ports:V07.2",
+        "ports:V07.3",
+        "ports:V07.4",
+        "ports:V07.5"
+      ],
+      "source_planned_writes": [],
+      "acceptance_reference": "remaining-work/tasks.json#ports:V07",
+      "completed_history_only": false,
+      "human_hold": false,
+      "execution_authorized": false
+    },
+    {
+      "id": "ports:V08",
+      "plan": "input-validation",
+      "lane": "R2",
+      "source_status_snapshot": "not_started",
+      "disposition": "REQUIRED",
+      "phase": "gate",
+      "source_depends_on": [
+        "ports:V08.1",
+        "ports:V08.2",
+        "ports:V08.3",
+        "ports:V08.6"
+      ],
+      "source_planned_writes": [],
+      "acceptance_reference": "remaining-work/tasks.json#ports:V08",
+      "completed_history_only": false,
+      "human_hold": false,
+      "execution_authorized": false
+    },
+    {
+      "id": "ports:V09",
+      "plan": "input-validation",
+      "lane": "R2",
+      "source_status_snapshot": "not_started",
+      "disposition": "REQUIRED",
+      "phase": "gate",
+      "source_depends_on": [
+        "ports:V09.1",
+        "ports:V09.2",
+        "ports:V09.3"
+      ],
+      "source_planned_writes": [],
+      "acceptance_reference": "remaining-work/tasks.json#ports:V09",
+      "completed_history_only": false,
+      "human_hold": false,
+      "execution_authorized": false
+    },
+    {
+      "id": "ports:V10",
+      "plan": "input-validation",
+      "lane": "R2",
+      "source_status_snapshot": "not_started",
+      "disposition": "REQUIRED",
+      "phase": "gate",
+      "source_depends_on": [
+        "ports:V10.1",
+        "ports:V10.2",
+        "ports:V10.3",
+        "ports:V10.7"
+      ],
+      "source_planned_writes": [],
+      "acceptance_reference": "remaining-work/tasks.json#ports:V10",
+      "completed_history_only": false,
+      "human_hold": false,
+      "execution_authorized": false
+    },
+    {
+      "id": "ports:V11",
+      "plan": "input-validation",
+      "lane": "R2",
+      "source_status_snapshot": "not_started",
+      "disposition": "REQUIRED",
+      "phase": "gate",
+      "source_depends_on": [
+        "ports:V11.1",
+        "ports:V11.2",
+        "ports:V11.3",
+        "ports:V11.4"
+      ],
+      "source_planned_writes": [],
+      "acceptance_reference": "remaining-work/tasks.json#ports:V11",
+      "completed_history_only": false,
+      "human_hold": false,
+      "execution_authorized": false
+    },
+    {
+      "id": "ports:V12",
+      "plan": "input-validation",
+      "lane": "R2",
+      "source_status_snapshot": "partial",
+      "disposition": "REQUIRED",
+      "phase": "gate",
+      "source_depends_on": [
+        "ports:V12.1",
+        "ports:V12.2",
+        "ports:V12.3"
+      ],
+      "source_planned_writes": [],
+      "acceptance_reference": "remaining-work/tasks.json#ports:V12",
+      "completed_history_only": false,
+      "human_hold": false,
+      "execution_authorized": false
+    },
+    {
+      "id": "ports:C01.1",
+      "plan": "shared",
+      "lane": "R3",
+      "source_status_snapshot": "complete",
+      "disposition": "REQUIRED",
+      "phase": "work",
+      "source_depends_on": [],
+      "source_planned_writes": [
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/shared/scope.json"
+      ],
+      "acceptance_reference": "remaining-work/tasks.json#ports:C01.1",
+      "completed_history_only": true,
+      "human_hold": false,
+      "execution_authorized": false
+    },
+    {
+      "id": "ports:C01.2",
+      "plan": "shared",
+      "lane": "R3",
+      "source_status_snapshot": "complete",
+      "disposition": "REQUIRED",
+      "phase": "work",
+      "source_depends_on": [
+        "ports:C01.1"
+      ],
+      "source_planned_writes": [
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/shared/ownership.json"
+      ],
+      "acceptance_reference": "remaining-work/tasks.json#ports:C01.2",
+      "completed_history_only": true,
+      "human_hold": false,
+      "execution_authorized": false
+    },
+    {
+      "id": "ports:C01.ready",
+      "plan": "shared",
+      "lane": "R3",
+      "source_status_snapshot": "complete",
+      "disposition": "REQUIRED",
+      "phase": "gate",
+      "source_depends_on": [
+        "ports:C01.1",
+        "ports:C01.2"
+      ],
+      "source_planned_writes": [
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/shared/C01.ready.json"
+      ],
+      "acceptance_reference": "remaining-work/tasks.json#ports:C01.ready",
+      "completed_history_only": true,
+      "human_hold": false,
+      "execution_authorized": false
+    },
+    {
+      "id": "ports:C02.1",
+      "plan": "shared",
+      "lane": "R2",
+      "source_status_snapshot": "complete",
+      "disposition": "REQUIRED",
+      "phase": "work",
+      "source_depends_on": [
+        "ports:C01.ready"
+      ],
+      "source_planned_writes": [
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/shared/prepared-baseline-contract.json"
+      ],
+      "acceptance_reference": "remaining-work/tasks.json#ports:C02.1",
+      "completed_history_only": true,
+      "human_hold": false,
+      "execution_authorized": false
+    },
+    {
+      "id": "ports:C02.ready",
+      "plan": "shared",
+      "lane": "R2",
+      "source_status_snapshot": "complete",
+      "disposition": "REQUIRED",
+      "phase": "gate",
+      "source_depends_on": [
+        "ports:C02.1"
+      ],
+      "source_planned_writes": [
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/shared/C02.ready.json"
+      ],
+      "acceptance_reference": "remaining-work/tasks.json#ports:C02.ready",
+      "completed_history_only": true,
+      "human_hold": false,
+      "execution_authorized": false
+    },
+    {
+      "id": "ports:C03.1",
+      "plan": "shared",
+      "lane": "R2",
+      "source_status_snapshot": "complete",
+      "disposition": "REQUIRED",
+      "phase": "work",
+      "source_depends_on": [
+        "ports:C01.ready"
+      ],
+      "source_planned_writes": [
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/shared/transport-contracts.json"
+      ],
+      "acceptance_reference": "remaining-work/tasks.json#ports:C03.1",
+      "completed_history_only": true,
+      "human_hold": false,
+      "execution_authorized": false
+    },
+    {
+      "id": "ports:C03.2",
+      "plan": "shared",
+      "lane": "R2",
+      "source_status_snapshot": "complete",
+      "disposition": "REQUIRED",
+      "phase": "work",
+      "source_depends_on": [
+        "ports:C03.1"
+      ],
+      "source_planned_writes": [
+        "packages/testkit/conformance/ports/transport-vectors.mjs",
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/shared/pins.json"
+      ],
+      "acceptance_reference": "remaining-work/tasks.json#ports:C03.2",
+      "completed_history_only": true,
+      "human_hold": false,
+      "execution_authorized": false
+    },
+    {
+      "id": "ports:C03.ready",
+      "plan": "shared",
+      "lane": "R2",
+      "source_status_snapshot": "complete",
+      "disposition": "REQUIRED",
+      "phase": "gate",
+      "source_depends_on": [
+        "ports:C03.2"
+      ],
+      "source_planned_writes": [
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/shared/C03.ready.json"
+      ],
+      "acceptance_reference": "remaining-work/tasks.json#ports:C03.ready",
+      "completed_history_only": true,
+      "human_hold": false,
+      "execution_authorized": false
+    },
+    {
+      "id": "ports:C04.asset",
+      "plan": "shared",
+      "lane": "R3",
+      "source_status_snapshot": "complete",
+      "disposition": "REQUIRED",
+      "phase": "work",
+      "source_depends_on": [
+        "ports:C03.ready"
+      ],
+      "source_planned_writes": [
+        "packages/contracts/src/deployment-assets.ts",
+        "packages/contracts/src/index.ts",
+        "packages/cloudflare/src/deploy/bundle.ts",
+        "packages/cloudflare/src/dev/local-run.ts",
+        "packages/testkit/src/scopes/local.ts"
+      ],
+      "acceptance_reference": "remaining-work/tasks.json#ports:C04.asset",
+      "completed_history_only": true,
+      "human_hold": false,
+      "execution_authorized": false
+    },
+    {
+      "id": "ports:C04.1",
+      "plan": "shared",
+      "lane": "R3",
+      "source_status_snapshot": "complete",
+      "disposition": "REQUIRED",
+      "phase": "work",
+      "source_depends_on": [
+        "ports:C03.ready"
+      ],
+      "source_planned_writes": [
+        "packages/testkit/conformance/ports/loader-smoke/Cargo.toml",
+        "packages/testkit/conformance/ports/loader-smoke/Cargo.lock",
+        "packages/testkit/conformance/ports/loader-smoke/src/lib.rs",
+        "packages/testkit/conformance/ports/loader-smoke/host.mjs"
+      ],
+      "acceptance_reference": "remaining-work/tasks.json#ports:C04.1",
+      "completed_history_only": true,
+      "human_hold": false,
+      "execution_authorized": false
+    },
+    {
+      "id": "ports:C04.2",
+      "plan": "shared",
+      "lane": "R3",
+      "source_status_snapshot": "complete",
+      "disposition": "REQUIRED",
+      "phase": "work",
+      "source_depends_on": [
+        "ports:C04.asset",
+        "ports:C04.1"
+      ],
+      "source_planned_writes": [
+        "packages/testkit/conformance/ports/loader-smoke/workerd.mjs",
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/shared/loader-smoke.json"
+      ],
+      "acceptance_reference": "remaining-work/tasks.json#ports:C04.2",
+      "completed_history_only": true,
+      "human_hold": false,
+      "execution_authorized": false
+    },
+    {
+      "id": "ports:C04.ready",
+      "plan": "shared",
+      "lane": "R3",
+      "source_status_snapshot": "needs_verification",
+      "disposition": "REQUIRED",
+      "phase": "gate",
+      "source_depends_on": [
+        "ports:C04.2"
+      ],
+      "source_planned_writes": [
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/shared/C04.ready.json"
+      ],
+      "acceptance_reference": "remaining-work/tasks.json#ports:C04.ready",
+      "completed_history_only": false,
+      "human_hold": false,
+      "execution_authorized": false
+    },
+    {
+      "id": "ports:C04.graph",
+      "plan": "shared",
+      "lane": "R3",
+      "source_status_snapshot": "partial",
+      "disposition": "REQUIRED",
+      "phase": "work",
+      "source_depends_on": [
+        "ports:W02.foundation",
+        "ports:C04.asset"
+      ],
+      "source_planned_writes": [
+        "package.json",
+        "bun.lock",
+        "packages/cloudflare/package.json",
+        "packages/state/package.json",
+        "packages/stdlib/package.json",
+        "packages/testkit/package.json"
+      ],
+      "acceptance_reference": "remaining-work/tasks.json#ports:C04.graph",
+      "completed_history_only": false,
+      "human_hold": false,
+      "execution_authorized": false
+    },
+    {
+      "id": "ports:C04.values-assets",
+      "plan": "shared",
+      "lane": "R3",
+      "source_status_snapshot": "partial",
+      "disposition": "REQUIRED",
+      "phase": "work",
+      "source_depends_on": [
+        "ports:A07.foundation",
+        "ports:C04.graph",
+        "ports:C04.ready"
+      ],
+      "source_planned_writes": [
+        "packages/cloudflare/src/deploy/bundle.ts",
+        "packages/cloudflare/src/release/stamp.ts",
+        "packages/cloudflare/src/release/manifest.ts"
+      ],
+      "acceptance_reference": "remaining-work/tasks.json#ports:C04.values-assets",
+      "completed_history_only": false,
+      "human_hold": false,
+      "execution_authorized": false
+    },
+    {
+      "id": "ports:C04.work-assets",
+      "plan": "shared",
+      "lane": "R3",
+      "source_status_snapshot": "not_started",
+      "disposition": "REQUIRED",
+      "phase": "work",
+      "source_depends_on": [
+        "ports:W05.2",
+        "ports:C04.graph",
+        "ports:C04.ready"
+      ],
+      "source_planned_writes": [
+        "packages/cloudflare/src/deploy/bundle.ts",
+        "packages/cloudflare/src/dev/local-run.ts",
+        "packages/testkit/src/scopes/local.ts",
+        "packages/cloudflare/src/release/stamp.ts",
+        "packages/cloudflare/src/release/manifest.ts"
+      ],
+      "acceptance_reference": "remaining-work/tasks.json#ports:C04.work-assets",
+      "completed_history_only": false,
+      "human_hold": false,
+      "execution_authorized": false
+    },
+    {
+      "id": "ports:C04.preparation-join",
+      "plan": "shared",
+      "lane": "R3",
+      "source_status_snapshot": "complete",
+      "disposition": "REQUIRED",
+      "phase": "work",
+      "source_depends_on": [
+        "ports:P05.2",
+        "ports:C04.asset"
+      ],
+      "source_planned_writes": [
+        "packages/cloudflare/src/deploy/bundle.ts"
+      ],
+      "acceptance_reference": "remaining-work/tasks.json#ports:C04.preparation-join",
+      "completed_history_only": true,
+      "human_hold": false,
+      "execution_authorized": false
+    },
+    {
+      "id": "ports:C04.native-release",
+      "plan": "shared",
+      "lane": "R3",
+      "source_status_snapshot": "held",
+      "disposition": "REQUIRED",
+      "phase": "work",
+      "source_depends_on": [
+        "ports:P09.1",
+        "ports:C04.graph"
+      ],
+      "source_planned_writes": [
+        "packages/cloudflare/package.json",
+        "packages/cloudflare/src/release/stamp.ts",
+        "packages/cloudflare/src/release/manifest.ts"
+      ],
+      "acceptance_reference": "remaining-work/tasks.json#ports:C04.native-release",
+      "completed_history_only": false,
+      "human_hold": true,
+      "execution_authorized": false
+    },
+    {
+      "id": "ports:C04.validation-join",
+      "plan": "shared",
+      "lane": "R3",
+      "source_status_snapshot": "not_started",
+      "disposition": "REQUIRED",
+      "phase": "work",
+      "source_depends_on": [
+        "ports:V08.3",
+        "ports:C04.values-assets"
+      ],
+      "source_planned_writes": [
+        "packages/cloudflare/src/deploy/bundle.ts",
+        "packages/cloudflare/src/dev/local-run.ts",
+        "packages/testkit/src/scopes/local.ts"
+      ],
+      "acceptance_reference": "remaining-work/tasks.json#ports:C04.validation-join",
+      "completed_history_only": false,
+      "human_hold": false,
+      "execution_authorized": false
+    },
+    {
+      "id": "ports:C05.1",
+      "plan": "shared",
+      "lane": "R1",
+      "source_status_snapshot": "complete",
+      "disposition": "REQUIRED",
+      "phase": "work",
+      "source_depends_on": [
+        "ports:C01.ready"
+      ],
+      "source_planned_writes": [
+        "packages/testkit/conformance/ports/observations.mjs",
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/shared/workloads.json"
+      ],
+      "acceptance_reference": "remaining-work/tasks.json#ports:C05.1",
+      "completed_history_only": true,
+      "human_hold": false,
+      "execution_authorized": false
+    },
+    {
+      "id": "ports:C05.ready",
+      "plan": "shared",
+      "lane": "R1",
+      "source_status_snapshot": "complete",
+      "disposition": "REQUIRED",
+      "phase": "gate",
+      "source_depends_on": [
+        "ports:C05.1"
+      ],
+      "source_planned_writes": [
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/shared/C05.ready.json"
+      ],
+      "acceptance_reference": "remaining-work/tasks.json#ports:C05.ready",
+      "completed_history_only": true,
+      "human_hold": false,
+      "execution_authorized": false
+    },
+    {
+      "id": "ports:C01.complete",
+      "plan": "shared",
+      "lane": "R3",
+      "source_status_snapshot": "partial",
+      "disposition": "REQUIRED",
+      "phase": "gate",
+      "source_depends_on": [
+        "ports:C01.ready",
+        "ports:A01",
+        "ports:V01",
+        "ports:W01",
+        "ports:P01"
+      ],
+      "source_planned_writes": [
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/shared/C01.complete.json"
+      ],
+      "acceptance_reference": "remaining-work/tasks.json#ports:C01.complete",
+      "completed_history_only": false,
+      "human_hold": false,
+      "execution_authorized": false
+    },
+    {
+      "id": "ports:C02.complete",
+      "plan": "shared",
+      "lane": "R2",
+      "source_status_snapshot": "partial",
+      "disposition": "REQUIRED",
+      "phase": "gate",
+      "source_depends_on": [
+        "ports:C02.ready",
+        "ports:A02",
+        "ports:V02",
+        "ports:W02",
+        "ports:P02"
+      ],
+      "source_planned_writes": [
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/shared/C02.complete.json"
+      ],
+      "acceptance_reference": "remaining-work/tasks.json#ports:C02.complete",
+      "completed_history_only": false,
+      "human_hold": false,
+      "execution_authorized": false
+    },
+    {
+      "id": "ports:C03.complete",
+      "plan": "shared",
+      "lane": "R2",
+      "source_status_snapshot": "partial",
+      "disposition": "REQUIRED",
+      "phase": "gate",
+      "source_depends_on": [
+        "ports:C03.ready",
+        "ports:A07",
+        "ports:V03",
+        "ports:W03",
+        "ports:P03"
+      ],
+      "source_planned_writes": [
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/shared/C03.complete.json"
+      ],
+      "acceptance_reference": "remaining-work/tasks.json#ports:C03.complete",
+      "completed_history_only": false,
+      "human_hold": false,
+      "execution_authorized": false
+    },
+    {
+      "id": "ports:C04.complete",
+      "plan": "shared",
+      "lane": "R3",
+      "source_status_snapshot": "partial",
+      "disposition": "REQUIRED",
+      "phase": "gate",
+      "source_depends_on": [
+        "ports:C04.ready",
+        "ports:C04.graph",
+        "ports:C04.values-assets",
+        "ports:C04.work-assets",
+        "ports:C04.preparation-join",
+        "ports:C04.native-release",
+        "ports:C04.validation-join",
+        "ports:A08",
+        "ports:V11",
+        "ports:W05",
+        "ports:P09",
+        "ports:P05.mixed"
+      ],
+      "source_planned_writes": [
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/shared/C04.complete.json"
+      ],
+      "acceptance_reference": "remaining-work/tasks.json#ports:C04.complete",
+      "completed_history_only": false,
+      "human_hold": false,
+      "execution_authorized": false
+    },
+    {
+      "id": "ports:C05.complete",
+      "plan": "shared",
+      "lane": "R1",
+      "source_status_snapshot": "partial",
+      "disposition": "REQUIRED",
+      "phase": "gate",
+      "source_depends_on": [
+        "ports:C05.ready",
+        "ports:A10",
+        "ports:V11",
+        "ports:W07",
+        "ports:P10"
+      ],
+      "source_planned_writes": [
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/shared/C05.complete.json"
+      ],
+      "acceptance_reference": "remaining-work/tasks.json#ports:C05.complete",
+      "completed_history_only": false,
+      "human_hold": false,
+      "execution_authorized": false
+    },
+    {
+      "id": "ports:W01.1",
+      "plan": "work-transitions",
+      "lane": "R3",
+      "source_status_snapshot": "complete",
+      "disposition": "REQUIRED",
+      "phase": "work",
+      "source_depends_on": [
+        "ports:C01.ready"
+      ],
+      "source_planned_writes": [
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/work-transitions/contracts/callers.json",
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/work-transitions/contracts/profiles.md"
+      ],
+      "acceptance_reference": "remaining-work/tasks.json#ports:W01.1",
+      "completed_history_only": true,
+      "human_hold": false,
+      "execution_authorized": false
+    },
+    {
+      "id": "ports:W01.2",
+      "plan": "work-transitions",
+      "lane": "R3",
+      "source_status_snapshot": "complete",
+      "disposition": "REQUIRED",
+      "phase": "work",
+      "source_depends_on": [
+        "ports:C01.ready"
+      ],
+      "source_planned_writes": [
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/work-transitions/ownership/graph.md",
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/work-transitions/ownership/files.json"
+      ],
+      "acceptance_reference": "remaining-work/tasks.json#ports:W01.2",
+      "completed_history_only": true,
+      "human_hold": false,
+      "execution_authorized": false
+    },
+    {
+      "id": "ports:W01.3",
+      "plan": "work-transitions",
+      "lane": "R3",
+      "source_status_snapshot": "partial",
+      "disposition": "REQUIRED",
+      "phase": "work",
+      "source_depends_on": [
+        "ports:C05.ready"
+      ],
+      "source_planned_writes": [
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/work-transitions/baselines/current-ts.json",
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/work-transitions/baselines/verify.log",
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/work-transitions/baselines/original-fixtures/"
+      ],
+      "acceptance_reference": "remaining-work/tasks.json#ports:W01.3",
+      "completed_history_only": false,
+      "human_hold": false,
+      "execution_authorized": false
+    },
+    {
+      "id": "ports:W01.4",
+      "plan": "work-transitions",
+      "lane": "R3",
+      "source_status_snapshot": "partial",
+      "disposition": "REQUIRED",
+      "phase": "work",
+      "source_depends_on": [
+        "ports:W01.1",
+        "ports:W01.2",
+        "ports:W01.3",
+        "ports:C05.ready"
+      ],
+      "source_planned_writes": [
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/work-transitions/contracts/workloads.json",
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/work-transitions/contracts/budgets.json",
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/work-transitions/contracts/coverage.md"
+      ],
+      "acceptance_reference": "remaining-work/tasks.json#ports:W01.4",
+      "completed_history_only": false,
+      "human_hold": false,
+      "execution_authorized": false
+    },
+    {
+      "id": "ports:W02.1",
+      "plan": "work-transitions",
+      "lane": "R3",
+      "source_status_snapshot": "complete",
+      "disposition": "REQUIRED",
+      "phase": "work",
+      "source_depends_on": [
+        "ports:W01.2",
+        "ports:C02.ready"
+      ],
+      "source_planned_writes": [
+        "packages/work-kernel/package.json",
+        "packages/work-kernel/tsconfig.json",
+        "packages/work-kernel/Cargo.toml",
+        "packages/work-kernel/Cargo.lock",
+        "packages/work-kernel/src/index.ts",
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/work-transitions/handoffs/build-request.md"
+      ],
+      "acceptance_reference": "remaining-work/tasks.json#ports:W02.1",
+      "completed_history_only": true,
+      "human_hold": false,
+      "execution_authorized": false
+    },
+    {
+      "id": "ports:W02.2",
+      "plan": "work-transitions",
+      "lane": "R3",
+      "source_status_snapshot": "complete",
+      "disposition": "REQUIRED",
+      "phase": "work",
+      "source_depends_on": [
+        "ports:W01.1",
+        "ports:W01.3",
+        "ports:W02.1"
+      ],
+      "source_planned_writes": [
+        "packages/work-kernel/src/rows.ts",
+        "packages/work-kernel/conformance/rows.test.ts",
+        "packages/work-kernel/conformance/fixtures/rows/"
+      ],
+      "acceptance_reference": "remaining-work/tasks.json#ports:W02.2",
+      "completed_history_only": true,
+      "human_hold": false,
+      "execution_authorized": false
+    },
+    {
+      "id": "ports:W02.3",
+      "plan": "work-transitions",
+      "lane": "R3",
+      "source_status_snapshot": "complete",
+      "disposition": "REQUIRED",
+      "phase": "work",
+      "source_depends_on": [
+        "ports:W01.1",
+        "ports:W01.3",
+        "ports:W02.1"
+      ],
+      "source_planned_writes": [
+        "packages/work-kernel/src/retry.ts",
+        "packages/work-kernel/src/every.ts",
+        "packages/work-kernel/src/lifecycle.ts",
+        "packages/work-kernel/conformance/retry.test.ts",
+        "packages/work-kernel/conformance/every.test.ts",
+        "packages/work-kernel/conformance/lifecycle.test.ts",
+        "packages/work-kernel/conformance/fixtures/policy/"
+      ],
+      "acceptance_reference": "remaining-work/tasks.json#ports:W02.3",
+      "completed_history_only": true,
+      "human_hold": false,
+      "execution_authorized": false
+    },
+    {
+      "id": "ports:W02.4",
+      "plan": "work-transitions",
+      "lane": "R3",
+      "source_status_snapshot": "complete",
+      "disposition": "REQUIRED",
+      "phase": "work",
+      "source_depends_on": [
+        "ports:W01.1",
+        "ports:W01.3",
+        "ports:W02.1"
+      ],
+      "source_planned_writes": [
+        "packages/work-kernel/src/receipt.ts",
+        "packages/work-kernel/src/recovery.ts",
+        "packages/work-kernel/src/linkage.ts",
+        "packages/work-kernel/conformance/receipt.test.ts",
+        "packages/work-kernel/conformance/recovery.test.ts",
+        "packages/work-kernel/conformance/linkage.test.ts",
+        "packages/work-kernel/conformance/fixtures/receipts/"
+      ],
+      "acceptance_reference": "remaining-work/tasks.json#ports:W02.4",
+      "completed_history_only": true,
+      "human_hold": false,
+      "execution_authorized": false
+    },
+    {
+      "id": "ports:W02.5",
+      "plan": "work-transitions",
+      "lane": "R3",
+      "source_status_snapshot": "not_started",
+      "disposition": "REQUIRED",
+      "phase": "work",
+      "source_depends_on": [
+        "ports:W02.2",
+        "ports:W02.3",
+        "ports:W02.4",
+        "ports:C04.graph"
+      ],
+      "source_planned_writes": [
+        "packages/work-kernel/src/index.ts",
+        "packages/work-kernel/src/prepared.ts",
+        "packages/work-kernel/src/profiles.ts",
+        "packages/work-kernel/src/backend.ts",
+        "packages/work-kernel/conformance/transitions.test.ts",
+        "packages/work/src/kernel/tables.ts",
+        "packages/state/src/fanout/tables.ts",
+        "packages/state/src/fanout/outcome.ts",
+        "packages/state/src/receipt/tables.ts"
+      ],
+      "acceptance_reference": "remaining-work/tasks.json#ports:W02.5",
+      "completed_history_only": false,
+      "human_hold": false,
+      "execution_authorized": false
+    },
+    {
+      "id": "ports:W03.1",
+      "plan": "work-transitions",
+      "lane": "R3",
+      "source_status_snapshot": "needs_verification",
+      "disposition": "REQUIRED",
+      "phase": "work",
+      "source_depends_on": [
+        "ports:W01.1",
+        "ports:W01.2",
+        "ports:W02.1",
+        "ports:C03.ready"
+      ],
+      "source_planned_writes": [
+        "packages/work-kernel/src/facts.ts",
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/work-transitions/handoffs/abi.md"
+      ],
+      "acceptance_reference": "remaining-work/tasks.json#ports:W03.1",
+      "completed_history_only": false,
+      "human_hold": false,
+      "execution_authorized": false
+    },
+    {
+      "id": "ports:W03.2",
+      "plan": "work-transitions",
+      "lane": "R3",
+      "source_status_snapshot": "partial",
+      "disposition": "REQUIRED",
+      "phase": "work",
+      "source_depends_on": [
+        "ports:W03.1"
+      ],
+      "source_planned_writes": [
+        "packages/work-kernel/bindings/host-values.ts",
+        "packages/work-kernel/conformance/fixtures/traces/refs.json"
+      ],
+      "acceptance_reference": "remaining-work/tasks.json#ports:W03.2",
+      "completed_history_only": false,
+      "human_hold": false,
+      "execution_authorized": false
+    },
+    {
+      "id": "ports:W03.3",
+      "plan": "work-transitions",
+      "lane": "R3",
+      "source_status_snapshot": "not_started",
+      "disposition": "REQUIRED",
+      "phase": "work",
+      "source_depends_on": [
+        "ports:W02.5",
+        "ports:W03.1",
+        "ports:W03.2"
+      ],
+      "source_planned_writes": [
+        "packages/work/src/dispatch/index.ts",
+        "packages/work/src/receipt/index.ts",
+        "packages/work/src/recovery/index.ts",
+        "packages/work/src/observation/association.ts",
+        "packages/work/src/observation/observation.ts",
+        "packages/work/src/observation/ports.ts",
+        "packages/work/src/schedule/every.ts",
+        "packages/work/src/kernel/commands.ts",
+        "packages/work-kernel/conformance/traces.test.ts",
+        "packages/work-kernel/conformance/fixtures/traces/"
+      ],
+      "acceptance_reference": "remaining-work/tasks.json#ports:W03.3",
+      "completed_history_only": false,
+      "human_hold": false,
+      "execution_authorized": false
+    },
+    {
+      "id": "ports:W03.4",
+      "plan": "work-transitions",
+      "lane": "R3",
+      "source_status_snapshot": "not_started",
+      "disposition": "REQUIRED",
+      "phase": "work",
+      "source_depends_on": [
+        "ports:W03.3",
+        "ports:W03.2",
+        "ports:W02.5"
+      ],
+      "source_planned_writes": [
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/work-transitions/baselines/prepared-ts.json",
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/work-transitions/baselines/trace-parity.json"
+      ],
+      "acceptance_reference": "remaining-work/tasks.json#ports:W03.4",
+      "completed_history_only": false,
+      "human_hold": false,
+      "execution_authorized": false
+    },
+    {
+      "id": "ports:W04.1",
+      "plan": "work-transitions",
+      "lane": "R3",
+      "source_status_snapshot": "needs_verification",
+      "disposition": "REQUIRED",
+      "phase": "work",
+      "source_depends_on": [
+        "ports:W02.2",
+        "ports:W03.1",
+        "ports:C03.ready"
+      ],
+      "source_planned_writes": [
+        "packages/work-kernel/decisions/rows.rs"
+      ],
+      "acceptance_reference": "remaining-work/tasks.json#ports:W04.1",
+      "completed_history_only": false,
+      "human_hold": false,
+      "execution_authorized": false
+    },
+    {
+      "id": "ports:W04.2",
+      "plan": "work-transitions",
+      "lane": "R3",
+      "source_status_snapshot": "needs_verification",
+      "disposition": "REQUIRED",
+      "phase": "work",
+      "source_depends_on": [
+        "ports:W02.3",
+        "ports:W03.1",
+        "ports:C03.ready"
+      ],
+      "source_planned_writes": [
+        "packages/work-kernel/decisions/retry.rs",
+        "packages/work-kernel/decisions/every.rs",
+        "packages/work-kernel/decisions/lifecycle.rs"
+      ],
+      "acceptance_reference": "remaining-work/tasks.json#ports:W04.2",
+      "completed_history_only": false,
+      "human_hold": false,
+      "execution_authorized": false
+    },
+    {
+      "id": "ports:W04.3",
+      "plan": "work-transitions",
+      "lane": "R3",
+      "source_status_snapshot": "needs_verification",
+      "disposition": "REQUIRED",
+      "phase": "work",
+      "source_depends_on": [
+        "ports:W02.4",
+        "ports:W03.1",
+        "ports:C03.ready"
+      ],
+      "source_planned_writes": [
+        "packages/work-kernel/decisions/receipt.rs",
+        "packages/work-kernel/decisions/recovery.rs",
+        "packages/work-kernel/decisions/linkage.rs"
+      ],
+      "acceptance_reference": "remaining-work/tasks.json#ports:W04.3",
+      "completed_history_only": false,
+      "human_hold": false,
+      "execution_authorized": false
+    },
+    {
+      "id": "ports:W04.4",
+      "plan": "work-transitions",
+      "lane": "R3",
+      "source_status_snapshot": "not_started",
+      "disposition": "REQUIRED",
+      "phase": "work",
+      "source_depends_on": [
+        "ports:W04.1",
+        "ports:W04.2",
+        "ports:W04.3",
+        "ports:W03.4"
+      ],
+      "source_planned_writes": [
+        "packages/work-kernel/decisions/lib.rs",
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/work-transitions/handoffs/native-conformance.json",
+        "packages/work-kernel/Cargo.toml",
+        "packages/work-kernel/Cargo.lock"
+      ],
+      "acceptance_reference": "remaining-work/tasks.json#ports:W04.4",
+      "completed_history_only": false,
+      "human_hold": false,
+      "execution_authorized": false
+    },
+    {
+      "id": "ports:W05.1",
+      "plan": "work-transitions",
+      "lane": "R3",
+      "source_status_snapshot": "not_started",
+      "disposition": "REQUIRED",
+      "phase": "work",
+      "source_depends_on": [
+        "ports:W04.4",
+        "ports:W03.2",
+        "ports:C04.ready",
+        "ports:C04.graph"
+      ],
+      "source_planned_writes": [
+        "packages/work-kernel/bindings/wasm.rs",
+        "packages/work-kernel/bindings/loader.ts",
+        "packages/work-kernel/src/backend.ts",
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/work-transitions/handoffs/assets.json",
+        "packages/work-kernel/package.json",
+        "packages/work-kernel/Cargo.toml",
+        "packages/work-kernel/Cargo.lock"
+      ],
+      "acceptance_reference": "remaining-work/tasks.json#ports:W05.1",
+      "completed_history_only": false,
+      "human_hold": false,
+      "execution_authorized": false
+    },
+    {
+      "id": "ports:W05.2",
+      "plan": "work-transitions",
+      "lane": "R3",
+      "source_status_snapshot": "not_started",
+      "disposition": "REQUIRED",
+      "phase": "work",
+      "source_depends_on": [
+        "ports:W05.1"
+      ],
+      "source_planned_writes": [
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/work-transitions/handoffs/delivery-request.md"
+      ],
+      "acceptance_reference": "remaining-work/tasks.json#ports:W05.2",
+      "completed_history_only": false,
+      "human_hold": false,
+      "execution_authorized": false
+    },
+    {
+      "id": "ports:W05.3",
+      "plan": "work-transitions",
+      "lane": "R3",
+      "source_status_snapshot": "not_started",
+      "disposition": "REQUIRED",
+      "phase": "work",
+      "source_depends_on": [
+        "ports:W05.4",
+        "ports:C04.ready"
+      ],
+      "source_planned_writes": [
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/work-transitions/release/delivery.json",
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/work-transitions/release/loader-errors.json"
+      ],
+      "acceptance_reference": "remaining-work/tasks.json#ports:W05.3",
+      "completed_history_only": false,
+      "human_hold": false,
+      "execution_authorized": false
+    },
+    {
+      "id": "ports:W06.1",
+      "plan": "work-transitions",
+      "lane": "R3",
+      "source_status_snapshot": "not_started",
+      "disposition": "REQUIRED",
+      "phase": "work",
+      "source_depends_on": [
+        "ports:W05.3",
+        "ports:W02.5",
+        "ports:W03.4"
+      ],
+      "source_planned_writes": [
+        "packages/state/src/fanout/tables.ts",
+        "packages/state/src/fanout/outcome.ts",
+        "packages/state/src/ports/transact.ts",
+        "packages/state/src/receipt/tables.ts"
+      ],
+      "acceptance_reference": "remaining-work/tasks.json#ports:W06.1",
+      "completed_history_only": false,
+      "human_hold": false,
+      "execution_authorized": false
+    },
+    {
+      "id": "ports:W06.2",
+      "plan": "work-transitions",
+      "lane": "R3",
+      "source_status_snapshot": "not_started",
+      "disposition": "REQUIRED",
+      "phase": "work",
+      "source_depends_on": [
+        "ports:W06.1"
+      ],
+      "source_planned_writes": [
+        "packages/cloudflare/src/runtime/invoke.ts",
+        "packages/cloudflare/src/runtime/work-kernel-pilot.test.ts"
+      ],
+      "acceptance_reference": "remaining-work/tasks.json#ports:W06.2",
+      "completed_history_only": false,
+      "human_hold": false,
+      "execution_authorized": false
+    },
+    {
+      "id": "ports:W06.runtimehandoff",
+      "plan": "work-transitions",
+      "lane": "R3",
+      "source_status_snapshot": "not_started",
+      "disposition": "REQUIRED",
+      "phase": "gate",
+      "source_depends_on": [
+        "ports:W06.2"
+      ],
+      "source_planned_writes": [
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/work-transitions/handoffs/runtime-source-map.md",
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/work-transitions/handoffs/runtime-owner.json"
+      ],
+      "acceptance_reference": "remaining-work/tasks.json#ports:W06.runtimehandoff",
+      "completed_history_only": false,
+      "human_hold": false,
+      "execution_authorized": false
+    },
+    {
+      "id": "ports:W06.3",
+      "plan": "work-transitions",
+      "lane": "R3",
+      "source_status_snapshot": "not_started",
+      "disposition": "REQUIRED",
+      "phase": "work",
+      "source_depends_on": [
+        "ports:W06.runtimehandoff",
+        "ports:W05.3",
+        "ports:V09.1"
+      ],
+      "source_planned_writes": [
+        "packages/cloudflare/src/runtime/work-kernel-pilot-durable.test.ts",
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/work-transitions/durable/pilot.json"
+      ],
+      "acceptance_reference": "remaining-work/tasks.json#ports:W06.3",
+      "completed_history_only": false,
+      "human_hold": false,
+      "execution_authorized": false
+    },
+    {
+      "id": "ports:W07.1",
+      "plan": "work-transitions",
+      "lane": "R3",
+      "source_status_snapshot": "not_started",
+      "disposition": "REQUIRED",
+      "phase": "work",
+      "source_depends_on": [
+        "ports:W06.3",
+        "ports:W03.4",
+        "ports:C05.ready"
+      ],
+      "source_planned_writes": [
+        "packages/work-kernel/conformance/persisted.test.ts",
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/work-transitions/durable/bytes.json",
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/work-transitions/durable/error-order.json"
+      ],
+      "acceptance_reference": "remaining-work/tasks.json#ports:W07.1",
+      "completed_history_only": false,
+      "human_hold": false,
+      "execution_authorized": false
+    },
+    {
+      "id": "ports:W07.2",
+      "plan": "work-transitions",
+      "lane": "R3",
+      "source_status_snapshot": "not_started",
+      "disposition": "REQUIRED",
+      "phase": "work",
+      "source_depends_on": [
+        "ports:W01.4",
+        "ports:W03.4",
+        "ports:C05.ready"
+      ],
+      "source_planned_writes": [
+        "packages/work-kernel/measurement/complete-calls.ts",
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/work-transitions/measurements/environment.json"
+      ],
+      "acceptance_reference": "remaining-work/tasks.json#ports:W07.2",
+      "completed_history_only": false,
+      "human_hold": false,
+      "execution_authorized": false
+    },
+    {
+      "id": "ports:W07.3",
+      "plan": "work-transitions",
+      "lane": "R3",
+      "source_status_snapshot": "not_started",
+      "disposition": "REQUIRED",
+      "phase": "work",
+      "source_depends_on": [
+        "ports:W07.1",
+        "ports:W07.2",
+        "ports:W06.3",
+        "ports:C05.ready"
+      ],
+      "source_planned_writes": [
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/work-transitions/measurements/results.json",
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/work-transitions/measurements/resources.json",
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/work-transitions/final/verify.log"
+      ],
+      "acceptance_reference": "remaining-work/tasks.json#ports:W07.3",
+      "completed_history_only": false,
+      "human_hold": false,
+      "execution_authorized": false
+    },
+    {
+      "id": "ports:W08.1",
+      "plan": "work-transitions",
+      "lane": "R3",
+      "source_status_snapshot": "not_started",
+      "disposition": "REQUIRED",
+      "phase": "work",
+      "source_depends_on": [
+        "ports:W07"
+      ],
+      "source_planned_writes": [
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/work-transitions/release/adoption.md",
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/work-transitions/release/coverage.json"
+      ],
+      "acceptance_reference": "remaining-work/tasks.json#ports:W08.1",
+      "completed_history_only": false,
+      "human_hold": false,
+      "execution_authorized": false
+    },
+    {
+      "id": "ports:W08.2",
+      "plan": "work-transitions",
+      "lane": "R3",
+      "source_status_snapshot": "not_started",
+      "disposition": "REQUIRED",
+      "phase": "work",
+      "source_depends_on": [
+        "ports:W08.1",
+        "ports:W05.3"
+      ],
+      "source_planned_writes": [
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/work-transitions/release/rollback.json"
+      ],
+      "acceptance_reference": "remaining-work/tasks.json#ports:W08.2",
+      "completed_history_only": false,
+      "human_hold": false,
+      "execution_authorized": false
+    },
+    {
+      "id": "ports:W08.3",
+      "plan": "work-transitions",
+      "lane": "R3",
+      "source_status_snapshot": "not_started",
+      "disposition": "REQUIRED",
+      "phase": "work",
+      "source_depends_on": [
+        "ports:W08.2",
+        "ports:W08.1"
+      ],
+      "source_planned_writes": [
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/work-transitions/final/source-checks.md",
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/work-transitions/final/completion.md"
+      ],
+      "acceptance_reference": "remaining-work/tasks.json#ports:W08.3",
+      "completed_history_only": false,
+      "human_hold": false,
+      "execution_authorized": false
+    },
+    {
+      "id": "ports:W09.1",
+      "plan": "work-transitions",
+      "lane": "R3",
+      "source_status_snapshot": "deferred",
+      "disposition": "DEFERRED",
+      "phase": "work",
+      "source_depends_on": [
+        "ports:W08"
+      ],
+      "source_planned_writes": [
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/work-transitions/scheduler/contract.md"
+      ],
+      "acceptance_reference": "remaining-work/tasks.json#ports:W09.1",
+      "completed_history_only": false,
+      "human_hold": false,
+      "execution_authorized": false
+    },
+    {
+      "id": "ports:W09.2",
+      "plan": "work-transitions",
+      "lane": "R3",
+      "source_status_snapshot": "deferred",
+      "disposition": "DEFERRED",
+      "phase": "work",
+      "source_depends_on": [
+        "ports:W09.1"
+      ],
+      "source_planned_writes": [
+        "packages/work-kernel/continuations/",
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/work-transitions/scheduler/prototype.json"
+      ],
+      "acceptance_reference": "remaining-work/tasks.json#ports:W09.2",
+      "completed_history_only": false,
+      "human_hold": false,
+      "execution_authorized": false
+    },
+    {
+      "id": "ports:W09.3",
+      "plan": "work-transitions",
+      "lane": "R3",
+      "source_status_snapshot": "deferred",
+      "disposition": "DEFERRED",
+      "phase": "work",
+      "source_depends_on": [
+        "ports:W09.2"
+      ],
+      "source_planned_writes": [
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/work-transitions/scheduler/decision.md"
+      ],
+      "acceptance_reference": "remaining-work/tasks.json#ports:W09.3",
+      "completed_history_only": false,
+      "human_hold": false,
+      "execution_authorized": false
+    },
+    {
+      "id": "ports:W01",
+      "plan": "work-transitions",
+      "lane": "R3",
+      "source_status_snapshot": "partial",
+      "disposition": "REQUIRED",
+      "phase": "gate",
+      "source_depends_on": [
+        "ports:W01.1",
+        "ports:W01.2",
+        "ports:W01.3",
+        "ports:W01.4"
+      ],
+      "source_planned_writes": [],
+      "acceptance_reference": "remaining-work/tasks.json#ports:W01",
+      "completed_history_only": false,
+      "human_hold": false,
+      "execution_authorized": false
+    },
+    {
+      "id": "ports:W02",
+      "plan": "work-transitions",
+      "lane": "R3",
+      "source_status_snapshot": "partial",
+      "disposition": "REQUIRED",
+      "phase": "gate",
+      "source_depends_on": [
+        "ports:W02.1",
+        "ports:W02.foundation",
+        "ports:W02.2",
+        "ports:W02.3",
+        "ports:W02.4",
+        "ports:W02.5"
+      ],
+      "source_planned_writes": [],
+      "acceptance_reference": "remaining-work/tasks.json#ports:W02",
+      "completed_history_only": false,
+      "human_hold": false,
+      "execution_authorized": false
+    },
+    {
+      "id": "ports:W03",
+      "plan": "work-transitions",
+      "lane": "R3",
+      "source_status_snapshot": "partial",
+      "disposition": "REQUIRED",
+      "phase": "gate",
+      "source_depends_on": [
+        "ports:W03.1",
+        "ports:W03.2",
+        "ports:W03.3",
+        "ports:W03.4"
+      ],
+      "source_planned_writes": [],
+      "acceptance_reference": "remaining-work/tasks.json#ports:W03",
+      "completed_history_only": false,
+      "human_hold": false,
+      "execution_authorized": false
+    },
+    {
+      "id": "ports:W04",
+      "plan": "work-transitions",
+      "lane": "R3",
+      "source_status_snapshot": "partial",
+      "disposition": "REQUIRED",
+      "phase": "gate",
+      "source_depends_on": [
+        "ports:W04.1",
+        "ports:W04.2",
+        "ports:W04.3",
+        "ports:W04.4"
+      ],
+      "source_planned_writes": [],
+      "acceptance_reference": "remaining-work/tasks.json#ports:W04",
+      "completed_history_only": false,
+      "human_hold": false,
+      "execution_authorized": false
+    },
+    {
+      "id": "ports:W05",
+      "plan": "work-transitions",
+      "lane": "R3",
+      "source_status_snapshot": "not_started",
+      "disposition": "REQUIRED",
+      "phase": "gate",
+      "source_depends_on": [
+        "ports:W05.1",
+        "ports:W05.2",
+        "ports:W05.3",
+        "ports:W05.4"
+      ],
+      "source_planned_writes": [],
+      "acceptance_reference": "remaining-work/tasks.json#ports:W05",
+      "completed_history_only": false,
+      "human_hold": false,
+      "execution_authorized": false
+    },
+    {
+      "id": "ports:W06",
+      "plan": "work-transitions",
+      "lane": "R3",
+      "source_status_snapshot": "not_started",
+      "disposition": "REQUIRED",
+      "phase": "gate",
+      "source_depends_on": [
+        "ports:W06.1",
+        "ports:W06.2",
+        "ports:W06.runtimehandoff",
+        "ports:W06.3"
+      ],
+      "source_planned_writes": [],
+      "acceptance_reference": "remaining-work/tasks.json#ports:W06",
+      "completed_history_only": false,
+      "human_hold": false,
+      "execution_authorized": false
+    },
+    {
+      "id": "ports:W07",
+      "plan": "work-transitions",
+      "lane": "R3",
+      "source_status_snapshot": "not_started",
+      "disposition": "REQUIRED",
+      "phase": "gate",
+      "source_depends_on": [
+        "ports:W07.1",
+        "ports:W07.2",
+        "ports:W07.3"
+      ],
+      "source_planned_writes": [],
+      "acceptance_reference": "remaining-work/tasks.json#ports:W07",
+      "completed_history_only": false,
+      "human_hold": false,
+      "execution_authorized": false
+    },
+    {
+      "id": "ports:W08",
+      "plan": "work-transitions",
+      "lane": "R3",
+      "source_status_snapshot": "not_started",
+      "disposition": "REQUIRED",
+      "phase": "gate",
+      "source_depends_on": [
+        "ports:W08.1",
+        "ports:W08.2",
+        "ports:W08.3"
+      ],
+      "source_planned_writes": [],
+      "acceptance_reference": "remaining-work/tasks.json#ports:W08",
+      "completed_history_only": false,
+      "human_hold": false,
+      "execution_authorized": false
+    },
+    {
+      "id": "ports:W09",
+      "plan": "work-transitions",
+      "lane": "R3",
+      "source_status_snapshot": "deferred",
+      "disposition": "DEFERRED",
+      "phase": "gate",
+      "source_depends_on": [
+        "ports:W09.1",
+        "ports:W09.2",
+        "ports:W09.3"
+      ],
+      "source_planned_writes": [],
+      "acceptance_reference": "remaining-work/tasks.json#ports:W09",
+      "completed_history_only": false,
+      "human_hold": false,
+      "execution_authorized": false
+    },
+    {
+      "id": "ports:W02.foundation",
+      "plan": "work-transitions",
+      "lane": "R3",
+      "source_status_snapshot": "complete",
+      "disposition": "REQUIRED",
+      "phase": "gate",
+      "source_depends_on": [
+        "ports:W02.1"
+      ],
+      "source_planned_writes": [
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/work-transitions/handoffs/foundation.json"
+      ],
+      "acceptance_reference": "remaining-work/tasks.json#ports:W02.foundation",
+      "completed_history_only": true,
+      "human_hold": false,
+      "execution_authorized": false
+    },
+    {
+      "id": "ports:W05.4",
+      "plan": "work-transitions",
+      "lane": "R3",
+      "source_status_snapshot": "not_started",
+      "disposition": "REQUIRED",
+      "phase": "work",
+      "source_depends_on": [
+        "ports:W05.2",
+        "ports:C04.work-assets"
+      ],
+      "source_planned_writes": [
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/work-transitions/handoffs/installed-package.json"
+      ],
+      "acceptance_reference": "remaining-work/tasks.json#ports:W05.4",
+      "completed_history_only": false,
+      "human_hold": false,
+      "execution_authorized": false
+    }
+  ]
+}
