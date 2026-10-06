@@ -1738,7 +1738,7 @@ describe("t34-f7 scheduler pins, guards, revocation, exhaustion", () => {
     const joined = await triggerJoin(world);
     assert.equal(joined.ok, true);
     if (!joined.ok) throw new Error("unreachable");
-    const full: FanoutSchedulerBodyPort = async (child, domainRow) => {
+    const full: FanoutSchedulerBodyPort = async (child, domainRow, attempt) => {
       const next: StoredRow = {
         ...domainRow,
         version: (domainRow.version + 1) as StoredRow["version"],
@@ -1762,7 +1762,7 @@ describe("t34-f7 scheduler pins, guards, revocation, exhaustion", () => {
             recordId: domainRow.id,
             version: next.version,
             operation: asOperation(CHILD_OP),
-            operationId: nextOpId() as never,
+            operationId: attempt.operationId as never,
             actor: ACTOR,
             at: NOW,
             change: "update",
@@ -1774,7 +1774,7 @@ describe("t34-f7 scheduler pins, guards, revocation, exhaustion", () => {
           {
             intentId: `obx_${child.recordId}`,
             operation: asOperation(CHILD_OP),
-            operationId: nextOpId() as never,
+            operationId: attempt.operationId as never,
             target: "Acme.notify",
             arguments: { record: child.recordId },
             occurrenceIndex: 0,
@@ -1876,7 +1876,7 @@ describe("t34-f7 provider cancellation contract", () => {
 describe("t34-f7 assembly serving surface", () => {
   it("composes the six runtime entries frozen and callable", async () => {
     const surface = assembleFanoutServingSurface({
-      stageTriggerJoin,
+      stageTriggerJoin: stageFanoutTriggerJoin,
       claimChild: claimFanoutChild,
       recordAttempt: recordFanoutChildAttempt,
       runSchedulerTurn: runFanoutSchedulerTurn,
@@ -1894,7 +1894,7 @@ describe("t34-f7 assembly serving surface", () => {
 
   it("fails loud on missing or non-function segments, naming the segment", () => {
     const full = {
-      stageTriggerJoin,
+      stageTriggerJoin: stageFanoutTriggerJoin,
       claimChild: claimFanoutChild,
       recordAttempt: recordFanoutChildAttempt,
       runSchedulerTurn: runFanoutSchedulerTurn,

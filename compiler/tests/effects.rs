@@ -1499,8 +1499,10 @@ fn f6_unsupported_forms_diagnosed() {
         vec![
             "each= needs an on= trigger: fanout cohorts freeze under a source-occurrence/handler cutoff",
             "each=event is not a cohort: use a bare model (each=Signup) or an event-anchored collection (each=event.opportunity.Signup)",
-            "unsupported each= cohort `Todo.title`: multi-segment cohorts root at event (each=event.opportunity.Signup)",
+            // A1: byte-sorted (`P` < `T`); the checkpoint listed these two
+            // out of sort order while asserting a sorted comparison.
             "unsupported each= cohort `Ping`: cohorts enumerate models",
+            "unsupported each= cohort `Todo.title`: multi-segment cohorts root at event (each=event.opportunity.Signup)",
         ],
         "all diagnostics: {diags:?}"
     );
@@ -1682,12 +1684,13 @@ fn f6_draft_bodies_accepted_without_trimming() {
             assert_eq!(cohort.model, tables.by_canonical[model], "{scenario} model");
             assert_eq!(cohort.bind.as_deref(), Some(bind), "{scenario} bind");
         }
-        let cancel = tables.by_canonical["volunteer.cancel_signup"];
-        if effects.scenarios.contains_key(&cancel) {
-            let cohort = effects.scenarios[&cancel]
-                .cohort
-                .as_ref()
-                .expect("cancel cohort");
+        // A1 repair: the Volunteer-only lookup must not index Shift tables
+        // (unconditional indexing panicked the Shift iteration). Guard with
+        // `get` so only the file declaring cancel_signup pins its path.
+        if let Some(cancel) = tables.by_canonical.get("volunteer.cancel_signup")
+            && let Some(body) = effects.scenarios.get(cancel)
+        {
+            let cohort = body.cohort.as_ref().expect("cancel cohort");
             assert_eq!(cohort.parent_path, vec!["event", "opportunity"]);
         }
     }
