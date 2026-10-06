@@ -12,6 +12,13 @@
  * attach: unknown references, provenance mismatches and hostile shapes
  * share one `foreign` outcome that echoes nothing, and this package
  * performs no URL fetching at all.
+ *
+ * Controlled provider output (T27, e.g. generated images) finalizes
+ * through the same intent lifecycle via `finalizeProviderOutput`: the
+ * S8 join hands downloaded provider bytes (never a provider URL) to
+ * this module, which drives one deterministic retry identity per
+ * (adapter, delivery, result path) slot through create/append/complete/
+ * finalize and returns the receiving-app finalized file.
  */
 import type {
   ContentCheck,
@@ -31,17 +38,23 @@ import type {
   IntentStorePort,
   UploadIntentRecord,
 } from '../ports.ts';
+import type { UploadIntentRequest } from '../../../contracts/src/wire.js';
 import {
   freezeFinalized,
   isSameReceiver,
   requestProvenanceMatches,
   validateEventProvenance,
   type ReceivingContext,
+  type RequestProvenanceBinding,
 } from '../provenance/index.ts';
 import {
+  appendUploadContent,
   checkContent,
+  completeUploadContent,
+  createUploadIntent,
   sha256Hex,
   stagingKeyForIntent,
+  type UploadDeps,
 } from '../upload/index.ts';
 
 export interface FinalizeDeps {
@@ -368,4 +381,232 @@ export function storedState(
   ref: FinalizedFileRef,
 ): StoredObjectState | null {
   return deps.files.get(ref)?.state ?? null;
+}
+
+/* -- T27 controlled provider output through the intent lifecycle. -- */
+
+/**
+ * Stable retry identity for one provider-output slot. Derived
+ * deterministically from the provenance binding so repeats of the same
+ * (adapter, delivery, result path) address the same intent while any
+ * other slot addresses its own. Binding validation stays with intent
+ * creation (`bindRequestProvenance`); this derivation never throws.
+ * The S8 join and its tests share this derivation; nothing else mints
+ * provider retry identities.
+ */
+export function providerRetryId(binding: RequestProvenanceBinding): UploadRetryId {
+  return `provider:${binding.adapter}:${binding.deliveryId}:${binding.resultPath}`;
+}
+
+export interface ProviderOutputInput {
+  /** Receiving app/team/owner/principal that will own the finalized file. */
+  readonly receiver: ReceivingContext;
+  /**
+   * Controlled-provider binding: `adapter` names the provider
+   * deployment binding (e.g. `deployment.comfyui`), `deliveryId` the
+   * delivery association, `resultPath` the output path within the run
+   * (e.g. `outputs/0`). Frozen into the file provenance verbatim.
+   */
+  readonly binding: RequestProvenanceBinding;
+  /**
+   * File-slot triple binding the delivery result path: the generating
+   * operation (e.g. `std.ImagesV1.submit`), the result path as a JSON
+   * pointer absent from `args` (e.g. `/outputs/0`), and the frozen slot
+   * arguments (`{}` when the delivery carries none).
+   */
+  readonly operation: string;
+  readonly field: string;
+  readonly args: Record<string, unknown>;
+  /** Untrusted filename metadata (provider filename, never a path). */
+  readonly name: string;
+  /** Transport content-type claim; detected bytes win. */
+  readonly claimedType: string;
+  /** Downloaded provider bytes, bounded by the adapter. */
+  readonly bytes: Uint8Array;
+}
+
+export type ProviderOutputOutcome =
+  | { readonly status: 'finalized'; readonly result: FinalizeResult; readonly file: FinalizedFile }
+  | { readonly status: 'repeated'; readonly result: FinalizeResult; readonly file: FinalizedFile }
+  | {
+      readonly status: 'failed';
+      readonly reason:
+        | 'invalid-request'
+        | 'conflict'
+        | 'expired'
+        | 'oversized'
+        | 'malformed'
+        | 'rejected';
+    };
+
+function bytesEqual(a: Uint8Array, b: Uint8Array): boolean {
+  if (a.length !== b.length) {
+    return false;
+  }
+  for (let i = 0; i < a.length; i += 1) {
+    if (a[i] !== b[i]) {
+      return false;
+    }
+  }
+  return true;
+}
+
+function finalizeSlotIntent(
+  files: FinalizeDeps,
+  record: UploadIntentRecord,
+  retryId: UploadRetryId,
+  bytes: Uint8Array,
+  receiver: ReceivingContext,
+): ProviderOutputOutcome {
+  const outcome = finalizeUpload(files, {
+    intentId: record.intentId,
+    retryId,
+    bytesDigest: sha256Hex(bytes),
+    caller: receiver,
+  });
+  if (outcome.status === 'finalized' || outcome.status === 'repeated') {
+    return { status: outcome.status, result: outcome.result, file: outcome.file };
+  }
+  if (outcome.reason === 'conflict' || outcome.reason === 'expired') {
+    return { status: 'failed', reason: outcome.reason };
+  }
+  // Unreachable: the same receiver owns the slot from creation
+  // (`foreign` impossible), and the slot is complete/finalized
+  // (`partial` impossible).
+  throw new Error(
+    `finalizeProviderOutput: unreachable finalize outcome ${outcome.reason}`,
+  );
+}
+
+function completeSlotIntent(
+  upload: UploadDeps,
+  files: FinalizeDeps,
+  record: UploadIntentRecord,
+  retryId: UploadRetryId,
+  input: ProviderOutputInput,
+): ProviderOutputOutcome {
+  const completed = completeUploadContent(upload, record.intentId, input.receiver);
+  if (completed.status === 'completed') {
+    return finalizeSlotIntent(files, record, retryId, input.bytes, input.receiver);
+  }
+  if (
+    completed.reason === 'expired' ||
+    completed.reason === 'malformed' ||
+    completed.reason === 'rejected'
+  ) {
+    return { status: 'failed', reason: completed.reason };
+  }
+  // Unreachable: the slot is open with exactly the declared bytes under
+  // the owning receiver within policy (`foreign`/`closed`/`partial`/
+  // `oversized` impossible).
+  throw new Error(
+    `finalizeProviderOutput: unreachable complete outcome ${completed.reason}`,
+  );
+}
+
+function rederiveRejectedVerdict(
+  upload: UploadDeps,
+  input: ProviderOutputInput,
+): ProviderOutputOutcome {
+  const check = checkContent(upload.policy, input.claimedType, input.bytes);
+  if (check.verdict === 'accepted') {
+    // Same slot, same declared size, but bytes that now validate: they
+    // differ from the rejected transfer's bytes (validation is
+    // deterministic), so this is conflicting content for the slot.
+    return { status: 'failed', reason: 'conflict' };
+  }
+  return { status: 'failed', reason: check.detectedType === null ? 'malformed' : 'rejected' };
+}
+
+/**
+ * Finalize one controlled provider output through the receiving-app
+ * intent lifecycle. The caller supplies downloaded bytes plus the slot
+ * identity; this join derives the stable retry identity, drives
+ * create/append/complete/finalize, and returns the finalized file.
+ * Provider URLs are unrepresentable here: the input carries bytes
+ * only, and blob keys stay runtime-minted.
+ *
+ * Slot behavior by intent state: `finalized` repeats the same
+ * reference for identical bytes and conflicts otherwise (including
+ * after retention collects the bytes: the row tombstone still
+ * answers); `complete` finalizes or conflicts on digest mismatch;
+ * `open` appends the missing suffix after verifying the staged
+ * prefix, then completes; `rejected` re-derives the deterministic
+ * verdict without touching the record; `expired` fails. A different
+ * receiver, operation, field, arguments, name, claimed type or
+ * declared size for the same slot conflicts at creation.
+ */
+export function finalizeProviderOutput(
+  upload: UploadDeps,
+  files: FinalizeDeps,
+  input: ProviderOutputInput,
+): ProviderOutputOutcome {
+  if (!(input.bytes instanceof Uint8Array)) {
+    throw new TypeError('finalizeProviderOutput: bytes must be a Uint8Array');
+  }
+  const retryId = providerRetryId(input.binding);
+  const request: UploadIntentRequest = {
+    upload_id: retryId,
+    operation: input.operation,
+    field: input.field,
+    arguments: input.args,
+    name: input.name,
+    type: input.claimedType,
+    size: String(input.bytes.length),
+  };
+  const created = createUploadIntent(upload, {
+    request,
+    receiver: input.receiver,
+    binding: input.binding,
+  });
+  if (created.status === 'rejected') {
+    return { status: 'failed', reason: created.reason };
+  }
+  const record = upload.intents.get(created.intentId);
+  if (record === null) {
+    throw new Error('finalizeProviderOutput: slot intent missing after create');
+  }
+  switch (record.state) {
+    case 'finalized':
+    case 'complete':
+      return finalizeSlotIntent(files, record, retryId, input.bytes, input.receiver);
+    case 'expired':
+      return { status: 'failed', reason: 'expired' };
+    case 'rejected':
+      return rederiveRejectedVerdict(upload, input);
+    case 'open': {
+      const received = record.receivedBytes;
+      if (received > input.bytes.length) {
+        throw new Error('finalizeProviderOutput: staged bytes exceed the declared size');
+      }
+      if (received === input.bytes.length) {
+        return completeSlotIntent(upload, files, record, retryId, input);
+      }
+      const staged = upload.blobs.read(stagingKeyForIntent(record.intentId)) ?? new Uint8Array(0);
+      if (staged.length !== received || !bytesEqual(staged, input.bytes.slice(0, received))) {
+        // Unverifiable resume: missing staging, stale bytes under a
+        // fresh slot, or a prefix that is not this transfer's. Fail
+        // closed without touching the record; expiry settles the slot.
+        return { status: 'failed', reason: 'conflict' };
+      }
+      const appended = appendUploadContent(
+        upload,
+        record.intentId,
+        input.receiver,
+        input.bytes.slice(received),
+      );
+      if (appended.status === 'failed') {
+        if (appended.reason === 'expired') {
+          return { status: 'failed', reason: 'expired' };
+        }
+        // Unreachable: the slot is open under the owning receiver and
+        // the suffix lands exactly on the declared size within policy
+        // (`closed`/`foreign`/`oversized` impossible).
+        throw new Error(
+          `finalizeProviderOutput: unreachable append outcome ${appended.reason}`,
+        );
+      }
+      return completeSlotIntent(upload, files, record, retryId, input);
+    }
+  }
 }
