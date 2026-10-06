@@ -330,16 +330,7 @@ pub fn format_js_number(value: f64) -> String {
             "-Infinity".to_string()
         };
     }
-    let abs = value.abs();
-    if abs >= 1e21 || abs < 1e-6 {
-        // Rust `{:e}` uses shortest digits; reformat the exponent with an
-        // explicit sign and no leading zeros, like JavaScript.
-        let raw = format!("{value:e}");
-        let (mantissa, exp) = raw.split_once('e').expect("exponent form");
-        let exp: i32 = exp.parse().expect("numeric exponent");
-        return format!("{mantissa}e{exp:+}");
-    }
-    format!("{value}")
+    ryu_js::Buffer::new().format_finite(value).to_owned()
 }
 
 /// Range-checks ms against the decided 0001-9999 UTC range
