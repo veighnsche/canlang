@@ -37,11 +37,26 @@
  * snapshots are caller-supplied ports — BOUND provider sends are
  * explicitly OUT (T24a remainder): this wiring calls through the
  * injected ports only and never binds a send target itself.
+ *
+ * T34-F7 (the section after T24b, additive): fanout assembly/runtime
+ * join — atomic trigger/intent staging, the fair resumable scheduler,
+ * and the DURABLE fenced claim/record replacements for F3's TEST-ONLY
+ * store. Additive only: no T24b/T32b path above is modified.
  */
 import type {
   ClaimId,
   CompileArtifact,
   DispatchClaim,
+  DomainWrite,
+  FanoutChildId,
+  FanoutChildOutcome,
+  FanoutCohortDiagnosis,
+  FanoutCohortKind,
+  FanoutFailedReason,
+  FanoutId,
+  FanoutProgress,
+  FanoutSkippedReason,
+  HistoryEntry,
   InvocationContext,
   Membership,
   ModelName,
@@ -52,17 +67,21 @@ import type {
   OutboxItem,
   OutboxItemState,
   QuerySpec,
+  Receipt,
   RecordId,
   RecordVersion,
   ResolvedIdentity,
   RetryClass,
   RetryPolicy,
   Revision,
+  ScheduleOp,
   CommitBatch,
   CommitResult,
   ProjectedRecord,
   StoragePort,
   StoredRow,
+  UniqueClaim,
+  UniqueRelease,
 } from "@canlang/contracts";
 import type {
   CanonicalEffectsScope,
@@ -4237,4 +4256,2146 @@ export async function runRecoverySweep(opts: RecoverySweepOpts): Promise<Recover
       claimed: claimed.truncated,
     },
   };
+}
+
+/* ------------------------------------------------------------------ */
+/* T34-F7 fanout assembly/runtime join (ADDITIVE; every T24b/T32b path */
+/* above untouched).                                                   */
+/*                                                                     */
+/* The L7 join over the committed F1–F5 slices:                        */
+/*                                                                     */
+/* - `stageFanoutTriggerJoin`: the trigger's caller-staged source      */
+/*   effects (domain/history/receipt/outbox/schedules/uniques) plus    */
+/*   the frozen fanout intent + checkpoint + first child chunk commit  */
+/*   in ONE linkage-asserted owner batch. Trigger rejection (the       */
+/*   source thunk throws), pre-admission diagnosis, or a fence         */
+/*   conflict voids BOTH halves — never acknowledged unfinished.      */
+/* - `claimFanoutChild` / `recordFanoutChildAttempt`: DURABLE fenced   */
+/*   claim/record REPLACING F3's TEST-ONLY store. Same F1 outcomes,    */
+/*   same F2 rows (built by the REAL F5 staging builders), same        */
+/*   progress/turn shapes; exactly-one-winner comes from the store's   */
+/*   version fence, proven on D1/DO. No `packages/work` module is      */
+/*   added: conditional-update claim/record are StoragePort            */
+/*   operations executable here through dynamically loaded state-dist  */
+/*   producers (the T24b/T32b precedent), and a registry command       */
+/*   would add run-key machinery without additional fencing.           */
+/* - `runFanoutSchedulerTurn`: fair resumable scheduling — bounded    */
+/*   stale-release, one bounded child page, at most maxDrives drives   */
+/*   (claim -> fresh-fence invoke -> record), honest cursor/done plus  */
+/*   operator progress. Sweeps chain turns; crash resumes from durable */
+/*   truth (replay terminal, hold fresh claims, release stale ones).   */
+/* - `fanoutFirstAttemptAnchor`: the F3/F5-owed retry-horizon anchor   */
+/*   — the child row's durable `created` stamp, stable across crash.   */
+/* - `requestFanoutProviderCancel`: provider cancellation ONLY per     */
+/*   its accepted contract (explicit refusal without one; the          */
+/*   scheduler never marks provider-accepted work unilaterally and     */
+/*   never touches child rows on this path — no store parameter).      */
+/*                                                                     */
+/* LOADING: state producers (fanout tables/cohort/membership/outcome/  */
+/* lifecycle/progress, staging, child-join port, invokeFanoutChild,    */
+/* storage error classes) load dynamically from state dist through    */
+/* the same P-B seam as the canonical/dispatch producers above. The   */
+/* ONLY runtime mirrors are the three model literals, the F1 outcome  */
+/* projection, and the staleness predicate — every staged row and     */
+/* every decision builder is the REAL F5 producer; the F7 tests       */
+/* cross-check the mirrors against the REAL F2/F3/F4 work sources.    */
+/* Single-owner scope only: cross-store atomicity is NOT claimed.      */
+/* ------------------------------------------------------------------ */
+
+/** T34-F7: state-dist fanout module specifiers (the P-B seam). */
+const STATE_FANOUT_TABLES_SPECIFIER = "../../../state/dist/state/src/fanout/tables.js";
+const STATE_FANOUT_COHORT_SPECIFIER = "../../../state/dist/state/src/fanout/cohort.js";
+const STATE_FANOUT_MEMBERSHIP_SPECIFIER = "../../../state/dist/state/src/fanout/membership.js";
+const STATE_FANOUT_OUTCOME_SPECIFIER = "../../../state/dist/state/src/fanout/outcome.js";
+const STATE_FANOUT_LIFECYCLE_SPECIFIER = "../../../state/dist/state/src/fanout/lifecycle.js";
+const STATE_FANOUT_PROGRESS_SPECIFIER = "../../../state/dist/state/src/fanout/progress.js";
+const STATE_FANOUT_STAGING_SPECIFIER = "../../../state/dist/state/src/effects/staging.js";
+/** T34-F7: storage error classes (`FenceConflictError`, `StorageConstraintError`). */
+const STATE_STORAGE_PORT_SPECIFIER = "../../../state/dist/state/src/storage/port.js";
+
+/**
+ * T34-F7 structural mirror of the F2/F5 fanout model names
+ * (`work.fanout_intent`, `work.fanout_checkpoint`, `work.fanout_child`).
+ * Drift is pinned by the F7 tests (these literals asserted equal to
+ * the loaded state-dist constants AND the real F2 constants), not by
+ * a shared import.
+ */
+export const T34F7_FANOUT_INTENT_MODEL = "work.fanout_intent" as ModelName;
+export const T34F7_FANOUT_CHECKPOINT_MODEL = "work.fanout_checkpoint" as ModelName;
+export const T34F7_FANOUT_CHILD_MODEL = "work.fanout_child" as ModelName;
+
+/** T34-F7: structural view of F5 `FanoutIntentData`. */
+export interface FanoutIntentData {
+  readonly fanoutId: string;
+  readonly sourceOccurrence: string;
+  readonly handler: string;
+  readonly cohort: FanoutCohortKind;
+  readonly members: ReadonlyArray<string>;
+  readonly memberCount: number;
+}
+
+/** T34-F7: structural view of F5 `FanoutCheckpointData`. */
+export interface FanoutCheckpointData {
+  readonly fanoutId: string;
+  readonly completed: ReadonlyArray<string>;
+  readonly cursor: string | null;
+}
+
+/** T34-F7: structural view of F5 `FanoutChildData`. */
+export interface FanoutChildData {
+  readonly fanoutId: string;
+  readonly parentOccurrence: string;
+  readonly handler: string;
+  readonly recordId: string;
+  readonly childId: string;
+  readonly state: "pending" | "running" | "completed" | "skipped" | "failed";
+  readonly attempts: number;
+  readonly causeKind: "completed" | "skipped" | "failed" | null;
+  readonly causeReason: string | null;
+}
+
+/** T34-F7: structural view of F5 `FanoutRowMeta`. */
+export interface FanoutRowMeta {
+  readonly nowMs: number;
+  readonly actor: string;
+}
+
+/**
+ * T34-F7: adopted cohort spec (structural mirror of F5
+ * `FanoutCohortSpec`): whole-model enumeration of one model, or the
+ * contained reverse collection of one pinned parent record.
+ */
+export type FanoutCohortSpec =
+  | { readonly kind: "model"; readonly owner: string; readonly model: string }
+  | {
+      readonly kind: "anchored-collection";
+      readonly owner: string;
+      readonly model: string;
+      readonly parent: { readonly model: string; readonly id: string };
+    };
+
+/** T34-F7: explicit source-occurrence/handler admission cutoff (F1 `FanoutCutoff`). */
+export interface FanoutCutoffSpec {
+  readonly sourceOccurrence: string;
+  readonly handler: string;
+}
+
+/**
+ * T34-F7: current lifecycle lookup for one admitted child (structural
+ * mirror of F5/F4 `FanoutChildLifecycle`).
+ */
+export type FanoutChildLifecycle =
+  | { readonly status: "present" }
+  | { readonly status: "deleted" }
+  | { readonly status: "moved" }
+  | {
+      readonly status: "unknown";
+      readonly reason: "missing-record" | "inaccessible-record" | "infra-read-failure";
+    };
+
+/** T34-F7: one bounded child page (structural view of F5 `FanoutChildPage`). */
+export interface FanoutChildPage {
+  readonly rows: ReadonlyArray<StoredRow>;
+  readonly done: boolean;
+  readonly cursor: string | null;
+}
+
+/**
+ * T34-F7: one executed attempt result entering record (structural
+ * mirror of F3/F5 `FanoutChildAttemptResult`). `exhausted` is never
+ * supplied: the horizon derives it from attempts/time.
+ */
+export type FanoutChildAttemptResult =
+  | { readonly kind: "completed" }
+  | { readonly kind: "skipped"; readonly reason: FanoutSkippedReason }
+  | { readonly kind: "failed"; readonly reason: Exclude<FanoutFailedReason, "exhausted"> }
+  | { readonly kind: "transient" };
+
+/* -- T34-F7 state producers (dynamic dist loads, fail loud). -- */
+
+/** T34-F7: structural view of the F5 fanout tables module. */
+interface FanoutTablesProducer {
+  readonly FANOUT_INTENT_MODEL: string;
+  readonly FANOUT_CHECKPOINT_MODEL: string;
+  readonly FANOUT_CHILD_MODEL: string;
+  fanoutIntentRowId(sourceOccurrence: string, handler: string, cohort: FanoutCohortKind): string;
+  fanoutChildRowId(parentOccurrence: string, handler: string, recordId: string): string;
+  newFanoutIntentRow(
+    input: {
+      readonly sourceOccurrence: string;
+      readonly handler: string;
+      readonly cohort: FanoutCohortKind;
+      readonly members: ReadonlyArray<string>;
+    },
+    meta: FanoutRowMeta,
+  ): StoredRow;
+  newFanoutCheckpointRow(
+    input: {
+      readonly fanoutId: string;
+      readonly completed?: ReadonlyArray<string>;
+      readonly cursor?: string | null;
+    },
+    meta: FanoutRowMeta,
+  ): StoredRow;
+  newFanoutChildRow(
+    input: {
+      readonly fanoutId: string;
+      readonly parentOccurrence: string;
+      readonly handler: string;
+      readonly recordId: string;
+    },
+    meta: FanoutRowMeta,
+  ): StoredRow;
+  withFanoutRowData(
+    row: StoredRow,
+    data: Readonly<Record<string, unknown>>,
+    meta: FanoutRowMeta,
+  ): StoredRow;
+  readFanoutIntentRow(row: StoredRow): FanoutIntentData;
+  readFanoutCheckpointRow(row: StoredRow): FanoutCheckpointData;
+  readFanoutChildRow(row: StoredRow): FanoutChildData;
+  fanoutChildPageQuery(
+    fanoutId: string,
+    opts: { readonly cursor: string | null; readonly limit: number },
+  ): QuerySpec;
+  fanoutChildPageResult(rows: ReadonlyArray<StoredRow>, limit: number): FanoutChildPage;
+}
+
+/** T34-F7: structural view of the F5 cohort module. */
+interface FanoutCohortProducer {
+  checkCohortSpec(spec: FanoutCohortSpec): FanoutCohortKind;
+  checkCutoffSpec(cutoff: FanoutCutoffSpec): void;
+  checkFanoutChildId(child: FanoutChildId): FanoutChildId;
+  diagnoseCohort(
+    kind: "unsupported-cohort" | "cross-owner-cohort" | "membership-unavailable",
+    message: string,
+  ): FanoutCohortDiagnosis;
+}
+
+/** T34-F7: structural view of the F5 membership module. */
+interface FanoutMembershipProducer {
+  freezeFanoutMembership(input: {
+    readonly store: StoragePort;
+    readonly cutoff: FanoutCutoffSpec;
+    readonly cohort: FanoutCohortSpec;
+    readonly owner: string;
+    readonly bounds: { readonly pageLimit: number; readonly chunkSize: number; readonly maxAttempts: number };
+    readonly meta: FanoutRowMeta;
+    readonly hasModel?: (model: string) => boolean;
+  }): Promise<
+    | {
+        readonly ok: true;
+        readonly frozen: {
+          readonly fanoutId: string;
+          readonly members: ReadonlyArray<string>;
+          readonly cutoffRevision: Revision;
+          readonly replayed: boolean;
+        };
+      }
+    | { readonly ok: false; readonly diagnosis: FanoutCohortDiagnosis }
+  >;
+}
+
+/** T34-F7: structural view of one staged F5 outcome write. */
+export interface FanoutStagedOutcome {
+  readonly write: DomainWrite & { readonly kind: "update" };
+  readonly terminal: boolean;
+  readonly recordId: string;
+  readonly row: StoredRow;
+}
+
+/** T34-F7: structural view of the F5 outcome-staging module. */
+interface FanoutOutcomeProducer {
+  readonly FANOUT_T32_REFUSAL_REASON: string;
+  stageFanoutChildOutcomeWrite(input: {
+    readonly row: StoredRow;
+    readonly result: FanoutChildAttemptResult;
+    readonly nowMs: number;
+    readonly firstAttemptAtMs: number;
+    readonly policy: RetryPolicy;
+    readonly meta: FanoutRowMeta;
+  }): FanoutStagedOutcome;
+  stageFanoutCheckpointAdvanceWrite(input: {
+    readonly row: StoredRow;
+    readonly recordId: string;
+    readonly cursor?: string | null;
+    readonly meta: FanoutRowMeta;
+  }): DomainWrite & { readonly kind: "update" };
+}
+
+/** T34-F7: structural view of the F5 lifecycle module. */
+interface FanoutLifecycleProducer {
+  classifyFanoutChildLifecycle(input: {
+    readonly store: StoragePort;
+    readonly model: string;
+    readonly recordId: string;
+    readonly anchor?: { readonly model: string; readonly id: string };
+  }): Promise<FanoutChildLifecycle>;
+}
+
+/** T34-F7: structural view of the F5 progress module. */
+interface FanoutProgressProducer {
+  readFanoutProgress(input: {
+    readonly store: StoragePort;
+    readonly fanoutId: string;
+    readonly pageLimit: number;
+  }): Promise<FanoutProgress>;
+}
+
+/** T34-F7: structural view of the L3 staging fanout entries. */
+interface FanoutStagingProducer {
+  stageFanoutMembership(members: ReadonlyArray<string>, what: string): string[];
+}
+
+/** T34-F7: structural view of the child-join port surface. */
+interface FanoutJoinProducer {
+  assertFanoutChildJoin(batch: CommitBatch): void;
+}
+
+/** T34-F7: structural view of `invokeFanoutChild` (F5 admission join). */
+interface FanoutInvokeProducer {
+  invokeFanoutChild(input: {
+    readonly registry: unknown;
+    readonly store: StoragePort;
+    readonly memberships: unknown;
+    readonly clock: { nowMs(): number };
+    readonly childOperation: string;
+    readonly child: FanoutChildId;
+    readonly operationId: string;
+    readonly identity: ResolvedIdentity;
+    readonly app: string;
+    readonly source: string;
+    readonly inputs: Record<string, unknown>;
+    readonly execute: (call: unknown) => Promise<{
+      readonly writes: ReadonlyArray<DomainWrite>;
+      readonly history: ReadonlyArray<HistoryEntry>;
+      readonly outbox: ReadonlyArray<OutboxIntent>;
+      readonly schedules: ReadonlyArray<ScheduleOp>;
+      readonly uniqueClaims: ReadonlyArray<UniqueClaim>;
+      readonly uniqueReleases: ReadonlyArray<UniqueRelease>;
+      readonly resolvedDefaults: Record<string, unknown>;
+      readonly result: unknown;
+    }>;
+    readonly assertJoin: (batch: CommitBatch) => void;
+  }): Promise<MutationResult>;
+}
+
+/** T34-F7: storage error classes (instanceof + name fallback). */
+interface FanoutStorageErrorsProducer {
+  readonly FenceConflictError: new (...args: never[]) => Error;
+  readonly StorageConstraintError: new (...args: never[]) => Error;
+}
+
+/** T34-F7: loaded fanout state producers (fail loud, never partial). */
+export interface FanoutStateProducers {
+  readonly tables: FanoutTablesProducer;
+  readonly cohort: FanoutCohortProducer;
+  readonly membership: FanoutMembershipProducer;
+  readonly outcome: FanoutOutcomeProducer;
+  readonly lifecycle: FanoutLifecycleProducer;
+  readonly progress: FanoutProgressProducer;
+  readonly staging: FanoutStagingProducer;
+  readonly join: FanoutJoinProducer;
+  readonly invoke: FanoutInvokeProducer;
+  readonly storageErrors: FanoutStorageErrorsProducer;
+}
+
+function requireProducerString(
+  mod: Record<string, unknown>,
+  binding: string,
+  what: string,
+): string {
+  const value: unknown = mod[binding];
+  if (typeof value !== "string" || value === "") {
+    throw new Error(
+      `t34-f7: ${what} lacks non-empty string export ${JSON.stringify(binding)} (stale dist?)`,
+    );
+  }
+  return value;
+}
+
+function requireProducerClass(
+  mod: Record<string, unknown>,
+  binding: string,
+  what: string,
+): new (...args: never[]) => Error {
+  const value: unknown = mod[binding];
+  if (typeof value !== "function") {
+    throw new Error(
+      `t34-f7: ${what} lacks class export ${JSON.stringify(binding)} (stale dist?)`,
+    );
+  }
+  return value as new (...args: never[]) => Error;
+}
+
+/**
+ * T34-F7: load the fanout state producers (tables, cohort, membership,
+ * outcome, lifecycle, progress, staging, child-join assertion,
+ * invokeFanoutChild, storage error classes). Dynamic dist imports
+ * through the P-B seam, shape-checked fail-loud like the canonical
+ * and dispatch producers. Callers pass the bundle through; public
+ * entries auto-load when it is absent.
+ */
+export async function loadFanoutStateProducers(): Promise<FanoutStateProducers> {
+  const tablesMod = await loadProducerModule(STATE_FANOUT_TABLES_SPECIFIER, "state fanout tables producer");
+  const cohortMod = await loadProducerModule(STATE_FANOUT_COHORT_SPECIFIER, "state fanout cohort producer");
+  const membershipMod = await loadProducerModule(
+    STATE_FANOUT_MEMBERSHIP_SPECIFIER,
+    "state fanout membership producer",
+  );
+  const outcomeMod = await loadProducerModule(STATE_FANOUT_OUTCOME_SPECIFIER, "state fanout outcome producer");
+  const lifecycleMod = await loadProducerModule(
+    STATE_FANOUT_LIFECYCLE_SPECIFIER,
+    "state fanout lifecycle producer",
+  );
+  const progressMod = await loadProducerModule(
+    STATE_FANOUT_PROGRESS_SPECIFIER,
+    "state fanout progress producer",
+  );
+  const stagingMod = await loadProducerModule(STATE_FANOUT_STAGING_SPECIFIER, "state staging producer");
+  const transactMod = await loadProducerModule(STATE_TRANSACT_SPECIFIER, "state transact producer");
+  const invokeMod = await loadProducerModule(STATE_INVOKE_SPECIFIER, "state invoke producer");
+  const portMod = await loadProducerModule(STATE_STORAGE_PORT_SPECIFIER, "state storage port producer");
+  const fn = (
+    mod: Record<string, unknown>,
+    binding: string,
+    what: string,
+  ): (...args: never[]) => unknown => requireProducerFn(mod, binding, what);
+  return {
+    tables: {
+      FANOUT_INTENT_MODEL: requireProducerString(tablesMod, "FANOUT_INTENT_MODEL", "state fanout tables producer"),
+      FANOUT_CHECKPOINT_MODEL: requireProducerString(
+        tablesMod,
+        "FANOUT_CHECKPOINT_MODEL",
+        "state fanout tables producer",
+      ),
+      FANOUT_CHILD_MODEL: requireProducerString(tablesMod, "FANOUT_CHILD_MODEL", "state fanout tables producer"),
+      fanoutIntentRowId: fn(tablesMod, "fanoutIntentRowId", "state fanout tables producer") as unknown as FanoutTablesProducer["fanoutIntentRowId"],
+      fanoutChildRowId: fn(tablesMod, "fanoutChildRowId", "state fanout tables producer") as unknown as FanoutTablesProducer["fanoutChildRowId"],
+      newFanoutIntentRow: fn(tablesMod, "newFanoutIntentRow", "state fanout tables producer") as unknown as FanoutTablesProducer["newFanoutIntentRow"],
+      newFanoutCheckpointRow: fn(tablesMod, "newFanoutCheckpointRow", "state fanout tables producer") as unknown as FanoutTablesProducer["newFanoutCheckpointRow"],
+      newFanoutChildRow: fn(tablesMod, "newFanoutChildRow", "state fanout tables producer") as unknown as FanoutTablesProducer["newFanoutChildRow"],
+      withFanoutRowData: fn(tablesMod, "withFanoutRowData", "state fanout tables producer") as unknown as FanoutTablesProducer["withFanoutRowData"],
+      readFanoutIntentRow: fn(tablesMod, "readFanoutIntentRow", "state fanout tables producer") as unknown as FanoutTablesProducer["readFanoutIntentRow"],
+      readFanoutCheckpointRow: fn(tablesMod, "readFanoutCheckpointRow", "state fanout tables producer") as unknown as FanoutTablesProducer["readFanoutCheckpointRow"],
+      readFanoutChildRow: fn(tablesMod, "readFanoutChildRow", "state fanout tables producer") as unknown as FanoutTablesProducer["readFanoutChildRow"],
+      fanoutChildPageQuery: fn(tablesMod, "fanoutChildPageQuery", "state fanout tables producer") as unknown as FanoutTablesProducer["fanoutChildPageQuery"],
+      fanoutChildPageResult: fn(tablesMod, "fanoutChildPageResult", "state fanout tables producer") as unknown as FanoutTablesProducer["fanoutChildPageResult"],
+    },
+    cohort: {
+      checkCohortSpec: fn(cohortMod, "checkCohortSpec", "state fanout cohort producer") as unknown as FanoutCohortProducer["checkCohortSpec"],
+      checkCutoffSpec: fn(cohortMod, "checkCutoffSpec", "state fanout cohort producer") as unknown as FanoutCohortProducer["checkCutoffSpec"],
+      checkFanoutChildId: fn(cohortMod, "checkFanoutChildId", "state fanout cohort producer") as unknown as FanoutCohortProducer["checkFanoutChildId"],
+      diagnoseCohort: fn(cohortMod, "diagnoseCohort", "state fanout cohort producer") as unknown as FanoutCohortProducer["diagnoseCohort"],
+    },
+    membership: {
+      freezeFanoutMembership: fn(membershipMod, "freezeFanoutMembership", "state fanout membership producer") as unknown as FanoutMembershipProducer["freezeFanoutMembership"],
+    },
+    outcome: {
+      FANOUT_T32_REFUSAL_REASON: requireProducerString(
+        outcomeMod,
+        "FANOUT_T32_REFUSAL_REASON",
+        "state fanout outcome producer",
+      ),
+      stageFanoutChildOutcomeWrite: fn(outcomeMod, "stageFanoutChildOutcomeWrite", "state fanout outcome producer") as unknown as FanoutOutcomeProducer["stageFanoutChildOutcomeWrite"],
+      stageFanoutCheckpointAdvanceWrite: fn(outcomeMod, "stageFanoutCheckpointAdvanceWrite", "state fanout outcome producer") as unknown as FanoutOutcomeProducer["stageFanoutCheckpointAdvanceWrite"],
+    },
+    lifecycle: {
+      classifyFanoutChildLifecycle: fn(lifecycleMod, "classifyFanoutChildLifecycle", "state fanout lifecycle producer") as unknown as FanoutLifecycleProducer["classifyFanoutChildLifecycle"],
+    },
+    progress: {
+      readFanoutProgress: fn(progressMod, "readFanoutProgress", "state fanout progress producer") as unknown as FanoutProgressProducer["readFanoutProgress"],
+    },
+    staging: {
+      stageFanoutMembership: fn(stagingMod, "stageFanoutMembership", "state staging producer") as unknown as FanoutStagingProducer["stageFanoutMembership"],
+    },
+    join: {
+      assertFanoutChildJoin: fn(transactMod, "assertFanoutChildJoin", "state transact producer") as unknown as FanoutJoinProducer["assertFanoutChildJoin"],
+    },
+    invoke: {
+      invokeFanoutChild: fn(invokeMod, "invokeFanoutChild", "state invoke producer") as unknown as FanoutInvokeProducer["invokeFanoutChild"],
+    },
+    storageErrors: {
+      FenceConflictError: requireProducerClass(portMod, "FenceConflictError", "state storage port producer"),
+      StorageConstraintError: requireProducerClass(portMod, "StorageConstraintError", "state storage port producer"),
+    },
+  };
+}
+
+/* -- T34-F7 mirrors (outcome projection, anchor, staleness) + error reads. -- */
+
+/**
+ * T34-F7: fence-conflict read — instanceof over the loaded class, with
+ * a name fallback for rehydrated cross-boundary errors (the DO proxy
+ * re-mints by name; same copy in-process). A fence conflict voids the
+ * whole batch: nothing in it is durable.
+ */
+function isFanoutFenceConflict(error: unknown, producers: FanoutStateProducers): boolean {
+  if (error instanceof producers.storageErrors.FenceConflictError) return true;
+  return isUnknownRecord(error) && error["name"] === "FenceConflictError";
+}
+
+/**
+ * T34-F7: storage-constraint read (PK collision / version mismatch) —
+ * instanceof over the loaded class, with the same name fallback. On a
+ * claim commit this is the exactly-one-winner signal: a rival won.
+ */
+function isFanoutStorageConstraint(error: unknown, producers: FanoutStateProducers): boolean {
+  if (error instanceof producers.storageErrors.StorageConstraintError) return true;
+  return isUnknownRecord(error) && error["name"] === "StorageConstraintError";
+}
+
+/** T34-F7: structural `StateError` code read (invoke/body failures). */
+function fanoutStateErrorCode(error: unknown): string | null {
+  if (!isUnknownRecord(error)) return null;
+  if (error["name"] !== "StateError") return null;
+  const code: unknown = error["code"];
+  return typeof code === "string" ? code : null;
+}
+
+/**
+ * T34-F7: project the recorded terminal outcome from child data, or
+ * null when the child is still live. Structural mirror of F3's
+ * `fanoutChildOutcomeFromRow` (cross-checked in the F7 tests against
+ * the REAL F3 projection over identical rows).
+ */
+export function fanoutChildOutcomeFromData(data: FanoutChildData): FanoutChildOutcome | null {
+  if (data.state === "pending" || data.state === "running") return null;
+  const child: FanoutChildId = {
+    parentOccurrence: data.parentOccurrence,
+    handler: data.handler,
+    recordId: data.recordId,
+  };
+  if (data.state === "completed") {
+    return { child, state: "completed", attempts: data.attempts, cause: { kind: "completed" } };
+  }
+  if (data.state === "skipped") {
+    return {
+      child,
+      state: "skipped",
+      attempts: data.attempts,
+      cause: { kind: "skipped", reason: data.causeReason as FanoutSkippedReason },
+    };
+  }
+  return {
+    child,
+    state: "failed",
+    attempts: data.attempts,
+    cause: { kind: "failed", reason: data.causeReason as FanoutFailedReason },
+  };
+}
+
+/**
+ * T34-F7: the F3/F5-owed first-attempt anchor — the child row's durable
+ * `created` stamp. Admission anchors the retry horizon: `created` is
+ * written once at admission, never moves under claim/record
+ * transitions, and survives crash, so the horizon enforces from
+ * durable truth on every restart. Conservative by construction (the
+ * horizon runs from admission, not from the first execution).
+ */
+export function fanoutFirstAttemptAnchor(row: StoredRow): number {
+  if (!Number.isFinite(row.created) || row.created < 0) {
+    throw new Error("t34-f7: fanout child row created is not a valid first-attempt anchor.");
+  }
+  return row.created;
+}
+
+/**
+ * T34-F7: a fanout claim is stale once its age reaches the max age
+ * (boundary inclusive). Structural mirror of F4's
+ * `isFanoutClaimStale` (cross-checked in the F7 tests against the
+ * REAL F4 predicate). Callers pass the running row's `updated` stamp
+ * as the claim instant (F4-exact: the claim IS the pending -> running
+ * row transition).
+ */
+export function isFanoutRowClaimStale(
+  claimedAtMs: number,
+  nowMs: number,
+  maxClaimAgeMs: number,
+): boolean {
+  if (!Number.isFinite(claimedAtMs) || claimedAtMs < 0) {
+    throw new RangeError("t34-f7: claimedAtMs must be finite and >= 0");
+  }
+  if (!Number.isFinite(nowMs) || nowMs < 0) {
+    throw new RangeError("t34-f7: nowMs must be finite and >= 0");
+  }
+  if (!Number.isFinite(maxClaimAgeMs) || maxClaimAgeMs < 0) {
+    throw new RangeError("t34-f7: maxClaimAgeMs must be finite and >= 0");
+  }
+  return claimedAtMs + maxClaimAgeMs <= nowMs;
+}
+
+function checkFanoutRowMeta(meta: FanoutRowMeta, what: string): void {
+  if (!Number.isFinite(meta.nowMs) || meta.nowMs < 0) {
+    throw new Error(`t34-f7: ${what} needs meta.nowMs as finite epoch ms >= 0.`);
+  }
+  checkClosedText(meta.actor, `${what} meta actor`);
+}
+
+function checkFanoutPolicy(policy: RetryPolicy, what: string): void {
+  if (!Number.isInteger(policy.maxAttempts) || policy.maxAttempts < 1) {
+    throw new Error(`t34-f7: ${what} needs policy.maxAttempts as an integer >= 1.`);
+  }
+  if (!Number.isFinite(policy.horizonMs) || policy.horizonMs <= 0) {
+    throw new Error(`t34-f7: ${what} needs policy.horizonMs finite and > 0.`);
+  }
+}
+
+function checkFanoutAttemptResult(result: FanoutChildAttemptResult): void {
+  if (result.kind === "failed" && (result.reason as string) === "exhausted") {
+    throw new Error("t34-f7: exhausted is derived by the horizon, never supplied (F3-exact).");
+  }
+}
+
+function fanoutTerminalOrThrow(row: StoredRow, data: FanoutChildData, what: string): FanoutChildOutcome {
+  void row;
+  const outcome = fanoutChildOutcomeFromData(data);
+  if (outcome === null) {
+    throw new Error(`t34-f7: unreachable: ${what} produced a live row.`);
+  }
+  return outcome;
+}
+
+/* -- T34-F7 atomic trigger/intent staging. -- */
+
+/** T34-F7: the trigger's caller-staged source effects (uncommitted). */
+export interface FanoutTriggerSourceEffects {
+  readonly writes: ReadonlyArray<DomainWrite>;
+  readonly history: ReadonlyArray<HistoryEntry>;
+  readonly receipt: Receipt | null;
+  readonly outbox: ReadonlyArray<OutboxIntent>;
+  readonly schedules: ReadonlyArray<ScheduleOp>;
+  readonly uniqueClaims: ReadonlyArray<UniqueClaim>;
+  readonly uniqueReleases: ReadonlyArray<UniqueRelease>;
+}
+
+/** T34-F7: explicit trigger-join bounds (no defaults, no quota field). */
+export interface FanoutTriggerJoinBounds {
+  /** Enumeration page transport bound (chunk size, never cohort size). */
+  readonly pageLimit: number;
+  /** First-chunk child admission bound (remaining chunks via freeze replay). */
+  readonly chunkSize: number;
+}
+
+/** T34-F7: one atomic trigger/intent staging request. */
+export interface StageFanoutTriggerJoinOpts {
+  readonly store: StoragePort;
+  readonly cutoff: FanoutCutoffSpec;
+  readonly cohort: FanoutCohortSpec;
+  /** Operating owner (the checkpoint owner); specs naming another owner diagnose. */
+  readonly owner: string;
+  readonly bounds: FanoutTriggerJoinBounds;
+  readonly meta: FanoutRowMeta;
+  /**
+   * Caller-staged source truth, run INSIDE the seam before any store
+   * read. Receives the deterministic fanout id. A throw IS the
+   * trigger rejection: it voids the intent too (nothing staged,
+   * nothing committed).
+   */
+  readonly stageSource: (fanout: { readonly fanoutId: string }) => FanoutTriggerSourceEffects | Promise<FanoutTriggerSourceEffects>;
+  /**
+   * Known-model guard (see F5 `FreezeMembershipInput.hasModel`): when
+   * present and the cohort model is unknown, the join diagnoses
+   * `unsupported-cohort` instead of freezing an empty set.
+   */
+  readonly hasModel?: (model: string) => boolean;
+  readonly producers?: FanoutStateProducers;
+}
+
+/** T34-F7: atomic trigger/intent staging outcome. */
+export type StageFanoutTriggerJoinOutcome =
+  | {
+      readonly ok: true;
+      readonly fanoutId: string;
+      readonly members: ReadonlyArray<string>;
+      /** Fence revision the enumeration + commit held. */
+      readonly cutoffRevision: Revision;
+      /** Revision the joint commit produced. */
+      readonly commitRevision: Revision;
+      /** Total admission chunks; the trigger commit staged the first. */
+      readonly chunksTotal: number;
+      /** Non-null while admission chunks remain (resume, never complete). */
+      readonly cursor: string | null;
+    }
+  | { readonly ok: false; readonly diagnosis: FanoutCohortDiagnosis };
+
+/** T34-F7: opaque admission cursor while chunks remain (F5-exact shape). */
+function fanoutAdmitCursor(nextChunkIndex: number): string {
+  return `admit/${nextChunkIndex}`;
+}
+
+/**
+ * T34-F7: drain one cohort's member identities in bounded id-sorted
+ * pages (F5 `drainCohortIdentities`-exact queries: archived rows
+ * INCLUDE — they freeze as members and record skipped/deleted when
+ * their child executes, so every stored identity gets one accounted
+ * outcome). Over-return is a store contract violation (loud throw);
+ * anything else the store throws is the caller's to diagnose.
+ */
+async function drainFanoutCohortIdentities(
+  store: StoragePort,
+  cohort: FanoutCohortSpec,
+  pageLimit: number,
+): Promise<string[]> {
+  const members: string[] = [];
+  let cursor: string | null = null;
+  for (;;) {
+    const rows = await store.query({
+      model: cohort.model as ModelName,
+      ...(cohort.kind === "anchored-collection"
+        ? {
+            parent: {
+              model: cohort.parent.model as ModelName,
+              id: cohort.parent.id as RecordId,
+            },
+          }
+        : {}),
+      ...(cursor === null
+        ? {}
+        : { where: { op: "gt", field: "id", value: cursor } as const }),
+      order: [{ field: "id", direction: "asc" }],
+      limit: pageLimit,
+      archived: "include",
+      authority: "owner",
+    });
+    if (rows.length > pageLimit) {
+      throw new Error(`t34-f7: fanout enumeration returned ${rows.length} rows past limit ${pageLimit}.`);
+    }
+    for (const row of rows) {
+      members.push(row.id as string);
+    }
+    if (rows.length < pageLimit) return members;
+    const last = rows[rows.length - 1];
+    if (last === undefined) {
+      throw new Error("t34-f7: fanout enumeration hit an unreachable empty full page.");
+    }
+    cursor = last.id as string;
+  }
+}
+
+/**
+ * T34-F7: classify the anchored-collection anchor (F5
+ * `classifyAnchor`-exact): present (even archived) or tombstoned
+ * anchors are KNOWN; a missing anchor with no disposal history is
+ * UNKNOWN (freezing empty would bless a mis-specified cohort).
+ */
+async function classifyFanoutAnchor(
+  store: StoragePort,
+  parent: { readonly model: string; readonly id: string },
+): Promise<{ readonly known: boolean }> {
+  const row = await store.load(parent.model as ModelName, parent.id as RecordId);
+  if (row !== null) return { known: true };
+  const history = await store.historyFor(parent.model as ModelName, parent.id as RecordId);
+  for (const entry of history) {
+    if (entry.change === "remove" || entry.change === "archive") return { known: true };
+  }
+  return { known: false };
+}
+
+/**
+ * T34-F7: stage the trigger's source truth plus the frozen fanout
+ * intent + checkpoint + first child chunk and commit them in ONE
+ * linkage-asserted owner batch (§C2: parent/source success means its
+ * own domain truth and durable fanout intent committed atomically).
+ *
+ * Order: pre-admission validation (spec/cutoff/owner/model/bounds —
+ * diagnoses before ANY store write) -> source staging (a throw IS
+ * the trigger rejection: both halves void) -> fence-revision
+ * enumeration + anchor classification -> member-set validation ->
+ * ONE joint commit (source writes first, then intent + checkpoint +
+ * first chunk). A fence conflict voids the whole batch (both halves
+ * — retryable diagnosis); an intent PK collision means a rival
+ * freeze won (duplicate trigger: nothing committed — the caller
+ * replays its trigger receipt, never redefines the frozen set).
+ * Remaining admission chunks complete through the scheduler's
+ * freeze-replay (F5 `freezeFanoutMembership`, idempotent).
+ *
+ * Single-shot throughout (T24b precedent): fence conflicts diagnose
+ * (NO retry — callers decide); malformed caller input throws.
+ */
+export async function stageFanoutTriggerJoin(
+  opts: StageFanoutTriggerJoinOpts,
+): Promise<StageFanoutTriggerJoinOutcome> {
+  const producers = opts.producers ?? (await loadFanoutStateProducers());
+  producers.cohort.checkCutoffSpec(opts.cutoff);
+  const cohortKind = producers.cohort.checkCohortSpec(opts.cohort);
+  checkFanoutRowMeta(opts.meta, "trigger join");
+  if (!Number.isInteger(opts.bounds.pageLimit) || opts.bounds.pageLimit < 1) {
+    throw new Error("t34-f7: trigger join needs bounds.pageLimit as an integer >= 1.");
+  }
+  if (!Number.isInteger(opts.bounds.chunkSize) || opts.bounds.chunkSize < 1) {
+    throw new Error("t34-f7: trigger join needs bounds.chunkSize as an integer >= 1.");
+  }
+  if (typeof opts.owner !== "string" || opts.owner === "") {
+    throw new Error("t34-f7: trigger join needs a non-empty operating owner.");
+  }
+  if (opts.cohort.owner !== opts.owner) {
+    return {
+      ok: false,
+      diagnosis: producers.cohort.diagnoseCohort(
+        "cross-owner-cohort",
+        `Fanout cohort owner ${JSON.stringify(opts.cohort.owner)} is outside operating owner ` +
+          `${JSON.stringify(opts.owner)}; the child transaction cannot cross owners.`,
+      ),
+    };
+  }
+  if (opts.hasModel !== undefined && !opts.hasModel(opts.cohort.model)) {
+    return {
+      ok: false,
+      diagnosis: producers.cohort.diagnoseCohort(
+        "unsupported-cohort",
+        `Fanout cohort model ${JSON.stringify(opts.cohort.model)} is not a servable model.`,
+      ),
+    };
+  }
+  const fanoutId = producers.tables.fanoutIntentRowId(
+    opts.cutoff.sourceOccurrence,
+    opts.cutoff.handler,
+    cohortKind,
+  );
+  // The trigger rejection point: a throw here stages nothing and
+  // commits nothing — source truth and fanout intent void together.
+  const source = await opts.stageSource({ fanoutId });
+  let revision: Revision;
+  let enumerated: string[];
+  try {
+    revision = await opts.store.readRevision();
+    enumerated = await drainFanoutCohortIdentities(opts.store, opts.cohort, opts.bounds.pageLimit);
+    if (opts.cohort.kind === "anchored-collection") {
+      const anchor = await classifyFanoutAnchor(opts.store, opts.cohort.parent);
+      if (!anchor.known) {
+        return {
+          ok: false,
+          diagnosis: producers.cohort.diagnoseCohort(
+            "membership-unavailable",
+            `Fanout anchor ${JSON.stringify(opts.cohort.parent.model)}/` +
+              `${JSON.stringify(opts.cohort.parent.id)} is unknown; refusing to freeze ` +
+              "an empty sweep over an unknowable collection.",
+          ),
+        };
+      }
+    }
+  } catch (error) {
+    if (fanoutStateErrorCode(error) !== null) throw error;
+    if (error instanceof Error && error.message.startsWith("t34-f7: fanout enumeration")) throw error;
+    return {
+      ok: false,
+      diagnosis: producers.cohort.diagnoseCohort(
+        "membership-unavailable",
+        `Fanout enumeration failed: ${error instanceof Error ? error.message : String(error)}.`,
+      ),
+    };
+  }
+  let members: ReadonlyArray<string>;
+  try {
+    members = producers.staging.stageFanoutMembership(enumerated, "work.fanout_intent.members");
+  } catch (error) {
+    return {
+      ok: false,
+      diagnosis: producers.cohort.diagnoseCohort(
+        "membership-unavailable",
+        `Fanout enumeration disagrees with the store: ${error instanceof Error ? error.message : String(error)}.`,
+      ),
+    };
+  }
+  const chunksTotal = Math.max(1, Math.ceil(members.length / opts.bounds.chunkSize));
+  const firstChunk = members.slice(0, opts.bounds.chunkSize);
+  const singleCommit = chunksTotal <= 1;
+  const intentRow = producers.tables.newFanoutIntentRow(
+    {
+      sourceOccurrence: opts.cutoff.sourceOccurrence,
+      handler: opts.cutoff.handler,
+      cohort: cohortKind,
+      members,
+    },
+    opts.meta,
+  );
+  const checkpointRow = producers.tables.newFanoutCheckpointRow(
+    { fanoutId, completed: [], cursor: singleCommit ? null : fanoutAdmitCursor(1) },
+    opts.meta,
+  );
+  const batch: CommitBatch = {
+    expectedRevision: revision,
+    writes: [
+      ...source.writes,
+      { kind: "insert", model: T34F7_FANOUT_INTENT_MODEL, row: intentRow },
+      { kind: "insert", model: T34F7_FANOUT_CHECKPOINT_MODEL, row: checkpointRow },
+      ...firstChunk.map((recordId) => ({
+        kind: "insert" as const,
+        model: T34F7_FANOUT_CHILD_MODEL,
+        row: producers.tables.newFanoutChildRow(
+          {
+            fanoutId,
+            parentOccurrence: opts.cutoff.sourceOccurrence,
+            handler: opts.cutoff.handler,
+            recordId,
+          },
+          opts.meta,
+        ),
+      })),
+    ],
+    history: [...source.history],
+    receipt: source.receipt,
+    outbox: [...source.outbox],
+    schedules: [...source.schedules],
+    uniqueClaims: [...source.uniqueClaims],
+    uniqueReleases: [...source.uniqueReleases],
+  };
+  // Linkage-asserted, then ONE commit (the `invokeFanoutChild`
+  // wrapped-store shape): source truth and fanout intent land
+  // together or not at all.
+  producers.join.assertFanoutChildJoin(batch);
+  try {
+    const committed = await opts.store.commit(batch);
+    return {
+      ok: true,
+      fanoutId,
+      members,
+      cutoffRevision: revision,
+      commitRevision: committed.revision,
+      chunksTotal,
+      cursor: singleCommit ? null : fanoutAdmitCursor(1),
+    };
+  } catch (error) {
+    if (fanoutStateErrorCode(error) !== null) throw error;
+    if (isFanoutFenceConflict(error, producers)) {
+      return {
+        ok: false,
+        diagnosis: producers.cohort.diagnoseCohort(
+          "membership-unavailable",
+          "Fanout trigger join lost the fence; concurrent writes never freeze a partial set " +
+            "(nothing committed — retry).",
+        ),
+      };
+    }
+    if (isFanoutStorageConstraint(error, producers)) {
+      return {
+        ok: false,
+        diagnosis: producers.cohort.diagnoseCohort(
+          "membership-unavailable",
+          "Fanout intent is already frozen for this cutoff; the trigger half was NOT committed " +
+            "(replay the trigger receipt — the frozen set is never redefined).",
+        ),
+      };
+    }
+    return {
+      ok: false,
+      diagnosis: producers.cohort.diagnoseCohort(
+        "membership-unavailable",
+        `Fanout trigger commit failed: ${error instanceof Error ? error.message : String(error)}.`,
+      ),
+    };
+  }
+}
+
+/* -- T34-F7 durable fenced claim/record (F3 TEST-ONLY replacement). -- */
+
+/**
+ * T34-F7: the claim-time fence gate for one fanout child claim. Absent
+ * (the default) keeps the exact F3 unfenced behavior — no scope, no
+ * authority re-read. Present, the claim opens its OWN fresh checkpoint
+ * via `openTransitiveScope` (T32b precedent — never a carried
+ * snapshot) and applies the committed F3/T32b ordering:
+ * inherited-scope (before the guard) -> guard on CURRENT -> revoked
+ * (after the guard). Both refusals pin terminal `failed` with the
+ * REAL F5 `FANOUT_T32_REFUSAL_REASON` (`inaccessible-record`: an
+ * authority failure, never deletion, never retried).
+ */
+export interface FanoutClaimFenceInput {
+  readonly owner: string;
+  readonly triggerRevision?: { readonly revision: number };
+  readonly revalidateAuthority: () => boolean | Promise<boolean>;
+}
+
+/** T34-F7: one durable claim attempt against a single admitted child. */
+export interface ClaimFanoutChildOpts {
+  readonly store: StoragePort;
+  /** Parent+handler+record identity to claim (handler prevents collisions). */
+  readonly child: FanoutChildId;
+  /**
+   * Caller's observed `StoredRow.version`, or null for an
+   * unconditional attempt (no staleness check). A mismatch refuses
+   * as stale without admitting: stale reads never win.
+   */
+  readonly snapshotVersion: number | null;
+  /** Body/filter guard; null predicate means unconditional. */
+  readonly guard: { readonly predicate: string | null };
+  /** Retained frozen lexical inputs for the guard. */
+  readonly frozenInputs: unknown;
+  /**
+   * CURRENT owner-state snapshot thunk, invoked at claim time
+   * (after the inherited-scope check, before guard evaluation).
+   * The guard always sees this fresh value, never a carried one.
+   */
+  readonly readCurrentSnapshot: () => unknown | Promise<unknown>;
+  /** Injected pure guard evaluator (F3 `GuardEvaluator` shape). */
+  readonly evaluateGuard: (
+    predicate: string,
+    frozenInputs: unknown,
+    stateSnapshot: unknown,
+  ) => boolean;
+  readonly fence?: FanoutClaimFenceInput;
+  /** Explicit per-call bounds (pins carry them; no default, no quota field). */
+  readonly policy: RetryPolicy;
+  readonly meta: FanoutRowMeta;
+  readonly producers?: FanoutStateProducers;
+}
+
+/** T34-F7: durable claim outcome (F3-identical statuses and shapes). */
+export type FanoutChildClaimOutcome =
+  /** Winner: pending -> running, version bumped, attempts unchanged. */
+  | { readonly status: "claimed"; readonly row: StoredRow; readonly child: FanoutChildId }
+  /** Already running: existing claim returned, no mutation, no duplicate. */
+  | { readonly status: "held"; readonly row: StoredRow; readonly child: FanoutChildId }
+  /** Already terminal: recorded outcome replayed, minting nothing. */
+  | { readonly status: "replayed"; readonly outcome: FanoutChildOutcome; readonly row: StoredRow }
+  /** Stale snapshot: current row returned, nothing admitted, guard not run. */
+  | { readonly status: "refused-stale"; readonly row: StoredRow; readonly child: FanoutChildId }
+  /** T32 inherited scope: pinned failed, guard never ran. */
+  | { readonly status: "refused-inherited-scope"; readonly outcome: FanoutChildOutcome; readonly row: StoredRow }
+  /** T32 revoked authority: pinned failed, guard already ran. */
+  | { readonly status: "refused-revoked"; readonly outcome: FanoutChildOutcome; readonly row: StoredRow }
+  /** Guard-false on the current snapshot: pinned skipped/non-applicable. */
+  | { readonly status: "skipped"; readonly outcome: FanoutChildOutcome; readonly row: StoredRow };
+
+/** T34-F7: pin result (pending-row claim-time pin, attempts unchanged). */
+interface FanoutPinResult {
+  readonly row: StoredRow;
+  readonly outcome: FanoutChildOutcome;
+}
+
+/**
+ * T34-F7: pin one live child terminal (pending-row pins keep
+ * attempts UNCHANGED — nothing executed; running-row failed pins
+ * count the rejected attempt — F5-exact) with its checkpoint
+ * advance in ONE linkage-asserted batch. A lost pin race observes
+ * the winner (terminal replay); an unlosable conflict rethrows for
+ * the caller.
+ */
+async function pinFanoutChildTerminal(input: {
+  readonly store: StoragePort;
+  readonly childRow: StoredRow;
+  readonly result:
+    | { readonly kind: "skipped"; readonly reason: FanoutSkippedReason }
+    | { readonly kind: "failed"; readonly reason: Exclude<FanoutFailedReason, "exhausted"> };
+  readonly nowMs: number;
+  readonly policy: RetryPolicy;
+  readonly meta: FanoutRowMeta;
+  readonly producers: FanoutStateProducers;
+  readonly what: string;
+}): Promise<FanoutPinResult> {
+  const { store, childRow, result, nowMs, policy, meta, producers, what } = input;
+  const data = producers.tables.readFanoutChildRow(childRow);
+  const checkpointRow = await store.load(T34F7_FANOUT_CHECKPOINT_MODEL, data.fanoutId as RecordId);
+  if (checkpointRow === null) {
+    throw new Error(`t34-f7: ${what}: checkpoint row missing for a terminal pin.`);
+  }
+  const checkpoint = producers.tables.readFanoutCheckpointRow(checkpointRow);
+  const staged = producers.outcome.stageFanoutChildOutcomeWrite({
+    row: childRow,
+    result,
+    nowMs,
+    firstAttemptAtMs: fanoutFirstAttemptAnchor(childRow),
+    policy,
+    meta,
+  });
+  const advance = producers.outcome.stageFanoutCheckpointAdvanceWrite({
+    row: checkpointRow,
+    recordId: staged.recordId,
+    cursor: checkpoint.cursor,
+    meta,
+  });
+  const batch: CommitBatch = {
+    expectedRevision: await store.readRevision(),
+    writes: [staged.write, advance],
+    history: [],
+    receipt: null,
+    outbox: [],
+    schedules: [],
+    uniqueClaims: [],
+    uniqueReleases: [],
+  };
+  producers.join.assertFanoutChildJoin(batch);
+  try {
+    await store.commit(batch);
+  } catch (error) {
+    if (fanoutStateErrorCode(error) !== null) throw error;
+    if (!isFanoutFenceConflict(error, producers) && !isFanoutStorageConstraint(error, producers)) {
+      throw error;
+    }
+    const reloaded = await store.load(T34F7_FANOUT_CHILD_MODEL, childRow.id);
+    if (reloaded === null) {
+      throw new Error(`t34-f7: ${what}: child row vanished under a pin race.`);
+    }
+    const reloadedData = producers.tables.readFanoutChildRow(reloaded);
+    const replayed = fanoutChildOutcomeFromData(reloadedData);
+    if (replayed === null) throw error;
+    return { row: reloaded, outcome: replayed };
+  }
+  const stagedData = producers.tables.readFanoutChildRow(staged.row);
+  return { row: staged.row, outcome: fanoutTerminalOrThrow(staged.row, stagedData, what) };
+}
+
+/**
+ * T34-F7: claim one child durably — terminal replays, running holds,
+ * stale refuses, then inherited-scope -> guard-on-current ->
+ * revoked -> claim (F3-exact order; later checks never run once an
+ * earlier one decides). Refusals and guard-false pin terminally with
+ * the checkpoint advance in ONE linkage-asserted batch; the claim is
+ * a fenced pending -> running conditional update (attempts
+ * unchanged). Exactly-one-winner: concurrent claimants serialize on
+ * the store version fence and losers observe the winner (held /
+ * replayed / refused-stale — never a double claim, never a throw).
+ * Single-shot (T24b precedent): a fence conflict with the row still
+ * pending reads as refused-stale (the world moved; re-drive).
+ */
+export async function claimFanoutChild(
+  opts: ClaimFanoutChildOpts,
+): Promise<FanoutChildClaimOutcome> {
+  const producers = opts.producers ?? (await loadFanoutStateProducers());
+  checkFanoutRowMeta(opts.meta, "claim");
+  checkFanoutPolicy(opts.policy, "claim");
+  producers.cohort.checkFanoutChildId(opts.child);
+  if (opts.fence !== undefined) {
+    checkClosedText(opts.fence.owner, "claim fence owner");
+    if (typeof opts.fence.revalidateAuthority !== "function") {
+      throw new Error("t34-f7: claim fence needs a revalidateAuthority function.");
+    }
+    const triggerRevision = opts.fence.triggerRevision;
+    if (triggerRevision !== undefined) {
+      const rev: unknown = triggerRevision.revision;
+      if (typeof rev !== "number" || !Number.isInteger(rev) || rev < 0) {
+        throw new Error("t34-f7: claim fence triggerRevision must be an integer revision >= 0.");
+      }
+    }
+  }
+  const key = producers.tables.fanoutChildRowId(
+    opts.child.parentOccurrence,
+    opts.child.handler,
+    opts.child.recordId,
+  );
+  const current = await opts.store.load(T34F7_FANOUT_CHILD_MODEL, key as RecordId);
+  if (current === null) {
+    throw new Error(`t34-f7: no fanout child row for ${JSON.stringify(key)} (producer write missing).`);
+  }
+  const data = producers.tables.readFanoutChildRow(current);
+  const terminal = fanoutChildOutcomeFromData(data);
+  if (terminal !== null) {
+    return { status: "replayed", outcome: terminal, row: current };
+  }
+  if (data.state === "running") {
+    return { status: "held", row: current, child: opts.child };
+  }
+  if (opts.snapshotVersion !== null && opts.snapshotVersion !== current.version) {
+    return { status: "refused-stale", row: current, child: opts.child };
+  }
+  const fence = opts.fence;
+  if (fence !== undefined) {
+    // The dispatch's OWN fresh checkpoint (T32b precedent: never a
+    // carried snapshot); presenting the trigger's revision back is
+    // inheriting and refuses before the guard runs.
+    const admission = await loadFenceAdmissionProducer();
+    const checkpoint = (await admission.openTransitiveScope(opts.store, fence.owner)).snapshot();
+    if (
+      fence.triggerRevision !== undefined &&
+      fence.triggerRevision.revision === (checkpoint.revision as number)
+    ) {
+      const pinned = await pinFanoutChildTerminal({
+        store: opts.store,
+        childRow: current,
+        result: {
+          kind: "failed",
+          reason: producers.outcome.FANOUT_T32_REFUSAL_REASON as Exclude<FanoutFailedReason, "exhausted">,
+        },
+        nowMs: opts.meta.nowMs,
+        policy: opts.policy,
+        meta: opts.meta,
+        producers,
+        what: "refused-inherited-scope",
+      });
+      return { status: "refused-inherited-scope", outcome: pinned.outcome, row: pinned.row };
+    }
+  }
+  const predicate = opts.guard.predicate;
+  if (predicate !== null) {
+    // Claim-time guard re-evaluation on a CURRENT snapshot (pulled
+    // after the row load, before the claim): only an explicit `true`
+    // proceeds. Evaluator throws propagate with nothing committed —
+    // a throwing evaluator must never terminally skip.
+    const snapshot = await opts.readCurrentSnapshot();
+    const verdict = opts.evaluateGuard(predicate, opts.frozenInputs, snapshot);
+    if (verdict !== true) {
+      const pinned = await pinFanoutChildTerminal({
+        store: opts.store,
+        childRow: current,
+        result: { kind: "skipped", reason: "non-applicable" },
+        nowMs: opts.meta.nowMs,
+        policy: opts.policy,
+        meta: opts.meta,
+        producers,
+        what: "guard-false skip",
+      });
+      return { status: "skipped", outcome: pinned.outcome, row: pinned.row };
+    }
+  }
+  if (fence !== undefined && (await fence.revalidateAuthority()) !== true) {
+    const pinned = await pinFanoutChildTerminal({
+      store: opts.store,
+      childRow: current,
+      result: {
+        kind: "failed",
+        reason: producers.outcome.FANOUT_T32_REFUSAL_REASON as Exclude<FanoutFailedReason, "exhausted">,
+      },
+      nowMs: opts.meta.nowMs,
+      policy: opts.policy,
+      meta: opts.meta,
+      producers,
+      what: "refused-revoked",
+    });
+    return { status: "refused-revoked", outcome: pinned.outcome, row: pinned.row };
+  }
+  const running = producers.tables.withFanoutRowData(
+    current,
+    { ...data, state: "running" },
+    opts.meta,
+  );
+  try {
+    await opts.store.commit({
+      expectedRevision: await opts.store.readRevision(),
+      writes: [
+        {
+          kind: "update",
+          model: T34F7_FANOUT_CHILD_MODEL,
+          id: current.id,
+          expectedVersion: current.version,
+          row: running,
+        },
+      ],
+      history: [],
+      receipt: null,
+      outbox: [],
+      schedules: [],
+      uniqueClaims: [],
+      uniqueReleases: [],
+    });
+  } catch (error) {
+    if (fanoutStateErrorCode(error) !== null) throw error;
+    if (!isFanoutFenceConflict(error, producers) && !isFanoutStorageConstraint(error, producers)) {
+      throw error;
+    }
+    // Lost race: observe the winner. Terminal replays, running
+    // holds, still-pending reads stale (the world moved; re-drive).
+    const reloaded = await opts.store.load(T34F7_FANOUT_CHILD_MODEL, key as RecordId);
+    if (reloaded === null) {
+      throw new Error("t34-f7: claim: child row vanished under a claim race.");
+    }
+    const reloadedData = producers.tables.readFanoutChildRow(reloaded);
+    const replayed = fanoutChildOutcomeFromData(reloadedData);
+    if (replayed !== null) {
+      return { status: "replayed", outcome: replayed, row: reloaded };
+    }
+    if (reloadedData.state === "running") {
+      return { status: "held", row: reloaded, child: opts.child };
+    }
+    return { status: "refused-stale", row: reloaded, child: opts.child };
+  }
+  return { status: "claimed", row: running, child: opts.child };
+}
+
+/** T34-F7: one durable record request against a running (claimed) child. */
+export interface RecordFanoutChildAttemptOpts {
+  readonly store: StoragePort;
+  readonly child: FanoutChildId;
+  readonly result: FanoutChildAttemptResult;
+  /** Claim/record instant as UTC epoch ms (also anchors the horizon check). */
+  readonly nowMs: number;
+  /** Explicit per-call bounds (no default, no quota field). */
+  readonly policy: RetryPolicy;
+  readonly meta: FanoutRowMeta;
+  readonly producers?: FanoutStateProducers;
+}
+
+/** T34-F7: durable record outcome (F3-identical statuses and shapes). */
+export type FanoutChildRecordOutcome =
+  /** Terminal recorded (completed/skipped/failed incl. exhausted dead-letter). */
+  | { readonly status: "recorded"; readonly outcome: FanoutChildOutcome; readonly row: StoredRow }
+  /** Transient within budget: back to pending, attempts++ on the same row. */
+  | { readonly status: "retried"; readonly row: StoredRow }
+  /** Already terminal: recorded outcome replayed, minting nothing. */
+  | { readonly status: "replayed"; readonly outcome: FanoutChildOutcome; readonly row: StoredRow };
+
+/**
+ * T34-F7: record one executed attempt durably — terminal replays,
+ * live-but-idle throws (record needs a running claim), then
+ * completed/skipped/failed record terminally (outcome + checkpoint
+ * advance in ONE linkage-asserted batch) while transient retries
+ * within budget or exhausts to failed/exhausted (F3-exact: attempt
+ * cap OR time horizon; attempts++ on the same row identity).
+ *
+ * The retry horizon anchors at `fanoutFirstAttemptAnchor` (the child
+ * row's durable `created` — the F3/F5-owed seam): crash-stable,
+ * enforced from durable truth. NOTE (advance divergence, not a
+ * mirror): the checkpoint advance stages ONLY for terminal records —
+ * `outcome.ts` covers terminal children, and the join assertion
+ * refuses a checkpoint update without its terminal outcome.
+ *
+ * Races: a version-conflicted record against a now-terminal row
+ * replays the winner; anything still live rethrows (single-shot —
+ * callers decide; fence conflicts always propagate).
+ */
+export async function recordFanoutChildAttempt(
+  opts: RecordFanoutChildAttemptOpts,
+): Promise<FanoutChildRecordOutcome> {
+  const producers = opts.producers ?? (await loadFanoutStateProducers());
+  checkFanoutRowMeta(opts.meta, "record");
+  checkFanoutPolicy(opts.policy, "record");
+  checkFanoutAttemptResult(opts.result);
+  if (!Number.isFinite(opts.nowMs) || opts.nowMs < 0) {
+    throw new Error("t34-f7: record needs nowMs as finite epoch ms >= 0.");
+  }
+  producers.cohort.checkFanoutChildId(opts.child);
+  const key = producers.tables.fanoutChildRowId(
+    opts.child.parentOccurrence,
+    opts.child.handler,
+    opts.child.recordId,
+  );
+  const current = await opts.store.load(T34F7_FANOUT_CHILD_MODEL, key as RecordId);
+  if (current === null) {
+    throw new Error(`t34-f7: no fanout child row for ${JSON.stringify(key)} (producer write missing).`);
+  }
+  const data = producers.tables.readFanoutChildRow(current);
+  const terminal = fanoutChildOutcomeFromData(data);
+  if (terminal !== null) {
+    return { status: "replayed", outcome: terminal, row: current };
+  }
+  if (data.state !== "running") {
+    throw new Error(
+      `t34-f7: record applies to running children only; ${JSON.stringify(key)} is ${data.state}.`,
+    );
+  }
+  const staged = producers.outcome.stageFanoutChildOutcomeWrite({
+    row: current,
+    result: opts.result,
+    nowMs: opts.nowMs,
+    firstAttemptAtMs: fanoutFirstAttemptAnchor(current),
+    policy: opts.policy,
+    meta: opts.meta,
+  });
+  const writes: DomainWrite[] = [staged.write];
+  if (staged.terminal) {
+    const checkpointRow = await opts.store.load(
+      T34F7_FANOUT_CHECKPOINT_MODEL,
+      data.fanoutId as RecordId,
+    );
+    if (checkpointRow === null) {
+      throw new Error("t34-f7: record: checkpoint row missing for a terminal record.");
+    }
+    const checkpoint = producers.tables.readFanoutCheckpointRow(checkpointRow);
+    writes.push(
+      producers.outcome.stageFanoutCheckpointAdvanceWrite({
+        row: checkpointRow,
+        recordId: staged.recordId,
+        cursor: checkpoint.cursor,
+        meta: opts.meta,
+      }),
+    );
+  }
+  const batch: CommitBatch = {
+    expectedRevision: await opts.store.readRevision(),
+    writes,
+    history: [],
+    receipt: null,
+    outbox: [],
+    schedules: [],
+    uniqueClaims: [],
+    uniqueReleases: [],
+  };
+  producers.join.assertFanoutChildJoin(batch);
+  try {
+    await opts.store.commit(batch);
+  } catch (error) {
+    if (fanoutStateErrorCode(error) !== null) throw error;
+    if (isFanoutFenceConflict(error, producers)) throw error;
+    if (!isFanoutStorageConstraint(error, producers)) throw error;
+    const reloaded = await opts.store.load(T34F7_FANOUT_CHILD_MODEL, key as RecordId);
+    if (reloaded === null) {
+      throw new Error("t34-f7: record: child row vanished under a record race.");
+    }
+    const replayed = fanoutChildOutcomeFromData(producers.tables.readFanoutChildRow(reloaded));
+    if (replayed === null) throw error;
+    return { status: "replayed", outcome: replayed, row: reloaded };
+  }
+  if (!staged.terminal) {
+    return { status: "retried", row: staged.row };
+  }
+  const stagedData = producers.tables.readFanoutChildRow(staged.row);
+  return {
+    status: "recorded",
+    outcome: fanoutTerminalOrThrow(staged.row, stagedData, "recorded"),
+    row: staged.row,
+  };
+}
+
+/* -- T34-F7 fair resumable scheduler. -- */
+
+/** T34-F7: one bounded stale-claim release request. */
+export interface ReleaseStaleFanoutClaimsOpts {
+  readonly store: StoragePort;
+  readonly fanoutId: string;
+  /** Last-seen child row id (exclusive lower bound); null starts at the head. */
+  readonly cursor: string | null;
+  /** Page transport bound (chunk size, never cohort size). */
+  readonly limit: number;
+  readonly nowMs: number;
+  readonly maxClaimAgeMs: number;
+  readonly meta: FanoutRowMeta;
+  readonly producers?: FanoutStateProducers;
+}
+
+/** T34-F7: one bounded stale-claim release outcome. */
+export interface ReleaseStaleFanoutClaimsResult {
+  /** Released child row ids (running -> pending, attempts unchanged). */
+  readonly released: ReadonlyArray<string>;
+  /** Rows skipped under contention (rival touched them; next sweep re-observes). */
+  readonly skipped: ReadonlyArray<{ readonly childId: string; readonly reason: string }>;
+  readonly cursor: string | null;
+  readonly done: boolean;
+}
+
+/**
+ * T34-F7: release running children whose claim is provably stale
+ * (F4 `resume` posture: `updated` + max age <= now, boundary
+ * inclusive) back to pending for re-drive. Per-row fenced commits
+ * (fresh revision each) so one contended row never blocks the rest;
+ * conflicts report as skipped, never forced. Attempts unchanged
+ * (a release is not an attempt); fresh/uncertain claims are
+ * untouched (a live worker may hold them).
+ */
+export async function releaseStaleFanoutClaims(
+  opts: ReleaseStaleFanoutClaimsOpts,
+): Promise<ReleaseStaleFanoutClaimsResult> {
+  const producers = opts.producers ?? (await loadFanoutStateProducers());
+  checkFanoutRowMeta(opts.meta, "release");
+  if (typeof opts.fanoutId !== "string" || opts.fanoutId === "") {
+    throw new Error("t34-f7: release needs a non-empty fanout id.");
+  }
+  if (!Number.isInteger(opts.limit) || opts.limit < 1) {
+    throw new Error("t34-f7: release needs limit as an integer >= 1.");
+  }
+  if (!Number.isFinite(opts.nowMs) || opts.nowMs < 0) {
+    throw new Error("t34-f7: release needs nowMs as finite epoch ms >= 0.");
+  }
+  if (!Number.isFinite(opts.maxClaimAgeMs) || opts.maxClaimAgeMs < 0) {
+    throw new Error("t34-f7: release needs maxClaimAgeMs as finite ms >= 0.");
+  }
+  const query = producers.tables.fanoutChildPageQuery(opts.fanoutId, {
+    cursor: opts.cursor,
+    limit: opts.limit,
+  });
+  const page = producers.tables.fanoutChildPageResult(await opts.store.query(query), opts.limit);
+  const released: string[] = [];
+  const skipped: { readonly childId: string; readonly reason: string }[] = [];
+  for (const row of page.rows) {
+    const data = producers.tables.readFanoutChildRow(row);
+    if (data.state !== "running") continue;
+    if (!isFanoutRowClaimStale(row.updated, opts.nowMs, opts.maxClaimAgeMs)) continue;
+    const back = producers.tables.withFanoutRowData(
+      row,
+      { ...data, state: "pending" },
+      opts.meta,
+    );
+    try {
+      await opts.store.commit({
+        expectedRevision: await opts.store.readRevision(),
+        writes: [
+          {
+            kind: "update",
+            model: T34F7_FANOUT_CHILD_MODEL,
+            id: row.id,
+            expectedVersion: row.version,
+            row: back,
+          },
+        ],
+        history: [],
+        receipt: null,
+        outbox: [],
+        schedules: [],
+        uniqueClaims: [],
+        uniqueReleases: [],
+      });
+    } catch (error) {
+      if (fanoutStateErrorCode(error) !== null) throw error;
+      if (!isFanoutFenceConflict(error, producers) && !isFanoutStorageConstraint(error, producers)) {
+        throw error;
+      }
+      skipped.push({ childId: data.childId, reason: "contention" });
+      continue;
+    }
+    released.push(data.childId);
+  }
+  released.sort();
+  skipped.sort((a, b) => (a.childId < b.childId ? -1 : a.childId > b.childId ? 1 : 0));
+  return { released, skipped, cursor: page.cursor, done: page.done };
+}
+
+/** T34-F7: lifecycle shape for one scheduler turn (cohort model + anchor). */
+export interface FanoutSchedulerCohort {
+  readonly model: string;
+  /** Pinned anchor for anchored-collection cohorts (moved detection). */
+  readonly anchor?: { readonly model: string; readonly id: string };
+}
+
+/** T34-F7: admission-completion freeze for one scheduler turn (idempotent replay). */
+export interface FanoutSchedulerFreeze {
+  readonly cutoff: FanoutCutoffSpec;
+  readonly cohort: FanoutCohortSpec;
+  readonly owner: string;
+  readonly bounds: {
+    readonly pageLimit: number;
+    readonly chunkSize: number;
+    readonly maxAttempts: number;
+  };
+  readonly hasModel?: (model: string) => boolean;
+}
+
+/** T34-F7: child-body effects (staged domain truth + the attempt result). */
+export interface FanoutSchedulerBodyEffects {
+  readonly writes: ReadonlyArray<DomainWrite>;
+  readonly history: ReadonlyArray<HistoryEntry>;
+  readonly outbox: ReadonlyArray<OutboxIntent>;
+  readonly schedules: ReadonlyArray<ScheduleOp>;
+  readonly result: FanoutChildAttemptResult;
+}
+
+/**
+ * T34-F7: injected child-body port (the deployed handler stages the
+ * child's domain effects and returns the attempt result; a
+ * `StateError` throw with code `rule_failed` is the business
+ * rejection). Called only for claimed children — pins never invoke.
+ */
+export type FanoutSchedulerBodyPort = (
+  child: FanoutChildId,
+  domainRow: StoredRow,
+) => FanoutSchedulerBodyEffects | Promise<FanoutSchedulerBodyEffects>;
+
+/** T34-F7: canonical-invoke inputs for executed children (all pass-through). */
+export interface FanoutSchedulerInvoke {
+  readonly registry: unknown;
+  readonly memberships: unknown;
+  readonly clock: { nowMs(): number };
+  readonly identity: ResolvedIdentity;
+  readonly app: string;
+  readonly source: string;
+  readonly childOperation: string;
+  /** Child record ref input name in the def (the version-fenced ref). */
+  readonly refInput: string;
+  /** Fresh uuidv7 attempt identity, caller-minted per attempt. */
+  readonly operationIdFor: (child: FanoutChildId) => string;
+}
+
+/** T34-F7: explicit scheduler-turn bounds (no defaults, no quota field). */
+export interface FanoutSchedulerTurnBounds {
+  /** Child-page transport bound (chunk size, never cohort size). */
+  readonly pageLimit: number;
+  /** Max children driven (claim-or-pin) in this turn. */
+  readonly maxDrives: number;
+}
+
+/** T34-F7: one fair scheduler turn request. */
+export interface RunFanoutSchedulerTurnOpts {
+  readonly store: StoragePort;
+  readonly fanoutId: string;
+  readonly cursor: string | null;
+  readonly bounds: FanoutSchedulerTurnBounds;
+  readonly policy: RetryPolicy;
+  readonly meta: FanoutRowMeta;
+  readonly maxClaimAgeMs: number;
+  /** Cohort shape for lifecycle classification + domain reads. */
+  readonly cohort: FanoutSchedulerCohort;
+  /** Admission completion (freeze replay); absent skips admission. */
+  readonly freeze?: FanoutSchedulerFreeze;
+  /** Claim-time dispatch guard (null predicate means unconditional). */
+  readonly guard: { readonly predicate: string | null; readonly frozenInputs: unknown };
+  readonly evaluateGuard: (
+    predicate: string,
+    frozenInputs: unknown,
+    stateSnapshot: unknown,
+  ) => boolean;
+  /** CURRENT snapshot per child (after the row load, before the guard). */
+  readonly readSnapshot: (child: FanoutChildId, domainRow: StoredRow) => unknown | Promise<unknown>;
+  /** Fresh claim-time fence per child (owner + optional trigger + live revalidation). */
+  readonly fenceFor: (child: FanoutChildId) => FanoutClaimFenceInput;
+  readonly body: FanoutSchedulerBodyPort;
+  readonly invoke: FanoutSchedulerInvoke;
+  readonly producers?: FanoutStateProducers;
+}
+
+/** T34-F7: one driven child within a turn. */
+export interface FanoutTurnDrivenChild {
+  readonly childId: string;
+  readonly recordId: string;
+  readonly status: "replayed" | "held" | "recorded" | "pinned" | "refused" | "stale" | "retry";
+  /** Closed detail (terminal state/reason, hold/replay cause, retry cause). */
+  readonly detail: string;
+}
+
+/** T34-F7: one fair scheduler turn outcome. */
+export type FanoutSchedulerTurnResult =
+  | {
+      readonly status: "turn";
+      readonly driven: ReadonlyArray<FanoutTurnDrivenChild>;
+      readonly released: ReadonlyArray<string>;
+      readonly releaseSkipped: ReadonlyArray<{ readonly childId: string; readonly reason: string }>;
+      /** Resume cursor when done:false; null when done:true. */
+      readonly cursor: string | null;
+      /** True only when the page exhausted (re-sweep while work remains). */
+      readonly done: boolean;
+      readonly progress: FanoutProgress;
+    }
+  | {
+      readonly status: "diagnosed";
+      readonly diagnosis: FanoutCohortDiagnosis;
+      /** Null when the intent row is missing (no invented progress). */
+      readonly progress: FanoutProgress | null;
+    };
+
+/**
+ * T34-F7: drive one child row within a turn (F5-driver order with the
+ * F3 claim seam: terminal -> replay; running -> hold; lifecycle
+ * deleted/unknown -> pin without invoking; domain-race -> reclassify
+ * once; claim (guard-on-current inside, fresh fence inside) ->
+ * pins/held/replay/stale report, claimed invokes through the REAL
+ * `invokeFanoutChild` fresh-fence unit commit).
+ */
+async function driveFanoutTurnChild(input: {
+  readonly store: StoragePort;
+  readonly childRow: StoredRow;
+  readonly cohort: FanoutSchedulerCohort;
+  readonly guard: { readonly predicate: string | null; readonly frozenInputs: unknown };
+  readonly evaluateGuard: (
+    predicate: string,
+    frozenInputs: unknown,
+    stateSnapshot: unknown,
+  ) => boolean;
+  readonly readSnapshot: (child: FanoutChildId, domainRow: StoredRow) => unknown | Promise<unknown>;
+  readonly fenceFor: (child: FanoutChildId) => FanoutClaimFenceInput;
+  readonly body: FanoutSchedulerBodyPort;
+  readonly invoke: FanoutSchedulerInvoke;
+  readonly policy: RetryPolicy;
+  readonly meta: FanoutRowMeta;
+  readonly producers: FanoutStateProducers;
+}): Promise<FanoutTurnDrivenChild> {
+  const { store, childRow, cohort, producers, policy, meta } = input;
+  const data = producers.tables.readFanoutChildRow(childRow);
+  const child: FanoutChildId = {
+    parentOccurrence: data.parentOccurrence,
+    handler: data.handler,
+    recordId: data.recordId,
+  };
+  const terminal = fanoutChildOutcomeFromData(data);
+  if (terminal !== null) {
+    const detail =
+      terminal.state === "completed"
+        ? "completed"
+        : terminal.cause.kind === "skipped" || terminal.cause.kind === "failed"
+          ? `${terminal.state}/${terminal.cause.reason}`
+          : terminal.state;
+    return { childId: data.childId, recordId: data.recordId, status: "replayed", detail };
+  }
+  if (data.state === "running") {
+    return { childId: data.childId, recordId: data.recordId, status: "held", detail: "running-held" };
+  }
+  const pinDetail = (outcome: FanoutChildOutcome): string =>
+    outcome.cause.kind === "completed"
+      ? "completed"
+      : `${outcome.state}/${outcome.cause.kind === "skipped" || outcome.cause.kind === "failed" ? outcome.cause.reason : outcome.cause.kind}`;
+  const tryPin = async (
+    row: StoredRow,
+    result:
+      | { readonly kind: "skipped"; readonly reason: FanoutSkippedReason }
+      | { readonly kind: "failed"; readonly reason: Exclude<FanoutFailedReason, "exhausted"> },
+    what: string,
+  ): Promise<FanoutTurnDrivenChild> => {
+    try {
+      const pinned = await pinFanoutChildTerminal({
+        store,
+        childRow: row,
+        result,
+        nowMs: meta.nowMs,
+        policy,
+        meta,
+        producers,
+        what,
+      });
+      return {
+        childId: data.childId,
+        recordId: data.recordId,
+        status: "pinned",
+        detail: pinDetail(pinned.outcome),
+      };
+    } catch (error) {
+      if (fanoutStateErrorCode(error) !== null) throw error;
+      if (!isFanoutFenceConflict(error, producers) && !isFanoutStorageConstraint(error, producers)) {
+        throw error;
+      }
+      return { childId: data.childId, recordId: data.recordId, status: "retry", detail: "pin-contention" };
+    }
+  };
+  const lifecycle = await producers.lifecycle.classifyFanoutChildLifecycle({
+    store,
+    model: cohort.model,
+    recordId: data.recordId,
+    ...(cohort.anchor === undefined ? {} : { anchor: cohort.anchor }),
+  });
+  if (lifecycle.status === "deleted") {
+    return tryPin(childRow, { kind: "skipped", reason: "deleted" }, "turn pin deleted");
+  }
+  if (lifecycle.status === "unknown") {
+    return tryPin(childRow, { kind: "failed", reason: lifecycle.reason }, "turn pin unknown");
+  }
+  let domainRow = await store.load(cohort.model as ModelName, data.recordId as RecordId);
+  if (domainRow === null || domainRow.archivedAt !== null) {
+    // Raced disposal between classification and the guard read:
+    // re-classify once and pin — never execute a dead row.
+    const raced = await producers.lifecycle.classifyFanoutChildLifecycle({
+      store,
+      model: cohort.model,
+      recordId: data.recordId,
+      ...(cohort.anchor === undefined ? {} : { anchor: cohort.anchor }),
+    });
+    if (raced.status === "deleted") {
+      return tryPin(childRow, { kind: "skipped", reason: "deleted" }, "turn pin raced deleted");
+    }
+    if (raced.status === "unknown") {
+      return tryPin(childRow, { kind: "failed", reason: raced.reason }, "turn pin raced unknown");
+    }
+    return { childId: data.childId, recordId: data.recordId, status: "retry", detail: "lifecycle-race" };
+  }
+  const claim = await claimFanoutChild({
+    store,
+    child,
+    snapshotVersion: childRow.version,
+    guard: input.guard,
+    frozenInputs: input.guard.frozenInputs,
+    readCurrentSnapshot: () => input.readSnapshot(child, domainRow as StoredRow),
+    evaluateGuard: input.evaluateGuard,
+    fence: input.fenceFor(child),
+    policy,
+    meta,
+    producers,
+  });
+  if (claim.status === "skipped") {
+    return { childId: data.childId, recordId: data.recordId, status: "pinned", detail: pinDetail(claim.outcome) };
+  }
+  if (claim.status === "refused-inherited-scope" || claim.status === "refused-revoked") {
+    return { childId: data.childId, recordId: data.recordId, status: "refused", detail: pinDetail(claim.outcome) };
+  }
+  if (claim.status === "held") {
+    return { childId: data.childId, recordId: data.recordId, status: "held", detail: "running-held" };
+  }
+  if (claim.status === "replayed") {
+    return { childId: data.childId, recordId: data.recordId, status: "replayed", detail: pinDetail(claim.outcome) };
+  }
+  if (claim.status === "refused-stale") {
+    return { childId: data.childId, recordId: data.recordId, status: "stale", detail: "snapshot-stale" };
+  }
+  // Won the claim: execute through the REAL fresh-fence unit commit.
+  const operationId = input.invoke.operationIdFor(child);
+  if (typeof operationId !== "string" || operationId === "") {
+    throw new Error("t34-f7: turn needs a non-empty attempt operationId per executed child.");
+  }
+  const claimedRow = claim.row;
+  void claimedRow;
+  const execute = async (call: unknown): Promise<{
+    readonly writes: ReadonlyArray<DomainWrite>;
+    readonly history: ReadonlyArray<HistoryEntry>;
+    readonly outbox: ReadonlyArray<OutboxIntent>;
+    readonly schedules: ReadonlyArray<ScheduleOp>;
+    readonly uniqueClaims: ReadonlyArray<UniqueClaim>;
+    readonly uniqueReleases: ReadonlyArray<UniqueRelease>;
+    readonly resolvedDefaults: Record<string, unknown>;
+    readonly result: unknown;
+  }> => {
+    void call;
+    const effects = await input.body(child, domainRow as StoredRow);
+    checkFanoutAttemptResult(effects.result);
+    // Fresh fanout rows per execution (invoke retries re-execute, so
+    // versions re-read — never carried across attempts).
+    const childNow = await store.load(T34F7_FANOUT_CHILD_MODEL, childRow.id);
+    const checkpointNow = await store.load(
+      T34F7_FANOUT_CHECKPOINT_MODEL,
+      data.fanoutId as RecordId,
+    );
+    if (childNow === null || checkpointNow === null) {
+      throw new Error("t34-f7: turn: fanout rows vanished before the unit commit.");
+    }
+    const staged = producers.outcome.stageFanoutChildOutcomeWrite({
+      row: childNow,
+      result: effects.result,
+      nowMs: meta.nowMs,
+      firstAttemptAtMs: fanoutFirstAttemptAnchor(childNow),
+      policy,
+      meta,
+    });
+    // The checkpoint advance stages ONLY for terminal records (the
+    // join assertion refuses a checkpoint update without its
+    // terminal outcome); transient records commit outcome-only.
+    const advance = staged.terminal
+      ? [
+          producers.outcome.stageFanoutCheckpointAdvanceWrite({
+            row: checkpointNow,
+            recordId: staged.recordId,
+            cursor: producers.tables.readFanoutCheckpointRow(checkpointNow).cursor,
+            meta,
+          }),
+        ]
+      : [];
+    return {
+      writes: [...effects.writes, staged.write, ...advance],
+      history: [...effects.history],
+      outbox: [...effects.outbox],
+      schedules: [...effects.schedules],
+      uniqueClaims: [],
+      uniqueReleases: [],
+      resolvedDefaults: {},
+      result: { child: data.recordId },
+    };
+  };
+  try {
+    await producers.invoke.invokeFanoutChild({
+      registry: input.invoke.registry,
+      store,
+      memberships: input.invoke.memberships,
+      clock: input.invoke.clock,
+      childOperation: input.invoke.childOperation,
+      child,
+      operationId,
+      identity: input.invoke.identity,
+      app: input.invoke.app,
+      source: input.invoke.source,
+      inputs: { [input.invoke.refInput]: { id: data.recordId } },
+      execute,
+      assertJoin: producers.join.assertFanoutChildJoin,
+    });
+  } catch (error) {
+    const code = fanoutStateErrorCode(error);
+    if (code === "busy" || code === "conflict") {
+      // Contention: the claim stays held and ages out through the
+      // stale-claim path; the child re-drives next sweep.
+      return { childId: data.childId, recordId: data.recordId, status: "retry", detail: code };
+    }
+    if (code === "forbidden") {
+      // Claim-time T32 refusal: back to pending first (one plain
+      // commit — claims carry no completion), then pin terminal
+      // failed/inaccessible-record with the checkpoint (F5-exact).
+      // Attempts unchanged throughout — the claim never executed.
+      const refused = await store.load(T34F7_FANOUT_CHILD_MODEL, childRow.id);
+      if (refused === null) {
+        throw new Error("t34-f7: turn: child row vanished after a refusal.");
+      }
+      const refusedData = producers.tables.readFanoutChildRow(refused);
+      const already = fanoutChildOutcomeFromData(refusedData);
+      if (already !== null) {
+        return { childId: data.childId, recordId: data.recordId, status: "replayed", detail: pinDetail(already) };
+      }
+      const back = producers.tables.withFanoutRowData(
+        refused,
+        { ...refusedData, state: "pending" },
+        meta,
+      );
+      try {
+        await store.commit({
+          expectedRevision: await store.readRevision(),
+          writes: [
+            {
+              kind: "update",
+              model: T34F7_FANOUT_CHILD_MODEL,
+              id: refused.id,
+              expectedVersion: refused.version,
+              row: back,
+            },
+          ],
+          history: [],
+          receipt: null,
+          outbox: [],
+          schedules: [],
+          uniqueClaims: [],
+          uniqueReleases: [],
+        });
+      } catch (backError) {
+        if (fanoutStateErrorCode(backError) !== null) throw backError;
+        if (!isFanoutFenceConflict(backError, producers) && !isFanoutStorageConstraint(backError, producers)) {
+          throw backError;
+        }
+        return { childId: data.childId, recordId: data.recordId, status: "retry", detail: "refusal-contention" };
+      }
+      const pinned = await pinFanoutChildTerminal({
+        store,
+        childRow: back,
+        result: {
+          kind: "failed",
+          reason: producers.outcome.FANOUT_T32_REFUSAL_REASON as Exclude<FanoutFailedReason, "exhausted">,
+        },
+        nowMs: meta.nowMs,
+        policy,
+        meta,
+        producers,
+        what: "turn pin refused",
+      });
+      return { childId: data.childId, recordId: data.recordId, status: "refused", detail: pinDetail(pinned.outcome) };
+    }
+    if (code === "rule_failed") {
+      // Business rejection: the rejected attempt committed no child
+      // effects; pin running -> failed/business-rejection (the
+      // rejected attempt counts — F5-exact).
+      const rejected = await store.load(T34F7_FANOUT_CHILD_MODEL, childRow.id);
+      if (rejected === null) {
+        throw new Error("t34-f7: turn: child row vanished after a rejection.");
+      }
+      const rejectedData = producers.tables.readFanoutChildRow(rejected);
+      const already = fanoutChildOutcomeFromData(rejectedData);
+      if (already !== null) {
+        return { childId: data.childId, recordId: data.recordId, status: "replayed", detail: pinDetail(already) };
+      }
+      return tryPin(rejected, { kind: "failed", reason: "business-rejection" }, "turn pin rejected");
+    }
+    throw error;
+  }
+  const recorded = await store.load(T34F7_FANOUT_CHILD_MODEL, childRow.id);
+  if (recorded === null) {
+    throw new Error("t34-f7: turn: child row vanished after its unit commit.");
+  }
+  const recordedData = producers.tables.readFanoutChildRow(recorded);
+  const outcome = fanoutChildOutcomeFromData(recordedData);
+  return {
+    childId: data.childId,
+    recordId: data.recordId,
+    status: "recorded",
+    detail: outcome === null ? "retried-pending" : pinDetail(outcome),
+  };
+}
+
+/**
+ * T34-F7: run one fair scheduler turn — admission completion (freeze
+ * replay when `freeze` is present; a diagnosis returns before any
+ * drive), one bounded stale-release pass, one bounded child page
+ * with at most maxDrives drives in id-sorted order (claim ->
+ * fresh-fence invoke -> record), and operator progress.
+ *
+ * Fairness (§C9/M8): id-sorted order, every admitted identity driven
+ * exactly once per sweep, retries return to pending under the same
+ * id and re-drive on later sweeps — no stalled child starves the
+ * rest. Resumability: `cursor`/`done` chain turns within a sweep;
+ * a new sweep restarts at null (retries behind the cursor are
+ * picked up there); crash resumes purely from durable truth
+ * (terminal replays, fresh claims hold, stale claims release).
+ * Chunk size (`pageLimit`/`maxDrives`) bounds one turn only — never
+ * the cohort: varying it visits identical sets (proven through the
+ * real path).
+ */
+export async function runFanoutSchedulerTurn(
+  opts: RunFanoutSchedulerTurnOpts,
+): Promise<FanoutSchedulerTurnResult> {
+  const producers = opts.producers ?? (await loadFanoutStateProducers());
+  checkFanoutRowMeta(opts.meta, "turn");
+  checkFanoutPolicy(opts.policy, "turn");
+  if (typeof opts.fanoutId !== "string" || opts.fanoutId === "") {
+    throw new Error("t34-f7: turn needs a non-empty fanout id.");
+  }
+  if (!Number.isInteger(opts.bounds.pageLimit) || opts.bounds.pageLimit < 1) {
+    throw new Error("t34-f7: turn needs bounds.pageLimit as an integer >= 1.");
+  }
+  if (!Number.isInteger(opts.bounds.maxDrives) || opts.bounds.maxDrives < 1) {
+    throw new Error("t34-f7: turn needs bounds.maxDrives as an integer >= 1.");
+  }
+  if (!Number.isFinite(opts.maxClaimAgeMs) || opts.maxClaimAgeMs < 0) {
+    throw new Error("t34-f7: turn needs maxClaimAgeMs as finite ms >= 0.");
+  }
+  checkClosedText(opts.cohort.model, "turn cohort model");
+  if (typeof opts.evaluateGuard !== "function" || typeof opts.readSnapshot !== "function") {
+    throw new Error("t34-f7: turn needs evaluateGuard + readSnapshot functions.");
+  }
+  if (typeof opts.fenceFor !== "function" || typeof opts.body !== "function") {
+    throw new Error("t34-f7: turn needs fenceFor + body functions.");
+  }
+  checkClosedText(opts.invoke.childOperation, "turn child operation");
+  checkClosedText(opts.invoke.refInput, "turn ref input");
+  if (typeof opts.invoke.operationIdFor !== "function") {
+    throw new Error("t34-f7: turn needs an operationIdFor function.");
+  }
+  if (opts.freeze !== undefined) {
+    const freeze = opts.freeze;
+    const admitted = await producers.membership.freezeFanoutMembership({
+      store: opts.store,
+      cutoff: freeze.cutoff,
+      cohort: freeze.cohort,
+      owner: freeze.owner,
+      bounds: freeze.bounds,
+      meta: opts.meta,
+      ...(freeze.hasModel === undefined ? {} : { hasModel: freeze.hasModel }),
+    });
+    if (!admitted.ok) {
+      let progress: FanoutProgress | null = null;
+      try {
+        progress = await producers.progress.readFanoutProgress({
+          store: opts.store,
+          fanoutId: opts.fanoutId,
+          pageLimit: opts.bounds.pageLimit,
+        });
+      } catch {
+        progress = null;
+      }
+      return { status: "diagnosed", diagnosis: admitted.diagnosis, progress };
+    }
+  }
+  const released = await releaseStaleFanoutClaims({
+    store: opts.store,
+    fanoutId: opts.fanoutId,
+    cursor: null,
+    limit: opts.bounds.pageLimit,
+    nowMs: opts.meta.nowMs,
+    maxClaimAgeMs: opts.maxClaimAgeMs,
+    meta: opts.meta,
+    producers,
+  });
+  const query = producers.tables.fanoutChildPageQuery(opts.fanoutId, {
+    cursor: opts.cursor,
+    limit: opts.bounds.pageLimit,
+  });
+  const page = producers.tables.fanoutChildPageResult(
+    await opts.store.query(query),
+    opts.bounds.pageLimit,
+  );
+  const driven: FanoutTurnDrivenChild[] = [];
+  const batch = page.rows.slice(0, opts.bounds.maxDrives);
+  for (const childRow of batch) {
+    driven.push(
+      await driveFanoutTurnChild({
+        store: opts.store,
+        childRow,
+        cohort: opts.cohort,
+        guard: opts.guard,
+        evaluateGuard: opts.evaluateGuard,
+        readSnapshot: opts.readSnapshot,
+        fenceFor: opts.fenceFor,
+        body: opts.body,
+        invoke: opts.invoke,
+        policy: opts.policy,
+        meta: opts.meta,
+        producers,
+      }),
+    );
+  }
+  // Honest resume: a maxDrives-truncated page resumes after the last
+  // PROCESSED row (never past unprocessed ones); a fully processed
+  // page carries the store page signal.
+  let cursor: string | null;
+  let done: boolean;
+  if (batch.length < page.rows.length) {
+    const last = batch[batch.length - 1];
+    if (last === undefined) {
+      throw new Error("t34-f7: unreachable: truncated batch has no last row.");
+    }
+    cursor = last.id as string;
+    done = false;
+  } else {
+    cursor = page.cursor;
+    done = page.done;
+  }
+  const progress = await producers.progress.readFanoutProgress({
+    store: opts.store,
+    fanoutId: opts.fanoutId,
+    pageLimit: opts.bounds.pageLimit,
+  });
+  return {
+    status: "turn",
+    driven,
+    released: released.released,
+    releaseSkipped: released.skipped,
+    cursor,
+    done,
+    progress,
+  };
+}
+
+/* -- T34-F7 operator progress + provider cancellation. -- */
+
+/**
+ * T34-F7: read one fanout's data-minimized operator progress (the
+ * REAL F5 `readFanoutProgress`: counts only, terminal-with-failures
+ * means attention, missing rows read pending — never complete).
+ */
+export async function readFanoutSchedulerProgress(opts: {
+  readonly store: StoragePort;
+  readonly fanoutId: string;
+  readonly pageLimit: number;
+  readonly producers?: FanoutStateProducers;
+}): Promise<FanoutProgress> {
+  const producers = opts.producers ?? (await loadFanoutStateProducers());
+  return producers.progress.readFanoutProgress({
+    store: opts.store,
+    fanoutId: opts.fanoutId,
+    pageLimit: opts.pageLimit,
+  });
+}
+
+/**
+ * T34-F7: provider cancellation port — present ONLY when the
+ * provider's accepted contract offers cancellation. The token is
+ * provider-defined (opaque here); the answer is shape-checked
+ * fail-closed.
+ */
+export type FanoutProviderCancelFn = (token: unknown) => unknown | Promise<unknown>;
+
+/** T34-F7: one provider-cancellation request (no store: never touches rows). */
+export interface RequestFanoutProviderCancelOpts {
+  /**
+   * The provider's accepted cancellation entry, or absent when the
+   * provider contract offers none (explicit refusal — never silent,
+   * never forced).
+   */
+  readonly cancel?: FanoutProviderCancelFn;
+  readonly token?: unknown;
+}
+
+/** T34-F7: provider-cancellation outcome (M8: no promise beyond the accepted contract). */
+export type RequestFanoutProviderCancelOutcome =
+  | { readonly status: "cancelled" }
+  | { readonly status: "refused"; readonly reason: string }
+  | { readonly status: "cancel-failed"; readonly reason: string };
+
+/**
+ * T34-F7: request provider cancellation ONLY per its accepted
+ * contract. Without a `cancel` entry the request refuses explicitly
+ * (`no-cancel-contract`); with one the provider's own verdict
+ * routes back. The scheduler NEVER marks provider-accepted work
+ * unilaterally and NEVER writes child rows here (structurally: no
+ * store parameter) — cancellation of a pending/running child row
+ * would be suppression, which the adopted contract forbids (§C8).
+ */
+export async function requestFanoutProviderCancel(
+  opts: RequestFanoutProviderCancelOpts,
+): Promise<RequestFanoutProviderCancelOutcome> {
+  if (opts.cancel === undefined) {
+    return {
+      status: "refused",
+      reason: "no-cancel-contract: the provider accepted no cancellation contract.",
+    };
+  }
+  if (typeof opts.cancel !== "function") {
+    throw new Error("t34-f7: provider cancel entry must be a function.");
+  }
+  const answer: unknown = await opts.cancel(opts.token);
+  if (!isUnknownRecord(answer)) {
+    throw new Error("t34-f7: provider cancel answer must be an object.");
+  }
+  if (answer["cancelled"] === true) return { status: "cancelled" };
+  if (answer["cancelled"] === false) {
+    const reason: unknown = answer["reason"];
+    if (typeof reason !== "string" || reason === "") {
+      throw new Error("t34-f7: provider cancel-failed answer needs a non-empty reason.");
+    }
+    return { status: "cancel-failed", reason };
+  }
+  throw new Error("t34-f7: provider cancel answer needs a boolean cancelled.");
 }

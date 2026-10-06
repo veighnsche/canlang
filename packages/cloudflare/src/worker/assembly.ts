@@ -65,6 +65,12 @@
  * (claim -> provider -> record, sweeps, claim-time guard re-eval)
  * lives in `runtime/invoke.ts` and runs through the composed registry
  * over the dispatch-join port.
+ *
+ * T34-F7 fanout serving surface (this file, additive): the worker
+ * assembly seam for the fanout join. `assembleFanoutServingSurface`
+ * composes the six injected runtime entries (trigger join, durable
+ * claim/record, scheduler turn, progress, provider cancel) into the
+ * ONE frozen serving surface, failing loud on missing entries.
  */
 
 import type {
@@ -1258,6 +1264,64 @@ export function assembleDispatchCommands<
     seen.add(name);
   }
   return Object.freeze(composed);
+}
+
+/* ------------------------------------------------------------------ */
+/* T34-F7 fanout serving surface (worker assembly seam).               */
+/*                                                                     */
+/* The composition exists ONLY here: the deploy join binds the six     */
+/* runtime entries (`runtime/invoke.ts` T34-F7 section) into the ONE   */
+/* frozen serving surface the worker's fanout driver consumes.         */
+/* Segments arrive injected (the worker boundary forbids even a type   */
+/* import from `@canlang/state`/`@canlang/work`, so the seam is        */
+/* generic over the entry types and checks callability only): the      */
+/* deploy join supplies the real entries exactly as tests supply them  */
+/* from runtime dist. Every segment is REQUIRED — a missing entry      */
+/* fails loud here instead of shipping a surface that throws at        */
+/* drive time.                                                         */
+/* ------------------------------------------------------------------ */
+
+/** T34-F7: the six injected fanout serving entries, in serving order. */
+export interface FanoutServingSegments {
+  /** Atomic trigger/intent staging (`stageFanoutTriggerJoin`). */
+  readonly stageTriggerJoin: unknown;
+  /** Durable fenced claim (`claimFanoutChild`). */
+  readonly claimChild: unknown;
+  /** Durable fenced record (`recordFanoutChildAttempt`). */
+  readonly recordAttempt: unknown;
+  /** Fair scheduler turn (`runFanoutSchedulerTurn`). */
+  readonly runSchedulerTurn: unknown;
+  /** Operator progress (`readFanoutSchedulerProgress`). */
+  readonly readProgress: unknown;
+  /** Provider cancellation (`requestFanoutProviderCancel`). */
+  readonly requestCancel: unknown;
+}
+
+/**
+ * T34-F7: compose the ONE fanout serving surface. Pure and total
+ * over well-formed segments: missing or non-function entries fail
+ * loud, naming the segment. Returns a frozen surface; callers keep
+ * their entry types through the generic.
+ */
+export function assembleFanoutServingSurface<TSegments extends FanoutServingSegments>(
+  segments: TSegments,
+): Readonly<TSegments> {
+  const entries = segments as unknown as Record<string, unknown>;
+  for (const key of [
+    "stageTriggerJoin",
+    "claimChild",
+    "recordAttempt",
+    "runSchedulerTurn",
+    "readProgress",
+    "requestCancel",
+  ] as const) {
+    if (typeof entries[key] !== "function") {
+      throw new Error(
+        `t34-f7: cannot assemble fanout serving surface (segment ${JSON.stringify(key)} is not a function)`,
+      );
+    }
+  }
+  return Object.freeze({ ...segments });
 }
 
 /* ------------------------------------------------------------------ */
