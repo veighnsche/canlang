@@ -26,15 +26,15 @@
  */
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import type { CompileArtifact } from '../../../contracts/src/artifact.js';
+import type { CompileArtifact } from '@canlang/contracts';
 import type {
   ModelName,
   OperationName,
   RecordId,
   StoragePort,
   StoredRow,
-} from '../../../contracts/src/state.js';
-import type { ReadEnvelope } from '../../../contracts/src/wire.js';
+} from '@canlang/contracts';
+import type { ReadEnvelope } from '@canlang/contracts';
 import {
   loadArtifactDescriptors,
   type ArtifactDescriptorSlice,

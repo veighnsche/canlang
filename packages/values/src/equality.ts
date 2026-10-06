@@ -53,7 +53,7 @@ import type {
   RecordRef,
   SecretValue,
   UserRef,
-} from "../../contracts/src/values.js";
+} from "@canlang/contracts/values";
 import { compareDecimal, isDecimal } from "./decimal.js";
 import { ValueError } from "./errors.js";
 import {

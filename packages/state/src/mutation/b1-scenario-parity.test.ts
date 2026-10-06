@@ -23,7 +23,7 @@
  */
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import type { ModelName, RecordId } from '../../../contracts/src/state.js';
+import type { ModelName, RecordId } from '@canlang/contracts';
 import { runMutationWrites, type MutationWritesResult } from './pipeline.js';
 import { buildModelTable, type InterimFieldDef } from './models.js';
 import { admit } from '../invocation/admission.js';

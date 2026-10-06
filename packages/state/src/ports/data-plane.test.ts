@@ -21,14 +21,14 @@ import type {
   ArtifactModelField,
   ArtifactOperation,
   ArtifactOperationInput,
-} from '../../../contracts/src/artifact.js';
+} from '@canlang/contracts';
 import type {
   HistoryEntry,
   OutboxIntent,
   QueryPredicate,
   StoragePort,
   StoredRow,
-} from '../../../contracts/src/state.js';
+} from '@canlang/contracts';
 import {
   loadArtifactDescriptors,
   type ArtifactDescriptorSlice,

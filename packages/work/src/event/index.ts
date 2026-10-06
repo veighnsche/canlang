@@ -13,8 +13,8 @@
  * current authority state is loaded from the owner on first delivery via an
  * injected loader; duplicates replay without loading or handling.
  */
-import type { CommittedChangeEvent, OccurrenceId } from '../../../contracts/src/work.js';
-import type { ClockPort, OccurrenceReceipt, OccurrenceStorePort } from '../ports.ts';
+import type { CommittedChangeEvent, OccurrenceId } from '@canlang/contracts';
+import type { ClockPort, OccurrenceReceipt, OccurrenceStorePort } from '../ports.js';
 
 export interface EventDeps {
   occurrences: OccurrenceStorePort;

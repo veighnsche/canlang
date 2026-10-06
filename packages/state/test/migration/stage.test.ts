@@ -10,7 +10,7 @@ import type {
   Revision,
   StoragePort,
   StoredRow,
-} from '../../../contracts/src/state.js';
+} from '@canlang/contracts';
 import { buildModelTable } from '../../src/mutation/index.js';
 import {
   stageNextChunk,

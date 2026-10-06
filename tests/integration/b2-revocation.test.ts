@@ -36,7 +36,7 @@ import {
   readB2IdentityError,
   readB2MemberRoles,
   readB2RevokedAt,
-} from "../../packages/testkit/src/fixtures/b2-revocation.js";
+} from "@canlang/testkit/fixtures/b2-revocation";
 
 /** Exact absent-producer detail every producer-dependent row carries. */
 const ABSENT_SENTENCE =
@@ -63,11 +63,11 @@ const EXPIRES_AT = new Date(CLOCK_START + 86_400_000).toISOString();
 // the root check; non-literal specifiers keep tsc blind (lane02).
 // ---------------------------------------------------------------------------
 
-const TESTING_SPECIFIER = "../../packages/identity/src/testing.ts";
-const REVOCATION_SPECIFIER = "../../packages/identity/src/authentication/revocation.ts";
-const ROLES_SPECIFIER = "../../packages/identity/src/teams/roles.ts";
-const MEMBERSHIP_SPECIFIER = "../../packages/identity/src/teams/membership.ts";
-const TOKENS_SPECIFIER = "../../packages/identity/src/sessions/tokens.ts";
+const TESTING_SPECIFIER = "@canlang/identity/testing";
+const REVOCATION_SPECIFIER = "@canlang/identity";
+const ROLES_SPECIFIER = "@canlang/identity";
+const MEMBERSHIP_SPECIFIER = "@canlang/identity";
+const TOKENS_SPECIFIER = "@canlang/identity";
 
 interface IdentityStoreView {
   createUser(input: { email: string; password_hash: string; email_verified: boolean }): Promise<unknown>;

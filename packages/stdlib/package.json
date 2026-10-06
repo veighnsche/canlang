@@ -2,7 +2,7 @@
   "name": "@canlang/stdlib",
   "version": "0.1.0",
   "license": "MIT",
-  "description": "CanLang public standard library façade: thin export assembly from producer packages (lane 03)",
+  "description": "CanLang public standard library fa\u00e7ade: thin export assembly from producer packages (lane 03)",
   "type": "module",
   "main": "./dist/src/index.js",
   "types": "./dist/src/index.d.ts",
@@ -10,13 +10,17 @@
     "dist/"
   ],
   "scripts": {
-    "build": "tsc -p tsconfig.json",
-    "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test": "bun run build && node --test \"dist/test/**/*.test.js\"",
-    "clean": "rm -rf dist/"
+    "build": "node ../../scripts/build-package.mjs",
+    "typecheck": "node ../../scripts/run-tasks.mjs typecheck:check --filter=@canlang/stdlib",
+    "test": "node ../../scripts/run-tasks.mjs test:unit --filter=@canlang/stdlib",
+    "clean": "rm -rf dist/",
+    "build:emit": "tsc -p tsconfig.json",
+    "typecheck:check": "tsc -p tsconfig.json --noEmit",
+    "test:unit": "node --test \"dist/test/**/*.test.js\"",
+    "build:prepare": "node ../../scripts/build-package.mjs --prepare"
   },
   "dependencies": {
-    "@canlang/values": "0.1.0"
+    "@canlang/values": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "26.6.4",
@@ -24,5 +28,15 @@
   },
   "engines": {
     "node": ">=22"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/src/index.d.ts",
+      "default": "./dist/src/index.js"
+    },
+    "./distribution": {
+      "types": "./dist/src/distribution.d.ts",
+      "default": "./dist/src/distribution.js"
+    }
   }
 }

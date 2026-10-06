@@ -18,7 +18,7 @@ import {
   revalidateCommitForFence,
 } from './admission.js';
 import { buildContext } from './context.js';
-import type { InvocationContext } from '../../../contracts/src/state.js';
+import type { InvocationContext } from '@canlang/contracts';
 import { createMemoryStorage } from '../storage/memory.js';
 import { FenceConflictError } from '../storage/port.js';
 import type { MembershipReader } from '../policy/roles.js';

@@ -6,8 +6,8 @@ import { fileURLToPath } from "node:url";
 import { createRequire } from "node:module";
 
 const here = dirname(fileURLToPath(import.meta.url));
-// Compiled tests run from dist/ui/test; sources sit beside dist.
-const packageRoot = join(here, "..", "..", "..");
+// Compiled tests run from dist/test; sources sit beside dist.
+const packageRoot = join(here, "..", "..");
 const srcDir = join(packageRoot, "src");
 const themesCss = readFileSync(join(packageRoot, "themes.css"), "utf8");
 // Resolve through node_modules instead of assuming a hoisted root layout

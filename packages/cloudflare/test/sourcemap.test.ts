@@ -46,14 +46,14 @@ function testCtx(): HandlerContext {
   });
 }
 
-function stubProducers(): { distRoot: string; stdlibUrl: string } {
+function stubProducers(): { distRoot: string; stdlibUrl: string; uiUrl: string } {
   const distRoot = mkdtempSync(join(tmpdir(), "b3-dist-"));
   const uiEntry = join(distRoot, "ui", "dist", "ui", "src", "index.js");
   mkdirSync(join(distRoot, "ui", "dist", "ui", "src"), { recursive: true });
   writeFileSync(uiEntry, `export const uiMarker = "ui-stub";\n`);
   const stdlibPath = join(distRoot, "stdlib.mjs");
   writeFileSync(stdlibPath, `export const stdlibMarker = "stdlib-stub";\n`);
-  return { distRoot, stdlibUrl: pathToFileURL(stdlibPath).href };
+  return { distRoot, uiUrl: pathToFileURL(uiEntry).href, stdlibUrl: pathToFileURL(stdlibPath).href };
 }
 
 function artifactWith(module: ArtifactModule): CompileArtifact {
@@ -125,13 +125,13 @@ describe("sourcemap decode + lookup (B3 I2)", () => {
 
 describe("sourcemap runtime round-trip (B3 I2)", () => {
   it("a throwing handler yields mapped == the .can file + line", async () => {
-    const { distRoot, stdlibUrl } = stubProducers();
+    const { distRoot, stdlibUrl, uiUrl } = stubProducers();
     const workDir = mkdtempSync(join(tmpdir(), "b3-work-"));
     const artifact = artifactWith({ path: "main.js", js: THROWING_JS, map: REAL_MAP });
 
     const assembled = await assembleModules(
       { artifact, sourcePath: "/tmp/b3-fixture.artifact.json" },
-      { distRoot, workDir, stdlibUrl },
+      { distRoot, uiUrl, workDir, stdlibUrl },
     );
 
     // assembleModules stages the map next to the module with a working
@@ -150,13 +150,13 @@ describe("sourcemap runtime round-trip (B3 I2)", () => {
   });
 
   it("unknown frames stay message-only: original error preserved, no mapped", async () => {
-    const { distRoot, stdlibUrl } = stubProducers();
+    const { distRoot, stdlibUrl, uiUrl } = stubProducers();
     const workDir = mkdtempSync(join(tmpdir(), "b3-work-"));
     const emptyMap: SourceMap = { ...REAL_MAP, sources: [], sourcesContent: [], mappings: "" };
     const artifact = artifactWith({ path: "main.js", js: THROWING_JS, map: emptyMap });
     const assembled = await assembleModules(
       { artifact, sourcePath: "/tmp/b3-fixture.artifact.json" },
-      { distRoot, workDir, stdlibUrl },
+      { distRoot, uiUrl, workDir, stdlibUrl },
     );
 
     const result = await invokeCallable(assembled, artifact, "plain.Plain.boom", testCtx());
@@ -166,13 +166,13 @@ describe("sourcemap runtime round-trip (B3 I2)", () => {
   });
 
   it("malformed maps never break invoke: message-only, unmapped position intact", async () => {
-    const { distRoot, stdlibUrl } = stubProducers();
+    const { distRoot, stdlibUrl, uiUrl } = stubProducers();
     const workDir = mkdtempSync(join(tmpdir(), "b3-work-"));
     const badMap: SourceMap = { ...REAL_MAP, mappings: "!" };
     const artifact = artifactWith({ path: "main.js", js: THROWING_JS, map: badMap });
     const assembled = await assembleModules(
       { artifact, sourcePath: "/tmp/b3-fixture.artifact.json" },
-      { distRoot, workDir, stdlibUrl },
+      { distRoot, uiUrl, workDir, stdlibUrl },
     );
 
     const result = await invokeCallable(assembled, artifact, "plain.Plain.boom", testCtx());
@@ -231,12 +231,12 @@ describe("sourcemap runtime round-trip (B3 I2)", () => {
   });
 
   it("invoke maps through its own lookup when the runtime cannot remap", async () => {
-    const { distRoot, stdlibUrl } = stubProducers();
+    const { distRoot, stdlibUrl, uiUrl } = stubProducers();
     const workDir = mkdtempSync(join(tmpdir(), "b3-work-"));
     const artifact = artifactWith({ path: "main.js", js: THROWING_JS, map: REAL_MAP });
     const assembled = await assembleModules(
       { artifact, sourcePath: "/tmp/b3-fixture.artifact.json" },
-      { distRoot, workDir, stdlibUrl },
+      { distRoot, uiUrl, workDir, stdlibUrl },
     );
     // Deleting the staged map (and its comment, so no loader hunts for
     // it) disables runtime remapping: the stack keeps generated positions

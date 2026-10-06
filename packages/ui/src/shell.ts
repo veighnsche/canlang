@@ -11,7 +11,7 @@ import {
   CSRF_FIELD,
   PRESESSION_FIELD,
   TEAM_FIELD,
-} from "../../contracts/src/presentation.js";
+} from "@canlang/contracts";
 import type {
   LoginProps,
   MessageValue,
@@ -21,7 +21,7 @@ import type {
   PresentationContext,
   RenderPageFn,
   ShellData,
-} from "../../contracts/src/presentation.js";
+} from "@canlang/contracts";
 import { escapeAttr, escapeHtml, safeHref } from "./escape.js";
 import {
   canonicalDefaultTag,

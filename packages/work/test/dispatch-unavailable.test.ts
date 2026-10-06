@@ -21,16 +21,16 @@
  */
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import type { OutboxItem } from '../../contracts/src/work.js';
+import type { OutboxItem } from '@canlang/contracts';
 import {
   TestOnlyCounterClaimIds,
   TestOnlyManualClock,
   TestOnlyMemorySupersession,
-} from '../src/ports.ts';
-import type { AnyOutboxIntent } from '../src/intent/index.ts';
-import { commitOutboxIntent, stageOutboxIntent } from '../src/intent/index.ts';
-import type { GuardEvaluator, TargetAvailabilityPort } from '../src/dispatch/index.ts';
-import { attemptDispatch } from '../src/dispatch/index.ts';
+} from '../src/ports.js';
+import type { AnyOutboxIntent } from '../src/intent/index.js';
+import { commitOutboxIntent, stageOutboxIntent } from '../src/intent/index.js';
+import type { GuardEvaluator, TargetAvailabilityPort } from '../src/dispatch/index.js';
+import { attemptDispatch } from '../src/dispatch/index.js';
 
 const OPERATION = '0193f2c0-0000-7000-8000-000000000001';
 

@@ -9,7 +9,7 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { queryAggregate } from '../../src/query/index.js';
-import type { AggregateSpec } from '../../../contracts/src/state.js';
+import type { AggregateSpec } from '@canlang/contracts';
 import { createMemoryStorage } from '../../src/storage/memory.js';
 import { captureStateError } from '../invocation/fixtures.js';
 import {

@@ -23,8 +23,8 @@
  * contract violation and throws (host-fatal, like other UI guards).
  */
 
-import type { PresentationContext } from "../../../contracts/src/presentation.js";
-import { CSRF_FIELD } from "../../../contracts/src/presentation.js";
+import type { PresentationContext } from "@canlang/contracts";
+import { CSRF_FIELD } from "@canlang/contracts";
 import type { SubmitFetch, SubmitFetchResponse } from "../client.js";
 import {
   csvFormulaProtect,

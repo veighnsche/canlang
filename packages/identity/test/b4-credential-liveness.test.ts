@@ -8,7 +8,7 @@
  *
  * Location note: this lives in `identity/test/` (not co-located under
  * `src/authentication/`) because the package gate runs only the
- * `dist/identity/test` tree — co-located tests compile but never
+ * `dist/test` tree — co-located tests compile but never
  * execute.
  */
 import { test } from 'node:test';

@@ -11,7 +11,7 @@ import type {
   AppearanceSize,
   AppearanceTone,
   AppearanceVariant,
-} from "../../contracts/src/presentation.js";
+} from "@canlang/contracts";
 import { UI_CATALOG } from "./catalog.js";
 
 export interface AppearanceOpts {

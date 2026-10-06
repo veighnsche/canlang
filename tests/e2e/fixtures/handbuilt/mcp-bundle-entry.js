@@ -23,8 +23,8 @@
  * threw it. No producer is stubbed: a missing dist or dependency fails the
  * bundle build loud in the loader, naming the fix.
  */
-export { createMcpHandler } from "../../../../packages/interfaces/dist/interfaces/src/mcp/server.js";
+export { createMcpHandler } from "@canlang/interfaces/mcp/server";
 export {
   createArtifactCatalog,
   createArtifactRegistry,
-} from "../../../../packages/cloudflare/dist/runtime/mcp-registry.js";
+} from "@canlang/cloudflare/runtime/mcp-registry";

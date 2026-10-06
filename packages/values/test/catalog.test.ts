@@ -1,7 +1,7 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { CATALOG, LANE02_CATALOG_VERSION } from "../src/catalog.js";
-import { VALUES_CONTRACT_VERSION } from "../../contracts/src/values.js";
+import { VALUES_CONTRACT_VERSION } from "@canlang/contracts/values";
 
 /** The closed DESIGN §3 builtin names (L215/L221), as an independent oracle. */
 const EXPECTED_BUILTINS = [

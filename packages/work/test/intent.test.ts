@@ -8,7 +8,7 @@ import {
   isCommitted,
   requireCommitted,
   stageOutboxIntent,
-} from '../src/intent/index.ts';
+} from '../src/intent/index.js';
 
 const OPERATION = '0193f2c0-0000-7000-8000-000000000001';
 

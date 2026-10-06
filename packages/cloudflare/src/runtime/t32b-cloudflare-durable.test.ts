@@ -43,8 +43,8 @@ import type {
 } from "@canlang/contracts";
 import { resolveIdentity, sha256HexText } from "@canlang/identity";
 import { createFrozenClock, createMemoryIdentityStore } from "@canlang/identity/testing";
-import { createD1Storage, ensureSchema } from "../../../state/dist/state/src/storage/d1.js";
-import { FenceConflictError, StorageConstraintError } from "../../../state/dist/state/src/storage/port.js";
+import { createD1Storage, ensureSchema } from "@canlang/state/storage/d1";
+import { FenceConflictError, StorageConstraintError } from "@canlang/state/storage/port";
 import { buildInvoker } from "../worker/assembly.js";
 import type { AssembledModules } from "../worker/assembly.js";
 import { assembleDispatchCommands } from "../worker/assembly.js";
@@ -290,7 +290,7 @@ async function resetD1(): Promise<void> {
 }
 
 const doWorkerPath = fileURLToPath(
-  new URL("../../../state/test/storage/do-test-worker.js", import.meta.url),
+  new URL(import.meta.resolve("@canlang/state/testing/storage/do-test-worker")),
 );
 
 let doMf: Miniflare | undefined;
@@ -419,7 +419,7 @@ interface WorkProducers {
 }
 
 function workSpecifier(path: string): string {
-  return ["..", "..", "..", "work", "src", path].join("/");
+  return "@canlang/work/" + path.replace(/\.ts$/, "").replace(/\/index$/, "");
 }
 
 let cachedWork: WorkProducers | null = null;

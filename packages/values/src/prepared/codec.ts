@@ -26,7 +26,7 @@
  * future `unknown-type` code is a retained followup once `plan.ts` is open
  * for extension.
  */
-import type { CanValue, WireValue } from "../../../contracts/src/values.js";
+import type { CanValue, WireValue } from "@canlang/contracts/values";
 import { decodeValue, encodeValue } from "../wire.js";
 import type { NormalizedType } from "../types.js";
 import { parseTypeId } from "../types.js";

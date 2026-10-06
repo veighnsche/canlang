@@ -6,7 +6,7 @@
 import type {
   FilePolicy,
   UploadIntentRequest,
-} from '../../contracts/src/files.js';
+} from '@canlang/contracts';
 import {
   TestOnlyCounterFileIds,
   TestOnlyCounterIntentIds,
@@ -19,15 +19,15 @@ import {
   type ClockPort,
   type FinalizedStorePort,
   type IntentStorePort,
-} from '../src/ports.ts';
+} from '../src/ports.js';
 import type {
   ReceivingContext,
   RequestProvenanceBinding,
-} from '../src/provenance/index.ts';
-import type { FinalizeDeps } from '../src/finalize/index.ts';
-import { DEFAULT_FILE_POLICY, type UploadDeps } from '../src/upload/index.ts';
-import { createBridgeOrigin, type BridgeDeps } from '../src/bridge.ts';
-import type { RetentionDeps } from '../src/retention/index.ts';
+} from '../src/provenance/index.js';
+import type { FinalizeDeps } from '../src/finalize/index.js';
+import { DEFAULT_FILE_POLICY, type UploadDeps } from '../src/upload/index.js';
+import { createBridgeOrigin, type BridgeDeps } from '../src/bridge.js';
+import type { RetentionDeps } from '../src/retention/index.js';
 
 export const T0 = Date.parse('2026-10-04T15:00:00Z');
 export const ORIGIN_URL = 'https://app.example.test';

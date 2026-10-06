@@ -11,19 +11,19 @@ import assert from 'node:assert/strict';
 import type {
   AssociatedReceipt,
   ReceiptAssociation,
-} from '../../../contracts/src/work.js';
+} from '@canlang/contracts';
 import {
   TestOnlyAllowAllGrants,
   TestOnlyAvailabilityMap,
   TestOnlyGrantSet,
-} from './ports.ts';
+} from './ports.js';
 import {
   applyReceiptProgress,
   matchAssociatedCompletion,
-} from './association.ts';
-import type { ReceiptProgress } from './association.ts';
-import { observeSelectedReceipt } from './observation.ts';
-import type { StoredReceipt } from './observation.ts';
+} from './association.js';
+import type { ReceiptProgress } from './association.js';
+import { observeSelectedReceipt } from './observation.js';
+import type { StoredReceipt } from './observation.js';
 
 const NOW = 1_791_120_000_000;
 

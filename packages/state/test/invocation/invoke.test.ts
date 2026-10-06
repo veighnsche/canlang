@@ -16,7 +16,7 @@ import { admit, receiptIdentityFor } from '../../src/invocation/admission.js';
 import type { AdmittedCall } from '../../src/invocation/admission.js';
 import type { InterimOperationDef, OperationRegistry } from '../../src/invocation/registry.js';
 import { buildContext } from '../../src/invocation/context.js';
-import type { StoragePort } from '../../../contracts/src/state.js';
+import type { StoragePort } from '@canlang/contracts';
 import { createTestMemoryStorage } from '../../src/storage/memory.js';
 import { FenceConflictError, StorageConstraintError } from '../../src/storage/port.js';
 import { StateError, storageToStateError, toBusinessError } from '../../src/errors.js';

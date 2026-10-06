@@ -19,7 +19,7 @@ import type {
 } from './registry.js';
 import { createTestMemoryStorage } from '../storage/memory.js';
 import { StateError } from '../errors.js';
-import type { QueryPredicate } from '../../../contracts/src/state.js';
+import type { QueryPredicate } from '@canlang/contracts';
 import { buildModelTable, crudDefs, crudExecute } from '../mutation/index.js';
 import {
   FIXED_NOW,

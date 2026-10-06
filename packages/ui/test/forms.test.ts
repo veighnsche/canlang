@@ -1,6 +1,6 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { CSRF_FIELD } from "../../contracts/src/presentation.js";
+import { CSRF_FIELD } from "@canlang/contracts";
 import type {
   ActionProps,
   DeleteProps,
@@ -9,8 +9,8 @@ import type {
   FormFieldDef,
   FormProps,
   PresentationContext,
-} from "../../contracts/src/presentation.js";
-import type { FieldError, SealedActionHandle } from "../../contracts/src/presentation.js";
+} from "@canlang/contracts";
+import type { FieldError, SealedActionHandle } from "@canlang/contracts";
 import { message } from "../src/messages.js";
 import {
   action,

@@ -7,7 +7,7 @@ import type {
   OutboxItem,
   ScheduledOccurrence,
   WorkScope,
-} from '../../contracts/src/work.js';
+} from '@canlang/contracts';
 import {
   buildInventory,
   buildWorkInventory,
@@ -16,8 +16,8 @@ import {
   isClaimStale,
   releaseStaleClaims,
   scanDueBatch,
-} from '../src/recovery/index.ts';
-import type { DueRowSupplier } from '../src/recovery/index.ts';
+} from '../src/recovery/index.js';
+import type { DueRowSupplier } from '../src/recovery/index.js';
 
 const scope: WorkScope = { app: 'CanApprove', ownerPackage: 'Approval', owner: 'team_1' };
 

@@ -3,8 +3,8 @@ import assert from "node:assert/strict";
 import type {
   FormFieldDef,
   PresentationContext,
-} from "../../contracts/src/presentation.js";
-import type { DerivedOperationInputs } from "../../contracts/src/wire.js";
+} from "@canlang/contracts";
+import type { DerivedOperationInputs } from "@canlang/contracts";
 import {
   GENERATED_DATETIME_FOLD_SUFFIX,
   GENERATED_MONEY_CURRENCY_SUFFIX,

@@ -5,19 +5,19 @@
  */
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { httpRequest } from '../src/http/client.ts';
-import type { HttpClientConfig } from '../src/http/client.ts';
+import { httpRequest } from '../src/http/client.js';
+import type { HttpClientConfig } from '../src/http/client.js';
 import {
   HttpBodyLimitError,
   HttpRedirectError,
   HttpTooManyRedirectsError,
   HttpTransportError,
-} from '../src/http/errors.ts';
-import { startControlledMailServer } from '../src/ports.ts';
+} from '../src/http/errors.js';
+import { startControlledMailServer } from '../src/ports.js';
 import type {
   ControlledMailServer,
   ControlledScenario,
-} from '../src/ports.ts';
+} from '../src/ports.js';
 
 function configFor(server: ControlledMailServer): HttpClientConfig {
   return { baseUrl: server.url, timeoutMs: 5000, maxBodyBytes: 1_000_000 };

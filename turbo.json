@@ -1,0 +1,57 @@
+{
+  "$schema": "https://turborepo.dev/schema.json",
+  "noUpdateNotifier": true,
+  "agentGuidance": false,
+  "cacheDir": ".turbo/cache",
+  "envMode": "strict",
+  "concurrency": "4",
+  "remoteCache": { "enabled": false },
+  "globalDependencies": [
+    "bun.lock",
+    "bunfig.toml",
+    "tsconfig.base.json",
+    "scripts/run-tasks.mjs",
+    "scripts/build-package.mjs"
+  ],
+  "globalEnv": [
+    "CAN_BUILD_HOST", "CAN_BUILD_NODE", "CAN_BUILD_BUN",
+    "NODE_OPTIONS", "NODE_ENV", "TZ", "LANG", "LC_ALL"
+  ],
+  "globalPassThroughEnv": [
+    "CAN_PREPARATION_BIN", "CAN_BIN", "LOADER_SMOKE_WASM",
+    "CI", "NO_COLOR", "FORCE_COLOR", "TMPDIR", "TMP", "TEMP",
+    "CARGO_TARGET_DIR", "CARGO_HOME", "RUSTUP_HOME", "RUSTUP_TOOLCHAIN",
+    "RUSTFLAGS", "CARGO_BUILD_TARGET", "WASM_BINDGEN_*"
+  ],
+  "tasks": {
+    "build": {
+      "dependsOn": ["^build", "build:prepare"],
+      "outputs": [
+        "dist/**", "*.tsbuildinfo", "!dist/catalog.json",
+        "!dist/preparation/*/can-preparation",
+        "!dist/preparation/*/can-preparation.exe",
+        "!dist/preparation/*/manifest.json"
+      ]
+    },
+    "build:prepare": { "cache": false },
+    "typecheck:check": { "dependsOn": ["build"], "cache": false },
+    "test:unit": { "dependsOn": ["build"], "cache": false },
+    "test:runtime": { "dependsOn": ["build"], "cache": false },
+    "catalog:emit": { "dependsOn": ["build"], "cache": false, "outputs": ["dist/catalog.json"] },
+    "build:semantics": { "cache": false },
+    "build:wasm": { "cache": false },
+    "//#typecheck:root": { "dependsOn": ["^build"], "cache": false },
+    "//#typecheck:e2e:check": { "dependsOn": ["^build"], "cache": false },
+    "//#test:root": { "dependsOn": ["^build"], "cache": false },
+    "//#test:ci:run": { "cache": false },
+    "//#test:e2e:run": { "dependsOn": ["^build"], "cache": false },
+    "//#release:stamp": { "dependsOn": ["^build"], "cache": false },
+    "//#release:manifest": { "dependsOn": ["release:stamp"], "cache": false },
+    "//#release:verify": { "dependsOn": ["release:manifest"], "cache": false },
+    "//#release:pack:run": { "dependsOn": ["release:verify"], "cache": false },
+    "//#native:compiler:build": { "cache": false },
+    "//#native:compiler:test": { "dependsOn": ["native:compiler:build"], "cache": false },
+    "//#native:compiler:lint": { "cache": false },
+    "//#tools:jev": { "cache": false }
+  }
+}

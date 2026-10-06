@@ -350,7 +350,6 @@ export async function runPreparedDeploy(
   // serve), and preview/--yes report it loudly so the deployer sees it.
   // Until the P-A serving entry is built, fall back to the legacy main
   // with a loud warning.
-  const repoRoot = dirname(distRootDir());
   const verdict = await activate({
     artifact: loaded.artifact,
     descriptor,
@@ -360,7 +359,7 @@ export async function runPreparedDeploy(
   let bundleRef: DeployBundleRef | null = null;
   let deployBundle: DeployBundle | null = null;
   try {
-    const bundle = buildBundleWithHostPhases(loaded.artifact, { repoRoot, verdict });
+    const bundle = buildBundleWithHostPhases(loaded.artifact, { verdict });
     bundleRef = {
       main: deployBundleMain(stem),
       moduleCount: bundle.moduleCount,

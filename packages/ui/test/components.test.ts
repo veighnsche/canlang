@@ -4,7 +4,7 @@ import type {
   MessageValue,
   PresentationContext,
   RowView,
-} from "../../contracts/src/presentation.js";
+} from "@canlang/contracts";
 import { message } from "../src/messages.js";
 import {
   card,

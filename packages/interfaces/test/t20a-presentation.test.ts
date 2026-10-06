@@ -16,8 +16,8 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { deriveCsrfToken } from '@canlang/identity';
 import type { IdentityStore } from '@canlang/identity';
-import { ARTIFACT_VERSION } from '../../contracts/src/artifact.js';
-import type { ArtifactOperation } from '../../contracts/src/artifact.js';
+import { ARTIFACT_VERSION } from '@canlang/contracts';
+import type { ArtifactOperation } from '@canlang/contracts';
 import type {
   ClosedInputs,
   ListQueryResult,
@@ -49,7 +49,7 @@ import {
   generatedFields,
   generatedForm,
   projectGeneratedInputs,
-} from '../../ui/src/forms.js';
+} from '@canlang/ui';
 
 /* Verbatim emission: Shop.review (scenario). */
 const REVIEW_OP: ArtifactOperation = {

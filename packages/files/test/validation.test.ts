@@ -8,9 +8,9 @@ import {
   appendUploadContent,
   completeUploadContent,
   stagingKeyForIntent,
-} from '../src/upload/index.ts';
-import { finalizeUpload } from '../src/finalize/index.ts';
-import { handleCreateIntent } from '../src/bridge.ts';
+} from '../src/upload/index.js';
+import { finalizeUpload } from '../src/finalize/index.js';
+import { handleCreateIntent } from '../src/bridge.js';
 import {
   BINDING,
   GARBAGE_BYTES,
@@ -20,7 +20,7 @@ import {
   RECEIVER,
   makeHarness,
   uploadRequest,
-} from './helpers.ts';
+} from './helpers.js';
 
 function grantedIntentId(h: ReturnType<typeof makeHarness>, size: number): string {
   const created = handleCreateIntent(

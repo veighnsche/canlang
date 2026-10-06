@@ -18,31 +18,31 @@ import type {
   ModelName,
   RecordId,
   StoragePort,
-} from '../../../contracts/src/state.js';
-import type { ReceiptProperty } from '../../../contracts/src/work.js';
-import { StateError } from '../errors.js';
+} from '@canlang/contracts';
+import type { ReceiptProperty } from '@canlang/contracts';
+import { StateError } from '@canlang/state/errors';
 import {
   openFenceScope,
   revalidateCommitForFence,
-} from '../invocation/admission.js';
-import { createTestMemoryStorage } from '../storage/memory.js';
+} from '@canlang/state/invocation/admission';
+import { createTestMemoryStorage } from '@canlang/state/storage/memory';
 import {
   FIXED_NOW,
   asId,
   asModel,
   makeBatch,
   makeRow,
-} from '../../test/invocation/fixtures.js';
-import type { SeededMember } from '../../test/invocation/fixtures.js';
+} from '@canlang/state/testing/invocation/fixtures';
+import type { SeededMember } from '@canlang/state/testing/invocation/fixtures';
 import {
   REVIEWER,
   grant,
   modelPolicy,
   policyTable,
   seedStandardTeam,
-} from '../../test/query/fixtures.js';
-import type { TestMembershipStore } from '../../test/query/fixtures.js';
-import type { PolicyTable } from '../policy/grants.js';
+} from '@canlang/state/testing/query/fixtures';
+import type { TestMembershipStore } from '@canlang/state/testing/query/fixtures';
+import type { PolicyTable } from '@canlang/state/policy/grants';
 import {
   RECEIPT_ASSOCIATION_MODEL,
   RECEIPT_MODEL,
@@ -59,17 +59,17 @@ import {
   ReceiptTableError,
   type AssociationRowData,
   type ReceiptRowData,
-} from './tables.js';
-import type { DeliveryFieldSchema } from './grants.js';
+} from '@canlang/state/receipt/tables';
+import type { DeliveryFieldSchema } from '@canlang/state/receipt/grants';
 import {
   loadArtifactDescriptors,
   type ArtifactDescriptorSlice,
-} from '../invocation/registry.js';
+} from '@canlang/state/invocation/registry';
 import {
   observeSelectedReceiptJoin,
   type SelectedReceiptJoinInput,
   type SelectedReceiptJoinOutcome,
-} from './join.js';
+} from '@canlang/state/receipt/join';
 import { loadWorkReceiptFns, type WorkReceiptFns } from './work-loader.js';
 
 const ITEM = 'Acme.Item';

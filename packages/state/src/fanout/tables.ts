@@ -25,13 +25,13 @@ import type {
   RecordId,
   RecordVersion,
   StoredRow,
-} from '../../../contracts/src/state.js';
+} from '@canlang/contracts';
 import type {
   FanoutCohortKind,
   FanoutFailedReason,
   FanoutId,
   FanoutSkippedReason,
-} from '../../../contracts/src/work.js';
+} from '@canlang/contracts';
 import { StateError } from '../errors.js';
 
 /** State-owned fanout table models (structural literals, cf. F2 constants). */

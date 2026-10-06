@@ -3,7 +3,7 @@
  * module map (the deploy `main` and everything it imports).
  *
  * Why this exists: `assembleModules` (`runtime/modules.ts`) emits node
- * file-URLs with a distRoot UI rewrite — shippable to a local node process,
+ * file-URLs with an installed UI rewrite — shippable to a local node process,
  * not to workerd. This module is its deploy-time counterpart: same artifact
  * validation, but every import becomes a module-map-relative ESM specifier
  * and every byte is scanned workerd-loadable before it ships.
@@ -16,8 +16,8 @@
  * bundling) and in workerd module maps:
  * - `worker/`: top-level `dist/worker/*.js` (the P-A serving entry
  *   `main.js` + `entry.js` + `assembly.js`), copied from the BUILT worker
- *   dist (`<repoRoot>/packages/cloudflare/dist/worker/`, produced by `bun
- *   run build`). Missing `main.js` fails loud with `WORKER_MAIN_MISSING`.
+ *   dist resolved through `@canlang/cloudflare/worker/main`. Missing
+ *   `main.js` fails loud with `WORKER_MAIN_MISSING`.
  * - `worker/artifact.js` (GENERATED): the P-B staged deployment —
  *   `export const { artifact, modules, verdict }`, where `modules` is the
  *   PORTABLE `AssembledModules` (module-map-relative URLs, never node
@@ -47,19 +47,15 @@
  *   `vendor/` specifiers (computed per importing module, so nested
  *   modules resolve correctly). Pages and callables reference staged
  *   modules by name and are validated, never silently dropped.
- * - `vendor/…` trees: built producer dists (contracts, ui, identity,
- *   stdlib, state, values) plus the `contracts/src` mirror for the
- *   repo-relative specifier baked into @canlang/ui dist (same bytes,
- *   second key). Producer imports inside staged vendor trees
- *   (`@canlang/values` in stdlib today) and pinned-runtime files
- *   (`@canlang/identity`, `@canlang/contracts`, the state-D1 checkout
- *   path) are rewritten to module-relative `vendor/` keys;
- *   `assertLinksResolve` then refuses
- *   any dangling or bare import. Acknowledged gap: dynamic imports
- *   through variables (the rewritten `*_SPECIFIER` consts) are
- *   statically invisible to the check — they are covered behaviorally
- *   by the with-DB boot tests, which execute the real dynamic imports
- *   in workerd.
+ * - `vendor/…` trees: package-owned exported distributions for contracts,
+ *   ui, identity, stdlib, state, values. Producer imports become relative
+ *   vendor keys; sorted staging excludes colocated tests and metadata.
+ *   Worker/MCP/HTTP entries resolve through package exports, so installed
+ *   consumers use the same build artifacts as checkout consumers.
+ *   Nonliteral dynamic imports remain checked behaviorally by with-DB boot
+ *   tests. The optional state receipt observer is still absent; its exact
+ *   absence permits the Node/dev work producer fallback, while deployed
+ *   receipt serving continues to require the injected/worker-safe observer.
  *
  * `instanceof IdentityError` invariant (mirrors the fixture header in
  * `tests/e2e/fixtures/handbuilt/mcp-bundle-entry.js`): bundling duplicates
@@ -84,7 +80,15 @@ import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { basename, dirname, join, posix, relative, sep } from "node:path";
+import { fileURLToPath } from "node:url";
+import { resolveProducerFile } from "./producer-files.js";
+import { distribution as contractsDistribution } from "@canlang/contracts/distribution";
+import { distribution as uiDistribution } from "@canlang/ui/distribution";
+import { distribution as identityDistribution } from "@canlang/identity/distribution";
+import { distribution as stdlibDistribution } from "@canlang/stdlib/distribution";
+import { distribution as stateDistribution } from "@canlang/state/distribution";
+import { distribution as valuesDistribution } from "@canlang/values/distribution";
+import { dirname, join, posix, relative, sep } from "node:path";
 import type {
   ActivationVerdict,
   ArtifactModule,
@@ -125,32 +129,14 @@ const PINNED_RUNTIME_FILES: readonly string[] = [
 ];
 /** Deploy dir suffix: `<stem>.deploy/` next to the artifact. */
 export const DEPLOY_DIR_SUFFIX = ".deploy";
-/** Built worker entry this bundle stages (P-A serving entry, via build). */
-export const WORKER_MAIN_DIST_RELATIVE = posix.join("packages", "cloudflare", "dist", "worker", "main.js");
 /** Thrown error `code` when the built worker entry is missing. */
 export const WORKER_MAIN_MISSING = "worker-main-missing";
 
 /** Real-producer dists the MCP bundle is byte-built from (never stubbed). */
-export const INTERFACES_MCP_SERVER_DIST = posix.join(
-  "packages",
-  "interfaces",
-  "dist",
-  "interfaces",
-  "src",
-  "mcp",
-  "server.js",
-);
+export const INTERFACES_MCP_SERVER_DIST = "@canlang/interfaces/mcp/server";
 /** Real-producer dist the HTTP operations bundle is byte-built from (never stubbed). */
-export const INTERFACES_HTTP_OPERATIONS_DIST = posix.join(
-  "packages",
-  "interfaces",
-  "dist",
-  "interfaces",
-  "src",
-  "http",
-  "operations.js",
-);
-export const MCP_REGISTRY_DIST = posix.join("packages", "cloudflare", "dist", "runtime", "mcp-registry.js");
+export const INTERFACES_HTTP_OPERATIONS_DIST = "@canlang/interfaces/http/operations";
+export const MCP_REGISTRY_DIST = "@canlang/cloudflare/runtime/mcp-registry";
 
 /**
  * Marker check, mirroring the e2e loader: the bundle MUST still export the
@@ -176,32 +162,19 @@ export const HTTP_BUNDLE_MARKERS: readonly string[] = [
 ];
 
 interface VendorTree {
-  distSubdir: string;
+  directory: URL;
   prefix: string;
   buildCommand: string;
 }
 
-/** Producer dist trees vendored into the map (fixed order; walks sorted). */
+/** Producer-owned distributions; package resolution works in a checkout or installation. */
 const VENDOR_TREES: readonly VendorTree[] = [
-  { distSubdir: posix.join("packages", "contracts", "dist"), prefix: "vendor/contracts", buildCommand: "bun run build" },
-  { distSubdir: posix.join("packages", "contracts", "dist"), prefix: "contracts/src", buildCommand: "bun run build" },
-  { distSubdir: posix.join("packages", "ui", "dist", "ui", "src"), prefix: "vendor/ui", buildCommand: "bun run --filter @canlang/ui build" },
-  {
-    distSubdir: posix.join("packages", "identity", "dist", "identity", "src"),
-    prefix: "vendor/identity",
-    buildCommand: "bun run --filter @canlang/identity build",
-  },
-  { distSubdir: posix.join("packages", "stdlib", "dist", "src"), prefix: "vendor/stdlib", buildCommand: "bun run build" },
-  {
-    distSubdir: posix.join("packages", "state", "dist", "state", "src"),
-    prefix: "vendor/state",
-    buildCommand: "bun run build",
-  },
-  {
-    distSubdir: posix.join("packages", "values", "dist", "values", "src"),
-    prefix: "vendor/values",
-    buildCommand: "bun run build:joins",
-  },
+  { directory: contractsDistribution.modules, prefix: "vendor/contracts", buildCommand: "bun run --filter @canlang/contracts build" },
+  { directory: uiDistribution.modules, prefix: "vendor/ui", buildCommand: "bun run --filter @canlang/ui build" },
+  { directory: identityDistribution.modules, prefix: "vendor/identity", buildCommand: "bun run --filter @canlang/identity build" },
+  { directory: stdlibDistribution.modules, prefix: "vendor/stdlib", buildCommand: "bun run --filter @canlang/stdlib build" },
+  { directory: stateDistribution.modules, prefix: "vendor/state", buildCommand: "bun run --filter @canlang/state build" },
+  { directory: valuesDistribution.modules, prefix: "vendor/values", buildCommand: "bun run --filter @canlang/values build" },
 ];
 
 /**
@@ -225,20 +198,18 @@ const CONTRACTS_VENDOR_ENTRY = "vendor/contracts/index.js";
 const STATE_D1_VENDOR_ENTRY = "vendor/state/storage/d1.js";
 /** D3b receipt producers (C's Q2 contract vendor keys). */
 const STATE_RECEIPT_JOIN_VENDOR_ENTRY = "vendor/state/receipt/join.js";
-const STATE_RECEIPT_OBSERVER_VENDOR_ENTRY = "vendor/state/receipt/observer.js";
+const STATE_RECEIPT_OBSERVER_VENDOR_ENTRY = "vendor/state/receipt/index.js";
 const VALUES_VENDOR_ENTRY = "vendor/values/index.js";
 
 export interface BuildDeployBundleOptions {
-  /** Workspace root used to resolve built producer dists. */
-  repoRoot: string;
+  /** @deprecated Ignored. Producer files resolve through installed package exports. */
+  repoRoot?: string;
   /**
-   * Built worker dir to stage (default
-   * `<repoRoot>/packages/cloudflare/dist/worker`). Tests stage a fake.
+   * Explicit host/test override; defaults to the exported Worker main's directory.
    */
   workerDistDir?: string;
   /**
-   * Built runtime dir for the pinned `runtime/` set (default
-   * `<repoRoot>/packages/cloudflare/dist/runtime`).
+   * Explicit host/test override; defaults to the exported MCP registry's directory.
    */
   runtimeDistDir?: string;
   /** Deploy-time `activate()` verdict, staged verbatim into `artifact.js`. */
@@ -302,29 +273,17 @@ function withCode(error: Error, code: string): Error {
   return error;
 }
 
-export function assertFileBuilt(repoRoot: string, distRelative: string, buildCommand: string): string {
-  const full = join(repoRoot, distRelative);
-  try {
-    if (!statSync(full).isFile()) throw new Error("not a file");
-  } catch {
-    throw new Error(
-      `deploy bundle: ${distRelative} not built; run \`${buildCommand}\` first`,
-    );
-  }
-  return full;
-}
-
 /** Stage the built worker dist under `worker/`: `main.js` + top-level siblings. */
 function stageWorkerDist(workerDistDir: string): Record<string, string> {
-  const mainFile = join(workerDistDir, basename(WORKER_MAIN_DIST_RELATIVE));
+  const mainFile = join(workerDistDir, "main.js");
   try {
     if (!statSync(mainFile).isFile()) throw new Error("not a file");
   } catch {
     throw withCode(
       new Error(
         `deploy bundle: worker entry not built at ${mainFile} ` +
-          `(want ${WORKER_MAIN_DIST_RELATIVE} from the P-A serving entry); ` +
-          `run \`bun run build\` first`,
+          `(want @canlang/cloudflare/worker/main); ` +
+          `run \`bun run --filter @canlang/cloudflare build\` first`,
       ),
       WORKER_MAIN_MISSING,
     );
@@ -367,12 +326,12 @@ function stageRuntimeDist(runtimeDistDir: string): Record<string, string> {
 }
 
 /** Sorted vendor-tree read, mirroring the e2e loader (never stubbed). */
-function readVendorTree(repoRoot: string, tree: VendorTree): Record<string, string> {
-  const base = join(repoRoot, tree.distSubdir);
+function readVendorTree(tree: VendorTree): Record<string, string> {
+  const base = fileURLToPath(tree.directory);
   try {
     if (!statSync(base).isDirectory()) throw new Error("not a directory");
   } catch {
-    throw new Error(`deploy bundle: ${tree.distSubdir} not built; run \`${tree.buildCommand}\` first`);
+    throw new Error(`deploy bundle: ${tree.directory.href} not built; run \`${tree.buildCommand}\` first`);
   }
   const modules: Record<string, string> = {};
   const walk = (dir: string): void => {
@@ -386,7 +345,7 @@ function readVendorTree(repoRoot: string, tree: VendorTree): Record<string, stri
       // T16a-followup: colocated unit tests emit beside sources (node --test
       // runs them from dist) but must never vendor — workerd has no
       // node:test resolution. The deploy-bundle/cli suites pin this.
-      if (entry.endsWith(".test.js")) continue;
+      if (entry.endsWith(".test.js") || entry === "distribution.js") continue;
       // C4: TEST-ONLY bridges emit beside sources under non-test names
       // (state's `work-loader.js` file-URL juggling for the T25/F5 join
       // proofs: node:url/node:path, zero non-test importers — comments
@@ -404,7 +363,7 @@ function readVendorTree(repoRoot: string, tree: VendorTree): Record<string, stri
   walk(base);
   if (Object.keys(modules).length === 0) {
     throw new Error(
-      `deploy bundle: no .js modules found under ${tree.distSubdir}; run \`${tree.buildCommand}\``,
+      `deploy bundle: no .js modules found under ${tree.directory.href}; run \`${tree.buildCommand}\``,
     );
   }
   return modules;
@@ -477,15 +436,15 @@ function rewriteArtifactImports(js: string, modulePath: string): string {
 }
 
 /**
- * Checkout-resolving producer specifiers the P-C joins use (they resolve
- * in vitest/node from `src/`/`dist/` but never in the worker module map).
+ * Exported producer specifiers the P-C joins use in Node/Bun but cannot
+ * resolve in the deployed Worker module map.
  * Rewritten to module-relative `vendor/` specifiers when staged.
  */
 const IDENTITY_SOURCE_SPECIFIER = "@canlang/identity";
-const STATE_D1_SOURCE_SPECIFIER = "../../../state/dist/state/src/storage/d1.js";
+const STATE_D1_SOURCE_SPECIFIER = "@canlang/state/storage/d1";
 /** D3b receipt producers (C's Q2 seam consts in pinned `invoke.js`). */
-const STATE_RECEIPT_JOIN_SOURCE_SPECIFIER = "../../../state/dist/state/src/receipt/join.js";
-const STATE_RECEIPT_OBSERVER_SOURCE_SPECIFIER = "../../../state/dist/state/src/receipt/observer.js";
+const STATE_RECEIPT_JOIN_SOURCE_SPECIFIER = "@canlang/state/receipt/join";
+const STATE_RECEIPT_OBSERVER_SOURCE_SPECIFIER = "@canlang/state/receipt";
 const VALUES_SOURCE_SPECIFIER = "@canlang/values";
 /** Contracts version constants (`loadContractVersions` in pinned `invoke.js`). */
 const CONTRACTS_SOURCE_SPECIFIER = "@canlang/contracts";
@@ -502,6 +461,7 @@ function rewriteRuntimeImports(js: string, moduleKey: string): string {
       return relativeSpecifier(moduleKey, STATE_RECEIPT_OBSERVER_VENDOR_ENTRY);
     }
     if (spec === CONTRACTS_SOURCE_SPECIFIER) return relativeSpecifier(moduleKey, CONTRACTS_VENDOR_ENTRY);
+    if (spec.startsWith("@canlang/state/")) return relativeSpecifier(moduleKey, `vendor/state/${spec.slice("@canlang/state/".length)}.js`);
     return spec;
   };
   const swap = (_full: string, pre: string, spec: string, post: string): string =>
@@ -523,6 +483,7 @@ function rewriteRuntimeImports(js: string, moduleKey: string): string {
   ] as const) {
     out = out.split(source).join(relativeSpecifier(moduleKey, entry));
   }
+  out = out.replace(/[\'"](@canlang\/state\/([^\'"]+))[\'"]/g, (_full, _spec, sub) => JSON.stringify(relativeSpecifier(moduleKey, `vendor/state/${sub}.js`)));
   return out;
 }
 
@@ -539,6 +500,8 @@ function rewriteVendorImports(js: string, moduleKey: string): string {
     if (spec === UI_SPECIFIER) return relativeSpecifier(moduleKey, UI_VENDOR_ENTRY);
     if (spec === IDENTITY_SOURCE_SPECIFIER) return relativeSpecifier(moduleKey, IDENTITY_VENDOR_ENTRY);
     if (spec === VALUES_SOURCE_SPECIFIER) return relativeSpecifier(moduleKey, VALUES_VENDOR_ENTRY);
+    if (spec === CONTRACTS_SOURCE_SPECIFIER) return relativeSpecifier(moduleKey, CONTRACTS_VENDOR_ENTRY);
+    if (spec === "@canlang/contracts/values") return relativeSpecifier(moduleKey, "vendor/contracts/values.js");
     return spec;
   };
   const swap = (_full: string, pre: string, spec: string, post: string): string =>
@@ -619,14 +582,12 @@ export function buildDerivedInputsModule(artifact: CompileArtifact): string {
  * (same flags, same marker check, same loud errors) with a generated entry
  * using absolute dist paths so tmp paths never leak into bundle bytes.
  */
-export function buildMcpBundle(repoRoot: string): string {
-  const serverDist = assertFileBuilt(
-    repoRoot,
+export function buildMcpBundle(_repoRoot?: string): string {
+  const serverDist = resolveProducerFile(
     INTERFACES_MCP_SERVER_DIST,
     "bun run --filter @canlang/interfaces build",
   );
-  const registryDist = assertFileBuilt(
-    repoRoot,
+  const registryDist = resolveProducerFile(
     MCP_REGISTRY_DIST,
     "bun run --filter @canlang/cloudflare build",
   );
@@ -690,9 +651,8 @@ export function buildMcpBundle(repoRoot: string): string {
  * determinism, so the main's join-contract currying lives in stable
  * main source instead (see `defaultLoadHttpOperationsFactory`).
  */
-export function buildHttpOperationsBundle(repoRoot: string): string {
-  const operationsDist = assertFileBuilt(
-    repoRoot,
+export function buildHttpOperationsBundle(_repoRoot?: string): string {
+  const operationsDist = resolveProducerFile(
     INTERFACES_HTTP_OPERATIONS_DIST,
     "bun run --filter @canlang/interfaces build",
   );
@@ -1003,10 +963,16 @@ export function buildDeployBundle(
   artifact: CompileArtifact,
   options: BuildDeployBundleOptions,
 ): DeployBundle {
-  const workerDistDir =
-    options.workerDistDir ?? join(options.repoRoot, "packages", "cloudflare", "dist", "worker");
+  let workerDistDir = options.workerDistDir;
+  if (workerDistDir === undefined) {
+    try {
+      workerDistDir = dirname(resolveProducerFile("@canlang/cloudflare/worker/main", "bun run --filter @canlang/cloudflare build"));
+    } catch (error) {
+      throw withCode(error instanceof Error ? error : new Error(String(error)), WORKER_MAIN_MISSING);
+    }
+  }
   const runtimeDistDir =
-    options.runtimeDistDir ?? join(options.repoRoot, "packages", "cloudflare", "dist", "runtime");
+    options.runtimeDistDir ?? dirname(resolveProducerFile("@canlang/cloudflare/runtime/mcp-registry", "bun run --filter @canlang/cloudflare build"));
   const stagedArtifact = stageArtifactModules(artifact);
   const modules: Record<string, string> = {
     ...stageWorkerDist(workerDistDir),
@@ -1014,10 +980,10 @@ export function buildDeployBundle(
     ...stagedArtifact,
   };
   for (const tree of VENDOR_TREES) {
-    Object.assign(modules, readVendorTree(options.repoRoot, tree));
+    Object.assign(modules, readVendorTree(tree));
   }
-  modules[MCP_HANDLER_MODULE] = buildMcpBundle(options.repoRoot);
-  modules[HTTP_OPERATIONS_MODULE] = buildHttpOperationsBundle(options.repoRoot);
+  modules[MCP_HANDLER_MODULE] = buildMcpBundle();
+  modules[HTTP_OPERATIONS_MODULE] = buildHttpOperationsBundle();
   modules[ARTIFACT_MODULE] = renderStagedDeployment(
     artifact,
     portableAssembledModules(artifact.modules.map((mod) => mod.path)),

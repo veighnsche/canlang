@@ -15,8 +15,8 @@ import type {
   ModelName,
   QueryPredicate,
   StoredRow,
-} from '../../../contracts/src/state.js';
-import type { Membership } from '../../../contracts/src/identity.js';
+} from '@canlang/contracts';
+import type { Membership } from '@canlang/contracts';
 import { StateError } from '../errors.js';
 import {
   evaluateBy,

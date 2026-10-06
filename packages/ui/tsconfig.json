@@ -1,13 +1,9 @@
 {
-  // Extends-compatible with tsconfig.base.json (lane 07). Root-check inclusion
-  // (tsconfig.check.json) requested via the S2 PR. Relative contract import
-  // stays until L7 joins presentation.ts into @canlang/contracts (same as the
-  // lane 06 precedent for identity/wire).
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
     "composite": false,
     "outDir": "dist",
-    "rootDir": "..",
+    "rootDir": ".",
     "noEmitOnError": true
   },
   "include": ["src/**/*.ts", "test/**/*.ts"],

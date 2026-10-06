@@ -30,8 +30,8 @@
 import type {
   MessageValue,
   PresentationContext,
-} from "../../../contracts/src/presentation.js";
-import { CSRF_FIELD } from "../../../contracts/src/presentation.js";
+} from "@canlang/contracts";
+import { CSRF_FIELD } from "@canlang/contracts";
 import { escapeAttr, escapeHtml } from "../escape.js";
 import { assertRegionId } from "../htmx.js";
 import { message, resolveCaption } from "../messages.js";

@@ -14,22 +14,22 @@ import type {
   ProgressTerminalNotification,
   ReceiptAssociation,
   ReceiptStatus,
-} from '../../../contracts/src/work.js';
-import { isTerminalReceiptStatus } from '../receipt/index.ts';
+} from '@canlang/contracts';
+import { isTerminalReceiptStatus } from '../receipt/index.js';
 import {
   TestOnlyAllowAllGrants,
   TestOnlyAvailabilityMap,
-} from './ports.ts';
+} from './ports.js';
 import {
   T26_KNOWN_RELATION_TARGETS,
   applyRelatedProgress,
   assertKnownProgressRelation,
   cancelRelatedProgress,
   isKnownProgressRelation,
-} from './association.ts';
-import type { RelatedReceiptProgress } from './association.ts';
-import { observeRelatedProgress } from './observation.ts';
-import type { StoredReceipt } from './observation.ts';
+} from './association.js';
+import type { RelatedReceiptProgress } from './association.js';
+import { observeRelatedProgress } from './observation.js';
+import type { StoredReceipt } from './observation.js';
 
 const NOW = 1_791_120_000_000;
 const SOURCE = 'Testprogress.send';

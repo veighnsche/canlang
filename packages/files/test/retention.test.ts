@@ -9,15 +9,15 @@ import {
   appendUploadContent,
   completeUploadContent,
   sha256Hex,
-} from '../src/upload/index.ts';
+} from '../src/upload/index.js';
 import {
   finalizeUpload,
   readFinalizedBytes,
   recordAttachment,
   storedState,
-} from '../src/finalize/index.ts';
-import { describeForReceipt, runRetention } from '../src/retention/index.ts';
-import { handleCreateIntent } from '../src/bridge.ts';
+} from '../src/finalize/index.js';
+import { describeForReceipt, runRetention } from '../src/retention/index.js';
+import { handleCreateIntent } from '../src/bridge.js';
 import {
   BINDING,
   INTENT_TTL_MS,
@@ -25,7 +25,7 @@ import {
   RECEIVER,
   makeHarness,
   uploadRequest,
-} from './helpers.ts';
+} from './helpers.js';
 
 const HORIZON_MS = 60 * 60 * 1000;
 const RETENTION_MS = 24 * HORIZON_MS;

@@ -14,7 +14,7 @@ import type {
   ReceiptIdentity,
   Revision,
   StoragePort,
-} from '../../../contracts/src/state.js';
+} from '@canlang/contracts';
 import {
   queryAggregate as engineQueryAggregate,
   queryRecords as engineQueryRecords,

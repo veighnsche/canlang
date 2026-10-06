@@ -5,7 +5,7 @@ import type {
   PresentationContext,
   StatusSwap,
   SwapStrategy,
-} from "../../contracts/src/presentation.js";
+} from "@canlang/contracts";
 import {
   fragmentRegion,
   hxAttrs,

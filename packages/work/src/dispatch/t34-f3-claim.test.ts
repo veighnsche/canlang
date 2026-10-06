@@ -10,21 +10,21 @@
  */
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import type { FanoutChildId } from '../../../contracts/src/work.js';
-import type { StoredRow } from '../../../contracts/src/state.js';
-import { TestOnlyManualClock } from '../ports.ts';
+import type { FanoutChildId } from '@canlang/contracts';
+import type { StoredRow } from '@canlang/contracts';
+import { TestOnlyManualClock } from '../ports.js';
 import {
   fanoutChildRowId,
   fanoutIntentRowId,
   newFanoutChildRow,
   readFanoutChildRow,
-} from '../kernel/tables.ts';
-import type { GuardEvaluator } from './index.ts';
+} from '../kernel/tables.js';
+import type { GuardEvaluator } from './index.js';
 import {
   FANOUT_T32_REFUSAL_REASON,
   TestOnlyMemoryFanoutChildStore,
   fanoutChildIdentityKey,
-} from './index.ts';
+} from './index.js';
 
 const META = { nowMs: 1_758_000_000_000, actor: 't34-f3-test' };
 const OCC = 'occ_f3_claim';

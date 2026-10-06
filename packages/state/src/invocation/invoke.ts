@@ -26,16 +26,16 @@ import type {
   StoragePort,
   UniqueClaim,
   UniqueRelease,
-} from '../../../contracts/src/state.js';
+} from '@canlang/contracts';
 import type {
   DeliveryReceipt,
   MutationEnvelope,
   MutationResult,
   ReadEnvelope,
-} from '../../../contracts/src/wire.js';
-import type { ResolvedIdentity } from '../../../contracts/src/identity.js';
-import type { FanoutChildId } from '../../../contracts/src/work.js';
-import type { ClosedInputs } from '../../../contracts/src/wire.js';
+} from '@canlang/contracts';
+import type { ResolvedIdentity } from '@canlang/contracts';
+import type { FanoutChildId } from '@canlang/contracts';
+import type { ClosedInputs } from '@canlang/contracts';
 import type { OperationRegistry } from './registry.js';
 import { isGeneratedOperationDef } from './registry.js';
 import type { MembershipReader } from '../policy/roles.js';

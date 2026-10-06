@@ -14,7 +14,7 @@
  * (frozen old row, initialized-before-read, every stored field assigned).
  */
 
-import type { RecordParent, RecordVersion, StoredRow } from '../../../contracts/src/state.js';
+import type { RecordParent, RecordVersion, StoredRow } from '@canlang/contracts';
 import type { InterimModelDef } from '../mutation/models.js';
 import { StateError } from '../errors.js';
 import { checkJsonSafe, jsonClone } from '../internal/json.js';

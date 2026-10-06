@@ -14,7 +14,7 @@ import type {
   OperationName,
   QueryPredicate,
   RecordId,
-} from '../../../contracts/src/state.js';
+} from '@canlang/contracts';
 import type { StoragePort } from '../storage/port.js';
 import type { AdmittedCall } from '../invocation/admission.js';
 import type { ExecutionEffects } from '../invocation/invoke.js';

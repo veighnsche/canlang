@@ -9,7 +9,7 @@
  *
  * No version bumps here: the assertion pins the CURRENT tree, including
  * the documented 0.0.0 exceptions (`@canlang/files`, `@canlang/services`,
- * `@canlang/work` have no builds yet, so they stay pre-release). An
+ * `@canlang/work` retain their separately owned pre-release versions). An
  * exempt package at any OTHER version fails loud — the exemption is a
  * pin, not a pass.
  *
@@ -29,7 +29,7 @@ export const RELEASE_VERSION = "0.1.0";
 export const RELEASE_CONTRACTS_VERSION = 1;
 
 /**
- * Documented 0.0.0 exceptions: packages with no build yet. Each maps to
+ * Documented 0.0.0 exceptions: separately versioned pre-release packages. Each maps to
  * its ONLY accepted version; anything else fails loud via assertLockstep.
  */
 export const LOCKSTEP_EXEMPT_PACKAGES: Readonly<Record<string, string>> = {

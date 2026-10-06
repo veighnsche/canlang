@@ -6,7 +6,7 @@
  * Aligned to the implementer's actuals: `crudDefs`/`crudExecute` envelope
  * conventions, `runMutationWrites` pipeline input, `InterimModelDef` shapes.
  */
-import type { Team } from '../../../contracts/src/identity.js';
+import type { Team } from '@canlang/contracts';
 import type {
   AdmissionKind,
   DeleteMode,
@@ -17,8 +17,8 @@ import type {
   RecordId,
   StoragePort,
   StoredRow,
-} from '../../../contracts/src/state.js';
-import type { MutationEnvelope, MutationResult } from '../../../contracts/src/wire.js';
+} from '@canlang/contracts';
+import type { MutationEnvelope, MutationResult } from '@canlang/contracts';
 import {
   buildModelTable,
   crudDefs,

@@ -20,8 +20,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { randomBytes } from 'node:crypto';
-import { ARTIFACT_VERSION } from '../../contracts/src/artifact.js';
-import type { ArtifactOperation } from '../../contracts/src/artifact.js';
+import { ARTIFACT_VERSION } from '@canlang/contracts';
+import type { ArtifactOperation } from '@canlang/contracts';
 import { catalogFromArtifactOperations } from '../src/http/operations.js';
 import { prepareMcpPlan, runPreparedMcpPlan } from '../src/mcp/prepared.js';
 import type { PreparedMcpPlan } from '../src/mcp/prepared.js';

@@ -104,7 +104,7 @@ import type {
   Violation,
   ViolationCode,
   WireValue,
-} from "../../contracts/src/values.js";
+} from "@canlang/contracts/values";
 import { decimalToString, isDecimal, parseDecimal } from "./decimal.js";
 import { SchemaError, ValueError } from "./errors.js";
 import { INT64_MAX, INT64_MIN, int64 } from "./int.js";

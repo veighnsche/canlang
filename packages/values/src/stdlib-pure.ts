@@ -39,7 +39,7 @@ import type {
   InvocationRef,
   MoneyValue,
   RecordRef,
-} from "../../contracts/src/values.js";
+} from "@canlang/contracts/values";
 import { sumDecimal, sumDuration, sumInt, sumMoney } from "./array.js";
 import type { Decimal } from "./decimal.js";
 import { absDecimal, isDecimal } from "./decimal.js";

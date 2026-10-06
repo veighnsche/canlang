@@ -14,15 +14,15 @@ import type {
   FinalizedFile,
   UploadIntentGrant,
   UploadIntentRequest,
-} from '../../contracts/src/files.js';
+} from '@canlang/contracts';
 import type {
   FILE_TRANSFER_META_KEY as WireFileTransferMetaKey,
   FileTransferMeta as WireFileTransferMeta,
   UploadFinalizeResponse,
   UploadIntentRequest as WireUploadIntentRequest,
   UploadIntentResponse,
-} from '../../contracts/src/wire.js';
-import { FILE_TRANSFER_META_KEY } from '../src/bridge.ts';
+} from '@canlang/contracts';
+import { FILE_TRANSFER_META_KEY } from '../src/bridge.js';
 
 describe('files contracts', () => {
   it('models the upload intent request and grant', () => {

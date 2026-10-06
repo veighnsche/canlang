@@ -13,17 +13,25 @@
     ".": {
       "types": "./dist/src/index.d.ts",
       "default": "./dist/src/index.js"
+    },
+    "./distribution": {
+      "types": "./dist/src/distribution.d.ts",
+      "default": "./dist/src/distribution.js"
     }
   },
   "scripts": {
-    "build": "tsc -p tsconfig.json",
-    "typecheck": "tsc --noEmit -p tsconfig.json",
-    "build:wasm": "cargo build --manifest-path Cargo.toml --target wasm32-unknown-unknown --release",
-    "test": "bun run build && node --test 'dist/conformance/**/*.test.js'",
-    "clean": "rm -rf dist/ target/"
+    "build": "node ../../scripts/build-package.mjs",
+    "typecheck": "node ../../scripts/run-tasks.mjs typecheck:check --filter=@canlang/work-kernel",
+    "build:wasm": "cargo build --locked --manifest-path Cargo.toml --target wasm32-unknown-unknown --release",
+    "test": "node ../../scripts/run-tasks.mjs test:unit --filter=@canlang/work-kernel",
+    "clean": "rm -rf dist/ target/",
+    "build:emit": "tsc -p tsconfig.json",
+    "typecheck:check": "tsc --noEmit -p tsconfig.json",
+    "test:unit": "node --test 'dist/conformance/**/*.test.js'",
+    "build:prepare": "node ../../scripts/build-package.mjs --prepare"
   },
   "dependencies": {
-    "@canlang/contracts": "0.1.0"
+    "@canlang/contracts": "workspace:*"
   },
   "devDependencies": {
     "typescript": "5.9.3"

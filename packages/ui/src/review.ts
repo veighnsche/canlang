@@ -21,7 +21,7 @@ import type {
   MessageValue,
   PresentationContext,
   ReviewProps,
-} from "../../contracts/src/presentation.js";
+} from "@canlang/contracts";
 import { appearanceClasses, type AppearanceOpts } from "./appearance.js";
 import { escapeAttr, escapeHtml } from "./escape.js";
 import { message, resolveCaption } from "./messages.js";

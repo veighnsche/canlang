@@ -28,8 +28,8 @@ import type {
   PaginationProps,
   PresentationContext,
   ThemeControllerProps,
-} from "../../contracts/src/presentation.js";
-import { CSRF_FIELD } from "../../contracts/src/presentation.js";
+} from "@canlang/contracts";
+import { CSRF_FIELD } from "@canlang/contracts";
 import { appearanceClasses, type AppearanceOpts } from "./appearance.js";
 import { escapeAttr, escapeHtml, safeHref } from "./escape.js";
 import { assertFieldPath, serializeActionScalar } from "./forms.js";

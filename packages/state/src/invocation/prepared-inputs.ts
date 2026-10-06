@@ -37,8 +37,8 @@ import type {
   ModelName,
   RecordId,
   RecordVersion,
-} from '../../../contracts/src/state.js';
-import type { ClosedInputs, FieldError } from '../../../contracts/src/wire.js';
+} from '@canlang/contracts';
+import type { ClosedInputs, FieldError } from '@canlang/contracts';
 import type {
   GeneratedOperationDef,
   InterimOperationDef,

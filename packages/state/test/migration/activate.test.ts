@@ -12,7 +12,7 @@ import type {
   StoragePort,
   StoredRow,
   WorkInventoryItem,
-} from '../../../contracts/src/state.js';
+} from '@canlang/contracts';
 import { buildModelTable } from '../../src/mutation/index.js';
 import {
   activate,

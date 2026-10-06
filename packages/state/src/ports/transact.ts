@@ -17,13 +17,13 @@ import type {
   OutboxIntent,
   Revision,
   StoragePort,
-} from '../../../contracts/src/state.js';
-import type { ResolvedIdentity } from '../../../contracts/src/identity.js';
+} from '@canlang/contracts';
+import type { ResolvedIdentity } from '@canlang/contracts';
 import type {
   MutationEnvelope,
   MutationResult,
   ReadEnvelope,
-} from '../../../contracts/src/wire.js';
+} from '@canlang/contracts';
 import { StateError, storageToStateError } from '../errors.js';
 import {
   FANOUT_CHECKPOINT_MODEL,

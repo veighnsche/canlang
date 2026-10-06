@@ -79,11 +79,11 @@ const inventory = {
 };
 writeFileSync(join(generated, "BUILD.json"), JSON.stringify(inventory, null, 2) + "\n");
 
-// 5. dist mirror: tsc emits bindings/*.js to dist/values/bindings/ but never
+// 5. dist mirror: tsc emits bindings/*.js to dist/bindings/ but never
 // copies the glue they import, so mirror generated/ alongside the emit.
 // Full packaging/copy wiring is an A10 concern; this keeps the smoke test
 // runnable with one documented ordering (build-semantics.mjs, then tests).
-const mirror = join(pkg, "dist", "values", "bindings", "generated");
+const mirror = join(pkg, "dist", "bindings", "generated");
 mkdirSync(mirror, { recursive: true });
 for (const f of readdirSync(generated).sort()) {
   writeFileSync(join(mirror, f), readFileSync(join(generated, f)));

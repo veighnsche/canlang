@@ -22,29 +22,29 @@
 import type {
   FileTransferMeta,
   UploadIntentRequest,
-} from '../../contracts/src/wire.js';
-import type { UploadIntentId } from '../../contracts/src/files.js';
-import type { PrincipalResolverPort } from './ports.ts';
+} from '@canlang/contracts';
+import type { UploadIntentId } from '@canlang/contracts';
+import type { PrincipalResolverPort } from './ports.js';
 import type {
   ReceivingContext,
   RequestProvenanceBinding,
-} from './provenance/index.ts';
+} from './provenance/index.js';
 import type {
   FinalizeDeps,
   FinalizeOutcome,
-} from './finalize/index.ts';
-import { finalizeUpload } from './finalize/index.ts';
+} from './finalize/index.js';
+import { finalizeUpload } from './finalize/index.js';
 import type {
   AppendOutcome,
   CompleteOutcome,
   CreateIntentOutcome,
   UploadDeps,
-} from './upload/index.ts';
+} from './upload/index.js';
 import {
   appendUploadContent,
   completeUploadContent,
   createUploadIntent,
-} from './upload/index.ts';
+} from './upload/index.js';
 
 /**
  * MCP `_meta` key for the file-transfer advertisement (DESIGN §8).

@@ -61,14 +61,14 @@ import type {
   ReceiptProperty,
   ReceiptStatus,
   SelectedReceiptProjection,
-} from '../../../contracts/src/work.js';
+} from '@canlang/contracts';
 import type {
   ContentPolicyPort,
   GrantPort,
   SelectedGrantContext,
   SelectedGrantPort,
-} from './ports.ts';
-import { assertKnownProgressRelation, resolveAssociationLocator } from './association.ts';
+} from './ports.js';
+import { assertKnownProgressRelation, resolveAssociationLocator } from './association.js';
 
 /**
  * Stored receipt as loaded by the owning record read: the retained

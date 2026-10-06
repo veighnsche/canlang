@@ -24,14 +24,14 @@ import assert from 'node:assert/strict';
 import type {
   ArtifactOperation,
   CompileArtifact,
-} from '../../../contracts/src/artifact.js';
+} from '@canlang/contracts';
 import type {
   ModelName,
   OperationName,
   RecordId,
   StoragePort,
   StoredRow,
-} from '../../../contracts/src/state.js';
+} from '@canlang/contracts';
 import {
   loadArtifactDescriptors,
   type ArtifactDescriptorSlice,

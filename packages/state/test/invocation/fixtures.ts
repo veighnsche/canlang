@@ -25,8 +25,8 @@ import type {
   Team,
   TeamId,
   UserId,
-} from '../../../contracts/src/identity.js';
-import type { MutationEnvelope } from '../../../contracts/src/wire.js';
+} from '@canlang/contracts';
+import type { MutationEnvelope } from '@canlang/contracts';
 import type {
   CommitBatch,
   DomainWrite,
@@ -45,7 +45,7 @@ import type {
   StoredRow,
   UniqueClaim,
   UniqueRelease,
-} from '../../../contracts/src/state.js';
+} from '@canlang/contracts';
 // Aligned to worker A's actuals: interim defs live in `invocation/registry.js`.
 import type { InterimOperationDef } from '../../src/invocation/registry.js';
 import { StateError } from '../../src/errors.js';

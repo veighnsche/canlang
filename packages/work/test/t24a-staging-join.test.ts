@@ -18,52 +18,52 @@ import type {
   OutboxId,
   OutboxItem,
   RetryPolicy,
-} from '../../contracts/src/work.js';
+} from '@canlang/contracts';
 import type {
   ModelName,
   QuerySpec,
   RecordId,
   StoredRow,
-} from '../../contracts/src/state.js';
+} from '@canlang/contracts';
 import type {
   SystemCommandContext,
   SystemCommandDef,
   SystemStaging,
-} from '../../state/src/ports/system.ts';
-import { createSystemRegistry } from '../../state/dist/state/src/ports/system.js';
-import { createTestMemoryStorage } from '../../state/dist/state/src/storage/memory.js';
-import { DISPATCH_JOIN_MODEL } from '../../state/dist/state/src/ports/transact.js';
+} from '@canlang/state';
+import { createSystemRegistry } from '@canlang/state';
+import { createTestMemoryStorage } from '@canlang/state/storage/memory';
+import { DISPATCH_JOIN_MODEL } from '@canlang/state/ports/transact';
 import {
   WORK_DISPATCH_MODEL,
   newDispatchRow,
   readDispatchRow,
-} from '../src/kernel/tables.ts';
-import { KernelTableError } from '../src/kernel/tables.ts';
+} from '../src/kernel/tables.js';
+import { KernelTableError } from '../src/kernel/tables.js';
 import {
   WORK_DISPATCH_STAGE_COMMANDS,
   WORK_SYSTEM_COMMANDS,
   workDispatchClaimCommand,
   workDispatchRecoverCommand,
   workDispatchStageCommand,
-} from '../src/kernel/commands.ts';
+} from '../src/kernel/commands.js';
 import {
   lifecycleOf,
   isTerminalLifecycle,
   originOfIntent,
   planDispatchStaging,
   stageOutboxIntent,
-} from '../src/intent/index.ts';
-import type { GeneratedEffect } from '../src/intent/index.ts';
-import { matchClaimIdentity } from '../src/dispatch/index.ts';
-import type { GuardEvaluator } from '../src/dispatch/index.ts';
+} from '../src/intent/index.js';
+import type { GeneratedEffect } from '../src/intent/index.js';
+import { matchClaimIdentity } from '../src/dispatch/index.js';
+import type { GuardEvaluator } from '../src/dispatch/index.js';
 import {
   isClaimStale,
   planRecoveryScan,
   recordStagingFailure,
-} from '../src/recovery/index.ts';
-import type { RecoverableRow } from '../src/recovery/index.ts';
-import { recordOutcome } from '../src/receipt/index.ts';
-import type { FailureCause, ReconcileEvidence } from '../src/receipt/index.ts';
+} from '../src/recovery/index.js';
+import type { RecoverableRow } from '../src/recovery/index.js';
+import { recordOutcome } from '../src/receipt/index.js';
+import type { FailureCause, ReconcileEvidence } from '../src/receipt/index.js';
 
 const NOW = 1_758_000_000_000;
 const ACTOR = 't24a-test';

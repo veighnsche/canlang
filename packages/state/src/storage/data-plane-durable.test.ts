@@ -24,14 +24,14 @@ import type {
   ArtifactModel,
   ArtifactOperation,
   ArtifactOperationInput,
-} from '../../../contracts/src/artifact.js';
+} from '@canlang/contracts';
 import type {
   ModelName,
   RecordId,
   Revision,
   StoragePort,
   StoredRow,
-} from '../../../contracts/src/state.js';
+} from '@canlang/contracts';
 import {
   loadArtifactDescriptors,
   type ArtifactDescriptorSlice,
@@ -145,7 +145,7 @@ async function resetD1(): Promise<void> {
 }
 
 const doWorkerPath = fileURLToPath(
-  new URL('../../../../test/storage/do-test-worker.js', import.meta.url),
+  new URL('../../../test/storage/do-test-worker.js', import.meta.url),
 );
 
 let doMf: Miniflare | undefined;

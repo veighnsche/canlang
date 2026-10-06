@@ -29,7 +29,7 @@ import type {
   StoredObjectState,
   UploadIntentId,
   UploadRetryId,
-} from '../../../contracts/src/files.js';
+} from '@canlang/contracts';
 import type {
   BlobStorePort,
   ClockPort,
@@ -37,8 +37,8 @@ import type {
   FinalizedStorePort,
   IntentStorePort,
   UploadIntentRecord,
-} from '../ports.ts';
-import type { UploadIntentRequest } from '../../../contracts/src/wire.js';
+} from '../ports.js';
+import type { UploadIntentRequest } from '@canlang/contracts';
 import {
   freezeFinalized,
   isSameReceiver,
@@ -46,7 +46,7 @@ import {
   validateEventProvenance,
   type ReceivingContext,
   type RequestProvenanceBinding,
-} from '../provenance/index.ts';
+} from '../provenance/index.js';
 import {
   appendUploadContent,
   checkContent,
@@ -55,7 +55,7 @@ import {
   sha256Hex,
   stagingKeyForIntent,
   type UploadDeps,
-} from '../upload/index.ts';
+} from '../upload/index.js';
 
 export interface FinalizeDeps {
   readonly clock: ClockPort;

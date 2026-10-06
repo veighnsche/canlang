@@ -5,22 +5,43 @@
   "private": true,
   "type": "module",
   "description": "Server-rendered CanLang presentation library (daisyUI/HTMX owned markup and behavior)",
-  "main": "./dist/ui/src/index.js",
-  "types": "./dist/ui/src/index.d.ts",
+  "main": "./dist/src/index.js",
+  "types": "./dist/src/index.d.ts",
   "exports": {
     ".": {
-      "types": "./dist/ui/src/index.d.ts",
-      "default": "./dist/ui/src/index.js"
+      "types": "./dist/src/index.d.ts",
+      "default": "./dist/src/index.js"
+    },
+    "./distribution": {
+      "types": "./dist/src/distribution.d.ts",
+      "default": "./dist/src/distribution.js"
+    },
+    "./browser/export": {
+      "types": "./dist/src/browser/export.d.ts",
+      "default": "./dist/src/browser/export.js"
+    },
+    "./browser/print": {
+      "types": "./dist/src/browser/print.d.ts",
+      "default": "./dist/src/browser/print.js"
     }
   },
-  "files": ["dist", "themes.css"],
+  "files": [
+    "dist",
+    "themes.css"
+  ],
   "scripts": {
-    "build": "tsc -p tsconfig.json && node scripts/build-browser.mjs",
-    "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test": "bun run build && node --test \"dist/ui/test/**/*.test.js\"",
-    "clean": "rm -rf dist/"
+    "build": "node ../../scripts/build-package.mjs",
+    "typecheck": "node ../../scripts/run-tasks.mjs typecheck:check --filter=@canlang/ui",
+    "test": "node ../../scripts/run-tasks.mjs test:unit --filter=@canlang/ui",
+    "clean": "rm -rf dist/",
+    "build:emit": "tsc -p tsconfig.json && node scripts/build-browser.mjs",
+    "typecheck:check": "tsc -p tsconfig.json --noEmit",
+    "test:unit": "node --test \"dist/test/**/*.test.js\"",
+    "build:prepare": "node ../../scripts/build-package.mjs --prepare"
   },
-  "dependencies": {},
+  "dependencies": {
+    "@canlang/contracts": "workspace:*"
+  },
   "devDependencies": {
     "@types/node": "26.6.4",
     "daisyui": "5.7.47",

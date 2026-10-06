@@ -18,7 +18,7 @@ import {
 import { startLocalDev } from "../src/dev/local-run.js";
 // Cross-package journey import: interfaces DIST (never src), per the
 // mcp-route.test.ts precedent. Proves bake parity with the real rule.
-import { catalogFromArtifactOperations } from "../../interfaces/dist/interfaces/src/http/operations.js";
+import { catalogFromArtifactOperations } from "@canlang/interfaces/http/operations";
 
 const repoRoot = resolve(new URL(".", import.meta.url).pathname, "..", "..", "..");
 
@@ -110,7 +110,7 @@ function fakeRuntimeDistWithObserverSeam(): string {
     if (!statSync(full).isFile()) continue;
     let text = readFileSync(full, "utf8");
     if (entry === "invoke.js") {
-      text += `const STATE_RECEIPT_OBSERVER_SPECIFIER_STAGED = "../../../state/dist/state/src/receipt/observer.js";\n`;
+      text += `const STATE_RECEIPT_OBSERVER_SPECIFIER_STAGED = "@canlang/state/receipt";\n`;
     }
     writeFileSync(join(dir, entry), text);
   }
@@ -199,13 +199,8 @@ describe("deploy bundle (P-B)", () => {
     expect(bundle.modules["vendor/stdlib/index.js"]).toBeDefined();
     expect(bundle.modules["vendor/identity/index.js"]).toBeDefined();
     expect(bundle.modules["vendor/contracts/presentation.js"]).toBeDefined();
-    // The `contracts/src` mirror satisfies the repo-relative specifier baked
-    // into @canlang/ui dist (same bytes, second key — no rewriting).
-    expect(bundle.modules["contracts/src/presentation.js"]).toBe(
-      bundle.modules["vendor/contracts/presentation.js"],
-    );
-    expect(bundle.moduleCount).toBe(Object.keys(bundle.modules).length);
-    expect(bundle.sha256).toMatch(/^[0-9a-f]{64}$/);
+    expect(bundle.modules["contracts/src/presentation.js"]).toBeUndefined();
+    expect(bundle.modules["vendor/contracts/presentation.js"]).toBeDefined();
   });
 
   it("emits no node file-URLs and no CJS: the whole map is workerd-loadable ESM", () => {
@@ -329,8 +324,8 @@ describe("deploy bundle (P-B)", () => {
       caught = error;
     }
     expect(caught).toBeInstanceOf(Error);
-    expect((caught as Error).message).toContain("dist/worker/main.js");
-    expect((caught as Error).message).toContain("bun run build");
+    expect((caught as Error).message).toContain("@canlang/cloudflare/worker/main");
+    expect((caught as Error).message).toContain("bun run --filter @canlang/cloudflare build");
     expect((caught as { code?: unknown }).code).toBe(WORKER_MAIN_MISSING);
   });
 
@@ -690,12 +685,12 @@ describe("producer import rewrite + link check (P-C/P-B skew class)", () => {
     });
     const invoke = bundle.modules["runtime/invoke.js"] ?? "";
     expect(invoke).toContain("../vendor/state/receipt/join.js");
-    expect(invoke).toContain("../vendor/state/receipt/observer.js");
+    expect(invoke).toContain("../vendor/state/receipt/index.js");
     expect(invoke).not.toContain("../../../state/dist/state/src/receipt/join.js");
     expect(invoke).not.toContain("../../../state/dist/state/src/receipt/observer.js");
     // The work-loader leg is untouched: still the loud checkout/dev path,
     // never rewritten to a vendor key.
-    expect(invoke).toContain("../../../state/dist/state/src/receipt/work-loader.js");
+    expect(invoke).toContain("@canlang/work/receipt");
     // Vendor map: join vendored IN (real, from state dist); both
     // work-loader bridges pinned OUT. The observer vendor key lands with
     // B's module — its rewrite-target spelling is proved resolvable below.

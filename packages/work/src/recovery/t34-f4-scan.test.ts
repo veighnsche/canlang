@@ -14,7 +14,7 @@ import type {
   FanoutChildState,
   FanoutFailedReason,
   RetryPolicy,
-} from '../../../contracts/src/work.js';
+} from '@canlang/contracts';
 import {
   fanoutChildRowId,
   fanoutIntentRowId,
@@ -22,22 +22,22 @@ import {
   newFanoutIntentRow,
   readFanoutCheckpointRow,
   readFanoutIntentRow,
-} from '../kernel/tables.ts';
+} from '../kernel/tables.js';
 import type {
   FanoutCheckpointRowData,
   FanoutChildRowData,
   FanoutIntentRowData,
-} from '../kernel/tables.ts';
+} from '../kernel/tables.js';
 import {
   isFanoutChildExhausted,
   isFanoutClaimStale,
   planFanoutRecoveryScan,
-} from './index.ts';
+} from './index.js';
 import type {
   FanoutChildLifecycle,
   FanoutRecoverableRow,
   FanoutRecoveryScanInput,
-} from './index.ts';
+} from './index.js';
 
 const META = { nowMs: 1_758_000_000_000, actor: 't34-f4-test' };
 const OCC = 'occ_f4_scan';

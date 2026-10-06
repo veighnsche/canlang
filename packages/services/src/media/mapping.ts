@@ -25,7 +25,7 @@ import type {
   ApiGraph,
   ImageGenerateInput,
   WorkflowNodeMapping,
-} from '../../../contracts/src/services.js';
+} from '@canlang/contracts';
 
 export class MappingValidationError extends Error {
   constructor(message: string) {

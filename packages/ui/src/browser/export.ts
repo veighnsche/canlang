@@ -31,7 +31,7 @@
  * collapsed, length capped, `.csv` forced) and every rendered string
  * escapes for its sink.
  */
-import { CSRF_FIELD } from "../../../contracts/src/presentation.js";
+import { CSRF_FIELD } from "@canlang/contracts";
 import type { SubmitFetch, SubmitFetchResponse } from "../client.js";
 import { escapeAttr, escapeHtml, safeHref } from "../escape.js";
 import { assertRegionId } from "../htmx.js";

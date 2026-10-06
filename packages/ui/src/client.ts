@@ -13,8 +13,8 @@
  * (structural control/document types) with injected fetch for tests.
  */
 
-import { CSRF_FIELD } from "../../contracts/src/presentation.js";
-import type { FormMode } from "../../contracts/src/presentation.js";
+import { CSRF_FIELD } from "@canlang/contracts";
+import type { FormMode } from "@canlang/contracts";
 import type {
   BusinessError,
   BusinessErrorCode,
@@ -23,7 +23,7 @@ import type {
   FieldError,
   MutationEnvelope,
   MutationResult,
-} from "../../contracts/src/wire.js";
+} from "@canlang/contracts";
 import { projectGeneratedInputs } from "./forms.js";
 
 /**

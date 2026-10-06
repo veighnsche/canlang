@@ -30,13 +30,13 @@
  * script. Binary travels as standard base64 (`filesBase64`); strict
  * key allowlists reject typos such as harness-shaped `files`.
  */
-import type { ControlledScenario } from './ports.ts';
-import type { ControlledOllamaScenario } from './models/harness.ts';
-import type { ControlledSystemOneScenario } from './judgments/harness.ts';
+import type { ControlledScenario } from './ports.js';
+import type { ControlledOllamaScenario } from './models/harness.js';
+import type { ControlledSystemOneScenario } from './judgments/harness.js';
 import type {
   ControlledComfyScenario,
   ControlledHistoryEntry,
-} from './media/harness.ts';
+} from './media/harness.js';
 
 /** Providers with scripted transport scenarios. Files has none (see below). */
 export type ScenarioProvider = 'mail' | 'models' | 'judgments' | 'media';
