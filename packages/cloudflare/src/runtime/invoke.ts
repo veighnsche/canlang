@@ -859,18 +859,45 @@ interface StateRegistryProducer {
  * Admitted-call view the execute seams consume. T17b: the FULL
  * `InvocationContext` (contracts-owned, no mirror drift) — the scenario
  * seam stages stdlib writes under exactly this context, so history
- * entries and receipts carry the admitted operation identity.
+ * entries and receipts carry the admitted operation identity. T32b:
+ * the checkpoint POINT (revision + owner only) rides beside it — the
+ * runtime value is the state's full `AdmittedCall`, so the point is
+ * present whenever canonical invoke admitted with a fence; the seam
+ * forwards it as the pipeline `trigger` (hook transitive reads name
+ * it back as their `triggerRevision`) and never reads its enrolled
+ * dependencies (hooks inherit nothing).
  */
 export interface CanonicalSeamCall {
   readonly context: InvocationContext;
   readonly def: unknown;
   readonly inputs: Record<string, unknown>;
+  readonly checkpoint?: {
+    readonly revision: Revision;
+    readonly owner: string;
+  };
+}
+
+/**
+ * T32b: mirror of `GuardRevalidation`
+ * (`packages/state/src/invocation/admission.ts`): one predicate the
+ * fenced commit re-evaluates live against CURRENT state. The scenario
+ * seam offers its caller-roles guard here; anything row-derived stays
+ * uncovered by guards (the revision assertion already voids on any
+ * intervening write).
+ */
+export interface CanonicalGuardRevalidation {
+  readonly name: string;
+  readonly evaluate: () => boolean | Promise<boolean>;
 }
 
 /**
  * Mirror of `ExecutionEffects`
  * (`packages/state/src/invocation/invoke.ts:47`): the provisional
- * outcome one execution pass stages for the fenced commit.
+ * outcome one execution pass stages for the fenced commit. T32b:
+ * `guards`/`readings` flow into the state's commit-time revalidation
+ * untouched (absent reads as none): guards re-run live (a flip voids
+ * with `forbidden` naming the guard) and any eventual-marked reading
+ * refuses with `validation`.
  */
 export interface CanonicalExecutionEffects {
   readonly writes: ReadonlyArray<unknown>;
@@ -881,6 +908,35 @@ export interface CanonicalExecutionEffects {
   readonly uniqueReleases: ReadonlyArray<unknown>;
   readonly resolvedDefaults: Record<string, unknown>;
   readonly result: unknown;
+  readonly guards?: ReadonlyArray<CanonicalGuardRevalidation>;
+  readonly readings?: ReadonlyArray<unknown>;
+}
+
+/**
+ * T32b: the pipeline `trigger` point for one seam call — the
+ * checkpoint's revision + owner, and nothing else. Exported for the
+ * colocated forwarding proof (canonical descriptors carry no hooks,
+ * so no hook body can observe the trigger through the real seam;
+ * the unit pins the derivation and the stageWrite call site below
+ * pins the pass-through by read).
+ */
+export function seamTriggerPoint(
+  call: CanonicalSeamCall,
+): { readonly revision: Revision; readonly owner: string } | undefined {
+  const checkpoint: unknown = call.checkpoint;
+  if (checkpoint === undefined) return undefined;
+  if (!isUnknownRecord(checkpoint)) {
+    throw new Error(`t32b: seam call checkpoint is not a record (invoke/dist skew?)`);
+  }
+  const revision: unknown = checkpoint["revision"];
+  const owner: unknown = checkpoint["owner"];
+  if (typeof revision !== "number" || !Number.isInteger(revision) || revision < 0) {
+    throw new Error(`t32b: seam call checkpoint revision is not a valid revision (invoke/dist skew?)`);
+  }
+  if (typeof owner !== "string" || owner === "") {
+    throw new Error(`t32b: seam call checkpoint owner is not a non-empty string (invoke/dist skew?)`);
+  }
+  return { revision: revision as Revision, owner };
 }
 
 /** T17b: structural view of one `invokeRead` served record set. */
@@ -1025,6 +1081,12 @@ interface StatePipelineProducer {
     readonly writes: ReadonlyArray<CanonicalPipelineWrite>;
     readonly context: InvocationContext;
     readonly store: StoragePort;
+    /**
+     * T32b: the triggering checkpoint POINT (revision + owner). Hook
+     * bodies read it as `transitive.triggerRevision`; the trigger's
+     * enrolled dependencies never cross (the point carries none).
+     */
+    readonly trigger?: { readonly revision: Revision; readonly owner: string };
   }): Promise<CanonicalPipelineResult>;
 }
 
@@ -2072,6 +2134,30 @@ function assertServableReadQuery(
 }
 
 /**
+ * T32b: freeze one caller-roles observation into a comparable snapshot
+ * (sorted, NUL-joined — order-free, collision-free on role names).
+ */
+function snapshotCallerRoles(grants: ReadonlyArray<string>): string {
+  return [...grants].sort().join("\0");
+}
+
+/**
+ * T32b: re-read the live caller-roles snapshot for the `caller.roles`
+ * guard: the CURRENT active roles, or null when no active membership
+ * backs the call. Never trusts the admitted identity's claims — the
+ * reader is the live membership store.
+ */
+async function readCallerRolesSnapshot(
+  memberships: CanonicalMembershipReader,
+  teamId: string,
+  actorUserId: string,
+): Promise<string | null> {
+  const membership = await memberships.findMembership(teamId, actorUserId);
+  if (membership === null || membership.status !== "active") return null;
+  return snapshotCallerRoles(membership.roles.map((grant) => grant.role));
+}
+
+/**
  * Scenario execute seam: run the emitted handler with a
  * live-store-wins context (caller from the ADMITTED context,
  * memberships re-read from the live reader — identity claims are
@@ -2105,12 +2191,41 @@ async function runScenarioSeam(
   const actorUserId = call.context.actor?.userId ?? null;
   const teamId = call.context.team?.teamId ?? null;
   let grants: string[] = [];
+  // T32b: the caller-roles snapshot behind `c.caller.roles` — the ONE
+  // authorization-relevant fact the seam reads from NON-fenced state
+  // (the membership store moves no state revision, so the revision
+  // assertion cannot cover it; the mechanism's own `by`/revocation
+  // re-check covers permission, but the handler may have branched on
+  // these exact roles). Null when no active membership backed the
+  // call, so a mid-flight activation voids as loudly as a removal.
+  // Read ONCE with the grants above: one live read per pass.
+  let callerRolesSnapshot: string | null = null;
   if (actorUserId !== null && teamId !== null) {
     const membership = await opts.memberships.findMembership(teamId, actorUserId);
     if (membership !== null && membership.status === "active") {
       grants = membership.roles.map((grant) => grant.role);
+      callerRolesSnapshot = snapshotCallerRoles(grants);
     }
   }
+  const seamGuards: CanonicalGuardRevalidation[] =
+    actorUserId !== null && teamId !== null
+      ? [
+          {
+            name: "caller.roles",
+            evaluate: async () =>
+              (await readCallerRolesSnapshot(opts.memberships, teamId, actorUserId)) ===
+              callerRolesSnapshot,
+          },
+        ]
+      : [];
+  // T32b: the pipeline `trigger` point for this pass (absent on
+  // checkpoint-less calls, which revalidate by expectedRevision only).
+  const seamTrigger = seamTriggerPoint(call);
+  // T32b: every served read is offered as authorization evidence for
+  // the commit's eventual bar. The REAL served objects (never a
+  // projection) so an eventual marker would survive to the bar; the
+  // engine serves authoritative reads here, so the quiet path passes.
+  const servedReadings: unknown[] = [];
   const StateError = loaded.producers.errors;
   // T17b engine-failure attribution: `invokeWith` stringifies handler
   // failures (`message(error)`), so a propagated engine `StateError`
@@ -2189,6 +2304,10 @@ async function runScenarioSeam(
           ],
           context: call.context,
           store: overlay,
+          // T32b: the triggering checkpoint point — hook bodies name it
+          // back as their `triggerRevision` when they open fresh
+          // transitive scopes. Absent on checkpoint-less calls.
+          ...(seamTrigger === undefined ? {} : { trigger: seamTrigger }),
         });
         const first = result.writes[0];
         if (first === undefined) {
@@ -2240,6 +2359,9 @@ async function runScenarioSeam(
         if (!Array.isArray(served.records)) {
           throw new Error(`t17b: invokeRead served no records array (invoke/dist skew?)`);
         }
+        // T32b: offer the REAL served object as authorization evidence
+        // (an eventual marker would survive to the commit bar).
+        servedReadings.push(served);
         return served.records;
       } catch (error) {
         recordEngineFailure(error);
@@ -2291,6 +2413,13 @@ async function runScenarioSeam(
     uniqueReleases: uniques.releases,
     resolvedDefaults,
     result: outcome.value,
+    // T32b: the seam's commit-time evidence — the caller-roles guard
+    // plus every served read. State invoke revalidates both against
+    // CURRENT state before the fenced commit (both-site inheritance:
+    // this return flows into `ExecutionEffects` on the success path,
+    // and the rejected-receipt path revalidates the checkpoint alone).
+    guards: seamGuards,
+    readings: servedReadings,
   };
 }
 
@@ -2319,6 +2448,11 @@ export async function invokeMutationCanonical(
     memberships: opts.memberships,
     clock: { nowMs: opts.now },
     execute: async (call: CanonicalSeamCall): Promise<CanonicalExecutionEffects> => {
+      // T32b: BOTH paths inherit both-site commit revalidation through
+      // state invoke: the runtime `call` is the full admitted call
+      // (checkpoint included) and the returned effects carry the
+      // seam's guards/readings — CRUD via the state executor, scenarios
+      // via `runScenarioSeam` above.
       const kind = seamDefKind(call.def, opts.operation);
       if (kind === "create" || kind === "update" || kind === "delete") {
         return crudExecute(call);
@@ -2431,6 +2565,9 @@ export async function invokeReadCanonical(opts: CanonicalReadOpts): Promise<Cano
 
 /** T24b: state system-registry module (L3 commands + registry factory). */
 const STATE_SYSTEM_SPECIFIER = "../../../state/dist/state/src/ports/system.js";
+
+/** T32b: state admission module (`openTransitiveScope` for dispatch fences). */
+const STATE_ADMISSION_SPECIFIER = "../../../state/dist/state/src/invocation/admission.js";
 
 /**
  * T24b: one composable system command as it flows through the worker
@@ -2590,6 +2727,162 @@ export function withDispatchJoinPort(store: StoragePort, port: DispatchJoinPort)
     discardStagedRows: (input) => store.discardStagedRows(input),
     readMigrationFailure: (migrationId) => store.readMigrationFailure(migrationId),
   };
+}
+
+/**
+ * T32b: structural view of the state admission module's transitive
+ * scope opener (`openTransitiveScope` in
+ * `state/src/invocation/admission.ts`). Only `snapshot()` is read
+ * here (the revision + owner point naming the dispatch's own fresh
+ * checkpoint); enrollment stays engine-internal.
+ */
+export interface StateFenceAdmissionProducer {
+  openTransitiveScope(
+    store: Pick<StoragePort, "readRevision">,
+    owner: string,
+  ): Promise<{
+    snapshot(): { readonly revision: Revision; readonly owner: string };
+  }>;
+}
+
+/**
+ * T32b: load the fence admission producer (dynamic dist import
+ * through the P-B seam, shape-checked fail-loud like the other
+ * producers).
+ */
+export async function loadFenceAdmissionProducer(): Promise<StateFenceAdmissionProducer> {
+  const admissionMod = await loadProducerModule(STATE_ADMISSION_SPECIFIER, "state fence producer");
+  const openTransitiveScope = requireProducerFn(
+    admissionMod,
+    "openTransitiveScope",
+    "state fence producer",
+  );
+  return {
+    openTransitiveScope:
+      openTransitiveScope as StateFenceAdmissionProducer["openTransitiveScope"],
+  };
+}
+
+/**
+ * T32b: structural mirror of work's `attemptDispatch` decision
+ * function (`work/src/dispatch/index.ts`) — the injected pure kernel
+ * the fenced drive consults. Only the fields the kernel reads are
+ * typed; everything else rides structurally. Like `classifyFailure`,
+ * the REAL work function arrives injected (there is no work dist to
+ * import); the deploy join supplies it exactly as tests supply it
+ * from work sources.
+ */
+export type FenceAttemptDispatchFn = (
+  deps: {
+    readonly clock: { nowMs(): number };
+    readonly claimIds: { nextClaimId(): string };
+    readonly supersessions: { isSuperseded(outboxId: string): boolean };
+    readonly evaluateGuard: (
+      predicate: string,
+      frozenInputs: unknown,
+      stateSnapshot: unknown,
+    ) => unknown;
+  },
+  attempt: {
+    readonly intent: {
+      readonly item: {
+        readonly id: string;
+        readonly operationId: string;
+        readonly source: string;
+        readonly occurrenceIndex: number;
+        readonly request: Readonly<Record<string, unknown>>;
+        readonly originOccurrence: null;
+        readonly state: "pending";
+      };
+      readonly commit: { readonly revision: number; readonly committedAtMs: number };
+    };
+    readonly guard: { readonly predicate: string | null };
+    readonly frozenInputs: unknown;
+    readonly stateSnapshot: unknown;
+    readonly fence: {
+      readonly checkpoint: { readonly revision: number; readonly owner: string };
+      readonly triggerRevision?: { readonly revision: number };
+      readonly revalidateAuthority: () => boolean;
+    };
+  },
+) => unknown;
+
+/** T32b: the fence point echoed on every refused drive outcome. */
+export interface DriveDispatchFenceEcho {
+  readonly checkpoint: { readonly revision: number; readonly owner: string };
+  readonly triggerRevision: { readonly revision: number } | null;
+}
+
+/**
+ * T32b: the claim-time fence gate for one dispatch drive. Absent
+ * (the default) keeps the EXACT pre-T32b behavior — no kernel call,
+ * no authority re-read. Present, the drive opens its OWN fresh
+ * checkpoint via `openTransitiveScope` (never the triggering read's
+ * snapshot) and consults the REAL injected `attemptDispatch` with the
+ * committed guard ordering (inherited-scope -> supersession ->
+ * guard -> revocation -> claim):
+ *
+ * - `owner` names the checkpoint owner (the trigger owner for
+ *   transitive dispatches, else the owning scope).
+ * - `triggerRevision` names the triggering checkpoint's revision for
+ *   transitive dispatches; presenting it back as the checkpoint is
+ *   inheriting and is refused. ABSENT means a direct dispatch with
+ *   no trigger snapshot to inherit (intents carry no trigger point
+ *   yet — the hook-to-dispatch trigger flow is unwired).
+ * - `revalidateAuthority` re-reads LIVE authority at fence time (the
+ *   drive awaits it; the pure-sync kernel replays the resolved
+ *   verdict). A revocation landing between trigger and drive denies
+ *   the transitive effect — no cached snapshot authorizes a spend.
+ */
+export interface DriveDispatchFenceInput {
+  readonly owner: string;
+  readonly triggerRevision?: { readonly revision: number };
+  readonly revalidateAuthority: () => boolean | Promise<boolean>;
+  readonly attemptDispatch: FenceAttemptDispatchFn;
+}
+
+/** T32b: one kernel verdict the fenced drive handles. */
+type FenceAttemptVerdict =
+  | { readonly status: "claimed"; readonly claim: { readonly outboxId: string; readonly claimId: string; readonly claimedAt: number } }
+  | { readonly status: "skipped" }
+  | { readonly status: "refused-inherited-scope" }
+  | { readonly status: "refused-revoked" };
+
+/**
+ * T32b: fail-closed read of the injected kernel's verdict. `claimed`
+ * carries the held claim back (shape-checked; the drive asserts it
+ * equals the held claim); `skipped` runs the existing skip ceremony;
+ * the two refused statuses return. Every other status is unreachable
+ * by construction — the drive attests a committed pending intent
+ * (the claim run just proved pending + non-superseded) — so anything
+ * else (superseded/refused-state/refused-uncommitted/unknown) is a
+ * loud wiring error, never a silent drive.
+ */
+function checkFenceAttemptVerdict(value: unknown): FenceAttemptVerdict {
+  if (!isUnknownRecord(value) || typeof value["status"] !== "string") {
+    throw new Error(`t32b: fence kernel verdict must carry a string status (producer skew?)`);
+  }
+  const status: string = value["status"];
+  if (status === "skipped") return { status };
+  if (status === "refused-inherited-scope") return { status };
+  if (status === "refused-revoked") return { status };
+  if (status === "claimed") {
+    const claim: unknown = value["claim"];
+    if (!isUnknownRecord(claim)) {
+      throw new Error(`t32b: fence kernel claimed verdict lost its claim (producer skew?)`);
+    }
+    const outboxId: unknown = claim["outboxId"];
+    const claimId: unknown = claim["claimId"];
+    const claimedAt: unknown = claim["claimedAt"];
+    if (typeof outboxId !== "string" || typeof claimId !== "string" || typeof claimedAt !== "number") {
+      throw new Error(`t32b: fence kernel claim is misshapen (producer skew?)`);
+    }
+    return { status, claim: { outboxId, claimId, claimedAt } };
+  }
+  throw new Error(
+    `t32b: fence kernel verdict ${JSON.stringify(status)} is unreachable here ` +
+      `(the drive attests a committed pending intent over a won claim) — refusing to drive on it`,
+  );
 }
 
 /**
@@ -3221,6 +3514,18 @@ export interface DriveDispatchIntentOpts {
   readonly callProvider: DispatchProviderCaller;
   /** Injected failure classifier (the real work `classifyFailure`). */
   readonly classifyFailure: DispatchFailureClassifier;
+  /**
+   * T32b: the claim-time fence gate (absent keeps the EXACT pre-T32b
+   * behavior — no kernel call, no authority re-read). Present, the
+   * drive opens its own fresh checkpoint and consults the REAL
+   * injected `attemptDispatch` after the claim wins (guard re-eval
+   * moves INSIDE the kernel call, so the committed ordering holds
+   * exactly: inherited-scope -> supersession -> guard -> revocation
+   * -> claim). Refused verdicts return WITHOUT a provider call, a
+   * record, or an ack: the held claim ages out and the sweeper
+   * re-drives (re-fencing from scratch).
+   */
+  readonly fence?: DriveDispatchFenceInput;
 }
 
 /** T24b: single-attempt drive outcome. */
@@ -3245,7 +3550,154 @@ export type DriveDispatchOutcome =
       readonly providerOutcome: DispatchProviderOutcome;
       /** Provider-throw message, present only when the call threw (recorded `uncertain`). */
       readonly providerThrew?: string;
+    }
+  /**
+   * T32b: the fenced drive refused BEFORE any provider call — the
+   * dispatch presented its trigger's own checkpoint revision (an
+   * inherited snapshot, never a fresh scope). No record, no ack, no
+   * attempt consumed; the held claim ages out for re-drive. The echo
+   * carries the fresh checkpoint beside the refused trigger point.
+   */
+  | {
+      readonly status: "refused-inherited-scope";
+      readonly intentId: string;
+      readonly claimId: string;
+      readonly fence: DriveDispatchFenceEcho;
+    }
+  /**
+   * T32b: the fenced drive refused AFTER the guard passed — live
+   * authority no longer holds (revoked between trigger and drive).
+   * Same no-call/no-record/no-ack posture as inherited-scope; the
+   * echo carries the checkpoint the refusal fenced under.
+   */
+  | {
+      readonly status: "refused-revoked";
+      readonly intentId: string;
+      readonly claimId: string;
+      readonly fence: DriveDispatchFenceEcho;
     };
+
+/**
+ * T32b: the fenced gate — one real kernel verdict for one won claim.
+ * Opens the dispatch's OWN fresh checkpoint (current revision, zero
+ * enrolled dependencies — never the triggering read's snapshot),
+ * pulls the CURRENT snapshot, resolves the LIVE authority verdict at
+ * fence time, and consults the injected `attemptDispatch` with the
+ * committed guard ordering. Returns null on `claimed` (the drive
+ * proceeds to the provider); `skipped` runs the shared skip ceremony;
+ * refused verdicts return with the fence echo (no provider call, no
+ * record, no ack — the held claim ages out and the sweeper re-drives
+ * from scratch).
+ */
+async function runFenceGate(input: {
+  readonly opts: DriveDispatchIntentOpts;
+  readonly fence: DriveDispatchFenceInput;
+  readonly intentId: string;
+  readonly now: number;
+  readonly heldClaimId: string;
+  readonly guard: string | null;
+  readonly recordSkip: (guardName: string) => Promise<DriveDispatchOutcome>;
+}): Promise<DriveDispatchOutcome | null> {
+  const { opts, fence, intentId, now, heldClaimId, guard, recordSkip } = input;
+  if (typeof fence.owner !== "string" || fence.owner === "") {
+    throw new Error("t32b: fenced drive needs a non-empty checkpoint owner.");
+  }
+  if (typeof fence.revalidateAuthority !== "function" || typeof fence.attemptDispatch !== "function") {
+    throw new Error("t32b: fenced drive needs revalidateAuthority + attemptDispatch functions.");
+  }
+  const triggerRevision = fence.triggerRevision;
+  if (triggerRevision !== undefined) {
+    const rev: unknown = triggerRevision.revision;
+    if (typeof rev !== "number" || !Number.isInteger(rev) || rev < 0) {
+      throw new Error("t32b: fenced drive triggerRevision must be an integer revision >= 0.");
+    }
+  }
+  const admission = await loadFenceAdmissionProducer();
+  const checkpoint = (await admission.openTransitiveScope(opts.store, fence.owner)).snapshot();
+  // The CURRENT snapshot first (a side-effecting reader lands before
+  // the live authority read — fence-time order, still after the
+  // claim); unguarded dispatches skip the pull exactly like the
+  // unfenced path (the kernel never reads the snapshot then).
+  const snapshot: unknown = guard === null ? null : await opts.readStateSnapshot(opts.intent);
+  // LIVE authority re-read at fence time (after the claim, after the
+  // snapshot, before the provider call). The pure-sync kernel cannot
+  // await it, so the drive resolves it here and the kernel replays
+  // the resolved verdict — the REVOCATION verdict still lands after
+  // the guard inside the kernel's committed ordering.
+  const liveAuthorityOk = (await fence.revalidateAuthority()) === true;
+  const verdict = checkFenceAttemptVerdict(
+    fence.attemptDispatch(
+      {
+        clock: { nowMs: () => now },
+        // Single-shot mint reproducing the HELD claim: the kernel
+        // mints only on its claimed path, and the drive asserts the
+        // minted claim equals the held one below.
+        claimIds: { nextClaimId: () => heldClaimId },
+        // Attested, not re-read: the claim run just proved pending +
+        // non-superseded (it refuses superseded rows first), so a
+        // re-read here could only observe the pre-existing
+        // claim-to-provider race — which the unfenced path shares.
+        supersessions: { isSuperseded: () => false },
+        evaluateGuard: (predicate, frozenInputs, stateSnapshot) =>
+          opts.evaluateGuard(predicate, frozenInputs, stateSnapshot),
+      },
+      {
+        intent: {
+          item: {
+            id: intentId,
+            operationId: opts.intent.operationId,
+            source: opts.intent.target,
+            occurrenceIndex: opts.intent.occurrenceIndex,
+            request: opts.intent.arguments,
+            originOccurrence: null,
+            // The L3 intent is committed (it came from outboxPending)
+            // and undispatched (unacked): pending in the kernel's
+            // dispatchability sense. (The dispatch ROW is claimed —
+            // row concurrency and intent dispatchability are separate
+            // mechanisms; the row claim is what `heldClaimId` names.)
+            state: "pending",
+          },
+          // Attested upper-bound marker: the intent committed no
+          // later than now at no later than the fresh checkpoint
+          // revision (the kernel null-checks it opaquely — lane 3
+          // mints the authoritative marker at stage).
+          commit: { revision: checkpoint.revision as number, committedAtMs: now },
+        },
+        guard: { predicate: guard },
+        frozenInputs: opts.intent.arguments,
+        stateSnapshot: snapshot,
+        fence: {
+          checkpoint: { revision: checkpoint.revision as number, owner: checkpoint.owner },
+          ...(triggerRevision === undefined
+            ? {}
+            : { triggerRevision: { revision: triggerRevision.revision } }),
+          revalidateAuthority: () => liveAuthorityOk,
+        },
+      },
+    ),
+  );
+  const echo: DriveDispatchFenceEcho = {
+    checkpoint: { revision: checkpoint.revision as number, owner: checkpoint.owner },
+    triggerRevision: triggerRevision === undefined ? null : { revision: triggerRevision.revision },
+  };
+  if (verdict.status === "claimed") {
+    if (
+      verdict.claim.outboxId !== intentId ||
+      verdict.claim.claimId !== heldClaimId ||
+      verdict.claim.claimedAt !== now
+    ) {
+      throw new Error(`t32b: fence kernel minted a claim that is not the held claim (producer skew?)`);
+    }
+    return null;
+  }
+  if (verdict.status === "skipped") {
+    if (guard === null) {
+      throw new Error(`t32b: fence kernel skipped an unguarded dispatch (producer skew?)`);
+    }
+    return recordSkip(guard);
+  }
+  return { status: verdict.status, intentId, claimId: heldClaimId, fence: echo };
+}
 
 /**
  * T24b: drive ONE dispatch attempt for one L3 intent: fenced claim,
@@ -3290,32 +3742,56 @@ export async function driveDispatchIntent(
     return { status: "not-claimed", intentId, reason: claim.reason ?? "unknown" };
   }
   const heldClaimId = claim.claimId;
-  // Claim-time guard re-evaluation: the CURRENT snapshot (pulled after
-  // the win) through the injected evaluator. Only an explicit `true`
-  // dispatches (mirroring `attemptDispatch` + `planDispatchStaging`);
-  // anything else records a skip WITHOUT consuming an attempt.
-  // Evaluator throws propagate with the claim held (stale release
-  // owns the retry) — a throwing evaluator must never terminally
-  // skip, and the pin it would overwrite is recorded history.
   const guard: string | null = opts.intent.dispatchGuard ?? null;
-  if (guard !== null) {
-    const snapshot = await opts.readStateSnapshot(opts.intent);
-    const verdict = opts.evaluateGuard(guard, opts.intent.arguments, snapshot);
-    if (verdict !== true) {
-      const skipped = await opts.registry.run(
-        "work.dispatch.record-attempt",
-        {
-          intentId,
-          claimId: heldClaimId,
-          outcome: { state: "pending", guardVerdict: false },
-          ack: true,
-        },
-        { ...runBase, operationId: opts.recordOperationId },
-        { store: opts.store },
-      );
-      checkRecordResult(skipped.result);
-      return { status: "skipped", intentId, claimId: heldClaimId, guard };
+  // The skip ceremony (ONE implementation, shared by the unfenced
+  // re-eval below and the fenced kernel's `skipped` verdict): a false
+  // guard records WITHOUT consuming an attempt and acks the L3 intent.
+  const recordSkip = async (guardName: string): Promise<DriveDispatchOutcome> => {
+    const skipped = await opts.registry.run(
+      "work.dispatch.record-attempt",
+      {
+        intentId,
+        claimId: heldClaimId,
+        outcome: { state: "pending", guardVerdict: false },
+        ack: true,
+      },
+      { ...runBase, operationId: opts.recordOperationId },
+      { store: opts.store },
+    );
+    checkRecordResult(skipped.result);
+    return { status: "skipped", intentId, claimId: heldClaimId, guard: guardName };
+  };
+  if (opts.fence === undefined) {
+    // Claim-time guard re-evaluation: the CURRENT snapshot (pulled after
+    // the win) through the injected evaluator. Only an explicit `true`
+    // dispatches (mirroring `attemptDispatch` + `planDispatchStaging`);
+    // anything else records a skip WITHOUT consuming an attempt.
+    // Evaluator throws propagate with the claim held (stale release
+    // owns the retry) — a throwing evaluator must never terminally
+    // skip, and the pin it would overwrite is recorded history.
+    if (guard !== null) {
+      const snapshot = await opts.readStateSnapshot(opts.intent);
+      const verdict = opts.evaluateGuard(guard, opts.intent.arguments, snapshot);
+      if (verdict !== true) {
+        return recordSkip(guard);
+      }
     }
+  } else {
+    // T32b: the fenced gate — the guard re-eval moves INSIDE the real
+    // kernel call (same evaluator, same snapshot, same single
+    // evaluation), so refused-inherited-scope precedes the guard and
+    // refused-revoked follows it per the committed ordering. Claimed
+    // falls through to the provider below; anything else returns.
+    const fenced = await runFenceGate({
+      opts,
+      fence: opts.fence,
+      intentId,
+      now,
+      heldClaimId,
+      guard,
+      recordSkip,
+    });
+    if (fenced !== null) return fenced;
   }
   const held: DispatchClaim = {
     outboxId: intentId as OutboxId,
