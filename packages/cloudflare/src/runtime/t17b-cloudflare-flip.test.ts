@@ -919,7 +919,7 @@ describe("T17b scenario staging (one atomic commit with receipt + history)", () 
     );
   });
 
-  it("rejects re-archiving with the engine message; staged writes roll back to a receipt-only revision", async () => {
+  it("rejects re-archiving with the B1 admission-parity verdict; staged writes roll back to a receipt-only revision", async () => {
     const { asm, artifact, store, seed } = await shopSetup();
     const invoker = buildInvoker(artifact, asm, store, {
       memberships: seed.store,
@@ -933,7 +933,10 @@ describe("T17b scenario staging (one atomic commit with receipt + history)", () 
     );
     assert.ok("error" in outcome, "re-archive must fail");
     assert.equal(outcome.error.code, "validation");
-    assert.match(outcome.error.message, /already archived/);
+    // B1: gated callers (the scenario seam passes gateArchivedTargets)
+    // report admission's verdict RATHER THAN the archive-mode engine
+    // verdict (pipeline.ts, "rather than ... `already archived`").
+    assert.equal(outcome.error.message, "Archived records cannot be used here.");
     // Bookkeeping only: revision +1 for the rejected receipt; no rows, no history.
     assert.equal(await store.readRevision(), 1);
     assert.equal((await modelRows(store, "acme.Memo")).length, 0);
@@ -1313,7 +1316,14 @@ describe("T17b receipt defaults (keyed per write)", () => {
 });
 
 describe("T17b parent linkage (validated, staged, attributed)", () => {
-  it("links existing parents and refuses ghosts with the engine message", async () => {
+  it("declared roots refuse ad-hoc parent linkage (B5); production linkage pins live in T32c", async () => {
+    // B5 declared ownership: artifact models without a `parent` member
+    // are DECLARED roots (models.ts: "absent `parent` marks a DECLARED
+    // root"), so ad-hoc supplied parents fail with "not allowed" —
+    // the pre-B5 legacy posture (accept any supplied parent) survives
+    // only for hand-built defs, never loader-built tables. Positive
+    // linkage + ghost refusal on production shape are pinned by the
+    // T32c C2 containment test (Shop.Member in Shop.Team).
     const { asm, artifact, store, seed } = await shopSetup();
     const invoker = buildInvoker(artifact, asm, store, {
       memberships: seed.store,
@@ -1324,17 +1334,16 @@ describe("T17b parent linkage (validated, staged, attributed)", () => {
       mutationEnvelope("acme.Shop.linkOk", freshOperationId(seed.now), { parent: "p-1", child: "c-1" }),
       identity,
     );
-    assert.ok("result" in linked, `want result, got ${JSON.stringify(linked)}`);
-    assert.deepEqual((linked.result as MutationResult).result, {
-      parent: { model: "acme.Todo", id: "p-1" },
-    });
+    assert.ok("error" in linked, "ad-hoc parent on a declared root must fail");
+    assert.equal(linked.error.code, "validation");
+    assert.equal(linked.error.message, 'Parent linkage is not allowed for model "acme.Todo".');
     const ghosted = await invoker.invokeMutation(
       mutationEnvelope("acme.Shop.linkGhost", freshOperationId(seed.now), { child: "c-2", ghost: "nope" }),
       identity,
     );
     assert.ok("error" in ghosted, "ghost parent must fail");
     assert.equal(ghosted.error.code, "validation");
-    assert.match(ghosted.error.message, /Parent record not found/);
+    assert.equal(ghosted.error.message, 'Parent linkage is not allowed for model "acme.Todo".');
     assert.equal(await store.load("acme.Todo" as ModelName, "c-2" as RecordId), null);
   });
 });
