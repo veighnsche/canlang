@@ -13546,5 +13546,11 @@
   "original_manifest_preserved": true,
   "dispatch_capacity": "not fixed; choose actual ready capacity with one writer per exact resource and measured heavy-check limits; no workers launched",
   "parent_completion_policy": "Readiness/foundation gates release actual consumers; parent closes only full promised scope, positive/negative/installed/recovery evidence; decline acceleration never declines mandatory interface workflow.",
-  "legacy_findings_policy": "Old C01-C15/R01-R08 are historical corrective/decomposition evidence. Revalidate against current source and current owner acceptance before allocating duplicate work; original R01 independent review and coordinator C01 remain their own scopes."
+  "legacy_findings_policy": "Old C01-C15/R01-R08 are historical corrective/decomposition evidence. Revalidate against current source and current owner acceptance before allocating duplicate work; original R01 independent review and coordinator C01 remain their own scopes.",
+  "consolidation_refresh": {
+    "source_pin": "fdb059c634c32c83760f35dd9175f49d9821762d",
+    "record": "consolidation-review.json",
+    "scope": "current source availability and retained staged work; original duties, task dependencies and historical semantic reviews unchanged",
+    "source_closure": "FP.SOURCE-CLOSURE OPEN; complete checkpoint unchanged"
+  }
 }

@@ -32,7 +32,7 @@ def main():
         # Only executed moves resolve to a current path; proposed consolidation does not.
         return ROOT/source_locations.get(path,path)
     errors=[];warnings=[]
-    expected={r['path'] for r in inventory['rows']+inventory['added_inputs']+inventory['draft']['rows']} - {'draft'}
+    expected={r['path'] for r in inventory['rows']+inventory['added_inputs']+inventory.get('historical_inputs',[])+inventory['draft']['rows']} - {'draft'}
     allocations=tree['input_allocations'];mapped={a['source'] for a in allocations}
     if expected!=mapped:errors.append({'input_coverage':{'missing':sorted(expected-mapped),'extra':sorted(mapped-expected)}})
     if len(mapped)!=len(allocations):errors.append('duplicate source allocation')
@@ -96,10 +96,10 @@ def main():
     head=subprocess.check_output(['git','rev-parse','HEAD'],cwd=ROOT,text=True).strip()
     drift=[]
     for r in inventory['rows']:
-        if r['kind']!='blob':continue
+        if r['kind']!='blob' or r.get('bookkeeping_identity'):continue
         p=current_source(r['path'])
-        if p.is_file() and hashlib.sha256(p.read_bytes()).hexdigest()!=r.get('working_overlay',{}).get('sha256',r['sha256']):drift.append(r['path'])
-    for r in inventory['added_inputs']+inventory['draft']['rows']:
+        if not p.is_file() or hashlib.sha256(p.read_bytes()).hexdigest()!=r.get('working_overlay',{}).get('sha256',r['sha256']):drift.append(r['path'])
+    for r in inventory['added_inputs']+inventory['draft'].get('current_rows',inventory['draft']['rows']):
         p=current_source(r['path'])
         if not p.is_file() or hashlib.sha256(p.read_bytes()).hexdigest()!=r['sha256']:drift.append(r['path'])
     for r in inventory['contracts']:
@@ -144,7 +144,10 @@ def main():
             if not (ROOT/p).is_file() or hashlib.sha256((ROOT/p).read_bytes()).hexdigest()!=sha:errors.append({'topic_raw_evidence_changed':p})
     # Main planning entry is deliberately updated after source capture; bookkeeping needs no recursive delta.
     drift=[p for p in drift if p!='docs/ideal-filetree-plan.md']
-    if head!=inventory['source_pin'] or drift:warnings.append({'moving_source_requires_refresh':{'observed_head':head,'pin':inventory['source_pin'],'working_drift':drift}})
+    head_delta=subprocess.check_output(['git','diff','--name-only',inventory['source_pin'],head],cwd=ROOT,text=True).splitlines()
+    source_delta=[p for p in head_delta if not p.startswith('docs/ideal-filetree-plan') and p!='docs/specification/DECISIONS.md']
+    # Living-plan bookkeeping after the source pin does not recursively require recapture.
+    if source_delta or drift:warnings.append({'moving_source_requires_refresh':{'observed_head':head,'pin':inventory['source_pin'],'working_drift':drift}})
     app_ledgers=[];apps=[];shared=[]
     for p in sorted((HERE/'reviews').glob('apps-*.json')):
         d=json.loads(p.read_text());app_ledgers.append(str(p.relative_to(ROOT)))
@@ -188,7 +191,7 @@ def main():
     for file in (HERE/'reviews').glob('*.json'):inspect_pins(json.loads(file.read_text()))
     if mismatched_pins:errors.append({'review_source_hash_drift':sorted(set(mismatched_pins))})
     if navigation_only_pins:warnings.append({'navigation_only_review_source_drift':sorted(set(navigation_only_pins)),'scope':'Exact inverse URL repair matches original draft pins; historical review hashes unchanged, no renewed semantic or runtime proof.'})
-    result={'schema_version':1,'errors':errors,'warnings':warnings,'checks':{'input_allocations':len(allocations),'target_leaves':len(leaves),
+    result={'schema_version':1,'errors':errors,'warnings':warnings,'checks':{'current_tracked_paths':inventory.get('current_tracked_paths',len(inventory['rows'])),'historical_catalog_inputs':len(inventory.get('historical_inputs',[])),'input_allocations':len(allocations),'target_leaves':len(leaves),
        'all_port_tasks':230,'required_port_tasks':220,'conditional_deferred_port_tasks':10,'all_task_dag_items':len(tasks),
        'markdown_links':checked_links,'json_artifacts':len(json_files),'rust_module_collisions':len(rust),'one_defining_owner_per_target':all(bool(t['owner']) for t in tree['target_leaves']),
        'app_intent_ledgers':app_ledgers,'app_records':len(apps),'shared_records':len(shared),'review_source_hash_drift':sorted(set(mismatched_pins)),
@@ -199,7 +202,7 @@ def main():
        'documentation_editor_archive_markdown':sum(p.endswith('.md') for p in archived_sources),
        'documentation_editor_archive_recovery_verified':bool(retired_audit) and not any('archive' in str(e) for e in errors),
        'documentation_markdown_reduction':topic_consolidation.get('net_markdown_reduction',0)+sum(p.endswith('.md') for p in archived_sources)},
-       'completion_dimensions':{'source_coverage':'Path/catalog accountability complete at source pin; every parent/added/nested path and accumulated checkpoint delta catalogued and mixed internals indexed. Semantic reads scope-pinned in primary/app reviews; exhaustive test-body/control-path review remains FP.SOURCE-CLOSURE, so complete checkpoint does not advance.',
+       'completion_dimensions':{'source_coverage':'Current tracked and retained historical identities structurally accounted at consolidated pin; accumulated checkpoint deltas and mixed internals indexed. Semantic reads scope-pinned in primary/app reviews; exhaustive test-body/control-path review remains FP.SOURCE-CLOSURE, so complete checkpoint does not advance.',
          'workflow_tracing':'Requirements-first lifecycle/authority/failure/termination records across 12 capabilities and full original app intent sweep; installed/executed workflow proofs remain implementation gates.',
          'independent_challenge':'Four primary views with independent challengers; material corpus/CSV/poll/export/identity/upgrade corrections joined; per-app challenge/reconciliation stated at actual scope.',
          'exact_target_allocation':'Every catalogued input has selected retained/successor leaves, one defining owner and cutover gate; all port IDs and required product joins mapped; provisional ABI/fixture/packaging conditions explicit.'},

@@ -109,7 +109,7 @@
       "id": "LATE-DELIVERY",
       "observation": "LoadedCanonicalDescriptors carries registry deliveryFields. Descriptor load retries once on IncompatibleArtifactError/unknown_input_kind and an error message containing quoted delivery, after stripping delivery input descriptors. Other predicates propagate; caller artifact is shallow-copied, not changed.",
       "inference": "Temporary compatibility bridge, not receipt-runtime proof. Independent challenge: the message token can refer to input/operation named delivery rather than the rejected kind; the bounded second validation is the strongest countercase because remaining invalid kind still rejects. No admission bypass or exploit execution is claimed.",
-      "remaining": "Verify schema integrity and admission remains equally strict; actually compiled receipt/delivery-only operations; no fallback execution; remove bridge after owner loader tolerance/current matching producer. Existing interfaces/mcp/schemas.ts:722\u2013823 validates delivery tags/required/default/array/description/duplicates; http/operations.ts:429\u2013446 preflights whole descriptors before excluding delivery from framing. Retain that single owner and prove every installed/direct caller uses the full validated lineage, including misleading message-name cases; no duplicate validator.",
+      "remaining": "Verify schema integrity and admission remains equally strict; actually compiled receipt/delivery-only operations; no fallback execution; remove bridge after owner loader tolerance/current matching producer. Existing interfaces/mcp/schemas.ts:722–823 validates delivery tags/required/default/array/description/duplicates; http/operations.ts:429–446 preflights whole descriptors before excluding delivery from framing. Retain that single owner and prove every installed/direct caller uses the full validated lineage, including misleading message-name cases; no duplicate validator.",
       "targets": [
         "packages/cloudflare/src/runtime/invoke.ts"
       ],
@@ -176,7 +176,7 @@
       "source_pin": "5edc3bac2a341fbda0bb432649e90ba70d3c05db",
       "observation": "Optional availability callback now checks item.source after commit/inherited-scope/supersession/pending and before guard/authority/claim, returning explicit unavailable shape. Absent port preserves prior behavior. Two new tests exercise pure injected addressing/availability/ordering, not actual live-serving wire or enrolled fence. Root read complete changes/tests.",
       "inference": "Returned status and comments do not by themselves persist terminal receipt/work state, runtime transport mapping, same-operation replay or qualified provider availability. Callback order/outcome ABI is new baseline scope for W port equivalence. Need verify actual runtime target source construction and every consumer switch.",
-      "remaining": "FP.DISPATCH-AVAILABILITY actual binding and approved durable/terminal mapping; T25/T26 real selected-read live row/current grant/enrolled fence and no inferred envelope publication; current/TS/Rust profile/callback/domain parity refresh. Missing required corpus/provider is still a blocker, not accepted scope removal. Independent 15-source-pin review confirms Cloudflare mirror omits availability/rejects new verdict; actual drive claim/snapshot/authority timing differs from synchronous kernel callbacks. source\u2194target is consistently carried, but real capability/resource alias resolution and terminal receipt/no-redrive mapping remain unqualified. Builtin stdlib send/delivery remain unsupported; carrier map does not prove that consumer.",
+      "remaining": "FP.DISPATCH-AVAILABILITY actual binding and approved durable/terminal mapping; T25/T26 real selected-read live row/current grant/enrolled fence and no inferred envelope publication; current/TS/Rust profile/callback/domain parity refresh. Missing required corpus/provider is still a blocker, not accepted scope removal. Independent 15-source-pin review confirms Cloudflare mirror omits availability/rejects new verdict; actual drive claim/snapshot/authority timing differs from synchronous kernel callbacks. source↔target is consistently carried, but real capability/resource alias resolution and terminal receipt/no-redrive mapping remain unqualified. Builtin stdlib send/delivery remain unsupported; carrier map does not prove that consumer.",
       "tasks": [
         "T24",
         "T25",
@@ -194,5 +194,11 @@
   "independent_challenge": "reviews/late-challenge-language.json",
   "test_only_followup_pin": "1f5c1b55f68450f1f904a994d5c0a67057a77ca1",
   "test_only_followup_review": "reviews/late-work-tests.json",
-  "performed_test_scope": "Audit runs no product tests; commit-owner reported test results remain at their named commit/scope"
+  "performed_test_scope": "Audit runs no product tests; commit-owner reported test results remain at their named commit/scope",
+  "consolidation_refresh": {
+    "source_pin": "fdb059c634c32c83760f35dd9175f49d9821762d",
+    "record": "consolidation-review.json",
+    "scope": "current source availability and retained staged work; original duties, task dependencies and historical semantic reviews unchanged",
+    "source_closure": "FP.SOURCE-CLOSURE OPEN; complete checkpoint unchanged"
+  }
 }

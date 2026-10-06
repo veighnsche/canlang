@@ -436,6 +436,14 @@
       "classification": "accepted documentation placement; conditional content consolidation",
       "status": "Root relocation and selected27-file consolidation applied; further pruning remains conditional/deferred; 187 editor archive files including 23 Markdown retired from working tree",
       "evidence": "documentation-review.json"
+    },
+    {
+      "id": "BOUND-CONSOLIDATION",
+      "boundary": "source/history integration versus programme acceptance",
+      "finding": "All branch ancestry and unfinished B/D/native values/browser work retained in main; W01 reviews, D human HOLD, opt-in/backend and installed/current-authority consumer gates remain. Generated bindings are source/build evidence, not supported release proof.",
+      "owner_gate": "FP.SOURCE-CLOSURE/FP.BROWSER/FP.INSTALLED-RELEASE and original port gates",
+      "classification": "performed structural consolidation; retained incomplete work",
+      "status": "OPEN acceptance gates; see consolidation-review.json"
     }
   ],
   "late_source": "late-source.json",
