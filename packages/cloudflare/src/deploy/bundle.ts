@@ -31,6 +31,13 @@
  *   mirroring `tests/e2e/fixtures/artifact-loader.ts` `buildMcpBundle`
  *   INCLUDING its marker check. Bundling (not vendoring) is required
  *   because transitive MCP SDK deps (ajv, content-type) ship CJS only.
+ * - `worker/http-operations.js` (C3): the real `handleOperationRequest`
+ *   POST chain, `bun build --target=browser --format=esm` from a pure
+ *   re-export entry (MCP-identical shape, so no entry-path comment
+ *   leaks the tmpdir and the bundle stays deterministic). The main's
+ *   join contract curries it (`(deps) => (req, op) => ...` — arity
+ *   adaptation in stable main source, no bundle logic). Same flags,
+ *   marker check, and loud errors as the MCP bundle.
  * - `runtime/<pinned>.js`: the workerd-safe dist runtime files the worker
  *   graph loads (`context`, `invoke` + `sourcemap`, `mcp-registry` for
  *   assembly; `env-assembly`, `grant-route` for main). Pinned by name —
@@ -91,6 +98,8 @@ import { STDLIB_SPECIFIER, UI_SPECIFIER, type AssembledModules } from "../runtim
 export const DEPLOY_MAIN_MODULE = "worker/main.js";
 /** MCP handler key: the sibling `./mcp-handler.js` bundle convention. */
 export const MCP_HANDLER_MODULE = "worker/mcp-handler.js";
+/** HTTP operations key: the sibling `./http-operations.js` bundle convention (C3). */
+export const HTTP_OPERATIONS_MODULE = "worker/http-operations.js";
 /** Staged-deployment key: the sibling `./artifact.js` join contract. */
 export const ARTIFACT_MODULE = "worker/artifact.js";
 /** Derived-inputs key: the sibling `./derived-inputs.js` E1 join contract (C1 bake). */
@@ -128,6 +137,16 @@ const INTERFACES_MCP_SERVER_DIST = posix.join(
   "mcp",
   "server.js",
 );
+/** Real-producer dist the HTTP operations bundle is byte-built from (never stubbed). */
+const INTERFACES_HTTP_OPERATIONS_DIST = posix.join(
+  "packages",
+  "interfaces",
+  "dist",
+  "interfaces",
+  "src",
+  "http",
+  "operations.js",
+);
 const MCP_REGISTRY_DIST = posix.join("packages", "cloudflare", "dist", "runtime", "mcp-registry.js");
 
 /**
@@ -139,6 +158,17 @@ export const MCP_BUNDLE_MARKERS: readonly string[] = [
   "createMcpHandler",
   "createArtifactRegistry",
   "createArtifactCatalog",
+  "IdentityError",
+];
+
+/**
+ * C3 marker set for the HTTP operations bundle: the real op chain and
+ * the bundle's own `IdentityError` copy (the op handler catches
+ * `IdentityError` from request identity resolution, so the same
+ * no-mixing invariant as MCP applies).
+ */
+export const HTTP_BUNDLE_MARKERS: readonly string[] = [
+  "handleOperationRequest",
   "IdentityError",
 ];
 
@@ -217,6 +247,8 @@ export interface DeployBundle {
   sha256: string;
   /** Byte size of the MCP handler bundle (proof of a real bundle). */
   mcpBundleBytes: number;
+  /** Byte size of the HTTP operations bundle (proof of a real bundle). */
+  httpOperationsBytes: number;
 }
 
 export interface WrittenDeployBundle {
@@ -629,6 +661,67 @@ function buildMcpBundle(repoRoot: string): string {
   return contents;
 }
 
+/**
+ * Build the `http-operations.js` module (C3): the real HTTP op-POST
+ * chain bundled self-contained for workerd. Mirrors `buildMcpBundle`
+ * (same flags, same marker check, same loud errors) with a pure
+ * re-export entry: any entry-local code makes bun emit an
+ * entry-path comment that leaks the random tmpdir and breaks bundle
+ * determinism, so the main's join-contract currying lives in stable
+ * main source instead (see `defaultLoadHttpOperationsFactory`).
+ */
+function buildHttpOperationsBundle(repoRoot: string): string {
+  const operationsDist = assertFileBuilt(
+    repoRoot,
+    INTERFACES_HTTP_OPERATIONS_DIST,
+    "bun run --filter @canlang/interfaces build",
+  );
+  const workDir = mkdtempSync(join(tmpdir(), "can-deploy-http-"));
+  const entryFile = join(workDir, "http-bundle-entry.js");
+  const outFile = join(workDir, "http-bundle.mjs");
+  const toPosixAbsolute = (path: string): string => path.split(sep).join(posix.sep);
+  writeFileSync(
+    entryFile,
+    `export { handleOperationRequest } from ${JSON.stringify(toPosixAbsolute(operationsDist))};\n`,
+    "utf8",
+  );
+  try {
+    execFileSync(
+      "bun",
+      ["build", entryFile, "--format=esm", "--target=browser", `--outfile=${outFile}`],
+      { stdio: "pipe" },
+    );
+  } catch (err) {
+    rmSync(workDir, { force: true, recursive: true });
+    const detail = err instanceof Error ? err.message : String(err);
+    if (detail.includes("ENOENT")) {
+      throw new Error(
+        "deploy bundle: `bun` is not on PATH, needed to bundle the HTTP operations chain; " +
+          "install bun (https://bun.sh) or deploy via `bun run`",
+      );
+    }
+    throw new Error(
+      `deploy bundle: HTTP bundle build failed (\`bun build\` on the generated entry); ` +
+        `the interfaces dist must be built. Underlying error: ${detail}`,
+    );
+  }
+  let contents: string;
+  try {
+    contents = readFileSync(outFile, "utf8");
+  } finally {
+    rmSync(workDir, { force: true, recursive: true });
+  }
+  for (const marker of HTTP_BUNDLE_MARKERS) {
+    if (!contents.includes(marker)) {
+      throw new Error(
+        `deploy bundle: HTTP bundle build dropped ${marker}; refusing a skewed bundle ` +
+          `(rebuild the producer dists and retry)`,
+      );
+    }
+  }
+  return contents;
+}
+
 /* ------------------------------------------------------------------ */
 /* workerd-loadability scan: no node file-URLs, no real CJS.            */
 /*                                                                     */
@@ -904,6 +997,7 @@ export function buildDeployBundle(
     Object.assign(modules, readVendorTree(options.repoRoot, tree));
   }
   modules[MCP_HANDLER_MODULE] = buildMcpBundle(options.repoRoot);
+  modules[HTTP_OPERATIONS_MODULE] = buildHttpOperationsBundle(options.repoRoot);
   modules[ARTIFACT_MODULE] = renderStagedDeployment(
     artifact,
     portableAssembledModules(artifact.modules.map((mod) => mod.path)),
@@ -922,6 +1016,7 @@ export function buildDeployBundle(
     moduleCount: Object.keys(sorted).length,
     sha256: bundleSha256(DEPLOY_MAIN_MODULE, sorted),
     mcpBundleBytes: (sorted[MCP_HANDLER_MODULE] as string).length,
+    httpOperationsBytes: (sorted[HTTP_OPERATIONS_MODULE] as string).length,
   };
 }
 
@@ -946,6 +1041,7 @@ export function writeDeployBundle(bundle: DeployBundle, outDir: string): Written
     sha256: bundle.sha256,
     moduleCount: bundle.moduleCount,
     mcpBundleBytes: bundle.mcpBundleBytes,
+    httpOperationsBytes: bundle.httpOperationsBytes,
     modules: Object.keys(bundle.modules)
       .sort()
       .map((key) => ({ key, bytes: (bundle.modules[key] as string).length })),
