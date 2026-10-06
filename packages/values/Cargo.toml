@@ -1,0 +1,4 @@
+[workspace]
+members = ["semantics", "bindings"]
+# The compiler is never a member of this package-local workspace.
+resolver = "2"

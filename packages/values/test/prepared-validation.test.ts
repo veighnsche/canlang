@@ -477,3 +477,36 @@ describe("native generation retirement never evicts plans", () => {
     assert.equal(second.get(b).id, id);
   });
 });
+
+describe("native cross-registry release never re-codes foreign handles", () => {
+  it("release marks disposed only when byHandle resolves (F micro-fix)", () => {
+    const { own, id } = registeredPlan(shopDescriptor());
+    const registry = new NativePlanRegistry(8);
+    const other = new NativePlanRegistry(8);
+    const handle = registry.adopt(own, id);
+    // Cross-registry release: silent no-op, code stays foreign-handle.
+    other.release(handle);
+    assertNativeError(() => other.get(handle), "foreign-handle");
+    assert.equal(other.liveCount, 0);
+    // The issuing registry is untouched: still live, still resolving.
+    assert.equal(registry.liveCount, 1);
+    assert.equal(registry.get(handle).id, id);
+    // Own-registry release still disposes.
+    registry.release(handle);
+    assertNativeError(() => registry.get(handle), "disposed-handle");
+  });
+
+  it("retirement reclaims bound immediately (N2 recorded divergence)", () => {
+    const first = registeredPlan(shopDescriptor());
+    const second = registeredPlan(shopDescriptor());
+    const registry = new NativePlanRegistry(1);
+    registry.adopt(first.own, first.id);
+    assertNativeError(() => registry.adopt(second.own, second.id), "registry-full");
+    registry.retireGeneration();
+    // Unlike the native half (retired-unreleased still occupies bound),
+    // the live set is reclaimed: adoption succeeds right after retire.
+    const current = registry.adopt(second.own, second.id);
+    assert.equal(registry.get(current).id, second.id);
+    assert.equal(registry.liveCount, 1);
+  });
+});

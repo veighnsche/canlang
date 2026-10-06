@@ -14,6 +14,7 @@
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "bun run build && node --test \"dist/values/test/**/*.test.js\"",
     "catalog": "bun run build && node scripts/emit-catalog.mjs",
+    "build:semantics": "node scripts/build-semantics.mjs",
     "clean": "rm -rf dist/"
   },
   "devDependencies": {
