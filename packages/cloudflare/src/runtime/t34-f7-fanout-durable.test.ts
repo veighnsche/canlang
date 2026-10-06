@@ -598,20 +598,35 @@ function durableSuite(
       ]);
       const fulfilled = [first, second].filter((o) => o.status === "fulfilled");
       const rejected = [first, second].filter((o) => o.status === "rejected");
-      assert.equal(fulfilled.length, 1);
-      assert.equal(rejected.length, 1);
-      const win = fulfilled[0];
-      assert.ok(win !== undefined && win.status === "fulfilled");
-      assert.equal(win.value.status, "recorded");
-      const loss = rejected[0];
-      assert.ok(loss !== undefined && loss.status === "rejected");
-      const reason: unknown = loss.reason;
-      assert.ok(
-        reason instanceof FenceConflictError ||
-          (typeof reason === "object" &&
-            reason !== null &&
-            (reason as { name?: unknown }).name === "FenceConflictError"),
-      );
+      // Exactly one winner records. The loser either throws fence
+      // conflict or replays the winner — substrate timing decides
+      // which interleave wins (D1 deterministically throws; DO may
+      // load after the winner's commit and replay). Both are honest
+      // contention outcomes: no duplicate record, winner's outcome
+      // kept. (T24b accepted-variance precedent.)
+      const recorded = fulfilled.filter((o) => o.status === "fulfilled" && o.value.status === "recorded");
+      assert.equal(recorded.length, 1);
+      const win = recorded[0];
+      assert.ok(win !== undefined && win.status === "fulfilled" && win.value.status === "recorded");
+      for (const entry of fulfilled) {
+        assert.ok(entry.status === "fulfilled");
+        if (entry.value.status === "replayed") {
+          assert.deepEqual(entry.value.outcome, win.value.outcome);
+        } else {
+          assert.equal(entry.value.status, "recorded");
+        }
+      }
+      for (const loss of rejected) {
+        assert.ok(loss.status === "rejected");
+        const reason: unknown = loss.reason;
+        assert.ok(
+          reason instanceof FenceConflictError ||
+            (typeof reason === "object" &&
+              reason !== null &&
+              (reason as { name?: unknown }).name === "FenceConflictError"),
+        );
+      }
+      assert.equal(fulfilled.length + rejected.length, 2);
       // Version race, deterministically interleaved: the loser loads
       // + stages BEFORE the winner commits (its fence read gates on
       // the winner), then commits under the fresh fence and loses on
@@ -657,7 +672,13 @@ function durableSuite(
         producers,
       });
       assert.equal(wonRecord.status, "recorded");
-      releaseFence?.();
+      // The Promise executor above runs synchronously, so the gate is
+      // always armed here; the cast defeats the `= null` initializer
+      // narrowing (TS cannot see the closure assignment, and any
+      // guard/assert on the narrowed `null` collapses to `never`).
+      const release = releaseFence as (() => void) | null;
+      assert.ok(release !== null, "unreachable: fence gate never armed");
+      release();
       const lostRecord = await loser;
       assert.equal(lostRecord.status, "replayed");
       if (lostRecord.status !== "replayed") throw new Error("unreachable");
