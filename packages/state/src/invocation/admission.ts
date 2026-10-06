@@ -32,7 +32,7 @@ import type {
 import type { GeneratedOperationDef, InterimOperationDef } from './registry.js';
 import { isGeneratedOperationDef } from './registry.js';
 import type { ByPredicate, MembershipReader } from '../policy/roles.js';
-import { evaluateBy } from '../policy/roles.js';
+import { byRequiresCallerMembership, evaluateBy } from '../policy/roles.js';
 import { isSecretValue } from '../policy/grants.js';
 import { assertOperationIdAge } from './context.js';
 import { hashInputs } from './replay.js';
@@ -655,7 +655,17 @@ export async function revalidateCommitForFence(input: CommitRevalidationInput): 
     input.actorUserId !== null && input.teamId !== null
       ? await input.memberships.findMembership(input.teamId, input.actorUserId)
       : null;
-  if (input.actorUserId !== null && input.teamId !== null && (live === null || live.status !== 'active')) {
+  // B4-authority: the explicit revocation void is by-aware — it fires only
+  // for gates whose authority flows from the caller's own membership row.
+  // Gates that can authorize without caller membership skip it (a missing
+  // caller row was never their authority); the live `evaluateBy` below
+  // still voids genuinely lost permission for every gate.
+  if (
+    byRequiresCallerMembership(input.by) &&
+    input.actorUserId !== null &&
+    input.teamId !== null &&
+    (live === null || live.status !== 'active')
+  ) {
     throw new StateError(
       'forbidden',
       'Authority revoked during the operation; the commit is void.',
