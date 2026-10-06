@@ -3525,3 +3525,57 @@ fn t29_imported_child_create_requires_parent() {
         "create without parent must fail naming parent: {diags:?}"
     );
 }
+
+// --- A3 boundary proofs: page titles + order keys ----------------------------
+
+/// (A3 P1) A page with a static `title=` checks clean.
+#[test]
+fn a3_page_title_present_clean() {
+    let src = "app T\nGiven\n Meeting { title:text }\n Amendment { text:text }\n policy Meeting read=members\n policy Amendment read=members\nWhen\nThen\n page /t title=\"T\"\n  list Meeting\n   timeline Amendment\n    slot item\n     text row.text\n";
+    let diags = check(src, Some(&fixture()));
+    assert!(diags.is_empty(), "{diags:?}");
+}
+
+/// (A3 P1) A page without `title=` is `E1204` at parse: the parser
+/// requires the attribute, so the checker's `E3001` "page needs title="
+/// arm is parser-shadowed (kept as defense in depth).
+#[test]
+fn a3_page_title_missing_e1204() {
+    let src = "app T\nGiven\n Meeting { title:text }\n Amendment { text:text }\n policy Meeting read=members\n policy Amendment read=members\nWhen\nThen\n page /t\n  list Meeting\n   timeline Amendment\n    slot item\n     text row.text\n";
+    let diags = check(src, Some(&fixture()));
+    assert_eq!(codes(&diags), vec!["E1204"], "{diags:?}");
+    assert!(
+        diags[0].message.contains("missing required attribute"),
+        "{}",
+        diags[0].message
+    );
+}
+
+/// (A3 P3) An order key over an ordered scalar checks clean.
+#[test]
+fn a3_order_key_ordered_clean() {
+    let src = "app T\nGiven\n M { active:bool, n:int }\n policy M read=members\nWhen\n scenario s() by=members\n  do\n   let x = count(M as m where m.active order=m.n select m)\nThen\n";
+    let diags = check(src, Some(&fixture()));
+    assert!(diags.is_empty(), "{diags:?}");
+}
+
+/// (A3 P3) An order key over a non-ordered scalar is `E3006`.
+#[test]
+fn a3_order_key_unordered_e3006() {
+    let src = "app T\nGiven\n M { active:bool, n:int }\n policy M read=members\nWhen\n scenario s() by=members\n  do\n   let x = count(M as m where m.active order=m.active select m)\nThen\n";
+    let diags = check(src, Some(&fixture()));
+    assert_eq!(codes(&diags), vec!["E3006"], "{diags:?}");
+    assert!(
+        diags[0].message.contains("must be ordered scalars"),
+        "{}",
+        diags[0].message
+    );
+}
+
+/// (A3 P3) A nullable datetime order key checks clean (unwrap + ordered).
+#[test]
+fn a3_order_key_nullable_datetime_clean() {
+    let src = "app T\nGiven\n M { active:bool, due:datetime? }\n policy M read=members\nWhen\n scenario s() by=members\n  do\n   let x = count(M as m where m.active order=m.due select m)\nThen\n";
+    let diags = check(src, Some(&fixture()));
+    assert!(diags.is_empty(), "{diags:?}");
+}
