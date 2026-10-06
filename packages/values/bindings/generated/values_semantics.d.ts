@@ -12,12 +12,24 @@ export function abi_version(): number;
  */
 export function exact_call(request_json: string): string;
 
+/**
+ * Structural scaffold ABI version this glue was built against.
+ */
+export function structural_abi_version(): number;
+
+/**
+ * Runs one scaffold request, returning the response JSON.
+ */
+export function validation_call(request_json: string): string;
+
 export type InitInput = RequestInfo | URL | Response | BufferSource | WebAssembly.Module;
 
 export interface InitOutput {
     readonly memory: WebAssembly.Memory;
     readonly abi_version: () => number;
     readonly exact_call: (a: number, b: number) => [number, number];
+    readonly structural_abi_version: () => number;
+    readonly validation_call: (a: number, b: number) => [number, number];
     readonly __wbindgen_externrefs: WebAssembly.Table;
     readonly __wbindgen_malloc: (a: number, b: number) => number;
     readonly __wbindgen_realloc: (a: number, b: number, c: number, d: number) => number;

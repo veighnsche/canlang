@@ -20,6 +20,7 @@ pub mod failures;
 pub mod input;
 pub mod numeric;
 pub mod plans;
+pub mod profiles;
 pub mod representations;
 pub mod temporal;
 pub mod transport;

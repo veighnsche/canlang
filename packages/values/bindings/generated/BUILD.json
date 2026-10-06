@@ -9,24 +9,25 @@
   "bindgen_target": "web",
   "sources": [
     "src/exact.rs",
-    "src/lib.rs"
+    "src/lib.rs",
+    "src/validation.rs"
   ],
   "files": {
     "values_semantics.d.ts": {
-      "sha256": "8316f7a556eeadc04a8d47cfa354e71a059d2ae9de016abfa94c5f69d383bd45",
-      "bytes": 1805
+      "sha256": "b4fcaa531c8b9d9c0277854fb12e4b484194c7fda8e3cc55d563b9286d4f6848",
+      "bytes": 2184
     },
     "values_semantics.js": {
-      "sha256": "a761980a4acaedd80f952783e26d6c4134c548989491bcbffb64586816d6c8c4",
-      "bytes": 7051
+      "sha256": "f369c7d79e367a15f1bdb12a7a5401dd4efc4648a8021845d2e613bf66d9b1f0",
+      "bytes": 7869
     },
     "values_semantics_bg.wasm": {
-      "sha256": "f9df0ddd9cca605136b2d38ea62eacd706048fb1652ca1f9a647c0d6b049d6ca",
-      "bytes": 515599
+      "sha256": "d202750a5ef464c61ace50c0f5df15af70196acaf64953d0cc8e5e17007ca53c",
+      "bytes": 622098
     },
     "values_semantics_bg.wasm.d.ts": {
-      "sha256": "0a570936c33b31970f25d22593676ca58623fae9074a8db9dc4f92cd0a3e43bb",
-      "bytes": 518
+      "sha256": "9ac2938ac3d66379be0cf16f70c1d889be8c06b0e15e634407b94e2770fc7932",
+      "bytes": 643
     }
   }
 }
