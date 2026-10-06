@@ -152,7 +152,7 @@ describe("structural scaffold binding", () => {
       (err: unknown) => {
         assert.ok(err instanceof StructuralError);
         assert.equal(err.stage, "transport");
-        assert.equal(err.code, "length/nodes");
+        assert.equal(err.code, "length/oversized");
         assert.equal(err.check, "nodes");
         return true;
       },

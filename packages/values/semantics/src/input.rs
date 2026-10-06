@@ -16,8 +16,10 @@
 //!   never parsed; caller-shaped lookalikes stay data.
 //! - D7: node/depth/text-units/entries counts are checked iteratively
 //!   BEFORE any node is usable; breaches reject at stage `transport`
-//!   with `length/*` codes. Only the id check (`MAX_ID_LENGTH = 256`
-//!   units) carries a pinned number; other budgets are explicit inputs.
+//!   with `length/*` codes. The text-units point covers entry keys as
+//!   well as text values (N1). Only the id check (`MAX_ID_LENGTH =
+//!   256` units) carries a pinned number; other budgets are explicit
+//!   inputs.
 //!
 //! No `serde_json` touches the transport path: fixture loading may parse
 //! JSON elsewhere, but arena construction and observation never
@@ -142,14 +144,21 @@ impl InputArena {
     /// error WITHOUT a partial arena (never coerce-then-check).
     pub fn build(frame: &Frame, budgets: &Budgets) -> Result<Self, TransportError> {
         // Pass 1 (validate): iterative pre-order walk. Every count is
-        // checked before ANY node is materialized.
+        // checked before ANY node is materialized, and the node count
+        // is enforced DURING the walk (D2: reject before traversal
+        // completes, never after a full unbounded walk).
         let mut preorder: Vec<(&Frame, usize)> = vec![(frame, 0)];
         let mut order: Vec<(&Frame, usize)> = Vec::new();
         while let Some((current, depth)) = preorder.pop() {
             if depth > budgets.max_depth {
-                return Err(TransportError::length("length/depth", "depth"));
+                // E-D1 ruling: KEEP-V1 length/bound-exceeded+depth.
+                return Err(TransportError::length("length/bound-exceeded", "depth"));
             }
             order.push((current, depth));
+            if order.len() > budgets.max_nodes {
+                // E-D1 ruling: KEEP-V1 length/oversized+nodes.
+                return Err(TransportError::length("length/oversized", "nodes"));
+            }
             match current {
                 Frame::Array(items) => {
                     for child in items.iter().rev() {
@@ -160,7 +169,12 @@ impl InputArena {
                     if entries.len() > budgets.max_entries {
                         return Err(TransportError::length("length/entries", "entries"));
                     }
-                    for (_key, child) in entries.iter().rev() {
+                    for (key, child) in entries.iter().rev() {
+                        // N1: keys are text units too — the text budget
+                        // covers entry keys, not just text values.
+                        if key.len() > budgets.max_text_units {
+                            return Err(TransportError::length("length/text", "text-units"));
+                        }
                         preorder.push((child, depth + 1));
                     }
                 }
@@ -172,9 +186,6 @@ impl InputArena {
                 }
                 _ => {}
             }
-        }
-        if order.len() > budgets.max_nodes {
-            return Err(TransportError::length("length/nodes", "nodes"));
         }
         // Pass 2 (materialize): post-order via an explicit visited-flag
         // stack; finished child indices accumulate on `values`.
@@ -264,9 +275,12 @@ impl InputArena {
     }
 
     /// Record-id length check with the pinned bound (D7).
+    /// E-D1 ruling (SPLIT): v1 code `length/bound-exceeded` with the
+    /// adopted `id-units` check — the pinned 256 contract bound stays
+    /// distinct from caller text budgets.
     pub fn check_id_length(units: &[u16]) -> Result<(), TransportError> {
         if units.len() > MAX_ID_LENGTH_UNITS {
-            return Err(TransportError::length("length/id", "id-units"));
+            return Err(TransportError::length("length/bound-exceeded", "id-units"));
         }
         Ok(())
     }

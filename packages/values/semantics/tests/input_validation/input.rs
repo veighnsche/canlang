@@ -179,7 +179,9 @@ fn id_length_uses_the_pinned_unit_bound() {
     over.push(0x0061);
     let err = InputArena::check_id_length(&over).unwrap_err();
     assert_eq!(err.stage(), "transport");
-    assert_eq!(err.code, "length/id");
+    // E-D1 SPLIT: v1 code length/bound-exceeded, adopted id-units check.
+    assert_eq!(err.code, "length/bound-exceeded");
+    assert_eq!(err.check, Some("id-units"));
 }
 
 #[test]
@@ -192,13 +194,16 @@ fn counts_reject_before_any_node_exists() {
         ..generous()
     };
     let err = InputArena::build(&deep, &shallow).unwrap_err();
-    assert_eq!((err.stage(), err.code), ("transport", "length/depth"));
+    assert_eq!(
+        (err.stage(), err.code),
+        ("transport", "length/bound-exceeded")
+    );
     let tiny = Budgets {
         max_nodes: 2,
         ..generous()
     };
     let err = InputArena::build(&deep, &tiny).unwrap_err();
-    assert_eq!((err.stage(), err.code), ("transport", "length/nodes"));
+    assert_eq!((err.stage(), err.code), ("transport", "length/oversized"));
     let narrow = Budgets {
         max_text_units: 1,
         ..generous()
@@ -281,4 +286,45 @@ fn forged_sentinel_shapes_stay_data() {
             TransportNode::Tagged { .. }
         ));
     }
+}
+
+#[test]
+fn text_budget_covers_entry_keys() {
+    // N1: keys are text units — an over-budget key rejects with the
+    // same length/text + text-units as an over-budget text value.
+    let narrow = Budgets {
+        max_text_units: 2,
+        ..generous()
+    };
+    let frame = Frame::Entries(vec![(units("abc"), Frame::Bool(true))]);
+    let err = InputArena::build(&frame, &narrow).unwrap_err();
+    assert_eq!(
+        (err.stage(), err.code, err.check),
+        ("transport", "length/text", Some("text-units"))
+    );
+    // Boundary: a key exactly at budget passes.
+    let frame = Frame::Entries(vec![(units("ab"), Frame::Bool(true))]);
+    assert!(InputArena::build(&frame, &narrow).is_ok());
+}
+
+#[test]
+fn node_count_enforced_at_declared_boundary() {
+    // D2: the node count (root included) rejects the moment it
+    // exceeds the declared budget — declared passes, declared+1
+    // fails — without completing an unbounded walk first.
+    let frame = Frame::Array(vec![Frame::Bool(true), Frame::Bool(false)]);
+    let exact = Budgets {
+        max_nodes: 3,
+        ..generous()
+    };
+    assert!(InputArena::build(&frame, &exact).is_ok());
+    let short = Budgets {
+        max_nodes: 2,
+        ..generous()
+    };
+    let err = InputArena::build(&frame, &short).unwrap_err();
+    assert_eq!(
+        (err.stage(), err.code, err.check),
+        ("transport", "length/oversized", Some("nodes"))
+    );
 }
