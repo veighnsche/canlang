@@ -327,3 +327,92 @@ export const DEFAULT_UPLOAD_MAX_BYTES = 10 * 1024 * 1024;
 /** Pinned CSV intake bounds (DESIGN section 9). */
 export const CSV_IMPORT_MAX_BYTES = 10 * 1024 * 1024;
 export const CSV_IMPORT_MAX_ROWS = 1000;
+
+/* ------------------------------------------------------------------ */
+/* T19a derived writable inputs: the interface-visible projection of   */
+/* checked operation descriptors (L1 `ArtifactOperation`, T15a/T18     */
+/* emission). Types and pinned rules only; the L6 derivation builders  */
+/* live in @canlang/interfaces (`http/operations.ts`, `mcp/schemas.ts`,*/
+/* `mcp/tools.ts`). Part of WIRE_CONTRACT_VERSION 1 (additive).       */
+/*                                                                     */
+/* Derivation rule (pinned here, implemented there): the writable      */
+/* allowlist for one operation is exactly its emitted input names, in  */
+/* emission order — nothing else is caller-suppliable. Server-owned    */
+/* fields are engine-resolved (T18 R27) and NEVER derivable as inputs: */
+/* the emitter excludes them from operation inputs, and a descriptor   */
+/* carrying a `server`/`derived` input default is not a real emission  */
+/* — derivation rejects it fail-closed instead of deriving a slot.    */
+/* `literal`/`parent` defaults are documented optionality only: the    */
+/* interface pins them verbatim for display/forms and submits exactly  */
+/* what the caller supplied; omission always defers to the engine      */
+/* (creates fill model-level defaults in the pipeline, scenario        */
+/* defaults stay with the emitted callable — L3 admission fills no     */
+/* operation-input defaults). The interface never invents fill values. */
+/* ------------------------------------------------------------------ */
+
+/**
+ * T19a closed pilot input-kind vocabulary. Mirrors the non-`delivery`
+ * members of L1 `ArtifactOperationField` exactly; `delivery` (bound
+ * provider receipts) is T19b and derivation rejects it precisely.
+ */
+export type DerivedInputKind =
+  | 'ref'
+  | 'string'
+  | 'integer'
+  | 'decimal'
+  | 'money'
+  | 'datetime'
+  | 'boolean'
+  | 'file'
+  | 'enum';
+
+/**
+ * T19a interface-visible default: the `literal`/`parent` subset of the
+ * source default vocabulary, pinned verbatim. `literal` carries the
+ * wire-encoded JSON value (ints/decimals as canonical decimal strings,
+ * money as `{minor, currency}`); `parent` carries the dot path off the
+ * loaded parent row (create only, leading `parent.` stripped).
+ * `server`/`derived` can never appear here (see the rule above).
+ */
+export type DerivedInputDefault =
+  | { readonly kind: 'literal'; readonly value: unknown }
+  | { readonly kind: 'parent'; readonly path: string };
+
+/**
+ * T19a one derived writable input: a single caller-suppliable member of
+ * an operation's closed envelope. `model`+`versioned` are present exactly
+ * for `ref` (`versioned` selects the `MutationRef` `{id, version}` shape;
+ * unversioned refs take the `ReadRef` `{id}` shape); `enumValues` is
+ * present exactly for `enum`, in declaration order; `array` marks array
+ * inputs (element kind in `kind`; ordinary omits to empty, required
+ * rejects omission); `nullable` marks explicit-null acceptance.
+ */
+export interface DerivedWritableInput {
+  readonly name: string;
+  readonly kind: DerivedInputKind;
+  readonly required: boolean;
+  readonly nullable?: boolean;
+  readonly array?: { readonly required: boolean };
+  readonly default?: DerivedInputDefault;
+  readonly model?: string;
+  readonly versioned?: boolean;
+  readonly enumValues?: readonly string[];
+  readonly description?: string;
+}
+
+/**
+ * T19a derived operation inputs: the writable allowlist plus documented
+ * optionality for one checked operation. Envelope conformance: `inputs`
+ * names are exactly the closed member set the `MutationEnvelope` /
+ * `ReadEnvelope` `inputs` object may carry for `operation` (unknown
+ * members fail `validation`); `required` names must be present;
+ * versioned refs carry `MutationRef` versions whose staleness yields
+ * `conflict`. `artifactVersion` is the artifact contract version the
+ * derivation was validated against (always `ARTIFACT_VERSION`).
+ */
+export interface DerivedOperationInputs {
+  readonly operation: FqOperationName;
+  readonly kind: 'read' | 'create' | 'update' | 'delete' | 'scenario';
+  readonly artifactVersion: number;
+  readonly inputs: readonly DerivedWritableInput[];
+}
