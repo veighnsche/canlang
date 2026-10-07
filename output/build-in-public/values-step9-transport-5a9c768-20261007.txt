@@ -1,0 +1,1 @@
+Porting a service runtime taught us a sneaky lesson: a formatter can pass while its JSON parser changes the input. Fixed the request boundary with the existing parser’s round-trip feature. Installed Wasm checks keep the original error text. TS stays available.

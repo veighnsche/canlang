@@ -1,0 +1,1 @@
+I'm building CanLang to define apps in one language. I replaced handwritten JSON output with typed serializers, keeping decimal scale and money amounts as strings. The awkward part was preserving the bytes existing tools consume, including empty vs missing fields.

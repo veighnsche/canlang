@@ -1,0 +1,1 @@
+I'm building CanLang, a language for apps. I swapped hand-written Rust string quoting for serde_json, then checked JavaScript's real outputs. Unicode cutoff mismatches stay documented—a passing helper doesn't certify a whole codec.

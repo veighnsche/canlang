@@ -1,0 +1,1 @@
+Compared five compiler mechanisms and kept the ones whose library adapters would add policy or lack measured benefit. Fixed message type admission, shell completion boundaries, and position/path edge cases. Small repairs, explicit contracts, permanent regressions.

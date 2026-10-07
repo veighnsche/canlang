@@ -1,0 +1,1 @@
+I'm building CanLang, a language for apps. Deployment can turn a short import into a long path. I now compose the source maps across that rewrite, so Node and Worker errors keep the authored .can position, even without external map files.

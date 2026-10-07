@@ -1,0 +1,1 @@
+I'm building Can, a language for apps. I replaced the compiler's JSON parser with Serde. Number IDs and duplicate fields still survive. The trade-off: about 21 µs more to parse our real catalog, with grammar and Unicode decoding owned by the library.

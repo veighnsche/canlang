@@ -1,0 +1,1 @@
+I'm building Canlang, a language for business apps. The formatter now stages edits in an owned file beside the source and restores its Unix mode before replacement. That fixes a 0600→0644 regression. Atomic replacement still doesn't mean crash durability.

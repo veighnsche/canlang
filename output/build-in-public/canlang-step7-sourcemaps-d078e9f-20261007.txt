@@ -1,0 +1,1 @@
+I'm building CanLang, a language for apps. Source-map libraries can reorder duplicate positions or normalize file names. I kept those decisions in a small adapter and delegated only decoding, so less custom code doesn't mean different error locations.

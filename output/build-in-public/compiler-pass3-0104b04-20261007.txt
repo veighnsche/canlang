@@ -1,0 +1,1 @@
+I'm building Canlang, a language for business apps. I replaced our handwritten URL checks with a parser and tested the real values API. Ordinary links can include credentials; trusted app origins still reject them. Those contracts stay separate.

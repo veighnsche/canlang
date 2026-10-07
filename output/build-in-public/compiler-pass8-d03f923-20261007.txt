@@ -1,0 +1,1 @@
+The compiler maps generated code back to the source you wrote. Replacing its hand-built codec had a trap: libraries can merge identical file paths. Private registration IDs keep different source snapshots distinct; the artifact still shows your original paths.

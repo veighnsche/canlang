@@ -1,0 +1,1 @@
+I'm building Canlang, a language for business apps. The editor server now rejects invalid bytes and envelopes before initialization. I kept legal numeric request IDs exact, so even -0 and 1e0 come back unchanged.

@@ -1,0 +1,1 @@
+Renaming a parameter in the editor now produces edits tagged with the open document's version. One wrinkle: the URI type rejected strings the server already accepted, so a small typed fallback keeps document addresses intact.

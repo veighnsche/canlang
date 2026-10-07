@@ -1,0 +1,1 @@
+I'm building CanLang, a language for apps. The generated WebAssembly loader cached its first module and could silently ignore later inputs. Startup now pins the asset and checks its required exports. I verified the fix in Node, Bun and workerd.
