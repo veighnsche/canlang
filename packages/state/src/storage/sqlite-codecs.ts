@@ -73,7 +73,7 @@ const COLUMN_FIELDS: Readonly<Record<string, string>> = {
 const FIELD_NAME = /^[A-Za-z_][A-Za-z0-9_]*$/;
 
 function fieldExpr(field: string): string {
-  const column = COLUMN_FIELDS[field];
+  const column = Object.hasOwn(COLUMN_FIELDS, field) ? COLUMN_FIELDS[field] : undefined;
   if (column !== undefined) {
     return column;
   }

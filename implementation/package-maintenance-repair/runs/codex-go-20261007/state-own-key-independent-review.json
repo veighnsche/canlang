@@ -1,0 +1,136 @@
+{
+  "packet": "TECH-S01-own-key",
+  "status": "accepted exact adapter correctness",
+  "reviewer": "originating Codex",
+  "sourceHashes": {
+    "packages/state/src/storage/sqlite-codecs.ts": "8a9070fc7fd365a7a1c8b099e8df49a7110b3b56973d07d5e7ed35d8d4ef5b3e",
+    "packages/state/test/storage/metadata-keys.test.ts": "3cd730c68a5f01b8975e5f8a904b574bd6ddecc891d9d3c28de2506b5bfbae05"
+  },
+  "exact_change": true,
+  "producer": {
+    "packet": "TECH-S01-own-key",
+    "base": "78ff63560d651f8ba4964edc5fe9542e8310eeea",
+    "inputSha256": "9fc0d82c775ac7fcf316ba492e6e47ca077f5dd2898a90bf76a18e360a382f32",
+    "sourceHashes": {
+      "packages/state/src/storage/sqlite-codecs.ts": "8a9070fc7fd365a7a1c8b099e8df49a7110b3b56973d07d5e7ed35d8d4ef5b3e",
+      "packages/state/test/storage/metadata-keys.test.ts": "3cd730c68a5f01b8975e5f8a904b574bd6ddecc891d9d3c28de2506b5bfbae05"
+    },
+    "productionChange": "one expression: own metadata lookup; fallback identifier grammar and JSON path unchanged",
+    "compile": {
+      "baseline": {
+        "exit": 0,
+        "log": "baseline-compile.log"
+      },
+      "current": {
+        "exit": 0,
+        "log": "current-compile.log"
+      }
+    },
+    "runtime": {
+      "baseline": {
+        "scope": "baseline",
+        "command": [
+          "/Users/vince/.vite-plus/js_runtime/node/24.21.0/bin/node",
+          "--test",
+          "--test-timeout=60000",
+          "/private/tmp/canlang-repair-go-20261007/state-own-key/baseline/test/storage/metadata-keys.test.js"
+        ],
+        "pid": 38200,
+        "start": "2026-10-07T19:46:51.445Z",
+        "deadline": "2026-10-07T19:48:06.445Z",
+        "privateHarness": "Only emitted DO file-backed config modulesRoot and private worker baseline/current import redirect; inline D1 config untouched",
+        "exitCode": 1,
+        "signal": null,
+        "ended": "2026-10-07T19:46:52.180Z",
+        "tests": 18,
+        "pass": 6,
+        "fail": 12,
+        "log": "baseline-tests.log",
+        "failureWitness": "Actual D1 and DO filters/orders for constructor/toString emit inherited functions, __proto__ emits inherited prototype; SQLite errors. Metadata/normalization/invalid-name controls pass.",
+        "execChunkId": "249d5e",
+        "execSession": "none: completed within initial exec"
+      },
+      "current": {
+        "scope": "current",
+        "command": [
+          "/Users/vince/.vite-plus/js_runtime/node/24.21.0/bin/node",
+          "--test",
+          "--test-timeout=60000",
+          "/private/tmp/canlang-repair-go-20261007/state-own-key/current/test/storage/metadata-keys.test.js"
+        ],
+        "pid": 38886,
+        "start": "2026-10-07T19:47:19.226Z",
+        "deadline": "2026-10-07T19:48:34.226Z",
+        "privateHarness": "Only emitted DO file-backed config modulesRoot and private worker baseline/current import redirect; inline D1 config untouched",
+        "exitCode": 0,
+        "signal": null,
+        "ended": "2026-10-07T19:47:19.948Z",
+        "tests": 18,
+        "pass": 18,
+        "fail": 0,
+        "log": "current-tests.log",
+        "execChunkId": "4f8454",
+        "execSession": "none: completed within initial exec"
+      }
+    },
+    "comparativeControls": {
+      "predicateAndOrderCases": 627,
+      "getterAccessOrderAndBindingsCompared": true,
+      "thrownGetterSentinelIdentity": true,
+      "declarations": {
+        "sqlite-codecs": {
+          "sha256": "46acb1365a810e76b85b71bc5e4c72b7d4c9d8ed7b4193f6aa794d3da50ba93d",
+          "byteIdentical": true
+        },
+        "d1": {
+          "sha256": "554450019d6ab9f77e48c90e479c3ba751fcb1c663751af9c87a468b2296454e",
+          "byteIdentical": true
+        },
+        "durable-object": {
+          "sha256": "c17e762bc8e3db6fbf07aa5cf3c4c44b7874cef433a8af1349f60ba381409b80",
+          "byteIdentical": true
+        }
+      }
+    },
+    "limits": [
+      "actual adapter query methods run against local Miniflare D1 and workerd DO SQLite; no app/queryRecords owner integration claim",
+      "no new privacy projection, authority policy, threshold, topology, transaction or admission behavior",
+      "separate correctness change; no mechanical reduction credit",
+      "independent review/root acceptance pending"
+    ],
+    "writeLeasesReleased": true
+  },
+  "independent": {
+    "reviewer": "originating Codex, independent from implementer",
+    "packet": "TECH-S01-own-key",
+    "sourceHashes": {
+      "packages/state/src/storage/sqlite-codecs.ts": "8a9070fc7fd365a7a1c8b099e8df49a7110b3b56973d07d5e7ed35d8d4ef5b3e",
+      "packages/state/test/storage/metadata-keys.test.ts": "3cd730c68a5f01b8975e5f8a904b574bd6ddecc891d9d3c28de2506b5bfbae05"
+    },
+    "exactOneExpressionChange": true,
+    "cases": 28,
+    "actualBackends": [
+      "local D1 SQLite",
+      "local workerd DO SQLite"
+    ],
+    "otherControls": "Own inherited names including hasOwnProperty/valueOf; bound inputs, real id metadata precedence, absent/null and injection refusal followed by intact table",
+    "limits": [
+      "Source-current adapter query scope only; no model owner, privacy, authority, deployment or topology acceptance",
+      "One-expression correctness repair; no claimed production reduction"
+    ],
+    "exit": 0
+  },
+  "command_evidence": {
+    "command": "node /private/tmp/canlang-repair-go-20261007/state-own-key/root-independent.mjs",
+    "tool_chunk": "2986d7",
+    "exit": 0,
+    "private_control": "Independent SQL golden corrected to existing id tie-break before host run; sandbox localhost EPERM then supported scoped escalation",
+    "no_external_requests": true
+  },
+  "budget": "One expression correctness; tests separate. No replacement/reduction credit",
+  "limits": [
+    "Source-current adapter query scope only; no model owner, privacy, authority, deployment or topology acceptance",
+    "One-expression correctness repair; no claimed production reduction"
+  ],
+  "write_and_read_leases": "released"
+}

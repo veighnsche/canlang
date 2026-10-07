@@ -168,3 +168,5 @@ Identity default unit discovery includes its emitted authentication source tests
 UI internal/draft-values.ts shares matching control/form private value profiles; differing datetime exception context and caller composition remain local. Source/declaration reduction is independently accepted without broader browser/backend/installed acceptance. Complete checkpoint unchanged.
 
 State internal/own-data.ts and storage/sqlite-codecs.ts own exact private repeated leaves; backend transaction/authority and mutation/migration/grant responsibilities remain local. Mechanical source/declaration reduction is accepted; original own-key, confidentiality/replay and owner-to-store joins stay separate and open. Source-current replay evidence updates readiness without changing historical plans or complete checkpoint.
+
+State storage/sqlite-codecs.ts now treats only own metadata entries as SQL columns; valid other identifiers remain bound JSON data lookups. Narrow adapter correctness is independently accepted; broader privacy/owner/replay and accumulated-source checkpoint review remain open. No owner transfer or complete checkpoint advance.
