@@ -1,0 +1,40 @@
+{
+  "packet": "TECH-V01-values",
+  "frozen_donor_revision": "ea8ee371336fecbf5591055e74d697f96fa662b4",
+  "historical_fixture_sha256": "29806b94e5fe70468e0c3ef05a5b6b8550be4dacc34e8b57e0f42ab8588f37c8",
+  "source_current_fixture_sha256": "93f43aee203ac33d476afd27f327c661e8cae41aff51cce225b65a40e3acc2d6",
+  "comparison": {
+    "numbers": true,
+    "callers": true,
+    "seed": true,
+    "seededDistinctCount": true,
+    "boundaryDistinctCount": true,
+    "frozenOracle": true,
+    "generatorSha256": true,
+    "engine": true
+  },
+  "numbers": 10213,
+  "callers": 131,
+  "frozen_wire_sha256": "73832128fd4b2db93d08770836271323d61bed02647ca83fd21bdd9496054f03",
+  "current_wire_facade_sha256": "0313cb7b43eecd4b61470ff279a18627e0e7c2abd239fe200497144afb86e842",
+  "current_wire_core_sha256": "2c940525ff289d3154dca0db754f99eca480c67992e8e180aee2a97ddddec059",
+  "normalized_core_diff_empty": true,
+  "normalization": [
+    "relative module imports ./ become ../",
+    "export decodeValue renamed decodeValueTsCore",
+    "export encodeValue renamed encodeValueTsCore"
+  ],
+  "source_identity_changes": "wire.ts became 13-line forwarding facade; original implementation extracted into internal/wire-core.ts with only listed import and entry-name edits. Core diagnostics/numeric actualWire and JSON branches otherwise text-identical.",
+  "behavioral_result": "All 10,213 String/JSON number observations and all 131 owning caller observations exactly equal the historical corpus. No numeric diagnostic/evaluation-order/field-presence contradiction in this finite witness.",
+  "recipe": [
+    "tsc package source to private source-current-dist with declaration/maps disabled",
+    "existing numeric-text.oracle.mjs receives private compiled src and private output path",
+    "source-current Node contract test receives private corpus through CAN_NUMERIC_TEXT_FIXTURE"
+  ],
+  "limits": [
+    "Historical fixture and its donor hashes remain historical and unchanged",
+    "Source-current donor identity includes facade and internal core; only wire drift reconciled",
+    "Exact same observations establish bounded corpus equivalence, not all-domain wire equivalence",
+    "No Wasm, installed/browser/durable acceptance, native adoption, dependency edits, or TS retirement"
+  ]
+}

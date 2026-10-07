@@ -1,0 +1,193 @@
+{
+  "review": "independent source and raw witness review; implementer verdicts not used",
+  "base": "e5ad5cf767004a892c0ae1937aedd67629170786",
+  "packets": [
+    "TECH-V01-values",
+    "TECH-V01-work"
+  ],
+  "result": "accepted exact released numeric source reductions; no source defect found",
+  "defects": [],
+  "source_closure": [
+    {
+      "path": "packages/values/semantics/src/representations/numeric.rs",
+      "base_sha256": "c012805095152f62168db2b00fa6c7a2ebc741f526f2e68a004bcfe3d149f13c",
+      "current_sha256": "208e99223e7089872d688155a80480a967270d2591c35e5b8d3f91d946fbf86a",
+      "permitted_transformation_only": true,
+      "before": {
+        "readable_code_lines": 424,
+        "total_production_declaration_lines": 467,
+        "nonwhitespace_code_bytes": 9398
+      },
+      "after": {
+        "readable_code_lines": 411,
+        "total_production_declaration_lines": 454,
+        "nonwhitespace_code_bytes": 9219
+      },
+      "delta": {
+        "readable_code_lines": -13,
+        "total_production_declaration_lines": -13,
+        "nonwhitespace_code_bytes": -179
+      }
+    },
+    {
+      "path": "packages/work-kernel/decisions/numeric_text.rs",
+      "base_sha256": "e7b2326766bd664c5e50edf882ecbf4027558a503dfb000ab3ea5890867a9c00",
+      "current_sha256": "c7411ef966b6448a5ca9d2fa3df2c03f8834ea5e86fdf579a7132c4e14987d51",
+      "permitted_transformation_only": true,
+      "before": {
+        "readable_code_lines": 23,
+        "total_production_declaration_lines": 23,
+        "nonwhitespace_code_bytes": 346
+      },
+      "after": {
+        "readable_code_lines": 11,
+        "total_production_declaration_lines": 11,
+        "nonwhitespace_code_bytes": 170
+      },
+      "delta": {
+        "readable_code_lines": -12,
+        "total_production_declaration_lines": -12,
+        "nonwhitespace_code_bytes": -176
+      }
+    },
+    {
+      "path": "packages/work-kernel/decisions/rows.rs",
+      "base_sha256": "b2e4420da4e98bb575f23eef2033985d5f18ed1c3b2a41c442cd98a461770c13",
+      "current_sha256": "4ffce02ef4b7a3add7eaff305e8f2717b5aaef09cde8f585aa9c1d3b63f0b938",
+      "permitted_transformation_only": true,
+      "before": {
+        "readable_code_lines": 1759,
+        "total_production_declaration_lines": 1849,
+        "nonwhitespace_code_bytes": 39852
+      },
+      "after": {
+        "readable_code_lines": 1753,
+        "total_production_declaration_lines": 1842,
+        "nonwhitespace_code_bytes": 39789
+      },
+      "delta": {
+        "readable_code_lines": -6,
+        "total_production_declaration_lines": -7,
+        "nonwhitespace_code_bytes": -63
+      }
+    },
+    {
+      "path": "packages/work-kernel/decisions/receipt.rs",
+      "base_sha256": "2f2b048b40913632954ce74e2a27e785cb9a6968796fc6d155bda9b9dccf222d",
+      "current_sha256": "f841c46cf185c18c776bb9a5439982e76e8f1b6204c2dec355460cef5eb8fc86",
+      "permitted_transformation_only": true,
+      "before": {
+        "readable_code_lines": 853,
+        "total_production_declaration_lines": 913,
+        "nonwhitespace_code_bytes": 18768
+      },
+      "after": {
+        "readable_code_lines": 847,
+        "total_production_declaration_lines": 906,
+        "nonwhitespace_code_bytes": 18705
+      },
+      "delta": {
+        "readable_code_lines": -6,
+        "total_production_declaration_lines": -7,
+        "nonwhitespace_code_bytes": -63
+      }
+    },
+    {
+      "path": "packages/work-kernel/decisions/linkage.rs",
+      "base_sha256": "2b88e65cd8f0183629bdf00e2ad97a0b6930e03b0bc3d546e6a367de813ab94c",
+      "current_sha256": "b38949bbc59482f35a792a71e09bc9d4d1192a0e6cb530dbe33191117a6084b6",
+      "permitted_transformation_only": true,
+      "before": {
+        "readable_code_lines": 1204,
+        "total_production_declaration_lines": 1278,
+        "nonwhitespace_code_bytes": 29814
+      },
+      "after": {
+        "readable_code_lines": 1198,
+        "total_production_declaration_lines": 1271,
+        "nonwhitespace_code_bytes": 29751
+      },
+      "delta": {
+        "readable_code_lines": -6,
+        "total_production_declaration_lines": -7,
+        "nonwhitespace_code_bytes": -63
+      }
+    },
+    {
+      "path": "packages/work-kernel/decisions/recovery.rs",
+      "base_sha256": "8b9c7de1e678c8da1bf34181da1c3acea4eded6e4cb01ef57ed20c2e23249068",
+      "current_sha256": "4c8a020e1d062b091e4fbd00266af0b6aeb61c2984046b859bb94fd103389ba8",
+      "permitted_transformation_only": true,
+      "before": {
+        "readable_code_lines": 1029,
+        "total_production_declaration_lines": 1096,
+        "nonwhitespace_code_bytes": 24334
+      },
+      "after": {
+        "readable_code_lines": 1026,
+        "total_production_declaration_lines": 1093,
+        "nonwhitespace_code_bytes": 24302
+      },
+      "delta": {
+        "readable_code_lines": -3,
+        "total_production_declaration_lines": -3,
+        "nonwhitespace_code_bytes": -32
+      }
+    }
+  ],
+  "proof": [
+    "All six files match only permitted transformations after comments/whitespace normalization; receipt and linkage also match exact textual permitted transformation. Leaf types, production callers, structured error construction, persisted identity, demand paths and ordering code are untouched.",
+    "Pinned ryu-js =1.0.3 and disabled default features remain unchanged in both manifests. Buffer::format checks exponent bits for nonfinite, returns NaN for every nonzero mantissa independent of sign, and signed Infinity for zero mantissa. Every finite value invokes exactly the former format_finite path.",
+    "raw::format64 writes 0 and returns before sign handling for either IEEE zero. Thus every f64 category has exact before/after String bytes; this establishes all-bit-pattern change equivalence independently of finite corpus sampling.",
+    "The JSON channel retains its unchanged is_finite guard and null nonfinite result. Its finite branch uses the same String helper.",
+    "Seven private forwarders are removed: String/JSON pairs in rows, receipt, linkage; String in recovery. Direct aliases have the same f64 -> String signature, owning leaf APIs and call arguments remain identical, no error wrapper or demand/order code moved."
+  ],
+  "registry_source": {
+    "src/buffer/mod.rs": "5783fdd94040746e15f59ce6c66b203a6ce24de7773dce6cdfbc5a2775937ca2",
+    "src/pretty/mod.rs": "3507dc364f18901bd159cf4fe40bebe37d582ce8a87b59a0351e8af282154977"
+  },
+  "production_count_validation": {
+    "method": "Independent lexer strips comments while retaining quoted literals and line boundaries; inline test tails excluded at first cfg(test); original blank lines charged; all imports and shared helper charged.",
+    "values_delta": {
+      "readable_code_lines": -13,
+      "total_production_declaration_lines": -13,
+      "nonwhitespace_code_bytes": -179
+    },
+    "work_delta": {
+      "readable_code_lines": -33,
+      "total_production_declaration_lines": -36,
+      "nonwhitespace_code_bytes": -397
+    },
+    "work_report_totals_match": true,
+    "no_test_movement_or_hidden_production_expansion": true
+  },
+  "evidence_hashes": {
+    "packages/values/semantics/tests/numeric_text_contract.rs": "dba6878989028d5e0970fc62fb55ced2cf926c22bf50a956f2fb932b0c5f3459",
+    "packages/work-kernel/conformance/native-numeric-text.rs": "add8194c697abfb55e3fb0671bb67471733d6b126db66ad43548d9a97606ac64",
+    "packages/work-kernel/conformance/registered-native.rs": "6598dbb3e121632456ec6752d2cb1ec1a53b241ff07b8746b5aaeba86f72ab4a",
+    "packages/values/conformance/numeric-text.json": "29806b94e5fe70468e0c3ef05a5b6b8550be4dacc34e8b57e0f42ab8588f37c8",
+    "packages/work-kernel/conformance/fixtures/numeric-text.json": "7e4ee0155f23a7f21b62dc44a62c8a8e6e567e911ae515c1bcba1b8b1d028fa2",
+    "/private/tmp/canlang-repair-go-20261007/values/numeric-text.source-current.json": "93f43aee203ac33d476afd27f327c661e8cae41aff51cce225b65a40e3acc2d6"
+  },
+  "raw_witness_assessment": {
+    "independent_execution": "Fresh read-only Node v24.21.0 / V8 13.6.233.17-node.53 reconstructed all 10213 raw f64 input bits in each immutable fixture and matched both actual String and JSON.stringify bytes. No candidate-derived expectation was generated.",
+    "rust_execution_limit": "Rust not rerun by reviewer: inspected raw private-target logs, source and included fixtures. Values 3 numeric contract tests plus 1 codec number test passed; Work registered 73 passed/1 explicitly ignored observer; targeted rows 14, receipt 58, linkage 33, recovery 66 passed.",
+    "coverage": "10000 seeded distinct bit patterns and 213 boundary cases include +/-0, 15 NaN patterns, +/-Infinity, subnormal and threshold/bit-neighbor cases. Values 131 owning caller/transport observations; Work 72 actual caller cases cover text errors, nested JSON, error code presence, precedence and success.",
+    "negative_controls": "Inspected existing negatives distinguish i64 saturation, signed-zero text, missing exponent plus, wrong finite threshold notation, nonfinite JSON tokens, bit-neighbor confusion, punctuation, field absence and ordering. These are direct expectation inequality controls, not a claim of independently executed candidate mutation testing."
+  },
+  "values_source_current_provenance": {
+    "status": "bounded source-current drift reconciled independently; historical fixture retained",
+    "old_vs_fresh_numbers_equal": true,
+    "old_vs_fresh_131_callers_equal": true,
+    "all_fresh_donor_pins_match_source": true,
+    "wire_core_sha256": "2c940525ff289d3154dca0db754f99eca480c67992e8e180aee2a97ddddec059",
+    "historical_core_normalization_verified": "Historical ea8ee371336fecbf5591055e74d697f96fa662b4 wire.ts equals current internal/wire-core.ts after ./ -> ../ imports and decodeValue/encodeValue -> TsCore export renaming. Current wire.ts forwards arguments once and returns without catch/rewrite."
+  },
+  "residual_gates": [
+    "Acceptance is numeric reduction and existing qualified native leaf/owning-caller evidence only; no product root, JS/Wasm backend parity, installed/browser/durable/default/native-adoption qualification follows.",
+    "Values public smoke SchemaError envelope, lossless UTF-16 and A03/A04/A07/default/installed acceptance stay unqualified. Stored native u8 decimal scale cannot certify separately open -0 scale residual.",
+    "Work registered original observer remains explicitly ignored without its private original inputs; production producer/transport/backend joins and delivery notices retain release gates.",
+    "Fresh finite donor corpus reconciliation is bounded observation equivalence; it does not certify all-domain wire behavior."
+  ],
+  "lease": "read-only source lease released; no repo/Git/target/dist writes, no paid reviews or broad suites"
+}
