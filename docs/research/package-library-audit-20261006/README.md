@@ -122,3 +122,11 @@ The proposed [detailed adoption sequence](adoption-sequence.md) and [machine tas
 The [task-specific model allocation](model-allocation-20261007.md) applies current official guidance and independent task review to all 27 units and 12 macro steps. It separates cheap prepared work from compatibility, integration and security review. Choices remain proposals, with no model benchmark or implementation activation.
 
 The planning-only [security and resource enforcement audit](security-limits/README.md) records actual guards and costly-operation bounds, with ranked conditional/source findings and library defaults. Critical Astra review remains approval-pending; no implementation or security acceptance follows.
+
+The planning-only [dependency and delivered-runtime audit](dependency-runtime/README.md) maps
+49 source/artifact execution profiles and 13 upgrade risks across all 13 owners.
+It separates stale outputs, public deep exports/layout coupling, vendor rewriting,
+native host prerequisites and unfinished browser/port joins. Finite outside-checkout
+checks of existing copied artifacts retain their exact partial fixture and asset
+scope; they do not qualify current-source installed Worker/browser workflows.
+Implementation and the separate pending critical Astra review remain deferred.

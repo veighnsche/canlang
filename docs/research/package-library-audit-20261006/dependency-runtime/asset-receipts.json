@@ -1,0 +1,52 @@
+{
+  "probe_sha256": "c86bc59529a778ce5869b5d06c22ecdb111aac7be30c63453a319f927f40e59b",
+  "profile": "Public helper from existing packed artifact, no bundle/build/runtime activation. Missing/corrupt copies are audit-owned.",
+  "cases": [
+    {
+      "scenario": "packed-good",
+      "status": "gathered",
+      "modules": 7,
+      "binaries": [
+        {
+          "name": "vendor/values-bindings/generated/values_semantics_bg.wasm",
+          "bytes": 622216
+        }
+      ],
+      "resources": [
+        {
+          "name": "browser/bootstrap.js",
+          "bytes": 10300,
+          "contentType": "application/javascript"
+        },
+        {
+          "name": "browser/can-style.css",
+          "bytes": 1155983,
+          "contentType": "text/css"
+        },
+        {
+          "name": "browser/polling.js",
+          "bytes": 6057,
+          "contentType": "application/javascript"
+        }
+      ],
+      "exit_code": 0,
+      "stderr": ""
+    },
+    {
+      "scenario": "browser-missing",
+      "status": "refused",
+      "name": "Error",
+      "message": "package assets: missing asset /private/tmp/canlang-runtime-audit-dm4sek1p/browser-missing/can-style.css: Error: ENOENT: no such file or directory, lstat '/private/tmp/canlang-runtime-audit-dm4sek1p/browser-missing/can-style.css'",
+      "exit_code": 1,
+      "stderr": ""
+    },
+    {
+      "scenario": "browser-corrupt",
+      "status": "refused",
+      "name": "Error",
+      "message": "package assets: integrity mismatch for can-style.css: /private/tmp/canlang-runtime-audit-dm4sek1p/browser-corrupt/manifest.json",
+      "exit_code": 1,
+      "stderr": ""
+    }
+  ]
+}

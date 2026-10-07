@@ -1,0 +1,28 @@
+{
+  "mode": "planning audit; implementation deferred",
+  "source_freeze": "ff05e4dcb8c0947b02afc48b0f3b7a4b53e62a76",
+  "observed_head": "27127be047cc03646d32c10b66a1e672896037f8",
+  "user_requested_model": "Sol high",
+  "delegation": "three reused Sol high finite source auditors plus a reused Sol high counter-review; root synthesis/Git",
+  "implementation_authorized": false,
+  "canonical_task_status_changes": false,
+  "accepted_policy_changes": false,
+  "package_changes": false,
+  "runtime_probes_authorized_scope": "Bounded read-only cold import/one-vector/gather-refusal checks of existing copied artifacts in owned tmp; no product build/install/registry access/providers/deployment",
+  "counts": {
+    "source_matrix_rows": 41,
+    "root_matrix_rows": 8,
+    "source_records": 186,
+    "packages": 13,
+    "cold_cases": 25,
+    "asset_cases": 3
+  },
+  "prior_security_astra": "Separate scoped external Astra high review remains approval-pending; no egress retry, no security acceptance added here.",
+  "limits": [
+    "No production repairs, dependency/lock changes, source transforms, installs, shared dist/build/test outputs, native preparation release, adoption/default/TS retirement, CI/push/publication/deployment.",
+    "Fresh Node profile partial/offline; no current-source complete installed Node/Worker/browser workflow run, minimum-Node/native-platform matrix or performance/lifecycle benchmark.",
+    "Initial PATH node command shim produced zero structured results under isolated HOME; excluded. Direct pinned24.21.0 executable produced retained receipts. No product conclusion from shim timeout.",
+    "Compiler agent commits preserved; no merge and no living filetree checkpoint advancement.",
+    "No consequential new contract/library/host policy selected; source facts/proposed qualification controls need no repeat JEV."
+  ]
+}
