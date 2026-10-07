@@ -1,5 +1,5 @@
 /**
- * Opaque bearer-token primitives: issuance, SHA-256 hashing, constant-time
+ * Opaque bearer-token primitives: issuance, SHA-256 hashing, byte
  * comparison, base64url codecs.
  *
  * WebCrypto globals only (`globalThis.crypto.subtle`); no node:crypto, so
@@ -7,6 +7,7 @@
  * to exactly one caller (login response, addressed mail); only hex SHA-256
  * digests are stored or compared.
  */
+import { base64urlnopad, hex } from '@scure/base';
 import { webRandom } from '../ports.js';
 import type { RandomSource } from '../ports.js';
 
@@ -15,58 +16,40 @@ export const OPAQUE_TOKEN_BYTES = 32;
 
 const B64U = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_';
 
-/** Manual bytes->base64url (no Buffer/btoa: workerd-safe). */
+/** Unpadded URL-safe encoding, shared with persisted password fields. */
 export function bytesToBase64Url(bytes: Uint8Array): string {
-  let out = '';
-  for (let i = 0; i < bytes.length; i += 3) {
-    const a = bytes[i] ?? 0;
-    const b = bytes[i + 1] ?? 0;
-    const c = bytes[i + 2] ?? 0;
-    const n = (a << 16) | (b << 8) | c;
-    out += B64U[(n >> 18) & 63] ?? '';
-    out += B64U[(n >> 12) & 63] ?? '';
-    if (i + 1 < bytes.length) out += B64U[(n >> 6) & 63] ?? '';
-    if (i + 2 < bytes.length) out += B64U[n & 63] ?? '';
-  }
-  return out;
+  return base64urlnopad.encode(bytes);
 }
 
-/** Manual base64url->bytes. Returns null on malformed input (never throws). */
+/** Decode the established URL alphabet, including ignored unused tail bits. */
 export function base64UrlToBytes(s: string): Uint8Array | null {
-  if (s.length === 0 || s.length % 4 === 1) return null;
-  const vals: number[] = [];
-  for (const ch of s) {
-    const v = B64U.indexOf(ch);
-    if (v < 0) return null;
-    vals.push(v);
+  const remainder = s.length % 4;
+  if (s.length === 0 || remainder === 1 || /[^A-Za-z0-9_-]/.test(s)) return null;
+  // Strict library decoding requires zero unused bits. Preserve the historical
+  // byte-decoder domain with only this final-sextet mask; bearer hashing never
+  // uses this normalization and continues to hash the exact presented text.
+  if (remainder === 2 || remainder === 3) {
+    const last = B64U.indexOf(s[s.length - 1] ?? '');
+    s = s.slice(0, -1) + B64U[last & (remainder === 2 ? 0x30 : 0x3c)];
   }
-  const out: number[] = [];
-  for (let i = 0; i < vals.length; i += 4) {
-    const a = vals[i] ?? 0;
-    const b = vals[i + 1] ?? 0;
-    const c = vals[i + 2] ?? 0;
-    const d = vals[i + 3] ?? 0;
-    const n = (a << 18) | (b << 12) | (c << 6) | d;
-    out.push((n >> 16) & 255);
-    if (i + 2 < vals.length) out.push((n >> 8) & 255);
-    if (i + 3 < vals.length) out.push(n & 255);
+  try {
+    return base64urlnopad.decode(s);
+  } catch {
+    return null;
   }
-  return new Uint8Array(out);
 }
 
 function bytesToHex(bytes: Uint8Array): string {
-  return [...bytes].map((b) => b.toString(16).padStart(2, '0')).join('');
+  return hex.encode(bytes);
 }
 
 function hexToBytes(s: string): Uint8Array | null {
-  if (s.length === 0 || s.length % 2 !== 0) return null;
-  const out = new Uint8Array(s.length / 2);
-  for (let i = 0; i < out.length; i++) {
-    const v = Number.parseInt(s.slice(i * 2, i * 2 + 2), 16);
-    if (Number.isNaN(v)) return null;
-    out[i] = v;
+  if (s.length === 0) return null;
+  try {
+    return hex.decode(s);
+  } catch {
+    return null;
   }
-  return out;
 }
 
 export async function sha256HexBytes(bytes: Uint8Array): Promise<string> {
@@ -80,9 +63,8 @@ export async function sha256HexText(text: string): Promise<string> {
 }
 
 /**
- * Constant-time hex comparison. False on malformed input or length
- * mismatch; all digests here are fixed-length SHA-256 so length is not
- * secret, but the byte loop itself is constant-time.
+ * Hex byte comparison. False on malformed input or length mismatch.
+ * The full byte loop does not establish a host-level timing guarantee.
  */
 export function timingSafeEqualHex(a: string, b: string): boolean {
   const ab = hexToBytes(a);
@@ -95,7 +77,7 @@ export function timingSafeEqualHex(a: string, b: string): boolean {
   return diff === 0;
 }
 
-/** Constant-time UTF-8 string comparison for non-hex secrets (CSRF). */
+/** UTF-8 byte comparison for non-hex secrets (CSRF). */
 export function timingSafeEqualText(a: string, b: string): boolean {
   const ab = new TextEncoder().encode(a);
   const bb = new TextEncoder().encode(b);
