@@ -1,0 +1,14 @@
+{
+  "vectors": 113,
+  "publicDirections": 226,
+  "publicAccepted": 29,
+  "compilerAccepted": 29,
+  "mismatches": [],
+  "generated": 29,
+  "generatedImported": 29,
+  "node": "v24.21.0",
+  "icu": "78.3",
+  "compiler": "/Users/vince/Projects/canlang/compiler/target/debug/can",
+  "compilerHash": "356f5e29685edf2e3f14363316294b2289c9d31decd887e096af4412458fd625",
+  "limits": "Current CLI, generated metadata modules and actual installed public values exports; metadata execution only, not application invocation, DNS, deliverability or auth."
+}

@@ -1,0 +1,5 @@
+app T
+Given
+ M { address:email="a\u0010@b.com" }
+When
+Then

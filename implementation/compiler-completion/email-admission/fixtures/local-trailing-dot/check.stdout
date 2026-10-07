@@ -1,0 +1,1 @@
+{"tool":"can","tool_version":"0.1.0","language_version":"1.0","schema_version":1,"sources":[{"id":0,"path":"/Users/vince/Projects/canlang/implementation/compiler-completion/email-admission/fixtures/local-trailing-dot/value.can","sha256":"fdec98ea82ee09347bb619537abff3f1e2e2cd3ab418659db93f5295a1702b7f"}],"complete":true,"diagnostics":[],"omitted":0}

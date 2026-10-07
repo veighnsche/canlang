@@ -1,0 +1,23 @@
+   Compiling canlang-compiler v0.1.0 (/Users/vince/Projects/canlang/compiler)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 6.68s
+     Running tests/email_admission.rs (compiler/target/debug/deps/email_admission-4dc316eb696174b8)
+
+running 1 test
+{
+  "vectors": 113,
+  "publicDirections": 226,
+  "publicAccepted": 29,
+  "compilerAccepted": 29,
+  "mismatches": [],
+  "generated": 29,
+  "generatedImported": 29,
+  "node": "v24.21.0",
+  "icu": "78.3",
+  "compiler": "/Users/vince/Projects/canlang/compiler/target/debug/can",
+  "compilerHash": "43027cc4068ad8581ba14fa5a32427dc656fe53ef462a9b735de3a1c118f2707",
+  "limits": "Current CLI, generated metadata modules and actual installed public values exports; metadata execution only, not application invocation, DNS, deliverability or auth."
+}
+test email_admission_matches_public_codecs_and_production_metadata ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 6.52s
+

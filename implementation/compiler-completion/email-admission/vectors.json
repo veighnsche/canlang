@@ -1,0 +1,1821 @@
+[
+  {
+    "id": "ordinary",
+    "value": "a@b.com",
+    "expected": true,
+    "basis": "one interior @, no rejected scalar",
+    "scalars": [
+      "U+0061",
+      "U+0040",
+      "U+0062",
+      "U+002E",
+      "U+0063",
+      "U+006F",
+      "U+006D"
+    ]
+  },
+  {
+    "id": "single-label",
+    "value": "a@b",
+    "expected": true,
+    "basis": "no dotted-domain requirement",
+    "scalars": [
+      "U+0061",
+      "U+0040",
+      "U+0062"
+    ]
+  },
+  {
+    "id": "localhost",
+    "value": "a@localhost",
+    "expected": true,
+    "basis": "no dotted-domain requirement",
+    "scalars": [
+      "U+0061",
+      "U+0040",
+      "U+006C",
+      "U+006F",
+      "U+0063",
+      "U+0061",
+      "U+006C",
+      "U+0068",
+      "U+006F",
+      "U+0073",
+      "U+0074"
+    ]
+  },
+  {
+    "id": "hyphen-leading",
+    "value": "a@-x.com",
+    "expected": true,
+    "basis": "no domain-label syntax restriction",
+    "scalars": [
+      "U+0061",
+      "U+0040",
+      "U+002D",
+      "U+0078",
+      "U+002E",
+      "U+0063",
+      "U+006F",
+      "U+006D"
+    ]
+  },
+  {
+    "id": "hyphen-trailing",
+    "value": "a@x-.com",
+    "expected": true,
+    "basis": "no domain-label syntax restriction",
+    "scalars": [
+      "U+0061",
+      "U+0040",
+      "U+0078",
+      "U+002D",
+      "U+002E",
+      "U+0063",
+      "U+006F",
+      "U+006D"
+    ]
+  },
+  {
+    "id": "unicode-domain",
+    "value": "a@例子.公司",
+    "expected": true,
+    "basis": "non-ASCII domain is unchanged",
+    "scalars": [
+      "U+0061",
+      "U+0040",
+      "U+4F8B",
+      "U+5B50",
+      "U+002E",
+      "U+516C",
+      "U+53F8"
+    ]
+  },
+  {
+    "id": "unicode-local",
+    "value": "用户@例子.公司",
+    "expected": true,
+    "basis": "non-ASCII local and domain unchanged",
+    "scalars": [
+      "U+7528",
+      "U+6237",
+      "U+0040",
+      "U+4F8B",
+      "U+5B50",
+      "U+002E",
+      "U+516C",
+      "U+53F8"
+    ]
+  },
+  {
+    "id": "one-letter-tld",
+    "value": "a@b.c",
+    "expected": true,
+    "basis": "no TLD-length restriction",
+    "scalars": [
+      "U+0061",
+      "U+0040",
+      "U+0062",
+      "U+002E",
+      "U+0063"
+    ]
+  },
+  {
+    "id": "numeric-tld",
+    "value": "a@b.123",
+    "expected": true,
+    "basis": "no alphabetic-TLD restriction",
+    "scalars": [
+      "U+0061",
+      "U+0040",
+      "U+0062",
+      "U+002E",
+      "U+0031",
+      "U+0032",
+      "U+0033"
+    ]
+  },
+  {
+    "id": "domain-underscore",
+    "value": "a@b_c",
+    "expected": true,
+    "basis": "no DNS-label grammar",
+    "scalars": [
+      "U+0061",
+      "U+0040",
+      "U+0062",
+      "U+005F",
+      "U+0063"
+    ]
+  },
+  {
+    "id": "domain-empty-label",
+    "value": "a@b..com",
+    "expected": true,
+    "basis": "no domain-label grammar",
+    "scalars": [
+      "U+0061",
+      "U+0040",
+      "U+0062",
+      "U+002E",
+      "U+002E",
+      "U+0063",
+      "U+006F",
+      "U+006D"
+    ]
+  },
+  {
+    "id": "domain-leading-dot",
+    "value": "a@.b",
+    "expected": true,
+    "basis": "domain is nonempty",
+    "scalars": [
+      "U+0061",
+      "U+0040",
+      "U+002E",
+      "U+0062"
+    ]
+  },
+  {
+    "id": "domain-trailing-dot",
+    "value": "a@b.",
+    "expected": true,
+    "basis": "domain is nonempty",
+    "scalars": [
+      "U+0061",
+      "U+0040",
+      "U+0062",
+      "U+002E"
+    ]
+  },
+  {
+    "id": "domain-long-label",
+    "value": "a@xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx.com",
+    "expected": true,
+    "basis": "no domain-label length limit",
+    "scalars": [
+      "U+0061",
+      "U+0040",
+      "U+0078",
+      "U+0078",
+      "U+0078",
+      "U+0078",
+      "U+0078",
+      "U+0078",
+      "U+0078",
+      "U+0078",
+      "U+0078",
+      "U+0078",
+      "U+0078",
+      "U+0078",
+      "U+0078",
+      "U+0078",
+      "U+0078",
+      "U+0078",
+      "U+0078",
+      "U+0078",
+      "U+0078",
+      "U+0078",
+      "U+0078",
+      "U+0078",
+      "U+0078",
+      "U+0078",
+      "U+0078",
+      "U+0078",
+      "U+0078",
+      "U+0078",
+      "U+0078",
+      "U+0078",
+      "U+0078",
+      "U+0078",
+      "U+0078",
+      "U+0078",
+      "U+0078",
+      "U+0078",
+      "U+0078",
+      "U+0078",
+      "U+0078",
+      "U+0078",
+      "U+0078",
+      "U+0078",
+      "U+0078",
+      "U+0078",
+      "U+0078",
+      "U+0078",
+      "U+0078",
+      "U+0078",
+      "U+0078",
+      "U+0078",
+      "U+0078",
+      "U+0078",
+      "U+0078",
+      "U+0078",
+      "U+0078",
+      "U+0078",
+      "U+0078",
+      "U+0078",
+      "U+0078",
+      "U+0078",
+      "U+0078",
+      "U+0078",
+      "U+0078",
+      "U+0078",
+      "U+002E",
+      "U+0063",
+      "U+006F",
+      "U+006D"
+    ]
+  },
+  {
+    "id": "local-leading-dot",
+    "value": ".a@b.com",
+    "expected": true,
+    "basis": "no local-character grammar",
+    "scalars": [
+      "U+002E",
+      "U+0061",
+      "U+0040",
+      "U+0062",
+      "U+002E",
+      "U+0063",
+      "U+006F",
+      "U+006D"
+    ]
+  },
+  {
+    "id": "local-trailing-dot",
+    "value": "a.@b.com",
+    "expected": true,
+    "basis": "no local-character grammar",
+    "scalars": [
+      "U+0061",
+      "U+002E",
+      "U+0040",
+      "U+0062",
+      "U+002E",
+      "U+0063",
+      "U+006F",
+      "U+006D"
+    ]
+  },
+  {
+    "id": "local-double-dot",
+    "value": "a..b@c.com",
+    "expected": true,
+    "basis": "no local-character grammar",
+    "scalars": [
+      "U+0061",
+      "U+002E",
+      "U+002E",
+      "U+0062",
+      "U+0040",
+      "U+0063",
+      "U+002E",
+      "U+0063",
+      "U+006F",
+      "U+006D"
+    ]
+  },
+  {
+    "id": "local-plus",
+    "value": "user+tag@example.test",
+    "expected": true,
+    "basis": "no local-character grammar",
+    "scalars": [
+      "U+0075",
+      "U+0073",
+      "U+0065",
+      "U+0072",
+      "U+002B",
+      "U+0074",
+      "U+0061",
+      "U+0067",
+      "U+0040",
+      "U+0065",
+      "U+0078",
+      "U+0061",
+      "U+006D",
+      "U+0070",
+      "U+006C",
+      "U+0065",
+      "U+002E",
+      "U+0074",
+      "U+0065",
+      "U+0073",
+      "U+0074"
+    ]
+  },
+  {
+    "id": "local-punctuation",
+    "value": "!#$%&'*+-/=?^_`{|}~@b.com",
+    "expected": true,
+    "basis": "no local-character grammar",
+    "scalars": [
+      "U+0021",
+      "U+0023",
+      "U+0024",
+      "U+0025",
+      "U+0026",
+      "U+0027",
+      "U+002A",
+      "U+002B",
+      "U+002D",
+      "U+002F",
+      "U+003D",
+      "U+003F",
+      "U+005E",
+      "U+005F",
+      "U+0060",
+      "U+007B",
+      "U+007C",
+      "U+007D",
+      "U+007E",
+      "U+0040",
+      "U+0062",
+      "U+002E",
+      "U+0063",
+      "U+006F",
+      "U+006D"
+    ]
+  },
+  {
+    "id": "local-quoted",
+    "value": "\"a\"@b.com",
+    "expected": true,
+    "basis": "quotation is retained as ordinary scalar",
+    "scalars": [
+      "U+0022",
+      "U+0061",
+      "U+0022",
+      "U+0040",
+      "U+0062",
+      "U+002E",
+      "U+0063",
+      "U+006F",
+      "U+006D"
+    ]
+  },
+  {
+    "id": "local-backslash",
+    "value": "a\\b@c.com",
+    "expected": true,
+    "basis": "backslash retained as ordinary scalar",
+    "scalars": [
+      "U+0061",
+      "U+005C",
+      "U+0062",
+      "U+0040",
+      "U+0063",
+      "U+002E",
+      "U+0063",
+      "U+006F",
+      "U+006D"
+    ]
+  },
+  {
+    "id": "emoji",
+    "value": "🙂@📧",
+    "expected": true,
+    "basis": "non-ASCII scalars unchanged",
+    "scalars": [
+      "U+1F642",
+      "U+0040",
+      "U+1F4E7"
+    ]
+  },
+  {
+    "id": "empty",
+    "value": "",
+    "expected": false,
+    "basis": "missing @ and empty parts",
+    "scalars": []
+  },
+  {
+    "id": "no-at",
+    "value": "a.b",
+    "expected": false,
+    "basis": "missing @",
+    "scalars": [
+      "U+0061",
+      "U+002E",
+      "U+0062"
+    ]
+  },
+  {
+    "id": "only-at",
+    "value": "@",
+    "expected": false,
+    "basis": "both parts empty",
+    "scalars": [
+      "U+0040"
+    ]
+  },
+  {
+    "id": "empty-local",
+    "value": "@b",
+    "expected": false,
+    "basis": "local empty",
+    "scalars": [
+      "U+0040",
+      "U+0062"
+    ]
+  },
+  {
+    "id": "empty-domain",
+    "value": "a@",
+    "expected": false,
+    "basis": "domain empty",
+    "scalars": [
+      "U+0061",
+      "U+0040"
+    ]
+  },
+  {
+    "id": "two-at",
+    "value": "a@b@c",
+    "expected": false,
+    "basis": "more than one @",
+    "scalars": [
+      "U+0061",
+      "U+0040",
+      "U+0062",
+      "U+0040",
+      "U+0063"
+    ]
+  },
+  {
+    "id": "adjacent-at",
+    "value": "a@@b",
+    "expected": false,
+    "basis": "more than one @",
+    "scalars": [
+      "U+0061",
+      "U+0040",
+      "U+0040",
+      "U+0062"
+    ]
+  },
+  {
+    "id": "quoted-at",
+    "value": "\"a@b\"@c",
+    "expected": false,
+    "basis": "more than one @, quotations do not change floor",
+    "scalars": [
+      "U+0022",
+      "U+0061",
+      "U+0040",
+      "U+0062",
+      "U+0022",
+      "U+0040",
+      "U+0063"
+    ]
+  },
+  {
+    "id": "fullwidth-at",
+    "value": "a＠b",
+    "expected": false,
+    "basis": "U+FF20 does not count as U+0040",
+    "scalars": [
+      "U+0061",
+      "U+FF20",
+      "U+0062"
+    ]
+  },
+  {
+    "id": "space-prefix",
+    "value": " a@b",
+    "expected": false,
+    "basis": "ASCII space",
+    "scalars": [
+      "U+0020",
+      "U+0061",
+      "U+0040",
+      "U+0062"
+    ]
+  },
+  {
+    "id": "space-suffix",
+    "value": "a@b ",
+    "expected": false,
+    "basis": "ASCII space",
+    "scalars": [
+      "U+0061",
+      "U+0040",
+      "U+0062",
+      "U+0020"
+    ]
+  },
+  {
+    "id": "space-domain",
+    "value": "a@ b",
+    "expected": false,
+    "basis": "ASCII space",
+    "scalars": [
+      "U+0061",
+      "U+0040",
+      "U+0020",
+      "U+0062"
+    ]
+  },
+  {
+    "id": "space-local",
+    "value": "a b@c",
+    "expected": false,
+    "basis": "ASCII space",
+    "scalars": [
+      "U+0061",
+      "U+0020",
+      "U+0062",
+      "U+0040",
+      "U+0063"
+    ]
+  },
+  {
+    "id": "ascii-control-00",
+    "value": "a\u0000@b.com",
+    "expected": false,
+    "basis": "C0 or DEL explicitly forbidden by shared floor",
+    "scalars": [
+      "U+0061",
+      "U+0000",
+      "U+0040",
+      "U+0062",
+      "U+002E",
+      "U+0063",
+      "U+006F",
+      "U+006D"
+    ]
+  },
+  {
+    "id": "ascii-control-01",
+    "value": "a\u0001@b.com",
+    "expected": false,
+    "basis": "C0 or DEL explicitly forbidden by shared floor",
+    "scalars": [
+      "U+0061",
+      "U+0001",
+      "U+0040",
+      "U+0062",
+      "U+002E",
+      "U+0063",
+      "U+006F",
+      "U+006D"
+    ]
+  },
+  {
+    "id": "ascii-control-02",
+    "value": "a\u0002@b.com",
+    "expected": false,
+    "basis": "C0 or DEL explicitly forbidden by shared floor",
+    "scalars": [
+      "U+0061",
+      "U+0002",
+      "U+0040",
+      "U+0062",
+      "U+002E",
+      "U+0063",
+      "U+006F",
+      "U+006D"
+    ]
+  },
+  {
+    "id": "ascii-control-03",
+    "value": "a\u0003@b.com",
+    "expected": false,
+    "basis": "C0 or DEL explicitly forbidden by shared floor",
+    "scalars": [
+      "U+0061",
+      "U+0003",
+      "U+0040",
+      "U+0062",
+      "U+002E",
+      "U+0063",
+      "U+006F",
+      "U+006D"
+    ]
+  },
+  {
+    "id": "ascii-control-04",
+    "value": "a\u0004@b.com",
+    "expected": false,
+    "basis": "C0 or DEL explicitly forbidden by shared floor",
+    "scalars": [
+      "U+0061",
+      "U+0004",
+      "U+0040",
+      "U+0062",
+      "U+002E",
+      "U+0063",
+      "U+006F",
+      "U+006D"
+    ]
+  },
+  {
+    "id": "ascii-control-05",
+    "value": "a\u0005@b.com",
+    "expected": false,
+    "basis": "C0 or DEL explicitly forbidden by shared floor",
+    "scalars": [
+      "U+0061",
+      "U+0005",
+      "U+0040",
+      "U+0062",
+      "U+002E",
+      "U+0063",
+      "U+006F",
+      "U+006D"
+    ]
+  },
+  {
+    "id": "ascii-control-06",
+    "value": "a\u0006@b.com",
+    "expected": false,
+    "basis": "C0 or DEL explicitly forbidden by shared floor",
+    "scalars": [
+      "U+0061",
+      "U+0006",
+      "U+0040",
+      "U+0062",
+      "U+002E",
+      "U+0063",
+      "U+006F",
+      "U+006D"
+    ]
+  },
+  {
+    "id": "ascii-control-07",
+    "value": "a\u0007@b.com",
+    "expected": false,
+    "basis": "C0 or DEL explicitly forbidden by shared floor",
+    "scalars": [
+      "U+0061",
+      "U+0007",
+      "U+0040",
+      "U+0062",
+      "U+002E",
+      "U+0063",
+      "U+006F",
+      "U+006D"
+    ]
+  },
+  {
+    "id": "ascii-control-08",
+    "value": "a\b@b.com",
+    "expected": false,
+    "basis": "C0 or DEL explicitly forbidden by shared floor",
+    "scalars": [
+      "U+0061",
+      "U+0008",
+      "U+0040",
+      "U+0062",
+      "U+002E",
+      "U+0063",
+      "U+006F",
+      "U+006D"
+    ]
+  },
+  {
+    "id": "ascii-control-09",
+    "value": "a\t@b.com",
+    "expected": false,
+    "basis": "C0 or DEL explicitly forbidden by shared floor",
+    "scalars": [
+      "U+0061",
+      "U+0009",
+      "U+0040",
+      "U+0062",
+      "U+002E",
+      "U+0063",
+      "U+006F",
+      "U+006D"
+    ]
+  },
+  {
+    "id": "ascii-control-0a",
+    "value": "a\n@b.com",
+    "expected": false,
+    "basis": "C0 or DEL explicitly forbidden by shared floor",
+    "scalars": [
+      "U+0061",
+      "U+000A",
+      "U+0040",
+      "U+0062",
+      "U+002E",
+      "U+0063",
+      "U+006F",
+      "U+006D"
+    ]
+  },
+  {
+    "id": "ascii-control-0b",
+    "value": "a\u000b@b.com",
+    "expected": false,
+    "basis": "C0 or DEL explicitly forbidden by shared floor",
+    "scalars": [
+      "U+0061",
+      "U+000B",
+      "U+0040",
+      "U+0062",
+      "U+002E",
+      "U+0063",
+      "U+006F",
+      "U+006D"
+    ]
+  },
+  {
+    "id": "ascii-control-0c",
+    "value": "a\f@b.com",
+    "expected": false,
+    "basis": "C0 or DEL explicitly forbidden by shared floor",
+    "scalars": [
+      "U+0061",
+      "U+000C",
+      "U+0040",
+      "U+0062",
+      "U+002E",
+      "U+0063",
+      "U+006F",
+      "U+006D"
+    ]
+  },
+  {
+    "id": "ascii-control-0d",
+    "value": "a\r@b.com",
+    "expected": false,
+    "basis": "C0 or DEL explicitly forbidden by shared floor",
+    "scalars": [
+      "U+0061",
+      "U+000D",
+      "U+0040",
+      "U+0062",
+      "U+002E",
+      "U+0063",
+      "U+006F",
+      "U+006D"
+    ]
+  },
+  {
+    "id": "ascii-control-0e",
+    "value": "a\u000e@b.com",
+    "expected": false,
+    "basis": "C0 or DEL explicitly forbidden by shared floor",
+    "scalars": [
+      "U+0061",
+      "U+000E",
+      "U+0040",
+      "U+0062",
+      "U+002E",
+      "U+0063",
+      "U+006F",
+      "U+006D"
+    ]
+  },
+  {
+    "id": "ascii-control-0f",
+    "value": "a\u000f@b.com",
+    "expected": false,
+    "basis": "C0 or DEL explicitly forbidden by shared floor",
+    "scalars": [
+      "U+0061",
+      "U+000F",
+      "U+0040",
+      "U+0062",
+      "U+002E",
+      "U+0063",
+      "U+006F",
+      "U+006D"
+    ]
+  },
+  {
+    "id": "ascii-control-10",
+    "value": "a\u0010@b.com",
+    "expected": false,
+    "basis": "C0 or DEL explicitly forbidden by shared floor",
+    "scalars": [
+      "U+0061",
+      "U+0010",
+      "U+0040",
+      "U+0062",
+      "U+002E",
+      "U+0063",
+      "U+006F",
+      "U+006D"
+    ]
+  },
+  {
+    "id": "ascii-control-11",
+    "value": "a\u0011@b.com",
+    "expected": false,
+    "basis": "C0 or DEL explicitly forbidden by shared floor",
+    "scalars": [
+      "U+0061",
+      "U+0011",
+      "U+0040",
+      "U+0062",
+      "U+002E",
+      "U+0063",
+      "U+006F",
+      "U+006D"
+    ]
+  },
+  {
+    "id": "ascii-control-12",
+    "value": "a\u0012@b.com",
+    "expected": false,
+    "basis": "C0 or DEL explicitly forbidden by shared floor",
+    "scalars": [
+      "U+0061",
+      "U+0012",
+      "U+0040",
+      "U+0062",
+      "U+002E",
+      "U+0063",
+      "U+006F",
+      "U+006D"
+    ]
+  },
+  {
+    "id": "ascii-control-13",
+    "value": "a\u0013@b.com",
+    "expected": false,
+    "basis": "C0 or DEL explicitly forbidden by shared floor",
+    "scalars": [
+      "U+0061",
+      "U+0013",
+      "U+0040",
+      "U+0062",
+      "U+002E",
+      "U+0063",
+      "U+006F",
+      "U+006D"
+    ]
+  },
+  {
+    "id": "ascii-control-14",
+    "value": "a\u0014@b.com",
+    "expected": false,
+    "basis": "C0 or DEL explicitly forbidden by shared floor",
+    "scalars": [
+      "U+0061",
+      "U+0014",
+      "U+0040",
+      "U+0062",
+      "U+002E",
+      "U+0063",
+      "U+006F",
+      "U+006D"
+    ]
+  },
+  {
+    "id": "ascii-control-15",
+    "value": "a\u0015@b.com",
+    "expected": false,
+    "basis": "C0 or DEL explicitly forbidden by shared floor",
+    "scalars": [
+      "U+0061",
+      "U+0015",
+      "U+0040",
+      "U+0062",
+      "U+002E",
+      "U+0063",
+      "U+006F",
+      "U+006D"
+    ]
+  },
+  {
+    "id": "ascii-control-16",
+    "value": "a\u0016@b.com",
+    "expected": false,
+    "basis": "C0 or DEL explicitly forbidden by shared floor",
+    "scalars": [
+      "U+0061",
+      "U+0016",
+      "U+0040",
+      "U+0062",
+      "U+002E",
+      "U+0063",
+      "U+006F",
+      "U+006D"
+    ]
+  },
+  {
+    "id": "ascii-control-17",
+    "value": "a\u0017@b.com",
+    "expected": false,
+    "basis": "C0 or DEL explicitly forbidden by shared floor",
+    "scalars": [
+      "U+0061",
+      "U+0017",
+      "U+0040",
+      "U+0062",
+      "U+002E",
+      "U+0063",
+      "U+006F",
+      "U+006D"
+    ]
+  },
+  {
+    "id": "ascii-control-18",
+    "value": "a\u0018@b.com",
+    "expected": false,
+    "basis": "C0 or DEL explicitly forbidden by shared floor",
+    "scalars": [
+      "U+0061",
+      "U+0018",
+      "U+0040",
+      "U+0062",
+      "U+002E",
+      "U+0063",
+      "U+006F",
+      "U+006D"
+    ]
+  },
+  {
+    "id": "ascii-control-19",
+    "value": "a\u0019@b.com",
+    "expected": false,
+    "basis": "C0 or DEL explicitly forbidden by shared floor",
+    "scalars": [
+      "U+0061",
+      "U+0019",
+      "U+0040",
+      "U+0062",
+      "U+002E",
+      "U+0063",
+      "U+006F",
+      "U+006D"
+    ]
+  },
+  {
+    "id": "ascii-control-1a",
+    "value": "a\u001a@b.com",
+    "expected": false,
+    "basis": "C0 or DEL explicitly forbidden by shared floor",
+    "scalars": [
+      "U+0061",
+      "U+001A",
+      "U+0040",
+      "U+0062",
+      "U+002E",
+      "U+0063",
+      "U+006F",
+      "U+006D"
+    ]
+  },
+  {
+    "id": "ascii-control-1b",
+    "value": "a\u001b@b.com",
+    "expected": false,
+    "basis": "C0 or DEL explicitly forbidden by shared floor",
+    "scalars": [
+      "U+0061",
+      "U+001B",
+      "U+0040",
+      "U+0062",
+      "U+002E",
+      "U+0063",
+      "U+006F",
+      "U+006D"
+    ]
+  },
+  {
+    "id": "ascii-control-1c",
+    "value": "a\u001c@b.com",
+    "expected": false,
+    "basis": "C0 or DEL explicitly forbidden by shared floor",
+    "scalars": [
+      "U+0061",
+      "U+001C",
+      "U+0040",
+      "U+0062",
+      "U+002E",
+      "U+0063",
+      "U+006F",
+      "U+006D"
+    ]
+  },
+  {
+    "id": "ascii-control-1d",
+    "value": "a\u001d@b.com",
+    "expected": false,
+    "basis": "C0 or DEL explicitly forbidden by shared floor",
+    "scalars": [
+      "U+0061",
+      "U+001D",
+      "U+0040",
+      "U+0062",
+      "U+002E",
+      "U+0063",
+      "U+006F",
+      "U+006D"
+    ]
+  },
+  {
+    "id": "ascii-control-1e",
+    "value": "a\u001e@b.com",
+    "expected": false,
+    "basis": "C0 or DEL explicitly forbidden by shared floor",
+    "scalars": [
+      "U+0061",
+      "U+001E",
+      "U+0040",
+      "U+0062",
+      "U+002E",
+      "U+0063",
+      "U+006F",
+      "U+006D"
+    ]
+  },
+  {
+    "id": "ascii-control-1f",
+    "value": "a\u001f@b.com",
+    "expected": false,
+    "basis": "C0 or DEL explicitly forbidden by shared floor",
+    "scalars": [
+      "U+0061",
+      "U+001F",
+      "U+0040",
+      "U+0062",
+      "U+002E",
+      "U+0063",
+      "U+006F",
+      "U+006D"
+    ]
+  },
+  {
+    "id": "ascii-control-7f",
+    "value": "a@b.com",
+    "expected": false,
+    "basis": "C0 or DEL explicitly forbidden by shared floor",
+    "scalars": [
+      "U+0061",
+      "U+007F",
+      "U+0040",
+      "U+0062",
+      "U+002E",
+      "U+0063",
+      "U+006F",
+      "U+006D"
+    ]
+  },
+  {
+    "id": "ecmascript-space-00a0",
+    "value": "a @b.com",
+    "expected": false,
+    "basis": "ECMAScript WhiteSpace or LineTerminator; explicitly forbidden",
+    "scalars": [
+      "U+0061",
+      "U+00A0",
+      "U+0040",
+      "U+0062",
+      "U+002E",
+      "U+0063",
+      "U+006F",
+      "U+006D"
+    ]
+  },
+  {
+    "id": "ecmascript-space-domain-00a0",
+    "value": "a@b .com",
+    "expected": false,
+    "basis": "same rejection within domain",
+    "scalars": [
+      "U+0061",
+      "U+0040",
+      "U+0062",
+      "U+00A0",
+      "U+002E",
+      "U+0063",
+      "U+006F",
+      "U+006D"
+    ]
+  },
+  {
+    "id": "ecmascript-space-1680",
+    "value": "a @b.com",
+    "expected": false,
+    "basis": "ECMAScript WhiteSpace or LineTerminator; explicitly forbidden",
+    "scalars": [
+      "U+0061",
+      "U+1680",
+      "U+0040",
+      "U+0062",
+      "U+002E",
+      "U+0063",
+      "U+006F",
+      "U+006D"
+    ]
+  },
+  {
+    "id": "ecmascript-space-domain-1680",
+    "value": "a@b .com",
+    "expected": false,
+    "basis": "same rejection within domain",
+    "scalars": [
+      "U+0061",
+      "U+0040",
+      "U+0062",
+      "U+1680",
+      "U+002E",
+      "U+0063",
+      "U+006F",
+      "U+006D"
+    ]
+  },
+  {
+    "id": "ecmascript-space-2000",
+    "value": "a @b.com",
+    "expected": false,
+    "basis": "ECMAScript WhiteSpace or LineTerminator; explicitly forbidden",
+    "scalars": [
+      "U+0061",
+      "U+2000",
+      "U+0040",
+      "U+0062",
+      "U+002E",
+      "U+0063",
+      "U+006F",
+      "U+006D"
+    ]
+  },
+  {
+    "id": "ecmascript-space-domain-2000",
+    "value": "a@b .com",
+    "expected": false,
+    "basis": "same rejection within domain",
+    "scalars": [
+      "U+0061",
+      "U+0040",
+      "U+0062",
+      "U+2000",
+      "U+002E",
+      "U+0063",
+      "U+006F",
+      "U+006D"
+    ]
+  },
+  {
+    "id": "ecmascript-space-2001",
+    "value": "a @b.com",
+    "expected": false,
+    "basis": "ECMAScript WhiteSpace or LineTerminator; explicitly forbidden",
+    "scalars": [
+      "U+0061",
+      "U+2001",
+      "U+0040",
+      "U+0062",
+      "U+002E",
+      "U+0063",
+      "U+006F",
+      "U+006D"
+    ]
+  },
+  {
+    "id": "ecmascript-space-domain-2001",
+    "value": "a@b .com",
+    "expected": false,
+    "basis": "same rejection within domain",
+    "scalars": [
+      "U+0061",
+      "U+0040",
+      "U+0062",
+      "U+2001",
+      "U+002E",
+      "U+0063",
+      "U+006F",
+      "U+006D"
+    ]
+  },
+  {
+    "id": "ecmascript-space-2002",
+    "value": "a @b.com",
+    "expected": false,
+    "basis": "ECMAScript WhiteSpace or LineTerminator; explicitly forbidden",
+    "scalars": [
+      "U+0061",
+      "U+2002",
+      "U+0040",
+      "U+0062",
+      "U+002E",
+      "U+0063",
+      "U+006F",
+      "U+006D"
+    ]
+  },
+  {
+    "id": "ecmascript-space-domain-2002",
+    "value": "a@b .com",
+    "expected": false,
+    "basis": "same rejection within domain",
+    "scalars": [
+      "U+0061",
+      "U+0040",
+      "U+0062",
+      "U+2002",
+      "U+002E",
+      "U+0063",
+      "U+006F",
+      "U+006D"
+    ]
+  },
+  {
+    "id": "ecmascript-space-2003",
+    "value": "a @b.com",
+    "expected": false,
+    "basis": "ECMAScript WhiteSpace or LineTerminator; explicitly forbidden",
+    "scalars": [
+      "U+0061",
+      "U+2003",
+      "U+0040",
+      "U+0062",
+      "U+002E",
+      "U+0063",
+      "U+006F",
+      "U+006D"
+    ]
+  },
+  {
+    "id": "ecmascript-space-domain-2003",
+    "value": "a@b .com",
+    "expected": false,
+    "basis": "same rejection within domain",
+    "scalars": [
+      "U+0061",
+      "U+0040",
+      "U+0062",
+      "U+2003",
+      "U+002E",
+      "U+0063",
+      "U+006F",
+      "U+006D"
+    ]
+  },
+  {
+    "id": "ecmascript-space-2004",
+    "value": "a @b.com",
+    "expected": false,
+    "basis": "ECMAScript WhiteSpace or LineTerminator; explicitly forbidden",
+    "scalars": [
+      "U+0061",
+      "U+2004",
+      "U+0040",
+      "U+0062",
+      "U+002E",
+      "U+0063",
+      "U+006F",
+      "U+006D"
+    ]
+  },
+  {
+    "id": "ecmascript-space-domain-2004",
+    "value": "a@b .com",
+    "expected": false,
+    "basis": "same rejection within domain",
+    "scalars": [
+      "U+0061",
+      "U+0040",
+      "U+0062",
+      "U+2004",
+      "U+002E",
+      "U+0063",
+      "U+006F",
+      "U+006D"
+    ]
+  },
+  {
+    "id": "ecmascript-space-2005",
+    "value": "a @b.com",
+    "expected": false,
+    "basis": "ECMAScript WhiteSpace or LineTerminator; explicitly forbidden",
+    "scalars": [
+      "U+0061",
+      "U+2005",
+      "U+0040",
+      "U+0062",
+      "U+002E",
+      "U+0063",
+      "U+006F",
+      "U+006D"
+    ]
+  },
+  {
+    "id": "ecmascript-space-domain-2005",
+    "value": "a@b .com",
+    "expected": false,
+    "basis": "same rejection within domain",
+    "scalars": [
+      "U+0061",
+      "U+0040",
+      "U+0062",
+      "U+2005",
+      "U+002E",
+      "U+0063",
+      "U+006F",
+      "U+006D"
+    ]
+  },
+  {
+    "id": "ecmascript-space-2006",
+    "value": "a @b.com",
+    "expected": false,
+    "basis": "ECMAScript WhiteSpace or LineTerminator; explicitly forbidden",
+    "scalars": [
+      "U+0061",
+      "U+2006",
+      "U+0040",
+      "U+0062",
+      "U+002E",
+      "U+0063",
+      "U+006F",
+      "U+006D"
+    ]
+  },
+  {
+    "id": "ecmascript-space-domain-2006",
+    "value": "a@b .com",
+    "expected": false,
+    "basis": "same rejection within domain",
+    "scalars": [
+      "U+0061",
+      "U+0040",
+      "U+0062",
+      "U+2006",
+      "U+002E",
+      "U+0063",
+      "U+006F",
+      "U+006D"
+    ]
+  },
+  {
+    "id": "ecmascript-space-2007",
+    "value": "a @b.com",
+    "expected": false,
+    "basis": "ECMAScript WhiteSpace or LineTerminator; explicitly forbidden",
+    "scalars": [
+      "U+0061",
+      "U+2007",
+      "U+0040",
+      "U+0062",
+      "U+002E",
+      "U+0063",
+      "U+006F",
+      "U+006D"
+    ]
+  },
+  {
+    "id": "ecmascript-space-domain-2007",
+    "value": "a@b .com",
+    "expected": false,
+    "basis": "same rejection within domain",
+    "scalars": [
+      "U+0061",
+      "U+0040",
+      "U+0062",
+      "U+2007",
+      "U+002E",
+      "U+0063",
+      "U+006F",
+      "U+006D"
+    ]
+  },
+  {
+    "id": "ecmascript-space-2008",
+    "value": "a @b.com",
+    "expected": false,
+    "basis": "ECMAScript WhiteSpace or LineTerminator; explicitly forbidden",
+    "scalars": [
+      "U+0061",
+      "U+2008",
+      "U+0040",
+      "U+0062",
+      "U+002E",
+      "U+0063",
+      "U+006F",
+      "U+006D"
+    ]
+  },
+  {
+    "id": "ecmascript-space-domain-2008",
+    "value": "a@b .com",
+    "expected": false,
+    "basis": "same rejection within domain",
+    "scalars": [
+      "U+0061",
+      "U+0040",
+      "U+0062",
+      "U+2008",
+      "U+002E",
+      "U+0063",
+      "U+006F",
+      "U+006D"
+    ]
+  },
+  {
+    "id": "ecmascript-space-2009",
+    "value": "a @b.com",
+    "expected": false,
+    "basis": "ECMAScript WhiteSpace or LineTerminator; explicitly forbidden",
+    "scalars": [
+      "U+0061",
+      "U+2009",
+      "U+0040",
+      "U+0062",
+      "U+002E",
+      "U+0063",
+      "U+006F",
+      "U+006D"
+    ]
+  },
+  {
+    "id": "ecmascript-space-domain-2009",
+    "value": "a@b .com",
+    "expected": false,
+    "basis": "same rejection within domain",
+    "scalars": [
+      "U+0061",
+      "U+0040",
+      "U+0062",
+      "U+2009",
+      "U+002E",
+      "U+0063",
+      "U+006F",
+      "U+006D"
+    ]
+  },
+  {
+    "id": "ecmascript-space-200a",
+    "value": "a @b.com",
+    "expected": false,
+    "basis": "ECMAScript WhiteSpace or LineTerminator; explicitly forbidden",
+    "scalars": [
+      "U+0061",
+      "U+200A",
+      "U+0040",
+      "U+0062",
+      "U+002E",
+      "U+0063",
+      "U+006F",
+      "U+006D"
+    ]
+  },
+  {
+    "id": "ecmascript-space-domain-200a",
+    "value": "a@b .com",
+    "expected": false,
+    "basis": "same rejection within domain",
+    "scalars": [
+      "U+0061",
+      "U+0040",
+      "U+0062",
+      "U+200A",
+      "U+002E",
+      "U+0063",
+      "U+006F",
+      "U+006D"
+    ]
+  },
+  {
+    "id": "ecmascript-space-2028",
+    "value": "a @b.com",
+    "expected": false,
+    "basis": "ECMAScript WhiteSpace or LineTerminator; explicitly forbidden",
+    "scalars": [
+      "U+0061",
+      "U+2028",
+      "U+0040",
+      "U+0062",
+      "U+002E",
+      "U+0063",
+      "U+006F",
+      "U+006D"
+    ]
+  },
+  {
+    "id": "ecmascript-space-domain-2028",
+    "value": "a@b .com",
+    "expected": false,
+    "basis": "same rejection within domain",
+    "scalars": [
+      "U+0061",
+      "U+0040",
+      "U+0062",
+      "U+2028",
+      "U+002E",
+      "U+0063",
+      "U+006F",
+      "U+006D"
+    ]
+  },
+  {
+    "id": "ecmascript-space-2029",
+    "value": "a @b.com",
+    "expected": false,
+    "basis": "ECMAScript WhiteSpace or LineTerminator; explicitly forbidden",
+    "scalars": [
+      "U+0061",
+      "U+2029",
+      "U+0040",
+      "U+0062",
+      "U+002E",
+      "U+0063",
+      "U+006F",
+      "U+006D"
+    ]
+  },
+  {
+    "id": "ecmascript-space-domain-2029",
+    "value": "a@b .com",
+    "expected": false,
+    "basis": "same rejection within domain",
+    "scalars": [
+      "U+0061",
+      "U+0040",
+      "U+0062",
+      "U+2029",
+      "U+002E",
+      "U+0063",
+      "U+006F",
+      "U+006D"
+    ]
+  },
+  {
+    "id": "ecmascript-space-202f",
+    "value": "a @b.com",
+    "expected": false,
+    "basis": "ECMAScript WhiteSpace or LineTerminator; explicitly forbidden",
+    "scalars": [
+      "U+0061",
+      "U+202F",
+      "U+0040",
+      "U+0062",
+      "U+002E",
+      "U+0063",
+      "U+006F",
+      "U+006D"
+    ]
+  },
+  {
+    "id": "ecmascript-space-domain-202f",
+    "value": "a@b .com",
+    "expected": false,
+    "basis": "same rejection within domain",
+    "scalars": [
+      "U+0061",
+      "U+0040",
+      "U+0062",
+      "U+202F",
+      "U+002E",
+      "U+0063",
+      "U+006F",
+      "U+006D"
+    ]
+  },
+  {
+    "id": "ecmascript-space-205f",
+    "value": "a @b.com",
+    "expected": false,
+    "basis": "ECMAScript WhiteSpace or LineTerminator; explicitly forbidden",
+    "scalars": [
+      "U+0061",
+      "U+205F",
+      "U+0040",
+      "U+0062",
+      "U+002E",
+      "U+0063",
+      "U+006F",
+      "U+006D"
+    ]
+  },
+  {
+    "id": "ecmascript-space-domain-205f",
+    "value": "a@b .com",
+    "expected": false,
+    "basis": "same rejection within domain",
+    "scalars": [
+      "U+0061",
+      "U+0040",
+      "U+0062",
+      "U+205F",
+      "U+002E",
+      "U+0063",
+      "U+006F",
+      "U+006D"
+    ]
+  },
+  {
+    "id": "ecmascript-space-3000",
+    "value": "a　@b.com",
+    "expected": false,
+    "basis": "ECMAScript WhiteSpace or LineTerminator; explicitly forbidden",
+    "scalars": [
+      "U+0061",
+      "U+3000",
+      "U+0040",
+      "U+0062",
+      "U+002E",
+      "U+0063",
+      "U+006F",
+      "U+006D"
+    ]
+  },
+  {
+    "id": "ecmascript-space-domain-3000",
+    "value": "a@b　.com",
+    "expected": false,
+    "basis": "same rejection within domain",
+    "scalars": [
+      "U+0061",
+      "U+0040",
+      "U+0062",
+      "U+3000",
+      "U+002E",
+      "U+0063",
+      "U+006F",
+      "U+006D"
+    ]
+  },
+  {
+    "id": "ecmascript-space-feff",
+    "value": "a﻿@b.com",
+    "expected": false,
+    "basis": "ECMAScript WhiteSpace or LineTerminator; explicitly forbidden",
+    "scalars": [
+      "U+0061",
+      "U+FEFF",
+      "U+0040",
+      "U+0062",
+      "U+002E",
+      "U+0063",
+      "U+006F",
+      "U+006D"
+    ]
+  },
+  {
+    "id": "ecmascript-space-domain-feff",
+    "value": "a@b﻿.com",
+    "expected": false,
+    "basis": "same rejection within domain",
+    "scalars": [
+      "U+0061",
+      "U+0040",
+      "U+0062",
+      "U+FEFF",
+      "U+002E",
+      "U+0063",
+      "U+006F",
+      "U+006D"
+    ]
+  },
+  {
+    "id": "nearby-allowed-0080",
+    "value": "a@b.com",
+    "expected": true,
+    "basis": "outside exact public rejection set; no broader Unicode-control policy implied",
+    "scalars": [
+      "U+0061",
+      "U+0080",
+      "U+0040",
+      "U+0062",
+      "U+002E",
+      "U+0063",
+      "U+006F",
+      "U+006D"
+    ]
+  },
+  {
+    "id": "nearby-allowed-0085",
+    "value": "a@b.com",
+    "expected": true,
+    "basis": "outside exact public rejection set; no broader Unicode-control policy implied",
+    "scalars": [
+      "U+0061",
+      "U+0085",
+      "U+0040",
+      "U+0062",
+      "U+002E",
+      "U+0063",
+      "U+006F",
+      "U+006D"
+    ]
+  },
+  {
+    "id": "nearby-allowed-009f",
+    "value": "a@b.com",
+    "expected": true,
+    "basis": "outside exact public rejection set; no broader Unicode-control policy implied",
+    "scalars": [
+      "U+0061",
+      "U+009F",
+      "U+0040",
+      "U+0062",
+      "U+002E",
+      "U+0063",
+      "U+006F",
+      "U+006D"
+    ]
+  },
+  {
+    "id": "nearby-allowed-180e",
+    "value": "a᠎@b.com",
+    "expected": true,
+    "basis": "outside exact public rejection set; no broader Unicode-control policy implied",
+    "scalars": [
+      "U+0061",
+      "U+180E",
+      "U+0040",
+      "U+0062",
+      "U+002E",
+      "U+0063",
+      "U+006F",
+      "U+006D"
+    ]
+  },
+  {
+    "id": "nearby-allowed-200b",
+    "value": "a​@b.com",
+    "expected": true,
+    "basis": "outside exact public rejection set; no broader Unicode-control policy implied",
+    "scalars": [
+      "U+0061",
+      "U+200B",
+      "U+0040",
+      "U+0062",
+      "U+002E",
+      "U+0063",
+      "U+006F",
+      "U+006D"
+    ]
+  },
+  {
+    "id": "nearby-allowed-2060",
+    "value": "a⁠@b.com",
+    "expected": true,
+    "basis": "outside exact public rejection set; no broader Unicode-control policy implied",
+    "scalars": [
+      "U+0061",
+      "U+2060",
+      "U+0040",
+      "U+0062",
+      "U+002E",
+      "U+0063",
+      "U+006F",
+      "U+006D"
+    ]
+  },
+  {
+    "id": "nearby-allowed-fffe",
+    "value": "a￾@b.com",
+    "expected": true,
+    "basis": "outside exact public rejection set; no broader Unicode-control policy implied",
+    "scalars": [
+      "U+0061",
+      "U+FFFE",
+      "U+0040",
+      "U+0062",
+      "U+002E",
+      "U+0063",
+      "U+006F",
+      "U+006D"
+    ]
+  }
+]

@@ -1,0 +1,180 @@
+{
+  "vectors": 113,
+  "publicDirections": 226,
+  "publicAccepted": 29,
+  "compilerAccepted": 34,
+  "mismatches": [
+    {
+      "id": "single-label",
+      "expected": true,
+      "compilerAccepted": false
+    },
+    {
+      "id": "localhost",
+      "expected": true,
+      "compilerAccepted": false
+    },
+    {
+      "id": "hyphen-leading",
+      "expected": true,
+      "compilerAccepted": false
+    },
+    {
+      "id": "hyphen-trailing",
+      "expected": true,
+      "compilerAccepted": false
+    },
+    {
+      "id": "unicode-domain",
+      "expected": true,
+      "compilerAccepted": false
+    },
+    {
+      "id": "unicode-local",
+      "expected": true,
+      "compilerAccepted": false
+    },
+    {
+      "id": "one-letter-tld",
+      "expected": true,
+      "compilerAccepted": false
+    },
+    {
+      "id": "numeric-tld",
+      "expected": true,
+      "compilerAccepted": false
+    },
+    {
+      "id": "domain-underscore",
+      "expected": true,
+      "compilerAccepted": false
+    },
+    {
+      "id": "domain-empty-label",
+      "expected": true,
+      "compilerAccepted": false
+    },
+    {
+      "id": "domain-leading-dot",
+      "expected": true,
+      "compilerAccepted": false
+    },
+    {
+      "id": "domain-trailing-dot",
+      "expected": true,
+      "compilerAccepted": false
+    },
+    {
+      "id": "domain-long-label",
+      "expected": true,
+      "compilerAccepted": false
+    },
+    {
+      "id": "emoji",
+      "expected": true,
+      "compilerAccepted": false
+    },
+    {
+      "id": "ecmascript-space-00a0",
+      "expected": false,
+      "compilerAccepted": true
+    },
+    {
+      "id": "ecmascript-space-1680",
+      "expected": false,
+      "compilerAccepted": true
+    },
+    {
+      "id": "ecmascript-space-2000",
+      "expected": false,
+      "compilerAccepted": true
+    },
+    {
+      "id": "ecmascript-space-2001",
+      "expected": false,
+      "compilerAccepted": true
+    },
+    {
+      "id": "ecmascript-space-2002",
+      "expected": false,
+      "compilerAccepted": true
+    },
+    {
+      "id": "ecmascript-space-2003",
+      "expected": false,
+      "compilerAccepted": true
+    },
+    {
+      "id": "ecmascript-space-2004",
+      "expected": false,
+      "compilerAccepted": true
+    },
+    {
+      "id": "ecmascript-space-2005",
+      "expected": false,
+      "compilerAccepted": true
+    },
+    {
+      "id": "ecmascript-space-2006",
+      "expected": false,
+      "compilerAccepted": true
+    },
+    {
+      "id": "ecmascript-space-2007",
+      "expected": false,
+      "compilerAccepted": true
+    },
+    {
+      "id": "ecmascript-space-2008",
+      "expected": false,
+      "compilerAccepted": true
+    },
+    {
+      "id": "ecmascript-space-2009",
+      "expected": false,
+      "compilerAccepted": true
+    },
+    {
+      "id": "ecmascript-space-200a",
+      "expected": false,
+      "compilerAccepted": true
+    },
+    {
+      "id": "ecmascript-space-2028",
+      "expected": false,
+      "compilerAccepted": true
+    },
+    {
+      "id": "ecmascript-space-2029",
+      "expected": false,
+      "compilerAccepted": true
+    },
+    {
+      "id": "ecmascript-space-202f",
+      "expected": false,
+      "compilerAccepted": true
+    },
+    {
+      "id": "ecmascript-space-205f",
+      "expected": false,
+      "compilerAccepted": true
+    },
+    {
+      "id": "ecmascript-space-3000",
+      "expected": false,
+      "compilerAccepted": true
+    },
+    {
+      "id": "ecmascript-space-feff",
+      "expected": false,
+      "compilerAccepted": true
+    }
+  ],
+  "generated": 34,
+  "generatedImported": 34,
+  "node": "v24.21.0",
+  "icu": "78.3",
+  "compiler": "/private/tmp/can-email-admission-baseline-can",
+  "compilerHash": "3db5e325da1be31b40a9ba108cafe51afff78b8870a99c15177889d1131d123a",
+  "limits": "Current CLI and actual installed public values/UI exports; metadata execution only, not application invocation, DNS, deliverability or auth."
+}

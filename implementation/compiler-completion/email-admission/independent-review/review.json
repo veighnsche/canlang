@@ -1,0 +1,71 @@
+{
+  "verdict": "accepted within frozen SEM-R04 email shape scope",
+  "scope": "SEM-R04 frozen email admission only",
+  "allocation": "GPT-6.1 Sol, Medium; bounded independent technical review",
+  "sourcePins": {
+    "compiler/src/analysis/types.rs": "49b9d4ff361136e768d5b39e3fb02063a1b2f1a2dd8e3a6f676e6ae3d9746080",
+    "compiler/tests/email_admission.rs": "b53e8af21051fc3d954b39ca65080fdb3bbcbab36e3c9ed82f30c53e7347ba7e",
+    "compiler/target/debug/can": "356f5e29685edf2e3f14363316294b2289c9d31decd887e096af4412458fd625",
+    "packages/values/src/wire.ts": "0313cb7b43eecd4b61470ff279a18627e0e7c2abd239fe200497144afb86e842",
+    "packages/values/src/internal/wire-core.ts": "9b0a8abc935d43f657246897128ae163ab895ac456c8f9efb8d18b322c4dc9ea",
+    "packages/values/dist/src/index.js": "51bbc15972a6836a4e1b4cebf6b2bd5b48e34405ff7f09062ad65b449dc1093c",
+    "packages/values/dist/src/wire.js": "59d741760c47bd450cfd7e9fad80b7a90efd9566601c0aee7881f419b08f3566",
+    "packages/values/dist/src/internal/wire-core.js": "85076d3fa28472f1a1a2aed9f7cc7f712d947015791e6e2e5634c7bcffc2a55f",
+    "packages/values/dist/catalog.json": "cd984f375e0d6cbcc2bc6aca5ad5ea5b1b3d3ba9cd17b15ab94e4b15e74ced62"
+  },
+  "leafSha256": "71bfc9e37f51dd5d9cd9564f62a5df5796813187a92373e23d43e5a5580b552f",
+  "leafMatchesFreeze": true,
+  "checks": {
+    "freezeFiles": 603,
+    "savedReceiptReused": {
+      "cases": 113,
+      "anchors": 84,
+      "metadataModulesImported": 29,
+      "uiImports": 0
+    },
+    "freshIndependent": {
+      "cases": 145,
+      "directions": 290,
+      "check": 145,
+      "compile": 145,
+      "accepted": 61
+    },
+    "raw": "check.stdout, check.stderr, results.json, fixtures/"
+  },
+  "findings": [],
+  "expectedSemantics": "Independent explicit denied scalar numeric set, one interior ASCII @, no normalization/dot/domain/TLD restrictions; verifies authored text equality. Fresh exhaustive a/@ strings lengths 0..5 and scalar endpoint-adjacent cases; U+0085/U+200B/astral/combining/case retained. JS lone surrogates excluded.",
+  "limitations": [
+    "finite scalar corpus, no universal proof",
+    "no application invocation/auth/DNS/delivery/target claims",
+    "historical baseline untouched; no rebuild/full suite used"
+  ],
+  "productionAssessment": "valid_email uses exact frozen rejected scalars and exact ASCII @ count with nonempty sides; no observed functional blocker. Public facade delegates directly to current wire-core email validator; decode/encode preserve admitted string and reject malformed shape. Test does execute actual public package and generated metadata, but may skip prerequisites explicitly.",
+  "resolvedFinding": {
+    "detail": "Corrected generated metadata/public values wording, removed unused UI/stdlib prerequisites, retained original freeze/raw witness and reran bounded email witness without skip. All corrected receipt pins match.",
+    "formerClaim": "real UI consumer import",
+    "establishedScope": "generated metadata-module imports and public values encode/decode only"
+  },
+  "correctedSourcePins": {
+    "compiler/src/analysis/types.rs": "49b9d4ff361136e768d5b39e3fb02063a1b2f1a2dd8e3a6f676e6ae3d9746080",
+    "compiler/tests/email_admission.rs": "421076c13daddb0e3d510cf50596cbd5ded07a3b079b9d391d90216be5590d34",
+    "compiler/target/debug/can": "43027cc4068ad8581ba14fa5a32427dc656fe53ef462a9b735de3a1c118f2707",
+    "packages/values/src/wire.ts": "0313cb7b43eecd4b61470ff279a18627e0e7c2abd239fe200497144afb86e842",
+    "packages/values/src/internal/wire-core.ts": "9b0a8abc935d43f657246897128ae163ab895ac456c8f9efb8d18b322c4dc9ea",
+    "packages/values/dist/src/index.js": "51bbc15972a6836a4e1b4cebf6b2bd5b48e34405ff7f09062ad65b449dc1093c",
+    "packages/values/dist/src/wire.js": "59d741760c47bd450cfd7e9fad80b7a90efd9566601c0aee7881f419b08f3566",
+    "packages/values/dist/src/internal/wire-core.js": "85076d3fa28472f1a1a2aed9f7cc7f712d947015791e6e2e5634c7bcffc2a55f",
+    "packages/values/dist/catalog.json": "cd984f375e0d6cbcc2bc6aca5ad5ea5b1b3d3ba9cd17b15ab94e4b15e74ced62"
+  },
+  "correctedFreezeSha256": "41d8c3a6e691c8455b5e2900b6268abc81b7662736cba41721105bffe9bd7a12",
+  "correctedFreezeFilesVerified": 604,
+  "originalFreezeSha256": "bc6410f6abb32ef7ce6b396c69a121939cbbe42d72badc74742b94689e21786c",
+  "reuseQualification": "145 fresh cases executed with original binary356f5e... and recorded original source pins; corrected receipt binary43027c... executed113-case bounded witness. Production types.rs and validator leaf hashes unchanged; public codec source/built hashes unchanged. No claim that145 fresh cases reran against new binary. Root attributes binary difference to Git build metadata; independent acceptance relies on identical source and separate corrected witness.",
+  "correctedWitness": {
+    "command": "cargo test --manifest-path compiler/Cargo.toml --locked --offline --test email_admission -- --nocapture",
+    "exit": 0,
+    "skip": false,
+    "cases": 113,
+    "directions": 226,
+    "generatedMetadataModules": 29
+  }
+}

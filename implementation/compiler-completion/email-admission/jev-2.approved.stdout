@@ -1,0 +1,1 @@
+{"saved": "implementation/compiler-completion/email-admission/jev-response-2.json", "model": "jev-1.13.0", "answers": {"email_policy": {"type": "choice", "choice": "current_public_floor", "confidence": 1.0, "probabilities": {"current_public_floor": 1.0, "domain_shape_floor": 0.0, "unicode_floor": 0.0}}}, "usage": {"input_tokens": 1473, "output_tokens": 46}}

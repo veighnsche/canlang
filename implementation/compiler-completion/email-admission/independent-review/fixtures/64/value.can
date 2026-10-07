@@ -1,0 +1,5 @@
+app R
+Given
+ M { email:email="a@b\u001f" }
+When
+Then

@@ -1,0 +1,8 @@
+{
+  "syntaxQualifiedChecks": 113,
+  "complete": true,
+  "emailOnlyRejections": true,
+  "literalDiagnosticAnchors": 79,
+  "emittedMetadataImports": 34,
+  "otherCompilerFindings": []
+}

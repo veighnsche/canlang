@@ -1,0 +1,5 @@
+app T
+Given
+ M { address:email="用户@例子.公司" }
+When
+Then

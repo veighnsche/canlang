@@ -1,0 +1,36 @@
+{
+  "request": {
+    "state": "SEM-R04 is an owner-policy gate, not an authorization to alter packages. Current DESIGN §3 says email is a validated string, string literals may inhabit expected email after validation, and email verification belongs to auth; it does not specify exact email syntax. AGENTS priorities are requirements, adoption, simplicity, concise source, focused changes and preserved complete workflows. The actual installed @canlang/values public root re-exports src/wire.ts; decodeValue/encodeValue directly delegate to src/internal/wire-core.ts. Both email directions call the same isEmailFloor: reject /[\\s\\x00-\\x1f\\x7f]/, then require exactly one U+0040 @ with nonempty local and domain. They preserve the input unchanged. @canlang/stdlib re-exports those functions. The Rust semantic backend's ScalarName registers numeric/temporal/money codecs, not email; it is not the public email owner. Prepared codec paths also delegate to the same TS core, not another email parser. Public test/conformance intentionally admits a@b. Compiler types.rs::valid_email instead rejects ASCII whitespace/C0/DEL then requires dotted ASCII alphanumeric/hyphen domain labels, no edge hyphens, <=63 bytes per label and alphabetic >=2-character TLD. This can reject runtime-admitted text and admit runtime-rejected Unicode whitespace. Fresh corpus of 113 independently classified scalar strings executed 226 public direction calls: 29 accepted unchanged, 84 rejected (decode SchemaError/format; encode ValueError/invalid-construction). Current parent-built CLI SHA 3db5e325da1be31b40a9ba108cafe51afff78b8870a99c15177889d1131d123a checks and compiles 34 values, yielding 14 false rejects and 19 false accepts against that exact owner floor. All 34 successful CLI emissions imported real emitted modules through installed UI, preserving default metadata; those default values were then passed to both public codec directions. No full application or auth/provider execution is inferred. Public floor admits single-label domains, -x.com, Unicode domains, empty domain labels, 64-character labels, local punctuation, and U+0085/U+200B; rejects NBSP, U+2028, U+FEFF. TC39's normative RegExp s uses ECMAScript WhiteSpace + LineTerminator: TAB/VT/FF/FEFF, Unicode Zs, LF/CR/2028/2029. Rust char::is_whitespace is Unicode White_Space, so using it blindly adds U+0085 and omits FEFF. Rust is_control also rejects C1, unlike actual codec. The exact union for the current public floor is U+0000..0020, U+007F, U+00A0, U+1680, U+2000..200A, U+2028, U+2029, U+202F, U+205F, U+3000, U+FEFF. Reasonable policy alternatives are below, evaluated by identical outcomes: compiler/public-direction agreement for the same scalar input; authored-text preservation; adoption including local/Unicode addresses; smallest justified implementation and migration; clear distinction between shape admission and ownership/verification. No DNS query, network deliverability test, normalization, or large compatibility parser is requested. Advice alone is not authority; a selected proposal must receive owner review and targeted acceptance. Package owners have separate active work and no package writer is released. Which shared obligation should be selected for the next smallest repair?",
+    "questions": {
+      "email_policy": {
+        "type": "choice",
+        "instructions": "Which shared email admission contract best meets the stated language outcomes and adoption/simplicity priorities? Weigh the three alternatives with equal criteria and identify remaining uncertainty.",
+        "criteria": {
+          "current_public_floor": "Define the existing public codec floor as the shared admission obligation: one interior ASCII @; nonempty parts; reject exactly the pinned ECMAScript whitespace plus C0/DEL scalar set above; retain all authored text. Align only compiler valid_email and tests. Preserves public runtime compatibility and permits local/Unicode and unconventional domain/local forms; scope is shape only and does not assert those forms are deliverable. Unicode set must be explicit, not Rust whitespace shorthand.",
+          "unicode_floor": "Define one interior ASCII @ and nonempty parts, but require Unicode White_Space plus all C0/C1 controls absent. Align compiler and both public directions in an owner-coordinated package change. This names Unicode properties consistently with text trim and excludes U+0085/C1; it changes public admission of those scalars and would admit FEFF unless separately excluded. Document/freeze that choice and qualify existing callers before release.",
+          "domain_shape_floor": "Define the existing compiler dotted ASCII DNS-like domain-label/TLD conditions as the shared shape obligation, adding the same explicit rejection set as the current public codec. Align both public directions in an owner-coordinated package change. This gives stronger common-domain shape filtering and simple domain-label checks; it deliberately rejects current single-label and Unicode domain values and does not validate local syntax, DNS existence or deliverability. Document/freeze compatibility changes and qualify existing callers before release."
+        }
+      }
+    },
+    "model": "jev-latest"
+  },
+  "response": {
+    "model": "jev-1.13.0",
+    "answers": {
+      "email_policy": {
+        "type": "choice",
+        "choice": "current_public_floor",
+        "confidence": 1.0,
+        "probabilities": {
+          "unicode_floor": 0.0,
+          "current_public_floor": 1.0,
+          "domain_shape_floor": 0.0
+        }
+      }
+    },
+    "usage": {
+      "input_tokens": 1468,
+      "output_tokens": 46
+    }
+  }
+}

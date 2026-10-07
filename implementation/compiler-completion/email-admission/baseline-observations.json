@@ -1,0 +1,6465 @@
+[
+  {
+    "id": "ordinary",
+    "value": "a@b.com",
+    "expected": true,
+    "decode": {
+      "accepted": true,
+      "value": "a@b.com"
+    },
+    "encode": {
+      "accepted": true,
+      "value": "a@b.com"
+    },
+    "sourceHash": "a36d128c9f10e0541db97bba7eb4238062935b1e2d4c36ca77fc64d30db0a427",
+    "check": {
+      "command": [
+        "/private/tmp/can-email-admission-baseline-can",
+        "check",
+        "--format=json",
+        "--catalog",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/email-admission/fixtures/ordinary/value.can"
+      ],
+      "exit": 0,
+      "accepted": true
+    },
+    "compile": {
+      "command": [
+        "/private/tmp/can-email-admission-baseline-can",
+        "compile",
+        "--format=json",
+        "--catalog",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/email-admission/fixtures/ordinary/value.can"
+      ],
+      "exit": 0,
+      "accepted": true
+    },
+    "generated": {
+      "imported": true,
+      "value": "a@b.com",
+      "decode": {
+        "accepted": true,
+        "value": "a@b.com"
+      },
+      "encode": {
+        "accepted": true,
+        "value": "a@b.com"
+      }
+    },
+    "mismatch": false
+  },
+  {
+    "id": "single-label",
+    "value": "a@b",
+    "expected": true,
+    "decode": {
+      "accepted": true,
+      "value": "a@b"
+    },
+    "encode": {
+      "accepted": true,
+      "value": "a@b"
+    },
+    "sourceHash": "664b38909a16622370ebebe7a6633f1be7e2ee6e4e142862d548642686f0f797",
+    "check": {
+      "command": [
+        "/private/tmp/can-email-admission-baseline-can",
+        "check",
+        "--format=json",
+        "--catalog",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/email-admission/fixtures/single-label/value.can"
+      ],
+      "exit": 10,
+      "accepted": false
+    },
+    "compile": {
+      "command": [
+        "/private/tmp/can-email-admission-baseline-can",
+        "compile",
+        "--format=json",
+        "--catalog",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/email-admission/fixtures/single-label/value.can"
+      ],
+      "exit": 10,
+      "accepted": false
+    },
+    "mismatch": true
+  },
+  {
+    "id": "localhost",
+    "value": "a@localhost",
+    "expected": true,
+    "decode": {
+      "accepted": true,
+      "value": "a@localhost"
+    },
+    "encode": {
+      "accepted": true,
+      "value": "a@localhost"
+    },
+    "sourceHash": "c79c1c75ceded6f2fd4e42034af64ac30bcba3a0894371ab57abc1a72a8cd3b1",
+    "check": {
+      "command": [
+        "/private/tmp/can-email-admission-baseline-can",
+        "check",
+        "--format=json",
+        "--catalog",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/email-admission/fixtures/localhost/value.can"
+      ],
+      "exit": 10,
+      "accepted": false
+    },
+    "compile": {
+      "command": [
+        "/private/tmp/can-email-admission-baseline-can",
+        "compile",
+        "--format=json",
+        "--catalog",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/email-admission/fixtures/localhost/value.can"
+      ],
+      "exit": 10,
+      "accepted": false
+    },
+    "mismatch": true
+  },
+  {
+    "id": "hyphen-leading",
+    "value": "a@-x.com",
+    "expected": true,
+    "decode": {
+      "accepted": true,
+      "value": "a@-x.com"
+    },
+    "encode": {
+      "accepted": true,
+      "value": "a@-x.com"
+    },
+    "sourceHash": "039b14d546aee25f54d01f48ba2e9e6fd987e03827f3fed1ec10818620148924",
+    "check": {
+      "command": [
+        "/private/tmp/can-email-admission-baseline-can",
+        "check",
+        "--format=json",
+        "--catalog",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/email-admission/fixtures/hyphen-leading/value.can"
+      ],
+      "exit": 10,
+      "accepted": false
+    },
+    "compile": {
+      "command": [
+        "/private/tmp/can-email-admission-baseline-can",
+        "compile",
+        "--format=json",
+        "--catalog",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/email-admission/fixtures/hyphen-leading/value.can"
+      ],
+      "exit": 10,
+      "accepted": false
+    },
+    "mismatch": true
+  },
+  {
+    "id": "hyphen-trailing",
+    "value": "a@x-.com",
+    "expected": true,
+    "decode": {
+      "accepted": true,
+      "value": "a@x-.com"
+    },
+    "encode": {
+      "accepted": true,
+      "value": "a@x-.com"
+    },
+    "sourceHash": "bc317f7d25839f4037e98a328f62eed42e3bfe0216de6082a955665f9569c8f0",
+    "check": {
+      "command": [
+        "/private/tmp/can-email-admission-baseline-can",
+        "check",
+        "--format=json",
+        "--catalog",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/email-admission/fixtures/hyphen-trailing/value.can"
+      ],
+      "exit": 10,
+      "accepted": false
+    },
+    "compile": {
+      "command": [
+        "/private/tmp/can-email-admission-baseline-can",
+        "compile",
+        "--format=json",
+        "--catalog",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/email-admission/fixtures/hyphen-trailing/value.can"
+      ],
+      "exit": 10,
+      "accepted": false
+    },
+    "mismatch": true
+  },
+  {
+    "id": "unicode-domain",
+    "value": "a@例子.公司",
+    "expected": true,
+    "decode": {
+      "accepted": true,
+      "value": "a@例子.公司"
+    },
+    "encode": {
+      "accepted": true,
+      "value": "a@例子.公司"
+    },
+    "sourceHash": "c492e26e99c93ac9bd8fad2361d3e92c397da6e60d5a2ce9aa0347bb46536dab",
+    "check": {
+      "command": [
+        "/private/tmp/can-email-admission-baseline-can",
+        "check",
+        "--format=json",
+        "--catalog",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/email-admission/fixtures/unicode-domain/value.can"
+      ],
+      "exit": 10,
+      "accepted": false
+    },
+    "compile": {
+      "command": [
+        "/private/tmp/can-email-admission-baseline-can",
+        "compile",
+        "--format=json",
+        "--catalog",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/email-admission/fixtures/unicode-domain/value.can"
+      ],
+      "exit": 10,
+      "accepted": false
+    },
+    "mismatch": true
+  },
+  {
+    "id": "unicode-local",
+    "value": "用户@例子.公司",
+    "expected": true,
+    "decode": {
+      "accepted": true,
+      "value": "用户@例子.公司"
+    },
+    "encode": {
+      "accepted": true,
+      "value": "用户@例子.公司"
+    },
+    "sourceHash": "8a5756be8f9d6076d0b9a0fa1bed9d4938b8d4220f6ce4fdb63c4fa19dac9e8d",
+    "check": {
+      "command": [
+        "/private/tmp/can-email-admission-baseline-can",
+        "check",
+        "--format=json",
+        "--catalog",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/email-admission/fixtures/unicode-local/value.can"
+      ],
+      "exit": 10,
+      "accepted": false
+    },
+    "compile": {
+      "command": [
+        "/private/tmp/can-email-admission-baseline-can",
+        "compile",
+        "--format=json",
+        "--catalog",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/email-admission/fixtures/unicode-local/value.can"
+      ],
+      "exit": 10,
+      "accepted": false
+    },
+    "mismatch": true
+  },
+  {
+    "id": "one-letter-tld",
+    "value": "a@b.c",
+    "expected": true,
+    "decode": {
+      "accepted": true,
+      "value": "a@b.c"
+    },
+    "encode": {
+      "accepted": true,
+      "value": "a@b.c"
+    },
+    "sourceHash": "779ab0e6fa6466dd19806d35029c6ce0d488f8663fd0da497e6b332e403818d0",
+    "check": {
+      "command": [
+        "/private/tmp/can-email-admission-baseline-can",
+        "check",
+        "--format=json",
+        "--catalog",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/email-admission/fixtures/one-letter-tld/value.can"
+      ],
+      "exit": 10,
+      "accepted": false
+    },
+    "compile": {
+      "command": [
+        "/private/tmp/can-email-admission-baseline-can",
+        "compile",
+        "--format=json",
+        "--catalog",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/email-admission/fixtures/one-letter-tld/value.can"
+      ],
+      "exit": 10,
+      "accepted": false
+    },
+    "mismatch": true
+  },
+  {
+    "id": "numeric-tld",
+    "value": "a@b.123",
+    "expected": true,
+    "decode": {
+      "accepted": true,
+      "value": "a@b.123"
+    },
+    "encode": {
+      "accepted": true,
+      "value": "a@b.123"
+    },
+    "sourceHash": "5d5cd1c768509d8a303bca7e4a6ed764e364e17aab024df66aa01be0a5262638",
+    "check": {
+      "command": [
+        "/private/tmp/can-email-admission-baseline-can",
+        "check",
+        "--format=json",
+        "--catalog",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/email-admission/fixtures/numeric-tld/value.can"
+      ],
+      "exit": 10,
+      "accepted": false
+    },
+    "compile": {
+      "command": [
+        "/private/tmp/can-email-admission-baseline-can",
+        "compile",
+        "--format=json",
+        "--catalog",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/email-admission/fixtures/numeric-tld/value.can"
+      ],
+      "exit": 10,
+      "accepted": false
+    },
+    "mismatch": true
+  },
+  {
+    "id": "domain-underscore",
+    "value": "a@b_c",
+    "expected": true,
+    "decode": {
+      "accepted": true,
+      "value": "a@b_c"
+    },
+    "encode": {
+      "accepted": true,
+      "value": "a@b_c"
+    },
+    "sourceHash": "2342b63c36280b323536c2ea7b0e94cf8d9a8d245e9cd662a54c0e3248c4dc29",
+    "check": {
+      "command": [
+        "/private/tmp/can-email-admission-baseline-can",
+        "check",
+        "--format=json",
+        "--catalog",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/email-admission/fixtures/domain-underscore/value.can"
+      ],
+      "exit": 10,
+      "accepted": false
+    },
+    "compile": {
+      "command": [
+        "/private/tmp/can-email-admission-baseline-can",
+        "compile",
+        "--format=json",
+        "--catalog",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/email-admission/fixtures/domain-underscore/value.can"
+      ],
+      "exit": 10,
+      "accepted": false
+    },
+    "mismatch": true
+  },
+  {
+    "id": "domain-empty-label",
+    "value": "a@b..com",
+    "expected": true,
+    "decode": {
+      "accepted": true,
+      "value": "a@b..com"
+    },
+    "encode": {
+      "accepted": true,
+      "value": "a@b..com"
+    },
+    "sourceHash": "47447ba83378ad2fac8d8a6a8ed4b426372e7453d7b920821780fb5354ba90a1",
+    "check": {
+      "command": [
+        "/private/tmp/can-email-admission-baseline-can",
+        "check",
+        "--format=json",
+        "--catalog",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/email-admission/fixtures/domain-empty-label/value.can"
+      ],
+      "exit": 10,
+      "accepted": false
+    },
+    "compile": {
+      "command": [
+        "/private/tmp/can-email-admission-baseline-can",
+        "compile",
+        "--format=json",
+        "--catalog",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/email-admission/fixtures/domain-empty-label/value.can"
+      ],
+      "exit": 10,
+      "accepted": false
+    },
+    "mismatch": true
+  },
+  {
+    "id": "domain-leading-dot",
+    "value": "a@.b",
+    "expected": true,
+    "decode": {
+      "accepted": true,
+      "value": "a@.b"
+    },
+    "encode": {
+      "accepted": true,
+      "value": "a@.b"
+    },
+    "sourceHash": "bd9a1ef1102707b33c33ca446dcdced031eb8a20c71010717cf1b5927a9c6189",
+    "check": {
+      "command": [
+        "/private/tmp/can-email-admission-baseline-can",
+        "check",
+        "--format=json",
+        "--catalog",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/email-admission/fixtures/domain-leading-dot/value.can"
+      ],
+      "exit": 10,
+      "accepted": false
+    },
+    "compile": {
+      "command": [
+        "/private/tmp/can-email-admission-baseline-can",
+        "compile",
+        "--format=json",
+        "--catalog",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/email-admission/fixtures/domain-leading-dot/value.can"
+      ],
+      "exit": 10,
+      "accepted": false
+    },
+    "mismatch": true
+  },
+  {
+    "id": "domain-trailing-dot",
+    "value": "a@b.",
+    "expected": true,
+    "decode": {
+      "accepted": true,
+      "value": "a@b."
+    },
+    "encode": {
+      "accepted": true,
+      "value": "a@b."
+    },
+    "sourceHash": "c86afb1f5476fc828d76ae89f0accbacc7f3c98ced65c2008bf48456e88b09bc",
+    "check": {
+      "command": [
+        "/private/tmp/can-email-admission-baseline-can",
+        "check",
+        "--format=json",
+        "--catalog",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/email-admission/fixtures/domain-trailing-dot/value.can"
+      ],
+      "exit": 10,
+      "accepted": false
+    },
+    "compile": {
+      "command": [
+        "/private/tmp/can-email-admission-baseline-can",
+        "compile",
+        "--format=json",
+        "--catalog",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/email-admission/fixtures/domain-trailing-dot/value.can"
+      ],
+      "exit": 10,
+      "accepted": false
+    },
+    "mismatch": true
+  },
+  {
+    "id": "domain-long-label",
+    "value": "a@xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx.com",
+    "expected": true,
+    "decode": {
+      "accepted": true,
+      "value": "a@xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx.com"
+    },
+    "encode": {
+      "accepted": true,
+      "value": "a@xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx.com"
+    },
+    "sourceHash": "995b0db23958a201b7fed508e813b0fe18db38adf1936a799e1ca4024a645d8c",
+    "check": {
+      "command": [
+        "/private/tmp/can-email-admission-baseline-can",
+        "check",
+        "--format=json",
+        "--catalog",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/email-admission/fixtures/domain-long-label/value.can"
+      ],
+      "exit": 10,
+      "accepted": false
+    },
+    "compile": {
+      "command": [
+        "/private/tmp/can-email-admission-baseline-can",
+        "compile",
+        "--format=json",
+        "--catalog",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/email-admission/fixtures/domain-long-label/value.can"
+      ],
+      "exit": 10,
+      "accepted": false
+    },
+    "mismatch": true
+  },
+  {
+    "id": "local-leading-dot",
+    "value": ".a@b.com",
+    "expected": true,
+    "decode": {
+      "accepted": true,
+      "value": ".a@b.com"
+    },
+    "encode": {
+      "accepted": true,
+      "value": ".a@b.com"
+    },
+    "sourceHash": "c75960d9f84897ed34261a426a25b73bb9fd92dc63db0b8730dbe33e60f39ca8",
+    "check": {
+      "command": [
+        "/private/tmp/can-email-admission-baseline-can",
+        "check",
+        "--format=json",
+        "--catalog",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/email-admission/fixtures/local-leading-dot/value.can"
+      ],
+      "exit": 0,
+      "accepted": true
+    },
+    "compile": {
+      "command": [
+        "/private/tmp/can-email-admission-baseline-can",
+        "compile",
+        "--format=json",
+        "--catalog",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/email-admission/fixtures/local-leading-dot/value.can"
+      ],
+      "exit": 0,
+      "accepted": true
+    },
+    "generated": {
+      "imported": true,
+      "value": ".a@b.com",
+      "decode": {
+        "accepted": true,
+        "value": ".a@b.com"
+      },
+      "encode": {
+        "accepted": true,
+        "value": ".a@b.com"
+      }
+    },
+    "mismatch": false
+  },
+  {
+    "id": "local-trailing-dot",
+    "value": "a.@b.com",
+    "expected": true,
+    "decode": {
+      "accepted": true,
+      "value": "a.@b.com"
+    },
+    "encode": {
+      "accepted": true,
+      "value": "a.@b.com"
+    },
+    "sourceHash": "fdec98ea82ee09347bb619537abff3f1e2e2cd3ab418659db93f5295a1702b7f",
+    "check": {
+      "command": [
+        "/private/tmp/can-email-admission-baseline-can",
+        "check",
+        "--format=json",
+        "--catalog",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/email-admission/fixtures/local-trailing-dot/value.can"
+      ],
+      "exit": 0,
+      "accepted": true
+    },
+    "compile": {
+      "command": [
+        "/private/tmp/can-email-admission-baseline-can",
+        "compile",
+        "--format=json",
+        "--catalog",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/email-admission/fixtures/local-trailing-dot/value.can"
+      ],
+      "exit": 0,
+      "accepted": true
+    },
+    "generated": {
+      "imported": true,
+      "value": "a.@b.com",
+      "decode": {
+        "accepted": true,
+        "value": "a.@b.com"
+      },
+      "encode": {
+        "accepted": true,
+        "value": "a.@b.com"
+      }
+    },
+    "mismatch": false
+  },
+  {
+    "id": "local-double-dot",
+    "value": "a..b@c.com",
+    "expected": true,
+    "decode": {
+      "accepted": true,
+      "value": "a..b@c.com"
+    },
+    "encode": {
+      "accepted": true,
+      "value": "a..b@c.com"
+    },
+    "sourceHash": "c8568e3ee1fb03c586b59128b138ffc2f3429b65dbc5edc8f14b4cdb108c38df",
+    "check": {
+      "command": [
+        "/private/tmp/can-email-admission-baseline-can",
+        "check",
+        "--format=json",
+        "--catalog",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/email-admission/fixtures/local-double-dot/value.can"
+      ],
+      "exit": 0,
+      "accepted": true
+    },
+    "compile": {
+      "command": [
+        "/private/tmp/can-email-admission-baseline-can",
+        "compile",
+        "--format=json",
+        "--catalog",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/email-admission/fixtures/local-double-dot/value.can"
+      ],
+      "exit": 0,
+      "accepted": true
+    },
+    "generated": {
+      "imported": true,
+      "value": "a..b@c.com",
+      "decode": {
+        "accepted": true,
+        "value": "a..b@c.com"
+      },
+      "encode": {
+        "accepted": true,
+        "value": "a..b@c.com"
+      }
+    },
+    "mismatch": false
+  },
+  {
+    "id": "local-plus",
+    "value": "user+tag@example.test",
+    "expected": true,
+    "decode": {
+      "accepted": true,
+      "value": "user+tag@example.test"
+    },
+    "encode": {
+      "accepted": true,
+      "value": "user+tag@example.test"
+    },
+    "sourceHash": "a5431d1394c2d2c5b171a6923c2f2b0386d2a78c2d99a6800964dd721c58802a",
+    "check": {
+      "command": [
+        "/private/tmp/can-email-admission-baseline-can",
+        "check",
+        "--format=json",
+        "--catalog",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/email-admission/fixtures/local-plus/value.can"
+      ],
+      "exit": 0,
+      "accepted": true
+    },
+    "compile": {
+      "command": [
+        "/private/tmp/can-email-admission-baseline-can",
+        "compile",
+        "--format=json",
+        "--catalog",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/email-admission/fixtures/local-plus/value.can"
+      ],
+      "exit": 0,
+      "accepted": true
+    },
+    "generated": {
+      "imported": true,
+      "value": "user+tag@example.test",
+      "decode": {
+        "accepted": true,
+        "value": "user+tag@example.test"
+      },
+      "encode": {
+        "accepted": true,
+        "value": "user+tag@example.test"
+      }
+    },
+    "mismatch": false
+  },
+  {
+    "id": "local-punctuation",
+    "value": "!#$%&'*+-/=?^_`{|}~@b.com",
+    "expected": true,
+    "decode": {
+      "accepted": true,
+      "value": "!#$%&'*+-/=?^_`{|}~@b.com"
+    },
+    "encode": {
+      "accepted": true,
+      "value": "!#$%&'*+-/=?^_`{|}~@b.com"
+    },
+    "sourceHash": "77287b9213777d6692250465981f4326ada0800ae1539b11927f42434f5efadd",
+    "check": {
+      "command": [
+        "/private/tmp/can-email-admission-baseline-can",
+        "check",
+        "--format=json",
+        "--catalog",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/email-admission/fixtures/local-punctuation/value.can"
+      ],
+      "exit": 0,
+      "accepted": true
+    },
+    "compile": {
+      "command": [
+        "/private/tmp/can-email-admission-baseline-can",
+        "compile",
+        "--format=json",
+        "--catalog",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/email-admission/fixtures/local-punctuation/value.can"
+      ],
+      "exit": 0,
+      "accepted": true
+    },
+    "generated": {
+      "imported": true,
+      "value": "!#$%&'*+-/=?^_`{|}~@b.com",
+      "decode": {
+        "accepted": true,
+        "value": "!#$%&'*+-/=?^_`{|}~@b.com"
+      },
+      "encode": {
+        "accepted": true,
+        "value": "!#$%&'*+-/=?^_`{|}~@b.com"
+      }
+    },
+    "mismatch": false
+  },
+  {
+    "id": "local-quoted",
+    "value": "\"a\"@b.com",
+    "expected": true,
+    "decode": {
+      "accepted": true,
+      "value": "\"a\"@b.com"
+    },
+    "encode": {
+      "accepted": true,
+      "value": "\"a\"@b.com"
+    },
+    "sourceHash": "5eb71616b0e8a11974d9eb1e09c7be8adb07b4168880bd71db25bee1ef7da268",
+    "check": {
+      "command": [
+        "/private/tmp/can-email-admission-baseline-can",
+        "check",
+        "--format=json",
+        "--catalog",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/email-admission/fixtures/local-quoted/value.can"
+      ],
+      "exit": 0,
+      "accepted": true
+    },
+    "compile": {
+      "command": [
+        "/private/tmp/can-email-admission-baseline-can",
+        "compile",
+        "--format=json",
+        "--catalog",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/email-admission/fixtures/local-quoted/value.can"
+      ],
+      "exit": 0,
+      "accepted": true
+    },
+    "generated": {
+      "imported": true,
+      "value": "\"a\"@b.com",
+      "decode": {
+        "accepted": true,
+        "value": "\"a\"@b.com"
+      },
+      "encode": {
+        "accepted": true,
+        "value": "\"a\"@b.com"
+      }
+    },
+    "mismatch": false
+  },
+  {
+    "id": "local-backslash",
+    "value": "a\\b@c.com",
+    "expected": true,
+    "decode": {
+      "accepted": true,
+      "value": "a\\b@c.com"
+    },
+    "encode": {
+      "accepted": true,
+      "value": "a\\b@c.com"
+    },
+    "sourceHash": "074ce8f99dc4c43b4f328f7ba7198ff3b2a87eb84486b24b7b4f22489f28e78d",
+    "check": {
+      "command": [
+        "/private/tmp/can-email-admission-baseline-can",
+        "check",
+        "--format=json",
+        "--catalog",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/email-admission/fixtures/local-backslash/value.can"
+      ],
+      "exit": 0,
+      "accepted": true
+    },
+    "compile": {
+      "command": [
+        "/private/tmp/can-email-admission-baseline-can",
+        "compile",
+        "--format=json",
+        "--catalog",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/email-admission/fixtures/local-backslash/value.can"
+      ],
+      "exit": 0,
+      "accepted": true
+    },
+    "generated": {
+      "imported": true,
+      "value": "a\\b@c.com",
+      "decode": {
+        "accepted": true,
+        "value": "a\\b@c.com"
+      },
+      "encode": {
+        "accepted": true,
+        "value": "a\\b@c.com"
+      }
+    },
+    "mismatch": false
+  },
+  {
+    "id": "emoji",
+    "value": "🙂@📧",
+    "expected": true,
+    "decode": {
+      "accepted": true,
+      "value": "🙂@📧"
+    },
+    "encode": {
+      "accepted": true,
+      "value": "🙂@📧"
+    },
+    "sourceHash": "65e1d58908ece2f587b425b7e7f77d06b2a581a5956906d59f3dbe3b5c733227",
+    "check": {
+      "command": [
+        "/private/tmp/can-email-admission-baseline-can",
+        "check",
+        "--format=json",
+        "--catalog",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/email-admission/fixtures/emoji/value.can"
+      ],
+      "exit": 10,
+      "accepted": false
+    },
+    "compile": {
+      "command": [
+        "/private/tmp/can-email-admission-baseline-can",
+        "compile",
+        "--format=json",
+        "--catalog",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/email-admission/fixtures/emoji/value.can"
+      ],
+      "exit": 10,
+      "accepted": false
+    },
+    "mismatch": true
+  },
+  {
+    "id": "empty",
+    "value": "",
+    "expected": false,
+    "decode": {
+      "accepted": false,
+      "error": {
+        "name": "SchemaError",
+        "message": "schema validation failed with 1 violation(s)",
+        "violations": [
+          {
+            "path": [],
+            "code": "format",
+            "message": "email is malformed",
+            "expected": "an email address (local@domain)",
+            "actual": "\"\""
+          }
+        ]
+      }
+    },
+    "encode": {
+      "accepted": false,
+      "error": {
+        "name": "ValueError",
+        "code": "invalid-construction",
+        "message": "invalid email address \"\" at $"
+      }
+    },
+    "sourceHash": "f5acedc3008759416e842ba1da2064a27c08b59b1e2a1c6943721c0310100c86",
+    "check": {
+      "command": [
+        "/private/tmp/can-email-admission-baseline-can",
+        "check",
+        "--format=json",
+        "--catalog",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/email-admission/fixtures/empty/value.can"
+      ],
+      "exit": 10,
+      "accepted": false
+    },
+    "compile": {
+      "command": [
+        "/private/tmp/can-email-admission-baseline-can",
+        "compile",
+        "--format=json",
+        "--catalog",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/email-admission/fixtures/empty/value.can"
+      ],
+      "exit": 10,
+      "accepted": false
+    },
+    "mismatch": false
+  },
+  {
+    "id": "no-at",
+    "value": "a.b",
+    "expected": false,
+    "decode": {
+      "accepted": false,
+      "error": {
+        "name": "SchemaError",
+        "message": "schema validation failed with 1 violation(s)",
+        "violations": [
+          {
+            "path": [],
+            "code": "format",
+            "message": "email is malformed",
+            "expected": "an email address (local@domain)",
+            "actual": "\"a.b\""
+          }
+        ]
+      }
+    },
+    "encode": {
+      "accepted": false,
+      "error": {
+        "name": "ValueError",
+        "code": "invalid-construction",
+        "message": "invalid email address \"a.b\" at $"
+      }
+    },
+    "sourceHash": "c719418855773815357303fc35c601f7126507aa648870edff63dfc8a54dc78a",
+    "check": {
+      "command": [
+        "/private/tmp/can-email-admission-baseline-can",
+        "check",
+        "--format=json",
+        "--catalog",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/email-admission/fixtures/no-at/value.can"
+      ],
+      "exit": 10,
+      "accepted": false
+    },
+    "compile": {
+      "command": [
+        "/private/tmp/can-email-admission-baseline-can",
+        "compile",
+        "--format=json",
+        "--catalog",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/email-admission/fixtures/no-at/value.can"
+      ],
+      "exit": 10,
+      "accepted": false
+    },
+    "mismatch": false
+  },
+  {
+    "id": "only-at",
+    "value": "@",
+    "expected": false,
+    "decode": {
+      "accepted": false,
+      "error": {
+        "name": "SchemaError",
+        "message": "schema validation failed with 1 violation(s)",
+        "violations": [
+          {
+            "path": [],
+            "code": "format",
+            "message": "email is malformed",
+            "expected": "an email address (local@domain)",
+            "actual": "\"@\""
+          }
+        ]
+      }
+    },
+    "encode": {
+      "accepted": false,
+      "error": {
+        "name": "ValueError",
+        "code": "invalid-construction",
+        "message": "invalid email address \"@\" at $"
+      }
+    },
+    "sourceHash": "8a18b738927f8616a396e1057050c5ee33b67034c767d83e37027fdfc092431b",
+    "check": {
+      "command": [
+        "/private/tmp/can-email-admission-baseline-can",
+        "check",
+        "--format=json",
+        "--catalog",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/email-admission/fixtures/only-at/value.can"
+      ],
+      "exit": 10,
+      "accepted": false
+    },
+    "compile": {
+      "command": [
+        "/private/tmp/can-email-admission-baseline-can",
+        "compile",
+        "--format=json",
+        "--catalog",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/email-admission/fixtures/only-at/value.can"
+      ],
+      "exit": 10,
+      "accepted": false
+    },
+    "mismatch": false
+  },
+  {
+    "id": "empty-local",
+    "value": "@b",
+    "expected": false,
+    "decode": {
+      "accepted": false,
+      "error": {
+        "name": "SchemaError",
+        "message": "schema validation failed with 1 violation(s)",
+        "violations": [
+          {
+            "path": [],
+            "code": "format",
+            "message": "email is malformed",
+            "expected": "an email address (local@domain)",
+            "actual": "\"@b\""
+          }
+        ]
+      }
+    },
+    "encode": {
+      "accepted": false,
+      "error": {
+        "name": "ValueError",
+        "code": "invalid-construction",
+        "message": "invalid email address \"@b\" at $"
+      }
+    },
+    "sourceHash": "206cb5b3de63d036f3af14594e2baef6adc96a67b96ca2dcb3351d06201d0ef1",
+    "check": {
+      "command": [
+        "/private/tmp/can-email-admission-baseline-can",
+        "check",
+        "--format=json",
+        "--catalog",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/email-admission/fixtures/empty-local/value.can"
+      ],
+      "exit": 10,
+      "accepted": false
+    },
+    "compile": {
+      "command": [
+        "/private/tmp/can-email-admission-baseline-can",
+        "compile",
+        "--format=json",
+        "--catalog",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/email-admission/fixtures/empty-local/value.can"
+      ],
+      "exit": 10,
+      "accepted": false
+    },
+    "mismatch": false
+  },
+  {
+    "id": "empty-domain",
+    "value": "a@",
+    "expected": false,
+    "decode": {
+      "accepted": false,
+      "error": {
+        "name": "SchemaError",
+        "message": "schema validation failed with 1 violation(s)",
+        "violations": [
+          {
+            "path": [],
+            "code": "format",
+            "message": "email is malformed",
+            "expected": "an email address (local@domain)",
+            "actual": "\"a@\""
+          }
+        ]
+      }
+    },
+    "encode": {
+      "accepted": false,
+      "error": {
+        "name": "ValueError",
+        "code": "invalid-construction",
+        "message": "invalid email address \"a@\" at $"
+      }
+    },
+    "sourceHash": "d1d89369d1813b0107dd2bcba462f1c0e17ecab68c8c2adeb98853c4fbb2f220",
+    "check": {
+      "command": [
+        "/private/tmp/can-email-admission-baseline-can",
+        "check",
+        "--format=json",
+        "--catalog",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/email-admission/fixtures/empty-domain/value.can"
+      ],
+      "exit": 10,
+      "accepted": false
+    },
+    "compile": {
+      "command": [
+        "/private/tmp/can-email-admission-baseline-can",
+        "compile",
+        "--format=json",
+        "--catalog",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/email-admission/fixtures/empty-domain/value.can"
+      ],
+      "exit": 10,
+      "accepted": false
+    },
+    "mismatch": false
+  },
+  {
+    "id": "two-at",
+    "value": "a@b@c",
+    "expected": false,
+    "decode": {
+      "accepted": false,
+      "error": {
+        "name": "SchemaError",
+        "message": "schema validation failed with 1 violation(s)",
+        "violations": [
+          {
+            "path": [],
+            "code": "format",
+            "message": "email is malformed",
+            "expected": "an email address (local@domain)",
+            "actual": "\"a@b@c\""
+          }
+        ]
+      }
+    },
+    "encode": {
+      "accepted": false,
+      "error": {
+        "name": "ValueError",
+        "code": "invalid-construction",
+        "message": "invalid email address \"a@b@c\" at $"
+      }
+    },
+    "sourceHash": "e68eb8bb0897162b28ebb3fe371902ce40e417d25023cf2cf0bd3fc21988dfdf",
+    "check": {
+      "command": [
+        "/private/tmp/can-email-admission-baseline-can",
+        "check",
+        "--format=json",
+        "--catalog",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/email-admission/fixtures/two-at/value.can"
+      ],
+      "exit": 10,
+      "accepted": false
+    },
+    "compile": {
+      "command": [
+        "/private/tmp/can-email-admission-baseline-can",
+        "compile",
+        "--format=json",
+        "--catalog",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/email-admission/fixtures/two-at/value.can"
+      ],
+      "exit": 10,
+      "accepted": false
+    },
+    "mismatch": false
+  },
+  {
+    "id": "adjacent-at",
+    "value": "a@@b",
+    "expected": false,
+    "decode": {
+      "accepted": false,
+      "error": {
+        "name": "SchemaError",
+        "message": "schema validation failed with 1 violation(s)",
+        "violations": [
+          {
+            "path": [],
+            "code": "format",
+            "message": "email is malformed",
+            "expected": "an email address (local@domain)",
+            "actual": "\"a@@b\""
+          }
+        ]
+      }
+    },
+    "encode": {
+      "accepted": false,
+      "error": {
+        "name": "ValueError",
+        "code": "invalid-construction",
+        "message": "invalid email address \"a@@b\" at $"
+      }
+    },
+    "sourceHash": "0aa84888c3ec3c5ba124377c2142922844d2fb2f6cdff1216ecffa1ccd85533f",
+    "check": {
+      "command": [
+        "/private/tmp/can-email-admission-baseline-can",
+        "check",
+        "--format=json",
+        "--catalog",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/email-admission/fixtures/adjacent-at/value.can"
+      ],
+      "exit": 10,
+      "accepted": false
+    },
+    "compile": {
+      "command": [
+        "/private/tmp/can-email-admission-baseline-can",
+        "compile",
+        "--format=json",
+        "--catalog",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/email-admission/fixtures/adjacent-at/value.can"
+      ],
+      "exit": 10,
+      "accepted": false
+    },
+    "mismatch": false
+  },
+  {
+    "id": "quoted-at",
+    "value": "\"a@b\"@c",
+    "expected": false,
+    "decode": {
+      "accepted": false,
+      "error": {
+        "name": "SchemaError",
+        "message": "schema validation failed with 1 violation(s)",
+        "violations": [
+          {
+            "path": [],
+            "code": "format",
+            "message": "email is malformed",
+            "expected": "an email address (local@domain)",
+            "actual": "\"\\\"a@b\\\"@c\""
+          }
+        ]
+      }
+    },
+    "encode": {
+      "accepted": false,
+      "error": {
+        "name": "ValueError",
+        "code": "invalid-construction",
+        "message": "invalid email address \"\\\"a@b\\\"@c\" at $"
+      }
+    },
+    "sourceHash": "81d702f0b0a085c8c46cf4406af12a0ed801535691a24d735861614a943e5234",
+    "check": {
+      "command": [
+        "/private/tmp/can-email-admission-baseline-can",
+        "check",
+        "--format=json",
+        "--catalog",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/email-admission/fixtures/quoted-at/value.can"
+      ],
+      "exit": 10,
+      "accepted": false
+    },
+    "compile": {
+      "command": [
+        "/private/tmp/can-email-admission-baseline-can",
+        "compile",
+        "--format=json",
+        "--catalog",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/email-admission/fixtures/quoted-at/value.can"
+      ],
+      "exit": 10,
+      "accepted": false
+    },
+    "mismatch": false
+  },
+  {
+    "id": "fullwidth-at",
+    "value": "a＠b",
+    "expected": false,
+    "decode": {
+      "accepted": false,
+      "error": {
+        "name": "SchemaError",
+        "message": "schema validation failed with 1 violation(s)",
+        "violations": [
+          {
+            "path": [],
+            "code": "format",
+            "message": "email is malformed",
+            "expected": "an email address (local@domain)",
+            "actual": "\"a＠b\""
+          }
+        ]
+      }
+    },
+    "encode": {
+      "accepted": false,
+      "error": {
+        "name": "ValueError",
+        "code": "invalid-construction",
+        "message": "invalid email address \"a＠b\" at $"
+      }
+    },
+    "sourceHash": "66041d06e811d4644f30740f8b1bb5110869fbc803b770a1519af5480576b450",
+    "check": {
+      "command": [
+        "/private/tmp/can-email-admission-baseline-can",
+        "check",
+        "--format=json",
+        "--catalog",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/email-admission/fixtures/fullwidth-at/value.can"
+      ],
+      "exit": 10,
+      "accepted": false
+    },
+    "compile": {
+      "command": [
+        "/private/tmp/can-email-admission-baseline-can",
+        "compile",
+        "--format=json",
+        "--catalog",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/email-admission/fixtures/fullwidth-at/value.can"
+      ],
+      "exit": 10,
+      "accepted": false
+    },
+    "mismatch": false
+  },
+  {
+    "id": "space-prefix",
+    "value": " a@b",
+    "expected": false,
+    "decode": {
+      "accepted": false,
+      "error": {
+        "name": "SchemaError",
+        "message": "schema validation failed with 1 violation(s)",
+        "violations": [
+          {
+            "path": [],
+            "code": "format",
+            "message": "email is malformed",
+            "expected": "an email address (local@domain)",
+            "actual": "\" a@b\""
+          }
+        ]
+      }
+    },
+    "encode": {
+      "accepted": false,
+      "error": {
+        "name": "ValueError",
+        "code": "invalid-construction",
+        "message": "invalid email address \" a@b\" at $"
+      }
+    },
+    "sourceHash": "52ad527982053f281e99ede331d6484b31dc1f624a6e7ded29f7f419224ab8bb",
+    "check": {
+      "command": [
+        "/private/tmp/can-email-admission-baseline-can",
+        "check",
+        "--format=json",
+        "--catalog",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/email-admission/fixtures/space-prefix/value.can"
+      ],
+      "exit": 10,
+      "accepted": false
+    },
+    "compile": {
+      "command": [
+        "/private/tmp/can-email-admission-baseline-can",
+        "compile",
+        "--format=json",
+        "--catalog",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/email-admission/fixtures/space-prefix/value.can"
+      ],
+      "exit": 10,
+      "accepted": false
+    },
+    "mismatch": false
+  },
+  {
+    "id": "space-suffix",
+    "value": "a@b ",
+    "expected": false,
+    "decode": {
+      "accepted": false,
+      "error": {
+        "name": "SchemaError",
+        "message": "schema validation failed with 1 violation(s)",
+        "violations": [
+          {
+            "path": [],
+            "code": "format",
+            "message": "email is malformed",
+            "expected": "an email address (local@domain)",
+            "actual": "\"a@b \""
+          }
+        ]
+      }
+    },
+    "encode": {
+      "accepted": false,
+      "error": {
+        "name": "ValueError",
+        "code": "invalid-construction",
+        "message": "invalid email address \"a@b \" at $"
+      }
+    },
+    "sourceHash": "7f058cd8e91a806d1f7fafa98bb946dedba6ec06775cfaa54ccc60220a4f40e0",
+    "check": {
+      "command": [
+        "/private/tmp/can-email-admission-baseline-can",
+        "check",
+        "--format=json",
+        "--catalog",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/email-admission/fixtures/space-suffix/value.can"
+      ],
+      "exit": 10,
+      "accepted": false
+    },
+    "compile": {
+      "command": [
+        "/private/tmp/can-email-admission-baseline-can",
+        "compile",
+        "--format=json",
+        "--catalog",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/email-admission/fixtures/space-suffix/value.can"
+      ],
+      "exit": 10,
+      "accepted": false
+    },
+    "mismatch": false
+  },
+  {
+    "id": "space-domain",
+    "value": "a@ b",
+    "expected": false,
+    "decode": {
+      "accepted": false,
+      "error": {
+        "name": "SchemaError",
+        "message": "schema validation failed with 1 violation(s)",
+        "violations": [
+          {
+            "path": [],
+            "code": "format",
+            "message": "email is malformed",
+            "expected": "an email address (local@domain)",
+            "actual": "\"a@ b\""
+          }
+        ]
+      }
+    },
+    "encode": {
+      "accepted": false,
+      "error": {
+        "name": "ValueError",
+        "code": "invalid-construction",
+        "message": "invalid email address \"a@ b\" at $"
+      }
+    },
+    "sourceHash": "7ca32db73fe3cd0825c0f83f1f9fc09262c79cfd9ecb9a06ecf9148de1c64d15",
+    "check": {
+      "command": [
+        "/private/tmp/can-email-admission-baseline-can",
+        "check",
+        "--format=json",
+        "--catalog",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/email-admission/fixtures/space-domain/value.can"
+      ],
+      "exit": 10,
+      "accepted": false
+    },
+    "compile": {
+      "command": [
+        "/private/tmp/can-email-admission-baseline-can",
+        "compile",
+        "--format=json",
+        "--catalog",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/email-admission/fixtures/space-domain/value.can"
+      ],
+      "exit": 10,
+      "accepted": false
+    },
+    "mismatch": false
+  },
+  {
+    "id": "space-local",
+    "value": "a b@c",
+    "expected": false,
+    "decode": {
+      "accepted": false,
+      "error": {
+        "name": "SchemaError",
+        "message": "schema validation failed with 1 violation(s)",
+        "violations": [
+          {
+            "path": [],
+            "code": "format",
+            "message": "email is malformed",
+            "expected": "an email address (local@domain)",
+            "actual": "\"a b@c\""
+          }
+        ]
+      }
+    },
+    "encode": {
+      "accepted": false,
+      "error": {
+        "name": "ValueError",
+        "code": "invalid-construction",
+        "message": "invalid email address \"a b@c\" at $"
+      }
+    },
+    "sourceHash": "87eda1125f5e56245eb963ee96e7fb8b00d0bbd0f18c4760b14d6b002bda05cb",
+    "check": {
+      "command": [
+        "/private/tmp/can-email-admission-baseline-can",
+        "check",
+        "--format=json",
+        "--catalog",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/email-admission/fixtures/space-local/value.can"
+      ],
+      "exit": 10,
+      "accepted": false
+    },
+    "compile": {
+      "command": [
+        "/private/tmp/can-email-admission-baseline-can",
+        "compile",
+        "--format=json",
+        "--catalog",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/email-admission/fixtures/space-local/value.can"
+      ],
+      "exit": 10,
+      "accepted": false
+    },
+    "mismatch": false
+  },
+  {
+    "id": "ascii-control-00",
+    "value": "a\u0000@b.com",
+    "expected": false,
+    "decode": {
+      "accepted": false,
+      "error": {
+        "name": "SchemaError",
+        "message": "schema validation failed with 1 violation(s)",
+        "violations": [
+          {
+            "path": [],
+            "code": "format",
+            "message": "email is malformed",
+            "expected": "an email address (local@domain)",
+            "actual": "\"a\\u0000@b.com\""
+          }
+        ]
+      }
+    },
+    "encode": {
+      "accepted": false,
+      "error": {
+        "name": "ValueError",
+        "code": "invalid-construction",
+        "message": "invalid email address \"a\\u0000@b.com\" at $"
+      }
+    },
+    "sourceHash": "cf36ac28a63c0b9d1f6fa407125b4ba6b47d61890b51481a4fbaf13539e64f35",
+    "check": {
+      "command": [
+        "/private/tmp/can-email-admission-baseline-can",
+        "check",
+        "--format=json",
+        "--catalog",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/email-admission/fixtures/ascii-control-00/value.can"
+      ],
+      "exit": 10,
+      "accepted": false
+    },
+    "compile": {
+      "command": [
+        "/private/tmp/can-email-admission-baseline-can",
+        "compile",
+        "--format=json",
+        "--catalog",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/email-admission/fixtures/ascii-control-00/value.can"
+      ],
+      "exit": 10,
+      "accepted": false
+    },
+    "mismatch": false
+  },
+  {
+    "id": "ascii-control-01",
+    "value": "a\u0001@b.com",
+    "expected": false,
+    "decode": {
+      "accepted": false,
+      "error": {
+        "name": "SchemaError",
+        "message": "schema validation failed with 1 violation(s)",
+        "violations": [
+          {
+            "path": [],
+            "code": "format",
+            "message": "email is malformed",
+            "expected": "an email address (local@domain)",
+            "actual": "\"a\\u0001@b.com\""
+          }
+        ]
+      }
+    },
+    "encode": {
+      "accepted": false,
+      "error": {
+        "name": "ValueError",
+        "code": "invalid-construction",
+        "message": "invalid email address \"a\\u0001@b.com\" at $"
+      }
+    },
+    "sourceHash": "0016a5243cb456f87d0cd0dcfb2fe2f94cab5532fa73584e4b2b60e7d438fd70",
+    "check": {
+      "command": [
+        "/private/tmp/can-email-admission-baseline-can",
+        "check",
+        "--format=json",
+        "--catalog",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/email-admission/fixtures/ascii-control-01/value.can"
+      ],
+      "exit": 10,
+      "accepted": false
+    },
+    "compile": {
+      "command": [
+        "/private/tmp/can-email-admission-baseline-can",
+        "compile",
+        "--format=json",
+        "--catalog",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/email-admission/fixtures/ascii-control-01/value.can"
+      ],
+      "exit": 10,
+      "accepted": false
+    },
+    "mismatch": false
+  },
+  {
+    "id": "ascii-control-02",
+    "value": "a\u0002@b.com",
+    "expected": false,
+    "decode": {
+      "accepted": false,
+      "error": {
+        "name": "SchemaError",
+        "message": "schema validation failed with 1 violation(s)",
+        "violations": [
+          {
+            "path": [],
+            "code": "format",
+            "message": "email is malformed",
+            "expected": "an email address (local@domain)",
+            "actual": "\"a\\u0002@b.com\""
+          }
+        ]
+      }
+    },
+    "encode": {
+      "accepted": false,
+      "error": {
+        "name": "ValueError",
+        "code": "invalid-construction",
+        "message": "invalid email address \"a\\u0002@b.com\" at $"
+      }
+    },
+    "sourceHash": "4057055daad961f4e1d5314978dc852c313aabf26ba3665aee621de73a0e14a5",
+    "check": {
+      "command": [
+        "/private/tmp/can-email-admission-baseline-can",
+        "check",
+        "--format=json",
+        "--catalog",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/email-admission/fixtures/ascii-control-02/value.can"
+      ],
+      "exit": 10,
+      "accepted": false
+    },
+    "compile": {
+      "command": [
+        "/private/tmp/can-email-admission-baseline-can",
+        "compile",
+        "--format=json",
+        "--catalog",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/email-admission/fixtures/ascii-control-02/value.can"
+      ],
+      "exit": 10,
+      "accepted": false
+    },
+    "mismatch": false
+  },
+  {
+    "id": "ascii-control-03",
+    "value": "a\u0003@b.com",
+    "expected": false,
+    "decode": {
+      "accepted": false,
+      "error": {
+        "name": "SchemaError",
+        "message": "schema validation failed with 1 violation(s)",
+        "violations": [
+          {
+            "path": [],
+            "code": "format",
+            "message": "email is malformed",
+            "expected": "an email address (local@domain)",
+            "actual": "\"a\\u0003@b.com\""
+          }
+        ]
+      }
+    },
+    "encode": {
+      "accepted": false,
+      "error": {
+        "name": "ValueError",
+        "code": "invalid-construction",
+        "message": "invalid email address \"a\\u0003@b.com\" at $"
+      }
+    },
+    "sourceHash": "d947d1a747f157e23c734a490055cea6cafc300c97caf1b73d138440086a4cc5",
+    "check": {
+      "command": [
+        "/private/tmp/can-email-admission-baseline-can",
+        "check",
+        "--format=json",
+        "--catalog",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/email-admission/fixtures/ascii-control-03/value.can"
+      ],
+      "exit": 10,
+      "accepted": false
+    },
+    "compile": {
+      "command": [
+        "/private/tmp/can-email-admission-baseline-can",
+        "compile",
+        "--format=json",
+        "--catalog",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/email-admission/fixtures/ascii-control-03/value.can"
+      ],
+      "exit": 10,
+      "accepted": false
+    },
+    "mismatch": false
+  },
+  {
+    "id": "ascii-control-04",
+    "value": "a\u0004@b.com",
+    "expected": false,
+    "decode": {
+      "accepted": false,
+      "error": {
+        "name": "SchemaError",
+        "message": "schema validation failed with 1 violation(s)",
+        "violations": [
+          {
+            "path": [],
+            "code": "format",
+            "message": "email is malformed",
+            "expected": "an email address (local@domain)",
+            "actual": "\"a\\u0004@b.com\""
+          }
+        ]
+      }
+    },
+    "encode": {
+      "accepted": false,
+      "error": {
+        "name": "ValueError",
+        "code": "invalid-construction",
+        "message": "invalid email address \"a\\u0004@b.com\" at $"
+      }
+    },
+    "sourceHash": "65710a53d5629d5af91bb2d34e8e1702c74d3f9c5ca0fcb00a4b69857f9f164f",
+    "check": {
+      "command": [
+        "/private/tmp/can-email-admission-baseline-can",
+        "check",
+        "--format=json",
+        "--catalog",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/email-admission/fixtures/ascii-control-04/value.can"
+      ],
+      "exit": 10,
+      "accepted": false
+    },
+    "compile": {
+      "command": [
+        "/private/tmp/can-email-admission-baseline-can",
+        "compile",
+        "--format=json",
+        "--catalog",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/email-admission/fixtures/ascii-control-04/value.can"
+      ],
+      "exit": 10,
+      "accepted": false
+    },
+    "mismatch": false
+  },
+  {
+    "id": "ascii-control-05",
+    "value": "a\u0005@b.com",
+    "expected": false,
+    "decode": {
+      "accepted": false,
+      "error": {
+        "name": "SchemaError",
+        "message": "schema validation failed with 1 violation(s)",
+        "violations": [
+          {
+            "path": [],
+            "code": "format",
+            "message": "email is malformed",
+            "expected": "an email address (local@domain)",
+            "actual": "\"a\\u0005@b.com\""
+          }
+        ]
+      }
+    },
+    "encode": {
+      "accepted": false,
+      "error": {
+        "name": "ValueError",
+        "code": "invalid-construction",
+        "message": "invalid email address \"a\\u0005@b.com\" at $"
+      }
+    },
+    "sourceHash": "83c137ee06adc51f2119a1bccd96f6ac9a6903bcba10b18bd28f51aad444afb9",
+    "check": {
+      "command": [
+        "/private/tmp/can-email-admission-baseline-can",
+        "check",
+        "--format=json",
+        "--catalog",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/email-admission/fixtures/ascii-control-05/value.can"
+      ],
+      "exit": 10,
+      "accepted": false
+    },
+    "compile": {
+      "command": [
+        "/private/tmp/can-email-admission-baseline-can",
+        "compile",
+        "--format=json",
+        "--catalog",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/email-admission/fixtures/ascii-control-05/value.can"
+      ],
+      "exit": 10,
+      "accepted": false
+    },
+    "mismatch": false
+  },
+  {
+    "id": "ascii-control-06",
+    "value": "a\u0006@b.com",
+    "expected": false,
+    "decode": {
+      "accepted": false,
+      "error": {
+        "name": "SchemaError",
+        "message": "schema validation failed with 1 violation(s)",
+        "violations": [
+          {
+            "path": [],
+            "code": "format",
+            "message": "email is malformed",
+            "expected": "an email address (local@domain)",
+            "actual": "\"a\\u0006@b.com\""
+          }
+        ]
+      }
+    },
+    "encode": {
+      "accepted": false,
+      "error": {
+        "name": "ValueError",
+        "code": "invalid-construction",
+        "message": "invalid email address \"a\\u0006@b.com\" at $"
+      }
+    },
+    "sourceHash": "a58cf13d79cc6eff1c2da7fa366cea5a4fcf0a38ef0e03eafa0bd97b4c3d761c",
+    "check": {
+      "command": [
+        "/private/tmp/can-email-admission-baseline-can",
+        "check",
+        "--format=json",
+        "--catalog",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/email-admission/fixtures/ascii-control-06/value.can"
+      ],
+      "exit": 10,
+      "accepted": false
+    },
+    "compile": {
+      "command": [
+        "/private/tmp/can-email-admission-baseline-can",
+        "compile",
+        "--format=json",
+        "--catalog",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/email-admission/fixtures/ascii-control-06/value.can"
+      ],
+      "exit": 10,
+      "accepted": false
+    },
+    "mismatch": false
+  },
+  {
+    "id": "ascii-control-07",
+    "value": "a\u0007@b.com",
+    "expected": false,
+    "decode": {
+      "accepted": false,
+      "error": {
+        "name": "SchemaError",
+        "message": "schema validation failed with 1 violation(s)",
+        "violations": [
+          {
+            "path": [],
+            "code": "format",
+            "message": "email is malformed",
+            "expected": "an email address (local@domain)",
+            "actual": "\"a\\u0007@b.com\""
+          }
+        ]
+      }
+    },
+    "encode": {
+      "accepted": false,
+      "error": {
+        "name": "ValueError",
+        "code": "invalid-construction",
+        "message": "invalid email address \"a\\u0007@b.com\" at $"
+      }
+    },
+    "sourceHash": "e311915c6d4300d36c8d9ffc6a43d8d82a75ffba19a4337fa1b2f31c0784b41d",
+    "check": {
+      "command": [
+        "/private/tmp/can-email-admission-baseline-can",
+        "check",
+        "--format=json",
+        "--catalog",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/email-admission/fixtures/ascii-control-07/value.can"
+      ],
+      "exit": 10,
+      "accepted": false
+    },
+    "compile": {
+      "command": [
+        "/private/tmp/can-email-admission-baseline-can",
+        "compile",
+        "--format=json",
+        "--catalog",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/email-admission/fixtures/ascii-control-07/value.can"
+      ],
+      "exit": 10,
+      "accepted": false
+    },
+    "mismatch": false
+  },
+  {
+    "id": "ascii-control-08",
+    "value": "a\b@b.com",
+    "expected": false,
+    "decode": {
+      "accepted": false,
+      "error": {
+        "name": "SchemaError",
+        "message": "schema validation failed with 1 violation(s)",
+        "violations": [
+          {
+            "path": [],
+            "code": "format",
+            "message": "email is malformed",
+            "expected": "an email address (local@domain)",
+            "actual": "\"a\\b@b.com\""
+          }
+        ]
+      }
+    },
+    "encode": {
+      "accepted": false,
+      "error": {
+        "name": "ValueError",
+        "code": "invalid-construction",
+        "message": "invalid email address \"a\\b@b.com\" at $"
+      }
+    },
+    "sourceHash": "6a6706c41a25c83fae95d1eb510a8c29a6a2903dcd14c5eb2f090080c1d94307",
+    "check": {
+      "command": [
+        "/private/tmp/can-email-admission-baseline-can",
+        "check",
+        "--format=json",
+        "--catalog",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/email-admission/fixtures/ascii-control-08/value.can"
+      ],
+      "exit": 10,
+      "accepted": false
+    },
+    "compile": {
+      "command": [
+        "/private/tmp/can-email-admission-baseline-can",
+        "compile",
+        "--format=json",
+        "--catalog",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/email-admission/fixtures/ascii-control-08/value.can"
+      ],
+      "exit": 10,
+      "accepted": false
+    },
+    "mismatch": false
+  },
+  {
+    "id": "ascii-control-09",
+    "value": "a\t@b.com",
+    "expected": false,
+    "decode": {
+      "accepted": false,
+      "error": {
+        "name": "SchemaError",
+        "message": "schema validation failed with 1 violation(s)",
+        "violations": [
+          {
+            "path": [],
+            "code": "format",
+            "message": "email is malformed",
+            "expected": "an email address (local@domain)",
+            "actual": "\"a\\t@b.com\""
+          }
+        ]
+      }
+    },
+    "encode": {
+      "accepted": false,
+      "error": {
+        "name": "ValueError",
+        "code": "invalid-construction",
+        "message": "invalid email address \"a\\t@b.com\" at $"
+      }
+    },
+    "sourceHash": "9e8de3de4776a8d63cee8616103d3dfd1b8f1a7b2d0252f7074c34396fe71047",
+    "check": {
+      "command": [
+        "/private/tmp/can-email-admission-baseline-can",
+        "check",
+        "--format=json",
+        "--catalog",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/email-admission/fixtures/ascii-control-09/value.can"
+      ],
+      "exit": 10,
+      "accepted": false
+    },
+    "compile": {
+      "command": [
+        "/private/tmp/can-email-admission-baseline-can",
+        "compile",
+        "--format=json",
+        "--catalog",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/email-admission/fixtures/ascii-control-09/value.can"
+      ],
+      "exit": 10,
+      "accepted": false
+    },
+    "mismatch": false
+  },
+  {
+    "id": "ascii-control-0a",
+    "value": "a\n@b.com",
+    "expected": false,
+    "decode": {
+      "accepted": false,
+      "error": {
+        "name": "SchemaError",
+        "message": "schema validation failed with 1 violation(s)",
+        "violations": [
+          {
+            "path": [],
+            "code": "format",
+            "message": "email is malformed",
+            "expected": "an email address (local@domain)",
+            "actual": "\"a\\n@b.com\""
+          }
+        ]
+      }
+    },
+    "encode": {
+      "accepted": false,
+      "error": {
+        "name": "ValueError",
+        "code": "invalid-construction",
+        "message": "invalid email address \"a\\n@b.com\" at $"
+      }
+    },
+    "sourceHash": "9fdb3531c621a643f21a5e2a31b840ca4af1771fdf2563a8ea3a28562d7cc104",
+    "check": {
+      "command": [
+        "/private/tmp/can-email-admission-baseline-can",
+        "check",
+        "--format=json",
+        "--catalog",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/email-admission/fixtures/ascii-control-0a/value.can"
+      ],
+      "exit": 10,
+      "accepted": false
+    },
+    "compile": {
+      "command": [
+        "/private/tmp/can-email-admission-baseline-can",
+        "compile",
+        "--format=json",
+        "--catalog",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/email-admission/fixtures/ascii-control-0a/value.can"
+      ],
+      "exit": 10,
+      "accepted": false
+    },
+    "mismatch": false
+  },
+  {
+    "id": "ascii-control-0b",
+    "value": "a\u000b@b.com",
+    "expected": false,
+    "decode": {
+      "accepted": false,
+      "error": {
+        "name": "SchemaError",
+        "message": "schema validation failed with 1 violation(s)",
+        "violations": [
+          {
+            "path": [],
+            "code": "format",
+            "message": "email is malformed",
+            "expected": "an email address (local@domain)",
+            "actual": "\"a\\u000b@b.com\""
+          }
+        ]
+      }
+    },
+    "encode": {
+      "accepted": false,
+      "error": {
+        "name": "ValueError",
+        "code": "invalid-construction",
+        "message": "invalid email address \"a\\u000b@b.com\" at $"
+      }
+    },
+    "sourceHash": "41f554b3e3ed9f6a5c03cc5f1f9c3ca17ac6e8d4b0b23b569950aedf207f009a",
+    "check": {
+      "command": [
+        "/private/tmp/can-email-admission-baseline-can",
+        "check",
+        "--format=json",
+        "--catalog",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/email-admission/fixtures/ascii-control-0b/value.can"
+      ],
+      "exit": 10,
+      "accepted": false
+    },
+    "compile": {
+      "command": [
+        "/private/tmp/can-email-admission-baseline-can",
+        "compile",
+        "--format=json",
+        "--catalog",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/email-admission/fixtures/ascii-control-0b/value.can"
+      ],
+      "exit": 10,
+      "accepted": false
+    },
+    "mismatch": false
+  },
+  {
+    "id": "ascii-control-0c",
+    "value": "a\f@b.com",
+    "expected": false,
+    "decode": {
+      "accepted": false,
+      "error": {
+        "name": "SchemaError",
+        "message": "schema validation failed with 1 violation(s)",
+        "violations": [
+          {
+            "path": [],
+            "code": "format",
+            "message": "email is malformed",
+            "expected": "an email address (local@domain)",
+            "actual": "\"a\\f@b.com\""
+          }
+        ]
+      }
+    },
+    "encode": {
+      "accepted": false,
+      "error": {
+        "name": "ValueError",
+        "code": "invalid-construction",
+        "message": "invalid email address \"a\\f@b.com\" at $"
+      }
+    },
+    "sourceHash": "124764428771f5b82ee9d1788e134b08e050f112e6d84f8dd63a877fa3e1736c",
+    "check": {
+      "command": [
+        "/private/tmp/can-email-admission-baseline-can",
+        "check",
+        "--format=json",
+        "--catalog",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/email-admission/fixtures/ascii-control-0c/value.can"
+      ],
+      "exit": 10,
+      "accepted": false
+    },
+    "compile": {
+      "command": [
+        "/private/tmp/can-email-admission-baseline-can",
+        "compile",
+        "--format=json",
+        "--catalog",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/email-admission/fixtures/ascii-control-0c/value.can"
+      ],
+      "exit": 10,
+      "accepted": false
+    },
+    "mismatch": false
+  },
+  {
+    "id": "ascii-control-0d",
+    "value": "a\r@b.com",
+    "expected": false,
+    "decode": {
+      "accepted": false,
+      "error": {
+        "name": "SchemaError",
+        "message": "schema validation failed with 1 violation(s)",
+        "violations": [
+          {
+            "path": [],
+            "code": "format",
+            "message": "email is malformed",
+            "expected": "an email address (local@domain)",
+            "actual": "\"a\\r@b.com\""
+          }
+        ]
+      }
+    },
+    "encode": {
+      "accepted": false,
+      "error": {
+        "name": "ValueError",
+        "code": "invalid-construction",
+        "message": "invalid email address \"a\\r@b.com\" at $"
+      }
+    },
+    "sourceHash": "961518a9f0a8b1d3daabb4010917b54369a08527e87d42075db77a21195ad1e5",
+    "check": {
+      "command": [
+        "/private/tmp/can-email-admission-baseline-can",
+        "check",
+        "--format=json",
+        "--catalog",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/email-admission/fixtures/ascii-control-0d/value.can"
+      ],
+      "exit": 10,
+      "accepted": false
+    },
+    "compile": {
+      "command": [
+        "/private/tmp/can-email-admission-baseline-can",
+        "compile",
+        "--format=json",
+        "--catalog",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/email-admission/fixtures/ascii-control-0d/value.can"
+      ],
+      "exit": 10,
+      "accepted": false
+    },
+    "mismatch": false
+  },
+  {
+    "id": "ascii-control-0e",
+    "value": "a\u000e@b.com",
+    "expected": false,
+    "decode": {
+      "accepted": false,
+      "error": {
+        "name": "SchemaError",
+        "message": "schema validation failed with 1 violation(s)",
+        "violations": [
+          {
+            "path": [],
+            "code": "format",
+            "message": "email is malformed",
+            "expected": "an email address (local@domain)",
+            "actual": "\"a\\u000e@b.com\""
+          }
+        ]
+      }
+    },
+    "encode": {
+      "accepted": false,
+      "error": {
+        "name": "ValueError",
+        "code": "invalid-construction",
+        "message": "invalid email address \"a\\u000e@b.com\" at $"
+      }
+    },
+    "sourceHash": "a78d5a9b8c7483f16b1c1383f5faa6549399e59d1883c71fce5e51965b01187f",
+    "check": {
+      "command": [
+        "/private/tmp/can-email-admission-baseline-can",
+        "check",
+        "--format=json",
+        "--catalog",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/email-admission/fixtures/ascii-control-0e/value.can"
+      ],
+      "exit": 10,
+      "accepted": false
+    },
+    "compile": {
+      "command": [
+        "/private/tmp/can-email-admission-baseline-can",
+        "compile",
+        "--format=json",
+        "--catalog",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/email-admission/fixtures/ascii-control-0e/value.can"
+      ],
+      "exit": 10,
+      "accepted": false
+    },
+    "mismatch": false
+  },
+  {
+    "id": "ascii-control-0f",
+    "value": "a\u000f@b.com",
+    "expected": false,
+    "decode": {
+      "accepted": false,
+      "error": {
+        "name": "SchemaError",
+        "message": "schema validation failed with 1 violation(s)",
+        "violations": [
+          {
+            "path": [],
+            "code": "format",
+            "message": "email is malformed",
+            "expected": "an email address (local@domain)",
+            "actual": "\"a\\u000f@b.com\""
+          }
+        ]
+      }
+    },
+    "encode": {
+      "accepted": false,
+      "error": {
+        "name": "ValueError",
+        "code": "invalid-construction",
+        "message": "invalid email address \"a\\u000f@b.com\" at $"
+      }
+    },
+    "sourceHash": "9a3863af89dc71cd2d527bfb0b0357099469519f7895a85e5f92f6054c85c0f2",
+    "check": {
+      "command": [
+        "/private/tmp/can-email-admission-baseline-can",
+        "check",
+        "--format=json",
+        "--catalog",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/email-admission/fixtures/ascii-control-0f/value.can"
+      ],
+      "exit": 10,
+      "accepted": false
+    },
+    "compile": {
+      "command": [
+        "/private/tmp/can-email-admission-baseline-can",
+        "compile",
+        "--format=json",
+        "--catalog",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/email-admission/fixtures/ascii-control-0f/value.can"
+      ],
+      "exit": 10,
+      "accepted": false
+    },
+    "mismatch": false
+  },
+  {
+    "id": "ascii-control-10",
+    "value": "a\u0010@b.com",
+    "expected": false,
+    "decode": {
+      "accepted": false,
+      "error": {
+        "name": "SchemaError",
+        "message": "schema validation failed with 1 violation(s)",
+        "violations": [
+          {
+            "path": [],
+            "code": "format",
+            "message": "email is malformed",
+            "expected": "an email address (local@domain)",
+            "actual": "\"a\\u0010@b.com\""
+          }
+        ]
+      }
+    },
+    "encode": {
+      "accepted": false,
+      "error": {
+        "name": "ValueError",
+        "code": "invalid-construction",
+        "message": "invalid email address \"a\\u0010@b.com\" at $"
+      }
+    },
+    "sourceHash": "a16d5897d67d0106d105223067bc9cd6791801dbaa525fe5bed632e618fe1fc2",
+    "check": {
+      "command": [
+        "/private/tmp/can-email-admission-baseline-can",
+        "check",
+        "--format=json",
+        "--catalog",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/email-admission/fixtures/ascii-control-10/value.can"
+      ],
+      "exit": 10,
+      "accepted": false
+    },
+    "compile": {
+      "command": [
+        "/private/tmp/can-email-admission-baseline-can",
+        "compile",
+        "--format=json",
+        "--catalog",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/email-admission/fixtures/ascii-control-10/value.can"
+      ],
+      "exit": 10,
+      "accepted": false
+    },
+    "mismatch": false
+  },
+  {
+    "id": "ascii-control-11",
+    "value": "a\u0011@b.com",
+    "expected": false,
+    "decode": {
+      "accepted": false,
+      "error": {
+        "name": "SchemaError",
+        "message": "schema validation failed with 1 violation(s)",
+        "violations": [
+          {
+            "path": [],
+            "code": "format",
+            "message": "email is malformed",
+            "expected": "an email address (local@domain)",
+            "actual": "\"a\\u0011@b.com\""
+          }
+        ]
+      }
+    },
+    "encode": {
+      "accepted": false,
+      "error": {
+        "name": "ValueError",
+        "code": "invalid-construction",
+        "message": "invalid email address \"a\\u0011@b.com\" at $"
+      }
+    },
+    "sourceHash": "7762b4862ade30df7208f38f27d8b47bd8e65f4911a36d83c342c0840f708cb6",
+    "check": {
+      "command": [
+        "/private/tmp/can-email-admission-baseline-can",
+        "check",
+        "--format=json",
+        "--catalog",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/email-admission/fixtures/ascii-control-11/value.can"
+      ],
+      "exit": 10,
+      "accepted": false
+    },
+    "compile": {
+      "command": [
+        "/private/tmp/can-email-admission-baseline-can",
+        "compile",
+        "--format=json",
+        "--catalog",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/email-admission/fixtures/ascii-control-11/value.can"
+      ],
+      "exit": 10,
+      "accepted": false
+    },
+    "mismatch": false
+  },
+  {
+    "id": "ascii-control-12",
+    "value": "a\u0012@b.com",
+    "expected": false,
+    "decode": {
+      "accepted": false,
+      "error": {
+        "name": "SchemaError",
+        "message": "schema validation failed with 1 violation(s)",
+        "violations": [
+          {
+            "path": [],
+            "code": "format",
+            "message": "email is malformed",
+            "expected": "an email address (local@domain)",
+            "actual": "\"a\\u0012@b.com\""
+          }
+        ]
+      }
+    },
+    "encode": {
+      "accepted": false,
+      "error": {
+        "name": "ValueError",
+        "code": "invalid-construction",
+        "message": "invalid email address \"a\\u0012@b.com\" at $"
+      }
+    },
+    "sourceHash": "03447638d5e72d21ecd64d2bd4c7a36734898f7ddf1dfcd1696696b4c107060b",
+    "check": {
+      "command": [
+        "/private/tmp/can-email-admission-baseline-can",
+        "check",
+        "--format=json",
+        "--catalog",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/email-admission/fixtures/ascii-control-12/value.can"
+      ],
+      "exit": 10,
+      "accepted": false
+    },
+    "compile": {
+      "command": [
+        "/private/tmp/can-email-admission-baseline-can",
+        "compile",
+        "--format=json",
+        "--catalog",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/email-admission/fixtures/ascii-control-12/value.can"
+      ],
+      "exit": 10,
+      "accepted": false
+    },
+    "mismatch": false
+  },
+  {
+    "id": "ascii-control-13",
+    "value": "a\u0013@b.com",
+    "expected": false,
+    "decode": {
+      "accepted": false,
+      "error": {
+        "name": "SchemaError",
+        "message": "schema validation failed with 1 violation(s)",
+        "violations": [
+          {
+            "path": [],
+            "code": "format",
+            "message": "email is malformed",
+            "expected": "an email address (local@domain)",
+            "actual": "\"a\\u0013@b.com\""
+          }
+        ]
+      }
+    },
+    "encode": {
+      "accepted": false,
+      "error": {
+        "name": "ValueError",
+        "code": "invalid-construction",
+        "message": "invalid email address \"a\\u0013@b.com\" at $"
+      }
+    },
+    "sourceHash": "a35fa3e4bcdbac532c163524642b4d989b4c962fcd4f04326314b722f0ac1d92",
+    "check": {
+      "command": [
+        "/private/tmp/can-email-admission-baseline-can",
+        "check",
+        "--format=json",
+        "--catalog",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/email-admission/fixtures/ascii-control-13/value.can"
+      ],
+      "exit": 10,
+      "accepted": false
+    },
+    "compile": {
+      "command": [
+        "/private/tmp/can-email-admission-baseline-can",
+        "compile",
+        "--format=json",
+        "--catalog",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/email-admission/fixtures/ascii-control-13/value.can"
+      ],
+      "exit": 10,
+      "accepted": false
+    },
+    "mismatch": false
+  },
+  {
+    "id": "ascii-control-14",
+    "value": "a\u0014@b.com",
+    "expected": false,
+    "decode": {
+      "accepted": false,
+      "error": {
+        "name": "SchemaError",
+        "message": "schema validation failed with 1 violation(s)",
+        "violations": [
+          {
+            "path": [],
+            "code": "format",
+            "message": "email is malformed",
+            "expected": "an email address (local@domain)",
+            "actual": "\"a\\u0014@b.com\""
+          }
+        ]
+      }
+    },
+    "encode": {
+      "accepted": false,
+      "error": {
+        "name": "ValueError",
+        "code": "invalid-construction",
+        "message": "invalid email address \"a\\u0014@b.com\" at $"
+      }
+    },
+    "sourceHash": "63c790f07e6eb009747a45ca9f8f5325f31beba713c8eb902c65847ce106fcf3",
+    "check": {
+      "command": [
+        "/private/tmp/can-email-admission-baseline-can",
+        "check",
+        "--format=json",
+        "--catalog",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/email-admission/fixtures/ascii-control-14/value.can"
+      ],
+      "exit": 10,
+      "accepted": false
+    },
+    "compile": {
+      "command": [
+        "/private/tmp/can-email-admission-baseline-can",
+        "compile",
+        "--format=json",
+        "--catalog",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/email-admission/fixtures/ascii-control-14/value.can"
+      ],
+      "exit": 10,
+      "accepted": false
+    },
+    "mismatch": false
+  },
+  {
+    "id": "ascii-control-15",
+    "value": "a\u0015@b.com",
+    "expected": false,
+    "decode": {
+      "accepted": false,
+      "error": {
+        "name": "SchemaError",
+        "message": "schema validation failed with 1 violation(s)",
+        "violations": [
+          {
+            "path": [],
+            "code": "format",
+            "message": "email is malformed",
+            "expected": "an email address (local@domain)",
+            "actual": "\"a\\u0015@b.com\""
+          }
+        ]
+      }
+    },
+    "encode": {
+      "accepted": false,
+      "error": {
+        "name": "ValueError",
+        "code": "invalid-construction",
+        "message": "invalid email address \"a\\u0015@b.com\" at $"
+      }
+    },
+    "sourceHash": "eb0dbb7cf7faa03ce477676cc978276fcdf2b55192c4afcabcf90717a0ee5f1d",
+    "check": {
+      "command": [
+        "/private/tmp/can-email-admission-baseline-can",
+        "check",
+        "--format=json",
+        "--catalog",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/email-admission/fixtures/ascii-control-15/value.can"
+      ],
+      "exit": 10,
+      "accepted": false
+    },
+    "compile": {
+      "command": [
+        "/private/tmp/can-email-admission-baseline-can",
+        "compile",
+        "--format=json",
+        "--catalog",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/email-admission/fixtures/ascii-control-15/value.can"
+      ],
+      "exit": 10,
+      "accepted": false
+    },
+    "mismatch": false
+  },
+  {
+    "id": "ascii-control-16",
+    "value": "a\u0016@b.com",
+    "expected": false,
+    "decode": {
+      "accepted": false,
+      "error": {
+        "name": "SchemaError",
+        "message": "schema validation failed with 1 violation(s)",
+        "violations": [
+          {
+            "path": [],
+            "code": "format",
+            "message": "email is malformed",
+            "expected": "an email address (local@domain)",
+            "actual": "\"a\\u0016@b.com\""
+          }
+        ]
+      }
+    },
+    "encode": {
+      "accepted": false,
+      "error": {
+        "name": "ValueError",
+        "code": "invalid-construction",
+        "message": "invalid email address \"a\\u0016@b.com\" at $"
+      }
+    },
+    "sourceHash": "3adabe0b54517fe3c7b0bcac920e3adbbada675c83531b7c856b6ded6411e502",
+    "check": {
+      "command": [
+        "/private/tmp/can-email-admission-baseline-can",
+        "check",
+        "--format=json",
+        "--catalog",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/email-admission/fixtures/ascii-control-16/value.can"
+      ],
+      "exit": 10,
+      "accepted": false
+    },
+    "compile": {
+      "command": [
+        "/private/tmp/can-email-admission-baseline-can",
+        "compile",
+        "--format=json",
+        "--catalog",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/email-admission/fixtures/ascii-control-16/value.can"
+      ],
+      "exit": 10,
+      "accepted": false
+    },
+    "mismatch": false
+  },
+  {
+    "id": "ascii-control-17",
+    "value": "a\u0017@b.com",
+    "expected": false,
+    "decode": {
+      "accepted": false,
+      "error": {
+        "name": "SchemaError",
+        "message": "schema validation failed with 1 violation(s)",
+        "violations": [
+          {
+            "path": [],
+            "code": "format",
+            "message": "email is malformed",
+            "expected": "an email address (local@domain)",
+            "actual": "\"a\\u0017@b.com\""
+          }
+        ]
+      }
+    },
+    "encode": {
+      "accepted": false,
+      "error": {
+        "name": "ValueError",
+        "code": "invalid-construction",
+        "message": "invalid email address \"a\\u0017@b.com\" at $"
+      }
+    },
+    "sourceHash": "8968112522a33183b50b4e6608387457bc3e727ad270ee2f9d381a781bab6f9b",
+    "check": {
+      "command": [
+        "/private/tmp/can-email-admission-baseline-can",
+        "check",
+        "--format=json",
+        "--catalog",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/email-admission/fixtures/ascii-control-17/value.can"
+      ],
+      "exit": 10,
+      "accepted": false
+    },
+    "compile": {
+      "command": [
+        "/private/tmp/can-email-admission-baseline-can",
+        "compile",
+        "--format=json",
+        "--catalog",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/email-admission/fixtures/ascii-control-17/value.can"
+      ],
+      "exit": 10,
+      "accepted": false
+    },
+    "mismatch": false
+  },
+  {
+    "id": "ascii-control-18",
+    "value": "a\u0018@b.com",
+    "expected": false,
+    "decode": {
+      "accepted": false,
+      "error": {
+        "name": "SchemaError",
+        "message": "schema validation failed with 1 violation(s)",
+        "violations": [
+          {
+            "path": [],
+            "code": "format",
+            "message": "email is malformed",
+            "expected": "an email address (local@domain)",
+            "actual": "\"a\\u0018@b.com\""
+          }
+        ]
+      }
+    },
+    "encode": {
+      "accepted": false,
+      "error": {
+        "name": "ValueError",
+        "code": "invalid-construction",
+        "message": "invalid email address \"a\\u0018@b.com\" at $"
+      }
+    },
+    "sourceHash": "63094b57b08a6ad225ee334a38fbfee5e6e06c76499393b997458ca64d416f15",
+    "check": {
+      "command": [
+        "/private/tmp/can-email-admission-baseline-can",
+        "check",
+        "--format=json",
+        "--catalog",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/email-admission/fixtures/ascii-control-18/value.can"
+      ],
+      "exit": 10,
+      "accepted": false
+    },
+    "compile": {
+      "command": [
+        "/private/tmp/can-email-admission-baseline-can",
+        "compile",
+        "--format=json",
+        "--catalog",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/email-admission/fixtures/ascii-control-18/value.can"
+      ],
+      "exit": 10,
+      "accepted": false
+    },
+    "mismatch": false
+  },
+  {
+    "id": "ascii-control-19",
+    "value": "a\u0019@b.com",
+    "expected": false,
+    "decode": {
+      "accepted": false,
+      "error": {
+        "name": "SchemaError",
+        "message": "schema validation failed with 1 violation(s)",
+        "violations": [
+          {
+            "path": [],
+            "code": "format",
+            "message": "email is malformed",
+            "expected": "an email address (local@domain)",
+            "actual": "\"a\\u0019@b.com\""
+          }
+        ]
+      }
+    },
+    "encode": {
+      "accepted": false,
+      "error": {
+        "name": "ValueError",
+        "code": "invalid-construction",
+        "message": "invalid email address \"a\\u0019@b.com\" at $"
+      }
+    },
+    "sourceHash": "92c7126af1ac1fc1fb8333f23150c4b94d9259f827e1e4a138fb46e9e2fa602f",
+    "check": {
+      "command": [
+        "/private/tmp/can-email-admission-baseline-can",
+        "check",
+        "--format=json",
+        "--catalog",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/email-admission/fixtures/ascii-control-19/value.can"
+      ],
+      "exit": 10,
+      "accepted": false
+    },
+    "compile": {
+      "command": [
+        "/private/tmp/can-email-admission-baseline-can",
+        "compile",
+        "--format=json",
+        "--catalog",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/email-admission/fixtures/ascii-control-19/value.can"
+      ],
+      "exit": 10,
+      "accepted": false
+    },
+    "mismatch": false
+  },
+  {
+    "id": "ascii-control-1a",
+    "value": "a\u001a@b.com",
+    "expected": false,
+    "decode": {
+      "accepted": false,
+      "error": {
+        "name": "SchemaError",
+        "message": "schema validation failed with 1 violation(s)",
+        "violations": [
+          {
+            "path": [],
+            "code": "format",
+            "message": "email is malformed",
+            "expected": "an email address (local@domain)",
+            "actual": "\"a\\u001a@b.com\""
+          }
+        ]
+      }
+    },
+    "encode": {
+      "accepted": false,
+      "error": {
+        "name": "ValueError",
+        "code": "invalid-construction",
+        "message": "invalid email address \"a\\u001a@b.com\" at $"
+      }
+    },
+    "sourceHash": "821c8a4c249dd9e18294193a9014ba3ab896cbbf01e2b6e6ddf05181e11f9846",
+    "check": {
+      "command": [
+        "/private/tmp/can-email-admission-baseline-can",
+        "check",
+        "--format=json",
+        "--catalog",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/email-admission/fixtures/ascii-control-1a/value.can"
+      ],
+      "exit": 10,
+      "accepted": false
+    },
+    "compile": {
+      "command": [
+        "/private/tmp/can-email-admission-baseline-can",
+        "compile",
+        "--format=json",
+        "--catalog",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/email-admission/fixtures/ascii-control-1a/value.can"
+      ],
+      "exit": 10,
+      "accepted": false
+    },
+    "mismatch": false
+  },
+  {
+    "id": "ascii-control-1b",
+    "value": "a\u001b@b.com",
+    "expected": false,
+    "decode": {
+      "accepted": false,
+      "error": {
+        "name": "SchemaError",
+        "message": "schema validation failed with 1 violation(s)",
+        "violations": [
+          {
+            "path": [],
+            "code": "format",
+            "message": "email is malformed",
+            "expected": "an email address (local@domain)",
+            "actual": "\"a\\u001b@b.com\""
+          }
+        ]
+      }
+    },
+    "encode": {
+      "accepted": false,
+      "error": {
+        "name": "ValueError",
+        "code": "invalid-construction",
+        "message": "invalid email address \"a\\u001b@b.com\" at $"
+      }
+    },
+    "sourceHash": "be0f514fb726ea58cfe69beaacfe49cc606c8058892b0c8ad023f35c6e3b1682",
+    "check": {
+      "command": [
+        "/private/tmp/can-email-admission-baseline-can",
+        "check",
+        "--format=json",
+        "--catalog",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/email-admission/fixtures/ascii-control-1b/value.can"
+      ],
+      "exit": 10,
+      "accepted": false
+    },
+    "compile": {
+      "command": [
+        "/private/tmp/can-email-admission-baseline-can",
+        "compile",
+        "--format=json",
+        "--catalog",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/email-admission/fixtures/ascii-control-1b/value.can"
+      ],
+      "exit": 10,
+      "accepted": false
+    },
+    "mismatch": false
+  },
+  {
+    "id": "ascii-control-1c",
+    "value": "a\u001c@b.com",
+    "expected": false,
+    "decode": {
+      "accepted": false,
+      "error": {
+        "name": "SchemaError",
+        "message": "schema validation failed with 1 violation(s)",
+        "violations": [
+          {
+            "path": [],
+            "code": "format",
+            "message": "email is malformed",
+            "expected": "an email address (local@domain)",
+            "actual": "\"a\\u001c@b.com\""
+          }
+        ]
+      }
+    },
+    "encode": {
+      "accepted": false,
+      "error": {
+        "name": "ValueError",
+        "code": "invalid-construction",
+        "message": "invalid email address \"a\\u001c@b.com\" at $"
+      }
+    },
+    "sourceHash": "7bcd6b2f0b8a98f701d62c64bd7a3e3f22ab49c89bb3bb77f0e4be13a66fe91f",
+    "check": {
+      "command": [
+        "/private/tmp/can-email-admission-baseline-can",
+        "check",
+        "--format=json",
+        "--catalog",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/email-admission/fixtures/ascii-control-1c/value.can"
+      ],
+      "exit": 10,
+      "accepted": false
+    },
+    "compile": {
+      "command": [
+        "/private/tmp/can-email-admission-baseline-can",
+        "compile",
+        "--format=json",
+        "--catalog",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/email-admission/fixtures/ascii-control-1c/value.can"
+      ],
+      "exit": 10,
+      "accepted": false
+    },
+    "mismatch": false
+  },
+  {
+    "id": "ascii-control-1d",
+    "value": "a\u001d@b.com",
+    "expected": false,
+    "decode": {
+      "accepted": false,
+      "error": {
+        "name": "SchemaError",
+        "message": "schema validation failed with 1 violation(s)",
+        "violations": [
+          {
+            "path": [],
+            "code": "format",
+            "message": "email is malformed",
+            "expected": "an email address (local@domain)",
+            "actual": "\"a\\u001d@b.com\""
+          }
+        ]
+      }
+    },
+    "encode": {
+      "accepted": false,
+      "error": {
+        "name": "ValueError",
+        "code": "invalid-construction",
+        "message": "invalid email address \"a\\u001d@b.com\" at $"
+      }
+    },
+    "sourceHash": "505183cbdfaac09db1f6f02cce1d7cb6fd1571f5680d8d984dfb98f991c688bc",
+    "check": {
+      "command": [
+        "/private/tmp/can-email-admission-baseline-can",
+        "check",
+        "--format=json",
+        "--catalog",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/email-admission/fixtures/ascii-control-1d/value.can"
+      ],
+      "exit": 10,
+      "accepted": false
+    },
+    "compile": {
+      "command": [
+        "/private/tmp/can-email-admission-baseline-can",
+        "compile",
+        "--format=json",
+        "--catalog",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/email-admission/fixtures/ascii-control-1d/value.can"
+      ],
+      "exit": 10,
+      "accepted": false
+    },
+    "mismatch": false
+  },
+  {
+    "id": "ascii-control-1e",
+    "value": "a\u001e@b.com",
+    "expected": false,
+    "decode": {
+      "accepted": false,
+      "error": {
+        "name": "SchemaError",
+        "message": "schema validation failed with 1 violation(s)",
+        "violations": [
+          {
+            "path": [],
+            "code": "format",
+            "message": "email is malformed",
+            "expected": "an email address (local@domain)",
+            "actual": "\"a\\u001e@b.com\""
+          }
+        ]
+      }
+    },
+    "encode": {
+      "accepted": false,
+      "error": {
+        "name": "ValueError",
+        "code": "invalid-construction",
+        "message": "invalid email address \"a\\u001e@b.com\" at $"
+      }
+    },
+    "sourceHash": "e62c03ff844224a3f676d97d5dccf0a715a2e3ce11fda43195c560f65bef78c5",
+    "check": {
+      "command": [
+        "/private/tmp/can-email-admission-baseline-can",
+        "check",
+        "--format=json",
+        "--catalog",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/email-admission/fixtures/ascii-control-1e/value.can"
+      ],
+      "exit": 10,
+      "accepted": false
+    },
+    "compile": {
+      "command": [
+        "/private/tmp/can-email-admission-baseline-can",
+        "compile",
+        "--format=json",
+        "--catalog",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/email-admission/fixtures/ascii-control-1e/value.can"
+      ],
+      "exit": 10,
+      "accepted": false
+    },
+    "mismatch": false
+  },
+  {
+    "id": "ascii-control-1f",
+    "value": "a\u001f@b.com",
+    "expected": false,
+    "decode": {
+      "accepted": false,
+      "error": {
+        "name": "SchemaError",
+        "message": "schema validation failed with 1 violation(s)",
+        "violations": [
+          {
+            "path": [],
+            "code": "format",
+            "message": "email is malformed",
+            "expected": "an email address (local@domain)",
+            "actual": "\"a\\u001f@b.com\""
+          }
+        ]
+      }
+    },
+    "encode": {
+      "accepted": false,
+      "error": {
+        "name": "ValueError",
+        "code": "invalid-construction",
+        "message": "invalid email address \"a\\u001f@b.com\" at $"
+      }
+    },
+    "sourceHash": "b5f274704608f1bac1b7b6a1d7ad31c34b80fccf97105bfaf82dc42e95e5cd33",
+    "check": {
+      "command": [
+        "/private/tmp/can-email-admission-baseline-can",
+        "check",
+        "--format=json",
+        "--catalog",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/email-admission/fixtures/ascii-control-1f/value.can"
+      ],
+      "exit": 10,
+      "accepted": false
+    },
+    "compile": {
+      "command": [
+        "/private/tmp/can-email-admission-baseline-can",
+        "compile",
+        "--format=json",
+        "--catalog",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/email-admission/fixtures/ascii-control-1f/value.can"
+      ],
+      "exit": 10,
+      "accepted": false
+    },
+    "mismatch": false
+  },
+  {
+    "id": "ascii-control-7f",
+    "value": "a@b.com",
+    "expected": false,
+    "decode": {
+      "accepted": false,
+      "error": {
+        "name": "SchemaError",
+        "message": "schema validation failed with 1 violation(s)",
+        "violations": [
+          {
+            "path": [],
+            "code": "format",
+            "message": "email is malformed",
+            "expected": "an email address (local@domain)",
+            "actual": "\"a@b.com\""
+          }
+        ]
+      }
+    },
+    "encode": {
+      "accepted": false,
+      "error": {
+        "name": "ValueError",
+        "code": "invalid-construction",
+        "message": "invalid email address \"a@b.com\" at $"
+      }
+    },
+    "sourceHash": "3c57a42d22c73f4d74c62d148ea5fd110281a760606c58bfeeae5ac9f9c929b9",
+    "check": {
+      "command": [
+        "/private/tmp/can-email-admission-baseline-can",
+        "check",
+        "--format=json",
+        "--catalog",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/email-admission/fixtures/ascii-control-7f/value.can"
+      ],
+      "exit": 10,
+      "accepted": false
+    },
+    "compile": {
+      "command": [
+        "/private/tmp/can-email-admission-baseline-can",
+        "compile",
+        "--format=json",
+        "--catalog",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/email-admission/fixtures/ascii-control-7f/value.can"
+      ],
+      "exit": 10,
+      "accepted": false
+    },
+    "mismatch": false
+  },
+  {
+    "id": "ecmascript-space-00a0",
+    "value": "a @b.com",
+    "expected": false,
+    "decode": {
+      "accepted": false,
+      "error": {
+        "name": "SchemaError",
+        "message": "schema validation failed with 1 violation(s)",
+        "violations": [
+          {
+            "path": [],
+            "code": "format",
+            "message": "email is malformed",
+            "expected": "an email address (local@domain)",
+            "actual": "\"a @b.com\""
+          }
+        ]
+      }
+    },
+    "encode": {
+      "accepted": false,
+      "error": {
+        "name": "ValueError",
+        "code": "invalid-construction",
+        "message": "invalid email address \"a @b.com\" at $"
+      }
+    },
+    "sourceHash": "be859d6157550a74281d3515529ba7701daaba8531ee3112ed1f3219b2f61c06",
+    "check": {
+      "command": [
+        "/private/tmp/can-email-admission-baseline-can",
+        "check",
+        "--format=json",
+        "--catalog",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/email-admission/fixtures/ecmascript-space-00a0/value.can"
+      ],
+      "exit": 0,
+      "accepted": true
+    },
+    "compile": {
+      "command": [
+        "/private/tmp/can-email-admission-baseline-can",
+        "compile",
+        "--format=json",
+        "--catalog",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/email-admission/fixtures/ecmascript-space-00a0/value.can"
+      ],
+      "exit": 0,
+      "accepted": true
+    },
+    "generated": {
+      "imported": true,
+      "value": "a @b.com",
+      "decode": {
+        "accepted": false,
+        "error": {
+          "name": "SchemaError",
+          "message": "schema validation failed with 1 violation(s)",
+          "violations": [
+            {
+              "path": [],
+              "code": "format",
+              "message": "email is malformed",
+              "expected": "an email address (local@domain)",
+              "actual": "\"a @b.com\""
+            }
+          ]
+        }
+      },
+      "encode": {
+        "accepted": false,
+        "error": {
+          "name": "ValueError",
+          "code": "invalid-construction",
+          "message": "invalid email address \"a @b.com\" at $"
+        }
+      }
+    },
+    "mismatch": true
+  },
+  {
+    "id": "ecmascript-space-domain-00a0",
+    "value": "a@b .com",
+    "expected": false,
+    "decode": {
+      "accepted": false,
+      "error": {
+        "name": "SchemaError",
+        "message": "schema validation failed with 1 violation(s)",
+        "violations": [
+          {
+            "path": [],
+            "code": "format",
+            "message": "email is malformed",
+            "expected": "an email address (local@domain)",
+            "actual": "\"a@b .com\""
+          }
+        ]
+      }
+    },
+    "encode": {
+      "accepted": false,
+      "error": {
+        "name": "ValueError",
+        "code": "invalid-construction",
+        "message": "invalid email address \"a@b .com\" at $"
+      }
+    },
+    "sourceHash": "ef1db4ac2c06021969359983f9672d88ade780fa6d9caab4fdc15c77eb918aa5",
+    "check": {
+      "command": [
+        "/private/tmp/can-email-admission-baseline-can",
+        "check",
+        "--format=json",
+        "--catalog",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/email-admission/fixtures/ecmascript-space-domain-00a0/value.can"
+      ],
+      "exit": 10,
+      "accepted": false
+    },
+    "compile": {
+      "command": [
+        "/private/tmp/can-email-admission-baseline-can",
+        "compile",
+        "--format=json",
+        "--catalog",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/email-admission/fixtures/ecmascript-space-domain-00a0/value.can"
+      ],
+      "exit": 10,
+      "accepted": false
+    },
+    "mismatch": false
+  },
+  {
+    "id": "ecmascript-space-1680",
+    "value": "a @b.com",
+    "expected": false,
+    "decode": {
+      "accepted": false,
+      "error": {
+        "name": "SchemaError",
+        "message": "schema validation failed with 1 violation(s)",
+        "violations": [
+          {
+            "path": [],
+            "code": "format",
+            "message": "email is malformed",
+            "expected": "an email address (local@domain)",
+            "actual": "\"a @b.com\""
+          }
+        ]
+      }
+    },
+    "encode": {
+      "accepted": false,
+      "error": {
+        "name": "ValueError",
+        "code": "invalid-construction",
+        "message": "invalid email address \"a @b.com\" at $"
+      }
+    },
+    "sourceHash": "fd4a4cba9513f0d981ad29f529b502882a63a6b85a67d9a7919a90a820213608",
+    "check": {
+      "command": [
+        "/private/tmp/can-email-admission-baseline-can",
+        "check",
+        "--format=json",
+        "--catalog",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/email-admission/fixtures/ecmascript-space-1680/value.can"
+      ],
+      "exit": 0,
+      "accepted": true
+    },
+    "compile": {
+      "command": [
+        "/private/tmp/can-email-admission-baseline-can",
+        "compile",
+        "--format=json",
+        "--catalog",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/email-admission/fixtures/ecmascript-space-1680/value.can"
+      ],
+      "exit": 0,
+      "accepted": true
+    },
+    "generated": {
+      "imported": true,
+      "value": "a @b.com",
+      "decode": {
+        "accepted": false,
+        "error": {
+          "name": "SchemaError",
+          "message": "schema validation failed with 1 violation(s)",
+          "violations": [
+            {
+              "path": [],
+              "code": "format",
+              "message": "email is malformed",
+              "expected": "an email address (local@domain)",
+              "actual": "\"a @b.com\""
+            }
+          ]
+        }
+      },
+      "encode": {
+        "accepted": false,
+        "error": {
+          "name": "ValueError",
+          "code": "invalid-construction",
+          "message": "invalid email address \"a @b.com\" at $"
+        }
+      }
+    },
+    "mismatch": true
+  },
+  {
+    "id": "ecmascript-space-domain-1680",
+    "value": "a@b .com",
+    "expected": false,
+    "decode": {
+      "accepted": false,
+      "error": {
+        "name": "SchemaError",
+        "message": "schema validation failed with 1 violation(s)",
+        "violations": [
+          {
+            "path": [],
+            "code": "format",
+            "message": "email is malformed",
+            "expected": "an email address (local@domain)",
+            "actual": "\"a@b .com\""
+          }
+        ]
+      }
+    },
+    "encode": {
+      "accepted": false,
+      "error": {
+        "name": "ValueError",
+        "code": "invalid-construction",
+        "message": "invalid email address \"a@b .com\" at $"
+      }
+    },
+    "sourceHash": "8c6726a4a96229ce9fd5c0741070b2b87f1320456f5249d38fccc76881d99d7c",
+    "check": {
+      "command": [
+        "/private/tmp/can-email-admission-baseline-can",
+        "check",
+        "--format=json",
+        "--catalog",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/email-admission/fixtures/ecmascript-space-domain-1680/value.can"
+      ],
+      "exit": 10,
+      "accepted": false
+    },
+    "compile": {
+      "command": [
+        "/private/tmp/can-email-admission-baseline-can",
+        "compile",
+        "--format=json",
+        "--catalog",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/email-admission/fixtures/ecmascript-space-domain-1680/value.can"
+      ],
+      "exit": 10,
+      "accepted": false
+    },
+    "mismatch": false
+  },
+  {
+    "id": "ecmascript-space-2000",
+    "value": "a @b.com",
+    "expected": false,
+    "decode": {
+      "accepted": false,
+      "error": {
+        "name": "SchemaError",
+        "message": "schema validation failed with 1 violation(s)",
+        "violations": [
+          {
+            "path": [],
+            "code": "format",
+            "message": "email is malformed",
+            "expected": "an email address (local@domain)",
+            "actual": "\"a @b.com\""
+          }
+        ]
+      }
+    },
+    "encode": {
+      "accepted": false,
+      "error": {
+        "name": "ValueError",
+        "code": "invalid-construction",
+        "message": "invalid email address \"a @b.com\" at $"
+      }
+    },
+    "sourceHash": "d0778d2041e6f21322bf340249db4c84a589fae76cd045cece917e8f2ae47990",
+    "check": {
+      "command": [
+        "/private/tmp/can-email-admission-baseline-can",
+        "check",
+        "--format=json",
+        "--catalog",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/email-admission/fixtures/ecmascript-space-2000/value.can"
+      ],
+      "exit": 0,
+      "accepted": true
+    },
+    "compile": {
+      "command": [
+        "/private/tmp/can-email-admission-baseline-can",
+        "compile",
+        "--format=json",
+        "--catalog",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/email-admission/fixtures/ecmascript-space-2000/value.can"
+      ],
+      "exit": 0,
+      "accepted": true
+    },
+    "generated": {
+      "imported": true,
+      "value": "a @b.com",
+      "decode": {
+        "accepted": false,
+        "error": {
+          "name": "SchemaError",
+          "message": "schema validation failed with 1 violation(s)",
+          "violations": [
+            {
+              "path": [],
+              "code": "format",
+              "message": "email is malformed",
+              "expected": "an email address (local@domain)",
+              "actual": "\"a @b.com\""
+            }
+          ]
+        }
+      },
+      "encode": {
+        "accepted": false,
+        "error": {
+          "name": "ValueError",
+          "code": "invalid-construction",
+          "message": "invalid email address \"a @b.com\" at $"
+        }
+      }
+    },
+    "mismatch": true
+  },
+  {
+    "id": "ecmascript-space-domain-2000",
+    "value": "a@b .com",
+    "expected": false,
+    "decode": {
+      "accepted": false,
+      "error": {
+        "name": "SchemaError",
+        "message": "schema validation failed with 1 violation(s)",
+        "violations": [
+          {
+            "path": [],
+            "code": "format",
+            "message": "email is malformed",
+            "expected": "an email address (local@domain)",
+            "actual": "\"a@b .com\""
+          }
+        ]
+      }
+    },
+    "encode": {
+      "accepted": false,
+      "error": {
+        "name": "ValueError",
+        "code": "invalid-construction",
+        "message": "invalid email address \"a@b .com\" at $"
+      }
+    },
+    "sourceHash": "6671242ac14d55be5e5f7d1a5e036fdf7c4f9a1873f200eab03ff1636cb61dd7",
+    "check": {
+      "command": [
+        "/private/tmp/can-email-admission-baseline-can",
+        "check",
+        "--format=json",
+        "--catalog",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/email-admission/fixtures/ecmascript-space-domain-2000/value.can"
+      ],
+      "exit": 10,
+      "accepted": false
+    },
+    "compile": {
+      "command": [
+        "/private/tmp/can-email-admission-baseline-can",
+        "compile",
+        "--format=json",
+        "--catalog",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/email-admission/fixtures/ecmascript-space-domain-2000/value.can"
+      ],
+      "exit": 10,
+      "accepted": false
+    },
+    "mismatch": false
+  },
+  {
+    "id": "ecmascript-space-2001",
+    "value": "a @b.com",
+    "expected": false,
+    "decode": {
+      "accepted": false,
+      "error": {
+        "name": "SchemaError",
+        "message": "schema validation failed with 1 violation(s)",
+        "violations": [
+          {
+            "path": [],
+            "code": "format",
+            "message": "email is malformed",
+            "expected": "an email address (local@domain)",
+            "actual": "\"a @b.com\""
+          }
+        ]
+      }
+    },
+    "encode": {
+      "accepted": false,
+      "error": {
+        "name": "ValueError",
+        "code": "invalid-construction",
+        "message": "invalid email address \"a @b.com\" at $"
+      }
+    },
+    "sourceHash": "5363469a8982690e22166742feab3dcf7ea7cb954d6042edd445bcb5f6126c4e",
+    "check": {
+      "command": [
+        "/private/tmp/can-email-admission-baseline-can",
+        "check",
+        "--format=json",
+        "--catalog",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/email-admission/fixtures/ecmascript-space-2001/value.can"
+      ],
+      "exit": 0,
+      "accepted": true
+    },
+    "compile": {
+      "command": [
+        "/private/tmp/can-email-admission-baseline-can",
+        "compile",
+        "--format=json",
+        "--catalog",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/email-admission/fixtures/ecmascript-space-2001/value.can"
+      ],
+      "exit": 0,
+      "accepted": true
+    },
+    "generated": {
+      "imported": true,
+      "value": "a @b.com",
+      "decode": {
+        "accepted": false,
+        "error": {
+          "name": "SchemaError",
+          "message": "schema validation failed with 1 violation(s)",
+          "violations": [
+            {
+              "path": [],
+              "code": "format",
+              "message": "email is malformed",
+              "expected": "an email address (local@domain)",
+              "actual": "\"a @b.com\""
+            }
+          ]
+        }
+      },
+      "encode": {
+        "accepted": false,
+        "error": {
+          "name": "ValueError",
+          "code": "invalid-construction",
+          "message": "invalid email address \"a @b.com\" at $"
+        }
+      }
+    },
+    "mismatch": true
+  },
+  {
+    "id": "ecmascript-space-domain-2001",
+    "value": "a@b .com",
+    "expected": false,
+    "decode": {
+      "accepted": false,
+      "error": {
+        "name": "SchemaError",
+        "message": "schema validation failed with 1 violation(s)",
+        "violations": [
+          {
+            "path": [],
+            "code": "format",
+            "message": "email is malformed",
+            "expected": "an email address (local@domain)",
+            "actual": "\"a@b .com\""
+          }
+        ]
+      }
+    },
+    "encode": {
+      "accepted": false,
+      "error": {
+        "name": "ValueError",
+        "code": "invalid-construction",
+        "message": "invalid email address \"a@b .com\" at $"
+      }
+    },
+    "sourceHash": "c34b51586d47d0cbb8378170526eb3689c3db4ce865b1f891b6b55065b806ee6",
+    "check": {
+      "command": [
+        "/private/tmp/can-email-admission-baseline-can",
+        "check",
+        "--format=json",
+        "--catalog",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/email-admission/fixtures/ecmascript-space-domain-2001/value.can"
+      ],
+      "exit": 10,
+      "accepted": false
+    },
+    "compile": {
+      "command": [
+        "/private/tmp/can-email-admission-baseline-can",
+        "compile",
+        "--format=json",
+        "--catalog",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/email-admission/fixtures/ecmascript-space-domain-2001/value.can"
+      ],
+      "exit": 10,
+      "accepted": false
+    },
+    "mismatch": false
+  },
+  {
+    "id": "ecmascript-space-2002",
+    "value": "a @b.com",
+    "expected": false,
+    "decode": {
+      "accepted": false,
+      "error": {
+        "name": "SchemaError",
+        "message": "schema validation failed with 1 violation(s)",
+        "violations": [
+          {
+            "path": [],
+            "code": "format",
+            "message": "email is malformed",
+            "expected": "an email address (local@domain)",
+            "actual": "\"a @b.com\""
+          }
+        ]
+      }
+    },
+    "encode": {
+      "accepted": false,
+      "error": {
+        "name": "ValueError",
+        "code": "invalid-construction",
+        "message": "invalid email address \"a @b.com\" at $"
+      }
+    },
+    "sourceHash": "13698b024f937f773bf858a22c36e105af14cec98bb39f89d4f54227cc0c2df0",
+    "check": {
+      "command": [
+        "/private/tmp/can-email-admission-baseline-can",
+        "check",
+        "--format=json",
+        "--catalog",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/email-admission/fixtures/ecmascript-space-2002/value.can"
+      ],
+      "exit": 0,
+      "accepted": true
+    },
+    "compile": {
+      "command": [
+        "/private/tmp/can-email-admission-baseline-can",
+        "compile",
+        "--format=json",
+        "--catalog",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/email-admission/fixtures/ecmascript-space-2002/value.can"
+      ],
+      "exit": 0,
+      "accepted": true
+    },
+    "generated": {
+      "imported": true,
+      "value": "a @b.com",
+      "decode": {
+        "accepted": false,
+        "error": {
+          "name": "SchemaError",
+          "message": "schema validation failed with 1 violation(s)",
+          "violations": [
+            {
+              "path": [],
+              "code": "format",
+              "message": "email is malformed",
+              "expected": "an email address (local@domain)",
+              "actual": "\"a @b.com\""
+            }
+          ]
+        }
+      },
+      "encode": {
+        "accepted": false,
+        "error": {
+          "name": "ValueError",
+          "code": "invalid-construction",
+          "message": "invalid email address \"a @b.com\" at $"
+        }
+      }
+    },
+    "mismatch": true
+  },
+  {
+    "id": "ecmascript-space-domain-2002",
+    "value": "a@b .com",
+    "expected": false,
+    "decode": {
+      "accepted": false,
+      "error": {
+        "name": "SchemaError",
+        "message": "schema validation failed with 1 violation(s)",
+        "violations": [
+          {
+            "path": [],
+            "code": "format",
+            "message": "email is malformed",
+            "expected": "an email address (local@domain)",
+            "actual": "\"a@b .com\""
+          }
+        ]
+      }
+    },
+    "encode": {
+      "accepted": false,
+      "error": {
+        "name": "ValueError",
+        "code": "invalid-construction",
+        "message": "invalid email address \"a@b .com\" at $"
+      }
+    },
+    "sourceHash": "1a27abcf31dc6fc22b4c784156fe6f25657cfa798516058a796c032286b8edb3",
+    "check": {
+      "command": [
+        "/private/tmp/can-email-admission-baseline-can",
+        "check",
+        "--format=json",
+        "--catalog",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/email-admission/fixtures/ecmascript-space-domain-2002/value.can"
+      ],
+      "exit": 10,
+      "accepted": false
+    },
+    "compile": {
+      "command": [
+        "/private/tmp/can-email-admission-baseline-can",
+        "compile",
+        "--format=json",
+        "--catalog",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/email-admission/fixtures/ecmascript-space-domain-2002/value.can"
+      ],
+      "exit": 10,
+      "accepted": false
+    },
+    "mismatch": false
+  },
+  {
+    "id": "ecmascript-space-2003",
+    "value": "a @b.com",
+    "expected": false,
+    "decode": {
+      "accepted": false,
+      "error": {
+        "name": "SchemaError",
+        "message": "schema validation failed with 1 violation(s)",
+        "violations": [
+          {
+            "path": [],
+            "code": "format",
+            "message": "email is malformed",
+            "expected": "an email address (local@domain)",
+            "actual": "\"a @b.com\""
+          }
+        ]
+      }
+    },
+    "encode": {
+      "accepted": false,
+      "error": {
+        "name": "ValueError",
+        "code": "invalid-construction",
+        "message": "invalid email address \"a @b.com\" at $"
+      }
+    },
+    "sourceHash": "bb391ecee7688a082954afe4e56b1419b708021b6b8e23b2160a8585ccb2d153",
+    "check": {
+      "command": [
+        "/private/tmp/can-email-admission-baseline-can",
+        "check",
+        "--format=json",
+        "--catalog",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/email-admission/fixtures/ecmascript-space-2003/value.can"
+      ],
+      "exit": 0,
+      "accepted": true
+    },
+    "compile": {
+      "command": [
+        "/private/tmp/can-email-admission-baseline-can",
+        "compile",
+        "--format=json",
+        "--catalog",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/email-admission/fixtures/ecmascript-space-2003/value.can"
+      ],
+      "exit": 0,
+      "accepted": true
+    },
+    "generated": {
+      "imported": true,
+      "value": "a @b.com",
+      "decode": {
+        "accepted": false,
+        "error": {
+          "name": "SchemaError",
+          "message": "schema validation failed with 1 violation(s)",
+          "violations": [
+            {
+              "path": [],
+              "code": "format",
+              "message": "email is malformed",
+              "expected": "an email address (local@domain)",
+              "actual": "\"a @b.com\""
+            }
+          ]
+        }
+      },
+      "encode": {
+        "accepted": false,
+        "error": {
+          "name": "ValueError",
+          "code": "invalid-construction",
+          "message": "invalid email address \"a @b.com\" at $"
+        }
+      }
+    },
+    "mismatch": true
+  },
+  {
+    "id": "ecmascript-space-domain-2003",
+    "value": "a@b .com",
+    "expected": false,
+    "decode": {
+      "accepted": false,
+      "error": {
+        "name": "SchemaError",
+        "message": "schema validation failed with 1 violation(s)",
+        "violations": [
+          {
+            "path": [],
+            "code": "format",
+            "message": "email is malformed",
+            "expected": "an email address (local@domain)",
+            "actual": "\"a@b .com\""
+          }
+        ]
+      }
+    },
+    "encode": {
+      "accepted": false,
+      "error": {
+        "name": "ValueError",
+        "code": "invalid-construction",
+        "message": "invalid email address \"a@b .com\" at $"
+      }
+    },
+    "sourceHash": "fccf5d888553c294baa37fe0e81619fcf9de082b0c7ac9cb8ec79dec51fb464a",
+    "check": {
+      "command": [
+        "/private/tmp/can-email-admission-baseline-can",
+        "check",
+        "--format=json",
+        "--catalog",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/email-admission/fixtures/ecmascript-space-domain-2003/value.can"
+      ],
+      "exit": 10,
+      "accepted": false
+    },
+    "compile": {
+      "command": [
+        "/private/tmp/can-email-admission-baseline-can",
+        "compile",
+        "--format=json",
+        "--catalog",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/email-admission/fixtures/ecmascript-space-domain-2003/value.can"
+      ],
+      "exit": 10,
+      "accepted": false
+    },
+    "mismatch": false
+  },
+  {
+    "id": "ecmascript-space-2004",
+    "value": "a @b.com",
+    "expected": false,
+    "decode": {
+      "accepted": false,
+      "error": {
+        "name": "SchemaError",
+        "message": "schema validation failed with 1 violation(s)",
+        "violations": [
+          {
+            "path": [],
+            "code": "format",
+            "message": "email is malformed",
+            "expected": "an email address (local@domain)",
+            "actual": "\"a @b.com\""
+          }
+        ]
+      }
+    },
+    "encode": {
+      "accepted": false,
+      "error": {
+        "name": "ValueError",
+        "code": "invalid-construction",
+        "message": "invalid email address \"a @b.com\" at $"
+      }
+    },
+    "sourceHash": "1b92bdf455eca447e3182fa8b7a88803f11ca8f5a4958696ff9a16b772951035",
+    "check": {
+      "command": [
+        "/private/tmp/can-email-admission-baseline-can",
+        "check",
+        "--format=json",
+        "--catalog",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/email-admission/fixtures/ecmascript-space-2004/value.can"
+      ],
+      "exit": 0,
+      "accepted": true
+    },
+    "compile": {
+      "command": [
+        "/private/tmp/can-email-admission-baseline-can",
+        "compile",
+        "--format=json",
+        "--catalog",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/email-admission/fixtures/ecmascript-space-2004/value.can"
+      ],
+      "exit": 0,
+      "accepted": true
+    },
+    "generated": {
+      "imported": true,
+      "value": "a @b.com",
+      "decode": {
+        "accepted": false,
+        "error": {
+          "name": "SchemaError",
+          "message": "schema validation failed with 1 violation(s)",
+          "violations": [
+            {
+              "path": [],
+              "code": "format",
+              "message": "email is malformed",
+              "expected": "an email address (local@domain)",
+              "actual": "\"a @b.com\""
+            }
+          ]
+        }
+      },
+      "encode": {
+        "accepted": false,
+        "error": {
+          "name": "ValueError",
+          "code": "invalid-construction",
+          "message": "invalid email address \"a @b.com\" at $"
+        }
+      }
+    },
+    "mismatch": true
+  },
+  {
+    "id": "ecmascript-space-domain-2004",
+    "value": "a@b .com",
+    "expected": false,
+    "decode": {
+      "accepted": false,
+      "error": {
+        "name": "SchemaError",
+        "message": "schema validation failed with 1 violation(s)",
+        "violations": [
+          {
+            "path": [],
+            "code": "format",
+            "message": "email is malformed",
+            "expected": "an email address (local@domain)",
+            "actual": "\"a@b .com\""
+          }
+        ]
+      }
+    },
+    "encode": {
+      "accepted": false,
+      "error": {
+        "name": "ValueError",
+        "code": "invalid-construction",
+        "message": "invalid email address \"a@b .com\" at $"
+      }
+    },
+    "sourceHash": "cc5688d57060dea418df10a31aafe658657c456abf1981c5c57f7f8a4c760558",
+    "check": {
+      "command": [
+        "/private/tmp/can-email-admission-baseline-can",
+        "check",
+        "--format=json",
+        "--catalog",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/email-admission/fixtures/ecmascript-space-domain-2004/value.can"
+      ],
+      "exit": 10,
+      "accepted": false
+    },
+    "compile": {
+      "command": [
+        "/private/tmp/can-email-admission-baseline-can",
+        "compile",
+        "--format=json",
+        "--catalog",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/email-admission/fixtures/ecmascript-space-domain-2004/value.can"
+      ],
+      "exit": 10,
+      "accepted": false
+    },
+    "mismatch": false
+  },
+  {
+    "id": "ecmascript-space-2005",
+    "value": "a @b.com",
+    "expected": false,
+    "decode": {
+      "accepted": false,
+      "error": {
+        "name": "SchemaError",
+        "message": "schema validation failed with 1 violation(s)",
+        "violations": [
+          {
+            "path": [],
+            "code": "format",
+            "message": "email is malformed",
+            "expected": "an email address (local@domain)",
+            "actual": "\"a @b.com\""
+          }
+        ]
+      }
+    },
+    "encode": {
+      "accepted": false,
+      "error": {
+        "name": "ValueError",
+        "code": "invalid-construction",
+        "message": "invalid email address \"a @b.com\" at $"
+      }
+    },
+    "sourceHash": "0a7c7fc7c0aa17bfe5c52dd47faf1abac2d3ae9fbad23c7cc0b20bb162cbef09",
+    "check": {
+      "command": [
+        "/private/tmp/can-email-admission-baseline-can",
+        "check",
+        "--format=json",
+        "--catalog",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/email-admission/fixtures/ecmascript-space-2005/value.can"
+      ],
+      "exit": 0,
+      "accepted": true
+    },
+    "compile": {
+      "command": [
+        "/private/tmp/can-email-admission-baseline-can",
+        "compile",
+        "--format=json",
+        "--catalog",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/email-admission/fixtures/ecmascript-space-2005/value.can"
+      ],
+      "exit": 0,
+      "accepted": true
+    },
+    "generated": {
+      "imported": true,
+      "value": "a @b.com",
+      "decode": {
+        "accepted": false,
+        "error": {
+          "name": "SchemaError",
+          "message": "schema validation failed with 1 violation(s)",
+          "violations": [
+            {
+              "path": [],
+              "code": "format",
+              "message": "email is malformed",
+              "expected": "an email address (local@domain)",
+              "actual": "\"a @b.com\""
+            }
+          ]
+        }
+      },
+      "encode": {
+        "accepted": false,
+        "error": {
+          "name": "ValueError",
+          "code": "invalid-construction",
+          "message": "invalid email address \"a @b.com\" at $"
+        }
+      }
+    },
+    "mismatch": true
+  },
+  {
+    "id": "ecmascript-space-domain-2005",
+    "value": "a@b .com",
+    "expected": false,
+    "decode": {
+      "accepted": false,
+      "error": {
+        "name": "SchemaError",
+        "message": "schema validation failed with 1 violation(s)",
+        "violations": [
+          {
+            "path": [],
+            "code": "format",
+            "message": "email is malformed",
+            "expected": "an email address (local@domain)",
+            "actual": "\"a@b .com\""
+          }
+        ]
+      }
+    },
+    "encode": {
+      "accepted": false,
+      "error": {
+        "name": "ValueError",
+        "code": "invalid-construction",
+        "message": "invalid email address \"a@b .com\" at $"
+      }
+    },
+    "sourceHash": "b7ed9e0e24cd8bd33cac02233b93f8482bc6eb5fcf24aaa242b6596aaef5cff8",
+    "check": {
+      "command": [
+        "/private/tmp/can-email-admission-baseline-can",
+        "check",
+        "--format=json",
+        "--catalog",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/email-admission/fixtures/ecmascript-space-domain-2005/value.can"
+      ],
+      "exit": 10,
+      "accepted": false
+    },
+    "compile": {
+      "command": [
+        "/private/tmp/can-email-admission-baseline-can",
+        "compile",
+        "--format=json",
+        "--catalog",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/email-admission/fixtures/ecmascript-space-domain-2005/value.can"
+      ],
+      "exit": 10,
+      "accepted": false
+    },
+    "mismatch": false
+  },
+  {
+    "id": "ecmascript-space-2006",
+    "value": "a @b.com",
+    "expected": false,
+    "decode": {
+      "accepted": false,
+      "error": {
+        "name": "SchemaError",
+        "message": "schema validation failed with 1 violation(s)",
+        "violations": [
+          {
+            "path": [],
+            "code": "format",
+            "message": "email is malformed",
+            "expected": "an email address (local@domain)",
+            "actual": "\"a @b.com\""
+          }
+        ]
+      }
+    },
+    "encode": {
+      "accepted": false,
+      "error": {
+        "name": "ValueError",
+        "code": "invalid-construction",
+        "message": "invalid email address \"a @b.com\" at $"
+      }
+    },
+    "sourceHash": "8522f12fefeb3eefc49cdb5766f9ab1a27cca7764434f14e23f288e74bd5facb",
+    "check": {
+      "command": [
+        "/private/tmp/can-email-admission-baseline-can",
+        "check",
+        "--format=json",
+        "--catalog",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/email-admission/fixtures/ecmascript-space-2006/value.can"
+      ],
+      "exit": 0,
+      "accepted": true
+    },
+    "compile": {
+      "command": [
+        "/private/tmp/can-email-admission-baseline-can",
+        "compile",
+        "--format=json",
+        "--catalog",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/email-admission/fixtures/ecmascript-space-2006/value.can"
+      ],
+      "exit": 0,
+      "accepted": true
+    },
+    "generated": {
+      "imported": true,
+      "value": "a @b.com",
+      "decode": {
+        "accepted": false,
+        "error": {
+          "name": "SchemaError",
+          "message": "schema validation failed with 1 violation(s)",
+          "violations": [
+            {
+              "path": [],
+              "code": "format",
+              "message": "email is malformed",
+              "expected": "an email address (local@domain)",
+              "actual": "\"a @b.com\""
+            }
+          ]
+        }
+      },
+      "encode": {
+        "accepted": false,
+        "error": {
+          "name": "ValueError",
+          "code": "invalid-construction",
+          "message": "invalid email address \"a @b.com\" at $"
+        }
+      }
+    },
+    "mismatch": true
+  },
+  {
+    "id": "ecmascript-space-domain-2006",
+    "value": "a@b .com",
+    "expected": false,
+    "decode": {
+      "accepted": false,
+      "error": {
+        "name": "SchemaError",
+        "message": "schema validation failed with 1 violation(s)",
+        "violations": [
+          {
+            "path": [],
+            "code": "format",
+            "message": "email is malformed",
+            "expected": "an email address (local@domain)",
+            "actual": "\"a@b .com\""
+          }
+        ]
+      }
+    },
+    "encode": {
+      "accepted": false,
+      "error": {
+        "name": "ValueError",
+        "code": "invalid-construction",
+        "message": "invalid email address \"a@b .com\" at $"
+      }
+    },
+    "sourceHash": "8782b7eef5dbff9de5f458bd79098a6085e95e5a63c8b1584d4d062a28349950",
+    "check": {
+      "command": [
+        "/private/tmp/can-email-admission-baseline-can",
+        "check",
+        "--format=json",
+        "--catalog",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/email-admission/fixtures/ecmascript-space-domain-2006/value.can"
+      ],
+      "exit": 10,
+      "accepted": false
+    },
+    "compile": {
+      "command": [
+        "/private/tmp/can-email-admission-baseline-can",
+        "compile",
+        "--format=json",
+        "--catalog",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/email-admission/fixtures/ecmascript-space-domain-2006/value.can"
+      ],
+      "exit": 10,
+      "accepted": false
+    },
+    "mismatch": false
+  },
+  {
+    "id": "ecmascript-space-2007",
+    "value": "a @b.com",
+    "expected": false,
+    "decode": {
+      "accepted": false,
+      "error": {
+        "name": "SchemaError",
+        "message": "schema validation failed with 1 violation(s)",
+        "violations": [
+          {
+            "path": [],
+            "code": "format",
+            "message": "email is malformed",
+            "expected": "an email address (local@domain)",
+            "actual": "\"a @b.com\""
+          }
+        ]
+      }
+    },
+    "encode": {
+      "accepted": false,
+      "error": {
+        "name": "ValueError",
+        "code": "invalid-construction",
+        "message": "invalid email address \"a @b.com\" at $"
+      }
+    },
+    "sourceHash": "dd7e2b64de56afc7e36c52837f9c420e345ccbc0e71973b55d3bc015887edfd5",
+    "check": {
+      "command": [
+        "/private/tmp/can-email-admission-baseline-can",
+        "check",
+        "--format=json",
+        "--catalog",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/email-admission/fixtures/ecmascript-space-2007/value.can"
+      ],
+      "exit": 0,
+      "accepted": true
+    },
+    "compile": {
+      "command": [
+        "/private/tmp/can-email-admission-baseline-can",
+        "compile",
+        "--format=json",
+        "--catalog",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/email-admission/fixtures/ecmascript-space-2007/value.can"
+      ],
+      "exit": 0,
+      "accepted": true
+    },
+    "generated": {
+      "imported": true,
+      "value": "a @b.com",
+      "decode": {
+        "accepted": false,
+        "error": {
+          "name": "SchemaError",
+          "message": "schema validation failed with 1 violation(s)",
+          "violations": [
+            {
+              "path": [],
+              "code": "format",
+              "message": "email is malformed",
+              "expected": "an email address (local@domain)",
+              "actual": "\"a @b.com\""
+            }
+          ]
+        }
+      },
+      "encode": {
+        "accepted": false,
+        "error": {
+          "name": "ValueError",
+          "code": "invalid-construction",
+          "message": "invalid email address \"a @b.com\" at $"
+        }
+      }
+    },
+    "mismatch": true
+  },
+  {
+    "id": "ecmascript-space-domain-2007",
+    "value": "a@b .com",
+    "expected": false,
+    "decode": {
+      "accepted": false,
+      "error": {
+        "name": "SchemaError",
+        "message": "schema validation failed with 1 violation(s)",
+        "violations": [
+          {
+            "path": [],
+            "code": "format",
+            "message": "email is malformed",
+            "expected": "an email address (local@domain)",
+            "actual": "\"a@b .com\""
+          }
+        ]
+      }
+    },
+    "encode": {
+      "accepted": false,
+      "error": {
+        "name": "ValueError",
+        "code": "invalid-construction",
+        "message": "invalid email address \"a@b .com\" at $"
+      }
+    },
+    "sourceHash": "72af390a0155163b0d519643de9eae213fa53182cf38e18db6d39448ba089b67",
+    "check": {
+      "command": [
+        "/private/tmp/can-email-admission-baseline-can",
+        "check",
+        "--format=json",
+        "--catalog",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/email-admission/fixtures/ecmascript-space-domain-2007/value.can"
+      ],
+      "exit": 10,
+      "accepted": false
+    },
+    "compile": {
+      "command": [
+        "/private/tmp/can-email-admission-baseline-can",
+        "compile",
+        "--format=json",
+        "--catalog",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/email-admission/fixtures/ecmascript-space-domain-2007/value.can"
+      ],
+      "exit": 10,
+      "accepted": false
+    },
+    "mismatch": false
+  },
+  {
+    "id": "ecmascript-space-2008",
+    "value": "a @b.com",
+    "expected": false,
+    "decode": {
+      "accepted": false,
+      "error": {
+        "name": "SchemaError",
+        "message": "schema validation failed with 1 violation(s)",
+        "violations": [
+          {
+            "path": [],
+            "code": "format",
+            "message": "email is malformed",
+            "expected": "an email address (local@domain)",
+            "actual": "\"a @b.com\""
+          }
+        ]
+      }
+    },
+    "encode": {
+      "accepted": false,
+      "error": {
+        "name": "ValueError",
+        "code": "invalid-construction",
+        "message": "invalid email address \"a @b.com\" at $"
+      }
+    },
+    "sourceHash": "769754e07db3ee067ffce0580066f9fddeabe4adbee9560c07a0442f92c0d371",
+    "check": {
+      "command": [
+        "/private/tmp/can-email-admission-baseline-can",
+        "check",
+        "--format=json",
+        "--catalog",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/email-admission/fixtures/ecmascript-space-2008/value.can"
+      ],
+      "exit": 0,
+      "accepted": true
+    },
+    "compile": {
+      "command": [
+        "/private/tmp/can-email-admission-baseline-can",
+        "compile",
+        "--format=json",
+        "--catalog",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/email-admission/fixtures/ecmascript-space-2008/value.can"
+      ],
+      "exit": 0,
+      "accepted": true
+    },
+    "generated": {
+      "imported": true,
+      "value": "a @b.com",
+      "decode": {
+        "accepted": false,
+        "error": {
+          "name": "SchemaError",
+          "message": "schema validation failed with 1 violation(s)",
+          "violations": [
+            {
+              "path": [],
+              "code": "format",
+              "message": "email is malformed",
+              "expected": "an email address (local@domain)",
+              "actual": "\"a @b.com\""
+            }
+          ]
+        }
+      },
+      "encode": {
+        "accepted": false,
+        "error": {
+          "name": "ValueError",
+          "code": "invalid-construction",
+          "message": "invalid email address \"a @b.com\" at $"
+        }
+      }
+    },
+    "mismatch": true
+  },
+  {
+    "id": "ecmascript-space-domain-2008",
+    "value": "a@b .com",
+    "expected": false,
+    "decode": {
+      "accepted": false,
+      "error": {
+        "name": "SchemaError",
+        "message": "schema validation failed with 1 violation(s)",
+        "violations": [
+          {
+            "path": [],
+            "code": "format",
+            "message": "email is malformed",
+            "expected": "an email address (local@domain)",
+            "actual": "\"a@b .com\""
+          }
+        ]
+      }
+    },
+    "encode": {
+      "accepted": false,
+      "error": {
+        "name": "ValueError",
+        "code": "invalid-construction",
+        "message": "invalid email address \"a@b .com\" at $"
+      }
+    },
+    "sourceHash": "ec567382ed851d272881fcdb369c1fcba63a62ad3be4a30ed1527961e9aec69f",
+    "check": {
+      "command": [
+        "/private/tmp/can-email-admission-baseline-can",
+        "check",
+        "--format=json",
+        "--catalog",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/email-admission/fixtures/ecmascript-space-domain-2008/value.can"
+      ],
+      "exit": 10,
+      "accepted": false
+    },
+    "compile": {
+      "command": [
+        "/private/tmp/can-email-admission-baseline-can",
+        "compile",
+        "--format=json",
+        "--catalog",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/email-admission/fixtures/ecmascript-space-domain-2008/value.can"
+      ],
+      "exit": 10,
+      "accepted": false
+    },
+    "mismatch": false
+  },
+  {
+    "id": "ecmascript-space-2009",
+    "value": "a @b.com",
+    "expected": false,
+    "decode": {
+      "accepted": false,
+      "error": {
+        "name": "SchemaError",
+        "message": "schema validation failed with 1 violation(s)",
+        "violations": [
+          {
+            "path": [],
+            "code": "format",
+            "message": "email is malformed",
+            "expected": "an email address (local@domain)",
+            "actual": "\"a @b.com\""
+          }
+        ]
+      }
+    },
+    "encode": {
+      "accepted": false,
+      "error": {
+        "name": "ValueError",
+        "code": "invalid-construction",
+        "message": "invalid email address \"a @b.com\" at $"
+      }
+    },
+    "sourceHash": "5fa4af3f2ce2d0c327a1e630501de3a2a409b4674be9ec0fbab6c97f055df1dd",
+    "check": {
+      "command": [
+        "/private/tmp/can-email-admission-baseline-can",
+        "check",
+        "--format=json",
+        "--catalog",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/email-admission/fixtures/ecmascript-space-2009/value.can"
+      ],
+      "exit": 0,
+      "accepted": true
+    },
+    "compile": {
+      "command": [
+        "/private/tmp/can-email-admission-baseline-can",
+        "compile",
+        "--format=json",
+        "--catalog",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/email-admission/fixtures/ecmascript-space-2009/value.can"
+      ],
+      "exit": 0,
+      "accepted": true
+    },
+    "generated": {
+      "imported": true,
+      "value": "a @b.com",
+      "decode": {
+        "accepted": false,
+        "error": {
+          "name": "SchemaError",
+          "message": "schema validation failed with 1 violation(s)",
+          "violations": [
+            {
+              "path": [],
+              "code": "format",
+              "message": "email is malformed",
+              "expected": "an email address (local@domain)",
+              "actual": "\"a @b.com\""
+            }
+          ]
+        }
+      },
+      "encode": {
+        "accepted": false,
+        "error": {
+          "name": "ValueError",
+          "code": "invalid-construction",
+          "message": "invalid email address \"a @b.com\" at $"
+        }
+      }
+    },
+    "mismatch": true
+  },
+  {
+    "id": "ecmascript-space-domain-2009",
+    "value": "a@b .com",
+    "expected": false,
+    "decode": {
+      "accepted": false,
+      "error": {
+        "name": "SchemaError",
+        "message": "schema validation failed with 1 violation(s)",
+        "violations": [
+          {
+            "path": [],
+            "code": "format",
+            "message": "email is malformed",
+            "expected": "an email address (local@domain)",
+            "actual": "\"a@b .com\""
+          }
+        ]
+      }
+    },
+    "encode": {
+      "accepted": false,
+      "error": {
+        "name": "ValueError",
+        "code": "invalid-construction",
+        "message": "invalid email address \"a@b .com\" at $"
+      }
+    },
+    "sourceHash": "03ad6609c6d40818f2a286d5c14ba980093af1d2b541ad65fb658ceeb2ba330f",
+    "check": {
+      "command": [
+        "/private/tmp/can-email-admission-baseline-can",
+        "check",
+        "--format=json",
+        "--catalog",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/email-admission/fixtures/ecmascript-space-domain-2009/value.can"
+      ],
+      "exit": 10,
+      "accepted": false
+    },
+    "compile": {
+      "command": [
+        "/private/tmp/can-email-admission-baseline-can",
+        "compile",
+        "--format=json",
+        "--catalog",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/email-admission/fixtures/ecmascript-space-domain-2009/value.can"
+      ],
+      "exit": 10,
+      "accepted": false
+    },
+    "mismatch": false
+  },
+  {
+    "id": "ecmascript-space-200a",
+    "value": "a @b.com",
+    "expected": false,
+    "decode": {
+      "accepted": false,
+      "error": {
+        "name": "SchemaError",
+        "message": "schema validation failed with 1 violation(s)",
+        "violations": [
+          {
+            "path": [],
+            "code": "format",
+            "message": "email is malformed",
+            "expected": "an email address (local@domain)",
+            "actual": "\"a @b.com\""
+          }
+        ]
+      }
+    },
+    "encode": {
+      "accepted": false,
+      "error": {
+        "name": "ValueError",
+        "code": "invalid-construction",
+        "message": "invalid email address \"a @b.com\" at $"
+      }
+    },
+    "sourceHash": "8a9a2a9e62b8616a634c4b19a2ffb7c9486609867bab13f914fa71089ec0ff63",
+    "check": {
+      "command": [
+        "/private/tmp/can-email-admission-baseline-can",
+        "check",
+        "--format=json",
+        "--catalog",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/email-admission/fixtures/ecmascript-space-200a/value.can"
+      ],
+      "exit": 0,
+      "accepted": true
+    },
+    "compile": {
+      "command": [
+        "/private/tmp/can-email-admission-baseline-can",
+        "compile",
+        "--format=json",
+        "--catalog",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/email-admission/fixtures/ecmascript-space-200a/value.can"
+      ],
+      "exit": 0,
+      "accepted": true
+    },
+    "generated": {
+      "imported": true,
+      "value": "a @b.com",
+      "decode": {
+        "accepted": false,
+        "error": {
+          "name": "SchemaError",
+          "message": "schema validation failed with 1 violation(s)",
+          "violations": [
+            {
+              "path": [],
+              "code": "format",
+              "message": "email is malformed",
+              "expected": "an email address (local@domain)",
+              "actual": "\"a @b.com\""
+            }
+          ]
+        }
+      },
+      "encode": {
+        "accepted": false,
+        "error": {
+          "name": "ValueError",
+          "code": "invalid-construction",
+          "message": "invalid email address \"a @b.com\" at $"
+        }
+      }
+    },
+    "mismatch": true
+  },
+  {
+    "id": "ecmascript-space-domain-200a",
+    "value": "a@b .com",
+    "expected": false,
+    "decode": {
+      "accepted": false,
+      "error": {
+        "name": "SchemaError",
+        "message": "schema validation failed with 1 violation(s)",
+        "violations": [
+          {
+            "path": [],
+            "code": "format",
+            "message": "email is malformed",
+            "expected": "an email address (local@domain)",
+            "actual": "\"a@b .com\""
+          }
+        ]
+      }
+    },
+    "encode": {
+      "accepted": false,
+      "error": {
+        "name": "ValueError",
+        "code": "invalid-construction",
+        "message": "invalid email address \"a@b .com\" at $"
+      }
+    },
+    "sourceHash": "af5ca929c0ae4db94dd32f1b29b955886f6e0f2fa220b1232b63fadc4231482e",
+    "check": {
+      "command": [
+        "/private/tmp/can-email-admission-baseline-can",
+        "check",
+        "--format=json",
+        "--catalog",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/email-admission/fixtures/ecmascript-space-domain-200a/value.can"
+      ],
+      "exit": 10,
+      "accepted": false
+    },
+    "compile": {
+      "command": [
+        "/private/tmp/can-email-admission-baseline-can",
+        "compile",
+        "--format=json",
+        "--catalog",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/email-admission/fixtures/ecmascript-space-domain-200a/value.can"
+      ],
+      "exit": 10,
+      "accepted": false
+    },
+    "mismatch": false
+  },
+  {
+    "id": "ecmascript-space-2028",
+    "value": "a @b.com",
+    "expected": false,
+    "decode": {
+      "accepted": false,
+      "error": {
+        "name": "SchemaError",
+        "message": "schema validation failed with 1 violation(s)",
+        "violations": [
+          {
+            "path": [],
+            "code": "format",
+            "message": "email is malformed",
+            "expected": "an email address (local@domain)",
+            "actual": "\"a @b.com\""
+          }
+        ]
+      }
+    },
+    "encode": {
+      "accepted": false,
+      "error": {
+        "name": "ValueError",
+        "code": "invalid-construction",
+        "message": "invalid email address \"a @b.com\" at $"
+      }
+    },
+    "sourceHash": "79b4dc52ef344ef7a92c2ecc4315401385305fc424f71e1be78c1633c24827ff",
+    "check": {
+      "command": [
+        "/private/tmp/can-email-admission-baseline-can",
+        "check",
+        "--format=json",
+        "--catalog",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/email-admission/fixtures/ecmascript-space-2028/value.can"
+      ],
+      "exit": 0,
+      "accepted": true
+    },
+    "compile": {
+      "command": [
+        "/private/tmp/can-email-admission-baseline-can",
+        "compile",
+        "--format=json",
+        "--catalog",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/email-admission/fixtures/ecmascript-space-2028/value.can"
+      ],
+      "exit": 0,
+      "accepted": true
+    },
+    "generated": {
+      "imported": true,
+      "value": "a @b.com",
+      "decode": {
+        "accepted": false,
+        "error": {
+          "name": "SchemaError",
+          "message": "schema validation failed with 1 violation(s)",
+          "violations": [
+            {
+              "path": [],
+              "code": "format",
+              "message": "email is malformed",
+              "expected": "an email address (local@domain)",
+              "actual": "\"a @b.com\""
+            }
+          ]
+        }
+      },
+      "encode": {
+        "accepted": false,
+        "error": {
+          "name": "ValueError",
+          "code": "invalid-construction",
+          "message": "invalid email address \"a @b.com\" at $"
+        }
+      }
+    },
+    "mismatch": true
+  },
+  {
+    "id": "ecmascript-space-domain-2028",
+    "value": "a@b .com",
+    "expected": false,
+    "decode": {
+      "accepted": false,
+      "error": {
+        "name": "SchemaError",
+        "message": "schema validation failed with 1 violation(s)",
+        "violations": [
+          {
+            "path": [],
+            "code": "format",
+            "message": "email is malformed",
+            "expected": "an email address (local@domain)",
+            "actual": "\"a@b .com\""
+          }
+        ]
+      }
+    },
+    "encode": {
+      "accepted": false,
+      "error": {
+        "name": "ValueError",
+        "code": "invalid-construction",
+        "message": "invalid email address \"a@b .com\" at $"
+      }
+    },
+    "sourceHash": "8729b8effadf06b3754943a84145f292f8d9717cfb017532d7923dd77ff91995",
+    "check": {
+      "command": [
+        "/private/tmp/can-email-admission-baseline-can",
+        "check",
+        "--format=json",
+        "--catalog",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/email-admission/fixtures/ecmascript-space-domain-2028/value.can"
+      ],
+      "exit": 10,
+      "accepted": false
+    },
+    "compile": {
+      "command": [
+        "/private/tmp/can-email-admission-baseline-can",
+        "compile",
+        "--format=json",
+        "--catalog",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/email-admission/fixtures/ecmascript-space-domain-2028/value.can"
+      ],
+      "exit": 10,
+      "accepted": false
+    },
+    "mismatch": false
+  },
+  {
+    "id": "ecmascript-space-2029",
+    "value": "a @b.com",
+    "expected": false,
+    "decode": {
+      "accepted": false,
+      "error": {
+        "name": "SchemaError",
+        "message": "schema validation failed with 1 violation(s)",
+        "violations": [
+          {
+            "path": [],
+            "code": "format",
+            "message": "email is malformed",
+            "expected": "an email address (local@domain)",
+            "actual": "\"a @b.com\""
+          }
+        ]
+      }
+    },
+    "encode": {
+      "accepted": false,
+      "error": {
+        "name": "ValueError",
+        "code": "invalid-construction",
+        "message": "invalid email address \"a @b.com\" at $"
+      }
+    },
+    "sourceHash": "3faf7705ecc9b7de930a4bcdee1da0eaaf261cc1aa6144576c13b47d5c6bf3cd",
+    "check": {
+      "command": [
+        "/private/tmp/can-email-admission-baseline-can",
+        "check",
+        "--format=json",
+        "--catalog",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/email-admission/fixtures/ecmascript-space-2029/value.can"
+      ],
+      "exit": 0,
+      "accepted": true
+    },
+    "compile": {
+      "command": [
+        "/private/tmp/can-email-admission-baseline-can",
+        "compile",
+        "--format=json",
+        "--catalog",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/email-admission/fixtures/ecmascript-space-2029/value.can"
+      ],
+      "exit": 0,
+      "accepted": true
+    },
+    "generated": {
+      "imported": true,
+      "value": "a @b.com",
+      "decode": {
+        "accepted": false,
+        "error": {
+          "name": "SchemaError",
+          "message": "schema validation failed with 1 violation(s)",
+          "violations": [
+            {
+              "path": [],
+              "code": "format",
+              "message": "email is malformed",
+              "expected": "an email address (local@domain)",
+              "actual": "\"a @b.com\""
+            }
+          ]
+        }
+      },
+      "encode": {
+        "accepted": false,
+        "error": {
+          "name": "ValueError",
+          "code": "invalid-construction",
+          "message": "invalid email address \"a @b.com\" at $"
+        }
+      }
+    },
+    "mismatch": true
+  },
+  {
+    "id": "ecmascript-space-domain-2029",
+    "value": "a@b .com",
+    "expected": false,
+    "decode": {
+      "accepted": false,
+      "error": {
+        "name": "SchemaError",
+        "message": "schema validation failed with 1 violation(s)",
+        "violations": [
+          {
+            "path": [],
+            "code": "format",
+            "message": "email is malformed",
+            "expected": "an email address (local@domain)",
+            "actual": "\"a@b .com\""
+          }
+        ]
+      }
+    },
+    "encode": {
+      "accepted": false,
+      "error": {
+        "name": "ValueError",
+        "code": "invalid-construction",
+        "message": "invalid email address \"a@b .com\" at $"
+      }
+    },
+    "sourceHash": "3ee4e49d31c0b3bc4e40e5563ad148d86770c203713fd85986af3750f1b2de48",
+    "check": {
+      "command": [
+        "/private/tmp/can-email-admission-baseline-can",
+        "check",
+        "--format=json",
+        "--catalog",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/email-admission/fixtures/ecmascript-space-domain-2029/value.can"
+      ],
+      "exit": 10,
+      "accepted": false
+    },
+    "compile": {
+      "command": [
+        "/private/tmp/can-email-admission-baseline-can",
+        "compile",
+        "--format=json",
+        "--catalog",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/email-admission/fixtures/ecmascript-space-domain-2029/value.can"
+      ],
+      "exit": 10,
+      "accepted": false
+    },
+    "mismatch": false
+  },
+  {
+    "id": "ecmascript-space-202f",
+    "value": "a @b.com",
+    "expected": false,
+    "decode": {
+      "accepted": false,
+      "error": {
+        "name": "SchemaError",
+        "message": "schema validation failed with 1 violation(s)",
+        "violations": [
+          {
+            "path": [],
+            "code": "format",
+            "message": "email is malformed",
+            "expected": "an email address (local@domain)",
+            "actual": "\"a @b.com\""
+          }
+        ]
+      }
+    },
+    "encode": {
+      "accepted": false,
+      "error": {
+        "name": "ValueError",
+        "code": "invalid-construction",
+        "message": "invalid email address \"a @b.com\" at $"
+      }
+    },
+    "sourceHash": "4e6eb49f284900e113bd0cc26c9a0455b2d0c48200864be360e62264ac01c693",
+    "check": {
+      "command": [
+        "/private/tmp/can-email-admission-baseline-can",
+        "check",
+        "--format=json",
+        "--catalog",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/email-admission/fixtures/ecmascript-space-202f/value.can"
+      ],
+      "exit": 0,
+      "accepted": true
+    },
+    "compile": {
+      "command": [
+        "/private/tmp/can-email-admission-baseline-can",
+        "compile",
+        "--format=json",
+        "--catalog",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/email-admission/fixtures/ecmascript-space-202f/value.can"
+      ],
+      "exit": 0,
+      "accepted": true
+    },
+    "generated": {
+      "imported": true,
+      "value": "a @b.com",
+      "decode": {
+        "accepted": false,
+        "error": {
+          "name": "SchemaError",
+          "message": "schema validation failed with 1 violation(s)",
+          "violations": [
+            {
+              "path": [],
+              "code": "format",
+              "message": "email is malformed",
+              "expected": "an email address (local@domain)",
+              "actual": "\"a @b.com\""
+            }
+          ]
+        }
+      },
+      "encode": {
+        "accepted": false,
+        "error": {
+          "name": "ValueError",
+          "code": "invalid-construction",
+          "message": "invalid email address \"a @b.com\" at $"
+        }
+      }
+    },
+    "mismatch": true
+  },
+  {
+    "id": "ecmascript-space-domain-202f",
+    "value": "a@b .com",
+    "expected": false,
+    "decode": {
+      "accepted": false,
+      "error": {
+        "name": "SchemaError",
+        "message": "schema validation failed with 1 violation(s)",
+        "violations": [
+          {
+            "path": [],
+            "code": "format",
+            "message": "email is malformed",
+            "expected": "an email address (local@domain)",
+            "actual": "\"a@b .com\""
+          }
+        ]
+      }
+    },
+    "encode": {
+      "accepted": false,
+      "error": {
+        "name": "ValueError",
+        "code": "invalid-construction",
+        "message": "invalid email address \"a@b .com\" at $"
+      }
+    },
+    "sourceHash": "255ca297715cc17aa58399fe0b4bd3b966e783ce26ad49baf46a28721bf73b02",
+    "check": {
+      "command": [
+        "/private/tmp/can-email-admission-baseline-can",
+        "check",
+        "--format=json",
+        "--catalog",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/email-admission/fixtures/ecmascript-space-domain-202f/value.can"
+      ],
+      "exit": 10,
+      "accepted": false
+    },
+    "compile": {
+      "command": [
+        "/private/tmp/can-email-admission-baseline-can",
+        "compile",
+        "--format=json",
+        "--catalog",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/email-admission/fixtures/ecmascript-space-domain-202f/value.can"
+      ],
+      "exit": 10,
+      "accepted": false
+    },
+    "mismatch": false
+  },
+  {
+    "id": "ecmascript-space-205f",
+    "value": "a @b.com",
+    "expected": false,
+    "decode": {
+      "accepted": false,
+      "error": {
+        "name": "SchemaError",
+        "message": "schema validation failed with 1 violation(s)",
+        "violations": [
+          {
+            "path": [],
+            "code": "format",
+            "message": "email is malformed",
+            "expected": "an email address (local@domain)",
+            "actual": "\"a @b.com\""
+          }
+        ]
+      }
+    },
+    "encode": {
+      "accepted": false,
+      "error": {
+        "name": "ValueError",
+        "code": "invalid-construction",
+        "message": "invalid email address \"a @b.com\" at $"
+      }
+    },
+    "sourceHash": "547fc6a1144e5f17644847b87586960014b91677e6ee828e91460541846437a8",
+    "check": {
+      "command": [
+        "/private/tmp/can-email-admission-baseline-can",
+        "check",
+        "--format=json",
+        "--catalog",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/email-admission/fixtures/ecmascript-space-205f/value.can"
+      ],
+      "exit": 0,
+      "accepted": true
+    },
+    "compile": {
+      "command": [
+        "/private/tmp/can-email-admission-baseline-can",
+        "compile",
+        "--format=json",
+        "--catalog",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/email-admission/fixtures/ecmascript-space-205f/value.can"
+      ],
+      "exit": 0,
+      "accepted": true
+    },
+    "generated": {
+      "imported": true,
+      "value": "a @b.com",
+      "decode": {
+        "accepted": false,
+        "error": {
+          "name": "SchemaError",
+          "message": "schema validation failed with 1 violation(s)",
+          "violations": [
+            {
+              "path": [],
+              "code": "format",
+              "message": "email is malformed",
+              "expected": "an email address (local@domain)",
+              "actual": "\"a @b.com\""
+            }
+          ]
+        }
+      },
+      "encode": {
+        "accepted": false,
+        "error": {
+          "name": "ValueError",
+          "code": "invalid-construction",
+          "message": "invalid email address \"a @b.com\" at $"
+        }
+      }
+    },
+    "mismatch": true
+  },
+  {
+    "id": "ecmascript-space-domain-205f",
+    "value": "a@b .com",
+    "expected": false,
+    "decode": {
+      "accepted": false,
+      "error": {
+        "name": "SchemaError",
+        "message": "schema validation failed with 1 violation(s)",
+        "violations": [
+          {
+            "path": [],
+            "code": "format",
+            "message": "email is malformed",
+            "expected": "an email address (local@domain)",
+            "actual": "\"a@b .com\""
+          }
+        ]
+      }
+    },
+    "encode": {
+      "accepted": false,
+      "error": {
+        "name": "ValueError",
+        "code": "invalid-construction",
+        "message": "invalid email address \"a@b .com\" at $"
+      }
+    },
+    "sourceHash": "dfd4d7852bac2632f2cd53b4582550ddf9b2ee86f7a9890dfbc8aa9095db8d04",
+    "check": {
+      "command": [
+        "/private/tmp/can-email-admission-baseline-can",
+        "check",
+        "--format=json",
+        "--catalog",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/email-admission/fixtures/ecmascript-space-domain-205f/value.can"
+      ],
+      "exit": 10,
+      "accepted": false
+    },
+    "compile": {
+      "command": [
+        "/private/tmp/can-email-admission-baseline-can",
+        "compile",
+        "--format=json",
+        "--catalog",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/email-admission/fixtures/ecmascript-space-domain-205f/value.can"
+      ],
+      "exit": 10,
+      "accepted": false
+    },
+    "mismatch": false
+  },
+  {
+    "id": "ecmascript-space-3000",
+    "value": "a　@b.com",
+    "expected": false,
+    "decode": {
+      "accepted": false,
+      "error": {
+        "name": "SchemaError",
+        "message": "schema validation failed with 1 violation(s)",
+        "violations": [
+          {
+            "path": [],
+            "code": "format",
+            "message": "email is malformed",
+            "expected": "an email address (local@domain)",
+            "actual": "\"a　@b.com\""
+          }
+        ]
+      }
+    },
+    "encode": {
+      "accepted": false,
+      "error": {
+        "name": "ValueError",
+        "code": "invalid-construction",
+        "message": "invalid email address \"a　@b.com\" at $"
+      }
+    },
+    "sourceHash": "bd23d70656d223bf310028f43af21a31cf4c2bb291dbd58f6c9175531cc7d56f",
+    "check": {
+      "command": [
+        "/private/tmp/can-email-admission-baseline-can",
+        "check",
+        "--format=json",
+        "--catalog",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/email-admission/fixtures/ecmascript-space-3000/value.can"
+      ],
+      "exit": 0,
+      "accepted": true
+    },
+    "compile": {
+      "command": [
+        "/private/tmp/can-email-admission-baseline-can",
+        "compile",
+        "--format=json",
+        "--catalog",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/email-admission/fixtures/ecmascript-space-3000/value.can"
+      ],
+      "exit": 0,
+      "accepted": true
+    },
+    "generated": {
+      "imported": true,
+      "value": "a　@b.com",
+      "decode": {
+        "accepted": false,
+        "error": {
+          "name": "SchemaError",
+          "message": "schema validation failed with 1 violation(s)",
+          "violations": [
+            {
+              "path": [],
+              "code": "format",
+              "message": "email is malformed",
+              "expected": "an email address (local@domain)",
+              "actual": "\"a　@b.com\""
+            }
+          ]
+        }
+      },
+      "encode": {
+        "accepted": false,
+        "error": {
+          "name": "ValueError",
+          "code": "invalid-construction",
+          "message": "invalid email address \"a　@b.com\" at $"
+        }
+      }
+    },
+    "mismatch": true
+  },
+  {
+    "id": "ecmascript-space-domain-3000",
+    "value": "a@b　.com",
+    "expected": false,
+    "decode": {
+      "accepted": false,
+      "error": {
+        "name": "SchemaError",
+        "message": "schema validation failed with 1 violation(s)",
+        "violations": [
+          {
+            "path": [],
+            "code": "format",
+            "message": "email is malformed",
+            "expected": "an email address (local@domain)",
+            "actual": "\"a@b　.com\""
+          }
+        ]
+      }
+    },
+    "encode": {
+      "accepted": false,
+      "error": {
+        "name": "ValueError",
+        "code": "invalid-construction",
+        "message": "invalid email address \"a@b　.com\" at $"
+      }
+    },
+    "sourceHash": "5c9ac7f2e9013183530bbd68795672ba597d8c95ca14ac6b77a4350823d2cdf9",
+    "check": {
+      "command": [
+        "/private/tmp/can-email-admission-baseline-can",
+        "check",
+        "--format=json",
+        "--catalog",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/email-admission/fixtures/ecmascript-space-domain-3000/value.can"
+      ],
+      "exit": 10,
+      "accepted": false
+    },
+    "compile": {
+      "command": [
+        "/private/tmp/can-email-admission-baseline-can",
+        "compile",
+        "--format=json",
+        "--catalog",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/email-admission/fixtures/ecmascript-space-domain-3000/value.can"
+      ],
+      "exit": 10,
+      "accepted": false
+    },
+    "mismatch": false
+  },
+  {
+    "id": "ecmascript-space-feff",
+    "value": "a﻿@b.com",
+    "expected": false,
+    "decode": {
+      "accepted": false,
+      "error": {
+        "name": "SchemaError",
+        "message": "schema validation failed with 1 violation(s)",
+        "violations": [
+          {
+            "path": [],
+            "code": "format",
+            "message": "email is malformed",
+            "expected": "an email address (local@domain)",
+            "actual": "\"a﻿@b.com\""
+          }
+        ]
+      }
+    },
+    "encode": {
+      "accepted": false,
+      "error": {
+        "name": "ValueError",
+        "code": "invalid-construction",
+        "message": "invalid email address \"a﻿@b.com\" at $"
+      }
+    },
+    "sourceHash": "e95dd0f43aa9e6661a748ab2c98fc375942d932c3d9e09fb6d5dec76c0a03569",
+    "check": {
+      "command": [
+        "/private/tmp/can-email-admission-baseline-can",
+        "check",
+        "--format=json",
+        "--catalog",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/email-admission/fixtures/ecmascript-space-feff/value.can"
+      ],
+      "exit": 0,
+      "accepted": true
+    },
+    "compile": {
+      "command": [
+        "/private/tmp/can-email-admission-baseline-can",
+        "compile",
+        "--format=json",
+        "--catalog",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/email-admission/fixtures/ecmascript-space-feff/value.can"
+      ],
+      "exit": 0,
+      "accepted": true
+    },
+    "generated": {
+      "imported": true,
+      "value": "a﻿@b.com",
+      "decode": {
+        "accepted": false,
+        "error": {
+          "name": "SchemaError",
+          "message": "schema validation failed with 1 violation(s)",
+          "violations": [
+            {
+              "path": [],
+              "code": "format",
+              "message": "email is malformed",
+              "expected": "an email address (local@domain)",
+              "actual": "\"a﻿@b.com\""
+            }
+          ]
+        }
+      },
+      "encode": {
+        "accepted": false,
+        "error": {
+          "name": "ValueError",
+          "code": "invalid-construction",
+          "message": "invalid email address \"a﻿@b.com\" at $"
+        }
+      }
+    },
+    "mismatch": true
+  },
+  {
+    "id": "ecmascript-space-domain-feff",
+    "value": "a@b﻿.com",
+    "expected": false,
+    "decode": {
+      "accepted": false,
+      "error": {
+        "name": "SchemaError",
+        "message": "schema validation failed with 1 violation(s)",
+        "violations": [
+          {
+            "path": [],
+            "code": "format",
+            "message": "email is malformed",
+            "expected": "an email address (local@domain)",
+            "actual": "\"a@b﻿.com\""
+          }
+        ]
+      }
+    },
+    "encode": {
+      "accepted": false,
+      "error": {
+        "name": "ValueError",
+        "code": "invalid-construction",
+        "message": "invalid email address \"a@b﻿.com\" at $"
+      }
+    },
+    "sourceHash": "adb33c46fa7aebffdded291a973b5df3f8f7c648038b1ce789c545d13ee71b9b",
+    "check": {
+      "command": [
+        "/private/tmp/can-email-admission-baseline-can",
+        "check",
+        "--format=json",
+        "--catalog",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/email-admission/fixtures/ecmascript-space-domain-feff/value.can"
+      ],
+      "exit": 10,
+      "accepted": false
+    },
+    "compile": {
+      "command": [
+        "/private/tmp/can-email-admission-baseline-can",
+        "compile",
+        "--format=json",
+        "--catalog",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/email-admission/fixtures/ecmascript-space-domain-feff/value.can"
+      ],
+      "exit": 10,
+      "accepted": false
+    },
+    "mismatch": false
+  },
+  {
+    "id": "nearby-allowed-0080",
+    "value": "a@b.com",
+    "expected": true,
+    "decode": {
+      "accepted": true,
+      "value": "a@b.com"
+    },
+    "encode": {
+      "accepted": true,
+      "value": "a@b.com"
+    },
+    "sourceHash": "2881f0f3fe81ef8c4599f0cc4ebff7a461c7b33c11050e3acf29856cd87afd88",
+    "check": {
+      "command": [
+        "/private/tmp/can-email-admission-baseline-can",
+        "check",
+        "--format=json",
+        "--catalog",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/email-admission/fixtures/nearby-allowed-0080/value.can"
+      ],
+      "exit": 0,
+      "accepted": true
+    },
+    "compile": {
+      "command": [
+        "/private/tmp/can-email-admission-baseline-can",
+        "compile",
+        "--format=json",
+        "--catalog",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/email-admission/fixtures/nearby-allowed-0080/value.can"
+      ],
+      "exit": 0,
+      "accepted": true
+    },
+    "generated": {
+      "imported": true,
+      "value": "a@b.com",
+      "decode": {
+        "accepted": true,
+        "value": "a@b.com"
+      },
+      "encode": {
+        "accepted": true,
+        "value": "a@b.com"
+      }
+    },
+    "mismatch": false
+  },
+  {
+    "id": "nearby-allowed-0085",
+    "value": "a@b.com",
+    "expected": true,
+    "decode": {
+      "accepted": true,
+      "value": "a@b.com"
+    },
+    "encode": {
+      "accepted": true,
+      "value": "a@b.com"
+    },
+    "sourceHash": "1e5541d452902f0b08f234a75608fa14a5ba7a651274d609fac6a2098dbd9ea9",
+    "check": {
+      "command": [
+        "/private/tmp/can-email-admission-baseline-can",
+        "check",
+        "--format=json",
+        "--catalog",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/email-admission/fixtures/nearby-allowed-0085/value.can"
+      ],
+      "exit": 0,
+      "accepted": true
+    },
+    "compile": {
+      "command": [
+        "/private/tmp/can-email-admission-baseline-can",
+        "compile",
+        "--format=json",
+        "--catalog",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/email-admission/fixtures/nearby-allowed-0085/value.can"
+      ],
+      "exit": 0,
+      "accepted": true
+    },
+    "generated": {
+      "imported": true,
+      "value": "a@b.com",
+      "decode": {
+        "accepted": true,
+        "value": "a@b.com"
+      },
+      "encode": {
+        "accepted": true,
+        "value": "a@b.com"
+      }
+    },
+    "mismatch": false
+  },
+  {
+    "id": "nearby-allowed-009f",
+    "value": "a@b.com",
+    "expected": true,
+    "decode": {
+      "accepted": true,
+      "value": "a@b.com"
+    },
+    "encode": {
+      "accepted": true,
+      "value": "a@b.com"
+    },
+    "sourceHash": "1129aae3a40bc9db32818a30e3af5ab945e97f63b3cdd74429a0f4346e5944ec",
+    "check": {
+      "command": [
+        "/private/tmp/can-email-admission-baseline-can",
+        "check",
+        "--format=json",
+        "--catalog",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/email-admission/fixtures/nearby-allowed-009f/value.can"
+      ],
+      "exit": 0,
+      "accepted": true
+    },
+    "compile": {
+      "command": [
+        "/private/tmp/can-email-admission-baseline-can",
+        "compile",
+        "--format=json",
+        "--catalog",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/email-admission/fixtures/nearby-allowed-009f/value.can"
+      ],
+      "exit": 0,
+      "accepted": true
+    },
+    "generated": {
+      "imported": true,
+      "value": "a@b.com",
+      "decode": {
+        "accepted": true,
+        "value": "a@b.com"
+      },
+      "encode": {
+        "accepted": true,
+        "value": "a@b.com"
+      }
+    },
+    "mismatch": false
+  },
+  {
+    "id": "nearby-allowed-180e",
+    "value": "a᠎@b.com",
+    "expected": true,
+    "decode": {
+      "accepted": true,
+      "value": "a᠎@b.com"
+    },
+    "encode": {
+      "accepted": true,
+      "value": "a᠎@b.com"
+    },
+    "sourceHash": "553431e9c2e0e673381de7bd495646ed0a8e946b761a99617a30d04f6b95809a",
+    "check": {
+      "command": [
+        "/private/tmp/can-email-admission-baseline-can",
+        "check",
+        "--format=json",
+        "--catalog",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/email-admission/fixtures/nearby-allowed-180e/value.can"
+      ],
+      "exit": 0,
+      "accepted": true
+    },
+    "compile": {
+      "command": [
+        "/private/tmp/can-email-admission-baseline-can",
+        "compile",
+        "--format=json",
+        "--catalog",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/email-admission/fixtures/nearby-allowed-180e/value.can"
+      ],
+      "exit": 0,
+      "accepted": true
+    },
+    "generated": {
+      "imported": true,
+      "value": "a᠎@b.com",
+      "decode": {
+        "accepted": true,
+        "value": "a᠎@b.com"
+      },
+      "encode": {
+        "accepted": true,
+        "value": "a᠎@b.com"
+      }
+    },
+    "mismatch": false
+  },
+  {
+    "id": "nearby-allowed-200b",
+    "value": "a​@b.com",
+    "expected": true,
+    "decode": {
+      "accepted": true,
+      "value": "a​@b.com"
+    },
+    "encode": {
+      "accepted": true,
+      "value": "a​@b.com"
+    },
+    "sourceHash": "ff603ab6f4acbb9df09401af955c5aee27f9ecee301b0aec101930bf335a2808",
+    "check": {
+      "command": [
+        "/private/tmp/can-email-admission-baseline-can",
+        "check",
+        "--format=json",
+        "--catalog",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/email-admission/fixtures/nearby-allowed-200b/value.can"
+      ],
+      "exit": 0,
+      "accepted": true
+    },
+    "compile": {
+      "command": [
+        "/private/tmp/can-email-admission-baseline-can",
+        "compile",
+        "--format=json",
+        "--catalog",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/email-admission/fixtures/nearby-allowed-200b/value.can"
+      ],
+      "exit": 0,
+      "accepted": true
+    },
+    "generated": {
+      "imported": true,
+      "value": "a​@b.com",
+      "decode": {
+        "accepted": true,
+        "value": "a​@b.com"
+      },
+      "encode": {
+        "accepted": true,
+        "value": "a​@b.com"
+      }
+    },
+    "mismatch": false
+  },
+  {
+    "id": "nearby-allowed-2060",
+    "value": "a⁠@b.com",
+    "expected": true,
+    "decode": {
+      "accepted": true,
+      "value": "a⁠@b.com"
+    },
+    "encode": {
+      "accepted": true,
+      "value": "a⁠@b.com"
+    },
+    "sourceHash": "e7b5da1b1cb17e2d63ec04abfc309ecc218d54ff63ffd1bdc7dfb09cbf8164ae",
+    "check": {
+      "command": [
+        "/private/tmp/can-email-admission-baseline-can",
+        "check",
+        "--format=json",
+        "--catalog",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/email-admission/fixtures/nearby-allowed-2060/value.can"
+      ],
+      "exit": 0,
+      "accepted": true
+    },
+    "compile": {
+      "command": [
+        "/private/tmp/can-email-admission-baseline-can",
+        "compile",
+        "--format=json",
+        "--catalog",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/email-admission/fixtures/nearby-allowed-2060/value.can"
+      ],
+      "exit": 0,
+      "accepted": true
+    },
+    "generated": {
+      "imported": true,
+      "value": "a⁠@b.com",
+      "decode": {
+        "accepted": true,
+        "value": "a⁠@b.com"
+      },
+      "encode": {
+        "accepted": true,
+        "value": "a⁠@b.com"
+      }
+    },
+    "mismatch": false
+  },
+  {
+    "id": "nearby-allowed-fffe",
+    "value": "a￾@b.com",
+    "expected": true,
+    "decode": {
+      "accepted": true,
+      "value": "a￾@b.com"
+    },
+    "encode": {
+      "accepted": true,
+      "value": "a￾@b.com"
+    },
+    "sourceHash": "22be8cb12878a63211de7ca6dffc2ad8eb035269c287db485f4d3125674c0b90",
+    "check": {
+      "command": [
+        "/private/tmp/can-email-admission-baseline-can",
+        "check",
+        "--format=json",
+        "--catalog",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/email-admission/fixtures/nearby-allowed-fffe/value.can"
+      ],
+      "exit": 0,
+      "accepted": true
+    },
+    "compile": {
+      "command": [
+        "/private/tmp/can-email-admission-baseline-can",
+        "compile",
+        "--format=json",
+        "--catalog",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/email-admission/fixtures/nearby-allowed-fffe/value.can"
+      ],
+      "exit": 0,
+      "accepted": true
+    },
+    "generated": {
+      "imported": true,
+      "value": "a￾@b.com",
+      "decode": {
+        "accepted": true,
+        "value": "a￾@b.com"
+      },
+      "encode": {
+        "accepted": true,
+        "value": "a￾@b.com"
+      }
+    },
+    "mismatch": false
+  }
+]

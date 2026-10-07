@@ -1,0 +1,32 @@
+{
+  "inputHashes": {
+    "compiler/src/analysis/types.rs": "3e25415436f61cecca33b263b7232f646332f40fa3e87fabf080930038d0ff07",
+    "packages/values/src/index.ts": "d92ac7192a8739ddbfaf32ccc64e0aeba7fb30726e7bf40d7e81eb9a239d61c4",
+    "packages/values/src/wire.ts": "0313cb7b43eecd4b61470ff279a18627e0e7c2abd239fe200497144afb86e842",
+    "packages/values/src/internal/wire-core.ts": "9b0a8abc935d43f657246897128ae163ab895ac456c8f9efb8d18b322c4dc9ea",
+    "packages/values/dist/src/wire.js": "59d741760c47bd450cfd7e9fad80b7a90efd9566601c0aee7881f419b08f3566",
+    "packages/values/dist/src/internal/wire-core.js": "85076d3fa28472f1a1a2aed9f7cc7f712d947015791e6e2e5634c7bcffc2a55f",
+    "packages/values/src/prepared/codec.ts": "57c424874fab4ec899a2ebc3306c53fc123a70167a97859b352398c7ca52a56e",
+    "packages/values/semantics/src/lib.rs": "63a800b7809ddc932331343e17cae24ad2eb18ea5f4a2a44d70e81bceb6275de",
+    "packages/values/bindings/backend.ts": "bf1263532c90d0cdf64da032dd20040952682fb1f5f00c4a2daefa1f7f4304a3",
+    "docs/specification/DESIGN.md": "1d36f88fe206299b383e0b7eb76182d559486c99670a2ecc87b5420e28cf7f82",
+    "docs/research/compiler-library-audit-20261006/responsibility-map/semantics.md": "7271c103c6e6b31571b1f8c8f822fa13fa7adda4f9762331cc644f4f5f9d58a7",
+    "compiler/src/codegen/ir.rs": "2644cb16e84d46c90f01f88d8a1a7cc8da4ac5a490ee7d64bad007878d17bb04",
+    "compiler/src/codegen/js.rs": "ed06577e463748474119a0e8d5714953257163842012047bc38d3a2af27247ed",
+    "compiler/src/cli.rs": "0e9eb7cfd2ee3e20ac9238c67872800cbe99911b3b799fa2616526f9be5a1f94",
+    "compiler/src/analysis/cohort.rs": "aad351ef70dc46118e51832705ffd84063ddf641a42cf2645c94dac2154f23e0",
+    "packages/values/dist/src/index.js": "51bbc15972a6836a4e1b4cebf6b2bd5b48e34405ff7f09062ad65b449dc1093c",
+    "packages/values/dist/catalog.json": "cd984f375e0d6cbcc2bc6aca5ad5ea5b1b3d3ba9cd17b15ab94e4b15e74ced62",
+    "packages/stdlib/dist/src/index.js": "df85f85e74a8b315cd667d34be2d05d6a0cd2c035d1a640585754e4240cac311",
+    "packages/ui/dist/src/index.js": "debf4ec6e4236d5b469eae1d75ca27e6953c1dbadd39f7cc5fa1696142de7610",
+    "packages/values/semantics/src/codecs/numeric.rs": "6f06587f264ae4365739c7fbbbb9e2fe9e3b4319c5cc6fc71e056594dc740217",
+    "packages/values/semantics/src/transport/exact.rs": "7c2f5600bf4c72b5ccfef82500113e28f1fc3131a0f818dff8e205b802142817",
+    "packages/values/package.json": "e542125300e2ee229f96bd37cc66af50c8982e588c26c9ba6cf363640688618f"
+  },
+  "beforeAfterTrackedFilesUnchanged": true,
+  "changedDuringProbe": [],
+  "compilerBinaryUsed": "/private/tmp/can-email-admission-baseline-can",
+  "compilerBinarySHA256": "3db5e325da1be31b40a9ba108cafe51afff78b8870a99c15177889d1131d123a",
+  "binaryOwnerReceipt": "Parent supplied fresh compiler/target/debug/can, copied before inspection. A separate cargo build was already started before the handoff and is not the observed binary. Its log is retained but does not qualify observations.",
+  "sourceScope": "Email validator and inspected public owner inputs pinned; generated metadata imports verify current installed UI/stdlib/values. No Git HEAD authority or full-application claim."
+}
