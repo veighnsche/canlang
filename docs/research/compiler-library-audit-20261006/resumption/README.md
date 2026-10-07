@@ -50,6 +50,8 @@ Three independently worded equivalent JEV requests compare iterative complete-co
 
 ## Unreleased obligations
 
+The [current per-reference allocation](model-allocation.md) assigns work and independent-review model/effort settings across four owner lanes. Its 67 references include 50 remaining or continuing joins and 17 completed bounded receipts to reuse; overlapping references are not separate implementation jobs. [Metadata validation](model-allocation-validation.json) and [independent allocation review](model-allocation-review.json) accept the planning view. Exact writer leases, prerequisites and release gates remain with their owners.
+
 The historical findings, ten integration candidates, eight Step-9 follow-ups and later finite task table retain exact owners, dependencies and independent acceptance. Syntax/UI/Corpus/recovery policy; format/temporal/email/graph contracts; Markdown/comment attachment; public source/catalog cohorts; workspace/history ownership; JSON/map retirement; and original/installed application/GUI/other-host profiles remain proposals or qualification gates. FAIL-R04's existing-contract missing-path build-watch correction remains a ready candidate, not a policy block or implemented repair. No deferred outcome is weakened or substituted with mocks.
 
 [Mechanical validation](validation.json) checks input/stream pins, executed counts, source metrics, profiles and saved advice. It verifies evidence consistency, not semantic completeness.
