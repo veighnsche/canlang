@@ -1,0 +1,1424 @@
+{
+  "ref": "16def5f95f51dbfb158d0ac086323ac256ee1c6d",
+  "scope": {
+    "repository": "/Users/vince/Projects/canlang",
+    "reviewer_role": "Independent persisted-security contract reviewer requested as Astra high",
+    "reviewed_rule_count": 20,
+    "included": [
+      "identity encoding/cookies/comparison/CSRF/OAuth/audience/recovery/owner/revocation",
+      "state replay serialization, admission, lifetime and owner atomicity",
+      "work occurrence, outbox and fanout checkpoint contracts",
+      "CSV grammar/consent/private review and finalized-file provenance",
+      "Cloudflare identity/digests/confirmation/private publication/native selection"
+    ],
+    "excluded": [
+      "implementation",
+      "builds or tests",
+      "runtime or network launch",
+      "Git mutations",
+      "delegation",
+      "exhaustive exploit or RFC conformance assessment"
+    ]
+  },
+  "methodology": {
+    "source_access": "Read-only git show, git grep and git ls-tree at exact pinned ref; only this JSON is written outside repository.",
+    "authority_order": "Human/requirements and declared v1 security outcomes; explicit scoped compatibility decisions; adopted T32/T33 direction; public documentation; source observation. Proposed design remains proposed; tests/caller maps are behavioral evidence only.",
+    "stage_discipline": "Identity/CSV release profiles do not by themselves certify installed acceptance. FP.IDENTITY-CONTRACT is PROPOSED. Native preparation plan is selected future parity under human HOLD.",
+    "caller_map": "Consulted docs/research/package-library-audit-20261006/responsibility-callers/coverage-map.md as source-path orientation only, independently checked critical source callers; map pin 851352d5 is older and not normative.",
+    "jev": "No new design mechanism chosen; existing triple-JEV records treated as advisory with their retained uncertainty. No new JEV or web call."
+  },
+  "reviewed_rules": [
+    {
+      "id": "SEC01",
+      "name": "Opaque token text and stored lookup hashes",
+      "classification": [
+        "persisted protocol",
+        "deliberate security policy",
+        "scoped public compatibility contract"
+      ],
+      "required_outcome": "Credentials remain unpredictable, are returned narrowly, and lookups bind the exact presented bearer text; stored token hashes must keep identifying existing credentials.",
+      "exact_compatibility_verdict": "The released substitution contract explicitly freezes 32-byte issuance, unpadded base64url, SHA-256 over TextEncoder UTF-8 of the presented string, and lowercase hex. Decoder tail aliases do not alias bearer lookup hashes. These exact bytes are persistence compatibility, not a general language requirement that SHA-256 can never change.",
+      "authority": [
+        {
+          "path": "docs/specification/DESIGN.md",
+          "line": 289,
+          "declared_stage": "v1 semantics",
+          "claim": "Default authentication owns sessions and account recovery."
+        },
+        {
+          "path": "implementation/rust-port-orchestration/runs/codex-step10-20261007T015711Z/contracts/identity-encoding-contract.md",
+          "line": 13,
+          "declared_stage": "released for root acceptance; not installed acceptance",
+          "claim": "Preserve issued token text and exact bearer UTF-8 hashing; never decode or mask before hashing."
+        },
+        {
+          "path": "implementation/rust-port-orchestration/runs/codex-step10-20261007T015711Z/contracts/identity-encoding-contract.md",
+          "line": 21,
+          "declared_stage": "released scoped contract",
+          "claim": "Keep WebCrypto, TextEncoder and 32-byte token issuance."
+        }
+      ],
+      "observed_source_evidence": [
+        {
+          "path": "packages/identity/src/sessions/tokens.ts",
+          "line": 56,
+          "observation": "WebCrypto SHA-256 and TextEncoder text hashing; createOpaqueToken at 91 hashes issued text."
+        },
+        {
+          "path": "packages/identity/src/authentication/context.ts",
+          "line": 87,
+          "observation": "Session and grant lookup hash presented text; revoked/expired rows reject."
+        },
+        {
+          "path": "packages/identity/src/storage/d1.ts",
+          "line": 107,
+          "observation": "Session token_sha256 is stored as unique text; grants/codes use corresponding hash keys."
+        }
+      ],
+      "migration": {
+        "trigger_and_requirements": "Any algorithm, alphabet, Unicode treatment or lookup normalization change requires an explicit credential/hash-version scheme or deliberate revocation/reissuance. Hash-only storage cannot reconstruct raw bearer strings for bulk rehash. Inventory supported historic admission, not merely canonical issuers.",
+        "rollback": "Keep old verification/lookup support through its expiration horizon, or invalidate affected credentials and require fresh login. Never re-enable a revoked old hash on rollback."
+      },
+      "remaining_uncertainty": "No real deployed credential inventory was examined. The released contract explicitly says noncanonical persisted rows are unproven."
+    },
+    {
+      "id": "SEC02",
+      "name": "Persisted password encodings and decoder tails",
+      "classification": [
+        "persisted protocol",
+        "scoped public compatibility contract"
+      ],
+      "required_outcome": "Existing admitted password records remain verifiable without weakening comparison or password-derived-key validation.",
+      "exact_compatibility_verdict": "pbkdf2-sha256$iterations$salt$key with 16/32-byte decoded lengths is a persisted format. The scoped contract deliberately retains positive integer Number() iteration admission <=10,000,000 and nonzero unused base64url tail aliases. The exact 600000 new-issuance default is an implementation/security-policy choice; alias retention is now explicitly selected compatibility, not inferred solely from export/tests.",
+      "authority": [
+        {
+          "path": "docs/specification/DESIGN.md",
+          "line": 289,
+          "declared_stage": "v1 semantics",
+          "claim": "Email/password authentication is canonical."
+        },
+        {
+          "path": "implementation/rust-port-orchestration/runs/codex-step10-20261007T015711Z/contracts/identity-encoding-contract.md",
+          "line": 15,
+          "declared_stage": "released scoped contract",
+          "claim": "Retain public decoder acceptance including unused tail bits."
+        },
+        {
+          "path": "implementation/rust-port-orchestration/runs/codex-step10-20261007T015711Z/contracts/identity-encoding-contract.md",
+          "line": 17,
+          "declared_stage": "released rationale with explicit uncertainty",
+          "claim": "No actual noncanonical stored row assumed; preserve admitted domain to avoid unmeasured break."
+        },
+        {
+          "path": "implementation/rust-port-orchestration/runs/codex-step10-20261007T015711Z/contracts/identity-encoding-contract.md",
+          "line": 25,
+          "declared_stage": "released scoped contract",
+          "claim": "Preserve password representation, iteration admission and verifier failure behavior."
+        }
+      ],
+      "observed_source_evidence": [
+        {
+          "path": "packages/identity/src/accounts/passwords.ts",
+          "line": 56,
+          "observation": "New hashes use canonical encoding; parseEncoding at 72 uses Number and decoded length checks."
+        },
+        {
+          "path": "packages/identity/src/accounts/passwords.ts",
+          "line": 91,
+          "observation": "Derivation failure returns false; native comparison is outside catch."
+        },
+        {
+          "path": "packages/identity/src/sessions/tokens.ts",
+          "line": 30,
+          "observation": "Final-sextet mask is restricted to byte decoding."
+        }
+      ],
+      "migration": {
+        "trigger_and_requirements": "Tightening iteration syntax or tails requires explicit legacy-verifier/version handling and stored/API-domain inventory. A new KDF can rehash on successful verification or reset; never fabricate a password or bulk derive from the old hash. Preserve old verifier for admitted historic records.",
+        "rollback": "Retain old KDF reader for new/old coexistence until migration completes; rollback must not reduce newly selected password strength or resurrect revoked sessions."
+      },
+      "remaining_uncertainty": "The scoped release is not proof that every host or every historical importer is qualified."
+    },
+    {
+      "id": "SEC03",
+      "name": "Session cookie selection and serialization",
+      "classification": [
+        "deliberate security policy",
+        "scoped public compatibility contract"
+      ],
+      "required_outcome": "Session transport remains protected by secure defaults and deterministic unambiguous credential selection; malformed Domain cannot inject header syntax.",
+      "exact_compatibility_verdict": "HttpOnly/Secure default/SameSite=Lax/Path=/ are selected transport policy. Exact attribute order, first normalized can_session occurrence, one decodeURIComponent, JS trim and fault precedence are explicitly frozen by this bounded cookie replacement. They are not all intrinsically security requirements. Explicit empty/invalid Domain rejection is a deliberate correction, so legacy injection/Domain= behavior is not compatibility to retain.",
+      "authority": [
+        {
+          "path": "implementation/rust-port-orchestration/runs/codex-step10-20261007T015711Z/contracts/identity-cookie-contract.md",
+          "line": 13,
+          "declared_stage": "released for root acceptance; no implementation acceptance",
+          "claim": "First target wins even malformed/empty, decode once and no duplicate fallback."
+        },
+        {
+          "path": "implementation/rust-port-orchestration/runs/codex-step10-20261007T015711Z/contracts/identity-cookie-contract.md",
+          "line": 21,
+          "declared_stage": "released scoped contract",
+          "claim": "Keep secure defaults, error precedence and Max-Age policy."
+        },
+        {
+          "path": "implementation/rust-port-orchestration/runs/codex-step10-20261007T015711Z/contracts/identity-cookie-contract.md",
+          "line": 23,
+          "declared_stage": "released scoped exact-byte contract",
+          "claim": "Preserve exact Set-Cookie attribute order."
+        },
+        {
+          "path": "implementation/rust-port-orchestration/runs/codex-step10-20261007T015711Z/contracts/identity-cookie-contract.md",
+          "line": 27,
+          "declared_stage": "deliberate correction",
+          "claim": "Reject unsafe/empty Domain without reflecting raw input."
+        }
+      ],
+      "observed_source_evidence": [
+        {
+          "path": "packages/identity/src/sessions/cookies.ts",
+          "line": 46,
+          "observation": "Library parse with identity decode; normalized name selection, trim then decode once."
+        },
+        {
+          "path": "packages/identity/src/sessions/cookies.ts",
+          "line": 67,
+          "observation": "Library serialization, explicit empty-Domain guard and fixed attribute reordering."
+        }
+      ],
+      "migration": {
+        "trigger_and_requirements": "Changing name/domain/path requires coordinated clear/reissue at old scope; changing duplicate policy needs explicit security/API decision and request regressions. Attribute-order simplification can be separately approved as an API change after caller review; no stored-token rehash is involved.",
+        "rollback": "Clear both old/new cookie scopes when necessary; never roll back malformed Domain acceptance. Keep secure defaults through transition."
+      },
+      "remaining_uncertainty": "No external consumer requiring attribute order was established beyond scoped contract. HTTP callers do not supply Domain according to the scoped investigation."
+    },
+    {
+      "id": "SEC04",
+      "name": "Host comparison and CSRF derivation",
+      "classification": [
+        "deliberate security policy",
+        "public contract",
+        "implementation choice"
+      ],
+      "required_outcome": "Secret comparison uses a qualified host primitive and unsupported hosts fail visibly; mutating browser requests require a current session-bound anti-forgery token.",
+      "exact_compatibility_verdict": "Native Node/workerd comparator selection, synchronous signatures, byte-length rejection and operational-fault propagation are explicitly selected. Whole-helper constant-time claims are unsupported. CSRF HMAC-SHA256 with message can-csrf-v1 is a current wire mechanism, while DESIGN requires current CSRF without selecting that exact construction.",
+      "authority": [
+        {
+          "path": "implementation/rust-port-orchestration/runs/codex-step10-20261007T015711Z/contracts/identity-host-contract.md",
+          "line": 7,
+          "declared_stage": "released binding policy; installed acceptance separate",
+          "claim": "Private Node/default binding, unchanged Node >=22 and synchronous API."
+        },
+        {
+          "path": "implementation/rust-port-orchestration/runs/codex-step10-20261007T015711Z/contracts/identity-host-contract.md",
+          "line": 9,
+          "declared_stage": "released policy",
+          "claim": "Length/parse branches excluded from primitive timing claims."
+        },
+        {
+          "path": "implementation/rust-port-orchestration/runs/codex-step10-20261007T015711Z/contracts/identity-host-contract.md",
+          "line": 11,
+          "declared_stage": "released fail-closed host policy",
+          "claim": "No JS-loop fallback; missing primitive is operational failure."
+        },
+        {
+          "path": "docs/specification/DESIGN.md",
+          "line": 787,
+          "declared_stage": "v1 semantics",
+          "claim": "Repeated canonical POSTs require current CSRF and authorization."
+        }
+      ],
+      "observed_source_evidence": [
+        {
+          "path": "packages/identity/src/sessions/comparison-worker.ts",
+          "line": 7,
+          "observation": "Missing subtle.timingSafeEqual throws; original subtle receiver retained."
+        },
+        {
+          "path": "packages/identity/src/sessions/comparison.ts",
+          "line": 4,
+          "observation": "Length rejection precedes native comparator."
+        },
+        {
+          "path": "packages/identity/src/sessions/csrf.ts",
+          "line": 18,
+          "observation": "HMAC key is exact UTF-8 session bearer; fixed message and unpadded output."
+        },
+        {
+          "path": "packages/interfaces/src/http/csv.ts",
+          "line": 413,
+          "observation": "CSV mutating endpoints call assertPostCsrf."
+        }
+      ],
+      "migration": {
+        "trigger_and_requirements": "Host binding change must qualify real Node/workerd closure. CSRF algorithm change must version or expire old rendered forms/session contexts and refresh tokens; no need to persist raw credentials. Preserve missing-host faults separately from invalid-password false.",
+        "rollback": "Release rollback may restore a qualified native binding or previous CSRF verifier for a bounded transition; cannot silently substitute string/XOR comparison or accept missing CSRF."
+      },
+      "remaining_uncertainty": "No timing experiment or host runtime launched in this review; exact native-package delivery remains prior evidence scope."
+    },
+    {
+      "id": "SEC05",
+      "name": "OAuth code binding, PKCE and redemption",
+      "classification": [
+        "deliberate security policy",
+        "public protocol",
+        "persisted protocol",
+        "unresolved assumption"
+      ],
+      "required_outcome": "A code is bound to client, exact registered redirect, user/team and PKCE proof, expires, and grants at most one successful redemption. Parameter failures must not become a code-validity oracle.",
+      "exact_compatibility_verdict": "Exact redirect matching and S256 binding are deliberate selected policy; current ten-minute TTL/5 redirects/1024 state cap/error prose are authored implementation bounds, not all mandated by DESIGN. Current challenge regex accepts 43..128 URL characters; do not promote that range or unconstrained verifier input to protocol truth merely because source/tests accept it.",
+      "authority": [
+        {
+          "path": "docs/specification/DESIGN.md",
+          "line": 905,
+          "declared_stage": "v1 semantics referencing MCP authorization",
+          "claim": "Consent binds user and team; correct audience and current checks."
+        },
+        {
+          "path": "docs/ideal-filetree-plan/finished-product/FP.IDENTITY-CONTRACT.contract.md",
+          "line": 3,
+          "declared_stage": "PROPOSED only",
+          "claim": "Conditional outcome/fence mechanism not accepted."
+        },
+        {
+          "path": "docs/ideal-filetree-plan/finished-product/FP.IDENTITY-CONTRACT.contract.md",
+          "line": 17,
+          "declared_stage": "observed gap in proposed document",
+          "claim": "OAuth redemption is check-then-act; atomicity absent."
+        }
+      ],
+      "observed_source_evidence": [
+        {
+          "path": "packages/identity/src/authentication/oauth.ts",
+          "line": 39,
+          "observation": "Auth code 600000ms; challenge regex at 46."
+        },
+        {
+          "path": "packages/identity/src/authentication/oauth.ts",
+          "line": 139,
+          "observation": "Registered redirect compared with includes/exact string."
+        },
+        {
+          "path": "packages/identity/src/authentication/oauth.ts",
+          "line": 207,
+          "observation": "S256 digest computed from presented verifier text."
+        },
+        {
+          "path": "packages/identity/src/authentication/oauth.ts",
+          "line": 229,
+          "observation": "Read, validate, consume, then mint."
+        },
+        {
+          "path": "packages/identity/src/storage/d1.ts",
+          "line": 890,
+          "observation": "Conditional consume UPDATE returns void; no winner check exposed."
+        }
+      ],
+      "migration": {
+        "trigger_and_requirements": "Changes require versioned code/client policy and retaining or invalidating outstanding codes explicitly. Atomic redemption must prevent both concurrent readers minting grants; choose a proved conditional outcome/transaction design without blessing proposed J2 names. Reconcile consume-before-mint failure policy with atomic grant issuance; it is not automatic authority for a five-step batch shape.",
+        "rollback": "Expire outstanding codes and reauthorize if new readers cannot safely interpret them. Do not restore consumed codes or mint a second grant during rollback."
+      },
+      "remaining_uncertainty": "External RFC conformance was not revalidated; no live OAuth exchange/race executed. Current comments claiming consume-then-mint ensures single use overstate the unfenced store."
+    },
+    {
+      "id": "SEC06",
+      "name": "Audience and team-bound identity",
+      "classification": [
+        "product requirement",
+        "deliberate security policy",
+        "public contract"
+      ],
+      "required_outcome": "Browser and MCP resolve the same principal model, honor route-specific audiences, retain consented team, and never forward incoming bearer authority to foreign origins or synthesize actor/team grants.",
+      "exact_compatibility_verdict": "The public session/mcp_grant/none binding kinds and app/team checks implement explicit semantics. The route taxonomy browser-session/mcp-grant/upload-bridge is a lane policy; upload-bridge is dual acceptance at the same app, not a third credential or an exemption from operation authority.",
+      "authority": [
+        {
+          "path": "docs/specification/DESIGN.md",
+          "line": 905,
+          "declared_stage": "v1 semantics",
+          "claim": "MCP connection one user/team, current permissions each call, reauthorize to switch."
+        },
+        {
+          "path": "docs/specification/DESIGN.md",
+          "line": 611,
+          "declared_stage": "v1 bridge contract; full host implementation not claimed",
+          "claim": "Same app audience/principal/team; no blind token forwarding."
+        },
+        {
+          "path": "docs/specification/DESIGN.md",
+          "line": 151,
+          "declared_stage": "v1 remote delegation semantics",
+          "claim": "Separate audience-specific credentials; no incoming token forwarding or caller actor grants."
+        }
+      ],
+      "observed_source_evidence": [
+        {
+          "path": "packages/identity/src/authentication/audience.ts",
+          "line": 9,
+          "observation": "Comments define per-route audience policy; assertAudience at 39 enforces strict kind."
+        },
+        {
+          "path": "packages/identity/src/authentication/context.ts",
+          "line": 127,
+          "observation": "MCP requested team mismatch refuses; bound team needs active membership at 136."
+        }
+      ],
+      "migration": {
+        "trigger_and_requirements": "Audience or app/team representation changes need explicit grant migration or reauthorization, route acceptance inventory and negative cross-team/origin cases. Preserve existing principal attribution; never reinterpret a no-team grant as arbitrary team authority.",
+        "rollback": "Revoke newly incompatible grants and reconnect; retain original historical actor/team attribution and revocation facts."
+      },
+      "remaining_uncertainty": "Audience helper alone does not prove every route binds audience. The dual-acceptance bridge must be checked at its actual consumer."
+    },
+    {
+      "id": "SEC07",
+      "name": "Recovery, invitations and last-owner conditional atomicity",
+      "classification": [
+        "product requirement",
+        "deliberate security policy",
+        "implementation gap",
+        "proposed mechanism"
+      ],
+      "required_outcome": "Recovery cannot leave usable stale credentials after acknowledged completion; one-use verification/invitations cannot create duplicate authority; a team must retain an owner under concurrency. Historical membership attribution remains retained.",
+      "exact_compatibility_verdict": "Required safety outcomes do not make the proposed shared-fence J2 batch, committed/contended/replayed names, or exact five-write sequence an accepted public API. Expiring recovery is normative; the one-hour default and particular cleanup cascade are lane choices. Current unfenced races are defects/limits, not behaviors to preserve.",
+      "authority": [
+        {
+          "path": "docs/specification/REQUIREMENTS.md",
+          "line": 183,
+          "declared_stage": "language requirement",
+          "claim": "Recovery, verified ownership, expiring owner-managed invitations and revocation."
+        },
+        {
+          "path": "docs/specification/DESIGN.md",
+          "line": 291,
+          "declared_stage": "v1 semantics",
+          "claim": "Last owner removal/demotion rejected; invitation cannot exceed stored authority."
+        },
+        {
+          "path": "docs/ideal-filetree-plan/finished-product/FP.IDENTITY-CONTRACT.contract.md",
+          "line": 3,
+          "declared_stage": "PROPOSED draft, no implementation authorized",
+          "claim": "Exact fence mechanism not selected."
+        },
+        {
+          "path": "docs/ideal-filetree-plan/finished-product/FP.IDENTITY-CONTRACT.contract.md",
+          "line": 42,
+          "declared_stage": "PROPOSED recommendation awaiting owner reconciliation",
+          "claim": "Shared-fence join and typed outcomes remain proposed."
+        },
+        {
+          "path": "docs/specification/DECISIONS.md",
+          "line": 1013,
+          "declared_stage": "planning decision",
+          "claim": "Four identity shared-fence questions remain; no mechanism selected."
+        }
+      ],
+      "observed_source_evidence": [
+        {
+          "path": "packages/identity/src/accounts/recovery.ts",
+          "line": 72,
+          "observation": "Read/check token then password write, consume and three revocations at 82..86."
+        },
+        {
+          "path": "packages/identity/src/teams/membership.ts",
+          "line": 30,
+          "observation": "Read owner list, then independent remove/cascade calls."
+        },
+        {
+          "path": "packages/identity/src/storage/d1.ts",
+          "line": 17,
+          "observation": "Explicit FENCE LIMITATION: multi-step check-then-act without lane-03 revision fence."
+        }
+      ],
+      "migration": {
+        "trigger_and_requirements": "Adding concurrency protection requires all relevant writers/guards to share a proved owner protocol, including re-admission and token consumption. Inventory existing partial recovery and membership state; reconcile safely rather than assuming migration makes old incomplete actions atomic. Preserve history and original consumed/revoked timestamps.",
+        "rollback": "Stop admissions and reconcile partial changes before switching implementations; forward compensation/new credentials rather than reviving consumed tokens. Cannot roll back by discarding revocation/fence state."
+      },
+      "remaining_uncertainty": "No concurrency test executed. Whether J2 is best depends on unanswered batch ownership/SQL guard/revision-domain questions; this review selects no mechanism."
+    },
+    {
+      "id": "SEC08",
+      "name": "Current revocation, expiry and read-to-commit fences",
+      "classification": [
+        "product requirement",
+        "adopted security policy",
+        "unresolved authority wording"
+      ],
+      "required_outcome": "Current authorization must govern new admissions and guarded commits; expired or revoked credentials cannot authorize new effects. Public/external-user access must not be invalidated solely by absent team membership when its owning by policy permits it.",
+      "exact_compatibility_verdict": "T32 explicitly adopted checkpoint plus live permission/revocation checks. DESIGN 291 still says already-admitted operation may finish and DESIGN 560 labels execution strategy proposed; adopted T32 narrows the former for authority loss before commit. Preserve the stronger selected outcome while recording scope/atomicity uncertainty; do not silently erase either authority source.",
+      "authority": [
+        {
+          "path": "docs/specification/DESIGN.md",
+          "line": 291,
+          "declared_stage": "v1 semantics with ambiguous in-flight sentence",
+          "claim": "Removal prevents new admissions; D1 fenced commit detects changes."
+        },
+        {
+          "path": "docs/specification/DESIGN.md",
+          "line": 549,
+          "declared_stage": "v1 owner boundary",
+          "claim": "No cross-D1/DO atomic authorization guarantee."
+        },
+        {
+          "path": "implementation/challenge-audit-run/evidence/jev-t32a-20261005/README.md",
+          "line": 81,
+          "declared_stage": "ADOPTED Alternative A; implementation obligations separate",
+          "claim": "Commit-time permission/revocation revalidation; L291 and narrower-fence questions retained."
+        },
+        {
+          "path": "docs/specification/DESIGN.md",
+          "line": 306,
+          "declared_stage": "v1 permissions",
+          "claim": "Public and external-user grants are explicit exceptions."
+        }
+      ],
+      "observed_source_evidence": [
+        {
+          "path": "packages/identity/src/authentication/revocation.ts",
+          "line": 70,
+          "observation": "Precommit live membership required, already-fenced batch race explicitly open."
+        },
+        {
+          "path": "packages/identity/src/authentication/revocation.ts",
+          "line": 104,
+          "observation": "Credential expires_at <= current time rejects."
+        },
+        {
+          "path": "packages/state/src/invocation/admission.ts",
+          "line": 639,
+          "observation": "Revision and live by-policy check, with by-aware membership loss at 658."
+        },
+        {
+          "path": "packages/identity/src/storage/d1.ts",
+          "line": 17,
+          "observation": "Identity writers do not yet participate in state fence."
+        }
+      ],
+      "migration": {
+        "trigger_and_requirements": "Fence scope changes require an accepted ordering boundary and proof all authority writers participate. Preserve historic receipts, no retroactive effect revocation. Drain/invalidate in-flight admissions on revision-domain migration; do not reset revisions while admissions continue.",
+        "rollback": "Pause admissions and restore compatible monotonic fence/authority state. A weaker old reader cannot be re-enabled merely because a release is rolled back."
+      },
+      "remaining_uncertainty": "Remaining check-to-batch races and scope interpretation require reconciliation. Live re-reads alone do not prove storage-atomic revocation."
+    },
+    {
+      "id": "SEC09",
+      "name": "State canonical input serialization",
+      "classification": [
+        "persisted protocol",
+        "product requirement",
+        "unresolved assumption"
+      ],
+      "required_outcome": "Replay distinguishes different normalized explicitly supplied arguments and submitted versions, including omission versus null; defaults resolved at first admission remain historical.",
+      "exact_compatibility_verdict": "Sorted-key JSON, JS number/string spelling, UTF-8 and SHA-256 lowercase hex are the implemented unversioned receipt-hash profile. Their bytes must be retained for existing receipts or explicitly versioned. Arbitrary toJSON execution, exotic object collapse and symbol/property quirks are not normative merely because stableStringify is exported. Admission code hashes inputs before validateCallInputs; normalized-explicit-input semantics need boundary proof.",
+      "authority": [
+        {
+          "path": "docs/specification/DESIGN.md",
+          "line": 562,
+          "declared_stage": "v1 replay semantics",
+          "claim": "Hash normalized explicit inputs/versions, omission differs from null; defaults separately persisted."
+        },
+        {
+          "path": "docs/specification/DESIGN.md",
+          "line": 998,
+          "declared_stage": "v1 migration semantics",
+          "claim": "Historic receipts/contract identities preserved, no reexecution."
+        }
+      ],
+      "observed_source_evidence": [
+        {
+          "path": "packages/state/src/invocation/replay.ts",
+          "line": 20,
+          "observation": "Recursive serializer; toJSON hook at 39, sorted enumerable keys at 53, unsafe primitives rejected."
+        },
+        {
+          "path": "packages/state/src/invocation/replay.ts",
+          "line": 65,
+          "observation": "TextEncoder plus SHA-256 hex."
+        },
+        {
+          "path": "packages/state/src/invocation/admission.ts",
+          "line": 321,
+          "observation": "Hash before receipt lookup and before validation/normalization at 366."
+        }
+      ],
+      "migration": {
+        "trigger_and_requirements": "Any serializer, number spelling, toJSON or input-admission change needs a named historic profile and receipt version or compatible reader. Retain original admitted envelope/version/default context. Do not rehash current records, newly normalized requests or mutable objects as a bulk migration. If original evidence is missing, keep old verifier/drain horizon or block incompatible migration.",
+        "rollback": "Keep both readers for written versions and prohibit old writers overwriting new receipts. Roll back code without rewriting completed outcome identities."
+      },
+      "remaining_uncertainty": "No evidence arbitrary exotic inputs reach real persisted receipts; classify those acceptance quirks as unresolved, not required. Upstream normalization may satisfy DESIGN for specific routes but is not established by this helper alone.",
+      "adjacent_staging_domain_classification": {
+        "classification": "under-specified admission/payload-preservation policy; concrete helper limitation, not yet an affirmative reachable production data-loss defect",
+        "observed": "checkJsonSafe only asks JSON.stringify not to throw. Nested undefined survives structuredClone but is omitted by JSON serialization; nonfinite numbers can become null. checkPlainObject rejects only null/arrays/nonobjects and does not establish a plain prototype. Thus the helper does not prove round-trip preservation or the source comment\u2019s full plain JSON-safe claim.",
+        "source_evidence": [
+          {
+            "path": "packages/state/src/internal/json.ts",
+            "line": 29,
+            "observation": "No-throw stringify probe; returned encoding discarded."
+          },
+          {
+            "path": "packages/state/src/effects/staging.ts",
+            "line": 68,
+            "observation": "Object check is not a prototype/complete JSON-domain check."
+          },
+          {
+            "path": "packages/state/src/effects/staging.ts",
+            "line": 77,
+            "observation": "Staging promises plain JSON-safe arguments; clone then probe at 110..114."
+          },
+          {
+            "path": "packages/state/src/effects/staging.ts",
+            "line": 149,
+            "observation": "Same promise for schedule payload; clone/probe at 173..177."
+          },
+          {
+            "path": "packages/state/src/storage/d1.ts",
+            "line": 865,
+            "observation": "Persisted schedule payload uses JSON.stringify at 870."
+          }
+        ],
+        "normative_limit": "DESIGN 562 omission/null applies to invocation replay inputs. DESIGN 520 immutable event identity/payload and 566 durable effects require preserved declared meaning, but do not alone specify arbitrary host JS payload admission or require accepting nonfinite/undefined. Do not apply replay stableStringify\u2019s stricter domain automatically to staging or canonical producer output.",
+        "next_evidence": "Trace actual state/cloudflare/stdlib producers and typed-to-wire normalization, admitted before/after shapes, in-memory versus D1 persistence, and external/public store callers. Distinguish normalized intended omission from admitted data loss before selecting rejection or normalization.",
+        "migration": "If existing rows were serialized lossily, current stored null/missing cannot recover prior NaN/Infinity/undefined intent. Preserve original admission/version/evidence where available; otherwise do not invent the old payload. Narrow or version new admission only after policy/caller decision; historic replay IDs/outcomes must not be regenerated.",
+        "decision": "No redesign chosen; neither permissive serialization nor strict rejection is promoted to normative compatibility."
+      }
+    },
+    {
+      "id": "SEC10",
+      "name": "Receipt-first replay, identity age and retention",
+      "classification": [
+        "product requirement",
+        "persisted protocol"
+      ],
+      "required_outcome": "Authenticated retries locate their receipt before age/version/default/business checks, return saved outcome under current disclosure, and never rerun a expired old identity after its receipt is removed.",
+      "exact_compatibility_verdict": "App/owner/principal/operation/operation-ID identity and age ordering are normative. UUIDv7, 24h unseen-ID age, five-minute future tolerance and >=7-day ordinary receipts are explicit v1 defaults, not merely test constants. Trusted occurrences retain their entire retry horizon; provider uncertainty cannot be converted into permission to retry as new.",
+      "authority": [
+        {
+          "path": "docs/specification/DESIGN.md",
+          "line": 562,
+          "declared_stage": "v1 explicit contract",
+          "claim": "Receipt identity and pre-version/default replay ordering."
+        },
+        {
+          "path": "docs/specification/DESIGN.md",
+          "line": 564,
+          "declared_stage": "v1 explicit defaults",
+          "claim": "24h unseen ID, five-minute future tolerance, >=7-day receipts; restore stops admissions."
+        },
+        {
+          "path": "docs/specification/REQUIREMENTS.md",
+          "line": 189,
+          "declared_stage": "language requirement",
+          "claim": "Stable retry and external-event identities."
+        }
+      ],
+      "observed_source_evidence": [
+        {
+          "path": "packages/state/src/invocation/admission.ts",
+          "line": 323,
+          "observation": "Existing matching receipt returns before assertOperationIdAge at 342."
+        },
+        {
+          "path": "packages/state/src/storage/d1.ts",
+          "line": 806,
+          "observation": "Receipt hash/default/outcome/identity persisted."
+        },
+        {
+          "path": "packages/interfaces/src/http/csv.ts",
+          "line": 538,
+          "observation": "CSV route validates ID age before invoking canonical receipt replay."
+        }
+      ],
+      "migration": {
+        "trigger_and_requirements": "Changing age, identity layout, receipt TTL or UUID admission needs coordinated transport/storage policy, full horizon inventory and old-reader handling. Deleting receipts cannot make an old request new. Review CSV transport early-age gate against canonical ordering; do not preserve that conflict solely as UI behavior.",
+        "rollback": "Retain replay summaries/tombstones and stop admissions on restore. Never rewind operation IDs or receipt deletion to replay completed effects."
+      },
+      "remaining_uncertainty": "Physical receipt cleanup and all transport callers not exhaustively audited; CSV is a concrete ordering contradiction candidate."
+    },
+    {
+      "id": "SEC11",
+      "name": "Work occurrence/outbox identities and payload immutability",
+      "classification": [
+        "product requirement",
+        "persisted protocol",
+        "implementation choice"
+      ],
+      "required_outcome": "Duplicate event/delivery/schedule work converges on the same occurrence and provider identity across retries/compatible releases; changed arguments cannot silently reuse old logical identity.",
+      "exact_compatibility_verdict": "Identity components are normative; current can-work/outbox-id/v1 and can-work/every-id/v1 NUL framing, obx_/evr_ prefixes, SHA-256 hex are implementation persistence profiles. They must stay readable for queued/history entries. Public string acceptance alone does not authorize ambiguous delimiter-containing logical identities.",
+      "authority": [
+        {
+          "path": "docs/specification/DESIGN.md",
+          "line": 520,
+          "declared_stage": "v1 semantics",
+          "claim": "Independent stable handler occurrence, duplicate receipt replay."
+        },
+        {
+          "path": "docs/specification/DESIGN.md",
+          "line": 526,
+          "declared_stage": "v1 semantics",
+          "claim": "Recurring identity app/compatible handler/owner/UTC slot; compatible release no duplicate ticks."
+        },
+        {
+          "path": "docs/specification/DESIGN.md",
+          "line": 566,
+          "declared_stage": "v1 semantics",
+          "claim": "Outbox identity from operation/source/index, state-atomic outbox and retry identity."
+        }
+      ],
+      "observed_source_evidence": [
+        {
+          "path": "packages/work/src/intent/index.ts",
+          "line": 25,
+          "observation": "deriveOutboxId NUL-framed v1 hash at 39; freezeRequest at 58 copies caller input."
+        },
+        {
+          "path": "packages/work/src/schedule/every.ts",
+          "line": 97,
+          "observation": "Recurring v1 hash from app/handler/scope/owner/slot."
+        },
+        {
+          "path": "packages/work/src/event/index.ts",
+          "line": 55,
+          "observation": "Receipt lookup before creating new occurrence."
+        }
+      ],
+      "migration": {
+        "trigger_and_requirements": "Changed framing/hash/canonical handler identity needs explicit version/cross-version lookup tied to original occurrence and immutable request. Inventory pending/provider-accepted/uncertain work across all retained releases, not only current schema. Drain or retain old handlers; never generate new IDs from current mutable records to migrate old work.",
+        "rollback": "Restore compatible release execution with retained IDs/receipts. Forward reconcile uncertain provider effects; no rollback by resetting dispatch/occurrence state."
+      },
+      "remaining_uncertainty": "Full admission domains of every ID component not proven. NUL-delimiter ambiguity is an input-domain review item, not a demonstrated reachable collision."
+    },
+    {
+      "id": "SEC12",
+      "name": "Owner atomicity and complete fanout checkpointing",
+      "classification": [
+        "product requirement",
+        "adopted design contract",
+        "persisted protocol"
+      ],
+      "required_outcome": "One owner commits domain/history/replay/outbox/schedule changes atomically. Fanout admits a complete authoritative finite identity cohort, then each child atomically commits effects and terminal checkpoint; sibling failure and pending/attention remain honest.",
+      "exact_compatibility_verdict": "T33 adopted per-child completeness/current-authority outcomes, not a fixed 500-row total cap nor a particular row serialization. Frozen cohort identity is not frozen authorization. D1 batch/fence is an execution strategy with implementation evidence, not a cross-store transaction promise.",
+      "authority": [
+        {
+          "path": "docs/specification/REQUIREMENTS.md",
+          "line": 185,
+          "declared_stage": "language requirement",
+          "claim": "Atomic owner state; no D1/DO/R2/provider pretend transaction."
+        },
+        {
+          "path": "docs/specification/DESIGN.md",
+          "line": 555,
+          "declared_stage": "v1 proposed execution strategy",
+          "claim": "Single batch writes constraints/history/receipt/outbox and revision."
+        },
+        {
+          "path": "implementation/challenge-audit-run/t33-resolution.md",
+          "line": 17,
+          "declared_stage": "adopted architecture direction, implementation/proof separate",
+          "claim": "Authoritative frozen cutoff membership."
+        },
+        {
+          "path": "implementation/challenge-audit-run/t33-resolution.md",
+          "line": 19,
+          "declared_stage": "adopted design contract",
+          "claim": "Child identity includes parent+handler+record; current child authority and atomic checkpoint at 20..21."
+        },
+        {
+          "path": "implementation/challenge-audit-run/t33-resolution.md",
+          "line": 27,
+          "declared_stage": "adopted direction",
+          "claim": "Precise representations still owner-produced."
+        }
+      ],
+      "observed_source_evidence": [
+        {
+          "path": "packages/state/src/storage/d1.ts",
+          "line": 693,
+          "observation": "Batch begins with fence-log insertion and revision update; receipt at 806 and schedules at 861 participate."
+        },
+        {
+          "path": "packages/state/src/fanout/membership.ts",
+          "line": 296,
+          "observation": "Reject cohort outside operating owner."
+        },
+        {
+          "path": "packages/work-kernel/src/rows.ts",
+          "line": 669,
+          "observation": "Persisted frozen canonical admitted identities and separate checkpoint rows."
+        }
+      ],
+      "migration": {
+        "trigger_and_requirements": "Changing membership representation, child ID, checkpoint order or fence needs versioned rows and preserved original cutoff/complete set. Demonstrate restart at claim/effect/checkpoint boundaries and duplicate delivery; never reconstruct old membership from today\u2019s rows or acknowledge before durable effects.",
+        "rollback": "Stop drivers, preserve admitted cohorts and terminal outcomes, resume with compatible old/new row reader. Do not roll back parent truth to hide unfinished children or delete evidence of failed children."
+      },
+      "remaining_uncertainty": "No fresh durable proof or full fanout producer/runtime qualification here. Adopted contract remains binding even if a helper is only conditional/test-called."
+    },
+    {
+      "id": "SEC13",
+      "name": "CSV grammar admission versus source identity",
+      "classification": [
+        "public contract",
+        "scoped compatibility policy",
+        "deliberate correction"
+      ],
+      "required_outcome": "Invalid/duplicate rows remain reviewable; parsing cannot silently salvage input, normalize source identity or bypass canonical operation authorization.",
+      "exact_compatibility_verdict": "Scoped C01 explicitly freezes raw cells/order/BOM/lone CR/whitespace and full-parse-before-limit, while correcting malformed quote stripping and lone UTF-16 surrogate acceptance. Thus the old malformed grammar is not a required compatibility behavior. Current 1000-data-row/error precedence is scoped policy, distinct from fanout cohort limits.",
+      "authority": [
+        {
+          "path": "docs/specification/REQUIREMENTS.md",
+          "line": 130,
+          "declared_stage": "language requirement",
+          "claim": "Canonical CSV intake with explicit correction/exclusion and independent replay-safe rows."
+        },
+        {
+          "path": "implementation/rust-port-orchestration/runs/codex-step10-20261007T015711Z/contracts/csv-contract.md",
+          "line": 5,
+          "declared_stage": "released grammar contract",
+          "claim": "Specific finite parser options/raw semantics and limit order."
+        },
+        {
+          "path": "implementation/rust-port-orchestration/runs/codex-step10-20261007T015711Z/contracts/csv-contract.md",
+          "line": 7,
+          "declared_stage": "deliberate admission corrections",
+          "claim": "Reject malformed quoting and lone surrogates; exact accepted-source/candidate digests retained."
+        },
+        {
+          "path": "implementation/rust-port-orchestration/runs/codex-step10-20261007T015711Z/contracts/csv-contract.md",
+          "line": 11,
+          "declared_stage": "bounded authoring lease",
+          "claim": "Preserve auth/CSRF, candidate digest and commit behavior; grammar is not authority."
+        }
+      ],
+      "observed_source_evidence": [
+        {
+          "path": "packages/interfaces/src/http/csv.ts",
+          "line": 155,
+          "observation": "Server delegates to UI-owned grammar and maps only CsvGrammarError."
+        },
+        {
+          "path": "packages/interfaces/src/http/csv.ts",
+          "line": 254,
+          "observation": "Canonical normalized row inputs determine exact duplicates."
+        }
+      ],
+      "migration": {
+        "trigger_and_requirements": "Grammar/profile changes require explicitly invalidate/re-review old drafts or retain profile for admitted reviews. Do not silently reinterpret old source to new candidates while retaining old consent/replay IDs. Keep pure grammar separation from authorization.",
+        "rollback": "Restore prior accepted grammar profile only for properly identified historic reviews; do not restore malformed-input corrections just to match obsolete tests."
+      },
+      "remaining_uncertainty": "Scoped release does not certify complete CSV business-review implementation or actual browser/Worker delivery."
+    },
+    {
+      "id": "SEC14",
+      "name": "CSV consent digest, private review lifetime and row replay",
+      "classification": [
+        "product requirement",
+        "wire compatibility",
+        "implementation gap"
+      ],
+      "required_outcome": "Review is private to authenticated user/app/team, expires after 24h, dies on logout/context loss, binds explicit chosen candidates, and rechecks configured business review/current authority before each canonical row submission. Retries retain row identity/frozen inputs.",
+      "exact_compatibility_verdict": "SHA-256 of canonical {operation,candidates}, rev-16hex ID and unsigned client echo are current wire choices, not proof of historical review or consent. Full digest comparison is used, so the short ID is not sole authority. Current contract has no app/team/issued/expiry fields; operation-ID age is not review age. Preserve security outcome rather than blessing these gaps as compatibility.",
+      "authority": [
+        {
+          "path": "docs/specification/DESIGN.md",
+          "line": 773,
+          "declared_stage": "v1 CSV semantics",
+          "claim": "Configured owning review must run and failure blocks row."
+        },
+        {
+          "path": "docs/specification/DESIGN.md",
+          "line": 779,
+          "declared_stage": "v1 explicit semantics",
+          "claim": "Source-order per-row commits; rerun configured candidate review before each row; stable identity/frozen retry."
+        },
+        {
+          "path": "docs/specification/DESIGN.md",
+          "line": 781,
+          "declared_stage": "v1 explicit privacy/lifetime contract",
+          "claim": "User/app/team private review, 24h expiry, immediate loss on logout/context change."
+        },
+        {
+          "path": "implementation/rust-port-orchestration/runs/codex-step10-20261007T015711Z/contracts/csv-contract.md",
+          "line": 11,
+          "declared_stage": "released grammar scope only",
+          "claim": "Preserve candidate digest and consent/replay while substituting grammar; no blanket acceptance of full flow."
+        }
+      ],
+      "observed_source_evidence": [
+        {
+          "path": "packages/interfaces/src/http/csv.ts",
+          "line": 95,
+          "observation": "Consent fields only review_id/operation/principal/digest/count."
+        },
+        {
+          "path": "packages/interfaces/src/http/csv.ts",
+          "line": 166,
+          "observation": "Sorted-key canonical JSON; digest/id at 273."
+        },
+        {
+          "path": "packages/interfaces/src/http/csv.ts",
+          "line": 454,
+          "observation": "One schema-derived review before commit loop; client echo compared at 471."
+        },
+        {
+          "path": "packages/interfaces/src/http/csv.ts",
+          "line": 512,
+          "observation": "One frozen identity and supplied-selection order drive row invocations."
+        },
+        {
+          "path": "packages/ui/src/csv/preview.ts",
+          "line": 9,
+          "observation": "Render mints operation IDs; comment treats ID age as covering review sessions."
+        }
+      ],
+      "migration": {
+        "trigger_and_requirements": "Add/change review binding through explicit review-version and policy; invalidate old unbound reviews for renewed consent rather than invent app/team/creation time. Preserve already committed row receipts under original identity even when review expires; stale review cannot authorize new rows. Retain historic candidate bytes/operation version for retry. Recompute fresh candidates only to require renewed consent, never to overwrite old consent.",
+        "rollback": "Do not revive discarded private drafts or let a rollback re-enable unbound consent. Completed receipts remain replayable under current disclosure, independently of review storage lifetime."
+      },
+      "remaining_uncertainty": "No production private review store or lifecycle consumer established by inspected UI/interfaces paths. No exploit claimed: canonical mutations still enforce live business authorization. Full row-order/configured-review/privacy integration is incomplete."
+    },
+    {
+      "id": "SEC15",
+      "name": "Finalized-file provenance and immutable replay",
+      "classification": [
+        "product requirement",
+        "persisted protocol",
+        "implementation gap"
+      ],
+      "required_outcome": "Raw IDs/URLs or self-described provenance confer no file authority. Finalization binds authenticated receiving identity/source, immutable bytes and occurrence/result position; retry returns same file, conflicting content fails, and attachment rechecks current destination rights.",
+      "exact_compatibility_verdict": "Provenance field semantics and immutable file identity are required. Object.freeze and f_<id>.bin are mechanisms, not sufficient authentication/durable immutability. Event shape validation alone cannot verify its source. Receiving app/team/owner/principal mappings cannot be rewritten casually in migration.",
+      "authority": [
+        {
+          "path": "docs/specification/REQUIREMENTS.md",
+          "line": 57,
+          "declared_stage": "language requirement",
+          "claim": "Same upload flow, principal/team/operation binding and actual bytes."
+        },
+        {
+          "path": "docs/specification/DESIGN.md",
+          "line": 601,
+          "declared_stage": "v1 file semantics",
+          "claim": "Finalized ownership/read grants, limits, no opaque-ID authority."
+        },
+        {
+          "path": "docs/specification/DESIGN.md",
+          "line": 609,
+          "declared_stage": "v1 bridge contract",
+          "claim": "Same completed intent immutable replay, conflicting context/bytes reject."
+        },
+        {
+          "path": "docs/specification/DESIGN.md",
+          "line": 615,
+          "declared_stage": "declared adapter/runtime contract; implementation not claimed there",
+          "claim": "Receiving provenance and stable delivery/result position."
+        },
+        {
+          "path": "docs/specification/DESIGN.md",
+          "line": 617,
+          "declared_stage": "declared event contract",
+          "claim": "Authenticated occurrence/field/item replay reuses same files; conflicting bytes fail."
+        }
+      ],
+      "observed_source_evidence": [
+        {
+          "path": "packages/files/src/provenance/index.ts",
+          "line": 57,
+          "observation": "Bind only nonempty fields; event validator at 102 checks shape, not source authenticity."
+        },
+        {
+          "path": "packages/files/src/finalize/index.ts",
+          "line": 133,
+          "observation": "Upload finalize returns same ref on matching retry/digest; owner/expiry checked."
+        },
+        {
+          "path": "packages/files/src/finalize/index.ts",
+          "line": 219,
+          "observation": "ingestVerifiedEventBytes allocates nextFileId at 246 without occurrence lookup/dedup."
+        },
+        {
+          "path": "packages/files/src/provenance/index.ts",
+          "line": 142,
+          "observation": "Object.freeze is in-process protection."
+        }
+      ],
+      "migration": {
+        "trigger_and_requirements": "Version persisted provenance/readers and retain original verified ingress evidence plus immutable byte digest. For old rows lacking required binding, quarantine/deny or explicitly reconcile; never infer trustworthy provenance from current mutable objects. Event-ingest idempotency needs owner-backed occurrence mapping before complete contract can be claimed.",
+        "rollback": "Keep byte objects and original identity bindings immutable; rollback must preserve denied/revoked/expired access and cannot replace file bytes under a reused ID."
+      },
+      "remaining_uncertainty": "No production call to ingestVerifiedEventBytes found in inspected package source; gap is at helper/selected contract level, not proof of a deployed ingress exploit. R2-to-state atomicity is explicitly not promised."
+    },
+    {
+      "id": "SEC16",
+      "name": "Compiled artifact identity checks",
+      "classification": [
+        "public helper contract",
+        "selected future parity",
+        "test-evidence boundary"
+      ],
+      "required_outcome": "Where compiled provenance is asserted, artifact version/source bytes/source spelling/toolchain versions must match the independently supplied compile expectation; fixtures must not be presented as fresh compiler output.",
+      "exact_compatibility_verdict": "Current helper exact path/version/first-source SHA-256 comparisons are defined helper behavior and selected port parity. They are equality checks, not cryptographic authentication of the entire artifact or proof that compiler execution happened. Public export does not establish that every live platform route invokes it.",
+      "authority": [
+        {
+          "path": "docs/research/package-subsystem-ports-20261006/implementation-plans/artifact-preparation.md",
+          "line": 9,
+          "declared_stage": "native port plan; selected future work",
+          "claim": "Migrate compiled identity assertions while retaining compiler producer/format."
+        },
+        {
+          "path": "docs/research/package-subsystem-ports-20261006/implementation-plans/artifact-preparation.md",
+          "line": 21,
+          "declared_stage": "plan caller mapping",
+          "claim": "Keep checks/errors under artifact owner."
+        },
+        {
+          "path": "docs/install.md",
+          "line": 18,
+          "declared_stage": "public installation documentation",
+          "claim": "Compiler version includes commit/language/schema facts."
+        }
+      ],
+      "observed_source_evidence": [
+        {
+          "path": "packages/cloudflare/src/runtime/artifact.ts",
+          "line": 49,
+          "observation": "Checks artifact_version=1, exact language/tool version, source[0].path and sha256."
+        },
+        {
+          "path": "tests/e2e/fixtures/artifact-loader.ts",
+          "line": 455,
+          "observation": "Actual fixture helper caller asserts independently supplied compile expectation."
+        }
+      ],
+      "migration": {
+        "trigger_and_requirements": "Path/version/source-format changes need compiler-produced contract revision plus consumer update and historic artifact policy. Do not rehash current source and call it provenance for an older artifact. Retain original compiled source evidence or require recompilation.",
+        "rollback": "Use a matching toolchain/artifact set; do not relax identity to accept handbuilt fixtures as authentic. Old source-path spelling may be supported only as explicit historic version policy."
+      },
+      "remaining_uncertainty": "No call found in packages/cloudflare/src other than definition. Live build/deploy structurally validate artifact but this finite review does not certify provenance assertion on every route. No full artifact signature exists in this helper."
+    },
+    {
+      "id": "SEC17",
+      "name": "Deployment and release digest profiles",
+      "classification": [
+        "persisted protocol",
+        "selected compatibility policy"
+      ],
+      "required_outcome": "Reviewed/deployed byte inventory and installed owner snapshot identity must remain tied to the exact content and compatible historical release/work contracts.",
+      "exact_compatibility_verdict": "Legacy SHA-256 over JS JSON.stringify({mainModule,modules:sorted}) and mixed v2 length-prefixed typed raw frames are distinct profiles. JS enumeration/UTF-16/string/number serialization details are frozen by selected parity, not universal language semantics. New format must not reuse the same version identifier or silently replace old release history.",
+      "authority": [
+        {
+          "path": "docs/install.md",
+          "line": 44,
+          "declared_stage": "public release contract",
+          "claim": "Release manifest records hashes/internal runtime closure; no full-host qualification implied."
+        },
+        {
+          "path": "docs/research/package-subsystem-ports-20261006/implementation-plans/artifact-preparation.md",
+          "line": 23,
+          "declared_stage": "selected future parity",
+          "claim": "Sorted roots/files and raw-file hashes."
+        },
+        {
+          "path": "docs/research/package-subsystem-ports-20261006/implementation-plans/artifact-preparation.md",
+          "line": 76,
+          "declared_stage": "proposed native representation contract",
+          "claim": "Retain host JSON/UTF-16/number spellings, not generic serde substitution."
+        },
+        {
+          "path": "docs/specification/DESIGN.md",
+          "line": 931,
+          "declared_stage": "v1 migration semantics",
+          "claim": "Exact installed predecessor snapshot evidence."
+        },
+        {
+          "path": "docs/specification/DESIGN.md",
+          "line": 935,
+          "declared_stage": "v1 migration semantics",
+          "claim": "Applied artifacts immutable."
+        }
+      ],
+      "observed_source_evidence": [
+        {
+          "path": "packages/cloudflare/src/deploy/bundle.ts",
+          "line": 920,
+          "observation": "Legacy text module JSON hash."
+        },
+        {
+          "path": "packages/cloudflare/src/deploy/bundle.ts",
+          "line": 1139,
+          "observation": "Mixed digest prefixes main name and each key/kind/raw length/content."
+        },
+        {
+          "path": "packages/cloudflare/src/deploy/bundle.ts",
+          "line": 1206,
+          "observation": "Mixed writer refuses digest mismatch after attachment."
+        },
+        {
+          "path": "packages/cloudflare/src/deploy/activate.ts",
+          "line": 223,
+          "observation": "Installed digest must match descriptor artifactDigest."
+        }
+      ],
+      "migration": {
+        "trigger_and_requirements": "Any serializer/framing/sort/content inventory change needs explicit digest version and manifest reader support, archived exact input bytes, and independently frozen vectors for each admitted domain. Do not recompute historical deployment identity from current installed files or mutable source. Existing queued work retains actual old release contract.",
+        "rollback": "Keep old manifest/profile verification alongside new versions. Restore whole coherent release artifacts; never relabel a new digest as old or overwrite applied-history content."
+      },
+      "remaining_uncertainty": "Mixed assets are conditional; manifest/helper presence is not installed every-host qualification. Legacy number-key enumeration deserves exact cross-language vectors rather than assumptions."
+    },
+    {
+      "id": "SEC18",
+      "name": "Confirmation before deployment apply and honest outcomes",
+      "classification": [
+        "deliberate security policy",
+        "public CLI contract",
+        "selected future parity"
+      ],
+      "required_outcome": "Bare deploy refuses before build/activation side effects, preview publishes no deployment outputs and applies nothing, --yes permits the declared apply, and apply/activation failure remains visible.",
+      "exact_compatibility_verdict": "Confirmation requirement, preview winning over yes, refusal-before-apply, and honest applied state are required current CLI behavior. Exact error prose/diff order is selected port parity. Current failure message saying nothing was applied after nonzero Wrangler is not proven by subprocess exit alone and should not become an immutable safety guarantee.",
+      "authority": [
+        {
+          "path": "docs/research/package-subsystem-ports-20261006/implementation-plans/artifact-preparation.md",
+          "line": 90,
+          "declared_stage": "selected future parity plan",
+          "claim": "Confirmation before activation/Bun after compatibility checks."
+        },
+        {
+          "path": "docs/research/package-subsystem-ports-20261006/implementation-plans/artifact-preparation.md",
+          "line": 92,
+          "declared_stage": "selected future parity plan",
+          "claim": "Preview wins over yes; no files published."
+        },
+        {
+          "path": "docs/research/package-subsystem-ports-20261006/implementation-plans/artifact-preparation.md",
+          "line": 93,
+          "declared_stage": "selected future parity plan",
+          "claim": "Compiler mismatch refusal, publish then existing Wrangler; no new approval step."
+        }
+      ],
+      "observed_source_evidence": [
+        {
+          "path": "packages/cloudflare/src/cli/platform.ts",
+          "line": 51,
+          "observation": "Documented current public command: yes writes/applies; preview/bare do not."
+        },
+        {
+          "path": "packages/cloudflare/src/preparation/host.ts",
+          "line": 332,
+          "observation": "Bare deploy requireYes before activation/bundle."
+        },
+        {
+          "path": "packages/cloudflare/src/preparation/host.ts",
+          "line": 400,
+          "observation": "Preview returns before compiler refusal/publication/apply."
+        },
+        {
+          "path": "packages/cloudflare/src/preparation/host.ts",
+          "line": 440,
+          "observation": "Wrangler result drives applied flag; nonzero message at 448 asserts nothing applied."
+        }
+      ],
+      "migration": {
+        "trigger_and_requirements": "Changing flags/stage order requires explicit CLI/security contract and failure/side-effect traces. Preserve content shown at review through apply. Remote uncertain/partial apply requires reconciliation, not automatic retry on a fresh identity or fabricated rollback.",
+        "rollback": "A release switch can restore preparation implementation before a job. Once remote apply began, inspect/reconcile actual external state; cannot claim rollback from local exit status."
+      },
+      "remaining_uncertainty": "No deployment/run performed. Whether Wrangler failure can leave partial remote changes is not established; source wording is stronger than evidence reviewed."
+    },
+    {
+      "id": "SEC19",
+      "name": "Private preparation path containment and reviewed bytes",
+      "classification": [
+        "deliberate security outcome",
+        "selected future parity",
+        "implementation gap"
+      ],
+      "required_outcome": "Private preparation stays within host-created staging roots, prevents traversal/symlink output escape, and publishes exactly reviewed bytes only after confirmation; partial publication must be reported honestly.",
+      "exact_compatibility_verdict": "Plan mandates containment and verified bytes, not this exact lstat loop/API or blanket atomic-write claim. Publication helper remains separate from live host writes. verifyReviewed currently checks expected buffers against recorded metadata, not disk, and publish rereads disk without digest validation; do not freeze these gaps as compatibility.",
+      "authority": [
+        {
+          "path": "docs/research/package-subsystem-ports-20261006/implementation-plans/artifact-preparation.md",
+          "line": 97,
+          "declared_stage": "selected future native-port contract",
+          "claim": "Private root, path/length/hash/containment validation, cleanup, no rerender after review; partial publication not implicitly transactional."
+        },
+        {
+          "path": "docs/research/package-subsystem-ports-20261006/implementation-plans/artifact-preparation.md",
+          "line": 5,
+          "declared_stage": "proposed new implementation work",
+          "claim": "New APIs/files are not deployed guarantees."
+        }
+      ],
+      "observed_source_evidence": [
+        {
+          "path": "packages/cloudflare/src/preparation/publication.ts",
+          "line": 99,
+          "observation": "Reject absolute/NUL/backslash and normalized escaping paths."
+        },
+        {
+          "path": "packages/cloudflare/src/preparation/publication.ts",
+          "line": 151,
+          "observation": "lstat ancestor checks, with filesystem check/use separation."
+        },
+        {
+          "path": "packages/cloudflare/src/preparation/publication.ts",
+          "line": 255,
+          "observation": "verifyReviewed iterates staged metadata; does not read staged files or require all reviewed keys appear."
+        },
+        {
+          "path": "packages/cloudflare/src/preparation/publication.ts",
+          "line": 281,
+          "observation": "publish accepts confirmed mode and rereads staged bytes at 300 without hash check or verification prerequisite."
+        },
+        {
+          "path": "packages/cloudflare/src/preparation/host.ts",
+          "line": 429,
+          "observation": "Live host calls writeDeployBundle and sidecar writes directly; no PublicationSession join found."
+        }
+      ],
+      "migration": {
+        "trigger_and_requirements": "Before native adoption, prove exact staged-set/byte binding at publication, cleanup and race threat model; treat missing verification as correctness work, not preservation. New durable publication protocol needs versioned recovery journal or explicit partial-write policy. Do not assume lstat implies race-proof containment against hostile concurrent replacement.",
+        "rollback": "Clean private staging and report written/pending files; restore prior coherent release only through explicit recovery. Never silently delete arbitrary destination files or claim sequential writes were atomic."
+      },
+      "remaining_uncertainty": "No native/session runtime executed; helper is preparatory/unwired by inspected host. Filesystem attacker capabilities and supported symlink policy need a declared threat boundary."
+    },
+    {
+      "id": "SEC20",
+      "name": "Native backend selection and human hold",
+      "classification": [
+        "selected future parity",
+        "unresolved assumption",
+        "test-only/preparatory behavior"
+      ],
+      "required_outcome": "Select backend before evaluation, fail clearly when explicitly selected native cannot launch, never rerun a started failed native job through TS, and retain release rollback as a controlled switch.",
+      "exact_compatibility_verdict": "Native profile is selected future work, not a deployed public API because helpers exist. Human preparation/native-release HOLD remains. Current env\u2192packaged\u2192dev fallback and broad auto catch are source choices; invalid explicit override fallback/dev selection are not automatically blessed as supported-host policy.",
+      "authority": [
+        {
+          "path": "docs/research/package-subsystem-ports-20261006/implementation-plans/artifact-preparation.md",
+          "line": 13,
+          "declared_stage": "proposed port plan",
+          "claim": "First consumer build/deploy preview; existing synchronous helpers retained pending evidence."
+        },
+        {
+          "path": "docs/research/package-subsystem-ports-20261006/implementation-plans/artifact-preparation.md",
+          "line": 80,
+          "declared_stage": "proposed native protocol",
+          "claim": "Versioned framed transport, explicit executable/argument arrays."
+        },
+        {
+          "path": "docs/research/package-subsystem-ports-20261006/implementation-plans/artifact-preparation.md",
+          "line": 84,
+          "declared_stage": "selected future failure policy",
+          "claim": "No TS retry after Rust started; absent selected native fails; rollback release switch."
+        },
+        {
+          "path": "docs/specification/DECISIONS.md",
+          "line": 987,
+          "declared_stage": "recorded planning boundary",
+          "claim": "Preparation/native-release HOLD unchanged."
+        },
+        {
+          "path": "implementation/rust-port-orchestration/runs/codex-step10-20261007T015711Z/contracts/identity-host-contract.md",
+          "line": 3,
+          "declared_stage": "released scoped identity work",
+          "claim": "Human preparation/native-release HOLD unchanged."
+        }
+      ],
+      "observed_source_evidence": [
+        {
+          "path": "packages/cloudflare/src/preparation/host.ts",
+          "line": 510,
+          "observation": "ts returns immediately; auto/native resolve; auto catches any resolution fault and selects ts."
+        },
+        {
+          "path": "packages/cloudflare/src/preparation/host.ts",
+          "line": 542,
+          "observation": "Native host path described as scaffold; non-probe handler unavailable at 582."
+        },
+        {
+          "path": "packages/cloudflare/src/preparation/executable.ts",
+          "line": 85,
+          "observation": "Explicit env nonexecutable continues to packaged then dev; returned executable verified only with stat/access."
+        }
+      ],
+      "migration": {
+        "trigger_and_requirements": "Adoption needs hold release, version/ABI/manifest integrity qualification, real supported-host launch and failure traces, and an explicit invalid-override/fallback policy. No package installation or test helper is sufficient. New profile fields must preserve old jobs or reject before evaluation.",
+        "rollback": "Switch release/backend before beginning a new job; abort/clean failed private job. Never execute TS as fallback after possible native side effects or publish a partially prepared job."
+      },
+      "remaining_uncertainty": "No production CLI call to selectBackend found in inspected package source; exact host default/distribution completeness not certified. This review requests no hold release."
+    }
+  ],
+  "findings": [
+    {
+      "id": "F01",
+      "severity": "high",
+      "rules": [
+        "SEC05",
+        "SEC07",
+        "SEC08"
+      ],
+      "finding": "Identity conditionals remain unfenced. Void consume followed by grant mint permits two pre-readers to proceed; recovery and last-owner guards span independent statements.",
+      "evidence": [
+        "packages/identity/src/storage/d1.ts:17",
+        "packages/identity/src/storage/d1.ts:890",
+        "packages/identity/src/authentication/oauth.ts:229",
+        "packages/identity/src/accounts/recovery.ts:82",
+        "packages/identity/src/teams/membership.ts:30"
+      ],
+      "disposition": "Preserve single-use/owner/revocation safety outcomes; proposed J2 mechanism and outcome names require separate acceptance. Static gap, no race execution."
+    },
+    {
+      "id": "F02",
+      "severity": "medium",
+      "rules": [
+        "SEC08"
+      ],
+      "finding": "Accepted T32 live revocation direction and source narrowing conflict with unreconciled DESIGN already-admitted-may-finish wording; already-fenced-batch ordering remains open.",
+      "evidence": [
+        "docs/specification/DESIGN.md:291",
+        "implementation/challenge-audit-run/evidence/jev-t32a-20261005/README.md:81",
+        "packages/identity/src/authentication/revocation.ts:70"
+      ],
+      "disposition": "Reconcile scope in design; do not weaken live checks or claim full fence proof."
+    },
+    {
+      "id": "F03",
+      "severity": "high",
+      "rules": [
+        "SEC14"
+      ],
+      "finding": "CSV schema consent echo lacks review app/team/time binding and owning business review-per-row; render ID age does not establish 24h review TTL.",
+      "evidence": [
+        "docs/specification/DESIGN.md:779",
+        "docs/specification/DESIGN.md:781",
+        "packages/interfaces/src/http/csv.ts:95",
+        "packages/interfaces/src/http/csv.ts:454",
+        "packages/ui/src/csv/preview.ts:9"
+      ],
+      "disposition": "Treat full private-review flow as a gap, not normative authority for unsigned current fields. Canonical auth still applies; no deployed exploit claimed."
+    },
+    {
+      "id": "F04",
+      "severity": "medium",
+      "rules": [
+        "SEC10",
+        "SEC14"
+      ],
+      "finding": "CSV route rejects old operation IDs before invoking canonical receipt lookup, potentially rejecting retained successful receipts after 24h.",
+      "evidence": [
+        "docs/specification/DESIGN.md:564",
+        "packages/interfaces/src/http/csv.ts:538",
+        "packages/state/src/invocation/admission.ts:323"
+      ],
+      "disposition": "Adjudicate transport ordering against receipt-first semantics; tests of early rejection cannot justify contract inversion."
+    },
+    {
+      "id": "F05",
+      "severity": "medium",
+      "rules": [
+        "SEC15"
+      ],
+      "finding": "Event file helper creates a new file on every valid call and has no occurrence/content replay check; shape validation is not verified-source authentication.",
+      "evidence": [
+        "docs/specification/DESIGN.md:617",
+        "packages/files/src/finalize/index.ts:219",
+        "packages/files/src/finalize/index.ts:246"
+      ],
+      "disposition": "Conditional helper gap, no live caller found in inspected package source; require owner ingress/dedup join before claiming declared event contract."
+    },
+    {
+      "id": "F06",
+      "severity": "medium",
+      "rules": [
+        "SEC19"
+      ],
+      "finding": "PublicationSession reviewed-byte guarantee is incomplete: verifyReviewed does not read disk or check missing reviewed entries, and publish does not require successful verification or recheck hashes.",
+      "evidence": [
+        "packages/cloudflare/src/preparation/publication.ts:255",
+        "packages/cloudflare/src/preparation/publication.ts:281"
+      ],
+      "disposition": "Do not call preparatory helper an implemented deployed integrity guarantee; repair/qualify before selected native adoption."
+    },
+    {
+      "id": "F07",
+      "severity": "medium",
+      "rules": [
+        "SEC09"
+      ],
+      "finding": "State hashes pre-validation inputs while DESIGN says normalized explicit inputs. Arbitrary serializer toJSON/exotic-object behavior is not justified by public export.",
+      "evidence": [
+        "docs/specification/DESIGN.md:562",
+        "packages/state/src/invocation/admission.ts:321",
+        "packages/state/src/invocation/admission.ts:366",
+        "packages/state/src/invocation/replay.ts:39"
+      ],
+      "disposition": "Trace actual historic transport/admission profiles before normalization change; retain original receipts/version evidence, never bulk rehash current objects."
+    },
+    {
+      "id": "F08",
+      "severity": "low",
+      "rules": [
+        "SEC16",
+        "SEC20"
+      ],
+      "finding": "Compiled identity helper and native selection scaffold are not proof all production commands enforce them; compiled identity equality is not full artifact authenticity.",
+      "evidence": [
+        "packages/cloudflare/src/runtime/artifact.ts:49",
+        "tests/e2e/fixtures/artifact-loader.ts:455",
+        "packages/cloudflare/src/preparation/host.ts:510"
+      ],
+      "disposition": "Keep caller/stage qualification explicit; public exports/tests do not establish deployed behavior."
+    },
+    {
+      "id": "F09",
+      "severity": "medium",
+      "rules": [
+        "SEC18"
+      ],
+      "finding": "Nonzero Wrangler exit is reported as nothing applied, stronger than local subprocess evidence can establish.",
+      "evidence": [
+        "packages/cloudflare/src/preparation/host.ts:448"
+      ],
+      "disposition": "Preserve honest uncertainty/partial state; do not turn this wording into required compatibility. No live apply checked."
+    },
+    {
+      "id": "F10",
+      "severity": "needs-adjudication",
+      "rules": [
+        "SEC09",
+        "SEC11"
+      ],
+      "finding": "Staging plain-JSON-safe claim exceeds a no-throw stringify probe; nested undefined/nonfinite are not rejected or demonstrated lossless. Real producer normalization/domain is not established.",
+      "evidence": [
+        "packages/state/src/internal/json.ts:29",
+        "packages/state/src/effects/staging.ts:77",
+        "packages/state/src/effects/staging.ts:110",
+        "packages/state/src/effects/staging.ts:173",
+        "packages/state/src/storage/d1.ts:865"
+      ],
+      "disposition": "Concrete validation limitation; classify actual production defect/admission contract only after caller-domain and persistence comparison. Keep invocation replay hashing and effect payload normalization separate. No tests/runtime or redesign performed."
+    }
+  ],
+  "migration_requirements": [
+    "Inventory persisted version/admission domains, source-issued and importer-admitted forms separately, plus public clients and actual production callers. Lack of deployed evidence is uncertainty, never permission to erase a protocol.",
+    "For hashes, retain exact historical preimage/profile or an explicit versioned verifier. A digest of current mutable state is not a migration of historic admitted arguments, consent, source occurrences or release artifacts.",
+    "Credential hashes cannot be bulk rederived without bearer input; use bounded dual verification or deliberate revocation/reissuance. Password KDF migration requires successful verification/reset.",
+    "Separate authoring/input admission corrections from persisted-format compatibility. Deliberately corrected unsafe hex, cookie Domain, CSV quote/surrogate forms are not obligations to retain.",
+    "Preserve stable receipt/outbox/provider identities across all retained releases and complete retry/reconciliation horizons; drain or retain compatible execution when old evidence is missing. Never mark provider-accepted or unknown work cancelled to ease migration.",
+    "Migrate identity/state/fanout writes with proved conditional atomicity at one owner and monotonic fences; stop admissions/in-flight jobs during incompatible restore. Proposed batch/outcome shapes are not preapproved.",
+    "Invalidate incompatible private reviews for fresh consent while retaining completed row replay. Do not invent historical app/team/version/expiry or revive cleared drafts.",
+    "Version artifact/bundle/manifest framing and keep old exact files/readers. Require actual host/producer/installed closure qualification before native default adoption and retain human HOLD until separately released.",
+    "Rollback is a compatible release switch before new jobs or a forward reconciliation after effects, never erasing revocations, replay receipts, immutable files, applied artifacts or original provenance."
+  ],
+  "remaining_uncertainty": [
+    "No builds, tests, probes, races, runtime boots or deployed-state inspections were run. Findings are source/design review at the exact pin.",
+    "No actual persisted noncanonical password row or external cookie-order consumer was established. Scoped compatibility policy is nonetheless explicit.",
+    "Historic receipt admission/version normalization and exotic JS input reachability need owner evidence before any serializer simplification.",
+    "T32 authority loss before commit versus already-fenced commit and identity writer participation remain unfinished; no proposal mechanism selected.",
+    "CSV complete private review lifecycle and file event-ingress dedup/authentication joins are not established by the inspected helpers.",
+    "Publication containment race model, reviewed-byte enforcement and native installed host support are unqualified; selected future plan is not a deployed API.",
+    "Current design prose includes historical implementation disclaimers even where source helpers now exist. Those disclaimers must be read as stage evidence, not automatic proof current implementation is absent or complete.",
+    "This is finite review of 20 critical rule groups, not a full package security audit; findings may require narrower owner/caller validation.",
+    "Staging JSON-safety probe does not imply payload preservation; whether nonfinite/undefined reach legitimate producers and are semantically meaningful remains unresolved. This is not certified production data loss or permission to replace admission wholesale."
+  ],
+  "reviewer": {
+    "model": "gpt-6-astra",
+    "reasoning_effort": "high",
+    "clean_room": true,
+    "given_analyst_verdicts": false,
+    "fresh_product_execution": false
+  }
+}

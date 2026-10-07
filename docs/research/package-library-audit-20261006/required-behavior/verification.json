@@ -1,0 +1,84 @@
+{
+  "ref": "16def5f95f51dbfb158d0ac086323ac256ee1c6d",
+  "audit_stage": "step 3; planning only",
+  "execution_authorized": false,
+  "fresh_product_execution": false,
+  "responsibilities": 316,
+  "owners": 13,
+  "classification_records": 400,
+  "primary_classification_counts": {
+    "deliberate_security_policy": 67,
+    "implementation_accident": 2,
+    "persisted_protocol": 41,
+    "product_requirement": 84,
+    "public_contract": 145,
+    "unresolved_assumption": 61
+  },
+  "responsibilities_with_rules": 301,
+  "no_extra_product_rule_responsibilities": [
+    "S-public-DO-test-worker",
+    "S-public-T18-fixture",
+    "S-public-fanout-support",
+    "S-public-invocation-fixtures",
+    "S-public-mutation-fixtures",
+    "S-public-query-fixtures",
+    "files-scenarios",
+    "files-test-doubles",
+    "identity-test-doubles",
+    "interfaces-test-doubles",
+    "services-harness",
+    "services-port-test-defaults",
+    "testkit-conformance-observers",
+    "testkit-journey-fixtures",
+    "testkit-loader-smoke"
+  ],
+  "unique_citations": 1020,
+  "citation_occurrences": 1406,
+  "frozen_source_inputs": 339,
+  "model_selection": {
+    "analysis": "three focused gpt-6.1-sol high packets, explicitly requested for cross-file authority interpretation; originating Codex owns Cloudflare/integration",
+    "security_review": "finite independent gpt-6-astra high, explicitly requested for persisted security contracts",
+    "technical_readiness_is_not_implementation_authorization": true
+  },
+  "package_tree_current_equal": true,
+  "root_corrections": [
+    "Precise Cloudflare document anchors/stages corrected; deliberate incomplete auth/test joins classified as required product gaps rather than accidental bugs.",
+    "SW-035 remains an unresolved admission/payload-preservation question; source probe behavior is not proof of admitted data corruption.",
+    "Migration assessments mean change-triggered gates, never a demand to migrate unchanged internal mechanisms."
+  ],
+  "security_review": {
+    "completed": true,
+    "model": "gpt-6-astra",
+    "reasoning_effort": "high",
+    "rule_groups": 20,
+    "findings": 10,
+    "unique_source_anchors": 144,
+    "citation_occurrences": 175,
+    "source_paths": 47,
+    "clean_room": true,
+    "fresh_product_execution": false,
+    "full_package_security_acceptance": false
+  },
+  "artifact_sha256": {
+    "README.md": "0d9798e978c614afe52cde8cb8c41b54df996ed868fd6fbd27b9fdb4ba6a1831",
+    "authority-index.tsv": "d97af218584f4ccd678d20de278c3d3e1ce1b7fde80f38ebecec8a564a71fe63",
+    "contracts.jsonl": "4c5b121f8cb8547660074d5cfd266d8b45139d2b461f725232bc90c4f3e8bff3",
+    "contracts.md": "1e2b8b9331445f3c1c930746f1869d4c4218ca24ecaffa5d1fee3fcaa4dc4028",
+    "decision-record.md": "59a97be28547dd1a05ca9373fafaba11bd5b094b9818cdee27af66bf52758915",
+    "independent-security-review.json": "31990f5dab2b3b532e121d75077ed363b25755e0ca9a1675c059dba09349ec99",
+    "migration-requirements.md": "d781d047185e8e5e978d8f6d7886072bf07a239fcfdbb764fcbd6d0a37364648",
+    "responsibility-contracts.tsv": "4a67bf25bc5f284ed5c5e05ae29ff3c2a937c1a520788c8635353ce316f49bed",
+    "security-citations.tsv": "6396faa7acaea13758a2be3a088bf10c3be0ef477d63ee0b2bce722fd0f98bc6",
+    "security-reconciliation.json": "147f70d70fb072fc5fe1aff2030c8516f7a33ebc8d8ab797702fbbfb3a2f0524",
+    "security-review.md": "1dd45bbceb48ababc9f12a7e33abeccd1060f90261257dc0e55345802d6bc4d5",
+    "source-index.json": "5d0eb922220de21015d68d1cf656138f132663d0d7e5eca7f6d4ffeff1bbf3b4",
+    "unresolved.json": "337e67ea021b6f26a6893d09f1810e14e2025c2735dd45b3bc9f0619f1f43299",
+    "verify.py": "8d96fcb02ac1a0ce456e1aa315bd95501d2b7ab3c098c86a59f796db327365d6"
+  },
+  "records_without_secondary_observation": 22,
+  "source_current_note": {
+    "nonpackage_changed_input": "docs/specification/DECISIONS.md",
+    "frozen_prefix_preserved": true,
+    "difference": "Concurrent compiler audit Step 2 inventory appended; existing frozen package authority text is intact. No new package policy or source change from that addition."
+  }
+}

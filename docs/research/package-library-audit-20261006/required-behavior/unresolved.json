@@ -1,0 +1,320 @@
+{
+  "ref": "16def5f95f51dbfb158d0ac086323ac256ee1c6d",
+  "classification_is_not_permission_to_change": true,
+  "families": {
+    "values": [
+      {
+        "id": "vv.raw-bigint-domain",
+        "question": "Language int is int64. Result-only rule supports scratch/cancellation, but explicit admission of arbitrary out-of-range operands at every exported helper lacks original requirement. Do not blanket narrow without API consumer assessment.",
+        "classification": "unresolved_assumption"
+      },
+      {
+        "id": "vv.money-guard-asymmetry",
+        "question": "Affirmative parity inventory records asymmetry, not a desired business requirement. No proof that exported raw carriers must remain more permissive than language/wire domain; review distinct API consumers before unifying.",
+        "classification": "unresolved_assumption"
+      },
+      {
+        "id": "vv.aggregate-pass-order",
+        "question": "Final-only bound/currency validity required separately; exact traversal/pass/error precedence is source/parity-specific with no original product authority identified. Changing arbitrary host-object access requires legacy API scope review.",
+        "classification": "unresolved_assumption"
+      },
+      {
+        "id": "vv.extrema-identity",
+        "question": "Current API/port preserves object identity; product needs typed value/identity, not necessarily JS object identity. No affirmative reason to call it accidental or freely replace it.",
+        "classification": "unresolved_assumption"
+      },
+      {
+        "id": "vv.array-empty-identity",
+        "question": "Immutable value behavior is public; exact singleton identity/extent of shallow freezing and algorithm-created allocation identity lack product authority. Retained API must not silently change before assessment.",
+        "classification": "unresolved_assumption"
+      },
+      {
+        "id": "vv.fold-unambiguous-order",
+        "question": "Original language signature has fold, prose only ties requirement to ambiguity. Preserve current API until clarified; cannot infer gratuitous quirk or silently default selector.",
+        "classification": "unresolved_assumption"
+      },
+      {
+        "id": "vv.icu-nesting-cap",
+        "question": "Bounded parser is required by DESIGN; exact32 appears only as owner implementation constant, without independently declared public promise or measured budget need. Preserve refusal until product/resource/failure envelope adjudication; do not automatically require32 forever.",
+        "classification": "unresolved_assumption"
+      },
+      {
+        "id": "vv.icu-safe-plural-subdomain",
+        "question": "Safe-number rejection deliberately avoids incorrect categories but may leave accepted int64/decimal language profile unsupported. Need owner/profile gap decision and actual vectors; not evidence full exact domain is implemented.",
+        "classification": "unresolved_assumption"
+      },
+      {
+        "id": "vv.icu-syntax-residual",
+        "question": "Determine source-owner authoritative profile per finite correction packet; no new design selection here.",
+        "classification": "unresolved_assumption"
+      },
+      {
+        "id": "vv.opaque-json-bounds-gap",
+        "question": "Do not invent or preserve absence of cap as product rule. New limits need workload/admission/failure-order decision.",
+        "classification": "unresolved_assumption"
+      },
+      {
+        "id": "vv.nominal-heuristics",
+        "question": "Actual contracts with id field need schema validator; this heuristic cannot establish declared-type semantics. Preserve legacy entry until compatible schema-aware consumer route is qualified, not as permanent language rule.",
+        "classification": "unresolved_assumption"
+      },
+      {
+        "id": "vv.types-open-decisions",
+        "question": "Do not confuse accepted parser source behavior with required source language; reconcile compiler/type API consumers before restriction/removal.",
+        "classification": "unresolved_assumption"
+      },
+      {
+        "id": "vv.schema-undefined-order",
+        "question": "Closedness/required/default correctness is required separately; exact undefined leniency/violation order is exported current behavior and planned parity, with no original user priority found. Do not drop exact ordering absent consumer/error-contract adjudication.",
+        "classification": "unresolved_assumption"
+      },
+      {
+        "id": "vv.errors-prose",
+        "question": "Public codes/structured meanings are required; full message bytes selected for compatibility proof but unknown external/user dependencies. Consumer envelope/privacy review required before treating text as freely mutable.",
+        "classification": "unresolved_assumption"
+      },
+      {
+        "id": "vv.number-diagnostics",
+        "question": "N01/N02 selected finite diagnostic parity; actual JS oracle proves chosen bytes, not their independent product necessity.",
+        "classification": "unresolved_assumption"
+      },
+      {
+        "id": "vv.string-diagnostics",
+        "question": "N04 helper byte parity is selected; it is not full UTF16/codecs/API proof. Exact error-string bytes retain separate consumer question.",
+        "classification": "unresolved_assumption"
+      },
+      {
+        "id": "vv.native-astral-truncation",
+        "question": "The desired64-unit TS diagnostic itself remains unresolved product policy. Native divergence is affirmatively documented; fix lossless route or preselect TS for excluded domain before adoption.",
+        "classification": "implementation_accident"
+      },
+      {
+        "id": "vv.default-identity",
+        "question": "Values omission meaning is required; repeated JS default object identity is selected preservation policy with no original product need identified. No caller JSON may mint internal symbols/tags.",
+        "classification": "unresolved_assumption"
+      },
+      {
+        "id": "vv.retired-capacity-divergence",
+        "question": "Could change registry-full/resource outcome. Need concrete lifetime/budget owner decision before adoption; neither half automatically normative.",
+        "classification": "unresolved_assumption"
+      },
+      {
+        "id": "vv.legacy-traces",
+        "question": "Current public arbitrary-JS input contract plus explicit port exclusion; no proof every exotic host trace is required by intended language workflow. Keep TS until scope/consumer change is explicit; finite witness is not automatic authority.",
+        "classification": "unresolved_assumption"
+      },
+      {
+        "id": "vv.decimal-structural-admission",
+        "question": "Current TS public shape admission needs legacy consumer/evaluation assessment before branded-only restriction; absence of caller is not accident proof.",
+        "classification": "unresolved_assumption"
+      },
+      {
+        "id": "vv.decimal-scale-negative-zero",
+        "question": "Mathematical scale -0 equals0; observable JS part identity is current API/port assumption, not original decimal business need. No silent native normalization.",
+        "classification": "unresolved_assumption"
+      },
+      {
+        "id": "vv.structural-nan-exclusion",
+        "question": "JSON.parse cannot produce NaN but raw carrier APIs can. Need profile/producer domain adjudication before widening or declaring universal bit preservation.",
+        "classification": "unresolved_assumption"
+      },
+      {
+        "id": "vv.descriptor-complete-defaults",
+        "question": "Accepted source defaults/initializers must be typed and creation-only. This descriptor completeness strictness is current documented API and selected parity policy, without separate original language mandate; assess schema-producing callers before changing.",
+        "classification": "unresolved_assumption"
+      }
+    ],
+    "state-work": [
+      {
+        "id": "U-SW-01",
+        "question": "Confirm rejected receipt recording after live revocation versus T32 success-commit denial. Empty effects are current safety boundary; source comment alone does not settle independent policy.",
+        "rule_ids": [
+          "SW-007"
+        ]
+      },
+      {
+        "id": "U-SW-02",
+        "question": "Reconcile DESIGN normalized-explicit-input wording with adopted raw pre-fill digest; no unversioned hash change. Legacy cycles/depth and hostile objects need finite owner contract.",
+        "rule_ids": [
+          "SW-009",
+          "SW-014"
+        ]
+      },
+      {
+        "id": "U-SW-03",
+        "question": "Qualify current-access/expiry projection for saved low-level mutation replay; invoke itself returns saved raw result.",
+        "rule_ids": [
+          "SW-012"
+        ]
+      },
+      {
+        "id": "U-SW-04",
+        "question": "Choose complete direct state validation/provenance boundaries without turning presence-only scalar scaffold or generated:true into security authority.",
+        "rule_ids": [
+          "SW-024",
+          "SW-025"
+        ]
+      },
+      {
+        "id": "U-SW-05",
+        "question": "Version any per-write resolved-default attribution redesign; flat-map collision is a safe interim refusal, not intended workflow limit.",
+        "rule_ids": [
+          "SW-029"
+        ]
+      },
+      {
+        "id": "U-SW-06",
+        "question": "Investigate staged JSON probe silent sanitization and exact consumers; repair documented suitability without silently rewriting historical payload bytes or changing error contracts.",
+        "rule_ids": [
+          "SW-035"
+        ]
+      },
+      {
+        "id": "U-SW-07",
+        "question": "Determine actual per-checkpoint terminal converse needed by complete child atomic unit; global assertion cannot establish it. No runtime failing production batch established.",
+        "rule_ids": [
+          "SW-041"
+        ]
+      },
+      {
+        "id": "U-SW-08",
+        "question": "Prove freeze/maintenance writer closure, actual D1/DO owner inventory, retained-release dispatch and expiry evidence; migration APIs do not establish these operational prerequisites.",
+        "rule_ids": [
+          "SW-045",
+          "SW-047",
+          "SW-048"
+        ]
+      },
+      {
+        "id": "U-SW-09",
+        "question": "Prove complete installed receipt/progress/app/periodic dispatch/fanout joins. Conditional real Node receipt API caller is not default deployed binding or complete T26/T34 acceptance.",
+        "rule_ids": [
+          "SW-061",
+          "SW-072",
+          "SW-074",
+          "SW-076"
+        ]
+      },
+      {
+        "id": "U-SW-10",
+        "question": "Release native backend only after actual assembly, unique call-token/lifetime provenance, host demand, consumer, resources and rollback proofs. Candidate namespaced modules/tests are not adoption.",
+        "rule_ids": [
+          "SW-083",
+          "SW-084",
+          "SW-085",
+          "SW-086"
+        ]
+      },
+      {
+        "id": "U-SW-11",
+        "question": "Classify incidental exact legacy messages/getter traces/shared-alias rejection/duplicate-claim overwrite only with actual consumer requirement or explicit revision; parity plans/tests alone cannot make them permanent product requirements.",
+        "rule_ids": [
+          "SW-014",
+          "SW-038",
+          "SW-062",
+          "SW-064"
+        ]
+      },
+      {
+        "id": "U-SW-12",
+        "question": "Original draft corpus is not tracked at frozen superproject ref; use tracked examples and saved finite site transcriptions as intent evidence, and pin separate drafts revision before direct-source qualification.",
+        "rule_ids": [
+          "SW-075",
+          "SW-076",
+          "SW-078",
+          "SW-081"
+        ]
+      }
+    ],
+    "adapters": [
+      {
+        "id": "AD-password-policy-knobs",
+        "note": "Retain pending owner review; tests and historical security-reference comment alone do not make8/512 mandatory forever."
+      },
+      {
+        "id": "AD-verification-ttl",
+        "note": "Changing future default must honor existing stored expiry, revoke semantics and active workflow; cannot revive expired credentials."
+      },
+      {
+        "id": "AD-session-ttl",
+        "note": "Changing future default must honor existing stored expiry, revoke semantics and active workflow; cannot revive expired credentials."
+      },
+      {
+        "id": "AD-grant-ttl",
+        "note": "Changing future default must honor existing stored expiry, revoke semantics and active workflow; cannot revive expired credentials."
+      },
+      {
+        "id": "AD-invitation-ttl",
+        "note": "Changing future default must honor existing stored expiry, revoke semantics and active workflow; cannot revive expired credentials."
+      },
+      {
+        "id": "AD-recovery-ttl",
+        "note": "Changing future default must honor existing stored expiry, revoke semantics and active workflow; cannot revive expired credentials."
+      },
+      {
+        "id": "AD-presession-ttl",
+        "note": "Changing future default must honor existing stored expiry, revoke semantics and active workflow; cannot revive expired credentials."
+      },
+      {
+        "id": "AD-role-value-grammar",
+        "note": "No owner acknowledgment inferred from fixture tests; reconcile intended grant/revoke input before changing public wire."
+      },
+      {
+        "id": "AD-identity-atomic-gap",
+        "note": "Four J2 owner reconciliation questions open. Current per-call MCP reread and memory double prove no atomic commit join; no exploit run."
+      },
+      {
+        "id": "AD-presession-origin-gap",
+        "note": "Missing binding requirement affirmative target; exact secure mechanism unresolved, not blanket authority to replace APIs."
+      },
+      {
+        "id": "AD-file-magic-scope",
+        "note": "No malformed-content exploit evidence. Do not promote prefix-only fixture bytes into required product admission or silently tighten file compatibility."
+      },
+      {
+        "id": "AD-file-retry-encoding",
+        "note": "No collision demonstrated, so not accidental. Verify admitted field domains and inventory existing IDs before encoding change."
+      },
+      {
+        "id": "AD-file-retention-clock",
+        "note": "No accepted app-specific lifetime mapping proved; object GC alone cannot fulfill owner sensitive history/receipt erasure."
+      },
+      {
+        "id": "AD-interface-body-knobs",
+        "note": "Preserve current safe refusal/error ordering while owner assesses configuration; not automatic permission to expand resource use."
+      },
+      {
+        "id": "AD-log-redaction-limit",
+        "note": "Safe generic public errors remain required; security review must determine log/value scrub contract, no fixture snapshots freezing leaks."
+      },
+      {
+        "id": "AD-csv-current-map",
+        "note": "Affirmative spec/source mismatch requires owner disposition; no stage downgrade by preserving existing tests."
+      },
+      {
+        "id": "AD-ui-shell-missing-join",
+        "note": "Source-inferred current fault, no product test run. Preserve intended descriptor/admission/shell contracts; actual deployment/browser join unproved."
+      },
+      {
+        "id": "finite-vs-product",
+        "note": "Finite Step10 encoding/grammar/cancellation target acceptance does not supersede accepted richer CSV, atomic identity, durable receiving-file, full browser/shell/forms/preferences/export or real testkit journey outcomes."
+      },
+      {
+        "id": "AD-csv-size-gap",
+        "note": "No complete input-size mapping between source text and JSON encoded request proved; product should not advertise10MiB review while request wrapper rejects earlier. A safe bounded10MiB+envelope design is future owner work, not authorized here."
+      },
+      {
+        "id": "AD-oauth-code-ttl",
+        "note": "Honor already issued codes and one-use boundary; no silent revival or reinterpretation on changed future lifetime."
+      }
+    ],
+    "cloudflare": [
+      "The audit changes no frozen profile; intentional narrowing/API migration needs explicit later selection and exact affected consumer evidence.",
+      "Private native preparation/native release remains HUMAN HOLD.",
+      "No installed app/runtime behavior is inferred from a producer helper or test-only route."
+    ]
+  },
+  "root_review": {
+    "SW-035": "No-throw JSON probe observation retained; required exact JS admission not proved, so classified unresolved, not an established production corruption."
+  }
+}

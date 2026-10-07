@@ -1,0 +1,153 @@
+{
+  "ref": "16def5f95f51dbfb158d0ac086323ac256ee1c6d",
+  "review_complete": true,
+  "product_execution": false,
+  "findings_to_records": {
+    "F01": [
+      "AD-identity-atomic-gap",
+      "AD-identity-login-presession",
+      "AD-presession-origin-gap"
+    ],
+    "F02": [
+      "SW-007",
+      "AD-identity-atomic-gap"
+    ],
+    "F03": [
+      "AD-csv-current-map",
+      "AD-csv-current-review",
+      "AD-csv-digest-wire"
+    ],
+    "F04": [
+      "AD-csv-row-transactions",
+      "SW-010"
+    ],
+    "F05": [
+      "AD-files-provenance"
+    ],
+    "F06": [
+      "CF-C20",
+      "CF-C13"
+    ],
+    "F07": [
+      "SW-009",
+      "SW-013",
+      "SW-014"
+    ],
+    "F08": [
+      "CF-C01",
+      "CF-C29",
+      "CF-C33",
+      "CF-C34"
+    ],
+    "F09": [
+      "CF-C03",
+      "CF-C07",
+      "CF-C20"
+    ],
+    "F10": [
+      "SW-035"
+    ]
+  },
+  "disposition": {
+    "F01": {
+      "status": "retained as source/design gap or unresolved policy; no implementation adoption",
+      "rule_ids": [
+        "AD-identity-atomic-gap",
+        "AD-identity-login-presession",
+        "AD-presession-origin-gap"
+      ],
+      "limits": "Preserve single-use/owner/revocation safety outcomes; proposed J2 mechanism and outcome names require separate acceptance. Static gap, no race execution."
+    },
+    "F02": {
+      "status": "retained as source/design gap or unresolved policy; no implementation adoption",
+      "rule_ids": [
+        "SW-007",
+        "AD-identity-atomic-gap"
+      ],
+      "limits": "Reconcile scope in design; do not weaken live checks or claim full fence proof."
+    },
+    "F03": {
+      "status": "retained as source/design gap or unresolved policy; no implementation adoption",
+      "rule_ids": [
+        "AD-csv-current-map",
+        "AD-csv-current-review",
+        "AD-csv-digest-wire"
+      ],
+      "limits": "Treat full private-review flow as a gap, not normative authority for unsigned current fields. Canonical auth still applies; no deployed exploit claimed."
+    },
+    "F04": {
+      "status": "retained as source/design gap or unresolved policy; no implementation adoption",
+      "rule_ids": [
+        "AD-csv-row-transactions",
+        "SW-010"
+      ],
+      "limits": "Adjudicate transport ordering against receipt-first semantics; tests of early rejection cannot justify contract inversion."
+    },
+    "F05": {
+      "status": "retained as source/design gap or unresolved policy; no implementation adoption",
+      "rule_ids": [
+        "AD-files-provenance"
+      ],
+      "limits": "Conditional helper gap, no live caller found in inspected package source; require owner ingress/dedup join before claiming declared event contract."
+    },
+    "F06": {
+      "status": "retained as source/design gap or unresolved policy; no implementation adoption",
+      "rule_ids": [
+        "CF-C20",
+        "CF-C13"
+      ],
+      "limits": "Do not call preparatory helper an implemented deployed integrity guarantee; repair/qualify before selected native adoption."
+    },
+    "F07": {
+      "status": "retained as source/design gap or unresolved policy; no implementation adoption",
+      "rule_ids": [
+        "SW-009",
+        "SW-013",
+        "SW-014"
+      ],
+      "limits": "Trace actual historic transport/admission profiles before normalization change; retain original receipts/version evidence, never bulk rehash current objects."
+    },
+    "F08": {
+      "status": "retained as source/design gap or unresolved policy; no implementation adoption",
+      "rule_ids": [
+        "CF-C01",
+        "CF-C29",
+        "CF-C33",
+        "CF-C34"
+      ],
+      "limits": "Keep caller/stage qualification explicit; public exports/tests do not establish deployed behavior."
+    },
+    "F09": {
+      "status": "retained as source/design gap or unresolved policy; no implementation adoption",
+      "rule_ids": [
+        "CF-C03",
+        "CF-C07",
+        "CF-C20"
+      ],
+      "limits": "Preserve honest uncertainty/partial state; do not turn this wording into required compatibility. No live apply checked."
+    },
+    "F10": {
+      "status": "retained as source/design gap or unresolved policy; no implementation adoption",
+      "rule_ids": [
+        "SW-035"
+      ],
+      "limits": "Concrete validation limitation; classify actual production defect/admission contract only after caller-domain and persistence comparison. Keep invocation replay hashing and effect payload normalization separate. No tests/runtime or redesign performed."
+    }
+  },
+  "root_corrections": [
+    "Precise Cloudflare document anchors/stages corrected; deliberate incomplete auth/test joins classified as required product gaps rather than accidental bugs.",
+    "SW-035 remains an unresolved admission/payload-preservation question; source probe behavior is not proof of admitted data corruption.",
+    "Migration assessments mean change-triggered gates, never a demand to migrate unchanged internal mechanisms."
+  ],
+  "remaining_decisions": [
+    "No builds, tests, probes, races, runtime boots or deployed-state inspections were run. Findings are source/design review at the exact pin.",
+    "No actual persisted noncanonical password row or external cookie-order consumer was established. Scoped compatibility policy is nonetheless explicit.",
+    "Historic receipt admission/version normalization and exotic JS input reachability need owner evidence before any serializer simplification.",
+    "T32 authority loss before commit versus already-fenced commit and identity writer participation remain unfinished; no proposal mechanism selected.",
+    "CSV complete private review lifecycle and file event-ingress dedup/authentication joins are not established by the inspected helpers.",
+    "Publication containment race model, reviewed-byte enforcement and native installed host support are unqualified; selected future plan is not a deployed API.",
+    "Current design prose includes historical implementation disclaimers even where source helpers now exist. Those disclaimers must be read as stage evidence, not automatic proof current implementation is absent or complete.",
+    "This is finite review of 20 critical rule groups, not a full package security audit; findings may require narrower owner/caller validation.",
+    "Staging JSON-safety probe does not imply payload preservation; whether nonfinite/undefined reach legitimate producers and are semantically meaningful remains unresolved. This is not certified production data loss or permission to replace admission wholesale."
+  ]
+}
