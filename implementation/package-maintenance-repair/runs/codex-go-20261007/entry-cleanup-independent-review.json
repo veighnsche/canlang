@@ -1,0 +1,156 @@
+{
+  "packet": "DEL-D03 finite entry-write lifecycle correction",
+  "disposition": "accepted narrow correctness; parent filesystem/process/installed gates remain open",
+  "reviewer": "originating root, different from author; fresh unchanged decisive caller controls",
+  "sourcePins": {
+    "packages/cloudflare/src/deploy/bundle.ts": "fa1f24b1f00ffac9f1acf0dc13167c3656675d36bd9946f086a8dca679dbaf03",
+    "packages/cloudflare/test/bundle-entry-cleanup.test.ts": "f10a25503856fb74f1e8a3f95e81b1403d58db31eff03556636129cbc5455c13"
+  },
+  "producerReceipt": "/private/tmp/canlang-repair-go-20261007/entry-cleanup/result.json",
+  "producerReceiptSHA256": "824cf344ceec4a3fe1e7ce84fb0b2fca913966ef10c28ca394b4726b27c13729",
+  "originalRejectedCandidateReview": {
+    "packet": "DEL-D03 finite entry-write cleanup independent review",
+    "disposition": "requires first-failure repair before acceptance",
+    "reviewer": "root, different from author; bounded technical lifecycle review",
+    "sourcePins": {
+      "packages/cloudflare/src/deploy/bundle.ts": "e7db969b11fdc80d631574519d80c934b8816595e06f444c5c33683eeb517fc2",
+      "packages/cloudflare/test/bundle-entry-cleanup.test.ts": "5b833a2b72aa96b6165dacee994a667a3a8f2a2192d0dfc36b706da834b296a1"
+    },
+    "producerReceiptSHA256": "7fc56716277d8a6cbaafc38cc659cd977263835df08c555f593a8f8b5ed34cfd",
+    "independent": {
+      "baseline": {
+        "passed": 12,
+        "failed": 4,
+        "exit": 1,
+        "expectedDefects": "Both original entry writes/partial writes leak owned scratch"
+      },
+      "candidate": {
+        "passed": 14,
+        "failed": 2,
+        "exit": 1,
+        "newDefects": "Both cleanup failures replace original entry-write thrown identity"
+      },
+      "handles": [
+        {
+          "pid": 82374,
+          "command": [
+            "/Users/vince/.vite-plus/js_runtime/node/24.21.0/bin/node",
+            "/Users/vince/Projects/canlang/node_modules/vitest/vitest.mjs",
+            "run",
+            "--config",
+            "vitest.config.mjs",
+            "test/entry-cleanup-independent.test.ts"
+          ],
+          "cwd": "/private/tmp/canlang-repair-go-20261007/entry-cleanup/baseline/packages/cloudflare",
+          "start": "2026-10-07T21:01:15.786145+00:00",
+          "deadline": "2026-10-07T21:02:15.786145+00:00",
+          "exit": 1,
+          "end": "2026-10-07T21:01:17.146743+00:00"
+        },
+        {
+          "pid": 82373,
+          "command": [
+            "/Users/vince/.vite-plus/js_runtime/node/24.21.0/bin/node",
+            "/Users/vince/Projects/canlang/node_modules/vitest/vitest.mjs",
+            "run",
+            "--config",
+            "vitest.config.mjs",
+            "test/entry-cleanup-independent.test.ts"
+          ],
+          "cwd": "/private/tmp/canlang-repair-go-20261007/entry-cleanup/current/packages/cloudflare",
+          "start": "2026-10-07T21:01:15.786162+00:00",
+          "deadline": "2026-10-07T21:02:15.786162+00:00",
+          "exit": 1,
+          "end": "2026-10-07T21:01:17.136455+00:00"
+        }
+      ],
+      "actualDefiningFunctions": [
+        "buildMcpBundle",
+        "buildHttpOperationsBundle"
+      ],
+      "additionalControls": [
+        "Non-Error ENOENT entry-write identity, no process demand",
+        "Partial entry creation cleaned before refusal",
+        "Secondary cleanup exception must not replace original write failure"
+      ],
+      "logsSHA256": {
+        "baseline-independent.log": "9e911a64fec20ea8d5bf9937ca12b900abae5e5cab2b39a52788416710a8aa5f",
+        "current-independent.log": "6f38c2c8c931c3f0fbbb10fa255184ba33baf1d62903fd02da335ff537802552"
+      }
+    },
+    "sourceProof": "Only two entry write protection edits; process/output behavior and public declarations unchanged at released candidate profile",
+    "repair": "Preserve original write exception through cleanup attempt, including cleanup exception. Retain old process/output cleanup behavior and truthfully qualify cleanup success only when cleanup succeeds. No installed/native/full-Bun/resource-bound acceptance.",
+    "privateHarnessCorrection": "Initial root global text substitution accidentally changed two event expected arrays; corrected private assertions only, preserved initial logs/handles. Product source not changed.",
+    "leasesReleased": true,
+    "noLiveHandles": true,
+    "finished_utc": "2026-10-07T21:02:06.754545+00:00"
+  },
+  "renewedIndependent": {
+    "handle": {
+      "pid": 85744,
+      "command": [
+        "/Users/vince/.vite-plus/js_runtime/node/24.21.0/bin/node",
+        "/Users/vince/Projects/canlang/node_modules/vitest/vitest.mjs",
+        "run",
+        "--config",
+        "vitest.config.mjs",
+        "test/entry-cleanup-independent.test.ts"
+      ],
+      "cwd": "/private/tmp/canlang-repair-go-20261007/entry-cleanup/current/packages/cloudflare",
+      "start": "2026-10-07T21:07:37.250879+00:00",
+      "deadline": "2026-10-07T21:08:37.250879+00:00",
+      "exit": 0,
+      "end": "2026-10-07T21:07:38.651975+00:00"
+    },
+    "passed": 16,
+    "failed": 0,
+    "exit": 0,
+    "logSHA256": "553a8ca9b6d4221c968ba1ee13c61d45bce5470edce0eb232cda146cc2a6978f",
+    "privateSourceByteEqual": true,
+    "sameDecisiveTestSHA256": "cf2fb420328c9627d33c8fc400b30cafb918db55f7c8f8f412f9dd874db314b7",
+    "controls": "Both actual defining builders; entry Error/scalar/partial-write refusal, no process demand, attempted owned cleanup, original error through secondary cleanup failure, successful process/output and prior failure mapping"
+  },
+  "support": {
+    "namedProducerTests": 16,
+    "originalBaselineProducerPass": 8,
+    "originalBaselineProducerFail": 8,
+    "productionStrictCompileExit": 0,
+    "namedTestStrictCompileExit": 0,
+    "declarationsByteEqual": true,
+    "unchangedExistingControlFailure": {
+      "baseline": {
+        "pass": 9,
+        "fail": 1,
+        "skipped": 11,
+        "exit": 1
+      },
+      "current": {
+        "pass": 9,
+        "fail": 1,
+        "skipped": 11,
+        "exit": 1
+      },
+      "passes": "six existing defining phase tests; catalog deterministic bake, missing worker stops phases, real missing-Bun spawn refusal",
+      "unchangedFailure": "Existing full bundle phase-byte match refuses vendor/stdlib/index.js bare import @canlang/state/effects/transition at assertLinksResolve. Same baseline/current exact refusal from current installed distribution, outside lifecycle edit; no shared output repair."
+    }
+  },
+  "maintenance": {
+    "productionBefore": 1031,
+    "productionAfter": 1049,
+    "maintainedDeclarationsBefore": 59,
+    "maintainedDeclarationsAfter": 59,
+    "totalBefore": 1090,
+    "totalAfter": 1108
+  },
+  "budget": "Separate required correctness, +18 readable production lines; no replacement reduction credit, no new module/API/dependency",
+  "limits": [
+    "Isolated hooks prove actual TypeScript defining build callers, not installed/native/Bun-full qualification.",
+    "Existing full module-map distribution refusal remains open and unchanged.",
+    "No native activation, resource threshold, wrapper layer, process deadline, public API, shared producer output or docs/Git change.",
+    "Root handles Git/docs and distinct independent review.",
+    "Filesystem cleanup failure can leave scratch; preserve original entry error without claiming cleanup success."
+  ],
+  "leasesReleased": true,
+  "noLiveHandles": true,
+  "finished_utc": "2026-10-07T21:18:43.362477+00:00"
+}

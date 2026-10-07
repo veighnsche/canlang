@@ -166,25 +166,19 @@
   "numeric_acceptance_limit": "Existing numeric source/native actual-caller scope only; unchanged original Wasm/installed/durable/backend/T08/T26 and held preparation gates remain.",
   "next_active_packets": [
     {
-      "id": "TECH-S02 R1/R2 fix-forward",
-      "agent": "/root/review_state_private",
-      "model": "gpt-6.1-sol",
-      "effort": "high",
-      "state": "ACKed4exactwriteleases; fixing provenance bypasses"
-    },
-    {
-      "id": "DEL-D03 entry-write cleanup",
-      "agent": "/root/review_ui_appearance",
-      "model": "gpt-6.1-sol",
-      "effort": "medium",
-      "state": "ACKed2exactwriteleases; source10/10passed, baseline leaked2scratchdirs"
-    },
-    {
-      "id": "TECH-I01 current prerequisite reconciliation",
+      "id": "TECH-S02 R3",
       "agent": "/root/review_numeric_reduction",
-      "model": "gpt-6.1-sol",
-      "effort": "high",
-      "state": "ACKedread-only exactsource; metadata renewed review priority"
+      "state": "ACKed2exactwriteleases; validation/use consistency repair"
+    },
+    {
+      "id": "TECH-I01 one-use",
+      "agent": "/root/review_state_private",
+      "state": "ACKed8exactwriteleases; private qualification"
+    },
+    {
+      "id": "TECH-V03 witness prep",
+      "agent": "/root/review_ui_appearance",
+      "state": "private-only finite dispatch"
     }
   ],
   "packet_state": {
@@ -274,13 +268,18 @@
     },
     "TECH-V03": {
       "planning_status": "blocked",
-      "state": "blocked on packet prerequisites",
+      "state": "Finite private actual ownership/default failure witness prep ACK pending",
       "files": [
         "packages/values/bindings/owned-input.ts",
         "packages/values/src/prepared/plan.ts",
         "packages/values/src/prepared/codec.ts",
         "packages/values/src/prepared/validation.ts"
-      ]
+      ],
+      "agent": "/root/review_ui_appearance",
+      "model": "gpt-6.1-sol",
+      "effort": "medium",
+      "outputs": "/private/tmp/canlang-repair-go-20261007/prepared-ownership",
+      "reason": "Bounded factual prerequisite corpus, full security/ownership contract remains separately high"
     },
     "TECH-V04": {
       "planning_status": "blocked",
@@ -348,7 +347,7 @@
     },
     "TECH-S02": {
       "planning_status": "blocked",
-      "state": "corrected provenance candidate released; renewed independent high review active",
+      "state": "R3 getter TOCTOU found; exact finite repair ACKed and implementing",
       "files": [
         "packages/state/src/mutation/crud.ts",
         "packages/state/src/mutation/pipeline.ts",
@@ -359,7 +358,7 @@
         "packages/interfaces/src/http/operations.ts"
       ],
       "evidence": "security-joins.json",
-      "agent": "/root/review_state_private",
+      "agent": "/root/review_numeric_reduction",
       "model": "gpt-6.1-sol",
       "effort": "high",
       "reason": "Persisted confidentiality and owning metadata/policy seam; high is least expensive reliable finite choice",
@@ -369,9 +368,7 @@
       "consultation": "security-contract/consultation.json",
       "disposition": "security-contract/disposition.md",
       "active_files": [
-        "packages/state/src/invocation/registry.ts",
         "packages/cloudflare/src/runtime/invoke.ts",
-        "packages/state/test/invocation/secret-metadata.test.ts",
         "packages/cloudflare/test/canonical-read-selectors.test.ts"
       ],
       "start_pins": {
@@ -383,8 +380,8 @@
         "Trusted immutable result/dependency provenance and old receipts",
         "Fresh compiler/installed/native/durable/HTTP/MCP qualification"
       ],
-      "reviewer": "/root/review_numeric_reduction",
-      "writer_released": true,
+      "reviewer": "root after release",
+      "writer_released": false,
       "source_pins": {
         "registry": "eac07bdbb50e1362da25e6a35069ba56dc5305ef31dd49e33613fa3d15ce8810",
         "runtime": "ed742b60ed07adfade93870e451a4e5d585651b2145a748da2ab1800159e68c4"
@@ -392,9 +389,12 @@
       "producer_receipt": "/private/tmp/canlang-repair-go-20261007/secret-metadata/producer-receipt.json",
       "review_defects": [
         "Raw JSON comparison can conceal appDefinition/canApp public marks and contradictory selectors",
-        "Array instance virtual includes can forge read rule membership"
+        "Array instance virtual includes can forge read rule membership",
+        "Own grant.rule accessor changes between validation and stored identity; selector coverage lost and actual anonymous read broadened"
       ],
-      "fix_forward": "/private/tmp/canlang-repair-go-20261007/secret-metadata/fix-forward.json"
+      "fix_forward": "/private/tmp/canlang-repair-go-20261007/secret-metadata/fix-forward.json",
+      "review": "secret-metadata-independent-review.json",
+      "review_read_released": true
     },
     "TECH-S03": {
       "planning_status": "blocked",
@@ -462,7 +462,7 @@
     },
     "TECH-I01": {
       "planning_status": "blocked",
-      "state": "current-source prerequisite reconciliation active",
+      "state": "ACKed finite one-use OAuth implementation; private qualification active",
       "files": [
         "packages/identity/src/ports.ts",
         "packages/identity/src/storage/d1.ts",
@@ -477,14 +477,27 @@
         "packages/state/src/ports/identity.ts"
       ],
       "current_bounded_prerequisite": "FP.IDENTITY-CONTRACT remains proposed; prior JEV shared-fence trio retained. Four actual shared-db/fence/guard/batch/memory questions need current-source owner reconciliation before broad identity atomicity implementation; void D1 OAuth consume remains concrete SEC01 gap, not fixed by metadata work.",
-      "agent": "/root/review_numeric_reduction",
+      "agent": "/root/review_state_private",
       "model": "gpt-6.1-sol",
       "effort": "high",
-      "source_facts": "/private/tmp/canlang-repair-go-20261007/identity-contract/source-reconciliation.json"
+      "source_facts": "/private/tmp/canlang-repair-go-20261007/identity-contract/source-reconciliation.json",
+      "active_files": [
+        "packages/identity/src/ports.ts",
+        "packages/identity/src/storage/d1.ts",
+        "packages/identity/src/testing.ts",
+        "packages/identity/src/authentication/oauth.ts",
+        "packages/cloudflare/src/runtime/env-assembly.ts",
+        "packages/identity/test/oauth.test.ts",
+        "packages/identity/test/d1.test.ts",
+        "packages/cloudflare/test/mcpd-env-assembly.test.ts"
+      ],
+      "outputs": "/private/tmp/canlang-repair-go-20261007/oauth-consume",
+      "contract": "Explicit consumed/unavailable outcome; only exact consumed mints. Declared D1 result.meta.changes numeric0/1; malformed outcome refuses. Consume-before-mint first failure retained; full shared identity/state fence J2 remains open.",
+      "prerequisite_review": "/private/tmp/canlang-repair-go-20261007/identity-contract/reconciliation-review.json"
     },
     "TECH-I02": {
       "planning_status": "blocked",
-      "state": "blocked on packet prerequisites",
+      "state": "Private S256 profile prerequisite corpus released; live owner awaits OAuth transfer",
       "files": [
         "packages/identity/src/authentication/oauth.ts",
         "packages/identity/src/sessions/presession.ts",
@@ -494,7 +507,11 @@
         "packages/interfaces/src/mcp/server.ts",
         "packages/cloudflare/src/runtime/grant-route.ts",
         "packages/cloudflare/src/worker/main.ts"
-      ]
+      ],
+      "outputs": "/private/tmp/canlang-repair-go-20261007/pkce-profile",
+      "recipe_sha256": "d705457063ad8cf72ce9619319719e1699bd1946e3904eea126e002f26a486c2",
+      "result_sha256": "cfe7f51057cc7200b3cd817b084ba28f23f5a86718baca4cbfce70b8b2df5ceb",
+      "limit": "Frozen pre-consume source only. Fixed43 is S25632-byte inference, not generic RFC challenge ABNF; verifier/origin/revocation remains unchanged."
     },
     "TECH-F01": {
       "planning_status": "blocked",
@@ -526,7 +543,7 @@
     },
     "TECH-SV01": {
       "planning_status": "blocked",
-      "state": "independently accepted finite configured UTF8-byte/cancel-identity correction; scoped commit prepared",
+      "state": "independently accepted finite configured UTF8-byte/cancel-identity correction; committed a73df865",
       "files": [
         "packages/services/src/judgments/systemone.ts",
         "packages/services/src/media/comfyui.ts"
@@ -547,8 +564,9 @@
       "review": "services-selected-independent-review.json",
       "writer_released": true,
       "root_read_released": true,
-      "commit_pending": true,
-      "parent_limit": "Broader services lifetime/provider/resource/fence/durable/installed qualification remains open"
+      "commit_pending": false,
+      "parent_limit": "Broader services lifetime/provider/resource/fence/durable/installed qualification remains open",
+      "commit": "a73df865"
     },
     "TECH-SV02": {
       "planning_status": "blocked",
@@ -733,7 +751,7 @@
     },
     "DEL-D03": {
       "planning_status": "blocked",
-      "state": "independent review requires original entry failure retention on cleanup exception; author queued after active SV01",
+      "state": "independently accepted finite entry-write cleanup and first-failure correction; scoped commit prepared",
       "files": [
         "packages/cloudflare/src/deploy/bundle.ts",
         "packages/cloudflare/src/preparation/build-adapter.ts",
@@ -754,10 +772,14 @@
       "start_sha256": "7e8ad78a2674120ad59e96dbe2b34ab8923d8418578c015168c2b0ccd1a7a741",
       "writer_released": true,
       "producer_receipt": "/private/tmp/canlang-repair-go-20261007/entry-cleanup/result.json",
-      "source_sha256": "e7db969b11fdc80d631574519d80c934b8816595e06f444c5c33683eeb517fc2",
+      "source_sha256": "fa1f24b1f00ffac9f1acf0dc13167c3656675d36bd9946f086a8dca679dbaf03",
       "review": "entry-cleanup-independent-review.json",
       "root_read_released": true,
-      "required_fix": "Entry cleanup secondary exception must not mask original write error; filesystem cleanup success remains conditional"
+      "required_fix": "Entry cleanup secondary exception must not mask original write error; filesystem cleanup success remains conditional",
+      "test_sha256": "f10a25503856fb74f1e8a3f95e81b1403d58db31eff03556636129cbc5455c13",
+      "commit_pending": true,
+      "parent_limit": "Broader filesystem containment/process/resource/installed gates remain open",
+      "correctness_growth": 18
     },
     "DEL-D04": {
       "planning_status": "blocked",
@@ -1073,7 +1095,7 @@
     "state": "active",
     "objective": "Finish every currently authorized queue task, resolve actual prerequisites, independently review, commit early/often and clean released resources economically; preserve native HOLD and exact original residual gates."
   },
-  "updated_utc": "2026-10-07T21:12:39.533278+00:00",
+  "updated_utc": "2026-10-07T21:18:43.362477+00:00",
   "critical_security_review": {
     "state": "frozen review and actual source joins received; contracts/repairs/host acceptance remain open",
     "agent": "/root/critical_package_security",
