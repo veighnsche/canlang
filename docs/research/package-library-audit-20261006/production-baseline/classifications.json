@@ -1,0 +1,48 @@
+{
+  "generated_data": [
+    "packages/values/semantics/src/currency_facts.rs",
+    "packages/values/semantics/currency-facts.json"
+  ],
+  "file_categories": {
+    "packages/state/src/mutation/t18-shop.can": "fixture-data",
+    "packages/state/src/mutation/t18-shop.artifact.ts": "test-code",
+    "packages/values/src/currency-data.ts": "runtime-data"
+  },
+  "snapshot_categories": {
+    "original": {
+      "packages/work-kernel/rust/lib.rs": "scaffolding"
+    }
+  },
+  "classified_ranges": {
+    "packages/cloudflare/preparation/src/job.rs": [
+      [26, 28, "scaffolding", "/// Scaffold stage script"],
+      [169, 254, "scaffolding", "/// Walk the stage script"]
+    ],
+    "packages/values/bindings/backend.ts": [
+      [30, 41, "scaffolding", "/** Smoke op table (scaffold)"]
+    ]
+  },
+  "stages": {
+    "cloudflare": "TS-runtime; native-route-present; adoption-unproved",
+    "values": "TS-runtime; six-operation-opt-in-Rust; broader-joins-open",
+    "testkit": "test-support-library"
+  },
+  "snapshot_stages": {
+    "original": {
+      "work-kernel": "TS-candidates; unregistered-Rust-decisions; public-consumer-joins-open"
+    },
+    "current": {
+      "work-kernel": "TS-candidates; registered-Rust-decisions; public-consumer-joins-open"
+    }
+  },
+  "moved_implementations": [
+    {
+      "from": "packages/values/src/schema.ts",
+      "to": "packages/values/src/internal/schema-core.ts"
+    },
+    {
+      "from": "packages/values/src/wire.ts",
+      "to": "packages/values/src/internal/wire-core.ts"
+    }
+  ]
+}
