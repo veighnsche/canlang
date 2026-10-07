@@ -651,9 +651,9 @@ impl<'a> Resolver<'a> {
         node: &SyntaxNode,
         diags: &mut Vec<Diagnostic>,
     ) {
-        if has_error(node) {
-            return;
-        }
+        // Invalid headers are wrapped in Error nodes by the parser and
+        // have no direct identity name. Body recovery nodes must not
+        // prevent indexing valid sibling declarations.
         let parts = kids(node);
         let name_node = parts.iter().find(|n| {
             n.kind == SyntaxKind::Name

@@ -263,6 +263,51 @@ fn assert_action(actions: &Value, uri: &str, version: i32, text: &str) {
 }
 
 #[test]
+fn real_diagnostics_keep_valid_siblings_after_a_parse_error() {
+    let uri = "untitled:independent-diagnostics";
+    for text in [
+        "app T\nGiven\n policy\n derive a(): int = 1 + true\n derive b(): int = nope\nWhen\nThen\n",
+        "app T\nuse\nGiven\n derive a(): int = 1 + true\n derive b(): int = nope\nWhen\nThen\n",
+    ] {
+        let mut input = start();
+        input.push(open(uri, 1, text));
+        let corrected = text
+            .replace(" policy\n", "")
+            .replace("use\n", "")
+            .replace("1 + true", "1 + 2")
+            .replace("nope", "3");
+        input.push(change(uri, 2, &corrected));
+        finish(&mut input);
+        let frames = session(input);
+        let findings = diagnostics(&frames, uri, 1).as_array().unwrap();
+        assert_eq!(
+            findings
+                .iter()
+                // Catalog-loading diagnostics depend on the process cwd;
+                // this witness checks source errors without catalog names.
+                .filter(|d| d["severity"] == 1 && d["code"] != "E6002")
+                .map(|d| d["code"].as_str().unwrap())
+                .collect::<Vec<_>>(),
+            ["E1200", "E3002", "E2001"],
+            "{findings:#?}"
+        );
+        for (code, needle) in [("E3002", "1 + true"), ("E2001", "nope")] {
+            assert_eq!(
+                findings.iter().find(|d| d["code"] == code).unwrap()["range"],
+                span(text, needle, 0)
+            );
+        }
+        let corrected_findings = diagnostics(&frames, uri, 2).as_array().unwrap();
+        assert!(
+            corrected_findings
+                .iter()
+                .all(|d| d["severity"] != 1 || d["code"] == "E6002"),
+            "source errors must clear after correction: {corrected_findings:#?}"
+        );
+    }
+}
+
+#[test]
 fn real_all_output_families_crlf_and_supplementary_utf16() {
     let uri = "file:///typed-output%2fCAP.can";
     let action_uri = "file:///typed-output%2fACTION.can";
