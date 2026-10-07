@@ -1,0 +1,91 @@
+{
+  "packet": "TECH-SV01 selected byte-limit/cancellation-identity correction",
+  "disposition": "independently accepted finite actual provider caller scope; broad services joins open",
+  "reviewer": "root, different from author; bounded technical validation",
+  "sourcePins": {
+    "packages/services/src/judgments/systemone.ts": "edd67ec05e4e19604f81e781ea8aa6a1870d294fcf4fda79a684063189655930",
+    "packages/services/src/media/comfyui.ts": "5e73d811c936a1e154bd415f9230fe67621fbce0da7294297efbd7be9920900a",
+    "packages/services/test/selected-provider-limits.test.ts": "274af6647042b37d8eee07f27ade7099a5cf5a455fb2c3d0042cbfcc0d09439d"
+  },
+  "sourceProof": "Only UTF8 byte measurement under existing configured cap and required cancel delivery identity added; public declaration byte equality and other source proved in producer receipt",
+  "independentActualCaller": {
+    "route": "exported SystemOneAdapter/ComfyUINativeAdapter\u2192defining httpRequest\u2192recorded Fetch/Request bytes",
+    "byteOracle": "Independent Node Buffer.byteLength/Buffer.from, distinct from product TextEncoder",
+    "controls": [
+      "Exact-bound and disabled cap for ASCII, \u00e9, astral, CJK, lone surrogate JSON escaping and escaped control text",
+      "One byte over refuses before send",
+      "Empty/null/missing/numeric cancellation identity refuses before HTTP effect"
+    ],
+    "baseline": {
+      "pass": 9,
+      "fail": 7,
+      "exit": 1
+    },
+    "current": {
+      "pass": 16,
+      "fail": 0,
+      "exit": 0
+    },
+    "handles": [
+      {
+        "pid": 85660,
+        "command": [
+          "/Users/vince/.vite-plus/js_runtime/node/24.21.0/bin/node",
+          "--test",
+          "--test-reporter=tap",
+          "--test-timeout=45000",
+          "/private/tmp/canlang-repair-go-20261007/services-selected/independent.mjs"
+        ],
+        "review_scope": "baseline",
+        "start": "2026-10-07T21:07:06.368112+00:00",
+        "deadline": "2026-10-07T21:08:06.368112+00:00",
+        "exit": 1,
+        "end": "2026-10-07T21:07:06.502251+00:00"
+      },
+      {
+        "pid": 85661,
+        "command": [
+          "/Users/vince/.vite-plus/js_runtime/node/24.21.0/bin/node",
+          "--test",
+          "--test-reporter=tap",
+          "--test-timeout=45000",
+          "/private/tmp/canlang-repair-go-20261007/services-selected/independent.mjs"
+        ],
+        "review_scope": "current",
+        "start": "2026-10-07T21:07:06.368119+00:00",
+        "deadline": "2026-10-07T21:08:06.368119+00:00",
+        "exit": 0,
+        "end": "2026-10-07T21:07:06.500691+00:00"
+      }
+    ],
+    "logsSHA256": {
+      "independent-baseline.log": "6b8442411edf0a9253a490c817c277c6872d8009493dde8b89a42f45ad0c1a65",
+      "independent-current.log": "2a838333de1183cbda552a34a0b731048558a031599733e54a9d52d1b46b9ee9"
+    },
+    "frozenCompiledOwnerSourcesByteEqualCurrent": true
+  },
+  "qualifiedProducerEvidence": {
+    "receiptSHA256": "cbf73882affa110182aed221db7363740473a44c2ee1613e71040372aca1771a",
+    "focusedCurrent": 9,
+    "originalOwningLocalhostTests": 36,
+    "strictBeforeCurrentSourceAndTests": 0,
+    "declarationsByteIdentical": true,
+    "baselineCountercases": "UTF8\u00e9 cap77 sends; empty delivery initiates cancel before refusal"
+  },
+  "privateHarnessCorrections": {
+    "initialBootstrap": "Node test child did not inherit argv scope; task-scoped env correction, original failed logs preserved",
+    "clockFixture": "Root initially supplied Identity nowMs clock shape; corrected to defining Services Clock.now, original logs retained. No product change."
+  },
+  "budget": "Full two changed production files and maintained declaration outputs; parsed comments/blanks/tests excluded; correctness budget, no reduction claim.",
+  "limits": [
+    "Post-stringify UTF8 measurement is not a preallocation bound.",
+    "No threshold, truncation, serializer, provider-policy, native activation, delivery remint or recovery policy change.",
+    "Existing configured policy repair only; no broad service-catalog/durable/installed/security acceptance.",
+    "Getter access for required delivery validation occurs before network by design; existing invalid-job demand order retained.",
+    "Root owns Git/docs and independent review."
+  ],
+  "leasesReleased": true,
+  "noLiveHandles": true,
+  "evidenceRoot": "/private/tmp/canlang-repair-go-20261007/services-selected",
+  "finished_utc": "2026-10-07T21:12:39.529456+00:00"
+}
