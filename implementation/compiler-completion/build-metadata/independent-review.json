@@ -1,0 +1,223 @@
+{
+  "source": "compiler/build.rs",
+  "source_sha256": "2a6fbba3681c67ad5804430a8439e3db53965f665017cf7c8e2ff8c1566bb965",
+  "verdict": "pass within bounded native Cargo/Git acceptance",
+  "blocking_issues": [],
+  "review_method": "Read AGENTS.md, FAIL-R04 acceptance, current source and HEAD source; inspected verify.py and raw verification.json; independently reran provided 12-case harness; separately authored disposable Cargo consumers and Git transitions below. Expected identities use full Git log hashes with core.abbrev=7, compared to the built executable. README verdict was not an oracle.",
+  "provided_harness_rerun": "all 12 cases passed, including no-Git source and unavailable Git fallback",
+  "independent_checks": [
+    {
+      "case": "ordinary initial independent consumer",
+      "expected": "9feb69c",
+      "actual": "9feb69c",
+      "all_watches_exist": true,
+      "second_build_did_not_rerun_script": true,
+      "watches": [
+        "build.rs",
+        "/private/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-independent-build-review-8vzislek/repo/.git/HEAD",
+        "/private/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-independent-build-review-8vzislek/repo/.git/refs/heads/main"
+      ]
+    },
+    {
+      "case": "ordinary branch switch and commit",
+      "expected": "5a89018",
+      "actual": "5a89018",
+      "all_watches_exist": true,
+      "second_build_did_not_rerun_script": true,
+      "watches": [
+        "build.rs",
+        "/private/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-independent-build-review-8vzislek/repo/.git/HEAD",
+        "/private/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-independent-build-review-8vzislek/repo/.git/refs/heads/other"
+      ]
+    },
+    {
+      "case": "ordinary branch switch back",
+      "expected": "9feb69c",
+      "actual": "9feb69c",
+      "all_watches_exist": true,
+      "second_build_did_not_rerun_script": true,
+      "watches": [
+        "build.rs",
+        "/private/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-independent-build-review-8vzislek/repo/.git/HEAD",
+        "/private/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-independent-build-review-8vzislek/repo/.git/refs/heads/main"
+      ]
+    },
+    {
+      "case": "packed initial",
+      "expected": "9feb69c",
+      "actual": "9feb69c",
+      "all_watches_exist": true,
+      "second_build_did_not_rerun_script": true,
+      "watches": [
+        "build.rs",
+        "/private/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-independent-build-review-8vzislek/repo/.git/HEAD",
+        "/private/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-independent-build-review-8vzislek/repo/compiler/../.git/refs/heads",
+        "/private/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-independent-build-review-8vzislek/repo/.git/packed-refs"
+      ]
+    },
+    {
+      "case": "packed-only ref movement with absent loose ref",
+      "expected": "5a89018",
+      "actual": "5a89018",
+      "all_watches_exist": true,
+      "second_build_did_not_rerun_script": true,
+      "watches": [
+        "build.rs",
+        "/private/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-independent-build-review-8vzislek/repo/.git/HEAD",
+        "/private/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-independent-build-review-8vzislek/repo/compiler/../.git/refs/heads",
+        "/private/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-independent-build-review-8vzislek/repo/.git/packed-refs"
+      ]
+    },
+    {
+      "case": "detached first",
+      "expected": "9feb69c",
+      "actual": "9feb69c",
+      "all_watches_exist": true,
+      "second_build_did_not_rerun_script": true,
+      "watches": [
+        "build.rs",
+        "/private/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-independent-build-review-8vzislek/repo/.git/HEAD"
+      ]
+    },
+    {
+      "case": "detached new commit",
+      "expected": "54173ec",
+      "actual": "54173ec",
+      "all_watches_exist": true,
+      "second_build_did_not_rerun_script": true,
+      "watches": [
+        "build.rs",
+        "/private/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-independent-build-review-8vzislek/repo/.git/HEAD"
+      ]
+    },
+    {
+      "case": "linked initial independent consumer",
+      "expected": "9feb69c",
+      "actual": "9feb69c",
+      "all_watches_exist": true,
+      "second_build_did_not_rerun_script": true,
+      "watches": [
+        "build.rs",
+        "/private/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-independent-build-review-8vzislek/repo/.git/worktrees/linked/HEAD",
+        "/private/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-independent-build-review-8vzislek/repo/.git/refs/heads/linked-branch",
+        "/private/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-independent-build-review-8vzislek/repo/.git/packed-refs"
+      ]
+    },
+    {
+      "case": "linked branch switch",
+      "expected": "5a89018",
+      "actual": "5a89018",
+      "all_watches_exist": true,
+      "second_build_did_not_rerun_script": true,
+      "watches": [
+        "build.rs",
+        "/private/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-independent-build-review-8vzislek/repo/.git/worktrees/linked/HEAD",
+        "/private/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-independent-build-review-8vzislek/repo/.git/refs/heads",
+        "/private/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-independent-build-review-8vzislek/repo/.git/packed-refs"
+      ]
+    },
+    {
+      "case": "linked branch switch back",
+      "expected": "9feb69c",
+      "actual": "9feb69c",
+      "all_watches_exist": true,
+      "second_build_did_not_rerun_script": true,
+      "watches": [
+        "build.rs",
+        "/private/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-independent-build-review-8vzislek/repo/.git/worktrees/linked/HEAD",
+        "/private/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-independent-build-review-8vzislek/repo/.git/refs/heads/linked-branch",
+        "/private/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-independent-build-review-8vzislek/repo/.git/packed-refs"
+      ]
+    },
+    {
+      "case": "linked packed initial",
+      "expected": "9feb69c",
+      "actual": "9feb69c",
+      "all_watches_exist": true,
+      "second_build_did_not_rerun_script": true,
+      "watches": [
+        "build.rs",
+        "/private/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-independent-build-review-8vzislek/repo/.git/worktrees/linked/HEAD",
+        "/private/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-independent-build-review-8vzislek/repo/.git/refs/heads",
+        "/private/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-independent-build-review-8vzislek/repo/.git/packed-refs"
+      ]
+    },
+    {
+      "case": "linked packed-only ref movement",
+      "expected": "5a89018",
+      "actual": "5a89018",
+      "all_watches_exist": true,
+      "second_build_did_not_rerun_script": true,
+      "watches": [
+        "build.rs",
+        "/private/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-independent-build-review-8vzislek/repo/.git/worktrees/linked/HEAD",
+        "/private/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-independent-build-review-8vzislek/repo/.git/refs/heads",
+        "/private/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-independent-build-review-8vzislek/repo/.git/packed-refs"
+      ]
+    },
+    {
+      "case": "unborn initial independent consumer",
+      "expected": "unknown",
+      "actual": "unknown",
+      "all_watches_exist": true,
+      "second_build_did_not_rerun_script": true,
+      "watches": [
+        "build.rs",
+        "/private/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-independent-build-review-8vzislek/unborn/.git/HEAD",
+        "/private/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-independent-build-review-8vzislek/unborn/compiler/../.git/refs/heads"
+      ]
+    },
+    {
+      "case": "unborn to first commit",
+      "expected": "104f54e",
+      "actual": "104f54e",
+      "all_watches_exist": true,
+      "second_build_did_not_rerun_script": true,
+      "watches": [
+        "build.rs",
+        "/private/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-independent-build-review-8vzislek/unborn/.git/HEAD",
+        "/private/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-independent-build-review-8vzislek/unborn/.git/refs/heads/main"
+      ]
+    },
+    {
+      "case": "separate git directory initial",
+      "expected": "13cca84",
+      "actual": "13cca84",
+      "all_watches_exist": true,
+      "second_build_did_not_rerun_script": true,
+      "watches": [
+        "build.rs",
+        "/private/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-independent-build-review-8vzislek/separate-metadata/HEAD",
+        "/private/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-independent-build-review-8vzislek/separate-metadata/refs/heads/main"
+      ]
+    },
+    {
+      "case": "separate git directory commit",
+      "expected": "cc7673c",
+      "actual": "cc7673c",
+      "all_watches_exist": true,
+      "second_build_did_not_rerun_script": true,
+      "watches": [
+        "build.rs",
+        "/private/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-independent-build-review-8vzislek/separate-metadata/HEAD",
+        "/private/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-independent-build-review-8vzislek/separate-metadata/refs/heads/main"
+      ]
+    }
+  ],
+  "source_findings": [
+    "Git resolves actual HEAD, symbolic-ref target and packed-refs paths, including common metadata for linked worktrees.",
+    "Missing ref target falls back to its nearest existing directory; emitted watches exist and repeated unchanged fixture builds do not rerun the script.",
+    "All new production code uses std; no dependency changed and source no longer claims a demonstrated stale-hash defect."
+  ],
+  "limitations": [
+    "Local macOS native debug Cargo 1.99.0, rustc 1.99.0, Apple Git 2.54.0; no full compiler build or other platform/profile qualification.",
+    "Fixtures use UTF-8 temporary paths and standard files refs backend; non-UTF-8 paths, reftable storage and alternate Git environment overrides are outside this acceptance.",
+    "Directory fallback can invalidate after unrelated metadata changes; minimal rebuild frequency is not claimed.",
+    "No-Git/unavailable-Git becoming available later without source changes is not qualified; existing unknown fallback is preserved."
+  ],
+  "tool_versions": {
+    "rustc": "rustc 1.99.0 (b940084d7 2026-09-28)",
+    "cargo": "cargo 1.99.0 (5f94df478 2026-08-27)",
+    "git": "git version 2.54.0 (Apple Git-157)"
+  }
+}

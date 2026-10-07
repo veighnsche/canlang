@@ -1,0 +1,84 @@
+[
+  {
+    "case": "ordinary",
+    "expected": "988fd77",
+    "actual": "988fd77",
+    "all_watches_exist": true,
+    "unchanged_build_fresh": true
+  },
+  {
+    "case": "ordinary commit",
+    "expected": "b6cf293",
+    "actual": "b6cf293",
+    "all_watches_exist": true,
+    "unchanged_build_fresh": true
+  },
+  {
+    "case": "packed",
+    "expected": "b6cf293",
+    "actual": "b6cf293",
+    "all_watches_exist": true,
+    "unchanged_build_fresh": true
+  },
+  {
+    "case": "packed to loose commit",
+    "expected": "1857786",
+    "actual": "1857786",
+    "all_watches_exist": true,
+    "unchanged_build_fresh": true
+  },
+  {
+    "case": "detached",
+    "expected": "b6cf293",
+    "actual": "b6cf293",
+    "all_watches_exist": true,
+    "unchanged_build_fresh": true
+  },
+  {
+    "case": "detached move",
+    "expected": "1857786",
+    "actual": "1857786",
+    "all_watches_exist": true,
+    "unchanged_build_fresh": true
+  },
+  {
+    "case": "worktree",
+    "expected": "1857786",
+    "actual": "1857786",
+    "all_watches_exist": true,
+    "unchanged_build_fresh": true
+  },
+  {
+    "case": "packed worktree",
+    "expected": "1857786",
+    "actual": "1857786",
+    "all_watches_exist": true,
+    "unchanged_build_fresh": true
+  },
+  {
+    "case": "worktree commit",
+    "expected": "d067bea",
+    "actual": "d067bea",
+    "all_watches_exist": true,
+    "unchanged_build_fresh": true
+  },
+  {
+    "case": "no Git source",
+    "expected": "unknown",
+    "actual": "unknown",
+    "all_watches_exist": true,
+    "unchanged_build_fresh": true
+  },
+  {
+    "case": "unborn Git HEAD",
+    "expected": "unknown",
+    "actual": "unknown",
+    "all_watches_exist": true,
+    "unchanged_build_fresh": true
+  },
+  {
+    "case": "Git unavailable",
+    "actual": "unknown",
+    "only_existing_build_script_watch": true
+  }
+]
