@@ -21,7 +21,7 @@ def prepare():
  {'id':'fix-semicolon','mode':'fix','source':'app T\nGiven\n Todo {title:text}\nWhen\n scenario s(task:Todo) by=members\n  do require false; let dead=2\nThen\n','fix_count':0}]
  for directory in ['examples','draft','draft/shared']:
   for p in sorted((ROOT/directory).glob('*.can')):
-   cases.append({'id':'corpus-'+p.stem,'mode':'format','source_path':str(p.relative_to(ROOT)),'source':p.read_text(),'refuse':p.name in ['CanShift.can','CanVolunteer.can']})
+   cases.append({'id':'corpus-'+str(p.relative_to(ROOT)).replace('/','-').removesuffix('.can'),'mode':'format','source_path':str(p.relative_to(ROOT)),'source':p.read_text(),'refuse':p.name in ['CanShift.can','CanVolunteer.can']})
  for c in cases:c['source_sha256']=hashlib.sha256(c['source'].encode()).hexdigest()
  save('cases.json',cases)
  # Rehash historical compiler/runtime manifests without mutating their receipts.
@@ -75,6 +75,9 @@ def main():
   for mode in ['coordinates','diagnostics']:
    d,r=invoke(mode,[exe,mode]);receipts.append(r);assert d.returncode==0
  save('observations.json',observations)
+ if '--observers-only' in sys.argv:
+  save('observer-execution.json',{'commands':receipts,'libraries':[{'path':p,'sha256':digest(pathlib.Path(p))} for p in libs],'scope':'Corrected unique path IDs; fresh bounded observer rerun only; prior focused suites retained separately.'})
+  print(json.dumps({'cases':len(observations),'mismatches':[o['id'] for o in observations if any(not a['pass'] for a in o['assertions'])]}));return
  suites=['format','lint','typed_json','typed_artifact','typed_artifact_consumer','typed_descriptors','typed_diagnostics_cli','typed_reference_policy_consumers','typed_bdd','typed_explain','typed_fixes','typed_fixes_cli','typed_policy','typed_references','sourcemap_contract','lsp_typed_output','file_ownership','string_payload_runtime']
  argv=['cargo','test','--locked','--offline','--manifest-path','compiler/Cargo.toml']
  for suite in suites:argv+=['--test',suite]

@@ -21,11 +21,11 @@ fn main(){
  let args:Vec<_>=std::env::args().collect();
  if args[1]=="coordinates" {
   let s="é😀x\r\né😀y";let idx=LineIndex::new(s);
-  println!("{}",json!({"text":s,"forward":(0..=s.len()+2).map(|b|json!({"byte":b,"human":idx.line_col(b as u32),"utf16":idx.to_lsp(s,b as u32,true),"byte_lsp":idx.to_lsp(s,b as u32,false)})).collect::<Vec<_>>(),"inverse":(0..=3).flat_map(|l|(0..=7).map(move|c|json!({"line":l,"character":c,"byte":offset_at_position(s,l,c)}))).collect::<Vec<_>>()}));return
+  println!("{}",json!({"text":s,"forward":(0..=s.len()+2).map(|b|json!({"byte":b,"human":idx.line_col(s,b as u32),"utf16":idx.to_lsp(s,b as u32,true),"byte_lsp":idx.to_lsp(s,b as u32,false)})).collect::<Vec<_>>(),"inverse":(0..=3).flat_map(|l|(0..=7).map(move|c|json!({"line":l,"character":c,"byte":offset_at_position(s,l,c)}))).collect::<Vec<_>>()}));return
  }
  if args[1]=="diagnostics" {
   let mut a=Diagnostic::error("E3001","same".into(),Span::new(SourceId(0),0,1));a.tags=vec!["a".into()];
-  let mut b=a.clone();b.severity=Severity::Warning;b.tags=vec!["b".into()];
+  let mut b=a.clone();b.tags=vec!["b".into()];
   let render=|ds:Vec<Diagnostic>|{let mut r=DiagnosticResult::new("audit","1.0",1);for d in ds{r.push(d)}r.finish();r.to_json()};
   println!("{}",json!({"ab":render(vec![a.clone(),b.clone()]),"ba":render(vec![b,a])}));return
  }
