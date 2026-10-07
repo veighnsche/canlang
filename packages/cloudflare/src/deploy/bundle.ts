@@ -729,7 +729,7 @@ export function buildHttpOperationsBundle(_repoRoot?: string): string {
 /*   as self-contained ESM in workerd. Only UNWRAPPED CJS refuses.      */
 /* ------------------------------------------------------------------ */
 
-function blankStringsAndComments(source: string, keepStrings = false): string {
+function blankStringsAndComments(source: string): string {
   const out = source.split("");
   const length = source.length;
   const blank = (from: number, to: number): void => {
@@ -760,14 +760,10 @@ function blankStringsAndComments(source: string, keepStrings = false): string {
           break;
         } else j++;
       }
-      // keepStrings (link check): string contents stay live so import
-      // specifiers survive; comments are still blanked above.
-      if (!keepStrings) blank(i, j);
+      blank(i, j);
       i = j;
     } else if (c === "`") {
       // Template literal: blank text spans, keep `${…}` code live.
-      // keepStrings keeps plain strings but still blanks template text
-      // (error-message prose must never read as an import).
       let j = i + 1;
       let segment = i;
       while (j < length) {
