@@ -1,0 +1,580 @@
+{
+  "scope": "independent source/owner/conversion/provenance review, not new behavior execution",
+  "family_reviews": {
+    "frontend_and_carriers": {
+      "scope": {
+        "reviewed": [
+          "/private/tmp/canlang-step5-frontend.json",
+          "/private/tmp/canlang-step5-carriers.json"
+        ],
+        "method": "Independent bounded current-source and declaration review. No repository edits, builds, tests, runtime probes, network or policy selections. Carrier workflow anchors are explicitly navigation-only, not new consumer certifications."
+      },
+      "verdict": "Accept frontend responsibility distinctions and carrier navigation after concrete corrections. Source/catalog coherence is established by current production construction paths, while public mixed-carrier misuse is possible and unenforced; do not relabel that distinction as a demonstrated production defect. Genuine repeated parse/resolve work exists, but distinct physical/CST/typed/effect/example/workview responsibilities are not interchangeable.",
+      "accepted_frontend_rows": [
+        "FE-01",
+        "FE-02",
+        "FE-03",
+        "FE-04",
+        "FE-05",
+        "FE-06",
+        "FE-07",
+        "FE-08",
+        "FE-09",
+        "FE-10",
+        "FE-11"
+      ],
+      "accepted_carrier_groups": [
+        "SRC",
+        "SPAN_INDEX",
+        "SYNTAX",
+        "ANALYSIS",
+        "CATALOG",
+        "IR_JS_ARTIFACT",
+        "REPORTS",
+        "IDE_LSP"
+      ],
+      "corrections": [
+        {
+          "ids": [
+            "FE-01"
+          ],
+          "kind": "exact authority",
+          "text": "source.rs26 documents append-only identity;25 is blank doc line. Same-path fresh ID is documented41-42 (39 is method summary). Existing insertion43 and Token::text150 anchors correct."
+        },
+        {
+          "ids": [
+            "FE-03"
+          ],
+          "kind": "exact authority",
+          "text": "layout.rs29 is blank. DescriptionData doc30 and Prose field docs34-36 establish joined LF/marker/space/escaped suffix transformations. Raw attached tokens are48-50, declaration47 is valid carrier anchor."
+        },
+        {
+          "ids": [
+            "FE-05"
+          ],
+          "kind": "exact authority",
+          "text": "analysis/mod.rs44 is an import, not NodeKey authority. Use46-51 for span/kind uniqueness and process-local nonpersisted key. NodeKey::of actual definition66 (65 doc)."
+        },
+        {
+          "ids": [
+            "FE-07",
+            "FE-10",
+            "FE-11"
+          ],
+          "kind": "exact anchors",
+          "text": "check_types declaration397/doc396, not closing brace394. CheckedProgram contract76-82, not blank75; check_program diagnostics contract102-107, not blank101; actual check_program function108, not109 argument. IR bridge context doc709, not blank708."
+        },
+        {
+          "ids": [
+            "FE-08"
+          ],
+          "kind": "exact authority",
+          "text": "effects.rs933-934 is purpose; best-effort skipped rejected declaration behavior is938-939. check_effects940 and checked_description4490 valid."
+        },
+        {
+          "ids": [
+            "IR_JS_ARTIFACT"
+          ],
+          "kind": "factual field correction",
+          "text": "IrProgram ir.rs507-535 has suites: Vec<BddSuite>531 and migrations: Vec<IrMigration>535, not a fixtures field. Fixtures reside within BddSuite bdd.rs36/40 and IrFixture ir.rs1438. Keep field names factual rather than loose grouping."
+        },
+        {
+          "ids": [
+            "SPAN_INDEX"
+          ],
+          "kind": "factual methods/range",
+          "text": "LineIndex declaration and implementation are source.rs114-181. It exposes new122, line_col137 and to_lsp159, with no inverse offset method. Inverse offset_at_position is separately owned by ide/queries.rs100. Range114-238 includes sha256 implementation/tests and should not imply LineIndex owns inverse conversion."
+        },
+        {
+          "ids": [
+            "ANALYSIS"
+          ],
+          "kind": "factual declaration range",
+          "text": "ResolveTables is resolve.rs384; resolve_program is496, outside stated384-426. Index declaration separately from public conversion function. Do not put resolve_program in that declaration range."
+        },
+        {
+          "ids": [
+            "CATALOG"
+          ],
+          "kind": "discovery qualification",
+          "text": "Candidate order correct, but factual note should preserve first-readable semantics: unreadable candidate skips catalog.rs357-359; readable invalid UTF8 returns E6003 immediately361-369; first readable UTF8 text parses and stops372 even if malformed. Nonempty env only346. Catalog has version but no selected-path/content identity."
+        }
+      ],
+      "string_recovery_comparison": {
+        "anchors": [
+          {
+            "path": "compiler/src/analysis/effects.rs",
+            "line": 4691,
+            "symbol": "literal_string"
+          },
+          {
+            "path": "compiler/src/analysis/examples.rs",
+            "line": 2887,
+            "symbol": "literal_string"
+          },
+          {
+            "path": "compiler/src/analysis/examples.rs",
+            "line": 534,
+            "symbol": "check_message_value syntax guard"
+          },
+          {
+            "path": "compiler/src/analysis/effects.rs",
+            "line": 4240,
+            "symbol": "has_error"
+          },
+          {
+            "path": "compiler/src/syntax/lexer.rs",
+            "line": 493,
+            "symbol": "decode_json_string result"
+          }
+        ],
+        "finding": "FE08/09 correctly identify source-visible recovery differences without declaring clean corruption. Effects accepts a String leaf or Literal, requires a token, and absent payload falls back to stripped complete quotes OR full raw token spelling4701-4706. Examples only accepts Literal and absent token/payload falls back to source slice only if both outer quotes exist2900-2904, otherwise None. Neither is the strict lexer-payload-only type/IR helper. These are observably distinct fallback carriers and later responsibility inspection targets.",
+        "limits": "Syntax Error/BadToken subtree guards exist, but invalid decoded String payload can be a String token with E1006 rather than necessarily BadToken; do not claim every fallback is unreachable merely from has_error. Current parser-built clean strings have valid payload. Original lexical diagnostics and CLI analysis error admission prevent invalid source from becoming a clean compile success. No new clean-path corruption witness executed."
+      },
+      "coherence_order_and_recomputation": [
+        {
+          "claim": "Actual production CLI coherence",
+          "anchors": [
+            "compiler/src/cli.rs174 CatalogAnalyzer::analyze_owned",
+            "compiler/src/cli.rs178 db.iter file list",
+            "compiler/src/cli.rs188 load_catalog",
+            "compiler/src/cli.rs192 check_program",
+            "compiler/src/cli.rs204 OwnedAnalysis aggregate",
+            "compiler/src/cli.rs750 EmitSources"
+          ],
+          "finding": "One db and loaded catalog object flow through check and emit with returned program/result. No demonstrated production cross-db/catalog mix. Public emit/build/report APIs accept separate carriers and can be misused; provenance seals absent is a source fact, not a policy selection."
+        },
+        {
+          "claim": "File closure and order",
+          "anchors": [
+            "compiler/src/analysis/mod.rs115 files iteration",
+            "compiler/src/analysis/resolve.rs632 index_modules",
+            "compiler/src/codegen/ir.rs738 full db parse",
+            "compiler/src/lint/driver.rs472 full db parse"
+          ],
+          "finding": "Public check_program follows supplied files order; module/symbol indexes depend on input trees, with no arbitrary file sorting guarantee. CLI analyzes all db entries in insertion order, so all-db IR/lint versus selected-file driver divergence is public/library possibility, not established normal CLI defect. Same-path revisions stay distinct entries."
+        },
+        {
+          "claim": "Real repeated work versus justified views",
+          "anchors": [
+            "compiler/src/ide/queries.rs226 parse",
+            "compiler/src/ide/queries.rs227 check_program",
+            "compiler/src/ide/queries.rs229 resolve_program",
+            "compiler/src/format.rs99 parse_source",
+            "compiler/src/format.rs105 lex",
+            "compiler/src/docs.rs365 parse"
+          ],
+          "finding": "IDE repeats parsing and resolving to retain query scopes discarded from CheckedProgram; formatter parses for admission then lexes physical workview; docs reparses for operation rows. This is real recomputation, but target views serve stated different obligations. Any reuse/removal remains PROPOSED, with provenance/recovery and cache invalidation unqualified."
+        }
+      ],
+      "omissions_or_navigation_additions": [
+        {
+          "group": "CATALOG",
+          "anchors": [
+            "compiler/src/analysis/catalog.rs249 SigOverload",
+            "compiler/src/analysis/catalog.rs258 SigParam",
+            "compiler/src/analysis/catalog.rs271 SigType"
+          ],
+          "finding": "Add parsed signature family for carrier/type projection inspection: ordered params/result, aliases/in_scope, generics/collection/nullable/union classes differ from concrete ResolvedType. Omission makes catalog-to-call binding responsibility less visible; do not call parallel types duplication merely by existence."
+        },
+        {
+          "group": "SYNTAX",
+          "anchors": [
+            "compiler/src/syntax/layout.rs18 DescriptionVariant",
+            "compiler/src/syntax/layout.rs26 DescriptionSuffix",
+            "compiler/src/syntax/layout.rs32 DescriptionData",
+            "compiler/src/syntax/layout.rs55 LogicalLine"
+          ],
+          "finding": "Frontend already maps these; factual carrier index could add them as decoded-description/physical-layout carriers rather than only token/CST if completeness of representation families is intended."
+        },
+        {
+          "group": "IR_JS_ARTIFACT",
+          "anchors": [
+            "compiler/src/codegen/sourcemap.rs14 SourceMap",
+            "compiler/src/codegen/bdd.rs36 BddSuite",
+            "compiler/src/codegen/bdd.rs53 BddModule"
+          ],
+          "finding": "SourceMap and explicit BDD suite/module carriers absent from declaration index despite workflow joins. Covered in lowering packet; add navigation references or explicitly retain index as selected carriers."
+        }
+      ],
+      "limits": [
+        "No exhaustive frontend semantic/type/fallback parity proof and no executed witnesses in this review.",
+        "Catalog/version/SourceId/path identity fields do not certify immutable global provenance; external side tables and production construction remain separate evidence.",
+        "PolicyDump has roles/models/operations fields only113-120; version wire constant and model nested invariants should not be added as fictitious top-level Rust fields.",
+        "Existing graph/ICU/JEV unresolved choices and migration release promises unchanged."
+      ]
+    },
+    "lowering": {
+      "verdict": "accept_with_corrections",
+      "scope": "Independent bounded review of all17 rows in /private/tmp/canlang-step5-lowering.json against actual current source/consumer/test declaration bodies. No implementation/repository edits, tests/builds/runtime/network/new policy. Root provenance probes are separate, not execution by this reviewer.",
+      "reviewed_ids": [
+        "LOW-01",
+        "LOW-02",
+        "LOW-03",
+        "LOW-04",
+        "LOW-05",
+        "LOW-06",
+        "LOW-07",
+        "LOW-08",
+        "LOW-09",
+        "LOW-10",
+        "LOW-11",
+        "LOW-12",
+        "LOW-13",
+        "LOW-14",
+        "LOW-15",
+        "LOW-16",
+        "LOW-17"
+      ],
+      "corrections": [
+        {
+          "ids": [
+            "LOW-05"
+          ],
+          "kind": "defining checked authority and rule distinction",
+          "issue": "types.rs13887 bind_arguments binds user-symbol/message parameters; it is not the owning builtin overload binder.",
+          "correction": "Add types.rs13417 call_builtin,13494 overload trials/specificity selection and14060 try_overload. Contrast explicitly: analysis binds names, checks argument shapes, chooses highest-specificity matching overload with catalog-order ties; IR2905 picks first matching arity, then binds names. No published per-call winning-overload/bound-slot fact is carried. Current-catalog conflict and evaluation-order counterexample remain unproved, not assumed.",
+          "sources": [
+            {
+              "path": "compiler/src/analysis/types.rs",
+              "line": 13417,
+              "symbol": "call_builtin"
+            },
+            {
+              "path": "compiler/src/analysis/types.rs",
+              "line": 13494,
+              "symbol": "try_overload candidate selection"
+            },
+            {
+              "path": "compiler/src/analysis/types.rs",
+              "line": 14060,
+              "symbol": "try_overload"
+            },
+            {
+              "path": "compiler/src/codegen/ir.rs",
+              "line": 2905,
+              "symbol": "order_builtin_args"
+            }
+          ],
+          "witness_limit": "codegen.rs7364 tests money argument reordering with literal operands; it does not establish same-arity overload parity or effectful argument evaluation-order parity."
+        },
+        {
+          "ids": [
+            "LOW-12"
+          ],
+          "kind": "false repeated-check suggestion",
+          "issue": "runs migrate_check again/as emission-time admission is ambiguous and implies an earlier production checker invocation.",
+          "correction": "Say emission-time migration admission. Only current production check_migration caller is IR4964; analysis/mod full pipeline does not call it. effects migrations are checked structural/effect facts, not proof predecessor/directive admission already ran.",
+          "sources": [
+            {
+              "path": "compiler/src/codegen/ir.rs",
+              "line": 4964,
+              "symbol": "check_migration"
+            },
+            {
+              "path": "compiler/src/analysis/mod.rs",
+              "line": 108,
+              "symbol": "check_program"
+            },
+            {
+              "path": "compiler/src/analysis/migrate_check.rs",
+              "line": 188,
+              "symbol": "public checker"
+            }
+          ]
+        },
+        {
+          "ids": [
+            "LOW-08",
+            "LOW-09",
+            "LOW-14"
+          ],
+          "kind": "bounded independent downstream semantic reconstruction",
+          "issue": "consumer summary names validated model table but obscures actual independent admission/conversion and policy transcription.",
+          "correction": "Explicitly retain producer boundary: state registry converts unknown artifact descriptor shapes, validates canonical field/input/model/default facts, then builds execution descriptors; mutation models translates canonical descriptors to interim model field/default/reference structures. Cloudflare also transcribes by/when/read policy from emitted callable/model registry against validated models. These are real boundary duties serving runtime admission, not a blanket duplicate compiler checker or completed consumer closure.",
+          "sources": [
+            {
+              "path": "packages/state/src/invocation/registry.ts",
+              "line": 347,
+              "symbol": "checkCanonicalInput"
+            },
+            {
+              "path": "packages/state/src/invocation/registry.ts",
+              "line": 427,
+              "symbol": "checkCanonicalModel"
+            },
+            {
+              "path": "packages/state/src/invocation/registry.ts",
+              "line": 756,
+              "symbol": "artifactToDescriptorSet"
+            },
+            {
+              "path": "packages/state/src/invocation/registry.ts",
+              "line": 1143,
+              "symbol": "loadArtifactDescriptors"
+            },
+            {
+              "path": "packages/state/src/mutation/models.ts",
+              "line": 736,
+              "symbol": "buildModelTableFromCanonical"
+            },
+            {
+              "path": "packages/cloudflare/src/runtime/invoke.ts",
+              "line": 2082,
+              "symbol": "loadCanonicalDescriptors"
+            },
+            {
+              "path": "packages/cloudflare/src/runtime/invoke.ts",
+              "line": 2145,
+              "symbol": "collectModelPolicyManifests/read policy transcription"
+            }
+          ]
+        },
+        {
+          "ids": [
+            "LOW-11"
+          ],
+          "kind": "downstream generated-suite reconstruction",
+          "issue": "actual loader endpoint is described only to return-shape validation; loader performs additional independent recipe/dependency/user/row construction.",
+          "correction": "Add bounded loader267-272 recipe decoding, dependency normalization/cycle order and user/value extraction, then row/sequence specification construction. BDDSuite field name is imported, not imports; calling factory begins253,245 only retrieves export. Platform executed0 and absent hooks/runtime scopes remain separate.",
+          "sources": [
+            {
+              "path": "compiler/src/codegen/bdd.rs",
+              "line": 36,
+              "symbol": "BddSuite imported"
+            },
+            {
+              "path": "packages/testkit/src/runner/loader.ts",
+              "line": 245,
+              "symbol": "exampleFixtures lookup"
+            },
+            {
+              "path": "packages/testkit/src/runner/loader.ts",
+              "line": 253,
+              "symbol": "factory invocation"
+            },
+            {
+              "path": "packages/testkit/src/runner/loader.ts",
+              "line": 267,
+              "symbol": "readRecipeSuite/normalizeSuiteDependencies"
+            },
+            {
+              "path": "packages/testkit/src/runner/loader.ts",
+              "line": 270,
+              "symbol": "resolveFixtureOrder/extractSuiteUsers"
+            }
+          ]
+        },
+        {
+          "ids": [
+            "LOW-03",
+            "LOW-06"
+          ],
+          "kind": "documented ideal versus current reconstructed semantics",
+          "issue": "IR module docs assert no semantic re-derivation except closed sequence rules, but current resolution/name/member reconstruction is broader than copying per-use checked facts.",
+          "correction": "Keep both source contract and actual implementation visible; modules/import/member lookup793, scope/literal fallbacks2143/2204 and member_ty2240 reconstruct closed facts even when ordinary node_types absent. Do not imply doc principle proves reconstruction semantically equivalent or confines all fallback typing solely to sequence_value_ty. Existing packet already flags reconstruction; add this qualification.",
+          "sources": [
+            {
+              "path": "compiler/src/codegen/ir.rs",
+              "line": 16,
+              "symbol": "span re-read contract"
+            },
+            {
+              "path": "compiler/src/codegen/ir.rs",
+              "line": 793,
+              "symbol": "resolve_member"
+            },
+            {
+              "path": "compiler/src/codegen/ir.rs",
+              "line": 2143,
+              "symbol": "scope name fallback"
+            },
+            {
+              "path": "compiler/src/codegen/ir.rs",
+              "line": 2204,
+              "symbol": "closed literal fallback"
+            },
+            {
+              "path": "compiler/src/codegen/ir.rs",
+              "line": 2240,
+              "symbol": "member_ty"
+            },
+            {
+              "path": "compiler/src/codegen/ir.rs",
+              "line": 8314,
+              "symbol": "sequence_value_ty"
+            }
+          ]
+        },
+        {
+          "ids": [
+            "LOW-13"
+          ],
+          "kind": "map projection precision",
+          "issue": "one entry per push is weaker than guaranteed one entry per actual emitted line; public push accepts text containing newlines.",
+          "correction": "Retain per-push carrier duty and public single-line text precondition/unchecked multi-line case. Map vector index attribution cannot by itself prove JS physical line alignment. Current named fixture uses single-line pushes. Metadata serialize/project is one-time build adapter; no performance measurement follows.",
+          "sources": [
+            {
+              "path": "compiler/src/codegen/js.rs",
+              "line": 946,
+              "symbol": "JsWriter::push"
+            },
+            {
+              "path": "compiler/src/codegen/js.rs",
+              "line": 957,
+              "symbol": "append"
+            },
+            {
+              "path": "compiler/src/codegen/sourcemap.rs",
+              "line": 32,
+              "symbol": "vector-index map build"
+            },
+            {
+              "path": "compiler/tests/codegen.rs",
+              "line": 3180,
+              "symbol": "sourcemap_mappings_round_trip"
+            }
+          ]
+        },
+        {
+          "ids": [
+            "LOW-03"
+          ],
+          "kind": "cost wording",
+          "issue": "measurable reparsing/index/rebinding duties may be read as measured cost.",
+          "correction": "Prefer observed/inspectable duties; no CPU/memory allocation or workload profile was measured. Any viability/reuse proposal must preserve exact source/table/catalog provenance and consumer source closure.",
+          "sources": [
+            {
+              "path": "compiler/src/codegen/ir.rs",
+              "line": 735,
+              "symbol": "reparse/index bridge"
+            }
+          ]
+        },
+        {
+          "ids": [
+            "LOW-10"
+          ],
+          "kind": "witness name precision",
+          "issue": "two witness names shortened despite exact existing function identities.",
+          "correction": "Use compiler/tests/codegen.rs4116 t15a_field_default_mapping and5019 t15a_structural_literal_default. All listed owner-anchor lines otherwise point to current declarations or labeled interior source statements.",
+          "sources": [
+            {
+              "path": "compiler/tests/codegen.rs",
+              "line": 4116,
+              "symbol": "t15a_field_default_mapping"
+            },
+            {
+              "path": "compiler/tests/codegen.rs",
+              "line": 5019,
+              "symbol": "t15a_structural_literal_default"
+            }
+          ]
+        }
+      ],
+      "accepted": [
+        "CheckedProgram publishes declaration/type/effect/example facts but not complete expression target/binding tree; source coupling is external precondition.",
+        "emit completeness admission distinct from caller diagnostic/error shipping gate, source/catalog/version identities unsealed.",
+        "WireLiteral numeric strings/default embedding, descriptor/report schemas, rich emitted models, SourceMap byte attribution and BDD lazy closures have distinct declared consumers; parallel types alone do not establish removable duplication.",
+        "Operation descriptor vector is truly shared once between canApp registry and artifact; model descriptor walks are separate target projections.",
+        "Literal payload uses lexer-decoded strings, while integer/duration target normalization rereads source; exact scale guard and unknown/missing distinctions retained.",
+        "Report DTOs, diagnostic text/JSON and static explain catalog are projections, not another language semantic checker. Public adapters remain compatibility risk even absent production direct callers."
+      ],
+      "limitations": [
+        "Source reconstruction evidence is not complete semantic parity/evaluation-order proof.",
+        "No measured workload/performance/memory/serialization savings or safe replacement choice.",
+        "No complete downstream package/migration-runtime/product closure; only named boundary reconstruction source-traced.",
+        "Existing test bodies/receipts remain historical or source-traced at their prior bounded scopes; no root provenance probe results asserted."
+      ]
+    },
+    "provenance": {
+      "scope": {
+        "packet": "/private/tmp/canlang-step5-provenance-map.json",
+        "evidence": "/private/tmp/canlang-step5-provenance",
+        "method": "Independent source and saved raw evidence inspection, JSON field inspection and hash recomputation only. No probe execution, builds, tests, JS execution, network, repository edits or policy choice by reviewer."
+      },
+      "verdict": "Accept all five bounded provenance findings. Eight saved emission cases pass under production EmitOptions::new with empty emission diagnostics; this is a demonstrated mixed-public-input enforcement gap and immutable-source control, not a normal CLI stale-output, runtime correctness or performance finding.",
+      "accepted_rows": [
+        "PRV-01",
+        "PRV-02",
+        "PRV-03",
+        "PRV-04",
+        "PRV-05"
+      ],
+      "verified_raw_evidence": {
+        "emission_cases": 8,
+        "probe_exit": 0,
+        "probe_stderr": "empty",
+        "all_emission_diagnostics": "eight retained files contain []",
+        "compiler_library_sha256": "1486166f24aeaf4bb7bf476270fdb32dc31fb17cccdfcb820c229dcfb3ab6d56",
+        "probe_source_sha256": "495d9ad8cb1e31c8b045bcce60dd26168c67eab68258085ce952a6db61022e1e",
+        "source_path_coherence": "Copied probe.rs and actual rustc argv source /private/tmp/canlang-step5-provenance.rs currently hash identically to receipt. Retained attempt1 source matches its separate5651be... hash.",
+        "before_input_pins": {
+          "count": 108,
+          "mismatches_at_review": [],
+          "producer_catalog_sha256": "cd984f375e0d6cbcc2bc6aca5ad5ea5b1b3d3ba9cd17b15ab94e4b15e74ced62"
+        },
+        "catalog_delta": "Major mismatch differs only catalog_version0.1.0-lane02-draft ->7.0.0-audit and lower entry13 effects pure ->state-read; same-version catalog differs only that effect. No producer implementation changed.",
+        "build_qualification": "Initial pre-probe cargo build is transcribed build.log (reported compiling,2.63s,exit0), not raw initial capture. Post-probe raw --locked --offline --lib verification exit0 at11:16:29 reports finished0.15s; receipt identifies this as later verification and unchanged library hash. Do not describe raw later capture as the raw pre-probe rebuild."
+      },
+      "field_assertions": [
+        {
+          "row": "PRV-01",
+          "actual": "Foreign same-ID/spans artifact Gadget.title default is NEW and source hash536692..., while coherent control defaultOLD/hashca873.... Probe checks generated JS OLD/NEW and original result hash. Saved artifact model defaults corroborate emitted value; no JS executed."
+        },
+        {
+          "row": "PRV-02",
+          "actual": "Append control artifact has two same.can source hashes OLD thenNEW, generated/defaultOLD, and stdout latest lookup SourceId1. Original SourceId0 bytes survive; registration is append-only, not in-place edit."
+        },
+        {
+          "row": "PRV-03",
+          "actual": "catalog-control generated JS lacks await lower(value); both modified-catalog artifacts contain it. All three require canlang.builtins min_version0. Supplied major7 does not replace checked catalog label, and version equality alone does not seal contents."
+        },
+        {
+          "row": "PRV-04",
+          "actual": "Artifact model defaults independently read as two-file control One.Thing=ONE/Two.Thing=TWO and foreign swapped One.Thing=TWO/Two.Thing=ONE. Probe itself asserts only JS inequality for this case; receipt independent_field_assertions supplies exact field check and reviewer confirms. Reversed same-db files observation stdout module_names=[Two,One],diagnostics=[] is printed observation, not separately asserted in Rust."
+        }
+      ],
+      "corrections": [
+        {
+          "row": "PRV-04",
+          "kind": "exact source anchor",
+          "text": "CLI185 is cwd request field; actual db iteration file list is cli.rs178. Use resolve.rs632-633 index_modules for supplied-tree traversal rather than only resolve_program496."
+        },
+        {
+          "row": "PRV-03",
+          "kind": "exact source anchor",
+          "text": "catalog_version field is analysis/mod.rs99;98 is its comment. Requirement computation definition artifact.rs329, with passed IR label272. Current anchors describe the right duties but distinguish field/definition from comments/calls."
+        },
+        {
+          "row": "PRV-05",
+          "kind": "shipping-gate qualification",
+          "text": "CLI706 is blank; compile contract707-713/function714; actual analysis error gate741 and emission error gate761-762. Public emit108 checks result.complete112, not result.has_errors; caller diagnostic shipping responsibility docs105-107. These probes supply old clean results, so demonstrate provenance mismatch only, not a bypass of an existing input-error check."
+        },
+        {
+          "row": "PRV-05",
+          "kind": "precondition strength",
+          "text": "docs analyzed-source/success precondition is explicit rustdoc351-354. Low-level emit/build intended source/catalog cohort follows checked-program and IR docs but is not an explicit runtime seal or fully specified hash-equivalence contract. Phrase proposed clarification/enforcement as later work; no enforcement/API selected."
+        }
+      ],
+      "attempt1": {
+        "retained": true,
+        "rustc_exit": 0,
+        "probe_exit": 101,
+        "finding": "Initial first six emission cases reach their successful saved stdout. Ordering fixture then fails CatalogAnalyzer analyze assertion with E1204/E1211 grammar diagnostics. Corrected final app fixture produces eight cases; failure is neither hidden nor a mixed-provenance rejection.",
+        "artifacts_limit": "Final eight artifact filenames overwrite earlier six cases; retained attempt1 source/stdout/stderr/receipt preserve first attempt outcome, not a second full set of attempt1 artifacts."
+      },
+      "cohort_guarantees_and_limits": [
+        "Production CatalogAnalyzer cli174 loads one catalog188, checks db files192, returns program/catalog/result204; run_compile735-756 passes original db and returned catalog, and blocks errors. Saved public misuse does not demonstrate that facade mixes cohorts.",
+        "SourceDb43/57/62 guarantees append-only IDs/latest-path lookup within one instance. NodeKey has no hash/session identity; foreign databases can reuse same indexes/spans. Append control proves these are different phenomena.",
+        "Snapshot private fields35-45 and analyze225 hold one borrowed db/catalog; source immutable borrowing prevents ordinary external mutation during snapshot lifetime. This does not certify editor version guards or all client routing.",
+        "Artifact.sources enumerates db sources at assemble230-236, not a certificate every registered source contributed checked declarations. Documentation191 calls them consulted revisions; parsed extra snapshots explain inclusion, while checked file closure remains separate.",
+        "Saved artifacts use production emission options, clean complete original analyses and empty emission diagnostics. No test-only escape, generated JS execution, runtime producer behavior, full test suite, other-host, GUI or performance qualification.",
+        "Catalog version min-major requirement and supplied catalog signatures/effects are independently consulted; observed awaiting change is not proof coherent rechecked modified catalog lowering is wrong.",
+        "No chosen seal, sorting normalization, source retention, catalog semantic-version policy or API redesign. Existing migration and unresolved JEV/graph/ICU gates remain untouched."
+      ]
+    }
+  },
+  "correction_policy": "source corrections integrated; remaining policy/gap proposals explicit",
+  "final_artifact_review": "pending"
+}

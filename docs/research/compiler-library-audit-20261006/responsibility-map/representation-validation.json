@@ -1,0 +1,275 @@
+{
+  "scope": "Mechanical current inventory/workflow/compatibility/representation linkage and evidence integrity; not all semantic correctness",
+  "source_commit": "1fd07722090fe70228a6b661e3c6e136275ca84b",
+  "observed_head": "2e8db2340a3540b5ed891ff529b1953993ad8665",
+  "compiler_diff_from_source_baseline": "",
+  "paths": 107,
+  "unique_paths": 107,
+  "source_files": 41,
+  "source_slices": 327,
+  "all_path_slices": 544,
+  "large_test_files": 7,
+  "large_test_slices": 94,
+  "api_source_visibility": {
+    "external": 612,
+    "crate/restricted": 22,
+    "module-private": 14
+  },
+  "explicit_test_declarations": 929,
+  "external_input_pins": 31,
+  "errors": [],
+  "checks": [
+    "git ls-files compiler exactly reconciled to one path row each",
+    "all107 compiler SHA256/physical lines compared to Step1 inventory",
+    "every path sliced with contiguous inclusive complete span",
+    "all retained slice/API/interface anchors checked against current source text",
+    "every test pointer exists",
+    "31 external interface SHA256 pins matched",
+    "tracked compiler diff to source baseline empty",
+    "unique workflow IDs and exact current source anchor bounds",
+    "workflow source input SHA256 pins",
+    "valid workflow responsibility-slice joins and execution receipt paths",
+    "83 unique requirements and26 prior claim groups with valid crosswalk links",
+    "all16 original core packets and18 workflows accounted for",
+    "compatibility owner/consumer anchor bounds and82 pinned input files",
+    "per-path compatibility navigation joins",
+    "35 unique representation slices,8 selected carrier groups,18 workflow joins",
+    "representation owner/consumer bounds, carrier range bounds and37 input pins",
+    "saved public-API probe8 cases and108 compiler/catalog input pins; raw fixture/artifact/receipt integrity"
+  ],
+  "limitations": [
+    "source linkage does not prove branch coverage or API preconditions",
+    "execution receipts retain host, body-skip, source/dist, synthetic/mocked and installed-product limits",
+    "Step2 independent inventory receipt kept separately; this validates current extended ledger",
+    "every semantic branch/API not qualified; known compatibility families only",
+    "classifications preserve current public/migration support; no policy change or test/build execution",
+    "deliberate mixed public-input probes distinct from normal CLI and immutable append control",
+    "source reconstruction/parallel models do not establish measured cost or redundant semantics",
+    "fresh locked offline library build + probe execution only; no JS/application/GUI/fullsuite/other-host qualification"
+  ],
+  "ledger_sha256": "5c25ae381e9078b655c9ac04bac5ece805abe1086ad91b2935f522c9f27341e6",
+  "workflows": 18,
+  "workflow_ids": [
+    "CHECK",
+    "CLI_SURFACES",
+    "COMPILE",
+    "DOCS_REFERENCE",
+    "EDITOR_LSP",
+    "EXPLAIN",
+    "FORMAT",
+    "FORWARD_ACTIVATE",
+    "FORWARD_BUILD",
+    "FORWARD_DEPLOY",
+    "FORWARD_RUN",
+    "FORWARD_TEST",
+    "GENERATED_BDD",
+    "LINT_FIX",
+    "LINT_FIX_IDE_JOIN",
+    "POLICY",
+    "PUBLIC_LIBRARY_BOUNDARIES",
+    "PUBLIC_SHARED_BOUNDARIES"
+  ],
+  "workflow_source_anchors": 322,
+  "workflow_input_pins": 85,
+  "compatibility_requirements": 83,
+  "prior_claim_groups": 26,
+  "compatibility_input_files": 82,
+  "compatibility_classes": {
+    "required_semantic": 43,
+    "migration_guard": 18,
+    "required_bytes": 7,
+    "incidental_representation": 3,
+    "test_only": 2,
+    "unresolved": 9,
+    "invalid_behavior": 1
+  },
+  "core_packets": 16,
+  "representations": 35,
+  "selected_carrier_groups": 8,
+  "representation_workflow_joins": 18,
+  "representation_input_files": 37,
+  "probe_input_pins": 108,
+  "probe_passed_emission_cases": 8,
+  "evidence_files": [
+    {
+      "path": "representation-evidence/provenance/attempt1.probe.rs",
+      "bytes": 5528,
+      "sha256": "5651be925bf66b3f534f9b3890baf5746bd8d641205a43029eedaf22fbfafce9"
+    },
+    {
+      "path": "representation-evidence/provenance/attempt1.probe.stderr",
+      "bytes": 1588,
+      "sha256": "3acda921aa6984d8317d6c56be0696697508e58f3eed65b8839ec93886c5d1c5"
+    },
+    {
+      "path": "representation-evidence/provenance/attempt1.probe.stdout",
+      "bytes": 1924,
+      "sha256": "64d0bf297101b841d9e80e6eff38ca3afcc2dcfdc19e7eae0f536d04b4b9ab3b"
+    },
+    {
+      "path": "representation-evidence/provenance/attempt1.receipt.json",
+      "bytes": 1023,
+      "sha256": "bf9231b55e0e2517ead35ffae0be2caee74b6f33a3c0b50365737f4434496666"
+    },
+    {
+      "path": "representation-evidence/provenance/attempt1.rustc.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "representation-evidence/provenance/attempt1.rustc.stdout",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "representation-evidence/provenance/before-inputs.json",
+      "bytes": 16683,
+      "sha256": "8fc4842d20a0aa1db713a0c1660f4932b0ac9731d9965a2279f395bc149aec32"
+    },
+    {
+      "path": "representation-evidence/provenance/build-verify.stderr",
+      "bytes": 72,
+      "sha256": "f0788aa36d1c86b6ccdfb7f4042a5574102d82061c046422a2d42e008a1e4710"
+    },
+    {
+      "path": "representation-evidence/provenance/build-verify.stdout",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "representation-evidence/provenance/build.log",
+      "bytes": 167,
+      "sha256": "0c708ae9da7cfdd92c8fa55721a102bb4247c197ec28bd2bf9a04e20b4ec89f7"
+    },
+    {
+      "path": "representation-evidence/provenance/cargo.version.txt",
+      "bytes": 36,
+      "sha256": "1f88eaf7fe1aaec83184752cf4c944cd22f00184136ff36a3e4c318cc60ef566"
+    },
+    {
+      "path": "representation-evidence/provenance/catalog-control.artifact.json",
+      "bytes": 1852,
+      "sha256": "02d47e0d45301e03ae78602fe515b9870436ba72c2a71500679dddad3c942fc3"
+    },
+    {
+      "path": "representation-evidence/provenance/catalog-control.diagnostics.txt",
+      "bytes": 3,
+      "sha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570"
+    },
+    {
+      "path": "representation-evidence/provenance/catalog-major-mismatch.artifact.json",
+      "bytes": 1858,
+      "sha256": "33b7fdb7eea57dc7a62846e40e41a8d5764913625adda60e869804667a8ac2bf"
+    },
+    {
+      "path": "representation-evidence/provenance/catalog-major-mismatch.diagnostics.txt",
+      "bytes": 3,
+      "sha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570"
+    },
+    {
+      "path": "representation-evidence/provenance/catalog-major-mismatch.json",
+      "bytes": 22313,
+      "sha256": "dee692a27c963af435ad60db2c0bbe0848b5e9a22ca221cdb042a78d8f25cb48"
+    },
+    {
+      "path": "representation-evidence/provenance/catalog-same-version-content-change.artifact.json",
+      "bytes": 1858,
+      "sha256": "33b7fdb7eea57dc7a62846e40e41a8d5764913625adda60e869804667a8ac2bf"
+    },
+    {
+      "path": "representation-evidence/provenance/catalog-same-version-content-change.diagnostics.txt",
+      "bytes": 3,
+      "sha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570"
+    },
+    {
+      "path": "representation-evidence/provenance/catalog-same-version-content-change.json",
+      "bytes": 22320,
+      "sha256": "3498d2f584a855fd51159a180531e67716a480afe6b78ed97199998f34ad520d"
+    },
+    {
+      "path": "representation-evidence/provenance/coherent-control.artifact.json",
+      "bytes": 1188,
+      "sha256": "3914c137725b48e9500db9462355099f66fd7944752b94718844db28920774ba"
+    },
+    {
+      "path": "representation-evidence/provenance/coherent-control.diagnostics.txt",
+      "bytes": 3,
+      "sha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570"
+    },
+    {
+      "path": "representation-evidence/provenance/foreign-db-same-id-and-spans.artifact.json",
+      "bytes": 1188,
+      "sha256": "dc607fa2298dbbbc3127227fdf1ca0412027ffe63680fd239aa5e54ea8b7919f"
+    },
+    {
+      "path": "representation-evidence/provenance/foreign-db-same-id-and-spans.diagnostics.txt",
+      "bytes": 3,
+      "sha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570"
+    },
+    {
+      "path": "representation-evidence/provenance/foreign-db-swapped-files.artifact.json",
+      "bytes": 2018,
+      "sha256": "ee62a460d372b8b4267de98fe0f70055fb2d08a8af12a1309713cc6a2ba0de14"
+    },
+    {
+      "path": "representation-evidence/provenance/foreign-db-swapped-files.diagnostics.txt",
+      "bytes": 3,
+      "sha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570"
+    },
+    {
+      "path": "representation-evidence/provenance/probe.rs",
+      "bytes": 5524,
+      "sha256": "495d9ad8cb1e31c8b045bcce60dd26168c67eab68258085ce952a6db61022e1e"
+    },
+    {
+      "path": "representation-evidence/provenance/probe.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "representation-evidence/provenance/probe.stdout",
+      "bytes": 2621,
+      "sha256": "7cb2e2195c126eed5fbe07b99692502ae9af2a5ca13fee496c7b4da480bd2b39"
+    },
+    {
+      "path": "representation-evidence/provenance/receipt.json",
+      "bytes": 2537,
+      "sha256": "f3e3a98e966e7b476931b0896d608fc70b872ba6e05298e58935f0cf6aa6249b"
+    },
+    {
+      "path": "representation-evidence/provenance/rustc.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "representation-evidence/provenance/rustc.stdout",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "representation-evidence/provenance/rustc.version.txt",
+      "bytes": 192,
+      "sha256": "352d6857968e80a6357a926ac685b9b07f77c479aaafde33e73a53945e802909"
+    },
+    {
+      "path": "representation-evidence/provenance/same-db-append-is-immutable-control.artifact.json",
+      "bytes": 1359,
+      "sha256": "c4f09afdc7f68f52992c83872cccd41481e845098eed1abaca553ef8514cfd99"
+    },
+    {
+      "path": "representation-evidence/provenance/same-db-append-is-immutable-control.diagnostics.txt",
+      "bytes": 3,
+      "sha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570"
+    },
+    {
+      "path": "representation-evidence/provenance/two-file-control.artifact.json",
+      "bytes": 2018,
+      "sha256": "04b6dfd440d5307ff1887ef86d2d8ba49983930cf3e4e0919c2e0ee66f8d7b4c"
+    },
+    {
+      "path": "representation-evidence/provenance/two-file-control.diagnostics.txt",
+      "bytes": 3,
+      "sha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570"
+    }
+  ]
+}

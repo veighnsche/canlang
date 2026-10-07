@@ -1,0 +1,81 @@
+{
+  "timestamp_utc": "2026-10-07T11:12:33.899415+00:00",
+  "commands": [
+    {
+      "argv": [
+        "rustc",
+        "--edition=2024",
+        "/private/tmp/canlang-step5-provenance.rs",
+        "--extern",
+        "canlang_compiler=/Users/vince/Projects/canlang/compiler/target/debug/libcanlang_compiler.rlib",
+        "-L",
+        "dependency=/Users/vince/Projects/canlang/compiler/target/debug/deps",
+        "-o",
+        "/private/tmp/canlang-step5-provenance/probe"
+      ],
+      "exit": 0
+    },
+    {
+      "argv": [
+        "/private/tmp/canlang-step5-provenance/probe",
+        "/private/tmp/canlang-step5-provenance",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json"
+      ],
+      "exit": 0
+    }
+  ],
+  "compiler_library_sha256": "1486166f24aeaf4bb7bf476270fdb32dc31fb17cccdfcb820c229dcfb3ab6d56",
+  "probe_source_sha256": "495d9ad8cb1e31c8b045bcce60dd26168c67eab68258085ce952a6db61022e1e",
+  "scope": "public API coherence probes only; no JavaScript execution or full suite",
+  "prior_attempt": "attempt1 receipt/stdout/stderr/source retained; first6 emission cases passed before invalid package grammar ordering fixture was rejected by analysis. Corrected fixture uses app grammar.",
+  "raw_build_verification": {
+    "argv": [
+      "cargo",
+      "build",
+      "--locked",
+      "--offline",
+      "--lib"
+    ],
+    "cwd": "/Users/vince/Projects/canlang/compiler",
+    "exit": 0,
+    "timestamp_utc": "2026-10-07T11:16:29.648027+00:00",
+    "stdout": "build-verify.stdout",
+    "stderr": "build-verify.stderr",
+    "reason": "retain raw capture after initially transcribed fresh build output; final source/library pins unchanged"
+  },
+  "library_unchanged_after_probe": true,
+  "post_probe_input_changes": [],
+  "build_tools": {
+    "rustc": {
+      "argv": [
+        "rustc",
+        "-Vv"
+      ],
+      "exit": 0
+    },
+    "cargo": {
+      "argv": [
+        "cargo",
+        "-V"
+      ],
+      "exit": 0
+    }
+  },
+  "independent_field_assertions": {
+    "two-file-control": {
+      "One.Thing": "ONE",
+      "Two.Thing": "TWO"
+    },
+    "foreign-db-swapped-files": {
+      "One.Thing": "TWO",
+      "Two.Thing": "ONE"
+    }
+  },
+  "passed_emission_cases": 8,
+  "limitations": [
+    "Deliberately mismatched public inputs, not failure of ordinary CLI OwnedAnalysis",
+    "SourceDb append control preserves original SourceId bytes",
+    "Artifacts asserted/inspected; JavaScript not executed",
+    "No full suite, installed/runtime/GUI/other-host or performance qualification"
+  ]
+}
