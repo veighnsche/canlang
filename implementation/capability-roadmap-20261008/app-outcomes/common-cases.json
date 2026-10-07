@@ -1,0 +1,242 @@
+{
+  "task": "SEQ-004",
+  "kind": "raw shared expected cases; unexecuted",
+  "instantiation": "Instantiate each case at each applicable matrix workflow. Frozen input, affected resources, current references, grants and expected domain writes come from that workflow row; an inapplicable provider/timer boundary is skipped, not the workflow itself.",
+  "cases": [
+    {
+      "id": "G-DUR-01",
+      "dimensions": [
+        "crash",
+        "failure"
+      ],
+      "applies_to": "All mutating workflow rows",
+      "trigger": "Crash separately before admission commit, after owning business commit but before response, after outbox/event/timer association commit, after external acceptance before receipt persistence, after verified progress persistence before business callback, and during multi-write callback/file finalization.",
+      "expected": "Uncommitted owning writes roll back together. Committed business state and original operation/send/event/timer/receipt identities remain durable. Crash never manufactures skipped/failed/cancelled/succeeded/zero usage or a second provider job/message. Associated verified progress stays observable if business callback rolled back. Incomplete file bytes are not admitted as finalized outputs. Unknown external acceptance remains unresolved until original identity reconciliation.",
+      "proof_needed": [
+        "D",
+        "P",
+        "X"
+      ],
+      "anchors": [
+        "draft/CanChat.md:13",
+        "draft/CanCreative.md:23",
+        "draft/CanApprove.md:75",
+        "draft/CanApprove.md:79",
+        "draft/WORKSPACE_OPERATOR.md:33"
+      ]
+    },
+    {
+      "id": "G-DUR-02",
+      "dimensions": [
+        "restart",
+        "replay"
+      ],
+      "applies_to": "All mutating workflow rows",
+      "trigger": "Restart durable app workers/controller/scheduler with committed requests, pending/skipped/unknown/accepted receipts, terminal progress with null usage, failed callbacks, active timers and original replay receipts.",
+      "expected": "Reload original durable contracts/current owner records. Resume safe work with original identity/binding, deduplicate domain effects, recheck grants/dispatch/timer eligibility. Business-rule callback failure remains visible until cause repaired and allowed reconcile re-notification; terminal unknown usage remains held. Reopened browser reads current retained run; no automatic new inference or review/notice. Provider restart losing unobserved output remains unknown.",
+      "proof_needed": [
+        "D",
+        "P",
+        "X"
+      ],
+      "anchors": [
+        "draft/CanChat.md:13",
+        "draft/CanChat.md:15",
+        "draft/CanChat.md:55",
+        "draft/CanCreative.md:23",
+        "draft/CanCreative.md:25",
+        "draft/CanApprove.md:79",
+        "draft/CanApprove.md:81"
+      ]
+    },
+    {
+      "id": "G-UPG-01",
+      "dimensions": [
+        "upgrade",
+        "restart",
+        "uncertain"
+      ],
+      "applies_to": "Every workflow including read/page projections and shared owners",
+      "trigger": "Change release/schema/adapter/provider endpoint/account/key namespace/installed capability while retained schedules, outbox intents, running/accepted/unknown requests, replay receipts, files and cross-package owner references exist; interrupt activation or partially restore.",
+      "expected": "Close affected admissions and fence all writers; preserve installed predecessor. Inventory old work, then drain/reconcile or retain compatible old release/binding/account/identity namespace for it. Never resend uncertain original work through a different account as retry. Restore compatible release/config/database/files/owner inventories/work contracts/provider associations together; validate exact references before reopening. Missing old account/file/owner or partial restore stays closed and unresolved. Restored local state cannot undo delivered email or completed generation; reconcile external observations accepted after checkpoint.",
+      "proof_needed": [
+        "D",
+        "P",
+        "X"
+      ],
+      "anchors": [
+        "draft/ADMIN_SURFACES.md:60",
+        "draft/ADMIN_SURFACES.md:66",
+        "draft/ADMIN_SURFACES.md:68",
+        "draft/ADMIN_SURFACES.md:70"
+      ],
+      "missing_details": "Concrete versions, compatible adapter migrations, installed graph resources, database/file checkpoints and restore procedures are not supplied by the app drafts."
+    },
+    {
+      "id": "G-BROW-01",
+      "dimensions": [
+        "crash",
+        "failure"
+      ],
+      "applies_to": "All page and browser interaction rows",
+      "trigger": "Tab/controller/browser crashes during form submission, polling, streaming, upload, modal reason edit, thumbnail or download; independent controller continues.",
+      "expected": "Browser loss alone neither cancels nor completes external work. Finalized file and committed record remain unchanged. Canonical operation result can be reread under current grants; unfinished upload never becomes submitted immutable version. Shared draft retention/discard confirmation and accessible failure presentation require browser evidence.",
+      "proof_needed": [
+        "B",
+        "D",
+        "P",
+        "X"
+      ],
+      "anchors": [
+        "draft/CanChat.md:11",
+        "draft/CanChat.md:48",
+        "draft/CanCreative.md:21",
+        "draft/CanApprove.md:36",
+        "draft/CanApprove.md:54"
+      ]
+    },
+    {
+      "id": "G-BROW-02",
+      "dimensions": [
+        "restart",
+        "replay",
+        "stale"
+      ],
+      "applies_to": "All page and browser interaction rows",
+      "trigger": "Reconnect/reload/reopen after generation/decision response loss, role/site/reviewer reassignment, conversation revoke or account removal.",
+      "expected": "Read current authorized retained snapshots and original operation results. Rerender allowed controls and leaves, preserve surviving drafts/errors, navigate to current authorized revision on conflict. Never resubmit solely because browser reconnected. Previously valid URL or cached ID is not an access grant.",
+      "proof_needed": [
+        "B",
+        "M",
+        "D",
+        "X"
+      ],
+      "anchors": [
+        "draft/CanChat.can:185",
+        "draft/CanChat.md:21",
+        "draft/CanCreative.md:27",
+        "draft/CanApprove.md:36",
+        "draft/CanApprove.md:65"
+      ]
+    },
+    {
+      "id": "G-MCP-01",
+      "dimensions": [
+        "success",
+        "denial",
+        "stale",
+        "replay"
+      ],
+      "applies_to": "Every canonical operation/read exposed through generated MCP, if exposure is enabled",
+      "trigger": "Invoke tool directly with exact current reference/version, then stale/foreign/cross-team/cross-site reference, changed same-ID payload, hidden leaf filter/aggregate or caller-supplied provider outcome.",
+      "expected": "Same canonical owning operation/actor/current-grant/revision and replay results as browser; tool cannot bypass budget/profile/published workflow/assignment/self-review/file grants. Denied leaves cannot serialize or enter filters/aggregates. Ordinary tool cannot forge progress, Notice.created, Due or EmployeeChanged. Technical provisioning/provider switching has no MCP business tool.",
+      "proof_needed": [
+        "M",
+        "D",
+        "X"
+      ],
+      "anchors": [
+        "draft/CanChat.md:35",
+        "draft/CanCreative.md:44",
+        "draft/CanApprove.md:98",
+        "draft/WORKSPACE_OPERATOR.md:62",
+        "draft/WORKSPACE_OPERATOR.md:70"
+      ],
+      "missing_details": "App .can declares operations/pages, not an implemented MCP transport or tested tool descriptors."
+    },
+    {
+      "id": "G-REF-01",
+      "dimensions": [
+        "denial",
+        "stale",
+        "failure"
+      ],
+      "applies_to": "Every operation and read accepting owning/cross-package/file references",
+      "trigger": "Pass nonexistent, foreign-owner/team/location, unreadable, wrong-type or stale-version ID; revoke grant between picker/render and canonical invoke or bytes fetch.",
+      "expected": "Owning source validates actual current typed reference and exact grant; stale version fails before writes where supplied. Error must not disclose hidden metadata. File references/exports do not transfer authority. Consequential decision reevaluates current eligible reviewer/profile/workflow/conversation, not cached choices.",
+      "proof_needed": [
+        "B",
+        "M",
+        "D",
+        "X"
+      ],
+      "anchors": [
+        "draft/CanApprove.md:73",
+        "draft/CanApprove.md:83",
+        "draft/CanChat.md:21",
+        "draft/CanCreative.md:27",
+        "draft/WORKSPACE_OPERATOR.md:37"
+      ]
+    },
+    {
+      "id": "G-PIN-01",
+      "dimensions": [
+        "failure",
+        "uncertain",
+        "upgrade"
+      ],
+      "applies_to": "All provider/backend/deployment-dependent rows",
+      "trigger": "Attempt execution acceptance with source-only/generated-JavaScript fixture, no pinned provider/resource allowlist/backend/file profile, or a changed deployment profile.",
+      "expected": "Evidence remains a desired source contract. Required real provider and durable/file profile outcomes remain open; fixture bytes/typed validation/receipt recipes/syntax checks cannot imply working inference, email dispatch, uploads, grant serialization, browser renderer, replay, timer or restore.",
+      "proof_needed": [
+        "D",
+        "P",
+        "X"
+      ],
+      "anchors": [
+        "draft/CanCreative.md:3",
+        "draft/CanCreative.md:13",
+        "draft/CanCreative.md:50",
+        "draft/CanChat.md:3",
+        "draft/CanChat.md:58",
+        "draft/CanApprove.md:96",
+        "draft/CanApprove.md:98"
+      ]
+    },
+    {
+      "id": "G-READ-01",
+      "dimensions": [
+        "crash",
+        "failure"
+      ],
+      "applies_to": "Pure viewer/query/derive/reference projections",
+      "trigger": "Reader/controller crashes mid-query, serialization, file authorization or response; mutable receipt/grant changes at read boundary.",
+      "expected": "No business mutation/send/accounting/timer caused by read or its failure. Withhold incomplete unauthorized response; do not reinterpret read failure as empty authoritative eligibility or successful download. Snapshot/grant fence preserves allowed leaves without leaking private data.",
+      "proof_needed": [
+        "B",
+        "M",
+        "D",
+        "X"
+      ],
+      "anchors": [
+        "draft/CanApprove.md:83",
+        "draft/CanApprove.md:98",
+        "draft/CanChat.md:21",
+        "draft/CanCreative.md:35"
+      ]
+    },
+    {
+      "id": "G-READ-02",
+      "dimensions": [
+        "restart",
+        "stale"
+      ],
+      "applies_to": "Pure viewer/query/derive/reference projections",
+      "trigger": "Reopen read after reader/app restart while source records, grants, membership, assignment or receipt status changed.",
+      "expected": "Read current authorized owner snapshot and actual requested immutable revision as appropriate; no cached permission, implicit mutable-record rewrite, provider resubmission or fabricated eligibility. Missing owner/file is explicit unavailable/recovery gap.",
+      "proof_needed": [
+        "B",
+        "M",
+        "D",
+        "X"
+      ],
+      "anchors": [
+        "draft/CanApprove.md:73",
+        "draft/CanApprove.md:81",
+        "draft/CanChat.md:21",
+        "draft/CanCreative.md:27",
+        "draft/ADMIN_SURFACES.md:68"
+      ]
+    }
+  ]
+}

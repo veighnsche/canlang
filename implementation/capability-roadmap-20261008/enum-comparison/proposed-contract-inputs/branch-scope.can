@@ -1,0 +1,18 @@
+## PROPOSED, uncompiled contract probe; no diagnostic adopted.
+app EnumCaseProbe
+Given
+ Probe {state:enum(a,b)=a}
+ Other {state:enum(other)=other}
+ policy Probe read=members
+ fixture probe=Probe {}
+When
+ scenario inspect(probe:Probe) read=true -> text by=members
+  do
+   let state=probe.state
+   match state
+    case a
+     let branch_value="A"
+    case b
+     let branch_value="B"
+   return branch_value
+Then

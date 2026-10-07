@@ -1,0 +1,18 @@
+## Bounded complete source witness for scalar defaults, references, and flat machines.
+app Bounded
+Given
+ Account { name:text="account" }
+ Job { title:text="test", count:int=1, enabled:bool=true, account:Account?, status:enum(idle,queued,ready)=idle machine }
+ policy Account read=public
+ policy Job read=public
+When
+ crud Account by=public fields=name
+ crud Job by=public fields=title,count,enabled,account
+ scenario advance(job:Job) by=public
+  do
+   transition job.status idle -> queued
+   transition job.status queued -> ready
+Then
+ page / title="Bounded"
+  list Job
+   text row.title,row.status

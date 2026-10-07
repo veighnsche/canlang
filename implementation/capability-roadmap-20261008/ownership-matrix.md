@@ -1,0 +1,15 @@
+# Ownership and handoff matrix (SEQ-002)
+
+Snapshot source: `db57c3794d386fcd27f17f54b199272d58106a81`. Package ownership rows reflect the coordinator's explicit 2026-10-08 report to root. Compiler status uses the recorded lease file only as historical evidence where it conflicts with the compiler owner's newer report. This is a handoff map for root review; it does not transfer ownership or accept work.
+
+| Owner/source group | Paths | Current state | Handoff / limits |
+|---|---|---|---|
+| Package coordinator | Git, `docs/specification/DECISIONS.md`, `docs/ideal-filetree-plan.md` | Retained | No Git or shared decision/file-tree edits under this assignment. |
+| Package coordinator / UI implementer | `packages/ui/src/browser/bootstrap.ts`, `polling.ts`, new lifecycle-cleanup test (exact path pending report) | Active lease | Busy; retain with current owner until explicit release. The static compiler UI receipt does not accept this package work. |
+| Package coordinator / files | `packages/files/src/upload/index.ts`, `finalize/index.ts`, `test/finalize-byte-count.test.ts` | Writer/readers released; commit in progress | Follow-on paths released per coordinator. The `d450130f` receipt qualifies localFS/persisted-copy byte count only. |
+| Compiler completion owner | `compiler/src/analysis/types.rs`, `resolve.rs`, `tests/bdd_checked_facts.rs`, one `tests/codegen.rs` function | Handoff pending | Compiler owner reports pending; older `owner-lease-status.json` is stale where it disagrees. BDD fact writer remains unaccepted pending frozen independent review. |
+| Compiler UI adapter leaf | `compiler/src/codegen/ir.rs`, `js.rs`, `tests/ui_adapter.rs` | Static Card/unbound Tabs receipt accepted at bounded scope | No broad release inferred. Queries, bound/ordered tabs, profiles, and broader compiler ownership remain open. |
+| State/Cloudflare/stdlib guards | Guard source, runtime/stdlib export route, stdlib root and assembly test | Scoped paths released at `b7e18b9b`; broader invocation owner foreign | Synchronous guard export and bounded revocation controls only; canonical read, subject-scoped, durable/deployed and broader role gaps remain. |
+| Package repair work | Identity, Cloudflare, values, files, services, state | Named scoped repairs have receipts | The source inventory pins each receipt. Accepted evidence is bounded: fanout memory retry freshness (`c7c98b71`), same-fanout checkpoint outcomes (`8a61be67`), localFS/persisted-copy finalization size (`d450130f`), owned JSON without installed join (`d4b041fb`), secrecy/read selectors (`89d885a9`), OAuth code consumption (`33f12d62`), S256 issuance (`1eeedb6d`), selected provider byte cap/cancel identity (`a73df865`). Whole canonical/durable/provider/app workflows remain open. |
+
+The coordinator reports Git, DECISIONS, and file-tree ownership retained; UI bootstrap/polling plus a lifecycle-cleanup test actively leased; files upload/finalize writer and readers released while commit is in progress. Root owns reconciling stale compiler lease notes and deciding exact compiler handoff. No contested ownership is decided here.

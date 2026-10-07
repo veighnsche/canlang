@@ -1,0 +1,1107 @@
+{
+  "task": "SEQ-004",
+  "kind": "raw case inputs and expected outcomes; unexecuted",
+  "source_examples_status": "Anchors identify authored causal recipes/sequence expectations only. Desired JavaScript/recipe snapshots do not establish live callback, provider, viewer or durable implementation.",
+  "cases": [
+    {
+      "id": "IMG-01",
+      "workflow_ids": [
+        "CC-02",
+        "CC-03"
+      ],
+      "dimensions": [
+        "success",
+        "denial",
+        "failure"
+      ],
+      "trigger": "Inspect/validate an authorized finalized API JSON graph; then wrong node/key/type, undeclared dangerous node, arbitrary path/network target/secret, uploaded JS or incompatible installed resource.",
+      "expected": "Typed inspection only; immutable validation snapshot. Reject whole unsafe/incompatible graph without enqueuing ComfyUI /prompt. Pinned syntactic fixture nodes 6/text,7/text,5/width,5/height are not a production workflow.",
+      "anchors": [
+        "draft/CanCreative.md:7",
+        "draft/CanCreative.md:9",
+        "draft/CanCreative.md:13"
+      ],
+      "proof_needed": [
+        "P",
+        "D",
+        "X"
+      ],
+      "authored_causal_example_anchors": [],
+      "execution_status": "not executed"
+    },
+    {
+      "id": "IMG-02",
+      "workflow_ids": [
+        "CC-03",
+        "CC-04",
+        "CC-06"
+      ],
+      "dimensions": [
+        "stale",
+        "upgrade",
+        "failure"
+      ],
+      "trigger": "Validate graph G/map M/digest D, then edit draft, publish old snapshot, change Template.current during old run, deactivate template or remove provider node/model.",
+      "expected": "Old immutable G/M/D and run stay unchanged; draft inspection clears; new jobs use selected current revision. Deactivation removes publication/file grant and prevents starts; runtime node/model removal is explicit failure, never graph substitution. Same identity G/M/D mismatch rejected.",
+      "anchors": [
+        "draft/CanCreative.can:62",
+        "draft/CanCreative.can:99",
+        "draft/CanCreative.md:11",
+        "draft/CanCreative.md:17",
+        "draft/CanCreative.md:50"
+      ],
+      "proof_needed": [
+        "B",
+        "M",
+        "D",
+        "P",
+        "X"
+      ],
+      "authored_causal_example_anchors": [],
+      "execution_status": "not executed"
+    },
+    {
+      "id": "IMG-03",
+      "workflow_ids": [
+        "CC-04"
+      ],
+      "dimensions": [
+        "success",
+        "denial",
+        "uncertain"
+      ],
+      "trigger": "Publish associated validation valid true/digest present; vary pending/failed/unknown/invalid/null digest, already published, nonowner.",
+      "expected": "Only exact succeeded valid unpublished snapshot publishes; intentional graph definition disclosure to current members. Every other case denies without changing Template.current.",
+      "anchors": [
+        "draft/CanCreative.can:80",
+        "draft/CanCreative.md:11"
+      ],
+      "proof_needed": [
+        "B",
+        "M",
+        "D",
+        "P",
+        "X"
+      ],
+      "authored_causal_example_anchors": [
+        "draft/CanCreative.can:86"
+      ],
+      "execution_status": "not executed"
+    },
+    {
+      "id": "IMG-04",
+      "workflow_ids": [
+        "CC-06",
+        "CC-05"
+      ],
+      "dimensions": [
+        "success",
+        "denial",
+        "replay"
+      ],
+      "trigger": "Budget cap=1/spent=0/held=0/run slots available then cap=1/spent=1, no revision, width=513; race two final-job admissions.",
+      "expected": "Exact cap admission produces one Run/held1/running1; exhausted/unpublished/invalid dimension produces no effects. Race admits only one; saved retry not another hold/job; dimensions retain declared 256..1536 and multiples64.",
+      "anchors": [
+        "draft/CanCreative.can:106",
+        "draft/CanCreative.md:17",
+        "draft/CanCreative.md:31"
+      ],
+      "proof_needed": [
+        "D",
+        "M",
+        "P",
+        "X"
+      ],
+      "authored_causal_example_anchors": [
+        "draft/CanCreative.can:106"
+      ],
+      "execution_status": "not executed"
+    },
+    {
+      "id": "IMG-05",
+      "workflow_ids": [
+        "CC-06",
+        "CC-07",
+        "CC-11"
+      ],
+      "dimensions": [
+        "denial",
+        "stale",
+        "uncertain"
+      ],
+      "trigger": "Foreign/inactive Conversation; revoked or membership-lost after admission before dispatch; delayed removal after rejoin; explicit from_turn prompt beyond image schema.",
+      "expected": "Canonical guard denies foreign/revoked context. Unsent start becomes authoritative skipped if current guard fails and can be released; started external work may complete but private content hidden. Rejoined current member unaffected by old removal event. Oversized copied text explicitly rejected, separate shorter studio input allowed.",
+      "anchors": [
+        "draft/CanCreative.can:113",
+        "draft/CanCreative.can:119",
+        "draft/CanCreative.can:142",
+        "draft/CanCreative.can:150",
+        "draft/CanCreative.md:19",
+        "draft/CanCreative.md:27"
+      ],
+      "proof_needed": [
+        "B",
+        "M",
+        "D",
+        "P",
+        "X"
+      ],
+      "authored_causal_example_anchors": [
+        "draft/CanCreative.can:113"
+      ],
+      "execution_status": "not executed"
+    },
+    {
+      "id": "IMG-06",
+      "workflow_ids": [
+        "CC-06",
+        "CC-08",
+        "CC-09"
+      ],
+      "dimensions": [
+        "uncertain",
+        "failure",
+        "replay"
+      ],
+      "trigger": "Provider accepts POST but response lost; cancel fails/unknown or success races stop; reconcile lookup; another member active job.",
+      "expected": "Retain original source/revision/provider account and uncertainty. Targeted cancel never global-interrupts other member; confirmed success wins race. Reconcile never enqueues replacement; new job only separate explicit budgeted action.",
+      "anchors": [
+        "draft/CanCreative.md:25",
+        "draft/CanCreative.md:50"
+      ],
+      "proof_needed": [
+        "D",
+        "P",
+        "X"
+      ],
+      "authored_causal_example_anchors": [],
+      "execution_status": "not executed"
+    },
+    {
+      "id": "IMG-07",
+      "workflow_ids": [
+        "CC-12"
+      ],
+      "dimensions": [
+        "success",
+        "uncertain",
+        "failure"
+      ],
+      "trigger": "pending fixture held1/spent0/running1 observes queued/null, unknown/null, succeeded/[position0 finalized image]/charged1, failed/[position0]/charged1, cancelled/[]/null.",
+      "expected": "queued or unknown -> held1/spent0/running1/usednull; succeeded or failed charged1 -> held0/spent1/running0/used1/output1; cancelled null -> held1/spent0/running0/usednull/output0. Failure may retain private recovery image; success requires 1..frozen output cap.",
+      "anchors": [
+        "draft/CanCreative.can:157",
+        "draft/CanCreative.md:31",
+        "draft/CanCreative.md:35"
+      ],
+      "proof_needed": [
+        "D",
+        "P",
+        "X"
+      ],
+      "authored_causal_example_anchors": [
+        "draft/CanCreative.can:173"
+      ],
+      "execution_status": "not executed"
+    },
+    {
+      "id": "IMG-08",
+      "workflow_ids": [
+        "CC-12"
+      ],
+      "dimensions": [
+        "replay",
+        "stale",
+        "failure"
+      ],
+      "trigger": "Replay settled position0; duplicate/older sequence; different delivery/source/revision; graph/map/digest change; terminal regression; changed finalized bytes at same position.",
+      "expected": "No second Output/held release/spent increment/running decrement. Older/duplicate ignored; association/identity/payload/terminal conflicts rejected. Same stable position cannot swap original file.",
+      "anchors": [
+        "draft/CanCreative.can:163",
+        "draft/CanCreative.can:170",
+        "draft/CanCreative.md:21",
+        "draft/CanCreative.md:23",
+        "draft/CanCreative.md:35"
+      ],
+      "proof_needed": [
+        "D",
+        "P",
+        "X"
+      ],
+      "authored_causal_example_anchors": [
+        "draft/CanCreative.can:180"
+      ],
+      "execution_status": "not executed"
+    },
+    {
+      "id": "IMG-09",
+      "workflow_ids": [
+        "CC-12"
+      ],
+      "dimensions": [
+        "success",
+        "replay"
+      ],
+      "trigger": "Previously terminal cancelled usednull/held1/running0 receives later sequence with charged_jobs=1; then re-notify.",
+      "expected": "used1/held0/spent1/running0; repeat changes none. No second terminal concurrency release. Different later charge rejected.",
+      "anchors": [
+        "draft/CanCreative.can:183",
+        "draft/CanCreative.md:31"
+      ],
+      "proof_needed": [
+        "D",
+        "P",
+        "X"
+      ],
+      "authored_causal_example_anchors": [
+        "draft/CanCreative.can:183"
+      ],
+      "execution_status": "not executed"
+    },
+    {
+      "id": "IMG-10",
+      "workflow_ids": [
+        "CC-12",
+        "CC-09"
+      ],
+      "dimensions": [
+        "failure",
+        "crash",
+        "restart",
+        "replay"
+      ],
+      "trigger": "Verified final snapshot persists, then accounting or Output creation callback fails; repair cause and reconcile returns same sequence.",
+      "expected": "Verified progress remains readable. Whole callback writes roll back. Technical retry or explicit successful reconcile re-notification commits one finalization/settlement without fabricated new provider sequence; business rule failure surfaced.",
+      "anchors": [
+        "draft/CanCreative.md:23",
+        "draft/CanCreative.md:50"
+      ],
+      "proof_needed": [
+        "D",
+        "P",
+        "X"
+      ],
+      "authored_causal_example_anchors": [],
+      "execution_status": "not executed"
+    },
+    {
+      "id": "IMG-11",
+      "workflow_ids": [
+        "CC-10"
+      ],
+      "dimensions": [
+        "success",
+        "denial",
+        "stale",
+        "replay"
+      ],
+      "trigger": "Original receipt skipped/progressnull/usednull/unfinished; compare pending/unknown/failed/progress-bearing/skipped after prior release.",
+      "expected": "Only authoritative never-dispatched receipt releases job+slot to used0/unfinishedfalse once. Every uncertain/already-settled variant denied without counter change. Current receipt fence protects new evidence.",
+      "anchors": [
+        "draft/CanCreative.can:137",
+        "draft/CanCreative.md:31"
+      ],
+      "proof_needed": [
+        "M",
+        "D",
+        "X"
+      ],
+      "authored_causal_example_anchors": [],
+      "execution_status": "not executed"
+    },
+    {
+      "id": "IMG-12",
+      "workflow_ids": [
+        "CC-13"
+      ],
+      "dimensions": [
+        "denial",
+        "failure",
+        "crash",
+        "restart"
+      ],
+      "trigger": "Provider returns preview URL/path/asset ID, foreign/partial file, invalid MIME/oversize/quota failure; crash midway authenticated image-byte retrieval/finalization.",
+      "expected": "No raw provider asset becomes Can Output. Verify authenticated PNG/JPEG bytes and quota, finalize immutable receiving-app file, then publish typed progress. No partial file visible; retry reconciles original asset/position; interrupted failures visible.",
+      "anchors": [
+        "draft/CanCreative.md:35",
+        "draft/CanCreative.md:50"
+      ],
+      "proof_needed": [
+        "B",
+        "D",
+        "P",
+        "X"
+      ],
+      "authored_causal_example_anchors": [],
+      "execution_status": "not executed"
+    },
+    {
+      "id": "IMG-13",
+      "workflow_ids": [
+        "CC-11",
+        "CC-13",
+        "CC-14"
+      ],
+      "dimensions": [
+        "denial",
+        "stale",
+        "success"
+      ],
+      "trigger": "Revoke conversation or remove member with up to ten image runs; poll image gallery/recovery and fetch old thumbnail/original URL after revocation.",
+      "expected": "All affected bounded active jobs targeted; private prompt/context/output/file hidden immediately; current original author-member sees only safe unresolved status/accounting. Trusted results may settle hidden jobs. Old thumbnail/file URL cannot grant access.",
+      "anchors": [
+        "draft/CanCreative.can:29",
+        "draft/CanCreative.can:30",
+        "draft/CanCreative.md:27",
+        "draft/CanCreative.md:33",
+        "draft/CanCreative.md:35"
+      ],
+      "proof_needed": [
+        "B",
+        "M",
+        "D",
+        "P",
+        "X"
+      ],
+      "authored_causal_example_anchors": [],
+      "execution_status": "not executed"
+    },
+    {
+      "id": "CHAT-01",
+      "workflow_ids": [
+        "CH-03"
+      ],
+      "dimensions": [
+        "success",
+        "denial",
+        "replay"
+      ],
+      "trigger": "Default profile reserve8192+2048=10240; allowance cap10240 versus cap10239, running2 with parallel2, foreign owner; second unresolved same branch.",
+      "expected": "Exact cap -> one Run/user Turn/held10240/running1/state null/usednull. Below cap, full concurrency, foreign owner or overlapping branch -> no committed additional business effects. Retry same operation unchanged.",
+      "anchors": [
+        "draft/CanChat.can:74",
+        "draft/CanChat.can:84",
+        "draft/CanChat.can:91"
+      ],
+      "proof_needed": [
+        "M",
+        "D",
+        "P",
+        "X"
+      ],
+      "authored_causal_example_anchors": [
+        "draft/CanChat.can:84",
+        "draft/CanChat.can:91"
+      ],
+      "execution_status": "not executed"
+    },
+    {
+      "id": "CHAT-02",
+      "workflow_ids": [
+        "CH-03",
+        "CH-04"
+      ],
+      "dimensions": [
+        "success",
+        "denial",
+        "stale",
+        "failure"
+      ],
+      "trigger": "Full ordered immutable branch prefix+turn history+system policy/files; 119 versus120 prior messages; <=8 versus9 attachments; actual input tokens exceeded/model file feature unsupported.",
+      "expected": "Freeze complete ordered input; 119 prior messages may admit only if shared limits fit, 120 fails; never silent truncate. Ninth/unreadable/foreign/partial/raw URL attachment rejected; unsupported kind/feature explicit binding failure. New profile for model policy change; prior run frozen.",
+      "anchors": [
+        "draft/CanChat.can:66",
+        "draft/CanChat.can:76",
+        "draft/CanChat.md:7",
+        "draft/CanChat.md:9"
+      ],
+      "proof_needed": [
+        "B",
+        "M",
+        "D",
+        "P",
+        "X"
+      ],
+      "authored_causal_example_anchors": [],
+      "execution_status": "not executed"
+    },
+    {
+      "id": "CHAT-03",
+      "workflow_ids": [
+        "CH-03",
+        "CH-08",
+        "CH-11"
+      ],
+      "dimensions": [
+        "crash",
+        "restart",
+        "uncertain"
+      ],
+      "trigger": "Disconnect browser during NDJSON generation while independent controller lives, reopen; provider process restarts and loses unobserved output.",
+      "expected": "Browser reconnect reads same retained run; no cancellation/completion/resubmission implied. Provider loss returns unknown; no token-resume or fresh automatic inference. Original hold/slot stay until authoritative execution evidence.",
+      "anchors": [
+        "draft/CanChat.md:11",
+        "draft/CanChat.md:48",
+        "draft/CanChat.md:55"
+      ],
+      "proof_needed": [
+        "B",
+        "D",
+        "P",
+        "X"
+      ],
+      "authored_causal_example_anchors": [],
+      "execution_status": "not executed"
+    },
+    {
+      "id": "CHAT-04",
+      "workflow_ids": [
+        "CH-09",
+        "CH-11"
+      ],
+      "dimensions": [
+        "failure",
+        "denial"
+      ],
+      "trigger": "HTTP-200 stream carries partial text then protocol/provider error; text contains HTML/script; private model reasoning emitted by provider.",
+      "expected": "Retain escaped cumulative partial as incomplete; do not create completed assistant Turn. Never execute returned markup or expose provider private reasoning. Generation failure separate from submission receipt.",
+      "anchors": [
+        "draft/CanChat.md:11",
+        "draft/CanChat.md:49"
+      ],
+      "proof_needed": [
+        "B",
+        "P",
+        "D",
+        "X"
+      ],
+      "authored_causal_example_anchors": [],
+      "execution_status": "not executed"
+    },
+    {
+      "id": "CHAT-05",
+      "workflow_ids": [
+        "CH-05",
+        "CH-08"
+      ],
+      "dimensions": [
+        "success",
+        "denial",
+        "uncertain"
+      ],
+      "trigger": "Actual ask with attachment -> overlapping ask -> other-account stop -> owner stop -> owner revoke; stop races authenticated final success.",
+      "expected": "First pending Run state/usednull held10240 and user Turn1; overlap/foreign stop denied; owner stop changes request flag/receipt only; revoke activefalse with hold retained. Final success remains success and authenticated usage rather than forced cancellation.",
+      "anchors": [
+        "draft/CanChat.can:91",
+        "draft/CanChat.md:15",
+        "draft/CanChat.md:50"
+      ],
+      "proof_needed": [
+        "B",
+        "M",
+        "D",
+        "P",
+        "X"
+      ],
+      "authored_causal_example_anchors": [
+        "draft/CanChat.can:91"
+      ],
+      "execution_status": "not executed"
+    },
+    {
+      "id": "CHAT-06",
+      "workflow_ids": [
+        "CH-09"
+      ],
+      "dimensions": [
+        "success",
+        "uncertain",
+        "failure"
+      ],
+      "trigger": "pending held10240/spent0/running1/question1 observes succeeded content Hello back/used100; running Partial/null; unknown Partial/null; cancelled Partial/null; failed empty/used0.",
+      "expected": "success -> used100/held0/spent100/running0/turns2; running or unknown -> usednull/held10240/spent0/running1/turns1; cancelled unknown usage -> held10240/running0/turns1; failed used0 -> held0/spent0/running0/turns1.",
+      "anchors": [
+        "draft/CanChat.can:153",
+        "draft/CanChat.md:23"
+      ],
+      "proof_needed": [
+        "D",
+        "P",
+        "X"
+      ],
+      "authored_causal_example_anchors": [
+        "draft/CanChat.can:168"
+      ],
+      "execution_status": "not executed"
+    },
+    {
+      "id": "CHAT-07",
+      "workflow_ids": [
+        "CH-09"
+      ],
+      "dimensions": [
+        "replay",
+        "stale",
+        "denial"
+      ],
+      "trigger": "Repeat succeeded callback with existing answer and settled usage; unrelated original receipt; duplicate/older sequence; identity/payload conflict/terminal regression/usage>reserve.",
+      "expected": "No duplicate answer/hold release/spend/slot decrement. Unrelated original receipt changes nothing. Shared progress rejects identity/payload/terminal or overbound conflicts and ignores older observations.",
+      "anchors": [
+        "draft/CanChat.can:175",
+        "draft/CanChat.can:178",
+        "draft/CanChat.md:23"
+      ],
+      "proof_needed": [
+        "D",
+        "P",
+        "X"
+      ],
+      "authored_causal_example_anchors": [
+        "draft/CanChat.can:175",
+        "draft/CanChat.can:178"
+      ],
+      "execution_status": "not executed"
+    },
+    {
+      "id": "CHAT-08",
+      "workflow_ids": [
+        "CH-09"
+      ],
+      "dimensions": [
+        "success",
+        "replay"
+      ],
+      "trigger": "Terminal cancelled with usednull and running0 later receives used_tokens42.",
+      "expected": "used42/held0/spent42/running0/turns1; repeated late usage never decrements slot/settles twice; changed nonnull usage rejected.",
+      "anchors": [
+        "draft/CanChat.can:181",
+        "draft/CanChat.md:23"
+      ],
+      "proof_needed": [
+        "D",
+        "P",
+        "X"
+      ],
+      "authored_causal_example_anchors": [
+        "draft/CanChat.can:181"
+      ],
+      "execution_status": "not executed"
+    },
+    {
+      "id": "CHAT-09",
+      "workflow_ids": [
+        "CH-06",
+        "CH-09"
+      ],
+      "dimensions": [
+        "failure",
+        "crash",
+        "restart",
+        "replay"
+      ],
+      "trigger": "Verified final progress retained, callback fails; repair and reconcile returns exact same sequence.",
+      "expected": "Original current snapshot remains readable; business allowance/Turn writes roll back. Same-sequence re-notification commits one final Turn/settlement after repair; no new inference or artificial sequence.",
+      "anchors": [
+        "draft/CanChat.md:13",
+        "draft/CanChat.md:53"
+      ],
+      "proof_needed": [
+        "D",
+        "P",
+        "X"
+      ],
+      "authored_causal_example_anchors": [],
+      "execution_status": "not executed"
+    },
+    {
+      "id": "CHAT-10",
+      "workflow_ids": [
+        "CH-04"
+      ],
+      "dimensions": [
+        "success",
+        "denial",
+        "stale",
+        "replay"
+      ],
+      "trigger": "Regenerate terminal user question versus assistant answer versus unresolved user run, including late result from original branch.",
+      "expected": "Terminal user prompt creates separate Branch with exact preceding frozen prefix/profile/files and canonical ask; original branch unchanged. Assistant/unresolved/unknown execution denied. Late output belongs only own run branch; retry creates no duplicate alternative.",
+      "anchors": [
+        "draft/CanChat.can:104",
+        "draft/CanChat.md:17"
+      ],
+      "proof_needed": [
+        "B",
+        "M",
+        "D",
+        "P",
+        "X"
+      ],
+      "authored_causal_example_anchors": [
+        "draft/CanChat.can:111"
+      ],
+      "execution_status": "not executed"
+    },
+    {
+      "id": "CHAT-11",
+      "workflow_ids": [
+        "CH-08",
+        "CH-10"
+      ],
+      "dimensions": [
+        "denial",
+        "stale",
+        "success"
+      ],
+      "trigger": "Owner revokes, member removed, delayed removal after account rejoins; query transcript/partial/file/aggregate/filter through browser or MCP.",
+      "expected": "Current grants hide branch/turn/files/partial; safe recovery contains only allowed status/accounting. All up-to-ten affected active replies targeted; delayed old removal sees current rejoin and does not cancel newly authorized work. Accounting can finish while content hidden.",
+      "anchors": [
+        "draft/CanChat.can:28",
+        "draft/CanChat.can:29",
+        "draft/CanChat.can:143",
+        "draft/CanChat.md:21",
+        "draft/CanChat.md:25",
+        "draft/CanChat.md:54"
+      ],
+      "proof_needed": [
+        "B",
+        "M",
+        "D",
+        "P",
+        "X"
+      ],
+      "authored_causal_example_anchors": [
+        "draft/CanChat.can:150"
+      ],
+      "execution_status": "not executed"
+    },
+    {
+      "id": "APP-01",
+      "workflow_ids": [
+        "CA-02"
+      ],
+      "dimensions": [
+        "success",
+        "denial",
+        "stale"
+      ],
+      "trigger": "Candidates named Alex twice, absent work name, inactive Employee, role-text Reviewer without actual role; scoped coordinator/site-loss; nonstaff operator-wide submitter.",
+      "expected": "Distinct real user refs disambiguate equal names; missing name falls back opaque ID; only active viewer-readable candidates with actual role/current site eligible. Exclude caller and submitter; ordinary Reviewer label irrelevant. Nonstaff null scope may have empty authorized work list without narrowing opaque role-only admission.",
+      "anchors": [
+        "draft/CanApprove.can:56",
+        "draft/CanApprove.md:83"
+      ],
+      "proof_needed": [
+        "B",
+        "M",
+        "D",
+        "X"
+      ],
+      "authored_causal_example_anchors": [
+        "draft/CanApprove.can:59"
+      ],
+      "execution_status": "not executed"
+    },
+    {
+      "id": "APP-02",
+      "workflow_ids": [
+        "CA-03",
+        "CA-14"
+      ],
+      "dimensions": [
+        "success",
+        "failure",
+        "stale"
+      ],
+      "trigger": "Upload replacement fails versus finalized replacement exists but submit fails due=now; then successful pending replacement; attempt old reviewer open version.",
+      "expected": "Upload never swaps previously submitted immutable file. Failed business due admission preserves old pending file/state/notice/timer. Successful submit withdraws old pending while retaining original bytes, adds new revision/file/request/due; old opened envelope conflicts. Failed upload transport still needs real evidence beyond fixture.",
+      "anchors": [
+        "draft/CanApprove.can:141",
+        "draft/CanApprove.md:36",
+        "draft/CanApprove.md:54",
+        "draft/CanApprove.md:98"
+      ],
+      "proof_needed": [
+        "B",
+        "M",
+        "D",
+        "X"
+      ],
+      "authored_causal_example_anchors": [
+        "draft/CanApprove.can:141"
+      ],
+      "execution_status": "not executed"
+    },
+    {
+      "id": "APP-03",
+      "workflow_ids": [
+        "CA-05",
+        "CA-10"
+      ],
+      "dimensions": [
+        "success",
+        "denial",
+        "replay"
+      ],
+      "trigger": "Create Document -> original submission -> reject Replace page two -> attempt finalized reassignment -> replacement -> approve Approved with conditions.",
+      "expected": "Original=rejected/reason Replace page two/decided_by original reviewer; replacement=approved/conditions/actor preserved; both exact downloads and distinct decision Notices. Reassign rejected version denied. Canonical saved decision retry same result; fresh finalized decision denied; no duplicate Notice.",
+      "anchors": [
+        "draft/CanApprove.can:118",
+        "draft/CanApprove.md:64",
+        "draft/CanApprove.md:75"
+      ],
+      "proof_needed": [
+        "B",
+        "M",
+        "D",
+        "P",
+        "X"
+      ],
+      "authored_causal_example_anchors": [
+        "draft/CanApprove.can:118"
+      ],
+      "execution_status": "not executed"
+    },
+    {
+      "id": "APP-04",
+      "workflow_ids": [
+        "CA-04",
+        "CA-05",
+        "CA-11"
+      ],
+      "dimensions": [
+        "denial",
+        "stale",
+        "success"
+      ],
+      "trigger": "Ordinary user reassign attempt; current scoped coordinator replaces assignee; former reviewer sends stale envelope and then fresh unassigned request; replacement decides.",
+      "expected": "Ordinary user forbidden and sees no records. Assignment increments with frozen same file and attributed old/new Notice recipients. Stale request conflict; fresh former assignee rule_failed; only ONE replacement reviewer decides. No quorum alternative.",
+      "anchors": [
+        "draft/CanApprove.can:141",
+        "draft/CanApprove.can:198",
+        "draft/CanApprove.md:65",
+        "draft/CanApprove.md:77"
+      ],
+      "proof_needed": [
+        "B",
+        "M",
+        "D",
+        "X"
+      ],
+      "authored_causal_example_anchors": [
+        "draft/CanApprove.can:141",
+        "draft/CanApprove.can:204"
+      ],
+      "execution_status": "not executed"
+    },
+    {
+      "id": "APP-05",
+      "workflow_ids": [
+        "CA-05"
+      ],
+      "dimensions": [
+        "success",
+        "denial",
+        "stale"
+      ],
+      "trigger": "Assigned reviewer approve true with conditions, reject false with nonblank reason; self, unassigned, blank rejection, actual role lost, site can_work lost or old revision.",
+      "expected": "Exact original file remains; approval conditions/rejection reason/actor/time saved. Self/unassigned/current-role loss/site loss/blank rejection denied; stale envelope conflicts. Functional role text cannot grant authority; approval is document decision only.",
+      "anchors": [
+        "draft/CanApprove.can:219",
+        "draft/CanApprove.md:23",
+        "draft/CanApprove.md:73"
+      ],
+      "proof_needed": [
+        "B",
+        "M",
+        "D",
+        "X"
+      ],
+      "authored_causal_example_anchors": [
+        "draft/CanApprove.can:228",
+        "draft/CanApprove.can:237"
+      ],
+      "execution_status": "not executed"
+    },
+    {
+      "id": "APP-06",
+      "workflow_ids": [
+        "CA-06"
+      ],
+      "dimensions": [
+        "success",
+        "denial",
+        "stale"
+      ],
+      "trigger": "Own member withdraws pending after workplace loss; unrelated actor withdraws or tries finalized approved/rejected.",
+      "expected": "Own pending becomes withdrawn and due cancelled; file/history preserved even after submitter workplace loss. Others/finalized denied; stale races conflict; no deletion of prior decisions.",
+      "anchors": [
+        "draft/CanApprove.can:242",
+        "draft/CanApprove.md:73"
+      ],
+      "proof_needed": [
+        "B",
+        "M",
+        "D",
+        "X"
+      ],
+      "authored_causal_example_anchors": [
+        "draft/CanApprove.can:247"
+      ],
+      "execution_status": "not executed"
+    },
+    {
+      "id": "APP-07",
+      "workflow_ids": [
+        "CA-04",
+        "CA-07",
+        "CA-08"
+      ],
+      "dimensions": [
+        "success",
+        "denial",
+        "stale",
+        "replay"
+      ],
+      "trigger": "Old due fires after replacement/reassignment/withdrawal/decision; early due event; reviewer role/site loss; overdue eligible reassignment; retry same occurrence.",
+      "expected": "Reminder requires current pending revision+assignment and now>=due/current reviewer eligibility. Suppress old/early/ineligible occurrences. Overdue reassignment retains due and replaces schedule at now. Duplicate occurrence/event/dispatch does not create duplicate logical reminder/message. Dispatch repeats current guards.",
+      "anchors": [
+        "draft/CanApprove.can:252",
+        "draft/CanApprove.can:203",
+        "draft/CanApprove.can:268",
+        "draft/CanApprove.md:79"
+      ],
+      "proof_needed": [
+        "D",
+        "P",
+        "X"
+      ],
+      "authored_causal_example_anchors": [
+        "draft/CanApprove.can:215",
+        "draft/CanApprove.can:255"
+      ],
+      "execution_status": "not executed"
+    },
+    {
+      "id": "APP-08",
+      "workflow_ids": [
+        "CA-08"
+      ],
+      "dimensions": [
+        "replay",
+        "crash",
+        "restart",
+        "uncertain"
+      ],
+      "trigger": "Notice commits then event worker crashes; event delivered twice; original pending Mail accepted but response lost; role/site/revision/assignment changes before enqueue/dispatch.",
+      "expected": "Reload committed Notice; no public Notice.create. Associate one frozen logical Mail.send when delivery null. Existing association stops duplicate events. Original actor/time retained. Request/reminder current eligibility gates can skip; decision historical Notice independent. Unknown original delivery never warrants duplicate message or decision.",
+      "anchors": [
+        "draft/CanApprove.can:264",
+        "draft/CanApprove.md:79",
+        "draft/CanApprove.md:81"
+      ],
+      "proof_needed": [
+        "D",
+        "P",
+        "X"
+      ],
+      "authored_causal_example_anchors": [],
+      "execution_status": "not executed"
+    },
+    {
+      "id": "APP-09",
+      "workflow_ids": [
+        "CA-09"
+      ],
+      "dimensions": [
+        "success",
+        "failure",
+        "uncertain",
+        "denial"
+      ],
+      "trigger": "Selected Notice receipt status varies null/pending/succeeded/failed/unknown/skipped while unrelated receipt fails; approved decision notice fails.",
+      "expected": "Unassociated null truthful; associated status only original receipt. Detached failed receipt irrelevant. Failed/unknown email preserves approved exact file/reason/actor/time/deadline/versions. Notice audiences get listed safe status+ID, never provider result/error/private request via serialization/filter/aggregate.",
+      "anchors": [
+        "draft/CanApprove.can:73",
+        "draft/CanApprove.can:82",
+        "draft/CanApprove.md:81",
+        "draft/CanApprove.md:98"
+      ],
+      "proof_needed": [
+        "B",
+        "M",
+        "D",
+        "P",
+        "X"
+      ],
+      "authored_causal_example_anchors": [
+        "draft/CanApprove.can:73",
+        "draft/CanApprove.can:82"
+      ],
+      "execution_status": "not executed"
+    },
+    {
+      "id": "APP-10",
+      "workflow_ids": [
+        "CA-12",
+        "EM-02"
+      ],
+      "dimensions": [
+        "success",
+        "denial",
+        "stale"
+      ],
+      "trigger": "HR deactivates assigned reviewer; static reviewer role remains; viewer choices before/after; coordinator recovers exact file/note/due and stale assignment retry; separately revoke actual role/team live.",
+      "expected": "Site can_work false despite static reviewer role; candidate removed and decide fails; normal scoped coordinator reassigns same revision/file/note/due to eligible replacement, increments assignment, old envelope conflicts, replacement approves. Authored Employee deactivation is not proof of live team/role revocation; those remain separate required cases.",
+      "anchors": [
+        "draft/CanApprove.can:171",
+        "draft/CanApprove.md:73",
+        "draft/CanApprove.md:94",
+        "draft/CanApprove.md:98"
+      ],
+      "proof_needed": [
+        "B",
+        "M",
+        "D",
+        "X"
+      ],
+      "authored_causal_example_anchors": [
+        "draft/CanApprove.can:171"
+      ],
+      "execution_status": "not executed"
+    },
+    {
+      "id": "APP-11",
+      "workflow_ids": [
+        "CA-13",
+        "CA-14"
+      ],
+      "dimensions": [
+        "stale",
+        "failure",
+        "denial"
+      ],
+      "trigger": "Browser older review open -> replacement conflict -> current request; reassignment control loss; rejection reason draft fails; narrow-screen/modal focus; old file URL.",
+      "expected": "Current authorized revision link/conflict state; former reviewer loses controls; reason draft retained and confirm discard; revision/deadline/rejection reason visible on narrow screen; accessible modal focus. Download exact revision under current grant; cached URL cannot bypass. Preference filters never widen record grant.",
+      "anchors": [
+        "draft/CanApprove.md:36",
+        "draft/CanApprove.md:40",
+        "draft/CanApprove.md:65"
+      ],
+      "proof_needed": [
+        "B",
+        "M",
+        "X"
+      ],
+      "authored_causal_example_anchors": [],
+      "execution_status": "not executed"
+    },
+    {
+      "id": "EMP-01",
+      "workflow_ids": [
+        "EM-01",
+        "EM-03"
+      ],
+      "dimensions": [
+        "success",
+        "denial",
+        "replay"
+      ],
+      "trigger": "HR modifies home/locations/operator_wide/active/start/end/role/skills versus name/private_notes/manager/document-only; active staff/own authenticated/other worker reads.",
+      "expected": "Changed work fields emit owning EmployeeChanged(after.version); excluded changes do not. Work viewer sees exact work leaves, HR sees permitted full rows, authenticated own row has explicit own grant. No cloning/auth directory substitution, no duplicate event consequences on replay.",
+      "anchors": [
+        "draft/shared/Employees.can:10",
+        "draft/shared/Employees.can:22"
+      ],
+      "proof_needed": [
+        "M",
+        "D",
+        "X"
+      ],
+      "authored_causal_example_anchors": [],
+      "execution_status": "not executed"
+    },
+    {
+      "id": "EMP-02",
+      "workflow_ids": [
+        "EM-04",
+        "CA-02",
+        "CA-05"
+      ],
+      "dimensions": [
+        "success",
+        "denial",
+        "stale"
+      ],
+      "trigger": "Employee active current member with home/location/operator_wide versus inactive/member removed; actual approve role absent or lost; Location active=false.",
+      "expected": "can_work depends on active Employee/current team and home/locations/operator_wide; review actual role remains separate. Source does not add Location.active to can_work. Null-scope original review guards retain role-only behavior; reconcile broad workspace work-identity requirement separately without inventing hidden eligibility rule.",
+      "anchors": [
+        "draft/shared/Employees.can:8",
+        "draft/shared/Employees.can:9",
+        "draft/CanApprove.md:73",
+        "draft/CanApprove.md:83",
+        "draft/WORKSPACE_OPERATOR.md:74"
+      ],
+      "proof_needed": [
+        "M",
+        "D",
+        "X"
+      ],
+      "authored_causal_example_anchors": [],
+      "execution_status": "not executed"
+    },
+    {
+      "id": "LOC-01",
+      "workflow_ids": [
+        "LO-01",
+        "LO-02"
+      ],
+      "dimensions": [
+        "success",
+        "denial",
+        "stale",
+        "replay"
+      ],
+      "trigger": "Canonical create/update Location, WeeklyHours, ClosedDate, DateHours; concurrent calendar edits; replay event; catalog owner lacks site work grant.",
+      "expected": "Each of eight authored create/update hook kinds retains complete immutable next policy with matching source state; scoped unauthorized edits denied. Concurrent sequence/state is serialized; replay no duplicate snapshot. Public calendar leaves never confer Employee or document permissions.",
+      "anchors": [
+        "draft/shared/Locations.can:29",
+        "draft/shared/Locations.can:33",
+        "draft/shared/Locations.can:61"
+      ],
+      "proof_needed": [
+        "M",
+        "D",
+        "X"
+      ],
+      "authored_causal_example_anchors": [],
+      "execution_status": "not executed"
+    },
+    {
+      "id": "LOC-02",
+      "workflow_ids": [
+        "LO-03"
+      ],
+      "dimensions": [
+        "success",
+        "denial",
+        "failure",
+        "stale"
+      ],
+      "trigger": "Weekly normal/overnight interval, dated replacement/closed exception, closed day touched, Europe/Brussels repeated time earlier/later and missing local instant; >1000 date/work bound; compare current is_open with old policy_open.",
+      "expected": "Active positive interval only if wholly within resolved opening and no closed date/day touched. Dated exception overrides weekly; overnight handles previous local date; fold explicit. Frozen policy unchanged after calendar edit. Invalid/nonexistent/bounded-work failures explicit, no silently open/truncated result. Concrete DST/cap helper execution remains required.",
+      "anchors": [
+        "draft/shared/Locations.can:15",
+        "draft/shared/Locations.can:20",
+        "draft/shared/Locations.can:22",
+        "draft/shared/Locations.can:23"
+      ],
+      "proof_needed": [
+        "D",
+        "X"
+      ],
+      "authored_causal_example_anchors": [],
+      "execution_status": "not executed"
+    }
+  ]
+}

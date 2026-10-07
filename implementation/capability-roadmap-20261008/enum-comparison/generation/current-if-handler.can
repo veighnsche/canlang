@@ -1,0 +1,24 @@
+ ## Added bounded comparison handler; current grammar, uncompiled evidence.
+ scenario status_text(job:Job) read=true -> text by=members
+  do
+   let state=job.status
+   if state==idle
+    return "Ready to queue"
+   else
+    if state==queued
+     return "Queued for generation"
+    else
+     if state==generating
+      return "Generating"
+     else
+      if state==ready
+       return "Generation complete"
+      else
+       return "Generation failed"
+  examples job=job
+   as,job.status -> result
+   members,idle -> "Ready to queue"
+   members,queued -> "Queued for generation"
+   members,generating -> "Generating"
+   members,ready -> "Generation complete"
+   members,failed -> "Generation failed"
