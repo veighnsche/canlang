@@ -8,6 +8,8 @@ This is the detailed execution proposal accompanying the [audit](README.md), pin
 
 **Clarified production-reduction requirement, 2026-10-07:** correctness/retirement qualification does not complete the user's simplification objective. Every further substitution must show a material net reduction across its complete production adapter/caller closure, with equivalent behavior and fewer owned mechanisms; tests, lockfiles and binary size are separate. Do not use formatting, relocation or contract weakening to manufacture a reduction. The [bounded follow-up](production-reduction/README.md) records the first checked LSP projection reduction and the remaining assessment gates. Its economical delegation and coherent commit rules apply to each packet.
 
+The proposed [compiler correctness, ownership and simplicity audit](compiler-correctness-simplicity-audit.md) defines the next broader review and repair-packet preparation. It challenges adapter obligations and covers semantic stages/workflows beyond this historical utility sequence. It does not reopen completed receipts or authorize all conditional migrations; its planning exit precedes downstream implementation.
+
 ## Pass 0 Establish the contracts and regression witnesses
 
 **Priority and effort:** first, bounded preparation. It should produce implementable packets rather than reopen the entire repository audit.
