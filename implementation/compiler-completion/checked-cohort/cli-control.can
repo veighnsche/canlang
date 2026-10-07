@@ -1,0 +1,5 @@
+app Shop
+Given
+ Gadget { title:text="OLD" }
+When
+Then

@@ -1,0 +1,5 @@
+app Review
+Given
+ Record { title:text="PINNED" }
+When
+Then

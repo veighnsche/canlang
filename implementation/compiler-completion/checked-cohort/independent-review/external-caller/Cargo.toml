@@ -1,0 +1,6 @@
+[package]
+name="checked-cohort-independent-caller"
+version="0.0.0"
+edition="2024"
+[dependencies]
+canlang-compiler = { path="/private/tmp/can-checked-cohort-independent-review/compiler" }

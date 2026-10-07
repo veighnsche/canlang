@@ -1,0 +1,13 @@
+{
+  "compiler/src/analysis/mod.rs": "4debfe707daf81d33d5f67e10b3a0da3d1f0bd0e465c62204ae8ace19fef99ec",
+  "compiler/src/analysis/catalog.rs": "af4aa22270db711cd251c3e0df433004b33f1b4f7f6367775ffa0668c488306c",
+  "compiler/src/source.rs": "892d2b869cd9cf2ad4416cd994b6ae5908922b76badb1356ab4ae9784950f43a",
+  "compiler/src/codegen/mod.rs": "abf74f2bd5a0bf2dd9cd0602ed142232f6d5f3bfd84bdd6983d9c2231129bc7b",
+  "compiler/src/codegen/ir.rs": "e8c2554ace88f61569e977598020a34ea4b8002d1ed3d7829507719a65a5422a",
+  "compiler/src/codegen/artifact.rs": "5ee76bea1b84bb36985e99277292e688f02ae9097257ecafbb5571774c2c5d61",
+  "compiler/src/cli.rs": "0e9eb7cfd2ee3e20ac9238c67872800cbe99911b3b799fa2616526f9be5a1f94",
+  "compiler/src/docs.rs": "75a2467fc392b1186ae751f866705c2d5bff33aed5dd68ec0fb7998a23e4ea70",
+  "compiler/src/policy.rs": "7cf5e8ee4a882bf0e8b9a5a807cf71b32c9ac5dd0ee5ae175afa576d28dc9205",
+  "compiler/src/lint/driver.rs": "c16c9473a594066de41ebf88e1409584bd8fbb9375a94f110a964a19307a17dc",
+  "compiler/src/ide/queries.rs": "af6efb8eba9bfb55cbfeec6e9f8a303991746c96fa8e08c1fe84db7ee19a5fd5"
+}

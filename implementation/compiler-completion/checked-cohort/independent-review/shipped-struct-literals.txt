@@ -1,0 +1,4 @@
+compiler/src/analysis/mod.rs:93:pub struct CheckedProgram {
+compiler/src/analysis/mod.rs:113:impl CheckedProgram {
+compiler/src/analysis/mod.rs:170:    let program = CheckedProgram {
+compiler/src/ide/queries.rs:264:    pub fn program(&self) -> &CheckedProgram {

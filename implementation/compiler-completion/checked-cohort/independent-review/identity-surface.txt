@@ -1,0 +1,68 @@
+compiler/src/source.rs:10:/// Canonical identity of one source text within a [`SourceDb`].
+compiler/src/source.rs:12:pub struct SourceId(pub u32);
+compiler/src/source.rs:16:pub struct Source {
+compiler/src/source.rs:29:pub struct SourceDb {
+compiler/src/source.rs:33:    identity: Arc<()>,
+compiler/src/source.rs:38:    pub fn new() -> Self {
+compiler/src/source.rs:42:    pub(crate) fn identity(&self) -> &Arc<()> {
+compiler/src/source.rs:43:        &self.identity
+compiler/src/source.rs:50:    pub fn add(&mut self, path: String, text: String) -> SourceId {
+compiler/src/source.rs:59:    pub fn get(&self, id: SourceId) -> Option<&Source> {
+compiler/src/source.rs:64:    pub fn lookup(&self, path: &str) -> Option<SourceId> {
+compiler/src/source.rs:69:    pub fn iter(&self) -> impl Iterator<Item = (SourceId, &Source)> {
+compiler/src/source.rs:77:    pub fn len(&self) -> usize {
+compiler/src/source.rs:82:    pub fn is_empty(&self) -> bool {
+compiler/src/source.rs:89:pub struct Span {
+compiler/src/source.rs:100:    pub fn new(file: SourceId, start: u32, end: u32) -> Self {
+compiler/src/source.rs:107:    pub fn len(&self) -> u32 {
+compiler/src/source.rs:112:    pub fn is_empty(&self) -> bool {
+compiler/src/source.rs:121:pub struct LineIndex {
+compiler/src/source.rs:129:    pub fn new(text: &str) -> Self {
+compiler/src/source.rs:144:    pub fn line_col(&self, text: &str, offset: u32) -> (usize, usize) {
+compiler/src/source.rs:166:    pub fn to_lsp(&self, text: &str, offset: u32, utf16: bool) -> (u32, u32) {
+compiler/src/source.rs:193:pub fn sha256_hex(bytes: &[u8]) -> String {
+compiler/src/analysis/cohort.rs:8:pub(super) struct CheckedCohort {
+compiler/src/analysis/cohort.rs:16:    pub(super) fn new(db: &SourceDb, files: &[SourceId], catalog: Option<&Catalog>) -> Self {
+compiler/src/analysis/cohort.rs:18:            db: Arc::clone(db.identity()),
+compiler/src/analysis/cohort.rs:19:            catalog: catalog.map(|catalog| Arc::clone(catalog.identity())),
+compiler/src/analysis/cohort.rs:25:    pub(super) fn files(&self) -> &[SourceId] {
+compiler/src/analysis/cohort.rs:29:    pub(super) fn validate(
+compiler/src/analysis/cohort.rs:34:        let mismatch = if !Arc::ptr_eq(&self.db, db.identity()) {
+compiler/src/analysis/cohort.rs:45:            (Some(checked), Some(supplied)) => Arc::ptr_eq(checked, supplied.identity()),
+compiler/src/analysis/catalog.rs:142:/// Immutable after loading. Clones preserve the loaded catalog's identity;
+compiler/src/analysis/catalog.rs:145:pub struct Catalog {
+compiler/src/analysis/catalog.rs:150:    identity: Arc<()>,
+compiler/src/analysis/catalog.rs:185:pub struct CatalogEntry {
+compiler/src/analysis/catalog.rs:211:pub struct ComponentShape {
+compiler/src/analysis/catalog.rs:226:pub struct ComponentSlot {
+compiler/src/analysis/catalog.rs:254:pub struct SigOverload {
+compiler/src/analysis/catalog.rs:263:pub struct SigParam {
+compiler/src/analysis/catalog.rs:325:pub struct CatalogRequest<'a> {
+compiler/src/analysis/catalog.rs:344:pub fn load_catalog(request: &CatalogRequest<'_>) -> (Option<Catalog>, Vec<Diagnostic>) {
+compiler/src/analysis/catalog.rs:436:        identity: Arc::new(()),
+compiler/src/analysis/catalog.rs:1121:    pub(crate) fn identity(&self) -> &Arc<()> {
+compiler/src/analysis/catalog.rs:1122:        &self.identity
+compiler/src/analysis/catalog.rs:1126:    pub fn version(&self) -> &str {
+compiler/src/analysis/catalog.rs:1131:    pub fn ids(&self) -> impl Iterator<Item = &str> {
+compiler/src/analysis/catalog.rs:1136:    pub fn lookup(&self, id: &str) -> Option<&CatalogEntry> {
+compiler/src/analysis/catalog.rs:1142:    pub fn overloads(&self, id: &str) -> Option<&[SigOverload]> {
+compiler/src/analysis/catalog.rs:1150:    pub fn availability(&self, id: &str) -> Option<Availability> {
+compiler/src/analysis/catalog.rs:1156:    pub fn effects(&self, id: &str) -> Option<Effects> {
+compiler/src/analysis/catalog.rs:1161:    pub fn deprecation(&self, id: &str) -> Option<&str> {
+compiler/src/analysis/catalog.rs:1166:    pub fn is_helper(&self, id: &str) -> bool {
+compiler/src/analysis/catalog.rs:1173:    pub fn is_builtin(&self, id: &str) -> bool {
+compiler/src/analysis/catalog.rs:1181:    pub fn is_component(&self, id: &str) -> bool {
+compiler/src/analysis/catalog.rs:1188:    pub fn component(&self, id: &str) -> Option<&ComponentShape> {
+compiler/src/analysis/catalog.rs:1236:pub struct StdOperation {
+compiler/src/analysis/catalog.rs:1248:pub struct StdEventDecl {
+compiler/src/analysis/catalog.rs:1258:pub struct StdCapability {
+compiler/src/analysis/catalog.rs:1273:pub struct DeliveryObservable {
+compiler/src/analysis/catalog.rs:1451:pub fn std_capability(name: &str) -> Option<&'static StdCapability> {
+compiler/src/analysis/catalog.rs:1463:pub fn std_operation(capability: &str, op: &str) -> Option<&'static StdOperation> {
+compiler/src/analysis/catalog.rs:1474:pub fn delivery_observable(target: &str) -> Option<&'static DeliveryObservable> {
+compiler/src/analysis/catalog.rs:1483:pub fn is_t13a_nominal(name: &str) -> bool {
+compiler/src/analysis/catalog.rs:1518:/// revision)` identity (B3). B10-precedent contract-only export: no
+compiler/src/analysis/catalog.rs:1588:/// identity by `{source}` ONLY (no revision). The `received` event is
+compiler/src/analysis/catalog.rs:1719:pub fn is_t13b_nominal(name: &str) -> bool {
+compiler/src/analysis/catalog.rs:1763:pub struct StdNominal {
+compiler/src/analysis/catalog.rs:2033:pub fn nominal_schema(name: &str) -> Option<&'static StdNominal> {

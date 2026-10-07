@@ -1,0 +1,17 @@
+{
+  "command": [
+    "cargo",
+    "clippy",
+    "--offline",
+    "--manifest-path",
+    "compiler/Cargo.toml",
+    "--target-dir",
+    "/private/tmp/can-checked-cohort-current-target",
+    "--test",
+    "checked_cohort",
+    "--",
+    "-D",
+    "warnings"
+  ],
+  "exit": 101
+}

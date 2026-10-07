@@ -1,0 +1,81 @@
+[
+  {
+    "name": "direct-migrations",
+    "command": [
+      "cargo",
+      "test",
+      "--offline",
+      "--manifest-path",
+      "compiler/Cargo.toml",
+      "--target-dir",
+      "/private/tmp/can-checked-cohort-current-target",
+      "--test",
+      "b3_migrate"
+    ],
+    "exit": 0
+  },
+  {
+    "name": "direct-public-emitter",
+    "command": [
+      "cargo",
+      "test",
+      "--offline",
+      "--manifest-path",
+      "compiler/Cargo.toml",
+      "--target-dir",
+      "/private/tmp/can-checked-cohort-current-target",
+      "--test",
+      "js_binding_runtime",
+      "public_emitter_binding_and_import_seams_execute"
+    ],
+    "exit": 0
+  },
+  {
+    "name": "existing-incomplete-gate",
+    "command": [
+      "cargo",
+      "test",
+      "--offline",
+      "--manifest-path",
+      "compiler/Cargo.toml",
+      "--target-dir",
+      "/private/tmp/can-checked-cohort-current-target",
+      "--test",
+      "codegen",
+      "refuses_incomplete_analysis_without_ack"
+    ],
+    "exit": 0
+  },
+  {
+    "name": "existing-catalog-effects",
+    "command": [
+      "cargo",
+      "test",
+      "--offline",
+      "--manifest-path",
+      "compiler/Cargo.toml",
+      "--target-dir",
+      "/private/tmp/can-checked-cohort-current-target",
+      "--test",
+      "codegen",
+      "awaited_follows_catalog_effects"
+    ],
+    "exit": 0
+  },
+  {
+    "name": "existing-requirements",
+    "command": [
+      "cargo",
+      "test",
+      "--offline",
+      "--manifest-path",
+      "compiler/Cargo.toml",
+      "--target-dir",
+      "/private/tmp/can-checked-cohort-current-target",
+      "--test",
+      "codegen",
+      "requires_pins_catalog_and_families"
+    ],
+    "exit": 0
+  }
+]

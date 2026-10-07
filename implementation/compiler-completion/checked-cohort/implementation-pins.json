@@ -1,0 +1,9 @@
+{
+  "compiler/src/source.rs": "7188ed986a95ca47696f0286eccba5ecc5198cea0b596a7412472999fe4bbda9",
+  "compiler/src/analysis/catalog.rs": "46322f60ef964fd25cfe5d7d6c55812b812ff61d4388526943446ce5aa44df65",
+  "compiler/src/analysis/mod.rs": "4bedf6bafa36bac0f0c01cdccae42ea3baabecdb0e5304a0cb8f419eee7bf7bf",
+  "compiler/src/analysis/cohort.rs": "aad351ef70dc46118e51832705ffd84063ddf641a42cf2645c94dac2154f23e0",
+  "compiler/src/codegen/mod.rs": "2ba20c0dcc1c29f821f3dff62da8cba0414aa77ae3194ef9db9197eed6206e7d",
+  "compiler/src/codegen/ir.rs": "2644cb16e84d46c90f01f88d8a1a7cc8da4ac5a490ee7d64bad007878d17bb04",
+  "compiler/tests/checked_cohort.rs": "f5f38cdb4fcbb9a871ba61aea4a1ff8d102c3e2051d7ceaa804d72a312c1dfde"
+}

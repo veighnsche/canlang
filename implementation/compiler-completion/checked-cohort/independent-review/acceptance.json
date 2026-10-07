@@ -1,0 +1,13 @@
+{
+  "review": "accepted",
+  "blockers": [],
+  "seven_source_pins_match": true,
+  "public_independent_tests": 10,
+  "expected_public_privacy_compile_failures": 8,
+  "retained_author_test_bodies": 21,
+  "actual_binary_cli_controls": 2,
+  "root_observed_migration_tests": 25,
+  "root_integrated_suite_and_strict_clippy": "root-owned; not claimed in this receipt",
+  "source_mutations_by_reviewer": false,
+  "shared_docs_or_git_mutations_by_reviewer": false
+}

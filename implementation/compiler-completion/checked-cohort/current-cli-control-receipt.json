@@ -1,0 +1,24 @@
+{
+  "command": [
+    "cargo",
+    "run",
+    "--offline",
+    "--manifest-path",
+    "compiler/Cargo.toml",
+    "--target-dir",
+    "/private/tmp/can-checked-cohort-current-target",
+    "--bin",
+    "can",
+    "--",
+    "compile",
+    "--format=json",
+    "--catalog=/Users/vince/Projects/canlang/implementation/compiler-completion/checked-cohort/baseline-catalog.json",
+    "/Users/vince/Projects/canlang/implementation/compiler-completion/checked-cohort/cli-control.can"
+  ],
+  "exit": 0,
+  "real_cli": true,
+  "modules": 1,
+  "source_count": 1,
+  "literal": "OLD",
+  "generated_JS_executed": false
+}

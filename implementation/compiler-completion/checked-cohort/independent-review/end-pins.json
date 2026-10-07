@@ -1,0 +1,42 @@
+{
+  "seven_frozen_files_match": true,
+  "seven": {
+    "compiler/src/source.rs": "7188ed986a95ca47696f0286eccba5ecc5198cea0b596a7412472999fe4bbda9",
+    "compiler/src/analysis/catalog.rs": "46322f60ef964fd25cfe5d7d6c55812b812ff61d4388526943446ce5aa44df65",
+    "compiler/src/analysis/mod.rs": "4bedf6bafa36bac0f0c01cdccae42ea3baabecdb0e5304a0cb8f419eee7bf7bf",
+    "compiler/src/analysis/cohort.rs": "aad351ef70dc46118e51832705ffd84063ddf641a42cf2645c94dac2154f23e0",
+    "compiler/src/codegen/mod.rs": "2ba20c0dcc1c29f821f3dff62da8cba0414aa77ae3194ef9db9197eed6206e7d",
+    "compiler/src/codegen/ir.rs": "2644cb16e84d46c90f01f88d8a1a7cc8da4ac5a490ee7d64bad007878d17bb04",
+    "compiler/tests/checked_cohort.rs": "f5f38cdb4fcbb9a871ba61aea4a1ff8d102c3e2051d7ceaa804d72a312c1dfde"
+  },
+  "reviewed_support": {
+    "compiler/src/cli.rs": "0e9eb7cfd2ee3e20ac9238c67872800cbe99911b3b799fa2616526f9be5a1f94",
+    "compiler/src/ide/queries.rs": "af6efb8eba9bfb55cbfeec6e9f8a303991746c96fa8e08c1fe84db7ee19a5fd5",
+    "compiler/src/docs.rs": "75a2467fc392b1186ae751f866705c2d5bff33aed5dd68ec0fb7998a23e4ea70",
+    "compiler/src/policy.rs": "7cf5e8ee4a882bf0e8b9a5a807cf71b32c9ac5dd0ee5ae175afa576d28dc9205",
+    "compiler/src/lint/driver.rs": "c16c9473a594066de41ebf88e1409584bd8fbb9375a94f110a964a19307a17dc",
+    "compiler/src/lib.rs": "36ed081a75985d1e406f6f30c9daaa7cc492725f2b594f68a867547e246b5971",
+    "compiler/src/codegen/artifact.rs": "5c2c3831d0bed1cea7ae0bfb8339e351996299b0481a70b2dac42b6aca36c73c",
+    "compiler/src/codegen/sourcemap.rs": "93bb7708447b30ba5cb40c41bd1400c41407a4d1d5665343faf697320e07459a",
+    "compiler/src/analysis/resolve.rs": "a7e4a82c135e594e9163a4d2abc6a75518741a9648ed24be7b3cbe8eb109959f",
+    "compiler/tests/b4_examples.rs": "ba7ff3a3db07480dfbbb89bf95e234b43877788386e525cd838a26c333cec79a",
+    "compiler/tests/codegen.rs": "9245b06e5402046d23416917ba51073eb1f31dd3582520373a198a39037d4c56",
+    "compiler/tests/b3_i5.rs": "fde7a8b903d77b231373b89d075a87fd30cdede928726460ba9027ff397ff7d1",
+    "compiler/tests/mcp_p1.rs": "bd082325615420871a86646769e55d2d8c38ee61d31716f945dfbb618d353285",
+    "compiler/tests/mcp_p4.rs": "ac0de2974bfce5fe2c08a8cb64eb3eee075b85ee5ba2373b0f641616228f6821",
+    "compiler/tests/b1_join.rs": "18dc3fc06acaa79f11a697a93dfb5f1e75742f21b3653474f08405dbc926dcc5",
+    "compiler/tests/b3_migrate.rs": "6c8ed4ee07139b9cacade969218914e7a475574678a03ede7869b9c16dfb5de8",
+    "compiler/tests/js_binding_runtime.rs": "62d4b4a186bb3ed4055fb1edb7c8120344babf89e7cc3528ba6d8475062da104",
+    "compiler/tests/flat_expression_runtime.rs": "0f2d6eb84fa2d80b291702382a6aa6595f74963c0f047c96e0934fdb361a04e3"
+  },
+  "support_changes_since_snapshot": {
+    "compiler/tests/b4_examples.rs": {
+      "snapshot": "e950d89e48f3b2b3ae8733ec81725aa2fe52286d70fe17d730d685e99f196f47",
+      "reviewed_current": "ba7ff3a3db07480dfbbb89bf95e234b43877788386e525cd838a26c333cec79a"
+    }
+  },
+  "head": "dfd0587e8cc5c0c71148148d84bf5839b625aac5",
+  "support_migration": "compiler/tests/b4_examples.rs",
+  "runtime_output_note": "New cohort controls inspect artifacts; retained public-emitter seam executes Node; actual CLI controls inspect artifact/diagnostics.",
+  "root_b4_examples_log_sha256": "e840995523cff532d7a887ef739ba38438ece1899f0b7cf08d522c9c043e55a9"
+}
