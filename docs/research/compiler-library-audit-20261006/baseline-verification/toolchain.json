@@ -1,0 +1,136 @@
+{
+  "host": {
+    "system": "Darwin",
+    "release": "27.0.0",
+    "machine": "arm64",
+    "platform": "macOS-27.0.1-arm64-arm-64bit-Mach-O"
+  },
+  "commands": [
+    {
+      "argv": [
+        "rustc",
+        "-vV"
+      ],
+      "path": "/Users/vince/.cargo/bin/rustc",
+      "resolved_path": "/Users/vince/.cargo/bin/rustup",
+      "executable_sha256": "ec1b9233e7f72990ecd8e62063fa7f6c3dfc2bec8e97f88bff165f9100ac696a",
+      "exit_code": 0,
+      "stdout": "rustc 1.99.0 (b940084d7 2026-09-28)\nbinary: rustc\ncommit-hash: b940084d7eb6a299eb4bfeb8e34901bc051e7ac4\ncommit-date: 2026-09-28\nhost: aarch64-apple-darwin\nrelease: 1.99.0\nLLVM version: 23.1.1",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "cargo",
+        "--version"
+      ],
+      "path": "/Users/vince/.cargo/bin/cargo",
+      "resolved_path": "/Users/vince/.cargo/bin/rustup",
+      "executable_sha256": "ec1b9233e7f72990ecd8e62063fa7f6c3dfc2bec8e97f88bff165f9100ac696a",
+      "exit_code": 0,
+      "stdout": "cargo 1.99.0 (5f94df478 2026-08-27)",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "rustup",
+        "show",
+        "active-toolchain"
+      ],
+      "path": "/Users/vince/.cargo/bin/rustup",
+      "resolved_path": "/Users/vince/.cargo/bin/rustup",
+      "executable_sha256": "ec1b9233e7f72990ecd8e62063fa7f6c3dfc2bec8e97f88bff165f9100ac696a",
+      "exit_code": 0,
+      "stdout": "stable-aarch64-apple-darwin (default)",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "rustup",
+        "which",
+        "rustc"
+      ],
+      "path": "/Users/vince/.cargo/bin/rustup",
+      "resolved_path": "/Users/vince/.cargo/bin/rustup",
+      "executable_sha256": "ec1b9233e7f72990ecd8e62063fa7f6c3dfc2bec8e97f88bff165f9100ac696a",
+      "exit_code": 0,
+      "stdout": "/Users/vince/.rustup/toolchains/stable-aarch64-apple-darwin/bin/rustc",
+      "stderr": "",
+      "actual_executable_sha256": "dd6f58440b3418aa9157ae3f05d71eecff741ca41bc4eec120e7e8f2d933b9a0"
+    },
+    {
+      "argv": [
+        "rustup",
+        "which",
+        "cargo"
+      ],
+      "path": "/Users/vince/.cargo/bin/rustup",
+      "resolved_path": "/Users/vince/.cargo/bin/rustup",
+      "executable_sha256": "ec1b9233e7f72990ecd8e62063fa7f6c3dfc2bec8e97f88bff165f9100ac696a",
+      "exit_code": 0,
+      "stdout": "/Users/vince/.rustup/toolchains/stable-aarch64-apple-darwin/bin/cargo",
+      "stderr": "",
+      "actual_executable_sha256": "fc7aa5077deca8abc0651f329e8ec1d968f520e996a93b428f9935014362b382"
+    },
+    {
+      "argv": [
+        "node",
+        "--version"
+      ],
+      "path": "/Users/vince/.vite-plus/bin/node",
+      "resolved_path": "/Users/vince/.vite-plus/0.3.0/bin/vp",
+      "executable_sha256": "ce6081b1dc4585695c843ed92efbf6568a1b971818b097bc28dfd3751daea1c4",
+      "exit_code": 0,
+      "stdout": "v24.21.0",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "bun",
+        "--version"
+      ],
+      "path": "/Users/vince/.bun/bin/bun",
+      "resolved_path": "/Users/vince/.bun/bin/bun",
+      "executable_sha256": "35d20dd0263e5c950194434b925454fdfa9ba6e4467da960410fa05b08a7a5b5",
+      "exit_code": 0,
+      "stdout": "1.4.2",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "bash",
+        "--version"
+      ],
+      "path": "/bin/bash",
+      "resolved_path": "/bin/bash",
+      "executable_sha256": "d59c6f2312e551e9c46497329d435b6ec74fbc46e9155b84170f377127ed004e",
+      "exit_code": 0,
+      "stdout": "GNU bash, version 3.2.57(1)-release (arm64-apple-darwin26)\nCopyright (C) 2007 Free Software Foundation, Inc.",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "zsh",
+        "--version"
+      ],
+      "path": "/bin/zsh",
+      "resolved_path": "/bin/zsh",
+      "executable_sha256": "abc56520c469fa4985fca02c5f55621932ad79de4f36440a64a27526f4b535ef",
+      "exit_code": 0,
+      "stdout": "zsh 5.9 (arm64-apple-darwin26.0)",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "python3",
+        "--version"
+      ],
+      "path": "/opt/homebrew/bin/python3",
+      "resolved_path": "/opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/bin/python3.14",
+      "executable_sha256": "87d4df53fd91304be5bac391fb204643c36b7df2023c04a0953bcbc7d4fdf634",
+      "exit_code": 0,
+      "stdout": "Python 3.14.7",
+      "stderr": ""
+    }
+  ],
+  "scope": "Read-only tool identities; no build or supported-host qualification."
+}

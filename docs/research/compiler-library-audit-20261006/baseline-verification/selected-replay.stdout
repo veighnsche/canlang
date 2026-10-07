@@ -1,0 +1,31 @@
+
+running 1 test
+test unchanged_catalog_producer_matches_authored_source_and_feeds_real_consumers ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 16.55s
+
+
+running 1 test
+test byte_point_maps_reach_independent_decoder_and_current_consumers ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 6.39s
+
+
+running 1 test
+test c01_production_strings_execute_through_testkit ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 35.26s
+
+
+running 2 tests
+test generated_fixture_shell_keeps_quoted_error_and_throwing_function ... ok
+test generated_suite_keeps_strings_inside_executable_recipe ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 1 test
+test url_values_retain_authored_text_through_production_metadata ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 5.84s
+

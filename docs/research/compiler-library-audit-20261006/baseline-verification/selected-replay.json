@@ -1,0 +1,50 @@
+{
+  "argv": [
+    "cargo",
+    "test",
+    "--locked",
+    "--offline",
+    "--manifest-path",
+    "compiler/Cargo.toml",
+    "--test",
+    "catalog_producer_runtime",
+    "--test",
+    "string_payload_runtime",
+    "--test",
+    "value_admission",
+    "--test",
+    "sourcemap_contract",
+    "--test",
+    "typed_bdd",
+    "--",
+    "--nocapture"
+  ],
+  "environment_overrides": {
+    "CARGO_BUILD_JOBS": "1",
+    "CARGO_INCREMENTAL": "0",
+    "CARGO_NET_OFFLINE": "true"
+  },
+  "exit_code": 0,
+  "elapsed_seconds": 72.974,
+  "stdout_sha256": "514fa10e0392ed93ec3cd5e8a003077f879c627b1651f99aae622562f313ceba",
+  "stderr_sha256": "1ab7f0e3f85ef1b9bd673f88c9a13f0a8bb1df3943644e9a14e1f40aed6ec92e",
+  "stdout_bytes": 1002,
+  "stderr_bytes": 13492,
+  "pre_post_input_pins": 138,
+  "changed_inputs": [],
+  "harnesses": 5,
+  "harness_passes": 6,
+  "body_skip_markers": 0,
+  "independent_cached_decoder_sha256": "2768e18f3bf937a0111c98872ff3e8ec8f5165d103a082b91f5127351beab7d0",
+  "scope": {
+    "catalog": "59 owning source/dist entries, 15 features, fresh isolated emitter and CLI loader executed",
+    "strings": "Six production CLI/metadata/testkit witnesses executed",
+    "url": "29 actual-owner vectors and 15 production metadata defaults executed",
+    "sourcemap": "Fresh CLI one-module/24-point artifact, independent cached decoder and actual current source mapper/invocation consumers executed",
+    "bdd": "Two independently authored emitted byte fixtures; no BDD runtime execution"
+  },
+  "limits": [
+    "No full suite, editor GUI, installed package, release or other-host qualification by this replay.",
+    "138 root pre/post input pins unchanged; cached decoder hash printed by the executing fixture and pinned afterward, not independently before the run."
+  ]
+}

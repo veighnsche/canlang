@@ -1,0 +1,447 @@
+   Compiling canlang-compiler v0.1.0 (/Users/vince/Projects/canlang/compiler)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 2.17s
+     Running tests/catalog_producer_runtime.rs (compiler/target/debug/deps/catalog_producer_runtime-be692bd38e3d39da)
+PROFILE packages/values/src/catalog.ts: bytes=18748 sha256=443ec55fb59c161a2984850d058f39925e930591b194bd85090776b8557098eb
+PROFILE packages/values/scripts/emit-catalog.mjs: bytes=2518 sha256=45c5d3d3be91e85574949939a55e19b06de1e8a5d6f3c1025f3edf07d87b221d
+PROFILE packages/values/dist/src/catalog.js: bytes=18732 sha256=1b5a52a148437ee7301cff8a68efa439448b7304b4ff85f6189ecaf75ad8925f
+PROFILE packages/values/dist/src/index.js: bytes=630 sha256=51bbc15972a6836a4e1b4cebf6b2bd5b48e34405ff7f09062ad65b449dc1093c
+PROFILE packages/values/dist/catalog.json: bytes=22290 sha256=cd984f375e0d6cbcc2bc6aca5ad5ea5b1b3d3ba9cd17b15ab94e4b15e74ced62
+PROFILE Node v24.21.0
+EXECUTED source-built equality; actual runtime trim; entries=59
+EXECUTED catalog 0.1.0-lane02-draft: 59 entries, 15 features -> dist/catalog.json
+PROFILE fresh isolated dist/catalog.json: bytes=22290 sha256=cd984f375e0d6cbcc2bc6aca5ad5ea5b1b3d3ba9cd17b15ab94e4b15e74ced62
+EXECUTED actual catalog loader and fresh CLI check: complete=true diagnostics=[]
+     Running tests/sourcemap_contract.rs (compiler/target/debug/deps/sourcemap_contract-ec3cbc804fe87849)
+{"sourcePins":{"sourcemap.ts":"565f9c8521b6eaed277a65bbb8b82c4edea0c4f67ddada9df071dd16d4199113","invoke.ts":"55178802cd4697279491b3997e79eb28b070a4ff580973d4513abdfe5023d2db","artifact.ts":"e04b6ee1dc35b427d2e70aff35410142c1a1eabcfd73dc9ace973f965a51b04d","context.ts":"9f628244197b61fc376319c9a4fe5aed82fbd04a62b283c96e564f6877a614d8","report.ts":"79cbbfce42ed673196b6f0d2b32d567a3d302e4b8104429119bfd52a6ae6bcd1"},"profile":"original Can byte columns; generated point column zero","node":"24.21.0","codec":"1.6.0","codecSha256":"2768e18f3bf937a0111c98872ff3e8ec8f5165d103a082b91f5127351beab7d0","consumer":"current source artifact parse/load, lookup, invokeCallable, formatFailureLocation","syntheticInvocation":"coordinate.can:1:7","freshCliModules":1,"freshCliPoints":24,"browserUTF16":"unqualified"}
+     Running tests/string_payload_runtime.rs (compiler/target/debug/deps/string_payload_runtime-0e4752e6455ee32b)
+C01 witness 0: production CLI, runtime metadata, testkit closures passed
+C01 witness 1: production CLI, runtime metadata, testkit closures passed
+C01 witness 2: production CLI, runtime metadata, testkit closures passed
+C01 witness 3: production CLI, runtime metadata, testkit closures passed
+C01 witness 4: production CLI, runtime metadata, testkit closures passed
+C01 witness 5: production CLI, runtime metadata, testkit closures passed
+     Running tests/typed_bdd.rs (compiler/target/debug/deps/typed_bdd-de4b7d97f5439d81)
+     Running tests/value_admission.rs (compiler/target/debug/deps/value_admission-301736543f6d1591)
+{
+  "node": "v24.21.0",
+  "icu": "78.3",
+  "entry": "file:///Users/vince/Projects/canlang/packages/values/dist/src/index.js",
+  "entry_sha256": "51bbc15972a6836a4e1b4cebf6b2bd5b48e34405ff7f09062ad65b449dc1093c",
+  "results": [
+    {
+      "id": "url_basic",
+      "valid": true,
+      "decoded": "https://example.com/path",
+      "encoded": "https://example.com/path",
+      "roundtrip": "https://example.com/path"
+    },
+    {
+      "id": "url_unicode_panic",
+      "valid": false,
+      "decodeError": {
+        "name": "SchemaError",
+        "kind": "schema",
+        "violations": [
+          {
+            "path": [],
+            "code": "format",
+            "message": "url is malformed",
+            "expected": "an http(s) URL",
+            "actual": "\"💥💥💥\""
+          }
+        ]
+      },
+      "encodeError": {
+        "name": "ValueError",
+        "kind": "value",
+        "code": "invalid-construction"
+      }
+    },
+    {
+      "id": "url_bracketed_bad",
+      "valid": false,
+      "decodeError": {
+        "name": "SchemaError",
+        "kind": "schema",
+        "violations": [
+          {
+            "path": [],
+            "code": "format",
+            "message": "url is malformed",
+            "expected": "an http(s) URL",
+            "actual": "\"https://[garbage]\""
+          }
+        ]
+      },
+      "encodeError": {
+        "name": "ValueError",
+        "kind": "value",
+        "code": "invalid-construction"
+      }
+    },
+    {
+      "id": "url_port_high",
+      "valid": false,
+      "decodeError": {
+        "name": "SchemaError",
+        "kind": "schema",
+        "violations": [
+          {
+            "path": [],
+            "code": "format",
+            "message": "url is malformed",
+            "expected": "an http(s) URL",
+            "actual": "\"https://host:999999\""
+          }
+        ]
+      },
+      "encodeError": {
+        "name": "ValueError",
+        "kind": "value",
+        "code": "invalid-construction"
+      }
+    },
+    {
+      "id": "url_userinfo",
+      "valid": true,
+      "decoded": "https://user:pass@example.com",
+      "encoded": "https://user:pass@example.com",
+      "roundtrip": "https://user:pass@example.com"
+    },
+    {
+      "id": "url_case",
+      "valid": true,
+      "decoded": "HTTPS://EXAMPLE.COM/a",
+      "encoded": "HTTPS://EXAMPLE.COM/a",
+      "roundtrip": "HTTPS://EXAMPLE.COM/a"
+    },
+    {
+      "id": "url_unicode_host",
+      "valid": true,
+      "decoded": "https://é.example/a",
+      "encoded": "https://é.example/a",
+      "roundtrip": "https://é.example/a"
+    },
+    {
+      "id": "url_backslash",
+      "valid": true,
+      "decoded": "https://example.com\\a",
+      "encoded": "https://example.com\\a",
+      "roundtrip": "https://example.com\\a"
+    },
+    {
+      "id": "url_trimmed",
+      "valid": true,
+      "decoded": " https://example.com/a ",
+      "encoded": " https://example.com/a ",
+      "roundtrip": " https://example.com/a "
+    },
+    {
+      "id": "url_space_path",
+      "valid": true,
+      "decoded": "https://example.com/a b",
+      "encoded": "https://example.com/a b",
+      "roundtrip": "https://example.com/a b"
+    },
+    {
+      "id": "url_relative",
+      "valid": false,
+      "decodeError": {
+        "name": "SchemaError",
+        "kind": "schema",
+        "violations": [
+          {
+            "path": [],
+            "code": "format",
+            "message": "url is malformed",
+            "expected": "an http(s) URL",
+            "actual": "\"/a\""
+          }
+        ]
+      },
+      "encodeError": {
+        "name": "ValueError",
+        "kind": "value",
+        "code": "invalid-construction"
+      }
+    },
+    {
+      "id": "url_non_http",
+      "valid": false,
+      "decodeError": {
+        "name": "SchemaError",
+        "kind": "schema",
+        "violations": [
+          {
+            "path": [],
+            "code": "format",
+            "message": "url is malformed",
+            "expected": "an http(s) URL",
+            "actual": "\"ftp://example.com/a\""
+          }
+        ]
+      },
+      "encodeError": {
+        "name": "ValueError",
+        "kind": "value",
+        "code": "invalid-construction"
+      }
+    },
+    {
+      "id": "url_ipv6",
+      "valid": true,
+      "decoded": "https://[::1]:443/a",
+      "encoded": "https://[::1]:443/a",
+      "roundtrip": "https://[::1]:443/a"
+    },
+    {
+      "id": "url_port_empty",
+      "valid": true,
+      "decoded": "https://example.com:/a",
+      "encoded": "https://example.com:/a",
+      "roundtrip": "https://example.com:/a"
+    },
+    {
+      "id": "bracket_unclosed",
+      "valid": false,
+      "decodeError": {
+        "name": "SchemaError",
+        "kind": "schema",
+        "violations": [
+          {
+            "path": [],
+            "code": "format",
+            "message": "url is malformed",
+            "expected": "an http(s) URL",
+            "actual": "\"https://[::1\""
+          }
+        ]
+      },
+      "encodeError": {
+        "name": "ValueError",
+        "kind": "value",
+        "code": "invalid-construction"
+      }
+    },
+    {
+      "id": "bracket_suffix",
+      "valid": false,
+      "decodeError": {
+        "name": "SchemaError",
+        "kind": "schema",
+        "violations": [
+          {
+            "path": [],
+            "code": "format",
+            "message": "url is malformed",
+            "expected": "an http(s) URL",
+            "actual": "\"https://[::1]junk\""
+          }
+        ]
+      },
+      "encodeError": {
+        "name": "ValueError",
+        "kind": "value",
+        "code": "invalid-construction"
+      }
+    },
+    {
+      "id": "port_65535",
+      "valid": true,
+      "decoded": "https://example.com:65535",
+      "encoded": "https://example.com:65535",
+      "roundtrip": "https://example.com:65535"
+    },
+    {
+      "id": "port_65536",
+      "valid": false,
+      "decodeError": {
+        "name": "SchemaError",
+        "kind": "schema",
+        "violations": [
+          {
+            "path": [],
+            "code": "format",
+            "message": "url is malformed",
+            "expected": "an http(s) URL",
+            "actual": "\"https://example.com:65536\""
+          }
+        ]
+      },
+      "encodeError": {
+        "name": "ValueError",
+        "kind": "value",
+        "code": "invalid-construction"
+      }
+    },
+    {
+      "id": "port_nondigit",
+      "valid": false,
+      "decodeError": {
+        "name": "SchemaError",
+        "kind": "schema",
+        "violations": [
+          {
+            "path": [],
+            "code": "format",
+            "message": "url is malformed",
+            "expected": "an http(s) URL",
+            "actual": "\"https://example.com:abc\""
+          }
+        ]
+      },
+      "encodeError": {
+        "name": "ValueError",
+        "kind": "value",
+        "code": "invalid-construction"
+      }
+    },
+    {
+      "id": "host_missing",
+      "valid": false,
+      "decodeError": {
+        "name": "SchemaError",
+        "kind": "schema",
+        "violations": [
+          {
+            "path": [],
+            "code": "format",
+            "message": "url is malformed",
+            "expected": "an http(s) URL",
+            "actual": "\"https://\""
+          }
+        ]
+      },
+      "encodeError": {
+        "name": "ValueError",
+        "kind": "value",
+        "code": "invalid-construction"
+      }
+    },
+    {
+      "id": "proto_relative",
+      "valid": false,
+      "decodeError": {
+        "name": "SchemaError",
+        "kind": "schema",
+        "violations": [
+          {
+            "path": [],
+            "code": "format",
+            "message": "url is malformed",
+            "expected": "an http(s) URL",
+            "actual": "\"//example.com/a\""
+          }
+        ]
+      },
+      "encodeError": {
+        "name": "ValueError",
+        "kind": "value",
+        "code": "invalid-construction"
+      }
+    },
+    {
+      "id": "http_no_slashes",
+      "valid": true,
+      "decoded": "http:example.com/a",
+      "encoded": "http:example.com/a",
+      "roundtrip": "http:example.com/a"
+    },
+    {
+      "id": "ascii_tab",
+      "valid": true,
+      "decoded": "ht\ttp://example.com/a",
+      "encoded": "ht\ttp://example.com/a",
+      "roundtrip": "ht\ttp://example.com/a"
+    },
+    {
+      "id": "unicode_idna",
+      "valid": true,
+      "decoded": "https://faß.de/a",
+      "encoded": "https://faß.de/a",
+      "roundtrip": "https://faß.de/a"
+    },
+    {
+      "id": "unicode_joiner",
+      "valid": false,
+      "decodeError": {
+        "name": "SchemaError",
+        "kind": "schema",
+        "violations": [
+          {
+            "path": [],
+            "code": "format",
+            "message": "url is malformed",
+            "expected": "an http(s) URL",
+            "actual": "\"https://a‍b.example/a\""
+          }
+        ]
+      },
+      "encodeError": {
+        "name": "ValueError",
+        "kind": "value",
+        "code": "invalid-construction"
+      }
+    },
+    {
+      "id": "unicode_space",
+      "valid": false,
+      "decodeError": {
+        "name": "SchemaError",
+        "kind": "schema",
+        "violations": [
+          {
+            "path": [],
+            "code": "format",
+            "message": "url is malformed",
+            "expected": "an http(s) URL",
+            "actual": "\"https://a b.example/a\""
+          }
+        ]
+      },
+      "encodeError": {
+        "name": "ValueError",
+        "kind": "value",
+        "code": "invalid-construction"
+      }
+    },
+    {
+      "id": "ipv4_legacy",
+      "valid": true,
+      "decoded": "http://0x7f.1/a",
+      "encoded": "http://0x7f.1/a",
+      "roundtrip": "http://0x7f.1/a"
+    },
+    {
+      "id": "host_bad_percent",
+      "valid": false,
+      "decodeError": {
+        "name": "SchemaError",
+        "kind": "schema",
+        "violations": [
+          {
+            "path": [],
+            "code": "format",
+            "message": "url is malformed",
+            "expected": "an http(s) URL",
+            "actual": "\"https://%zz.example/a\""
+          }
+        ]
+      },
+      "encodeError": {
+        "name": "ValueError",
+        "kind": "value",
+        "code": "invalid-construction"
+      }
+    },
+    {
+      "id": "path_bad_percent",
+      "valid": true,
+      "decoded": "https://example.com/%zz",
+      "encoded": "https://example.com/%zz",
+      "roundtrip": "https://example.com/%zz"
+    }
+  ],
+  "trusted_origin_witnesses": 3
+}
+C03U: 29 actual-owner vectors and 15 production metadata defaults passed (Node v24.21.0, ICU 78.3); application execution not covered
