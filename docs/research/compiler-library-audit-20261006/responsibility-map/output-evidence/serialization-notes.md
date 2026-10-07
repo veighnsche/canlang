@@ -1,0 +1,13 @@
+# Step 10 serialization primary view
+
+Planning and evidence only. Fifteen finite duties in `serialization.json` trace shared JSON, diagnostic envelopes, artifact/linkage, descriptors, exact defaults, executable JS/BDD payloads, references, docs transport/Markdown, policy/HTML, explain, fix reports, source-map envelopes and LSP typed payloads. This worker performed source inspection only; root owns fresh witnesses.
+
+Independent authority comes from the owning TypeScript artifact/reference/diagnostic contracts, DESIGN and GRAMMAR at their declared stages, and actual Node/testkit/docs/policy/editor consumers. Released member order and escape/newline bytes are compatibility/public adapter obligations; JSON consumer semantic equality alone does not imply a byte-order requirement. Arrays and authored object entry order have their own semantic obligations.
+
+Exact numeric wire spelling uses strings and BigInt. Descriptor `literal_json` retains Decimal authored scale, including trailing zeros; runtime numeric encoding may canonicalize the same value. Decimal runtime literal expression emission still produces E6008. Neither behavior establishes the other. Date/default source spelling in reference documentation differs from decoded value in artifact defaults by design.
+
+Absence is not null: optional metadata is omitted only on None, empty text is present, reference null variants/catalogVersion remain explicit, nullable false omission differs from required/serverOnly false, and array required false remains authored metadata. RawValue protects grammar and exact bytes for compiler-owned default fragments and admitted LSP IDs; it is not a scalar decoder, and invalid public Literal fragments can panic through the infallible adapter.
+
+String quoting does not handle identifiers, expression precedence or HTML raw-script embedding. JS and BDD quote scalar payloads through the shared serializer. Compiler docs emits JSON on stdin to a fixed renderer command, which emits Markdown; policy consumers independently HTML-escape their final sinks. No raw-script embedding was found in those inspected documentation/policy paths.
+
+Three source leads were sent early for root probes: JS reserved identifiers, diagnostic payload ties under the advertised insertion-independent ordering, and downstream Markdown code spans with backticks/pipes. They remain leads until witnessed and classified against the independent contract. Public diagnostic ties have no demonstrated production producer; Markdown is a package-owned transformation. Existing Step4–8 evidence is reused only at its stated limits, never substituted for new Step10 execution.
