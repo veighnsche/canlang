@@ -1,0 +1,22 @@
+{
+  "state": {
+    "scope": "Pass5 output-only migration, no input parsing/JSONmodel change; compiler code and realconsumer contracts verified",
+    "verified_caller_closure": "diagnostic closed DTO uses strings/bools/u32 and String to_json. JS descriptors public JsFieldDefault::Literal(String) stores compilerencoded JSON. literal_json emits decoded Rust Unicode strings and exact numeric domain strings, no binaryfloat. Artifacts nest descriptorarray producers + SourceMap.to_json map; all internal producers emit syntacticallyvalid compact JSON. LegacypublicStringadapters never returned Result. RealCLI main catches invariant panics as E7005 exit2. Existingpublic manual Literal can hold invalid JSON, which oldhandencoder emitted verbatim and laterJSONconsumerrejects. No liveproduction invalidfragmentcaller found. InputJson::Num rawlexeme/get-first/dupes/depth staysunchanged.",
+    "candidate_verified": "serde1.0.229 stdderive and serde_json1.0.151 stdraw_value defaultsdisabled; RawValue/from_str validatescomplete JSON grammar, preserves exact lexemes andnestedbytes; fixed 1e999999 and400digitnumber pass withoutfloat. RawValue accepts quoted escaped lone surrogate; currentinputjsonparserrejects it. Typedstring serializers take validRuststr andescapecompat \b/\f, so compiler-produced fragments cannot generate lone surrogates. RawValue is not a Unicode scalar validator. Serializer traits return errors on invalidLiteral; legacyStringwrappers expect invariant. Artifact currently validatesnestedproducerstrings beforeserialization with invariantexpect.",
+    "compatibility": "Keep validrequiredbytes, omission/null/order, exact decimalstringsandscale, layouts/newlines andsourceeval. Do not doubleencode pre-rendered JSON, adopt newinputparser or silently use rawopaqueunchecked private serializer hooks. Invalidmanuallyconstructedoutput oldinvalidJSON is not a demonstrated functioningconsumercontract. Shared genericto_compact_string returnsResult. PublicdiagnosticSerialize returnserrors throughtrait; dynamictyped fields validated atownedoutput boundary.",
+    "question_stage": "Choose bounded output error/qualification policy; not individual library/API recommendation. Keep diagnosed differences explicit; advice is not regression evidence."
+  },
+  "questions": {
+    "encoded_output_policy": {
+      "type": "choice",
+      "instructions": "Choose the bounded policy that best preserves verified functioning output contracts while completing a qualified typed migration. Compare every alternative fairly using the same caller and candidate evidence.",
+      "criteria": {
+        "closed_invariant": "Keep existingString APIs and qualify compiler-owned raw syntax. Invalidmanuallyconstructed raw syntax produces explicit invariant failure/internalE7005 rather than oldinvalidoutput. Expose errors through Serde whereavailable; record RawValue Unicode limits, requireknownvalidRuststring producers. Smallestboundedrelease, no generic untrusted-fragment acceptance claim.",
+        "fallible_public_migration": "Convert legacy public serializers andallactualcallererror paths to Result now so manually invalid output gets a structured error. Preservevalidbytes andrecordRawValue Unicode limits. Avoids panics forconstructibleinvaliddata but expandsAPI/callererror-mapping scope acrossallfamilies.",
+        "unicode_validated_raw": "Add fulltypedUnicode/rawnumber/treevalidation on every encodedfragment as well as RawValue before release, selectingdepth/number behavior explicitly (existinginputparser hasdepth64, serdeValue defaultbounded/floatingnumbers unlessnewfeatures). Coversarbitrary manually authored rawdata more strongly, but addsvalidationcost/representationpolicies that compiler-ownedproducers alreadyavoid.",
+        "retain_opaque": "Defer those encodedfragment subpaths andkeepold manualsplice untilpublicinvalid-fragment policy independentlyreleased. Retains exact oldinvalidoutput behavior and avoidsnewerror mapping, but leaves handassembly and delayscompletefamilycutover."
+      }
+    }
+  },
+  "model": "jev-latest"
+}
