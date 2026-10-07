@@ -1,0 +1,728 @@
+{
+  "method": "Independent source challenges, prior conclusions visible; no product runtime execution",
+  "packets": [
+    {
+      "schema": "canlang.protocol-cross-review/v1",
+      "ref": "f3dd798c866916b526b72e0a53c1ddf257748587",
+      "prior_conclusions_visible": true,
+      "method": "Finite independent source challenge; no product execution/tests/builds/packages/runtime/network/Git writes/repo edits. Root platform-reference observations read as corroboration only.",
+      "records": [
+        {
+          "id": "XR01",
+          "target": "root own-key transport",
+          "verdict": "confirmed API member-loss; downstream unknown-filter bypass narrowed",
+          "independent_source_reasoning": "parseFormBody plain out={} + out[key]=string invokes legacy __proto__ setter; a string cannot set prototype and creates no own member. URL filter slot uses same operation and sets hasFilters=true regardless, returning filters:{} for ?filter[__proto__]=x. JSON.parse and Object.fromEntries instead create own data member. coerceFormBody with independently supplied own __proto__ JSONobject would set output prototype, but normal parseFormBody deletes it first.",
+          "required_scope_correction": "Fix own-key preservation or explicit refused-key admission before conversion; safe Object.fromEntries/null prototype/defineProperty must also cover coercion. rg parseCollectionQuery across packages identified definition and test calls only; no present production query caller. Therefore exported passthrough API violation, no established canonical unknown-filter bypass or auth bypass. Top-level operation envelope extras are explicitly lenient.",
+          "anchors": [
+            {
+              "path": "packages/interfaces/src/http/limits.ts",
+              "line": 88,
+              "end": 105
+            },
+            {
+              "path": "packages/interfaces/src/http/limits.ts",
+              "line": 124,
+              "end": 158
+            },
+            {
+              "path": "packages/interfaces/src/http/operations.ts",
+              "line": 141,
+              "end": 154
+            },
+            {
+              "path": "packages/interfaces/src/http/operations.ts",
+              "line": 159,
+              "end": 164
+            },
+            {
+              "path": "packages/interfaces/test/http-operations.test.ts",
+              "line": 358,
+              "end": 379
+            },
+            {
+              "path": "packages/contracts/src/wire.ts",
+              "line": 333,
+              "end": 343
+            }
+          ]
+        },
+        {
+          "id": "XR02",
+          "target": "PV03",
+          "verdict": "confirmed after explicit private provenance; no product-route defect established",
+          "independent_source_reasoning": "normalizeSchema stores default decoded by owner validator; decimal decoding yields immutable Decimal instance. registerValidationPlan first requires provenance; after explicit recordFactoryProvenance matching owner, registerDefault passes Decimal to copyFrozenValue, whose prototype gate throws uncopyable-value. min/max share copier.",
+          "required_scope_correction": "Keep explicit test/private hook prerequisite. Public factory currently does not register provenance automatically, so without hook failure is missing-provenance, not decimal class error. Conditional prepared-completeness repair must preserve validated scalar classes/coefficient/scale and reject arbitrary host classes.",
+          "anchors": [
+            {
+              "path": "packages/values/src/internal/schema-core.ts",
+              "line": 1753,
+              "end": 1787
+            },
+            {
+              "path": "packages/values/src/prepared/plan.ts",
+              "line": 197,
+              "end": 213
+            },
+            {
+              "path": "packages/values/src/prepared/plan.ts",
+              "line": 411,
+              "end": 419
+            },
+            {
+              "path": "packages/values/src/prepared/plan.ts",
+              "line": 441,
+              "end": 442
+            },
+            {
+              "path": "packages/values/test/prepared-hook.test.ts",
+              "line": 68,
+              "end": 79
+            }
+          ]
+        },
+        {
+          "id": "XR03",
+          "target": "PV04",
+          "verdict": "confirmed raw ABI first/last disagreement outside declared unique-key profile",
+          "independent_source_reasoning": "exact tagged record parser pushes duplicate pairs unchanged. Numeric read_key uses iter.find, selecting first minor=1; money check_shape enumerates allowed keys and duplicate allowed minor is not extra. Reconstruction Object.fromEntries overwrites earlier minor with2 and public decoder yields2. Ordinary JS object tagging produces unique entries, so supplied raw tuple witness needs direct ABI request.",
+          "required_scope_correction": "Input violates exact transport header hygiene saying record entries must not repeat. State as insufficient runtime hygiene enforcement in direct raw ABI plus incompatible first/last handling, not admitted six-op production bug. Reject duplicate tuples before core guards if enforcing existing hygiene; no wholesale JSONduplicate policy change.",
+          "anchors": [
+            {
+              "path": "packages/values/semantics/src/transport/exact.rs",
+              "line": 13,
+              "end": 14
+            },
+            {
+              "path": "packages/values/semantics/src/transport/exact.rs",
+              "line": 151,
+              "end": 170
+            },
+            {
+              "path": "packages/values/semantics/src/codecs/numeric.rs",
+              "line": 184,
+              "end": 206
+            },
+            {
+              "path": "packages/values/semantics/src/codecs/numeric.rs",
+              "line": 309,
+              "end": 334
+            },
+            {
+              "path": "packages/values/bindings/carriers.ts",
+              "line": 87,
+              "end": 89
+            },
+            {
+              "path": "packages/values/bindings/carriers.ts",
+              "line": 133,
+              "end": 134
+            }
+          ]
+        },
+        {
+          "id": "XR04",
+          "target": "PV05",
+          "verdict": "confirmed exact UTF16 diagnostic calculation; deliberate excluded boundary",
+          "independent_source_reasoning": "JSONquote of62 ASCII a + astral emoji is [quote]+62a+[high,low]+[quote]. High surrogate index63, low index64. TS max64 slice keeps high then appends3dots; Rust detects high at cut-1 and low at cut and backs down to63, keeping no surrogate. Both malformed int inputs otherwise reach owning format diagnostic.",
+          "required_scope_correction": "Retain exclusion/error-payload gap and avoid labeling deliberate boundary a fresh arithmetic defect. Full diagnostic parity requires admitted UTF16-compatible output or changed owner contract; escaping/normalizing after the fact cannot claim identical code units.",
+          "anchors": [
+            {
+              "path": "packages/values/src/internal/wire-core.ts",
+              "line": 177,
+              "end": 188
+            },
+            {
+              "path": "packages/values/semantics/src/codecs/numeric.rs",
+              "line": 159,
+              "end": 178
+            }
+          ]
+        },
+        {
+          "id": "XR05",
+          "target": "PDW-02",
+          "verdict": "confirmed different helper profiles; durable-cycle claim excluded",
+          "independent_source_reasoning": "Work checkJsonSafe seen set adds objects and never deletes them; data={a:shared,b:shared} throws on b as cyclic before structuredClone. State withFanoutRowData only checks metadata then structuredClone, so repeated alias/cycle is copied and alias identity remains within clone. That is an observable public helper difference, not a common JSON clone profile.",
+          "required_scope_correction": "State cycles later cannot survive D1/DO JSON.stringify; no persisted cyclic row established. Preserve distinct helper profiles until owner decision, without promising arbitrary cyclic/native/proxy/accessor equivalence. Do not simplify both through stringify/parse or infer alias prohibition as language semantics.",
+          "anchors": [
+            {
+              "path": "packages/work/src/kernel/tables.ts",
+              "line": 239,
+              "end": 273
+            },
+            {
+              "path": "packages/work/src/kernel/tables.ts",
+              "line": 429,
+              "end": 447
+            },
+            {
+              "path": "packages/state/src/fanout/tables.ts",
+              "line": 262,
+              "end": 274
+            },
+            {
+              "path": "packages/state/src/storage/d1.ts",
+              "line": 714,
+              "end": 721
+            }
+          ]
+        },
+        {
+          "id": "XR06",
+          "target": "PDW-03",
+          "verdict": "confirmed predicate versus producer gates; omitted typed-input scope narrowed",
+          "independent_source_reasoning": "isConsistentCompletion(succeeded,NaN,null) returns true because succeeded tests only error null. Undefined result/error normalize to null in predicate/reader. newReceiptRow calls newRow -> deep JSON-safety first, which rejects own undefined and nonfinite numbers; a missing result is not visited, then reader produces null. Status consistency cannot authorize persistence or declared result shape.",
+          "required_scope_correction": "ReceiptRowData result is required unknown in TS; omitted member is arbitrary-JS helper input, not valid declared TS producer. Own undefined is within unknown type yet runtime rejected intentionally by safety gate. Native Undef/Func tags do not establish public permission to store either. Preserve presence/error timing and distinguish read predicate from row construction.",
+          "anchors": [
+            {
+              "path": "packages/work/src/receipt/index.ts",
+              "line": 316,
+              "end": 341
+            },
+            {
+              "path": "packages/state/src/receipt/tables.ts",
+              "line": 82,
+              "end": 93
+            },
+            {
+              "path": "packages/state/src/receipt/tables.ts",
+              "line": 173,
+              "end": 209
+            },
+            {
+              "path": "packages/state/src/receipt/tables.ts",
+              "line": 288,
+              "end": 312
+            },
+            {
+              "path": "packages/state/src/receipt/tables.ts",
+              "line": 329,
+              "end": 347
+            },
+            {
+              "path": "packages/state/src/receipt/tables.ts",
+              "line": 402,
+              "end": 410
+            }
+          ]
+        },
+        {
+          "id": "XR07",
+          "target": "PDW-01",
+          "verdict": "confirmed represented-number and JSON-sink behavior; no new precision mandate",
+          "independent_source_reasoning": "Work checkCount accepts -0 and finite nonnegative Number integers above MAX_SAFE_INTEGER. JSON-safety admits finite -0; structuredClone preserves signed zero; D1 write JSON.stringify changes it to0 and reader JSON.parse returns positive0. Persisted text9007199254740993 is rounded by JSON.parse before Work validation. RangedCount separately checks finite integer then explicit declared range before fixed-width conversion.",
+          "required_scope_correction": "Compatibility observation at a declared binary64/JSON sink, not demonstrated Can int64 corruption. Tightening safe integer/domain or changing count width needs owning API/migration decision. A u32 frame-length requirement does not imply every semantic count is u32, while declared framed range must reject overflow before coercion.",
+          "anchors": [
+            {
+              "path": "packages/work/src/kernel/tables.ts",
+              "line": 201,
+              "end": 210
+            },
+            {
+              "path": "packages/work/src/kernel/tables.ts",
+              "line": 247,
+              "end": 251
+            },
+            {
+              "path": "packages/work/src/kernel/tables.ts",
+              "line": 420,
+              "end": 421
+            },
+            {
+              "path": "packages/state/src/storage/d1.ts",
+              "line": 104,
+              "end": 112
+            },
+            {
+              "path": "packages/state/src/storage/d1.ts",
+              "line": 714,
+              "end": 721
+            },
+            {
+              "path": "packages/work-kernel/src/facts.ts",
+              "line": 190,
+              "end": 209
+            }
+          ]
+        }
+      ],
+      "additional_scoped_observations": [
+        "PV01 issuance token and returned record/buffer are indeed mutable; freezing token does not freeze lineage content. No deployed native call established.",
+        "PV08 backend.ts75-76 indeed discards native violations into ValueError; TS_OPS has six entries and no decode-value, so selected-future complete public projection gate, not established adopted public parity bug.",
+        "Both HTTP JSON/form body readers use default nonfatal TextDecoder, matching owned parser; no producer-parser byte refusal disagreement claimed.",
+        "Unsafe JSONnumeric rounding is platform behavior, while public int/json codecs have wire guards. Do not infer a global public data precision bug.",
+        "PDW10 publication verifier indeed compares retained metadata to reviewed buffers and publish reads current disk bytes without rehash. blocked-gates.json126 already records unaccepted P07.1 HUMAN HOLD; no current CLI incident claimed.",
+        "PDW08 bare module keys10/2 show general-helper JS enumeration versus lexical rendering difference, but observed production deployment keys carry prefixes; no deployed digest mismatch established."
+      ],
+      "source_hashes": {
+        "packages/interfaces/src/http/limits.ts": "6a5b2277decf0a79ed7d05acca9fd24afd7df56082a02b8c48cdde3efd503bfc",
+        "packages/interfaces/src/http/operations.ts": "44f9bc9a95e16867b058c079cb82fbe915274bb166c27fe210906f7dec6ab37a",
+        "packages/interfaces/test/http-operations.test.ts": "c5c52dbe40ddf149adfb1e548d128a5f46690e89a9f4b53d66cb8d78b87962eb",
+        "packages/contracts/src/wire.ts": "bd85ca914bbc8d31fb372dbffa6c0d7176397bf11fa7d02e5b02b6c89fa01ba1",
+        "packages/values/src/internal/schema-core.ts": "a8b147e6c4c63f3bd9cc0d1c55a2fad582effaf2d18dde4394c0d30345963792",
+        "packages/values/src/prepared/plan.ts": "31cc0a8a09774f5a6754372700b41269cd3df73de4171574053fbab661faa0d4",
+        "packages/values/test/prepared-hook.test.ts": "b9f7e31d0c22df220c98ea9c6e597a96599e031ee5b66d970d160d73064eca7c",
+        "packages/values/semantics/src/transport/exact.rs": "7c2f5600bf4c72b5ccfef82500113e28f1fc3131a0f818dff8e205b802142817",
+        "packages/values/semantics/src/codecs/numeric.rs": "6f06587f264ae4365739c7fbbbb9e2fe9e3b4319c5cc6fc71e056594dc740217",
+        "packages/values/bindings/carriers.ts": "657f643c92fefe1d4303f609748860ed7c496544093fb57e5ea9fd7063fca3d0",
+        "packages/values/src/internal/wire-core.ts": "2c940525ff289d3154dca0db754f99eca480c67992e8e180aee2a97ddddec059",
+        "packages/work/src/kernel/tables.ts": "10bde1f6281574b277fa6b795157c72c40471a12e46c32490b4774e1aea220e7",
+        "packages/state/src/fanout/tables.ts": "f97acf5b3d38c7ace87f0cc38c1712e533d856fb4c4affb733efb7588ea1f0ae",
+        "packages/state/src/storage/d1.ts": "b702d004e8f231c568cfffbaaff1a9bdb0e208b33d90be2e480f472a4fcd0e45",
+        "packages/work/src/receipt/index.ts": "9d51ff1a4bf0bd4ec2368aa0e2d094c72b3a1ef85c939526e0110bd05f058816",
+        "packages/state/src/receipt/tables.ts": "d9d6ec727d3ee80bc7b2036c934ad75df6a58afabeb6fa9e428b21705136230d",
+        "packages/work-kernel/src/facts.ts": "d10518896028ef5243d066fab4938fcb3657b0b85a90feea680a9dfdaeb6c61a",
+        "packages/cloudflare/src/preparation/publication.ts": "d5a2a0bf875a2305648036cb7cc8c2d827a88980911384ba52d08a892d66a6d8",
+        "docs/research/package-subsystem-ports-20261006/evidence/implementation/artifact-preparation/blocked-gates.json": "e2ddaa24f19923495b431202b6f2671fc26ce403b1aee730525463c981bfa8c1",
+        "packages/cloudflare/src/deploy/bundle.ts": "7e8ad78a2674120ad59e96dbe2b34ab8923d8418578c015168c2b0ccd1a7a741"
+      },
+      "held_boundary_anchors": [
+        {
+          "path": "packages/cloudflare/src/preparation/publication.ts",
+          "line": 255,
+          "end": 271
+        },
+        {
+          "path": "packages/cloudflare/src/preparation/publication.ts",
+          "line": 281,
+          "end": 300
+        },
+        {
+          "path": "docs/research/package-subsystem-ports-20261006/evidence/implementation/artifact-preparation/blocked-gates.json",
+          "line": 125,
+          "end": 127
+        },
+        {
+          "path": "packages/cloudflare/src/deploy/bundle.ts",
+          "line": 920,
+          "end": 925
+        }
+      ],
+      "status": "complete finite independent challenge: root own-key + three values + three Work cases; publication/key-order limits checked separately",
+      "reviewed_packets": {
+        "/private/tmp/canlang-protocol-values.json": "a09ec04cc9883ab95350fbe6086a31e0d8da16ef6064d161630b98d5a745c9a0",
+        "/private/tmp/canlang-protocol-work-delivery.json": "dc2bff409330a0995e5fe961fca48f3eb4c2686b611059bdb7620d48953bfd99"
+      },
+      "metadata_verification": "Source anchor ranges within source bounds; indexed source SHA256 verified unchanged; packet checks only, product source unexecuted.",
+      "origin_review_sha256": "27d9634fac1e545b49a4e0e2576298aef6f6e5f8082bd1120e9728c34c7db486"
+    },
+    {
+      "schema": 1,
+      "pin": "f3dd798c866916b526b72e0a53c1ddf257748587",
+      "review": "finite independent source challenge; conclusions were visible, not cleanroom",
+      "packet_sha256": "d93bfd95ab864a6441deed2920c62bda5c65bdd5870e4a1ec25ae5a531f2f253",
+      "method": "Source reads and standard Python JSON/SHA256 only. No package code/test/runtime/build/Wasm/install/network/new JEV/Git operations/repo edits. Main packet source hashes all matched current known-frozen checkout. All observations unexecuted; no new production qualification.",
+      "result": "All four core witnesses hold at declared source stages, with domain/authority corrections: UI sorts normal CSV selection; safe-error confidentiality assumption explicit and ComfyUI result-detail separate; verifier syntax tightening conditional.",
+      "reviews": [
+        {
+          "id": "IP04",
+          "verdict": "confirmed source-derived selected-input redirect; required frozen-row outcome gap",
+          "minimal_witness_valid": true,
+          "witness_refinement": "Required qty derived kind=integer and shape allowed/required=[qty]; registered operation pkg.add, authenticated same principal/context, valid CSRF, fresh UUIDv7 within handler age gate, live authority, no existing receipt. A=qty\\n1\\n2\\n; B=qty\\nbad\\n1\\n2\\n; select original index1.",
+          "trace": "A rows: index0 valid qty1, index1 valid qty2. B rows: index0 invalid qtybad, index1 valid qty1, index2 valid qty2. Integer binding rejects bad (mcp schemas.ts INT_TEXT/int64 rule). Both digest canonical bytes exactly {\"candidates\":[{\"qty\":\"1\"},{\"qty\":\"2\"}],\"operation\":\"pkg.add\"}; candidate_count=2/review_id unchanged. Commit compares only operation/review_id/digest/count/principal, then indexes B review.rows[1] and invokes inputs {qty:\"1\"} with original selected identity.",
+          "counterevidence": [
+            "Principal/session/CSRF and membership-liveness checks still run; no authority escalation or forged consent privilege claimed.",
+            "Changed valid candidate order/value changes digest and is rejected. Inserting an invalid row leaves filtered candidate list unchanged, so those controls do not reject this example.",
+            "L3 existing matching receipt replays or changed input conflicts before new effects; witness explicitly uses a fresh unreceipted identity, where replay protection cannot establish original reviewed input.",
+            "Canonical inputs in digest are mapped raw CSV wire values, not complete L3 normalized values; frozen identity requirement should name actual owning normalization stage."
+          ],
+          "caller_scope": "Supported exported HTTP CSV handler, conditionally injected sub.csv route. Unmounted route 404; no installed/live UI traffic proven. Editing commit echo/direct JSON is admitted and required for witness; ordinary unchanged UI echo does not produce it.",
+          "authority": "DESIGN.md:779 explicitly requires source row identity and frozen retry inputs, new reviewed invocation for edited submitted row. Required outcome; no existing mandate for cryptographic signature, server-side state, or hash algorithm. AD-csv-digest-wire is current persisted compatibility boundary, not proof complete intended consent semantics.",
+          "fix_disposition": "Require review/selection binding to exact row identity plus frozen owning input/status; changed selected meaning cannot execute under old selection. Mechanism conditional: hash row/index/status/input or private immutable review state are alternatives. Do not indiscriminately require a new review for an unselected-row change when selected frozen identity remains provably unchanged. Current index-only implementation must reject/reconfirm A->B or bind original qty2 explicitly. Coherent consent-version migration if wire changes.",
+          "negative_acceptance": [
+            "A/B must not invoke qty1 with old row1 identity; preserve identical frozen retries.",
+            "Inserted malformed/duplicate/excluded rows cannot redirect index selections. Same principal/review digest is insufficient.",
+            "Keep live authority and canonical operation/replay/guard checks; test fresh and receipted identities separately."
+          ],
+          "anchors": [
+            {
+              "line": 165,
+              "path": "packages/interfaces/src/http/csv.ts"
+            },
+            {
+              "line": 253,
+              "path": "packages/interfaces/src/http/csv.ts"
+            },
+            {
+              "line": 272,
+              "path": "packages/interfaces/src/http/csv.ts"
+            },
+            {
+              "line": 471,
+              "path": "packages/interfaces/src/http/csv.ts"
+            },
+            {
+              "line": 483,
+              "path": "packages/interfaces/src/http/csv.ts"
+            },
+            {
+              "line": 518,
+              "path": "packages/interfaces/src/http/csv.ts"
+            },
+            {
+              "line": 543,
+              "path": "packages/interfaces/src/http/csv.ts"
+            },
+            {
+              "line": 138,
+              "path": "packages/interfaces/src/envelope/prepared.ts"
+            },
+            {
+              "line": 400,
+              "path": "packages/interfaces/src/mcp/schemas.ts"
+            },
+            {
+              "line": 151,
+              "path": "packages/interfaces/src/http/routes.ts"
+            },
+            {
+              "line": 321,
+              "path": "packages/state/src/invocation/admission.ts"
+            },
+            {
+              "line": 779,
+              "path": "docs/specification/DESIGN.md"
+            },
+            {
+              "line": 346,
+              "path": "docs/research/package-library-audit-20261006/required-behavior/contracts.jsonl"
+            },
+            {
+              "line": 348,
+              "path": "docs/research/package-library-audit-20261006/required-behavior/contracts.jsonl"
+            },
+            {
+              "line": 409,
+              "path": "packages/interfaces/src/http/csv.ts"
+            }
+          ]
+        },
+        {
+          "id": "IP05",
+          "verdict": "confirmed accepted-design order gap at direct handler; ordinary UI counterevidence narrows domain",
+          "minimal_witness_valid": true,
+          "witness_refinement": "Same qty schema/auth/fresh distinct UUIDv7 gates as IP04. Consent matches unchanged qty\\n1\\n2\\n. Caller JSON rows=[{index:1,operation_id:B},{index:0,operation_id:A}].",
+          "trace": "parseSelections traverses supplied array and pushes unchanged; uniqueness checks do not sort. Commit for-of selections awaits qty2 then qty1. No rejected invalid input is needed: indexes and fresh IDs are valid.",
+          "counterevidence": [
+            "Normal UI collectCommitSelections sorts selected.entries by row index ascending (confirm.ts:246-249), so ordinary UI collector sends qty1 then qty2. Packet must not imply every UI-produced confirmation reverses order.",
+            "Canonical mutation authorization/invariants remain in injected invoker; no bypass. Scope is server acceptance of otherwise valid direct JSON caller.",
+            "Typed returned row error and thrown invoker exception are distinct: outer request catch handles throws. Do not claim all thrown failures produce complete per-row reports or successful prior effects roll back."
+          ],
+          "caller_scope": "Conditional mounted HTTP CSV handler; no installed endpoint qualification. Direct reversed JSON accepted within supported source boundary.",
+          "authority": "DESIGN.md:779 requires confirmation source order and independent row transactions; AD-csv-row-transactions is product requirement. This is not merely an incidental traversal quirk.",
+          "fix_disposition": "Require source-index ordering after complete request/consent/index/key validation, retaining each index-operation_id-frozen-input association. Sorting selection copies is a sufficient focused mechanism; output outcome order should reflect submission/source order. No operation-ID normalization.",
+          "negative_acceptance": [
+            "Valid reversed wire invokes row0 before row1; keep corresponding A/B identities.",
+            "Prior success survives subsequent returned row failure; thrown/unknown failures preserve replay/reconciliation requirements separately.",
+            "UI sorting does not replace authoritative server ordering."
+          ],
+          "anchors": [
+            {
+              "line": 351,
+              "path": "packages/interfaces/src/http/csv.ts"
+            },
+            {
+              "line": 369,
+              "path": "packages/interfaces/src/http/csv.ts"
+            },
+            {
+              "line": 371,
+              "path": "packages/interfaces/src/http/csv.ts"
+            },
+            {
+              "line": 518,
+              "path": "packages/interfaces/src/http/csv.ts"
+            },
+            {
+              "line": 548,
+              "path": "packages/interfaces/src/http/csv.ts"
+            },
+            {
+              "line": 557,
+              "path": "packages/interfaces/src/http/csv.ts"
+            },
+            {
+              "line": 246,
+              "path": "packages/ui/src/csv/confirm.ts"
+            },
+            {
+              "line": 151,
+              "path": "packages/interfaces/src/http/routes.ts"
+            },
+            {
+              "line": 779,
+              "path": "docs/specification/DESIGN.md"
+            },
+            {
+              "line": 348,
+              "path": "docs/research/package-library-audit-20261006/required-behavior/contracts.jsonl"
+            }
+          ]
+        },
+        {
+          "id": "IP08",
+          "verdict": "confirmed Email/Ollama safe-text gap; ComfyUI output carrier requires separate claim",
+          "minimal_witness_valid": true,
+          "witness_refinement": "Supported EmailV1Adapter.send with valid input/config/delivery ID; bounded provider HTTP400 body {\"message\":\"bearer abc123\"}, where abc123 stands for confidential provider token; second body {\"message\":\"Account email alice@example.invalid\"}, account datum assumed confidential in provider context. No claim these synthetic strings identify actual production secrets.",
+          "trace": "httpRequest reads bounded response body then throws HttpStatusError(400,bodyText); send catch calls mapSendError -> mapSendResponse. readProviderMessage extracts message, specificOrGeneric sees short single-line text unchanged by case-sensitive Bearer or other regexes and returns it. Completion {delivery_id:D,status:\"failed\",result:null,error:{code:\"provider_rejected\",message:\"bearer abc123\"}} passes assertValidCompletion shape check. Confidential account message likewise passes.",
+          "counterevidence": [
+            "Canonical uppercase Bearer text matches redactor and produces generic Mail delivery rejected by provider.; long/multiline/NUL/nonstring texts and many known credential patterns also go generic. This does not guarantee arbitrary private account/body text safe.",
+            "408/429 and 5xx use adapter-owned generic errors; minimal witness is admitted ordinary400 branch. Code is adapter-owned provider_rejected, not provider enum leakage.",
+            "Email/Ollama constructors/provider wiring lack installed/live binding proof in packet; source API output leak is demonstrated, public rendered production leak is not.",
+            "Ollama stream error uses same helper and DeliveryError.message. ComfyUI history helper output instead enters succeededImageCompletion.result.detail with result.state=\"failed\" (comfyui.ts:565-572), not DeliveryError.message. Keep it adjacent result-disclosure concern, with its result/grant authority assessed separately."
+          ],
+          "caller_scope": "Actual supported adapter send/stream/history source paths. No production binding or downstream authorized display/handler trace proven.",
+          "authority": "DESIGN.md:656 and redactor contract require credentials/tokens/confidential accounts removed before completion admission, generic when specificity cannot be disclosed safely. Explicit privacy requirement; classification changes are not required. An arbitrary email address is not intrinsically confidential, so account-context assumption must remain explicit.",
+          "fix_disposition": "Require trusted adapter-owned safe explanation for untrusted free text unless a defined safe mapping establishes disclosure. Case-insensitive credential pattern improvement is useful but does not close arbitrary text/account privacy. Broader privacy route for ComfyUI result.detail needs owning result policy/grant review, not automatic DeliveryError classification.",
+          "negative_acceptance": [
+            "Designated confidential lowercase bearer and account data must not appear in returned admitted error.",
+            "Known safe adapter-owned errors remain actionable; current redaction controls still pass.",
+            "Exercise Email send and Ollama stream as error consumers; qualify ComfyUI result.detail separately."
+          ],
+          "anchors": [
+            {
+              "line": 304,
+              "path": "packages/services/src/http/client.ts"
+            },
+            {
+              "line": 325,
+              "path": "packages/services/src/http/client.ts"
+            },
+            {
+              "line": 125,
+              "path": "packages/services/src/mail/adapter.ts"
+            },
+            {
+              "line": 323,
+              "path": "packages/services/src/mail/adapter.ts"
+            },
+            {
+              "line": 377,
+              "path": "packages/services/src/mail/adapter.ts"
+            },
+            {
+              "line": 405,
+              "path": "packages/services/src/mail/adapter.ts"
+            },
+            {
+              "line": 639,
+              "path": "packages/services/src/mail/adapter.ts"
+            },
+            {
+              "line": 642,
+              "path": "packages/services/src/mail/adapter.ts"
+            },
+            {
+              "line": 18,
+              "path": "packages/services/src/mail/redact.ts"
+            },
+            {
+              "line": 45,
+              "path": "packages/services/src/mail/redact.ts"
+            },
+            {
+              "line": 59,
+              "path": "packages/services/src/mail/redact.ts"
+            },
+            {
+              "line": 532,
+              "path": "packages/services/src/models/ollama.ts"
+            },
+            {
+              "line": 295,
+              "path": "packages/services/src/media/comfyui.ts"
+            },
+            {
+              "line": 565,
+              "path": "packages/services/src/media/comfyui.ts"
+            },
+            {
+              "line": 656,
+              "path": "docs/specification/DESIGN.md"
+            },
+            {
+              "line": 352,
+              "path": "docs/research/package-library-audit-20261006/required-behavior/contracts.jsonl"
+            },
+            {
+              "line": 378,
+              "path": "packages/services/src/models/ollama.ts"
+            }
+          ]
+        },
+        {
+          "id": "IP09",
+          "verdict": "confirmed S256 output-domain admission mismatch; verifier syntax is separate conditional change",
+          "minimal_witness_valid": true,
+          "witness_refinement": "code_challenge=\"A\"*44, method S256; valid registered client/exact raw redirect, authenticated consenting principal/CSRF. Source code issuance succeeds then any verifier fails exact encoded digest comparison. No hash preimage search or token endpoint execution performed.",
+          "trace": "Regex admits URL alphabet length43..128. issueAuthCode repeats validator and persists 44-character challenge unchanged. SHA256 always yields32 bytes; unpadded base64url encoding is43 chars. ASCII44-char challenge differs in encoded length from every candidate digest, timingSafeEqualText/Bytes rejects, exchangeCode throws IdentityError(validation,\"Invalid or expired code.\"), token route returns400 invalid_grant. Failure occurs before code consumption.",
+          "counterevidence": [
+            "Exact redirect/client/expiry/consumption guards and generic failure text remain intact. This is unusable authorization, not grant issuance without correct proof.",
+            "Pattern domain is explicitly current supported input behavior in AD-oauth-redirect-pkce-admission; tightening needs security/compatibility disposition, not treating entire old accepted domain as intended standards policy.",
+            "pkceChallengeMatches hashes any JS string without verifier grammar gate; if authorization stores that exact derived valid43-character challenge, even a malformed verifier can match. Packet phrase malformed verifier simply fails is source comment, not implementation guarantee.",
+            "Base64UrlToBytes legacy unused-tail-bit normalization is not used in PKCE matching; output uses canonical bytesToBase64Url then exact text compare. For32-byte hash final sextet low2 bits zero; accepted43-char challenge ending noncanonical tail can also never match. No bearer normalization is warranted."
+          ],
+          "caller_scope": "OAuth GET/POST authorize validator/issuer and token-route exchange join verified in source. No network/session race or installed endpoint qualification.",
+          "authority": "Owner API declares S256 only and well-formed challenge; finite producer/consumer length contradiction is required workflow fix. Full RFC verifier character/length enforcement is not separately verified from external standards in this no-network review; choose under adopted OAuth profile and assess existing consumers.",
+          "fix_disposition": "Align authorization challenge grammar with actual canonical43-char output domain, reject impossible44/128/noncanonical-tail inputs before issuing code, and preserve exact challenge/redirect text. Treat verifier-syntax restriction as separately conditional contract/security change; current error oracle remains generic. Existing impossible codes can expire under10-minute TTL; do not reinterpret hash identity or widen comparison.",
+          "negative_acceptance": [
+            "44/128-char and impossible43-tail challenges reject before code issuance; legitimate derived43-char challenge exchanges.",
+            "Matching proof cannot grant without exact client/redirect/current valid code checks.",
+            "Malformed verifier acceptance behavior needs explicit chosen grammar before proposing generic refusal test; failed proof leaves code unconsumed under current semantics."
+          ],
+          "anchors": [
+            {
+              "line": 45,
+              "path": "packages/identity/src/authentication/oauth.ts"
+            },
+            {
+              "line": 150,
+              "path": "packages/identity/src/authentication/oauth.ts"
+            },
+            {
+              "line": 181,
+              "path": "packages/identity/src/authentication/oauth.ts"
+            },
+            {
+              "line": 193,
+              "path": "packages/identity/src/authentication/oauth.ts"
+            },
+            {
+              "line": 207,
+              "path": "packages/identity/src/authentication/oauth.ts"
+            },
+            {
+              "line": 237,
+              "path": "packages/identity/src/authentication/oauth.ts"
+            },
+            {
+              "line": 21,
+              "path": "packages/identity/src/sessions/tokens.ts"
+            },
+            {
+              "line": 78,
+              "path": "packages/identity/src/sessions/tokens.ts"
+            },
+            {
+              "line": 325,
+              "path": "packages/interfaces/src/oauth/routes.ts"
+            },
+            {
+              "line": 332,
+              "path": "packages/interfaces/src/oauth/routes.ts"
+            },
+            {
+              "line": 399,
+              "path": "packages/interfaces/src/oauth/routes.ts"
+            },
+            {
+              "line": 416,
+              "path": "packages/interfaces/src/oauth/routes.ts"
+            },
+            {
+              "line": 229,
+              "path": "docs/research/package-library-audit-20261006/required-behavior/contracts.jsonl"
+            },
+            {
+              "line": 361,
+              "path": "docs/research/package-library-audit-20261006/required-behavior/contracts.jsonl"
+            },
+            {
+              "line": 4,
+              "path": "packages/identity/src/sessions/comparison.ts"
+            }
+          ]
+        }
+      ],
+      "sources": {
+        "S01": {
+          "path": "packages/interfaces/src/http/csv.ts",
+          "sha256": "6025d282f5afb52e127bafc5fa1154935c126dce833b57713310af47d94a3d2e",
+          "matches_packet_pin": true
+        },
+        "S02": {
+          "path": "packages/interfaces/src/envelope/prepared.ts",
+          "sha256": "b10355f3bf2f3490ba2b62380e8e8e73606e46b934170ece8cb55371ed429f97",
+          "matches_packet_pin": true
+        },
+        "S03": {
+          "path": "docs/specification/DESIGN.md",
+          "sha256": "481ce7ea109ca7ae6852ec6430ae03fb5c973f7ba469b3ed28824fcf5b2df0c9",
+          "matches_packet_pin": true
+        },
+        "S10": {
+          "path": "packages/services/src/mail/adapter.ts",
+          "sha256": "065462278dfb0fe69fd3e15a18f5b370eb0abaf59766ef44eb1c615ba557f5d0",
+          "matches_packet_pin": true
+        },
+        "S11": {
+          "path": "packages/services/src/mail/redact.ts",
+          "sha256": "2da0f060f790820db04b783dfc9828dc73c0c7e6db32ed67d9aba5cca01c61c8",
+          "matches_packet_pin": true
+        },
+        "S12": {
+          "path": "packages/services/src/models/ollama.ts",
+          "sha256": "96c39834af0d132c64d164b0a8d4712fa75c203fb4fa8c4463e0ad8b5907df96",
+          "matches_packet_pin": true
+        },
+        "S13": {
+          "path": "packages/services/src/media/comfyui.ts",
+          "sha256": "694eb7caa69ee4d22af05cdf441fcb68638e33b1a3387191ddfb5e9a93a93f7b",
+          "matches_packet_pin": true
+        },
+        "S14": {
+          "path": "packages/identity/src/authentication/oauth.ts",
+          "sha256": "c548c8cdc916e4aaed503b3346ab7a4477c22c29d6b9e70c60986ea78daf14be",
+          "matches_packet_pin": true
+        },
+        "S15": {
+          "path": "packages/interfaces/src/oauth/routes.ts",
+          "sha256": "19e9318f1dc1d3d30bd3a22f87fdf0499e4237497fd870135ae8314ba58e08ef",
+          "matches_packet_pin": true
+        },
+        "S21": {
+          "path": "packages/identity/src/sessions/tokens.ts",
+          "sha256": "d7867041c5c893cabdece58607af646c3468aa9e24a895b8608e8112cc7365fa",
+          "matches_packet_pin": true
+        },
+        "S24": {
+          "path": "docs/research/package-library-audit-20261006/required-behavior/contracts.jsonl",
+          "sha256": "f36371b966cc1071ef80c6704c6fc4236ffa69ef15ce3137b8722303c32a4a89",
+          "matches_packet_pin": true
+        },
+        "C01": {
+          "path": "packages/ui/src/csv/confirm.ts",
+          "sha256": "58b9c1bcb9ad935b57c50a038bed8d6c7448f1bc740798630fa6827696864d1e",
+          "stage": "current frozen checkout; packet supplementary counterevidence"
+        },
+        "C02": {
+          "path": "packages/services/src/http/client.ts",
+          "sha256": "41b55f0bffee4a85a7a910ae8303da21f21fab010b1db5043a869d13c1a1f034",
+          "stage": "current frozen checkout; packet supplementary counterevidence"
+        },
+        "C03": {
+          "path": "packages/interfaces/src/http/routes.ts",
+          "sha256": "e793a0130b30fa115fc5dea091f6300cf52cfc15f095a03f59cd20a9f72b7a42",
+          "stage": "current frozen checkout; packet supplementary counterevidence"
+        },
+        "C04": {
+          "path": "packages/interfaces/src/mcp/schemas.ts",
+          "sha256": "44e1e8f6df2cddfc3c0a7b0b3f080d74dfe96c53f0d7d0d9420b3a27786f22fb",
+          "stage": "current frozen checkout; packet supplementary counterevidence"
+        },
+        "C05": {
+          "path": "packages/state/src/invocation/admission.ts",
+          "sha256": "c83e7b06b932e7e16402f0c815121a917f7b63daa90e4000fd822d16b1fc1ba6",
+          "stage": "current frozen checkout; packet supplementary counterevidence"
+        },
+        "C06": {
+          "path": "packages/identity/src/sessions/comparison.ts",
+          "sha256": "663079590c9147f2cb6f3de72187afcf84ea185ac3288c946fe05901738901db",
+          "stage": "current frozen checkout supplementary comparison gate"
+        }
+      },
+      "origin_review_sha256": "ccea2b115829517ce1577a119fc188735ab56bce881fe7861464ea710f70e20b",
+      "prior_conclusions_visible": true
+    }
+  ]
+}

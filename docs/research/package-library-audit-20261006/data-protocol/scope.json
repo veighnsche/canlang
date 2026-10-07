@@ -1,0 +1,27 @@
+{
+  "pin": "f3dd798c866916b526b72e0a53c1ddf257748587",
+  "mode": "planning-audit",
+  "execution_authorized": false,
+  "product_changes": false,
+  "package_runtime_execution": false,
+  "scope": "Data and protocol correctness across packages at actual producer/consumer seams; no compiler changes",
+  "user_requested_model": "Sol high",
+  "delegation": {
+    "model": "gpt-6.1-sol",
+    "reasoning_effort": "high",
+    "reason": "User-specified Sol high; representation, protocol, security and staged caller uncertainty. No price or benchmark claim."
+  },
+  "independence": "Independent source challenges with prior conclusions visible; not cleanroom",
+  "canonical_task_status_changes": false,
+  "accepted_policy_changes": false,
+  "witness_count": 32,
+  "reference_fact_count": 8,
+  "limits": [
+    "No product tests/builds/install/Wasm instantiation/network probes",
+    "Platform reference script imports only node:assert/strict; it does not execute Can packages",
+    "Static disagreement witnesses do not establish deployed incidents, adoption or new acceptance",
+    "Compiler audit work and shared decisions preserved",
+    "No JEV question was needed: factual gaps against existing authority, with material mechanism/domain decisions left proposed",
+    "Historical Step9/12 exact matching f587 asset receipts retain finite credit; no replay or broad native/default acceptance"
+  ]
+}

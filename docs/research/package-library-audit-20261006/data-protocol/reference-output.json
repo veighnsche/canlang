@@ -1,0 +1,73 @@
+{
+  "kind": "platform-reference-only",
+  "node": "v24.21.0",
+  "packageCodeExecuted": false,
+  "endToEndAcceptance": false,
+  "entries": [
+    {
+      "id": "own-key-transport",
+      "observed": {
+        "formOwnProto": false,
+        "jsonOwnProto": true,
+        "safeFromEntriesOwnProto": true
+      }
+    },
+    {
+      "id": "filter-key-drop",
+      "observed": []
+    },
+    {
+      "id": "json-integer-rounding",
+      "observed": {
+        "reserialized": "{\"n\":9007199254740992}",
+        "equalParsed": true,
+        "safeInteger": false
+      }
+    },
+    {
+      "id": "json-negative-zero",
+      "observed": {
+        "initialNegative": true,
+        "reserialized": "{\"n\":0}",
+        "afterRoundtripNegative": false
+      }
+    },
+    {
+      "id": "replacement-utf8",
+      "observed": {
+        "badText": "\"\ufffd\"",
+        "goodText": "\"\ufffd\"",
+        "parsed": "\ufffd"
+      }
+    },
+    {
+      "id": "utf16-json-versus-raw-utf8",
+      "observed": {
+        "loneJson": "\"\\ud800\"",
+        "replacementJson": "\"\ufffd\"",
+        "rawBytesEqual": true
+      }
+    },
+    {
+      "id": "canonical-order-owner",
+      "observed": {
+        "lexicalKeys": [
+          "10",
+          "2",
+          "a"
+        ],
+        "reassembledJson": "{\"2\":\"two\",\"10\":\"ten\",\"a\":\"a\"}",
+        "manualLexicalJson": "{\"10\":\"ten\",\"2\":\"two\",\"a\":\"a\"}"
+      }
+    },
+    {
+      "id": "missing-null-and-undefined",
+      "observed": {
+        "omitted": "{}",
+        "explicitNull": "{\"x\":null}",
+        "explicitUndefined": "{}",
+        "arrayUndefined": "[null]"
+      }
+    }
+  ]
+}

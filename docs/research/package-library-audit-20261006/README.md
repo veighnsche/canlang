@@ -21,6 +21,11 @@ the defining implementations, finite native surfaces and unfinished consumers.
 It distinguishes actual exact Wasm functions, validation scaffolds, registered
 Work candidates and held preparation prefixes; it also reconciles current values
 asset receipts and narrows earlier preparation caller claims.
+The [data/protocol correctness audit](data-protocol/README.md) records 32 bounded
+source witnesses and compatibility controls, with concrete producer/consumer
+disagreements, privacy projections and an original-ID fix queue. It separates
+required-outcome gaps from unjoined/native/held domains and keeps implementation
+deferred; no new runtime or deployment acceptance is implied.
 The branch audit covers 480 groups across the selected 27 integration seams, with exact
 conditional change gates and independent source challenges. These later pinned records
 supersede historical unwired/source/qualification premises below where explicitly reconciled;
