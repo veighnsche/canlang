@@ -1103,3 +1103,9 @@ Sol low writer; Sol medium independent and consumer review. Three fixed full-byt
 **Accepted implementation (C05P-policy):** Typed records and a small layout-only Serde Formatter preserve root/row/nested indentation, inline arrays/objects, key order, omissions and verbatim predicates/source. The serializer retains one newline and the CLI retains its existing second newline. Extraction/authorization decisions remain unchanged. HTML embedding stays UI-owned.
 
 Sol medium writer/review. Four fixed complete layout/CLI fixtures plus two unit tests pass. Fresh CLI output passes actual UI policyDumpSections and policyPage with independent role/model/invariant/operation/source expectations and HTML escaping; no skip occurred. See the [family contract and receipt](../research/compiler-library-audit-20261006/pass5/families/policy.md) for scope and boundaries. Input admission stays unchanged; no package edits, merge or living-plan checkpoint advancement by this packet.
+
+### 2026-10-07 — compiler typed JSON explain
+
+**Accepted implementation (C05P-explain):** Borrowed six-field ordered DTOs preserve compact code/title/severity/explanation/example_valid/example_invalid, empty strings and controls, lowercase severity, no serializer newline and one CLI newline. Catalog entries and text rendering are unchanged.
+
+Sol medium writer/review. Three fixed/full CLI fixtures plus three unit tests pass. Known E1001 runs through the fresh actual binary; independent fixed output is the oracle. See the [family contract and receipt](../research/compiler-library-audit-20261006/pass5/families/explain.md) for scope and boundaries. Input admission stays unchanged; no package edits, merge or living-plan checkpoint advancement by this packet.
