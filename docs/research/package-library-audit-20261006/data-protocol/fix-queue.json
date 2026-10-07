@@ -1,0 +1,144 @@
+{
+  "status": "proposed dependency queue, not canonical new tasks or implementation authorization",
+  "units": [
+    {
+      "id": "Q01",
+      "witnesses": [
+        "IP08"
+      ],
+      "action": "Repair safe provider projection using adapter-owned safe classifications/explanations; define any permitted specificity explicitly. Extend adjacent model/media projections.",
+      "gate": "source, negative credential/account/stack/body controls, actual supported adapter consumer; installed binding remains separately required",
+      "depends_on": []
+    },
+    {
+      "id": "Q02",
+      "witnesses": [
+        "IP04",
+        "IP06"
+      ],
+      "action": "Freeze row selection and review-context lifetime contract; version current unsigned consent before choosing private review owner or integrity mechanism.",
+      "gate": "source row identity/index/status, app/user/team/session loss, expiry, exact selected normalized inputs; factual gap not permission to select a security migration",
+      "depends_on": []
+    },
+    {
+      "id": "Q03",
+      "witnesses": [
+        "IP01",
+        "IP02",
+        "IP03",
+        "DP01",
+        "DP02"
+      ],
+      "action": "Repair type-directed CSV presence/header admission and own-key-preserving construction; use owning codecs for candidate duplicate identity.",
+      "gate": "blank nullable/text, unmapped omission, protected/unknown paths, exact int64, special keys, normalized duplicate controls; leave persisted receipt hashing separate",
+      "depends_on": []
+    },
+    {
+      "id": "Q04",
+      "witnesses": [
+        "IP05",
+        "IP07"
+      ],
+      "action": "Preserve server source-row invocation order and move unseen-ID age behind canonical receipt lookup.",
+      "gate": "direct reordered caller, retained same-input replay, unseen-expired rejection, conflicting reuse and current replay projection authority",
+      "depends_on": [],
+      "integration_note": "Both corrections can be prepared independently. If changing CSV consent/mapping in shared files, reconcile Q02/Q03 at a short owner handoff; do not park replay-age work behind unrelated review machinery."
+    },
+    {
+      "id": "Q05",
+      "witnesses": [
+        "IP09"
+      ],
+      "action": "Align S256 challenge admission with actual generated 32-byte challenge domain; separately decide verifier syntax and old input tightening.",
+      "gate": "44/128 chars fail before issuance; legitimate canonical 43-char challenge works; exact redirect and generic failure survive",
+      "depends_on": []
+    },
+    {
+      "id": "Q06",
+      "witnesses": [
+        "PV01",
+        "PV03",
+        "PV04",
+        "PV08"
+      ],
+      "action": "Before broad native/prepared claims, seal owned mutable derivatives, admit validated scalar carriers, enforce tuple hygiene and qualify full ordered public error projection.",
+      "gate": "each exact private/raw/public join separately; six-op historical credit does not qualify native codecs or validation",
+      "depends_on": []
+    },
+    {
+      "id": "Q07",
+      "witnesses": [
+        "PV02",
+        "PV05",
+        "PV06",
+        "PV07"
+      ],
+      "action": "Record domain/identity decisions without introducing a generic hash or lossy Unicode normalization; retain explicit exclusions until owner-compatible carrier/contract is selected.",
+      "gate": "nested identity/privacy consumer, exact UTF16 units/error bytes and canonical shape versus bytes",
+      "depends_on": []
+    },
+    {
+      "id": "Q08",
+      "witnesses": [
+        "PDW-01",
+        "PDW-02",
+        "PDW-03",
+        "PDW-04",
+        "PDW-05",
+        "PDW-06",
+        "PDW-12"
+      ],
+      "action": "Carry current operation-specific numeric/presence/alias/duplicate/demand/map profiles into real Work qualification.",
+      "gate": "original W02/W03/W04.4/W06/W07 and source-map caller gates; no universal clone, eager fact preparation or fixed-width coercion",
+      "depends_on": []
+    },
+    {
+      "id": "Q09",
+      "witnesses": [
+        "IP10"
+      ],
+      "action": "Choose/admit media and upload host data domains before hashing and copying, then remove needless JSON conversion only within the released domain.",
+      "gate": "JSON source versus supported arbitrary-JS profile, undefined/nonfinite/accessor/toJSON controls, same-input retry and exact submitted graph identity",
+      "depends_on": []
+    },
+    {
+      "id": "Q10",
+      "witnesses": [
+        "PDW-07",
+        "PDW-08",
+        "PDW-09",
+        "PDW-10",
+        "PDW-11"
+      ],
+      "action": "When held native preparation is released, enforce coherent owned numeric/key input, bound framing before allocation and publish the exact validated byte snapshot.",
+      "gate": "original P03/P05/P06/P07/P08/P10 plus exact-key-set/duplicate/version controls; current CLI incident not claimed",
+      "depends_on": []
+    },
+    {
+      "id": "Q11",
+      "witnesses": [
+        "IP01",
+        "IP02",
+        "IP03",
+        "IP04",
+        "IP05",
+        "IP06",
+        "IP07",
+        "IP08",
+        "IP09",
+        "DP01",
+        "DP02"
+      ],
+      "action": "Qualify actual selected producer/consumer routes after repairs; remove obsolete conversion mechanisms only after negative and caller gates.",
+      "gate": "required selected scope; mounted/installed consumers where claims apply; root independent joined review",
+      "depends_on": [
+        "Q01",
+        "Q02",
+        "Q03",
+        "Q04",
+        "Q05"
+      ]
+    }
+  ],
+  "allocation": "Finite disjoint packets; scope lease before writes. Each preserves original IDs from witnesses. No permanent worker/runtime/schedule started."
+}

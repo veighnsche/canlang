@@ -1,0 +1,11 @@
+dimension	witnesses_and_controls	limit_or_control
+numeric precision	PV03;PDW-01;PDW-07;IP03	Exact bigint strings stay exact; represented f64 durable sink is different. No inferred safe-integer language guarantee.
+negative zero	IP03;PDW-01;PDW-07;PVC01	Typed integer -0 normalization differs from Decimal scale -0 and raw IEEE bits. Keep separate owners.
+UTF-16	PV05;PV06;PDW-05;PDW-11	Lone/paired/cut boundary, empty cursor and UTF8 byte sink have different admitted domains.
+canonical bytes	PV07;PDW-08;PDW-10;PDW-11;IP04;IP10	Value equality, byte equality, reviewed snapshot, versioned digest and clone domain are distinct.
+key ordering	PV07;PDW-08;PDW-12;IP05	JS integer-index enumeration and UTF16 lexical manual serialization differ; current deploy prefixed key domain excludes bare integers.
+missing/null	PV01;PDW-03;PDW-05;PDW-12;IP01	Presence matters before admission, supplier completion, map suppression and typed CSV input.
+duplicate keys	PV04;PDW-04;PDW-08;IP02;IP03;DP01;DP02	Raw tuple hygiene differs from ordinary JSON last-wins and Work ordered claims. Own keys must survive transport.
+identity hashing	PV02;PV07;PDW-10;PDW-11;IP04;IP06;IP09;IP10	Echo is not hash; S256 challenge domain, frozen selection and lifecycle need owning consumer evidence.
+privacy projections	PV02;IP08;IP06	Provider free text cannot be made safe by a pattern blacklist; hash alone implies no secrecy or authority.
+conversion chains	PV01;PV03;PDW-02;PDW-07;PDW-09;IP10	Candidate deletion/consolidation requires owned domain and caller proof; no universal serializer/clone/DTO.
