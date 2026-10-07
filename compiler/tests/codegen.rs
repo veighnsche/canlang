@@ -620,7 +620,7 @@ fn golden_teamtasks_structure() {
     );
     let suite = &artifact.tests[0].module.js;
     assert!(
-        suite.contains("const task={model:\"TeamTasks.Todo\",dependencies:[],value:async(c,s)=>({title:\"Ship prototype\"})};"),
+        suite.contains("const $can$f$7461736b={model:\"TeamTasks.Todo\",dependencies:[],value:async(c,s)=>({title:\"Ship prototype\"})};"),
         "task recipe:\n{suite}"
     );
     assert!(
@@ -1143,11 +1143,11 @@ fn golden_expenseflow_structure() {
     );
     let submit = &artifact.tests[0].module.js;
     assert!(
-        submit.contains("const reviewer_one={dependencies:[],user:async(c,s)=>({roles:[\"expenses.reviewer\"]})};"),
+        submit.contains("const $can$f$72657669657765725f6f6e65={dependencies:[],user:async(c,s)=>({roles:[\"expenses.reviewer\"]})};"),
         "reviewer recipe:\n{submit}"
     );
     assert!(
-        submit.contains("const pending={model:\"expenses.Expense\",dependencies:[],value:async(c,s)=>({purpose:\"Travel\",amount:money(25n,\"EUR\"),submitted_by:other,status:\"submitted\"})};"),
+        submit.contains("const $can$f$70656e64696e67={model:\"expenses.Expense\",dependencies:[],value:async(c,s)=>({purpose:\"Travel\",amount:money(25n,\"EUR\"),submitted_by:other,status:\"submitted\"})};"),
         "pending recipe"
     );
     assert!(
@@ -1211,7 +1211,7 @@ fn golden_expenseflow_structure() {
         "sequence tuple assertion types"
     );
     assert!(
-        approve.contains("dependencies:[reviewer_one,reviewer_two],sequence:["),
+        approve.contains("dependencies:[$can$f$72657669657765725f6f6e65,$can$f$72657669657765725f74776f],sequence:["),
         "sequence dependencies"
     );
     let summarize = &artifact.tests[2].module.js;
@@ -2791,7 +2791,10 @@ fn construct_fixtures_and_recipes() {
     let (module, diags, _) = bdd::emit_suite(&ir, &suite);
     assert!(diags.is_empty(), "recipes lower cleanly: {diags:?}");
     assert_eq!(module.scope, "demo.submit");
-    assert_eq!(module.module.path, "tests/demo_submit.mjs");
+    assert_eq!(
+        module.module.path,
+        "tests/$can$t$64656d6f2e7375626d6974.mjs"
+    );
     let js = &module.module.js;
     assert!(
         js.contains("Test-only example artifact"),
@@ -2806,17 +2809,17 @@ fn construct_fixtures_and_recipes() {
         "factory"
     );
     assert!(
-        js.contains("const job={model:\"demo.Widget\",dependencies:[],value:async(c,s)=>({title:\"Reconcile\"})};"),
+        js.contains("const $can$f$6a6f62={model:\"demo.Widget\",dependencies:[],value:async(c,s)=>({title:\"Reconcile\"})};"),
         "model recipe:\n{js}"
     );
     assert!(
         js.contains(
-            "const worker={dependencies:[],user:async(c,s)=>({roles:[\"demo.operations\"]})};"
+            "const $can$f$776f726b6572={dependencies:[],user:async(c,s)=>({roles:[\"demo.operations\"]})};"
         ),
         "user recipe:\n{js}"
     );
     assert!(
-        js.contains("const attempt={dependencies:[job],delivery:\"demo.Svc.ping\",values:async(c,s)=>({request:{to:\"ops\"},status:\"failed\"})};"),
+        js.contains("const $can$f$617474656d7074={dependencies:[$can$f$6a6f62],delivery:\"demo.Svc.ping\",values:async(c,s)=>({request:{to:\"ops\"},status:\"failed\"})};"),
         "delivery recipe:\n{js}"
     );
     // DESIGN §13 normative: exactly `{fixtures:{...},examples:[...]}`;
@@ -2824,7 +2827,7 @@ fn construct_fixtures_and_recipes() {
     // (CanCheck.mjs oracle is flat here; per the file rule above the
     // normative text wins.)
     assert!(
-        js.contains("return {fixtures:{job,worker,attempt},examples:[]};"),
+        js.contains("return {fixtures:{[\"job\"]:$can$f$6a6f62,[\"worker\"]:$can$f$776f726b6572,[\"attempt\"]:$can$f$617474656d7074},examples:[]};"),
         "return shape:\n{js}"
     );
 }
@@ -2906,7 +2909,7 @@ fn construct_tables() {
     assert!(diags.is_empty(), "tables lower cleanly: {diags:?}");
     let js = &module.module.js;
     assert!(
-        js.contains("{operation:\"demo.submit\",dependencies:[job],inputs:async(c,s)=>({check:s_job}),selectors:[\"as\",\"check.enabled\"],observations:[async(c,s)=>s_check.enabled],rows:["),
+        js.contains("{operation:\"demo.submit\",dependencies:[$can$f$6a6f62],inputs:async(c,s)=>({check:s_job}),selectors:[\"as\",\"check.enabled\"],observations:[async(c,s)=>s_check.enabled],rows:["),
         "table shape:\n{js}"
     );
     assert!(
@@ -2984,7 +2987,7 @@ fn construct_sequences() {
     assert!(diags.is_empty(), "sequences lower cleanly: {diags:?}");
     let js = &module.module.js;
     assert!(
-        js.contains("{operation:\"demo.submit\",dependencies:[job],sequence:["),
+        js.contains("{operation:\"demo.submit\",dependencies:[$can$f$6a6f62],sequence:["),
         "sequence shape:\n{js}"
     );
     assert!(

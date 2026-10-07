@@ -52,14 +52,14 @@ fn generated_suite_keeps_strings_inside_executable_recipe() {
     assert!(builtins.is_empty());
     assert_eq!(emitted.scope, "Demo.run");
     assert_eq!(emitted.fixtures, ["Demo.worker"]);
-    assert_eq!(emitted.module.path, "tests/Demo_run.mjs");
+    assert_eq!(emitted.module.path, "tests/$can$t$44656d6f2e72756e.mjs");
     let expected = concat!(
         "// Test-only example artifact: erased from production bundles.\n",
         r#"export const exampleImports=[{provider:"p\"\\/\n",member:"é😀",alias:""}];"#,
         "\n",
         "export function exampleFixtures({self,other,imported}){\n",
-        "const worker={dependencies:[],user:async(c,s)=>({roles:[\"a\\\"\\\\/\\n\\u0008\\u000cé😀\u{2028}\u{2029}\",\"\"]})};\n",
-        "return {fixtures:{worker},examples:[]};\n",
+        "const $can$f$776f726b6572={dependencies:[],user:async(c,s)=>({roles:[\"a\\\"\\\\/\\n\\u0008\\u000cé😀\u{2028}\u{2029}\",\"\"]})};\n",
+        "return {fixtures:{[\"worker\"]:$can$f$776f726b6572},examples:[]};\n",
         "}\n",
     );
     assert_eq!(emitted.module.js, expected);
@@ -83,9 +83,9 @@ fn generated_fixture_shell_keeps_quoted_error_and_throwing_function() {
     let expected = concat!(
         "// Test-only example artifact: erased from production bundles.\n",
         "export function exampleFixtures({self,other,imported}){\n",
-        r#"const worker={dependencies:[],user:async(c,s)=>{throw new Error("unchecked fixture recipe: Demo.a\"\\/\n\u0008\u000cé😀");}};"#,
+        r#"const $can$f$776f726b6572={dependencies:[],user:async(c,s)=>{throw new Error("unchecked fixture recipe: Demo.a\"\\/\n\u0008\u000cé😀");}};"#,
         "\n",
-        "return {fixtures:{worker},examples:[]};\n",
+        "return {fixtures:{[\"worker\"]:$can$f$776f726b6572},examples:[]};\n",
         "}\n",
     );
     assert_eq!(emitted.module.js, expected);
