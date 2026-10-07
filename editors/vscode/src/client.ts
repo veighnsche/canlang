@@ -92,31 +92,31 @@ declare global {
       contents: MarkdownString | string;
     }
     export enum CompletionItemKind {
-      Text = 1,
-      Method = 2,
-      Function = 3,
-      Constructor = 4,
-      Field = 5,
-      Variable = 6,
-      Class = 7,
-      Interface = 8,
-      Module = 9,
-      Property = 10,
-      Unit = 11,
-      Value = 12,
-      Enum = 13,
-      Keyword = 14,
-      Snippet = 15,
-      Color = 16,
-      File = 17,
-      Reference = 18,
-      Folder = 19,
-      EnumMember = 20,
-      Constant = 21,
-      Struct = 22,
-      Event = 23,
-      Operator = 24,
-      TypeParameter = 25,
+      Text = 0,
+      Method = 1,
+      Function = 2,
+      Constructor = 3,
+      Field = 4,
+      Variable = 5,
+      Class = 6,
+      Interface = 7,
+      Module = 8,
+      Property = 9,
+      Unit = 10,
+      Value = 11,
+      Enum = 12,
+      Keyword = 13,
+      Snippet = 14,
+      Color = 15,
+      File = 16,
+      Reference = 17,
+      Folder = 18,
+      EnumMember = 19,
+      Constant = 20,
+      Struct = 21,
+      Event = 22,
+      Operator = 23,
+      TypeParameter = 24,
     }
     export class CompletionItem {
       constructor(label: string);
@@ -471,6 +471,13 @@ export class CanLanguageClient {
   private nextId = 1;
   private readonly pending = new Map<number, (result: Json) => void>();
   private diagnostics: vscode.DiagnosticCollection | null = null;
+  /** One owner per live revision; wire versions also distinguish reopen epochs. */
+  private readonly documents = new Map<string, {
+    document: vscode.TextDocument;
+    version: number;
+    wireVersion: number;
+  }>();
+  private nextDocumentVersion = 1;
   /** Raw `initialize` result (server capabilities + serverInfo), once known. */
   private capabilities: Json = null;
   private started = false;
@@ -545,6 +552,7 @@ export class CanLanguageClient {
       processId: null,
       rootUri: null,
       capabilities: {
+        workspace: { workspaceEdit: { documentChanges: true } },
         textDocument: {
           synchronization: { didSave: true },
           publishDiagnostics: { versionSupport: true },
@@ -585,6 +593,42 @@ export class CanLanguageClient {
     return this.sendRequest(method, params);
   }
 
+  /** All providers share document lifetime, revision and cancellation checks. */
+  requestDocument<T>(
+    document: vscode.TextDocument,
+    token: vscode.CancellationToken,
+    method: string,
+    params: Json,
+    convert: (result: Json) => T,
+  ): Promise<T | undefined> {
+    const uri = document.uri.toString();
+    const owner = this.documents.get(uri);
+    if (!owner || owner.document !== document || owner.version !== document.version ||
+        token.isCancellationRequested) {
+      return Promise.resolve(undefined);
+    }
+    return this.sendRequest(method, params, token).then((result) =>
+      this.isRunning() && !token.isCancellationRequested &&
+      this.documents.get(uri) === owner && document.version === owner.version
+        ? convert(result) : undefined);
+  }
+
+  /** Check edit targets against the same revision owner used by diagnostics. */
+  isDocumentVersion(uri: string, wireVersion: Json): boolean {
+    const owner = this.documents.get(uri);
+    return !!owner && owner.document.version === owner.version &&
+      (wireVersion === null || wireVersion === owner.wireVersion);
+  }
+
+  private ownDocument(document: vscode.TextDocument): number {
+    const wireVersion = Math.max(this.nextDocumentVersion, document.version);
+    this.nextDocumentVersion = wireVersion + 1;
+    this.documents.set(document.uri.toString(), {
+      document, version: document.version, wireVersion,
+    });
+    return wireVersion;
+  }
+
   /**
    * Shut the server down: `shutdown` request (2s timeout, then kill),
    * `exit` notification, then a 2s grace period before killing a server
@@ -594,6 +638,7 @@ export class CanLanguageClient {
     const child = this.child;
     this.child = null;
     this.started = false;
+    this.documents.clear();
     this.stopping = true;
     const dispose = (): void => {
       if (this.diagnostics) {
@@ -670,6 +715,7 @@ export class CanLanguageClient {
     this.finished = true;
     this.child = null;
     this.started = false;
+    this.documents.clear();
     this.failAllPending();
     if (this.diagnostics) {
       this.diagnostics.dispose();
@@ -684,11 +730,12 @@ export class CanLanguageClient {
     if (!this.isRunning()) {
       return;
     }
+    const version = this.ownDocument(document);
     this.sendNotification('textDocument/didOpen', {
       textDocument: {
         uri: document.uri.toString(),
         languageId: document.languageId,
-        version: document.version,
+        version,
         text: document.getText(),
       },
     });
@@ -698,10 +745,11 @@ export class CanLanguageClient {
     if (!this.isRunning()) {
       return;
     }
+    const version = this.ownDocument(document);
     this.sendNotification('textDocument/didChange', {
       textDocument: {
         uri: document.uri.toString(),
-        version: document.version,
+        version,
       },
       contentChanges: [{ text: document.getText() }],
     });
@@ -720,6 +768,7 @@ export class CanLanguageClient {
     if (!this.isRunning()) {
       return;
     }
+    this.documents.delete(document.uri.toString());
     this.sendNotification('textDocument/didClose', {
       textDocument: { uri: document.uri.toString() },
     });
@@ -728,14 +777,42 @@ export class CanLanguageClient {
     }
   }
 
-  private sendRequest(method: string, params: Json): Promise<Json> {
+  private sendRequest(
+    method: string,
+    params: Json,
+    token?: vscode.CancellationToken,
+  ): Promise<Json> {
+    if (token?.isCancellationRequested) {
+      return Promise.resolve(null);
+    }
     const id = this.nextId++;
     const body = JSON.stringify({ jsonrpc: '2.0', id, method, params });
-    if (!this.writeFrame(body)) {
-      return Promise.reject(new Error(`can lsp is not running (request ${method})`));
-    }
-    return new Promise<Json>((resolve) => {
-      this.pending.set(id, resolve);
+    return new Promise<Json>((resolve, reject) => {
+      let cancellation: vscode.Disposable | undefined;
+      const settle = (result: Json): void => {
+        this.pending.delete(id);
+        cancellation?.dispose();
+        resolve(result);
+      };
+      this.pending.set(id, settle);
+      if (!this.writeFrame(body)) {
+        this.pending.delete(id);
+        reject(new Error(`can lsp is not running (request ${method})`));
+        return;
+      }
+      const cancel = (): void => {
+        if (this.pending.has(id)) {
+          this.sendNotification('$/cancelRequest', { id });
+          settle(null);
+        }
+      };
+      cancellation = token?.onCancellationRequested(cancel);
+      if (token?.isCancellationRequested) {
+        cancel();
+      }
+      if (!this.pending.has(id)) {
+        cancellation?.dispose();
+      }
     });
   }
 
@@ -842,7 +919,8 @@ export class CanLanguageClient {
     }
     const uri = params['uri'];
     const list = params['diagnostics'];
-    if (typeof uri !== 'string' || !Array.isArray(list)) {
+    if (typeof uri !== 'string' || !Array.isArray(list) ||
+        typeof params['version'] !== 'number' || !this.isDocumentVersion(uri, params['version'])) {
       return;
     }
     const converted: vscode.Diagnostic[] = [];

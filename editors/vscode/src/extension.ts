@@ -83,15 +83,19 @@ function toPosition(position: vscode.Position): Json {
  * is none (server dead or starting) or the request fails. Providers use
  * this so a missing server degrades to "no result" instead of an error.
  */
-function request(method: string, params: Json): Promise<Json | undefined> {
+function request<T>(
+  document: vscode.TextDocument,
+  token: vscode.CancellationToken,
+  method: string,
+  params: Json,
+  convert: (result: Json) => T,
+): Promise<T | undefined> {
   const live = client;
   if (!live) {
     return Promise.resolve(undefined);
   }
-  return live.request(method, params).then(
-    (result) => result,
-    () => undefined,
-  );
+  return live.requestDocument(document, token, method, params, (result) =>
+    client === live ? convert(result) : undefined).catch(() => undefined);
 }
 
 /** Convert one wire `{ range, newText }` edit, or null when malformed. */
@@ -129,6 +133,9 @@ function toWorkspaceEdit(result: Json): vscode.WorkspaceEdit | null {
       if (!isRecord(doc) || typeof doc['uri'] !== 'string' || !Array.isArray(edits)) {
         continue;
       }
+      if (!client?.isDocumentVersion(doc['uri'], doc['version'])) {
+        return null;
+      }
       const converted: vscode.TextEdit[] = [];
       for (const item of edits) {
         const textEdit = toTextEdit(item);
@@ -143,6 +150,9 @@ function toWorkspaceEdit(result: Json): vscode.WorkspaceEdit | null {
   const changes = result['changes'];
   if (isRecord(changes)) {
     for (const uri of Object.keys(changes)) {
+      if (!client?.isDocumentVersion(uri, null)) {
+        return null;
+      }
       const edits = changes[uri];
       if (!Array.isArray(edits)) {
         continue;
@@ -163,11 +173,11 @@ function toWorkspaceEdit(result: Json): vscode.WorkspaceEdit | null {
 
 function hoverProvider(): vscode.HoverProvider {
   return {
-    provideHover(document, position) {
-      return request('textDocument/hover', {
+    provideHover(document, position, token) {
+      return request(document, token, 'textDocument/hover', {
         textDocument: { uri: document.uri.toString() },
         position: toPosition(position),
-      }).then((result) => {
+      }, (result) => {
         if (result === undefined || !isRecord(result)) {
           return undefined;
         }
@@ -184,13 +194,42 @@ function hoverProvider(): vscode.HoverProvider {
   };
 }
 
+/** LSP kind order translated to host enum identities, never numeric aliases. */
+const completionKinds: vscode.CompletionItemKind[] = [
+  vscodeApi.CompletionItemKind.Text,
+  vscodeApi.CompletionItemKind.Method,
+  vscodeApi.CompletionItemKind.Function,
+  vscodeApi.CompletionItemKind.Constructor,
+  vscodeApi.CompletionItemKind.Field,
+  vscodeApi.CompletionItemKind.Variable,
+  vscodeApi.CompletionItemKind.Class,
+  vscodeApi.CompletionItemKind.Interface,
+  vscodeApi.CompletionItemKind.Module,
+  vscodeApi.CompletionItemKind.Property,
+  vscodeApi.CompletionItemKind.Unit,
+  vscodeApi.CompletionItemKind.Value,
+  vscodeApi.CompletionItemKind.Enum,
+  vscodeApi.CompletionItemKind.Keyword,
+  vscodeApi.CompletionItemKind.Snippet,
+  vscodeApi.CompletionItemKind.Color,
+  vscodeApi.CompletionItemKind.File,
+  vscodeApi.CompletionItemKind.Reference,
+  vscodeApi.CompletionItemKind.Folder,
+  vscodeApi.CompletionItemKind.EnumMember,
+  vscodeApi.CompletionItemKind.Constant,
+  vscodeApi.CompletionItemKind.Struct,
+  vscodeApi.CompletionItemKind.Event,
+  vscodeApi.CompletionItemKind.Operator,
+  vscodeApi.CompletionItemKind.TypeParameter,
+];
+
 function completionProvider(): vscode.CompletionItemProvider {
   return {
-    provideCompletionItems(document, position) {
-      return request('textDocument/completion', {
+    provideCompletionItems(document, position, token) {
+      return request(document, token, 'textDocument/completion', {
         textDocument: { uri: document.uri.toString() },
         position: toPosition(position),
-      }).then((result) => {
+      }, (result) => {
         if (result === undefined || !Array.isArray(result)) {
           return undefined;
         }
@@ -201,15 +240,8 @@ function completionProvider(): vscode.CompletionItemProvider {
           }
           const item = new vscodeApi.CompletionItem(entry['label']);
           const kind = entry['kind'];
-          // Server kinds are LSP CompletionItemKind numbers (1..25), which
-          // match vscode.CompletionItemKind; anything else is dropped.
-          if (
-            typeof kind === 'number' &&
-            Number.isSafeInteger(kind) &&
-            kind >= 1 &&
-            kind <= 25
-          ) {
-            item.kind = kind as vscode.CompletionItemKind;
+          if (typeof kind === 'number' && Number.isSafeInteger(kind)) {
+            item.kind = completionKinds[kind - 1];
           }
           items.push(item);
         }
@@ -248,35 +280,35 @@ function toLocations(result: Json | undefined): vscode.Location[] | undefined {
 
 function definitionProvider(): vscode.DefinitionProvider {
   return {
-    provideDefinition(document, position) {
-      return request('textDocument/definition', {
+    provideDefinition(document, position, token) {
+      return request(document, token, 'textDocument/definition', {
         textDocument: { uri: document.uri.toString() },
         position: toPosition(position),
-      }).then(toLocations);
+      }, toLocations);
     },
   };
 }
 
 function referenceProvider(): vscode.ReferenceProvider {
   return {
-    provideReferences(document, position, context) {
-      return request('textDocument/references', {
+    provideReferences(document, position, context, token) {
+      return request(document, token, 'textDocument/references', {
         textDocument: { uri: document.uri.toString() },
         position: toPosition(position),
         context: { includeDeclaration: context.includeDeclaration },
-      }).then(toLocations);
+      }, toLocations);
     },
   };
 }
 
 function renameProvider(): vscode.RenameProvider {
   return {
-    provideRenameEdits(document, position, newName) {
-      return request('textDocument/rename', {
+    provideRenameEdits(document, position, newName, token) {
+      return request(document, token, 'textDocument/rename', {
         textDocument: { uri: document.uri.toString() },
         position: toPosition(position),
         newName,
-      }).then((result) => {
+      }, (result) => {
         if (result === undefined) {
           return undefined;
         }
@@ -288,10 +320,10 @@ function renameProvider(): vscode.RenameProvider {
 
 function semanticTokensProvider(): vscode.DocumentSemanticTokensProvider {
   return {
-    provideDocumentSemanticTokens(document) {
-      return request('textDocument/semanticTokens/full', {
+    provideDocumentSemanticTokens(document, token) {
+      return request(document, token, 'textDocument/semanticTokens/full', {
         textDocument: { uri: document.uri.toString() },
-      }).then((result) => {
+      }, (result) => {
         if (result === undefined || !isRecord(result)) {
           return undefined;
         }
@@ -315,15 +347,15 @@ function semanticTokensProvider(): vscode.DocumentSemanticTokensProvider {
 
 function codeActionProvider(): vscode.CodeActionProvider {
   return {
-    provideCodeActions(document, range) {
-      return request('textDocument/codeAction', {
+    provideCodeActions(document, range, _context, token) {
+      return request(document, token, 'textDocument/codeAction', {
         textDocument: { uri: document.uri.toString() },
         range: {
           start: toPosition(range.start),
           end: toPosition(range.end),
         },
         context: { diagnostics: [] },
-      }).then((result) => {
+      }, (result) => {
         if (result === undefined || !Array.isArray(result)) {
           return undefined;
         }
@@ -339,9 +371,10 @@ function codeActionProvider(): vscode.CodeActionProvider {
           // Server code-action edits nest under `edit.documentChanges`.
           if (isRecord(entry['edit'])) {
             const edit = toWorkspaceEdit(entry['edit']);
-            if (edit) {
-              action.edit = edit;
+            if (!edit) {
+              continue;
             }
+            action.edit = edit;
           }
           actions.push(action);
         }
