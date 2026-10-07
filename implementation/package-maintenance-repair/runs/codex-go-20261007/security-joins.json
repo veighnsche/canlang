@@ -1,0 +1,244 @@
+{
+  "scope": "Finite SEC-06/07 confidentiality and actual app/team/owner-store join adjudication only. No implementation, policy/topology choice, JEV repeat or parent/security acceptance.",
+  "read_only": true,
+  "frozen_independent_review": {
+    "path": "/private/tmp/canlang-repair-go-20261007/critical-security-review.json",
+    "sha256": "9b50ffca5f1d2d3184fe39d572ddd22886f945e8bebcbc71786fd0ddc4a2e71a",
+    "findings_used": [
+      "SEC-06",
+      "SEC-07",
+      "unresolved App/team/storage-owner correspondence",
+      "Replay projection and identity scoping"
+    ]
+  },
+  "source_pin_qualification": {
+    "pre_extraction_base": "bc3249c",
+    "section_pins_file": "/private/tmp/canlang-repair-go-20261007/security-joins/section-pins.json",
+    "sha256": "29ca542725171864e53da8db84787530b6d82f0e7075b7eaaf0093f093a4bcbd",
+    "22_relevant_sections_equal_base_exactly": true,
+    "copied_source_pins_file": "/private/tmp/canlang-repair-go-20261007/security-joins/snapshot-pins.json",
+    "copied_source_pins_sha256": "b2d2749caf8bc1f680c49b16e7129037998ff53425e80c02061313baa8e543d3",
+    "copied_transitive_source_files": 51,
+    "probe_before_after_source_drift": [],
+    "live_writer": "/root/review_ui_appearance owns storage d1/DO, mutation pipeline/crud/models, migration validate, policy/grants. No writes/tests/builds overlapped. Exact reviewed sections match bc3249c; full-file hashes record observations and are not asserted stable for unrelated live sections.",
+    "compiler": "Foreign read-only emitter sections observed for policy/field-tag joins; not compiled, edited, leased or treated as current emitted/deployed acceptance.",
+    "foreign_emitter_observed_sections": [
+      {
+        "file": "compiler/src/codegen/ir.rs",
+        "section": "public_read_classification",
+        "observed_start_line": 3487,
+        "observed_end_line": 3504,
+        "sha256": "5d0cc0c5452b919f7930289afd5c336813faf6d88d2bff0050c976337f5cb8f2",
+        "qualification": "Foreign source observation only; no stable lease, compile or emitted acceptance claimed"
+      },
+      {
+        "file": "compiler/src/codegen/js.rs",
+        "section": "read_grant_selectors",
+        "observed_start_line": 3998,
+        "observed_end_line": 4023,
+        "sha256": "c939d575524d597a76edfb276c58db18182412ec11298584ae020eed5db84d1a",
+        "qualification": "Foreign source observation only; no stable lease, compile or emitted acceptance claimed"
+      },
+      {
+        "file": "compiler/src/codegen/js.rs",
+        "section": "public_manifest",
+        "observed_start_line": 4456,
+        "observed_end_line": 4475,
+        "sha256": "f7bc4d0b1c31da6095e3681cd201fb30aff23e0ce47cd738959253381c5be0fc",
+        "qualification": "Foreign source observation only; no stable lease, compile or emitted acceptance claimed"
+      },
+      {
+        "file": "compiler/src/codegen/js.rs",
+        "section": "canApp_policy_manifest",
+        "observed_start_line": 5427,
+        "observed_end_line": 5438,
+        "sha256": "08d90dc995b27d0077b3055a405fabdd6dcf025ea885237b388effa489b9ef10",
+        "qualification": "Foreign source observation only; no stable lease, compile or emitted acceptance claimed"
+      }
+    ],
+    "historical_can_source": {
+      "path": "packages/state/src/mutation/t18-shop.can",
+      "sha256": "99368be00bf1c6b6c84d9dad6b71167535cfa1164e47616be6c0817a117222dc",
+      "status": "Historical emitted descriptor model secret tag verified; current serving original fixture refusal retained"
+    }
+  },
+  "facts": [
+    {
+      "topic": "SEC-06 first-success external source join",
+      "disposition": "Confirmed current joined source path has no result projection; deployed reachability not claimed",
+      "trace": [
+        "state mutation/crud.ts create/update return first.row as effects.result",
+        "state invocation/invoke.ts saves effects.result in committed receipt and returns it unchanged",
+        "cloudflare runtime/invoke.ts invokeMutationCanonical delegates to state invoke without current-read result projection",
+        "cloudflare worker/assembly.ts buildInvoker returns canonical result unchanged",
+        "interfaces http/operations.ts:295-304 JSON.stringify(outcome.result)",
+        "interfaces mcp/server.ts successResult JSON text and structuredContent preserve the same object"
+      ],
+      "implication": "Raw internal row/receipt storage is legitimate. Disclosure is the unprojected public result boundary, not the mere existence of an internal raw row. Ordinary unreadable fields and plain secret strings can survive this boundary."
+    },
+    {
+      "topic": "SEC-06 changed-grant replay",
+      "disposition": "Current state replay returns saved result without current read projection; receipt namespace itself is correctly scoped",
+      "trace": [
+        "admission.ts receiptIdentityFor includes app, team/app owner, principal, fully qualified operation and operation ID",
+        "admission.ts reads/checks matching receipt before age/by/ref loads; different input hash conflicts",
+        "invoke.ts replay returns outcome.result before execution/commit authorization; canonical wrapper adds no read gate",
+        "D1 readReceipt WHERE includes all five identity components"
+      ],
+      "implication": "Do not rerun business evaluation/defaults on replay. Re-project or whole-withhold content under current access at serialization. Direct replay after removal used an already admitted identity and does not establish that HTTP identity resolution permits such an identity."
+    },
+    {
+      "topic": "SEC-07 actual secret metadata and public projection",
+      "disposition": "Confirmed metadata/representation mismatch in current producers",
+      "trace": [
+        "historical emitted T18 models[].fields token has field.kind=secret, serverOnly=true and default server init=random_secret",
+        "state registry.ts:842+ folds required/serverOnly/default/array, ignoring secret scalar tag; serverInits retains random_secret separately",
+        "pipeline.ts evalServerInit returns a plain 64-character lowercase hex string",
+        "runtime/invoke.ts canonicalModelFields returns Object.keys(loaded.fields); mapReadRulesToPolicy supplies secretFields=[] and public grant over every declared name",
+        "query engine projectRow carves declared secret paths and cleanCopy strips objects with kind=secret; neither recognizes an untagged plain hex string without secretFields"
+      ],
+      "implication": "The independent tagged-value and declared-path defenses are real, but the actual random_secret representation and empty metadata evade both. serverOnly currently prevents caller writes and conflict-current disclosure; it does not imply first-success/read/replay redaction. Treating all serverOnly fields or arbitrary hex strings as secrets would invent different semantics."
+    },
+    {
+      "topic": "SEC-07 explicit public field selectors",
+      "disposition": "Source-level selector metadata loss; fresh emitted selector consumer witness still required",
+      "trace": [
+        "compiler IR IrGrant retains fields and public independently; public means exactly read=public without where",
+        "compiler JS appDefinition model readGrants emits per-rule fields when nonempty",
+        "compiler JS policy manifest carries read rule IDs/public marks but no selectors",
+        "runtime mapReadRulesToPolicy uses declaredFields and ignores appDefinition readGrants field selection"
+      ],
+      "implication": "Current B7 serving may widen a supported explicit-public selector to all declared fields. Verify an actually emitted public fields=label model before treating this as compiled/deployed qualification. Preserve the declared T17/B7 refusal of unevaluable ruled slices."
+    },
+    {
+      "topic": "Actual app/team/owner-to-store correspondence",
+      "disposition": "Production constructor/consumer join is established; tenant isolation remains conditional on an unproved deployment/store contract",
+      "trace": [
+        "runtime/env-assembly.ts buildProductionDeps constructs both state and identity stores from the same env.DB binding",
+        "worker/main.ts passes that one state store to assembly; buildInvoker closes over it across requests and resolved identities",
+        "assembly interimAppInfo derives receipt app ID from the first source filename stem, not a checked appDefinition/installed owner binding",
+        "state D1 load/query WHERE model/id or model only; inserts owner as empty string",
+        "viewer query membership is checked against context.teamId, then scans the injected model namespace without a record/team predicate",
+        "admission ref loads use store.load(model,id); containment validates declared parent-model/root shape and parent existence, not record-to-team correspondence",
+        "owner authority is a trusted internal capability; it deliberately skips viewer grant checks"
+      ],
+      "implication": "A verified one-owner store could make unscoped record SQL correct. Current source constructor does not prove that condition. If independent teams share the same qualified-model namespace, membership in T2 does not correlate rows/refs to T2. This is a conditional source composition failure, not a claim of a deployed IDOR."
+    }
+  ],
+  "counterevidence": [
+    "State invoke openly declares the S3 unprojected-result stage and S4 current-access projection gap; this review identifies an incomplete joined workflow, not a newly introduced mechanical-refactor regression.",
+    "No read policy yields zero grants/zero records; pure ruled models refuse loud; mixed policy honors only the B7 marked slice. Query projection precedes filtering, with secret paths and tagged secret values withheld.",
+    "Pipeline caller-supplied serverOnly values are rejected; current conflictServerOnly excludes secret/server-generated fields from stale-conflict currents. That error-channel protection does not cover success results.",
+    "Historical T18 artifact really carries secret metadata, but original canApp lacks policy. Unmodified historical emitted fixture therefore refuses create with forbidden; it is not evidence of current emitted first-success disclosure.",
+    "Current foreign emitter source now emits policy into both appDefinition and canApp; no current compiler binary/output was qualified here.",
+    "Receipt lookup is scoped by app/owner/principal/operation/ID; same operation ID under another team did not replay in the controlled witness. That isolates receipts, not stored domain rows.",
+    "Separate injected stores reject a cross-store ref with not_found. This proves why a trusted capability partition could be valid, while leaving actual provisioning unverified."
+  ],
+  "controlled_witness": {
+    "command": "/Users/vince/.bun/bin/bun /private/tmp/canlang-repair-go-20261007/security-joins/probe.ts",
+    "exit_code": 0,
+    "runtime": "Bun 1.4.2",
+    "script_sha256": "d97890d55a14c69b6d4f8697be346d320843a842c6a85b68d5386567bd278500",
+    "result_file": "/private/tmp/canlang-repair-go-20261007/security-joins/probe-result.json",
+    "result_sha256": "0ec9264162165cadf6f6f5ce7d244893554f5ccf698fefcdfb702a1d8ffc9e8d",
+    "observations": {
+      "historicalOriginalEmissionRefusesMutation": "forbidden",
+      "policyJoinVariantReturnsPlainSecret": true,
+      "jsonSerializerRetainsSecret": true,
+      "policyJoinVariantMembersReadRefuses": "validation",
+      "directCanonicalReplayAfterMembershipRemoval": {
+        "status": "replayed",
+        "membershipReads": 0,
+        "sameSecret": true
+      },
+      "syntheticPublicReadReturnsPlainSecret": true,
+      "syntheticPublicProjectionMetadata": {
+        "secretFields": [],
+        "grantedFields": [
+          "name",
+          "owner",
+          "stock",
+          "kind",
+          "note",
+          "tags",
+          "flags",
+          "made",
+          "by",
+          "token"
+        ]
+      },
+      "syntheticAbsentPolicyReadRecords": [],
+      "replayAfterSyntheticGrantRemovalReturnsOriginalSecret": true,
+      "mixedInjectedStoreAllowsTeamBUpdateOfTeamARow": true,
+      "separateStoreRefusesCrossRef": "not_found",
+      "receiptOtherOwnerDoesNotReplay": "validation"
+    },
+    "provenance": "Private copied source calls real assembly buildInvoker, canonical descriptor loader, generated CRUD, state invocation/query, TEST-ONLY memory storage, and exact JSON.stringify serializer. Private package maps owning producer exports to copied source; no stale dist is imported.",
+    "fixture_limit": "Historical emitted T18 model descriptors are unchanged. Success variant adds policy:appDefinition.policy to old canApp; public/absent-policy variants explicitly modify only that module policy metadata. No variant is claimed to be an actually current compiler-emitted public-secret program.",
+    "limits": [
+      "Copied current source + historical emitted T18 model metadata; historical original refuses mutation because canApp omits policy, success variants add policy:appDefinition.policy to canApp; memory store is TEST-ONLY, not D1/deployed acceptance",
+      "Public/absent-policy variants hand-edit only the emitted module policy metadata; no actual public-secret .can compilation performed",
+      "JSON.stringify is the exact serializer call used by HTTP, but HTTP route identity/session/CSRF resolution was not executed",
+      "Direct replay with a stale admitted identity after removal does not prove the HTTP resolver permits that identity; current-grant replay tested separately with active membership",
+      "No installed producer imports or shared dist builds; resolver maps owning exports to private current source, which changes installation selection but not producer implementation",
+      "Physical DB topology/provisioning and actual deployed tenant mapping remain unproved"
+    ]
+  },
+  "packet_mapping": {
+    "TECH-S02": {
+      "preserved_original_task_ids": [
+        "challenge:T16",
+        "challenge:T18",
+        "challenge:T25",
+        "finished-product:FP.INVOCATION"
+      ],
+      "status": "Ready for finite exact-file repair preparation after writer release; substantive implementation/acceptance remains blocked by owner disposition and actual emitted/installed witness gates.",
+      "finite_prerequisites": [
+        "Release owning secret schema/value metadata into the public projection path. Secret type tags exist in artifact models and are lost in current intake; choose the owning additive metadata carrier without mutating frozen contracts silently. Preserve ordinary readable server stamps separately from secrets.",
+        "Preserve explicit-public field selector provenance by rule ID instead of widening to all declared fields. Keep unevaluable ruled policy fail-closed in the declared host scope.",
+        "Define the concrete public result join for generated CRUD and typed/arbitrary scenarios. Existing MutationResult has current-authorized records and optional result; wire contract requires result=null when access withholds content, never a synthesized partial result. Saved result is unknown and lacks general dependency/model provenance, so arbitrary scenarios cannot be safely projected by guessing row shapes.",
+        "Apply current-access projection/whole-withholding at first committed response and receipt replay while retaining legitimate raw engine state, stable resolved defaults, semantic idempotency, errors and delivery identity. Rechecking operation by alone is not current-read content projection.",
+        "Acquire exact-file writer/test leases after mechanical owner release; no broad suite, compiler edit or existing-task acceptance shortcut."
+      ],
+      "missing_owner_decisions": [
+        "Exact carrier for typed secret/field-selector metadata in the T04a/T17 core scope",
+        "Public records/result shape and fail-closed disposition when scenario result dependency provenance is unavailable; retain the existing whole-result withholding contract",
+        "Exact first-success/replay current-access enforcement location across state/runtime/interface joins"
+      ],
+      "decisive_witness_recipe": [
+        "Compiler owner produces a source-pinned fresh artifact for public read=public fields=label and token:secret server=random_secret(), plus a no-read-policy model and a supported ordinary-field grant case, into a private output. Record loaded token tag/server init/selector metadata; preserve unmodified emitted module policy.",
+        "Drive generated create/update through actual installed canonical producer exports -> buildInvoker -> real HTTP operation serializer and MCP success serialization. Assert raw row/receipt still retains token internally, externally token is absent even if explicit secret grant is attempted, unreadable ordinary data is withheld, safe changed-record metadata remains useful, and success/rejection/idempotency remains correct.",
+        "Replay the identical committed operation after current read access changes without rerunning executor/defaults. Assert saved semantic outcome and secret stay stable internally, external current-access records/result are projected or wholly withheld as the existing wire contract requires. Cover active membership with lost role/grant, no grants, and transport-resolved identity after removal separately.",
+        "Add finite negative controls for tagged secrets, plain random_secret strings, nested/parent grants, explicit-public selector loss, nonsecret server=now/server=actor stamps and arbitrary scenario results. Run both first-success and replay through actual consumer join, then separately qualify D1/DO installed host behavior where the original task requires it."
+      ]
+    },
+    "TECH-S03": {
+      "preserved_original_task_ids": [
+        "challenge:T04",
+        "challenge:T16",
+        "finished-product:FP.IDENTITY-CONTRACT",
+        "finished-product:FP.IDENTITY"
+      ],
+      "status": "Blocked on explicit app/team/owner-store and deployment correspondence contract. Source trace and conditional witness are ready inputs to the consequential decision; no topology selected here.",
+      "finite_prerequisites": [
+        "Establish a trusted resolved app/team/owner -> physical store capability/namespace mapping at the actual worker env constructor, provisioner and invocation/read/ref joins. Current injected env.DB and source-stem app ID do not attest this mapping.",
+        "Owner decides whether verified partitioned capabilities, owner-scoped predicates or another explicit accepted contract enforces record boundaries, including app-scoped roots/imported models and declared public exceptions. Do not infer that receipt keys or model containment already isolate records.",
+        "Define rejection of unknown/mixed bindings before operations and provenance of owner authority. Release exact constructor/admission/query/storage files only after active writers finish.",
+        "Retain original critical security review and required consequential contract decision/JEV workflow for the chosen alternative; this finite review neither repeats it nor supplies policy approval."
+      ],
+      "missing_owner_decisions": [
+        "Trusted deployment app identity and its relation to artifact appDefinition versus current source-stem receipt identity",
+        "Which record-owner storage enforcement contract applies and how public exceptions remain scoped",
+        "Provisioning guarantees for one-worker/one-DB versus multi-team namespaces and same-owner imported records"
+      ],
+      "decisive_witness_recipe": [
+        "Use the actual production buildProductionDeps -> assembleWorker -> buildInvoker/query/ref path and real provisioned installed stores. Seed independently owned A/B datasets with the SAME qualified model names; do not rely on distinct model names or receipt principals as tenant isolation.",
+        "Resolve actor/team through the actual identity transport, then verify A reads/writes own rows and allowed explicit-public exceptions; deny A read/ref/update of B rows. Assert unknown or mismatched app/team/store bindings refuse before storage operations.",
+        "Exercise both intended isolated stores and intentionally mixed namespace as a decisive negative control, including owner-authority internal reads and parent/ref boundaries. Pin deployment binding IDs and resolved owner/store identity, not only memory-double output.",
+        "Check same operation ID across app/team/principal remains receipt-isolated independently from record boundaries. Preserve original task acceptance dependencies and installed/durable qualification gates."
+      ]
+    }
+  },
+  "acceptance": "No automatic parent/security/task completion, deployment/native acceptance, compiler acceptance or implementation authorization is supplied by this report.",
+  "lease": "Read-only security-join lease released. Only private /private/tmp evidence files and copies were written; no repo, Git, shared target/dist, broad test or paid review mutations."
+}

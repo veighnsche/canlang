@@ -8,6 +8,7 @@
  * `when` lives on the update/remove defs and is threaded into the pipeline.
  */
 
+import { deepFreeze } from '../internal/own-data.js';
 import type {
   CanonicalInputDef,
   ModelName,
@@ -46,24 +47,6 @@ export interface CrudDefs {
 
 /** Fail-closed interim bound on caller-supplied record ids. */
 export const CRUD_MAX_ID_LENGTH = 128;
-
-/** Deep-freeze def ASTs so post-build mutation cannot alter enforcement. */
-function deepFreeze<T>(value: T, seen: Set<unknown> = new Set()): T {
-  if (typeof value !== 'object' || value === null || seen.has(value)) {
-    return value;
-  }
-  seen.add(value);
-  if (Array.isArray(value)) {
-    for (const entry of value) {
-      deepFreeze(entry, seen);
-    }
-  } else {
-    for (const entry of Object.values(value)) {
-      deepFreeze(entry, seen);
-    }
-  }
-  return Object.freeze(value);
-}
 
 /**
  * Build the INTERIM CRUD def triple for one model: `${model}.create`,

@@ -271,7 +271,7 @@
     },
     "TECH-S01": {
       "planning_status": "ready",
-      "state": "mechanical candidate and explicit backend results released; Sol high independent review active; own-key remains open",
+      "state": "mechanical extraction independently accepted; committing; separate own-key correction still open",
       "files": [
         "packages/state/src/storage/d1.ts",
         "packages/state/src/storage/durable-object.ts",
@@ -287,19 +287,23 @@
       "model": "gpt-6.1-sol",
       "effort": "medium",
       "reason": "Known mechanical profile comparison across released State owners; substantive security packet remains separate",
-      "reviewer": "/root/review_state_private"
+      "reviewer": "/root/review_state_private",
+      "review": "state-private-independent-review.json",
+      "readable_reduction": 367,
+      "full_closure_reduction": 238
     },
     "TECH-S01-own-key": {
       "planning_status": "blocked",
-      "state": "blocked on packet prerequisites",
+      "state": "ready exact correctness fix after mechanical commit/read release; original metadata domain preserved",
       "files": [
         "packages/state/src/storage/d1.ts",
         "packages/state/src/storage/durable-object.ts"
-      ]
+      ],
+      "contract_release": "Independent source proof confirms inherited functions violate intended string SQL metadata lookup; own metadata check retains current declared identifiers and invalid-name refusal; approved frozen critical review received, broader security findings remain open"
     },
     "TECH-S02": {
       "planning_status": "blocked",
-      "state": "blocked on packet prerequisites",
+      "state": "verified producer-to-serializer flaw; finite metadata/result/projection contracts required before implementation",
       "files": [
         "packages/state/src/mutation/crud.ts",
         "packages/state/src/mutation/pipeline.ts",
@@ -308,18 +312,20 @@
         "packages/cloudflare/src/runtime/invoke.ts",
         "packages/cloudflare/src/worker/assembly.ts",
         "packages/interfaces/src/http/operations.ts"
-      ]
+      ],
+      "evidence": "security-joins.json"
     },
     "TECH-S03": {
       "planning_status": "blocked",
-      "state": "blocked on packet prerequisites",
+      "state": "verified conditional mixed-store witness; trusted owner-to-store contract still required",
       "files": [
         "packages/cloudflare/src/worker/assembly.ts",
         "packages/cloudflare/src/runtime/env-assembly.ts",
         "packages/state/src/invocation/admission.ts",
         "packages/state/src/query/engine.ts",
         "packages/state/src/storage/d1.ts"
-      ]
+      ],
+      "evidence": "security-joins.json"
     },
     "TECH-W02": {
       "planning_status": "ready",
@@ -602,12 +608,14 @@
     },
     "REPLAY-IP07": {
       "planning_status": "ready",
-      "state": "ready for finite assignment",
+      "state": "blocked on actual canonical authority/projection repair before lifting Interfaces age gate",
       "files": [
         "packages/interfaces/src/http/operations.ts",
         "packages/interfaces/src/http/csv.ts",
         "packages/interfaces/src/envelope/validate.ts"
-      ]
+      ],
+      "blocker": "Source-current security join witnesses retained replay bypassing current membership/read grants and saved secret projection; old planning assumption cannot satisfy required revoked-actor negative control",
+      "evidence": "security-joins.json"
     },
     "PARSER-DP01": {
       "planning_status": "ready",
@@ -817,9 +825,9 @@
     "state": "active",
     "objective": "Finish every currently authorized queue task, resolve actual prerequisites, independently review, commit early/often and clean released resources economically; preserve native HOLD and exact original residual gates."
   },
-  "updated_utc": "2026-10-07T19:35:48.413912+00:00",
+  "updated_utc": "2026-10-07T19:42:47.858207+00:00",
   "critical_security_review": {
-    "state": "finite frozen review received; security joins/repairs open",
+    "state": "frozen review and actual source joins received; contracts/repairs/host acceptance remain open",
     "agent": "/root/critical_package_security",
     "model": "gpt-6-astra",
     "effort": "high",
@@ -830,6 +838,7 @@
     "review": "critical-security-review.json",
     "joins_agent": "/root/review_numeric_reduction",
     "joins_model": "gpt-6.1-sol",
-    "joins_effort": "high"
+    "joins_effort": "high",
+    "joins_review": "security-joins.json"
   }
 }

@@ -8,6 +8,7 @@
  * caller input raises `StateError` validation at write time instead.
  */
 
+import { deepFreeze } from '../internal/own-data.js';
 import type {
   CanonicalModelDescriptor,
   DeleteMode,
@@ -297,24 +298,6 @@ function checkDotPath(path: string, what: string): void {
   if (path === '' || path.split('.').some((segment) => segment === '')) {
     throw new Error(`Invalid ${what} dot path: ${JSON.stringify(path)}`);
   }
-}
-
-/** Deep-freeze descriptors so post-build mutation cannot alter enforcement. */
-function deepFreeze<T>(value: T, seen: Set<unknown> = new Set()): T {
-  if (typeof value !== 'object' || value === null || seen.has(value)) {
-    return value;
-  }
-  seen.add(value);
-  if (Array.isArray(value)) {
-    for (const entry of value) {
-      deepFreeze(entry, seen);
-    }
-  } else {
-    for (const entry of Object.values(value)) {
-      deepFreeze(entry, seen);
-    }
-  }
-  return Object.freeze(value);
 }
 
 /**

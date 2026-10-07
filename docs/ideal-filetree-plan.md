@@ -166,3 +166,5 @@ Interfaces internal/input-admission.ts owns only shared object-body and Bearer l
 Identity default unit discovery includes its emitted authentication source tests; Work emit stages the existing owning numeric oracle/capture for its default contract tests. Narrow private source-current recipe checks are accepted, with Values provenance, installed and native observer obligations remaining. No new production owner or complete checkpoint advance.
 
 UI internal/draft-values.ts shares matching control/form private value profiles; differing datetime exception context and caller composition remain local. Source/declaration reduction is independently accepted without broader browser/backend/installed acceptance. Complete checkpoint unchanged.
+
+State internal/own-data.ts and storage/sqlite-codecs.ts own exact private repeated leaves; backend transaction/authority and mutation/migration/grant responsibilities remain local. Mechanical source/declaration reduction is accepted; original own-key, confidentiality/replay and owner-to-store joins stay separate and open. Source-current replay evidence updates readiness without changing historical plans or complete checkpoint.

@@ -1,0 +1,349 @@
+{
+  "packet": "TECH-S01",
+  "base": "bc3249cd8368bf778a6ebd94fde89033c425d352",
+  "recommendation": "accept mechanical extraction at pinned source; TECH-S01-own-key remains open separately",
+  "reviewedAt": "2026-10-07T19:38:52.971Z",
+  "sourcePins": [
+    {
+      "path": "packages/state/src/migration/validate.ts",
+      "currentSha256": "d2b6e7aadd49d2ed53057180bde3d9e71c74461a9d913ec888732d1b647c1322",
+      "snapshotSha256": "d2b6e7aadd49d2ed53057180bde3d9e71c74461a9d913ec888732d1b647c1322",
+      "snapshotMatches": true,
+      "emittedSha256": "dee759c96d69cefb5be0928a68dea372c4873f04b31487ba74af657838c0d025",
+      "declarationSha256": "0f8ef1f0b2caf771f598aca34c963cff7169646a12c377c63faaab633d52310e",
+      "beforeSha256": "65b91401233df5f87035dfa41253f28915c826062c66abd45a750438fbe5066d",
+      "gitBaseSha256": "65b91401233df5f87035dfa41253f28915c826062c66abd45a750438fbe5066d",
+      "beforeMatchesGitBase": true
+    },
+    {
+      "path": "packages/state/src/mutation/pipeline.ts",
+      "currentSha256": "ee7cfeca36661666be21617b32896984c72471115f316886a1baacba87bc7875",
+      "snapshotSha256": "ee7cfeca36661666be21617b32896984c72471115f316886a1baacba87bc7875",
+      "snapshotMatches": true,
+      "emittedSha256": "50ce80751b42babbc01a3b1d17b3cf4de4a0e14dd71fede49f1d29b55db84e3c",
+      "declarationSha256": "cd5c0d5b5a6ac276444e798fe70060c83a2548d4c996d31ad940302b4a96e802",
+      "beforeSha256": "1160f08db792ebe64c1c48829e6e3be8df436c3019fb47e87746c9e5ac3c39b9",
+      "gitBaseSha256": "1160f08db792ebe64c1c48829e6e3be8df436c3019fb47e87746c9e5ac3c39b9",
+      "beforeMatchesGitBase": true
+    },
+    {
+      "path": "packages/state/src/mutation/crud.ts",
+      "currentSha256": "6fe4e4fc98c074ec4a8a60d8e674b4dc984b3d48a7dd993850b17f1026d95bb7",
+      "snapshotSha256": "6fe4e4fc98c074ec4a8a60d8e674b4dc984b3d48a7dd993850b17f1026d95bb7",
+      "snapshotMatches": true,
+      "emittedSha256": "65db5ae4c725918f12c3555893e47494b46efdf12ff4db2c3e37d8bdb89c2a09",
+      "declarationSha256": "26d9259198b6bf2ab16b4b7c9b4bcc1e805b5bb40c8b5d1c09f7fb0b56c6491a",
+      "beforeSha256": "194bdcb9341aadd9bd21af141efc635853f05773c1c742b1a1f64fdbde202952",
+      "gitBaseSha256": "194bdcb9341aadd9bd21af141efc635853f05773c1c742b1a1f64fdbde202952",
+      "beforeMatchesGitBase": true
+    },
+    {
+      "path": "packages/state/src/mutation/models.ts",
+      "currentSha256": "14f7b70e8e0d617d4bbaa0c3f27756a2aef19dd587dcc7f2a43663f2dddd50e7",
+      "snapshotSha256": "14f7b70e8e0d617d4bbaa0c3f27756a2aef19dd587dcc7f2a43663f2dddd50e7",
+      "snapshotMatches": true,
+      "emittedSha256": "94377bb07b5a71f893a55cb254244f186740e3840006a1c33e2aeb872e267b54",
+      "declarationSha256": "4c46b12ae334b0789e0dc621be06744db7a92d751a91194fa1ff17e6a7173ed2",
+      "beforeSha256": "32c6be1480bc4141375a8f134afee865650a2f0b722829664e326b6985996151",
+      "gitBaseSha256": "32c6be1480bc4141375a8f134afee865650a2f0b722829664e326b6985996151",
+      "beforeMatchesGitBase": true
+    },
+    {
+      "path": "packages/state/src/policy/grants.ts",
+      "currentSha256": "f6551f0d2f91458f3eadc6de6d50c43da54b746ca374275c25911263aa0f8880",
+      "snapshotSha256": "f6551f0d2f91458f3eadc6de6d50c43da54b746ca374275c25911263aa0f8880",
+      "snapshotMatches": true,
+      "emittedSha256": "0c61bdb5bc37b9c766b8b366d6d8da0c4b5749c29f8f965911feef3007f2b057",
+      "declarationSha256": "d0830d056c71948f2fad9227b75ce287c77478474cab219fa11940edc19a37cc",
+      "beforeSha256": "a52233ca9198d1d7364f528d783456d1877d48db0f1feb43b8bfb561e5614cd9",
+      "gitBaseSha256": "a52233ca9198d1d7364f528d783456d1877d48db0f1feb43b8bfb561e5614cd9",
+      "beforeMatchesGitBase": true
+    },
+    {
+      "path": "packages/state/src/storage/d1.ts",
+      "currentSha256": "077cce4d61901d165615240414bbb4255d24cd027e0811c495dd82998215b7a8",
+      "snapshotSha256": "077cce4d61901d165615240414bbb4255d24cd027e0811c495dd82998215b7a8",
+      "snapshotMatches": true,
+      "emittedSha256": "42015579d8df5d4e9e139b0e86c62c317d16449cbba709fd22e1c72fce037b72",
+      "declarationSha256": "554450019d6ab9f77e48c90e479c3ba751fcb1c663751af9c87a468b2296454e",
+      "beforeSha256": "b702d004e8f231c568cfffbaaff1a9bdb0e208b33d90be2e480f472a4fcd0e45",
+      "gitBaseSha256": "b702d004e8f231c568cfffbaaff1a9bdb0e208b33d90be2e480f472a4fcd0e45",
+      "beforeMatchesGitBase": true
+    },
+    {
+      "path": "packages/state/src/storage/durable-object.ts",
+      "currentSha256": "d4df52bb725d437a5c8f3f26e3212f83d74038ae3173d92bf5ecf0ce5b5ed185",
+      "snapshotSha256": "d4df52bb725d437a5c8f3f26e3212f83d74038ae3173d92bf5ecf0ce5b5ed185",
+      "snapshotMatches": true,
+      "emittedSha256": "0b814fe027fff2a13fd34ebe868a301d3445020779dd17211bce4e799a1eec5a",
+      "declarationSha256": "c17e762bc8e3db6fbf07aa5cf3c4c44b7874cef433a8af1349f60ba381409b80",
+      "beforeSha256": "8c64da34e972c1e66bf4ccf46ea062ac160d44cedc99aba436af4b53d8d60956",
+      "gitBaseSha256": "8c64da34e972c1e66bf4ccf46ea062ac160d44cedc99aba436af4b53d8d60956",
+      "beforeMatchesGitBase": true
+    },
+    {
+      "path": "packages/state/src/internal/own-data.ts",
+      "currentSha256": "bdf9bf75e77e25b2b083d6d45103b817d3ec8eeb05b5ecbf1e58128d8527dad5",
+      "snapshotSha256": "bdf9bf75e77e25b2b083d6d45103b817d3ec8eeb05b5ecbf1e58128d8527dad5",
+      "snapshotMatches": true,
+      "emittedSha256": "ac56117dd9e2c7b2002b426642e6f8f731c02d3b60161b6cb7c264b3126061e2",
+      "declarationSha256": "b6ebdce4f68830609e90f05b2884cc6746dda8a8aab76ddd4e16bf6938f9e6cd"
+    },
+    {
+      "path": "packages/state/src/storage/sqlite-codecs.ts",
+      "currentSha256": "9fc0d82c775ac7fcf316ba492e6e47ca077f5dd2898a90bf76a18e360a382f32",
+      "snapshotSha256": "9fc0d82c775ac7fcf316ba492e6e47ca077f5dd2898a90bf76a18e360a382f32",
+      "snapshotMatches": true,
+      "emittedSha256": "554a99d60e5f7a1b213d097d3a9b416b96ece6375eacccdf0f10b7496d31041b",
+      "declarationSha256": "46acb1365a810e76b85b71bc5e4c72b7d4c9d8ed7b4193f6aa794d3da50ba93d"
+    }
+  ],
+  "sourceProof": {
+    "beforeSnapshotsByteMatchGitBase": true,
+    "currentSnapshotsByteMatchWorkingSource": true,
+    "allOwnerRemaindersAstTokenIdentical": true,
+    "oldRuntimeImportsRetained": true,
+    "allSharedRuntimeBodiesAstTokenIdenticalToBothOriginalOwners": true,
+    "rawRows": "Helper aliases are exact original DO type aliases; original D1 interface member tokens are identical. The aliases preserve the DO SqlStorageValue generic constraint.",
+    "allOriginalOwnerDeclarationsBytesIdentical": true,
+    "allCurrentPrivateJavaScriptAstTokensMatchIndependentTranspile": true,
+    "testPrivateLeavesOutputMatchesCurrentSource": true,
+    "proofPath": "/private/tmp/canlang-repair-go-20261007/state-independent-source-proof.json",
+    "proofSha256": "bde4e6fb472ce9c01fa8958bd2306d4376ca7fc401d3fdcea5db371db66760a7"
+  },
+  "measurement": {
+    "method": "Unique physical source lines occupied by TypeScript AST token leaves, excluding JSDoc/trivia, with complete helper/type/import and maintained .d.ts owner/helper closure; no tests/maps/generated JS savings credited",
+    "slices": [
+      {
+        "slice": "own-data",
+        "sourceBefore": {
+          "readableLines": 3104,
+          "tokens": 20456,
+          "bytes": 159145,
+          "physicalLines": 4159
+        },
+        "sourceAfter": {
+          "readableLines": 3047,
+          "tokens": 20041,
+          "bytes": 157075,
+          "physicalLines": 4082
+        },
+        "declarationsBefore": {
+          "readableLines": 214,
+          "tokens": 1511,
+          "bytes": 36891,
+          "physicalLines": 724
+        },
+        "declarationsAfter": {
+          "readableLines": 216,
+          "tokens": 1558,
+          "bytes": 37183,
+          "physicalLines": 728
+        },
+        "fullBefore": {
+          "readableLines": 3318,
+          "tokens": 21967,
+          "bytes": 196036,
+          "physicalLines": 4883
+        },
+        "fullAfter": {
+          "readableLines": 3263,
+          "tokens": 21599,
+          "bytes": 194258,
+          "physicalLines": 4810
+        }
+      },
+      {
+        "slice": "sqlite-codecs",
+        "sourceBefore": {
+          "readableLines": 2487,
+          "tokens": 14869,
+          "bytes": 105882,
+          "physicalLines": 2906
+        },
+        "sourceAfter": {
+          "readableLines": 2177,
+          "tokens": 12690,
+          "bytes": 93181,
+          "physicalLines": 2522
+        },
+        "declarationsBefore": {
+          "readableLines": 8,
+          "tokens": 86,
+          "bytes": 2708,
+          "physicalLines": 47
+        },
+        "declarationsAfter": {
+          "readableLines": 135,
+          "tokens": 900,
+          "bytes": 9472,
+          "physicalLines": 202
+        },
+        "fullBefore": {
+          "readableLines": 2495,
+          "tokens": 14955,
+          "bytes": 108590,
+          "physicalLines": 2953
+        },
+        "fullAfter": {
+          "readableLines": 2312,
+          "tokens": 13590,
+          "bytes": 102653,
+          "physicalLines": 2724
+        }
+      }
+    ],
+    "totals": {
+      "sourceBefore": 5591,
+      "declarationsBefore": 222,
+      "fullBefore": 5813,
+      "sourceAfter": 5224,
+      "declarationsAfter": 351,
+      "fullAfter": 5575
+    },
+    "sourceStrictlyShrinks": true,
+    "declarationChargedStrictlyShrinks": true
+  },
+  "independentTests": [
+    {
+      "name": "actualSQLiteAndOwners",
+      "passed": 111,
+      "failed": 0,
+      "cancelled": 0,
+      "exitCode": 0,
+      "log": "/private/tmp/canlang-repair-go-20261007/state-independent-backend-controls.log",
+      "sha256": "492ae7fba5da0da9748642a7a8d760b0261af6dbf1c187a937e4c11bb48ef604"
+    },
+    {
+      "name": "mutationQueryLeafControls",
+      "passed": 41,
+      "failed": 0,
+      "cancelled": 0,
+      "exitCode": 0,
+      "log": "/private/tmp/canlang-repair-go-20261007/state-independent-owner-controls.log",
+      "sha256": "5a0bd89538501019e89be3aabe05c34576d77df8dcd93f8a24034a162f9a9fd1"
+    },
+    {
+      "name": "originalVsCurrentEvaluationControls",
+      "passed": 5,
+      "failed": 0,
+      "cancelled": 0,
+      "exitCode": 0,
+      "log": "/private/tmp/canlang-repair-go-20261007/state-independent-negative-controls.log",
+      "sha256": "15f421b7e323afbd70558658a8ce40bab3f729cd75ea8a0de180a98ef8cb1808"
+    }
+  ],
+  "testPins": [
+    {
+      "path": "/private/tmp/canlang-repair-go-20261007/state-private/current/test/private-leaves.test.js",
+      "sha256": "c1b7b7470b40ecec175b8dabf8d82a105428bef3868affdd6802889def6967af"
+    },
+    {
+      "path": "/private/tmp/canlang-repair-go-20261007/state-private/current/test/storage/d1.test.js",
+      "sha256": "ebf788e728e21b785d861983612112c150f27c6343afc5723b9e0bb7a6c2b030"
+    },
+    {
+      "path": "/private/tmp/canlang-repair-go-20261007/state-private/current/test/storage/do.test.js",
+      "sha256": "7c4cbd6233dfcc0c1bca5a120ced546cf6d7da49dfb812086f4957da9537ca13"
+    },
+    {
+      "path": "/private/tmp/canlang-repair-go-20261007/state-private/current/test/storage/conformance.js",
+      "sha256": "1d892825843bb5d5375d2f7ae78ff44fe82f73b4c46acd937478cceddb53b9f1"
+    },
+    {
+      "path": "/private/tmp/canlang-repair-go-20261007/state-private/current/test/migration/adapters.test.js",
+      "sha256": "bb8fdcb09eb071d991d344531a06116e2fc0004642b98a88f16c921b51229509"
+    },
+    {
+      "path": "/private/tmp/canlang-repair-go-20261007/state-private/current/test/mutation/staged-durable.test.js",
+      "sha256": "ede20c42bbf8cfd221e30e1f64297afd10f26cdfe48387deae45dba4f3ddb7c3"
+    },
+    {
+      "path": "/private/tmp/canlang-repair-go-20261007/state-private/current/test/mutation/invariants.test.js",
+      "sha256": "cce3a8505f679802c49ff28df1144249306b5b8a00f76626d5698ae1271c6447"
+    },
+    {
+      "path": "/private/tmp/canlang-repair-go-20261007/state-private/current/test/mutation/rejected.test.js",
+      "sha256": "7464b31438814b7a06190f15e35f63f4f7b480fc9d1c1a97ac92c8c038e1390c"
+    },
+    {
+      "path": "/private/tmp/canlang-repair-go-20261007/state-private/current/test/mutation/locks.test.js",
+      "sha256": "39501015ec0188951e201eab93f0e599832e70ac1bed36cd417cc3a16fb3dee0"
+    },
+    {
+      "path": "/private/tmp/canlang-repair-go-20261007/state-private/current/test/query/authority.test.js",
+      "sha256": "cee4f1d6d012b77f612f03ec8272a456aae7b41f69e942c8d09467840fa7af7d"
+    },
+    {
+      "path": "/private/tmp/canlang-repair-go-20261007/state-private/current/test/query/visibility.test.js",
+      "sha256": "efcad36a27187f6c10f8c195a8e4d8bf3af383291d444154bd7d9ba2375d166c"
+    },
+    {
+      "path": "/private/tmp/canlang-repair-go-20261007/state-private/current/test/query/projection.test.js",
+      "sha256": "e4fa4ac1e73f17135274858be3cd8214a3e667ac113137f5a1b0204239bfe1b9"
+    }
+  ],
+  "backendExecution": {
+    "execSession": 34739,
+    "status": "write_stdin returned explicit exitCode 0",
+    "command": "node --test --test-timeout=60000 PRIVATE/current/test/storage/d1.test.js PRIVATE/current/test/storage/do.test.js PRIVATE/current/test/migration/adapters.test.js PRIVATE/current/test/mutation/staged-durable.test.js",
+    "approval": "supported require_escalated for legitimate localhost workerd runtime; approved",
+    "harness": {
+      "path": "/private/tmp/canlang-repair-go-20261007/state-private/test/storage/do-test-worker.js",
+      "sha256": "b5c989a6d33b1bba095ed58ebc3762d4d45e0a88b692eb8578ffc14382ebc178",
+      "imports": [
+        "../../current/src/storage/durable-object.js"
+      ],
+      "resolvedAdapter": "/private/tmp/canlang-repair-go-20261007/state-private/current/src/storage/durable-object.js",
+      "adapterSha256": "0b814fe027fff2a13fd34ebe868a301d3445020779dd17211bce4e799a1eec5a",
+      "root": "/private/tmp/canlang-repair-go-20261007/state-private",
+      "inlineD1DefaultRoot": true,
+      "fileDOExplicitRoot": true
+    },
+    "allFourTestAssertionsUnchangedFromBaselineCompiledOutputExceptPrivateModulesRoot": true,
+    "originalFailedHarnessLogsPreserved": [
+      {
+        "path": "/private/tmp/canlang-repair-go-20261007/state-private/baseline-backend-tests.log",
+        "exists": true
+      },
+      {
+        "path": "/private/tmp/canlang-repair-go-20261007/state-private/current-backend-harness-failure.log",
+        "exists": true
+      },
+      {
+        "path": "/private/tmp/canlang-repair-go-20261007/state-private/current-backend-mixed-harness-failure.log",
+        "exists": true
+      }
+    ]
+  },
+  "verifiedBehaviors": [
+    "SQL predicate operators/null/bool binding, order and limits, invalid field/argument errors, binding mutation and getter order",
+    "Freeze sibling Object.values getter order, cyclic object identity, custom array iteration, descendant exception identity and ancestor freeze timing",
+    "Own-path getter exception identity, own-only traversal, null leaves, missing-path and array opacity",
+    "D1 and DO owning query all-or-reject invalid-JSON rows before later row getters",
+    "Actual workerd SQLite commit/rollback/fence, migration carryover/recovery, staged mutation atomicity/history, and mutation/query permission controls"
+  ],
+  "openDefects": [
+    {
+      "packet": "TECH-S01-own-key",
+      "fields": [
+        "constructor",
+        "toString"
+      ],
+      "original": true,
+      "unchanged": true,
+      "gate": "OPEN: COLUMN_FIELDS inherited metadata lookup still produces native-code functions in order SQL. Differential preservation test proves unchanged defect; it does not close negative correctness gate."
+    }
+  ],
+  "limits": [
+    "Review is finite mechanical slice; no product/security-policy acceptance implied.",
+    "No full type-check rebuild performed independently; exact original types/owner declarations and source-to-private-runtime proofs checked.",
+    "Actual SQLite proofs use ephemeral Miniflare instances; process-restart survival and deployed durable adoption are unclaimed.",
+    "Historical harness failures retained, not erased or converted to successful runs."
+  ],
+  "failures": [],
+  "sourceRecheckAt": "2026-10-07T19:38:52.973Z",
+  "sourcePinsUnchangedAtFinish": true,
+  "leasesReleased": true,
+  "productionGitDocsWrites": false
+}
