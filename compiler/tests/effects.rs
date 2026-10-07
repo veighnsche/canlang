@@ -1695,3 +1695,104 @@ fn f6_draft_bodies_accepted_without_trimming() {
         }
     }
 }
+
+// Recovery belongs to the malformed declaration, not its file/module owner.
+#[test]
+fn recovered_declarations_keep_independent_effects_and_policies() {
+    let body = "app Shop source=\"fr\"\nGiven\n Config in app {name:text}\n policy Config read=members\n message title = \"Bonjour\"@{en=\"Hello\"}\n role reviewer\nWhen\n scenario leak(sek:secret) -> secret by=members\n  require reviewer(actor)\n  do return sek\nThen\n";
+    let broken = "app Broken\nGiven\n policy\nWhen\nThen\n";
+    let sources = [
+        body.to_string(),
+        body.replace("Given\n", "Given\n policy\n"),
+        body.replace(" role reviewer\n", " role reviewer\n policy\n"),
+        format!("{broken}{body}"),
+        format!("{body}{broken}"),
+        body.replace("Then\n", " scenario bad(n:int) -> int by=members\n  require reviewer(actor)\n  do return 1+\nThen\n"),
+    ];
+    for (i, src) in sources.iter().enumerate() {
+        let (resolved, checked, diags) = run(src, None);
+        assert_eq!(
+            diags.iter().any(|d| d.code.starts_with("E1")),
+            i != 0,
+            "{diags:?}"
+        );
+        let effects: Vec<_> = diags
+            .iter()
+            .filter(|d| d.code.starts_with("E4"))
+            .cloned()
+            .collect();
+        assert_findings(src, &effects, &[("E4011", "sek", 2), ("E4020", "actor", 1)]);
+        let shop = resolved.module_by_name["Shop"];
+        assert_eq!(checked.modules[&shop].source_lang, "fr");
+        assert_eq!(checked.modules[&shop].policies.len(), 1);
+        assert_eq!(checked.models.len(), 1);
+        assert_eq!(checked.models.values().next().unwrap().policies.len(), 1);
+        assert_eq!(checked.messages.len(), 1);
+        assert_eq!(checked.scenarios.len(), 1);
+
+        // Also exercise the actual library orchestration, not only the included pass.
+        let mut db = SourceDb::new();
+        let file = db.add("recovery.can".into(), src.clone());
+        let (program, all) = analysis::check_program(&db, &[file], None);
+        let effects: Vec<_> = all
+            .iter()
+            .filter(|d| d.code.starts_with("E4"))
+            .cloned()
+            .collect();
+        assert_findings(src, &effects, &[("E4011", "sek", 2), ("E4020", "actor", 1)]);
+        assert_eq!(program.effects.modules[&shop].policies.len(), 1);
+        assert_eq!(program.effects.messages.len(), 1);
+    }
+    let invalid_header = body.replace("app Shop source=\"fr\"", "app Shop source=\"fr\" broken");
+    let (_, checked, diags) = run(&invalid_header, None);
+    assert!(diags.iter().any(|d| d.code.starts_with("E1")));
+    assert!(
+        checked.modules.is_empty(),
+        "invalid module header must not gain effects"
+    );
+}
+
+#[test]
+fn every_scope_follows_only_bound_reachable_derives() {
+    let catalog = fixture();
+    let declarations = " AppConfig in app {n:int}\n Todo {title:text}\n policy AppConfig read=members\n derive app_count():int = count(AppConfig)\n derive app_query():int = count(AppConfig as c where c.n>0)\n derive forward():int = (app_query)()\n derive team_count():int = count(Todo)\n";
+    for (expr, mixed) in [
+        ("count(AppConfig)", true),
+        ("app_count()", true),
+        ("forward()", true),
+        ("team_count()", false),
+        ("1", false), // Unused app derives must not contaminate a team-only handler.
+    ] {
+        let src = format!(
+            "app Scope\nGiven\n{declarations}When\n scenario tick on=every(5m)\n  do\n   let team_total=count(Todo)\n   let app_total={expr}\nThen\n"
+        );
+        let (_, _, diags) = run(&src, Some(&catalog));
+        if mixed {
+            assert_findings(&src, &diags, &[("E4051", "every(5m)", 1)]);
+        } else {
+            assert!(diags.is_empty(), "{src}\n{diags:?}");
+        }
+        let mut db = SourceDb::new();
+        let file = db.add("scope.can".into(), src.clone());
+        let (_, all) = analysis::check_program(&db, &[file], Some(&catalog));
+        assert_eq!(all.iter().any(|d| d.code == "E4051"), mixed, "{all:?}");
+    }
+    let src = format!(
+        "app Scope\nGiven\n{declarations}When\n scenario helper() by=members\n  do let n=forward()\n scenario tick on=every(5m)\n  do\n   let team_total=count(Todo)\n   call helper {{}}\nThen\n"
+    );
+    let (_, _, diags) = run(&src, Some(&catalog));
+    assert_findings(&src, &diags, &[("E4051", "every(5m)", 1)]);
+
+    let app_only = src.replace("   let team_total=count(Todo)\n", "");
+    assert_codes(&app_only, Some(&catalog), &[]);
+    let cycle = src.replace(
+        "derive app_query():int = count(AppConfig as c where c.n>0)",
+        "derive app_query():int = forward()",
+    );
+    let (_, _, diags) = run(&cycle, Some(&catalog));
+    assert!(diags.iter().any(|d| d.code == "E2018"), "{diags:?}");
+    assert!(
+        !diags.iter().any(|d| d.code == "E4051"),
+        "cycle has no app query: {diags:?}"
+    );
+}
