@@ -14,15 +14,12 @@
  */
 
 import type {
-  AppearanceOrientation,
-  AppearanceSize,
-  AppearanceTone,
-  AppearanceVariant,
   MessageValue,
   PresentationContext,
   ReviewProps,
 } from "@canlang/contracts";
-import { appearanceClasses, type AppearanceOpts } from "./appearance.js";
+import { appearanceClasses } from "./appearance.js";
+import { pickAppearance } from "./internal/appearance-props.js";
 import { escapeAttr, escapeHtml } from "./escape.js";
 import { message, resolveCaption } from "./messages.js";
 
@@ -34,34 +31,6 @@ const RATIONALE_LABEL = message("Rationale", { nl: "Motivering" });
 const ACTOR_LABEL = message("Actor", { nl: "Actor" });
 const TIME_LABEL = message("Time", { nl: "Tijd" });
 const UNAVAILABLE = message("Unavailable", { nl: "Niet beschikbaar" });
-
-/**
- * Collect every appearance key present at runtime (including undeclared
- * extras from JS callers) so appearanceClasses() judges them against the
- * word's admitted matrix: unadmitted tokens throw, never silently drop.
- */
-function pickAppearance(props: object): AppearanceOpts {
-  const record = props as Record<string, unknown>;
-  const opts: {
-    tone?: AppearanceTone;
-    size?: AppearanceSize;
-    variant?: AppearanceVariant;
-    orientation?: AppearanceOrientation;
-  } = {};
-  if (record["tone"] !== undefined) {
-    opts.tone = record["tone"] as AppearanceTone;
-  }
-  if (record["size"] !== undefined) {
-    opts.size = record["size"] as AppearanceSize;
-  }
-  if (record["variant"] !== undefined) {
-    opts.variant = record["variant"] as AppearanceVariant;
-  }
-  if (record["orientation"] !== undefined) {
-    opts.orientation = record["orientation"] as AppearanceOrientation;
-  }
-  return opts;
-}
 
 function slotText(
   slot: string,
