@@ -150,3 +150,5 @@ Ten UI renderers now consume the single internal appearance-props picker; render
 The worker environment-cache primitive remains inline in main.ts to preserve the enforced no-static-runtime-import boundary. Two defining caches/accessors remain separate, with exact Promise/throw/retry lifetime proof; a proposed private file was not required. Complete checkpoint unchanged.
 
 Values internal/gregorian.ts now owns the unchanged pure leap/month rules for kinds and temporal without introducing a cycle or changing public declarations. Calendar qualification is source-current and narrow; original temporal host and backend joins remain open. Complete checkpoint unchanged.
+
+Work decisions/utf16_json.rs owns shared byte-exact UTF16 JSON append mechanics. Leaf carrier/error domains and recovery allocation stay local; the Cargo module is registered and exhaustive raw-unit/pair plus actual native caller controls pass. Original public routing, Wasm and delivery joins remain separate; complete checkpoint unchanged.
