@@ -429,7 +429,7 @@
     },
     "TECH-W02": {
       "planning_status": "ready",
-      "state": "Independently accepted GAP-L01/L03 source correction; scoped commit prepared",
+      "state": "Independently accepted GAP-L01/L03 finite correction; committedc7c98b71",
       "files": [
         "packages/cloudflare/src/runtime/invoke.ts",
         "packages/state/src/fanout/lifecycle.ts",
@@ -477,8 +477,9 @@
         "packages/cloudflare/src/runtime/invoke.ts": "6b135086c8d0c904008f2100ed0930fd8ebfed60769e73efc8944bed45f50997",
         "packages/cloudflare/test/fanout-fresh-facts.test.ts": "0ad244593fcc37ffe08a43676f89c67fdc35a77d29cb9fc9bffe93748272ae1a"
       },
-      "commit_pending": true,
-      "parent_limit": "Original compiled/mounted/durable/startup/installed/T26 qualification remains open; structural view is not admission authority"
+      "commit_pending": false,
+      "parent_limit": "Original compiled/mounted/durable/startup/installed/T26 qualification remains open; structural view is not admission authority",
+      "commit": "c7c98b71"
     },
     "TECH-W03": {
       "planning_status": "blocked",
@@ -587,7 +588,7 @@
     },
     "TECH-F01": {
       "planning_status": "blocked",
-      "state": "Finite size-agreement candidate released; different-author actual FS/source review ACKed",
+      "state": "Independently accepted immutable-size guard; scoped commit prepared; completion correction active separately",
       "files": [
         "packages/files/src/ports.ts",
         "packages/files/src/upload/index.ts",
@@ -608,7 +609,28 @@
       "effort": "medium",
       "writer_released": true,
       "reviewer": "/root/row_scope_cleanup",
-      "review_outputs": "/private/tmp/canlang-repair-go-20261007/file-size-independent"
+      "review_outputs": "/private/tmp/canlang-repair-go-20261007/file-size-independent",
+      "review": "finalized-size-independent-review.json",
+      "source_pins": {
+        "packages/files/src/finalize/index.ts": "36464397b99f8cc7392c7ac6d3564ccd78f9982b98577a4982b63b37467390e6",
+        "packages/files/test/finalize-byte-count.test.ts": "643f9392362fa99400b09b268dc0e4d586355b17b9edfefa7242001812624539"
+      },
+      "commit_pending": true,
+      "review_read_released": true,
+      "parent_limit": "Completion/append count/retry and finalization recovery/durablebinding stay open",
+      "completion_correction": {
+        "state": "exact2writerACK/source and finite private gates; overlapping finalization-test branch waits rootcommit release",
+        "files": [
+          "packages/files/src/upload/index.ts",
+          "packages/files/test/completion-byte-count.test.ts"
+        ],
+        "third_file_pending": "packages/files/test/finalize-byte-count.test.ts",
+        "agent": "/root/row_scope_cleanup",
+        "model": "gpt-6.1-sol",
+        "effort": "medium",
+        "contract": "existing actual oversize rejection/cleanup, shortreadpartial, first-error/missing staging preserved; no metadata healing/newphase/API",
+        "private_outputs": "/private/tmp/canlang-repair-go-20261007/completion-size-production"
+      }
     },
     "TECH-F02": {
       "planning_status": "blocked",
@@ -1225,7 +1247,7 @@
     "state": "active",
     "objective": "Finish every currently authorized queue task, resolve actual prerequisites, independently review, commit early/often and clean released resources economically; preserve native HOLD and exact original residual gates."
   },
-  "updated_utc": "2026-10-07T21:56:29.762353+00:00",
+  "updated_utc": "2026-10-07T22:03:38.658070+00:00",
   "critical_security_review": {
     "state": "frozen review and actual source joins received; contracts/repairs/host acceptance remain open",
     "agent": "/root/critical_package_security",
@@ -1260,13 +1282,14 @@
   "shared_doc_handoff": {
     "target": "01a117b5-8358-7e31-9de3-03d0302cdd3c",
     "human_authority": "actual source chat Yes, coordinate with both agents",
-    "state": "second orchestration PROPOSED append explicit release received",
+    "state": "third PROPOSED allocation append explicit writer handback received",
     "files": [
       "docs/specification/DECISIONS.md"
     ],
     "restrictions": "No staging/commit; preserve all bytes, root retains Git/state/filetree and source leases",
     "package_decision_notes_pending": [],
-    "heading": "2026-10-07 \u2014 Orchestrate the selected capability roadmap (PROPOSED)",
-    "foreign_append_staging": "Both foreign proposal appends preserved unstaged"
+    "heading": "2026-10-07 \u2014 Assign proposed worker profiles to the capability roadmap (PROPOSED)",
+    "foreign_append_staging": "All foreign proposals preserved unstaged",
+    "end_sha256": "c0eedd9b5459716abfb439a685d601fe934c13ee1bc8f7d0890fd0852486f403"
   }
 }

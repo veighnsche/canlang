@@ -1,0 +1,46 @@
+{
+  "verdict": "pass scoped immutable-size guard review; wider TECH-F01 remains open",
+  "baseline": "36417cc3",
+  "reviewHead": "b7e18b9b7da7af07ec7e0672347e2d6f173b3ae2",
+  "sourcePins": {
+    "packages/files/src/finalize/index.ts": "36464397b99f8cc7392c7ac6d3564ccd78f9982b98577a4982b63b37467390e6",
+    "packages/files/test/finalize-byte-count.test.ts": "643f9392362fa99400b09b268dc0e4d586355b17b9edfefa7242001812624539"
+  },
+  "sourceDifferences": [
+    "src/finalize/index.ts"
+  ],
+  "declarationsEqual": [
+    "test/finalize-byte-count.test.d.ts",
+    "test/helpers.d.ts",
+    "src/bridge.d.ts",
+    "src/ports.d.ts",
+    "src/retention/index.d.ts",
+    "src/provenance/index.d.ts",
+    "src/finalize/index.d.ts",
+    "src/upload/fs-blob-store.d.ts",
+    "src/upload/index.d.ts"
+  ],
+  "independentCases": 26,
+  "independentFreshDisagreements": 4,
+  "independentControlProfiles": 9,
+  "authorTestsCurrent": {
+    "pass": 11,
+    "fail": 0
+  },
+  "authorTestsBaseline": {
+    "pass": 6,
+    "fail": 5
+  },
+  "strictBeforeCurrent": "pass finite source/test defining closure",
+  "sourceGrowthLines": 4,
+  "leasesReleased": true,
+  "rootDisposition": "accepted exact immutable-size guard; frozen completion dependency and its erroneous completion remains a separately active correction",
+  "fullPrivateEvidence": "/private/tmp/canlang-repair-go-20261007/file-size-independent/review.json",
+  "fullPrivateEvidenceSHA256": "cd9bfa131408154800732dcc6cbade928034d2cfe2384520e93f4b610a9a928e",
+  "limits": [
+    "Actual FS/private copy-returning persisted metadata, not production durable/mounted binding.",
+    "Completion/append count/retry and finalization phase/atomicity remain open.",
+    "Concurrent upload completion correction changes the defining test crash branch; joint renewed qualification follows its exact released scope.",
+    "Frozen historical negative source and receipt are retained; no fake whole-parent closure."
+  ]
+}

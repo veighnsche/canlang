@@ -166,7 +166,11 @@ export function finalizeUpload(deps: FinalizeDeps, input: FinalizeInput): Finali
     return { status: 'failed', reason: 'conflict' };
   }
   const staging = deps.blobs.read(stagingKeyForIntent(record.intentId));
-  if (staging === null) {
+  if (
+    staging === null ||
+    staging.byteLength !== record.receivedBytes ||
+    record.receivedBytes !== record.declaredSize
+  ) {
     return { status: 'failed', reason: 'conflict' };
   }
   const actualDigest = sha256Hex(staging);
