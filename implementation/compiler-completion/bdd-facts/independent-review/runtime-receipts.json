@@ -1,0 +1,82 @@
+[
+  {
+    "name": "known-call-cells-sequence-let-as",
+    "outcome": "passed",
+    "qualification": "Exact emitted closures with actual stdlib lower, bindings supplied per callback contract; not full sequence invocation"
+  },
+  {
+    "name": "known-table-result",
+    "outcome": "reproduced",
+    "error": {
+      "name": "ReferenceError",
+      "message": "result is not defined",
+      "stack": "ReferenceError: result is not defined\n    at examples.observations (file:///Users/vince/Projects/canlang/implementation/compiler-completion/bdd-facts/independent-review/known.test-0.mjs:4:156)\n    at file:///Users/vince/Projects/canlang/implementation/compiler-completion/bdd-facts/independent-review/runtime-controls.mjs:16:64\n    at rejects (file:///Users/vince/Projects/canlang/implementation/compiler-completion/bdd-facts/independent-review/runtime-controls.mjs:8:43)\n    at file:///Users/vince/Projects/canlang/implementation/compiler-completion/bdd-facts/independent-review/runtime-controls.mjs:16:7"
+    }
+  },
+  {
+    "name": "known-sequence-result",
+    "outcome": "reproduced",
+    "error": {
+      "name": "ReferenceError",
+      "message": "result is not defined",
+      "stack": "ReferenceError: result is not defined\n    at Object.observations (file:///Users/vince/Projects/canlang/implementation/compiler-completion/bdd-facts/independent-review/known.test-0.mjs:4:537)\n    at file:///Users/vince/Projects/canlang/implementation/compiler-completion/bdd-facts/independent-review/runtime-controls.mjs:17:64\n    at rejects (file:///Users/vince/Projects/canlang/implementation/compiler-completion/bdd-facts/independent-review/runtime-controls.mjs:8:43)\n    at file:///Users/vince/Projects/canlang/implementation/compiler-completion/bdd-facts/independent-review/runtime-controls.mjs:17:7"
+    }
+  },
+  {
+    "name": "simple-table-result-no-call-expression",
+    "outcome": "reproduced",
+    "error": {
+      "name": "ReferenceError",
+      "message": "result is not defined",
+      "stack": "ReferenceError: result is not defined\n    at examples.observations (file:///Users/vince/Projects/canlang/implementation/compiler-completion/bdd-facts/independent-review/result-only.test-0.mjs:3:156)\n    at file:///Users/vince/Projects/canlang/implementation/compiler-completion/bdd-facts/independent-review/runtime-controls.mjs:19:89\n    at rejects (file:///Users/vince/Projects/canlang/implementation/compiler-completion/bdd-facts/independent-review/runtime-controls.mjs:8:43)\n    at file:///Users/vince/Projects/canlang/implementation/compiler-completion/bdd-facts/independent-review/runtime-controls.mjs:19:7"
+    }
+  },
+  {
+    "name": "simple-sequence-result-no-call-expression",
+    "outcome": "reproduced",
+    "error": {
+      "name": "ReferenceError",
+      "message": "result is not defined",
+      "stack": "ReferenceError: result is not defined\n    at Object.observations (file:///Users/vince/Projects/canlang/implementation/compiler-completion/bdd-facts/independent-review/result-only.test-0.mjs:3:423)\n    at file:///Users/vince/Projects/canlang/implementation/compiler-completion/bdd-facts/independent-review/runtime-controls.mjs:20:89\n    at rejects (file:///Users/vince/Projects/canlang/implementation/compiler-completion/bdd-facts/independent-review/runtime-controls.mjs:8:43)\n    at file:///Users/vince/Projects/canlang/implementation/compiler-completion/bdd-facts/independent-review/runtime-controls.mjs:20:7"
+    }
+  },
+  {
+    "name": "real-testkit-result-table",
+    "outcome": "reproduced",
+    "error": {
+      "name": "Error",
+      "message": "example at index 0 row 0 observation 0 threw: result is not defined"
+    },
+    "qualification": "Actual load/setup/observe with generous result-bearing observeScope, invocation port only"
+  },
+  {
+    "name": "selected-named-call-source-order-lazy-and-error",
+    "outcome": "passed",
+    "reads": [
+      "left",
+      "right"
+    ],
+    "rejectionReads": [
+      "left"
+    ],
+    "qualification": "Exact emitted sequence assertion, actual stdlib starts_with, getter inputs only; not canonical admission"
+  },
+  {
+    "name": "imported-helper-alias-undefined-function",
+    "outcome": "reproduced",
+    "error": {
+      "name": "ReferenceError",
+      "message": "$can$s$50726f76696465722e74616b65 is not defined",
+      "stack": "ReferenceError: $can$s$50726f76696465722e74616b65 is not defined\n    at file:///Users/vince/Projects/canlang/implementation/compiler-completion/bdd-facts/independent-review/sequence-alias.test-0.mjs:3:273\n    at Object.observations (file:///Users/vince/Projects/canlang/implementation/compiler-completion/bdd-facts/independent-review/sequence-alias.test-0.mjs:3:336)\n    at file:///Users/vince/Projects/canlang/implementation/compiler-completion/bdd-facts/independent-review/runtime-controls.mjs:32:68\n    at rejects (file:///Users/vince/Projects/canlang/implementation/compiler-completion/bdd-facts/independent-review/runtime-controls.mjs:8:43)\n    at file:///Users/vince/Projects/canlang/implementation/compiler-completion/bdd-facts/independent-review/runtime-controls.mjs:32:7"
+    }
+  },
+  {
+    "name": "table-action-input-undefined-value",
+    "outcome": "reproduced",
+    "error": {
+      "name": "ReferenceError",
+      "message": "value is not defined",
+      "stack": "ReferenceError: value is not defined\n    at Array.<anonymous> (file:///Users/vince/Projects/canlang/implementation/compiler-completion/bdd-facts/independent-review/ordered-alias.test-0.mjs:4:198)\n    at file:///Users/vince/Projects/canlang/implementation/compiler-completion/bdd-facts/independent-review/runtime-controls.mjs:34:79\n    at rejects (file:///Users/vince/Projects/canlang/implementation/compiler-completion/bdd-facts/independent-review/runtime-controls.mjs:8:43)\n    at file:///Users/vince/Projects/canlang/implementation/compiler-completion/bdd-facts/independent-review/runtime-controls.mjs:34:7"
+    }
+  }
+]

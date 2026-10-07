@@ -1,0 +1,14 @@
+{
+  "status": "blocked_before_any_response",
+  "sandbox_attempt": "connection failed; no retry was made",
+  "elevated_attempt": "automatic approval review rejected request-1",
+  "reason": "The action sends non-public project/compiler design details to the external TypeSafe JEV endpoint; broad JEV guidance does not specifically authorize this payload and destination for sensitive egress. Do not bypass this rejection through a workaround or indirect execution.",
+  "endpoint": "https://api.typesafe.ai/v1/systemone",
+  "requests": [
+    "request-1.json",
+    "request-2.json",
+    "request-3.json"
+  ],
+  "responses": [],
+  "uncertainty": "No JEV advice received; local proposal is unaccepted pending explicit scoped approval or acceptable authorization evidence. No alternate route used."
+}

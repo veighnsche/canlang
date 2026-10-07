@@ -1,0 +1,13 @@
+app ResultOnly
+Given
+When
+ scenario echo(value:text) read=true -> text by=members
+  do return value
+  examples value="HI"
+   value -> result
+   "HI" -> "HI"
+  examples
+   do
+    call echo {value="HI"} by=self
+    result -> "HI"
+Then

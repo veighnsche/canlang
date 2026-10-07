@@ -1,0 +1,155 @@
+{
+  "known": {
+    "artifact": true,
+    "diagnostics": []
+  },
+  "known-wrong-type": {
+    "artifact": false,
+    "diagnostics": [
+      {
+        "code": "E6008",
+        "message": "cannot lower call: checked selected-call binding is not published",
+        "primary": {
+          "file": 0,
+          "start": 186,
+          "end": 205
+        }
+      },
+      {
+        "code": "E6008",
+        "message": "cannot lower call: checked selected-call binding is not published",
+        "primary": {
+          "file": 0,
+          "start": 208,
+          "end": 224
+        }
+      },
+      {
+        "code": "E6008",
+        "message": "cannot lower call: checked selected-call binding is not published",
+        "primary": {
+          "file": 0,
+          "start": 259,
+          "end": 274
+        }
+      }
+    ]
+  },
+  "unknown-callee": {
+    "artifact": false,
+    "diagnostics": [
+      {
+        "code": "E6008",
+        "message": "cannot lower call: checked selected-call binding is not published",
+        "primary": {
+          "file": 0,
+          "start": 166,
+          "end": 194
+        }
+      },
+      {
+        "code": "E6008",
+        "message": "cannot lower call: checked selected-call binding is not published",
+        "primary": {
+          "file": 0,
+          "start": 360,
+          "end": 387
+        }
+      },
+      {
+        "code": "E6008",
+        "message": "cannot lower sequence assertion: observation type is not resolvable",
+        "primary": {
+          "file": 0,
+          "start": 360,
+          "end": 387
+        }
+      }
+    ]
+  },
+  "unknown-cell": {
+    "artifact": false,
+    "diagnostics": [
+      {
+        "code": "E6008",
+        "message": "cannot lower call: checked selected-call binding is not published",
+        "primary": {
+          "file": 0,
+          "start": 186,
+          "end": 208
+        }
+      }
+    ]
+  },
+  "failed-result": {
+    "artifact": false,
+    "diagnostics": [
+      {
+        "code": "E5006",
+        "message": "`result` needs a preceding successful call with a result",
+        "primary": {
+          "file": 0,
+          "start": 450,
+          "end": 456
+        }
+      }
+    ]
+  },
+  "forward-let": {
+    "artifact": true,
+    "diagnostics": []
+  },
+  "expected-enum": {
+    "artifact": true,
+    "diagnostics": []
+  },
+  "ordered-alias": {
+    "artifact": true,
+    "diagnostics": []
+  },
+  "result-only": {
+    "artifact": true,
+    "diagnostics": []
+  },
+  "sequence-order": {
+    "artifact": true,
+    "diagnostics": []
+  },
+  "sequence-alias": {
+    "artifact": true,
+    "diagnostics": []
+  },
+  "ownership": {
+    "exit": 10,
+    "diagnostics": [
+      {
+        "code": "E2001",
+        "severity": "error",
+        "message": "unresolved name 'missing_production'",
+        "primary": {
+          "file": 0,
+          "start": 44,
+          "end": 62
+        },
+        "related": [],
+        "tags": []
+      },
+      {
+        "code": "E2001",
+        "severity": "error",
+        "message": "unresolved name 'value'",
+        "primary": {
+          "file": 0,
+          "start": 159,
+          "end": 164
+        },
+        "related": [],
+        "tags": []
+      }
+    ]
+  },
+  "header-scope": {
+    "exact_restored_E2001": 3,
+    "outcome": "passed"
+  }
+}

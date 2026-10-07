@@ -1178,8 +1178,8 @@ fn golden_expenseflow_structure() {
         "submit inputs"
     );
     assert!(
-        submit.contains("async(c,s)=>(() => { throw new Error(\"call has no lowering\"); })()"),
-        "unchecked role observation stays loud:\n{submit}"
+        submit.contains("async(c,s)=>hasRole(c,\"expenses.reviewer\",s.reviewer_one)"),
+        "checked role observation:\n{submit}"
     );
     assert!(
         submit.contains("async(c,s)=>!same(s.reviewer_one,s.reviewer_two)"),
@@ -1204,12 +1204,12 @@ fn golden_expenseflow_structure() {
     // caller/inputs/request/error, `let` bindings through `b`, and
     // assertions with §13 type ids.
     assert!(
-        approve.contains("{operation:\"expenses.Expense.create\",by:async(c,s,b)=>(other),inputs:async(c,s,b)=>({purpose:\"Travel\",amount:(() => { throw new Error(\"call has no lowering\"); })()})}"),
-        "sequence create keeps unchecked money stub"
+        approve.contains("{operation:\"expenses.Expense.create\",by:async(c,s,b)=>(other),inputs:async(c,s,b)=>({purpose:\"Travel\",amount:money(25n,\"EUR\")})}"),
+        "sequence create uses checked money call"
     );
     assert!(
-        approve.contains("{let:\"draft_claim\",value:async(c,s,b)=>((() => { throw new Error(\"call has no lowering\"); })())}"),
-        "untyped sequence binding keeps missing-fact stub"
+        approve.contains("{let:\"draft_claim\",value:async(c,s,b)=>(await first(await records(c,\"expenses.Expense\",{where:($can$l$303a726f77)=>same($can$l$303a726f77.submitted_by,other)})))}"),
+        "sequence binding consumes checked first/query facts:\n{approve}"
     );
     assert!(
         approve.contains("{operation:\"expenses.submit\",by:async(c,s,b)=>(other),inputs:async(c,s,b)=>({expense:b.draft_claim})}"),
@@ -1222,12 +1222,12 @@ fn golden_expenseflow_structure() {
         "sequence request override with exact error"
     );
     assert!(
-        approve.contains("{observations:async(c,s,b)=>([b.submitted_claim.status]),expected:async(c,s,b)=>([\"submitted\"]),types:[\"unknown\"]}"),
-        "untyped sequence assertion keeps unknown metadata"
+        approve.contains("{observations:async(c,s,b)=>([b.submitted_claim?.status]),expected:async(c,s,b)=>([\"submitted\"]),types:[\"expenses.Expense.status\"]}"),
+        "checked sequence assertion metadata"
     );
     assert!(
-        approve.contains("types:[\"unknown\",\"unknown\"]"),
-        "untyped sequence tuple metadata stays unknown"
+        approve.contains("types:[\"expenses.Expense.status\",\"user?\"]"),
+        "checked sequence tuple metadata"
     );
     assert!(
         approve.contains("dependencies:[$can$f$72657669657765725f6f6e65,$can$f$72657669657765725f74776f],sequence:["),
@@ -1277,9 +1277,8 @@ fn golden_expenseflow_structure() {
     }
     // Zero E6006 (tables and the approve sequence all bridge), zero
     // E6007 (the golden catalog verifies every referenced builtin),
-    // Sixteen E6008 are confined to unchecked BDD calls and the assertion
-    // types that depend on their untyped lets. This partial artifact makes
-    // no runtime claim; S9-Q07 must publish those owner facts and types.
+    // BDD calls and dependent assertion types consume owning checked facts.
+    // No lowering gap remains; runtime execution is separately qualified.
     assert_eq!(
         diags.iter().filter(|d| d.code == "E6006").count(),
         0,
@@ -1296,74 +1295,19 @@ fn golden_expenseflow_structure() {
     );
     assert_eq!(
         diags.iter().filter(|d| d.code == "E6008").count(),
-        16,
+        0,
         "unsupported count: {diags:?}"
     );
-    let missing: Vec<_> = diags
-        .iter()
-        .filter(|d| {
-            d.message == "cannot lower call: checked selected-call binding is not published"
-        })
-        .map(|d| {
-            assert_eq!(d.code, "E6008");
-            assert_eq!(d.primary.file, id);
-            (
-                d.primary.start,
-                d.primary.end,
-                db.get(id).unwrap().text[d.primary.start as usize..d.primary.end as usize]
-                    .to_string(),
-            )
-        })
-        .collect();
-    assert_eq!(
-        missing,
-        vec![
-            (2179, 2201, "reviewer(reviewer_one)".into()),
-            (2202, 2224, "reviewer(reviewer_two)".into()),
-            (3347, 3369, "reviewer(reviewer_one)".into()),
-            (3370, 3392, "reviewer(reviewer_two)".into()),
-            (3762, 3777, "money(25,\"EUR\")".into()),
-            (
-                3809,
-                3864,
-                "first(Expense as claim where claim.submitted_by==other)".into()
-            ),
-            (
-                4015,
-                4069,
-                "first(Expense as claim where claim.id==draft_claim.id)".into()
-            ),
-            (
-                4468,
-                4522,
-                "first(Expense as claim where claim.id==draft_claim.id)".into()
-            ),
-            (7529, 7544, "money(25,\"EUR\")".into()),
-            (7563, 7577, "money(0,\"EUR\")".into()),
-        ]
-    );
-    let downstream: Vec<_> = diags
-        .iter()
-        .filter(|d| {
-            d.message == "cannot lower sequence assertion: observation type is not resolvable"
-        })
-        .map(|d| {
-            assert_eq!(d.code, "E6008");
-            assert_eq!(d.primary.file, id);
-            (d.primary.start, d.primary.end)
-        })
-        .collect();
-    assert_eq!(
-        downstream,
-        vec![
-            (4104, 4132),
-            (4218, 4246),
-            (4556, 4583),
-            (4584, 4609),
-            (4715, 4742),
-            (4743, 4768)
-        ]
-    );
+    for test in &artifact.tests {
+        assert!(
+            !test.module.js.contains("throw new Error"),
+            "no hidden BDD placeholder"
+        );
+        assert!(
+            !test.module.js.contains("types:[\"unknown\""),
+            "no unknown observation metadata"
+        );
+    }
     if let Some(node) = find_node() {
         for module in &artifact.modules {
             node_check(&node, &module.js, &module.path);

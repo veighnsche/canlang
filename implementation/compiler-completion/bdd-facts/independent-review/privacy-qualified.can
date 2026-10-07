@@ -1,0 +1,14 @@
+app Privacy
+Given
+When
+ scenario echo(value:text) read=true -> text by=members
+  do return value
+  examples value="HI"
+   value -> Provider.hidden(result)
+   "HI" -> "HI"
+Then
+package Provider
+ Given
+  derive hidden(value:text):text = value
+ When
+ Then

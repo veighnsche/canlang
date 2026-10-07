@@ -1,0 +1,23 @@
+{
+  "state": "Assess two concrete implementation choices for isolated BDD JavaScript. Source semantics require observations of the current invocation inputs and its declared result plus ordered sequence captures. The checked compiler has winning call slots and evaluation order, but callbacks currently refer to unbound result/input variables and undefined canonical derived functions. The actual table ABI uses c,s and the sequence ABI c,s,b: c grants only bounded inspection reads; s supplies current fixture views; b preserves immutable captures. Authored names can resemble any ambient namespace, so checked binding identity must govern routing. Current successful invocation envelopes have only ok:true; as binds the envelope, and canonical e2e mappers discard payloads. A valid result repair must change those owners to deliver actual typed business values, distinguish explicit null from no payload/void, invalidate current result on rejection and void, and keep captured values. Request override and rollback behavior must remain complete. Postcall record input views must use the real owning live read/dispatch projection; neither fixture guesses nor an invented result is admissible. Inspection c cannot gain invocation credentials. Test artifacts stay separate, with no production-to-test import; importing a production entry into tests risks registry initialization/dependencies, and current package output lacks executable derive exports. The production emitter already lowers checked derive bodies, declaration-order defaults and transitive private/default helper calls with owning canonical IDs. Test helpers must reuse that code and runtime stdlib calls, not reimplement binding or copy runtime helpers. Compare policies under identical requirements: isolated dependency closure, authority, name collisions, lazy/await/source ordering, complete runner/canonical consumers and verification. Advise a finite implementation rather than declaring legal result/derive source unsupported.",
+  "questions": {
+    "transport": {
+      "type": "choice",
+      "description": "Select the callback carrier for genuine current inputs and declared result.",
+      "criteria": {
+        "bounded_context": "Retain(c,s)/(c,s,b); add distinct read-only inspection slots c.inputs and c.result, compiler routes checked source bindings there; runner and canonical ports supply fresh inputs/real result and reset result, with collision-safe source routing.",
+        "explicit_frame": "Extend callbacks with one explicit immutable observation frame argument containing inputs/result; preserve c/s/b roles, compiler routes checked bindings to frame; update compiler/runner/mappers and discriminate absent/null/reset.",
+        "scope_namespaces": "Keep existing callback arities but extend s with distinct internal namespaces for fixtures/inputs/result and sequence b for captures; migrate fixture access consistently to prevent authored name collisions; join actual live/payload owners."
+      }
+    },
+    "helper_composition": {
+      "type": "choice",
+      "description": "Select how checked derive implementations and dependencies should be assembled for BDD execution.",
+      "criteria": {
+        "reachable_emission": "Record checked canonical derive targets while lowering a suite; reuse the existing production function/default emitter to materialize only reachable bodies and transitive private/default helpers within that test module. No production app initialization import.",
+        "shared_generated_module": "Extract the same checked reachable callable closure into isolated generated helper modules shared by production/test consumers; test modules import only those units. Add artifact/link assembly while preserving private closure and single emitter.",
+        "production_entry_import": "Expose checked callable exports from their actual generated production owner and import those from test modules, closing private/default dependencies there; handle and verify entry initialization/production dependencies instead of duplicating generated bodies."
+      }
+    }
+  }
+}

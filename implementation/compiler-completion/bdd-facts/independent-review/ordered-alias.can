@@ -1,0 +1,16 @@
+app Ordered
+use Provider {take as alias}
+Given
+ contract Box { left:text,right:text }
+When
+ scenario echo(value:Box) read=true -> bool by=members
+  do return true
+  examples
+   value -> starts_with(prefix=value.left,value=value.right),alias(b=value.right,a=value.left)
+   {left="A",right="AB"} -> true,"A|AB"
+Then
+package Provider
+ Given
+  export derive take(a:text="D",b:text=a):text = format("{a}|{b}",{a=a,b=b})
+ When
+ Then

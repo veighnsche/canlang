@@ -1,0 +1,70 @@
+{
+  "transient_count_log": "final-corrected-gates.log",
+  "restored_count_log": "final-qualified-gates.log",
+  "restored_diagnostics": [
+    {
+      "source": "draft/CanCreative.can",
+      "line": 113,
+      "span": [
+        13135,
+        13147
+      ],
+      "diagnostic": {
+        "code": "E2001",
+        "severity": "error",
+        "message": "unresolved name 'conversation'",
+        "primary": {
+          "file": 0,
+          "start": 13135,
+          "end": 13147
+        },
+        "related": [],
+        "tags": []
+      },
+      "scope_reason": "single-file unavailable imported fixture remains unresolved in common header; action parameter with same name must not mask it"
+    },
+    {
+      "source": "draft/CanCreative.can",
+      "line": 113,
+      "span": [
+        13237,
+        13249
+      ],
+      "diagnostic": {
+        "code": "E2001",
+        "severity": "error",
+        "message": "unresolved name 'conversation'",
+        "primary": {
+          "file": 0,
+          "start": 13237,
+          "end": 13249
+        },
+        "related": [],
+        "tags": []
+      },
+      "scope_reason": "single-file unavailable imported fixture remains unresolved in common header; action parameter with same name must not mask it"
+    },
+    {
+      "source": "draft/CanGallery.can",
+      "line": 47,
+      "span": [
+        4739,
+        4745
+      ],
+      "diagnostic": {
+        "code": "E2001",
+        "severity": "error",
+        "message": "unresolved name 'output'",
+        "primary": {
+          "file": 0,
+          "start": 4739,
+          "end": 4745
+        },
+        "related": [],
+        "tags": []
+      },
+      "scope_reason": "single-file unavailable imported fixture remains unresolved in common header; action parameter with same name must not mask it"
+    }
+  ],
+  "note": "The transient reduction came from action parameter bindings entering common header scope, not added enum expectations. Common headers now retain their original fixture/production namespace; body action scopes gain checked inputs."
+}

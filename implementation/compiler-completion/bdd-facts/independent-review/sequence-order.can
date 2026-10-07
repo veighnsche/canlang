@@ -1,0 +1,12 @@
+app SequenceOrder
+Given
+ contract Box {left:text,right:text}
+When
+ scenario echo(value:Box) read=true -> bool by=members
+  do return true
+  examples
+   do
+    let box={left="A",right="AB"}
+    call echo {value=box} by=self
+    starts_with(prefix=box.left,value=box.right),false and starts_with(prefix=box.left,value=box.right) -> true,false
+Then
