@@ -16,7 +16,7 @@ use crate::codegen::ir::{
     IrFixture, IrFixtureKind, IrItem, IrItemKind, IrProgram, IrSequence, IrStep, IrTable,
     IrTableRow,
 };
-use crate::codegen::js::{Emitter, JsModule, JsWriter};
+use crate::codegen::js::{Emitter, JsModule, JsWriter, js_string};
 use crate::diagnostic::Diagnostic;
 use crate::source::Span;
 
@@ -425,11 +425,6 @@ fn sanitize(name: &str) -> String {
         })
         .collect::<String>()
         .replace('.', "_")
-}
-
-/// Render a JS double-quoted string literal with minimal escapes.
-fn js_string(value: &str) -> String {
-    crate::json::to_compact_string(&value).expect("BDD string serialization is infallible")
 }
 
 #[cfg(test)]
