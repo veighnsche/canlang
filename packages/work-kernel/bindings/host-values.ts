@@ -7,6 +7,7 @@
 // only via resolve/materialize at the profile's declared point.
 
 import {
+  validateCount,
   validatePayloadRef,
 } from '../src/facts.js';
 import type {
@@ -71,6 +72,10 @@ export class CallScope {
   readonly cloneFailures: unknown[] = [];
 
   constructor(token: string, options: CallScopeOptions) {
+    const rejection = validateCount({ value: options.maxLive, range: { min: 0, max: 0xffffffff } });
+    if (rejection !== null) {
+      throw new RefRejectionError(rejection);
+    }
     this.token = token;
     this.maxLive = options.maxLive;
     this.clone = options.clone ?? defaultClone;
@@ -104,6 +109,10 @@ export class CallScope {
         code: 'oversized-frame',
         reasons: [`call allocation bound exceeded (maxLive ${this.maxLive})`],
       });
+    }
+    const rejection = validateCount({ value: this.nextIndex, range: { min: 0, max: 0xffffffff } });
+    if (rejection !== null) {
+      throw new RefRejectionError(rejection);
     }
     const index = this.nextIndex;
     this.nextIndex += 1;
