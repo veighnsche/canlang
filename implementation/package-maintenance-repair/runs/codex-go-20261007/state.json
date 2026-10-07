@@ -735,7 +735,7 @@
     },
     "TECH-SV02": {
       "planning_status": "blocked",
-      "state": "Independently accepted finite existing signal-bound stream cleanup; scoped commit prepared; broader services gate open",
+      "state": "Independently accepted finite stream cancellation-wait correction committed8c8daeb9; broader services open",
       "files": [
         "packages/services/src/mail/redact.ts",
         "packages/services/src/mail/adapter.ts",
@@ -762,9 +762,10 @@
         "packages/services/src/http/client.ts": "9aaa2585f176b87d69bdb85e6bc49d781f25d92a829eb88a36cef80d56e2844a",
         "packages/services/test/stream-cleanup-deadline.test.ts": "3a436c8d4d7171f0d71042a217df726563b11167ab8f9036d7c16337e24f3350"
       },
-      "commit_pending": true,
+      "commit_pending": false,
       "review_read_released": true,
-      "parent_limit": "No physical cancellation settlement, live provider/mounted/security/safe projection or late-outcome/idempotency/media correlation acceptance"
+      "parent_limit": "No physical cancellation settlement, live provider/mounted/security/safe projection or late-outcome/idempotency/media correlation acceptance",
+      "commit": "8c8daeb9"
     },
     "TECH-SV03": {
       "planning_status": "blocked",
@@ -912,7 +913,7 @@
     },
     "DEL-B01": {
       "planning_status": "blocked",
-      "state": "Finite three-file cleanup writer released; independent actual DOM/error/stop/restart review active",
+      "state": "Independently accepted finite synchronous owned cleanup; scoped commit prepared; separate visibility/producer/typing profiles open",
       "files": [
         "packages/ui/src/browser/polling.ts",
         "packages/ui/src/browser/bootstrap.ts",
@@ -924,15 +925,20 @@
       "model": "gpt-6.1-sol",
       "effort": "high",
       "outputs": "/private/tmp/canlang-repair-go-20261007/browser-lifecycle-production",
-      "active_files": [
-        "packages/ui/src/browser/bootstrap.ts",
-        "packages/ui/src/browser/polling.ts",
-        "packages/ui/test/browser-lifecycle-cleanup.test.ts"
-      ],
+      "active_files": [],
       "contract": "Synchronous acquisition failure and explicit stop exhaust supported owned cleanup; preserve exact original/first throw and LIVE ownership; no async/API/visibility/markup change",
       "writer_released": true,
       "reviewer": "/root/browser_lifecycle_review",
-      "review_outputs": "/private/tmp/canlang-repair-go-20261007/browser-lifecycle-independent"
+      "review_outputs": "/private/tmp/canlang-repair-go-20261007/browser-lifecycle-independent",
+      "review": "browser-lifecycle-independent-review.json",
+      "source_pins": {
+        "packages/ui/src/browser/bootstrap.ts": "95f6f353513174367d39d936e98042fe375329246485261e679b98c63f202ac1",
+        "packages/ui/src/browser/polling.ts": "d7ee9aba0bf9256a2b665a1b03240feb3f392f3455edcdd46d10c3a701d6f1aa",
+        "packages/ui/test/browser-lifecycle-cleanup.test.ts": "126d106f3ac89f340a44047c73f9dcd094495e19636e44d744ccda32fccda07d"
+      },
+      "review_read_released": true,
+      "commit_pending": true,
+      "parent_limit": "No Chromium/full installed browser/visibility/HTMX/can:settled or async disposal/physical fetch cancellation acceptance"
     },
     "DEL-B02": {
       "planning_status": "blocked",
@@ -1339,7 +1345,7 @@
     "state": "active",
     "objective": "Finish every currently authorized queue task, resolve actual prerequisites, independently review, commit early/often and clean released resources economically; preserve native HOLD and exact original residual gates."
   },
-  "updated_utc": "2026-10-07T22:29:16.055503+00:00",
+  "updated_utc": "2026-10-07T22:31:43.902158+00:00",
   "critical_security_review": {
     "state": "frozen review and actual source joins received; contracts/repairs/host acceptance remain open",
     "agent": "/root/critical_package_security",

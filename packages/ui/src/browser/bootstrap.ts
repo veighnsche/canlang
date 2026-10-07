@@ -400,6 +400,16 @@ const BINDER_SELECTORS: ReadonlyArray<readonly [string, string]> = [
 /** Live clients by document: starting twice returns the same client. */
 const LIVE_CLIENTS = new WeakMap<object, BrowserClient>();
 
+/** Release each owned client resource, then report the first failure verbatim. */
+function releaseClientResources(releases: readonly (() => void)[]): void {
+  let failure: { value: unknown } | undefined;
+  for (const release of releases) {
+    try { release(); }
+    catch (value) { failure ??= { value }; }
+  }
+  if (failure !== undefined) throw failure.value;
+}
+
 /**
  * Start the browser client against an explicit document/window/fetch.
  * Idempotent per document: starting twice (e.g. a twice-executed
@@ -423,6 +433,7 @@ export function startBrowserClient(options: BrowserClientOptions): BrowserClient
       : { deliver: options.deliverPollResponse }),
   };
   const bound: BoundRegion[] = [];
+  const releaseListeners: Array<() => void> = [];
   let stopped = false;
   let releaseSwapHook: (() => void) | null = null;
 
@@ -450,7 +461,7 @@ export function startBrowserClient(options: BrowserClientOptions): BrowserClient
       if (restartPolling) {
         for (let index = bound.length - 1; index >= 0; index -= 1) {
           const entry = bound[index];
-          if (entry?.binder === 'poll-region') { entry.stop(); bound.splice(index, 1); }
+          if (entry?.binder === 'poll-region') { bound.splice(index, 1); entry.stop(); }
         }
       }
       const snapshot = new Map(BINDERS);
@@ -464,7 +475,7 @@ export function startBrowserClient(options: BrowserClientOptions): BrowserClient
           const oldIndex = bound.findIndex((entry) => entry.element === element && entry.binder === id);
           const old = bound[oldIndex];
           if (old !== undefined && old.signature === signature) continue;
-          if (old !== undefined) { old.stop(); bound.splice(oldIndex, 1); }
+          if (old !== undefined) { bound.splice(oldIndex, 1); old.stop(); }
           bound.push({ element, binder: id, signature, stop: binder(element, client, internals) });
         }
       }
@@ -474,8 +485,8 @@ export function startBrowserClient(options: BrowserClientOptions): BrowserClient
         const entry = bound[index];
         if (entry !== undefined && (!entry.element.isConnected ||
             (entry.binder === 'poll-region' && !entry.element.hasAttribute('data-can-poll')))) {
-          entry.stop();
           bound.splice(index, 1);
+          entry.stop();
         }
       }
     },
@@ -484,31 +495,37 @@ export function startBrowserClient(options: BrowserClientOptions): BrowserClient
         return;
       }
       stopped = true;
-      releaseSwapHook?.();
+      if (LIVE_CLIENTS.get(document as object) === client) LIVE_CLIENTS.delete(document as object);
+      const swapHook = releaseSwapHook;
       releaseSwapHook = null;
-      options.window.removeEventListener("hashchange", hashListener);
-      options.window.removeEventListener("keydown", keyListener);
-      for (const entry of bound) {
-        entry.stop();
-      }
-      bound.length = 0;
-      LIVE_CLIENTS.delete(document as object);
+      releaseClientResources([
+        ...(swapHook === null ? [] : [swapHook]),
+        ...releaseListeners.splice(0),
+        ...bound.splice(0).map(entry => () => entry.stop()),
+      ]);
     },
   };
 
-  options.window.addEventListener("hashchange", hashListener);
-  options.window.addEventListener("keydown", keyListener);
+  try {
+    releaseListeners.push(() => options.window.removeEventListener("hashchange", hashListener));
+    options.window.addEventListener("hashchange", hashListener);
+    releaseListeners.push(() => options.window.removeEventListener("keydown", keyListener));
+    options.window.addEventListener("keydown", keyListener);
 
-  if (options.onHtmxSwap !== undefined) {
-    releaseSwapHook = options.onHtmxSwap(() => {
-      client.rescan();
-      focusMain(document);
-    });
+    if (options.onHtmxSwap !== undefined) {
+      releaseSwapHook = options.onHtmxSwap(() => {
+        client.rescan();
+        focusMain(document);
+      });
+    }
+
+    LIVE_CLIENTS.set(document as object, client);
+    client.rescan();
+    return client;
+  } catch (error) {
+    try { client.stop(); } catch { /* The acquisition failure remains operative. */ }
+    throw error;
   }
-
-  LIVE_CLIENTS.set(document as object, client);
-  client.rescan();
-  return client;
 }
 
 /** Browser globals are adapted here; importing this module on the server has no effects. */
@@ -556,30 +573,36 @@ export function startNativeBrowserClient(native: NativeWindow): BrowserClient {
     },
     onHtmxSwap: (rescan) => {
       const listener = () => rescan();
-      native.document.addEventListener('htmx:afterSwap', listener);
-      return () => native.document.removeEventListener('htmx:afterSwap', listener);
+      const release = () => native.document.removeEventListener('htmx:afterSwap', listener);
+      try {
+        native.document.addEventListener('htmx:afterSwap', listener);
+      } catch (error) {
+        try { release(); } catch { /* The acquisition failure remains operative. */ }
+        throw error;
+      }
+      return release;
     },
   });
-  const observer = native.MutationObserver === undefined ? null : new native.MutationObserver(() => client.rescan());
-  if (native.document.body !== null) observer?.observe(native.document.body, {
-    childList: true, subtree: true, attributes: true,
-    attributeFilter: ['data-can-context', 'data-can-poll', 'data-can-poll-context', 'data-can-logged-out'],
-  });
+  let observer: InstanceType<NonNullable<NativeWindow['MutationObserver']>> | null = null;
+  const releaseListeners: Array<() => void> = [];
+  let releaseVisibility: (() => void) | null = null;
   const navigate = () => client.rescan();
-  native.addEventListener('popstate', navigate);
   const visible = () => client.rescan(true);
-  native.document.addEventListener('visibilitychange', visible);
   let stopped = false;
   const unload = () => {
     if (stopped) return;
     stopped = true;
-    observer?.disconnect();
-    native.removeEventListener('popstate', navigate);
-    native.removeEventListener('pagehide', pageHide);
-    native.removeEventListener('pageshow', pageShow);
-    native.document.removeEventListener('visibilitychange', visible);
-    client.stop();
-    NATIVE_CLIENTS.delete(native.document as object);
+    if (NATIVE_CLIENTS.get(native.document as object) === handle) NATIVE_CLIENTS.delete(native.document as object);
+    const ownedObserver = observer;
+    observer = null;
+    const visibilityListener = releaseVisibility;
+    releaseVisibility = null;
+    releaseClientResources([
+      ...(ownedObserver === null ? [] : [() => ownedObserver.disconnect()]),
+      ...releaseListeners.splice(0),
+      ...(visibilityListener === null ? [] : [visibilityListener]),
+      () => client.stop(),
+    ]);
   };
   const pageHide = (event: EventLike) => {
     if (event.persisted === true) { suspended = true; client.rescan(true); } else unload();
@@ -587,11 +610,27 @@ export function startNativeBrowserClient(native: NativeWindow): BrowserClient {
   const pageShow = (event: EventLike) => {
     if (event.persisted === true && !stopped) { suspended = false; client.rescan(true); }
   };
-  native.addEventListener('pagehide', pageHide);
-  native.addEventListener('pageshow', pageShow);
   const handle: BrowserClient = { contextKey: () => client.contextKey(), rescan: (restart) => client.rescan(restart), stop: unload };
-  NATIVE_CLIENTS.set(native.document as object, handle);
-  return handle;
+  try {
+    observer = native.MutationObserver === undefined ? null : new native.MutationObserver(() => client.rescan());
+    if (native.document.body !== null) observer?.observe(native.document.body, {
+      childList: true, subtree: true, attributes: true,
+      attributeFilter: ['data-can-context', 'data-can-poll', 'data-can-poll-context', 'data-can-logged-out'],
+    });
+    releaseListeners.push(() => native.removeEventListener('popstate', navigate));
+    native.addEventListener('popstate', navigate);
+    releaseVisibility = () => native.document.removeEventListener('visibilitychange', visible);
+    native.document.addEventListener('visibilitychange', visible);
+    releaseListeners.push(() => native.removeEventListener('pagehide', pageHide));
+    native.addEventListener('pagehide', pageHide);
+    releaseListeners.push(() => native.removeEventListener('pageshow', pageShow));
+    native.addEventListener('pageshow', pageShow);
+    NATIVE_CLIENTS.set(native.document as object, handle);
+    return handle;
+  } catch (error) {
+    try { unload(); } catch { /* The acquisition failure remains operative. */ }
+    throw error;
+  }
 }
 
 const browser = (globalThis as unknown as { readonly window?: NativeWindow }).window;
