@@ -285,13 +285,13 @@ export function buildFrozenJudgmentRequest(
       'Judgment state and questions must be JSON-serializable',
     );
   }
-  if (
-    ctx.maxRequestBytes !== null &&
-    serialized.length > ctx.maxRequestBytes
-  ) {
-    throw new JudgmentValidationError(
-      `Judgment request is ${serialized.length} bytes; binding allows ${ctx.maxRequestBytes}`,
-    );
+  if (ctx.maxRequestBytes !== null) {
+    const requestBytes = new TextEncoder().encode(serialized).byteLength;
+    if (requestBytes > ctx.maxRequestBytes) {
+      throw new JudgmentValidationError(
+        `Judgment request is ${requestBytes} bytes; binding allows ${ctx.maxRequestBytes}`,
+      );
+    }
   }
   const frozen: FrozenJudgmentRequest = {
     deliveryId: ctx.deliveryId,

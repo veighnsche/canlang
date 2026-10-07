@@ -348,7 +348,7 @@
     },
     "TECH-S02": {
       "planning_status": "blocked",
-      "state": "independent review found policy JSON/toJSON and virtual array validation bypasses; candidate not accepted",
+      "state": "corrected provenance candidate released; renewed independent high review active",
       "files": [
         "packages/state/src/mutation/crud.ts",
         "packages/state/src/mutation/pipeline.ts",
@@ -387,13 +387,14 @@
       "writer_released": true,
       "source_pins": {
         "registry": "eac07bdbb50e1362da25e6a35069ba56dc5305ef31dd49e33613fa3d15ce8810",
-        "runtime": "cce3bb7c384dc086ec6ccb67f6e235a80c73ba152e5bef6c0e42bf1b13c7ab02"
+        "runtime": "ed742b60ed07adfade93870e451a4e5d585651b2145a748da2ab1800159e68c4"
       },
       "producer_receipt": "/private/tmp/canlang-repair-go-20261007/secret-metadata/producer-receipt.json",
       "review_defects": [
         "Raw JSON comparison can conceal appDefinition/canApp public marks and contradictory selectors",
         "Array instance virtual includes can forge read rule membership"
-      ]
+      ],
+      "fix_forward": "/private/tmp/canlang-repair-go-20261007/secret-metadata/fix-forward.json"
     },
     "TECH-S03": {
       "planning_status": "blocked",
@@ -461,7 +462,7 @@
     },
     "TECH-I01": {
       "planning_status": "blocked",
-      "state": "blocked on packet prerequisites",
+      "state": "current-source prerequisite reconciliation active",
       "files": [
         "packages/identity/src/ports.ts",
         "packages/identity/src/storage/d1.ts",
@@ -475,7 +476,11 @@
         "packages/contracts/src/identity.ts",
         "packages/state/src/ports/identity.ts"
       ],
-      "current_bounded_prerequisite": "FP.IDENTITY-CONTRACT remains proposed; prior JEV shared-fence trio retained. Four actual shared-db/fence/guard/batch/memory questions need current-source owner reconciliation before broad identity atomicity implementation; void D1 OAuth consume remains concrete SEC01 gap, not fixed by metadata work."
+      "current_bounded_prerequisite": "FP.IDENTITY-CONTRACT remains proposed; prior JEV shared-fence trio retained. Four actual shared-db/fence/guard/batch/memory questions need current-source owner reconciliation before broad identity atomicity implementation; void D1 OAuth consume remains concrete SEC01 gap, not fixed by metadata work.",
+      "agent": "/root/review_numeric_reduction",
+      "model": "gpt-6.1-sol",
+      "effort": "high",
+      "source_facts": "/private/tmp/canlang-repair-go-20261007/identity-contract/source-reconciliation.json"
     },
     "TECH-I02": {
       "planning_status": "blocked",
@@ -521,11 +526,29 @@
     },
     "TECH-SV01": {
       "planning_status": "blocked",
-      "state": "blocked on packet prerequisites",
+      "state": "independently accepted finite configured UTF8-byte/cancel-identity correction; scoped commit prepared",
       "files": [
         "packages/services/src/judgments/systemone.ts",
         "packages/services/src/media/comfyui.ts"
-      ]
+      ],
+      "agent": "/root/review_ui_appearance",
+      "model": "gpt-6.1-sol",
+      "effort": "medium",
+      "reason": "Existing configured policy and identity enforcement, bounded technical fix; no new global limits",
+      "active_files": [
+        "packages/services/src/judgments/systemone.ts",
+        "packages/services/src/media/comfyui.ts",
+        "packages/services/test/selected-provider-limits.test.ts"
+      ],
+      "start_pins": {
+        "systemone": "5946aa0c1f863e8a347fdb29de54c0c086db0a4e9fb6a277de93943e21c92ecd",
+        "comfyui": "694eb7caa69ee4d22af05cdf441fcb68638e33b1a3387191ddfb5e9a93a93f7b"
+      },
+      "review": "services-selected-independent-review.json",
+      "writer_released": true,
+      "root_read_released": true,
+      "commit_pending": true,
+      "parent_limit": "Broader services lifetime/provider/resource/fence/durable/installed qualification remains open"
     },
     "TECH-SV02": {
       "planning_status": "blocked",
@@ -635,7 +658,7 @@
       ],
       "residual_evidence": "Own-key loss independently corrected at finite actual CSV caller/consent scope; parent grammar/resource admission remains open",
       "finite_own_data_slice": {
-        "state": "independently accepted and scoped commit prepared",
+        "state": "independently accepted finite correction; committed4d103fbe",
         "files": [
           "packages/interfaces/src/http/csv.ts",
           "packages/interfaces/test/csv-own-data.test.ts"
@@ -649,7 +672,8 @@
         "reviewer": "/root/review_ui_appearance",
         "review": "csv-own-data-independent-review.json",
         "review_read_released": true,
-        "commit_pending": true
+        "commit_pending": false,
+        "commit": "4d103fbe"
       }
     },
     "DEL-C02": {
@@ -709,7 +733,7 @@
     },
     "DEL-D03": {
       "planning_status": "blocked",
-      "state": "released finite entry-write cleanup candidate; independent review pending",
+      "state": "independent review requires original entry failure retention on cleanup exception; author queued after active SV01",
       "files": [
         "packages/cloudflare/src/deploy/bundle.ts",
         "packages/cloudflare/src/preparation/build-adapter.ts",
@@ -730,7 +754,10 @@
       "start_sha256": "7e8ad78a2674120ad59e96dbe2b34ab8923d8418578c015168c2b0ccd1a7a741",
       "writer_released": true,
       "producer_receipt": "/private/tmp/canlang-repair-go-20261007/entry-cleanup/result.json",
-      "source_sha256": "e7db969b11fdc80d631574519d80c934b8816595e06f444c5c33683eeb517fc2"
+      "source_sha256": "e7db969b11fdc80d631574519d80c934b8816595e06f444c5c33683eeb517fc2",
+      "review": "entry-cleanup-independent-review.json",
+      "root_read_released": true,
+      "required_fix": "Entry cleanup secondary exception must not mask original write error; filesystem cleanup success remains conditional"
     },
     "DEL-D04": {
       "planning_status": "blocked",
@@ -1046,7 +1073,7 @@
     "state": "active",
     "objective": "Finish every currently authorized queue task, resolve actual prerequisites, independently review, commit early/often and clean released resources economically; preserve native HOLD and exact original residual gates."
   },
-  "updated_utc": "2026-10-07T20:58:33.414655+00:00",
+  "updated_utc": "2026-10-07T21:12:39.533278+00:00",
   "critical_security_review": {
     "state": "frozen review and actual source joins received; contracts/repairs/host acceptance remain open",
     "agent": "/root/critical_package_security",
@@ -1081,13 +1108,13 @@
   "shared_doc_handoff": {
     "target": "01a117b5-8358-7e31-9de3-03d0302cdd3c",
     "human_authority": "actual source chat Yes, coordinate with both agents",
-    "state": "explicit append completion/release received from same authorized foreign chat",
+    "state": "second orchestration PROPOSED append explicit release received",
     "files": [
       "docs/specification/DECISIONS.md"
     ],
     "restrictions": "No staging/commit; preserve all bytes, root retains Git/state/filetree and source leases",
     "package_decision_notes_pending": [],
-    "heading": "2026-10-07 \u2014 Language capability evaluation and implementation roadmap (PROPOSED)",
-    "foreign_append_staging": "Preserved unstaged; root stages only its notes from HEAD"
+    "heading": "2026-10-07 \u2014 Orchestrate the selected capability roadmap (PROPOSED)",
+    "foreign_append_staging": "Both foreign proposal appends preserved unstaged"
   }
 }
