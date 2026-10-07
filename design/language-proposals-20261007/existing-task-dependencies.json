@@ -1,0 +1,473 @@
+{
+  "source_pin": "4e89b117d3f66caa79a8df8ed875d55f9e40b948",
+  "historical_task_assessments_not_fresh_requalification": true,
+  "tasks": [
+    {
+      "id": "challenge:T08",
+      "title": "Unify readable selector resolution",
+      "status": "needs_verification",
+      "remaining_actions": [
+        "Substantiate same-grant-context compiler/UI A5 S1-S4 parity and E4012 UI/reference, delivery predicate and unavailable-schema boundaries; source patches alone do not prove joint acceptance."
+      ],
+      "original_acceptance": [
+        "Canonical parent/safe metadata/money selectors agree across policy/UI; unknown leaf, invalid descent, disclosure and metadata-write controls retained; selector checking provides no flow or permission fact."
+      ],
+      "depends_on": [],
+      "planned_writes": []
+    },
+    {
+      "id": "challenge:T15",
+      "title": "Emit canonical model and operation descriptors",
+      "status": "partial",
+      "remaining_actions": [
+        "Finish A2 T04b recursive/provider descriptors and decimal/default/delivery lowering; prove real loader/state/form/MCP and authored-example consumers with no handwritten replacements."
+      ],
+      "original_acceptance": [
+        "Source-derived recursive model/operation/callable ownership descriptors and separate examples are actually consumed; complete original pilot types; no handbuilt alternate descriptors or omitted source behavior."
+      ],
+      "depends_on": [
+        "challenge:T04",
+        "challenge:T09",
+        "challenge:T10"
+      ],
+      "planned_writes": []
+    },
+    {
+      "id": "challenge:T04",
+      "title": "Agree the generated execution contract",
+      "status": "partial",
+      "remaining_actions": [
+        "Complete I00 recursive/nested/date/duration/union/default/provider/generated-policy/hook/invariant/lock/file/progress compatibility and actual producer-consumer matrix; resolve T04b per-write authority/keying contracts."
+      ],
+      "original_acceptance": [
+        "T04a versioned descriptor/invoke/example contract agreed by L1/L2/L3/L6/L7; independent expected values/observations; T04b recursive/provider/hook joins and compatibility required for parent completion."
+      ],
+      "depends_on": [],
+      "planned_writes": []
+    },
+    {
+      "id": "challenge:T31",
+      "title": "Implement permitted secondary hook writes",
+      "status": "partial",
+      "remaining_actions": [
+        "Close B4 actual emitted hook bounds and per-write authority/keying; qualify claimed imported-reference/retry/recovery/restart scope with T04b/T29/fanout consumers while retaining staged_flat rollback/version/history/recursion/deletion proofs."
+      ],
+      "original_acceptance": [
+        "Accepted secondary writes execute staged parent hooks with rollback, version conflict and reentry/evaluation-order rules; memory evidence cannot prove durable transaction behavior."
+      ],
+      "depends_on": [
+        "challenge:T16",
+        "challenge:T17",
+        "challenge:T30"
+      ],
+      "planned_writes": []
+    },
+    {
+      "id": "challenge:T32",
+      "title": "Define and implement authoritative predicate reads",
+      "status": "partial",
+      "remaining_actions": [
+        "Qualify connected nonempty membership revocation/spend races and retry/recovery; reconcile narrower/already-admitted fences, active_member sharing and revoked re-drive churn with claimed scope, preserving checkpoint_fence evidence."
+      ],
+      "original_acceptance": [
+        "Authoritative bounded reads have accepted permission/revision/revocation fence, including stale reads and revocation between read and effect; no cached snapshot silently authorizes spend."
+      ],
+      "depends_on": [
+        "challenge:T16",
+        "challenge:T17"
+      ],
+      "planned_writes": []
+    },
+    {
+      "id": "challenge:T24",
+      "title": "Join generated effects to durable dispatch",
+      "status": "partial",
+      "remaining_actions": [
+        "Qualify admitted compiled bound sends and actual producer dispatch with atomic domain/history/replay/outbox staging, rollback/guards/skips/retry/recovery and joined receipt/progress consumers; retain Handbook unavailable scope."
+      ],
+      "original_acceptance": [
+        "Atomic domain/history/replay/outbox staging connects actual generated effects to dispatch; origins/guards/skips/rollback/retry/recovery proved; never infer cross-store atomicity."
+      ],
+      "depends_on": [
+        "challenge:T16",
+        "challenge:T17"
+      ],
+      "planned_writes": []
+    },
+    {
+      "id": "challenge:T25",
+      "title": "Implement authorized selected receipt access",
+      "status": "partial",
+      "remaining_actions": [
+        "Qualify deployable public selected receipts from emitted schemas/current associations with member-specific nonempty membership/revocation and fences; package supported observer binding and real send-association/progress/retention consumers; preserve accepted Node/memory/kernel/mirror scope.",
+        "Finish worker-safe state observer B-half/no-injection parity+worker import and Q4-C real bundled /mcp receipt-read behavior; retain implemented Q2/Q3 and Q4 checkout/probe scope without replaying old blanket ABSENT claims."
+      ],
+      "original_acceptance": [
+        "Selected receipt locator/association/leaf authorization and revision fence execute; stale attempts cannot overwrite newer associations; status-only disclosure remains restricted."
+      ],
+      "depends_on": [
+        "challenge:T14",
+        "challenge:T24"
+      ],
+      "planned_writes": []
+    },
+    {
+      "id": "challenge:T26",
+      "title": "Implement associated observable progress",
+      "status": "partial",
+      "remaining_actions": [
+        "For every declared observable relation prove actual producer -> receipt/association -> authorized consumer correlation, duplicate/cancellation/late-usage/terminal behavior.",
+        "Qualify durable notifications and restart on the connected path with nonempty membership/revocation; pure relation/kernel-restart tests do not close this duty.",
+        "Finish worker-safe state observer B-half/no-injection parity+worker import and Q4-C real bundled /mcp receipt-read behavior; retain implemented Q2/Q3 and Q4 checkout/probe scope without replaying old blanket ABSENT claims."
+      ],
+      "original_acceptance": [
+        "Correlated observation proves duplicates/cancellation/late usage/restart/terminal immutability/notification per relation using existing machinery; no new incompatible progress engine."
+      ],
+      "depends_on": [
+        "challenge:T25"
+      ],
+      "planned_writes": []
+    },
+    {
+      "id": "challenge:T27",
+      "title": "Prove generated image finalization",
+      "status": "partial",
+      "remaining_actions": [
+        "Connect checked image sends/progress to receiving-app finalized files through actual provider/file lifecycle consumers and qualify ownership/provenance/permissions/invalid output/replay end to end; preserve controlled finalize-module acceptance."
+      ],
+      "original_acceptance": [
+        "Generated image result materializes real finalized receiving-app file; ownership/provenance/permissions/invalid result/replay all proved; controlled provider output identified as such."
+      ],
+      "depends_on": [
+        "challenge:T26"
+      ],
+      "planned_writes": []
+    },
+    {
+      "id": "challenge:T33",
+      "title": "Decide scoped durable fanout",
+      "status": "complete",
+      "remaining_actions": [],
+      "original_acceptance": [
+        "Explicit adopt or scope with reasons for cohort/checkpoint/identity/concurrent change/failure/supersession and costs; three independent equivalent JEV formulations saved/investigated; required unsupported app remains blocked."
+      ],
+      "depends_on": [],
+      "planned_writes": []
+    },
+    {
+      "id": "challenge:T34",
+      "title": "Implement and qualify adopted fanout",
+      "status": "partial",
+      "remaining_actions": [
+        "Complete LG04/F8 M1-M10 matrix: 499/500/501/1000 both forms, enum/claim/effect/checkpoint crash/restart, duplicates/concurrent insert/move/delete, revocation/reject isolation, exhaustion/fairness, two independent occurrences, unchanged Shift/Volunteer and honest resource/unsupported/cross-owner/loop negatives."
+      ],
+      "original_acceptance": [
+        "Adopted finite fanout proves 499/500/501/1000 cohort completeness, crash/duplicates/concurrent changes/rejected children/retry/supersession. Scoped disposition is explicitly deferred, never ticked as implemented."
+      ],
+      "depends_on": [
+        "challenge:T24",
+        "challenge:T33"
+      ],
+      "planned_writes": []
+    },
+    {
+      "id": "challenge:T20",
+      "title": "Complete presentation context and submission joins",
+      "status": "partial",
+      "remaining_actions": [
+        "Mount browser asset/bootstrap/CSS/polling in compiled page routes and current-operation binder; qualify installed full/partial DOM submission, rich input/error/conflict/context/preferences/CSRF and authorization workflows."
+      ],
+      "original_acceptance": [
+        "Real generated form dispatch shows full/partial rendering, context/metadata/preferences/CSRF/error behavior; preserve existing full UI catalog and shell."
+      ],
+      "depends_on": [
+        "challenge:T19"
+      ],
+      "planned_writes": []
+    },
+    {
+      "id": "challenge:T19",
+      "title": "Derive forms and MCP inputs from checked operations",
+      "status": "partial",
+      "remaining_actions": [
+        "Qualify compiled browser/MCP bound/default/exact/file/provenance inputs through real dispatch with current binding visibility and equal authority; finish relevant A2 lowering/receipt/file joins."
+      ],
+      "original_acceptance": [
+        "Forms/HTTP/MCP derive versioned writable inputs from checked operations; bound args/defaults/exact values/files/provenance match; allowlist and equal-authority submission controls pass."
+      ],
+      "depends_on": [
+        "challenge:T15",
+        "challenge:T16",
+        "challenge:T18"
+      ],
+      "planned_writes": []
+    },
+    {
+      "id": "challenge:T37",
+      "title": "Qualify a small original CRUD or work app",
+      "status": "partial",
+      "remaining_actions": [
+        "Finish LG03 served/live legs and one unchanged original app with generated operations/two actors/denied read/persistence/stale update/replay/browser-MCP parity and real authored examples; no reduced projection.",
+        "Reconcile latest G first-run 14-red pilot blockers: draft-pin provenance, E6007 missing/planned/external producer catalog entries (WorkSourcesV1/active_member), E6008 lowering; preserve green baseline rather than assume regression."
+      ],
+      "original_acceptance": [
+        "One unchanged small authoritative app proves generated operations, two actors, denied read, persistence, stale update, replay, browser/MCP parity and genuine executed examples; no reduced source projection."
+      ],
+      "depends_on": [
+        "challenge:T02",
+        "challenge:T05",
+        "challenge:T06",
+        "challenge:T08",
+        "challenge:T18",
+        "challenge:T19",
+        "challenge:T20",
+        "challenge:T21",
+        "challenge:T22",
+        "challenge:T23"
+      ],
+      "planned_writes": []
+    },
+    {
+      "id": "finished-product:FP.BROWSER",
+      "title": "Ship and qualify browser/assets and polling lifecycle",
+      "status": "partial",
+      "remaining_actions": [
+        "Mount retained asset/bootstrap/CSS/polling source in the real installed page/auth/action path; qualify all 68 catalog bindings and live DOM, keyboard/focus/forms/navigation and termination/obsolete-response behavior."
+      ],
+      "original_acceptance": [
+        "All 68 catalog bindings, real installed CSS/HTMX/client/static path, focus/keyboard/unsaved forms and URL/history; authorized one-inflight poll, visibility/context/logout termination and obsolete responses/actions."
+      ],
+      "depends_on": [
+        "challenge:T15",
+        "challenge:T19",
+        "challenge:T20"
+      ],
+      "planned_writes": [
+        "packages/ui/src/browser/bootstrap.ts",
+        "packages/ui/src/browser/polling.ts",
+        "packages/ui/scripts/build-browser.mjs",
+        "packages/ui/src/browser/style.css",
+        "packages/interfaces/src/http/assets.ts"
+      ]
+    },
+    {
+      "id": "finished-product:FP.FILES-DURABLE",
+      "title": "Join file metadata/blob durable lifecycle",
+      "status": "partial",
+      "remaining_actions": [
+        "Complete the owner-released source-derived join and qualify its full required current-authority, retry/recovery, failure and termination behavior.",
+        "Real receiving-app bytes/digest/provenance/finalization/attachment/read, upload/principal limits, restart/duplicate/conflicting-output proof; async interface release, no R2+state atomicity promise."
+      ],
+      "original_acceptance": [
+        "Real receiving-app bytes/digest/provenance/finalization/attachment/read, upload/principal limits, restart/duplicate/conflicting-output proof; async interface release, no R2+state atomicity promise."
+      ],
+      "depends_on": [
+        "challenge:T04",
+        "challenge:T16",
+        "challenge:T24"
+      ],
+      "planned_writes": [
+        "packages/files/src/storage/metadata.ts",
+        "packages/files/src/storage/blob.ts",
+        "packages/files/src/storage/recovery.ts"
+      ]
+    },
+    {
+      "id": "finished-product:FP.CORPUS",
+      "title": "Connect accepted model-bound corpus and opaque grounding",
+      "status": "partial",
+      "remaining_actions": [
+        "Complete the owner-released source-derived join and qualify its full required current-authority, retry/recovery, failure and termination behavior.",
+        "Accepted grammar preserved. Real origin/principal/scope and all actually used immutable context verified at retrieval and every disclosure; opaque nonconstructible Answer, truthful coverage/as-of, current revocation/withdrawal, index repair and genuine fixtures. T12 B8 exclusion is availability, not deferral."
+      ],
+      "original_acceptance": [
+        "Accepted grammar preserved. Real origin/principal/scope and all actually used immutable context verified at retrieval and every disclosure; opaque nonconstructible Answer, truthful coverage/as-of, current revocation/withdrawal, index repair and genuine fixtures. T12 B8 exclusion is availability, not deferral."
+      ],
+      "depends_on": [
+        "challenge:T13",
+        "challenge:T14",
+        "challenge:T15",
+        "challenge:T24",
+        "challenge:T25",
+        "challenge:T26",
+        "challenge:T32",
+        "finished-product:FP.FILES-DURABLE"
+      ],
+      "planned_writes": [
+        "packages/contracts/src/corpus.ts",
+        "packages/state/src/corpus/sources.ts",
+        "packages/state/src/corpus/grounded.ts",
+        "packages/state/src/corpus/available.ts",
+        "packages/state/src/corpus/status.ts",
+        "packages/services/src/corpus/index.ts",
+        "packages/services/src/corpus/controller.ts",
+        "packages/services/src/corpus/extract.ts",
+        "packages/services/src/corpus/normalize.ts",
+        "packages/cloudflare/src/runtime/work/corpus.ts",
+        "packages/testkit/src/fixtures/corpus.ts"
+      ]
+    },
+    {
+      "id": "finished-product:FP.INSTALLED-RELEASE",
+      "title": "Close outside-checkout release facts/producer closure",
+      "status": "partial",
+      "remaining_actions": [
+        "Complete outside-checkout producer/dependency/docs/browser/vendor/actual values-work binary/native inventory and prove cold/full CLI/Worker on every explicitly claimed host; resolve native release dependency only after its human HOLD."
+      ],
+      "original_acceptance": [
+        "Install complete actual runtime/docs/browser producer closure and assets without workspace siblings/compiler Cargo.toml; cold/full installed CLI and Worker proofs on every claimed host; actual numeric/work binaries not smoke."
+      ],
+      "depends_on": [
+        "ports:C04.graph",
+        "ports:C04.values-assets",
+        "ports:C04.work-assets",
+        "ports:C04.native-release"
+      ],
+      "planned_writes": [
+        "packages/cloudflare/src/release/inputs.ts",
+        "packages/cloudflare/src/deploy/producer-inventory.ts",
+        ".github/workflows/release.yml",
+        "docs/install.md"
+      ]
+    },
+    {
+      "id": "finished-product:FP.UPGRADE-JOIN",
+      "title": "Connect source-derived staged upgrade and recovery",
+      "status": "partial",
+      "remaining_actions": [
+        "Complete the owner-released source-derived join and qualify its full required current-authority, retry/recovery, failure and termination behavior.",
+        "Exact installed predecessor/desired schema, bounded complete-state/work inventory, staged validation, fenced activation/recovery, negative unknown/unsupported transitions; retain truthful online limitations."
+      ],
+      "original_acceptance": [
+        "Exact installed predecessor/desired schema, bounded complete-state/work inventory, staged validation, fenced activation/recovery, negative unknown/unsupported transitions; retain truthful online limitations."
+      ],
+      "depends_on": [
+        "challenge:T15",
+        "challenge:T17",
+        "challenge:T24"
+      ],
+      "planned_writes": [
+        "packages/cloudflare/src/upgrade/host.ts",
+        "packages/cloudflare/test/upgrade-installed.test.ts"
+      ]
+    },
+    {
+      "id": "finished-product:FP.QUALIFY",
+      "title": "Qualify all accepted original workflow families",
+      "status": "partial",
+      "remaining_actions": [
+        "Run per-app full required behavior and negative gates for all 49 original app/companion intent ledgers and shared declarations using canonical compiled examples and meaningful actor/browser/MCP/durable/provider journeys; dependencies gate only matching apps."
+      ],
+      "original_acceptance": [
+        "All 49 app intent dispositions with full declared required workflows/negatives, real canonical compiled examples, meaningful multi-actor/browser/MCP/persistence/retry/recovery; per-app gates and honest provider/storage evidence."
+      ],
+      "depends_on": [
+        "challenge:T37",
+        "challenge:T38",
+        "challenge:T39",
+        "challenge:T40",
+        "finished-product:FP.IDENTITY",
+        "finished-product:FP.BROWSER",
+        "finished-product:FP.PREFERENCES",
+        "finished-product:FP.CSV",
+        "finished-product:FP.EXPORT",
+        "finished-product:FP.POLICY-REVIEW",
+        "finished-product:FP.LIFETIME",
+        "finished-product:FP.CORPUS",
+        "finished-product:FP.UPGRADE-JOIN",
+        "finished-product:FP.COMPILED-DECIMAL",
+        "finished-product:FP.CONTEXT",
+        "finished-product:FP.DISPATCH-AVAILABILITY",
+        "finished-product:FP.MAINTENANCE",
+        "finished-product:FP.PING",
+        "finished-product:FP.INSTRUMENTATION",
+        "finished-product:FP.ALERTS",
+        "finished-product:FP.SOURCE-MAPPINGS",
+        "finished-product:FP.SERVICE-CATALOG",
+        "finished-product:FP.MAILBOX",
+        "finished-product:FP.REPORTS",
+        "finished-product:FP.TRACKER",
+        "finished-product:FP.INVOCATION",
+        "finished-product:FP.APP-ADJUDICATION",
+        "finished-product:FP.AW-MAILBOX",
+        "finished-product:FP.AW-PAYMENTS",
+        "finished-product:FP.AW-DOCUMENTS",
+        "finished-product:FP.AW-SOURCE-CONNECTOR",
+        "finished-product:FP.AW-ONBOARD-HANDOFF",
+        "finished-product:FP.AW-JUDGMENT",
+        "finished-product:FP.AW-REPLAY-IMPORT"
+      ],
+      "planned_writes": [
+        "tests/e2e/journeys/original-corpus.spec.ts",
+        "tests/e2e/journeys/apps-delivery-installed.spec.ts",
+        "tests/e2e/journeys/apps-analytics-installed.spec.ts"
+      ]
+    },
+    {
+      "id": "finished-product:FP.CONTEXT",
+      "title": "Close verified source context and allowed-hook carriers",
+      "status": "partial",
+      "remaining_actions": [
+        "Release per-scope verified actor/team/now/operation context, lower and carry actual readonly id/source values through generated nonhook and allowed-hook execution; qualify actor-null/current-scope/rejected-use controls."
+      ],
+      "original_acceptance": [
+        "Lower actor/team/now/operation from the same verified current invocation, without ambient free variables. Preserve operation readonly id/source and all accepted per-scope bounds; hook context must be released by its owner, not inferred from nonhook c. Required sites compile and execute with meaningful actor-null/current-scope negatives. B4 report is proposal/source evidence."
+      ],
+      "depends_on": [
+        "challenge:T04",
+        "challenge:T15"
+      ],
+      "planned_writes": [
+        "compiler/src/codegen/ir.rs",
+        "compiler/src/codegen/js.rs",
+        "packages/cloudflare/src/runtime/context.ts",
+        "packages/cloudflare/src/runtime/invoke.ts"
+      ]
+    },
+    {
+      "id": "finished-product:FP.INVOCATION",
+      "title": "Complete finite approved invocation value and protected actions",
+      "status": "partial",
+      "remaining_actions": [
+        "Complete the owner-released source-derived join and qualify its full required current-authority, retry/recovery, failure and termination behavior.",
+        "Complete normalized args/version/ref provenance and request allowlist; currently readable protected preview, approval + effects in same owner transaction and post-call invariant rollback; actual Workbench Task.update/complete and negative roles/version cases. No string dispatcher or alternate execute API."
+      ],
+      "original_acceptance": [
+        "Complete normalized args/version/ref provenance and request allowlist; currently readable protected preview, approval + effects in same owner transaction and post-call invariant rollback; actual Workbench Task.update/complete and negative roles/version cases. No string dispatcher or alternate execute API."
+      ],
+      "depends_on": [
+        "challenge:T04",
+        "challenge:T15",
+        "challenge:T16",
+        "challenge:T32"
+      ],
+      "planned_writes": [
+        "packages/services/src/models/invocations.ts",
+        "packages/interfaces/src/projection/invocations.ts"
+      ]
+    },
+    {
+      "id": "finished-product:FP.AW-JUDGMENT",
+      "title": "Exact Triage specification/model/output association; validate every probability/option/level and decimal normalization/expectation bounds with no argmax substitution, current progress and budget semantics.",
+      "status": "partial",
+      "remaining_actions": [
+        "Complete the owner-released source-derived join and qualify its full required current-authority, retry/recovery, failure and termination behavior.",
+        "Retain contracts judgment shapes and services/judgments/systemone.ts harness adapter; declaration compile/lowering and real producer remain required cross-owner gate. Full app-specific cause/retry/current-authority/termination and actual installed producer negatives remain required."
+      ],
+      "original_acceptance": [
+        "Retain contracts judgment shapes and services/judgments/systemone.ts harness adapter; declaration compile/lowering and real producer remain required cross-owner gate. Full app-specific cause/retry/current-authority/termination and actual installed producer negatives remain required."
+      ],
+      "depends_on": [
+        "challenge:T12",
+        "challenge:T13",
+        "challenge:T24"
+      ],
+      "planned_writes": [
+        "packages/services/src/judgments/normalize.ts",
+        "packages/cloudflare/src/runtime/providers/judgments.ts",
+        "packages/testkit/src/fixtures/judgments.ts",
+        "packages/cloudflare/src/runtime/work/providers.ts"
+      ]
+    }
+  ]
+}

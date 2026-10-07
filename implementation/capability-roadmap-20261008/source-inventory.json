@@ -1,0 +1,244 @@
+{
+  "task_scope": [
+    "SEQ-001 source baseline",
+    "SEQ-002 ownership signals only"
+  ],
+  "captured_head": {
+    "commit": "c718517a5aae8481a8b548a7eb299b8c5377dee6",
+    "subject": "fix(compiler): adapt card titles and transient tabs",
+    "branch": "main",
+    "upstream": "origin/main",
+    "ahead": 25
+  },
+  "working_tree_status": [
+    "M compiler/src/analysis/resolve.rs",
+    "M compiler/src/analysis/types.rs",
+    "M compiler/tests/codegen.rs",
+    "M compiler/tests/ide.rs",
+    "M docs/research/compiler-library-audit-20261006/responsibility-map/coverage.jsonl",
+    "M docs/research/compiler-library-audit-20261006/responsibility-map/semantic-evidence/review-authority.json",
+    "M docs/research/compiler-library-audit-20261006/responsibility-map/semantic-evidence/review-authority.md",
+    "M docs/specification/DECISIONS.md",
+    "M implementation/compiler-completion/README.md",
+    "M implementation/compiler-completion/bookkeeping-accepted-titles.json",
+    "M packages/files/src/upload/index.ts",
+    "M packages/files/test/finalize-byte-count.test.ts",
+    "M packages/interfaces/src/docs/reference.ts",
+    "M packages/interfaces/test/docs-reference.test.ts",
+    "M packages/ui/src/browser/bootstrap.ts",
+    "M packages/ui/src/browser/polling.ts",
+    "?? compiler/tests/bdd_checked_facts.rs",
+    "?? design/language-proposals-20261007/",
+    "?? implementation/capability-roadmap-20261008/",
+    "?? implementation/compiler-completion/bdd-facts/",
+    "?? implementation/compiler-completion/integration-after-bindings/after-bdd-ui/",
+    "?? implementation/compiler-completion/integration-after-bindings/queue-oracle-independent-review/ide-followup/",
+    "?? implementation/compiler-completion/markdown-owner/",
+    "?? implementation/compiler-completion/owner-lease-status.json",
+    "?? packages/files/test/completion-byte-count.test.ts"
+  ],
+  "source_digest_method": "Git object identity for committed baseline; working-tree candidates intentionally not pinned as accepted. No source files modified by this inventory.",
+  "accepted_or_reviewed_receipts": [
+    {
+      "area": "selected calls/defaults/plain format",
+      "state": "independently accepted bounded",
+      "receipt": "implementation/compiler-completion/selected-calls/independent-review/report.md",
+      "implementation_commit": "3403dc71",
+      "limits": "localized format, BDD facts, canonical state-read join open"
+    },
+    {
+      "area": "Card title/static Tabs",
+      "state": "independently accepted bounded",
+      "receipt": "implementation/compiler-completion/ui-ownership/independent-review/review.json",
+      "implementation_commit": "c718517a",
+      "limits": "query/bound/order/profile flows open"
+    },
+    {
+      "area": "OAuth code consumption",
+      "state": "independent review receipt committed; bounded",
+      "receipt": "implementation/package-maintenance-repair/runs/codex-go-20261007/oauth-consume-independent-review.json",
+      "implementation_commit": "33f12d62"
+    },
+    {
+      "area": "Cloudflare failed bundle entry writes",
+      "state": "independent review receipt committed; bounded",
+      "receipt": "implementation/package-maintenance-repair/runs/codex-go-20261007/entry-cleanup-independent-review.json",
+      "implementation_commit": "2b750a6e"
+    },
+    {
+      "area": "installed WASM/browser asset bundle",
+      "state": "implementation committed; no accepted independent review located in bounded inspection",
+      "receipt": null,
+      "implementation_commit": "b24108ed"
+    },
+    {
+      "area": "Cloudflare fanout retry freshness",
+      "state": "independent review receipt committed; bounded",
+      "receipt": "implementation/package-maintenance-repair/runs/codex-go-20261007/fanout-freshness-independent-review.json",
+      "implementation_commit": "c7c98b71"
+    },
+    {
+      "area": "stdlib synchronous guard exports",
+      "state": "independently accepted bounded",
+      "receipt": "implementation/compiler-completion/runtime-export-join/independent-review/assessment.md",
+      "implementation_commit": "b7e18b9b",
+      "limits": "read-scenario, subject-scoped and deployed gaps open"
+    },
+    {
+      "area": "owned JSON derivatives",
+      "state": "independent review receipt committed; bounded",
+      "receipt": "implementation/package-maintenance-repair/runs/codex-go-20261007/owned-content-independent-review.json",
+      "implementation_commit": "d4b041fb"
+    },
+    {
+      "area": "file finalization byte count",
+      "state": "independent review receipt committed; bounded",
+      "receipt": "implementation/package-maintenance-repair/runs/codex-go-20261007/finalized-size-independent-review.json",
+      "implementation_commit": "d450130f",
+      "limits": "dirty completion-byte-count.test.ts is unaccepted candidate"
+    }
+  ],
+  "ownership_signals": [
+    {
+      "paths": [
+        "compiler/src/analysis/types.rs",
+        "compiler/src/analysis/resolve.rs",
+        "compiler/tests/bdd_checked_facts.rs",
+        "one compiler/tests/codegen.rs function"
+      ],
+      "source": "implementation/compiler-completion/owner-lease-status.json",
+      "state": "compiler completion root lease through frozen BDD fact review; dirty/untracked candidate",
+      "handoff": "unresolved; root/coordinator to establish exact release and pin"
+    },
+    {
+      "paths": [
+        "compiler/src/codegen/ir.rs",
+        "compiler/src/codegen/js.rs",
+        "compiler/tests/ui_adapter.rs"
+      ],
+      "source": "implementation/compiler-completion/owner-lease-status.json and UI review receipt",
+      "state": "bounded static adapter review accepted; lease record chronology predates later review",
+      "handoff": "broad enum/query/order/profile ownership unresolved"
+    },
+    {
+      "paths": [
+        "packages/state/src/effects/guards.ts",
+        "packages/cloudflare/src/runtime/stdlib.ts",
+        "packages/stdlib/src/index.ts",
+        "packages/stdlib/test/assembly.test.ts"
+      ],
+      "source": "implementation/compiler-completion/owner-lease-status.json",
+      "state": "scoped export release at b7e18b9b; broader package invocation owner foreign",
+      "handoff": "broader ownership unresolved"
+    },
+    {
+      "paths": [
+        "packages/files/src/upload/index.ts",
+        "packages/files/test/finalize-byte-count.test.ts",
+        "packages/interfaces/src/docs/reference.ts",
+        "packages/interfaces/test/docs-reference.test.ts",
+        "packages/ui/src/browser/bootstrap.ts",
+        "packages/ui/src/browser/polling.ts"
+      ],
+      "source": "git status at captured HEAD",
+      "state": "dirty candidates",
+      "handoff": "owner/review disposition unresolved"
+    },
+    {
+      "paths": [
+        "docs/specification/DECISIONS.md",
+        "implementation/compiler-completion/README.md",
+        "shared Git/bookkeeping"
+      ],
+      "source": "git status and capability-roadmap execution-state.json",
+      "state": "dirty; shared Git/bookkeeping owner recorded as package coordinator pending explicit handoff",
+      "handoff": "preserve coordinator ownership; no handoff inferred"
+    }
+  ],
+  "scope_note": "Inventory distinguishes committed implementation, explicit review receipts and dirty/untracked candidates. Commit presence is not acceptance; no broader roadmap completion is claimed.",
+  "draft_submodule_provenance": {
+    "outer_head_tree_entry": "160000 commit a55a0f700f07f6f972d9d6091b0fdbceee399eb9 draft",
+    "gitmodules": "[submodule \"draft\"] path=draft url=https://github.com/veighnsche/canlang-drafts.git",
+    "submodule_status": "-a55a0f700f07f6f972d9d6091b0fdbceee399eb9 draft (Git reports uninitialized gitlink marker)",
+    "nested_checkout": {
+      "head": "a55a0f700f07f6f972d9d6091b0fdbceee399eb9",
+      "branch": "main",
+      "upstream": "origin/main",
+      "status": "clean",
+      "subject": "docs: point draft references to relocated specifications and topic records"
+    },
+    "provenance_note": "The current outer commit pins draft as a gitlink and the nested checkout is present at that exact commit with clean status. `git show HEAD:draft` fails because a gitlink is not a blob; `git ls-tree HEAD draft` is the authoritative outer-tree evidence. Older Oct 7 evaluation wording that calls draft ignored-local is historical and does not describe this current checkout.",
+    "scope": "read-only provenance observation; classification and ownership acceptance remain with root"
+  },
+  "current_followup_snapshot": {
+    "head": "db57c3794d386fcd27f17f54b199272d58106a81",
+    "dirty_relevant_product_file_hashes": [
+      {
+        "path": "compiler/src/analysis/resolve.rs",
+        "git_status": " M",
+        "sha256_current_working_bytes": "55844929ce0032d3ad1a46e7c250bf44b318d138651364d67551ce172afca899",
+        "acceptance": "candidate only; dirty/untracked working bytes, not accepted"
+      },
+      {
+        "path": "compiler/src/analysis/types.rs",
+        "git_status": " M",
+        "sha256_current_working_bytes": "fdfae505833d91c919920860c7296c325fb76cf8295998d64fb7aae1c855027e",
+        "acceptance": "candidate only; dirty/untracked working bytes, not accepted"
+      },
+      {
+        "path": "compiler/tests/codegen.rs",
+        "git_status": " M",
+        "sha256_current_working_bytes": "cbd33310c6484a13298d06ee26993b3843b1e8b4491cd7bb274fe478a9f2134f",
+        "acceptance": "candidate only; dirty/untracked working bytes, not accepted"
+      },
+      {
+        "path": "compiler/tests/ide.rs",
+        "git_status": " M",
+        "sha256_current_working_bytes": "49625acf4796e14ff68c043562741b78615c3dce74aa6123b33be7f76e58425f",
+        "acceptance": "candidate only; dirty/untracked working bytes, not accepted"
+      },
+      {
+        "path": "packages/ui/src/browser/bootstrap.ts",
+        "git_status": " M",
+        "sha256_current_working_bytes": "95f6f353513174367d39d936e98042fe375329246485261e679b98c63f202ac1",
+        "acceptance": "candidate only; dirty/untracked working bytes, not accepted"
+      },
+      {
+        "path": "packages/ui/src/browser/polling.ts",
+        "git_status": " M",
+        "sha256_current_working_bytes": "d7ee9aba0bf9256a2b665a1b03240feb3f392f3455edcdd46d10c3a701d6f1aa",
+        "acceptance": "candidate only; dirty/untracked working bytes, not accepted"
+      },
+      {
+        "path": "compiler/tests/bdd_checked_facts.rs",
+        "git_status": "??",
+        "sha256_current_working_bytes": "8145a067b681e65b6df7a791e3450367f80d39275d6fbd0fda153bce5542f57a",
+        "acceptance": "candidate only; dirty/untracked working bytes, not accepted"
+      }
+    ],
+    "hash_scope": "SHA256 of current filesystem bytes at capture; candidate-only and not acceptance. Paths are relevant dirty compiler analysis/test, interfaces, and UI browser product paths; documentation bookkeeping excluded."
+  },
+  "additional_scoped_receipts": [
+    {
+      "area": "provider request-byte cap and cancellation identity",
+      "state": "independently accepted finite actual provider caller scope",
+      "receipt": "implementation/package-maintenance-repair/runs/codex-go-20261007/services-selected-independent-review.json",
+      "implementation_commit": "a73df865",
+      "limits": "specific SystemOneAdapter/ComfyUINativeAdapter request and cancellation identity controls; broader services joins open"
+    },
+    {
+      "area": "OAuth S256 challenge length",
+      "state": "review packet reports PASS finite selected issuance-domain correction",
+      "receipt": "implementation/package-maintenance-repair/runs/codex-go-20261007/pkce-issuance-independent-review.json",
+      "implementation_commit": "1eeedb6d",
+      "limits": "bounded selected issuance profile; broader OAuth journey gates remain distinct"
+    },
+    {
+      "area": "Cloudflare bundle line-comment terminators",
+      "state": "independent review packet PASS; root disposition says accepted exact lexical correctness only",
+      "receipt": "implementation/package-maintenance-repair/runs/codex-go-20261007/loadability-terminators-independent-review.json",
+      "implementation_commit": "tracked in package repair history; receipt base 2b750a6e",
+      "limits": "lexical terminator correctness only; no general validator, trust proof, installed/native/deployment qualification"
+    }
+  ]
+}

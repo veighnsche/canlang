@@ -1,0 +1,841 @@
+{
+  "task": "SEQ-004",
+  "kind": "independent expected-outcome requirements; no self-acceptance",
+  "execution_status": "not executed",
+  "source_stage": "complete current draft contract; desired .mjs is not runtime proof",
+  "outcome_dimensions": [
+    "success",
+    "denial",
+    "stale",
+    "replay",
+    "failure",
+    "uncertain",
+    "crash",
+    "restart",
+    "upgrade"
+  ],
+  "proof_key": {
+    "S": "authored causal examples only; never execution proof",
+    "B": "browser/rendering/upload/download/current-grant behavior required",
+    "M": "if generated MCP interface exposes this operation, equivalent authenticated current-reference/revision checks and leaf grants required",
+    "D": "durable transaction/outbox/event/timer/replay/crash behavior required",
+    "P": "real provider/binding behavior required",
+    "X": "pinned release/configuration/backend/files/provider deployment required"
+  },
+  "common_cases": "common-cases.json",
+  "acceptance_owner": "root after source/registration checks",
+  "witness": "complete CanCreative + transitive complete CanChat",
+  "workflow_ids": {
+    "creative": [
+      "CC-01",
+      "CC-02",
+      "CC-03",
+      "CC-04",
+      "CC-05",
+      "CC-06",
+      "CC-07",
+      "CC-08",
+      "CC-09",
+      "CC-10",
+      "CC-11",
+      "CC-12",
+      "CC-13",
+      "CC-14"
+    ],
+    "chat": [
+      "CH-01",
+      "CH-02",
+      "CH-03",
+      "CH-04",
+      "CH-05",
+      "CH-06",
+      "CH-07",
+      "CH-08",
+      "CH-09",
+      "CH-10",
+      "CH-11"
+    ]
+  },
+  "matrix": [
+    {
+      "id": "CC-01",
+      "workflow": "Template create/edit/deactivate and template_edited",
+      "anchors": [
+        "draft/CanCreative.can:12",
+        "draft/CanCreative.can:24",
+        "draft/CanCreative.can:32",
+        "draft/CanCreative.can:60",
+        "draft/CanCreative.md:11"
+      ],
+      "actors_grants": "creative_manager; only owned Template; members see name/active/current only",
+      "current_reference_revision_checks": "Owner/current Template envelope; own readable finalized JSON graph; duration 1s..15m; outputs 1..4; current belongs to same Template and is published",
+      "expected": {
+        "success": "Create/edit owned draft; every update clears inspection; previous Revision/receipt/run unchanged; inactive template removes member revision/file grant and blocks new generation",
+        "denial": "Other manager cannot edit owner draft; ordinary member cannot read draft graph/unpublished revisions; deletion unavailable",
+        "stale": "Stale edit conflicts before writes; edit after validation cannot alter validated snapshot",
+        "replay": "Matching operation retry returns saved result; no duplicate Template/update effects",
+        "failure": "Rejected graph upload or field/invariant failure leaves old graph/revisions intact",
+        "uncertain": "Unknown client commit outcome resolved using operation identity; no implicit second upload/publication",
+        "crash": "G-DUR-01",
+        "restart": "G-DUR-02",
+        "upgrade": "G-UPG-01"
+      },
+      "proof_needed": [
+        "B",
+        "M",
+        "D",
+        "X"
+      ],
+      "source_causal_examples": []
+    },
+    {
+      "id": "CC-02",
+      "workflow": "Inspect workflow inputs",
+      "anchors": [
+        "draft/CanCreative.can:65",
+        "draft/CanCreative.md:7",
+        "draft/CanCreative.md:9"
+      ],
+      "actors_grants": "creative_manager owning active template",
+      "current_reference_revision_checks": "Current Template and authorized finalized graph; whole provider deployment binding",
+      "expected": {
+        "success": "Associated Images.inspect receipt and typed node/key/kind/label candidates; no generation enqueued",
+        "denial": "Nonowner/inactive template denied; secret/filesystem/network graph use rejected by binding",
+        "stale": "Edited draft clears displayed inspection; old inspection cannot authorize publication or new graph",
+        "replay": "Stable inspection intent receipt retained on retry",
+        "failure": "Malformed/API-format/unsupported graph or unavailable binding yields explicit inspect failure; no /prompt execution",
+        "uncertain": "Pending/unknown inspection stays distinct from valid validation",
+        "crash": "G-DUR-01",
+        "restart": "G-DUR-02",
+        "upgrade": "G-UPG-01"
+      },
+      "proof_needed": [
+        "B",
+        "M",
+        "D",
+        "P",
+        "X"
+      ],
+      "source_causal_examples": []
+    },
+    {
+      "id": "CC-03",
+      "workflow": "Validate immutable revision",
+      "anchors": [
+        "draft/CanCreative.can:71",
+        "draft/CanCreative.can:39",
+        "draft/CanCreative.md:9",
+        "draft/CanCreative.md:13"
+      ],
+      "actors_grants": "creative_manager owning active template",
+      "current_reference_revision_checks": "Current Template; freeze exact graph/four mappings/output cap/duration; numbered revision and associated validation receipt",
+      "expected": {
+        "success": "Create next immutable Revision and Images.validate intent; safe validation never executes generation",
+        "denial": "Wrong actor; inactive/unreadable/partial/foreign graph; whole-graph allowlist/path/network/secret/type violations fail",
+        "stale": "Concurrent validation number allocation serializes; draft edits after freeze do not alter revision or associated receipt",
+        "replay": "Matching replay returns same Revision/receipt; no second numbered revision",
+        "failure": "Validation invalid/failed does not publish; rollback prevents revision/send orphan on local failure",
+        "uncertain": "Pending/unknown validation remains unpublishable; fixture validation is not actual compatible production graph",
+        "crash": "G-DUR-01",
+        "restart": "G-DUR-02",
+        "upgrade": "G-UPG-01"
+      },
+      "proof_needed": [
+        "B",
+        "M",
+        "D",
+        "P",
+        "X"
+      ],
+      "source_causal_examples": []
+    },
+    {
+      "id": "CC-04",
+      "workflow": "Publish exact validated revision",
+      "anchors": [
+        "draft/CanCreative.can:80",
+        "draft/CanCreative.can:26",
+        "draft/CanCreative.can:40",
+        "draft/CanCreative.md:11"
+      ],
+      "actors_grants": "creative_manager owning active parent; intentional member graph disclosure",
+      "current_reference_revision_checks": "Current Revision/parent; associated succeeded valid validation with nonnull digest; unpublished revision",
+      "expected": {
+        "success": "Set published/digest and parent.current atomically; current members gain exact immutable full definition and graph while parent active",
+        "denial": "Other manager/member denied; pending/failed/unknown/invalid/no-digest validation or already published revision denied",
+        "stale": "Stale Revision/parent envelope conflicts; digest/graph association cannot be substituted; later draft edits leave old revision intact",
+        "replay": "Saved publish replay returns original result; fresh invocation on published revision fails",
+        "failure": "Local failure commits neither publication nor current selection",
+        "uncertain": "Uncertain commit resolved by original operation/current record; no invented valid publication",
+        "crash": "G-DUR-01",
+        "restart": "G-DUR-02",
+        "upgrade": "G-UPG-01"
+      },
+      "proof_needed": [
+        "B",
+        "M",
+        "D",
+        "X"
+      ],
+      "source_causal_examples": [
+        "draft/CanCreative.can:86"
+      ]
+    },
+    {
+      "id": "CC-05",
+      "workflow": "Budget create/edit/deactivate",
+      "anchors": [
+        "draft/CanCreative.can:14",
+        "draft/CanCreative.can:28",
+        "draft/CanCreative.can:34",
+        "draft/CanCreative.can:61",
+        "draft/CanCreative.can:278"
+      ],
+      "actors_grants": "creative_manager writes; member reads only own Budget",
+      "current_reference_revision_checks": "Unique account; cap>=1; parallel 1..10; spent+held<=cap; running<=parallel; account locked",
+      "expected": {
+        "success": "One allowance per member; manager adjusts admissible cap/parallel/active without rewriting settled usage",
+        "denial": "Ordinary member cannot change counters/account/caps or read others; deletion unavailable",
+        "stale": "Stale counter/cap envelopes conflict; lowering caps under held/spent/running fails invariants",
+        "replay": "Saved retry neither duplicates account nor repeats accounting",
+        "failure": "Invalid budget change rolls back fully; no forced hold release",
+        "uncertain": "Unknown delivery/execution usage remains held even if budget disabled",
+        "crash": "G-DUR-01",
+        "restart": "G-DUR-02",
+        "upgrade": "G-UPG-01"
+      },
+      "proof_needed": [
+        "B",
+        "M",
+        "D",
+        "X"
+      ],
+      "source_causal_examples": []
+    },
+    {
+      "id": "CC-06",
+      "workflow": "Generate normal bounded image job",
+      "anchors": [
+        "draft/CanCreative.can:93",
+        "draft/CanCreative.can:42",
+        "draft/CanCreative.md:17",
+        "draft/CanCreative.md:31"
+      ],
+      "actors_grants": "current member; own active Budget; optional currently owned usable conversation",
+      "current_reference_revision_checks": "Current active template with published current revision/digest; readable graph grant; prompt nonblank; 256..1536 dimensions multiples of 64; spend+held+1<=cap; running<parallel; freeze actual workflow Revision but adapter source revision=1",
+      "expected": {
+        "success": "One immutable Run(source=operation.id), one job hold, one running slot and associated Images.submit outbox intent atomically; no verified progress means state=null; later Template.current edits only affect new jobs",
+        "denial": "Nonmember/foreign or revoked conversation/exhausted or absent/inactive budget/unpublished or inactive template/bad dimensions/prompt denied",
+        "stale": "Final-unit and final-slot admission races admit only allowed transaction; recheck current membership/template/budget/conversation before dispatch; skipped intent remains releasable",
+        "replay": "Matching operation replay gives original Run and receipt; no extra job/hold/start; changed payload under identity rejected",
+        "failure": "No orphan Run/hold/send on business or commit failure; binding unable to enforce graph/digest/job/dimension/duration limits rejects before execution",
+        "uncertain": "Lost POST acceptance or unobserved queue status remains unknown; no transparent new provider job",
+        "crash": "G-DUR-01",
+        "restart": "G-DUR-02",
+        "upgrade": "G-UPG-01"
+      },
+      "proof_needed": [
+        "B",
+        "M",
+        "D",
+        "P",
+        "X"
+      ],
+      "source_causal_examples": [
+        "draft/CanCreative.can:106",
+        "draft/CanCreative.can:113"
+      ]
+    },
+    {
+      "id": "CC-07",
+      "workflow": "Explicit from_turn chat-to-image composition",
+      "anchors": [
+        "draft/CanCreative.can:119",
+        "draft/CanCreative.can:213",
+        "draft/CanCreative.md:19"
+      ],
+      "actors_grants": "current member who can_use turn owning conversation; explicit human action",
+      "current_reference_revision_checks": "Current actual Turn->Branch->Conversation references and grants; copied content; canonical generate guards/limits/files",
+      "expected": {
+        "success": "Canonical generate creates image Run with copied prompt and protected conversation; original chat turn remains unchanged",
+        "denial": "Foreign/revoked turn ID or copied prompt exceeding image schema denied; model text/tool instruction confers no authority",
+        "stale": "Revocation/turn-reference/Template/Revision change between page read and action reruns owning guards; no stale authorization",
+        "replay": "Matching action retry returns same composed generation without another hold/job",
+        "failure": "Nested failure rolls back business effects; studio may accept deliberately shorter new prompt in separate action",
+        "uncertain": "Lost action response resolves original image identity rather than automatic extra generation",
+        "crash": "G-DUR-01",
+        "restart": "G-DUR-02",
+        "upgrade": "G-UPG-01"
+      },
+      "proof_needed": [
+        "B",
+        "M",
+        "D",
+        "P",
+        "X"
+      ],
+      "source_causal_examples": []
+    },
+    {
+      "id": "CC-08",
+      "workflow": "Targeted stop image job",
+      "anchors": [
+        "draft/CanCreative.can:125",
+        "draft/CanCreative.md:25"
+      ],
+      "actors_grants": "current member; original author, including safe recovery after conversation revoke",
+      "current_reference_revision_checks": "Current Run unfinished and no pending cancellation; original source and adapter revision=1",
+      "expected": {
+        "success": "Store stop_requested and associated targeted Images.cancel receipt; preserve evidence-driven generation state/usage",
+        "denial": "Other author/nonmember/finished run/pending cancel denied; global interrupt forbidden",
+        "stale": "Success racing stop stays succeeded; authority and current receipt rechecked; no stale cancellation of unrelated job",
+        "replay": "Same logical command retry retains identity; no duplicate accounting or global effects",
+        "failure": "Failed cancel receipt does not imply cancelled execution or release held usage",
+        "uncertain": "Unknown cancel leaves uncertainty; queued/running work may continue until authoritative observation",
+        "crash": "G-DUR-01",
+        "restart": "G-DUR-02",
+        "upgrade": "G-UPG-01"
+      },
+      "proof_needed": [
+        "B",
+        "M",
+        "D",
+        "P",
+        "X"
+      ],
+      "source_causal_examples": []
+    },
+    {
+      "id": "CC-09",
+      "workflow": "Reconcile original image outcome",
+      "anchors": [
+        "draft/CanCreative.can:131",
+        "draft/CanCreative.md:23",
+        "draft/CanCreative.md:25"
+      ],
+      "actors_grants": "current member original author; recovery projection may hide content",
+      "current_reference_revision_checks": "Current Run unfinished or used null; no pending reconcile; original source/revision/provider binding",
+      "expected": {
+        "success": "Associated Images.reconcile queries retained job only; verified snapshot may re-notify same progress sequence to repaired business callback",
+        "denial": "Other account/nonmember/fully settled finished job/pending reconcile denied",
+        "stale": "Wrong provider source/revision/graph identity rejected; reconciliation never selects latest template as replacement",
+        "replay": "Same intent retry/query cannot resubmit Images.submit; same-sequence callback repair is idempotent",
+        "failure": "Reconcile failure remains separate receipt; unresolved original job stays retained",
+        "uncertain": "Provider lost/unobservable job remains unknown; no zero charge, cancellation or success inferred",
+        "crash": "G-DUR-01",
+        "restart": "G-DUR-02",
+        "upgrade": "G-UPG-01"
+      },
+      "proof_needed": [
+        "B",
+        "M",
+        "D",
+        "P",
+        "X"
+      ],
+      "source_causal_examples": []
+    },
+    {
+      "id": "CC-10",
+      "workflow": "Release authoritative skipped image submission",
+      "anchors": [
+        "draft/CanCreative.can:137",
+        "draft/CanCreative.md:31"
+      ],
+      "actors_grants": "current member original author",
+      "current_reference_revision_checks": "Current original submit status skipped AND progress null AND used null AND unfinished",
+      "expected": {
+        "success": "Set used=0/unfinished=false; decrement held and running once",
+        "denial": "Unknown/failed/pending/dispatched/observed job or foreign run denied",
+        "stale": "New evidence/current receipt change invalidates old release request; revision conflict before decrement",
+        "replay": "Saved replay unchanged; fresh second release fails guards",
+        "failure": "Failed transaction changes neither counters nor run",
+        "uncertain": "Never-dispatched proof absent means reservation retained",
+        "crash": "G-DUR-01",
+        "restart": "G-DUR-02",
+        "upgrade": "G-UPG-01"
+      },
+      "proof_needed": [
+        "B",
+        "M",
+        "D",
+        "X"
+      ],
+      "source_causal_examples": []
+    },
+    {
+      "id": "CC-11",
+      "workflow": "Conversation revocation and member_removed cancellation hooks",
+      "anchors": [
+        "draft/CanCreative.can:142",
+        "draft/CanCreative.can:150",
+        "draft/CanCreative.md:27",
+        "draft/CanCreative.md:33"
+      ],
+      "actors_grants": "trusted committed owner/team events; reevaluate current authority",
+      "current_reference_revision_checks": "Reload current Conversation; current active_member check for delayed member removal; matching author/conversation unfinished runs; cap<=10",
+      "expected": {
+        "success": "Hide revoked private prompts/context/files; suppress unsent starts; targeted cancel each affected active run without duplicate pending command; trusted accounting may settle hidden runs",
+        "denial": "Forged browser event or unrelated user/conversation cannot cancel other jobs",
+        "stale": "Delayed membership removal after rejoin does nothing to newly authorized work; stale updated event reloads current active conversation",
+        "replay": "Event retry does not create duplicate pending cancellations or settlement",
+        "failure": "One technical hook failure remains durable retryable; no accounting release from cancel failure",
+        "uncertain": "Already started job can finish; cancel request remains distinct from execution outcome",
+        "crash": "G-DUR-01",
+        "restart": "G-DUR-02",
+        "upgrade": "G-UPG-01"
+      },
+      "proof_needed": [
+        "D",
+        "P",
+        "B",
+        "X"
+      ],
+      "source_causal_examples": []
+    },
+    {
+      "id": "CC-12",
+      "workflow": "image_progressed once-only accounting/output finalization",
+      "anchors": [
+        "draft/CanCreative.can:157",
+        "draft/CanCreative.md:21",
+        "draft/CanCreative.md:23",
+        "draft/CanCreative.md:31",
+        "draft/CanCreative.md:35"
+      ],
+      "actors_grants": "trusted associated Images.submit progress; never ordinary CRUD/browser state injection",
+      "current_reference_revision_checks": "Exact original delivery/source/revision; monotone sequence; compatible cumulative terminal state; outputs<=frozen cap; succeeded outputs>=1; stable positions; finalized receiving-app files; authoritative charged_jobs=0|1",
+      "expected": {
+        "success": "Set used once by releasing one hold and adding charge; terminal releases running once; unique Output positions admit finalized files; failed job may retain recovery output",
+        "denial": "Unassociated/wrong identity/invalid terminal/payload conflict/nonfinalized asset/overcap outputs/changed charge rejected",
+        "stale": "Duplicate/older observation ignored; terminal regression rejected; newly known terminal usage allowed only from null",
+        "replay": "Repeated event/final snapshot changes no counters/positions; unrelated receipt cannot affect run",
+        "failure": "Callback failure rolls back all business writes; latest verified progress remains visible; durable technical retry or repaired same-sequence reconcile re-notification",
+        "uncertain": "queued/running/unknown retain hold and slot; cancelled with charge null frees slot but retains hold; final late charge settles without second slot release",
+        "crash": "G-DUR-01",
+        "restart": "G-DUR-02",
+        "upgrade": "G-UPG-01"
+      },
+      "proof_needed": [
+        "D",
+        "P",
+        "X"
+      ],
+      "source_causal_examples": [
+        "draft/CanCreative.can:173",
+        "draft/CanCreative.can:180",
+        "draft/CanCreative.can:183"
+      ]
+    },
+    {
+      "id": "CC-13",
+      "workflow": "Generated-file retrieval and authorized galleries",
+      "anchors": [
+        "draft/CanCreative.can:16",
+        "draft/CanCreative.can:31",
+        "draft/CanCreative.can:43",
+        "draft/CanCreative.can:208",
+        "draft/CanCreative.md:35"
+      ],
+      "actors_grants": "provider adapter retrieves authenticated bytes; current owning record/field grants gate member thumbnail/original",
+      "current_reference_revision_checks": "PNG/JPEG MIME bytes, size/quota, receiving app provenance and finalized immutable file; unique stable position; current author/conversation access",
+      "expected": {
+        "success": "Only finalized bytes enter typed observation/Output; authorized keyboard preview/thumbnail/original uses stable ordered positions; failed/unknown private outputs remain recovery assets",
+        "denial": "Raw provider URL/path/asset ID, partial/foreign/unreadable files and revoked old links denied; non-success run not gallery-review eligible",
+        "stale": "Grant loss before upload/download/thumbnail revokes access; newer provider payload cannot replace old position bytes",
+        "replay": "Repeated retrieval/finalization/output notification creates no duplicate file position or accounting",
+        "failure": "Interrupted file finalization exposes no partial Can file; failure visible and recoverable under original run",
+        "uncertain": "Missing provider bytes or incomplete finalization never becomes completed image",
+        "crash": "G-DUR-01",
+        "restart": "G-DUR-02",
+        "upgrade": "G-UPG-01"
+      },
+      "proof_needed": [
+        "B",
+        "D",
+        "P",
+        "X"
+      ],
+      "source_causal_examples": []
+    },
+    {
+      "id": "CC-14",
+      "workflow": "Creative studio/from-chat/recovery/workflows pages",
+      "anchors": [
+        "draft/CanCreative.can:187",
+        "draft/CanCreative.can:213",
+        "draft/CanCreative.can:236",
+        "draft/CanCreative.can:243",
+        "draft/CanCreative.md:39"
+      ],
+      "actors_grants": "members studio/from-chat/recovery; creative_manager workflows; grants apply inside each collection",
+      "current_reference_revision_checks": "Poll current authorized snapshot; safe recovery fields only when private content revoked; per-form canonical references/revisions",
+      "expected": {
+        "success": "All four complete paginated destinations, declared inputs/statuses/loading/gallery/candidate and Revision displays, EN/NL labels and canonical actions; reconnect reads existing identity",
+        "denial": "Manager role alone does not read private chat/image prompts; other author hidden; safe recovery excludes revoked prompt/graph/context/output",
+        "stale": "Polled grants/control eligibility refresh; stale form preserves draft/error and current-reference navigation",
+        "replay": "Reload/back/reconnect does not generate/reserve or invoke stop/reconcile",
+        "failure": "Explicit empty/loading/error/failed receipt/validation states; accessible focus/draft and gallery controls",
+        "uncertain": "Null/unknown state and usage shown truthfully; transport receipt distinct from generation result",
+        "crash": "G-BROW-01",
+        "restart": "G-BROW-02",
+        "upgrade": "G-UPG-01"
+      },
+      "proof_needed": [
+        "B",
+        "M",
+        "X"
+      ],
+      "source_causal_examples": []
+    },
+    {
+      "id": "CH-01",
+      "workflow": "Profile and Allowance create/edit",
+      "anchors": [
+        "draft/CanChat.can:9",
+        "draft/CanChat.can:23",
+        "draft/CanChat.can:31",
+        "draft/CanChat.can:36",
+        "draft/CanChat.can:56",
+        "draft/CanChat.md:7"
+      ],
+      "actors_grants": "ai_manager writes profiles/allowances; members read profiles and own allowance",
+      "current_reference_revision_checks": "Profile model/policy/system/token/duration fields immutable; only active editable; one account allowance; spent+held<=cap; running<=parallel<=10",
+      "expected": {
+        "success": "Create new profile for policy/model change; disable profile or allowance; admissible allowance cap/parallel edits; old run snapshots retained",
+        "denial": "ai_manager grants no member transcript/attachments/partial access; ordinary member cannot change allowance; delete unavailable",
+        "stale": "Stale edit/counter changes conflict; reducing cap/parallel below retained holds/runs rejected",
+        "replay": "Matching retry does not duplicate profile/account or counters",
+        "failure": "Bad bounds/duration 1s..10m/unique account/locks fail atomically",
+        "uncertain": "Disabling cannot invent usage or free unknown work",
+        "crash": "G-DUR-01",
+        "restart": "G-DUR-02",
+        "upgrade": "G-UPG-01"
+      },
+      "proof_needed": [
+        "B",
+        "M",
+        "D",
+        "X"
+      ],
+      "source_causal_examples": []
+    },
+    {
+      "id": "CH-02",
+      "workflow": "Open private conversation and Original branch",
+      "anchors": [
+        "draft/CanChat.can:59",
+        "draft/CanChat.can:11",
+        "draft/CanChat.can:38",
+        "draft/CanChat.md:9"
+      ],
+      "actors_grants": "current member; conversation.account=actor",
+      "current_reference_revision_checks": "Current active Profile, nonblank bounded title; profile actual current reference",
+      "expected": {
+        "success": "Atomically create owned Conversation and Original Branch with frozen profile; no inference or budget consumed",
+        "denial": "Nonmember/inactive profile/blank title denied; foreign ID grants nothing",
+        "stale": "Profile deactivation/current revision race checked by canonical operation",
+        "replay": "Saved replay returns same branch/conversation",
+        "failure": "Failure leaves neither orphan Conversation nor Branch",
+        "uncertain": "Lost response resolves operation result rather than automatic second conversation",
+        "crash": "G-DUR-01",
+        "restart": "G-DUR-02",
+        "upgrade": "G-UPG-01"
+      },
+      "proof_needed": [
+        "B",
+        "M",
+        "D",
+        "X"
+      ],
+      "source_causal_examples": []
+    },
+    {
+      "id": "CH-03",
+      "workflow": "Canonical ask with frozen full transcript/files and bounded reservation",
+      "anchors": [
+        "draft/CanChat.can:66",
+        "draft/CanChat.can:16",
+        "draft/CanChat.can:41",
+        "draft/CanChat.md:9",
+        "draft/CanChat.md:23"
+      ],
+      "actors_grants": "current member owning active Conversation; own active Allowance; readable finalized attachment grants",
+      "current_reference_revision_checks": "Current Branch/Profile/Conversation/Allowance; transcript <120 prior messages; <=8 attachments; one unresolved execution per branch; conversation active runs<10; running<parallel; reserve=input+output tokens; full ordered prefix/system/profile/policy/files snapshotted",
+      "expected": {
+        "success": "Create one Run and immutable user Turn; reserve full maximum tokens and slot; associated durable LLM.generate intent; request state null until progress; no silent history truncation",
+        "denial": "Foreign/revoked branch; disabled profile/allowance; exhausted budget/concurrency/history/attachments/blank prompt denied; raw URL/partial/unreadable files fail",
+        "stale": "Last-budget/last-slot races serialize; pending dispatch rechecks can_use/active allowance/profile/stop; stale reference envelope conflicts",
+        "replay": "Replay same operation returns same Run/user Turn/request; changed request under source identity rejected",
+        "failure": "No orphan Run/Turn/hold/outbox on failure; unsupported attachments/model features or unenforceable token/duration limits fail explicitly at binding",
+        "uncertain": "Lost send or provider response stays pending/unknown; no silent second inference or currency-price claim",
+        "crash": "G-DUR-01",
+        "restart": "G-DUR-02",
+        "upgrade": "G-UPG-01"
+      },
+      "proof_needed": [
+        "B",
+        "M",
+        "D",
+        "P",
+        "X"
+      ],
+      "source_causal_examples": [
+        "draft/CanChat.can:84",
+        "draft/CanChat.can:91"
+      ]
+    },
+    {
+      "id": "CH-04",
+      "workflow": "Regenerate selected user turn on distinct branch",
+      "anchors": [
+        "draft/CanChat.can:104",
+        "draft/CanChat.can:39",
+        "draft/CanChat.md:17"
+      ],
+      "actors_grants": "current owning member; readable user Turn with terminal execution",
+      "current_reference_revision_checks": "Current Turn/Run; not unfinished; title nonblank; preceding ordered prefix; original profile/files; canonical ask guards",
+      "expected": {
+        "success": "Separate Branch with immutable origin/frozen preceding prefix; canonical ask selected prompt/files; preserve original turns and outcomes",
+        "denial": "Assistant turn/unresolved or unknown execution/foreign/revoked context denied; inactive profile or insufficient allowance blocks ask",
+        "stale": "Current authority and terminal execution rechecked; late outcome belongs only original branch; no stale overwrite",
+        "replay": "Same action retry creates one alternative branch/run; explicit different action consumes new reservation",
+        "failure": "Nested admission failure leaves no orphan branch; source run remains unchanged",
+        "uncertain": "Terminal cancellation with usage unknown may retain original hold; unknown execution cannot be silently retried",
+        "crash": "G-DUR-01",
+        "restart": "G-DUR-02",
+        "upgrade": "G-UPG-01"
+      },
+      "proof_needed": [
+        "B",
+        "M",
+        "D",
+        "P",
+        "X"
+      ],
+      "source_causal_examples": [
+        "draft/CanChat.can:111"
+      ]
+    },
+    {
+      "id": "CH-05",
+      "workflow": "Targeted stop reply",
+      "anchors": [
+        "draft/CanChat.can:117",
+        "draft/CanChat.md:15"
+      ],
+      "actors_grants": "current member original run account; safe recovery after revoke",
+      "current_reference_revision_checks": "Current unfinished Run and no pending cancellation; request_value original source/revision",
+      "expected": {
+        "success": "stop_requested=true and independent LLM.cancel receipt; preserve state/partial/held until authoritative evidence",
+        "denial": "Other account/nonmember/finished run/pending cancellation denied",
+        "stale": "Final success racing stop remains success and settles authenticated usage",
+        "replay": "Matching command replay retains targeted original identity; no duplicate reservation/settlement",
+        "failure": "Cancel transport failure does not force cancelled or zero usage",
+        "uncertain": "Unknown stop distinct from confirmed cancellation; null usage retains hold",
+        "crash": "G-DUR-01",
+        "restart": "G-DUR-02",
+        "upgrade": "G-UPG-01"
+      },
+      "proof_needed": [
+        "B",
+        "M",
+        "D",
+        "P",
+        "X"
+      ],
+      "source_causal_examples": [
+        "draft/CanChat.can:91"
+      ]
+    },
+    {
+      "id": "CH-06",
+      "workflow": "Reconcile retained reply",
+      "anchors": [
+        "draft/CanChat.can:123",
+        "draft/CanChat.md:13",
+        "draft/CanChat.md:15"
+      ],
+      "actors_grants": "current member original run account",
+      "current_reference_revision_checks": "Current unfinished or used-null Run; no pending reconcile; original request_value source/revision/provider account",
+      "expected": {
+        "success": "Query existing run; associated recovery receipt; repaired callback may consume same verified sequence once",
+        "denial": "Foreign/fully settled finished/pending reconcile denied",
+        "stale": "Wrong/stale identity/provider account rejected; never replace original profile or run",
+        "replay": "Repeat query cannot call LLM.generate; same-sequence re-notification can repair failed business callback",
+        "failure": "Recovery failure visible independently; original partial/evidence preserved",
+        "uncertain": "Provider restart losing unobserved output returns unknown, not token resume or invented new inference",
+        "crash": "G-DUR-01",
+        "restart": "G-DUR-02",
+        "upgrade": "G-UPG-01"
+      },
+      "proof_needed": [
+        "B",
+        "M",
+        "D",
+        "P",
+        "X"
+      ],
+      "source_causal_examples": []
+    },
+    {
+      "id": "CH-07",
+      "workflow": "Release authoritative skipped text request",
+      "anchors": [
+        "draft/CanChat.can:129",
+        "draft/CanChat.md:15"
+      ],
+      "actors_grants": "current member original Run account",
+      "current_reference_revision_checks": "Current request skipped, progress=null, used=null, unfinished=true",
+      "expected": {
+        "success": "Release reserved tokens and one running slot; used=0; unfinished=false once",
+        "denial": "Any ambiguous/dispatched/progress-bearing request/other account denied",
+        "stale": "Current receipt change/stale Run conflicts before counters mutate",
+        "replay": "Saved replay unchanged; new second invocation denied",
+        "failure": "Failure rolls back complete release",
+        "uncertain": "No never-dispatched proof means hold/slot retained",
+        "crash": "G-DUR-01",
+        "restart": "G-DUR-02",
+        "upgrade": "G-UPG-01"
+      },
+      "proof_needed": [
+        "B",
+        "M",
+        "D",
+        "X"
+      ],
+      "source_causal_examples": []
+    },
+    {
+      "id": "CH-08",
+      "workflow": "Revoke conversation and member_removed hook",
+      "anchors": [
+        "draft/CanChat.can:135",
+        "draft/CanChat.can:143",
+        "draft/CanChat.md:21",
+        "draft/CanChat.md:27"
+      ],
+      "actors_grants": "owner member invokes revoke; trusted membership removal event; trusted provider callbacks retain settlement authority",
+      "current_reference_revision_checks": "Current active owned Conversation; current active_member on delayed event; active affected runs bounded by <=10 admission",
+      "expected": {
+        "success": "active=false immediately withholds branches/transcript/files/partial; suppress pending dispatch and send targeted cancellations; original owner retains safe status/usage recovery only",
+        "denial": "Other owner/nonmember/already revoked invocation denied; removal event cannot confer private access",
+        "stale": "Delayed removal after rejoin does not cancel newly authorized work; pending dispatch checks latest membership",
+        "replay": "Replay/duplicate event does not duplicate pending cancellations; no new generation",
+        "failure": "Technical event failure retryable; no content visibility restoration from cancel/provider errors",
+        "uncertain": "Already-running work may finish and settle while hidden; browser disconnect is not revoke or stop",
+        "crash": "G-DUR-01",
+        "restart": "G-DUR-02",
+        "upgrade": "G-UPG-01"
+      },
+      "proof_needed": [
+        "B",
+        "D",
+        "P",
+        "X"
+      ],
+      "source_causal_examples": [
+        "draft/CanChat.can:91",
+        "draft/CanChat.can:150"
+      ]
+    },
+    {
+      "id": "CH-09",
+      "workflow": "reply_progressed cumulative state and once-only business settlement",
+      "anchors": [
+        "draft/CanChat.can:153",
+        "draft/CanChat.md:13",
+        "draft/CanChat.md:23"
+      ],
+      "actors_grants": "trusted original associated LLM.generate progress, not browser result injection",
+      "current_reference_revision_checks": "Exact original receipt/source/revision, monotone sequence/terminal rules, used<=reserved, nonterminal usage=null, terminal usage changes only null->authoritative total",
+      "expected": {
+        "success": "Authoritative total releases full token hold and adds spent once; terminal releases running once; succeeded appends one immutable assistant Turn per run; escaped cumulative partial excludes private reasoning",
+        "denial": "Wrong/unrelated identity/payload conflict/terminal regression/over-reserve or inconsistent usage rejected",
+        "stale": "Older/duplicate progress ignored; late terminal usage settles preserved hold without second concurrency release",
+        "replay": "Repeated callback creates no duplicate Turn/usage settlement; unrelated receipt touches nothing",
+        "failure": "HTTP-200 midstream error preserves incomplete partial and no completed Turn; callback business writes all roll back while verified snapshot visible; repair/reconcile can notify same sequence",
+        "uncertain": "running/unknown retain hold and slot; cancelled with unknown usage frees slot but keeps hold; only successful final content creates completed assistant turn",
+        "crash": "G-DUR-01",
+        "restart": "G-DUR-02",
+        "upgrade": "G-UPG-01"
+      },
+      "proof_needed": [
+        "B",
+        "D",
+        "P",
+        "X"
+      ],
+      "source_causal_examples": [
+        "draft/CanChat.can:168",
+        "draft/CanChat.can:175",
+        "draft/CanChat.can:178",
+        "draft/CanChat.can:181"
+      ]
+    },
+    {
+      "id": "CH-10",
+      "workflow": "Private attachments, transcript and safe receipt projections",
+      "anchors": [
+        "draft/CanChat.can:13",
+        "draft/CanChat.can:25",
+        "draft/CanChat.can:28",
+        "draft/CanChat.can:29",
+        "draft/CanChat.md:21",
+        "draft/CanChat.md:25"
+      ],
+      "actors_grants": "current owner/member/conversation grants; safe recovery owner status; ai_manager no blanket private access",
+      "current_reference_revision_checks": "Current record/field grants at upload/download/poll/query/filter/aggregate/MCP serialization; finalized readable files; original owning field associations",
+      "expected": {
+        "success": "Owned active content visible; revoked safe projection contains only allowed status/accounting; provider diagnostics omit prompt/files",
+        "denial": "ID/old file URL/manager/other member cannot expose transcript/attachments/partial/request internals; no denied leaf in filters or aggregates",
+        "stale": "Grants rechecked after revoke/removal and reconnect; frozen provider input does not freeze viewer authorization",
+        "replay": "Reading/reconnecting same snapshots never resends or reveals formerly permitted content",
+        "failure": "Upload failure leaves existing turns/files unchanged; binding rejects unsupported MIME/features rather than raw URLs",
+        "uncertain": "Unknown provider result cannot grant private reasoning/content outside allowed projection",
+        "crash": "G-READ-01",
+        "restart": "G-READ-02",
+        "upgrade": "G-UPG-01"
+      },
+      "proof_needed": [
+        "B",
+        "M",
+        "D",
+        "P",
+        "X"
+      ],
+      "source_causal_examples": []
+    },
+    {
+      "id": "CH-11",
+      "workflow": "Chat/recovery/admin complete UI destinations",
+      "anchors": [
+        "draft/CanChat.can:186",
+        "draft/CanChat.can:241",
+        "draft/CanChat.can:250",
+        "draft/CanChat.md:31",
+        "draft/CanChat.md:35"
+      ],
+      "actors_grants": "members chat/recovery; ai_manager admin; nested owner/current grants",
+      "current_reference_revision_checks": "Canonical form references/revisions, safe fields; poll authorized retained state every second",
+      "expected": {
+        "success": "All declared paginated conversations/branch drawers/prefix+turn bubbles, regenerate/title, send/files, run cards/statuses/token progress/partial/loading, recovery controls and model/allowance typed administration; EN/NL/accessibility/focus/drafts",
+        "denial": "Wrong audience or removed grant withholds content and invalid controls; profile admin cannot see other private chats",
+        "stale": "Poll/state changes preserve drafts but reread authority; null token usage uses unavailable presentation",
+        "replay": "Reload/reconnect/back reads retained run; no operation/autostart on reconnect",
+        "failure": "Empty/error/conflict/failure messages remain distinct; form draft preserved after errors; escape hostile cumulative text",
+        "uncertain": "Generation null/unknown not guessed queued/completed; receipt/stop/recovery status shown independently",
+        "crash": "G-BROW-01",
+        "restart": "G-BROW-02",
+        "upgrade": "G-UPG-01"
+      },
+      "proof_needed": [
+        "B",
+        "M",
+        "X"
+      ],
+      "source_causal_examples": []
+    }
+  ],
+  "gallery_boundary": "CanGallery is downstream and not selected by this witness. Retain CanCreative authorized finalized-output gallery and successful-run eligibility requirement; no downstream CanGallery implementation acceptance inferred."
+}

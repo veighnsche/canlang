@@ -1,0 +1,48 @@
+{
+  "committed_reference_pin": "4e89b117d3f66caa79a8df8ed875d55f9e40b948",
+  "scope": "Local drafts are ignored by Git. Archived October 4 versions are historical intent; byte equality is recorded per file. No implementation acceptance.",
+  "files": {
+    "draft/CanRent.can": {
+      "stage": "local ignored draft intent; source inspection only, not committed implementation",
+      "sha256": "38122784280f5bc9e32cd4b62e7b236eb3bf3f51121a75751cfb087b25960654",
+      "archived_path": "design/evaluation/baseline-20261004T041647Z/snapshot/draft/CanRent.can",
+      "archived_sha256": "cfdd79613941b6e8aa67959f7f3c69126e0f64d591f249c0f3002d2df2ece288",
+      "same_bytes_as_archive": false
+    },
+    "draft/CanLeave.can": {
+      "stage": "local ignored draft intent; source inspection only, not committed implementation",
+      "sha256": "5965a2ff4a1e5294b4a3aac97ab99fb62f48be3c92bb2059a60e24cc47d09dca",
+      "archived_path": "design/evaluation/baseline-20261004T041647Z/snapshot/draft/CanLeave.can",
+      "archived_sha256": "d3f4a24502e97389c84682451a4e90d138488d49eff315a8031b57c0059c45ab",
+      "same_bytes_as_archive": false
+    },
+    "draft/CanLoyalty.can": {
+      "stage": "local ignored draft intent; source inspection only, not committed implementation",
+      "sha256": "15705d0052f4a7173b6b4477fd2131d2014286618ddd7732aa50e2740881e7e3",
+      "archived_path": "design/evaluation/baseline-20261004T041647Z/snapshot/draft/CanLoyalty.can",
+      "archived_sha256": "45bbfc89545df6cd4c445dbfa9e4004de0802fd0b948644fb459773dda29b14e",
+      "same_bytes_as_archive": false
+    },
+    "draft/CanApprove.can": {
+      "stage": "local ignored draft intent; source inspection only, not committed implementation",
+      "sha256": "515648eb449308363023ed6fe7cc986c0eceba58ba5fa5f88a6c30cf7a0fc981",
+      "archived_path": "design/evaluation/baseline-20261004T041647Z/snapshot/draft/CanApprove.can",
+      "archived_sha256": "823a344ecde6949b137526c831c18f89a265dbb56fb0e401a7042af3c170917a",
+      "same_bytes_as_archive": false
+    },
+    "draft/CanBook.can": {
+      "stage": "local ignored draft intent; source inspection only, not committed implementation",
+      "sha256": "ad7f51eef69d5f48dc862142c38d4796ead0e3f383270b2288f0210c92d36029",
+      "archived_path": "design/evaluation/baseline-20261004T041647Z/snapshot/draft/CanBook.can",
+      "archived_sha256": "cd4520fc0ab89ac253fc884d4a378eb61287c6eff4514fa0177a5b4b012588cf",
+      "same_bytes_as_archive": false
+    },
+    "draft/CanCreative.can": {
+      "stage": "local ignored draft intent; source inspection only, not committed implementation",
+      "sha256": "a65f6aaf3c0ee3eeefe064a44eb7a72782d7edae02ed693a434e23c72c16bd52",
+      "archived_path": "design/evaluation/baseline-20261004T041647Z/snapshot/draft/CanCreative.can",
+      "archived_sha256": null,
+      "same_bytes_as_archive": false
+    }
+  }
+}

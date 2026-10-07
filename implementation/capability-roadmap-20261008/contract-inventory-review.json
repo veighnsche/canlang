@@ -1,0 +1,19 @@
+{
+  "task": "SEQ-005",
+  "scope": "Factual narrow contract inventory, not defining-owner release",
+  "reviewer": "root coordinator, separate from author",
+  "status": "inventory_verified_release_pending",
+  "committed_source_pin": "7205de218eba543acb160b839aa13b18db759faa",
+  "source_pins_verified": 41,
+  "task_rows": 9,
+  "review": "Exact current producer/consumer interfaces and accepted definitions traced against prior narrow receipts. Main absent joins are explicit, with original gates and defining owners. No source-created Value owner/revision authority inferred; no sharedMCP subset contract silently upgraded to complete canonicalmetadata.",
+  "remaining": [
+    "Defining owners must accept exact selected canonical execution/schema/current authority boundaries.",
+    "Unsupported-type and computed default/constraint representation seams require explicit producer/consumer decisions before repair.",
+    "No full8\u201316qualification or product change follows from inventory."
+  ],
+  "reviewed_files_sha256": {
+    "contract-inventory/matrix.json": "00bccf628c34a7c595655a30fd783146b676479543af90553d621217b491502d",
+    "contract-inventory/README.md": "6a825bb47483b4853500846f7a13a39533ed7ea84cba4d13f2d23572edf60f37"
+  }
+}

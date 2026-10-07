@@ -1,0 +1,22 @@
+{
+  "owner": "Candidate.stage",
+  "cases": [
+    "applied",
+    "interview",
+    "offer",
+    "hired",
+    "rejected",
+    "withdrawn"
+  ],
+  "expected": {
+    "applied": "Applied",
+    "interview": "Interview",
+    "offer": "Offer",
+    "hired": "Hired",
+    "rejected": "Rejected",
+    "withdrawn": "Withdrawn"
+  },
+  "baseline_else_covers": "withdrawn",
+  "added_case": "screening",
+  "omitted_case": "offer"
+}

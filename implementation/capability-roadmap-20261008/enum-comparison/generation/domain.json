@@ -1,0 +1,20 @@
+{
+  "owner": "Job.status",
+  "cases": [
+    "idle",
+    "queued",
+    "generating",
+    "ready",
+    "failed"
+  ],
+  "expected": {
+    "idle": "Ready to queue",
+    "queued": "Queued for generation",
+    "generating": "Generating",
+    "ready": "Generation complete",
+    "failed": "Generation failed"
+  },
+  "baseline_else_covers": "failed",
+  "added_case": "paused",
+  "omitted_case": "generating"
+}

@@ -1,0 +1,753 @@
+{
+  "task": "SEQ-004",
+  "kind": "independent expected-outcome requirements; no self-acceptance",
+  "execution_status": "not executed",
+  "source_stage": "complete current draft contract; desired .mjs is not runtime proof",
+  "outcome_dimensions": [
+    "success",
+    "denial",
+    "stale",
+    "replay",
+    "failure",
+    "uncertain",
+    "crash",
+    "restart",
+    "upgrade"
+  ],
+  "proof_key": {
+    "S": "authored causal examples only; never execution proof",
+    "B": "browser/rendering/upload/download/current-grant behavior required",
+    "M": "if generated MCP interface exposes this operation, equivalent authenticated current-reference/revision checks and leaf grants required",
+    "D": "durable transaction/outbox/event/timer/replay/crash behavior required",
+    "P": "real provider/binding behavior required",
+    "X": "pinned release/configuration/backend/files/provider deployment required"
+  },
+  "common_cases": "common-cases.json",
+  "acceptance_owner": "root after source/registration checks",
+  "witness": "original complete CanApprove + canonical Employees/Locations",
+  "approval_semantics": "Exactly ONE currently assigned eligible reviewer distinct from submitter; decision pertains only to the immutable document revision; no quorum substitution.",
+  "workflow_ids": {
+    "approve": [
+      "CA-01",
+      "CA-02",
+      "CA-03",
+      "CA-04",
+      "CA-05",
+      "CA-06",
+      "CA-07",
+      "CA-08",
+      "CA-09",
+      "CA-10",
+      "CA-11",
+      "CA-12",
+      "CA-13",
+      "CA-14"
+    ],
+    "employee": [
+      "EM-01",
+      "EM-02",
+      "EM-03",
+      "EM-04"
+    ],
+    "location": [
+      "LO-01",
+      "LO-02",
+      "LO-03",
+      "LO-04"
+    ]
+  },
+  "matrix": [
+    {
+      "id": "CA-01",
+      "workflow": "Document intake/update and own scope",
+      "anchors": [
+        "draft/CanApprove.can:12",
+        "draft/CanApprove.can:21",
+        "draft/CanApprove.can:86",
+        "draft/CanApprove.md:15",
+        "draft/CanApprove.md:73"
+      ],
+      "actors_grants": "members create/edit only own Document; current can_work for site; null location operator-wide",
+      "current_reference_revision_checks": "Actual current owning Location/ref and Document envelope; server submitter=actor; create location/email/current immutable through public update field set",
+      "expected": {
+        "success": "Create own titled/category/subject/email Document current=0; edit own title/category/subject under site scope; no copied Employee/Location owner",
+        "denial": "Other member/nonmember/cross-site actor denied; coordinator authority does not make My submissions include others; no delete operation",
+        "stale": "Stale record envelope conflicts; workplace loss denies new site edit without losing own retained history",
+        "replay": "Saved operation retry returns same Document/change",
+        "failure": "Field/reference/invariant or commit failure leaves original document unchanged",
+        "uncertain": "Unknown local result resolved by original operation identity; no fake current revision",
+        "crash": "G-DUR-01",
+        "restart": "G-DUR-02",
+        "upgrade": "G-UPG-01"
+      },
+      "proof_needed": [
+        "B",
+        "M",
+        "D",
+        "X"
+      ],
+      "source_causal_examples": [
+        "draft/CanApprove.can:87"
+      ]
+    },
+    {
+      "id": "CA-02",
+      "workflow": "reviewer_choices viewer query and candidate-bound forms",
+      "anchors": [
+        "draft/CanApprove.can:56",
+        "draft/CanApprove.can:293",
+        "draft/CanApprove.can:332",
+        "draft/CanApprove.md:83"
+      ],
+      "actors_grants": "member who is submitter or current scoped coordinator; Employee viewer grants, not authority/auth directory",
+      "current_reference_revision_checks": "Current Document/Location; active Employee; actual current approve.reviewer role; candidate.user distinct from caller and submitter; site can_work; readable user/name/work role/home",
+      "expected": {
+        "success": "Return authorized eligible work candidates; two Alex accounts remain separate user refs; missing name uses opaque user; candidate-bound submit/assign keeps canonical guards",
+        "denial": "Other caller/public/outsider denied; work role text Reviewer confers nothing; inactive/foreign-site candidate excluded; private HR leaves unavailable via work query",
+        "stale": "Context/employment/team/role/locations change reruns choices and consequential submit/assign guards; stale choice cannot grant role",
+        "replay": "Repeated read is side-effect-free; no created assignment/admission",
+        "failure": "Unavailable owner/query limits explicit failure; never assume no candidates means proof of global ineligibility",
+        "uncertain": "Nonstaff operator-wide caller may see truthful empty viewer list while opaque user admission remains role-only",
+        "crash": "G-READ-01",
+        "restart": "G-READ-02",
+        "upgrade": "G-UPG-01"
+      },
+      "proof_needed": [
+        "B",
+        "M",
+        "D",
+        "X"
+      ],
+      "source_causal_examples": [
+        "draft/CanApprove.can:59"
+      ]
+    },
+    {
+      "id": "CA-03",
+      "workflow": "Submit immutable version and withdraw old pending reviews",
+      "anchors": [
+        "draft/CanApprove.can:92",
+        "draft/CanApprove.can:27",
+        "draft/CanApprove.can:28",
+        "draft/CanApprove.md:21",
+        "draft/CanApprove.md:75"
+      ],
+      "actors_grants": "member submitter; site submitter and selected reviewer currently can_work; assignee actual approve.reviewer and distinct account",
+      "current_reference_revision_checks": "Current Document envelope/current integer; readable finalized file; current assignee ref/role/eligibility; due>now; revision=current+1; role-only for null location",
+      "expected": {
+        "success": "Atomically withdraw pending prior versions/cancel their due occurrences; create immutable new file/note/due revision, increment Document.current, create assigned request Notice and revision+assignment-bound Due occurrence; earlier decisions/files retained",
+        "denial": "Foreign submitter/self review/nonreviewer/descriptive-role-only/ineligible site/past or equal due/unreadable file denied",
+        "stale": "Old document envelope conflicts; concurrent replacement admits sequential current revision; failed admission leaves old pending state/file/timer unchanged; old reviewer action conflicts after replacement",
+        "replay": "Saved retry returns same submitted revision/request/timer; no duplicate version/withdrawal/message",
+        "failure": "Upload failure never swaps original submitted file; local failure rolls back all withdrawal/new version/current/notice/schedule effects",
+        "uncertain": "Unknown commit/upload state queried using original identity; no old approval attached to changed bytes",
+        "crash": "G-DUR-01",
+        "restart": "G-DUR-02",
+        "upgrade": "G-UPG-01"
+      },
+      "proof_needed": [
+        "B",
+        "M",
+        "D",
+        "X"
+      ],
+      "source_causal_examples": [
+        "draft/CanApprove.can:103",
+        "draft/CanApprove.can:114",
+        "draft/CanApprove.can:118",
+        "draft/CanApprove.can:141"
+      ]
+    },
+    {
+      "id": "CA-04",
+      "workflow": "Coordinator assign/reassign/recover ONE eligible reviewer",
+      "anchors": [
+        "draft/CanApprove.can:198",
+        "draft/CanApprove.can:30",
+        "draft/CanApprove.md:23",
+        "draft/CanApprove.md:77"
+      ],
+      "actors_grants": "current coordinator; site coordinator currently can_work; replacement distinct from submitter with actual current approve.reviewer role and site eligibility",
+      "current_reference_revision_checks": "Current Submission version, pending state, revision==Document.current; current replacement ref/role/eligibility; frozen file/note/due unchanged",
+      "expected": {
+        "success": "Change sole reviewer/email; increment assignment; record attributed request Notice/history; replace Due at max(now,due); overdue remains overdue; recover same submission after reviewer role/workplace loss",
+        "denial": "Ordinary member/non-scoped coordinator/self assignee/nonreviewer/site-ineligible/finalized submission denied; no generic quorum or bypass",
+        "stale": "Stale Submission envelope conflicts; old reviewer fresh decision fails assignment guard; old Due assignment cannot remind; choices rerun authority",
+        "replay": "Matching retry preserves one assignment increment/notice/replaced timer; new explicit reassignment distinct",
+        "failure": "Failure rolls back reviewer/email/assignment/history/notice/timer atomically; original file/note/due retained",
+        "uncertain": "Unknown commit resolves current same submission and saved operation; no invented successful reassignment",
+        "crash": "G-DUR-01",
+        "restart": "G-DUR-02",
+        "upgrade": "G-UPG-01"
+      },
+      "proof_needed": [
+        "B",
+        "M",
+        "D",
+        "X"
+      ],
+      "source_causal_examples": [
+        "draft/CanApprove.can:204",
+        "draft/CanApprove.can:215",
+        "draft/CanApprove.can:141",
+        "draft/CanApprove.can:171"
+      ]
+    },
+    {
+      "id": "CA-05",
+      "workflow": "Approve or reasoned reject exact current pending version",
+      "anchors": [
+        "draft/CanApprove.can:219",
+        "draft/CanApprove.can:29",
+        "draft/CanApprove.md:21",
+        "draft/CanApprove.md:54",
+        "draft/CanApprove.md:58"
+      ],
+      "actors_grants": "ONE currently assigned approve.reviewer; distinct from submitter; site can_work; coordinator role alone grants no decision",
+      "current_reference_revision_checks": "Current Submission version and immutable file revision==Document.current; pending; reviewer==actor; actual current role; rejection nonblank reason",
+      "expected": {
+        "success": "Set approved/rejected with exact file retained, reason/approval conditions, actor/time; cancel due occurrence; create one decision Notice to frozen submitter email; decision authorizes document only",
+        "denial": "Self/unassigned/former assignee/ordinary/coordinator-only/nonmember/role-lost/site-ineligible reviewer denied; blank rejection reason denied; approved/rejected/withdrawn cannot receive new decision",
+        "stale": "Older open file/assignment envelope returns conflict; fresh old file or wrong assignee fails rules; no silent current-file substitution",
+        "replay": "Canonical matching saved decision retry returns original result/actor/time and no new Notice; fresh operation against finalized version fails",
+        "failure": "Admission/commit failure leaves pending file/decision/timer intact; later failed email preserves saved decision evidence",
+        "uncertain": "Unknown decision response resolves original saved result; unknown email is independent and cannot justify a second decision",
+        "crash": "G-DUR-01",
+        "restart": "G-DUR-02",
+        "upgrade": "G-UPG-01"
+      },
+      "proof_needed": [
+        "B",
+        "M",
+        "D",
+        "X"
+      ],
+      "source_causal_examples": [
+        "draft/CanApprove.can:228",
+        "draft/CanApprove.can:237",
+        "draft/CanApprove.can:118",
+        "draft/CanApprove.can:141",
+        "draft/CanApprove.can:171"
+      ]
+    },
+    {
+      "id": "CA-06",
+      "workflow": "Submitter withdraw pending version",
+      "anchors": [
+        "draft/CanApprove.can:242",
+        "draft/CanApprove.md:73",
+        "draft/CanApprove.md:75"
+      ],
+      "actors_grants": "current member Document.submitter; own retained submission; workplace loss does not remove own withdrawal",
+      "current_reference_revision_checks": "Current Submission envelope/pending state; exact file and prior decisions retained",
+      "expected": {
+        "success": "Set withdrawn and cancel named Due occurrence; no file/decision deletion",
+        "denial": "Other actor/nonmember/finalized version denied",
+        "stale": "Decision/replacement/withdrawal race resolves at current version; stale envelope conflicts",
+        "replay": "Saved replay stays withdrawn with one cancellation; fresh second withdraw fails pending guard",
+        "failure": "Local failure leaves pending state/timer/file unchanged",
+        "uncertain": "Unknown commit resolved under original operation; no presumed timer cancellation",
+        "crash": "G-DUR-01",
+        "restart": "G-DUR-02",
+        "upgrade": "G-UPG-01"
+      },
+      "proof_needed": [
+        "B",
+        "M",
+        "D",
+        "X"
+      ],
+      "source_causal_examples": [
+        "draft/CanApprove.can:247"
+      ]
+    },
+    {
+      "id": "CA-07",
+      "workflow": "Due event revision/assignment-bound reminder",
+      "anchors": [
+        "draft/CanApprove.can:17",
+        "draft/CanApprove.can:252",
+        "draft/CanApprove.md:50",
+        "draft/CanApprove.md:79"
+      ],
+      "actors_grants": "trusted durable scheduled occurrence; current assigned reviewer role/workplace eligibility",
+      "current_reference_revision_checks": "Current Submission and Document; pending, same revision and assignment, now>=due; current reviewer role/can_work",
+      "expected": {
+        "success": "Create one attributed reminder Notice to current assigned email for exact eligible pending version; current overdue projection agrees due<now",
+        "denial": "Early/withdrawn/finalized/current-revision mismatch/old assignment/nonreviewer/ineligible-site occurrence denied; browsers cannot fabricate trusted Due",
+        "stale": "Old occurrence after replacement/reassign/decision suppressed; late eligible overdue reassign scheduled max(now,due)",
+        "replay": "Same durable occurrence retry creates no duplicate reminder; separate recurring policy not authored",
+        "failure": "Crash/transaction failure leaves durable occurrence retryable without partial Notice; bounded/historical timers retained",
+        "uncertain": "Scheduler uncertainty cannot claim reminder delivered or review decided",
+        "crash": "G-DUR-01",
+        "restart": "G-DUR-02",
+        "upgrade": "G-UPG-01"
+      },
+      "proof_needed": [
+        "D",
+        "P",
+        "X"
+      ],
+      "source_causal_examples": [
+        "draft/CanApprove.can:255"
+      ]
+    },
+    {
+      "id": "CA-08",
+      "workflow": "Committed Notice.created hook and frozen guarded Mail.send",
+      "anchors": [
+        "draft/CanApprove.can:264",
+        "draft/CanApprove.can:19",
+        "draft/CanApprove.md:79"
+      ],
+      "actors_grants": "trusted committed owner-local Notice.created event; Notice has no public create operation",
+      "current_reference_revision_checks": "Reload Notice by event.id; delivery==null; frozen recipient/subject/body; request/reminder recheck pending current revision/assignment/email/current reviewer role/site eligibility; decision historical payload independent",
+      "expected": {
+        "success": "Associate exactly one durable Mail.send receipt; canonical original domain actor/time preserved; dispatch uses same frozen notice/provider identity",
+        "denial": "Forged event/public Notice CRUD cannot send; stale request/reminder no longer matching review suppressed/skipped; no broadened receipt internals",
+        "stale": "Post-commit reassignment/replacement/role or site loss rechecked at enqueue AND dispatch; decision Notice remains tied to already saved historical decision",
+        "replay": "Duplicate committed event with existing association enqueues nothing; outbox retries same intent/account/provider identity",
+        "failure": "Association/enqueue transaction failure retries without orphan send; failed Mail receipt never rolls back approved/rejected evidence",
+        "uncertain": "Unknown mail transport remains unknown original identity; no duplicate business Notice or resend through different account",
+        "crash": "G-DUR-01",
+        "restart": "G-DUR-02",
+        "upgrade": "G-UPG-01"
+      },
+      "proof_needed": [
+        "D",
+        "P",
+        "X"
+      ],
+      "source_causal_examples": []
+    },
+    {
+      "id": "CA-09",
+      "workflow": "Associated delivery status and exact Notice leaf grants",
+      "anchors": [
+        "draft/CanApprove.can:14",
+        "draft/CanApprove.can:15",
+        "draft/CanApprove.can:18",
+        "draft/CanApprove.can:20",
+        "draft/CanApprove.md:81"
+      ],
+      "actors_grants": "submitter member, scoped coordinator, or currently assigned nonwithdrawn site-eligible reviewer; only listed safe leaves",
+      "current_reference_revision_checks": "Read selected associated delivery; exact current record/field grants including ID/status; no result/error/request internals; receipt observation fence",
+      "expected": {
+        "success": "Null when unassociated; pending/succeeded/failed/unknown/skipped from original associated receipt; Notice/Submission versions, deadline, file, reason and actor/time unchanged by transport status",
+        "denial": "Denied delivery result/error or request internals cannot serialize, filter, aggregate or be reached through exports; unrelated actor/site/withdrawn reviewer hidden",
+        "stale": "Former assignment/site loss removes old read authority; detached/older failed receipt cannot change associated status; live receipt progress does not stale immutable review version",
+        "replay": "Repeated read/progress does not rerun domain hooks, create messages or change business decision",
+        "failure": "Mail failed remains visible safe failed state while exact approved file/reason/actor/time retained",
+        "uncertain": "Unknown delivery distinct from failed/skipped/succeeded; no inferred delivery success from persisted decision",
+        "crash": "G-READ-01",
+        "restart": "G-READ-02",
+        "upgrade": "G-UPG-01"
+      },
+      "proof_needed": [
+        "B",
+        "M",
+        "D",
+        "P",
+        "X"
+      ],
+      "source_causal_examples": [
+        "draft/CanApprove.can:73",
+        "draft/CanApprove.can:82"
+      ]
+    },
+    {
+      "id": "CA-10",
+      "workflow": "Rejection -> replacement -> approval end-to-end",
+      "anchors": [
+        "draft/CanApprove.can:118",
+        "draft/CanApprove.md:60",
+        "draft/CanApprove.md:64"
+      ],
+      "actors_grants": "member submitter and current distinct assigned eligible reviewer across steps",
+      "current_reference_revision_checks": "Actual original/replacement finalized files and canonical reload of each current record/version; original decisions immutable",
+      "expected": {
+        "success": "Reasoned rejection on revision1; cannot reassign rejected version; revision2 replacement obtains own approval conditions/actor/time/Notice; both versions downloadable beside respective decisions",
+        "denial": "Cannot swap old approval onto new file; another reviewer or submitter cannot decide; no automatic construction/spending/access authorization",
+        "stale": "Each step rechecks current revision/grants; stale read never overwrites original history",
+        "replay": "Retry any saved step yields same immutable file/decision/notice; no duplicate version/message",
+        "failure": "Failed upload/new admission preserves existing file; saved decision plus failed notification remains distinct",
+        "uncertain": "Any uncertain step shows unresolved authoritative status rather than advancing assumed next state",
+        "crash": "G-DUR-01",
+        "restart": "G-DUR-02",
+        "upgrade": "G-UPG-01"
+      },
+      "proof_needed": [
+        "B",
+        "M",
+        "D",
+        "P",
+        "X"
+      ],
+      "source_causal_examples": [
+        "draft/CanApprove.can:118"
+      ]
+    },
+    {
+      "id": "CA-11",
+      "workflow": "Stale open review -> replacement -> reassignment recovery journey",
+      "anchors": [
+        "draft/CanApprove.can:141",
+        "draft/CanApprove.md:65",
+        "draft/CanApprove.md:93"
+      ],
+      "actors_grants": "own submitter; former and replacement reviewers; scoped coordinator; ordinary unrelated user",
+      "current_reference_revision_checks": "Old Submission envelope; new current revision reload; current assignment and replacement work grant",
+      "expected": {
+        "success": "Replacement invalidates old open review; conflict UI opens current authorized request; coordinator assigns new reviewer with attributed request history; only replacement decides",
+        "denial": "Ordinary assign forbidden; ordinary user sees zero Documents/Submissions; former reviewer current attempt fails; coordinator decision authority absent",
+        "stale": "Old file envelope and stale assignment each conflict; remove old reviewer decision control after poll/current read",
+        "replay": "Replay saved replacement/assignment/decision does not duplicate history or notice",
+        "failure": "Invalid due replacement is business admission failure preserving old state; runtime upload-failure journey remains separately required",
+        "uncertain": "Uncertain reassignment never permits both reviewers to decide",
+        "crash": "G-DUR-01",
+        "restart": "G-DUR-02",
+        "upgrade": "G-UPG-01"
+      },
+      "proof_needed": [
+        "B",
+        "M",
+        "D",
+        "X"
+      ],
+      "source_causal_examples": [
+        "draft/CanApprove.can:141"
+      ]
+    },
+    {
+      "id": "CA-12",
+      "workflow": "Reviewer workplace/role loss -> coordinator same-file recovery",
+      "anchors": [
+        "draft/CanApprove.can:171",
+        "draft/shared/Employees.can:18",
+        "draft/CanApprove.md:73",
+        "draft/CanApprove.md:77",
+        "draft/CanApprove.md:94"
+      ],
+      "actors_grants": "HR deactivates existing Employee; current coordinator recovers; reviewer static role may remain after workplace loss",
+      "current_reference_revision_checks": "Actual HR canonical deactivate; current Employee/can_work; stale Submission version; replacement actual current reviewer role; null-scope role-only preserved",
+      "expected": {
+        "success": "Before/after viewer choices remove unavailable site candidate; unavailable site reviewer decision denied; coordinator increments assignment on same revision/file/note/due; replacement approves; old/new requests retained",
+        "denial": "HR does not acquire decision role; work-role text cannot substitute actual permission; no finalized reassignment; lost coordinator site cannot recover",
+        "stale": "Old assignment version conflicts; delayed eligibility event cannot override current owner query; live role/team revocation reevaluated at read/action/reminder/dispatch",
+        "replay": "Replay deactivation or recovery matching operation preserves original result and avoids duplicate assignment/messages",
+        "failure": "Invalid end date/deactivation/reassignment transaction rolls back fully; immutable submitted evidence persists",
+        "uncertain": "External notice unknown independent of employee/assignment/decision; no invented eligibility from unavailable owner",
+        "crash": "G-DUR-01",
+        "restart": "G-DUR-02",
+        "upgrade": "G-UPG-01"
+      },
+      "proof_needed": [
+        "B",
+        "M",
+        "D",
+        "P",
+        "X"
+      ],
+      "source_causal_examples": [
+        "draft/CanApprove.can:171"
+      ]
+    },
+    {
+      "id": "CA-13",
+      "workflow": "My submissions and Review queue complete browser/MCP surfaces",
+      "anchors": [
+        "draft/CanApprove.can:273",
+        "draft/CanApprove.can:310",
+        "draft/CanApprove.can:50",
+        "draft/CanApprove.md:29",
+        "draft/CanApprove.md:36",
+        "draft/CanApprove.md:40"
+      ],
+      "actors_grants": "members own page; reviewer or coordinator review page; every record/leaf canonical scoped grant",
+      "current_reference_revision_checks": "Current selection/submission revisions and eligibility; preferences only filter currently authorized records; exact downloadable file",
+      "expected": {
+        "success": "Both paginated pages with intake/edit/submit, viewer candidates, EN/NL, version/decision history, notice assignment/actor/status, due-ordered filters/overdue, decision checkbox+reason modal, coordinator assignment modal/candidate forms; preserve accessible focus/drafts and narrow-screen revision/deadline/reason",
+        "denial": "No arbitrary approval-input-setting buttons; controls follow current role/assignment; preferences cannot widen scope; exports/linked IDs grant no file permission",
+        "stale": "Shared changed-revision conflict state directs to current authorized submission; old controls disappear after reassignment/site/role loss; draft notes/reasons preserved",
+        "replay": "Reload/retry cannot duplicate decisions/submissions; pending submit disabled; saved retry displays original result",
+        "failure": "Upload/decision/notice failure separate; empty states explicit; confirm discard unsaved drafts; accessible modal focus",
+        "uncertain": "Decision saved with unknown email shown separately; datetime due is zone-aware, no invented countdown",
+        "crash": "G-BROW-01",
+        "restart": "G-BROW-02",
+        "upgrade": "G-UPG-01"
+      },
+      "proof_needed": [
+        "B",
+        "M",
+        "X"
+      ],
+      "source_causal_examples": []
+    },
+    {
+      "id": "CA-14",
+      "workflow": "Exact-file upload/download and retained document evidence",
+      "anchors": [
+        "draft/CanApprove.can:13",
+        "draft/CanApprove.can:24",
+        "draft/CanApprove.can:28",
+        "draft/CanApprove.md:11",
+        "draft/CanApprove.md:32",
+        "draft/CanApprove.md:54"
+      ],
+      "actors_grants": "current owning Document/Submission read and field grants; own submitter keeps version history; scoped coordinator; assigned eligible nonwithdrawn reviewer",
+      "current_reference_revision_checks": "Actual finalized immutable R2 file; original owning field reference/current authority at bytes/preview/download; file/note/due/revision locked",
+      "expected": {
+        "success": "Both downloaded versions match their exact decisions; retention includes actor/time and assignment history; protected file never readable by all team members",
+        "denial": "Foreign/raw/partial file admission denied; old revoked reviewer URLs/exports cannot confer original byte access; no replacement of decided file",
+        "stale": "Reviewer eligibility/assignment loss rechecked on preview/download; submitter own history persists after workplace loss",
+        "replay": "Repeated finalized download/file reference stable; no duplicated submission from file retry",
+        "failure": "Failed upload leaves previously submitted file intact; unavailable retained file exposed as recovery gap, never substituted",
+        "uncertain": "Partial metadata/file restoration stays closed rather than represented as recovered exact evidence",
+        "crash": "G-DUR-01",
+        "restart": "G-DUR-02",
+        "upgrade": "G-UPG-01"
+      },
+      "proof_needed": [
+        "B",
+        "M",
+        "D",
+        "X"
+      ],
+      "source_causal_examples": []
+    },
+    {
+      "id": "EM-01",
+      "workflow": "Employee canonical CRUD and private/work/own grants",
+      "anchors": [
+        "draft/shared/Employees.can:6",
+        "draft/shared/Employees.can:10",
+        "draft/shared/Employees.can:13",
+        "draft/shared/Employees.can:16"
+      ],
+      "actors_grants": "hr creates/updates; current member staff work-leaf read; authenticated own-row full read",
+      "current_reference_revision_checks": "Unique actual user; owning Location refs home/locations; end>=start; CRUD does not publicly edit user or active; current viewer grants",
+      "expected": {
+        "success": "One canonical work identity, work name/role/skills/location fields available under work grant; HR-only/private leaves restricted except explicit authenticated own-row grant",
+        "denial": "NonHR cannot mutate; ordinary work viewer cannot read manager/start/end/private_notes/document without another explicit grant; copied Employee directory not authorized",
+        "stale": "Current membership/active employment loss removes work read and can_work; stale record envelope conflicts",
+        "replay": "Saved create/edit replay avoids duplicate employee/event; immutable user reference unchanged through public edit",
+        "failure": "Invalid end date/duplicate user/bad cross-owner ref rolls back record and derived events",
+        "uncertain": "Unavailable owning Employee cannot be interpreted as eligible reviewer/work grant",
+        "crash": "G-DUR-01",
+        "restart": "G-DUR-02",
+        "upgrade": "G-UPG-01"
+      },
+      "proof_needed": [
+        "M",
+        "D",
+        "X"
+      ],
+      "source_causal_examples": []
+    },
+    {
+      "id": "EM-02",
+      "workflow": "HR deactivate active employment",
+      "anchors": [
+        "draft/shared/Employees.can:18",
+        "draft/CanApprove.can:171"
+      ],
+      "actors_grants": "current hr; canonical Employee owner",
+      "current_reference_revision_checks": "Current active Employee envelope; ended>=start; current role/team grants",
+      "expected": {
+        "success": "Set active=false/end; can_work/staff immediately false; downstream scheduling reconciliation remains separate; actual approve.reviewer grant is not revoked by work role data",
+        "denial": "NonHR/invalid ended/inactive fresh invocation denied",
+        "stale": "Stale record version conflicts; every site read/action consults current can_work even if reviewer role cached",
+        "replay": "Matching saved replay returns prior result; fresh repeated deactivate denied",
+        "failure": "Transaction failure keeps active state and downstream evidence unchanged",
+        "uncertain": "No external or schedule success implied by Employee deactivation",
+        "crash": "G-DUR-01",
+        "restart": "G-DUR-02",
+        "upgrade": "G-UPG-01"
+      },
+      "proof_needed": [
+        "M",
+        "D",
+        "X"
+      ],
+      "source_causal_examples": [
+        "draft/CanApprove.can:171"
+      ]
+    },
+    {
+      "id": "EM-03",
+      "workflow": "Employee.update changed hook / EmployeeChanged",
+      "anchors": [
+        "draft/shared/Employees.can:7",
+        "draft/shared/Employees.can:22"
+      ],
+      "actors_grants": "trusted owning Employee.update event",
+      "current_reference_revision_checks": "Compare before/after home,locations,operator_wide,active,start,end,role,skills; emit actual after.version",
+      "expected": {
+        "success": "Exactly corresponding changed work fields emit EmployeeChanged with owning reference/current revision; name/manager/private_notes/document-only update emits none",
+        "denial": "Browser/untrusted event cannot mutate grants or fake active employment",
+        "stale": "Consumers must use actual current owner revision/grant; descriptive role event does not create functional permission",
+        "replay": "Durable update-event replay must not create duplicate downstream business consequences",
+        "failure": "Technical hook/event failure remains visible retryable under owning transaction/event contract",
+        "uncertain": "Emit does not claim downstream scheduling reconciled or reviewer reassigned",
+        "crash": "G-DUR-01",
+        "restart": "G-DUR-02",
+        "upgrade": "G-UPG-01"
+      },
+      "proof_needed": [
+        "D",
+        "X"
+      ],
+      "source_causal_examples": []
+    },
+    {
+      "id": "EM-04",
+      "workflow": "staff/can_work and canonical cross-owner eligibility",
+      "anchors": [
+        "draft/shared/Employees.can:8",
+        "draft/shared/Employees.can:9",
+        "draft/CanApprove.md:73",
+        "draft/PORTFOLIO.md:48"
+      ],
+      "actors_grants": "actual current Employee+team membership; HR source ownership; approve.reviewer separate functional role",
+      "current_reference_revision_checks": "Employee active AND active_member; home OR locations membership OR operator_wide; no extra Location.active condition declared; null documents avoid invented site requirement",
+      "expected": {
+        "success": "Current site eligibility computed by owner data; active operator-wide Employee works all locations; role-only reviewer can serve null-scope document under original guards",
+        "denial": "Inactive employment or team removal denies site grant even with reviewer role; role text alone grants no approve authority",
+        "stale": "Every page/choices/action/reminder/dispatch reevaluates current owner data, not frozen old eligibility",
+        "replay": "Read/derive never creates duplicated employees/grants/assignments",
+        "failure": "Unavailable identity/source cannot fabricate work eligibility",
+        "uncertain": "Shared context broad active-work requirement versus explicit role-only null-scope admission remains recorded in GAP-CA-03",
+        "crash": "G-READ-01",
+        "restart": "G-READ-02",
+        "upgrade": "G-UPG-01"
+      },
+      "proof_needed": [
+        "M",
+        "D",
+        "X"
+      ],
+      "source_causal_examples": []
+    },
+    {
+      "id": "LO-01",
+      "workflow": "Location and opening interval/exception CRUD",
+      "anchors": [
+        "draft/shared/Locations.can:6",
+        "draft/shared/Locations.can:20",
+        "draft/shared/Locations.can:29",
+        "draft/PORTFOLIO.md:44"
+      ],
+      "actors_grants": "catalog_owner with current can_work for owning Location; public reads only declared catalog leaves",
+      "current_reference_revision_checks": "Canonical current Location/parent refs and revision envelopes; valid timezone/currency; WeeklyHours weekday1..7 and positive resolved interval; DateHours valid or closed; unique dated/closed day",
+      "expected": {
+        "success": "Create/update scoped catalog and weekly/closed/dated hours; no location clone; public published catalog fields; no delete; timezone/currency not public edit fields",
+        "denial": "Cross-site or noncatalog actor cannot mutate; invalid/zero/reversed intervals or duplicate day rejected",
+        "stale": "Workplace/team grant loss or concurrent calendar edits rerun grants/version/invariants",
+        "replay": "Saved operation retry creates no duplicate location/hours or snapshot effects",
+        "failure": "Invariant/reference/commit failure leaves prior calendar and retained policies intact",
+        "uncertain": "Ambiguous local-time gaps/query bound or unavailable canonical source must surface explicit failure, not assumed open",
+        "crash": "G-DUR-01",
+        "restart": "G-DUR-02",
+        "upgrade": "G-UPG-01"
+      },
+      "proof_needed": [
+        "M",
+        "D",
+        "X"
+      ],
+      "source_causal_examples": []
+    },
+    {
+      "id": "LO-02",
+      "workflow": "All eight LocationPolicy snapshot hooks",
+      "anchors": [
+        "draft/shared/Locations.can:12",
+        "draft/shared/Locations.can:14",
+        "draft/shared/Locations.can:33",
+        "draft/shared/Locations.can:37",
+        "draft/shared/Locations.can:41",
+        "draft/shared/Locations.can:45",
+        "draft/shared/Locations.can:49",
+        "draft/shared/Locations.can:53",
+        "draft/shared/Locations.can:57",
+        "draft/shared/Locations.can:61"
+      ],
+      "actors_grants": "trusted owning Location/WeeklyHours/ClosedDate/DateHours create/update events",
+      "current_reference_revision_checks": "Actual changed Location/child parent; full same-owner current weekly/closed/dated values; sequence=count(prior)+1; immutable snapshot fields",
+      "expected": {
+        "success": "Each declared create/update hook retains one complete effective/sequence/active/timezone/calendar snapshot; old snapshots never rewritten; public policy reads",
+        "denial": "Untrusted browser snapshot write or cross-location parent denied; snapshot locks enforced",
+        "stale": "Concurrent owner updates serialized with distinct ordered snapshots; each snapshot corresponds to its committed calendar state",
+        "replay": "Replayed event/operation creates no duplicate logical snapshot; source supplies no executed retry proof",
+        "failure": "Snapshot/business transaction failure does not silently publish incomplete calendar; retry preserves original source association",
+        "uncertain": "Unknown commit/event completion cannot claim snapshot policy current; source policy latest-selection consumer is not declared here",
+        "crash": "G-DUR-01",
+        "restart": "G-DUR-02",
+        "upgrade": "G-UPG-01"
+      },
+      "proof_needed": [
+        "D",
+        "X"
+      ],
+      "source_causal_examples": []
+    },
+    {
+      "id": "LO-03",
+      "workflow": "is_open/policy_open structured calendar evaluation",
+      "anchors": [
+        "draft/shared/Locations.can:15",
+        "draft/shared/Locations.can:22",
+        "draft/shared/Locations.can:23"
+      ],
+      "actors_grants": "public declared catalog/policy reads; derived evaluation under shared work/query limits",
+      "current_reference_revision_checks": "Actual chosen current Location or immutable LocationPolicy; from<until; timezone local dates; closed days veto; dated override or weekly fallback; overnight close_after; explicit fold; dates bound1000",
+      "expected": {
+        "success": "True only when entire interval fits an allowed resolved weekly/dated opening and touches no closed date/day; retained policy uses its frozen active/timezone/calendar",
+        "denial": "Inactive location/policy, reversed/empty interval, closed date/day or outside interval returns false; public calendar does not grant review or employee access",
+        "stale": "Live is_open follows current calendar; policy_open stays frozen; current Location change does not rewrite retained policy",
+        "replay": "Repeated pure derive same authorized snapshot has no side effects",
+        "failure": "Nonexistent/invalid time or exceeded work/query bound yields explicit supported failure; never silently truncate large date range",
+        "uncertain": "Unavailable calendar/required snapshot cannot be assumed open; concrete DST behavior remains GAP-LO-03",
+        "crash": "G-READ-01",
+        "restart": "G-READ-02",
+        "upgrade": "G-UPG-01"
+      },
+      "proof_needed": [
+        "D",
+        "X"
+      ],
+      "source_causal_examples": []
+    },
+    {
+      "id": "LO-04",
+      "workflow": "Shared owner package closure and recovery of references",
+      "anchors": [
+        "draft/shared/Locations.can:3",
+        "draft/shared/Employees.can:3",
+        "draft/CanApprove.can:6",
+        "draft/CanApprove.can:7",
+        "draft/PORTFOLIO.md:17",
+        "draft/PORTFOLIO.md:57"
+      ],
+      "actors_grants": "package owner imports are canonical references, not authority bypass; consumer grant intersection",
+      "current_reference_revision_checks": "Cross-package source IDs/current revisions; Employee.home/locations and Document.location owning refs; retain compatible same deployment owner records/files",
+      "expected": {
+        "success": "Approve uses one Employee and one Location authority; reciprocal source imports resolve exported declarations without cloning; correction never rewrites historical decision",
+        "denial": "Exported reference/import/related link gives no forbidden Employee/Document/file read or competing CRUD",
+        "stale": "Owner alias/migration must preserve scope and attributed history before reopening consumers",
+        "replay": "Replay retained cross-package operation identities remains tied to original owner namespaces",
+        "failure": "Missing owner/file during partial recovery closes affected workflow; no complete-recovery claim",
+        "uncertain": "Cross-deployment transaction/implicit automatic imports not assumed; unknown owner relation remains unresolved",
+        "crash": "G-READ-01",
+        "restart": "G-READ-02",
+        "upgrade": "G-UPG-01"
+      },
+      "proof_needed": [
+        "M",
+        "D",
+        "X"
+      ],
+      "source_causal_examples": []
+    }
+  ]
+}

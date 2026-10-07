@@ -1,0 +1,536 @@
+{
+  "status": "advice only; no grammar acceptance or product qualification",
+  "source_pin": "4e89b117d3f66caa79a8df8ed875d55f9e40b948",
+  "models": [
+    "jev-1.13.0",
+    "jev-1.13.0",
+    "jev-1.13.0"
+  ],
+  "questions": 14,
+  "requests": 3,
+  "disagreement_count": 11,
+  "input_tokens": 8548,
+  "output_tokens": 1761,
+  "rationale_returned": false,
+  "independent_wordings_not_independent_experiments": true,
+  "rows": [
+    {
+      "id": "p01_workflow",
+      "answers": [
+        {
+          "type": "choice",
+          "choice": "ordinary_composition",
+          "confidence": 0.31,
+          "probabilities": {
+            "bounded_language": 0.12,
+            "defer": 0.34,
+            "ordinary_composition": 0.54
+          }
+        },
+        {
+          "type": "choice",
+          "choice": "ordinary_composition",
+          "confidence": 0.25,
+          "probabilities": {
+            "bounded_language": 0.11,
+            "ordinary_composition": 0.5,
+            "defer": 0.39
+          }
+        },
+        {
+          "type": "choice",
+          "choice": "ordinary_composition",
+          "confidence": 0.8,
+          "probabilities": {
+            "ordinary_composition": 0.87,
+            "defer": 0.06,
+            "bounded_language": 0.07
+          }
+        }
+      ],
+      "choices_disagree": false,
+      "roadmap": "ordinary composition; defer await grammar"
+    },
+    {
+      "id": "p02_cancellation",
+      "answers": [
+        {
+          "type": "choice",
+          "choice": "package",
+          "confidence": 0.48,
+          "probabilities": {
+            "defer": 0.19,
+            "language": 0.16,
+            "package": 0.65
+          }
+        },
+        {
+          "type": "choice",
+          "choice": "defer",
+          "confidence": 0.36,
+          "probabilities": {
+            "language": 0.01,
+            "defer": 0.5700000000000001,
+            "package": 0.42
+          }
+        },
+        {
+          "type": "choice",
+          "choice": "package",
+          "confidence": 0.52,
+          "probabilities": {
+            "package": 0.68,
+            "defer": 0.31,
+            "language": 0.01
+          }
+        }
+      ],
+      "choices_disagree": true,
+      "roadmap": "standard targeted operations first; shared package conditional"
+    },
+    {
+      "id": "p03_compensation",
+      "answers": [
+        {
+          "type": "choice",
+          "choice": "package",
+          "confidence": 0.23,
+          "probabilities": {
+            "defer": 0.45,
+            "language": 0.06,
+            "package": 0.49
+          }
+        },
+        {
+          "type": "choice",
+          "choice": "package",
+          "confidence": 0.27,
+          "probabilities": {
+            "language": 0.01,
+            "defer": 0.48,
+            "package": 0.51
+          }
+        },
+        {
+          "type": "choice",
+          "choice": "package",
+          "confidence": 0.38,
+          "probabilities": {
+            "package": 0.59,
+            "defer": 0.39,
+            "language": 0.02
+          }
+        }
+      ],
+      "choices_disagree": false,
+      "roadmap": "explicit recovery operations; package extraction conditional"
+    },
+    {
+      "id": "p04_approval",
+      "answers": [
+        {
+          "type": "choice",
+          "choice": "defer",
+          "confidence": 0.22,
+          "probabilities": {
+            "defer": 0.48,
+            "language": 0.2,
+            "package": 0.32
+          }
+        },
+        {
+          "type": "choice",
+          "choice": "package",
+          "confidence": 0.61,
+          "probabilities": {
+            "language": 0.01,
+            "defer": 0.25,
+            "package": 0.74
+          }
+        },
+        {
+          "type": "choice",
+          "choice": "package",
+          "confidence": 0.31,
+          "probabilities": {
+            "package": 0.54,
+            "defer": 0.4,
+            "language": 0.06
+          }
+        }
+      ],
+      "choices_disagree": true,
+      "roadmap": "concrete ordinary composition pilot; stable package conditional"
+    },
+    {
+      "id": "p05_accounting",
+      "answers": [
+        {
+          "type": "choice",
+          "choice": "defer",
+          "confidence": 0.35,
+          "probabilities": {
+            "defer": 0.57,
+            "language": 0.1,
+            "package": 0.33
+          }
+        },
+        {
+          "type": "choice",
+          "choice": "package",
+          "confidence": 0.3,
+          "probabilities": {
+            "language": 0.01,
+            "defer": 0.46,
+            "package": 0.53
+          }
+        },
+        {
+          "type": "choice",
+          "choice": "defer",
+          "confidence": 0.59,
+          "probabilities": {
+            "package": 0.26,
+            "defer": 0.73,
+            "language": 0.01
+          }
+        }
+      ],
+      "choices_disagree": true,
+      "roadmap": "app-owned accounting pilot with ownership/evidence gate"
+    },
+    {
+      "id": "p06_bulk",
+      "answers": [
+        {
+          "type": "choice",
+          "choice": "derived_surface",
+          "confidence": 0.66,
+          "probabilities": {
+            "derived_surface": 0.77,
+            "existing": 0.23,
+            "new_engine": 0.0
+          }
+        },
+        {
+          "type": "choice",
+          "choice": "existing",
+          "confidence": 0.67,
+          "probabilities": {
+            "new_engine": 0.0,
+            "existing": 0.78,
+            "derived_surface": 0.22
+          }
+        },
+        {
+          "type": "choice",
+          "choice": "derived_surface",
+          "confidence": 0.37,
+          "probabilities": {
+            "new_engine": 0.0,
+            "existing": 0.42,
+            "derived_surface": 0.58
+          }
+        }
+      ],
+      "choices_disagree": true,
+      "roadmap": "existing qualification first; derived surface conditional"
+    },
+    {
+      "id": "p07_calendar",
+      "answers": [
+        {
+          "type": "choice",
+          "choice": "defer",
+          "confidence": 0.51,
+          "probabilities": {
+            "defer": 0.67,
+            "language": 0.02,
+            "package": 0.31
+          }
+        },
+        {
+          "type": "choice",
+          "choice": "defer",
+          "confidence": 0.62,
+          "probabilities": {
+            "language": 0.07,
+            "defer": 0.75,
+            "package": 0.18
+          }
+        },
+        {
+          "type": "choice",
+          "choice": "package",
+          "confidence": 0.33,
+          "probabilities": {
+            "package": 0.55,
+            "defer": 0.41,
+            "language": 0.04
+          }
+        }
+      ],
+      "choices_disagree": true,
+      "roadmap": "helpers conditional; recurrence grammar deferred"
+    },
+    {
+      "id": "p08_match",
+      "answers": [
+        {
+          "type": "choice",
+          "choice": "defer",
+          "confidence": 0.14,
+          "probabilities": {
+            "defer": 0.43,
+            "language": 0.29,
+            "if_analysis": 0.28
+          }
+        },
+        {
+          "type": "choice",
+          "choice": "defer",
+          "confidence": 0.2,
+          "probabilities": {
+            "language": 0.11,
+            "if_analysis": 0.42,
+            "defer": 0.47
+          }
+        },
+        {
+          "type": "choice",
+          "choice": "language",
+          "confidence": 0.23,
+          "probabilities": {
+            "defer": 0.31,
+            "language": 0.49,
+            "if_analysis": 0.2
+          }
+        }
+      ],
+      "choices_disagree": true,
+      "roadmap": "enum-only comparison and bounded language candidate"
+    },
+    {
+      "id": "p09_dependent_forms",
+      "answers": [
+        {
+          "type": "choice",
+          "choice": "language",
+          "confidence": 0.22,
+          "probabilities": {
+            "defer": 0.35,
+            "platform": 0.17,
+            "language": 0.48
+          }
+        },
+        {
+          "type": "choice",
+          "choice": "defer",
+          "confidence": 0.51,
+          "probabilities": {
+            "language": 0.15,
+            "platform": 0.18,
+            "defer": 0.67
+          }
+        },
+        {
+          "type": "choice",
+          "choice": "language",
+          "confidence": 0.43,
+          "probabilities": {
+            "defer": 0.33,
+            "language": 0.62,
+            "platform": 0.05
+          }
+        }
+      ],
+      "choices_disagree": true,
+      "roadmap": "typed authorized-read binding candidate after form join"
+    },
+    {
+      "id": "p10_wizard",
+      "answers": [
+        {
+          "type": "choice",
+          "choice": "language",
+          "confidence": 0.23,
+          "probabilities": {
+            "defer": 0.37,
+            "language": 0.49,
+            "package": 0.14
+          }
+        },
+        {
+          "type": "choice",
+          "choice": "package",
+          "confidence": 0.52,
+          "probabilities": {
+            "language": 0.07,
+            "defer": 0.25,
+            "package": 0.68
+          }
+        },
+        {
+          "type": "choice",
+          "choice": "package",
+          "confidence": 0.56,
+          "probabilities": {
+            "package": 0.71,
+            "defer": 0.24,
+            "language": 0.05
+          }
+        }
+      ],
+      "choices_disagree": true,
+      "roadmap": "explicit draft model and wizard presentation conditional"
+    },
+    {
+      "id": "p11_views",
+      "answers": [
+        {
+          "type": "choice",
+          "choice": "existing",
+          "confidence": 0.16,
+          "probabilities": {
+            "defer": 0.38,
+            "existing": 0.44,
+            "language": 0.18
+          }
+        },
+        {
+          "type": "choice",
+          "choice": "defer",
+          "confidence": 0.34,
+          "probabilities": {
+            "language": 0.05,
+            "existing": 0.39,
+            "defer": 0.56
+          }
+        },
+        {
+          "type": "choice",
+          "choice": "existing",
+          "confidence": 0.31,
+          "probabilities": {
+            "defer": 0.34,
+            "existing": 0.54,
+            "language": 0.12
+          }
+        }
+      ],
+      "choices_disagree": true,
+      "roadmap": "existing defaults first; typed fragment after repetition gate"
+    },
+    {
+      "id": "p12_generics",
+      "answers": [
+        {
+          "type": "choice",
+          "choice": "defer",
+          "confidence": 0.64,
+          "probabilities": {
+            "defer": 0.76,
+            "language": 0.09,
+            "templates": 0.15
+          }
+        },
+        {
+          "type": "choice",
+          "choice": "defer",
+          "confidence": 0.67,
+          "probabilities": {
+            "templates": 0.18,
+            "language": 0.04,
+            "defer": 0.78
+          }
+        },
+        {
+          "type": "choice",
+          "choice": "templates",
+          "confidence": 0.4,
+          "probabilities": {
+            "defer": 0.39,
+            "language": 0.01,
+            "templates": 0.6
+          }
+        }
+      ],
+      "choices_disagree": true,
+      "roadmap": "defer grammar; concrete ordinary packages/templates"
+    },
+    {
+      "id": "p13_machines",
+      "answers": [
+        {
+          "type": "choice",
+          "choice": "defer",
+          "confidence": 0.4,
+          "probabilities": {
+            "defer": 0.6,
+            "flat_reuse": 0.38,
+            "statecharts": 0.02
+          }
+        },
+        {
+          "type": "choice",
+          "choice": "defer",
+          "confidence": 0.85,
+          "probabilities": {
+            "flat_reuse": 0.1,
+            "statecharts": 0.0,
+            "defer": 0.9
+          }
+        },
+        {
+          "type": "choice",
+          "choice": "defer",
+          "confidence": 0.43,
+          "probabilities": {
+            "flat_reuse": 0.37,
+            "defer": 0.62,
+            "statecharts": 0.01
+          }
+        }
+      ],
+      "choices_disagree": false,
+      "roadmap": "qualify flat first; flat reuse conditional; statecharts deferred"
+    },
+    {
+      "id": "p14_push",
+      "answers": [
+        {
+          "type": "choice",
+          "choice": "platform",
+          "confidence": 0.82,
+          "probabilities": {
+            "defer": 0.11,
+            "platform": 0.88,
+            "language": 0.01
+          }
+        },
+        {
+          "type": "choice",
+          "choice": "platform",
+          "confidence": 0.2,
+          "probabilities": {
+            "language": 0.09,
+            "platform": 0.47,
+            "defer": 0.44
+          }
+        },
+        {
+          "type": "choice",
+          "choice": "defer",
+          "confidence": 0.59,
+          "probabilities": {
+            "defer": 0.73,
+            "language": 0.02,
+            "platform": 0.25
+          }
+        }
+      ],
+      "choices_disagree": true,
+      "roadmap": "measure polling; platform invalidation conditional"
+    }
+  ]
+}

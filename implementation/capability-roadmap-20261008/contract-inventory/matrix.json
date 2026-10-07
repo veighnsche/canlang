@@ -1,0 +1,513 @@
+{
+  "kind": "SEQ-005 bounded factual inventory; not released contracts or acceptance",
+  "observed_utc": "2026-10-07T22:35:40.824913+00:00",
+  "committed_source_pin": "7205de218eba543acb160b839aa13b18db759faa",
+  "frozen_F1_pin": "db57c3794d386fcd27f17f54b199272d58106a81",
+  "frozen_draft_gitlink": "a55a0f700f07f6f972d9d6091b0fdbceee399eb9",
+  "definition_evidence": "DECISIONS.md accepted entries retain their stated stage/scope; source facts and old receipts are separate evidence. This collection selects no missing consequential semantics.",
+  "original_gates": "task-sequence.json and orchestration-canonical-references.json apply; exact output scope can unblock a consumer but cannot close whole F1/F2/F3/V0 or broader canonical tasks.",
+  "producer_handoff_reference": "../f1-metadata/producer-handoff.json is authoritative detailed emitted/loaded map; intentionally not duplicated.",
+  "released_contracts_by_this_inventory": [],
+  "scope_exclusions": [
+    "No fresh runtime/test/installed/durable qualification",
+    "No provider/image full-app claim from bounded metadata or memory guard proofs",
+    "No source writes, JEV, git mutation or contract acceptance",
+    "Unknown/omitted capabilities are gaps rather than accepted unsupported deferrals"
+  ],
+  "source_pins": {
+    "compiler/src/codegen/artifact.rs": {
+      "committed_revision": "7205de218eba543acb160b839aa13b18db759faa",
+      "committed_sha256": "5c2c3831d0bed1cea7ae0bfb8339e351996299b0481a70b2dac42b6aca36c73c",
+      "worktree_sha256_observation": "5c2c3831d0bed1cea7ae0bfb8339e351996299b0481a70b2dac42b6aca36c73c",
+      "worktree_differs_from_committed": false
+    },
+    "compiler/src/codegen/js.rs": {
+      "committed_revision": "7205de218eba543acb160b839aa13b18db759faa",
+      "committed_sha256": "dd4a84f977a0ecdeb1e03685936042fcf47706de3757feda5f89c7987d99e8d4",
+      "worktree_sha256_observation": "dd4a84f977a0ecdeb1e03685936042fcf47706de3757feda5f89c7987d99e8d4",
+      "worktree_differs_from_committed": false
+    },
+    "packages/contracts/src/artifact.ts": {
+      "committed_revision": "7205de218eba543acb160b839aa13b18db759faa",
+      "committed_sha256": "f10a0cd071b59d737f4065b54ed13d015bc341cc371909a34a4e18373857e91f",
+      "worktree_sha256_observation": "f10a0cd071b59d737f4065b54ed13d015bc341cc371909a34a4e18373857e91f",
+      "worktree_differs_from_committed": false
+    },
+    "packages/state/src/invocation/registry.ts": {
+      "committed_revision": "7205de218eba543acb160b839aa13b18db759faa",
+      "committed_sha256": "eac07bdbb50e1362da25e6a35069ba56dc5305ef31dd49e33613fa3d15ce8810",
+      "worktree_sha256_observation": "eac07bdbb50e1362da25e6a35069ba56dc5305ef31dd49e33613fa3d15ce8810",
+      "worktree_differs_from_committed": false
+    },
+    "packages/cloudflare/src/runtime/artifact.ts": {
+      "committed_revision": "7205de218eba543acb160b839aa13b18db759faa",
+      "committed_sha256": "2e08d43be4fc5c4c51061dca9610f6a8d0b579e9d520c51e88fde663f912e5bc",
+      "worktree_sha256_observation": "2e08d43be4fc5c4c51061dca9610f6a8d0b579e9d520c51e88fde663f912e5bc",
+      "worktree_differs_from_committed": false
+    },
+    "packages/state/src/invocation/admission.ts": {
+      "committed_revision": "7205de218eba543acb160b839aa13b18db759faa",
+      "committed_sha256": "c83e7b06b932e7e16402f0c815121a917f7b63daa90e4000fd822d16b1fc1ba6",
+      "worktree_sha256_observation": "c83e7b06b932e7e16402f0c815121a917f7b63daa90e4000fd822d16b1fc1ba6",
+      "worktree_differs_from_committed": false
+    },
+    "packages/state/src/invocation/invoke.ts": {
+      "committed_revision": "7205de218eba543acb160b839aa13b18db759faa",
+      "committed_sha256": "37f76500d8b0ed9959cf0110c70b0750263b9c0134fc19194229db1924ca4670",
+      "worktree_sha256_observation": "37f76500d8b0ed9959cf0110c70b0750263b9c0134fc19194229db1924ca4670",
+      "worktree_differs_from_committed": false
+    },
+    "packages/state/src/invocation/replay.ts": {
+      "committed_revision": "7205de218eba543acb160b839aa13b18db759faa",
+      "committed_sha256": "a33bf620e893569a9f8c710615e7fe7bc8a207c2f4a8c017e9942e0f6783cc36",
+      "worktree_sha256_observation": "a33bf620e893569a9f8c710615e7fe7bc8a207c2f4a8c017e9942e0f6783cc36",
+      "worktree_differs_from_committed": false
+    },
+    "packages/state/src/mutation/pipeline.ts": {
+      "committed_revision": "7205de218eba543acb160b839aa13b18db759faa",
+      "committed_sha256": "89b5840c8a819a80fb142fe720e252ffca2e02033abb15d8bbe043645ff546f4",
+      "worktree_sha256_observation": "89b5840c8a819a80fb142fe720e252ffca2e02033abb15d8bbe043645ff546f4",
+      "worktree_differs_from_committed": false
+    },
+    "packages/state/src/ports/transact.ts": {
+      "committed_revision": "7205de218eba543acb160b839aa13b18db759faa",
+      "committed_sha256": "a322234e281865e6a61be016efa647d812b7e3e4d2e58a66aad98a7a66001c8d",
+      "worktree_sha256_observation": "a322234e281865e6a61be016efa647d812b7e3e4d2e58a66aad98a7a66001c8d",
+      "worktree_differs_from_committed": false
+    },
+    "packages/cloudflare/src/runtime/invoke.ts": {
+      "committed_revision": "7205de218eba543acb160b839aa13b18db759faa",
+      "committed_sha256": "6b135086c8d0c904008f2100ed0930fd8ebfed60769e73efc8944bed45f50997",
+      "worktree_sha256_observation": "6b135086c8d0c904008f2100ed0930fd8ebfed60769e73efc8944bed45f50997",
+      "worktree_differs_from_committed": false
+    },
+    "packages/contracts/src/identity.ts": {
+      "committed_revision": "7205de218eba543acb160b839aa13b18db759faa",
+      "committed_sha256": "19816727c6b820ffb5328eeab2e3211390cf91482a592923b2ac87cc4a72c440",
+      "worktree_sha256_observation": "19816727c6b820ffb5328eeab2e3211390cf91482a592923b2ac87cc4a72c440",
+      "worktree_differs_from_committed": false
+    },
+    "packages/contracts/src/state.ts": {
+      "committed_revision": "7205de218eba543acb160b839aa13b18db759faa",
+      "committed_sha256": "64fe3d14fd57de3ded9a5f802016a147a30ed468832ef8d891ba6a6c5d0b4e8c",
+      "worktree_sha256_observation": "64fe3d14fd57de3ded9a5f802016a147a30ed468832ef8d891ba6a6c5d0b4e8c",
+      "worktree_differs_from_committed": false
+    },
+    "packages/state/src/invocation/context.ts": {
+      "committed_revision": "7205de218eba543acb160b839aa13b18db759faa",
+      "committed_sha256": "5c894dc055c26df2723f5d2f38f16be5bd83e3e361595c1a91de03dda6c2292f",
+      "worktree_sha256_observation": "5c894dc055c26df2723f5d2f38f16be5bd83e3e361595c1a91de03dda6c2292f",
+      "worktree_differs_from_committed": false
+    },
+    "packages/cloudflare/src/runtime/context.ts": {
+      "committed_revision": "7205de218eba543acb160b839aa13b18db759faa",
+      "committed_sha256": "497e1bbc7cbecd984e2ea7119cd1f4913688b2044158eaaaa0a74f3af0fbb98b",
+      "worktree_sha256_observation": "497e1bbc7cbecd984e2ea7119cd1f4913688b2044158eaaaa0a74f3af0fbb98b",
+      "worktree_differs_from_committed": false
+    },
+    "compiler/src/codegen/ir.rs": {
+      "committed_revision": "7205de218eba543acb160b839aa13b18db759faa",
+      "committed_sha256": "c354936b8b67f23b4d0e159dd75ce67df085b9d5509c1fa35061eeb744b36f0d",
+      "worktree_sha256_observation": "c354936b8b67f23b4d0e159dd75ce67df085b9d5509c1fa35061eeb744b36f0d",
+      "worktree_differs_from_committed": false
+    },
+    "packages/state/src/effects/transition.ts": {
+      "committed_revision": "7205de218eba543acb160b839aa13b18db759faa",
+      "committed_sha256": "fd25b81af366d96f37abe4235013198310c069e16f66197183ddb36b2e327c09",
+      "worktree_sha256_observation": "fd25b81af366d96f37abe4235013198310c069e16f66197183ddb36b2e327c09",
+      "worktree_differs_from_committed": false
+    },
+    "packages/state/src/policy/grants.ts": {
+      "committed_revision": "7205de218eba543acb160b839aa13b18db759faa",
+      "committed_sha256": "f6551f0d2f91458f3eadc6de6d50c43da54b746ca374275c25911263aa0f8880",
+      "worktree_sha256_observation": "f6551f0d2f91458f3eadc6de6d50c43da54b746ca374275c25911263aa0f8880",
+      "worktree_differs_from_committed": false
+    },
+    "packages/state/src/policy/roles.ts": {
+      "committed_revision": "7205de218eba543acb160b839aa13b18db759faa",
+      "committed_sha256": "77bc09d257a5a69e40f5464c6f815730b7a065907e0bb4e4f71837ea1a68fe94",
+      "worktree_sha256_observation": "77bc09d257a5a69e40f5464c6f815730b7a065907e0bb4e4f71837ea1a68fe94",
+      "worktree_differs_from_committed": false
+    },
+    "packages/state/src/query/engine.ts": {
+      "committed_revision": "7205de218eba543acb160b839aa13b18db759faa",
+      "committed_sha256": "9d8b5f499dd04f72a71511af3761c53051f2df5476174e40627eb91ada337a83",
+      "worktree_sha256_observation": "9d8b5f499dd04f72a71511af3761c53051f2df5476174e40627eb91ada337a83",
+      "worktree_differs_from_committed": false
+    },
+    "packages/state/src/ports/read.ts": {
+      "committed_revision": "7205de218eba543acb160b839aa13b18db759faa",
+      "committed_sha256": "a69f85d0095ea1f55711a72b30e419449bb13bba452d949a6a5182ec0b3863e9",
+      "worktree_sha256_observation": "a69f85d0095ea1f55711a72b30e419449bb13bba452d949a6a5182ec0b3863e9",
+      "worktree_differs_from_committed": false
+    },
+    "packages/contracts/src/presentation.ts": {
+      "committed_revision": "7205de218eba543acb160b839aa13b18db759faa",
+      "committed_sha256": "8c0a790f53f463e0097443f941994a0a0b3fa450e7393fd7fa4e344e5258a507",
+      "worktree_sha256_observation": "8c0a790f53f463e0097443f941994a0a0b3fa450e7393fd7fa4e344e5258a507",
+      "worktree_differs_from_committed": false
+    },
+    "packages/interfaces/src/http/operations.ts": {
+      "committed_revision": "7205de218eba543acb160b839aa13b18db759faa",
+      "committed_sha256": "1c575196b21444f7cc2680667752a39c6403c0a1b06a10c07676cd0ecc7de36a",
+      "worktree_sha256_observation": "1c575196b21444f7cc2680667752a39c6403c0a1b06a10c07676cd0ecc7de36a",
+      "worktree_differs_from_committed": false
+    },
+    "packages/interfaces/src/mcp/tools.ts": {
+      "committed_revision": "7205de218eba543acb160b839aa13b18db759faa",
+      "committed_sha256": "daf0aef1e9389011ba530d893b6c0560523e6cfa7cc0ad543d74bd8f5700f582",
+      "worktree_sha256_observation": "daf0aef1e9389011ba530d893b6c0560523e6cfa7cc0ad543d74bd8f5700f582",
+      "worktree_differs_from_committed": false
+    },
+    "packages/ui/src/forms.ts": {
+      "committed_revision": "7205de218eba543acb160b839aa13b18db759faa",
+      "committed_sha256": "6b53fc1fb2bbc794476b1d922fdd9225d16e45c69da5e1d93c5609e94e662674",
+      "worktree_sha256_observation": "6b53fc1fb2bbc794476b1d922fdd9225d16e45c69da5e1d93c5609e94e662674",
+      "worktree_differs_from_committed": false
+    },
+    "packages/interfaces/src/http/context.ts": {
+      "committed_revision": "7205de218eba543acb160b839aa13b18db759faa",
+      "committed_sha256": "12d51336059dd4590fddceb5689d41e42ea1366788d10a457843befb5c1bd2aa",
+      "worktree_sha256_observation": "12d51336059dd4590fddceb5689d41e42ea1366788d10a457843befb5c1bd2aa",
+      "worktree_differs_from_committed": false
+    },
+    "packages/interfaces/src/mcp/server.ts": {
+      "committed_revision": "7205de218eba543acb160b839aa13b18db759faa",
+      "committed_sha256": "8634a9eaad7c2a655ae9d7ebc171121cf8df29f428d17b2fc2df985d8b289881",
+      "worktree_sha256_observation": "8634a9eaad7c2a655ae9d7ebc171121cf8df29f428d17b2fc2df985d8b289881",
+      "worktree_differs_from_committed": false
+    },
+    "packages/interfaces/src/mcp/prepared.ts": {
+      "committed_revision": "7205de218eba543acb160b839aa13b18db759faa",
+      "committed_sha256": "8ed5ada0bc6f152035005c419484703a2cea10715045122cd39a43670baef6b5",
+      "worktree_sha256_observation": "8ed5ada0bc6f152035005c419484703a2cea10715045122cd39a43670baef6b5",
+      "worktree_differs_from_committed": false
+    },
+    "packages/interfaces/src/envelope/validate.ts": {
+      "committed_revision": "7205de218eba543acb160b839aa13b18db759faa",
+      "committed_sha256": "115b21e75eb724664a2a87eea0434ab792114702e72e97cf8af9e8200d32d1ec",
+      "worktree_sha256_observation": "115b21e75eb724664a2a87eea0434ab792114702e72e97cf8af9e8200d32d1ec",
+      "worktree_differs_from_committed": false
+    },
+    "packages/interfaces/src/envelope/refs.ts": {
+      "committed_revision": "7205de218eba543acb160b839aa13b18db759faa",
+      "committed_sha256": "7eb157fc98859eb94c2532b5f604f5c9c2d235e474b9c51b3f27d1b2361284ba",
+      "worktree_sha256_observation": "7eb157fc98859eb94c2532b5f604f5c9c2d235e474b9c51b3f27d1b2361284ba",
+      "worktree_differs_from_committed": false
+    },
+    "packages/interfaces/src/internal/input-admission.ts": {
+      "committed_revision": "7205de218eba543acb160b839aa13b18db759faa",
+      "committed_sha256": "78d322e005e59771f46c194645518193b38bdb2ae0c6903c1cb6f134090274c4",
+      "worktree_sha256_observation": "78d322e005e59771f46c194645518193b38bdb2ae0c6903c1cb6f134090274c4",
+      "worktree_differs_from_committed": false
+    },
+    "packages/interfaces/src/http/pages.ts": {
+      "committed_revision": "7205de218eba543acb160b839aa13b18db759faa",
+      "committed_sha256": "f0c29777fd6be3be69561e1c309f3feb1ef49a04a1943b983512ad4bdca26238",
+      "worktree_sha256_observation": "f0c29777fd6be3be69561e1c309f3feb1ef49a04a1943b983512ad4bdca26238",
+      "worktree_differs_from_committed": false
+    },
+    "packages/interfaces/src/http/presentation.ts": {
+      "committed_revision": "7205de218eba543acb160b839aa13b18db759faa",
+      "committed_sha256": "1251a57227afce9e970339bb8faf99715fb259c237ab7e15cef2b10c88353981",
+      "worktree_sha256_observation": "1251a57227afce9e970339bb8faf99715fb259c237ab7e15cef2b10c88353981",
+      "worktree_differs_from_committed": false
+    },
+    "packages/interfaces/src/http/fragments.ts": {
+      "committed_revision": "7205de218eba543acb160b839aa13b18db759faa",
+      "committed_sha256": "10b3a84f83ef0f3ea2509f2f9d1d68fa14c63ded21f62e5b4de27541c3482019",
+      "worktree_sha256_observation": "10b3a84f83ef0f3ea2509f2f9d1d68fa14c63ded21f62e5b4de27541c3482019",
+      "worktree_differs_from_committed": false
+    },
+    "packages/interfaces/src/http/assets.ts": {
+      "committed_revision": "7205de218eba543acb160b839aa13b18db759faa",
+      "committed_sha256": "9d42a8d50079e812714c21198d9b73b50d0bbbbfe5d8e8058e1816551ee9c862",
+      "worktree_sha256_observation": "9d42a8d50079e812714c21198d9b73b50d0bbbbfe5d8e8058e1816551ee9c862",
+      "worktree_differs_from_committed": false
+    },
+    "packages/ui/src/shell.ts": {
+      "committed_revision": "7205de218eba543acb160b839aa13b18db759faa",
+      "committed_sha256": "00a2884fed3c54cd96247540492cdd9b15ef8c56f036a6bda0d17b95f9e7bb96",
+      "worktree_sha256_observation": "00a2884fed3c54cd96247540492cdd9b15ef8c56f036a6bda0d17b95f9e7bb96",
+      "worktree_differs_from_committed": false
+    },
+    "packages/ui/src/browser/bootstrap.ts": {
+      "committed_revision": "7205de218eba543acb160b839aa13b18db759faa",
+      "committed_sha256": "95f6f353513174367d39d936e98042fe375329246485261e679b98c63f202ac1",
+      "worktree_sha256_observation": "95f6f353513174367d39d936e98042fe375329246485261e679b98c63f202ac1",
+      "worktree_differs_from_committed": false
+    },
+    "packages/ui/src/browser/polling.ts": {
+      "committed_revision": "7205de218eba543acb160b839aa13b18db759faa",
+      "committed_sha256": "d7ee9aba0bf9256a2b665a1b03240feb3f392f3455edcdd46d10c3a701d6f1aa",
+      "worktree_sha256_observation": "d7ee9aba0bf9256a2b665a1b03240feb3f392f3455edcdd46d10c3a701d6f1aa",
+      "worktree_differs_from_committed": false
+    },
+    "packages/cloudflare/src/deploy/package-assets.ts": {
+      "committed_revision": "7205de218eba543acb160b839aa13b18db759faa",
+      "committed_sha256": "878ee72f2d40d5a9ea457836d87934c217132b345ea8af80d9c1a48fe374993f",
+      "worktree_sha256_observation": "878ee72f2d40d5a9ea457836d87934c217132b345ea8af80d9c1a48fe374993f",
+      "worktree_differs_from_committed": false
+    },
+    "packages/cloudflare/src/deploy/installed.ts": {
+      "committed_revision": "7205de218eba543acb160b839aa13b18db759faa",
+      "committed_sha256": "c636a0e524b70bef1f570eec421414d8f5bdd46157dc413777d44b18da5b86db",
+      "worktree_sha256_observation": "c636a0e524b70bef1f570eec421414d8f5bdd46157dc413777d44b18da5b86db",
+      "worktree_differs_from_committed": false
+    },
+    "packages/ui/src/internal/draft-values.ts": {
+      "committed_revision": "7205de218eba543acb160b839aa13b18db759faa",
+      "committed_sha256": "e1b71afa0fe544254e6c0c84505b16341e8216c405369adf6c95f7fe9c73df71",
+      "worktree_sha256_observation": "e1b71afa0fe544254e6c0c84505b16341e8216c405369adf6c95f7fe9c73df71",
+      "worktree_differs_from_committed": false
+    }
+  },
+  "contracts": [
+    {
+      "task": "SEQ-008",
+      "output": "canonical_contracts: emitted/loaded declaration matrix",
+      "owner": "Compiler descriptors; Contracts artifact; State loader",
+      "sources": [
+        "compiler/src/codegen/artifact.rs",
+        "compiler/src/codegen/js.rs",
+        "packages/contracts/src/artifact.ts",
+        "packages/state/src/invocation/registry.ts",
+        "packages/cloudflare/src/runtime/artifact.ts"
+      ],
+      "definition": "Artifact envelope v1, source SHA, source-owned operation/model descriptors and callable registry are existing defining shapes. Callable existence and user-invocable MCP descriptors are separate sets.",
+      "evidence": "Frozen F1Bounded actual compiler artifact loads unchanged through production State; defaults, versioned references and flat-machine metadata asserted. Full Creative+Chat and Approve+shared originals retain diagnostics. Duration wait callable emits with operations=[]; int control emits a descriptor.",
+      "gap": "Precise unsupported-type rejection required by SEQ-008 is unmet. The documented intentional MCP subset is not proof every executable language operation is describable/admissible. No Values owner/revision validation-plan association is found by producer handoff.",
+      "action": "Defining owners review exact emitted type matrix and explicitly separate language-execution metadata from MCP exposure or reject unsupported selected scope; retain unchanged artifact negative and supported controls.",
+      "handoff": "Versioned supported/excluded types, IDs, defaults, bound references, managed fields, artifact digest, callable-versus-exposed registry rule and loader compatibility; root contract selection/review remains required.",
+      "gates": [
+        "challenge:T15",
+        "challenge:T16"
+      ],
+      "receipts": [
+        "implementation/capability-roadmap-20261008/f1-metadata/REPORT.md",
+        "implementation/capability-roadmap-20261008/f1-metadata/loader-results.json",
+        "implementation/capability-roadmap-20261008/f1-metadata/unsupported-results.json",
+        "implementation/capability-roadmap-20261008/f1-metadata/producer-handoff.json"
+      ]
+    },
+    {
+      "task": "SEQ-009",
+      "output": "local_invocation + durable_owner_commit",
+      "owner": "State admission/transaction/replay; Cloudflare canonical seam/adapters",
+      "sources": [
+        "packages/state/src/invocation/admission.ts",
+        "packages/state/src/invocation/registry.ts",
+        "packages/state/src/invocation/invoke.ts",
+        "packages/state/src/invocation/replay.ts",
+        "packages/state/src/mutation/pipeline.ts",
+        "packages/state/src/ports/transact.ts",
+        "packages/cloudflare/src/runtime/invoke.ts"
+      ],
+      "definition": "Canonical generated-descriptor admission, closed inputs/versioned refs, staged mutation pipeline, fenced commit and replay are existing owners. Pipeline stages without committing; default attribution and replay hashing have their own owners.",
+      "evidence": "Reviewed runtime-export join executes actual assembleModules/buildInvoker and emitted mutation guard: member commits/replays, business guard rejects/replays same error, anonymous denies. Package identity/storage implementations are memory.",
+      "gap": "This receipt does not prove selected original record/version/default semantics, durable adapter restart, wrong owner, rollback, installed identity or full original apps. F1 metadata loading alone executes no operation.",
+      "action": "Join a released actual generated operation to selected durable owner storage; capture allow/deny, wrong actor/owner, stale ref, late failure rollback, duplicate and persisted restart receipts.",
+      "handoff": "Exact operation, normalized inputs/reference versions/default carriers, transaction owner/fence, result/error and replay identity contracts; adapter and compiler artifact pins.",
+      "gates": [
+        "challenge:T16",
+        "challenge:T17"
+      ],
+      "receipts": [
+        "implementation/compiler-completion/runtime-export-join/implementation/canonical-receipts.json",
+        "implementation/compiler-completion/runtime-export-join/independent-review/receipt.json"
+      ]
+    },
+    {
+      "task": "SEQ-010",
+      "output": "verified_scope_context",
+      "owner": "Identity resolver; State context; Compiler lowering; Cloudflare HandlerContext constructors; hook/trusted owners",
+      "sources": [
+        "packages/contracts/src/identity.ts",
+        "packages/contracts/src/state.ts",
+        "packages/state/src/invocation/context.ts",
+        "packages/state/src/invocation/admission.ts",
+        "packages/cloudflare/src/runtime/context.ts",
+        "packages/cloudflare/src/runtime/invoke.ts",
+        "compiler/src/codegen/js.rs"
+      ],
+      "definition": "State buildContext uses resolved identity, fixed now, operation/source/id; trusted requires trustedSource and actor=null. HandlerContext is a separate c carrier with caller/store/clock/memberships/preferences and optional canonical staging/read closure. Accepted localized-format design selects HandlerContext formatter inputs but implementation remains pending.",
+      "evidence": "Runtime-export canonical guard receipt uses actual identity resolver/live membership reader with memory implementations. Current source declares distinct canonical and handler carriers; hook lowering has an explicit unsupported ambient-context boundary.",
+      "gap": "No per-scope actual actor/team/now/operation binding receipt here qualifies user, hook, trusted events, app locale/timezone together. Canonical fields cannot be assumed available on c or $hookCtx. Owner lease records context implementation gaps.",
+      "action": "Compiler/runtime owners publish scope matrix, then compile and run each used binding with actor-null, wrong-scope and trusted-source negatives; forward exact admitted clock and identity.",
+      "handoff": "Per user/hook/trusted/page/occurrence carrier and immutable fields, nullability/clock timezone/operation source, constructor and lowering pins; verified caller provenance and hook-owner release.",
+      "gates": [
+        "finished-product:FP.CONTEXT",
+        "challenge:T16"
+      ],
+      "receipts": [
+        "implementation/compiler-completion/runtime-export-join/independent-review/receipt.json",
+        "implementation/compiler-completion/owner-lease-status.json"
+      ]
+    },
+    {
+      "task": "SEQ-011",
+      "output": "ordered rule/managed-field enforcement",
+      "owner": "Compiler hook/rule lowering and State mutation pipeline/machines",
+      "sources": [
+        "compiler/src/codegen/ir.rs",
+        "compiler/src/codegen/js.rs",
+        "packages/state/src/mutation/pipeline.ts",
+        "packages/state/src/effects/transition.ts",
+        "packages/cloudflare/src/runtime/invoke.ts"
+      ],
+      "definition": "Accepted flat stored machine choice protects scalar enum state via ordered explicit transition; ordinary CRUD/set/hooks cannot bypass it. Pipeline has ordered hook staging, locks, refs, uniqueness and invariants, with no commit of its own. Hooks stage create/set secondary writes, reject same-model writes/transitions and do not cascade.",
+      "evidence": "Accepted machine decision records focused emitted lifecycle and pipeline/browser controls at scoped level. This inventory does not reread or freshly requalify those broad receipts. F1Bounded loads machine metadata only.",
+      "gap": "Accepted machine decision explicitly leaves full generated hook/lock/invariant wiring and per-hook version observations unqualified; canonical version normalization occurs after pipeline rules. Runtime-export guard receipt is not that proof.",
+      "action": "Run unchanged selected emitted ordered rules against staged aliases; late failure must leave no effects, one net commit version, and negative CRUD/set/hook managed-field bypass controls.",
+      "handoff": "Exact evaluation order, original/admitted and provisional versions, hook scopes/secondary-write exclusions, rollback boundary and protected-state invariants, reviewed generated-rule binding.",
+      "gates": [
+        "challenge:T17",
+        "challenge:T31",
+        "SM.QUALIFY"
+      ],
+      "receipts": [
+        "docs/specification/DECISIONS.md#2026-10-07--stored-field-machines-and-reactive-state-views-accepted"
+      ]
+    },
+    {
+      "task": "SEQ-012",
+      "output": "authorized_bounded_reads + spending_fences",
+      "owner": "State policy/query/fences; typed secret metadata loader; Cloudflare selector exposure join",
+      "sources": [
+        "packages/state/src/policy/grants.ts",
+        "packages/state/src/policy/roles.ts",
+        "packages/state/src/query/engine.ts",
+        "packages/state/src/invocation/registry.ts",
+        "packages/state/src/invocation/invoke.ts",
+        "packages/state/src/ports/read.ts",
+        "packages/cloudflare/src/runtime/invoke.ts"
+      ],
+      "definition": "Accepted narrow typed secrecy retains engine-local explicit secret tags; server ownership does not imply secrecy. Exact public-rule selector coverage and normalized own-data facts are required. No policy remains zero grants. Canonical read core names <Model>.read; unsupported read scenario shapes refuse.",
+      "evidence": "Accepted secrecy entry records repository-memory/augmented historical artifact checks; runtime-export receipt Guard.echo read refuses as unsupported, not an authorized-read success. hasRole subject-scoped calls remain unsupported.",
+      "gap": "Fresh compiler emission, installed/durable host, current first-success/replay result projection and trusted result dependency authority remain open. No blanket null or guessed projection contract is released. Selector checking is not a flow/permission proof.",
+      "action": "Populate roles/memberships, run actual source selectors and field projections, revoke between read/submission/effect dispatch, and prove current fence refusal plus zero disclosure of forbidden fields.",
+      "handoff": "Exact rule selectors and typed-secret source provenance, authorized viewer versus owner read carrier, enrolled dependencies/revision/owner/revalidation semantics and public result scope.",
+      "gates": [
+        "challenge:T32",
+        "challenge:T16",
+        "challenge:T17"
+      ],
+      "receipts": [
+        "docs/specification/DECISIONS.md#package-repair-typed-secrecy-and-exact-canonical-read-facts-accepted-narrow-correctness",
+        "implementation/compiler-completion/runtime-export-join/implementation/canonical-receipts.json"
+      ]
+    },
+    {
+      "task": "SEQ-013",
+      "output": "checked form/action metadata",
+      "owner": "Compiler/Contracts descriptors; Interfaces derivation; UI factories",
+      "sources": [
+        "compiler/src/codegen/js.rs",
+        "packages/contracts/src/artifact.ts",
+        "packages/contracts/src/presentation.ts",
+        "packages/interfaces/src/http/operations.ts",
+        "packages/interfaces/src/mcp/tools.ts",
+        "packages/ui/src/forms.ts"
+      ],
+      "definition": "Existing deriveOperationInputs/deriveOperationShape and MCP artifact tool conversion consume checked artifact operations. UI forms serialize operation/id/CSRF/timezone/ref versions and distinguish bound/derived fields; emitted MCP subset bounds available inputs.",
+      "evidence": "F1Bounded loader verifies actual descriptors; static UI release c718517a covers literal Card/transient unbound Tabs at scoped factory level, with required bound/order/query gaps retained in owner lease.",
+      "gap": "Loaded operation metadata is not complete generated form/action metadata. Producer handoff finds no production Values validation owner/revision association. Complete original pilot types, constraints/protected bindings and actual required props remain unqualified.",
+      "action": "Derive selected real form from owning operation and assert every unbound required input exactly once, owning defaults/constraints, protected bindings, version refs, labels and required factory props.",
+      "handoff": "Canonical input descriptor digest/type matrix, bound versus editable versus managed fields, form/control identity and owner revision; compiler factory-lowering and Interfaces derivation review.",
+      "gates": [
+        "challenge:T15",
+        "challenge:T19"
+      ],
+      "receipts": [
+        "implementation/capability-roadmap-20261008/f1-metadata/REPORT.md",
+        "implementation/compiler-completion/owner-lease-status.json"
+      ]
+    },
+    {
+      "task": "SEQ-014",
+      "output": "browser/MCP canonical admission parity",
+      "owner": "Interfaces HTTP/MCP identity/envelope; State canonical invocation; UI error rendering",
+      "sources": [
+        "packages/interfaces/src/http/operations.ts",
+        "packages/interfaces/src/http/context.ts",
+        "packages/interfaces/src/mcp/server.ts",
+        "packages/interfaces/src/mcp/prepared.ts",
+        "packages/interfaces/src/envelope/validate.ts",
+        "packages/interfaces/src/envelope/refs.ts",
+        "packages/interfaces/src/internal/input-admission.ts",
+        "packages/cloudflare/src/runtime/invoke.ts",
+        "packages/ui/src/forms.ts"
+      ],
+      "definition": "Existing HTTP resolves identity/CSRF and derived inputs; MCP converts same artifact-operation subset and submits through ports. UI factories carry hidden operation/ref/CSRF metadata. Transport code existence does not establish equal canonical authority.",
+      "evidence": "Narrow runtime-export receipt executes buildInvoker only; no browser/MCP parity or DOM/CSRF receipt is provided by that join. F1 metadata preparation does not build full Cloudflare/stdlib.",
+      "gap": "Real emitted-form DOM submission and same target MCP, current team/session, protected values, forged/stale/replay controls and correctable draft error retention still need selected-scope qualification.",
+      "action": "Serve the actual generated form/assets and trace browser and MCP into one released canonical operation; compare allow/deny/current refs/protected fields/replay and retain drafts on validation/conflict.",
+      "handoff": "Exact request allowlist, canonical target/input mapping, protected binding provenance, CSRF/session/team and revision metadata, error classification/draft retention rules.",
+      "gates": [
+        "challenge:T19",
+        "challenge:T20",
+        "challenge:T16",
+        "challenge:T32"
+      ],
+      "receipts": [
+        "implementation/compiler-completion/runtime-export-join/independent-review/receipt.json"
+      ]
+    },
+    {
+      "task": "SEQ-015",
+      "output": "installed read-only full/partial rendering",
+      "owner": "Interfaces page/presentation dispatcher; UI shell/bootstrap/polling; Cloudflare assets/deploy",
+      "sources": [
+        "packages/interfaces/src/http/pages.ts",
+        "packages/interfaces/src/http/presentation.ts",
+        "packages/interfaces/src/http/fragments.ts",
+        "packages/interfaces/src/http/assets.ts",
+        "packages/ui/src/shell.ts",
+        "packages/ui/src/browser/bootstrap.ts",
+        "packages/ui/src/browser/polling.ts",
+        "packages/cloudflare/src/deploy/package-assets.ts",
+        "packages/cloudflare/src/deploy/installed.ts"
+      ],
+      "definition": "Accepted machine-view design reuses poll=, one HTTP-owned shell, authorized partials and query/team context. Existing PollRegion has context and stop/race lifecycle owners; actual mounted assets remain an installation obligation.",
+      "evidence": "Accepted machine entry records Happy DOM bootstrap/partial lifecycle controls at selected level; no broad installed full original-app claim. Runtime-export consumer receipt says prior order rendering needs genuine authorized query/context and is not executed.",
+      "gap": "Actual installed/bundled source-derived read-only page, authorized row/field projection and real assets/visibility/restart receipt still required; package writer currently owns bootstrap/polling repairs.",
+      "action": "Consume released verified_scope_context and authorized_bounded_reads only, install exact asset bundle and qualify full/partial DOM, late responses, revocation/logout/navigation/hidden states/restart.",
+      "handoff": "Read-only page/query/team/field projection contract, partial identity and sequence, mounted asset hashes/bootstrap entry, stop/reset semantics and reviewed package-writer release.",
+      "gates": [
+        "finished-product:FP.BROWSER",
+        "finished-product:FP.CONTEXT",
+        "challenge:T32"
+      ],
+      "receipts": [
+        "implementation/compiler-completion/runtime-export-join/implementation/consumer-receipts.json",
+        "docs/specification/DECISIONS.md#2026-10-07--stored-field-machines-and-reactive-state-views-accepted"
+      ]
+    },
+    {
+      "task": "SEQ-016",
+      "output": "editable form refresh/race evidence",
+      "owner": "UI bootstrap/polling/draft values; Interfaces fresh action metadata; canonical admission",
+      "sources": [
+        "packages/ui/src/browser/bootstrap.ts",
+        "packages/ui/src/browser/polling.ts",
+        "packages/ui/src/internal/draft-values.ts",
+        "packages/ui/src/forms.ts",
+        "packages/interfaces/src/http/pages.ts",
+        "packages/interfaces/src/http/operations.ts"
+      ],
+      "definition": "Accepted machine browser design preserves values/focus per control while renewing server action/version/CSRF metadata and withdrawing inaccessible controls. Visibility alone grants no invocation authority.",
+      "evidence": "Selected machine decision records Happy DOM edit/focus and fresh control metadata controls; full general generated forms/actions and original app/native release explicitly remain open.",
+      "gap": "Task16 requires accepted Task14 submission and Task15 installed polling outputs at exact used scope, not just metadata, static factory or memory canonical guard evidence.",
+      "action": "After exact 14/15 outputs release, run actual emitted editable form with compatible refresh, changed context, withdrawn action and obsolete response races; assert dirty values/focus plus fresh sealed metadata.",
+      "handoff": "Control compatibility identity, dirty-value preservation and focus rules, authoritative metadata replacement, stale-context refusal and action withdrawal plus server admission checks.",
+      "gates": [
+        "challenge:T19",
+        "challenge:T20",
+        "finished-product:FP.BROWSER"
+      ],
+      "receipts": [
+        "docs/specification/DECISIONS.md#2026-10-07--stored-field-machines-and-reactive-state-views-accepted"
+      ]
+    }
+  ]
+}

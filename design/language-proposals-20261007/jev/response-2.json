@@ -1,0 +1,283 @@
+{
+  "request": {
+    "state": "The product brief is a small source language for SaaS CRUD and bounded provider work, usually authored by AI. Source brevity, adoption and predictable behavior matter together. All alternatives must deliver the same permissions, evaluation order, replay safety, retention and version compatibility. Estimate prospective gains after explicit dependencies pass; do not confuse unfinished existing plumbing with a missing design feature. An extension incurs work across syntax, analysis, generation, interfaces, editor help and durable compatibility. Ordinary packages may express reusable rules cheaply but must respect original authority and one-owner commits. Delaying an abstraction until a real repeated use case is a valid route.\nInspection is pinned to committed 4e89b117d3f66caa79a8df8ed875d55f9e40b948, with evidence in baseline.json and immutable source-excerpts.md. REQUIREMENTS/GRAMMAR/DESIGN already provide local atomic scenarios, asynchronous outbox sends, callbacks, dynamic keyed schedules, bounded cohort execution and canonical derived form schemas. v1 excludes await/workflow/general exception handling, generic package parameters, named presentation fragments and calendar recurrence grammar. Recent flat lifecycle fields, explicit transition effects and input-preserving polling have finite implementation evidence. Generated rule/hook wiring and full installed browser/durable/provider qualification are incomplete. Some current Cloudflare stdlib adapters explicitly reject async effects and receipt lookup; inspect their scope rather than assuming every lower layer lacks those features. Live foreign edits are outside this evaluation.\nThe accepted provider design uses typed delivery associations and original operation progress, cancellation and reconciliation. A successful transport receipt is not a successful generation nor business approval. Compare fresh association/revision for late results; retain uncertain usage commitments and avoid blind reissue/compensation when acceptance is unknown. A verified system occurrence carries no human principal. No proposal may create cross-owner transactions. Dependent controls must use canonical schemas and repeat meaningful business validation on the server. Push changes notification transport while rendering still requires current read authority. Proposed example text may need correction before adoption; it is not an API promise.",
+    "questions": {
+      "p01_workflow": {
+        "type": "choice",
+        "instructions": "Choose the most worthwhile implementation direction under the common ownership, adoption and token-efficiency criteria. Do not grant any route unfinished prerequisites for free. Decision subject: workflow.",
+        "criteria": {
+          "bounded_language": "Qualify async execution first, then expose bounded checkpointed sequencing in source; concise long-running flows require durable state and upgrade-safe continuation semantics.",
+          "ordinary_composition": "Compose equivalent durable business stages with current models/events and reusable packages; avoid continuation syntax while accepting explicit state/callback authoring.",
+          "defer": "Delay generic sequencing until two real qualified workflows demonstrate that current composition is too costly."
+        }
+      },
+      "p02_cancellation": {
+        "type": "choice",
+        "instructions": "Choose the most worthwhile implementation direction under the common ownership, adoption and token-efficiency criteria. Do not grant any route unfinished prerequisites for free. Decision subject: cancellation.",
+        "criteria": {
+          "package": "Complete provider stop/reconcile and schedule joins, then share typed coordination operations retaining attempt IDs and uncertain outcomes.",
+          "language": "Introduce a checked source scope to group cancellable work and deadlines; it needs durable children, authority and late-response rules over qualified providers.",
+          "defer": "Use current source policy around each provider attempt and defer a reusable grouping abstraction pending repetition."
+        }
+      },
+      "p03_compensation": {
+        "type": "choice",
+        "instructions": "Choose the most worthwhile implementation direction under the common ownership, adoption and token-efficiency criteria. Do not grant any route unfinished prerequisites for free. Decision subject: compensation.",
+        "criteria": {
+          "package": "Use current models/events for explicit recovery and extract ordinary helpers for recurring patterns after actual durable qualification.",
+          "language": "Pursue source compensation syntax on a qualified workflow engine with durable registration and separate uncertain recovery outcomes.",
+          "defer": "Continue explicit per-domain repair workflows; wait for repeated semantics before designing reusable compensation."
+        }
+      },
+      "p04_approval": {
+        "type": "choice",
+        "instructions": "Choose the most worthwhile implementation direction under the common ownership, adoption and token-efficiency criteria. Do not grant any route unfinished prerequisites for free. Decision subject: approval.",
+        "criteria": {
+          "package": "Share review models and canonical operations in ordinary packages, preserving revision-bound evidence and current reviewer policy.",
+          "language": "Add a language-level approval protocol that generates equivalent canonical requests and decisions; specify its policy/configuration and migration surface.",
+          "defer": "Delay shared approval machinery while representative expense and image reviews establish common rules."
+        }
+      },
+      "p05_accounting": {
+        "type": "choice",
+        "instructions": "Choose the most worthwhile implementation direction under the common ownership, adoption and token-efficiency criteria. Do not grant any route unfinished prerequisites for free. Decision subject: accounting.",
+        "criteria": {
+          "package": "Share canonical admit/settle operations once quota concurrency and usage evidence joins pass; unknown work retains its reservation.",
+          "language": "Introduce language primitives for admission and settlement under the same durable ownership and usage rules.",
+          "defer": "Postpone a shared accounting abstraction while real provider usage and spending races clarify its contract."
+        }
+      },
+      "p06_bulk": {
+        "type": "choice",
+        "instructions": "Choose the most worthwhile implementation direction under the common ownership, adoption and token-efficiency criteria. Do not grant any route unfinished prerequisites for free. Decision subject: bulk.",
+        "criteria": {
+          "derived_surface": "Expose concise bulk authoring after current cohort/CSV joins, reusing their execution and deriving each item schema from one operation.",
+          "existing": "Meet batch outcomes with the existing cohort executor and reviewed CSV input path, adding no grammar until authoring friction is measured.",
+          "new_engine": "Create a dedicated bulk execution owner and source primitive, preserving all current cohort constraints and defining interoperability."
+        }
+      },
+      "p07_calendar": {
+        "type": "choice",
+        "instructions": "Choose the most worthwhile implementation direction under the common ownership, adoption and token-efficiency criteria. Do not grant any route unfinished prerequisites for free. Decision subject: calendar.",
+        "criteria": {
+          "package": "Implement a shared business-calendar package that computes explicit due instants and uses canonical schedules, with DST and missed-tick policies.",
+          "language": "Add checked business-calendar recurrence syntax after scheduler qualification, fixing local-time and changing-calendar behavior.",
+          "defer": "Delay shared recurrence work while existing fixed schedules and per-domain calculations remain sufficient."
+        }
+      },
+      "p08_match": {
+        "type": "choice",
+        "instructions": "Choose the most worthwhile implementation direction under the common ownership, adoption and token-efficiency criteria. Do not grant any route unfinished prerequisites for free. Decision subject: match.",
+        "criteria": {
+          "language": "Implement checked finite-case match syntax with exhaustiveness, duplicate/unreachable case errors and branch typing; effects keep ordinary transaction rules.",
+          "if_analysis": "Improve finite coverage analysis for existing conditional chains without another source control construct.",
+          "defer": "Postpone either matching surface until real examples quantify missing-case bugs or repeated branch authoring."
+        }
+      },
+      "p09_dependent_forms": {
+        "type": "choice",
+        "instructions": "Choose the most worthwhile implementation direction under the common ownership, adoption and token-efficiency criteria. Do not grant any route unfinished prerequisites for free. Decision subject: dependent forms.",
+        "criteria": {
+          "language": "Expose bounded dependency metadata over the owning operation inputs, with nullable draft scope, authorized lookup and authoritative submit validation.",
+          "platform": "Improve generated form inference from existing owner constraints, avoiding a declared draft expression scope.",
+          "defer": "Defer draft-dependent source features until ordinary generated forms and reference lookups are qualified in actual apps."
+        }
+      },
+      "p10_wizard": {
+        "type": "choice",
+        "instructions": "Choose the most worthwhile implementation direction under the common ownership, adoption and token-efficiency criteria. Do not grant any route unfinished prerequisites for free. Decision subject: wizard.",
+        "criteria": {
+          "language": "Provide multi-step authoring with a generated actor-scoped draft, stable field identity and one canonical final operation after file/form dependencies.",
+          "package": "Use regular private draft models and canonical save/submit operations, sharing presentation helpers without new durable-draft source forms.",
+          "defer": "Delay persistent wizard support while current form drafts meet requirements; revisit with a qualified long application."
+        }
+      },
+      "p11_views": {
+        "type": "choice",
+        "instructions": "Choose the most worthwhile implementation direction under the common ownership, adoption and token-efficiency criteria. Do not grant any route unfinished prerequisites for free. Decision subject: views.",
+        "criteria": {
+          "language": "Introduce small reusable presentation declarations with checked arguments and existing action/form semantics; keep authority at current reads.",
+          "existing": "Prefer current auto-rendering and package-owned UI behavior, gathering repeated source before adding a view declaration.",
+          "defer": "Keep named fragments deferred until source evidence demonstrates repetition outside generated rendering."
+        }
+      },
+      "p12_generics": {
+        "type": "choice",
+        "instructions": "Choose the most worthwhile implementation direction under the common ownership, adoption and token-efficiency criteria. Do not grant any route unfinished prerequisites for free. Decision subject: generics.",
+        "criteria": {
+          "language": "Add bounded generic package instances with explicit constraints and no grants after proven non-generic package use cases; own durable instance naming.",
+          "templates": "Share regular packages and explicit generated templates without author-defined generic type/role substitution.",
+          "defer": "Postpone type/role-parameterized packages pending substantial repeated friction in qualified ordinary packages."
+        }
+      },
+      "p13_machines": {
+        "type": "choice",
+        "instructions": "Choose the most worthwhile implementation direction under the common ownership, adoption and token-efficiency criteria. Do not grant any route unfinished prerequisites for free. Decision subject: machines.",
+        "criteria": {
+          "flat_reuse": "Implement reusable flat state definitions after actual graph duplication, without hierarchy/parallel/history/implicit lifecycle effects.",
+          "statecharts": "Pursue richer statecharts over qualified flat storage, defining nested/orthogonal/history semantics and entry/exit effects in full.",
+          "defer": "Keep the landed flat field machine design while completing its actual generated journey; gather separate reuse/hierarchy needs."
+        }
+      },
+      "p14_push": {
+        "type": "choice",
+        "instructions": "Choose the most worthwhile implementation direction under the common ownership, adoption and token-efficiency criteria. Do not grant any route unfinished prerequisites for free. Decision subject: push.",
+        "criteria": {
+          "platform": "Implement push behind existing page refresh policy once performance evidence warrants it, preserving current authorization and draft behavior.",
+          "language": "Introduce source live modifiers and a push runtime with matched authorized dependency and current-read guarantees.",
+          "defer": "Use polling for reactive lifecycle pages and defer push until measured traffic or latency exceeds the target."
+        }
+      }
+    },
+    "model": "jev-latest"
+  },
+  "response": {
+    "model": "jev-1.13.0",
+    "answers": {
+      "p01_workflow": {
+        "type": "choice",
+        "choice": "ordinary_composition",
+        "confidence": 0.25,
+        "probabilities": {
+          "bounded_language": 0.11,
+          "ordinary_composition": 0.5,
+          "defer": 0.39
+        }
+      },
+      "p02_cancellation": {
+        "type": "choice",
+        "choice": "defer",
+        "confidence": 0.36,
+        "probabilities": {
+          "language": 0.01,
+          "defer": 0.5700000000000001,
+          "package": 0.42
+        }
+      },
+      "p03_compensation": {
+        "type": "choice",
+        "choice": "package",
+        "confidence": 0.27,
+        "probabilities": {
+          "language": 0.01,
+          "defer": 0.48,
+          "package": 0.51
+        }
+      },
+      "p04_approval": {
+        "type": "choice",
+        "choice": "package",
+        "confidence": 0.61,
+        "probabilities": {
+          "language": 0.01,
+          "defer": 0.25,
+          "package": 0.74
+        }
+      },
+      "p05_accounting": {
+        "type": "choice",
+        "choice": "package",
+        "confidence": 0.3,
+        "probabilities": {
+          "language": 0.01,
+          "defer": 0.46,
+          "package": 0.53
+        }
+      },
+      "p06_bulk": {
+        "type": "choice",
+        "choice": "existing",
+        "confidence": 0.67,
+        "probabilities": {
+          "new_engine": 0.0,
+          "existing": 0.78,
+          "derived_surface": 0.22
+        }
+      },
+      "p07_calendar": {
+        "type": "choice",
+        "choice": "defer",
+        "confidence": 0.62,
+        "probabilities": {
+          "language": 0.07,
+          "defer": 0.75,
+          "package": 0.18
+        }
+      },
+      "p08_match": {
+        "type": "choice",
+        "choice": "defer",
+        "confidence": 0.2,
+        "probabilities": {
+          "language": 0.11,
+          "if_analysis": 0.42,
+          "defer": 0.47
+        }
+      },
+      "p09_dependent_forms": {
+        "type": "choice",
+        "choice": "defer",
+        "confidence": 0.51,
+        "probabilities": {
+          "language": 0.15,
+          "platform": 0.18,
+          "defer": 0.67
+        }
+      },
+      "p10_wizard": {
+        "type": "choice",
+        "choice": "package",
+        "confidence": 0.52,
+        "probabilities": {
+          "language": 0.07,
+          "defer": 0.25,
+          "package": 0.68
+        }
+      },
+      "p11_views": {
+        "type": "choice",
+        "choice": "defer",
+        "confidence": 0.34,
+        "probabilities": {
+          "language": 0.05,
+          "existing": 0.39,
+          "defer": 0.56
+        }
+      },
+      "p12_generics": {
+        "type": "choice",
+        "choice": "defer",
+        "confidence": 0.67,
+        "probabilities": {
+          "templates": 0.18,
+          "language": 0.04,
+          "defer": 0.78
+        }
+      },
+      "p13_machines": {
+        "type": "choice",
+        "choice": "defer",
+        "confidence": 0.85,
+        "probabilities": {
+          "flat_reuse": 0.1,
+          "statecharts": 0.0,
+          "defer": 0.9
+        }
+      },
+      "p14_push": {
+        "type": "choice",
+        "choice": "platform",
+        "confidence": 0.2,
+        "probabilities": {
+          "language": 0.09,
+          "platform": 0.47,
+          "defer": 0.44
+        }
+      }
+    },
+    "usage": {
+      "input_tokens": 2798,
+      "output_tokens": 588
+    }
+  }
+}

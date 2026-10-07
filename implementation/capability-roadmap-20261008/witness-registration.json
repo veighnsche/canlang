@@ -1,0 +1,547 @@
+{
+  "task": "SEQ-003",
+  "status": "prepared; pending SEQ-001 reconciliation and root acceptance",
+  "registration_date": "2026-10-08",
+  "scope": "Complete source registration only; no compiler/provider/runtime/full-app acceptance",
+  "main_repository_head_at_inspection": "c718517a5aae8481a8b548a7eb299b8c5377dee6",
+  "private_draft_submodule": {
+    "path": "/Users/vince/Projects/canlang/draft",
+    "gitlink_and_clean_head": "a55a0f700f07f6f972d9d6091b0fdbceee399eb9",
+    "url": "https://github.com/veighnsche/canlang-drafts.git",
+    "status_at_inspection": "clean; selected sources tracked inside submodule"
+  },
+  "historical_ignored_local_drafts": {
+    "evidence": "design/language-proposals-20261007/draft-intent-hashes.json",
+    "reference_commit": "4e89b117d3f66caa79a8df8ed875d55f9e40b948",
+    "description": "October 7 ledger labels these ignored local draft intent. Historical label is not current submodule provenance. Preserve ledger hashes separately from current file hashes."
+  },
+  "files": [
+    {
+      "path": "/Users/vince/Projects/canlang/draft/CanCreative.can",
+      "repository_relative_path": "draft/CanCreative.can",
+      "sha256": "a65f6aaf3c0ee3eeefe064a44eb7a72782d7edae02ed693a434e23c72c16bd52",
+      "bytes": 23221,
+      "lines": 287,
+      "provenance": "current tracked private draft submodule",
+      "archived_snapshot": null
+    },
+    {
+      "path": "/Users/vince/Projects/canlang/draft/CanCreative.md",
+      "repository_relative_path": "draft/CanCreative.md",
+      "sha256": "15db83753f3391bdb58934b2c3df24faca89c6bef22968625535351916b828f0",
+      "bytes": 9885,
+      "lines": 50,
+      "provenance": "current tracked private draft submodule",
+      "archived_snapshot": null
+    },
+    {
+      "path": "/Users/vince/Projects/canlang/draft/CanCreative.mjs",
+      "repository_relative_path": "draft/CanCreative.mjs",
+      "sha256": "2dd89a79f7671ac631b2ed887a97639bf3cae84addb5aec04a57bc75e0d43e75",
+      "bytes": 38185,
+      "lines": 223,
+      "provenance": "current tracked private draft submodule",
+      "archived_snapshot": null
+    },
+    {
+      "path": "/Users/vince/Projects/canlang/draft/CanChat.can",
+      "repository_relative_path": "draft/CanChat.can",
+      "sha256": "a507e133cd29022b873f50ae6b856a34bd8caf3abac28c691bde56ad103de2f1",
+      "bytes": 21258,
+      "lines": 278,
+      "provenance": "current tracked private draft submodule",
+      "archived_snapshot": null
+    },
+    {
+      "path": "/Users/vince/Projects/canlang/draft/CanChat.md",
+      "repository_relative_path": "draft/CanChat.md",
+      "sha256": "493ec721f45f117d49a15a85d74872ba0ab98aab6c75dea7da5be04b768882ba",
+      "bytes": 9624,
+      "lines": 58,
+      "provenance": "current tracked private draft submodule",
+      "archived_snapshot": null
+    },
+    {
+      "path": "/Users/vince/Projects/canlang/draft/CanChat.mjs",
+      "repository_relative_path": "draft/CanChat.mjs",
+      "sha256": "d23d7a353fb950b5783606e7a7abf00d54feb81316b588ebcfd2cb6dab8735a8",
+      "bytes": 36423,
+      "lines": 283,
+      "provenance": "current tracked private draft submodule",
+      "archived_snapshot": null
+    },
+    {
+      "path": "/Users/vince/Projects/canlang/draft/CanApprove.can",
+      "repository_relative_path": "draft/CanApprove.can",
+      "sha256": "515648eb449308363023ed6fe7cc986c0eceba58ba5fa5f88a6c30cf7a0fc981",
+      "bytes": 32502,
+      "lines": 340,
+      "provenance": "current tracked private draft submodule",
+      "archived_snapshot": {
+        "path": "/Users/vince/Projects/canlang/design/evaluation/baseline-20261004T041647Z/snapshot/draft/CanApprove.can",
+        "repository_relative_path": "design/evaluation/baseline-20261004T041647Z/snapshot/draft/CanApprove.can",
+        "sha256": "823a344ecde6949b137526c831c18f89a265dbb56fb0e401a7042af3c170917a",
+        "bytes": 14021,
+        "lines": 151,
+        "provenance": "committed archived October 4 snapshot",
+        "historical_reference_commit": "4e89b117d3f66caa79a8df8ed875d55f9e40b948",
+        "same_bytes_as_current": false
+      }
+    },
+    {
+      "path": "/Users/vince/Projects/canlang/draft/CanApprove.md",
+      "repository_relative_path": "draft/CanApprove.md",
+      "sha256": "58179a040d37e683c28bbec52c7a82d4371e64dcbdd28b75fb3e4104214be9fe",
+      "bytes": 18880,
+      "lines": 102,
+      "provenance": "current tracked private draft submodule",
+      "archived_snapshot": {
+        "path": "/Users/vince/Projects/canlang/design/evaluation/baseline-20261004T041647Z/snapshot/draft/CanApprove.md",
+        "repository_relative_path": "design/evaluation/baseline-20261004T041647Z/snapshot/draft/CanApprove.md",
+        "sha256": "5328465aa629eb20fd13848312db121874137c7a5e67290ca9dc921e671fc9ab",
+        "bytes": 8067,
+        "lines": 77,
+        "provenance": "committed archived October 4 snapshot",
+        "historical_reference_commit": "4e89b117d3f66caa79a8df8ed875d55f9e40b948",
+        "same_bytes_as_current": false
+      }
+    },
+    {
+      "path": "/Users/vince/Projects/canlang/draft/CanApprove.mjs",
+      "repository_relative_path": "draft/CanApprove.mjs",
+      "sha256": "f8acc5397ebc7b63a8b8ba202b55875fba25ebdee5a939273d35f136bde48f49",
+      "bytes": 71751,
+      "lines": 1460,
+      "provenance": "current tracked private draft submodule",
+      "archived_snapshot": {
+        "path": "/Users/vince/Projects/canlang/design/evaluation/baseline-20261004T041647Z/snapshot/draft/CanApprove.mjs",
+        "repository_relative_path": "design/evaluation/baseline-20261004T041647Z/snapshot/draft/CanApprove.mjs",
+        "sha256": "d6b27951a213a19bcfb5a692d00470d273b1a5eb46b017f8d2520d6db7998067",
+        "bytes": 34475,
+        "lines": 994,
+        "provenance": "committed archived October 4 snapshot",
+        "historical_reference_commit": "4e89b117d3f66caa79a8df8ed875d55f9e40b948",
+        "same_bytes_as_current": false
+      }
+    },
+    {
+      "path": "/Users/vince/Projects/canlang/draft/shared/Employees.can",
+      "repository_relative_path": "draft/shared/Employees.can",
+      "sha256": "64b941f4e3db0afe499903642585e362482d6aa39f679b3b1e688dc912d3b7f4",
+      "bytes": 3145,
+      "lines": 26,
+      "provenance": "current tracked private draft submodule",
+      "archived_snapshot": {
+        "path": "/Users/vince/Projects/canlang/design/evaluation/baseline-20261004T041647Z/snapshot/draft/shared/Employees.can",
+        "repository_relative_path": "design/evaluation/baseline-20261004T041647Z/snapshot/draft/shared/Employees.can",
+        "sha256": "5af7826104ec480d11e55b0970408947ceb7ba00ca7f3abdaca4f0a1a0d63970",
+        "bytes": 3073,
+        "lines": 26,
+        "provenance": "committed archived October 4 snapshot",
+        "historical_reference_commit": "4e89b117d3f66caa79a8df8ed875d55f9e40b948",
+        "same_bytes_as_current": false
+      }
+    },
+    {
+      "path": "/Users/vince/Projects/canlang/draft/shared/Locations.can",
+      "repository_relative_path": "draft/shared/Locations.can",
+      "sha256": "6cafeb02349c80c8ff19a278bc9072258fe8b8f402409629fed534854e106c7a",
+      "bytes": 11063,
+      "lines": 65,
+      "provenance": "current tracked private draft submodule",
+      "archived_snapshot": {
+        "path": "/Users/vince/Projects/canlang/design/evaluation/baseline-20261004T041647Z/snapshot/draft/shared/Locations.can",
+        "repository_relative_path": "design/evaluation/baseline-20261004T041647Z/snapshot/draft/shared/Locations.can",
+        "sha256": "6cafeb02349c80c8ff19a278bc9072258fe8b8f402409629fed534854e106c7a",
+        "bytes": 11063,
+        "lines": 65,
+        "provenance": "committed archived October 4 snapshot",
+        "historical_reference_commit": "4e89b117d3f66caa79a8df8ed875d55f9e40b948",
+        "same_bytes_as_current": true
+      }
+    },
+    {
+      "path": "/Users/vince/Projects/canlang/draft/WORKSPACE_OPERATOR.md",
+      "repository_relative_path": "draft/WORKSPACE_OPERATOR.md",
+      "sha256": "f8c075f21ad21f96b913eee4ee8cb25c512a06312e8bf3e9c331e30f11af80eb",
+      "bytes": 22817,
+      "lines": 126,
+      "provenance": "current tracked private draft submodule",
+      "archived_snapshot": {
+        "path": "/Users/vince/Projects/canlang/design/evaluation/baseline-20261004T041647Z/snapshot/draft/WORKSPACE_OPERATOR.md",
+        "repository_relative_path": "design/evaluation/baseline-20261004T041647Z/snapshot/draft/WORKSPACE_OPERATOR.md",
+        "sha256": "ed621e701aa888ba1b8971f2d7bacd20839a7e9f300d3a8cb2019d0570a18e8b",
+        "bytes": 22753,
+        "lines": 126,
+        "provenance": "committed archived October 4 snapshot",
+        "historical_reference_commit": "4e89b117d3f66caa79a8df8ed875d55f9e40b948",
+        "same_bytes_as_current": false
+      }
+    },
+    {
+      "path": "/Users/vince/Projects/canlang/draft/PORTFOLIO.md",
+      "repository_relative_path": "draft/PORTFOLIO.md",
+      "sha256": "b0086dd3698c3d82f096999aec2682f6d55452ebbdc91725fe9a0ab935454fc4",
+      "bytes": 13658,
+      "lines": 89,
+      "provenance": "current tracked private draft submodule",
+      "archived_snapshot": {
+        "path": "/Users/vince/Projects/canlang/design/evaluation/baseline-20261004T041647Z/snapshot/draft/PORTFOLIO.md",
+        "repository_relative_path": "design/evaluation/baseline-20261004T041647Z/snapshot/draft/PORTFOLIO.md",
+        "sha256": "1b96d49e8c7d271b32ba174dcc1fcc373dd75b151043b531bad6a25ed69876be",
+        "bytes": 13479,
+        "lines": 89,
+        "provenance": "committed archived October 4 snapshot",
+        "historical_reference_commit": "4e89b117d3f66caa79a8df8ed875d55f9e40b948",
+        "same_bytes_as_current": false
+      }
+    },
+    {
+      "path": "/Users/vince/Projects/canlang/design/complex-apps/chat-media.md",
+      "repository_relative_path": "design/complex-apps/chat-media.md",
+      "sha256": "601761815e2c805553c2691ecb7043aeab75af643225cbe15679d08d84154243",
+      "bytes": 30232,
+      "lines": 164,
+      "provenance": "current main-repository evidence/design"
+    },
+    {
+      "path": "/Users/vince/Projects/canlang/design/language-proposals-20261007/draft-intent-hashes.json",
+      "repository_relative_path": "design/language-proposals-20261007/draft-intent-hashes.json",
+      "sha256": "2fa8bc9fae982796bedd6e701a2b4a3636d30d4512c339506901609937465e0d",
+      "bytes": 2881,
+      "lines": 48,
+      "provenance": "current main-repository evidence/design"
+    },
+    {
+      "path": "/Users/vince/Projects/canlang/design/language-proposals-20261007/draft-intent-excerpts.md",
+      "repository_relative_path": "design/language-proposals-20261007/draft-intent-excerpts.md",
+      "sha256": "1689aa646fb238292e21199ab0edafa6d4587001ada5123d7c9acc4bd1405575",
+      "bytes": 17379,
+      "lines": 230,
+      "provenance": "current main-repository evidence/design"
+    },
+    {
+      "path": "/Users/vince/Projects/canlang/design/language-proposals-20261007/historical-draft-excerpts.md",
+      "repository_relative_path": "design/language-proposals-20261007/historical-draft-excerpts.md",
+      "sha256": "4e413b3e7ddb87cda567fbe2af5b460bba8d9a398f4e2e4713f9bd8ea6405076",
+      "bytes": 8884,
+      "lines": 91,
+      "provenance": "current main-repository evidence/design"
+    }
+  ],
+  "witnesses": [
+    {
+      "app": "CanCreative",
+      "source": "/Users/vince/Projects/canlang/draft/CanCreative.can",
+      "source_operations": [
+        {
+          "line": 62,
+          "declaration": "scenario template_edited on=Template.update"
+        },
+        {
+          "line": 65,
+          "declaration": "scenario inspect(template:Template) by=creative_manager label=\"Inspect workflow inputs\"@{nl=\"Workflowinvoer inspecteren\"}"
+        },
+        {
+          "line": 71,
+          "declaration": "scenario validate(template:Template) by=creative_manager -> Revision label=\"Validate new revision\"@{nl=\"Nieuwe versie valideren\"}"
+        },
+        {
+          "line": 80,
+          "declaration": "scenario publish(revision:Revision) by=creative_manager label=\"Publish workflow and graph to members\"@{nl=\"Workflow en graaf met leden delen\"}"
+        },
+        {
+          "line": 93,
+          "declaration": "export scenario generate(template:Template,prompt:ImageRequest.prompt,negative:ImageRequest.negative=\"\",width:ImageRequest.width=512,height:ImageRequest.height=512,conversation:Conversation?=null) by=members -> Run label=\"Generate images\"@{nl=\"Beelden genereren\"}"
+        },
+        {
+          "line": 119,
+          "declaration": "scenario from_turn(turn:Turn,template:Template,negative:ImageRequest.negative=\"\",width:ImageRequest.width=512,height:ImageRequest.height=512) by=members -> Run label=\"Create image from this message\"@{nl=\"Maak een beeld van dit bericht\"}"
+        },
+        {
+          "line": 125,
+          "declaration": "scenario stop(run:Run) by=members label=\"Stop image job\"@{nl=\"Beeldtaak stoppen\"}"
+        },
+        {
+          "line": 131,
+          "declaration": "scenario reconcile(run:Run) by=members label=\"Check image outcome\"@{nl=\"Beelduitkomst controleren\"}"
+        },
+        {
+          "line": 137,
+          "declaration": "scenario release_skipped(run:Run) by=members label=\"Release unsent job\"@{nl=\"Niet-verzonden taak vrijgeven\"}"
+        },
+        {
+          "line": 142,
+          "declaration": "scenario conversation_revoked on=Conversation.updated"
+        },
+        {
+          "line": 150,
+          "declaration": "scenario member_removed on=teams.member_removed"
+        },
+        {
+          "line": 157,
+          "declaration": "scenario image_progressed on=Images.submit.progressed"
+        }
+      ],
+      "source_crud": [
+        {
+          "line": 60,
+          "declaration": "crud Template by=creative_manager fields=name,graph,prompt_node,prompt_key,negative_node,negative_key,width_node,width_key,height_node,height_key,outputs,duration,active create_fields=name,graph,prompt_node,prompt_key,negative_node,negative_key,width_node,width_key,height_node,height_key,outputs,duration when=row.owner==actor delete=none"
+        },
+        {
+          "line": 61,
+          "declaration": "crud Budget by=creative_manager fields=cap,parallel,active create_fields=account,cap,parallel delete=none"
+        }
+      ],
+      "source_pages": [
+        {
+          "line": 187,
+          "declaration": "page /creative title=\"Image studio\"@{nl=\"Beeldstudio\"} poll=1s"
+        },
+        {
+          "line": 213,
+          "declaration": "page /creative/from-chat title=\"Chat to image\"@{nl=\"Van gesprek naar beeld\"} poll=1s"
+        },
+        {
+          "line": 236,
+          "declaration": "page /creative/recovery title=\"Unresolved image jobs\"@{nl=\"Onopgeloste beeldtaken\"} poll=1s"
+        },
+        {
+          "line": 243,
+          "declaration": "page /creative/workflows title=\"Workflow templates\"@{nl=\"Workflowsjablonen\"} poll=1s"
+        }
+      ],
+      "imports": [
+        {
+          "line": 7,
+          "declaration": "use chat {Conversation,Branch,Turn,can_use,conversation}"
+        },
+        {
+          "line": 8,
+          "declaration": "use std {WorkflowInput,WorkflowDefinition,WorkflowInspection,WorkflowValidation,ImageRequest,ImageRun,GeneratedImage,DeliveryResult}"
+        },
+        {
+          "line": 9,
+          "declaration": "use std {ImagesV1 as Images} from=deployment.images"
+        }
+      ],
+      "selected_packages": [
+        "chat",
+        "creative"
+      ],
+      "required_workflow_names": [
+        "Configure, validate and publish",
+        "Generate and recover",
+        "Resource and file guarantees",
+        "Chat to image",
+        "Unresolved image jobs",
+        "Workflow templates",
+        "Private chat: open/send/regenerate/revoke/stop/reconcile/release_skipped and once-only settlement"
+      ],
+      "transitive_sources": [
+        "draft/CanChat.can"
+      ],
+      "transitive_imports": [
+        {
+          "line": 5,
+          "declaration": "use std {TextMessage,TextRequest,TextRun,DeliveryResult}"
+        },
+        {
+          "line": 6,
+          "declaration": "use std {TextGenerationV1 as LLM} from=deployment.llm"
+        }
+      ],
+      "transitive_operations": [
+        {
+          "line": 59,
+          "declaration": "scenario open(title:text,profile:Profile) by=members -> Branch label=\"New conversation\"@{nl=\"Nieuw gesprek\"}"
+        },
+        {
+          "line": 66,
+          "declaration": "export scenario ask(branch:Branch,prompt:TextMessage.content,attachments:file[]=[]) by=members -> Run label=\"Send message\"@{nl=\"Bericht sturen\"}"
+        },
+        {
+          "line": 104,
+          "declaration": "scenario regenerate(turn:Turn,title:text) by=members -> Run label=\"Try another branch\"@{nl=\"Andere vertakking proberen\"}"
+        },
+        {
+          "line": 117,
+          "declaration": "scenario stop(run:Run) by=members label=\"Stop reply\"@{nl=\"Antwoord stoppen\"}"
+        },
+        {
+          "line": 123,
+          "declaration": "scenario reconcile(run:Run) by=members label=\"Check outcome\"@{nl=\"Uitkomst controleren\"}"
+        },
+        {
+          "line": 129,
+          "declaration": "scenario release_skipped(run:Run) by=members label=\"Release unsent request\"@{nl=\"Niet-verzonden verzoek vrijgeven\"}"
+        },
+        {
+          "line": 135,
+          "declaration": "scenario revoke(conversation:Conversation) by=members label=\"Revoke conversation\"@{nl=\"Gesprek intrekken\"}"
+        },
+        {
+          "line": 143,
+          "declaration": "scenario member_removed on=teams.member_removed"
+        },
+        {
+          "line": 153,
+          "declaration": "scenario reply_progressed on=LLM.generate.progressed"
+        }
+      ],
+      "transitive_crud": [
+        {
+          "line": 56,
+          "declaration": "crud Profile by=ai_manager fields=active create_fields=name,provider_key,policy_revision,system_prompt,input_tokens,output_tokens,duration delete=none"
+        },
+        {
+          "line": 57,
+          "declaration": "crud Allowance by=ai_manager fields=cap,parallel,active create_fields=account,cap,parallel delete=none"
+        }
+      ],
+      "transitive_pages": [
+        {
+          "line": 186,
+          "declaration": "page /chat title=\"Conversations\"@{nl=\"Gesprekken\"} poll=1s"
+        },
+        {
+          "line": 241,
+          "declaration": "page /chat/recovery title=\"Unresolved usage\"@{nl=\"Onopgelost gebruik\"} poll=1s"
+        },
+        {
+          "line": 250,
+          "declaration": "page /chat/admin title=\"AI access and limits\"@{nl=\"AI-toegang en limieten\"}"
+        }
+      ],
+      "provider_profile": {
+        "image": "std.ImagesV1 as Images from deployment.images; ComfyUI workflow contracts",
+        "text": "std.TextGenerationV1 as LLM from deployment.llm; Ollama researched in chat-media contract",
+        "concrete_versions_resources_endpoints": null
+      },
+      "storage_backend_profile": {
+        "metadata_backend": null,
+        "file_backend": null,
+        "declared_files": "application/pdf,image/png,image/jpeg,text/plain,application/json",
+        "durability_requirement": "same-owner ordinary transaction; durable associated progress/outbox and finalized receiving-app files",
+        "evidence": [
+          "draft/CanCreative.md",
+          "design/complex-apps/chat-media.md"
+        ]
+      },
+      "gallery_boundary": "CanGallery is downstream and not selected by CanCreative; authorized finalized-output gallery remains required here."
+    },
+    {
+      "app": "CanApprove",
+      "source": "/Users/vince/Projects/canlang/draft/CanApprove.can",
+      "source_operations": [
+        {
+          "line": 56,
+          "declaration": "scenario reviewer_choices(document:Document) read=true -> Employee[] by=members label=\"Choose reviewer\"@{nl=\"Beoordelaar kiezen\"}"
+        },
+        {
+          "line": 92,
+          "declaration": "scenario submit(document:Document,file:file,note:text label=label_Submission_note,assignee:user label=label_reviewer,reviewer_email:email label=label_Submission_reviewer_email,due:datetime) by=members"
+        },
+        {
+          "line": 198,
+          "declaration": "scenario assign(submission:Submission,assignee:user label=label_reviewer,email:email) by=coordinator"
+        },
+        {
+          "line": 219,
+          "declaration": "scenario decide(submission:Submission,approve:bool label=\"Approve\"@{nl=\"Goedkeuren\"},reason:text) by=reviewer label=\"Record decision\"@{nl=\"Besluit vastleggen\"}"
+        },
+        {
+          "line": 242,
+          "declaration": "scenario withdraw(submission:Submission) by=members label=\"Withdraw\"@{nl=\"Intrekken\"}"
+        },
+        {
+          "line": 252,
+          "declaration": "scenario remind on=Due"
+        },
+        {
+          "line": 264,
+          "declaration": "scenario notify on=Notice.created"
+        }
+      ],
+      "source_crud": [
+        {
+          "line": 86,
+          "declaration": "crud Document by=members fields=title,category,subject create_fields=location,title,category,subject,email when=row.submitter==actor and (row.location==null or can_work(actor,row.location)) delete=none"
+        }
+      ],
+      "source_pages": [
+        {
+          "line": 273,
+          "declaration": "page /documents title=\"My submissions\"@{nl=\"Mijn inzendingen\"}"
+        },
+        {
+          "line": 310,
+          "declaration": "page /documents/review title=\"Review queue\"@{nl=\"Beoordelingswachtrij\"}"
+        }
+      ],
+      "imports": [
+        {
+          "line": 6,
+          "declaration": "use rent_catalog {Location,test_site}"
+        },
+        {
+          "line": 7,
+          "declaration": "use employee {Employee,can_work,test_worker,hr,deactivate}"
+        },
+        {
+          "line": 8,
+          "declaration": "use std {EmailV1 as Mail,DeliveryResult} from=deployment.mail"
+        }
+      ],
+      "selected_packages": [
+        "approve"
+      ],
+      "required_workflow_names": [
+        "Approve or reject exactly the submitted revision",
+        "Replace a file during review, withdraw old submission and create fresh request",
+        "Coordinator assignment/reassignment with eligible reviewer and retained history",
+        "Submitter withdrawal",
+        "Submission notice, revision-bound due-date reminder and decision email",
+        "Reasoned rejection \u2192 replacement \u2192 approval with both downloadable versions and decisions retained",
+        "Stale open review \u2192 revision conflict \u2192 new request; reassignment removes old reviewer authority",
+        "Reviewer workplace/role loss \u2192 scoped coordinator recovery retaining original revision/file/note/due"
+      ],
+      "shared_packages": {
+        "rent_catalog": "draft/shared/Locations.can",
+        "employee": "draft/shared/Employees.can"
+      },
+      "shared_imports": {
+        "draft/shared/Locations.can": [
+          {
+            "line": 3,
+            "declaration": "use employee {can_work}"
+          }
+        ],
+        "draft/shared/Employees.can": [
+          {
+            "line": 3,
+            "declaration": "use rent_catalog {Location,test_site}"
+          }
+        ]
+      },
+      "provider_profile": {
+        "source": "std.EmailV1 as Mail from deployment.mail",
+        "requirements": "EmailService",
+        "concrete_instance_version": null
+      },
+      "storage_backend_profile": {
+        "requirements_metadata": "D1",
+        "requirements_files": "R2",
+        "evidence": "draft/CanApprove.md:44",
+        "concrete_instances_migrations_backend_profile": null
+      },
+      "approval_semantics": "One currently assigned eligible distinct reviewer; document decision only. Generic quorum or ExpenseFlow fixture is not this app."
+    }
+  ],
+  "open_gates": [
+    "SEQ-001 must reconcile historical ignored-draft labels against current tracked private submodule and accept exact source revision/ownership.",
+    "Concrete provider versions, installed models/nodes, allowlist, targeted-cancel isolation, actual durable backend and file backend profiles are unpinned. Deployment owner must register before execution acceptance.",
+    "Complete source and desired JavaScript are draft contracts. Existing core/UI state-machine commits prove scoped behavior only.",
+    "Historical CanApprove excerpt sections at lines 293\u2013355 are empty; use complete archived source and requirements."
+  ]
+}

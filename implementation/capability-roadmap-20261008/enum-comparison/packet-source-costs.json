@@ -1,0 +1,519 @@
+{
+  "scope": "all authored .can files, including repeated full apps and mutation/probe source; bytes/whitespace proxies only",
+  "rows": [
+    {
+      "path": "approval/current-if-add-case-full.can",
+      "utf8_bytes": 33465,
+      "whitespace_units": 1862,
+      "category": "mutation_source",
+      "model_token_count": "not measured",
+      "compiler_token_count": "not measured"
+    },
+    {
+      "path": "approval/current-if-full.can",
+      "utf8_bytes": 33456,
+      "whitespace_units": 1862,
+      "category": "principal_comparison",
+      "model_token_count": "not measured",
+      "compiler_token_count": "not measured"
+    },
+    {
+      "path": "approval/current-if-handler.can",
+      "utf8_bytes": 954,
+      "whitespace_units": 71,
+      "category": "principal_comparison",
+      "model_token_count": "not measured",
+      "compiler_token_count": "not measured"
+    },
+    {
+      "path": "approval/current-if-omit-case-full.can",
+      "utf8_bytes": 33394,
+      "whitespace_units": 1857,
+      "category": "mutation_source",
+      "model_token_count": "not measured",
+      "compiler_token_count": "not measured"
+    },
+    {
+      "path": "approval/current-if-remove-owner-case-full.can",
+      "utf8_bytes": 33410,
+      "whitespace_units": 1862,
+      "category": "mutation_source",
+      "model_token_count": "not measured",
+      "compiler_token_count": "not measured"
+    },
+    {
+      "path": "approval/improved-if-analysis-add-case-full.can",
+      "utf8_bytes": 33465,
+      "whitespace_units": 1862,
+      "category": "mutation_source",
+      "model_token_count": "not measured",
+      "compiler_token_count": "not measured"
+    },
+    {
+      "path": "approval/improved-if-analysis-full.can",
+      "utf8_bytes": 33456,
+      "whitespace_units": 1862,
+      "category": "principal_comparison",
+      "model_token_count": "not measured",
+      "compiler_token_count": "not measured"
+    },
+    {
+      "path": "approval/improved-if-analysis-handler.can",
+      "utf8_bytes": 954,
+      "whitespace_units": 71,
+      "category": "principal_comparison",
+      "model_token_count": "not measured",
+      "compiler_token_count": "not measured"
+    },
+    {
+      "path": "approval/improved-if-analysis-omit-case-full.can",
+      "utf8_bytes": 33394,
+      "whitespace_units": 1857,
+      "category": "mutation_source",
+      "model_token_count": "not measured",
+      "compiler_token_count": "not measured"
+    },
+    {
+      "path": "approval/improved-if-analysis-remove-owner-case-full.can",
+      "utf8_bytes": 33410,
+      "whitespace_units": 1862,
+      "category": "mutation_source",
+      "model_token_count": "not measured",
+      "compiler_token_count": "not measured"
+    },
+    {
+      "path": "approval/proposed-match-add-case-full.can",
+      "utf8_bytes": 33471,
+      "whitespace_units": 1865,
+      "category": "mutation_source",
+      "model_token_count": "not measured",
+      "compiler_token_count": "not measured"
+    },
+    {
+      "path": "approval/proposed-match-full.can",
+      "utf8_bytes": 33462,
+      "whitespace_units": 1865,
+      "category": "principal_comparison",
+      "model_token_count": "not measured",
+      "compiler_token_count": "not measured"
+    },
+    {
+      "path": "approval/proposed-match-handler.can",
+      "utf8_bytes": 960,
+      "whitespace_units": 74,
+      "category": "principal_comparison",
+      "model_token_count": "not measured",
+      "compiler_token_count": "not measured"
+    },
+    {
+      "path": "approval/proposed-match-omit-case-full.can",
+      "utf8_bytes": 33419,
+      "whitespace_units": 1861,
+      "category": "mutation_source",
+      "model_token_count": "not measured",
+      "compiler_token_count": "not measured"
+    },
+    {
+      "path": "approval/proposed-match-remove-owner-case-full.can",
+      "utf8_bytes": 33416,
+      "whitespace_units": 1865,
+      "category": "mutation_source",
+      "model_token_count": "not measured",
+      "compiler_token_count": "not measured"
+    },
+    {
+      "path": "generation/current-if-add-case-full.can",
+      "utf8_bytes": 2115,
+      "whitespace_units": 225,
+      "category": "mutation_source",
+      "model_token_count": "not measured",
+      "compiler_token_count": "not measured"
+    },
+    {
+      "path": "generation/current-if-full.can",
+      "utf8_bytes": 2108,
+      "whitespace_units": 225,
+      "category": "principal_comparison",
+      "model_token_count": "not measured",
+      "compiler_token_count": "not measured"
+    },
+    {
+      "path": "generation/current-if-handler.can",
+      "utf8_bytes": 698,
+      "whitespace_units": 72,
+      "category": "principal_comparison",
+      "model_token_count": "not measured",
+      "compiler_token_count": "not measured"
+    },
+    {
+      "path": "generation/current-if-omit-case-full.can",
+      "utf8_bytes": 2042,
+      "whitespace_units": 220,
+      "category": "mutation_source",
+      "model_token_count": "not measured",
+      "compiler_token_count": "not measured"
+    },
+    {
+      "path": "generation/current-if-remove-owner-case-full.can",
+      "utf8_bytes": 2097,
+      "whitespace_units": 225,
+      "category": "mutation_source",
+      "model_token_count": "not measured",
+      "compiler_token_count": "not measured"
+    },
+    {
+      "path": "generation/improved-if-analysis-add-case-full.can",
+      "utf8_bytes": 2115,
+      "whitespace_units": 225,
+      "category": "mutation_source",
+      "model_token_count": "not measured",
+      "compiler_token_count": "not measured"
+    },
+    {
+      "path": "generation/improved-if-analysis-full.can",
+      "utf8_bytes": 2108,
+      "whitespace_units": 225,
+      "category": "principal_comparison",
+      "model_token_count": "not measured",
+      "compiler_token_count": "not measured"
+    },
+    {
+      "path": "generation/improved-if-analysis-handler.can",
+      "utf8_bytes": 698,
+      "whitespace_units": 72,
+      "category": "principal_comparison",
+      "model_token_count": "not measured",
+      "compiler_token_count": "not measured"
+    },
+    {
+      "path": "generation/improved-if-analysis-omit-case-full.can",
+      "utf8_bytes": 2042,
+      "whitespace_units": 220,
+      "category": "mutation_source",
+      "model_token_count": "not measured",
+      "compiler_token_count": "not measured"
+    },
+    {
+      "path": "generation/improved-if-analysis-remove-owner-case-full.can",
+      "utf8_bytes": 2097,
+      "whitespace_units": 225,
+      "category": "mutation_source",
+      "model_token_count": "not measured",
+      "compiler_token_count": "not measured"
+    },
+    {
+      "path": "generation/proposed-match-add-case-full.can",
+      "utf8_bytes": 2098,
+      "whitespace_units": 227,
+      "category": "mutation_source",
+      "model_token_count": "not measured",
+      "compiler_token_count": "not measured"
+    },
+    {
+      "path": "generation/proposed-match-full.can",
+      "utf8_bytes": 2091,
+      "whitespace_units": 227,
+      "category": "principal_comparison",
+      "model_token_count": "not measured",
+      "compiler_token_count": "not measured"
+    },
+    {
+      "path": "generation/proposed-match-handler.can",
+      "utf8_bytes": 681,
+      "whitespace_units": 74,
+      "category": "principal_comparison",
+      "model_token_count": "not measured",
+      "compiler_token_count": "not measured"
+    },
+    {
+      "path": "generation/proposed-match-omit-case-full.can",
+      "utf8_bytes": 2046,
+      "whitespace_units": 223,
+      "category": "mutation_source",
+      "model_token_count": "not measured",
+      "compiler_token_count": "not measured"
+    },
+    {
+      "path": "generation/proposed-match-remove-owner-case-full.can",
+      "utf8_bytes": 2080,
+      "whitespace_units": 227,
+      "category": "mutation_source",
+      "model_token_count": "not measured",
+      "compiler_token_count": "not measured"
+    },
+    {
+      "path": "generation-effects/current-if-full.can",
+      "utf8_bytes": 23221,
+      "whitespace_units": 1474,
+      "category": "principal_comparison",
+      "model_token_count": "not measured",
+      "compiler_token_count": "not measured"
+    },
+    {
+      "path": "generation-effects/current-if-handler.can",
+      "utf8_bytes": 2716,
+      "whitespace_units": 113,
+      "category": "principal_comparison",
+      "model_token_count": "not measured",
+      "compiler_token_count": "not measured"
+    },
+    {
+      "path": "generation-effects/improved-if-analysis-full.can",
+      "utf8_bytes": 23221,
+      "whitespace_units": 1474,
+      "category": "principal_comparison",
+      "model_token_count": "not measured",
+      "compiler_token_count": "not measured"
+    },
+    {
+      "path": "generation-effects/improved-if-analysis-handler.can",
+      "utf8_bytes": 2716,
+      "whitespace_units": 113,
+      "category": "principal_comparison",
+      "model_token_count": "not measured",
+      "compiler_token_count": "not measured"
+    },
+    {
+      "path": "generation-effects/proposed-match-full.can",
+      "utf8_bytes": 23702,
+      "whitespace_units": 1515,
+      "category": "principal_comparison",
+      "model_token_count": "not measured",
+      "compiler_token_count": "not measured"
+    },
+    {
+      "path": "generation-effects/proposed-match-handler.can",
+      "utf8_bytes": 3197,
+      "whitespace_units": 154,
+      "category": "principal_comparison",
+      "model_token_count": "not measured",
+      "compiler_token_count": "not measured"
+    },
+    {
+      "path": "ordinary/current-if-add-case-full.can",
+      "utf8_bytes": 35613,
+      "whitespace_units": 2367,
+      "category": "mutation_source",
+      "model_token_count": "not measured",
+      "compiler_token_count": "not measured"
+    },
+    {
+      "path": "ordinary/current-if-full.can",
+      "utf8_bytes": 35603,
+      "whitespace_units": 2367,
+      "category": "principal_comparison",
+      "model_token_count": "not measured",
+      "compiler_token_count": "not measured"
+    },
+    {
+      "path": "ordinary/current-if-handler.can",
+      "utf8_bytes": 857,
+      "whitespace_units": 71,
+      "category": "principal_comparison",
+      "model_token_count": "not measured",
+      "compiler_token_count": "not measured"
+    },
+    {
+      "path": "ordinary/current-if-omit-case-full.can",
+      "utf8_bytes": 35541,
+      "whitespace_units": 2362,
+      "category": "mutation_source",
+      "model_token_count": "not measured",
+      "compiler_token_count": "not measured"
+    },
+    {
+      "path": "ordinary/current-if-remove-owner-case-full.can",
+      "utf8_bytes": 35569,
+      "whitespace_units": 2367,
+      "category": "mutation_source",
+      "model_token_count": "not measured",
+      "compiler_token_count": "not measured"
+    },
+    {
+      "path": "ordinary/improved-if-analysis-add-case-full.can",
+      "utf8_bytes": 35613,
+      "whitespace_units": 2367,
+      "category": "mutation_source",
+      "model_token_count": "not measured",
+      "compiler_token_count": "not measured"
+    },
+    {
+      "path": "ordinary/improved-if-analysis-full.can",
+      "utf8_bytes": 35603,
+      "whitespace_units": 2367,
+      "category": "principal_comparison",
+      "model_token_count": "not measured",
+      "compiler_token_count": "not measured"
+    },
+    {
+      "path": "ordinary/improved-if-analysis-handler.can",
+      "utf8_bytes": 857,
+      "whitespace_units": 71,
+      "category": "principal_comparison",
+      "model_token_count": "not measured",
+      "compiler_token_count": "not measured"
+    },
+    {
+      "path": "ordinary/improved-if-analysis-omit-case-full.can",
+      "utf8_bytes": 35541,
+      "whitespace_units": 2362,
+      "category": "mutation_source",
+      "model_token_count": "not measured",
+      "compiler_token_count": "not measured"
+    },
+    {
+      "path": "ordinary/improved-if-analysis-remove-owner-case-full.can",
+      "utf8_bytes": 35569,
+      "whitespace_units": 2367,
+      "category": "mutation_source",
+      "model_token_count": "not measured",
+      "compiler_token_count": "not measured"
+    },
+    {
+      "path": "ordinary/proposed-match-add-case-full.can",
+      "utf8_bytes": 35572,
+      "whitespace_units": 2368,
+      "category": "mutation_source",
+      "model_token_count": "not measured",
+      "compiler_token_count": "not measured"
+    },
+    {
+      "path": "ordinary/proposed-match-full.can",
+      "utf8_bytes": 35562,
+      "whitespace_units": 2368,
+      "category": "principal_comparison",
+      "model_token_count": "not measured",
+      "compiler_token_count": "not measured"
+    },
+    {
+      "path": "ordinary/proposed-match-handler.can",
+      "utf8_bytes": 816,
+      "whitespace_units": 72,
+      "category": "principal_comparison",
+      "model_token_count": "not measured",
+      "compiler_token_count": "not measured"
+    },
+    {
+      "path": "ordinary/proposed-match-omit-case-full.can",
+      "utf8_bytes": 35525,
+      "whitespace_units": 2364,
+      "category": "mutation_source",
+      "model_token_count": "not measured",
+      "compiler_token_count": "not measured"
+    },
+    {
+      "path": "ordinary/proposed-match-remove-owner-case-full.can",
+      "utf8_bytes": 35528,
+      "whitespace_units": 2368,
+      "category": "mutation_source",
+      "model_token_count": "not measured",
+      "compiler_token_count": "not measured"
+    },
+    {
+      "path": "originals/CanApprove.can",
+      "utf8_bytes": 32502,
+      "whitespace_units": 1791,
+      "category": "preserved_original",
+      "model_token_count": "not measured",
+      "compiler_token_count": "not measured"
+    },
+    {
+      "path": "originals/CanCreative.can",
+      "utf8_bytes": 23221,
+      "whitespace_units": 1474,
+      "category": "preserved_original",
+      "model_token_count": "not measured",
+      "compiler_token_count": "not measured"
+    },
+    {
+      "path": "originals/CanHire.can",
+      "utf8_bytes": 34746,
+      "whitespace_units": 2296,
+      "category": "preserved_original",
+      "model_token_count": "not measured",
+      "compiler_token_count": "not measured"
+    },
+    {
+      "path": "originals/Generation.can",
+      "utf8_bytes": 1410,
+      "whitespace_units": 153,
+      "category": "preserved_original",
+      "model_token_count": "not measured",
+      "compiler_token_count": "not measured"
+    },
+    {
+      "path": "originals/TeamTasks.can",
+      "utf8_bytes": 3301,
+      "whitespace_units": 325,
+      "category": "preserved_original",
+      "model_token_count": "not measured",
+      "compiler_token_count": "not measured"
+    },
+    {
+      "path": "proposed-contract-inputs/branch-scope.can",
+      "utf8_bytes": 410,
+      "whitespace_units": 44,
+      "category": "isolated_proposed_contract_input",
+      "model_token_count": "not measured",
+      "compiler_token_count": "not measured"
+    },
+    {
+      "path": "proposed-contract-inputs/duplicate-case.can",
+      "utf8_bytes": 402,
+      "whitespace_units": 46,
+      "category": "isolated_proposed_contract_input",
+      "model_token_count": "not measured",
+      "compiler_token_count": "not measured"
+    },
+    {
+      "path": "proposed-contract-inputs/foreign-case.can",
+      "utf8_bytes": 371,
+      "whitespace_units": 42,
+      "category": "isolated_proposed_contract_input",
+      "model_token_count": "not measured",
+      "compiler_token_count": "not measured"
+    },
+    {
+      "path": "proposed-contract-inputs/lexical-collision.can",
+      "utf8_bytes": 374,
+      "whitespace_units": 42,
+      "category": "isolated_proposed_contract_input",
+      "model_token_count": "not measured",
+      "compiler_token_count": "not measured"
+    },
+    {
+      "path": "proposed-contract-inputs/nullable-guarded.can",
+      "utf8_bytes": 451,
+      "whitespace_units": 48,
+      "category": "isolated_proposed_contract_input",
+      "model_token_count": "not measured",
+      "compiler_token_count": "not measured"
+    },
+    {
+      "path": "proposed-contract-inputs/nullable-subject.can",
+      "utf8_bytes": 398,
+      "whitespace_units": 42,
+      "category": "isolated_proposed_contract_input",
+      "model_token_count": "not measured",
+      "compiler_token_count": "not measured"
+    },
+    {
+      "path": "proposed-contract-inputs/unsupported-wildcard.can",
+      "utf8_bytes": 367,
+      "whitespace_units": 42,
+      "category": "isolated_proposed_contract_input",
+      "model_token_count": "not measured",
+      "compiler_token_count": "not measured"
+    },
+    {
+      "path": "proposed-contract-inputs/wrong-return-type.can",
+      "utf8_bytes": 365,
+      "whitespace_units": 42,
+      "category": "isolated_proposed_contract_input",
+      "model_token_count": "not measured",
+      "compiler_token_count": "not measured"
+    }
+  ],
+  "token_value_gate": "unclosed; no tokenizer/config selected or run; no strictness opt-in source invented",
+  "runtime_tooling_cost": "not measured; implementation absent"
+}

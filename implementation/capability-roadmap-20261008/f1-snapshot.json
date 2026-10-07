@@ -1,0 +1,17 @@
+{
+  "source_pin": "db57c3794d386fcd27f17f54b199272d58106a81",
+  "snapshot_path": "/private/tmp/canlang-roadmap-f1-db57c379",
+  "snapshot_kind": "Read-only Git archive of committed main plus separately pinned complete draft submodule; no shared Git mutation.",
+  "archive_sha256": "03350df08c28ee4c3c508412947981931c1a4fafd9ded28b6316ba8745c43edc",
+  "draft_source_pin": "a55a0f700f07f6f972d9d6091b0fdbceee399eb9",
+  "draft_archive_sha256": "62a48aafa3f481f4fd815f0682b7b1912c0ce551c08da8b81bec4ca8fe27f63d",
+  "uncommitted_product_candidates_copied": false,
+  "source_writes_authorized": false,
+  "provider_durable_installed_claims": false,
+  "required_handoff_scope": {
+    "owner_thread": "01a10c5a-0fb5-7343-9659-c3efab311c0c",
+    "scope": "Private frozen committed State invocation/mutation/default/atomic, contracts artifact/execution and Cloudflare context/invoke/stdlib snapshot probes. No main product writes.",
+    "original_vectors": "Explicit/omitted read selectors; secrecy/grants; current membership revocation with held identity; first errors/effect order; replay projection/admission reevaluation; real adapter/barriers for durable claims.",
+    "source_ownership": "Shared Git/DECISIONS/filetree and active UI bootstrap/polling remain with package coordinator."
+  }
+}

@@ -1,0 +1,20 @@
+  ## Added bounded comparison handler; PROPOSED enum-only match syntax; uncompiled evidence.
+  scenario review_state_text(submission:Submission) read=true -> text by=members
+   require submission.parent.submitter==actor or (coordinator and (submission.parent.location==null or can_work(actor,submission.parent.location))) or (reviewer and submission.reviewer==actor and submission.state!=withdrawn and (submission.parent.location==null or can_work(actor,submission.parent.location)))
+   do
+    let state=submission.state
+    match state
+     case pending
+      return "Pending"
+     case approved
+      return "Approved"
+     case rejected
+      return "Rejected"
+     case withdrawn
+      return "Withdrawn"
+   examples seed=[reviewer_worker] submission=pending_version
+    as,submission.state -> result
+    reviewer_user,pending -> "Pending"
+    reviewer_user,approved -> "Approved"
+    reviewer_user,rejected -> "Rejected"
+    self,withdrawn -> "Withdrawn"

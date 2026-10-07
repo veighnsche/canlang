@@ -1,0 +1,2373 @@
+{
+  "schema": "canlang.capability-orchestration/v1",
+  "status": "proposed planning overlay",
+  "observed_source_pin": "09a27206202443d6c07ce9cbfb6d92c214cda053",
+  "evaluation_source_pin": "4e89b117d3f66caa79a8df8ed875d55f9e40b948",
+  "execution_started": false,
+  "automatic_dispatch": false,
+  "canonical_task_ledger": "../../implementation/remaining-work/tasks.json",
+  "existing_task_alias_policy": "Scheduling labels are not extra canonical coding jobs. Reuse exact accepted slices and original dependencies; current accepted evidence and owners must be reconciled at execution.",
+  "local_capacity": {
+    "slots_including_coordinator": 4,
+    "author_slots_max": 2,
+    "independent_reviewer_slots": 1,
+    "other_chats_capacity": "separate; not part of this local pool"
+  },
+  "staffing": {
+    "default_author": "Sol medium",
+    "default_review": "Sol medium; high for cross-file/uncertain boundaries",
+    "repeatable_inventory": "Luna light/medium",
+    "escalation": "Astra for actual difficult/consequential authority or recovery decisions; no model changed by this plan"
+  },
+  "preserved_gates": [
+    "native preparation HOLD",
+    "original task acceptance and installed/durable/browser/provider scopes",
+    "foreign compiler/package/Git ownership",
+    "full file-tree review checkpoint"
+  ],
+  "readiness": [
+    "integrated source and accepted evidence current",
+    "required scoped producer outputs released",
+    "Resolve conditional dependency/output gates using the selected actual consumer; false conditions cannot waive original canonical dependencies.",
+    "conditional value/measurement gate satisfied",
+    "consequential open semantics settled with verified JEV3 advice",
+    "exact write set handed off by current owner",
+    "independent expected cases and affected checks defined"
+  ],
+  "first_dispatch_queue": [
+    "O0",
+    "O1",
+    "N8 preparation",
+    "N9 preparation",
+    "first missing F1/F3/F4 slices by released defining owner"
+  ],
+  "packet_state_order": [
+    "planned",
+    "prepared",
+    "contract_released",
+    "implemented",
+    "scope_verified",
+    "integrated"
+  ],
+  "failure_policy": "Suspend only affected consumer outputs after regression; fix/review at exact scope; retain uncertainty and unrelated accepted credit.",
+  "proposal_coverage": {
+    "1": [
+      "F4",
+      "F5",
+      "F6",
+      "J0",
+      "H1"
+    ],
+    "2": [
+      "F4",
+      "F6",
+      "J0",
+      "D2"
+    ],
+    "3": [
+      "F4",
+      "F5",
+      "D3",
+      "H3"
+    ],
+    "4": [
+      "F2",
+      "F3",
+      "D4",
+      "J1"
+    ],
+    "5": [
+      "F2",
+      "F4",
+      "F6",
+      "D5"
+    ],
+    "6": [
+      "F4",
+      "B6"
+    ],
+    "7": [
+      "F4",
+      "C7"
+    ],
+    "8": [
+      "N8"
+    ],
+    "9": [
+      "F2",
+      "F3",
+      "N9"
+    ],
+    "10": [
+      "F3",
+      "C10"
+    ],
+    "11": [
+      "F3",
+      "V0",
+      "C11"
+    ],
+    "12": [
+      "H12"
+    ],
+    "13": [
+      "F2",
+      "J0",
+      "C13",
+      "H13"
+    ],
+    "14": [
+      "V0",
+      "C14"
+    ],
+    "15": [
+      "F1",
+      "F4",
+      "F5",
+      "F6",
+      "F7",
+      "J0"
+    ],
+    "16": [
+      "F1",
+      "F2",
+      "J1",
+      "X16"
+    ],
+    "17": [
+      "F1",
+      "F4",
+      "F5",
+      "X17"
+    ],
+    "18": [
+      "F1",
+      "F2",
+      "F4",
+      "F5",
+      "F7",
+      "X18"
+    ],
+    "19": [
+      "F3",
+      "F7",
+      "J0"
+    ],
+    "20": [
+      "F1",
+      "F2",
+      "J0",
+      "J1"
+    ],
+    "21": [
+      "F1",
+      "F2",
+      "F3",
+      "F4",
+      "F5",
+      "F6",
+      "F7",
+      "J0",
+      "V0",
+      "J1"
+    ]
+  },
+  "packets": [
+    {
+      "id": "O0",
+      "name": "Reconcile source, evidence and owners",
+      "mode": "preparation",
+      "proposal_ids": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21
+      ],
+      "canonical_references": [],
+      "dependency_packets": [],
+      "dependency_policy": "Required accepted output scopes only, not whole broad parent completion. See per-packet gate and original canonical dependencies; defining-owner release is mandatory.",
+      "ownership_groups": [
+        "coordination"
+      ],
+      "assigned_author": null,
+      "active_file_lease": null,
+      "execution_state": "planned",
+      "preparation": "Read-only/disjoint comparisons and vectors may prepare while implementation gates are unresolved; O0 source/owner scope must be identified.",
+      "deliverable": "Current accepted source and lease inventory; registered app/operation hashes; missing joins only.",
+      "release_and_acceptance_gate": "Source/task evidence reconciled at exact scope; all existing writers and HOLD preserved.",
+      "original_acceptance_retained": true,
+      "consumer_handoff_required": true,
+      "consumers": [
+        "O1"
+      ],
+      "outputs": [
+        {
+          "id": "source_owner_inventory",
+          "state": "planned",
+          "scope_binding": null,
+          "source_pin": null,
+          "evidence": [],
+          "owner_acceptance": null
+        }
+      ],
+      "output_release_rule": "Each output must name exact app/operation/type/profile/backend, defining-owner acceptance and independent evidence. A sibling output or broad task status cannot substitute.",
+      "dependency_outputs": [],
+      "conditional_dependency_outputs": [],
+      "conditional_canonical_references": []
+    },
+    {
+      "id": "O1",
+      "name": "Release narrow producer/consumer contracts",
+      "mode": "preparation",
+      "proposal_ids": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21
+      ],
+      "canonical_references": [
+        "challenge:T04",
+        "challenge:T15"
+      ],
+      "dependency_packets": [
+        "O0"
+      ],
+      "dependency_policy": "Required accepted output scopes only, not whole broad parent completion. See per-packet gate and original canonical dependencies; defining-owner release is mandatory.",
+      "ownership_groups": [
+        "coordination",
+        "descriptors"
+      ],
+      "assigned_author": null,
+      "active_file_lease": null,
+      "execution_state": "planned",
+      "preparation": "Read-only/disjoint comparisons and vectors may prepare while implementation gates are unresolved; O0 source/owner scope must be identified.",
+      "deliverable": "Versioned supported schemas, canonical IDs, context, transaction, fence, effect and compatibility handoffs.",
+      "release_and_acceptance_gate": "Reuse existing released contracts; consequential missing semantics receive verified JEV3 before selection.",
+      "original_acceptance_retained": true,
+      "consumer_handoff_required": true,
+      "consumers": [
+        "F1",
+        "N8",
+        "N9",
+        "C7",
+        "C11",
+        "H12"
+      ],
+      "outputs": [
+        {
+          "id": "canonical_contracts",
+          "state": "planned",
+          "scope_binding": null,
+          "source_pin": null,
+          "evidence": [],
+          "owner_acceptance": null
+        }
+      ],
+      "output_release_rule": "Each output must name exact app/operation/type/profile/backend, defining-owner acceptance and independent evidence. A sibling output or broad task status cannot substitute.",
+      "dependency_outputs": [
+        {
+          "packet": "O0",
+          "outputs": [
+            "source_owner_inventory"
+          ],
+          "rule": "All listed outputs accepted at the consumer-required exact scope; entire producer completion is not required."
+        }
+      ],
+      "conditional_dependency_outputs": [],
+      "conditional_canonical_references": []
+    },
+    {
+      "id": "F1",
+      "name": "Compiled invocation and context",
+      "mode": "existing_completion",
+      "proposal_ids": [
+        15,
+        16,
+        17,
+        18,
+        20,
+        21
+      ],
+      "canonical_references": [
+        "challenge:T04",
+        "challenge:T15",
+        "challenge:T16",
+        "challenge:T17",
+        "finished-product:FP.CONTEXT"
+      ],
+      "dependency_packets": [
+        "O1"
+      ],
+      "dependency_policy": "Required accepted output scopes only, not whole broad parent completion. See per-packet gate and original canonical dependencies; defining-owner release is mandatory.",
+      "ownership_groups": [
+        "compiler",
+        "runtime_state"
+      ],
+      "assigned_author": null,
+      "active_file_lease": null,
+      "execution_state": "planned",
+      "preparation": "Read-only/disjoint comparisons and vectors may prepare while implementation gates are unresolved; O0 source/owner scope must be identified.",
+      "deliverable": "Actual emitted operation reaches canonical loader/admission/durable state with context/defaults/versions/replay.",
+      "release_and_acceptance_gate": "Selected supported scope passes denied/stale/wrong-owner/actor-null and persisted replay/restart checks.",
+      "original_acceptance_retained": true,
+      "consumer_handoff_required": true,
+      "consumers": [
+        "F2",
+        "F3",
+        "F4",
+        "F7",
+        "J0",
+        "V0",
+        "D4",
+        "J1",
+        "D5",
+        "X16",
+        "X17",
+        "X18",
+        "B6"
+      ],
+      "outputs": [
+        {
+          "id": "local_invocation",
+          "state": "planned",
+          "scope_binding": null,
+          "source_pin": null,
+          "evidence": [],
+          "owner_acceptance": null
+        },
+        {
+          "id": "verified_scope_context",
+          "state": "planned",
+          "scope_binding": null,
+          "source_pin": null,
+          "evidence": [],
+          "owner_acceptance": null
+        },
+        {
+          "id": "durable_owner_commit",
+          "state": "planned",
+          "scope_binding": null,
+          "source_pin": null,
+          "evidence": [],
+          "owner_acceptance": null
+        }
+      ],
+      "output_release_rule": "Each output must name exact app/operation/type/profile/backend, defining-owner acceptance and independent evidence. A sibling output or broad task status cannot substitute.",
+      "dependency_outputs": [
+        {
+          "packet": "O1",
+          "outputs": [
+            "canonical_contracts"
+          ],
+          "rule": "All listed outputs accepted at the consumer-required exact scope; entire producer completion is not required."
+        }
+      ],
+      "conditional_dependency_outputs": [],
+      "conditional_canonical_references": []
+    },
+    {
+      "id": "F2",
+      "name": "Applicable rules and authorized reads",
+      "mode": "existing_completion",
+      "proposal_ids": [
+        4,
+        5,
+        9,
+        13,
+        16,
+        18,
+        20,
+        21
+      ],
+      "canonical_references": [
+        "challenge:T31",
+        "challenge:T32",
+        "SM.QUALIFY"
+      ],
+      "dependency_packets": [
+        "F1"
+      ],
+      "dependency_policy": "Required accepted output scopes only, not whole broad parent completion. See per-packet gate and original canonical dependencies; defining-owner release is mandatory.",
+      "ownership_groups": [
+        "compiler",
+        "runtime_state"
+      ],
+      "assigned_author": null,
+      "active_file_lease": null,
+      "execution_state": "planned",
+      "preparation": "Read-only/disjoint comparisons and vectors may prepare while implementation gates are unresolved; O0 source/owner scope must be identified.",
+      "deliverable": "Released provisional rule/current-read slices for the consuming operation, with protected machine writers.",
+      "release_and_acceptance_gate": "Required hook/lock/invariant/order/fence/rollback/version checks pass; unrelated profiles remain open.",
+      "original_acceptance_retained": true,
+      "consumer_handoff_required": true,
+      "consumers": [
+        "J0",
+        "V0",
+        "N9",
+        "D4",
+        "J1",
+        "D5",
+        "X16",
+        "X18",
+        "B6",
+        "C13",
+        "H13"
+      ],
+      "outputs": [
+        {
+          "id": "authorized_bounded_reads",
+          "state": "planned",
+          "scope_binding": null,
+          "source_pin": null,
+          "evidence": [],
+          "owner_acceptance": null
+        },
+        {
+          "id": "declared_rule_pipeline",
+          "state": "planned",
+          "scope_binding": null,
+          "source_pin": null,
+          "evidence": [],
+          "owner_acceptance": null
+        },
+        {
+          "id": "flat_writer_protection",
+          "state": "planned",
+          "scope_binding": null,
+          "source_pin": null,
+          "evidence": [],
+          "owner_acceptance": null
+        }
+      ],
+      "output_release_rule": "Each output must name exact app/operation/type/profile/backend, defining-owner acceptance and independent evidence. A sibling output or broad task status cannot substitute.",
+      "dependency_outputs": [
+        {
+          "packet": "F1",
+          "outputs": [
+            "local_invocation",
+            "verified_scope_context",
+            "durable_owner_commit"
+          ],
+          "rule": "All listed outputs accepted at the consumer-required exact scope; entire producer completion is not required."
+        }
+      ],
+      "conditional_dependency_outputs": [],
+      "conditional_canonical_references": []
+    },
+    {
+      "id": "F3",
+      "name": "Canonical form and browser action adapter",
+      "mode": "existing_completion",
+      "proposal_ids": [
+        4,
+        9,
+        10,
+        11,
+        19,
+        21
+      ],
+      "canonical_references": [
+        "challenge:T19",
+        "challenge:T20",
+        "finished-product:FP.BROWSER"
+      ],
+      "dependency_packets": [
+        "F1"
+      ],
+      "dependency_policy": "Required accepted output scopes only, not whole broad parent completion. See per-packet gate and original canonical dependencies; defining-owner release is mandatory.",
+      "ownership_groups": [
+        "compiler",
+        "descriptors",
+        "forms_interfaces"
+      ],
+      "assigned_author": null,
+      "active_file_lease": null,
+      "execution_state": "planned",
+      "preparation": "Read-only/disjoint comparisons and vectors may prepare while implementation gates are unresolved; O0 source/owner scope must be identified.",
+      "deliverable": "Actual emitted scalar/reference form and protected action use the canonical schema/context/version path.",
+      "release_and_acceptance_gate": "Browser/MCP admission parity, CSRF, validation/replay, real assets/DOM and pending-input preservation pass.",
+      "original_acceptance_retained": true,
+      "consumer_handoff_required": true,
+      "consumers": [
+        "J0",
+        "N9",
+        "D4",
+        "J1",
+        "X16",
+        "B6",
+        "C10",
+        "C11",
+        "C14"
+      ],
+      "outputs": [
+        {
+          "id": "scalar_reference_forms",
+          "state": "planned",
+          "scope_binding": null,
+          "source_pin": null,
+          "evidence": [],
+          "owner_acceptance": null
+        },
+        {
+          "id": "protected_actions",
+          "state": "planned",
+          "scope_binding": null,
+          "source_pin": null,
+          "evidence": [],
+          "owner_acceptance": null
+        },
+        {
+          "id": "form_partial_refresh",
+          "state": "planned",
+          "scope_binding": null,
+          "source_pin": null,
+          "evidence": [],
+          "owner_acceptance": null
+        }
+      ],
+      "output_release_rule": "Each output must name exact app/operation/type/profile/backend, defining-owner acceptance and independent evidence. A sibling output or broad task status cannot substitute.",
+      "dependency_outputs": [
+        {
+          "packet": "F1",
+          "outputs": [
+            "local_invocation",
+            "verified_scope_context",
+            "durable_owner_commit"
+          ],
+          "rule": "All listed outputs accepted at the consumer-required exact scope; entire producer completion is not required."
+        }
+      ],
+      "conditional_dependency_outputs": [],
+      "conditional_canonical_references": []
+    },
+    {
+      "id": "F4",
+      "name": "Generated durable sends and keyed timers",
+      "mode": "existing_completion",
+      "proposal_ids": [
+        1,
+        2,
+        3,
+        5,
+        6,
+        7,
+        15,
+        17,
+        18,
+        21
+      ],
+      "canonical_references": [
+        "challenge:T24"
+      ],
+      "dependency_packets": [
+        "F1"
+      ],
+      "dependency_policy": "Required accepted output scopes only, not whole broad parent completion. See per-packet gate and original canonical dependencies; defining-owner release is mandatory.",
+      "ownership_groups": [
+        "compiler",
+        "runtime_state",
+        "work_providers"
+      ],
+      "assigned_author": null,
+      "active_file_lease": null,
+      "execution_state": "planned",
+      "preparation": "Read-only/disjoint comparisons and vectors may prepare while implementation gates are unresolved; O0 source/owner scope must be identified.",
+      "deliverable": "Actual emitted send/timer joins committed domain/history/receipt/outbox/schedule and real dispatch.",
+      "release_and_acceptance_gate": "Atomic rollback and dispatch predicates, stable identity, retry/unknown and crash/restart pass for selected effects.",
+      "original_acceptance_retained": true,
+      "consumer_handoff_required": true,
+      "consumers": [
+        "F5",
+        "J0",
+        "D5",
+        "D2",
+        "D3",
+        "X17",
+        "X18",
+        "B6",
+        "C7",
+        "H1"
+      ],
+      "outputs": [
+        {
+          "id": "compiled_send",
+          "state": "planned",
+          "scope_binding": null,
+          "source_pin": null,
+          "evidence": [],
+          "owner_acceptance": null
+        },
+        {
+          "id": "keyed_timer",
+          "state": "planned",
+          "scope_binding": null,
+          "source_pin": null,
+          "evidence": [],
+          "owner_acceptance": null
+        }
+      ],
+      "output_release_rule": "Each output must name exact app/operation/type/profile/backend, defining-owner acceptance and independent evidence. A sibling output or broad task status cannot substitute.",
+      "dependency_outputs": [
+        {
+          "packet": "F1",
+          "outputs": [
+            "local_invocation",
+            "verified_scope_context",
+            "durable_owner_commit"
+          ],
+          "rule": "All listed outputs accepted at the consumer-required exact scope; entire producer completion is not required."
+        }
+      ],
+      "conditional_dependency_outputs": [],
+      "conditional_canonical_references": []
+    },
+    {
+      "id": "F5",
+      "name": "Authorized selected receipt observation",
+      "mode": "existing_completion",
+      "proposal_ids": [
+        1,
+        3,
+        15,
+        17,
+        18,
+        21
+      ],
+      "canonical_references": [
+        "challenge:T25"
+      ],
+      "dependency_packets": [
+        "F4"
+      ],
+      "dependency_policy": "Required accepted output scopes only, not whole broad parent completion. See per-packet gate and original canonical dependencies; defining-owner release is mandatory.",
+      "ownership_groups": [
+        "runtime_state",
+        "work_providers",
+        "forms_interfaces"
+      ],
+      "assigned_author": null,
+      "active_file_lease": null,
+      "execution_state": "planned",
+      "preparation": "Read-only/disjoint comparisons and vectors may prepare while implementation gates are unresolved; O0 source/owner scope must be identified.",
+      "deliverable": "Associated receipt observations reach real populated authorized installed/bundled consumers.",
+      "release_and_acceptance_gate": "Status-only/selected-leaf access, revision fence, revoked membership and superseded association controls pass.",
+      "original_acceptance_retained": true,
+      "consumer_handoff_required": true,
+      "consumers": [
+        "F6",
+        "J0",
+        "D3",
+        "X17",
+        "X18",
+        "H1"
+      ],
+      "outputs": [
+        {
+          "id": "associated_receipt_observation",
+          "state": "planned",
+          "scope_binding": null,
+          "source_pin": null,
+          "evidence": [],
+          "owner_acceptance": null
+        }
+      ],
+      "output_release_rule": "Each output must name exact app/operation/type/profile/backend, defining-owner acceptance and independent evidence. A sibling output or broad task status cannot substitute.",
+      "dependency_outputs": [
+        {
+          "packet": "F4",
+          "outputs": [
+            "compiled_send"
+          ],
+          "rule": "All listed outputs accepted at the consumer-required exact scope; entire producer completion is not required."
+        }
+      ],
+      "conditional_dependency_outputs": [],
+      "conditional_canonical_references": []
+    },
+    {
+      "id": "F6",
+      "name": "Typed generation progress and original-target stop",
+      "mode": "existing_completion",
+      "proposal_ids": [
+        1,
+        2,
+        5,
+        15,
+        21
+      ],
+      "canonical_references": [
+        "challenge:T26"
+      ],
+      "dependency_packets": [
+        "F5"
+      ],
+      "dependency_policy": "Required accepted output scopes only, not whole broad parent completion. See per-packet gate and original canonical dependencies; defining-owner release is mandatory.",
+      "ownership_groups": [
+        "work_providers",
+        "runtime_state"
+      ],
+      "assigned_author": null,
+      "active_file_lease": null,
+      "execution_state": "planned",
+      "preparation": "Read-only/disjoint comparisons and vectors may prepare while implementation gates are unresolved; O0 source/owner scope must be identified.",
+      "deliverable": "Released generation source/revision/sequence, progress, cancel/reconcile and verified usage path.",
+      "release_and_acceptance_gate": "Duplicate/out-of-order/unknown/terminal/late-usage/stop-success/restart cases pass; no assumed remote rollback.",
+      "original_acceptance_retained": true,
+      "consumer_handoff_required": true,
+      "consumers": [
+        "F7",
+        "J0",
+        "D5",
+        "D2"
+      ],
+      "outputs": [
+        {
+          "id": "generation_progress",
+          "state": "planned",
+          "scope_binding": null,
+          "source_pin": null,
+          "evidence": [],
+          "owner_acceptance": null
+        },
+        {
+          "id": "targeted_cancel_reconcile",
+          "state": "planned",
+          "scope_binding": null,
+          "source_pin": null,
+          "evidence": [],
+          "owner_acceptance": null
+        },
+        {
+          "id": "verified_usage",
+          "state": "planned",
+          "scope_binding": null,
+          "source_pin": null,
+          "evidence": [],
+          "owner_acceptance": null
+        }
+      ],
+      "output_release_rule": "Each output must name exact app/operation/type/profile/backend, defining-owner acceptance and independent evidence. A sibling output or broad task status cannot substitute.",
+      "dependency_outputs": [
+        {
+          "packet": "F5",
+          "outputs": [
+            "associated_receipt_observation"
+          ],
+          "rule": "All listed outputs accepted at the consumer-required exact scope; entire producer completion is not required."
+        }
+      ],
+      "conditional_dependency_outputs": [],
+      "conditional_canonical_references": []
+    },
+    {
+      "id": "F7",
+      "name": "Canonical finalized file lifecycle",
+      "mode": "existing_completion",
+      "proposal_ids": [
+        15,
+        18,
+        19,
+        21
+      ],
+      "canonical_references": [
+        "finished-product:FP.FILES-DURABLE"
+      ],
+      "dependency_packets": [
+        "F1"
+      ],
+      "dependency_policy": "Required accepted output scopes only, not whole broad parent completion. See per-packet gate and original canonical dependencies; defining-owner release is mandatory.",
+      "ownership_groups": [
+        "files",
+        "forms_interfaces",
+        "runtime_state"
+      ],
+      "assigned_author": null,
+      "active_file_lease": null,
+      "execution_state": "planned",
+      "preparation": "Read-only/disjoint comparisons and vectors may prepare while implementation gates are unresolved; O0 source/owner scope must be identified.",
+      "deliverable": "Actual finalized bytes/digests/provenance and canonical browser/MCP association/disclosure.",
+      "release_and_acceptance_gate": "Foreign/expired/forged/partial transfers, replay, retention and failure between bytes/metadata/association pass. Preserve original T24 file-specific durable owner/outbox handoff; a compiled bound-send/timer witness is not a prerequisite for every generic transfer.",
+      "original_acceptance_retained": true,
+      "consumer_handoff_required": true,
+      "consumers": [
+        "J0",
+        "J1",
+        "X18",
+        "C10"
+      ],
+      "outputs": [
+        {
+          "id": "finalized_file_bridge",
+          "state": "planned",
+          "scope_binding": null,
+          "source_pin": null,
+          "evidence": [],
+          "owner_acceptance": null
+        },
+        {
+          "id": "provider_file_finalization",
+          "state": "planned",
+          "scope_binding": null,
+          "source_pin": null,
+          "evidence": [],
+          "owner_acceptance": null
+        }
+      ],
+      "output_release_rule": "Each output must name exact app/operation/type/profile/backend, defining-owner acceptance and independent evidence. A sibling output or broad task status cannot substitute.",
+      "dependency_outputs": [
+        {
+          "packet": "F1",
+          "outputs": [
+            "durable_owner_commit",
+            "verified_scope_context"
+          ],
+          "rule": "All listed outputs accepted at the consumer-required exact scope; entire producer completion is not required."
+        }
+      ],
+      "conditional_dependency_outputs": [
+        {
+          "when": "provider_file_finalization output requested",
+          "packet": "F6",
+          "outputs": [
+            "generation_progress"
+          ],
+          "reason": "Generation finalization additionally qualifies T27; other file consumers use their applicable provider handoff."
+        }
+      ],
+      "conditional_canonical_references": []
+    },
+    {
+      "id": "J0",
+      "name": "Private image application journey",
+      "mode": "qualification",
+      "proposal_ids": [
+        1,
+        2,
+        13,
+        15,
+        19,
+        20,
+        21
+      ],
+      "canonical_references": [
+        "challenge:T27",
+        "challenge:T37",
+        "finished-product:FP.QUALIFY",
+        "SM.QUALIFY"
+      ],
+      "dependency_packets": [
+        "F1",
+        "F2",
+        "F3",
+        "F4",
+        "F5",
+        "F6",
+        "F7"
+      ],
+      "dependency_policy": "Required accepted output scopes only, not whole broad parent completion. See per-packet gate and original canonical dependencies; defining-owner release is mandatory.",
+      "ownership_groups": [
+        "coordination",
+        "app_witnesses"
+      ],
+      "assigned_author": null,
+      "active_file_lease": null,
+      "execution_state": "planned",
+      "preparation": "Read-only/disjoint comparisons and vectors may prepare while implementation gates are unresolved; O0 source/owner scope must be identified.",
+      "deliverable": "Pinned declared generation lifecycle works through actual source/compiler/browser/MCP/storage/provider.",
+      "release_and_acceptance_gate": "Queued/running/output/failure/unknown/stop/reconcile/retry, two actors, restart and revoked disclosure pass at claimed scope.",
+      "original_acceptance_retained": true,
+      "consumer_handoff_required": true,
+      "consumers": [],
+      "outputs": [
+        {
+          "id": "qualified_slice",
+          "state": "planned",
+          "scope_binding": null,
+          "source_pin": null,
+          "evidence": [],
+          "owner_acceptance": null
+        }
+      ],
+      "output_release_rule": "Each output must name exact app/operation/type/profile/backend, defining-owner acceptance and independent evidence. A sibling output or broad task status cannot substitute.",
+      "dependency_outputs": [
+        {
+          "packet": "F1",
+          "outputs": [
+            "local_invocation"
+          ],
+          "rule": "All listed outputs accepted at the consumer-required exact scope; entire producer completion is not required."
+        },
+        {
+          "packet": "F2",
+          "outputs": [
+            "authorized_bounded_reads",
+            "declared_rule_pipeline",
+            "flat_writer_protection"
+          ],
+          "rule": "All listed outputs accepted at the consumer-required exact scope; entire producer completion is not required."
+        },
+        {
+          "packet": "F3",
+          "outputs": [
+            "scalar_reference_forms",
+            "protected_actions",
+            "form_partial_refresh"
+          ],
+          "rule": "All listed outputs accepted at the consumer-required exact scope; entire producer completion is not required."
+        },
+        {
+          "packet": "F4",
+          "outputs": [
+            "compiled_send"
+          ],
+          "rule": "All listed outputs accepted at the consumer-required exact scope; entire producer completion is not required."
+        },
+        {
+          "packet": "F5",
+          "outputs": [
+            "associated_receipt_observation"
+          ],
+          "rule": "All listed outputs accepted at the consumer-required exact scope; entire producer completion is not required."
+        },
+        {
+          "packet": "F6",
+          "outputs": [
+            "generation_progress",
+            "targeted_cancel_reconcile",
+            "verified_usage"
+          ],
+          "rule": "All listed outputs accepted at the consumer-required exact scope; entire producer completion is not required."
+        },
+        {
+          "packet": "F7",
+          "outputs": [
+            "finalized_file_bridge",
+            "provider_file_finalization"
+          ],
+          "rule": "All listed outputs accepted at the consumer-required exact scope; entire producer completion is not required."
+        }
+      ],
+      "conditional_dependency_outputs": [],
+      "conditional_canonical_references": []
+    },
+    {
+      "id": "V0",
+      "name": "Authorized read-only partial rendering and installed polling",
+      "mode": "existing_completion",
+      "proposal_ids": [
+        11,
+        14,
+        21
+      ],
+      "canonical_references": [
+        "challenge:T08",
+        "challenge:T15",
+        "challenge:T20",
+        "challenge:T32",
+        "finished-product:FP.BROWSER"
+      ],
+      "dependency_packets": [
+        "F1",
+        "F2"
+      ],
+      "dependency_policy": "Required accepted output scopes only, not whole broad parent completion. See per-packet gate and original canonical dependencies; defining-owner release is mandatory.",
+      "ownership_groups": [
+        "compiler",
+        "forms_interfaces",
+        "runtime_state"
+      ],
+      "assigned_author": null,
+      "active_file_lease": null,
+      "execution_state": "planned",
+      "preparation": "Read-only/disjoint comparisons and vectors may prepare while implementation gates are unresolved; O0 source/owner scope must be identified.",
+      "deliverable": "Actual emitted read-only page/partial and installed context-aware polling; no form/action prerequisite.",
+      "release_and_acceptance_gate": "Current row/field permissions, mounted assets, query/team/session context, sequence/revocation/logout/navigation/hidden and restart checks on actual read-only rendering.",
+      "original_acceptance_retained": true,
+      "consumer_handoff_required": true,
+      "consumers": [
+        "C14"
+      ],
+      "outputs": [
+        {
+          "id": "authorized_partial_read",
+          "state": "planned",
+          "scope_binding": null,
+          "source_pin": null,
+          "evidence": [],
+          "owner_acceptance": null
+        },
+        {
+          "id": "installed_polling_context",
+          "state": "planned",
+          "scope_binding": null,
+          "source_pin": null,
+          "evidence": [],
+          "owner_acceptance": null
+        }
+      ],
+      "output_release_rule": "Each output must name exact app/operation/type/profile/backend, defining-owner acceptance and independent evidence. A sibling output or broad task status cannot substitute.",
+      "dependency_outputs": [
+        {
+          "packet": "F1",
+          "outputs": [
+            "verified_scope_context"
+          ],
+          "rule": "All listed outputs accepted at the consumer-required exact scope; entire producer completion is not required."
+        },
+        {
+          "packet": "F2",
+          "outputs": [
+            "authorized_bounded_reads"
+          ],
+          "rule": "All listed outputs accepted at the consumer-required exact scope; entire producer completion is not required."
+        }
+      ],
+      "conditional_dependency_outputs": [],
+      "conditional_canonical_references": []
+    },
+    {
+      "id": "N8",
+      "name": "Enum exhaustive handling candidate",
+      "mode": "language_candidate",
+      "proposal_ids": [
+        8
+      ],
+      "canonical_references": [],
+      "dependency_packets": [
+        "O1"
+      ],
+      "dependency_policy": "Required accepted output scopes only, not whole broad parent completion. See per-packet gate and original canonical dependencies; defining-owner release is mandatory.",
+      "ownership_groups": [
+        "compiler"
+      ],
+      "assigned_author": null,
+      "active_file_lease": null,
+      "execution_state": "planned",
+      "preparation": "Read-only/disjoint comparisons and vectors may prepare while implementation gates are unresolved; O0 source/owner scope must be identified.",
+      "deliverable": "Complete three-handler comparison and enum-only contract, followed by one writer source/tooling implementation.",
+      "release_and_acceptance_gate": "Value/error-prevention gate; approved semantics; compiler file release; existing narrow local-scenario seam; added-case/once/branch/rollback checks.",
+      "original_acceptance_retained": true,
+      "consumer_handoff_required": true,
+      "consumers": [],
+      "outputs": [
+        {
+          "id": "qualified_slice",
+          "state": "planned",
+          "scope_binding": null,
+          "source_pin": null,
+          "evidence": [],
+          "owner_acceptance": null
+        }
+      ],
+      "output_release_rule": "Each output must name exact app/operation/type/profile/backend, defining-owner acceptance and independent evidence. A sibling output or broad task status cannot substitute.",
+      "dependency_outputs": [
+        {
+          "packet": "O1",
+          "outputs": [
+            "canonical_contracts"
+          ],
+          "rule": "All listed outputs accepted at the consumer-required exact scope; entire producer completion is not required."
+        }
+      ],
+      "conditional_dependency_outputs": [],
+      "conditional_canonical_references": []
+    },
+    {
+      "id": "N9",
+      "name": "Dependent canonical input binding candidate",
+      "mode": "language_candidate",
+      "proposal_ids": [
+        9
+      ],
+      "canonical_references": [
+        "challenge:T08",
+        "challenge:T32"
+      ],
+      "dependency_packets": [
+        "O1",
+        "F2",
+        "F3"
+      ],
+      "dependency_policy": "Required accepted output scopes only, not whole broad parent completion. See per-packet gate and original canonical dependencies; defining-owner release is mandatory.",
+      "ownership_groups": [
+        "compiler",
+        "descriptors",
+        "forms_interfaces"
+      ],
+      "assigned_author": null,
+      "active_file_lease": null,
+      "execution_state": "planned",
+      "preparation": "Read-only/disjoint comparisons and vectors may prepare while implementation gates are unresolved; O0 source/owner scope must be identified.",
+      "deliverable": "Typed existing authorized read binding from partial sibling inputs; producer/lookup/browser contract and generated witness.",
+      "release_and_acceptance_gate": "Value gate; selected authorized-read/form handoffs; stale-response/revocation/cleared-child/final eligibility/keyboard checks.",
+      "original_acceptance_retained": true,
+      "consumer_handoff_required": true,
+      "consumers": [],
+      "outputs": [
+        {
+          "id": "qualified_slice",
+          "state": "planned",
+          "scope_binding": null,
+          "source_pin": null,
+          "evidence": [],
+          "owner_acceptance": null
+        }
+      ],
+      "output_release_rule": "Each output must name exact app/operation/type/profile/backend, defining-owner acceptance and independent evidence. A sibling output or broad task status cannot substitute.",
+      "dependency_outputs": [
+        {
+          "packet": "O1",
+          "outputs": [
+            "canonical_contracts"
+          ],
+          "rule": "All listed outputs accepted at the consumer-required exact scope; entire producer completion is not required."
+        },
+        {
+          "packet": "F2",
+          "outputs": [
+            "authorized_bounded_reads"
+          ],
+          "rule": "All listed outputs accepted at the consumer-required exact scope; entire producer completion is not required."
+        },
+        {
+          "packet": "F3",
+          "outputs": [
+            "scalar_reference_forms"
+          ],
+          "rule": "All listed outputs accepted at the consumer-required exact scope; entire producer completion is not required."
+        }
+      ],
+      "conditional_dependency_outputs": [],
+      "conditional_canonical_references": []
+    },
+    {
+      "id": "D4",
+      "name": "Concrete approval protocol pilots",
+      "mode": "domain_pilot",
+      "proposal_ids": [
+        4
+      ],
+      "canonical_references": [],
+      "dependency_packets": [
+        "F1",
+        "F2",
+        "F3"
+      ],
+      "dependency_policy": "Required accepted output scopes only, not whole broad parent completion. See per-packet gate and original canonical dependencies; defining-owner release is mandatory.",
+      "ownership_groups": [
+        "app_witnesses",
+        "runtime_state",
+        "forms_interfaces"
+      ],
+      "assigned_author": null,
+      "active_file_lease": null,
+      "execution_state": "planned",
+      "preparation": "Read-only/disjoint comparisons and vectors may prepare while implementation gates are unresolved; O0 source/owner scope must be identified.",
+      "deliverable": "Expense and image revision pilots compare concrete duplication, templates and ordinary packages.",
+      "release_and_acceptance_gate": "Frozen revisions/distinct current reviewers/quorum/expiry/rejection/concurrency/replay; no automatic publication authority.",
+      "original_acceptance_retained": true,
+      "consumer_handoff_required": true,
+      "consumers": [
+        "J1"
+      ],
+      "outputs": [
+        {
+          "id": "qualified_slice",
+          "state": "planned",
+          "scope_binding": null,
+          "source_pin": null,
+          "evidence": [],
+          "owner_acceptance": null
+        }
+      ],
+      "output_release_rule": "Each output must name exact app/operation/type/profile/backend, defining-owner acceptance and independent evidence. A sibling output or broad task status cannot substitute.",
+      "dependency_outputs": [
+        {
+          "packet": "F1",
+          "outputs": [
+            "local_invocation"
+          ],
+          "rule": "All listed outputs accepted at the consumer-required exact scope; entire producer completion is not required."
+        },
+        {
+          "packet": "F2",
+          "outputs": [
+            "authorized_bounded_reads",
+            "declared_rule_pipeline"
+          ],
+          "rule": "All listed outputs accepted at the consumer-required exact scope; entire producer completion is not required."
+        },
+        {
+          "packet": "F3",
+          "outputs": [
+            "scalar_reference_forms",
+            "protected_actions"
+          ],
+          "rule": "All listed outputs accepted at the consumer-required exact scope; entire producer completion is not required."
+        }
+      ],
+      "conditional_dependency_outputs": [],
+      "conditional_canonical_references": []
+    },
+    {
+      "id": "J1",
+      "name": "Complete approval application qualification",
+      "mode": "qualification",
+      "proposal_ids": [
+        4,
+        16,
+        20,
+        21
+      ],
+      "canonical_references": [
+        "challenge:T37",
+        "finished-product:FP.QUALIFY",
+        "finished-product:FP.UPGRADE-JOIN"
+      ],
+      "dependency_packets": [
+        "D4",
+        "F1",
+        "F2",
+        "F3"
+      ],
+      "dependency_policy": "Required accepted output scopes only, not whole broad parent completion. See per-packet gate and original canonical dependencies; defining-owner release is mandatory.",
+      "ownership_groups": [
+        "coordination",
+        "app_witnesses"
+      ],
+      "assigned_author": null,
+      "active_file_lease": null,
+      "execution_state": "planned",
+      "preparation": "Read-only/disjoint comparisons and vectors may prepare while implementation gates are unresolved; O0 source/owner scope must be identified.",
+      "deliverable": "Whole registered approval app original workflows through compiled browser/MCP with durable restart and upgrade.",
+      "release_and_acceptance_gate": "All selected original app workflows and negatives, real reviewer authority, rejection/expiry/concurrency/revocation, causal rollback/replay/restart and stored/pending-work upgrade. File/provider/invocation-value gates apply when used.",
+      "original_acceptance_retained": true,
+      "consumer_handoff_required": true,
+      "consumers": [],
+      "outputs": [
+        {
+          "id": "qualified_slice",
+          "state": "planned",
+          "scope_binding": null,
+          "source_pin": null,
+          "evidence": [],
+          "owner_acceptance": null
+        }
+      ],
+      "output_release_rule": "Each output must name exact app/operation/type/profile/backend, defining-owner acceptance and independent evidence. A sibling output or broad task status cannot substitute.",
+      "dependency_outputs": [
+        {
+          "packet": "D4",
+          "outputs": [
+            "qualified_slice"
+          ],
+          "rule": "All listed outputs accepted at the consumer-required exact scope; entire producer completion is not required."
+        },
+        {
+          "packet": "F1",
+          "outputs": [
+            "local_invocation"
+          ],
+          "rule": "All listed outputs accepted at the consumer-required exact scope; entire producer completion is not required."
+        },
+        {
+          "packet": "F2",
+          "outputs": [
+            "authorized_bounded_reads",
+            "declared_rule_pipeline"
+          ],
+          "rule": "All listed outputs accepted at the consumer-required exact scope; entire producer completion is not required."
+        },
+        {
+          "packet": "F3",
+          "outputs": [
+            "scalar_reference_forms",
+            "protected_actions"
+          ],
+          "rule": "All listed outputs accepted at the consumer-required exact scope; entire producer completion is not required."
+        }
+      ],
+      "conditional_dependency_outputs": [
+        {
+          "when": "approval app uses files",
+          "packet": "F7",
+          "outputs": [
+            "finalized_file_bridge"
+          ],
+          "reason": "Actual original file authority/retention workflow must qualify."
+        },
+        {
+          "when": "approval stores protected invocation values",
+          "packet": "X16",
+          "outputs": [
+            "qualified_slice"
+          ],
+          "reason": "Exact normalized value and current target admission must qualify."
+        }
+      ],
+      "conditional_canonical_references": []
+    },
+    {
+      "id": "D5",
+      "name": "Accounting ownership and usage pilots",
+      "mode": "domain_pilot",
+      "proposal_ids": [
+        5
+      ],
+      "canonical_references": [
+        "challenge:T16",
+        "challenge:T17",
+        "challenge:T32"
+      ],
+      "dependency_packets": [
+        "F1",
+        "F2",
+        "F4"
+      ],
+      "dependency_policy": "Required accepted output scopes only, not whole broad parent completion. See per-packet gate and original canonical dependencies; defining-owner release is mandatory.",
+      "ownership_groups": [
+        "app_witnesses",
+        "runtime_state",
+        "work_providers"
+      ],
+      "assigned_author": null,
+      "active_file_lease": null,
+      "execution_state": "planned",
+      "preparation": "Read-only/disjoint comparisons and vectors may prepare while implementation gates are unresolved; O0 source/owner scope must be identified.",
+      "deliverable": "Typed unit/accounting pilots prove authoritative owner mapping before a shared mutating API.",
+      "release_and_acceptance_gate": "Concurrent cap/overflow/unit/provenance/replay/unknown/late-usage checks; relevant verified usage handoff required.",
+      "original_acceptance_retained": true,
+      "consumer_handoff_required": true,
+      "consumers": [],
+      "outputs": [
+        {
+          "id": "qualified_slice",
+          "state": "planned",
+          "scope_binding": null,
+          "source_pin": null,
+          "evidence": [],
+          "owner_acceptance": null
+        }
+      ],
+      "output_release_rule": "Each output must name exact app/operation/type/profile/backend, defining-owner acceptance and independent evidence. A sibling output or broad task status cannot substitute.",
+      "dependency_outputs": [
+        {
+          "packet": "F1",
+          "outputs": [
+            "local_invocation"
+          ],
+          "rule": "All listed outputs accepted at the consumer-required exact scope; entire producer completion is not required."
+        },
+        {
+          "packet": "F2",
+          "outputs": [
+            "authorized_bounded_reads",
+            "declared_rule_pipeline"
+          ],
+          "rule": "All listed outputs accepted at the consumer-required exact scope; entire producer completion is not required."
+        },
+        {
+          "packet": "F4",
+          "outputs": [
+            "compiled_send"
+          ],
+          "rule": "All listed outputs accepted at the consumer-required exact scope; entire producer completion is not required."
+        }
+      ],
+      "conditional_dependency_outputs": [
+        {
+          "when": "generation usage settlement chosen",
+          "packet": "F6",
+          "outputs": [
+            "verified_usage"
+          ],
+          "reason": "Other resources require their own verified usage owner contract, never assumed image progress."
+        }
+      ],
+      "conditional_canonical_references": []
+    },
+    {
+      "id": "D2",
+      "name": "Explicit cancellation/deadline pilot",
+      "mode": "domain_pilot",
+      "proposal_ids": [
+        2
+      ],
+      "canonical_references": [],
+      "dependency_packets": [
+        "F4"
+      ],
+      "dependency_policy": "Required accepted output scopes only, not whole broad parent completion. See per-packet gate and original canonical dependencies; defining-owner release is mandatory.",
+      "ownership_groups": [
+        "app_witnesses",
+        "work_providers",
+        "runtime_state"
+      ],
+      "assigned_author": null,
+      "active_file_lease": null,
+      "execution_state": "planned",
+      "preparation": "Read-only/disjoint comparisons and vectors may prepare while implementation gates are unresolved; O0 source/owner scope must be identified.",
+      "deliverable": "Current-attempt stop/deadline policy uses standard provider cancel/reconcile and keyed schedules.",
+      "release_and_acceptance_gate": "Applicable provider stop evidence (F6 for generation), actual actor admission, pending/accepted/late/unknown/restart checks; second consumer before extraction.",
+      "original_acceptance_retained": true,
+      "consumer_handoff_required": true,
+      "consumers": [],
+      "outputs": [
+        {
+          "id": "qualified_slice",
+          "state": "planned",
+          "scope_binding": null,
+          "source_pin": null,
+          "evidence": [],
+          "owner_acceptance": null
+        }
+      ],
+      "output_release_rule": "Each output must name exact app/operation/type/profile/backend, defining-owner acceptance and independent evidence. A sibling output or broad task status cannot substitute.",
+      "dependency_outputs": [
+        {
+          "packet": "F4",
+          "outputs": [
+            "compiled_send",
+            "keyed_timer"
+          ],
+          "rule": "All listed outputs accepted at the consumer-required exact scope; entire producer completion is not required."
+        }
+      ],
+      "conditional_dependency_outputs": [
+        {
+          "when": "generation attempt coordinated",
+          "packet": "F6",
+          "outputs": [
+            "targeted_cancel_reconcile"
+          ],
+          "reason": "Other providers must release their own standard stop/reconcile evidence."
+        }
+      ],
+      "conditional_canonical_references": []
+    },
+    {
+      "id": "D3",
+      "name": "Explicit domain recovery pilot",
+      "mode": "domain_pilot",
+      "proposal_ids": [
+        3
+      ],
+      "canonical_references": [],
+      "dependency_packets": [
+        "F4",
+        "F5"
+      ],
+      "dependency_policy": "Required accepted output scopes only, not whole broad parent completion. See per-packet gate and original canonical dependencies; defining-owner release is mandatory.",
+      "ownership_groups": [
+        "app_witnesses",
+        "work_providers",
+        "runtime_state"
+      ],
+      "assigned_author": null,
+      "active_file_lease": null,
+      "execution_state": "planned",
+      "preparation": "Read-only/disjoint comparisons and vectors may prepare while implementation gates are unresolved; O0 source/owner scope must be identified.",
+      "deliverable": "Definite-effect evidence and durable canonical recovery request with separate authority and uncertain result.",
+      "release_and_acceptance_gate": "Applicable provider/reconcile release; payment recovery additionally FP.AW-PAYMENTS; crash/duplicate/rejected/irreversible/unknown checks.",
+      "original_acceptance_retained": true,
+      "consumer_handoff_required": true,
+      "consumers": [
+        "H3"
+      ],
+      "outputs": [
+        {
+          "id": "qualified_slice",
+          "state": "planned",
+          "scope_binding": null,
+          "source_pin": null,
+          "evidence": [],
+          "owner_acceptance": null
+        }
+      ],
+      "output_release_rule": "Each output must name exact app/operation/type/profile/backend, defining-owner acceptance and independent evidence. A sibling output or broad task status cannot substitute.",
+      "dependency_outputs": [
+        {
+          "packet": "F4",
+          "outputs": [
+            "compiled_send"
+          ],
+          "rule": "All listed outputs accepted at the consumer-required exact scope; entire producer completion is not required."
+        },
+        {
+          "packet": "F5",
+          "outputs": [
+            "associated_receipt_observation"
+          ],
+          "rule": "All listed outputs accepted at the consumer-required exact scope; entire producer completion is not required."
+        }
+      ],
+      "conditional_dependency_outputs": [],
+      "conditional_canonical_references": [
+        {
+          "when": "payment reversal provider chosen",
+          "id": "finished-product:FP.AW-PAYMENTS"
+        }
+      ]
+    },
+    {
+      "id": "X16",
+      "name": "Reviewed invocation value completion",
+      "mode": "existing_completion",
+      "proposal_ids": [
+        16
+      ],
+      "canonical_references": [
+        "finished-product:FP.INVOCATION"
+      ],
+      "dependency_packets": [
+        "F1",
+        "F2",
+        "F3"
+      ],
+      "dependency_policy": "Required accepted output scopes only, not whole broad parent completion. See per-packet gate and original canonical dependencies; defining-owner release is mandatory.",
+      "ownership_groups": [
+        "compiler",
+        "runtime_state",
+        "forms_interfaces"
+      ],
+      "assigned_author": null,
+      "active_file_lease": null,
+      "execution_state": "planned",
+      "preparation": "Read-only/disjoint comparisons and vectors may prepare while implementation gates are unresolved; O0 source/owner scope must be identified.",
+      "deliverable": "Exact approved normalized operation values reach actual current target admission and protected preview.",
+      "release_and_acceptance_gate": "Actual Workbench target/version/role/preview/replay and post-call invariant rollback; no string dispatcher.",
+      "original_acceptance_retained": true,
+      "consumer_handoff_required": true,
+      "consumers": [
+        "J1"
+      ],
+      "outputs": [
+        {
+          "id": "qualified_slice",
+          "state": "planned",
+          "scope_binding": null,
+          "source_pin": null,
+          "evidence": [],
+          "owner_acceptance": null
+        }
+      ],
+      "output_release_rule": "Each output must name exact app/operation/type/profile/backend, defining-owner acceptance and independent evidence. A sibling output or broad task status cannot substitute.",
+      "dependency_outputs": [
+        {
+          "packet": "F1",
+          "outputs": [
+            "local_invocation"
+          ],
+          "rule": "All listed outputs accepted at the consumer-required exact scope; entire producer completion is not required."
+        },
+        {
+          "packet": "F2",
+          "outputs": [
+            "authorized_bounded_reads",
+            "declared_rule_pipeline"
+          ],
+          "rule": "All listed outputs accepted at the consumer-required exact scope; entire producer completion is not required."
+        },
+        {
+          "packet": "F3",
+          "outputs": [
+            "scalar_reference_forms",
+            "protected_actions"
+          ],
+          "rule": "All listed outputs accepted at the consumer-required exact scope; entire producer completion is not required."
+        }
+      ],
+      "conditional_dependency_outputs": [],
+      "conditional_canonical_references": []
+    },
+    {
+      "id": "X17",
+      "name": "Source judgment provider completion",
+      "mode": "existing_completion",
+      "proposal_ids": [
+        17
+      ],
+      "canonical_references": [
+        "challenge:T12",
+        "challenge:T13",
+        "challenge:T24",
+        "finished-product:FP.AW-JUDGMENT"
+      ],
+      "dependency_packets": [
+        "F1",
+        "F4",
+        "F5"
+      ],
+      "dependency_policy": "Required accepted output scopes only, not whole broad parent completion. See per-packet gate and original canonical dependencies; defining-owner release is mandatory.",
+      "ownership_groups": [
+        "compiler",
+        "work_providers"
+      ],
+      "assigned_author": null,
+      "active_file_lease": null,
+      "execution_state": "planned",
+      "preparation": "Read-only/disjoint comparisons and vectors may prepare while implementation gates are unresolved; O0 source/owner scope must be identified.",
+      "deliverable": "Actual rubric/version/static/runtime-option declaration generates provider/normalizer schema and result.",
+      "release_and_acceptance_gate": "Completeness/distribution/option/numeric/usage/unknown checks and app policy; probabilities never grant authority.",
+      "original_acceptance_retained": true,
+      "consumer_handoff_required": true,
+      "consumers": [],
+      "outputs": [
+        {
+          "id": "qualified_slice",
+          "state": "planned",
+          "scope_binding": null,
+          "source_pin": null,
+          "evidence": [],
+          "owner_acceptance": null
+        }
+      ],
+      "output_release_rule": "Each output must name exact app/operation/type/profile/backend, defining-owner acceptance and independent evidence. A sibling output or broad task status cannot substitute.",
+      "dependency_outputs": [
+        {
+          "packet": "F1",
+          "outputs": [
+            "local_invocation"
+          ],
+          "rule": "All listed outputs accepted at the consumer-required exact scope; entire producer completion is not required."
+        },
+        {
+          "packet": "F4",
+          "outputs": [
+            "compiled_send"
+          ],
+          "rule": "All listed outputs accepted at the consumer-required exact scope; entire producer completion is not required."
+        },
+        {
+          "packet": "F5",
+          "outputs": [
+            "associated_receipt_observation"
+          ],
+          "rule": "All listed outputs accepted at the consumer-required exact scope; entire producer completion is not required."
+        }
+      ],
+      "conditional_dependency_outputs": [],
+      "conditional_canonical_references": []
+    },
+    {
+      "id": "X18",
+      "name": "Source corpus and opaque disclosure completion",
+      "mode": "existing_completion",
+      "proposal_ids": [
+        18
+      ],
+      "canonical_references": [
+        "finished-product:FP.CORPUS"
+      ],
+      "dependency_packets": [
+        "F1",
+        "F2",
+        "F4",
+        "F5",
+        "F7"
+      ],
+      "dependency_policy": "Required accepted output scopes only, not whole broad parent completion. See per-packet gate and original canonical dependencies; defining-owner release is mandatory.",
+      "ownership_groups": [
+        "compiler",
+        "work_providers",
+        "runtime_state",
+        "forms_interfaces",
+        "files"
+      ],
+      "assigned_author": null,
+      "active_file_lease": null,
+      "execution_state": "planned",
+      "preparation": "Read-only/disjoint comparisons and vectors may prepare while implementation gates are unresolved; O0 source/owner scope must be identified.",
+      "deliverable": "Source lifecycle/index/opaque-answer provider path reaches equivalent current-authority UI/MCP disclosure.",
+      "release_and_acceptance_gate": "All actually supplied sources rechecked; uncited revocation/withdrawal/supersession/provenance/file expiry/escape controls pass.",
+      "original_acceptance_retained": true,
+      "consumer_handoff_required": true,
+      "consumers": [],
+      "outputs": [
+        {
+          "id": "qualified_slice",
+          "state": "planned",
+          "scope_binding": null,
+          "source_pin": null,
+          "evidence": [],
+          "owner_acceptance": null
+        }
+      ],
+      "output_release_rule": "Each output must name exact app/operation/type/profile/backend, defining-owner acceptance and independent evidence. A sibling output or broad task status cannot substitute.",
+      "dependency_outputs": [
+        {
+          "packet": "F1",
+          "outputs": [
+            "local_invocation"
+          ],
+          "rule": "All listed outputs accepted at the consumer-required exact scope; entire producer completion is not required."
+        },
+        {
+          "packet": "F2",
+          "outputs": [
+            "authorized_bounded_reads"
+          ],
+          "rule": "All listed outputs accepted at the consumer-required exact scope; entire producer completion is not required."
+        },
+        {
+          "packet": "F4",
+          "outputs": [
+            "compiled_send"
+          ],
+          "rule": "All listed outputs accepted at the consumer-required exact scope; entire producer completion is not required."
+        },
+        {
+          "packet": "F5",
+          "outputs": [
+            "associated_receipt_observation"
+          ],
+          "rule": "All listed outputs accepted at the consumer-required exact scope; entire producer completion is not required."
+        },
+        {
+          "packet": "F7",
+          "outputs": [
+            "finalized_file_bridge"
+          ],
+          "rule": "All listed outputs accepted at the consumer-required exact scope; entire producer completion is not required."
+        }
+      ],
+      "conditional_dependency_outputs": [],
+      "conditional_canonical_references": []
+    },
+    {
+      "id": "B6",
+      "name": "Existing cohort/CSV qualification and bulk comparison",
+      "mode": "existing_completion_then_candidate",
+      "proposal_ids": [
+        6
+      ],
+      "canonical_references": [
+        "challenge:T33",
+        "challenge:T34",
+        "finished-product:FP.CSV"
+      ],
+      "dependency_packets": [
+        "F1",
+        "F2",
+        "F3",
+        "F4"
+      ],
+      "dependency_policy": "Required accepted output scopes only, not whole broad parent completion. See per-packet gate and original canonical dependencies; defining-owner release is mandatory.",
+      "ownership_groups": [
+        "compiler",
+        "runtime_state",
+        "work_providers",
+        "forms_interfaces"
+      ],
+      "assigned_author": null,
+      "active_file_lease": null,
+      "execution_state": "planned",
+      "preparation": "Read-only/disjoint comparisons and vectors may prepare while implementation gates are unresolved; O0 source/owner scope must be identified.",
+      "deliverable": "Existing canonical cohort/CSV matrices qualify; only residual source duplication justifies a thin binding.",
+      "release_and_acceptance_gate": "Preserve original boundary/race/restart/fairness/consent/order/partial/unknown vectors; no second engine or duplicated item schema.",
+      "original_acceptance_retained": true,
+      "consumer_handoff_required": true,
+      "consumers": [],
+      "outputs": [
+        {
+          "id": "qualified_slice",
+          "state": "planned",
+          "scope_binding": null,
+          "source_pin": null,
+          "evidence": [],
+          "owner_acceptance": null
+        }
+      ],
+      "output_release_rule": "Each output must name exact app/operation/type/profile/backend, defining-owner acceptance and independent evidence. A sibling output or broad task status cannot substitute.",
+      "dependency_outputs": [
+        {
+          "packet": "F1",
+          "outputs": [
+            "local_invocation"
+          ],
+          "rule": "All listed outputs accepted at the consumer-required exact scope; entire producer completion is not required."
+        },
+        {
+          "packet": "F2",
+          "outputs": [
+            "authorized_bounded_reads"
+          ],
+          "rule": "All listed outputs accepted at the consumer-required exact scope; entire producer completion is not required."
+        },
+        {
+          "packet": "F3",
+          "outputs": [
+            "scalar_reference_forms"
+          ],
+          "rule": "All listed outputs accepted at the consumer-required exact scope; entire producer completion is not required."
+        },
+        {
+          "packet": "F4",
+          "outputs": [
+            "compiled_send"
+          ],
+          "rule": "All listed outputs accepted at the consumer-required exact scope; entire producer completion is not required."
+        }
+      ],
+      "conditional_dependency_outputs": [],
+      "conditional_canonical_references": []
+    },
+    {
+      "id": "C7",
+      "name": "Conditional business calendar helpers",
+      "mode": "conditional_candidate",
+      "proposal_ids": [
+        7
+      ],
+      "canonical_references": [],
+      "dependency_packets": [
+        "O1"
+      ],
+      "dependency_policy": "Required accepted output scopes only, not whole broad parent completion. See per-packet gate and original canonical dependencies; defining-owner release is mandatory.",
+      "ownership_groups": [
+        "values_calendar",
+        "work_providers",
+        "app_witnesses"
+      ],
+      "assigned_author": null,
+      "active_file_lease": null,
+      "execution_state": "planned",
+      "preparation": "Read-only/disjoint comparisons and vectors may prepare while implementation gates are unresolved; O0 source/owner scope must be identified.",
+      "deliverable": "Versioned pure calendar calculation plus later explicit schedule witness.",
+      "release_and_acceptance_gate": "Two matching consumer policies; independent timezone/DST/month-end/holiday/missed vectors. F4 gates only durable schedule integration.",
+      "original_acceptance_retained": true,
+      "consumer_handoff_required": true,
+      "consumers": [],
+      "outputs": [
+        {
+          "id": "qualified_slice",
+          "state": "planned",
+          "scope_binding": null,
+          "source_pin": null,
+          "evidence": [],
+          "owner_acceptance": null
+        }
+      ],
+      "output_release_rule": "Each output must name exact app/operation/type/profile/backend, defining-owner acceptance and independent evidence. A sibling output or broad task status cannot substitute.",
+      "dependency_outputs": [
+        {
+          "packet": "O1",
+          "outputs": [
+            "canonical_contracts"
+          ],
+          "rule": "All listed outputs accepted at the consumer-required exact scope; entire producer completion is not required."
+        }
+      ],
+      "conditional_dependency_outputs": [
+        {
+          "when": "durable calendar schedule witness executed",
+          "packet": "F4",
+          "outputs": [
+            "keyed_timer"
+          ],
+          "reason": "Pure calculation can proceed independently."
+        }
+      ],
+      "conditional_canonical_references": []
+    },
+    {
+      "id": "C10",
+      "name": "Conditional explicit-draft wizard presentation",
+      "mode": "conditional_candidate",
+      "proposal_ids": [
+        10
+      ],
+      "canonical_references": [],
+      "dependency_packets": [
+        "F3"
+      ],
+      "dependency_policy": "Required accepted output scopes only, not whole broad parent completion. See per-packet gate and original canonical dependencies; defining-owner release is mandatory.",
+      "ownership_groups": [
+        "app_witnesses",
+        "forms_interfaces",
+        "runtime_state",
+        "files"
+      ],
+      "assigned_author": null,
+      "active_file_lease": null,
+      "execution_state": "planned",
+      "preparation": "Read-only/disjoint comparisons and vectors may prepare while implementation gates are unresolved; O0 source/owner scope must be identified.",
+      "deliverable": "Step presentation over ordinary private draft/save/submit operations.",
+      "release_and_acceptance_gate": "Real multi-session need; operation-specific persistence/file/retention release; resume/conflict/expiry/final atomic-or-staged/replay checks.",
+      "original_acceptance_retained": true,
+      "consumer_handoff_required": true,
+      "consumers": [],
+      "outputs": [
+        {
+          "id": "qualified_slice",
+          "state": "planned",
+          "scope_binding": null,
+          "source_pin": null,
+          "evidence": [],
+          "owner_acceptance": null
+        }
+      ],
+      "output_release_rule": "Each output must name exact app/operation/type/profile/backend, defining-owner acceptance and independent evidence. A sibling output or broad task status cannot substitute.",
+      "dependency_outputs": [
+        {
+          "packet": "F3",
+          "outputs": [
+            "scalar_reference_forms"
+          ],
+          "rule": "All listed outputs accepted at the consumer-required exact scope; entire producer completion is not required."
+        }
+      ],
+      "conditional_dependency_outputs": [
+        {
+          "when": "draft consumer stores files",
+          "packet": "F7",
+          "outputs": [
+            "finalized_file_bridge"
+          ],
+          "reason": "Draft file lifecycle is operation-specific."
+        }
+      ],
+      "conditional_canonical_references": []
+    },
+    {
+      "id": "C11",
+      "name": "Conditional typed named view reuse",
+      "mode": "conditional_candidate",
+      "proposal_ids": [
+        11
+      ],
+      "canonical_references": [],
+      "dependency_packets": [
+        "O1"
+      ],
+      "dependency_policy": "Required accepted output scopes only, not whole broad parent completion. See per-packet gate and original canonical dependencies; defining-owner release is mandatory.",
+      "ownership_groups": [
+        "compiler",
+        "forms_interfaces"
+      ],
+      "assigned_author": null,
+      "active_file_lease": null,
+      "execution_state": "planned",
+      "preparation": "Read-only/disjoint comparisons and vectors may prepare while implementation gates are unresolved; O0 source/owner scope must be identified.",
+      "deliverable": "Minimal typed local presentation reuse through current authorized rendering factories.",
+      "release_and_acceptance_gate": "Repeated custom subtree after defaults; actual rendering seam; actions additionally require F3; scope/cycle/grant/identity checks.",
+      "original_acceptance_retained": true,
+      "consumer_handoff_required": true,
+      "consumers": [],
+      "outputs": [
+        {
+          "id": "qualified_slice",
+          "state": "planned",
+          "scope_binding": null,
+          "source_pin": null,
+          "evidence": [],
+          "owner_acceptance": null
+        }
+      ],
+      "output_release_rule": "Each output must name exact app/operation/type/profile/backend, defining-owner acceptance and independent evidence. A sibling output or broad task status cannot substitute.",
+      "dependency_outputs": [
+        {
+          "packet": "O1",
+          "outputs": [
+            "canonical_contracts"
+          ],
+          "rule": "All listed outputs accepted at the consumer-required exact scope; entire producer completion is not required."
+        }
+      ],
+      "conditional_dependency_outputs": [
+        {
+          "when": "reused subtree has forms/actions",
+          "packet": "F3",
+          "outputs": [
+            "scalar_reference_forms",
+            "protected_actions"
+          ],
+          "reason": "Read-only view needs its actual rendering seam, not generic form qualification."
+        }
+      ],
+      "conditional_canonical_references": []
+    },
+    {
+      "id": "C13",
+      "name": "Conditional shared flat machine vocabulary/graphs",
+      "mode": "conditional_candidate",
+      "proposal_ids": [
+        13
+      ],
+      "canonical_references": [
+        "SM.QUALIFY"
+      ],
+      "dependency_packets": [
+        "F2"
+      ],
+      "dependency_policy": "Required accepted output scopes only, not whole broad parent completion. See per-packet gate and original canonical dependencies; defining-owner release is mandatory.",
+      "ownership_groups": [
+        "compiler",
+        "runtime_state",
+        "app_witnesses"
+      ],
+      "assigned_author": null,
+      "active_file_lease": null,
+      "execution_state": "planned",
+      "preparation": "Read-only/disjoint comparisons and vectors may prepare while implementation gates are unresolved; O0 source/owner scope must be identified.",
+      "deliverable": "Smallest state/default/graph reuse that removes demonstrated duplication without moving operation authority.",
+      "release_and_acceptance_gate": "Two actual qualified models; operation identity/default/bypass/migration/late-attempt checks; no statechart expansion.",
+      "original_acceptance_retained": true,
+      "consumer_handoff_required": true,
+      "consumers": [],
+      "outputs": [
+        {
+          "id": "qualified_slice",
+          "state": "planned",
+          "scope_binding": null,
+          "source_pin": null,
+          "evidence": [],
+          "owner_acceptance": null
+        }
+      ],
+      "output_release_rule": "Each output must name exact app/operation/type/profile/backend, defining-owner acceptance and independent evidence. A sibling output or broad task status cannot substitute.",
+      "dependency_outputs": [
+        {
+          "packet": "F2",
+          "outputs": [
+            "flat_writer_protection",
+            "declared_rule_pipeline"
+          ],
+          "rule": "All listed outputs accepted at the consumer-required exact scope; entire producer completion is not required."
+        }
+      ],
+      "conditional_dependency_outputs": [],
+      "conditional_canonical_references": []
+    },
+    {
+      "id": "C14",
+      "name": "Conditional platform push invalidation pilot",
+      "mode": "conditional_candidate",
+      "proposal_ids": [
+        14
+      ],
+      "canonical_references": [
+        "finished-product:FP.BROWSER"
+      ],
+      "dependency_packets": [
+        "V0"
+      ],
+      "dependency_policy": "Required accepted output scopes only, not whole broad parent completion. See per-packet gate and original canonical dependencies; defining-owner release is mandatory.",
+      "ownership_groups": [
+        "runtime_state",
+        "forms_interfaces",
+        "work_providers"
+      ],
+      "assigned_author": null,
+      "active_file_lease": null,
+      "execution_state": "planned",
+      "preparation": "Read-only/disjoint comparisons and vectors may prepare while implementation gates are unresolved; O0 source/owner scope must be identified.",
+      "deliverable": "Measured postcommit invalidation transport reuses authorized partial GETs and polling fallback.",
+      "release_and_acceptance_gate": "Installed workload fails declared freshness/load target; equal revocation/reconnect/rollback/hidden/context/backpressure checks; no row stream. Read-only transport does not wait for scalar/reference forms or bound actions; editable form refresh additionally requires the relevant F3 output.",
+      "original_acceptance_retained": true,
+      "consumer_handoff_required": true,
+      "consumers": [],
+      "outputs": [
+        {
+          "id": "qualified_slice",
+          "state": "planned",
+          "scope_binding": null,
+          "source_pin": null,
+          "evidence": [],
+          "owner_acceptance": null
+        }
+      ],
+      "output_release_rule": "Each output must name exact app/operation/type/profile/backend, defining-owner acceptance and independent evidence. A sibling output or broad task status cannot substitute.",
+      "dependency_outputs": [
+        {
+          "packet": "V0",
+          "outputs": [
+            "authorized_partial_read",
+            "installed_polling_context"
+          ],
+          "rule": "All listed outputs accepted at the consumer-required exact scope; entire producer completion is not required."
+        }
+      ],
+      "conditional_dependency_outputs": [
+        {
+          "when": "push must preserve editable forms",
+          "packet": "F3",
+          "outputs": [
+            "form_partial_refresh"
+          ],
+          "reason": "Read-only push needs only V0 rendering/context; form draft preservation additionally qualifies."
+        }
+      ],
+      "conditional_canonical_references": []
+    },
+    {
+      "id": "H12",
+      "name": "Deferred package generic reconsideration",
+      "mode": "reconsideration_only",
+      "proposal_ids": [
+        12
+      ],
+      "canonical_references": [],
+      "dependency_packets": [
+        "O1"
+      ],
+      "dependency_policy": "Required accepted output scopes only, not whole broad parent completion. See per-packet gate and original canonical dependencies; defining-owner release is mandatory.",
+      "ownership_groups": [
+        "coordination"
+      ],
+      "assigned_author": null,
+      "active_file_lease": null,
+      "execution_state": "planned",
+      "preparation": "Read-only/disjoint comparisons and vectors may prepare while implementation gates are unresolved; O0 source/owner scope must be identified.",
+      "deliverable": "Concrete duplication/variation/identity/constraint/owner/migration comparison only.",
+      "release_and_acceptance_gate": "Two working ordinary packages show imports/templates insufficient; fresh JEV3 and defining-owner decision before any new implementation plan.",
+      "original_acceptance_retained": true,
+      "consumer_handoff_required": true,
+      "consumers": [],
+      "outputs": [
+        {
+          "id": "qualified_slice",
+          "state": "planned",
+          "scope_binding": null,
+          "source_pin": null,
+          "evidence": [],
+          "owner_acceptance": null
+        }
+      ],
+      "output_release_rule": "Each output must name exact app/operation/type/profile/backend, defining-owner acceptance and independent evidence. A sibling output or broad task status cannot substitute.",
+      "dependency_outputs": [
+        {
+          "packet": "O1",
+          "outputs": [
+            "canonical_contracts"
+          ],
+          "rule": "All listed outputs accepted at the consumer-required exact scope; entire producer completion is not required."
+        }
+      ],
+      "conditional_dependency_outputs": [],
+      "conditional_canonical_references": []
+    },
+    {
+      "id": "H1",
+      "name": "Deferred durable await reconsideration",
+      "mode": "reconsideration_only",
+      "proposal_ids": [
+        1
+      ],
+      "canonical_references": [],
+      "dependency_packets": [
+        "F4",
+        "F5"
+      ],
+      "dependency_policy": "Required accepted output scopes only, not whole broad parent completion. See per-packet gate and original canonical dependencies; defining-owner release is mandatory.",
+      "ownership_groups": [
+        "coordination"
+      ],
+      "assigned_author": null,
+      "active_file_lease": null,
+      "execution_state": "planned",
+      "preparation": "Read-only/disjoint comparisons and vectors may prepare while implementation gates are unresolved; O0 source/owner scope must be identified.",
+      "deliverable": "Paired complete durable compositions with equal business evidence/history and prospective bounded continuation.",
+      "release_and_acceptance_gate": "Second contrasting qualified workflow; residual bookkeeping value; fresh semantic JEV3 before parser/runtime assignment.",
+      "original_acceptance_retained": true,
+      "consumer_handoff_required": true,
+      "consumers": [],
+      "outputs": [
+        {
+          "id": "qualified_slice",
+          "state": "planned",
+          "scope_binding": null,
+          "source_pin": null,
+          "evidence": [],
+          "owner_acceptance": null
+        }
+      ],
+      "output_release_rule": "Each output must name exact app/operation/type/profile/backend, defining-owner acceptance and independent evidence. A sibling output or broad task status cannot substitute.",
+      "dependency_outputs": [
+        {
+          "packet": "F4",
+          "outputs": [
+            "compiled_send"
+          ],
+          "rule": "All listed outputs accepted at the consumer-required exact scope; entire producer completion is not required."
+        },
+        {
+          "packet": "F5",
+          "outputs": [
+            "associated_receipt_observation"
+          ],
+          "rule": "All listed outputs accepted at the consumer-required exact scope; entire producer completion is not required."
+        }
+      ],
+      "conditional_dependency_outputs": [],
+      "conditional_canonical_references": []
+    },
+    {
+      "id": "H3",
+      "name": "Deferred compensation grammar reconsideration",
+      "mode": "reconsideration_only",
+      "proposal_ids": [
+        3
+      ],
+      "canonical_references": [],
+      "dependency_packets": [
+        "D3"
+      ],
+      "dependency_policy": "Required accepted output scopes only, not whole broad parent completion. See per-packet gate and original canonical dependencies; defining-owner release is mandatory.",
+      "ownership_groups": [
+        "coordination"
+      ],
+      "assigned_author": null,
+      "active_file_lease": null,
+      "execution_state": "planned",
+      "preparation": "Read-only/disjoint comparisons and vectors may prepare while implementation gates are unresolved; O0 source/owner scope must be identified.",
+      "deliverable": "Two different qualified domain recovery protocols and equivalent registration/order/crash/authority comparison.",
+      "release_and_acceptance_gate": "Stable repeated semantics plus fresh JEV3; no compensation implementation is scheduled by this record.",
+      "original_acceptance_retained": true,
+      "consumer_handoff_required": true,
+      "consumers": [],
+      "outputs": [
+        {
+          "id": "qualified_slice",
+          "state": "planned",
+          "scope_binding": null,
+          "source_pin": null,
+          "evidence": [],
+          "owner_acceptance": null
+        }
+      ],
+      "output_release_rule": "Each output must name exact app/operation/type/profile/backend, defining-owner acceptance and independent evidence. A sibling output or broad task status cannot substitute.",
+      "dependency_outputs": [
+        {
+          "packet": "D3",
+          "outputs": [
+            "qualified_slice"
+          ],
+          "rule": "All listed outputs accepted at the consumer-required exact scope; entire producer completion is not required."
+        }
+      ],
+      "conditional_dependency_outputs": [],
+      "conditional_canonical_references": []
+    },
+    {
+      "id": "H13",
+      "name": "Deferred richer statechart reconsideration",
+      "mode": "reconsideration_only",
+      "proposal_ids": [
+        13
+      ],
+      "canonical_references": [],
+      "dependency_packets": [
+        "F2"
+      ],
+      "dependency_policy": "Required accepted output scopes only, not whole broad parent completion. See per-packet gate and original canonical dependencies; defining-owner release is mandatory.",
+      "ownership_groups": [
+        "coordination"
+      ],
+      "assigned_author": null,
+      "active_file_lease": null,
+      "execution_state": "planned",
+      "preparation": "Read-only/disjoint comparisons and vectors may prepare while implementation gates are unresolved; O0 source/owner scope must be identified.",
+      "deliverable": "Concrete nested/parallel workflow and fair flat/statechart comparison, not grammar work.",
+      "release_and_acceptance_gate": "Flat reuse is not a mandatory dependency if unnecessary: actual qualified flat alternatives suffice; demonstrated value and fresh full semantic JEV3.",
+      "original_acceptance_retained": true,
+      "consumer_handoff_required": true,
+      "consumers": [],
+      "outputs": [
+        {
+          "id": "qualified_slice",
+          "state": "planned",
+          "scope_binding": null,
+          "source_pin": null,
+          "evidence": [],
+          "owner_acceptance": null
+        }
+      ],
+      "output_release_rule": "Each output must name exact app/operation/type/profile/backend, defining-owner acceptance and independent evidence. A sibling output or broad task status cannot substitute.",
+      "dependency_outputs": [
+        {
+          "packet": "F2",
+          "outputs": [
+            "flat_writer_protection",
+            "declared_rule_pipeline"
+          ],
+          "rule": "All listed outputs accepted at the consumer-required exact scope; entire producer completion is not required."
+        }
+      ],
+      "conditional_dependency_outputs": [],
+      "conditional_canonical_references": []
+    }
+  ],
+  "ownership_groups": {
+    "coordination": {
+      "role": "coordinator and current shared Git/document integrator",
+      "scope": "readiness, exact evidence, owner handoffs, independent review, focused integration; existing integration leases retained"
+    },
+    "compiler": {
+      "role": "defining compiler owner",
+      "scope": "syntax/type/effect/IR/emitter/artifact/editor; current source writer first"
+    },
+    "descriptors": {
+      "role": "defining contracts/catalog owner",
+      "scope": "versioned public descriptor and supported type/identity contracts; no direct consumer rewrite"
+    },
+    "runtime_state": {
+      "role": "canonical runtime/state owner",
+      "scope": "admission, verified context, transactions, registry, rules/fences/replay; current metadata/fanout leases retained"
+    },
+    "forms_interfaces": {
+      "role": "interface/UI owner",
+      "scope": "canonical form/read rendering, lookup, actions, context, browser draft/partial/polling, CSV; one writer on shared files"
+    },
+    "work_providers": {
+      "role": "work and selected provider owner",
+      "scope": "durable dispatch/schedule/receipt/progress/cancel/reconcile/usage; actual chosen provider route"
+    },
+    "files": {
+      "role": "file lifecycle owner",
+      "scope": "upload/finalize/provenance/bytes/metadata/retention and authorized bridges"
+    },
+    "app_witnesses": {
+      "role": "application author and independent journey owner",
+      "scope": "complete pinned source/policies/BDD, before/after comparisons, real generated/browser/durable/provider routes"
+    },
+    "values_calendar": {
+      "role": "calendar/value defining owner",
+      "scope": "pure helpers, versioned timezone/calendar data contract and independent reference cases"
+    }
+  }
+}

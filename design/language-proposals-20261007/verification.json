@@ -1,0 +1,13 @@
+{
+  "json_files_valid": 14,
+  "proposals_covered": 21,
+  "proposal_plans_or_deferral_gate": 21,
+  "authored_markdown_local_links_verified": 26,
+  "committed_baseline_hashes_verified": 11,
+  "jev_triples_verified": 14,
+  "decision_append_prefix_preserved": true,
+  "current_integration_paths_verified": 24,
+  "independent_final_review": "scoped adequacy; no material actionable problems",
+  "proposed_behavior_tests": "not run; planning only",
+  "errors": []
+}

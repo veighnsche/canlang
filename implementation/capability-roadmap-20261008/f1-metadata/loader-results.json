@@ -1,0 +1,120 @@
+{
+  "status": "passed",
+  "artifactUnchanged": true,
+  "models": [
+    {
+      "name": "Bounded.Account",
+      "fields": {
+        "name": {
+          "required": false,
+          "serverOnly": false,
+          "default": {
+            "kind": "literal",
+            "value": "account"
+          }
+        }
+      },
+      "deleteMode": "archive"
+    },
+    {
+      "name": "Bounded.Job",
+      "fields": {
+        "title": {
+          "required": false,
+          "serverOnly": false,
+          "default": {
+            "kind": "literal",
+            "value": "test"
+          }
+        },
+        "count": {
+          "required": false,
+          "serverOnly": false,
+          "default": {
+            "kind": "literal",
+            "value": "1"
+          }
+        },
+        "enabled": {
+          "required": false,
+          "serverOnly": false,
+          "default": {
+            "kind": "literal",
+            "value": true
+          }
+        },
+        "account": {
+          "required": false,
+          "serverOnly": false
+        },
+        "status": {
+          "required": false,
+          "serverOnly": false,
+          "default": {
+            "kind": "literal",
+            "value": "idle"
+          },
+          "machine": {
+            "initial": "idle",
+            "states": [
+              "idle",
+              "queued",
+              "ready"
+            ],
+            "transitions": [
+              {
+                "from": "idle",
+                "to": "queued",
+                "operation": "Bounded.advance"
+              },
+              {
+                "from": "queued",
+                "to": "ready",
+                "operation": "Bounded.advance"
+              }
+            ]
+          }
+        }
+      },
+      "deleteMode": "archive"
+    }
+  ],
+  "operations": [
+    "Bounded.Account.read",
+    "Bounded.Job.read",
+    "Bounded.Account.create",
+    "Bounded.Account.update",
+    "Bounded.Account.delete",
+    "Bounded.Job.create",
+    "Bounded.Job.update",
+    "Bounded.Job.delete",
+    "Bounded.advance"
+  ],
+  "refs": [
+    [
+      "Bounded.Account",
+      []
+    ],
+    [
+      "Bounded.Job",
+      [
+        {
+          "field": "account",
+          "model": "Bounded.Account"
+        }
+      ]
+    ]
+  ],
+  "nullableFields": [
+    [
+      "Bounded.Account",
+      []
+    ],
+    [
+      "Bounded.Job",
+      [
+        "account"
+      ]
+    ]
+  ]
+}

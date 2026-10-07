@@ -1,0 +1,131 @@
+{
+  "state": "Choose implementation directions for fourteen ideas in Can, a concise declaration language for AI-written CRUD SaaS with bounded external capabilities. Use the same success definition for each route: compact authoring, preserved ownership and access checks, bounded evaluation, durable failures/replay, files/lifetime and deploy compatibility. Capability value is conditional on completing specified existing seams; missing execution alone is not evidence against the underlying design. Account for the entire language/compiler/editor/runtime/interface maintenance burden. A reusable ordinary package and waiting for evidence are legitimate competing ways to meet the app outcome.\nThe repository facts come from immutable committed 4e89b117d3f66caa79a8df8ed875d55f9e40b948. Models/scenarios and canonical inputs own interfaces. Effects commit atomically inside one storage owner; sends go through the outbox, callbacks are explicit, pending schedules have keys, and bounded cohorts already have a detailed contract. Form controls are derived from operation fields. No source forms currently define durable awaits, a compensation DSL, generic domain package instances, named reusable views or business-calendar recurrence. Flat field state machines and ordered scenario transitions have landed with scoped checks, as has refreshing polled views while retaining edits. The whole generated rules/installed provider/browser path still requires acceptance. Cloudflare stdlib has explicit unsupported async/receipt entry points at this pin; this is a particular adapter limitation. In-progress other-agent changes are not certified here.\nAssociated delivery/progress contracts already separate provider execution from local application lifecycle, including original-target cancel and reconcile. Completion after a newer attempt must not change the new attempt. Unknown provider acceptance retains cost and effect uncertainty. Do not fabricate a user actor on durable continuation, automatic compensation or timer delivery. Only definite external success can justify a distinct recovery request under current policy; owner boundaries remain intact. Approval and resource accounting have real domain rules but need not become primitives. Browser dependencies and push must respect present grants, canonical operation validation and pending drafts. Earlier example constructs are exploratory, not approved grammar.",
+  "questions": {
+    "p01_workflow": {
+      "type": "choice",
+      "instructions": "Given the verified boundaries and equal correctness requirements, which path should the implementation plan recommend? Account for maintenance as well as concise authoring. Decision subject: workflow.",
+      "criteria": {
+        "bounded_language": "Once existing joins pass, implement a limited source workflow that resumes separate owner commits from saved checkpoints; gains direct sequencing while adding persistence and version policy.",
+        "ordinary_composition": "Reuse canonical scenarios and durable events with typed helper packages to coordinate stages; the app writes its phase model and callbacks instead of an await construct.",
+        "defer": "Keep a design candidate only until paired end-to-end applications measure the need for a new durable sequencing surface."
+      }
+    },
+    "p02_cancellation": {
+      "type": "choice",
+      "instructions": "Given the verified boundaries and equal correctness requirements, which path should the implementation plan recommend? Account for maintenance as well as concise authoring. Decision subject: cancellation.",
+      "criteria": {
+        "package": "Build reusable stop/deadline policy atop existing targeted operations after their qualification; no implication that accepted remote work was undone.",
+        "language": "Expose first-class coordination groups once prerequisites pass, deriving membership and timer behavior while specifying replay and uncertain cancellation.",
+        "defer": "Retain explicit app-owned stop/deadline orchestration until repeated applications justify sharing it."
+      }
+    },
+    "p03_compensation": {
+      "type": "choice",
+      "instructions": "Given the verified boundaries and equal correctness requirements, which path should the implementation plan recommend? Account for maintenance as well as concise authoring. Decision subject: compensation.",
+      "criteria": {
+        "package": "Represent recovery requests as canonical scenarios and share bookkeeping when proven; record only confirmed external effects and preserve recovery uncertainty.",
+        "language": "Define a checked compensating-step surface once durable sequencing is ready; it must handle registration races, partial reversal and current policy.",
+        "defer": "Defer the generic mechanism while app-owned recovery procedures establish what can and cannot be reversed."
+      }
+    },
+    "p04_approval": {
+      "type": "choice",
+      "instructions": "Given the verified boundaries and equal correctness requirements, which path should the implementation plan recommend? Account for maintenance as well as concise authoring. Decision subject: approval.",
+      "criteria": {
+        "package": "Build reusable approval protocols from existing models/scenarios, with frozen input, distinct eligible votes and separate final business actions.",
+        "language": "Use a first-class source approval owner to derive the review interface and persistence, supporting the same revision/quorum/authority constraints.",
+        "defer": "Retain explicit approval scenarios until cross-domain evidence fixes reusable boundaries."
+      }
+    },
+    "p05_accounting": {
+      "type": "choice",
+      "instructions": "Given the verified boundaries and equal correctness requirements, which path should the implementation plan recommend? Account for maintenance as well as concise authoring. Decision subject: accounting.",
+      "criteria": {
+        "package": "Implement reusable resource accounting through typed models/operations after durable race proofs, with idempotent evidence-bound settlement.",
+        "language": "Create first-class resource verbs with matched current-authority and exactly-once accounting behavior, including uncertain provider acceptance.",
+        "defer": "Keep domain admission/settlement models until repeated applications and qualified evidence justify a stable package."
+      }
+    },
+    "p06_bulk": {
+      "type": "choice",
+      "instructions": "Given the verified boundaries and equal correctness requirements, which path should the implementation plan recommend? Account for maintenance as well as concise authoring. Decision subject: bulk.",
+      "criteria": {
+        "derived_surface": "Build a small canonical bulk declaration/UI wrapper atop qualified cohort semantics, without a second execution engine.",
+        "existing": "Finish current finite-cohort and multi-row authoring capabilities and keep bulk source explicit pending evidence of duplication.",
+        "new_engine": "Introduce a new bulk scheduler and persistence contract with the same per-item durable guarantees, alongside the present cohort system."
+      }
+    },
+    "p07_calendar": {
+      "type": "choice",
+      "instructions": "Given the verified boundaries and equal correctness requirements, which path should the implementation plan recommend? Account for maintenance as well as concise authoring. Decision subject: calendar.",
+      "criteria": {
+        "package": "Use reusable calendar data/functions and current timer effects to handle business recurrence, specifying revisions, overlaps and local-time resolution.",
+        "language": "Provide a first-class recurrence owner over qualified scheduling with explicit calendar/version identity and ambiguity/coalescing policies.",
+        "defer": "Retain the current fixed-interval contract pending measured repeated need for timezone/business-calendar recurrence."
+      }
+    },
+    "p08_match": {
+      "type": "choice",
+      "instructions": "Given the verified boundaries and equal correctness requirements, which path should the implementation plan recommend? Account for maintenance as well as concise authoring. Decision subject: match.",
+      "criteria": {
+        "language": "Expose a bounded match production over existing finite outcomes, deriving case coverage and preserving single evaluation and owner effects.",
+        "if_analysis": "Use stronger checks on current if/else outcome handling where completeness is statically demonstrable.",
+        "defer": "Do not extend outcome control yet; gather finite-state handling evidence from qualified apps first."
+      }
+    },
+    "p09_dependent_forms": {
+      "type": "choice",
+      "instructions": "Given the verified boundaries and equal correctness requirements, which path should the implementation plan recommend? Account for maintenance as well as concise authoring. Decision subject: dependent forms.",
+      "criteria": {
+        "language": "Implement checked control dependencies derived from canonical input fields, supporting fresh selection queries and invalidation without browser scripts.",
+        "platform": "Implement automatic field-dependency rendering where current declarations alone identify it, with explicit diagnostics when inference is impossible.",
+        "defer": "Use existing canonical forms first and wait for measured dependent-input need after their runtime joins pass."
+      }
+    },
+    "p10_wizard": {
+      "type": "choice",
+      "instructions": "Given the verified boundaries and equal correctness requirements, which path should the implementation plan recommend? Account for maintenance as well as concise authoring. Decision subject: wizard.",
+      "criteria": {
+        "language": "Implement a minimal typed wizard owner using operation-derived drafts once forms and durable file lifecycle work, with conflicts, expiry and atomic consume.",
+        "package": "Compose durable multi-stage data entry from current model/scenario ownership and typed helpers; app source defines save and final consume.",
+        "defer": "Keep ordinary single-form entry and defer durable multi-step abstraction until an actual resumable workflow provides evidence."
+      }
+    },
+    "p11_views": {
+      "type": "choice",
+      "instructions": "Given the verified boundaries and equal correctness requirements, which path should the implementation plan recommend? Account for maintenance as well as concise authoring. Decision subject: views.",
+      "criteria": {
+        "language": "Implement bounded named view composition, type-check parameters and prevent recursive/privileged rendering; preserve localized bindings and draft keys.",
+        "existing": "Finish existing presentation reuse and measure duplicate custom bodies; no named view construct yet.",
+        "defer": "Wait for actual duplicated presentation that ordinary defaults cannot remove before introducing reusable views."
+      }
+    },
+    "p12_generics": {
+      "type": "choice",
+      "instructions": "Given the verified boundaries and equal correctness requirements, which path should the implementation plan recommend? Account for maintenance as well as concise authoring. Decision subject: generics.",
+      "criteria": {
+        "language": "Implement model/role parameterization when real packages require it, including type constraints, generated canonical identity and upgrade compatibility.",
+        "templates": "Keep concrete package contracts and narrow scaffolding templates as the reuse mechanism, measuring duplication before generic semantics.",
+        "defer": "Defer this language extension until actual package consumers establish stable constraint and identity requirements."
+      }
+    },
+    "p13_machines": {
+      "type": "choice",
+      "instructions": "Given the verified boundaries and equal correctness requirements, which path should the implementation plan recommend? Account for maintenance as well as concise authoring. Decision subject: machines.",
+      "criteria": {
+        "flat_reuse": "Add bounded flat-machine reuse when multiple qualified models share it; keep transitions with canonical operations and stable state migration.",
+        "statecharts": "Extend to reusable hierarchical and parallel machines after prerequisites, with precise conflict, event ordering and lifecycle effect rules.",
+        "defer": "Qualify current explicit transitions and reactive views first, postponing advanced machine abstractions until concrete evidence."
+      }
+    },
+    "p14_push": {
+      "type": "choice",
+      "instructions": "Given the verified boundaries and equal correctness requirements, which path should the implementation plan recommend? Account for maintenance as well as concise authoring. Decision subject: push.",
+      "criteria": {
+        "platform": "Provide a platform notification upgrade after reliable polling and measurements; stream invalidations and re-read under current policy with fallback.",
+        "language": "Expose a first-class page subscription setting along with secure stream semantics and recovery, retaining form state.",
+        "defer": "Keep the existing refresh transport until qualified apps demonstrate a material performance or responsiveness gap."
+      }
+    }
+  }
+}

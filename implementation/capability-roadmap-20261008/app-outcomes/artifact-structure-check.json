@@ -1,0 +1,46 @@
+{
+  "kind": "artifact structural checks only; no product/runtime execution",
+  "json_parse": "passed",
+  "unique_case_and_workflow_ids": "passed",
+  "matrix_outcome_dimensions": "nine present on every row",
+  "local_anchor_paths_and_line_numbers": "passed",
+  "workflow_declaration_and_lifecycle_references": "passed",
+  "workflow_rows": 47,
+  "files": [
+    {
+      "file": "approve-shared-matrix.json",
+      "entries": 22,
+      "bytes": 40202
+    },
+    {
+      "file": "common-cases.json",
+      "entries": 10,
+      "bytes": 11464
+    },
+    {
+      "file": "creative-chat-matrix.json",
+      "entries": 25,
+      "bytes": 40841
+    },
+    {
+      "file": "declared-workflow-index.json",
+      "entries": 57,
+      "bytes": 12898
+    },
+    {
+      "file": "focused-cases.json",
+      "entries": 39,
+      "bytes": 38344
+    },
+    {
+      "file": "open-cases-and-uncertainty.json",
+      "entries": 28,
+      "bytes": 25111
+    },
+    {
+      "file": "source-locators.json",
+      "entries": 0,
+      "bytes": 2423
+    }
+  ]
+}
