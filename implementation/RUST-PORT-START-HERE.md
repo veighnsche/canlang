@@ -51,3 +51,11 @@ Recheck economical model and reasoning selection at each new implementation, rev
 **Worker releases exact files and check evidence → Codex independent review → bounded repair if needed → coherent early commit → accepted dependency-complete main integration → living-plan reconciliation → next ready packet.** This loop runs throughout steps 5–11; step 12 does not postpone earlier reviews or commits. If branches are used, review precedes main integration; a frozen candidate commit alone is not acceptance. In a shared checkout, the root serializes Git operations and stages released paths only.
 
 Two provisional heavy-command slots constrain commands, not editing workers. Preserve live handles and private mutable outputs. Do not hold a slot while coding. Use actual completion messages during active work; the paused 15-minute supervisor remains only a later backstop, not a reason to postpone ready allocation or review. No Muse processes, local schedules, worktrees, builds or product edits are started by this checklist.
+
+
+### Actual step9 finite release
+
+The human released actual Rust backend consumer qualification. [Current gate map](rust-port-orchestration/runs/codex-step9-20261007T012914Z/gate-map.json) separates source-current values/validation scaffolds, registered-only work decisions and held native preparation. Required unfinished registry/profile/producer/Wasm joins remain original prerequisites. This release permits concrete integrity repairs discovered by qualification; it does not switch defaults, remove TS or open step10/11 work.
+
+
+The executable step9 scaffold checks and discovered repairs are now reviewed and locally committed (ee211cf,5a9c768). [Acceptance](rust-port-orchestration/runs/codex-step9-20261007T012914Z/acceptance.json) separates proved installed/Worker/native behavior from full registry, validation, work-consumer, measurement and rollback prerequisites. The existing supervisor is paused after finite writer/command release. No later packet is dispatched, default switched, TS removed or held native preparation released from this proof.

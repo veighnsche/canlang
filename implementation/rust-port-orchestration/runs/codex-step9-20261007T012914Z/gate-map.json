@@ -1,0 +1,355 @@
+{
+  "canonical_ledger_sha256": "95ed73948dd399c19ed39411128cb7b01523bca332bfad607869d6c1286caa9e",
+  "canonical_statuses_advanced": false,
+  "admitted_profiles": [
+    {
+      "name": "Values six-op exact backend scaffold",
+      "candidate": "Fresh pinned native/glue/Wasm and independently installed source emit",
+      "qualify": "Actual opt-in host/bootstrap and raw finite native/Wasm vectors; full registration/adoption excluded"
+    },
+    {
+      "name": "Validation structural scaffold",
+      "candidate": "Generated ABI/arena/owner/plan scaffolding",
+      "qualify": "Finite raw transport and handles only; no actual HTTP/MCP/state validation producer"
+    },
+    {
+      "name": "Work registered decisions",
+      "candidate": "Current source equals step6 candidate; finite existing native conformance reused",
+      "qualify": "No actual selectable Rust consumer/loader exists. Real installed public exports are TS-only readiness."
+    },
+    {
+      "name": "Native preparation",
+      "candidate": "Existing prototype/source preserved",
+      "qualify": "HUMAN HOLD, no new implementation or qualification claim"
+    }
+  ],
+  "blocked_original_gates": [
+    {
+      "id": "ports:A07.3",
+      "original_status": "partial",
+      "prerequisites": [
+        "ports:A03",
+        "ports:A04",
+        "ports:A05",
+        "ports:A06",
+        "ports:A07.foundation",
+        "ports:V03.5"
+      ],
+      "title": "Join full semantic entries and actual-adapter differential",
+      "qualification_status": "unfinished_original_gate"
+    },
+    {
+      "id": "ports:A08.1",
+      "original_status": "not_started",
+      "prerequisites": [
+        "ports:A07",
+        "ports:V02.6",
+        "ports:C05.ready"
+      ],
+      "title": "Route proven public profiles behind unchanged fa\u00e7ades",
+      "qualification_status": "unfinished_original_gate"
+    },
+    {
+      "id": "ports:A08.2",
+      "original_status": "not_started",
+      "prerequisites": [
+        "ports:A08.1",
+        "ports:C04.values-assets"
+      ],
+      "title": "Verify synchronous package and stdlib consumer assembly",
+      "qualification_status": "unfinished_original_gate"
+    },
+    {
+      "id": "ports:A09.2",
+      "original_status": "not_started",
+      "prerequisites": [
+        "ports:A08",
+        "ports:A09.1",
+        "ports:V06",
+        "ports:V07",
+        "ports:V08",
+        "ports:C02.ready",
+        "ports:C03.ready",
+        "ports:C04.ready",
+        "ports:C05.ready"
+      ],
+      "title": "Run whole-input pilot through actual Wasm consumer",
+      "qualification_status": "unfinished_original_gate"
+    },
+    {
+      "id": "ports:A10.1",
+      "original_status": "not_started",
+      "prerequisites": [
+        "ports:A09",
+        "ports:C05.ready"
+      ],
+      "title": "Measure complete-call performance and resources",
+      "qualification_status": "unfinished_original_gate"
+    },
+    {
+      "id": "ports:A10.2",
+      "original_status": "not_started",
+      "prerequisites": [
+        "ports:A10.1",
+        "ports:A07"
+      ],
+      "title": "Verify packaged opt-in release and rollback",
+      "qualification_status": "unfinished_original_gate"
+    },
+    {
+      "id": "ports:A10.3",
+      "original_status": "not_started",
+      "prerequisites": [
+        "ports:A10.2",
+        "ports:V08",
+        "ports:V10"
+      ],
+      "title": "Review deployment provenance and default-adoption decision",
+      "qualification_status": "unfinished_original_gate"
+    },
+    {
+      "id": "ports:V02.6",
+      "original_status": "partial",
+      "prerequisites": [
+        "ports:V02.1",
+        "ports:V02.2"
+      ],
+      "title": "Wire private prepared hooks without public API drift",
+      "qualification_status": "unfinished_original_gate"
+    },
+    {
+      "id": "ports:V06",
+      "original_status": "not_started",
+      "prerequisites": [
+        "ports:V06.1",
+        "ports:V06.2",
+        "ports:V06.3",
+        "ports:V06.4",
+        "ports:V06.5",
+        "ports:V06.6",
+        "ports:V06.7",
+        "ports:V06.8",
+        "ports:V06.9",
+        "ports:V06.10"
+      ],
+      "title": "Independent policy profiles reviewed",
+      "qualification_status": "unfinished_original_gate"
+    },
+    {
+      "id": "ports:V07",
+      "original_status": "not_started",
+      "prerequisites": [
+        "ports:V07.1",
+        "ports:V07.2",
+        "ports:V07.3",
+        "ports:V07.4",
+        "ports:V07.5"
+      ],
+      "title": "All owned resource/lifetime gates reviewed",
+      "qualification_status": "unfinished_original_gate"
+    },
+    {
+      "id": "ports:V08",
+      "original_status": "not_started",
+      "prerequisites": [
+        "ports:V08.1",
+        "ports:V08.2",
+        "ports:V08.3",
+        "ports:V08.6"
+      ],
+      "title": "Actual HTTP package consumer and adoption ledger reviewed",
+      "qualification_status": "unfinished_original_gate"
+    },
+    {
+      "id": "ports:V09",
+      "original_status": "not_started",
+      "prerequisites": [
+        "ports:V09.1",
+        "ports:V09.2",
+        "ports:V09.3"
+      ],
+      "title": "Canonical owned-state sequencing and durable proof reviewed",
+      "qualification_status": "unfinished_original_gate"
+    },
+    {
+      "id": "ports:V11",
+      "original_status": "not_started",
+      "prerequisites": [
+        "ports:V11.1",
+        "ports:V11.2",
+        "ports:V11.3",
+        "ports:V11.4"
+      ],
+      "title": "Measured backend/adoption and rollback decision reviewed",
+      "qualification_status": "unfinished_original_gate"
+    },
+    {
+      "id": "ports:W03.4",
+      "original_status": "not_started",
+      "prerequisites": [
+        "ports:W03.3",
+        "ports:W03.2",
+        "ports:W02.5"
+      ],
+      "title": "Verify closed-fact provenance and prepared-vs-legacy traces",
+      "qualification_status": "unfinished_original_gate"
+    },
+    {
+      "id": "ports:W04.4",
+      "original_status": "partial",
+      "prerequisites": [
+        "ports:W04.1",
+        "ports:W04.2",
+        "ports:W04.3",
+        "ports:W03.4"
+      ],
+      "title": "Register native modules and run shared conformance",
+      "qualification_status": "unfinished_original_gate"
+    },
+    {
+      "id": "ports:W05.1",
+      "original_status": "not_started",
+      "prerequisites": [
+        "ports:W04.4",
+        "ports:W03.2",
+        "ports:C04.ready",
+        "ports:C04.graph"
+      ],
+      "title": "Build pinned package-specific Wasm adapter and bootstrap",
+      "qualification_status": "unfinished_original_gate"
+    },
+    {
+      "id": "ports:W05.2",
+      "original_status": "not_started",
+      "prerequisites": [
+        "ports:W05.1"
+      ],
+      "title": "Submit package-specific vendor/build/release integration request",
+      "qualification_status": "unfinished_original_gate"
+    },
+    {
+      "id": "ports:W05.4",
+      "original_status": "not_started",
+      "prerequisites": [
+        "ports:W05.2",
+        "ports:C04.work-assets"
+      ],
+      "title": "Verify fulfilled assets in outside-checkout install and release",
+      "qualification_status": "unfinished_original_gate"
+    },
+    {
+      "id": "ports:W06.1",
+      "original_status": "not_started",
+      "prerequisites": [
+        "ports:W05.3",
+        "ports:W02.5",
+        "ports:W03.4"
+      ],
+      "title": "Join state staging and assertions to the selected pure kernel",
+      "qualification_status": "unfinished_original_gate"
+    },
+    {
+      "id": "ports:W06.2",
+      "original_status": "not_started",
+      "prerequisites": [
+        "ports:W06.1"
+      ],
+      "title": "Join canonical Cloudflare runtime through existing producer seams",
+      "qualification_status": "unfinished_original_gate"
+    },
+    {
+      "id": "ports:W06.3",
+      "original_status": "not_started",
+      "prerequisites": [
+        "ports:W06.runtimehandoff",
+        "ports:W05.3",
+        "ports:V09.1"
+      ],
+      "title": "Prove D1/DO race, crash and restart pilot with actual binary",
+      "qualification_status": "unfinished_original_gate"
+    },
+    {
+      "id": "ports:W07.3",
+      "original_status": "not_started",
+      "prerequisites": [
+        "ports:W07.1",
+        "ports:W07.2",
+        "ports:W06.3",
+        "ports:C05.ready"
+      ],
+      "title": "Run final parity, resource and complete-flow measurements",
+      "qualification_status": "unfinished_original_gate"
+    },
+    {
+      "id": "ports:W08.1",
+      "original_status": "not_started",
+      "prerequisites": [
+        "ports:W07"
+      ],
+      "title": "Make explicit native-reuse or prepared-TS benefit decision",
+      "qualification_status": "unfinished_original_gate"
+    },
+    {
+      "id": "ports:C04.values-assets",
+      "original_status": "partial",
+      "prerequisites": [
+        "ports:A07.foundation",
+        "ports:C04.graph",
+        "ports:C04.ready"
+      ],
+      "title": "Fulfil actual values binding and vendor inventory",
+      "qualification_status": "unfinished_original_gate"
+    },
+    {
+      "id": "ports:C04.work-assets",
+      "original_status": "not_started",
+      "prerequisites": [
+        "ports:W05.2",
+        "ports:C04.graph",
+        "ports:C04.ready"
+      ],
+      "title": "Fulfil work generated asset and package request",
+      "qualification_status": "unfinished_original_gate"
+    },
+    {
+      "id": "ports:C04.native-release",
+      "original_status": "held",
+      "prerequisites": [
+        "ports:P09.1",
+        "ports:C04.graph"
+      ],
+      "title": "Land native command, stamp and dist inventory",
+      "qualification_status": "held"
+    },
+    {
+      "id": "ports:P09",
+      "original_status": "held",
+      "prerequisites": [
+        "ports:P09.2"
+      ],
+      "title": "Native build, publication and supported-host proof complete",
+      "qualification_status": "held"
+    },
+    {
+      "id": "ports:P10",
+      "original_status": "held",
+      "prerequisites": [
+        "ports:P10.1",
+        "ports:P10.2"
+      ],
+      "title": "Measured adoption and rollback decision complete",
+      "qualification_status": "held"
+    },
+    {
+      "id": "ports:P11",
+      "original_status": "held",
+      "prerequisites": [
+        "ports:P11.1"
+      ],
+      "title": "Artifact preparation declared scope complete",
+      "qualification_status": "held"
+    }
+  ],
+  "future_dispatch_authorized": false,
+  "closure_policy": "Finish executable finite profile checks and concrete critical repairs, record blockers, never mark whole step9/backend/programme complete from scaffold tests."
+}

@@ -11,6 +11,13 @@
       "model": "gpt-6.1-sol",
       "effort": "high",
       "reason": "User step9 full producer/ABI/installed qualification requires cross-file risk judgment. Sol high least expensive reliable approved tier; Luna fits later mechanical extraction only. Actual dispatcher accepted."
+    },
+    {
+      "agent": "/root/step8_maps",
+      "model": "gpt-6.1-sol",
+      "effort": "high",
+      "stage": "Independent source/raw review after values implementer final release",
+      "reason": "Existing knownSol6.1high D04 mapper now available; no self-review. Cross-file actual parser/glue/error-order seam warrantsSolhigh, with narrow context instead of full-history fork. Normal cheapLuna receipt job unnecessary and failed additional dispatch earlier; root mechanicalrecords remain explicit."
     }
   ],
   "dispatcher_limits": [
@@ -21,6 +28,10 @@
     {
       "attempt": "reuse completed step8_delivery",
       "result": "agent thread limit reached; no turn triggered"
+    },
+    {
+      "attempt": "Existing step8_maps followup after values worker completion",
+      "result": "Accepted; exact scopedACK received. Earlier failure was not permanent unavailability."
     }
   ],
   "bookkeeping": "Root performs compact mechanical receipt writes while agent thread quota prevents economical Luna dispatch; no undisclosed model substitution."

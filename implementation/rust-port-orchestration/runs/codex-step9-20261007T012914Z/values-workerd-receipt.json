@@ -1,0 +1,94 @@
+{
+  "scope": "Fresh source-regenerated opt-in exact-values scaffold through installed emitted host and real owning startLocalDev/workerd module map",
+  "command": [
+    "node",
+    "packages/values/test/exact-bootstrap.workerd.mjs"
+  ],
+  "env": {
+    "CAN_VALUES_DIST": "/private/tmp/canlang-rust-port-codex-step9-20261007T012914Z/values/corrected/consumer/node_modules/@canlang/values/dist",
+    "CAN_LOCAL_RUN": "/private/tmp/canlang-rust-port-codex-step8-20261007T005702Z/delivery/installed-final/node_modules/@canlang/cloudflare/dist/dev/local-run.js"
+  },
+  "exit": 0,
+  "source_sha256": {
+    "packages/values/test/exact-bootstrap.workerd.mjs": "7a8fac7bc26428fd4318759614c7d8ff272f4e83ec0892d30dd14f70044650a1",
+    "packages/cloudflare/src/dev/local-run.ts": "78e2c5fca805c79003684360de328d793805693620facccb8ff7c8864687433a"
+  },
+  "installed_sha256": {
+    "localRun": "3408bb34ddc38c7166fc451cc0582611bd0fc41f94e450285f8dc28c7823edb9",
+    "valuesWasm": "f5870905f915ae63e267ad917a44940bdb851e9434168974e8787a6cebca5c81",
+    "valuesGlue": "f369c7d79e367a15f1bdb12a7a5401dd4efc4648a8021845d2e613bf66d9b1f0"
+  },
+  "host_versions": {
+    "node": "24.21.0",
+    "miniflare": "4.20260730.0",
+    "workerd": "1.20260730.1"
+  },
+  "checks": [
+    {
+      "hostCase": "compiled",
+      "status": "passed",
+      "executable": "/Users/vince/.vite-plus/js_runtime/node/24.21.0/bin/node"
+    },
+    {
+      "hostCase": "abi",
+      "status": "passed",
+      "executable": "/Users/vince/.vite-plus/js_runtime/node/24.21.0/bin/node"
+    },
+    {
+      "hostCase": "missing-exports",
+      "status": "passed",
+      "executable": "/Users/vince/.vite-plus/js_runtime/node/24.21.0/bin/node"
+    },
+    {
+      "hostCase": "missing-transport-exports",
+      "status": "passed",
+      "executable": "/Users/vince/.vite-plus/js_runtime/node/24.21.0/bin/node"
+    },
+    {
+      "hostCase": "caller-methods",
+      "status": "passed",
+      "executable": "/Users/vince/.vite-plus/js_runtime/node/24.21.0/bin/node"
+    },
+    {
+      "hostCase": "first-asset-mutation",
+      "status": "passed",
+      "executable": "/Users/vince/.vite-plus/js_runtime/node/24.21.0/bin/node"
+    },
+    {
+      "hostCase": "caller-methods-first",
+      "status": "passed",
+      "executable": "/Users/vince/.vite-plus/js_runtime/node/24.21.0/bin/node"
+    },
+    {
+      "hostCase": "externally-initialized",
+      "status": "passed",
+      "executable": "/Users/vince/.vite-plus/js_runtime/node/24.21.0/bin/node"
+    },
+    {
+      "workerdStartup": "missing",
+      "status": "rejected"
+    },
+    {
+      "workerdStartup": "corrupt",
+      "status": "rejected"
+    },
+    {
+      "workerd": "passed",
+      "freshIsolates": 2,
+      "localRun": "/private/tmp/canlang-rust-port-codex-step8-20261007T005702Z/delivery/installed-final/node_modules/@canlang/cloudflare/dist/dev/local-run.js",
+      "moduleCount": 13
+    }
+  ],
+  "raw_log": "/private/tmp/canlang-rust-port-codex-step9-20261007T012914Z/values-root-workerd-corrected.log",
+  "raw_log_sha256": "bde2b2d559ec4ee0585548493f583373ac4ec6a9e1efb5989bdf97904ec1c853",
+  "source_reuse": "Actual local-run source equals accepted324d624; owning installed Cloudflare fresh emission from step8 retained. Other installed Can deps remain step8 byte-verified dist snapshot scope, not whole-source rebuild. New values source/glue/binary emitted and freshly installed independently.",
+  "limits": [
+    "Handwritten finite module fixture, not full generated .can application/durable validation/work qualification",
+    "Exact scaffold ops only; A07.3/V profiles/resources open",
+    "No default selection or TS deletion",
+    "Workerd latest-date support not claimed"
+  ],
+  "stage": "Corrected parser feature + own-op registry source",
+  "prior_candidate_receipt": "values-workerd-original-receipt.json",
+  "handle": 16928
+}

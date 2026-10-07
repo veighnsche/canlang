@@ -1,0 +1,91 @@
+{
+  "scope": "Independent review of root work readiness chain only; not values self-review",
+  "source_pin_count": 76,
+  "all_source_pins_match_now": true,
+  "installed_dist_pin_count": 140,
+  "all_tarball_installed_file_bytes_equal": true,
+  "commands": {
+    "contracts-emit.log": {
+      "exit": 0,
+      "log_exists": true
+    },
+    "contracts-pack.log": {
+      "exit": 0,
+      "log_exists": true
+    },
+    "work-kernel-emit.log": {
+      "exit": 0,
+      "log_exists": true
+    },
+    "work-kernel-pack.log": {
+      "exit": 0,
+      "log_exists": true
+    },
+    "installed-install.log": {
+      "exit": 0,
+      "log_exists": true
+    },
+    "installed-probe.log": {
+      "exit": 0,
+      "log_exists": true
+    }
+  },
+  "private_manifest_normalization": {
+    "contracts": {
+      "devDependencies": {
+        "source": {
+          "@types/node": "24.19.1",
+          "vitest": "^3.2.4"
+        },
+        "private_packed": null
+      },
+      "scripts": {
+        "source": {
+          "build": "node ../../scripts/build-package.mjs",
+          "typecheck": "node ../../scripts/run-tasks.mjs typecheck:check --filter=@canlang/contracts",
+          "build:emit": "tsc -p tsconfig.json",
+          "typecheck:check": "tsc --noEmit -p tsconfig.json",
+          "build:prepare": "node ../../scripts/build-package.mjs --prepare"
+        },
+        "private_packed": null
+      }
+    },
+    "work-kernel": {
+      "dependencies": {
+        "source": {
+          "@canlang/contracts": "workspace:*"
+        },
+        "private_packed": {
+          "@canlang/contracts": "0.1.0"
+        }
+      },
+      "devDependencies": {
+        "source": {
+          "typescript": "5.9.3"
+        },
+        "private_packed": null
+      },
+      "scripts": {
+        "source": {
+          "build": "node ../../scripts/build-package.mjs",
+          "typecheck": "node ../../scripts/run-tasks.mjs typecheck:check --filter=@canlang/work-kernel",
+          "build:wasm": "cargo build --locked --manifest-path Cargo.toml --target wasm32-unknown-unknown --release",
+          "test": "node ../../scripts/run-tasks.mjs test:unit --filter=@canlang/work-kernel",
+          "clean": "rm -rf dist/ target/",
+          "build:emit": "tsc -p tsconfig.json",
+          "typecheck:check": "tsc --noEmit -p tsconfig.json",
+          "test:unit": "node --test 'dist/conformance/**/*.test.js'",
+          "build:prepare": "node ../../scripts/build-package.mjs --prepare"
+        },
+        "private_packed": null
+      }
+    }
+  },
+  "reported_limits_valid": "Installed TS facts only, native accepted unchanged candidate reuse separately, no W05/W06 Rust selection or whole-flow measurement/rollback",
+  "finding": "Receipt should explicitly record normalized private manifest; dist equality is supported, unchanged release-manifest qualification is not.",
+  "root_readiness_script_sha256": "6266b7e11499722243a020de95e7afb842d130d6f3afcc4ac022499e038b20be",
+  "root_disposition": {
+    "manifest_normalization": "Disclosed in current work-installed-readiness.json and runnable receipt recipe; original raw execution remains preserved",
+    "release_manifest_qualification": false
+  }
+}

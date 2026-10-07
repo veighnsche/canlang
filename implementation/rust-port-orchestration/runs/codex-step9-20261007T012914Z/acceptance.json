@@ -1,0 +1,270 @@
+{
+  "schema_version": 1,
+  "completed_at_utc": "2026-10-07T01:54:21.698727+00:00",
+  "run_id": "codex-step9-20261007T012914Z",
+  "verdict": "Executable finite values scaffold qualified; full Rust backend qualification remains blocked by original prerequisites",
+  "source_commits": {
+    "own_operation_refusal": "ee211cf",
+    "request_float_roundtrip_and_regenerated_asset": "5a9c768"
+  },
+  "accepted_profiles": [
+    {
+      "profile": "Values explicit six-operation exact backend",
+      "hosts": [
+        "Node 24.21.0",
+        "Bun",
+        "workerd 1.20260730.1 via owning installed local-run"
+      ],
+      "native_tests": 87,
+      "runtime_tests": {
+        "pass": 887,
+        "skip": 1,
+        "excluded": "Emitted string-escape contract test requires absent dist/conformance fixture; original-source oracle passed and original failed stage is retained"
+      },
+      "frozen_actual_native_and_installed_Wasm_cases": 10301,
+      "original_and_seeded_differential_cases": 3309,
+      "installed_files_byte_equal": 298,
+      "fresh_Worker_isolates": 2,
+      "scope": "Opt-in scaffold operations, exact original errors, own-string-op refusal before args, pinned asset and startup controls; no full registry or production handler claim"
+    },
+    {
+      "profile": "Validation structural transport scaffold",
+      "scope": "Finite ABI/arena/owner/plan handle and structural transport controls only; no protected HTTP/MCP/state producer qualification"
+    },
+    {
+      "profile": "Work candidate evidence and installed TS readiness",
+      "source_unchanged_from": "5a4e827",
+      "reused_native_tests": 315,
+      "reused_sampled_shared_decisions": 93,
+      "fresh_installed_TS_files_byte_equal": 140,
+      "fresh_readiness_commands": 6,
+      "scope": "Actual public exports remain TS-only; native candidate proof is not actual Rust consumer qualification",
+      "manifest_limit": "Private install normalized scripts/devDependencies and workspace dependency version; not unchanged release manifests"
+    }
+  ],
+  "repairs": [
+    {
+      "id": "STEP9-OPS-OWN-01",
+      "status": "independently accepted",
+      "change": "Own operation entry checked before argument effects",
+      "commit": "ee211cf"
+    },
+    {
+      "id": "STEP9-F64-PARSE-02",
+      "status": "independently accepted",
+      "change": "Enable existing locked serde_json float_roundtrip at request parsing seam and regenerate proven Wasm",
+      "commit": "5a9c768",
+      "original_current_source_mismatches": 3061,
+      "final_actual_native_and_Wasm_mismatches": 0
+    }
+  ],
+  "source_pins": [
+    {
+      "path": "/Users/vince/Projects/canlang/packages/values/bindings/backend.ts",
+      "sha256": "bf1263532c90d0cdf64da032dd20040952682fb1f5f00c4a2daefa1f7f4304a3"
+    },
+    {
+      "path": "/Users/vince/Projects/canlang/packages/values/test/exact-bootstrap.test.ts",
+      "sha256": "ed597f7668781ea8523a1fbaaa07a341c5210f155283494f2408fc7e14af7ba0"
+    },
+    {
+      "path": "/Users/vince/Projects/canlang/packages/values/semantics/Cargo.toml",
+      "sha256": "288e98e5ff913d884cb0c298afab590ff3b71b8c140ae38ab9134f03c4ed9a6a"
+    },
+    {
+      "path": "/Users/vince/Projects/canlang/packages/values/semantics/tests/transport_number_roundtrip.rs",
+      "sha256": "12acd30f09ceeed82288fcbe480046aba74f9ce69e98cfb38f1628928d0d5091"
+    },
+    {
+      "path": "/Users/vince/Projects/canlang/packages/values/bindings/generated/BUILD.json",
+      "sha256": "9b8f162a8906180e83e7f2faa6a148bafc4a4a040af89400fdf1a4b8cd80b161"
+    },
+    {
+      "path": "/Users/vince/Projects/canlang/packages/values/bindings/generated/values_semantics.js",
+      "sha256": "f369c7d79e367a15f1bdb12a7a5401dd4efc4648a8021845d2e613bf66d9b1f0"
+    },
+    {
+      "path": "/Users/vince/Projects/canlang/packages/values/bindings/generated/values_semantics.d.ts",
+      "sha256": "b4fcaa531c8b9d9c0277854fb12e4b484194c7fda8e3cc55d563b9286d4f6848"
+    },
+    {
+      "path": "/Users/vince/Projects/canlang/packages/values/bindings/generated/values_semantics_bg.wasm",
+      "sha256": "f5870905f915ae63e267ad917a44940bdb851e9434168974e8787a6cebca5c81"
+    },
+    {
+      "path": "/Users/vince/Projects/canlang/packages/values/bindings/generated/values_semantics_bg.wasm.d.ts",
+      "sha256": "9ac2938ac3d66379be0cf16f70c1d889be8c06b0e15e634407b94e2770fc7932"
+    },
+    {
+      "path": "/Users/vince/Projects/canlang/packages/values/conformance/numeric-text.json",
+      "sha256": "29806b94e5fe70468e0c3ef05a5b6b8550be4dacc34e8b57e0f42ab8588f37c8"
+    }
+  ],
+  "receipt_pins": [
+    {
+      "path": "values-qualification-receipt.json",
+      "sha256": "93a5748b3551772efef7ff3fde7f1e63d16106d2effa68a689a6479041a40d75"
+    },
+    {
+      "path": "values-independent-installed.json",
+      "sha256": "c71a908b6702d09bb22ee9987c11d0cfc6f3c7cf47c7e85e560819e365312217"
+    },
+    {
+      "path": "values-independent-source-review.json",
+      "sha256": "3a4ed358bea2549f1f1e27cc4a69f67e04d86d61546c1aa2dbce2aba9a871cc8"
+    },
+    {
+      "path": "values-workerd-receipt.json",
+      "sha256": "9630fd15fff76d5d3a050561ea2ec7017a9af7b22ca9a5fb5ee61c6b173a3bfc"
+    },
+    {
+      "path": "values-reproducibility.json",
+      "sha256": "b763c4b95fd4aa8deb7acbfd4b21ea6e66dad5b4e437f6a78941679033d0efa7"
+    },
+    {
+      "path": "root-asset-refresh.json",
+      "sha256": "1250869887c7aa8641973ccbd612c9ef7566de60025e7b4111a23aa74aa35555"
+    },
+    {
+      "path": "work-installed-readiness.json",
+      "sha256": "b29edd6f51420afc668b2522ed04b350b00474686251902088bdb8337ceccf12"
+    },
+    {
+      "path": "work-independent-review.json",
+      "sha256": "3c9292bad45c73b01b247a838a465bc96a929cee0ccffa5fc71c08926cc333b2"
+    },
+    {
+      "path": "gate-map.json",
+      "sha256": "9edeb7c7194e2fc1a48c6ad41a512b026812bb6f4890829cb55451ec02ea89e5"
+    }
+  ],
+  "measurement": {
+    "node": {
+      "ns_per_whole_call_each_process": {
+        "ts": [
+          106.33749999999984,
+          95.81250000000001,
+          103.33473333333329
+        ],
+        "wasm": [
+          2728.9764,
+          2670.2,
+          2755.991666666667
+        ]
+      },
+      "median_ns": {
+        "ts": 103.33473333333329,
+        "wasm": 2728.9764
+      },
+      "wasm_to_ts_median_ratio": 26.409091231667194,
+      "repetitions": 3,
+      "warm_calls": 1200,
+      "calls_each_backend_each_process": 30000,
+      "cold_bootstrap_ms": [
+        0.7758329999999987,
+        0.7845830000000014,
+        0.7485420000000005
+      ],
+      "all_output_checksums_agree": true
+    },
+    "bun": {
+      "ns_per_whole_call_each_process": {
+        "ts": [
+          502.2111,
+          116.08473333333318,
+          237.02776666666662
+        ],
+        "wasm": [
+          2287.7958333333327,
+          2151.4264000000003,
+          2238.6014000000005
+        ]
+      },
+      "median_ns": {
+        "ts": 237.02776666666662,
+        "wasm": 2238.6014000000005
+      },
+      "wasm_to_ts_median_ratio": 9.44446902353072,
+      "repetitions": 3,
+      "warm_calls": 1200,
+      "calls_each_backend_each_process": 30000,
+      "cold_bootstrap_ms": [
+        11.247250000000008,
+        1.4589580000000009,
+        2.732999999999997
+      ],
+      "all_output_checksums_agree": true
+    }
+  },
+  "measurement_limits": "Six-operation complete tag/JSON/Wasm/parse/reconstruct smoke calls, three processes per host. Wasm median is about26.4x slower on Node and9.4x on Bun here. No full handler, peak resource budget, adoption or universal performance claim.",
+  "rollback_scope": "Independent explicit TS backend remains usable after failed Wasm startup; no persisted state/profile swap/in-flight drainage rollback qualification",
+  "reproducibility": "All5generated outputs byte-identical across2private prefixes under the same lock/compiler/bindgen/host; not universal platform/tool reproducibility",
+  "residuals": [
+    "A07.3 full registry/admitted profiles; A08 public routing",
+    "V02.6 protected PH2/PH4, canonical DefaultRef/Decimal and lifetime bridge",
+    "V06 validation profiles, V07 complete resource/lifetime policy, V08 actual owning handler join",
+    "Full exact UTF16/unpaired and astral-cut residual; decimal negative-zero scale exclusion; arbitrary getter/proxy/array observability",
+    "Original full complete-call/adoption/resource budgets; no production/durable/MCP/default switch",
+    "Existing emitted source-only string fixture path gap",
+    "Work W03.4 producer/prepared trace and unsampled W04.4 prerequisites; W05 real Wasm adapter/assets/install, W06 state/Cloudflare/D1/DO joins, W07 whole-flow measurement/persisted rollback and W08 rollout remain open",
+    "Original T08/T26, real receipts/notifications and whole programme review remain separate",
+    "Preparation/native-release remains HUMAN HOLD"
+  ],
+  "domain_limits": {
+    "negative_zero": {
+      "decimal_scale_minus_zero": "Explicitly refused on Wasm; TS retains Object.is(scale,-0); ordinary scale0 is supported",
+      "raw_exact_number_signed_zero": "Host JSON number carrier erases sign; not qualified by number-text agreement",
+      "structural_f64_bits": "Actual structural input.digest preserves 8000000000000000"
+    },
+    "scalar_text": {
+      "admitted_frozen_strings": 88,
+      "unpaired_UTF16_strings_excluded": 4,
+      "astral_UTF16_64unit_truncation_residual": 1,
+      "full_exact_scalar_surrogate_transport": "Not certified; structural units proof does not complete exact scalar UTF16 transport"
+    },
+    "arbitrary_getter_effect_equivalence": false
+  },
+  "canonical_ledger": {
+    "sha256": "95ed73948dd399c19ed39411128cb7b01523bca332bfad607869d6c1286caa9e",
+    "statuses_advanced": false,
+    "required_remaining_records": 234,
+    "count_limit": "Includes parent and child records; not234independent jobs or an hours estimate"
+  },
+  "independent_review": {
+    "root_installed_and_actual_Worker": true,
+    "separate_source_reviewer": "/root/step8_maps, gpt-6.1-sol high, completed and released",
+    "work_independent_reviewer": "/root/step9_values, different package chain; manifest limit disclosed"
+  },
+  "writers_released": true,
+  "command_handles_closed": [
+    31839,
+    84067,
+    55577,
+    92061,
+    12516,
+    14618,
+    92159,
+    48863,
+    46836,
+    80835,
+    14828,
+    16928
+  ],
+  "supervisor": {
+    "id": "canlang-challenge-implementation",
+    "status": "PAUSED",
+    "persisted_status_verified": true,
+    "cadence_minutes": 15,
+    "native_timers": []
+  },
+  "default_changed": false,
+  "TS_deleted": false,
+  "future_dispatch_authorized": false,
+  "preparation_hold": true,
+  "shared_decision_handoff": "DECISIONS-PENDING-HANDOFF.md; foreign shared document writer retained; no checkpoint advanced or actual merge performed",
+  "retained_private_evidence": {
+    "path": "/private/tmp/canlang-rust-port-codex-step9-20261007T012914Z",
+    "owner": "Codex /root",
+    "reason": "Retain original failed witnesses, exact installs, raw commands, private builds and generated reproducibility outputs until successor accepts handoff; released resources only, no shared cache cleanup"
+  }
+}
