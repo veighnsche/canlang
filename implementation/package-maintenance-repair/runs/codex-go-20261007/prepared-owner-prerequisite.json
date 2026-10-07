@@ -1,0 +1,26 @@
+{
+  "packet": "TECH-V03 genuine prepared owner/factory contract",
+  "stage": "factual contract prerequisite, no chosen authority/API",
+  "findings": [
+    "Historical artifact-1 suggestion conflates format version with actual source revision; no replacement owner mapping chosen.",
+    "Current createPlanOwner issues registry scope; it does not authenticate artifact provenance. Normalizer lineage remains identity only.",
+    "Real Interfaces prepared HTTP CSV caller found; ordinary MCP prepared wrapper test-only in inspected source. These do not join Values registration/defaults.",
+    "Canonical Decimal/Date and nested numeric metadata conflict prospectively with plain copier, including valueMin/valueMax. JSON numeric leaf remains rejected.",
+    "Successful per-reference registry identity differs from canonical legacy schema-default identity; proposed retain/copy and release lifetime need exact compatibility release.",
+    "No genuine current prepared ID, no executed partial publication/default/native lifecycle defect; missing-provenance retained."
+  ],
+  "current_blockers": [
+    "No genuine Values artifact-owner context/caller/revision mapping exists in inspected current source.",
+    "Default/bound retain-versus-typed-copy and success release/lifetime compatibility are unselected.",
+    "No current genuine prepared ID; partial publication and successful content/lifecycle are unqualified."
+  ],
+  "source_pins": "/private/tmp/canlang-repair-go-20261007/prepared-owner-contract/source-pins.json",
+  "source_pins_sha256": "8bc372dc45ffde3a7c07e67a03dd67d313179a827e2c98c1c14ff8205626cd50",
+  "private_result": "/private/tmp/canlang-repair-go-20261007/prepared-owner-contract/result.json",
+  "private_result_sha256": "5f04657d2d1f529c72759b4919bdce7078a9a72227b7b460f0510442e25e5ecc",
+  "proposal": "/private/tmp/canlang-repair-go-20261007/prepared-owner-contract/contract-proposal.json",
+  "proposal_sha256": "edeb7828df5dd5e651f029a16357871740b1f86374876f6244eee9315c0c151f",
+  "consultations": "Three equivalent payloads prepared, zero sends. Actual owning consumer/source association requested before a consequential hook choice; not repeating owned-JSON consultations.",
+  "limits": "No authority fabrication, product code/tests/docs/state/shared/Git writes, new profiles/limits/library/owner authority, downloads, network JEV calls, native adoption, or broad parent/security/installed acceptance.",
+  "release": "All ACKed exact read leases RELEASED; bounded locator child exited. No running handles. Root bookkeeping may have changed by design."
+}

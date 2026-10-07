@@ -1,0 +1,64 @@
+{
+  "packet": "TECH-V04 exact transport tagged-record hygiene independent review",
+  "disposition": "PASS finite native duplicate-entry transport refusal",
+  "base": "db57c3794d386fcd27f17f54b199272d58106a81",
+  "baselineExactSha256": "7c2f5600bf4c72b5ccfef82500113e28f1fc3131a0f818dff8e205b802142817",
+  "startEndReadPins": {
+    "packages/values/semantics/src/transport/exact.rs": "ffa19f72be0490e5f0376b9cb23b32e6b13139b09cb9bf4e9eb238ddf7436e7f",
+    "packages/values/semantics/tests/transport_record_hygiene.rs": "f3fa40cc74c3b9b6e6b234c4ddeaeee27d3f589e71bc2ecf7ac49c270d9c246d"
+  },
+  "proof": "Removing exactly documentation/import/key-set allocation/duplicate guard restores baseline bytes. No transport scalar branches, dispatch, response DTO, ABI/module/manifest changes. Keys tracked per record by borrowed original decoded UTF8 strings; returned Vec retains insertion order and existing cloned-key/value storage.",
+  "results": {
+    "current": "18/18:6 producer retained tests+5 independently authored current/counterfactual tests+3 numeric-text+3 string-escape+1 transport-number",
+    "baseline": "13/18 pass5 intended hygiene failures; independent5 counterfactuals pass, all7 existing scalar/text controls pass",
+    "actualPaths": "Rust native actual handle_line\u2192JSON args\u2192recursive decode_input\u2192dispatch. Actual decode_input\u2192encode_output unique tuple exact roundtrip. No JS/NW fixture injection or canned runtime module.",
+    "freshCoverage": [
+      "Empty/__proto__/constructor/toString/astral/non-normalized composed/decomposed keys and raw escaped identical decoded key",
+      "Unique record keys including bare integers remain admitted and ordered byte-for-byte in tagged entries payload",
+      "Nested duplicate inside array preempts make-datetime original Can construction guard",
+      "Earlier bad value still preempts later duplicate; duplicate key precedes its bad value; malformed pair length precedes duplicate admission",
+      "Request argument left-to-right malformed bigint before duplicate; unique construction Can error and original unsupported ABI projection retained"
+    ]
+  },
+  "accounting": {
+    "readableProductionBefore": 822,
+    "readableProductionAfter": 827,
+    "sourceBytesBefore": 34328,
+    "sourceBytesAfter": 34632,
+    "publicDeclarationLines": [
+      "pub const ABI_VERSION: u32 = 1;",
+      "pub struct TransportError(pub String);",
+      "pub fn decode_input(v: &Json) -> Result<Value, TransportError> {",
+      "pub fn encode_output(value: &Value) -> Json {",
+      "pub fn dispatch(op: &str, args: &[Value]) -> Result<Json, TransportError> {",
+      "pub fn handle_line(line: &str) -> Json {"
+    ],
+    "publicDeclarationLinesByteEqual": true,
+    "maintainedDeclarationClosure": "No separate maintained Rust/TS declaration file added or changed; all existing public declarations remain byte equal inside this counted source. Existing transport module/libs and Cargo.toml unchanged. New std import included in production count. Tests/generated output not credited as savings.",
+    "budget": "Required correctness growth, no library-replacement/deletion benefit claimed."
+  },
+  "resourceCost": "New std HashSet<&str> with capacity equal entries.len(), borrowed keys (no additional key String copies beyond original out Vec). Expected linear key insert/hash work over total key UTF8 bytes; transient capacity/control storage proportional to entries, retained across recursive child decode while parent is active. Default std randomized hashing initialization applies per record. Existing Vec/String allocations remain. No benchmark/peak measurement or resource threshold claimed, no new external dependency/profile/cap.",
+  "dependencyInputs": {
+    "manifestSha256": "288e98e5ff913d884cb0c298afab590ff3b71b8c140ae38ab9134f03c4ed9a6a",
+    "productionCargoLock": "No Cargo.lock at standalone semantics root; independent offline resolution produced identical private locks (never wrote production lock).",
+    "privateLockSha256": "36fd54b8e02d001b2387f8d335d9845449b689e479064cc1ff652b97be2e99d1",
+    "fixtures": {
+      "packages/values/conformance/numeric-text.json": "29806b94e5fe70468e0c3ef05a5b6b8550be4dacc34e8b57e0f42ab8588f37c8",
+      "packages/values/conformance/string-escape.json": "db9bc7d13b3a222d221ed5ebabeb60275396db2ca4517ae8a87df6bc58f56f84"
+    },
+    "allSourceInputPins": "inputs.json includes all unchanged source/test snapshots plus manifest, no targets copied/shared."
+  },
+  "initialHarnessErrors": "Private snapshot mistakenly expected owning Cargo.lock (absent) then lacked two owning repo-relative conformance fixtures. Setup fixed privately; both initial Cargo exits101 and raw missing-fixture logs retained, not counted as tests. No product edit/target cache counterfactual mix.",
+  "defects": [],
+  "limits": [
+    "Selected native registered crate tests only; no changed Wasm glue built and historical pre-correction Wasm proof not adopted.",
+    "No production registration/SchemaError routing, losslessUTF16/default/native/installed/whole69 acceptance.",
+    "Only tagged-record entries hygiene; JSON envelope member parser policy, integer-key projection restrictions, trust/semantic admission and arbitrary malformed domains remain original scope.",
+    "No new Can policy/API/profile/ABI/resource cap; external behavior change explicitly existing documented duplicate hygiene enforcement."
+  ],
+  "release": "Exact two source/test read leases and review command handles RELEASED. No product/Git/docs/state/shared outputs or downloads.",
+  "privateEvidence": "/private/tmp/canlang-repair-go-20261007/record-hygiene-independent/independent-review.json",
+  "privateEvidenceSHA256": "a9d131907de236efcb36698e6d539097dd3a457c770820ed98021e8e18e8a34e",
+  "rootDisposition": "accepted native conformance transport hygiene only; actual production codec/error/profile/host/retirement joins open",
+  "rootHarnessErrors": "Initial test treated handle_line JSON as text; shared counterfactual Cargo target reused old artifact. Both invalid runs retained/excluded; isolated native producer6/6 vs1/6 corroborated independently18/18 vs13/18."
+}

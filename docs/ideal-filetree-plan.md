@@ -225,3 +225,5 @@ Files retains upload/finalization ownership; independently accepted completion b
 Services retains HTTP streaming cancellation ownership. Independently accepted existing-signal cleanup wait removes the caller-visible hang without a new framework or physical-cleanup/security/installed claim. Whole services/effect and complete checkpoint review remain open; no merge.
 
 UI defining browser owners retain synchronous acquisition/stop/listener cleanup. Finite independently accepted resource exhaustion and first-error correction adds no public layer; separate visibility/typing/producer/real-browser/installed outcomes and complete checkpoint remain open. No merge.
+
+Values conformance transport owns its enforced record-key hygiene; actual native/Wasm prerequisite facts remain distinct from production profile/error/retirement and genuine owner/default joins. Existing prepared provenance refusal is retained until real producer association, not replaced by format-version stamping. No new owner/layer, merge or complete checkpoint advance.

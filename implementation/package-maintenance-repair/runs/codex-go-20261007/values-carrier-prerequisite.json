@@ -1,0 +1,116 @@
+{
+  "packet": "TECH-V04 actual current native/Wasm carrier prerequisite",
+  "stage": "factual source-snapshot evidence; not production profile acceptance",
+  "base": "c718517a5aae8481a8b548a7eb299b8c5377dee6",
+  "sourcePins": {
+    "packages/values/semantics/src/transport/exact.rs": "7c2f5600bf4c72b5ccfef82500113e28f1fc3131a0f818dff8e205b802142817",
+    "packages/values/semantics/src/codecs/numeric.rs": "6f06587f264ae4365739c7fbbbb9e2fe9e3b4319c5cc6fc71e056594dc740217",
+    "packages/values/semantics/src/input.rs": "120a0a4aa36f2944b5cc14e70e690ad38d981fa072dad841795a89fec9903b1b",
+    "packages/values/semantics/src/profiles.rs": "6f98f6f6d90be53ad32ac539331a9e421e5743c0db8bc0e7253f28e1191db625",
+    "packages/values/semantics/src/plans.rs": "a273a9ae85ffb1492f3780713774a01722f2b9cd0db2740ffe5e81f10ded4a7c",
+    "packages/values/bindings/backend.ts": "bf1263532c90d0cdf64da032dd20040952682fb1f5f00c4a2daefa1f7f4304a3",
+    "packages/values/bindings/carriers.ts": "657f643c92fefe1d4303f609748860ed7c496544093fb57e5ea9fd7063fca3d0",
+    "packages/values/bindings/plans.ts": "a611f1dbb44c14afc5a213b5ee664db486c83676fccf83a0344043d1464d4274",
+    "packages/values/bindings/bootstrap.ts": "39f2b698fd3b131451b2153adc2ab8050dc6cc0939814450b0e1161493796b5c"
+  },
+  "buildRecipe": {
+    "network": false,
+    "cargoTarget": "/private/tmp/canlang-repair-go-20261007/values-carrier-current/target",
+    "cargoJobs": 2,
+    "commands": [
+      {
+        "command": "cargo build --offline --jobs 2 --manifest-path /private/tmp/canlang-repair-go-20261007/values-carrier-current/semantics/Cargo.toml --example carrier_current",
+        "handle": 5619,
+        "monitoredDeadlineSeconds": 60,
+        "actualBuildSeconds": 10.86,
+        "exit": 0
+      },
+      {
+        "command": "cargo build --offline --jobs 2 --manifest-path /private/tmp/canlang-repair-go-20261007/values-carrier-current/bindings/Cargo.toml --target wasm32-unknown-unknown",
+        "handle": 55647,
+        "monitoredDeadlineSeconds": 60,
+        "actualBuildSeconds": 7.85,
+        "exit": 0
+      },
+      {
+        "command": "wasm-bindgen /private/tmp/canlang-repair-go-20261007/values-carrier-current/target/wasm32-unknown-unknown/debug/values_bindings.wasm --target web --out-dir /private/tmp/canlang-repair-go-20261007/values-carrier-current/host/bindings/generated --out-name values_semantics",
+        "handle": "6b9037",
+        "exit": 0
+      },
+      {
+        "command": "node witness.mjs",
+        "handle": 21987,
+        "exit": 0,
+        "rows": 18
+      },
+      {
+        "command": "node controls.mjs",
+        "handle": 22401,
+        "exit": 0,
+        "rows": 5
+      },
+      {
+        "command": "native 7 raw requests via subprocess.run(timeout=10)",
+        "handle": "c1b23e",
+        "exit": 0
+      }
+    ],
+    "hostEmit": "TypeScript transpileModule ES2022/ESNext, current source hashed; prerequisite runtime evidence, not strict/declaration acceptance",
+    "sourceCopies": "Private semantics and bindings manifests add only [workspace] to prevent shared workspace resolution; private example calls current handle_line; no source behavior edits. All current-source host modules transpiled privately; only imported defining closure executes.",
+    "assets": {
+      "/private/tmp/canlang-repair-go-20261007/values-carrier-current/host/bindings/generated/values_semantics.js": {
+        "sha256": "9fc999525ec8c8449d6a43e0ae4cca2348f1999cb75cee4feb364f524f5c4fff",
+        "bytes": 8013
+      },
+      "/private/tmp/canlang-repair-go-20261007/values-carrier-current/host/bindings/generated/values_semantics_bg.wasm": {
+        "sha256": "efcf8c13c38385945b96c435a5bc1bfdd45c9f558433b361ce5d3941c8b03609",
+        "bytes": 1713123
+      },
+      "/private/tmp/canlang-repair-go-20261007/values-carrier-current/target/debug/examples/carrier_current": {
+        "sha256": "ef5c9274782e10f43f64c28ed940104c85a421db396a333d4cb79349a765c9ac",
+        "bytes": 2573552
+      }
+    },
+    "allHandlesReleased": true
+  },
+  "observed": [
+    "Actual offline native and Wasm/glue builds executed current bootstrap/backend/public facade:18 rows,5 controls,7 raw native matches; no injected glue or manual provenance.",
+    "Public decodeValue/prepared codec stay TS; native exact scalar decoder is not an admitted production profile; TS smoke table has six ops only.",
+    "Duplicate raw record members use first value and repeat unknown violations; root is separately enforcing already documented conformance transport hygiene, not selecting a native profile.",
+    "Ordered money violations match actual TS/native raw output but wasmBackend drops them into ValueError; SchemaError owning consumers remain unjoined.",
+    "Lone UTF16 cannot cross exact JSON carrier; astral truncation and generic negative-zero disagree; structural units/bits echo has no decoder semantics.",
+    "Explicit bootstrap asset mismatch refuses; genuine prepared capacity/retirement/backend and preallocation profile stay open."
+  ],
+  "limits": [
+    "Host source freshly transpiled, not strict/declaration acceptance.",
+    "No installed/all69/production security/default/backend adoption/TS retirement/lossless carrier or native preparation HOLD activation."
+  ],
+  "evidence": {
+    "result.json": {
+      "path": "/private/tmp/canlang-repair-go-20261007/values-carrier-current/result.json",
+      "sha256": "391437a3ad60391896241700aafd4da12ea862fb51f35a2dd52150fc46ccf682"
+    },
+    "controls.json": {
+      "path": "/private/tmp/canlang-repair-go-20261007/values-carrier-current/controls.json",
+      "sha256": "6229936e3796969658cb5c80b805287c4f5c732d57465848541ed0faf728b989"
+    },
+    "native-result.json": {
+      "path": "/private/tmp/canlang-repair-go-20261007/values-carrier-current/native-result.json",
+      "sha256": "e304aad6c50aea08ffa5ada2fe150c71d4ae9f11ae1bfefdfb80a954a08483c7"
+    },
+    "findings.md": {
+      "path": "/private/tmp/canlang-repair-go-20261007/values-carrier-current/findings.md",
+      "sha256": "7ecb597188a2a16ac0ac3e3fe3a9ffb0f67554f14aa0d413034b8dfef4f1e338"
+    },
+    "pins.json": {
+      "path": "/private/tmp/canlang-repair-go-20261007/values-carrier-current/pins.json",
+      "sha256": "b2984133004104e1bb8909f7d06b498e0cd96891d89f763e382a083eb7b55a15"
+    },
+    "recipe.json": {
+      "path": "/private/tmp/canlang-repair-go-20261007/values-carrier-current/recipe.json",
+      "sha256": "bfa4429ffbfb66a103608d8f0327cc9620f184eb8c2fbe45285859a869d6a12c"
+    }
+  },
+  "rootDisposition": "Use factual inputs to release exact current consumer/tuple/error/capacity contract; broad routing remains blocked.",
+  "release": "All producer reads and commands released; root separate exact transport hygiene writer candidate now under independent review."
+}
