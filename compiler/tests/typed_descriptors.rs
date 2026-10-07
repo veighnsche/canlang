@@ -168,6 +168,7 @@ fn model_order_optional_members_and_array_false() {
             array_required: None,
             default: None,
             description: None,
+            machine: None,
         }],
         delete_mode: "none".into(),
         unique_keys: vec![],

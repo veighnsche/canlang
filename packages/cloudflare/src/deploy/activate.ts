@@ -75,6 +75,8 @@ export const REQUIRES_CAPABILITY_MAP: Readonly<Record<string, readonly string[]>
   "values.money": ["values.money"],
   "values.temporal": ["values.temporal"],
   state: ["state"],
+  "state.machines": ["state.machines"],
+  "state.parameters": ["state.parameters"],
 };
 
 /**

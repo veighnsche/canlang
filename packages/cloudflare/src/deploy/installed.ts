@@ -30,6 +30,8 @@ export const KNOWN_CAPABILITIES: readonly string[] = [
   "values.money",
   "values.temporal",
   "state",
+  "state.machines",
+  "state.parameters",
   "d1-batch",
   "do-alarms",
 ];

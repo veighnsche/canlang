@@ -278,6 +278,9 @@ export function hasRole(c: HandlerContext, role: string, subject?: unknown): boo
   if (subject !== undefined) {
     return unsupported('hasRole-subject', 'subject-scoped role tests need the L3 membership directory.');
   }
+  if (c.canonical !== undefined && ['public', 'authenticated', 'members', 'owner'].includes(role)) {
+    return c.canonical.builtinRoles?.includes(role) ?? false;
+  }
   return c.memberships.includes(role);
 }
 
@@ -297,3 +300,6 @@ export function secretEqual(c: HandlerContext, ..._args: unknown[]): never {
   void c;
   return unsupported('secretEqual', 'constant-time secret comparison needs the L3 secrets binding.');
 }
+
+// Generated runtime modules share the state-owned lifecycle producer.
+export { transition } from '@canlang/state/effects/transition';

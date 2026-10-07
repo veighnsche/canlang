@@ -1,0 +1,53 @@
+# Track generation work.
+app Generation
+Given
+ ## Flat lifecycle demonstration; provider delivery remains application work.
+ Job { prompt:text, status:enum(idle,queued,generating,ready,failed)=idle machine }
+ policy Job read=members
+ fixture job=Job {prompt="A misty forest"}
+When
+ crud Job by=members fields=prompt
+ # Queue generation.
+ scenario queue(job:Job) by=members
+  do
+   transition job.status idle -> queued
+  examples job=job
+   as,job.status -> job.status
+   members,idle -> queued
+   members,queued -> error(rule_failed)
+   public,idle -> error(forbidden)
+ # Begin work.
+ scenario start(job:Job) by=members
+  do
+   transition job.status queued -> generating
+ # Report a failed attempt.
+ scenario fail(job:Job) by=members
+  do
+   transition job.status generating -> failed
+ # Retry a failed attempt.
+ scenario retry(job:Job) by=members
+  do
+   transition job.status failed -> queued
+ # Finish work.
+ scenario finish(job:Job) by=members
+  do
+   transition job.status generating -> ready
+Then
+ page / title="Generation" poll=2s
+  list Job
+   text row.prompt
+   alert
+    require row.status==idle
+    text "Ready to queue"
+   alert
+    require row.status==queued
+    text "Queued for generation"
+   alert
+    require row.status==generating
+    text "Generating"
+   alert
+    require row.status==ready
+    text "Generation complete"
+   alert
+    require row.status==failed
+    text "Generation failed"

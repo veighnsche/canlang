@@ -90,7 +90,7 @@ fn corpus_formats_cleanly_and_is_idempotent() {
     let files = corpus_files();
     assert_eq!(
         files.len(),
-        54,
+        55,
         "corpus size changed; update the count and expected outcomes"
     );
     let mut failures = Vec::new();

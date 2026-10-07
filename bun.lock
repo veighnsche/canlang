@@ -129,6 +129,7 @@
       "name": "@canlang/stdlib",
       "version": "0.1.0",
       "dependencies": {
+        "@canlang/state": "workspace:*",
         "@canlang/values": "workspace:*",
       },
       "devDependencies": {

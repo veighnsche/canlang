@@ -302,6 +302,7 @@ pub enum EffectVerb {
     Require,
     Create,
     Set,
+    Transition,
     Delete,
     Call,
     Emit,
@@ -2999,8 +3000,12 @@ impl<'a> Cx<'a> {
                 effect.args = effect_args(text, node);
                 effect.binding = as_binding(text, node);
             }
-            SyntaxKind::Set => {
-                effect.verb = EffectVerb::Set;
+            SyntaxKind::Set | SyntaxKind::Transition => {
+                effect.verb = if node.kind == SyntaxKind::Transition {
+                    EffectVerb::Transition
+                } else {
+                    EffectVerb::Set
+                };
                 let path = parts.iter().find(|n| n.kind == SyntaxKind::Path).copied();
                 effect.target = path.and_then(|p| self.record_target(module, text, p));
                 if self.checks_on
@@ -5124,7 +5129,7 @@ fn collect_subtree_models(
                 push_unique(out, model);
             }
         }
-        SyntaxKind::Set | SyntaxKind::Delete => {
+        SyntaxKind::Set | SyntaxKind::Transition | SyntaxKind::Delete => {
             let path = significant_children(node)
                 .iter()
                 .find(|n| n.kind == SyntaxKind::Path)
@@ -5243,7 +5248,7 @@ fn field_shape(text: &str, field: &SyntaxNode) -> FieldShape {
             break;
         };
         match word {
-            "trim" | "unique" => {
+            "trim" | "unique" | "machine" => {
                 shape.modifiers.push(ModifierData {
                     name: word.to_string(),
                     node: NodeKey::of(part),

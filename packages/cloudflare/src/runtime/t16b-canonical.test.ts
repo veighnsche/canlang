@@ -51,6 +51,7 @@ import { assembleWorker, buildInvoker } from "../worker/assembly.js";
 import type { AssembledModules, AssemblyDeps } from "../worker/assembly.js";
 import {
   assertRequiresFulfilled,
+  assertStateMachineProducerCapability,
   assertT04aContractPins,
   isGeneratedArtifact,
   loadCanonicalDescriptors,
@@ -569,9 +570,14 @@ describe("T16b version fulfillment (pins + requires)", () => {
     assertRequiresFulfilled(
       [
         { capability: "state", min_version: 1 },
+        { capability: "state.machines", min_version: 1 },
         { capability: "values.decimal", min_version: 1 },
       ],
       provided,
+    );
+    assert.throws(
+      () => assertRequiresFulfilled([{ capability: "state.machines", min_version: 2 }], provided),
+      /provides v1 — refusing to serve/,
     );
     // canlang.builtins pins the catalog major (no runtime constant to
     // match — T16c gap): skipped, never silently fulfilled.
@@ -584,6 +590,17 @@ describe("T16b version fulfillment (pins + requires)", () => {
       () => assertRequiresFulfilled([{ capability: "teleport.v1", min_version: 1 }], provided),
       /unknown capability "teleport\.v1"/,
     );
+  });
+});
+
+describe("machine producer compatibility", () => {
+  it("refuses old or missing producer capabilities despite state contract v1", () => {
+    const artifact = generatedArtifact("ops.mjs");
+    artifact.requires.push({ capability: "state.machines", min_version: 1 });
+    for (const catalog of [undefined, { contractVersion: 1 }, { capabilities: {} }, { capabilities: { "state.machines": 0 } }]) {
+      assert.throws(() => assertStateMachineProducerCapability(artifact, catalog), /Installed state producer/);
+    }
+    assert.doesNotThrow(() => assertStateMachineProducerCapability(artifact, { capabilities: { "state.machines": 1 } }));
   });
 });
 
@@ -748,6 +765,61 @@ describe("T16b canonical scenario (handler as the execute seam)", () => {
     assert.equal((second.result as MutationResult).status, "replayed");
     assert.equal(registry.canApp().calls.length, 1);
     assert.equal(await store.readRevision(), revisionAfterCommit);
+  });
+
+  it("hydrates immutable record aliases that observe ordered provisional fields with one reserved version", async () => {
+    const dir = tempDir();
+    const module = OPS_MODULE.replaceAll("input.inputs.sku", "input.todo.title")
+      .replaceAll("input.inputs.tags", "input.tags")
+      .replace('return { restocked:', `if (input.todo !== input.alias) throw new Error("alias view differs");
+        await c.canonical.stageWrite({ op: "update", model: "acme.Todo", id: input.todo.id, data: { title: "first provisional" } });
+        if (input.alias.title !== "first provisional" || input.todo.version !== 1n) throw new Error("ordered view differs");
+        const post = await c.canonical.stageWrite({ op: "update", model: "acme.Todo", id: input.todo.id, data: { title: "second provisional" } });
+        const rows = await c.canonical.readModel("acme.Todo", {});
+        if (post.version !== 2 || rows[0].version !== 2) throw new Error("provisional reservation differs");
+        return { restocked:`);
+    const url = writeModule(dir, "ops.mjs", module);
+    const artifact = generatedArtifact("ops.mjs");
+    artifact.callables.find((entry) => entry.id === "acme.Shop.restock")!.inputStyle = "parameters";
+    artifact.requires.push({ capability: "state.parameters", min_version: 1 });
+    const operation = artifact.operations!.find((entry) => entry.name === "acme.Shop.restock")!;
+    operation.inputs.fields = [
+      { name: "todo", required: true, field: { kind: "ref", model: "acme.Todo", requireVersion: true } },
+      { name: "alias", required: true, field: { kind: "ref", model: "acme.Todo", requireVersion: true } },
+      { name: "tags", required: false, field: { kind: "string" }, array: { required: false } },
+    ];
+    const { store } = createTestMemoryStorage();
+    const seed = await seedIdentity();
+    const identity = await identityFor(seed, seed.memberToken);
+    const invoker = buildInvoker(artifact, stubAsm(dir, { "ops.mjs": url }), store, {
+      memberships: seed.store, now: () => seed.now,
+    });
+    const id = freshOperationId(seed.now);
+    await invoker.invokeMutation(mutationEnvelope("acme.Todo.create", id, { title: "admitted title" }), identity);
+    const outcome = await invoker.invokeMutation(mutationEnvelope("acme.Shop.restock", freshOperationId(seed.now), {
+      todo: { id, version: "1" }, alias: { id, version: "1" },
+    }), identity);
+    assert.ok("result" in outcome, JSON.stringify(outcome));
+    assert.equal((outcome.result as MutationResult).status, "committed");
+    assert.deepEqual((outcome.result as MutationResult).result, { restocked: "second provisional", tags: [] });
+    const registry = (await import(url)) as { canApp(): { calls: { input: { todo: Record<string, unknown> } }[] } };
+    const snapshot = registry.canApp().calls[0]!.input.todo;
+    assert.equal(snapshot.id, id);
+    assert.equal(snapshot.version, 1n);
+    assert.equal(snapshot.created_by, seed.memberId);
+    assert.equal(snapshot.created, new Date(seed.now).toISOString());
+    assert.ok(Object.isFrozen(snapshot));
+    assert.throws(() => { snapshot.title = "bypass"; }, TypeError);
+    assert.equal(((await todoRows(store))[0]!.data as Record<string, unknown>).title, "second provisional");
+    assert.equal((await todoRows(store))[0]!.version, 2);
+  });
+
+  it("refuses named-parameter callables without the fail-closed capability gate", async () => {
+    const dir = tempDir();
+    const url = writeModule(dir, "ops.mjs", OPS_MODULE);
+    const artifact = generatedArtifact("ops.mjs");
+    artifact.callables.find((entry) => entry.id === "acme.Shop.restock")!.inputStyle = "parameters";
+    await assert.rejects(loadCanonicalDescriptors(stubAsm(dir, { "ops.mjs": url }), artifact), /inputStyle/);
   });
 
   it("denies gateless scenarios with typed denial; gated members still commit", async () => {

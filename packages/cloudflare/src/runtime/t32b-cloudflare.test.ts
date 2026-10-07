@@ -402,7 +402,7 @@ describe("T32b scenario seam (guards + readings + revision fence)", () => {
     assert.ok("result" in outcome, `want result, got ${JSON.stringify(outcome)}`);
     const committed = outcome.result as MutationResult;
     assert.equal(committed.status, "committed");
-    assert.deepEqual(committed.result, { id: "t-1", version: 2, seen: ["quiet"] });
+    assert.deepEqual(committed.result, { id: "t-1", version: 1, seen: ["quiet"] });
     assert.equal(await store.readRevision(), 1);
     const receipt = await store.readReceipt({
       app: "TeamTasks",

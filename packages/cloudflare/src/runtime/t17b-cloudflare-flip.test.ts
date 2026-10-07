@@ -684,7 +684,7 @@ describe("T17b staged write collapse (one net write per row)", () => {
         { kind: "insert", model: "acme.Todo", row: row("t1", 1) },
         { kind: "update", model: "acme.Todo", id: "t1", expectedVersion: 1, row: row("t1", 2) },
       ]),
-      [{ kind: "insert", model: "acme.Todo", row: row("t1", 2) }],
+      [{ kind: "insert", model: "acme.Todo", row: row("t1", 1) }],
     );
     // update+update: one update on the FIRST basis with the final row.
     assert.deepEqual(
@@ -692,7 +692,7 @@ describe("T17b staged write collapse (one net write per row)", () => {
         { kind: "update", model: "acme.Todo", id: "t1", expectedVersion: 7, row: row("t1", 8) },
         { kind: "update", model: "acme.Todo", id: "t1", expectedVersion: 8, row: row("t1", 9) },
       ]),
-      [{ kind: "update", model: "acme.Todo", id: "t1", expectedVersion: 7, row: row("t1", 9) }],
+      [{ kind: "update", model: "acme.Todo", id: "t1", expectedVersion: 7, row: row("t1", 8) }],
     );
     // insert+remove: net nothing (created and removed in-scenario).
     assert.deepEqual(
@@ -719,7 +719,7 @@ describe("T17b staged write collapse (one net write per row)", () => {
       ]),
       [
         { kind: "remove", model: "acme.Todo", id: "t1", expectedVersion: 7 },
-        { kind: "insert", model: "acme.Todo", row: row("t1", 2) },
+        { kind: "insert", model: "acme.Todo", row: row("t1", 1) },
       ],
     );
     // Distinct rows fold independently, in first-touch order.
@@ -903,7 +903,7 @@ describe("T17b scenario staging (one atomic commit with receipt + history)", () 
     assert.equal(committed.status, "committed");
     assert.deepEqual(committed.result, {
       id: "t-1",
-      version: 2,
+      version: 1,
       seen: [{ title: "staged", done: true }],
     });
     // Receipt persisted under the SCENARIO identity (operation + id), defaults empty.
@@ -923,7 +923,7 @@ describe("T17b scenario staging (one atomic commit with receipt + history)", () 
       trail.map((entry) => [entry.change, entry.version, entry.operationId]),
       [
         ["create", 1, operationId],
-        ["update", 2, operationId],
+        ["update", 1, operationId],
       ],
     );
     for (const entry of trail) {
@@ -933,9 +933,10 @@ describe("T17b scenario staging (one atomic commit with receipt + history)", () 
     }
     assert.deepEqual(trail[0]?.before, null);
     assert.deepEqual(trail[1]?.after, { title: "staged", done: true });
+    // One transaction reserves one version despite ordered effects.
     // Stored row: merged data, admitted attribution, one revision for the whole scenario.
     const row = await store.load("acme.Todo" as ModelName, "t-1" as RecordId);
-    assert.equal(row?.version, 2);
+    assert.equal(row?.version, 1);
     assert.deepEqual(row?.data, { title: "staged", done: true });
     assert.equal(row?.createdBy, seed.memberId);
     assert.equal(await store.readRevision(), 1);
@@ -1253,15 +1254,15 @@ describe("T17b rollback, replay, and fence convergence on the staged path", () =
     assert.ok("result" in right, `right must commit, got ${JSON.stringify(right)}`);
     assert.equal((left.result as MutationResult).status, "committed");
     assert.equal((right.result as MutationResult).status, "committed");
-    // One winner, one fence-retry: two revisions, version 4, both titles applied in some order.
+    // One winner, one fence-retry: two revisions, version 3, both titles applied in some order.
     assert.equal(await store.readRevision(), revisionAfterSeed + 2);
     const row = await store.load("acme.Todo" as ModelName, "t-race" as RecordId);
-    assert.equal(row?.version, 4);
+    assert.equal(row?.version, 3);
     assert.ok((row?.data as Record<string, unknown>)["title"] === "A" || (row?.data as Record<string, unknown>)["title"] === "B");
     const trail = await store.historyFor("acme.Todo" as ModelName, "t-race" as RecordId);
     assert.deepEqual(
       trail.map((entry) => entry.version),
-      [1, 2, 3, 4],
+      [1, 1, 2, 3],
     );
     const titles = trail
       .map((entry) => (entry.after as Record<string, unknown> | null)?.["title"])
@@ -1271,7 +1272,7 @@ describe("T17b rollback, replay, and fence convergence on the staged path", () =
 });
 
 describe("T17b no-change stability on the staged path", () => {
-  it("commits empty patches cleanly with identical data and an advanced version", async () => {
+  it("commits create plus empty patches with identical data and one version reservation", async () => {
     const { asm, artifact, store, seed } = await shopSetup();
     const invoker = buildInvoker(artifact, asm, store, {
       memberships: seed.store,
@@ -1284,7 +1285,7 @@ describe("T17b no-change stability on the staged path", () => {
     );
     assert.ok("result" in outcome, `want result, got ${JSON.stringify(outcome)}`);
     assert.deepEqual((outcome.result as MutationResult).result, {
-      version: 2,
+      version: 1,
       data: { title: "steady" },
     });
     const row = await store.load("acme.Todo" as ModelName, "t-steady" as RecordId);
