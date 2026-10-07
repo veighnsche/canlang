@@ -1,0 +1,64 @@
+   Compiling proc-macro2 v1.0.107
+   Compiling unicode-ident v1.0.26
+   Compiling quote v1.0.47
+   Compiling stable_deref_trait v1.2.1
+   Compiling libc v0.2.190
+   Compiling version_check v0.9.5
+   Compiling writeable v0.6.4
+   Compiling litemap v0.8.3
+   Compiling icu_properties_data v2.3.0
+   Compiling icu_normalizer_data v2.3.0
+   Compiling utf8_iter v1.0.4
+   Compiling typenum v1.20.1
+   Compiling smallvec v1.16.2
+   Compiling cfg-if v1.0.5
+   Compiling rustix v1.1.5
+   Compiling getrandom v0.4.3
+   Compiling generic-array v0.14.7
+   Compiling percent-encoding v2.3.2
+   Compiling bitflags v2.13.2
+   Compiling form_urlencoded v1.2.2
+   Compiling canlang-compiler v0.1.0 (/Users/vince/Projects/canlang/compiler)
+   Compiling once_cell v1.21.4
+   Compiling fastrand v2.5.0
+   Compiling crypto-common v0.1.7
+   Compiling block-buffer v0.10.4
+   Compiling digest v0.10.7
+   Compiling errno v0.3.14
+   Compiling cpufeatures v0.2.17
+   Compiling syn v3.0.6
+   Compiling syn v2.0.119
+   Compiling sha2 v0.10.9
+   Compiling tempfile v3.27.0
+   Compiling synstructure v0.13.2
+   Compiling synstructure v0.14.0
+   Compiling yoke-derive v0.8.2
+   Compiling zerofrom-derive v0.1.8
+   Compiling zerovec-derive v0.11.6
+   Compiling displaydoc v0.2.7
+   Compiling zerofrom v0.1.8
+   Compiling yoke v0.8.3
+   Compiling zerovec v0.11.8
+   Compiling zerotrie v0.2.5
+   Compiling tinystr v0.8.4
+   Compiling potential_utf v0.1.6
+   Compiling icu_collections v2.3.0
+   Compiling icu_locale_core v2.3.0
+   Compiling icu_provider v2.3.1
+   Compiling icu_properties v2.3.0
+   Compiling icu_normalizer v2.3.0
+   Compiling idna_adapter v1.2.2
+   Compiling idna v1.1.0
+   Compiling url v2.5.8
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 9.89s
+     Running unittests src/lib.rs (/private/tmp/canlang-compiler-pass4/debug/deps/canlang_compiler-b209887ffda84078)
+
+running 6 tests
+test source::tests::line_index_lsp_utf16 ... ok
+test source::tests::sha256_preserves_exact_bytes_and_hex_contract ... ok
+test source::tests::line_index_lf_crlf ... ok
+test source::tests::sha256_vectors ... ok
+test source::tests::source_db_ids_stable ... ok
+test source::tests::sha256_padding_and_large_input ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 93 filtered out; finished in 0.06s

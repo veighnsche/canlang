@@ -1,0 +1,26 @@
+{
+  "packet": "C04H",
+  "status": "accepted bounded recorded-host profile",
+  "independent_fixed_answers": 16,
+  "baseline_compiler_ref": "0104b04",
+  "qualified_version": "0.10.9",
+  "current_unqualified_version": "0.11.0",
+  "model": "gpt-6.1-sol",
+  "reasoning": "low",
+  "source_snapshot_equal": true,
+  "source-tests.log": {
+    "passed": 6,
+    "failed": 0,
+    "sha256": "dcdb0d306f0f6c921858dcce48c461e2d1b988dffa410313f8f6e28647bb3c9f"
+  },
+  "consumer-tests.log": {
+    "passed": 102,
+    "failed": 0,
+    "sha256": "6483739f244d882348ba773ef9c00adcc22485c26e1d9d8c5e42cd922e9a393a"
+  },
+  "linux/source-tests.log": {
+    "passed": 6,
+    "failed": 0,
+    "sha256": "e680eb11195b4366b79fa027d2b3d37ce7022f142eae3eeed83357c552af0a0e"
+  }
+}

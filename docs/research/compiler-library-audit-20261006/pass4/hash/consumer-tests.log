@@ -1,0 +1,134 @@
+    Blocking waiting for file lock on build directory
+   Compiling canlang-compiler v0.1.0 (/Users/vince/Projects/canlang/compiler)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 2.49s
+     Running tests/b3_migrate.rs (/private/tmp/canlang-compiler-pass4/debug/deps/b3_migrate-3062592a31b36b1b)
+
+running 9 tests
+test invalid_migration_lowers_nothing ... ok
+test valid_field_directives_and_backfill_lower ... ok
+test valid_model_rename_lowers ... ok
+test artifact_carries_migration_registry ... ok
+test violations_emit_no_e6008 ... ok
+test body_digest_is_deterministic ... ok
+test valid_drop_model_invalidate_and_owner_drop_lower ... ok
+test predecessor_problems_are_e6010 ... ok
+test exactly_once_violations_are_e6009 ... ok
+
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running tests/b3_s4.rs (/private/tmp/canlang-compiler-pass4/debug/deps/b3_s4-fdb088b2855b440f)
+
+running 4 tests
+test stale_reapply_reports_both_hashes_as_json ... ok
+test lint_without_fix_has_no_fixes_key ... ok
+test lsp_driver_code_action_roundtrip_through_real_binary ... ok
+test fix_json_is_deterministic_across_reruns ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.33s
+
+     Running tests/docs.rs (/private/tmp/canlang-compiler-pass4/debug/deps/docs-729991f255361a8f)
+
+running 29 tests
+test available_shape_conforms_when_constructed ... ok
+test dotted_message_references_stay_unresolved ... ok
+test app_default_locale_prefers_the_checked_default_over_source ... ok
+test app_default_locale_follows_the_single_app_module ... ok
+test declaration_descriptions_attach_from_hash_sets ... ok
+test extracts_owners_declarations_and_fields ... ok
+test imported_bare_message_wording_resolves ... ok
+test extracts_user_operations_without_authorization ... ok
+test app_default_locale_falls_back_to_first_module ... ok
+test message_reference_descriptions_resolve ... ok
+test field_and_param_descriptions_use_checked_seam ... ok
+test mixed_table_and_sequence_examples_merge_in_source_order ... ok
+test field_type_nullability_requiredness_defaults_constraints ... ok
+test operation_sequences_become_authored_source_examples ... ok
+test operation_tables_become_labeled_row_examples ... ok
+test fixtures_become_labeled_declaration_examples ... ok
+test required_array_spelling_is_preserved ... ok
+test relative_symlink_spellings_match_their_target ... ok
+test moved_checkout_identity_covers_every_spelling ... ok
+test sequence_fixture_checks_fully_clean ... ok
+test same_external_file_agrees_through_relative_and_absolute ... ok
+test external_inputs_are_marked_and_stable ... ok
+test unavailable_requested_locale_falls_back_through_default_to_source ... ok
+test output_is_deterministic ... ok
+test availability_is_unknown_and_catalog_version_nullable ... ok
+test relative_vs_absolute_spellings_are_identical ... ok
+test v1_json_conforms_to_reference_ts ... ok
+test all_spellings_of_one_input_are_identical ... ok
+test moved_checkout_equivalence ... ok
+
+test result: ok. 29 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+
+     Running tests/ide.rs (/private/tmp/canlang-compiler-pass4/debug/deps/ide-134e69d8b80a4637)
+
+running 31 tests
+test definition_spans ... ok
+test document_symbols_outline ... ok
+test completion_section_keywords ... ok
+test fixes_for_analysis_diagnostics_are_deliberately_empty ... ok
+test hover_description_shows_source_language_only ... ok
+test hover_description_static_reference_resolves_wording ... ok
+test completion_builtin_with_catalog ... ok
+test completion_expression_scope ... ok
+test completion_type_position ... ok
+test hover_builtin_with_catalog ... ok
+test hover_local_binding_shows_type ... ok
+test hover_param_description_from_slot ... ok
+test hover_field_description_spellings ... ok
+test hover_shows_descriptions ... ok
+test hover_predicate_and_unresolved_are_empty ... ok
+test import_member_resolves_to_export ... ok
+test offset_at_position_cases ... ok
+test hover_symbol_decl_and_use ... ok
+test server_capability_negotiation ... ok
+test semantic_tokens_tiny_exact ... ok
+test lint_fix_wrap_apply_and_stale ... ok
+test semantic_tokens_classify_fixture ... ok
+test lint_fix_preserves_analysis ... ok
+test rename_spans_and_hash ... ok
+test references_spans ... ok
+test server_publishes_analysis_and_lint ... ok
+test server_stale_version_suppressed_with_real_backend ... ok
+test server_rename_and_invalid_name ... ok
+test server_completion_and_semantic_tokens ... ok
+test server_hover_definition_references_roundtrip ... ok
+test server_code_action_fix_application ... ok
+
+test result: ok. 31 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running tests/lint.rs (/private/tmp/canlang-compiler-pass4/debug/deps/lint-78eec7d43cb99ac1)
+
+running 29 tests
+test default_config_is_recommended_without_fixes_or_catalog ... ok
+test fix_refuses_stale_and_invalid ... ok
+test fix_flag_off_offers_nothing ... ok
+test empty_description_invalid ... ok
+test deprecated_ignores_shadowed_and_nonbuiltin ... ok
+test deprecated_warns_on_deprecated_call ... ok
+test duplicate_description_invalid ... ok
+test description_valid_cases ... ok
+test fix_narrows_redundant_safe_access ... ok
+test fixes_apply_as_batch ... ok
+test deprecated_silent_without_catalog_data ... ok
+test rule_codes_resolve_in_explain_catalog ... ok
+test rule_table_is_consistent ... ok
+test redundant_null_invalid ... ok
+test fix_removes_unreachable_statement ... ok
+test unreachable_after_return_is_analysis_error_not_lint ... ok
+test redundant_null_valid_nullable_receiver ... ok
+test unreachable_warns_after_require_false ... ok
+test unreachable_require_false_semicolon_sequence_has_no_fix ... ok
+test shadow_warns_with_opt_in_only ... ok
+test unused_alias_collection_descendant_scope ... ok
+test unused_alias_invalid ... ok
+test unused_let_invalid ... ok
+test shadow_valid_cases ... ok
+test unreachable_valid_cases ... ok
+test unused_let_suppressed_by_shadowing ... ok
+test unused_let_valid_reads ... ok
+test unused_alias_valid ... ok
+test corpus_noise_assessment ... ok
+
+test result: ok. 29 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.01s
