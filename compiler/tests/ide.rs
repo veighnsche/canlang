@@ -871,7 +871,8 @@ fn server_stale_version_suppressed_with_real_backend() {
         "{{\"textDocument\":{{\"uri\":\"file:///a.can\",\"version\":2}},\"contentChanges\":[{{\"text\":{FIXTURE:?}}}]}}"
     );
     server.handle_json(&notify("textDocument/didChange", &change));
-    assert_eq!(server.pending_count(), 2);
+    // Replacing distinct source text prunes the obsolete version before remap.
+    assert_eq!(server.pending_count(), 1);
     let notes = server.pump();
     assert_eq!(notes.len(), 1, "{notes:?}");
     assert!(notes[0].contains("\"version\":2"), "{}", notes[0]);
