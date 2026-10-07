@@ -1,0 +1,74 @@
+{
+  "reviews": [
+    {
+      "review": "delivery",
+      "path": "delivery-review.json",
+      "sha256": "c717f95a0aad981e0fa38c7bb5a80ae118f1d072c26b6cbbf1dc6b9bdcea1343",
+      "model": "gpt-6.1-sol",
+      "reasoning_effort": "high",
+      "kind": "finite independent challenge; conclusions visible, not clean-room; source-only"
+    },
+    {
+      "review": "priority",
+      "path": "priority-review.json",
+      "sha256": "4653210f2c86091d50d7e973b4f69f6f2bdb5e99b843c60c6c54109a892f8560",
+      "model": "gpt-6.1-sol",
+      "reasoning_effort": "high",
+      "kind": "finite independent challenge; conclusions visible, not clean-room; source-only"
+    },
+    {
+      "review": "native",
+      "path": "native-review.json",
+      "sha256": "754c9ba9ca71d4b3bb54b7bc8545347d49523e6011592a90c09aac77d545cbb8",
+      "model": "gpt-6.1-sol",
+      "reasoning_effort": "high",
+      "kind": "finite independent challenge; conclusions visible, not clean-room; source-only"
+    },
+    {
+      "review": "remaining",
+      "path": "remaining-review.json",
+      "sha256": "fcaceecf0bb6b261cf79dead466fbf39b0055177358744bb69065076135b0ecf",
+      "model": "gpt-6.1-sol",
+      "reasoning_effort": "high",
+      "kind": "finite independent challenge; conclusions visible, not clean-room; source-only"
+    }
+  ],
+  "reconciliation": [
+    {
+      "review": "delivery",
+      "findings": [
+        "IMPORT-REVIEW-D01",
+        "IMPORT-REVIEW-D02",
+        "IMPORT-REVIEW-D03",
+        "IMPORT-REVIEW-D04",
+        "IMPORT-REVIEW-D05",
+        "IMPORT-REVIEW-D06"
+      ],
+      "status": "corrected/qualified in DEL groups and syntax/classification aggregate; no policy selected"
+    },
+    {
+      "review": "priority",
+      "findings": [
+        "PRIORITY-R01",
+        "PRIORITY-R02",
+        "PRIORITY-R03"
+      ],
+      "status": "resolved and independently delta-verified"
+    },
+    {
+      "review": "native",
+      "findings": [
+        "IMPORT-087 wording"
+      ],
+      "status": "corrected in source-accurate mechanism rationale; disposition unchanged"
+    },
+    {
+      "review": "remaining",
+      "findings": [
+        "VAL-029 date-only formatter settings"
+      ],
+      "status": "corrected; instantFormatter owns h23, disposition unchanged"
+    }
+  ],
+  "runtime_acceptance": false
+}

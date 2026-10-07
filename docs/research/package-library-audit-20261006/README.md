@@ -9,6 +9,17 @@ the historical source-candidate counts below are not production LOC.
 
 We should replace several standard parsing and encoding mechanisms with maintained libraries or platform APIs. Keep Can's authored semantics, authority, evaluation order, exact values, identity and error contracts in small owning adapters. A library whose adapter becomes another parser or semantic engine is not a simplification.
 
+## Current simplification audit
+
+The later planning audit records the [production baseline](production-baseline/README.md),
+[actual responsibilities/callers](responsibility-callers/README.md),
+[required-behavior authority](required-behavior/README.md),
+[library fit](library-fit/README.md), and [adapter branch dispositions](adapter-branches/README.md).
+The branch audit covers 480 groups across the selected 27 integration seams, with exact
+conditional change gates and independent source challenges. These later pinned records
+supersede historical unwired/source/qualification premises below where explicitly reconciled;
+they do not authorize new implementation or broaden finite acceptance.
+
 ## Coverage and evidence
 
 [Source inventory](source-inventory.json) records 684 TS/Rust files under all 13 package owners, excluding dependency/build-output directories. There are 341 source candidates and 343 test/example/fixture files. These are inventory categories, not a claim that every file is compiled or production code: values includes generated currency data, and work-kernel Rust decisions are currently outside its Cargo root. Review screened responsibilities/imports and inspected the relevant algorithm bodies and tests; it does not prove whole-package correctness.

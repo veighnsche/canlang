@@ -1,0 +1,311 @@
+{
+  "schema": "canlang-adapter-delivery-review-v1",
+  "pin": "7870143465cf3d73e68339a6aa8d82109bd58397",
+  "model": "gpt-6.1-sol / high",
+  "review_kind": "Finite independent challenge with root conclusions visible; not clean-room and not product execution",
+  "reviewed_artifact": "/private/tmp/canlang-adapter-branches-delivery.json",
+  "reviewed_artifact_sha256": "c39ede441f985d4a9ca769692fd653bc1291ce85c0d61308fb670533e45e858d",
+  "scope": "All 65 proposal groups read; precise targeted source inspection of publication, held input/frame mechanics, MCP projection/metadata/lifecycle, render, small policy and comparison helpers. No whole delivery/package security audit.",
+  "findings": [
+    {
+      "id": "IMPORT-REVIEW-D01",
+      "branches": [
+        "DEL-032"
+      ],
+      "kind": "concrete_claim_correction",
+      "claim": "success plain record -> structuredContent; conditions say plain record",
+      "correction": "Source guard is typeof result === object && result !== null && !Array.isArray(result); it does not check prototype/plain-object shape. Say non-null non-array objects, with raw object structural content. Keep any narrowing/schema validation conditional, not accepted behavior. JSON.stringify may throw or return undefined for widened unknown domain; no complete client validity proof from this guard.",
+      "evidence": [
+        {
+          "path": "packages/interfaces/src/mcp/server.ts",
+          "start": 168,
+          "end": 181,
+          "note": "Comment says plain; implementation only excludes null and arrays.",
+          "pin": "7870143465cf3d73e68339a6aa8d82109bd58397"
+        }
+      ],
+      "design_selected": false
+    },
+    {
+      "id": "IMPORT-REVIEW-D02",
+      "branches": [
+        "DEL-009",
+        "DEL-011",
+        "DEL-014"
+      ],
+      "kind": "domain_qualification_correction",
+      "claim": "accessors mirror JS predicates; js_string host String-like rendering; bracket scan avoids serde rejection before Can depth",
+      "correction": "Keep ASCII-only obj_get key domain explicit (units_eq compares key UTF16 count to UTF8 text.len and bytes). js_string array recursion is a finite observed algorithm, not general String(Array) parity: Node::Null within Arr emits null, whereas JS array join null element becomes empty. Bracket scan enforces its own MAX_BRACKET_NESTING heuristic; it cannot guarantee all deeper legal tagged-tree input reaches decode_node if serde recursion rejects first. No change selected.",
+      "evidence": [
+        {
+          "path": "packages/cloudflare/preparation/src/input.rs",
+          "start": 75,
+          "end": 87,
+          "note": "ASCII key convenience domain.",
+          "pin": "7870143465cf3d73e68339a6aa8d82109bd58397"
+        },
+        {
+          "path": "packages/cloudflare/preparation/src/input.rs",
+          "start": 184,
+          "end": 198,
+          "note": "Null emits null and arrays recursively use js_string then join.",
+          "pin": "7870143465cf3d73e68339a6aa8d82109bd58397"
+        },
+        {
+          "path": "packages/cloudflare/preparation/src/input.rs",
+          "start": 309,
+          "end": 353,
+          "note": "Pre-scan separate bracket gate followed by serde then tree decoder.",
+          "pin": "7870143465cf3d73e68339a6aa8d82109bd58397"
+        }
+      ],
+      "design_selected": false
+    },
+    {
+      "id": "IMPORT-REVIEW-D03",
+      "branches": [
+        "DEL-041",
+        "DEL-042",
+        "DEL-043"
+      ],
+      "kind": "prerequisite_precision",
+      "claim": "Generic preserve current profile prerequisite for simplifying unresolved publication barrier",
+      "correction": "Existing F06 description is source-accurate; prerequisite must explicitly require reviewed/staged exact-set identity, session/record provenance, revalidation of actual staged bytes used at publication, and mandatory successful verified state before publication. readStagedBytes merely reads and never compares retained hash; do not use its comment as proof. withPublicationSession cleanup is synchronous: generic T can be Promise and finally disposes before an asynchronous callback finishes, so retain a synchronous callback domain or qualify async lifetime separately.",
+      "evidence": [
+        {
+          "path": "packages/cloudflare/src/preparation/publication.ts",
+          "start": 255,
+          "end": 272,
+          "note": "Only iterates staged records and compares expected buffers to retained metadata.",
+          "pin": "7870143465cf3d73e68339a6aa8d82109bd58397"
+        },
+        {
+          "path": "packages/cloudflare/src/preparation/publication.ts",
+          "start": 281,
+          "end": 312,
+          "note": "No verified-state gate; reads record.absolutePath, writes current disk contents.",
+          "pin": "7870143465cf3d73e68339a6aa8d82109bd58397"
+        },
+        {
+          "path": "packages/cloudflare/src/preparation/publication.ts",
+          "start": 324,
+          "end": 341,
+          "note": "No readback hash check; sync finally after callback returns.",
+          "pin": "7870143465cf3d73e68339a6aa8d82109bd58397"
+        }
+      ],
+      "design_selected": false
+    },
+    {
+      "id": "IMPORT-REVIEW-D04",
+      "branches": [
+        "DEL-001",
+        "DEL-003",
+        "DEL-019",
+        "DEL-021",
+        "DEL-022",
+        "DEL-026",
+        "DEL-029",
+        "DEL-033",
+        "DEL-035",
+        "DEL-036",
+        "DEL-041",
+        "DEL-051",
+        "DEL-055",
+        "DEL-060",
+        "DEL-065"
+      ],
+      "kind": "conditional_prerequisite_precision",
+      "claim": "All candidate changes share boilerplate preserve profile until separately selected simplification",
+      "correction": "Attach concrete mechanism prerequisites per candidate. DEL-033: qualify SDK-supported InitializeResult metadata extension AND actual transport/server lifetime, not merely version negotiation; no source claim supported metadata hook exists. DEL-055: same entity table and replacement regex can share private traversal while retaining sink-specific validation names, no need select new escaping policy. DEL-035: exact duplicate UNC/drive-slash tests are source-redundant after earlier backslash and broader drive gate; maintain first-error order. DEL-060: primitive clone substitution must qualify plain/null-prototype versus exotic pass-through, depth and __proto__ semantics. Keep any new domain/profile choice separate from factual consolidation.",
+      "evidence": [
+        {
+          "path": "packages/interfaces/src/mcp/server.ts",
+          "start": 459,
+          "end": 489,
+          "note": "Public setRequestHandler extension; no close/finally in function.",
+          "pin": "7870143465cf3d73e68339a6aa8d82109bd58397"
+        },
+        {
+          "path": "packages/ui/src/escape.ts",
+          "start": 15,
+          "end": 34,
+          "note": "Same entity mechanics, different gate labels.",
+          "pin": "7870143465cf3d73e68339a6aa8d82109bd58397"
+        },
+        {
+          "path": "packages/cloudflare/src/preparation/publication.ts",
+          "start": 99,
+          "end": 127,
+          "note": "Earlier backslash/broader drive tests dominate later alternatives.",
+          "pin": "7870143465cf3d73e68339a6aa8d82109bd58397"
+        },
+        {
+          "path": "packages/interfaces/src/projection/project.ts",
+          "start": 60,
+          "end": 86,
+          "note": "Depth/proto special case/exotic reference pass-through.",
+          "pin": "7870143465cf3d73e68339a6aa8d82109bd58397"
+        }
+      ],
+      "design_selected": false
+    },
+    {
+      "id": "IMPORT-REVIEW-D05",
+      "branches": [
+        "DEL-001",
+        "DEL-002",
+        "DEL-003",
+        "DEL-032",
+        "DEL-033",
+        "DEL-041"
+      ],
+      "kind": "output_contract_schema_correction",
+      "claim": "Classification uses bespoke serialization_mechanic, mixed_policy_and_compatibility, persisted_byte_profile, sdk_shape_projection and others",
+      "correction": "If root task requested the same exact allowed taxonomy as import lane, normalize to can_policy/public_contract/temporary_compatibility/library_compensation/transport_host_boundary/redundant_mechanism/unresolved and retain descriptive subcategory separately. In particular indentation/LF formatting is not itself persisted_protocol authority: CF-C18 schema and CF-C19 unresolved exact whitespace are distinct. Group mixed mechanisms with explicit per-condition classification where needed.",
+      "evidence": [
+        {
+          "path": "packages/cloudflare/src/deploy/render.ts",
+          "start": 104,
+          "end": 111,
+          "note": "Current JSON render mechanism; comment alone does not freeze whitespace forever.",
+          "pin": "7870143465cf3d73e68339a6aa8d82109bd58397"
+        },
+        {
+          "path": "docs/research/package-library-audit-20261006/required-behavior/contracts.jsonl",
+          "start": 382,
+          "end": 383,
+          "note": "CF-C18 schema vs CF-C19 exact indentation/order uncertainty.",
+          "pin": "7870143465cf3d73e68339a6aa8d82109bd58397"
+        }
+      ],
+      "design_selected": false
+    },
+    {
+      "id": "IMPORT-REVIEW-D06",
+      "branches": [
+        "DEL-004",
+        "DEL-007",
+        "DEL-013",
+        "DEL-023",
+        "DEL-063"
+      ],
+      "kind": "coverage_evidence_precision",
+      "claim": "Conditions use shorthand and syntax coverage crosswalk maps site IDs only",
+      "correction": "For the requested exact condition audit, persist the actual conditions/calls from the read-only TS index with source offsets in final crosswalk; nested short-circuit sites can have duplicate path:line:column:kind IDs, so raw ID alone is not unique. Keep candidate-site coverage distinct from semantic branch proof. Rust manual condition list must expose match arms and guard predicates rather than relying on TS candidate counts.",
+      "evidence": [
+        {
+          "path": "packages/cloudflare/src/preparation/protocol.ts",
+          "start": 208,
+          "end": 260,
+          "note": "Terminal/error/token/timing predicates have materially different effects and no shared finally-kill guarantee.",
+          "pin": "7870143465cf3d73e68339a6aa8d82109bd58397"
+        },
+        {
+          "path": "packages/interfaces/src/projection/project.ts",
+          "start": 161,
+          "end": 169,
+          "note": "Sort exact OR/ties and duplicate/subsumed condition.",
+          "pin": "7870143465cf3d73e68339a6aa8d82109bd58397"
+        }
+      ],
+      "design_selected": false
+    }
+  ],
+  "confirmed_without_correction": [
+    "F06 metadata/disk/exact-set/verified-state description remains correct; source comments do not prove actual barrier.",
+    "TS frame merge allocates before declared payload cap; Rust read_frame checks length before payload allocation, as stated.",
+    "Serde tree decode text clone and array/object capacity allocation precede some budgets; no universal pre-allocation cap established.",
+    "MCP per-request creation/auth/version/file-metadata branch description and absence of explicit local close/finally are source-supported; no guaranteed leak conclusion.",
+    "UI URL/formula/HTML and projection grants are distinct sink/authority policies; consolidation cannot be selected by helper name alone.",
+    "No immediate adoption/implementation of held native paths or generic parser selected."
+  ],
+  "source_hashes": [
+    {
+      "path": "packages/cloudflare/preparation/src/input.rs",
+      "pin": "7870143465cf3d73e68339a6aa8d82109bd58397",
+      "sha256": "c0475ca0c94514e47011e594122ddadf3980232bfbce1e29557077c6f37b8002"
+    },
+    {
+      "path": "packages/cloudflare/preparation/src/protocol.rs",
+      "pin": "7870143465cf3d73e68339a6aa8d82109bd58397",
+      "sha256": "7c532c8afb1865ce53a4679b75698ff138b46cd5261111bb7fb6cd4f67db182f"
+    },
+    {
+      "path": "packages/cloudflare/preparation/src/render.rs",
+      "pin": "7870143465cf3d73e68339a6aa8d82109bd58397",
+      "sha256": "be9c5592d305fb3f37487f79d0521d1314375a3b5f6607eb9782529934d1a337"
+    },
+    {
+      "path": "packages/cloudflare/src/cli/platform.ts",
+      "pin": "7870143465cf3d73e68339a6aa8d82109bd58397",
+      "sha256": "b6910c319e7196c585e9613f489f5ecab194483b9c9f9ea71913bfd4e0109e2a"
+    },
+    {
+      "path": "packages/cloudflare/src/deploy/bundle.ts",
+      "pin": "7870143465cf3d73e68339a6aa8d82109bd58397",
+      "sha256": "7e8ad78a2674120ad59e96dbe2b34ab8923d8418578c015168c2b0ccd1a7a741"
+    },
+    {
+      "path": "packages/cloudflare/src/deploy/render.ts",
+      "pin": "7870143465cf3d73e68339a6aa8d82109bd58397",
+      "sha256": "75bb7fb5eeb0cebafdf5c31079c12c63075b00d5708edaedf5a7f9c89b5bc980"
+    },
+    {
+      "path": "packages/cloudflare/src/preparation/build-adapter.ts",
+      "pin": "7870143465cf3d73e68339a6aa8d82109bd58397",
+      "sha256": "ddbd1eb6abc50c1dfa1ccc59cfdd8f3e54cc5d296356004c794f2556f1053383"
+    },
+    {
+      "path": "packages/cloudflare/src/preparation/inputs.ts",
+      "pin": "7870143465cf3d73e68339a6aa8d82109bd58397",
+      "sha256": "2d36665b20ff6387557355fe6ca63b11ce1f8c6a293b4c2494862a4b7a8229ac"
+    },
+    {
+      "path": "packages/cloudflare/src/preparation/protocol.ts",
+      "pin": "7870143465cf3d73e68339a6aa8d82109bd58397",
+      "sha256": "0a8f5477e3ac10bbcacd0c43c467fc95bfaa125dbbd34a67929e1a8a5882ecf8"
+    },
+    {
+      "path": "packages/cloudflare/src/preparation/publication.ts",
+      "pin": "7870143465cf3d73e68339a6aa8d82109bd58397",
+      "sha256": "d5a2a0bf875a2305648036cb7cc8c2d827a88980911384ba52d08a892d66a6d8"
+    },
+    {
+      "path": "packages/files/src/upload/fs-blob-store.ts",
+      "pin": "7870143465cf3d73e68339a6aa8d82109bd58397",
+      "sha256": "0c112376b97e30a41ed6db8956b5e003ccc9e16ff4c0386353e04561a504108e"
+    },
+    {
+      "path": "packages/interfaces/src/mcp/server.ts",
+      "pin": "7870143465cf3d73e68339a6aa8d82109bd58397",
+      "sha256": "20d68f0cc3a0984f2094dffe971895d789d57ce05c07032e3696dc9fcaf7c8c6"
+    },
+    {
+      "path": "packages/interfaces/src/projection/project.ts",
+      "pin": "7870143465cf3d73e68339a6aa8d82109bd58397",
+      "sha256": "1c1fbc7123f879c22c8e54737c1d2e4809ed01ee178d7a0c281440e35f649fec"
+    },
+    {
+      "path": "packages/state/src/internal/json.ts",
+      "pin": "7870143465cf3d73e68339a6aa8d82109bd58397",
+      "sha256": "dd16c61167cee0a9a8d22cbe5037715b9c6bf574b17f433342f6ba700e90ae73"
+    },
+    {
+      "path": "packages/testkit/src/assertions/equal.ts",
+      "pin": "7870143465cf3d73e68339a6aa8d82109bd58397",
+      "sha256": "d12014e23815bf21c0df9f6323e3c217d26ac5b0a9b5cacad04411cb78db7496"
+    },
+    {
+      "path": "packages/ui/src/escape.ts",
+      "pin": "7870143465cf3d73e68339a6aa8d82109bd58397",
+      "sha256": "6408018844f663e1d644821c9884a9089ba26cad38b170d2d751ced4dc71b65c"
+    }
+  ],
+  "gaps": [
+    "No builds/tests/install/network/product execution.",
+    "No SDK runtime/library re-execution; public handler usage proved source only.",
+    "Review identifies wording/domain/prerequisite corrections, not a new security profile or design choice.",
+    "Full held native branch audit belongs to root/import amendment; this challenge does not assert entire Rust control coverage."
+  ]
+}

@@ -1,0 +1,14 @@
+{
+  "kind": "audit structure/pinned hash check; no runtime acceptance",
+  "source_pin": "7870143465cf3d73e68339a6aa8d82109bd58397",
+  "branch_groups": 480,
+  "scopes": 408,
+  "selected_ts_syntax_occurrences": 1649,
+  "integration_slices": 27,
+  "repository_inputs_checked": 146,
+  "external_inputs_checked": 33,
+  "external_unavailable": [],
+  "current_package_drift": [],
+  "errors": [],
+  "execution_authorized": false
+}

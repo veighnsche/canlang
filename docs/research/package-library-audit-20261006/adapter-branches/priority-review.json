@@ -1,0 +1,767 @@
+{
+  "schema": "canlang.adapter-priority-review.v1",
+  "source_pin": "7870143465cf3d73e68339a6aa8d82109bd58397",
+  "model": "gpt-6.1-sol",
+  "reasoning_effort": "high",
+  "mode": "planning_only_source_challenge",
+  "independence": "Finite second-reader challenge; prior identity packet visible and authored by this same worker, so identity review is not clean-room or fully independent.",
+  "reviewed_packets": [
+    {
+      "family": "imports",
+      "path": "/private/tmp/canlang-adapter-branches-imports.json",
+      "sha256": "a01b933921ac1e4deec60175ad4ffcddedab96421f2dd253c453ab261dd3180c",
+      "snapshot_branch_count": 99
+    },
+    {
+      "family": "maps",
+      "path": "/private/tmp/canlang-adapter-branches-maps.json",
+      "sha256": "94b6513c13a37b5ba9e6d177b6c98a5dcc9f5ccd3e52f1ba680fcf26b0f58cda",
+      "snapshot_branch_count": 45
+    },
+    {
+      "family": "identity",
+      "path": "/private/tmp/canlang-adapter-branches-identity.json",
+      "sha256": "2074e877d17a4f50d1a546abbe4f8eaf3fba8a50fa3349691c08488cbbcda901",
+      "snapshot_branch_count": 49
+    }
+  ],
+  "scope": {
+    "included": "Twelve finite critical seams listed below. TS import projection/retry/literal/error boundary, raw map and composition identity/tie/carrier/fallback boundary, cookies/password codec/native comparison and historical evidence.",
+    "excluded": [
+      "Newly extended Rust IMPORT-053..099: not rereviewed; native HUMAN HOLD preserved.",
+      "Other packet groups outside listed seam branch IDs; no full-package or whole-auth correctness claim.",
+      "No new policy choice, JEV rerun, product execution/install/build/test, repository/shared-document/Git mutation."
+    ]
+  },
+  "checks": [
+    {
+      "id": "PRIORITY-001",
+      "seam": "Unicode projection",
+      "branch_ids": [
+        "IMPORT-002"
+      ],
+      "status": "source_consistent",
+      "conclusion": "Projection replaces each selected one-UTF16-unit code point with one unit; all original offsets remain comparable. It changes the parsing view globally, so original literal repair is necessary. This is selected lexer compensation, not a JS validity proof.",
+      "source_anchors": [
+        {
+          "path": "packages/cloudflare/src/deploy/module-imports.ts",
+          "start_line": 63,
+          "end_line": 78
+        }
+      ],
+      "negative_witness": "U+2003 inside a quoted import would otherwise become an ASCII-space target; deleting trivia would shift offsets.",
+      "conditional_removal_gate": "Retire only with a selected lexer/API qualified on original-domain literal/trivia/comment offsets; no second local string decoder.",
+      "execution_acceptance": "none"
+    },
+    {
+      "id": "PRIORITY-002",
+      "seam": "Unicode retry termination",
+      "branch_ids": [
+        "IMPORT-003"
+      ],
+      "status": "source_consistent",
+      "conclusion": "For N original U+2028/U+2029 units, at most N restorations and N+1 main-view parses occur. Every restoration requires an integral error offset, projected LF and original separator; a restored unit cannot satisfy the same LF guard again. Zero count/nonintegral/unbacked offsets immediately rethrow.",
+      "source_anchors": [
+        {
+          "path": "packages/cloudflare/src/deploy/module-imports.ts",
+          "start_line": 80,
+          "end_line": 94
+        }
+      ],
+      "negative_witness": "Unconditional retry can loop or conceal unrelated errors; globally restoring separators can hide real comment-boundary imports.",
+      "conditional_removal_gate": null,
+      "execution_acceptance": "none"
+    },
+    {
+      "id": "PRIORITY-003",
+      "seam": "Original literal/error offsets",
+      "branch_ids": [
+        "IMPORT-004",
+        "IMPORT-005",
+        "IMPORT-006",
+        "IMPORT-010"
+      ],
+      "status": "source_consistent",
+      "conclusion": "Only original literal n is replaced. Static bounds include surrounding delimiters via s-1/e+1; dynamic bounds use s/e. Synthetic import( contributes seven UTF16 units, so synthetic idx+start-7 restores the original coordinate. The synthetic path does not retry; unrelated no-idx failures propagate.",
+      "source_anchors": [
+        {
+          "path": "packages/cloudflare/src/deploy/module-imports.ts",
+          "start_line": 95,
+          "end_line": 111
+        },
+        {
+          "path": "packages/cloudflare/src/deploy/module-imports.ts",
+          "start_line": 140,
+          "end_line": 152
+        }
+      ],
+      "negative_witness": "Replacing the complete synthetic record would transplant offsets; original[0] non-null depends on selected literal-span invariant, already recorded as a gap.",
+      "conditional_removal_gate": null,
+      "execution_acceptance": "none"
+    },
+    {
+      "id": "PRIORITY-004",
+      "seam": "Source-map duplicate winner",
+      "branch_ids": [
+        "MAP-012",
+        "MAP-020"
+      ],
+      "status": "source_consistent",
+      "conclusion": "Raw lookup overwrites best for every eligible source-order segment, so exact duplicates are last-wins. trace-mapping exact GLB selects lowerBound, so ordinary sorted nonnegative duplicate maps still need a small last-wins coalescing bridge. Whole effectiveLine removal is not equivalent merely after sorted/nonnegative admission.",
+      "source_anchors": [
+        {
+          "path": "packages/cloudflare/src/runtime/sourcemap.ts",
+          "start_line": 138,
+          "end_line": 145
+        },
+        {
+          "path": "packages/cloudflare/src/deploy/module-maps.ts",
+          "start_line": 49,
+          "end_line": 59
+        },
+        {
+          "path": "/private/tmp/canlang-library-fit-20261007-published/jridgewell--trace-mapping-0.3.31/source/src/trace-mapping.ts",
+          "start_line": 405,
+          "end_line": 416
+        }
+      ],
+      "negative_witness": "Same-column mapped/name/unmapped ties switch winner with direct stock GLB.",
+      "conditional_removal_gate": "Retire prefix maxima only under selected producer/public/stored-map profile; separately preserve or disposition ordinary duplicate winners.",
+      "execution_acceptance": "none"
+    },
+    {
+      "id": "PRIORITY-005",
+      "seam": "Source-map barriers/fallback",
+      "branch_ids": [
+        "MAP-013",
+        "MAP-021",
+        "MAP-022",
+        "MAP-024",
+        "MAP-025",
+        "MAP-037",
+        "MAP-039",
+        "MAP-040"
+      ],
+      "status": "source_consistent",
+      "conclusion": "Sourceless/invalid-source winners refuse mapping rather than falling back to earlier mapped points. Missing lines receive explicit unmapped seeds because remapping skips null traces. No-edit pass-through precedes map reads. Own staged-map presence prevents stale artifact fallback. mapThrownError contains diagnostic failures, but composeModuleMap catches only original decode, not all later composer failures.",
+      "source_anchors": [
+        {
+          "path": "packages/cloudflare/src/runtime/sourcemap.ts",
+          "start_line": 146,
+          "end_line": 155
+        },
+        {
+          "path": "packages/cloudflare/src/deploy/module-maps.ts",
+          "start_line": 71,
+          "end_line": 93
+        },
+        {
+          "path": "packages/cloudflare/src/runtime/invoke.ts",
+          "start_line": 243,
+          "end_line": 294
+        },
+        {
+          "path": "/private/tmp/canlang-library-fit-20261007-published/jridgewell--remapping-2.3.5/source/src/source-map-tree.ts",
+          "start_line": 122,
+          "end_line": 135
+        }
+      ],
+      "negative_witness": "Fallback to an artifact map after changed-length rewrite can fabricate wrong authored columns; deeper-frame fallback changes first-classifying-frame behavior.",
+      "conditional_removal_gate": null,
+      "execution_acceptance": "none"
+    },
+    {
+      "id": "PRIORITY-006",
+      "seam": "Raw identity projection",
+      "branch_ids": [
+        "MAP-023",
+        "MAP-026",
+        "MAP-028",
+        "MAP-029"
+      ],
+      "status": "source_consistent",
+      "conclusion": "Opaque IDs preserve original table-index identity through library resolution/dedup; restore compact output indices before reusing original tables. Empty strings can remain valid raw source/name values. Array negative properties/holes and host getters/proxies are explicitly outside current composition certification; raw lookup admission is broader.",
+      "source_anchors": [
+        {
+          "path": "packages/cloudflare/src/deploy/module-maps.ts",
+          "start_line": 77,
+          "end_line": 93
+        },
+        {
+          "path": "packages/cloudflare/src/runtime/sourcemap.ts",
+          "start_line": 152,
+          "end_line": 159
+        }
+      ],
+      "negative_witness": "Passing raw sourceRoot/duplicate sources directly to library may resolve or collapse them; sources[-1] can pass raw lookup without a corresponding opaque composition ID.",
+      "conditional_removal_gate": null,
+      "execution_acceptance": "none"
+    },
+    {
+      "id": "PRIORITY-007",
+      "seam": "Large-delta carriers",
+      "branch_ids": [
+        "MAP-015",
+        "MAP-016",
+        "MAP-017"
+      ],
+      "status": "source_consistent",
+      "conclusion": "Carrier loop bounds each source-index/original-line/original-column/name delta by 0x3fffffff, retaining large accumulated endpoints as equal-column steps. It does not certify stock host duplicate lookup or repair arbitrary generated-column encoding. Current proposal remains conditional, separate from ordinary duplicate semantics.",
+      "source_anchors": [
+        {
+          "path": "packages/cloudflare/src/deploy/module-maps.ts",
+          "start_line": 26,
+          "end_line": 43
+        },
+        {
+          "path": "/private/tmp/canlang-library-fit-20261007-published/jridgewell--sourcemap-codec-1.6.0/source/src/vlq.ts",
+          "start_line": 35,
+          "end_line": 46
+        }
+      ],
+      "negative_witness": "Dropping carriers while keeping accepted large endpoints can wrap line/column/name deltas; stock GLB can choose the first carrier.",
+      "conditional_removal_gate": "Direct encode only after real profile proves safe per-field deltas and preserves remaining tie/index restoration.",
+      "execution_acceptance": "none"
+    },
+    {
+      "id": "PRIORITY-008",
+      "seam": "Cookie first target/decode",
+      "branch_ids": [
+        "IDENTITY-006",
+        "IDENTITY-007",
+        "IDENTITY-008",
+        "IDENTITY-010",
+        "IDENTITY-011"
+      ],
+      "status": "source_consistent",
+      "conclusion": "Pinned cookie parser deduplicates raw ASCII-trimmed keys; wrapper selects first ECMAScript-trim matching group. Empty or malformed selected value immediately returns null; later duplicates cannot rescue it. Raw trim precedes exactly one strict URI decode; literal quotes survive, semicolons split quotes, and decoded whitespace is not retrimmed.",
+      "source_anchors": [
+        {
+          "path": "packages/identity/src/sessions/cookies.ts",
+          "start_line": 46,
+          "end_line": 64
+        },
+        {
+          "path": "/private/tmp/canlang-library-fit-20261007-published/cookie-2.0.1/source/dist/index.js",
+          "start_line": 80,
+          "end_line": 105
+        }
+      ],
+      "negative_witness": "can_session=; can_session=good and malformed-first percent escapes remain null; %252F becomes %2F, quoted foo retains quotes, %20x%20 retains surrounding decoded spaces.",
+      "conditional_removal_gate": null,
+      "execution_acceptance": "none"
+    },
+    {
+      "id": "PRIORITY-009",
+      "seam": "Cookie generated reorder/accessors",
+      "branch_ids": [
+        "IDENTITY-014",
+        "IDENTITY-015",
+        "IDENTITY-016",
+        "IDENTITY-017",
+        "IDENTITY-019"
+      ],
+      "status": "source_consistent",
+      "conclusion": "Encoding occurs before domain validation, preserving lone-surrogate error precedence. Reorder acts on bounded library-generated segments with fixed options. Removing reorder can preserve semantic attrs but changes exact bytes and later option reads; readonly types permit getters, and domain/secure are reread in the current adapter.",
+      "source_anchors": [
+        {
+          "path": "packages/identity/src/sessions/cookies.ts",
+          "start_line": 67,
+          "end_line": 103
+        },
+        {
+          "path": "/private/tmp/canlang-library-fit-20261007-published/cookie-2.0.1/source/dist/index.js",
+          "start_line": 140,
+          "end_line": 241
+        }
+      ],
+      "negative_witness": "Caching secure/domain can change getter effects or the branch selecting generated segment positions even when ordinary object fixtures pass.",
+      "conditional_removal_gate": "External byte-order consumer/profile disposition plus plain stable option-value domain or preserved property-read/evaluation-order effects; keep security defaults, clear attrs, domain validation and encoding.",
+      "execution_acceptance": "none"
+    },
+    {
+      "id": "PRIORITY-010",
+      "seam": "Password codec versus bearer identity",
+      "branch_ids": [
+        "IDENTITY-020",
+        "IDENTITY-021",
+        "IDENTITY-022",
+        "IDENTITY-024",
+        "IDENTITY-029",
+        "IDENTITY-032",
+        "IDENTITY-042",
+        "IDENTITY-043",
+        "IDENTITY-045",
+        "IDENTITY-046"
+      ],
+      "status": "source_consistent",
+      "conclusion": "Password decoder masks only unused final sextet bits after alphabet/remainder guards to retain historical byte aliases. Bearer creation/lookups hash presented text through UTF8, not normalized decoded token bytes. Password envelope validates algorithm/four parts, numeric integral positive bounded iterations and fixed decoded lengths.",
+      "source_anchors": [
+        {
+          "path": "packages/identity/src/sessions/tokens.ts",
+          "start_line": 20,
+          "end_line": 41
+        },
+        {
+          "path": "packages/identity/src/sessions/tokens.ts",
+          "start_line": 63,
+          "end_line": 65
+        },
+        {
+          "path": "packages/identity/src/sessions/tokens.ts",
+          "start_line": 89,
+          "end_line": 97
+        },
+        {
+          "path": "packages/identity/src/accounts/passwords.ts",
+          "start_line": 72,
+          "end_line": 84
+        }
+      ],
+      "negative_witness": "Applying password byte-alias normalization to bearer hashes collapses distinct presented token strings and changes security/persisted identity.",
+      "conditional_removal_gate": null,
+      "execution_acceptance": "none"
+    },
+    {
+      "id": "PRIORITY-011",
+      "seam": "Native comparison host/refusal",
+      "branch_ids": [
+        "IDENTITY-033",
+        "IDENTITY-034",
+        "IDENTITY-035",
+        "IDENTITY-036",
+        "IDENTITY-037",
+        "IDENTITY-048",
+        "IDENTITY-049"
+      ],
+      "status": "source_consistent",
+      "conclusion": "Unequal byte lengths return false before native comparison; equal empty values still invoke native. Worker missing primitive refuses; invocation retains subtle receiver. Password derivation failures return false, while native comparison faults propagate outside that catch. Timing-safe claim is confined to the native primitive.",
+      "source_anchors": [
+        {
+          "path": "packages/identity/src/sessions/comparison.ts",
+          "start_line": 1,
+          "end_line": 7
+        },
+        {
+          "path": "packages/identity/src/sessions/comparison-node.ts",
+          "start_line": 1,
+          "end_line": 5
+        },
+        {
+          "path": "packages/identity/src/sessions/comparison-worker.ts",
+          "start_line": 1,
+          "end_line": 11
+        },
+        {
+          "path": "packages/identity/src/accounts/passwords.ts",
+          "start_line": 91,
+          "end_line": 104
+        }
+      ],
+      "negative_witness": "A JS fallback, equal-empty shortcut, detached receiver, or wider password catch changes host refusal/fault semantics.",
+      "conditional_removal_gate": null,
+      "execution_acceptance": "none"
+    },
+    {
+      "id": "PRIORITY-012",
+      "seam": "Historical qualified-host evidence",
+      "branch_ids": [
+        "IDENTITY-028",
+        "IDENTITY-033",
+        "IDENTITY-035",
+        "IDENTITY-036",
+        "IDENTITY-040",
+        "IDENTITY-049"
+      ],
+      "status": "source_consistent",
+      "conclusion": "Committed acceptance records finite Node22.0.0/Node24.21.0/workerd results and scoped current six identity hashes match accepted-source pins. Workerd receipt names crypto.subtle.timingSafeEqual, compatibilityDate2026-07-15 and no flags. Private Node22 raw log is presently absent; historical committed receipts are neither erased by absence nor newly reproduced runtime proof.",
+      "source_anchors": [
+        {
+          "path": "implementation/rust-port-orchestration/runs/codex-step10-20261007T015711Z/acceptance.json",
+          "start_line": 1,
+          "end_line": 1
+        },
+        {
+          "path": "implementation/rust-port-orchestration/runs/codex-step10-20261007T015711Z/installed-workerd-receipt.json",
+          "start_line": 1,
+          "end_line": 13
+        },
+        {
+          "path": "implementation/rust-port-orchestration/runs/codex-step10-20261007T015711Z/accepted-source-pins.json",
+          "start_line": 1,
+          "end_line": 1
+        }
+      ],
+      "negative_witness": "No whole-auth constant-time, stored-data migration, durable CSV mount, or fresh host guarantee follows from these finite receipts.",
+      "conditional_removal_gate": null,
+      "execution_acceptance": "none"
+    }
+  ],
+  "findings": [
+    {
+      "id": "PRIORITY-R01",
+      "severity": "medium",
+      "kind": "aggregation_evidence_schema",
+      "status": "resolved_verified_in_aggregate",
+      "path": "/private/tmp/canlang-assemble-branch-audit.py",
+      "problem": "Aggregate syntax-sites selects every branch ID from all enclosing functions/slices and removes packet precise syntax linkages from family-notes. This turns exact explanation links into broad scope-membership links.",
+      "example": "Identity cookies line49 is specifically IDENTITY-005 in packet; aggregate construction links all parseSessionCookie groups005..013.",
+      "required_correction": "Preserve packet exact site links, or separately label enclosing_scope_branch_ids and explaining_branch_ids. Retain per-packet linkage/provenance and distinguish structural membership from branch explanation.",
+      "product_effect": "No runtime flaw alleged; reviewable audit provenance/coverage accuracy.",
+      "blocking_scope": "Aggregate exact-linkage claim only; seam branch dispositions remain source-consistent.",
+      "correction_evidence": "All1649 exact packet explaining-branch associations reconcile; enclosing-scope IDs separately named; occurrence suffixes, UTF16 offsets, original condition preview and association method retained. Identity line49 explains only IDENTITY-005."
+    },
+    {
+      "id": "PRIORITY-R02",
+      "severity": "medium",
+      "kind": "aggregation_schema_enum",
+      "status": "resolved_verified_in_aggregate",
+      "problem": "Initially observed custom delivery primary classification labels beyond the seven requested categories.",
+      "correction_evidence": "Final aggregate now uses only required seven primary categories; original custom labels retained as classification_detail (e.g., DEL-001 serialization_mechanic); structural verifier includes enum guard.",
+      "product_effect": "Audit schema issue only; no runtime flaw alleged."
+    },
+    {
+      "id": "PRIORITY-R03",
+      "severity": "low",
+      "kind": "integration_crosswalk",
+      "status": "resolved_verified_in_final_delta",
+      "problem": "Aggregate import function-name heuristic assigns native CJS detection helpers IMPORT082..087 to delivery-imports; these serve loadability checks.",
+      "required_correction": "Map these direct scanner helpers to delivery-loadability; assign both IDs to any shared lexical helper only with actual source caller ownership.",
+      "scope_limit": "Native function call ownership only; no branch semantic rereview or native qualification.",
+      "product_effect": "Audit crosswalk correction only.",
+      "source_anchors": [
+        {
+          "path": "packages/cloudflare/preparation/src/modules.rs",
+          "start_line": 703,
+          "end_line": 842,
+          "note": "Scanner-helper call ownership only; not branch semantic equivalence review."
+        }
+      ],
+      "correction_evidence": "Aggregate IMPORT077..089 have exactly delivery-loadability; shared IMPORT053..057,065,091 have exactly delivery-imports and delivery-loadability. All480 execution flags false, seven-category enum valid, all1649 precise packet associations still match."
+    }
+  ],
+  "source_hashes": [
+    {
+      "path": "/private/tmp/canlang-library-fit-20261007-published/cookie-2.0.1/source/dist/index.js",
+      "sha256": "b728aa01f45e9115920e2a92e2f3d71c1b5acfbb8bc1d702b87397860c4ba925",
+      "bytes": 12046,
+      "kind": "exact_dependency_source",
+      "current_sha256": "b728aa01f45e9115920e2a92e2f3d71c1b5acfbb8bc1d702b87397860c4ba925",
+      "current_matches_pin": true
+    },
+    {
+      "path": "/private/tmp/canlang-library-fit-20261007-published/jridgewell--remapping-2.3.5/source/src/source-map-tree.ts",
+      "sha256": "f570fed38f3797896d5545b61aec0c912efa9e9a5e8f038fd3a4f1ad15a5b936",
+      "bytes": 4823,
+      "kind": "exact_dependency_source",
+      "current_sha256": "f570fed38f3797896d5545b61aec0c912efa9e9a5e8f038fd3a4f1ad15a5b936",
+      "current_matches_pin": true
+    },
+    {
+      "path": "/private/tmp/canlang-library-fit-20261007-published/jridgewell--sourcemap-codec-1.6.0/source/src/vlq.ts",
+      "sha256": "6aff12a00b5a44ada57df49bddc90f90fead9dc230463b49784904373bd11ecd",
+      "bytes": 1324,
+      "kind": "exact_dependency_source",
+      "current_sha256": "6aff12a00b5a44ada57df49bddc90f90fead9dc230463b49784904373bd11ecd",
+      "current_matches_pin": true
+    },
+    {
+      "path": "/private/tmp/canlang-library-fit-20261007-published/jridgewell--trace-mapping-0.3.31/source/src/trace-mapping.ts",
+      "sha256": "f37d9db53896dd9adb199cb75b79ab33c8c588b5a25793b714e20dad2f77187b",
+      "bytes": 15414,
+      "kind": "exact_dependency_source",
+      "current_sha256": "f37d9db53896dd9adb199cb75b79ab33c8c588b5a25793b714e20dad2f77187b",
+      "current_matches_pin": true
+    },
+    {
+      "path": "implementation/rust-port-orchestration/runs/codex-step10-20261007T015711Z/acceptance.json",
+      "sha256": "3efc8539b90885c9dd00daaa0da7c337657d3a604f5439e44c124995b912dadc",
+      "bytes": 7715,
+      "kind": "pinned_repository",
+      "current_sha256": "3efc8539b90885c9dd00daaa0da7c337657d3a604f5439e44c124995b912dadc",
+      "current_matches_pin": true
+    },
+    {
+      "path": "implementation/rust-port-orchestration/runs/codex-step10-20261007T015711Z/accepted-source-pins.json",
+      "sha256": "6e99ad9f9dbc868e992593d1f6f2ef422742678339cb62bccdf045ca215f3467",
+      "bytes": 2834,
+      "kind": "pinned_repository",
+      "current_sha256": "6e99ad9f9dbc868e992593d1f6f2ef422742678339cb62bccdf045ca215f3467",
+      "current_matches_pin": true
+    },
+    {
+      "path": "implementation/rust-port-orchestration/runs/codex-step10-20261007T015711Z/installed-workerd-receipt.json",
+      "sha256": "27d77885311202f1cfafa3d1d5425e8034a92a98a21e6303190f0fc3733c5743",
+      "bytes": 1305,
+      "kind": "pinned_repository",
+      "current_sha256": "27d77885311202f1cfafa3d1d5425e8034a92a98a21e6303190f0fc3733c5743",
+      "current_matches_pin": true
+    },
+    {
+      "path": "packages/cloudflare/src/deploy/module-imports.ts",
+      "sha256": "13ef57c952c0cadfabf873b49f64917113f2ce6721f941ba4611a95b4b597362",
+      "bytes": 12176,
+      "kind": "pinned_repository",
+      "current_sha256": "13ef57c952c0cadfabf873b49f64917113f2ce6721f941ba4611a95b4b597362",
+      "current_matches_pin": true
+    },
+    {
+      "path": "packages/cloudflare/src/deploy/module-maps.ts",
+      "sha256": "e336c88f2ab17acc09bd57713a79d9a19b41c13a6241193edae4ae185aaa4f98",
+      "bytes": 5985,
+      "kind": "pinned_repository",
+      "current_sha256": "e336c88f2ab17acc09bd57713a79d9a19b41c13a6241193edae4ae185aaa4f98",
+      "current_matches_pin": true
+    },
+    {
+      "path": "packages/cloudflare/src/runtime/invoke.ts",
+      "sha256": "55178802cd4697279491b3997e79eb28b070a4ff580973d4513abdfe5023d2db",
+      "bytes": 319853,
+      "kind": "pinned_repository",
+      "current_sha256": "55178802cd4697279491b3997e79eb28b070a4ff580973d4513abdfe5023d2db",
+      "current_matches_pin": true
+    },
+    {
+      "path": "packages/cloudflare/src/runtime/sourcemap.ts",
+      "sha256": "565f9c8521b6eaed277a65bbb8b82c4edea0c4f67ddada9df071dd16d4199113",
+      "bytes": 6534,
+      "kind": "pinned_repository",
+      "current_sha256": "565f9c8521b6eaed277a65bbb8b82c4edea0c4f67ddada9df071dd16d4199113",
+      "current_matches_pin": true
+    },
+    {
+      "path": "packages/identity/src/accounts/passwords.ts",
+      "sha256": "12e9f48e47452ce8af1c6b767bcca69843014290b85472071fea5251e738a969",
+      "bytes": 3612,
+      "kind": "pinned_repository",
+      "current_sha256": "12e9f48e47452ce8af1c6b767bcca69843014290b85472071fea5251e738a969",
+      "current_matches_pin": true
+    },
+    {
+      "path": "packages/identity/src/sessions/comparison-node.ts",
+      "sha256": "4ab6f9af09469c5e9c876943867f05e47070519b8bfe820793efe7a637515e37",
+      "bytes": 153,
+      "kind": "pinned_repository",
+      "current_sha256": "4ab6f9af09469c5e9c876943867f05e47070519b8bfe820793efe7a637515e37",
+      "current_matches_pin": true
+    },
+    {
+      "path": "packages/identity/src/sessions/comparison-worker.ts",
+      "sha256": "d07b396186f6f28dccfe5809b9ee21342d3e51e0e969fe8d028320aa2351ff68",
+      "bytes": 447,
+      "kind": "pinned_repository",
+      "current_sha256": "d07b396186f6f28dccfe5809b9ee21342d3e51e0e969fe8d028320aa2351ff68",
+      "current_matches_pin": true
+    },
+    {
+      "path": "packages/identity/src/sessions/comparison.ts",
+      "sha256": "663079590c9147f2cb6f3de72187afcf84ea185ac3288c946fe05901738901db",
+      "bytes": 307,
+      "kind": "pinned_repository",
+      "current_sha256": "663079590c9147f2cb6f3de72187afcf84ea185ac3288c946fe05901738901db",
+      "current_matches_pin": true
+    },
+    {
+      "path": "packages/identity/src/sessions/cookies.ts",
+      "sha256": "9766cfaa0a78204414f21468a8b1c046cbff7d8713556b49ae8cc235a00db099",
+      "bytes": 3685,
+      "kind": "pinned_repository",
+      "current_sha256": "9766cfaa0a78204414f21468a8b1c046cbff7d8713556b49ae8cc235a00db099",
+      "current_matches_pin": true
+    },
+    {
+      "path": "packages/identity/src/sessions/tokens.ts",
+      "sha256": "d7867041c5c893cabdece58607af646c3468aa9e24a895b8608e8112cc7365fa",
+      "bytes": 3462,
+      "kind": "pinned_repository",
+      "current_sha256": "d7867041c5c893cabdece58607af646c3468aa9e24a895b8608e8112cc7365fa",
+      "current_matches_pin": true
+    },
+    {
+      "path": "packages/cloudflare/preparation/src/modules.rs",
+      "sha256": "51ddde6db165e5feeafdda2b9b8e7969b3e87506def82b734412107c3c205794",
+      "bytes": 45340,
+      "kind": "pinned_repository",
+      "current_sha256": "51ddde6db165e5feeafdda2b9b8e7969b3e87506def82b734412107c3c205794",
+      "current_matches_pin": true
+    }
+  ],
+  "summary": {
+    "material_product_source_factual_errors_found": 0,
+    "selected_adapter_branch_omissions_found": 0,
+    "proposal_prerequisites_consistent": true,
+    "aggregate_schema_issue_count": 0,
+    "runtime_acceptance": "none",
+    "authority": "Required-behavior stages and finite receipts remain inputs; quirks do not become permanent product policy."
+  },
+  "aggregation_review": {
+    "stage": "Final bounded delta verified; all three aggregation findings resolved. No new semantic audit or execution.",
+    "path": "/Users/vince/Projects/canlang/docs/research/package-library-audit-20261006/adapter-branches",
+    "checks": {
+      "branch_count": 480,
+      "scope_count": 408,
+      "syntax_occurrences": 1649,
+      "all_execution_flags_false": true,
+      "nonretain_prerequisites_preserved": true,
+      "precise_packet_link_mismatch_ids": [],
+      "all_links_known": true,
+      "all_association_methods_explicit": true,
+      "identity_historical_receipt_retained": true,
+      "classification_enum_violations": [],
+      "integration_rows": 27,
+      "native_scanner_helper_integration_ids": {
+        "IMPORT-082": [
+          "delivery-loadability"
+        ],
+        "IMPORT-083": [
+          "delivery-loadability"
+        ],
+        "IMPORT-084": [
+          "delivery-loadability"
+        ],
+        "IMPORT-085": [
+          "delivery-loadability"
+        ],
+        "IMPORT-086": [
+          "delivery-loadability"
+        ],
+        "IMPORT-087": [
+          "delivery-loadability"
+        ]
+      }
+    },
+    "source_hashes": [
+      {
+        "path": "/Users/vince/Projects/canlang/docs/research/package-library-audit-20261006/adapter-branches/summary.json",
+        "sha256": "2981313909173692d37e88395e474f80383e732f0cf6b5db6b19ab954db4733d"
+      },
+      {
+        "path": "/Users/vince/Projects/canlang/docs/research/package-library-audit-20261006/adapter-branches/family-notes.json",
+        "sha256": "8016d22c6a85d91b90b55503d06de3ebd3259142b4e6e135078773a18512f639"
+      },
+      {
+        "path": "/Users/vince/Projects/canlang/docs/research/package-library-audit-20261006/adapter-branches/syntax-sites.jsonl",
+        "sha256": "10c1c9dcfdb6abdfb8444c9dd28bab62582a5c20a43a2138c167fe663e55ac8a"
+      },
+      {
+        "path": "/Users/vince/Projects/canlang/docs/research/package-library-audit-20261006/adapter-branches/scope.json",
+        "sha256": "36eac9c8c6126e0f321d37cd680c108229652e1ea422252b045dfc817d603a6f"
+      },
+      {
+        "path": "/Users/vince/Projects/canlang/docs/research/package-library-audit-20261006/adapter-branches/integration-crosswalk.tsv",
+        "sha256": "fa963cc47605bf652d0119c145ec3a7bc2145e297fb5da413940f4f96857a0db"
+      },
+      {
+        "path": "/Users/vince/Projects/canlang/docs/research/package-library-audit-20261006/adapter-branches/branches.jsonl",
+        "sha256": "a682336433c7204f0045f29391d70d3b00fd569d92826ad868bae37b166872fd"
+      },
+      {
+        "path": "/Users/vince/Projects/canlang/docs/research/package-library-audit-20261006/adapter-branches/README.md",
+        "sha256": "eef1ba4655092c74aa3e435a582b1e59ce77bf69ecf77cc86e19bd09fca9d207"
+      },
+      {
+        "path": "/Users/vince/Projects/canlang/docs/research/package-library-audit-20261006/adapter-branches/verify.py",
+        "sha256": "2cf0d92c4e5bc2fa86128b6930adf8b74454ba3d1603cde3939ea1c209b4253a"
+      },
+      {
+        "path": "/Users/vince/Projects/canlang/docs/research/package-library-audit-20261006/adapter-branches/decision-record.md",
+        "sha256": "792c432b5e471ff719c58ae8dafd6ee87e823cec7a2f25b14880a96c924dcd14"
+      },
+      {
+        "path": "/Users/vince/Projects/canlang/docs/research/package-library-audit-20261006/adapter-branches/source-index.json",
+        "sha256": "98120882d794834a15a2b9d1a4ea16f7fe0f9e084f6a8990b954053d884debe0"
+      }
+    ],
+    "semantic_review_limit": "Critical priority groups only; other families checked structurally, no independent package correctness claim.",
+    "final_delta": {
+      "branch_groups": 480,
+      "scopes": 408,
+      "ts_occurrences": 1649,
+      "loadability_assignments": {
+        "IMPORT-077": [
+          "delivery-loadability"
+        ],
+        "IMPORT-078": [
+          "delivery-loadability"
+        ],
+        "IMPORT-079": [
+          "delivery-loadability"
+        ],
+        "IMPORT-080": [
+          "delivery-loadability"
+        ],
+        "IMPORT-081": [
+          "delivery-loadability"
+        ],
+        "IMPORT-082": [
+          "delivery-loadability"
+        ],
+        "IMPORT-083": [
+          "delivery-loadability"
+        ],
+        "IMPORT-084": [
+          "delivery-loadability"
+        ],
+        "IMPORT-085": [
+          "delivery-loadability"
+        ],
+        "IMPORT-086": [
+          "delivery-loadability"
+        ],
+        "IMPORT-087": [
+          "delivery-loadability"
+        ],
+        "IMPORT-088": [
+          "delivery-loadability"
+        ],
+        "IMPORT-089": [
+          "delivery-loadability"
+        ]
+      },
+      "shared_assignments": {
+        "IMPORT-053": [
+          "delivery-imports",
+          "delivery-loadability"
+        ],
+        "IMPORT-054": [
+          "delivery-imports",
+          "delivery-loadability"
+        ],
+        "IMPORT-055": [
+          "delivery-imports",
+          "delivery-loadability"
+        ],
+        "IMPORT-056": [
+          "delivery-imports",
+          "delivery-loadability"
+        ],
+        "IMPORT-057": [
+          "delivery-imports",
+          "delivery-loadability"
+        ],
+        "IMPORT-065": [
+          "delivery-imports",
+          "delivery-loadability"
+        ],
+        "IMPORT-091": [
+          "delivery-imports",
+          "delivery-loadability"
+        ]
+      },
+      "loadability_exact": true,
+      "shared_exact": true,
+      "precise_packet_link_mismatch_ids": [],
+      "primary_enum_correct": true,
+      "all_execution_flags_false": true
+    }
+  },
+  "verification": {
+    "actions": "Read exact pinned git show source plus current dependency publication source; static artifact/source SHA256 and statement reasoning only.",
+    "runtime_tests": false,
+    "builds": false,
+    "installs": false,
+    "git_mutations": false,
+    "repository_writes": false,
+    "aggregate_checks": "Static JSON/JSONL relation and field checks only; did not execute product or structural verifier."
+  }
+}
