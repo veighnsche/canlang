@@ -6,6 +6,7 @@
  * bearer cookie, HttpOnly, Secure, SameSite=Lax, Path=/, explicit Max-Age.
  * Local insecure development must opt out explicitly per call.
  */
+import { parseCookie, stringifySetCookie } from 'cookie';
 import { IdentityError } from '../ports.js';
 
 export const SESSION_COOKIE_NAME = 'can_session';
@@ -27,12 +28,7 @@ export function buildSessionCookie(
   if (!Number.isInteger(opts.maxAgeSeconds) || opts.maxAgeSeconds <= 0) {
     throw new IdentityError('validation', 'Session cookie needs a positive Max-Age.');
   }
-  const secure = opts.secure ?? true;
-  let cookie =
-    `${SESSION_COOKIE_NAME}=${encodeURIComponent(token)}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${opts.maxAgeSeconds}`;
-  if (secure) cookie += '; Secure';
-  if (opts.domain !== undefined) cookie += `; Domain=${opts.domain}`;
-  return cookie;
+  return serializeSessionCookie(token, opts.maxAgeSeconds, opts);
 }
 
 /**
@@ -40,11 +36,7 @@ export function buildSessionCookie(
  * a non-Secure Set-Cookie cannot overwrite a Secure cookie on HTTPS.
  */
 export function buildSessionClearCookie(opts: { secure?: boolean; domain?: string } = {}): string {
-  const secure = opts.secure ?? true;
-  let cookie = `${SESSION_COOKIE_NAME}=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0`;
-  if (secure) cookie += '; Secure';
-  if (opts.domain !== undefined) cookie += `; Domain=${opts.domain}`;
-  return cookie;
+  return serializeSessionCookie('', 0, opts);
 }
 
 /**
@@ -56,12 +48,10 @@ export function parseSessionCookie(
 ): string | null {
   if (header === undefined) return null;
   const combined = typeof header === 'string' ? header : header.join('; ');
-  for (const part of combined.split(';')) {
-    const eq = part.indexOf('=');
-    if (eq < 0) continue;
-    const name = part.slice(0, eq).trim();
-    if (name !== SESSION_COOKIE_NAME) continue;
-    const value = part.slice(eq + 1).trim();
+  const cookies = parseCookie(combined, { decode: (value) => value });
+  for (const [name, rawValue] of Object.entries(cookies)) {
+    if (name.trim() !== SESSION_COOKIE_NAME) continue;
+    const value = (rawValue ?? '').trim();
     if (value.length === 0) return null;
     try {
       const decoded = decodeURIComponent(value);
@@ -71,4 +61,43 @@ export function parseSessionCookie(
     }
   }
   return null;
+}
+
+/** Library grammar with the established session attribute order. */
+function serializeSessionCookie(
+  token: string,
+  maxAge: number,
+  opts: { secure?: boolean; domain?: string },
+): string {
+  // Encoding precedes Domain validation, including URIError for lone surrogates.
+  const encoded = encodeURIComponent(token);
+  if (opts.domain === '') {
+    throw new IdentityError('validation', 'Session cookie Domain is invalid.');
+  }
+  let serialized: string;
+  try {
+    serialized = stringifySetCookie({
+      name: SESSION_COOKIE_NAME,
+      value: encoded,
+      maxAge,
+      ...(opts.domain !== undefined ? { domain: opts.domain } : {}),
+      path: '/',
+      httpOnly: true,
+      secure: opts.secure ?? true,
+      sameSite: 'lax',
+    }, { encode: (value) => value });
+  } catch {
+    throw new IdentityError('validation', 'Session cookie Domain is invalid.');
+  }
+  // Only split the library output: encoded values and validated Domains cannot
+  // contain segment delimiters. These fixed options determine every position.
+  const segments = serialized.split('; ');
+  const hasDomain = opts.domain !== undefined;
+  const pathIndex = hasDomain ? 3 : 2;
+  return [
+    segments[0], segments[pathIndex], segments[pathIndex + 1],
+    segments[segments.length - 1], segments[1],
+    ...((opts.secure ?? true) ? [segments[pathIndex + 2]] : []),
+    ...(hasDomain ? [segments[2]] : []),
+  ].join('; ');
 }

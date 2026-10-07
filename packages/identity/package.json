@@ -35,7 +35,9 @@
     "build:prepare": "node ../../scripts/build-package.mjs --prepare"
   },
   "dependencies": {
-    "@canlang/contracts": "workspace:*"
+    "@canlang/contracts": "workspace:*",
+    "@scure/base": "2.4.0",
+    "cookie": "2.0.1"
   },
   "devDependencies": {
     "@types/node": "26.6.4",
