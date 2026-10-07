@@ -1,0 +1,65 @@
+{
+  "verdict": "accept for bounded cancellation-wait scope",
+  "defects": [],
+  "freshRows": 44,
+  "networkRequests": 0,
+  "unhandledRejections": 0,
+  "supportPins": {
+    "src/models/ollama.ts": "96c39834af0d132c64d164b0a8d4712fa75c203fb4fa8c4463e0ad8b5907df96",
+    "test/http-lifecycle.test.ts": "e572900ef6ba07c957a62646a015c20f255d231d340b3a63f5090ec0b2a4121c",
+    "test/http-client.test.ts": "ac7e686484832fe26616f26bd037b4a298bbb3f44c42728b399391ba7fcdeb71",
+    "test/models-ollama.test.ts": "640b4586d9595b4d58eb9f5a81a5eb1d85ef7b7535b6563ca953f0e734fe7122",
+    "package.json": "160607d0145fa9f3b39568a64c17bbbcbdded562ee75d231d8e3046df9dcab7e",
+    "tsconfig.json": "35c7bed14dc8a37a9083757c9270a07223ef0a5d1f2ac3dbe54ca1a1b557bb7e"
+  },
+  "fullSourceClosure": [
+    "src/distribution.ts",
+    "src/ports.ts",
+    "src/index.ts",
+    "src/catalog.ts",
+    "src/scenarios.ts",
+    "src/mail/redact.ts",
+    "src/mail/adapter.ts",
+    "src/internal/controlled-http.ts",
+    "src/judgments/systemone.ts",
+    "src/judgments/harness.ts",
+    "src/models/ollama.ts",
+    "src/models/harness.ts",
+    "src/http/pagination.ts",
+    "src/http/errors.ts",
+    "src/http/client.ts",
+    "src/media/mapping.ts",
+    "src/media/comfyui.ts",
+    "src/media/harness.ts"
+  ],
+  "sourceDeclarationsCompared": 18,
+  "declarationSignatureChanges": 0,
+  "commentOnlyDeclarations": [
+    "dist/src/http/client.d.ts"
+  ],
+  "sourceLinesBefore": 524,
+  "sourceLinesCurrent": 538,
+  "testLines": 181,
+  "emittedHttpBytesBefore": 14565,
+  "emittedHttpBytesCurrent": 14951,
+  "limitations": [
+    "Underlying physical cancellation settlement/resource reclamation is unproved and may remain pending.",
+    "Local real Fetch Response/ReadableStream seams only; no provider/network, mounted runtime, security or performance claim.",
+    "Original buffered/binary/redirect cancellation and signal/deadline behavior is preserved, not expanded.",
+    "Strict full source/test closure checked; focused runtime tests and fresh witnesses only, not broad network owner suite."
+  ],
+  "allReadsReleased": true,
+  "allHandlesReleased": true,
+  "packet": "TECH-SV02 existing signal-bound stream cleanup",
+  "sourcePins": {
+    "packages/services/src/http/client.ts": "9aaa2585f176b87d69bdb85e6bc49d781f25d92a829eb88a36cef80d56e2844a",
+    "packages/services/test/stream-cleanup-deadline.test.ts": "3a436c8d4d7171f0d71042a217df726563b11167ab8f9036d7c16337e24f3350"
+  },
+  "rootDisposition": "accepted finite stream cancellation-wait liveness, original first outcome/error retained; broader security/effect/late-provider obligations open",
+  "focusedTests": {
+    "current": "21/21",
+    "before": "13/21; seven pending cleanup behavior negatives plus one listener instrumentation absence"
+  },
+  "privateEvidence": "/private/tmp/canlang-repair-go-20261007/service-stream-independent/review.json",
+  "privateEvidenceSHA256": "0f2bac8e8944a013bd3307cd037ba8833a4e9840fe26d570de781a31dbd7cc28"
+}

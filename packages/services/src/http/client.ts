@@ -406,17 +406,39 @@ export interface HttpStreamProgress {
   readonly totalBytes: number;
 }
 
+async function cancelStreamReader(
+  reader: ReadableStreamDefaultReader<Uint8Array>,
+  signal: AbortSignal,
+): Promise<void> {
+  try {
+    const cancelled = reader.cancel().catch(() => {});
+    if (signal.aborted) return;
+    let onAbort: () => void = () => {};
+    const aborted = new Promise<void>((resolve) => {
+      onAbort = resolve;
+      signal.addEventListener('abort', onAbort, { once: true });
+    });
+    try {
+      await Promise.race([cancelled, aborted]);
+    } finally {
+      signal.removeEventListener('abort', onAbort);
+    }
+  } catch {
+    // Cancellation is best effort; the original exit remains authoritative.
+  }
+}
+
 /**
  * Stream a response body as decoded text segments. Enforces the same
  * policy as `httpRequest`: single deadline over headers, hops and the
  * whole stream; same-origin redirects only; total byte cap (exceeding
  * it throws `HttpBodyLimitError` mid-stream, never truncation).
  * Non-2xx statuses throw `HttpStatusError` before any segment is
- * yielded. Breaking out of the generator early cancels the
- * underlying body (releasing the connection instead of leaving it
- * open while the server keeps sending) and releases the deadline
- * timer; caller-owned `request.signal` aborts surface as the
- * original abort error.
+ * yielded. Breaking out early attempts body cancellation and releases
+ * the reader and deadline timer. Cancellation normally settles before
+ * returning, but the existing abort signal bounds that wait; physical
+ * provider cleanup may remain pending. Caller-owned `request.signal`
+ * aborts surface as the original abort error.
  */
 export async function* httpStreamText(
   config: HttpClientConfig,
@@ -486,11 +508,7 @@ export async function* httpStreamText(
         }
         total += read.value.byteLength;
         if (total > config.maxBodyBytes) {
-          try {
-            await reader.cancel();
-          } catch {
-            // Already closed; the limit error below is what matters.
-          }
+          await cancelStreamReader(reader, signal);
           throw new HttpBodyLimitError(response.status, config.maxBodyBytes);
         }
         const text = decoder.decode(read.value, { stream: true });
@@ -501,11 +519,7 @@ export async function* httpStreamText(
       finished = true;
     } finally {
       if (!finished) {
-        try {
-          await reader.cancel();
-        } catch {
-          // Already closed; the exit below is what matters.
-        }
+        await cancelStreamReader(reader, signal);
       }
       try {
         reader.releaseLock();
