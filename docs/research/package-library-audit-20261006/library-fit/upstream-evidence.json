@@ -1,0 +1,578 @@
+{
+  "date": "2026-10-07",
+  "policy": "Primary versioned docs/source where available; unversioned host docs explicitly qualified. URL availability or documentation is not installed acceptance.",
+  "items": [
+    {
+      "id": "values:ryu",
+      "url": "https://raw.githubusercontent.com/boa-dev/ryu-js/v1.0.3/src/buffer/mod.rs",
+      "lines": [
+        40,
+        86
+      ],
+      "basis": "primary versioned docs/source opened online; no install or runtime evidence",
+      "claim": "format covers ECMAScript nonfinite words; finite API requires finite guard",
+      "accessed": "2026-10-07"
+    },
+    {
+      "id": "values:serde",
+      "url": "https://docs.rs/serde_json/1.0.151/serde_json/",
+      "lines": [
+        164,
+        197
+      ],
+      "basis": "primary versioned docs/source opened online; no install or runtime evidence",
+      "claim": "typed serialization/deserialization and allocator-backed no_std supported",
+      "accessed": "2026-10-07"
+    },
+    {
+      "id": "values:bigint",
+      "url": "https://raw.githubusercontent.com/rust-num/num-bigint/num-bigint-0.4.8/src/lib.rs",
+      "lines": [
+        1,
+        217
+      ],
+      "basis": "primary versioned docs/source opened online; no install or runtime evidence",
+      "claim": "exact arbitrary-width integer crate",
+      "accessed": "2026-10-07"
+    },
+    {
+      "id": "values:percent",
+      "url": "https://docs.rs/percent-encoding/2.3.2/percent_encoding/",
+      "lines": [
+        23,
+        35
+      ],
+      "basis": "primary versioned docs/source opened online; no install or runtime evidence",
+      "claim": "caller owns ASCII escape set; byte/UTF8 encode mechanisms",
+      "accessed": "2026-10-07"
+    },
+    {
+      "id": "values:jiff",
+      "url": "https://docs.rs/jiff/0.2.37/jiff/",
+      "lines": [
+        380,
+        397
+      ],
+      "basis": "primary versioned docs/source opened online; no install or runtime evidence",
+      "claim": "defaults permit system tzdb; bundle-always explicitly adds database burden",
+      "accessed": "2026-10-07"
+    },
+    {
+      "id": "values:temporal",
+      "url": "https://raw.githubusercontent.com/js-temporal/temporal-polyfill/v0.5.1/lib/ecmascript.ts",
+      "lines": [
+        2044,
+        2083
+      ],
+      "basis": "primary versioned docs/source opened online; no install or runtime evidence",
+      "claim": "earlier/later resolve folds AND move gap times; Can must reject gap separately",
+      "accessed": "2026-10-07"
+    },
+    {
+      "id": "values:temporal-package",
+      "url": "https://raw.githubusercontent.com/js-temporal/temporal-polyfill/v0.5.1/package.json",
+      "lines": [
+        1,
+        21
+      ],
+      "basis": "primary versioned docs/source opened online; no install or runtime evidence",
+      "claim": "ESM/CJS entries, ISC license, JSBI ^4.3.0 dependency, Node>=12 metadata; host data still needs qualification",
+      "accessed": "2026-10-07"
+    },
+    {
+      "id": "values:bigdecimal",
+      "url": "https://raw.githubusercontent.com/akubera/bigdecimal-rs/v0.4.9/src/lib.rs",
+      "lines": [
+        331,
+        430
+      ],
+      "basis": "primary versioned docs/source opened online; no install or runtime evidence",
+      "claim": "with_scale_round explicit scale and rounding mode; BigInt-backed representation",
+      "accessed": "2026-10-07"
+    },
+    {
+      "id": "values:bigdecimal-package",
+      "url": "https://raw.githubusercontent.com/akubera/bigdecimal-rs/v0.4.9/Cargo.toml",
+      "lines": [
+        21,
+        48
+      ],
+      "basis": "primary versioned docs/source opened online; no install or runtime evidence",
+      "claim": "num-bigint/num-integer/num-traits/libm deps; autocfg build dep; std default; serde optional",
+      "accessed": "2026-10-07"
+    },
+    {
+      "id": "values:rustdecimal",
+      "url": "https://raw.githubusercontent.com/paupino/rust-decimal/1.39.0/src/decimal.rs",
+      "lines": [
+        113,
+        119
+      ],
+      "basis": "primary versioned docs/source opened online; no install or runtime evidence",
+      "claim": "96-bit coefficient cannot carry full 38 digit Can domain",
+      "accessed": "2026-10-07"
+    },
+    {
+      "id": "values:rustdecimal-package",
+      "url": "https://raw.githubusercontent.com/paupino/rust-decimal/1.39.0/Cargo.toml",
+      "lines": [
+        18,
+        83
+      ],
+      "basis": "primary versioned docs/source opened online; no install or runtime evidence",
+      "claim": "arrayvec/num-traits; default serde+std; disabling serde does not expand coefficient",
+      "accessed": "2026-10-07"
+    },
+    {
+      "id": "values:decimaljs",
+      "url": "https://raw.githubusercontent.com/MikeMcl/decimal.js/v10.6.0/decimal.js",
+      "lines": [
+        31,
+        84
+      ],
+      "basis": "primary versioned docs/source opened online; no install or runtime evidence",
+      "claim": "explicit significant precision and half-even available; arithmetic finalisation differs from Can final-only bounds",
+      "accessed": "2026-10-07"
+    },
+    {
+      "id": "values:decimaljs-package",
+      "url": "https://raw.githubusercontent.com/MikeMcl/decimal.js/v10.6.0/package.json",
+      "lines": [
+        1,
+        55
+      ],
+      "basis": "primary versioned docs/source opened online; no install or runtime evidence",
+      "claim": "MIT, ESM/CJS, no runtime dependencies",
+      "accessed": "2026-10-07"
+    },
+    {
+      "id": "values:formatjs",
+      "url": "https://raw.githubusercontent.com/formatjs/formatjs/@formatjs/icu-messageformat-parser@2.11.4/packages/icu-messageformat-parser/parser.ts",
+      "lines": [
+        950,
+        1086
+      ],
+      "basis": "primary versioned docs/source opened online; no install or runtime evidence",
+      "claim": "exact selectors use safe decimal integers; duplicates compare lexical selector; options include requiresOtherClause, ignoreTag, shouldParseSkeletons",
+      "accessed": "2026-10-07"
+    },
+    {
+      "id": "values:formatjs-package",
+      "url": "https://raw.githubusercontent.com/formatjs/formatjs/@formatjs/icu-messageformat-parser@2.11.4/packages/icu-messageformat-parser/package.json",
+      "lines": [
+        1,
+        18
+      ],
+      "basis": "primary versioned docs/source opened online; no install or runtime evidence",
+      "claim": "MIT; ecma402-abstract, icu-skeleton-parser, tslib; workspace ranges need published resolution",
+      "accessed": "2026-10-07"
+    },
+    {
+      "id": "values:intl",
+      "url": "https://402.ecma-international.org/12.0/#sec-tointlmathematicalvalue",
+      "lines": [
+        4363,
+        4384
+      ],
+      "basis": "primary versioned docs/source opened online; no install or runtime evidence",
+      "claim": "ECMA402 edition12 exact string mathematical value pathway; actual host support not proven",
+      "accessed": "2026-10-07"
+    },
+    {
+      "id": "values:jiff-tzdb",
+      "url": "https://docs.rs/jiff-tzdb/0.1.8/jiff_tzdb/",
+      "lines": [
+        24,
+        55
+      ],
+      "basis": "primary explicit evaluation-version docs opened; no installed source or lock",
+      "claim": "raw embedded TZif get/available and VERSION; global system preference must be bypassed for explicit Can release data pin",
+      "accessed": "2026-10-07"
+    },
+    {
+      "id": "adapters:csv-pkg",
+      "url": "https://raw.githubusercontent.com/adaltas/node-csv/csv-parse@7.0.3/packages/csv-parse/package.json",
+      "kind": "primary version-tagged source or host documentation",
+      "accessed": "2026-10-07",
+      "claim": "MIT; no runtime deps; browser ESM sync export. Tagged tests/build scripts are maintenance infrastructure, not runtime proof."
+    },
+    {
+      "id": "adapters:csv-options",
+      "url": "https://raw.githubusercontent.com/adaltas/node-csv/csv-parse@7.0.3/packages/csv-parse/lib/api/normalize_options.js",
+      "kind": "primary version-tagged source or host documentation",
+      "accessed": "2026-10-07",
+      "claim": "Versioned supported delimiter/relax/count/trim/cast options."
+    },
+    {
+      "id": "adapters:stringify-pkg",
+      "url": "https://raw.githubusercontent.com/adaltas/node-csv/csv-stringify@6.6.0/packages/csv-stringify/package.json",
+      "kind": "primary version-tagged source or host documentation",
+      "accessed": "2026-10-07",
+      "claim": "MIT; no runtime deps; browser/esm/sync export; tagged test/build infrastructure."
+    },
+    {
+      "id": "adapters:stringify-api",
+      "url": "https://raw.githubusercontent.com/adaltas/node-csv/csv-stringify@6.6.0/packages/csv-stringify/lib/api/index.js",
+      "kind": "primary version-tagged source or host documentation",
+      "accessed": "2026-10-07",
+      "claim": "CRLF record delimiter, eof, quoted_match and casting available. Formula option examines first character and differs whitespace rule; array+columns can splice supplied rows."
+    },
+    {
+      "id": "adapters:scure-pkg",
+      "url": "https://raw.githubusercontent.com/paulmillr/scure-base/2.4.0/package.json",
+      "kind": "primary version-tagged source or host documentation",
+      "accessed": "2026-10-07",
+      "claim": "MIT; no runtime deps; ESM index.js; tests/property-test infrastructure, no whole-auth security certification."
+    },
+    {
+      "id": "adapters:scure-api",
+      "url": "https://raw.githubusercontent.com/paulmillr/scure-base/2.4.0/index.ts",
+      "kind": "primary version-tagged source or host documentation",
+      "accessed": "2026-10-07",
+      "claim": "hex and base64urlnopad codecs; strict tail-bit decoding belongs to mechanics."
+    },
+    {
+      "id": "adapters:cookie-pkg",
+      "url": "https://raw.githubusercontent.com/jshttp/cookie/v2.0.1/package.json",
+      "kind": "primary version-tagged source or host documentation",
+      "accessed": "2026-10-07",
+      "claim": "MIT; Node>=22; ESM dist/index.js; zero runtime deps; test/size infrastructure."
+    },
+    {
+      "id": "adapters:cookie-api",
+      "url": "https://raw.githubusercontent.com/jshttp/cookie/v2.0.1/src/index.ts",
+      "kind": "primary version-tagged source or host documentation",
+      "accessed": "2026-10-07",
+      "claim": "parseCookie identity decoder retains first raw occurrence; stringifySetCookie validates Domain and uses library attribute order."
+    },
+    {
+      "id": "adapters:node22-crypto",
+      "url": "https://nodejs.org/download/release/v22.0.0/docs/api/crypto.html#cryptotimingsafeequala-b",
+      "kind": "primary version-tagged source or host documentation",
+      "accessed": "2026-10-07",
+      "claim": "Native sync timingSafeEqual requires equal byte lengths; primitive guarantee excludes surrounding code."
+    },
+    {
+      "id": "adapters:worker-crypto",
+      "url": "https://developers.cloudflare.com/workers/runtime-apis/web-crypto/#timingsafeequal",
+      "kind": "primary version-tagged source or host documentation",
+      "accessed": "2026-10-07",
+      "claim": "Workers subtle.timingSafeEqual is synchronous nonstandard native extension; standard WebCrypto has no portable sync equality."
+    },
+    {
+      "id": "adapters:node22-abort",
+      "url": "https://nodejs.org/download/release/v22.0.0/docs/api/globals.html#static-method-abortsignalanysignals",
+      "kind": "primary version-tagged source or host documentation",
+      "accessed": "2026-10-07",
+      "claim": "any exists before Node22 floor; winning signal reason retained."
+    },
+    {
+      "id": "adapters:canon-api",
+      "url": "https://raw.githubusercontent.com/erdtman/canonicalize/v2.1.0/lib/canonicalize.js",
+      "kind": "primary version-tagged source or host documentation",
+      "accessed": "2026-10-07",
+      "claim": "Rejects nonfinite, honors toJSON, skips undefined/symbol object fields; arrays reduce and convert undefined/symbol to null. Not current fail-closed replay profile."
+    },
+    {
+      "id": "adapters:canon-pkg",
+      "url": "https://raw.githubusercontent.com/erdtman/canonicalize/v2.1.0/package.json",
+      "kind": "primary version-tagged source or host documentation",
+      "accessed": "2026-10-07",
+      "claim": "Apache-2.0; CJS lib/canonicalize.js; zero runtime deps; tagged test infrastructure."
+    },
+    {
+      "id": "adapters:file-pkg",
+      "url": "https://raw.githubusercontent.com/sindresorhus/file-type/v21.0.0/package.json",
+      "kind": "primary version-tagged source or host documentation",
+      "accessed": "2026-10-07",
+      "claim": "MIT; Node>=20; ESM conditional node/default plus core; runtime deps @tokenizer/inflate^0.2.7,strtok3^10.2.2,token-types^6.0.0,uint8array-extras^1.4.0; transitive closure not selected."
+    },
+    {
+      "id": "adapters:file-api",
+      "url": "https://raw.githubusercontent.com/sindresorhus/file-type/v21.0.0/core.js",
+      "kind": "primary version-tagged source or host documentation",
+      "accessed": "2026-10-07",
+      "claim": "Async binary signature catalog via tokenizer; not complete structural validation."
+    },
+    {
+      "id": "adapters:file-readme",
+      "url": "https://raw.githubusercontent.com/sindresorhus/file-type/v21.0.0/readme.md",
+      "kind": "primary version-tagged source or host documentation",
+      "accessed": "2026-10-07",
+      "claim": "Best effort magic detection; text-based formats excluded; browser/core route exists. No actual Worker qualification implied."
+    },
+    {
+      "id": "adapters:ollama-api",
+      "url": "https://raw.githubusercontent.com/ollama/ollama-js/v0.6.3/src/utils.ts",
+      "kind": "primary version-tagged source or host documentation",
+      "accessed": "2026-10-07",
+      "claim": "NDJSON parser warns raw malformed lines and continues; done check truthy; raw errors possible; stream EOF throws without final. No strict-parser option."
+    },
+    {
+      "id": "adapters:ollama-browser",
+      "url": "https://raw.githubusercontent.com/ollama/ollama-js/v0.6.3/src/browser.ts",
+      "kind": "primary version-tagged source or host documentation",
+      "accessed": "2026-10-07",
+      "claim": "Custom fetch/headers/host config; per-iterator abort and instance abort-all; parser initialized internally; nonstreaming response.json."
+    },
+    {
+      "id": "adapters:ollama-pkg",
+      "url": "https://raw.githubusercontent.com/ollama/ollama-js/v0.6.3/package.json",
+      "kind": "primary version-tagged source or host documentation",
+      "accessed": "2026-10-07",
+      "claim": "MIT; whatwg-fetch^3.6.20; CJS/ESM/browser; release-tag manifest placeholder0.0.0 distinguished from inspected official published package0.6.3."
+    },
+    {
+      "id": "adapters:ajv-pkg",
+      "url": "https://raw.githubusercontent.com/ajv-validator/ajv/v8.17.1/package.json",
+      "kind": "primary version-tagged source or host documentation",
+      "accessed": "2026-10-07",
+      "claim": "MIT; runtime fast-deep-equal^3.1.3,fast-uri^3.0.1,json-schema-traverse^1.0.0,require-from-string^2.0.2; generated schema validator."
+    },
+    {
+      "id": "adapters:ajv-options",
+      "url": "https://raw.githubusercontent.com/ajv-validator/ajv/v8.17.1/docs/guide/modifying-data.md",
+      "kind": "primary version-tagged source or host documentation",
+      "accessed": "2026-10-07",
+      "claim": "Defaults/coercion/removal opt-in mutation; evaluation order sensitivity documented; do not reproduce Can semantics by default."
+    },
+    {
+      "id": "adapters:knex-pkg",
+      "url": "https://raw.githubusercontent.com/knex/knex/3.1.0/package.json",
+      "kind": "primary version-tagged source or host documentation",
+      "accessed": "2026-10-07",
+      "claim": "MIT; Node>=16 SQL builder;14 direct runtime deps plus actual DB driver; no D1 driver in manifest."
+    },
+    {
+      "id": "adapters:knex-transact",
+      "url": "https://raw.githubusercontent.com/knex/knex/3.1.0/lib/execution/transaction.js",
+      "kind": "primary version-tagged source or host documentation",
+      "accessed": "2026-10-07",
+      "claim": "Connection transaction/savepoint primitives; owning predicates/checkpoint/replay remain application responsibility."
+    },
+    {
+      "id": "adapters:temporal-pkg",
+      "url": "https://raw.githubusercontent.com/temporalio/sdk-typescript/v1.13.2/packages/worker/package.json",
+      "kind": "primary version-tagged source or host documentation",
+      "accessed": "2026-10-07",
+      "claim": "MIT; Node>=18; gRPC, native core bridge,SWC,webpack and sibling packages; new worker/service operation burden."
+    },
+    {
+      "id": "adapters:temporal-connection",
+      "url": "https://raw.githubusercontent.com/temporalio/sdk-typescript/v1.13.2/packages/client/src/connection.ts",
+      "kind": "primary version-tagged source or host documentation",
+      "accessed": "2026-10-07",
+      "claim": "Separate initialized gRPC connection; not Can owning D1 transaction or permission fence."
+    },
+    {
+      "id": "adapters:stringify-license",
+      "url": "https://raw.githubusercontent.com/adaltas/node-csv/csv-stringify@6.6.0/LICENSE",
+      "kind": "primary versioned license inspected",
+      "claim": "MIT Adaltas2010 license inspected; published tarball lacks LICENSE but package/official metadata declares MIT. Retain attribution notice with vendored output as applicable.",
+      "accessed": "2026-10-07"
+    },
+    {
+      "id": "delivery:lexer",
+      "url": "https://raw.githubusercontent.com/guybedford/es-module-lexer/3.0.3/README.md",
+      "claim": "minimal/js is JS-only asm entry; n decodes literals, interpolated templates undefined; not validating parser; nesting limits 1024 brackets/512 dynamic imports.",
+      "opened": true,
+      "type": "primary versioned source/docs unless explicitly noted",
+      "accessed": "2026-10-07"
+    },
+    {
+      "id": "delivery:lexer-asm",
+      "url": "https://raw.githubusercontent.com/guybedford/es-module-lexer/3.0.3/src/lexer.asm.js",
+      "claim": "lines 26-28 init Promise.resolve; synchronous parse; UTF16 copy; minimal record shapes; source is build template, not installed distribution.",
+      "opened": true,
+      "type": "primary versioned source/docs unless explicitly noted",
+      "accessed": "2026-10-07"
+    },
+    {
+      "id": "delivery:lexer-manifest",
+      "url": "https://raw.githubusercontent.com/guybedford/es-module-lexer/3.0.3/package.json",
+      "claim": "Tag3.0.3 package.json reports3.0.2; published registry3.0.3 tarball manifest/banner confirm3.0.3 and exact minimal/js export. Tag ambiguity superseded by integrity-verified published artifact.",
+      "opened": true,
+      "type": "primary versioned source/docs unless explicitly noted",
+      "accessed": "2026-10-07"
+    },
+    {
+      "id": "delivery:magic",
+      "url": "https://raw.githubusercontent.com/Rich-Harris/magic-string/v1.4.3/README.md",
+      "claim": "original offsets; overwrite/appendLeft; generateMap hires true/false/boundary, includeContent/source/file; ESM-only browser/Node.",
+      "opened": true,
+      "type": "primary versioned source/docs unless explicitly noted",
+      "accessed": "2026-10-07"
+    },
+    {
+      "id": "delivery:magic-manifest",
+      "url": "https://raw.githubusercontent.com/Rich-Harris/magic-string/v1.4.3/package.json",
+      "claim": "MIT; entry dist/index.mjs; codec ^1.6.0; no engines declared.",
+      "opened": true,
+      "type": "primary versioned source/docs unless explicitly noted",
+      "accessed": "2026-10-07"
+    },
+    {
+      "id": "delivery:codec",
+      "url": "https://raw.githubusercontent.com/jridgewell/sourcemaps/sourcemap-codec/1.6.0/packages/sourcemap-codec/src/sourcemap-codec.ts",
+      "claim": "decode/encode point mappings; decode sorts unsorted line; does not implement Can malformed first-error/raw profile.",
+      "opened": true,
+      "type": "primary versioned source/docs unless explicitly noted",
+      "accessed": "2026-10-07"
+    },
+    {
+      "id": "delivery:trace",
+      "url": "https://raw.githubusercontent.com/jridgewell/sourcemaps/trace-mapping/0.3.31/packages/trace-mapping/src/trace-mapping.ts",
+      "claim": "TraceMap resolves sourceRoot/mapURL; sorts decoded input, memoizes; traceSegment0-based, originalPositionFor line1/column0, defaultGLB; sectioned maps require FlattenMap.",
+      "opened": true,
+      "type": "primary versioned source/docs unless explicitly noted",
+      "accessed": "2026-10-07"
+    },
+    {
+      "id": "delivery:trace-manifest",
+      "url": "https://raw.githubusercontent.com/jridgewell/sourcemaps/trace-mapping/0.3.31/packages/trace-mapping/package.json",
+      "claim": "MIT; codec ^1.4.14 plus resolve-uri ^3.1.0.",
+      "opened": true,
+      "type": "primary versioned source/docs unless explicitly noted",
+      "accessed": "2026-10-07"
+    },
+    {
+      "id": "delivery:remap",
+      "url": "https://raw.githubusercontent.com/jridgewell/sourcemaps/remapping/2.3.5/packages/remapping/README.md",
+      "claim": "sequential array newest-first single-source intermediate maps; null loader terminal; excludeContent true prevents content output; decodedMappings true avoids re-encoding.",
+      "opened": true,
+      "type": "primary versioned source/docs unless explicitly noted",
+      "accessed": "2026-10-07"
+    },
+    {
+      "id": "delivery:remap-manifest",
+      "url": "https://raw.githubusercontent.com/jridgewell/sourcemaps/remapping/2.3.5/packages/remapping/package.json",
+      "claim": "MIT; gen-mapping ^0.3.5 and trace-mapping ^0.3.24; selected lock resolves0.3.13/0.3.31.",
+      "opened": true,
+      "type": "primary versioned source/docs unless explicitly noted",
+      "accessed": "2026-10-07"
+    },
+    {
+      "id": "delivery:acorn",
+      "url": "https://raw.githubusercontent.com/acornjs/acorn/8.15.0/acorn/README.md",
+      "claim": "parse sourceType module/ecmaVersion numeric or latest; allowHashBang/allowAwaitOutsideFunction/allowReturnOutsideFunction flags alter grammar; locations/ranges/onToken optional; parser does not supply binding scope analysis.",
+      "opened": true,
+      "type": "primary versioned source/docs unless explicitly noted",
+      "accessed": "2026-10-07"
+    },
+    {
+      "id": "delivery:walker",
+      "url": "https://raw.githubusercontent.com/acornjs/acorn/8.15.0/acorn-walk/README.md",
+      "claim": "simple/ancestor/recursive/full/fullAncestor walkers; traversal state must implement scope/provenance.",
+      "opened": true,
+      "type": "primary versioned source/docs unless explicitly noted",
+      "accessed": "2026-10-07"
+    },
+    {
+      "id": "delivery:walker-manifest",
+      "url": "https://raw.githubusercontent.com/acornjs/acorn/8.15.0/acorn-walk/package.json",
+      "claim": "8.3.4 MIT, acorn ^8.11.0; evaluation source ref8.15.0, not claimed installed.",
+      "opened": true,
+      "type": "primary versioned source/docs unless explicitly noted",
+      "accessed": "2026-10-07"
+    },
+    {
+      "id": "delivery:toml",
+      "url": "https://docs.rs/toml_edit/0.22.27/toml_edit/",
+      "claim": "DocumentMut/Item/Table/Value formatted TOML editing; Rust Unicode string domain.",
+      "opened": true,
+      "type": "primary versioned source/docs unless explicitly noted",
+      "accessed": "2026-10-07"
+    },
+    {
+      "id": "delivery:toml-manifest",
+      "url": "https://docs.rs/crate/toml_edit/0.22.27/source/Cargo.toml",
+      "claim": "MIT OR Apache2; rust1.66; default parse+display; display only uses toml_write, indexmap/std and toml_datetime; parse adds winnow; serde/perf optional.",
+      "opened": true,
+      "type": "primary versioned source/docs unless explicitly noted",
+      "accessed": "2026-10-07"
+    },
+    {
+      "id": "delivery:parseArgs",
+      "url": "https://nodejs.org/download/release/v22.16.0/docs/api/util.html#utilparseargsconfig",
+      "claim": "args/options strict/default true, allowPositionals, tokens, allowNegative; string/boolean options short/multiple/default; tokens preserve duplicate/index/rawName/inlineValue; grammar differs current CLI.",
+      "opened": true,
+      "type": "primary versioned source/docs unless explicitly noted",
+      "accessed": "2026-10-07"
+    },
+    {
+      "id": "delivery:esbuild",
+      "url": "https://raw.githubusercontent.com/evanw/esbuild/v0.28.2/lib/shared/types.ts",
+      "claim": "BuildOptions format/platform/target/external/write/bundle/sourcemap; actual staged import closure still owner responsibility.",
+      "opened": true,
+      "type": "primary versioned source/docs unless explicitly noted",
+      "accessed": "2026-10-07"
+    },
+    {
+      "id": "delivery:bun",
+      "url": "https://bun.com/docs/bundler",
+      "claim": "Official unversioned docs only; Bun bundler format/target/output options; pinned runtime1.4.2 source qualification remains gap.",
+      "opened": true,
+      "type": "primary versioned source/docs unless explicitly noted",
+      "accessed": "2026-10-07"
+    },
+    {
+      "id": "delivery:sha2",
+      "url": "https://docs.rs/sha2/0.10.9/sha2/",
+      "claim": "Digest/Sha256 byte update/finalize; no protocol serialization policy.",
+      "opened": true,
+      "type": "primary versioned source/docs unless explicitly noted",
+      "accessed": "2026-10-07"
+    },
+    {
+      "id": "delivery:fs",
+      "url": "https://nodejs.org/download/release/v22.16.0/docs/api/fs.html",
+      "claim": "sync fs byte IO functions and IO failures; path containment/root/symlink/authority policy outside IO.",
+      "opened": true,
+      "type": "primary versioned source/docs unless explicitly noted",
+      "accessed": "2026-10-07"
+    },
+    {
+      "id": "delivery:webcrypto",
+      "url": "https://www.w3.org/TR/webcrypto/",
+      "claim": "Official standard digest takes BufferSource asynchronously; SHA256 primitive does not define text encoding/identity.",
+      "opened": true,
+      "type": "primary versioned source/docs unless explicitly noted",
+      "accessed": "2026-10-07"
+    },
+    {
+      "id": "delivery:published:es-module-lexer",
+      "url": "https://registry.npmjs.org/es-module-lexer/3.0.3",
+      "tarball_url": "https://registry.npmjs.org/es-module-lexer/-/es-module-lexer-3.0.3.tgz",
+      "claim": "Exact version package manifest/exports/license/dependencies and source inspected; root SHA512 verified against frozen lock; extracted read-only, not installed host proof.",
+      "accessed": "2026-10-07"
+    },
+    {
+      "id": "delivery:published:magic-string",
+      "url": "https://registry.npmjs.org/magic-string/1.4.3",
+      "tarball_url": "https://registry.npmjs.org/magic-string/-/magic-string-1.4.3.tgz",
+      "claim": "Exact version package manifest/exports/license/dependencies and source inspected; root SHA512 verified against frozen lock; extracted read-only, not installed host proof.",
+      "accessed": "2026-10-07"
+    },
+    {
+      "id": "delivery:published:@jridgewell/sourcemap-codec",
+      "url": "https://registry.npmjs.org/@jridgewell/sourcemap-codec/1.6.0",
+      "tarball_url": "https://registry.npmjs.org/@jridgewell/sourcemap-codec/-/sourcemap-codec-1.6.0.tgz",
+      "claim": "Exact version package manifest/exports/license/dependencies and source inspected; root SHA512 verified against frozen lock; extracted read-only, not installed host proof.",
+      "accessed": "2026-10-07"
+    },
+    {
+      "id": "delivery:published:@jridgewell/remapping",
+      "url": "https://registry.npmjs.org/@jridgewell/remapping/2.3.5",
+      "tarball_url": "https://registry.npmjs.org/@jridgewell/remapping/-/remapping-2.3.5.tgz",
+      "claim": "Exact version package manifest/exports/license/dependencies and source inspected; root SHA512 verified against frozen lock; extracted read-only, not installed host proof.",
+      "accessed": "2026-10-07"
+    },
+    {
+      "id": "delivery:published:@jridgewell/trace-mapping",
+      "url": "https://registry.npmjs.org/@jridgewell/trace-mapping/0.3.31",
+      "tarball_url": "https://registry.npmjs.org/@jridgewell/trace-mapping/-/trace-mapping-0.3.31.tgz",
+      "claim": "Exact version package manifest/exports/license/dependencies and source inspected; root SHA512 verified against frozen lock; extracted read-only, not installed host proof.",
+      "accessed": "2026-10-07"
+    }
+  ]
+}

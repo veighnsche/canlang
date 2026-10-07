@@ -1,0 +1,531 @@
+{
+  "date": "2026-10-07",
+  "published_packages": [
+    {
+      "name": "es-module-lexer",
+      "version": "3.0.3",
+      "metadata_url": "https://registry.npmjs.org/es-module-lexer/3.0.3",
+      "tarball_url": "https://registry.npmjs.org/es-module-lexer/-/es-module-lexer-3.0.3.tgz",
+      "integrity": "sha512-yWGe1O/j+almnV4hOYrmZo8u58JdnmXEMneRQAYkWtqSiT86yoMIEKF4rpqEDj52tbYl3xceBD3DQIBwcsC9Pw==",
+      "tarball_sha256": "09146f5722a78925928126548d53538c9293783707e80d581a00298919237d4c",
+      "gitHead": "ced104c6395afaff72ad8f74fa53901185004e30",
+      "license": "MIT",
+      "dependencies": {},
+      "engines": {},
+      "exports": {
+        ".": {
+          "types": "./types/lexer.d.ts",
+          "module": "./dist/lexer.js",
+          "import": "./dist/lexer.js",
+          "require": "./dist/lexer.cjs"
+        },
+        "./js": {
+          "types": "./types/lexer.d.ts",
+          "default": "./dist/lexer.asm.js"
+        },
+        "./minimal": {
+          "types": "./types/lexer.minimal.d.ts",
+          "module": "./dist/lexer.minimal.js",
+          "import": "./dist/lexer.minimal.js",
+          "require": "./dist/lexer.minimal.cjs"
+        },
+        "./minimal/js": {
+          "types": "./types/lexer.minimal.d.ts",
+          "default": "./dist/lexer.minimal.asm.js"
+        }
+      },
+      "package_root": "/private/tmp/canlang-library-fit-20261007-published/es-module-lexer-3.0.3/source",
+      "no_install_or_scripts": true,
+      "status": "selected/locked source use (trace-mapping transitive)",
+      "lock_integrity_present": true,
+      "integrity_verified_against_download": true,
+      "qualification": "metadata/tarball SHA512/name/version and read-only source inspected; no install/scripts/runtime proof",
+      "indexed_source_files": 11,
+      "source_hash_index": "source-index.json/external_readonly_inputs"
+    },
+    {
+      "name": "magic-string",
+      "version": "1.4.3",
+      "metadata_url": "https://registry.npmjs.org/magic-string/1.4.3",
+      "tarball_url": "https://registry.npmjs.org/magic-string/-/magic-string-1.4.3.tgz",
+      "integrity": "sha512-z12OxmaPGE0F4xlpGdjuAUckipLpQlTAuAmyGhNoD7ODpYUzvDfvtxUbjM/jwznyP178oju/KDdyi220wNJ0RQ==",
+      "tarball_sha256": "6c9d770ddb800796303481b4bdacd7c308dfe83edd0ff8fa5377438c03889d08",
+      "gitHead": null,
+      "license": "MIT",
+      "dependencies": {
+        "@jridgewell/sourcemap-codec": "^1.6.0"
+      },
+      "engines": {},
+      "exports": {
+        ".": "./dist/index.mjs",
+        "./package.json": "./package.json"
+      },
+      "package_root": "/private/tmp/canlang-library-fit-20261007-published/magic-string-1.4.3/source",
+      "no_install_or_scripts": true,
+      "status": "selected/locked source use (trace-mapping transitive)",
+      "lock_integrity_present": true,
+      "integrity_verified_against_download": true,
+      "qualification": "metadata/tarball SHA512/name/version and read-only source inspected; no install/scripts/runtime proof",
+      "indexed_source_files": 5,
+      "source_hash_index": "source-index.json/external_readonly_inputs"
+    },
+    {
+      "name": "@jridgewell/sourcemap-codec",
+      "version": "1.6.0",
+      "metadata_url": "https://registry.npmjs.org/@jridgewell/sourcemap-codec/1.6.0",
+      "tarball_url": "https://registry.npmjs.org/@jridgewell/sourcemap-codec/-/sourcemap-codec-1.6.0.tgz",
+      "integrity": "sha512-T7jf+5zgsZHwNJ4lvQ7/aezbyk0nNX+zJVWpmHA7VYsEx7a7qr5Rg5IbtJFqkgze5Y2sruq1RUY8Q837Od7iFw==",
+      "tarball_sha256": "f30a35f6af8c347d01b8ff2f8662272f7d986cf21b916704d86c249a90b97e25",
+      "gitHead": "94c82a925ca79d5eb193ce45d7f0824a4d91e77d",
+      "license": "MIT",
+      "dependencies": {},
+      "engines": {},
+      "exports": {
+        ".": [
+          {
+            "import": {
+              "types": "./types/sourcemap-codec.d.mts",
+              "default": "./dist/sourcemap-codec.mjs"
+            },
+            "default": {
+              "types": "./types/sourcemap-codec.d.cts",
+              "default": "./dist/sourcemap-codec.umd.js"
+            }
+          },
+          "./dist/sourcemap-codec.umd.js"
+        ],
+        "./package.json": "./package.json"
+      },
+      "package_root": "/private/tmp/canlang-library-fit-20261007-published/jridgewell--sourcemap-codec-1.6.0/source",
+      "no_install_or_scripts": true,
+      "status": "selected/locked source use (trace-mapping transitive)",
+      "lock_integrity_present": true,
+      "integrity_verified_against_download": true,
+      "qualification": "metadata/tarball SHA512/name/version and read-only source inspected; no install/scripts/runtime proof",
+      "indexed_source_files": 32,
+      "source_hash_index": "source-index.json/external_readonly_inputs"
+    },
+    {
+      "name": "@jridgewell/remapping",
+      "version": "2.3.5",
+      "metadata_url": "https://registry.npmjs.org/@jridgewell/remapping/2.3.5",
+      "tarball_url": "https://registry.npmjs.org/@jridgewell/remapping/-/remapping-2.3.5.tgz",
+      "integrity": "sha512-LI9u/+laYG4Ds1TDKSJW2YPrIlcVYOwi2fUC6xB43lueCjgxV4lffOCZCtYFiH6TNOX+tQKXx97T4IKHbhyHEQ==",
+      "tarball_sha256": "70b16782a39ad16672e47c33473559a25bff9640214df91cb9dd153005d71a02",
+      "gitHead": "095a5825c482003597a30aa380b50159219f3618",
+      "license": "MIT",
+      "dependencies": {
+        "@jridgewell/gen-mapping": "^0.3.5",
+        "@jridgewell/trace-mapping": "^0.3.24"
+      },
+      "engines": {},
+      "exports": {
+        ".": [
+          {
+            "import": {
+              "types": "./types/remapping.d.mts",
+              "default": "./dist/remapping.mjs"
+            },
+            "default": {
+              "types": "./types/remapping.d.cts",
+              "default": "./dist/remapping.umd.js"
+            }
+          },
+          "./dist/remapping.umd.js"
+        ],
+        "./package.json": "./package.json"
+      },
+      "package_root": "/private/tmp/canlang-library-fit-20261007-published/jridgewell--remapping-2.3.5/source",
+      "no_install_or_scripts": true,
+      "status": "selected/locked source use (trace-mapping transitive)",
+      "lock_integrity_present": true,
+      "integrity_verified_against_download": true,
+      "qualification": "metadata/tarball SHA512/name/version and read-only source inspected; no install/scripts/runtime proof",
+      "indexed_source_files": 32,
+      "source_hash_index": "source-index.json/external_readonly_inputs"
+    },
+    {
+      "name": "@jridgewell/trace-mapping",
+      "version": "0.3.31",
+      "metadata_url": "https://registry.npmjs.org/@jridgewell/trace-mapping/0.3.31",
+      "tarball_url": "https://registry.npmjs.org/@jridgewell/trace-mapping/-/trace-mapping-0.3.31.tgz",
+      "integrity": "sha512-zzNR+SdQSDJzc8joaeP8QQoCQr8NuYx2dIIytl1QeBEZHJ9uW6hebsrYgbz8hJwUQao3TWCMtmfV8Nu1twOLAw==",
+      "tarball_sha256": "c64c71a119630d5abe8246889edf334b2ca9ddad094e20d623332956b1453ccf",
+      "gitHead": "74fc8e11d30641b82e3ca3532cd89477671afeab",
+      "license": "MIT",
+      "dependencies": {
+        "@jridgewell/resolve-uri": "^3.1.0",
+        "@jridgewell/sourcemap-codec": "^1.4.14"
+      },
+      "engines": {},
+      "exports": {
+        ".": [
+          {
+            "import": {
+              "types": "./types/trace-mapping.d.mts",
+              "default": "./dist/trace-mapping.mjs"
+            },
+            "default": {
+              "types": "./types/trace-mapping.d.cts",
+              "default": "./dist/trace-mapping.umd.js"
+            }
+          },
+          "./dist/trace-mapping.umd.js"
+        ],
+        "./package.json": "./package.json"
+      },
+      "package_root": "/private/tmp/canlang-library-fit-20261007-published/jridgewell--trace-mapping-0.3.31/source",
+      "no_install_or_scripts": true,
+      "status": "selected/locked source use (trace-mapping transitive)",
+      "lock_integrity_present": true,
+      "integrity_verified_against_download": true,
+      "qualification": "metadata/tarball SHA512/name/version and read-only source inspected; no install/scripts/runtime proof",
+      "indexed_source_files": 52,
+      "source_hash_index": "source-index.json/external_readonly_inputs"
+    },
+    {
+      "name": "csv-parse",
+      "version": "7.0.3",
+      "metadata_url": "https://registry.npmjs.org/csv-parse/7.0.3",
+      "tarball_url": "https://registry.npmjs.org/csv-parse/-/csv-parse-7.0.3.tgz",
+      "integrity": "sha512-YFd3QM/yo17vH91L1IOZuvl09zM0zEEtdfTcOCKWcMdM++MNaQSyp09slXyFCLaPXvHstQFx/xC8myiFHSMUvw==",
+      "tarball_sha256": "7d30727d09622fc7d9483153e369a7b8f3a879a10733cb45cbd7ac7e067dc4b4",
+      "gitHead": "594c6469c4a7376c1048d13c47859c2f91674206",
+      "license": "MIT",
+      "dependencies": {},
+      "engines": {},
+      "exports": {
+        ".": {
+          "import": {
+            "types": "./lib/index.d.ts",
+            "default": "./lib/index.js"
+          },
+          "require": {
+            "types": "./dist/cjs/index.d.cts",
+            "default": "./dist/cjs/index.cjs"
+          }
+        },
+        "./sync": {
+          "import": {
+            "types": "./lib/sync.d.ts",
+            "default": "./lib/sync.js"
+          },
+          "require": {
+            "types": "./dist/cjs/sync.d.cts",
+            "default": "./dist/cjs/sync.cjs"
+          }
+        },
+        "./stream": {
+          "import": {
+            "types": "./lib/stream.d.ts",
+            "default": "./lib/stream.js"
+          },
+          "require": {
+            "types": "./dist/cjs/stream.d.cts",
+            "default": "./dist/cjs/stream.cjs"
+          }
+        },
+        "./browser/esm": {
+          "types": "./dist/esm/index.d.ts",
+          "default": "./dist/esm/index.js"
+        },
+        "./browser/esm/sync": {
+          "types": "./dist/esm/sync.d.ts",
+          "default": "./dist/esm/sync.js"
+        }
+      },
+      "package_root": "/private/tmp/canlang-library-fit-20261007-published/csv-parse-7.0.3/source",
+      "no_install_or_scripts": true,
+      "status": "selected/locked source use (trace-mapping transitive)",
+      "lock_integrity_present": true,
+      "integrity_verified_against_download": true,
+      "qualification": "metadata/tarball SHA512/name/version and read-only source inspected; no install/scripts/runtime proof",
+      "indexed_source_files": 33,
+      "source_hash_index": "source-index.json/external_readonly_inputs"
+    },
+    {
+      "name": "@scure/base",
+      "version": "2.4.0",
+      "metadata_url": "https://registry.npmjs.org/@scure/base/2.4.0",
+      "tarball_url": "https://registry.npmjs.org/@scure/base/-/base-2.4.0.tgz",
+      "integrity": "sha512-thZ1TuJwFwBblOhgsjDKvvGirBxNp+wSvY/DR6tJBJOTDhdAAcHJ8Vbr2eFnqaxeca4+t0i9KBf+uHYGWwZORg==",
+      "tarball_sha256": "2ba4feebe71cf6cc4bbcc89abce4bd09726f771f14649a536d97d2f20e8c8aec",
+      "gitHead": "d93da4f8fbd7146c3af51c72d65945af72193a7c",
+      "license": "MIT",
+      "dependencies": {},
+      "engines": {},
+      "exports": null,
+      "package_root": "/private/tmp/canlang-library-fit-20261007-published/scure--base-2.4.0/source",
+      "no_install_or_scripts": true,
+      "status": "selected/locked source use (trace-mapping transitive)",
+      "lock_integrity_present": true,
+      "integrity_verified_against_download": true,
+      "qualification": "metadata/tarball SHA512/name/version and read-only source inspected; no install/scripts/runtime proof",
+      "indexed_source_files": 6,
+      "source_hash_index": "source-index.json/external_readonly_inputs"
+    },
+    {
+      "name": "cookie",
+      "version": "2.0.1",
+      "metadata_url": "https://registry.npmjs.org/cookie/2.0.1",
+      "tarball_url": "https://registry.npmjs.org/cookie/-/cookie-2.0.1.tgz",
+      "integrity": "sha512-yuToqVvRrj6pfDXREyQAAv8SkAEk/8GS3jQRTiUMm66TVtBYmqQeoEjL2Lmq8Rpo6271vH76InTChTitEAm65w==",
+      "tarball_sha256": "8516126668fc55128916561047c055db77d0401dee1db108adce7267b4b06ff0",
+      "gitHead": "51c485421a95ee796de6d8dab53a5ade0a20db8a",
+      "license": "MIT",
+      "dependencies": {},
+      "engines": {
+        "node": ">=22"
+      },
+      "exports": "./dist/index.js",
+      "package_root": "/private/tmp/canlang-library-fit-20261007-published/cookie-2.0.1/source",
+      "no_install_or_scripts": true,
+      "status": "selected/locked source use (trace-mapping transitive)",
+      "lock_integrity_present": true,
+      "integrity_verified_against_download": true,
+      "qualification": "metadata/tarball SHA512/name/version and read-only source inspected; no install/scripts/runtime proof",
+      "indexed_source_files": 6,
+      "source_hash_index": "source-index.json/external_readonly_inputs"
+    },
+    {
+      "name": "csv-stringify",
+      "version": "6.6.0",
+      "metadata_url": "https://registry.npmjs.org/csv-stringify/6.6.0",
+      "tarball_url": "https://registry.npmjs.org/csv-stringify/-/csv-stringify-6.6.0.tgz",
+      "integrity": "sha512-YW32lKOmIBgbxtu3g5SaiqWNwa/9ISQt2EcgOq0+RAIFufFp9is6tqNnKahqE5kuKvrnYAzs28r+s6pXJR8Vcw==",
+      "tarball_sha256": "dff5742f4eac246786db4c6800f852403ebae7a57bb02b2609d2cb5b637f3383",
+      "gitHead": "d6b53b3d22404e5cd7dbe8b171c0e6504850d4ee",
+      "license": "MIT",
+      "dependencies": {},
+      "engines": {},
+      "exports": {
+        ".": {
+          "import": {
+            "types": "./lib/index.d.ts",
+            "default": "./lib/index.js"
+          },
+          "require": {
+            "types": "./dist/cjs/index.d.cts",
+            "default": "./dist/cjs/index.cjs"
+          }
+        },
+        "./sync": {
+          "import": {
+            "types": "./lib/sync.d.ts",
+            "default": "./lib/sync.js"
+          },
+          "require": {
+            "types": "./dist/cjs/sync.d.cts",
+            "default": "./dist/cjs/sync.cjs"
+          }
+        },
+        "./browser/esm": {
+          "types": "./dist/esm/index.d.ts",
+          "default": "./dist/esm/index.js"
+        },
+        "./browser/esm/sync": {
+          "types": "./dist/esm/sync.d.ts",
+          "default": "./dist/esm/sync.js"
+        }
+      },
+      "package_root": "/private/tmp/canlang-library-fit-20261007-published/csv-stringify-6.6.0/source",
+      "no_install_or_scripts": true,
+      "status": "unadopted evaluation",
+      "lock_integrity_present": false,
+      "integrity_verified_against_download": true,
+      "qualification": "metadata/tarball SHA512/name/version and read-only source inspected; no install/scripts/runtime proof",
+      "indexed_source_files": 25,
+      "source_hash_index": "source-index.json/external_readonly_inputs"
+    },
+    {
+      "name": "ollama",
+      "version": "0.6.3",
+      "metadata_url": "https://registry.npmjs.org/ollama/0.6.3",
+      "tarball_url": "https://registry.npmjs.org/ollama/-/ollama-0.6.3.tgz",
+      "integrity": "sha512-KEWEhIqE5wtfzEIZbDCLH51VFZ6Z3ZSa6sIOg/E/tBV8S51flyqBOXi+bRxlOYKDf8i327zG9eSTb8IJxvm3Zg==",
+      "tarball_sha256": "048a0b2b22486b0ce812a081b4ffe6468b07f195f9a6d2636fccb442b38ca5ca",
+      "gitHead": "a667d4d651db01489ab6dfcd9537ef34c940cfd1",
+      "license": "MIT",
+      "dependencies": {
+        "whatwg-fetch": "^3.6.20"
+      },
+      "engines": {},
+      "exports": {
+        ".": {
+          "require": "./dist/index.cjs",
+          "import": "./dist/index.mjs",
+          "types": "./dist/index.d.ts"
+        },
+        "./browser": {
+          "require": "./dist/browser.cjs",
+          "import": "./dist/browser.mjs",
+          "types": "./dist/browser.d.ts"
+        },
+        "./*": "./*"
+      },
+      "package_root": "/private/tmp/canlang-library-fit-20261007-published/ollama-0.6.3/source",
+      "no_install_or_scripts": true,
+      "status": "unadopted evaluation",
+      "lock_integrity_present": false,
+      "integrity_verified_against_download": true,
+      "qualification": "metadata/tarball SHA512/name/version and read-only source inspected; no install/scripts/runtime proof",
+      "indexed_source_files": 22,
+      "source_hash_index": "source-index.json/external_readonly_inputs"
+    }
+  ],
+  "installed_manifest_checks": [
+    {
+      "name": "@modelcontextprotocol/sdk",
+      "version": "1.32.0",
+      "manifest_path": "/Users/vince/Projects/canlang/node_modules/.bun/@modelcontextprotocol+sdk@1.32.0+2b91fc17bf64bdfd/node_modules/@modelcontextprotocol/sdk/package.json",
+      "sha256": "e2978955f1e20cce7a22ed5daea0bed7e7d8e0a0e1b8fe170773dd15787a51b3",
+      "license": "MIT",
+      "engines": {
+        "node": ">=18"
+      },
+      "dependencies": {
+        "@hono/node-server": "^1.19.9 || ^2.0.5",
+        "ajv": "^8.17.1",
+        "ajv-formats": "^3.0.1",
+        "content-type": "^1.0.5",
+        "cors": "^2.8.5",
+        "cross-spawn": "^7.0.5",
+        "eventsource": "^3.0.2",
+        "eventsource-parser": "^3.0.0",
+        "express": "^5.2.1",
+        "express-rate-limit": "^8.2.1",
+        "hono": "^4.11.4",
+        "jose": "^6.1.3",
+        "json-schema-typed": "^8.0.2",
+        "pkce-challenge": "^5.0.0",
+        "raw-body": "^3.0.0",
+        "zod": "^3.25 || ^4.0",
+        "zod-to-json-schema": "^3.25.1"
+      },
+      "optional_dependencies": {},
+      "status": "read-only installed manifest, not runtime/target qualification"
+    },
+    {
+      "name": "decimal.js",
+      "version": "10.6.0",
+      "manifest_path": "/Users/vince/Projects/canlang/node_modules/.bun/decimal.js@10.6.0/node_modules/decimal.js/package.json",
+      "sha256": "d7e3794828ee8bc94818613c9d901a9e7c857e6ffcf027245e661ddfc63d9b72",
+      "license": "MIT",
+      "engines": {},
+      "dependencies": {},
+      "optional_dependencies": {},
+      "status": "read-only installed manifest, not runtime/target qualification"
+    },
+    {
+      "name": "esbuild",
+      "version": "0.28.2",
+      "manifest_path": "/Users/vince/Projects/canlang/node_modules/.bun/esbuild@0.28.2/node_modules/esbuild/package.json",
+      "sha256": "9d0bc453f4e791553c4cc2298ba023b409241fd9801e494741666eb0f6051490",
+      "license": "MIT",
+      "engines": {
+        "node": ">=18"
+      },
+      "dependencies": {},
+      "optional_dependencies": {
+        "@esbuild/aix-ppc64": "0.28.2",
+        "@esbuild/android-arm": "0.28.2",
+        "@esbuild/android-arm64": "0.28.2",
+        "@esbuild/android-x64": "0.28.2",
+        "@esbuild/darwin-arm64": "0.28.2",
+        "@esbuild/darwin-x64": "0.28.2",
+        "@esbuild/freebsd-arm64": "0.28.2",
+        "@esbuild/freebsd-x64": "0.28.2",
+        "@esbuild/linux-arm": "0.28.2",
+        "@esbuild/linux-arm64": "0.28.2",
+        "@esbuild/linux-ia32": "0.28.2",
+        "@esbuild/linux-loong64": "0.28.2",
+        "@esbuild/linux-mips64el": "0.28.2",
+        "@esbuild/linux-ppc64": "0.28.2",
+        "@esbuild/linux-riscv64": "0.28.2",
+        "@esbuild/linux-s390x": "0.28.2",
+        "@esbuild/linux-x64": "0.28.2",
+        "@esbuild/netbsd-arm64": "0.28.2",
+        "@esbuild/netbsd-x64": "0.28.2",
+        "@esbuild/openbsd-arm64": "0.28.2",
+        "@esbuild/openbsd-x64": "0.28.2",
+        "@esbuild/openharmony-arm64": "0.28.2",
+        "@esbuild/sunos-x64": "0.28.2",
+        "@esbuild/win32-arm64": "0.28.2",
+        "@esbuild/win32-ia32": "0.28.2",
+        "@esbuild/win32-x64": "0.28.2"
+      },
+      "status": "read-only installed manifest, not runtime/target qualification"
+    }
+  ],
+  "cargo_locks": {
+    "packages/values/Cargo.lock": [
+      {
+        "name": "num-bigint",
+        "version": "0.4.8",
+        "source": "registry+https://github.com/rust-lang/crates.io-index",
+        "checksum": "c89e69e7e0f03bea5ef08013795c25018e101932225a656383bd384495ecc367",
+        "dependencies": [
+          "num-integer",
+          "num-traits"
+        ]
+      },
+      {
+        "name": "ryu-js",
+        "version": "1.0.3",
+        "source": "registry+https://github.com/rust-lang/crates.io-index",
+        "checksum": "04d056b875a9d2e6cb9a61d127afee9ac5999b9f87bcb32079d1318e505be714"
+      },
+      {
+        "name": "serde_json",
+        "version": "1.0.151",
+        "source": "registry+https://github.com/rust-lang/crates.io-index",
+        "checksum": "c841b55ecdae098c80dcae9cf767f6f8a0c2cdb3416bbef72181df4d0fe73f14",
+        "dependencies": [
+          "itoa",
+          "memchr",
+          "serde",
+          "serde_core",
+          "zmij"
+        ]
+      }
+    ],
+    "packages/work-kernel/Cargo.lock": [
+      {
+        "name": "ryu-js",
+        "version": "1.0.3",
+        "source": "registry+https://github.com/rust-lang/crates.io-index",
+        "checksum": "04d056b875a9d2e6cb9a61d127afee9ac5999b9f87bcb32079d1318e505be714"
+      },
+      {
+        "name": "serde_json",
+        "version": "1.0.151",
+        "source": "registry+https://github.com/rust-lang/crates.io-index",
+        "checksum": "c841b55ecdae098c80dcae9cf767f6f8a0c2cdb3416bbef72181df4d0fe73f14",
+        "dependencies": [
+          "itoa",
+          "memchr",
+          "serde",
+          "serde_core",
+          "zmij"
+        ]
+      }
+    ],
+    "packages/cloudflare/preparation/Cargo.lock": [
+      {
+        "name": "serde_json",
+        "version": "1.0.151",
+        "source": "registry+https://github.com/rust-lang/crates.io-index",
+        "checksum": "c841b55ecdae098c80dcae9cf767f6f8a0c2cdb3416bbef72181df4d0fe73f14",
+        "dependencies": [
+          "itoa",
+          "memchr",
+          "serde",
+          "serde_core",
+          "zmij"
+        ]
+      }
+    ]
+  },
+  "inventory_limit": "Only recorded lookup roots/cached inputs inspected. Exact versions absent there is a local-install qualification gap, not a claim that every checkout/host lacks them. No install or script executed.",
+  "third_party_sources_committed": false
+}

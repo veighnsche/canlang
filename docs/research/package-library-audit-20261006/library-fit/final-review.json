@@ -1,0 +1,130 @@
+{
+  "ref": "f8e9e73b11f19a7d59ac62487033a5bc189c46a1",
+  "review_model": "gpt-6.1-sol / medium",
+  "scope": "finite final consolidation delta review; read-only planning; no new upstream investigation or product execution",
+  "reviewed_artifact_sha256": {
+    "docs/research/package-library-audit-20261006/library-fit/README.md": "3d377d4c1d5669c3110c30646bbe936e4d7767307ea33857faf54e92df1f09b9",
+    "docs/research/package-library-audit-20261006/library-fit/assessments.md": "ae701dfb6420c3e85d3f0fe59d5ee11e3833c10df985d6f10358a66f3aedb7d8",
+    "docs/research/package-library-audit-20261006/library-fit/assessments.jsonl": "96bd9ebe2068bb4619e9854bfdb8d35261d4d424d3079ea43ba0c01e3bedb0be",
+    "docs/research/package-library-audit-20261006/library-fit/review.md": "6a07c7922db0102992a3839448c42ec6d167bd919802f5a4f8b05def50738a34",
+    "docs/research/package-library-audit-20261006/library-fit/review-reconciliation.json": "5c4d626ef697f9a698fa7135359febf040593c032e5e9676d44620b4b7ded7f1",
+    "docs/research/package-library-audit-20261006/library-fit/decision-record.md": "db4bb416fe6d3d1fea34fcd2370751036b32617ce62258afa9a01c07cbc9ee24",
+    "docs/research/package-library-audit-20261006/library-fit/verification.json": "7c85da89502b55ac423c96df3eb2ea0988c1e88ad70fa18da36170c63794c7f6",
+    "docs/research/package-library-audit-20261006/library-fit/verify.py": "f0a490680f748afc63e901951aa3c50b4803b9dc458b950ed87fc7794a7c0226",
+    "docs/research/package-library-audit-20261006/required-behavior/contracts.jsonl": "f36371b966cc1071ef80c6704c6fc4236ffa69ef15ce3137b8722303c32a4a89"
+  },
+  "counts": {
+    "slices": 27,
+    "findings": 25,
+    "used_contract_ids": 110
+  },
+  "verifier": {
+    "command": "python3 docs/research/package-library-audit-20261006/library-fit/verify.py --repo . --external",
+    "exit_code": 0,
+    "repository_sources": 78,
+    "external_readonly_hashes": 243,
+    "published_receipts": 10,
+    "unavailable_external_sources": [],
+    "package_tree_equal": true,
+    "post_correction_rerun": "passes same counts/source hashes; package tree equal"
+  },
+  "acceptances": [
+    {
+      "id": "FIT-C01",
+      "status": "accepted as accurate planning correction",
+      "evidence": [
+        "review.md table",
+        "assessments.md delivery-maps alternatives and limitations",
+        "assessments.jsonl delivery-maps assessment_corrections"
+      ],
+      "reason": "Last current equal-column mapping vs first trace GLB and remapping child lookup retained; ordinary sorted maps explicitly affected; finite bridge/profile decision conditional; no unmodified full-map parity claim."
+    },
+    {
+      "id": "FIT-C02",
+      "status": "substantive correction accepted with one stale wrapper phrase",
+      "evidence": [
+        "README.md factual export LF note",
+        "review.md FIT-C02",
+        "AD-export-csv-bytes rule and A1021",
+        "csv-export-stringify outcomes/options"
+      ],
+      "reason": "Explicit LF/trailing LF, record_delimiter LF/eof true/quoted_match CR LF and owning formula armor consistent; no output change selected."
+    },
+    {
+      "id": "FIT-C03",
+      "status": "accepted as accurate ownership narrowing",
+      "evidence": [
+        "review.md FIT-C03",
+        "delivery-maps options_limitations"
+      ],
+      "reason": "Unsorted caller-owned decoded lines copied before sorting; sorted references may be shared; resolvedSources/cache lifetime remain qualified; no broad mutation assertion."
+    },
+    {
+      "id": "installed-metadata",
+      "status": "installed metadata distinguished from runtime qualification",
+      "reason": "MCP1.32, decimal.js10.6 and esbuild0.28.2 exact installed manifests present in source-index and external verifier; MCP pin explicitly corrected; no new runtime/install claim."
+    },
+    {
+      "id": "adoption-and-costs",
+      "status": "accepted",
+      "reason": "Current source use distinguished from caller/installed journey evidence through caller_limits and planning qualifiers. Four alternatives compare same rule IDs/outcomes; algorithms retained/removed, owner wrappers, dependency/host costs documented; no measured savings or upstream maintenance/security claims."
+    },
+    {
+      "id": "scope",
+      "status": "accepted",
+      "reason": "All25 historical IDs/27 slices/110 used contractIDs; HUMAN HOLD explicit; no policy/backend adoption, Git merge or checkpoint claimed; same byte CSV correction is factual audit maintenance."
+    },
+    {
+      "id": "links",
+      "status": "accepted local targets",
+      "reason": "Local Markdown targets in README/assessments/review/decision-record exist; no web re-crawl performed."
+    }
+  ],
+  "overall": "accepted final consolidation at recorded post-correction hashes; no substantive unresolved review findings",
+  "policy_selection": false,
+  "backend_adoption": false,
+  "fresh_product_execution": false,
+  "dependency_installation": false,
+  "shared_files_edited": false,
+  "limits": [
+    "Audit verifier proves structural coverage/hash consistency, not consumer semantics, installed workflow/security/host acceptance.",
+    "Artifact hashes identify exact reviewed inputs; root edits after this review require refreshed hashes and review annotations."
+  ],
+  "initial_reviewed_artifact_sha256": {
+    "docs/research/package-library-audit-20261006/library-fit/README.md": "3d377d4c1d5669c3110c30646bbe936e4d7767307ea33857faf54e92df1f09b9",
+    "docs/research/package-library-audit-20261006/library-fit/assessments.md": "ae701dfb6420c3e85d3f0fe59d5ee11e3833c10df985d6f10358a66f3aedb7d8",
+    "docs/research/package-library-audit-20261006/library-fit/assessments.jsonl": "96bd9ebe2068bb4619e9854bfdb8d35261d4d424d3079ea43ba0c01e3bedb0be",
+    "docs/research/package-library-audit-20261006/library-fit/review.md": "6a07c7922db0102992a3839448c42ec6d167bd919802f5a4f8b05def50738a34",
+    "docs/research/package-library-audit-20261006/library-fit/review-reconciliation.json": "5c4d626ef697f9a698fa7135359febf040593c032e5e9676d44620b4b7ded7f1",
+    "docs/research/package-library-audit-20261006/library-fit/decision-record.md": "db4bb416fe6d3d1fea34fcd2370751036b32617ce62258afa9a01c07cbc9ee24",
+    "docs/research/package-library-audit-20261006/library-fit/verification.json": "7c85da89502b55ac423c96df3eb2ea0988c1e88ad70fa18da36170c63794c7f6",
+    "docs/research/package-library-audit-20261006/library-fit/verify.py": "f0a490680f748afc63e901951aa3c50b4803b9dc458b950ed87fc7794a7c0226",
+    "docs/research/package-library-audit-20261006/required-behavior/contracts.jsonl": "f36371b966cc1071ef80c6704c6fc4236ffa69ef15ce3137b8722303c32a4a89"
+  },
+  "corrections_resolved": [
+    {
+      "id": "FINAL-D01",
+      "severity": "minor factual wording",
+      "paths": [
+        "assessments.md:385",
+        "assessments.jsonl csv-export-stringify.necessary_wrapper[2]"
+      ],
+      "current": "column ordering and CRLF/eof options",
+      "replacement": "column ordering and explicit LF/eof options",
+      "reason": "Stale pre-FIT-C02 wrapper text contradicts the corrected current LF boundary; no behavior change required.",
+      "status": "root corrected; machine and rendered source rechecked"
+    },
+    {
+      "id": "FINAL-D02",
+      "severity": "minor qualification ambiguity",
+      "paths": [
+        "assessments.md:169",
+        "assessments.jsonl decimal-rounding decimal.js clone wrapper alternative.initialization_hosts"
+      ],
+      "current": "ESM/CJS; no runtime dep; not installed-qualified",
+      "replacement": "ESM/CJS; current dev dependency only; exact installed manifest verified, runtime/host behavior unqualified",
+      "reason": "Installation metadata is now verified; reserve unqualified for behavior/hosts rather than imply absent installation.",
+      "status": "root corrected; machine and rendered source rechecked"
+    }
+  ]
+}

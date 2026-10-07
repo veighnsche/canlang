@@ -1,0 +1,3023 @@
+{
+  "ref": "f8e9e73b11f19a7d59ac62487033a5bc189c46a1",
+  "repository_inputs": [
+    {
+      "path": "AGENTS.md",
+      "ref": "f8e9e73b11f19a7d59ac62487033a5bc189c46a1",
+      "sha256": "f30ab82d2e8803997b9eb6a5bba36c98defd1fce526711a0ae222fb6c4201f4e",
+      "bytes": 1886,
+      "lines": 11,
+      "blob": "efc9b85c4ba79df6912e9b1eee673e205f704213"
+    },
+    {
+      "path": "bun.lock",
+      "ref": "f8e9e73b11f19a7d59ac62487033a5bc189c46a1",
+      "sha256": "121ab8378764bcc2706a5641517c39aa57f8fc3c48fc5f7a1134d109278f8dec",
+      "bytes": 72925,
+      "lines": 832,
+      "blob": "0459179191335a0251d3599ed456c1e27e5f9fd7"
+    },
+    {
+      "path": "docs/research/package-library-audit-20261006/findings.json",
+      "ref": "f8e9e73b11f19a7d59ac62487033a5bc189c46a1",
+      "sha256": "626ac42c64070ead68b11baca6cfa31d47d22f0c23240e226d5bb4d74a4f4387",
+      "bytes": 28339,
+      "lines": 571,
+      "blob": "3c968b0d4f9f71c9803e07207dd0a48c6a73711a"
+    },
+    {
+      "path": "docs/research/package-library-audit-20261006/required-behavior/README.md",
+      "ref": "f8e9e73b11f19a7d59ac62487033a5bc189c46a1",
+      "sha256": "0d9798e978c614afe52cde8cb8c41b54df996ed868fd6fbd27b9fdb4ba6a1831",
+      "bytes": 7933,
+      "lines": 101,
+      "blob": "196d3d0b929cf8f53edf5c01b3d81fa4839a825e"
+    },
+    {
+      "path": "docs/research/package-library-audit-20261006/required-behavior/contracts.jsonl",
+      "ref": "f8e9e73b11f19a7d59ac62487033a5bc189c46a1",
+      "sha256": "4c5b121f8cb8547660074d5cfd266d8b45139d2b461f725232bc90c4f3e8bff3",
+      "bytes": 1096992,
+      "lines": 400,
+      "blob": "a2eca8f273aab6a8981b13b1289090c67f498c90"
+    },
+    {
+      "path": "docs/research/package-library-audit-20261006/required-behavior/contracts.md",
+      "ref": "f8e9e73b11f19a7d59ac62487033a5bc189c46a1",
+      "sha256": "1e2b8b9331445f3c1c930746f1869d4c4218ca24ecaffa5d1fee3fcaa4dc4028",
+      "bytes": 174616,
+      "lines": 470,
+      "blob": "f880f69fd75fa20d7f55be2de550e1d985159c9d"
+    },
+    {
+      "path": "docs/research/package-library-audit-20261006/required-behavior/independent-security-review.json",
+      "ref": "f8e9e73b11f19a7d59ac62487033a5bc189c46a1",
+      "sha256": "31990f5dab2b3b532e121d75077ed363b25755e0ca9a1675c059dba09349ec99",
+      "bytes": 83520,
+      "lines": 1424,
+      "blob": "e3cf72f27ff7d16bb6bb4df8a9da5de3e08cb836"
+    },
+    {
+      "path": "docs/research/package-library-audit-20261006/required-behavior/migration-requirements.md",
+      "ref": "f8e9e73b11f19a7d59ac62487033a5bc189c46a1",
+      "sha256": "d781d047185e8e5e978d8f6d7886072bf07a239fcfdbb764fcbd6d0a37364648",
+      "bytes": 5990,
+      "lines": 53,
+      "blob": "3037d00728034576723fdf9739291b173092ff03"
+    },
+    {
+      "path": "docs/research/package-library-audit-20261006/required-behavior/security-review.md",
+      "ref": "f8e9e73b11f19a7d59ac62487033a5bc189c46a1",
+      "sha256": "1dd45bbceb48ababc9f12a7e33abeccd1060f90261257dc0e55345802d6bc4d5",
+      "bytes": 5164,
+      "lines": 27,
+      "blob": "414d94640265e587268a4392755f9c2f2b246847"
+    },
+    {
+      "path": "docs/research/package-library-audit-20261006/responsibility-callers/responsibilities.jsonl",
+      "ref": "f8e9e73b11f19a7d59ac62487033a5bc189c46a1",
+      "sha256": "3c53a04dad77773000a65b5ebe928f4932889622551698ed685bae90567253ba",
+      "bytes": 321082,
+      "lines": 316,
+      "blob": "5894800b646fb2ab0e29c73df98c3b0f3dd309d6"
+    },
+    {
+      "path": "implementation/rust-port-orchestration/contracts-20261007/sourcemaps-raw.md",
+      "ref": "f8e9e73b11f19a7d59ac62487033a5bc189c46a1",
+      "sha256": "5665fd668c57d6968811a0314360660e9df1c5b7c23fa241f3af75b8caac1aad",
+      "bytes": 18311,
+      "lines": 77,
+      "blob": "7bdc193ed0fd1bbdb3233ec97a02ec92ceb76374"
+    },
+    {
+      "path": "implementation/rust-port-orchestration/runs/codex-step10-20261007T015711Z/DECISIONS-PENDING-HANDOFF.md",
+      "ref": "f8e9e73b11f19a7d59ac62487033a5bc189c46a1",
+      "sha256": "2d7e72aa84ac62e2ec1448fbbb869539dee977dfe9662005e52f31794bafb9cb",
+      "bytes": 3270,
+      "lines": 18,
+      "blob": "6499b8e6ff857926e30b63e24d8867498ce62145"
+    },
+    {
+      "path": "package.json",
+      "ref": "f8e9e73b11f19a7d59ac62487033a5bc189c46a1",
+      "sha256": "b857df2e35cfb40e1bb62738ed4ef59d53ce30b25b2a7f9d6f0f76df8bce02f3",
+      "bytes": 3750,
+      "lines": 75,
+      "blob": "93e19b371ac982b1849a00eeaee153d462cf7632"
+    },
+    {
+      "path": "packages/cloudflare/package.json",
+      "ref": "f8e9e73b11f19a7d59ac62487033a5bc189c46a1",
+      "sha256": "3110b58d8d57ce356bef66c6545cfefbc2270c28542129b4ef5f9bb942998cd8",
+      "bytes": 3427,
+      "lines": 106,
+      "blob": "2b7e266a36cbbd460add29f65098b807823f388a"
+    },
+    {
+      "path": "packages/cloudflare/preparation/Cargo.lock",
+      "ref": "f8e9e73b11f19a7d59ac62487033a5bc189c46a1",
+      "sha256": "5760d15ea1d15e7003382d4be593d7c3690655c0c3b4b36f63e630dae729d33f",
+      "bytes": 4892,
+      "lines": 191,
+      "blob": "c0e78ba3fa25488def67ea2415765bf12e91ac7c"
+    },
+    {
+      "path": "packages/cloudflare/preparation/Cargo.toml",
+      "ref": "f8e9e73b11f19a7d59ac62487033a5bc189c46a1",
+      "sha256": "7b0ae8cb004ba26524d3733b55a94e1d966fd5671221917e4c72415462816128",
+      "bytes": 343,
+      "lines": 16,
+      "blob": "39ffd75cdff649d9f0872971e1b4c331580b523b"
+    },
+    {
+      "path": "packages/cloudflare/preparation/src/input.rs",
+      "ref": "f8e9e73b11f19a7d59ac62487033a5bc189c46a1",
+      "sha256": "c0475ca0c94514e47011e594122ddadf3980232bfbce1e29557077c6f37b8002",
+      "bytes": 17277,
+      "lines": 503,
+      "blob": "7ee045b0f6f1dbc5cee593398a5a05b231b6e3f8"
+    },
+    {
+      "path": "packages/cloudflare/preparation/src/modules.rs",
+      "ref": "f8e9e73b11f19a7d59ac62487033a5bc189c46a1",
+      "sha256": "51ddde6db165e5feeafdda2b9b8e7969b3e87506def82b734412107c3c205794",
+      "bytes": 45340,
+      "lines": 1301,
+      "blob": "46da1e6e8652949239e947de2332c3689a770855"
+    },
+    {
+      "path": "packages/cloudflare/preparation/src/render.rs",
+      "ref": "f8e9e73b11f19a7d59ac62487033a5bc189c46a1",
+      "sha256": "be9c5592d305fb3f37487f79d0521d1314375a3b5f6607eb9782529934d1a337",
+      "bytes": 15371,
+      "lines": 395,
+      "blob": "6e7e750695689a7bd17cff7b697e00777603486e"
+    },
+    {
+      "path": "packages/cloudflare/src/cli/platform.ts",
+      "ref": "f8e9e73b11f19a7d59ac62487033a5bc189c46a1",
+      "sha256": "b6910c319e7196c585e9613f489f5ecab194483b9c9f9ea71913bfd4e0109e2a",
+      "bytes": 17588,
+      "lines": 451,
+      "blob": "f96bfd0ff85ff97d5587755673cdf1a9639c59f2"
+    },
+    {
+      "path": "packages/cloudflare/src/deploy/bundle.ts",
+      "ref": "f8e9e73b11f19a7d59ac62487033a5bc189c46a1",
+      "sha256": "7e8ad78a2674120ad59e96dbe2b34ab8923d8418578c015168c2b0ccd1a7a741",
+      "bytes": 62748,
+      "lines": 1424,
+      "blob": "e484aff68e84ee04068cf093ac972226aab023d3"
+    },
+    {
+      "path": "packages/cloudflare/src/deploy/module-imports.ts",
+      "ref": "f8e9e73b11f19a7d59ac62487033a5bc189c46a1",
+      "sha256": "13ef57c952c0cadfabf873b49f64917113f2ce6721f941ba4611a95b4b597362",
+      "bytes": 12176,
+      "lines": 243,
+      "blob": "5172fac88dccd3dc5c61dbcca2198df5f6b39b7a"
+    },
+    {
+      "path": "packages/cloudflare/src/deploy/module-maps.ts",
+      "ref": "f8e9e73b11f19a7d59ac62487033a5bc189c46a1",
+      "sha256": "e336c88f2ab17acc09bd57713a79d9a19b41c13a6241193edae4ae185aaa4f98",
+      "bytes": 5985,
+      "lines": 94,
+      "blob": "2cf96669fc9a8f3254a7a230e1529789c70251a5"
+    },
+    {
+      "path": "packages/cloudflare/src/deploy/render.ts",
+      "ref": "f8e9e73b11f19a7d59ac62487033a5bc189c46a1",
+      "sha256": "75bb7fb5eeb0cebafdf5c31079c12c63075b00d5708edaedf5a7f9c89b5bc980",
+      "bytes": 4125,
+      "lines": 111,
+      "blob": "bac37e86400959870369259587e6b067624851b2"
+    },
+    {
+      "path": "packages/cloudflare/src/preparation/build-adapter.ts",
+      "ref": "f8e9e73b11f19a7d59ac62487033a5bc189c46a1",
+      "sha256": "ddbd1eb6abc50c1dfa1ccc59cfdd8f3e54cc5d296356004c794f2556f1053383",
+      "bytes": 8501,
+      "lines": 221,
+      "blob": "6bccca5a18cb1e93cf3f4755d55cacbade8025c3"
+    },
+    {
+      "path": "packages/cloudflare/src/preparation/inputs.ts",
+      "ref": "f8e9e73b11f19a7d59ac62487033a5bc189c46a1",
+      "sha256": "2d36665b20ff6387557355fe6ca63b11ce1f8c6a293b4c2494862a4b7a8229ac",
+      "bytes": 4404,
+      "lines": 127,
+      "blob": "1ce8441e1337a152044daaafdbb21e3f8c50056b"
+    },
+    {
+      "path": "packages/cloudflare/src/runtime/invoke.ts",
+      "ref": "f8e9e73b11f19a7d59ac62487033a5bc189c46a1",
+      "sha256": "55178802cd4697279491b3997e79eb28b070a4ff580973d4513abdfe5023d2db",
+      "bytes": 319853,
+      "lines": 7605,
+      "blob": "a773a9c3c7c342368849f8cb36fe81dba9a4a4ee"
+    },
+    {
+      "path": "packages/cloudflare/src/runtime/modules.ts",
+      "ref": "f8e9e73b11f19a7d59ac62487033a5bc189c46a1",
+      "sha256": "c6297b40cdc68b3065d6dacd7b9a8dd4350ce0c4bcfc7268ee5d2527b6e4eb6d",
+      "bytes": 6362,
+      "lines": 144,
+      "blob": "65233b780f66120038e534ab3fcad9af9e793eca"
+    },
+    {
+      "path": "packages/cloudflare/src/runtime/sourcemap.ts",
+      "ref": "f8e9e73b11f19a7d59ac62487033a5bc189c46a1",
+      "sha256": "565f9c8521b6eaed277a65bbb8b82c4edea0c4f67ddada9df071dd16d4199113",
+      "bytes": 6534,
+      "lines": 161,
+      "blob": "c02cb21fe18978dcc755a31292aff68892ccd90d"
+    },
+    {
+      "path": "packages/files/src/upload/fs-blob-store.ts",
+      "ref": "f8e9e73b11f19a7d59ac62487033a5bc189c46a1",
+      "sha256": "0c112376b97e30a41ed6db8956b5e003ccc9e16ff4c0386353e04561a504108e",
+      "bytes": 2467,
+      "lines": 90,
+      "blob": "8700a0b8c742cf769e0b08b0c7d4c8a751071e27"
+    },
+    {
+      "path": "packages/files/src/upload/index.ts",
+      "ref": "f8e9e73b11f19a7d59ac62487033a5bc189c46a1",
+      "sha256": "46f566043db6f6292d6a95ae125e0e51c19058cc455f9a68bd4ff56343479ca7",
+      "bytes": 17208,
+      "lines": 503,
+      "blob": "a7061a6e0138a49a3a25c65eac69588cd0bbc844"
+    },
+    {
+      "path": "packages/identity/package.json",
+      "ref": "f8e9e73b11f19a7d59ac62487033a5bc189c46a1",
+      "sha256": "50dfe25888fc7787c8cf4ede09abcb79c7fce8a4b5db496de0eeb86f375dcdd0",
+      "bytes": 1629,
+      "lines": 55,
+      "blob": "9d790d755fe5e765fb7870e0549cf10c53e6d4cc"
+    },
+    {
+      "path": "packages/identity/src/accounts/passwords.ts",
+      "ref": "f8e9e73b11f19a7d59ac62487033a5bc189c46a1",
+      "sha256": "12e9f48e47452ce8af1c6b767bcca69843014290b85472071fea5251e738a969",
+      "bytes": 3612,
+      "lines": 104,
+      "blob": "fbc8cd997de6816a5b978db7f68919708c25323f"
+    },
+    {
+      "path": "packages/identity/src/sessions/comparison-node.ts",
+      "ref": "f8e9e73b11f19a7d59ac62487033a5bc189c46a1",
+      "sha256": "4ab6f9af09469c5e9c876943867f05e47070519b8bfe820793efe7a637515e37",
+      "bytes": 153,
+      "lines": 5,
+      "blob": "3493d8cfc1c2c25e063d10d7376656698fb1acb0"
+    },
+    {
+      "path": "packages/identity/src/sessions/comparison-worker.ts",
+      "ref": "f8e9e73b11f19a7d59ac62487033a5bc189c46a1",
+      "sha256": "d07b396186f6f28dccfe5809b9ee21342d3e51e0e969fe8d028320aa2351ff68",
+      "bytes": 447,
+      "lines": 11,
+      "blob": "8f8cafe1d506849a59ecd664eb2c085c77cbba5a"
+    },
+    {
+      "path": "packages/identity/src/sessions/comparison.ts",
+      "ref": "f8e9e73b11f19a7d59ac62487033a5bc189c46a1",
+      "sha256": "663079590c9147f2cb6f3de72187afcf84ea185ac3288c946fe05901738901db",
+      "bytes": 307,
+      "lines": 7,
+      "blob": "15d588051276cc1647c774fa536c9e72df18ef64"
+    },
+    {
+      "path": "packages/identity/src/sessions/cookies.ts",
+      "ref": "f8e9e73b11f19a7d59ac62487033a5bc189c46a1",
+      "sha256": "9766cfaa0a78204414f21468a8b1c046cbff7d8713556b49ae8cc235a00db099",
+      "bytes": 3685,
+      "lines": 103,
+      "blob": "a50593e1521ebfd2cf6ab6cf74d2254a46337ed1"
+    },
+    {
+      "path": "packages/identity/src/sessions/tokens.ts",
+      "ref": "f8e9e73b11f19a7d59ac62487033a5bc189c46a1",
+      "sha256": "d7867041c5c893cabdece58607af646c3468aa9e24a895b8608e8112cc7365fa",
+      "bytes": 3462,
+      "lines": 97,
+      "blob": "4e840ea06425c4d3f520a3b2fe64e9d6f36250b7"
+    },
+    {
+      "path": "packages/interfaces/package.json",
+      "ref": "f8e9e73b11f19a7d59ac62487033a5bc189c46a1",
+      "sha256": "8f3639d8cbbe1e5d0e4af4c1d92352fbdb66f56994c3863d54274f4258c47cad",
+      "bytes": 2137,
+      "lines": 67,
+      "blob": "de00ca493f3bbde99c5651eb5b682029db13dade"
+    },
+    {
+      "path": "packages/interfaces/src/envelope/validate.ts",
+      "ref": "f8e9e73b11f19a7d59ac62487033a5bc189c46a1",
+      "sha256": "115b21e75eb724664a2a87eea0434ab792114702e72e97cf8af9e8200d32d1ec",
+      "bytes": 4884,
+      "lines": 122,
+      "blob": "0bcf16658b2e27b49becc67d865914404554a6cb"
+    },
+    {
+      "path": "packages/interfaces/src/http/auth.ts",
+      "ref": "f8e9e73b11f19a7d59ac62487033a5bc189c46a1",
+      "sha256": "5e373e1a88fe8ee36a27d851154e2228491fba588aed207f219ffcf73c380706",
+      "bytes": 14551,
+      "lines": 365,
+      "blob": "884363c2cd3d14b522887a7304792b93122e4e89"
+    },
+    {
+      "path": "packages/interfaces/src/http/csv.ts",
+      "ref": "f8e9e73b11f19a7d59ac62487033a5bc189c46a1",
+      "sha256": "6025d282f5afb52e127bafc5fa1154935c126dce833b57713310af47d94a3d2e",
+      "bytes": 22419,
+      "lines": 567,
+      "blob": "d6b10500375c08e1b8f82effb4c97cec6f0a2adc"
+    },
+    {
+      "path": "packages/interfaces/src/http/export.ts",
+      "ref": "f8e9e73b11f19a7d59ac62487033a5bc189c46a1",
+      "sha256": "5da1415db2a27e24a79d045145e1fddf520b9ef525a7bf7ea2b316e1cf1321d3",
+      "bytes": 19098,
+      "lines": 469,
+      "blob": "b70f6e645651629c821263d85f0f9393a904e776"
+    },
+    {
+      "path": "packages/interfaces/src/mcp/server.ts",
+      "ref": "f8e9e73b11f19a7d59ac62487033a5bc189c46a1",
+      "sha256": "20d68f0cc3a0984f2094dffe971895d789d57ce05c07032e3696dc9fcaf7c8c6",
+      "bytes": 20682,
+      "lines": 491,
+      "blob": "a39902481d860878ca0fe45c4c67b4b12f0eb18a"
+    },
+    {
+      "path": "packages/interfaces/src/projection/project.ts",
+      "ref": "f8e9e73b11f19a7d59ac62487033a5bc189c46a1",
+      "sha256": "1c1fbc7123f879c22c8e54737c1d2e4809ed01ee178d7a0c281440e35f649fec",
+      "bytes": 6610,
+      "lines": 175,
+      "blob": "d7764cebfeac3cfd9b34d85a268e5164e9036b88"
+    },
+    {
+      "path": "packages/services/src/http/client.ts",
+      "ref": "f8e9e73b11f19a7d59ac62487033a5bc189c46a1",
+      "sha256": "41b55f0bffee4a85a7a910ae8303da21f21fab010b1db5043a869d13c1a1f034",
+      "bytes": 15711,
+      "lines": 524,
+      "blob": "aae6fb811966d1e0f6b6849881eb6f33a07b010a"
+    },
+    {
+      "path": "packages/services/src/media/mapping.ts",
+      "ref": "f8e9e73b11f19a7d59ac62487033a5bc189c46a1",
+      "sha256": "507306b2f97b72ebe5aa4dce54fe0af2164bfd1dcf6604efea6d1b7ccd151da1",
+      "bytes": 7907,
+      "lines": 222,
+      "blob": "ae8211b9891c6f76b0e1ae4d4398d0ec61f0949d"
+    },
+    {
+      "path": "packages/services/src/models/ollama.ts",
+      "ref": "f8e9e73b11f19a7d59ac62487033a5bc189c46a1",
+      "sha256": "96c39834af0d132c64d164b0a8d4712fa75c203fb4fa8c4463e0ad8b5907df96",
+      "bytes": 23124,
+      "lines": 744,
+      "blob": "82261cc0cdd172663e8ac414378356cc278150ab"
+    },
+    {
+      "path": "packages/state/src/internal/json.ts",
+      "ref": "f8e9e73b11f19a7d59ac62487033a5bc189c46a1",
+      "sha256": "dd16c61167cee0a9a8d22cbe5037715b9c6bf574b17f433342f6ba700e90ae73",
+      "bytes": 1110,
+      "lines": 35,
+      "blob": "8561c42735853c3fdb0b4369ac26909bec0f518f"
+    },
+    {
+      "path": "packages/state/src/invocation/admission.ts",
+      "ref": "f8e9e73b11f19a7d59ac62487033a5bc189c46a1",
+      "sha256": "c83e7b06b932e7e16402f0c815121a917f7b63daa90e4000fd822d16b1fc1ba6",
+      "bytes": 28228,
+      "lines": 717,
+      "blob": "28f59b0d1cdbe927527de4b6d431b14b318a1da2"
+    },
+    {
+      "path": "packages/state/src/invocation/replay.ts",
+      "ref": "f8e9e73b11f19a7d59ac62487033a5bc189c46a1",
+      "sha256": "a33bf620e893569a9f8c710615e7fe7bc8a207c2f4a8c017e9942e0f6783cc36",
+      "bytes": 2473,
+      "lines": 71,
+      "blob": "b99739bc2964fdf69b8e7e62be33c70e5a810399"
+    },
+    {
+      "path": "packages/testkit/src/assertions/equal.ts",
+      "ref": "f8e9e73b11f19a7d59ac62487033a5bc189c46a1",
+      "sha256": "d12014e23815bf21c0df9f6323e3c217d26ac5b0a9b5cacad04411cb78db7496",
+      "bytes": 2456,
+      "lines": 64,
+      "blob": "3af3e7fe4aed271a781bacf74035a6154a31a913"
+    },
+    {
+      "path": "packages/ui/package.json",
+      "ref": "f8e9e73b11f19a7d59ac62487033a5bc189c46a1",
+      "sha256": "5c7e8332525050e9503e397c27107b2f197e1edcec80b5ace95dc4b9ef3daaf4",
+      "bytes": 1747,
+      "lines": 59,
+      "blob": "8ed756461941fee796ad8f895a2fff8e26c44545"
+    },
+    {
+      "path": "packages/ui/src/csv/grammar.ts",
+      "ref": "f8e9e73b11f19a7d59ac62487033a5bc189c46a1",
+      "sha256": "436633fe44c678cb6fc3cb88e45c7ad98df695690005e8e7d3a8aec771557efc",
+      "bytes": 2662,
+      "lines": 71,
+      "blob": "608d51bb457d42e715380fe0cbbc0765bf7b5824"
+    },
+    {
+      "path": "packages/ui/src/csv/parse.ts",
+      "ref": "f8e9e73b11f19a7d59ac62487033a5bc189c46a1",
+      "sha256": "fb90f43c82a24932e6ae0c0332dbe3b53cbfeaf9e00bac41daa79c830c352af9",
+      "bytes": 7779,
+      "lines": 189,
+      "blob": "add0bb3f9c80c85b8daacd77519a5d991d0d6356"
+    },
+    {
+      "path": "packages/ui/src/escape.ts",
+      "ref": "f8e9e73b11f19a7d59ac62487033a5bc189c46a1",
+      "sha256": "6408018844f663e1d644821c9884a9089ba26cad38b170d2d751ced4dc71b65c",
+      "bytes": 3057,
+      "lines": 89,
+      "blob": "b4e8919adb913369e702f50223c25798bc4c1335"
+    },
+    {
+      "path": "packages/values/Cargo.lock",
+      "ref": "f8e9e73b11f19a7d59ac62487033a5bc189c46a1",
+      "sha256": "653260b64e40898068cfed2728bb348d26284fe5af983ab3bf38d9d2aa57ebbe",
+      "bytes": 5792,
+      "lines": 227,
+      "blob": "98f77a3ae487f599e8388daf04dbc382fea26bc8"
+    },
+    {
+      "path": "packages/values/semantics/Cargo.toml",
+      "ref": "f8e9e73b11f19a7d59ac62487033a5bc189c46a1",
+      "sha256": "288e98e5ff913d884cb0c298afab590ff3b71b8c140ae38ab9134f03c4ed9a6a",
+      "bytes": 535,
+      "lines": 21,
+      "blob": "977c48367a1c8ff2e13aac8a2a5ca0c6931e1bf8"
+    },
+    {
+      "path": "packages/values/semantics/src/codecs/numeric.rs",
+      "ref": "f8e9e73b11f19a7d59ac62487033a5bc189c46a1",
+      "sha256": "6f06587f264ae4365739c7fbbbb9e2fe9e3b4319c5cc6fc71e056594dc740217",
+      "bytes": 26093,
+      "lines": 777,
+      "blob": "2c4cfe0f2c86002902c050871ce377d0024c771b"
+    },
+    {
+      "path": "packages/values/semantics/src/numeric/decimal.rs",
+      "ref": "f8e9e73b11f19a7d59ac62487033a5bc189c46a1",
+      "sha256": "53040e3de46f5e17d8c5025928bdb3ef2047e88d6fd488821686dcfbd026ade6",
+      "bytes": 12685,
+      "lines": 325,
+      "blob": "9d06b2099fa12b7905f6f747617cf43b293e3231"
+    },
+    {
+      "path": "packages/values/semantics/src/numeric/rounding.rs",
+      "ref": "f8e9e73b11f19a7d59ac62487033a5bc189c46a1",
+      "sha256": "a224bb2805d8192a2a26b5452284a708ee3c2a8a04bc6076f9611d2d200533cd",
+      "bytes": 2165,
+      "lines": 62,
+      "blob": "611cf6422b67b33dbec5a2c11a0a8cb34e4de953"
+    },
+    {
+      "path": "packages/values/semantics/src/plans.rs",
+      "ref": "f8e9e73b11f19a7d59ac62487033a5bc189c46a1",
+      "sha256": "a273a9ae85ffb1492f3780713774a01722f2b9cd0db2740ffe5e81f10ded4a7c",
+      "bytes": 39887,
+      "lines": 1153,
+      "blob": "5728ed77c70d170ddaa0461489b5803e360def50"
+    },
+    {
+      "path": "packages/values/semantics/src/representations/numeric.rs",
+      "ref": "f8e9e73b11f19a7d59ac62487033a5bc189c46a1",
+      "sha256": "c012805095152f62168db2b00fa6c7a2ebc741f526f2e68a004bcfe3d149f13c",
+      "bytes": 18589,
+      "lines": 551,
+      "blob": "b88e035afae0edadcc7f67236c6d47da17352b99"
+    },
+    {
+      "path": "packages/values/semantics/src/temporal/civil.rs",
+      "ref": "f8e9e73b11f19a7d59ac62487033a5bc189c46a1",
+      "sha256": "b2d0314f8255e64c64360de880992963818c59affe6ad866360af1f3eca9241d",
+      "bytes": 11116,
+      "lines": 320,
+      "blob": "035894b7171e7c43deef41641ca00d9d15c1c2ed"
+    },
+    {
+      "path": "packages/values/src/decimal.ts",
+      "ref": "f8e9e73b11f19a7d59ac62487033a5bc189c46a1",
+      "sha256": "e4056e2849f928106b36f534ee72f3416fed9550c19da914dc9e02d4c14f592e",
+      "bytes": 17358,
+      "lines": 416,
+      "blob": "9f92e25314c4059182d1fcc2e551a0e9d48922d4"
+    },
+    {
+      "path": "packages/values/src/icu.ts",
+      "ref": "f8e9e73b11f19a7d59ac62487033a5bc189c46a1",
+      "sha256": "07a1cfc94cf0a0a338cf1a7307648db211479a9da0a3b4cae7d5d99030a9b70e",
+      "bytes": 41368,
+      "lines": 1133,
+      "blob": "5c547d3a8cf1b2147e4e93c2a3fd90357c2d7c0b"
+    },
+    {
+      "path": "packages/values/src/internal/schema-core.ts",
+      "ref": "f8e9e73b11f19a7d59ac62487033a5bc189c46a1",
+      "sha256": "a8b147e6c4c63f3bd9cc0d1c55a2fad582effaf2d18dde4394c0d30345963792",
+      "bytes": 63826,
+      "lines": 1978,
+      "blob": "fb0c3b79f5d48e3536176a49370508357dbb0df5"
+    },
+    {
+      "path": "packages/values/src/prepared/plan.ts",
+      "ref": "f8e9e73b11f19a7d59ac62487033a5bc189c46a1",
+      "sha256": "31cc0a8a09774f5a6754372700b41269cd3df73de4171574053fbab661faa0d4",
+      "bytes": 21288,
+      "lines": 565,
+      "blob": "5e728c372a2e1eb1f0eeb1c74421d6769d967942"
+    },
+    {
+      "path": "packages/values/src/schema.ts",
+      "ref": "f8e9e73b11f19a7d59ac62487033a5bc189c46a1",
+      "sha256": "2de2fddbc23f38b9347054ba0de2be709fca3028fd29f46ee144272d2e57cd9b",
+      "bytes": 1637,
+      "lines": 34,
+      "blob": "ebcb70f7899d135838ce83a883336d59699cd0ea"
+    },
+    {
+      "path": "packages/values/src/temporal.ts",
+      "ref": "f8e9e73b11f19a7d59ac62487033a5bc189c46a1",
+      "sha256": "53619b5bc448c4c32b2980643c8eccf36bf43bc34d8a26e70fd39adc2e83d35e",
+      "bytes": 21713,
+      "lines": 554,
+      "blob": "10181b048d7230b626d9dd50a675cf166e06e128"
+    },
+    {
+      "path": "packages/values/src/timezone.ts",
+      "ref": "f8e9e73b11f19a7d59ac62487033a5bc189c46a1",
+      "sha256": "fb3946b521ceadcb5639118aa62862f073e62362220e425e917c250bb271427d",
+      "bytes": 8733,
+      "lines": 241,
+      "blob": "2106781bf4387ff1012343e3aa20b06971e51f27"
+    },
+    {
+      "path": "packages/work-kernel/Cargo.lock",
+      "ref": "f8e9e73b11f19a7d59ac62487033a5bc189c46a1",
+      "sha256": "47a11bf44677a5d15c0d9d9af373b27d06edabbcdc5d2ddc13a3c75a79c6a41c",
+      "bytes": 2850,
+      "lines": 112,
+      "blob": "1a57fefc4c5df3b71b739f2b32625b4b0cb34c0e"
+    },
+    {
+      "path": "packages/work-kernel/Cargo.toml",
+      "ref": "f8e9e73b11f19a7d59ac62487033a5bc189c46a1",
+      "sha256": "e47efacc7e0b819611644763ac617da5bfda345d9297826d974bc9d1fb73d4a5",
+      "bytes": 281,
+      "lines": 15,
+      "blob": "621eb30d2e675638432a8a305bcad81dc268bb7b"
+    },
+    {
+      "path": "packages/work-kernel/decisions/linkage.rs",
+      "ref": "f8e9e73b11f19a7d59ac62487033a5bc189c46a1",
+      "sha256": "2b88e65cd8f0183629bdf00e2ad97a0b6930e03b0bc3d546e6a367de813ab94c",
+      "bytes": 105733,
+      "lines": 2673,
+      "blob": "88f7e44616941f4550e70da6d51e78a60ae437fd"
+    },
+    {
+      "path": "packages/work-kernel/decisions/numeric_text.rs",
+      "ref": "f8e9e73b11f19a7d59ac62487033a5bc189c46a1",
+      "sha256": "e7b2326766bd664c5e50edf882ecbf4027558a503dfb000ab3ea5890867a9c00",
+      "bytes": 859,
+      "lines": 27,
+      "blob": "d3e8d1131c718a83d7ca0e55af332043af88f21a"
+    },
+    {
+      "path": "packages/work-kernel/decisions/receipt.rs",
+      "ref": "f8e9e73b11f19a7d59ac62487033a5bc189c46a1",
+      "sha256": "2f2b048b40913632954ce74e2a27e785cb9a6968796fc6d155bda9b9dccf222d",
+      "bytes": 88663,
+      "lines": 2465,
+      "blob": "708104f5f0271a69ab553e2ffe3aa5b9c0eb1015"
+    },
+    {
+      "path": "packages/work-kernel/decisions/rows.rs",
+      "ref": "f8e9e73b11f19a7d59ac62487033a5bc189c46a1",
+      "sha256": "b2e4420da4e98bb575f23eef2033985d5f18ed1c3b2a41c442cd98a461770c13",
+      "bytes": 276000,
+      "lines": 6925,
+      "blob": "b6013e865e75de067e0461b6259d39bb6ffe9524"
+    },
+    {
+      "path": "packages/work-kernel/rust/lib.rs",
+      "ref": "f8e9e73b11f19a7d59ac62487033a5bc189c46a1",
+      "sha256": "46a4c32e6615c9b0cbe7758461fd71f72a790af2c71a0fb11de08e054abb681d",
+      "bytes": 403,
+      "lines": 12,
+      "blob": "a64053a8a4b81a3e0887149b2460a2052a13823e"
+    }
+  ],
+  "external_readonly_inputs": [
+    {
+      "path": "/Users/vince/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/jiff-0.2.37/Cargo.toml",
+      "sha256": "a886d647164964e8dad30c09d4cb2ade3ceab8ed42152acbf0e76b7d9fc452bb",
+      "bytes": 5069,
+      "lines": 268,
+      "kind": "read-only published/local dependency source; not product execution",
+      "source_urls": []
+    },
+    {
+      "path": "/Users/vince/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/jiff-0.2.37/src/tz/ambiguous.rs",
+      "sha256": "e5b29dc0416b36cfae65a632d05670ef2b0abad23b4f24491ac42e18c12146be",
+      "bytes": 47843,
+      "lines": 1282,
+      "kind": "read-only published/local dependency source; not product execution",
+      "source_urls": []
+    },
+    {
+      "path": "/Users/vince/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/jiff-0.2.37/src/tz/timezone.rs",
+      "sha256": "b091c5277ccd49eb5a092e1e824d239b9a8acbd6e013171668866e4f2654595b",
+      "bytes": 166970,
+      "lines": 4050,
+      "kind": "read-only published/local dependency source; not product execution",
+      "source_urls": []
+    },
+    {
+      "path": "/Users/vince/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/num-bigint-0.4.8/Cargo.toml",
+      "sha256": "fcb19e142df64dc58a459ba33e1e22c1551497962f8037ed98df124d749f28f1",
+      "bytes": 2797,
+      "lines": 154,
+      "kind": "read-only published/local dependency source; not product execution",
+      "source_urls": []
+    },
+    {
+      "path": "/Users/vince/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/percent-encoding-2.3.2/Cargo.toml",
+      "sha256": "e4ea043c47bbd5551fc5fcf8151eab94428b4be6f2337834a0f9020a4392fb19",
+      "bytes": 1056,
+      "lines": 40,
+      "kind": "read-only published/local dependency source; not product execution",
+      "source_urls": []
+    },
+    {
+      "path": "/Users/vince/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/percent-encoding-2.3.2/src/ascii_set.rs",
+      "sha256": "f75552e4f446ed240cef64c1367e848cf3ae65f77602085459566d835a1d8587",
+      "bytes": 5812,
+      "lines": 213,
+      "kind": "read-only published/local dependency source; not product execution",
+      "source_urls": []
+    },
+    {
+      "path": "/Users/vince/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/percent-encoding-2.3.2/src/lib.rs",
+      "sha256": "641903d385581e76f31ef8c991d83c2a5d7fbbc2879d93909c539037e4e1e3e2",
+      "bytes": 16051,
+      "lines": 481,
+      "kind": "read-only published/local dependency source; not product execution",
+      "source_urls": []
+    },
+    {
+      "path": "/Users/vince/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/ryu-js-1.0.3/Cargo.toml",
+      "sha256": "f5b09622fa53809fa21277d0c3ccda5c4a37e5bc34641fc2ef749b861f5fc47d",
+      "bytes": 2537,
+      "lines": 124,
+      "kind": "read-only published/local dependency source; not product execution",
+      "source_urls": []
+    },
+    {
+      "path": "/Users/vince/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/ryu-js-1.0.3/src/buffer/mod.rs",
+      "sha256": "5783fdd94040746e15f59ce6c66b203a6ce24de7773dce6cdfbc5a2775937ca2",
+      "bytes": 7348,
+      "lines": 231,
+      "kind": "read-only published/local dependency source; not product execution",
+      "source_urls": []
+    },
+    {
+      "path": "/Users/vince/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/ryu-js-1.0.3/src/pretty/mod.rs",
+      "sha256": "3507dc364f18901bd159cf4fe40bebe37d582ce8a87b59a0351e8af282154977",
+      "bytes": 7690,
+      "lines": 227,
+      "kind": "read-only published/local dependency source; not product execution",
+      "source_urls": []
+    },
+    {
+      "path": "/Users/vince/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde_json-1.0.151/Cargo.toml",
+      "sha256": "00b920255c320a278bf25b962b491263a19d8c90e12e4a91c1d823db71eabb2f",
+      "bytes": 3118,
+      "lines": 162,
+      "kind": "read-only published/local dependency source; not product execution",
+      "source_urls": []
+    },
+    {
+      "path": "/Users/vince/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde_json-1.0.151/src/ser.rs",
+      "sha256": "f2b8cc0b97e30c49dbc58698fa22c14a7d56ea616cdb57b067835a59af49a75f",
+      "bytes": 63877,
+      "lines": 2285,
+      "kind": "read-only published/local dependency source; not product execution",
+      "source_urls": []
+    },
+    {
+      "path": "/Users/vince/Projects/canlang/node_modules/.bun/@jridgewell+sourcemap-codec@1.6.0/node_modules/@jridgewell/sourcemap-codec/src/sourcemap-codec.ts",
+      "sha256": "91d136138bf0d2a4c4d9ca811cc10af74eead3165b75edb5eaa9ddf5337e5fc9",
+      "bytes": 3546,
+      "lines": 127,
+      "kind": "read-only published/local dependency source; not product execution",
+      "source_urls": []
+    },
+    {
+      "path": "/Users/vince/Projects/canlang/node_modules/.bun/@modelcontextprotocol+sdk@1.32.0+2b91fc17bf64bdfd/node_modules/@modelcontextprotocol/sdk/LICENSE",
+      "sha256": "5e13dbbc1d120fc2a03cecde7c91424ae2d7de11b63d58ded2f4431e261ee50d",
+      "bytes": 1071,
+      "lines": 21,
+      "kind": "exact local installed manifest/license/API declarations read; no execution",
+      "source_urls": []
+    },
+    {
+      "path": "/Users/vince/Projects/canlang/node_modules/.bun/@modelcontextprotocol+sdk@1.32.0+2b91fc17bf64bdfd/node_modules/@modelcontextprotocol/sdk/dist/esm/server/index.d.ts",
+      "sha256": "ecd9be374cf01ba99c9696e59b50f8baf8fae65ddaa43f0d375471933f989788",
+      "bytes": 9035,
+      "lines": 196,
+      "kind": "exact local installed manifest/license/API declarations read; no execution",
+      "source_urls": []
+    },
+    {
+      "path": "/Users/vince/Projects/canlang/node_modules/.bun/@modelcontextprotocol+sdk@1.32.0+2b91fc17bf64bdfd/node_modules/@modelcontextprotocol/sdk/dist/esm/server/webStandardStreamableHttp.d.ts",
+      "sha256": "55257490a300212787b41bb4d8df9ba70f701212d25c4e41b6294d1d9c400f62",
+      "bytes": 11782,
+      "lines": 298,
+      "kind": "exact local installed manifest/license/API declarations read; no execution",
+      "source_urls": []
+    },
+    {
+      "path": "/Users/vince/Projects/canlang/node_modules/.bun/@modelcontextprotocol+sdk@1.32.0+2b91fc17bf64bdfd/node_modules/@modelcontextprotocol/sdk/package.json",
+      "sha256": "e2978955f1e20cce7a22ed5daea0bed7e7d8e0a0e1b8fe170773dd15787a51b3",
+      "bytes": 6511,
+      "lines": 165,
+      "kind": "exact local installed manifest/license/API declarations read; no execution",
+      "source_urls": []
+    },
+    {
+      "path": "/Users/vince/Projects/canlang/node_modules/.bun/decimal.js@10.6.0/node_modules/decimal.js/package.json",
+      "sha256": "d7e3794828ee8bc94818613c9d901a9e7c857e6ffcf027245e661ddfc63d9b72",
+      "bytes": 1190,
+      "lines": 55,
+      "kind": "exact local installed manifest/license/API declarations read; no execution",
+      "source_urls": []
+    },
+    {
+      "path": "/Users/vince/Projects/canlang/node_modules/.bun/esbuild@0.28.2/node_modules/esbuild/package.json",
+      "sha256": "9d0bc453f4e791553c4cc2298ba023b409241fd9801e494741666eb0f6051490",
+      "bytes": 3980,
+      "lines": 74,
+      "kind": "exact local installed manifest/license/API declarations read; no execution",
+      "source_urls": []
+    },
+    {
+      "path": "/private/tmp/canlang-library-fit-20261007-published/cookie-2.0.1/source/LICENSE",
+      "sha256": "c02110eedc16c7114f1a9bdc026c65626ce1d9c7e27fd51a8e0feee8a48a6858",
+      "bytes": 1175,
+      "lines": 24,
+      "kind": "integrity-verified exact published source extraction",
+      "source_urls": [
+        "https://registry.npmjs.org/cookie/-/cookie-2.0.1.tgz"
+      ]
+    },
+    {
+      "path": "/private/tmp/canlang-library-fit-20261007-published/cookie-2.0.1/source/README.md",
+      "sha256": "2e7882908ae627923da088f61777e2db48db14546a9e4c63e23932b1ccc39150",
+      "bytes": 12438,
+      "lines": 295,
+      "kind": "integrity-verified exact published source extraction",
+      "source_urls": [
+        "https://registry.npmjs.org/cookie/-/cookie-2.0.1.tgz"
+      ]
+    },
+    {
+      "path": "/private/tmp/canlang-library-fit-20261007-published/cookie-2.0.1/source/dist/index.d.ts",
+      "sha256": "d0c80866b3a63107db0659fa609f23e8a80e53117e7b0146ae1cfd3d3aa33b27",
+      "bytes": 7084,
+      "lines": 143,
+      "kind": "integrity-verified exact published source extraction",
+      "source_urls": [
+        "https://registry.npmjs.org/cookie/-/cookie-2.0.1.tgz"
+      ]
+    },
+    {
+      "path": "/private/tmp/canlang-library-fit-20261007-published/cookie-2.0.1/source/dist/index.js",
+      "sha256": "b728aa01f45e9115920e2a92e2f3d71c1b5acfbb8bc1d702b87397860c4ba925",
+      "bytes": 12046,
+      "lines": 355,
+      "kind": "integrity-verified exact published source extraction",
+      "source_urls": [
+        "https://registry.npmjs.org/cookie/-/cookie-2.0.1.tgz"
+      ]
+    },
+    {
+      "path": "/private/tmp/canlang-library-fit-20261007-published/cookie-2.0.1/source/dist/index.js.map",
+      "sha256": "c1a85ffdee7849999b31811112054d29358ea836b2d6071177a5d6af9831702b",
+      "bytes": 26750,
+      "lines": 1,
+      "kind": "integrity-verified exact published source extraction",
+      "source_urls": [
+        "https://registry.npmjs.org/cookie/-/cookie-2.0.1.tgz"
+      ]
+    },
+    {
+      "path": "/private/tmp/canlang-library-fit-20261007-published/cookie-2.0.1/source/package.json",
+      "sha256": "75cd16a27d7d0018a08dcbe46eef242f5cbaae4c47efd95979c77ddad59e5fac",
+      "bytes": 1328,
+      "lines": 57,
+      "kind": "integrity-verified exact published source extraction",
+      "source_urls": [
+        "https://registry.npmjs.org/cookie/-/cookie-2.0.1.tgz"
+      ]
+    },
+    {
+      "path": "/private/tmp/canlang-library-fit-20261007-published/csv-parse-7.0.3/source/LICENSE",
+      "sha256": "032efe3de772e9f85c722ee9ff7ccd5cab01e024296b2b8d25893bf779be9360",
+      "bytes": 1074,
+      "lines": 21,
+      "kind": "integrity-verified exact published source extraction",
+      "source_urls": [
+        "https://registry.npmjs.org/csv-parse/-/csv-parse-7.0.3.tgz"
+      ]
+    },
+    {
+      "path": "/private/tmp/canlang-library-fit-20261007-published/csv-parse-7.0.3/source/README.md",
+      "sha256": "5298f505709284925523b47770c39ab533ca5a95ee321e858c039251819e6171",
+      "bytes": 3266,
+      "lines": 82,
+      "kind": "integrity-verified exact published source extraction",
+      "source_urls": [
+        "https://registry.npmjs.org/csv-parse/-/csv-parse-7.0.3.tgz"
+      ]
+    },
+    {
+      "path": "/private/tmp/canlang-library-fit-20261007-published/csv-parse-7.0.3/source/dist/cjs/index.cjs",
+      "sha256": "b078505fbd05916220d2b5ef124a203173133f55d94608fab52f29b1bfdfeb07",
+      "bytes": 71424,
+      "lines": 2133,
+      "kind": "integrity-verified exact published source extraction",
+      "source_urls": [
+        "https://registry.npmjs.org/csv-parse/-/csv-parse-7.0.3.tgz"
+      ]
+    },
+    {
+      "path": "/private/tmp/canlang-library-fit-20261007-published/csv-parse-7.0.3/source/dist/cjs/index.d.cts",
+      "sha256": "e6d7ba57662c9e29b53b497ce640278cd0dab7981755a777e3160e70e371cef4",
+      "bytes": 19929,
+      "lines": 572,
+      "kind": "integrity-verified exact published source extraction",
+      "source_urls": [
+        "https://registry.npmjs.org/csv-parse/-/csv-parse-7.0.3.tgz"
+      ]
+    },
+    {
+      "path": "/private/tmp/canlang-library-fit-20261007-published/csv-parse-7.0.3/source/dist/cjs/stream.cjs",
+      "sha256": "200b7e41a6aed0fafb2bb7853e82638c0be97722ca651f8081658d5efd17b37d",
+      "bytes": 68522,
+      "lines": 2026,
+      "kind": "integrity-verified exact published source extraction",
+      "source_urls": [
+        "https://registry.npmjs.org/csv-parse/-/csv-parse-7.0.3.tgz"
+      ]
+    },
+    {
+      "path": "/private/tmp/canlang-library-fit-20261007-published/csv-parse-7.0.3/source/dist/cjs/stream.d.cts",
+      "sha256": "7710d39ecad735bd29bcb40378e23487258ef65ce3a2b9be6529456e36a62937",
+      "bytes": 410,
+      "lines": 23,
+      "kind": "integrity-verified exact published source extraction",
+      "source_urls": [
+        "https://registry.npmjs.org/csv-parse/-/csv-parse-7.0.3.tgz"
+      ]
+    },
+    {
+      "path": "/private/tmp/canlang-library-fit-20261007-published/csv-parse-7.0.3/source/dist/cjs/sync.cjs",
+      "sha256": "1a490c8485b3f54d8045af42e72a621ddaa2228a0b92e30976a32db1e3d5b79e",
+      "bytes": 68234,
+      "lines": 2010,
+      "kind": "integrity-verified exact published source extraction",
+      "source_urls": [
+        "https://registry.npmjs.org/csv-parse/-/csv-parse-7.0.3.tgz"
+      ]
+    },
+    {
+      "path": "/private/tmp/canlang-library-fit-20261007-published/csv-parse-7.0.3/source/dist/cjs/sync.d.cts",
+      "sha256": "104142a1c1edf6a5301100196260b8208b429c65b9b3fc85940258692aa27a36",
+      "bytes": 669,
+      "lines": 31,
+      "kind": "integrity-verified exact published source extraction",
+      "source_urls": [
+        "https://registry.npmjs.org/csv-parse/-/csv-parse-7.0.3.tgz"
+      ]
+    },
+    {
+      "path": "/private/tmp/canlang-library-fit-20261007-published/csv-parse-7.0.3/source/dist/esm/index.d.ts",
+      "sha256": "e6d7ba57662c9e29b53b497ce640278cd0dab7981755a777e3160e70e371cef4",
+      "bytes": 19929,
+      "lines": 572,
+      "kind": "integrity-verified exact published source extraction",
+      "source_urls": [
+        "https://registry.npmjs.org/csv-parse/-/csv-parse-7.0.3.tgz"
+      ]
+    },
+    {
+      "path": "/private/tmp/canlang-library-fit-20261007-published/csv-parse-7.0.3/source/dist/esm/index.js",
+      "sha256": "57f7c89275f791e01642fd52795d12350477b5087ee044db51bf716cb66a7851",
+      "bytes": 215106,
+      "lines": 7171,
+      "kind": "integrity-verified exact published source extraction",
+      "source_urls": [
+        "https://registry.npmjs.org/csv-parse/-/csv-parse-7.0.3.tgz"
+      ]
+    },
+    {
+      "path": "/private/tmp/canlang-library-fit-20261007-published/csv-parse-7.0.3/source/dist/esm/stream.d.ts",
+      "sha256": "b603291edb5b856e74acdb7c90dd96b088f39900c962367e7a4c111a0b7aeee7",
+      "bytes": 408,
+      "lines": 23,
+      "kind": "integrity-verified exact published source extraction",
+      "source_urls": [
+        "https://registry.npmjs.org/csv-parse/-/csv-parse-7.0.3.tgz"
+      ]
+    },
+    {
+      "path": "/private/tmp/canlang-library-fit-20261007-published/csv-parse-7.0.3/source/dist/esm/sync.d.ts",
+      "sha256": "0272ec2078c4a9c526cdec621817d37480958c098a23fa6a28372340f18eb7a7",
+      "bytes": 667,
+      "lines": 31,
+      "kind": "integrity-verified exact published source extraction",
+      "source_urls": [
+        "https://registry.npmjs.org/csv-parse/-/csv-parse-7.0.3.tgz"
+      ]
+    },
+    {
+      "path": "/private/tmp/canlang-library-fit-20261007-published/csv-parse-7.0.3/source/dist/esm/sync.js",
+      "sha256": "be7c2e7e5769134ee9adceece0516979bb930efb81b6a8c8421ec6bb98941bc3",
+      "bytes": 122302,
+      "lines": 3978,
+      "kind": "integrity-verified exact published source extraction",
+      "source_urls": [
+        "https://registry.npmjs.org/csv-parse/-/csv-parse-7.0.3.tgz"
+      ]
+    },
+    {
+      "path": "/private/tmp/canlang-library-fit-20261007-published/csv-parse-7.0.3/source/dist/iife/index.js",
+      "sha256": "bf30e5e551231bf9763951f40309315d15a84b376a26bdcfeff908825526c392",
+      "bytes": 292204,
+      "lines": 7181,
+      "kind": "integrity-verified exact published source extraction",
+      "source_urls": [
+        "https://registry.npmjs.org/csv-parse/-/csv-parse-7.0.3.tgz"
+      ]
+    },
+    {
+      "path": "/private/tmp/canlang-library-fit-20261007-published/csv-parse-7.0.3/source/dist/iife/sync.js",
+      "sha256": "b25abb372e0bb00deb13be2ae3d1089afe9e4ef9d0721e0302da4054821c2bbb",
+      "bytes": 166598,
+      "lines": 3987,
+      "kind": "integrity-verified exact published source extraction",
+      "source_urls": [
+        "https://registry.npmjs.org/csv-parse/-/csv-parse-7.0.3.tgz"
+      ]
+    },
+    {
+      "path": "/private/tmp/canlang-library-fit-20261007-published/csv-parse-7.0.3/source/dist/umd/index.js",
+      "sha256": "d0c5a0fcb1ecf51e5b93dbdc691902a9de6b02e9d5fd5d0b9ae5f29fa4963d36",
+      "bytes": 292491,
+      "lines": 7182,
+      "kind": "integrity-verified exact published source extraction",
+      "source_urls": [
+        "https://registry.npmjs.org/csv-parse/-/csv-parse-7.0.3.tgz"
+      ]
+    },
+    {
+      "path": "/private/tmp/canlang-library-fit-20261007-published/csv-parse-7.0.3/source/dist/umd/sync.js",
+      "sha256": "57ec07a0b13c12c3098dae880d177b6ad5e988ac4f8a2e392bdd325365f4ace6",
+      "bytes": 166879,
+      "lines": 3988,
+      "kind": "integrity-verified exact published source extraction",
+      "source_urls": [
+        "https://registry.npmjs.org/csv-parse/-/csv-parse-7.0.3.tgz"
+      ]
+    },
+    {
+      "path": "/private/tmp/canlang-library-fit-20261007-published/csv-parse-7.0.3/source/lib/api/CsvError.js",
+      "sha256": "75c91323d96fbe1357e944850eea090f8a1a2fee5cc1336a311de56d1cf13fcb",
+      "bytes": 630,
+      "lines": 22,
+      "kind": "integrity-verified exact published source extraction",
+      "source_urls": [
+        "https://registry.npmjs.org/csv-parse/-/csv-parse-7.0.3.tgz"
+      ]
+    },
+    {
+      "path": "/private/tmp/canlang-library-fit-20261007-published/csv-parse-7.0.3/source/lib/api/index.js",
+      "sha256": "07d98c0146bcce7d085c9e70a871342abf6ea4e7069d115d41c5eb37bed871e1",
+      "bytes": 33910,
+      "lines": 968,
+      "kind": "integrity-verified exact published source extraction",
+      "source_urls": [
+        "https://registry.npmjs.org/csv-parse/-/csv-parse-7.0.3.tgz"
+      ]
+    },
+    {
+      "path": "/private/tmp/canlang-library-fit-20261007-published/csv-parse-7.0.3/source/lib/api/init_state.js",
+      "sha256": "e2b37718e99061da3926a2a0840b4fd4202082fd69595c6d304aeeaf424eaeca",
+      "bytes": 5591,
+      "lines": 114,
+      "kind": "integrity-verified exact published source extraction",
+      "source_urls": [
+        "https://registry.npmjs.org/csv-parse/-/csv-parse-7.0.3.tgz"
+      ]
+    },
+    {
+      "path": "/private/tmp/canlang-library-fit-20261007-published/csv-parse-7.0.3/source/lib/api/normalize_columns_array.js",
+      "sha256": "8ee28e9345c33fd1f435f1219c5579b30cc18d26b4a5c845a846befb48dedb22",
+      "bytes": 1162,
+      "lines": 32,
+      "kind": "integrity-verified exact published source extraction",
+      "source_urls": [
+        "https://registry.npmjs.org/csv-parse/-/csv-parse-7.0.3.tgz"
+      ]
+    },
+    {
+      "path": "/private/tmp/canlang-library-fit-20261007-published/csv-parse-7.0.3/source/lib/api/normalize_options.js",
+      "sha256": "b313f205641060f9ba0e1f5d364564c1cef992d8ecbf7cf4b2540b368137ef62",
+      "bytes": 23785,
+      "lines": 762,
+      "kind": "integrity-verified exact published source extraction",
+      "source_urls": [
+        "https://registry.npmjs.org/csv-parse/-/csv-parse-7.0.3.tgz"
+      ]
+    },
+    {
+      "path": "/private/tmp/canlang-library-fit-20261007-published/csv-parse-7.0.3/source/lib/index.d.ts",
+      "sha256": "e6d7ba57662c9e29b53b497ce640278cd0dab7981755a777e3160e70e371cef4",
+      "bytes": 19929,
+      "lines": 572,
+      "kind": "integrity-verified exact published source extraction",
+      "source_urls": [
+        "https://registry.npmjs.org/csv-parse/-/csv-parse-7.0.3.tgz"
+      ]
+    },
+    {
+      "path": "/private/tmp/canlang-library-fit-20261007-published/csv-parse-7.0.3/source/lib/index.js",
+      "sha256": "9442a3048007963a6d24490de6d7d6804c380ba095eea80c0441c92aa8afd4b6",
+      "bytes": 3932,
+      "lines": 144,
+      "kind": "integrity-verified exact published source extraction",
+      "source_urls": [
+        "https://registry.npmjs.org/csv-parse/-/csv-parse-7.0.3.tgz"
+      ]
+    },
+    {
+      "path": "/private/tmp/canlang-library-fit-20261007-published/csv-parse-7.0.3/source/lib/stream.d.ts",
+      "sha256": "b603291edb5b856e74acdb7c90dd96b088f39900c962367e7a4c111a0b7aeee7",
+      "bytes": 408,
+      "lines": 23,
+      "kind": "integrity-verified exact published source extraction",
+      "source_urls": [
+        "https://registry.npmjs.org/csv-parse/-/csv-parse-7.0.3.tgz"
+      ]
+    },
+    {
+      "path": "/private/tmp/canlang-library-fit-20261007-published/csv-parse-7.0.3/source/lib/stream.js",
+      "sha256": "b37f87f8526077847a8e1e4bfbca973459bd0b91688c147d76cecaad54a13009",
+      "bytes": 988,
+      "lines": 37,
+      "kind": "integrity-verified exact published source extraction",
+      "source_urls": [
+        "https://registry.npmjs.org/csv-parse/-/csv-parse-7.0.3.tgz"
+      ]
+    },
+    {
+      "path": "/private/tmp/canlang-library-fit-20261007-published/csv-parse-7.0.3/source/lib/sync.d.ts",
+      "sha256": "0272ec2078c4a9c526cdec621817d37480958c098a23fa6a28372340f18eb7a7",
+      "bytes": 667,
+      "lines": 31,
+      "kind": "integrity-verified exact published source extraction",
+      "source_urls": [
+        "https://registry.npmjs.org/csv-parse/-/csv-parse-7.0.3.tgz"
+      ]
+    },
+    {
+      "path": "/private/tmp/canlang-library-fit-20261007-published/csv-parse-7.0.3/source/lib/sync.js",
+      "sha256": "9ed8d621ef0dcbd64ba216e9ea60173a59ff9960af8194e15532feed1a365ec5",
+      "bytes": 678,
+      "lines": 22,
+      "kind": "integrity-verified exact published source extraction",
+      "source_urls": [
+        "https://registry.npmjs.org/csv-parse/-/csv-parse-7.0.3.tgz"
+      ]
+    },
+    {
+      "path": "/private/tmp/canlang-library-fit-20261007-published/csv-parse-7.0.3/source/lib/utils/ResizeableBuffer.js",
+      "sha256": "d8b659345b881d4f9748c5933fc07af00e6dc4f2921a00832d2b9b236c3b7f55",
+      "bytes": 1514,
+      "lines": 63,
+      "kind": "integrity-verified exact published source extraction",
+      "source_urls": [
+        "https://registry.npmjs.org/csv-parse/-/csv-parse-7.0.3.tgz"
+      ]
+    },
+    {
+      "path": "/private/tmp/canlang-library-fit-20261007-published/csv-parse-7.0.3/source/lib/utils/delimiter_discover.js",
+      "sha256": "da3dd414af1765151bfe85cba34688be9f162b2ed65ee168fe5e612229fbc46b",
+      "bytes": 2229,
+      "lines": 65,
+      "kind": "integrity-verified exact published source extraction",
+      "source_urls": [
+        "https://registry.npmjs.org/csv-parse/-/csv-parse-7.0.3.tgz"
+      ]
+    },
+    {
+      "path": "/private/tmp/canlang-library-fit-20261007-published/csv-parse-7.0.3/source/lib/utils/is_object.js",
+      "sha256": "c2376181876ada65c71f2a19fb0b4a4c495e242c1f68f560df22e9d224c9761b",
+      "bytes": 134,
+      "lines": 5,
+      "kind": "integrity-verified exact published source extraction",
+      "source_urls": [
+        "https://registry.npmjs.org/csv-parse/-/csv-parse-7.0.3.tgz"
+      ]
+    },
+    {
+      "path": "/private/tmp/canlang-library-fit-20261007-published/csv-parse-7.0.3/source/lib/utils/underscore.js",
+      "sha256": "015f642c76345ad144f9846e36008de6a7c430d1c7fde239c2919cd0b5ec8058",
+      "bytes": 162,
+      "lines": 7,
+      "kind": "integrity-verified exact published source extraction",
+      "source_urls": [
+        "https://registry.npmjs.org/csv-parse/-/csv-parse-7.0.3.tgz"
+      ]
+    },
+    {
+      "path": "/private/tmp/canlang-library-fit-20261007-published/csv-parse-7.0.3/source/package.json",
+      "sha256": "a7d2d781b71afdb8273d078d268cd65032d6ccc6c62e80683aa5d2e85d4ac565",
+      "bytes": 4471,
+      "lines": 143,
+      "kind": "integrity-verified exact published source extraction",
+      "source_urls": [
+        "https://registry.npmjs.org/csv-parse/-/csv-parse-7.0.3.tgz"
+      ]
+    },
+    {
+      "path": "/private/tmp/canlang-library-fit-20261007-published/csv-stringify-6.6.0/source/README.md",
+      "sha256": "63891372cdc0160a5c00658d670d4c6627455258adf07defa96bb2f7309d8d9a",
+      "bytes": 2786,
+      "lines": 61,
+      "kind": "integrity-verified exact published source extraction",
+      "source_urls": [
+        "https://registry.npmjs.org/csv-stringify/-/csv-stringify-6.6.0.tgz"
+      ]
+    },
+    {
+      "path": "/private/tmp/canlang-library-fit-20261007-published/csv-stringify-6.6.0/source/dist/cjs/index.cjs",
+      "sha256": "40a8e83ca191a4767c679943b45684dff9107ca80123422c3df351266798a9c5",
+      "bytes": 25210,
+      "lines": 820,
+      "kind": "integrity-verified exact published source extraction",
+      "source_urls": [
+        "https://registry.npmjs.org/csv-stringify/-/csv-stringify-6.6.0.tgz"
+      ]
+    },
+    {
+      "path": "/private/tmp/canlang-library-fit-20261007-published/csv-stringify-6.6.0/source/dist/cjs/index.d.cts",
+      "sha256": "2cd932a8d4f1f620df509a375a24374993087f6a755efd508b2f005c4c398399",
+      "bytes": 6264,
+      "lines": 214,
+      "kind": "integrity-verified exact published source extraction",
+      "source_urls": [
+        "https://registry.npmjs.org/csv-stringify/-/csv-stringify-6.6.0.tgz"
+      ]
+    },
+    {
+      "path": "/private/tmp/canlang-library-fit-20261007-published/csv-stringify-6.6.0/source/dist/cjs/sync.cjs",
+      "sha256": "96de330e691bc26038e0437575ba7a70ed360da9142049413e6907c933c84907",
+      "bytes": 22766,
+      "lines": 734,
+      "kind": "integrity-verified exact published source extraction",
+      "source_urls": [
+        "https://registry.npmjs.org/csv-stringify/-/csv-stringify-6.6.0.tgz"
+      ]
+    },
+    {
+      "path": "/private/tmp/canlang-library-fit-20261007-published/csv-stringify-6.6.0/source/dist/cjs/sync.d.cts",
+      "sha256": "38545588b8d33cd30d5b09d7be740c919661510f7943cf597430e8f74dc21ce5",
+      "bytes": 317,
+      "lines": 17,
+      "kind": "integrity-verified exact published source extraction",
+      "source_urls": [
+        "https://registry.npmjs.org/csv-stringify/-/csv-stringify-6.6.0.tgz"
+      ]
+    },
+    {
+      "path": "/private/tmp/canlang-library-fit-20261007-published/csv-stringify-6.6.0/source/dist/esm/index.d.ts",
+      "sha256": "2cd932a8d4f1f620df509a375a24374993087f6a755efd508b2f005c4c398399",
+      "bytes": 6264,
+      "lines": 214,
+      "kind": "integrity-verified exact published source extraction",
+      "source_urls": [
+        "https://registry.npmjs.org/csv-stringify/-/csv-stringify-6.6.0.tgz"
+      ]
+    },
+    {
+      "path": "/private/tmp/canlang-library-fit-20261007-published/csv-stringify-6.6.0/source/dist/esm/index.js",
+      "sha256": "444c42b921fc3695158c48ab27a83f7f07b7db38e060d693e3a14b11d97dde55",
+      "bytes": 169084,
+      "lines": 5867,
+      "kind": "integrity-verified exact published source extraction",
+      "source_urls": [
+        "https://registry.npmjs.org/csv-stringify/-/csv-stringify-6.6.0.tgz"
+      ]
+    },
+    {
+      "path": "/private/tmp/canlang-library-fit-20261007-published/csv-stringify-6.6.0/source/dist/esm/sync.d.ts",
+      "sha256": "dd8b6b955c7fa741ee30dde24893b93cab7f89d79311214bccb608d6eb5b84f0",
+      "bytes": 315,
+      "lines": 17,
+      "kind": "integrity-verified exact published source extraction",
+      "source_urls": [
+        "https://registry.npmjs.org/csv-stringify/-/csv-stringify-6.6.0.tgz"
+      ]
+    },
+    {
+      "path": "/private/tmp/canlang-library-fit-20261007-published/csv-stringify-6.6.0/source/dist/esm/sync.js",
+      "sha256": "30b2c19660b79ffa76315f4a70bc1133a248777756f0a26e773e92ced141e10d",
+      "bytes": 76926,
+      "lines": 2704,
+      "kind": "integrity-verified exact published source extraction",
+      "source_urls": [
+        "https://registry.npmjs.org/csv-stringify/-/csv-stringify-6.6.0.tgz"
+      ]
+    },
+    {
+      "path": "/private/tmp/canlang-library-fit-20261007-published/csv-stringify-6.6.0/source/dist/iife/index.js",
+      "sha256": "3865b72011c6b1d3319e97f21328b6a3da430bab8744140eedc20801c222bd95",
+      "bytes": 179419,
+      "lines": 5876,
+      "kind": "integrity-verified exact published source extraction",
+      "source_urls": [
+        "https://registry.npmjs.org/csv-stringify/-/csv-stringify-6.6.0.tgz"
+      ]
+    },
+    {
+      "path": "/private/tmp/canlang-library-fit-20261007-published/csv-stringify-6.6.0/source/dist/iife/sync.js",
+      "sha256": "ba4b85b7e1a7a55e5e10b4ffe6754774e0e8f025ae8e70206ef43aeeaed10303",
+      "bytes": 105823,
+      "lines": 2711,
+      "kind": "integrity-verified exact published source extraction",
+      "source_urls": [
+        "https://registry.npmjs.org/csv-stringify/-/csv-stringify-6.6.0.tgz"
+      ]
+    },
+    {
+      "path": "/private/tmp/canlang-library-fit-20261007-published/csv-stringify-6.6.0/source/dist/umd/index.js",
+      "sha256": "2c942395e7146a91f69a1c25ed6d3d2e727155a4a5d647409afb29779eb02400",
+      "bytes": 179690,
+      "lines": 5877,
+      "kind": "integrity-verified exact published source extraction",
+      "source_urls": [
+        "https://registry.npmjs.org/csv-stringify/-/csv-stringify-6.6.0.tgz"
+      ]
+    },
+    {
+      "path": "/private/tmp/canlang-library-fit-20261007-published/csv-stringify-6.6.0/source/dist/umd/sync.js",
+      "sha256": "7dcd0f2d07428486afc9ca8026fcd4a711e73f62d5047145671faac098ef0f0a",
+      "bytes": 106104,
+      "lines": 2712,
+      "kind": "integrity-verified exact published source extraction",
+      "source_urls": [
+        "https://registry.npmjs.org/csv-stringify/-/csv-stringify-6.6.0.tgz"
+      ]
+    },
+    {
+      "path": "/private/tmp/canlang-library-fit-20261007-published/csv-stringify-6.6.0/source/lib/api/CsvError.js",
+      "sha256": "7feec6b28812faf36f60fc0d025337b6784273950a2aebb559d797203099fdb7",
+      "bytes": 598,
+      "lines": 22,
+      "kind": "integrity-verified exact published source extraction",
+      "source_urls": [
+        "https://registry.npmjs.org/csv-stringify/-/csv-stringify-6.6.0.tgz"
+      ]
+    },
+    {
+      "path": "/private/tmp/canlang-library-fit-20261007-published/csv-stringify-6.6.0/source/lib/api/index.js",
+      "sha256": "eb6982f95d279a49d17a217a70001b72b6eae1045106c67681281563443effbd",
+      "bytes": 10666,
+      "lines": 313,
+      "kind": "integrity-verified exact published source extraction",
+      "source_urls": [
+        "https://registry.npmjs.org/csv-stringify/-/csv-stringify-6.6.0.tgz"
+      ]
+    },
+    {
+      "path": "/private/tmp/canlang-library-fit-20261007-published/csv-stringify-6.6.0/source/lib/api/normalize_columns.js",
+      "sha256": "46e403ab3b002d9500bd38f57dfd5c552d3e7ebd9f21452ffb5847c39dcfa573",
+      "bytes": 1279,
+      "lines": 50,
+      "kind": "integrity-verified exact published source extraction",
+      "source_urls": [
+        "https://registry.npmjs.org/csv-stringify/-/csv-stringify-6.6.0.tgz"
+      ]
+    },
+    {
+      "path": "/private/tmp/canlang-library-fit-20261007-published/csv-stringify-6.6.0/source/lib/api/normalize_options.js",
+      "sha256": "f72b9093d04f3071f637b69230ada233152b6989fa81de4803189b47e9326ff8",
+      "bytes": 7325,
+      "lines": 232,
+      "kind": "integrity-verified exact published source extraction",
+      "source_urls": [
+        "https://registry.npmjs.org/csv-stringify/-/csv-stringify-6.6.0.tgz"
+      ]
+    },
+    {
+      "path": "/private/tmp/canlang-library-fit-20261007-published/csv-stringify-6.6.0/source/lib/index.d.ts",
+      "sha256": "2cd932a8d4f1f620df509a375a24374993087f6a755efd508b2f005c4c398399",
+      "bytes": 6264,
+      "lines": 214,
+      "kind": "integrity-verified exact published source extraction",
+      "source_urls": [
+        "https://registry.npmjs.org/csv-stringify/-/csv-stringify-6.6.0.tgz"
+      ]
+    },
+    {
+      "path": "/private/tmp/canlang-library-fit-20261007-published/csv-stringify-6.6.0/source/lib/index.js",
+      "sha256": "1b7ef0fbed02be385fbd2991441fbfef496071c90e0ce4929d235080e65df8ac",
+      "bytes": 3346,
+      "lines": 119,
+      "kind": "integrity-verified exact published source extraction",
+      "source_urls": [
+        "https://registry.npmjs.org/csv-stringify/-/csv-stringify-6.6.0.tgz"
+      ]
+    },
+    {
+      "path": "/private/tmp/canlang-library-fit-20261007-published/csv-stringify-6.6.0/source/lib/sync.d.ts",
+      "sha256": "dd8b6b955c7fa741ee30dde24893b93cab7f89d79311214bccb608d6eb5b84f0",
+      "bytes": 315,
+      "lines": 17,
+      "kind": "integrity-verified exact published source extraction",
+      "source_urls": [
+        "https://registry.npmjs.org/csv-stringify/-/csv-stringify-6.6.0.tgz"
+      ]
+    },
+    {
+      "path": "/private/tmp/canlang-library-fit-20261007-published/csv-stringify-6.6.0/source/lib/sync.js",
+      "sha256": "d25ffa1dded40c04f686fbd0ce6147bf95bb3c8afca3340761bdda2bf0ce0008",
+      "bytes": 824,
+      "lines": 34,
+      "kind": "integrity-verified exact published source extraction",
+      "source_urls": [
+        "https://registry.npmjs.org/csv-stringify/-/csv-stringify-6.6.0.tgz"
+      ]
+    },
+    {
+      "path": "/private/tmp/canlang-library-fit-20261007-published/csv-stringify-6.6.0/source/lib/utils/get.js",
+      "sha256": "676176dcbd9e5665497fe5d372648bc729a742896fad71a006754d2789e66f3d",
+      "bytes": 2558,
+      "lines": 101,
+      "kind": "integrity-verified exact published source extraction",
+      "source_urls": [
+        "https://registry.npmjs.org/csv-stringify/-/csv-stringify-6.6.0.tgz"
+      ]
+    },
+    {
+      "path": "/private/tmp/canlang-library-fit-20261007-published/csv-stringify-6.6.0/source/lib/utils/is_object.js",
+      "sha256": "c2376181876ada65c71f2a19fb0b4a4c495e242c1f68f560df22e9d224c9761b",
+      "bytes": 134,
+      "lines": 5,
+      "kind": "integrity-verified exact published source extraction",
+      "source_urls": [
+        "https://registry.npmjs.org/csv-stringify/-/csv-stringify-6.6.0.tgz"
+      ]
+    },
+    {
+      "path": "/private/tmp/canlang-library-fit-20261007-published/csv-stringify-6.6.0/source/lib/utils/underscore.js",
+      "sha256": "015f642c76345ad144f9846e36008de6a7c430d1c7fde239c2919cd0b5ec8058",
+      "bytes": 162,
+      "lines": 7,
+      "kind": "integrity-verified exact published source extraction",
+      "source_urls": [
+        "https://registry.npmjs.org/csv-stringify/-/csv-stringify-6.6.0.tgz"
+      ]
+    },
+    {
+      "path": "/private/tmp/canlang-library-fit-20261007-published/csv-stringify-6.6.0/source/package.json",
+      "sha256": "ee68dbe0ebb671bf201532c074474b8e24836f1d9bc3e5d22f4870a6e5eb5322",
+      "bytes": 2948,
+      "lines": 110,
+      "kind": "integrity-verified exact published source extraction",
+      "source_urls": [
+        "https://registry.npmjs.org/csv-stringify/-/csv-stringify-6.6.0.tgz"
+      ]
+    },
+    {
+      "path": "/private/tmp/canlang-library-fit-20261007-published/es-module-lexer-3.0.3/source/LICENSE",
+      "sha256": "8a4b6c44eebfb026d23719a348145a661a555568dbfdc11618ff2d0dd9306b00",
+      "bytes": 1085,
+      "lines": 10,
+      "kind": "integrity-verified exact published source extraction",
+      "source_urls": [
+        "https://registry.npmjs.org/es-module-lexer/-/es-module-lexer-3.0.3.tgz"
+      ]
+    },
+    {
+      "path": "/private/tmp/canlang-library-fit-20261007-published/es-module-lexer-3.0.3/source/README.md",
+      "sha256": "e49a08534a18bd4fe84faf7dc74705fb652905757cf834cafb3509d0d86d8af0",
+      "bytes": 19770,
+      "lines": 465,
+      "kind": "integrity-verified exact published source extraction",
+      "source_urls": [
+        "https://registry.npmjs.org/es-module-lexer/-/es-module-lexer-3.0.3.tgz"
+      ]
+    },
+    {
+      "path": "/private/tmp/canlang-library-fit-20261007-published/es-module-lexer-3.0.3/source/dist/lexer.asm.js",
+      "sha256": "fa3cac5b4635e8bbc068c04652c61a26608093e6edd24f591f3440fd216f5044",
+      "bytes": 68310,
+      "lines": 2,
+      "kind": "integrity-verified exact published source extraction",
+      "source_urls": [
+        "https://registry.npmjs.org/es-module-lexer/-/es-module-lexer-3.0.3.tgz"
+      ]
+    },
+    {
+      "path": "/private/tmp/canlang-library-fit-20261007-published/es-module-lexer-3.0.3/source/dist/lexer.cjs",
+      "sha256": "36bbe461242c1900068bed054fec4385e418407a34d97c1c2de0ea3998ff0ca6",
+      "bytes": 45162,
+      "lines": 1,
+      "kind": "integrity-verified exact published source extraction",
+      "source_urls": [
+        "https://registry.npmjs.org/es-module-lexer/-/es-module-lexer-3.0.3.tgz"
+      ]
+    },
+    {
+      "path": "/private/tmp/canlang-library-fit-20261007-published/es-module-lexer-3.0.3/source/dist/lexer.js",
+      "sha256": "47a0fc4c32f46e328e8f10bf45011f66b9c2959989512cf097056abfac9ccce0",
+      "bytes": 45141,
+      "lines": 2,
+      "kind": "integrity-verified exact published source extraction",
+      "source_urls": [
+        "https://registry.npmjs.org/es-module-lexer/-/es-module-lexer-3.0.3.tgz"
+      ]
+    },
+    {
+      "path": "/private/tmp/canlang-library-fit-20261007-published/es-module-lexer-3.0.3/source/dist/lexer.minimal.asm.js",
+      "sha256": "95f6b0530ab27cb146e89bc33acfa45f606c66ee589d16469b414942fc1b4864",
+      "bytes": 27257,
+      "lines": 2,
+      "kind": "integrity-verified exact published source extraction",
+      "source_urls": [
+        "https://registry.npmjs.org/es-module-lexer/-/es-module-lexer-3.0.3.tgz"
+      ]
+    },
+    {
+      "path": "/private/tmp/canlang-library-fit-20261007-published/es-module-lexer-3.0.3/source/dist/lexer.minimal.cjs",
+      "sha256": "a544a5103cdae282b06efa457159fcf393b27ca65302b4255025794e9db97585",
+      "bytes": 18248,
+      "lines": 1,
+      "kind": "integrity-verified exact published source extraction",
+      "source_urls": [
+        "https://registry.npmjs.org/es-module-lexer/-/es-module-lexer-3.0.3.tgz"
+      ]
+    },
+    {
+      "path": "/private/tmp/canlang-library-fit-20261007-published/es-module-lexer-3.0.3/source/dist/lexer.minimal.js",
+      "sha256": "582a1ba8cc98ba0580d6819ac0e42680c2720d0b2090e530a361d020817a20ec",
+      "bytes": 18232,
+      "lines": 2,
+      "kind": "integrity-verified exact published source extraction",
+      "source_urls": [
+        "https://registry.npmjs.org/es-module-lexer/-/es-module-lexer-3.0.3.tgz"
+      ]
+    },
+    {
+      "path": "/private/tmp/canlang-library-fit-20261007-published/es-module-lexer-3.0.3/source/package.json",
+      "sha256": "340add1d00a99e80e016b079b61e89957a5b1e02fe83545df0a78c5563537392",
+      "bytes": 1739,
+      "lines": 67,
+      "kind": "integrity-verified exact published source extraction",
+      "source_urls": [
+        "https://registry.npmjs.org/es-module-lexer/-/es-module-lexer-3.0.3.tgz"
+      ]
+    },
+    {
+      "path": "/private/tmp/canlang-library-fit-20261007-published/es-module-lexer-3.0.3/source/types/lexer.d.ts",
+      "sha256": "ef9b9fc5f32d66a056f32fc1fbcd959c269aa8c6433a68646955bbf1a2db67a7",
+      "bytes": 10246,
+      "lines": 310,
+      "kind": "integrity-verified exact published source extraction",
+      "source_urls": [
+        "https://registry.npmjs.org/es-module-lexer/-/es-module-lexer-3.0.3.tgz"
+      ]
+    },
+    {
+      "path": "/private/tmp/canlang-library-fit-20261007-published/es-module-lexer-3.0.3/source/types/lexer.minimal.d.ts",
+      "sha256": "8c8218c37f0d81b067b8f2900e3015c660f3e5d1227a25ddb79d2ba596de7e72",
+      "bytes": 2721,
+      "lines": 79,
+      "kind": "integrity-verified exact published source extraction",
+      "source_urls": [
+        "https://registry.npmjs.org/es-module-lexer/-/es-module-lexer-3.0.3.tgz"
+      ]
+    },
+    {
+      "path": "/private/tmp/canlang-library-fit-20261007-published/jridgewell--remapping-2.3.5/source/LICENSE",
+      "sha256": "769d154fbde32a915af110b1123650bc79f4cbe675acc66e005265bf069c6c6c",
+      "bytes": 1080,
+      "lines": 19,
+      "kind": "integrity-verified exact published source extraction",
+      "source_urls": [
+        "https://registry.npmjs.org/@jridgewell/remapping/-/remapping-2.3.5.tgz"
+      ]
+    },
+    {
+      "path": "/private/tmp/canlang-library-fit-20261007-published/jridgewell--remapping-2.3.5/source/README.md",
+      "sha256": "48d450ec7cf8c712f2706cb99e96cd5171e02e20a0f90f4403f77bc71747977a",
+      "bytes": 7304,
+      "lines": 218,
+      "kind": "integrity-verified exact published source extraction",
+      "source_urls": [
+        "https://registry.npmjs.org/@jridgewell/remapping/-/remapping-2.3.5.tgz"
+      ]
+    },
+    {
+      "path": "/private/tmp/canlang-library-fit-20261007-published/jridgewell--remapping-2.3.5/source/dist/remapping.mjs",
+      "sha256": "08c209a6505d549e7541faa04baa225fd2c78c235ec9b8a3522e49a04350b257",
+      "bytes": 4829,
+      "lines": 144,
+      "kind": "integrity-verified exact published source extraction",
+      "source_urls": [
+        "https://registry.npmjs.org/@jridgewell/remapping/-/remapping-2.3.5.tgz"
+      ]
+    },
+    {
+      "path": "/private/tmp/canlang-library-fit-20261007-published/jridgewell--remapping-2.3.5/source/dist/remapping.mjs.map",
+      "sha256": "b7f58091bb45c1aac1c972d42e8018cfda1faff02260030c810ceb0a6da4725c",
+      "bytes": 3558,
+      "lines": 6,
+      "kind": "integrity-verified exact published source extraction",
+      "source_urls": [
+        "https://registry.npmjs.org/@jridgewell/remapping/-/remapping-2.3.5.tgz"
+      ]
+    },
+    {
+      "path": "/private/tmp/canlang-library-fit-20261007-published/jridgewell--remapping-2.3.5/source/dist/remapping.umd.js",
+      "sha256": "12b13f8a108bde767c8305aa222393dbb81472f47dcc401cd3a9e886633251b0",
+      "bytes": 7880,
+      "lines": 212,
+      "kind": "integrity-verified exact published source extraction",
+      "source_urls": [
+        "https://registry.npmjs.org/@jridgewell/remapping/-/remapping-2.3.5.tgz"
+      ]
+    },
+    {
+      "path": "/private/tmp/canlang-library-fit-20261007-published/jridgewell--remapping-2.3.5/source/dist/remapping.umd.js.map",
+      "sha256": "a80261c4422480cd0f966f16261c6a69693cd1562a7dc4aef4c5c883a5f796ec",
+      "bytes": 3849,
+      "lines": 6,
+      "kind": "integrity-verified exact published source extraction",
+      "source_urls": [
+        "https://registry.npmjs.org/@jridgewell/remapping/-/remapping-2.3.5.tgz"
+      ]
+    },
+    {
+      "path": "/private/tmp/canlang-library-fit-20261007-published/jridgewell--remapping-2.3.5/source/package.json",
+      "sha256": "cc535fb0665977104146fb8fe6c81ff63d2c9ae7f7b783d86e7f7db064cde57a",
+      "bytes": 2307,
+      "lines": 71,
+      "kind": "integrity-verified exact published source extraction",
+      "source_urls": [
+        "https://registry.npmjs.org/@jridgewell/remapping/-/remapping-2.3.5.tgz"
+      ]
+    },
+    {
+      "path": "/private/tmp/canlang-library-fit-20261007-published/jridgewell--remapping-2.3.5/source/src/build-source-map-tree.ts",
+      "sha256": "1497c772de19a781e9a75990552f61e512ff595d430f9d4aa2bf813f70a02ab6",
+      "bytes": 3393,
+      "lines": 89,
+      "kind": "integrity-verified exact published source extraction",
+      "source_urls": [
+        "https://registry.npmjs.org/@jridgewell/remapping/-/remapping-2.3.5.tgz"
+      ]
+    },
+    {
+      "path": "/private/tmp/canlang-library-fit-20261007-published/jridgewell--remapping-2.3.5/source/src/remapping.ts",
+      "sha256": "54909220f789eccb219010b900fe24b5c10008f74e1f5b95dac1eb2b5a057faf",
+      "bytes": 1448,
+      "lines": 42,
+      "kind": "integrity-verified exact published source extraction",
+      "source_urls": [
+        "https://registry.npmjs.org/@jridgewell/remapping/-/remapping-2.3.5.tgz"
+      ]
+    },
+    {
+      "path": "/private/tmp/canlang-library-fit-20261007-published/jridgewell--remapping-2.3.5/source/src/source-map-tree.ts",
+      "sha256": "f570fed38f3797896d5545b61aec0c912efa9e9a5e8f038fd3a4f1ad15a5b936",
+      "bytes": 4823,
+      "lines": 172,
+      "kind": "integrity-verified exact published source extraction",
+      "source_urls": [
+        "https://registry.npmjs.org/@jridgewell/remapping/-/remapping-2.3.5.tgz"
+      ]
+    },
+    {
+      "path": "/private/tmp/canlang-library-fit-20261007-published/jridgewell--remapping-2.3.5/source/src/source-map.ts",
+      "sha256": "cb65897036a8dd9f9ae9cb132977ba8d17546bc11bb1bc9a67d9e07f9448fee5",
+      "bytes": 1357,
+      "lines": 38,
+      "kind": "integrity-verified exact published source extraction",
+      "source_urls": [
+        "https://registry.npmjs.org/@jridgewell/remapping/-/remapping-2.3.5.tgz"
+      ]
+    },
+    {
+      "path": "/private/tmp/canlang-library-fit-20261007-published/jridgewell--remapping-2.3.5/source/src/types.ts",
+      "sha256": "ebfdb732a9bdfd4d5db655887082845ee4f49b328cfbc627204d6c6160dd4854",
+      "bytes": 588,
+      "lines": 27,
+      "kind": "integrity-verified exact published source extraction",
+      "source_urls": [
+        "https://registry.npmjs.org/@jridgewell/remapping/-/remapping-2.3.5.tgz"
+      ]
+    },
+    {
+      "path": "/private/tmp/canlang-library-fit-20261007-published/jridgewell--remapping-2.3.5/source/types/build-source-map-tree.d.cts",
+      "sha256": "de86ec16bb4f6c1927366d56dc4e5e159f5498b99827ed5f28d776a1c906d25d",
+      "bytes": 858,
+      "lines": 15,
+      "kind": "integrity-verified exact published source extraction",
+      "source_urls": [
+        "https://registry.npmjs.org/@jridgewell/remapping/-/remapping-2.3.5.tgz"
+      ]
+    },
+    {
+      "path": "/private/tmp/canlang-library-fit-20261007-published/jridgewell--remapping-2.3.5/source/types/build-source-map-tree.d.cts.map",
+      "sha256": "4eec0583330f90f4e054a6e2454ccce27eb583da2bcf18a7d57d1348621607e6",
+      "bytes": 375,
+      "lines": 1,
+      "kind": "integrity-verified exact published source extraction",
+      "source_urls": [
+        "https://registry.npmjs.org/@jridgewell/remapping/-/remapping-2.3.5.tgz"
+      ]
+    },
+    {
+      "path": "/private/tmp/canlang-library-fit-20261007-published/jridgewell--remapping-2.3.5/source/types/build-source-map-tree.d.mts",
+      "sha256": "6d726757c37bb2524b601e9636e5871ef5854d5a4b4958210ef62660ce536b3e",
+      "bytes": 858,
+      "lines": 15,
+      "kind": "integrity-verified exact published source extraction",
+      "source_urls": [
+        "https://registry.npmjs.org/@jridgewell/remapping/-/remapping-2.3.5.tgz"
+      ]
+    },
+    {
+      "path": "/private/tmp/canlang-library-fit-20261007-published/jridgewell--remapping-2.3.5/source/types/build-source-map-tree.d.mts.map",
+      "sha256": "4eec0583330f90f4e054a6e2454ccce27eb583da2bcf18a7d57d1348621607e6",
+      "bytes": 375,
+      "lines": 1,
+      "kind": "integrity-verified exact published source extraction",
+      "source_urls": [
+        "https://registry.npmjs.org/@jridgewell/remapping/-/remapping-2.3.5.tgz"
+      ]
+    },
+    {
+      "path": "/private/tmp/canlang-library-fit-20261007-published/jridgewell--remapping-2.3.5/source/types/remapping.d.cts",
+      "sha256": "2db4528e24a7317891e294e7ac99c6391b7f53b39ad8835f624a401f639914e6",
+      "bytes": 1145,
+      "lines": 21,
+      "kind": "integrity-verified exact published source extraction",
+      "source_urls": [
+        "https://registry.npmjs.org/@jridgewell/remapping/-/remapping-2.3.5.tgz"
+      ]
+    },
+    {
+      "path": "/private/tmp/canlang-library-fit-20261007-published/jridgewell--remapping-2.3.5/source/types/remapping.d.cts.map",
+      "sha256": "4b9e2a640989573510096e65bbaf4cb581e60b66405874b506584e281e5e2e9f",
+      "bytes": 534,
+      "lines": 1,
+      "kind": "integrity-verified exact published source extraction",
+      "source_urls": [
+        "https://registry.npmjs.org/@jridgewell/remapping/-/remapping-2.3.5.tgz"
+      ]
+    },
+    {
+      "path": "/private/tmp/canlang-library-fit-20261007-published/jridgewell--remapping-2.3.5/source/types/remapping.d.mts",
+      "sha256": "6c47625fd1b70322bf42f53e0255cb4a9a3f845edef2282ffb3b3a08c0aea196",
+      "bytes": 1145,
+      "lines": 21,
+      "kind": "integrity-verified exact published source extraction",
+      "source_urls": [
+        "https://registry.npmjs.org/@jridgewell/remapping/-/remapping-2.3.5.tgz"
+      ]
+    },
+    {
+      "path": "/private/tmp/canlang-library-fit-20261007-published/jridgewell--remapping-2.3.5/source/types/remapping.d.mts.map",
+      "sha256": "4b9e2a640989573510096e65bbaf4cb581e60b66405874b506584e281e5e2e9f",
+      "bytes": 534,
+      "lines": 1,
+      "kind": "integrity-verified exact published source extraction",
+      "source_urls": [
+        "https://registry.npmjs.org/@jridgewell/remapping/-/remapping-2.3.5.tgz"
+      ]
+    },
+    {
+      "path": "/private/tmp/canlang-library-fit-20261007-published/jridgewell--remapping-2.3.5/source/types/source-map-tree.d.cts",
+      "sha256": "fb1a7252a8584d4dfcea9b8dde906ec172aa9ca97e6ce854f46eb80d11723852",
+      "bytes": 1688,
+      "lines": 46,
+      "kind": "integrity-verified exact published source extraction",
+      "source_urls": [
+        "https://registry.npmjs.org/@jridgewell/remapping/-/remapping-2.3.5.tgz"
+      ]
+    },
+    {
+      "path": "/private/tmp/canlang-library-fit-20261007-published/jridgewell--remapping-2.3.5/source/types/source-map-tree.d.cts.map",
+      "sha256": "aa0d9bace27e30fa5e554afd3198040d8f432c906a7b2d0fe9761c9f8d135cdd",
+      "bytes": 1222,
+      "lines": 1,
+      "kind": "integrity-verified exact published source extraction",
+      "source_urls": [
+        "https://registry.npmjs.org/@jridgewell/remapping/-/remapping-2.3.5.tgz"
+      ]
+    },
+    {
+      "path": "/private/tmp/canlang-library-fit-20261007-published/jridgewell--remapping-2.3.5/source/types/source-map-tree.d.mts",
+      "sha256": "fb1a7252a8584d4dfcea9b8dde906ec172aa9ca97e6ce854f46eb80d11723852",
+      "bytes": 1688,
+      "lines": 46,
+      "kind": "integrity-verified exact published source extraction",
+      "source_urls": [
+        "https://registry.npmjs.org/@jridgewell/remapping/-/remapping-2.3.5.tgz"
+      ]
+    },
+    {
+      "path": "/private/tmp/canlang-library-fit-20261007-published/jridgewell--remapping-2.3.5/source/types/source-map-tree.d.mts.map",
+      "sha256": "aa0d9bace27e30fa5e554afd3198040d8f432c906a7b2d0fe9761c9f8d135cdd",
+      "bytes": 1222,
+      "lines": 1,
+      "kind": "integrity-verified exact published source extraction",
+      "source_urls": [
+        "https://registry.npmjs.org/@jridgewell/remapping/-/remapping-2.3.5.tgz"
+      ]
+    },
+    {
+      "path": "/private/tmp/canlang-library-fit-20261007-published/jridgewell--remapping-2.3.5/source/types/source-map.d.cts",
+      "sha256": "50e0c76fa42ed7b41573981de5cce6b1b616834f4e064896887f4d4d7a537e9c",
+      "bytes": 667,
+      "lines": 19,
+      "kind": "integrity-verified exact published source extraction",
+      "source_urls": [
+        "https://registry.npmjs.org/@jridgewell/remapping/-/remapping-2.3.5.tgz"
+      ]
+    },
+    {
+      "path": "/private/tmp/canlang-library-fit-20261007-published/jridgewell--remapping-2.3.5/source/types/source-map.d.cts.map",
+      "sha256": "7a1c6d0e2be8a6f4dcd19f0ecfd2d7cc6cf67376d1efac99cfbf2750bcae22f5",
+      "bytes": 688,
+      "lines": 1,
+      "kind": "integrity-verified exact published source extraction",
+      "source_urls": [
+        "https://registry.npmjs.org/@jridgewell/remapping/-/remapping-2.3.5.tgz"
+      ]
+    },
+    {
+      "path": "/private/tmp/canlang-library-fit-20261007-published/jridgewell--remapping-2.3.5/source/types/source-map.d.mts",
+      "sha256": "b1b27f6bd3a631809d0ef5cf0a566fcc036d388d17e4e29db5483ba8d4fb0da2",
+      "bytes": 667,
+      "lines": 19,
+      "kind": "integrity-verified exact published source extraction",
+      "source_urls": [
+        "https://registry.npmjs.org/@jridgewell/remapping/-/remapping-2.3.5.tgz"
+      ]
+    },
+    {
+      "path": "/private/tmp/canlang-library-fit-20261007-published/jridgewell--remapping-2.3.5/source/types/source-map.d.mts.map",
+      "sha256": "7a1c6d0e2be8a6f4dcd19f0ecfd2d7cc6cf67376d1efac99cfbf2750bcae22f5",
+      "bytes": 688,
+      "lines": 1,
+      "kind": "integrity-verified exact published source extraction",
+      "source_urls": [
+        "https://registry.npmjs.org/@jridgewell/remapping/-/remapping-2.3.5.tgz"
+      ]
+    },
+    {
+      "path": "/private/tmp/canlang-library-fit-20261007-published/jridgewell--remapping-2.3.5/source/types/types.d.cts",
+      "sha256": "06e9dd2c4ade4e3af9290444235bcace46e47e332cdeb7d89514ec83721852f8",
+      "bytes": 619,
+      "lines": 16,
+      "kind": "integrity-verified exact published source extraction",
+      "source_urls": [
+        "https://registry.npmjs.org/@jridgewell/remapping/-/remapping-2.3.5.tgz"
+      ]
+    },
+    {
+      "path": "/private/tmp/canlang-library-fit-20261007-published/jridgewell--remapping-2.3.5/source/types/types.d.cts.map",
+      "sha256": "0bbc212b1cad2f1a83aaa0c1307ac93800557994e1982ae7cec9429bd7bb043a",
+      "bytes": 679,
+      "lines": 1,
+      "kind": "integrity-verified exact published source extraction",
+      "source_urls": [
+        "https://registry.npmjs.org/@jridgewell/remapping/-/remapping-2.3.5.tgz"
+      ]
+    },
+    {
+      "path": "/private/tmp/canlang-library-fit-20261007-published/jridgewell--remapping-2.3.5/source/types/types.d.mts",
+      "sha256": "06e9dd2c4ade4e3af9290444235bcace46e47e332cdeb7d89514ec83721852f8",
+      "bytes": 619,
+      "lines": 16,
+      "kind": "integrity-verified exact published source extraction",
+      "source_urls": [
+        "https://registry.npmjs.org/@jridgewell/remapping/-/remapping-2.3.5.tgz"
+      ]
+    },
+    {
+      "path": "/private/tmp/canlang-library-fit-20261007-published/jridgewell--remapping-2.3.5/source/types/types.d.mts.map",
+      "sha256": "0bbc212b1cad2f1a83aaa0c1307ac93800557994e1982ae7cec9429bd7bb043a",
+      "bytes": 679,
+      "lines": 1,
+      "kind": "integrity-verified exact published source extraction",
+      "source_urls": [
+        "https://registry.npmjs.org/@jridgewell/remapping/-/remapping-2.3.5.tgz"
+      ]
+    },
+    {
+      "path": "/private/tmp/canlang-library-fit-20261007-published/jridgewell--sourcemap-codec-1.6.0/source/LICENSE",
+      "sha256": "769d154fbde32a915af110b1123650bc79f4cbe675acc66e005265bf069c6c6c",
+      "bytes": 1080,
+      "lines": 19,
+      "kind": "integrity-verified exact published source extraction",
+      "source_urls": [
+        "https://registry.npmjs.org/@jridgewell/sourcemap-codec/-/sourcemap-codec-1.6.0.tgz"
+      ]
+    },
+    {
+      "path": "/private/tmp/canlang-library-fit-20261007-published/jridgewell--sourcemap-codec-1.6.0/source/README.md",
+      "sha256": "50e5282b46bafe5e2c87a0f224a86876067694f0434c5b27c0ea2d5bbceba5d7",
+      "bytes": 10051,
+      "lines": 264,
+      "kind": "integrity-verified exact published source extraction",
+      "source_urls": [
+        "https://registry.npmjs.org/@jridgewell/sourcemap-codec/-/sourcemap-codec-1.6.0.tgz"
+      ]
+    },
+    {
+      "path": "/private/tmp/canlang-library-fit-20261007-published/jridgewell--sourcemap-codec-1.6.0/source/dist/sourcemap-codec.mjs",
+      "sha256": "2768e18f3bf937a0111c98872ff3e8ec8f5165d103a082b91f5127351beab7d0",
+      "bytes": 14399,
+      "lines": 467,
+      "kind": "integrity-verified exact published source extraction",
+      "source_urls": [
+        "https://registry.npmjs.org/@jridgewell/sourcemap-codec/-/sourcemap-codec-1.6.0.tgz"
+      ]
+    },
+    {
+      "path": "/private/tmp/canlang-library-fit-20261007-published/jridgewell--sourcemap-codec-1.6.0/source/dist/sourcemap-codec.mjs.map",
+      "sha256": "7fecdb8892c06b7446c9924e3a12ed641dd8603a57fa5f86d5be05e5bc09ce36",
+      "bytes": 10813,
+      "lines": 6,
+      "kind": "integrity-verified exact published source extraction",
+      "source_urls": [
+        "https://registry.npmjs.org/@jridgewell/sourcemap-codec/-/sourcemap-codec-1.6.0.tgz"
+      ]
+    },
+    {
+      "path": "/private/tmp/canlang-library-fit-20261007-published/jridgewell--sourcemap-codec-1.6.0/source/dist/sourcemap-codec.umd.js",
+      "sha256": "36f67483c3beef15e041483b68e1b66e8b6b3e6c50ab654a5e97464082324cc9",
+      "bytes": 16174,
+      "lines": 508,
+      "kind": "integrity-verified exact published source extraction",
+      "source_urls": [
+        "https://registry.npmjs.org/@jridgewell/sourcemap-codec/-/sourcemap-codec-1.6.0.tgz"
+      ]
+    },
+    {
+      "path": "/private/tmp/canlang-library-fit-20261007-published/jridgewell--sourcemap-codec-1.6.0/source/dist/sourcemap-codec.umd.js.map",
+      "sha256": "689c8e81a7d5b977b31ca97e82a3bd0bd69c042d427e1809de3c917b0471bd92",
+      "bytes": 10911,
+      "lines": 6,
+      "kind": "integrity-verified exact published source extraction",
+      "source_urls": [
+        "https://registry.npmjs.org/@jridgewell/sourcemap-codec/-/sourcemap-codec-1.6.0.tgz"
+      ]
+    },
+    {
+      "path": "/private/tmp/canlang-library-fit-20261007-published/jridgewell--sourcemap-codec-1.6.0/source/package.json",
+      "sha256": "ac7afd57294dbee1f891ca797e19e405340f2cd6031808e6d3845fec60a5b43f",
+      "bytes": 2185,
+      "lines": 64,
+      "kind": "integrity-verified exact published source extraction",
+      "source_urls": [
+        "https://registry.npmjs.org/@jridgewell/sourcemap-codec/-/sourcemap-codec-1.6.0.tgz"
+      ]
+    },
+    {
+      "path": "/private/tmp/canlang-library-fit-20261007-published/jridgewell--sourcemap-codec-1.6.0/source/src/range-mappings.ts",
+      "sha256": "92f3d5ec89d449a93f2dc47aa14dbaffde19fcbabc867807849ca2bc86d79465",
+      "bytes": 1187,
+      "lines": 47,
+      "kind": "integrity-verified exact published source extraction",
+      "source_urls": [
+        "https://registry.npmjs.org/@jridgewell/sourcemap-codec/-/sourcemap-codec-1.6.0.tgz"
+      ]
+    },
+    {
+      "path": "/private/tmp/canlang-library-fit-20261007-published/jridgewell--sourcemap-codec-1.6.0/source/src/scopes.ts",
+      "sha256": "33a78f87f91d6f916b8c51971e8f5d90b08452f66577fd77d05a41ac4a887adf",
+      "bytes": 10325,
+      "lines": 365,
+      "kind": "integrity-verified exact published source extraction",
+      "source_urls": [
+        "https://registry.npmjs.org/@jridgewell/sourcemap-codec/-/sourcemap-codec-1.6.0.tgz"
+      ]
+    },
+    {
+      "path": "/private/tmp/canlang-library-fit-20261007-published/jridgewell--sourcemap-codec-1.6.0/source/src/sourcemap-codec.ts",
+      "sha256": "91d136138bf0d2a4c4d9ca811cc10af74eead3165b75edb5eaa9ddf5337e5fc9",
+      "bytes": 3546,
+      "lines": 127,
+      "kind": "integrity-verified exact published source extraction",
+      "source_urls": [
+        "https://registry.npmjs.org/@jridgewell/sourcemap-codec/-/sourcemap-codec-1.6.0.tgz"
+      ]
+    },
+    {
+      "path": "/private/tmp/canlang-library-fit-20261007-published/jridgewell--sourcemap-codec-1.6.0/source/src/strings.ts",
+      "sha256": "d9c2ebe7557f5bd45a06a34d7e88d58d554f4a091a9384204f2933582e3ef390",
+      "bytes": 1503,
+      "lines": 65,
+      "kind": "integrity-verified exact published source extraction",
+      "source_urls": [
+        "https://registry.npmjs.org/@jridgewell/sourcemap-codec/-/sourcemap-codec-1.6.0.tgz"
+      ]
+    },
+    {
+      "path": "/private/tmp/canlang-library-fit-20261007-published/jridgewell--sourcemap-codec-1.6.0/source/src/vlq.ts",
+      "sha256": "6aff12a00b5a44ada57df49bddc90f90fead9dc230463b49784904373bd11ecd",
+      "bytes": 1324,
+      "lines": 51,
+      "kind": "integrity-verified exact published source extraction",
+      "source_urls": [
+        "https://registry.npmjs.org/@jridgewell/sourcemap-codec/-/sourcemap-codec-1.6.0.tgz"
+      ]
+    },
+    {
+      "path": "/private/tmp/canlang-library-fit-20261007-published/jridgewell--sourcemap-codec-1.6.0/source/types/range-mappings.d.cts",
+      "sha256": "f2a9fff04c228536177c0af6fad8f0bbcc5ab3a9d7c66474074ba1cd85961b8e",
+      "bytes": 277,
+      "lines": 5,
+      "kind": "integrity-verified exact published source extraction",
+      "source_urls": [
+        "https://registry.npmjs.org/@jridgewell/sourcemap-codec/-/sourcemap-codec-1.6.0.tgz"
+      ]
+    },
+    {
+      "path": "/private/tmp/canlang-library-fit-20261007-published/jridgewell--sourcemap-codec-1.6.0/source/types/range-mappings.d.cts.map",
+      "sha256": "52b6d9b6c7ca2ecf325046a53ebe0d398aec5ed7f2c561628caf5c250ea4aaa2",
+      "bytes": 315,
+      "lines": 1,
+      "kind": "integrity-verified exact published source extraction",
+      "source_urls": [
+        "https://registry.npmjs.org/@jridgewell/sourcemap-codec/-/sourcemap-codec-1.6.0.tgz"
+      ]
+    },
+    {
+      "path": "/private/tmp/canlang-library-fit-20261007-published/jridgewell--sourcemap-codec-1.6.0/source/types/range-mappings.d.mts",
+      "sha256": "f2a9fff04c228536177c0af6fad8f0bbcc5ab3a9d7c66474074ba1cd85961b8e",
+      "bytes": 277,
+      "lines": 5,
+      "kind": "integrity-verified exact published source extraction",
+      "source_urls": [
+        "https://registry.npmjs.org/@jridgewell/sourcemap-codec/-/sourcemap-codec-1.6.0.tgz"
+      ]
+    },
+    {
+      "path": "/private/tmp/canlang-library-fit-20261007-published/jridgewell--sourcemap-codec-1.6.0/source/types/range-mappings.d.mts.map",
+      "sha256": "52b6d9b6c7ca2ecf325046a53ebe0d398aec5ed7f2c561628caf5c250ea4aaa2",
+      "bytes": 315,
+      "lines": 1,
+      "kind": "integrity-verified exact published source extraction",
+      "source_urls": [
+        "https://registry.npmjs.org/@jridgewell/sourcemap-codec/-/sourcemap-codec-1.6.0.tgz"
+      ]
+    },
+    {
+      "path": "/private/tmp/canlang-library-fit-20261007-published/jridgewell--sourcemap-codec-1.6.0/source/types/scopes.d.cts",
+      "sha256": "9215cd205d56527b92fe419ee695fc44aab8401725fa8bc6cb1415287689abdf",
+      "bytes": 1151,
+      "lines": 50,
+      "kind": "integrity-verified exact published source extraction",
+      "source_urls": [
+        "https://registry.npmjs.org/@jridgewell/sourcemap-codec/-/sourcemap-codec-1.6.0.tgz"
+      ]
+    },
+    {
+      "path": "/private/tmp/canlang-library-fit-20261007-published/jridgewell--sourcemap-codec-1.6.0/source/types/scopes.d.cts.map",
+      "sha256": "dfbb6f23e63c0bcc3975975d1402cb54c2b984860220b96baa0783cc45a262d6",
+      "bytes": 1348,
+      "lines": 1,
+      "kind": "integrity-verified exact published source extraction",
+      "source_urls": [
+        "https://registry.npmjs.org/@jridgewell/sourcemap-codec/-/sourcemap-codec-1.6.0.tgz"
+      ]
+    },
+    {
+      "path": "/private/tmp/canlang-library-fit-20261007-published/jridgewell--sourcemap-codec-1.6.0/source/types/scopes.d.mts",
+      "sha256": "9215cd205d56527b92fe419ee695fc44aab8401725fa8bc6cb1415287689abdf",
+      "bytes": 1151,
+      "lines": 50,
+      "kind": "integrity-verified exact published source extraction",
+      "source_urls": [
+        "https://registry.npmjs.org/@jridgewell/sourcemap-codec/-/sourcemap-codec-1.6.0.tgz"
+      ]
+    },
+    {
+      "path": "/private/tmp/canlang-library-fit-20261007-published/jridgewell--sourcemap-codec-1.6.0/source/types/scopes.d.mts.map",
+      "sha256": "dfbb6f23e63c0bcc3975975d1402cb54c2b984860220b96baa0783cc45a262d6",
+      "bytes": 1348,
+      "lines": 1,
+      "kind": "integrity-verified exact published source extraction",
+      "source_urls": [
+        "https://registry.npmjs.org/@jridgewell/sourcemap-codec/-/sourcemap-codec-1.6.0.tgz"
+      ]
+    },
+    {
+      "path": "/private/tmp/canlang-library-fit-20261007-published/jridgewell--sourcemap-codec-1.6.0/source/types/sourcemap-codec.d.cts",
+      "sha256": "656b72c220eeceff656b97e83e34d28304a6867bebb37d561f2428611bfd0d87",
+      "bytes": 853,
+      "lines": 11,
+      "kind": "integrity-verified exact published source extraction",
+      "source_urls": [
+        "https://registry.npmjs.org/@jridgewell/sourcemap-codec/-/sourcemap-codec-1.6.0.tgz"
+      ]
+    },
+    {
+      "path": "/private/tmp/canlang-library-fit-20261007-published/jridgewell--sourcemap-codec-1.6.0/source/types/sourcemap-codec.d.cts.map",
+      "sha256": "d424e848d09173357f62dd3bb6614c31e6ee279db51054f95002eb2a02884d08",
+      "bytes": 815,
+      "lines": 1,
+      "kind": "integrity-verified exact published source extraction",
+      "source_urls": [
+        "https://registry.npmjs.org/@jridgewell/sourcemap-codec/-/sourcemap-codec-1.6.0.tgz"
+      ]
+    },
+    {
+      "path": "/private/tmp/canlang-library-fit-20261007-published/jridgewell--sourcemap-codec-1.6.0/source/types/sourcemap-codec.d.mts",
+      "sha256": "4f345aff806897a6a68063e974114405eb9f0ddf9de87b89f9cb37867bb74910",
+      "bytes": 853,
+      "lines": 11,
+      "kind": "integrity-verified exact published source extraction",
+      "source_urls": [
+        "https://registry.npmjs.org/@jridgewell/sourcemap-codec/-/sourcemap-codec-1.6.0.tgz"
+      ]
+    },
+    {
+      "path": "/private/tmp/canlang-library-fit-20261007-published/jridgewell--sourcemap-codec-1.6.0/source/types/sourcemap-codec.d.mts.map",
+      "sha256": "d424e848d09173357f62dd3bb6614c31e6ee279db51054f95002eb2a02884d08",
+      "bytes": 815,
+      "lines": 1,
+      "kind": "integrity-verified exact published source extraction",
+      "source_urls": [
+        "https://registry.npmjs.org/@jridgewell/sourcemap-codec/-/sourcemap-codec-1.6.0.tgz"
+      ]
+    },
+    {
+      "path": "/private/tmp/canlang-library-fit-20261007-published/jridgewell--sourcemap-codec-1.6.0/source/types/strings.d.cts",
+      "sha256": "28fae3d88328335f864e689b012e5d12c9dbe4df4b5537a3bd1bb4a3bab153cf",
+      "bytes": 361,
+      "lines": 16,
+      "kind": "integrity-verified exact published source extraction",
+      "source_urls": [
+        "https://registry.npmjs.org/@jridgewell/sourcemap-codec/-/sourcemap-codec-1.6.0.tgz"
+      ]
+    },
+    {
+      "path": "/private/tmp/canlang-library-fit-20261007-published/jridgewell--sourcemap-codec-1.6.0/source/types/strings.d.cts.map",
+      "sha256": "01801f41a1f267a7fef5576710998d477ea647b27ae75b7c3e47ac87874f085f",
+      "bytes": 422,
+      "lines": 1,
+      "kind": "integrity-verified exact published source extraction",
+      "source_urls": [
+        "https://registry.npmjs.org/@jridgewell/sourcemap-codec/-/sourcemap-codec-1.6.0.tgz"
+      ]
+    },
+    {
+      "path": "/private/tmp/canlang-library-fit-20261007-published/jridgewell--sourcemap-codec-1.6.0/source/types/strings.d.mts",
+      "sha256": "28fae3d88328335f864e689b012e5d12c9dbe4df4b5537a3bd1bb4a3bab153cf",
+      "bytes": 361,
+      "lines": 16,
+      "kind": "integrity-verified exact published source extraction",
+      "source_urls": [
+        "https://registry.npmjs.org/@jridgewell/sourcemap-codec/-/sourcemap-codec-1.6.0.tgz"
+      ]
+    },
+    {
+      "path": "/private/tmp/canlang-library-fit-20261007-published/jridgewell--sourcemap-codec-1.6.0/source/types/strings.d.mts.map",
+      "sha256": "01801f41a1f267a7fef5576710998d477ea647b27ae75b7c3e47ac87874f085f",
+      "bytes": 422,
+      "lines": 1,
+      "kind": "integrity-verified exact published source extraction",
+      "source_urls": [
+        "https://registry.npmjs.org/@jridgewell/sourcemap-codec/-/sourcemap-codec-1.6.0.tgz"
+      ]
+    },
+    {
+      "path": "/private/tmp/canlang-library-fit-20261007-published/jridgewell--sourcemap-codec-1.6.0/source/types/vlq.d.cts",
+      "sha256": "22cdbd5f4004dd8a4cf7933c0548ca952fe0386e93007bd747f7e82a97e28696",
+      "bytes": 518,
+      "lines": 9,
+      "kind": "integrity-verified exact published source extraction",
+      "source_urls": [
+        "https://registry.npmjs.org/@jridgewell/sourcemap-codec/-/sourcemap-codec-1.6.0.tgz"
+      ]
+    },
+    {
+      "path": "/private/tmp/canlang-library-fit-20261007-published/jridgewell--sourcemap-codec-1.6.0/source/types/vlq.d.cts.map",
+      "sha256": "c0d4a1742ffc498476e7e3db3ffaf48b18515236d682c122562e5138f9949e7c",
+      "bytes": 504,
+      "lines": 1,
+      "kind": "integrity-verified exact published source extraction",
+      "source_urls": [
+        "https://registry.npmjs.org/@jridgewell/sourcemap-codec/-/sourcemap-codec-1.6.0.tgz"
+      ]
+    },
+    {
+      "path": "/private/tmp/canlang-library-fit-20261007-published/jridgewell--sourcemap-codec-1.6.0/source/types/vlq.d.mts",
+      "sha256": "a8a559a84a6405cd8c0e3ba5d6759bbfad195aea5465399e110fd1915150e6c2",
+      "bytes": 518,
+      "lines": 9,
+      "kind": "integrity-verified exact published source extraction",
+      "source_urls": [
+        "https://registry.npmjs.org/@jridgewell/sourcemap-codec/-/sourcemap-codec-1.6.0.tgz"
+      ]
+    },
+    {
+      "path": "/private/tmp/canlang-library-fit-20261007-published/jridgewell--sourcemap-codec-1.6.0/source/types/vlq.d.mts.map",
+      "sha256": "c0d4a1742ffc498476e7e3db3ffaf48b18515236d682c122562e5138f9949e7c",
+      "bytes": 504,
+      "lines": 1,
+      "kind": "integrity-verified exact published source extraction",
+      "source_urls": [
+        "https://registry.npmjs.org/@jridgewell/sourcemap-codec/-/sourcemap-codec-1.6.0.tgz"
+      ]
+    },
+    {
+      "path": "/private/tmp/canlang-library-fit-20261007-published/jridgewell--trace-mapping-0.3.31/source/LICENSE",
+      "sha256": "769d154fbde32a915af110b1123650bc79f4cbe675acc66e005265bf069c6c6c",
+      "bytes": 1080,
+      "lines": 19,
+      "kind": "integrity-verified exact published source extraction",
+      "source_urls": [
+        "https://registry.npmjs.org/@jridgewell/trace-mapping/-/trace-mapping-0.3.31.tgz"
+      ]
+    },
+    {
+      "path": "/private/tmp/canlang-library-fit-20261007-published/jridgewell--trace-mapping-0.3.31/source/README.md",
+      "sha256": "bc4a19f3e6ac9a3faeefa0687570a6d32ea925365a0705523c064b721c47c799",
+      "bytes": 14417,
+      "lines": 348,
+      "kind": "integrity-verified exact published source extraction",
+      "source_urls": [
+        "https://registry.npmjs.org/@jridgewell/trace-mapping/-/trace-mapping-0.3.31.tgz"
+      ]
+    },
+    {
+      "path": "/private/tmp/canlang-library-fit-20261007-published/jridgewell--trace-mapping-0.3.31/source/dist/trace-mapping.mjs",
+      "sha256": "ddcf6097a82c7b16c267f6fb592578205c31e09adf54d3978b6250cca18ed86f",
+      "bytes": 15335,
+      "lines": 493,
+      "kind": "integrity-verified exact published source extraction",
+      "source_urls": [
+        "https://registry.npmjs.org/@jridgewell/trace-mapping/-/trace-mapping-0.3.31.tgz"
+      ]
+    },
+    {
+      "path": "/private/tmp/canlang-library-fit-20261007-published/jridgewell--trace-mapping-0.3.31/source/dist/trace-mapping.mjs.map",
+      "sha256": "8d6c357eaa626e6809cde55d373b7d3bfa17d2d6fc6bc05d2ac0a36308163567",
+      "bytes": 11208,
+      "lines": 6,
+      "kind": "integrity-verified exact published source extraction",
+      "source_urls": [
+        "https://registry.npmjs.org/@jridgewell/trace-mapping/-/trace-mapping-0.3.31.tgz"
+      ]
+    },
+    {
+      "path": "/private/tmp/canlang-library-fit-20261007-published/jridgewell--trace-mapping-0.3.31/source/dist/trace-mapping.umd.js",
+      "sha256": "5ad4ec0709f78aa806c70965d4c162270e1df605f5572aa3a1ced31fe73dd07a",
+      "bytes": 18670,
+      "lines": 559,
+      "kind": "integrity-verified exact published source extraction",
+      "source_urls": [
+        "https://registry.npmjs.org/@jridgewell/trace-mapping/-/trace-mapping-0.3.31.tgz"
+      ]
+    },
+    {
+      "path": "/private/tmp/canlang-library-fit-20261007-published/jridgewell--trace-mapping-0.3.31/source/dist/trace-mapping.umd.js.map",
+      "sha256": "deb2abbb333a3c55331d1e3cfbf31dadd68e4e2ea127f826501ba26edab47608",
+      "bytes": 11570,
+      "lines": 6,
+      "kind": "integrity-verified exact published source extraction",
+      "source_urls": [
+        "https://registry.npmjs.org/@jridgewell/trace-mapping/-/trace-mapping-0.3.31.tgz"
+      ]
+    },
+    {
+      "path": "/private/tmp/canlang-library-fit-20261007-published/jridgewell--trace-mapping-0.3.31/source/package.json",
+      "sha256": "7f5eacc669d36013f9b792ab15721a97d48b26b093100122aa6c8691ebe656be",
+      "bytes": 2252,
+      "lines": 67,
+      "kind": "integrity-verified exact published source extraction",
+      "source_urls": [
+        "https://registry.npmjs.org/@jridgewell/trace-mapping/-/trace-mapping-0.3.31.tgz"
+      ]
+    },
+    {
+      "path": "/private/tmp/canlang-library-fit-20261007-published/jridgewell--trace-mapping-0.3.31/source/src/binary-search.ts",
+      "sha256": "ae7ae4c8879a66c98ab0b1197e8e4110d121ac21cf52482dd66f6a4788e6c933",
+      "bytes": 2793,
+      "lines": 115,
+      "kind": "integrity-verified exact published source extraction",
+      "source_urls": [
+        "https://registry.npmjs.org/@jridgewell/trace-mapping/-/trace-mapping-0.3.31.tgz"
+      ]
+    },
+    {
+      "path": "/private/tmp/canlang-library-fit-20261007-published/jridgewell--trace-mapping-0.3.31/source/src/by-source.ts",
+      "sha256": "dc8a55d9a17dfbe75334c6f274d50e86677a334daa4c68c1c3ab1451ddb722ff",
+      "bytes": 1244,
+      "lines": 41,
+      "kind": "integrity-verified exact published source extraction",
+      "source_urls": [
+        "https://registry.npmjs.org/@jridgewell/trace-mapping/-/trace-mapping-0.3.31.tgz"
+      ]
+    },
+    {
+      "path": "/private/tmp/canlang-library-fit-20261007-published/jridgewell--trace-mapping-0.3.31/source/src/flatten-map.ts",
+      "sha256": "5b1194dcdafd44aedfe0076c72e2ac6757e617c9a5e3bc8fd5712189a7de6491",
+      "bytes": 5417,
+      "lines": 192,
+      "kind": "integrity-verified exact published source extraction",
+      "source_urls": [
+        "https://registry.npmjs.org/@jridgewell/trace-mapping/-/trace-mapping-0.3.31.tgz"
+      ]
+    },
+    {
+      "path": "/private/tmp/canlang-library-fit-20261007-published/jridgewell--trace-mapping-0.3.31/source/src/resolve.ts",
+      "sha256": "c7e1c5732de10ed3801666733cc8130fa72e55a91a8d74d8ed7dabc114aba57f",
+      "bytes": 699,
+      "lines": 16,
+      "kind": "integrity-verified exact published source extraction",
+      "source_urls": [
+        "https://registry.npmjs.org/@jridgewell/trace-mapping/-/trace-mapping-0.3.31.tgz"
+      ]
+    },
+    {
+      "path": "/private/tmp/canlang-library-fit-20261007-published/jridgewell--trace-mapping-0.3.31/source/src/sort.ts",
+      "sha256": "afc9d966ec471f1be9f6e6843d009b30ce0a37853cbc31ec9834c8d273286403",
+      "bytes": 1445,
+      "lines": 45,
+      "kind": "integrity-verified exact published source extraction",
+      "source_urls": [
+        "https://registry.npmjs.org/@jridgewell/trace-mapping/-/trace-mapping-0.3.31.tgz"
+      ]
+    },
+    {
+      "path": "/private/tmp/canlang-library-fit-20261007-published/jridgewell--trace-mapping-0.3.31/source/src/sourcemap-segment.ts",
+      "sha256": "691633f8781f475dfe47b2c91d2ef0e253b0b58f004c6fc51b81fc903138cbcb",
+      "bytes": 665,
+      "lines": 23,
+      "kind": "integrity-verified exact published source extraction",
+      "source_urls": [
+        "https://registry.npmjs.org/@jridgewell/trace-mapping/-/trace-mapping-0.3.31.tgz"
+      ]
+    },
+    {
+      "path": "/private/tmp/canlang-library-fit-20261007-published/jridgewell--trace-mapping-0.3.31/source/src/strip-filename.ts",
+      "sha256": "66f7d317bfda55df933db5a029f646cb25aebec305773edfc2d84605307492b7",
+      "bytes": 253,
+      "lines": 8,
+      "kind": "integrity-verified exact published source extraction",
+      "source_urls": [
+        "https://registry.npmjs.org/@jridgewell/trace-mapping/-/trace-mapping-0.3.31.tgz"
+      ]
+    },
+    {
+      "path": "/private/tmp/canlang-library-fit-20261007-published/jridgewell--trace-mapping-0.3.31/source/src/trace-mapping.ts",
+      "sha256": "f37d9db53896dd9adb199cb75b79ab33c8c588b5a25793b714e20dad2f77187b",
+      "bytes": 15414,
+      "lines": 502,
+      "kind": "integrity-verified exact published source extraction",
+      "source_urls": [
+        "https://registry.npmjs.org/@jridgewell/trace-mapping/-/trace-mapping-0.3.31.tgz"
+      ]
+    },
+    {
+      "path": "/private/tmp/canlang-library-fit-20261007-published/jridgewell--trace-mapping-0.3.31/source/src/types.ts",
+      "sha256": "ee844c77a35506b757cd0bf21e8170b3422989c2cb13f2839cf6264e8bbef241",
+      "bytes": 3166,
+      "lines": 114,
+      "kind": "integrity-verified exact published source extraction",
+      "source_urls": [
+        "https://registry.npmjs.org/@jridgewell/trace-mapping/-/trace-mapping-0.3.31.tgz"
+      ]
+    },
+    {
+      "path": "/private/tmp/canlang-library-fit-20261007-published/jridgewell--trace-mapping-0.3.31/source/types/binary-search.d.cts",
+      "sha256": "f6cff70e413f1e8f5b3b5649a08b05421dacb07b526f58f9fb8819d95a273f39",
+      "bytes": 1585,
+      "lines": 33,
+      "kind": "integrity-verified exact published source extraction",
+      "source_urls": [
+        "https://registry.npmjs.org/@jridgewell/trace-mapping/-/trace-mapping-0.3.31.tgz"
+      ]
+    },
+    {
+      "path": "/private/tmp/canlang-library-fit-20261007-published/jridgewell--trace-mapping-0.3.31/source/types/binary-search.d.cts.map",
+      "sha256": "eb1efc4186cc9692582372f788f5d7dddb0cd9f37e2e02e549d381dca7f75b76",
+      "bytes": 902,
+      "lines": 1,
+      "kind": "integrity-verified exact published source extraction",
+      "source_urls": [
+        "https://registry.npmjs.org/@jridgewell/trace-mapping/-/trace-mapping-0.3.31.tgz"
+      ]
+    },
+    {
+      "path": "/private/tmp/canlang-library-fit-20261007-published/jridgewell--trace-mapping-0.3.31/source/types/binary-search.d.mts",
+      "sha256": "62fba7df9c1fef09dc568f43ada328e06161274b7ea0e2d14ccb65f852fe05c6",
+      "bytes": 1585,
+      "lines": 33,
+      "kind": "integrity-verified exact published source extraction",
+      "source_urls": [
+        "https://registry.npmjs.org/@jridgewell/trace-mapping/-/trace-mapping-0.3.31.tgz"
+      ]
+    },
+    {
+      "path": "/private/tmp/canlang-library-fit-20261007-published/jridgewell--trace-mapping-0.3.31/source/types/binary-search.d.mts.map",
+      "sha256": "eb1efc4186cc9692582372f788f5d7dddb0cd9f37e2e02e549d381dca7f75b76",
+      "bytes": 902,
+      "lines": 1,
+      "kind": "integrity-verified exact published source extraction",
+      "source_urls": [
+        "https://registry.npmjs.org/@jridgewell/trace-mapping/-/trace-mapping-0.3.31.tgz"
+      ]
+    },
+    {
+      "path": "/private/tmp/canlang-library-fit-20261007-published/jridgewell--trace-mapping-0.3.31/source/types/by-source.d.cts",
+      "sha256": "99d91012694196b2a4f793c4e94365fb71411678f510fb1238e65ba804eb7680",
+      "bytes": 269,
+      "lines": 4,
+      "kind": "integrity-verified exact published source extraction",
+      "source_urls": [
+        "https://registry.npmjs.org/@jridgewell/trace-mapping/-/trace-mapping-0.3.31.tgz"
+      ]
+    },
+    {
+      "path": "/private/tmp/canlang-library-fit-20261007-published/jridgewell--trace-mapping-0.3.31/source/types/by-source.d.cts.map",
+      "sha256": "703132ce95a792475cfc9538210faedc6c54a789ce67688fb9d978a15fd13f66",
+      "bytes": 332,
+      "lines": 1,
+      "kind": "integrity-verified exact published source extraction",
+      "source_urls": [
+        "https://registry.npmjs.org/@jridgewell/trace-mapping/-/trace-mapping-0.3.31.tgz"
+      ]
+    },
+    {
+      "path": "/private/tmp/canlang-library-fit-20261007-published/jridgewell--trace-mapping-0.3.31/source/types/by-source.d.mts",
+      "sha256": "440b7897a0537788ba5b018bf8cabaa7287ba9012145134151d1e2f36bbe587a",
+      "bytes": 269,
+      "lines": 4,
+      "kind": "integrity-verified exact published source extraction",
+      "source_urls": [
+        "https://registry.npmjs.org/@jridgewell/trace-mapping/-/trace-mapping-0.3.31.tgz"
+      ]
+    },
+    {
+      "path": "/private/tmp/canlang-library-fit-20261007-published/jridgewell--trace-mapping-0.3.31/source/types/by-source.d.mts.map",
+      "sha256": "703132ce95a792475cfc9538210faedc6c54a789ce67688fb9d978a15fd13f66",
+      "bytes": 332,
+      "lines": 1,
+      "kind": "integrity-verified exact published source extraction",
+      "source_urls": [
+        "https://registry.npmjs.org/@jridgewell/trace-mapping/-/trace-mapping-0.3.31.tgz"
+      ]
+    },
+    {
+      "path": "/private/tmp/canlang-library-fit-20261007-published/jridgewell--trace-mapping-0.3.31/source/types/flatten-map.d.cts",
+      "sha256": "db2e3685e0cd88f135134d9072b5fd684059b7bd9089fb19292853409af3b7f8",
+      "bytes": 384,
+      "lines": 9,
+      "kind": "integrity-verified exact published source extraction",
+      "source_urls": [
+        "https://registry.npmjs.org/@jridgewell/trace-mapping/-/trace-mapping-0.3.31.tgz"
+      ]
+    },
+    {
+      "path": "/private/tmp/canlang-library-fit-20261007-published/jridgewell--trace-mapping-0.3.31/source/types/flatten-map.d.cts.map",
+      "sha256": "eb8e7f1763d0a16e2d25bda4a816cf1f7f346cf872fef28a829ddb74660e9bc0",
+      "bytes": 471,
+      "lines": 1,
+      "kind": "integrity-verified exact published source extraction",
+      "source_urls": [
+        "https://registry.npmjs.org/@jridgewell/trace-mapping/-/trace-mapping-0.3.31.tgz"
+      ]
+    },
+    {
+      "path": "/private/tmp/canlang-library-fit-20261007-published/jridgewell--trace-mapping-0.3.31/source/types/flatten-map.d.mts",
+      "sha256": "fabb88dfd85ea8b0224522c17011292454279f86d834c444f3346b5696ac192b",
+      "bytes": 384,
+      "lines": 9,
+      "kind": "integrity-verified exact published source extraction",
+      "source_urls": [
+        "https://registry.npmjs.org/@jridgewell/trace-mapping/-/trace-mapping-0.3.31.tgz"
+      ]
+    },
+    {
+      "path": "/private/tmp/canlang-library-fit-20261007-published/jridgewell--trace-mapping-0.3.31/source/types/flatten-map.d.mts.map",
+      "sha256": "eb8e7f1763d0a16e2d25bda4a816cf1f7f346cf872fef28a829ddb74660e9bc0",
+      "bytes": 471,
+      "lines": 1,
+      "kind": "integrity-verified exact published source extraction",
+      "source_urls": [
+        "https://registry.npmjs.org/@jridgewell/trace-mapping/-/trace-mapping-0.3.31.tgz"
+      ]
+    },
+    {
+      "path": "/private/tmp/canlang-library-fit-20261007-published/jridgewell--trace-mapping-0.3.31/source/types/resolve.d.cts",
+      "sha256": "7aad6f4f525f3b80355197be0755b01023f7cf95dd15c1e4626d5461eb5395b8",
+      "bytes": 208,
+      "lines": 4,
+      "kind": "integrity-verified exact published source extraction",
+      "source_urls": [
+        "https://registry.npmjs.org/@jridgewell/trace-mapping/-/trace-mapping-0.3.31.tgz"
+      ]
+    },
+    {
+      "path": "/private/tmp/canlang-library-fit-20261007-published/jridgewell--trace-mapping-0.3.31/source/types/resolve.d.cts.map",
+      "sha256": "b867e2ca531527332c0920fe87ad933af55047a3cce7bc2432d3b9a743771969",
+      "bytes": 291,
+      "lines": 1,
+      "kind": "integrity-verified exact published source extraction",
+      "source_urls": [
+        "https://registry.npmjs.org/@jridgewell/trace-mapping/-/trace-mapping-0.3.31.tgz"
+      ]
+    },
+    {
+      "path": "/private/tmp/canlang-library-fit-20261007-published/jridgewell--trace-mapping-0.3.31/source/types/resolve.d.mts",
+      "sha256": "db6f954c51cb59eb52aa03a44528879122fbe4c0c2ace3829c10736682ff28ae",
+      "bytes": 208,
+      "lines": 4,
+      "kind": "integrity-verified exact published source extraction",
+      "source_urls": [
+        "https://registry.npmjs.org/@jridgewell/trace-mapping/-/trace-mapping-0.3.31.tgz"
+      ]
+    },
+    {
+      "path": "/private/tmp/canlang-library-fit-20261007-published/jridgewell--trace-mapping-0.3.31/source/types/resolve.d.mts.map",
+      "sha256": "b867e2ca531527332c0920fe87ad933af55047a3cce7bc2432d3b9a743771969",
+      "bytes": 291,
+      "lines": 1,
+      "kind": "integrity-verified exact published source extraction",
+      "source_urls": [
+        "https://registry.npmjs.org/@jridgewell/trace-mapping/-/trace-mapping-0.3.31.tgz"
+      ]
+    },
+    {
+      "path": "/private/tmp/canlang-library-fit-20261007-published/jridgewell--trace-mapping-0.3.31/source/types/sort.d.cts",
+      "sha256": "bdb5286f265f02985927b37222ea2493654dd62b6a53c482220fbeebc899d3fe",
+      "bytes": 325,
+      "lines": 4,
+      "kind": "integrity-verified exact published source extraction",
+      "source_urls": [
+        "https://registry.npmjs.org/@jridgewell/trace-mapping/-/trace-mapping-0.3.31.tgz"
+      ]
+    },
+    {
+      "path": "/private/tmp/canlang-library-fit-20261007-published/jridgewell--trace-mapping-0.3.31/source/types/sort.d.cts.map",
+      "sha256": "5cddcbc6aedd6f1c99a3cd9a0000e2a44b7e432246732ccd9d250a87f2f56a1d",
+      "bytes": 379,
+      "lines": 1,
+      "kind": "integrity-verified exact published source extraction",
+      "source_urls": [
+        "https://registry.npmjs.org/@jridgewell/trace-mapping/-/trace-mapping-0.3.31.tgz"
+      ]
+    },
+    {
+      "path": "/private/tmp/canlang-library-fit-20261007-published/jridgewell--trace-mapping-0.3.31/source/types/sort.d.mts",
+      "sha256": "2b8bec35d40f910fec455f0e6dfd3716b9c10424e9b2176f4b519009b361311e",
+      "bytes": 325,
+      "lines": 4,
+      "kind": "integrity-verified exact published source extraction",
+      "source_urls": [
+        "https://registry.npmjs.org/@jridgewell/trace-mapping/-/trace-mapping-0.3.31.tgz"
+      ]
+    },
+    {
+      "path": "/private/tmp/canlang-library-fit-20261007-published/jridgewell--trace-mapping-0.3.31/source/types/sort.d.mts.map",
+      "sha256": "5cddcbc6aedd6f1c99a3cd9a0000e2a44b7e432246732ccd9d250a87f2f56a1d",
+      "bytes": 379,
+      "lines": 1,
+      "kind": "integrity-verified exact published source extraction",
+      "source_urls": [
+        "https://registry.npmjs.org/@jridgewell/trace-mapping/-/trace-mapping-0.3.31.tgz"
+      ]
+    },
+    {
+      "path": "/private/tmp/canlang-library-fit-20261007-published/jridgewell--trace-mapping-0.3.31/source/types/sourcemap-segment.d.cts",
+      "sha256": "3889f1cc96a1a391148469172d625936f5382f3bd8241d0e7951739eec768d40",
+      "bytes": 766,
+      "lines": 17,
+      "kind": "integrity-verified exact published source extraction",
+      "source_urls": [
+        "https://registry.npmjs.org/@jridgewell/trace-mapping/-/trace-mapping-0.3.31.tgz"
+      ]
+    },
+    {
+      "path": "/private/tmp/canlang-library-fit-20261007-published/jridgewell--trace-mapping-0.3.31/source/types/sourcemap-segment.d.cts.map",
+      "sha256": "40cbbb2ff7f7314ed9f006fa7f2a35b6bc1fc82fa5ea508851cefb93fba4872f",
+      "bytes": 760,
+      "lines": 1,
+      "kind": "integrity-verified exact published source extraction",
+      "source_urls": [
+        "https://registry.npmjs.org/@jridgewell/trace-mapping/-/trace-mapping-0.3.31.tgz"
+      ]
+    },
+    {
+      "path": "/private/tmp/canlang-library-fit-20261007-published/jridgewell--trace-mapping-0.3.31/source/types/sourcemap-segment.d.mts",
+      "sha256": "3889f1cc96a1a391148469172d625936f5382f3bd8241d0e7951739eec768d40",
+      "bytes": 766,
+      "lines": 17,
+      "kind": "integrity-verified exact published source extraction",
+      "source_urls": [
+        "https://registry.npmjs.org/@jridgewell/trace-mapping/-/trace-mapping-0.3.31.tgz"
+      ]
+    },
+    {
+      "path": "/private/tmp/canlang-library-fit-20261007-published/jridgewell--trace-mapping-0.3.31/source/types/sourcemap-segment.d.mts.map",
+      "sha256": "40cbbb2ff7f7314ed9f006fa7f2a35b6bc1fc82fa5ea508851cefb93fba4872f",
+      "bytes": 760,
+      "lines": 1,
+      "kind": "integrity-verified exact published source extraction",
+      "source_urls": [
+        "https://registry.npmjs.org/@jridgewell/trace-mapping/-/trace-mapping-0.3.31.tgz"
+      ]
+    },
+    {
+      "path": "/private/tmp/canlang-library-fit-20261007-published/jridgewell--trace-mapping-0.3.31/source/types/strip-filename.d.cts",
+      "sha256": "4b9e87caf3d6ed692325b40815612243edf5bf9e0d435ad87b30fc54f7902b2f",
+      "bytes": 196,
+      "lines": 5,
+      "kind": "integrity-verified exact published source extraction",
+      "source_urls": [
+        "https://registry.npmjs.org/@jridgewell/trace-mapping/-/trace-mapping-0.3.31.tgz"
+      ]
+    },
+    {
+      "path": "/private/tmp/canlang-library-fit-20261007-published/jridgewell--trace-mapping-0.3.31/source/types/strip-filename.d.cts.map",
+      "sha256": "e81ff1d320e8816ef15c94461c2892cb34a426095903ecd01b9ed1e91ec13f1e",
+      "bytes": 218,
+      "lines": 1,
+      "kind": "integrity-verified exact published source extraction",
+      "source_urls": [
+        "https://registry.npmjs.org/@jridgewell/trace-mapping/-/trace-mapping-0.3.31.tgz"
+      ]
+    },
+    {
+      "path": "/private/tmp/canlang-library-fit-20261007-published/jridgewell--trace-mapping-0.3.31/source/types/strip-filename.d.mts",
+      "sha256": "184f81c13671fc2b767bf04fa51d09e1ec3be21248713443f0f6d7949870a809",
+      "bytes": 196,
+      "lines": 5,
+      "kind": "integrity-verified exact published source extraction",
+      "source_urls": [
+        "https://registry.npmjs.org/@jridgewell/trace-mapping/-/trace-mapping-0.3.31.tgz"
+      ]
+    },
+    {
+      "path": "/private/tmp/canlang-library-fit-20261007-published/jridgewell--trace-mapping-0.3.31/source/types/strip-filename.d.mts.map",
+      "sha256": "e81ff1d320e8816ef15c94461c2892cb34a426095903ecd01b9ed1e91ec13f1e",
+      "bytes": 218,
+      "lines": 1,
+      "kind": "integrity-verified exact published source extraction",
+      "source_urls": [
+        "https://registry.npmjs.org/@jridgewell/trace-mapping/-/trace-mapping-0.3.31.tgz"
+      ]
+    },
+    {
+      "path": "/private/tmp/canlang-library-fit-20261007-published/jridgewell--trace-mapping-0.3.31/source/types/trace-mapping.d.cts",
+      "sha256": "961d5e56f27129f1f6181b43390b865d79e50d0408187d2c64aa869e1ff93ce2",
+      "bytes": 4193,
+      "lines": 80,
+      "kind": "integrity-verified exact published source extraction",
+      "source_urls": [
+        "https://registry.npmjs.org/@jridgewell/trace-mapping/-/trace-mapping-0.3.31.tgz"
+      ]
+    },
+    {
+      "path": "/private/tmp/canlang-library-fit-20261007-published/jridgewell--trace-mapping-0.3.31/source/types/trace-mapping.d.cts.map",
+      "sha256": "c6b5346cf5fc3d1a8e15c3a9e97915318811e9d365e488dcf3a4f1496534622a",
+      "bytes": 2559,
+      "lines": 1,
+      "kind": "integrity-verified exact published source extraction",
+      "source_urls": [
+        "https://registry.npmjs.org/@jridgewell/trace-mapping/-/trace-mapping-0.3.31.tgz"
+      ]
+    },
+    {
+      "path": "/private/tmp/canlang-library-fit-20261007-published/jridgewell--trace-mapping-0.3.31/source/types/trace-mapping.d.mts",
+      "sha256": "b33ce07211389c7c95b50703770aed983f78d4193969886618d0da02ae1b993c",
+      "bytes": 4193,
+      "lines": 80,
+      "kind": "integrity-verified exact published source extraction",
+      "source_urls": [
+        "https://registry.npmjs.org/@jridgewell/trace-mapping/-/trace-mapping-0.3.31.tgz"
+      ]
+    },
+    {
+      "path": "/private/tmp/canlang-library-fit-20261007-published/jridgewell--trace-mapping-0.3.31/source/types/trace-mapping.d.mts.map",
+      "sha256": "c6b5346cf5fc3d1a8e15c3a9e97915318811e9d365e488dcf3a4f1496534622a",
+      "bytes": 2559,
+      "lines": 1,
+      "kind": "integrity-verified exact published source extraction",
+      "source_urls": [
+        "https://registry.npmjs.org/@jridgewell/trace-mapping/-/trace-mapping-0.3.31.tgz"
+      ]
+    },
+    {
+      "path": "/private/tmp/canlang-library-fit-20261007-published/jridgewell--trace-mapping-0.3.31/source/types/types.d.cts",
+      "sha256": "8984cc992aa87e144923c005dbf7570e9fdc3417b70cdca9b7bba06be3aaf57c",
+      "bytes": 3144,
+      "lines": 107,
+      "kind": "integrity-verified exact published source extraction",
+      "source_urls": [
+        "https://registry.npmjs.org/@jridgewell/trace-mapping/-/trace-mapping-0.3.31.tgz"
+      ]
+    },
+    {
+      "path": "/private/tmp/canlang-library-fit-20261007-published/jridgewell--trace-mapping-0.3.31/source/types/types.d.cts.map",
+      "sha256": "9125aa139cfadc7103a3c369b075b17eebbf4efb0c0c51ae8849b1cae887e492",
+      "bytes": 3566,
+      "lines": 1,
+      "kind": "integrity-verified exact published source extraction",
+      "source_urls": [
+        "https://registry.npmjs.org/@jridgewell/trace-mapping/-/trace-mapping-0.3.31.tgz"
+      ]
+    },
+    {
+      "path": "/private/tmp/canlang-library-fit-20261007-published/jridgewell--trace-mapping-0.3.31/source/types/types.d.mts",
+      "sha256": "bd0249ee262db66dca0236137a039f175441740674f8b1b6c24b118c312fffc4",
+      "bytes": 3144,
+      "lines": 107,
+      "kind": "integrity-verified exact published source extraction",
+      "source_urls": [
+        "https://registry.npmjs.org/@jridgewell/trace-mapping/-/trace-mapping-0.3.31.tgz"
+      ]
+    },
+    {
+      "path": "/private/tmp/canlang-library-fit-20261007-published/jridgewell--trace-mapping-0.3.31/source/types/types.d.mts.map",
+      "sha256": "9125aa139cfadc7103a3c369b075b17eebbf4efb0c0c51ae8849b1cae887e492",
+      "bytes": 3566,
+      "lines": 1,
+      "kind": "integrity-verified exact published source extraction",
+      "source_urls": [
+        "https://registry.npmjs.org/@jridgewell/trace-mapping/-/trace-mapping-0.3.31.tgz"
+      ]
+    },
+    {
+      "path": "/private/tmp/canlang-library-fit-20261007-published/magic-string-1.4.3/source/LICENSE",
+      "sha256": "1cbe51b907662f6cb1492b16c359384a595180bf0e4d101603ed525e75c4e484",
+      "bytes": 1051,
+      "lines": 7,
+      "kind": "integrity-verified exact published source extraction",
+      "source_urls": [
+        "https://registry.npmjs.org/magic-string/-/magic-string-1.4.3.tgz"
+      ]
+    },
+    {
+      "path": "/private/tmp/canlang-library-fit-20261007-published/magic-string-1.4.3/source/README.md",
+      "sha256": "2a93379f18a2ad928c839ac54572df72c25333b1835da1f8f2e676b83f616a51",
+      "bytes": 17848,
+      "lines": 446,
+      "kind": "integrity-verified exact published source extraction",
+      "source_urls": [
+        "https://registry.npmjs.org/magic-string/-/magic-string-1.4.3.tgz"
+      ]
+    },
+    {
+      "path": "/private/tmp/canlang-library-fit-20261007-published/magic-string-1.4.3/source/dist/index.d.mts",
+      "sha256": "3165b5e62f0e0bd3310924a7cce7249691ab302f4af70d0d0a7234f8df68b2b3",
+      "bytes": 13923,
+      "lines": 328,
+      "kind": "integrity-verified exact published source extraction",
+      "source_urls": [
+        "https://registry.npmjs.org/magic-string/-/magic-string-1.4.3.tgz"
+      ]
+    },
+    {
+      "path": "/private/tmp/canlang-library-fit-20261007-published/magic-string-1.4.3/source/dist/index.mjs",
+      "sha256": "1618c31179a48defaaedc218302176ff6325e0dff155a01da9a87b96e390c0fe",
+      "bytes": 59893,
+      "lines": 1769,
+      "kind": "integrity-verified exact published source extraction",
+      "source_urls": [
+        "https://registry.npmjs.org/magic-string/-/magic-string-1.4.3.tgz"
+      ]
+    },
+    {
+      "path": "/private/tmp/canlang-library-fit-20261007-published/magic-string-1.4.3/source/package.json",
+      "sha256": "e5ab5677a00cf4c8028067b38fb7cee9de17c2662a9a1030bd90c4eadbcc090b",
+      "bytes": 1575,
+      "lines": 61,
+      "kind": "integrity-verified exact published source extraction",
+      "source_urls": [
+        "https://registry.npmjs.org/magic-string/-/magic-string-1.4.3.tgz"
+      ]
+    },
+    {
+      "path": "/private/tmp/canlang-library-fit-20261007-published/ollama-0.6.3/source/LICENSE",
+      "sha256": "6687182ea5e41cd2b2efb85000a1ad694916330d4df883ef25a5075f3c197daa",
+      "bytes": 1061,
+      "lines": 21,
+      "kind": "integrity-verified exact published source extraction",
+      "source_urls": [
+        "https://registry.npmjs.org/ollama/-/ollama-0.6.3.tgz"
+      ]
+    },
+    {
+      "path": "/private/tmp/canlang-library-fit-20261007-published/ollama-0.6.3/source/README.md",
+      "sha256": "d3f61d6b073265cd36b08de5fed09b2e7ee0f8c3bbcfbba25da2cb16e33c5138",
+      "bytes": 11452,
+      "lines": 359,
+      "kind": "integrity-verified exact published source extraction",
+      "source_urls": [
+        "https://registry.npmjs.org/ollama/-/ollama-0.6.3.tgz"
+      ]
+    },
+    {
+      "path": "/private/tmp/canlang-library-fit-20261007-published/ollama-0.6.3/source/dist/browser.cjs",
+      "sha256": "8c25f957bc444ef1b2f0dfe77cee30de0d8ec014d18aac30b235dde1f1977eb8",
+      "bytes": 17383,
+      "lines": 523,
+      "kind": "integrity-verified exact published source extraction",
+      "source_urls": [
+        "https://registry.npmjs.org/ollama/-/ollama-0.6.3.tgz"
+      ]
+    },
+    {
+      "path": "/private/tmp/canlang-library-fit-20261007-published/ollama-0.6.3/source/dist/browser.d.cts",
+      "sha256": "214d88eef17f6d74b08ab72159754d5cf606fa0e48471511a6e1296447dc8b2b",
+      "bytes": 745,
+      "lines": 1,
+      "kind": "integrity-verified exact published source extraction",
+      "source_urls": [
+        "https://registry.npmjs.org/ollama/-/ollama-0.6.3.tgz"
+      ]
+    },
+    {
+      "path": "/private/tmp/canlang-library-fit-20261007-published/ollama-0.6.3/source/dist/browser.d.mts",
+      "sha256": "18f50d96964992666c3f0c1298e85d741c7c900b9b388b7a556ee74c4f845b05",
+      "bytes": 745,
+      "lines": 1,
+      "kind": "integrity-verified exact published source extraction",
+      "source_urls": [
+        "https://registry.npmjs.org/ollama/-/ollama-0.6.3.tgz"
+      ]
+    },
+    {
+      "path": "/private/tmp/canlang-library-fit-20261007-published/ollama-0.6.3/source/dist/browser.d.ts",
+      "sha256": "1ab3195528404570f7335a1026c2134c6dad7ba91cee82d4c1969879338ddd28",
+      "bytes": 744,
+      "lines": 1,
+      "kind": "integrity-verified exact published source extraction",
+      "source_urls": [
+        "https://registry.npmjs.org/ollama/-/ollama-0.6.3.tgz"
+      ]
+    },
+    {
+      "path": "/private/tmp/canlang-library-fit-20261007-published/ollama-0.6.3/source/dist/browser.mjs",
+      "sha256": "ac772da40001337326488efffa6c871c9fd90302c8e709b06ce4b258f9846791",
+      "bytes": 17299,
+      "lines": 518,
+      "kind": "integrity-verified exact published source extraction",
+      "source_urls": [
+        "https://registry.npmjs.org/ollama/-/ollama-0.6.3.tgz"
+      ]
+    },
+    {
+      "path": "/private/tmp/canlang-library-fit-20261007-published/ollama-0.6.3/source/dist/index.cjs",
+      "sha256": "fa115d09c737ab8be3efe37ede5df9a60b609bc2a28f171cca9ac996a324f0db",
+      "bytes": 1518,
+      "lines": 56,
+      "kind": "integrity-verified exact published source extraction",
+      "source_urls": [
+        "https://registry.npmjs.org/ollama/-/ollama-0.6.3.tgz"
+      ]
+    },
+    {
+      "path": "/private/tmp/canlang-library-fit-20261007-published/ollama-0.6.3/source/dist/index.d.cts",
+      "sha256": "8fa98323f756ccb5869700d8964e0e6016afcffffb5de232905ce78af9f27242",
+      "bytes": 1485,
+      "lines": 22,
+      "kind": "integrity-verified exact published source extraction",
+      "source_urls": [
+        "https://registry.npmjs.org/ollama/-/ollama-0.6.3.tgz"
+      ]
+    },
+    {
+      "path": "/private/tmp/canlang-library-fit-20261007-published/ollama-0.6.3/source/dist/index.d.mts",
+      "sha256": "71ac5c69e246ed608f2c32d0adbe1ff0cc6cdb70917b7ee209cd46d41fc36917",
+      "bytes": 1485,
+      "lines": 22,
+      "kind": "integrity-verified exact published source extraction",
+      "source_urls": [
+        "https://registry.npmjs.org/ollama/-/ollama-0.6.3.tgz"
+      ]
+    },
+    {
+      "path": "/private/tmp/canlang-library-fit-20261007-published/ollama-0.6.3/source/dist/index.d.ts",
+      "sha256": "8c055d9f323d99c0c9bdcd2ede2a757c60e40208a13ae0a41d00c10b027e6fe4",
+      "bytes": 1483,
+      "lines": 22,
+      "kind": "integrity-verified exact published source extraction",
+      "source_urls": [
+        "https://registry.npmjs.org/ollama/-/ollama-0.6.3.tgz"
+      ]
+    },
+    {
+      "path": "/private/tmp/canlang-library-fit-20261007-published/ollama-0.6.3/source/dist/index.mjs",
+      "sha256": "c7dc8470f01a6034311054290c70f16b6f4931d04e1ea83e48338bb5b740c82e",
+      "bytes": 1229,
+      "lines": 47,
+      "kind": "integrity-verified exact published source extraction",
+      "source_urls": [
+        "https://registry.npmjs.org/ollama/-/ollama-0.6.3.tgz"
+      ]
+    },
+    {
+      "path": "/private/tmp/canlang-library-fit-20261007-published/ollama-0.6.3/source/dist/shared/ollama.1bfa89da.d.cts",
+      "sha256": "53f6f22aa2dc89fa5bc010f32845c4d093803ab09d10aad6eaa963f140cb5914",
+      "bytes": 12556,
+      "lines": 406,
+      "kind": "integrity-verified exact published source extraction",
+      "source_urls": [
+        "https://registry.npmjs.org/ollama/-/ollama-0.6.3.tgz"
+      ]
+    },
+    {
+      "path": "/private/tmp/canlang-library-fit-20261007-published/ollama-0.6.3/source/dist/shared/ollama.1bfa89da.d.mts",
+      "sha256": "53f6f22aa2dc89fa5bc010f32845c4d093803ab09d10aad6eaa963f140cb5914",
+      "bytes": 12556,
+      "lines": 406,
+      "kind": "integrity-verified exact published source extraction",
+      "source_urls": [
+        "https://registry.npmjs.org/ollama/-/ollama-0.6.3.tgz"
+      ]
+    },
+    {
+      "path": "/private/tmp/canlang-library-fit-20261007-published/ollama-0.6.3/source/dist/shared/ollama.1bfa89da.d.ts",
+      "sha256": "53f6f22aa2dc89fa5bc010f32845c4d093803ab09d10aad6eaa963f140cb5914",
+      "bytes": 12556,
+      "lines": 406,
+      "kind": "integrity-verified exact published source extraction",
+      "source_urls": [
+        "https://registry.npmjs.org/ollama/-/ollama-0.6.3.tgz"
+      ]
+    },
+    {
+      "path": "/private/tmp/canlang-library-fit-20261007-published/ollama-0.6.3/source/package.json",
+      "sha256": "d55a4a561a4c6a6c76e43a1226ca3f6fb2cd15f63588de99d747da5d74ab02a1",
+      "bytes": 1222,
+      "lines": 49,
+      "kind": "integrity-verified exact published source extraction",
+      "source_urls": [
+        "https://registry.npmjs.org/ollama/-/ollama-0.6.3.tgz"
+      ]
+    },
+    {
+      "path": "/private/tmp/canlang-library-fit-20261007-published/ollama-0.6.3/source/src/browser.ts",
+      "sha256": "215a342ac77ebfa64d33d03289e29e3e55da9b90433ae815491f78961ddea47f",
+      "bytes": 13195,
+      "lines": 376,
+      "kind": "integrity-verified exact published source extraction",
+      "source_urls": [
+        "https://registry.npmjs.org/ollama/-/ollama-0.6.3.tgz"
+      ]
+    },
+    {
+      "path": "/private/tmp/canlang-library-fit-20261007-published/ollama-0.6.3/source/src/constant.ts",
+      "sha256": "e30940d6f3f43ed40385be119d6c5371860930775a9d9f63e6791ff54751ecb2",
+      "bytes": 98,
+      "lines": 2,
+      "kind": "integrity-verified exact published source extraction",
+      "source_urls": [
+        "https://registry.npmjs.org/ollama/-/ollama-0.6.3.tgz"
+      ]
+    },
+    {
+      "path": "/private/tmp/canlang-library-fit-20261007-published/ollama-0.6.3/source/src/index.ts",
+      "sha256": "1fa883896394025d4b3614246b4ec21f7369a30113d3986ca1fd699ddf72e3e2",
+      "bytes": 2214,
+      "lines": 70,
+      "kind": "integrity-verified exact published source extraction",
+      "source_urls": [
+        "https://registry.npmjs.org/ollama/-/ollama-0.6.3.tgz"
+      ]
+    },
+    {
+      "path": "/private/tmp/canlang-library-fit-20261007-published/ollama-0.6.3/source/src/interfaces.ts",
+      "sha256": "2c4653a95228d5808eed71892bc7ef409bc2665f3a10e0961ec6434901285b18",
+      "bytes": 5982,
+      "lines": 314,
+      "kind": "integrity-verified exact published source extraction",
+      "source_urls": [
+        "https://registry.npmjs.org/ollama/-/ollama-0.6.3.tgz"
+      ]
+    },
+    {
+      "path": "/private/tmp/canlang-library-fit-20261007-published/ollama-0.6.3/source/src/utils.ts",
+      "sha256": "29be86b2ee80439736d8da1da22ccb4f943061c9bc0130479160f464508cdfe1",
+      "bytes": 11219,
+      "lines": 391,
+      "kind": "integrity-verified exact published source extraction",
+      "source_urls": [
+        "https://registry.npmjs.org/ollama/-/ollama-0.6.3.tgz"
+      ]
+    },
+    {
+      "path": "/private/tmp/canlang-library-fit-20261007-published/ollama-0.6.3/source/src/version.ts",
+      "sha256": "f01f48c58a763486c58c5cb6a7e27559ee4112bec65fee5c476f1b9efa37bed2",
+      "bytes": 32,
+      "lines": 1,
+      "kind": "integrity-verified exact published source extraction",
+      "source_urls": [
+        "https://registry.npmjs.org/ollama/-/ollama-0.6.3.tgz"
+      ]
+    },
+    {
+      "path": "/private/tmp/canlang-library-fit-20261007-published/scure--base-2.4.0/source/LICENSE",
+      "sha256": "3239e134eb6e6d64538ca76498c7fcb08a395249dd9d4af9927bf6d0169ee429",
+      "bytes": 1110,
+      "lines": 21,
+      "kind": "integrity-verified exact published source extraction",
+      "source_urls": [
+        "https://registry.npmjs.org/@scure/base/-/base-2.4.0.tgz"
+      ]
+    },
+    {
+      "path": "/private/tmp/canlang-library-fit-20261007-published/scure--base-2.4.0/source/README.md",
+      "sha256": "56ce96f5d061cc0054d2744f923d0e0e6fe984accd12ab177c022e2ae0f45509",
+      "bytes": 15184,
+      "lines": 339,
+      "kind": "integrity-verified exact published source extraction",
+      "source_urls": [
+        "https://registry.npmjs.org/@scure/base/-/base-2.4.0.tgz"
+      ]
+    },
+    {
+      "path": "/private/tmp/canlang-library-fit-20261007-published/scure--base-2.4.0/source/index.d.ts",
+      "sha256": "1771c247d1d2303b832b7a2a8999dae30bc5debc06bcc1cfdc7c65d3339b37e6",
+      "bytes": 18191,
+      "lines": 449,
+      "kind": "integrity-verified exact published source extraction",
+      "source_urls": [
+        "https://registry.npmjs.org/@scure/base/-/base-2.4.0.tgz"
+      ]
+    },
+    {
+      "path": "/private/tmp/canlang-library-fit-20261007-published/scure--base-2.4.0/source/index.js",
+      "sha256": "4bd334e6606db7216143c7bffbc5c00716d2c137744a0c48b51495fa6d05444a",
+      "bytes": 49993,
+      "lines": 1196,
+      "kind": "integrity-verified exact published source extraction",
+      "source_urls": [
+        "https://registry.npmjs.org/@scure/base/-/base-2.4.0.tgz"
+      ]
+    },
+    {
+      "path": "/private/tmp/canlang-library-fit-20261007-published/scure--base-2.4.0/source/index.ts",
+      "sha256": "85fa4c5065eb3eb8350f39d33509479db2ddbaf45b8ddc371fca683a00a1fbe8",
+      "bytes": 59276,
+      "lines": 1509,
+      "kind": "integrity-verified exact published source extraction",
+      "source_urls": [
+        "https://registry.npmjs.org/@scure/base/-/base-2.4.0.tgz"
+      ]
+    },
+    {
+      "path": "/private/tmp/canlang-library-fit-20261007-published/scure--base-2.4.0/source/package.json",
+      "sha256": "0e74f731adcd5e84bb62b7e154047b585686ff70f64435d2e064b66452d2841a",
+      "bytes": 1520,
+      "lines": 58,
+      "kind": "integrity-verified exact published source extraction",
+      "source_urls": [
+        "https://registry.npmjs.org/@scure/base/-/base-2.4.0.tgz"
+      ]
+    }
+  ]
+}

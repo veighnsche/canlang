@@ -1,0 +1,85 @@
+{
+  "ref": "f8e9e73b11f19a7d59ac62487033a5bc189c46a1",
+  "date": "2026-10-07",
+  "integration_count": 27,
+  "historical_finding_count": 25,
+  "contract_count": 110,
+  "disposition_counts": {
+    "blocked_contract": 2,
+    "evaluate_conditional": 3,
+    "evaluate_narrow": 1,
+    "evaluate_platform": 1,
+    "held_conditional": 1,
+    "reject_candidate": 1,
+    "retain_adopted": 6,
+    "retain_now": 5,
+    "retain_platform": 3,
+    "retain_protocol": 1,
+    "retain_semantics": 2,
+    "simplify_existing": 1
+  },
+  "repository_input_count": 78,
+  "external_readonly_input_count": 243,
+  "published_artifacts": 10,
+  "selected_published_lock_inputs": 8,
+  "analysis_packets": [
+    {
+      "family": "values",
+      "model": "gpt-6.1-sol",
+      "effort": "medium",
+      "reason": "Human requested economical normal technical fit review; finite version/API/contracts scope.",
+      "private_report_sha256": "b8858aa61bc62ea40202227906f2c013435fc162ae1aee097fd789d5854c1d81"
+    },
+    {
+      "family": "adapters",
+      "model": "gpt-6.1-sol",
+      "effort": "medium",
+      "reason": "Human requested economical normal technical fit review; finite version/API/contracts scope.",
+      "private_report_sha256": "53736ed5cb3481fd73ada52fc8e3c045250be107bc07719a8a8a5db412c0bdff"
+    },
+    {
+      "family": "delivery",
+      "model": "gpt-6.1-sol",
+      "effort": "medium",
+      "reason": "Human requested economical normal technical fit review; finite version/API/contracts scope.",
+      "private_report_sha256": "92770b1ac3146fefd31ef55b47d81fa21aff980b9249a2bb29db6e69f69e6441"
+    }
+  ],
+  "focused_review": {
+    "model": "gpt-6.1-sol",
+    "effort": "high",
+    "reason": "Consequential cross-file persisted hash/CSV/public-map profile conflicts require independent same-outcome challenge, not a broader security replay."
+  },
+  "execution_authorized": false,
+  "fresh_product_execution": false,
+  "dependency_installation": false,
+  "contract_basis": {
+    "frozen_reference": "f8e9e73b11f19a7d59ac62487033a5bc189c46a1:docs/research/package-library-audit-20261006/required-behavior/contracts.jsonl",
+    "working_overlay_correction": "FIT-C02/AD-export-csv-bytes factual LF correction; IDs/classification unchanged",
+    "working_contract_sha256": "f36371b966cc1071ef80c6704c6fc4236ffa69ef15ce3137b8722303c32a4a89"
+  },
+  "artifact_sha256": {
+    "independent-review.json": "83fa40ed879cf97b46ca2c495841851ff29d705fac19b7ee8b268fde8f2e214c",
+    "finding-crosswalk.tsv": "09913258f3eacc80ff1248330376e2c4e24ea159eb15a59f0f219f374d56b7eb",
+    "dependency-evidence.json": "6a826abfeef01626ee4246d9c6acc94274a57d232e639db3329b1b634a0b7fcb",
+    "assessments.md": "ae701dfb6420c3e85d3f0fe59d5ee11e3833c10df985d6f10358a66f3aedb7d8",
+    "assessments.jsonl": "96bd9ebe2068bb4619e9854bfdb8d35261d4d424d3079ea43ba0c01e3bedb0be",
+    "README.md": "3d377d4c1d5669c3110c30646bbe936e4d7767307ea33857faf54e92df1f09b9",
+    "final-review.json": "ddd953d71ce3f438279df8318eda5084b8d53ff0449940c807fd9b37810aa081",
+    "upstream-evidence.json": "a93170630e367ba13be59a2a7f4bc38b4cb4eff32a3628a325664ac52d7a7fe1",
+    "verify.py": "f0a490680f748afc63e901951aa3c50b4803b9dc458b950ed87fc7794a7c0226",
+    "review.md": "6a07c7922db0102992a3839448c42ec6d167bd919802f5a4f8b05def50738a34",
+    "decision-record.md": "db4bb416fe6d3d1fea34fcd2370751036b32617ce62258afa9a01c07cbc9ee24",
+    "source-index.json": "05314687827c8913f9412deba901ab27586ac565990c6a77616730ef240194b8",
+    "review-reconciliation.json": "5c4d626ef697f9a698fa7135359febf040593c032e5e9676d44620b4b7ded7f1"
+  },
+  "final_consolidation_review": {
+    "model": "gpt-6.1-sol",
+    "effort": "medium",
+    "reason": "Reused delivery reviewer for finite final artifact/correction delta; no repeated upstream or security review.",
+    "accepted": true,
+    "review_file": "final-review.json",
+    "reviewed_artifact_hashes_verified_before_annotation": true,
+    "post_review_changes": "Added immutable final receipt and verification metadata/hash entry only; assessment/source/verifier bytes unchanged."
+  }
+}

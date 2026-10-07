@@ -1,0 +1,35 @@
+{
+  "ref": "f8e9e73b11f19a7d59ac62487033a5bc189c46a1",
+  "review_complete": true,
+  "review_model": "gpt-6.1-sol / high",
+  "findings": {
+    "FIT-C01": {
+      "disposition": "assessment corrected; no new tie/profile policy selected",
+      "integrations": [
+        "delivery-maps"
+      ]
+    },
+    "FIT-C02": {
+      "disposition": "same-byte candidate corrected to LF; inherited contract record and exact source observation corrected",
+      "integrations": [
+        "csv-export-stringify"
+      ],
+      "contract_id": "AD-export-csv-bytes",
+      "new_citation_id": "A1021"
+    },
+    "FIT-C03": {
+      "disposition": "input ownership/caching wording narrowed to source",
+      "integrations": [
+        "delivery-maps"
+      ]
+    }
+  },
+  "prior_security_review_reused": [
+    "F03",
+    "F04",
+    "F07"
+  ],
+  "fresh_product_execution": false,
+  "policy_selection": false,
+  "JEV_required_if_future_policy_changed": true
+}
