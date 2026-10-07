@@ -1,0 +1,10 @@
+{
+  "command": [
+    "node",
+    "packages/cloudflare/node_modules/vitest/vitest.mjs",
+    "run",
+    "packages/cloudflare/test/runtime-stdlib.test.ts"
+  ],
+  "exit": 1,
+  "comparison": "Same private selected runtime build and unchanged suite; only source/dist stdlib restored to frozen before bytes; candidate restored afterwards."
+}

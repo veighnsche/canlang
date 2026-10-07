@@ -1,0 +1,45 @@
+{
+  "status": "validated; evidence blocker resolved within retained original executable limitation",
+  "affected_hash_checks": {
+    "REPORT.md": {
+      "expected": "b63660d847c6fc7e72e57c7487962358b28a25994d5eceb654adc67b62584359",
+      "actual": "b63660d847c6fc7e72e57c7487962358b28a25994d5eceb654adc67b62584359",
+      "matches": true
+    },
+    "freeze.json": {
+      "expected": "70997cdae110731c630065d5c607548ade155227d92dcbe88782c8c23354dcb7",
+      "actual": "70997cdae110731c630065d5c607548ade155227d92dcbe88782c8c23354dcb7",
+      "matches": true
+    },
+    "review-corrections/before-REPORT.md": {
+      "expected": "6cf0a54bb81b8b2d26ded4867958fa3ccfb96c17711d97808184f306756168ef",
+      "actual": "6cf0a54bb81b8b2d26ded4867958fa3ccfb96c17711d97808184f306756168ef",
+      "matches": true
+    },
+    "review-corrections/before-freeze.json": {
+      "expected": "6ed038b4316a0d1b7510a0f8610aa78fd853e5e624759501c6f98a5d00f031c0",
+      "actual": "6ed038b4316a0d1b7510a0f8610aa78fd853e5e624759501c6f98a5d00f031c0",
+      "matches": true
+    },
+    "review-corrections/receipt.json": {
+      "expected": "bdfd6bcf3af2dde172af55bc14ae5aaa17236450f1968557a7c7a8fef76b81cc",
+      "actual": "bdfd6bcf3af2dde172af55bc14ae5aaa17236450f1968557a7c7a8fef76b81cc",
+      "matches": true
+    },
+    "packages/cloudflare/src/runtime/stdlib.ts": {
+      "expected": "6c6d35ed8294f12e1badf4325f9553ee3eb6d2faeff1ffa1a2ac6152cba07207",
+      "actual": "6c6d35ed8294f12e1badf4325f9553ee3eb6d2faeff1ffa1a2ac6152cba07207",
+      "matches": true
+    },
+    "packages/cloudflare/test/runtime-stdlib-pure.test.ts": {
+      "expected": "6af5cdec3681419fba28eb50b96f3dd89ed605313d140306eb1b549bb12ba750",
+      "actual": "6af5cdec3681419fba28eb50b96f3dd89ed605313d140306eb1b549bb12ba750",
+      "matches": true
+    }
+  },
+  "unchanged_original_manifest_entries": 36,
+  "unchanged_original_entries_match_preserved_freeze": true,
+  "original_runtime_exact_executable": "unrecorded",
+  "no_control_rerun": true,
+  "commands_released": true
+}
