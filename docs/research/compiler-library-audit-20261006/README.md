@@ -18,6 +18,8 @@ The proposed [compiler correctness, ownership and simplicity audit](compiler-cor
 
 [Audit Step 3 is executed](responsibility-map/workflows.md): the same ledger traces checking, emission, transforms/reports, generated tests, editor behavior, all five platform forwarding paths and public library families through actual consumers. Economical independent cross-review accepts bounded source/control-flow scope. Fresh native replay reports 209/15 harness passes with one permission-body skip, plus real-compiler capability and freshly compiled/mocked extension checks. Staging, test execution, active/applied verdicts and original/installed application acceptance remain distinct; no implementation or policy changes land here.
 
+[Audit Step 4 is executed](responsibility-map/compatibility.md): 83 bounded requirements challenge all 26 prior compatibility claim groups across the core packets, conditional families and 18 workflows. Independent review distinguishes actual owning requirements, current public byte promises, migration guards and incidental mechanisms; 82 supporting inputs are pinned. Existing public/accepted support remains binding pending explicit revision. No new execution or implementation/policy change; adapter simplification and whole semantic correctness remain later work.
+
 | Pass | Declared outcome / reference |
 | --- | --- |
 |0 |[Released contracts and witnesses](pass0/README.md) |
