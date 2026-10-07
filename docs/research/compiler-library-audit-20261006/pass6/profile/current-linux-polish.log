@@ -1,0 +1,218 @@
+rustc 1.99.0 (b940084d7 2026-09-28)
+binary: rustc
+commit-hash: b940084d7eb6a299eb4bfeb8e34901bc051e7ac4
+commit-date: 2026-09-28
+host: x86_64-unknown-linux-gnu
+release: 1.99.0
+LLVM version: 23.1.1
+PRETTY_NAME="Debian GNU/Linux 13 (trixie)"
+NAME="Debian GNU/Linux"
+VERSION_ID="13"
+VERSION="13 (trixie)"
+VERSION_CODENAME=trixie
+DEBIAN_VERSION_FULL=13.7
+ID=debian
+HOME_URL="https://www.debian.org/"
+SUPPORT_URL="https://www.debian.org/support"
+BUG_REPORT_URL="https://bugs.debian.org/"
+   Compiling canlang-compiler v0.1.0 (/profile/current/compiler)
+    Finished `release` profile [optimized] target(s) in 37.19s
+   Compiling canlang-compiler v0.1.0 (/profile/current/compiler)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 17.03s
+     Running unittests src/lib.rs (linux-target/debug/deps/canlang_compiler-54699db9565a1ae2)
+
+running 114 tests
+test analysis::catalog::t13a_tests::version_stamps_match_frozen_producers ... ok
+test analysis::catalog::t13a_tests::nominal_types_are_the_accepted_t13a_set ... ok
+test analysis::catalog::t13a_tests::capability_set_is_exactly_the_three_frozen_contracts ... ok
+test analysis::catalog::t13b_tests::capability_set_is_exactly_the_three_frozen_t13b_contracts ... ok
+test analysis::catalog::t13a_tests::errors_v1_report_shape_is_exact ... ok
+test analysis::catalog::t13a_tests::email_v1_is_send_only_with_required_attachments ... ok
+test analysis::catalog::t13b_tests::version_stamps_match_frozen_producers ... ok
+test analysis::catalog::t13b_tests::delivery_observables_cover_exactly_the_ten_send_targets ... ok
+test analysis::catalog::t13a_tests::delivery_observables_cover_exactly_the_six_send_targets ... ok
+test analysis::catalog::t13b_tests::nominal_types_are_the_accepted_t13b_set ... ok
+test analysis::catalog::t13a_tests::payments_v1_ops_and_changed_event_are_exact ... ok
+test analysis::catalog::t13a_tests::handbook_interface_has_no_schemas_e3019_preserved ... ok
+test analysis::catalog::t13c_tests::t13a_acceptance_leaves_are_exact ... ok
+test analysis::catalog::t13c_tests::handbook_ts_only_and_unknown_names_have_no_leaf_schemas ... ok
+test analysis::catalog::t13b_tests::mailbox_ops_and_received_event_are_exact ... ok
+test analysis::catalog::t13c_tests::t13a_common_leaves_are_exact ... ok
+test analysis::catalog::t13c_tests::t13a_payment_state_matches_producer_and_changed ... ok
+test analysis::catalog::t13b_tests::text_generation_ops_are_exact ... ok
+test analysis::catalog::t13b_tests::images_ops_are_exact ... ok
+test analysis::catalog::t13c_tests::t13b_mailbox_judgment_knowledge_leaves_are_exact ... ok
+test analysis::catalog::t13c_tests::t13b_text_leaves_are_exact ... ok
+test analysis::catalog::t13c_tests::t13b_workflow_and_image_leaves_are_exact ... ok
+test analysis::catalog::t13c_tests::leaf_key_sets_equal_accepted_nominal_sets ... ok
+test analysis::migrate_check::tests::missing_from_is_e6010 ... ok
+test analysis::migrate_check::tests::non_before_source_is_e6009 ... ok
+test analysis::migrate_check::tests::empty_invalidate_is_e6009 ... ok
+test analysis::migrate_check::tests::targetless_rename_is_e6009 ... ok
+test analysis::migrate_check::tests::unknown_owner_stands_down_existence_but_keeps_exactly_once ... ok
+test cli::replacement_tests::concurrent_content_change_is_not_overwritten ... ok
+test cli::replacement_tests::stale_format_input_is_rejected_before_staging ... ok
+test cli::replacement_tests::replacement_inode_is_detected_with_equal_bytes_mode_and_mtime ... ok
+test cli::replacement_tests::concurrent_permission_change_is_not_reverted ... ok
+test cli::replacement_tests::symlink_target_permission_change_is_not_reverted ... ok
+test cli::replacement_tests::partial_staging_write_failure_keeps_destination_and_cleans_up ... ok
+test cli::replacement_tests::concurrent_creation_is_not_overwritten_and_staging_is_removed ... ok
+test cli::tests::docs_requires_operands ... ok
+test cli::tests::out_refuses_can_sources_before_any_input_read ... ok
+test cli::tests::out_refuses_to_overwrite_input_files ... ok
+test cli::tests::docs_help_names_modes_and_refusal ... ok
+test cli::tests::locale_and_out_are_docs_only ... ok
+test cli::replacement_tests::persist_failure_keeps_directory_and_cleans_up ... ok
+test cli::tests::stderr_tail_caps_and_names_absence ... ok
+test cli::tests::stub_backend_reports_needs_pipeline_before_spawn ... ok
+test cli::tests::diagnostics_fail_with_no_spawn_and_no_file_write ... ok
+test codegen::bdd::string_tests::fixed_string_bytes_cover_every_control_and_unicode ... ok
+test codegen::js::string_tests::fixed_string_bytes_cover_every_control_unicode_and_quotes ... ok
+test diagnostic::tests::finish_sorts_by_file_start_code ... ok
+test diagnostic::tests::json_escapes_control_chars ... ok
+test codegen::ir::string_payload_tests::c01_literal_string_distinguishes_empty_null_and_missing_payload ... ok
+test diagnostic::tests::text_rendering_points_at_source ... ok
+test explain::tests::catalog_is_sorted_unique_and_covers_policy_ranges ... ok
+test explain::tests::json_shape_has_all_fields ... ok
+test cli::tests::format_json_shapes_diagnostics_not_markdown ... ok
+test diagnostic::tests::json_is_deterministic ... ok
+test explain::tests::lookup_normalizes_case_and_whitespace ... ok
+test json::input_tests::nested_error_anchors_survive_container_cleanup_and_eof ... ok
+test json::input_tests::ignoring_numbers_never_ignores_marker_objects_or_unicode ... ok
+test json::input_tests::native_error_anchors_count_utf8_bytes_newlines_and_eof ... ok
+test json::input_tests::numeric_source_spans_cover_all_seed_origins_and_eof ... ok
+test lsp::server::tests::completion_kind_names_map_to_lsp_integers ... ok
+test json::input_tests::reader_limits_bulk_requests_and_depth_stops_before_the_tail ... ok
+test lsp::server::tests::exit_without_shutdown_is_an_error ... ok
+test lsp::server::tests::invalid_notifications_and_initialize_leave_state_unchanged ... ok
+test lsp::server::tests::lifecycle_gates_requests_and_exit_codes ... ok
+test lsp::server::tests::identical_content_change_keeps_version_semantics ... ok
+test lsp::server::tests::requests_after_shutdown_are_invalid ... ok
+test lsp::server::tests::out_of_range_positions_are_invalid_params ... ok
+test lsp::server::tests::uri_to_path_decodes_file_uris ... ok
+test lsp::server::tests::completion_response_carries_integer_kinds ... ok
+test lsp::transport::tests::envelopes_reject_reserved_duplicates_and_preserve_safe_correlation ... ok
+test lsp::server::tests::stub_requests_answer_empty ... ok
+test lsp::transport::tests::exact_lsp_integers_accept_decimal_equivalents_without_rounding ... ok
+test lsp::transport::tests::framing_counts_multibyte_unicode_as_bytes ... ok
+test lsp::transport::tests::framing_preserves_malformed_utf8_and_the_next_frame ... ok
+test lsp::transport::tests::framing_preserves_the_bare_lf_compatibility_extension ... ok
+test lsp::transport::tests::framing_round_trip_with_split_reads ... ok
+test lsp::transport::tests::incomplete_utf8_sequence_stops_at_the_body_boundary ... ok
+test lsp::transport::tests::framing_errors_are_invalid_data ... ok
+test lsp::transport::tests::json_round_trip_with_escapes_and_unicode ... ok
+test lsp::transport::tests::malformed_json_rejected ... ok
+test lsp::transport::tests::rpc_builders_shape ... ok
+test lsp::transport::tests::surrogate_pairs_decode_and_lone_surrogates_fail ... ok
+test lsp::transport::tests::large_multibyte_string_parses_in_linear_time ... ok
+test lsp::transport::tests::malformed_content_length_values_rejected ... ok
+test source::tests::line_index_lf_crlf ... ok
+test source::tests::line_index_lsp_utf16 ... ok
+test source::tests::sha256_padding_and_large_input ... ok
+test source::tests::sha256_preserves_exact_bytes_and_hex_contract ... ok
+test source::tests::sha256_vectors ... ok
+test source::tests::source_db_ids_stable ... ok
+test syntax::cst::tests::coverage_detects_gaps_and_overlaps ... ok
+test syntax::cst::tests::traversal_visits_preorder ... ok
+test syntax::layout::tests::blank_and_comment_lines_emit_nothing ... ok
+test syntax::layout::tests::brackets_join_without_blocks ... ok
+test syntax::layout::tests::ineligible_heads_rejected ... ok
+test syntax::layout::tests::mismatched_and_unclosed_delimiters ... ok
+test syntax::layout::tests::one_space_indent_and_dedent ... ok
+test syntax::layout::tests::prose_attaches_at_same_column ... ok
+test syntax::layout::tests::ref_rules_and_suffix_rules ... ok
+test syntax::lexer::tests::crlf_ok_bare_cr_rejected ... ok
+test syntax::lexer::tests::inline_hash_and_backslash_continuation_rejected ... ok
+test syntax::lexer::tests::longest_match_punctuation ... ok
+test syntax::lexer::tests::numeric_units_and_adjacency ... ok
+test syntax::lexer::tests::strings_decode_json_escapes ... ok
+test syntax::lexer::tests::tabs_prose_ok_code_rejected ... ok
+test policy::tests::minimal_source_dump_reports_every_surface ... ok
+test cli::tests::missing_platform_binary_is_e7004 ... ok
+test cli::tests::renders_to_stdout_with_fixed_argv_and_stdin_payload ... ok
+test cli::tests::unwritable_out_is_e7007 ... ok
+test policy::tests::golden_expenseflow_policy_dump ... ok
+test cli::tests::out_writes_the_file_and_stays_silent ... ok
+test cli::tests::renders_without_locale_omits_the_flag ... ok
+test cli::tests::renderer_failure_reports_producer_detail_as_e7004 ... ok
+test cli::tests::empty_and_non_utf8_output_are_e7004 ... ok
+
+test result: ok. 114 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.87s
+
+     Running tests/catalog_input_contract.rs (linux-target/debug/deps/catalog_input_contract-2b1ea1df1fea1eb2)
+
+running 6 tests
+SKIP available_producer_catalog_loads_without_rebuilding_packages: missing profile input packages/values/src/catalog.ts
+test available_producer_catalog_loads_without_rebuilding_packages ... ok
+test catalog_invalid_utf8_bytes_keep_catalog_code_and_source_primary ... ok
+test loader_and_cli_retain_first_decoded_member_and_ignore_unknown_extras ... ok
+test syntax_envelope_entry_and_signature_failures_keep_codes_and_source_anchor ... ok
+test catalog_unknown_value_depth_counts_from_envelope_root ... ok
+test ignored_catalog_extras_still_require_strict_complete_json ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.66s
+
+     Running tests/catalog_producer_runtime.rs (linux-target/debug/deps/catalog_producer_runtime-bc4ca2716373e579)
+
+running 1 test
+SKIP catalog_producer_runtime: missing packages/values/src/catalog.ts
+test unchanged_catalog_producer_matches_authored_source_and_feeds_real_consumers ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running tests/json_input_contract.rs (linux-target/debug/deps/json_input_contract-6b01c8685220a32c)
+
+running 6 tests
+test framing_body_limit_remains_independent_of_json_depth ... ok
+test number_lexemes_and_lexical_integer_accessor_stay_distinct ... ok
+test malformed_grammar_and_strings_reject_with_byte_anchors ... ok
+test depth_is_value_entry_depth_including_empty_deepest_containers ... ok
+test heterogeneous_whitespace_unicode_and_number_looking_strings ... ok
+test ordered_decoded_duplicates_and_marker_objects_are_ordinary_values ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s
+
+     Running tests/lsp_admission.rs (linux-target/debug/deps/lsp_admission-8432b7984430dea8)
+
+running 26 tests
+test exit_before_shutdown_has_exit_code_one ... ok
+test eof_keeps_the_existing_clean_disconnect_exit ... ok
+test initialize_admits_unknown_capabilities_and_extensions ... ok
+test lifecycle_precedence_is_envelope_then_lifecycle_then_method_then_params ... ok
+test invalid_shutdown_and_exit_params_do_not_change_lifecycle ... ok
+test malformed_did_open_is_silent_and_does_not_create_a_document ... ok
+test malformed_json_is_a_null_parse_error_and_consumes_the_frame ... ok
+test ignored_capabilities_keep_the_value_entry_depth_budget ... ok
+test notifications_outside_ready_cannot_open_documents_or_publish ... ok
+test known_method_field_errors_reply_to_requests_and_leave_notifications_silent ... ok
+test primitive_shutdown_and_exit_params_are_envelope_errors ... ok
+test decoded_reserved_duplicate_keys_are_rejected_before_dispatch ... ok
+strict JSON process case: leading zero
+test shutdown_then_exit_is_clean ... ok
+strict JSON process case: missing integer
+test ordinary_private_marker_keys_remain_objects_in_initialize_params ... ok
+strict JSON process case: missing fraction
+test shutdown_and_exit_accept_absent_null_and_empty_object_params ... ok
+test valid_notification_envelopes_are_silent_without_initializing ... ok
+test invalid_initialize_fields_do_not_initialize ... ok
+test torn_headers_and_body_keep_the_existing_clean_disconnect_exit ... ok
+test malformed_did_change_does_not_mutate_or_publish_a_new_version ... ok
+test malformed_utf8_is_one_parse_error_and_does_not_initialize ... ok
+strict JSON process case: missing exponent
+test valid_unicode_string_id_keeps_its_semantic_value ... ok
+strict JSON process case: leading plus
+test valid_required_contexts_and_maximum_position_are_admitted ... ok
+test illegal_ids_are_null_correlated_and_never_initialize ... ok
+strict JSON process case: lone high surrogate value
+test accepted_integral_ids_preserve_the_original_number_lexeme ... ok
+strict JSON process case: lone low surrogate value
+test malformed_envelopes_correlate_only_a_unique_legal_id ... ok
+strict JSON process case: lone high surrogate key
+strict JSON process case: lone low surrogate key
+strict JSON process case: invalid Unicode escape
+strict JSON process case: unescaped control value
+strict JSON process case: unescaped control key
+test strict_json_grammar_and_unknown_unicode_recover_through_shutdown_exit ... ok
+
+test result: ok. 26 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.28s
+

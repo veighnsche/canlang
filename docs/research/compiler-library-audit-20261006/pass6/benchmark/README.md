@@ -1,0 +1,5 @@
+# Parse-only measurement reproduction
+
+Final measured source: committed1f936f8 JSON module; baseline:c7d240b JSON module. Copy this Cargo.toml/Cargo.lock and main.rs into an isolated Cargo package (main at src/main.rs). Use `git show c7d240b:compiler/src/json.rs` for src/old.rs and `git show 1f936f8:compiler/src/json.rs` for src/new.rs. Copy owning packages/values/dist/catalog.json to catalog.json beside Cargo.toml after checking the recorded SHA256. Run cargo run --offline --locked --release with its isolated manifest; output is the raw metrics JSON. No old grammar source is duplicated into repository research/production.
+
+The only shim makes render compile and is never measured; parse+drop uses unchanged complete modules. Fixed generated mixed rows and actual initialize are in main.rs. Inputs/source/tool hashes, seven alternating rounds and per-round times are preserved. Existing build jobs had finished for the final measurement; other system activity is not guaranteed isolated. Prior scratch and loaded-correction measurements remain evidence, not preferred estimates.

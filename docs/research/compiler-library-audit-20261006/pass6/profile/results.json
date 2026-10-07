@@ -1,0 +1,82 @@
+{
+  "artifacts": {
+    "functional-native-can": {
+      "bytes": 2167152,
+      "sha256": "825be03af02f6020e082db09904abbd9fd7db4287f89a46c9884953532350f2a"
+    },
+    "current-native-can": {
+      "bytes": 2167152,
+      "sha256": "772b882a4e782469654847b579b73d51c8c4742e884c2a9db0b00f3335ed256b"
+    },
+    "functional-linux-can": {
+      "bytes": 2960352,
+      "sha256": "41566e44eea5c54e284f54b360c5d29516e74a3da23aa1bfa619d600bd09f89d"
+    },
+    "baseline-native-can": {
+      "bytes": 2150544,
+      "sha256": "9c9eb9ee5a3b0e2168e41112d2c8b6939db71614a37d3b5afac2c8cf1e4ec9e7"
+    },
+    "initial-linux-can": {
+      "bytes": 2959688,
+      "sha256": "dc78754971ae78472f37b321e03b3bb367f4d39d325c9205ca26e42d1f3b5ed7"
+    },
+    "current-linux-can": {
+      "bytes": 2960352,
+      "sha256": "4238df17c6763fcd0af7fe267d28f710dc3c7507bac458aabd95067662fdfd30"
+    },
+    "baseline-linux-can": {
+      "bytes": 2947352,
+      "sha256": "0d98f604dcaee70bf2a75798543d48ce329288591aedd08dcc54ee1b4d0855aa"
+    },
+    "initial-native-can": {
+      "bytes": 2167152,
+      "sha256": "e431500e70f6319ce76324f82d2406e2acdb76d0de4310989c0a1a0ebea37c60"
+    }
+  },
+  "source_sha256": "6f6b067e3a57c4cb50596712cab981eea199c1774150b1b946042492685f4244",
+  "baseline_commit": "c7d240b",
+  "implementation_commit": "1f936f8",
+  "release_environment": "isolated copied compiler, no .git; Cargo build --offline --locked --release, same Rust/features/profile",
+  "native": {
+    "before": 2150544,
+    "after": 2167152,
+    "delta_bytes": 16608,
+    "delta_percent": 0.7722697140816464
+  },
+  "linux": {
+    "before": 2947352,
+    "after": 2960352,
+    "delta_bytes": 13000,
+    "delta_percent": 0.44107388598307906
+  },
+  "linux_test_counts": [
+    114,
+    6,
+    1,
+    6,
+    26
+  ],
+  "linux_harness_passes": 153,
+  "linux_skips": [
+    "SKIP available_producer_catalog_loads_without_rebuilding_packages: missing profile input packages/values/src/catalog.ts",
+    "SKIP catalog_producer_runtime: missing packages/values/src/catalog.ts"
+  ],
+  "snapshot_live_parity": {
+    "files": 101,
+    "differences": []
+  },
+  "input_drift": {
+    "compiler/src/json.rs": {
+      "before": {
+        "bytes": 16757,
+        "sha256": "755334d67d38e0a24cf7ac1a2050c599c7dadd31f6dc3749554e9db249520183"
+      },
+      "after": {
+        "bytes": 19074,
+        "sha256": "6f6b067e3a57c4cb50596712cab981eea199c1774150b1b946042492685f4244"
+      }
+    }
+  },
+  "input_drift_excluding_intended_json_change": {},
+  "activated_features_identical_except_source_root": true
+}

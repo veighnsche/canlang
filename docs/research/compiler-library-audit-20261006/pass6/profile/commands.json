@@ -1,0 +1,11 @@
+{
+  "baseline_snapshot": "git archive c7d240b compiler; extract to baseline/compiler without .git; local examples/ExpenseFlow.can copied for existing unskipped golden seam",
+  "current_snapshot": "copy compiler excluding target/.git, then compare all101 input file SHA256 with live tree",
+  "native_baseline": "cargo build --offline --locked --release --manifest-path /private/tmp/canlang-pass6-profile/baseline/compiler/Cargo.toml --target-dir /private/tmp/canlang-pass5-profile/current-native-target",
+  "native_current": "cargo build --offline --locked --release --manifest-path /private/tmp/canlang-pass6-profile/current/compiler/Cargo.toml --target-dir /private/tmp/canlang-pass5-profile/current-native-target",
+  "linux": "docker run --rm --pull=never --platform linux/amd64 --network none -e CARGO_HOME=/cargo-home -e CARGO_BUILD_JOBS=1 -v /private/tmp/canlang-pass6-profile:/profile -v /private/tmp/canlang-pass5-profile/cargo-home:/cargo-home -v /private/tmp/canlang-pass5-profile/current-linux-target:/linux-target rust@sha256:24e632c09342c20abf8312cf4f61430a911c01ed3a5e4c02b87292b1c39c5273 sh /profile/linux-final.sh",
+  "cli_cost": "python3 /private/tmp/canlang-pass6-profile/cli-cost.py /Users/vince/Projects/canlang /private/tmp/canlang-pass6-profile",
+  "native_tests": "cargo test --offline --locked --manifest-path compiler/Cargo.toml",
+  "native_clippy": "cargo clippy --offline --locked --manifest-path compiler/Cargo.toml --all-targets -- -D warnings",
+  "scoped_format": "rustfmt --check --edition 2024 compiler/src/json.rs compiler/tests/json_input_contract.rs compiler/tests/catalog_input_contract.rs compiler/tests/catalog_producer_runtime.rs compiler/tests/lsp_admission.rs"
+}

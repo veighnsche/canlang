@@ -1,0 +1,7 @@
+{
+  "baseline_hunks": 83,
+  "current_hunks": 83,
+  "added_hunks": [],
+  "removed_hunks": 0,
+  "scope": "cargo fmt --check full pre-existing debt; separate rustfmt checks for all touched source/tests passed"
+}

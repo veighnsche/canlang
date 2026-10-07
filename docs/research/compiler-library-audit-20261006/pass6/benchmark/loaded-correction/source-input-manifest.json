@@ -1,0 +1,32 @@
+{
+  "old": {
+    "origin": "/private/tmp/canlang-pass6-profile/baseline/compiler/src/json.rs",
+    "sha256": "755334d67d38e0a24cf7ac1a2050c599c7dadd31f6dc3749554e9db249520183",
+    "bytes": 16757
+  },
+  "new": {
+    "origin": "/Users/vince/Projects/canlang/compiler/src/json.rs",
+    "sha256": "672afd2b02d557e45db097766939a466182ffcae8f41b2ddbc7c803c0aaaae02",
+    "bytes": 19092
+  },
+  "catalog": {
+    "origin": "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+    "sha256": "cd984f375e0d6cbcc2bc6aca5ad5ea5b1b3d3ba9cd17b15ab94e4b15e74ced62",
+    "bytes": 22290
+  },
+  "initialize": {
+    "bytes": 107,
+    "sha256": "8cb5a6466a8a1903f9feea91a6bb82def8e4ec87c4bcfc239758a0ede77e3852",
+    "origin": "fixed benchmark main.rs generation"
+  },
+  "mixed_360k": {
+    "bytes": 367501,
+    "sha256": "7f73160f1e01dd07ac61e30dd78159f4a175c7fcf70f293e909d378eceb2f255",
+    "origin": "fixed benchmark main.rs generation"
+  },
+  "mixed_multimb": {
+    "bytes": 2205001,
+    "sha256": "31137628db8504ed81c45fabc713dfb8b968a75f3ab43ad1eba2ae1cb3a2569e",
+    "origin": "fixed benchmark main.rs generation"
+  }
+}

@@ -1,0 +1,8 @@
+{
+  "prior_profile": "/private/tmp/canlang-pass5-profile/current/compiler",
+  "baseline": "c7d240b",
+  "files_compared": 41,
+  "src_rs_cargo_differences": [],
+  "linux_baseline_binary_reused": "baseline-linux-can",
+  "prior_qualification": "Pass5 pinned Rust1.99.0 x86_64 unknown-linux-gnu release, Debian13.7, unknown Git snapshot, identical core source and Cargo inputs"
+}

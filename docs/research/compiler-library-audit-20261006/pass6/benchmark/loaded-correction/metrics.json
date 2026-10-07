@@ -1,0 +1,117 @@
+{
+  "method": "release parse+drop, black_box input and result, alternating engine order, 2 warmup rounds each, 7 measured rounds; shim never measured/output-qualified",
+  "results": [
+    {
+      "input_bytes": 22290,
+      "name": "actual_catalog",
+      "new_median_microseconds": 171.367667,
+      "new_microseconds_per_parse": [
+        151.786667,
+        147.824209,
+        159.499,
+        222.48858299999998,
+        172.52575,
+        171.367667,
+        243.56720800000002
+      ],
+      "new_over_old": 1.0893755249210932,
+      "old_median_microseconds": 157.308167,
+      "old_microseconds_per_parse": [
+        109.897917,
+        175.913542,
+        157.770709,
+        157.308167,
+        144.906666,
+        147.723833,
+        213.779958
+      ],
+      "repetitions_per_round": 1000,
+      "rounds": 7,
+      "warmup_rounds_per_engine": 2
+    },
+    {
+      "input_bytes": 107,
+      "name": "initialize",
+      "new_median_microseconds": 1.5621125,
+      "new_microseconds_per_parse": [
+        1.5986958999999998,
+        1.4379833,
+        1.3651791,
+        1.6733209,
+        1.5621125,
+        9.9688875,
+        1.2207208
+      ],
+      "new_over_old": 1.37164275757609,
+      "old_median_microseconds": 1.1388625,
+      "old_microseconds_per_parse": [
+        0.8218625,
+        0.9256583,
+        1.3072834,
+        1.069875,
+        1.1388625,
+        1.3563875,
+        2.0362959
+      ],
+      "repetitions_per_round": 10000,
+      "rounds": 7,
+      "warmup_rounds_per_engine": 2
+    },
+    {
+      "input_bytes": 367501,
+      "name": "mixed_360k",
+      "new_median_microseconds": 3909.47668,
+      "new_microseconds_per_parse": [
+        3979.18664,
+        4832.41,
+        3874.0283599999993,
+        3710.12,
+        3909.47668,
+        3948.41332,
+        3772.55832
+      ],
+      "new_over_old": 1.329125576683133,
+      "old_median_microseconds": 2941.39,
+      "old_microseconds_per_parse": [
+        2941.39,
+        3225.75832,
+        3567.26668,
+        2724.525,
+        3041.50168,
+        2750.96,
+        2766.24168
+      ],
+      "repetitions_per_round": 25,
+      "rounds": 7,
+      "warmup_rounds_per_engine": 2
+    },
+    {
+      "input_bytes": 2205001,
+      "name": "mixed_multimb",
+      "new_median_microseconds": 20169.85,
+      "new_microseconds_per_parse": [
+        20169.85,
+        19867.9,
+        19034.4916,
+        19855.8918,
+        22620.4,
+        25621.2082,
+        24590.0418
+      ],
+      "new_over_old": 1.289494251734549,
+      "old_median_microseconds": 15641.675,
+      "old_microseconds_per_parse": [
+        16489.925,
+        14172.2166,
+        13515.0084,
+        15406.8334,
+        15641.675,
+        16227.016800000001,
+        30624.541599999997
+      ],
+      "repetitions_per_round": 5,
+      "rounds": 7,
+      "warmup_rounds_per_engine": 2
+    }
+  ]
+}
