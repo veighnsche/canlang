@@ -1,0 +1,203 @@
+{
+  "packet": "TECH-W01-quote",
+  "base": "414c16a1811ff085acfc8fc160a7e129c1a280ec",
+  "before": {
+    "base": "414c16a1811ff085acfc8fc160a7e129c1a280ec",
+    "files": {
+      "packages/work-kernel/decisions/rows.rs": "4ffce02ef4b7a3add7eaff305e8f2717b5aaef09cde8f585aa9c1d3b63f0b938",
+      "packages/work-kernel/decisions/receipt.rs": "f841c46cf185c18c776bb9a5439982e76e8f1b6204c2dec355460cef5eb8fc86",
+      "packages/work-kernel/decisions/linkage.rs": "b38949bbc59482f35a792a71e09bc9d4d1192a0e6cb530dbe33191117a6084b6",
+      "packages/work-kernel/decisions/recovery.rs": "4c8a020e1d062b091e4fbd00266af0b6aeb61c2984046b859bb94fd103389ba8",
+      "packages/work-kernel/decisions/lib.rs": "712d5421c60a117a0ca36c27a7f6e466cb5932f54ad52ff1560d81766bd64509"
+    },
+    "numericReadonlySha256": "c7411ef966b6448a5ca9d2fa3df2c03f8834ea5e86fdf579a7132c4e14987d51",
+    "newFileBefore": "absent"
+  },
+  "afterHashes": {
+    "packages/work-kernel/decisions/rows.rs": "be07feb72b5365628261a82f7c1c67d8c1dee83de38d0f159f3b3bb028f12e5d",
+    "packages/work-kernel/decisions/receipt.rs": "0acba7557afb1f43a328cb3e86e9995fb89d64f1557b0d1477795e8ec1395d5b",
+    "packages/work-kernel/decisions/linkage.rs": "aa3bdfdf7bbaea63cce50a45390795bc68f06f9b68b3d4e11dee41c6b41654dc",
+    "packages/work-kernel/decisions/recovery.rs": "2cbf118f026cb518410c1d4fced4f4e639937152ee7cab23b7905f5aa230c178",
+    "packages/work-kernel/decisions/lib.rs": "3e810aca36c2830d6ebfc6dea650061b1f77edd1455075636cac640b9adaae4d",
+    "packages/work-kernel/decisions/utf16_json.rs": "fc79103cbd98a52a6d9436faa2bc5b79c1c45f7f9b4d744f5e8be563975d3b42"
+  },
+  "implementation": "Identical raw UTF16 append loops from rows, receipt, linkage extracted byte-for-byte to private utf16_json::append. Import aliases preserve leaf call sites. Recovery retains allocating js_quote facade using appender. One static private module registration added. Leaf-local U16/Value/Errors, JSON value renderers, URI loops and numeric helper remain independent.",
+  "qualification": {
+    "utf16Corpus": {
+      "cases": 1114112,
+      "unitCases": 65536,
+      "validPairCases": 1048576,
+      "sha256": "e54ebabf07ec7ff5d5efe136e1dc8f8b3adcac5f58c9a4f3260507b2cefbcad8",
+      "node": "v24.21.0",
+      "v8": "13.6.233.17-node.53",
+      "oracle": "Independent JSON.stringify raw UTF16 unit singleton and every valid surrogate pair, frozen before candidate edits."
+    },
+    "finalNativeQualification": [
+      {
+        "name": "exhaustive-native",
+        "command": [
+          "cargo",
+          "test",
+          "--offline",
+          "--locked",
+          "--manifest-path",
+          "packages/work-kernel/Cargo.toml",
+          "decisions::utf16_json::tests::exhaustive_frozen_v8_corpus",
+          "--",
+          "--exact",
+          "--ignored",
+          "--nocapture"
+        ],
+        "exit": 0,
+        "summary": [
+          "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 321 filtered out; finished in 0.14s"
+        ]
+      },
+      {
+        "name": "registered-native",
+        "command": [
+          "cargo",
+          "test",
+          "--offline",
+          "--locked",
+          "--manifest-path",
+          "packages/work-kernel/Cargo.toml",
+          "registered_conformance",
+          "--",
+          "--nocapture"
+        ],
+        "exit": 0,
+        "summary": [
+          "test result: ok. 73 passed; 0 failed; 1 ignored; 0 measured; 248 filtered out; finished in 0.05s"
+        ]
+      }
+    ],
+    "finalLeafChecks": [
+      {
+        "leaf": "rows",
+        "command": [
+          "cargo",
+          "test",
+          "--offline",
+          "--locked",
+          "--manifest-path",
+          "packages/work-kernel/Cargo.toml",
+          "decisions::rows::",
+          "--",
+          "--nocapture"
+        ],
+        "exit": 0,
+        "summary": [
+          "test result: ok. 15 passed; 0 failed; 0 ignored; 0 measured; 307 filtered out; finished in 0.00s"
+        ]
+      },
+      {
+        "leaf": "receipt",
+        "command": [
+          "cargo",
+          "test",
+          "--offline",
+          "--locked",
+          "--manifest-path",
+          "packages/work-kernel/Cargo.toml",
+          "decisions::receipt::",
+          "--",
+          "--nocapture"
+        ],
+        "exit": 0,
+        "summary": [
+          "test result: ok. 59 passed; 0 failed; 0 ignored; 0 measured; 263 filtered out; finished in 0.00s"
+        ]
+      },
+      {
+        "leaf": "linkage",
+        "command": [
+          "cargo",
+          "test",
+          "--offline",
+          "--locked",
+          "--manifest-path",
+          "packages/work-kernel/Cargo.toml",
+          "decisions::linkage::",
+          "--",
+          "--nocapture"
+        ],
+        "exit": 0,
+        "summary": [
+          "test result: ok. 34 passed; 0 failed; 0 ignored; 0 measured; 288 filtered out; finished in 0.00s"
+        ]
+      },
+      {
+        "leaf": "recovery",
+        "command": [
+          "cargo",
+          "test",
+          "--offline",
+          "--locked",
+          "--manifest-path",
+          "packages/work-kernel/Cargo.toml",
+          "decisions::recovery::",
+          "--",
+          "--nocapture"
+        ],
+        "exit": 0,
+        "summary": [
+          "test result: ok. 67 passed; 0 failed; 0 ignored; 0 measured; 255 filtered out; finished in 0.00s"
+        ]
+      },
+      {
+        "leaf": "utf16_json",
+        "command": [
+          "cargo",
+          "test",
+          "--offline",
+          "--locked",
+          "--manifest-path",
+          "packages/work-kernel/Cargo.toml",
+          "decisions::utf16_json::",
+          "--",
+          "--nocapture"
+        ],
+        "exit": 0,
+        "summary": [
+          "test result: ok. 1 passed; 0 failed; 1 ignored; 0 measured; 320 filtered out; finished in 0.00s"
+        ]
+      }
+    ],
+    "diffCheckPassed": true,
+    "numericTextReadonlyUnchanged": true,
+    "corpusUnchangedAfterNativeExecution": true
+  },
+  "decisiveCallerChecks": [
+    "rows/linkage public check_fanout_identity_set sees raw lone units and valid pair duplicate identities and emits exact JSON diagnostic bytes",
+    "receipt public read_receipt_row sees malformed raw UTF16 status and preserves exact unknown-status diagnostic before subsequent absent-field checks",
+    "all three leaf-local js_stringify render exact raw object keys and string payload identity bytes",
+    "public every_slot_row_id, association_row_id and rt_association_row_id preserve percent-encoded valid pair and separator bytes; malformed raw input still returns URIError",
+    "recovery allocating quote facade preserves lone units, valid pair and empty string; existing registered recovery caller witnesses preserve error ordering",
+    "existing independent registered caller suite remains green, including String/JSON numeric witnesses"
+  ],
+  "closureCounts": {
+    "before": {
+      "readable_code_lines": 4832,
+      "total_production_declaration_lines": 5122,
+      "nonwhitespace_code_bytes": 112667
+    },
+    "after": {
+      "readable_code_lines": 4735,
+      "total_production_declaration_lines": 5020,
+      "nonwhitespace_code_bytes": 110729
+    },
+    "delta": {
+      "readable_code_lines": -97,
+      "total_production_declaration_lines": -102,
+      "nonwhitespace_code_bytes": -1938
+    }
+  },
+  "limits": [
+    "Exhaustive proof covers every raw UTF16 singleton and all valid surrogate pairs, plus selected mixed malformed adjacency and prefix/empty negatives; does not claim exhaustive arbitrary unit sequences",
+    "Native leaf callers and persisted identity constructors verified; no installed/public/durable/browser Work routing, Wasm, producer/parser/provenance/transport/opaque-ref lifecycle or backend default acceptance",
+    "No value/graph/enum/public type unification, manifests, dependencies, root Cargo changes, TS retirement or Git operations",
+    "The registered shared-original observer remains ignored and was not used for this packet"
+  ],
+  "ownership": "Exact six-file lease released; root owns independent review, records and Git. No further writes."
+}

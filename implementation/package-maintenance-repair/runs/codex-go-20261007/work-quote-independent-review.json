@@ -1,0 +1,113 @@
+{
+  "packet": "TECH-W01-quote",
+  "base": "414c16a1811ff085acfc8fc160a7e129c1a280ec",
+  "status": "pass",
+  "files": [
+    {
+      "path": "packages/work-kernel/decisions/rows.rs",
+      "baselineSha256": "4ffce02ef4b7a3add7eaff305e8f2717b5aaef09cde8f585aa9c1d3b63f0b938",
+      "currentSha256": "be07feb72b5365628261a82f7c1c67d8c1dee83de38d0f159f3b3bb028f12e5d",
+      "productionBaselineSha256": "54c40d63ec0d4a85a8173fe92f47566257829e6c5b37bdcada55f08a04981413",
+      "productionCurrentSha256": "1d3e61aa07f3b0307786d0b898be5711259c23aee43d5d128678f60b4b1b3895",
+      "readableBefore": 1753,
+      "readableAfter": 1717,
+      "otherProductionUnchanged": true
+    },
+    {
+      "path": "packages/work-kernel/decisions/receipt.rs",
+      "baselineSha256": "f841c46cf185c18c776bb9a5439982e76e8f1b6204c2dec355460cef5eb8fc86",
+      "currentSha256": "0acba7557afb1f43a328cb3e86e9995fb89d64f1557b0d1477795e8ec1395d5b",
+      "productionBaselineSha256": "a1a5dd67f58448e74467d8e70e5a8c3bce1930703989e75c8fefc1aee9c19680",
+      "productionCurrentSha256": "1650f7f869a4b6dc5ac143076639a8ed063233e1c3c503e00f8f82024429c45f",
+      "readableBefore": 847,
+      "readableAfter": 811,
+      "otherProductionUnchanged": true
+    },
+    {
+      "path": "packages/work-kernel/decisions/linkage.rs",
+      "baselineSha256": "b38949bbc59482f35a792a71e09bc9d4d1192a0e6cb530dbe33191117a6084b6",
+      "currentSha256": "aa3bdfdf7bbaea63cce50a45390795bc68f06f9b68b3d4e11dee41c6b41654dc",
+      "productionBaselineSha256": "85540ef5f147aa98637d0190216c46a7c1d4a049904b142c901a01efac9976c3",
+      "productionCurrentSha256": "31ea7d5b2a3b0498cf66ab5d0cd4dad1ca77d6fd0d1e78501aedbe413d573866",
+      "readableBefore": 1198,
+      "readableAfter": 1162,
+      "otherProductionUnchanged": true
+    },
+    {
+      "path": "packages/work-kernel/decisions/recovery.rs",
+      "baselineSha256": "4c8a020e1d062b091e4fbd00266af0b6aeb61c2984046b859bb94fd103389ba8",
+      "currentSha256": "2cbf118f026cb518410c1d4fced4f4e639937152ee7cab23b7905f5aa230c178",
+      "productionBaselineSha256": "f9025b64389661a02690b670747100b35630fc1b3c9c17661a5f194944f3455d",
+      "productionCurrentSha256": "b2f2d0531019d3dc6077e0396dc988b5567095915d946363f90bf9224171213b",
+      "readableBefore": 1026,
+      "readableAfter": 999,
+      "otherProductionUnchanged": true
+    },
+    {
+      "path": "packages/work-kernel/decisions/lib.rs",
+      "baselineSha256": "712d5421c60a117a0ca36c27a7f6e466cb5932f54ad52ff1560d81766bd64509",
+      "currentSha256": "3e810aca36c2830d6ebfc6dea650061b1f77edd1455075636cac640b9adaae4d",
+      "productionBaselineSha256": "712d5421c60a117a0ca36c27a7f6e466cb5932f54ad52ff1560d81766bd64509",
+      "productionCurrentSha256": "3e810aca36c2830d6ebfc6dea650061b1f77edd1455075636cac640b9adaae4d",
+      "readableBefore": 8,
+      "readableAfter": 9,
+      "otherProductionUnchanged": true
+    }
+  ],
+  "helper": {
+    "path": "packages/work-kernel/decisions/utf16_json.rs",
+    "sha256": "fc79103cbd98a52a6d9436faa2bc5b79c1c45f7f9b4d744f5e8be563975d3b42",
+    "readable": 37,
+    "exactAppendBodyFromThreeOwners": true
+  },
+  "counts": {
+    "measure": "Nonblank noncomment Rust production; all inline cfg(test) tails excluded; imports/module declarations included; Rust implementation and maintained declarations occupy same source closure",
+    "productionBefore": 4832,
+    "productionAfter": 4735,
+    "fullProductionAndDeclarationBefore": 4832,
+    "fullProductionAndDeclarationAfter": 4735,
+    "reduction": 97
+  },
+  "registration": {
+    "cargoSha256": "e47efacc7e0b819611644763ac617da5bfda345d9297826d974bc9d1fb73d4a5",
+    "rustLibSha256": "46a4c32e6615c9b0cbe7758461fd71f72a790af2c71a0fb11de08e054abb681d",
+    "actualCargoRoute": true
+  },
+  "independentV8Corpus": {
+    "cases": 1114112,
+    "sha256": "e54ebabf07ec7ff5d5efe136e1dc8f8b3adcac5f58c9a4f3260507b2cefbcad8",
+    "node": "v24.21.0",
+    "v8": "13.6.233.17-node.53"
+  },
+  "freshSourceCurrentCargoTests": {
+    "native": {
+      "path": "/private/tmp/canlang-repair-go-20261007/work-quote-independent-native.log",
+      "sha256": "aeb1a7ed0e93df3da08d2fda7230346a8b8a5903e62463820d1ac9df13339608",
+      "passed": 247,
+      "failed": 0,
+      "ignored": 1
+    },
+    "exhaustive": {
+      "path": "/private/tmp/canlang-repair-go-20261007/work-quote-independent-exhaustive.log",
+      "sha256": "66d633ef475b9381f0b0a2d9172454f257da24a95f0a1c6d7699cc96a073334f",
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0
+    },
+    "registered": {
+      "path": "/private/tmp/canlang-repair-go-20261007/work-quote-independent-registered.log",
+      "sha256": "384ea66a64bb84dcc707812d6e9987c61efabc7f548e0b663fa9b991ae17fbe5",
+      "passed": 73,
+      "failed": 0,
+      "ignored": 1
+    }
+  },
+  "defects": [],
+  "limits": [
+    "Only UTF16 JSON quote extraction; leaf domain types, error/evaluation/ID ordering unchanged by exact production source remainder",
+    "Recovery allocating String facade remains; allocation capacity strategy can differ without changing bytes",
+    "All 65,536 single raw units and 1,048,576 valid pairs checked against independently regenerated V8 bytes",
+    "Malformed-surrogate URI refusal is retained in unchanged URI source and passes fresh caller quote controls",
+    "Registered shared_original_observer remains ignored; broader Wasm/backend/producer acceptance is not claimed"
+  ]
+}

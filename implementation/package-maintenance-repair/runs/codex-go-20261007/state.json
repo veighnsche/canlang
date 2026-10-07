@@ -130,7 +130,6 @@
     "PARSER-DP01",
     "VERIFY-TV01",
     "TECH-V02-violations",
-    "TECH-V02-gregorian",
     "TECH-S04-admission",
     "TECH-S04-query",
     "TECH-S04-cohort",
@@ -208,7 +207,7 @@
     },
     "TECH-W01-quote": {
       "planning_status": "ready",
-      "state": "released candidate; independent Sol medium review running",
+      "state": "independently accepted UTF16 private-owner reduction; committing",
       "files": [
         "packages/work-kernel/decisions/rows.rs",
         "packages/work-kernel/decisions/receipt.rs",
@@ -217,7 +216,8 @@
         "packages/work-kernel/decisions/lib.rs",
         "packages/work-kernel/decisions/utf16_json.rs"
       ],
-      "agent": "/root/review_ui_appearance"
+      "agent": "/root/review_ui_appearance",
+      "review": "work-quote-independent-review.json"
     },
     "TECH-W01-uri": {
       "planning_status": "blocked",
@@ -599,7 +599,7 @@
     },
     "PARSER-DP01": {
       "planning_status": "ready",
-      "state": "finite Sol low assignment submitted; exact ACK pending",
+      "state": "mounted form own-key correctness candidate released; independent review pending",
       "files": [
         "packages/interfaces/src/http/limits.ts",
         "packages/interfaces/src/http/operations.ts",
@@ -609,7 +609,7 @@
     },
     "VERIFY-TV01": {
       "planning_status": "ready",
-      "state": "finite Luna medium extraction submitted; technical adjudication retained by root/reviewer",
+      "state": "static discovery snapshot released; actual runner/fixture gaps require Sol medium adjudication; no runtime completion claimed",
       "files": [
         "packages/identity/package.json",
         "packages/values/package.json",
@@ -619,23 +619,25 @@
     },
     "TECH-V02-violations": {
       "planning_status": "ready",
-      "state": "ready for finite assignment",
+      "state": "exact ACK received; private duplicate violation leaf implementation active",
       "files": [
         "packages/values/src/internal/schema-core.ts",
         "packages/values/src/internal/wire-core.ts",
         "packages/values/src/internal/violations.ts"
-      ]
+      ],
+      "agent": "/root/impl_form_own_keys"
     },
     "TECH-V02-gregorian": {
       "planning_status": "ready",
-      "state": "independently accepted calendar extraction; committing",
+      "state": "accepted narrow extraction; committed",
       "files": [
         "packages/values/src/kinds.ts",
         "packages/values/src/temporal.ts",
         "packages/values/src/internal/gregorian.ts"
       ],
       "agent": "/root/review_ui_appearance",
-      "review": "gregorian-independent-review.json"
+      "review": "gregorian-independent-review.json",
+      "commit": "a48dfbf"
     },
     "TECH-S04-admission": {
       "planning_status": "blocked",
@@ -696,7 +698,7 @@
     },
     "DEL-A01-error": {
       "planning_status": "ready",
-      "state": "released candidate; independent Sol medium review queued after Work quote",
+      "state": "public-interface defect repaired; renewed independent review active",
       "files": [
         "packages/ui/src/browser/export.ts",
         "packages/ui/src/csv/parse.ts",
@@ -744,5 +746,9 @@
       "/private/tmp/canlang-repair-go-20261007"
     ],
     "state": "active readers/commands and private evidence; no cleanup while actual readers remain"
+  },
+  "native_goal": {
+    "state": "active",
+    "objective": "Finish every currently authorized queue task, resolve actual prerequisites, independently review, commit early/often and clean released resources economically; preserve native HOLD and exact original residual gates."
   }
 }
