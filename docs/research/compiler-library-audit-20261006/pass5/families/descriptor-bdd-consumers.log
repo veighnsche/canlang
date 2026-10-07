@@ -1,0 +1,28 @@
+   Compiling canlang-compiler v0.1.0 (/Users/vince/Projects/canlang/compiler)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 5.42s
+     Running tests/string_payload_runtime.rs (/private/tmp/canlang-compiler-pass5/debug/deps/string_payload_runtime-ca8750367b5fd575)
+
+running 1 test
+test c01_production_strings_execute_through_testkit ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.49s
+
+     Running tests/typed_bdd.rs (/private/tmp/canlang-compiler-pass5/debug/deps/typed_bdd-4d115961f94cba94)
+
+running 2 tests
+test generated_fixture_shell_keeps_quoted_error_and_throwing_function ... ok
+test generated_suite_keeps_strings_inside_executable_recipe ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/typed_descriptors.rs (/private/tmp/canlang-compiler-pass5/debug/deps/typed_descriptors-500b054a0bee20a3)
+
+running 6 tests
+test all_tags_and_defaults_are_closed ... ok
+test exact_literal_scalars_nested_order_and_controls ... ok
+test model_order_optional_members_and_array_false ... ok
+test nested_delivery_and_nominal_order ... ok
+test unary_overflow_and_nonliteral_rejection_and_constructor_calls ... ok
+test operation_order_omissions_and_present_empty_metadata ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s

@@ -429,20 +429,24 @@ fn sanitize(name: &str) -> String {
 
 /// Render a JS double-quoted string literal with minimal escapes.
 fn js_string(value: &str) -> String {
-    let mut out = String::from("\"");
-    for c in value.chars() {
-        match c {
-            '"' => out.push_str("\\\""),
-            '\\' => out.push_str("\\\\"),
-            '\n' => out.push_str("\\n"),
-            '\r' => out.push_str("\\r"),
-            '\t' => out.push_str("\\t"),
-            c if (c as u32) < 0x20 => {
-                out.push_str(&format!("\\u{:04x}", c as u32));
-            }
-            c => out.push(c),
-        }
+    crate::json::to_compact_string(&value).expect("BDD string serialization is infallible")
+}
+
+#[cfg(test)]
+mod string_tests {
+    use super::js_string;
+
+    #[test]
+    fn fixed_string_bytes_cover_every_control_and_unicode() {
+        let controls: String = (0u8..32).map(char::from).collect();
+        assert_eq!(
+            js_string(&controls),
+            r#""\u0000\u0001\u0002\u0003\u0004\u0005\u0006\u0007\u0008\t\n\u000b\u000c\r\u000e\u000f\u0010\u0011\u0012\u0013\u0014\u0015\u0016\u0017\u0018\u0019\u001a\u001b\u001c\u001d\u001e\u001f""#,
+        );
+        assert_eq!(js_string(""), r#""""#);
+        assert_eq!(
+            js_string("\"\\/é😀\u{2028}\u{2029}"),
+            "\"\\\"\\\\/é😀\u{2028}\u{2029}\""
+        );
     }
-    out.push('"');
-    out
 }
