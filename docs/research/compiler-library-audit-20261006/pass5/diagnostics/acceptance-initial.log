@@ -1,0 +1,73 @@
+   Compiling canlang-compiler v0.1.0 (/Users/vince/Projects/canlang/compiler)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 5.99s
+     Running tests/authoring.rs (/private/tmp/canlang-compiler-pass5/debug/deps/authoring-bbebf979f720fe89)
+
+running 30 tests
+test cli_every_subcommand_answers_help ... ok
+test cli_fmt_missing_file_is_tool_failure ... ok
+test cli_check_rejects_missing_operand_and_unreadable_file ... ok
+test cli_compile_with_stub_reports_e7001 ... ok
+test cli_explain_json_shape_and_unknown_code ... ok
+test cli_format_flag_rejected_where_it_does_nothing ... ok
+test cli_help_and_version ... ok
+test cli_check_like_commands_exit_10_on_errors ... ok
+test cli_check_like_commands_emit_envelope_json ... ok
+test cli_fmt_parse_failure_reports_envelope_and_writes_nothing ... ok
+test cli_lsp_returns_stdio_flag ... ok
+test cli_lint_operand_errors_are_tool_failures ... ok
+test cli_thin_entries_report_missing_producer ... ok
+test cli_unknown_command_and_flags_are_tool_failures ... ok
+test cli_unknown_command_with_help_is_still_a_tool_failure ... ok
+test cli_fmt_check_clean_and_drift ... ok
+test server_ignores_incremental_only_changes ... ok
+test server_publishes_nothing_after_close ... ok
+test cli_fmt_rewrites_files_in_place ... ok
+test server_publishes_only_current_versions ... ok
+test explain_e1xxx_valid_examples_parse_clean ... ok
+test server_reports_method_not_found ... ok
+test transport_framing_round_trip_with_split_reads ... ok
+test transport_json_values_round_trip ... ok
+test cli_lint_analysis_errors_exit_10_without_findings ... ok
+test cli_lint_clean_file_reports_empty_envelope ... ok
+test cli_lint_reports_findings_and_exits_zero ... ok
+test cli_compile_teamtasks_reports_emission_diagnostics ... ok
+test explain_round_trips_every_emitted_code ... ok
+test cli_thin_entries_passthrough_args_and_exit_codes ... ok
+
+test result: ok. 30 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.57s
+
+     Running tests/foundation.rs (/private/tmp/canlang-compiler-pass5/debug/deps/foundation-95e1dabd3b4fd311)
+
+running 7 tests
+test diagnostic_envelope_round_trip_shape ... ok
+test diagnostic_control_and_unicode_exact_bytes ... ok
+test diagnostic_empty_envelope_exact_bytes ... ok
+test incomplete_analysis_says_so_in_text ... ok
+test diagnostic_populated_envelope_exact_bytes_and_order ... ok
+test line_index_handles_crlf_and_unicode ... ok
+test source_hashes_are_stable_content_hashes ... ok
+
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/typed_json.rs (/private/tmp/canlang-compiler-pass5/debug/deps/typed_json-886eb823fb8368ed)
+
+running 3 tests
+test serialization_errors_are_reported_without_fallback_output ... ok
+test typed_order_omission_null_and_exact_strings ... ok
+test qualified_raw_fragments_preserve_exact_scalar_spellings ... FAILED
+
+failures:
+
+---- qualified_raw_fragments_preserve_exact_scalar_spellings stdout ----
+
+thread 'qualified_raw_fragments_preserve_exact_scalar_spellings' (18922889) panicked at tests/typed_json.rs:56:9:
+"\uD800"
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    qualified_raw_fragments_preserve_exact_scalar_spellings
+
+test result: FAILED. 2 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `--test typed_json`

@@ -1,0 +1,25 @@
+   Compiling canlang-compiler v0.1.0 (/Users/vince/Projects/canlang/compiler)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 2.02s
+     Running tests/typed_diagnostics_cli.rs (/private/tmp/canlang-compiler-pass5/debug/deps/typed_diagnostics_cli-617c80425d44d3d4)
+
+running 1 test
+test check_lint_and_fmt_diagnostics_keep_schema_order_and_one_newline ... FAILED
+
+failures:
+
+---- check_lint_and_fmt_diagnostics_keep_schema_order_and_one_newline stdout ----
+
+thread 'check_lint_and_fmt_diagnostics_keep_schema_order_and_one_newline' (18977424) panicked at tests/typed_diagnostics_cli.rs:31:9:
+assertion `left == right` failed: check: {"tool":"can","tool_version":"0.1.0","language_version":"1.0","schema_version":1,"sources":[{"id":0,"path":"/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/.tmp4WqkcV/bad.can","sha256":"a1187edf8f43ac74fc1c3d6458e4b0a95d5fc8b0502ea9cac650a854930c4da0"}],"complete":true,"diagnostics":[{"code":"E6002","severity":"error","message":"producer catalog not found; tried /Users/vince/Projects/canlang/compiler/can-catalog.json, /Users/vince/Projects/canlang/compiler/packages/values/dist/catalog.json. Emit it with `npm run catalog` in packages/values, pass --catalog PATH, or set CAN_CATALOG.","primary":{"file":0,"start":0,"end":0},"related":[],"tags":[]},{"code":"E1204","severity":"error","message":"package is missing Given/When/Then","primary":{"file":0,"start":0,"end":3},"related":[],"tags":[]}],"omitted":0}
+
+  left: 2
+ right: 1
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    check_lint_and_fmt_diagnostics_keep_schema_order_and_one_newline
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.27s
+
+error: test failed, to rerun pass `--test typed_diagnostics_cli`

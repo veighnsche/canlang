@@ -104,6 +104,106 @@ pub struct DiagnosticResult {
     pub omitted: u32,
 }
 
+// Field declaration order is the released compact diagnostic wire order.
+#[derive(serde::Serialize)]
+struct ResultJson<'a> {
+    tool: &'a str,
+    tool_version: &'a str,
+    language_version: &'a str,
+    schema_version: u32,
+    sources: Vec<SourceJson<'a>>,
+    complete: bool,
+    diagnostics: Vec<DiagnosticJson<'a>>,
+    omitted: u32,
+}
+
+#[derive(serde::Serialize)]
+struct SourceJson<'a> {
+    id: u32,
+    path: &'a str,
+    sha256: &'a str,
+}
+
+#[derive(serde::Serialize)]
+struct DiagnosticJson<'a> {
+    code: &'a str,
+    severity: &'a str,
+    message: &'a str,
+    primary: SpanJson,
+    related: Vec<RelatedJson<'a>>,
+    tags: &'a [String],
+}
+
+#[derive(serde::Serialize)]
+struct SpanJson {
+    file: u32,
+    start: u32,
+    end: u32,
+}
+
+impl From<Span> for SpanJson {
+    fn from(span: Span) -> Self {
+        Self {
+            file: span.file.0,
+            start: span.start,
+            end: span.end,
+        }
+    }
+}
+
+#[derive(serde::Serialize)]
+struct RelatedJson<'a> {
+    file: u32,
+    start: u32,
+    end: u32,
+    message: &'a str,
+}
+
+// Reuse the ordered wire shape when a typed caller extends the envelope.
+impl serde::Serialize for DiagnosticResult {
+    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        let output = ResultJson {
+            tool: &self.tool,
+            tool_version: &self.tool_version,
+            language_version: &self.language_version,
+            schema_version: self.schema_version,
+            sources: self
+                .sources
+                .iter()
+                .map(|source| SourceJson {
+                    id: source.id,
+                    path: &source.path,
+                    sha256: &source.sha256,
+                })
+                .collect(),
+            complete: self.complete,
+            diagnostics: self
+                .diagnostics
+                .iter()
+                .map(|diagnostic| DiagnosticJson {
+                    code: diagnostic.code,
+                    severity: diagnostic.severity.as_str(),
+                    message: &diagnostic.message,
+                    primary: diagnostic.primary.into(),
+                    related: diagnostic
+                        .related
+                        .iter()
+                        .map(|related| RelatedJson {
+                            file: related.span.file.0,
+                            start: related.span.start,
+                            end: related.span.end,
+                            message: &related.message,
+                        })
+                        .collect(),
+                    tags: &diagnostic.tags,
+                })
+                .collect(),
+            omitted: self.omitted,
+        };
+        serde::Serialize::serialize(&output, serializer)
+    }
+}
+
 impl DiagnosticResult {
     /// Create an empty complete result for the running tool version.
     pub fn new(tool_version: &str, language_version: &str, schema_version: u32) -> Self {
@@ -165,65 +265,7 @@ impl DiagnosticResult {
 
     /// Render the compact deterministic JSON envelope (single line).
     pub fn to_json(&self) -> String {
-        let mut out = String::new();
-        out.push_str("{\"tool\":");
-        push_json_str(&mut out, &self.tool);
-        out.push_str(",\"tool_version\":");
-        push_json_str(&mut out, &self.tool_version);
-        out.push_str(",\"language_version\":");
-        push_json_str(&mut out, &self.language_version);
-        let _ = write!(out, ",\"schema_version\":{}", self.schema_version);
-        out.push_str(",\"sources\":[");
-        for (i, s) in self.sources.iter().enumerate() {
-            if i > 0 {
-                out.push(',');
-            }
-            let _ = write!(out, "{{\"id\":{},\"path\":", s.id);
-            push_json_str(&mut out, &s.path);
-            out.push_str(",\"sha256\":");
-            push_json_str(&mut out, &s.sha256);
-            out.push('}');
-        }
-        let _ = write!(out, "],\"complete\":{},\"diagnostics\":[", self.complete);
-        for (i, d) in self.diagnostics.iter().enumerate() {
-            if i > 0 {
-                out.push(',');
-            }
-            out.push_str("{\"code\":");
-            push_json_str(&mut out, d.code);
-            out.push_str(",\"severity\":");
-            push_json_str(&mut out, d.severity.as_str());
-            out.push_str(",\"message\":");
-            push_json_str(&mut out, &d.message);
-            let _ = write!(
-                out,
-                ",\"primary\":{{\"file\":{},\"start\":{},\"end\":{}}}",
-                d.primary.file.0, d.primary.start, d.primary.end
-            );
-            out.push_str(",\"related\":[");
-            for (j, r) in d.related.iter().enumerate() {
-                if j > 0 {
-                    out.push(',');
-                }
-                let _ = write!(
-                    out,
-                    "{{\"file\":{},\"start\":{},\"end\":{},\"message\":",
-                    r.span.file.0, r.span.start, r.span.end
-                );
-                push_json_str(&mut out, &r.message);
-                out.push('}');
-            }
-            out.push_str("],\"tags\":[");
-            for (j, t) in d.tags.iter().enumerate() {
-                if j > 0 {
-                    out.push(',');
-                }
-                push_json_str(&mut out, t);
-            }
-            out.push_str("]}");
-        }
-        let _ = write!(out, "],\"omitted\":{}}}", self.omitted);
-        out
+        crate::json::to_compact_string(self).expect("closed diagnostic JSON DTO must serialize")
     }
 
     /// Render one human line per diagnostic: `path:line:col: severity code message`.
@@ -276,23 +318,10 @@ fn single_line(message: &str) -> String {
         .collect()
 }
 
-/// Append `s` as a JSON double-quoted string with minimal escapes.
+/// Append `s` using the shared byte-compatible JSON string policy.
+/// Retained for ordered input-model rendering and legacy public callers.
 pub fn push_json_str(out: &mut String, s: &str) {
-    out.push('"');
-    for c in s.chars() {
-        match c {
-            '"' => out.push_str("\\\""),
-            '\\' => out.push_str("\\\\"),
-            '\n' => out.push_str("\\n"),
-            '\r' => out.push_str("\\r"),
-            '\t' => out.push_str("\\t"),
-            c if (c as u32) < 0x20 => {
-                let _ = write!(out, "\\u{:04x}", c as u32);
-            }
-            c => out.push(c),
-        }
-    }
-    out.push('"');
+    out.push_str(&crate::json::to_compact_string(s).expect("JSON string must serialize"));
 }
 
 #[cfg(test)]

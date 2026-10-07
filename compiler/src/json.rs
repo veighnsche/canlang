@@ -1,4 +1,4 @@
-//! Dependency-free JSON value model: full-grammar parser plus compact renderer.
+//! Ordered JSON input model and compatible typed output adapters.
 //!
 //! Shared by the LSP transport and the producer-catalog loader. Object
 //! members keep insertion order; numbers keep their raw lexeme so values
@@ -6,6 +6,54 @@
 //! hostile input cannot recurse without bound.
 
 use std::fmt;
+
+/// Serialize typed output with Can's compact, byte-compatible string policy.
+///
+/// Struct declarations and ordered sequence/map serializers own field order;
+/// strings and exact wire values must not pass through floating-point values.
+/// Generic serializers report errors rather than substituting null/empty output.
+/// Closed compiler DTOs retain their existing infallible String adapters and
+/// treat an unexpected serialization failure as an internal tool error.
+pub fn to_compact_string<T: serde::Serialize + ?Sized>(
+    value: &T,
+) -> Result<String, serde_json::Error> {
+    to_string_with_formatter(value, CanCompactFormatter)
+}
+
+/// Serializer-family layout adapters delegate value emission to serde_json.
+pub(crate) fn to_string_with_formatter<T: serde::Serialize + ?Sized, F: serde_json::ser::Formatter>(
+    value: &T,
+    formatter: F,
+) -> Result<String, serde_json::Error> {
+    let mut bytes = Vec::new();
+    let mut serializer = serde_json::Serializer::with_formatter(&mut bytes, formatter);
+    value.serialize(&mut serializer)?;
+    Ok(String::from_utf8(bytes).expect("JSON serialization must produce UTF-8"))
+}
+
+/// The only escape-policy overrides; all string scanning belongs to serde_json.
+pub(crate) fn write_compatible_escape<W: ?Sized + std::io::Write>(
+    writer: &mut W,
+    escape: serde_json::ser::CharEscape,
+) -> std::io::Result<()> {
+    use serde_json::ser::{CharEscape, CompactFormatter, Formatter};
+    match escape {
+        CharEscape::Backspace => writer.write_all(b"\\u0008"),
+        CharEscape::FormFeed => writer.write_all(b"\\u000c"),
+        other => CompactFormatter.write_char_escape(writer, other),
+    }
+}
+
+struct CanCompactFormatter;
+impl serde_json::ser::Formatter for CanCompactFormatter {
+    fn write_char_escape<W: ?Sized + std::io::Write>(
+        &mut self,
+        writer: &mut W,
+        escape: serde_json::ser::CharEscape,
+    ) -> std::io::Result<()> {
+        write_compatible_escape(writer, escape)
+    }
+}
 
 /// Maximum JSON nesting depth accepted by [`parse`].
 pub const MAX_JSON_DEPTH: usize = 64;

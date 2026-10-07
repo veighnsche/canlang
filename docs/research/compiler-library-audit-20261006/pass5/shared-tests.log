@@ -1,0 +1,11 @@
+   Compiling canlang-compiler v0.1.0 (/Users/vince/Projects/canlang/compiler)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 4.99s
+     Running tests/typed_json.rs (/private/tmp/canlang-compiler-pass5/debug/deps/typed_json-886eb823fb8368ed)
+
+running 4 tests
+test raw_value_is_not_a_unicode_scalar_validator_and_input_parser_stays_strict ... ok
+test typed_order_omission_null_and_exact_strings ... ok
+test serialization_errors_are_reported_without_fallback_output ... ok
+test qualified_raw_fragments_preserve_exact_scalar_spellings ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s

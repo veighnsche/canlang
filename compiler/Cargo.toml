@@ -22,6 +22,10 @@ sha2 = { version = "=0.10.9", default-features = false }
 # Destination-local owned temporary files with the normal random-name profile.
 tempfile = { version = "=3.27.0", default-features = false, features = ["getrandom"] }
 
+# Typed output only; keep the existing JSON input parser and accessors.
+serde = { version = "=1.0.229", default-features = false, features = ["std", "derive"] }
+serde_json = { version = "=1.0.151", default-features = false, features = ["std", "raw_value"] }
+
 # B5/J1 release profile: small stripped single-binary CLI. `panic` stays
 # `unwind` (the default): `main` catches panics into E7005/exit 2.
 [profile.release]
