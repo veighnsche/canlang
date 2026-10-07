@@ -1,0 +1,65 @@
+{
+  "scope": "DEL-R01 readonly source-current installed Interfaces consumer prerequisite; no whole gate acceptance",
+  "verdict": "REFUSE source-current installed asset consumer acceptance",
+  "blockers": [
+    {
+      "owner": "packages/interfaces/dist/src/http/assets.js and assets.d.ts",
+      "fact": "present output byte-identical to accepted pre-correction emit, differs accepted corrected source-current emit"
+    },
+    {
+      "owner": "packages/interfaces/package.json exports and src/index.ts",
+      "fact": "no declared asset helper subpath/direct root reexport; actual present-file bare deep import refuses ERR_PACKAGE_PATH_NOT_EXPORTED"
+    },
+    {
+      "owner": "actual production caller/mount",
+      "fact": "bounded constructor and actual handler/import locators returned only defining source and2tests; no genuine caller supplied"
+    }
+  ],
+  "sourcePins": {
+    "packages/interfaces/package.json": "8f3639d8cbbe1e5d0e4af4c1d92352fbdb66f56994c3863d54274f4258c47cad",
+    "packages/interfaces/tsconfig.json": "9adf2ee2e9d8bde76914fdc27f3af06bb9f6ebebf0a662c3f9d619a166ee0da7",
+    "tsconfig.base.json": "56d05912029f16842996d66df2e6fc4279950a243874a794d9ff2e13e220ded8",
+    "packages/interfaces/src/http/assets.ts": "67a6d569fd20ea2bb930ef854a1c3f2ae0812b2f4c8a3da0e1626bfdad37453d",
+    "packages/interfaces/src/http/limits.ts": "1b9718453c391292418fb60dfbf683bc649fef25b96b6a917821c1a60101d51c",
+    "packages/interfaces/test/asset-byte-ownership.test.ts": "a0a9e3b5334e8074ceda7d0e9203ae08ade144cf3b6318a6ee9b0eafeeaa436d"
+  },
+  "sourceConfigurationEquality": "9/9 accepted prior snapshot matches",
+  "dependencyEquality": "504/504 real current installed support files equal accepted private dependency copies",
+  "sourceOutputComparison": "dist-owner-comparison.json;2asset outputs stale,8other owner closure JS/declarations same",
+  "outsideConsumer": "exact real manifest+348present dist files snapshotted outside checkout; Node resolution only, no npm installation or runtime dependency import",
+  "publicResolution": {
+    "scope": "Node resolution of real manifest+present actual dist snapshot; no module runtime/dependency loading",
+    "node": "v24.21.0",
+    "rows": [
+      {
+        "specifier": "@canlang/interfaces",
+        "resolved": "file:///private/tmp/canlang-repair-go-20261007/interfaces-installed-current/outside-consumer/node_modules/@canlang/interfaces/dist/src/index.js"
+      },
+      {
+        "specifier": "@canlang/interfaces/distribution",
+        "resolved": "file:///private/tmp/canlang-repair-go-20261007/interfaces-installed-current/outside-consumer/node_modules/@canlang/interfaces/dist/src/distribution.js"
+      },
+      {
+        "specifier": "@canlang/interfaces/dist/src/http/assets.js",
+        "error": {
+          "name": "Error",
+          "code": "ERR_PACKAGE_PATH_NOT_EXPORTED",
+          "message": "Package subpath './dist/src/http/assets.js' is not defined by \"exports\" in /private/tmp/canlang-repair-go-20261007/interfaces-installed-current/outside-consumer/node_modules/@canlang/interfaces/package.json imported from /private/tmp/canlang-repair-go-20261007/interfaces-installed-current/outside-consumer/resolve.mjs"
+        }
+      }
+    ]
+  },
+  "distributionLimit": "public distribution.modules points at producer compiled inventory directory; no constructor or mounted serving API declared. File URL imports are not claimed impossible, and no inventory bypass used as installed acceptance",
+  "reusedProof": "prior asset-ownership-independent strict defining-owner proof only, after exact source/config/dependency equality; no compilation/tests repeated",
+  "absentLiteral": "packages/interfaces/src/http/failures.ts absent, assets actual imports envelope/context; no replacement invented",
+  "ownerRecipe": "owner-recipe.json;existing full package rebuild never executed",
+  "networkRequests": 0,
+  "productWrites": 0,
+  "sharedOutputsWritten": false,
+  "allReadsReleased": true,
+  "allCommandsReleased": true,
+  "packet": "DEL-R01 Interfaces installed-current prerequisite",
+  "rootDisposition": "Refuse installed source-current asset acceptance: shipped owner artifacts are pre-correction and no production/public mount caller observed",
+  "privateEvidence": "/private/tmp/canlang-repair-go-20261007/interfaces-installed-current",
+  "privateResultSHA256": "02b51dbc9bdad96407a5012653fc902d3235059595a934a074c187f9852e1a40"
+}

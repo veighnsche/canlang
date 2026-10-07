@@ -165,9 +165,9 @@
   },
   "numeric_acceptance_limit": "Existing numeric source/native actual-caller scope only; unchanged original Wasm/installed/durable/backend/T08/T26 and held preparation gates remain.",
   "next_active_packets": [
-    "TECH-V05:current-host-data-cache-prerequisite",
-    "TECH-V04:changed-conformance-Wasm-target-qualification",
-    "DEL-E02:released-invalid-target-inventory"
+    "DEL-D03:independent-mixed-writer-review",
+    "TECH-V05:root-material-private-cache-policy-and-3unsent-JEV-requests",
+    "DEL-R01:source-current-owning-build-and-real-public/mount-consumer-blockers"
   ],
   "packet_state": {
     "TECH-V01-values": {
@@ -378,17 +378,55 @@
         "commit_pending": false,
         "writer_released": true,
         "review_read_released": true,
-        "commit": "27f211c9"
+        "commit": "27f211c9",
+        "changed_wasm_qualification": {
+          "state": "Root accepted current registered-source raw boundary25/25 and7realhost bootstrap controls; parent source/domain/error/profile/adoption gates remain open",
+          "review": "record-hygiene-wasm-qualification.json",
+          "agent": "/root/prepared_registration_atomic",
+          "model": "gpt-6.1-sol",
+          "effort": "medium",
+          "private_evidence": "/private/tmp/canlang-repair-go-20261007/record-hygiene-wasm-current",
+          "read_released": true,
+          "commands_released": true
+        }
       }
     },
     "TECH-V05": {
       "planning_status": "blocked",
-      "state": "blocked on packet prerequisites",
+      "state": "Local source-current host/currency/cache prerequisites complete; private optimization policy comparison active, release-host/data gates open",
       "files": [
         "packages/values/src/timezone.ts",
         "packages/values/src/locale.ts",
         "packages/values/src/currency-data.ts"
-      ]
+      ],
+      "review": "timezone-host-prerequisite.json",
+      "policy_agent": "/root/timezone_cache_policy",
+      "model": "gpt-6.1-sol",
+      "effort": "high",
+      "model_reason": "Actual private cache state/host equivalence/CPU tradeoff unresolved; no premium model needed absent critical security seam",
+      "outputs": "/private/tmp/canlang-repair-go-20261007/timezone-cache-policy",
+      "active_files": [],
+      "read_only": true,
+      "policy_prerequisite": {
+        "state": "Finite private variant measurements complete and released; 3JEV drafts unsent, no capacity/public policy selected",
+        "private_evidence": "/private/tmp/canlang-repair-go-20261007/timezone-cache-policy",
+        "agent": "/root/timezone_cache_policy",
+        "model": "gpt-6.1-sol",
+        "effort": "high",
+        "read_released": true,
+        "commands_released": true,
+        "positive_controls": "179owningchecks perNode/Bun host+7variant exactlocale/money/timezone comparisons",
+        "limit": "Cache reference bound differs from whole-host memory; raw public zone/domain never narrowed; release host/data/installed gates remain open"
+      },
+      "consultation": {
+        "state": "Automatic approval review rejected external send before execution; exact3payload approval pending, other work continues",
+        "requests": "/private/tmp/canlang-repair-go-20261007/timezone-cache-consultation/manifest.json",
+        "total_payload_bytes": 42816,
+        "destination": "https://api.typesafe.ai",
+        "reason": "Generic JEV preauthorization insufficient for specific internal source payload/destination",
+        "calls_started": false,
+        "no_workaround": true
+      }
     },
     "TECH-S01": {
       "planning_status": "ready",
@@ -1031,7 +1069,7 @@
       "correctness_growth": 18,
       "commit": "2b750a6e",
       "contained_writer_prerequisite": {
-        "state": "Different-author actual-FS review accepted; separate coherent text writer commit prepared",
+        "state": "Independently accepted finite text-output correction committed41a7b05b; broader parent still partial",
         "agent": "/root/browser_lifecycle_review",
         "model": "gpt-6.1-sol",
         "effort": "medium",
@@ -1049,11 +1087,40 @@
         "review": "text-output-containment-independent-review.json",
         "reviewer": "/root/service_stream_review",
         "review_outputs": "/private/tmp/canlang-repair-go-20261007/contained-writer-independent",
-        "commit_pending": true,
+        "commit_pending": false,
         "source_pins": {
           "packages/cloudflare/src/deploy/bundle.ts": "613905f8035259e8e99e6ed97f7b125c917eba16fd845d1f68d6f5a176114b4b",
           "packages/cloudflare/test/text-output-containment.test.ts": "d8cbb4f119b80b2cb684b61bd7e42057a5dd916dc3a6a2908d32f8a13baa3e14"
-        }
+        },
+        "commit": "41a7b05b63637af53e5c3a9aa3fbf82546c76352"
+      },
+      "mixed_writer_correction": {
+        "state": "Different-author physical-preflight review accepted; separate coherent commit prepared, planned-prefix residual open",
+        "files": [
+          "packages/cloudflare/src/deploy/bundle.ts",
+          "packages/cloudflare/test/mixed-output-containment.test.ts"
+        ],
+        "source_pins": {
+          "packages/cloudflare/src/deploy/bundle.ts": "1f28c42614a303ac89460539ac94fd768c792cc268bf060a6fdbf5fd8d500121",
+          "packages/cloudflare/test/mixed-output-containment.test.ts": "552dd8bd357776456744b447849885249c9241c690c5c752b0b960aaca858f3c"
+        },
+        "writer": "/root/service_stream_review",
+        "reviewer": "/root/browser_lifecycle_review",
+        "model": "gpt-6.1-sol",
+        "effort": "medium",
+        "writer_released": true,
+        "review_read_released": true,
+        "outputs": "/private/tmp/canlang-repair-go-20261007/mixed-writer-production",
+        "review_outputs": "/private/tmp/canlang-repair-go-20261007/mixed-writer-independent",
+        "limit": "Existing-state containment only; sidecars/races/atomic/installed/native/HOLD gates remain open",
+        "review": "mixed-output-containment-independent-review.json",
+        "commit_pending": true
+      },
+      "planned_collision_residual": {
+        "state": "Root verified independent real before/current partial-effects witness; next finite defining common-layout repair selected",
+        "contract": "Reject selected file/directory parent-child conflicts in text/binary mixed layout before output effects; preserve both entry domains/reserved-manifest policy and existing layout/digest/error precedence",
+        "evidence": "/private/tmp/canlang-repair-go-20261007/mixed-writer-independent/result.json",
+        "writer_active": false
       }
     },
     "DEL-D04": {
@@ -1107,7 +1174,7 @@
     },
     "DEL-R01": {
       "planning_status": "blocked",
-      "state": "blocked on packet prerequisites",
+      "state": "Installed asset acceptance refused: actual dist owner equals pre-correction, public deep export refuses and genuine mount/caller remains missing",
       "files": [
         "packages/cloudflare/package.json",
         "packages/cloudflare/src/cli/platform.ts",
@@ -1123,7 +1190,15 @@
         "packages/work-kernel/package.json",
         "package.json",
         "bun.lock"
-      ]
+      ],
+      "agent": "/root/prepared_registration_atomic",
+      "model": "gpt-6.1-sol",
+      "effort": "medium",
+      "outputs": "/private/tmp/canlang-repair-go-20261007/interfaces-installed-current",
+      "read_only": true,
+      "review": "interfaces-installed-prerequisite.json",
+      "read_released": true,
+      "commands_released": true
     },
     "DEL-E02": {
       "planning_status": "blocked",
@@ -1406,13 +1481,17 @@
       ],
       "manifest": "released-source-payloads.json",
       "archive_root": "/private/tmp/canlang-repair-go-20261007/released-source-payloads"
+    },
+    "released_invalid_cargo_target": {
+      "state": "Only exact released invalid target removed after no open handles/cargo users;665files102029729bytes; all sibling logs/recipes and currentWasm evidence retained",
+      "review": "released-cargo-target-cleanup.json"
     }
   },
   "native_goal": {
     "state": "active",
     "objective": "Finish every currently authorized queue task, resolve actual prerequisites, independently review, commit early/often and clean released resources economically; preserve native HOLD and exact original residual gates."
   },
-  "updated_utc": "2026-10-07T23:02:22.720670+00:00",
+  "updated_utc": "2026-10-07T23:23:56.752703+00:00",
   "critical_security_review": {
     "state": "frozen review and actual source joins received; contracts/repairs/host acceptance remain open",
     "agent": "/root/critical_package_security",
@@ -1546,6 +1625,24 @@
         "packages/state/test/invocation/owned-admission.test.ts"
       ],
       "limit": "No Values provenance/public descriptor expansion, secrecy/unknown/nonnullable/ref-version/error-order preserved; root retains Git/decisions/filetree"
+    },
+    "conditional_runtime_stdlib_writer": {
+      "target": "01a117b5-8358-7e31-9de3-03d0302cdd3c",
+      "state": "Conditional release of exact direct-owned3purehelper exports; source-contract release/current pin/exact new test ACK required before writes",
+      "file": "packages/cloudflare/src/runtime/stdlib.ts",
+      "start_pin": "12505068df2bbe3b6cdf74d52d1e7f2533283c3649bb22333bd77516d437e272",
+      "limit": "Only int64,datetime,compareInstant directValuesexports; context/persistence/backend/wholehost gate separate; rootGit/docs retained"
     }
+  },
+  "previous_goal_turn_classification": {
+    "class": "progress",
+    "evidence": [
+      "a1f3c67a accepted registration correction",
+      "41a7b05b accepted text-output correction",
+      "665releasedinvalidCargo files102029729bytes removed",
+      "58source-current native/Wasm files+25rawbyteidenticalframes+7bootstrap controls",
+      "Exact installed pre-correction asset/source mismatch and missing mount demonstrated"
+    ],
+    "not_full_completion": true
   }
 }

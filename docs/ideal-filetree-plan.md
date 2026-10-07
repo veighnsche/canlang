@@ -234,3 +234,6 @@ Values prepared/plan.ts retains synchronous registration ownership; staged defau
 
 
 Root bounded maintenance reconciliation: DEL-D03 text output preflight now reuses the existing defining bundle.ts package guard before any mkdir/write. Actual FS and unchanged public declarations are independently checked; runtime +184bytes/three lines and separate proof are correctness cost. Mixed-only binaries/manifest, host sidecars, races and installed/native gates remain open. No responsibility move, merge, inherited-allocation review or checkpoint advance is claimed. See text-output-containment-independent-review.json.
+
+
+Root bounded maintenance reconciliation: DEL-D03 mixed physical preflight reuses its defining bundle.ts guard; actual47maintained/38pairedFS/declaration evidence accepts only physical refusal before output. Planned-prefix partial effects remain a separate required repair; runtime+206bytes/two lines is correctness cost. Source-current private Wasm conformance25rawframes/sevenbootstrap controls remains separate from production decode/installed/adoption; locale/cache policy and real browser resource mount remain open. Exact released invalid privateCargo target cleanup preserved all receipts/currentWasm outputs. No merge, inherited allocation review or complete checkpoint advance.
