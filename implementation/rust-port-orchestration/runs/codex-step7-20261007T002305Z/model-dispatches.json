@@ -30,6 +30,48 @@
       "effort": "high",
       "reason": "Cross-file dependency/host closures, synchronous public entry and shared consumer seams require high-risk integration checks.",
       "choice_is_inference": true
+    },
+    {
+      "role": "D02 independent review",
+      "agent": "/root/step7_review_imports",
+      "model": "gpt-6.1-sol",
+      "effort": "high",
+      "reason": "Full parser/edit compatibility independent cases across raw identity/error/spans."
+    },
+    {
+      "role": "D03 independent review",
+      "agent": "/root/step7_review_maps",
+      "model": "gpt-6.1-sol",
+      "effort": "high",
+      "reason": "Full signed numeric/order/admission/identity compatibility and genuine responsibility simplification."
+    },
+    {
+      "role": "R3 independent delivery review",
+      "agent": "/root/step7_review_delivery",
+      "model": "gpt-6.1-sol",
+      "effort": "high",
+      "reason": "Installed ESM dependency and actual written Worker graph/public cold host delivery seam."
+    },
+    {
+      "role": "D02 same-owner repair",
+      "agent": "/root/step7_imports",
+      "model": "gpt-6.1-sol",
+      "effort": "high",
+      "reason": "Observed P1 lexical Unicode gap; raw literal and span preservation across a compatibility repair is not frozen mechanics."
+    },
+    {
+      "role": "D02/D03 original ledger evidence crosswalk",
+      "agent": "/root/step7_ledger_check",
+      "model": "gpt-6-luna",
+      "effort": "low",
+      "reason": "Finite extraction/status equality and exact source-ID crosswalk; root retains all decisions and writes."
+    },
+    {
+      "role": "D02 renewed independent repair review",
+      "agent": "/root/step7_review_imports",
+      "model": "gpt-6.1-sol",
+      "effort": "high",
+      "reason": "Observed lexical-policy bypass plus original Unicode literal/error/source-map grid preservation; full compatibility risk remains, not frozen mechanics. Existing supported reviewer reused."
     }
   ],
   "api_cost_not_subscription_usage": true

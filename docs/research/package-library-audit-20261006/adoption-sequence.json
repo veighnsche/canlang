@@ -183,7 +183,7 @@
       "finite_test_and_evidence_paths_at_release_required": true,
       "defining_assembly_and_global_dependency_changes_require_sole_owner": true,
       "task_details_reference": "adoption-sequence.md#n03--repair-work-number-formatting-mechanics-before-assembly",
-      "acceptance_summary": "all admitted diagnostic/identity bytes agree with actual JS; `1e20` cannot saturate into i64 text; JSON nonfinite→null remains distinct; number carrier bits/order/authority are unchanged. A native source-ready release is only that narrower claim; it does not close W04.4. N02/N04/N05 are not prerequisites.",
+      "acceptance_summary": "all admitted diagnostic/identity bytes agree with actual JS; `1e20` cannot saturate into i64 text; JSON nonfinite\u2192null remains distinct; number carrier bits/order/authority are unchanged. A native source-ready release is only that narrower claim; it does not close W04.4. N02/N04/N05 are not prerequisites.",
       "required_local_release": "library-sequence:N01#work-format-contract",
       "no_unrelated_contract_completion_barrier": true
     },
@@ -907,7 +907,7 @@
       "finite_test_and_evidence_paths_at_release_required": true,
       "defining_assembly_and_global_dependency_changes_require_sole_owner": true,
       "task_details_reference": "adoption-sequence.md#c03--adopt-the-grammar-in-authoritative-reviewcommit-consumers",
-      "acceptance_summary": "actual review→commit, deny/stale/duplicate/replay and resource/error-order tests pass with exact digest/response bytes. Qualify Node/workerd installed closure and browser delivery only for an identified actual client. No stable-hash library change is folded into this packet.",
+      "acceptance_summary": "actual review\u2192commit, deny/stale/duplicate/replay and resource/error-order tests pass with exact digest/response bytes. Qualify Node/workerd installed closure and browser delivery only for an identified actual client. No stable-hash library change is folded into this packet.",
       "explicit_finite_scope_in_future_human_release_required": true
     },
     {
@@ -1195,5 +1195,21 @@
     "execution_authorized": false,
     "reference": "../../../implementation/RUST-PORT-EXECUTION-PLAN.md"
   },
-  "topology_change_is_planning_only": true
+  "topology_change_is_planning_only": true,
+  "released_execution_slices": [
+    {
+      "run": "codex-step7-20261007T002305Z",
+      "source_commits": {
+        "D03+R3": "d078e9f",
+        "D02-leaf": "688b866"
+      },
+      "D02": "Independently accepted repaired source-ready pure leaf; full unit partial until D04 caller adoption",
+      "D03": "Independently accepted preserving per-segment decoder and existing lookup under raw contract",
+      "R3": "Pinned dependency/lock and153-module written Worker codec closure accepted",
+      "completion_record": "../../../implementation/rust-port-orchestration/runs/codex-step7-20261007T002305Z/completion.json",
+      "original_task_statuses_and_dependencies_unchanged": true,
+      "future_execution_authorized": false,
+      "native_preparation_and_native_release_held": true
+    }
+  ]
 }

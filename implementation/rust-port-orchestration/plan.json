@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
-  "phase": "step7_running",
-  "execution_authorized": true,
+  "phase": "step7_completed_finite_scope",
+  "execution_authorized": false,
   "global_orchestrator": "Codex for package programme",
   "independent_reviewer": "Codex",
   "main_integrator": "Codex for package releases; independent compiler agent retains its own authority",
@@ -16,7 +16,7 @@
   },
   "cadence": {
     "root_minutes": 15,
-    "root_automation_status": "ACTIVE",
+    "root_automation_status": "PAUSED",
     "scheduled_controller": "Codex only",
     "local_recurring_jobs_allowed": false,
     "active_turn_completion_route": "collaboration messages and completion; no timer wait for ready work",
@@ -129,11 +129,7 @@
   "planning_checkpoint_step3": "implementation/rust-port-orchestration/first-packets-20261007/README.md",
   "first_packet_queue_verification": "implementation/rust-port-orchestration/first-packets-20261007/verification.json",
   "activation_run": "/Users/vince/Projects/canlang/implementation/rust-port-orchestration/runs/codex-step7-20261007T002305Z",
-  "active_authorized_packet_ids": [
-    "step7:D02",
-    "step7:D03",
-    "step7:R3"
-  ],
+  "active_authorized_packet_ids": [],
   "completed_packet_ids": [
     "first:R1:N02-values-number-maintenance",
     "first:R2:V01-consumed-owner-contracts",
@@ -141,10 +137,14 @@
     "next:R1:N04-helper",
     "step6:R1:N05-bootstrap-foundation",
     "step6:R2:N05-private-validation-join",
-    "step6:R3:N06-registered-decisions"
+    "step6:R3:N06-registered-decisions",
+    "step7:D02",
+    "step7:D03",
+    "step7:R3"
   ],
   "future_dispatch_authorized": false,
-  "updated_at_utc": "2026-10-07T00:18:08.285852+00:00",
+  "updated_at_utc": "2026-10-07T00:53:42.049768+00:00",
   "supervisor_status": "PAUSED",
-  "human_release_reference": "Human step7 finite import/map adapter work,2026-10-07"
+  "human_release_reference": "Human step7 finite import/map adapter work,2026-10-07",
+  "latest_finite_scope_limits": "D02 packet is source-ready leaf, not whole calleradoption; D03/R3 preserving mapper+codecclosure accepted; D04/native/installed/default gates open."
 }

@@ -9,11 +9,12 @@
     "packages/cloudflare/test/module-imports-contract.test.ts",
     "packages/cloudflare/test/fixtures/import-policy-contract.json"
   ],
-  "execution_authorized": true,
-  "gate": "frozen decoded_compat pure import/edit adapter and installed pinned host entries",
+  "execution_authorized": false,
+  "gate": "Exact repaired leaf; original broadD02 caller adoption stays open for D04",
   "private_root": "/private/tmp/canlang-rust-port-codex-step7-20261007T002305Z/D02",
-  "writer_released": false,
-  "command_released": false,
-  "status": "dispatched",
-  "ack_observed": true
+  "writer_released": true,
+  "command_released": true,
+  "status": "independently_accepted_and_committed",
+  "ack_observed": true,
+  "commit": "688b866"
 }

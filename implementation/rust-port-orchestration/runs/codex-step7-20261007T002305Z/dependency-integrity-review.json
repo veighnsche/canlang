@@ -1,0 +1,41 @@
+{
+  "reviewer": "Codex root",
+  "checks": [
+    {
+      "name": "@jridgewell/resolve-uri",
+      "version": "3.1.2",
+      "tar_sha256_matches": true,
+      "SRI_matches": true,
+      "release_files_match": true
+    },
+    {
+      "name": "@jridgewell/sourcemap-codec",
+      "version": "1.6.0",
+      "tar_sha256_matches": true,
+      "SRI_matches": true,
+      "release_files_match": true
+    },
+    {
+      "name": "@jridgewell/trace-mapping",
+      "version": "0.3.31",
+      "tar_sha256_matches": true,
+      "SRI_matches": true,
+      "release_files_match": true
+    },
+    {
+      "name": "es-module-lexer",
+      "version": "3.0.3",
+      "tar_sha256_matches": true,
+      "SRI_matches": true,
+      "release_files_match": true
+    },
+    {
+      "name": "magic-string",
+      "version": "1.4.3",
+      "tar_sha256_matches": true,
+      "SRI_matches": true,
+      "release_files_match": true
+    }
+  ],
+  "scope": "Actual retained published archives and installed selected entries; not a shipped application/Worker acceptance"
+}

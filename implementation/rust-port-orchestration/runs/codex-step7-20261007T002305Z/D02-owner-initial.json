@@ -1,0 +1,103 @@
+{
+  "packet": "next:borrowed:D02-import-leaf",
+  "run_id": "codex-step7-20261007T002305Z",
+  "baseline": "70fe33e2655afa0a4b91fb17853a84d7727edebe",
+  "status": "finite pure leaf source and evidence released for independent root review; D02 adoption partial",
+  "interface_frozen": true,
+  "api": [
+    "scanModuleImports(js,modulePath,prefix?) => normalized readonly ModuleImport[]",
+    "validateArtifactModuleImports(modules,prefix?) => void",
+    "rewriteModuleImports(js,modulePath,mapper,options?) => ImportRewriteResult"
+  ],
+  "options": {
+    "prefix": [
+      "assembleModules",
+      "deploy bundle"
+    ],
+    "profile": [
+      "artifact",
+      "trusted-producer"
+    ],
+    "previousStageId": "opaque deterministic previous transform identity",
+    "editedStageId": "opaque deterministic newest transform identity"
+  },
+  "semantics": [
+    "synchronous minimal asm parse without init",
+    "decoded identity plus raw spelling and original UTF16 spans",
+    "per-module parser-first then from/reexport,dynamic,side-effect groups",
+    "artifact computed/phase approved refusal; trusted computed dynamic_unchecked",
+    "no-edit exact JS and no map property",
+    "delimiter-safe literal-content edits only, original spans, no overlap",
+    "hires true edit map uses opaque file/sources; no sourceContent or rangeMappings; no original Can map input or mutation"
+  ],
+  "source_sha256": {
+    "packages/cloudflare/src/deploy/module-imports.ts": "8ea2a1b6ac3cbdf44ce431dc9badf2751f02864bf9a3b9d5c02b5021bcb4efbe",
+    "packages/cloudflare/test/module-imports-contract.test.ts": "425816d0efcf1eeaf7fb0b06587ea9bbce81a580368dc0aa41ca5c509c1ad8d6",
+    "packages/cloudflare/test/fixtures/import-policy-contract.json": "e440cb116363db87e2669e5bba0a4ae02909f303d5584cb84415346380bbbc4a"
+  },
+  "checks": {
+    "focused_typecheck": {
+      "exit_code": 0,
+      "command": "node node_modules/typescript/bin/tsc -p /private/tmp/canlang-rust-port-codex-step7-20261007T002305Z/D02/tsconfig.json",
+      "output": "private D02/dist only"
+    },
+    "selected_vitest": {
+      "exit_code": 0,
+      "discovered_files": 1,
+      "passed_tests": 50,
+      "frozen_controls": 41,
+      "supplemental_tests": 9,
+      "workers_max": 2,
+      "vitest_version": "3.2.7"
+    },
+    "cold_actual_host_leaf": {
+      "node": "24.21.0",
+      "bun": "1.4.2",
+      "count_per_host": 41,
+      "identical_observations": true,
+      "cwd": "/private/tmp/canlang-rust-port-codex-step7-20261007T002305Z/D02"
+    },
+    "negative_host_dependency_controls": {
+      "hosts": 2,
+      "controls_per_host": 3,
+      "all_expected_resolution_faults": true
+    }
+  },
+  "baseline_differential_counts": {
+    "held-integration-observation": 7,
+    "intentional-decoded-compat": 13,
+    "original-error-or-emitted-byte-parity": 21
+  },
+  "evidence_root": "/private/tmp/canlang-rust-port-codex-step7-20261007T002305Z/D02",
+  "evidence_sha256": {
+    "typecheck.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "vitest.log": "6f1e3ca192cdcf02346b78c6450dfff933a686cc28a48a3ac8a549bfc733bd96",
+    "oracle.log": "853e2c230855651358d1f63936fb3d3ad00a9ef7584408d68eaee2887f817c8c",
+    "cold-node.log": "3b41b570d98d152ade2b6b25d063bfdd4eca8603ed9862b8ffe0ad6f95a725ec",
+    "cold-bun.log": "fd8ddfdf9c51dfc2f1182b86e4d72ad778e7f9902cf2c914ef8633d9d39e42dd",
+    "oracle-node.json": "fa8f8e04ad6c653f9aa8440a75e116bd29360128be0d979d8f4d98a34bf104c4",
+    "candidate-node.json": "2c2867e9e505dd403e0c2c69721d89f0b9e8b68832b2295494de4555deb93078",
+    "candidate-bun.json": "60544a7548ad3bb7596fd5782f835a6c4d7ce3648114e4d5444671ecbe837439",
+    "comparison.json": "f8ab64d75bee6b07f1b26c67c4464a647ec26a435556e3c3a2f03c182621c87c",
+    "oracle-manifest.json": "6146843f500b801a725437e5d8fbe5522c04829cf88bb885ddb1d14fd2b9c5e5",
+    "host-closure.json": "c97c123bba9b89886def0ac0fd1cfa53baee4367c74ce94282d56011a043ada8",
+    "negative-hosts.json": "526e3797b082e48870b7b6991b64fed042902c0e4da5b2fdfb78e93ccbadb1eb",
+    "observe.mjs": "7fbfddf9257fe8fcbdadbd60750baa1efd7621e93d0e5a2a57ae679f0616bf23",
+    "controls.json": "e440cb116363db87e2669e5bba0a4ae02909f303d5584cb84415346380bbbc4a",
+    "dist/deploy/module-imports.js": "7d254bce56e69ac05e3f8319e6306f660c99d074b35522c799cdf532b8f19720",
+    "tsconfig.json": "363fd40d8339ef5cfa74c52996ab36eae6323cc9f9e270b582b02c7899407206",
+    "vitest.config.mjs": "95778576ef210b0f491be64a5f6ddc13d9662af1a5a7958764c163a291cde8d4"
+  },
+  "remaining_gates": [
+    "Root exact dependency/lock/package exports registration",
+    "Public deploy entry first cold call Node/Bun outside checkout",
+    "Actual isolated browser CSP and Worker module-map host/runtime inventory",
+    "Full producer constant rewrite, stdlib CJS guard, duplicate overwrite and binary late-link consumers",
+    "D04 composed Can-map consumer and derived fallback; no original map mutation"
+  ],
+  "write_lease_released": true,
+  "heavy_slot_released": true,
+  "pending_handles": [],
+  "forbidden_files_written": false,
+  "decisions_for_root": "Accept narrow decoded_compat leaf implementation only after review; dependency pins verified privately, shared adoption and D04 remain pending. Root owns DECISIONS/living plan/assembly registration."
+}
