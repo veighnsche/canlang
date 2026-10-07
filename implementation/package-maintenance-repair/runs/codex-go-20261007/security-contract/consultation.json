@@ -1,0 +1,216 @@
+{
+  "packet": "TECH-S02-contract-mechanisms",
+  "stage": "actual approved JEV advice and bounded root implementation release; no confidentiality acceptance",
+  "human_approval": "Approve scoped JEV consultations",
+  "destination": "https://api.typesafe.ai/v1/systemone",
+  "context_sha256": "89e8b47b43534fa7de54375046b77076ac1adf4e24eb0857b9ab9860e184dcd6",
+  "submission_profile": "Three independently worded equivalent typed-choice requests with identical source context, independently run in parallel after explicit scoped approval; one call each, no hidden retries",
+  "prior_attempt": {
+    "state": "automatic review rejection, no transmission",
+    "reason": "Sensitive repository source/security-contract payload; generic repository JEV authorization did not clearly cover exact payload/destination",
+    "resolution": "Human explicitly approved these three prepared payloads before the actual calls"
+  },
+  "calls": [
+    {
+      "question_variant": 1,
+      "request_sha256": "ea2f49c55deda6ede3807b37702edaefc53a556023d4636e0b5329300c9c0adf",
+      "pid": 57476,
+      "start": "2026-10-07T20:17:14.608891+00:00",
+      "deadline": "2026-10-07T20:18:19.608891+00:00",
+      "response_path": "/private/tmp/canlang-repair-go-20261007/security-contract/response-1.json",
+      "retries": 0,
+      "human_approval": "Approve scoped JEV consultations",
+      "exit": 0,
+      "end": "2026-10-07T20:17:15.092237+00:00",
+      "answers": {
+        "metadata_carrier": {
+          "type": "choice",
+          "choice": "engine_local_channels",
+          "confidence": 0.86,
+          "probabilities": {
+            "additive_shared_descriptor": 0.07,
+            "engine_local_channels": 0.93
+          }
+        },
+        "result_boundary": {
+          "type": "choice",
+          "choice": "canonical_host_exposure_join",
+          "confidence": 0.64,
+          "probabilities": {
+            "canonical_host_exposure_join": 0.82,
+            "state_owned_exposure_join": 0.18
+          }
+        }
+      },
+      "model": "jev-1.13.0",
+      "usage": {
+        "input_tokens": 12476,
+        "output_tokens": 84
+      },
+      "response_sha256": "fdecfa2455ec845702dd56f22aad8095a8c094561888b4738a5a3bce5ffafcea"
+    },
+    {
+      "question_variant": 2,
+      "request_sha256": "1038d5c547b834f3c11fa519988a7b590dcc6ccc89f146cba3a08948f3c284f8",
+      "pid": 57475,
+      "start": "2026-10-07T20:17:14.609091+00:00",
+      "deadline": "2026-10-07T20:18:19.609091+00:00",
+      "response_path": "/private/tmp/canlang-repair-go-20261007/security-contract/response-2.json",
+      "retries": 0,
+      "human_approval": "Approve scoped JEV consultations",
+      "exit": 0,
+      "end": "2026-10-07T20:17:15.090361+00:00",
+      "answers": {
+        "metadata_carrier": {
+          "type": "choice",
+          "choice": "engine_local_channels",
+          "confidence": 0.14,
+          "probabilities": {
+            "engine_local_channels": 0.57,
+            "additive_shared_descriptor": 0.43
+          }
+        },
+        "result_boundary": {
+          "type": "choice",
+          "choice": "canonical_host_exposure_join",
+          "confidence": 0.16,
+          "probabilities": {
+            "canonical_host_exposure_join": 0.58,
+            "state_owned_exposure_join": 0.42
+          }
+        }
+      },
+      "model": "jev-1.13.0",
+      "usage": {
+        "input_tokens": 12377,
+        "output_tokens": 84
+      },
+      "response_sha256": "793a4f8c06837128d28c1a9c4721882a1f8c4f8d5d64aaccebe736a1f48319ac"
+    },
+    {
+      "question_variant": 3,
+      "request_sha256": "8951d76362c0f25d91fa48a7b077fff8bd594ff9bc683d49096d396171784b41",
+      "pid": 57474,
+      "start": "2026-10-07T20:17:14.609199+00:00",
+      "deadline": "2026-10-07T20:18:19.609199+00:00",
+      "response_path": "/private/tmp/canlang-repair-go-20261007/security-contract/response-3.json",
+      "retries": 0,
+      "human_approval": "Approve scoped JEV consultations",
+      "exit": 0,
+      "end": "2026-10-07T20:17:15.126940+00:00",
+      "answers": {
+        "metadata_carrier": {
+          "type": "choice",
+          "choice": "engine_local_channels",
+          "confidence": 0.18,
+          "probabilities": {
+            "additive_shared_descriptor": 0.41,
+            "engine_local_channels": 0.59
+          }
+        },
+        "result_boundary": {
+          "type": "choice",
+          "choice": "canonical_host_exposure_join",
+          "confidence": 0.36,
+          "probabilities": {
+            "canonical_host_exposure_join": 0.68,
+            "state_owned_exposure_join": 0.32
+          }
+        }
+      },
+      "model": "jev-1.13.0",
+      "usage": {
+        "input_tokens": 12404,
+        "output_tokens": 84
+      },
+      "response_sha256": "65f6fc11fca835482de97160a362122cfec812354ea6b1f3095cc05611691229"
+    }
+  ],
+  "questions_without_source_payload": [
+    {
+      "variant": 1,
+      "request_sha256": "ea2f49c55deda6ede3807b37702edaefc53a556023d4636e0b5329300c9c0adf",
+      "questions": {
+        "metadata_carrier": {
+          "type": "choice",
+          "instructions": "Which carrier should be investigated first to preserve owning secret tags and per-rule field selectors across the T04a/T17 join, comparing total producer/loader/installed-proof cost and compatibility against the same fixed disclosure outcomes?",
+          "criteria": {
+            "engine_local_channels": "Keep the T04a canonical field shape unchanged. Extend validated engine-local attachments alongside refs/serverInits/nullable with typed secret paths and exact rule-ID selectors derived from the owning artifact/appDefinition declaration metadata; feed the existing policy builder. Small current seam and no authored new schema, but more attachment forwarding, artifact-versus-canApp rule agreement checks and later formalization/installed/native port obligations.",
+            "additive_shared_descriptor": "Explicitly ratify an additive shared L1-to-L3 declaration metadata extension for typed secret fields and per-rule selectors, with compatibility/version semantics and owning emitter/intake updates, then build policy from that one validated contract. Clear durable producer/consumer surface and reuse by supported ports, but larger contract/compiler/loader release and qualification work; preview field tags are currently ignored and cannot be silently reinterpreted."
+          }
+        },
+        "result_boundary": {
+          "type": "choice",
+          "instructions": "Which shared responsibility split should be investigated for mapping raw committed/replayed outcomes to the existing public MutationResult, without leaking opaque results or rerunning the operation? Hold the same provenance, lifetime and positive-workflow proof requirements for both.",
+          "criteria": {
+            "state_owned_exposure_join": "State owns a shared public result mapper invoked on both committed and replay paths, supplied with trusted declaration/policy/dependency evidence by the holder. Raw executor/receipt data remains internal and separately available to legitimate authority consumers; no public path can omit mapping. Covers state-level consumers directly but needs explicit raw-versus-public API/capability handling, policy-provider wiring and reliable persisted result evidence beyond current recordVersions.",
+            "canonical_host_exposure_join": "State retains an explicitly internal raw outcome; the canonical Cloudflare/host invocation seam that already holds loaded descriptors/policy maps it once into public MutationResult for first success and replay, and all supported external invokers/serializers consume that result. Keeps metadata orchestration at its existing holder, but requires an enforced public/raw interface split, audit of direct state consumers and an explicit raw outcome/provenance channel; endpoint-only patches are insufficient."
+          }
+        }
+      }
+    },
+    {
+      "variant": 2,
+      "request_sha256": "1038d5c547b834f3c11fa519988a7b590dcc6ccc89f146cba3a08948f3c284f8",
+      "questions": {
+        "metadata_carrier": {
+          "type": "choice",
+          "instructions": "For the same declared secret exclusion and exact public-field grants, select the more defensible metadata route, weighing simplicity, one-source provenance, frozen intake compatibility, and complete consumer qualification.",
+          "criteria": {
+            "engine_local_channels": "Use owner-derived, validated loader attachments: retain secrecy paths and rule-ID field selection next to existing refs/default-init/nullable channels, while leaving CanonicalFieldDef frozen. The runtime transcribes these into the existing policy table. This minimizes the initial shared type change but adds parallel metadata plumbing, source/rule identity reconciliation and eventual port-contract debt.",
+            "additive_shared_descriptor": "Make the needed declaration facts an openly versioned additive part of the shared canonical descriptor contract and update its owning emission/load paths. Projection consumes this one validated interface. This makes supported ports and version compatibility inspectable, while requiring broader owner coordination, frozen-intake revision and actual old/new artifact consumer proofs."
+          }
+        },
+        "result_boundary": {
+          "type": "choice",
+          "instructions": "Select the common projection enforcement location that best preserves raw engine replay and current external disclosure checks with minimal duplicated authority. Neither alternative may guess unknown scenario dependencies or use partial business-result synthesis.",
+          "criteria": {
+            "state_owned_exposure_join": "Place one public committed/replay mapper in State and provide the current access/type evidence from canonical holders. Preserve private receipt values and explicit raw authority execution. This catches direct State response consumers centrally; costs include a clear internal/public mode boundary, metadata access dependencies and saved provenance not present in the current receipt shape.",
+            "canonical_host_exposure_join": "Have the metadata-owning canonical host convert an internal State outcome to the public wire envelope after either commit or receipt replay. HTTP, MCP and other public canonical consumers share that conversion. It reduces State coupling to artifact policy loading, but only works with an enforceable raw/private result boundary, complete direct-consumer routing and trustworthy immutable replay visibility evidence."
+          }
+        }
+      }
+    },
+    {
+      "variant": 3,
+      "request_sha256": "8951d76362c0f25d91fa48a7b077fff8bd594ff9bc683d49096d396171784b41",
+      "questions": {
+        "metadata_carrier": {
+          "type": "choice",
+          "instructions": "Decide how the already-emitted secrecy and rule-specific selector facts should reach canonical projection. Judge both approaches against identical readable-stamp, fail-closed, authoring, versioning and installed/native-join requirements.",
+          "criteria": {
+            "engine_local_channels": "Preserve the current canonical intake and add exact engine-local metadata maps computed from owning typed fields and read-grant rule descriptors; validate their identities and carry them through preload into secret/grant policy. Less initial shared-contract disruption, with added forwarding and cross-metadata skew defenses and unresolved long-term canonical/native integration.",
+            "additive_shared_descriptor": "Release a reviewed additive canonical declaration-metadata contract carrying secret typing/paths and rule-selected readable fields, including emitter/intake/version compatibility. Keep the existing grant engine as authority. A single explicit producer/consumer interface improves reuse, at the cost of more contract/emitter migration and qualification before release."
+          }
+        },
+        "result_boundary": {
+          "type": "choice",
+          "instructions": "Compare a state-owned result exposure join against one at the canonical host seam for identical first-success/replay outputs and internal raw-state legitimacy. Account for direct consumers, artifact metadata availability, outcome typing, failure behavior and whole-result visibility evidence equally.",
+          "criteria": {
+            "state_owned_exposure_join": "Make the State invocation public-result boundary responsible for current access/lifetime mapping regardless of outcome status; holders supply owner-validated metadata and whole-result eligibility. Legitimate internal rows/defaults/receipts remain raw through a deliberate internal capability. Strong central coverage comes with raw/public API distinctions, provider wiring and additive result-provenance release work.",
+            "canonical_host_exposure_join": "Concentrate mapping at the canonical host wrapper, where descriptor and read-policy intake already meet; expose only its mapped MutationResult to supported public consumers while retaining an internal raw State outcome. Less artifact coupling in State requires explicit private/public outcome typing, no bypassing serializer/direct consumer and a retained evidence channel for replay. Both options must withhold an opaque unproved business result whole."
+          }
+        }
+      }
+    }
+  ],
+  "interpretation": {
+    "direction": "All three prefer engine_local_channels and canonical_host_exposure_join",
+    "uncertainty": "Metadata probabilities .93/.57/.59; host .82/.58/.68. Two metadata results and one host result are near-indifferent; confidence varies markedly. No rationale was returned. Agreement is advice, not a vote or proof of safety.",
+    "investigation": "Each request has identical source/checksum and equivalent fixed behavior/requirements. The first asks which carrier to investigate first and emphasizes initial qualification cost, whereas later wording emphasizes long-term one-source version/port cost. This can explain sensitivity but is not a causal diagnosis of JEV scoring. Verified source currently has validated side attachments for refs/serverInits/nullable/containment/delivery and canonical host already owns artifact/assembly/policy joins. A shared descriptor revision would also require unavailable contract/compiler/native compatibility release. Actual exact-carrier tests and producer agreement remain decisive.",
+    "bounded_choice": "Implement owner-validated typed-secret metadata using existing engine-local loader channels, and reconcile exact public rule selectors at the metadata-owning canonical host. Keep canonical field shape and defining values schema unchanged. Charge attachment forwarding/validation/type cost as correctness, not claimed simplification.",
+    "host_result_direction": "Investigate one canonical-host public exposure join later, with an enforceable internal/public split and trustworthy result/replay dependency proof. This record does not release a result mapper/API, unknown-object shape guessing, blanket null results, old-receipt migration or serializer-only fix."
+  },
+  "limits": [
+    "No runtime, installed/native/durable or public-result/replay acceptance",
+    "No foreign compiler/contracts ownership release, deployment, default adoption or automatic schema migration",
+    "Current field tags prove supported top-level secrecy; nested result provenance remains a separate gate",
+    "All original fixed read/write/once/authority behavior remains; serverOnly is not secret typing"
+  ],
+  "private_payloads": {
+    "root": "/private/tmp/canlang-repair-go-20261007/security-contract",
+    "repo_inputs_untracked": "/Users/vince/Projects/canlang/implementation/package-maintenance-repair/runs/codex-go-20261007/security-contract",
+    "retention": "Exact request/context/source inputs remain at their recorded paths while active TECH-S02 readers need them. After release preserve private compact-hash archive, not duplicated source in repository history."
+  },
+  "recorded_utc": "2026-10-07T20:25:36.335010+00:00"
+}
