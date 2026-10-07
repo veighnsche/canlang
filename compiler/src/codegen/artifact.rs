@@ -16,12 +16,13 @@
 use crate::analysis::catalog::{Availability, Catalog};
 use crate::codegen::bdd::BddModule;
 use crate::codegen::ir::{IrMigrationDirective, IrProgram, ReferencedBuiltin};
-use crate::codegen::js::{Emitter, JsModel, JsOperation, JsOutput, models_json, operations_json};
+use crate::codegen::js::{Emitter, JsModel, JsOperation, JsOutput};
 use crate::codegen::sourcemap::{self, SourceMap};
-use crate::diagnostic::{Diagnostic, push_json_str};
+use crate::diagnostic::Diagnostic;
 use crate::source::SourceDb;
+use serde::Serialize;
+use serde_json::value::RawValue;
 use std::collections::BTreeSet;
-use std::fmt::Write as _;
 
 /// Artifact envelope version (matches `ARTIFACT_VERSION` in `artifact.ts`).
 pub const ARTIFACT_VERSION: u32 = 1;
@@ -490,149 +491,180 @@ pub fn check_builtin_availability(
 
 /// Render a compile artifact as compact JSON per `artifact.ts`.
 pub fn to_json(artifact: &CompileArtifact) -> String {
-    let mut out = String::new();
-    let _ = write!(
-        out,
-        "{{\"artifact_version\":{ARTIFACT_VERSION},\"language_version\":"
-    );
-    push_json_str(&mut out, &artifact.language_version);
-    out.push_str(",\"tool_version\":");
-    push_json_str(&mut out, &artifact.tool_version);
-    out.push_str(",\"sources\":[");
-    for (i, source) in artifact.sources.iter().enumerate() {
-        if i > 0 {
-            out.push(',');
-        }
-        out.push_str("{\"path\":");
-        push_json_str(&mut out, &source.path);
-        out.push_str(",\"sha256\":");
-        push_json_str(&mut out, &source.sha256);
-        out.push('}');
-    }
-    out.push_str("],\"modules\":[");
-    for (i, module) in artifact.modules.iter().enumerate() {
-        if i > 0 {
-            out.push(',');
-        }
-        push_module(&mut out, module);
-    }
-    out.push_str("],\"callables\":[");
-    for (i, callable) in artifact.callables.iter().enumerate() {
-        if i > 0 {
-            out.push(',');
-        }
-        out.push_str("{\"id\":");
-        push_json_str(&mut out, &callable.id);
-        out.push_str(",\"kind\":");
-        push_json_str(&mut out, &callable.kind);
-        out.push_str(",\"module\":");
-        push_json_str(&mut out, &callable.module);
-        out.push_str(",\"export\":");
-        push_json_str(&mut out, &callable.export);
-        out.push_str(",\"member\":[");
-        for (j, segment) in callable.member.iter().enumerate() {
-            if j > 0 {
-                out.push(',');
-            }
-            push_json_str(&mut out, segment);
-        }
-        out.push_str("]}");
-    }
-    out.push_str("],\"operations\":");
-    out.push_str(&operations_json(&artifact.operations));
-    out.push_str(",\"models\":");
-    out.push_str(&models_json(&artifact.models));
-    out.push_str(",\"pages\":[");
-    for (i, page) in artifact.pages.iter().enumerate() {
-        if i > 0 {
-            out.push(',');
-        }
-        out.push_str("{\"owner\":");
-        push_json_str(&mut out, &page.owner);
-        out.push_str(",\"path\":");
-        push_json_str(&mut out, &page.path);
-        out.push_str(",\"module\":");
-        push_json_str(&mut out, &page.module);
-        out.push_str(",\"export\":");
-        push_json_str(&mut out, &page.export);
-        out.push('}');
-    }
-    out.push_str("],\"migrations\":[");
-    for (i, migration) in artifact.migrations.iter().enumerate() {
-        if i > 0 {
-            out.push(',');
-        }
-        out.push_str("{\"id\":");
-        push_json_str(&mut out, &migration.id);
-        out.push_str(",\"owner\":");
-        push_json_str(&mut out, &migration.owner);
-        out.push_str(",\"from\":");
-        push_json_str(&mut out, &migration.from);
-        out.push_str(",\"body_digest\":");
-        push_json_str(&mut out, &migration.body_digest);
-        out.push_str(",\"directives\":[");
-        for (j, directive) in migration.directives.iter().enumerate() {
-            if j > 0 {
-                out.push(',');
-            }
-            out.push_str("{\"kind\":");
-            push_json_str(&mut out, &directive.kind);
-            for (key, value) in [
-                ("from", &directive.from),
-                ("to", &directive.to),
-                ("model", &directive.model),
-                ("field", &directive.field),
-                ("handlerContract", &directive.handler_contract),
-            ] {
-                if let Some(value) = value {
-                    out.push_str(",\"");
-                    out.push_str(key);
-                    out.push_str("\":");
-                    push_json_str(&mut out, value);
-                }
-            }
-            out.push('}');
-        }
-        out.push_str("]}");
-    }
-    out.push_str("],\"requires\":[");
-    for (i, require) in artifact.requires.iter().enumerate() {
-        if i > 0 {
-            out.push(',');
-        }
-        let _ = write!(out, "{{\"capability\":");
-        push_json_str(&mut out, &require.capability);
-        let _ = write!(out, ",\"min_version\":{}}}", require.min_version);
-    }
-    out.push_str("],\"tests\":[");
-    for (i, test) in artifact.tests.iter().enumerate() {
-        if i > 0 {
-            out.push(',');
-        }
-        out.push_str("{\"scope\":");
-        push_json_str(&mut out, &test.scope);
-        out.push_str(",\"module\":");
-        push_module(&mut out, &test.module);
-        out.push_str(",\"fixtures\":[");
-        for (j, fixture) in test.fixtures.iter().enumerate() {
-            if j > 0 {
-                out.push(',');
-            }
-            push_json_str(&mut out, fixture);
-        }
-        out.push_str("]}");
-    }
-    out.push_str("]}");
-    out
+    let wire = ArtifactWire {
+        artifact_version: ARTIFACT_VERSION,
+        language_version: &artifact.language_version,
+        tool_version: &artifact.tool_version,
+        sources: artifact
+            .sources
+            .iter()
+            .map(|source| SourceWire {
+                path: &source.path,
+                sha256: &source.sha256,
+            })
+            .collect(),
+        modules: artifact.modules.iter().map(ModuleWire::new).collect(),
+        callables: artifact
+            .callables
+            .iter()
+            .map(|callable| CallableWire {
+                id: &callable.id,
+                kind: &callable.kind,
+                module: &callable.module,
+                export: &callable.export,
+                member: &callable.member,
+            })
+            .collect(),
+        operations: &artifact.operations,
+        models: &artifact.models,
+        pages: artifact
+            .pages
+            .iter()
+            .map(|page| PageWire {
+                owner: &page.owner,
+                path: &page.path,
+                module: &page.module,
+                export: &page.export,
+            })
+            .collect(),
+        migrations: artifact
+            .migrations
+            .iter()
+            .map(|migration| MigrationWire {
+                id: &migration.id,
+                owner: &migration.owner,
+                from: &migration.from,
+                body_digest: &migration.body_digest,
+                directives: migration
+                    .directives
+                    .iter()
+                    .map(|directive| DirectiveWire {
+                        kind: &directive.kind,
+                        from: directive.from.as_deref(),
+                        to: directive.to.as_deref(),
+                        model: directive.model.as_deref(),
+                        field: directive.field.as_deref(),
+                        handler_contract: directive.handler_contract.as_deref(),
+                    })
+                    .collect(),
+            })
+            .collect(),
+        requires: artifact
+            .requires
+            .iter()
+            .map(|require| RequirementWire {
+                capability: &require.capability,
+                min_version: require.min_version,
+            })
+            .collect(),
+        tests: artifact
+            .tests
+            .iter()
+            .map(|test| TestWire {
+                scope: &test.scope,
+                module: ModuleWire::new(&test.module),
+                fixtures: &test.fixtures,
+            })
+            .collect(),
+    };
+    crate::json::to_compact_string(&wire).expect("artifact DTO serialization is infallible")
 }
 
-/// Render one artifact module object.
-fn push_module(out: &mut String, module: &ArtifactModule) {
-    out.push_str("{\"path\":");
-    push_json_str(out, &module.path);
-    out.push_str(",\"js\":");
-    push_json_str(out, &module.js);
-    out.push_str(",\"map\":");
-    out.push_str(&sourcemap::to_json(&module.map));
-    out.push('}');
+// The existing compiler-owned source-map producer remains a separate release.
+// Validate their JSON before embedding it, preserving tokens and field order.
+fn encoded_fragment(json: String) -> Box<RawValue> {
+    RawValue::from_string(json).expect("compiler-owned artifact fragment must be valid JSON")
+}
+
+#[derive(Serialize)]
+struct ArtifactWire<'a> {
+    artifact_version: u32,
+    language_version: &'a str,
+    tool_version: &'a str,
+    sources: Vec<SourceWire<'a>>,
+    modules: Vec<ModuleWire<'a>>,
+    callables: Vec<CallableWire<'a>>,
+    operations: &'a [JsOperation],
+    models: &'a [JsModel],
+    pages: Vec<PageWire<'a>>,
+    migrations: Vec<MigrationWire<'a>>,
+    requires: Vec<RequirementWire<'a>>,
+    tests: Vec<TestWire<'a>>,
+}
+
+#[derive(Serialize)]
+struct SourceWire<'a> {
+    path: &'a str,
+    sha256: &'a str,
+}
+
+#[derive(Serialize)]
+struct ModuleWire<'a> {
+    path: &'a str,
+    js: &'a str,
+    map: Box<RawValue>,
+}
+
+impl<'a> ModuleWire<'a> {
+    fn new(module: &'a ArtifactModule) -> Self {
+        Self {
+            path: &module.path,
+            js: &module.js,
+            map: encoded_fragment(sourcemap::to_json(&module.map)),
+        }
+    }
+}
+
+#[derive(Serialize)]
+struct CallableWire<'a> {
+    id: &'a str,
+    kind: &'a str,
+    module: &'a str,
+    export: &'a str,
+    member: &'a [String],
+}
+
+#[derive(Serialize)]
+struct PageWire<'a> {
+    owner: &'a str,
+    path: &'a str,
+    module: &'a str,
+    export: &'a str,
+}
+
+#[derive(Serialize)]
+struct MigrationWire<'a> {
+    id: &'a str,
+    owner: &'a str,
+    from: &'a str,
+    body_digest: &'a str,
+    directives: Vec<DirectiveWire<'a>>,
+}
+
+#[derive(Serialize)]
+struct DirectiveWire<'a> {
+    kind: &'a str,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    from: Option<&'a str>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    to: Option<&'a str>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    model: Option<&'a str>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    field: Option<&'a str>,
+    #[serde(rename = "handlerContract", skip_serializing_if = "Option::is_none")]
+    handler_contract: Option<&'a str>,
+}
+
+#[derive(Serialize)]
+struct RequirementWire<'a> {
+    capability: &'a str,
+    min_version: u64,
+}
+
+#[derive(Serialize)]
+struct TestWire<'a> {
+    scope: &'a str,
+    module: ModuleWire<'a>,
+    fixtures: &'a [String],
 }
