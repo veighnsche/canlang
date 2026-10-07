@@ -5731,6 +5731,16 @@ interface FanoutJoinProducer {
   assertFanoutChildJoin(batch: CommitBatch): void;
 }
 
+/** Defining State admission supplies these refs anew on every execution/retry. */
+interface FanoutAdmittedCall {
+  readonly recordRefs: ReadonlyArray<{
+    readonly param: string;
+    readonly model: ModelName;
+    readonly id: RecordId;
+    readonly row: StoredRow;
+  }>;
+}
+
 /** T34-F7: structural view of `invokeFanoutChild` (F5 admission join). */
 interface FanoutInvokeProducer {
   invokeFanoutChild(input: {
@@ -5745,7 +5755,7 @@ interface FanoutInvokeProducer {
     readonly app: string;
     readonly source: string;
     readonly inputs: Record<string, unknown>;
-    readonly execute: (call: unknown) => Promise<{
+    readonly execute: (call: FanoutAdmittedCall) => Promise<{
       readonly writes: ReadonlyArray<DomainWrite>;
       readonly history: ReadonlyArray<HistoryEntry>;
       readonly outbox: ReadonlyArray<OutboxIntent>;
@@ -7342,19 +7352,51 @@ async function driveFanoutTurnChild(input: {
     }
     return { childId: data.childId, recordId: data.recordId, status: "retry", detail: "lifecycle-race" };
   }
-  const claim = await claimFanoutChild({
-    store,
-    child,
-    snapshotVersion: childRow.version,
-    guard: input.guard,
-    frozenInputs: input.guard.frozenInputs,
-    readCurrentSnapshot: () => input.readSnapshot(child, domainRow as StoredRow),
-    evaluateGuard: input.evaluateGuard,
-    fence: input.fenceFor(child),
-    policy,
-    meta,
-    producers,
-  });
+  const snapshotFailure: { lifecycle: FanoutChildLifecycle | null } = { lifecycle: null };
+  let claim: FanoutChildClaimOutcome;
+  try {
+    claim = await claimFanoutChild({
+      store,
+      child,
+      snapshotVersion: childRow.version,
+      guard: input.guard,
+      frozenInputs: input.guard.frozenInputs,
+      readCurrentSnapshot: async () => {
+        let current: StoredRow | null;
+        try {
+          current = await store.load(cohort.model as ModelName, data.recordId as RecordId);
+        } catch (error) {
+          snapshotFailure.lifecycle = { status: "unknown", reason: "infra-read-failure" };
+          throw error;
+        }
+        if (current === null || current.archivedAt !== null) {
+          snapshotFailure.lifecycle = await producers.lifecycle.classifyFanoutChildLifecycle({
+            store,
+            model: cohort.model,
+            recordId: data.recordId,
+            ...(cohort.anchor === undefined ? {} : { anchor: cohort.anchor }),
+          });
+          throw new Error("t34-f7: turn: domain row unavailable at guard demand.");
+        }
+        return input.readSnapshot(child, current);
+      },
+      evaluateGuard: input.evaluateGuard,
+      fence: input.fenceFor(child),
+      policy,
+      meta,
+      producers,
+    });
+  } catch (error) {
+    const raced = snapshotFailure.lifecycle;
+    if (raced === null) throw error;
+    if (raced.status === "deleted") {
+      return tryPin(childRow, { kind: "skipped", reason: "deleted" }, "turn pin guard deleted");
+    }
+    if (raced.status === "unknown") {
+      return tryPin(childRow, { kind: "failed", reason: raced.reason }, "turn pin guard unknown");
+    }
+    return { childId: data.childId, recordId: data.recordId, status: "retry", detail: "lifecycle-race" };
+  }
   if (claim.status === "skipped") {
     return { childId: data.childId, recordId: data.recordId, status: "pinned", detail: pinDetail(claim.outcome) };
   }
@@ -7377,7 +7419,7 @@ async function driveFanoutTurnChild(input: {
   }
   const claimedRow = claim.row;
   void claimedRow;
-  const execute = async (call: unknown): Promise<{
+  const execute = async (call: FanoutAdmittedCall): Promise<{
     readonly writes: ReadonlyArray<DomainWrite>;
     readonly history: ReadonlyArray<HistoryEntry>;
     readonly outbox: ReadonlyArray<OutboxIntent>;
@@ -7387,8 +7429,16 @@ async function driveFanoutTurnChild(input: {
     readonly resolvedDefaults: Record<string, unknown>;
     readonly result: unknown;
   }> => {
-    void call;
-    const effects = await input.body(child, domainRow as StoredRow, { operationId });
+    if (!isUnknownRecord(call) || !Array.isArray(call.recordRefs)) {
+      throw new Error("t34-f7: turn: execution needs admitted record refs.");
+    }
+    const refs = call.recordRefs.filter(ref =>
+      isUnknownRecord(ref) && ref.param === input.invoke.refInput && ref.model === cohort.model &&
+      ref.id === data.recordId && isUnknownRecord(ref.row) && ref.row.id === data.recordId);
+    if (refs.length !== 1) {
+      throw new Error("t34-f7: turn: execution needs exactly one admitted child record ref.");
+    }
+    const effects = await input.body(child, refs[0]!.row, { operationId });
     checkFanoutAttemptResult(effects.result);
     // Fresh fanout rows per execution (invoke retries re-execute, so
     // versions re-read — never carried across attempts).
@@ -7622,7 +7672,7 @@ export async function runFanoutSchedulerTurn(
   const released = await releaseStaleFanoutClaims({
     store: opts.store,
     fanoutId: opts.fanoutId,
-    cursor: null,
+    cursor: opts.cursor,
     limit: opts.bounds.pageLimit,
     nowMs: opts.meta.nowMs,
     maxClaimAgeMs: opts.maxClaimAgeMs,
