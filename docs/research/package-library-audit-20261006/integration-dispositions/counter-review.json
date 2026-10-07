@@ -1,0 +1,116 @@
+{
+  "review_style": "opposing-with-proposals-visible",
+  "findings": [
+    {
+      "id": "CR-01",
+      "severity": "medium",
+      "evidence": [
+        "/private/tmp/canlang-disposition-delivery.json delivery-imports and DD-006 initially labeled whole seam retain-thin-integration.",
+        "packages/cloudflare/src/deploy/module-imports.ts:69-243 retains Unicode projection/retry, original-literal recovery, policies and separate map line grid; deploy/bundle.ts:732-918 retains distinct sizeable CommonJS scanner."
+      ],
+      "correction": "Applied in delivery packet: both choose retain-existing-implementation. Continue acknowledging useful lexer/editor delegation; thin library calls do not demonstrate a minimal whole adapter. No map JEV gate or raw behavior changed.",
+      "resolution": "Corrected delivery-imports/DD-006 taxonomy before document rendering; sizeable compensated closures remain existing.",
+      "status": "addressed-in-planning-record"
+    },
+    {
+      "id": "CR-02",
+      "severity": "medium",
+      "evidence": [
+        "/private/tmp/canlang-disposition-values.json decimal-rounding labels complete family retain-thin-integration.",
+        "packages/values/src/decimal.ts:71-191 owns construction, structural admission, scale alignment, rational half-even and final result bounds; Rust numeric/decimal.rs and numeric/rounding.rs likewise retain substantial arithmetic policy."
+      ],
+      "correction": "Prefer retain-existing-implementation for complete decimal family. BigInt/num-bigint is a well-fitting primitive, but the maintained arithmetic closure is not shown thin/minimal. Retain bounded BigDecimal conditional comparison and its exact final-round/cancellation/domain gates.",
+      "resolution": "Corrected decimal-rounding to retain-existing; well-fitting BigInt primitive does not make all arithmetic thin.",
+      "status": "addressed-in-planning-record"
+    },
+    {
+      "id": "CR-03",
+      "severity": "medium",
+      "evidence": [
+        "/private/tmp/canlang-disposition-values.json lossless-transport and DV10 label owner-specific protocols retain-thin-integration.",
+        "packages/cloudflare/preparation/src/input.rs:24-71 defines bounded tagged WireNode/Node conversion and authority-independent transfer limits; packages/values/semantics/src/transport/exact.rs:49-183 performs substantial tagged value dispatch/error admission over serde_json."
+      ],
+      "correction": "Prefer retain-existing-implementation for these complete transport protocols. serde_json delegation is useful but does not prove the custom carriers, conversion, admission and envelope closure is thin. Keep coarse calls, no duplicate-key/indexmap reinvention and finite profile/lifetime gates.",
+      "resolution": "Corrected lossless-transport and DV10 to retain-existing; complete custom protocols not measured thin.",
+      "status": "addressed-in-planning-record"
+    },
+    {
+      "id": "CR-04",
+      "severity": "medium",
+      "evidence": [
+        "lossless-transport retained-policy umbrella includes explicit UTF16 units, bits/spelling and finite frame/depth/node/text/entry limits.",
+        "preparation input.rs:24-71 has that admitted-tree profile; values exact.rs:49-183 instead uses Rust str, JSON number/nonfinite spellings and core-specific tagged values. Its header calls it the native conformance runner and says malformed semantic shapes reach operation guards."
+      ],
+      "correction": "Attach each carrier property, bound and rejection layer to its actual transport. Do not imply exact/scaffold values transport universally implements preparation UTF16/bits/spelling/bounds. Retain separately declared operation registry/error envelope scope and no installed/backend acceptance.",
+      "resolution": "Replaced umbrella carrier claim with separately scoped preparation, exact.rs conformance and structural/proposed wire profiles.",
+      "status": "addressed-in-planning-record"
+    },
+    {
+      "id": "CR-05",
+      "severity": "medium",
+      "evidence": [
+        "uri-identity-encoding selects strict String::from_utf16 plus percent-encoding 2.3.2 and mentions target/feature closure but no explicit peak-copy comparison.",
+        "rows.rs:283-332, receipt.rs:265-310 and linkage.rs:261-310 currently write escaped output directly into Vec<u16>. Rows/Linkage errors have code:None; ReceiptFailure omits code.",
+        "percent-encoding2.3.2 Cargo.toml features: std defaults to alloc; alloc can be selected independently, Rust1.51. lib.rs:116-165 yields borrowed percent-output str chunks."
+      ],
+      "correction": "Keep the selected finite candidate subject to root advice and strict net source/declaration gate; add named peak-live representation/allocation accounting: borrowed input UTF16, temporary decoded UTF8 String, percent iterator, final Vec<u16>, and any optional encoded String. Prefer iterator chunks directly into final U16 when it avoids an extra percent String. Qualify actual supported native/Wasm/assembly closure and all leaf-specific URIError fields without unifying error types. This is missing qualification detail, not an assertion of unacceptable resource growth or adoption.",
+      "resolution": "Added explicit peak-copy accounting, conditional direct percent iterator-to-U16 possibility, exact leaf error fields and original component order/target/resource gates; no execution.",
+      "status": "addressed-in-planning-record"
+    },
+    {
+      "id": "CR-06",
+      "severity": "low",
+      "evidence": [
+        "DV05 says current function names/identities/stack frames justify keeping seven-line wire forwarding bodies and a later alias is a public API change.",
+        "packages/values/src/wire.ts:1-13 only imports and forwards core functions; body supplies no validation, error mapping, defaults or lifecycle. Source shows alias can affect observations but no supported consumer requiring function.name/core inequality/extra stack frame was established."
+      ],
+      "correction": "Retention is defensible because little complete-closure benefit is demonstrated. Describe names/identity/stack as currently observable unresolved compatibility questions, not established required product policy or automatic migration requirement. A future explicit export alias may be a mechanism simplification if actual public import names/signatures/error behavior and relevant consumers qualify; charge declaration/import changes.",
+      "resolution": "Wire facade retention now rests on absent closed benefit; observed names/identity/stack remain unresolved, not permanent policy.",
+      "status": "addressed-in-planning-record"
+    },
+    {
+      "id": "CR-07",
+      "severity": "low",
+      "evidence": [
+        "DV08 retains WeakSet/query/add because success-only lineage test is an explicit gate.",
+        "schema-core.ts:110-115 and1809-1812 has factory identity bookkeeping; only prepared-hook.test.ts:151-175 queries it in the inspected package. Required-behavior vv.schema-normalization records genuine factory lineage, while the independent plan provenance/liveness registry remains separate."
+      ],
+      "correction": "Keep the present gate at its declared stage; do not remove it opportunistically. Make its retirement actionable through owner/programme adjudication of the genuine-lineage outcome and internal/deep consumers, followed by deletion of only WeakSet/query/add if released. A witness test alone cannot permanently require production bookkeeping, and that WeakSet is neither authorization nor the plan provenance registry.",
+      "resolution": "Added finite owner/programme genuine-lineage/gate retirement route; WeakSet neither authority nor perpetual test requirement.",
+      "status": "addressed-in-planning-record"
+    },
+    {
+      "id": "CR-08",
+      "severity": "low",
+      "evidence": [
+        "DR04 retained-policy explicitly includes current Date.UTC year0-99 behavior.",
+        "controls.ts:142 and forms.ts:230 use Date.UTC then compare returned full year. The values temporal domain admits Gregorian0001..9999 and temporal.ts:58-82 uses proleptic civil algorithms."
+      ],
+      "correction": "Preserve current call/error traces for the proposed exact private consolidation, but label year0-99 rejection as a baseline observation/potential existing-contract discrepancy, not required permanent product policy. Any date correctness repair is separately budgeted/owned; do not silently repair it while claiming byte-equivalent consolidation.",
+      "resolution": "DR04 Date.UTC year0-99 behavior relabeled baseline discrepancy; correctness is separately owned/budgeted.",
+      "status": "addressed-in-planning-record"
+    }
+  ],
+  "confirmed": [
+    "numeric-text/DV01: pinned ryu-js1.0.3 Buffer::format handles nonfinite directly; preserve JSON finite->null channel and verify signed-zero in pinned pretty implementation. Source reduction is plausible and already gated, not executed.",
+    "DV02 private channel-named aliases, DV03 UTF16 quote-only consolidation, DR11 exact pushViolation, DR12 dependency-free Gregorian leaves are bounded mechanism proposals; keep distinct public types, call order, error/owner boundaries and complete closure counts.",
+    "CSV grammar is already one selected csv-parse route with scalar admission/options/error projection; UI advisory and server authoritative outcomes differ and commit reparse stays. The parser wrappers are bounded enough for retained integration wording when the scope is expressly the grammar seam.",
+    "Identity @scure/base final-sextet mask and cookie once-only decode/generated-segment reorder are bounded exact released adapters. No strict-decoder domain shrink or tolerant cookie default is selected.",
+    "AbortSignal.any seam in client.ts:264-288 is thin; the whole HTTP client is not. Keep deadline timer/winner/body/redirect/disposal as owner lifetime and separate host/whole-journey qualification.",
+    "DC-01 interface-only canonical serialization preserves Object.entries getter timing before sort, holes/fallback/error bytes; no universal state/media serializer selected. DC-02 correctly requires portable emitted leaf, dependency/type charging, leaf error identity and distinct Node Buffer/Worker atob behavior; no generic scenario server needed.",
+    "DR01..DR07 exact private leaves preserve route/backend/error/evaluation positions; copy similarity does not merge D1/DO transaction semantics, HTTP/MCP framing, upload credential fallback or UI composition.",
+    "All reviewed packets include readable production and implementation-plus-declarations closure gates and do not count relocation/compression/test deletion/generated output. Overlapping family/subsidiary remedies require one measurement.",
+    "Existing raw-map JEV retain_contract_candidate_gate remains authoritative planning advice at actual stage; no repeated consultation or new narrow-map refusal chosen. TE08 real outside-checkout Node/workerd finite changed-length negatives remain useful."
+  ],
+  "limits": [
+    "Opposing review with proposals visible; source/API/contracts only. No product edits, builds, runtime tests, installs, Git, egress or new subagents. Only own delivery taxonomy packet and this temporary review packet written.",
+    "Review is bounded to eight highest risks; it is not a fresh all-file audit, candidate implementation, LOC measurement, security acceptance or target/installed qualification.",
+    "Function/getter/Date/error baseline observations are not automatically eternal product requirements. Equivalent mechanisms remain available after actual scope/consumer qualification; new consequential policy choices remain explicit proposals.",
+    "Existing independent critical Astra security review remains pending. Nothing here closes authority/lifetime/publication/data-integrity findings or releases human-held native preparation/foreign compiler ownership.",
+    "Exact prior raw-map JEV references: implementation/rust-port-orchestration/contracts-20261007/jev/request-{1,2,3}.json and response-{1,2,3}.json; decision-record.md:15 and sourcemaps-raw.md. Advice only, probabilities1/.97/.99 and confidence.99/.95/.98; no new query."
+  ],
+  "model": "gpt-6.1-sol",
+  "reasoning_effort": "high",
+  "product_repairs": false,
+  "clean_room": false
+}

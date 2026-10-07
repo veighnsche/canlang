@@ -148,3 +148,13 @@ and upgrade costs, and requires strict readable production reduction for every
 replacement-only candidate. Existing correctness/capability/evidence work receives
 separate scope and unallocated budget records; compression and moves earn no credit.
 No implementation or reduction acceptance follows from the assessment.
+
+The planning-only [integration dispositions](integration-dispositions/README.md)
+select one reviewed position for all 27 integration families and 49 existing
+subsidiary records, with owner policy, uncertainty and retirement gates.
+Sol high substantive reviews and an opposing review distinguish thin mechanics
+from sizeable compatibility/protocol owners. Fresh JEV advice on URI ownership
+and locale display is saved with its split/confidence investigation; earlier
+raw-map advice is reused at its original scope. Candidate replacement still
+requires actual complete-closure production/declaration reduction; no policy,
+backend, source implementation or task acceptance is activated.

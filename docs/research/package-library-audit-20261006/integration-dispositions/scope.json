@@ -1,0 +1,57 @@
+{
+  "freeze": "780ab04ca60bad2e30f47ae4e7ae63e5ee838bb9",
+  "date": "2026-10-07",
+  "stage": "planning-dispositions",
+  "families": 27,
+  "subsidiary_records": 49,
+  "total_records": 76,
+  "choice_counts": {
+    "library-family": {
+      "simplify-wrapper": 1,
+      "retain-thin-integration": 7,
+      "select-better-fitting-mechanism": 1,
+      "retain-existing-implementation": 17,
+      "consolidate-ownership": 1
+    },
+    "duplication-review": {
+      "simplify-wrapper": 6,
+      "consolidate-ownership": 16,
+      "retain-existing-implementation": 23,
+      "retain-thin-integration": 4
+    }
+  },
+  "selected_behavior_changes": 0,
+  "accepted_policy_changes": 0,
+  "execution_authorized": false,
+  "package_source_changes": false,
+  "product_tests": false,
+  "merge": false,
+  "checkpoint_advance": false,
+  "canonical_task_acceptance": false,
+  "model_dispatches": [
+    {
+      "group": "values",
+      "records": 23,
+      "raw_sha256": "681c6644cf11e3f769d906a8cc8142a4c20d7298f40bfb62c5d1ae061cb8c370",
+      "model": "gpt-6.1-sol",
+      "effort": "high",
+      "reason": "User selected Sol high for substantive cross-file integration dispositions; pinned contract/caller and ownership choices require material judgment."
+    },
+    {
+      "group": "delivery",
+      "records": 24,
+      "raw_sha256": "14b9ff23d88b30b84532f486144f552e4377f0fea7b5963411c298943c0e3aee",
+      "model": "gpt-6.1-sol",
+      "effort": "high",
+      "reason": "User selected Sol high for substantive cross-file integration dispositions; pinned contract/caller and ownership choices require material judgment."
+    },
+    {
+      "group": "adapters",
+      "records": 29,
+      "raw_sha256": "e0cdaf4c434e2d64632cf80d591cc67ae8c5f4177d7f59b87762a4805f120c1e",
+      "model": "gpt-6.1-sol",
+      "effort": "high",
+      "reason": "User selected Sol high for substantive cross-file integration dispositions; pinned contract/caller and ownership choices require material judgment."
+    }
+  ]
+}

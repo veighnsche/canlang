@@ -1,0 +1,125 @@
+{
+  "stage": "planning advice; no runtime/implementation/contract acceptance",
+  "questions": {
+    "uri_strategy": {
+      "answers": [
+        {
+          "request": "request-1.json",
+          "response": "response-1.json",
+          "type": "choice",
+          "choice": "library_candidate_gate",
+          "confidence": 0.45,
+          "probabilities": {
+            "retain_copies_now": 0.01,
+            "shared_existing_gate": 0.36,
+            "library_candidate_gate": 0.63
+          }
+        },
+        {
+          "request": "request-2.json",
+          "response": "response-2.json",
+          "type": "choice",
+          "choice": "shared_existing_gate",
+          "confidence": 0.28,
+          "probabilities": {
+            "library_candidate_gate": 0.26,
+            "retain_copies_now": 0.22,
+            "shared_existing_gate": 0.52
+          }
+        },
+        {
+          "request": "request-3.json",
+          "response": "response-3.json",
+          "type": "choice",
+          "choice": "library_candidate_gate",
+          "confidence": 0.88,
+          "probabilities": {
+            "retain_copies_now": 0.03,
+            "shared_existing_gate": 0.05,
+            "library_candidate_gate": 0.92
+          }
+        }
+      ],
+      "models": [
+        "jev-1.13.0"
+      ],
+      "advice_only": true,
+      "acceptance_threshold": null,
+      "selected_disposition": "select-better-fitting-mechanism",
+      "selected_strategy": "library_candidate_gate",
+      "agreement": false,
+      "investigation": [
+        "The advice splits library/shared/library with probabilities .63/.52/.92 and confidences .45/.28/.88. No majority or threshold decides selection.",
+        "Strict String::from_utf16 consumes valid surrogate pairs and rejects isolated/reversed units before escaping. Each current pure helper has no callback/effect and exposes no partial output. Keep original per-component helper call order; do not validate all components ahead of their owning guards.",
+        "One explicitly configured percent-encoding2.3.2 owner removes actual UTF16/codepoint/UTF8/hex mechanics. Rust std is already used; crate declares Rust1.51, no runtime dependencies, alloc-only/no_std available. These source facts favor qualifying it before sharing the handwritten loop.",
+        "Rows/linkage map failure name URIError with code None; receipt has no code field. Keep three local carrier/error shells; no universal error owner or new public signature.",
+        "Opposing case remains: temporary UTF8 String, escaped String and U16 output add peak copies; current loop incrementally writes U16 and allocates formatted percent strings. No performance/footprint/net reduction benchmark is inferred. Include admitted input/allocation/resource and actual native/Wasm/installed consumers in original gates.",
+        "If actual target/resource or full production+declaration reduction gate fails, choose one private existing loop as alternative in a new finite candidate decision; never ship both encoders as permanent fallback."
+      ],
+      "uncertainty": "Extra allocation/target/upgrade burden and exact closed-source reduction remain unqualified; source establishes a plausible smaller mechanism, not accepted implementation."
+    },
+    "locale_strategy": {
+      "answers": [
+        {
+          "request": "request-1.json",
+          "response": "response-1.json",
+          "type": "choice",
+          "choice": "retain_current_profile",
+          "confidence": 0.88,
+          "probabilities": {
+            "platform_profile_gate": 0.07,
+            "retain_current_profile": 0.92,
+            "bundled_engine_gate": 0.01
+          }
+        },
+        {
+          "request": "request-2.json",
+          "response": "response-2.json",
+          "type": "choice",
+          "choice": "retain_current_profile",
+          "confidence": 0.55,
+          "probabilities": {
+            "bundled_engine_gate": 0.0,
+            "retain_current_profile": 0.7,
+            "platform_profile_gate": 0.3
+          }
+        },
+        {
+          "request": "request-3.json",
+          "response": "response-3.json",
+          "type": "choice",
+          "choice": "retain_current_profile",
+          "confidence": 0.41,
+          "probabilities": {
+            "bundled_engine_gate": 0.0,
+            "retain_current_profile": 0.61,
+            "platform_profile_gate": 0.39
+          }
+        }
+      ],
+      "models": [
+        "jev-1.13.0"
+      ],
+      "advice_only": true,
+      "acceptance_threshold": null,
+      "selected_disposition": "retain-existing-implementation",
+      "selected_strategy": "retain_current_profile",
+      "agreement": true,
+      "investigation": [
+        "All choices retain current profile, but probabilities decline .92/.70/.61 and confidence .88/.55/.41. Preserve this uncertainty; not a permanent endorsement of ASCII or omitted bidi behavior.",
+        "Exact string pathway is supported by ECMA40212, but supported host features/data and real caller expectations are not qualified here. A new data-engine would add independent release/representation owners with no closed benefit established.",
+        "Current exactness, authored fractional zeros, errors and separate plural precision refusal remain. Future locale-native digit/bidi/minimum-grouping output is an explicit proposed public profile change, not a same-behavior wrapper deletion.",
+        "Required exact localized display remains a product duty; current-profile retention leaves known locale fidelity/data gaps open. Consumer/host/data gates justify retention at this checkpoint without declaring historical quirks permanent."
+      ],
+      "uncertainty": "Public display-contract/host-data closure can change the eventual selection. No runtime/profile migration approved."
+    }
+  },
+  "usage": {
+    "input_tokens": 5866,
+    "output_tokens": 285
+  },
+  "independently_worded_context_questions_criteria": true,
+  "source_and_primary_context_reverified": true,
+  "previous_map_advice": "Reused recorded retain_contract_candidate_gate with original confidence .99/.95/.98; probabilities1/.97/.99. No repeat or new raw-map profile selected.",
+  "source_range_note": "Request refs describe leaf bodies; hashed full current files are authoritative. Context/criteria prose independently rewritten in all three requests; source IDs/hashes/choice keys intentionally stable."
+}

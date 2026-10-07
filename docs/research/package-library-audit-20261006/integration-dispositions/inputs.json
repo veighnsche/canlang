@@ -1,0 +1,58 @@
+{
+  "freeze": "780ab04ca60bad2e30f47ae4e7ae63e5ee838bb9",
+  "records": [
+    {
+      "path": "docs/research/package-library-audit-20261006/library-fit/assessments.jsonl",
+      "sha256": "96bd9ebe2068bb4619e9854bfdb8d35261d4d424d3079ea43ba0c01e3bedb0be"
+    },
+    {
+      "path": "docs/research/package-library-audit-20261006/library-fit/dependency-evidence.json",
+      "sha256": "6a826abfeef01626ee4246d9c6acc94274a57d232e639db3329b1b634a0b7fcb"
+    },
+    {
+      "path": "docs/research/package-library-audit-20261006/library-fit/upstream-evidence.json",
+      "sha256": "a93170630e367ba13be59a2a7f4bc38b4cb4eff32a3628a325664ac52d7a7fe1"
+    },
+    {
+      "path": "docs/research/package-library-audit-20261006/duplication-layers/candidates.jsonl",
+      "sha256": "7a0f7438f4f7aa3b7a38e42131bdd01a929300344e65f836ad3b030f66a9a23b"
+    },
+    {
+      "path": "docs/research/package-library-audit-20261006/maintenance-benefit/assessments.jsonl",
+      "sha256": "506e13ab14ee73ac29cb604133cf87446830665bb0a88b63ac5b5d53ba770553"
+    },
+    {
+      "path": "docs/research/package-library-audit-20261006/maintenance-benefit/sources.json",
+      "sha256": "e7faa3fc8f64b18462ed8320c94241e5d92446e108649721bfeb75db2f377a4a"
+    },
+    {
+      "path": "docs/research/package-library-audit-20261006/maintenance-benefit/acceptance-gate.json",
+      "sha256": "49e54afef9ca91fdb6f052a5b7122125f099f6d2740a9e7bc0311357fa4120b3"
+    },
+    {
+      "path": "docs/research/package-library-audit-20261006/maintenance-benefit/branch-coverage.json",
+      "sha256": "e6d6c90e19baf8fdf9b8532e8bd8fc5380f441d8d24703a36d963ecbeeee1efe"
+    },
+    {
+      "path": "docs/research/package-library-audit-20261006/maintenance-benefit/separate-budgets.json",
+      "sha256": "855a860f9ad5fa9c3391347f4e3eba332cc5af6f023f60e2cb1a530a457c7984"
+    },
+    {
+      "path": "docs/research/package-library-audit-20261006/required-behavior/contracts.jsonl",
+      "sha256": "f36371b966cc1071ef80c6704c6fc4236ffa69ef15ce3137b8722303c32a4a89"
+    },
+    {
+      "path": "docs/research/package-library-audit-20261006/adapter-branches/branches.jsonl",
+      "sha256": "a682336433c7204f0045f29391d70d3b00fd569d92826ad868bae37b166872fd"
+    },
+    {
+      "path": "docs/research/package-library-audit-20261006/tests-evidence/claims.jsonl",
+      "sha256": "8cd6d0ad931ead0b2e16f498e79994892a83f3aa69d24780e8686d753be2af59"
+    },
+    {
+      "path": "docs/research/package-library-audit-20261006/maintenance-benefit/counter-review.json",
+      "sha256": "2820baefec4bcfc5ca099dbd35eb80954080903faa3ee1355da60bbcfc37d847"
+    }
+  ],
+  "upstream_and_saved_receipts": "Existing input references preserve version/host/source qualifications; newly opened exact docs listed in JEV evidence. No upstream docs counted as runtime acceptance."
+}

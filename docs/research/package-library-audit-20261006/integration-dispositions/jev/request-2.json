@@ -1,0 +1,49 @@
+{
+  "model": "jev-latest",
+  "state": {
+    "source_ref": "780ab04ca60bad2e30f47ae4e7ae63e5ee838bb9",
+    "source_hashes": {
+      "packages/work-kernel/decisions/rows.rs": "b2e4420da4e98bb575f23eef2033985d5f18ed1c3b2a41c442cd98a461770c13",
+      "packages/work-kernel/decisions/receipt.rs": "2f2b048b40913632954ce74e2a27e785cb9a6968796fc6d155bda9b9dccf222d",
+      "packages/work-kernel/decisions/linkage.rs": "2b88e65cd8f0183629bdf00e2ad97a0b6930e03b0bc3d546e6a367de813ab94c",
+      "packages/values/src/icu.ts": "07a1cfc94cf0a0a338cf1a7307648db211479a9da0a3b4cae7d5d99030a9b70e",
+      "packages/work-kernel/Cargo.toml": "e47efacc7e0b819611644763ac617da5bfda345d9297826d974bc9d1fb73d4a5",
+      "docs/research/package-library-audit-20261006/maintenance-benefit/acceptance-gate.json": "49e54afef9ca91fdb6f052a5b7122125f099f6d2740a9e7bc0311357fa4120b3",
+      "docs/research/package-library-audit-20261006/library-fit/assessments.jsonl": "96bd9ebe2068bb4619e9854bfdb8d35261d4d424d3079ea43ba0c01e3bedb0be"
+    },
+    "source_refs": [
+      "work-kernel/decisions/rows.rs:286-333",
+      "work-kernel/decisions/receipt.rs:265-310",
+      "work-kernel/decisions/linkage.rs:261-308",
+      "values/src/icu.ts:1044-1133"
+    ],
+    "primary_refs": [
+      "https://docs.rs/percent-encoding/2.3.2/percent_encoding/",
+      "https://402.ecma-international.org/12.0/#sec-tointlmathematicalvalue"
+    ],
+    "consultation_scope": "Planning disposition only. No code/library execution, policy adoption, migration, new implementation goal or retirement authorized by the response.",
+    "objective": "Choose finite maintenance planning paths, charging helper/types/imports/retained routes and dependency lifecycle; no credit for moved/compressed source or test deletions.",
+    "uri_context": "Rows, receipt and linkage currently maintain three nearly equal native URI component encoders. Each must preserve historical Work identifier preimages. Compatibility means exact ECMAScript unescaped alphanumeric plus nine punctuation characters, UTF8 percent octets with capital hexadecimal, no form-url plus substitution, and rejection of isolated UTF16 surrogates under the URIError name. Their surrounding error and carrier types stay owned locally. A sole private strict UTF16 admission followed by percent-encoding2.3.2 can own byte emission; its inspected release permits an explicit constant AsciiSet, alloc-only use and has no dependencies. It is not adopted or target/runtime/measured-savings qualified. Alternatively deduplicate the current handwritten encoder inside Work without another crate; or preserve the three implementations pending native consumer adoption. TS oracle/backend deletion and cross-package helper sharing are not part of any option.",
+    "locale_context": "The Values exact-number path derives ASCII decimal digits without floating conversion, probes Intl for sign/separator/group sizes, and manually groups. Therefore locale numbering glyphs, bidi marks and minimum grouping are not fully carried. Existing fraction scale zeros are retained public behavior; exact values and locale presentation are required, but tests alone do not establish permanent ASCII-only policy. Standard ECMA402 edition12 supports exact string mathematical values in NumberFormat; that API could handle locale mechanics and explicit fraction-scale options. Host implementations/data versions and actual UI/export/currency callers remain unqualified. Moving to it changes current presentation bytes and needs an explicit contract proposal plus real caller and release-data/host gates, preserving errors/exactness/scale and separate plural admission. Keeping the present assembler avoids immediate observable changes but preserves hand-maintained locale logic. Evaluating a bundled locale engine instead might improve data determinism at extra dependency/delivery cost; no specific engine meets the same closed scope yet."
+  },
+  "questions": {
+    "uri_strategy": {
+      "type": "choice",
+      "instructions": "Among these finite encoding approaches, what should the planner choose given stable Work identities and incomplete target/savings evidence? Treat all migration and verification conditions as real.",
+      "criteria": {
+        "library_candidate_gate": "Choose the narrowly admitted standard-library conversion and pinned percent crate behind a single private Work owner for later qualified replacement. Require unchanged URIError and persisted octets, supported targets, counted whole-closure source decrease and no dual mechanism if rejected.",
+        "shared_existing_gate": "Choose one locally shared handwritten encoder, preserving each module public/error shell and exact persisted bytes. This avoids crate cost; manual UTF16-to-UTF8 and hex policy remain. Accept only after scoped parity and source-cost decrease.",
+        "retain_copies_now": "Leave the separate native encoders in place for this stage, postponing deduplication until original native adoption gates. This preserves observed behavior with no dependency addition but deliberately carries three maintenance copies."
+      }
+    },
+    "locale_strategy": {
+      "type": "choice",
+      "instructions": "Which finite direction should govern the exact-number display seam, accounting for product locale intent, existing public bytes and unqualified consumer/data hosts? Do not equate proposal with adoption.",
+      "criteria": {
+        "retain_current_profile": "Keep the existing manual exact presentation while obtaining consumer, data-release and host evidence. Its quirks remain observed compatibility, not automatically permanent requirements; another profile choice awaits those inputs.",
+        "platform_profile_gate": "Choose a proposed exact-decimal-string NumberFormat profile. Declare the digit/control-mark/grouping differences explicitly, keep scale zeros and value/error rules, and gate switch/deletion on owning contract and supported consumer/data/runtime qualification plus actual source reduction.",
+        "bundled_engine_gate": "Investigate one self-contained locale implementation with bundled data first, retaining current output. It may control data variation but must justify extra dependencies and release/representation owners and demonstrate the complete supported exact profile before selection."
+      }
+    }
+  }
+}

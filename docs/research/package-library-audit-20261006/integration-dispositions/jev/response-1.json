@@ -1,0 +1,80 @@
+{
+  "request": {
+    "model": "jev-latest",
+    "state": {
+      "source_ref": "780ab04ca60bad2e30f47ae4e7ae63e5ee838bb9",
+      "source_hashes": {
+        "packages/work-kernel/decisions/rows.rs": "b2e4420da4e98bb575f23eef2033985d5f18ed1c3b2a41c442cd98a461770c13",
+        "packages/work-kernel/decisions/receipt.rs": "2f2b048b40913632954ce74e2a27e785cb9a6968796fc6d155bda9b9dccf222d",
+        "packages/work-kernel/decisions/linkage.rs": "2b88e65cd8f0183629bdf00e2ad97a0b6930e03b0bc3d546e6a367de813ab94c",
+        "packages/values/src/icu.ts": "07a1cfc94cf0a0a338cf1a7307648db211479a9da0a3b4cae7d5d99030a9b70e",
+        "packages/work-kernel/Cargo.toml": "e47efacc7e0b819611644763ac617da5bfda345d9297826d974bc9d1fb73d4a5",
+        "docs/research/package-library-audit-20261006/maintenance-benefit/acceptance-gate.json": "49e54afef9ca91fdb6f052a5b7122125f099f6d2740a9e7bc0311357fa4120b3",
+        "docs/research/package-library-audit-20261006/library-fit/assessments.jsonl": "96bd9ebe2068bb4619e9854bfdb8d35261d4d424d3079ea43ba0c01e3bedb0be"
+      },
+      "source_refs": [
+        "work-kernel/decisions/rows.rs:286-333",
+        "work-kernel/decisions/receipt.rs:265-310",
+        "work-kernel/decisions/linkage.rs:261-308",
+        "values/src/icu.ts:1044-1133"
+      ],
+      "primary_refs": [
+        "https://docs.rs/percent-encoding/2.3.2/percent_encoding/",
+        "https://402.ecma-international.org/12.0/#sec-tointlmathematicalvalue"
+      ],
+      "consultation_scope": "Planning disposition only. No code/library execution, policy adoption, migration, new implementation goal or retirement authorized by the response.",
+      "human_goal": "Reduce readable production mechanics and maintenance across complete owners/callers while preserving required Can outcomes; added capability and correctness have separate budgets.",
+      "uri_evidence": "Three Rust Work decision modules separately reproduce encodeURIComponent over UTF16, differing in local U16/error shells. Persisted recurring/dispatch/row identities require ASCII letters/digits and -_.!~*'() unchanged; other UTF8 bytes use uppercase %HH, never +; lone surrogates return URIError (engine text not exact). The existing TS primitives/donors remain needed. Cached percent-encoding2.3.2 is MIT/Apache, zero dependencies, alloc optional/no_std, caller-defined ASCII set, encodes nonASCII bytes and uppercase hex. Standard strict String::from_utf16 rejects unpaired surrogates; no lossy conversion is permitted. One private Work helper plus local typed error shells could replace three loops. Crate absent actual root assembly; no new runtime, target-footprint, byte corpus or final net reduction demonstrated. Sharing the existing loop avoids dependency burden but keeps manual UTF16/UTF8/hex mechanics.",
+      "locale_evidence": "Current exact display uses BigInt/decimal text with retained authored scale; Intl supplies separators, signs and grouping probes, then Can assembles ASCII digits. This omits localized digit/bidi literals/minimum grouping behavior. Required outcomes include exact typed numeric/currency locale display; current byte quirks are observed public baseline, not all independently mandated product semantics. ECMA4022025 provides string ToIntlMathematicalValue; a direct exact decimal-string formatter may retire manual grouping/reconstruction without Number rounding. Actual supported Node/Worker/browser coverage, locale/data-release reproducibility and callers/exports have not been qualified. Author-scale zeros, type/range/error and safe plural refusal are separate rules; this candidate must not silently alter them. Switching locale digits/bidi/minimum grouping changes observable output and requires explicit proposed public-contract decision and consumer/host acceptance. A new self-contained locale library could pin data but introduces representation, dependency and release/data owners; none is currently qualified."
+    },
+    "questions": {
+      "uri_strategy": {
+        "type": "choice",
+        "instructions": "Which current planning disposition best balances preserved persisted URI bytes, fewer Can mechanisms, dependency burden and credible qualification? Select a finite direction, not runtime acceptance.",
+        "criteria": {
+          "library_candidate_gate": "Select one Work-private strict UTF16 plus percent-encoding2.3.2 candidate. Keep byte/error policy and local shells; replace loops only after independent exact-domain/target and full owner/caller net-reduction gates. If it fails, retain existing mechanics rather than ship two routes.",
+          "shared_existing_gate": "Select private consolidation of current URI mechanics with local error/carrier boundaries. No new crate, but custom scalar/byte escape ownership remains; require parity and actual net reduction before retiring copies.",
+          "retain_copies_now": "Retain all three current native loops until broader native consumer adoption. No new dependency or change risk now, but duplicates persist; explicitly retain their retirement gates."
+        }
+      },
+      "locale_strategy": {
+        "type": "choice",
+        "instructions": "For exact locale numeric display, choose the current planning policy among preservation, explicitly proposed platform presentation change or new data-engine evaluation. Which fits required outcomes and simplicity at this evidence stage?",
+        "criteria": {
+          "retain_current_profile": "Retain current exact assembler now. Inventory output consumers and settle locale/data/host support before choosing a different presentation profile; do not permanently assert every ASCII/bidi quirk as a product mandate.",
+          "platform_profile_gate": "Propose one exact-string Intl presentation profile, with explicit localized digit/bidi/minimum grouping changes and preserved authored scale/exact values/errors. Adoption and old assembler retirement wait for contract release, real callers/host-data evidence and measured reduction; no plural-domain or silent fallback change.",
+          "bundled_engine_gate": "Prioritize evaluation of a single bundled locale engine/data owner before platform substitution. Retain current implementation meanwhile; justify added dependency/data/representation/delivery burden and prove the same exact outcome domain before selecting it."
+        }
+      }
+    }
+  },
+  "response": {
+    "model": "jev-1.13.0",
+    "answers": {
+      "uri_strategy": {
+        "type": "choice",
+        "choice": "library_candidate_gate",
+        "confidence": 0.45,
+        "probabilities": {
+          "retain_copies_now": 0.01,
+          "shared_existing_gate": 0.36,
+          "library_candidate_gate": 0.63
+        }
+      },
+      "locale_strategy": {
+        "type": "choice",
+        "choice": "retain_current_profile",
+        "confidence": 0.88,
+        "probabilities": {
+          "platform_profile_gate": 0.07,
+          "retain_current_profile": 0.92,
+          "bundled_engine_gate": 0.01
+        }
+      }
+    },
+    "usage": {
+      "input_tokens": 1972,
+      "output_tokens": 95
+    }
+  }
+}
