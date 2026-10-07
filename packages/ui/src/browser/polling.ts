@@ -273,7 +273,16 @@ export function submitFetchPollFetch(fetchImpl: SubmitFetch): PollFetch {
         reject(new DOMException("Poll request aborted.", "AbortError"));
       };
       init.signal.addEventListener("abort", onAbort, { once: true });
-      void fetchImpl(url, { method: "GET", headers: { "HX-Request": "true", "Accept": "text/html" } }).then(
+      let pending: Promise<SubmitFetchResponse>;
+      try {
+        pending = fetchImpl(url, { method: "GET", headers: { "HX-Request": "true", "Accept": "text/html" } });
+      } catch (error) {
+        try { init.signal.removeEventListener("abort", onAbort); }
+        catch { /* The fetch acquisition failure remains operative. */ }
+        reject(error);
+        return;
+      }
+      void pending.then(
         (response) => {
           init.signal.removeEventListener("abort", onAbort);
           resolve(response);

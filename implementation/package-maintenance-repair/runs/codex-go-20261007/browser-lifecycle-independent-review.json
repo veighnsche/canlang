@@ -1,0 +1,180 @@
+{
+  "verdict": "PASS for finite DEL-B01 synchronous owned-resource contract; no blocking finding",
+  "sourcePins": [
+    {
+      "path": "packages/ui/src/browser/bootstrap.ts",
+      "sha256": "95f6f353513174367d39d936e98042fe375329246485261e679b98c63f202ac1"
+    },
+    {
+      "path": "packages/ui/src/browser/polling.ts",
+      "sha256": "d7ee9aba0bf9256a2b665a1b03240feb3f392f3455edcdd46d10c3a701d6f1aa"
+    },
+    {
+      "path": "packages/ui/test/browser-lifecycle-cleanup.test.ts",
+      "sha256": "126d106f3ac89f340a44047c73f9dcd094495e19636e44d744ccda32fccda07d"
+    }
+  ],
+  "baselinePins": [
+    {
+      "path": "packages/ui/src/browser/polling.ts",
+      "sha256": "4e4c1c0b280a0fb146d59359507e34bda70612421c9687449e33a8dd327437e6",
+      "bytes": 9905,
+      "lines": 287,
+      "nonblank": 270
+    },
+    {
+      "path": "packages/ui/src/browser/bootstrap.ts",
+      "sha256": "ed50a872d64c7d7fd227041079c212da19d9ec475d3fab7441ef0ce409c12af7",
+      "bytes": 25783,
+      "lines": 602,
+      "nonblank": 565
+    }
+  ],
+  "strict": {
+    "current": {
+      "diagnostics": [],
+      "emitSkipped": false
+    },
+    "before": {
+      "diagnostics": [],
+      "emitSkipped": false
+    }
+  },
+  "tests": {
+    "before-maintained": {
+      "tests": 103,
+      "pass": 72,
+      "fail": 31,
+      "cancelled": 0
+    },
+    "current-maintained": {
+      "tests": 103,
+      "pass": 103,
+      "fail": 0,
+      "cancelled": 0
+    },
+    "before-independent-accept": {
+      "tests": 18,
+      "pass": 0,
+      "fail": 18,
+      "cancelled": 0
+    },
+    "current-independent-accept": {
+      "tests": 18,
+      "pass": 18,
+      "fail": 0,
+      "cancelled": 0
+    }
+  },
+  "declarations": {
+    "before": {
+      "bootstrap.d.ts": "33879b60917756548520bca61d2b095415e43d836ab8b68cebab782b698df1c0",
+      "polling.d.ts": "94c229ca102d2e9132782b2bed77197b2e75dc6691e968ab2e9bc5285bb27762"
+    },
+    "current": {
+      "bootstrap.d.ts": "33879b60917756548520bca61d2b095415e43d836ab8b68cebab782b698df1c0",
+      "polling.d.ts": "94c229ca102d2e9132782b2bed77197b2e75dc6691e968ab2e9bc5285bb27762"
+    }
+  },
+  "declarationsByteEqual": true,
+  "closureAccounting": {
+    "current": {
+      "fullStrictUIClosure": {
+        "files": 19,
+        "bytes": 369273,
+        "physicalLines": 8919,
+        "nonblankLines": 8478
+      },
+      "production": {
+        "files": 14,
+        "bytes": 286068,
+        "physicalLines": 6901,
+        "nonblankLines": 6542
+      },
+      "maintainedProofCounterfactual": {
+        "files": 5,
+        "bytes": 83205,
+        "physicalLines": 2018,
+        "nonblankLines": 1936
+      },
+      "ownedRuntime": {
+        "files": 2,
+        "bytes": 37817,
+        "physicalLines": 937,
+        "nonblankLines": 882
+      },
+      "newMaintainedProof": {
+        "files": 1,
+        "bytes": 15471,
+        "physicalLines": 244,
+        "nonblankLines": 241
+      },
+      "authoredMaintained": {
+        "files": 5,
+        "bytes": 83205,
+        "physicalLines": 2018,
+        "nonblankLines": 1936
+      }
+    },
+    "before": {
+      "fullStrictUIClosure": {
+        "files": 19,
+        "bytes": 367144,
+        "physicalLines": 8871,
+        "nonblankLines": 8431
+      },
+      "production": {
+        "files": 14,
+        "bytes": 283939,
+        "physicalLines": 6853,
+        "nonblankLines": 6495
+      },
+      "maintainedProofCounterfactual": {
+        "files": 5,
+        "bytes": 83205,
+        "physicalLines": 2018,
+        "nonblankLines": 1936
+      },
+      "ownedRuntime": {
+        "files": 2,
+        "bytes": 35688,
+        "physicalLines": 889,
+        "nonblankLines": 835
+      },
+      "newMaintainedProof": {
+        "files": 1,
+        "bytes": 15471,
+        "physicalLines": 244,
+        "nonblankLines": 241
+      },
+      "authoredMaintained": {
+        "files": 4,
+        "bytes": 67734,
+        "physicalLines": 1774,
+        "nonblankLines": 1695
+      }
+    }
+  },
+  "staticReview": [
+    "Failure presence wrapper preserves undefined; every detached supported disposer attempted once; first failure retained exactly. Registry removed before release; acquisition catches rethrow exact original.",
+    "Rescan removes ownership before disposal in all three removal paths; independent tests prove stop does not retry failed disposer.",
+    "Native stop order experimentally verified observer, popstate, pagehide, pageshow, visibility, core swap, hashchange, keydown.",
+    "Synchronous injected SubmitFetch executes before adapter return; abort listener absent before rejection microtask even cleanup throws.",
+    "Public source/dts contract unchanged; only private release helper introduced."
+  ],
+  "iterationRecord": [
+    "First independent pending-controller check used successful reply, so inflight correctly cleared before stop; corrected fixture to intentionally pending SubmitFetch.",
+    "First order assertion encountered original built-in guarded-form beforeunload disposal; seeded controlled guarded binder consistently. Failures and rerun logs retained; only final accept logs establish independent verdict."
+  ],
+  "limitations": [
+    "Actual HappyDOM 20.14.5, MutationObserver/EventTarget and Node AbortController; no real-browser rendering or visibility transition acceptance.",
+    "Private strict source emit freezes TypeScript read closure; @canlang/contracts runtime package copied from existing distribution, not rebuilt dependency graph.",
+    "Every supported synchronous disposer attempted once; a failing external disposer may retain physical resources, async disposer guarantees excluded.",
+    "No physical network cancellation, producer trust/HTMX/can:settled, markup, raw Window typing, visibility policy, installed tarball or deployment acceptance."
+  ],
+  "closedHandles": "All recorded bounded subprocesses exited; HappyDOM windows closed in finally; real timer/controller checks completed; no background command session retained.",
+  "packet": "DEL-B01 finite synchronous owned cleanup",
+  "privateEvidence": "/private/tmp/canlang-repair-go-20261007/browser-lifecycle-independent/result.json",
+  "privateEvidenceSHA256": "62bba19ac22083bb7c90d6e1eab3eb2a34f67c33663d6f1d7eb8afdd48e30351",
+  "rootDisposition": "accepted finite synchronous rollback/stop cleanup, exact first failure and owned restart; wider browser host/producer contracts remain open"
+}
