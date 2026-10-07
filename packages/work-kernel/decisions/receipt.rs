@@ -12,6 +12,7 @@
 //! it; only the error type and the receipt tables are new.
 
 use super::numeric_text::{json_token as js_json_num, string as js_num};
+use super::utf16_json::append as json_escape_into;
 
 use std::collections::HashSet;
 use std::rc::Rc;
@@ -168,46 +169,6 @@ fn enum_entries(pairs: &[(U16, Value)]) -> Vec<&(U16, Value)> {
     out.extend(rest);
     out
 }
-
-/// V8-compatible JSON string escaping for one UTF-16 unit slice.
-fn json_escape_into(units: &[u16], out: &mut String) {
-    out.push('"');
-    let mut i = 0;
-    while i < units.len() {
-        let u = units[i];
-        match u {
-            0x22 => out.push_str("\\\""),
-            0x5C => out.push_str("\\\\"),
-            0x08 => out.push_str("\\b"),
-            0x09 => out.push_str("\\t"),
-            0x0A => out.push_str("\\n"),
-            0x0C => out.push_str("\\f"),
-            0x0D => out.push_str("\\r"),
-            0x00..=0x1F => {
-                out.push_str(&format!("\\u{:04x}", u));
-            }
-            0xD800..0xDC00 => {
-                if i + 1 < units.len() && (0xDC00..0xE000).contains(&units[i + 1]) {
-                    let lo = units[i + 1];
-                    let cp = 0x10000 + (((u - 0xD800) as u32) << 10) + (lo - 0xDC00) as u32;
-                    out.push(char::from_u32(cp).unwrap_or('\u{FFFD}'));
-                    i += 1;
-                } else {
-                    out.push_str(&format!("\\u{:04x}", u));
-                }
-            }
-            0xDC00..0xE000 => {
-                out.push_str(&format!("\\u{:04x}", u));
-            }
-            _ => {
-                out.push(char::from_u32(u as u32).unwrap_or('\u{FFFD}'));
-            }
-        }
-        i += 1;
-    }
-    out.push('"');
-}
-
 
 /// V8-compatible `JSON.stringify` for the value model.
 fn js_stringify(v: &Value) -> String {
@@ -2454,3 +2415,33 @@ mod vectors_receipt {
 }
 
 // N03 immutable witnesses: private Cargo route, not standalone rustc.
+
+#[cfg(test)]
+mod quote_contract {
+    use super::*;
+
+    #[test]
+    fn raw_utf16_payload_and_identity_bytes() {
+        let raw = U16(vec![0xD800, 0xD83D, 0xDE00, 0xDC00, 0x22, 0x0A]);
+        let text = Value::Str(raw.clone());
+        let payload = Value::Obj(Rc::new(vec![(raw.clone(), text.clone())]));
+        assert_eq!(js_stringify(&payload), "{\"\\ud800😀\\udc00\\\"\\n\":\"\\ud800😀\\udc00\\\"\\n\"}");
+        let row = StoredRow {
+            id: U16::from_utf8("d"), version: 1.0, created: 0.0, updated: 0.0,
+            created_by: U16::from_utf8("a"), updated_by: U16::from_utf8("a"),
+            archived_at: Value::Null, parent: Value::Null,
+            data: Value::Obj(Rc::new(vec![
+                (U16::from_utf8("deliveryId"), Value::Str(U16::from_utf8("d"))),
+                (U16::from_utf8("revision"), Value::Num(1.0)),
+                (U16::from_utf8("status"), text),
+            ])),
+        };
+        let error = read_receipt_row(&row).unwrap_err();
+        assert_eq!(error.message, "work.receipt.status is unknown: \"\\ud800😀\\udc00\\\"\\n\".");
+        assert_eq!(encode_uri_component(&raw.0).unwrap_err().name, "URIError");
+        let valid = U16(vec![0xD83D, 0xDE00]);
+        let id = association_row_id(&valid, &U16::from_utf8("r"), &U16::from_utf8("f/x")).unwrap();
+        assert_eq!(id, U16::from_utf8("receipt-assoc/v1/%F0%9F%98%80/r/f%2Fx"));
+        assert_eq!(association_row_id(&raw, &valid, &valid).unwrap_err().name, "URIError");
+    }
+}

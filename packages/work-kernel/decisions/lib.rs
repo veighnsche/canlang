@@ -14,3 +14,4 @@ pub mod retry;
 pub mod rows;
 
 pub(crate) mod numeric_text;
+pub(crate) mod utf16_json;
