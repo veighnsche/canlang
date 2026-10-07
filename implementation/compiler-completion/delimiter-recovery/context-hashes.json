@@ -1,0 +1,7 @@
+{
+  "compiler/src/syntax/layout.rs": "3f8cda7a4ba1f18c98af49a6c78f518c89b699e7ccc92ea72679129e6d338a87",
+  "compiler/src/syntax/parser.rs": "87aa962dd5de5aec9ee73f82e25cf1d2cbc0553ec2c6ffc0f64cdd6e5f65b806",
+  "compiler/src/syntax/lexer.rs": "803b9408639a970af8435be66901e8d461aa03650ffad8db9e040c5195b2d9e0",
+  "docs/specification/GRAMMAR.md": "b3dcf61119cc2c4e2e9ac7ff969211f948ddf572e3a707f47976fe9411c1db9a",
+  "compiler/tests/state_machines.rs": "3fbfd0fb6738c3c95365609be40755f5895c4f3cbf2bc1c98206611c66691675"
+}

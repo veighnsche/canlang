@@ -1,0 +1,142 @@
+[
+  {
+    "id": "sibling-unterminated-string",
+    "source": "app T\nGiven\n M {value:text=\"abc}\n derive a(): int = 1 + true\n derive b(): int = nope\nWhen\nThen\n",
+    "required_findings": [
+      {
+        "code": "E3002",
+        "anchor": "1 + true",
+        "occurrence": 1
+      },
+      {
+        "code": "E2001",
+        "anchor": "nope",
+        "occurrence": 1
+      }
+    ],
+    "purpose": "Malformed declaration before independent type/name sentinels; delimiter synchronization is separately classified."
+  },
+  {
+    "id": "sibling-open-schema",
+    "source": "app T\nGiven\n M {value:int\n derive a(): int = 1 + true\n derive b(): int = nope\nWhen\nThen\n",
+    "required_findings": [
+      {
+        "code": "E3002",
+        "anchor": "1 + true",
+        "occurrence": 1
+      },
+      {
+        "code": "E2001",
+        "anchor": "nope",
+        "occurrence": 1
+      }
+    ],
+    "purpose": "Malformed declaration before independent type/name sentinels; delimiter synchronization is separately classified."
+  },
+  {
+    "id": "sibling-open-call",
+    "source": "app T\nGiven\n derive broken(): int = count(\n derive a(): int = 1 + true\n derive b(): int = nope\nWhen\nThen\n",
+    "required_findings": [
+      {
+        "code": "E3002",
+        "anchor": "1 + true",
+        "occurrence": 1
+      },
+      {
+        "code": "E2001",
+        "anchor": "nope",
+        "occurrence": 1
+      }
+    ],
+    "purpose": "Malformed declaration before independent type/name sentinels; delimiter synchronization is separately classified."
+  },
+  {
+    "id": "sibling-open-list",
+    "source": "app T\nGiven\n M {value:int[]=[1\n derive a(): int = 1 + true\n derive b(): int = nope\nWhen\nThen\n",
+    "required_findings": [
+      {
+        "code": "E3002",
+        "anchor": "1 + true",
+        "occurrence": 1
+      },
+      {
+        "code": "E2001",
+        "anchor": "nope",
+        "occurrence": 1
+      }
+    ],
+    "purpose": "Malformed declaration before independent type/name sentinels; delimiter synchronization is separately classified."
+  },
+  {
+    "id": "independent-module-after-open-schema",
+    "source": "app Broken\nGiven\n M {value:int\nWhen\nThen\napp T\nGiven\n derive a(): int = 1 + true\n derive b(): int = nope\nWhen\nThen\n",
+    "required_findings": [
+      {
+        "code": "E3002",
+        "anchor": "1 + true",
+        "occurrence": 1
+      },
+      {
+        "code": "E2001",
+        "anchor": "nope",
+        "occurrence": 1
+      }
+    ]
+  },
+  {
+    "id": "balanced-same-dedent-schema",
+    "source": "app T\nGiven\n M {\nvalue:int,\n text:text=\"ok\"\n}\nWhen\nThen\n",
+    "parse_clean": true,
+    "expected_kinds": [
+      "Model",
+      "Field"
+    ]
+  },
+  {
+    "id": "balanced-list-call",
+    "source": "app T\nGiven\n derive a(): int = count(\n[\n1,\n2\n]\n)\nWhen\nThen\n",
+    "parse_clean": true,
+    "expected_kinds": [
+      "Derive",
+      "Call",
+      "Array"
+    ]
+  },
+  {
+    "id": "balanced-description-schema",
+    "source": "app T\nGiven\n M {\n  # Field.\n  value:int\n }\nWhen\nThen\n",
+    "parse_clean": true,
+    "expected_kinds": [
+      "Model",
+      "Description",
+      "Field"
+    ]
+  },
+  {
+    "id": "balanced-string-punctuation",
+    "source": "app T\nGiven\n M { value:text=\"([{}])\" }\nWhen\nThen\n",
+    "parse_clean": true,
+    "expected_kinds": [
+      "Model",
+      "String"
+    ]
+  },
+  {
+    "id": "balanced-nested-statements",
+    "source": "app T\nGiven\n Job { status:enum(idle,ready)=idle machine }\nWhen\n scenario advance(job:Job) -> Job by=public\n  do\n   if true\n    transition job.status idle -> ready\n   return job\nThen\n",
+    "parse_clean": true,
+    "expected_kinds": [
+      "If",
+      "Transition",
+      "Return"
+    ]
+  },
+  {
+    "id": "unfinished-more-indented",
+    "source": "app T\nGiven\n derive broken(): int = count(\n  1,\n  2\n",
+    "parse_clean": false,
+    "expected_kinds": [
+      "Error"
+    ]
+  }
+]

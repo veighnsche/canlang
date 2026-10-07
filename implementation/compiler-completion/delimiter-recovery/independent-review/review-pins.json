@@ -1,0 +1,91 @@
+{
+  "review_scope": "SYN-R06 frozen EOF delimiter recovery",
+  "production_pins": {
+    "compiler/src/syntax/layout.rs": "2f0bf7a120109f3221bf52852ca8a7e0bae4723461b9ce3ffafa1975d23c8a4d",
+    "compiler/tests/delimiter_recovery.rs": "a03d6709dd1d89058f85860b4cd3b69222998e887268b77aa075ec5851345e4c"
+  },
+  "rlib": {
+    "path": "/Users/vince/Projects/canlang/compiler/target/debug/deps/libcanlang_compiler-7ac8439fc564dd9b.rlib",
+    "sha256": "bdd0ad99d020bdb338c71fa1ca25a80888b7a58cad58e662671c57602f53e1fa"
+  },
+  "command": "rustc --edition=2024 --test implementation/compiler-completion/delimiter-recovery/independent-review/controls.rs --extern canlang_compiler=compiler/target/debug/deps/libcanlang_compiler-7ac8439fc564dd9b.rlib -L dependency=compiler/target/debug/deps -o /private/tmp/canlang-delimiter-independent-controls; /private/tmp/canlang-delimiter-independent-controls --test-threads=1",
+  "new_tests_passed": 7,
+  "new_tests_failed": 0,
+  "no_cargo_rebuild": true,
+  "fixture_byte_coordinate_notes": [
+    {
+      "length_bytes": 166,
+      "sentinels": {
+        "1 + true": [
+          123,
+          131
+        ],
+        "nope": [
+          151,
+          155
+        ]
+      }
+    },
+    {
+      "length_bytes": 185,
+      "sentinels": {
+        "1 + true": [
+          142,
+          150
+        ],
+        "nope": [
+          170,
+          174
+        ]
+      }
+    },
+    {
+      "length_bytes": 206,
+      "sentinels": {
+        "1 + true": [
+          163,
+          171
+        ],
+        "nope": [
+          191,
+          195
+        ]
+      }
+    },
+    {
+      "length_bytes": 131,
+      "sentinels": {
+        "1 + true": [
+          55,
+          63
+        ],
+        "nope": [
+          84,
+          88
+        ]
+      }
+    },
+    {
+      "length_bytes": 283,
+      "sentinels": {
+        "1 + true": [
+          91,
+          99
+        ],
+        "nope": [
+          119,
+          123
+        ]
+      }
+    }
+  ],
+  "evidence_pins": {
+    "controls.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "receipt-verification.json": "171179e2015f8f38f9c218579f240fb4502dca7de36c73a254cd3ede34ae967a",
+    "report.md": "e59da9c4efd244beab7727dcf67edf195110f68ab91a6097d122802bc873ea28",
+    "controls.stdout": "211aae05aa84413c8aeb825d5e01c407d0df367df842bff3abb8923d49690ec5",
+    "controls.rs": "e7a642458c1b1623b74de3288e1178e88c987866dd61102a21f61b9de98ce1d0",
+    "compile.stdout": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "compile.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  }
+}

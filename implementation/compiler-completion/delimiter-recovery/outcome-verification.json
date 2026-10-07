@@ -1,0 +1,193 @@
+[
+  {
+    "case": "sibling-unterminated-string",
+    "oracle": {
+      "code": "E3002",
+      "anchor": "1 + true",
+      "occurrence": 1
+    },
+    "baseline": false,
+    "pass": true
+  },
+  {
+    "case": "sibling-unterminated-string",
+    "oracle": {
+      "code": "E2001",
+      "anchor": "nope",
+      "occurrence": 1
+    },
+    "baseline": false,
+    "pass": true
+  },
+  {
+    "case": "sibling-unterminated-string",
+    "oracle": "lossless source coverage",
+    "baseline": true,
+    "pass": true
+  },
+  {
+    "case": "sibling-open-schema",
+    "oracle": {
+      "code": "E3002",
+      "anchor": "1 + true",
+      "occurrence": 1
+    },
+    "baseline": false,
+    "pass": true
+  },
+  {
+    "case": "sibling-open-schema",
+    "oracle": {
+      "code": "E2001",
+      "anchor": "nope",
+      "occurrence": 1
+    },
+    "baseline": false,
+    "pass": true
+  },
+  {
+    "case": "sibling-open-schema",
+    "oracle": "lossless source coverage",
+    "baseline": true,
+    "pass": true
+  },
+  {
+    "case": "sibling-open-call",
+    "oracle": {
+      "code": "E3002",
+      "anchor": "1 + true",
+      "occurrence": 1
+    },
+    "baseline": false,
+    "pass": true
+  },
+  {
+    "case": "sibling-open-call",
+    "oracle": {
+      "code": "E2001",
+      "anchor": "nope",
+      "occurrence": 1
+    },
+    "baseline": false,
+    "pass": true
+  },
+  {
+    "case": "sibling-open-call",
+    "oracle": "lossless source coverage",
+    "baseline": true,
+    "pass": true
+  },
+  {
+    "case": "sibling-open-list",
+    "oracle": {
+      "code": "E3002",
+      "anchor": "1 + true",
+      "occurrence": 1
+    },
+    "baseline": false,
+    "pass": true
+  },
+  {
+    "case": "sibling-open-list",
+    "oracle": {
+      "code": "E2001",
+      "anchor": "nope",
+      "occurrence": 1
+    },
+    "baseline": false,
+    "pass": true
+  },
+  {
+    "case": "sibling-open-list",
+    "oracle": "lossless source coverage",
+    "baseline": true,
+    "pass": true
+  },
+  {
+    "case": "independent-module-after-open-schema",
+    "oracle": {
+      "code": "E3002",
+      "anchor": "1 + true",
+      "occurrence": 1
+    },
+    "baseline": false,
+    "pass": true
+  },
+  {
+    "case": "independent-module-after-open-schema",
+    "oracle": {
+      "code": "E2001",
+      "anchor": "nope",
+      "occurrence": 1
+    },
+    "baseline": false,
+    "pass": true
+  },
+  {
+    "case": "independent-module-after-open-schema",
+    "oracle": "lossless source coverage",
+    "baseline": true,
+    "pass": true
+  },
+  {
+    "case": "balanced-same-dedent-schema",
+    "oracle": "balanced full CST and parse diagnostic equality with original scanner",
+    "pass": true
+  },
+  {
+    "case": "balanced-same-dedent-schema",
+    "oracle": "lossless source coverage",
+    "baseline": true,
+    "pass": true
+  },
+  {
+    "case": "balanced-list-call",
+    "oracle": "balanced full CST and parse diagnostic equality with original scanner",
+    "pass": true
+  },
+  {
+    "case": "balanced-list-call",
+    "oracle": "lossless source coverage",
+    "baseline": true,
+    "pass": true
+  },
+  {
+    "case": "balanced-description-schema",
+    "oracle": "balanced full CST and parse diagnostic equality with original scanner",
+    "pass": true
+  },
+  {
+    "case": "balanced-description-schema",
+    "oracle": "lossless source coverage",
+    "baseline": true,
+    "pass": true
+  },
+  {
+    "case": "balanced-string-punctuation",
+    "oracle": "balanced full CST and parse diagnostic equality with original scanner",
+    "pass": true
+  },
+  {
+    "case": "balanced-string-punctuation",
+    "oracle": "lossless source coverage",
+    "baseline": true,
+    "pass": true
+  },
+  {
+    "case": "balanced-nested-statements",
+    "oracle": "balanced full CST and parse diagnostic equality with original scanner",
+    "pass": true
+  },
+  {
+    "case": "balanced-nested-statements",
+    "oracle": "lossless source coverage",
+    "baseline": true,
+    "pass": true
+  },
+  {
+    "case": "unfinished-more-indented",
+    "oracle": "lossless source coverage",
+    "baseline": true,
+    "pass": true
+  }
+]

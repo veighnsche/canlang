@@ -1,0 +1,40 @@
+{
+  "production_files": {
+    "compiler/src/syntax/layout.rs": "2f0bf7a120109f3221bf52852ca8a7e0bae4723461b9ce3ffafa1975d23c8a4d",
+    "compiler/tests/delimiter_recovery.rs": "a03d6709dd1d89058f85860b4cd3b69222998e887268b77aa075ec5851345e4c"
+  },
+  "receipt_files": {
+    "balanced-nested-statements.baseline.stdout": "d87abae5993279d3d4499e0643085aad003c8d3d7bca8df925015e726a9ff90b",
+    "focused.stdout": "212bff6702a441ddacbc62c60e236fe3a4e50b8ebc6562311e80ac16c9493684",
+    "balanced-same-dedent-schema.baseline.stdout": "5ccfe3013f592cf072c8fdea2d728b286606514523d927f51673589204ecad04",
+    "final-tests.stdout": "3d96cd6ca76851db47021a5367ceb22f3eb08816762f81aebacb505969ff99c9",
+    "sibling-open-call.baseline.stdout": "094123ff955eb4682f45b8bc33a115f0b26464808dc7536210a879fe2800f74d",
+    "sibling-open-list.final.stdout": "95c97dea21f62705e8e0f45728a49b3fadab15473dfd9e27e03030620e0fb984",
+    "sibling-open-call.final.stdout": "0d43b31950b051bad14ff54aac5798411def72efd0dd42b4e99f389098afb257",
+    "sibling-open-schema.final.stdout": "2baae5ef63df6504be83e3f8f70d3b6dfc4cb8b1fc146ff0fcc60d975feae121",
+    "balanced-string-punctuation.baseline.stdout": "d6b7d1e5a141be0ff634123f905bd44bcdc691a179c0505afdf543ce28db3b1d",
+    "balanced-description-schema.baseline.stdout": "263d4b5dc07c96a41416b7905121c262c8ba9893401c875c1aa34ad34e8d15ec",
+    "unfinished-more-indented.baseline.stdout": "c9f473fe1ba0400113e8c5b673dfb709a8c06c5ea450b1e536f3a5feb3b88a69",
+    "balanced-description-schema.final.stdout": "263d4b5dc07c96a41416b7905121c262c8ba9893401c875c1aa34ad34e8d15ec",
+    "final-build.stdout": "3135c008dea5c2931a00458c1875bb19d37ee60bbd4c52829252eeab44c975b2",
+    "syntax-tests.stdout": "854c0401816a147184dda4613e21b4f1657656fc03952bd1523eda3227a2ffc8",
+    "balanced-same-dedent-schema.final.stdout": "5ccfe3013f592cf072c8fdea2d728b286606514523d927f51673589204ecad04",
+    "baseline-probe-compile.stdout": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "verification.stdout": "0e53552fe72d1e3b22ab6c66c1955e47dd118c5c13ab36a6cdcae8bbaebeca91",
+    "balanced-string-punctuation.final.stdout": "d6b7d1e5a141be0ff634123f905bd44bcdc691a179c0505afdf543ce28db3b1d",
+    "balanced-list-call.baseline.stdout": "d4271053462d3ba675d8f5e06e71c96002e0bd8a07c434842383124ce61ba428",
+    "balanced-nested-statements.final.stdout": "d87abae5993279d3d4499e0643085aad003c8d3d7bca8df925015e726a9ff90b",
+    "sibling-open-schema.baseline.stdout": "04ecae443ad7033de007d474a7f1eda29f840b1e393cde42e5834d4a0dc2b36b",
+    "unfinished-more-indented.final.stdout": "c9f473fe1ba0400113e8c5b673dfb709a8c06c5ea450b1e536f3a5feb3b88a69",
+    "sibling-unterminated-string.baseline.stdout": "125612da7964c2273aaae6f8ac3b1008847c41f1a555e5dc5a7e0abc60ed0019",
+    "independent-module-after-open-schema.baseline.stdout": "134e39b1b6e24cb0585aaf26cbf0997bd622c8d782073a0fa149b2fe02160bae",
+    "sibling-unterminated-string.final.stdout": "eb024fbcc4d66a963bf09ceca0c19003d7f31ad54e422238066324eae513c1e8",
+    "baseline-build.stdout": "3437cec79a8712f1e0f6a78ce38c4b5721faa69e69e0d59d9444b2a423b172a0",
+    "balanced-list-call.final.stdout": "d4271053462d3ba675d8f5e06e71c96002e0bd8a07c434842383124ce61ba428",
+    "sibling-open-list.baseline.stdout": "57f27176c7f937db79318e3b58709e2d290996a455551f89a1f23716a1412055",
+    "independent-module-after-open-schema.final.stdout": "fde2c82c302e90b5a44ba0c8b6879041ec57051f6cfa74e23d4991c84c9f7aa1"
+  },
+  "baseline_head": "65f43dc8bd36450184ee215660464706adeaab42",
+  "support": "EOF-unclosed final join only; active proven-unclosed opener plus next same/dedented code/description line; balanced arbitrary-indentation joins and more-indented unfinished continuations retained",
+  "report_sha256": "bf4e0811a579bb703ab013f5461ddbeceb976e79b3e1b8a74b8a998dc6dc178e"
+}
