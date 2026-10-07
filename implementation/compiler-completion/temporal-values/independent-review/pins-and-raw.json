@@ -1,0 +1,28 @@
+{
+  "compiler/src/analysis/examples.rs": {
+    "actualSHA256": "43389ebb83b37e1bf6942761a82197e109d10e151258d9c37ef3a9d71b093120",
+    "expectedSHA256": "43389ebb83b37e1bf6942761a82197e109d10e151258d9c37ef3a9d71b093120",
+    "matches": true
+  },
+  "compiler/tests/check.rs": {
+    "actualSHA256": "cfd5856ddd05418574f67d30fe0ce94fb623a24d37f022b850f30f2ec2b36b7d",
+    "expectedSHA256": "cfd5856ddd05418574f67d30fe0ce94fb623a24d37f022b850f30f2ec2b36b7d",
+    "matches": true
+  },
+  "compiler/tests/temporal_message_types.rs": {
+    "actualSHA256": "92e2547c7d6076cda35409a4532d3c034fcf3ca7370d6bd5f7ea8685ca78ce11",
+    "expectedSHA256": "92e2547c7d6076cda35409a4532d3c034fcf3ca7370d6bd5f7ea8685ca78ce11",
+    "matches": true
+  },
+  "reverseCheck": "Both existing-file before hashes exactly match reversing only the declared leaf edits.",
+  "receiptSHA256": {
+    "implementation/compiler-completion/temporal-values/implementation/b4-examples-tests.log": "19fa3fd532bf7a325dc5e3f742d3b9473247b78f42ea46df5c3619c8240c7ce5",
+    "implementation/compiler-completion/temporal-values/implementation/compiler-source-pins.json": "146917456f47fe932146c884c06de5b539410bd70fb7c1e512c54d92574284da",
+    "implementation/compiler-completion/temporal-values/implementation/compiler-source.diff": "3861361356f03df75e4336674fd07ee45c43a4c0b94b4e5809e03e8fc1f0f586",
+    "implementation/compiler-completion/temporal-values/implementation/compiler-verification.md": "23b9ca40dab6d3730db10083459db0066372c70498b0903131fab783a6015ab8",
+    "implementation/compiler-completion/temporal-values/implementation/existing-icu-tests.log": "6c2038591a23a1475906b4c4432e3fcbc8c07471f6ac6972e9640e5b7fc8c597",
+    "implementation/compiler-completion/temporal-values/implementation/existing-message-coverage-tests.log": "e635989afda7b2a82f68bd45f3683fa9c2f1dad3fe5bc989404dffdde05ab41c",
+    "implementation/compiler-completion/temporal-values/implementation/existing-message-tests.log": "fc6317bcc046237418a25ebd1ec256dda32ce739725933754193f7999898ff07",
+    "implementation/compiler-completion/temporal-values/implementation/new-public-tests.log": "36294050021f34bc1e4ca11fd62ade2df80623cb4feab4f78c7b9e16b23fa914"
+  }
+}

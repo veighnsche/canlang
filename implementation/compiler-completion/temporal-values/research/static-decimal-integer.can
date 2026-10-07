@@ -1,0 +1,5 @@
+app T
+Given
+ message probe(x:decimal) = "{x,number,integer}"@{}
+When
+Then

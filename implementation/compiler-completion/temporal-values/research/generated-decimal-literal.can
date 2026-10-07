@@ -1,0 +1,10 @@
+app T
+Given
+ message probe(x:decimal) = "{x,number}"@{}
+When
+ scenario s() read=true -> decimal by=members
+  do
+   let value = 1.5
+   let msg = probe(x=value)
+   return value
+Then

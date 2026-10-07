@@ -1,0 +1,10 @@
+app T
+Given
+ message probe(x:datetime) = "{x,time}"@{}
+When
+ scenario s() read=true -> datetime by=members
+  do
+   let value = datetime("2024-02-29T12:30:00Z")
+   let msg = probe(x=value)
+   return value
+Then

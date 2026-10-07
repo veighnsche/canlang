@@ -1,0 +1,10 @@
+app T
+Given
+ message probe(x:date) = "{x,date}"@{}
+When
+ scenario s() read=true -> date by=members
+  do
+   let value = date("0099-01-01")
+   let msg = probe(x=value)
+   return value
+Then

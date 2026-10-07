@@ -1,0 +1,1072 @@
+{
+  "controls": [
+    {
+      "id": "constructor-0001-01-01",
+      "owned": {
+        "ok": true,
+        "value": {
+          "kind": "date",
+          "year": 1,
+          "month": 1,
+          "day": 1
+        }
+      }
+    },
+    {
+      "id": "string-date-0001-01-01",
+      "type": "date",
+      "pattern": "{x,date}",
+      "operand": "0001-01-01",
+      "values": {
+        "ok": false,
+        "name": "ValueError",
+        "code": "invalid-construction",
+        "message": "message param x must be a date"
+      },
+      "ui": {
+        "ok": false,
+        "name": "TypeError",
+        "message": "message argument \"x\": type date needs a valid YYYY-MM-DD civil date"
+      }
+    },
+    {
+      "id": "tagged-date-0001-01-01",
+      "type": "date",
+      "pattern": "{x,date}",
+      "operand": {
+        "kind": "date",
+        "year": 1,
+        "month": 1,
+        "day": 1
+      },
+      "values": {
+        "ok": true,
+        "value": "Jan 1, 1"
+      },
+      "ui": {
+        "ok": false,
+        "name": "TypeError",
+        "message": "message argument \"x\": type date needs a valid YYYY-MM-DD civil date"
+      }
+    },
+    {
+      "id": "constructor-0099-01-01",
+      "owned": {
+        "ok": true,
+        "value": {
+          "kind": "date",
+          "year": 99,
+          "month": 1,
+          "day": 1
+        }
+      }
+    },
+    {
+      "id": "string-date-0099-01-01",
+      "type": "date",
+      "pattern": "{x,date}",
+      "operand": "0099-01-01",
+      "values": {
+        "ok": false,
+        "name": "ValueError",
+        "code": "invalid-construction",
+        "message": "message param x must be a date"
+      },
+      "ui": {
+        "ok": false,
+        "name": "TypeError",
+        "message": "message argument \"x\": type date needs a valid YYYY-MM-DD civil date"
+      }
+    },
+    {
+      "id": "tagged-date-0099-01-01",
+      "type": "date",
+      "pattern": "{x,date}",
+      "operand": {
+        "kind": "date",
+        "year": 99,
+        "month": 1,
+        "day": 1
+      },
+      "values": {
+        "ok": true,
+        "value": "Jan 1, 99"
+      },
+      "ui": {
+        "ok": false,
+        "name": "TypeError",
+        "message": "message argument \"x\": type date needs a valid YYYY-MM-DD civil date"
+      }
+    },
+    {
+      "id": "constructor-0100-01-01",
+      "owned": {
+        "ok": true,
+        "value": {
+          "kind": "date",
+          "year": 100,
+          "month": 1,
+          "day": 1
+        }
+      }
+    },
+    {
+      "id": "string-date-0100-01-01",
+      "type": "date",
+      "pattern": "{x,date}",
+      "operand": "0100-01-01",
+      "values": {
+        "ok": false,
+        "name": "ValueError",
+        "code": "invalid-construction",
+        "message": "message param x must be a date"
+      },
+      "ui": {
+        "ok": true,
+        "value": "Jan 1, 100"
+      }
+    },
+    {
+      "id": "tagged-date-0100-01-01",
+      "type": "date",
+      "pattern": "{x,date}",
+      "operand": {
+        "kind": "date",
+        "year": 100,
+        "month": 1,
+        "day": 1
+      },
+      "values": {
+        "ok": true,
+        "value": "Jan 1, 100"
+      },
+      "ui": {
+        "ok": false,
+        "name": "TypeError",
+        "message": "message argument \"x\": type date needs a valid YYYY-MM-DD civil date"
+      }
+    },
+    {
+      "id": "constructor-2024-02-29",
+      "owned": {
+        "ok": true,
+        "value": {
+          "kind": "date",
+          "year": 2024,
+          "month": 2,
+          "day": 29
+        }
+      }
+    },
+    {
+      "id": "string-date-2024-02-29",
+      "type": "date",
+      "pattern": "{x,date}",
+      "operand": "2024-02-29",
+      "values": {
+        "ok": false,
+        "name": "ValueError",
+        "code": "invalid-construction",
+        "message": "message param x must be a date"
+      },
+      "ui": {
+        "ok": true,
+        "value": "Feb 29, 2024"
+      }
+    },
+    {
+      "id": "tagged-date-2024-02-29",
+      "type": "date",
+      "pattern": "{x,date}",
+      "operand": {
+        "kind": "date",
+        "year": 2024,
+        "month": 2,
+        "day": 29
+      },
+      "values": {
+        "ok": true,
+        "value": "Feb 29, 2024"
+      },
+      "ui": {
+        "ok": false,
+        "name": "TypeError",
+        "message": "message argument \"x\": type date needs a valid YYYY-MM-DD civil date"
+      }
+    },
+    {
+      "id": "date-time-tagged",
+      "type": "date",
+      "pattern": "{x,time}",
+      "operand": {
+        "kind": "date",
+        "year": 2024,
+        "month": 2,
+        "day": 29
+      },
+      "values": {
+        "ok": false,
+        "name": "ValueError",
+        "code": "invalid-construction",
+        "message": "message param x has type date, incompatible with time"
+      },
+      "ui": {
+        "ok": false,
+        "name": "TypeError",
+        "message": "message argument \"x\": type date needs a valid YYYY-MM-DD civil date"
+      }
+    },
+    {
+      "id": "date-time-string",
+      "type": "date",
+      "pattern": "{x,time}",
+      "operand": "2024-02-29",
+      "values": {
+        "ok": false,
+        "name": "ValueError",
+        "code": "invalid-construction",
+        "message": "message param x must be a date"
+      },
+      "ui": {
+        "ok": false,
+        "name": "Error",
+        "message": "message argument \"x\": date-only values have no time"
+      }
+    },
+    {
+      "id": "tagged-datetime-0001-01-01T00:00:00Z",
+      "type": "datetime",
+      "pattern": "{x,time}",
+      "operand": {
+        "kind": "datetime",
+        "ms": "-62135596800000n"
+      },
+      "values": {
+        "ok": true,
+        "value": "12:00:00 AM"
+      },
+      "ui": {
+        "ok": false,
+        "name": "TypeError",
+        "message": "message argument \"x\": type datetime needs a canonical RFC3339 UTC instant"
+      }
+    },
+    {
+      "id": "string-datetime-0001-01-01T00:00:00Z",
+      "type": "datetime",
+      "pattern": "{x,time}",
+      "operand": "0001-01-01T00:00:00.000Z",
+      "values": {
+        "ok": false,
+        "name": "ValueError",
+        "code": "invalid-construction",
+        "message": "message param x must be a datetime"
+      },
+      "ui": {
+        "ok": false,
+        "name": "TypeError",
+        "message": "message argument \"x\": type datetime needs a canonical RFC3339 UTC instant"
+      }
+    },
+    {
+      "id": "tagged-datetime-2024-02-29T12:30:00Z",
+      "type": "datetime",
+      "pattern": "{x,time}",
+      "operand": {
+        "kind": "datetime",
+        "ms": "1709209800000n"
+      },
+      "values": {
+        "ok": true,
+        "value": "12:30:00 PM"
+      },
+      "ui": {
+        "ok": false,
+        "name": "TypeError",
+        "message": "message argument \"x\": type datetime needs a canonical RFC3339 UTC instant"
+      }
+    },
+    {
+      "id": "string-datetime-2024-02-29T12:30:00Z",
+      "type": "datetime",
+      "pattern": "{x,time}",
+      "operand": "2024-02-29T12:30:00.000Z",
+      "values": {
+        "ok": false,
+        "name": "ValueError",
+        "code": "invalid-construction",
+        "message": "message param x must be a datetime"
+      },
+      "ui": {
+        "ok": true,
+        "value": "12:30:00 PM"
+      }
+    },
+    {
+      "id": "decimal-string-{x,number}",
+      "type": "decimal",
+      "pattern": "{x,number}",
+      "operand": "1.5",
+      "values": {
+        "ok": false,
+        "name": "ValueError",
+        "code": "invalid-construction",
+        "message": "message param x must be a decimal"
+      },
+      "ui": {
+        "ok": true,
+        "value": "1.5"
+      }
+    },
+    {
+      "id": "decimal-tag-{x,number}",
+      "type": "decimal",
+      "pattern": "{x,number}",
+      "operand": {
+        "kind": "decimal",
+        "coef": "15n",
+        "scale": 1
+      },
+      "values": {
+        "ok": true,
+        "value": "1.5"
+      },
+      "ui": {
+        "ok": false,
+        "name": "TypeError",
+        "message": "message argument \"x\": type decimal needs a bigint or canonical decimal string"
+      }
+    },
+    {
+      "id": "int-{x,number}",
+      "type": "int",
+      "pattern": "{x,number}",
+      "operand": "2n",
+      "values": {
+        "ok": true,
+        "value": "2"
+      },
+      "ui": {
+        "ok": true,
+        "value": "2"
+      }
+    },
+    {
+      "id": "decimal-string-{x,number,integer}",
+      "type": "decimal",
+      "pattern": "{x,number,integer}",
+      "operand": "1.5",
+      "values": {
+        "ok": false,
+        "name": "ValueError",
+        "code": "invalid-construction",
+        "message": "message param x must be a decimal"
+      },
+      "ui": {
+        "ok": true,
+        "value": "2"
+      }
+    },
+    {
+      "id": "decimal-tag-{x,number,integer}",
+      "type": "decimal",
+      "pattern": "{x,number,integer}",
+      "operand": {
+        "kind": "decimal",
+        "coef": "15n",
+        "scale": 1
+      },
+      "values": {
+        "ok": false,
+        "name": "ValueError",
+        "code": "invalid-construction",
+        "message": "message param x has type decimal, incompatible with number,integer"
+      },
+      "ui": {
+        "ok": false,
+        "name": "TypeError",
+        "message": "message argument \"x\": type decimal needs a bigint or canonical decimal string"
+      }
+    },
+    {
+      "id": "int-{x,number,integer}",
+      "type": "int",
+      "pattern": "{x,number,integer}",
+      "operand": "2n",
+      "values": {
+        "ok": true,
+        "value": "2"
+      },
+      "ui": {
+        "ok": true,
+        "value": "2"
+      }
+    },
+    {
+      "id": "decimal-string-{x,selectordinal,one {one} two {two} few {few} other {other}}",
+      "type": "decimal",
+      "pattern": "{x,selectordinal,one {one} two {two} few {few} other {other}}",
+      "operand": "1.5",
+      "values": {
+        "ok": false,
+        "name": "ValueError",
+        "code": "invalid-construction",
+        "message": "message param x must be a decimal"
+      },
+      "ui": {
+        "ok": true,
+        "value": "other"
+      }
+    },
+    {
+      "id": "decimal-tag-{x,selectordinal,one {one} two {two} few {few} other {other}}",
+      "type": "decimal",
+      "pattern": "{x,selectordinal,one {one} two {two} few {few} other {other}}",
+      "operand": {
+        "kind": "decimal",
+        "coef": "15n",
+        "scale": 1
+      },
+      "values": {
+        "ok": false,
+        "name": "ValueError",
+        "code": "invalid-construction",
+        "message": "message param x has type decimal, incompatible with selectordinal"
+      },
+      "ui": {
+        "ok": false,
+        "name": "TypeError",
+        "message": "message argument \"x\": type decimal needs a bigint or canonical decimal string"
+      }
+    },
+    {
+      "id": "int-{x,selectordinal,one {one} two {two} few {few} other {other}}",
+      "type": "int",
+      "pattern": "{x,selectordinal,one {one} two {two} few {few} other {other}}",
+      "operand": "2n",
+      "values": {
+        "ok": true,
+        "value": "two"
+      },
+      "ui": {
+        "ok": true,
+        "value": "two"
+      }
+    },
+    {
+      "id": "timezone-UTC",
+      "owner": {
+        "ok": true,
+        "value": "UTC"
+      }
+    },
+    {
+      "id": "timezone-Mars",
+      "owner": {
+        "ok": false,
+        "name": "ValueError",
+        "code": "invalid-construction",
+        "message": "invalid IANA timezone: Mars/Olympus"
+      }
+    },
+    {
+      "id": "format-zone-UTC",
+      "values": {
+        "ok": true,
+        "value": "12:30:00 PM"
+      },
+      "ui": {
+        "ok": true,
+        "value": "12:30:00 PM"
+      }
+    },
+    {
+      "id": "format-zone-Mars/Olympus",
+      "values": {
+        "ok": false,
+        "name": "ValueError",
+        "code": "invalid-construction",
+        "message": "message timeZone is not usable: Mars/Olympus"
+      },
+      "ui": {
+        "ok": false,
+        "name": "RangeError",
+        "message": "Invalid time zone specified: Mars/Olympus"
+      }
+    }
+  ],
+  "staticControls": [
+    {
+      "id": "static-date-time",
+      "exit": 0,
+      "envelope": {
+        "tool": "can",
+        "tool_version": "0.1.0",
+        "language_version": "1.0",
+        "schema_version": 1,
+        "sources": [
+          {
+            "id": 0,
+            "path": "/Users/vince/Projects/canlang/implementation/compiler-completion/temporal-values/research/static-date-time.can",
+            "sha256": "2af5601523f001ab3ab1651dd5f09ba05ec5e2e50cf0e38e54162d2b26159d4a"
+          }
+        ],
+        "complete": true,
+        "diagnostics": [],
+        "omitted": 0
+      }
+    },
+    {
+      "id": "static-timezone-mars",
+      "exit": 0,
+      "envelope": {
+        "tool": "can",
+        "tool_version": "0.1.0",
+        "language_version": "1.0",
+        "schema_version": 1,
+        "sources": [
+          {
+            "id": 0,
+            "path": "/Users/vince/Projects/canlang/implementation/compiler-completion/temporal-values/research/static-timezone-mars.can",
+            "sha256": "d2a4be1a5086b4f781b02874cc58e0369f08ee975f9d6930af034fdb18e2c101"
+          }
+        ],
+        "complete": true,
+        "diagnostics": [],
+        "omitted": 0
+      }
+    },
+    {
+      "id": "static-decimal-integer",
+      "exit": 10,
+      "envelope": {
+        "tool": "can",
+        "tool_version": "0.1.0",
+        "language_version": "1.0",
+        "schema_version": 1,
+        "sources": [
+          {
+            "id": 0,
+            "path": "/Users/vince/Projects/canlang/implementation/compiler-completion/temporal-values/research/static-decimal-integer.can",
+            "sha256": "7f3664b46f9fcda41801cf62b1c7fdb811e7a2b33876f19fec3f15149f86376a"
+          }
+        ],
+        "complete": true,
+        "diagnostics": [
+          {
+            "code": "E5007",
+            "severity": "error",
+            "message": "invalid message pattern: number argument 'x' has an incompatible type",
+            "primary": {
+              "file": 0,
+              "start": 40,
+              "end": 60
+            },
+            "related": [],
+            "tags": []
+          }
+        ],
+        "omitted": 0
+      }
+    },
+    {
+      "id": "static-decimal-ordinal",
+      "exit": 10,
+      "envelope": {
+        "tool": "can",
+        "tool_version": "0.1.0",
+        "language_version": "1.0",
+        "schema_version": 1,
+        "sources": [
+          {
+            "id": 0,
+            "path": "/Users/vince/Projects/canlang/implementation/compiler-completion/temporal-values/research/static-decimal-ordinal.can",
+            "sha256": "de1361a250d68bc7fc19ed880c128ed25acf589d22a5ab5c026ddb4b918dc9f6"
+          }
+        ],
+        "complete": true,
+        "diagnostics": [
+          {
+            "code": "E5007",
+            "severity": "error",
+            "message": "invalid message pattern: selectordinal argument 'x' has an incompatible type",
+            "primary": {
+              "file": 0,
+              "start": 40,
+              "end": 83
+            },
+            "related": [],
+            "tags": []
+          }
+        ],
+        "omitted": 0
+      }
+    }
+  ],
+  "generated": [
+    {
+      "id": "generated-date-low",
+      "exit": 0,
+      "envelope": {
+        "artifact_version": 1,
+        "language_version": "1.0",
+        "tool_version": "0.1.0",
+        "sources": [
+          {
+            "path": "/Users/vince/Projects/canlang/implementation/compiler-completion/temporal-values/research/generated-date-low.can",
+            "sha256": "5da5b6208c9317d28b0ac810941f048d4e7a376d59a59a8ee6981f38e2b0ffd2"
+          }
+        ],
+        "modules": [
+          {
+            "path": "$can$m$54.mjs",
+            "js": "// Generated by can compile from T; do not edit.\nimport { require as check, date, hasRole } from \"@canlang/stdlib\";\nimport { message as $can$u$6d657373616765 } from \"@canlang/ui\";\nexport const $can$o$542e73=\"T.s\";\nexport const appDefinition={id:\"T\",uses:[],packages:{T:{roles:{}}},bindings:{},contracts:{},events:{},capabilities:{},models:{},preferences:{},operations:{\"T.s\":{handler:\"T.s\",inputs:{},by:\"members\",read:true,result:{type:\"date\"}}},policy:{roles:[],models:{},operations:{\"T.s\":{by:[\"members\"]}}},pages:[],disabled:[]};\nexport function canApp(){\nreturn {\noperations:[{\"name\":\"T.s\",\"kind\":\"read\",\"description\":\"\",\"inputs\":{\"fields\":[]}}],\nasync \"T.s\"(c,{}){\ncheck(hasRole(c,\"members\"),\"forbidden\");\nconst $can$l$303a76616c7565 = date(\"0001-01-01\");\nconst $can$l$313a6d7367 = $can$u$6d657373616765(\"{x,date}\",{},{x:{type:\"date\",value:$can$l$303a76616c7565}});\nreturn $can$l$303a76616c7565;\n},\npolicy:{roles:[],models:{},operations:{\"T.s\":{by:[\"members\"]}}},\n};}\n",
+            "map": {
+              "version": 3,
+              "file": "$can$m$54.mjs",
+              "sources": [
+                "/Users/vince/Projects/canlang/implementation/compiler-completion/temporal-values/research/generated-date-low.can"
+              ],
+              "sourcesContent": [
+                "app T\nGiven\n message probe(x:date) = \"{x,date}\"@{}\nWhen\n scenario s() read=true -> date by=members\n  do\n   let value = date(\"0001-01-01\")\n   let msg = probe(x=value)\n   return value\nThen\n"
+              ],
+              "names": [
+                "T.s",
+                "appDefinition",
+                "canApp"
+              ],
+              "mappings": "AAAA;AAAA;AAAA;AAIUA;AAJVC;AAAAC;AAAAA;AAAAA;AAIUF;AAAAE;AACNF;AAC6BA;AACNA;AAHjBA;AAJVE;AAAAA"
+            }
+          }
+        ],
+        "callables": [
+          {
+            "id": "T.s",
+            "kind": "operation",
+            "module": "$can$m$54.mjs",
+            "export": "$can$o$542e73",
+            "member": [
+              "T.s"
+            ]
+          }
+        ],
+        "operations": [
+          {
+            "name": "T.s",
+            "kind": "read",
+            "description": "",
+            "inputs": {
+              "fields": []
+            }
+          }
+        ],
+        "models": [],
+        "pages": [],
+        "migrations": [],
+        "requires": [
+          {
+            "capability": "canlang.builtins",
+            "min_version": 0
+          },
+          {
+            "capability": "values.temporal",
+            "min_version": 1
+          }
+        ],
+        "tests": []
+      },
+      "execution": {
+        "ok": true,
+        "owned": {
+          "kind": "date",
+          "year": 1,
+          "month": 1,
+          "day": 1
+        },
+        "joinedUI": {
+          "ok": false,
+          "name": "TypeError",
+          "message": "message argument \"x\": type date needs a valid YYYY-MM-DD civil date"
+        }
+      }
+    },
+    {
+      "id": "generated-date-0099",
+      "exit": 0,
+      "envelope": {
+        "artifact_version": 1,
+        "language_version": "1.0",
+        "tool_version": "0.1.0",
+        "sources": [
+          {
+            "path": "/Users/vince/Projects/canlang/implementation/compiler-completion/temporal-values/research/generated-date-0099.can",
+            "sha256": "02a61a49cfbf6ada9bfb995779f8f08b441e2f7c3af535db3d7da496b5aacc4c"
+          }
+        ],
+        "modules": [
+          {
+            "path": "$can$m$54.mjs",
+            "js": "// Generated by can compile from T; do not edit.\nimport { require as check, date, hasRole } from \"@canlang/stdlib\";\nimport { message as $can$u$6d657373616765 } from \"@canlang/ui\";\nexport const $can$o$542e73=\"T.s\";\nexport const appDefinition={id:\"T\",uses:[],packages:{T:{roles:{}}},bindings:{},contracts:{},events:{},capabilities:{},models:{},preferences:{},operations:{\"T.s\":{handler:\"T.s\",inputs:{},by:\"members\",read:true,result:{type:\"date\"}}},policy:{roles:[],models:{},operations:{\"T.s\":{by:[\"members\"]}}},pages:[],disabled:[]};\nexport function canApp(){\nreturn {\noperations:[{\"name\":\"T.s\",\"kind\":\"read\",\"description\":\"\",\"inputs\":{\"fields\":[]}}],\nasync \"T.s\"(c,{}){\ncheck(hasRole(c,\"members\"),\"forbidden\");\nconst $can$l$303a76616c7565 = date(\"0099-01-01\");\nconst $can$l$313a6d7367 = $can$u$6d657373616765(\"{x,date}\",{},{x:{type:\"date\",value:$can$l$303a76616c7565}});\nreturn $can$l$303a76616c7565;\n},\npolicy:{roles:[],models:{},operations:{\"T.s\":{by:[\"members\"]}}},\n};}\n",
+            "map": {
+              "version": 3,
+              "file": "$can$m$54.mjs",
+              "sources": [
+                "/Users/vince/Projects/canlang/implementation/compiler-completion/temporal-values/research/generated-date-0099.can"
+              ],
+              "sourcesContent": [
+                "app T\nGiven\n message probe(x:date) = \"{x,date}\"@{}\nWhen\n scenario s() read=true -> date by=members\n  do\n   let value = date(\"0099-01-01\")\n   let msg = probe(x=value)\n   return value\nThen\n"
+              ],
+              "names": [
+                "T.s",
+                "appDefinition",
+                "canApp"
+              ],
+              "mappings": "AAAA;AAAA;AAAA;AAIUA;AAJVC;AAAAC;AAAAA;AAAAA;AAIUF;AAAAE;AACNF;AAC6BA;AACNA;AAHjBA;AAJVE;AAAAA"
+            }
+          }
+        ],
+        "callables": [
+          {
+            "id": "T.s",
+            "kind": "operation",
+            "module": "$can$m$54.mjs",
+            "export": "$can$o$542e73",
+            "member": [
+              "T.s"
+            ]
+          }
+        ],
+        "operations": [
+          {
+            "name": "T.s",
+            "kind": "read",
+            "description": "",
+            "inputs": {
+              "fields": []
+            }
+          }
+        ],
+        "models": [],
+        "pages": [],
+        "migrations": [],
+        "requires": [
+          {
+            "capability": "canlang.builtins",
+            "min_version": 0
+          },
+          {
+            "capability": "values.temporal",
+            "min_version": 1
+          }
+        ],
+        "tests": []
+      },
+      "execution": {
+        "ok": true,
+        "owned": {
+          "kind": "date",
+          "year": 99,
+          "month": 1,
+          "day": 1
+        },
+        "joinedUI": {
+          "ok": false,
+          "name": "TypeError",
+          "message": "message argument \"x\": type date needs a valid YYYY-MM-DD civil date"
+        }
+      }
+    },
+    {
+      "id": "generated-date-current",
+      "exit": 0,
+      "envelope": {
+        "artifact_version": 1,
+        "language_version": "1.0",
+        "tool_version": "0.1.0",
+        "sources": [
+          {
+            "path": "/Users/vince/Projects/canlang/implementation/compiler-completion/temporal-values/research/generated-date-current.can",
+            "sha256": "9edcf7cbb7959f55dd5b78dcd25c9385ae7de0fe0d1490f8925c510eba438c62"
+          }
+        ],
+        "modules": [
+          {
+            "path": "$can$m$54.mjs",
+            "js": "// Generated by can compile from T; do not edit.\nimport { require as check, date, hasRole } from \"@canlang/stdlib\";\nimport { message as $can$u$6d657373616765 } from \"@canlang/ui\";\nexport const $can$o$542e73=\"T.s\";\nexport const appDefinition={id:\"T\",uses:[],packages:{T:{roles:{}}},bindings:{},contracts:{},events:{},capabilities:{},models:{},preferences:{},operations:{\"T.s\":{handler:\"T.s\",inputs:{},by:\"members\",read:true,result:{type:\"date\"}}},policy:{roles:[],models:{},operations:{\"T.s\":{by:[\"members\"]}}},pages:[],disabled:[]};\nexport function canApp(){\nreturn {\noperations:[{\"name\":\"T.s\",\"kind\":\"read\",\"description\":\"\",\"inputs\":{\"fields\":[]}}],\nasync \"T.s\"(c,{}){\ncheck(hasRole(c,\"members\"),\"forbidden\");\nconst $can$l$303a76616c7565 = date(\"2024-02-29\");\nconst $can$l$313a6d7367 = $can$u$6d657373616765(\"{x,date}\",{},{x:{type:\"date\",value:$can$l$303a76616c7565}});\nreturn $can$l$303a76616c7565;\n},\npolicy:{roles:[],models:{},operations:{\"T.s\":{by:[\"members\"]}}},\n};}\n",
+            "map": {
+              "version": 3,
+              "file": "$can$m$54.mjs",
+              "sources": [
+                "/Users/vince/Projects/canlang/implementation/compiler-completion/temporal-values/research/generated-date-current.can"
+              ],
+              "sourcesContent": [
+                "app T\nGiven\n message probe(x:date) = \"{x,date}\"@{}\nWhen\n scenario s() read=true -> date by=members\n  do\n   let value = date(\"2024-02-29\")\n   let msg = probe(x=value)\n   return value\nThen\n"
+              ],
+              "names": [
+                "T.s",
+                "appDefinition",
+                "canApp"
+              ],
+              "mappings": "AAAA;AAAA;AAAA;AAIUA;AAJVC;AAAAC;AAAAA;AAAAA;AAIUF;AAAAE;AACNF;AAC6BA;AACNA;AAHjBA;AAJVE;AAAAA"
+            }
+          }
+        ],
+        "callables": [
+          {
+            "id": "T.s",
+            "kind": "operation",
+            "module": "$can$m$54.mjs",
+            "export": "$can$o$542e73",
+            "member": [
+              "T.s"
+            ]
+          }
+        ],
+        "operations": [
+          {
+            "name": "T.s",
+            "kind": "read",
+            "description": "",
+            "inputs": {
+              "fields": []
+            }
+          }
+        ],
+        "models": [],
+        "pages": [],
+        "migrations": [],
+        "requires": [
+          {
+            "capability": "canlang.builtins",
+            "min_version": 0
+          },
+          {
+            "capability": "values.temporal",
+            "min_version": 1
+          }
+        ],
+        "tests": []
+      },
+      "execution": {
+        "ok": true,
+        "owned": {
+          "kind": "date",
+          "year": 2024,
+          "month": 2,
+          "day": 29
+        },
+        "joinedUI": {
+          "ok": false,
+          "name": "TypeError",
+          "message": "message argument \"x\": type date needs a valid YYYY-MM-DD civil date"
+        }
+      }
+    },
+    {
+      "id": "generated-datetime",
+      "exit": 0,
+      "envelope": {
+        "artifact_version": 1,
+        "language_version": "1.0",
+        "tool_version": "0.1.0",
+        "sources": [
+          {
+            "path": "/Users/vince/Projects/canlang/implementation/compiler-completion/temporal-values/research/generated-datetime.can",
+            "sha256": "66eb98c1991d7d2c9a60fa77642fe147934d7183bb782ba06e984a4e48137d9b"
+          }
+        ],
+        "modules": [
+          {
+            "path": "$can$m$54.mjs",
+            "js": "// Generated by can compile from T; do not edit.\nimport { require as check, datetime, hasRole } from \"@canlang/stdlib\";\nimport { message as $can$u$6d657373616765 } from \"@canlang/ui\";\nexport const $can$o$542e73=\"T.s\";\nexport const appDefinition={id:\"T\",uses:[],packages:{T:{roles:{}}},bindings:{},contracts:{},events:{},capabilities:{},models:{},preferences:{},operations:{\"T.s\":{handler:\"T.s\",inputs:{},by:\"members\",read:true,result:{type:\"datetime\"}}},policy:{roles:[],models:{},operations:{\"T.s\":{by:[\"members\"]}}},pages:[],disabled:[]};\nexport function canApp(){\nreturn {\noperations:[{\"name\":\"T.s\",\"kind\":\"read\",\"description\":\"\",\"inputs\":{\"fields\":[]}}],\nasync \"T.s\"(c,{}){\ncheck(hasRole(c,\"members\"),\"forbidden\");\nconst $can$l$303a76616c7565 = datetime(\"2024-02-29T12:30:00Z\");\nconst $can$l$313a6d7367 = $can$u$6d657373616765(\"{x,time}\",{},{x:{type:\"datetime\",value:$can$l$303a76616c7565}});\nreturn $can$l$303a76616c7565;\n},\npolicy:{roles:[],models:{},operations:{\"T.s\":{by:[\"members\"]}}},\n};}\n",
+            "map": {
+              "version": 3,
+              "file": "$can$m$54.mjs",
+              "sources": [
+                "/Users/vince/Projects/canlang/implementation/compiler-completion/temporal-values/research/generated-datetime.can"
+              ],
+              "sourcesContent": [
+                "app T\nGiven\n message probe(x:datetime) = \"{x,time}\"@{}\nWhen\n scenario s() read=true -> datetime by=members\n  do\n   let value = datetime(\"2024-02-29T12:30:00Z\")\n   let msg = probe(x=value)\n   return value\nThen\n"
+              ],
+              "names": [
+                "T.s",
+                "appDefinition",
+                "canApp"
+              ],
+              "mappings": "AAAA;AAAA;AAAA;AAIUA;AAJVC;AAAAC;AAAAA;AAAAA;AAIUF;AAAAE;AACNF;AAC2CA;AACpBA;AAHjBA;AAJVE;AAAAA"
+            }
+          }
+        ],
+        "callables": [
+          {
+            "id": "T.s",
+            "kind": "operation",
+            "module": "$can$m$54.mjs",
+            "export": "$can$o$542e73",
+            "member": [
+              "T.s"
+            ]
+          }
+        ],
+        "operations": [
+          {
+            "name": "T.s",
+            "kind": "read",
+            "description": "",
+            "inputs": {
+              "fields": []
+            }
+          }
+        ],
+        "models": [],
+        "pages": [],
+        "migrations": [],
+        "requires": [
+          {
+            "capability": "canlang.builtins",
+            "min_version": 0
+          },
+          {
+            "capability": "values.temporal",
+            "min_version": 1
+          }
+        ],
+        "tests": []
+      },
+      "execution": {
+        "ok": true,
+        "owned": {
+          "kind": "datetime",
+          "ms": "1709209800000n"
+        },
+        "joinedUI": {
+          "ok": false,
+          "name": "TypeError",
+          "message": "message argument \"x\": type datetime needs a canonical RFC3339 UTC instant"
+        }
+      }
+    },
+    {
+      "id": "generated-decimal-literal",
+      "exit": 10,
+      "envelope": {
+        "tool": "can",
+        "tool_version": "0.1.0",
+        "language_version": "1.0",
+        "schema_version": 1,
+        "sources": [
+          {
+            "id": 0,
+            "path": "/Users/vince/Projects/canlang/implementation/compiler-completion/temporal-values/research/generated-decimal-literal.can",
+            "sha256": "166e04ebf00a274373ad187fb8ff0d92cc38fb7366f41b95eaa46dd93f7fe6c5"
+          }
+        ],
+        "complete": true,
+        "diagnostics": [
+          {
+            "code": "E6008",
+            "severity": "error",
+            "message": "cannot lower decimal literal: no §13 lowering and no catalog constructor exist",
+            "primary": {
+              "file": 0,
+              "start": 126,
+              "end": 130
+            },
+            "related": [],
+            "tags": []
+          }
+        ],
+        "omitted": 0
+      }
+    },
+    {
+      "id": "generated-decimal-param",
+      "exit": 0,
+      "envelope": {
+        "artifact_version": 1,
+        "language_version": "1.0",
+        "tool_version": "0.1.0",
+        "sources": [
+          {
+            "path": "/Users/vince/Projects/canlang/implementation/compiler-completion/temporal-values/research/generated-decimal-param.can",
+            "sha256": "c03aa33a5fd92e440c1ca04f3a4f00f3ab54efcacfa51195a408b8373bb6d45c"
+          }
+        ],
+        "modules": [
+          {
+            "path": "$can$m$54.mjs",
+            "js": "// Generated by can compile from T; do not edit.\nimport { require as check, hasRole } from \"@canlang/stdlib\";\nimport { message as $can$u$6d657373616765 } from \"@canlang/ui\";\nexport const $can$o$542e73=\"T.s\";\nexport const appDefinition={id:\"T\",uses:[],packages:{T:{roles:{}}},bindings:{},contracts:{},events:{},capabilities:{},models:{},preferences:{},operations:{\"T.s\":{handler:\"T.s\",inputs:{input:{type:\"decimal\"}},by:\"members\",read:true,result:{type:\"decimal\"}}},policy:{roles:[],models:{},operations:{\"T.s\":{by:[\"members\"]}}},pages:[],disabled:[]};\nexport function canApp(){\nreturn {\noperations:[{\"name\":\"T.s\",\"kind\":\"read\",\"description\":\"\",\"inputs\":{\"fields\":[{\"name\":\"input\",\"field\":{\"kind\":\"decimal\"},\"required\":true}]}}],\nasync \"T.s\"(c,{input:$can$l$303a696e707574}){\ncheck(hasRole(c,\"members\"),\"forbidden\");\nconst $can$l$313a76616c7565 = $can$l$303a696e707574;\nconst $can$l$323a6d7367 = $can$u$6d657373616765(\"{x,number}\",{},{x:{type:\"decimal\",value:$can$l$313a76616c7565}});\nreturn $can$l$313a76616c7565;\n},\npolicy:{roles:[],models:{},operations:{\"T.s\":{by:[\"members\"]}}},\n};}\n",
+            "map": {
+              "version": 3,
+              "file": "$can$m$54.mjs",
+              "sources": [
+                "/Users/vince/Projects/canlang/implementation/compiler-completion/temporal-values/research/generated-decimal-param.can"
+              ],
+              "sourcesContent": [
+                "app T\nGiven\n message probe(x:decimal) = \"{x,number}\"@{}\nWhen\n scenario s(input:decimal) read=true -> decimal by=members\n  do\n   let value = input\n   let msg = probe(x=value)\n   return value\nThen\n"
+              ],
+              "names": [
+                "T.s",
+                "appDefinition",
+                "canApp"
+              ],
+              "mappings": "AAAA;AAAA;AAAA;AAIUA;AAJVC;AAAAC;AAAAA;AAAAA;AAIUF;AAAAE;AACNF;AACgBA;AACOA;AAHjBA;AAJVE;AAAAA"
+            }
+          }
+        ],
+        "callables": [
+          {
+            "id": "T.s",
+            "kind": "operation",
+            "module": "$can$m$54.mjs",
+            "export": "$can$o$542e73",
+            "member": [
+              "T.s"
+            ]
+          }
+        ],
+        "operations": [
+          {
+            "name": "T.s",
+            "kind": "read",
+            "description": "",
+            "inputs": {
+              "fields": [
+                {
+                  "name": "input",
+                  "field": {
+                    "kind": "decimal"
+                  },
+                  "required": true
+                }
+              ]
+            }
+          }
+        ],
+        "models": [],
+        "pages": [],
+        "migrations": [],
+        "requires": [
+          {
+            "capability": "canlang.builtins",
+            "min_version": 0
+          }
+        ],
+        "tests": []
+      },
+      "execution": {
+        "ok": true,
+        "owned": {
+          "kind": "decimal",
+          "coef": "15n",
+          "scale": 1
+        },
+        "joinedUI": {
+          "ok": false,
+          "name": "TypeError",
+          "message": "message argument \"x\": type decimal needs a bigint or canonical decimal string"
+        }
+      }
+    }
+  ]
+}
