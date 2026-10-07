@@ -1,0 +1,48 @@
+{
+  "productionDependencyGraph": {
+    "@canlang/contracts": [],
+    "@canlang/identity": [
+      "@canlang/contracts"
+    ],
+    "@canlang/ui": [
+      "@canlang/contracts"
+    ],
+    "@canlang/values": [
+      "@canlang/contracts"
+    ],
+    "@canlang/interfaces": [
+      "@canlang/contracts",
+      "@canlang/identity",
+      "@canlang/ui",
+      "@canlang/values"
+    ],
+    "@canlang/state": [
+      "@canlang/contracts"
+    ],
+    "@canlang/work": [
+      "@canlang/contracts",
+      "@canlang/state"
+    ],
+    "@canlang/stdlib": [
+      "@canlang/values",
+      "@canlang/state"
+    ],
+    "@canlang/cloudflare": [
+      "@canlang/contracts",
+      "@canlang/interfaces",
+      "@canlang/identity",
+      "@canlang/state",
+      "@canlang/work",
+      "@canlang/ui",
+      "@canlang/stdlib",
+      "@canlang/values"
+    ]
+  },
+  "acyclic": true,
+  "rootRoleExport": "state root contains only MembershipReader type from policy roles; async hasRole is supported through @canlang/state/policy/roles",
+  "compilerSha256": "b8ec81900121effeab3b2145c0f4436089eeea7a273642317335309861c0cd3d",
+  "supportedExport": {
+    "types": "./dist/src/effects/guards.d.ts",
+    "default": "./dist/src/effects/guards.js"
+  }
+}

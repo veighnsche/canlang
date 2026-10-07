@@ -1,0 +1,85 @@
+{
+  "time": "2026-10-07T21:25:35.610Z",
+  "pins": {
+    "compiler/src/codegen/js.rs": "5f6cc2203857050a6a653ebb61b5a351bb94b7ddfc958a58da3745eb42de6d82",
+    "packages/stdlib/src/index.ts": "d2820de7d5d2b24fb549e4163fe253bc0dd7dc13799b1e4f9307f5ede7ba775c",
+    "packages/stdlib/package.json": "bd70216878bf4523b101f2627bd703576b78d78b1b411134a2ded0adf2675cf2",
+    "packages/cloudflare/package.json": "3110b58d8d57ce356bef66c6545cfefbc2270c28542129b4ef5f9bb942998cd8",
+    "packages/cloudflare/src/runtime/stdlib.ts": "0ce14c6bf281740bf8c147209a9119a5cf54d4dcf8ff3473cbc71f4153e290d2",
+    "packages/cloudflare/src/runtime/invoke.ts": "07b8445de0ebec9dae5d9f46eb9e8a110550a60582131bf5cccc8459e53fa047",
+    "packages/cloudflare/src/runtime/context.ts": "497e1bbc7cbecd984e2ea7119cd1f4913688b2044158eaaaa0a74f3af0fbb98b",
+    "packages/ui/src/messages.ts": "d731b8a2b2cd57d03be0a8f3b12c55e48cdcac498eb167b5f2a0707e360eeac5",
+    "packages/ui/src/components.ts": "aac65d11bf63110625f10ab3428186770a1954e2f3b992f08894b6bd435ecc7c",
+    "packages/contracts/src/presentation.ts": "8c0a790f53f463e0097443f941994a0a0b3fa450e7393fd7fa4e344e5258a507",
+    "packages/ui/dist/src/messages.js": "f4f5b553a1462a4993c7471cda392d944e7b306c87542f83c62f9ad3bba9e5d8",
+    "packages/ui/dist/src/components.js": "4872451b6799f6038c9b22144bec7cb76e2cd07b4a7f68ebd9a782389b7e302e",
+    "packages/ui/dist/src/index.js": "debf4ec6e4236d5b469eae1d75ca27e6953c1dbadd39f7cc5fa1696142de7610",
+    "packages/stdlib/dist/src/index.js": "df85f85e74a8b315cd667d34be2d05d6a0cd2c035d1a640585754e4240cac311",
+    "implementation/compiler-completion/ui-ownership/research/selected-phase/card-control.mjs": "c13ca9d2b9c4a52600bbb7889616b6bae3f941f84b82e732c2af073b75760ddb",
+    "implementation/compiler-completion/ui-ownership/research/selected-phase/order.mjs": "7efe9e0aaa834716d93498bb949e77ac1bf9779d7418d6bcd67c84817d310701"
+  },
+  "routes": {
+    "@canlang/ui": "file:///Users/vince/Projects/canlang/packages/ui/dist/src/index.js",
+    "@canlang/stdlib": "file:///Users/vince/Projects/canlang/packages/stdlib/dist/src/index.js",
+    "@canlang/cloudflare/runtime/stdlib": "file:///Users/vince/Projects/canlang/packages/cloudflare/dist/runtime/stdlib.js"
+  },
+  "facade": {
+    "require": "undefined",
+    "hasRole": "undefined"
+  },
+  "message": {
+    "source": "Home",
+    "variants": {}
+  },
+  "actualConsumers": [
+    {
+      "name": "order",
+      "importError": "SyntaxError: The requested module '@canlang/stdlib' does not provide an export named 'hasRole'"
+    },
+    {
+      "name": "card-control",
+      "import": "ok",
+      "title": {
+        "source": "Home",
+        "variants": {}
+      },
+      "renderError": "TypeError: pattern must be a string or message descriptor\n    at formatMessage (file:///Users/vince/Projects/canlang/packages/ui/dist/src/messages.js:669:19)\n    at resolveCaption (file:///Users/vince/Projects/canlang/packages/ui/dist/src/messages.js:894:12)\n    at card (file:///Users/vince/Projects/canlang/packages/ui/dist/src/components.js:83:32)\n    at Object.$can$p$53686f703a72656e6465723a2f [as render] (file:///Users/vince/Projects/canlang/implementation/compiler-completion/ui-ownership/research/selected-phase/card-control.mjs:4:96)\n    at file:///Users/vince/Projects/canlang/implementation/compiler-completion/runtime-export-join/research/probe.mjs:40:33"
+    }
+  ],
+  "directProducerFixtures": [
+    {
+      "name": "empty local roles",
+      "result": false
+    },
+    {
+      "name": "local role present",
+      "result": true
+    },
+    {
+      "name": "canonical built-in present",
+      "result": true
+    },
+    {
+      "name": "canonical ignores injected built-in",
+      "result": false
+    },
+    {
+      "name": "subject unsupported",
+      "error": "Error: unsupported(hasRole-subject): subject-scoped role tests need the L3 membership directory."
+    },
+    {
+      "name": "truthy guard",
+      "result": "returned"
+    },
+    {
+      "name": "denied guard",
+      "error": "Error: forbidden"
+    }
+  ],
+  "qualification": "Direct hasRole fixtures certify local function behavior only, not authenticated canonical admission or a generated scenario execution.",
+  "dependencyCycle": {
+    "currentCloudflareToStdlib": "workspace:*",
+    "currentStdlibToCloudflare": null,
+    "proposalAddingCloudflareToStdlib": "Introduces manifest cycle; turbo build dependsOn ^build. Runtime subpath currently uses only type imports + state transition, but package graph is still cyclic."
+  }
+}

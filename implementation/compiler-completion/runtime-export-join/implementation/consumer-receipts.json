@@ -1,0 +1,24 @@
+{
+  "cliSha": "b8ec81900121effeab3b2145c0f4436089eeea7a273642317335309861c0cd3d",
+  "cliPath": "/private/tmp/can-runtime-guard-review/can-pinned",
+  "routes": {
+    "@canlang/stdlib": "file:///Users/vince/Projects/canlang/packages/stdlib/dist/src/index.js",
+    "@canlang/state/effects/guards": "file:///Users/vince/Projects/canlang/packages/state/dist/src/effects/guards.js"
+  },
+  "compilerCheck": "complete:true; no diagnostics",
+  "generatedModule": {
+    "path": "$can$m$4775617264.mjs",
+    "sha256": "394d348a21f1bec080be64e155509622a8cf7873cb8d95cd8ab72693ca0203a9",
+    "unmodified": true,
+    "import": "ok"
+  },
+  "directGeneratedHandlerCases": [
+    "local members allows",
+    "canonical fixture members allows",
+    "empty memberships rejects",
+    "canonical fixture excludes injected members"
+  ],
+  "priorOrderImport": "ok",
+  "facadeProducerIdentity": "require and hasRole identical",
+  "qualification": "Direct generated-handler cases verify emitted consumer and local snapshot guard behavior. Canonical fields are fixtures; this does not prove canonical admission, live identity, revision fencing or receipt mapping. Prior order rendering needs genuine authorized query/context and is not executed."
+}

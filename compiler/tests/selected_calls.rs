@@ -29,7 +29,7 @@ fn production_selected_calls_execute_actual_facades() {
     std::fs::write(
         &script,
         include_str!(
-            "../../implementation/compiler-completion/selected-calls/implementation/probe.mjs"
+            "fixtures/selected-call-consumer.mjs"
         ),
     )
     .unwrap();

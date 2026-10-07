@@ -1,0 +1,5 @@
+app T
+Given
+ derive g():text = format(template="{z}{a}",values={})
+When
+Then

@@ -1,0 +1,14 @@
+{
+  "state": "Two generated synchronous helpers have a proven platform-owned implementation but are missing from the standard export assembly. One tests a condition and throws plain Error; the other checks handler memberships or canonical built-in role facts and rejects subject-scoped use. Generated imports cannot load. Platform depends on the facade; a direct facade re-export adds a reverse build dependency. State is already a facade dependency and has a different asynchronous role routine, unsuitable for a synchronous emitted expression. A new dedicated state subpath can hold the original bodies and a structural readonly handler-role carrier without altering the existing async root API. All choices must preserve runtime getter/effect/error order and retained platform callers, actual generated module loading, package build DAG, and canonical admission/receipt ownership. Local guard checks alone do not establish authentication.",
+  "questions": {
+    "guard_owner": {
+      "type": "choice",
+      "instructions": "Choose the most coherent minimal integration, assessing exact behavior, build DAG and all affected consumers fairly.",
+      "criteria": {
+        "state_guard_subpath": "Move unchanged synchronous helper bodies to a dedicated state-owned subpath with a structural handler-role carrier. Keep platform compatibility re-exports and assemble facade re-exports verbatim. Existing dependencies remain acyclic, async state root role API stays unchanged. Requires new supported state export/test/request closure and exact error/identity/type/consumer qualification.",
+        "facade_platform_after_split": "Keep helpers platform-owned and re-export them through facade, first separate the platform deployment-distribution dependency into a distinct acyclic package or build layer. Preserve existing platform consumers and generated imports. Requires broader package/build/loader migration and complete distribution qualification; avoids moving helper ownership.",
+        "generated_direct_platform": "Keep producer ownership and make generated handlers import guards directly from the supported platform subpath, preserving facade DAG. Requires changing the generated import allowlist/provider contract and every bundler/loader/testkit/compatibility consumer; standard facade continues not to provide these helpers."
+      }
+    }
+  }
+}

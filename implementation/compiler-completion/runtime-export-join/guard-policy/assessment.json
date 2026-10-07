@@ -1,0 +1,48 @@
+{
+  "status": "design_selected_implementation_pending",
+  "selected": "state_guard_subpath",
+  "rationale": "Preserve unchanged synchronous guard bodies and generated/public imports through the existing acyclic state dependency; keep the asynchronous supported policy/roles API separate. Avoid broader package split or generated import migration.",
+  "advice": [
+    {
+      "response": "jev-response-1.json",
+      "choice": "state_guard_subpath",
+      "confidence": 0.7,
+      "probabilities": {
+        "state_guard_subpath": 0.8,
+        "facade_platform_after_split": 0.02,
+        "generated_direct_platform": 0.18
+      }
+    },
+    {
+      "response": "jev-response-2.json",
+      "choice": "state_guard_subpath",
+      "confidence": 0.97,
+      "probabilities": {
+        "state_guard_subpath": 0.98,
+        "generated_direct_platform": 0.01,
+        "facade_platform_after_split": 0.01
+      }
+    },
+    {
+      "response": "jev-response-3.json",
+      "choice": "state_guard_subpath",
+      "confidence": 0.95,
+      "probabilities": {
+        "generated_direct_platform": 0.01,
+        "state_guard_subpath": 0.97,
+        "facade_platform_after_split": 0.02
+      }
+    }
+  ],
+  "uncertainty": "No rationale returned; confidence differs materially (.70 versus .97/.95). Advice does not qualify canonical admission or receipt mapping.",
+  "required_closure": [
+    "dedicated supported state export and structural readonly handler-role carrier",
+    "Cloudflare verbatim compatibility reexports",
+    "stdlib verbatim facade assembly with filed request",
+    "exact runtime identity/getter/error/subject order and type compatibility",
+    "actual acyclic build and generated module import",
+    "actual canonical scenario admission and receipt qualification"
+  ],
+  "verified_async_role_route": "@canlang/state/policy/roles; state root exports MembershipReader type, not hasRole value",
+  "precision_correction": "Original abstract requests referred to root async role API. Current index verifies supported policy/roles subpath instead. Requests/advice remain unchanged; the selected subpath and concrete semantics/build review do not depend on a root collision."
+}
