@@ -1,0 +1,36 @@
+{
+  "argv": [
+    "cargo",
+    "build",
+    "--locked",
+    "--offline",
+    "--manifest-path",
+    "compiler/Cargo.toml"
+  ],
+  "environment_overrides": {
+    "CARGO_BUILD_JOBS": "1",
+    "CARGO_INCREMENTAL": "0",
+    "CARGO_NET_OFFLINE": "true"
+  },
+  "exit_code": 0,
+  "elapsed_seconds": 12.283,
+  "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "stderr_sha256": "9ae08efd77a2734619d65d8bf3db7b4020a702595db6590150592f3cbf0006eb",
+  "stdout_bytes": 0,
+  "stderr_bytes": 151,
+  "source_pre_post_pins": 107,
+  "changed_compiler_inputs": [],
+  "artifact": {
+    "path": "compiler/target/debug/can",
+    "sha256": "d13871c3571bc84ebea8403ea1889352e21fe4aae5c43d2ddb274ef7d48672c5",
+    "bytes": 19800664,
+    "version_argv": [
+      "compiler/target/debug/can",
+      "--version"
+    ],
+    "version_exit_code": 0,
+    "version_stdout": "can 0.1.0 (commit 851352d5; language 1.0; schema 1)\n",
+    "version_stderr": "",
+    "scope": "Fresh native debug build and identity only; no test/behavior/release qualification."
+  }
+}

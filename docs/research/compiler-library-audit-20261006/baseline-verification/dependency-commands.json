@@ -1,0 +1,41 @@
+[
+  {
+    "argv": [
+      "cargo",
+      "metadata",
+      "--offline",
+      "--locked",
+      "--manifest-path",
+      "compiler/Cargo.toml",
+      "--format-version",
+      "1",
+      "--no-deps"
+    ],
+    "exit_code": 0,
+    "elapsed_seconds": 0.086,
+    "stdout_sha256": "d3590f9f83ed20ff1bdec24b0e4e021fea9ceb7bab1f9500ad010dbabe2c38d4",
+    "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "stdout_bytes": 12161,
+    "stderr_bytes": 0
+  },
+  {
+    "argv": [
+      "cargo",
+      "tree",
+      "--offline",
+      "--locked",
+      "--manifest-path",
+      "compiler/Cargo.toml",
+      "--edges",
+      "features",
+      "--target",
+      "aarch64-apple-darwin"
+    ],
+    "exit_code": 0,
+    "elapsed_seconds": 0.251,
+    "stdout_sha256": "f219a92d6ea89aa8b32b6c2867546058fc444724cf54441047162d7d3da02b8e",
+    "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "stdout_bytes": 25676,
+    "stderr_bytes": 0
+  }
+]

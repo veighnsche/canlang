@@ -1,0 +1,69 @@
+{
+  "compiler_source_commit": "1fd07722090fe70228a6b661e3c6e136275ca84b",
+  "method": "Gross physical lines include comments and blanks; only exact top-level #[cfg(test)] item spans (including attached attrs through closing brace/semicolon) removed from compiler/src/**/*.rs. Inline item spans retained as tests; production after modules retained. compiler/tests/** includes fixtures. No AST complexity metric. UTF-8 byte length and SHA-256 over git blob bytes. Physical lines count LF bytes plus one for a nonempty final unterminated line; CRLF counts once, and a trailing LF adds no extra line.",
+  "categories": {
+    "other_compiler_metadata": {
+      "files": 2,
+      "bytes": 2486,
+      "physical_lines": 62
+    },
+    "docs_convention_metadata": {
+      "files": 6,
+      "bytes": 39801,
+      "physical_lines": 764
+    },
+    "cargo_manifest_lock": {
+      "files": 2,
+      "bytes": 23284,
+      "physical_lines": 895
+    },
+    "production_build_script": {
+      "files": 1,
+      "bytes": 1538,
+      "physical_lines": 46
+    },
+    "completion_scripts": {
+      "files": 3,
+      "bytes": 10860,
+      "physical_lines": 256
+    },
+    "compiler_src_rust": {
+      "files": 41,
+      "bytes": 2846859,
+      "physical_lines": 72784
+    },
+    "compiler_tests_and_fixtures": {
+      "files": 52,
+      "bytes": 1314205,
+      "physical_lines": 33040
+    }
+  },
+  "compiler_src_rust": {
+    "file_count": 41,
+    "bytes": 2846859,
+    "physical_lines": 72784,
+    "production_lines": 69255,
+    "inline_test_lines": 3529
+  },
+  "unclassified_or_review": [],
+  "arithmetic": {
+    "rust_production_plus_inline_equals_physical": true,
+    "category_lines_sum_equals_paths": true,
+    "bytes_sum_equals_paths": true
+  },
+  "historical_source_counts": {
+    "original": 69119,
+    "pass10_qualified": 69300,
+    "r01": 69249,
+    "current": 69255
+  },
+  "current_minus_r01": {
+    "production_lines": 6,
+    "inline_test_lines": 0,
+    "integration_tests_and_fixtures": 146
+  },
+  "current_minus_original_production_lines": 136,
+  "comparison_scope": "Compiler/src physical production only. Build/completion code remains separate; new correctness changes are not library programme savings.",
+  "inventory": "compiler-inventory.jsonl",
+  "inventory_sha256": "2261b9213003943ea823bec998e686c852a9e4833caf787bb2cb650d11d53e8c"
+}

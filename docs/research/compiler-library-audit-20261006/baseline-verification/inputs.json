@@ -1,0 +1,175 @@
+{
+  "schema_version": 1,
+  "captured_at_utc": "2026-10-07T09:20:02.541306+00:00",
+  "repository": "/Users/vince/Projects/canlang",
+  "compiler_baseline_commit": "1fd07722090fe70228a6b661e3c6e136275ca84b",
+  "observed_head": "851352d5225f0d707246eba7da81482087566994",
+  "compiler_baseline_equals_observed_head": true,
+  "tracked_compiler_clean": true,
+  "global_status_at_capture": "?? docs/research/package-library-audit-20261006/responsibility-callers/",
+  "tree_pins": {
+    "compiler": "db66f796be4a6e1b7c9c51ab21ef78f7d7e87810",
+    "packages": "f47fe66f2b1106ea701004af0b39bdbae8c777af",
+    "editors/vscode": "03db72b6d47087dd10b819a33d642a00f6568206",
+    "scripts": "9be86a887b1c7ac20677c8a7e67462d3c1f11fbc"
+  },
+  "contract_runner_consumer_pins": [
+    {"path":"AGENTS.md","bytes":1886,"sha256":"f30ab82d2e8803997b9eb6a5bba36c98defd1fce526711a0ae222fb6c4201f4e","resolved_path":"AGENTS.md"},
+    {"path":"package.json","bytes":3750,"sha256":"b857df2e35cfb40e1bb62738ed4ef59d53ce30b25b2a7f9d6f0f76df8bce02f3","resolved_path":"package.json"},
+    {"path":"bun.lock","bytes":72925,"sha256":"121ab8378764bcc2706a5641517c39aa57f8fc3c48fc5f7a1134d109278f8dec","resolved_path":"bun.lock"},
+    {"path":"turbo.json","bytes":2379,"sha256":"2f908d0dfa6b20fb38ae182a66eeaf564da6007d4404299032dbf3fe5df2d2b4","resolved_path":"turbo.json"},
+    {"path":"scripts/run-tasks.mjs","bytes":1995,"sha256":"3e055c26a0130829843f52cf5ddbf6b45e32bbc7a8a4d0124d8db2a8b107cc37","resolved_path":"scripts/run-tasks.mjs"},
+    {"path":"scripts/build-package.mjs","bytes":2057,"sha256":"fbf81db868a96e416981c439371f85285ed3832dfb4e13fa2256c9243f2a6330","resolved_path":"scripts/build-package.mjs"},
+    {"path":"docs/specification/DESIGN.md","bytes":267727,"sha256":"481ce7ea109ca7ae6852ec6430ae03fb5c973f7ba469b3ed28824fcf5b2df0c9","resolved_path":"docs/specification/DESIGN.md"},
+    {"path":"docs/research/compiler-library-audit-20261006/model-allocation-20261007.md","bytes":11651,"sha256":"f7f96701e9588cba6e22bad1d01cfd06517202d2fd99959763d77173243341d8","resolved_path":"docs/research/compiler-library-audit-20261006/model-allocation-20261007.md"},
+    {"path":"docs/research/compiler-library-audit-20261006/compiler-correctness-simplicity-audit.md","bytes":21790,"sha256":"df26f7e3fc1dadaf5cf53800fba4b63d0e5313dcb8a91cf2b9558ada41af163b","resolved_path":"docs/research/compiler-library-audit-20261006/compiler-correctness-simplicity-audit.md"},
+    {"path":"editors/vscode/package.json","bytes":2313,"sha256":"d694dfe9dba595ed336fb4754bf1c7bee43391cfa06d517a1b1a7ef0be661571","resolved_path":"editors/vscode/package.json"},
+    {"path":"editors/vscode/src/extension.ts","bytes":15840,"sha256":"916ccb65410f7f55e1b4ffe5a3e9a1e0294d6fba11abb3ffd802515103da86b6","resolved_path":"editors/vscode/src/extension.ts"},
+    {"path":"editors/vscode/test/server-startup.cjs","bytes":8487,"sha256":"4e6330d7b7ab04021e090740c1c4ac3b352637cae79f9a4fbd0e61eb01300fca","resolved_path":"editors/vscode/test/server-startup.cjs"},
+    {"path":"packages/values/dist/catalog.json","bytes":22290,"sha256":"cd984f375e0d6cbcc2bc6aca5ad5ea5b1b3d3ba9cd17b15ab94e4b15e74ced62","resolved_path":"packages/values/dist/catalog.json"},
+    {"path":"packages/cloudflare/dist/runtime/artifact.js","bytes":15758,"sha256":"7a959f96dfb7d84ea444af5c7194a9d0445770a99e543031ff847f8f6dc970c4","resolved_path":"packages/cloudflare/dist/runtime/artifact.js"},
+    {"path":"output/release-artifacts/manifest.json","bytes":12181,"sha256":"9cd905dc05e9ccbcfaf1143aea1b4f10ded535631bd5c432e58724540c6375d4","resolved_path":"output/release-artifacts/manifest.json"},
+    {"path":"docs/ideal-filetree-plan/finished-product/tasks.json","bytes":564291,"sha256":"78f157a8de2d5c7cbcc58338f38b90255621eb7b43287c4919ab80d50f651f0a","resolved_path":"docs/ideal-filetree-plan/finished-product/tasks.json"},
+    {"path":"tests/e2e/apps/challenge-pilot.spec.ts","bytes":2495,"sha256":"348f701da6188e1bf3479d63187231ed6df25d85c59b369ac769c7b6cd8dceeb","resolved_path":"tests/e2e/apps/challenge-pilot.spec.ts"},
+    {"path":"tests/e2e/apps/challenge-pilot-patched.spec.ts","bytes":6339,"sha256":"9bb3925e7d84e37516271794558130336e72244d86fb8ce635097f5a24540493","resolved_path":"tests/e2e/apps/challenge-pilot-patched.spec.ts"},
+    {"path":"tests/e2e/apps/compiled-journey.spec.ts","bytes":8186,"sha256":"ed6930dd8eca57eb13c4a3e2bb889f00a2052f15e76a94fa6fe44895872c7d8c","resolved_path":"tests/e2e/apps/compiled-journey.spec.ts"},
+    {"path":"tests/e2e/fixtures/artifact-loader.ts","bytes":20672,"sha256":"925f924ef688201f2fd530fd7359c9709724e9224d41607c894bb6e955b3035c","resolved_path":"tests/e2e/fixtures/artifact-loader.ts"},
+    {"path":"draft/CanDo.can","bytes":17396,"sha256":"15761cc422c6d11827a6f13aa3cc3318a8bb393ef2110169f1a02ff046e4ec35","resolved_path":"draft/CanDo.can"},
+    {"path":"draft/shared/Locations.can","bytes":11063,"sha256":"6cafeb02349c80c8ff19a278bc9072258fe8b8f402409629fed534854e106c7a","resolved_path":"draft/shared/Locations.can"},
+    {"path":"draft/shared/Employees.can","bytes":3145,"sha256":"64b941f4e3db0afe499903642585e362482d6aa39f679b3b1e688dc912d3b7f4","resolved_path":"draft/shared/Employees.can"},
+    {"path":"scripts/verify-installed-worker.mjs","bytes":16239,"sha256":"0b9b9758046303bacdc2e302f465c19c5ca2f45f0667f885e56ae43752f76443","resolved_path":"scripts/verify-installed-worker.mjs"},
+    {"path":"scripts/verify-installed-types.mjs","bytes":12782,"sha256":"e342511eda8e25b80514d9fe6c3d5195a2cdd45d95b2e7a669d9a50416daebce","resolved_path":"scripts/verify-installed-types.mjs"},
+    {"path":"packages/values/src/catalog.ts","bytes":18748,"sha256":"443ec55fb59c161a2984850d058f39925e930591b194bd85090776b8557098eb","resolved_path":"packages/values/src/catalog.ts"},
+    {"path":"packages/values/scripts/emit-catalog.mjs","bytes":2518,"sha256":"45c5d3d3be91e85574949939a55e19b06de1e8a5d6f3c1025f3edf07d87b221d","resolved_path":"packages/values/scripts/emit-catalog.mjs"},
+    {"path":"packages/values/dist/src/catalog.js","bytes":18732,"sha256":"1b5a52a148437ee7301cff8a68efa439448b7304b4ff85f6189ecaf75ad8925f","resolved_path":"packages/values/dist/src/catalog.js"},
+    {"path":"packages/values/conformance/v1/values.json","bytes":38987,"sha256":"7b352f68235ce03c834b44f5cf0345e362ff43140280b77db6c42a269af52b37","resolved_path":"packages/values/conformance/v1/values.json"},
+    {"path":"implementation/DIAGNOSTICS.md","bytes":5919,"sha256":"90f6233569bc999149dc09b4a7dc239d8f99860de14c2da2c7cea1c331231061","resolved_path":"/Users/vince/Projects/canlang/implementation/DIAGNOSTICS.md"},
+    {"path":"scripts/pack-release.mjs","bytes":7019,"sha256":"f7f22dc79a36a6a6a1c37fa0264d5aaef1e2731aa27c5019fa67eff88b8cb169","resolved_path":"/Users/vince/Projects/canlang/scripts/pack-release.mjs"},
+    {"path":"node_modules/@jridgewell/sourcemap-codec/package.json","available":false},
+    {"path":"node_modules/@jridgewell/sourcemap-codec/dist/sourcemap-codec.mjs","available":false},
+    {"path":"/Users/vince/.bun/install/cache/@jridgewell/sourcemap-codec@1.6.0@@@1/dist/sourcemap-codec.mjs","bytes":14399,"sha256":"2768e18f3bf937a0111c98872ff3e8ec8f5165d103a082b91f5127351beab7d0","resolved_path":"/Users/vince/.bun/install/cache/@jridgewell/sourcemap-codec@1.6.0@@@1/dist/sourcemap-codec.mjs","role":"Existing cached independent decoder selected by sourcemap_contract fixture; execution prints this exact hash. Post-run pin, not independently pre-pinned by root."}
+  ],
+  "cargo": {
+    "declared_dependencies": {
+      "url": {
+        "version": "=2.5.8",
+        "default-features": false,
+        "features": [
+          "std"
+        ]
+      },
+      "sha2": {
+        "version": "=0.10.9",
+        "default-features": false
+      },
+      "tempfile": {
+        "version": "=3.27.0",
+        "default-features": false,
+        "features": [
+          "getrandom"
+        ]
+      },
+      "serde": {
+        "version": "=1.0.229",
+        "default-features": false,
+        "features": [
+          "std",
+          "derive"
+        ]
+      },
+      "serde_json": {
+        "version": "=1.0.151",
+        "default-features": false,
+        "features": [
+          "std",
+          "raw_value"
+        ]
+      },
+      "lsp-types": {
+        "version": "=0.97.0",
+        "default-features": false
+      },
+      "sourcemap": {
+        "version": "=9.3.2",
+        "default-features": false
+      }
+    },
+    "release_profile": {
+      "strip": true,
+      "opt-level": "z",
+      "lto": true,
+      "codegen-units": 1
+    },
+    "rust_version": "1.99",
+    "lock_packages": 94,
+    "registry_packages": 93,
+    "registry_checksums_present": true,
+    "lock_pin": {
+      "path": "compiler/Cargo.lock",
+      "bytes": 21845,
+      "sha256": "384be2a089bd9ef4c6ccb1714e3ad0bade9870a35f48932ef1a4e8fb3ee7cd64",
+      "resolved_path": "compiler/Cargo.lock"
+    },
+    "manifest_pin": {
+      "path": "compiler/Cargo.toml",
+      "bytes": 1439,
+      "sha256": "92f8582ecbe4b7f7cb0e29b85643a4c1e03f479f729371c0c0f67696f35aec48",
+      "resolved_path": "compiler/Cargo.toml"
+    }
+  },
+  "catalog": {
+    "pin": {
+      "path": "packages/values/dist/catalog.json",
+      "bytes": 22290,
+      "sha256": "cd984f375e0d6cbcc2bc6aca5ad5ea5b1b3d3ba9cd17b15ab94e4b15e74ced62",
+      "resolved_path": "packages/values/dist/catalog.json"
+    },
+    "top_level_keys": [
+      "catalog_version",
+      "language_version",
+      "entries",
+      "features"
+    ],
+    "entry_count": 59,
+    "feature_count": 15,
+    "catalog_version": "0.1.0-lane02-draft",
+    "language_version": "1.0"
+  },
+  "runtime_packages": [
+    {"name":"@canlang/cloudflare","version":"0.1.0","source_git_tree":"da61d09896328bb0b59787416a82d0b7bb66c467","manifest":{"path":"packages/cloudflare/package.json","bytes":3427,"sha256":"3110b58d8d57ce356bef66c6545cfefbc2270c28542129b4ef5f9bb942998cd8","resolved_path":"packages/cloudflare/package.json"},"exports_sha256":"e7d38390c16d985499382f7166da592da04d32a5919bc67caddaa6d3d4238252","dist":{"available":true,"files":212,"bytes":2358010,"inventory_sha256":"14b6c1bdaa0ad6dd2fca3c803d531689a49c882c3f2f8ade53e2301e868ade3a"},"installed_resolution":"/Users/vince/Projects/canlang/packages/cloudflare","historical_distributed_files_compared":214,"historical_distributed_missing":[],"historical_distributed_changed":["package.json"],"historical_archive_now":{"path":"output/release-artifacts/cloudflare-0.1.0.tgz","sha256":"1410532684f10a5bcdceb20d4c6436163a7d8debb4cccabe25506feb7a835445","bytes":478622,"matches_historical":true},"source_manifest_matches_recorded_pack_source":false,"source_vs_packed_manifest_differing_fields":["dependencies","devDependencies","exports"],"exports_match_historical_packed_manifest":false,"historical_distributed_comparison_note":"Current workspace files compared with historical packed files. Bun packing resolves workspace dependency ranges. Source-manifest parity is checked separately against release manifest; no fresh installed runtime probe performed.","historical_exports_sha256":"a870de2dd32c203d9b67676346f229959ff4c36f3d1f8859b47f6c6e7953bcdb","export_change_keys":{"added":["./runtime/invoke"],"removed":[],"changed":[]}},
+    {"name":"@canlang/contracts","version":"0.1.0","source_git_tree":"9c3cf5447821bd6165a0787943507cda16683eef","manifest":{"path":"packages/contracts/package.json","bytes":1064,"sha256":"77d6b51fade16c2c304664ec5ee55c820121314e7b6ab8cdca6266ce21c78bf3","resolved_path":"packages/contracts/package.json"},"exports_sha256":"0d4269176e42f821d209e3e4fa777b54e7dd28caaa4a29a54a48f7d4f8156410","dist":{"available":true,"files":64,"bytes":415980,"inventory_sha256":"e14464aac9d21d8b6b037da79bec4cb11c7e58a162b38916fce0357a05d9addc"},"installed_resolution":"/Users/vince/Projects/canlang/packages/contracts","historical_distributed_files_compared":66,"historical_distributed_missing":[],"historical_distributed_changed":[],"historical_archive_now":{"path":"output/release-artifacts/contracts-0.1.0.tgz","sha256":"ff844fea131f44fb0723812088b5288cb136975f733c369c9901ec04bcd59d40","bytes":105380,"matches_historical":true},"source_manifest_matches_recorded_pack_source":true,"source_vs_packed_manifest_differing_fields":[],"exports_match_historical_packed_manifest":true,"historical_distributed_comparison_note":"Current workspace files compared with historical packed files. Bun packing resolves workspace dependency ranges. Source-manifest parity is checked separately against release manifest; no fresh installed runtime probe performed.","historical_exports_sha256":"0d4269176e42f821d209e3e4fa777b54e7dd28caaa4a29a54a48f7d4f8156410"},
+    {"name":"@canlang/files","version":"0.0.0","source_git_tree":"cb6d6bac852498a58d237900c6aefd43750f23ae","manifest":{"path":"packages/files/package.json","bytes":2383,"sha256":"fb7e88d7cef8bf0ccaee3990901b99751dad6575f2ab78ed13867b535a58ca7c","resolved_path":"packages/files/package.json"},"exports_sha256":"18033fc3cae8ab19a82618541e5c505817f734828f1eb7b93f809c349fbff2b7","dist":{"available":true,"files":88,"bytes":318889,"inventory_sha256":"3dec47bd22e0e05c77a6b21503034a9d3b516a981bc9bfa0aa8f27788bd212de"},"installed_resolution":"/Users/vince/Projects/canlang/packages/files","historical_distributed_files_compared":90,"historical_distributed_missing":[],"historical_distributed_changed":["package.json"],"historical_archive_now":{"path":"output/release-artifacts/files-0.0.0.tgz","sha256":"5a96e5e621d7c9b9ab1aa7af9184e5f7d5a0539e0455cbbdcba2c40446cb936f","bytes":61465,"matches_historical":true},"source_manifest_matches_recorded_pack_source":true,"source_vs_packed_manifest_differing_fields":["dependencies"],"exports_match_historical_packed_manifest":true,"historical_distributed_comparison_note":"Current workspace files compared with historical packed files. Bun packing resolves workspace dependency ranges. Source-manifest parity is checked separately against release manifest; no fresh installed runtime probe performed.","historical_exports_sha256":"18033fc3cae8ab19a82618541e5c505817f734828f1eb7b93f809c349fbff2b7"},
+    {"name":"@canlang/identity","version":"0.1.0","source_git_tree":"9ab85a6798d8b8fbb58c712df97aa6b70a82ed34","manifest":{"path":"packages/identity/package.json","bytes":1629,"sha256":"50dfe25888fc7787c8cf4ede09abcb79c7fce8a4b5db496de0eeb86f375dcdd0","resolved_path":"packages/identity/package.json"},"exports_sha256":"960fe0fbdb8947bc86073c353b43e7e598b477d387669e23106a6d2a394cdbfe","dist":{"available":true,"files":134,"bytes":424914,"inventory_sha256":"452a5288b917f04d89bb58fe81ef3f0f0ec9cd673c3ba5855ad256d158a393e1"},"installed_resolution":"/Users/vince/Projects/canlang/packages/identity","historical_distributed_files_compared":136,"historical_distributed_missing":[],"historical_distributed_changed":["package.json"],"historical_archive_now":{"path":"output/release-artifacts/identity-0.1.0.tgz","sha256":"cf8be268a69f3d1c3ce6e5adb969bcc5f964c7e537b24d247b18b393833e9cb7","bytes":81120,"matches_historical":true},"source_manifest_matches_recorded_pack_source":false,"source_vs_packed_manifest_differing_fields":["dependencies","imports"],"exports_match_historical_packed_manifest":true,"historical_distributed_comparison_note":"Current workspace files compared with historical packed files. Bun packing resolves workspace dependency ranges. Source-manifest parity is checked separately against release manifest; no fresh installed runtime probe performed.","historical_exports_sha256":"960fe0fbdb8947bc86073c353b43e7e598b477d387669e23106a6d2a394cdbfe"},
+    {"name":"@canlang/interfaces","version":"0.1.0","source_git_tree":"c5b9ac15d2244dc5b6785b18153d1b55611ef128","manifest":{"path":"packages/interfaces/package.json","bytes":2137,"sha256":"8f3639d8cbbe1e5d0e4af4c1d92352fbdb66f56994c3863d54274f4258c47cad","resolved_path":"packages/interfaces/package.json"},"exports_sha256":"6cea947294929b15e001f040bf3560576e6a2571653a93324b7870d824331b17","dist":{"available":true,"files":308,"bytes":2000988,"inventory_sha256":"a7413f2ab368d7d723757f401b23b68b9ed9ad9be137ef3d45b8399351587242"},"installed_resolution":"/Users/vince/Projects/canlang/packages/interfaces","historical_distributed_files_compared":310,"historical_distributed_missing":[],"historical_distributed_changed":["package.json"],"historical_archive_now":{"path":"output/release-artifacts/interfaces-0.1.0.tgz","sha256":"49b78be866b83b6270c4043fead53f83c145c486c52f29eb13ea4594807347b4","bytes":390144,"matches_historical":true},"source_manifest_matches_recorded_pack_source":true,"source_vs_packed_manifest_differing_fields":["dependencies"],"exports_match_historical_packed_manifest":true,"historical_distributed_comparison_note":"Current workspace files compared with historical packed files. Bun packing resolves workspace dependency ranges. Source-manifest parity is checked separately against release manifest; no fresh installed runtime probe performed.","historical_exports_sha256":"6cea947294929b15e001f040bf3560576e6a2571653a93324b7870d824331b17"},
+    {"name":"@canlang/services","version":"0.0.0","source_git_tree":"de4895956ce454fa06a919fd07a201a23ec4f054","manifest":{"path":"packages/services/package.json","bytes":3147,"sha256":"160607d0145fa9f3b39568a64c17bbbcbdded562ee75d231d8e3046df9dcab7e","resolved_path":"packages/services/package.json"},"exports_sha256":"93a466ad3eed22c1e7807763726f7365bde6eb75b8b051dbd87b0db891d0481d","dist":{"available":true,"files":104,"bytes":651677,"inventory_sha256":"2e7ebbd14eb1b72d150bef636eebe4f0c27f9213259ea7e43a14177b0e6c816b"},"installed_resolution":"/Users/vince/Projects/canlang/packages/services","historical_distributed_files_compared":106,"historical_distributed_missing":[],"historical_distributed_changed":["package.json"],"historical_archive_now":{"path":"output/release-artifacts/services-0.0.0.tgz","sha256":"4f082d81e000f9c2a5723f2acb071a11a52c06c723d52812257c0db55a805766","bytes":124573,"matches_historical":true},"source_manifest_matches_recorded_pack_source":true,"source_vs_packed_manifest_differing_fields":["dependencies"],"exports_match_historical_packed_manifest":true,"historical_distributed_comparison_note":"Current workspace files compared with historical packed files. Bun packing resolves workspace dependency ranges. Source-manifest parity is checked separately against release manifest; no fresh installed runtime probe performed.","historical_exports_sha256":"93a466ad3eed22c1e7807763726f7365bde6eb75b8b051dbd87b0db891d0481d"},
+    {"name":"@canlang/state","version":"0.1.0","source_git_tree":"10c3e472acd61b02b0e748aaea762b860053d210","manifest":{"path":"packages/state/package.json","bytes":8566,"sha256":"cb41b927046a074cad9e267fd4eba6f630a0aad7157d333b0efe3dca9e37aa52","resolved_path":"packages/state/package.json"},"exports_sha256":"a224ea585c136e000656cac184201fd16c46bac5c4a142528f0ef0729c87de56","dist":{"available":true,"files":488,"bytes":3538478,"inventory_sha256":"eb5364f3d8c802ed3c1d9af6412fdfd92b3bfae3fa4cf15c1ad729c1d903578e"},"installed_resolution":"/Users/vince/Projects/canlang/packages/state","historical_distributed_files_compared":491,"historical_distributed_missing":[],"historical_distributed_changed":["package.json"],"historical_archive_now":{"path":"output/release-artifacts/state-0.1.0.tgz","sha256":"36550d383cf33dda7fd47aa3b33ba9ad8790dc3cc5b5894e8e1b370116858dbf","bytes":643908,"matches_historical":true},"source_manifest_matches_recorded_pack_source":true,"source_vs_packed_manifest_differing_fields":["dependencies"],"exports_match_historical_packed_manifest":true,"historical_distributed_comparison_note":"Current workspace files compared with historical packed files. Bun packing resolves workspace dependency ranges. Source-manifest parity is checked separately against release manifest; no fresh installed runtime probe performed.","historical_exports_sha256":"a224ea585c136e000656cac184201fd16c46bac5c4a142528f0ef0729c87de56"},
+    {"name":"@canlang/stdlib","version":"0.1.0","source_git_tree":"c0a0d7d9e2e7dcb20f48b9ed22fe820863f4287d","manifest":{"path":"packages/stdlib/package.json","bytes":1242,"sha256":"1f5dda9a1bc0390590943772e7665e357e1337e705bb15c825c40eb2fcf5883b","resolved_path":"packages/stdlib/package.json"},"exports_sha256":"2af6fbef430103597ec1e6fb864c63d921b1ccaced0671da0ae2d04d63a2abdd","dist":{"available":true,"files":12,"bytes":27868,"inventory_sha256":"23883dfeceaf8d0fda29f80bc3bfd41fe6390c8191a7176450e813ffec3ea312"},"installed_resolution":"/Users/vince/Projects/canlang/packages/stdlib","historical_distributed_files_compared":14,"historical_distributed_missing":[],"historical_distributed_changed":["package.json"],"historical_archive_now":{"path":"output/release-artifacts/stdlib-0.1.0.tgz","sha256":"3ef34b977b70ca6468567cca5d842739e3354cff5ed8a940867c3264f27ae926","bytes":8347,"matches_historical":true},"source_manifest_matches_recorded_pack_source":true,"source_vs_packed_manifest_differing_fields":["dependencies"],"exports_match_historical_packed_manifest":true,"historical_distributed_comparison_note":"Current workspace files compared with historical packed files. Bun packing resolves workspace dependency ranges. Source-manifest parity is checked separately against release manifest; no fresh installed runtime probe performed.","historical_exports_sha256":"2af6fbef430103597ec1e6fb864c63d921b1ccaced0671da0ae2d04d63a2abdd"},
+    {"name":"@canlang/testkit","version":"0.1.0","source_git_tree":"baabd8720c65659685109e1342661cfd9788a977","manifest":{"path":"packages/testkit/package.json","bytes":2007,"sha256":"d4836564d2f24cb9181944e53f1c37596af4ca88c61bd117252ffa0b368b2ced","resolved_path":"packages/testkit/package.json"},"exports_sha256":"62ab5c78a5849b65e24bd1b70d761eea51e4d22734079769b7d37a427e22c120","dist":{"available":true,"files":64,"bytes":249145,"inventory_sha256":"906f50f55ec3129db1e28d8123647f9492e574a7466a7925ed253f206bb00626"},"installed_resolution":"/Users/vince/Projects/canlang/packages/testkit","historical_distributed_files_compared":66,"historical_distributed_missing":[],"historical_distributed_changed":["package.json"],"historical_archive_now":{"path":"output/release-artifacts/testkit-0.1.0.tgz","sha256":"fd2a0ca45c82d5994cdaad95fb14bdbeb1d00713a4de9089579b1b4e0d54e61e","bytes":55534,"matches_historical":true},"source_manifest_matches_recorded_pack_source":true,"source_vs_packed_manifest_differing_fields":["dependencies","devDependencies"],"exports_match_historical_packed_manifest":true,"historical_distributed_comparison_note":"Current workspace files compared with historical packed files. Bun packing resolves workspace dependency ranges. Source-manifest parity is checked separately against release manifest; no fresh installed runtime probe performed.","historical_exports_sha256":"62ab5c78a5849b65e24bd1b70d761eea51e4d22734079769b7d37a427e22c120"},
+    {"name":"@canlang/ui","version":"0.1.0","source_git_tree":"0d229be104bf49d1c17f77a281c0aa78f58673a0","manifest":{"path":"packages/ui/package.json","bytes":1747,"sha256":"5c7e8332525050e9503e397c27107b2f197e1edcec80b5ace95dc4b9ef3daaf4","resolved_path":"packages/ui/package.json"},"exports_sha256":"a20f3956a02d81471059868ef2180bc7710fb37076be8684cda7a8719d531080","dist":{"available":true,"files":244,"bytes":3589231,"inventory_sha256":"a03c105efbd00aa5920018ef7a02b6b7dc15ecc4e18437cd3d1766518b1acd95"},"installed_resolution":"/Users/vince/Projects/canlang/packages/ui","historical_distributed_files_compared":247,"historical_distributed_missing":[],"historical_distributed_changed":["package.json"],"historical_archive_now":{"path":"output/release-artifacts/ui-0.1.0.tgz","sha256":"96aa5c64febb8d9debb5cd5f2b3ac8759dbe3e19529069b2fc0cbb0c4ef607d5","bytes":550466,"matches_historical":true},"source_manifest_matches_recorded_pack_source":false,"source_vs_packed_manifest_differing_fields":["dependencies","exports"],"exports_match_historical_packed_manifest":false,"historical_distributed_comparison_note":"Current workspace files compared with historical packed files. Bun packing resolves workspace dependency ranges. Source-manifest parity is checked separately against release manifest; no fresh installed runtime probe performed.","historical_exports_sha256":"d0e176f73c7dd94889321474cfd4b17044a58e82aaea3c3c22aaf49b87b9aaaa","export_change_keys":{"added":["./csv/grammar"],"removed":[],"changed":[]}},
+    {"name":"@canlang/values","version":"0.1.0","source_git_tree":"4f8ab762af53d5c1a719efd0f612223111f87b93","manifest":{"path":"packages/values/package.json","bytes":2763,"sha256":"e542125300e2ee229f96bd37cc66af50c8982e588c26c9ba6cf363640688618f","resolved_path":"packages/values/package.json"},"exports_sha256":"eb98513cf9c0316fb9162127bea309c070539238509bcae276903e3621361393","dist":{"available":true,"files":226,"bytes":2320532,"inventory_sha256":"eb89a8d100bdba8e8b1e05d4c1c15748afb45746e288a790826251346cda5ef3"},"installed_resolution":"/Users/vince/Projects/canlang/packages/values","historical_distributed_files_compared":229,"historical_distributed_missing":[],"historical_distributed_changed":["package.json"],"historical_archive_now":{"path":"output/release-artifacts/values-0.1.0.tgz","sha256":"08c840566f80c5a2bf111f6dcfc9eee6e0f67c00323299cd79ffe0ba9ef04683","bytes":507560,"matches_historical":true},"source_manifest_matches_recorded_pack_source":true,"source_vs_packed_manifest_differing_fields":["dependencies"],"exports_match_historical_packed_manifest":true,"historical_distributed_comparison_note":"Current workspace files compared with historical packed files. Bun packing resolves workspace dependency ranges. Source-manifest parity is checked separately against release manifest; no fresh installed runtime probe performed.","historical_exports_sha256":"eb98513cf9c0316fb9162127bea309c070539238509bcae276903e3621361393"},
+    {"name":"@canlang/work","version":"0.0.0","source_git_tree":"f20b9cc9b2aaaf2b2cd2cb3a0d484bf7656954eb","manifest":{"path":"packages/work/package.json","bytes":3220,"sha256":"c4ca397414147a1e544db045d2fb883aa2aa85d56c8ded8b17a188c1cf6ac906","resolved_path":"packages/work/package.json"},"exports_sha256":"be0b5cba096ebeb71e7debaefc5b778033509c7906b43fb3fe9254e05b1e2d14","dist":{"available":true,"files":224,"bytes":1715397,"inventory_sha256":"e493e833f209346ffbf98796a39de7900f105be0ac9d2fbc3c9ff48c23e1f80f"},"installed_resolution":"/Users/vince/Projects/canlang/packages/work","historical_distributed_files_compared":226,"historical_distributed_missing":[],"historical_distributed_changed":["package.json"],"historical_archive_now":{"path":"output/release-artifacts/work-0.0.0.tgz","sha256":"14edd8f34f0d5e4d121489bd0d49f39567994a6abbfa024eed047caf9275ceab","bytes":321654,"matches_historical":true},"source_manifest_matches_recorded_pack_source":true,"source_vs_packed_manifest_differing_fields":["dependencies"],"exports_match_historical_packed_manifest":true,"historical_distributed_comparison_note":"Current workspace files compared with historical packed files. Bun packing resolves workspace dependency ranges. Source-manifest parity is checked separately against release manifest; no fresh installed runtime probe performed.","historical_exports_sha256":"be0b5cba096ebeb71e7debaefc5b778033509c7906b43fb3fe9254e05b1e2d14"},
+    {"name":"@canlang/work-kernel","version":"0.1.0","source_git_tree":"32506b777874aca6afc23f8bdacc538e3b2bf1c2","manifest":{"path":"packages/work-kernel/package.json","bytes":1405,"sha256":"5b2b5267aaa3f92ae8284fa8c8464bd7831023e4f2ce190623886210fcd84a07","resolved_path":"packages/work-kernel/package.json"},"exports_sha256":"2af6fbef430103597ec1e6fb864c63d921b1ccaced0671da0ae2d04d63a2abdd","dist":{"available":true,"files":72,"bytes":364505,"inventory_sha256":"4de78b68ea6cd44c39c4ddb0a798782d0dfee76f4cf408f0ba5413beded983b4"},"installed_resolution":"/Users/vince/Projects/canlang/packages/work-kernel","historical_distributed_files_compared":73,"historical_distributed_missing":[],"historical_distributed_changed":["package.json"],"historical_archive_now":{"path":"output/release-artifacts/work-kernel-0.1.0.tgz","sha256":"4a5242ba17b2336fb4a89afe068897e226242f67c51b93d342e9df0462f17649","bytes":73464,"matches_historical":true},"source_manifest_matches_recorded_pack_source":true,"source_vs_packed_manifest_differing_fields":["dependencies"],"exports_match_historical_packed_manifest":true,"historical_distributed_comparison_note":"Current workspace files compared with historical packed files. Bun packing resolves workspace dependency ranges. Source-manifest parity is checked separately against release manifest; no fresh installed runtime probe performed.","historical_exports_sha256":"2af6fbef430103597ec1e6fb864c63d921b1ccaced0671da0ae2d04d63a2abdd"}
+  ],
+  "directory_digest_definition": "SHA256 of compact UTF-8 JSON [[relative-path,file-sha256,byte-count],...] sorted lexically by path, ensure_ascii=false; all regular files recursively inside dist; symlink file bytes followed. This pins dist inputs, not their build reproducibility or supported APIs.",
+  "scope_limits": [
+    "Runtime packages were not rebuilt. A fresh native debug compiler build and identity are pinned separately; this does not establish semantic, release or other-host qualification.",
+    "Repository Git trees pin tracked source; ignored generated package dist files use separate inventory digests.",
+    "Historical installed tarballs are comparison witnesses, not the current installed consumer path.",
+    "Three current source manifests differ from recorded pack-source pins: cloudflare, identity and ui. Cloudflare/ui export declarations and identity imports changed. Historical package API qualification is not blanket current API qualification.",
+    "All 13 original checkout release archives remain available and match historical hashes. Their installed scratch copies are absent; current archives do not prove source-only reproducibility.",
+    "Top-level sourcemap-codec is absent; the fixture explicitly selects the existing Bun-cache 1.6.0 copy. Replay executed successfully and printed its hash; this does not qualify a cold dependency installation."
+  ],
+  "dependency_commands": "dependency-commands.json",
+  "toolchain": "toolchain.json",
+  "fresh_build": "fresh-build.json",
+  "compiler_inventory": {
+    "path": "compiler-inventory.jsonl",
+    "sha256": "2261b9213003943ea823bec998e686c852a9e4833caf787bb2cb650d11d53e8c",
+    "files": 107
+  },
+  "pre_build_existing_binaries": [
+    {"path":"compiler/target/debug/can","bytes":19900328,"sha256":"615fea2fa5c60493c9ab262507d9527bfa4bf5f4c69592c7ed5539ed6fa74cdb","resolved_path":"compiler/target/debug/can","version_exit_code":0,"version_stdout":"can 0.1.0 (commit 5e55fb2d; language 1.0; schema 1)","version_stderr":"","source_freshness":"Not established by version/hash alone; no build performed by this baseline packet."},
+    {"path":"compiler/target/release/can","bytes":1735168,"sha256":"1cfecc9ad25ed11bc3734e71eae55453be3c4cddb4bb0eeb7653ffdd63ffdeab","resolved_path":"compiler/target/release/can","version_exit_code":0,"version_stdout":"can 0.1.0 (commit 2e25a15; language 1.0; schema 1)","version_stderr":"","source_freshness":"Not established by version/hash alone; no build performed by this baseline packet."}
+  ],
+  "selected_replay": "selected-replay.json"
+}
