@@ -1053,26 +1053,20 @@ fn pick_entrypoint(ir: &IrProgram) -> Option<crate::analysis::resolve::ModuleId>
         .map(|m| m.id)
 }
 
-/// Output path for a module: lowercase `<name>.mjs`.
+/// Portable, injective owning-module path; consumers use artifact paths.
 fn module_path(name: &str) -> String {
-    format!("{}.mjs", name.to_lowercase())
+    format!("{}.mjs", binding_ident("m", name))
 }
 
-/// Sanitize a Can name into a JS identifier (Can names are already
-/// identifier-safe; anything else becomes `_`, with a leading digit fixed).
-fn sanitize_ident(name: &str) -> String {
-    let mut out = String::with_capacity(name.len());
-    for (i, c) in name.chars().enumerate() {
-        let ok = c.is_ascii_alphanumeric() || c == '_' || c == '$';
-        if i == 0 && c.is_ascii_digit() {
-            out.push('_');
-        }
-        out.push(if ok { c } else { '_' });
-    }
-    if out.is_empty() {
-        out.push('_');
-    }
-    out
+/// Injective implementation identity, disjoint from ambient imports/context/temps.
+/// UTF-8 hex preserves every source spelling without JS reserved-word assumptions.
+fn binding_ident(domain: &str, identity: &str) -> String {
+    let encoded: String = identity.bytes().map(|byte| format!("{byte:02x}")).collect();
+    format!("$can${domain}${encoded}")
+}
+
+fn page_binding(page: &IrPage, kind: &str) -> String {
+    binding_ident("p", &format!("{}:{kind}:{}", page.owner, page.path))
 }
 
 /// Quote string values through the shared byte-compatible JSON adapter.
@@ -1250,6 +1244,9 @@ pub struct Emitter<'a> {
     /// `$forRowsN` fetch, so sequential loops never redeclare one
     /// binding (source order keeps numbering deterministic).
     loop_seq: usize,
+    /// Lexical declaration owners; references resolve inward, like Can scopes.
+    bindings: Vec<HashMap<String, String>>,
+    binding_seq: usize,
 }
 
 /// Hook lowering state: the trigger model. (The staged-id counter lives
@@ -1281,7 +1278,37 @@ impl<'a> Emitter<'a> {
             pages: Vec::new(),
             hook: None,
             loop_seq: 0,
+            bindings: vec![HashMap::new()],
+            binding_seq: 0,
         }
+    }
+
+    fn enter_scope(&mut self) {
+        self.bindings.push(HashMap::new());
+    }
+
+    fn exit_scope(&mut self) {
+        self.bindings.pop().expect("lexical scope");
+    }
+
+    fn bind(&mut self, name: &str) -> String {
+        let emitted = binding_ident("l", &format!("{}:{name}", self.binding_seq));
+        self.binding_seq += 1;
+        self.bindings
+            .last_mut()
+            .expect("lexical scope")
+            .insert(name.to_string(), emitted.clone());
+        emitted
+    }
+
+    fn reference(&self, name: &str) -> String {
+        self.bindings
+            .iter()
+            .rev()
+            .find_map(|scope| scope.get(name))
+            .cloned()
+            // Ambient IR names (c, row, s, b) belong to the calling closure.
+            .unwrap_or_else(|| name.to_string())
     }
 
     /// Enter hook lowering for one trigger model: statements stage through
@@ -1363,7 +1390,11 @@ impl<'a> Emitter<'a> {
             names.sort_unstable();
             lines.push(format!(
                 "import {{ {} }} from \"@canlang/ui\";",
-                names.join(", ")
+                names
+                    .iter()
+                    .map(|name| format!("{name} as {}", binding_ident("u", name)))
+                    .collect::<Vec<_>>()
+                    .join(", ")
             ));
         }
         for (path, names) in &self.relative {
@@ -1628,9 +1659,18 @@ impl<'a> Emitter<'a> {
                 self.stdlib.insert("datetime".to_string());
                 format!("datetime({})", js_string(value))
             }
-            IrExpr::Name(name) => sanitize_ident(name),
+            IrExpr::Name(name) => self.reference(name),
             IrExpr::Member { base, field } => {
-                let base_text = self.lower_expr(base);
+                // IR context reads synthesize an unknown-typed `c` base.
+                // A source parameter named c owns a different, checked value.
+                let ambient = matches!(&base.expr, IrExpr::Name(name) if name == "c")
+                    && matches!(base.ty, ResolvedType::Unknown)
+                    && matches!(field.as_str(), "actor" | "now" | "team" | "operation");
+                let base_text = if ambient {
+                    "c".to_string()
+                } else {
+                    self.lower_expr(base)
+                };
                 let base_text = parenthesize_operand(&base_text, &base.expr);
                 // Nullable bases use optional chaining (delivery reads
                 // resolve to one immutable object or null).
@@ -1639,7 +1679,12 @@ impl<'a> Emitter<'a> {
                 } else {
                     "."
                 };
-                format!("{base_text}{op}{}", sanitize_ident(field))
+                if object_key(field) == *field {
+                    format!("{base_text}{op}{field}")
+                } else {
+                    let optional = if op == "?." { "?." } else { "" };
+                    format!("{base_text}{optional}[{}]", js_string(field))
+                }
             }
             IrExpr::Call { target, args } => self.lower_call(target, args, span),
             IrExpr::Binary { op, left, right } => self.lower_binary(*op, left, right, span),
@@ -1652,14 +1697,11 @@ impl<'a> Emitter<'a> {
                 let parts: Vec<String> = entries
                     .iter()
                     .map(|(k, v)| {
-                        // Shorthand when the value is the key's own
-                        // binding (`{meeting}`, per the oracle corpus).
-                        let shorthand = object_key(k) == *k
-                            && matches!(&v.expr, IrExpr::Name(name) if name == k);
-                        if shorthand {
-                            sanitize_ident(k)
+                        let value = self.lower_expr(v);
+                        if object_key(k) == *k && value == *k {
+                            k.clone()
                         } else {
-                            format!("{}:{}", object_key(k), self.lower_expr(v))
+                            format!("{}:{value}", object_key(k))
                         }
                     })
                     .collect();
@@ -1734,11 +1776,14 @@ impl<'a> Emitter<'a> {
                 }
             }
             IrExpr::Lambda { param, body } => {
+                self.enter_scope();
+                let param = self.bind(param);
                 let body_text = self.lower_expr(body);
+                self.exit_scope();
                 if expr_uses_async(body) {
-                    format!("async({})=>{body_text}", sanitize_ident(param))
+                    format!("async({param})=>{body_text}")
                 } else {
-                    format!("({})=>{body_text}", sanitize_ident(param))
+                    format!("({param})=>{body_text}")
                 }
             }
             IrExpr::Unsupported { what, why } => {
@@ -1768,7 +1813,7 @@ impl<'a> Emitter<'a> {
                     span,
                 });
                 let parts: Vec<String> = args.iter().map(|a| self.lower_expr(a)).collect();
-                let call = format!("{}({})", sanitize_ident(id), parts.join(","));
+                let call = format!("{}({})", id, parts.join(","));
                 if *awaited {
                     format!("await {call}")
                 } else {
@@ -1784,7 +1829,7 @@ impl<'a> Emitter<'a> {
                     );
                 }
                 let name = match self.by_canonical.get(canonical) {
-                    Some(index) => sanitize_ident(&self.ir.items[*index].name.clone()),
+                    Some(index) => binding_ident("s", &self.ir.items[*index].canonical),
                     None => {
                         self.unsupported(
                             "derive call",
@@ -1810,7 +1855,10 @@ impl<'a> Emitter<'a> {
                 let (local, module) = match self.by_canonical.get(canonical) {
                     Some(index) => {
                         let item = &self.ir.items[*index];
-                        (item.name.clone(), self.ir.module(item.module).name.clone())
+                        (
+                            binding_ident("s", &item.canonical),
+                            self.ir.module(item.module).name.clone(),
+                        )
                     }
                     None => {
                         self.unsupported(
@@ -1822,14 +1870,11 @@ impl<'a> Emitter<'a> {
                     }
                 };
                 let path = format!("./{}", module_path(&module));
-                self.relative
-                    .entry(path)
-                    .or_default()
-                    .insert(sanitize_ident(&local));
+                self.relative.entry(path).or_default().insert(local.clone());
                 let parts: Vec<String> = args.iter().map(|a| self.lower_expr(a)).collect();
                 let mut all = vec!["c".to_string()];
                 all.extend(parts);
-                format!("await {}({})", sanitize_ident(&local), all.join(","))
+                format!("await {}({})", local, all.join(","))
             }
         }
     }
@@ -2356,11 +2401,14 @@ impl<'a> Emitter<'a> {
                     opts.push(format!("parent:{}", self.lower_expr(parent)));
                 }
                 if let Some(pred) = &query.where_pred {
+                    self.enter_scope();
+                    let row = self.bind("row");
                     let body = self.lower_expr(pred);
+                    self.exit_scope();
                     if query.where_async {
-                        opts.push(format!("where:async(row)=>{body}"));
+                        opts.push(format!("where:async({row})=>{body}"));
                     } else {
-                        opts.push(format!("where:(row)=>{body}"));
+                        opts.push(format!("where:({row})=>{body}"));
                     }
                 }
                 if !query.order.is_empty() {
@@ -2401,8 +2449,11 @@ impl<'a> Emitter<'a> {
                     _ => parenthesize_operand(&base_text, &base.expr),
                 };
                 if let Some(pred) = &query.where_pred {
+                    self.enter_scope();
+                    let alias = self.bind(alias);
                     let body = self.lower_expr(pred);
-                    out = format!("{out}.filter(({})=>{body})", sanitize_ident(alias));
+                    self.exit_scope();
+                    out = format!("{out}.filter(({alias})=>{body})");
                 }
                 self.append_select(&out, false, query)
             }
@@ -2421,8 +2472,11 @@ impl<'a> Emitter<'a> {
         else {
             return fetched.to_string();
         };
+        self.enter_scope();
+        let param = self.bind(param);
         let body = self.lower_expr(projection);
-        let map = format!(".map(({})=>{body})", sanitize_ident(param));
+        self.exit_scope();
+        let map = format!(".map(({param})=>{body})");
         if awaited {
             format!("({fetched}){map}")
         } else {
@@ -2493,7 +2547,11 @@ impl<'a> Emitter<'a> {
     /// three-argument parameterized form preserving typed parameters.
     pub fn lower_message(&mut self, message: &IrMessage) -> String {
         self.ui.insert("message".to_string());
-        let mut out = format!("message({}", js_string(&message.source));
+        let mut out = format!(
+            "{}({}",
+            binding_ident("u", "message"),
+            js_string(&message.source)
+        );
         if message.variants.is_empty() && message.params.is_empty() {
             out.push(')');
             return out;
@@ -2504,7 +2562,7 @@ impl<'a> Emitter<'a> {
             .map(|(locale, text)| {
                 format!(
                     "{}:{}",
-                    sanitize_ident(locale),
+                    object_key(locale),
                     text.as_deref()
                         .map(js_string)
                         .unwrap_or_else(|| "null".to_string())
@@ -2520,7 +2578,7 @@ impl<'a> Emitter<'a> {
                 .map(|p| {
                     format!(
                         "{}:{{type:{},value:{}}}",
-                        sanitize_ident(&p.name),
+                        object_key(&p.name),
                         js_string(&p.type_id),
                         self.lower_expr(&p.value)
                     )
@@ -2542,7 +2600,7 @@ impl<'a> Emitter<'a> {
             IrStmt::Let { name, value, span } => {
                 let value_text = self.lower_expr(value);
                 vec![(
-                    format!("{pad}const {} = {value_text};", sanitize_ident(name)),
+                    format!("{pad}const {} = {value_text};", self.bind(name)),
                     *span,
                 )]
             }
@@ -2560,7 +2618,7 @@ impl<'a> Emitter<'a> {
                 let input_text = self.lower_expr(input);
                 let when_text = when
                     .as_ref()
-                    .map(|key| format!(",{{when:crudWhen.{}}}", sanitize_ident(key)))
+                    .map(|key| format!(",{{when:crudWhen[{}]}}", js_string(key)))
                     .unwrap_or_default();
                 let call = format!(
                     "await create(c,{},{input_text}{when_text})",
@@ -2568,7 +2626,7 @@ impl<'a> Emitter<'a> {
                 );
                 vec![(
                     match binding {
-                        Some(name) => format!("{pad}const {} = {call};", sanitize_ident(name)),
+                        Some(name) => format!("{pad}const {} = {call};", self.bind(name)),
                         None => format!("{pad}{call};"),
                     },
                     *span,
@@ -2588,7 +2646,7 @@ impl<'a> Emitter<'a> {
                 let changes_text = self.lower_expr(changes);
                 let when_text = when
                     .as_ref()
-                    .map(|key| format!(",{{when:crudWhen.{}}}", sanitize_ident(key)))
+                    .map(|key| format!(",{{when:crudWhen[{}]}}", js_string(key)))
                     .unwrap_or_default();
                 vec![(
                     format!("{pad}await set(c,{record_text},{changes_text}{when_text});"),
@@ -2703,7 +2761,7 @@ impl<'a> Emitter<'a> {
                 );
                 vec![(
                     match binding {
-                        Some(name) => format!("{pad}const {} = {call};", sanitize_ident(name)),
+                        Some(name) => format!("{pad}const {} = {call};", self.bind(name)),
                         None => format!("{pad}{call};"),
                     },
                     *span,
@@ -2788,16 +2846,20 @@ impl<'a> Emitter<'a> {
             } => {
                 let cond_text = self.lower_expr(cond);
                 let mut lines = vec![(format!("{pad}if ({cond_text}) {{"), *span)];
+                self.enter_scope();
                 for stmt in then_branch {
                     lines.extend(self.lower_stmt(stmt, indent + 1));
                 }
+                self.exit_scope();
                 if else_branch.is_empty() {
                     lines.push((format!("{pad}}}"), *span));
                 } else {
                     lines.push((format!("{pad}}} else {{"), *span));
+                    self.enter_scope();
                     for stmt in else_branch {
                         lines.extend(self.lower_stmt(stmt, indent + 1));
                     }
+                    self.exit_scope();
                     lines.push((format!("{pad}}}"), *span));
                 }
                 lines
@@ -2843,13 +2905,13 @@ impl<'a> Emitter<'a> {
                 } else {
                     awaited
                 };
-                lines.push((
-                    format!("{pad}for (const {} of {over}) {{", sanitize_ident(item)),
-                    *span,
-                ));
+                self.enter_scope();
+                let item = self.bind(item);
+                lines.push((format!("{pad}for (const {item} of {over}) {{"), *span));
                 for stmt in body {
                     lines.extend(self.lower_stmt(stmt, indent + 1));
                 }
+                self.exit_scope();
                 lines.push((format!("{pad}}}"), *span));
                 lines
             }
@@ -2961,7 +3023,7 @@ impl<'a> Emitter<'a> {
             ResolvedType::Unknown,
             span,
         ));
-        let id_ref = binding.clone().map(|name| sanitize_ident(&name));
+        let id_ref = binding.clone().map(|name| self.bind(&name));
         let bind_line = match &id_ref {
             Some(name) => {
                 format!("{pad}const {name}={{id:$hookCtx.triggerId+\"/staged/\"+($stagedNext++)}};")
@@ -3135,7 +3197,9 @@ impl<'a> Emitter<'a> {
         }
         match &node.row_scope {
             Some((row, view)) => {
-                let child_ctx = sanitize_ident(view);
+                self.enter_scope();
+                let row = self.bind(row);
+                let child_ctx = self.bind(view);
                 let children = node
                     .children
                     .iter()
@@ -3150,9 +3214,9 @@ impl<'a> Emitter<'a> {
                 };
                 props.push(format!(
                     "renderRow:{prefix}({},{})=>[{children}]",
-                    sanitize_ident(row),
-                    child_ctx
+                    row, child_ctx
                 ));
+                self.exit_scope();
             }
             None => {
                 // A2b: `fab` and `chatBubble` take grouped suites,
@@ -3190,7 +3254,7 @@ impl<'a> Emitter<'a> {
                                 group.push(self.lower_ui_ctx(grand, ctx));
                             }
                         }
-                        props.push(format!("{name}:[{}]", group.join(",")));
+                        props.push(format!("{}:[{}]", object_key(name), group.join(",")));
                     }
                 } else if !node.children.is_empty() {
                     let children = node
@@ -3203,7 +3267,11 @@ impl<'a> Emitter<'a> {
                 }
             }
         }
-        let call = format!("{}({{{}}})", node.factory, props.join(","));
+        let call = format!(
+            "{}({{{}}})",
+            binding_ident("u", &node.factory),
+            props.join(",")
+        );
         match gate {
             Some(cond) => format!("{cond} ? {call} : null"),
             None => call,
@@ -3243,11 +3311,11 @@ impl<'a> Emitter<'a> {
         }
         let mut entries = Vec::new();
         for (name, expr) in &defaults {
-            entries.push(format!("{name}:{}", self.lower_expr(expr)));
+            entries.push(format!("{}:{}", object_key(name), self.lower_expr(expr)));
         }
         format!(
             "preferences:{{{app}:{{{entries}}}}},",
-            app = sanitize_ident(owner),
+            app = object_key(owner),
             entries = entries.join(",")
         )
     }
@@ -3257,8 +3325,8 @@ impl<'a> Emitter<'a> {
     /// or re-runs admission).
     pub fn lower_page(&mut self, page: &IrPage, out: &mut JsWriter) {
         self.ui.insert("renderPage".to_string());
-        let descriptor = sanitize_ident(&page.descriptor_name);
-        let func = sanitize_ident(&page.fn_name);
+        let descriptor = page_binding(page, "descriptor");
+        let func = page_binding(page, "render");
         let mut members = vec![
             format!("owner:{}", js_string(&page.owner)),
             format!("path:{}", js_string(&page.path)),
@@ -3304,9 +3372,9 @@ impl<'a> Emitter<'a> {
         self.pages.push(JsPage {
             owner: page.owner.clone(),
             path: page.path.clone(),
-            // Sanitized like the emitted binding above: the envelope
+            // Encoded like the emitted binding above: the envelope
             // cross-ref must name exactly what `export const` declares.
-            export: sanitize_ident(&page.descriptor_name),
+            export: page_binding(page, "descriptor"),
         });
         let children = page
             .render
@@ -3318,8 +3386,8 @@ impl<'a> Emitter<'a> {
         // checkpoint returns per-app prefs inside `bindings` (never pctx).
         let preamble = if page_uses_preferences(page) {
             format!(
-                "const preferences=bindings.preferences.{};",
-                sanitize_ident(&page.owner)
+                "const preferences=bindings.preferences[{}];",
+                js_string(&page.owner)
             )
         } else {
             String::new()
@@ -3334,7 +3402,7 @@ impl<'a> Emitter<'a> {
         out.push(
             page.span,
             Some(format!("page {}", page.path)),
-            &format!("export async function {func}(c,bindings){{{preamble}return renderPage(c,{descriptor},{builder}[{children}]);}}"),
+            &format!("export async function {func}(c,bindings){{{preamble}return {}(c,{descriptor},{builder}[{children}]);}}", binding_ident("u", "renderPage")),
         );
     }
 }
@@ -3432,20 +3500,9 @@ fn parenthesize_logic(text: &str, expr: &IrExpr, parent: IrBinOp) -> String {
     }
 }
 
-/// Handler name for a CRUD operation: `createModel`, `updateModel`,
-/// `deleteModel`.
-fn crud_handler_name(model_local: &str, op: CrudOp) -> String {
-    let prefix = match op {
-        CrudOp::Create => "create",
-        CrudOp::Update => "update",
-        CrudOp::Delete => "delete",
-    };
-    format!("{prefix}{model_local}")
-}
-
-/// Sanitized `crudWhen` registry key, if the operation carries admission.
+/// Authored `crudWhen` registry key, if the operation carries admission.
 fn crud_when_key(when: Option<&String>) -> Option<String> {
-    when.map(|key| sanitize_ident(key))
+    when.cloned()
 }
 
 /// Registry key for one hook: the source trigger spelling
@@ -3486,18 +3543,14 @@ fn registry_member(ir: &IrProgram, item: &IrItem) -> Vec<String> {
                     "run".to_string(),
                 ];
             }
-            vec![sanitize_ident(&item.name)]
+            vec![item.canonical.clone()]
         }
         IrItemKind::DeriveFn { .. } => {
-            vec![sanitize_ident(&item.name)]
+            vec![item.canonical.clone()]
         }
-        IrItemKind::CrudOp { model, op, .. } => {
-            let model_name = &ir.items[model.0 as usize].name;
-            vec![crud_handler_name(model_name, *op)]
-        }
-        IrItemKind::DeriveField { model, .. } => {
-            let model_name = &ir.items[model.0 as usize].name;
-            vec!["derives".to_string(), format!("{model_name}.{}", item.name)]
+        IrItemKind::CrudOp { .. } => vec![item.canonical.clone()],
+        IrItemKind::DeriveField { .. } => {
+            vec!["derives".to_string(), item.canonical.clone()]
         }
         _ => unreachable!("registry_member: not a callable item"),
     }
@@ -3511,17 +3564,6 @@ impl<'a> Emitter<'a> {
         out: &mut JsWriter,
         _entry: Option<crate::analysis::resolve::ModuleId>,
     ) {
-        // T21-L1: every export is module-prefixed, entry module
-        // included. Bare entry names collide with the entry module's
-        // own import bindings (`export const create` vs `import
-        // {create}`) and can be JS reserved words (`export const
-        // delete`), emitting unimportable JS. Exports are named
-        // before lowering accrues the final import set (builtins are
-        // open-vocabulary), so no seed list can stay complete; the
-        // module prefix namespaces exports away from imports.
-        // (`_entry` stays a parameter for call-shape stability; every
-        // module now takes the prefixed arm.)
-        let mut taken: BTreeSet<String> = BTreeSet::new();
         for item in &self.ir.items.clone() {
             let is_callable = matches!(
                 item.kind,
@@ -3530,15 +3572,7 @@ impl<'a> Emitter<'a> {
             if !is_callable {
                 continue;
             }
-            let module = self.ir.module(item.module).name.clone();
-            let mut export = sanitize_ident(&format!("{module}_{}", item.name));
-            if !taken.insert(export.clone()) {
-                let mut n = 2;
-                while !taken.insert(export.clone()) {
-                    export = sanitize_ident(&format!("{module}_{}_{n}", item.name));
-                    n += 1;
-                }
-            }
+            let export = binding_ident("o", &item.canonical);
             let kind = match &item.kind {
                 IrItemKind::Scenario { trusted, .. } => {
                     if *trusted {
@@ -3689,13 +3723,13 @@ impl<'a> Emitter<'a> {
                     if item.exported {
                         role.push_str(",exported:true");
                     }
-                    format!("{}:{{{role}}}", sanitize_ident(&item.name))
+                    format!("{}:{{{role}}}", object_key(&item.name))
                 })
                 .collect();
             members.push(format!("roles:{{{}}}", roles.join(",")));
             packages.push(format!(
                 "{}:{{{}}}",
-                sanitize_ident(&module.name),
+                object_key(&module.name),
                 members.join(",")
             ));
         }
@@ -3781,7 +3815,7 @@ impl<'a> Emitter<'a> {
                     };
                     entries.push(format!(
                         "{}:{{{}}}",
-                        sanitize_ident(&event.name),
+                        object_key(&event.name),
                         self.emit_fields_schema(&fields)
                     ));
                 }
@@ -3960,7 +3994,7 @@ impl<'a> Emitter<'a> {
             if let Some(label) = label {
                 members.push_str(&format!(",label:{}", self.lower_field_label(&label)));
             }
-            entries.push(format!("{}:{{{members}}}", sanitize_ident(&item.name)));
+            entries.push(format!("{}:{{{members}}}", object_key(&item.name)));
         }
         if entries.is_empty() {
             None
@@ -4033,7 +4067,7 @@ impl<'a> Emitter<'a> {
                 members.push(format!("fields:{{{}}}", fields.join(",")));
                 packages.push(format!(
                     "{}:{{{}}}",
-                    sanitize_ident(&module.name),
+                    object_key(&module.name),
                     members.join(",")
                 ));
             }
@@ -4091,7 +4125,7 @@ impl<'a> Emitter<'a> {
         if let Some(label) = &label {
             members.push_str(&format!(",label:{}", self.lower_field_label(label)));
         }
-        format!("{}:{{{members}}}", sanitize_ident(&field.name))
+        format!("{}:{{{members}}}", object_key(&field.name))
     }
 
     /// Emit the `operations` member: scenario metadata (handler, `by`,
@@ -4115,7 +4149,7 @@ impl<'a> Emitter<'a> {
                 } => {
                     let inputs = self.emit_params_schema(params);
                     let mut members = vec![
-                        format!("handler:{}", js_string(&sanitize_ident(&item.name))),
+                        format!("handler:{}", js_string(&item.canonical)),
                         format!("inputs:{{{inputs}}}"),
                     ];
                     if let Some(by) = self.by_member(by, item.span) {
@@ -4151,7 +4185,7 @@ impl<'a> Emitter<'a> {
                     ..
                 } => {
                     let model_item = self.ir.items[model.0 as usize].clone();
-                    let handler = crud_handler_name(&model_item.name, *op);
+                    let handler = item.canonical.clone();
                     let kind = match op {
                         CrudOp::Create => "create",
                         CrudOp::Update => "update",
@@ -4459,7 +4493,7 @@ impl<'a> Emitter<'a> {
                 if let Some(label) = label {
                     members.push_str(&format!(",label:{}", self.lower_message(label)));
                 }
-                parts.push(format!("{}:{{{members}}}", sanitize_ident(&param.name)));
+                parts.push(format!("{}:{{{members}}}", object_key(&param.name)));
             }
         }
         parts.join(",")
@@ -4470,7 +4504,7 @@ impl<'a> Emitter<'a> {
         let mut pages = Vec::new();
         for module in &self.ir.modules {
             for page in &module.pages {
-                pages.push(sanitize_ident(&page.descriptor_name));
+                pages.push(page_binding(page, "descriptor"));
             }
         }
         format!("pages:[{}]", pages.join(","))
@@ -5400,7 +5434,7 @@ impl<'a> Emitter<'a> {
                 Some("canApp".to_string()),
                 &format!(
                     "{}:{},",
-                    sanitize_ident(&validator.name),
+                    object_key(&validator.name),
                     self.lower_rule_fn(&validator.body)
                 ),
             );
@@ -5410,18 +5444,13 @@ impl<'a> Emitter<'a> {
     /// Emit the `derives` map for derived fields (derived functions stay
     /// named functions below).
     fn emit_derives_map(&mut self, out: &mut JsWriter, span: Span) {
-        // Derived fields share one `derives` map keyed by local
-        // `Model.field` per the oracle corpus.
+        // Derived fields share one map keyed by canonical owning identity.
         let mut derives = Vec::new();
         for item in self.ir.items.clone() {
-            let IrItemKind::DeriveField { model, expr, .. } = &item.kind else {
+            let IrItemKind::DeriveField { expr, .. } = &item.kind else {
                 continue;
             };
-            let key = format!(
-                "{}.{}",
-                self.ir.items[model.0 as usize].name.clone(),
-                item.name
-            );
+            let key = item.canonical.clone();
             self.callables.push(JsCallable {
                 id: item.canonical.clone(),
                 kind: JsCallableKind::Pure,
@@ -5482,7 +5511,7 @@ impl<'a> Emitter<'a> {
                 continue;
             };
             let hook = *hook;
-            let handler = sanitize_ident(&item.name);
+            let handler = binding_ident("s", &item.canonical);
             let key = hook_trigger_key(self.ir, &hook);
             let prefix = if index == 0 { "hooks:{" } else { "" };
             out.push(
@@ -5506,6 +5535,7 @@ impl<'a> Emitter<'a> {
                 "let $stagedNext=0;",
             );
             out.push(item.span, Some(item.canonical.clone()), "let $pending;");
+            self.enter_scope();
             self.enter_hook(hook.model);
             for guard in guards {
                 for (line, span) in self.lower_stmt(guard, 0) {
@@ -5518,6 +5548,7 @@ impl<'a> Emitter<'a> {
                 }
             }
             self.exit_hook();
+            self.exit_scope();
             out.push(
                 item.span,
                 Some(item.canonical.clone()),
@@ -5543,10 +5574,11 @@ impl<'a> Emitter<'a> {
             let IrItemKind::DeriveFn { params, expr, .. } = &item.kind else {
                 continue;
             };
-            let name = sanitize_ident(&item.name);
+            let name = binding_ident("s", &item.canonical);
+            self.enter_scope();
             let mut signature = vec!["c".to_string()];
             for id in params {
-                signature.push(sanitize_ident(&self.ir.items[id.0 as usize].name.clone()));
+                signature.push(self.bind(&self.ir.items[id.0 as usize].name.clone()));
             }
             let export = if item.exported { "export " } else { "" };
             match expr {
@@ -5573,6 +5605,7 @@ impl<'a> Emitter<'a> {
                     );
                 }
             }
+            self.exit_scope();
         }
     }
 
@@ -5593,13 +5626,17 @@ impl<'a> Emitter<'a> {
                     if hook.is_some() {
                         continue;
                     }
-                    let handler = sanitize_ident(&item.name);
+                    let handler = object_key(&item.canonical);
+                    self.enter_scope();
                     let signature = if *trusted {
-                        "c,{event}".to_string()
+                        format!("c,{{event:{}}}", self.bind("event"))
                     } else {
                         let names: Vec<String> = params
                             .iter()
-                            .map(|id| sanitize_ident(&self.ir.items[id.0 as usize].name.clone()))
+                            .map(|id| {
+                                let name = self.ir.items[id.0 as usize].name.clone();
+                                format!("{}:{}", object_key(&name), self.bind(&name))
+                            })
                             .collect();
                         format!("c,{{{}}}", names.join(","))
                     };
@@ -5615,6 +5652,7 @@ impl<'a> Emitter<'a> {
                                 js_string(&format!("unchecked scenario body: {}", item.canonical))
                             ),
                         );
+                        self.exit_scope();
                         continue;
                     }
                     out.push(
@@ -5634,6 +5672,7 @@ impl<'a> Emitter<'a> {
                         }
                     }
                     out.push(item.span, Some(item.canonical.clone()), "},");
+                    self.exit_scope();
                 }
                 IrItemKind::CrudOp {
                     model,
@@ -5644,7 +5683,7 @@ impl<'a> Emitter<'a> {
                     ..
                 } => {
                     let model_item = self.ir.items[model.0 as usize].clone();
-                    let handler = crud_handler_name(&model_item.name, *op);
+                    let handler = object_key(&item.canonical);
                     let when = if *has_when {
                         Some(model_item.name.clone())
                     } else {
@@ -5710,7 +5749,7 @@ impl<'a> Emitter<'a> {
                         out.push(
                             item.span,
                             Some(item.canonical.clone()),
-                            &format!("check(await crudWhen.{key}(c,record));"),
+                            &format!("check(await crudWhen[{}](c,record));", js_string(&key)),
                         );
                     }
                     for (line, span) in self.lower_stmt(&core, 0) {
@@ -5719,7 +5758,7 @@ impl<'a> Emitter<'a> {
                     out.push(item.span, Some(item.canonical.clone()), "},");
                 }
                 IrItemKind::DeriveFn { .. } => {
-                    let name = sanitize_ident(&item.name);
+                    let name = binding_ident("s", &item.canonical);
                     self.callables.push(JsCallable {
                         id: item.canonical.clone(),
                         kind: JsCallableKind::Pure,
@@ -5728,10 +5767,13 @@ impl<'a> Emitter<'a> {
                         span: item.span,
                     });
                     // The implementation lives at module scope
-                    // (`emit_derive_fns`); the registry holds a
-                    // shorthand reference so the `[name]` member path
-                    // still resolves to the named function.
-                    out.push(item.span, Some(item.canonical.clone()), &format!("{name},"));
+                    // (`emit_derive_fns`); the registry holds the
+                    // canonical key pointing to its implementation binding.
+                    out.push(
+                        item.span,
+                        Some(item.canonical.clone()),
+                        &format!("{}:{name},", object_key(&item.canonical)),
+                    );
                 }
                 IrItemKind::DeriveField { .. } => {}
                 _ => {}
@@ -5777,16 +5819,16 @@ impl<'a> Emitter<'a> {
                         Some(item.canonical.clone()),
                         &format!(
                             "export const {}={};",
-                            sanitize_ident(&item.name),
+                            binding_ident("s", &item.canonical),
                             js_string(&item.canonical)
                         ),
                     );
                 }
                 IrItemKind::CapabilityOp { params, .. } => {
-                    let name = sanitize_ident(&item.name);
+                    let name = binding_ident("s", &item.canonical);
                     let args: Vec<String> = params
                         .iter()
-                        .map(|id| sanitize_ident(&self.ir.items[id.0 as usize].name.clone()))
+                        .map(|id| binding_ident("l", &self.ir.items[id.0 as usize].canonical))
                         .collect();
                     body.push(
                         item.span,
@@ -5828,6 +5870,9 @@ impl<'a> Emitter<'a> {
 
 /// Object key: bare identifier when safe, quoted otherwise.
 fn object_key(key: &str) -> String {
+    if key == "__proto__" {
+        return format!("[{}]", js_string(key));
+    }
     let safe = !key.is_empty()
         && key
             .chars()

@@ -357,7 +357,11 @@ fn golden_teamtasks_structure() {
     let paths: Vec<&str> = artifact.modules.iter().map(|m| m.path.as_str()).collect();
     assert_eq!(
         paths,
-        vec!["teamoffice.mjs", "teamtasks.mjs", "teamnotes.mjs"]
+        vec![
+            "$can$m$5465616d4f6666696365.mjs",
+            "$can$m$5465616d5461736b73.mjs",
+            "$can$m$5465616d4e6f746573.mjs"
+        ]
     );
     let entry = &artifact.modules[0].js;
     assert!(entry.contains("id:\"TeamOffice\""), "app id");
@@ -396,7 +400,7 @@ fn golden_teamtasks_structure() {
     //
     // G3 models: labels, read grants, field modifiers/defaults/captions.
     assert!(
-        entry.contains("\"TeamTasks.Todo\":{label:message(\"Task\",{nl:\"Taak\"})"),
+        entry.contains("\"TeamTasks.Todo\":{label:$can$u$6d657373616765(\"Task\",{nl:\"Taak\"})"),
         "Todo label"
     );
     assert!(
@@ -416,7 +420,7 @@ fn golden_teamtasks_structure() {
         "Todo.done default"
     );
     assert!(
-        entry.contains("values:{true:message(\"Done\""),
+        entry.contains("values:{true:$can$u$6d657373616765(\"Done\""),
         "Todo.done case captions"
     );
     assert!(entry.contains("\"TeamNotes.Note\":{"), "Note model");
@@ -430,7 +434,7 @@ fn golden_teamtasks_structure() {
         "view enum"
     );
     assert!(
-        entry.contains("values:{all:message(\"All tasks\""),
+        entry.contains("values:{all:$can$u$6d657373616765(\"All tasks\""),
         "view case captions"
     );
     assert!(!entry.contains("validate:"), "no preferences validator");
@@ -446,19 +450,19 @@ fn golden_teamtasks_structure() {
     );
     assert!(entry.contains("by:\"members\""), "crud gate");
     assert!(
-        entry.contains("label:message(\"Add\",{nl:\"Toevoegen\"})"),
+        entry.contains("label:$can$u$6d657373616765(\"Add\",{nl:\"Toevoegen\"})"),
         "crud create label"
     );
     assert!(!entry.contains("when:"), "no crud admission");
     assert!(!entry.contains("expose:false"), "no expose exclusion");
     // G9 pages and descriptions.
     assert!(
-        entry.contains("pages:[TeamTasksPageDescriptor,TeamNotesNotesPageDescriptor]"),
+        entry.contains("pages:[$can$p$5465616d5461736b733a64657363726970746f723a2f,$can$p$5465616d4e6f7465733a64657363726970746f723a2f6e6f746573]"),
         "page descriptors"
     );
     assert!(entry.contains("disabled:[]"), "nothing disabled");
     assert!(
-        entry.contains("description:message(\"Manage tasks and notes together.\""),
+        entry.contains("description:$can$u$6d657373616765(\"Manage tasks and notes together.\""),
         "app description"
     );
     assert!(
@@ -466,7 +470,7 @@ fn golden_teamtasks_structure() {
         "tabs selector"
     );
     assert!(
-        entry.contains("form({context:c,operation:\"TeamTasks.Todo.create\",fields:[\"title\",\"assignee\"],display:\"inline\""),
+        entry.contains("$can$u$666f726d({context:c,operation:\"TeamTasks.Todo.create\",fields:[\"title\",\"assignee\"],display:\"inline\""),
         "form operation"
     );
     // Field-placement controls lower to `field` selector strings;
@@ -474,32 +478,38 @@ fn golden_teamtasks_structure() {
     // comes from the render context). No-recurse rule: children of an
     // *unlowered* factory are swallowed by its placeholder (one E6008
     // for the factory, none for the absorbed children).
-    assert!(entry.contains("breadcrumbs({context:c})"), "breadcrumbs");
     assert!(
-        entry.contains("children:[input({context:c,field:\"title\"})]"),
+        entry.contains("$can$u$62726561646372756d6273({context:c})"),
+        "breadcrumbs"
+    );
+    assert!(
+        entry.contains("children:[$can$u$696e707574({context:c,field:\"title\"})]"),
         "form children"
     );
     assert!(
         entry.contains(
-            "children:[input({context:c,field:\"title\"}),textarea({context:c,field:\"content\"})]"
+            "children:[$can$u$696e707574({context:c,field:\"title\"}),$can$u$7465787461726561({context:c,field:\"content\"})]"
         ),
         "textarea child"
     );
     assert!(
-        entry.contains("pagination({context:rowView})"),
+        entry.contains("$can$u$706167696e6174696f6e({context:$can$l$323a726f7756696577})"),
         "collection pagination"
     );
     assert!(
-        entry.contains("where:(task)=>(preferences.view === \"all\")"),
+        entry.contains("where:($can$l$303a7461736b)=>(preferences.view === \"all\")"),
         "list predicate lambda"
     );
     assert!(
         entry.contains("order:[\"-created\"],search:[\"title\"],filter:[\"done\"]"),
         "list props"
     );
-    assert!(entry.contains("renderRow:(row,rowView)=>"), "row scope");
     assert!(
-        entry.contains("edit({context:rowView,operation:\"TeamTasks.Todo.update\",record:row})"),
+        entry.contains("renderRow:($can$l$313a726f77,$can$l$323a726f7756696577)=>"),
+        "row scope"
+    );
+    assert!(
+        entry.contains("$can$u$65646974({context:$can$l$323a726f7756696577,operation:\"TeamTasks.Todo.update\",record:$can$l$313a726f77})"),
         "inferred edit"
     );
     // G12: state-read builtins await; the bare model domain lowers
@@ -512,15 +522,15 @@ fn golden_teamtasks_structure() {
     assert!(entry.contains("export function canApp()"), "canApp factory");
     assert!(!entry.contains("...appDefinition"), "no metadata spread");
     assert!(
-        entry.contains("async createTodo(c,input)"),
+        entry.contains("async \"TeamTasks.Todo.create\"(c,input)"),
         "create handler"
     );
     assert!(
-        entry.contains("async updateTodo(c,{record,changes})"),
+        entry.contains("async \"TeamTasks.Todo.update\"(c,{record,changes})"),
         "update handler"
     );
     assert!(
-        entry.contains("async deleteTodo(c,{record})"),
+        entry.contains("async \"TeamTasks.Todo.delete\"(c,{record})"),
         "delete handler destructures"
     );
     assert!(
@@ -537,13 +547,13 @@ fn golden_teamtasks_structure() {
     );
     // Identity constants: registry holds implementations.
     assert!(
-        entry.contains("export const TeamTasks_create=\"TeamTasks.Todo.create\";"),
+        entry.contains("export const $can$o$5465616d5461736b732e546f646f2e637265617465=\"TeamTasks.Todo.create\";"),
         "identity const for crud op"
     );
     // Callables reference the entrypoint module and real exports.
     assert!(!artifact.callables.is_empty(), "callables non-empty");
     for callable in &artifact.callables {
-        assert_eq!(callable.module, "teamoffice.mjs");
+        assert_eq!(callable.module, "$can$m$5465616d4f6666696365.mjs");
         assert!(
             entry.contains(&callable.export),
             "export {} present",
@@ -576,9 +586,15 @@ fn golden_teamtasks_structure() {
     // G9 page registry: both pages with descriptor exports.
     assert_eq!(artifact.pages.len(), 2, "two pages");
     assert_eq!(artifact.pages[0].path, "/");
-    assert_eq!(artifact.pages[0].export, "TeamTasksPageDescriptor");
+    assert_eq!(
+        artifact.pages[0].export,
+        "$can$p$5465616d5461736b733a64657363726970746f723a2f"
+    );
     assert_eq!(artifact.pages[1].path, "/notes");
-    assert_eq!(artifact.pages[1].export, "TeamNotesNotesPageDescriptor");
+    assert_eq!(
+        artifact.pages[1].export,
+        "$can$p$5465616d4e6f7465733a64657363726970746f723a2f6e6f746573"
+    );
     // G13 requires: the catalog pins, plus the state family for the
     // state-read `count` (entry) and text family for messages.
     let requires: Vec<(&str, u64)> = artifact
@@ -805,7 +821,11 @@ fn golden_expenseflow_structure() {
     let paths: Vec<&str> = artifact.modules.iter().map(|m| m.path.as_str()).collect();
     assert_eq!(
         paths,
-        vec!["expenseflow.mjs", "expenses.mjs", "reporting.mjs"]
+        vec![
+            "$can$m$457870656e7365466c6f77.mjs",
+            "$can$m$657870656e736573.mjs",
+            "$can$m$7265706f7274696e67.mjs"
+        ]
     );
     let entry = &artifact.modules[0].js;
     assert!(entry.contains("id:\"ExpenseFlow\""), "app id");
@@ -844,7 +864,7 @@ fn golden_expenseflow_structure() {
     // G5 roles carry canonical ids plus labels.
     assert!(
         entry.contains(
-            "reviewer:{id:\"expenses.reviewer\",label:message(\"Reviewer\",{nl:\"Beoordelaar\"})}"
+            "reviewer:{id:\"expenses.reviewer\",label:$can$u$6d657373616765(\"Reviewer\",{nl:\"Beoordelaar\"})}"
         ),
         "role label"
     );
@@ -859,7 +879,7 @@ fn golden_expenseflow_structure() {
     );
     assert!(
         entry
-            .contains("decision_note:{type:\"text\",nullable:true,label:message(\"Decision note\""),
+            .contains("decision_note:{type:\"text\",nullable:true,label:$can$u$6d657373616765(\"Decision note\""),
         "referenced caption"
     );
     assert!(
@@ -897,7 +917,7 @@ fn golden_expenseflow_structure() {
     );
     // G4 contracts and preferences.
     assert!(
-        entry.contains("\"reporting.Summary\":{label:message(\"Expense totals\""),
+        entry.contains("\"reporting.Summary\":{label:$can$u$6d657373616765(\"Expense totals\""),
         "contract label"
     );
     assert!(
@@ -907,19 +927,24 @@ fn golden_expenseflow_structure() {
     assert!(entry.contains("reporting:{fields:{"), "preferences");
     // G1 scenarios: gates, read/result descriptors, captions.
     assert!(entry.contains("\"expenses.submit\":"), "submit op");
-    assert!(entry.contains("handler:\"submit\""), "submit handler");
+    assert!(
+        entry.contains("handler:\"expenses.submit\""),
+        "submit handler"
+    );
     assert!(
         entry.contains("expense:{type:\"expenses.Expense\"}"),
         "submit input"
     );
     assert!(entry.contains("\"expenses.approve\":"), "approve op");
     assert!(
-        entry.contains("note:{type:\"text\",nullable:true,label:message(\"Decision note\""),
+        entry.contains(
+            "note:{type:\"text\",nullable:true,label:$can$u$6d657373616765(\"Decision note\""
+        ),
         "approve input"
     );
     assert!(entry.contains("by:\"expenses.reviewer\""), "reviewer gate");
     assert!(
-        entry.contains("\"reporting.summarize\":{handler:\"summarize\",inputs:{currency:{type:\"currency\"},status:{type:\"enum\""),
+        entry.contains("\"reporting.summarize\":{handler:\"reporting.summarize\",inputs:{currency:{type:\"currency\"},status:{type:\"enum\""),
         "summarize op"
     );
     assert!(
@@ -928,7 +953,7 @@ fn golden_expenseflow_structure() {
     );
     // G2 CRUD entries: `delete=none` yields no delete operation.
     assert!(
-        entry.contains("\"expenses.Expense.create\":{handler:\"createExpense\",kind:\"create\",model:\"expenses.Expense\",read:false,inputs:{fields:[\"purpose\",\"amount\"]},by:\"members\",when:\"Expense\"}"),
+        entry.contains("\"expenses.Expense.create\":{handler:\"expenses.Expense.create\",kind:\"create\",model:\"expenses.Expense\",read:false,inputs:{fields:[\"purpose\",\"amount\"]},by:\"members\",when:\"Expense\"}"),
         "crud create"
     );
     assert!(
@@ -946,96 +971,109 @@ fn golden_expenseflow_structure() {
     assert!(entry.contains("read:false"), "crud mutation");
     // Registry handlers with real bodies.
     assert!(entry.contains("export function canApp()"), "canApp factory");
-    assert!(entry.contains("async submit(c,{expense}){"), "submit body");
+    assert!(
+        entry.contains("async \"expenses.submit\"(c,{expense:$can$l$323a657870656e7365}){"),
+        "submit body"
+    );
     assert!(
         entry.contains(
-            "check((same(expense.submitted_by,c.actor)) && (expense.status === \"draft\"));"
+            "check((same($can$l$323a657870656e7365.submitted_by,c.actor)) && ($can$l$323a657870656e7365.status === \"draft\"));"
         ),
         "submit guard"
     );
     assert!(
-        entry.contains("await set(c,expense,{status:\"submitted\"},{when:crudWhen.Expense});"),
+        entry.contains("await set(c,$can$l$323a657870656e7365,{status:\"submitted\"},{when:crudWhen[\"Expense\"]});"),
         "submit effect"
     );
     assert!(
-        entry.contains("async approve(c,{expense,note}){"),
+        entry.contains("async \"expenses.approve\"(c,{expense:$can$l$333a657870656e7365,note:$can$l$343a6e6f7465}){"),
         "approve body"
     );
     assert!(
-        entry.contains("await set(c,expense,{status:\"approved\",decision_note:note,decided_by:c.actor,decided_at:c.now},{when:crudWhen.Expense});"),
+        entry.contains("await set(c,$can$l$333a657870656e7365,{status:\"approved\",decision_note:$can$l$343a6e6f7465,decided_by:c.actor,decided_at:c.now},{when:crudWhen[\"Expense\"]});"),
         "approve effect"
     );
-    assert!(entry.contains("note.trim() !== \"\""), "reject trim guard");
     assert!(
-        entry.contains("async summarize(c,{currency,status}){"),
+        entry.contains("$can$l$363a6e6f7465.trim() !== \"\""),
+        "reject trim guard"
+    );
+    assert!(
+        entry.contains("async \"reporting.summarize\"(c,{currency:$can$l$373a63757272656e6379,status:$can$l$383a737461747573}){"),
         "summarize body"
     );
     assert!(
-        entry.contains("const selected = await records(c,\"expenses.Expense\",{where:(row)=>(row.amount.currency === currency) && (row.status === status)});"),
+        entry.contains("const $can$l$31303a73656c6563746564 = await records(c,\"expenses.Expense\",{where:($can$l$393a726f77)=>($can$l$393a726f77.amount.currency === $can$l$373a63757272656e6379) && ($can$l$393a726f77.status === $can$l$383a737461747573)});"),
         "summarize query"
     );
     // G12: `count`/`sum` await; the value-domain query lowers
     // through `.map` with its alias-scoped projection.
     assert!(
-        entry.contains("return {count:await count(selected),total:await sum(selected.map((expense)=>expense.amount),currency)};"),
+        entry.contains("return {count:await count($can$l$31303a73656c6563746564),total:await sum($can$l$31303a73656c6563746564.map(($can$l$31313a657870656e7365)=>$can$l$31313a657870656e7365.amount),$can$l$373a63757272656e6379)};"),
         "summarize return"
     );
-    assert!(entry.contains("async createExpense(c,input){"), "crud body");
     assert!(
-        entry.contains("await create(c,\"expenses.Expense\",input,{when:crudWhen.Expense});"),
+        entry.contains("async \"expenses.Expense.create\"(c,input){"),
+        "crud body"
+    );
+    assert!(
+        entry.contains("await create(c,\"expenses.Expense\",input,{when:crudWhen[\"Expense\"]});"),
         "create admission"
     );
     // G9 pages: collections, actions, history, catalog factories,
     // arguments. Every catalog word on the pages lowers; nothing throws.
     assert!(
         entry
-            .contains("action({context:rowView,operations:[\"expenses.submit\"],boundArgs:{row}})"),
+            .contains("$can$u$616374696f6e({context:$can$l$313a726f7756696577,operations:[\"expenses.submit\"],boundArgs:{row:$can$l$303a726f77}})"),
         "row actions"
     );
     assert!(
-        entry.contains("history({context:rowView,record:row})"),
+        entry.contains(
+            "$can$u$686973746f7279({context:$can$l$313a726f7756696577,record:$can$l$303a726f77})"
+        ),
         "row history"
     );
     assert!(
-        entry.contains("breadcrumbs({context:c})"),
+        entry.contains("$can$u$62726561646372756d6273({context:c})"),
         "page breadcrumbs"
     );
     assert!(
         entry.contains(
-            "children:[input({context:c,field:\"purpose\"}),input({context:c,field:\"amount\"})]"
+            "children:[$can$u$696e707574({context:c,field:\"purpose\"}),$can$u$696e707574({context:c,field:\"amount\"})]"
         ),
         "create-form field controls"
     );
     assert!(
-        entry.contains("badge({context:rowView,value:row.status})"),
+        entry.contains(
+            "$can$u$6261646765({context:$can$l$313a726f7756696577,value:$can$l$303a726f77.status})"
+        ),
         "row badge"
     );
     assert!(
-        entry.contains("row.status === \"rejected\" ? alert({context:rowView,children:[text({context:rowView,values:[row.decision_note]})]}) : null"),
+        entry.contains("$can$l$303a726f77.status === \"rejected\" ? $can$u$616c657274({context:$can$l$313a726f7756696577,children:[$can$u$74657874({context:$can$l$313a726f7756696577,values:[$can$l$303a726f77.decision_note]})]}) : null"),
         "gated alert"
     );
     assert!(
-        entry.contains("divider({context:rowView,caption:message(\"Review decision\",{nl:\"Beoordelingsbesluit\"})})"),
+        entry.contains("$can$u$64697669646572({context:$can$l$313a726f7756696577,caption:$can$u$6d657373616765(\"Review decision\",{nl:\"Beoordelingsbesluit\"})})"),
         "divider caption"
     );
     assert!(
-        entry.contains("join({context:rowView,children:[button({context:rowView,opens:\"approve_expense\"}),button({context:rowView,opens:\"reject_expense\"})]})"),
+        entry.contains("$can$u$6a6f696e({context:$can$l$313a726f7756696577,children:[$can$u$627574746f6e({context:$can$l$313a726f7756696577,opens:\"approve_expense\"}),$can$u$627574746f6e({context:$can$l$313a726f7756696577,opens:\"reject_expense\"})]})"),
         "join with opener buttons"
     );
     assert!(
-        entry.contains("modal({context:rowView,caption:message(\"Approve expense\",{nl:\"Onkost goedkeuren\"}),id:\"approve_expense\",children:[slot({context:rowView,name:\"content\",children:[form({context:rowView,operation:\"expenses.approve\",arguments:{expense:row},display:\"inline\",fields:[\"expense\",\"note\"],children:[textarea({context:rowView,field:\"note\"})]})]})]})"),
+        entry.contains("$can$u$6d6f64616c({context:$can$l$313a726f7756696577,caption:$can$u$6d657373616765(\"Approve expense\",{nl:\"Onkost goedkeuren\"}),id:\"approve_expense\",children:[$can$u$736c6f74({context:$can$l$313a726f7756696577,name:\"content\",children:[$can$u$666f726d({context:$can$l$313a726f7756696577,operation:\"expenses.approve\",arguments:{expense:$can$l$303a726f77},display:\"inline\",fields:[\"expense\",\"note\"],children:[$can$u$7465787461726561({context:$can$l$313a726f7756696577,field:\"note\"})]})]})]})"),
         "approve modal with content slot"
     );
     assert!(
-        entry.contains("modal({context:rowView,caption:message(\"Reject expense\""),
+        entry.contains("$can$u$6d6f64616c({context:$can$l$313a726f7756696577,caption:$can$u$6d657373616765(\"Reject expense\""),
         "reject modal"
     );
     assert!(
-        entry.contains("pagination({context:rowView})"),
+        entry.contains("$can$u$706167696e6174696f6e({context:$can$l$313a726f7756696577})"),
         "collection pagination"
     );
     assert!(
-        entry.contains("stat({context:c,values:[result.count,result.total]})"),
+        entry.contains("$can$u$73746174({context:c,values:[result.count,result.total]})"),
         "stat metric values"
     );
     assert!(
@@ -1051,7 +1089,9 @@ fn golden_expenseflow_structure() {
         "list defaults"
     );
     assert!(
-        entry.contains("tabs({context:c,selector:\"reporting.status\",value:preferences.status})"),
+        entry.contains(
+            "$can$u$74616273({context:c,selector:\"reporting.status\",value:preferences.status})"
+        ),
         "tabs selector"
     );
     // Callables cover scenarios and generated CRUD ops (no delete).
@@ -1068,7 +1108,7 @@ fn golden_expenseflow_structure() {
         ]
     );
     for callable in &artifact.callables {
-        assert_eq!(callable.module, "expenseflow.mjs");
+        assert_eq!(callable.module, "$can$m$457870656e7365466c6f77.mjs");
         assert!(
             entry.contains(&callable.export),
             "export {} present",
@@ -1149,7 +1189,7 @@ fn golden_expenseflow_structure() {
         "sequence create call"
     );
     assert!(
-        approve.contains("{let:\"draft_claim\",value:async(c,s,b)=>(await first(await records(c,\"expenses.Expense\",{where:(row)=>same(row.submitted_by,other)})))}"),
+        approve.contains("{let:\"draft_claim\",value:async(c,s,b)=>(await first(await records(c,\"expenses.Expense\",{where:($can$l$303a726f77)=>same($can$l$303a726f77.submitted_by,other)})))}"),
         "sequence binding"
     );
     assert!(
@@ -1812,12 +1852,12 @@ fn construct_scalars_per_op() {
         },
         ResolvedType::Scalar(Scalar::Bool),
     ));
-    assert_eq!(call, "await ping(c)");
+    assert_eq!(call, "await $can$s$64656d6f2e5376632e70696e67(c)");
     assert!(
         emitter
             .import_lines()
             .iter()
-            .any(|i| i.contains("./demo.mjs")),
+            .any(|i| i.contains("./$can$m$64656d6f.mjs")),
         "owning-package import"
     );
     // Queries lower to records() with viewer grants applied first.
@@ -1856,7 +1896,7 @@ fn construct_scalars_per_op() {
     let (text, _, diags) = lower(&ir, &query);
     assert_eq!(
         text,
-        "await records(c,\"demo.Widget\",{where:(row)=>row.count === 1n,order:[\"-count\"],limit:10n})"
+        "await records(c,\"demo.Widget\",{where:($can$l$303a726f77)=>$can$l$303a726f77.count === 1n,order:[\"-count\"],limit:10n})"
     );
     assert!(diags.is_empty());
 }
@@ -2305,15 +2345,15 @@ fn construct_effects() {
     assert_eq!(text[1], "  await deleteRecord(c,row,{mode:'remove'});");
     assert_eq!(
         text[2],
-        "  await set(c,row,{done:true},{when:crudWhen.Widget});"
+        "  await set(c,row,{done:true},{when:crudWhen[\"Widget\"]});"
     );
     assert_eq!(
         text[3],
-        "  const created = await create(c,\"demo.Widget\",{title:\"t\"},{when:crudWhen.Widget});"
+        "  const $can$l$303a63726561746564 = await create(c,\"demo.Widget\",{title:\"t\"},{when:crudWhen[\"Widget\"]});"
     );
     assert_eq!(
         text[4],
-        "  const attempt = await send(c,\"demo.Svc.ping\", {},{when:()=>true});"
+        "  const $can$l$313a617474656d7074 = await send(c,\"demo.Svc.ping\", {},{when:()=>true});"
     );
     assert_eq!(text[5], "  await schedule(c,1n,due,\"demo.Due\",{});");
     assert_eq!(text[6], "  await cancel(c,1n);");
@@ -2359,7 +2399,7 @@ fn construct_messages_and_format() {
     };
     assert_eq!(
         emitter.lower_message(&static_message),
-        "message(\"Expense review\",{nl:\"Onkostenbeoordeling\"})"
+        "$can$u$6d657373616765(\"Expense review\",{nl:\"Onkostenbeoordeling\"})"
     );
     let count_param = IrMessage {
         source: "{n} tasks".to_string(),
@@ -2372,7 +2412,7 @@ fn construct_messages_and_format() {
     };
     assert_eq!(
         emitter.lower_message(&count_param),
-        "message(\"{n} tasks\",{},{n:{type:\"int\",value:3n}})"
+        "$can$u$6d657373616765(\"{n} tasks\",{},{n:{type:\"int\",value:3n}})"
     );
     let formatted = typed(
         IrExpr::Format {
@@ -2386,7 +2426,7 @@ fn construct_messages_and_format() {
     );
     assert_eq!(
         emitter.lower_expr(&formatted),
-        "format(c,message(\"Expense review\",{nl:\"Onkostenbeoordeling\"}),{locale:null})"
+        "format(c,$can$u$6d657373616765(\"Expense review\",{nl:\"Onkostenbeoordeling\"}),{locale:null})"
     );
     let (diags, _, _, _) = emitter.finish();
     assert!(diags.is_empty());
@@ -2423,7 +2463,7 @@ fn construct_ui_factories() {
     };
     assert_eq!(
         emitter.lower_ui(&table),
-        "table({context:c,model:\"demo.Widget\",columns:[\"title\",\"count\"]})"
+        "$can$u$7461626c65({context:c,model:\"demo.Widget\",columns:[\"title\",\"count\"]})"
     );
     let card = IrUi {
         factory: "card".to_string(),
@@ -2435,7 +2475,7 @@ fn construct_ui_factories() {
     };
     assert_eq!(
         emitter.lower_ui(&card),
-        "card({context:c,title:\"Work\",children:[table({context:c,model:\"demo.Widget\",columns:[\"title\",\"count\"]})]})"
+        "$can$u$63617264({context:c,title:\"Work\",children:[$can$u$7461626c65({context:c,model:\"demo.Widget\",columns:[\"title\",\"count\"]})]})"
     );
     // Unknown factories (h, native elements) are loud E6008.
     let bad = IrUi {
@@ -2518,12 +2558,12 @@ fn construct_pages_admit_render() {
     assert!(
         // Descriptors are exported: artifact.pages[].export names an
         // importable binding (B1 loadability).
-        module.js.contains("export const reviewPageDescriptor={owner:\"expense\",path:\"/expenses/review\",title:message(\"Expense review\",{nl:\"Onkostenbeoordeling\"}),admit:async(c,routeBindings={})=>{check(hasRole(c,\"expense.reviewer\"),\"forbidden\");return {};},render:reviewPage};"),
+        module.js.contains("export const $can$p$657870656e73653a64657363726970746f723a2f657870656e7365732f726576696577={owner:\"expense\",path:\"/expenses/review\",title:$can$u$6d657373616765(\"Expense review\",{nl:\"Onkostenbeoordeling\"}),admit:async(c,routeBindings={})=>{check(hasRole(c,\"expense.reviewer\"),\"forbidden\");return {};},render:$can$p$657870656e73653a72656e6465723a2f657870656e7365732f726576696577};"),
         "review descriptor:\n{}",
         module.js
     );
     assert!(
-        module.js.contains("export async function reviewPage(c,bindings){return renderPage(c,reviewPageDescriptor,()=>[table({context:c,model:\"expense.Expense\"})]);}"),
+        module.js.contains("export async function $can$p$657870656e73653a72656e6465723a2f657870656e7365732f726576696577(c,bindings){return $can$u$72656e64657250616765(c,$can$p$657870656e73653a64657363726970746f723a2f657870656e7365732f726576696577,()=>[$can$u$7461626c65({context:c,model:\"expense.Expense\"})]);}"),
         "review function:\n{}",
         module.js
     );
@@ -2534,8 +2574,14 @@ fn construct_pages_admit_render() {
         "order/group/nav slots:\n{}",
         module.js
     );
-    let review_pos = module.js.find("reviewPageDescriptor").unwrap();
-    let mine_pos = module.js.find("minePageDescriptor").unwrap();
+    let review_pos = module
+        .js
+        .find("$can$p$657870656e73653a64657363726970746f723a2f657870656e7365732f726576696577")
+        .unwrap();
+    let mine_pos = module
+        .js
+        .find("$can$p$657870656e73653a64657363726970746f723a2f657870656e7365732f6d696e65")
+        .unwrap();
     assert!(review_pos < mine_pos, "descriptors in source order");
     let (diags, _, _, pages) = emitter.finish();
     assert!(diags.is_empty());
@@ -2595,7 +2641,7 @@ fn construct_page_preferences_preamble_reads_bindings() {
     emitter.lower_page(&page, &mut out);
     let module = out.finish("test.mjs".to_string());
     assert!(
-        module.js.contains("export async function prefsPage(c,bindings){const preferences=bindings.preferences.expense;return renderPage(c,prefsPageDescriptor,()=>[text({context:c,value:preferences.view})]);}"),
+        module.js.contains("export async function $can$p$657870656e73653a72656e6465723a2f657870656e7365732f7072656673(c,bindings){const preferences=bindings.preferences[\"expense\"];return $can$u$72656e64657250616765(c,$can$p$657870656e73653a64657363726970746f723a2f657870656e7365732f7072656673,()=>[$can$u$74657874({context:c,value:preferences.view})]);}"),
         "preamble reads bindings:\n{}",
         module.js
     );
@@ -3253,7 +3299,7 @@ fn form_fields_unknown_op_stays_loud() {
     // No operation prop (unresolvable) and crucially no `fields` prop:
     // ui fails loudly on the missing required prop, as before.
     assert!(
-        entry.contains("form({context:c,display:\"inline\"})"),
+        entry.contains("$can$u$666f726d({context:c,display:\"inline\"})"),
         "loud form without fields:\n{entry}"
     );
 }
@@ -3281,15 +3327,15 @@ fn catalog_factories_lower_from_source() {
     assert!(diags.is_empty(), "clean lowerings: {diags:?}");
     let entry = &artifact.modules[0].js;
     for marker in [
-        "breadcrumbs({context:c})",
-        "input({context:c,field:\"name\"})",
-        "badge({context:rowView,value:row.name})",
-        "row.name !== \"\" ? alert({context:rowView,children:[text({context:rowView,values:[row.name]})]}) : null",
-        "divider({context:rowView,caption:message(\"More\",{nl:\"Meer\"})})",
-        "join({context:rowView,children:[button({context:rowView,opens:\"dlg\"})]})",
-        "modal({context:rowView,caption:message(\"Dialog\",{nl:\"Dialoog\"}),id:\"dlg\",children:[slot({context:rowView,name:\"content\",children:[text({context:rowView,values:[row.name]})]})]})",
-        "pagination({context:rowView})",
-        "stat({context:c,values:[1n,2n]})",
+        "$can$u$62726561646372756d6273({context:c})",
+        "$can$u$696e707574({context:c,field:\"name\"})",
+        "$can$u$6261646765({context:$can$l$313a726f7756696577,value:$can$l$303a726f77.name})",
+        "$can$l$303a726f77.name !== \"\" ? $can$u$616c657274({context:$can$l$313a726f7756696577,children:[$can$u$74657874({context:$can$l$313a726f7756696577,values:[$can$l$303a726f77.name]})]}) : null",
+        "$can$u$64697669646572({context:$can$l$313a726f7756696577,caption:$can$u$6d657373616765(\"More\",{nl:\"Meer\"})})",
+        "$can$u$6a6f696e({context:$can$l$313a726f7756696577,children:[$can$u$627574746f6e({context:$can$l$313a726f7756696577,opens:\"dlg\"})]})",
+        "$can$u$6d6f64616c({context:$can$l$313a726f7756696577,caption:$can$u$6d657373616765(\"Dialog\",{nl:\"Dialoog\"}),id:\"dlg\",children:[$can$u$736c6f74({context:$can$l$313a726f7756696577,name:\"content\",children:[$can$u$74657874({context:$can$l$313a726f7756696577,values:[$can$l$303a726f77.name]})]})]})",
+        "$can$u$706167696e6174696f6e({context:$can$l$313a726f7756696577})",
+        "$can$u$73746174({context:c,values:[1n,2n]})",
     ] {
         assert!(entry.contains(marker), "missing {marker}:\n{entry}");
     }
@@ -3347,11 +3393,11 @@ fn value_queries_lower_from_source() {
     assert!(diags.is_empty(), "clean lowerings: {diags:?}");
     let entry = &artifact.modules[0].js;
     assert!(
-        entry.contains("const picked = ids.filter((n)=>n > 1n);"),
+        entry.contains("const $can$l$323a7069636b6564 = $can$l$303a696473.filter(($can$l$313a6e)=>$can$l$313a6e > 1n);"),
         "value where filters:\n{entry}"
     );
     assert!(
-        entry.contains("const names = (await records(c,\"shop.Item\",{where:(row)=>row.stock > 0n})).map((item)=>item.name);"),
+        entry.contains("const $can$l$353a6e616d6573 = (await records(c,\"shop.Item\",{where:($can$l$333a726f77)=>$can$l$333a726f77.stock > 0n})).map(($can$l$343a6974656d)=>$can$l$343a6974656d.name);"),
         "model select maps:\n{entry}"
     );
 }
@@ -3416,7 +3462,7 @@ fn construct_ui_gate_ternary() {
     };
     assert_eq!(
         emitter.lower_ui(&alert),
-        "row.status !== \"draft\" ? alert({context:c}) : null"
+        "row.status !== \"draft\" ? $can$u$616c657274({context:c}) : null"
     );
     // An async gate forces the row lambda async, like an async child.
     let async_gate = typed(
@@ -3448,7 +3494,7 @@ fn construct_ui_gate_ternary() {
     assert!(
         emitter
             .lower_ui(&list)
-            .contains("renderRow:async(row,rowView)=>["),
+            .contains("renderRow:async($can$l$303a726f77,$can$l$313a726f7756696577)=>["),
         "async gate propagates"
     );
     let (diags, _, _, _) = emitter.finish();
@@ -3490,7 +3536,10 @@ fn construct_value_query() {
         int_ty.clone(),
     );
     let (text, _, diags) = lower(&ir, &query);
-    assert_eq!(text, "selected.map((expense)=>expense)");
+    assert_eq!(
+        text,
+        "selected.map(($can$l$303a657870656e7365)=>$can$l$303a657870656e7365)"
+    );
     assert!(diags.is_empty(), "clean: {diags:?}");
     // Awaiting bases parenthesize: `(await records(...)).map(...)`.
     let fetched = typed(
@@ -3534,7 +3583,7 @@ fn construct_value_query() {
     let (text, _, diags) = lower(&ir, &query);
     assert_eq!(
         text,
-        "(await records(c,\"demo.Widget\",{})).filter((row)=>row > 1n)"
+        "(await records(c,\"demo.Widget\",{})).filter(($can$l$303a726f77)=>$can$l$303a726f77 > 1n)"
     );
     assert!(diags.is_empty(), "clean: {diags:?}");
 }
@@ -3853,7 +3902,7 @@ fn c01_lexer_strings_reach_literal_metadata_and_message_lowering() {
                 .contains(&format!("default:{emitted}"))
         );
         assert!(artifact.modules[0].js.contains(&format!(
-            "label:message({emitted},{{nl:{emitted},fr:null}})"
+            "label:$can$u$6d657373616765({emitted},{{nl:{emitted},fr:null}})"
         )));
         assert_eq!(
             d03_input(d03_operation(&artifact, "Shop.Gadget.create"), "title")
@@ -5980,12 +6029,14 @@ fn t31_hook_run_shape() {
     let js = &artifact.modules[0].js;
     // Registry entry: trigger key, scenario identity, engine op spelling.
     assert!(
-        js.contains("hooks:{\"T.M.update\":{name:\"T.h\",ops:[\"update\"],run:async function h("),
+        js.contains(
+            "hooks:{\"T.M.update\":{name:\"T.h\",ops:[\"update\"],run:async function $can$s$542e68("
+        ),
         "registry:\n{js}"
     );
     // Engine-shaped signature over the candidate and hook context.
     assert!(
-        js.contains("run:async function h($candidate,$hookCtx){"),
+        js.contains("run:async function $can$s$542e68($candidate,$hookCtx){"),
         "signature:\n{js}"
     );
     // Live event views: after aliases the candidate's fields plus trigger
@@ -6015,11 +6066,11 @@ fn t31_hook_run_shape() {
     );
     // Parented child: deterministic trigger-derived id, triggerId parenting.
     assert!(
-        js.contains("const c={id:$hookCtx.triggerId+\"/staged/\"+($stagedNext++)};"),
+        js.contains("const $can$l$303a63={id:$hookCtx.triggerId+\"/staged/\"+($stagedNext++)};"),
         "staged id:\n{js}"
     );
     assert!(
-        js.contains("$hookCtx.stage({op:\"create\",model:\"T.C\",id:c.id,parent:{model:\"T.M\",id:event.after.id},data:{m:\"note\"}});"),
+        js.contains("$hookCtx.stage({op:\"create\",model:\"T.C\",id:$can$l$303a63.id,parent:{model:\"T.M\",id:event.after.id},data:{m:\"note\"}});"),
         "staged create:\n{js}"
     );
     // Timers stage through the hook context with the canonical event.
@@ -6059,11 +6110,13 @@ fn t31_hook_delete_op_registry() {
     assert!(diags.is_empty(), "{diags:?}");
     let js = &artifact.modules[0].js;
     assert!(
-        js.contains("hooks:{\"T.M.delete\":{name:\"T.g\",ops:[\"remove\"],run:async function g("),
+        js.contains(
+            "hooks:{\"T.M.delete\":{name:\"T.g\",ops:[\"remove\"],run:async function $can$s$542e67("
+        ),
         "registry:\n{js}"
     );
     assert!(
-        js.contains("const x = event.before.t;"),
+        js.contains("const $can$l$303a78 = event.before.t;"),
         "before read:\n{js}"
     );
     assert!(js.contains("return $candidate;"), "candidate return:\n{js}");
@@ -6151,7 +6204,7 @@ fn t31_plain_schedule_lowers() {
     assert!(diags.is_empty(), "{diags:?}");
     let js = &artifact.modules[0].js;
     assert!(
-        js.contains("await schedule(c,\"k-1\",n.due,\"T.Due\",{s:\"x\"});"),
+        js.contains("await schedule(c,\"k-1\",$can$l$303a6e.due,\"T.Due\",{s:\"x\"});"),
         "schedule lowering:\n{js}"
     );
     t31_assert_parses(js, "plain-schedule");
@@ -6693,7 +6746,7 @@ console.log(JSON.stringify(verdict));
 // consts (`export const create/update/delete`): `create` collided with
 // the module's own stdlib import (duplicate declaration) and `delete`
 // is a reserved word, so the entry module was unimportable JS. Exports
-// are module-prefixed (`Shop_create`, ...); this test pins the shape,
+// use injective authored identities; this test follows artifact mappings,
 // parses, imports and executes one op through the emitted handler.
 
 /// Parse the local-vs-exported binding pairs out of one emitted
@@ -6728,7 +6781,7 @@ fn t21l1_import_bindings(line: &str) -> Vec<(String, String)> {
 /// `@canlang/stdlib` (every imported binding served), and the emitted
 /// create handler executes with the real seams called (model id +
 /// input mapping observed). Failing-first: on bare exports both the
-/// parse and the prefixed-const assertions fail.
+/// parse and the artifact export assertions fail.
 #[test]
 fn t21l1_single_app_crud_entry_imports_and_executes() {
     let (catalog, path) = golden_catalog();
@@ -6740,18 +6793,30 @@ fn t21l1_single_app_crud_entry_imports_and_executes() {
     assert!(diags.is_empty(), "{diags:?}");
     assert_eq!(artifact.modules.len(), 1, "single-app emits entry only");
     let js = &artifact.modules[0].js;
-    assert_eq!(artifact.modules[0].path, "shop.mjs", "entry path");
-    // Module-prefixed identity consts; no bare or reserved-word exports.
-    for (export, canonical) in [
-        ("Shop_create", "Shop.Gadget.create"),
-        ("Shop_update", "Shop.Gadget.update"),
-        ("Shop_delete", "Shop.Gadget.delete"),
-    ] {
-        assert!(
-            js.contains(&format!("export const {export}=\"{canonical}\";")),
-            "missing {export} in:\n{js}"
-        );
-    }
+    assert_eq!(
+        artifact.modules[0].path, "$can$m$53686f70.mjs",
+        "entry path"
+    );
+    // Artifact mappings identify exports and callable registry paths.
+    let callable_ids = [
+        "Shop.Gadget.create",
+        "Shop.Gadget.update",
+        "Shop.Gadget.delete",
+    ];
+    let callables: Vec<_> = callable_ids
+        .iter()
+        .map(|id| {
+            let callable = artifact
+                .callables
+                .iter()
+                .find(|c| &c.id == id)
+                .expect("CRUD callable mapping");
+            assert_eq!(callable.module, artifact.modules[0].path);
+            assert_eq!(callable.member, vec![id.to_string()]);
+            assert!(js.contains(&format!("export const {}=\"{id}\";", callable.export)));
+            callable
+        })
+        .collect();
     for bare in [
         "export const create=",
         "export const update=",
@@ -6813,15 +6878,17 @@ fn t21l1_single_app_crud_entry_imports_and_executes() {
         std::fs::write(package_dir.join("index.mjs"), stub(bindings)).unwrap();
     }
     let driver = r##"
-import { canApp, Shop_create, Shop_update, Shop_delete } from './entry.mjs';
+import * as entry from './entry.mjs';
+const mappings = MAPPINGS;
 import { __calls } from '@canlang/stdlib';
 const verdict = {};
 try {
-  verdict.createId = Shop_create;
-  verdict.updateId = Shop_update;
-  verdict.deleteId = Shop_delete;
-  const app = canApp();
-  const out = await app.createGadget({}, { title: "widget" });
+  verdict.createId = entry[mappings[0].export];
+  verdict.updateId = entry[mappings[1].export];
+  verdict.deleteId = entry[mappings[2].export];
+  const app = entry.canApp();
+  const create = mappings[0].member.reduce((value, key) => value[key], app);
+  const out = await create({}, { title: "widget" });
   verdict.result = out ?? null;
   verdict.calls = __calls;
   verdict.ok = true;
@@ -6831,6 +6898,21 @@ try {
 }
 console.log(JSON.stringify(verdict));
 "##;
+    let mappings = Json::Arr(
+        callables
+            .iter()
+            .map(|c| {
+                Json::Obj(vec![
+                    ("export".to_string(), Json::Str(c.export.clone())),
+                    (
+                        "member".to_string(),
+                        Json::Arr(c.member.iter().cloned().map(Json::Str).collect()),
+                    ),
+                ])
+            })
+            .collect(),
+    );
+    let driver = driver.replace("MAPPINGS", &canlang_compiler::json::render(&mappings));
     std::fs::write(dir.join("run.mjs"), driver).unwrap();
     let out = std::process::Command::new("node")
         .arg("run.mjs")
@@ -7258,7 +7340,7 @@ fn a2a_emit(
 /// (`async function name(c,...params)`, CanChat/CanDiscover draft
 /// contract); call sites lower to awaited calls, including nested
 /// derive-to-derive calls and calls from policy rules (which go
-/// `async`). The `canApp()` registry holds shorthand references.
+/// `async`). The `canApp()` registry holds canonical callable references.
 #[test]
 fn a2a_derive_call_lowers_to_awaited_named_fn() {
     let src = "package shop\n Given\n  M { x:int }\n  policy M read=members where=outer(9)==10\n  derive inner(v:int):int = v\n  derive outer(v:int):int = inner(v)\n When\n  scenario tick() by=members\n   require outer(1)==2\n   do let done = 1\n Then\n";
@@ -7269,24 +7351,27 @@ fn a2a_derive_call_lowers_to_awaited_named_fn() {
     );
     let js = &artifact.modules[0].js;
     assert!(
-        js.contains("async function inner(c,v){return v;}"),
+        js.contains(
+            "async function $can$s$73686f702e696e6e6572(c,$can$l$303a76){return $can$l$303a76;}"
+        ),
         "inner derive shape:\n{js}"
     );
     assert!(
-        js.contains("async function outer(c,v){return await inner(c,v);}"),
+        js.contains("async function $can$s$73686f702e6f75746572(c,$can$l$313a76){return await $can$s$73686f702e696e6e6572(c,$can$l$313a76);}"),
         "nested derive call:\n{js}"
     );
     assert!(
-        js.contains("await outer(c,1n)"),
+        js.contains("await $can$s$73686f702e6f75746572(c,1n)"),
         "require calls the derive:\n{js}"
     );
     assert!(
-        js.contains("async(c,row)=>") && js.contains("await outer(c,9n)"),
+        js.contains("async(c,row)=>") && js.contains("await $can$s$73686f702e6f75746572(c,9n)"),
         "policy rule goes async over the call:\n{js}"
     );
     assert!(
-        js.contains("\ninner,\n") && js.contains("\nouter,\n"),
-        "registry holds shorthand refs:\n{js}"
+        js.contains("\n\"shop.inner\":$can$s$73686f702e696e6e6572,\n")
+            && js.contains("\n\"shop.outer\":$can$s$73686f702e6f75746572,\n"),
+        "registry holds canonical callable refs:\n{js}"
     );
     assert!(
         !js.contains("(c,row){return"),
@@ -7314,7 +7399,7 @@ fn a2a_for_limit_checks_length_then_loops() {
         "excess fails the operation:\n{js}"
     );
     assert!(
-        js.contains("for (const item of $forRows0) {"),
+        js.contains("for (const $can$l$303a6974656d of $forRows0) {"),
         "loop iterates the checked fetch:\n{js}"
     );
 }
@@ -7420,19 +7505,19 @@ fn a2b_ui_profiles_lower_to_factories() {
     );
     let js = &artifact.modules[0].js;
     assert!(
-        js.contains("fieldset({context:c,caption:message(\"Details\"),children:[input({context:c,field:\"name\"}),radio({context:c,field:\"name\"}),select({context:c,field:\"name\"})]})"),
+        js.contains("$can$u$6669656c64736574({context:c,caption:$can$u$6d657373616765(\"Details\"),children:[$can$u$696e707574({context:c,field:\"name\"}),$can$u$726164696f({context:c,field:\"name\"}),$can$u$73656c656374({context:c,field:\"name\"})]})"),
         "fieldset group + field controls:\n{js}"
     );
     assert!(
-        js.contains("fab({context:c,main:[button({context:c,opens:\"dlg\"})],actions:[button({context:c,opens:\"dlg\"})]})"),
+        js.contains("$can$u$666162({context:c,main:[$can$u$627574746f6e({context:c,opens:\"dlg\"})],actions:[$can$u$627574746f6e({context:c,opens:\"dlg\"})]})"),
         "fab main+actions:\n{js}"
     );
     assert!(
-        js.contains("chatBubble({context:rowView,content:[content({context:rowView,value:row.name})],header:[text({context:rowView,values:[row.name]})]})"),
+        js.contains("$can$u$63686174427562626c65({context:$can$l$313a726f7756696577,content:[$can$u$636f6e74656e74({context:$can$l$313a726f7756696577,value:$can$l$303a726f77.name})],header:[$can$u$74657874({context:$can$l$313a726f7756696577,values:[$can$l$303a726f77.name]})]})"),
         "chat slots dissolve to props:\n{js}"
     );
     assert!(
-        js.contains("deleteRecord({context:rowView,operation:\"shop.Item.delete\",record:row,mode:\"archive\",action:\"/api/operations/shop.Item.delete\",operationId:\"shop.Item.delete\",itemLabel:\"Item\",confirm:\"Archive this Item?\",idPrefix:\"delete-shop-Item\"})"),
+        js.contains("$can$u$64656c6574655265636f7264({context:$can$l$313a726f7756696577,operation:\"shop.Item.delete\",record:$can$l$303a726f77,mode:\"archive\",action:\"/api/operations/shop.Item.delete\",operationId:\"shop.Item.delete\",itemLabel:\"Item\",confirm:\"Archive this Item?\",idPrefix:\"delete-shop-Item\"})"),
         "delete infers the full card:\n{js}"
     );
 }
