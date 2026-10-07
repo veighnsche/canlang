@@ -1,0 +1,16 @@
+diff --git a/compiler/src/analysis/types.rs b/compiler/src/analysis/types.rs
+index 7ecb9173..1076f60f 100644
+--- a/compiler/src/analysis/types.rs
++++ b/compiler/src/analysis/types.rs
+@@ -5023,7 +5023,10 @@ impl<'a> Typer<'a> {
+             edges.entry(*caller).or_default().push((*callee, *span));
+         }
+         let mut reported: HashSet<Vec<SymbolId>> = HashSet::new();
+-        let callers: Vec<SymbolId> = edges.keys().copied().collect();
++        // Prefer declaration-index order for a fixed supplied file order.
++        // Sorting only origins preserves authored edge order and closing spans.
++        let mut callers: Vec<SymbolId> = edges.keys().copied().collect();
++        callers.sort_by_key(|id| id.0);
+         for caller in callers {
+             // Depth-first search for a path back to `caller`.
+             let mut stack: Vec<(SymbolId, Vec<SymbolId>)> = vec![(caller, vec![caller])];

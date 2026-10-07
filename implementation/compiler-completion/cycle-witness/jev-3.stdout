@@ -1,0 +1,1 @@
+{"saved": "implementation/compiler-completion/cycle-witness/jev-3.response.json", "model": "jev-1.13.0", "answers": {"origin_policy": {"type": "choice", "choice": "index_order", "confidence": 1.0, "probabilities": {"source_order": 0.0, "index_order": 1.0, "name_order": 0.0}}}, "usage": {"input_tokens": 851, "output_tokens": 43}}

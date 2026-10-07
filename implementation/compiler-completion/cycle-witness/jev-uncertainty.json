@@ -1,0 +1,48 @@
+{
+  "advice": [
+    {
+      "origin_policy": {
+        "type": "choice",
+        "choice": "index_order",
+        "confidence": 1.0,
+        "probabilities": {
+          "index_order": 1.0,
+          "source_order": 0.0,
+          "name_order": 0.0
+        }
+      }
+    },
+    {
+      "origin_policy": {
+        "type": "choice",
+        "choice": "index_order",
+        "confidence": 1.0,
+        "probabilities": {
+          "source_order": 0.0,
+          "name_order": 0.0,
+          "index_order": 1.0
+        }
+      }
+    },
+    {
+      "origin_policy": {
+        "type": "choice",
+        "choice": "index_order",
+        "confidence": 1.0,
+        "probabilities": {
+          "source_order": 0.0,
+          "index_order": 1.0,
+          "name_order": 0.0
+        }
+      }
+    }
+  ],
+  "selected": "index_order",
+  "rationale": "Smallest origin-only deterministic fix, existing declaration/check-file indexing contract. No source permutation invariance claimed.",
+  "remaining_uncertainty": [
+    "Indexing order includes nested/generated symbols; it is not guaranteed textual source-position order.",
+    "JEV confidence is advice, not proof; finite tests qualify only named graph shapes.",
+    "Source/declaration order permutations can change witnesses and overlapping vertex-set choices; unchanged DFS scopes remain intentional."
+  ],
+  "failed_attempts": "Three initial sandbox connection failures retained; escalated current minimal requests then succeeded. No automatic approval rejection."
+}

@@ -1,0 +1,20 @@
+   Compiling canlang-compiler v0.1.0 (/private/tmp/canlang-cycle-witness-before)
+error: couldn't read `src/../can-completions.bash`: No such file or directory (os error 2)
+    --> src/cli.rs:1182:19
+     |
+1182 |         "bash" => include_str!("../can-completions.bash"),
+     |                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error: couldn't read `src/../can-completions.zsh`: No such file or directory (os error 2)
+    --> src/cli.rs:1183:18
+     |
+1183 |         "zsh" => include_str!("../can-completions.zsh"),
+     |                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error: couldn't read `src/../can-completions.fish`: No such file or directory (os error 2)
+    --> src/cli.rs:1184:19
+     |
+1184 |         "fish" => include_str!("../can-completions.fish"),
+     |                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error: could not compile `canlang-compiler` (lib) due to 3 previous errors

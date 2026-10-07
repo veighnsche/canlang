@@ -1,0 +1,15 @@
+
+running 10 tests
+test fresh_process_child ... ok
+test diamond_keeps_distinct_path_vertex_sets_inside_one_scc ... ok
+test standalone_derive_cycles_do_not_become_static_call_cycles ... ok
+test independent_self_and_duplicate_closing_edges_keep_vertex_set_dedup ... ok
+test acyclic_scenario_derive_crud_and_capability_calls_are_leaves ... ok
+test declaration_permutations_deliberately_follow_index_order ... ok
+test upstream_and_overlapping_cycles_have_exact_witnesses ... ok
+test containment_composition_and_fixture_seed_order_keep_their_own_policies ... ok
+test check_file_permutations_follow_index_order_even_for_duplicate_paths ... ok
+test identical_input_is_exact_across_fresh_processes ... ok
+
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.10s
+

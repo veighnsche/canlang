@@ -1,0 +1,109 @@
+
+running 11 tests
+test t35r23_disabled_operation_has_no_alias ... ok
+test t35r23_alias_targets_owner_operation ... ok
+test t35r23_self_import_leaves_canonical_untouched ... ok
+test judgment_duplicate_is_e2002 ... ok
+test failed_trusted_handler_builtin_name_keeps_event ... ok
+test judgment_import_undeclared_still_e2004 ... ok
+test set_parent_target_parity ... ok
+test failed_trusted_handler_keeps_event ... ok
+test failed_plain_scenario_stays_untrusted ... ok
+test judgment_registers_and_self_import_resolves ... ok
+test t35r23_ambiguous_model_names_have_no_alias ... ok
+
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+
+running 37 tests
+test error_code_vocabulary_is_closed ... ok
+test dedup_keeps_first_across_passes ... ok
+test disabled_crud_operation_rejects_examples ... ok
+test example_tables_carry_all_families ... ok
+test e5001_create_header_still_requires_writable_fields ... ok
+test e5001_create_header_skips_derived_fields ... ok
+test broken_import_caller_and_crud_head_stay_quiet ... ok
+test icu_number_style_and_source_anchor ... ok
+test delivery_recipe_selectors ... ok
+test expected_error_codes ... ok
+test missing_required_input ... ok
+test message_signatures ... ok
+test readiness_gate ... ok
+test icu_profile_violations ... ok
+test fixture_overrides ... ok
+test imported_wrong_kind_names_fire ... ok
+test seed_rejects_catalog_names ... ok
+test observation_roots ... ok
+test sequence_caller_names_known_wrong_kinds ... ok
+test parent_selectors ... ok
+test icu_selector_types ... ok
+test icu_numeric_type_matrix ... ok
+test sort_matches_check_program_key ... ok
+test trusted_handlers_take_no_as ... ok
+test sequence_bindings_and_results ... ok
+test request_selectors ... ok
+test overlapping_selectors ... ok
+test warnings_never_block ... ok
+test sequences_call_their_enclosing_scenario ... ok
+test unresolved_imports_stay_quiet ... ok
+test sequence_callers_arguments_and_envelopes ... ok
+test table_callers ... ok
+test sequence_call_targets ... ok
+test unknown_selectors ... ok
+test unknown_binding_and_seed_shape ... ok
+test shipped_examples_are_e5xxx_clean ... ok
+test shipped_examples_are_e5xxx_clean_through_check_program ... ok
+
+test result: ok. 37 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+
+
+running 46 tests
+test backfill_tables ... ok
+test cross_package_crud ... ok
+test cross_package_rule ... ok
+test app_scope_needs_policy ... ok
+test delete_disabled ... ok
+test containment_cycle_terminates ... ok
+test bound_crud_call_exempt ... ok
+test call_remote_target ... ok
+test cross_package_mutation ... ok
+test cross_package_member_mutation ... ok
+test f6_bare_model_checks_with_only_the_standing_e1203 ... ok
+test f6_anchored_misuse_diagnosed ... ok
+test f6_cross_owner_cohort_diagnosed ... ok
+test f6_bounded_loop_rules_retained ... ok
+test f6_anchored_collection_checks_with_only_the_standing_e1203 ... ok
+test f6_missing_as_binding_accepted ... ok
+test f6_committed_trigger_bare_model_checks ... ok
+test f6_uncontained_child_diagnosed ... ok
+test emission_table_shapes ... ok
+test f6_undecoded_trigger_stands_down ... ok
+test f6_unknown_model_diagnosed ... ok
+test hook_tables ... ok
+test f6_unknown_collection_hop_diagnosed ... ok
+test hook_on_disabled_op ... ok
+test mixed_handler_scope ... ok
+test heterogeneous_action_call ... ok
+test migration_tables ... ok
+test f6_unsupported_forms_diagnosed ... ok
+test nullable_secret_grant ... ok
+test redundant_actor_subject ... ok
+test secret_field_grant ... ok
+test t25_l1_unknown_leaves_stay_e2013_only ... ok
+test secret_return ... ok
+test t25_l1_embedded_value_leaves_stay_clean ... ok
+test t25_l1_user_traversal_is_e4012 ... ok
+test t25_l1_unsupported_traversal_stays_e2013 ... ok
+test t25_l1_member_traversal_is_e4012 ... ok
+test transitive_handler_scope ... ok
+test unreachable_after_return ... ok
+test t25_l1_valid_leaf_grants_stay_clean ... ok
+test write_only_handler_scope ... ok
+test recovered_declarations_keep_independent_effects_and_policies ... ok
+test teamtasks_stays_e4_clean ... ok
+test expenseflow_stays_e4_clean ... ok
+test every_scope_follows_only_bound_reachable_derives ... ok
+test f6_draft_bodies_accepted_without_trimming ... ok
+
+test result: ok. 46 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.08s
+

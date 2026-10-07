@@ -1,0 +1,4 @@
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.21s
+     Running tests/b4_resolve.rs (compiler/target/debug/deps/b4_resolve-6a0f6f63d06da789)
+     Running tests/check.rs (compiler/target/debug/deps/check-303aec0da8e456d7)
+     Running tests/effects.rs (compiler/target/debug/deps/effects-904d5d38a6756069)

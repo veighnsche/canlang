@@ -1,0 +1,107 @@
+{
+  "writer_freeze_match": {
+    "compiler/src/analysis/types.rs": true,
+    "compiler/tests/cycle_witness.rs": true,
+    "AGENTS.md": true,
+    "docs/research/compiler-library-audit-20261006/responsibility-map/semantics.md": true,
+    "docs/research/compiler-library-audit-20261006/responsibility-map/semantic-evidence/review-authority.md": true,
+    "docs/research/compiler-library-audit-20261006/pass9/graphs/ASSESSMENT.md": true,
+    "docs/research/compiler-library-audit-20261006/pass9/graphs/compiler_probe.rs": true
+  },
+  "before_after_pins_match": true,
+  "changed_preexisting": [
+    "src/analysis/types.rs"
+  ],
+  "added": [
+    "tests/cycle_witness.rs"
+  ],
+  "negative_controls": "48 before/after processes: ordered public tuples and raw multisets preserved",
+  "fresh_processes_per_probe": 3,
+  "commands": [
+    {
+      "command": [
+        "rustc",
+        "--edition=2024",
+        "implementation/compiler-completion/cycle-witness/compiler_probe.rs",
+        "--extern",
+        "canlang_compiler=/private/tmp/canlang-cycle-witness-after/target/debug/libcanlang_compiler.rlib",
+        "-L",
+        "dependency=/private/tmp/canlang-cycle-witness-after/target/debug/deps",
+        "-o",
+        "/private/tmp/canlang-cycle-witness-independent-observer"
+      ],
+      "exit": 0,
+      "stderr": ""
+    },
+    {
+      "command": [
+        "/private/tmp/canlang-cycle-witness-independent-probe"
+      ],
+      "exit": 0,
+      "stdout": "implementation/compiler-completion/cycle-witness/independent-review/handwritten-1.stdout"
+    },
+    {
+      "command": [
+        "/private/tmp/canlang-cycle-witness-independent-probe"
+      ],
+      "exit": 0,
+      "stdout": "implementation/compiler-completion/cycle-witness/independent-review/handwritten-2.stdout"
+    },
+    {
+      "command": [
+        "/private/tmp/canlang-cycle-witness-independent-probe"
+      ],
+      "exit": 0,
+      "stdout": "implementation/compiler-completion/cycle-witness/independent-review/handwritten-3.stdout"
+    },
+    {
+      "command": [
+        "/private/tmp/canlang-cycle-witness-independent-observer"
+      ],
+      "exit": 0,
+      "stdout": "implementation/compiler-completion/cycle-witness/independent-review/observer-1.stdout"
+    },
+    {
+      "command": [
+        "/private/tmp/canlang-cycle-witness-independent-observer"
+      ],
+      "exit": 0,
+      "stdout": "implementation/compiler-completion/cycle-witness/independent-review/observer-2.stdout"
+    },
+    {
+      "command": [
+        "/private/tmp/canlang-cycle-witness-independent-observer"
+      ],
+      "exit": 0,
+      "stdout": "implementation/compiler-completion/cycle-witness/independent-review/observer-3.stdout"
+    },
+    {
+      "command": [
+        "/private/tmp/canlang-cycle-witness-after/target/debug/deps/cycle_witness-fc62c1864f3a241c",
+        "--exact",
+        "check_file_permutations_follow_index_order_even_for_duplicate_paths",
+        "--nocapture"
+      ],
+      "exit": 0,
+      "stdout": "implementation/compiler-completion/cycle-witness/independent-review/file-permutations.stdout"
+    }
+  ],
+  "probe_sha256": "8fce83ea14b93385e5dc44e913c1f0b4afaf79eae7d4dd1a7c4ce1c2595ef6a5",
+  "binary_sha256": {
+    "/private/tmp/canlang-cycle-witness-after/target/debug/libcanlang_compiler.rlib": "ff1221524a0fc0b1a096f4a83c076f562e94648d61ddbf807ee03a97a153c4a6",
+    "/private/tmp/canlang-cycle-witness-independent-probe": "31616b1f699f3607753e55cb18e94bacf04295448e97cfab2ce29d01401ec416",
+    "/private/tmp/canlang-cycle-witness-independent-observer": "940a1a0ce930600710c051d90dbcc3439b0d0b2f795c33412024ebcec400003f"
+  },
+  "probe_build_command": [
+    "rustc",
+    "--edition=2024",
+    "implementation/compiler-completion/cycle-witness/independent-review/probe.rs",
+    "--extern",
+    "canlang_compiler=/private/tmp/canlang-cycle-witness-after/target/debug/libcanlang_compiler.rlib",
+    "-L",
+    "dependency=/private/tmp/canlang-cycle-witness-after/target/debug/deps",
+    "-o",
+    "/private/tmp/canlang-cycle-witness-independent-probe"
+  ],
+  "verdict": "accepted within fixed-input origin-order scope; no blockers"
+}

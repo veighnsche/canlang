@@ -1,0 +1,5 @@
+   Compiling canlang-compiler v0.1.0 (/Users/vince/Projects/canlang/compiler)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 2.28s
+     Running tests/analysis.rs (compiler/target/debug/deps/analysis-33fe4504353b37c5)
+     Running tests/b4_examples.rs (compiler/target/debug/deps/b4_examples-d17d793d1dc0add8)
+error: test failed, to rerun pass `--test b4_examples`

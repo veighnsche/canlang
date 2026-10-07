@@ -1,0 +1,5 @@
+{
+  "attempt": "Compared all after observer case raw+public sequences as deterministic, including unrelated fixture/derive raw HashMap origin order.",
+  "outcome": "AssertionError; this expectation was too broad. No production issue: unrelated public order and raw multiplicity remain preserved.",
+  "correction": "Require exact ordered call/public tuples; compare raw multisets for separate graph policies."
+}

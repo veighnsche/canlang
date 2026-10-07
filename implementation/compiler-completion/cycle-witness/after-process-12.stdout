@@ -1,0 +1,34 @@
+CASE composition_upstream
+RAW E2007 19..20 app composition cycle through 'A'
+RAW E2007 34..35 app composition cycle through 'B'
+PUBLIC E2007 19..20 app composition cycle through 'A'
+PUBLIC E2007 34..35 app composition cycle through 'B'
+CASE composition_duplicate
+RAW E2007 4..5 app composition cycle through 'A'
+RAW E2007 4..5 app composition cycle through 'A'
+RAW E2007 21..22 app composition cycle through 'B'
+RAW E2007 21..22 app composition cycle through 'B'
+PUBLIC E2007 4..5 app composition cycle through 'A'
+PUBLIC E2007 21..22 app composition cycle through 'B'
+CASE ownership_upstream
+RAW E2008 13..14 containment cycle through model 'U'
+RAW E2008 29..30 containment cycle through model 'A'
+RAW E2008 45..46 containment cycle through model 'B'
+PUBLIC E2008 13..14 containment cycle through model 'U'
+PUBLIC E2008 29..30 containment cycle through model 'A'
+PUBLIC E2008 45..46 containment cycle through model 'B'
+CASE fixture_upstream
+RAW E2017 73..74 fixture reference cycle through 'a'
+RAW E2017 92..93 fixture reference cycle through 'b'
+PUBLIC E2017 73..74 fixture reference cycle through 'a'
+PUBLIC E2017 92..93 fixture reference cycle through 'b'
+CASE derive_upstream
+RAW E2018 42..44 derived-value cycle through 'a'
+RAW E2018 65..67 derived-value cycle through 'b'
+PUBLIC E2018 42..44 derived-value cycle through 'a'
+PUBLIC E2018 65..67 derived-value cycle through 'b'
+CASE calls_upstream
+PUBLIC E3005 141..142 call cycle: a -> b -> a
+CASE calls_overlap
+PUBLIC E3005 111..112 call cycle: a -> b -> a
+PUBLIC E3005 154..155 call cycle: a -> c -> a

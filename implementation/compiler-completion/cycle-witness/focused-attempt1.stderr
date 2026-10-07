@@ -1,0 +1,10 @@
+   Compiling canlang-compiler v0.1.0 (/Users/vince/Projects/canlang/compiler)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 3.54s
+     Running tests/cycle_witness.rs (compiler/target/debug/deps/cycle_witness-8e0e4a902291acbc)
+
+thread 'standalone_derive_cycles_do_not_become_static_call_cycles' (1570927) panicked at tests/cycle_witness.rs:153:5:
+assertion `left == right` failed
+  left: [" a", " b"]
+ right: ["a", "b"]
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+error: test failed, to rerun pass `--test cycle_witness`
