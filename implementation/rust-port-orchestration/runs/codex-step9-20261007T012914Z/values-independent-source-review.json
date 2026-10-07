@@ -1,0 +1,105 @@
+{
+  "scope": "independent STEP9 minimal backend/request-f64 maintenance source and retained raw execution review; no test/build replay",
+  "verdict": "accept finite minimal source/asset repair; no actionable defect in reviewed boundaries",
+  "source_pins": [
+    {
+      "path": "/Users/vince/Projects/canlang/packages/values/bindings/backend.ts",
+      "sha256": "bf1263532c90d0cdf64da032dd20040952682fb1f5f00c4a2daefa1f7f4304a3"
+    },
+    {
+      "path": "/Users/vince/Projects/canlang/packages/values/test/exact-bootstrap.test.ts",
+      "sha256": "ed597f7668781ea8523a1fbaaa07a341c5210f155283494f2408fc7e14af7ba0"
+    },
+    {
+      "path": "/Users/vince/Projects/canlang/packages/values/semantics/Cargo.toml",
+      "sha256": "288e98e5ff913d884cb0c298afab590ff3b71b8c140ae38ab9134f03c4ed9a6a"
+    },
+    {
+      "path": "/Users/vince/Projects/canlang/packages/values/semantics/tests/transport_number_roundtrip.rs",
+      "sha256": "12acd30f09ceeed82288fcbe480046aba74f9ce69e98cfb38f1628928d0d5091"
+    },
+    {
+      "path": "/Users/vince/Projects/canlang/packages/values/bindings/generated/BUILD.json",
+      "sha256": "9b8f162a8906180e83e7f2faa6a148bafc4a4a040af89400fdf1a4b8cd80b161"
+    },
+    {
+      "path": "/Users/vince/Projects/canlang/packages/values/bindings/generated/values_semantics.js",
+      "sha256": "f369c7d79e367a15f1bdb12a7a5401dd4efc4648a8021845d2e613bf66d9b1f0"
+    },
+    {
+      "path": "/Users/vince/Projects/canlang/packages/values/bindings/generated/values_semantics.d.ts",
+      "sha256": "b4fcaa531c8b9d9c0277854fb12e4b484194c7fda8e3cc55d563b9286d4f6848"
+    },
+    {
+      "path": "/Users/vince/Projects/canlang/packages/values/bindings/generated/values_semantics_bg.wasm",
+      "sha256": "f5870905f915ae63e267ad917a44940bdb851e9434168974e8787a6cebca5c81"
+    },
+    {
+      "path": "/Users/vince/Projects/canlang/packages/values/bindings/generated/values_semantics_bg.wasm.d.ts",
+      "sha256": "9ac2938ac3d66379be0cf16f70c1d889be8c06b0e15e634407b94e2770fc7932"
+    },
+    {
+      "path": "/Users/vince/Projects/canlang/packages/values/conformance/numeric-text.json",
+      "sha256": "29806b94e5fe70468e0c3ef05a5b6b8550be4dacc34e8b57e0f42ab8588f37c8"
+    }
+  ],
+  "findings": [
+    {
+      "boundary": "TS own string operation names",
+      "evidence": "Object.hasOwn(TS_OPS,op) is evaluated before function dispatch/spreading args. Inherited names and foreign-op reach existing ValueError invalid-construction/message. New getter witness verifies zero argument effects. Original root installed raw log fails on toString getter; corrected independent raw log has six refusals and zero-effects."
+    },
+    {
+      "boundary": "JSON request f64 and original error text",
+      "evidence": "Only serde_json float_roundtrip feature enabled; handle_line still serde_json::from_str -> Number.as_f64 -> Value::Num, original formatter/caller/response mapping unchanged. New literal 8.01033661867104e+241 request asserts original violation actual string exactly. Native raw test passes, independent installed direct exact_call numeric witnesses10 pass, frozen numeric raw probe numberCases10213 mismatch0."
+    },
+    {
+      "boundary": "generated ABI glue",
+      "evidence": "Current JS glue and both declaration files equal step9 baseline hashes. Wasm/BUILD changed as required by parser feature; independent current BUILD inventory matches bytes/hashes. Corrected installed raw ABI/compiled/missing-export controls pass; generated declarations and Rust ABI_VERSION1/binding functions unchanged."
+    }
+  ],
+  "generated_inventory_verified": [
+    {
+      "file": "values_semantics.d.ts",
+      "hash_matches": true,
+      "bytes_match": true
+    },
+    {
+      "file": "values_semantics.js",
+      "hash_matches": true,
+      "bytes_match": true
+    },
+    {
+      "file": "values_semantics_bg.wasm",
+      "hash_matches": true,
+      "bytes_match": true
+    },
+    {
+      "file": "values_semantics_bg.wasm.d.ts",
+      "hash_matches": true,
+      "bytes_match": true
+    }
+  ],
+  "frozen_numeric_fixture_equals_retained_baseline": {
+    "path": "/private/tmp/canlang-rust-port-codex-step9-20261007T012914Z/values/source/packages/values/conformance/numeric-text.json",
+    "byte_equal_current": true,
+    "sha256": "29806b94e5fe70468e0c3ef05a5b6b8550be4dacc34e8b57e0f42ab8588f37c8"
+  },
+  "raw_logs_reviewed": [
+    "/private/tmp/canlang-rust-port-codex-step9-20261007T012914Z/values-root-independent-original.log",
+    "/private/tmp/canlang-rust-port-codex-step9-20261007T012914Z/values-root-independent-corrected.log",
+    "/private/tmp/canlang-rust-port-codex-step9-20261007T012914Z/values-root-workerd-corrected.log",
+    "/private/tmp/canlang-rust-port-codex-step9-20261007T012914Z/values/corrected/commands/18-fresh-frozen-probes.log",
+    "/private/tmp/canlang-rust-port-codex-step9-20261007T012914Z/values/corrected/commands/18-native-frozen-probes.log",
+    "/private/tmp/canlang-rust-port-codex-step9-20261007T012914Z/values/corrected/commands/01-native-tests.log",
+    "/private/tmp/canlang-rust-port-codex-step9-20261007T012914Z/values/corrected/commands/16-fresh-installed-wasm-differential.log"
+  ],
+  "contract_reconciliation": "numeric-common originally disallowed float_roundtrip for the escaping/formatter slice. This explicit STEP9 transport maintenance repair must be recorded as a separate accepted decision based on original JSON roundtrip failure; it does not retroactively claim old slice enabled this feature or expand the numeric/host domain.",
+  "limits": [
+    "Own-op effect refusal reviewed and tested for TS smoke table only; no arbitrary host objects/symbol operation-name claim",
+    "Six opt-in operation outcomes and original error bytes only; no full A07.3 registry/envelope acceptance",
+    "Frozen corpus sample10,213 numeric cases and ten independent transport witnesses are not exhaustive f64 parser proof",
+    "Actual workerd raw log shows two fresh isolates and missing/corrupt rejection; it does not establish full validation/default/profile swaps",
+    "No TS deletion, default/backend switch, all-schema completion or generated arbitrary new ABI acceptance",
+    "BUILD metadata lists bindings sources, not semantics source hashes: current semantics Cargo/new test hashes are independently pinned here"
+  ]
+}

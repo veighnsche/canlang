@@ -128,5 +128,14 @@
     }
   ],
   "private_root": "/private/tmp/canlang-rust-port-codex-step9-20261007T012914Z/work",
-  "raw_receipt": "/private/tmp/canlang-rust-port-codex-step9-20261007T012914Z/work/receipt.json"
+  "raw_receipt": "/private/tmp/canlang-rust-port-codex-step9-20261007T012914Z/work/receipt.json",
+  "private_manifest_normalization": {
+    "source": "Source API exports/files/version retained",
+    "changes": [
+      "scripts removed for private no-script packaging",
+      "devDependencies removed",
+      "@canlang/contracts workspace:* resolved to0.1.0"
+    ],
+    "limits": "Installed dist byte-equal fresh source emit; source package.json not byte-identical installed manifest. Not unchanged release-manifest or native/Wasm acceptance."
+  }
 }

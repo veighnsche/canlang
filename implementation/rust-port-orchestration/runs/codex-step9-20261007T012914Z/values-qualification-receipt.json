@@ -1,0 +1,542 @@
+{
+  "scope": "Finite six-op opt-in values consumer + structural scaffold qualification; two concrete integrity repairs; no full A07/V/default adoption",
+  "completion_utc": "2026-10-07T01:46:50.888598+00:00",
+  "source_pins_initial": "/private/tmp/canlang-rust-port-codex-step9-20261007T012914Z/values/corrected/source-pins-initial.json",
+  "source_pins_final": "/private/tmp/canlang-rust-port-codex-step9-20261007T012914Z/values/corrected/source-pins-final.json",
+  "source_stable": true,
+  "source_pin_count": 166,
+  "exact_used_non_generated_source_copy": {
+    "package.json": "b857df2e35cfb40e1bb62738ed4ef59d53ce30b25b2a7f9d6f0f76df8bce02f3",
+    "packages/contracts/.turbo/turbo-build.log": "e56d97698576e02d09af899ed4c52a1907ce3f09defa1d26eb81f5514c0c3ec0",
+    "packages/contracts/README.md": "ec9546cb975368db04a51fd83e10064501100f2ed23822dbcba628c9b1a17df7",
+    "packages/contracts/package.json": "77d6b51fade16c2c304664ec5ee55c820121314e7b6ab8cdca6266ce21c78bf3",
+    "packages/contracts/src/artifact.ts": "3031c619c79fc6d688667d4a1af07ae7d07863b52c2408c6b96587cc43ccf173",
+    "packages/contracts/src/deployment-assets.ts": "6468fd46c8bd0ef40180a337e5c1bd726cf964078521a6b2e420c6ed9c881848",
+    "packages/contracts/src/deployment.ts": "66816c21318f0f682ef53483d7901bdc8c0f5cd302151bec1c8e9bc304022696",
+    "packages/contracts/src/diagnostic.ts": "ab935bdd56b01cb3b71f665f4d191d8a2e196b6f1153afdb88d0de5e692c3676",
+    "packages/contracts/src/distribution.ts": "5e030ded286cf76540d5bbf91f858ed0b2d1c0c5b3ae1c18e8be3bb12ee5b83f",
+    "packages/contracts/src/examples.ts": "6201cbb10430f8023382888bd3fa0023199eede59db90a49d7d8b6f43eea10e9",
+    "packages/contracts/src/files.ts": "919549d102b9c30709f292942f327bf3d6cd723e554aa9862750179adda163b0",
+    "packages/contracts/src/identity.ts": "19816727c6b820ffb5328eeab2e3211390cf91482a592923b2ac87cc4a72c440",
+    "packages/contracts/src/index.ts": "c2dbd7e34812c30bfae395918c5f667b53b2c9a0f781ffe2da310c4cd81de5d1",
+    "packages/contracts/src/presentation.ts": "477ff6afb4793e31c428693145880fba7480b2d074f052d8d6808e5abc79f6fd",
+    "packages/contracts/src/reference.ts": "415b46bf968d2b2059cfeb3e86577a1b38b70f130b74bd15d46d169a1212847c",
+    "packages/contracts/src/services.ts": "91b1580b0b1c884af6ef0c2f162aad0f75cd76d41a369a087ec5310367ee4ebf",
+    "packages/contracts/src/state.ts": "dd9263d8cae2eda4d046678c3d564217c54e0ae77d9b8d2e9b40c213ed588236",
+    "packages/contracts/src/values.ts": "162869eb5a7e317238390ad8ab552804afe5e9e712d3beccb6781d31b4dd5c39",
+    "packages/contracts/src/wire.ts": "bd85ca914bbc8d31fb372dbffa6c0d7176397bf11fa7d02e5b02b6c89fa01ba1",
+    "packages/contracts/src/work.ts": "c7d674c84f536389398b61b5b23c9c469114e88b5373edf5580136636f009207",
+    "packages/contracts/test/assembly.test.ts": "132fbb6faa9054487ff532203cfaee3d241bf4584864c81a4fc4a70a971f998e",
+    "packages/contracts/test/deployment.test.ts": "c3515fc9907646d348a743bf6ee9343ace862b6f5c88888de30d0b0c95c95450",
+    "packages/contracts/test/examples.test.ts": "ccd5fb7b11c2e08128896ad3a7472f6115ac2496d5f0c1cb9130887f88baba0d",
+    "packages/contracts/test/fanout-records.test.ts": "2edbd3629d0dedfc0eb5a531f92cb805751dc35044ffcdc38d2124b27421fe05",
+    "packages/contracts/test/provider-ratification.test.ts": "86e6018eb5c479e93286fb71c04c0af637a7ab929b900ac54138cae866120f54",
+    "packages/contracts/test/t19a-derived-inputs.test.ts": "4b27a4f9e7d6403e69663c990e01717dcd6b6db5e317887988eabccb87bcb476",
+    "packages/contracts/test/t19b-depth.test.ts": "01f1755feecca12d70090be21be52f746ba730b3eb946b32428a43f90cb4acfb",
+    "packages/contracts/test/t20a-presentation.test.ts": "77efd32925c80fb7df6bdc862b41a9c60950103fd2b8d140526846663ba69c10",
+    "packages/contracts/tsconfig.json": "9222ec437c1c4b8378784ebceca444214102b64598ff2d611cb4f362d576990d",
+    "packages/values/.gitignore": "61022f949eb49fe0ee5b774835be844845b3d71d9001f676d9ac82bd433e49a7",
+    "packages/values/.turbo/turbo-build.log": "bbe812ff2aafbe8ca5d0f06fedcb361bbe1330bcb3fa264d4ea1abe0210c5fd5",
+    "packages/values/Cargo.lock": "653260b64e40898068cfed2728bb348d26284fe5af983ab3bf38d9d2aa57ebbe",
+    "packages/values/Cargo.toml": "083c91d33d9cf5c36b0c61e0e8f86b80bf1208bcf3202d681a77a52939e6efee",
+    "packages/values/README.md": "bb7a78b7b768eb20d2fff25cb632621e4595397f06f3073fd4e1ba7e1eff254a",
+    "packages/values/bindings/Cargo.toml": "1da63f3a022cc9f7b1ff4d4255a49f7da8ddac5b8d6196b608be262bdd224450",
+    "packages/values/bindings/backend.ts": "bf1263532c90d0cdf64da032dd20040952682fb1f5f00c4a2daefa1f7f4304a3",
+    "packages/values/bindings/bootstrap.ts": "39f2b698fd3b131451b2153adc2ab8050dc6cc0939814450b0e1161493796b5c",
+    "packages/values/bindings/carriers.ts": "657f643c92fefe1d4303f609748860ed7c496544093fb57e5ea9fd7063fca3d0",
+    "packages/values/bindings/owned-input.ts": "a39c26c6e3b4a397a5be6d360e628e61c32edb02b758d902b121e2a608816139",
+    "packages/values/bindings/plans.ts": "a611f1dbb44c14afc5a213b5ee664db486c83676fccf83a0344043d1464d4274",
+    "packages/values/bindings/src/exact.rs": "179c5201b342eb7578d18795b0d1935023b22820174477aef0ffe9c66318a423",
+    "packages/values/bindings/src/lib.rs": "3b1f7fefefd13438a04afa5b288600c590fba65e14dc8961f2fcff999e830ca6",
+    "packages/values/bindings/src/validation.rs": "74cc0b5d9ab028d3a859534cee5d1288f7a3e0b9ff8ca43fa7e9b95fdca62eff",
+    "packages/values/bindings/validation.ts": "604bb55a4e60ea58b3d8c9cc8657b9a0256f7f45ebf9ce64256c2f55df44820f",
+    "packages/values/conformance/numeric-text.json": "29806b94e5fe70468e0c3ef05a5b6b8550be4dacc34e8b57e0f42ab8588f37c8",
+    "packages/values/conformance/numeric-text.oracle.mjs": "bd831d965063a0c57fee063f0714a223c622c3fae4f36ad321b87afd9319770d",
+    "packages/values/conformance/owned-input/v1/README.md": "8ddd0db5bda4a679e71acb0cc843501cc2500c95965500188a5ec786f394b85c",
+    "packages/values/conformance/owned-input/v1/cases.json": "a2c78dfc8c7d5335e0f8ae079e065c2cdc5f555b0c7bcaa1d9e0b21435d92ab1",
+    "packages/values/conformance/owned-input/v2/README.md": "338ba6d73ee3b0aa6b83369b06b23a91e7645a458c8984a6cda05ef085830896",
+    "packages/values/conformance/owned-input/v2/cases.json": "cf10b9451032eb868cf15f4e7716d0ae0d318c6a9a6dc5f7555d2108c6ae2d4a",
+    "packages/values/conformance/ports/exact/cases.json": "3d2503508cff64c76e28f5b141c385d5fbc144ef23bac766d1338a453eebc7a4",
+    "packages/values/conformance/ports/exact/differential.mjs": "6be8ddb3ee95d6c18ee314b5155e652a3134e9633d08d38efa7033ff3be2ba17",
+    "packages/values/conformance/string-escape.json": "f5cde655ca236332542ba1ff2db824d744bc8f649e4e4284ba3f3287459229be",
+    "packages/values/conformance/string-escape.oracle.mjs": "3f183e7ee80243f7ed839de9f0785685e4dcd1da42a2e9c5de386a9cb0e0f24a",
+    "packages/values/conformance/v1/README.md": "72556f351edea29e1c55b88a07ab6ca188bfd5d9aea8eaa6239ca49a1825ec01",
+    "packages/values/conformance/v1/values.json": "7b352f68235ce03c834b44f5cf0345e362ff43140280b77db6c42a269af52b37",
+    "packages/values/package.json": "e542125300e2ee229f96bd37cc66af50c8982e588c26c9ba6cf363640688618f",
+    "packages/values/scripts/build-semantics.mjs": "d458ab84db7ef0c97945bd361d4ad961d52e947af546fd2c1bbb84644f5a9a71",
+    "packages/values/scripts/emit-catalog.mjs": "45c5d3d3be91e85574949939a55e19b06de1e8a5d6f3c1025f3edf07d87b221d",
+    "packages/values/scripts/emit-semantics-inputs.mjs": "209f2de86240cca25a238bb87e4419e41d60674fdcf19c15ea03bdb95db253f8",
+    "packages/values/scripts/stage-semantics.mjs": "7103d8d25dd579eef418420a427d1acb8ab444aceeaf24cc4f0a1d3f41c486a8",
+    "packages/values/semantics/Cargo.toml": "288e98e5ff913d884cb0c298afab590ff3b71b8c140ae38ab9134f03c4ed9a6a",
+    "packages/values/semantics/currency-facts.json": "cea5c560989f960835332fd5e21d47ea0816e39a86b9113ae9f0bf840bd5bcf3",
+    "packages/values/semantics/examples/conformance.rs": "d6e99aeea4ad96e8c0ae1af12939f904e7ddf0d68753e11b066ee80b52be70fc",
+    "packages/values/semantics/src/aggregates/decimal.rs": "5bb363c93fd640aa16b64ab83520169dee7d2e4d548275f54b0d8fc03c717313",
+    "packages/values/semantics/src/aggregates/integer.rs": "fd7feb03a1148a4912dcf40e049b7428aaa3a828e072a2d3564485b1834c148c",
+    "packages/values/semantics/src/aggregates/mod.rs": "561bee0d2993130b272568ea1b51e41700d8f99a08745c2ec0049c2fde169c9c",
+    "packages/values/semantics/src/aggregates/money.rs": "60736655950fabdc910bb145118ca4e185880074ddf2b18dec0525400532cb0e",
+    "packages/values/semantics/src/aggregates/numeric.rs": "a26631e1b77338b20c44ee20ec61265be433f81ad0c9220d5d7376f11e0559b4",
+    "packages/values/semantics/src/codecs/mod.rs": "4c8b202d2524e440fc9979aa01245da7adbdfbabc24506e8ed75a84e1ceacf20",
+    "packages/values/semantics/src/codecs/numeric.rs": "6f06587f264ae4365739c7fbbbb9e2fe9e3b4319c5cc6fc71e056594dc740217",
+    "packages/values/semantics/src/currency_facts.rs": "48e84ddf56c44e698e5d382e68736877b32c3773c56b8421ebe3b8893ed40c3f",
+    "packages/values/semantics/src/failures.rs": "28dca38a0670f354a25e5a9ab6e531c216f161c929413adc9c7276cddb51fc07",
+    "packages/values/semantics/src/input.rs": "120a0a4aa36f2944b5cc14e70e690ad38d981fa072dad841795a89fec9903b1b",
+    "packages/values/semantics/src/lib.rs": "63a800b7809ddc932331343e17cae24ad2eb18ea5f4a2a44d70e81bceb6275de",
+    "packages/values/semantics/src/numeric/decimal.rs": "53040e3de46f5e17d8c5025928bdb3ef2047e88d6fd488821686dcfbd026ade6",
+    "packages/values/semantics/src/numeric/integer.rs": "9f9c5c5deee443593d126dfdf03a8b7f00d1ce01b52becbe08f872242c0962ae",
+    "packages/values/semantics/src/numeric/mod.rs": "93ea4c83e9d8abae1d96bb4e4b2c93930f81c542893152705b9933845e0cae92",
+    "packages/values/semantics/src/numeric/money.rs": "5ab02d498fcc7031c079f5af884cbe2e5d3c2e7810127f012d928bb8c0516dad",
+    "packages/values/semantics/src/numeric/rounding.rs": "a224bb2805d8192a2a26b5452284a708ee3c2a8a04bc6076f9611d2d200533cd",
+    "packages/values/semantics/src/plans.rs": "a273a9ae85ffb1492f3780713774a01722f2b9cd0db2740ffe5e81f10ded4a7c",
+    "packages/values/semantics/src/profiles.rs": "6f98f6f6d90be53ad32ac539331a9e421e5743c0db8bc0e7253f28e1191db625",
+    "packages/values/semantics/src/representations/mod.rs": "fce7ed1dc892ccd4c8377b6c69fdfb19d6901793709da60a833cc27b6314b830",
+    "packages/values/semantics/src/representations/numeric.rs": "c012805095152f62168db2b00fa6c7a2ebc741f526f2e68a004bcfe3d149f13c",
+    "packages/values/semantics/src/temporal/civil.rs": "b2d0314f8255e64c64360de880992963818c59affe6ad866360af1f3eca9241d",
+    "packages/values/semantics/src/temporal/duration.rs": "b60a0dcce415800705d5220454c6eed3ac43f19bf681f9bf2d1f82ceb08e2e39",
+    "packages/values/semantics/src/temporal/instant.rs": "96125d312a877c10d1547dcf9731b4481ffc9b70f0d9733a1c10e946b890f61c",
+    "packages/values/semantics/src/temporal/mod.rs": "08df69e5fb8c6a9a9d3c6a2d655648da3d3d9ad1e5a72bbf74a9c81f4c6ead28",
+    "packages/values/semantics/src/transport/exact.rs": "7c2f5600bf4c72b5ccfef82500113e28f1fc3131a0f818dff8e205b802142817",
+    "packages/values/semantics/src/transport/mod.rs": "fb7a358c36dd919ccba66c2a290c1e7ea6af0e50dbfe64353daae13cde3c10f6",
+    "packages/values/semantics/tests/aggregate_vectors.rs": "2f29810d290b6e446d662a71558fcebdabcc3fc4264b2198994279899b993480",
+    "packages/values/semantics/tests/decimal_vectors.rs": "384ff870c5393d9fd14c3840d41f217095e055193130f44e812dfe1f70c811c3",
+    "packages/values/semantics/tests/input_validation/conformance_v1.rs": "1b06d96e293ff37714314faf5d725a1a688ad4d06fc9e9f6884d5c4429743d48",
+    "packages/values/semantics/tests/input_validation/input.rs": "c3ec52baab06df43c043a5c572ab74e0d525f87fc5625ae01fd7efd39876562a",
+    "packages/values/semantics/tests/input_validation/validation.rs": "e34693cf0abf86b2f657a6409ad4c7a1d39b6b2885ec4b3282cd80237bec036a",
+    "packages/values/semantics/tests/input_validation.rs": "bfc554a699b203e71b00edb0bc0eff61da025ba7b28d87d69fb3f89358cb17e1",
+    "packages/values/semantics/tests/integer_vectors.rs": "48c0d8042a5b03e43571c0546809d2927b8b8c0b67be4ac63f33d2526b4718df",
+    "packages/values/semantics/tests/money_vectors.rs": "ef22cb2e71bc221d81b54d058efa06d95598dc722ac3cf82701486b298af65c2",
+    "packages/values/semantics/tests/numeric_text_contract.rs": "dba6878989028d5e0970fc62fb55ced2cf926c22bf50a956f2fb932b0c5f3459",
+    "packages/values/semantics/tests/rounding_vectors.rs": "da6f12e58afa25656093fab6abcd6a42e2a1bf1c3ad012e22fb01a37993fc00c",
+    "packages/values/semantics/tests/string_escape_contract.rs": "e596cd37c93470fa5d954f6d7b9c426451e3dbaf0a6ab16af7299e255cbfb30f",
+    "packages/values/semantics/tests/temporal_vectors.rs": "9f0d1b7898ce3ba74fa884519d9c32d31dcb22ae812751d16c191e514b588f02",
+    "packages/values/semantics/tests/transport_number_roundtrip.rs": "12acd30f09ceeed82288fcbe480046aba74f9ce69e98cfb38f1628928d0d5091",
+    "packages/values/src/array.ts": "bb40eb50b65fef0d7313b8a6f39d82f8c01f659b11c5598fe79a37e217d690f4",
+    "packages/values/src/catalog.ts": "443ec55fb59c161a2984850d058f39925e930591b194bd85090776b8557098eb",
+    "packages/values/src/currency-data.ts": "a2e9aae51760cf23a76f3bd73a3caea3dfa2bc5d76b69020baf84c2f7f008c48",
+    "packages/values/src/decimal.ts": "e4056e2849f928106b36f534ee72f3416fed9550c19da914dc9e02d4c14f592e",
+    "packages/values/src/distribution.ts": "d42f490fe465f366cef6be65adc2514bcf6e7a0e3ff6c5a3bc85cb03cdae94fb",
+    "packages/values/src/equality.ts": "3903807b4dc38bc5777e7a2758bc351041820d20bd500bb0100dfe411943fafb",
+    "packages/values/src/errors.ts": "a9a518f181e92d3b69be7ef8bb36d7e1001e276849a5ff9e976eef81fee569e8",
+    "packages/values/src/icu.ts": "07a1cfc94cf0a0a338cf1a7307648db211479a9da0a3b4cae7d5d99030a9b70e",
+    "packages/values/src/index.ts": "d92ac7192a8739ddbfaf32ccc64e0aeba7fb30726e7bf40d7e81eb9a239d61c4",
+    "packages/values/src/int.ts": "e85ea2cf5d6dc70793ed1347676b935f07c9650747eaf4a5006ea0adbf3e496d",
+    "packages/values/src/internal/schema-core.ts": "a8b147e6c4c63f3bd9cc0d1c55a2fad582effaf2d18dde4394c0d30345963792",
+    "packages/values/src/internal/wire-core.ts": "2c940525ff289d3154dca0db754f99eca480c67992e8e180aee2a97ddddec059",
+    "packages/values/src/kinds.ts": "35cf9ba2ccadb5157d66423530af9c9eca9def2d74df3b43dd0d318d5427b0e7",
+    "packages/values/src/locale.ts": "fa3e48d0b786eeb787353a83be37b750c274eadb092b9aa8616fcf0cf00c288e",
+    "packages/values/src/money.ts": "ba36dc577c4e13a88366e56acb6127c2635dbb91d968655d3913e3decf8e7824",
+    "packages/values/src/prepared/codec.ts": "57c424874fab4ec899a2ebc3306c53fc123a70167a97859b352398c7ca52a56e",
+    "packages/values/src/prepared/plan.ts": "31cc0a8a09774f5a6754372700b41269cd3df73de4171574053fbab661faa0d4",
+    "packages/values/src/prepared/validation.ts": "3faa71c0be5d2e0c9fc61678761dcb2d8fad564f5dd0e4485a2b14ea91120e36",
+    "packages/values/src/schema.ts": "2de2fddbc23f38b9347054ba0de2be709fca3028fd29f46ee144272d2e57cd9b",
+    "packages/values/src/stdlib-pure.ts": "9bc0c180f1468efbcb1a054c2a23c587e7fef3e3b1fc33abd750d96e74652eff",
+    "packages/values/src/temporal.ts": "53619b5bc448c4c32b2980643c8eccf36bf43bc34d8a26e70fd39adc2e83d35e",
+    "packages/values/src/text.ts": "64e39e7522af1b301c964337addbb61cf199192b1aa340c3a0ce308c322510e1",
+    "packages/values/src/timezone.ts": "fb3946b521ceadcb5639118aa62862f073e62362220e425e917c250bb271427d",
+    "packages/values/src/types.ts": "58eaa879279ed42da2379a480d6a9cfc16780fc93e3986778fcb4651c4a4cd9a",
+    "packages/values/src/wire.ts": "0313cb7b43eecd4b61470ff279a18627e0e7c2abd239fe200497144afb86e842",
+    "packages/values/test/array.test.ts": "fa9212ace3579ccb479c9ead31f22aad0f6418169e55fa4a838987f02392141e",
+    "packages/values/test/catalog.test.ts": "8aca35c1d0ae98b064bfe3e8f65486ab7c791d2c35eab5d90a36e1b1e294b62c",
+    "packages/values/test/conformance.test.ts": "625b56e9c637defc1b0ef21be6ed703018b443687f8ef7d09793f0639201cead",
+    "packages/values/test/decimal-oracle.test.ts": "d20b01371ace3f2c07f8b99ecb584d2facfc255afd8cb4b25647bd4b3f36a9f3",
+    "packages/values/test/decimal.test.ts": "dfd55fc1227ea33ba79b352b3b6eb71b7ad7ad0871396c8faca12d93d60bd795",
+    "packages/values/test/equality.test.ts": "83e2eae9914567158bee80ec2258f277787c0ac9244ee936868210f2ab65c8ec",
+    "packages/values/test/errors.test.ts": "275295482deab8bbe537d463ccc8125feb6e934610502b398de04391dca280df",
+    "packages/values/test/exact-bootstrap.test.ts": "ed597f7668781ea8523a1fbaaa07a341c5210f155283494f2408fc7e14af7ba0",
+    "packages/values/test/exact-bootstrap.workerd.mjs": "7a8fac7bc26428fd4318759614c7d8ff272f4e83ec0892d30dd14f70044650a1",
+    "packages/values/test/exports-conformance.test.ts": "956934f15eb0d987efa9c9d3c74b9cc9becd8b70206dcd031a52b91a0f11f859",
+    "packages/values/test/icu.test.ts": "670d14e786085707967e23714707f18c5fb381b8175f058149b9b769adb26486",
+    "packages/values/test/index.test.ts": "86e60deff2f4106c5fa383a8bf780550322078db8807e5a4166f4b984ff20eba",
+    "packages/values/test/int.test.ts": "c5452b074d65bcd7a34f10ba22145fe7c450122750f00ac2ce943b2ce3f3d9e9",
+    "packages/values/test/kinds.test.ts": "79cee82786b32760c380f6d117c9573cd7072845bc5a116b2666a7583338fb56",
+    "packages/values/test/legacy-validation-traces.test.ts": "fce47c3cc8bcf2512a7651ffc1cae8159ca12010b12c6345ed6657769775aee9",
+    "packages/values/test/locale.test.ts": "bbf122d32d39063e70a27c723003918579f0aa081df194b15bb009892dce8469",
+    "packages/values/test/money.test.ts": "78f5baface686d246e25c4eff5221cb5c5240f6988efd5520d76d21b28db5b3a",
+    "packages/values/test/numeric-text.contract.test.ts": "da34c7c52a5b4ec9eaad4b54a878dcfada3cb0fe4ba40f5f0c46d6becc91ff4a",
+    "packages/values/test/owned-input.test.ts": "c7efd84ad346ca6b2336de3242aaf5039249dfe6a7e506b283c66270cd4a5217",
+    "packages/values/test/prepared-hook.test.ts": "b9f7e31d0c22df220c98ea9c6e597a96599e031ee5b66d970d160d73064eca7c",
+    "packages/values/test/prepared-validation.test.ts": "66042a3bf631a1160959bf1f58c5078c8db35843aafd2f29e666a9dca3879458",
+    "packages/values/test/schema.test.ts": "4d158e06f87f9a7c795df8d0e083152ee1e5c69b257f36d56da884030fc48e67",
+    "packages/values/test/stdlib-pure.test.ts": "2d14abf500f1c97ac4b94a647a852cdfa12c3823dcf439f10bef953943514463",
+    "packages/values/test/string-escape.contract.test.ts": "b6c56ec4b4d2ce395fdd45b54c3522125ba587cbcb32b91cbe579159328b8df6",
+    "packages/values/test/temporal.test.ts": "1da3b9f7857af4d7731ccae5e9f4d4835ad96857fe885f80fc873864f5d9533c",
+    "packages/values/test/text.test.ts": "bbe174b047ad38109286ce332ad5e07f193a1205ff59d10800737d0ebccea5aa",
+    "packages/values/test/timezone.test.ts": "0d8e50d2b57a20cf18c85f6970272adb58f3de86b4576ab1110abb331bec8d69",
+    "packages/values/test/types.test.ts": "3d6552dec3eef5f90fcf7a88ee3f3ba1166739c87424e93ba2b9c8c7af9e2ee3",
+    "packages/values/test/validation-binding.test.ts": "21de66496d8f8dbf359ab36cfa1cdd0da5216ca47a9247bfccaa6dd891b91345",
+    "packages/values/test/wire.test.ts": "ccca38dbcf19d3bfd4cb149bcf8c2786e376df8b703fd4b5d01e95e7c7945e54",
+    "packages/values/tsconfig.json": "ec1f36490ca95056639fee4dbc7d6240e5d8370fd2bded3eb3547770ff95722e",
+    "tsconfig.base.json": "56d05912029f16842996d66df2e6fc4279950a243874a794d9ff2e13e220ded8"
+  },
+  "private_build_cache_note": "Copied contracts tsbuildinfo is generated cache, excluded from source-copy equality. Command20 deletes it, re-emits source, and verifies every installed contracts output byte equal. No shared cache/output touched.",
+  "source_changes": [
+    "packages/values/bindings/backend.ts",
+    "packages/values/test/exact-bootstrap.test.ts",
+    "packages/values/semantics/Cargo.toml",
+    "packages/values/semantics/tests/transport_number_roundtrip.rs"
+  ],
+  "fixes": {
+    "unknown_operations": "Object.hasOwn before lookup/call; inherited/foreign names refuse before argument reads",
+    "number_transport": "Locked serde_json1.0.151 existing runtime float_roundtrip feature; no parser replacement, arbitrary_precision, ABI/corpus/error rewrite",
+    "cargo_lock_unchanged": true
+  },
+  "environment": "/private/tmp/canlang-rust-port-codex-step9-20261007T012914Z/values/environment.json",
+  "native_test_count": 87,
+  "node_runtime_tests": {
+    "pass": 887,
+    "skip": 1,
+    "excluded": "string-escape.contract.test.js hardcodes absent dist/conformance; original full run red retained, original-source oracle independently passed"
+  },
+  "original_raw_corpus_seeded_cases": {
+    "native": 3309,
+    "actual_installed_fresh_wasm": 3309,
+    "mismatches": 0
+  },
+  "independent_frozen_actual_transport": {
+    "native": {
+      "cases": 10301,
+      "numberCases": 10213,
+      "stringCases": 88,
+      "excludedUnpaired": 4,
+      "explicitAstralCutResidual": 1,
+      "mismatchCount": 0,
+      "firstMismatches": [],
+      "fixturePins": {
+        "numeric": "29806b94e5fe70468e0c3ef05a5b6b8550be4dacc34e8b57e0f42ab8588f37c8",
+        "string": "f5cde655ca236332542ba1ff2db824d744bc8f649e4e4284ba3f3287459229be"
+      },
+      "witness": "/private/tmp/canlang-rust-port-codex-step9-20261007T012914Z/values/corrected/native-frozen-witness.json"
+    },
+    "fresh": {
+      "cases": 10301,
+      "numberCases": 10213,
+      "stringCases": 88,
+      "excludedUnpaired": 4,
+      "explicitAstralCutResidual": 1,
+      "mismatchCount": 0,
+      "firstMismatches": [],
+      "fixturePins": {
+        "numeric": "29806b94e5fe70468e0c3ef05a5b6b8550be4dacc34e8b57e0f42ab8588f37c8",
+        "string": "f5cde655ca236332542ba1ff2db824d744bc8f649e4e4284ba3f3287459229be"
+      },
+      "witness": "/private/tmp/canlang-rust-port-codex-step9-20261007T012914Z/values/corrected/fresh-frozen-witness.json"
+    }
+  },
+  "public_fixed_expected_outcome_vectors": 9,
+  "raw_fixed_expected_arithmetic_vectors": 4,
+  "canonical_Decimal_and_frozen_parts_verified": true,
+  "semantic_no_retry": {
+    "wasmCallsBeforeSwitch": 1,
+    "tsCallsBeforeSwitch": 0
+  },
+  "TS_release_rollback_wire_equal": true,
+  "legacy_arbitrary_getter_effects_equal": false,
+  "structural_scaffold": {
+    "bits_UTF16_overflow_budgets_owner_plan_lifecycle": "passes existing tests + qualification.mjs",
+    "production_protected_authority": false,
+    "JSON_provenance_strings_are_not_production_admission": true
+  },
+  "inventory_missing_corrupt_rejected_before_dist_writes": true,
+  "installed_integrity": "/private/tmp/canlang-rust-port-codex-step9-20261007T012914Z/values/corrected/installed-integrity.json",
+  "installed_values_dist": "/private/tmp/canlang-rust-port-codex-step9-20261007T012914Z/values/corrected/consumer/node_modules/@canlang/values/dist",
+  "fresh_binary_sha256": "f5870905f915ae63e267ad917a44940bdb851e9434168974e8787a6cebca5c81",
+  "fresh_binary_bytes": 653133,
+  "fresh_BUILD_sha256": "9b8f162a8906180e83e7f2faa6a148bafc4a4a040af89400fdf1a4b8cd80b161",
+  "unchanged_glue_sha256": "f369c7d79e367a15f1bdb12a7a5401dd4efc4648a8021845d2e613bf66d9b1f0",
+  "asset_comparison": "/private/tmp/canlang-rust-port-codex-step9-20261007T012914Z/values/corrected/asset-comparison.json",
+  "independent_prefix_reproducibility": "/private/tmp/canlang-rust-port-codex-step9-20261007T012914Z/values/corrected/independent-prefix-comparison.json",
+  "reproducibility_limit": "Byte-identical at two private source/target prefixes under same lock/rustc/wasm-bindgen/local platform; no universal platform/toolchain claim. BUILD alone lacks semantics pins, supplied here.",
+  "whole_call_measurements": {
+    "node": {
+      "ns_per_whole_call_each_process": {
+        "ts": [
+          106.33749999999984,
+          95.81250000000001,
+          103.33473333333329
+        ],
+        "wasm": [
+          2728.9764,
+          2670.2,
+          2755.991666666667
+        ]
+      },
+      "median_ns": {
+        "ts": 103.33473333333329,
+        "wasm": 2728.9764
+      },
+      "wasm_to_ts_median_ratio": 26.409091231667194,
+      "repetitions": 3,
+      "warm_calls": 1200,
+      "calls_each_backend_each_process": 30000,
+      "cold_bootstrap_ms": [
+        0.7758329999999987,
+        0.7845830000000014,
+        0.7485420000000005
+      ],
+      "all_output_checksums_agree": true
+    },
+    "bun": {
+      "ns_per_whole_call_each_process": {
+        "ts": [
+          502.2111,
+          116.08473333333318,
+          237.02776666666662
+        ],
+        "wasm": [
+          2287.7958333333327,
+          2151.4264000000003,
+          2238.6014000000005
+        ]
+      },
+      "median_ns": {
+        "ts": 237.02776666666662,
+        "wasm": 2238.6014000000005
+      },
+      "wasm_to_ts_median_ratio": 9.44446902353072,
+      "repetitions": 3,
+      "warm_calls": 1200,
+      "calls_each_backend_each_process": 30000,
+      "cold_bootstrap_ms": [
+        11.247250000000008,
+        1.4589580000000009,
+        2.732999999999997
+      ],
+      "all_output_checksums_agree": true
+    }
+  },
+  "measurement_limit": "Six-op installed smoke includes tag/JSON/Wasm/parse/reconstruct. Wasm slower; no default benefit/original whole-handler budgets claim. Sampled memory is not peak high-water.",
+  "original_failed_stages": "/private/tmp/canlang-rust-port-codex-step9-20261007T012914Z/values/original-receipt.json",
+  "work_independent_review": "/private/tmp/canlang-rust-port-codex-step9-20261007T012914Z/values/work-independent-review.json",
+  "root_independent_review": "Parent-owned independent fixed expected installed witness + actual owning workerd receipts. This is not values self-review.",
+  "remaining": [
+    "A07.3 full registry/admitted profiles; A08 public routing",
+    "V02.6 protected PH2/PH4, canonical DefaultRef/Decimal and lifetime bridge",
+    "V06 validation profiles, V07 complete resource/lifetime policy, V08 actual owning handler join",
+    "Full exact UTF16/unpaired and astral-cut residual; decimal negative-zero scale exclusion; arbitrary getter/proxy/array observability",
+    "Original full complete-call/adoption/resource budgets; no production/durable/MCP/default switch",
+    "Existing emitted source-only string fixture path gap"
+  ],
+  "commands": {
+    "01-native-tests": {
+      "exit": 0,
+      "source_stable": true,
+      "log": "/private/tmp/canlang-rust-port-codex-step9-20261007T012914Z/values/corrected/commands/01-native-tests.log",
+      "receipt": "/private/tmp/canlang-rust-port-codex-step9-20261007T012914Z/values/corrected/commands/01-native-tests.json"
+    },
+    "02-native-runner": {
+      "exit": 0,
+      "source_stable": true,
+      "log": "/private/tmp/canlang-rust-port-codex-step9-20261007T012914Z/values/corrected/commands/02-native-runner.log",
+      "receipt": "/private/tmp/canlang-rust-port-codex-step9-20261007T012914Z/values/corrected/commands/02-native-runner.json"
+    },
+    "03-fresh-wasm": {
+      "exit": 0,
+      "source_stable": true,
+      "log": "/private/tmp/canlang-rust-port-codex-step9-20261007T012914Z/values/corrected/commands/03-fresh-wasm.log",
+      "receipt": "/private/tmp/canlang-rust-port-codex-step9-20261007T012914Z/values/corrected/commands/03-fresh-wasm.json"
+    },
+    "04-contracts-tsc": {
+      "exit": 0,
+      "source_stable": true,
+      "log": "/private/tmp/canlang-rust-port-codex-step9-20261007T012914Z/values/corrected/commands/04-contracts-tsc.log",
+      "receipt": "/private/tmp/canlang-rust-port-codex-step9-20261007T012914Z/values/corrected/commands/04-contracts-tsc.json"
+    },
+    "05-values-tsc": {
+      "exit": 0,
+      "source_stable": true,
+      "log": "/private/tmp/canlang-rust-port-codex-step9-20261007T012914Z/values/corrected/commands/05-values-tsc.log",
+      "receipt": "/private/tmp/canlang-rust-port-codex-step9-20261007T012914Z/values/corrected/commands/05-values-tsc.json"
+    },
+    "06-fresh-stage": {
+      "exit": 0,
+      "source_stable": true,
+      "log": "/private/tmp/canlang-rust-port-codex-step9-20261007T012914Z/values/corrected/commands/06-fresh-stage.log",
+      "receipt": "/private/tmp/canlang-rust-port-codex-step9-20261007T012914Z/values/corrected/commands/06-fresh-stage.json"
+    },
+    "07-values-runtime-tests": {
+      "exit": 0,
+      "source_stable": true,
+      "log": "/private/tmp/canlang-rust-port-codex-step9-20261007T012914Z/values/corrected/commands/07-values-runtime-tests.log",
+      "receipt": "/private/tmp/canlang-rust-port-codex-step9-20261007T012914Z/values/corrected/commands/07-values-runtime-tests.json"
+    },
+    "08-stage-corrupt": {
+      "exit": 1,
+      "source_stable": true,
+      "log": "/private/tmp/canlang-rust-port-codex-step9-20261007T012914Z/values/corrected/commands/08-stage-corrupt.log",
+      "receipt": "/private/tmp/canlang-rust-port-codex-step9-20261007T012914Z/values/corrected/commands/08-stage-corrupt.json"
+    },
+    "08-stage-missing": {
+      "exit": 1,
+      "source_stable": true,
+      "log": "/private/tmp/canlang-rust-port-codex-step9-20261007T012914Z/values/corrected/commands/08-stage-missing.log",
+      "receipt": "/private/tmp/canlang-rust-port-codex-step9-20261007T012914Z/values/corrected/commands/08-stage-missing.json"
+    },
+    "10b-pack-contracts": {
+      "exit": 254,
+      "source_stable": true,
+      "log": "/private/tmp/canlang-rust-port-codex-step9-20261007T012914Z/values/corrected/commands/10b-pack-contracts.log",
+      "receipt": "/private/tmp/canlang-rust-port-codex-step9-20261007T012914Z/values/corrected/commands/10b-pack-contracts.json"
+    },
+    "10c-pack-contracts": {
+      "exit": 0,
+      "source_stable": true,
+      "log": "/private/tmp/canlang-rust-port-codex-step9-20261007T012914Z/values/corrected/commands/10c-pack-contracts.log",
+      "receipt": "/private/tmp/canlang-rust-port-codex-step9-20261007T012914Z/values/corrected/commands/10c-pack-contracts.json"
+    },
+    "10c-pack-values": {
+      "exit": 0,
+      "source_stable": true,
+      "log": "/private/tmp/canlang-rust-port-codex-step9-20261007T012914Z/values/corrected/commands/10c-pack-values.log",
+      "receipt": "/private/tmp/canlang-rust-port-codex-step9-20261007T012914Z/values/corrected/commands/10c-pack-values.json"
+    },
+    "11-install": {
+      "exit": 0,
+      "source_stable": true,
+      "log": "/private/tmp/canlang-rust-port-codex-step9-20261007T012914Z/values/corrected/commands/11-install.log",
+      "receipt": "/private/tmp/canlang-rust-port-codex-step9-20261007T012914Z/values/corrected/commands/11-install.json"
+    },
+    "12b-committed-installed-bun": {
+      "exit": 0,
+      "source_stable": true,
+      "log": "/private/tmp/canlang-rust-port-codex-step9-20261007T012914Z/values/corrected/commands/12b-committed-installed-bun.log",
+      "receipt": "/private/tmp/canlang-rust-port-codex-step9-20261007T012914Z/values/corrected/commands/12b-committed-installed-bun.json"
+    },
+    "12b-committed-installed-node": {
+      "exit": 0,
+      "source_stable": true,
+      "log": "/private/tmp/canlang-rust-port-codex-step9-20261007T012914Z/values/corrected/commands/12b-committed-installed-node.log",
+      "receipt": "/private/tmp/canlang-rust-port-codex-step9-20261007T012914Z/values/corrected/commands/12b-committed-installed-node.json"
+    },
+    "12b-fresh-installed-bun": {
+      "exit": 0,
+      "source_stable": true,
+      "log": "/private/tmp/canlang-rust-port-codex-step9-20261007T012914Z/values/corrected/commands/12b-fresh-installed-bun.log",
+      "receipt": "/private/tmp/canlang-rust-port-codex-step9-20261007T012914Z/values/corrected/commands/12b-fresh-installed-bun.json"
+    },
+    "12b-fresh-installed-node": {
+      "exit": 0,
+      "source_stable": true,
+      "log": "/private/tmp/canlang-rust-port-codex-step9-20261007T012914Z/values/corrected/commands/12b-fresh-installed-node.log",
+      "receipt": "/private/tmp/canlang-rust-port-codex-step9-20261007T012914Z/values/corrected/commands/12b-fresh-installed-node.json"
+    },
+    "13-installed-host-controls-node": {
+      "exit": 0,
+      "source_stable": true,
+      "log": "/private/tmp/canlang-rust-port-codex-step9-20261007T012914Z/values/corrected/commands/13-installed-host-controls-node.log",
+      "receipt": "/private/tmp/canlang-rust-port-codex-step9-20261007T012914Z/values/corrected/commands/13-installed-host-controls-node.json"
+    },
+    "14-installed-host-controls-bun": {
+      "exit": 0,
+      "source_stable": true,
+      "log": "/private/tmp/canlang-rust-port-codex-step9-20261007T012914Z/values/corrected/commands/14-installed-host-controls-bun.log",
+      "receipt": "/private/tmp/canlang-rust-port-codex-step9-20261007T012914Z/values/corrected/commands/14-installed-host-controls-bun.json"
+    },
+    "15-installed-native-differential": {
+      "exit": 0,
+      "source_stable": true,
+      "log": "/private/tmp/canlang-rust-port-codex-step9-20261007T012914Z/values/corrected/commands/15-installed-native-differential.log",
+      "receipt": "/private/tmp/canlang-rust-port-codex-step9-20261007T012914Z/values/corrected/commands/15-installed-native-differential.json"
+    },
+    "16-committed-installed-wasm-differential": {
+      "exit": 0,
+      "source_stable": true,
+      "log": "/private/tmp/canlang-rust-port-codex-step9-20261007T012914Z/values/corrected/commands/16-committed-installed-wasm-differential.log",
+      "receipt": "/private/tmp/canlang-rust-port-codex-step9-20261007T012914Z/values/corrected/commands/16-committed-installed-wasm-differential.json"
+    },
+    "16-fresh-installed-wasm-differential": {
+      "exit": 0,
+      "source_stable": true,
+      "log": "/private/tmp/canlang-rust-port-codex-step9-20261007T012914Z/values/corrected/commands/16-fresh-installed-wasm-differential.log",
+      "receipt": "/private/tmp/canlang-rust-port-codex-step9-20261007T012914Z/values/corrected/commands/16-fresh-installed-wasm-differential.json"
+    },
+    "17-whole-call-bun-0": {
+      "exit": 0,
+      "source_stable": true,
+      "log": "/private/tmp/canlang-rust-port-codex-step9-20261007T012914Z/values/corrected/commands/17-whole-call-bun-0.log",
+      "receipt": "/private/tmp/canlang-rust-port-codex-step9-20261007T012914Z/values/corrected/commands/17-whole-call-bun-0.json"
+    },
+    "17-whole-call-bun-1": {
+      "exit": 0,
+      "source_stable": true,
+      "log": "/private/tmp/canlang-rust-port-codex-step9-20261007T012914Z/values/corrected/commands/17-whole-call-bun-1.log",
+      "receipt": "/private/tmp/canlang-rust-port-codex-step9-20261007T012914Z/values/corrected/commands/17-whole-call-bun-1.json"
+    },
+    "17-whole-call-bun-2": {
+      "exit": 0,
+      "source_stable": true,
+      "log": "/private/tmp/canlang-rust-port-codex-step9-20261007T012914Z/values/corrected/commands/17-whole-call-bun-2.log",
+      "receipt": "/private/tmp/canlang-rust-port-codex-step9-20261007T012914Z/values/corrected/commands/17-whole-call-bun-2.json"
+    },
+    "17-whole-call-node-0": {
+      "exit": 0,
+      "source_stable": true,
+      "log": "/private/tmp/canlang-rust-port-codex-step9-20261007T012914Z/values/corrected/commands/17-whole-call-node-0.log",
+      "receipt": "/private/tmp/canlang-rust-port-codex-step9-20261007T012914Z/values/corrected/commands/17-whole-call-node-0.json"
+    },
+    "17-whole-call-node-1": {
+      "exit": 0,
+      "source_stable": true,
+      "log": "/private/tmp/canlang-rust-port-codex-step9-20261007T012914Z/values/corrected/commands/17-whole-call-node-1.log",
+      "receipt": "/private/tmp/canlang-rust-port-codex-step9-20261007T012914Z/values/corrected/commands/17-whole-call-node-1.json"
+    },
+    "17-whole-call-node-2": {
+      "exit": 0,
+      "source_stable": true,
+      "log": "/private/tmp/canlang-rust-port-codex-step9-20261007T012914Z/values/corrected/commands/17-whole-call-node-2.log",
+      "receipt": "/private/tmp/canlang-rust-port-codex-step9-20261007T012914Z/values/corrected/commands/17-whole-call-node-2.json"
+    },
+    "18-fresh-frozen-probes": {
+      "exit": 0,
+      "source_stable": true,
+      "log": "/private/tmp/canlang-rust-port-codex-step9-20261007T012914Z/values/corrected/commands/18-fresh-frozen-probes.log",
+      "receipt": "/private/tmp/canlang-rust-port-codex-step9-20261007T012914Z/values/corrected/commands/18-fresh-frozen-probes.json"
+    },
+    "18-native-frozen-probes": {
+      "exit": 0,
+      "source_stable": true,
+      "log": "/private/tmp/canlang-rust-port-codex-step9-20261007T012914Z/values/corrected/commands/18-native-frozen-probes.log",
+      "receipt": "/private/tmp/canlang-rust-port-codex-step9-20261007T012914Z/values/corrected/commands/18-native-frozen-probes.json"
+    },
+    "19-independent-prefix-wasm": {
+      "exit": 0,
+      "source_stable": true,
+      "log": "/private/tmp/canlang-rust-port-codex-step9-20261007T012914Z/values/corrected/commands/19-independent-prefix-wasm.log",
+      "receipt": "/private/tmp/canlang-rust-port-codex-step9-20261007T012914Z/values/corrected/commands/19-independent-prefix-wasm.json"
+    },
+    "20-contracts-emit-without-copied-cache": {
+      "exit": 0,
+      "source_stable": true,
+      "log": "/private/tmp/canlang-rust-port-codex-step9-20261007T012914Z/values/corrected/commands/20-contracts-emit-without-copied-cache.log",
+      "receipt": "/private/tmp/canlang-rust-port-codex-step9-20261007T012914Z/values/corrected/commands/20-contracts-emit-without-copied-cache.json"
+    }
+  },
+  "handles_closed": [
+    31839,
+    84067,
+    55577,
+    92061,
+    12516,
+    14618,
+    92159,
+    48863,
+    46836,
+    80835
+  ],
+  "commands_released": true,
+  "product_source_writer_released": true,
+  "generated_assets_remain_private": true,
+  "no_Git_compiler_shared_dist_target_or_lock_edits": true,
+  "no_persisted_receipt_state_or_inflight_rollback_claim": true,
+  "no_default_switch_or_TS_deletion": true,
+  "work_backend_unimplemented": "Independent root work readiness proves installed TS facts only; W05 Wasm glue/loader/selector, W06 consumer joins, W07 whole-flow measurement and W08 persisted rollback absent.",
+  "negative_zero_domains": {
+    "decimal_scale_minus_zero": "Explicitly refused on Wasm; TS retains Object.is(scale,-0); ordinary scale0 is supported",
+    "raw_exact_number_signed_zero": "Host JSON number carrier erases sign; not qualified by number-text agreement",
+    "structural_f64_bits": "Actual structural input.digest preserves 8000000000000000"
+  },
+  "scalar_text_domains": {
+    "admitted_frozen_strings": 88,
+    "unpaired_UTF16_strings_excluded": 4,
+    "astral_UTF16_64unit_truncation_residual": 1,
+    "full_exact_scalar_surrogate_transport": "Not certified; structural units proof does not complete exact scalar UTF16 transport"
+  }
+}

@@ -1,0 +1,47 @@
+{
+  "BUILD.json": {
+    "first_sha256": "9b8f162a8906180e83e7f2faa6a148bafc4a4a040af89400fdf1a4b8cd80b161",
+    "independent_prefix_sha256": "9b8f162a8906180e83e7f2faa6a148bafc4a4a040af89400fdf1a4b8cd80b161",
+    "byte_equal": true,
+    "bytes": [
+      985,
+      985
+    ]
+  },
+  "values_semantics.js": {
+    "first_sha256": "f369c7d79e367a15f1bdb12a7a5401dd4efc4648a8021845d2e613bf66d9b1f0",
+    "independent_prefix_sha256": "f369c7d79e367a15f1bdb12a7a5401dd4efc4648a8021845d2e613bf66d9b1f0",
+    "byte_equal": true,
+    "bytes": [
+      7869,
+      7869
+    ]
+  },
+  "values_semantics_bg.wasm": {
+    "first_sha256": "f5870905f915ae63e267ad917a44940bdb851e9434168974e8787a6cebca5c81",
+    "independent_prefix_sha256": "f5870905f915ae63e267ad917a44940bdb851e9434168974e8787a6cebca5c81",
+    "byte_equal": true,
+    "bytes": [
+      653133,
+      653133
+    ]
+  },
+  "values_semantics.d.ts": {
+    "first_sha256": "b4fcaa531c8b9d9c0277854fb12e4b484194c7fda8e3cc55d563b9286d4f6848",
+    "independent_prefix_sha256": "b4fcaa531c8b9d9c0277854fb12e4b484194c7fda8e3cc55d563b9286d4f6848",
+    "byte_equal": true,
+    "bytes": [
+      2184,
+      2184
+    ]
+  },
+  "values_semantics_bg.wasm.d.ts": {
+    "first_sha256": "9ac2938ac3d66379be0cf16f70c1d889be8c06b0e15e634407b94e2770fc7932",
+    "independent_prefix_sha256": "9ac2938ac3d66379be0cf16f70c1d889be8c06b0e15e634407b94e2770fc7932",
+    "byte_equal": true,
+    "bytes": [
+      643,
+      643
+    ]
+  }
+}

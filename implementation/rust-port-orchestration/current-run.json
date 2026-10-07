@@ -5,9 +5,9 @@
   "private_root": "/private/tmp/canlang-rust-port-codex-step9-20261007T012914Z",
   "base": "b1261858b271ebbdfde6d65523918ec02eec1128",
   "previous_run": "codex-step8-20261007T005702Z",
-  "phase": "step9_readiness_and_consumer_qualification",
+  "phase": "step9_finite_qualified_full_backends_blocked",
   "human_release": "Human step9 actual Rust backend consumer qualification",
-  "execution_authorized": true,
+  "execution_authorized": false,
   "future_dispatch_authorized": false,
   "preparation_hold": true,
   "source_pins_role": "Baseline only; final acceptance pins recorded separately",
@@ -15,15 +15,26 @@
   "roles": [
     {
       "owner": "/root/step9_values",
-      "scope": "Private fresh values/validation scaffold regeneration and installed qualification",
+      "scope": "Values finite six-op/scaffold qualification + two necessary fixes complete",
       "model": "gpt-6.1-sol",
       "effort": "high",
       "ack": true,
-      "source_lease": false
+      "source_lease": false,
+      "released": true
     },
     {
       "owner": "/root",
       "scope": "Work and global delivery qualification, independent values review",
+      "source_lease": false,
+      "released": true
+    },
+    {
+      "owner": "/root/step8_maps",
+      "scope": "Independent step9 source/raw code and generated pin review; no product writer/test command",
+      "model": "gpt-6.1-sol",
+      "effort": "high",
+      "ack": true,
+      "released": true,
       "source_lease": false
     }
   ],
@@ -32,7 +43,8 @@
       "slot": 1,
       "owner": "/root/step9_values",
       "scope": "Private fresh values Rust regeneration then private TS/installed consumers; max2workers",
-      "released": false
+      "released": true,
+      "result": "Original-pin native/private installed qualification completed, handles31839/84067/55577/92061/12516/14618 closed; two concrete failures recorded"
     },
     {
       "slot": 2,
@@ -41,15 +53,92 @@
       "released": true,
       "handle": 14828,
       "result": "exit0;6 actual commands;140 emitted installed files byte-equal; TS facts only, no Rust consumer"
+    },
+    {
+      "slot": 1,
+      "owner": "/root/step9_values",
+      "scope": "Narrow transport feature/own-op repair checks and regenerated candidate qualifier; max2workers",
+      "released": true,
+      "result": "Final native87/TS887/actualRust+Wasm3309cases/frozen10301/prefixrebuild/install and six measurement commands complete; all managed handles closed"
     }
   ],
   "native_timers": [],
-  "supervisor_status": "ACTIVE",
+  "supervisor_status": "PAUSED",
   "foreign_writer": "Compiler and six dirty shared documentation paths remain foreign-owned",
-  "remaining_gates": [],
-  "updated_at_utc": "2026-10-07T01:31:57.902401+00:00",
+  "remaining_gates": [
+    "ports:A07.3",
+    "ports:A08.1",
+    "ports:A08.2",
+    "ports:A09.2",
+    "ports:A10.1",
+    "ports:A10.2",
+    "ports:A10.3",
+    "ports:V02.6",
+    "ports:V06",
+    "ports:V07",
+    "ports:V08",
+    "ports:V09",
+    "ports:V11",
+    "ports:W03.4",
+    "ports:W04.4",
+    "ports:W05.1",
+    "ports:W05.2",
+    "ports:W05.4",
+    "ports:W06.1",
+    "ports:W06.2",
+    "ports:W06.3",
+    "ports:W07.3",
+    "ports:W08.1",
+    "ports:C04.values-assets",
+    "ports:C04.work-assets",
+    "ports:C04.native-release",
+    "ports:P09",
+    "ports:P10",
+    "ports:P11"
+  ],
+  "updated_at_utc": "2026-10-07T01:54:21.698727+00:00",
   "material_progress": {
-    "values": "Locked native and fresh Wasm generation succeeded; committed vs fresh binary differs, same JS glue; installed emit in progress",
-    "work": "All package sources equal5a4e827; prior registered315/93 evidence reused at narrow scope. Fresh installed public exports TS-only; W05/W06 consumer absent."
+    "values": "Final tested candidate source released; root refreshed exact qualifiedWasm+BUILD, actual checked-in source integrity/staging passed; clean independentSolhighreview ACKed.",
+    "work": "All package sources equal5a4e827; prior registered315/93 evidence reused at narrow scope. Fresh installed public exports TS-only; W05/W06 consumer absent.",
+    "fresh_workerd": "Root actual new valuesbinary passed2cold isolates and startup controls via actual installedlocalrun; narrower than full backend."
+  },
+  "failures": [
+    {
+      "id": "STEP9-OPS-OWN-01",
+      "observed": "Installed TS prototype inherited op lookup invokes/touches arguments toString/constructor, __proto__ throwsTypeError",
+      "red_harness": "independent-installed-values.mjs",
+      "raw_log": "/private/tmp/canlang-rust-port-codex-step9-20261007T012914Z/values-root-independent-original.log",
+      "exit": 1,
+      "repair_owner": "/root/step9_values",
+      "scope": "TS smoke op table own-property dispatch only",
+      "root_fixed_witness_passed": true,
+      "root_review_pending": false,
+      "status": "repaired and independently accepted"
+    },
+    {
+      "id": "STEP9-F64-PARSE-02",
+      "observed": "Current native+freshWasmbinding number-text/stringtransport frozen witnesses3061mismatches vs committed3063",
+      "example": "8.01033661867104e+241 parsed into8.010336618671041e+241 before formatter",
+      "repair": "Existing serde_json1.0.151 float_roundtrip feature, no second parser",
+      "source": "https://docs.rs/crate/serde_json/1.0.151/source/Cargo.toml.orig",
+      "root_review_pending": false,
+      "root_fixed_witness_passed": true,
+      "repair_owner": "/root/step9_values",
+      "status": "repaired and independently accepted"
+    }
+  ],
+  "root_review": {
+    "source": "Minimal own-property guard and pinned parser runtime feature accepted; no second formatter/parser, no op registry expansion",
+    "independent_installed": "values-independent-installed.json, actual Node24.21 public installed outcomes/errors/refusals",
+    "fresh_workerd": "values-workerd-receipt.json, actual correctedbinaryhostexit0;2coldisolates",
+    "separate_source_review": "values-independent-source-review.json; exact source pins verified current after product commits"
+  },
+  "acceptance_reference": "acceptance.json",
+  "cleanup": {
+    "private_evidence_retained": true,
+    "owner": "Codex /root",
+    "active_step9_commands": [],
+    "native_timers": [],
+    "shared_resources_preserved": true
   }
 }

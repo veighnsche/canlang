@@ -1,0 +1,68 @@
+{
+  "scope": "Root independent six-operation opt-in installed values profile only",
+  "node": "v24.21.0",
+  "checks": {
+    "own_name_refusal": 6,
+    "zero_argument_effects": 6,
+    "fixed_expected_operation_outcomes": 6,
+    "error_byte_pairs": [
+      {
+        "op": "add-int",
+        "error": {
+          "name": "ValueError",
+          "code": "overflow",
+          "message": "int64 out of range: 9223372036854775808"
+        }
+      },
+      {
+        "op": "negate-int",
+        "error": {
+          "name": "ValueError",
+          "code": "overflow",
+          "message": "int64 out of range: 9223372036854775808"
+        }
+      },
+      {
+        "op": "add-money",
+        "error": {
+          "name": "ValueError",
+          "code": "currency-mismatch",
+          "message": "money addition needs matching currencies"
+        }
+      }
+    ],
+    "raw_transport_numeric_witnesses": 10,
+    "pinned_asset_change_refusal": true,
+    "explicit_ts_after_failed_bootstrap": true
+  },
+  "loaded": {
+    "@canlang/values/bindings/backend": {
+      "path": "/private/tmp/canlang-rust-port-codex-step9-20261007T012914Z/values/corrected/consumer/node_modules/@canlang/values/dist/bindings/backend.js",
+      "sha256": "9a8cc17f264e6d40c84cdfc63f5fb888bd6b193f7f8665c5e810082fb7d9b280"
+    },
+    "@canlang/values/bindings/bootstrap": {
+      "path": "/private/tmp/canlang-rust-port-codex-step9-20261007T012914Z/values/corrected/consumer/node_modules/@canlang/values/dist/bindings/bootstrap.js",
+      "sha256": "6609fa217b50e1b35ad678642f9764b6c8fc650d6bb2c5beb043305e73604e5c"
+    },
+    "@canlang/values/bindings/generated/values_semantics.js": {
+      "path": "/private/tmp/canlang-rust-port-codex-step9-20261007T012914Z/values/corrected/consumer/node_modules/@canlang/values/dist/bindings/generated/values_semantics.js",
+      "sha256": "f369c7d79e367a15f1bdb12a7a5401dd4efc4648a8021845d2e613bf66d9b1f0"
+    },
+    "@canlang/values": {
+      "path": "/private/tmp/canlang-rust-port-codex-step9-20261007T012914Z/values/corrected/consumer/node_modules/@canlang/values/dist/src/index.js",
+      "sha256": "51bbc15972a6836a4e1b4cebf6b2bd5b48e34405ff7f09062ad65b449dc1093c"
+    },
+    "wasm": {
+      "path": "/private/tmp/canlang-rust-port-codex-step9-20261007T012914Z/values/corrected/consumer/node_modules/@canlang/values/dist/bindings/generated/values_semantics_bg.wasm",
+      "sha256": "f5870905f915ae63e267ad917a44940bdb851e9434168974e8787a6cebca5c81"
+    }
+  },
+  "limits": [
+    "No full A07.3 registry",
+    "No negative-zero scale equivalence claim",
+    "No V validation profile producer or durable work consumer",
+    "Measurement/default decision not certified",
+    "Explicit independent TS use after failed startup is not persisted/profile swap or in-flight drainage rollback"
+  ],
+  "raw_execution_receipt": "/private/tmp/canlang-rust-port-codex-step9-20261007T012914Z/values-root-independent-corrected.json"
+}
