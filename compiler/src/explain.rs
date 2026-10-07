@@ -60,21 +60,25 @@ pub fn known_codes() -> Vec<&'static str> {
 
 /// Render one entry as deterministic single-line JSON.
 pub fn entry_to_json(info: &CodeInfo) -> String {
-    let mut out = String::new();
-    out.push_str("{\"code\":");
-    crate::diagnostic::push_json_str(&mut out, info.code);
-    out.push_str(",\"title\":");
-    crate::diagnostic::push_json_str(&mut out, info.title);
-    out.push_str(",\"severity\":");
-    crate::diagnostic::push_json_str(&mut out, info.severity.as_str());
-    out.push_str(",\"explanation\":");
-    crate::diagnostic::push_json_str(&mut out, info.explanation);
-    out.push_str(",\"example_valid\":");
-    crate::diagnostic::push_json_str(&mut out, info.example_valid);
-    out.push_str(",\"example_invalid\":");
-    crate::diagnostic::push_json_str(&mut out, info.example_invalid);
-    out.push('}');
-    out
+    let entry = EntryWire {
+        code: info.code,
+        title: info.title,
+        severity: info.severity.as_str(),
+        explanation: info.explanation,
+        example_valid: info.example_valid,
+        example_invalid: info.example_invalid,
+    };
+    crate::json::to_compact_string(&entry).expect("explain DTO serialization is infallible")
+}
+
+#[derive(serde::Serialize)]
+struct EntryWire<'a> {
+    code: &'a str,
+    title: &'a str,
+    severity: &'a str,
+    explanation: &'a str,
+    example_valid: &'a str,
+    example_invalid: &'a str,
 }
 
 /// Render one entry as human-readable text.
