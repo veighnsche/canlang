@@ -1,0 +1,12 @@
+docker.io/library/rust@sha256:24e632c09342c20abf8312cf4f61430a911c01ed3a5e4c02b87292b1c39c5273: Pulling from library/rust
+4572a6981223: Pulling fs layer
+ecc510c1e359: Pulling fs layer
+50419099350d: Download complete
+020e65c6fd76: Download complete
+ecc510c1e359: Download complete
+ecc510c1e359: Pull complete
+4572a6981223: Download complete
+4572a6981223: Pull complete
+Digest: sha256:24e632c09342c20abf8312cf4f61430a911c01ed3a5e4c02b87292b1c39c5273
+Status: Downloaded newer image for rust@sha256:24e632c09342c20abf8312cf4f61430a911c01ed3a5e4c02b87292b1c39c5273
+docker.io/library/rust@sha256:24e632c09342c20abf8312cf4f61430a911c01ed3a5e4c02b87292b1c39c5273

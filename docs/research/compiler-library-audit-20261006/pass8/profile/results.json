@@ -1,0 +1,259 @@
+{
+  "release_sizes": {
+    "native": {
+      "before": 2217152,
+      "after": 2250544,
+      "delta_bytes": 33392,
+      "delta_percent": 1.5060762636030367
+    },
+    "linux": {
+      "before": 3025752,
+      "after": 3077520,
+      "delta_bytes": 51768,
+      "delta_percent": 1.7109135183584114
+    }
+  },
+  "artifacts": {
+    "current-native-can": {
+      "bytes": 2250544,
+      "sha256": "02a94222ed5f0cfc94d3fa7ea6549afad14574f77d6e3728b8b7033d63c1f3d6"
+    },
+    "baseline-native-can": {
+      "bytes": 2217152,
+      "sha256": "48b2bfafa37c44e86ff0a334e37ab5e7866c706dca02839076fe12c71e4e8ec7"
+    },
+    "current-linux-can": {
+      "bytes": 3077520,
+      "sha256": "aa12c4a6a2328292bb5dd7b86dc2794ed1b1e24d463ac281c25a52d9b5269fe6"
+    },
+    "baseline-linux-can": {
+      "bytes": 3025752,
+      "sha256": "382ca72a91987efa91557b0f497ae489dca22785de0a4c87356b757cabc34e4c"
+    }
+  },
+  "source_parity": {
+    "files": 109,
+    "snapshot_drift": [],
+    "live_drift": []
+  },
+  "native_build_passed": true,
+  "native_checks": "root separately runs full native compiler/consumer checks; not duplicated here",
+  "linux_executed_tests": 127,
+  "linux_status": "passed supported focused Rust cases; native-only runtime cases explicitly filtered",
+  "linux_requested_targets": [
+    "--lib codegen",
+    "codegen",
+    "b1_join",
+    "b3_migrate",
+    "typed_artifact"
+  ],
+  "linux_source_consumer": "sourcemap_contract excluded: requires Node24/current Cloudflare/cached JS codec/catalog; actual root native consumer checks retained. Windows/browser coordinate interpretation remains unqualified.",
+  "cost": {
+    "warmups_per_side": 3,
+    "measured_rounds_per_side": 20,
+    "alternating_order": [
+      "baseline",
+      "current",
+      "current",
+      "baseline",
+      "baseline",
+      "current",
+      "current",
+      "baseline",
+      "baseline",
+      "current",
+      "current",
+      "baseline",
+      "baseline",
+      "current",
+      "current",
+      "baseline",
+      "baseline",
+      "current",
+      "current",
+      "baseline",
+      "baseline",
+      "current",
+      "current",
+      "baseline",
+      "baseline",
+      "current",
+      "current",
+      "baseline",
+      "baseline",
+      "current",
+      "current",
+      "baseline",
+      "baseline",
+      "current",
+      "current",
+      "baseline",
+      "baseline",
+      "current",
+      "current",
+      "baseline"
+    ],
+    "milliseconds": {
+      "baseline": [
+        6.561333,
+        6.671708,
+        6.328417,
+        6.464458,
+        6.452625,
+        6.805041,
+        6.624584,
+        6.35975,
+        6.362542,
+        6.557459,
+        6.964667,
+        6.401542,
+        6.420333,
+        6.542583,
+        6.495,
+        6.467417,
+        6.62425,
+        6.943041,
+        8.064583,
+        6.793916
+      ],
+      "current": [
+        6.600709,
+        6.515625,
+        6.605542,
+        6.302333,
+        6.459292,
+        6.748875,
+        6.666333,
+        6.68175,
+        6.588416,
+        6.899792,
+        6.505917,
+        6.439125,
+        6.5535,
+        6.594875,
+        6.449167,
+        6.400458,
+        6.834417,
+        7.12375,
+        7.433125,
+        6.859417
+      ]
+    },
+    "median_ms": {
+      "baseline": 6.550020999999999,
+      "current": 6.597792
+    },
+    "independent_decoded_map_and_full_artifact_parity": true,
+    "modules": 3,
+    "decoded_points": 55,
+    "inputs": {
+      "/private/tmp/canlang-pass8-profile/bench/ExpenseFlow.can": "f5dc2988336e9368445f92cb9ba11d4517b23de07226f504bd6dfb707f19b98b",
+      "/private/tmp/canlang-pass8-profile/bench/catalog.json": "cd984f375e0d6cbcc2bc6aca5ad5ea5b1b3d3ba9cd17b15ab94e4b15e74ced62",
+      "/private/tmp/canlang-pass7-profile/artifacts/current-native-can": "48b2bfafa37c44e86ff0a334e37ab5e7866c706dca02839076fe12c71e4e8ec7",
+      "/private/tmp/canlang-pass8-profile/artifacts/current-native-can": "02a94222ed5f0cfc94d3fa7ea6549afad14574f77d6e3728b8b7033d63c1f3d6"
+    },
+    "scope": "Bounded actual CLI compile for this fixed fixture/catalog on native host; includes process startup/full compile. No general speed claim.",
+    "exact_wire_artifact_parity": true
+  },
+  "unknown_git_builds": true,
+  "executed_rust": "1.99.0",
+  "executed_cargo": "1.99.0",
+  "minimum_rust": "Compiler declares1.99; sourcemap9.3.2 packaged rust-version omitted. No minimum compiler-version experiment.",
+  "registry_package_counts": {
+    "before": 66,
+    "after": 93,
+    "added": 27,
+    "native_active_additions": 15,
+    "inactive_target_only_additions": 12,
+    "linux_active_additions": 15
+  },
+  "total_lock_entries": {
+    "before": 67,
+    "after": 94
+  },
+  "feature_change": "sourcemap defaults-off: no features, no ram_bundle. url default alias newly activated, expandsstd already enabled directly. Existing serde/json defaults were already active afterPass7. No unrelated version/checksum upgrades.",
+  "windows_browser_coordinates": "unqualified; preserved original source-byte coordinate contract with actual Cloudflare consumers qualified separately by root.",
+  "git_head": "c27892c6f8ab8787a52dd41b91cbed8dff75825e",
+  "linux_harness_passes": 129,
+  "linux_executed_test_bodies": 127,
+  "linux_counts": {
+    "lib_codegen": 8,
+    "b1_join": 2,
+    "b3_migrate": 9,
+    "codegen_supported": 108,
+    "typed_artifact": 2
+  },
+  "linux_explicit_skips": [
+    "SKIP b1_teamtasks_artifact: no /profile/current/compiler/../packages/values/dist/catalog.json (run `npm run catalog` in packages/values)",
+    "SKIP b2_expenseflow_artifact: no /profile/current/compiler/../packages/values/dist/catalog.json (run `npm run catalog` in packages/values)"
+  ],
+  "linux_filtered_runtime_cases": {
+    "reason": "Seven mandatory Node syntax/runtime cases require unavailable Node; two mandatory state-engine cases require excluded package source fixtures. Not executed successfully on Linux; native full suite qualified by root.",
+    "tests": [
+      {
+        "name": "b4g_hook_team_operation_unchanged",
+        "linux_reason": "Node executable absent in pinned Rust image; mandatory node --check/runtime case",
+        "native_evidence": "test b4g_hook_team_operation_unchanged ... ok"
+      },
+      {
+        "name": "b4g_operation_id_lowers_through_c",
+        "linux_reason": "Node executable absent in pinned Rust image; mandatory node --check/runtime case",
+        "native_evidence": "test b4g_operation_id_lowers_through_c ... ok"
+      },
+      {
+        "name": "b4g_team_id_lowers_through_c",
+        "linux_reason": "Node executable absent in pinned Rust image; mandatory node --check/runtime case",
+        "native_evidence": "test b4g_team_id_lowers_through_c ... ok"
+      },
+      {
+        "name": "t21l1_single_app_crud_entry_imports_and_executes",
+        "linux_reason": "Node executable absent in pinned Rust image; mandatory node --check/runtime case",
+        "native_evidence": "test t21l1_single_app_crud_entry_imports_and_executes ... ok"
+      },
+      {
+        "name": "t31_hook_delete_op_registry",
+        "linux_reason": "Node executable absent in pinned Rust image; mandatory node --check/runtime case",
+        "native_evidence": "test t31_hook_delete_op_registry ... ok"
+      },
+      {
+        "name": "t31_plain_schedule_lowers",
+        "linux_reason": "Node executable absent in pinned Rust image; mandatory node --check/runtime case",
+        "native_evidence": "test t31_plain_schedule_lowers ... ok"
+      },
+      {
+        "name": "t31_hook_run_shape",
+        "linux_reason": "Node executable absent in pinned Rust image; mandatory node --check/runtime case",
+        "native_evidence": "test t31_hook_run_shape ... ok"
+      },
+      {
+        "name": "t31_e2e_staged_failure_names_hook",
+        "linux_reason": "Excluded packages/state/test/mutation/fixtures.ts runtime input",
+        "native_evidence": "test t31_e2e_staged_failure_names_hook ... ok"
+      },
+      {
+        "name": "t31_e2e_emitted_hook_drives_engine",
+        "linux_reason": "Excluded packages/state/test/mutation/fixtures.ts runtime input",
+        "native_evidence": "test t31_e2e_emitted_hook_drives_engine ... ok"
+      }
+    ],
+    "native_full_log": {
+      "path": "/private/tmp/canlang-pass8-native-full.log",
+      "sha256": "08941193134744c8176755a392a987869b4149df042fc228ccc7f29699e72a51",
+      "archived_path": "docs/research/compiler-library-audit-20261006/pass8/verification/native-full.log",
+      "archived_sha256": "23f2695a1d7b1fc8316b89ad5b4026560c1eadead9d2649799d30e2d0f3781bc"
+    },
+    "native_evidence_verified": true
+  },
+  "linux_recovery": {
+    "image": "Root restored exact public pinned rust image via pull exit0; image-restore.log. All subsequent compilation/test commands offline locked/networknone/pullnever. No service settings changed.",
+    "index": "Stale uuid entry lacked locked1.27.0; refreshed27added package index entries from native cache; no crate downloads.",
+    "integration": "Initial14 setup/runtime failures:5missingTeamTasks,7missingNode,2missingstateenginefixture. Copied onlyTeamTasks;109inputfinalmanifest. Reran108supportedcodegen and2typedartifact.9runtimecases excluded, matching nativepasses verified individually.",
+    "preserved_logs": [
+      "linux-initial-missing-image.log",
+      "linux-initial-stale-index.log",
+      "linux-initial-integration.log",
+      "image-restore.log"
+    ]
+  },
+  "implementation_commit": "d03f923"
+}

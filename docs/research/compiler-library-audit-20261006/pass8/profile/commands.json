@@ -1,0 +1,9 @@
+{
+  "native_release": "cargo build --offline --locked --release --manifest-path /private/tmp/canlang-pass8-profile/current/compiler/Cargo.toml --target-dir /private/tmp/canlang-pass5-profile/current-native-target",
+  "linux_release_tests": "docker run --rm --pull=never --platform linux/amd64 --network none -e CARGO_HOME=/cargo-home -e CARGO_BUILD_JOBS=1 -v /private/tmp/canlang-pass8-profile:/profile -v /private/tmp/canlang-pass5-profile/cargo-home:/cargo-home -v /private/tmp/canlang-pass5-profile/current-linux-target:/linux-target rust@sha256:24e632c09342c20abf8312cf4f61430a911c01ed3a5e4c02b87292b1c39c5273 sh /profile/linux-final.sh",
+  "cost": "python3 /private/tmp/canlang-pass8-profile/bench/cli-cost.py",
+  "metadata": "cargo metadata --offline --locked --filter-platform aarch64-apple-darwin --format-version 1 --manifest-path compiler/Cargo.toml",
+  "snapshot": "Compiler tree excluding target/.git/.DS_Store; ExpenseFlow.can+TeamTasks.can and2LSPeditor.can fixtures; sourcemap JSfixture within compiler/tests included. No packages/full editor.",
+  "linux_integration_retry": "docker run --rm --pull=never --platform linux/amd64 --network none -e CARGO_HOME=/cargo-home -e CARGO_BUILD_JOBS=1 -v /private/tmp/canlang-pass8-profile:/profile -v /private/tmp/canlang-pass5-profile/cargo-home:/cargo-home -v /private/tmp/canlang-pass5-profile/current-linux-target:/linux-target rust@sha256:24e632c09342c20abf8312cf4f61430a911c01ed3a5e4c02b87292b1c39c5273 sh /profile/linux-integration-retry.sh",
+  "linux_metadata": "docker run --rm --pull=never --platform linux/amd64 --network none -e CARGO_HOME=/cargo-home -e CARGO_BUILD_JOBS=1 -v /private/tmp/canlang-pass8-profile:/profile -v /private/tmp/canlang-pass5-profile/cargo-home:/cargo-home -v /private/tmp/canlang-pass5-profile/current-linux-target:/linux-target rust@sha256:24e632c09342c20abf8312cf4f61430a911c01ed3a5e4c02b87292b1c39c5273 sh /profile/linux-metadata.sh"
+}

@@ -1,0 +1,12 @@
+{
+  "disk": "Filesystem      Size    Used   Avail Capacity iused ifree %iused  Mounted on\n/dev/disk3s1   228Gi   172Gi    15Gi    93%    2.5M  156M    2%   /System/Volumes/Data\n",
+  "task_owned_temp": " 12M\t/private/tmp/canlang-pass8-profile\n",
+  "new_cargo_target_directories": 0,
+  "open_files": "COMMAND   PID  USER   FD   TYPE DEVICE SIZE/OFF      NODE NAME\nlsof    37552 vince    1w   REG   1,13        0 493216142 /private/tmp/canlang-pass8-profile/open-files.txt\n",
+  "profile_process_matches": null,
+  "cleanup": "No task-owned target directories created, no cleanup performed. Shared existing targets reused; unique evidence/binary comparisons retained. Root performs final free-space check.",
+  "process_enumeration": "ps -axo denied by sandbox; no cleanup attempted. Native build and CLI cost calls completed; Linux docker launch failed before build.",
+  "open_file_check": "lsof +D returned no visible entries; scope of process enumeration is limited by sandbox.",
+  "disk_final_profile": "Filesystem      Size    Used   Avail Capacity iused ifree %iused  Mounted on\n/dev/disk3s1   228Gi   159Gi    27Gi    86%    2.5M  281M    1%   /System/Volumes/Data\n",
+  "task_owned_temp_final_profile": " 15M\t/private/tmp/canlang-pass8-profile\n"
+}

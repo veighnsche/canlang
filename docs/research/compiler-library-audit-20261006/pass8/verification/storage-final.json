@@ -1,0 +1,12 @@
+{
+  "free_after_all_builds_bytes": 28794880000,
+  "active_task_build_processes": [],
+  "process_inspection": "escalated filtered ps: no cargo/rustc/docker build process tied to task target/snapshot roots",
+  "compiler_target_open_files": "lsof +D returned empty output, exit1",
+  "default_target_allocated_kib": 7890036,
+  "task_profile_allocated_kib": 15712,
+  "default_incremental_exists": false,
+  "additional_cleanup": "none; retained shared dependency/release/Linux caches and unique snapshot/evidence/binaries",
+  "prior_cleanup": "verification/storage-cleanup.json",
+  "source_and_consumer_pin_drift": []
+}
