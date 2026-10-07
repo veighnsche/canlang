@@ -164,23 +164,7 @@
     "review": "keyed-promise-independent-review.json"
   },
   "numeric_acceptance_limit": "Existing numeric source/native actual-caller scope only; unchanged original Wasm/installed/durable/backend/T08/T26 and held preparation gates remain.",
-  "next_active_packets": [
-    {
-      "id": "DEL-B01 synchronous cleanup review",
-      "agent": "/root/browser_lifecycle_review",
-      "state": "frozen three-file source review active"
-    },
-    {
-      "id": "TECH-V04 transport hygiene review",
-      "agent": "/root/review_ui_appearance",
-      "state": "two-file native conformance correction, isolated independent targets"
-    },
-    {
-      "id": "TECH-SV02 stream cleanup review",
-      "agent": "/root/service_stream_review",
-      "state": "two-file existing signal-bound review active"
-    }
-  ],
+  "next_active_packets": [],
   "packet_state": {
     "TECH-V01-values": {
       "planning_status": "ready",
@@ -316,7 +300,7 @@
     },
     "TECH-V04": {
       "planning_status": "blocked",
-      "state": "Actual current native/Wasm prerequisite complete; conformance duplicate-key hygiene finite correction under independent review; production tuple/error/profile/retirement joins open",
+      "state": "Finite conformance record hygiene accepted; actual current Wasm prerequisite recorded; production codec/error/lossless/profile/retirement joins remain open",
       "files": [
         "packages/values/semantics/src/transport/exact.rs",
         "packages/values/semantics/src/codecs/numeric.rs",
@@ -347,7 +331,7 @@
       "review": "values-carrier-prerequisite.json",
       "read_released": true,
       "hygiene_correction": {
-        "state": "Root two-file writer released; actual isolated native tests6/6 vs1/6 baseline, independent review active",
+        "state": "Independently accepted native conformance unique-key transport correction; scoped commit prepared",
         "files": [
           "packages/values/semantics/src/transport/exact.rs",
           "packages/values/semantics/tests/transport_record_hygiene.rs"
@@ -355,7 +339,15 @@
         "model": "root author; Sol medium independent reviewer",
         "agent": "/root/review_ui_appearance",
         "outputs": "/private/tmp/canlang-repair-go-20261007/record-hygiene-independent",
-        "limit": "Already documented conformance tuple hygiene only; no selected production codec/schema-error/profile/ABI/backend claim"
+        "limit": "Already documented conformance tuple hygiene only; no selected production codec/schema-error/profile/ABI/backend claim",
+        "source_pins": {
+          "packages/values/semantics/src/transport/exact.rs": "ffa19f72be0490e5f0376b9cb23b32e6b13139b09cb9bf4e9eb238ddf7436e7f",
+          "packages/values/semantics/tests/transport_record_hygiene.rs": "f3fa40cc74c3b9b6e6b234c4ddeaeee27d3f589e71bc2ecf7ac49c270d9c246d"
+        },
+        "review": "record-hygiene-independent-review.json",
+        "commit_pending": true,
+        "writer_released": true,
+        "review_read_released": true
       }
     },
     "TECH-V05": {
@@ -913,7 +905,7 @@
     },
     "DEL-B01": {
       "planning_status": "blocked",
-      "state": "Independently accepted finite synchronous owned cleanup; scoped commit prepared; separate visibility/producer/typing profiles open",
+      "state": "Independently accepted synchronous owned cleanup committed8a34b582; separate browser profiles open",
       "files": [
         "packages/ui/src/browser/polling.ts",
         "packages/ui/src/browser/bootstrap.ts",
@@ -937,8 +929,9 @@
         "packages/ui/test/browser-lifecycle-cleanup.test.ts": "126d106f3ac89f340a44047c73f9dcd094495e19636e44d744ccda32fccda07d"
       },
       "review_read_released": true,
-      "commit_pending": true,
-      "parent_limit": "No Chromium/full installed browser/visibility/HTMX/can:settled or async disposal/physical fetch cancellation acceptance"
+      "commit_pending": false,
+      "parent_limit": "No Chromium/full installed browser/visibility/HTMX/can:settled or async disposal/physical fetch cancellation acceptance",
+      "commit": "8a34b582"
     },
     "DEL-B02": {
       "planning_status": "blocked",
@@ -1345,7 +1338,7 @@
     "state": "active",
     "objective": "Finish every currently authorized queue task, resolve actual prerequisites, independently review, commit early/often and clean released resources economically; preserve native HOLD and exact original residual gates."
   },
-  "updated_utc": "2026-10-07T22:31:43.902158+00:00",
+  "updated_utc": "2026-10-07T22:32:19.793635+00:00",
   "critical_security_review": {
     "state": "frozen review and actual source joins received; contracts/repairs/host acceptance remain open",
     "agent": "/root/critical_package_security",
