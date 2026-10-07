@@ -211,3 +211,5 @@ Cloudflare defining deployment preflight retains its current owner and now ends 
 Testkit retains the defining table/RowScope lifetime owner; unexpected execution now attempts disposal once and preserves first failure. Independent narrow exception/caller acceptance leaves real isolation, source-loader and installed/native/evidence cleanup open. No new layer, merge or complete checkpoint advance.
 
 Identity remains the S256 digest-domain owner; mounted Interfaces consumes the same43-symbol issuance rule. Independent finite source/memory/mounted qualification preserves verifier and one-use semantics; browser/current-authority/persisted/installed gates stay open. No owner migration, merge or complete checkpoint advance.
+
+Values retains owned JSON parsing and derivative ownership. The finite stable-frozen contract is released with explicit mutation/byte-access cost and compatibility limits; source correction and genuine factory/default/consumer qualification remain pending. No new package/layer, merge or complete checkpoint advance.
