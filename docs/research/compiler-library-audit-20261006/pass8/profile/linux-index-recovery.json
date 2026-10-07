@@ -1,0 +1,167 @@
+{
+  "reason": "Existing uuid index cache lacked locked1.27.0 despite newly copied archive; refresh native cached entries for all27added lock packages, without network/download.",
+  "copied": [
+    {
+      "name": "base64-simd",
+      "version": "0.8.0",
+      "index": "/private/tmp/canlang-pass5-profile/cargo-home/registry/index/index.crates.io-1949cf8c6b5b557f/.cache/ba/se/base64-simd",
+      "index_sha256": "831964cf96c5596cff1ca015f31dc04e01a066ab97b43ea9e9830f8d1b27c671"
+    },
+    {
+      "name": "bitvec",
+      "version": "1.1.1",
+      "index": "/private/tmp/canlang-pass5-profile/cargo-home/registry/index/index.crates.io-1949cf8c6b5b557f/.cache/bi/tv/bitvec",
+      "index_sha256": "bbbe8422a8c0839b682ea6745fbfcf83d1f3948d8ba3d454634c7dbdffe4341b"
+    },
+    {
+      "name": "bumpalo",
+      "version": "3.20.3",
+      "index": "/private/tmp/canlang-pass5-profile/cargo-home/registry/index/index.crates.io-1949cf8c6b5b557f/.cache/bu/mp/bumpalo",
+      "index_sha256": "5d71f003d79099c7b04514213d3f4d5d8ae397778ebcdbf52309ef092fd60a77"
+    },
+    {
+      "name": "data-encoding",
+      "version": "2.11.1",
+      "index": "/private/tmp/canlang-pass5-profile/cargo-home/registry/index/index.crates.io-1949cf8c6b5b557f/.cache/da/ta/data-encoding",
+      "index_sha256": "c4715d85c9198b2c38d847ef53217f455aecfc5041fb108aef42f46ad2c46e3e"
+    },
+    {
+      "name": "debugid",
+      "version": "0.8.0",
+      "index": "/private/tmp/canlang-pass5-profile/cargo-home/registry/index/index.crates.io-1949cf8c6b5b557f/.cache/de/bu/debugid",
+      "index_sha256": "2321270a845ba9a1e6898a9357d4c605d00647899eaa92cf1b17cdd9541e553e"
+    },
+    {
+      "name": "funty",
+      "version": "2.0.0",
+      "index": "/private/tmp/canlang-pass5-profile/cargo-home/registry/index/index.crates.io-1949cf8c6b5b557f/.cache/fu/nt/funty",
+      "index_sha256": "47c802cc85769a41594c5ee0ae461ea8640426c48e98591b45e7e684b18f64e7"
+    },
+    {
+      "name": "futures-core",
+      "version": "0.3.34",
+      "index": "/private/tmp/canlang-pass5-profile/cargo-home/registry/index/index.crates.io-1949cf8c6b5b557f/.cache/fu/tu/futures-core",
+      "index_sha256": "efd49b47d990ff3d5f4759803b18ac1d16b6f277d4e202b362c5ede397f550aa"
+    },
+    {
+      "name": "futures-task",
+      "version": "0.3.34",
+      "index": "/private/tmp/canlang-pass5-profile/cargo-home/registry/index/index.crates.io-1949cf8c6b5b557f/.cache/fu/tu/futures-task",
+      "index_sha256": "d68cb2fc4b6b3895ca69bc9deb4a12c3512a8c66e433f27e58e9f165ebc3e55a"
+    },
+    {
+      "name": "futures-util",
+      "version": "0.3.34",
+      "index": "/private/tmp/canlang-pass5-profile/cargo-home/registry/index/index.crates.io-1949cf8c6b5b557f/.cache/fu/tu/futures-util",
+      "index_sha256": "ef6139743db8bbf34f3db3ae7874d905bab8d75f2c2f441dc10619d032100d65"
+    },
+    {
+      "name": "if_chain",
+      "version": "1.0.3",
+      "index": "/private/tmp/canlang-pass5-profile/cargo-home/registry/index/index.crates.io-1949cf8c6b5b557f/.cache/if/_c/if_chain",
+      "index_sha256": "5046d091b5e8828a3f604ac324632234dc7d7af90e78f1b684a621be764671be"
+    },
+    {
+      "name": "js-sys",
+      "version": "0.3.106",
+      "index": "/private/tmp/canlang-pass5-profile/cargo-home/registry/index/index.crates.io-1949cf8c6b5b557f/.cache/js/-s/js-sys",
+      "index_sha256": "3092f14ac491e39cbea1077a777aa0696e61da279bdb2adfafa5bacb5aa9d2c9"
+    },
+    {
+      "name": "outref",
+      "version": "0.5.2",
+      "index": "/private/tmp/canlang-pass5-profile/cargo-home/registry/index/index.crates.io-1949cf8c6b5b557f/.cache/ou/tr/outref",
+      "index_sha256": "30206448ae8cf9fb00d2f3ff86d91f938234991993dd7fdc0dea5c1a20cdafa5"
+    },
+    {
+      "name": "pin-project-lite",
+      "version": "0.2.17",
+      "index": "/private/tmp/canlang-pass5-profile/cargo-home/registry/index/index.crates.io-1949cf8c6b5b557f/.cache/pi/n-/pin-project-lite",
+      "index_sha256": "602412dec1578068348640111fab9dc4b9f47e1f947463d6aa7bcd03f5b19020"
+    },
+    {
+      "name": "radium",
+      "version": "0.7.0",
+      "index": "/private/tmp/canlang-pass5-profile/cargo-home/registry/index/index.crates.io-1949cf8c6b5b557f/.cache/ra/di/radium",
+      "index_sha256": "08ba1034ff4849f3d343dd61744463fdb40fee4f8f5d94079caa4b9f8bf71fc7"
+    },
+    {
+      "name": "rustc-hash",
+      "version": "2.1.3",
+      "index": "/private/tmp/canlang-pass5-profile/cargo-home/registry/index/index.crates.io-1949cf8c6b5b557f/.cache/ru/st/rustc-hash",
+      "index_sha256": "f5d5b78a7e13e84e07b0f7e2a1115922ab341cd594a53983bd413aca74b6316a"
+    },
+    {
+      "name": "rustversion",
+      "version": "1.0.23",
+      "index": "/private/tmp/canlang-pass5-profile/cargo-home/registry/index/index.crates.io-1949cf8c6b5b557f/.cache/ru/st/rustversion",
+      "index_sha256": "436aebebb68fcafac49cf08f4870ca51b2f2c8d2d7db2590606a8416df16c9c2"
+    },
+    {
+      "name": "slab",
+      "version": "0.4.12",
+      "index": "/private/tmp/canlang-pass5-profile/cargo-home/registry/index/index.crates.io-1949cf8c6b5b557f/.cache/sl/ab/slab",
+      "index_sha256": "9806ea47e9ade41c8f35f120d77e00143ef5c8f11acdc7d2d28db39b0d770ec7"
+    },
+    {
+      "name": "sourcemap",
+      "version": "9.3.2",
+      "index": "/private/tmp/canlang-pass5-profile/cargo-home/registry/index/index.crates.io-1949cf8c6b5b557f/.cache/so/ur/sourcemap",
+      "index_sha256": "d8d60a28e5bfe303dd37824874080ab4a4498932c4a6c45dbc180127c505362d"
+    },
+    {
+      "name": "tap",
+      "version": "1.0.1",
+      "index": "/private/tmp/canlang-pass5-profile/cargo-home/registry/index/index.crates.io-1949cf8c6b5b557f/.cache/3/t/tap",
+      "index_sha256": "ae5a014670a08407e564661b542f6ad870752dd68a6ab244ed71400b0e5eec3b"
+    },
+    {
+      "name": "unicode-id-start",
+      "version": "1.5.0",
+      "index": "/private/tmp/canlang-pass5-profile/cargo-home/registry/index/index.crates.io-1949cf8c6b5b557f/.cache/un/ic/unicode-id-start",
+      "index_sha256": "1c2f3d241ff009fbc62e95e2c7c8dadbc28c52f54c0dce767cb158d9eaaed756"
+    },
+    {
+      "name": "uuid",
+      "version": "1.27.0",
+      "index": "/private/tmp/canlang-pass5-profile/cargo-home/registry/index/index.crates.io-1949cf8c6b5b557f/.cache/uu/id/uuid",
+      "index_sha256": "fccdeca1ccee1b763e0a9880c092a79ef304663376123aa00e81de07b125095c"
+    },
+    {
+      "name": "vsimd",
+      "version": "0.8.0",
+      "index": "/private/tmp/canlang-pass5-profile/cargo-home/registry/index/index.crates.io-1949cf8c6b5b557f/.cache/vs/im/vsimd",
+      "index_sha256": "f10f00f6cec143f474d9f40fc98249ef779f4c6ca879ccf53337a86a9371db67"
+    },
+    {
+      "name": "wasm-bindgen",
+      "version": "0.2.129",
+      "index": "/private/tmp/canlang-pass5-profile/cargo-home/registry/index/index.crates.io-1949cf8c6b5b557f/.cache/wa/sm/wasm-bindgen",
+      "index_sha256": "e27c75c5bf20725e3754ac9524bb5a2ca60427d976282b1e7a1e953d37995566"
+    },
+    {
+      "name": "wasm-bindgen-macro",
+      "version": "0.2.129",
+      "index": "/private/tmp/canlang-pass5-profile/cargo-home/registry/index/index.crates.io-1949cf8c6b5b557f/.cache/wa/sm/wasm-bindgen-macro",
+      "index_sha256": "8c1adb02c9b4e9e2bb3d3b5512605848ce4990ebd59f65918800a6228b649bd0"
+    },
+    {
+      "name": "wasm-bindgen-macro-support",
+      "version": "0.2.129",
+      "index": "/private/tmp/canlang-pass5-profile/cargo-home/registry/index/index.crates.io-1949cf8c6b5b557f/.cache/wa/sm/wasm-bindgen-macro-support",
+      "index_sha256": "24ce7f20047f18e241710f6b13824231f6f2581dd1a380bd23632929544da67d"
+    },
+    {
+      "name": "wasm-bindgen-shared",
+      "version": "0.2.129",
+      "index": "/private/tmp/canlang-pass5-profile/cargo-home/registry/index/index.crates.io-1949cf8c6b5b557f/.cache/wa/sm/wasm-bindgen-shared",
+      "index_sha256": "6ae1a2da79dc95c27f32f862bca97e1c22c9af0c177113b8468ccf54b5f83086"
+    },
+    {
+      "name": "wyz",
+      "version": "0.5.1",
+      "index": "/private/tmp/canlang-pass5-profile/cargo-home/registry/index/index.crates.io-1949cf8c6b5b557f/.cache/3/w/wyz",
+      "index_sha256": "9531d6e91ea5f85438ad9b63138b4a1426ab446944f8760360a1a3547ca2dcef"
+    }
+  ]
+}

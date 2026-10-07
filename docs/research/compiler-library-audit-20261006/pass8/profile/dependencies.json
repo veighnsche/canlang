@@ -1,0 +1,903 @@
+{
+  "registry_packages_before": 66,
+  "registry_packages_after": 93,
+  "added_count": 27,
+  "added": [
+    {
+      "name": "base64-simd",
+      "version": "0.8.0",
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "checksum": "339abbe78e73178762e23bea9dfd08e697eb3f3301cd4be981c0f78ba5859195",
+      "dependencies": [
+        "outref",
+        "vsimd"
+      ],
+      "active_native": true,
+      "activated_features": [
+        "alloc",
+        "default",
+        "detect",
+        "std"
+      ],
+      "archive_available": true,
+      "license": "MIT",
+      "rust_version": "1.63",
+      "declared_features": {
+        "alloc": [
+          "vsimd/alloc"
+        ],
+        "default": [
+          "std",
+          "detect"
+        ],
+        "detect": [
+          "vsimd/detect"
+        ],
+        "std": [
+          "alloc",
+          "vsimd/std"
+        ],
+        "unstable": [
+          "vsimd/unstable"
+        ]
+      },
+      "license_files": {},
+      "active_linux": true,
+      "activated_linux_features": [
+        "alloc",
+        "default",
+        "detect",
+        "std"
+      ]
+    },
+    {
+      "name": "bitvec",
+      "version": "1.1.1",
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "checksum": "ddcec3d12c579d40898fe0a9a358a803c23e9c52ca3c425707f81c9436211837",
+      "dependencies": [
+        "funty",
+        "radium",
+        "tap",
+        "wyz"
+      ],
+      "active_native": true,
+      "activated_features": [
+        "alloc",
+        "atomic",
+        "default",
+        "std"
+      ],
+      "archive_available": true,
+      "license": "MIT",
+      "rust_version": "1.56",
+      "declared_features": {
+        "alloc": [],
+        "atomic": [],
+        "default": [
+          "atomic",
+          "std"
+        ],
+        "std": [
+          "alloc"
+        ],
+        "testing": []
+      },
+      "license_files": {
+        "bitvec-1.1.1/LICENSE.txt": "411781fd38700f2357a14126d0ab048164ab881f1dcb335c1bb932e232c9a2f5"
+      },
+      "active_linux": true,
+      "activated_linux_features": [
+        "alloc",
+        "atomic",
+        "default",
+        "std"
+      ]
+    },
+    {
+      "name": "bumpalo",
+      "version": "3.20.3",
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "checksum": "72f5acc6cb2ba439de613abc23857ec3d78374d8ed5ac84e9d11336e87da8649",
+      "active_native": false,
+      "activated_features": null,
+      "archive_available": true,
+      "license": "MIT OR Apache-2.0",
+      "rust_version": "1.71.1",
+      "declared_features": {
+        "allocator_api": [],
+        "bench_allocator_api": [
+          "allocator_api",
+          "blink-alloc/nightly"
+        ],
+        "boxed": [],
+        "collections": [],
+        "default": [],
+        "serde": [
+          "dep:serde"
+        ],
+        "std": []
+      },
+      "license_files": {
+        "bumpalo-3.20.3/LICENSE-APACHE": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2",
+        "bumpalo-3.20.3/LICENSE-MIT": "65f94e99ddaf4f5d1782a6dae23f35d4293a9a01444a13135a6887017d353cee"
+      },
+      "active_linux": false,
+      "activated_linux_features": null
+    },
+    {
+      "name": "data-encoding",
+      "version": "2.11.1",
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "checksum": "4583a4551df46e2792f82ceeac45e850d2e2d5debba0b91f102385cda5b11f06",
+      "active_native": true,
+      "activated_features": [
+        "alloc",
+        "default",
+        "std"
+      ],
+      "archive_available": true,
+      "license": "MIT",
+      "rust_version": "1.48",
+      "declared_features": {
+        "alloc": [],
+        "default": [
+          "std"
+        ],
+        "std": [
+          "alloc"
+        ]
+      },
+      "license_files": {
+        "data-encoding-2.11.1/LICENSE": "b68ad1a3367b825447089e1f8d6829b97f47a89eb78d2f4ebaef4672f5606186"
+      },
+      "active_linux": true,
+      "activated_linux_features": [
+        "alloc",
+        "default",
+        "std"
+      ]
+    },
+    {
+      "name": "debugid",
+      "version": "0.8.0",
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "checksum": "bef552e6f588e446098f6ba40d89ac146c8c7b64aade83c051ee00bb5d2bc18d",
+      "dependencies": [
+        "serde",
+        "uuid"
+      ],
+      "active_native": true,
+      "activated_features": [
+        "serde"
+      ],
+      "archive_available": true,
+      "license": "Apache-2.0",
+      "rust_version": null,
+      "declared_features": null,
+      "license_files": {
+        "debugid-0.8.0/LICENSE": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2"
+      },
+      "active_linux": true,
+      "activated_linux_features": [
+        "serde"
+      ]
+    },
+    {
+      "name": "funty",
+      "version": "2.0.0",
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "checksum": "e6d5a32815ae3f33302d95fdcb2ce17862f8c65363dcfd29360480ba1001fc9c",
+      "active_native": true,
+      "activated_features": [],
+      "archive_available": true,
+      "license": "MIT",
+      "rust_version": null,
+      "declared_features": {
+        "default": [
+          "std"
+        ],
+        "std": []
+      },
+      "license_files": {
+        "funty-2.0.0/LICENSE.txt": "f790cc576999f5998c766d3d26d7d64dc368e805a98461484f65e8d961ec6d9f"
+      },
+      "active_linux": true,
+      "activated_linux_features": []
+    },
+    {
+      "name": "futures-core",
+      "version": "0.3.34",
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "checksum": "92d699e522242e69e3003b94ecc1f960f3a5e015aa7c5d7486e65ad01dd94f5e",
+      "active_native": false,
+      "activated_features": null,
+      "archive_available": true,
+      "license": "MIT OR Apache-2.0",
+      "rust_version": "1.36",
+      "declared_features": {
+        "alloc": [],
+        "cfg-target-has-atomic": [],
+        "default": [
+          "std"
+        ],
+        "std": [
+          "alloc"
+        ],
+        "unstable": []
+      },
+      "license_files": {
+        "futures-core-0.3.34/LICENSE-APACHE": "275c491d6d1160553c32fd6127061d7f9606c3ea25abfad6ca3f6ed088785427",
+        "futures-core-0.3.34/LICENSE-MIT": "6652c868f35dfe5e8ef636810a4e576b9d663f3a17fb0f5613ad73583e1b88fd"
+      },
+      "active_linux": false,
+      "activated_linux_features": null
+    },
+    {
+      "name": "futures-task",
+      "version": "0.3.34",
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "checksum": "cd417de3d1d015fc3bfd2b1ea46dfc7bab72ef86f1cc7cc9c78e728b34a6d1fd",
+      "active_native": false,
+      "activated_features": null,
+      "archive_available": true,
+      "license": "MIT OR Apache-2.0",
+      "rust_version": "1.71",
+      "declared_features": {
+        "alloc": [],
+        "cfg-target-has-atomic": [],
+        "default": [
+          "std"
+        ],
+        "std": [
+          "alloc"
+        ],
+        "unstable": []
+      },
+      "license_files": {
+        "futures-task-0.3.34/LICENSE-APACHE": "275c491d6d1160553c32fd6127061d7f9606c3ea25abfad6ca3f6ed088785427",
+        "futures-task-0.3.34/LICENSE-MIT": "6652c868f35dfe5e8ef636810a4e576b9d663f3a17fb0f5613ad73583e1b88fd"
+      },
+      "active_linux": false,
+      "activated_linux_features": null
+    },
+    {
+      "name": "futures-util",
+      "version": "0.3.34",
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "checksum": "0d50a92467f8ba5dd6e3ee5d4bd04d73ab2e4e1c44474a0674821dfce14b79bc",
+      "dependencies": [
+        "futures-core",
+        "futures-task",
+        "pin-project-lite",
+        "slab"
+      ],
+      "active_native": false,
+      "activated_features": null,
+      "archive_available": true,
+      "license": "MIT OR Apache-2.0",
+      "rust_version": "1.71",
+      "declared_features": {
+        "alloc": [
+          "futures-core/alloc",
+          "futures-task/alloc",
+          "slab"
+        ],
+        "async-await": [],
+        "async-await-macro": [
+          "async-await",
+          "futures-macro"
+        ],
+        "bilock": [],
+        "cfg-target-has-atomic": [],
+        "channel": [
+          "std",
+          "futures-channel"
+        ],
+        "compat": [
+          "std",
+          "futures_01",
+          "libc"
+        ],
+        "default": [
+          "std",
+          "async-await",
+          "async-await-macro"
+        ],
+        "io": [
+          "std",
+          "futures-io",
+          "memchr"
+        ],
+        "io-compat": [
+          "io",
+          "compat",
+          "tokio-io",
+          "libc"
+        ],
+        "portable-atomic": [
+          "futures-core/portable-atomic",
+          "portable_atomic_crate"
+        ],
+        "portable-atomic-alloc": [
+          "portable-atomic-util/alloc",
+          "portable-atomic"
+        ],
+        "sink": [
+          "futures-sink"
+        ],
+        "std": [
+          "alloc",
+          "futures-core/std",
+          "futures-task/std",
+          "slab/std"
+        ],
+        "unstable": [
+          "futures-core/unstable",
+          "futures-task/unstable"
+        ],
+        "write-all-vectored": [
+          "io"
+        ]
+      },
+      "license_files": {
+        "futures-util-0.3.34/LICENSE-APACHE": "275c491d6d1160553c32fd6127061d7f9606c3ea25abfad6ca3f6ed088785427",
+        "futures-util-0.3.34/LICENSE-MIT": "6652c868f35dfe5e8ef636810a4e576b9d663f3a17fb0f5613ad73583e1b88fd"
+      },
+      "active_linux": false,
+      "activated_linux_features": null
+    },
+    {
+      "name": "if_chain",
+      "version": "1.0.3",
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "checksum": "cd62e6b5e86ea8eeeb8db1de02880a6abc01a397b2ebb64b5d74ac255318f5cb",
+      "active_native": true,
+      "activated_features": [],
+      "archive_available": true,
+      "license": "MIT/Apache-2.0",
+      "rust_version": null,
+      "declared_features": null,
+      "license_files": {
+        "if_chain-1.0.3/LICENSE-APACHE": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2",
+        "if_chain-1.0.3/LICENSE-MIT": "5de1878b4dbad85dc60131e58e6bca4503f7b141c2f7b2b295151568859c964a"
+      },
+      "active_linux": true,
+      "activated_linux_features": []
+    },
+    {
+      "name": "js-sys",
+      "version": "0.3.106",
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "checksum": "7883d941dae510fb2d978fc3fe018c71c9e2892fd38854de3e8b92c2e5ad9cc5",
+      "dependencies": [
+        "cfg-if",
+        "futures-util",
+        "wasm-bindgen"
+      ],
+      "active_native": false,
+      "activated_features": null,
+      "archive_available": false,
+      "license": null,
+      "rust_version": null,
+      "declared_features": null,
+      "license_files": {},
+      "active_linux": false,
+      "activated_linux_features": null
+    },
+    {
+      "name": "outref",
+      "version": "0.5.2",
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "checksum": "1a80800c0488c3a21695ea981a54918fbb37abf04f4d0720c453632255e2ff0e",
+      "active_native": true,
+      "activated_features": [],
+      "archive_available": true,
+      "license": "MIT",
+      "rust_version": "1.63.0",
+      "declared_features": null,
+      "license_files": {
+        "outref-0.5.2/LICENSE": "a00511478c83ebb464ef19d840f061c7444adc4636bb561900e75c5808cfc6cc"
+      },
+      "active_linux": true,
+      "activated_linux_features": []
+    },
+    {
+      "name": "pin-project-lite",
+      "version": "0.2.17",
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "checksum": "a89322df9ebe1c1578d689c92318e070967d1042b512afbe49518723f4e6d5cd",
+      "active_native": false,
+      "activated_features": null,
+      "archive_available": true,
+      "license": "Apache-2.0 OR MIT",
+      "rust_version": "1.37",
+      "declared_features": null,
+      "license_files": {
+        "pin-project-lite-0.2.17/LICENSE-APACHE": "0d542e0c8804e39aa7f37eb00da5a762149dc682d7829451287e11b938e94594",
+        "pin-project-lite-0.2.17/LICENSE-MIT": "23f18e03dc49df91622fe2a76176497404e46ced8a715d9d2b67a7446571cca3"
+      },
+      "active_linux": false,
+      "activated_linux_features": null
+    },
+    {
+      "name": "radium",
+      "version": "0.7.0",
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "checksum": "dc33ff2d4973d518d823d61aa239014831e521c75da58e3df4840d3f47749d09",
+      "active_native": true,
+      "activated_features": [],
+      "archive_available": true,
+      "license": "MIT",
+      "rust_version": null,
+      "declared_features": null,
+      "license_files": {
+        "radium-0.7.0/LICENSE.txt": "13f4cc9fbc8d4a447b28aa84019c10ad4abf4b5f6919db061bf6690ccc23bc02"
+      },
+      "active_linux": true,
+      "activated_linux_features": []
+    },
+    {
+      "name": "rustc-hash",
+      "version": "2.1.3",
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "checksum": "6b1e7f9a428571be2dc5bc0505c13fb6bf936822b894ec87abf8a08a4e51742d",
+      "active_native": true,
+      "activated_features": [
+        "default",
+        "std"
+      ],
+      "archive_available": true,
+      "license": "Apache-2.0 OR MIT",
+      "rust_version": "1.77",
+      "declared_features": {
+        "default": [
+          "std"
+        ],
+        "nightly": [],
+        "rand": [
+          "dep:rand",
+          "std"
+        ],
+        "std": []
+      },
+      "license_files": {
+        "rustc-hash-2.1.3/LICENSE-APACHE": "95bd3988beee069fa2848f648dab43cc6e0b2add2ad6bcb17360caf749802bcc",
+        "rustc-hash-2.1.3/LICENSE-MIT": "30fefc3a7d6a0041541858293bcbea2dde4caa4c0a5802f996a7f7e8c0085652"
+      },
+      "active_linux": true,
+      "activated_linux_features": [
+        "default",
+        "std"
+      ]
+    },
+    {
+      "name": "rustversion",
+      "version": "1.0.23",
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "checksum": "cf54715a573b99ac80df0bc206da022bcd442c974952c7b9720069370852e21f",
+      "active_native": false,
+      "activated_features": null,
+      "archive_available": true,
+      "license": "MIT OR Apache-2.0",
+      "rust_version": "1.31",
+      "declared_features": null,
+      "license_files": {
+        "rustversion-1.0.23/LICENSE-APACHE": "62c7a1e35f56406896d7aa7ca52d0cc0d272ac022b5d2796e7d6905db8a3636a",
+        "rustversion-1.0.23/LICENSE-MIT": "23f18e03dc49df91622fe2a76176497404e46ced8a715d9d2b67a7446571cca3"
+      },
+      "active_linux": false,
+      "activated_linux_features": null
+    },
+    {
+      "name": "slab",
+      "version": "0.4.12",
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "checksum": "0c790de23124f9ab44544d7ac05d60440adc586479ce501c1d6d7da3cd8c9cf5",
+      "active_native": false,
+      "activated_features": null,
+      "archive_available": true,
+      "license": "MIT",
+      "rust_version": "1.51",
+      "declared_features": {
+        "default": [
+          "std"
+        ],
+        "std": []
+      },
+      "license_files": {
+        "slab-0.4.12/LICENSE": "8ce0830173fdac609dfb4ea603fdc002c2f4af0dc9b1a005653f5da9cf534b18"
+      },
+      "active_linux": false,
+      "activated_linux_features": null
+    },
+    {
+      "name": "sourcemap",
+      "version": "9.3.2",
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "checksum": "314d62a489431668f719ada776ca1d49b924db951b7450f8974c9ae51ab05ad7",
+      "dependencies": [
+        "base64-simd",
+        "bitvec",
+        "data-encoding",
+        "debugid",
+        "if_chain",
+        "rustc-hash",
+        "serde",
+        "serde_json",
+        "unicode-id-start",
+        "url"
+      ],
+      "active_native": true,
+      "activated_features": [],
+      "archive_available": true,
+      "license": "BSD-3-Clause",
+      "rust_version": null,
+      "declared_features": {
+        "ram_bundle": [
+          "scroll"
+        ]
+      },
+      "license_files": {
+        "sourcemap-9.3.2/LICENSE": "7516e1cf340213f60d96bca77bb012882dbf80e7cca5922c914174f605d9ef71"
+      },
+      "active_linux": true,
+      "activated_linux_features": []
+    },
+    {
+      "name": "tap",
+      "version": "1.0.1",
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "checksum": "55937e1799185b12863d447f42597ed69d9928686b8d88a1df17376a097d8369",
+      "active_native": true,
+      "activated_features": [],
+      "archive_available": true,
+      "license": "MIT",
+      "rust_version": null,
+      "declared_features": null,
+      "license_files": {
+        "tap-1.0.1/LICENSE.txt": "8b4e95f5cf0dc40269c99f7b787203ffe04ded245ca2427422c196efa2b2f42a"
+      },
+      "active_linux": true,
+      "activated_linux_features": []
+    },
+    {
+      "name": "unicode-id-start",
+      "version": "1.5.0",
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "checksum": "0825d2e09dcae814a4273c1e1435979d414ede25b2ee235b1545da6682483765",
+      "active_native": true,
+      "activated_features": [],
+      "archive_available": true,
+      "license": "(MIT OR Apache-2.0) AND Unicode-3.0",
+      "rust_version": "1.31",
+      "declared_features": null,
+      "license_files": {
+        "unicode-id-start-1.5.0/LICENSE-APACHE": "62c7a1e35f56406896d7aa7ca52d0cc0d272ac022b5d2796e7d6905db8a3636a",
+        "unicode-id-start-1.5.0/LICENSE-MIT": "23f18e03dc49df91622fe2a76176497404e46ced8a715d9d2b67a7446571cca3",
+        "unicode-id-start-1.5.0/LICENSE-UNICODE": "f7db81051789b729fea528a63ec4c938fdcb93d9d61d97dc8cc2e9df6d47f2a1"
+      },
+      "active_linux": true,
+      "activated_linux_features": []
+    },
+    {
+      "name": "uuid",
+      "version": "1.27.0",
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "checksum": "97277d36b9c3ace13e58fa6e753f8b0bbbf302a18dd193240d70f9e29681059a",
+      "dependencies": [
+        "js-sys",
+        "wasm-bindgen"
+      ],
+      "active_native": true,
+      "activated_features": [
+        "default",
+        "std"
+      ],
+      "archive_available": true,
+      "license": "Apache-2.0 OR MIT",
+      "rust_version": "1.89.0",
+      "declared_features": {
+        "atomic": [
+          "dep:atomic"
+        ],
+        "borsh": [
+          "dep:borsh",
+          "dep:borsh-derive"
+        ],
+        "default": [
+          "std"
+        ],
+        "fast-rng": [
+          "rng",
+          "dep:rand"
+        ],
+        "js": [
+          "dep:wasm-bindgen",
+          "dep:js-sys"
+        ],
+        "macro-diagnostics": [],
+        "md5": [
+          "dep:md-5"
+        ],
+        "rng": [
+          "dep:getrandom"
+        ],
+        "rng-getrandom": [
+          "rng",
+          "dep:getrandom",
+          "uuid-rng-internal-lib",
+          "uuid-rng-internal-lib/getrandom"
+        ],
+        "rng-rand": [
+          "rng",
+          "dep:rand",
+          "uuid-rng-internal-lib",
+          "uuid-rng-internal-lib/rand"
+        ],
+        "serde": [
+          "dep:serde_core"
+        ],
+        "sha1": [
+          "dep:sha1_smol"
+        ],
+        "std": [
+          "wasm-bindgen?/std",
+          "js-sys?/std"
+        ],
+        "v1": [
+          "atomic"
+        ],
+        "v3": [
+          "md5"
+        ],
+        "v4": [
+          "rng"
+        ],
+        "v5": [
+          "sha1"
+        ],
+        "v6": [
+          "atomic"
+        ],
+        "v7": [
+          "rng"
+        ],
+        "v8": []
+      },
+      "license_files": {
+        "uuid-1.27.0/LICENSE-APACHE": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2",
+        "uuid-1.27.0/LICENSE-MIT": "436bc5a105d8e57dcd8778730f3754f7bf39c14d2f530e4cde4bd2d17a83ec3d"
+      },
+      "active_linux": true,
+      "activated_linux_features": [
+        "default",
+        "std"
+      ]
+    },
+    {
+      "name": "vsimd",
+      "version": "0.8.0",
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "checksum": "5c3082ca00d5a5ef149bb8b555a72ae84c9c59f7250f013ac822ac2e49b19c64",
+      "active_native": true,
+      "activated_features": [
+        "alloc",
+        "detect",
+        "std"
+      ],
+      "archive_available": true,
+      "license": "MIT",
+      "rust_version": "1.63",
+      "declared_features": {
+        "alloc": [],
+        "detect": [
+          "std"
+        ],
+        "std": [
+          "alloc"
+        ],
+        "unstable": []
+      },
+      "license_files": {},
+      "active_linux": true,
+      "activated_linux_features": [
+        "alloc",
+        "detect",
+        "std"
+      ]
+    },
+    {
+      "name": "wasm-bindgen",
+      "version": "0.2.129",
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "checksum": "9bb54f33acc68fd454578d9820b0bde1a1a3d17aa17bb7b6595806d02886d409",
+      "dependencies": [
+        "cfg-if",
+        "once_cell",
+        "rustversion",
+        "wasm-bindgen-macro",
+        "wasm-bindgen-shared"
+      ],
+      "active_native": false,
+      "activated_features": null,
+      "archive_available": true,
+      "license": "MIT OR Apache-2.0",
+      "rust_version": "1.81",
+      "declared_features": {
+        "default": [
+          "std"
+        ],
+        "enable-interning": [
+          "std"
+        ],
+        "gg-alloc": [],
+        "msrv": [],
+        "rustversion": [],
+        "serde-serialize": [
+          "serde",
+          "serde_json",
+          "std"
+        ],
+        "spans": [],
+        "std": [],
+        "strict-macro": [
+          "wasm-bindgen-macro/strict-macro"
+        ],
+        "xxx_debug_only_print_generated_code": []
+      },
+      "license_files": {
+        "wasm-bindgen-0.2.129/LICENSE-APACHE": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2",
+        "wasm-bindgen-0.2.129/LICENSE-MIT": "378f5840b258e2779c39418f3f2d7b2ba96f1c7917dd6be0713f88305dbda397"
+      },
+      "active_linux": false,
+      "activated_linux_features": null
+    },
+    {
+      "name": "wasm-bindgen-macro",
+      "version": "0.2.129",
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "checksum": "2e29d0c35b16e224a7eeb5cd2d25e3e1968fbd65604117b44d3b789d00ee8535",
+      "dependencies": [
+        "quote",
+        "wasm-bindgen-macro-support"
+      ],
+      "active_native": false,
+      "activated_features": null,
+      "archive_available": true,
+      "license": "MIT OR Apache-2.0",
+      "rust_version": "1.81",
+      "declared_features": {
+        "strict-macro": [
+          "wasm-bindgen-macro-support/strict-macro"
+        ]
+      },
+      "license_files": {
+        "wasm-bindgen-macro-0.2.129/LICENSE-APACHE": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2",
+        "wasm-bindgen-macro-0.2.129/LICENSE-MIT": "378f5840b258e2779c39418f3f2d7b2ba96f1c7917dd6be0713f88305dbda397"
+      },
+      "active_linux": false,
+      "activated_linux_features": null
+    },
+    {
+      "name": "wasm-bindgen-macro-support",
+      "version": "0.2.129",
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "checksum": "6f501a8bc3719dba86ef8ae4728879c08001bea749eb1333ac5b91e040e2a6b7",
+      "dependencies": [
+        "bumpalo",
+        "proc-macro2",
+        "quote",
+        "syn 3.0.6",
+        "wasm-bindgen-shared"
+      ],
+      "active_native": false,
+      "activated_features": null,
+      "archive_available": true,
+      "license": "MIT OR Apache-2.0",
+      "rust_version": "1.81",
+      "declared_features": {
+        "extra-traits": [
+          "syn/extra-traits"
+        ],
+        "strict-macro": []
+      },
+      "license_files": {
+        "wasm-bindgen-macro-support-0.2.129/LICENSE-APACHE": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2",
+        "wasm-bindgen-macro-support-0.2.129/LICENSE-MIT": "378f5840b258e2779c39418f3f2d7b2ba96f1c7917dd6be0713f88305dbda397"
+      },
+      "active_linux": false,
+      "activated_linux_features": null
+    },
+    {
+      "name": "wasm-bindgen-shared",
+      "version": "0.2.129",
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "checksum": "23f0c9c52aa7cd7d77769a4cfe2a9adb1b331f489a41d912ce14513d5ab995c6",
+      "dependencies": [
+        "unicode-ident"
+      ],
+      "active_native": false,
+      "activated_features": null,
+      "archive_available": true,
+      "license": "MIT OR Apache-2.0",
+      "rust_version": "1.81",
+      "declared_features": null,
+      "license_files": {
+        "wasm-bindgen-shared-0.2.129/LICENSE-APACHE": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2",
+        "wasm-bindgen-shared-0.2.129/LICENSE-MIT": "378f5840b258e2779c39418f3f2d7b2ba96f1c7917dd6be0713f88305dbda397"
+      },
+      "active_linux": false,
+      "activated_linux_features": null
+    },
+    {
+      "name": "wyz",
+      "version": "0.5.1",
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "checksum": "05f360fc0b24296329c78fda852a1e9ae82de9cf7b27dae4b7f62f118f77b9ed",
+      "dependencies": [
+        "tap"
+      ],
+      "active_native": true,
+      "activated_features": [],
+      "archive_available": true,
+      "license": "MIT",
+      "rust_version": null,
+      "declared_features": {
+        "alloc": [],
+        "default": [
+          "std"
+        ],
+        "garbage": [
+          "once_cell",
+          "typemap"
+        ],
+        "std": [
+          "alloc"
+        ]
+      },
+      "license_files": {
+        "wyz-0.5.1/LICENSE.txt": "411781fd38700f2357a14126d0ab048164ab881f1dcb335c1bb932e232c9a2f5"
+      },
+      "active_linux": true,
+      "activated_linux_features": []
+    }
+  ],
+  "removed": [],
+  "changed_existing": [
+    {
+      "before": {
+        "name": "canlang-compiler",
+        "version": "0.1.0",
+        "dependencies": [
+          "lsp-types",
+          "serde",
+          "serde_json",
+          "sha2",
+          "tempfile",
+          "url"
+        ]
+      },
+      "after": {
+        "name": "canlang-compiler",
+        "version": "0.1.0",
+        "dependencies": [
+          "lsp-types",
+          "serde",
+          "serde_json",
+          "sha2",
+          "sourcemap",
+          "tempfile",
+          "url"
+        ]
+      }
+    }
+  ],
+  "no_version_upgrades": true,
+  "native_added_count": 15,
+  "inactive_added_count": 12,
+  "total_packages_before": 67,
+  "total_packages_after": 94,
+  "inactive_js_sys_note": "js-sys0.3.106 is in inactive Wasm-only lock closure; native cache archive absent, license/manifest not locally inspected, no download performed.",
+  "linux_active_added_count": 15
+}

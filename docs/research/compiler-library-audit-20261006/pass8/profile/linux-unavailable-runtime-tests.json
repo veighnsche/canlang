@@ -1,0 +1,57 @@
+{
+  "reason": "Seven mandatory Node syntax/runtime cases require unavailable Node; two mandatory state-engine cases require excluded package source fixtures. Not executed successfully on Linux; native full suite qualified by root.",
+  "tests": [
+    {
+      "name": "b4g_hook_team_operation_unchanged",
+      "linux_reason": "Node executable absent in pinned Rust image; mandatory node --check/runtime case",
+      "native_evidence": "test b4g_hook_team_operation_unchanged ... ok"
+    },
+    {
+      "name": "b4g_operation_id_lowers_through_c",
+      "linux_reason": "Node executable absent in pinned Rust image; mandatory node --check/runtime case",
+      "native_evidence": "test b4g_operation_id_lowers_through_c ... ok"
+    },
+    {
+      "name": "b4g_team_id_lowers_through_c",
+      "linux_reason": "Node executable absent in pinned Rust image; mandatory node --check/runtime case",
+      "native_evidence": "test b4g_team_id_lowers_through_c ... ok"
+    },
+    {
+      "name": "t21l1_single_app_crud_entry_imports_and_executes",
+      "linux_reason": "Node executable absent in pinned Rust image; mandatory node --check/runtime case",
+      "native_evidence": "test t21l1_single_app_crud_entry_imports_and_executes ... ok"
+    },
+    {
+      "name": "t31_hook_delete_op_registry",
+      "linux_reason": "Node executable absent in pinned Rust image; mandatory node --check/runtime case",
+      "native_evidence": "test t31_hook_delete_op_registry ... ok"
+    },
+    {
+      "name": "t31_plain_schedule_lowers",
+      "linux_reason": "Node executable absent in pinned Rust image; mandatory node --check/runtime case",
+      "native_evidence": "test t31_plain_schedule_lowers ... ok"
+    },
+    {
+      "name": "t31_hook_run_shape",
+      "linux_reason": "Node executable absent in pinned Rust image; mandatory node --check/runtime case",
+      "native_evidence": "test t31_hook_run_shape ... ok"
+    },
+    {
+      "name": "t31_e2e_staged_failure_names_hook",
+      "linux_reason": "Excluded packages/state/test/mutation/fixtures.ts runtime input",
+      "native_evidence": "test t31_e2e_staged_failure_names_hook ... ok"
+    },
+    {
+      "name": "t31_e2e_emitted_hook_drives_engine",
+      "linux_reason": "Excluded packages/state/test/mutation/fixtures.ts runtime input",
+      "native_evidence": "test t31_e2e_emitted_hook_drives_engine ... ok"
+    }
+  ],
+  "native_full_log": {
+    "path": "/private/tmp/canlang-pass8-native-full.log",
+    "sha256": "08941193134744c8176755a392a987869b4149df042fc228ccc7f29699e72a51",
+    "archived_path": "docs/research/compiler-library-audit-20261006/pass8/verification/native-full.log",
+    "archived_sha256": "23f2695a1d7b1fc8316b89ad5b4026560c1eadead9d2649799d30e2d0f3781bc"
+  },
+  "native_evidence_verified": true
+}
