@@ -1,0 +1,81 @@
+{
+  "commands": [
+    {
+      "name": "rustc-version",
+      "argv": [
+        "rustc",
+        "-Vv"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "exit": 0,
+      "signal": null,
+      "timed_out": false,
+      "timeout_seconds": 20,
+      "elapsed_seconds": 0.22927,
+      "core_dumps": "disabled in audit children; no system-wide change",
+      "stdout": "rustc-version.stdout",
+      "stdout_sha256": "352d6857968e80a6357a926ac685b9b07f77c479aaafde33e73a53945e802909",
+      "stderr": "rustc-version.stderr",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "cargo-version",
+      "argv": [
+        "cargo",
+        "-V"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "exit": 0,
+      "signal": null,
+      "timed_out": false,
+      "timeout_seconds": 20,
+      "elapsed_seconds": 0.03271,
+      "core_dumps": "disabled in audit children; no system-wide change",
+      "stdout": "cargo-version.stdout",
+      "stdout_sha256": "1f88eaf7fe1aaec83184752cf4c944cd22f00184136ff36a3e4c318cc60ef566",
+      "stderr": "cargo-version.stderr",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "fresh-build",
+      "argv": [
+        "cargo",
+        "build",
+        "--locked",
+        "--offline",
+        "--manifest-path",
+        "compiler/Cargo.toml",
+        "--lib",
+        "--bin",
+        "can",
+        "--message-format=json"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "exit": 0,
+      "signal": null,
+      "timed_out": false,
+      "timeout_seconds": 90,
+      "elapsed_seconds": 6.20861,
+      "core_dumps": "disabled in audit children; no system-wide change",
+      "stdout": "fresh-build.stdout",
+      "stdout_sha256": "4efc9cdd9c92893e9945cc6363847d21a2a45767f5cf1ccdde22573aeec3420a",
+      "stderr": "fresh-build.stderr",
+      "stderr_sha256": "dfebdd1de17909a68f04c7b9e4220a746bd1f687dd056a65c7e3881e19c45ca3"
+    }
+  ],
+  "libraries": [
+    {
+      "path": "/Users/vince/Projects/canlang/compiler/target/debug/libcanlang_compiler.rlib",
+      "sha256": "d015abf53af1dea0061d28ba8ec764621eb4c6670d5b4f7394e27a004175dc75"
+    },
+    {
+      "path": "/Users/vince/Projects/canlang/compiler/target/debug/deps/libserde_json-5d66d1a0fe38a533.rlib",
+      "sha256": "9df7249a7ee38c342a482ae8da8d164e14dd17f3749232dd0d6b4c8e43021aac"
+    }
+  ],
+  "binary": {
+    "path": "compiler/target/debug/can",
+    "sha256": "791e0b5cf8c734f9d87f04b162b78d570ac8cd8895801ef01ddf13d7cc502e11"
+  },
+  "profile": "native debug, locked/offline fresh build, no release/footprint claim"
+}

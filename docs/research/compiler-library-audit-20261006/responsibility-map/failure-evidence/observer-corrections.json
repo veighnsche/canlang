@@ -1,0 +1,8 @@
+[
+  {
+    "attempt": 1,
+    "classification": "audit-only compile failure",
+    "effect": "Probe passed bytes to public json::parse(&str); no compiler behavior executed",
+    "correction": "Use &text; keep original source/compiler diagnostics in attempt1; rerun fresh observer"
+  }
+]

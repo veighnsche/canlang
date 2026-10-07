@@ -1,0 +1,1021 @@
+{
+  "commands": [
+    {
+      "name": "compile-probe",
+      "argv": [
+        "rustc",
+        "--edition=2024",
+        "/Users/vince/Projects/canlang/docs/research/compiler-library-audit-20261006/responsibility-map/failure-evidence/probe.rs",
+        "--extern",
+        "canlang_compiler=/Users/vince/Projects/canlang/compiler/target/debug/libcanlang_compiler.rlib",
+        "--extern",
+        "serde_json=/Users/vince/Projects/canlang/compiler/target/debug/deps/libserde_json-5d66d1a0fe38a533.rlib",
+        "-L",
+        "dependency=/Users/vince/Projects/canlang/compiler/target/debug/deps",
+        "-o",
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-failure-probe-g_9jlkh5/probe"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "exit": 0,
+      "signal": null,
+      "timed_out": false,
+      "timeout_seconds": 60,
+      "elapsed_seconds": 0.69691,
+      "core_dumps": "disabled in audit children; no system-wide change",
+      "stdout": "compile-probe.stdout",
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderr": "compile-probe.stderr",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "framing",
+      "argv": [
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-failure-probe-g_9jlkh5/probe",
+        "framing"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "exit": 0,
+      "signal": null,
+      "timed_out": false,
+      "timeout_seconds": 12,
+      "elapsed_seconds": 0.25842,
+      "core_dumps": "disabled in audit children; no system-wide change",
+      "stdout": "framing.stdout",
+      "stdout_sha256": "09e8522263bbd92720f9afb4e56c872e735a094316f47b6b42b478ecd54c9c38",
+      "stderr": "framing.stderr",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "environment_overrides": {
+        "CAN_CATALOG": "/Users/vince/Projects/canlang/packages/values/dist/catalog.json"
+      }
+    },
+    {
+      "name": "json-depth-63",
+      "argv": [
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-failure-probe-g_9jlkh5/probe",
+        "json-depth",
+        "63"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "exit": 0,
+      "signal": null,
+      "timed_out": false,
+      "timeout_seconds": 12,
+      "elapsed_seconds": 0.00421,
+      "core_dumps": "disabled in audit children; no system-wide change",
+      "stdout": "json-depth-63.stdout",
+      "stdout_sha256": "3ace7bee00eb030dfbdd5131bba5d320311199d764a87f8fdebf994885d488d9",
+      "stderr": "json-depth-63.stderr",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "environment_overrides": {
+        "CAN_CATALOG": "/Users/vince/Projects/canlang/packages/values/dist/catalog.json"
+      }
+    },
+    {
+      "name": "json-depth-64",
+      "argv": [
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-failure-probe-g_9jlkh5/probe",
+        "json-depth",
+        "64"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "exit": 0,
+      "signal": null,
+      "timed_out": false,
+      "timeout_seconds": 12,
+      "elapsed_seconds": 0.0036,
+      "core_dumps": "disabled in audit children; no system-wide change",
+      "stdout": "json-depth-64.stdout",
+      "stdout_sha256": "918a851d8388b580cdd8eb87f574478e8a2c7ac3db3363666ed6df6ca655310d",
+      "stderr": "json-depth-64.stderr",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "environment_overrides": {
+        "CAN_CATALOG": "/Users/vince/Projects/canlang/packages/values/dist/catalog.json"
+      }
+    },
+    {
+      "name": "json-depth-65",
+      "argv": [
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-failure-probe-g_9jlkh5/probe",
+        "json-depth",
+        "65"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "exit": 0,
+      "signal": null,
+      "timed_out": false,
+      "timeout_seconds": 12,
+      "elapsed_seconds": 0.00338,
+      "core_dumps": "disabled in audit children; no system-wide change",
+      "stdout": "json-depth-65.stdout",
+      "stdout_sha256": "63ec36875aef62032ac73dcfdeb046272410eea769c559a0f8048810229fb693",
+      "stderr": "json-depth-65.stderr",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "environment_overrides": {
+        "CAN_CATALOG": "/Users/vince/Projects/canlang/packages/values/dist/catalog.json"
+      }
+    },
+    {
+      "name": "json-depth-66",
+      "argv": [
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-failure-probe-g_9jlkh5/probe",
+        "json-depth",
+        "66"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "exit": 0,
+      "signal": null,
+      "timed_out": false,
+      "timeout_seconds": 12,
+      "elapsed_seconds": 0.00325,
+      "core_dumps": "disabled in audit children; no system-wide change",
+      "stdout": "json-depth-66.stdout",
+      "stdout_sha256": "8530e0c5b87e64162b6f2dc832b08f46ae2d25e4b7002529ece67059631d395c",
+      "stderr": "json-depth-66.stderr",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "environment_overrides": {
+        "CAN_CATALOG": "/Users/vince/Projects/canlang/packages/values/dist/catalog.json"
+      }
+    },
+    {
+      "name": "json-width-1000",
+      "argv": [
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-failure-probe-g_9jlkh5/probe",
+        "json-width",
+        "1000"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "exit": 0,
+      "signal": null,
+      "timed_out": false,
+      "timeout_seconds": 12,
+      "elapsed_seconds": 0.00321,
+      "core_dumps": "disabled in audit children; no system-wide change",
+      "stdout": "json-width-1000.stdout",
+      "stdout_sha256": "3ff9fdfbe327297b30fe1891765dec873309c5802d678d5fa4f06e5caaa25594",
+      "stderr": "json-width-1000.stderr",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "environment_overrides": {
+        "CAN_CATALOG": "/Users/vince/Projects/canlang/packages/values/dist/catalog.json"
+      }
+    },
+    {
+      "name": "json-width-100000",
+      "argv": [
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-failure-probe-g_9jlkh5/probe",
+        "json-width",
+        "100000"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "exit": 0,
+      "signal": null,
+      "timed_out": false,
+      "timeout_seconds": 12,
+      "elapsed_seconds": 0.03203,
+      "core_dumps": "disabled in audit children; no system-wide change",
+      "stdout": "json-width-100000.stdout",
+      "stdout_sha256": "6df3b2a84534627c99fba3289c11f17169604a4311d414efb0eec6ee0e33ac08",
+      "stderr": "json-width-100000.stderr",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "environment_overrides": {
+        "CAN_CATALOG": "/Users/vince/Projects/canlang/packages/values/dist/catalog.json"
+      }
+    },
+    {
+      "name": "json-forged-num",
+      "argv": [
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-failure-probe-g_9jlkh5/probe",
+        "json-invalid-num"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "exit": 0,
+      "signal": null,
+      "timed_out": false,
+      "timeout_seconds": 12,
+      "elapsed_seconds": 0.00288,
+      "core_dumps": "disabled in audit children; no system-wide change",
+      "stdout": "json-forged-num.stdout",
+      "stdout_sha256": "59235baadb44d0c7f847cf552c6db34336a929b8a3f67ca7ee127ada48ae3be5",
+      "stderr": "json-forged-num.stderr",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "environment_overrides": {
+        "CAN_CATALOG": "/Users/vince/Projects/canlang/packages/values/dist/catalog.json"
+      }
+    },
+    {
+      "name": "json-constructed-64",
+      "argv": [
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-failure-probe-g_9jlkh5/probe",
+        "json-constructed-depth",
+        "64"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "exit": 0,
+      "signal": null,
+      "timed_out": false,
+      "timeout_seconds": 12,
+      "elapsed_seconds": 0.00272,
+      "core_dumps": "disabled in audit children; no system-wide change",
+      "stdout": "json-constructed-64.stdout",
+      "stdout_sha256": "f7f883a1d75b65c8c999ffdc78cdedea959b8f2685f7124a408f91b8aa7ddc94",
+      "stderr": "json-constructed-64.stderr",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "environment_overrides": {
+        "CAN_CATALOG": "/Users/vince/Projects/canlang/packages/values/dist/catalog.json"
+      }
+    },
+    {
+      "name": "json-constructed-256",
+      "argv": [
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-failure-probe-g_9jlkh5/probe",
+        "json-constructed-depth",
+        "256"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "exit": 0,
+      "signal": null,
+      "timed_out": false,
+      "timeout_seconds": 12,
+      "elapsed_seconds": 0.00267,
+      "core_dumps": "disabled in audit children; no system-wide change",
+      "stdout": "json-constructed-256.stdout",
+      "stdout_sha256": "31a89b1357966560c43af8d2f0ef0e58fda164d76b1a982615895a42de96417d",
+      "stderr": "json-constructed-256.stderr",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "environment_overrides": {
+        "CAN_CATALOG": "/Users/vince/Projects/canlang/packages/values/dist/catalog.json"
+      }
+    },
+    {
+      "name": "json-constructed-1024",
+      "argv": [
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-failure-probe-g_9jlkh5/probe",
+        "json-constructed-depth",
+        "1024"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "exit": 0,
+      "signal": null,
+      "timed_out": false,
+      "timeout_seconds": 12,
+      "elapsed_seconds": 0.00274,
+      "core_dumps": "disabled in audit children; no system-wide change",
+      "stdout": "json-constructed-1024.stdout",
+      "stdout_sha256": "36703b97e1d1e1734ea1c0ece2aa77dffbc9c56a89f17eb24e7158c8e7b8c8b9",
+      "stderr": "json-constructed-1024.stderr",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "environment_overrides": {
+        "CAN_CATALOG": "/Users/vince/Projects/canlang/packages/values/dist/catalog.json"
+      }
+    },
+    {
+      "name": "source-control-check",
+      "argv": [
+        "/Users/vince/Projects/canlang/compiler/target/debug/can",
+        "check",
+        "--format=json",
+        "--catalog",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-failure-probe-g_9jlkh5/input.can"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "exit": 0,
+      "signal": null,
+      "timed_out": false,
+      "timeout_seconds": 12,
+      "elapsed_seconds": 0.02222,
+      "core_dumps": "disabled in audit children; no system-wide change",
+      "stdout": "source-control-check.stdout",
+      "stdout_sha256": "525d7406f1b631121711b085df762de0ce31fda2ccd8630078fce932da9854a8",
+      "stderr": "source-control-check.stderr",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "environment_overrides": {
+        "CAN_CATALOG": "/Users/vince/Projects/canlang/packages/values/dist/catalog.json"
+      }
+    },
+    {
+      "name": "source-control-compile",
+      "argv": [
+        "/Users/vince/Projects/canlang/compiler/target/debug/can",
+        "compile",
+        "--catalog",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-failure-probe-g_9jlkh5/input.can"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "exit": 0,
+      "signal": null,
+      "timed_out": false,
+      "timeout_seconds": 12,
+      "elapsed_seconds": 0.009,
+      "core_dumps": "disabled in audit children; no system-wide change",
+      "stdout": "source-control-compile.stdout",
+      "stdout_sha256": "da7eea2f47c35c2d66bdf82edbb4b8270ecddb7e655da62b37ca9e773cc0fce1",
+      "stderr": "source-control-compile.stderr",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "environment_overrides": {
+        "CAN_CATALOG": "/Users/vince/Projects/canlang/packages/values/dist/catalog.json"
+      }
+    },
+    {
+      "name": "source-flat-64-parse",
+      "argv": [
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-failure-probe-g_9jlkh5/probe",
+        "parse-source",
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-failure-probe-g_9jlkh5/input.can"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "exit": 0,
+      "signal": null,
+      "timed_out": false,
+      "timeout_seconds": 12,
+      "elapsed_seconds": 0.00588,
+      "core_dumps": "disabled in audit children; no system-wide change",
+      "stdout": "source-flat-64-parse.stdout",
+      "stdout_sha256": "fb9f8e08c8d0711d0b8c44344d2491b97dc42b3e2aecdda3b92fa0e7cb081892",
+      "stderr": "source-flat-64-parse.stderr",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "environment_overrides": {
+        "CAN_CATALOG": "/Users/vince/Projects/canlang/packages/values/dist/catalog.json"
+      }
+    },
+    {
+      "name": "source-flat-64-check",
+      "argv": [
+        "/Users/vince/Projects/canlang/compiler/target/debug/can",
+        "check",
+        "--format=json",
+        "--catalog",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-failure-probe-g_9jlkh5/input.can"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "exit": 0,
+      "signal": null,
+      "timed_out": false,
+      "timeout_seconds": 12,
+      "elapsed_seconds": 0.00884,
+      "core_dumps": "disabled in audit children; no system-wide change",
+      "stdout": "source-flat-64-check.stdout",
+      "stdout_sha256": "bfcb8f4f1f85fbbdc019615702375c266acd6d46be27f2fd6f86c9505858d598",
+      "stderr": "source-flat-64-check.stderr",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "environment_overrides": {
+        "CAN_CATALOG": "/Users/vince/Projects/canlang/packages/values/dist/catalog.json"
+      }
+    },
+    {
+      "name": "source-flat-64-compile",
+      "argv": [
+        "/Users/vince/Projects/canlang/compiler/target/debug/can",
+        "compile",
+        "--catalog",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-failure-probe-g_9jlkh5/input.can"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "exit": 0,
+      "signal": null,
+      "timed_out": false,
+      "timeout_seconds": 12,
+      "elapsed_seconds": 0.00691,
+      "core_dumps": "disabled in audit children; no system-wide change",
+      "stdout": "source-flat-64-compile.stdout",
+      "stdout_sha256": "da7eea2f47c35c2d66bdf82edbb4b8270ecddb7e655da62b37ca9e773cc0fce1",
+      "stderr": "source-flat-64-compile.stderr",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "environment_overrides": {
+        "CAN_CATALOG": "/Users/vince/Projects/canlang/packages/values/dist/catalog.json"
+      }
+    },
+    {
+      "name": "source-flat-256-parse",
+      "argv": [
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-failure-probe-g_9jlkh5/probe",
+        "parse-source",
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-failure-probe-g_9jlkh5/input.can"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "exit": 0,
+      "signal": null,
+      "timed_out": false,
+      "timeout_seconds": 12,
+      "elapsed_seconds": 0.00582,
+      "core_dumps": "disabled in audit children; no system-wide change",
+      "stdout": "source-flat-256-parse.stdout",
+      "stdout_sha256": "60465393475ffa1fbedded58dfb2d609ca33dea06cadac46d941d938d86b6fba",
+      "stderr": "source-flat-256-parse.stderr",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "environment_overrides": {
+        "CAN_CATALOG": "/Users/vince/Projects/canlang/packages/values/dist/catalog.json"
+      }
+    },
+    {
+      "name": "source-flat-256-check",
+      "argv": [
+        "/Users/vince/Projects/canlang/compiler/target/debug/can",
+        "check",
+        "--format=json",
+        "--catalog",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-failure-probe-g_9jlkh5/input.can"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "exit": 0,
+      "signal": null,
+      "timed_out": false,
+      "timeout_seconds": 12,
+      "elapsed_seconds": 0.01796,
+      "core_dumps": "disabled in audit children; no system-wide change",
+      "stdout": "source-flat-256-check.stdout",
+      "stdout_sha256": "21937d4e634f29fbd0ae9f1c27bc48cb2eb1b1276235a0e52d8f11bbac8ae2b2",
+      "stderr": "source-flat-256-check.stderr",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "environment_overrides": {
+        "CAN_CATALOG": "/Users/vince/Projects/canlang/packages/values/dist/catalog.json"
+      }
+    },
+    {
+      "name": "source-flat-256-compile",
+      "argv": [
+        "/Users/vince/Projects/canlang/compiler/target/debug/can",
+        "compile",
+        "--catalog",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-failure-probe-g_9jlkh5/input.can"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "exit": 0,
+      "signal": null,
+      "timed_out": false,
+      "timeout_seconds": 12,
+      "elapsed_seconds": 0.02095,
+      "core_dumps": "disabled in audit children; no system-wide change",
+      "stdout": "source-flat-256-compile.stdout",
+      "stdout_sha256": "da7eea2f47c35c2d66bdf82edbb4b8270ecddb7e655da62b37ca9e773cc0fce1",
+      "stderr": "source-flat-256-compile.stderr",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "environment_overrides": {
+        "CAN_CATALOG": "/Users/vince/Projects/canlang/packages/values/dist/catalog.json"
+      }
+    },
+    {
+      "name": "source-flat-512-parse",
+      "argv": [
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-failure-probe-g_9jlkh5/probe",
+        "parse-source",
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-failure-probe-g_9jlkh5/input.can"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "exit": 0,
+      "signal": null,
+      "timed_out": false,
+      "timeout_seconds": 12,
+      "elapsed_seconds": 0.01199,
+      "core_dumps": "disabled in audit children; no system-wide change",
+      "stdout": "source-flat-512-parse.stdout",
+      "stdout_sha256": "ad58affb5b62b95323e6ebb83f38df08a8e15aed5eb610131411139979877648",
+      "stderr": "source-flat-512-parse.stderr",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "environment_overrides": {
+        "CAN_CATALOG": "/Users/vince/Projects/canlang/packages/values/dist/catalog.json"
+      }
+    },
+    {
+      "name": "source-flat-512-check",
+      "argv": [
+        "/Users/vince/Projects/canlang/compiler/target/debug/can",
+        "check",
+        "--format=json",
+        "--catalog",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-failure-probe-g_9jlkh5/input.can"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "exit": 0,
+      "signal": null,
+      "timed_out": false,
+      "timeout_seconds": 12,
+      "elapsed_seconds": 0.05701,
+      "core_dumps": "disabled in audit children; no system-wide change",
+      "stdout": "source-flat-512-check.stdout",
+      "stdout_sha256": "aea6e0b9572a6650404452b6f8eedcb22f2919f89683f85a8c0e3ed3ce095335",
+      "stderr": "source-flat-512-check.stderr",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "environment_overrides": {
+        "CAN_CATALOG": "/Users/vince/Projects/canlang/packages/values/dist/catalog.json"
+      }
+    },
+    {
+      "name": "source-flat-512-compile",
+      "argv": [
+        "/Users/vince/Projects/canlang/compiler/target/debug/can",
+        "compile",
+        "--catalog",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-failure-probe-g_9jlkh5/input.can"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "exit": 0,
+      "signal": null,
+      "timed_out": false,
+      "timeout_seconds": 12,
+      "elapsed_seconds": 0.06926,
+      "core_dumps": "disabled in audit children; no system-wide change",
+      "stdout": "source-flat-512-compile.stdout",
+      "stdout_sha256": "da7eea2f47c35c2d66bdf82edbb4b8270ecddb7e655da62b37ca9e773cc0fce1",
+      "stderr": "source-flat-512-compile.stderr",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "environment_overrides": {
+        "CAN_CATALOG": "/Users/vince/Projects/canlang/packages/values/dist/catalog.json"
+      }
+    },
+    {
+      "name": "source-flat-1024-parse",
+      "argv": [
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-failure-probe-g_9jlkh5/probe",
+        "parse-source",
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-failure-probe-g_9jlkh5/input.can"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "exit": 0,
+      "signal": null,
+      "timed_out": false,
+      "timeout_seconds": 12,
+      "elapsed_seconds": 0.04,
+      "core_dumps": "disabled in audit children; no system-wide change",
+      "stdout": "source-flat-1024-parse.stdout",
+      "stdout_sha256": "f9c93ca47ca3d145fd311b04b6343d1f5bf05c05fb1438a996de0f26aaf3eed3",
+      "stderr": "source-flat-1024-parse.stderr",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "environment_overrides": {
+        "CAN_CATALOG": "/Users/vince/Projects/canlang/packages/values/dist/catalog.json"
+      }
+    },
+    {
+      "name": "source-flat-1024-check",
+      "argv": [
+        "/Users/vince/Projects/canlang/compiler/target/debug/can",
+        "check",
+        "--format=json",
+        "--catalog",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-failure-probe-g_9jlkh5/input.can"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "exit": 0,
+      "signal": null,
+      "timed_out": false,
+      "timeout_seconds": 12,
+      "elapsed_seconds": 0.20371,
+      "core_dumps": "disabled in audit children; no system-wide change",
+      "stdout": "source-flat-1024-check.stdout",
+      "stdout_sha256": "a77881d1f42d196873d45fdba67a614a550b164ea461b213c1300dd36677d7c6",
+      "stderr": "source-flat-1024-check.stderr",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "environment_overrides": {
+        "CAN_CATALOG": "/Users/vince/Projects/canlang/packages/values/dist/catalog.json"
+      }
+    },
+    {
+      "name": "source-flat-1024-compile",
+      "argv": [
+        "/Users/vince/Projects/canlang/compiler/target/debug/can",
+        "compile",
+        "--catalog",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-failure-probe-g_9jlkh5/input.can"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "exit": -6,
+      "signal": 6,
+      "timed_out": false,
+      "timeout_seconds": 12,
+      "elapsed_seconds": 0.26094,
+      "core_dumps": "disabled in audit children; no system-wide change",
+      "stdout": "source-flat-1024-compile.stdout",
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderr": "source-flat-1024-compile.stderr",
+      "stderr_sha256": "a241973528f2ad2b643b8695b020feffbbad07301ff591fdbf743a03a7f37d66",
+      "environment_overrides": {
+        "CAN_CATALOG": "/Users/vince/Projects/canlang/packages/values/dist/catalog.json"
+      }
+    },
+    {
+      "name": "source-flat-2048-parse",
+      "argv": [
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-failure-probe-g_9jlkh5/probe",
+        "parse-source",
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-failure-probe-g_9jlkh5/input.can"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "exit": 0,
+      "signal": null,
+      "timed_out": false,
+      "timeout_seconds": 12,
+      "elapsed_seconds": 0.13772,
+      "core_dumps": "disabled in audit children; no system-wide change",
+      "stdout": "source-flat-2048-parse.stdout",
+      "stdout_sha256": "5920c234b2af3fdfdb42d1c74546c757978443b1b99eede028c0054af7dd7edf",
+      "stderr": "source-flat-2048-parse.stderr",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "environment_overrides": {
+        "CAN_CATALOG": "/Users/vince/Projects/canlang/packages/values/dist/catalog.json"
+      }
+    },
+    {
+      "name": "source-flat-2048-check",
+      "argv": [
+        "/Users/vince/Projects/canlang/compiler/target/debug/can",
+        "check",
+        "--format=json",
+        "--catalog",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-failure-probe-g_9jlkh5/input.can"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "exit": -6,
+      "signal": 6,
+      "timed_out": false,
+      "timeout_seconds": 12,
+      "elapsed_seconds": 0.55322,
+      "core_dumps": "disabled in audit children; no system-wide change",
+      "stdout": "source-flat-2048-check.stdout",
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderr": "source-flat-2048-check.stderr",
+      "stderr_sha256": "9b94d3388c498f11f96b878ee28f15bb6fa60c631828ff4187eb1d45c2316db9",
+      "environment_overrides": {
+        "CAN_CATALOG": "/Users/vince/Projects/canlang/packages/values/dist/catalog.json"
+      }
+    },
+    {
+      "name": "source-flat-2048-compile",
+      "argv": [
+        "/Users/vince/Projects/canlang/compiler/target/debug/can",
+        "compile",
+        "--catalog",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-failure-probe-g_9jlkh5/input.can"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "exit": -6,
+      "signal": 6,
+      "timed_out": false,
+      "timeout_seconds": 12,
+      "elapsed_seconds": 0.54855,
+      "core_dumps": "disabled in audit children; no system-wide change",
+      "stdout": "source-flat-2048-compile.stdout",
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderr": "source-flat-2048-compile.stderr",
+      "stderr_sha256": "8a110fad94c5cbd9dd9261d6c2f814909636c1dbe986f02caea023cee66bcba9",
+      "environment_overrides": {
+        "CAN_CATALOG": "/Users/vince/Projects/canlang/packages/values/dist/catalog.json"
+      }
+    },
+    {
+      "name": "source-flat-3000-parse",
+      "argv": [
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-failure-probe-g_9jlkh5/probe",
+        "parse-source",
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-failure-probe-g_9jlkh5/input.can"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "exit": 0,
+      "signal": null,
+      "timed_out": false,
+      "timeout_seconds": 12,
+      "elapsed_seconds": 0.29878,
+      "core_dumps": "disabled in audit children; no system-wide change",
+      "stdout": "source-flat-3000-parse.stdout",
+      "stdout_sha256": "a1f9d9614325eca375eb66dd0f0cf8b0e3c7a2f5f519fdb43326cc7e0599a68c",
+      "stderr": "source-flat-3000-parse.stderr",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "environment_overrides": {
+        "CAN_CATALOG": "/Users/vince/Projects/canlang/packages/values/dist/catalog.json"
+      }
+    },
+    {
+      "name": "source-flat-3000-check",
+      "argv": [
+        "/Users/vince/Projects/canlang/compiler/target/debug/can",
+        "check",
+        "--format=json",
+        "--catalog",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-failure-probe-g_9jlkh5/input.can"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "exit": -6,
+      "signal": 6,
+      "timed_out": false,
+      "timeout_seconds": 12,
+      "elapsed_seconds": 0.73331,
+      "core_dumps": "disabled in audit children; no system-wide change",
+      "stdout": "source-flat-3000-check.stdout",
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderr": "source-flat-3000-check.stderr",
+      "stderr_sha256": "1a5b80ab892ddd00da3a623f85fbc44d54c83091e75709357b6df7aad2a3cb26",
+      "environment_overrides": {
+        "CAN_CATALOG": "/Users/vince/Projects/canlang/packages/values/dist/catalog.json"
+      }
+    },
+    {
+      "name": "source-flat-3000-compile",
+      "argv": [
+        "/Users/vince/Projects/canlang/compiler/target/debug/can",
+        "compile",
+        "--catalog",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-failure-probe-g_9jlkh5/input.can"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "exit": -6,
+      "signal": 6,
+      "timed_out": false,
+      "timeout_seconds": 12,
+      "elapsed_seconds": 0.72926,
+      "core_dumps": "disabled in audit children; no system-wide change",
+      "stdout": "source-flat-3000-compile.stdout",
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderr": "source-flat-3000-compile.stderr",
+      "stderr_sha256": "f9cf46866ca57cd63595ac0c59ef8e571c6f351ba0f83961bed9936a5a9852c1",
+      "environment_overrides": {
+        "CAN_CATALOG": "/Users/vince/Projects/canlang/packages/values/dist/catalog.json"
+      }
+    },
+    {
+      "name": "catalog-nested-32",
+      "argv": [
+        "/Users/vince/Projects/canlang/compiler/target/debug/can",
+        "check",
+        "--format=json",
+        "--catalog",
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-failure-probe-g_9jlkh5/catalog-nested-32.json",
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-failure-probe-g_9jlkh5/input.can"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "exit": 0,
+      "signal": null,
+      "timed_out": false,
+      "timeout_seconds": 12,
+      "elapsed_seconds": 0.00497,
+      "core_dumps": "disabled in audit children; no system-wide change",
+      "stdout": "catalog-nested-32.stdout",
+      "stdout_sha256": "525d7406f1b631121711b085df762de0ce31fda2ccd8630078fce932da9854a8",
+      "stderr": "catalog-nested-32.stderr",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "environment_overrides": {
+        "CAN_CATALOG": "/Users/vince/Projects/canlang/packages/values/dist/catalog.json"
+      }
+    },
+    {
+      "name": "catalog-nested-64",
+      "argv": [
+        "/Users/vince/Projects/canlang/compiler/target/debug/can",
+        "check",
+        "--format=json",
+        "--catalog",
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-failure-probe-g_9jlkh5/catalog-nested-64.json",
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-failure-probe-g_9jlkh5/input.can"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "exit": 0,
+      "signal": null,
+      "timed_out": false,
+      "timeout_seconds": 12,
+      "elapsed_seconds": 0.00467,
+      "core_dumps": "disabled in audit children; no system-wide change",
+      "stdout": "catalog-nested-64.stdout",
+      "stdout_sha256": "525d7406f1b631121711b085df762de0ce31fda2ccd8630078fce932da9854a8",
+      "stderr": "catalog-nested-64.stderr",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "environment_overrides": {
+        "CAN_CATALOG": "/Users/vince/Projects/canlang/packages/values/dist/catalog.json"
+      }
+    },
+    {
+      "name": "catalog-nested-128",
+      "argv": [
+        "/Users/vince/Projects/canlang/compiler/target/debug/can",
+        "check",
+        "--format=json",
+        "--catalog",
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-failure-probe-g_9jlkh5/catalog-nested-128.json",
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-failure-probe-g_9jlkh5/input.can"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "exit": 0,
+      "signal": null,
+      "timed_out": false,
+      "timeout_seconds": 12,
+      "elapsed_seconds": 0.00432,
+      "core_dumps": "disabled in audit children; no system-wide change",
+      "stdout": "catalog-nested-128.stdout",
+      "stdout_sha256": "525d7406f1b631121711b085df762de0ce31fda2ccd8630078fce932da9854a8",
+      "stderr": "catalog-nested-128.stderr",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "environment_overrides": {
+        "CAN_CATALOG": "/Users/vince/Projects/canlang/packages/values/dist/catalog.json"
+      }
+    },
+    {
+      "name": "catalog-nested-256",
+      "argv": [
+        "/Users/vince/Projects/canlang/compiler/target/debug/can",
+        "check",
+        "--format=json",
+        "--catalog",
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-failure-probe-g_9jlkh5/catalog-nested-256.json",
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-failure-probe-g_9jlkh5/input.can"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "exit": 0,
+      "signal": null,
+      "timed_out": false,
+      "timeout_seconds": 12,
+      "elapsed_seconds": 0.00464,
+      "core_dumps": "disabled in audit children; no system-wide change",
+      "stdout": "catalog-nested-256.stdout",
+      "stdout_sha256": "525d7406f1b631121711b085df762de0ce31fda2ccd8630078fce932da9854a8",
+      "stderr": "catalog-nested-256.stderr",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "environment_overrides": {
+        "CAN_CATALOG": "/Users/vince/Projects/canlang/packages/values/dist/catalog.json"
+      }
+    },
+    {
+      "name": "catalog-nested-512",
+      "argv": [
+        "/Users/vince/Projects/canlang/compiler/target/debug/can",
+        "check",
+        "--format=json",
+        "--catalog",
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-failure-probe-g_9jlkh5/catalog-nested-512.json",
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-failure-probe-g_9jlkh5/input.can"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "exit": 0,
+      "signal": null,
+      "timed_out": false,
+      "timeout_seconds": 12,
+      "elapsed_seconds": 0.00466,
+      "core_dumps": "disabled in audit children; no system-wide change",
+      "stdout": "catalog-nested-512.stdout",
+      "stdout_sha256": "525d7406f1b631121711b085df762de0ce31fda2ccd8630078fce932da9854a8",
+      "stderr": "catalog-nested-512.stderr",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "environment_overrides": {
+        "CAN_CATALOG": "/Users/vince/Projects/canlang/packages/values/dist/catalog.json"
+      }
+    },
+    {
+      "name": "catalog-nested-1024",
+      "argv": [
+        "/Users/vince/Projects/canlang/compiler/target/debug/can",
+        "check",
+        "--format=json",
+        "--catalog",
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-failure-probe-g_9jlkh5/catalog-nested-1024.json",
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-failure-probe-g_9jlkh5/input.can"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "exit": 0,
+      "signal": null,
+      "timed_out": false,
+      "timeout_seconds": 12,
+      "elapsed_seconds": 0.00505,
+      "core_dumps": "disabled in audit children; no system-wide change",
+      "stdout": "catalog-nested-1024.stdout",
+      "stdout_sha256": "525d7406f1b631121711b085df762de0ce31fda2ccd8630078fce932da9854a8",
+      "stderr": "catalog-nested-1024.stderr",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "environment_overrides": {
+        "CAN_CATALOG": "/Users/vince/Projects/canlang/packages/values/dist/catalog.json"
+      }
+    },
+    {
+      "name": "catalog-postfix-64",
+      "argv": [
+        "/Users/vince/Projects/canlang/compiler/target/debug/can",
+        "check",
+        "--format=json",
+        "--catalog",
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-failure-probe-g_9jlkh5/catalog-postfix-64.json",
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-failure-probe-g_9jlkh5/input.can"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "exit": 0,
+      "signal": null,
+      "timed_out": false,
+      "timeout_seconds": 12,
+      "elapsed_seconds": 0.00449,
+      "core_dumps": "disabled in audit children; no system-wide change",
+      "stdout": "catalog-postfix-64.stdout",
+      "stdout_sha256": "525d7406f1b631121711b085df762de0ce31fda2ccd8630078fce932da9854a8",
+      "stderr": "catalog-postfix-64.stderr",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "environment_overrides": {
+        "CAN_CATALOG": "/Users/vince/Projects/canlang/packages/values/dist/catalog.json"
+      }
+    },
+    {
+      "name": "catalog-postfix-256",
+      "argv": [
+        "/Users/vince/Projects/canlang/compiler/target/debug/can",
+        "check",
+        "--format=json",
+        "--catalog",
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-failure-probe-g_9jlkh5/catalog-postfix-256.json",
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-failure-probe-g_9jlkh5/input.can"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "exit": 0,
+      "signal": null,
+      "timed_out": false,
+      "timeout_seconds": 12,
+      "elapsed_seconds": 0.00408,
+      "core_dumps": "disabled in audit children; no system-wide change",
+      "stdout": "catalog-postfix-256.stdout",
+      "stdout_sha256": "525d7406f1b631121711b085df762de0ce31fda2ccd8630078fce932da9854a8",
+      "stderr": "catalog-postfix-256.stderr",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "environment_overrides": {
+        "CAN_CATALOG": "/Users/vince/Projects/canlang/packages/values/dist/catalog.json"
+      }
+    },
+    {
+      "name": "catalog-postfix-1024",
+      "argv": [
+        "/Users/vince/Projects/canlang/compiler/target/debug/can",
+        "check",
+        "--format=json",
+        "--catalog",
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-failure-probe-g_9jlkh5/catalog-postfix-1024.json",
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-failure-probe-g_9jlkh5/input.can"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "exit": 0,
+      "signal": null,
+      "timed_out": false,
+      "timeout_seconds": 12,
+      "elapsed_seconds": 0.00487,
+      "core_dumps": "disabled in audit children; no system-wide change",
+      "stdout": "catalog-postfix-1024.stdout",
+      "stdout_sha256": "525d7406f1b631121711b085df762de0ce31fda2ccd8630078fce932da9854a8",
+      "stderr": "catalog-postfix-1024.stderr",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "environment_overrides": {
+        "CAN_CATALOG": "/Users/vince/Projects/canlang/packages/values/dist/catalog.json"
+      }
+    },
+    {
+      "name": "binary-forced-unwind",
+      "argv": [
+        "/Users/vince/Projects/canlang/compiler/target/debug/can",
+        "--version"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "exit": 2,
+      "signal": null,
+      "timed_out": false,
+      "timeout_seconds": 20,
+      "elapsed_seconds": 0.00313,
+      "core_dumps": "disabled in audit children; no system-wide change",
+      "stdout": "binary-forced-unwind.stdout",
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderr": "binary-forced-unwind.stderr",
+      "stderr_sha256": "6e242ffd06c1aaacbaa69b4719e85a9245c8d1779490c4f20c1399d2e3ec5020",
+      "environment_overrides": {
+        "CAN_INTERNAL_TEST_PANIC": "1",
+        "CAN_CATALOG": "/Users/vince/Projects/canlang/packages/values/dist/catalog.json"
+      }
+    },
+    {
+      "name": "invalid-source-utf8",
+      "argv": [
+        "/Users/vince/Projects/canlang/compiler/target/debug/can",
+        "check",
+        "--format=json",
+        "--catalog",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-failure-probe-g_9jlkh5/invalid.can"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "exit": 2,
+      "signal": null,
+      "timed_out": false,
+      "timeout_seconds": 12,
+      "elapsed_seconds": 0.00293,
+      "core_dumps": "disabled in audit children; no system-wide change",
+      "stdout": "invalid-source-utf8.stdout",
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderr": "invalid-source-utf8.stderr",
+      "stderr_sha256": "0254e8f0911762523312d030d0a3917d19d32fa386248f5cb59a68e4bd086e24",
+      "environment_overrides": {
+        "CAN_CATALOG": "/Users/vince/Projects/canlang/packages/values/dist/catalog.json"
+      }
+    }
+  ],
+  "binary_sha256": "791e0b5cf8c734f9d87f04b162b78d570ac8cd8895801ef01ddf13d7cc502e11",
+  "baseline_catalog_sha256": "cd984f375e0d6cbcc2bc6aca5ad5ea5b1b3d3ba9cd17b15ab94e4b15e74ced62",
+  "limits": "Fixtures bounded to small source/catalog strings,2MiB header/100000 JSON values;12s child wall timeout and core disabled. No heap/RSS/output sandbox or exhaustion benchmark."
+}

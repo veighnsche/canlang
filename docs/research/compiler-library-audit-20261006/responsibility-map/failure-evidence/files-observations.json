@@ -1,0 +1,377 @@
+{
+  "scope": "actual native CLI and copied-unmodified build.rs consumer; no ACL/owner/crash durability claim",
+  "observations": [
+    {
+      "id": "replacement-tests",
+      "exit": 0,
+      "test_results": [
+        "test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 118 filtered out; finished in 0.00s"
+      ],
+      "body_skips": []
+    },
+    {
+      "id": "ownership-tests",
+      "exit": 0,
+      "test_results": [
+        "test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.53s"
+      ],
+      "body_skips": [
+        "SKIP mode 4750: this host did not retain the requested fixture bits"
+      ]
+    },
+    {
+      "id": "source-control",
+      "exit": 0,
+      "diagnostics": [],
+      "source_sha256": "332ebd3418d6b764eb634bde6563ddbb4fba4403f6d326cbc9d844447a118a83"
+    },
+    {
+      "id": "fmt-600-changed",
+      "exit": 0,
+      "before": {
+        "mode": "0o600",
+        "inode": 493590196,
+        "kind": "regular",
+        "sha256": "6cfd3169c3afe356a429f0c6bfeeda11db8895f9f953a5f1338f912e69e95e12"
+      },
+      "after": {
+        "mode": "0o600",
+        "inode": 493590197,
+        "kind": "regular",
+        "sha256": "332ebd3418d6b764eb634bde6563ddbb4fba4403f6d326cbc9d844447a118a83"
+      },
+      "changed": true
+    },
+    {
+      "id": "fmt-600-equal",
+      "exit": 0,
+      "before": {
+        "mode": "0o600",
+        "inode": 493590200,
+        "kind": "regular",
+        "sha256": "332ebd3418d6b764eb634bde6563ddbb4fba4403f6d326cbc9d844447a118a83"
+      },
+      "after": {
+        "mode": "0o600",
+        "inode": 493590200,
+        "kind": "regular",
+        "sha256": "332ebd3418d6b764eb634bde6563ddbb4fba4403f6d326cbc9d844447a118a83"
+      },
+      "changed": false
+    },
+    {
+      "id": "fmt-640-changed",
+      "exit": 0,
+      "before": {
+        "mode": "0o640",
+        "inode": 493590203,
+        "kind": "regular",
+        "sha256": "6cfd3169c3afe356a429f0c6bfeeda11db8895f9f953a5f1338f912e69e95e12"
+      },
+      "after": {
+        "mode": "0o640",
+        "inode": 493590204,
+        "kind": "regular",
+        "sha256": "332ebd3418d6b764eb634bde6563ddbb4fba4403f6d326cbc9d844447a118a83"
+      },
+      "changed": true
+    },
+    {
+      "id": "fmt-640-equal",
+      "exit": 0,
+      "before": {
+        "mode": "0o640",
+        "inode": 493590207,
+        "kind": "regular",
+        "sha256": "332ebd3418d6b764eb634bde6563ddbb4fba4403f6d326cbc9d844447a118a83"
+      },
+      "after": {
+        "mode": "0o640",
+        "inode": 493590207,
+        "kind": "regular",
+        "sha256": "332ebd3418d6b764eb634bde6563ddbb4fba4403f6d326cbc9d844447a118a83"
+      },
+      "changed": false
+    },
+    {
+      "id": "fmt-4750-changed",
+      "status": "fixture-unqualified",
+      "requested_mode": "0o4750",
+      "before": {
+        "mode": "0o750",
+        "inode": 493590210,
+        "kind": "regular",
+        "sha256": "6cfd3169c3afe356a429f0c6bfeeda11db8895f9f953a5f1338f912e69e95e12"
+      }
+    },
+    {
+      "id": "fmt-4750-equal",
+      "status": "fixture-unqualified",
+      "requested_mode": "0o4750",
+      "before": {
+        "mode": "0o750",
+        "inode": 493590211,
+        "kind": "regular",
+        "sha256": "332ebd3418d6b764eb634bde6563ddbb4fba4403f6d326cbc9d844447a118a83"
+      }
+    },
+    {
+      "id": "fmt-symlink",
+      "exit": 0,
+      "before": {
+        "mode": "0o755",
+        "inode": 493590213,
+        "kind": "symlink",
+        "sha256": "6cfd3169c3afe356a429f0c6bfeeda11db8895f9f953a5f1338f912e69e95e12",
+        "link": "symlink-target.can"
+      },
+      "after": {
+        "mode": "0o600",
+        "inode": 493590214,
+        "kind": "regular",
+        "sha256": "332ebd3418d6b764eb634bde6563ddbb4fba4403f6d326cbc9d844447a118a83"
+      },
+      "target_before": {
+        "mode": "0o600",
+        "inode": 493590212,
+        "kind": "regular",
+        "sha256": "6cfd3169c3afe356a429f0c6bfeeda11db8895f9f953a5f1338f912e69e95e12"
+      },
+      "target_after": {
+        "mode": "0o600",
+        "inode": 493590212,
+        "kind": "regular",
+        "sha256": "6cfd3169c3afe356a429f0c6bfeeda11db8895f9f953a5f1338f912e69e95e12"
+      }
+    },
+    {
+      "id": "fmt-hardlink",
+      "exit": 0,
+      "before": {
+        "mode": "0o600",
+        "inode": 493590217,
+        "kind": "regular",
+        "sha256": "6cfd3169c3afe356a429f0c6bfeeda11db8895f9f953a5f1338f912e69e95e12"
+      },
+      "after": {
+        "mode": "0o600",
+        "inode": 493590220,
+        "kind": "regular",
+        "sha256": "332ebd3418d6b764eb634bde6563ddbb4fba4403f6d326cbc9d844447a118a83"
+      },
+      "target_before": {
+        "mode": "0o600",
+        "inode": 493590217,
+        "kind": "regular",
+        "sha256": "6cfd3169c3afe356a429f0c6bfeeda11db8895f9f953a5f1338f912e69e95e12"
+      },
+      "target_after": {
+        "mode": "0o600",
+        "inode": 493590217,
+        "kind": "regular",
+        "sha256": "6cfd3169c3afe356a429f0c6bfeeda11db8895f9f953a5f1338f912e69e95e12"
+      }
+    },
+    {
+      "id": "fmt-parse-before-write",
+      "exit": 10,
+      "first_unchanged": true,
+      "diagnostics": [
+        {
+          "code": "E1204",
+          "severity": "error",
+          "message": "package is missing When/Then",
+          "primary": {
+            "file": 1,
+            "start": 0,
+            "end": 3
+          },
+          "related": [],
+          "tags": []
+        },
+        {
+          "code": "E1102",
+          "severity": "error",
+          "message": "unclosed delimiter `{`",
+          "primary": {
+            "file": 1,
+            "start": 20,
+            "end": 21
+          },
+          "related": [],
+          "tags": []
+        },
+        {
+          "code": "E1200",
+          "severity": "error",
+          "message": "expected identifier",
+          "primary": {
+            "file": 1,
+            "start": 27,
+            "end": 27
+          },
+          "related": [],
+          "tags": []
+        }
+      ]
+    },
+    {
+      "id": "fmt-partial-progress",
+      "exit": 2,
+      "first_formatted": true,
+      "second_unchanged": true,
+      "stderr": "error[E7007]: cannot write '/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step12-files-u0zigz6m/blocked/second.can': Permission denied (os error 13) at path \"/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step12-files-u0zigz6m/blocked/.can-mhPGjk\"\n"
+    },
+    {
+      "id": "docs-missing",
+      "exit": 0,
+      "before": null,
+      "after": {
+        "mode": "0o644",
+        "inode": 493590234,
+        "kind": "regular",
+        "sha256": "cb0730c7d12a2cc1ef8c9942bbc96ef996ecd3afaa6235b49d81c5e800572a81"
+      },
+      "staging_leaks": [],
+      "stderr": "",
+      "producer": "explicit temp renderer stub; writer/interface only"
+    },
+    {
+      "id": "docs-existing",
+      "exit": 0,
+      "before": {
+        "mode": "0o600",
+        "inode": 493590237,
+        "kind": "regular",
+        "sha256": "cba06b5736faf67e54b07b561eae94395e774c517a7d910a54369e1263ccfbd4"
+      },
+      "after": {
+        "mode": "0o600",
+        "inode": 493590238,
+        "kind": "regular",
+        "sha256": "cb0730c7d12a2cc1ef8c9942bbc96ef996ecd3afaa6235b49d81c5e800572a81"
+      },
+      "staging_leaks": [],
+      "stderr": "",
+      "producer": "explicit temp renderer stub; writer/interface only"
+    },
+    {
+      "id": "docs-equal",
+      "exit": 0,
+      "before": {
+        "mode": "0o600",
+        "inode": 493590241,
+        "kind": "regular",
+        "sha256": "cb0730c7d12a2cc1ef8c9942bbc96ef996ecd3afaa6235b49d81c5e800572a81"
+      },
+      "after": {
+        "mode": "0o600",
+        "inode": 493590242,
+        "kind": "regular",
+        "sha256": "cb0730c7d12a2cc1ef8c9942bbc96ef996ecd3afaa6235b49d81c5e800572a81"
+      },
+      "staging_leaks": [],
+      "stderr": "",
+      "producer": "explicit temp renderer stub; writer/interface only"
+    },
+    {
+      "id": "docs-directory",
+      "exit": 2,
+      "before": {
+        "mode": "0o755",
+        "inode": 493590245,
+        "kind": "directory"
+      },
+      "after": {
+        "mode": "0o755",
+        "inode": 493590245,
+        "kind": "directory"
+      },
+      "staging_leaks": [],
+      "stderr": "error[E7007]: cannot write '/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step12-files-u0zigz6m/reference-directory.md': Is a directory (os error 21)\n",
+      "producer": "explicit temp renderer stub; writer/interface only"
+    },
+    {
+      "id": "docs-missing-parent",
+      "exit": 2,
+      "before": null,
+      "after": null,
+      "staging_leaks": [],
+      "stderr": "error[E7007]: cannot write '/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step12-files-u0zigz6m/absent/reference.md': No such file or directory (os error 2) at path \"/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step12-files-u0zigz6m/absent/.can-Eig5Bo\"\n",
+      "producer": "explicit temp renderer stub; writer/interface only"
+    },
+    {
+      "id": "build-ordinary",
+      "first": {
+        "expected": "0d397be",
+        "actual": "0d397be",
+        "fresh_lines": [
+          "   Compiling can-build-metadata-probe v0.0.0 (/private/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step12-files-u0zigz6m/repo/compiler)"
+        ]
+      },
+      "second": {
+        "expected": "207910d",
+        "actual": "207910d",
+        "fresh_lines": [
+          "       Dirty can-build-metadata-probe v0.0.0 (/private/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step12-files-u0zigz6m/repo/compiler): the file `../.git/refs/heads/main` has changed (1791384810.321626982s, 1s after last build at 1791384809.925483367s)",
+          "   Compiling can-build-metadata-probe v0.0.0 (/private/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step12-files-u0zigz6m/repo/compiler)"
+        ]
+      },
+      "build_script_sha256": "e2dc104fdaf25d3d1edf5097171ee3766f5ecc21261b0d8fd0452adad715b577"
+    },
+    {
+      "id": "build-packed",
+      "first": {
+        "expected": "207910d",
+        "actual": "207910d",
+        "fresh_lines": [
+          "       Dirty can-build-metadata-probe v0.0.0 (/private/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step12-files-u0zigz6m/repo/compiler): the file `../.git/refs/heads/main` is missing",
+          "   Compiling can-build-metadata-probe v0.0.0 (/private/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step12-files-u0zigz6m/repo/compiler)"
+        ]
+      },
+      "repeat": {
+        "expected": "207910d",
+        "actual": "207910d",
+        "fresh_lines": [
+          "       Dirty can-build-metadata-probe v0.0.0 (/private/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step12-files-u0zigz6m/repo/compiler): the file `../.git/refs/heads/main` is missing",
+          "   Compiling can-build-metadata-probe v0.0.0 (/private/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step12-files-u0zigz6m/repo/compiler)"
+        ]
+      },
+      "new_commit": {
+        "expected": "507fc25",
+        "actual": "507fc25",
+        "fresh_lines": [
+          "       Dirty can-build-metadata-probe v0.0.0 (/private/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step12-files-u0zigz6m/repo/compiler): the file `../.git/refs/heads/main` is missing",
+          "   Compiling can-build-metadata-probe v0.0.0 (/private/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step12-files-u0zigz6m/repo/compiler)"
+        ]
+      }
+    },
+    {
+      "id": "build-gitfile",
+      "first": {
+        "expected": "507fc25",
+        "actual": "507fc25",
+        "fresh_lines": [
+          "   Compiling can-build-metadata-probe v0.0.0 (/private/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step12-files-u0zigz6m/work/compiler)"
+        ]
+      },
+      "second": {
+        "expected": "823535d",
+        "actual": "823535d",
+        "fresh_lines": [
+          "       Dirty can-build-metadata-probe v0.0.0 (/private/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step12-files-u0zigz6m/work/compiler): the file `../.git/HEAD` is missing",
+          "   Compiling can-build-metadata-probe v0.0.0 (/private/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step12-files-u0zigz6m/work/compiler)"
+        ]
+      },
+      "repeat": {
+        "expected": "823535d",
+        "actual": "823535d",
+        "fresh_lines": [
+          "       Dirty can-build-metadata-probe v0.0.0 (/private/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step12-files-u0zigz6m/work/compiler): the file `../.git/HEAD` is missing",
+          "   Compiling can-build-metadata-probe v0.0.0 (/private/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step12-files-u0zigz6m/work/compiler)"
+        ]
+      },
+      "gitfile": "gitdir: /private/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-step12-files-u0zigz6m/repo/.git/worktrees/work\n"
+    }
+  ]
+}

@@ -1,0 +1,129 @@
+{
+  "schema_version": 1,
+  "step": 12,
+  "scope": "finite algorithms/conversions/panic/allocation audit outside LSP and filesystem central lanes",
+  "compiler_tree": "db66f796be4a6e1b7c9c51ab21ef78f7d7e87810",
+  "compiler_last_change": "4ecd991a80ca025b6d5899ffdcea96075c60c25e",
+  "input_head": "d412296472ddbeb9c22cdbcaaaaed761ad212375",
+  "qualification": "current source read; no worker execution; root hazard-index and actual subprocess receipts must qualify predicted duties",
+  "pins": {
+    "compiler/src/source.rs": "892d2b869cd9cf2ad4416cd994b6ae5908922b76badb1356ab4ae9784950f43a",
+    "compiler/src/syntax/mod.rs": "2a1517f81512614a7761082b3b03700023f51e6444175f69c8d865dca318b04d",
+    "compiler/src/syntax/cst.rs": "afcd094b8a9606c1cc09910c00eca4619b3394cc1a3abcdae5ab51413c0e9bb6",
+    "compiler/src/syntax/layout.rs": "3f8cda7a4ba1f18c98af49a6c78f518c89b699e7ccc92ea72679129e6d338a87",
+    "compiler/src/syntax/parser.rs": "1b70f50c11b20fa23ab7f938d872f02b373b89129c2af3235b47ba0c5f0febf1",
+    "compiler/src/syntax/lexer.rs": "803b9408639a970af8435be66901e8d461aa03650ffad8db9e040c5195b2d9e0",
+    "compiler/src/analysis/resolve.rs": "11a20d031e8c038ee9ba70fb5a55c6d5d6eafe508910e76f9bc9bdeae712c63d",
+    "compiler/src/analysis/types.rs": "8327986c3c4e9eca8639b5a41c96567519f6ad4df4baf4e6481a0bbbf70f0efa",
+    "compiler/src/analysis/effects.rs": "1a9968ec8556dca0b09b999949798074aefdd5f363d42b79c2fcc8158113591f",
+    "compiler/src/analysis/examples.rs": "d918af5e7f93e49abfde02147d666a97537f555200519b30a3bf7517c228c7b5",
+    "compiler/src/analysis/check.rs": "9b1461d48ef4a35f0b43c205db029f4300f9cfb833c2d8a75027ca80c42a0491",
+    "compiler/src/codegen/mod.rs": "b8c4a5a8faa39500193afedb7053d49ad023dc74dca0c7a4e7969bf61fa658e3",
+    "compiler/src/codegen/ir.rs": "3dd957f9bb08dbe92489ec7e20387a20a13a697390550bfd72ad37ab052be005",
+    "compiler/src/codegen/js.rs": "1f1ef2bec0a008566ed800d746fc65feb90b9cc4683e9803940f83dac4b1eab8",
+    "compiler/src/codegen/sourcemap.rs": "93bb7708447b30ba5cb40c41bd1400c41407a4d1d5665343faf697320e07459a",
+    "compiler/src/codegen/artifact.rs": "5ee76bea1b84bb36985e99277292e688f02ae9097257ecafbb5571774c2c5d61",
+    "compiler/src/cli.rs": "b093cdcd3542668520d5988bcf3035a5bebabb0535116afb052966900d366679"
+  },
+  "responsibilities": [
+    {
+      "id": "offset-u32",
+      "source": "source.rs:45,66,126,138,160-179;syntax/lexer.rs:199-700;parser.rs:735-741",
+      "caller_closure": "CLI source read ->SourceDb.add ->syntax.parse/parse_source ->lex/layout/parse_program ->Span/LineIndex",
+      "guard_or_invariant": "UTF8 String source; byte offsets internally u32; Span debug-asserts start<=end and len saturates; LineIndex begins0, offset clamps; no central source byte/count admission bound found.",
+      "classification": "Source-only extreme-growth conversion gap: >u32 bytes/count silently narrows; lexer start+relative u32 arithmetic could panic debug or wrap release. No economical reproduced4GB input claim. Ordinary offset/index accesses derive from owning same source.",
+      "public_probe": "Do not allocate4GB for this audit. Finite public controls for unknown SourceId, Unicode/CRLF position boundaries; future approved helper boundary qualification rather than unsafe huge allocation."
+    },
+    {
+      "id": "semantic-ids-u32",
+      "source": "analysis/resolve.rs:696,1012,1096,1239,1380,1451,1504,1577,1716,1748,2316",
+      "caller_closure": "check_program ->resolve_program ->module/symbol/scope allocation ->typed vectors indexed by IDs ->IR item/module lookup",
+      "guard_or_invariant": "IDs allocated append-only from owning vector lengths; local vector/table invariants valid for analyzed source; unchecked usize->u32 narrowing. CST is recursive tree, not a separately discovered numeric arena.",
+      "classification": "Source-only theoretical count wrap above2^32 module/symbol/scope entries; realistic memory exhaustion likely earlier, unmeasured. Do not call every vector access a defect.",
+      "public_probe": "Finite wide declarations 100/1000/3000 for time/RSS and deterministic diagnostics; no count threshold chosen."
+    },
+    {
+      "id": "parser-nesting",
+      "source": "syntax/layout.rs:79-86;syntax/parser.rs:405-427,1313-1338,4907-4913,532-585",
+      "caller_closure": "syntax.parse_source ->layout ->parse_program ->expression/value/statements/UI suites; recovered errors still flow analysis",
+      "guard_or_invariant": "Existing MAX_TREE_DEPTH128 flattens excessive indent withE1103; expression64 emitsE1215; suite16 wrapsE1216/E1200; error_for_line uses explicit stack. Cursor expect follows same-cursor peek; recovery stack expect in while nonempty.",
+      "classification": "Existing bounded native recursion; lexical expects are guarded invariants. Width/source size still unbounded by these depth controls. Parser-invalid trees remain source-reaching but depth-capped.",
+      "public_probe": "Actual CLI subprocess below/at/above existing depth boundaries incl mixed expr/suite, recovered malformed deep input. Measure normal termination and diagnostics, not a new limit/API."
+    },
+    {
+      "id": "public-cst-carriers",
+      "source": "syntax/cst.rs:SyntaxNode::text/descendants/verify_coverage;source.rs:Span/LineIndex",
+      "caller_closure": "public manually built SyntaxNode/Span ->text and public IR consumers; normal parser produces source-aligned spans",
+      "guard_or_invariant": "text slices directly by byte span; source text must match the node, span in-range and boundaries. descendants/leaves traversal iterative, verify_coverage ensures leaves partition length but does not validate arbitrary text membership.",
+      "classification": "Malformed public carrier/precondition risk distinct from authored-source bug. Caller can forge wrong source/spans or construct deeply nested tree outside parser budgets. No panic reproduced here.",
+      "public_probe": "Isolated public library subprocess with deliberately mismatched carrier may document precondition; keep separate from CLI malformed-source witness."
+    },
+    {
+      "id": "ir-preconditions",
+      "source": "codegen/ir.rs:541-546,560-574,3119-3146,3323;codegen/mod.rs:108-158;cli.rs:741-761",
+      "caller_closure": "CLI analyzer ->result.has_errors earlyreturn ->Owned CheckedProgram ->codegen.emit ->ir.build ->js.emit_program ->artifact. Public emit accepts provided CheckedProgram/SourceDb/result.",
+      "guard_or_invariant": "CLI refuses analysis errors; emit refuses complete=false unless explicit test-only option. Complete=true means all passes ran, not arbitrary carrier validation. IrProgram item/module direct indexes require valid IDs. decode_query head checked; value_base Some iff model None proves expect invariant.",
+      "classification": "No source panic found in selected IR expect. Public hand-built/inconsistent CheckedProgram/IrProgram can violate table/source preconditions; complete flag alone does not validate them. Do not claim never-fails APIs prove malformed carrier safety.",
+      "public_probe": "Subprocess normal clean/invalid CLI compile and public complete=false refusal; hand-built forged IDs separately if root can provide valid setup. Do not mutate owner interfaces."
+    },
+    {
+      "id": "cycle-width",
+      "source": "resolve.rs:2123-2172,resolve_ownership,5175-5313;types.rs:4957-5014",
+      "caller_closure": "check_program ->resolve composition/ownership/fixture/derive cycle walks;types check_cycles aftercall edges",
+      "guard_or_invariant": "Graph walkers use stack/seen/path visited guards; cycle vertices terminate. Fixture/derive/ composition redo traversal per origin; refs Vec.contains; call path clone/contains +sorted vertex-set reported keys.",
+      "classification": "Source-reaching potential superlinear workload. Fixture/derive/composition O(V(V+E)) traversal upperbound excluding metadata; dense ref accumulation and call path copies add cost. This is complexity observation, no measured runaway/stack-overflow/limit policy.",
+      "public_probe": "CLI/probe finite chain/star/dense DAG/cycle fixtures at100/1000/3000 nodes, exact diagnostics/multiplicity, elapsed/RSS cap via parent subprocess. Reuse prior cycle diagnostic witness separately; no SCC policy choice."
+    },
+    {
+      "id": "every-scope-width",
+      "source": "effects.rs:2387-2390,3055-3059,4052-4120,4997-5001,5059-5142",
+      "caller_closure": "effects.check_effects ->scenario directmodels/calledscenario/CRUD edges ->check_every_scopes ->scope_is_app",
+      "guard_or_invariant": "Perhandler visited stack; containment parent walk visited set terminates alreadyinvalid cycles. Vec push_unique repeatedly compares accumulated model IDs. collect_subtree_models recursively visits parser-bounded tree.",
+      "classification": "Reachable width/duplicate-model quadratic cost and repeated traversal perhandler; known Step8 derive closure correctness gap is separate from resource evidence. No new recurring-runtime claim.",
+      "public_probe": "Finite many handlers sharing large local-call chain, directcount references/writes, app/team paired controls; inspect deterministicE4051, normal process termination and retained peak memory."
+    },
+    {
+      "id": "icu-wide",
+      "source": "analysis/types.rs:7842-8010;examples.rs:3034-3321",
+      "caller_closure": "namedmessage checks ->types message_slots ->examples icu_error; source and nonnullvariants each",
+      "guard_or_invariant": "Both build Vec<char> for decoded whole template; profile recursion depth>32 reject; slotwalker bounded recursion. Option duplicates use Vec<String>.contains; stringkey copies and signature slot Vec scans.",
+      "classification": "Depth bounded but branch/placeholder/variant width can drive quadratic scanning/allocation. Exact selectors remain digit strings, not huge numeric parse; prior profile correctness findings separate. No new dependency/private core linkage.",
+      "public_probe": "Flat plural/select branches and many distinctslots at100/1000/3000, large exactselector digitstring, below/above32-depth; public compiler subprocess with named signatures and exactdiagnostics. No invented profile width limit."
+    },
+    {
+      "id": "numeric-temporal",
+      "source": "types.rs:15145-15645;codegen/ir.rs:688-706,2306-2348",
+      "caller_closure": "strict type_literal/unary/checkedliteralconstructor ->IR decode_literal ->stdlib exact helpers",
+      "guard_or_invariant": "int parsing checked; signedminimum dedicated unarypath; duration/bytes checkedmul i64; decimal sig/scale bounds. Temporal ASCIIwidth/calendar guards precede byte slicing; finite offsets/range arithmetic fitsi64; fractional suffix fullyscanned before rejection. IR int/duration i128 checked parse/mul failure ->Unsupported.",
+      "classification": "Existing checks prevent scalar overflow. Long integraldecimal text and allocations (concat leadingzero scan) linear in source width; millions of literal digits still lexer scanning allocation. No lexical unwrap defect or unchecked temporal arithmetic identified.",
+      "public_probe": "Exact scalar boundary controls from Step8 reused; long zero/significantdigit text finite increasinglength + malformedUnicode constructor text must normalreject; do not compare constructor with stricter wire grammar."
+    },
+    {
+      "id": "diagnostic-joining",
+      "source": "analysis/check.rs:dedup_diagnostics/sort_diagnostics;analysis/mod.rs:check_program",
+      "caller_closure": "all parser/resolve/types/effects/examples diagnostics collected ->dedup ->sort ->caller merges catalog/load",
+      "guard_or_invariant": "Dedup clones message intoHashSet keyedfile/start/end/code/message; collects originaldiagnostics; sort byfile/start/code.",
+      "classification": "Diagnostic volume/messagewidth memory and sortcost grows source; no limit discovered. Join holds originals+keycopies. Prior nondeterministiccycle witness remains existing correctness finding, not dedup panic.",
+      "public_probe": "Finite many independent same/varied errors; verify multiplicity under fullkey, retainedstderr/stdout size/time. Do not impose new suppression/limit."
+    },
+    {
+      "id": "source-map-growth",
+      "source": "codegen/js.rs:950-961;codegen/sourcemap.rs:30-106;artifact.rs:230-285,569",
+      "caller_closure": "clean CLI compile ->emit_program JsLine list ->artifact.assemble ->sourcemap.build eachmodule ->typedartifact serialize",
+      "guard_or_invariant": "Unknown SourceId becomes unmapped segment; valid SourceId implies parallel indexes/source_ids exist. Duplicate paths get collision-free privateIDs from library. Inmemory writer Vec serialization expect is controlled noIo reader; serde own output parsed into mappings-onlyDTO.",
+      "classification": "Generated line index usize->u32 and source line/column casts unguarded at hugeoutput. Builder holds copies of source paths/text per map, names.contains quadratic, per-module sourcesContent duplicates. Allocation failures not recoverable typederrors. No duplicatepath/missingid panic claim.",
+      "public_probe": "Public sourcemap.build finite duplicatepaths/unknownids/names width with fixed independent mappings; CLI many emittedmodules/sources for output-growth time/RSS. Existing Step11 retention/callback receipt separate."
+    },
+    {
+      "id": "artifact-serialization",
+      "source": "codegen/artifact.rs:assemble/to_json_string;json.rs:to_compact_string",
+      "caller_closure": "emit artifact built typedDTO ->serde string serializer ->CLI stdout",
+      "guard_or_invariant": "Typed fields serializable strings/ints/arrays, controlled in-memory writer; expects denote internal impossible serializer failure absent resource exhaustion, not source-index panic. RawValue only syntax-qualified compiler defaults.",
+      "classification": "No lexical expect defect. Output fully materialized string plus modules/maps/sourcecontent may amplify memory; malicious public handcrafted DTO boundary distinct. No installedartifact consumer/runtime guarantee follows.",
+      "public_probe": "Finite compile artifact output sizes and real loader acceptance using root sourcepins; do not declare memory budget or replace API."
+    }
+  ],
+  "classification": "No newly reproduced panic by worker; u32 growth is untested extreme boundary, width complexity reachable risk, protected expects are invariants, public malformed carriers remain separate preconditions.",
+  "mutations": "Only algorithms.json/.md in failure-evidence; previous root-requested scope review packaging correction separately authorized.",
+  "policy": "No new source-size/work/API limits, diagnosticpolicy, privatecore link, parser substitution or JEV selection."
+}

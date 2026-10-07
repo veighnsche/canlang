@@ -1,0 +1,387 @@
+{
+  "schema_version": 1,
+  "step": 12,
+  "scope": "primary admission/resource source view; planning only; root executes witnesses",
+  "baseline": {
+    "head": "d412296472ddbeb9c22cdbcaaaaed761ad212375",
+    "compiler_last_source_change": "4ecd991a80ca025b6d5899ffdcea96075c60c25e",
+    "compiler_tree": "db66f796be4a6e1b7c9c51ab21ef78f7d7e87810"
+  },
+  "snapshot_note": "Prior 1fd07722 is an identical compiler-tree snapshot only, not the current last-change identity.",
+  "governing": "AGENTS.md read; only own admission.json/md edited; no source/tests/package/Git/JEV changes",
+  "authority": [
+    {
+      "url": "https://doc.rust-lang.org/std/panic/fn.catch_unwind.html",
+      "version": "std1.99.0 b940084d7 2026-09-28",
+      "claim": "Only unwinding panics are caught, aborts are not; hook runs before catch."
+    },
+    {
+      "url": "https://doc.rust-lang.org/std/alloc/fn.handle_alloc_error.html",
+      "version": "std1.99.0 b940084d7 2026-09-28",
+      "claim": "std allocation error default aborts without unwind; global configuration may differ."
+    },
+    {
+      "url": "https://doc.rust-lang.org/reference/expressions/operator-expr.html#numeric-cast",
+      "claim": "Wider integer casts to narrower type truncate; source usize/u32 conversion requires representability contract."
+    }
+  ],
+  "finite_duties": [
+    {
+      "id": "AR-01",
+      "duty": "Executable unwind boundary versus public library calls",
+      "defining_declarations": [
+        "compiler/src/main.rs:8\u201345",
+        "compiler/src/cli.rs:215\u2013263",
+        "compiler/Cargo.toml:release profile"
+      ],
+      "real_caller_closure": [
+        "main installs hook -> catch_unwind(run) -> argv -> cli::run/dispatch",
+        "Public cli::run/dispatch, syntax, JSON, analysis APIs have no implicit main boundary"
+      ],
+      "admission_bound_and_timing": "Hook precedes run; caught unwinding panic emits E7005/exit2. Release keeps unwind. Stack/allocation abort is outside guarantee. Generic public API callers choose their own unwind boundary.",
+      "classification": "accepted unwind behavior; abort qualification gap",
+      "independent_bounded_probe": "Existing forced CAN_INTERNAL_TEST_PANIC=1 binary versus public dispatch observer, harmless panic only; assert binary E7005/2 and public catch detects unwind.",
+      "limits": "No allocation exhaustion probe or universal catch-all promise. Hook itself formats/allocates/writes stderr. README any internal fault wording is broader than catch_unwind semantics.",
+      "inspected_regressions": [
+        "compiler/tests/exe.rs:panic hook cases",
+        "compiler/README.md:20\u201323"
+      ]
+    },
+    {
+      "id": "AR-02",
+      "duty": "Framing header reads and aggregate header admission",
+      "defining_declarations": [
+        "compiler/src/lsp/transport.rs:19\u201355"
+      ],
+      "real_caller_closure": [
+        "run_stdio -> read_message -> BufRead::read_until newline -> header parse"
+      ],
+      "admission_bound_and_timing": "No line/aggregate header byte or count cap before read_until allocates. Repeated Content-Length replaces prior value. Unknown arbitrary byte headers ignored; LF/CRLF supported.",
+      "classification": "unbounded policy gap; framing semantics qualification",
+      "independent_bounded_probe": "Bounded 1KiB/64KiB header line and many short headers using in-memory chunked reader; assert bytes consumed and final frame. Conflicting duplicate lengths/+digits probe records current behavior, not presumed defect.",
+      "limits": "Body cap does not constrain header memory or slow/incomplete reader time. No megabyte flood, OOM or strict duplicate-header rejection contract inferred.",
+      "inspected_regressions": [
+        "transport.rs:split-read/header tests"
+      ]
+    },
+    {
+      "id": "AR-03",
+      "duty": "Frame body cap and exact consumption",
+      "defining_declarations": [
+        "compiler/src/lsp/transport.rs:11\u201312,41\u201363,69\u201373"
+      ],
+      "real_caller_closure": [
+        "read_message -> parse usize header -> size check -> zero-filled body allocation -> read_exact"
+      ],
+      "admission_bound_and_timing": "64MiB cap is checked BEFORE body Vec allocation; accepted body allocates full declared size before bytes arrive. Length >cap rejects at header parse; at cap with no bytes yields UnexpectedEof. Output body has no cap.",
+      "classification": "enforced admission invariant plus output/time policy gap",
+      "independent_bounded_probe": "Tiny max+1 header must InvalidData without body; zero/one/truncated/split bodies exact; at-cap empty body already inspected recipe, no need repeated large allocation.",
+      "limits": "No admission promise for output body or total session; truncated accepted-size allocation can still be costly.",
+      "inspected_regressions": [
+        "transport.rs:454\u2013470"
+      ]
+    },
+    {
+      "id": "AR-04",
+      "duty": "UTF-8/strict JSON envelope and error/EOF recovery",
+      "defining_declarations": [
+        "compiler/src/lsp/server.rs:1019\u20131133,1155\u20131208",
+        "compiler/src/lsp/transport.rs:173\u2013214 parse_call"
+      ],
+      "real_caller_closure": "run_stdio validates body UTF-8 -> json::parse -> parse_call/valid_params -> replies; framing InvalidData continues on SAME Server",
+      "admission_bound_and_timing": "UTF-8/JSON checks occur after bounded body allocation. EOF/torn reads exit; body parse error emits -32700. Framing errors have no structured response, no guaranteed resynchronization and do not reset Server despite comment.",
+      "classification": "accepted byte/error behavior; framing recovery reachability lead",
+      "independent_bounded_probe": "Valid init then malformed bounded header followed by framed query; assert whether original state survives and exact consumption. Invalid UTF8 body followed by valid request remains synchronized.",
+      "limits": "No recovery guarantee invented; malicious framing resync is separate from invalid JSON bounded frame. Root owns I/O failure observers.",
+      "inspected_regressions": [
+        "Step11 clean/torn disconnect transcripts; transport strict-byte tests"
+      ]
+    },
+    {
+      "id": "AR-05",
+      "duty": "Shared JSON value-entry depth",
+      "defining_declarations": [
+        "compiler/src/json.rs:64\u201365,154\u2013192,220\u2013296"
+      ],
+      "real_caller_closure": "LSP/catalog -> parse -> one-byte InputReader -> depth-bearing DeserializeSeed -> visitor",
+      "admission_bound_and_timing": "Root depth0; depth>64 rejects BEFORE value visit/materialization. Empty container at64 allowed; child at65 rejected at entry. Native strings and numbers still read token bytes.",
+      "classification": "enforced admission invariant",
+      "independent_bounded_probe": "Array/object alternating depth64/65 with empty/scalar tails; assert offsets and cursor prefix not tail consumption; reuse json.rs deep cursor fixture.",
+      "limits": "No whole-input allocation/width cap from depth; parser already borrows complete &str. New constructed values bypass parse.",
+      "inspected_regressions": [
+        "json.rs:416\u2013460",
+        "prior Step4 JSON compatibility at declared scope"
+      ]
+    },
+    {
+      "id": "AR-06",
+      "duty": "JSON width and authored scalar storage",
+      "defining_declarations": [
+        "compiler/src/json.rs:276\u2013335"
+      ],
+      "real_caller_closure": "parse visitors push every member/item; numeric token copied raw; string/key decode creates String",
+      "admission_bound_and_timing": "No item/member/key/string/number byte count limit; all visited shallow values retained; duplicates retained ordered. LSP frame cap bounds only input bytes, catalog/public parse unbounded.",
+      "classification": "unbounded policy gap",
+      "independent_bounded_probe": "Small widths1/64/1024 and large-number/string bounded text; record array/object lengths, authored lexeme, accepted shallow depth.",
+      "limits": "No RSS or allocator multiplier asserted; byte size is not decoded-object size. Duplicate admission semantics audited earlier.",
+      "inspected_regressions": [
+        "prior Step4 compatibility, Step5 representation evidence"
+      ]
+    },
+    {
+      "id": "AR-07",
+      "duty": "Constructed Json and generic output recursion",
+      "defining_declarations": [
+        "compiler/src/json.rs:73\u201387,17\u201334,339\u2013373"
+      ],
+      "real_caller_closure": "Public Json constructors -> render recursively; Json Clone/Drop derives; generic to_compact_string -> caller Serialize",
+      "admission_bound_and_timing": "Input MAX_JSON_DEPTH does not validate constructed Json or caller-defined Serialize. render Num inserts raw lexeme; parse-produced Num is grammar-valid. No output byte/depth budget.",
+      "classification": "public misuse/invariant boundary; unbounded output policy gap",
+      "independent_bounded_probe": "Construct benign depth64/128 carriers and render under controlled public observer; raw invalid Num records permissive construction only; independently separate parse-produced depth.",
+      "limits": "Do not claim untrusted wire can create arbitrary depth beyond parse or raw invalid response ID through validated parse_call. Native derived drops/clone need subprocess isolation at larger depths.",
+      "inspected_regressions": [
+        "Step10 output contracts; JSON parser depth tests"
+      ]
+    },
+    {
+      "id": "AR-08",
+      "duty": "CLI source and formatter stdin admission",
+      "defining_declarations": [
+        "compiler/src/cli.rs:669\u2013694,727\u2013738,805\u2013816,923\u2013934,1231\u20131285,1654\u20131664"
+      ],
+      "real_caller_closure": "CLI file commands read_to_string each operand -> SourceDb; fmt stdin read_to_string -> retained inputs + copied db + outputs",
+      "admission_bound_and_timing": "UTF-8 decoding read_to_string; no source/file-count/total-byte cap before full reads. Format collects every input then copies source text before writing.",
+      "classification": "unbounded policy gap; UTF8 error contract",
+      "independent_bounded_probe": "Bounded source files and stdin lengths; invalid UTF8 -> E7002 without production panic; duplicate stdin rejected; avoid huge allocation test.",
+      "limits": "Filesystem races/errors/output writes owned filesystem lane. CLI invalid UTF8 is tool read error, unlike public lex_bytes E1002.",
+      "inspected_regressions": [
+        "CLI help/error recipes; filesystem lane independent"
+      ]
+    },
+    {
+      "id": "AR-09",
+      "duty": "Canonical source identity and byte-width conversion",
+      "defining_declarations": [
+        "compiler/src/source.rs:43\u201366,122\u2013179",
+        "compiler/src/syntax/lexer.rs:193\u2013205,223\u2013258",
+        "compiler/src/syntax/mod.rs:90\u2013103"
+      ],
+      "real_caller_closure": "SourceDb::add casts count to u32; lex/LineIndex casts byte positions; parse_source coverage uses text.len as u32",
+      "admission_bound_and_timing": "No source length/source-count validation precedes lossy usize->u32. LSP single body64MiB bounds individual synchronized text but repeated session/source count unbounded; CLI/public strings unbounded.",
+      "classification": "representability policy/invariant gap; threshold not executed",
+      "independent_bounded_probe": "No >4GiB allocation. Static conversion closure plus small index oracle; root may synthetic pure arithmetic demonstrate truncation without claiming full large-source execution.",
+      "limits": "u32 limits are theoretical reachability thresholds; not reproduced giant input defect or low-memory support. Forged SourceId/span misuse distinct.",
+      "inspected_regressions": [
+        "source.rs coordinate tests; prior Step10 UTF16 evidence"
+      ]
+    },
+    {
+      "id": "AR-10",
+      "duty": "Catalog file and shallow JSON admission",
+      "defining_declarations": [
+        "compiler/src/analysis/catalog.rs:339\u2013463"
+      ],
+      "real_caller_closure": "load_catalog candidates -> fs::read complete bytes -> String::from_utf8 -> shared JSON parse -> versions/entries -> parse_entry",
+      "admission_bound_and_timing": "Entire catalog allocated before UTF8/JSON/schema validation; JSON depth64 applies, no catalog bytes/entries/signature length cap. Schema validation happens after full Json materialization.",
+      "classification": "unbounded policy gap plus validated catalog contract",
+      "independent_bounded_probe": "Valid catalog control then shallow many entries/signature string; malformed UTF8 -> E6003; unknown/missing fields diagnostics vs read errors as documented.",
+      "limits": "Catalog fallback/read-error behavior separately filesystem owned; no package producer change.",
+      "inspected_regressions": [
+        "catalog_input_contract.rs; frozen values catalog control"
+      ]
+    },
+    {
+      "id": "AR-11",
+      "duty": "Catalog signature type recursion hidden inside strings",
+      "defining_declarations": [
+        "compiler/src/analysis/catalog.rs:532\u2013543",
+        "compiler/src/analysis/catalog.rs:715\u2013833,919\u20131067"
+      ],
+      "real_caller_closure": "parse_entry kind=Builtin -> parse_signature -> parse_overload/parse_param -> SigParser parse_shape/postfix/atom; helper branch only check_helper_spine",
+      "admission_bound_and_timing": "C<...>, ordered/nonempty collections and object fields recursively call parse_shape with no depth counter. Postfix ?/[] loop builds nested Boxes. JSON depth guard does not bound string grammar or resultant SigType.",
+      "classification": "reachable signature recursion and unbounded type-depth policy gap; root ladders through1024 survive",
+      "independent_bounded_probe": "Adapt valid builtin catalog entry (e.g lower with ID-matching signature); helper is a separate spine-only control; nested collection depth16/32/64/128/256, bounded length and subprocess. Separate postfix-chain probe. Assert depth0 schema/control first and record loading vs later matching/drop stage.",
+      "limits": "No stack overflow threshold or supported-depth policy chosen. Counter u32 parser scanning also width-unbounded but impractical overflow not exercised.",
+      "inspected_regressions": [
+        "catalog parser/signature existing controls"
+      ]
+    },
+    {
+      "id": "AR-12",
+      "duty": "Layout indentation and recovery budget",
+      "defining_declarations": [
+        "compiler/src/syntax/layout.rs:79\u201385,193\u2013271,320\u2013339",
+        "compiler/src/syntax/parser.rs:532\u2013608"
+      ],
+      "real_caller_closure": "lex -> layout flat lines -> levels cap -> attach -> parser recovery",
+      "admission_bound_and_timing": "Indentation tree levels cap128; overflow attaches sibling with E1103. Error subtree flattening iterative. Lex line/token/bracket vectors allocated before cap, width/delimiter token count unbounded.",
+      "classification": "enforced tree admission bound plus pre-bound width gap",
+      "independent_bounded_probe": "Nested indent127/128/129 with coverage; existing300-line nesting recovery recipe. Bounded delimiter/flat-token growth independent.",
+      "limits": "Does not bound expression-chain AST height or public forged LogicalLine trees; public parse_program takes caller layout.",
+      "inspected_regressions": [
+        "syntax.rs:1119\u20131181"
+      ]
+    },
+    {
+      "id": "AR-13",
+      "duty": "Recursive expression and suite parser budgets",
+      "defining_declarations": [
+        "compiler/src/syntax/parser.rs:405\u2013441,590\u2013608,1313\u20131341,1472\u20131484"
+      ],
+      "real_caller_closure": "parse_source -> guarded parse_expr/parse_value -> nested values; guarded statement/UI suites",
+      "admission_bound_and_timing": "Expression budget64 recursion units and suite budget16 native levels before recursing; errors E1215/E1216/E1200. Recovery can still retain token/error payload.",
+      "classification": "enforced parser recursion bound",
+      "independent_bounded_probe": "Paren depth20 clean versus500 E1215; statement/UI overbudget with full coverage; reuse inspected syntax recipes.",
+      "limits": "Counters bound guarded cycles, not iterative chain-generated tree depth, output clone/drop, every analysis traversal, or arbitrary public tree.",
+      "inspected_regressions": [
+        "syntax.rs:1119\u20131186"
+      ]
+    },
+    {
+      "id": "AR-14",
+      "duty": "Iteratively built left chains exceed recursive parser budget",
+      "defining_declarations": [
+        "compiler/src/syntax/parser.rs:1486\u20131582,1817\u20131875"
+      ],
+      "real_caller_closure": "parse_value loop wraps prior left as child for member/postfix/binary; helper predicates traverse iteratively",
+      "admission_bound_and_timing": "Flat chain can create tree height proportional to term/member count without exceeding active expr_depth. Existing 3000-term parse-only regression accepts it. Each binary wrap calls mixes_fallback_boolean and traverses cumulative binary descendants even for pure arithmetic, so long left chains have quadratic repeated predicate traversal; no workload timing claim.",
+      "classification": "concrete reachability proof; downstream defect lead",
+      "independent_bounded_probe": "Same valid int arithmetic fixture parse/control vs check/compile ladders64/128/256/512, then root-selected bounded extension. Measure exact CST depth and diagnostic/full process stage.",
+      "limits": "Parse-only success not analysis/codegen/drop safety. Deep member chain may be semantically invalid, so arithmetic valid control preferred.",
+      "inspected_regressions": [
+        "syntax.rs:1184\u20131186"
+      ]
+    },
+    {
+      "id": "AR-15",
+      "duty": "CST traversal, public construction and native recursive consumers",
+      "defining_declarations": [
+        "compiler/src/syntax/cst.rs:193\u2013296,303\u2013414"
+      ],
+      "real_caller_closure": "Parse-produced tree -> descendants/leaves/coverage iterative; public dump recursive -> output indentation; public construction/text slicing",
+      "admission_bound_and_timing": "descendants explicit heap stack; dump native recursion and O(depth) indentation per node. Derived Clone/Drop uses recursive child ownership; no constructed-tree validity/depth gate. Constructor emptiness asserts and span slice are caller preconditions.",
+      "classification": "public misuse/invariant boundary; reachable deep-tree consumer lead",
+      "independent_bounded_probe": "Parse chain then iterative height/coverage observer; bounded dump ladder separately. Forged empty enclosing/out-of-range span caught by observer labelled API misuse.",
+      "limits": "No text-origin malformed-node panic inferred from public forging. Drop/clone cliff requires isolated process, not unwind assumption.",
+      "inspected_regressions": [
+        "CST coverage and syntax chain recipes"
+      ]
+    },
+    {
+      "id": "AR-16",
+      "duty": "Checked analysis expression recursion and typed emission",
+      "defining_declarations": [
+        "compiler/src/analysis/mod.rs:108\u2013150",
+        "compiler/src/analysis/resolve.rs:4873\u20135038",
+        "compiler/src/analysis/types.rs:9669\u20139713,10239\u201310299,11083\u201311209",
+        "compiler/src/codegen/ir.rs:2137\u20132294",
+        "compiler/src/codegen/js.rs:1603\u20131749",
+        "compiler/src/codegen/mod.rs:108\u2013150"
+      ],
+      "real_caller_closure": "CLI CatalogAnalyzer -> check_program parse/resolve/type/effects/examples; clean compile -> IR build decode -> JS emit lower_expr",
+      "admission_bound_and_timing": "Resolver/typer/IR/JS follow expression child recursion, no separate chain-height budget in inspected entries. Clean source gates emission, but flat arithmetic chain remains supported syntax.",
+      "classification": "demonstrated native-debug valid-source stack-abort defect; exact internal consumer not isolated",
+      "independent_bounded_probe": "Valid typed arithmetic chain compare parse/check/compile under timeout/output cap; use exact errors and process termination. Public emit requires coherent CheckedProgram/SourceDb and complete gate.",
+      "limits": "Not every downstream function exhaustively traced; no blanket every unwrap claim or arbitrary forged typed IR as user-input proof. Parser error gates may prune invalid subtrees.",
+      "inspected_regressions": [
+        "prior Steps8/10 declared type/emission gates; root fresh chain witness"
+      ]
+    },
+    {
+      "id": "AR-17",
+      "duty": "Graph sizes, cycle walkers and field-reuse recursion",
+      "defining_declarations": [
+        "compiler/src/analysis/resolve.rs:2145\u20132173,5175\u20135308",
+        "compiler/src/analysis/types.rs:4957\u20135002,9202\u20139223"
+      ],
+      "real_caller_closure": "check_program -> composition/fixture/derive/call cycle checks; type path -> field_type_guarded -> decl_type -> next reused field",
+      "admission_bound_and_timing": "Cycle graph traversal uses heap stack and seen/visited per origin; repeated per-node traversal and path clones have no graph work/size cap. Field reuse cycle guard stops repeats but not long acyclic native recursion.",
+      "classification": "unbounded graph-work gap; field-depth reachability lead",
+      "independent_bounded_probe": "Small valid DAG/chain cycles expected deterministic E2007/E2017/E2018/E3005; valid field reuse chain16/32/64/128 from existing grammar fixture; separate depth from graph fanout.",
+      "limits": "No exponential-all-path claim: per-origin visited suppresses revisits. No huge graph time benchmark or threshold chosen. Semantic completeness reviewed earlier; source graph count casts remain representability gap.",
+      "inspected_regressions": [
+        "prior Step8 cycle evidence; current graph walker declarations"
+      ]
+    },
+    {
+      "id": "AR-18",
+      "duty": "Long-session retained source history",
+      "defining_declarations": [
+        "compiler/src/source.rs:26\u201373",
+        "compiler/src/lsp/server.rs:286\u2013303,411\u2013455,849\u2013926",
+        "compiler/src/lint/driver.rs:466\u2013483"
+      ],
+      "real_caller_closure": "open/change distinct text -> SourceDb append; close only docs remove; diagnostic/action lint traverses retained db",
+      "admission_bound_and_timing": "No session total-byte/source-count/revision compaction limit. Equal live text reuses current source; reopen identical text appends. Historical lint parse/lint uses current checked program, not historical full typechecks.",
+      "classification": "reused concrete retention evidence; resource policy gap",
+      "independent_bounded_probe": "Reuse Step11 direct RealAnalysis96/791031 -> same96 -> reopen97/799271; no need duplicate run. Root may extend bounded session only for new hypothesis.",
+      "limits": "Step11 retained text bytes are not RSS/OOM/crash/benchmark proof. Queue drains but history persists.",
+      "inspected_regressions": [
+        "editor-evidence/public-retention.stdout",
+        "editor-evidence/review-process.json"
+      ]
+    }
+  ],
+  "evidence_limits": "Source view plus independently read final root receipts; worker ran no build/test/probe. No resource policy chosen. Exact native-debug flat-chain stack abort demonstrated; no precise internal function attribution.",
+  "cross_review_status": "complete bounded filesystem and root resource review; review-files.json/.md saved separately",
+  "probe_suggestion_corrections": [
+    "Earlier message suggested helper/catalog signature; source branch inspection corrects this to kind=Builtin. Helpers only check_helper_spine and cannot witness SigParser nesting. No worker execution occurred."
+  ],
+  "root_receipt_review": {
+    "status": "complete bounded receipt review; no worker process execution",
+    "inspected": [
+      "run.py",
+      "probe.rs",
+      "resource-probe.py",
+      "resource-cases.json",
+      "resource-observations.json",
+      "resource-execution.json",
+      "observer-corrections.json",
+      "raw stdout/stderr"
+    ],
+    "commands": 43,
+    "observations": 42,
+    "raw_stream_hashes": 86,
+    "raw_hash_mismatches": 0,
+    "catalog_reconstruction_checks": 9,
+    "catalog_reconstruction_mismatches": 0,
+    "observed_defects": [
+      {
+        "duties": [
+          "AR-01",
+          "AR-14",
+          "AR-16"
+        ],
+        "case": "source-flat-1024-compile",
+        "source_bytes": 2124,
+        "control": "same source parse coverage true/no diagnostics and check complete/clean;512 compile clean",
+        "result": "exit -6/SIGABRT, stderr stack overflow/fatal abort; no E7005 conversion",
+        "bound": "Actual native-debug valid-source process defect after successful parse; no exact emitter/IR/drop function attribution or universal stack threshold."
+      },
+      {
+        "duties": [
+          "AR-01",
+          "AR-14",
+          "AR-16"
+        ],
+        "case": "source-flat-2048 and3000 check/compile",
+        "source_bytes": [
+          4172,
+          6076
+        ],
+        "control": "both parse clean coverage true, heights2054/3006;1024 check clean",
+        "result": "four exit -6/SIGABRT stack-overflow aborts",
+        "bound": "After parser control, actual check/emission processes abort; original fault function not isolated."
+      }
+    ],
+    "qualified_survivals": [
+      "JSON nesting63/64 accepted;65/66 rejects byte65. Width100000 accepted at200001 input bytes; no whole input width cap inferred.",
+      "Constructed Json depth1024 renders and normal drop survives; no crash reproduced. Deliberately invalid public Num renders without panic; parsed JSON cannot construct that raw lexeme.",
+      "Builtin catalog nested collection and postfix type ladders through1024 load/check clean; shallow signature string recursion is reachable but no failure reproduced.",
+      "Framing accepts2MiB ignored header and8192 headers; at-cap no payload passes67108864-byte body Read buffer then UnexpectedEof; over-cap rejects before body Read. largest_read_buffer does not measure header Vec capacity.",
+      "Forced binary unwind exits2/E7005; invalid sourceUTF8 exits2/E7002. These are controls, not natural-source panic defects."
+    ],
+    "execution_limits": "Core disabled and wall timeout only; no heap/RSS/output sandbox, exhaustion benchmark, release/otherhost cliff, signal resilience, catalog matcher or field-reuse depth acceptance. No timeout observed in this set.",
+    "observer_correction": "attempt1 passed bytes to json::parse(&str) and failed audit compile before behavior; corrected observer source/receipt used."
+  }
+}

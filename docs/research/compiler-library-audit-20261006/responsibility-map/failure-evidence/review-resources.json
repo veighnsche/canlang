@@ -1,0 +1,219 @@
+{
+  "schema_version": 1,
+  "scope": "Independent review of root existing native resource observer/subprocess/hazard scan receipts; no new execution or production changes",
+  "verdict": "accepted bounded execution and source-reaching stack overflow; explicit wider gaps retained",
+  "pins": {
+    "probe.rs": "f0db4a6820cd4361ec2f8e61940d6de82e3caed57692954bed0c43801297ec64",
+    "resource-probe.py": "651787ff551e9e26ceb292f356e1baa78390a1e3c4bc331f6b6ef103fc9a22ac",
+    "run.py": "5a7ba86c3d0777f525021fb1565ef35b6de361816216395dd2da84d911842c89",
+    "resource-cases.json": "940a3055e9a124849033be16dfeb997458fd453f5cb8268d641e3d6b14fa3e40",
+    "resource-execution.json": "30b1cae8bd40f1c2d868b9ded240900456c080c5ff5438a12d4757361fa23694",
+    "resource-observations.json": "4eeb8296e666ba687ad1d64c61b64bfdc9526ac5c1050d091300f1871d8a53c3",
+    "build.json": "a1f5f0bfb831a390ab5a582e22b639e90d34ddea500414066d59d5ad2847fc38",
+    "hazard-index.json": "446cc669c2c6da32a31fd88c097792fd1e358a1a6f97d91e923900bba18752ff",
+    "attempt1/probe.rs": "1491cabb5b056eaf7ae5f4425de8c134290a6b45ef00a15588fd78b5063091bb",
+    "attempt1/compile-probe.stderr": "68de886d9e9581754959e26136c364c364f25523b94988e6591dd7d1154bf46f"
+  },
+  "verified": {
+    "commands": 43,
+    "observations": 42,
+    "retained_cases": 15,
+    "raw_stdout_stderr_hash_matches": true,
+    "retained_flat_source_hash_matches": true,
+    "catalog_mutation_recipe_hash_matches": true,
+    "binary_current_sha_matches_build_and_receipt": true,
+    "observer_linked_compiler_serde_rlib_sha_matches_build": true,
+    "hazard_file_hash_matches": true,
+    "hazard_files": 42,
+    "hazard_lexical_sites": 1792,
+    "timeouts_observed": 0,
+    "observer_compile_attempt1": "failed E0308 wrong &[u8] argument; no behavior executed; corrected &str API build succeeds"
+  },
+  "flat_matrix": [
+    {
+      "operands": 64,
+      "parse": {
+        "exit": 0,
+        "signal": null,
+        "timeout": false,
+        "bytes": 204,
+        "codes": [],
+        "coverage": true,
+        "height": 70,
+        "nodes": 301
+      },
+      "check": {
+        "exit": 0,
+        "signal": null,
+        "timeout": false
+      },
+      "compile": {
+        "exit": 0,
+        "signal": null,
+        "timeout": false
+      }
+    },
+    {
+      "operands": 256,
+      "parse": {
+        "exit": 0,
+        "signal": null,
+        "timeout": false,
+        "bytes": 588,
+        "codes": [],
+        "coverage": true,
+        "height": 262,
+        "nodes": 1069
+      },
+      "check": {
+        "exit": 0,
+        "signal": null,
+        "timeout": false
+      },
+      "compile": {
+        "exit": 0,
+        "signal": null,
+        "timeout": false
+      }
+    },
+    {
+      "operands": 512,
+      "parse": {
+        "exit": 0,
+        "signal": null,
+        "timeout": false,
+        "bytes": 1100,
+        "codes": [],
+        "coverage": true,
+        "height": 518,
+        "nodes": 2093
+      },
+      "check": {
+        "exit": 0,
+        "signal": null,
+        "timeout": false
+      },
+      "compile": {
+        "exit": 0,
+        "signal": null,
+        "timeout": false
+      }
+    },
+    {
+      "operands": 1024,
+      "parse": {
+        "exit": 0,
+        "signal": null,
+        "timeout": false,
+        "bytes": 2124,
+        "codes": [],
+        "coverage": true,
+        "height": 1030,
+        "nodes": 4141
+      },
+      "check": {
+        "exit": 0,
+        "signal": null,
+        "timeout": false
+      },
+      "compile": {
+        "exit": -6,
+        "signal": 6,
+        "timeout": false
+      }
+    },
+    {
+      "operands": 2048,
+      "parse": {
+        "exit": 0,
+        "signal": null,
+        "timeout": false,
+        "bytes": 4172,
+        "codes": [],
+        "coverage": true,
+        "height": 2054,
+        "nodes": 8237
+      },
+      "check": {
+        "exit": -6,
+        "signal": 6,
+        "timeout": false
+      },
+      "compile": {
+        "exit": -6,
+        "signal": 6,
+        "timeout": false
+      }
+    },
+    {
+      "operands": 3000,
+      "parse": {
+        "exit": 0,
+        "signal": null,
+        "timeout": false,
+        "bytes": 6076,
+        "codes": [],
+        "coverage": true,
+        "height": 3006,
+        "nodes": 12045
+      },
+      "check": {
+        "exit": -6,
+        "signal": 6,
+        "timeout": false
+      },
+      "compile": {
+        "exit": -6,
+        "signal": 6,
+        "timeout": false
+      }
+    }
+  ],
+  "finding": {
+    "classification": "demonstrated native-debug CLI stack abort from legal small authored source",
+    "witness": "Left-associative return1+1+... flat strings2124B compile1024;4172B check+compile2048;6076B check+compile3000",
+    "observed_aborts": [
+      "source-flat-1024-compile",
+      "source-flat-2048-check",
+      "source-flat-2048-compile",
+      "source-flat-3000-check",
+      "source-flat-3000-compile"
+    ],
+    "independent_expected": "Legal int addition has value at most3000, no nesting syntax, parseclean/coverage=true, expected normal check/compile behavior or typed refusal, neverprocessabort",
+    "source_mechanism": "parser.rs1484-1578 left-associative loop repeatedly wraps existing left Binary; budget bounds parser frames, not resulting ASTheight. Parseobserver heightn+6 confirms. Downstream traversal/clone/lowering stackframe not localized.",
+    "critical_correction": "Earlier algorithms.md statement that all parser-originated trees are depthbounded is false for structural left-associative/postfix treeheight. Keep parse-frame budgets as guarded invariants but do not infer downstream treeheight bound.",
+    "limits": "No release/crosshost exact threshold claim; normal parse including drop succeeds allsix samples. Check/compile share analysis prefix, so cannot localize compiler crash specifically to JS/codegen."
+  },
+  "control_matrix": {
+    "source_baseline": "actual CLI cleancheck andcompile exit0, no installed program orruntime execution",
+    "flat_controls": "64/256/512 parse/check/compile normal0;1024check0 whilecompile abort; all six publicparse cases0/no codes/coverage true",
+    "json": "63/64 nestingaccepted,65/66 typed error; width1000/100000 accepted; constructeddepth64/256/1024 rendered/dropped normally; forged Num catchpanic=false only, no validJSON guarantee",
+    "catalog": "nested C<...>32..1024 andpostfix[]64/256/1024 unusedlower builtin admitted by actual eager check; exact baseline+mutation bytes reconstruct SHA. This qualifies catalogload/parser/drop only, not callable matching/execution",
+    "framing": "finite2MiB line/8192headers observer; atbodycap requests64MiBreadbuffer; overcap rejected before bodyread; readbuffer is request observation not heap/RSS measurement",
+    "forcedpanic": "CAN_INTERNAL_TEST_PANIC deliberate hook->exit2/E7005; notnaturally sourcepanic and does not qualify stackoverflow containment",
+    "invalidutf8": "actualCLI sourceIO invalidbyte->exit2, separate from lexer bytes API"
+  },
+  "hazard_scan": {
+    "accepted_scope": "All tracked compiler/src Rust files plus build.rs lexical candidates; no reachability/bug/AST proof",
+    "method": "rg source discovery followed by regex line scan, comment-leading lines excluded; first top-level cfg(test) marks a conservative suffix",
+    "challenge": "1792 regex candidates do not imply reachable defects or exhaustive AST inventory. conservative test suffix, multiline/strings/macros/comments may miss/misclassify. Missing recursion patterns checked separately. build.rs belongs buildtime, not every CLI request; casts,indexing and expects require owner invariant/sourcecloses.",
+    "source_file_hash_verification": "42/42 current inspected hashes match",
+    "covered_subsets": "resourceprobe tests JSON/LSPbuffer/sourceflat/catalogprefix only; no graphwide/corpus/IRforgery/u32wrap/OOM/manygeneratedmaps corpus executed"
+  },
+  "supervision": {
+    "fixture_bounds": "retained smallsources/signatures plus2MiBheader/100000JSONvalues; catalog outerJSON unaffected bysignature nesting",
+    "wall_timeout_seconds": 12,
+    "core_dumps": "disabled child only",
+    "no_heap_output_RSS_cap": true,
+    "no_exhaustion_benchmark": true,
+    "measurement": "elapsed wall only, no peakRSS/heap/stacksize profile; subprocess.capture_output retainsunbounded output until tested child completes or timeout. No newproduction limit chosen."
+  },
+  "remaining_gaps": [
+    "no separately hashed now-deleted observer executable; source and exact linkedrlib pins+compile receipt retained, executablepath ephemeral",
+    "no fault-stage backtrace localization/release/otherhost stackthreshold",
+    "no runtimegeneratedapp/installedrelease receipt",
+    "no broad OOM/paniccatch guarantee",
+    "no exhaustive hazardreachability/absence proof"
+  ],
+  "mutations": "Only review-resources.json/.md; no rerun/build/source/test/package/shared edits orpolicy choices"
+}

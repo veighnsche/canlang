@@ -1,0 +1,152 @@
+[
+  {
+    "id": "source-flat-64",
+    "bytes": 204,
+    "source": "source-flat-64.can",
+    "sha256": "e8af709524eb520cd6d861646c3aaf97248e5b7a9807f04ba0c9d240f4d974a0",
+    "scope": "legal left-associative int chain; independent parse/check/compile stage outcomes; no expression nesting assumption"
+  },
+  {
+    "id": "source-flat-256",
+    "bytes": 588,
+    "source": "source-flat-256.can",
+    "sha256": "26707fd987a3cd5d9b3313c7ea72fbbb7a572a82fcceab7b004389d4319fd6a1",
+    "scope": "legal left-associative int chain; independent parse/check/compile stage outcomes; no expression nesting assumption"
+  },
+  {
+    "id": "source-flat-512",
+    "bytes": 1100,
+    "source": "source-flat-512.can",
+    "sha256": "80683ea2ea25ad66cfc7ad3a33e33aae2ddd23d9731954e6a71b55db93b28827",
+    "scope": "legal left-associative int chain; independent parse/check/compile stage outcomes; no expression nesting assumption"
+  },
+  {
+    "id": "source-flat-1024",
+    "bytes": 2124,
+    "source": "source-flat-1024.can",
+    "sha256": "21a3fc16d97f2865aa9d1501fa8ecae6859003e932a61b6119b1eb2fb6a0ca8c",
+    "scope": "legal left-associative int chain; independent parse/check/compile stage outcomes; no expression nesting assumption"
+  },
+  {
+    "id": "source-flat-2048",
+    "bytes": 4172,
+    "source": "source-flat-2048.can",
+    "sha256": "331a09ca070132f926b051f885a50c5406d437011c63949cc48fff1ecbc634ee",
+    "scope": "legal left-associative int chain; independent parse/check/compile stage outcomes; no expression nesting assumption"
+  },
+  {
+    "id": "source-flat-3000",
+    "bytes": 6076,
+    "source": "source-flat-3000.can",
+    "sha256": "a25d5ac5829b51afdbfecc74e2665bde5874594a91d096d6be1aecc5684db329",
+    "scope": "legal left-associative int chain; independent parse/check/compile stage outcomes; no expression nesting assumption"
+  },
+  {
+    "id": "catalog-nested-32",
+    "base_catalog_sha256": "cd984f375e0d6cbcc2bc6aca5ad5ea5b1b3d3ba9cd17b15ab94e4b15e74ced62",
+    "mutation": {
+      "id": "lower",
+      "kind": "builtin",
+      "signature": "lower(value:C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<text>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>)->text"
+    },
+    "catalog_bytes": 17641,
+    "catalog_sha256": "e5b8f6be37434fa80a8761ad73758144b6997a0f83a77dc55ea051db7c87af28",
+    "json_outer_depth_scope": "signature is a string; JSON depth is unaffected"
+  },
+  {
+    "id": "catalog-nested-64",
+    "base_catalog_sha256": "cd984f375e0d6cbcc2bc6aca5ad5ea5b1b3d3ba9cd17b15ab94e4b15e74ced62",
+    "mutation": {
+      "id": "lower",
+      "kind": "builtin",
+      "signature": "lower(value:C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<text>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>)->text"
+    },
+    "catalog_bytes": 17737,
+    "catalog_sha256": "e461193d13673f0f8e24c35df12c86e21819b7943466b6bc31d74286b74a0104",
+    "json_outer_depth_scope": "signature is a string; JSON depth is unaffected"
+  },
+  {
+    "id": "catalog-nested-128",
+    "base_catalog_sha256": "cd984f375e0d6cbcc2bc6aca5ad5ea5b1b3d3ba9cd17b15ab94e4b15e74ced62",
+    "mutation": {
+      "id": "lower",
+      "kind": "builtin",
+      "signature": "lower(value:C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<text>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>)->text"
+    },
+    "catalog_bytes": 17929,
+    "catalog_sha256": "42e0582554221dcc8303eab7b44ee4ed6f0196ca137f6a09026b492ce8a056f0",
+    "json_outer_depth_scope": "signature is a string; JSON depth is unaffected"
+  },
+  {
+    "id": "catalog-nested-256",
+    "base_catalog_sha256": "cd984f375e0d6cbcc2bc6aca5ad5ea5b1b3d3ba9cd17b15ab94e4b15e74ced62",
+    "mutation": {
+      "id": "lower",
+      "kind": "builtin",
+      "signature": "lower(value:C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<text>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>)->text"
+    },
+    "catalog_bytes": 18313,
+    "catalog_sha256": "ed221abe58454d1b267913f78de7275100db661b84067edf65b7cd0c26220281",
+    "json_outer_depth_scope": "signature is a string; JSON depth is unaffected"
+  },
+  {
+    "id": "catalog-nested-512",
+    "base_catalog_sha256": "cd984f375e0d6cbcc2bc6aca5ad5ea5b1b3d3ba9cd17b15ab94e4b15e74ced62",
+    "mutation": {
+      "id": "lower",
+      "kind": "builtin",
+      "signature": "lower(value:C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<text>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>)->text"
+    },
+    "catalog_bytes": 19081,
+    "catalog_sha256": "a3f345f3ed03ee647a6bcc78539f6eb6b1ddec71cb93c98d48104692dc6326f3",
+    "json_outer_depth_scope": "signature is a string; JSON depth is unaffected"
+  },
+  {
+    "id": "catalog-nested-1024",
+    "base_catalog_sha256": "cd984f375e0d6cbcc2bc6aca5ad5ea5b1b3d3ba9cd17b15ab94e4b15e74ced62",
+    "mutation": {
+      "id": "lower",
+      "kind": "builtin",
+      "signature": "lower(value:C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<C<text>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>)->text"
+    },
+    "catalog_bytes": 20617,
+    "catalog_sha256": "def45e03e132a4a8eac1f4e237d457644102a794f2819bb90373010b2ab41c77",
+    "json_outer_depth_scope": "signature is a string; JSON depth is unaffected"
+  },
+  {
+    "id": "catalog-postfix-64",
+    "base_catalog_sha256": "cd984f375e0d6cbcc2bc6aca5ad5ea5b1b3d3ba9cd17b15ab94e4b15e74ced62",
+    "mutation": {
+      "id": "lower",
+      "kind": "builtin",
+      "signature": "lower(value:text[][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][])->text"
+    },
+    "catalog_bytes": 17673,
+    "catalog_sha256": "06daf8a2f0890343d75d8e0771c407bf3c5b2d6c83e42a823ea16f3f8c382fa5",
+    "json_outer_depth_scope": "signature is a string; JSON depth is unaffected"
+  },
+  {
+    "id": "catalog-postfix-256",
+    "base_catalog_sha256": "cd984f375e0d6cbcc2bc6aca5ad5ea5b1b3d3ba9cd17b15ab94e4b15e74ced62",
+    "mutation": {
+      "id": "lower",
+      "kind": "builtin",
+      "signature": "lower(value:text[][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][])->text"
+    },
+    "catalog_bytes": 18057,
+    "catalog_sha256": "1cf2e2626ec46a540e1d89f5ade257803191065e8d8fee40d2fd7f93c637cad1",
+    "json_outer_depth_scope": "signature is a string; JSON depth is unaffected"
+  },
+  {
+    "id": "catalog-postfix-1024",
+    "base_catalog_sha256": "cd984f375e0d6cbcc2bc6aca5ad5ea5b1b3d3ba9cd17b15ab94e4b15e74ced62",
+    "mutation": {
+      "id": "lower",
+      "kind": "builtin",
+      "signature": "lower(value:text[][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][])->text"
+    },
+    "catalog_bytes": 19593,
+    "catalog_sha256": "240d50507a42a724b4710a11cec97f9d6d8683e182ae88fd3990a648eee2d2f0",
+    "json_outer_depth_scope": "signature is a string; JSON depth is unaffected"
+  }
+]

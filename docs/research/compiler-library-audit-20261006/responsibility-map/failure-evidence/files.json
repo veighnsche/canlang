@@ -1,0 +1,252 @@
+{
+  "schema": 1,
+  "step": 12,
+  "lane": "filesystem/host",
+  "scope": "Source/read-only planning; root owns fresh controlled probes. Only files.json/files.md written.",
+  "baseline": {
+    "assignment_head": "d412296",
+    "source_last_change": "4ecd991a80ca025b6d5899ffdcea96075c60c25e",
+    "snapshot_same_compiler_tree": "1fd07722090fe70228a6b661e3c6e136275ca84b"
+  },
+  "path_shorthand": {
+    "cli.rs": "compiler/src/cli.rs",
+    "docs.rs": "compiler/src/docs.rs",
+    "source.rs": "compiler/src/source.rs",
+    "lint/driver.rs": "compiler/src/lint/driver.rs",
+    "build.rs": "compiler/build.rs",
+    "tempfile": "installed pinned tempfile3.27.0 sources in pins"
+  },
+  "pins": [
+    {
+      "path": "AGENTS.md",
+      "sha256": "f30ab82d2e8803997b9eb6a5bba36c98defd1fce526711a0ae222fb6c4201f4e"
+    },
+    {
+      "path": "compiler/src/cli.rs",
+      "sha256": "b093cdcd3542668520d5988bcf3035a5bebabb0535116afb052966900d366679"
+    },
+    {
+      "path": "compiler/src/docs.rs",
+      "sha256": "75a2467fc392b1186ae751f866705c2d5bff33aed5dd68ec0fb7998a23e4ea70"
+    },
+    {
+      "path": "compiler/src/source.rs",
+      "sha256": "892d2b869cd9cf2ad4416cd994b6ae5908922b76badb1356ab4ae9784950f43a"
+    },
+    {
+      "path": "compiler/src/main.rs",
+      "sha256": "5e8cd0e926e46ea407ced9032706d07a3d608d1a5720f44d3f21eb0ccf688bdd"
+    },
+    {
+      "path": "compiler/src/lint/driver.rs",
+      "sha256": "c16c9473a594066de41ebf88e1409584bd8fbb9375a94f110a964a19307a17dc"
+    },
+    {
+      "path": "compiler/build.rs",
+      "sha256": "e2dc104fdaf25d3d1edf5097171ee3766f5ecc21261b0d8fd0452adad715b577"
+    },
+    {
+      "path": "compiler/Cargo.toml",
+      "sha256": "92f8582ecbe4b7f7cb0e29b85643a4c1e03f479f729371c0c0f67696f35aec48"
+    },
+    {
+      "path": "compiler/Cargo.lock",
+      "sha256": "384be2a089bd9ef4c6ccb1714e3ad0bade9870a35f48932ef1a4e8fb3ee7cd64"
+    },
+    {
+      "path": "compiler/tests/file_ownership.rs",
+      "sha256": "809b5e18239440cd12870bbede492947bb0bec96a15619c52c1b83a1a63fc5a7"
+    },
+    {
+      "path": "compiler/tests/format.rs",
+      "sha256": "2016709d754ac964851b64247df33863ed15ebeff6c00fa284758accd00b1f8d"
+    },
+    {
+      "path": "compiler/tests/docs.rs",
+      "sha256": "f2d80171ba7d2b01ebbaf475ee1fb2b2e9cef1f5154850807c9cfe2e10236b2b"
+    },
+    {
+      "path": "compiler/tests/lint.rs",
+      "sha256": "0080ea861dfccdbe6d8de2a276768354370520cf152c8c36ace39b2fa5257635"
+    },
+    {
+      "path": "compiler/tests/typed_fixes_cli.rs",
+      "sha256": "dd440d5caf9b1b8b3d54ce36172903349c238cbcffd4a2c8ffaaa8a0e59e724b"
+    },
+    {
+      "path": "compiler/tests/exe.rs",
+      "sha256": "e27860b8d6727dd70690479da8db38df05ced1d9a6cf1d5964df9a0708ffc83a"
+    },
+    {
+      "path": "docs/specification/DECISIONS.md",
+      "sha256": "90f8b55942b96b929162e406de4b71cfbe56f778b88a74702a62f2aa680554ad"
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/compatibility.md",
+      "sha256": "a02d5cd9b2b4983df7c84adc51d21ba784815d582331b21f8c9eb477f661919f"
+    },
+    {
+      "path": "/Users/vince/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tempfile-3.27.0/src/lib.rs",
+      "sha256": "d182721b62c126916b73bb4865ced5d3637bd1a4a77d27ea9e9708973e5f9493"
+    },
+    {
+      "path": "/Users/vince/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tempfile-3.27.0/src/file/mod.rs",
+      "sha256": "b6752b11a575021eeab87cb8b5b6914aaff86ad8d49a9678a8f4c95b5a21ef81"
+    },
+    {
+      "path": "/Users/vince/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tempfile-3.27.0/src/file/imp/unix.rs",
+      "sha256": "cc39f94cb6cb87b36cf7603a75429d64ecc4ad1a2076a765e5aba2b11771d0f7"
+    },
+    {
+      "path": "/Users/vince/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tempfile-3.27.0/src/file/imp/windows.rs",
+      "sha256": "52c5b6498f22b0834d713ade6ab791526bd8c930e29aa78507026f7c11add22b"
+    }
+  ],
+  "normative_sources": {
+    "tempfile": "https://docs.rs/tempfile/3.27.0/tempfile/struct.NamedTempFile.html",
+    "rust_rename": "https://doc.rust-lang.org/std/fs/fn.rename.html",
+    "cargo_rerun": "https://doc.rust-lang.org/cargo/reference/build-scripts.html#rerun-if-changed",
+    "git_layout": "https://git-scm.com/docs/gitrepository-layout"
+  },
+  "duties": [
+    {
+      "id": "FF01",
+      "source": "cli.rs:1223-1293 run_fmt/FmtInput",
+      "caller_consumer": "file/stdin read -> parse all -> output list -> writes",
+      "authority": "cli help650; DECISIONS1104 parse-before-write",
+      "witness": "format.rs CLI fixtures; Step10 actual multi-operand parse receipt prior only",
+      "result": "All input reads and all parses precede writes; missing/nonUTF8 input E7002/2; any parse errors envelope stdout/10 no writes. Duplicate stdin E7001.",
+      "gap": "No multi-operand transaction for later IO failure; independent stdin and parse failure controls suggested root."
+    },
+    {
+      "id": "FF02",
+      "source": "cli.rs:1294-1346 run_fmt check/write loop",
+      "caller_consumer": "formatted snapshot -> check/noop or shared writer",
+      "authority": "DECISIONS1106 equal-output fmt/repeated alias noop",
+      "witness": "file_ownership.rs:109-179 noop/symlink/repeated tests; prior Step10 no-write/equal inode",
+      "result": "check reports differences/10 without writing. Equal original formatting skips writer; repeated/alias destination already equal output also skips.",
+      "gap": "No stale recheck for original-equal input; this is deliberate noop, not output freshness fence. Docs has no equivalent noop path."
+    },
+    {
+      "id": "FF03",
+      "source": "cli.rs:1356-1406 write_file_atomic/replace_file_with",
+      "caller_consumer": "fmt expected original text; docs None -> owned .can staging in destination parent",
+      "authority": "DECISIONS1104-1106 accepted C04F; pinned tempfile3.27",
+      "witness": "cli replacement_tests1478 partialwrite,1497 persistfailure; file_ownership200+",
+      "result": "Open staging handle receives write_all; create_new random names; same destination directory; one shared writer. Existing entry persist, absent entry persist_noclobber. Errors E7007/2.",
+      "gap": "Final check-to-persist not CAS; no file/directory sync/explicit close error, no crash durability. Destination-parent trusted prerequisite."
+    },
+    {
+      "id": "FF04",
+      "source": "cli.rs:1376-1387 permissions;1412-1429 target capture;1431-1454 compare",
+      "caller_consumer": "entry symlink_metadata and followed regular target -> staged set_permissions AFTER write",
+      "authority": "DECISIONS1106 modes/new docs umask; noACL/owner guarantee",
+      "witness": "file_ownership.rs:81-105 private/read-only/special mode branch; cli1551 permission race",
+      "result": "Existing regular mode restored after staging write; new/nonregular Unix stage requests0666 subject umask. Readonly destination can replace if parent permits.",
+      "gap": "macOS4750 fixture skipped in prior Step10/C04F; fresh native qualification root only. ACL/owner/xattr/timestamps/inode not promised; nonUnix checks weaker."
+    },
+    {
+      "id": "FF05",
+      "source": "cli.rs:1412-1429 replacement_destination;1397-1405 persist",
+      "caller_consumer": "requested entry -> rename replacement, target read only for metadata/expected bytes",
+      "authority": "DECISIONS1106 deliberate symlink/hardlink entry replacement",
+      "witness": "file_ownership.rs:133-161 changed link tests,216-251 docs regular/missing/directory targets",
+      "result": "Changed symlink becomes regular at requested name; target bytes untouched; changed hardlink detaches requested name only. Docs can replace dangling/nonregular-target symlink.",
+      "gap": "No follow-link writes or link preservation in changed output; equal fmt preserves. Parent symlink traversal/races require trusted tree, not hostile-parent guarantee."
+    },
+    {
+      "id": "FF06",
+      "source": "cli.rs:1368-1370,1388-1396,1431-1461 metadata/expected checks",
+      "caller_consumer": "writer-entry snapshot -> write -> second metadata+bytes observation -> persist",
+      "authority": "DECISIONS1106 detected race refusal final nonCAS",
+      "witness": "cli1523 content,1539 pre-stale,1551 mode,1574 equalbytes inode,1601 target mode",
+      "result": "Unix device/inode/mode plus kind/len/readonly/modified checked; fmt expected original bytes checked twice. Capturing begins AFTER input read/docs render.",
+      "gap": "NonUnix lacks device/inode/mode branch; original-read mode not preserved against earlier changes. Missing->concurrent create noclobber; same-bytes metadata change may fail. Narrow final race remains adopted limitation."
+    },
+    {
+      "id": "FF07",
+      "source": "tempfile file/mod.rs:127-132,204-218,256-272,402-407,767-780,821-834;unix.rs:94-134",
+      "caller_consumer": "IO failure -> PersistError temporary owner drop -> remove_file",
+      "authority": "dependency owned-temp contract; DECISIONS C04F ordinary cleanup",
+      "witness": "cli1478-1547 controlled write/persist/concurrent failure tests",
+      "result": "Error mapping consumes PersistError.error; returned owned file drops and TempPath best-effort deletes. Ordinary error/unwind cleanup, no pathname reopening for writes.",
+      "gap": "Drop ignores remove errors; abnormal termination bypasses destructor. Noclobber fallback hardlink then ignored unlink can leave second name on unsupported operation/fs. No universal leak-free guarantee."
+    },
+    {
+      "id": "FF08",
+      "source": "cli.rs:894-979 docs read/analyze/render/write;981-1017 docs_out_refusal",
+      "caller_consumer": "output lexical extension/literal/canonical guard before reads -> renderer -> shared writer",
+      "authority": "docs help; DECISIONS1106 output semantics",
+      "witness": "cli1969/1994 refused source;2026 analysisfail;2293 write;2317 directoryfailure",
+      "result": "Case-insensitive .can and literal/canonical input identities refused E7001; successful docs --out always replaces even equal bytes, expected=None. No parent creation.",
+      "gap": "Path identity guard runs before reads/render and is not raced revalidated; trust policy not malicious alias CAS. Renderer stub tests certify interface/writer, not installed rendering."
+    },
+    {
+      "id": "FF09",
+      "source": "docs.rs:1053-1082 portable_source_id; source.rs:26-73 immutable IDs",
+      "caller_consumer": "CLI docs original read spelling -> canonical/lexical portable identity -> hash/render",
+      "authority": "docs source identity contract; existing Step11 immutable source owner",
+      "witness": "docs.rs tests1260 spellings,1306 relative symlink,1333 external,1378 movedcheckout",
+      "result": "Paths normalize against same root, existing paths canonicalized; outside external:absolute, unresolvable lexical fallback. SourceDb immutable append IDs, latest path lookup.",
+      "gap": "Identity is representation, not file-lock/inode/authority fence; path can change after canonicalization. Reused source lifetime evidence, not newly rerun long-session retention."
+    },
+    {
+      "id": "FF10",
+      "source": "lint/driver.rs:202-224,286-334 apply_fix/apply_fixes; cli.rs:1631-1730 run_lint",
+      "caller_consumer": "source hash+spans -> report fixes or pure text result",
+      "authority": "DIAGNOSTICS expected-content guard; function requires supplied SHA matches text",
+      "witness": "lint.rs:575 fix_refuses_stale_and_invalid; typed_fixes_cli.rs7 reporting",
+      "result": "Pure helpers compare supplied hash to fix expected, span/overlap-check whole batch before text mutation. CLI --fix reports only; writes no files.",
+      "gap": "Caller must supply actual hash of text; no fresh filesystem comparison/atomic apply claim. Prior Step5 coherent carrier and Step10 comment ownership findings retained, not duplicated as new defect."
+    },
+    {
+      "id": "FF11",
+      "source": "cli.rs:216-232 run/write_ignoring_broken_pipe; main.rs:8-46 hook/catch",
+      "caller_consumer": "dispatch result -> write_all+flush stdout/stderr -> exit",
+      "authority": "CLI E7005/exit2 contract; Rust IO behavior",
+      "witness": "exe.rs existing panic/exit tests; root controlled pipe/write errors suggested",
+      "result": "BrokenPipe ignored with original result code; other output errors panic then executable catches2/E7005. argv lossy UTF8 conversion avoids arg panic.",
+      "gap": "Dispatch library callers see output-free result; panic hook eprintln can itself fail, no all-sink outage safety established. No dangerous device/disk-full host probe authorized here."
+    },
+    {
+      "id": "FF12",
+      "source": "cli.rs:1018-1125 renderer;1743-1784 passthrough/PATH",
+      "caller_consumer": "fixed argv+stdin render -> captured UTF8 output; inherited stdio thin child",
+      "authority": "CLI thin/docs help; no alternate platform engine",
+      "witness": "cli2159-2289 stubs argv/renderer failures; selected existing exe tests",
+      "result": "Read/spawn E7002/E7004; renderer failures/nonUTF8/empty mapE7004; thin child code passthrough signal->2. PATH lookup is_file only, no executability/PATHEXT.",
+      "gap": "Renderer write error returns before explicit wait; child timeout/reap/bounded stdout-memory owned root failure lane. Unix PATH contract explicit; Windows automatic discovery not supported."
+    },
+    {
+      "id": "FF13",
+      "source": "build.rs:8-48 main/head_ref_target/short_head",
+      "caller_consumer": "Cargo build -> rerun HEAD/loose symbolic target -> git rev-parse -> CAN_BUILD_COMMIT",
+      "authority": "source header says never stale; Cargo rerun/git layout independent authorities",
+      "witness": "Fresh copied-unmodified build.rs minimal Cargo consumer in disposable ordinary/packed/gitfile repos; files-observations build-ordinary/build-packed/build-gitfile",
+      "result": "Normal .git directory loose branch HEAD/ref watched; detached HEAD file watched; git unavailable/noHEAD/failure ->unknown. Fresh ordinary,packed,gitfile consumer env values match Git after commits; missing watched paths force Cargo rebuild even repeated unchanged builds.",
+      "gap": "Predicted stale refresh was falsified at tested native Cargo profile; missing-path watch causes unnecessary rebuild. No stale metadata defect demonstrated; other Cargo/host profiles unqualified."
+    },
+    {
+      "id": "FF14",
+      "source": "Cargo.toml Rust1.99/pinned tempfile; file_ownership.rs cfg(unix); cli.rs cfg(unix)/find_on_path",
+      "caller_consumer": "dependency features/host branches -> released native CLI profile",
+      "authority": "DECISIONS C04F same-image Linux/emulated + macOS explicit gates",
+      "witness": "prior C04F host receipts, Step10 4750 skip; no fresh lane execution Fresh ownership9 passes with4750 body skip; both direct4750 read0750 fixture-unqualified; all41 commands bounded30s.",
+      "result": "Native macOS and prior bounded Linux profile distinct; local dependency Unix/macOS andWindows paths inspected, not run. tempfile getrandom random names pinned.",
+      "gap": "No Windows/ACL/network filesystem/crossdevice/crash durability/host exhaustion claim. Host policy remains unchanged; proposed fixtures temp-only and root controlled."
+    }
+  ],
+  "execution": "Fresh native temp-only files-probe.py:41 captured commands,21 observations;8 replacement/9 ownership harness passes;4750 fixture unqualified. See files-execution/cases/observations. No release/ACL/owner/crash durability claim.",
+  "early_probe_leads": [
+    "fresh existing file_ownership and replacement_tests native controls; preserve4750 branch skip",
+    "fmt noop vs docs equal replacement identity; changed symlink/hardlink other-name bytes",
+    "docs directory/missing-parent E7007 and bounded temp cleanup",
+    "fmt all-parse admission vs per-file ordered IO partial progress",
+    "disposable .git directory/worktree/gitfile/packed-ref Cargo refresh controls; no real repository mutation"
+  ],
+  "fresh_receipts": [
+    "files-cases.json",
+    "files-observations.json",
+    "files-execution.json"
+  ]
+}
