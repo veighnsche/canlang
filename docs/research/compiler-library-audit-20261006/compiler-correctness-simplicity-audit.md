@@ -22,6 +22,8 @@ Inventory every compiler source, test, fixture, build/configuration file, comple
 
 **Output:** one coverage ledger linked into the existing living-plan responsibilities. **Allocation:** Luna low for path/symbol inventory; Sol medium for responsibility boundaries.
 
+**Executed:** [Step 2 responsibility map](responsibility-map/README.md) accounts for all 107 tracked paths with 544 full-span bands, including 327 source bands and behavior/setup divisions of large and mixed test files. One ledger indexes named public/restricted declarations, recipes and 24 interfaces, with 31 supporting input pins. A fresh independent reviewer accepts structural inventory after visibility, prerequisite, consumer-link and mixed-test corrections. Workflow tracing, semantic/API contract review and test adequacy remain open; this completion does not execute Steps 3–15 or select new architecture.
+
 ### 3. Trace real user workflows through the compiler
 
 Trace `check`, compile/artifacts, lint/fixes, formatting, docs/references, policy/explain, generated BDD and editor/LSP from ingress to the actual consuming path. Include thin CLI `run`/`test`/`build`/`deploy`/`activate` argument, process and exit forwarding, and public library entrypoints used without the CLI. Include valid, rejected, incomplete and disconnected cases. Trace source/catalog admission, parse/recovery, resolution, type/effect/authority analysis, lowering, dependency selection, serialization and consumption. Preserve original app acceptance and explicit prerequisites; a synthetic complete result, reduced fixture or accepted rejection does not prove a full application works.

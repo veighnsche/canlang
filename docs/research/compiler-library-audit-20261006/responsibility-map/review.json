@@ -1,0 +1,142 @@
+{
+  "scope": "Step2 responsibility inventory; structural challenge only",
+  "initial_fresh_review": {
+    "review": "fresh independent Step2 responsibility inventory challenge",
+    "reviewer": "Sol medium",
+    "repository": "/Users/vince/Projects/canlang",
+    "ledger": "docs/research/compiler-library-audit-20261006/responsibility-map/coverage.jsonl",
+    "reviewed_state": "107 path records; 648 lexical declaration items; 613 originally classified external; findings below apply to observed pre-correction ledger",
+    "verdict": "structural scope accepted with bounded ledger corrections required; no semantic or workflow qualification",
+    "checks": [
+      {
+        "command": "git ls-files compiler; Python set comparison with coverage path records and baseline compiler-inventory.jsonl",
+        "result": "107 tracked paths,107 unique path records,41 compiler/src Rust files; no missing or extra paths; all baseline SHA256 and physical line counts match raw files"
+      },
+      {
+        "command": "Python full-file slices contiguity/bounds and anchors validation across coverage.jsonl",
+        "result": "all bands cover lines1..physical_lines without gaps/overlap; every slice symbol and API symbol occurs at recorded source line; all explicit interface anchors and Rust range endpoints resolve"
+      },
+      {
+        "command": "Python raw production pub declaration regex versus per-source apis lines; source-checked exports and trait definitions",
+        "result": "648 indexed declaration/reexport items,613 external,21 crate/restricted,14 module-private; no omitted matching pub fn/struct/enum/trait/type/const/static/mod/use declarations; use rows preserve full grouped/multiline declaration; public fields/variants and trait methods explicitly owned by carrier/trait"
+      },
+      {
+        "command": "Python string/comment-stripped brace matching for pub functions inside impl blocks against indexed owning type visibility",
+        "result": "168 indexed inherent public methods checked; zero unresolved owning contexts; exactly one external-reach mismatch:ExprCtx::bare; this is a lexical/source structural check,not compiler-derived semver proof"
+      },
+      {
+        "command": "Python external-interface hash and test-link existence checks; root package.json scripts equality",
+        "result": "31 declared supporting interface hashes match; all nonempty test_links resolve; root recipe list equals all scripts except missing tools:jev"
+      },
+      {
+        "command": "Python #[test] counts versus ledger test_declarations; source inspection of seven large integration test bands and completion fixture consumer",
+        "result": "all recorded test declaration counts match raw #[test] counts; seven tests>1000lines have meaningful behavior bands:analysis15,b4_check15,check10,codegen15,docs14,effects13,syntax12"
+      }
+    ],
+    "findings": [
+      {
+        "id": "R1",
+        "severity": "inventory correction",
+        "path": "compiler/src/analysis/resolve.rs",
+        "line": 3517,
+        "evidence": "pub fn bare is inside impl ExprCtx; ExprCtx declared pub(crate) at3514. Ledger labels bare reach external.",
+        "requested_correction": "classify bare as crate/restricted and revise aggregate external count to612 if no other changes"
+      },
+      {
+        "id": "R2",
+        "severity": "bounded recipe omission",
+        "path": "package.json",
+        "line": 51,
+        "evidence": "tools:jev Python unittest recipe omitted from recipes.public despite inclusion of test:tools wrapper at50; all other declared recipes match.",
+        "requested_correction": "include leaf tools:jev or explicitly exclude that noncompiler tooling recipe"
+      },
+      {
+        "id": "R3",
+        "severity": "bounded test-profile omission",
+        "path": "compiler/tests/completion_contract.rs",
+        "line": 91,
+        "evidence": "live Zsh requires zsh and python3; Bash runs live; fish receives embedded byte equality/text assertion only. Current prerequisites omit Zsh and CAN_COMPLETION_REQUIRE_ENGINES qualification switch at1-12.",
+        "requested_correction": "index Zsh/Python prerequisite and fail-on-missing switch; state live versus byte/text-only engines precisely"
+      },
+      {
+        "id": "R4",
+        "severity": "bounded fixture-consumer link omission",
+        "path": "compiler/tests/fixtures/completion-contract/zsh.py",
+        "line": 1,
+        "evidence": "fixture test_links empty although compiler/tests/completion_contract.rs:94 invokes exact helper path. Role description correctly says completion contract helper.",
+        "requested_correction": "add exact completion_contract.rs consumer link"
+      }
+    ],
+    "accepted_bounds": [
+      "all tracked compiler source/tests/fixtures/Cargo/build/completion/docs metadata paths included; ignored target and OS metadata explicitly excluded",
+      "source responsibility slices identify current mechanisms and joins rather than proposed architecture or file moves",
+      "seven largest test files have behavior slices; mixed authoring/IDE suites under1000lines still receive broad family-level mapping and may benefit from finer bands",
+      "public API inventory is lexical and carrier/trait based; 648 is declaration-line items including reexports,not unique callable or semver surface count",
+      "24 interface records index front-end and public recipe/CI/editor/build/consumer boundaries; external owner files are supporting seam evidence,not whole external owner audit",
+      "workflow untraced,semantics unreviewed,test adequacy and execution explicitly unqualified; source coverage does not establish correctness",
+      "no builds,tests,network,repository writes,Git mutations or canonical plan/checkpoint changes performed"
+    ],
+    "unresolved": [
+      "complete semantic branches,public preconditions,evaluation order and end-to-end consumer closure remain subsequent audit work",
+      "independent structural challenge sampled source responsibilities; did not read every semantic branch or certify every oracle"
+    ]
+  },
+  "additional_cross_review": {
+    "reviewer": "Sol medium contributor challenging other mapped areas",
+    "scope": "source/paths/public recipe/test helper consistency; not fully independent of original mapping",
+    "corrections": [
+      "add common/lsp_driver exact b3_s4 + b3_authoring_join consumers",
+      "split mixed authoring.rs and ide.rs test/setup duties even below1000line threshold"
+    ],
+    "rejected_initial_claim": "Contributing review missed ExprCtx method owner restriction; fresh reviewer checked all168inherent pub methods and found/corrected it."
+  },
+  "final_fresh_review": {
+    "review": "bounded final delta review of Step2 inventory",
+    "reviewer": "fresh independent Sol medium",
+    "ledger": "/Users/vince/Projects/canlang/docs/research/compiler-library-audit-20261006/responsibility-map/coverage.jsonl",
+    "ledger_sha256": "65539c5b2cd694998628f54420f44899d62d5d0db525524a643921334c2ada69",
+    "verdict": "accepted within stated structural inventory bounds",
+    "findings": [],
+    "resolved_findings": {
+      "R1": "ExprCtx::bare correctly crate/restricted with owning type line3514;612external/22restricted/14private",
+      "R2": "recipes.public now exactly equals root package.json scripts,including tools:jev",
+      "R3": "completion profile explicitly records Bash,Zsh,Python3,Cargo binary,missing-engine qualification switch and fish byte/text-only scope",
+      "R4": "zsh.py directly links completion_contract.rs consumer"
+    },
+    "delta_checks": [
+      {
+        "check": "107 compiler path records versus git ls-files compiler and baseline inventory hashes/linecounts",
+        "result": "exact sets and baseline contents;41 source Rust files; no regression"
+      },
+      {
+        "check": "all544full-file responsibility bands and recorded slice/API/interface anchors; supporting interface hashes and test-link paths; test declaration counts",
+        "result": "contiguous complete coverage,no out-of-bounds anchors,all links/hash/counts match"
+      },
+      {
+        "check": "public method ownership/reach using source brace contexts",
+        "result": "168indexed inherent public methods;zero owning visibility mismatches and zero unresolved owning contexts"
+      },
+      {
+        "check": "new authoring13bands and IDE11bands against actual function declarations",
+        "result": "full-span contiguous meaningful CLI/formatter/lint/explain/transport/LSP and IDE query/fix/token/backend families; source declarations match labels"
+      },
+      {
+        "check": "common LSPdriver exact direct consumer links",
+        "result": "b3_s4.rs:15 and b3_authoring_join.rs:24 explicitly include common/lsp_driver.rs;both indexed"
+      },
+      {
+        "check": "scope/API policy regression",
+        "result": "inventory-only completion retained;workflow untraced,semantics unreviewed;carrier/trait ownership and lexical-index/non-semver bounds retained"
+      }
+    ],
+    "accepted_bounds": [
+      "Structural inventory of tracked compiler paths and explicit supporting joins accepted; no completeness claim for whole external package owners.",
+      "648named declaration/reexport line items remain a lexical index; counts do not identify unique supported semver APIs.",
+      "Public fields/variants belong to carrier and trait methods to trait; method reach considers owning type.",
+      "Full-file bands establish responsibility attribution,not correctness of every semantic branch or test oracle.",
+      "Semantic branches,public preconditions,end-to-end workflows,consumer closure and test adequacy remain unqualified as explicitly recorded.",
+      "Build/test/network/repository-write/Git mutation/canonical plan checkpoint work excluded; this delta review wrote only its /private/tmp report."
+    ]
+  },
+  "post_review_annotation": "Only independent_mapping_review metadata in scope row changes after final reviewer ledger hash. validation.json binds final annotated ledger. No substantive path/API/recipe/band content changes after review."
+}
