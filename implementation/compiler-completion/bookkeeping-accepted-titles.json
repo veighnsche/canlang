@@ -12,5 +12,11 @@
   "2026-10-07 — Synchronous generated guards share one acyclic producer (accepted bounded)",
   "2026-10-08 — Literal Card and transient Tabs use actual UI contracts (accepted bounded)",
   "2026-10-08 — Markdown code spans preserve authored text (accepted bounded)",
-  "2026-10-08 — BDD execution transport and helper closure (proposal; consultation pending)"
+  "2026-10-08 — BDD execution transport and helper closure (proposal; consultation pending)",
+  "2026-10-08 — BDD expressions publish owning checked facts (accepted bounded; execution open)",
+  "2026-10-08 — Runtime tests own exclusive temporary directories (accepted test correction)",
+  "2026-10-08 — Public code fragments refuse unrepresentable endpoints (accepted bounded)",
+  "2026-10-08 — Date and datetime have distinct ICU requirements (accepted bounded)",
+  "2026-10-08 — Retain public descriptor and fix fragments (accepted retention)",
+  "2026-10-08 — Qualify the integrated native compiler after bounded repairs (accepted profile)"
 ]
