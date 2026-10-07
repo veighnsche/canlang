@@ -51,10 +51,18 @@ fn receive<T>(rx: Receiver<io::Result<T>>, deadline: Instant) -> T {
 /// A finite session bounds writes, reads, and process exit. Independent framing
 /// parsing below also checks every emitted body's byte length and UTF-8 validity.
 fn session(messages: Vec<Value>) -> Vec<Value> {
+    session_with_catalog(messages, None)
+}
+
+fn session_with_catalog(messages: Vec<Value>, catalog: Option<&std::path::Path>) -> Vec<Value> {
     let deadline = Instant::now() + TIMEOUT;
+    let mut command = Command::new(env!("CARGO_BIN_EXE_can"));
+    command.arg("lsp");
+    if let Some(catalog) = catalog {
+        command.env("CAN_CATALOG", catalog);
+    }
     let mut child = Reap(
-        Command::new(env!("CARGO_BIN_EXE_can"))
-            .arg("lsp")
+        command
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
             .stderr(Stdio::piped())
@@ -131,7 +139,7 @@ fn start() -> Vec<Value> {
         request(
             1,
             "initialize",
-            json!({"processId":null,"rootUri":null,"capabilities":{}}),
+            json!({"processId":null,"rootUri":null,"capabilities":{"workspace":{"workspaceEdit":{"documentChanges":true}}}}),
         ),
         notify("initialized", json!({})),
     ]
@@ -243,7 +251,8 @@ fn assert_document_edit(edit: &Value, uri: &str, version: i32, expected: Value) 
 }
 fn expected_rename(text: &str, name: &str) -> Value {
     json!([{"range":span(text,name,0),"newText":"job"},
-           {"range":span(text,name,1),"newText":"job"}])
+           {"range":span(text,name,1),"newText":"job"},
+           {"range":span(text,name,2),"newText":"job"}])
 }
 fn assert_action(actions: &Value, uri: &str, version: i32, text: &str) {
     let fixes: Vec<_> = actions
@@ -421,7 +430,8 @@ fn real_all_output_families_crlf_and_supplementary_utf16() {
     assert_eq!(
         response(&frames, 5),
         &json!([
-        {"uri":uri,"range":span(&text,"task",0)}, {"uri":uri,"range":span(&text,"task",1)}])
+        {"uri":uri,"range":span(&text,"task",0)}, {"uri":uri,"range":span(&text,"task",1)},
+        {"uri":uri,"range":span(&text,"task",2)}])
     );
     assert_document_edit(response(&frames, 6), uri, 7, expected_rename(&text, "task"));
     let data = response(&frames, 7)["data"].as_array().unwrap();
@@ -634,7 +644,8 @@ fn real_opaque_uri_identities_keep_notifications_locations_and_edit_routing() {
         assert_eq!(
             response(&frames, 4 + index as u32 * 3),
             &json!([
-            {"uri":uri,"range":span(text,name,0)},{"uri":uri,"range":span(text,name,1)}])
+            {"uri":uri,"range":span(text,name,0)},{"uri":uri,"range":span(text,name,1)},
+            {"uri":uri,"range":span(text,name,2)}])
         );
     }
     assert_eq!(
@@ -642,4 +653,230 @@ fn real_opaque_uri_identities_keep_notifications_locations_and_edit_routing() {
         "**Tasks.complete.task** — parameter\n\ndeclared: `Todo`"
     );
     assert_eq!(response(&frames, 99), &Value::Null);
+}
+
+#[test]
+fn real_close_clears_and_reopen_publishes_only_new_buffer() {
+    let uri = "untitled:é😀-close";
+    let first = "app T\nGiven\n derive n(): int = nope\nWhen\nThen\n";
+    let second = first.replace("nope", "1");
+    let mut input = start();
+    input.push(open(uri, 3, first));
+    input.push(notify("textDocument/didClose", doc(uri)));
+    input.push(open(uri, 3, &second));
+    finish(&mut input);
+    let frames = session(input);
+    let publications: Vec<_> = frames
+        .iter()
+        .filter(|f| f["method"] == "textDocument/publishDiagnostics" && f["params"]["uri"] == uri)
+        .map(|f| &f["params"])
+        .collect();
+    assert_eq!(publications.len(), 3, "{frames:#?}");
+    assert!(
+        publications[0]["diagnostics"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|d| d["code"] == "E2001")
+    );
+    assert_eq!(
+        publications[1],
+        &json!({"uri":uri,"version":3,"diagnostics":[]})
+    );
+    assert!(
+        publications[2]["diagnostics"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .all(|d| d["code"] != "E2001")
+    );
+}
+
+#[test]
+fn public_queued_work_does_not_revive_after_close_or_shutdown() {
+    use canlang_compiler::lsp::{
+        server::{Server, StubAnalysis},
+        transport,
+    };
+    let mut server = Server::new(StubAnalysis);
+    let mut send =
+        |message: Value| server.handle_json(&transport::parse(&message.to_string()).unwrap());
+    for message in start() {
+        send(message);
+    }
+    send(open("untitled:closed", 1, "app Old"));
+    send(open("untitled:live", 4, "app Live"));
+    let clear = send(notify("textDocument/didClose", doc("untitled:closed")));
+    assert_eq!(clear.len(), 1);
+    let clear: Value = serde_json::from_str(&clear[0]).unwrap();
+    assert_eq!(
+        clear["params"],
+        json!({"uri":"untitled:closed","version":1,"diagnostics":[]})
+    );
+    send(open("untitled:closed", 1, "app New"));
+    // Close removes the old document's work but preserves the other document.
+    assert_eq!(server.pending_count(), 2);
+    let publications: Vec<Value> = server
+        .pump()
+        .iter()
+        .map(|s| serde_json::from_str(s).unwrap())
+        .collect();
+    assert_eq!(publications.len(), 2, "{publications:#?}");
+    assert_eq!(publications[0]["params"]["uri"], "untitled:live");
+    assert_eq!(publications[1]["params"]["uri"], "untitled:closed");
+    assert!(server.pump().is_empty());
+    // Public batching can reuse a client version with a different snapshot.
+    // That cannot cause both old and new tasks to publish the newest text.
+    for text in ["app First", "app Second"] {
+        server.handle_json(
+            &transport::parse(&open("untitled:reused-version", 8, text).to_string()).unwrap(),
+        );
+    }
+    assert_eq!(server.pump().len(), 1);
+    server.handle_json(
+        &transport::parse(&change("untitled:closed", 2, "app Latest").to_string()).unwrap(),
+    );
+    assert_eq!(server.pending_count(), 1);
+    server
+        .handle_json(&transport::parse(&request(99, "shutdown", Value::Null).to_string()).unwrap());
+    assert_eq!(server.pending_count(), 0);
+    assert!(server.pump().is_empty());
+}
+
+#[test]
+fn real_supported_reference_option_and_edit_capability_profiles() {
+    let uri = "file:///options%2fé😀.can";
+    let action_uri = "untitled:options%2F-action";
+    let text = capability_text();
+    let action = action_text();
+    for capability in [None, Some(false), Some(true)] {
+        let mut capabilities = json!({});
+        if let Some(value) = capability {
+            capabilities = json!({"workspace":{"workspaceEdit":{"documentChanges":value}}});
+        }
+        let mut input = vec![
+            request(
+                1,
+                "initialize",
+                json!({"processId":null,"rootUri":null,"capabilities":capabilities}),
+            ),
+            notify("initialized", json!({})),
+            open(uri, 11, &text),
+            open(action_uri, 12, &action),
+        ];
+        // Both request-at-declaration and request-at-use exclude only the declaration.
+        for (id, occurrence) in [(2, 0), (3, 1)] {
+            let mut refs = at(uri, span(&text, "task", occurrence)["start"].clone());
+            refs["context"] = json!({"includeDeclaration":false});
+            input.push(request(id, "textDocument/references", refs));
+        }
+        let mut refs = at(uri, span(&text, "task", 1)["start"].clone());
+        refs["context"] = json!({"includeDeclaration":true});
+        input.push(request(4, "textDocument/references", refs));
+        input.push(request(
+            5,
+            "textDocument/rename",
+            rename_params(uri, &text, "task.title"),
+        ));
+        input.push(request(
+            6,
+            "textDocument/codeAction",
+            action_params(action_uri, &action),
+        ));
+        finish(&mut input);
+        let frames = session(input);
+        for id in [2, 3] {
+            assert_eq!(
+                response(&frames, id),
+                &json!([{ "uri":uri,"range":span(&text,"task",1)},
+                {"uri":uri,"range":span(&text,"task",2)}])
+            );
+        }
+        assert_eq!(
+            response(&frames, 4),
+            &json!([
+            {"uri":uri,"range":span(&text,"task",0)}, {"uri":uri,"range":span(&text,"task",1)},
+        {"uri":uri,"range":span(&text,"task",2)}])
+        );
+        if capability == Some(true) {
+            assert_document_edit(
+                response(&frames, 5),
+                uri,
+                11,
+                expected_rename(&text, "task"),
+            );
+            assert_action(response(&frames, 6), action_uri, 12, &action);
+        } else {
+            let rename = response(&frames, 5);
+            assert_eq!(
+                rename,
+                &json!({"changes":{uri:expected_rename(&text,"task")}})
+            );
+            let fix = response(&frames, 6)
+                .as_array()
+                .unwrap()
+                .iter()
+                .find(|a| a["title"] == "replace redundant `?.` with `.`")
+                .unwrap();
+            assert_eq!(
+                fix["edit"],
+                json!({"changes":{action_uri:[{"range":span(&action,"?.",0),"newText":"."}]}})
+            );
+        }
+    }
+}
+
+#[test]
+fn real_clean_rename_includes_mutation_targets_and_rechecks() {
+    // A comment puts supplementary Unicode into a clean production source;
+    // unlike the currentness fixture this introduces no text+text type error.
+    let text = CAPABILITY_FIXTURE
+        .replace("   let", "   ## é😀\n   let")
+        .replace(
+            "   set task {title=label}",
+            "   set task {title=label}\n   delete task",
+        )
+        .replace('\n', "\r\n");
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .parent()
+        .unwrap();
+    let catalog = root.join("packages/values/dist/catalog.json");
+    assert!(
+        catalog.is_file(),
+        "actual catalog is required for the clean-source profile"
+    );
+    let uri = "file:///rename%2fCONTROL.can";
+    let mut input = start();
+    input.push(open(uri, 7, &text));
+    input.push(request(
+        2,
+        "textDocument/rename",
+        rename_params(uri, &text, "task {"),
+    ));
+    finish(&mut input);
+    let frames = session_with_catalog(input, Some(&catalog));
+    assert_eq!(diagnostics(&frames, uri, 7), &json!([]));
+    let expected = json!([
+        {"range":span(&text,"task",0),"newText":"job"},
+        {"range":span(&text,"task",1),"newText":"job"},
+        {"range":span(&text,"task",2),"newText":"job"},
+        {"range":span(&text,"task",3),"newText":"job"}
+    ]);
+    assert_document_edit(response(&frames, 2), uri, 7, expected);
+    // Exact independently specified ranges above identify each edit's bytes.
+    // Apply the actual emitted replacements backwards, preserving CRLF and
+    // unrelated Unicode/field names, then check through a fresh shipped process.
+    let mut renamed = text.clone();
+    let changes = &response(&frames, 2)["documentChanges"][0]["edits"];
+    let starts: Vec<_> = text.match_indices("task").map(|(byte, _)| byte).collect();
+    assert_eq!(starts.len(), 4);
+    for (edit, byte) in changes.as_array().unwrap().iter().zip(starts).rev() {
+        renamed.replace_range(byte..byte + 4, edit["newText"].as_str().unwrap());
+    }
+    assert_eq!(renamed, text.replace("task", "job"));
+    let mut recheck = start();
+    recheck.push(open(uri, 8, &renamed));
+    finish(&mut recheck);
+    let checked = session_with_catalog(recheck, Some(&catalog));
+    assert_eq!(diagnostics(&checked, uri, 8), &json!([]));
 }

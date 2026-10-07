@@ -504,7 +504,7 @@ impl<'a> Snapshot<'a> {
 
     /// Resolve an offset to an analysis-backed target plus its exact
     /// name span. Returns `None` for anything unresolved (unknown
-    /// names, member-navigation names, mutation-target paths and
+    /// names, member-navigation names and
     /// syntactic positions alike).
     fn resolve_at(&self, offset: u32) -> Option<Resolved> {
         let text = self.text();
@@ -635,6 +635,13 @@ impl<'a> Snapshot<'a> {
             .position(|s| s.span.start <= offset && offset < s.span.end)?;
         let key = NodeKey::of(node);
         let seg_text: Vec<&str> = segments.iter().filter_map(|s| name_text(s, text)).collect();
+        // Mutation targets carry the statement-time binding on their
+        // head token. The remaining path segments are field selectors.
+        if here == 0
+            && let Some(target) = self.binding_target(segments[0], segments[0].span)
+        {
+            return Some(target);
+        }
         // A leading package name denotes the module itself.
         if here == 0
             && segments.len() > 1

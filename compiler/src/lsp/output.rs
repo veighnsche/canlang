@@ -3,7 +3,7 @@
 use super::server::{CodeAction, DocLocation, FileEdit, LspRange, TextEdit};
 use super::transport::{self as t, Json};
 use lsp_types as lsp;
-use serde::Serialize;
+use serde::{Serialize, Serializer, ser::SerializeMap};
 use serde_json::value::RawValue;
 
 /// The ID alone uses the admitted raw JSON representation, so exponent and
@@ -97,35 +97,81 @@ struct DocumentIdentifier {
 }
 
 #[derive(Serialize)]
-#[serde(rename_all = "camelCase")]
-pub(super) struct WorkspaceEdit {
-    document_changes: Vec<DocumentEdit>,
+#[serde(transparent)]
+pub(super) struct WorkspaceEdit(WorkspaceEditWire);
+
+#[derive(Serialize)]
+#[serde(untagged)]
+enum WorkspaceEditWire {
+    #[serde(rename_all = "camelCase")]
+    Versioned {
+        document_changes: Vec<DocumentEdit>,
+    },
+    Plain {
+        changes: Changes,
+    },
 }
 
-fn workspace_edit(groups: Vec<(String, Option<i32>, Vec<lsp::TextEdit>)>) -> WorkspaceEdit {
-    WorkspaceEdit {
-        document_changes: groups
-            .into_iter()
-            .map(|(uri, version, edits)| DocumentEdit {
-                text_document: DocumentIdentifier { uri, version },
-                edits,
-            })
-            .collect(),
+// Object member order follows first URI occurrence, just as documentChanges.
+// URI keys retain their authored String identity rather than URL normalization.
+struct Changes(Vec<(String, Vec<lsp::TextEdit>)>);
+
+impl Serialize for Changes {
+    fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        let mut map = serializer.serialize_map(Some(self.0.len()))?;
+        for (uri, edits) in &self.0 {
+            map.serialize_entry(uri, edits)?;
+        }
+        map.end()
     }
 }
 
-pub(super) fn rename(uri: String, version: i32, edits: Vec<TextEdit>) -> WorkspaceEdit {
-    workspace_edit(vec![(
-        uri,
-        Some(version),
-        edits
-            .into_iter()
-            .map(|edit| lsp::TextEdit {
-                range: range(edit.range),
-                new_text: edit.new_text,
-            })
-            .collect(),
-    )])
+fn workspace_edit(
+    groups: Vec<(String, Option<i32>, Vec<lsp::TextEdit>)>,
+    document_changes: bool,
+) -> WorkspaceEdit {
+    WorkspaceEdit(if document_changes {
+        WorkspaceEditWire::Versioned {
+            document_changes: groups
+                .into_iter()
+                .map(|(uri, version, edits)| DocumentEdit {
+                    text_document: DocumentIdentifier { uri, version },
+                    edits,
+                })
+                .collect(),
+        }
+    } else {
+        WorkspaceEditWire::Plain {
+            changes: Changes(
+                groups
+                    .into_iter()
+                    .map(|(uri, _, edits)| (uri, edits))
+                    .collect(),
+            ),
+        }
+    })
+}
+
+pub(super) fn rename(
+    uri: String,
+    version: i32,
+    edits: Vec<TextEdit>,
+    document_changes: bool,
+) -> WorkspaceEdit {
+    workspace_edit(
+        vec![(
+            uri,
+            Some(version),
+            edits
+                .into_iter()
+                .map(|edit| lsp::TextEdit {
+                    range: range(edit.range),
+                    new_text: edit.new_text,
+                })
+                .collect(),
+        )],
+        document_changes,
+    )
 }
 
 #[derive(Serialize)]
@@ -136,7 +182,11 @@ pub(super) struct Action {
     edit: Option<WorkspaceEdit>,
 }
 
-pub(super) fn action(action: CodeAction, version: impl Fn(&str) -> Option<i32>) -> Action {
+pub(super) fn action(
+    action: CodeAction,
+    version: impl Fn(&str) -> Option<i32>,
+    document_changes: bool,
+) -> Action {
     let typed = lsp::CodeAction {
         title: action.title,
         kind: Some(lsp::CodeActionKind::from(action.kind)),
@@ -171,7 +221,7 @@ pub(super) fn action(action: CodeAction, version: impl Fn(&str) -> Option<i32>) 
         .collect();
     Action {
         action: typed,
-        edit: Some(workspace_edit(groups)),
+        edit: Some(workspace_edit(groups, document_changes)),
     }
 }
 
@@ -256,6 +306,7 @@ mod tests {
                     ],
                 },
                 |uri| (uri == "file:///b.can").then_some(19),
+                true,
             );
             let wire = compact(&action);
             let value = t::parse(&wire).unwrap();
@@ -300,13 +351,60 @@ mod tests {
                 edits: Vec::new(),
             },
             |_| None,
+            true,
         ));
         assert_eq!(wire, r#"{"title":"no edits","kind":"custom"}"#);
-        let wire = compact(&rename("file:///a.can".to_string(), -4, Vec::new()));
+        let wire = compact(&rename("file:///a.can".to_string(), -4, Vec::new(), true));
         assert_eq!(
             wire,
             r#"{"documentChanges":[{"textDocument":{"uri":"file:///a.can","version":-4},"edits":[]}]}"#
         );
+    }
+
+    #[test]
+    fn plain_edit_keeps_authored_uri_and_group_order() {
+        let first = "file:///z%2fé😀.can";
+        let second = "file:///a%2F.can";
+        let edit = workspace_edit(
+            vec![
+                (
+                    first.to_string(),
+                    Some(3),
+                    vec![lsp::TextEdit {
+                        range: range(sample_range()),
+                        new_text: "first".to_string(),
+                    }],
+                ),
+                (
+                    second.to_string(),
+                    None,
+                    vec![lsp::TextEdit {
+                        range: range(sample_range()),
+                        new_text: "second".to_string(),
+                    }],
+                ),
+            ],
+            false,
+        );
+        let wire = compact(&edit);
+        assert!(
+            wire.starts_with(r#"{"changes":{"file:///z%2fé😀.can":"#),
+            "{wire}"
+        );
+        assert!(wire.find(first).unwrap() < wire.find(second).unwrap());
+        let parsed = t::parse(&wire).unwrap();
+        assert!(parsed.get("documentChanges").is_none());
+        for (uri, text) in [(first, "first"), (second, "second")] {
+            let edits = parsed
+                .get("changes")
+                .unwrap()
+                .get(uri)
+                .unwrap()
+                .as_arr()
+                .unwrap();
+            assert_eq!(edits.len(), 1);
+            assert_eq!(edits[0].get("newText").and_then(Json::as_str), Some(text));
+        }
     }
 
     #[test]
