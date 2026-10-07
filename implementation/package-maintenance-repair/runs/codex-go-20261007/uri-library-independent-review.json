@@ -1,0 +1,498 @@
+{
+  "packet": "TECH-W01-uri",
+  "status": "independently source-current reviewed: finite registered-library extraction passes; root adoption gates remain",
+  "sourcePins": [
+    {
+      "path": "packages/work-kernel/decisions/rows.rs",
+      "sha256": "e499dd713487fc981941ff42b787c7e1b4e7762392c5162c9e2fb169664c8298"
+    },
+    {
+      "path": "packages/work-kernel/decisions/receipt.rs",
+      "sha256": "32264b521e00675c31da3233400ad944218dfe60e3702e6e2b3275d7c8361f5b"
+    },
+    {
+      "path": "packages/work-kernel/decisions/linkage.rs",
+      "sha256": "78e05707465cc99eaa720c063a22bfde703e636cedbe0e22890b1014bd8bc87b"
+    },
+    {
+      "path": "packages/work-kernel/decisions/lib.rs",
+      "sha256": "6bc7f32db9b2afd7cdcd9b73f4f9753ce5d13da712ae5a5754567cd3afd684a9"
+    },
+    {
+      "path": "packages/work-kernel/decisions/uri_component.rs",
+      "sha256": "b67904cb5ba8e6400cfdf7675ba008a8a5bd6dd471871a5137f9d9fd7b14c3aa"
+    },
+    {
+      "path": "packages/work-kernel/Cargo.toml",
+      "sha256": "91f4a5e09d36e8f4b6e5a93a0184f660594eb12020ad971e3aace1fe3b6f62a3"
+    },
+    {
+      "path": "packages/work-kernel/Cargo.lock",
+      "sha256": "76b9bd2bcb89fb3a9d4b1944524f08e2129729e0cce1b11d55b67e995a6caa3c"
+    },
+    {
+      "path": "packages/work-kernel/rust/lib.rs",
+      "sha256": "46a4c32e6615c9b0cbe7758461fd71f72a790af2c71a0fb11de08e054abb681d"
+    },
+    {
+      "path": "packages/work-kernel/conformance/registered-native.rs",
+      "sha256": "6598dbb3e121632456ec6752d2cb1ec1a53b241ff07b8746b5aaeba86f72ab4a"
+    },
+    {
+      "path": "packages/work-kernel/conformance/fixtures/numeric-text.json",
+      "sha256": "7e4ee0155f23a7f21b62dc44a62c8a8e6e567e911ae515c1bcba1b8b1d028fa2"
+    }
+  ],
+  "ackHead": "060227dc0bef0411d159de9b0e01126a1a40a833",
+  "headAtFinish": "4e89b117d3f66caa79a8df8ed875d55f9e40b948",
+  "sourceProof": [
+    {
+      "owner": "rows",
+      "beforeSha256": "be07feb72b5365628261a82f7c1c67d8c1dee83de38d0f159f3b3bb028f12e5d",
+      "currentSha256": "e499dd713487fc981941ff42b787c7e1b4e7762392c5162c9e2fb169664c8298",
+      "allRemainderIncludingTypesTestsCallersQuotesByteIdentical": true,
+      "qualifiedV2RuntimeAndOldPrivateOracleSourceExact": true
+    },
+    {
+      "owner": "receipt",
+      "beforeSha256": "0acba7557afb1f43a328cb3e86e9995fb89d64f1557b0d1477795e8ec1395d5b",
+      "currentSha256": "32264b521e00675c31da3233400ad944218dfe60e3702e6e2b3275d7c8361f5b",
+      "allRemainderIncludingTypesTestsCallersQuotesByteIdentical": true,
+      "qualifiedV2RuntimeAndOldPrivateOracleSourceExact": true
+    },
+    {
+      "owner": "linkage",
+      "beforeSha256": "aa3bdfdf7bbaea63cce50a45390795bc68f06f9b68b3d4e11dee41c6b41654dc",
+      "currentSha256": "78e05707465cc99eaa720c063a22bfde703e636cedbe0e22890b1014bd8bc87b",
+      "allRemainderIncludingTypesTestsCallersQuotesByteIdentical": true,
+      "qualifiedV2RuntimeAndOldPrivateOracleSourceExact": true
+    }
+  ],
+  "registrationAndLock": {
+    "decisionModuleAdditionOnly": true,
+    "rootRustPublicBindingsAndVersionUnchanged": true,
+    "manifestOnlyAddedExactPercentEncodingNoDefaults": true,
+    "lockOnlyNewPackageAndRootDependencyEntry": true,
+    "allPreviousLockPackagesAndRyuJsRetained": true,
+    "crate": "percent-encoding",
+    "version": "2.3.2",
+    "transitiveDependencies": 0,
+    "checksum": "9b4f627cb1b25917193a259e49bdad08f671f8d9708acfd5fe0a8c1455d87220",
+    "license": "MIT OR Apache-2.0",
+    "licenseAndPrimaryCachedSourcePins": [
+      {
+        "path": "/Users/vince/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/percent-encoding-2.3.2/src/lib.rs",
+        "sha256": "641903d385581e76f31ef8c991d83c2a5d7fbbc2879d93909c539037e4e1e3e2"
+      },
+      {
+        "path": "/Users/vince/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/percent-encoding-2.3.2/src/ascii_set.rs",
+        "sha256": "f75552e4f446ed240cef64c1367e848cf3ae65f77602085459566d835a1d8587"
+      },
+      {
+        "path": "/Users/vince/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/percent-encoding-2.3.2/Cargo.toml",
+        "sha256": "e4ea043c47bbd5551fc5fcf8151eab94428b4be6f2337834a0f9020a4392fb19"
+      },
+      {
+        "path": "/Users/vince/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/percent-encoding-2.3.2/Cargo.toml.orig",
+        "sha256": "36b46b35abb58c4e2dbe2c25bcf64709ed170bd720efd1b4b1280509ca072f5f"
+      },
+      {
+        "path": "/Users/vince/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/percent-encoding-2.3.2/LICENSE-MIT",
+        "sha256": "b38f11f6096706e6de553dabe2a7ed142d59b6fa8c97e290c67496154745cdd5"
+      },
+      {
+        "path": "/Users/vince/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/percent-encoding-2.3.2/LICENSE-APACHE",
+        "sha256": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2"
+      },
+      {
+        "path": "/Users/vince/.cargo/registry/cache/index.crates.io-1949cf8c6b5b557f/percent-encoding-2.3.2.crate",
+        "sha256": "9b4f627cb1b25917193a259e49bdad08f671f8d9708acfd5fe0a8c1455d87220"
+      }
+    ],
+    "features": "Fresh private cargo tree confirms percent-encoding has no enabled alloc/std/default feature nodes; root command-line default feature label is not a percent-encoding feature."
+  },
+  "semanticFindings": [
+    "Public percent_encode Iterator<Item=&str> and AsciiSet const remove operate with defaults disabled. Uppercase percent-byte table and non-ASCII refusal membership are verified in pinned cached upstream source.",
+    "Helper strictly decodes raw units via std::char::decode_utf16, uses char.encode_utf8 on [u8;4], consumes public iterator chunks into sole output Vec<u16>. No String temporary or custom manual surrogate/UTF8/hex scanner remains in production.",
+    "Nine -_.!~*'() punctuation characters plus ASCII alphanumeric remain unescaped; space is %20, percent/slash/reserved/control bytes escape uppercase; BMP/astral boundaries match defining behavior.",
+    "Owner local U16/error mappings remain exact URIError, URI malformed, with code None where defined. Every caller/type/quote/public body and maintained original test outside the three encoder functions is byte-identical.",
+    "Rows every-slot raw scope remains copied raw, as originally defined. Receipt empty-component and linkage nonempty/cohort validation precede URI decoding. Distinct owner value/error profiles remain local.",
+    "New retained helper tests are literal cases and malformed vectors; no copied old production scanner or counting allocator is retained in product tests. Private original scanner oracle is qualification-only."
+  ],
+  "ownedFullClosure": {
+    "files": [
+      {
+        "path": "decisions/rows.rs",
+        "before": {
+          "readableProductionAndMaintainedDeclarations": 1717,
+          "nonWhitespaceBytes": 39100
+        },
+        "after": {
+          "readableProductionAndMaintainedDeclarations": 1676,
+          "nonWhitespaceBytes": 38315
+        }
+      },
+      {
+        "path": "decisions/receipt.rs",
+        "before": {
+          "readableProductionAndMaintainedDeclarations": 811,
+          "nonWhitespaceBytes": 18016
+        },
+        "after": {
+          "readableProductionAndMaintainedDeclarations": 771,
+          "nonWhitespaceBytes": 17236
+        }
+      },
+      {
+        "path": "decisions/linkage.rs",
+        "before": {
+          "readableProductionAndMaintainedDeclarations": 1162,
+          "nonWhitespaceBytes": 29062
+        },
+        "after": {
+          "readableProductionAndMaintainedDeclarations": 1121,
+          "nonWhitespaceBytes": 28274
+        }
+      },
+      {
+        "path": "decisions/lib.rs",
+        "before": {
+          "readableProductionAndMaintainedDeclarations": 9,
+          "nonWhitespaceBytes": 144
+        },
+        "after": {
+          "readableProductionAndMaintainedDeclarations": 10,
+          "nonWhitespaceBytes": 171
+        }
+      },
+      {
+        "path": "decisions/uri_component.rs",
+        "before": {
+          "readableProductionAndMaintainedDeclarations": 0,
+          "nonWhitespaceBytes": 0
+        },
+        "after": {
+          "readableProductionAndMaintainedDeclarations": 14,
+          "nonWhitespaceBytes": 557
+        }
+      },
+      {
+        "path": "Cargo.toml",
+        "before": {
+          "readableProductionAndMaintainedDeclarations": 12,
+          "nonWhitespaceBytes": 242
+        },
+        "after": {
+          "readableProductionAndMaintainedDeclarations": 13,
+          "nonWhitespaceBytes": 300
+        }
+      },
+      {
+        "path": "Cargo.lock",
+        "before": {
+          "readableProductionAndMaintainedDeclarations": 97,
+          "nonWhitespaceBytes": 2514
+        },
+        "after": {
+          "readableProductionAndMaintainedDeclarations": 103,
+          "nonWhitespaceBytes": 2719
+        }
+      },
+      {
+        "path": "rust/lib.rs",
+        "before": {
+          "readableProductionAndMaintainedDeclarations": 3,
+          "nonWhitespaceBytes": 86
+        },
+        "after": {
+          "readableProductionAndMaintainedDeclarations": 3,
+          "nonWhitespaceBytes": 86
+        }
+      }
+    ],
+    "totals": {
+      "before": {
+        "readableProductionAndMaintainedDeclarations": 3811,
+        "nonWhitespaceBytes": 89164
+      },
+      "after": {
+        "readableProductionAndMaintainedDeclarations": 3711,
+        "nonWhitespaceBytes": 87658
+      },
+      "delta": {
+        "readableProductionAndMaintainedDeclarations": -100,
+        "nonWhitespaceBytes": -1506
+      }
+    }
+  },
+  "countNotes": "All three full readable production owners, maintained types/imports, new helper, decisions module, Cargo manifest/lock and unchanged Rust public registration/version anchor charged. Tests/comments/blanks excluded from savings; root anchor adds3 unchanged readable lines versus implementer changed-file-only total. Delta remains strictly -100 lines/-1506 bytes. No generated output savings.",
+  "externalDependencyBurden": {
+    "files": [
+      {
+        "path": "/Users/vince/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/percent-encoding-2.3.2/src/lib.rs",
+        "sha256": "641903d385581e76f31ef8c991d83c2a5d7fbbc2879d93909c539037e4e1e3e2",
+        "readableProductionAndMaintainedDeclarations": 206,
+        "nonWhitespaceBytes": 5067
+      },
+      {
+        "path": "/Users/vince/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/percent-encoding-2.3.2/src/ascii_set.rs",
+        "sha256": "f75552e4f446ed240cef64c1367e848cf3ae65f77602085459566d835a1d8587",
+        "readableProductionAndMaintainedDeclarations": 114,
+        "nonWhitespaceBytes": 1955
+      }
+    ],
+    "totals": {
+      "readableProductionAndMaintainedDeclarations": 320,
+      "nonWhitespaceBytes": 7022
+    },
+    "manifestReadableLines": 16,
+    "combinedNewDependencyLowerBoundReadableProductionAndMaintainedDeclarations": 4031,
+    "combinedDeltaAgainstOriginalOwnedPlusExistingDependencyBaseline": 220,
+    "classification": "New upstream production source is non-vendored external burden, not our maintained code or zero burden. Existing dependencies cancel in this differential. Upstream manifest/license/update/pin review and actual future deployed/resource cost remain separate."
+  },
+  "reviewerFailure": {
+    "handle": "decisive",
+    "actual": "4 passed/1 failed; private reviewer expected WorkStateError but unchanged owning source defines StateError and Fanout handler message. Corrected private assertion to defining original source; decisive-corrected5pass. No product change or material candidate defect. Finalizer initially expected3 quote matches; raw registered filter also includes one unchanged recovery quote test, so receipt records4 actual passes."
+  },
+  "materialCandidateDefects": [],
+  "limits": [
+    "Finite independent registered URI extraction review only; parent W04.1/W04.3/W04.4 registration/resource/installed/provenance adoption gates remain at their actual scope.",
+    "No default backend, installed producer, public Wasm ABI, transport/browser/TS deletion or whole-Work adoption credited.",
+    "Full registered release Wasm source compiles; dead-stripped artifact is compile-only evidence.",
+    "No production/source/Git/shared-output modification, no new JEV or repeated library candidates. Commands locked/offline/-j1 with private target and explicit PID/start/deadline/exit.",
+    "Resource original String-v1 failure witness preserved and streaming-v2 profile comparisons qualified as observations; upstream/deployed/update burden reported separately."
+  ],
+  "leaseRelease": {
+    "released": true,
+    "paths": [
+      "packages/work-kernel/decisions/rows.rs",
+      "packages/work-kernel/decisions/receipt.rs",
+      "packages/work-kernel/decisions/linkage.rs",
+      "packages/work-kernel/decisions/lib.rs",
+      "packages/work-kernel/decisions/uri_component.rs",
+      "packages/work-kernel/Cargo.toml",
+      "packages/work-kernel/Cargo.lock"
+    ]
+  },
+  "finishedAt": "2026-10-07T20:49:03.727212+00:00",
+  "verification": {
+    "freshPrivateIndependentTests": {
+      "passed": 5,
+      "failed": 0,
+      "scope": "Public encoder literal punctuation/control/BMP/astral boundaries, first unpaired surrogate, actual rows/receipt/linkage identity and exact local errors and prechecks"
+    },
+    "freshUnchangedQuoteControls": {
+      "passed": 4,
+      "failed": 0,
+      "scope": "3 relevant leased owners plus unchanged recovery quote counterevidence included by the registered filter; no foreign edit"
+    },
+    "reusedAfterExactSourceProof": {
+      "all65536SingleUtf16UnitsPerOwner": true,
+      "singleUnitChecks": 196608,
+      "boundarySequenceVectorsPerOwner": 8,
+      "v2PrivateQualificationTests": 6,
+      "rawV2LogPassed": true,
+      "actualProductionOwnerTests": 108,
+      "actualProductionRegisteredCallerTests": 60,
+      "actualProductionHelperLiteralTests": 2
+    },
+    "registeredWasmCompileProfile": {
+      "actualRawProductionRunExitCode": 0,
+      "path": "/private/tmp/canlang-repair-go-20261007/uri-production/target/wasm32-unknown-unknown/release/canlang_work_kernel.wasm",
+      "sha256": "1c3151dfc19a7360cdb45083f3b9a3b60117a483f287996f957e61fe401b2d14",
+      "sizeBytes": 296,
+      "qualification": "Registered target release compile only; dead-stripped cdylib has no adopted URI public ABI. No Wasm runtime or deployed resource acceptance."
+    },
+    "privateActualCommandHandles": [
+      {
+        "name": "decisive",
+        "command": [
+          "cargo",
+          "test",
+          "--locked",
+          "--offline",
+          "--manifest-path",
+          "/private/tmp/canlang-repair-go-20261007/uri-independent/current/Cargo.toml",
+          "--target-dir",
+          "/private/tmp/canlang-repair-go-20261007/uri-independent/target",
+          "-j1",
+          "--lib",
+          "independent_uri_review",
+          "--",
+          "--test-threads=1"
+        ],
+        "pid": 72611,
+        "start": "2026-10-07T20:44:29.470885+00:00",
+        "deadline": "2026-10-07T20:45:29.470885+00:00",
+        "exitCode": 101,
+        "log": "/private/tmp/canlang-repair-go-20261007/uri-independent/decisive.log",
+        "logSha256": "b22d092e04749108b1db8bdc04a9c1665ba277b977725c360793a6fe0440de10"
+      },
+      {
+        "name": "decisive-corrected",
+        "command": [
+          "cargo",
+          "test",
+          "--locked",
+          "--offline",
+          "--manifest-path",
+          "/private/tmp/canlang-repair-go-20261007/uri-independent/current/Cargo.toml",
+          "--target-dir",
+          "/private/tmp/canlang-repair-go-20261007/uri-independent/target",
+          "-j1",
+          "--lib",
+          "independent_uri_review",
+          "--",
+          "--test-threads=1"
+        ],
+        "pid": 72798,
+        "start": "2026-10-07T20:44:45.407081+00:00",
+        "deadline": "2026-10-07T20:45:45.407081+00:00",
+        "exitCode": 0,
+        "log": "/private/tmp/canlang-repair-go-20261007/uri-independent/decisive-corrected.log",
+        "logSha256": "01d282b4c54f683e379d78a1cc73b0723f0b02aecc32ba067e12fcf1c6a593ee"
+      },
+      {
+        "name": "quote-controls",
+        "command": [
+          "cargo",
+          "test",
+          "--locked",
+          "--offline",
+          "--manifest-path",
+          "/private/tmp/canlang-repair-go-20261007/uri-independent/current/Cargo.toml",
+          "--target-dir",
+          "/private/tmp/canlang-repair-go-20261007/uri-independent/target",
+          "-j1",
+          "--lib",
+          "quote_contract",
+          "--",
+          "--test-threads=1"
+        ],
+        "pid": 73060,
+        "start": "2026-10-07T20:45:15.436781+00:00",
+        "deadline": "2026-10-07T20:46:15.436781+00:00",
+        "exitCode": 0,
+        "log": "/private/tmp/canlang-repair-go-20261007/uri-independent/quote-controls.log",
+        "logSha256": "2dd098c38b42ca873fe40df4dbf3a2a855dcf923a102b5b842e7947c15267e02"
+      },
+      {
+        "name": "library-features",
+        "command": [
+          "cargo",
+          "tree",
+          "--locked",
+          "--offline",
+          "--manifest-path",
+          "/private/tmp/canlang-repair-go-20261007/uri-independent/current/Cargo.toml",
+          "-e",
+          "features",
+          "-i",
+          "percent-encoding"
+        ],
+        "pid": 73063,
+        "start": "2026-10-07T20:45:15.614010+00:00",
+        "deadline": "2026-10-07T20:46:15.614010+00:00",
+        "exitCode": 0,
+        "log": "/private/tmp/canlang-repair-go-20261007/uri-independent/library-features.log",
+        "logSha256": "2fe547fd68e0bb757d19952e1c4a2a0f67c32816f0efba3b52732e397103145e"
+      }
+    ],
+    "nativeArtifactPins": {
+      "count": 395,
+      "fullListInPrivateReview": true,
+      "listSHA256": "cad69a0cc66dab1bbd21c7db42a436c76f87054309cac49c733a9af055a4f9f7",
+      "finalArtifacts": [
+        {
+          "path": "/private/tmp/canlang-repair-go-20261007/uri-independent/target/debug/deps/canlang_work_kernel-d6e269d8e4d47662",
+          "sha256": "fd245bd09110e79df7a78b1104317a21c93d75605a2e72d3502705e1d6dad401"
+        }
+      ]
+    }
+  },
+  "resourceObservations": {
+    "sampled21NoRegressionInMeasuredAllocationCallsRequestedBytesOrPeak": true,
+    "instrumentation": "Private cfg(test) thread-local counting System GlobalAlloc, serialized native debug. Alloc/realloc requested layouts and peak live requested bytes for encoder-local work only; excludes stack, allocator overhead, RSS, timing and caller allocations outside the measured closure. Fresh source/old oracle/public bindings/library exactness supports reuse of original v2 observations.",
+    "limits": "Seven finite input profiles per owner do not prove exhaustive-length resource behavior, OOM limits, production safety thresholds or native/installed/Wasm adoption. No new support limit invented and resource gate not waived.",
+    "initialV1OwnerWrappersManifestLockExactToReleasedCandidate": true,
+    "profileSummary": {
+      "profilesPerOwner": 7,
+      "owners": 3,
+      "ASCII512PeakOriginalAndCurrent": 1024,
+      "initialStringTemporaryASCII512Peak": 1536,
+      "initialTemporaryVariantRejected": true,
+      "streamingVariantAllMeasuredProfilesNoRegression": true
+    }
+  },
+  "rawEvidence": [
+    {
+      "path": "/private/tmp/canlang-repair-go-20261007/uri-preflight/qualification/result.json",
+      "sha256": "896b5fca99fdc1970b21cae7509528d4c8d689ac9cc560175f903fdbc1bbb077"
+    },
+    {
+      "path": "/private/tmp/canlang-repair-go-20261007/uri-preflight/qualification/result-v2.json",
+      "sha256": "16ebdea14d760025cf8d45870f9f4fc13a71d03667642786e6db61c07940700e"
+    },
+    {
+      "path": "/private/tmp/canlang-repair-go-20261007/uri-preflight/qualification/runs-v2.json",
+      "sha256": "4d755b2f67073b0eb8280c81586b66b6007c0a368c85edcef21b5a86fd2c03a1"
+    },
+    {
+      "path": "/private/tmp/canlang-repair-go-20261007/uri-preflight/qualification/candidate-helper.rs",
+      "sha256": "2f5beb105b89887b45bed2f9f376973feda11146a42f657b1552215f8a39d37f"
+    },
+    {
+      "path": "/private/tmp/canlang-repair-go-20261007/uri-preflight/qualification/candidate-helper-v2.rs",
+      "sha256": "cc4357c9c7dc2c9ae3d7382a66eccf84ded7d33ed84d734b2592aa15a7d8e764"
+    },
+    {
+      "path": "/private/tmp/canlang-repair-go-20261007/uri-preflight/qualification/current-leaf.log",
+      "sha256": "f0636f0eb3bf527698b30f2942c8a74ef98f7bb1e29a9aa21d78057460ce5a8c"
+    },
+    {
+      "path": "/private/tmp/canlang-repair-go-20261007/uri-preflight/qualification/current-leaf-v2.log",
+      "sha256": "917d23f33f1b18236c46f82f3adec82ae54a08ce75552a93db717c6d59a097a8"
+    },
+    {
+      "path": "/private/tmp/canlang-repair-go-20261007/uri-production/runs.json",
+      "sha256": "0fa9891823706f7080dfbd71434a9fb56b18950267b6f8cd3809d5be3502fdcf"
+    },
+    {
+      "path": "/private/tmp/canlang-repair-go-20261007/uri-production/helper.log",
+      "sha256": "e53d1a8e33a3d3ae32c2ef7126f417d9cd39b88b7bd32046aaeb553d2befc48e"
+    },
+    {
+      "path": "/private/tmp/canlang-repair-go-20261007/uri-production/rows.log",
+      "sha256": "e75c46fdeada866cb40d851cda20b4528c50b35470ba4e03a59a94d5dc0c6b9f"
+    },
+    {
+      "path": "/private/tmp/canlang-repair-go-20261007/uri-production/receipt.log",
+      "sha256": "c0423eb5ae653041320b053666bd2170c17b3df5990dfd97d5d5fedae630a3ac"
+    },
+    {
+      "path": "/private/tmp/canlang-repair-go-20261007/uri-production/linkage.log",
+      "sha256": "8de1c9f5957c5aadaed81eaf4ef068d659f7c31bb9d33d69ea5a2331ee13eb53"
+    },
+    {
+      "path": "/private/tmp/canlang-repair-go-20261007/uri-production/registered-rows.log",
+      "sha256": "54463cd045ec3360509b7d9bfb6aae7d7031aed6676965eed13803281181791a"
+    },
+    {
+      "path": "/private/tmp/canlang-repair-go-20261007/uri-production/registered-receipt.log",
+      "sha256": "4f283833019b4913616b290350224e89a47a554f7bf99ce5eb106d4321f8d00f"
+    },
+    {
+      "path": "/private/tmp/canlang-repair-go-20261007/uri-production/registered-linkage.log",
+      "sha256": "8b2740728ed1935c15752fe222464729ee95ee2b5e5652afaab86bbde17a5a36"
+    },
+    {
+      "path": "/private/tmp/canlang-repair-go-20261007/uri-production/wasm.log",
+      "sha256": "067087664b0a5ca35cb6da3d07742be9a601503dcbf97b4740bd0a1872397c79"
+    }
+  ],
+  "fullPrivateReview": {
+    "path": "/private/tmp/canlang-repair-go-20261007/uri-independent/full-review.json",
+    "sha256": "3ab270a5e1017c7c695dae176ede6d122e411d04ae8b5b4d67a5f2e60d66938d",
+    "preservedCompleteObservations": true
+  }
+}
