@@ -1,0 +1,86 @@
+{
+  "scope": "Frozen compiler/src Rust physical lines, including comments and blank lines; exclude only lines occupied by exact top-level cfg(test) items, attribute through closing brace or semicolon inclusive. This is not executable LOC or a complexity measure.",
+  "review": "A temporary lexer shielded comments and literals and balanced item boundaries across all frozen source files. Independent review checked per-file sums and the cli.rs, migrate_check.rs and lsp/output.rs boundary exceptions; it did not independently reparse every file.",
+  "limitations": "No nested or complex cfg(test) attributes occurred in these frozen snapshots. The explicit spans below are a reviewed historical inventory, not an automatic classifier for future Rust changes. Tests in compiler/tests and fixtures are counted separately in metrics.json.",
+  "revisions": {
+    "original": {
+      "commit": "309644a6881909d8dba32560bc6711f67e00a7ab",
+      "rust_files": 39,
+      "total_lines": 71473,
+      "production_lines": 69119,
+      "inline_test_lines": 2354,
+      "reviewed_test_spans": {
+        "compiler/src/analysis/catalog.rs": [[2027, 2209], [2211, 2390], [2392, 2702]],
+        "compiler/src/analysis/migrate_check.rs": [[30, 136]],
+        "compiler/src/cli.rs": [[1524, 2078]],
+        "compiler/src/diagnostic.rs": [[298, 370]],
+        "compiler/src/explain.rs": [[1031, 1075]],
+        "compiler/src/lsp/server.rs": [[1270, 1549]],
+        "compiler/src/lsp/transport.rs": [[151, 298]],
+        "compiler/src/policy.rs": [[687, 811]],
+        "compiler/src/source.rs": [[258, 336]],
+        "compiler/src/syntax/cst.rs": [[416, 456]],
+        "compiler/src/syntax/layout.rs": [[753, 873]],
+        "compiler/src/syntax/lexer.rs": [[815, 920]]
+      }
+    },
+    "qualified": {
+      "commit": "f889e44f91daf12c27e5760f487ca1ca6c394e57",
+      "rust_files": 41,
+      "total_lines": 72829,
+      "production_lines": 69300,
+      "inline_test_lines": 3529,
+      "reviewed_test_spans": {
+        "compiler/src/analysis/catalog.rs": [[2030, 2218], [2220, 2403], [2405, 2753]],
+        "compiler/src/analysis/migrate_check.rs": [[30, 136]],
+        "compiler/src/cli.rs": [[1463, 1624], [1784, 2338]],
+        "compiler/src/codegen/bdd.rs": [[435, 452]],
+        "compiler/src/codegen/ir.rs": [[8810, 8842]],
+        "compiler/src/codegen/js.rs": [[5843, 5860]],
+        "compiler/src/codegen/sourcemap.rs": [[234, 369]],
+        "compiler/src/diagnostic.rs": [[327, 399]],
+        "compiler/src/docs.rs": [[1224, 1267]],
+        "compiler/src/explain.rs": [[1035, 1079]],
+        "compiler/src/json.rs": [[374, 555]],
+        "compiler/src/lsp/output.rs": [[236, 399]],
+        "compiler/src/lsp/server.rs": [[1212, 1558]],
+        "compiler/src/lsp/transport.rs": [[252, 562]],
+        "compiler/src/lsp/uri.rs": [[53, 112]],
+        "compiler/src/policy.rs": [[734, 858]],
+        "compiler/src/source.rs": [[192, 350]],
+        "compiler/src/syntax/cst.rs": [[416, 456]],
+        "compiler/src/syntax/layout.rs": [[753, 873]],
+        "compiler/src/syntax/lexer.rs": [[815, 920]]
+      }
+    },
+    "r01": {
+      "commit": "8f33aa5e29d25bf3ea4d6035c7b2e3ddc0427854",
+      "rust_files": 41,
+      "total_lines": 72778,
+      "production_lines": 69249,
+      "inline_test_lines": 3529,
+      "reviewed_test_spans": {
+        "compiler/src/analysis/catalog.rs": [[2030, 2218], [2220, 2403], [2405, 2753]],
+        "compiler/src/analysis/migrate_check.rs": [[30, 136]],
+        "compiler/src/cli.rs": [[1463, 1624], [1784, 2338]],
+        "compiler/src/codegen/bdd.rs": [[435, 452]],
+        "compiler/src/codegen/ir.rs": [[8810, 8842]],
+        "compiler/src/codegen/js.rs": [[5843, 5860]],
+        "compiler/src/codegen/sourcemap.rs": [[234, 369]],
+        "compiler/src/diagnostic.rs": [[327, 399]],
+        "compiler/src/docs.rs": [[1224, 1267]],
+        "compiler/src/explain.rs": [[1035, 1079]],
+        "compiler/src/json.rs": [[374, 555]],
+        "compiler/src/lsp/output.rs": [[185, 348]],
+        "compiler/src/lsp/server.rs": [[1212, 1558]],
+        "compiler/src/lsp/transport.rs": [[252, 562]],
+        "compiler/src/lsp/uri.rs": [[53, 112]],
+        "compiler/src/policy.rs": [[734, 858]],
+        "compiler/src/source.rs": [[192, 350]],
+        "compiler/src/syntax/cst.rs": [[416, 456]],
+        "compiler/src/syntax/layout.rs": [[753, 873]],
+        "compiler/src/syntax/lexer.rs": [[815, 920]]
+      }
+    }
+  }
+}
