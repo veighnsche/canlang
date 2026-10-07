@@ -8,5 +8,9 @@
   "2026-10-07 — Retain qualified source-map codec and public decoder (accepted distinct retentions)",
   "2026-10-07 — Localized formatting uses the executable handler context (accepted design; implementation pending)",
   "2026-10-07 — Call lowering consumes winning checked bindings (accepted bounded)",
-  "2026-10-07 — Retain the strict public JSON reader contract (accepted retention)"
+  "2026-10-07 — Retain the strict public JSON reader contract (accepted retention)",
+  "2026-10-07 — Synchronous generated guards share one acyclic producer (accepted bounded)",
+  "2026-10-08 — Literal Card and transient Tabs use actual UI contracts (accepted bounded)",
+  "2026-10-08 — Markdown code spans preserve authored text (accepted bounded)",
+  "2026-10-08 — BDD execution transport and helper closure (proposal; consultation pending)"
 ]
