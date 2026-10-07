@@ -1686,18 +1686,21 @@ fn run_lint(
     let fixes = crate::lint::collect_fixes(&program, &db, &config);
     let stdout = match format {
         OutputFormat::Json => {
-            let envelope = result.to_json();
             if !fix {
-                format!("{envelope}\n")
+                format!("{}\n", result.to_json())
             } else {
-                // The envelope always ends with `}`; splice the sorted
-                // fixes array in as the final key.
-                let mut with_fixes = envelope;
-                with_fixes.pop();
-                with_fixes.push_str(",\"fixes\":");
-                with_fixes.push_str(&crate::lint::driver::fixes_to_json(&fixes));
-                with_fixes.push_str("}\n");
-                with_fixes
+                #[derive(serde::Serialize)]
+                struct LintOutput<'a> {
+                    #[serde(flatten)]
+                    diagnostics: &'a DiagnosticResult,
+                    fixes: &'a [crate::lint::LintFix],
+                }
+                let output = crate::json::to_compact_string(&LintOutput {
+                    diagnostics: &result,
+                    fixes: &fixes,
+                })
+                .expect("closed lint output DTO must serialize");
+                format!("{output}\n")
             }
         }
         OutputFormat::Text => {
