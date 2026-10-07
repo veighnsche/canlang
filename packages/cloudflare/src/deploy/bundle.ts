@@ -1007,10 +1007,13 @@ export function buildDeployBundle(
  */
 export function writeDeployBundle(bundle: DeployBundle, outDir: string): WrittenDeployBundle {
   const dir = outDir;
+  const keys = Object.keys(bundle.modules).sort();
+  for (const key of keys) assertSafeRelativePath(key, "to write module");
+  // Reuse package-output containment before publication; canonical parents only.
+  assertPackageOutputFiles(dir, [...keys, "bundle.json"]);
   mkdirSync(dir, { recursive: true });
   const files: string[] = [];
-  for (const key of Object.keys(bundle.modules).sort()) {
-    assertSafeRelativePath(key, "to write module");
+  for (const key of keys) {
     const full = join(dir, key);
     mkdirSync(dirname(full), { recursive: true });
     writeFileSync(full, bundle.modules[key] as string, "utf8");

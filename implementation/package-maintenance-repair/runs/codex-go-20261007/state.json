@@ -303,7 +303,7 @@
       },
       "commit": "d4b041fb",
       "registration_atomic_correction": {
-        "state": "Different-author review passes13fresh and51maintained, scoped commit prepared; private hook only",
+        "state": "Independently accepted finite synchronous registration publication correction committed a1f3c67a; actual production owner/carrier/lifetime joins remain open",
         "agent": "/root/prepared_registration_atomic",
         "model": "gpt-6.1-sol",
         "effort": "medium",
@@ -324,7 +324,8 @@
         },
         "review": "prepared-registration-independent-review.json",
         "review_read_released": true,
-        "commit_pending": true
+        "commit_pending": false,
+        "commit": "a1f3c67a6efe62d03526a849408648bfa2ad5804"
       }
     },
     "TECH-V04": {
@@ -1030,7 +1031,7 @@
       "correctness_growth": 18,
       "commit": "2b750a6e",
       "contained_writer_prerequisite": {
-        "state": "Real frozen bundle writer39/39 private FS controls complete and released; text-writer guard reuse candidate qualification active",
+        "state": "Different-author actual-FS review accepted; separate coherent text writer commit prepared",
         "agent": "/root/browser_lifecycle_review",
         "model": "gpt-6.1-sol",
         "effort": "medium",
@@ -1038,12 +1039,21 @@
         "active_files": [],
         "read_only": false,
         "limit": "No native/deploy commands, HOLD activation, new resource bounds or race protection claim",
-        "writer_released": false,
+        "writer_released": true,
         "files": [
           "packages/cloudflare/src/deploy/bundle.ts",
           "packages/cloudflare/test/text-output-containment.test.ts"
         ],
-        "start_sha256": "4a02f6dc8696576690e1f380fee168034d30b409d4fcd7e059d3c14784d7a7df"
+        "start_sha256": "4a02f6dc8696576690e1f380fee168034d30b409d4fcd7e059d3c14784d7a7df",
+        "review_read_released": true,
+        "review": "text-output-containment-independent-review.json",
+        "reviewer": "/root/service_stream_review",
+        "review_outputs": "/private/tmp/canlang-repair-go-20261007/contained-writer-independent",
+        "commit_pending": true,
+        "source_pins": {
+          "packages/cloudflare/src/deploy/bundle.ts": "613905f8035259e8e99e6ed97f7b125c917eba16fd845d1f68d6f5a176114b4b",
+          "packages/cloudflare/test/text-output-containment.test.ts": "d8cbb4f119b80b2cb684b61bd7e42057a5dd916dc3a6a2908d32f8a13baa3e14"
+        }
       }
     },
     "DEL-D04": {
@@ -1402,7 +1412,7 @@
     "state": "active",
     "objective": "Finish every currently authorized queue task, resolve actual prerequisites, independently review, commit early/often and clean released resources economically; preserve native HOLD and exact original residual gates."
   },
-  "updated_utc": "2026-10-07T22:32:19.793635+00:00",
+  "updated_utc": "2026-10-07T23:02:22.720670+00:00",
   "critical_security_review": {
     "state": "frozen review and actual source joins received; contracts/repairs/host acceptance remain open",
     "agent": "/root/critical_package_security",
@@ -1523,5 +1533,19 @@
     },
     "source_basis": "Current queue IDs + explicit independent dispositions/task scope; accepted narrow corrections do not close broad qualification packets",
     "status_given_to_human": "20/48 finished,14partial,13open,1held"
+  },
+  "foreign_source_leases": {
+    "conditional_state_nullable_writer": {
+      "target": "01a117b5-8358-7e31-9de3-03d0302cdd3c",
+      "state": "Conditional five-file extension acknowledged; source-contract release/current exact pins/new tests ACK still required before writes",
+      "files": [
+        "packages/state/src/invocation/registry.ts",
+        "packages/state/src/invocation/admission.ts",
+        "packages/state/src/mutation/pipeline.ts",
+        "packages/state/src/invocation/prepared-inputs.ts",
+        "packages/state/test/invocation/owned-admission.test.ts"
+      ],
+      "limit": "No Values provenance/public descriptor expansion, secrecy/unknown/nonnullable/ref-version/error-order preserved; root retains Git/decisions/filetree"
+    }
   }
 }
