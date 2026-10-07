@@ -58,6 +58,7 @@ import type {
   DerivedOperationInputs,
   MutationEnvelope,
 } from '@canlang/contracts';
+import { parseObjectBody } from '../internal/input-admission.js';
 import { IdentityError, assertAuthorityLive, sha256HexText } from '@canlang/identity';
 import { CsvGrammarError, parseCsvGrammar } from '@canlang/ui/csv/grammar';
 import type { HttpDeps, OperationInputShape } from '../ports.js';
@@ -73,12 +74,10 @@ import {
   jsonErrorResponse,
   resolveRequestIdentity,
 } from './context.js';
-import { parseJsonBody } from './limits.js';
 import { OPERATION_NAME_PATTERN } from './operations.js';
 
 const REVIEW_PATH = '/api/csv/review';
 const COMMIT_PATH = '/api/csv/commit';
-const JSON_CONTENT_TYPE = 'application/json';
 
 /** One row's verdict: binds, fails (preserved with error), or repeats a valid row. */
 export type CsvRowStatus = 'valid' | 'invalid' | 'duplicate';
@@ -308,17 +307,6 @@ function requestPath(url: string): string {
   }
 }
 
-async function parseObjectBody(request: Request): Promise<Record<string, unknown>> {
-  const mediaType = (request.headers.get('content-type') ?? '').split(';')[0]?.trim().toLowerCase() ?? '';
-  if (mediaType !== JSON_CONTENT_TYPE) {
-    throw new IdentityError('validation', 'Unsupported content type.');
-  }
-  const body = await parseJsonBody(request);
-  if (typeof body !== 'object' || body === null || Array.isArray(body)) {
-    throw new IdentityError('validation', 'Invalid request body.');
-  }
-  return body as Record<string, unknown>;
-}
 
 function checkHeader(header: readonly string[]): BusinessError | null {
   for (const name of header) {

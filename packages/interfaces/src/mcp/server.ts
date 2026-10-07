@@ -24,6 +24,7 @@
  * incident-logged journal entry.
  */
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
+import { bearerToken } from '../internal/input-admission.js';
 import { WebStandardStreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js';
 import {
   CallToolRequestSchema,
@@ -90,15 +91,6 @@ function errorResponse(status: number, error: BusinessError, wwwAuthenticate?: s
   });
 }
 
-/** Extract the grant Bearer [REDACTED] `Authorization`; null when absent or malformed. Auth schemes are case-insensitive (RFC 9110). */
-function bearerToken(request: Request): string | null {
-  const header = (request.headers.get('authorization') ?? '').trim();
-  const space = header.indexOf(' ');
-  if (space === -1) return null;
-  if (header.slice(0, space).toLowerCase() !== 'bearer') return null;
-  const token = header.slice(space + 1).trim();
-  return token === '' ? null : token;
-}
 
 /**
  * Resolve the grant caller. Returns the identity, or the 401/500 response

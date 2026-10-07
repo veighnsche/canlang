@@ -1,0 +1,366 @@
+{
+  "id": "DEL-A01-admission-independent-review",
+  "baseline": "bc3249c",
+  "verdict": "accept finite identical-leaf extraction; no broader parent or backend/security qualification",
+  "scope": [
+    "packages/interfaces/src/http/csv.ts",
+    "packages/interfaces/src/http/export.ts",
+    "packages/interfaces/src/mcp/server.ts",
+    "packages/interfaces/src/uploads/routes.ts",
+    "packages/interfaces/src/internal/input-admission.ts",
+    "packages/interfaces/test/input-admission-leaf.test.ts"
+  ],
+  "readOnly": true,
+  "sourceSha256": {
+    "packages/interfaces/src/http/csv.ts": "4b33d89c763b8fd80c77d6f27bd558b3e890519bf769223b80e8cce72a0c7f57",
+    "packages/interfaces/src/http/export.ts": "2762b0442f212415cbb75e81bfac56beee70cf8316de49a32cb72539951e966e",
+    "packages/interfaces/src/mcp/server.ts": "8634a9eaad7c2a655ae9d7ebc171121cf8df29f428d17b2fc2df985d8b289881",
+    "packages/interfaces/src/uploads/routes.ts": "f594f1e9a7a0c94b08947c88482c9313726814b741829cc36d620b82efdb5d14",
+    "packages/interfaces/src/internal/input-admission.ts": "78d322e005e59771f46c194645518193b38bdb2ae0c6903c1cb6f134090274c4",
+    "packages/interfaces/test/input-admission-leaf.test.ts": "502b21f938ba16d70bb1b3a0d3ae50c345d9ec7b287ab2bcb5d761667098c6dd"
+  },
+  "sourceStable": true,
+  "privateRoot": "/private/tmp/canlang-repair-go-20261007/input-admission-review-ItFOa5",
+  "commands": [
+    {
+      "label": "baseline-source-http-csv",
+      "command": [
+        "git",
+        "show",
+        "bc3249c:packages/interfaces/src/http/csv.ts"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "status": 0,
+      "log": "/private/tmp/canlang-repair-go-20261007/input-admission-review-ItFOa5/baseline-source-http-csv.log",
+      "logSha256": "6025d282f5afb52e127bafc5fa1154935c126dce833b57713310af47d94a3d2e"
+    },
+    {
+      "label": "baseline-source-http-export",
+      "command": [
+        "git",
+        "show",
+        "bc3249c:packages/interfaces/src/http/export.ts"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "status": 0,
+      "log": "/private/tmp/canlang-repair-go-20261007/input-admission-review-ItFOa5/baseline-source-http-export.log",
+      "logSha256": "5da1415db2a27e24a79d045145e1fddf520b9ef525a7bf7ea2b316e1cf1321d3"
+    },
+    {
+      "label": "baseline-source-mcp-server",
+      "command": [
+        "git",
+        "show",
+        "bc3249c:packages/interfaces/src/mcp/server.ts"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "status": 0,
+      "log": "/private/tmp/canlang-repair-go-20261007/input-admission-review-ItFOa5/baseline-source-mcp-server.log",
+      "logSha256": "20d68f0cc3a0984f2094dffe971895d789d57ce05c07032e3696dc9fcaf7c8c6"
+    },
+    {
+      "label": "baseline-source-uploads-routes",
+      "command": [
+        "git",
+        "show",
+        "bc3249c:packages/interfaces/src/uploads/routes.ts"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "status": 0,
+      "log": "/private/tmp/canlang-repair-go-20261007/input-admission-review-ItFOa5/baseline-source-uploads-routes.log",
+      "logSha256": "fff8e55fe8aed9cea083b5b3dcd9f8d1ff9cb1072539a2c429176d65132a0e59"
+    },
+    {
+      "label": "baseline-fresh-strict-emit",
+      "command": [
+        "/Users/vince/.vite-plus/js_runtime/node/24.21.0/bin/node",
+        "/Users/vince/Projects/canlang/node_modules/typescript/bin/tsc",
+        "-p",
+        "tsconfig.json",
+        "--incremental",
+        "false"
+      ],
+      "cwd": "/private/tmp/canlang-repair-go-20261007/input-admission-review-ItFOa5/baseline/interfaces",
+      "status": 0,
+      "log": "/private/tmp/canlang-repair-go-20261007/input-admission-review-ItFOa5/baseline-fresh-strict-emit.log",
+      "logSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "label": "baseline-bounded-actual-callers",
+      "command": [
+        "/Users/vince/.vite-plus/js_runtime/node/24.21.0/bin/node",
+        "--test",
+        "dist/test/csv-route.test.js",
+        "dist/test/csv-review.test.js",
+        "dist/test/export-join.test.js",
+        "dist/test/export-print.test.js",
+        "dist/test/mcp-server.test.js",
+        "dist/test/uploads.test.js"
+      ],
+      "cwd": "/private/tmp/canlang-repair-go-20261007/input-admission-review-ItFOa5/baseline/interfaces",
+      "status": 0,
+      "log": "/private/tmp/canlang-repair-go-20261007/input-admission-review-ItFOa5/baseline-bounded-actual-callers.log",
+      "logSha256": "00eb97288c734d6e74c5e96baccdcd62c67dace6c696d1d39948d765180003c0"
+    },
+    {
+      "label": "current-fresh-strict-emit",
+      "command": [
+        "/Users/vince/.vite-plus/js_runtime/node/24.21.0/bin/node",
+        "/Users/vince/Projects/canlang/node_modules/typescript/bin/tsc",
+        "-p",
+        "tsconfig.json",
+        "--incremental",
+        "false"
+      ],
+      "cwd": "/private/tmp/canlang-repair-go-20261007/input-admission-review-ItFOa5/current/interfaces",
+      "status": 0,
+      "log": "/private/tmp/canlang-repair-go-20261007/input-admission-review-ItFOa5/current-fresh-strict-emit.log",
+      "logSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "label": "current-bounded-actual-callers",
+      "command": [
+        "/Users/vince/.vite-plus/js_runtime/node/24.21.0/bin/node",
+        "--test",
+        "dist/test/csv-route.test.js",
+        "dist/test/csv-review.test.js",
+        "dist/test/export-join.test.js",
+        "dist/test/export-print.test.js",
+        "dist/test/mcp-server.test.js",
+        "dist/test/uploads.test.js",
+        "dist/test/input-admission-leaf.test.js"
+      ],
+      "cwd": "/private/tmp/canlang-repair-go-20261007/input-admission-review-ItFOa5/current/interfaces",
+      "status": 0,
+      "log": "/private/tmp/canlang-repair-go-20261007/input-admission-review-ItFOa5/current-bounded-actual-callers.log",
+      "logSha256": "9074caecd9a030a224b5e2b54a3d124a6deb6b43831e15692903333ea999dd1a"
+    },
+    {
+      "label": "independent-header-body-caller-controls",
+      "command": [
+        "/Users/vince/.vite-plus/js_runtime/node/24.21.0/bin/node",
+        "/private/tmp/canlang-repair-go-20261007/input-admission-review-ItFOa5/negative-controls.mjs"
+      ],
+      "cwd": "/Users/vince/Projects/canlang",
+      "status": 0,
+      "log": "/private/tmp/canlang-repair-go-20261007/input-admission-review-ItFOa5/negative-controls.log",
+      "logSha256": "b3dc8e9a3b87883097522d06daa68a950083132ac5d8b5d798cda9add1f2a785"
+    }
+  ],
+  "results": {
+    "strictPrivateEmits": "baseline and current exact package configs compile successfully to isolated private dist; baseline overrides only four owner files with verified git source and excludes new leaf/test; common surrounding current package inputs held equal",
+    "boundedActualCallers": {
+      "baseline": {
+        "tests": 103,
+        "pass": 103,
+        "fail": 0,
+        "skip": 0
+      },
+      "current": {
+        "tests": 105,
+        "pass": 105,
+        "fail": 0,
+        "skip": 0
+      },
+      "suites": [
+        "csv-route",
+        "csv-review",
+        "export-join",
+        "export-print",
+        "mcp-server",
+        "uploads",
+        "current input-admission-leaf"
+      ]
+    },
+    "independentNegativeControls": {
+      "casesPerVariant": 43,
+      "allEqual": true,
+      "observationFile": "/private/tmp/canlang-repair-go-20261007/input-admission-review-ItFOa5/negative-controls.json",
+      "sha256": "7eb20cfef72fca5c68bc7e09c6fb527c972f7c4854d2f7bc722bd4e6537037af"
+    }
+  },
+  "proof": {
+    "mechanics": [
+      {
+        "owner": "http/csv:parseObjectBody",
+        "sharedFunction": "parseObjectBody",
+        "bodyEqualAfterConstantSubstitution": true
+      },
+      {
+        "owner": "http/export:parseObjectBody",
+        "sharedFunction": "parseObjectBody",
+        "bodyEqualAfterConstantSubstitution": true
+      },
+      {
+        "owner": "mcp/server:bearerToken",
+        "sharedFunction": "bearerToken",
+        "bodyEqualAfterConstantSubstitution": true
+      },
+      {
+        "owner": "uploads/routes:bearerToken",
+        "sharedFunction": "bearerToken",
+        "bodyEqualAfterConstantSubstitution": true
+      },
+      {
+        "owner": "uploads/routes:parseObjectBody",
+        "sharedFunction": "parseObjectBody",
+        "bodyEqualAfterConstantSubstitution": true
+      }
+    ],
+    "publicDeclarations": [
+      {
+        "owner": "http/csv",
+        "baselineSha256": "faf040d6ec695b3e5de909c230d19aa3c05a3e8fa576e8d9e7ad83096fa82d23",
+        "currentSha256": "faf040d6ec695b3e5de909c230d19aa3c05a3e8fa576e8d9e7ad83096fa82d23",
+        "equal": true
+      },
+      {
+        "owner": "http/export",
+        "baselineSha256": "54f190e7e48da30da75afdbed556bda1d413773b606c2c3ef4a0ddfabb18e143",
+        "currentSha256": "54f190e7e48da30da75afdbed556bda1d413773b606c2c3ef4a0ddfabb18e143",
+        "equal": true
+      },
+      {
+        "owner": "mcp/server",
+        "baselineSha256": "f35c4a69d08414985415200407e0b1d487dcc2f2ccbce795244c93dad4103a02",
+        "currentSha256": "f35c4a69d08414985415200407e0b1d487dcc2f2ccbce795244c93dad4103a02",
+        "equal": true
+      },
+      {
+        "owner": "uploads/routes",
+        "baselineSha256": "3c3afca20bf5f7d63c57c9c47a2d1a2f84f8dd8d93c66cd92ff28e523b560e86",
+        "currentSha256": "3c3afca20bf5f7d63c57c9c47a2d1a2f84f8dd8d93c66cd92ff28e523b560e86",
+        "equal": true
+      }
+    ],
+    "rawDeclarationsIndependentlyConfirmed": [
+      {
+        "owner": "http/csv",
+        "flavor": "baseline",
+        "rawSha256": "faf040d6ec695b3e5de909c230d19aa3c05a3e8fa576e8d9e7ad83096fa82d23",
+        "freshSha256": "faf040d6ec695b3e5de909c230d19aa3c05a3e8fa576e8d9e7ad83096fa82d23",
+        "equal": true
+      },
+      {
+        "owner": "http/csv",
+        "flavor": "current",
+        "rawSha256": "faf040d6ec695b3e5de909c230d19aa3c05a3e8fa576e8d9e7ad83096fa82d23",
+        "freshSha256": "faf040d6ec695b3e5de909c230d19aa3c05a3e8fa576e8d9e7ad83096fa82d23",
+        "equal": true
+      },
+      {
+        "owner": "http/export",
+        "flavor": "baseline",
+        "rawSha256": "54f190e7e48da30da75afdbed556bda1d413773b606c2c3ef4a0ddfabb18e143",
+        "freshSha256": "54f190e7e48da30da75afdbed556bda1d413773b606c2c3ef4a0ddfabb18e143",
+        "equal": true
+      },
+      {
+        "owner": "http/export",
+        "flavor": "current",
+        "rawSha256": "54f190e7e48da30da75afdbed556bda1d413773b606c2c3ef4a0ddfabb18e143",
+        "freshSha256": "54f190e7e48da30da75afdbed556bda1d413773b606c2c3ef4a0ddfabb18e143",
+        "equal": true
+      },
+      {
+        "owner": "mcp/server",
+        "flavor": "baseline",
+        "rawSha256": "f35c4a69d08414985415200407e0b1d487dcc2f2ccbce795244c93dad4103a02",
+        "freshSha256": "f35c4a69d08414985415200407e0b1d487dcc2f2ccbce795244c93dad4103a02",
+        "equal": true
+      },
+      {
+        "owner": "mcp/server",
+        "flavor": "current",
+        "rawSha256": "f35c4a69d08414985415200407e0b1d487dcc2f2ccbce795244c93dad4103a02",
+        "freshSha256": "f35c4a69d08414985415200407e0b1d487dcc2f2ccbce795244c93dad4103a02",
+        "equal": true
+      },
+      {
+        "owner": "uploads/routes",
+        "flavor": "baseline",
+        "rawSha256": "3c3afca20bf5f7d63c57c9c47a2d1a2f84f8dd8d93c66cd92ff28e523b560e86",
+        "freshSha256": "3c3afca20bf5f7d63c57c9c47a2d1a2f84f8dd8d93c66cd92ff28e523b560e86",
+        "equal": true
+      },
+      {
+        "owner": "uploads/routes",
+        "flavor": "current",
+        "rawSha256": "3c3afca20bf5f7d63c57c9c47a2d1a2f84f8dd8d93c66cd92ff28e523b560e86",
+        "freshSha256": "3c3afca20bf5f7d63c57c9c47a2d1a2f84f8dd8d93c66cd92ff28e523b560e86",
+        "equal": true
+      }
+    ],
+    "callPositions": "Owner call bodies unchanged in four-file Git diff. CSV/export resolve session identity, then parse object JSON, then CSRF. Upload keeps route match and usesFiles hold before credentials; session header-only CSRF remains before intent/finalize JSON. Raw upload content remains local readCappedBody/content-length policy. MCP grant extractor remains before its resolveIdentity try block; SDK protocol/content admission remains local.",
+    "errorAndReceiverControls": "Direct original extracted leaf vs current shared leaf: one receiver-bound authorization/content-type getter, lexical Bearer variants, throwing method-property and throwing getter, IdentityError vs ordinary errors, no body touch before content-type rejection, JSON primitive/empty/malformed rejection, own __proto__, body getter/read/release errors, oversized cancellation-rejection then release order. Existing parser limits held equal; no new policy selected.",
+    "actualCallerControls": "Unknown CSV/export/upload and uploads-unavailable hold return original 404 with zero header/body reads. Unauthenticated CSV/export remain 403; MCP/uploads remain 401 challenges with distinct JSON envelopes. MCP getter IdentityError and ordinary throws propagate; upload IdentityError getter becomes 401 while ordinary error propagates. Authenticated CSV/export content getter ordinary errors remain rule_failed/422 and IdentityError validation remains 400; body never touched. Full bounded real caller suites also exercise normal outcomes/refusals/reader policies."
+  },
+  "economics": {
+    "method": "TypeScript scanner token-bearing lines exclude whitespace/comment trivia; complete owner/helper source and all imports included. Emitted JS and complete d.ts inventoried separately and together.",
+    "production": {
+      "baseline": {
+        "physicalLines": 1932,
+        "tokenBearingLines": 1582,
+        "bytes": 77753
+      },
+      "current": {
+        "physicalLines": 1900,
+        "tokenBearingLines": 1554,
+        "bytes": 76185
+      }
+    },
+    "maintainedDeclarations": {
+      "baseline": {
+        "physicalLines": 269,
+        "tokenBearingLines": 133,
+        "bytes": 12198
+      },
+      "current": {
+        "physicalLines": 272,
+        "tokenBearingLines": 135,
+        "bytes": 12406
+      }
+    },
+    "emittedJsPlusDeclarations": {
+      "baseline": {
+        "physicalLines": 1788,
+        "tokenBearingLines": 1472,
+        "bytes": 80298
+      },
+      "current": {
+        "physicalLines": 1756,
+        "tokenBearingLines": 1444,
+        "bytes": 79070
+      }
+    },
+    "newMaintainedTest": {
+      "physicalLines": 36,
+      "tokenBearingLines": 33,
+      "bytes": 2340
+    },
+    "delta": {
+      "productionTokenBearingLines": -28,
+      "productionBytes": -1568,
+      "completeProductionDeclarationsTokenBearingLines": 2,
+      "productionJsPlusDeclarationsTokenBearingLines": -28,
+      "allTouchedMaintainedTsIncludingNewTestTokenBearingLines": 5
+    },
+    "assessment": "Source production decreases 28 readable token-bearing lines and 1568 bytes including helper/imports. Complete production declarations grow 2 token-bearing lines/208 bytes while all four public owner declarations remain byte-identical. Production emitted JS plus d.ts decreases 28 readable lines/1228 bytes. Added maintained test is 33 token-bearing lines; all touched TS including it grows 5 lines. Report production reduction separately from test maintenance cost."
+  },
+  "evidenceSha256": {
+    "driver": "cbd9981ea89ea371a41a3434387e297364ec98e986e566dd0ec657727c6c9869",
+    "negativeControlScript": "11ab9d8ae7a5d939c5c55651f77b3104c741b74080c97b613745018ed3415a47",
+    "independentMetrics": "00b459b1938effe37819db2de0c0567c8243243545a168b43621277b27412587"
+  },
+  "boundaries": [
+    "No source, Git, docs, state, product, fixture, install, shared dist/cache or fullbuild writes by reviewer.",
+    "Actual package module emits and finite caller tests use existing installed linked dependency artifacts; complete installed closure, native/full backend/security qualification not claimed.",
+    "Baseline is exact four-owner bc3249c comparison within shared surrounding current package inputs, not historical whole repository acceptance.",
+    "Review validates only identical parseObjectBody/bearerToken extraction. Authentication, admission, content-type/reader/refusal/status and uploads hold policies remain owner-local; no new policy or parent closure."
+  ],
+  "root_followup": {
+    "change": "Remove redundant terminal blank line; all nontrailing bytes identical, emitted syntax/declarations and readable counts unchanged",
+    "reviewed_sha256": "eb16fcf3d0371c465d72c5830ec00873356e1b3f6a44db653d8dc494f94b545d",
+    "committed_sha256": "78d322e005e59771f46c194645518193b38bdb2ae0c6903c1cb6f134090274c4"
+  }
+}

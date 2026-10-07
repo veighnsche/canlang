@@ -167,18 +167,18 @@
   "next_active_packets": [
     {
       "id": "TECH-S01",
-      "state": "exact ACK; private backend leaf equivalence implementation active",
+      "state": "mechanical candidate released; real private backend command active; original own-key defect remains",
       "agent": "/root/review_ui_appearance"
     },
     {
-      "id": "DEL-A01-admission",
-      "state": "exact ACK; duplicate leaf implementation active",
-      "agent": "/root/impl_form_own_keys"
+      "id": "DEL-U01-draft",
+      "state": "exact ACK; profile-matched private leaf implementation active",
+      "agent": "/root/review_test_discovery"
     },
     {
-      "id": "VERIFY-TV01",
-      "state": "independent discovery diagnosis released; Identity/Work exact manifest/resource repairs active; Values provenance separate",
-      "agent": "/root/review_test_discovery"
+      "id": "TECH-S02/TECH-S03 prerequisites",
+      "state": "source-current security join adjudication active",
+      "agent": "/root/review_numeric_reduction"
     }
   ],
   "packet_state": {
@@ -271,7 +271,7 @@
     },
     "TECH-S01": {
       "planning_status": "ready",
-      "state": "exact ACK; private backend leaf equivalence implementation active",
+      "state": "mechanical candidate released; real private backend command active; original own-key defect remains",
       "files": [
         "packages/state/src/storage/d1.ts",
         "packages/state/src/storage/durable-object.ts",
@@ -618,7 +618,7 @@
     },
     "VERIFY-TV01": {
       "planning_status": "ready",
-      "state": "independent discovery diagnosis released; Identity/Work exact manifest/resource repairs active; Values provenance separate",
+      "state": "Identity/Work independent runner/resource repair accepted; committing; Values path/provenance still open",
       "files": [
         "packages/identity/package.json",
         "packages/values/package.json",
@@ -626,7 +626,8 @@
       ],
       "agent": "/root/review_test_discovery",
       "model": "gpt-6.1-sol",
-      "effort": "medium"
+      "effort": "medium",
+      "review": "test-discovery-root-review.json"
     },
     "TECH-V02-violations": {
       "planning_status": "ready",
@@ -704,12 +705,16 @@
     },
     "DEL-U01-draft": {
       "planning_status": "ready",
-      "state": "ready for finite assignment",
+      "state": "exact ACK; profile-matched private leaf implementation active",
       "files": [
         "packages/ui/src/controls.ts",
         "packages/ui/src/forms.ts",
         "packages/ui/src/internal/draft-values.ts"
-      ]
+      ],
+      "agent": "/root/review_test_discovery",
+      "model": "gpt-6.1-sol",
+      "effort": "medium",
+      "reason": "Multiple matched renderer/form leaf profiles; preserve divergent datetime profile"
     },
     "DEL-A01-error": {
       "planning_status": "ready",
@@ -728,7 +733,7 @@
     },
     "DEL-A01-binding": {
       "planning_status": "ready",
-      "state": "accepted private-leaf reduction; committing",
+      "state": "accepted private-leaf reduction; committed",
       "files": [
         "packages/interfaces/src/envelope/prepared.ts",
         "packages/interfaces/src/mcp/prepared.ts"
@@ -740,11 +745,12 @@
       "reviewer": "/root/review_ui_appearance",
       "review": "prepared-binding-independent-review.json",
       "readable_reduction": 15,
-      "full_closure_reduction": 12
+      "full_closure_reduction": 12,
+      "commit": "108e81c"
     },
     "DEL-A01-admission": {
       "planning_status": "ready",
-      "state": "exact ACK; duplicate leaf implementation active",
+      "state": "accepted private leaf reduction; committing",
       "files": [
         "packages/interfaces/src/http/csv.ts",
         "packages/interfaces/src/http/export.ts",
@@ -755,7 +761,10 @@
       "model": "gpt-6.1-sol",
       "effort": "low",
       "base": "bc3249c",
-      "reason": "Frozen private object-body/Bearer mechanics only; policies stay local"
+      "reason": "Frozen private object-body/Bearer mechanics only; policies stay local",
+      "review": "input-admission-independent-review.json",
+      "readable_reduction": 28,
+      "full_closure_reduction": 26
     },
     "DEL-A01-canonical": {
       "planning_status": "ready",
@@ -784,15 +793,19 @@
     "state": "active",
     "objective": "Finish every currently authorized queue task, resolve actual prerequisites, independently review, commit early/often and clean released resources economically; preserve native HOLD and exact original residual gates."
   },
-  "updated_utc": "2026-10-07T19:11:37.541327+00:00",
+  "updated_utc": "2026-10-07T19:24:02.582639+00:00",
   "critical_security_review": {
-    "state": "exact payload approved; Astra high review active",
+    "state": "frozen review received; root source-current joins under adjudication",
     "agent": "/root/critical_package_security",
     "model": "gpt-6-astra",
     "effort": "high",
     "payload_sha256": "5e38ac5a4107eea2e2c4f3c920b636da7ddc2062f8c4f6ed2e0e3e1bf68c393b",
     "reason": "Existing required persisted-security independent gate; not a routine leaf review",
     "approval": "human: Approve scoped review",
-    "acceptance": "pending actual review and root source-current join adjudication"
+    "acceptance": "pending actual review and root source-current join adjudication",
+    "review": "critical-security-review.json",
+    "joins_agent": "/root/review_numeric_reduction",
+    "joins_model": "gpt-6.1-sol",
+    "joins_effort": "high"
   }
 }

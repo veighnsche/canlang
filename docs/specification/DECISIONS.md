@@ -1661,3 +1661,10 @@ Independent 254 selected tests, seven baseline/current public-caller comparisons
 HTTP and ordinary MCP prepared plans share the exact deferralFor/toBindingEntry mechanics through internal/prepared-binding.ts. Existing PreparedDeferral/PreparedBindingEntry declarations stay at the HTTP owner, and the helper's type-only import creates no runtime cycle. Framing, mismatch errors and plan construction remain with each caller.
 
 Independent 16 selected caller/construction tests and scoped typecheck pass; getter, enum copy/freeze, exception identity and mismatch-before-shape order match baseline. Public declaration bytes and interface augmentation remain unchanged. Readable production decreases by 15 lines; charging three private declaration lines, complete measured closure decreases by 12. [Evidence](../../implementation/package-maintenance-repair/runs/codex-go-20261007/prepared-binding-independent-review.json) preserves exact pins. SDK provenance, sealed handles and broader prepared/backend/CSV acceptance remain separate.
+
+
+## 2026-10-07 — Share object-body and Bearer lexical leaves (accepted)
+
+Interfaces CSV/export/uploads share the identical parseObjectBody mechanics, and MCP/uploads share the identical bearerToken leaf, through internal/input-admission.ts. Distinct authorization/admission policies, handler positions, IdentityError versus ordinary errors, uploads availability and response statuses remain local. No authentication policy or provider activation changes.
+
+Independent strict baseline/current emits, 103 existing and 105 current actual-caller tests, and 43 independently observed header/body/error/refusal controls match. All four public declarations remain byte-identical. Readable production decreases by 28 lines; charging two new private declaration lines, complete closure decreases by 26. The 33-line test addition is separately reported maintenance cost, not production-saving credit. [Evidence](../../implementation/package-maintenance-repair/runs/codex-go-20261007/input-admission-independent-review.json) preserves exact pins and original security/installed/parent limits.

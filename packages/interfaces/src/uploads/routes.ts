@@ -47,6 +47,7 @@ import type {
   ResolvedIdentity,
   UploadIntentRequest,
 } from '@canlang/contracts';
+import { parseObjectBody, bearerToken } from '../internal/input-admission.js';
 import { IdentityError, assertAudience, resolveIdentity } from '@canlang/identity';
 import type { UploadDeps, UploadReceiver } from '../ports.js';
 import {
@@ -62,7 +63,7 @@ import {
   jsonErrorResponse,
   resolveRequestIdentity,
 } from '../http/context.js';
-import { parseJsonBody, readCappedBody } from '../http/limits.js';
+import { readCappedBody } from '../http/limits.js';
 import { bindingForIntent, receiverFromIdentity } from './principals.js';
 import { wwwAuthenticateChallenge } from '../oauth/metadata.js';
 
@@ -115,19 +116,6 @@ function matchUploadRoute(pathname: string, method: string): UploadRoute | null 
   return { kind, intentId };
 }
 
-/**
- * Extract the grant Bearer [REDACTED] `Authorization`; null when absent or
- * malformed. Auth schemes are case-insensitive (RFC 9110). Mirrors the S5
- * MCP server extractor.
- */
-function bearerToken(request: Request): string | null {
-  const header = (request.headers.get('authorization') ?? '').trim();
-  const space = header.indexOf(' ');
-  if (space === -1) return null;
-  if (header.slice(0, space).toLowerCase() !== 'bearer') return null;
-  const token = header.slice(space + 1).trim();
-  return token === '' ? null : token;
-}
 
 type Caller =
   | { readonly via: 'grant'; readonly identity: ResolvedIdentity }
@@ -181,17 +169,6 @@ function jsonOk(value: unknown): Response {
   });
 }
 
-async function parseObjectBody(request: Request): Promise<Record<string, unknown>> {
-  const mediaType = (request.headers.get('content-type') ?? '').split(';')[0]?.trim().toLowerCase() ?? '';
-  if (mediaType !== 'application/json') {
-    throw new IdentityError('validation', 'Unsupported content type.');
-  }
-  const body = await parseJsonBody(request);
-  if (typeof body !== 'object' || body === null || Array.isArray(body)) {
-    throw new IdentityError('validation', 'Invalid request body.');
-  }
-  return body as Record<string, unknown>;
-}
 
 function notFound(deps: UploadDeps, tool: string): Response {
   return deny(deps, buildBusinessError('not_found', 'Not found.'), tool);
