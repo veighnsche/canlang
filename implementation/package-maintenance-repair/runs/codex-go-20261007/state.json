@@ -166,19 +166,19 @@
   "numeric_acceptance_limit": "Existing numeric source/native actual-caller scope only; unchanged original Wasm/installed/durable/backend/T08/T26 and held preparation gates remain.",
   "next_active_packets": [
     {
-      "id": "DEL-D04 line-terminator review",
-      "agent": "/root/review_ui_appearance",
-      "state": "ACKed read-only different-author review"
-    },
-    {
-      "id": "TECH-SV03 graph-domain prerequisite",
+      "id": "TECH-W02 GAP-L01/L03",
       "agent": "/root/review_state_private",
-      "state": "private factual dispatch"
+      "state": "ACKed2writeleases; current source reconciliation"
     },
     {
-      "id": "DEL-E02 table disposal",
+      "id": "TECH-I02 independent review",
+      "agent": "/root/review_ui_appearance",
+      "state": "different-author read-only dispatch"
+    },
+    {
+      "id": "TECH-V03 caller/domain census",
       "agent": "/root/row_scope_cleanup",
-      "state": "ACKed finite writer/tests"
+      "state": "ACKed private-only"
     }
   ],
   "packet_state": {
@@ -268,18 +268,18 @@
     },
     "TECH-V03": {
       "planning_status": "blocked",
-      "state": "Private factual witnesses released; mutable content defects and missing genuine factory provenance confirmed",
+      "state": "Mutable content and missing factory witnesses retained; actual derivative caller/identity census ACKed",
       "files": [
         "packages/values/bindings/owned-input.ts",
         "packages/values/src/prepared/plan.ts",
         "packages/values/src/prepared/codec.ts",
         "packages/values/src/prepared/validation.ts"
       ],
-      "agent": "/root/review_ui_appearance",
+      "agent": "/root/row_scope_cleanup",
       "model": "gpt-6.1-sol",
       "effort": "medium",
-      "outputs": "/private/tmp/canlang-repair-go-20261007/prepared-ownership",
-      "reason": "Bounded factual prerequisite corpus, full security/ownership contract remains separately high",
+      "outputs": "/private/tmp/canlang-repair-go-20261007/owned-content-contract",
+      "reason": "Bounded factual prerequisite, root substantive contract/JEV separate",
       "private_result": "/private/tmp/canlang-repair-go-20261007/prepared-ownership/result.json",
       "private_result_sha256": "541b0439c71379e656d37f4eb6724e3ba76e31d50e2aa6c45017fb181eb54096",
       "root_contract_pending": true,
@@ -351,7 +351,7 @@
     },
     "TECH-S02": {
       "planning_status": "blocked",
-      "state": "independently accepted finite metadata/selector correction; scoped commit prepared",
+      "state": "independently accepted finite metadata/selector correction; committed89d885a9",
       "files": [
         "packages/state/src/mutation/crud.ts",
         "packages/state/src/mutation/pipeline.ts",
@@ -403,7 +403,8 @@
       "review_read_released": true,
       "tool_blocker": "Failed worker interruption retained; source/command cessation and independent local review establish this candidate only; no restart/retry claimed.",
       "root_read_released": true,
-      "commit_pending": true
+      "commit_pending": false,
+      "commit": "89d885a9"
     },
     "TECH-S03": {
       "planning_status": "blocked",
@@ -419,7 +420,7 @@
     },
     "TECH-W02": {
       "planning_status": "ready",
-      "state": "GAP-L04 committed; GAP-L01/L03 actual consumer regression packet ready for runtime handoff",
+      "state": "Accepted same-fanout converse retained; current GAP-L01/L03 source correction ACKed",
       "files": [
         "packages/cloudflare/src/runtime/invoke.ts",
         "packages/state/src/fanout/lifecycle.ts",
@@ -428,10 +429,11 @@
         "packages/state/src/ports/transact.ts",
         "packages/state/src/invocation/invoke.ts"
       ],
-      "agent": "/root/review_numeric_reduction",
+      "agent": "/root/review_state_private",
       "model": "gpt-6.1-sol",
       "effort": "high",
       "active_files": [
+        "packages/cloudflare/src/runtime/invoke.ts",
         "packages/cloudflare/test/fanout-fresh-facts.test.ts"
       ],
       "reason": "Atomic same-fanout outcome/checkpoint current contract, independent of incoming state-machine runtime ownership",
@@ -452,7 +454,13 @@
       "gap_l04_commit": "8a61be6",
       "regression_receipt": "/private/tmp/canlang-repair-go-20261007/fanout-fresh-facts/result.json",
       "regression_recipe": "/private/tmp/canlang-repair-go-20261007/fanout-fresh-facts/recipe.json",
-      "write_handoff_gate": "Metadata exact runtime read lease and scoped commit must release first; no competing source writer"
+      "write_handoff_gate": "Metadata exact runtime read lease and scoped commit must release first; no competing source writer",
+      "start_pins": {
+        "runtime": "07b8445de0ebec9dae5d9f46eb9e8a110550a60582131bf5cccc8459e53fa047",
+        "test": "701d32099a6645435f0dec5d28287d0cc0c5d56953416b83c39fff96c1140588"
+      },
+      "writer_released": false,
+      "outputs": "/private/tmp/canlang-repair-go-20261007/fanout-production"
     },
     "TECH-W03": {
       "planning_status": "blocked",
@@ -819,7 +827,7 @@
     },
     "DEL-D04": {
       "planning_status": "blocked",
-      "state": "Finite ECMAScript line-comment terminator correction released for different-author review",
+      "state": "independently accepted finite line-comment terminator correction; scoped commit prepared",
       "files": [
         "packages/cloudflare/src/deploy/bundle.ts",
         "packages/cloudflare/src/deploy/module-imports.ts",
@@ -843,7 +851,12 @@
       "reason": "Existing required loadability lexical leaf, no new parser/design/profile",
       "writer_released": true,
       "private_root": "/private/tmp/canlang-repair-go-20261007/loadability-lines",
-      "producer": "21current controls pass/old9fail12pass; named strict0. Initial dependency-link refusals retained, corrected privately without product change."
+      "producer": "21current controls pass/old9fail12pass; named strict0. Initial dependency-link refusals retained, corrected privately without product change.",
+      "review": "loadability-terminators-independent-review.json",
+      "root_read_released": true,
+      "review_read_released": true,
+      "commit_pending": true,
+      "parent_limit": "Namespace ownership, general CommonJS binding/provenance, syntax, actual staged installed diagnostic/native qualification remain open"
     },
     "DEL-D05": {
       "planning_status": "deferred",
@@ -1155,7 +1168,7 @@
     "state": "active",
     "objective": "Finish every currently authorized queue task, resolve actual prerequisites, independently review, commit early/often and clean released resources economically; preserve native HOLD and exact original residual gates."
   },
-  "updated_utc": "2026-10-07T21:34:48.081487+00:00",
+  "updated_utc": "2026-10-07T21:38:50.098189+00:00",
   "critical_security_review": {
     "state": "frozen review and actual source joins received; contracts/repairs/host acceptance remain open",
     "agent": "/root/critical_package_security",

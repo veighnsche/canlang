@@ -1,0 +1,220 @@
+{
+  "packet": "DEL-D04 finite different-author lexical leaf review",
+  "disposition": "PASS within exact line-comment terminator correction; root acceptance remains separate",
+  "sourcePins": {
+    "packages/cloudflare/src/deploy/bundle.ts": "4a02f6dc8696576690e1f380fee168034d30b409d4fcd7e059d3c14784d7a7df",
+    "packages/cloudflare/test/loadability-line-terminators.test.ts": "18c3b2caad360fe801426098d98d612cb1e49901ccdf43427d49a40eaeb3aefd"
+  },
+  "base": "2b750a6e3091df82ba6314fc781ac7d80c0bd2f7",
+  "proof": {
+    "exactOneConditionChange": true,
+    "beforeSHA256": "fa1f24b1f00ffac9f1acf0dc13167c3656675d36bd9946f086a8dca679dbaf03",
+    "endSHA256": "4a02f6dc8696576690e1f380fee168034d30b409d4fcd7e059d3c14784d7a7df",
+    "testSHA256": "18c3b2caad360fe801426098d98d612cb1e49901ccdf43427d49a40eaeb3aefd",
+    "existingLoadabilityTestSHA256": "e3523e94de4052d6d908ff248be11ae2e2e7fc2805afcebfd7108686eb4bc9c5",
+    "declarationByteIdentical": true,
+    "declarationSHA256": "993da6ebed68002859e84e18b8b414f0ccac588a7c3884e36ba54859ddc6234b",
+    "sourceBefore": 1049,
+    "sourceAfter": 1049,
+    "declarationsBefore": 59,
+    "declarationsAfter": 59,
+    "productionBytesDelta": 74
+  },
+  "primaryLexicalReference": {
+    "url": "https://tc39.es/ecma262/multipage/ecmascript-language-lexical-grammar.html#sec-comments",
+    "facts": "SingleLineComment excludes LineTerminator; only LF U+000A, CR U+000D, LS U+2028 and PS U+2029 are line terminators. CRLF is one line terminator sequence. Terminator is not part of the comment."
+  },
+  "independentOutcomes": {
+    "currentNamedRegression": {
+      "tests": 21,
+      "pass": 21,
+      "fail": 0,
+      "exit": 0
+    },
+    "baselineNamedRegression": {
+      "tests": 21,
+      "pass": 12,
+      "fail": 9,
+      "exit": 1,
+      "correctedDispatchCount": "Dispatch described12fails; actual raw baseline logs and independent run establish12pass/9fail. LF and CRLF already pass; CR/LS/PS \u00d73 executable CJS controls fail old scanner."
+    },
+    "independentControls": {
+      "pass": 15,
+      "fail": 0,
+      "exit": 0,
+      "controls": [
+        "Trusted fixed ESM data-url modules execute after all5 terminator sequences via Node builtin module loader; commented and quoted CJS names remain inert.",
+        "Original UTF16 offsets, including astral comment text, preserved for all5 sequences.",
+        "NEL/VT/FF stay inside line comments, with Node module namespace lacking commented export and scanner admitting comment-only CJS.",
+        "Original family priority chooses require ahead of earlier module.exports and preserves exact(+1 more) suffix.",
+        "Original first offending own-enumeration module order retained."
+      ]
+    },
+    "existingRelevantLoadability": {
+      "pass": 3,
+      "fail": 0,
+      "skipped": 26,
+      "scope": "Current exact-hash deploy-bundle.test.ts assertWorkerdLoadable describe only; no full module-map build credit.",
+      "sourceSHA256": "e3523e94de4052d6d908ff248be11ae2e2e7fc2805afcebfd7108686eb4bc9c5"
+    },
+    "currentNamedTestStrictCheckExit": 0,
+    "beforeCurrentStrictDeclarationEmissionExit": 0,
+    "publicMaintainedDeclarationBytesIdentical": true
+  },
+  "commandHandles": {
+    "current-independent-handle.json": {
+      "command": [
+        "/Users/vince/.vite-plus/js_runtime/node/24.21.0/bin/node",
+        "/Users/vince/Projects/canlang/node_modules/vitest/vitest.mjs",
+        "run",
+        "--config",
+        "vitest.config.mjs",
+        "test/line-terminators-independent.test.ts",
+        "test/deploy-bundle.test.ts",
+        "-t",
+        "assertWorkerdLoadable|trusted native|refusal offset|non-line-terminator|first issue family|first offending module"
+      ],
+      "cwd": "/private/tmp/canlang-repair-go-20261007/loadability-lines/review/current/packages/cloudflare",
+      "start": "2026-10-07T21:28:19.484123+00:00",
+      "deadline": "2026-10-07T21:29:19.484123+00:00",
+      "pid": 94135,
+      "exit": 0,
+      "end": "2026-10-07T21:28:20.670057+00:00"
+    },
+    "current-proof-cwd-failure-handle.json": {
+      "command": [
+        "/Users/vince/.vite-plus/js_runtime/node/24.21.0/bin/node",
+        "/private/tmp/canlang-repair-go-20261007/loadability-lines/review/proof.mjs"
+      ],
+      "cwd": "/private/tmp/canlang-repair-go-20261007/loadability-lines/review",
+      "start": "2026-10-07T21:29:24.552734+00:00",
+      "deadline": "2026-10-07T21:30:24.552734+00:00",
+      "pid": 95591,
+      "exit": 1,
+      "end": "2026-10-07T21:29:26.491080+00:00"
+    },
+    "current-proof-initial-handle.json": {
+      "command": [
+        "/Users/vince/.vite-plus/js_runtime/node/24.21.0/bin/node",
+        "/private/tmp/canlang-repair-go-20261007/loadability-lines/review/proof.mjs"
+      ],
+      "cwd": "/private/tmp/canlang-repair-go-20261007/loadability-lines/review",
+      "start": "2026-10-07T21:29:00.883170+00:00",
+      "deadline": "2026-10-07T21:30:00.883170+00:00",
+      "pid": 95516,
+      "exit": 1,
+      "end": "2026-10-07T21:29:02.524105+00:00"
+    },
+    "current-independent-initial-handle.json": {
+      "command": [
+        "/Users/vince/.vite-plus/js_runtime/node/24.21.0/bin/node",
+        "/Users/vince/Projects/canlang/node_modules/vitest/vitest.mjs",
+        "run",
+        "--config",
+        "vitest.config.mjs",
+        "test/line-terminators-independent.test.ts",
+        "test/deploy-bundle.test.ts",
+        "-t",
+        "assertWorkerdLoadable|trusted native|refusal offset|non-line-terminator|first issue family|first offending module"
+      ],
+      "cwd": "/private/tmp/canlang-repair-go-20261007/loadability-lines/review/current/packages/cloudflare",
+      "start": "2026-10-07T21:27:57.167504+00:00",
+      "deadline": "2026-10-07T21:28:57.167504+00:00",
+      "pid": 93862,
+      "exit": 1,
+      "end": "2026-10-07T21:27:58.364141+00:00"
+    },
+    "current-proof-handle.json": {
+      "command": [
+        "/Users/vince/.vite-plus/js_runtime/node/24.21.0/bin/node",
+        "/private/tmp/canlang-repair-go-20261007/loadability-lines/review/proof.mjs"
+      ],
+      "cwd": "/private/tmp/canlang-repair-go-20261007/loadability-lines/review",
+      "start": "2026-10-07T21:29:50.763848+00:00",
+      "deadline": "2026-10-07T21:30:50.763848+00:00",
+      "pid": 95790,
+      "exit": 0,
+      "end": "2026-10-07T21:29:53.223012+00:00"
+    },
+    "before-tests-handle.json": {
+      "command": [
+        "/Users/vince/.vite-plus/js_runtime/node/24.21.0/bin/node",
+        "/Users/vince/Projects/canlang/node_modules/vitest/vitest.mjs",
+        "run",
+        "--config",
+        "vitest.config.mjs",
+        "test/loadability-line-terminators.test.ts"
+      ],
+      "cwd": "/private/tmp/canlang-repair-go-20261007/loadability-lines/review/before/packages/cloudflare",
+      "start": "2026-10-07T21:27:28.115833+00:00",
+      "deadline": "2026-10-07T21:28:28.115833+00:00",
+      "pid": 93752,
+      "exit": 1,
+      "end": "2026-10-07T21:27:29.417713+00:00"
+    },
+    "current-tests-handle.json": {
+      "command": [
+        "/Users/vince/.vite-plus/js_runtime/node/24.21.0/bin/node",
+        "/Users/vince/Projects/canlang/node_modules/vitest/vitest.mjs",
+        "run",
+        "--config",
+        "vitest.config.mjs",
+        "test/loadability-line-terminators.test.ts"
+      ],
+      "cwd": "/private/tmp/canlang-repair-go-20261007/loadability-lines/review/current/packages/cloudflare",
+      "start": "2026-10-07T21:27:28.115978+00:00",
+      "deadline": "2026-10-07T21:28:28.115978+00:00",
+      "pid": 93753,
+      "exit": 0,
+      "end": "2026-10-07T21:27:29.416300+00:00"
+    },
+    "current-strict-handle.json": {
+      "command": [
+        "/Users/vince/.vite-plus/js_runtime/node/24.21.0/bin/node",
+        "/Users/vince/Projects/canlang/node_modules/typescript/bin/tsc",
+        "-p",
+        "private-test-tsconfig.json"
+      ],
+      "cwd": "/private/tmp/canlang-repair-go-20261007/loadability-lines/review/current/packages/cloudflare",
+      "start": "2026-10-07T21:27:29.418002+00:00",
+      "deadline": "2026-10-07T21:28:29.418002+00:00",
+      "pid": 93798,
+      "exit": 0,
+      "end": "2026-10-07T21:27:30.882757+00:00"
+    }
+  },
+  "rawEvidenceSHA256": {
+    "current-tests.log": "63637a627990f6f0a0c0ca6347ddcee2ba775425756ad4ff7274305803b9cca7",
+    "before-tests.log": "fd965f35c64ad9c590f3c06d5b3664004581861ed05693a55ea8fb5b7fa59169",
+    "current-proof-cwd-failure.log": "4c9e2f637c6b83eb57b64a2351a9eb02a186192b31aa29ee007f4d93bcb6ccb6",
+    "current-independent.log": "15d0a1e5efeeed91be33233d6054fa739f705796122add5476e8b4627a8b869f",
+    "current-strict.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "current-independent-initial.log": "77e75c8adf0b10c6bab30ebff0ac53fc2df64c5547e3d5201c0be828c733f320",
+    "current-proof-initial.log": "c2b04b63df7957754d448236856f5b69d178aab0a22079361ce3e4d2a20dca35",
+    "current-proof.log": "cee070337a483c0d9a7fb8578d19b4b65616f0ae20552d492c7ef2a8cfc4e800"
+  },
+  "independentTestSHA256": "f8c7123de9cefe8be542d327e94303a77d3fa1064481316009a8e74ff94d0a88",
+  "maintainedClosure": {
+    "productionBefore": 1049,
+    "productionAfter": 1049,
+    "declarationsBefore": 59,
+    "declarationsAfter": 59,
+    "productionBytesAdded": 74,
+    "changes": "Exact1 lexical condition; no imports/helper/module/dependency/API changes. Tests excluded from production accounting.",
+    "budget": "Correctness repair; no replacement/library reduction claim."
+  },
+  "privateHarnessFailuresRetained": [
+    "Initial independent issue-count assertion expected2extra rather than original1extra; fixed private expectation only.",
+    "Initial TypeScript API declaration program ran from review-root without owning CWD/projectReferences and mixed ambient Node/Undici types. Owning CWD and config projectReferences restored; both actual strict declaration programs pass. No compiler/source/config changes in repo."
+  ],
+  "defects": [],
+  "limits": [
+    "Lexical line-comment correction only; no general syntax validator, parser adoption or scope/binding/helper-trust redesign.",
+    "No sandbox or runtime trust proof from fixed trusted Node modules.",
+    "No installed/workerd/native/deployment qualification or human native HOLD change.",
+    "Legacy bundler wrapper/stdlib require-guard allowlist tested only for preserved scanner behavior.",
+    "No repo/source/test/Git/docs/state/shared-output writes by reviewer."
+  ],
+  "sourceAndCommandLeasesReleased": true,
+  "rootDisposition": "accepted exact lexical correctness only; general binding/helper trust, syntax validation, installed/native and namespace gates remain open"
+}
