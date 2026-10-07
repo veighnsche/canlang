@@ -1,0 +1,848 @@
+{
+  "scope": "Step6 initial source/closure inventory; substantive reviews pending",
+  "rows": 22,
+  "dependencies": 7,
+  "graph_rows": 2,
+  "source_pin": "1fd07722090fe70228a6b661e3c6e136275ca84b",
+  "verdict_counts": {
+    "simplify": 1,
+    "retain": 15,
+    "replace": 0,
+    "defer": 6
+  },
+  "closure_metrics": {
+    "JSON-OUTPUT-ENGINE": {
+      "integration_slice": {
+        "source_units": 4,
+        "files": 1,
+        "physical_union": 38,
+        "nonblank_union": 38,
+        "note": "Unioned inclusive production source ranges; nested/shared lines counted once. Named source units include grouped impl/type/anchor bands, not a count of semantic duties. Integration slices may mix necessary DTO/domain work; none of these totals is adapter overhead or removable LOC. No complexity/workload claim."
+      },
+      "direct_caller_context": {
+        "source_units": 15,
+        "files": 10,
+        "physical_union": 223,
+        "nonblank_union": 223,
+        "note": "Unioned inclusive production source ranges; nested/shared lines counted once. Named source units include grouped impl/type/anchor bands, not a count of semantic duties. Integration slices may mix necessary DTO/domain work; none of these totals is adapter overhead or removable LOC. No complexity/workload claim."
+      },
+      "domain_context": {
+        "source_units": 0,
+        "files": 0,
+        "physical_union": 0,
+        "nonblank_union": 0,
+        "note": "Unioned inclusive production source ranges; nested/shared lines counted once. Named source units include grouped impl/type/anchor bands, not a count of semantic duties. Integration slices may mix necessary DTO/domain work; none of these totals is adapter overhead or removable LOC. No complexity/workload claim."
+      },
+      "own_scoped_closure": {
+        "source_units": 25,
+        "files": 13,
+        "physical_union": 451,
+        "nonblank_union": 451,
+        "note": "Unioned inclusive production source ranges; nested/shared lines counted once. Named source units include grouped impl/type/anchor bands, not a count of semantic duties. Integration slices may mix necessary DTO/domain work; none of these totals is adapter overhead or removable LOC. No complexity/workload claim."
+      },
+      "linked_complete_scoped_union": {
+        "source_units": 249,
+        "files": 18,
+        "physical_union": 8322,
+        "nonblank_union": 8230,
+        "note": "Unioned inclusive production source ranges; nested/shared lines counted once. Named source units include grouped impl/type/anchor bands, not a count of semantic duties. Integration slices may mix necessary DTO/domain work; none of these totals is adapter overhead or removable LOC. No complexity/workload claim."
+      }
+    },
+    "JSON-INPUT-ENGINE": {
+      "integration_slice": {
+        "source_units": 4,
+        "files": 1,
+        "physical_union": 221,
+        "nonblank_union": 203,
+        "note": "Unioned inclusive production source ranges; nested/shared lines counted once. Named source units include grouped impl/type/anchor bands, not a count of semantic duties. Integration slices may mix necessary DTO/domain work; none of these totals is adapter overhead or removable LOC. No complexity/workload claim."
+      },
+      "direct_caller_context": {
+        "source_units": 3,
+        "files": 3,
+        "physical_union": 138,
+        "nonblank_union": 135,
+        "note": "Unioned inclusive production source ranges; nested/shared lines counted once. Named source units include grouped impl/type/anchor bands, not a count of semantic duties. Integration slices may mix necessary DTO/domain work; none of these totals is adapter overhead or removable LOC. No complexity/workload claim."
+      },
+      "domain_context": {
+        "source_units": 0,
+        "files": 0,
+        "physical_union": 0,
+        "nonblank_union": 0,
+        "note": "Unioned inclusive production source ranges; nested/shared lines counted once. Named source units include grouped impl/type/anchor bands, not a count of semantic duties. Integration slices may mix necessary DTO/domain work; none of these totals is adapter overhead or removable LOC. No complexity/workload claim."
+      },
+      "own_scoped_closure": {
+        "source_units": 12,
+        "files": 6,
+        "physical_union": 361,
+        "nonblank_union": 340,
+        "note": "Unioned inclusive production source ranges; nested/shared lines counted once. Named source units include grouped impl/type/anchor bands, not a count of semantic duties. Integration slices may mix necessary DTO/domain work; none of these totals is adapter overhead or removable LOC. No complexity/workload claim."
+      },
+      "linked_complete_scoped_union": {
+        "source_units": 74,
+        "files": 9,
+        "physical_union": 2175,
+        "nonblank_union": 2140,
+        "note": "Unioned inclusive production source ranges; nested/shared lines counted once. Named source units include grouped impl/type/anchor bands, not a count of semantic duties. Integration slices may mix necessary DTO/domain work; none of these totals is adapter overhead or removable LOC. No complexity/workload claim."
+      }
+    },
+    "JSON-VIEWS-RENDER": {
+      "integration_slice": {
+        "source_units": 4,
+        "files": 2,
+        "physical_union": 85,
+        "nonblank_union": 81,
+        "note": "Unioned inclusive production source ranges; nested/shared lines counted once. Named source units include grouped impl/type/anchor bands, not a count of semantic duties. Integration slices may mix necessary DTO/domain work; none of these totals is adapter overhead or removable LOC. No complexity/workload claim."
+      },
+      "direct_caller_context": {
+        "source_units": 7,
+        "files": 3,
+        "physical_union": 323,
+        "nonblank_union": 323,
+        "note": "Unioned inclusive production source ranges; nested/shared lines counted once. Named source units include grouped impl/type/anchor bands, not a count of semantic duties. Integration slices may mix necessary DTO/domain work; none of these totals is adapter overhead or removable LOC. No complexity/workload claim."
+      },
+      "domain_context": {
+        "source_units": 0,
+        "files": 0,
+        "physical_union": 0,
+        "nonblank_union": 0,
+        "note": "Unioned inclusive production source ranges; nested/shared lines counted once. Named source units include grouped impl/type/anchor bands, not a count of semantic duties. Integration slices may mix necessary DTO/domain work; none of these totals is adapter overhead or removable LOC. No complexity/workload claim."
+      },
+      "own_scoped_closure": {
+        "source_units": 11,
+        "files": 5,
+        "physical_union": 408,
+        "nonblank_union": 404,
+        "note": "Unioned inclusive production source ranges; nested/shared lines counted once. Named source units include grouped impl/type/anchor bands, not a count of semantic duties. Integration slices may mix necessary DTO/domain work; none of these totals is adapter overhead or removable LOC. No complexity/workload claim."
+      },
+      "linked_complete_scoped_union": {
+        "source_units": 110,
+        "files": 10,
+        "physical_union": 2241,
+        "nonblank_union": 2220,
+        "note": "Unioned inclusive production source ranges; nested/shared lines counted once. Named source units include grouped impl/type/anchor bands, not a count of semantic duties. Integration slices may mix necessary DTO/domain work; none of these totals is adapter overhead or removable LOC. No complexity/workload claim."
+      }
+    },
+    "JSON-CATALOG": {
+      "integration_slice": {
+        "source_units": 4,
+        "files": 1,
+        "physical_union": 325,
+        "nonblank_union": 325,
+        "note": "Unioned inclusive production source ranges; nested/shared lines counted once. Named source units include grouped impl/type/anchor bands, not a count of semantic duties. Integration slices may mix necessary DTO/domain work; none of these totals is adapter overhead or removable LOC. No complexity/workload claim."
+      },
+      "direct_caller_context": {
+        "source_units": 2,
+        "files": 2,
+        "physical_union": 50,
+        "nonblank_union": 50,
+        "note": "Unioned inclusive production source ranges; nested/shared lines counted once. Named source units include grouped impl/type/anchor bands, not a count of semantic duties. Integration slices may mix necessary DTO/domain work; none of these totals is adapter overhead or removable LOC. No complexity/workload claim."
+      },
+      "domain_context": {
+        "source_units": 0,
+        "files": 0,
+        "physical_union": 0,
+        "nonblank_union": 0,
+        "note": "Unioned inclusive production source ranges; nested/shared lines counted once. Named source units include grouped impl/type/anchor bands, not a count of semantic duties. Integration slices may mix necessary DTO/domain work; none of these totals is adapter overhead or removable LOC. No complexity/workload claim."
+      },
+      "own_scoped_closure": {
+        "source_units": 19,
+        "files": 4,
+        "physical_union": 983,
+        "nonblank_union": 980,
+        "note": "Unioned inclusive production source ranges; nested/shared lines counted once. Named source units include grouped impl/type/anchor bands, not a count of semantic duties. Integration slices may mix necessary DTO/domain work; none of these totals is adapter overhead or removable LOC. No complexity/workload claim."
+      },
+      "linked_complete_scoped_union": {
+        "source_units": 19,
+        "files": 4,
+        "physical_union": 983,
+        "nonblank_union": 980,
+        "note": "Unioned inclusive production source ranges; nested/shared lines counted once. Named source units include grouped impl/type/anchor bands, not a count of semantic duties. Integration slices may mix necessary DTO/domain work; none of these totals is adapter overhead or removable LOC. No complexity/workload claim."
+      }
+    },
+    "JSON-DIAGNOSTIC": {
+      "integration_slice": {
+        "source_units": 2,
+        "files": 1,
+        "physical_union": 101,
+        "nonblank_union": 95,
+        "note": "Unioned inclusive production source ranges; nested/shared lines counted once. Named source units include grouped impl/type/anchor bands, not a count of semantic duties. Integration slices may mix necessary DTO/domain work; none of these totals is adapter overhead or removable LOC. No complexity/workload claim."
+      },
+      "direct_caller_context": {
+        "source_units": 4,
+        "files": 1,
+        "physical_union": 276,
+        "nonblank_union": 276,
+        "note": "Unioned inclusive production source ranges; nested/shared lines counted once. Named source units include grouped impl/type/anchor bands, not a count of semantic duties. Integration slices may mix necessary DTO/domain work; none of these totals is adapter overhead or removable LOC. No complexity/workload claim."
+      },
+      "domain_context": {
+        "source_units": 0,
+        "files": 0,
+        "physical_union": 0,
+        "nonblank_union": 0,
+        "note": "Unioned inclusive production source ranges; nested/shared lines counted once. Named source units include grouped impl/type/anchor bands, not a count of semantic duties. Integration slices may mix necessary DTO/domain work; none of these totals is adapter overhead or removable LOC. No complexity/workload claim."
+      },
+      "own_scoped_closure": {
+        "source_units": 15,
+        "files": 3,
+        "physical_union": 791,
+        "nonblank_union": 785,
+        "note": "Unioned inclusive production source ranges; nested/shared lines counted once. Named source units include grouped impl/type/anchor bands, not a count of semantic duties. Integration slices may mix necessary DTO/domain work; none of these totals is adapter overhead or removable LOC. No complexity/workload claim."
+      },
+      "linked_complete_scoped_union": {
+        "source_units": 15,
+        "files": 3,
+        "physical_union": 791,
+        "nonblank_union": 785,
+        "note": "Unioned inclusive production source ranges; nested/shared lines counted once. Named source units include grouped impl/type/anchor bands, not a count of semantic duties. Integration slices may mix necessary DTO/domain work; none of these totals is adapter overhead or removable LOC. No complexity/workload claim."
+      }
+    },
+    "JSON-DOCS": {
+      "integration_slice": {
+        "source_units": 16,
+        "files": 1,
+        "physical_union": 279,
+        "nonblank_union": 265,
+        "note": "Unioned inclusive production source ranges; nested/shared lines counted once. Named source units include grouped impl/type/anchor bands, not a count of semantic duties. Integration slices may mix necessary DTO/domain work; none of these totals is adapter overhead or removable LOC. No complexity/workload claim."
+      },
+      "direct_caller_context": {
+        "source_units": 1,
+        "files": 1,
+        "physical_union": 67,
+        "nonblank_union": 67,
+        "note": "Unioned inclusive production source ranges; nested/shared lines counted once. Named source units include grouped impl/type/anchor bands, not a count of semantic duties. Integration slices may mix necessary DTO/domain work; none of these totals is adapter overhead or removable LOC. No complexity/workload claim."
+      },
+      "domain_context": {
+        "source_units": 0,
+        "files": 0,
+        "physical_union": 0,
+        "nonblank_union": 0,
+        "note": "Unioned inclusive production source ranges; nested/shared lines counted once. Named source units include grouped impl/type/anchor bands, not a count of semantic duties. Integration slices may mix necessary DTO/domain work; none of these totals is adapter overhead or removable LOC. No complexity/workload claim."
+      },
+      "own_scoped_closure": {
+        "source_units": 23,
+        "files": 3,
+        "physical_union": 545,
+        "nonblank_union": 531,
+        "note": "Unioned inclusive production source ranges; nested/shared lines counted once. Named source units include grouped impl/type/anchor bands, not a count of semantic duties. Integration slices may mix necessary DTO/domain work; none of these totals is adapter overhead or removable LOC. No complexity/workload claim."
+      },
+      "linked_complete_scoped_union": {
+        "source_units": 23,
+        "files": 3,
+        "physical_union": 545,
+        "nonblank_union": 531,
+        "note": "Unioned inclusive production source ranges; nested/shared lines counted once. Named source units include grouped impl/type/anchor bands, not a count of semantic duties. Integration slices may mix necessary DTO/domain work; none of these totals is adapter overhead or removable LOC. No complexity/workload claim."
+      }
+    },
+    "JSON-POLICY": {
+      "integration_slice": {
+        "source_units": 3,
+        "files": 1,
+        "physical_union": 252,
+        "nonblank_union": 232,
+        "note": "Unioned inclusive production source ranges; nested/shared lines counted once. Named source units include grouped impl/type/anchor bands, not a count of semantic duties. Integration slices may mix necessary DTO/domain work; none of these totals is adapter overhead or removable LOC. No complexity/workload claim."
+      },
+      "direct_caller_context": {
+        "source_units": 1,
+        "files": 1,
+        "physical_union": 76,
+        "nonblank_union": 76,
+        "note": "Unioned inclusive production source ranges; nested/shared lines counted once. Named source units include grouped impl/type/anchor bands, not a count of semantic duties. Integration slices may mix necessary DTO/domain work; none of these totals is adapter overhead or removable LOC. No complexity/workload claim."
+      },
+      "domain_context": {
+        "source_units": 0,
+        "files": 0,
+        "physical_union": 0,
+        "nonblank_union": 0,
+        "note": "Unioned inclusive production source ranges; nested/shared lines counted once. Named source units include grouped impl/type/anchor bands, not a count of semantic duties. Integration slices may mix necessary DTO/domain work; none of these totals is adapter overhead or removable LOC. No complexity/workload claim."
+      },
+      "own_scoped_closure": {
+        "source_units": 9,
+        "files": 3,
+        "physical_union": 517,
+        "nonblank_union": 497,
+        "note": "Unioned inclusive production source ranges; nested/shared lines counted once. Named source units include grouped impl/type/anchor bands, not a count of semantic duties. Integration slices may mix necessary DTO/domain work; none of these totals is adapter overhead or removable LOC. No complexity/workload claim."
+      },
+      "linked_complete_scoped_union": {
+        "source_units": 9,
+        "files": 3,
+        "physical_union": 517,
+        "nonblank_union": 497,
+        "note": "Unioned inclusive production source ranges; nested/shared lines counted once. Named source units include grouped impl/type/anchor bands, not a count of semantic duties. Integration slices may mix necessary DTO/domain work; none of these totals is adapter overhead or removable LOC. No complexity/workload claim."
+      }
+    },
+    "JSON-EXPLAIN": {
+      "integration_slice": {
+        "source_units": 2,
+        "files": 1,
+        "physical_union": 20,
+        "nonblank_union": 20,
+        "note": "Unioned inclusive production source ranges; nested/shared lines counted once. Named source units include grouped impl/type/anchor bands, not a count of semantic duties. Integration slices may mix necessary DTO/domain work; none of these totals is adapter overhead or removable LOC. No complexity/workload claim."
+      },
+      "direct_caller_context": {
+        "source_units": 1,
+        "files": 1,
+        "physical_union": 25,
+        "nonblank_union": 25,
+        "note": "Unioned inclusive production source ranges; nested/shared lines counted once. Named source units include grouped impl/type/anchor bands, not a count of semantic duties. Integration slices may mix necessary DTO/domain work; none of these totals is adapter overhead or removable LOC. No complexity/workload claim."
+      },
+      "domain_context": {
+        "source_units": 0,
+        "files": 0,
+        "physical_union": 0,
+        "nonblank_union": 0,
+        "note": "Unioned inclusive production source ranges; nested/shared lines counted once. Named source units include grouped impl/type/anchor bands, not a count of semantic duties. Integration slices may mix necessary DTO/domain work; none of these totals is adapter overhead or removable LOC. No complexity/workload claim."
+      },
+      "own_scoped_closure": {
+        "source_units": 8,
+        "files": 3,
+        "physical_union": 234,
+        "nonblank_union": 234,
+        "note": "Unioned inclusive production source ranges; nested/shared lines counted once. Named source units include grouped impl/type/anchor bands, not a count of semantic duties. Integration slices may mix necessary DTO/domain work; none of these totals is adapter overhead or removable LOC. No complexity/workload claim."
+      },
+      "linked_complete_scoped_union": {
+        "source_units": 8,
+        "files": 3,
+        "physical_union": 234,
+        "nonblank_union": 234,
+        "note": "Unioned inclusive production source ranges; nested/shared lines counted once. Named source units include grouped impl/type/anchor bands, not a count of semantic duties. Integration slices may mix necessary DTO/domain work; none of these totals is adapter overhead or removable LOC. No complexity/workload claim."
+      }
+    },
+    "JSON-FIXES": {
+      "integration_slice": {
+        "source_units": 5,
+        "files": 2,
+        "physical_union": 95,
+        "nonblank_union": 92,
+        "note": "Unioned inclusive production source ranges; nested/shared lines counted once. Named source units include grouped impl/type/anchor bands, not a count of semantic duties. Integration slices may mix necessary DTO/domain work; none of these totals is adapter overhead or removable LOC. No complexity/workload claim."
+      },
+      "direct_caller_context": {
+        "source_units": 1,
+        "files": 1,
+        "physical_union": 95,
+        "nonblank_union": 95,
+        "note": "Unioned inclusive production source ranges; nested/shared lines counted once. Named source units include grouped impl/type/anchor bands, not a count of semantic duties. Integration slices may mix necessary DTO/domain work; none of these totals is adapter overhead or removable LOC. No complexity/workload claim."
+      },
+      "domain_context": {
+        "source_units": 0,
+        "files": 0,
+        "physical_union": 0,
+        "nonblank_union": 0,
+        "note": "Unioned inclusive production source ranges; nested/shared lines counted once. Named source units include grouped impl/type/anchor bands, not a count of semantic duties. Integration slices may mix necessary DTO/domain work; none of these totals is adapter overhead or removable LOC. No complexity/workload claim."
+      },
+      "own_scoped_closure": {
+        "source_units": 11,
+        "files": 3,
+        "physical_union": 365,
+        "nonblank_union": 362,
+        "note": "Unioned inclusive production source ranges; nested/shared lines counted once. Named source units include grouped impl/type/anchor bands, not a count of semantic duties. Integration slices may mix necessary DTO/domain work; none of these totals is adapter overhead or removable LOC. No complexity/workload claim."
+      },
+      "linked_complete_scoped_union": {
+        "source_units": 11,
+        "files": 3,
+        "physical_union": 365,
+        "nonblank_union": 362,
+        "note": "Unioned inclusive production source ranges; nested/shared lines counted once. Named source units include grouped impl/type/anchor bands, not a count of semantic duties. Integration slices may mix necessary DTO/domain work; none of these totals is adapter overhead or removable LOC. No complexity/workload claim."
+      }
+    },
+    "JSON-JS-STRINGS": {
+      "integration_slice": {
+        "source_units": 1,
+        "files": 1,
+        "physical_union": 3,
+        "nonblank_union": 3,
+        "note": "Unioned inclusive production source ranges; nested/shared lines counted once. Named source units include grouped impl/type/anchor bands, not a count of semantic duties. Integration slices may mix necessary DTO/domain work; none of these totals is adapter overhead or removable LOC. No complexity/workload claim."
+      },
+      "direct_caller_context": {
+        "source_units": 37,
+        "files": 1,
+        "physical_union": 2435,
+        "nonblank_union": 2435,
+        "note": "Unioned inclusive production source ranges; nested/shared lines counted once. Named source units include grouped impl/type/anchor bands, not a count of semantic duties. Integration slices may mix necessary DTO/domain work; none of these totals is adapter overhead or removable LOC. No complexity/workload claim."
+      },
+      "domain_context": {
+        "source_units": 0,
+        "files": 0,
+        "physical_union": 0,
+        "nonblank_union": 0,
+        "note": "Unioned inclusive production source ranges; nested/shared lines counted once. Named source units include grouped impl/type/anchor bands, not a count of semantic duties. Integration slices may mix necessary DTO/domain work; none of these totals is adapter overhead or removable LOC. No complexity/workload claim."
+      },
+      "own_scoped_closure": {
+        "source_units": 72,
+        "files": 4,
+        "physical_union": 3768,
+        "nonblank_union": 3767,
+        "note": "Unioned inclusive production source ranges; nested/shared lines counted once. Named source units include grouped impl/type/anchor bands, not a count of semantic duties. Integration slices may mix necessary DTO/domain work; none of these totals is adapter overhead or removable LOC. No complexity/workload claim."
+      },
+      "linked_complete_scoped_union": {
+        "source_units": 72,
+        "files": 4,
+        "physical_union": 3768,
+        "nonblank_union": 3767,
+        "note": "Unioned inclusive production source ranges; nested/shared lines counted once. Named source units include grouped impl/type/anchor bands, not a count of semantic duties. Integration slices may mix necessary DTO/domain work; none of these totals is adapter overhead or removable LOC. No complexity/workload claim."
+      }
+    },
+    "JSON-JS-DESCRIPTORS": {
+      "integration_slice": {
+        "source_units": 15,
+        "files": 1,
+        "physical_union": 258,
+        "nonblank_union": 249,
+        "note": "Unioned inclusive production source ranges; nested/shared lines counted once. Named source units include grouped impl/type/anchor bands, not a count of semantic duties. Integration slices may mix necessary DTO/domain work; none of these totals is adapter overhead or removable LOC. No complexity/workload claim."
+      },
+      "direct_caller_context": {
+        "source_units": 13,
+        "files": 1,
+        "physical_union": 39,
+        "nonblank_union": 39,
+        "note": "Unioned inclusive production source ranges; nested/shared lines counted once. Named source units include grouped impl/type/anchor bands, not a count of semantic duties. Integration slices may mix necessary DTO/domain work; none of these totals is adapter overhead or removable LOC. No complexity/workload claim."
+      },
+      "domain_context": {
+        "source_units": 2,
+        "files": 1,
+        "physical_union": 360,
+        "nonblank_union": 336,
+        "note": "Unioned inclusive production source ranges; nested/shared lines counted once. Named source units include grouped impl/type/anchor bands, not a count of semantic duties. Integration slices may mix necessary DTO/domain work; none of these totals is adapter overhead or removable LOC. No complexity/workload claim."
+      },
+      "own_scoped_closure": {
+        "source_units": 24,
+        "files": 3,
+        "physical_union": 838,
+        "nonblank_union": 805,
+        "note": "Unioned inclusive production source ranges; nested/shared lines counted once. Named source units include grouped impl/type/anchor bands, not a count of semantic duties. Integration slices may mix necessary DTO/domain work; none of these totals is adapter overhead or removable LOC. No complexity/workload claim."
+      },
+      "linked_complete_scoped_union": {
+        "source_units": 24,
+        "files": 3,
+        "physical_union": 838,
+        "nonblank_union": 805,
+        "note": "Unioned inclusive production source ranges; nested/shared lines counted once. Named source units include grouped impl/type/anchor bands, not a count of semantic duties. Integration slices may mix necessary DTO/domain work; none of these totals is adapter overhead or removable LOC. No complexity/workload claim."
+      }
+    },
+    "JSON-JS-DEFAULTS": {
+      "integration_slice": {
+        "source_units": 5,
+        "files": 1,
+        "physical_union": 167,
+        "nonblank_union": 162,
+        "note": "Unioned inclusive production source ranges; nested/shared lines counted once. Named source units include grouped impl/type/anchor bands, not a count of semantic duties. Integration slices may mix necessary DTO/domain work; none of these totals is adapter overhead or removable LOC. No complexity/workload claim."
+      },
+      "direct_caller_context": {
+        "source_units": 3,
+        "files": 1,
+        "physical_union": 378,
+        "nonblank_union": 378,
+        "note": "Unioned inclusive production source ranges; nested/shared lines counted once. Named source units include grouped impl/type/anchor bands, not a count of semantic duties. Integration slices may mix necessary DTO/domain work; none of these totals is adapter overhead or removable LOC. No complexity/workload claim."
+      },
+      "domain_context": {
+        "source_units": 0,
+        "files": 0,
+        "physical_union": 0,
+        "nonblank_union": 0,
+        "note": "Unioned inclusive production source ranges; nested/shared lines counted once. Named source units include grouped impl/type/anchor bands, not a count of semantic duties. Integration slices may mix necessary DTO/domain work; none of these totals is adapter overhead or removable LOC. No complexity/workload claim."
+      },
+      "own_scoped_closure": {
+        "source_units": 20,
+        "files": 5,
+        "physical_union": 1155,
+        "nonblank_union": 1149,
+        "note": "Unioned inclusive production source ranges; nested/shared lines counted once. Named source units include grouped impl/type/anchor bands, not a count of semantic duties. Integration slices may mix necessary DTO/domain work; none of these totals is adapter overhead or removable LOC. No complexity/workload claim."
+      },
+      "linked_complete_scoped_union": {
+        "source_units": 20,
+        "files": 5,
+        "physical_union": 1155,
+        "nonblank_union": 1149,
+        "note": "Unioned inclusive production source ranges; nested/shared lines counted once. Named source units include grouped impl/type/anchor bands, not a count of semantic duties. Integration slices may mix necessary DTO/domain work; none of these totals is adapter overhead or removable LOC. No complexity/workload claim."
+      }
+    },
+    "JSON-DESCRIPTOR-FALLBACKS": {
+      "integration_slice": {
+        "source_units": 14,
+        "files": 1,
+        "physical_union": 755,
+        "nonblank_union": 755,
+        "note": "Unioned inclusive production source ranges; nested/shared lines counted once. Named source units include grouped impl/type/anchor bands, not a count of semantic duties. Integration slices may mix necessary DTO/domain work; none of these totals is adapter overhead or removable LOC. No complexity/workload claim."
+      },
+      "direct_caller_context": {
+        "source_units": 2,
+        "files": 2,
+        "physical_union": 162,
+        "nonblank_union": 161,
+        "note": "Unioned inclusive production source ranges; nested/shared lines counted once. Named source units include grouped impl/type/anchor bands, not a count of semantic duties. Integration slices may mix necessary DTO/domain work; none of these totals is adapter overhead or removable LOC. No complexity/workload claim."
+      },
+      "domain_context": {
+        "source_units": 0,
+        "files": 0,
+        "physical_union": 0,
+        "nonblank_union": 0,
+        "note": "Unioned inclusive production source ranges; nested/shared lines counted once. Named source units include grouped impl/type/anchor bands, not a count of semantic duties. Integration slices may mix necessary DTO/domain work; none of these totals is adapter overhead or removable LOC. No complexity/workload claim."
+      },
+      "own_scoped_closure": {
+        "source_units": 23,
+        "files": 5,
+        "physical_union": 1250,
+        "nonblank_union": 1249,
+        "note": "Unioned inclusive production source ranges; nested/shared lines counted once. Named source units include grouped impl/type/anchor bands, not a count of semantic duties. Integration slices may mix necessary DTO/domain work; none of these totals is adapter overhead or removable LOC. No complexity/workload claim."
+      },
+      "linked_complete_scoped_union": {
+        "source_units": 23,
+        "files": 5,
+        "physical_union": 1250,
+        "nonblank_union": 1249,
+        "note": "Unioned inclusive production source ranges; nested/shared lines counted once. Named source units include grouped impl/type/anchor bands, not a count of semantic duties. Integration slices may mix necessary DTO/domain work; none of these totals is adapter overhead or removable LOC. No complexity/workload claim."
+      }
+    },
+    "JSON-ARTIFACT": {
+      "integration_slice": {
+        "source_units": 3,
+        "files": 2,
+        "physical_union": 174,
+        "nonblank_union": 165,
+        "note": "Unioned inclusive production source ranges; nested/shared lines counted once. Named source units include grouped impl/type/anchor bands, not a count of semantic duties. Integration slices may mix necessary DTO/domain work; none of these totals is adapter overhead or removable LOC. No complexity/workload claim."
+      },
+      "direct_caller_context": {
+        "source_units": 2,
+        "files": 2,
+        "physical_union": 75,
+        "nonblank_union": 75,
+        "note": "Unioned inclusive production source ranges; nested/shared lines counted once. Named source units include grouped impl/type/anchor bands, not a count of semantic duties. Integration slices may mix necessary DTO/domain work; none of these totals is adapter overhead or removable LOC. No complexity/workload claim."
+      },
+      "domain_context": {
+        "source_units": 0,
+        "files": 0,
+        "physical_union": 0,
+        "nonblank_union": 0,
+        "note": "Unioned inclusive production source ranges; nested/shared lines counted once. Named source units include grouped impl/type/anchor bands, not a count of semantic duties. Integration slices may mix necessary DTO/domain work; none of these totals is adapter overhead or removable LOC. No complexity/workload claim."
+      },
+      "own_scoped_closure": {
+        "source_units": 9,
+        "files": 4,
+        "physical_union": 435,
+        "nonblank_union": 426,
+        "note": "Unioned inclusive production source ranges; nested/shared lines counted once. Named source units include grouped impl/type/anchor bands, not a count of semantic duties. Integration slices may mix necessary DTO/domain work; none of these totals is adapter overhead or removable LOC. No complexity/workload claim."
+      },
+      "linked_complete_scoped_union": {
+        "source_units": 29,
+        "files": 6,
+        "physical_union": 869,
+        "nonblank_union": 860,
+        "note": "Unioned inclusive production source ranges; nested/shared lines counted once. Named source units include grouped impl/type/anchor bands, not a count of semantic duties. Integration slices may mix necessary DTO/domain work; none of these totals is adapter overhead or removable LOC. No complexity/workload claim."
+      }
+    },
+    "JSON-BDD": {
+      "integration_slice": {
+        "source_units": 1,
+        "files": 1,
+        "physical_union": 3,
+        "nonblank_union": 3,
+        "note": "Unioned inclusive production source ranges; nested/shared lines counted once. Named source units include grouped impl/type/anchor bands, not a count of semantic duties. Integration slices may mix necessary DTO/domain work; none of these totals is adapter overhead or removable LOC. No complexity/workload claim."
+      },
+      "direct_caller_context": {
+        "source_units": 7,
+        "files": 1,
+        "physical_union": 326,
+        "nonblank_union": 326,
+        "note": "Unioned inclusive production source ranges; nested/shared lines counted once. Named source units include grouped impl/type/anchor bands, not a count of semantic duties. Integration slices may mix necessary DTO/domain work; none of these totals is adapter overhead or removable LOC. No complexity/workload claim."
+      },
+      "domain_context": {
+        "source_units": 0,
+        "files": 0,
+        "physical_union": 0,
+        "nonblank_union": 0,
+        "note": "Unioned inclusive production source ranges; nested/shared lines counted once. Named source units include grouped impl/type/anchor bands, not a count of semantic duties. Integration slices may mix necessary DTO/domain work; none of these totals is adapter overhead or removable LOC. No complexity/workload claim."
+      },
+      "own_scoped_closure": {
+        "source_units": 16,
+        "files": 4,
+        "physical_union": 695,
+        "nonblank_union": 695,
+        "note": "Unioned inclusive production source ranges; nested/shared lines counted once. Named source units include grouped impl/type/anchor bands, not a count of semantic duties. Integration slices may mix necessary DTO/domain work; none of these totals is adapter overhead or removable LOC. No complexity/workload claim."
+      },
+      "linked_complete_scoped_union": {
+        "source_units": 16,
+        "files": 4,
+        "physical_union": 695,
+        "nonblank_union": 695,
+        "note": "Unioned inclusive production source ranges; nested/shared lines counted once. Named source units include grouped impl/type/anchor bands, not a count of semantic duties. Integration slices may mix necessary DTO/domain work; none of these totals is adapter overhead or removable LOC. No complexity/workload claim."
+      }
+    },
+    "INT-LSP-TYPES": {
+      "integration_slice": {
+        "source_units": 18,
+        "files": 1,
+        "physical_union": 145,
+        "nonblank_union": 145,
+        "note": "Unioned inclusive production source ranges; nested/shared lines counted once. Named source units include grouped impl/type/anchor bands, not a count of semantic duties. Integration slices may mix necessary DTO/domain work; none of these totals is adapter overhead or removable LOC. No complexity/workload claim."
+      },
+      "direct_caller_context": {
+        "source_units": 13,
+        "files": 2,
+        "physical_union": 369,
+        "nonblank_union": 369,
+        "note": "Unioned inclusive production source ranges; nested/shared lines counted once. Named source units include grouped impl/type/anchor bands, not a count of semantic duties. Integration slices may mix necessary DTO/domain work; none of these totals is adapter overhead or removable LOC. No complexity/workload claim."
+      },
+      "domain_context": {
+        "source_units": 33,
+        "files": 2,
+        "physical_union": 642,
+        "nonblank_union": 642,
+        "note": "Unioned inclusive production source ranges; nested/shared lines counted once. Named source units include grouped impl/type/anchor bands, not a count of semantic duties. Integration slices may mix necessary DTO/domain work; none of these totals is adapter overhead or removable LOC. No complexity/workload claim."
+      },
+      "own_scoped_closure": {
+        "source_units": 64,
+        "files": 5,
+        "physical_union": 1200,
+        "nonblank_union": 1197,
+        "note": "Unioned inclusive production source ranges; nested/shared lines counted once. Named source units include grouped impl/type/anchor bands, not a count of semantic duties. Integration slices may mix necessary DTO/domain work; none of these totals is adapter overhead or removable LOC. No complexity/workload claim."
+      },
+      "linked_complete_scoped_union": {
+        "source_units": 85,
+        "files": 6,
+        "physical_union": 1520,
+        "nonblank_union": 1517,
+        "note": "Unioned inclusive production source ranges; nested/shared lines counted once. Named source units include grouped impl/type/anchor bands, not a count of semantic duties. Integration slices may mix necessary DTO/domain work; none of these totals is adapter overhead or removable LOC. No complexity/workload claim."
+      }
+    },
+    "INT-LSP-URI-URL": {
+      "integration_slice": {
+        "source_units": 3,
+        "files": 2,
+        "physical_union": 47,
+        "nonblank_union": 47,
+        "note": "Unioned inclusive production source ranges; nested/shared lines counted once. Named source units include grouped impl/type/anchor bands, not a count of semantic duties. Integration slices may mix necessary DTO/domain work; none of these totals is adapter overhead or removable LOC. No complexity/workload claim."
+      },
+      "direct_caller_context": {
+        "source_units": 1,
+        "files": 1,
+        "physical_union": 117,
+        "nonblank_union": 117,
+        "note": "Unioned inclusive production source ranges; nested/shared lines counted once. Named source units include grouped impl/type/anchor bands, not a count of semantic duties. Integration slices may mix necessary DTO/domain work; none of these totals is adapter overhead or removable LOC. No complexity/workload claim."
+      },
+      "domain_context": {
+        "source_units": 14,
+        "files": 2,
+        "physical_union": 430,
+        "nonblank_union": 427,
+        "note": "Unioned inclusive production source ranges; nested/shared lines counted once. Named source units include grouped impl/type/anchor bands, not a count of semantic duties. Integration slices may mix necessary DTO/domain work; none of these totals is adapter overhead or removable LOC. No complexity/workload claim."
+      },
+      "own_scoped_closure": {
+        "source_units": 22,
+        "files": 5,
+        "physical_union": 666,
+        "nonblank_union": 663,
+        "note": "Unioned inclusive production source ranges; nested/shared lines counted once. Named source units include grouped impl/type/anchor bands, not a count of semantic duties. Integration slices may mix necessary DTO/domain work; none of these totals is adapter overhead or removable LOC. No complexity/workload claim."
+      },
+      "linked_complete_scoped_union": {
+        "source_units": 22,
+        "files": 5,
+        "physical_union": 666,
+        "nonblank_union": 663,
+        "note": "Unioned inclusive production source ranges; nested/shared lines counted once. Named source units include grouped impl/type/anchor bands, not a count of semantic duties. Integration slices may mix necessary DTO/domain work; none of these totals is adapter overhead or removable LOC. No complexity/workload claim."
+      }
+    },
+    "INT-LSP-INPUT-JSON-FRAMING": {
+      "integration_slice": {
+        "source_units": 19,
+        "files": 2,
+        "physical_union": 319,
+        "nonblank_union": 319,
+        "note": "Unioned inclusive production source ranges; nested/shared lines counted once. Named source units include grouped impl/type/anchor bands, not a count of semantic duties. Integration slices may mix necessary DTO/domain work; none of these totals is adapter overhead or removable LOC. No complexity/workload claim."
+      },
+      "direct_caller_context": {
+        "source_units": 15,
+        "files": 3,
+        "physical_union": 614,
+        "nonblank_union": 611,
+        "note": "Unioned inclusive production source ranges; nested/shared lines counted once. Named source units include grouped impl/type/anchor bands, not a count of semantic duties. Integration slices may mix necessary DTO/domain work; none of these totals is adapter overhead or removable LOC. No complexity/workload claim."
+      },
+      "domain_context": {
+        "source_units": 0,
+        "files": 0,
+        "physical_union": 0,
+        "nonblank_union": 0,
+        "note": "Unioned inclusive production source ranges; nested/shared lines counted once. Named source units include grouped impl/type/anchor bands, not a count of semantic duties. Integration slices may mix necessary DTO/domain work; none of these totals is adapter overhead or removable LOC. No complexity/workload claim."
+      },
+      "own_scoped_closure": {
+        "source_units": 37,
+        "files": 5,
+        "physical_union": 936,
+        "nonblank_union": 933,
+        "note": "Unioned inclusive production source ranges; nested/shared lines counted once. Named source units include grouped impl/type/anchor bands, not a count of semantic duties. Integration slices may mix necessary DTO/domain work; none of these totals is adapter overhead or removable LOC. No complexity/workload claim."
+      },
+      "linked_complete_scoped_union": {
+        "source_units": 37,
+        "files": 5,
+        "physical_union": 936,
+        "nonblank_union": 933,
+        "note": "Unioned inclusive production source ranges; nested/shared lines counted once. Named source units include grouped impl/type/anchor bands, not a count of semantic duties. Integration slices may mix necessary DTO/domain work; none of these totals is adapter overhead or removable LOC. No complexity/workload claim."
+      }
+    },
+    "INT-SOURCEMAP": {
+      "integration_slice": {
+        "source_units": 10,
+        "files": 1,
+        "physical_union": 193,
+        "nonblank_union": 193,
+        "note": "Unioned inclusive production source ranges; nested/shared lines counted once. Named source units include grouped impl/type/anchor bands, not a count of semantic duties. Integration slices may mix necessary DTO/domain work; none of these totals is adapter overhead or removable LOC. No complexity/workload claim."
+      },
+      "direct_caller_context": {
+        "source_units": 4,
+        "files": 1,
+        "physical_union": 195,
+        "nonblank_union": 195,
+        "note": "Unioned inclusive production source ranges; nested/shared lines counted once. Named source units include grouped impl/type/anchor bands, not a count of semantic duties. Integration slices may mix necessary DTO/domain work; none of these totals is adapter overhead or removable LOC. No complexity/workload claim."
+      },
+      "domain_context": {
+        "source_units": 7,
+        "files": 3,
+        "physical_union": 241,
+        "nonblank_union": 241,
+        "note": "Unioned inclusive production source ranges; nested/shared lines counted once. Named source units include grouped impl/type/anchor bands, not a count of semantic duties. Integration slices may mix necessary DTO/domain work; none of these totals is adapter overhead or removable LOC. No complexity/workload claim."
+      },
+      "own_scoped_closure": {
+        "source_units": 28,
+        "files": 6,
+        "physical_union": 789,
+        "nonblank_union": 789,
+        "note": "Unioned inclusive production source ranges; nested/shared lines counted once. Named source units include grouped impl/type/anchor bands, not a count of semantic duties. Integration slices may mix necessary DTO/domain work; none of these totals is adapter overhead or removable LOC. No complexity/workload claim."
+      },
+      "linked_complete_scoped_union": {
+        "source_units": 28,
+        "files": 6,
+        "physical_union": 789,
+        "nonblank_union": 789,
+        "note": "Unioned inclusive production source ranges; nested/shared lines counted once. Named source units include grouped impl/type/anchor bands, not a count of semantic duties. Integration slices may mix necessary DTO/domain work; none of these totals is adapter overhead or removable LOC. No complexity/workload claim."
+      }
+    },
+    "INT-SHA2": {
+      "integration_slice": {
+        "source_units": 1,
+        "files": 1,
+        "physical_union": 5,
+        "nonblank_union": 4,
+        "note": "Unioned inclusive production source ranges; nested/shared lines counted once. Named source units include grouped impl/type/anchor bands, not a count of semantic duties. Integration slices may mix necessary DTO/domain work; none of these totals is adapter overhead or removable LOC. No complexity/workload claim."
+      },
+      "direct_caller_context": {
+        "source_units": 5,
+        "files": 5,
+        "physical_union": 125,
+        "nonblank_union": 125,
+        "note": "Unioned inclusive production source ranges; nested/shared lines counted once. Named source units include grouped impl/type/anchor bands, not a count of semantic duties. Integration slices may mix necessary DTO/domain work; none of these totals is adapter overhead or removable LOC. No complexity/workload claim."
+      },
+      "domain_context": {
+        "source_units": 0,
+        "files": 0,
+        "physical_union": 0,
+        "nonblank_union": 0,
+        "note": "Unioned inclusive production source ranges; nested/shared lines counted once. Named source units include grouped impl/type/anchor bands, not a count of semantic duties. Integration slices may mix necessary DTO/domain work; none of these totals is adapter overhead or removable LOC. No complexity/workload claim."
+      },
+      "own_scoped_closure": {
+        "source_units": 27,
+        "files": 8,
+        "physical_union": 1439,
+        "nonblank_union": 1435,
+        "note": "Unioned inclusive production source ranges; nested/shared lines counted once. Named source units include grouped impl/type/anchor bands, not a count of semantic duties. Integration slices may mix necessary DTO/domain work; none of these totals is adapter overhead or removable LOC. No complexity/workload claim."
+      },
+      "linked_complete_scoped_union": {
+        "source_units": 27,
+        "files": 8,
+        "physical_union": 1439,
+        "nonblank_union": 1435,
+        "note": "Unioned inclusive production source ranges; nested/shared lines counted once. Named source units include grouped impl/type/anchor bands, not a count of semantic duties. Integration slices may mix necessary DTO/domain work; none of these totals is adapter overhead or removable LOC. No complexity/workload claim."
+      }
+    },
+    "INT-TEMPFILE": {
+      "integration_slice": {
+        "source_units": 6,
+        "files": 1,
+        "physical_union": 99,
+        "nonblank_union": 99,
+        "note": "Unioned inclusive production source ranges; nested/shared lines counted once. Named source units include grouped impl/type/anchor bands, not a count of semantic duties. Integration slices may mix necessary DTO/domain work; none of these totals is adapter overhead or removable LOC. No complexity/workload claim."
+      },
+      "direct_caller_context": {
+        "source_units": 2,
+        "files": 1,
+        "physical_union": 192,
+        "nonblank_union": 192,
+        "note": "Unioned inclusive production source ranges; nested/shared lines counted once. Named source units include grouped impl/type/anchor bands, not a count of semantic duties. Integration slices may mix necessary DTO/domain work; none of these totals is adapter overhead or removable LOC. No complexity/workload claim."
+      },
+      "domain_context": {
+        "source_units": 0,
+        "files": 0,
+        "physical_union": 0,
+        "nonblank_union": 0,
+        "note": "Unioned inclusive production source ranges; nested/shared lines counted once. Named source units include grouped impl/type/anchor bands, not a count of semantic duties. Integration slices may mix necessary DTO/domain work; none of these totals is adapter overhead or removable LOC. No complexity/workload claim."
+      },
+      "own_scoped_closure": {
+        "source_units": 14,
+        "files": 2,
+        "physical_union": 490,
+        "nonblank_union": 490,
+        "note": "Unioned inclusive production source ranges; nested/shared lines counted once. Named source units include grouped impl/type/anchor bands, not a count of semantic duties. Integration slices may mix necessary DTO/domain work; none of these totals is adapter overhead or removable LOC. No complexity/workload claim."
+      },
+      "linked_complete_scoped_union": {
+        "source_units": 14,
+        "files": 2,
+        "physical_union": 490,
+        "nonblank_union": 490,
+        "note": "Unioned inclusive production source ranges; nested/shared lines counted once. Named source units include grouped impl/type/anchor bands, not a count of semantic duties. Integration slices may mix necessary DTO/domain work; none of these totals is adapter overhead or removable LOC. No complexity/workload claim."
+      }
+    },
+    "INT-URL-VALUE": {
+      "integration_slice": {
+        "source_units": 1,
+        "files": 1,
+        "physical_union": 7,
+        "nonblank_union": 7,
+        "note": "Unioned inclusive production source ranges; nested/shared lines counted once. Named source units include grouped impl/type/anchor bands, not a count of semantic duties. Integration slices may mix necessary DTO/domain work; none of these totals is adapter overhead or removable LOC. No complexity/workload claim."
+      },
+      "direct_caller_context": {
+        "source_units": 1,
+        "files": 1,
+        "physical_union": 10,
+        "nonblank_union": 10,
+        "note": "Unioned inclusive production source ranges; nested/shared lines counted once. Named source units include grouped impl/type/anchor bands, not a count of semantic duties. Integration slices may mix necessary DTO/domain work; none of these totals is adapter overhead or removable LOC. No complexity/workload claim."
+      },
+      "domain_context": {
+        "source_units": 0,
+        "files": 0,
+        "physical_union": 0,
+        "nonblank_union": 0,
+        "note": "Unioned inclusive production source ranges; nested/shared lines counted once. Named source units include grouped impl/type/anchor bands, not a count of semantic duties. Integration slices may mix necessary DTO/domain work; none of these totals is adapter overhead or removable LOC. No complexity/workload claim."
+      },
+      "own_scoped_closure": {
+        "source_units": 115,
+        "files": 6,
+        "physical_union": 7233,
+        "nonblank_union": 7230,
+        "note": "Unioned inclusive production source ranges; nested/shared lines counted once. Named source units include grouped impl/type/anchor bands, not a count of semantic duties. Integration slices may mix necessary DTO/domain work; none of these totals is adapter overhead or removable LOC. No complexity/workload claim."
+      },
+      "linked_complete_scoped_union": {
+        "source_units": 115,
+        "files": 6,
+        "physical_union": 7233,
+        "nonblank_union": 7230,
+        "note": "Unioned inclusive production source ranges; nested/shared lines counted once. Named source units include grouped impl/type/anchor bands, not a count of semantic duties. Integration slices may mix necessary DTO/domain work; none of these totals is adapter overhead or removable LOC. No complexity/workload claim."
+      }
+    }
+  },
+  "aggregate_current_closure_union": {
+    "source_units": 383,
+    "files": 25,
+    "physical_union": 15841,
+    "nonblank_union": 15726,
+    "note": "Unioned inclusive production source ranges; nested/shared lines counted once. Named source units include grouped impl/type/anchor bands, not a count of semantic duties. Integration slices may mix necessary DTO/domain work; none of these totals is adapter overhead or removable LOC. No complexity/workload claim."
+  },
+  "whole_compiler_delta": {
+    "scope": "Whole compiler/src physical production code; source1fd differs from original by utility programme plus prior correctness/other-owner changes, not solely library adapters. No Step6 implementation change. File-change counts do not attribute mixed file duties to integrations.",
+    "baseline_git": "309644a6881909d8dba32560bc6711f67e00a7ab",
+    "source_git": "1fd07722090fe70228a6b661e3c6e136275ca84b",
+    "method": "stdlib difflib.SequenceMatcher autojunk=false on full physical lines; count removed/added lines only if production at respective snapshot; exact cfg(test) item spans masked. Same-text aligned lines changing production/test classification count as addition/removal; moves count as remove/add, not simplification. Comments and blanks retained.",
+    "before_production_lines": 69119,
+    "after_production_lines": 69255,
+    "gross_removed": 2067,
+    "gross_added": 2203,
+    "net": 136
+  },
+  "retirement_aggregation": "Conditional targets overlap shared helpers and depend on unreleased API/layout/carrier policy. Do not sum as achieved or committed reductions; source growth136 remains. Retain zero means no justified deletion; defer identifies counted boundary to reopen, not adoption failure proof."
+}

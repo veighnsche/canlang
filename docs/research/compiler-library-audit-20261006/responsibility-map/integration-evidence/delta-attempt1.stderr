@@ -1,0 +1,2 @@
+Transcribed tool result, not raw process capture: first delta.py exited1 at assertion before any receipt write. Equal diff pairs can change production/test classification; counting only replace/insert/delete omitted these transitions. Corrected delta.py accounts for equal pairs and reconciles both snapshots.
+AssertionError: after_production_lines - before_production_lines == gross_added - gross_removed

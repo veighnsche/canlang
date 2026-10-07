@@ -1,0 +1,312 @@
+{
+  "task": "Step 6 factual library integration inventory",
+  "repo": "/Users/vince/Projects/canlang",
+  "compiler_source_commit": "1fd07722090fe70228a6b661e3c6e136275ca84b",
+  "observed_head": "e9524b39a0dbd80a3c9900ecd918a42f43da29aa",
+  "scope_note": "Read-only inspection. No source policy, source edits, git/build/test actions, or call-graph inference. Compiler source baseline hash is the declared unchanged source commit; previous Step1 counts are reused as their documented method and verified snapshot evidence.",
+  "method_sources": [
+    "docs/research/compiler-library-audit-20261006/baseline-verification/README.md",
+    "docs/research/compiler-library-audit-20261006/baseline-verification/counts.json",
+    "docs/research/compiler-library-audit-20261006/responsibility-map/README.md",
+    "docs/research/compiler-library-audit-20261006/responsibility-map/coverage.jsonl"
+  ],
+  "direct_dependencies": [
+    {
+      "manifest_name": "url",
+      "manifest_version": "=2.5.8",
+      "lock_version": "2.5.8",
+      "features": [
+        "std"
+      ],
+      "default_features": false,
+      "prod_refs": [
+        "compiler/src/analysis/types.rs:15385",
+        "compiler/src/lsp/uri.rs:14"
+      ],
+      "test_refs": [],
+      "role": "URL parsing/admission; owned byte/URI rules remain Can code"
+    },
+    {
+      "manifest_name": "sha2",
+      "manifest_version": "=0.10.9",
+      "lock_version": "0.10.9",
+      "features": [],
+      "default_features": false,
+      "prod_refs": [
+        "compiler/src/source.rs:187-189"
+      ],
+      "test_refs": [
+        "compiler/tests/catalog_input_contract.rs:4",
+        "compiler/tests/catalog_producer_runtime.rs:6"
+      ],
+      "role": "SHA-256 digest primitive"
+    },
+    {
+      "manifest_name": "tempfile",
+      "manifest_version": "=3.27.0",
+      "lock_version": "3.27.0",
+      "features": [
+        "getrandom"
+      ],
+      "default_features": false,
+      "prod_refs": [
+        "compiler/src/cli.rs:1374"
+      ],
+      "test_refs": [
+        "compiler/src/cli.rs:1479-1603",
+        "compiler/tests/file_ownership.rs:13,16",
+        "compiler/tests/typed_reference_policy_consumers.rs:58-59",
+        "compiler/tests/sourcemap_contract.rs:13-14,52",
+        "compiler/tests/catalog_input_contract.rs:24,40",
+        "compiler/tests/catalog_producer_runtime.rs:60",
+        "compiler/tests/typed_diagnostics_cli.rs:7",
+        "compiler/tests/completion_contract.rs:41",
+        "compiler/tests/typed_fixes_cli.rs:7"
+      ],
+      "role": "destination-local temp files; production call exists in CLI"
+    },
+    {
+      "manifest_name": "serde",
+      "manifest_version": "=1.0.229",
+      "lock_version": "1.0.229",
+      "features": [
+        "std",
+        "derive"
+      ],
+      "default_features": false,
+      "prod_refs": [
+        "compiler/src/diagnostic.rs:108-203",
+        "compiler/src/json.rs:8,18-27,43,52",
+        "compiler/src/codegen/sourcemap.rs:10",
+        "compiler/src/codegen/artifact.rs:23",
+        "compiler/src/codegen/js.rs:36-37",
+        "compiler/src/lsp/output.rs:6",
+        "compiler/src/lsp/server.rs:793",
+        "compiler/src/policy.rs:25",
+        "compiler/src/lint/driver.rs:337-384",
+        "compiler/src/docs.rs:114-325,1116",
+        "compiler/src/explain.rs:74"
+      ],
+      "test_refs": [
+        "compiler/src/cli.rs:1692 (cfg(test) derive)",
+        "compiler/tests/typed_fixes.rs:70",
+        "compiler/tests/sourcemap_contract.rs:104",
+        "compiler/tests/typed_json.rs:3,41"
+      ],
+      "role": "serialization traits/derives and custom serializers"
+    },
+    {
+      "manifest_name": "serde_json",
+      "manifest_version": "=1.0.151",
+      "lock_version": "1.0.151",
+      "features": [
+        "std",
+        "raw_value"
+      ],
+      "default_features": false,
+      "prod_refs": [
+        "compiler/src/json.rs:20-56,162",
+        "compiler/src/codegen/sourcemap.rs:92",
+        "compiler/src/codegen/js.rs:800-813",
+        "compiler/src/lsp/output.rs:7",
+        "compiler/src/policy.rs:26,197"
+      ],
+      "test_refs": [
+        "compiler/src/json.rs:443,518-532 (cfg(test))",
+        "compiler/tests/typed_artifact.rs:162",
+        "compiler/tests/typed_fixes.rs:70",
+        "compiler/tests/sourcemap_contract.rs:104-108",
+        "compiler/tests/catalog_input_contract.rs:67,97,133-154",
+        "compiler/tests/typed_json.rs:54-91",
+        "compiler/tests/typed_explain.rs:20",
+        "compiler/tests/typed_descriptors.rs:154-156",
+        "compiler/tests/lsp_typed_output.rs:6,69,115"
+      ],
+      "role": "JSON parser/serializer and RawValue preservation"
+    },
+    {
+      "manifest_name": "lsp-types",
+      "crate_name": "lsp_types",
+      "manifest_version": "=0.97.0",
+      "lock_version": "0.97.0",
+      "features": [],
+      "default_features": false,
+      "prod_refs": [
+        "compiler/src/lsp/output.rs:5",
+        "compiler/src/lsp/server.rs:27"
+      ],
+      "test_refs": [],
+      "role": "protocol output DTOs; input admission/IDs/framing remain locally implemented"
+    },
+    {
+      "manifest_name": "sourcemap",
+      "manifest_version": "=9.3.2",
+      "lock_version": "9.3.2",
+      "features": [],
+      "default_features": false,
+      "prod_refs": [
+        "compiler/src/codegen/sourcemap.rs:33,170",
+        "compiler/src/codegen/artifact.rs:241,247,285"
+      ],
+      "test_refs": [
+        "compiler/tests/sourcemap_contract.rs:76,96,102,122",
+        "compiler/tests/codegen.rs:126,3192-3217,3567-3591"
+      ],
+      "role": "source-map builder and VLQ segment codec; Can adapter preserves source-coordinate semantics"
+    }
+  ],
+  "counts": {
+    "compiler_src_rust_files": 41,
+    "compiler_src_rust_physical_lines": 72784,
+    "compiler_src_rust_production_lines": 69255,
+    "compiler_src_rust_inline_cfg_test_lines": 3529,
+    "method": "Gross physical lines include comments/blanks. Remove only complete exact top-level #[cfg(test)] item spans including attached attributes through closing brace/semicolon; retain later production. UTF-8 bytes and SHA from git blobs; LF count plus final unterminated line rule. No AST or complexity measure.",
+    "count_receipt": "docs/research/compiler-library-audit-20261006/baseline-verification/counts.json",
+    "scope_warning": "All-file compiler inventory is context, not library-owned reduction. The root library facade has 15 public modules, version/schema constants, and exit constants; binary main is a thin entry point. A reduction baseline requires responsibility ownership, not subtracting test lines or treating all compiler source as library logic."
+  },
+  "facade": {
+    "file": "compiler/src/lib.rs",
+    "public_modules": [
+      "analysis",
+      "cli",
+      "codegen",
+      "diagnostic",
+      "docs",
+      "explain",
+      "format",
+      "ide",
+      "json",
+      "lint",
+      "lsp",
+      "policy",
+      "source",
+      "syntax"
+    ],
+    "public_constants": [
+      "LANGUAGE_VERSION",
+      "SCHEMA_VERSION"
+    ],
+    "public_nested_module": "exit (OK, TOOL_FAILURE, DIAGNOSTICS)",
+    "note": "Submodules expose substantial public declarations; this inventory does not equate visibility to stable support or enumerate every declaration. compiler/src/main.rs is the binary dispatch entrypoint.",
+    "public_module_count": 14,
+    "top_level_module_count_including_nested_exit": 15
+  },
+  "external_owner_boundaries": [
+    {
+      "integration": "catalog producer runtime",
+      "owner_boundary": "packages/values source/distribution catalog; Rust CLI accepts producer catalog input; compiler tests exercise producer output",
+      "anchors": [
+        "compiler/src/cli.rs catalog args/reader; compiler/tests/catalog_producer_runtime.rs",
+        "packages/values/dist/catalog.json"
+      ],
+      "classification": "runtime/data contract; not a Rust dependency"
+    },
+    {
+      "integration": "can-platform command forwarding and docs rendering",
+      "owner_boundary": "cli invokes can-platform via std::process Command, CAN_PLATFORM_BIN/PATH lookup, stdin/stdout/stderr/exit behavior",
+      "anchors": [
+        "compiler/src/cli.rs:414,535,869,996,1093-1109",
+        "compiler/src/explain.rs:949-951"
+      ],
+      "classification": "process protocol/owner integration; not a private Rust dependency"
+    },
+    {
+      "integration": "shell completion embedding",
+      "owner_boundary": "three checked-in shell scripts embedded with include_str! and printed by CLI",
+      "anchors": [
+        "compiler/src/cli.rs:1155-1157",
+        "compiler/can-completions.bash",
+        "compiler/can-completions.zsh",
+        "compiler/can-completions.fish"
+      ],
+      "classification": "build-time include + CLI resource contract"
+    },
+    {
+      "integration": "package task forwarding",
+      "owner_boundary": "root package scripts route native compiler build/test/lint to Cargo",
+      "anchors": [
+        "package.json:44-49"
+      ],
+      "classification": "workspace tooling boundary"
+    }
+  ],
+  "private_rust_api_usage": {
+    "dependency_api_symbols": {
+      "url": [
+        "url::Url::parse(uri) at compiler/src/lsp/uri.rs:14",
+        "url::Url::parse(value) at compiler/src/analysis/types.rs:15385"
+      ],
+      "sha2": [
+        "sha2::Digest trait and Sha256::digest(bytes) at compiler/src/source.rs:187-189"
+      ],
+      "tempfile": [
+        "tempfile::Builder::new/prefix/permissions/tempfile_in at compiler/src/cli.rs:1374-1383",
+        "returned NamedTempFile-style object methods as_file_mut/as_file/set_permissions/persist/persist_noclobber at compiler/src/cli.rs:1384-1400"
+      ],
+      "serde": [
+        "Serialize/Serializer/Deserialize traits, derives, custom Serialize impls; anchors in direct_refs"
+      ],
+      "serde_json": [
+        "Serializer/Deserializer/Formatter/CharEscape, from_reader/from_slice, RawValue parsing/serialization; anchors in direct_refs"
+      ],
+      "lsp-types": [
+        "lsp_types::Range::new, Position::new, Diagnostic, TextEdit, WorkspaceEdit, code action/protocol envelope DTOs via lsp alias in compiler/src/lsp/output.rs and server.rs"
+      ],
+      "sourcemap": [
+        "SourceMapBuilder::new/add_source/set_source/add_name/add_raw/into_sourcemap; SourceMap::to_writer; vlq::parse_vlq_segment/generate_vlq_segment in compiler/src/codegen/sourcemap.rs"
+      ]
+    },
+    "copied_dto_signatures": [
+      "compiler/src/lsp/output.rs::Location { uri: String, range: lsp::Range }",
+      "compiler/src/lsp/output.rs::Diagnostics { uri: String, diagnostics: Vec<lsp::Diagnostic>, version: Option<i32> }",
+      "compiler/src/lsp/output.rs::DocumentEdit { text_document: DocumentIdentifier, edits: Vec<lsp::TextEdit> }",
+      "compiler/src/lsp/output.rs::DocumentIdentifier { uri: String, version: Option<i32> }",
+      "compiler/src/lsp/output.rs::Response { jsonrpc: &'static str, id: &RawValue, result: T }",
+      "compiler/src/lsp/output.rs::Notification { jsonrpc: &'static str, method: &str, params: T }"
+    ],
+    "note": "These are signature/field facts only; no redundancy, substitution, or API policy inference. See source anchors, and distinction between this crate private machinery and external crate API is not a call graph."
+  },
+  "pass9_candidates_presence": {
+    "icu_locale_core": "Absent from the seven direct compiler manifest rows and no compiler/src direct use found; appears as a transitive lock package via url/idna stack. Do not call it an adopted compiler library.",
+    "lsp-server": "Absent from compiler/Cargo.toml and compiler/src imports; direct framing/server implementation is in compiler/src/lsp. No claim about other workspaces.",
+    "clap": "Absent from compiler/Cargo.toml and compiler/src imports; CLI remains locally implemented in cli.rs.",
+    "petgraph": "Absent from compiler/Cargo.toml and compiler/src imports; pass9 graph candidate is an isolated scratch candidate only."
+  },
+  "source_anchors": [
+    "compiler/Cargo.toml: [dependencies] and release profile",
+    "compiler/Cargo.lock: exact package versions and dependency lock graph",
+    "compiler/src/lib.rs",
+    "compiler/src/main.rs",
+    "compiler/src/lsp/{mod.rs,server.rs,transport.rs,uri.rs,output.rs}",
+    "compiler/build.rs",
+    "compiler/src/cli.rs"
+  ],
+  "feature_evidence": {
+    "manifest_features": "The listed features and default-features settings are copied from compiler/Cargo.toml. Cargo.lock pins versions and dependency edges, not feature activation.",
+    "resolved_feature_tree": "docs/research/compiler-library-audit-20261006/baseline-verification/features-native.stdout (native locked feature-tree receipt)",
+    "observed_direct_roots": {
+      "url": [
+        "std"
+      ],
+      "sha2": [],
+      "tempfile": [
+        "getrandom"
+      ],
+      "serde": [
+        "std",
+        "derive"
+      ],
+      "serde_json": [
+        "std",
+        "raw_value"
+      ],
+      "lsp-types": [],
+      "sourcemap": []
+    },
+    "notable_transitive_features": [
+      "lsp-types activates serde default/std/derive, serde_json default/std, serde_repr default, fluent-uri default/std",
+      "sourcemap brings serde default/derive and serde_json default",
+      "url transitive dependencies include ICU components; icu_locale_core is transitive, not direct compiler dependency"
+    ]
+  }
+}
