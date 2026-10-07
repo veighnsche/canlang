@@ -41,7 +41,8 @@ import type {
   CompileArtifact,
   StoragePort,
 } from "@canlang/contracts";
-import { buildSessionCookie, sha256HexText } from "@canlang/identity";
+import { buildSessionCookie, sha256HexText, IdentityError, exchangeCode, issueAuthCode, registerClient, createD1IdentityStore } from "@canlang/identity";
+import { createFrozenClock } from "@canlang/identity/testing";
 import type {
   IdentityD1Database,
   IdentityStore as RealIdentityStore,
@@ -479,4 +480,111 @@ describe("refused verdict with production McpDeps", () => {
     expect(page.status).toBe(500);
     expect(((await page.json()) as { code: string }).code).toBe("activation-refused");
   });
+});
+
+describe('OAuth one-use consumption on real D1', () => {
+  it('two actual pre-reads yield one grant, and stale/missing/ambiguous consumers never mint', async () => {
+    const { db } = await startD1('oauth-one-use');
+    const deps = await buildProductionDeps({ DB: db });
+    const store: RealIdentityStore = deps.identityStore;
+    const clock = createFrozenClock(Date.parse('2026-10-07T12:00:00Z'));
+    const user = await store.createUser({ email: 'oauth-race@test.example', password_hash: 'opaque-test-hash', email_verified: true });
+    const team = await store.createTeam({});
+    await store.createMembership({ user_id: user.user_id, team_id: team.team_id, is_owner: true, roles: [] });
+    const redirect = 'https://app.example/callback';
+    const client = await registerClient(store, { redirect_uris: [redirect] }, { clock });
+    const issue = async () => {
+      const { code } = await issueAuthCode(store, {
+        user_id: user.user_id, team_id: team.team_id, client_id: client.client_id,
+        redirect_uri: redirect, code_challenge: 'E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM',
+      }, { clock });
+      return { code, client_id: client.client_id, redirect_uri: redirect,
+        code_verifier: 'dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk' };
+    };
+    const failure = (error: unknown) => {
+      expect(error).toBeInstanceOf(IdentityError);
+      expect((error as IdentityError).code).toBe('validation');
+      expect((error as Error).message).toBe('Invalid or expired code.');
+    };
+    const input = await issue();
+    let preReads = 0;
+    let minted = 0;
+    let release!: () => void;
+    const barrier = new Promise<void>((resolve) => { release = resolve; });
+    const outcomes: string[] = [];
+    const racing: RealIdentityStore = {
+      ...store,
+      async findAuthCodeByHash(hash) {
+        const row = await store.findAuthCodeByHash(hash);
+        expect(row?.consumed_at).toBeNull();
+        if (++preReads === 2) release();
+        await barrier;
+        return row;
+      },
+      async consumeAuthCode(hash) { const outcome = await store.consumeAuthCode(hash); outcomes.push(outcome); return outcome; },
+      async createMcpGrant(row) { minted++; return store.createMcpGrant(row); },
+    };
+    const results = await Promise.allSettled([exchangeCode(racing, input, { clock }), exchangeCode(racing, input, { clock })]);
+    expect(preReads).toBe(2);
+    expect(minted).toBe(1);
+    expect(outcomes.sort()).toEqual(['consumed', 'unavailable']);
+    expect(results.filter((result) => result.status === 'fulfilled')).toHaveLength(1);
+    const loser = results.find((result) => result.status === 'rejected');
+    expect(loser?.status).toBe('rejected');
+    if (loser?.status === 'rejected') failure(loser.reason);
+    expect((await db.prepare('SELECT COUNT(*) AS count FROM identity_mcp_grants').first<{ count: number }>())?.count).toBe(1);
+    expect(await store.consumeAuthCode('missing')).toBe('unavailable');
+    const spentHash = await sha256HexText(input.code);
+    const spent = await store.findAuthCodeByHash(spentHash);
+    expect(spent?.consumed_at).not.toBeNull();
+    expect(await store.consumeAuthCode(spentHash)).toBe('unavailable');
+    expect((await store.findAuthCodeByHash(spentHash))?.consumed_at).toBe(spent?.consumed_at);
+
+    for (const mode of ['stale', 'missing', 'ambiguous', 'consume-throw', 'mint-throw'] as const) {
+      const next = await issue();
+      const original = new Error(mode);
+      let calls = 0;
+      const guarded: RealIdentityStore = {
+        ...store,
+        async findAuthCodeByHash(hash) {
+          const row = await store.findAuthCodeByHash(hash);
+          if (mode === 'stale') expect(await store.consumeAuthCode(hash)).toBe('consumed');
+          if (mode === 'missing') await db.prepare('DELETE FROM identity_auth_codes WHERE code_sha256 = ?').bind(hash).run();
+          return row;
+        },
+        async consumeAuthCode(hash) {
+          if (mode === 'ambiguous') {
+            // The actual UPDATE executes, but its acknowledgment lacks the required D1 profile.
+            const uncertainDb: IdentityD1Database = {
+              prepare(sql) { const statement = db.prepare(sql); return { bind(...values: unknown[]) {
+                const bound = statement.bind(...values); return {
+                  first: bound.first.bind(bound), all: bound.all.bind(bound),
+                  async run() { await bound.run(); return {}; },
+                };
+              } }; },
+              exec: db.exec.bind(db),
+            };
+            return createD1IdentityStore(uncertainDb, { clock }).consumeAuthCode(hash);
+          }
+          const result = await store.consumeAuthCode(hash);
+          if (mode === 'consume-throw') throw original;
+          return result;
+        },
+        async createMcpGrant(row) { calls++; if (mode === 'mint-throw') throw original; return store.createMcpGrant(row); },
+      };
+      const result = await Promise.allSettled([exchangeCode(guarded, next, { clock })]);
+      const rejected = result[0];
+      expect(rejected?.status).toBe('rejected');
+      if (rejected?.status === 'rejected') {
+        if (mode === 'consume-throw' || mode === 'mint-throw') expect(rejected.reason).toBe(original);
+        else if (mode === 'ambiguous') expect((rejected.reason as Error).message).toMatch(/definitive meta.changes/);
+        else failure(rejected.reason);
+      }
+      expect(calls).toBe(mode === 'mint-throw' ? 1 : 0);
+      const hash = await sha256HexText(next.code);
+      expect(await store.consumeAuthCode(hash)).toBe('unavailable');
+      await expect(exchangeCode(store, next, { clock })).rejects.toMatchObject({ code: 'validation', message: 'Invalid or expired code.' });
+    }
+    expect((await db.prepare('SELECT COUNT(*) AS count FROM identity_mcp_grants').first<{ count: number }>())?.count).toBe(1);
+  }, 30_000);
 });
