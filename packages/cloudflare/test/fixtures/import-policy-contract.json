@@ -1,0 +1,1158 @@
+{
+  "schema_version": 1,
+  "frozen_contract": "d01.import-policy.v1",
+  "controls": [
+    {
+      "id": "static-default",
+      "module_key": "main.js",
+      "js": "import x from \"@canlang/stdlib\";\n",
+      "planned_classification": "accepted producer literal",
+      "expected": {
+        "deploy_js": "import x from \"./vendor/stdlib/index.js\";\n"
+      },
+      "target_scope": "pure import leaf",
+      "target": {
+        "js": "import x from \"./vendor/stdlib/index.js\";\n"
+      },
+      "policy": "artifact"
+    },
+    {
+      "id": "static-named",
+      "module_key": "main.js",
+      "js": "import { x } from \"@canlang/stdlib\";\n",
+      "planned_classification": "accepted producer literal",
+      "expected": {
+        "deploy_js": "import { x } from \"./vendor/stdlib/index.js\";\n"
+      },
+      "target_scope": "pure import leaf",
+      "target": {
+        "js": "import { x } from \"./vendor/stdlib/index.js\";\n"
+      },
+      "policy": "artifact"
+    },
+    {
+      "id": "static-namespace",
+      "module_key": "main.js",
+      "js": "import * as x from '@canlang/stdlib';\n",
+      "planned_classification": "accepted producer literal",
+      "expected": {
+        "deploy_js": "import * as x from './vendor/stdlib/index.js';\n"
+      },
+      "target_scope": "pure import leaf",
+      "target": {
+        "js": "import * as x from './vendor/stdlib/index.js';\n"
+      },
+      "policy": "artifact"
+    },
+    {
+      "id": "side-effect",
+      "module_key": "main.js",
+      "js": "import \"@canlang/stdlib\";\n",
+      "planned_classification": "accepted producer literal",
+      "expected": {
+        "deploy_js": "import \"./vendor/stdlib/index.js\";\n"
+      },
+      "target_scope": "pure import leaf",
+      "target": {
+        "js": "import \"./vendor/stdlib/index.js\";\n"
+      },
+      "policy": "artifact"
+    },
+    {
+      "id": "reexport-named",
+      "module_key": "main.js",
+      "js": "export { x } from \"@canlang/stdlib\";\n",
+      "planned_classification": "accepted producer literal",
+      "expected": {
+        "deploy_js": "export { x } from \"./vendor/stdlib/index.js\";\n"
+      },
+      "target_scope": "pure import leaf",
+      "target": {
+        "js": "export { x } from \"./vendor/stdlib/index.js\";\n"
+      },
+      "policy": "artifact"
+    },
+    {
+      "id": "reexport-star",
+      "module_key": "main.js",
+      "js": "export * from \"@canlang/stdlib\";\n",
+      "planned_classification": "accepted producer literal",
+      "expected": {
+        "deploy_js": "export * from \"./vendor/stdlib/index.js\";\n"
+      },
+      "target_scope": "pure import leaf",
+      "target": {
+        "js": "export * from \"./vendor/stdlib/index.js\";\n"
+      },
+      "policy": "artifact"
+    },
+    {
+      "id": "reexport-namespace",
+      "module_key": "main.js",
+      "js": "export * as x from \"@canlang/stdlib\";\n",
+      "planned_classification": "accepted producer literal",
+      "expected": {
+        "deploy_js": "export * as x from \"./vendor/stdlib/index.js\";\n"
+      },
+      "target_scope": "pure import leaf",
+      "target": {
+        "js": "export * as x from \"./vendor/stdlib/index.js\";\n"
+      },
+      "policy": "artifact"
+    },
+    {
+      "id": "dynamic-literal",
+      "module_key": "main.js",
+      "js": "import(\"@canlang/stdlib\");\n",
+      "planned_classification": "accepted producer literal",
+      "expected": {
+        "deploy_js": "import(\"./vendor/stdlib/index.js\");\n"
+      },
+      "target_scope": "pure import leaf",
+      "target": {
+        "js": "import(\"./vendor/stdlib/index.js\");\n"
+      },
+      "policy": "artifact"
+    },
+    {
+      "id": "group-first-fault",
+      "module_key": "main.js",
+      "js": "import \"side-bad\"; import(\"dynamic-bad\"); import x from \"from-bad\";",
+      "planned_classification": "from before dynamic before side",
+      "expected": {
+        "deploy_error": "deploy bundle: module \"main.js\" has unresolvable import \"from-bad\" (only @canlang/stdlib, @canlang/ui, and relative imports are supported)"
+      },
+      "target_scope": "pure import leaf",
+      "target": {
+        "error": "deploy bundle: module \"main.js\" has unresolvable import \"from-bad\" (only @canlang/stdlib, @canlang/ui, and relative imports are supported)"
+      },
+      "policy": "artifact"
+    },
+    {
+      "id": "escaped-producer",
+      "module_key": "main.js",
+      "js": "import x from \"@canlang/\\u0073tdlib\";",
+      "planned_classification": "planned decoded admission correction",
+      "expected": {
+        "decoded_specifier": "@canlang/stdlib",
+        "deploy_js": "import x from \"./vendor/stdlib/index.js\";"
+      },
+      "target_scope": "pure import leaf",
+      "target": {
+        "js": "import x from \"./vendor/stdlib/index.js\";",
+        "specifier": "@canlang/stdlib"
+      },
+      "policy": "artifact"
+    },
+    {
+      "id": "comment-separated",
+      "module_key": "main.js",
+      "js": "import/*a*/x/*b*/from/*c*/\"@canlang/stdlib\";",
+      "planned_classification": "new actual lexical import; preserve trivia",
+      "target_scope": "pure import leaf",
+      "target": {
+        "js": "import/*a*/x/*b*/from/*c*/\"./vendor/stdlib/index.js\";"
+      },
+      "policy": "artifact"
+    },
+    {
+      "id": "attributes",
+      "module_key": "main.js",
+      "js": "import x from \"./asset.wasm\" with {type:\"webassembly\"};",
+      "planned_classification": "literal edge; preserve attribute; link binary only at mixed profile",
+      "target_scope": "pure import leaf",
+      "target": {
+        "js": "import x from \"./asset.wasm\" with {type:\"webassembly\"};"
+      },
+      "known_artifact_paths": [
+        "main.js",
+        "asset.wasm"
+      ],
+      "policy": "artifact"
+    },
+    {
+      "id": "dynamic-options",
+      "module_key": "main.js",
+      "js": "import(\"./data.json\", {with:{type:\"json\"}});",
+      "planned_classification": "new literal dynamic options; preserve options",
+      "target_scope": "pure import leaf",
+      "target": {
+        "js": "import(\"./data.json\", {with:{type:\"json\"}});"
+      },
+      "known_artifact_paths": [
+        "main.js",
+        "data.json"
+      ],
+      "policy": "artifact"
+    },
+    {
+      "id": "empty-literal",
+      "module_key": "main.js",
+      "js": "import \"\";",
+      "planned_classification": "new unresolvable literal",
+      "expected": {
+        "deploy_error": "deploy bundle: module \"main.js\" has unresolvable import \"\" (only @canlang/stdlib, @canlang/ui, and relative imports are supported)"
+      },
+      "target_scope": "pure import leaf",
+      "target": {
+        "error": "deploy bundle: module \"main.js\" has unresolvable import \"\" (only @canlang/stdlib, @canlang/ui, and relative imports are supported)"
+      },
+      "policy": "artifact"
+    },
+    {
+      "id": "nonbmp-same-line",
+      "module_key": "main.js",
+      "js": "const marker=\"\ud83d\ude00\"; import x from \"@canlang/stdlib\"; throw new Error(\"boom\");\n",
+      "planned_classification": "original UTF16 edits, same-line D04 column control",
+      "expected_literal_content_span_utf16": [
+        34,
+        49
+      ],
+      "original_throw_offset_utf16": 52,
+      "target_scope": "pure import leaf",
+      "target": {
+        "js": "const marker=\"\ud83d\ude00\"; import x from \"./vendor/stdlib/index.js\"; throw new Error(\"boom\");\n",
+        "content_span": [
+          34,
+          49
+        ]
+      },
+      "policy": "artifact"
+    },
+    {
+      "id": "regex-false-match",
+      "module_key": "main.js",
+      "js": "const r = /from \"bad\"/;",
+      "planned_classification": "zero import edges; intentional corrected false match",
+      "target_scope": "pure import leaf",
+      "target": {
+        "js": "const r = /from \"bad\"/;",
+        "record_count": 0
+      },
+      "policy": "artifact"
+    },
+    {
+      "id": "string-false-match",
+      "module_key": "main.js",
+      "js": "const s = 'import \"bad\"';",
+      "planned_classification": "zero import edges; intentional corrected false match",
+      "target_scope": "pure import leaf",
+      "target": {
+        "js": "const s = 'import \"bad\"';",
+        "record_count": 0
+      },
+      "policy": "artifact"
+    },
+    {
+      "id": "comment-false-match",
+      "module_key": "main.js",
+      "js": "// import \"bad\";\nexport const x = 1;",
+      "planned_classification": "zero import edges; intentional corrected false match",
+      "target_scope": "pure import leaf",
+      "target": {
+        "js": "// import \"bad\";\nexport const x = 1;",
+        "record_count": 0
+      },
+      "policy": "artifact"
+    },
+    {
+      "id": "nested-template",
+      "module_key": "main.js",
+      "js": "const t = `outer ${`inner ${import(\"@canlang/stdlib\")}`}`;",
+      "planned_classification": "literal dynamic nested expression recognized; template prose untouched",
+      "target_scope": "pure import leaf",
+      "target": {
+        "js": "const t = `outer ${`inner ${import(\"./vendor/stdlib/index.js\")}`}`;"
+      },
+      "policy": "artifact"
+    },
+    {
+      "id": "computed-refusal",
+      "module_key": "main.js",
+      "js": "import(name);",
+      "planned_classification": "artifact refusal at original UTF16 offset0",
+      "expected": {
+        "deploy_error": "deploy bundle: module \"main.js\" has nonliteral dynamic import at offset 0 (only literal dynamic imports are supported)"
+      },
+      "target_scope": "pure import leaf",
+      "target": {
+        "error": "deploy bundle: module \"main.js\" has nonliteral dynamic import at offset 0 (only literal dynamic imports are supported)"
+      },
+      "policy": "artifact"
+    },
+    {
+      "id": "glob-refusal",
+      "module_key": "main.js",
+      "js": "import(`./x/${name}.js`);",
+      "planned_classification": "artifact computed refusal; n undefined never glob admission",
+      "target_scope": "pure import leaf",
+      "target": {
+        "error": "deploy bundle: module \"main.js\" has nonliteral dynamic import at offset 0 (only literal dynamic imports are supported)"
+      },
+      "policy": "artifact"
+    },
+    {
+      "id": "fixed-template",
+      "module_key": "main.js",
+      "js": "import(`./x.js`);",
+      "planned_classification": "new fixed literal admission only when lexer provides fixed n",
+      "target_scope": "pure import leaf",
+      "target": {
+        "js": "import(`./x.js`);"
+      },
+      "known_artifact_paths": [
+        "main.js",
+        "x.js"
+      ],
+      "policy": "artifact"
+    },
+    {
+      "id": "meta",
+      "module_key": "main.js",
+      "js": "const x = import.meta.url;",
+      "planned_classification": "no module edge, no rewrite",
+      "target_scope": "pure import leaf",
+      "target": {
+        "js": "const x = import.meta.url;",
+        "record_count": 1
+      },
+      "policy": "artifact"
+    },
+    {
+      "id": "source-phase",
+      "module_key": "main.js",
+      "js": "import source x from \"./x.wasm\";",
+      "planned_classification": "planned unsupported-phase refusal",
+      "expected": {
+        "deploy_error": "deploy bundle: module \"main.js\" has unsupported import kind \"source-static\" at offset 0 (only evaluation-phase imports are supported)"
+      },
+      "target_scope": "pure import leaf",
+      "target": {
+        "error": "deploy bundle: module \"main.js\" has unsupported import kind \"source-static\" at offset 0 (only evaluation-phase imports are supported)",
+        "phase": "source-static"
+      },
+      "policy": "artifact"
+    },
+    {
+      "id": "syntax-first",
+      "module_key": "main.js",
+      "js": "import x from \"bad\"; import(\"\\uZZZZ\");",
+      "planned_classification": "lexer idx fault before same-module policy; actual offset must be qualified",
+      "source_derived_expected_idx": 31,
+      "source_derived_expected_error": "deploy bundle: module \"main.js\" has invalid import syntax at offset 31",
+      "target_scope": "pure import leaf",
+      "target": {
+        "error": "deploy bundle: module \"main.js\" has invalid import syntax at offset 31"
+      },
+      "policy": "artifact"
+    },
+    {
+      "id": "trusted-dynamic-seam",
+      "module_key": "main.js",
+      "js": "const IDENTITY_SPECIFIER=\"@canlang/identity\"; const m=await import(IDENTITY_SPECIFIER);",
+      "planned_classification": "pinned runtime dynamic_unchecked; existing constant rewrite; not artifact profile",
+      "target_scope": "literal leaf; exact producer constant substitution retained by integration",
+      "target": {
+        "js": "const IDENTITY_SPECIFIER=\"@canlang/identity\"; const m=await import(IDENTITY_SPECIFIER);",
+        "dynamic_status": "dynamic_unchecked"
+      },
+      "policy": "trusted-producer"
+    },
+    {
+      "id": "relative-known",
+      "module_key": "lib/main.js",
+      "js": "import x from \"./helper.js\";\n",
+      "profile": "artifact",
+      "known_artifact_paths": [
+        "lib/main.js",
+        "lib/helper.js"
+      ],
+      "expected_js_unchanged": true,
+      "target_scope": "pure import leaf",
+      "target": {
+        "js": "import x from \"./helper.js\";\n"
+      },
+      "policy": "artifact"
+    },
+    {
+      "id": "relative-missing",
+      "module_key": "lib/main.js",
+      "js": "import x from \"../outside.js\";\n",
+      "profile": "artifact",
+      "known_artifact_paths": [
+        "lib/main.js"
+      ],
+      "expected_error": "deploy bundle: module \"lib/main.js\" imports \"../outside.js\" (resolves to \"outside.js\"): no such artifact module",
+      "target_scope": "pure import leaf",
+      "target": {
+        "error": "deploy bundle: module \"lib/main.js\" imports \"../outside.js\" (resolves to \"outside.js\"): no such artifact module"
+      },
+      "policy": "artifact"
+    },
+    {
+      "id": "file-url-forbidden",
+      "module_key": "main.js",
+      "js": "import x from \"file:///tmp/x.js\";\n",
+      "profile": "artifact",
+      "expected_error": "deploy bundle: module \"main.js\" has unresolvable import \"file:///tmp/x.js\" (only @canlang/stdlib, @canlang/ui, and relative imports are supported)",
+      "target_scope": "pure import leaf",
+      "target": {
+        "error": "deploy bundle: module \"main.js\" has unresolvable import \"file:///tmp/x.js\" (only @canlang/stdlib, @canlang/ui, and relative imports are supported)"
+      },
+      "policy": "artifact"
+    },
+    {
+      "id": "nested-producer-relative",
+      "module_key": "pages/deep/main.js",
+      "js": "import x from \"@canlang/stdlib\";\n",
+      "profile": "artifact",
+      "expected_deploy_js": "import x from \"../../vendor/stdlib/index.js\";\n",
+      "target_scope": "pure import leaf",
+      "target": {
+        "js": "import x from \"../../vendor/stdlib/index.js\";\n"
+      },
+      "policy": "artifact"
+    },
+    {
+      "id": "injected-quote-safe",
+      "module_key": "main.js",
+      "js": "import x from \"@canlang/stdlib\";\n",
+      "profile": "Node-assembly",
+      "stdlib_url": "file:///tmp/a\"b.js",
+      "expected_js": "import x from \"file:///tmp/a\\\"b.js\";\n",
+      "planned_behavior_change": "safe escaping instead of verbatim invalid replacement",
+      "target_scope": "pure import leaf",
+      "target": {
+        "js": "import x from \"file:///tmp/a\\\"b.js\";\n"
+      },
+      "prefix": "assembleModules",
+      "policy": "artifact"
+    },
+    {
+      "id": "runtime-identity",
+      "module_key": "runtime/env-assembly.js",
+      "js": "import x from \"@canlang/identity\";\n",
+      "profile": "trusted-runtime",
+      "expected_deploy_js": "import x from \"../vendor/identity/index.js\";\n",
+      "target_scope": "pure import leaf",
+      "target": {
+        "js": "import x from \"../vendor/identity/index.js\";\n"
+      },
+      "policy": "trusted-producer"
+    },
+    {
+      "id": "runtime-receipt",
+      "module_key": "runtime/invoke.js",
+      "js": "const S=\"@canlang/state/receipt\"; import(S);\n",
+      "profile": "trusted-runtime",
+      "expected_deploy_js": "const S=\"../vendor/state/receipt/index.js\"; import(S);\n",
+      "dynamic_status": "unchecked; existing literal rewrite remains",
+      "target_scope": "literal leaf; exact producer constant substitution retained by integration",
+      "target": {
+        "js": "const S=\"@canlang/state/receipt\"; import(S);\n",
+        "dynamic_status": "dynamic_unchecked"
+      },
+      "policy": "trusted-producer"
+    },
+    {
+      "id": "runtime-state-subpath",
+      "module_key": "runtime/invoke.js",
+      "js": "const S=\"@canlang/state/foo\"; import(S);\n",
+      "profile": "trusted-runtime",
+      "expected_deploy_js": "const S=\"../vendor/state/foo.js\"; import(S);\n",
+      "dynamic_status": "unchecked; existing literal rewrite remains",
+      "target_scope": "literal leaf; exact producer constant substitution retained by integration",
+      "target": {
+        "js": "const S=\"@canlang/state/foo\"; import(S);\n",
+        "dynamic_status": "dynamic_unchecked"
+      },
+      "policy": "trusted-producer"
+    },
+    {
+      "id": "vendor-values",
+      "module_key": "vendor/stdlib/index.js",
+      "js": "import x from \"@canlang/values\";\n",
+      "profile": "trusted-vendor",
+      "expected_deploy_js": "import x from \"../values/index.js\";\n",
+      "target_scope": "pure import leaf",
+      "target": {
+        "js": "import x from \"../values/index.js\";\n"
+      },
+      "policy": "trusted-producer"
+    },
+    {
+      "id": "values-bindings-relative",
+      "module_key": "vendor/values-bindings/entry.js",
+      "js": "import x from \"../src/foo.js\";\n",
+      "profile": "trusted-vendor",
+      "expected_deploy_js": "import x from \"../values/foo.js\";\n",
+      "target_scope": "pure import leaf",
+      "target": {
+        "js": "import x from \"../values/foo.js\";\n"
+      },
+      "policy": "trusted-producer"
+    },
+    {
+      "id": "binary-link-target",
+      "module_key": "main.js",
+      "js": "import wasm from \"./x.wasm\";\n",
+      "profile": "mixed-link",
+      "known_text_paths": [
+        "main.js"
+      ],
+      "binary_keys": [
+        "x.wasm"
+      ],
+      "expected_link_success": true,
+      "target_scope": "lexical observation only; original integration gate retained",
+      "target": {
+        "js": "import wasm from \"./x.wasm\";\n"
+      },
+      "known_artifact_paths": [
+        "main.js",
+        "x.wasm"
+      ],
+      "policy": "artifact"
+    },
+    {
+      "id": "legacy-loadability-group",
+      "module_key": "main.js",
+      "js": "exports.x=1; module.exports=1; require(\"x\");",
+      "profile": "legacy-loadability",
+      "expected_error": "deploy bundle: module \"main.js\" is not workerd-loadable: bare require( call at offset 31 (+2 more)",
+      "expected_issue_order": [
+        "require",
+        "module.exports",
+        "free exports at exports.x"
+      ],
+      "target_scope": "lexical observation only; original integration gate retained",
+      "target": {
+        "js": "exports.x=1; module.exports=1; require(\"x\");",
+        "record_count": 0,
+        "legacy_error": "deploy bundle: module \"main.js\" is not workerd-loadable: bare require( call at offset 31 (+2 more)"
+      },
+      "policy": "artifact"
+    },
+    {
+      "id": "legacy-wrapper-and-guard",
+      "module_key": "main.js",
+      "js": "var r=__commonJS(function(exports,module){module.exports={}; exports.x=1;}); export function require(c){return c;}",
+      "profile": "legacy-loadability",
+      "expected_loadable": true,
+      "target_scope": "lexical observation only; original integration gate retained",
+      "target": {
+        "js": "var r=__commonJS(function(exports,module){module.exports={}; exports.x=1;}); export function require(c){return c;}",
+        "record_count": 0
+      },
+      "policy": "artifact"
+    },
+    {
+      "id": "legacy-duplicate-last",
+      "module_key": "main.js",
+      "js": "import x from \"@canlang/ui\";\n",
+      "profile": "artifact-layering",
+      "modules": [
+        {
+          "path": "main.js",
+          "js": "export const v=1;\n"
+        },
+        {
+          "path": "main.js",
+          "js": "export const v=2;\n"
+        }
+      ],
+      "expected_staged_js": "export const v=2;\n",
+      "first_entry_path": "main.js",
+      "target_scope": "lexical observation only; original integration gate retained",
+      "target": {
+        "js": "import x from \"./vendor/ui/index.js\";\n",
+        "record_count": 1
+      },
+      "known_artifact_paths": [
+        "main.js"
+      ],
+      "policy": "artifact"
+    },
+    {
+      "id": "cross-module-order",
+      "module_key": "main.js",
+      "js": "import x from \"bad\";\n",
+      "profile": "artifact",
+      "modules": [
+        {
+          "path": "a.js",
+          "js": "import x from \"bad\";\n"
+        },
+        {
+          "path": "b.js",
+          "js": "import(\"\\uZZZZ\");"
+        }
+      ],
+      "expected_error": "deploy bundle: module \"a.js\" has unresolvable import \"bad\" (only @canlang/stdlib, @canlang/ui, and relative imports are supported)",
+      "target_scope": "pure import leaf",
+      "target": {
+        "error": "deploy bundle: module \"a.js\" has unresolvable import \"bad\" (only @canlang/stdlib, @canlang/ui, and relative imports are supported)"
+      },
+      "policy": "artifact"
+    }
+  ],
+  "unicode_whitespace_inventory": [
+    {
+      "id": "U+0009",
+      "code_point": 9,
+      "unit": "\t",
+      "kind": "WhiteSpace"
+    },
+    {
+      "id": "U+000B",
+      "code_point": 11,
+      "unit": "\u000b",
+      "kind": "WhiteSpace"
+    },
+    {
+      "id": "U+000C",
+      "code_point": 12,
+      "unit": "\f",
+      "kind": "WhiteSpace"
+    },
+    {
+      "id": "U+0020",
+      "code_point": 32,
+      "unit": " ",
+      "kind": "WhiteSpace"
+    },
+    {
+      "id": "U+00A0",
+      "code_point": 160,
+      "unit": "\u00a0",
+      "kind": "WhiteSpace"
+    },
+    {
+      "id": "U+1680",
+      "code_point": 5760,
+      "unit": "\u1680",
+      "kind": "WhiteSpace"
+    },
+    {
+      "id": "U+2000",
+      "code_point": 8192,
+      "unit": "\u2000",
+      "kind": "WhiteSpace"
+    },
+    {
+      "id": "U+2001",
+      "code_point": 8193,
+      "unit": "\u2001",
+      "kind": "WhiteSpace"
+    },
+    {
+      "id": "U+2002",
+      "code_point": 8194,
+      "unit": "\u2002",
+      "kind": "WhiteSpace"
+    },
+    {
+      "id": "U+2003",
+      "code_point": 8195,
+      "unit": "\u2003",
+      "kind": "WhiteSpace"
+    },
+    {
+      "id": "U+2004",
+      "code_point": 8196,
+      "unit": "\u2004",
+      "kind": "WhiteSpace"
+    },
+    {
+      "id": "U+2005",
+      "code_point": 8197,
+      "unit": "\u2005",
+      "kind": "WhiteSpace"
+    },
+    {
+      "id": "U+2006",
+      "code_point": 8198,
+      "unit": "\u2006",
+      "kind": "WhiteSpace"
+    },
+    {
+      "id": "U+2007",
+      "code_point": 8199,
+      "unit": "\u2007",
+      "kind": "WhiteSpace"
+    },
+    {
+      "id": "U+2008",
+      "code_point": 8200,
+      "unit": "\u2008",
+      "kind": "WhiteSpace"
+    },
+    {
+      "id": "U+2009",
+      "code_point": 8201,
+      "unit": "\u2009",
+      "kind": "WhiteSpace"
+    },
+    {
+      "id": "U+200A",
+      "code_point": 8202,
+      "unit": "\u200a",
+      "kind": "WhiteSpace"
+    },
+    {
+      "id": "U+202F",
+      "code_point": 8239,
+      "unit": "\u202f",
+      "kind": "WhiteSpace"
+    },
+    {
+      "id": "U+205F",
+      "code_point": 8287,
+      "unit": "\u205f",
+      "kind": "WhiteSpace"
+    },
+    {
+      "id": "U+3000",
+      "code_point": 12288,
+      "unit": "\u3000",
+      "kind": "WhiteSpace"
+    },
+    {
+      "id": "U+FEFF",
+      "code_point": 65279,
+      "unit": "\ufeff",
+      "kind": "WhiteSpace"
+    },
+    {
+      "id": "U+000A",
+      "code_point": 10,
+      "unit": "\n",
+      "kind": "LineTerminator"
+    },
+    {
+      "id": "U+000D",
+      "code_point": 13,
+      "unit": "\r",
+      "kind": "LineTerminator"
+    },
+    {
+      "id": "U+2028",
+      "code_point": 8232,
+      "unit": "\u2028",
+      "kind": "LineTerminator"
+    },
+    {
+      "id": "U+2029",
+      "code_point": 8233,
+      "unit": "\u2029",
+      "kind": "LineTerminator"
+    }
+  ],
+  "non_whitespace_controls": [
+    {
+      "id": "U+0085",
+      "code_point": 133,
+      "unit": "\u0085"
+    },
+    {
+      "id": "U+180E",
+      "code_point": 6158,
+      "unit": "\u180e"
+    },
+    {
+      "id": "U+200B",
+      "code_point": 8203,
+      "unit": "\u200b"
+    },
+    {
+      "id": "U+2060",
+      "code_point": 8288,
+      "unit": "\u2060"
+    }
+  ],
+  "unicode_context_controls": [
+    {
+      "id": "comment-boundary-2028",
+      "module_key": "raw/./main.js",
+      "js": "// marker\u2028import \"@canlang/stdlib\";",
+      "expected_specifiers": [
+        "@canlang/stdlib"
+      ],
+      "expected_groups": [
+        "side-effect"
+      ],
+      "known_paths": [],
+      "native_valid_js": true
+    },
+    {
+      "id": "mixed-comment-quoted-2028",
+      "module_key": "raw/./main.js",
+      "js": "// marker\u2028import \"@canlang/stdlib\"; const a=\"x\u2028y\u2029z\"; const b=`x\u2028y`;",
+      "expected_specifiers": [
+        "@canlang/stdlib"
+      ],
+      "expected_groups": [
+        "side-effect"
+      ],
+      "known_paths": [],
+      "native_valid_js": true
+    },
+    {
+      "id": "import-comment-gap-2028",
+      "module_key": "raw/./main.js",
+      "js": "import// marker\u2028\"@canlang/ui\";",
+      "expected_specifiers": [
+        "@canlang/ui"
+      ],
+      "expected_groups": [
+        "side-effect"
+      ],
+      "known_paths": [],
+      "native_valid_js": true
+    },
+    {
+      "id": "comment-boundary-2029",
+      "module_key": "raw/./main.js",
+      "js": "// marker\u2029import \"@canlang/stdlib\";",
+      "expected_specifiers": [
+        "@canlang/stdlib"
+      ],
+      "expected_groups": [
+        "side-effect"
+      ],
+      "known_paths": [],
+      "native_valid_js": true
+    },
+    {
+      "id": "mixed-comment-quoted-2029",
+      "module_key": "raw/./main.js",
+      "js": "// marker\u2029import \"@canlang/stdlib\"; const a=\"x\u2028y\u2029z\"; const b=`x\u2028y`;",
+      "expected_specifiers": [
+        "@canlang/stdlib"
+      ],
+      "expected_groups": [
+        "side-effect"
+      ],
+      "known_paths": [],
+      "native_valid_js": true
+    },
+    {
+      "id": "import-comment-gap-2029",
+      "module_key": "raw/./main.js",
+      "js": "import// marker\u2029\"@canlang/ui\";",
+      "expected_specifiers": [
+        "@canlang/ui"
+      ],
+      "expected_groups": [
+        "side-effect"
+      ],
+      "known_paths": [],
+      "native_valid_js": true
+    },
+    {
+      "id": "original-literal-2003-22",
+      "module_key": "raw/./main.js",
+      "js": "\u2003import(\"./a\u2003b.js\");",
+      "expected_specifiers": [
+        "./a\u2003b.js"
+      ],
+      "expected_groups": [
+        "dynamic"
+      ],
+      "known_paths": [
+        "raw/a\u2003b.js"
+      ],
+      "native_valid_js": true
+    },
+    {
+      "id": "original-literal-2003-27",
+      "module_key": "raw/./main.js",
+      "js": "\u2003import('./a\u2003b.js');",
+      "expected_specifiers": [
+        "./a\u2003b.js"
+      ],
+      "expected_groups": [
+        "dynamic"
+      ],
+      "known_paths": [
+        "raw/a\u2003b.js"
+      ],
+      "native_valid_js": true
+    },
+    {
+      "id": "original-literal-2003-60",
+      "module_key": "raw/./main.js",
+      "js": "\u2003import(`./a\u2003b.js`);",
+      "expected_specifiers": [
+        "./a\u2003b.js"
+      ],
+      "expected_groups": [
+        "dynamic"
+      ],
+      "known_paths": [
+        "raw/a\u2003b.js"
+      ],
+      "native_valid_js": true
+    },
+    {
+      "id": "original-literal-feff-22",
+      "module_key": "raw/./main.js",
+      "js": "\u2003import(\"./a\ufeffb.js\");",
+      "expected_specifiers": [
+        "./a\ufeffb.js"
+      ],
+      "expected_groups": [
+        "dynamic"
+      ],
+      "known_paths": [
+        "raw/a\ufeffb.js"
+      ],
+      "native_valid_js": true
+    },
+    {
+      "id": "original-literal-feff-27",
+      "module_key": "raw/./main.js",
+      "js": "\u2003import('./a\ufeffb.js');",
+      "expected_specifiers": [
+        "./a\ufeffb.js"
+      ],
+      "expected_groups": [
+        "dynamic"
+      ],
+      "known_paths": [
+        "raw/a\ufeffb.js"
+      ],
+      "native_valid_js": true
+    },
+    {
+      "id": "original-literal-feff-60",
+      "module_key": "raw/./main.js",
+      "js": "\u2003import(`./a\ufeffb.js`);",
+      "expected_specifiers": [
+        "./a\ufeffb.js"
+      ],
+      "expected_groups": [
+        "dynamic"
+      ],
+      "known_paths": [
+        "raw/a\ufeffb.js"
+      ],
+      "native_valid_js": true
+    },
+    {
+      "id": "original-literal-2028-22",
+      "module_key": "raw/./main.js",
+      "js": "\u2003import(\"./a\u2028b.js\");",
+      "expected_specifiers": [
+        "./a\u2028b.js"
+      ],
+      "expected_groups": [
+        "dynamic"
+      ],
+      "known_paths": [
+        "raw/a\u2028b.js"
+      ],
+      "native_valid_js": true
+    },
+    {
+      "id": "original-literal-2028-27",
+      "module_key": "raw/./main.js",
+      "js": "\u2003import('./a\u2028b.js');",
+      "expected_specifiers": [
+        "./a\u2028b.js"
+      ],
+      "expected_groups": [
+        "dynamic"
+      ],
+      "known_paths": [
+        "raw/a\u2028b.js"
+      ],
+      "native_valid_js": true
+    },
+    {
+      "id": "original-literal-2028-60",
+      "module_key": "raw/./main.js",
+      "js": "\u2003import(`./a\u2028b.js`);",
+      "expected_specifiers": [
+        "./a\u2028b.js"
+      ],
+      "expected_groups": [
+        "dynamic"
+      ],
+      "known_paths": [
+        "raw/a\u2028b.js"
+      ],
+      "native_valid_js": true
+    },
+    {
+      "id": "original-literal-2029-22",
+      "module_key": "raw/./main.js",
+      "js": "\u2003import(\"./a\u2029b.js\");",
+      "expected_specifiers": [
+        "./a\u2029b.js"
+      ],
+      "expected_groups": [
+        "dynamic"
+      ],
+      "known_paths": [
+        "raw/a\u2029b.js"
+      ],
+      "native_valid_js": true
+    },
+    {
+      "id": "original-literal-2029-27",
+      "module_key": "raw/./main.js",
+      "js": "\u2003import('./a\u2029b.js');",
+      "expected_specifiers": [
+        "./a\u2029b.js"
+      ],
+      "expected_groups": [
+        "dynamic"
+      ],
+      "known_paths": [
+        "raw/a\u2029b.js"
+      ],
+      "native_valid_js": true
+    },
+    {
+      "id": "original-literal-2029-60",
+      "module_key": "raw/./main.js",
+      "js": "\u2003import(`./a\u2029b.js`);",
+      "expected_specifiers": [
+        "./a\u2029b.js"
+      ],
+      "expected_groups": [
+        "dynamic"
+      ],
+      "known_paths": [
+        "raw/a\u2029b.js"
+      ],
+      "native_valid_js": true
+    },
+    {
+      "id": "original-escaped-and-raw-path",
+      "module_key": "raw/./main.js",
+      "js": "\u2003import \"./a\\u2003b\ufeff.js\";",
+      "expected_specifiers": [
+        "./a\u2003b\ufeff.js"
+      ],
+      "expected_groups": [
+        "side-effect"
+      ],
+      "known_paths": [
+        "raw/a\u2003b\ufeff.js"
+      ],
+      "native_valid_js": true
+    },
+    {
+      "id": "original-unicode-line-continuation",
+      "module_key": "raw/./main.js",
+      "js": "\ufeffimport(\"./a\\\u2028b.js\");",
+      "expected_specifiers": [
+        "./ab.js"
+      ],
+      "expected_groups": [
+        "dynamic"
+      ],
+      "known_paths": [
+        "raw/ab.js"
+      ],
+      "native_valid_js": true
+    },
+    {
+      "id": "template-expression-with-unicode",
+      "module_key": "raw/./main.js",
+      "js": "const t=`prose\u2028${`nested\u2003${import(\"@canlang/stdlib\")}`}`;",
+      "expected_specifiers": [
+        "@canlang/stdlib"
+      ],
+      "expected_groups": [
+        "dynamic"
+      ],
+      "known_paths": [],
+      "native_valid_js": true
+    },
+    {
+      "id": "regex-string-template-false-imports",
+      "module_key": "raw/./main.js",
+      "js": "const s=\"\ufeffimport 'bad'\u2028\"; const t=`\u2003import \"bad\"\u2029`; const r=/\u2003import \"bad\"/; \u2003import \"@canlang/ui\";",
+      "expected_specifiers": [
+        "@canlang/ui"
+      ],
+      "expected_groups": [
+        "side-effect"
+      ],
+      "known_paths": [],
+      "native_valid_js": true
+    },
+    {
+      "id": "regex-invalid-line-separator-frontier",
+      "module_key": "raw/./main.js",
+      "js": "const r=/\u2028import \"bad\"/; \u2003import \"@canlang/ui\";",
+      "expected_specifiers": [
+        "@canlang/ui"
+      ],
+      "expected_groups": [
+        "side-effect"
+      ],
+      "known_paths": [],
+      "native_valid_js": false
+    },
+    {
+      "id": "unicode-group-order",
+      "module_key": "raw/./main.js",
+      "js": "import// side\u2028\"side-bad\"; import\u2003(\"dynamic-bad\"); import\ufeffx from \"from-bad\";",
+      "expected_specifiers": [
+        "from-bad",
+        "dynamic-bad",
+        "side-bad"
+      ],
+      "expected_groups": [
+        "from",
+        "dynamic",
+        "side-effect"
+      ],
+      "known_paths": [],
+      "native_valid_js": true
+    },
+    {
+      "id": "unicode-parser-first",
+      "module_key": "raw/./main.js",
+      "js": "\u2003import x from \"bad\"; import(\"\\uZZZZ\");",
+      "expected_specifiers": [],
+      "expected_groups": [],
+      "known_paths": [],
+      "native_valid_js": false
+    }
+  ],
+  "unicode_runtime_map_controls": [
+    {
+      "id": "surrogate-prefix",
+      "js": "\u2003const marker=\"\ud83d\ude00\"; import \"@canlang/stdlib\"; throw new Error(\"boom\");"
+    },
+    {
+      "id": "quoted-line-separators",
+      "js": "import \"@canlang/stdlib\"; const s=\"x\u2028y\u2029z\"; throw new Error(\"boom\");"
+    },
+    {
+      "id": "crlf",
+      "js": "\r\nimport \"@canlang/stdlib\"; throw new Error(\"boom\");"
+    },
+    {
+      "id": "cr-crlf",
+      "js": "\r\r\nimport \"@canlang/stdlib\"; throw new Error(\"boom\");"
+    },
+    {
+      "id": "lone-cr",
+      "js": "\rimport \"@canlang/stdlib\"; throw new Error(\"boom\");"
+    },
+    {
+      "id": "dynamic-options-trivia",
+      "js": "\u2003const marker=\"\ud83d\ude00\"; await import/*gap*/(\"@canlang/stdlib\", {with:{}}); throw new Error(\"boom\");"
+    },
+    {
+      "id": "comment-and-quoted-separators",
+      "js": "import//gap\u2028\"@canlang/stdlib\"; const s=\"x\u2029y\"; throw new Error(\"boom\");"
+    }
+  ]
+}
