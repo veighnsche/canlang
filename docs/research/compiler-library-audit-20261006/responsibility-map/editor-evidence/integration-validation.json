@@ -1,0 +1,20 @@
+{
+  "scope": "finite Step11 evidence/coverage integration, not product certification",
+  "ledger_rows_before": 494,
+  "ledger_rows_after": 537,
+  "prior_records_preserved_except_new_editor_navigation": true,
+  "unique_duties": 31,
+  "proposed_packets": 9,
+  "checked_local_editor_links": 24,
+  "compiler_source_commit": "4ecd991a80ca025b6d5899ffdcea96075c60c25e",
+  "compiler_tree_snapshot_pin": "1fd07722090fe70228a6b661e3c6e136275ca84b",
+  "compiler_tree": "db66f796be4a6e1b7c9c51ab21ef78f7d7e87810",
+  "compiler_editor_catalog_unchanged": true,
+  "living_checkpoint_unchanged": "no merge; canonical plan unmodified",
+  "independent_review": [
+    "review-server.json",
+    "review-process.json",
+    "review-client.json"
+  ],
+  "scope_gates_preserved": true
+}

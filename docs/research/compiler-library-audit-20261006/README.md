@@ -28,6 +28,10 @@ The proposed [compiler correctness, ownership and simplicity audit](compiler-cor
 
 [Audit Step 8 is executed](responsibility-map/semantics.md): 44 finite semantic duties and eight repair/qualification records join the same ledger. Fresh evidence includes 440 selected passes, 73 public API fixtures, 12 current-build graph repeats, 70 public owner calls, eight CLI calls and two emitted pure-format executions. Array nullability, derive scope and format binding/runtime failures are independently corroborated; owner policy/data/presentation disagreements and broader authority/overload gaps remain classified. No production/package/policy implementation or full semantic/installed-release acceptance occurs.
 
+[Audit Step 10 is executed](responsibility-map/outputs.md): 35 finite output/transform/coordinate duties and five proposed packets distinguish emitted binding defects, diagnostic ordering, downstream docs and comment/consumer gates. Exact fixtures and independent reviews retain native/GUI/runtime limits; no production implementation occurs.
+
+[Audit Step 11 is executed](responsibility-map/editor.md): 31 finite server/client duties and nine proposed packets join the same 537-row ledger. Actual compiled client/providers and real-server sessions expose old/closed diagnostics, lost edit versions, wrong completion kinds and ignored options. Seventeen processes, two CLI controls, long-session observations and independent reviews retain selective-host/GUI/resource limits. Static catalog and single-document editor scope remain explicit; no compiler/editor/package implementation, framework selection, merge or checkpoint change.
+
 | Pass | Declared outcome / reference |
 | --- | --- |
 |0 |[Released contracts and witnesses](pass0/README.md) |

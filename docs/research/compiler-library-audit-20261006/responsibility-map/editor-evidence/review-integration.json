@@ -1,0 +1,128 @@
+{
+  "schema": 1,
+  "step": 11,
+  "scope": "Independent read-only integration review; only review-integration.json/.md written",
+  "pins": [
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/editor.md",
+      "sha256": "077be62fba09b259d73e122d6cbdf2172ba6768fe1a82c7ad2ebe9b7979e78a6"
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/coverage.jsonl",
+      "sha256": "57bde089b75c1d1640e04856867d2fe3564f500cdcc6c8d7ad15c12b6436a11f"
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/editor-evidence/registry.json",
+      "sha256": "44f9a64f96df5a478ef37684d5e095fa8c8289e74550f40bcc2b5a8530dc58a1"
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/editor-evidence/integration-validation.json",
+      "sha256": "d5f621c5b3ae134e63a8a733ae6547b0b65ee4c0c3cefa4b7ce2c7a3efc76541"
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/editor-evidence/inputs.json",
+      "sha256": "6aabd49d91e7597070e8f73c1ffe218111bc88de39e3ea0c04d2df2dd36fd2e8"
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/editor-evidence/outcome-verification.json",
+      "sha256": "4c4deddda5339ee9c9ae36ed4e9ef98e7ff3d99d03c72862146fb7734f4a0fac"
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/editor-evidence/execution.json",
+      "sha256": "d4680cd10a9fd6f5d6ba9c4dd7619e86c553f23d713683eaf80799d900b68d33"
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/editor-evidence/process-execution.json",
+      "sha256": "9521e94b56cceb02eb31849455917a2a7d80a95040a4de839e7dc6783134b5e3"
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/editor-evidence/server-options.json",
+      "sha256": "cb26bb7cdf1eb7b9c0035ec7d0b19e813ef3b3d5464380636c9a1743b9714a7d"
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/editor-evidence/client-execution.json",
+      "sha256": "e3f61a5d8fd1255f66f3eacf6b73ccc786dc5a7ed3b82ab633f0c5c63e11d795"
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/editor-evidence/review-client.json",
+      "sha256": "df2b62475c81b18ccfe9fa01dd47cb193da06336862003cabf4ae1b8648491d7"
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/editor-evidence/review-process.json",
+      "sha256": "aa888881a6498d0a584f414e183fd94d797850b5dbb0a439f47657cfb060527c"
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/editor-evidence/review-server.json",
+      "sha256": "26327e9511634315b504755d75278163dac4a470f4c98640b5a3e77b3d99bb19"
+    },
+    {
+      "path": "docs/research/compiler-library-audit-20261006/responsibility-map/editor-evidence/observer-corrections.json",
+      "sha256": "d6fb54177a7341af8503c57d1431636e269b41d4b3c2fbb36c4747d78a5cda8c"
+    }
+  ],
+  "independent_checks": {
+    "ledger_old_rows": 494,
+    "ledger_current_rows": 537,
+    "editor_new_rows": 43,
+    "registry_ledger_equal": true,
+    "all_input_hashes_match": true,
+    "compiler_paths": 107,
+    "compiler_tree_three_refs_equal": "db66f796be4a6e1b7c9c51ab21ef78f7d7e87810",
+    "local_report_links_exist": 14,
+    "verification_checks": 245,
+    "local_editor_links_across_shared_navigation": 24,
+    "compiler_paths_with_nonempty_editor_navigation": 10
+  },
+  "conclusions": [
+    {
+      "id": "ERI01",
+      "verdict": "Accept inventory/counts",
+      "source": "registry.json; coverage.jsonl; integration-validation.json",
+      "evidence": "31 finite duties =17 server+14 client;9 proposed packets. Registry entries match namespaced editor ledger objects exactly. Ledger494->537 =43 additions:31 duties+9 findings+registry/inputs/execution. Final navigation uses10 actual compiler paths with nonempty editor refs, avoiding empty-field noise.",
+      "bound": "Prior rows retain previous substantive payload; permitted new editor_refs/editor_scope and scope execution/status navigation. Path records must key by path rather than missing id."
+    },
+    {
+      "id": "ERI02",
+      "verdict": "Accept execution totals and distinction",
+      "source": "execution.json; process-execution.json; server-options.json; client-execution.json; outcome-verification.json",
+      "evidence": "Selected six integration suites30+3+4+32+26+4=99; LSP unit29 excludes97; startup mock11. Actual process11+option2+client4=17. CLIcontrols2, public callbacks129, clientobservations9, verificationchecks245.",
+      "bound": "Receipts/checks count fact agreement, not product success. Seven unmet groups remain explicit. No full suite, real GUI, actual edit application, RSS or representative benchmark claim."
+    },
+    {
+      "id": "ERI03",
+      "verdict": "Accept source snapshot clarification",
+      "source": "inputs.json; editor.md; integration-validation.json",
+      "evidence": "107 pinned compiler paths and all supplied input hashes match current filesystem. Independent git compiler tree at HEAD, baseline snapshot1fd07722 and last actual source change4ecd991a equalsdb66f796be4a6e1b7c9c51ab21ef78f7d7e87810.",
+      "bound": "Snapshot commit need not modify compiler; report now explicitly separates tree snapshot from last-source commit.69,255 production lines inherited established classification, not recounted or reduced here."
+    },
+    {
+      "id": "ERI04",
+      "verdict": "Accept bounded currentness/options findings",
+      "source": "editor.md current workflow table; review-client.json; server-options.json",
+      "evidence": "Delayed old/closed diagnostics, unversioned offered rename, numeric enum and cancelled hover supported at actual compiled module/real-frame/selective stand-in scope; references false and carrier negotiation independently real-binary confirmed.",
+      "bound": "No GUI icon/Problems rendering, stale text corruption, actual apply/atomicity or interrupted server analysis inferred. Close clearing linked to documented single-file VSCode guidance, not universal all-project MUST."
+    },
+    {
+      "id": "ERI05",
+      "verdict": "Accept public/cost/workspace distinctions",
+      "source": "editor.md; registry ED-R06/07/08/09",
+      "evidence": "Public batched epochs are duplicate current work, distinct from synchronous stdio. Retained96 then97 revisions/791031 then799271 text bytes and129 callback observations match source traversal. Live static catalog/crossfile contrast is bounded.",
+      "bound": "Historical lint parse/rules use current checked facts, not typecheck all history. Invalid-client decreasing versions not normative rejection defects. No workspace engine or retention API selected."
+    },
+    {
+      "id": "ERI06",
+      "verdict": "Accept packet ownership/release gates",
+      "source": "editor.md nine-packet table; registry findings",
+      "evidence": "Defining writer files and acceptance targets explicit. Shared client/extension/server files use one writer/sequential release; references and carrier may release separately under server serialization. History/workspace policy qualification required before ownership API selection; startup packet is source-lead qualification.",
+      "bound": "Registry acceptance_reference points to report table rather than duplicating gate text. This is a proposed planning sequence, not executable implementation delegation or adopted protocol/client framework."
+    },
+    {
+      "id": "ERI07",
+      "verdict": "Accept corrections and navigation with scope limit",
+      "source": "editor.md correction section; integration-validation.json; observer-corrections.json",
+      "evidence": "Failed initializer/package/observer attempts preserved; corrected controls precede conclusions. Final completion argument order and client death delivery qualification integrated. Independently checked all14 report links and24 total local editor links across shared navigation exist.",
+      "bound": "Evidence preservation/navigation validation is not whole protocol coverage. Broader audit and installed-original release acceptance remain future gates; no merge/checkpoint advancement here."
+    }
+  ],
+  "acceptance": "Integrated bounded planning packet accepted; no major count/claim/ownership/gating defect found; no policy/framework/source change selected."
+}
