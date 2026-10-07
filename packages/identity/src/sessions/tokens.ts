@@ -2,14 +2,15 @@
  * Opaque bearer-token primitives: issuance, SHA-256 hashing, byte
  * comparison, base64url codecs.
  *
- * WebCrypto globals only (`globalThis.crypto.subtle`); no node:crypto, so
- * this module runs identically in Node and workerd. Raw tokens are returned
+ * WebCrypto hashing and host-native byte comparison in Node and workerd.
+ * Raw tokens are returned
  * to exactly one caller (login response, addressed mail); only hex SHA-256
  * digests are stored or compared.
  */
 import { base64urlnopad, hex } from '@scure/base';
 import { webRandom } from '../ports.js';
 import type { RandomSource } from '../ports.js';
+import { timingSafeEqualBytes } from './comparison.js';
 
 /** Raw bearer-token size: 256 bits. */
 export const OPAQUE_TOKEN_BYTES = 32;
@@ -64,29 +65,20 @@ export async function sha256HexText(text: string): Promise<string> {
 
 /**
  * Hex byte comparison. False on malformed input or length mismatch.
- * The full byte loop does not establish a host-level timing guarantee.
+ * Decoding and length rejection are outside the native timing-safe primitive.
  */
 export function timingSafeEqualHex(a: string, b: string): boolean {
   const ab = hexToBytes(a);
   const bb = hexToBytes(b);
-  if (ab === null || bb === null || ab.length !== bb.length) return false;
-  let diff = 0;
-  for (let i = 0; i < ab.length; i++) {
-    diff |= (ab[i] ?? 0) ^ (bb[i] ?? 0);
-  }
-  return diff === 0;
+  if (ab === null || bb === null) return false;
+  return timingSafeEqualBytes(ab, bb);
 }
 
-/** UTF-8 byte comparison for non-hex secrets (CSRF). */
+/** UTF-8 encoding and length rejection precede native comparison (CSRF). */
 export function timingSafeEqualText(a: string, b: string): boolean {
   const ab = new TextEncoder().encode(a);
   const bb = new TextEncoder().encode(b);
-  if (ab.length !== bb.length) return false;
-  let diff = 0;
-  for (let i = 0; i < ab.length; i++) {
-    diff |= (ab[i] ?? 0) ^ (bb[i] ?? 0);
-  }
-  return diff === 0;
+  return timingSafeEqualBytes(ab, bb);
 }
 
 /**

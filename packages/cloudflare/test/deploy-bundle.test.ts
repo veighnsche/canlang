@@ -219,6 +219,12 @@ describe("deploy bundle (P-B)", () => {
     expect(bundle.modules["vendor/ui/index.js"]).toBeDefined();
     expect(bundle.modules["vendor/stdlib/index.js"]).toBeDefined();
     expect(bundle.modules["vendor/identity/index.js"]).toBeDefined();
+    expect(bundle.modules["vendor/identity/sessions/comparison-node.js"]).toBeUndefined();
+    expect(bundle.modules["vendor/identity/sessions/comparison-worker.js"]).toBeDefined();
+    expect(bundle.modules["vendor/identity/sessions/comparison.js"]).toContain("./comparison-worker.js");
+    for (const key of ["vendor/cookie/index.js", "vendor/scure-base/index.js", "vendor/csv-parse/sync.js"]) {
+      expect(bundle.modules[key], `owning browser dependency ${key}`).toBeDefined();
+    }
     expect(bundle.modules["vendor/contracts/presentation.js"]).toBeDefined();
     expect(bundle.modules["contracts/src/presentation.js"]).toBeUndefined();
     expect(bundle.modules["vendor/contracts/presentation.js"]).toBeDefined();

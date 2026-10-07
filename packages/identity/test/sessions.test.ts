@@ -9,6 +9,7 @@ import {
   createOpaqueToken,
   sha256HexText,
   timingSafeEqualHex,
+  timingSafeEqualText,
 } from '../src/sessions/tokens.js';
 import {
   SESSION_COOKIE_NAME,
@@ -50,6 +51,18 @@ test('hex comparison is exact and total', () => {
   assert.equal(timingSafeEqualHex(digest, 'b'.repeat(64)), false);
   assert.equal(timingSafeEqualHex(digest, 'a'.repeat(63)), false);
   assert.equal(timingSafeEqualHex(digest, 'zz'), false);
+});
+
+test('public text comparison preserves synchronous UTF-8 semantics', () => {
+  assert.equal(timingSafeEqualText('', ''), true);
+  assert.equal(timingSafeEqualText('secret', 'secret'), true);
+  assert.equal(timingSafeEqualText('secret', 'secrex'), false);
+  assert.equal(timingSafeEqualText('é', 'e'), false);
+  assert.equal(timingSafeEqualText('é', 'ab'), false);
+  assert.equal(timingSafeEqualText('\ud800', '\ufffd'), true);
+  assert.equal(timingSafeEqualText('\ud800', '\udc00'), true);
+  assert.equal(typeof timingSafeEqualText('a', 'a'), 'boolean');
+  assert.equal(typeof timingSafeEqualHex('00', '00'), 'boolean');
 });
 
 test('session cookie builds, parses, and clears', () => {

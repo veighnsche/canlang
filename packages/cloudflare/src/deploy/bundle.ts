@@ -77,6 +77,7 @@
  */
 
 import { execFileSync } from "node:child_process";
+import { createRequire } from "node:module";
 import { createHash } from "node:crypto";
 import { lstatSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -191,6 +192,33 @@ const TEST_ONLY_VENDOR_KEYS: ReadonlySet<string> = new Set([
   // production-vendored — intentionally ABSENT here (present in the
   // vendor walk, resolved by the rewrite map above).
 ]);
+
+/** Native Node comparison is a production host leaf, never a Worker module. */
+const NODE_HOST_VENDOR_KEYS: ReadonlySet<string> = new Set([
+  "vendor/identity/sessions/comparison-node.js",
+]);
+
+/** Exact pinned browser entries resolved from the packages that own them. */
+const BROWSER_DEPENDENCIES = [
+  { owner: identityDistribution.modules, specifier: "cookie", name: "cookie", version: "2.0.1", entry: "dist/index.js", key: "vendor/cookie/index.js" },
+  { owner: identityDistribution.modules, specifier: "@scure/base", name: "@scure/base", version: "2.4.0", entry: "index.js", key: "vendor/scure-base/index.js" },
+  { owner: uiDistribution.modules, specifier: "csv-parse/browser/esm/sync", name: "csv-parse", version: "7.0.3", entry: "dist/esm/sync.js", key: "vendor/csv-parse/sync.js" },
+] as const;
+
+function stageBrowserDependencies(): Record<string, string> {
+  const modules: Record<string, string> = {};
+  for (const dependency of BROWSER_DEPENDENCIES) {
+    const entry = createRequire(dependency.owner).resolve(dependency.specifier);
+    const packageRoot = resolve(entry, ...dependency.entry.split("/").map(() => ".."));
+    const manifest = JSON.parse(readFileSync(join(packageRoot, "package.json"), "utf8")) as { name?: string; version?: string };
+    if (manifest.name !== dependency.name || manifest.version !== dependency.version ||
+        relative(packageRoot, entry).split(sep).join("/") !== dependency.entry) {
+      throw new Error(`deploy bundle: unexpected pinned browser entry for ${dependency.name}`);
+    }
+    modules[dependency.key] = readFileSync(entry, "utf8");
+  }
+  return modules;
+}
 
 /** Vendor entry keys (mirroring each package's `main`). */
 const UI_VENDOR_ENTRY = "vendor/ui/index.js";
@@ -384,6 +412,7 @@ function readVendorTree(tree: VendorTree): Record<string, string> {
       // loud, as before.
       const vendorKey = `${tree.prefix}/${relative(base, full).split(sep).join("/")}`;
       if (TEST_ONLY_VENDOR_KEYS.has(vendorKey)) continue;
+      if (NODE_HOST_VENDOR_KEYS.has(vendorKey)) continue;
       const key = `${tree.prefix}/${relative(base, full).split(sep).join("/")}`;
       modules[key] = rewriteVendorImports(readFileSync(full, "utf8"), key);
     }
@@ -468,6 +497,14 @@ function rewriteRuntimeImports(js: string, moduleKey: string): string {
  */
 function rewriteVendorImports(js: string, moduleKey: string): string {
   const mapped = (spec: string): string => {
+    if (moduleKey.startsWith("vendor/identity/")) {
+      if (spec === "#identity-byte-compare") return relativeSpecifier(moduleKey, "vendor/identity/sessions/comparison-worker.js");
+      if (spec === "cookie") return relativeSpecifier(moduleKey, "vendor/cookie/index.js");
+      if (spec === "@scure/base") return relativeSpecifier(moduleKey, "vendor/scure-base/index.js");
+    }
+    if (moduleKey.startsWith("vendor/ui/") && spec === "csv-parse/browser/esm/sync") {
+      return relativeSpecifier(moduleKey, "vendor/csv-parse/sync.js");
+    }
     if (moduleKey.startsWith("vendor/values-bindings/") && isRelativeSpecifier(spec)) {
       const target = posix.normalize(posix.join(posix.dirname(moduleKey), spec));
       if (target.startsWith("vendor/src/")) {
@@ -924,6 +961,7 @@ export function buildDeployBundle(
     Object.assign(modules, readVendorTree(tree));
   }
   Object.assign(modules, stageSourceMapCodec());
+  Object.assign(modules, stageBrowserDependencies());
   modules[MCP_HANDLER_MODULE] = buildMcpBundle();
   modules[HTTP_OPERATIONS_MODULE] = buildHttpOperationsBundle();
   modules[ARTIFACT_MODULE] = renderStagedDeployment(
