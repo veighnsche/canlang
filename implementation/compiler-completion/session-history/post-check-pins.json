@@ -1,0 +1,5 @@
+{
+  "compiler/src/lsp/server.rs": "d67e86139e279df070588553f9f0a0fc419f05bab7e35cd049111c9033eefa16",
+  "compiler/src/lint/driver.rs": "567a6a43ade59d553e7ebe1634c7a436a0ad1c9a9ed44cbda442951d9de79d96",
+  "compiler/tests/session_history.rs": "17746cf664363255e05cd479eca0aecec26efca3b42ccaa31aebb23945628658"
+}

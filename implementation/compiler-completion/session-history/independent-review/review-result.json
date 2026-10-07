@@ -1,0 +1,80 @@
+{
+  "result": "accepted bounded ED-R06 / FAIL-R07 scope; no blocking finding",
+  "production_edits_by_reviewer": [],
+  "new_public_observer": {
+    "scope": "Pinned compiled library public API; no full-source freeze, RSS, GUI, cross-file-analysis or check-time-invalid-ID lint-admission claim",
+    "session": {
+      "accepted": "all live URI texts and latest-live path alias checked at every callback; FIFO compared to generation-based oracle; all seven request callback kinds exercised",
+      "callback_methods": {
+        "code_actions": 46,
+        "completions": 46,
+        "definition": 45,
+        "diagnostics": 466,
+        "hover": 37,
+        "references": 51,
+        "rename": 57,
+        "semantic_tokens": 52
+      },
+      "callback_views": 800,
+      "closed_and_shutdown_publications": 0,
+      "diagnostic_callbacks": 466,
+      "fresh_owner_refusals": 334,
+      "same_owner_admissions": 465,
+      "transitions": 1800
+    },
+    "standalone": {
+      "checked_order": [
+        4,
+        2,
+        4
+      ],
+      "duplicate_fix_files": [
+        1,
+        1
+      ],
+      "finding_order": [
+        [
+          2,
+          "I1003"
+        ],
+        [
+          4,
+          "I1003"
+        ],
+        [
+          4,
+          "I1003"
+        ]
+      ],
+      "fresh_owner_codes": [
+        "E6011"
+      ],
+      "retained_sources": 85,
+      "same_owner_admitted": true,
+      "valid_held_ids_immutable": true
+    }
+  },
+  "observer_compile_exit": 0,
+  "observer_run_exit": 0,
+  "focused_passed": 82,
+  "focused_counts": {
+    "session_history": 4,
+    "lint": 32,
+    "checked_cohort": 8,
+    "lsp_typed_output": 8,
+    "lsp-unit": 30
+  },
+  "all_focused_run_exits_zero": true,
+  "production_test_source_pins_match": true,
+  "actual_archive_pins_match": true,
+  "author_current_replay_nontiming_match": true,
+  "strict_clippy": "author receipt/output hashes verified; not rerun independently",
+  "qualification": "exact archived actual compiler rlib and separately archived subprocess binary; no reproduced full source freeze; no complete suite/performance/GUI/overall integration claim",
+  "limitations": [
+    "valid-at-check owning-DB lint boundary retained; no new lint cohort admission",
+    "all-live copy/hash cost proportional to live text; no universal latency/RSS assertion",
+    "before experiment reviewed rather than independently rebuilt",
+    "unit30 reused archived compiled harness; other48 compiled original current unchanged bodies against exact archived library",
+    "root owns shared decisions and final integration"
+  ]
+}

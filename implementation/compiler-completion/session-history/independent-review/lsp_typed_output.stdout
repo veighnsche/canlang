@@ -1,0 +1,13 @@
+
+running 8 tests
+test public_queued_work_does_not_revive_after_close_or_shutdown ... ok
+test real_all_output_families_crlf_and_supplementary_utf16 ... ok
+test real_clean_rename_includes_mutation_targets_and_rechecks ... ok
+test real_close_clears_and_reopen_publishes_only_new_buffer ... ok
+test real_diagnostics_keep_valid_siblings_after_a_parse_error ... ok
+test real_opaque_uri_identities_keep_notifications_locations_and_edit_routing ... ok
+test real_supported_reference_option_and_edit_capability_profiles ... ok
+test real_version_increment_requeries_current_source_and_edits ... ok
+
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.15s
+

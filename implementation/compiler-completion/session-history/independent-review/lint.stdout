@@ -1,0 +1,37 @@
+
+running 32 tests
+test comment_preserving_removal_uses_existing_atomic_fix_guards ... ok
+test corpus_noise_assessment ... ok
+test default_config_is_recommended_without_fixes_or_catalog ... ok
+test deprecated_ignores_shadowed_and_nonbuiltin ... ok
+test deprecated_silent_without_catalog_data ... ok
+test deprecated_warns_on_deprecated_call ... ok
+test description_valid_cases ... ok
+test duplicate_description_invalid ... ok
+test empty_description_invalid ... ok
+test fix_flag_off_offers_nothing ... ok
+test fix_narrows_redundant_safe_access ... ok
+test fix_refuses_stale_and_invalid ... ok
+test fix_removes_unreachable_statement ... ok
+test fixes_apply_as_batch ... ok
+test redundant_null_invalid ... ok
+test redundant_null_valid_nullable_receiver ... ok
+test rule_codes_resolve_in_explain_catalog ... ok
+test rule_table_is_consistent ... ok
+test shadow_valid_cases ... ok
+test shadow_warns_with_opt_in_only ... ok
+test unreachable_after_return_is_analysis_error_not_lint ... ok
+test unreachable_removal_preserves_comment_lines_and_siblings ... ok
+test unreachable_removal_refuses_descriptions_and_malformed_inline_comments ... ok
+test unreachable_require_false_semicolon_sequence_has_no_fix ... ok
+test unreachable_valid_cases ... ok
+test unreachable_warns_after_require_false ... ok
+test unused_alias_collection_descendant_scope ... ok
+test unused_alias_invalid ... ok
+test unused_alias_valid ... ok
+test unused_let_invalid ... ok
+test unused_let_suppressed_by_shadowing ... ok
+test unused_let_valid_reads ... ok
+
+test result: ok. 32 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.13s
+

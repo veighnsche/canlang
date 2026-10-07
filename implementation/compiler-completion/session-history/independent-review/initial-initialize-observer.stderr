@@ -1,0 +1,5 @@
+
+thread 'main' (1717300) panicked at implementation/compiler-completion/session-history/independent-review/observer.rs:129:5:
+assertion failed: send(&mut s,
+                    json!({"jsonrpc":"2.0","id":1,"method":"initialize","params":{"capabilities":{}}}))[0]["result"]["capabilities"].is_object()
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace

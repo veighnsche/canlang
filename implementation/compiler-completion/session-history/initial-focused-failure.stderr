@@ -1,0 +1,7 @@
+   Compiling canlang-compiler v0.1.0 (/Users/vince/Projects/canlang/compiler)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 10.31s
+     Running tests/checked_cohort.rs (/private/tmp/can-session-history-target/debug/deps/checked_cohort-71a015d860e3fdcb)
+     Running tests/lint.rs (/private/tmp/can-session-history-target/debug/deps/lint-aa1c794f11be4578)
+     Running tests/lsp_typed_output.rs (/private/tmp/can-session-history-target/debug/deps/lsp_typed_output-ea71e66763901e8c)
+     Running tests/session_history.rs (/private/tmp/can-session-history-target/debug/deps/session_history-43a345cc0ad61c22)
+error: test failed, to rerun pass `--test session_history`

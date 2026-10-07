@@ -1,0 +1,14 @@
+{
+  "state": "Consider a single-threaded document service whose private storage appends a new immutable source for each changed text. IDs belong to their database instance. Each analysis invocation receives a temporary borrowed database plus the selected ID; the database has no public service accessor. Several live documents share that view, while actual semantic queries check one document. Pending tasks are filtered by document URI/version/source; close removes them. An independent compiler database may be kept by its caller indefinitely, and checked output accepts only its original owner and selected sources. Finite edit observations establish accumulation of obsolete texts, and lint currently reparses all entries despite its checked-file list. Required outcomes are bounded service history, no historical lint work, valid held public snapshots, unchanged callback shape and single-file semantics, and correct pending work across replacement/close/reopen.",
+  "questions": {
+    "ownership": {
+      "type": "choice",
+      "instructions": "Select the preferable coherent repair for the declared service contract. Evaluate immediate all-live replacement, lease-based reclamation, and budgeted immutable history under the same correctness and simplicity constraints.",
+      "criteria": {
+        "live_owner": "On each actual document content change or removal, construct an all-current-documents database with a new owner. Update every live ID together with surviving queued tasks; prune stale tasks before reusing numeric IDs. Leave the public append-only database alone. Holds no obsolete service revisions; pays copying and hashing for unaffected documents plus owner-lifetime documentation.",
+        "reclamation_api": "Extend storage with generation-qualified snapshots and ownership leases, use them for documents and pending jobs, and drop only history without a lease. Adapt legacy immutable database callers and checked-owner validation coherently. Avoids rebuilding unaffected texts but introduces a larger storage interface and migration surface.",
+        "bounded_history": "Allow some obsolete private revisions under a chosen hard revision allowance; reaching the allowance replaces storage with an all-live owner and remaps docs plus valid queued tasks. Independent databases stay append-only. Saves repeated live-set copying but adds a retention threshold and delayed reclamation overhead."
+      }
+    }
+  }
+}

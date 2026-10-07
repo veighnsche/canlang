@@ -1,0 +1,26 @@
+   Compiling canlang-compiler v0.1.0 (/Users/vince/Projects/canlang/compiler)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 6.78s
+     Running unittests src/lib.rs (compiler/target/debug/deps/canlang_compiler-8bc9585627feb9a7)
+
+running 18 tests
+test cli::tests::docs_requires_operands ... ok
+test cli::tests::locale_and_out_are_docs_only ... ok
+test cli::tests::docs_help_names_modes_and_refusal ... ok
+test cli::tests::out_refuses_can_sources_before_any_input_read ... ok
+test cli::tests::out_refuses_to_overwrite_input_files ... ok
+test cli::tests::diagnostics_fail_with_no_spawn_and_no_file_write ... ok
+test cli::tests::format_json_shapes_diagnostics_not_markdown ... ok
+test cli::tests::stderr_tail_caps_and_names_absence ... ok
+test cli::tests::stub_backend_reports_needs_pipeline_before_spawn ... ok
+test cli::tests::missing_platform_binary_is_e7004 ... ok
+test cli::tests::unwritable_out_is_e7007 ... ok
+test cli::tests::failed_renderer_input_terminates_and_reaps_the_child ... ok
+test cli::tests::renders_to_stdout_with_fixed_argv_and_stdin_payload ... ok
+test cli::tests::renderer_failure_reports_producer_detail_as_e7004 ... ok
+test cli::tests::out_writes_the_file_and_stays_silent ... ok
+test cli::tests::renders_without_locale_omits_the_flag ... ok
+test cli::tests::renderer_output_is_drained_while_its_input_is_written ... ok
+test cli::tests::empty_and_non_utf8_output_are_e7004 ... ok
+
+test result: ok. 18 passed; 0 failed; 0 ignored; 0 measured; 111 filtered out; finished in 0.26s
+

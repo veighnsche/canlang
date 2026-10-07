@@ -1,0 +1,27 @@
+   Compiling canlang-compiler v0.1.0 (/Users/vince/Projects/canlang/compiler)
+error[E0308]: mismatched types
+     --> src/analysis/types.rs:13654:29
+      |
+13654 |                 if let Some((result, slots)) = self.try_overload(cx, overload, args, &typed, &mut trial) {
+      |                             ^^^^^^^^^^^^^^^    --------------------------------------------------------- this expression has type `std::option::Option<ResolvedType>`
+      |                             |
+      |                             expected `ResolvedType`, found `(_, _)`
+      |
+      = note: expected enum `ResolvedType`
+                found tuple `(_, _)`
+
+error[E0599]: no method named `publish_decl_call` found for mutable reference `&mut Typer<'a>` in the current scope
+     --> src/analysis/types.rs:13946:14
+      |
+13946 |         self.publish_decl_call(node, SelectedCallTarget::DeriveFn(id), &params, args, &bound);
+      |              ^^^^^^^^^^^^^^^^^ method not found in `&mut Typer<'a>`
+
+error[E0599]: no method named `publish_decl_call` found for mutable reference `&mut Typer<'a>` in the current scope
+     --> src/analysis/types.rs:13982:14
+      |
+13982 |         self.publish_decl_call(node, SelectedCallTarget::Message(id), &params, args, &bound);
+      |              ^^^^^^^^^^^^^^^^^ method not found in `&mut Typer<'a>`
+
+Some errors have detailed explanations: E0308, E0599.
+For more information about an error, try `rustc --explain E0308`.
+error: could not compile `canlang-compiler` (lib test) due to 3 previous errors

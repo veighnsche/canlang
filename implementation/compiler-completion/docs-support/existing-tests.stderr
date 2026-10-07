@@ -1,0 +1,7 @@
+   Compiling canlang-compiler v0.1.0 (/Users/vince/Projects/canlang/compiler)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 3.65s
+     Running tests/docs.rs (compiler/target/debug/deps/docs-6f724f8354ff893d)
+     Running tests/typed_reference_policy_consumers.rs (compiler/target/debug/deps/typed_reference_policy_consumers-9f73e960fedaa468)
+PASS typed policy: fresh CLI through actual policyDumpSections and policyPage escaping
+PASS typed reference: fresh docs CLI and extracted JSON through public Markdown renderer
+     Running tests/typed_references.rs (compiler/target/debug/deps/typed_references-153ed6709ab4ecc7)

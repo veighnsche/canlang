@@ -1,0 +1,51 @@
+compiler/tests/typed_references.rs:25:    assert_eq!(model.to_json_string(), expected);
+compiler/tests/typed_references.rs:127:    assert_eq!(model.to_json_string(), expected);
+packages/interfaces/src/docs/reference.ts:725:export function renderReferenceMarkdown(
+compiler/src/docs.rs:355:pub fn extract_reference(
+compiler/src/docs.rs:1116:fn reference_json<T: serde::Serialize>(value: &T) -> Json {
+compiler/src/docs.rs:1127:    pub fn to_json_string(&self) -> String {
+compiler/src/docs.rs:1131:    /// The model as a [`Json`] value (same shape as [`Self::to_json_string`]).
+compiler/src/docs.rs:1133:        reference_json(self)
+compiler/src/docs.rs:1140:        reference_json(self)
+compiler/src/docs.rs:1147:        reference_json(self)
+compiler/src/docs.rs:1154:        reference_json(self)
+compiler/src/docs.rs:1161:        reference_json(self)
+compiler/src/docs.rs:1168:        reference_json(self)
+compiler/src/docs.rs:1178:        reference_json(self)
+compiler/src/docs.rs:1185:        reference_json(self)
+compiler/src/docs.rs:1192:        reference_json(self)
+compiler/src/docs.rs:1199:        reference_json(self)
+compiler/src/docs.rs:1206:        reference_json(self)
+compiler/src/docs.rs:1213:        reference_json(self)
+compiler/src/docs.rs:1220:        reference_json(self)
+compiler/src/cli.rs:765:        OutputFormat::Json => format!("{}\n", crate::codegen::to_json_string(&artifact)),
+compiler/src/cli.rs:943:    let model = crate::docs::extract_reference(&db, &files, &program);
+compiler/src/cli.rs:944:    let payload = model.to_json_string();
+packages/cloudflare/src/cli/docs.ts:8: * (`@canlang/interfaces` `renderReferenceMarkdown`, the ONLY locale engine)
+packages/cloudflare/src/cli/docs.ts:27:const RENDERER_CONTRACT = "renderReferenceMarkdown (ReferenceModel v1 → Markdown)";
+packages/cloudflare/src/cli/docs.ts:34:  renderReferenceMarkdown: (
+packages/cloudflare/src/cli/docs.ts:111:  const render = module["renderReferenceMarkdown"];
+packages/cloudflare/src/cli/docs.ts:114:      `reference renderer ${RENDERER_SPECIFIER} has no renderReferenceMarkdown export (version drift)`,
+packages/cloudflare/src/cli/docs.ts:118:    renderReferenceMarkdown: render as ReferenceRenderer["renderReferenceMarkdown"],
+packages/cloudflare/src/cli/docs.ts:133:    markdown = renderer.renderReferenceMarkdown(model, locale === null ? {} : { locale });
+compiler/tests/typed_reference_policy_consumers.rs:8:use canlang_compiler::docs::extract_reference;
+compiler/tests/typed_reference_policy_consumers.rs:156:    let model = extract_reference(&db, &[id], &program);
+compiler/tests/typed_reference_policy_consumers.rs:158:    std::fs::write(&json_path, model.to_json_string()).unwrap();
+compiler/tests/typed_reference_policy_consumers.rs:164:        extract_reference(&db, &[id], &program_without_catalog).to_json_string(),
+compiler/tests/typed_reference_policy_consumers.rs:172:const {renderReferenceMarkdown} = await import(pathToFileURL(process.argv[2]));
+compiler/tests/typed_reference_policy_consumers.rs:186:assert.equal(renderReferenceMarkdown(model, {locale:'nl'}), readFileSync(process.argv[4], 'utf8'));
+compiler/tests/typed_reference_policy_consumers.rs:187:const source = renderReferenceMarkdown(model, {locale:'fr'});
+compiler/tests/typed_reference_policy_consumers.rs:193:assert.ok(renderReferenceMarkdown(withoutCatalog).includes('- Catalog version: none'));
+compiler/tests/docs.rs:15:    extract_reference, portable_source_id,
+compiler/tests/docs.rs:105:    let model = extract_reference(&db, &[id], &program);
+compiler/tests/docs.rs:106:    (model.to_json_string(), model)
+compiler/tests/docs.rs:565:    let model = extract_reference(&db, &[id], &program);
+compiler/tests/docs.rs:613:    let first = extract_reference(&db, &[zed, amy], &program);
+compiler/tests/docs.rs:614:    let second = extract_reference(&db, &[amy, zed], &program);
+compiler/tests/docs.rs:616:    assert_eq!(first.to_json_string(), second.to_json_string());
+compiler/tests/docs.rs:966:        let model = extract_reference(&db, &ids, &program);
+compiler/tests/docs.rs:1064:            let model = extract_reference(&db, &ids, &program);
+compiler/tests/docs.rs:1129:        let model = extract_reference(&db, &ids, &program);
+compiler/tests/docs.rs:1164:        let model = extract_reference(&db, &ids, &program);
+compiler/tests/docs.rs:1550:    let model = extract_reference(&db, &[id], &program);
+compiler/tests/docs.rs:1581:    let model = extract_reference(&db, &[id], &program);

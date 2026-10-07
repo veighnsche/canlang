@@ -1,0 +1,51 @@
+{
+  "commands": [
+    {
+      "command": "cargo test --locked --offline --manifest-path compiler/Cargo.toml --target-dir /private/tmp/can-session-history-target --test session_history --test lint --test checked_cohort --test lsp_typed_output",
+      "exit": 101,
+      "qualification": "8 checked_cohort/32 lint/8 lsp_typed_output passed;3 new tests passed;1 observer assumption failed",
+      "stdout": "focused.stdout",
+      "stderr": "focused.stderr",
+      "stdout_sha256": "2d7f347b26d4152682a01cf63afe2267ea92580089cd129afcfdfe374bde8793",
+      "stderr_sha256": "21c23908d55690b67810f6574d7d5f44c24f4ece2ae3c50f9cb72e1a865986bf"
+    },
+    {
+      "command": "cargo test --locked --offline --manifest-path compiler/Cargo.toml --target-dir /private/tmp/can-session-history-target --test session_history",
+      "exit": 0,
+      "qualification": "4/4 passed after explicit missing-catalog expectation correction",
+      "stdout": "session-focused.stdout",
+      "stderr": "session-focused.stderr",
+      "stdout_sha256": "182d05428ccb77370ee64b8e9f451ca11cd4b4995837774a04bccd4309fba017",
+      "stderr_sha256": "7f4d4ae4da4f06b18e7a153e916f1ee7cf9faacfdb18675723eaed73acc9ae3c"
+    },
+    {
+      "command": "cargo test --locked --offline --manifest-path compiler/Cargo.toml --target-dir /private/tmp/can-session-history-target --lib lsp::",
+      "exit": 0,
+      "qualification": "30/30 passed",
+      "stdout": "lsp-unit.stdout",
+      "stderr": "lsp-unit.stderr",
+      "stdout_sha256": "3df98c971d9fb6ccdbcfb527640e53bc57c4c7eb67fee4ea6f6e8c069a3dbf0b",
+      "stderr_sha256": "fed92b5bc467b77a36578d7333e7d0c342fd6993e2c504c65d6c8987c3b1b4c8"
+    },
+    {
+      "command": "cargo clippy --locked --offline --manifest-path compiler/Cargo.toml --target-dir /private/tmp/can-session-history-clippy-target --lib --test session_history --test lint --test checked_cohort --test lsp_typed_output -- -D warnings",
+      "exit": 0,
+      "qualification": "strict focused gates passed",
+      "stdout": "clippy.stdout",
+      "stderr": "clippy.stderr",
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderr_sha256": "c0613fda4550f0d0fd07836286484ba7a5ac5c1b6ffc9b7a6d2561b711309ea0"
+    },
+    {
+      "command": "cargo build --locked --offline --manifest-path compiler/Cargo.toml --lib --bin can --message-format=json --target-dir /private/tmp/can-session-history-target",
+      "exit": 0,
+      "qualification": "fresh library and production binary",
+      "stdout": "current-build.stdout",
+      "stderr": "current-build.stderr",
+      "stdout_sha256": "7804f110e5faad3528b4b6e922a51ef741e6eb6aa05891139b17b414079cbcff",
+      "stderr_sha256": "5bf6d3c38d6e778e45f0a975c32d0609a48942c6d931c647edd04f432965c5cc"
+    }
+  ],
+  "accepted_test_count": 82,
+  "scope": "Focused suites plus32/3live and48/1live public before-after probes. No fullsuite, hoststress, GUI, RSS, universal latency or crossfile expansion claims."
+}

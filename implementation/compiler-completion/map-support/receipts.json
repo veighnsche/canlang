@@ -1,0 +1,61 @@
+{
+  "controls": {
+    "command": [
+      "rustc",
+      "--edition=2021",
+      "/Users/vince/Projects/canlang/implementation/compiler-completion/map-support/controls.rs",
+      "-L",
+      "dependency=/Users/vince/Projects/canlang/compiler/target/debug/deps",
+      "--extern",
+      "sourcemap=/Users/vince/Projects/canlang/compiler/target/debug/deps/libsourcemap-c9bb006fd2e49a06.rlib",
+      "-o",
+      "/Users/vince/Projects/canlang/implementation/compiler-completion/map-support/controls"
+    ],
+    "exit": 0,
+    "run_exit": 0
+  },
+  "private_encoder": {
+    "command": [
+      "rustc",
+      "--edition=2021",
+      "/Users/vince/Projects/canlang/implementation/compiler-completion/map-support/private_encoder.rs",
+      "-L",
+      "dependency=/Users/vince/Projects/canlang/compiler/target/debug/deps",
+      "--extern",
+      "sourcemap=/Users/vince/Projects/canlang/compiler/target/debug/deps/libsourcemap-c9bb006fd2e49a06.rlib",
+      "-o",
+      "/Users/vince/Projects/canlang/implementation/compiler-completion/map-support/private_encoder"
+    ],
+    "exit": 1
+  },
+  "get_mappings": {
+    "command": [
+      "rustc",
+      "--edition=2021",
+      "/Users/vince/Projects/canlang/implementation/compiler-completion/map-support/get_mappings.rs",
+      "-L",
+      "dependency=/Users/vince/Projects/canlang/compiler/target/debug/deps",
+      "--extern",
+      "sourcemap=/Users/vince/Projects/canlang/compiler/target/debug/deps/libsourcemap-c9bb006fd2e49a06.rlib",
+      "-o",
+      "/Users/vince/Projects/canlang/implementation/compiler-completion/map-support/get_mappings"
+    ],
+    "exit": 1
+  },
+  "serialize_trait": {
+    "command": [
+      "rustc",
+      "--edition=2021",
+      "/Users/vince/Projects/canlang/implementation/compiler-completion/map-support/serialize_trait.rs",
+      "-L",
+      "dependency=/Users/vince/Projects/canlang/compiler/target/debug/deps",
+      "--extern",
+      "sourcemap=/Users/vince/Projects/canlang/compiler/target/debug/deps/libsourcemap-c9bb006fd2e49a06.rlib",
+      "-o",
+      "/Users/vince/Projects/canlang/implementation/compiler-completion/map-support/serialize_trait",
+      "--extern",
+      "serde=/Users/vince/Projects/canlang/compiler/target/debug/deps/libserde-5f77724b6c1d8dcc.rlib"
+    ],
+    "exit": 1
+  }
+}

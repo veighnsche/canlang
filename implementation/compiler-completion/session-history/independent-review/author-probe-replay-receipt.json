@@ -1,0 +1,52 @@
+{
+  "source_sha256": "a112fdfd979e2267881b803905313b8aec8f90fd4515255a20c5bdcfc2defdf7",
+  "compile_argv": [
+    "rustc",
+    "--edition=2024",
+    "implementation/compiler-completion/session-history/research/probe.rs",
+    "--extern",
+    "canlang_compiler=/private/tmp/can-session-independent-review/libcanlang_compiler.rlib",
+    "--extern",
+    "serde_json=/private/tmp/can-session-independent-review/libserde_json-5d66d1a0fe38a533.rlib",
+    "-L",
+    "dependency=/private/tmp/can-session-independent-review/deps",
+    "-o",
+    "/private/tmp/can-session-independent-review/author-probe-replay"
+  ],
+  "compile_exit": 0,
+  "qualification": "Replay of author observer against independently archived exact compiler library; independent new observer recorded separately",
+  "runs": [
+    {
+      "argv": [
+        "/private/tmp/can-session-independent-review/author-probe-replay",
+        "batch"
+      ],
+      "exit": 0,
+      "seconds": 0.2509109160018852
+    },
+    {
+      "argv": [
+        "/private/tmp/can-session-independent-review/author-probe-replay",
+        "retention"
+      ],
+      "exit": 0,
+      "seconds": 0.037612000000081025
+    },
+    {
+      "argv": [
+        "/private/tmp/can-session-independent-review/author-probe-replay",
+        "closure"
+      ],
+      "exit": 0,
+      "seconds": 0.006314874997769948
+    },
+    {
+      "argv": [
+        "/private/tmp/can-session-independent-review/author-probe-replay",
+        "multi"
+      ],
+      "exit": 0,
+      "seconds": 0.10237950000009732
+    }
+  ]
+}

@@ -1,0 +1,1 @@
+{"saved": "implementation/compiler-completion/session-history/research/jev-response-2.json", "model": "jev-1.13.0", "answers": {"ownership": {"type": "choice", "choice": "bounded_history", "confidence": 0.43, "probabilities": {"live_owner": 0.33, "bounded_history": 0.62, "reclamation_api": 0.05}}}, "usage": {"input_tokens": 694, "output_tokens": 44}}

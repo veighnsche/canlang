@@ -1,0 +1,52 @@
+{
+  "result": "RETAIN",
+  "production_edits": 0,
+  "net_production_lines_removed": 0,
+  "mechanisms_retired": 0,
+  "rustc": "rustc 1.99.0 (b940084d7 2026-09-28)",
+  "cargo": "cargo 1.99.0 (5f94df478 2026-08-27)",
+  "checks": [
+    {
+      "command": "cargo test --manifest-path compiler/Cargo.toml --test typed_references --test docs --test typed_reference_policy_consumers -- --nocapture",
+      "exit": 0,
+      "docs_extraction_passed": 30,
+      "typed_wire_passed": 3,
+      "consumer_passed": 2,
+      "docs_actual_body_pass_marker": true,
+      "policy_consumer_not_credited_as_docs": true,
+      "skip_markers": []
+    },
+    {
+      "command": "cargo test --manifest-path compiler/Cargo.toml --lib cli::tests -- --nocapture",
+      "exit": 101,
+      "tests_executed": 0,
+      "reason": "concurrent source Typer compilation errors E0308/E0599; no docs execution claim"
+    }
+  ],
+  "logs": {
+    "existing-tests.stdout": {
+      "sha256": "796076833b045ea648ad50fed590b0f8be6375860d27dea976cdc3cdd5bf87b7",
+      "bytes": 2420
+    },
+    "cli-docs-tests.stdout": {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    "cli-docs-tests.stderr": {
+      "sha256": "521f78d8514642198fd26ebfcefd01ea2d96c99ada6683ed5089c383ff507c18",
+      "bytes": 1536
+    },
+    "existing-tests.stderr": {
+      "sha256": "9c73597f978461e3975da39b95d624a2f904b756435c4f2079d0a19e532939ec",
+      "bytes": 641
+    }
+  },
+  "built_consumer_boundary_pins": {
+    "packages/values/dist/catalog.json": "cd984f375e0d6cbcc2bc6aca5ad5ea5b1b3d3ba9cd17b15ab94e4b15e74ced62",
+    "packages/cloudflare/dist/cli/platform.js": "f3b2415475d81162b9292d0d295068583f2c88d15afb823c127ac60f91665ffa",
+    "packages/cloudflare/dist/cli/docs.js": "d9c89b08847eedf8bfe50be72b0ff632224554cb7c17e9ce5edc965999860fef",
+    "packages/interfaces/dist/src/index.js": "5719fb1eebb73724a81e2347dcc03b4e7c28d2f0277b0ef1cb58edc038d74fe8",
+    "packages/interfaces/dist/src/docs/reference.js": "e04ff9bd750de5bd0318c93fca530346189636095eb0f0c1b15c4d41f3a691bb"
+  },
+  "limits": "Pins identify scoped files as observed, not matched whole-compiler release/binary provenance while other writers work. Built package entrypoints, not exhaustive package dependency audit."
+}

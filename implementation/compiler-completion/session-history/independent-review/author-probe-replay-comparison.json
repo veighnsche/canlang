@@ -1,0 +1,24 @@
+{
+  "retention": {
+    "nontiming_observations_match_recorded_current": true,
+    "timing_fields_excluded_from_comparison": true,
+    "last_retained_sources": 1,
+    "last_retained_text_bytes": 1072,
+    "analysis_calls": 65,
+    "closed_pump_notifications": 0
+  },
+  "closure": {
+    "nontiming_observations_match_recorded_current": true,
+    "timing_fields_excluded_from_comparison": true
+  },
+  "multi": {
+    "nontiming_observations_match_recorded_current": true,
+    "timing_fields_excluded_from_comparison": true,
+    "last_retained_sources": 3,
+    "last_retained_text_bytes": 24744
+  },
+  "batch": {
+    "nontiming_observations_match_recorded_current": true,
+    "timing_fields_excluded_from_comparison": true
+  }
+}

@@ -1,0 +1,9 @@
+
+running 4 tests
+test live_documents_bound_history_and_keep_uri_aliases_distinct ... ok
+test real_stdio_distinct_edits_close_and_reopen_use_current_text ... ok
+test remapped_queued_work_keeps_current_fifo_and_cannot_revive_stale_ids ... ok
+test standalone_immutable_ids_and_exact_lint_selection_survive_history ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.35s
+

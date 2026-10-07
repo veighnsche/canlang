@@ -173,7 +173,7 @@ impl Default for LintConfig {
     }
 }
 
-/// Lint every source in `db` against the checked program.
+/// Lint the program's selected sources against their checked database.
 ///
 /// Rules see `program` (symbols, modules, type table) plus the reparsed
 /// CST for precise spans. Findings are warnings/informational only and
@@ -469,7 +469,10 @@ fn run_with_files(
 ) -> Vec<(SourceId, Finding)> {
     let declared = declared_names(program);
     let mut out = Vec::new();
-    for (file, source) in db.iter() {
+    for &file in program.checked_files() {
+        let Some(source) = db.get(file) else {
+            continue;
+        };
         let (tree, _) = crate::syntax::parse(db, file);
         let ctx = RuleCtx {
             program,

@@ -1,0 +1,35 @@
+
+running 30 tests
+test lsp::server::tests::completion_kind_names_map_to_lsp_integers ... ok
+test lsp::output::tests::plain_edit_keeps_authored_uri_and_group_order ... ok
+test lsp::server::tests::exit_without_shutdown_is_an_error ... ok
+test lsp::output::tests::uri_outputs_keep_original_spelling_on_both_paths ... ok
+test lsp::output::tests::typed_envelope_keeps_id_and_all_control_escapes ... ok
+test lsp::server::tests::uri_to_path_decodes_file_uris ... ok
+test lsp::server::tests::requests_after_shutdown_are_invalid ... ok
+test lsp::output::tests::action_groups_keep_versions_order_and_optional_edits ... ok
+test lsp::server::tests::lifecycle_gates_requests_and_exit_codes ... ok
+test lsp::transport::tests::exact_lsp_integers_accept_decimal_equivalents_without_rounding ... ok
+test lsp::transport::tests::envelopes_reject_reserved_duplicates_and_preserve_safe_correlation ... ok
+test lsp::transport::tests::framing_counts_multibyte_unicode_as_bytes ... ok
+test lsp::transport::tests::framing_errors_are_invalid_data ... ok
+test lsp::server::tests::completion_response_carries_integer_kinds ... ok
+test lsp::server::tests::stub_requests_answer_empty ... ok
+test lsp::server::tests::invalid_notifications_and_initialize_leave_state_unchanged ... ok
+test lsp::server::tests::out_of_range_positions_are_invalid_params ... ok
+test lsp::transport::tests::framing_preserves_the_bare_lf_compatibility_extension ... ok
+test lsp::transport::tests::framing_round_trip_with_split_reads ... ok
+test lsp::transport::tests::framing_preserves_malformed_utf8_and_the_next_frame ... ok
+test lsp::server::tests::identical_content_change_keeps_version_semantics ... ok
+test lsp::transport::tests::json_round_trip_with_escapes_and_unicode ... ok
+test lsp::transport::tests::incomplete_utf8_sequence_stops_at_the_body_boundary ... ok
+test lsp::transport::tests::malformed_json_rejected ... ok
+test lsp::transport::tests::malformed_content_length_values_rejected ... ok
+test lsp::transport::tests::rpc_builders_shape ... ok
+test lsp::transport::tests::surrogate_pairs_decode_and_lone_surrogates_fail ... ok
+test lsp::uri::tests::nonfile_and_unsupported_forms_keep_authored_identity ... ok
+test lsp::uri::tests::unix_file_authority_and_exact_unicode_projection ... ok
+test lsp::transport::tests::large_multibyte_string_parses_in_linear_time ... ok
+
+test result: ok. 30 passed; 0 failed; 0 ignored; 0 measured; 99 filtered out; finished in 0.01s
+

@@ -1,0 +1,9 @@
+{
+  "command": "cargo test --manifest-path compiler/Cargo.toml --locked --offline --lib cli::tests -- --nocapture",
+  "exit_code": 0,
+  "harness_passed": 18,
+  "raw_log": "root-cli-tests.log",
+  "raw_sha256": "b016642f96210d1728f12daa70176bee0078666468eec4123b6cbc7a4f870f02",
+  "source_gate": "Selected-call owner announced stable cargo check and held edits during this focused join.",
+  "scope": "Bounded CLI orchestration/error controls, not independently executed renderer/body for every command; earlier concurrent compilation failure remains."
+}

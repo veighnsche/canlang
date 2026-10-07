@@ -1,0 +1,140 @@
+{
+  "results": [
+    {
+      "name": "session_history",
+      "source": "/Users/vince/Projects/canlang/compiler/tests/session_history.rs",
+      "source_sha256": "17746cf664363255e05cd479eca0aecec26efca3b42ccaa31aebb23945628658",
+      "compile_argv": [
+        "rustc",
+        "--edition=2024",
+        "--test",
+        "/Users/vince/Projects/canlang/compiler/tests/session_history.rs",
+        "--extern",
+        "canlang_compiler=/private/tmp/can-session-independent-review/libcanlang_compiler.rlib",
+        "--extern",
+        "serde_json=/private/tmp/can-session-independent-review/libserde_json-5d66d1a0fe38a533.rlib",
+        "--extern",
+        "tempfile=/private/tmp/can-session-independent-review/deps/libtempfile-13b192ede15d4fd4.rlib",
+        "-L",
+        "dependency=/private/tmp/can-session-independent-review/deps",
+        "-o",
+        "/private/tmp/can-session-independent-review/session_history-fresh"
+      ],
+      "compile_exit": 0,
+      "compile_seconds": 0.5527685000051861,
+      "run_argv": [
+        "/private/tmp/can-session-independent-review/session_history-fresh",
+        "--test-threads=1"
+      ],
+      "run_exit": 0,
+      "run_seconds": 0.602593584000715,
+      "binary_sha256": "01c1d7da50079d4a534b73758fbf6e6c3ae9d7597185d734c5e7940f95280ab3"
+    },
+    {
+      "name": "lint",
+      "source": "/Users/vince/Projects/canlang/compiler/tests/lint.rs",
+      "source_sha256": "3afc4728750746ff37817011140d438b368f303253af673c40043a79bc7c879e",
+      "compile_argv": [
+        "rustc",
+        "--edition=2024",
+        "--test",
+        "/Users/vince/Projects/canlang/compiler/tests/lint.rs",
+        "--extern",
+        "canlang_compiler=/private/tmp/can-session-independent-review/libcanlang_compiler.rlib",
+        "--extern",
+        "serde_json=/private/tmp/can-session-independent-review/libserde_json-5d66d1a0fe38a533.rlib",
+        "--extern",
+        "tempfile=/private/tmp/can-session-independent-review/deps/libtempfile-13b192ede15d4fd4.rlib",
+        "-L",
+        "dependency=/private/tmp/can-session-independent-review/deps",
+        "-o",
+        "/private/tmp/can-session-independent-review/lint-fresh"
+      ],
+      "compile_exit": 0,
+      "compile_seconds": 0.5507850419962779,
+      "run_argv": [
+        "/private/tmp/can-session-independent-review/lint-fresh",
+        "--test-threads=1"
+      ],
+      "run_exit": 0,
+      "run_seconds": 2.3605891249972046,
+      "binary_sha256": "269cdd6ef399a534dd99ec1090e29bd335840d29ac3bc8d9dd41078bd3adc399"
+    },
+    {
+      "name": "checked_cohort",
+      "source": "/Users/vince/Projects/canlang/compiler/tests/checked_cohort.rs",
+      "source_sha256": "f5f38cdb4fcbb9a871ba61aea4a1ff8d102c3e2051d7ceaa804d72a312c1dfde",
+      "compile_argv": [
+        "rustc",
+        "--edition=2024",
+        "--test",
+        "/Users/vince/Projects/canlang/compiler/tests/checked_cohort.rs",
+        "--extern",
+        "canlang_compiler=/private/tmp/can-session-independent-review/libcanlang_compiler.rlib",
+        "--extern",
+        "serde_json=/private/tmp/can-session-independent-review/libserde_json-5d66d1a0fe38a533.rlib",
+        "--extern",
+        "tempfile=/private/tmp/can-session-independent-review/deps/libtempfile-13b192ede15d4fd4.rlib",
+        "-L",
+        "dependency=/private/tmp/can-session-independent-review/deps",
+        "-o",
+        "/private/tmp/can-session-independent-review/checked_cohort-fresh"
+      ],
+      "compile_exit": 0,
+      "compile_seconds": 0.23167608299991116,
+      "run_argv": [
+        "/private/tmp/can-session-independent-review/checked_cohort-fresh",
+        "--test-threads=1"
+      ],
+      "run_exit": 0,
+      "run_seconds": 0.25138233399775345,
+      "binary_sha256": "2464b582d8656abc4280963c99fffc2813b23857bdda06a3f83a4634608895f3"
+    },
+    {
+      "name": "lsp_typed_output",
+      "source": "/Users/vince/Projects/canlang/compiler/tests/lsp_typed_output.rs",
+      "source_sha256": "2ade57e0df122a34e3f1dff4c341bbe708e1462f73136304ccd0afeb8bbedb90",
+      "compile_argv": [
+        "rustc",
+        "--edition=2024",
+        "--test",
+        "/Users/vince/Projects/canlang/compiler/tests/lsp_typed_output.rs",
+        "--extern",
+        "canlang_compiler=/private/tmp/can-session-independent-review/libcanlang_compiler.rlib",
+        "--extern",
+        "serde_json=/private/tmp/can-session-independent-review/libserde_json-5d66d1a0fe38a533.rlib",
+        "--extern",
+        "tempfile=/private/tmp/can-session-independent-review/deps/libtempfile-13b192ede15d4fd4.rlib",
+        "-L",
+        "dependency=/private/tmp/can-session-independent-review/deps",
+        "-o",
+        "/private/tmp/can-session-independent-review/lsp_typed_output-fresh"
+      ],
+      "compile_exit": 0,
+      "compile_seconds": 0.33036545899813063,
+      "run_argv": [
+        "/private/tmp/can-session-independent-review/lsp_typed_output-fresh",
+        "--test-threads=1"
+      ],
+      "run_exit": 0,
+      "run_seconds": 0.3340124999958789,
+      "binary_sha256": "59289b42dff17d33b2b61302142ecf21bd65b9e518442b583bee7d8ae18284e3"
+    },
+    {
+      "name": "lsp-unit",
+      "run_argv": [
+        "/private/tmp/can-session-independent-review/canlang_compiler-8bc9585627feb9a7",
+        "lsp::",
+        "--test-threads=1"
+      ],
+      "run_exit": 0,
+      "run_seconds": 0.3454474580066744,
+      "qualification": "copied previously built lib test executable; no new unit lib compilation"
+    }
+  ],
+  "compile_env": {
+    "CARGO_BIN_EXE_can": "/private/tmp/can-session-independent-review/can",
+    "CARGO_MANIFEST_DIR": "/Users/vince/Projects/canlang/compiler"
+  },
+  "qualification": "Fresh integration harnesses compile original source bodies against exact archived actual rlib; subprocess can archived separately; copied unit test executable"
+}

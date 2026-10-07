@@ -1,0 +1,17 @@
+{
+  "/Users/vince/Projects/canlang/compiler/src/codegen/sourcemap.rs": "93bb7708447b30ba5cb40c41bd1400c41407a4d1d5665343faf697320e07459a",
+  "/Users/vince/Projects/canlang/compiler/Cargo.lock": "384be2a089bd9ef4c6ccb1714e3ad0bade9870a35f48932ef1a4e8fb3ee7cd64",
+  "/Users/vince/Projects/canlang/compiler/Cargo.toml": "92f8582ecbe4b7f7cb0e29b85643a4c1e03f479f729371c0c0f67696f35aec48",
+  "/Users/vince/Projects/canlang/compiler/tests/sourcemap_contract.rs": "d6b245794c1aa323ba9eaa14804d734da1eaaf7c30e0a22e4ffaa39ed0c4bece",
+  "/Users/vince/Projects/canlang/compiler/tests/fixtures/sourcemap-consumer.mjs": "bdbb513c0065187da8d67eb48519704062f26c3d06a9499175538b710d43c797",
+  "/Users/vince/Projects/canlang/compiler/tests/codegen.rs": "9245b06e5402046d23416917ba51073eb1f31dd3582520373a198a39037d4c56",
+  "/Users/vince/Projects/canlang/compiler/src/codegen/artifact.rs": "5c2c3831d0bed1cea7ae0bfb8339e351996299b0481a70b2dac42b6aca36c73c",
+  "/Users/vince/Projects/canlang/compiler/src/codegen/mod.rs": "2ba20c0dcc1c29f821f3dff62da8cba0414aa77ae3194ef9db9197eed6206e7d",
+  "/Users/vince/Projects/canlang/compiler/src/lib.rs": "36ed081a75985d1e406f6f30c9daaa7cc492725f2b594f68a867547e246b5971",
+  "/Users/vince/Projects/canlang/compiler/target/debug/deps/libsourcemap-c9bb006fd2e49a06.rlib": "e96401d7d09c2aa5ca5fb65b7d60c255c6e46ba5e3c7d00706db7e9bf5a556a3",
+  "/Users/vince/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/sourcemap-9.3.2/src/lib.rs": "9ef7ea76f4c97c613919594dc8ce3532b45122d914f6905c45d08d6796999c9f",
+  "/Users/vince/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/sourcemap-9.3.2/src/encoder.rs": "2d91de1309834982bedc1686ba6386027bdbe0671da7385053788fe150af8af0",
+  "/Users/vince/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/sourcemap-9.3.2/src/vlq.rs": "065f4d132bd0adeb26e6a3439622962c78df0e92cb62dc2596494eeca8a4082c",
+  "/Users/vince/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/sourcemap-9.3.2/src/types.rs": "f85fbc21806143dbc4672573ce298b371f0bc89d6f01209d2fcfef4a294653bd",
+  "/Users/vince/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/sourcemap-9.3.2/src/builder.rs": "c3a57b94c86509f0be0f501a615f6b3a58c317a91fad4930e103245b30638f73"
+}

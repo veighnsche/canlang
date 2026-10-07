@@ -1,0 +1,4 @@
+
+thread 'main' (1719507) panicked at implementation/compiler-completion/session-history/independent-review/observer.rs:161:17:
+textDocument/codeAction: [Object {"error": Object {"code": Number(-32602), "message": String("unknown document or bad range")}, "id": Number(16), "jsonrpc": String("2.0")}]
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace

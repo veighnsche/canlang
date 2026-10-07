@@ -1,0 +1,27 @@
+error[E0277]: the trait bound `SourceMap: serde::Serialize` is not satisfied
+ --> /Users/vince/Projects/canlang/implementation/compiler-completion/map-support/serialize_trait.rs:1:62
+  |
+1 | fn requires<T: serde::Serialize>() {} fn main() { requires::<sourcemap::SourceMap>(); }
+  |                                                              ^^^^^^^^^^^^^^^^^^^^ the trait `Serialize` is not implemented for `SourceMap`
+  |
+  = note: for local types consider adding `#[derive(serde::Serialize)]` to your `SourceMap` type
+  = note: for types from other crates check whether the crate offers a `serde` feature flag
+  = help: the following other types implement trait `Serialize`:
+            &'a T
+            &'a mut T
+            ()
+            (T,)
+            (T0, T1)
+            (T0, T1, T2)
+            (T0, T1, T2, T3)
+            (T0, T1, T2, T3, T4)
+          and 136 others
+note: required by a bound in `requires`
+ --> /Users/vince/Projects/canlang/implementation/compiler-completion/map-support/serialize_trait.rs:1:16
+  |
+1 | fn requires<T: serde::Serialize>() {} fn main() { requires::<sourcemap::SourceMap>(); }
+  |                ^^^^^^^^^^^^^^^^ required by this bound in `requires`
+
+error: aborting due to 1 previous error
+
+For more information about this error, try `rustc --explain E0277`.
