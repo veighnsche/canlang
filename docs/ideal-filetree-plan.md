@@ -219,3 +219,5 @@ Cloudflare remains the fanout scheduling/effect consumer, State the admission/li
 Files retains upload/finalization owners. The existing immutable-size agreement guard is independently accepted at its frozen FS/persisted-fixture scope; separate completion correction/joint tests are active. No durable-binding/phase-recovery/lifetime claim, new protocol owner, merge or complete checkpoint advance.
 
 Values owned-input remains the parser/derivative owner. Narrow content isolation is independently accepted with explicit copying/traversal and behavioral cost; genuine factory/default/consumer/installed claims stay open. No new package/layer, merge or complete checkpoint advance.
+
+Files retains upload/finalization ownership; independently accepted completion byte-size enforcement now joins the existing finalizer guard at actual FS/persisted-copy fixture scope. No new protocol/layer, retry or durable/provider/lifetime claim, merge or complete checkpoint advance.
