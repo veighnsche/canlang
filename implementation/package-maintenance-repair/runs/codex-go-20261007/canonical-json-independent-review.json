@@ -1,0 +1,338 @@
+{
+  "task": "DEL-A01-canonical",
+  "baseline": "e29ff90",
+  "disposition": "accepted at the exact byte-preserving CSV/export private recursion extraction scope; no introduced defect found",
+  "lease": {
+    "files": [
+      "packages/interfaces/src/http/csv.ts",
+      "packages/interfaces/src/http/export.ts",
+      "packages/interfaces/src/http/canonical-json.ts",
+      "packages/interfaces/test/canonical-json-leaf.test.ts"
+    ],
+    "repositoryWrites": false,
+    "sharedBuildWrites": false,
+    "privateEvidenceOnly": true,
+    "released": true
+  },
+  "sourceProof": {
+    "pins": {
+      "csv": {
+        "baseline": "4b33d89c763b8fd80c77d6f27bd558b3e890519bf769223b80e8cce72a0c7f57",
+        "current": "098b7164f52b875d9aafbb46f2b9eedcfaadb2de374481775018c39d8b8ad052",
+        "declaration": "faf040d6ec695b3e5de909c230d19aa3c05a3e8fa576e8d9e7ad83096fa82d23"
+      },
+      "export": {
+        "baseline": "2762b0442f212415cbb75e81bfac56beee70cf8316de49a32cb72539951e966e",
+        "current": "e5cbd9eed2b93a7be47d84759dd45142ae8f1bbff7193157f00529e5d7c838e6",
+        "declaration": "54f190e7e48da30da75afdbed556bda1d413773b606c2c3ef4a0ddfabb18e143"
+      },
+      "helper": {
+        "current": "961a85109ddf4cd0b41633ca6b27ffb1baef5662d670d78668bf214d102a674f",
+        "declaration": "0d8150023ef70c3d70786a5de744b8eb6b6215abaaaa9b255ab7bc68cee1efa9"
+      },
+      "test": {
+        "current": "1194a433f3a0c675a20c2cc11b46168f791ea117e2c7949de6e8df2ab98b1780"
+      }
+    },
+    "owners": {
+      "csv": {
+        "originalBodyEqualsLeaf": true,
+        "otherStatementsUnchanged": true,
+        "remainingStatementCount": 33,
+        "fullOwnerDeclarationEqual": true
+      },
+      "export": {
+        "originalBodyEqualsLeaf": true,
+        "otherStatementsUnchanged": true,
+        "remainingStatementCount": 32,
+        "fullOwnerDeclarationEqual": true
+      }
+    },
+    "currentAndBaselineCallerEmissionMatchesOwningSource": {
+      "csv": {
+        "currentSourceEmitTokenIdentity": true,
+        "baselineSourceEmitTokenIdentity": true
+      },
+      "export": {
+        "currentSourceEmitTokenIdentity": true,
+        "baselineSourceEmitTokenIdentity": true
+      }
+    },
+    "helperEmissionExact": true,
+    "inputAdmissionImportAndAllOtherStatementsPreserved": true,
+    "rootIndexDeclarationByteIdentity": true,
+    "newLeafNotReexportedByRootOrPackageExportMap": true,
+    "noStateOrMediaDomainMerged": true
+  },
+  "behavior": {
+    "independentThreeWayCases": 19,
+    "variants": [
+      "exact baseline CSV private function",
+      "exact baseline export private function",
+      "current shared private module function"
+    ],
+    "exactParity": true,
+    "cases": [
+      "getter/read-before-sort including nested traversal",
+      "getter/Proxy/array-index/JSON.stringify thrown-object identity and timing",
+      "holes and inherited array entries",
+      "raw UTF16 keys/values",
+      "undefined/null/nonfinite/negative zero",
+      "subnormal and notation threshold numbers",
+      "Date and invalid Date remain empty objects",
+      "toJSON method ignored and enumerable getter exception preserved",
+      "nested BigInt TypeError and cycle RangeError name/message",
+      "array map override remains observable",
+      "deletion during Object.entries",
+      "own __proto__ key retained by canonical leaf"
+    ],
+    "decisiveNegatives": [
+      {
+        "mutation": "sort keys before reads",
+        "rejectedBy": "getter observation order",
+        "mutantTrace": [
+          "a",
+          "achild",
+          "z",
+          "zchild"
+        ],
+        "originalTrace": [
+          "z",
+          "a",
+          "achild",
+          "zchild"
+        ]
+      },
+      {
+        "mutation": "native JSON.stringify",
+        "rejectedBy": "array holes",
+        "mutant": "[null,null,null,null]",
+        "original": "[,,null,]"
+      },
+      {
+        "mutation": "drop undefined object members",
+        "rejectedBy": "undefined own member is null"
+      },
+      {
+        "mutation": "honor Date/toJSON serialization",
+        "rejectedBy": "Date object stays empty canonical object"
+      }
+    ],
+    "actualExportEntryDiagnostics": [
+      {
+        "kind": "kind_getter",
+        "trace": [
+          "kind"
+        ],
+        "sameMarker": true
+      },
+      {
+        "kind": "file_id_second_getter",
+        "trace": [
+          "kind",
+          "kind",
+          "id",
+          "id"
+        ],
+        "sameMarker": true
+      },
+      {
+        "kind": "getter_precedes_BigInt_failure",
+        "trace": [
+          "z"
+        ],
+        "sameMarker": true
+      }
+    ]
+  },
+  "actualConsumers": {
+    "csv": {
+      "preimage": "{\"candidates\":[{\"customer\":\"c-1\"}],\"operation\":\"Billing.Invoice.issue\"}",
+      "digest": "eab0f4e9c10513c5e4168288aecd6b7abde908411941de29619b2aa57767e0a6",
+      "reviewId": "rev-eab0f4e9c10513c5",
+      "counts": {
+        "total": 3,
+        "valid": 1,
+        "invalid": 1,
+        "duplicate": 1
+      }
+    },
+    "freshExport": {
+      "responseStatus": 200,
+      "preimage": "{\"args\":{\"columns\":[\"payload\"],\"cursor\":null,\"filters\":{\"a\":{\"a\":null,\"b\":\"x\"},\"z\":2},\"limit\":1,\"parent\":null},\"operation\":\"Billing.Invoice.list\",\"principal\":\"7a5113b7-1715-4ef1-9b4b-17845cdac93a\"}",
+      "digest": "7ead0fda26b92cc34b1e9e2f144ef9dfb0725f89a58ba693b812ccb8e84b21f8",
+      "handle": "exp-7ead0fda26b92cc3",
+      "csv": "id,version,payload\nr-independent,,\"{\"\"a\"\":0,\"\"z\"\":null}\"\n",
+      "exactBaselineCurrentBody": true
+    },
+    "priorRecordedExport": {
+      "fullBaselineCurrentObservationEquality": true,
+      "preimage": "{\"args\":{\"columns\":[\"payload\"],\"cursor\":null,\"filters\":{\"a\":1,\"z\":2},\"limit\":1,\"parent\":null},\"operation\":\"Billing.Invoice.list\",\"principal\":\"9517885b-bdce-420c-a83e-2759d6cfa99a\"}",
+      "digest": "75852b412c85361d304cb87b2ceb6e96580360640dc0d25d24bc94d69aad92c8",
+      "handle": "exp-75852b412c85361d"
+    },
+    "hashNegativeControls": {
+      "nativeJSONOrderChangesDigest": true,
+      "changedFilterChangesDigest": true
+    },
+    "fixtureLimits": "actual current/baseline emitted owner source verified; private native Node source consumers with existing installed identity/UI/contracts dependencies and createTestDeps memory fixture; no installed product or durable qualification"
+  },
+  "maintainedClosure": {
+    "method": "TypeScript parsed AST token-bearing lines, skipping entire JSDoc nodes/trivia; physical trimEnd line count; exact UTF8 source/declaration bytes. Includes both complete owners, new helper, both unchanged complete owner declarations and new helper declaration/import overhead. No tests, generated JS/maps, formatting/compression savings credited.",
+    "counts": {
+      "baseline": {
+        "production": {
+          "readable": 791,
+          "physical": 1012,
+          "bytes": 40379
+        },
+        "declarations": {
+          "readable": 128,
+          "physical": 243,
+          "bytes": 10911
+        },
+        "complete": {
+          "readable": 919,
+          "physical": 1255,
+          "bytes": 51290
+        }
+      },
+      "current": {
+        "production": {
+          "readable": 784,
+          "physical": 1002,
+          "bytes": 39953
+        },
+        "declarations": {
+          "readable": 129,
+          "physical": 246,
+          "bytes": 11092
+        },
+        "complete": {
+          "readable": 913,
+          "physical": 1248,
+          "bytes": 51045
+        }
+      },
+      "delta": {
+        "production": {
+          "readable": -7,
+          "physical": -10,
+          "bytes": -426
+        },
+        "declarations": {
+          "readable": 1,
+          "physical": 3,
+          "bytes": 181
+        },
+        "complete": {
+          "readable": -6,
+          "physical": -7,
+          "bytes": -245
+        }
+      }
+    },
+    "writerCountDiscrepancy": {
+      "writerStandaloneScannerComplete": [
+        987,
+        981
+      ],
+      "independentASTComplete": [
+        919,
+        913
+      ],
+      "sameReadableDelta": -6,
+      "cause": "standalone scanner needs contextual rescanning for templates; it treated subsequent trivia as token-bearing source. AST additionally excludes JSDoc comment/tag token children.",
+      "initialIndependentCorrection": "AST token walk initially counted one JSDoc comment/tag line:920\u2192914. Final skip-entire-JSDoc counts919\u2192913."
+    }
+  },
+  "residuals": [
+    {
+      "mapping": [
+        "DEL-C01",
+        "DEL-C02"
+      ],
+      "status": "pre-existing actual CSV mapper/integrity gap; unchanged by extraction",
+      "field": "optional declared string input __proto__",
+      "producer": "csv.ts mapRowCells inputs={} then inputs[name]=cell",
+      "consumer": "reviewCsvCandidates computes canonical key then real prepared framing/binding, duplicate classification and consent candidates digest",
+      "witness": {
+        "csv": "__proto__\nfirst\nsecond",
+        "bothVariants": {
+          "rows": [
+            {
+              "index": 0,
+              "status": "valid",
+              "inputs": {}
+            },
+            {
+              "index": 1,
+              "status": "duplicate",
+              "inputs": {},
+              "duplicate_of": 0
+            }
+          ],
+          "counts": {
+            "total": 2,
+            "valid": 1,
+            "invalid": 0,
+            "duplicate": 1
+          },
+          "digest": "30cd67af89b6cc4eda962f54f580dd69fef4fc221e41def9e695a5b8a33fb808"
+        }
+      },
+      "limit": "declared operation metadata supplied via the existing deriveOperationInputs/deriveOperationShape consumer; no .can emission or installed-product claim. Do not treat PARSER-DP01 form-only closure or separate TECH-S01-own-key review as resolving this CSV edge."
+    },
+    {
+      "mapping": [
+        "DEL-A01-canonical"
+      ],
+      "status": "existing canonical-byte profile preserved",
+      "facts": [
+        "undefined/null and nonfinite/null collapse",
+        "negative-zero/zero collapse",
+        "Date/empty-object collapse",
+        "sparse arrays and overridden .map can yield non-JSON text"
+      ],
+      "limit": "this extraction establishes equivalence, not injectivity or a new canonical protocol; do not silently redesign persisted/hash bytes"
+    }
+  ],
+  "verification": {
+    "independentCommands": [
+      {
+        "argv": [
+          "node",
+          "/private/tmp/canlang-repair-go-20261007/canonical-json-independent/check.mjs"
+        ],
+        "exit": 0
+      },
+      {
+        "argv": [
+          "node",
+          "/private/tmp/canlang-repair-go-20261007/canonical-json-independent/callers.mjs"
+        ],
+        "exit": 0
+      }
+    ],
+    "readRawRegisteredCommands": {
+      "baselineTests": 35,
+      "currentTests": 39,
+      "allPass": true,
+      "source": "/private/tmp/canlang-repair-go-20261007/canonical-json/test-results.json",
+      "qualification": "inspected raw command/result and full stdout logs; no new broad suite run; empty strict logs alone are not independent exit evidence"
+    },
+    "evidence": {
+      "/private/tmp/canlang-repair-go-20261007/canonical-json-independent/facts.json": "de321d5e1d876a8b835b03078c63828eef36c68063e2b5e35e46a499060ab91e",
+      "/private/tmp/canlang-repair-go-20261007/canonical-json-independent/caller-facts.json": "45f6805395da9514574590a0314c3eb32d57a9264a233b943992dfc551576423",
+      "/private/tmp/canlang-repair-go-20261007/canonical-json-independent/check.mjs": "70115cce9dd0dee2efa6e52fdccbe26bda94f4afe6fc62dd29643ddc620968c5",
+      "/private/tmp/canlang-repair-go-20261007/canonical-json-independent/callers.mjs": "ed306f7f923bbe3791a52c848e2e01d5f02e214b42fad56235384d8ee5c04f1c"
+    },
+    "endSourcePinsRechecked": true
+  },
+  "boundaries": [
+    "No broader consent/review/replay/security acceptance",
+    "No public canonical protocol or generic State/media canonicalization",
+    "No package-installed, current dependency-source, Wasm, durable, deployment, or default qualification",
+    "No repository/Git/shared dist/fullbuild/install/docs/compiler writes"
+  ]
+}

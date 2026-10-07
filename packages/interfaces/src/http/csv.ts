@@ -60,6 +60,7 @@ import type {
 } from '@canlang/contracts';
 import { parseObjectBody } from '../internal/input-admission.js';
 import { IdentityError, assertAuthorityLive, sha256HexText } from '@canlang/identity';
+import { canonicalJson } from './canonical-json.js';
 import { CsvGrammarError, parseCsvGrammar } from '@canlang/ui/csv/grammar';
 import type { HttpDeps, OperationInputShape } from '../ports.js';
 import { validateOperationId } from '../envelope/validate.js';
@@ -159,17 +160,6 @@ export function parseCsvText(text: string): { header: string[]; rows: CsvDataRow
     if (error.kind === 'limit') throw new CsvTooManyRowsError(error.message);
     throw new CsvParseError(error.message);
   }
-}
-
-/** Canonical JSON: object keys sorted recursively, so digests replay. */
-function canonicalJson(value: unknown): string {
-  if (Array.isArray(value)) return `[${value.map(canonicalJson).join(',')}]`;
-  if (typeof value === 'object' && value !== null) {
-    const entries = Object.entries(value as Record<string, unknown>)
-      .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0));
-    return `{${entries.map(([key, entry]) => `${JSON.stringify(key)}:${canonicalJson(entry)}`).join(',')}}`;
-  }
-  return JSON.stringify(value) ?? 'null';
 }
 
 /**

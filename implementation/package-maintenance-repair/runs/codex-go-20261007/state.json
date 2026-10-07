@@ -166,14 +166,14 @@
   "numeric_acceptance_limit": "Existing numeric source/native actual-caller scope only; unchanged original Wasm/installed/durable/backend/T08/T26 and held preparation gates remain.",
   "next_active_packets": [
     {
-      "id": "DEL-A01-canonical",
+      "id": "TECH-S02 contract",
       "agent": "/root/review_numeric_reduction",
-      "state": "independent high review"
+      "state": "ACKed finite high preparation"
     },
     {
       "id": "TECH-W02 GAP-L04",
       "agent": "/root/review_state_private",
-      "state": "finite high implementation dispatched ACK pending"
+      "state": "ACKed finite high implementation"
     },
     {
       "id": "DEL-D01",
@@ -311,7 +311,7 @@
     },
     "TECH-S02": {
       "planning_status": "blocked",
-      "state": "verified producer-to-serializer flaw; finite metadata/result/projection contracts required before implementation",
+      "state": "actual join verified; finite defining contract/JEV prep active",
       "files": [
         "packages/state/src/mutation/crud.ts",
         "packages/state/src/mutation/pipeline.ts",
@@ -321,7 +321,11 @@
         "packages/cloudflare/src/worker/assembly.ts",
         "packages/interfaces/src/http/operations.ts"
       ],
-      "evidence": "security-joins.json"
+      "evidence": "security-joins.json",
+      "agent": "/root/review_numeric_reduction",
+      "model": "gpt-6.1-sol",
+      "effort": "high",
+      "reason": "Current persisted confidentiality/result/replay metadata seam; prior advice retained, new material question only"
     },
     "TECH-S03": {
       "planning_status": "blocked",
@@ -337,7 +341,7 @@
     },
     "TECH-W02": {
       "planning_status": "ready",
-      "state": "finite GAP-L04 converse correction dispatched; exact ACK pending",
+      "state": "ACKed finite GAP-L04 converse correction active",
       "files": [
         "packages/cloudflare/src/runtime/invoke.ts",
         "packages/state/src/fanout/lifecycle.ts",
@@ -466,7 +470,7 @@
     },
     "TECH-SV04": {
       "planning_status": "ready",
-      "state": "independently accepted private reduction; committing",
+      "state": "accepted private reduction; committed 4d6a781",
       "files": [
         "packages/services/src/ports.ts",
         "packages/services/src/judgments/harness.ts",
@@ -484,7 +488,8 @@
       "review": "service-leaves-independent-review.json",
       "readable_reduction": 87,
       "full_closure_reduction": 84,
-      "measurement": "AST token leaves exclude trivia; previous raw scanner absolute counts corrected, saving delta unchanged"
+      "measurement": "AST token leaves exclude trivia; previous raw scanner absolute counts corrected, saving delta unchanged",
+      "commit": "4d6a781"
     },
     "DEL-D01": {
       "planning_status": "ready",
@@ -518,7 +523,8 @@
         "packages/interfaces/src/http/csv.ts",
         "packages/ui/src/csv/parse.ts",
         "packages/ui/src/csv/grammar.ts"
-      ]
+      ],
+      "residual_evidence": "canonical-json-independent-review.json: declared optional __proto__ cells drop/collapse into duplicate candidates in both original/current actual CSV mapper; existing grammar/integrity parent remains open"
     },
     "DEL-C02": {
       "planning_status": "blocked",
@@ -527,7 +533,8 @@
         "packages/interfaces/src/http/csv.ts",
         "packages/ui/src/csv/confirm.ts",
         "packages/ui/src/csv/preview.ts"
-      ]
+      ],
+      "residual_evidence": "canonical-json-independent-review.json: baseline-preserved lost declared __proto__ input changes selected candidate/hash meaning; separate finite correctness repair needed"
     },
     "DEL-C02-order": {
       "planning_status": "ready",
@@ -825,18 +832,22 @@
     },
     "DEL-A01-canonical": {
       "planning_status": "ready",
-      "state": "independent high review active",
+      "state": "independently accepted private reduction; committing",
       "files": [
         "packages/interfaces/src/http/csv.ts",
         "packages/interfaces/src/http/export.ts",
-        "packages/interfaces/src/http/canonical-json.ts"
+        "packages/interfaces/src/http/canonical-json.ts",
+        "packages/interfaces/test/canonical-json-leaf.test.ts"
       ],
       "agent": "/root/impl_work_numeric",
       "model": "gpt-6.1-sol",
       "effort": "medium",
       "base": "e29ff90",
       "reason": "Frozen identical canonical leaves; independent high review for actual byte/hash/error semantics",
-      "reviewer": "/root/review_numeric_reduction"
+      "reviewer": "/root/review_numeric_reduction",
+      "review": "canonical-json-independent-review.json",
+      "readable_reduction": 7,
+      "full_closure_reduction": 6
     },
     "FINAL-R03": {
       "planning_status": "blocked",
@@ -856,7 +867,7 @@
     "state": "active",
     "objective": "Finish every currently authorized queue task, resolve actual prerequisites, independently review, commit early/often and clean released resources economically; preserve native HOLD and exact original residual gates."
   },
-  "updated_utc": "2026-10-07T19:57:02.915274+00:00",
+  "updated_utc": "2026-10-07T19:58:47.887626+00:00",
   "critical_security_review": {
     "state": "frozen review and actual source joins received; contracts/repairs/host acceptance remain open",
     "agent": "/root/critical_package_security",
