@@ -5025,15 +5025,21 @@ impl<'a> Resolver<'a> {
                 }
             }
             SyntaxKind::Binary => {
-                let parts = kids(node);
-                if parts.len() == 3 {
-                    let op = super::op_text(node, text).unwrap_or("");
-                    if op == "is" {
-                        self.walk_expr(module, scope, parts[0], text, ExprCtx::bare(), diags);
-                        self.resolve_is_target(module, parts[2], text, diags);
-                    } else {
-                        self.walk_expr(module, scope, parts[0], text, ExprCtx::bare(), diags);
-                        self.walk_expr(module, scope, parts[2], text, ExprCtx::bare(), diags);
+                // Flat parser loops build arbitrarily tall binary trees.
+                // Keep source order and defer `is` targets until their left value.
+                let mut work = vec![(node, false)];
+                while let Some((current, is_target)) = work.pop() {
+                    if is_target {
+                        self.resolve_is_target(module, current, text, diags);
+                    } else if current.kind != SyntaxKind::Binary {
+                        self.walk_expr(module, scope, current, text, ExprCtx::bare(), diags);
+                    } else if !has_error(current) {
+                        self.tables.expr_scope.insert(NodeKey::of(current), scope);
+                        let parts = kids(current);
+                        if parts.len() == 3 {
+                            work.push((parts[2], super::op_text(current, text) == Some("is")));
+                            work.push((parts[0], false));
+                        }
                     }
                 }
             }

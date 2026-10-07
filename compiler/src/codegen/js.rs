@@ -1224,6 +1224,19 @@ fn operation_policy_entry(
     Some(format!("{{{}}}", members.join(",")))
 }
 
+// These private markers are never emitted. Binary-family validation and
+// import/diagnostic effects run once, before deciding whether operands are
+// needed; filling the resulting fragment happens after ordered traversal.
+// Source string controls are escaped by js_string, so they cannot collide.
+const BINARY_LEFT: &str = "\0binary-left\0";
+const BINARY_RIGHT: &str = "\0binary-right\0";
+
+fn fill_binary_template(template: String, left: &str, right: &str) -> String {
+    template
+        .replace(BINARY_LEFT, left)
+        .replace(BINARY_RIGHT, right)
+}
+
 /// Emission context: import tracking, diagnostics and link metadata.
 pub struct Emitter<'a> {
     ir: &'a IrProgram,
@@ -1687,7 +1700,7 @@ impl<'a> Emitter<'a> {
                 }
             }
             IrExpr::Call { target, args } => self.lower_call(target, args, span),
-            IrExpr::Binary { op, left, right } => self.lower_binary(*op, left, right, span),
+            IrExpr::Binary { .. } => self.lower_binary_tree(expr),
             IrExpr::Unary { op, operand } => self.lower_unary(*op, operand, span),
             IrExpr::Array(items) => {
                 let parts: Vec<String> = items.iter().map(|i| self.lower_expr(i)).collect();
@@ -1879,6 +1892,143 @@ impl<'a> Emitter<'a> {
         }
     }
 
+    /// Lower a complete binary tree in source order without native recursion.
+    fn lower_binary_tree(&mut self, expr: &TypedExpr) -> String {
+        // This is an output strategy threshold, never an admission limit.
+        // Beyond it, nested helper calls can overflow a supported JS parser.
+        let mut depths = vec![(expr, 0usize)];
+        while let Some((current, depth)) = depths.pop() {
+            if let IrExpr::Binary { left, right, .. } = &current.expr {
+                if depth == 64 {
+                    return self.lower_flat_binary(expr);
+                }
+                depths.push((right, depth + 1));
+                depths.push((left, depth + 1));
+            }
+        }
+        enum Work<'e> {
+            Eval(&'e TypedExpr),
+            Finish(String),
+        }
+        let mut work = vec![Work::Eval(expr)];
+        let mut values: Vec<String> = Vec::new();
+        while let Some(step) = work.pop() {
+            match step {
+                Work::Eval(current) => {
+                    if let IrExpr::Binary { op, left, right } = &current.expr {
+                        let template = self.lower_binary(
+                            *op,
+                            left,
+                            right,
+                            current.span,
+                            BINARY_LEFT,
+                            BINARY_RIGHT,
+                        );
+                        if template.contains(BINARY_LEFT) || template.contains(BINARY_RIGHT) {
+                            work.push(Work::Finish(template));
+                            work.push(Work::Eval(right));
+                            work.push(Work::Eval(left));
+                        } else {
+                            // Unsupported combinations retain their throwing placeholder
+                            // without visiting operands the old consumer skipped.
+                            values.push(template);
+                        }
+                    } else {
+                        values.push(self.lower_expr(current));
+                    }
+                }
+                Work::Finish(template) => {
+                    let right = values.pop().expect("binary right output");
+                    let left = values.pop().expect("binary left output");
+                    values.push(fill_binary_template(template, &left, &right));
+                }
+            }
+        }
+        values.pop().expect("binary output")
+    }
+
+    /// A statement sequence retains every checked operation and avoids
+    /// deeply nested helper calls. Conditional frames keep RHS effects lazy.
+    fn lower_flat_binary(&mut self, expr: &TypedExpr) -> String {
+        enum Work<'e> {
+            Eval(&'e TypedExpr),
+            Left(&'e TypedExpr, String),
+            Right(String, String),
+            Conditional(String),
+        }
+        let mut work = vec![Work::Eval(expr)];
+        let mut values: Vec<String> = Vec::new();
+        let mut body = String::new();
+        let mut sequence = 0;
+        while let Some(step) = work.pop() {
+            let temp = format!("$binary{sequence}");
+            match step {
+                Work::Eval(current) => {
+                    if let IrExpr::Binary { op, left, right } = &current.expr {
+                        let template = self.lower_binary(
+                            *op,
+                            left,
+                            right,
+                            current.span,
+                            BINARY_LEFT,
+                            BINARY_RIGHT,
+                        );
+                        if template.contains(BINARY_LEFT) || template.contains(BINARY_RIGHT) {
+                            work.push(Work::Left(current, template));
+                            work.push(Work::Eval(left));
+                        } else {
+                            body.push_str(&format!("const {temp}={template};"));
+                            sequence += 1;
+                            values.push(temp);
+                        }
+                    } else {
+                        let value = self.lower_expr(current);
+                        body.push_str(&format!("const {temp}={value};"));
+                        sequence += 1;
+                        values.push(temp);
+                    }
+                }
+                Work::Left(current, template) => {
+                    let IrExpr::Binary { op, right, .. } = &current.expr else {
+                        unreachable!()
+                    };
+                    let left = values.pop().expect("flat binary left output");
+                    if matches!(op, IrBinOp::And | IrBinOp::Or | IrBinOp::Coalesce) {
+                        let test = match op {
+                            IrBinOp::And => temp.clone(),
+                            IrBinOp::Or => format!("!{temp}"),
+                            _ => format!("{temp}===null||{temp}===undefined"),
+                        };
+                        body.push_str(&format!("let {temp}={left};if({test}){{"));
+                        sequence += 1;
+                        work.push(Work::Conditional(temp));
+                    } else {
+                        work.push(Work::Right(template, left));
+                    }
+                    work.push(Work::Eval(right));
+                }
+                Work::Right(template, left_text) => {
+                    let right_text = values.pop().expect("flat binary right output");
+                    let value = fill_binary_template(template, &left_text, &right_text);
+                    body.push_str(&format!("const {temp}={value};"));
+                    sequence += 1;
+                    values.push(temp);
+                }
+                Work::Conditional(temp) => {
+                    let right = values.pop().expect("flat conditional right output");
+                    body.push_str(&format!("{temp}={right};}}"));
+                    values.push(temp);
+                }
+            }
+        }
+        let value = values.pop().expect("flat binary result");
+        if expr_uses_async(expr) {
+            format!("await (async()=>{{{body}return {value};}})()")
+        } else {
+            format!("(()=>{{{body}return {value};}})()")
+        }
+    }
+
     /// Lower a binary operator by checked operand families.
     fn lower_binary(
         &mut self,
@@ -1886,12 +2036,12 @@ impl<'a> Emitter<'a> {
         left: &TypedExpr,
         right: &TypedExpr,
         span: Span,
+        l: &str,
+        r: &str,
     ) -> String {
         match op {
             IrBinOp::And | IrBinOp::Or => {
                 let js_op = if op == IrBinOp::And { "&&" } else { "||" };
-                let l = self.lower_expr(left);
-                let r = self.lower_expr(right);
                 format!(
                     "{} {js_op} {}",
                     parenthesize_logic(&l, &left.expr, op),
@@ -1899,8 +2049,6 @@ impl<'a> Emitter<'a> {
                 )
             }
             IrBinOp::Coalesce => {
-                let l = self.lower_expr(left);
-                let r = self.lower_expr(right);
                 format!(
                     "{} ?? {}",
                     parenthesize_operand(&l, &left.expr),
@@ -1917,16 +2065,14 @@ impl<'a> Emitter<'a> {
                     );
                     return self.throw_expr("in over non-collection");
                 }
-                let l = self.lower_expr(left);
-                let r = self.lower_expr(right);
                 format!("{}.includes({l})", parenthesize_operand(&r, &right.expr))
             }
-            IrBinOp::Eq | IrBinOp::Ne => self.lower_equality(op, left, right, span),
+            IrBinOp::Eq | IrBinOp::Ne => self.lower_equality(op, left, right, span, l, r),
             IrBinOp::Lt | IrBinOp::Le | IrBinOp::Gt | IrBinOp::Ge => {
-                self.lower_relational(op, left, right, span)
+                self.lower_relational(op, left, right, span, l, r)
             }
             IrBinOp::Add | IrBinOp::Sub | IrBinOp::Mul | IrBinOp::Div | IrBinOp::Mod => {
-                self.lower_arithmetic(op, left, right, span)
+                self.lower_arithmetic(op, left, right, span, l, r)
             }
         }
     }
@@ -1941,12 +2087,12 @@ impl<'a> Emitter<'a> {
         left: &TypedExpr,
         right: &TypedExpr,
         span: Span,
+        l: &str,
+        r: &str,
     ) -> String {
         let negate = op == IrBinOp::Ne;
         // `null` against any nullable side compares directly.
         if matches!(left.ty, ResolvedType::Null) || matches!(right.ty, ResolvedType::Null) {
-            let l = self.lower_expr(left);
-            let r = self.lower_expr(right);
             let js_op = if negate { "!==" } else { "===" };
             return format!("{l} {js_op} {r}");
         }
@@ -1971,8 +2117,6 @@ impl<'a> Emitter<'a> {
             });
             if !structural {
                 self.stdlib.insert("same".to_string());
-                let l = self.lower_expr(left);
-                let r = self.lower_expr(right);
                 return negate_call(negate, &format!("same({l},{r})"));
             }
         }
@@ -1986,8 +2130,6 @@ impl<'a> Emitter<'a> {
             }
             self.stdlib.insert("equalValue".to_string());
             let id = self.canonical_type_id(&left.ty, span);
-            let l = self.lower_expr(left);
-            let r = self.lower_expr(right);
             return negate_call(
                 negate,
                 &format!("equalValue(c,{}, {l},{r})", js_string(&id)),
@@ -1998,8 +2140,6 @@ impl<'a> Emitter<'a> {
         match (l_family, r_family) {
             (Some(ScalarFamily::Money), Some(ScalarFamily::Money)) => {
                 self.stdlib.insert("equalMoney".to_string());
-                let l = self.lower_expr(left);
-                let r = self.lower_expr(right);
                 negate_call(negate, &format!("equalMoney({l},{r})"))
             }
             (Some(ScalarFamily::Decimal), Some(ScalarFamily::Decimal)) => {
@@ -2011,8 +2151,6 @@ impl<'a> Emitter<'a> {
                     );
                 }
                 self.stdlib.insert("equalValue".to_string());
-                let l = self.lower_expr(left);
-                let r = self.lower_expr(right);
                 negate_call(negate, &format!("equalValue(c,\"decimal\",{l},{r})"))
             }
             (
@@ -2049,21 +2187,15 @@ impl<'a> Emitter<'a> {
                 match family {
                     Some(ScalarFamily::Date) => {
                         self.stdlib.insert("compareDate".to_string());
-                        let l = self.lower_expr(left);
-                        let r = self.lower_expr(right);
                         let js_op = if negate { "!==" } else { "===" };
                         format!("compareDate({l},{r}) {js_op} 0")
                     }
                     Some(ScalarFamily::Datetime) => {
                         self.stdlib.insert("compareInstant".to_string());
-                        let l = self.lower_expr(left);
-                        let r = self.lower_expr(right);
                         let js_op = if negate { "!==" } else { "===" };
                         format!("compareInstant({l},{r}) {js_op} 0")
                     }
                     _ => {
-                        let l = self.lower_expr(left);
-                        let r = self.lower_expr(right);
                         let js_op = if negate { "!==" } else { "===" };
                         format!("{l} {js_op} {r}")
                     }
@@ -2073,21 +2205,15 @@ impl<'a> Emitter<'a> {
                 Some(ScalarFamily::Bool | ScalarFamily::Text | ScalarFamily::Enum),
                 Some(ScalarFamily::Bool | ScalarFamily::Text | ScalarFamily::Enum),
             ) => {
-                let l = self.lower_expr(left);
-                let r = self.lower_expr(right);
                 let js_op = if negate { "!==" } else { "===" };
                 format!("{l} {js_op} {r}")
             }
             (Some(ScalarFamily::Reference), Some(ScalarFamily::Reference)) => {
                 self.stdlib.insert("same".to_string());
-                let l = self.lower_expr(left);
-                let r = self.lower_expr(right);
                 negate_call(negate, &format!("same({l},{r})"))
             }
             (Some(ScalarFamily::Secret), Some(ScalarFamily::Secret)) => {
                 self.stdlib.insert("secretEqual".to_string());
-                let l = self.lower_expr(left);
-                let r = self.lower_expr(right);
                 negate_call(negate, &format!("secretEqual({l},{r})"))
             }
             _ => {
@@ -2112,6 +2238,8 @@ impl<'a> Emitter<'a> {
         left: &TypedExpr,
         right: &TypedExpr,
         span: Span,
+        l: &str,
+        r: &str,
     ) -> String {
         let js_op = match op {
             IrBinOp::Lt => "<",
@@ -2123,33 +2251,23 @@ impl<'a> Emitter<'a> {
         match (scalar_family(&left.ty), scalar_family(&right.ty)) {
             (Some(ScalarFamily::Money), Some(ScalarFamily::Money)) => {
                 self.stdlib.insert("compareMoney".to_string());
-                let l = self.lower_expr(left);
-                let r = self.lower_expr(right);
                 format!("compareMoney({l},{r}) {js_op} 0")
             }
             (Some(ScalarFamily::Decimal), Some(ScalarFamily::Decimal)) => {
                 self.stdlib.insert("compareDecimal".to_string());
-                let l = self.lower_expr(left);
-                let r = self.lower_expr(right);
                 format!("compareDecimal({l},{r}) {js_op} 0")
             }
             (Some(ScalarFamily::Date), Some(ScalarFamily::Date)) => {
                 self.stdlib.insert("compareDate".to_string());
-                let l = self.lower_expr(left);
-                let r = self.lower_expr(right);
                 format!("compareDate({l},{r}) {js_op} 0")
             }
             (Some(ScalarFamily::Datetime), Some(ScalarFamily::Datetime)) => {
                 self.stdlib.insert("compareInstant".to_string());
-                let l = self.lower_expr(left);
-                let r = self.lower_expr(right);
                 format!("compareInstant({l},{r}) {js_op} 0")
             }
             (Some(ScalarFamily::Int), Some(ScalarFamily::Int))
             | (Some(ScalarFamily::Duration), Some(ScalarFamily::Duration))
             | (Some(ScalarFamily::Text), Some(ScalarFamily::Text)) => {
-                let l = self.lower_expr(left);
-                let r = self.lower_expr(right);
                 format!("{l} {js_op} {r}")
             }
             _ => {
@@ -2179,6 +2297,8 @@ impl<'a> Emitter<'a> {
         left: &TypedExpr,
         right: &TypedExpr,
         span: Span,
+        l: &str,
+        r: &str,
     ) -> String {
         let js_op = match op {
             IrBinOp::Add => "+",
@@ -2191,8 +2311,6 @@ impl<'a> Emitter<'a> {
         match (scalar_family(&left.ty), scalar_family(&right.ty)) {
             (Some(ScalarFamily::Int), Some(ScalarFamily::Int)) => {
                 self.stdlib.insert("int64".to_string());
-                let l = self.lower_expr(left);
-                let r = self.lower_expr(right);
                 format!("int64({l} {js_op} {r})")
             }
             (Some(ScalarFamily::Money), Some(ScalarFamily::Money)) => match op {
@@ -2203,16 +2321,12 @@ impl<'a> Emitter<'a> {
                         "subtractMoney"
                     };
                     self.stdlib.insert(name.to_string());
-                    let l = self.lower_expr(left);
-                    let r = self.lower_expr(right);
                     format!("{name}({l},{r})")
                 }
                 // A money/money ratio has no currency unit and uses decimal
                 // rounding: `divideDecimal` documents money operands.
                 IrBinOp::Div => {
                     self.stdlib.insert("divideDecimal".to_string());
-                    let l = self.lower_expr(left);
-                    let r = self.lower_expr(right);
                     format!("divideDecimal({l},{r})")
                 }
                 _ => {
@@ -2228,14 +2342,10 @@ impl<'a> Emitter<'a> {
             | (Some(ScalarFamily::Money), Some(ScalarFamily::Int)) => match op {
                 IrBinOp::Mul => {
                     self.stdlib.insert("multiplyMoney".to_string());
-                    let l = self.lower_expr(left);
-                    let r = self.lower_expr(right);
                     format!("multiplyMoney({l},{r})")
                 }
                 IrBinOp::Div => {
                     self.stdlib.insert("divideMoney".to_string());
-                    let l = self.lower_expr(left);
-                    let r = self.lower_expr(right);
                     format!("divideMoney({l},{r})")
                 }
                 _ => {
@@ -2253,8 +2363,6 @@ impl<'a> Emitter<'a> {
             | (Some(ScalarFamily::Int), Some(ScalarFamily::Money)) => match op {
                 IrBinOp::Mul => {
                     self.stdlib.insert("multiplyMoney".to_string());
-                    let l = self.lower_expr(left);
-                    let r = self.lower_expr(right);
                     format!("multiplyMoney({r},{l})")
                 }
                 _ => {
@@ -2277,8 +2385,6 @@ impl<'a> Emitter<'a> {
                         _ => "divideDecimal",
                     };
                     self.stdlib.insert(name.to_string());
-                    let l = self.lower_expr(left);
-                    let r = self.lower_expr(right);
                     format!("{name}({l},{r})")
                 }
                 _ => {
@@ -2293,8 +2399,6 @@ impl<'a> Emitter<'a> {
             (Some(ScalarFamily::Datetime), Some(ScalarFamily::Datetime)) => match op {
                 IrBinOp::Sub => {
                     self.stdlib.insert("durationBetween".to_string());
-                    let l = self.lower_expr(left);
-                    let r = self.lower_expr(right);
                     format!("durationBetween({l},{r})")
                 }
                 _ => {
@@ -2315,8 +2419,6 @@ impl<'a> Emitter<'a> {
                         "subtractDuration"
                     };
                     self.stdlib.insert(name.to_string());
-                    let l = self.lower_expr(left);
-                    let r = self.lower_expr(right);
                     format!("{name}({l},{r})")
                 }
                 _ => {
@@ -2330,8 +2432,6 @@ impl<'a> Emitter<'a> {
             },
             (Some(ScalarFamily::Text), Some(ScalarFamily::Text)) => match op {
                 IrBinOp::Add => {
-                    let l = self.lower_expr(left);
-                    let r = self.lower_expr(right);
                     format!("{l} + {r}")
                 }
                 _ => {

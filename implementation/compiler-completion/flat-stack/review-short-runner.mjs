@@ -1,0 +1,11 @@
+import assert from 'node:assert/strict';
+import {readFileSync,writeFileSync} from 'node:fs';
+import {pathToFileURL} from 'node:url';
+const a=JSON.parse(readFileSync(new URL('./artifact.json',import.meta.url),'utf8'));
+for(const m of a.modules)writeFileSync(new URL(m.path,import.meta.url),m.js);
+const r=(await import(new URL(a.modules[0].path,import.meta.url))).canApp();
+const call=n=>{let fn=r;for(const p of a.callables.find(x=>x.id.endsWith('.'+n)).member)fn=fn[p];return fn;};
+await assert.rejects(call('cases')({}, {s:'a'}),{name:'ReferenceError',message:'a is not defined'});
+console.log('short enum(a,b) retained ReferenceError: a is not defined');
+const trace=[];const row={};Object.defineProperty(row,'a',{get(){trace.push('left');return 2n;}});Object.defineProperty(row,'items',{get(){trace.push('right');return [2n];}});
+assert.equal(await call('membership')({},row),true);assert.deepEqual(trace,['right','left']);console.log('short membership order',JSON.stringify(trace));
