@@ -22,12 +22,15 @@ use crate::analysis::{
 };
 use crate::source::{SourceDb, SourceId, Span};
 use crate::syntax::{SyntaxKind, SyntaxNode, parse};
+use serde::Serialize;
+use serde_json::ser::{CompactFormatter, Formatter};
+use std::io::{self, Write};
 
 /// Dump schema version emitted by [`policy_dump_json`].
 pub const POLICY_DUMP_VERSION: u32 = 1;
 
 /// One declared role.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct RoleEntry {
     /// Declaring package.
     pub package: String,
@@ -36,24 +39,26 @@ pub struct RoleEntry {
     /// Canonical identity (`Package.role`).
     pub canonical: String,
     /// Verbatim `label=` source slice, when one is authored.
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub label: Option<String>,
 }
 
 /// One `policy Model kind=grantee [where=...]` declaration.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct PolicyEntry {
     /// Grant kind spelling (`read`).
     pub kind: String,
     /// Grantee spelling (`members`, a role name, ...).
     pub grantee: String,
     /// Verbatim `where=` predicate slice, when one is authored.
+    #[serde(rename = "where", skip_serializing_if = "Option::is_none")]
     pub where_predicate: Option<String>,
     /// Verbatim declaration line.
     pub source: String,
 }
 
 /// One `invariant Model: predicate` declaration.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct InvariantEntry {
     /// Verbatim predicate slice.
     pub predicate: String,
@@ -62,7 +67,7 @@ pub struct InvariantEntry {
 }
 
 /// One model's declared policy surface.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct ModelEntry {
     /// Canonical model identity.
     pub canonical: String,
@@ -73,24 +78,27 @@ pub struct ModelEntry {
 }
 
 /// One scenario parameter with its declared type.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct ParamEntry {
     /// Parameter name.
     pub name: String,
     /// Declared type display (`{unknown}` when untypable).
+    #[serde(rename = "type")]
     pub typ: String,
 }
 
 /// One operation's admission surface.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct OperationEntry {
     /// Canonical operation identity.
     pub canonical: String,
     /// `scenario`, `create`, `update` or `delete`.
     pub kind: String,
     /// Verbatim `by=` gate slice, when one is authored.
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub by: Option<String>,
     /// Verbatim crud `when=` predicate slice, when one is authored.
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub when: Option<String>,
     /// Verbatim `require` predicate slices in source order.
     pub requires: Vec<String>,
@@ -135,127 +143,166 @@ pub fn policy_dump(db: &SourceDb, program: &CheckedProgram, files: &[SourceId]) 
 
 /// Render a dump as deterministic pretty JSON (`"version":1`).
 pub fn policy_dump_json(dump: &PolicyDump) -> String {
-    let mut out = String::new();
-    out.push_str("{\n  \"version\": ");
-    out.push_str(&POLICY_DUMP_VERSION.to_string());
-    out.push_str(",\n  \"roles\": [");
-    for (i, role) in dump.roles.iter().enumerate() {
-        if i > 0 {
-            out.push(',');
-        }
-        out.push_str("\n    {\"package\": ");
-        push_str(&mut out, &role.package);
-        out.push_str(", \"name\": ");
-        push_str(&mut out, &role.name);
-        out.push_str(", \"canonical\": ");
-        push_str(&mut out, &role.canonical);
-        if let Some(label) = &role.label {
-            out.push_str(", \"label\": ");
-            push_str(&mut out, label);
-        }
-        out.push('}');
+    #[derive(Serialize)]
+    struct Envelope<'a> {
+        version: u32,
+        roles: &'a [RoleEntry],
+        models: &'a [ModelEntry],
+        operations: &'a [OperationEntry],
     }
-    if !dump.roles.is_empty() {
-        out.push('\n');
-        out.push_str("  ");
-    }
-    out.push_str("],\n  \"models\": [");
-    for (i, model) in dump.models.iter().enumerate() {
-        if i > 0 {
-            out.push(',');
-        }
-        out.push_str("\n    {\"canonical\": ");
-        push_str(&mut out, &model.canonical);
-        out.push_str(", \"policies\": [");
-        for (j, policy) in model.policies.iter().enumerate() {
-            if j > 0 {
-                out.push(',');
-            }
-            out.push_str("\n      {\"kind\": ");
-            push_str(&mut out, &policy.kind);
-            out.push_str(", \"grantee\": ");
-            push_str(&mut out, &policy.grantee);
-            if let Some(pred) = &policy.where_predicate {
-                out.push_str(", \"where\": ");
-                push_str(&mut out, pred);
-            }
-            out.push_str(", \"source\": ");
-            push_str(&mut out, &policy.source);
-            out.push('}');
-        }
-        if !model.policies.is_empty() {
-            out.push_str("\n      ");
-        }
-        out.push_str("], \"invariants\": [");
-        for (j, invariant) in model.invariants.iter().enumerate() {
-            if j > 0 {
-                out.push(',');
-            }
-            out.push_str("\n      {\"predicate\": ");
-            push_str(&mut out, &invariant.predicate);
-            out.push_str(", \"source\": ");
-            push_str(&mut out, &invariant.source);
-            out.push('}');
-        }
-        if !model.invariants.is_empty() {
-            out.push_str("\n      ");
-        }
-        out.push_str("]}");
-    }
-    if !dump.models.is_empty() {
-        out.push('\n');
-        out.push_str("  ");
-    }
-    out.push_str("],\n  \"operations\": [");
-    for (i, operation) in dump.operations.iter().enumerate() {
-        if i > 0 {
-            out.push(',');
-        }
-        out.push_str("\n    {\"canonical\": ");
-        push_str(&mut out, &operation.canonical);
-        out.push_str(", \"kind\": ");
-        push_str(&mut out, &operation.kind);
-        if let Some(by) = &operation.by {
-            out.push_str(", \"by\": ");
-            push_str(&mut out, by);
-        }
-        if let Some(when) = &operation.when {
-            out.push_str(", \"when\": ");
-            push_str(&mut out, when);
-        }
-        out.push_str(", \"requires\": [");
-        for (j, require) in operation.requires.iter().enumerate() {
-            if j > 0 {
-                out.push_str(", ");
-            }
-            push_str(&mut out, require);
-        }
-        out.push_str("], \"params\": [");
-        for (j, param) in operation.params.iter().enumerate() {
-            if j > 0 {
-                out.push_str(", ");
-            }
-            out.push_str("{\"name\": ");
-            push_str(&mut out, &param.name);
-            out.push_str(", \"type\": ");
-            push_str(&mut out, &param.typ);
-            out.push('}');
-        }
-        out.push_str("], \"source\": ");
-        push_str(&mut out, &operation.source);
-        out.push('}');
-    }
-    if !dump.operations.is_empty() {
-        out.push('\n');
-        out.push_str("  ");
-    }
-    out.push_str("]\n}\n");
+    let envelope = Envelope {
+        version: POLICY_DUMP_VERSION,
+        roles: &dump.roles,
+        models: &dump.models,
+        operations: &dump.operations,
+    };
+    let mut out = crate::json::to_string_with_formatter(&envelope, PolicyFormatter::default())
+        .expect("policy JSON serialization invariant");
+    out.push('\n');
     out
 }
 
-/// JSON string literal (same escapes as the diagnostic envelope).
-fn push_str(out: &mut String, value: &str) {
-    crate::diagnostic::push_json_str(out, value);
+// Preserve the policy page's existing mixed inline/multiline layout. Values
+// and string escaping remain entirely owned by Serde and the shared adapter.
+#[derive(Default)]
+struct PolicyFormatter {
+    containers: Vec<Layout>,
+    reading_key: bool,
+    key: String,
+}
+
+enum Layout {
+    Object {
+        root: bool,
+    },
+    Array {
+        item_indent: usize,
+        end_indent: usize,
+        populated: bool,
+    },
+}
+
+fn indent<W: ?Sized + Write>(writer: &mut W, spaces: usize) -> io::Result<()> {
+    writer.write_all(b"\n")?;
+    for _ in 0..spaces {
+        writer.write_all(b" ")?;
+    }
+    Ok(())
+}
+
+impl Formatter for PolicyFormatter {
+    fn write_char_escape<W: ?Sized + Write>(
+        &mut self,
+        writer: &mut W,
+        escape: serde_json::ser::CharEscape,
+    ) -> io::Result<()> {
+        crate::json::write_compatible_escape(writer, escape)
+    }
+
+    fn write_string_fragment<W: ?Sized + Write>(
+        &mut self,
+        writer: &mut W,
+        fragment: &str,
+    ) -> io::Result<()> {
+        if self.reading_key {
+            self.key.push_str(fragment);
+        }
+        CompactFormatter.write_string_fragment(writer, fragment)
+    }
+
+    fn begin_object<W: ?Sized + Write>(&mut self, writer: &mut W) -> io::Result<()> {
+        self.containers.push(Layout::Object {
+            root: self.containers.is_empty(),
+        });
+        CompactFormatter.begin_object(writer)
+    }
+
+    fn end_object<W: ?Sized + Write>(&mut self, writer: &mut W) -> io::Result<()> {
+        if matches!(self.containers.pop(), Some(Layout::Object { root: true })) {
+            writer.write_all(b"\n")?;
+        }
+        CompactFormatter.end_object(writer)
+    }
+
+    fn begin_object_key<W: ?Sized + Write>(
+        &mut self,
+        writer: &mut W,
+        first: bool,
+    ) -> io::Result<()> {
+        if !first {
+            writer.write_all(b",")?;
+        }
+        if matches!(self.containers.last(), Some(Layout::Object { root: true })) {
+            indent(writer, 2)?;
+        } else if !first {
+            writer.write_all(b" ")?;
+        }
+        self.key.clear();
+        self.reading_key = true;
+        Ok(())
+    }
+
+    fn end_object_key<W: ?Sized + Write>(&mut self, _: &mut W) -> io::Result<()> {
+        self.reading_key = false;
+        Ok(())
+    }
+
+    fn begin_object_value<W: ?Sized + Write>(&mut self, writer: &mut W) -> io::Result<()> {
+        writer.write_all(b": ")
+    }
+
+    fn begin_array<W: ?Sized + Write>(&mut self, writer: &mut W) -> io::Result<()> {
+        let (item_indent, end_indent) = match self.key.as_str() {
+            "roles" | "models" | "operations" => (4, 2),
+            "policies" | "invariants" => (6, 6),
+            _ => (0, 0),
+        };
+        self.containers.push(Layout::Array {
+            item_indent,
+            end_indent,
+            populated: false,
+        });
+        CompactFormatter.begin_array(writer)
+    }
+
+    fn begin_array_value<W: ?Sized + Write>(
+        &mut self,
+        writer: &mut W,
+        first: bool,
+    ) -> io::Result<()> {
+        if !first {
+            writer.write_all(b",")?;
+        }
+        match self.containers.last() {
+            Some(Layout::Array { item_indent, .. }) if *item_indent > 0 => {
+                indent(writer, *item_indent)
+            }
+            _ if !first => writer.write_all(b" "),
+            _ => Ok(()),
+        }
+    }
+
+    fn end_array<W: ?Sized + Write>(&mut self, writer: &mut W) -> io::Result<()> {
+        // Whether an array contained values is tracked by end_array_value.
+        if let Some(Layout::Array {
+            end_indent,
+            populated,
+            ..
+        }) = self.containers.pop()
+        {
+            if populated && end_indent > 0 {
+                indent(writer, end_indent)?;
+            }
+        }
+        CompactFormatter.end_array(writer)
+    }
+
+    fn end_array_value<W: ?Sized + Write>(&mut self, _: &mut W) -> io::Result<()> {
+        if let Some(Layout::Array { populated, .. }) = self.containers.last_mut() {
+            *populated = true;
+        }
+        Ok(())
+    }
 }
 
 /// Current module context while walking one tree.
