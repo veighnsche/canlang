@@ -1,0 +1,5 @@
+   Compiling canlang-compiler v0.1.0 (/Users/vince/Projects/canlang/compiler)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.95s
+     Running tests/delimiter_recovery.rs (compiler/target/debug/deps/delimiter_recovery-1fa2f579667a247e)
+     Running tests/state_machines.rs (compiler/target/debug/deps/state_machines-4f775e89145b9a72)
+error: test failed, to rerun pass `--test state_machines`

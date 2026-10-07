@@ -1,0 +1,18 @@
+{
+  "command": "cargo test --manifest-path compiler/Cargo.toml --locked --offline -- --nocapture",
+  "exit_code": 0,
+  "successful_harness_groups": 59,
+  "harness_passed": 1130,
+  "harness_failed": 0,
+  "harness_ignored": 0,
+  "raw_log_sha256": "52d946e15a5fae40a6fe53e250c18a8abce39538c06cb2a4c6f07b0592a7992f",
+  "input_count": 107,
+  "changed_inputs_during_run": [],
+  "optional_body_lines": [
+    "SKIP mode 4750: this host did not retain the requested fixture bits"
+  ],
+  "scope": "Native harness at frozen compiler inputs; optional body lines remain separate; no full original-app/GUI/cross-host certification",
+  "clippy_command": "cargo clippy --manifest-path compiler/Cargo.toml --locked --offline --all-targets -- -D warnings",
+  "clippy_exit_code": 0,
+  "clippy_log_sha256": "d8ca33ae6c30c9dd3f0bdd58e83a76740db9212befd12954708fc0f1afbf22df"
+}

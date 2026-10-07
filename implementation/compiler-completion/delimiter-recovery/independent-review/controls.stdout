@@ -1,0 +1,12 @@
+
+running 7 tests
+test bounded_deep_stack_and_many_deeper_physical_lines_are_lossless ... ok
+test crlf_unterminated_string_and_eof_comment_reconstruct_exactly ... ok
+test deeper_description_is_inline_then_same_column_description_attaches ... ok
+test mixed_closed_unclosed_and_several_failed_depths ... ok
+test multiple_failed_nested_scenario_statement_boundaries ... ok
+test nested_balanced_subjoin_retains_dedents_and_punctuation_strings ... ok
+test unicode_whitespace_is_code_error_boundary_and_remains_covered ... ok
+
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+

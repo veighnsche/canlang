@@ -9,6 +9,8 @@
 //! and produces a [`LogicalLine`] tree with descriptions attached.
 //! Diagnostics use codes E1101–E1103 and E1120–E1126.
 
+use std::collections::HashSet;
+
 use crate::diagnostic::Diagnostic;
 use crate::source::{SourceId, Span};
 use crate::syntax::lexer::{PhysLine, Punct, Token, TokenKind, lex_fragment};
@@ -100,95 +102,33 @@ pub fn layout(file: SourceId, text: &str, lines: Vec<PhysLine>) -> LayoutResult 
     let mut diagnostics = Vec::new();
     let line_starts: Vec<u32> = lines.iter().map(|l| l.start).collect();
 
-    // Stage 1: delimiter-depth joining into flat logical lines.
-    let mut flat: Vec<TreeLine> = Vec::new();
-    let mut comments: Vec<Token> = Vec::new();
-    let mut pending: Vec<Token> = Vec::new();
-    let mut pending_indent = 0usize;
-    let mut pending_first_line = 1usize;
-    let mut brackets: Vec<Token> = Vec::new();
-
-    for phys in &lines {
-        if phys.tokens.is_empty() {
-            continue; // Blank line: emits nothing.
+    // Stage 1: preserve ordinary balanced joins. Only the final unclosed
+    // join is replayed with recovery boundaries; indentation never splits
+    // a completed join, even at the same or a lesser continuation column.
+    let mut comments = Vec::new();
+    let (mut flat, tail) = join_lines(
+        text,
+        &lines,
+        &HashSet::new(),
+        &mut comments,
+        &mut diagnostics,
+    );
+    if let Some(tail) = tail {
+        diagnostics.truncate(tail.diagnostic_start);
+        comments.truncate(tail.comment_start);
+        let unclosed = tail.openers.iter().map(|open| open.span.start).collect();
+        let (recovered, final_tail) = join_lines(
+            text,
+            &lines[tail.start..],
+            &unclosed,
+            &mut comments,
+            &mut diagnostics,
+        );
+        flat.extend(recovered);
+        if let Some(tail) = final_tail {
+            report_unclosed(text, &tail.openers, &mut diagnostics);
+            flat.push(tail.line);
         }
-        let head = &phys.tokens[0];
-        match head.kind {
-            TokenKind::Comment => {
-                comments.push(head.clone());
-                continue; // `##` lines emit nothing and never join.
-            }
-            TokenKind::Desc => {
-                if brackets.is_empty() {
-                    flat.push(TreeLine {
-                        indent: phys.indent,
-                        tokens: vec![head.clone()],
-                        children: Vec::new(),
-                        first_line: phys.number,
-                        is_desc: true,
-                    });
-                } else {
-                    // Inside joined delimiters: inline (schema fields).
-                    pending.push(head.clone());
-                }
-                continue;
-            }
-            _ => {}
-        }
-        if pending.is_empty() {
-            pending_indent = phys.indent;
-            pending_first_line = phys.number;
-        }
-        for token in &phys.tokens {
-            if let TokenKind::Punct(punct) = token.kind {
-                if punct.is_opener() {
-                    brackets.push(token.clone());
-                } else if punct.is_closer() {
-                    match brackets.last() {
-                        Some(open) if matches!(open.kind, TokenKind::Punct(o) if o.matching_closer() == Some(punct)) =>
-                        {
-                            brackets.pop();
-                        }
-                        _ => {
-                            diagnostics.push(Diagnostic::error(
-                                "E1101",
-                                format!("mismatched closing delimiter `{}`", token.text(text)),
-                                token.span,
-                            ));
-                            // Recovery: pop one level when possible so the
-                            // join usually still terminates.
-                            brackets.pop();
-                        }
-                    }
-                }
-            }
-            pending.push(token.clone());
-        }
-        if brackets.is_empty() {
-            flat.push(TreeLine {
-                indent: pending_indent,
-                tokens: std::mem::take(&mut pending),
-                children: Vec::new(),
-                first_line: pending_first_line,
-                is_desc: false,
-            });
-        }
-    }
-    if !brackets.is_empty() {
-        let open = brackets.last().expect("nonempty brackets");
-        diagnostics.push(Diagnostic::error(
-            "E1102",
-            format!("unclosed delimiter `{}`", open.text(text)),
-            open.span,
-        ));
-        // Recovery: flush the pending line so its tokens stay covered.
-        flat.push(TreeLine {
-            indent: pending_indent,
-            tokens: std::mem::take(&mut pending),
-            children: Vec::new(),
-            first_line: pending_first_line,
-            is_desc: false,
-        });
     }
 
     // Stage 2: indentation tree. `levels` is the child-index path of the
@@ -288,6 +228,146 @@ pub fn layout(file: SourceId, text: &str, lines: Vec<PhysLine>) -> LayoutResult 
         line_starts,
         diagnostics,
     }
+}
+
+/// The ordinary scanner's incomplete suffix, retained for one recovery pass.
+struct JoinTail {
+    start: usize,
+    line: TreeLine,
+    openers: Vec<Token>,
+    diagnostic_start: usize,
+    comment_start: usize,
+}
+
+fn report_unclosed(text: &str, brackets: &[Token], diagnostics: &mut Vec<Diagnostic>) {
+    let open = brackets.last().expect("nonempty brackets");
+    diagnostics.push(Diagnostic::error(
+        "E1102",
+        format!("unclosed delimiter `{}`", open.text(text)),
+        open.span,
+    ));
+}
+
+/// Use the same delimiter scanner for ordinary joining and its bounded
+/// EOF fallback. The latter abandons a proved-unclosed join at the next
+/// same/dedented code or description line; deeper unfinished continuations
+/// remain owned by that malformed line. No declaration grammar is guessed.
+fn join_lines(
+    text: &str,
+    lines: &[PhysLine],
+    unclosed: &HashSet<u32>,
+    comments: &mut Vec<Token>,
+    diagnostics: &mut Vec<Diagnostic>,
+) -> (Vec<TreeLine>, Option<JoinTail>) {
+    let mut flat: Vec<TreeLine> = Vec::new();
+    let mut pending: Vec<Token> = Vec::new();
+    let mut pending_indent = 0usize;
+    let mut pending_first_line = 1usize;
+    let mut brackets: Vec<Token> = Vec::new();
+    let mut unclosed_depth = 0;
+
+    let mut pending_start = 0;
+    let mut diagnostic_start = diagnostics.len();
+    let mut comment_start = comments.len();
+
+    for (index, phys) in lines.iter().enumerate() {
+        if phys.tokens.is_empty() {
+            continue; // Blank line: emits nothing.
+        }
+        let head = &phys.tokens[0];
+        if head.kind == TokenKind::Comment {
+            comments.push(head.clone());
+            continue; // `##` lines emit nothing and never join.
+        }
+        // Only openers proved unclosed by the ordinary EOF pass authorize
+        // a recovery boundary. Balanced subjoins retain arbitrary indentation.
+        if phys.indent <= pending_indent && unclosed_depth > 0 {
+            report_unclosed(text, &brackets, diagnostics);
+            flat.push(TreeLine {
+                indent: pending_indent,
+                tokens: std::mem::take(&mut pending),
+                children: Vec::new(),
+                first_line: pending_first_line,
+                is_desc: false,
+            });
+            brackets.clear();
+            unclosed_depth = 0;
+        }
+        if head.kind == TokenKind::Desc {
+            if brackets.is_empty() {
+                flat.push(TreeLine {
+                    indent: phys.indent,
+                    tokens: vec![head.clone()],
+                    children: Vec::new(),
+                    first_line: phys.number,
+                    is_desc: true,
+                });
+            } else {
+                // Inside joined delimiters: inline (schema fields).
+                pending.push(head.clone());
+            }
+            continue;
+        }
+        if pending.is_empty() {
+            pending_start = index;
+            diagnostic_start = diagnostics.len();
+            comment_start = comments.len();
+            pending_indent = phys.indent;
+            pending_first_line = phys.number;
+        }
+        for token in &phys.tokens {
+            if let TokenKind::Punct(punct) = token.kind {
+                if punct.is_opener() {
+                    brackets.push(token.clone());
+                    unclosed_depth += usize::from(unclosed.contains(&token.span.start));
+                } else if punct.is_closer() {
+                    match brackets.last() {
+                        Some(open) if matches!(open.kind, TokenKind::Punct(o) if o.matching_closer() == Some(punct)) => {
+                            if let Some(open) = brackets.pop() {
+                                unclosed_depth -= usize::from(unclosed.contains(&open.span.start));
+                            }
+                        }
+                        _ => {
+                            diagnostics.push(Diagnostic::error(
+                                "E1101",
+                                format!("mismatched closing delimiter `{}`", token.text(text)),
+                                token.span,
+                            ));
+                            // Recovery: pop one level when possible so the
+                            // join usually still terminates.
+                            if let Some(open) = brackets.pop() {
+                                unclosed_depth -= usize::from(unclosed.contains(&open.span.start));
+                            }
+                        }
+                    }
+                }
+            }
+            pending.push(token.clone());
+        }
+        if brackets.is_empty() {
+            flat.push(TreeLine {
+                indent: pending_indent,
+                tokens: std::mem::take(&mut pending),
+                children: Vec::new(),
+                first_line: pending_first_line,
+                is_desc: false,
+            });
+        }
+    }
+    let tail = (!brackets.is_empty()).then(|| JoinTail {
+        start: pending_start,
+        line: TreeLine {
+            indent: pending_indent,
+            tokens: pending,
+            children: Vec::new(),
+            first_line: pending_first_line,
+            is_desc: false,
+        },
+        openers: brackets,
+        diagnostic_start,
+        comment_start,
+    });
+    (flat, tail)
 }
 
 /// Pre-attachment tree line; description lines are still siblings.

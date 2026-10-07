@@ -1,0 +1,33 @@
+
+running 6 tests
+test deeper_unfinished_continuations_remain_in_the_failed_join ... ok
+test balanced_continuations_ignore_same_and_dedented_columns ... FAILED
+test mismatched_closer_before_eof_replay_is_reported_once ... ok
+test replay_keeps_balanced_subjoin_and_description_comment_ownership ... ok
+test eof_unclosed_schema_keeps_later_module_and_nested_machine_workflow ... ok
+test eof_unclosed_declarations_keep_independent_type_and_name_findings ... ok
+
+failures:
+
+---- balanced_continuations_ignore_same_and_dedented_columns stdout ----
+
+thread 'balanced_continuations_ignore_same_and_dedented_columns' (1556657) panicked at tests/delimiter_recovery.rs:152:9:
+assertion `left == right` failed: app T
+Given
+ M { point:Point=Point {x=1,y=2}, samples:int[]=[
+1,
+2
+] }
+When
+Then
+
+  left: 2
+ right: 4
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    balanced_continuations_ignore_same_and_dedented_columns
+
+test result: FAILED. 5 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+

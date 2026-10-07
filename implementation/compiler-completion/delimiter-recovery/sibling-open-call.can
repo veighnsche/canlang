@@ -1,0 +1,7 @@
+app T
+Given
+ derive broken(): int = count(
+ derive a(): int = 1 + true
+ derive b(): int = nope
+When
+Then

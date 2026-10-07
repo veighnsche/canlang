@@ -1,0 +1,37 @@
+
+running 6 tests
+test deeper_unfinished_continuations_remain_in_the_failed_join ... ok
+test replay_keeps_balanced_subjoin_and_description_comment_ownership ... FAILED
+test balanced_continuations_ignore_same_and_dedented_columns ... FAILED
+test mismatched_closer_before_eof_replay_is_reported_once ... ok
+test eof_unclosed_schema_keeps_later_module_and_nested_machine_workflow ... ok
+test eof_unclosed_declarations_keep_independent_type_and_name_findings ... ok
+
+failures:
+
+---- replay_keeps_balanced_subjoin_and_description_comment_ownership stdout ----
+
+thread 'replay_keeps_balanced_subjoin_and_description_comment_ownership' (1550908) panicked at tests/delimiter_recovery.rs:174:5:
+assertion failed: values.descendants().any(|n| n.kind == SyntaxKind::Description)
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+---- balanced_continuations_ignore_same_and_dedented_columns stdout ----
+
+thread 'balanced_continuations_ignore_same_and_dedented_columns' (1550903) panicked at tests/delimiter_recovery.rs:151:9:
+app T
+Given
+ M { point:{x:int,y:int}, samples:int[]=[
+1,
+2
+] }
+When
+Then
+: [Diagnostic { code: "E1200", severity: Error, message: "expected identifier", primary: Span { file: SourceId(0), start: 23, end: 24 }, related: [], tags: [] }]
+
+
+failures:
+    balanced_continuations_ignore_same_and_dedented_columns
+    replay_keeps_balanced_subjoin_and_description_comment_ownership
+
+test result: FAILED. 4 passed; 2 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+

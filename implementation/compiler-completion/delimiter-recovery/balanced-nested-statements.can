@@ -1,0 +1,10 @@
+app T
+Given
+ Job { status:enum(idle,ready)=idle machine }
+When
+ scenario advance(job:Job) -> Job by=public
+  do
+   if true
+    transition job.status idle -> ready
+   return job
+Then

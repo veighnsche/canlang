@@ -1,0 +1,4 @@
+   Compiling canlang-compiler v0.1.0 (/Users/vince/Projects/canlang/compiler)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 4.54s
+     Running tests/delimiter_recovery.rs (compiler/target/debug/deps/delimiter_recovery-1fa2f579667a247e)
+error: test failed, to rerun pass `--test delimiter_recovery`

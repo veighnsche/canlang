@@ -1,0 +1,7 @@
+app T
+Given
+ M {value:int[]=[1
+ derive a(): int = 1 + true
+ derive b(): int = nope
+When
+Then

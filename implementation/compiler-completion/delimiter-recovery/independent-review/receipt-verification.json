@@ -1,0 +1,34 @@
+{
+  "frozen_pin_count": 32,
+  "all_pins_match": true,
+  "pin_mismatches": [],
+  "prior_private_controls": 26,
+  "prior_private_all_pass": true,
+  "balanced_equivalence": {
+    "balanced-same-dedent-schema": {
+      "nodes_equal": true,
+      "parse_equal": true,
+      "coverage": true
+    },
+    "balanced-list-call": {
+      "nodes_equal": true,
+      "parse_equal": true,
+      "coverage": true
+    },
+    "balanced-description-schema": {
+      "nodes_equal": true,
+      "parse_equal": true,
+      "coverage": true
+    },
+    "balanced-string-punctuation": {
+      "nodes_equal": true,
+      "parse_equal": true,
+      "coverage": true
+    },
+    "balanced-nested-statements": {
+      "nodes_equal": true,
+      "parse_equal": true,
+      "coverage": true
+    }
+  }
+}

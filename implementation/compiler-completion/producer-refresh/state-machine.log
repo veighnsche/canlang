@@ -1,0 +1,10 @@
+   Compiling canlang-compiler v0.1.0 (/Users/vince/Projects/canlang/compiler)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 1.05s
+     Running tests/state_machines.rs (compiler/target/debug/deps/state_machines-4f775e89145b9a72)
+
+running 1 test
+compiled machine: graph, gated capability, canonical creation/ordered transitions/replay/conflict/rollback, projected state UI and one partial main verified
+test compiled_lifecycle_runs_through_canonical_runtime_and_state_driven_ui ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 3 filtered out; finished in 6.39s
+

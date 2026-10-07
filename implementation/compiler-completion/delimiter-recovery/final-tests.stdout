@@ -1,0 +1,48 @@
+
+running 6 tests
+test deeper_unfinished_continuations_remain_in_the_failed_join ... ok
+test balanced_continuations_ignore_same_and_dedented_columns ... ok
+test mismatched_closer_before_eof_replay_is_reported_once ... ok
+test replay_keeps_balanced_subjoin_and_description_comment_ownership ... ok
+test eof_unclosed_schema_keeps_later_module_and_nested_machine_workflow ... ok
+test eof_unclosed_declarations_keep_independent_type_and_name_findings ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+
+running 4 tests
+test formatter_preserves_transition_tokens_and_nested_target ... ok
+test checked_machine_requires_stored_scalar_enum_and_constant_initial_case ... ok
+test transition_checks_field_and_endpoints_and_rejects_plain_writes ... ok
+test compiled_lifecycle_runs_through_canonical_runtime_and_state_driven_ui ... FAILED
+
+failures:
+
+---- compiled_lifecycle_runs_through_canonical_runtime_and_state_driven_ui stdout ----
+
+thread 'compiled_lifecycle_runs_through_canonical_runtime_and_state_driven_ui' (1558587) panicked at tests/state_machines.rs:174:5:
+
+node:internal/modules/run_main:107
+    triggerUncaughtException(
+    ^
+
+AssertionError [ERR_ASSERTION]: {"error":{"code":"rule_failed","message":"t16b: operation \"Images.Job.create\" module \"$can$m$496d61676573.mjs\" failed to import (The requested module 'file:///Users/vince/Projects/canlang/packages/cloudflare/dist/runtime/stdlib.js' does not provide an export named 'transition')","operation_id":"01a11802-189c-703b-848b-b9ab4e3fb324","retryable":false}}
+    at file:///Users/vince/Projects/canlang/compiler/tests/fixtures/state-machine-consumer.mjs:39:8 {
+  generatedMessage: false,
+  code: 'ERR_ASSERTION',
+  actual: false,
+  expected: true,
+  operator: '==',
+  diff: 'simple'
+}
+
+Node.js v24.21.0
+
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    compiled_lifecycle_runs_through_canonical_runtime_and_state_driven_ui
+
+test result: FAILED. 3 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 5.22s
+

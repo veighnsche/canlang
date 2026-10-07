@@ -1,0 +1,19 @@
+{
+  "build_command": "node scripts/run-tasks.mjs build --filter=@canlang/cloudflare",
+  "build_exit": 0,
+  "completed_task_graph": 22,
+  "source_observation": "Post-execution file hashes, not an immutable whole-package source freeze",
+  "actual_runtime_command": "cargo test --manifest-path compiler/Cargo.toml --locked --offline --test state_machines compiled_lifecycle_runs_through_canonical_runtime_and_state_driven_ui -- --nocapture",
+  "runtime_exit": 0,
+  "body_marker": "canonical creation/ordered transitions/replay/conflict/rollback, projected state UI and one partial main verified",
+  "built_producer_hashes_observed_after_execution": {
+    "packages/values/dist/catalog.json": "cd984f375e0d6cbcc2bc6aca5ad5ea5b1b3d3ba9cd17b15ab94e4b15e74ced62",
+    "packages/cloudflare/dist/runtime/stdlib.js": "b5288a721c20162333032a9d34863be783987a8df38867921198801d28c7c227",
+    "packages/cloudflare/dist/runtime/artifact.js": "ced0869b7e0503b00c54f8196a64d63ad138982483df8e81733e4de7d678c3d2",
+    "packages/cloudflare/dist/runtime/modules.js": "db7d2d6da2db92a1ee393de19f14f52487b7b1a27d55818301524dfc357b2a59",
+    "packages/ui/dist/src/index.js": "debf4ec6e4236d5b469eae1d75ca27e6953c1dbadd39f7cc5fa1696142de7610"
+  },
+  "compiler_rlib": "compiler/target/debug/deps/libcanlang_compiler-7ac8439fc564dd9b.rlib",
+  "compiler_rlib_sha256": "bdd0ad99d020bdb338c71fa1ca25a80888b7a58cad58e662671c57602f53e1fa",
+  "limits": "Actual local canonical/UI fixture; installed deployment, full original app, provider and GUI acceptance not implied."
+}

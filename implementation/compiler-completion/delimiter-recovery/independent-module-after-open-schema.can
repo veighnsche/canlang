@@ -1,0 +1,11 @@
+app Broken
+Given
+ M {value:int
+When
+Then
+app T
+Given
+ derive a(): int = 1 + true
+ derive b(): int = nope
+When
+Then
