@@ -216,7 +216,7 @@ export interface IdentityStore {
     expires_at: InstantString;
   }): Promise<AuthCode>;
   findAuthCodeByHash(code_sha256: string): Promise<AuthCode | null>;
-  consumeAuthCode(code_sha256: string): Promise<void>;
+  consumeAuthCode(code_sha256: string): Promise<'consumed' | 'unavailable'>;
 }
 
 /** Invitation row as stored (invitation_id carried alongside). */

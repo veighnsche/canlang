@@ -1,0 +1,316 @@
+{
+  "packet": "TECH-I01 finite OAuth conditional winner correction",
+  "disposition": "accepted narrow one-use and first-error correctness; whole identity/shared State fence J2 remains open",
+  "reviewer": "originating root, different from author; independently constructed 8/4-caller barriers and error spies",
+  "sourcePins": {
+    "packages/identity/src/ports.ts": "4ec39e96e326976f965531eba49eb3d77637c9bb942154ae93090fa0c1a26443",
+    "packages/identity/src/storage/d1.ts": "7be916e694734d7c80223c6f33e73690a6af55e2b1928994e34cc9923ed60bce",
+    "packages/identity/src/testing.ts": "68f002eedf77ad5b612f5d9b0c3a097c37f554b44bc7b74b5e495769ebac5ca7",
+    "packages/identity/src/authentication/oauth.ts": "21f5596c877a6f7c5ccf1f1b379d24f0d5fd33ef744c0845867d336a7b1efa33",
+    "packages/cloudflare/src/runtime/env-assembly.ts": "54a78f3bc788fd2d68f3c8ee21d8483ed76e06c079da59fb6ebb4e3add8d5e6d",
+    "packages/identity/test/oauth.test.ts": "151287911045bede0723d3cfefbb37e6497fc97432c2a6fae49e2b5410c9cb73",
+    "packages/identity/test/d1.test.ts": "c3a61f0bbfb2ee23835fa5e15964d3f76a03e33764dcf1e30c51c8fad584096c",
+    "packages/cloudflare/test/mcpd-env-assembly.test.ts": "02e3e878009ff5d1cc06953ac7f190f5d0a1da4ce128811bfa7dbcbb88ee8a34"
+  },
+  "producerReceiptSHA256": "c8074e1e7186739c25f77d607a8f4f7bc078de33389db927eac71d08ee34feda",
+  "producerReceipt": "/private/tmp/canlang-repair-go-20261007/oauth-consume/fix-forward.json",
+  "contract": {
+    "consumeAuthCode": "Promise<'consumed' | 'unavailable'> inline on Identity and structural Cloudflare mirror",
+    "mintGate": "only exact 'consumed' after existing code/client/redirect/expiry/PKCE validation",
+    "D1": "unchanged conditional UPDATE and binds; supported own result.meta.changes definitive numeric 0 or 1; other profiles throw; no reread or top-level SQLite result adoption",
+    "memory": "synchronous compare/replacement with no await; missing or spent unavailable; only winner increments memory revision counter",
+    "exceptions": "consume errors propagate; winner mint original exception preserved; committed consume remains spent; unavailable and malformed acknowledgments generic validation and no mint"
+  },
+  "independent": {
+    "pid": 93653,
+    "start": "2026-10-07T21:26:57.489Z",
+    "deadline": "2026-10-07T21:27:57.489Z",
+    "end": "2026-10-07T21:26:58.105Z",
+    "exitCode": 0,
+    "observations": [
+      {
+        "name": "memory",
+        "control": "all concurrent pre-reads complete before consumption; one mint, exact loser refusal",
+        "calls": 8,
+        "mints": 1,
+        "outcomes": [
+          "consumed",
+          "unavailable",
+          "unavailable",
+          "unavailable",
+          "unavailable",
+          "unavailable",
+          "unavailable",
+          "unavailable"
+        ]
+      },
+      {
+        "name": "memory",
+        "control": "spent before mint; original failure identity; repeat refuses"
+      },
+      {
+        "name": "memory",
+        "control": "consume rejection precedes grant effect, exact thrown identity"
+      },
+      {
+        "name": "memory",
+        "control": "unsupported port outcome refuses before mint",
+        "kind": "undefined"
+      },
+      {
+        "name": "memory",
+        "control": "unsupported port outcome refuses before mint",
+        "kind": "object"
+      },
+      {
+        "name": "memory",
+        "control": "unsupported port outcome refuses before mint",
+        "kind": "boolean"
+      },
+      {
+        "name": "memory",
+        "control": "unsupported port outcome refuses before mint",
+        "kind": "boolean"
+      },
+      {
+        "name": "memory",
+        "control": "unsupported port outcome refuses before mint",
+        "kind": "number"
+      },
+      {
+        "name": "memory",
+        "control": "unsupported port outcome refuses before mint",
+        "kind": "number"
+      },
+      {
+        "name": "memory",
+        "control": "unsupported port outcome refuses before mint",
+        "kind": "string"
+      },
+      {
+        "name": "memory",
+        "control": "unsupported port outcome refuses before mint",
+        "kind": "object"
+      },
+      {
+        "name": "memory",
+        "control": "unsupported port outcome refuses before mint",
+        "kind": "object"
+      },
+      {
+        "name": "memory",
+        "control": "unsupported port outcome refuses before mint",
+        "kind": "object"
+      },
+      {
+        "name": "real Miniflare D1",
+        "control": "all concurrent pre-reads complete before consumption; one mint, exact loser refusal",
+        "calls": 4,
+        "mints": 1,
+        "outcomes": [
+          "consumed",
+          "unavailable",
+          "unavailable",
+          "unavailable"
+        ]
+      },
+      {
+        "name": "real Miniflare D1",
+        "control": "spent before mint; original failure identity; repeat refuses"
+      },
+      {
+        "name": "real Miniflare D1",
+        "control": "consume rejection precedes grant effect, exact thrown identity"
+      },
+      {
+        "name": "real D1",
+        "control": "ambiguous port report after committed consume refuses mint; no rollback invented"
+      }
+    ]
+  },
+  "independentScriptSHA256": "b241bbe1bc2ef3efbba072973bcdb4b5a9e6011b652fa4172413799a04bdd413",
+  "verification": {
+    "strictIdentity": "all src/test checked, private emitted; exit0",
+    "strictCloudflare": "all src including inline runtime tests and finite mcpd-env-assembly test checked, emitted; exit0 after explicit private Identity declaration paths eliminate historical shared-dist transitive resolution",
+    "currentMemoryAndSQLite": "26 tests passed, 0 failed",
+    "sameTestsOldOwners": "20 passed, 6 failed; actual memory race double-mint assertion 2 != 1, old ambiguous/void admitted",
+    "currentRealD1": "1 finite OAuth test passed, 6 unrelated tests skipped; actual buildProductionDeps + real startLocalDev Miniflare D1, two validated pre-reads => 1 grant + generic validation loser, actual SQL count1; stale/delete/ambiguous UPDATE acknowledgment/consume exception/mint exception no extra grants; consumed timestamp retained and missing/spent unavailable",
+    "oldRealD1": "same finite test failed because minted2 rather than1; actual old five production owners restored, test bytes same",
+    "D1ProfileControls": "missing/null/no meta/top-level changes/inherited/meta-array/non-numeric/bool/2/-1/NaN/Infinity refuse; numeric0 unavailable,1 consumed; no second database read",
+    "refusalControls": "memory legacyvoid/null/bool/number/object/array/unknown/unavailable no mint; real D1 ambiguous acknowledgment after actual UPDATE loud and spent; thrown consume and winner mint retain original errors",
+    "sandbox": "first real D1 sandbox test failed EPERM 127.0.0.1 and timed out; exact private command rerun via supported require_escalated passed; failed log retained",
+    "baselineCompile": "original identity src only compile exit0, current exact emitted test JS copied verbatim for differential runtime; baseline cloudflare test is transformed by Vitest and not claimed strict compile"
+  },
+  "commands": {
+    "baseline-identity-compile-handle.json": {
+      "command": [
+        "node",
+        "/Users/vince/Projects/canlang/node_modules/typescript/bin/tsc",
+        "-p",
+        "/private/tmp/canlang-repair-go-20261007/oauth-consume/baseline/packages/identity/tsconfig.json"
+      ],
+      "pid": 90434,
+      "start": "2026-10-07T21:19:02.807395+00:00",
+      "deadline": "2026-10-07T21:20:02.807395+00:00",
+      "exitCode": 0
+    },
+    "baseline-identity-tests-handle.json": {
+      "command": [
+        "node",
+        "--test",
+        "/private/tmp/canlang-repair-go-20261007/oauth-consume/baseline/packages/identity/dist/test/oauth.test.js",
+        "/private/tmp/canlang-repair-go-20261007/oauth-consume/baseline/packages/identity/dist/test/d1.test.js"
+      ],
+      "pid": 90467,
+      "start": "2026-10-07T21:19:13.465954+00:00",
+      "deadline": "2026-10-07T21:20:13.465954+00:00",
+      "exitCode": 1
+    },
+    "baseline-real-d1-localhost-handle.json": {
+      "command": [
+        "node",
+        "/Users/vince/Projects/canlang/packages/cloudflare/node_modules/vitest/vitest.mjs",
+        "run",
+        "test/mcpd-env-assembly.test.ts",
+        "--root",
+        "/private/tmp/canlang-repair-go-20261007/oauth-consume/baseline/packages/cloudflare",
+        "--testNamePattern",
+        "OAuth one-use consumption",
+        "--pool",
+        "forks",
+        "--maxWorkers",
+        "1",
+        "--minWorkers",
+        "1"
+      ],
+      "pid": 90858,
+      "start": "2026-10-07T21:20:21.456946+00:00",
+      "deadline": "2026-10-07T21:21:21.456946+00:00",
+      "exitCode": 1
+    },
+    "current-cloudflare-compile-handle.json": {
+      "command": [
+        "node",
+        "/Users/vince/Projects/canlang/node_modules/typescript/bin/tsc",
+        "-p",
+        "/private/tmp/canlang-repair-go-20261007/oauth-consume/current/packages/cloudflare/tsconfig.json"
+      ],
+      "pid": 90051,
+      "start": "2026-10-07T21:18:17.226001+00:00",
+      "deadline": "2026-10-07T21:19:17.226001+00:00",
+      "exitCode": 1
+    },
+    "current-cloudflare-compile-private-resolution-handle.json": {
+      "command": [
+        "node",
+        "/Users/vince/Projects/canlang/node_modules/typescript/bin/tsc",
+        "-p",
+        "/private/tmp/canlang-repair-go-20261007/oauth-consume/current/packages/cloudflare/tsconfig.json"
+      ],
+      "pid": 90431,
+      "start": "2026-10-07T21:19:01.679319+00:00",
+      "deadline": "2026-10-07T21:20:01.679319+00:00",
+      "exitCode": 0
+    },
+    "current-identity-compile-handle.json": {
+      "command": [
+        "node",
+        "/Users/vince/Projects/canlang/node_modules/typescript/bin/tsc",
+        "-p",
+        "/private/tmp/canlang-repair-go-20261007/oauth-consume/current/packages/identity/tsconfig.json"
+      ],
+      "pid": 89871,
+      "start": "2026-10-07T21:17:55.893114+00:00",
+      "deadline": "2026-10-07T21:18:55.893114+00:00",
+      "exitCode": 0
+    },
+    "current-identity-tests-handle.json": {
+      "command": [
+        "node",
+        "--test",
+        "/private/tmp/canlang-repair-go-20261007/oauth-consume/current/packages/identity/dist/test/oauth.test.js",
+        "/private/tmp/canlang-repair-go-20261007/oauth-consume/current/packages/identity/dist/test/d1.test.js"
+      ],
+      "pid": 90059,
+      "start": "2026-10-07T21:18:24.931443+00:00",
+      "deadline": "2026-10-07T21:19:24.931443+00:00",
+      "exitCode": 0
+    },
+    "current-real-d1-handle.json": {
+      "command": [
+        "node",
+        "/Users/vince/Projects/canlang/packages/cloudflare/node_modules/vitest/vitest.mjs",
+        "run",
+        "test/mcpd-env-assembly.test.ts",
+        "--root",
+        "/private/tmp/canlang-repair-go-20261007/oauth-consume/current/packages/cloudflare",
+        "--testNamePattern",
+        "OAuth one-use consumption",
+        "--pool",
+        "forks",
+        "--maxWorkers",
+        "1",
+        "--minWorkers",
+        "1"
+      ],
+      "pid": 90461,
+      "start": "2026-10-07T21:19:12.319983+00:00",
+      "deadline": "2026-10-07T21:20:12.319983+00:00",
+      "exitCode": 1
+    },
+    "current-real-d1-localhost-handle.json": {
+      "command": [
+        "node",
+        "/Users/vince/Projects/canlang/packages/cloudflare/node_modules/vitest/vitest.mjs",
+        "run",
+        "test/mcpd-env-assembly.test.ts",
+        "--root",
+        "/private/tmp/canlang-repair-go-20261007/oauth-consume/current/packages/cloudflare",
+        "--testNamePattern",
+        "OAuth one-use consumption",
+        "--pool",
+        "forks",
+        "--maxWorkers",
+        "1",
+        "--minWorkers",
+        "1"
+      ],
+      "pid": 90840,
+      "start": "2026-10-07T21:20:10.518912+00:00",
+      "deadline": "2026-10-07T21:21:10.518912+00:00",
+      "exitCode": 0
+    }
+  },
+  "outputPins": {
+    "baseline/packages/identity/dist/src/ports.js": "c28e60757d6333b024ff914ca17571be343426506510ae3440fa1180373d74a7",
+    "baseline/packages/identity/dist/src/ports.d.ts": "5c3b977a614671fe1a40de2f361ec88ddfe9bfc60ef2d7d2248531024ef4cfc5",
+    "baseline/packages/identity/dist/src/testing.js": "e37168c44fa0c730b89edbeacae28a077bfb31df47d23d4ab5c04492226796b2",
+    "baseline/packages/identity/dist/src/testing.d.ts": "dbb391ab2951be8af7419a72d4f71ea0fb8dbf17f2ee4c2d0b3a38ca0c536d55",
+    "baseline/packages/identity/dist/src/storage/d1.js": "3e40db7fa8471933172423709d81a82c7466734253d500422a64285c69efacc7",
+    "baseline/packages/identity/dist/src/storage/d1.d.ts": "3376e6ddb3eadf9d4bf3d2c540946e471dc13c8cca072e14ed84ce59b58ac34b",
+    "baseline/packages/identity/dist/src/authentication/oauth.js": "f01b78c1d1146960a71eecb6b8f55efeb679e6ad8c1691ac995e1db56caa45e5",
+    "baseline/packages/identity/dist/src/authentication/oauth.d.ts": "d4c8e5dad410e27e3844085f0d7d5d6b0da0482816d59bb7fe0e285116ff5b1e",
+    "current/packages/identity/dist/src/ports.js": "c28e60757d6333b024ff914ca17571be343426506510ae3440fa1180373d74a7",
+    "current/packages/identity/dist/src/ports.d.ts": "1cc4571d2f54e996936346264fa1d510967cccf37486636306ae16d6782fcee9",
+    "current/packages/identity/dist/src/testing.js": "c4a58dbd0b11100ce9001d77a7bcbe73caf340414b8b620c0abf80f708ebbcc1",
+    "current/packages/identity/dist/src/testing.d.ts": "dbb391ab2951be8af7419a72d4f71ea0fb8dbf17f2ee4c2d0b3a38ca0c536d55",
+    "current/packages/identity/dist/src/storage/d1.js": "e982a3429a2b219c9e1344c0cd323599849fba8de5f4fe0667ab6dcf88c5bbd4",
+    "current/packages/identity/dist/src/storage/d1.d.ts": "3376e6ddb3eadf9d4bf3d2c540946e471dc13c8cca072e14ed84ce59b58ac34b",
+    "current/packages/identity/dist/src/authentication/oauth.js": "427aef6145b2e82c35faf107ac7b5741902fcee6007586e054bb384996daa1b2",
+    "current/packages/identity/dist/src/authentication/oauth.d.ts": "d4c8e5dad410e27e3844085f0d7d5d6b0da0482816d59bb7fe0e285116ff5b1e",
+    "current/packages/cloudflare/dist/src/runtime/env-assembly.js": "30756788cc126cc824d4a412a914297b761ebc425beb4e78f5776946b5c800ca",
+    "current/packages/cloudflare/dist/src/runtime/env-assembly.d.ts": "2bcb0eb303222e8bb6011e77b0f360a2c22d477d768c0bcb85175f12c7d50d38"
+  },
+  "maintenance": "Five existing production owners change; no new module, wrapper, dependency or rollback protocol. Required correctness growth is charged separately from replacement reductions. Explicit existing public consume port migration is intentional.",
+  "limitations": [
+    "No installed full worker/public deployment/runtime ABI adoption asserted.",
+    "Unrelated six existing MCP tests not rerun; no MCP/replay confidentiality closure.",
+    "Full J2 shared transaction fence, last-owner/recovery/revocation/authority atomicity remain OPEN.",
+    "No compiler edits, new policy, fence/wrapper, fresh compiler emission or repeated JEV.",
+    "No Git/docs/state/shared-dist writes. Root owns decisions and independent acceptance.",
+    "Root direct actual D1 adapter proof and producer actual buildProductionDeps/Miniflare proof complement; no whole installed worker/browser/revocation/recovery/last-owner acceptance."
+  ],
+  "writerAndCommandsReleased": true,
+  "rootReadReleased": true,
+  "finished_utc": "2026-10-07T21:28:35.798097+00:00"
+}

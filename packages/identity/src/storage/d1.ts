@@ -888,10 +888,18 @@ export function createD1IdentityStore(
       return row === null ? null : toAuthCode(row);
     },
     async consumeAuthCode(code_sha256) {
-      await db
+      const result: unknown = await db
         .prepare('UPDATE identity_auth_codes SET consumed_at = ? WHERE code_sha256 = ? AND consumed_at IS NULL')
         .bind(now(), code_sha256)
         .run();
+      const meta: unknown = typeof result === 'object' && result !== null && !Array.isArray(result) &&
+        Object.hasOwn(result, 'meta') ? (result as Record<string, unknown>).meta : undefined;
+      const changes: unknown = typeof meta === 'object' && meta !== null && !Array.isArray(meta) &&
+        Object.hasOwn(meta, 'changes') ? (meta as Record<string, unknown>).changes : undefined;
+      if (changes !== 0 && changes !== 1) {
+        throw new Error('Identity D1 auth code consumption needs definitive meta.changes of 0 or 1.');
+      }
+      return changes === 1 ? 'consumed' : 'unavailable';
     },
   };
 }

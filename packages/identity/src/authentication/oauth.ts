@@ -237,7 +237,9 @@ export async function exchangeCode(
   if (!(await pkceChallengeMatches(input.code_verifier, row.code_challenge))) {
     throw new IdentityError('validation', CODE_FAILED);
   }
-  await store.consumeAuthCode(row.code_sha256);
+  if (await store.consumeAuthCode(row.code_sha256) !== 'consumed') {
+    throw new IdentityError('validation', CODE_FAILED);
+  }
   return issueMcpGrant(
     store,
     { user_id: row.user_id, team_id: row.team_id, client_id: row.client_id },

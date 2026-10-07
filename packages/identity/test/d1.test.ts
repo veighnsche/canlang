@@ -54,7 +54,7 @@ function wrapSqlite(db: DatabaseSync): IdentityD1Database {
               return { results: stmt.all(...args) as T[] };
             },
             async run(): Promise<unknown> {
-              return stmt.run(...args);
+              return { meta: { changes: Number(stmt.run(...args).changes) } };
             },
           };
         },
@@ -418,10 +418,11 @@ test('oauth clients and auth codes: register, lookup, idempotent consume', async
   });
   assert.equal((await store.findAuthCodeByHash('code-hash-1'))?.code_challenge, code.code_challenge);
   assert.equal(await store.findAuthCodeByHash('missing-hash'), null);
-  await store.consumeAuthCode('code-hash-1');
+  assert.equal(await store.consumeAuthCode('code-hash-1'), 'consumed');
   const consumed = (await store.findAuthCodeByHash('code-hash-1'))?.consumed_at;
   assert.ok(consumed !== null);
-  await store.consumeAuthCode('code-hash-1');
+  assert.equal(await store.consumeAuthCode('code-hash-1'), 'unavailable');
+  assert.equal(await store.consumeAuthCode('missing-hash'), 'unavailable');
   assert.equal((await store.findAuthCodeByHash('code-hash-1'))?.consumed_at, consumed);
 });
 
@@ -506,4 +507,32 @@ test('session round-trip: the grant route resolves cookie sessions from D1', asy
   assert.equal(resolved.actor?.user_id, user.user_id);
   assert.equal(resolved.team?.team_id, team.team_id);
   assert.equal(resolved.membership?.status, 'active');
+});
+
+test('D1 consumption accepts only definitive own numeric meta.changes 0 or 1', async () => {
+  const profiles: unknown[] = [undefined, null, {}, { changes: 1 }, { meta: {} },
+    { meta: { changes: '1' } }, { meta: { changes: true } }, { meta: { changes: 2 } },
+    { meta: { changes: -1 } }, { meta: { changes: NaN } }, { meta: { changes: Infinity } },
+    { meta: [] }, { meta: Object.create({ changes: 1 }) }, Object.create({ meta: { changes: 1 } })];
+  for (const profile of [...profiles, { meta: { changes: 0 } }, { meta: { changes: 1 } }]) {
+    let updates = 0;
+    const database: IdentityD1Database = {
+      prepare(sql) {
+        assert.equal(sql, 'UPDATE identity_auth_codes SET consumed_at = ? WHERE code_sha256 = ? AND consumed_at IS NULL');
+        return { bind(...args) {
+          assert.deepEqual(args, [new Date(NOW).toISOString(), 'code-hash']);
+          return { async first<T>() { throw new Error('no reread'); }, async all<T>() { throw new Error('no reread'); },
+            async run() { updates++; return profile; } };
+        } };
+      },
+      async exec() { throw new Error('no schema mutation'); },
+    };
+    const store = createD1IdentityStore(database, { clock: createFrozenClock(NOW) });
+    if (profiles.includes(profile)) {
+      await assert.rejects(() => store.consumeAuthCode('code-hash'), /definitive meta.changes of 0 or 1/);
+    } else {
+      assert.equal(await store.consumeAuthCode('code-hash'), (profile as { meta: { changes: number } }).meta.changes === 1 ? 'consumed' : 'unavailable');
+    }
+    assert.equal(updates, 1);
+  }
 });
