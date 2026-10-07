@@ -1,0 +1,8 @@
+app MessageCoverage
+Given
+ message notice = "Hi"@{nl=null}
+When
+ scenario greet() by=members
+  do
+   let greeting = format("Hi {name}"@{nl="Hoi {name}"}(name="Bo"),locale=null)
+Then

@@ -1093,7 +1093,7 @@ fn message_calls_against_real_catalog() {
     };
     let catalog = load_real_catalog(&path);
     assert_clean(
-        "app T\nGiven\n message m = \"Hi {name}\"@{}\nWhen\n scenario s() by=members\n  do\n   let x = format(m, locale=null)\nThen\n",
+        "app T\nGiven\n message m = \"Hi\"@{}\nWhen\n scenario s() by=members\n  do\n   let x = format(m, locale=null)\nThen\n",
         Some(&catalog),
     );
     assert_clean(
