@@ -223,3 +223,5 @@ Values owned-input remains the parser/derivative owner. Narrow content isolation
 Files retains upload/finalization ownership; independently accepted completion byte-size enforcement now joins the existing finalizer guard at actual FS/persisted-copy fixture scope. No new protocol/layer, retry or durable/provider/lifetime claim, merge or complete checkpoint advance.
 
 Services retains HTTP streaming cancellation ownership. Independently accepted existing-signal cleanup wait removes the caller-visible hang without a new framework or physical-cleanup/security/installed claim. Whole services/effect and complete checkpoint review remain open; no merge.
+
+UI defining browser owners retain synchronous acquisition/stop/listener cleanup. Finite independently accepted resource exhaustion and first-error correction adds no public layer; separate visibility/typing/producer/real-browser/installed outcomes and complete checkpoint remain open. No merge.
