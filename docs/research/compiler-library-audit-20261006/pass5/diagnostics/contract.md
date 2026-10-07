@@ -1,0 +1,15 @@
+# C05D released diagnostic serialization contract
+
+One defining writer owns `diagnostic.rs`; root alone owns `json.rs`, Cargo manifest/lock and CLI cross-family seams. The packet converts output only. The existing input parser, ordered Json, accessors, raw-number/depth/LSP admission contracts remain unchanged.
+
+Preserve full compact bytes, including declaration/key order: envelope `tool,tool_version,language_version,schema_version,sources,complete,diagnostics,omitted`; source `id,path,sha256`; diagnostic `code,severity,message,primary,related,tags`; primary `file,start,end`; related `file,start,end,message`. All arrays and flags/counts remain present, including empty arrays, false completeness and nonzero omission. Spans/IDs/schema/counts remain JSON integers; byte coordinates and hashes retain their owners. Severity is lowercase. Caller-controlled diagnostic/source ordering is preserved; finish sorting is unchanged.
+
+Strings keep decoded UTF-8 including Unicode supplementary characters, slash, U+2028/U+2029. Quotes/backslashes/LF/CR/tab keep usual escapes, other ASCII controls keep lowercase `\u00XX`, including `\u0008` and `\u000c`. Qualified serde_json differs by default on only the latter two; a two-case Formatter adapter preserves established spelling and delegates all other string mechanics. JS expressions/identifiers/HTML embedding remain separate.
+
+No serializer trailing newline; real check/lint/fmt diagnostic CLI wrappers keep exactly their existing one newline. Text rendering, errors, diagnostic codes/order and source identities remain. Lint --fix extension is a later jointly released CLI/fix packet; diagnostic to_json stays usable until then. Do not remove the legacy public push_json_str while other families/tests still call it.
+
+Typed adapters explicitly preserve field names/order and empty fields; no generic Value/map sorting, automatic skip-empty or Deserialize adoption. Generic shared to_compact_string returns Result<_,serde_json::Error>. Closed DTO String adapters expect serializable fields and treat unexpected failure as internal invariant/tool error, never silently emit null or empty JSON. The existing CLI panic boundary maps internal failures to E7005; this packet adds no fallible user scalar.
+
+Candidate pins: serde1.0.229 std/derive, serde_json1.0.151 std/raw_value, defaults disabled. raw_value is reserved for subsequently qualified compiler-owned encoded fragments, not public input replacement; its first callers must validate before embedding. Current official crate docs and cached source confirm versions/APIs. Both native host/tool and dependency/license/MSRV/footprint profiles will be pinned in the integrated receipt; no universal closure minimum or hardware/installed-runtime claim follows.
+
+Acceptance: fixed expected empty/populated bytes covering every field, related/tags, omission/completeness, all controls and Unicode; diagnostic sorting/text regressions; real CLI JSON/newline/tool/diagnostic error routes and actual contracts consumer. Independent expectations must not solely reuse the old encoder or serde output. Permanent witnesses enter with this boundary.
