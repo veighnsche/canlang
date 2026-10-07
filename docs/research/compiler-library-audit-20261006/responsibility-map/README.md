@@ -1,4 +1,4 @@
-# Compiler responsibility coverage — audit Steps 2–8
+# Compiler responsibility coverage — audit Steps 2–8 and 10
 
 The structural inventory accounts for every tracked compiler path. The single authoritative [coverage ledger](coverage.jsonl) records current responsibility bands, named API declarations, test families and interfaces. A fresh Sol medium reviewer accepted the inventory after bounded corrections; [review receipts](review.json) preserve the initial findings and final delta checks. Structural inventory maps duties and review scope; it does not qualify semantic correctness or test adequacy. [Step 3 workflow tracing](workflows.md) extends this same ledger with actual consumers and bounded executed witnesses. [Step 4 compatibility challenge](compatibility.md) distinguishes owning outcomes, current public byte promises, migration guards and incidental mechanisms. [Step 5 representations](representations.md) traces stage authorities, conversions, reconstructed facts and source/catalog coherence. [Step 6 integrations](integrations.md) records complete scoped library caller/adapter closures and conditional retirement results. [Step 7 syntax/recovery](syntax.md) maps finite admitted forms through stage owners and records independently corroborated recovery/meaning-loss findings.
 
@@ -117,3 +117,22 @@ gates remain visible. [Validation](semantic-validation.json) checks the joined
 ledger and captures without converting sampled execution to universal semantic
 acceptance. No production/package implementation, merge or checkpoint change
 occurs; broader Step 9 execution and later resource/oracle/product scope remain.
+
+## Outputs and source transformations — Step 10
+
+[Output findings](outputs.md) add 35 finite duties and five repair/qualification
+records to the same ledger: 15 serialization families, 13 transformations and
+seven coordinate/identity boundaries. Exact values, scale, escaping, presence,
+order, source revisions, byte spans, UTF16 positions, source-map columns and
+authored URI identities have distinct owners and consumer witnesses.
+
+Fresh native evidence has 113 harness passes with one `4750` fixture branch skip,
+61 source cases, 18 actual CLI calls and five Node syntax checks. Legal reserved
+and context-colliding parameters compile into invalid JS. A tags-only public
+diagnostic tie and standards-derived downstream docs escaping defects are
+classified separately from comment preservation and unsupported profile gates.
+[Independent review](output-evidence/review-transforms.json) and
+[validation](output-validation.json) retain corrections and evidence limits.
+Structural preservation and selected consumers do not certify all semantics,
+runtime attribution or the final release. Step 9 and Steps 11 onward remain
+proposed; no production/package implementation, merge or checkpoint changes.
