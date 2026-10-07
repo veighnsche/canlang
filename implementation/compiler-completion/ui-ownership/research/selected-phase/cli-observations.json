@@ -1,0 +1,162 @@
+{
+  "binary_sha256": "b8ec81900121effeab3b2145c0f4436089eeea7a273642317335309861c0cd3d",
+  "producer_manifest": "producer-pins.json",
+  "cases": [
+    {
+      "id": "tab",
+      "op": "check",
+      "exit": 0,
+      "diagnostics": [],
+      "command": [
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/ui-ownership/research/selected-phase/can-pinned",
+        "check",
+        "--format=json",
+        "--catalog=/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/ui-ownership/research/tab.can"
+      ]
+    },
+    {
+      "id": "tab",
+      "op": "compile",
+      "exit": 0,
+      "diagnostics": [],
+      "command": [
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/ui-ownership/research/selected-phase/can-pinned",
+        "compile",
+        "--format=json",
+        "--catalog=/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/ui-ownership/research/tab.can"
+      ]
+    },
+    {
+      "id": "order",
+      "op": "check",
+      "exit": 0,
+      "diagnostics": [],
+      "command": [
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/ui-ownership/research/selected-phase/can-pinned",
+        "check",
+        "--format=json",
+        "--catalog=/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/ui-ownership/research/order.can"
+      ]
+    },
+    {
+      "id": "order",
+      "op": "compile",
+      "exit": 0,
+      "diagnostics": [],
+      "command": [
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/ui-ownership/research/selected-phase/can-pinned",
+        "compile",
+        "--format=json",
+        "--catalog=/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/ui-ownership/research/order.can"
+      ]
+    },
+    {
+      "id": "kbd",
+      "op": "check",
+      "exit": 0,
+      "diagnostics": [],
+      "command": [
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/ui-ownership/research/selected-phase/can-pinned",
+        "check",
+        "--format=json",
+        "--catalog=/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/ui-ownership/research/kbd.can"
+      ]
+    },
+    {
+      "id": "kbd",
+      "op": "compile",
+      "exit": 10,
+      "diagnostics": [
+        {
+          "code": "E6008",
+          "severity": "error",
+          "message": "cannot lower UI node: kbd is not a \u00a713 server factory (no h, native elements, hydration or stores)",
+          "primary": {
+            "file": 0,
+            "start": 45,
+            "end": 58
+          },
+          "related": [],
+          "tags": []
+        }
+      ],
+      "command": [
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/ui-ownership/research/selected-phase/can-pinned",
+        "compile",
+        "--format=json",
+        "--catalog=/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/ui-ownership/research/kbd.can"
+      ]
+    },
+    {
+      "id": "mystery",
+      "op": "check",
+      "exit": 0,
+      "diagnostics": [],
+      "command": [
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/ui-ownership/research/selected-phase/can-pinned",
+        "check",
+        "--format=json",
+        "--catalog=/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/ui-ownership/research/mystery.can"
+      ]
+    },
+    {
+      "id": "mystery",
+      "op": "compile",
+      "exit": 10,
+      "diagnostics": [
+        {
+          "code": "E6008",
+          "severity": "error",
+          "message": "cannot lower UI node: mystery is not a \u00a713 server factory (no h, native elements, hydration or stores)",
+          "primary": {
+            "file": 0,
+            "start": 45,
+            "end": 69
+          },
+          "related": [],
+          "tags": []
+        }
+      ],
+      "command": [
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/ui-ownership/research/selected-phase/can-pinned",
+        "compile",
+        "--format=json",
+        "--catalog=/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/ui-ownership/research/mystery.can"
+      ]
+    },
+    {
+      "id": "card-control",
+      "op": "check",
+      "exit": 0,
+      "diagnostics": [],
+      "command": [
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/ui-ownership/research/selected-phase/can-pinned",
+        "check",
+        "--format=json",
+        "--catalog=/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/ui-ownership/research/card-control.can"
+      ]
+    },
+    {
+      "id": "card-control",
+      "op": "compile",
+      "exit": 0,
+      "diagnostics": [],
+      "command": [
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/ui-ownership/research/selected-phase/can-pinned",
+        "compile",
+        "--format=json",
+        "--catalog=/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/ui-ownership/research/card-control.can"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,46 @@
+{
+  "status": "accepted bounded static Card/transient Tabs adapter; query/bound/order/profile workflows open",
+  "scope": [
+    "literal Card title",
+    "legal unbound static Tabs"
+  ],
+  "production_source_edits": false,
+  "cargo_invocations": 0,
+  "findings": [],
+  "protocol_receipt": {
+    "command": "node implementation/compiler-completion/ui-ownership/independent-review/protocol-controls.mjs",
+    "exit": 0,
+    "stdout": "protocol-controls.stdout",
+    "stderr": "protocol-controls.stderr"
+  },
+  "pending": [],
+  "open": [
+    "authenticated authorized collection runtime",
+    "bound enum facts and canonical versioned immediate save owner",
+    "structured order query closure",
+    "generic checked factory profiles"
+  ],
+  "jev_uncertainty": "choices ordinal 3/3; confidence 1/.74/.33; explicit key .43 in third consultation preserved",
+  "broad_credit": false,
+  "build_receipt": {
+    "owner_log": "implementation/compiler-completion/bdd-facts/implementation/final-closure-gates.log",
+    "manifest": "owner-final-manifest.json",
+    "production_inputs_match": true,
+    "ui_adapter": "1/1",
+    "selected_calls": "2/2",
+    "reviewer_did_not_rebuild": true,
+    "all_manifest_inputs_match": true
+  },
+  "generated_protocol_receipt": "nested-row.control.json",
+  "independent_static_receipt": {
+    "compile_exit": 0,
+    "consumer_exit": 0,
+    "fixture": "static.can",
+    "artifact": "static.artifact.json",
+    "stdout": "static-consume.stdout",
+    "stderr": "static-consume.stderr",
+    "unchanged_generated_module": true,
+    "actual_public_installed_ui": true,
+    "query_substitutes": false
+  }
+}

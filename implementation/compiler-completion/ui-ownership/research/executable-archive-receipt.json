@@ -1,0 +1,15 @@
+{
+  "reason": "Keep compiled executables outside repository evidence; historical manifest paths redirect here without altering original hashes/observations",
+  "moves": [
+    {
+      "historical_path": "implementation/compiler-completion/ui-ownership/research/can-pinned",
+      "scratch_path": "/private/tmp/can-ui-research-archive/can-b8ec81900121effeab3b",
+      "sha256": "b8ec81900121effeab3b2145c0f4436089eeea7a273642317335309861c0cd3d"
+    },
+    {
+      "historical_path": "implementation/compiler-completion/ui-ownership/research/selected-phase/can-pinned",
+      "scratch_path": "/private/tmp/can-ui-research-archive/can-b8ec81900121effeab3b",
+      "sha256": "b8ec81900121effeab3b2145c0f4436089eeea7a273642317335309861c0cd3d"
+    }
+  ]
+}

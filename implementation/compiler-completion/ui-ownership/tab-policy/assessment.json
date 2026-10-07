@@ -1,0 +1,43 @@
+{
+  "status": "advice; root released scoped compiler adapter after assessment",
+  "answers": [
+    {
+      "request": 1,
+      "type": "choice",
+      "choice": "ordinal",
+      "confidence": 1.0,
+      "probabilities": {
+        "caption": 0.0,
+        "explicit": 0.0,
+        "ordinal": 1.0
+      }
+    },
+    {
+      "request": 2,
+      "type": "choice",
+      "choice": "ordinal",
+      "confidence": 0.74,
+      "probabilities": {
+        "caption": 0.0,
+        "ordinal": 0.83,
+        "explicit": 0.17
+      }
+    },
+    {
+      "request": 3,
+      "type": "choice",
+      "choice": "ordinal",
+      "confidence": 0.33,
+      "probabilities": {
+        "ordinal": 0.55,
+        "caption": 0.02,
+        "explicit": 0.43
+      }
+    }
+  ],
+  "choice": "Ordinal per authored transient tab site; exact enum-case identity remains required for bound tabs",
+  "uncertainty": "Third consultation assigns explicit keys probability .43 and ordinal .55, confidence .33. No outcome choice disagreement, but substantial stability tradeoff uncertainty remains. Investigated normative transient per-render-site scope: persistence across source reorder is not promised, so explicit syntax is not required now. A future stable-panel workflow could justify keys. Runtime row occurrences require separate namespace and are not inferred from caption.",
+  "caption_rule": "Separate readable caption from machine identity; duplicate and translated captions retain distinct ordinal values.",
+  "evaluation_rule": "Eager child arrays preserve depth-first source call evaluation once; thunks could move descendants after all captions. Gates omit item before caption/descendant evaluation.",
+  "bound_rule": "Exact enum cases/case labels plus canonical owned preference persistence; no guessed POST route/version facade"
+}

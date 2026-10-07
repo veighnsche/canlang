@@ -1,0 +1,9 @@
+app Shop
+Given
+ preferences {view:enum(all)=all}
+ Todo {title:text,priority:int}
+ policy Todo read=members
+When
+Then
+ page / title="Home"
+  list Todo order={by=preferences.view,default=[-priority],cases={all=[title]}}

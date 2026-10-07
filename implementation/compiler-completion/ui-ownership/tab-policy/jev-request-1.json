@@ -1,0 +1,14 @@
+{
+  "state": "Can UI compiler repair decision, before production edits. Normative source: unbound tabs has nonempty tab caption suites with typed text/message captions; bound tabs preferences.enumField has tab enum_case suites, each declared case once and captions from case labels; leaf bound tabs renders the owned enum selector. Children retain enclosing context. Grammar has no tab value/id attribute. Actual public @canlang/ui exports tabs, not tab. TabsProps accepts items[{value:string,caption:MessageValue,children:PageChildren}], id?, binding?{name,options[{value,label}],current?,postTo}. Real tabs uses value for radio selection, renders captions independently, requires nonempty children, first unbound item initially selected; id namespaces radio group and panel IDs. Duplicate or translated captions are legal text and must not collide. Existing IR loses captions/children and emits missing tab import. Complete bound canonical versioned immediate preference saving and inactive input retention is not supplied by this factory POST/Save form, so items transport cannot certify that lifecycle. Compare identity only, without new factory exports, locale-dependent values, guessed POST endpoints, or blanket refusal of legal tabs. Evaluation of each caption/descendant once and in authored order is required; factory owns output formatting.",
+  "questions": {
+    "identity": {
+      "type": "choice",
+      "instructions": "Which identity contract best preserves duplicate/localized captions, actual factory compatibility, simple source and once/ordered evaluation? Choose the strongest option with uncertainties acknowledged.",
+      "criteria": {
+        "ordinal": "Generate each transient value from its source-order ordinal under a unique compiler-owned page/render-site parent ID; keep captions independent and exact enum keys/labels for bound sets. No new authored keys. Inserting/reordering a panel may change its transient key; row/repeated instances need a separate verified occurrence namespace.",
+        "caption": "Derive transient keys from caption source content, adding collision disambiguation and a locale-independent canonicalization contract; enum keys remain authoritative for bound sets. Caption edits may alter identity and dynamic/message captions need checked normalization.",
+        "explicit": "Extend source Tab grammar with explicit stable keys for transient panels, requiring migration/default rules and checker uniqueness; enum cases remain keys for bound panels. Authors gain edit-stable identity at cost of syntax and more source."
+      }
+    }
+  }
+}
