@@ -1,0 +1,488 @@
+[
+  {
+    "id": "sibling-policy",
+    "source": "app T\nGiven\n policy\n derive a(): int = 1 + true\n derive b(): int = nope\nWhen\nThen\n",
+    "required_findings": [
+      {
+        "code": "E3002",
+        "anchor": "1 + true",
+        "occurrence": 1
+      },
+      {
+        "code": "E2001",
+        "anchor": "nope",
+        "occurrence": 1
+      }
+    ],
+    "purpose": "Malformed declaration before independent type/name sentinels; delimiter synchronization is separately classified."
+  },
+  {
+    "id": "sibling-token",
+    "source": "app T\nGiven\n &\n derive a(): int = 1 + true\n derive b(): int = nope\nWhen\nThen\n",
+    "required_findings": [
+      {
+        "code": "E3002",
+        "anchor": "1 + true",
+        "occurrence": 1
+      },
+      {
+        "code": "E2001",
+        "anchor": "nope",
+        "occurrence": 1
+      }
+    ],
+    "purpose": "Malformed declaration before independent type/name sentinels; delimiter synchronization is separately classified."
+  },
+  {
+    "id": "sibling-numeric-unit",
+    "source": "app T\nGiven\n M {value:int=5minutes}\n derive a(): int = 1 + true\n derive b(): int = nope\nWhen\nThen\n",
+    "required_findings": [
+      {
+        "code": "E3002",
+        "anchor": "1 + true",
+        "occurrence": 1
+      },
+      {
+        "code": "E2001",
+        "anchor": "nope",
+        "occurrence": 1
+      }
+    ],
+    "purpose": "Malformed declaration before independent type/name sentinels; delimiter synchronization is separately classified."
+  },
+  {
+    "id": "sibling-unknown-escape",
+    "source": "app T\nGiven\n M {value:text=\"\\q\"}\n derive a(): int = 1 + true\n derive b(): int = nope\nWhen\nThen\n",
+    "required_findings": [
+      {
+        "code": "E3002",
+        "anchor": "1 + true",
+        "occurrence": 1
+      },
+      {
+        "code": "E2001",
+        "anchor": "nope",
+        "occurrence": 1
+      }
+    ],
+    "purpose": "Malformed declaration before independent type/name sentinels; delimiter synchronization is separately classified."
+  },
+  {
+    "id": "sibling-lone-surrogate",
+    "source": "app T\nGiven\n M {value:text=\"\\uD800\"}\n derive a(): int = 1 + true\n derive b(): int = nope\nWhen\nThen\n",
+    "required_findings": [
+      {
+        "code": "E3002",
+        "anchor": "1 + true",
+        "occurrence": 1
+      },
+      {
+        "code": "E2001",
+        "anchor": "nope",
+        "occurrence": 1
+      }
+    ],
+    "purpose": "Malformed declaration before independent type/name sentinels; delimiter synchronization is separately classified."
+  },
+  {
+    "id": "sibling-unterminated-string",
+    "source": "app T\nGiven\n M {value:text=\"abc}\n derive a(): int = 1 + true\n derive b(): int = nope\nWhen\nThen\n",
+    "required_findings": [
+      {
+        "code": "E3002",
+        "anchor": "1 + true",
+        "occurrence": 1
+      },
+      {
+        "code": "E2001",
+        "anchor": "nope",
+        "occurrence": 1
+      }
+    ],
+    "purpose": "Malformed declaration before independent type/name sentinels; delimiter synchronization is separately classified."
+  },
+  {
+    "id": "sibling-closer",
+    "source": "app T\nGiven\n M {value:int=1]}\n derive a(): int = 1 + true\n derive b(): int = nope\nWhen\nThen\n",
+    "required_findings": [
+      {
+        "code": "E3002",
+        "anchor": "1 + true",
+        "occurrence": 1
+      },
+      {
+        "code": "E2001",
+        "anchor": "nope",
+        "occurrence": 1
+      }
+    ],
+    "purpose": "Malformed declaration before independent type/name sentinels; delimiter synchronization is separately classified."
+  },
+  {
+    "id": "sibling-open-schema",
+    "source": "app T\nGiven\n M {value:int\n derive a(): int = 1 + true\n derive b(): int = nope\nWhen\nThen\n",
+    "required_findings": [
+      {
+        "code": "E3002",
+        "anchor": "1 + true",
+        "occurrence": 1
+      },
+      {
+        "code": "E2001",
+        "anchor": "nope",
+        "occurrence": 1
+      }
+    ],
+    "purpose": "Malformed declaration before independent type/name sentinels; delimiter synchronization is separately classified."
+  },
+  {
+    "id": "sibling-open-call",
+    "source": "app T\nGiven\n derive broken(): int = count(\n derive a(): int = 1 + true\n derive b(): int = nope\nWhen\nThen\n",
+    "required_findings": [
+      {
+        "code": "E3002",
+        "anchor": "1 + true",
+        "occurrence": 1
+      },
+      {
+        "code": "E2001",
+        "anchor": "nope",
+        "occurrence": 1
+      }
+    ],
+    "purpose": "Malformed declaration before independent type/name sentinels; delimiter synchronization is separately classified."
+  },
+  {
+    "id": "sibling-open-list",
+    "source": "app T\nGiven\n M {value:int[]=[1\n derive a(): int = 1 + true\n derive b(): int = nope\nWhen\nThen\n",
+    "required_findings": [
+      {
+        "code": "E3002",
+        "anchor": "1 + true",
+        "occurrence": 1
+      },
+      {
+        "code": "E2001",
+        "anchor": "nope",
+        "occurrence": 1
+      }
+    ],
+    "purpose": "Malformed declaration before independent type/name sentinels; delimiter synchronization is separately classified."
+  },
+  {
+    "id": "sibling-desc-ref",
+    "source": "app T\nGiven\n #= missing()\n M {value:int}\n derive a(): int = 1 + true\n derive b(): int = nope\nWhen\nThen\n",
+    "required_findings": [
+      {
+        "code": "E3002",
+        "anchor": "1 + true",
+        "occurrence": 1
+      },
+      {
+        "code": "E2001",
+        "anchor": "nope",
+        "occurrence": 1
+      }
+    ],
+    "purpose": "Malformed declaration before independent type/name sentinels; delimiter synchronization is separately classified."
+  },
+  {
+    "id": "sibling-indent",
+    "source": "app T\nGiven\n  M {value:int}\n derive a(): int = 1 + true\n derive b(): int = nope\nWhen\nThen\n",
+    "required_findings": [
+      {
+        "code": "E3002",
+        "anchor": "1 + true",
+        "occurrence": 1
+      },
+      {
+        "code": "E2001",
+        "anchor": "nope",
+        "occurrence": 1
+      }
+    ],
+    "purpose": "Malformed declaration before independent type/name sentinels; delimiter synchronization is separately classified."
+  },
+  {
+    "id": "sibling-policy-crlf",
+    "source": "app T\r\nGiven\r\n policy\r\n derive a(): int = 1 + true\r\n derive b(): int = nope\r\nWhen\r\nThen\r\n",
+    "required_findings": [
+      {
+        "code": "E3002",
+        "anchor": "1 + true",
+        "occurrence": 1
+      },
+      {
+        "code": "E2001",
+        "anchor": "nope",
+        "occurrence": 1
+      }
+    ]
+  },
+  {
+    "id": "sibling-policy-eof",
+    "source": "app T\nGiven\n policy\n derive a(): int = 1 + true\n derive b(): int = nope\nWhen\nThen",
+    "required_findings": [
+      {
+        "code": "E3002",
+        "anchor": "1 + true",
+        "occurrence": 1
+      },
+      {
+        "code": "E2001",
+        "anchor": "nope",
+        "occurrence": 1
+      }
+    ]
+  },
+  {
+    "id": "independent-module-after-bad-owner",
+    "source": "app Broken bad=\nGiven\nWhen\nThen\napp T\nGiven\n derive a(): int = 1 + true\n derive b(): int = nope\nWhen\nThen\n",
+    "required_findings": [
+      {
+        "code": "E3002",
+        "anchor": "1 + true",
+        "occurrence": 1
+      },
+      {
+        "code": "E2001",
+        "anchor": "nope",
+        "occurrence": 1
+      }
+    ]
+  },
+  {
+    "id": "independent-module-after-open-schema",
+    "source": "app Broken\nGiven\n M {value:int\nWhen\nThen\napp T\nGiven\n derive a(): int = 1 + true\n derive b(): int = nope\nWhen\nThen\n",
+    "required_findings": [
+      {
+        "code": "E3002",
+        "anchor": "1 + true",
+        "occurrence": 1
+      },
+      {
+        "code": "E2001",
+        "anchor": "nope",
+        "occurrence": 1
+      }
+    ]
+  },
+  {
+    "id": "control-app-policy",
+    "source": "app Shop\nGiven\n Config in app { name:text }\nWhen\nThen\n",
+    "required_findings": [
+      {
+        "code": "E4004",
+        "anchor": "Config",
+        "occurrence": 1
+      }
+    ]
+  },
+  {
+    "id": "malformed-app-policy",
+    "source": "app Shop\nGiven\n policy\n Config in app { name:text }\nWhen\nThen\n",
+    "required_findings": [
+      {
+        "code": "E4004",
+        "anchor": "Config",
+        "occurrence": 1
+      }
+    ]
+  },
+  {
+    "id": "control-secret-return",
+    "source": "app Shop\nGiven\nWhen\n scenario leak(sek:secret) -> secret by=members\n  do return sek\nThen\n",
+    "required_findings": [
+      {
+        "code": "E4011",
+        "anchor": "sek",
+        "occurrence": 2
+      }
+    ]
+  },
+  {
+    "id": "malformed-secret-return",
+    "source": "app Shop\nGiven\n policy\nWhen\n scenario leak(sek:secret) -> secret by=members\n  do return sek\nThen\n",
+    "required_findings": [
+      {
+        "code": "E4011",
+        "anchor": "sek",
+        "occurrence": 2
+      }
+    ]
+  },
+  {
+    "id": "control-actor-subject",
+    "source": "app Shop\nGiven\n role reviewer\nWhen\n scenario flagged(n:int) -> int by=members\n  require reviewer(actor)\n  do return n\nThen\n",
+    "required_findings": [
+      {
+        "code": "E4020",
+        "anchor": "actor",
+        "occurrence": 1
+      }
+    ]
+  },
+  {
+    "id": "malformed-actor-subject",
+    "source": "app Shop\nGiven\n policy\n role reviewer\nWhen\n scenario flagged(n:int) -> int by=members\n  require reviewer(actor)\n  do return n\nThen\n",
+    "required_findings": [
+      {
+        "code": "E4020",
+        "anchor": "actor",
+        "occurrence": 1
+      }
+    ]
+  },
+  {
+    "id": "control-icu-sibling",
+    "source": "app Shop\nGiven\n message m(n:int) = \"{n, plural, one {#}}\"@{}\nWhen\nThen\n",
+    "required_findings": [
+      {
+        "code": "E5007",
+        "anchor": "\"{n, plural, one {#}}\"",
+        "occurrence": 1
+      }
+    ]
+  },
+  {
+    "id": "malformed-icu-sibling",
+    "source": "app Shop\nGiven\n policy\n message m(n:int) = \"{n, plural, one {#}}\"@{}\nWhen\nThen\n",
+    "required_findings": [
+      {
+        "code": "E5007",
+        "anchor": "\"{n, plural, one {#}}\"",
+        "occurrence": 1
+      }
+    ]
+  },
+  {
+    "id": "cross-module-actor",
+    "source": "app Broken\nGiven\n policy\nWhen\nThen\napp Shop\nGiven\n role reviewer\nWhen\n scenario flagged(n:int) -> int by=members\n  require reviewer(actor)\n  do return n\nThen\n",
+    "required_findings": [
+      {
+        "code": "E4020",
+        "anchor": "actor",
+        "occurrence": 1
+      }
+    ]
+  },
+  {
+    "id": "valid-decoded-default",
+    "source": "app Shop\nGiven\n Gadget {title:text=\"\\b\\f\\uD83D\\uDE00\" desc=\"é😀\" label=\"é😀\"@{nl=\"é😀\",fr=null}}\nWhen\nThen\n",
+    "required_findings": [],
+    "clean": true,
+    "decoded": [
+      8,
+      12,
+      128512
+    ]
+  },
+  {
+    "id": "valid-default-crlf",
+    "source": "app Shop\r\nGiven\r\n Gadget {title:text=\"\\b\\f\\uD83D\\uDE00\" desc=\"é😀\" label=\"é😀\"@{nl=\"é😀\",fr=null}}\r\nWhen\r\nThen\r\n",
+    "required_findings": [],
+    "clean": true,
+    "decoded": [
+      8,
+      12,
+      128512
+    ]
+  },
+  {
+    "id": "valid-default-eof",
+    "source": "app Shop\nGiven\n Gadget {title:text=\"\\b\\f\\uD83D\\uDE00\" desc=\"é😀\" label=\"é😀\"@{nl=\"é😀\",fr=null}}\nWhen\nThen",
+    "required_findings": [],
+    "clean": true,
+    "decoded": [
+      8,
+      12,
+      128512
+    ]
+  },
+  {
+    "id": "valid-description",
+    "source": "## explanatory\n# A raw é😀 description.\napp Shop\nGiven\n Gadget {title:text=\"hello\"}\nWhen\nThen\n",
+    "required_findings": [],
+    "clean": true
+  },
+  {
+    "id": "invalid-unicode-name",
+    "source": "app T\nGiven\n é😀 {value:int}\n derive a(): int = 1 + true\n derive b(): int = nope\nWhen\nThen\n",
+    "required_findings": [
+      {
+        "code": "E3002",
+        "anchor": "1 + true",
+        "occurrence": 1
+      },
+      {
+        "code": "E2001",
+        "anchor": "nope",
+        "occurrence": 1
+      }
+    ]
+  },
+  {
+    "id": "empty-eof",
+    "source": "",
+    "required_findings": [],
+    "clean": true
+  },
+  {
+    "id": "comment-eof",
+    "source": "## trailing comment without newline",
+    "required_findings": [],
+    "clean": true
+  },
+  {
+    "id": "string-physical-control",
+    "source": "app T\nGiven\n M {value:text=\"a\tb\"}\n derive a(): int = 1 + true\n derive b(): int = nope\nWhen\nThen\n",
+    "required_findings": [
+      {
+        "code": "E3002",
+        "anchor": "1 + true",
+        "occurrence": 1
+      },
+      {
+        "code": "E2001",
+        "anchor": "nope",
+        "occurrence": 1
+      }
+    ]
+  },
+  {
+    "id": "eof-unclosed-string",
+    "source": "app T\nGiven\n M {value:text=\"unfinished",
+    "required_findings": []
+  },
+  {
+    "id": "eof-unclosed-delimiter",
+    "source": "app T\nGiven\n M {value:int",
+    "required_findings": []
+  },
+  {
+    "id": "dangling-description-eof",
+    "source": "# no owner",
+    "required_findings": []
+  },
+  {
+    "id": "bare-cr",
+    "source": "app T\rGiven\n policy\n derive a(): int = 1 + true\n derive b(): int = nope\nWhen\nThen\n",
+    "required_findings": []
+  },
+  {
+    "id": "generic-ui-gap",
+    "source": "app Shop\nGiven\nWhen\nThen\n page / title=\"Home\"\n  mystery unsupported=5\n",
+    "required_findings": [],
+    "purpose": "Observe supported-stage mismatch; not independently declared clean."
+  },
+  {
+    "id": "decimal-emission-gap",
+    "source": "app Shop\nGiven\nWhen\n scenario echo() read=true -> decimal by=members\n  do return 1.25\nThen\n",
+    "required_findings": [],
+    "purpose": "Observe checked scalar expression versus emitted capability."
+  },
+  {
+    "id": "invalid-utf8",
+    "bytes_hex": "61707020540a476976656e0aff0a5768656e0a5468656e0a"
+  }
+]
