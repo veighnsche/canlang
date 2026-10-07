@@ -1,0 +1,8 @@
+PASS nested-else LF exact source + valid fixed point
+PASS nested-else CRLF exact source + valid fixed point
+PASS joined-delimiter-comment LF exact source + valid fixed point
+PASS joined-delimiter-comment CRLF exact source + valid fixed point
+PASS empty-and-gaps LF exact source + valid fixed point
+PASS empty-and-gaps CRLF exact source + valid fixed point
+PASS effect-description invalid E1126; no fix (never a valid-input success)
+QUALIFICATION lexical indentation errors ["E1003"], public library fix count 1
