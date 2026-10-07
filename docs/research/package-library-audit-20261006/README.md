@@ -139,3 +139,12 @@ oracles, real transaction/host tests and stronger written diagnostic evidence.
 The reproducible package/orchestration inventory separates 770 exact duplicate
 bytes from repeated corpus projections and receipt sections. No tests were run,
 evidence deleted or implementation/acceptance activated by this audit.
+
+The planning-only [maintenance benefit assessment](maintenance-benefit/README.md)
+compares all 27 library families and 49 duplication review records against the
+verified before/current production baseline. It separates gross deletion envelopes
+from unmeasured future net savings, includes dependencies/compatibility/lifecycle
+and upgrade costs, and requires strict readable production reduction for every
+replacement-only candidate. Existing correctness/capability/evidence work receives
+separate scope and unallocated budget records; compression and moves earn no credit.
+No implementation or reduction acceptance follows from the assessment.

@@ -1,0 +1,909 @@
+{
+  "freeze": "d253b2f1a91ad3ce9259f9aa57aa33be291fd289",
+  "records": [
+    {
+      "path": "bun.lock",
+      "sha256": "121ab8378764bcc2706a5641517c39aa57f8fc3c48fc5f7a1134d109278f8dec",
+      "bytes": 72925,
+      "category": "root-resolution-metadata",
+      "owner_stage": "root dependency/delivery inputs; outside packages LOC denominator"
+    },
+    {
+      "path": "package.json",
+      "sha256": "b857df2e35cfb40e1bb62738ed4ef59d53ce30b25b2a7f9d6f0f76df8bce02f3",
+      "bytes": 3750,
+      "category": "root-resolution-metadata",
+      "owner_stage": "root dependency/delivery inputs; outside packages LOC denominator"
+    },
+    {
+      "path": "packages/cloudflare/preparation/Cargo.lock",
+      "sha256": "5760d15ea1d15e7003382d4be593d7c3690655c0c3b4b36f63e630dae729d33f",
+      "bytes": 4892,
+      "category": "metadata",
+      "owner_stage": "TS-runtime; native-route-present; adoption-unproved"
+    },
+    {
+      "path": "packages/cloudflare/preparation/src/artifact.rs",
+      "sha256": "f914d433c496f39882ed6c2d3ca1c043780e0f2ff3999a2b41da61ada65d50e9",
+      "bytes": 28812,
+      "category": "implementation",
+      "owner_stage": "TS-runtime; native-route-present; adoption-unproved"
+    },
+    {
+      "path": "packages/cloudflare/preparation/src/input.rs",
+      "sha256": "c0475ca0c94514e47011e594122ddadf3980232bfbce1e29557077c6f37b8002",
+      "bytes": 17277,
+      "category": "implementation",
+      "owner_stage": "TS-runtime; native-route-present; adoption-unproved"
+    },
+    {
+      "path": "packages/cloudflare/preparation/src/modules.rs",
+      "sha256": "51ddde6db165e5feeafdda2b9b8e7969b3e87506def82b734412107c3c205794",
+      "bytes": 45340,
+      "category": "implementation",
+      "owner_stage": "TS-runtime; native-route-present; adoption-unproved"
+    },
+    {
+      "path": "packages/cloudflare/preparation/src/render.rs",
+      "sha256": "be9c5592d305fb3f37487f79d0521d1314375a3b5f6607eb9782529934d1a337",
+      "bytes": 15371,
+      "category": "implementation",
+      "owner_stage": "TS-runtime; native-route-present; adoption-unproved"
+    },
+    {
+      "path": "packages/cloudflare/src/cli/platform.ts",
+      "sha256": "b6910c319e7196c585e9613f489f5ecab194483b9c9f9ea71913bfd4e0109e2a",
+      "bytes": 17588,
+      "category": "implementation",
+      "owner_stage": "TS-runtime; native-route-present; adoption-unproved"
+    },
+    {
+      "path": "packages/cloudflare/src/deploy/bundle.ts",
+      "sha256": "7e8ad78a2674120ad59e96dbe2b34ab8923d8418578c015168c2b0ccd1a7a741",
+      "bytes": 62748,
+      "category": "implementation",
+      "owner_stage": "TS-runtime; native-route-present; adoption-unproved"
+    },
+    {
+      "path": "packages/cloudflare/src/deploy/module-imports.ts",
+      "sha256": "13ef57c952c0cadfabf873b49f64917113f2ce6721f941ba4611a95b4b597362",
+      "bytes": 12176,
+      "category": "implementation",
+      "owner_stage": "TS-runtime; native-route-present; adoption-unproved"
+    },
+    {
+      "path": "packages/cloudflare/src/deploy/module-maps.ts",
+      "sha256": "e336c88f2ab17acc09bd57713a79d9a19b41c13a6241193edae4ae185aaa4f98",
+      "bytes": 5985,
+      "category": "implementation",
+      "owner_stage": "TS-runtime; native-route-present; adoption-unproved"
+    },
+    {
+      "path": "packages/cloudflare/src/deploy/render.ts",
+      "sha256": "75bb7fb5eeb0cebafdf5c31079c12c63075b00d5708edaedf5a7f9c89b5bc980",
+      "bytes": 4125,
+      "category": "implementation",
+      "owner_stage": "TS-runtime; native-route-present; adoption-unproved"
+    },
+    {
+      "path": "packages/cloudflare/src/preparation/build-adapter.ts",
+      "sha256": "ddbd1eb6abc50c1dfa1ccc59cfdd8f3e54cc5d296356004c794f2556f1053383",
+      "bytes": 8501,
+      "category": "implementation",
+      "owner_stage": "TS-runtime; native-route-present; adoption-unproved"
+    },
+    {
+      "path": "packages/cloudflare/src/preparation/host.ts",
+      "sha256": "ee47c2dd8e45a50bac5dcdbd8592b447069348bdcfdb07e06ea6fe85b679bff1",
+      "bytes": 24710,
+      "category": "implementation",
+      "owner_stage": "TS-runtime; native-route-present; adoption-unproved"
+    },
+    {
+      "path": "packages/cloudflare/src/preparation/inputs.ts",
+      "sha256": "2d36665b20ff6387557355fe6ca63b11ce1f8c6a293b4c2494862a4b7a8229ac",
+      "bytes": 4404,
+      "category": "implementation",
+      "owner_stage": "TS-runtime; native-route-present; adoption-unproved"
+    },
+    {
+      "path": "packages/cloudflare/src/preparation/publication.ts",
+      "sha256": "d5a2a0bf875a2305648036cb7cc8c2d827a88980911384ba52d08a892d66a6d8",
+      "bytes": 12131,
+      "category": "implementation",
+      "owner_stage": "TS-runtime; native-route-present; adoption-unproved"
+    },
+    {
+      "path": "packages/cloudflare/src/runtime/invoke.ts",
+      "sha256": "55178802cd4697279491b3997e79eb28b070a4ff580973d4513abdfe5023d2db",
+      "bytes": 319853,
+      "category": "implementation",
+      "owner_stage": "TS-runtime; native-route-present; adoption-unproved"
+    },
+    {
+      "path": "packages/cloudflare/src/runtime/modules.ts",
+      "sha256": "c6297b40cdc68b3065d6dacd7b9a8dd4350ce0c4bcfc7268ee5d2527b6e4eb6d",
+      "bytes": 6362,
+      "category": "implementation",
+      "owner_stage": "TS-runtime; native-route-present; adoption-unproved"
+    },
+    {
+      "path": "packages/cloudflare/src/runtime/sourcemap.ts",
+      "sha256": "565f9c8521b6eaed277a65bbb8b82c4edea0c4f67ddada9df071dd16d4199113",
+      "bytes": 6534,
+      "category": "implementation",
+      "owner_stage": "TS-runtime; native-route-present; adoption-unproved"
+    },
+    {
+      "path": "packages/cloudflare/src/worker/assembly.ts",
+      "sha256": "489bf7f70fbb692227c9eb0482df42475b87ae2951d60abbc72d782fe2d51628",
+      "bytes": 67887,
+      "category": "implementation",
+      "owner_stage": "TS-runtime; native-route-present; adoption-unproved"
+    },
+    {
+      "path": "packages/cloudflare/src/worker/main.ts",
+      "sha256": "2335ee597c4d053960423baa07d1fb621b2b01e4f065a68881a94292f29a26ba",
+      "bytes": 25506,
+      "category": "implementation",
+      "owner_stage": "TS-runtime; native-route-present; adoption-unproved"
+    },
+    {
+      "path": "packages/contracts/src/values.ts",
+      "sha256": "162869eb5a7e317238390ad8ab552804afe5e9e712d3beccb6781d31b4dd5c39",
+      "bytes": 8420,
+      "category": "implementation",
+      "owner_stage": "source-candidate"
+    },
+    {
+      "path": "packages/files/src/index.ts",
+      "sha256": "34872aaa3e9f6dc56d091fbc162353b30bd42d21bf8d98f44bf05d8bbfba9570",
+      "bytes": 279,
+      "category": "implementation",
+      "owner_stage": "source-candidate"
+    },
+    {
+      "path": "packages/files/src/ports.ts",
+      "sha256": "2a7cd17c0e3775e3909468eec53aa046a404dcf3d87721c083fb5158a55d7c6b",
+      "bytes": 10823,
+      "category": "implementation",
+      "owner_stage": "source-candidate"
+    },
+    {
+      "path": "packages/files/src/upload/fs-blob-store.ts",
+      "sha256": "0c112376b97e30a41ed6db8956b5e003ccc9e16ff4c0386353e04561a504108e",
+      "bytes": 2467,
+      "category": "implementation",
+      "owner_stage": "source-candidate"
+    },
+    {
+      "path": "packages/files/src/upload/index.ts",
+      "sha256": "46f566043db6f6292d6a95ae125e0e51c19058cc455f9a68bd4ff56343479ca7",
+      "bytes": 17208,
+      "category": "implementation",
+      "owner_stage": "source-candidate"
+    },
+    {
+      "path": "packages/identity/package.json",
+      "sha256": "50dfe25888fc7787c8cf4ede09abcb79c7fce8a4b5db496de0eeb86f375dcdd0",
+      "bytes": 1629,
+      "category": "metadata",
+      "owner_stage": "source-candidate"
+    },
+    {
+      "path": "packages/identity/src/accounts/passwords.ts",
+      "sha256": "12e9f48e47452ce8af1c6b767bcca69843014290b85472071fea5251e738a969",
+      "bytes": 3612,
+      "category": "implementation",
+      "owner_stage": "source-candidate"
+    },
+    {
+      "path": "packages/identity/src/index.ts",
+      "sha256": "05d683037a72bbac78477e7bdd554d0f64769aae36a2ee3ecff704a083472f17",
+      "bytes": 899,
+      "category": "implementation",
+      "owner_stage": "source-candidate"
+    },
+    {
+      "path": "packages/identity/src/sessions/comparison-node.ts",
+      "sha256": "4ab6f9af09469c5e9c876943867f05e47070519b8bfe820793efe7a637515e37",
+      "bytes": 153,
+      "category": "implementation",
+      "owner_stage": "source-candidate"
+    },
+    {
+      "path": "packages/identity/src/sessions/comparison-worker.ts",
+      "sha256": "d07b396186f6f28dccfe5809b9ee21342d3e51e0e969fe8d028320aa2351ff68",
+      "bytes": 447,
+      "category": "implementation",
+      "owner_stage": "source-candidate"
+    },
+    {
+      "path": "packages/identity/src/sessions/comparison.ts",
+      "sha256": "663079590c9147f2cb6f3de72187afcf84ea185ac3288c946fe05901738901db",
+      "bytes": 307,
+      "category": "implementation",
+      "owner_stage": "source-candidate"
+    },
+    {
+      "path": "packages/identity/src/sessions/cookies.ts",
+      "sha256": "9766cfaa0a78204414f21468a8b1c046cbff7d8713556b49ae8cc235a00db099",
+      "bytes": 3685,
+      "category": "implementation",
+      "owner_stage": "source-candidate"
+    },
+    {
+      "path": "packages/identity/src/sessions/tokens.ts",
+      "sha256": "d7867041c5c893cabdece58607af646c3468aa9e24a895b8608e8112cc7365fa",
+      "bytes": 3462,
+      "category": "implementation",
+      "owner_stage": "source-candidate"
+    },
+    {
+      "path": "packages/identity/src/testing.ts",
+      "sha256": "7419c5ca51bd0bc315a75e12b6d9ac06792f3180ae6d8de81dfe84db8db6660b",
+      "bytes": 14028,
+      "category": "implementation",
+      "owner_stage": "source-candidate"
+    },
+    {
+      "path": "packages/interfaces/package.json",
+      "sha256": "8f3639d8cbbe1e5d0e4af4c1d92352fbdb66f56994c3863d54274f4258c47cad",
+      "bytes": 2137,
+      "category": "metadata",
+      "owner_stage": "source-candidate"
+    },
+    {
+      "path": "packages/interfaces/src/envelope/prepared.ts",
+      "sha256": "b10355f3bf2f3490ba2b62380e8e8e73606e46b934170ece8cb55371ed429f97",
+      "bytes": 5947,
+      "category": "implementation",
+      "owner_stage": "source-candidate"
+    },
+    {
+      "path": "packages/interfaces/src/errors/redact.ts",
+      "sha256": "d8c8be62aa982048bdbcbbac0d1760ab32d95c77f21d9b88c01838f17144d31a",
+      "bytes": 2852,
+      "category": "implementation",
+      "owner_stage": "source-candidate"
+    },
+    {
+      "path": "packages/interfaces/src/http/auth.ts",
+      "sha256": "5e373e1a88fe8ee36a27d851154e2228491fba588aed207f219ffcf73c380706",
+      "bytes": 14551,
+      "category": "implementation",
+      "owner_stage": "source-candidate"
+    },
+    {
+      "path": "packages/interfaces/src/http/csv.ts",
+      "sha256": "6025d282f5afb52e127bafc5fa1154935c126dce833b57713310af47d94a3d2e",
+      "bytes": 22419,
+      "category": "implementation",
+      "owner_stage": "source-candidate"
+    },
+    {
+      "path": "packages/interfaces/src/http/export.ts",
+      "sha256": "5da1415db2a27e24a79d045145e1fddf520b9ef525a7bf7ea2b316e1cf1321d3",
+      "bytes": 19098,
+      "category": "implementation",
+      "owner_stage": "source-candidate"
+    },
+    {
+      "path": "packages/interfaces/src/mcp/prepared.ts",
+      "sha256": "229cbc7cfd1f2e136f5014d31041dbca6b3593a64a266f42275d08409ba3c760",
+      "bytes": 8454,
+      "category": "implementation",
+      "owner_stage": "source-candidate"
+    },
+    {
+      "path": "packages/interfaces/src/mcp/server.ts",
+      "sha256": "20d68f0cc3a0984f2094dffe971895d789d57ce05c07032e3696dc9fcaf7c8c6",
+      "bytes": 20682,
+      "category": "implementation",
+      "owner_stage": "source-candidate"
+    },
+    {
+      "path": "packages/interfaces/src/projection/project.ts",
+      "sha256": "1c1fbc7123f879c22c8e54737c1d2e4809ed01ee178d7a0c281440e35f649fec",
+      "bytes": 6610,
+      "category": "implementation",
+      "owner_stage": "source-candidate"
+    },
+    {
+      "path": "packages/interfaces/src/uploads/routes.ts",
+      "sha256": "fff8e55fe8aed9cea083b5b3dcd9f8d1ff9cb1072539a2c429176d65132a0e59",
+      "bytes": 15554,
+      "category": "implementation",
+      "owner_stage": "source-candidate"
+    },
+    {
+      "path": "packages/services/package.json",
+      "sha256": "160607d0145fa9f3b39568a64c17bbbcbdded562ee75d231d8e3046df9dcab7e",
+      "bytes": 3147,
+      "category": "metadata",
+      "owner_stage": "source-candidate"
+    },
+    {
+      "path": "packages/services/src/http/client.ts",
+      "sha256": "41b55f0bffee4a85a7a910ae8303da21f21fab010b1db5043a869d13c1a1f034",
+      "bytes": 15711,
+      "category": "implementation",
+      "owner_stage": "source-candidate"
+    },
+    {
+      "path": "packages/services/src/index.ts",
+      "sha256": "40caee729c74d1c744d39f8247885332fbe1cc37ecec9916b9b0db1e96f78135",
+      "bytes": 383,
+      "category": "implementation",
+      "owner_stage": "source-candidate"
+    },
+    {
+      "path": "packages/services/src/judgments/harness.ts",
+      "sha256": "3ffbed629601d02f6f39519ed75b2da07c76de8b8ec661b82faac68ebf6088e4",
+      "bytes": 5591,
+      "category": "implementation",
+      "owner_stage": "source-candidate"
+    },
+    {
+      "path": "packages/services/src/mail/redact.ts",
+      "sha256": "2da0f060f790820db04b783dfc9828dc73c0c7e6db32ed67d9aba5cca01c61c8",
+      "bytes": 2288,
+      "category": "implementation",
+      "owner_stage": "source-candidate"
+    },
+    {
+      "path": "packages/services/src/media/harness.ts",
+      "sha256": "51bd4abae84239b00d9492f24416521d9a4d567a192eaba070a56daa698aa233",
+      "bytes": 8325,
+      "category": "implementation",
+      "owner_stage": "source-candidate"
+    },
+    {
+      "path": "packages/services/src/media/mapping.ts",
+      "sha256": "507306b2f97b72ebe5aa4dce54fe0af2164bfd1dcf6604efea6d1b7ccd151da1",
+      "bytes": 7907,
+      "category": "implementation",
+      "owner_stage": "source-candidate"
+    },
+    {
+      "path": "packages/services/src/models/harness.ts",
+      "sha256": "bf0163984ddd83578f223d58b19f1838938910a0be926d2644df5c7870e287bf",
+      "bytes": 7014,
+      "category": "implementation",
+      "owner_stage": "source-candidate"
+    },
+    {
+      "path": "packages/services/src/models/ollama.ts",
+      "sha256": "96c39834af0d132c64d164b0a8d4712fa75c203fb4fa8c4463e0ad8b5907df96",
+      "bytes": 23124,
+      "category": "implementation",
+      "owner_stage": "source-candidate"
+    },
+    {
+      "path": "packages/services/src/ports.ts",
+      "sha256": "51d4defdf88217c59674eed1b6a4c6c490237387484eb3d961a91f7bdaa4d410",
+      "bytes": 14800,
+      "category": "implementation",
+      "owner_stage": "source-candidate"
+    },
+    {
+      "path": "packages/services/src/scenarios.ts",
+      "sha256": "0cca83df6c4dbd91a345c744e00eb005e9b17a4620770df572f0e14b4ee35aec",
+      "bytes": 28534,
+      "category": "implementation",
+      "owner_stage": "source-candidate"
+    },
+    {
+      "path": "packages/state/src/internal/json.ts",
+      "sha256": "dd16c61167cee0a9a8d22cbe5037715b9c6bf574b17f433342f6ba700e90ae73",
+      "bytes": 1110,
+      "category": "implementation",
+      "owner_stage": "source-candidate"
+    },
+    {
+      "path": "packages/state/src/invocation/admission.ts",
+      "sha256": "c83e7b06b932e7e16402f0c815121a917f7b63daa90e4000fd822d16b1fc1ba6",
+      "bytes": 28228,
+      "category": "implementation",
+      "owner_stage": "source-candidate"
+    },
+    {
+      "path": "packages/state/src/invocation/replay.ts",
+      "sha256": "a33bf620e893569a9f8c710615e7fe7bc8a207c2f4a8c017e9942e0f6783cc36",
+      "bytes": 2473,
+      "category": "implementation",
+      "owner_stage": "source-candidate"
+    },
+    {
+      "path": "packages/state/src/migration/validate.ts",
+      "sha256": "65b91401233df5f87035dfa41253f28915c826062c66abd45a750438fbe5066d",
+      "bytes": 31714,
+      "category": "implementation",
+      "owner_stage": "source-candidate"
+    },
+    {
+      "path": "packages/state/src/mutation/crud.ts",
+      "sha256": "194bdcb9341aadd9bd21af141efc635853f05773c1c742b1a1f64fdbde202952",
+      "bytes": 19826,
+      "category": "implementation",
+      "owner_stage": "source-candidate"
+    },
+    {
+      "path": "packages/state/src/mutation/models.ts",
+      "sha256": "32c6be1480bc4141375a8f134afee865650a2f0b722829664e326b6985996151",
+      "bytes": 32847,
+      "category": "implementation",
+      "owner_stage": "source-candidate"
+    },
+    {
+      "path": "packages/state/src/mutation/pipeline.ts",
+      "sha256": "1160f08db792ebe64c1c48829e6e3be8df436c3019fb47e87746c9e5ac3c39b9",
+      "bytes": 57673,
+      "category": "implementation",
+      "owner_stage": "source-candidate"
+    },
+    {
+      "path": "packages/state/src/policy/grants.ts",
+      "sha256": "a52233ca9198d1d7364f528d783456d1877d48db0f1feb43b8bfb561e5614cd9",
+      "bytes": 17085,
+      "category": "implementation",
+      "owner_stage": "source-candidate"
+    },
+    {
+      "path": "packages/state/src/ports/system.ts",
+      "sha256": "85a496859cf838ed2fb24439d1679e799f6e898dfad13d8e59577626418428f7",
+      "bytes": 9673,
+      "category": "implementation",
+      "owner_stage": "source-candidate"
+    },
+    {
+      "path": "packages/state/src/ports/transact.ts",
+      "sha256": "20ebcc4792bc145d60d16210d19dfec45bb6a1d0961b86973d3bea6b6a01a902",
+      "bytes": 17257,
+      "category": "implementation",
+      "owner_stage": "source-candidate"
+    },
+    {
+      "path": "packages/state/src/receipt/tables.ts",
+      "sha256": "d9d6ec727d3ee80bc7b2036c934ad75df6a58afabeb6fa9e428b21705136230d",
+      "bytes": 19611,
+      "category": "implementation",
+      "owner_stage": "source-candidate"
+    },
+    {
+      "path": "packages/state/src/storage/d1.ts",
+      "sha256": "b702d004e8f231c568cfffbaaff1a9bdb0e208b33d90be2e480f472a4fcd0e45",
+      "bytes": 52537,
+      "category": "implementation",
+      "owner_stage": "source-candidate"
+    },
+    {
+      "path": "packages/state/src/storage/durable-object.ts",
+      "sha256": "8c64da34e972c1e66bf4ccf46ea062ac160d44cedc99aba436af4b53d8d60956",
+      "bytes": 53345,
+      "category": "implementation",
+      "owner_stage": "source-candidate"
+    },
+    {
+      "path": "packages/stdlib/src/index.ts",
+      "sha256": "6cdeadfd7ee2ffed08b80196a3bfe5e98236b02af95f8fa2028c1214cb210cee",
+      "bytes": 5102,
+      "category": "implementation",
+      "owner_stage": "source-candidate"
+    },
+    {
+      "path": "packages/testkit/package.json",
+      "sha256": "d4836564d2f24cb9181944e53f1c37596af4ca88c61bd117252ffa0b368b2ced",
+      "bytes": 2007,
+      "category": "metadata",
+      "owner_stage": "test-support-library"
+    },
+    {
+      "path": "packages/testkit/src/assertions/equal.ts",
+      "sha256": "d12014e23815bf21c0df9f6323e3c217d26ac5b0a9b5cacad04411cb78db7496",
+      "bytes": 2456,
+      "category": "implementation",
+      "owner_stage": "test-support-library"
+    },
+    {
+      "path": "packages/testkit/src/fixtures/playback.ts",
+      "sha256": "2f0805a6c150aafb900c4d296e5cee5b3c97996c338a4339a70e83235166617d",
+      "bytes": 37419,
+      "category": "test-code",
+      "owner_stage": "test-support-library"
+    },
+    {
+      "path": "packages/ui/src/browser/export.ts",
+      "sha256": "9c85f8b85632ef10383eaffba1b0aea12c48302effc0a5d609c22a0c85070e63",
+      "bytes": 18311,
+      "category": "implementation",
+      "owner_stage": "source-candidate"
+    },
+    {
+      "path": "packages/ui/src/collections.ts",
+      "sha256": "c9568ffd924ba2ba842c776adb1cf75cbb5df7af73702d12fe3718d572bde3ab",
+      "bytes": 39338,
+      "category": "implementation",
+      "owner_stage": "source-candidate"
+    },
+    {
+      "path": "packages/ui/src/controls.ts",
+      "sha256": "ddf2dc4c1a098bcbf2f2beb92e2df551ffc09843b84bafd7ffdc4d9bbd56ccd8",
+      "bytes": 38909,
+      "category": "implementation",
+      "owner_stage": "source-candidate"
+    },
+    {
+      "path": "packages/ui/src/csv/grammar.ts",
+      "sha256": "436633fe44c678cb6fc3cb88e45c7ad98df695690005e8e7d3a8aec771557efc",
+      "bytes": 2662,
+      "category": "implementation",
+      "owner_stage": "source-candidate"
+    },
+    {
+      "path": "packages/ui/src/csv/parse.ts",
+      "sha256": "fb90f43c82a24932e6ae0c0332dbe3b53cbfeaf9e00bac41daa79c830c352af9",
+      "bytes": 7779,
+      "category": "implementation",
+      "owner_stage": "source-candidate"
+    },
+    {
+      "path": "packages/ui/src/forms.ts",
+      "sha256": "8c4e1890c0d7a52bf6e91be83b26f2d40f675bed8bfab222797f19eaf4b67f71",
+      "bytes": 74034,
+      "category": "implementation",
+      "owner_stage": "source-candidate"
+    },
+    {
+      "path": "packages/ui/src/groups.ts",
+      "sha256": "a9c4b976518a73c5905480ab86352b02f794db161335c0129f47dde1b3ea5e0f",
+      "bytes": 20121,
+      "category": "implementation",
+      "owner_stage": "source-candidate"
+    },
+    {
+      "path": "packages/ui/src/leaves.ts",
+      "sha256": "7b6adec794d80689be67a03993632d8ef9fa107b266ae613c3f8bc58d5051e4e",
+      "bytes": 12261,
+      "category": "implementation",
+      "owner_stage": "source-candidate"
+    },
+    {
+      "path": "packages/ui/src/media.ts",
+      "sha256": "22de7f0408016471ec6d84ca62498a59c2ee7e6732a5ff866321008fa1f43a52",
+      "bytes": 9219,
+      "category": "implementation",
+      "owner_stage": "source-candidate"
+    },
+    {
+      "path": "packages/ui/src/navigation.ts",
+      "sha256": "b361c673d0cef45297673394e08679f8f55d5458bbff2a0847f5f40ed244e869",
+      "bytes": 28447,
+      "category": "implementation",
+      "owner_stage": "source-candidate"
+    },
+    {
+      "path": "packages/ui/src/overlays.ts",
+      "sha256": "125ddc7c0d491a9056b55db5e4fd8d14dbd69e156b995f5fb3d3d9769ade4b4c",
+      "bytes": 19706,
+      "category": "implementation",
+      "owner_stage": "source-candidate"
+    },
+    {
+      "path": "packages/ui/src/panels.ts",
+      "sha256": "3d8bd4461930b48e326ec2f733f7d95acb5e01b52dc3a4fe8097e51fbdd7838e",
+      "bytes": 17314,
+      "category": "implementation",
+      "owner_stage": "source-candidate"
+    },
+    {
+      "path": "packages/ui/src/review.ts",
+      "sha256": "b01e6fa2923dae76cbd4e743b9618d891cfd07dc79060e77bec2c04d381bcfea",
+      "bytes": 4406,
+      "category": "implementation",
+      "owner_stage": "source-candidate"
+    },
+    {
+      "path": "packages/ui/src/settings.ts",
+      "sha256": "f82458311f13871649ff392368efb17fc85c17250eede1153450b5f509b8136f",
+      "bytes": 9881,
+      "category": "implementation",
+      "owner_stage": "source-candidate"
+    },
+    {
+      "path": "packages/values/bindings/backend.ts",
+      "sha256": "bf1263532c90d0cdf64da032dd20040952682fb1f5f00c4a2daefa1f7f4304a3",
+      "bytes": 4241,
+      "category": "implementation",
+      "owner_stage": "TS-runtime; six-operation-opt-in-Rust; broader-joins-open"
+    },
+    {
+      "path": "packages/values/bindings/validation.ts",
+      "sha256": "604bb55a4e60ea58b3d8c9cc8657b9a0256f7f45ebf9ce64256c2f55df44820f",
+      "bytes": 2213,
+      "category": "implementation",
+      "owner_stage": "TS-runtime; six-operation-opt-in-Rust; broader-joins-open"
+    },
+    {
+      "path": "packages/values/semantics/src/codecs/numeric.rs",
+      "sha256": "6f06587f264ae4365739c7fbbbb9e2fe9e3b4319c5cc6fc71e056594dc740217",
+      "bytes": 26093,
+      "category": "implementation",
+      "owner_stage": "TS-runtime; six-operation-opt-in-Rust; broader-joins-open"
+    },
+    {
+      "path": "packages/values/semantics/src/numeric/decimal.rs",
+      "sha256": "53040e3de46f5e17d8c5025928bdb3ef2047e88d6fd488821686dcfbd026ade6",
+      "bytes": 12685,
+      "category": "implementation",
+      "owner_stage": "TS-runtime; six-operation-opt-in-Rust; broader-joins-open"
+    },
+    {
+      "path": "packages/values/semantics/src/numeric/integer.rs",
+      "sha256": "9f9c5c5deee443593d126dfdf03a8b7f00d1ce01b52becbe08f872242c0962ae",
+      "bytes": 3117,
+      "category": "implementation",
+      "owner_stage": "TS-runtime; six-operation-opt-in-Rust; broader-joins-open"
+    },
+    {
+      "path": "packages/values/semantics/src/numeric/rounding.rs",
+      "sha256": "a224bb2805d8192a2a26b5452284a708ee3c2a8a04bc6076f9611d2d200533cd",
+      "bytes": 2165,
+      "category": "implementation",
+      "owner_stage": "TS-runtime; six-operation-opt-in-Rust; broader-joins-open"
+    },
+    {
+      "path": "packages/values/semantics/src/plans.rs",
+      "sha256": "a273a9ae85ffb1492f3780713774a01722f2b9cd0db2740ffe5e81f10ded4a7c",
+      "bytes": 39887,
+      "category": "implementation",
+      "owner_stage": "TS-runtime; six-operation-opt-in-Rust; broader-joins-open"
+    },
+    {
+      "path": "packages/values/semantics/src/representations/numeric.rs",
+      "sha256": "c012805095152f62168db2b00fa6c7a2ebc741f526f2e68a004bcfe3d149f13c",
+      "bytes": 18589,
+      "category": "implementation",
+      "owner_stage": "TS-runtime; six-operation-opt-in-Rust; broader-joins-open"
+    },
+    {
+      "path": "packages/values/semantics/src/temporal/civil.rs",
+      "sha256": "b2d0314f8255e64c64360de880992963818c59affe6ad866360af1f3eca9241d",
+      "bytes": 11116,
+      "category": "implementation",
+      "owner_stage": "TS-runtime; six-operation-opt-in-Rust; broader-joins-open"
+    },
+    {
+      "path": "packages/values/semantics/src/transport/exact.rs",
+      "sha256": "7c2f5600bf4c72b5ccfef82500113e28f1fc3131a0f818dff8e205b802142817",
+      "bytes": 34328,
+      "category": "implementation",
+      "owner_stage": "TS-runtime; six-operation-opt-in-Rust; broader-joins-open"
+    },
+    {
+      "path": "packages/values/src/decimal.ts",
+      "sha256": "e4056e2849f928106b36f534ee72f3416fed9550c19da914dc9e02d4c14f592e",
+      "bytes": 17358,
+      "category": "implementation",
+      "owner_stage": "TS-runtime; six-operation-opt-in-Rust; broader-joins-open"
+    },
+    {
+      "path": "packages/values/src/icu.ts",
+      "sha256": "07a1cfc94cf0a0a338cf1a7307648db211479a9da0a3b4cae7d5d99030a9b70e",
+      "bytes": 41368,
+      "category": "implementation",
+      "owner_stage": "TS-runtime; six-operation-opt-in-Rust; broader-joins-open"
+    },
+    {
+      "path": "packages/values/src/index.ts",
+      "sha256": "d92ac7192a8739ddbfaf32ccc64e0aeba7fb30726e7bf40d7e81eb9a239d61c4",
+      "bytes": 863,
+      "category": "implementation",
+      "owner_stage": "TS-runtime; six-operation-opt-in-Rust; broader-joins-open"
+    },
+    {
+      "path": "packages/values/src/int.ts",
+      "sha256": "e85ea2cf5d6dc70793ed1347676b935f07c9650747eaf4a5006ea0adbf3e496d",
+      "bytes": 2917,
+      "category": "implementation",
+      "owner_stage": "TS-runtime; six-operation-opt-in-Rust; broader-joins-open"
+    },
+    {
+      "path": "packages/values/src/internal/schema-core.ts",
+      "sha256": "a8b147e6c4c63f3bd9cc0d1c55a2fad582effaf2d18dde4394c0d30345963792",
+      "bytes": 63826,
+      "category": "implementation",
+      "owner_stage": "TS-runtime; six-operation-opt-in-Rust; broader-joins-open"
+    },
+    {
+      "path": "packages/values/src/internal/wire-core.ts",
+      "sha256": "2c940525ff289d3154dca0db754f99eca480c67992e8e180aee2a97ddddec059",
+      "bytes": 58994,
+      "category": "implementation",
+      "owner_stage": "TS-runtime; six-operation-opt-in-Rust; broader-joins-open"
+    },
+    {
+      "path": "packages/values/src/kinds.ts",
+      "sha256": "35cf9ba2ccadb5157d66423530af9c9eca9def2d74df3b43dd0d318d5427b0e7",
+      "bytes": 11985,
+      "category": "implementation",
+      "owner_stage": "TS-runtime; six-operation-opt-in-Rust; broader-joins-open"
+    },
+    {
+      "path": "packages/values/src/prepared/codec.ts",
+      "sha256": "57c424874fab4ec899a2ebc3306c53fc123a70167a97859b352398c7ca52a56e",
+      "bytes": 5437,
+      "category": "implementation",
+      "owner_stage": "TS-runtime; six-operation-opt-in-Rust; broader-joins-open"
+    },
+    {
+      "path": "packages/values/src/prepared/plan.ts",
+      "sha256": "31cc0a8a09774f5a6754372700b41269cd3df73de4171574053fbab661faa0d4",
+      "bytes": 21288,
+      "category": "implementation",
+      "owner_stage": "TS-runtime; six-operation-opt-in-Rust; broader-joins-open"
+    },
+    {
+      "path": "packages/values/src/prepared/validation.ts",
+      "sha256": "3faa71c0be5d2e0c9fc61678761dcb2d8fad564f5dd0e4485a2b14ea91120e36",
+      "bytes": 25636,
+      "category": "implementation",
+      "owner_stage": "TS-runtime; six-operation-opt-in-Rust; broader-joins-open"
+    },
+    {
+      "path": "packages/values/src/schema.ts",
+      "sha256": "2de2fddbc23f38b9347054ba0de2be709fca3028fd29f46ee144272d2e57cd9b",
+      "bytes": 1637,
+      "category": "implementation",
+      "owner_stage": "TS-runtime; six-operation-opt-in-Rust; broader-joins-open"
+    },
+    {
+      "path": "packages/values/src/temporal.ts",
+      "sha256": "53619b5bc448c4c32b2980643c8eccf36bf43bc34d8a26e70fd39adc2e83d35e",
+      "bytes": 21713,
+      "category": "implementation",
+      "owner_stage": "TS-runtime; six-operation-opt-in-Rust; broader-joins-open"
+    },
+    {
+      "path": "packages/values/src/timezone.ts",
+      "sha256": "fb3946b521ceadcb5639118aa62862f073e62362220e425e917c250bb271427d",
+      "bytes": 8733,
+      "category": "implementation",
+      "owner_stage": "TS-runtime; six-operation-opt-in-Rust; broader-joins-open"
+    },
+    {
+      "path": "packages/values/src/wire.ts",
+      "sha256": "0313cb7b43eecd4b61470ff279a18627e0e7c2abd239fe200497144afb86e842",
+      "bytes": 619,
+      "category": "implementation",
+      "owner_stage": "TS-runtime; six-operation-opt-in-Rust; broader-joins-open"
+    },
+    {
+      "path": "packages/work-kernel/decisions/lib.rs",
+      "sha256": "712d5421c60a117a0ca36c27a7f6e466cb5932f54ad52ff1560d81766bd64509",
+      "bytes": 514,
+      "category": "implementation",
+      "owner_stage": "TS-candidates; registered-Rust-decisions; public-consumer-joins-open"
+    },
+    {
+      "path": "packages/work-kernel/decisions/lifecycle.rs",
+      "sha256": "70af017dd928e49f0528a6a2a88df913c6ff3f3c8dcb47294b2781953c9f1342",
+      "bytes": 39049,
+      "category": "implementation",
+      "owner_stage": "TS-candidates; registered-Rust-decisions; public-consumer-joins-open"
+    },
+    {
+      "path": "packages/work-kernel/decisions/linkage.rs",
+      "sha256": "2b88e65cd8f0183629bdf00e2ad97a0b6930e03b0bc3d546e6a367de813ab94c",
+      "bytes": 105733,
+      "category": "implementation",
+      "owner_stage": "TS-candidates; registered-Rust-decisions; public-consumer-joins-open"
+    },
+    {
+      "path": "packages/work-kernel/decisions/numeric_text.rs",
+      "sha256": "e7b2326766bd664c5e50edf882ecbf4027558a503dfb000ab3ea5890867a9c00",
+      "bytes": 859,
+      "category": "implementation",
+      "owner_stage": "TS-candidates; registered-Rust-decisions; public-consumer-joins-open"
+    },
+    {
+      "path": "packages/work-kernel/decisions/receipt.rs",
+      "sha256": "2f2b048b40913632954ce74e2a27e785cb9a6968796fc6d155bda9b9dccf222d",
+      "bytes": 88663,
+      "category": "implementation",
+      "owner_stage": "TS-candidates; registered-Rust-decisions; public-consumer-joins-open"
+    },
+    {
+      "path": "packages/work-kernel/decisions/recovery.rs",
+      "sha256": "8b9c7de1e678c8da1bf34181da1c3acea4eded6e4cb01ef57ed20c2e23249068",
+      "bytes": 135214,
+      "category": "implementation",
+      "owner_stage": "TS-candidates; registered-Rust-decisions; public-consumer-joins-open"
+    },
+    {
+      "path": "packages/work-kernel/decisions/retry.rs",
+      "sha256": "f2d2ee809e2fa112a67de4c699361e214b49885a9b24a02849df80c1903c11cb",
+      "bytes": 18249,
+      "category": "implementation",
+      "owner_stage": "TS-candidates; registered-Rust-decisions; public-consumer-joins-open"
+    },
+    {
+      "path": "packages/work-kernel/decisions/rows.rs",
+      "sha256": "b2e4420da4e98bb575f23eef2033985d5f18ed1c3b2a41c442cd98a461770c13",
+      "bytes": 276000,
+      "category": "implementation",
+      "owner_stage": "TS-candidates; registered-Rust-decisions; public-consumer-joins-open"
+    },
+    {
+      "path": "packages/work-kernel/package.json",
+      "sha256": "5b2b5267aaa3f92ae8284fa8c8464bd7831023e4f2ce190623886210fcd84a07",
+      "bytes": 1405,
+      "category": "metadata",
+      "owner_stage": "TS-candidates; registered-Rust-decisions; public-consumer-joins-open"
+    },
+    {
+      "path": "packages/work-kernel/rust/lib.rs",
+      "sha256": "46a4c32e6615c9b0cbe7758461fd71f72a790af2c71a0fb11de08e054abb681d",
+      "bytes": 403,
+      "category": "implementation",
+      "owner_stage": "TS-candidates; registered-Rust-decisions; public-consumer-joins-open"
+    },
+    {
+      "path": "packages/work-kernel/src/index.ts",
+      "sha256": "19d90ce21117e04456f95e44d5d51f7303fd9b17cbf236813b673173eedc4c49",
+      "bytes": 726,
+      "category": "implementation",
+      "owner_stage": "TS-candidates; registered-Rust-decisions; public-consumer-joins-open"
+    },
+    {
+      "path": "packages/work-kernel/src/linkage.ts",
+      "sha256": "ecc6c6cee42a14e7b012ef47875553d51207902d2498b0adef935a8555a047d4",
+      "bytes": 14471,
+      "category": "implementation",
+      "owner_stage": "TS-candidates; registered-Rust-decisions; public-consumer-joins-open"
+    },
+    {
+      "path": "packages/work-kernel/src/retry.ts",
+      "sha256": "2f95964c9e809ff62b628733e1c9c89c89d65df82ef5f633ca2f86b5896044e4",
+      "bytes": 4293,
+      "category": "implementation",
+      "owner_stage": "TS-candidates; registered-Rust-decisions; public-consumer-joins-open"
+    },
+    {
+      "path": "packages/work-kernel/src/rows.ts",
+      "sha256": "5267d759fcb0f17cae6cd9ea864783cc16e793fe0ac6658f4e0d1dbf6d0e0c4d",
+      "bytes": 40753,
+      "category": "implementation",
+      "owner_stage": "TS-candidates; registered-Rust-decisions; public-consumer-joins-open"
+    },
+    {
+      "path": "packages/work-kernel/tsconfig.json",
+      "sha256": "be538f73951bafb9b1a89fa55702abfbceab4adb06e2c5e8f869207d57e22bab",
+      "bytes": 561,
+      "category": "metadata",
+      "owner_stage": "TS-candidates; registered-Rust-decisions; public-consumer-joins-open"
+    },
+    {
+      "path": "packages/work/src/observation/ports.ts",
+      "sha256": "23061afc6796d81c60d56013ff396ef8235d777a6aa34e8dbf95adbc48a73740",
+      "bytes": 5226,
+      "category": "implementation",
+      "owner_stage": "source-candidate"
+    },
+    {
+      "path": "packages/work/src/ports.ts",
+      "sha256": "70a65508156c6c01ce9aa09341036f92274bbe9bdc122390751bd0d2d59c44fe",
+      "bytes": 11341,
+      "category": "implementation",
+      "owner_stage": "source-candidate"
+    },
+    {
+      "path": "packages/work/src/receipt/index.ts",
+      "sha256": "9d51ff1a4bf0bd4ec2368aa0e2d094c72b3a1ef85c939526e0110bd05f058816",
+      "bytes": 14884,
+      "category": "implementation",
+      "owner_stage": "source-candidate"
+    }
+  ],
+  "limit": "Source identity and range measurements only; installed hosts not rerun."
+}

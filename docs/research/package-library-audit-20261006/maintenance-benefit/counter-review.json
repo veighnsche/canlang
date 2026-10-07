@@ -1,0 +1,382 @@
+{
+  "schema": "canlang-maintenance-opposing-review-v1",
+  "freeze": "d253b2f1a91ad3ce9259f9aa57aa33be291fd289",
+  "model": "Sol medium",
+  "mode": "Finite opposing source/accounting review; no tests/runtime/build/install/network/Git/repo writes; no new mechanism proposals.",
+  "inputs": [
+    {
+      "path": "/private/tmp/canlang-maintenance-values.json",
+      "sha256": "a1363b3c07cc8cf7230ff9b63ba5898ae9091c3c6e4a6ced82419a75b622d947"
+    },
+    {
+      "path": "/private/tmp/canlang-maintenance-adapters.json",
+      "sha256": "7ae77dd1535b2cba860050af8179b6461a09fe8b966dea97aca263ac1f5854ca"
+    }
+  ],
+  "verdict": "No blocking false net-saving or deletion-of-authority finding in reviewed inputs. Gross envelopes are explicitly conditional and exact future totals unknown. One source-anchor correction and consolidation/qualification guards recorded.",
+  "largestEnvelopeChecks": [
+    {
+      "recordID": "DR01",
+      "result": "gross duplicate-envelope arithmetic supported; no net savings established",
+      "measuredEnvelopePhysicalLines": 212,
+      "reportedMatches": true,
+      "allSliceHashesMatch": true,
+      "basis": "11 distinct duplicate leaf envelopes:19+10+64+12+16+14+14+14+11+14+24; nested six-line order callback is already inside12 and excluded.",
+      "qualification": "Retained canonical mechanism, moved/shared body, wrappers, imports, signatures/types and constants must appear in proposed-after. Physical envelopes include declarations; never add nested anchors or equate gross envelope to exact net budget.",
+      "anchors": [
+        {
+          "path": "packages/state/src/storage/d1.ts",
+          "start": 96,
+          "end": 114,
+          "requested_range_correction": null,
+          "file_sha256": "b702d004e8f231c568cfffbaaff1a9bdb0e208b33d90be2e480f472a4fcd0e45",
+          "slice_sha256": "ae1c3e2b9a025a0cc9fc108976ff1d5060584e5f44472a66267d7d88767cc1f7",
+          "physical_lines": 19,
+          "nonblank_lines": 19,
+          "limit": "Current source envelope, not net deletion or role-separated runtime delta."
+        },
+        {
+          "path": "packages/state/src/storage/durable-object.ts",
+          "start": 106,
+          "end": 124,
+          "requested_range_correction": null,
+          "file_sha256": "8c64da34e972c1e66bf4ccf46ea062ac160d44cedc99aba436af4b53d8d60956",
+          "slice_sha256": "ae1c3e2b9a025a0cc9fc108976ff1d5060584e5f44472a66267d7d88767cc1f7",
+          "physical_lines": 19,
+          "nonblank_lines": 19,
+          "limit": "Current source envelope, not net deletion or role-separated runtime delta."
+        }
+      ]
+    },
+    {
+      "recordID": "DR02",
+      "result": "gross duplicate-envelope arithmetic supported; no net savings established",
+      "measuredEnvelopePhysicalLines": 62,
+      "reportedMatches": true,
+      "allSliceHashesMatch": true,
+      "basis": "Four16-line freeze copies -> remove three; two14-line path copies -> remove one:48+14.",
+      "qualification": "Retained canonical mechanism, moved/shared body, wrappers, imports, signatures/types and constants must appear in proposed-after. Physical envelopes include declarations; never add nested anchors or equate gross envelope to exact net budget.",
+      "anchors": [
+        {
+          "path": "packages/state/src/migration/validate.ts",
+          "start": 155,
+          "end": 168,
+          "requested_range_correction": null,
+          "file_sha256": "65b91401233df5f87035dfa41253f28915c826062c66abd45a750438fbe5066d",
+          "slice_sha256": "3b9708bba0fc1975d28709615a9cd194570854ad3b6a9006a135167774eaa457",
+          "physical_lines": 14,
+          "nonblank_lines": 14,
+          "limit": "Current source envelope, not net deletion or role-separated runtime delta."
+        },
+        {
+          "path": "packages/state/src/mutation/pipeline.ts",
+          "start": 231,
+          "end": 244,
+          "requested_range_correction": null,
+          "file_sha256": "1160f08db792ebe64c1c48829e6e3be8df436c3019fb47e87746c9e5ac3c39b9",
+          "slice_sha256": "3b9708bba0fc1975d28709615a9cd194570854ad3b6a9006a135167774eaa457",
+          "physical_lines": 14,
+          "nonblank_lines": 14,
+          "limit": "Current source envelope, not net deletion or role-separated runtime delta."
+        }
+      ]
+    },
+    {
+      "recordID": "DR03",
+      "result": "gross duplicate-envelope arithmetic supported; no net savings established",
+      "measuredEnvelopePhysicalLines": 198,
+      "reportedMatches": true,
+      "allSliceHashesMatch": true,
+      "basis": "Ten22-line pickAppearance copies -> remove nine:198; optional idAttr excluded.",
+      "qualification": "Retained canonical mechanism, moved/shared body, wrappers, imports, signatures/types and constants must appear in proposed-after. Physical envelopes include declarations; never add nested anchors or equate gross envelope to exact net budget.",
+      "anchors": [
+        {
+          "path": "packages/ui/src/collections.ts",
+          "start": 819,
+          "end": 840,
+          "requested_range_correction": null,
+          "file_sha256": "c9568ffd924ba2ba842c776adb1cf75cbb5df7af73702d12fe3718d572bde3ab",
+          "slice_sha256": "d5f6f91cbbdfdd4239096f2376d8b2f0bfe76775fa86257d20a25f832b632a26",
+          "physical_lines": 22,
+          "nonblank_lines": 22,
+          "limit": "Current source envelope, not net deletion or role-separated runtime delta."
+        },
+        {
+          "path": "packages/ui/src/controls.ts",
+          "start": 100,
+          "end": 121,
+          "requested_range_correction": null,
+          "file_sha256": "ddf2dc4c1a098bcbf2f2beb92e2df551ffc09843b84bafd7ffdc4d9bbd56ccd8",
+          "slice_sha256": "d5f6f91cbbdfdd4239096f2376d8b2f0bfe76775fa86257d20a25f832b632a26",
+          "physical_lines": 22,
+          "nonblank_lines": 22,
+          "limit": "Current source envelope, not net deletion or role-separated runtime delta."
+        }
+      ]
+    },
+    {
+      "recordID": "DR04",
+      "result": "gross duplicate-envelope arithmetic supported; no net savings established",
+      "measuredEnvelopePhysicalLines": 104,
+      "reportedMatches": true,
+      "allSliceHashesMatch": true,
+      "basis": "One second copy each of six matching leaf envelopes17+23+15+23+10+16.",
+      "qualification": "Retained canonical mechanism, moved/shared body, wrappers, imports, signatures/types and constants must appear in proposed-after. Physical envelopes include declarations; never add nested anchors or equate gross envelope to exact net budget.",
+      "anchors": [
+        {
+          "path": "packages/ui/src/controls.ts",
+          "start": 128,
+          "end": 144,
+          "requested_range_correction": null,
+          "file_sha256": "ddf2dc4c1a098bcbf2f2beb92e2df551ffc09843b84bafd7ffdc4d9bbd56ccd8",
+          "slice_sha256": "8ee88f8c24fb511c78f8aa8ec18e7bb55844393ecf38715851f91f65fca2546b",
+          "physical_lines": 17,
+          "nonblank_lines": 17,
+          "limit": "Current source envelope, not net deletion or role-separated runtime delta."
+        },
+        {
+          "path": "packages/ui/src/forms.ts",
+          "start": 216,
+          "end": 232,
+          "requested_range_correction": null,
+          "file_sha256": "8c4e1890c0d7a52bf6e91be83b26f2d40f675bed8bfab222797f19eaf4b67f71",
+          "slice_sha256": "8ee88f8c24fb511c78f8aa8ec18e7bb55844393ecf38715851f91f65fca2546b",
+          "physical_lines": 17,
+          "nonblank_lines": 17,
+          "limit": "Current source envelope, not net deletion or role-separated runtime delta."
+        }
+      ]
+    },
+    {
+      "recordID": "DR09",
+      "result": "gross duplicate-envelope arithmetic supported; no net savings established",
+      "measuredEnvelopePhysicalLines": 89,
+      "reportedMatches": true,
+      "allSliceHashesMatch": true,
+      "basis": "Four19-line readTextBody copies -> remove three; three16-line sendBody copies -> remove two:57+32. Nested17-line body and optional21-line socket are excluded.",
+      "qualification": "Retained canonical mechanism, moved/shared body, wrappers, imports, signatures/types and constants must appear in proposed-after. Physical envelopes include declarations; never add nested anchors or equate gross envelope to exact net budget.",
+      "anchors": [
+        {
+          "path": "packages/services/src/judgments/harness.ts",
+          "start": 43,
+          "end": 61,
+          "requested_range_correction": null,
+          "file_sha256": "3ffbed629601d02f6f39519ed75b2da07c76de8b8ec661b82faac68ebf6088e4",
+          "slice_sha256": "69f18fcd6ce78b52d49f0cfd55432048f4843d91be7c0f8473e70db475e31fdb",
+          "physical_lines": 19,
+          "nonblank_lines": 19,
+          "limit": "Current source envelope, not net deletion or role-separated runtime delta."
+        },
+        {
+          "path": "packages/services/src/media/harness.ts",
+          "start": 67,
+          "end": 85,
+          "requested_range_correction": null,
+          "file_sha256": "51bd4abae84239b00d9492f24416521d9a4d567a192eaba070a56daa698aa233",
+          "slice_sha256": "69f18fcd6ce78b52d49f0cfd55432048f4843d91be7c0f8473e70db475e31fdb",
+          "physical_lines": 19,
+          "nonblank_lines": 19,
+          "limit": "Current source envelope, not net deletion or role-separated runtime delta."
+        }
+      ]
+    }
+  ],
+  "historicalOwnerChecks": [
+    {
+      "owner": "values",
+      "savedBaselineMatches": true,
+      "readableDelta": 98,
+      "limit": "All-owner historical footprint, not family replacement attribution; inline Rust tests excluded."
+    },
+    {
+      "owner": "work",
+      "savedBaselineMatches": true,
+      "readableDelta": 0,
+      "limit": "All-owner historical footprint, not family replacement attribution; inline Rust tests excluded."
+    },
+    {
+      "owner": "work-kernel",
+      "savedBaselineMatches": true,
+      "readableDelta": -44,
+      "limit": "All-owner historical footprint, not family replacement attribution; inline Rust tests excluded."
+    },
+    {
+      "owner": "stdlib",
+      "savedBaselineMatches": true,
+      "readableDelta": 0,
+      "limit": "All-owner historical footprint, not family replacement attribution; inline Rust tests excluded."
+    }
+  ],
+  "historicalLocalChecks": {
+    "numericFormatterCurrent": {
+      "range": [
+        319,
+        334
+      ],
+      "nonblankLines": 16,
+      "hashMatches": true
+    },
+    "quoteCurrent": {
+      "range": [
+        155,
+        157
+      ],
+      "physicalLines": 3,
+      "hashMatches": true
+    },
+    "oldLocalLimit": "Original25-line formatter and21-line quote measurements are saved historical observations; old source bodies not independently reread here because Git use prohibited. They are already labeled narrow mechanism measurements and not all-owner net savings."
+  },
+  "findings": [
+    {
+      "id": "CR-01",
+      "severity": "consolidation-guard",
+      "recordIDs": [
+        "numeric-text",
+        "DV01",
+        "DV02",
+        "uri-identity-encoding",
+        "DV03",
+        "stable-json-identities",
+        "DC-01",
+        "semantic-owner-core",
+        "DV08",
+        "DR11",
+        "calendar-zone",
+        "DR12"
+      ],
+      "claim": "Family summaries and candidate records overlap and must not become additive deletion budgets.",
+      "evidence": "Both inputs explicitly warn against summing; numeric-text includes DV01+DV02, stable-json includes DC-01, calendar-zone includes DR12. URI encoder historical anchors overlap supplemental full encoder anchors.",
+      "requiredAction": "Keep candidate IDs as canonical unit; retain family crossreferences without separate savings. Preserve proposed-after=null absent concrete candidate.",
+      "anchors": [
+        {
+          "path": "packages/values/semantics/src/representations/numeric.rs",
+          "start": 319,
+          "end": 334,
+          "fileSha256": "c012805095152f62168db2b00fa6c7a2ebc741f526f2e68a004bcfe3d149f13c",
+          "rangeSha256": "a2f85f5dc41606a65ec2175ca745c2a120ff30e2e349dc627b1209c0c115406c"
+        },
+        {
+          "path": "packages/interfaces/src/http/csv.ts",
+          "start": 165,
+          "end": 174,
+          "fileSha256": "6025d282f5afb52e127bafc5fa1154935c126dce833b57713310af47d94a3d2e",
+          "rangeSha256": "22d333808b0738c3d23c4baa951fa9423ec8bc3ce346f0fa1522a9a833d58fee"
+        }
+      ]
+    },
+    {
+      "id": "CR-02",
+      "severity": "qualification",
+      "recordIDs": [
+        "intl-exact-display"
+      ],
+      "claim": "Conditional platform replacement can change localized digits/bidi/minimum grouping even with min=max author scale.",
+      "evidence": "Current source reconstructs digits from coef, uses probed symbols and manual grouping. Input explicitly calls out fidelity/correctness and consumer qualification; no false equivalent after demonstrated.",
+      "requiredAction": "Preserve exact baseline zeros and required outcomes for replacement-only comparison; separately allocate fidelity/correctness/capability behavior changes. No complete1035-1131 deletion credit because exact decimal construction/type/rounding remains.",
+      "anchors": [
+        {
+          "path": "packages/values/src/icu.ts",
+          "start": 1039,
+          "end": 1131,
+          "fileSha256": "07a1cfc94cf0a0a338cf1a7307648db211479a9da0a3b4cae7d5d99030a9b70e",
+          "rangeSha256": "de85a5606dc5cbc157228f484638cf4824e4dd343d17ba1269b56d3cfc45d84c"
+        }
+      ]
+    },
+    {
+      "id": "CR-03",
+      "severity": "qualification",
+      "recordIDs": [
+        "DC-02",
+        "DV03",
+        "DV04",
+        "DV08",
+        "DR10",
+        "DD-010"
+      ],
+      "claim": "Largest broad slices or source-only public/prototype states are not complete deletion envelopes.",
+      "evidence": "DC-02 retains playback transport/state and base64 runtime distinction; DV03 retains leaf value/error/carrier ownership; DV04 retains ordered admission; DV08 lineage gate explicitly held; DR10 and DD-010 preserve TS donors/oracles/prototype obligations. Inputs correctly keep these conditional/retained.",
+      "requiredAction": "Count only named equivalent pure leaves, exclude transport/state/authority/oracle retirement from simplification. DC-02 exact after remains unallocated until portable admission/caller graph qualifies.",
+      "anchors": [
+        {
+          "path": "packages/testkit/src/fixtures/playback.ts",
+          "start": 601,
+          "end": 688,
+          "fileSha256": "2f0805a6c150aafb900c4d296e5cee5b3c97996c338a4339a70e83235166617d",
+          "rangeSha256": "33aae37c4b72e01fb626ccb8e4bd13b5d2a105d10ed84f8e5aebc9749b30d460"
+        },
+        {
+          "path": "packages/work-kernel/decisions/rows.rs",
+          "start": 43,
+          "end": 82,
+          "fileSha256": "b2e4420da4e98bb575f23eef2033985d5f18ed1c3b2a41c442cd98a461770c13",
+          "rangeSha256": "86c4602ebb339987e185cefe63811b3fdf907f9fb78651ef949500b69d231a4d"
+        },
+        {
+          "path": "packages/values/src/internal/schema-core.ts",
+          "start": 110,
+          "end": 115,
+          "fileSha256": "a8b147e6c4c63f3bd9cc0d1c55a2fad582effaf2d18dde4394c0d30345963792",
+          "rangeSha256": "87a8228993073bc77f564671ba8ea10b511a1980247905d263730fc17aa051fa"
+        },
+        {
+          "path": "packages/interfaces/src/mcp/prepared.ts",
+          "start": 51,
+          "end": 201,
+          "fileSha256": "229cbc7cfd1f2e136f5014d31041dbca6b3593a64a266f42275d08409ba3c760",
+          "rangeSha256": "fbef2627e7f219bcb816fcc441321b7ea8ac7be83ca0d5044b8694e504c96f1e"
+        }
+      ]
+    },
+    {
+      "id": "CR-04",
+      "severity": "source-anchor-correction",
+      "recordIDs": [
+        "lossless-transport"
+      ],
+      "claim": "One recorded source range extends past EOF; not a false savings claim but its precise range should be clipped.",
+      "evidence": "packages/cloudflare/src/preparation/inputs.ts has127 physical lines; supplied range120-210 contains only120-127 (seven nonblank lines).",
+      "requiredAction": "Correct anchor to120-127. Do not treat91-line claimed interval as a production or deletion budget. Current record labels it nonadditive and assigns no savings.",
+      "anchors": [
+        {
+          "path": "packages/cloudflare/src/preparation/inputs.ts",
+          "start": 120,
+          "end": 127,
+          "fileSha256": "2d36665b20ff6387557355fe6ca63b11ce1f8c6a293b4c2494862a4b7a8229ac",
+          "rangeSha256": "b970f6cbb2c1296c77b66f6b09c4d03abd410a15e28bb1b451bc086bb6730b6f"
+        }
+      ]
+    }
+  ],
+  "requiredConsolidation": "Keep all absent-candidate proposed-after totals null and capability/correctness budget separate and unallocated. No source compression, relocation, denominator narrowing, generated/test/public-support moves or removed oracle code earns production reduction.",
+  "root_reconciliation": {
+    "range_corrections": [
+      {
+        "path": "packages/values/src/schema.ts",
+        "requested": [
+          1,
+          60
+        ],
+        "actual": [
+          1,
+          34
+        ]
+      },
+      {
+        "path": "packages/cloudflare/src/preparation/inputs.ts",
+        "requested": [
+          120,
+          210
+        ],
+        "actual": [
+          120,
+          127
+        ]
+      }
+    ],
+    "mixed_scope": "Calendar and Intl replacement portions remain subject to strict production reduction; zone-data/fidelity corrections require separately budgeted scope.",
+    "overlap": "Gross duplicate envelopes and affected-file histories are not summed across families/candidates.",
+    "future": "No implementation candidate, future exact total or net benefit accepted.",
+    "historical": "Root independently checks the two old/new formatter/quote body bounds and hashes by frozen Git blobs in verify.py."
+  }
+}

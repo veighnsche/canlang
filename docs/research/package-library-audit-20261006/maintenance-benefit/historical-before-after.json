@@ -1,0 +1,317 @@
+{
+  "original": "309644a6881909d8dba32560bc6711f67e00a7ab",
+  "measured_current": "8f33aa5e29d25bf3ea4d6035c7b2e3ddc0427854",
+  "source_freeze": "d253b2f1a91ad3ce9259f9aa57aa33be291fd289",
+  "package_tree_sha256": "5a236b0ccc0fb80682df16fe51a34beea8e1578a7fe30435fa8dbe2ac01b189b",
+  "root_package_manifest_and_lock_equal": true,
+  "owners": [
+    {
+      "owner": "cloudflare",
+      "before_implementation": 21343,
+      "after_implementation": 21522,
+      "before_definitions": 2677,
+      "after_definitions": 2739,
+      "runtime_delta": 241
+    },
+    {
+      "owner": "contracts",
+      "before_implementation": 3585,
+      "after_implementation": 3585,
+      "before_definitions": 3592,
+      "after_definitions": 3592,
+      "runtime_delta": 0
+    },
+    {
+      "owner": "files",
+      "before_implementation": 1834,
+      "after_implementation": 1834,
+      "before_definitions": 333,
+      "after_definitions": 333,
+      "runtime_delta": 0
+    },
+    {
+      "owner": "identity",
+      "before_implementation": 2782,
+      "after_implementation": 2801,
+      "before_definitions": 450,
+      "after_definitions": 453,
+      "runtime_delta": 22
+    },
+    {
+      "owner": "interfaces",
+      "before_implementation": 9100,
+      "after_implementation": 9027,
+      "before_definitions": 1068,
+      "after_definitions": 1068,
+      "runtime_delta": -73
+    },
+    {
+      "owner": "services",
+      "before_implementation": 5551,
+      "after_implementation": 5508,
+      "before_definitions": 543,
+      "after_definitions": 539,
+      "runtime_delta": -47
+    },
+    {
+      "owner": "state",
+      "before_implementation": 18217,
+      "after_implementation": 18217,
+      "before_definitions": 2050,
+      "after_definitions": 2050,
+      "runtime_delta": 0
+    },
+    {
+      "owner": "stdlib",
+      "before_implementation": 187,
+      "after_implementation": 187,
+      "before_definitions": 68,
+      "after_definitions": 68,
+      "runtime_delta": 0
+    },
+    {
+      "owner": "testkit",
+      "before_implementation": 1243,
+      "after_implementation": 1243,
+      "before_definitions": 144,
+      "after_definitions": 144,
+      "runtime_delta": 0
+    },
+    {
+      "owner": "ui",
+      "before_implementation": 12393,
+      "after_implementation": 12384,
+      "before_definitions": 1229,
+      "after_definitions": 1237,
+      "runtime_delta": -1
+    },
+    {
+      "owner": "values",
+      "before_implementation": 15998,
+      "after_implementation": 16082,
+      "before_definitions": 626,
+      "after_definitions": 640,
+      "runtime_delta": 98
+    },
+    {
+      "owner": "work",
+      "before_implementation": 5981,
+      "after_implementation": 5981,
+      "before_definitions": 1160,
+      "after_definitions": 1160,
+      "runtime_delta": 0
+    },
+    {
+      "owner": "work-kernel",
+      "before_implementation": 9873,
+      "after_implementation": 9829,
+      "before_definitions": 651,
+      "after_definitions": 651,
+      "runtime_delta": -44
+    }
+  ],
+  "limit": "Historical source envelope contains adoption, corrective behavior and assembly; it is not replacement-only causal attribution.",
+  "totals": {
+    "implementation": {
+      "before": 108087,
+      "after": 108200,
+      "delta": 113
+    },
+    "maintained_declarations": {
+      "before": 14591,
+      "after": 14674,
+      "delta": 83
+    },
+    "combined_runtime_candidate_source": {
+      "before": 122678,
+      "after": 122874,
+      "delta": 196
+    },
+    "external_runtime_npm_libraries": {
+      "before": 2,
+      "after": 9,
+      "delta": 7
+    },
+    "npm_export_subpaths": {
+      "before": 154,
+      "after": 156,
+      "delta": 2
+    }
+  },
+  "local_historical_changes": {
+    "values": {
+      "implementation_lines": {
+        "before": 15998,
+        "after": 16082,
+        "delta": 84
+      },
+      "definition_lines": {
+        "before": 626,
+        "after": 640,
+        "delta": 14
+      },
+      "inline_rust_test_lines": {
+        "before": 452,
+        "after": 500,
+        "delta": 48
+      }
+    },
+    "work": {
+      "implementation_lines": {
+        "before": 5981,
+        "after": 5981,
+        "delta": 0
+      },
+      "definition_lines": {
+        "before": 1160,
+        "after": 1160,
+        "delta": 0
+      },
+      "inline_rust_test_lines": {
+        "before": 0,
+        "after": 0,
+        "delta": 0
+      }
+    },
+    "work-kernel": {
+      "implementation_lines": {
+        "before": 9873,
+        "after": 9829,
+        "delta": -44
+      },
+      "definition_lines": {
+        "before": 651,
+        "after": 651,
+        "delta": 0
+      },
+      "inline_rust_test_lines": {
+        "before": 12392,
+        "after": 12395,
+        "delta": 3
+      }
+    },
+    "stdlib": {
+      "implementation_lines": {
+        "before": 187,
+        "after": 187,
+        "delta": 0
+      },
+      "definition_lines": {
+        "before": 68,
+        "after": 68,
+        "delta": 0
+      },
+      "inline_rust_test_lines": {
+        "before": 0,
+        "after": 0,
+        "delta": 0
+      }
+    },
+    "numeric_formatter_function": {
+      "original": {
+        "ref": "309644a6881909d8dba32560bc6711f67e00a7ab",
+        "path": "packages/values/semantics/src/representations/numeric.rs",
+        "range": [
+          319,
+          343
+        ],
+        "physical_nonblank_lines": 25,
+        "sha256": "d4dad000e5c2ea7c1dcc15fbae0d41cb0b7681b048e8a4c3d9459ab1479eb04e"
+      },
+      "current": {
+        "ref": "8f33aa5e29d25bf3ea4d6035c7b2e3ddc0427854",
+        "path": "packages/values/semantics/src/representations/numeric.rs",
+        "range": [
+          319,
+          334
+        ],
+        "physical_nonblank_lines": 16,
+        "sha256": "c012805095152f62168db2b00fa6c7a2ebc741f526f2e68a004bcfe3d149f13c"
+      },
+      "function_delta": -9,
+      "limit": "Function-local historical reduction only; does not count manifest/dependency declaration changes or explain package-wide growth."
+    },
+    "string_quoting_function": {
+      "current": {
+        "ref": "8f33aa5e29d25bf3ea4d6035c7b2e3ddc0427854",
+        "path": "packages/values/semantics/src/codecs/numeric.rs",
+        "range": [
+          155,
+          157
+        ],
+        "physical_lines": 3,
+        "sha256": "6f06587f264ae4365739c7fbbbb9e2fe9e3b4319c5cc6fc71e056594dc740217"
+      },
+      "original": {
+        "ref": "309644a6881909d8dba32560bc6711f67e00a7ab",
+        "path": "packages/values/semantics/src/codecs/numeric.rs",
+        "range": [
+          155,
+          175
+        ],
+        "physical_lines": 21,
+        "sha256": "4c12632d10e1d6b4f749c82f37c5910b7ae998cb1195fd1b571d69479784bd03"
+      },
+      "limit": "Function-body lexical brace envelope; historical narrow mechanism measurement only, not all-owner net savings."
+    }
+  },
+  "import_map_envelope": [
+    {
+      "path": "packages/cloudflare/src/deploy/bundle.ts",
+      "currentImplementationLines": 1362,
+      "currentDeclarationLines": 62,
+      "originalImplementationLines": 1396,
+      "originalDeclarationLines": 62,
+      "category": "implementation",
+      "stage": "TS-runtime; native-route-present; adoption-unproved"
+    },
+    {
+      "path": "packages/cloudflare/src/deploy/module-imports.ts",
+      "currentImplementationLines": 192,
+      "currentDeclarationLines": 51,
+      "originalImplementationLines": 0,
+      "originalDeclarationLines": 0,
+      "category": "implementation",
+      "stage": "TS-runtime; native-route-present; adoption-unproved"
+    },
+    {
+      "path": "packages/cloudflare/src/deploy/module-maps.ts",
+      "currentImplementationLines": 85,
+      "currentDeclarationLines": 9,
+      "originalImplementationLines": 0,
+      "originalDeclarationLines": 0,
+      "category": "implementation",
+      "stage": "TS-runtime; native-route-present; adoption-unproved"
+    },
+    {
+      "path": "packages/cloudflare/src/runtime/modules.ts",
+      "currentImplementationLines": 115,
+      "currentDeclarationLines": 29,
+      "originalImplementationLines": 169,
+      "originalDeclarationLines": 27,
+      "category": "implementation",
+      "stage": "TS-runtime; native-route-present; adoption-unproved"
+    },
+    {
+      "path": "packages/cloudflare/src/runtime/sourcemap.ts",
+      "currentImplementationLines": 139,
+      "currentDeclarationLines": 22,
+      "originalImplementationLines": 151,
+      "originalDeclarationLines": 22,
+      "category": "implementation",
+      "stage": "TS-runtime; native-route-present; adoption-unproved"
+    },
+    {
+      "path": "packages/cloudflare/src/runtime/invoke.ts",
+      "currentImplementationLines": 6219,
+      "currentDeclarationLines": 1386,
+      "originalImplementationLines": 6217,
+      "originalDeclarationLines": 1386,
+      "category": "implementation",
+      "stage": "TS-runtime; native-route-present; adoption-unproved"
+    }
+  ],
+  "replacement_only_attribution": "Not established for mixed historical batch. Formatter/string-quoting body reductions are real but are not whole-owner net claims. Schema/wire transfers are moves, not savings.",
+  "baseline_files_tsv_sha256": "f442755d97138e7f415b569647a56c380c5d2dc162e8efa584316673fa358313",
+  "units": "LF physical source at unchanged readable layout, including comments/blanks; implementation+maintained definitions exclude inline Rust tests, other tests, generated/data/scaffolds/documents. Runtime candidates are not all demonstrated shipped."
+}
