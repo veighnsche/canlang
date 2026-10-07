@@ -1,0 +1,28 @@
+   Compiling canlang-compiler v0.1.0 (/Users/vince/Projects/canlang/compiler)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.35s
+     Running tests/b3_s4.rs (/private/tmp/canlang-compiler-pass5/debug/deps/b3_s4-eb5483739a7a212a)
+
+running 4 tests
+test stale_reapply_reports_both_hashes_as_json ... ok
+test lint_without_fix_has_no_fixes_key ... ok
+test lsp_driver_code_action_roundtrip_through_real_binary ... ok
+test fix_json_is_deterministic_across_reruns ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.17s
+
+     Running tests/typed_fixes.rs (/private/tmp/canlang-compiler-pass5/debug/deps/typed_fixes-06be4a50e672f24c)
+
+running 4 tests
+test fix_field_order_controls_unicode_and_u32_bounds ... ok
+test fixes_serialize_as_typed_envelope_members ... ok
+test every_rejection_variant_has_fixed_order_and_span_shape ... ok
+test fix_list_is_ordered_and_empty_is_brackets ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/typed_fixes_cli.rs (/private/tmp/canlang-compiler-pass5/debug/deps/typed_fixes_cli-8a74d6b41e5787e3)
+
+running 1 test
+test lint_fix_flag_controls_presence_order_and_single_newline ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
