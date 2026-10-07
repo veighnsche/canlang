@@ -115,7 +115,8 @@ fn fresh_docs_cli_and_extracted_typed_json_enter_public_markdown_renderer() {
         "authored empty translation must win: {nl}"
     );
     assert!(
-        nl.contains(r#"| `title` | `text` | no | no | `"a\\n"` | — |  |"#),
+        // Code spans preserve literal backslashes without Markdown escape doubling.
+        nl.contains(r#"| `title` | `text` | no | no | `"a\n"` | — |  |"#),
         "{nl}"
     );
     assert!(
