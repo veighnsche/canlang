@@ -19,6 +19,42 @@ fn source_hashes_are_stable_content_hashes() {
 }
 
 #[test]
+fn diagnostic_ties_have_insertion_independent_output() {
+    use canlang_compiler::diagnostic::Related;
+    use canlang_compiler::source::SourceId;
+    let plain = Diagnostic::error("E1001", "same".into(), Span::new(SourceId(0), 0, 1));
+    let mut tagged = plain.clone();
+    tagged.tags.push("unnecessary".into());
+    let mut related = plain.clone();
+    related.related.push(Related {
+        span: Span::new(SourceId(0), 2, 3),
+        message: "origin".into(),
+    });
+    let mut warning = plain.clone();
+    warning.severity = Severity::Warning;
+    let want = vec![plain, tagged, related, warning];
+    let mut expected = DiagnosticResult::new("test", "1.0", 1);
+    expected.diagnostics = want.clone();
+    let expected_bytes = expected.to_json();
+    let db = SourceDb::new();
+    for shift in 0..want.len() {
+        for reverse in [false, true] {
+            let mut result = DiagnosticResult::new("test", "1.0", 1);
+            result.diagnostics = want.clone();
+            result.diagnostics.rotate_left(shift);
+            if reverse {
+                result.diagnostics.reverse();
+            }
+            result.finish();
+            assert_eq!(result.to_json(), expected_bytes);
+            assert_eq!(result.to_text(&db), expected.to_text(&db));
+            result.finish();
+            assert_eq!(result.to_json(), expected_bytes);
+        }
+    }
+}
+
+#[test]
 fn line_index_handles_crlf_and_unicode() {
     let text = "l\u{00e9}\r\n\u{1F600}\n";
     let index = LineIndex::new(text);

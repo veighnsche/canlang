@@ -68,6 +68,36 @@ impl Diagnostic {
             tags: Vec::new(),
         }
     }
+
+    /// Total output order, retaining the written order within related spans/tags.
+    pub(crate) fn canonical_cmp(&self, other: &Self) -> std::cmp::Ordering {
+        (
+            self.primary.file,
+            self.primary.start,
+            self.primary.end,
+            self.code,
+            &self.message,
+            self.severity.as_str(),
+        )
+            .cmp(&(
+                other.primary.file,
+                other.primary.start,
+                other.primary.end,
+                other.code,
+                &other.message,
+                other.severity.as_str(),
+            ))
+            .then_with(|| {
+                fn key(r: &Related) -> (crate::source::SourceId, u32, u32, &str) {
+                    (r.span.file, r.span.start, r.span.end, r.message.as_str())
+                }
+                self.related
+                    .iter()
+                    .map(key)
+                    .cmp(other.related.iter().map(key))
+            })
+            .then_with(|| self.tags.cmp(&other.tags))
+    }
 }
 
 /// Source revision entry in the result envelope.
@@ -245,22 +275,7 @@ impl DiagnosticResult {
     /// Sort diagnostics into canonical order. The full key makes
     /// byte-determinism independent of insertion order. Idempotent.
     pub fn finish(&mut self) {
-        self.diagnostics.sort_by(|a, b| {
-            (
-                a.primary.file,
-                a.primary.start,
-                a.primary.end,
-                a.code,
-                &a.message,
-            )
-                .cmp(&(
-                    b.primary.file,
-                    b.primary.start,
-                    b.primary.end,
-                    b.code,
-                    &b.message,
-                ))
-        });
+        self.diagnostics.sort_by(Diagnostic::canonical_cmp);
     }
 
     /// Render the compact deterministic JSON envelope (single line).
