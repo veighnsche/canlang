@@ -613,19 +613,28 @@ export function buildMcpBundle(_repoRoot?: string): string {
   // `createHandler` is the main's join-contract name for the real
   // `createMcpHandler` (identical `McpHandlerFactory` shape: `(deps) =>
   // (request) => Response`) — one alias, same function, no wrapper.
-  writeFileSync(
-    entryFile,
-    `export { createMcpHandler, createMcpHandler as createHandler } from ${JSON.stringify(toPosixAbsolute(serverDist))};\n` +
-      `export { createArtifactCatalog, createArtifactRegistry } from ${JSON.stringify(toPosixAbsolute(registryDist))};\n`,
-    "utf8",
-  );
+  let entryWritten = false;
   try {
+    writeFileSync(
+      entryFile,
+      `export { createMcpHandler, createMcpHandler as createHandler } from ${JSON.stringify(toPosixAbsolute(serverDist))};\n` +
+        `export { createArtifactCatalog, createArtifactRegistry } from ${JSON.stringify(toPosixAbsolute(registryDist))};\n`,
+      "utf8",
+    );
+    entryWritten = true;
     execFileSync(
       "bun",
       ["build", entryFile, "--format=esm", "--target=browser", `--outfile=${outFile}`],
       { stdio: "pipe" },
     );
   } catch (err) {
+    if (!entryWritten) {
+      try {
+        rmSync(workDir, { force: true, recursive: true });
+      } finally {
+        throw err;
+      }
+    }
     rmSync(workDir, { force: true, recursive: true });
     const detail = err instanceof Error ? err.message : String(err);
     if (detail.includes("ENOENT")) {
@@ -675,18 +684,27 @@ export function buildHttpOperationsBundle(_repoRoot?: string): string {
   const entryFile = join(workDir, "http-bundle-entry.js");
   const outFile = join(workDir, "http-bundle.mjs");
   const toPosixAbsolute = (path: string): string => path.split(sep).join(posix.sep);
-  writeFileSync(
-    entryFile,
-    `export { handleOperationRequest } from ${JSON.stringify(toPosixAbsolute(operationsDist))};\n`,
-    "utf8",
-  );
+  let entryWritten = false;
   try {
+    writeFileSync(
+      entryFile,
+      `export { handleOperationRequest } from ${JSON.stringify(toPosixAbsolute(operationsDist))};\n`,
+      "utf8",
+    );
+    entryWritten = true;
     execFileSync(
       "bun",
       ["build", entryFile, "--format=esm", "--target=browser", `--outfile=${outFile}`],
       { stdio: "pipe" },
     );
   } catch (err) {
+    if (!entryWritten) {
+      try {
+        rmSync(workDir, { force: true, recursive: true });
+      } finally {
+        throw err;
+      }
+    }
     rmSync(workDir, { force: true, recursive: true });
     const detail = err instanceof Error ? err.message : String(err);
     if (detail.includes("ENOENT")) {
